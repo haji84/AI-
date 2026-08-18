@@ -1,0 +1,5 @@
+PAUSED
+
+Kill switch is ON during Phase 0 bootstrap.
+Automated workers must perform no implementation while this file exists.
+Remove this file only after the Phase 0 bootstrap PR is approved and scheduled-task behavior has been reviewed.

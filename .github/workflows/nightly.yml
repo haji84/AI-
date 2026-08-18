@@ -1,0 +1,22 @@
+name: Nightly Guard
+
+on:
+  schedule:
+    - cron: '17 18 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  governance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check governance files
+        run: |
+          test -f AGENTS.md
+          test -f PROJECT_STATE.md
+          test -f ROADMAP.md
+          test -f .github/PULL_REQUEST_TEMPLATE.md
+          test -d .github/agents

@@ -1,0 +1,77 @@
+name: Implementation task
+description: Scoped implementation work for an AI employee
+title: "[TASK] "
+body:
+  - type: textarea
+    id: objective
+    attributes:
+      label: Objective
+    validations:
+      required: true
+  - type: textarea
+    id: current
+    attributes:
+      label: Current state
+    validations:
+      required: true
+  - type: textarea
+    id: symptoms
+    attributes:
+      label: Symptoms or error
+  - type: textarea
+    id: target
+    attributes:
+      label: Target files/folders
+    validations:
+      required: true
+  - type: textarea
+    id: related
+    attributes:
+      label: Related files
+  - type: textarea
+    id: allowed
+    attributes:
+      label: Allowed changes
+    validations:
+      required: true
+  - type: textarea
+    id: forbidden
+    attributes:
+      label: Forbidden changes
+    validations:
+      required: true
+  - type: textarea
+    id: invariants
+    attributes:
+      label: Existing behavior that must not break
+    validations:
+      required: true
+  - type: textarea
+    id: causes
+    attributes:
+      label: Suspected causes
+  - type: textarea
+    id: steps
+    attributes:
+      label: Required procedure
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Execution mode
+      options:
+        - Investigate only
+        - Investigate then implement minimal fix
+    validations:
+      required: true
