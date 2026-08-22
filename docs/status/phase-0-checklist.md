@@ -12,8 +12,8 @@
 - [x] Scheduled-task prompts/runbook
 - [x] Human gate rules
 - [x] Kill switch present and ON
-- [ ] Branch protection/ruleset verified
-- [ ] Scheduled Tasks created in ChatGPT/Codex
-- [ ] Codex environment configured for application toolchain
-- [ ] Dry-run issue completed end-to-end
-- [ ] Phase 0 bootstrap PR human-approved
+- [x] Branch protection/ruleset verified
+- [x] Scheduled Tasks created in ChatGPT/Codex
+- [x] Codex execution environment verified for the Phase 0 governance workflow
+- [x] Dry-run issue completed end-to-end
+- [x] Phase 0 bootstrap PR human-approved
