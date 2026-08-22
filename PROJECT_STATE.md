@@ -10,8 +10,8 @@ CURRENT_EPIC: Creator Studio Foundation
 ACTIVE_ISSUES: none
 OPEN_PRS: none
 BLOCKERS: none
-LAST_SUCCESSFUL_CI: CI run #23 succeeded for main after PR #13 merge
-NEXT_PRIORITY: Define the minimal Phase 1 storage abstraction contract (not started)
+LAST_SUCCESSFUL_CI: CI run #27 succeeded for main after PR #16 merge
+NEXT_PRIORITY: Define the minimal Phase 1 Job model and lifecycle contract (not started)
 HUMAN_APPROVAL_PENDING: none
 AUTO_FIX_ATTEMPTS_MAX: 3
 MAX_ACTIVE_AGENTS: 3
