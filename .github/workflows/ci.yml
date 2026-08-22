@@ -28,14 +28,30 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Detect project checks
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.19.0
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Lint
+        run: pnpm lint
+      - name: Test
+        run: pnpm test
+      - name: Build
+        run: pnpm build
+      - name: Verify production health endpoint
         shell: bash
         run: |
           set -euo pipefail
-          if [ -f package.json ]; then
-            echo "Node project detected. Install/test commands will be enabled when Phase 1 locks the package manager and scripts."
-          elif [ -f pyproject.toml ] || [ -f requirements.txt ]; then
-            echo "Python project detected. Test commands will be enabled when Phase 1 locks the toolchain."
-          else
-            echo "Phase 0 governance-only repository: no application toolchain yet."
+          pnpm start > next-server.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          if ! pnpm healthcheck; then
+            cat next-server.log
+            exit 1
           fi
