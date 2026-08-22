@@ -8,6 +8,10 @@ Read PROJECT_STATE, open PRs, CI, open issues and blockers. Do not implement. Se
 Cadence: hourly.
 Inspect open PRs for CI failures, review comments, merge conflicts and requested changes. Route fixable failures to Debugger. Stop on destructive changes. Mark ready work for human review.
 
+## Codex PR Fixer
+Cadence: condition-based or periodic polling.
+Use `docs/runbooks/codex-pr-fixer.md` as the mandatory execution contract. Run only for failing CI or actionable review feedback on an existing PR. Never merge. Stop immediately while `AI_COMPANY_PAUSED` exists. Maximum automatic fix attempts: 3.
+
 ## Nightly QA
 Cadence: nightly.
 Run or inspect deterministic repository checks. Create/route a failure issue when checks fail. Do not silently repair unrelated code.
