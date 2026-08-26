@@ -10,8 +10,8 @@ CURRENT_EPIC: Image generation
 ACTIVE_ISSUES: none
 OPEN_PRS: none
 BLOCKERS: none
-LAST_SUCCESSFUL_CI: CI run #46 succeeded for main after PR #30 merge
-NEXT_PRIORITY: Define the minimal Phase 2 image generation application service/use-case contract (not started)
+LAST_SUCCESSFUL_CI: CI run #51 succeeded for main after PR #33 merge
+NEXT_PRIORITY: Define the minimal Phase 2 image generation API endpoint contract (not started)
 HUMAN_APPROVAL_PENDING: none
 AUTO_FIX_ATTEMPTS_MAX: 3
 MAX_ACTIVE_AGENTS: 3
