@@ -10,8 +10,8 @@ CURRENT_EPIC: Image generation
 ACTIVE_ISSUES: none
 OPEN_PRS: none
 BLOCKERS: none
-LAST_SUCCESSFUL_CI: CI run #55 succeeded for main after PR #36 merge
-NEXT_PRIORITY: Define the minimal Phase 2 free/local-capable image generation provider adapter contract (not started)
+LAST_SUCCESSFUL_CI: CI run #59 succeeded for main after PR #39 merge
+NEXT_PRIORITY: Select and integrate the first minimal free/local image generation runtime behind the existing adapter (not started)
 HUMAN_APPROVAL_PENDING: none
 AUTO_FIX_ATTEMPTS_MAX: 3
 MAX_ACTIVE_AGENTS: 3
