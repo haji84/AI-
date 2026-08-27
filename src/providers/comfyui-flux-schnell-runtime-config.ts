@@ -10,7 +10,9 @@ export interface ComfyUiFluxSchnellRuntimeConfig {
   readonly pollDelayMs: number;
 }
 
-function required(env: NodeJS.ProcessEnv, name: string): string {
+type RuntimeEnvironment = Readonly<Record<string, string | undefined>>;
+
+function required(env: RuntimeEnvironment, name: string): string {
   const value = env[name]?.trim();
   if (!value) throw new Error(`${name} is required.`);
   return value;
@@ -29,7 +31,7 @@ function nonNegativeSafeInteger(value: string | undefined, fallback: number, nam
 }
 
 export function parseComfyUiFluxSchnellRuntimeConfig(
-  env: NodeJS.ProcessEnv,
+  env: RuntimeEnvironment,
 ): ComfyUiFluxSchnellRuntimeConfig {
   const baseUrl = required(env, "COMFYUI_BASE_URL").replace(/\/+$/, "");
   const url = new URL(baseUrl);
