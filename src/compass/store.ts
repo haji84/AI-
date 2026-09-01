@@ -103,9 +103,11 @@ function assertVerificationStatus(status: string): asserts status is Verificatio
 }
 
 export class CompassStore {
+  readonly dbPath: string;
   private readonly db: DatabaseSync;
 
-  constructor(readonly dbPath: string) {
+  constructor(dbPath: string) {
+    this.dbPath = dbPath;
     if (dbPath !== ":memory:") mkdirSync(dirname(dbPath), { recursive: true });
     this.db = new DatabaseSync(dbPath);
     this.db.exec("PRAGMA foreign_keys = ON;");
