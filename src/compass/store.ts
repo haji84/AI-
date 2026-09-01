@@ -373,11 +373,12 @@ export class CompassStore {
         PROJECT_ID,
       );
 
-      this.db.exec("COMMIT");
       const historyId = Number(historyResult.lastInsertRowid);
       const history = this.getHistory(100).find((entry) => entry.id === historyId);
-      if (!history) throw new Error("write-back history record missing after commit");
-      return { state: this.getState(), history, verification };
+      if (!history) throw new Error("write-back history record missing before commit");
+      const state = this.getState();
+      this.db.exec("COMMIT");
+      return { state, history, verification };
     } catch (error) {
       this.db.exec("ROLLBACK");
       throw error;
