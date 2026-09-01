@@ -4,13 +4,13 @@ PROJECT: Unified AI Creator Studio
 AI_COMPANY_VERSION: 1.0
 PROJECT_VERSION: 0.0.0
 CURRENT_PHASE: Phase 3
-STATUS: PHASE_3_RUNTIME_INTEGRATION_IN_PROGRESS
+STATUS: PHASE_3_REAL_MACHINE_SMOKE_PENDING
 LAST_UPDATED: 2026-09-02
 CURRENT_EPIC: Image editing
-ACTIVE_ISSUES: #76
+ACTIVE_ISSUES: #78
 OPEN_PRS: pending
-BLOCKERS: none
-LAST_SUCCESSFUL_CI: CI run #107 succeeded for main after PR #75 merge
+BLOCKERS: real-machine Qwen-Image-Edit smoke evidence required
+LAST_SUCCESSFUL_CI: CI run #110 succeeded for main after PR #77 merge
 COMPASS_MCP: v1 merged and real-machine interoperability verified PASS
 COMPASS_HANDOFF: standard AI employee handoff protocol merged via PR #64
 PHASE_2_TECHNICAL_ACCEPTANCE: PASS
@@ -19,11 +19,12 @@ PHASE_2_FORMAL_COMPLETION: COMPLETE
 PHASE_2_HUMAN_GATE: APPROVED by owner on 2026-09-01
 PHASE_3_CONTRACT: merged via PR #71
 PHASE_3_APPLICATION_SERVICE: merged via PR #73
-PHASE_3_ACCEPTANCE_PATH: defined in ADR 0010; criteria 1 and 2 complete, criterion 3 in progress
+PHASE_3_ACCEPTANCE_PATH: defined in ADR 0010; criteria 1, 2, and 3 complete; criterion 4 pending real-machine smoke; criterion 5 pending final acceptance review
 PHASE_3_RUNTIME_SELECTION: ComfyUI + Qwen-Image-Edit merged via PR #75
-PHASE_3_RUNTIME_API_PATH: Issue #76 implements upload, workflow injection, prompt submission, history polling, and output download
-NEXT_PRIORITY: Complete Issue #76 review and merge, then execute one real local Qwen-Image-Edit smoke test against ComfyUI to satisfy criterion 4 and determine Phase 3 technical acceptance
-HUMAN_APPROVAL_PENDING: merge for Issue #76
+PHASE_3_RUNTIME_API_PATH: merged via PR #77; upload, workflow injection, prompt submission, history polling, and output download implemented
+PHASE_3_REAL_MACHINE_SMOKE: pending Issue #78 workstation execution
+NEXT_PRIORITY: Run scripts/comfyui-qwen-image-edit-smoke.ts against the actual local ComfyUI/Qwen-Image-Edit setup, record PASS/FAIL evidence on Issue #78, then determine Phase 3 technical acceptance and formal completion
+HUMAN_APPROVAL_PENDING: real-machine evidence only; owner already instructed continuation through the remaining Phase 3 completion workflow
 AUTO_FIX_ATTEMPTS_MAX: 3
 MAX_ACTIVE_AGENTS: 3
 MAX_PARALLEL_CODE_AGENTS: 2
