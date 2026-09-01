@@ -8,7 +8,7 @@ STATUS: PHASE_2_ACCEPTANCE_PASS
 LAST_UPDATED: 2026-09-01
 CURRENT_EPIC: Image generation
 ACTIVE_ISSUES: #65
-OPEN_PRS: pending
+OPEN_PRS: #67
 BLOCKERS: none
 LAST_SUCCESSFUL_CI: CI run #95 succeeded for main after PR #63 merge
 COMPASS_MCP: v1 merged and real-machine interoperability verified PASS
