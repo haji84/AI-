@@ -14,7 +14,8 @@
     "test": "node --test",
     "build": "next build",
     "start": "next start",
-    "healthcheck": "node scripts/health-check.mjs"
+    "healthcheck": "node scripts/health-check.mjs",
+    "compass:mcp": "node src/compass/server.ts"
   },
   "dependencies": {
     "next": "16.3.2",
