@@ -94,9 +94,10 @@ export function createComfyUiImageEditingBackend(
   return {
     async edit(context: ProviderContext, request: ImageEditingRequest): Promise<ImageEditingOutput> {
       const uploadBody = new FormData();
+      const sourceBytes = Uint8Array.from(request.source.data);
       uploadBody.append(
         "image",
-        new Blob([request.source.data], { type: request.source.mediaType }),
+        new Blob([sourceBytes.buffer], { type: request.source.mediaType }),
         sourceFilename(context, request.source.mediaType),
       );
       uploadBody.append("type", "input");
