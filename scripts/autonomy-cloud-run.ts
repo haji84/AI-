@@ -5,11 +5,12 @@ import { createContextInspectCapability } from "../src/orchestrator/baseline-pla
 import { CapabilityRegistry } from "../src/orchestrator/capabilities.ts";
 import { ensureCloudGoal, applyCloudControl, CloudCompassStateStoreAdapter, GitHubRepositoryContextSource } from "../src/orchestrator/cloud-runtime.ts";
 import { compassGoalToLoopGoal } from "../src/orchestrator/compass-state-store.ts";
+import { CopilotCliPlanningClient } from "../src/orchestrator/copilot-cli-planner.ts";
 import { BoundedWorkspaceReader, RepositoryFileContextSource } from "../src/orchestrator/context-adapters.ts";
 import { dispatchAutonomyEvent, EventContextSource } from "../src/orchestrator/event-runtime.ts";
 import { GoalDrivenLoop, type Verifier } from "../src/orchestrator/goal-loop.ts";
 import { githubRuntimeConfig, LiveGitHubReadClient } from "../src/orchestrator/github-live-client.ts";
-import { createLocalBlockerCapability, GitHubModelsPlanningClient, ModelBackedPlanner } from "../src/orchestrator/model-planner.ts";
+import { createLocalBlockerCapability, GitHubModelsPlanningClient, ModelBackedPlanner, type PlanningModel } from "../src/orchestrator/model-planner.ts";
 import { ResilientPlanningModel } from "../src/orchestrator/resilient-planning-model.ts";
 import { createSafePrProposalCapability } from "../src/orchestrator/safe-pr-capability.ts";
 
@@ -24,6 +25,13 @@ mkdirSync(stateDir, { recursive: true });
 const dbPath = process.env.COMPASS_DB_PATH?.trim() || resolve(stateDir, "compass.db");
 const summaryPath = process.env.AUTONOMY_SUMMARY_PATH?.trim() || resolve(stateDir, "run-summary.json");
 const compass = new CompassStore(dbPath);
+
+function createPlanningModel(token: string): PlanningModel {
+  const provider = process.env.AUTONOMY_PLANNER_PROVIDER?.trim() || "copilot-cli";
+  if (provider === "copilot-cli") return new CopilotCliPlanningClient();
+  if (provider === "github-models") return new GitHubModelsPlanningClient(token);
+  throw new Error(`unsupported autonomy planner provider: ${provider}`);
+}
 
 try {
   ensureCloudGoal(compass);
@@ -49,7 +57,7 @@ try {
         return { ok: result.ok, summary: result.ok ? "Cloud capability execution verified" : result.summary, evidence: result.evidence };
       },
     };
-    const planningModel = new ResilientPlanningModel(new GitHubModelsPlanningClient(token));
+    const planningModel = new ResilientPlanningModel(createPlanningModel(token));
     const planner = new ModelBackedPlanner(planningModel, new BoundedWorkspaceReader());
     const loop = new GoalDrivenLoop(
       planner,
