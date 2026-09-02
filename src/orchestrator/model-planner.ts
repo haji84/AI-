@@ -41,6 +41,8 @@ export interface ParallelCloudCandidateSelection {
 const LOCAL_MARKERS = [
   "real-machine",
   "real machine",
+  "machine-bound",
+  "machine bound",
   "workstation",
   "actual local comfyui",
   "local comfyui",
