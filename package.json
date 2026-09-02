@@ -18,7 +18,9 @@
     "compass:mcp": "node src/compass/server.ts",
     "autonomy:run": "node scripts/autonomy-run.ts",
     "autonomy:dry-run": "node scripts/autonomy-run.ts --dry-run",
-    "autonomy:event": "node scripts/autonomy-event-run.ts"
+    "autonomy:event": "node scripts/autonomy-event-run.ts",
+    "autonomy:schedule": "node scripts/autonomy-event-run.ts --type=schedule --summary=scheduled-autonomy-run",
+    "autonomy:repository-event": "node scripts/autonomy-event-run.ts --type=repository_state --summary=repository-state-changed"
   },
   "dependencies": {
     "next": "16.3.2",
