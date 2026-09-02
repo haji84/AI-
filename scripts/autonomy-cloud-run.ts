@@ -3,8 +3,8 @@ import { resolve } from "node:path";
 import { CompassStore } from "../src/compass/store.ts";
 import { createContextInspectCapability } from "../src/orchestrator/baseline-planner.ts";
 import { CapabilityRegistry } from "../src/orchestrator/capabilities.ts";
-import { ensureCloudGoal, applyCloudControl, GitHubRepositoryContextSource } from "../src/orchestrator/cloud-runtime.ts";
-import { CompassStateStoreAdapter, compassGoalToLoopGoal } from "../src/orchestrator/compass-state-store.ts";
+import { ensureCloudGoal, applyCloudControl, CloudCompassStateStoreAdapter, GitHubRepositoryContextSource } from "../src/orchestrator/cloud-runtime.ts";
+import { compassGoalToLoopGoal } from "../src/orchestrator/compass-state-store.ts";
 import { RepositoryFileContextSource } from "../src/orchestrator/context-adapters.ts";
 import { dispatchAutonomyEvent, EventContextSource } from "../src/orchestrator/event-runtime.ts";
 import { GoalDrivenLoop, type Verifier } from "../src/orchestrator/goal-loop.ts";
@@ -54,7 +54,7 @@ try {
       [new EventContextSource(event), new RepositoryFileContextSource(), new GitHubRepositoryContextSource(github)],
       registry,
       verifier,
-      new CompassStateStoreAdapter(compass),
+      new CloudCompassStateStoreAdapter(compass),
     );
     const goal = compass.getGoal();
     if (!goal) throw new Error("cloud goal bootstrap failed");

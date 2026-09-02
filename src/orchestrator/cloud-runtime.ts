@@ -1,6 +1,7 @@
-import type { ContextItem, ContextSource } from "./goal-loop.ts";
+import type { ContextItem, ContextSource, LoopState, StateStore, WriteBackRecord } from "./goal-loop.ts";
 import type { GitHubReadClient } from "./github-capability.ts";
 import type { CompassStore } from "../compass/store.ts";
+import { CompassStateStoreAdapter, compassStateToLoopState } from "./compass-state-store.ts";
 
 export const DEFAULT_CLOUD_GOAL = {
   title: "Advance the repository according to its explicit project state",
@@ -24,6 +25,28 @@ export function ensureCloudGoal(compass: CompassStore): void {
 export function applyCloudControl(compass: CompassStore, mode: "run" | "pause" | "resume" | "status"): void {
   if (mode === "pause") compass.updateState({ status: "PAUSED" });
   if (mode === "resume" && compass.getState().status === "PAUSED") compass.updateState({ status: "READY" });
+}
+
+export class CloudCompassStateStoreAdapter implements StateStore {
+  private readonly compass: CompassStore;
+  private readonly delegate: CompassStateStoreAdapter;
+
+  constructor(compass: CompassStore) {
+    this.compass = compass;
+    this.delegate = new CompassStateStoreAdapter(compass);
+  }
+
+  async getState(): Promise<LoopState> {
+    const state = compassStateToLoopState(this.compass.getState());
+    return {
+      ...state,
+      blockers: state.blockers.filter((blocker) => blocker !== "local_runtime_required"),
+    };
+  }
+
+  async writeBack(record: WriteBackRecord): Promise<void> {
+    await this.delegate.writeBack(record);
+  }
 }
 
 export class GitHubRepositoryContextSource implements ContextSource {
