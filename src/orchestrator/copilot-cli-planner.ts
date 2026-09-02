@@ -73,8 +73,8 @@ export class CopilotCliPlanningClient implements PlanningModel {
 
   constructor(options: { runner?: CopilotCommandRunner; command?: string; model?: string } = {}) {
     this.runner = options.runner ?? new NodeCopilotCommandRunner();
-    this.command = options.command ?? process.env.AUTONOMY_COPILOT_COMMAND?.trim() || "copilot";
-    this.model = options.model ?? process.env.AUTONOMY_COPILOT_MODEL?.trim() || "auto";
+    this.command = options.command ?? (process.env.AUTONOMY_COPILOT_COMMAND?.trim() || "copilot");
+    this.model = options.model ?? (process.env.AUTONOMY_COPILOT_MODEL?.trim() || "auto");
   }
 
   async plan(input: { goal: Goal; context: ContextItem[] }): Promise<ModelPlan> {
