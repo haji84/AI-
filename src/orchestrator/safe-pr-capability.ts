@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, normalize, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
-import type { ActionResult, ContextItem, ProposedAction } from "./goal-loop.ts";
+import type { ActionResult, ProposedAction } from "./goal-loop.ts";
 
 interface ProposalFile { path: string; content: string; }
 interface ProposalInput { title?: string; body?: string; files?: ProposalFile[]; }
@@ -55,7 +55,7 @@ async function openPullRequest(input: { token: string; repository: string; head:
 export function createSafePrProposalCapability(options: { cwd?: string; token?: string | null; repository?: string } = {}) {
   return {
     name: "repository.propose_pr",
-    async execute(action: ProposedAction, _context: ContextItem[]): Promise<ActionResult> {
+    async execute(action: ProposedAction): Promise<ActionResult> {
       try {
         const proposal = parseInput(action);
         const cwd = options.cwd ?? process.cwd();
