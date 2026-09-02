@@ -41,8 +41,6 @@ export interface ParallelCloudCandidateSelection {
 const LOCAL_MARKERS = [
   "real-machine",
   "real machine",
-  "machine-bound",
-  "machine bound",
   "workstation",
   "actual local comfyui",
   "local comfyui",
@@ -51,13 +49,19 @@ const LOCAL_MARKERS = [
   "gpu",
 ];
 
+const PROJECT_STATE_LOCAL_MARKERS = [
+  ...LOCAL_MARKERS,
+  "machine-bound",
+  "machine bound",
+];
+
 function repositoryState(context: ContextItem[]): string {
   return context.find((item) => item.source === "repository.file:PROJECT_STATE.md")?.summary ?? "";
 }
 
-function isLocalOnlyText(value: string): boolean {
+function hasLocalOnlyMarker(value: string, markers = LOCAL_MARKERS): boolean {
   const text = value.toLowerCase();
-  return LOCAL_MARKERS.some((marker) => text.includes(marker));
+  return markers.some((marker) => text.includes(marker));
 }
 
 function openIssueRecords(context: ContextItem[]): unknown[] {
@@ -74,7 +78,7 @@ function openIssueRecords(context: ContextItem[]): unknown[] {
 }
 
 export function detectLocalOnlyBlocker(context: ContextItem[]): string | null {
-  if (isLocalOnlyText(repositoryState(context))) {
+  if (hasLocalOnlyMarker(repositoryState(context), PROJECT_STATE_LOCAL_MARKERS)) {
     return "Current explicit PROJECT_STATE requires a real-machine/local runtime step that a GitHub-hosted runner cannot truthfully perform.";
   }
   return null;
@@ -102,7 +106,7 @@ export function selectParallelCloudCandidates(context: ContextItem[]): ParallelC
       diagnostics.push({ number, title, selected: false, reason: "pull_request" });
       continue;
     }
-    if (isLocalOnlyText(`${title}\n${body}`)) {
+    if (hasLocalOnlyMarker(`${title}\n${body}`)) {
       diagnostics.push({ number, title, selected: false, reason: "local_only_marker" });
       continue;
     }
