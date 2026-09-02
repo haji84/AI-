@@ -128,17 +128,29 @@ export interface CycleReport extends WriteBackRecord {
 }
 
 export class GoalDrivenLoop {
+  private readonly planner: Planner;
+  private readonly contextSources: ContextSource[];
+  private readonly executor: CapabilityExecutor;
+  private readonly verifier: Verifier;
+  private readonly store: StateStore;
+  private readonly policy: ApprovalPolicy;
   private readonly maxRetriesPerAction: number;
 
   constructor(
-    private readonly planner: Planner,
-    private readonly contextSources: ContextSource[],
-    private readonly executor: CapabilityExecutor,
-    private readonly verifier: Verifier,
-    private readonly store: StateStore,
-    private readonly policy: ApprovalPolicy = new DefaultApprovalPolicy(),
+    planner: Planner,
+    contextSources: ContextSource[],
+    executor: CapabilityExecutor,
+    verifier: Verifier,
+    store: StateStore,
+    policy: ApprovalPolicy = new DefaultApprovalPolicy(),
     options: GoalLoopOptions = {},
   ) {
+    this.planner = planner;
+    this.contextSources = contextSources;
+    this.executor = executor;
+    this.verifier = verifier;
+    this.store = store;
+    this.policy = policy;
     this.maxRetriesPerAction = options.maxRetriesPerAction ?? 3;
   }
 
