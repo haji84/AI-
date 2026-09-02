@@ -5,7 +5,7 @@ import { createContextInspectCapability } from "../src/orchestrator/baseline-pla
 import { CapabilityRegistry } from "../src/orchestrator/capabilities.ts";
 import { ensureCloudGoal, applyCloudControl, CloudCompassStateStoreAdapter, GitHubRepositoryContextSource } from "../src/orchestrator/cloud-runtime.ts";
 import { compassGoalToLoopGoal } from "../src/orchestrator/compass-state-store.ts";
-import { RepositoryFileContextSource } from "../src/orchestrator/context-adapters.ts";
+import { BoundedWorkspaceReader, RepositoryFileContextSource } from "../src/orchestrator/context-adapters.ts";
 import { dispatchAutonomyEvent, EventContextSource } from "../src/orchestrator/event-runtime.ts";
 import { GoalDrivenLoop, type Verifier } from "../src/orchestrator/goal-loop.ts";
 import { githubRuntimeConfig, LiveGitHubReadClient } from "../src/orchestrator/github-live-client.ts";
@@ -48,7 +48,7 @@ try {
         return { ok: result.ok, summary: result.ok ? "Cloud capability execution verified" : result.summary, evidence: result.evidence };
       },
     };
-    const planner = new ModelBackedPlanner(new GitHubModelsPlanningClient(token));
+    const planner = new ModelBackedPlanner(new GitHubModelsPlanningClient(token), new BoundedWorkspaceReader());
     const loop = new GoalDrivenLoop(
       planner,
       [new EventContextSource(event), new RepositoryFileContextSource(), new GitHubRepositoryContextSource(github)],
