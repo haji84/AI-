@@ -15,6 +15,10 @@ export interface PlanningModel {
   plan(input: { goal: Goal; context: ContextItem[] }): Promise<ModelPlan>;
 }
 
+export interface WorkspaceReader {
+  collect(query: string): Promise<ContextItem[]>;
+}
+
 export interface ParallelCloudCandidate {
   number: number;
   title: string;
@@ -78,7 +82,12 @@ export function parallelCloudCandidates(context: ContextItem[]): ParallelCloudCa
 
 export class ModelBackedPlanner implements Planner {
   private readonly model: PlanningModel;
-  constructor(model: PlanningModel) { this.model = model; }
+  private readonly workspace?: WorkspaceReader;
+
+  constructor(model: PlanningModel, workspace?: WorkspaceReader) {
+    this.model = model;
+    this.workspace = workspace;
+  }
 
   async inferIntent(input: { goal: Goal; context: ContextItem[]; preferences?: string[]; recentDecisions?: string[] }): Promise<InferredIntent> {
     return inferIntentFromSignals(input);
@@ -99,16 +108,19 @@ export class ModelBackedPlanner implements Planner {
       };
     }
 
-    const planningContext = local
-      ? [
-          ...input.context,
-          {
-            source: "parallel.cloud_candidates",
-            summary: `Primary task is blocked locally. Choose at most one independent cloud-safe issue without advancing the blocked phase: ${candidates.map((candidate) => `#${candidate.number} ${candidate.title}`).join(" | ")}`,
-            data: { primaryBlocker: local, candidates },
-          },
-        ]
-      : input.context;
+    const candidateContext: ContextItem[] = local
+      ? [{
+          source: "parallel.cloud_candidates",
+          summary: `Primary task is blocked locally. Choose at most one independent cloud-safe issue without advancing the blocked phase: ${candidates.map((candidate) => `#${candidate.number} ${candidate.title}`).join(" | ")}`,
+          data: { primaryBlocker: local, candidates },
+        }]
+      : [];
+
+    const workspaceQuery = candidates.length > 0
+      ? candidates.map((candidate) => `${candidate.title}\n${candidate.body}`).join("\n")
+      : `${input.goal.title}\n${input.goal.description ?? ""}\n${input.intent.summary}`;
+    const workspaceContext = this.workspace ? await this.workspace.collect(workspaceQuery) : [];
+    const planningContext = [...input.context, ...candidateContext, ...workspaceContext];
 
     const plan = await this.model.plan({ goal: input.goal, context: planningContext });
     if (plan.kind === "local_blocker") {
@@ -147,7 +159,11 @@ export class GitHubModelsPlanningClient implements PlanningModel {
 
   async plan(input: { goal: Goal; context: ContextItem[] }): Promise<ModelPlan> {
     if (!this.token.trim()) return { kind: "inspect", description: "GitHub Models token unavailable; inspect context only." };
-    const compact = input.context.map((item) => ({ source: item.source, summary: item.summary.slice(0, 12000), data: item.source === "parallel.cloud_candidates" ? item.data : undefined }));
+    const compact = input.context.map((item) => ({
+      source: item.source,
+      summary: item.summary.slice(0, 12000),
+      data: item.source === "parallel.cloud_candidates" || item.source === "repository.workspace" ? item.data : undefined,
+    }));
     const response = await fetch("https://models.github.ai/inference/chat/completions", {
       method: "POST",
       headers: {
@@ -161,7 +177,7 @@ export class GitHubModelsPlanningClient implements PlanningModel {
         max_tokens: 5000,
         response_format: { type: "json_object" },
         messages: [
-          { role: "system", content: "You are a bounded repository planner. Return JSON only. Choose kind local_blocker, propose_pr, or inspect. Never request merge, deployment, secret/permission changes, destructive changes, workflow edits, AGENTS.md, PROJECT_STATE.md, or ROADMAP.md edits. For propose_pr include title, body, and at most 3 complete UTF-8 file replacements under src/, tests/, docs/, or scripts/. Prefer the smallest verifiable change. If parallel.cloud_candidates is present, the primary phase is blocked by a local-only task: choose at most one listed independent cloud-safe issue, do not invent work, do not claim the blocked phase is complete, and keep the local blocker intact." },
+          { role: "system", content: "You are a bounded repository planner. Return JSON only. Choose kind local_blocker, propose_pr, or inspect. Never request merge, deployment, secret/permission changes, destructive changes, workflow edits, AGENTS.md, PROJECT_STATE.md, or ROADMAP.md edits. For propose_pr include title, body, and at most 3 complete UTF-8 file replacements under src/, tests/, docs/, or scripts/. Prefer the smallest verifiable change. Use repository.workspace as the authoritative current source snapshot for files it contains. Never invent unseen file contents. If parallel.cloud_candidates is present, the primary phase is blocked by a local-only task: choose at most one listed independent cloud-safe issue, do not invent work, do not claim the blocked phase is complete, and keep the local blocker intact." },
           { role: "user", content: JSON.stringify({ goal: input.goal, context: compact }) },
         ],
       }),
