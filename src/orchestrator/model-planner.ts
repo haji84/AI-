@@ -26,6 +26,18 @@ export interface ParallelCloudCandidate {
   url?: string;
 }
 
+export interface ParallelCloudCandidateDiagnostic {
+  number?: number;
+  title?: string;
+  selected: boolean;
+  reason: string;
+}
+
+export interface ParallelCloudCandidateSelection {
+  candidates: ParallelCloudCandidate[];
+  diagnostics: ParallelCloudCandidateDiagnostic[];
+}
+
 const LOCAL_MARKERS = [
   "real-machine",
   "real machine",
@@ -46,6 +58,19 @@ function isLocalOnlyText(value: string): boolean {
   return LOCAL_MARKERS.some((marker) => text.includes(marker));
 }
 
+function openIssueRecords(context: ContextItem[]): unknown[] {
+  const github = context.find((item) => item.source === "github.repository_state")?.data as Record<string, unknown> | undefined;
+  if (!github) return [];
+  const raw = github.openIssues;
+  if (Array.isArray(raw)) return raw;
+  if (raw && typeof raw === "object") {
+    const wrapped = raw as Record<string, unknown>;
+    if (Array.isArray(wrapped.items)) return wrapped.items;
+    if (Array.isArray(wrapped.data)) return wrapped.data;
+  }
+  return [];
+}
+
 export function detectLocalOnlyBlocker(context: ContextItem[]): string | null {
   if (isLocalOnlyText(repositoryState(context))) {
     return "Current explicit PROJECT_STATE requires a real-machine/local runtime step that a GitHub-hosted runner cannot truthfully perform.";
@@ -53,31 +78,48 @@ export function detectLocalOnlyBlocker(context: ContextItem[]): string | null {
   return null;
 }
 
-export function parallelCloudCandidates(context: ContextItem[]): ParallelCloudCandidate[] {
-  const github = context.find((item) => item.source === "github.repository_state")?.data as {
-    openIssues?: unknown;
-  } | undefined;
-  if (!github || !Array.isArray(github.openIssues)) return [];
-
+export function selectParallelCloudCandidates(context: ContextItem[]): ParallelCloudCandidateSelection {
+  const diagnostics: ParallelCloudCandidateDiagnostic[] = [];
   const candidates: ParallelCloudCandidate[] = [];
-  for (const raw of github.openIssues) {
-    if (!raw || typeof raw !== "object") continue;
+
+  for (const raw of openIssueRecords(context)) {
+    if (!raw || typeof raw !== "object") {
+      diagnostics.push({ selected: false, reason: "invalid_issue_record" });
+      continue;
+    }
     const issue = raw as Record<string, unknown>;
-    if (issue.pull_request) continue;
     const number = typeof issue.number === "number" ? issue.number : Number(issue.number);
     const title = typeof issue.title === "string" ? issue.title.trim() : "";
     const body = typeof issue.body === "string" ? issue.body.trim() : "";
-    if (!Number.isInteger(number) || number < 1 || !title) continue;
-    if (isLocalOnlyText(`${title}\n${body}`)) continue;
+
+    if (!Number.isInteger(number) || number < 1 || !title) {
+      diagnostics.push({ number: Number.isInteger(number) ? number : undefined, title: title || undefined, selected: false, reason: "missing_number_or_title" });
+      continue;
+    }
+    if (issue.pull_request) {
+      diagnostics.push({ number, title, selected: false, reason: "pull_request" });
+      continue;
+    }
+    if (isLocalOnlyText(`${title}\n${body}`)) {
+      diagnostics.push({ number, title, selected: false, reason: "local_only_marker" });
+      continue;
+    }
+
+    diagnostics.push({ number, title, selected: true, reason: "cloud_safe_candidate" });
     candidates.push({
       number,
       title,
       body: body.slice(0, 8000),
       url: typeof issue.html_url === "string" ? issue.html_url : undefined,
     });
+    if (candidates.length >= 5) break;
   }
 
-  return candidates.slice(0, 5);
+  return { candidates, diagnostics };
+}
+
+export function parallelCloudCandidates(context: ContextItem[]): ParallelCloudCandidate[] {
+  return selectParallelCloudCandidates(context).candidates;
 }
 
 export class ModelBackedPlanner implements Planner {
@@ -96,11 +138,15 @@ export class ModelBackedPlanner implements Planner {
   async proposeNextAction(input: { goal: Goal; context: ContextItem[]; intent: InferredIntent }): Promise<ProposedAction | null> {
     if (input.context.some((item) => item.source === "goal.complete" && item.summary === "true")) return null;
     const local = detectLocalOnlyBlocker(input.context);
-    const candidates = local ? parallelCloudCandidates(input.context) : [];
+    const selection = local ? selectParallelCloudCandidates(input.context) : { candidates: [], diagnostics: [] };
+    const candidates = selection.candidates;
     if (local && candidates.length === 0) {
+      const diagnostic = selection.diagnostics.length > 0
+        ? ` Candidate scan: ${selection.diagnostics.map((item) => `#${item.number ?? "?"}:${item.reason}`).join(", ")}.`
+        : " Candidate scan: no open issue records were available.";
       return {
         id: "cloud:local-runtime-required",
-        description: local,
+        description: `${local}${diagnostic}`,
         capability: "runtime.local_blocker",
         risk: "low",
         irreversible: false,
@@ -112,7 +158,7 @@ export class ModelBackedPlanner implements Planner {
       ? [{
           source: "parallel.cloud_candidates",
           summary: `Primary task is blocked locally. Choose at most one independent cloud-safe issue without advancing the blocked phase: ${candidates.map((candidate) => `#${candidate.number} ${candidate.title}`).join(" | ")}`,
-          data: { primaryBlocker: local, candidates },
+          data: { primaryBlocker: local, candidates, diagnostics: selection.diagnostics },
         }]
       : [];
 
