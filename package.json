@@ -20,7 +20,8 @@
     "autonomy:dry-run": "node scripts/autonomy-run.ts --dry-run",
     "autonomy:event": "node scripts/autonomy-event-run.ts",
     "autonomy:schedule": "node scripts/autonomy-event-run.ts --type=schedule --summary=scheduled-autonomy-run",
-    "autonomy:repository-event": "node scripts/autonomy-event-run.ts --type=repository_state --summary=repository-state-changed"
+    "autonomy:repository-event": "node scripts/autonomy-event-run.ts --type=repository_state --summary=repository-state-changed",
+    "autonomy:cloud": "node scripts/autonomy-cloud-run.ts"
   },
   "dependencies": {
     "next": "16.3.2",
