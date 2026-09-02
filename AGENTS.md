@@ -6,6 +6,23 @@ Before modifying anything, read in order:
 3. the assigned GitHub issue
 4. relevant files under `docs/architecture/` and `docs/decisions/`
 
+## Goal-driven operating loop
+For every non-trivial task, operate as a bounded loop instead of a one-shot chat response:
+1. read the explicit goal and success criteria
+2. read current project state and the current next action
+3. collect only the context required for that action from available capabilities
+4. infer likely user intent from explicit goals, constraints, preferences, and recent decisions; attach confidence and evidence and never claim mind-reading
+5. propose the smallest next action that advances the goal
+6. classify risk before execution
+7. execute low-risk reversible work when policy permits
+8. verify the result
+9. write back completed work, blockers, verification, and next action
+10. repeat only when the runtime explicitly schedules another cycle
+
+Stop immediately when the goal is complete, the project is paused, a blocker exists, retry budget is exhausted, or Human Gate approval is required. Never create a silent infinite loop.
+
+Available connectors and tools are capabilities, not assumptions. GitHub, conversation files, web research, mail, calendar, local runtimes, or other providers may be used only when actually available and relevant to the goal. Missing capability must be reported, never fabricated.
+
 ## Compass handoff protocol
 When the Compass MCP is available, every AI employee must use it as the persistent task handoff layer.
 
