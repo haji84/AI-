@@ -59,7 +59,7 @@ test("repository context reads bounded local files", async () => {
   const root = await mkdtemp(join(tmpdir(), "ai-repo-context-"));
   await writeFile(join(root, "PROJECT_STATE.md"), "STATE=READY\n", "utf-8");
   const source = new RepositoryFileContextSource({ root, files: ["PROJECT_STATE.md", "MISSING.md"] });
-  const items = await source.collect({ goal });
+  const items = await source.collect();
   assert.equal(items[0]?.summary.includes("STATE=READY"), true);
   assert.equal(items[1]?.summary.startsWith("unavailable:"), true);
 });
