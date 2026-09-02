@@ -27,7 +27,9 @@ on:
     - cron: "17 */6 * * *"
 
 permissions:
-  contents: read
+  contents: write
+  pull-requests: write
+  models: read
 
 env:
   AUTONOMY_STATE_DIR: .autonomy-state
