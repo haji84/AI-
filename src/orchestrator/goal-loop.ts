@@ -38,6 +38,7 @@ export interface ProposedAction {
   irreversible?: boolean;
   externalSideEffect?: boolean;
   requiresHumanApproval?: boolean;
+  input?: unknown;
 }
 
 export interface ActionResult {
