@@ -11,7 +11,11 @@ test("defaults to Work cloud without invoking a separately metered provider", as
     const model = createPlanningModel({ token: "unused" });
     assert.ok(model instanceof WorkCloudPlanningClient);
     const plan = await model.plan({
-      goal: { id: "g", title: "Continue safely" },
+      goal: {
+        title: "Continue safely",
+        successCriteria: [],
+        constraints: [],
+      },
       context: [],
     });
     assert.equal(plan.kind, "inspect");
