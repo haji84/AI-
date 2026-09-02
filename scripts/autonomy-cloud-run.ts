@@ -10,6 +10,7 @@ import { dispatchAutonomyEvent, EventContextSource } from "../src/orchestrator/e
 import { GoalDrivenLoop, type Verifier } from "../src/orchestrator/goal-loop.ts";
 import { githubRuntimeConfig, LiveGitHubReadClient } from "../src/orchestrator/github-live-client.ts";
 import { createLocalBlockerCapability, GitHubModelsPlanningClient, ModelBackedPlanner } from "../src/orchestrator/model-planner.ts";
+import { ResilientPlanningModel } from "../src/orchestrator/resilient-planning-model.ts";
 import { createSafePrProposalCapability } from "../src/orchestrator/safe-pr-capability.ts";
 
 const args = process.argv.slice(2);
@@ -48,7 +49,8 @@ try {
         return { ok: result.ok, summary: result.ok ? "Cloud capability execution verified" : result.summary, evidence: result.evidence };
       },
     };
-    const planner = new ModelBackedPlanner(new GitHubModelsPlanningClient(token), new BoundedWorkspaceReader());
+    const planningModel = new ResilientPlanningModel(new GitHubModelsPlanningClient(token));
+    const planner = new ModelBackedPlanner(planningModel, new BoundedWorkspaceReader());
     const loop = new GoalDrivenLoop(
       planner,
       [new EventContextSource(event), new RepositoryFileContextSource(), new GitHubRepositoryContextSource(github)],
