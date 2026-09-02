@@ -10,7 +10,7 @@ export interface GitHubTransport {
   get(path: string, token: string): Promise<unknown>;
 }
 
-export function githubRuntimeConfig(env: NodeJS.ProcessEnv = process.env): GitHubRuntimeConfig {
+export function githubRuntimeConfig(env: Record<string, string | undefined> = process.env): GitHubRuntimeConfig {
   const repository = env.GITHUB_REPOSITORY?.trim() || "haji84/AI-";
   return {
     token: env.GITHUB_TOKEN?.trim() || null,
