@@ -1,10 +1,12 @@
+import type { ContextItem, Goal } from "./goal-loop.ts";
 import { CopilotCliPlanningClient } from "./copilot-cli-planner.ts";
 import { GitHubModelsPlanningClient, type ModelPlan, type PlanningModel } from "./model-planner.ts";
 
 export type AutonomyPlannerProvider = "work-cloud" | "copilot-cli" | "github-models";
 
 export class WorkCloudPlanningClient implements PlanningModel {
-  async plan(): Promise<ModelPlan> {
+  async plan(input: { goal: Goal; context: ContextItem[] }): Promise<ModelPlan> {
+    void input;
     return {
       kind: "inspect",
       description: "Planning is delegated to ChatGPT Work cloud. This GitHub-hosted runner will not invoke a paid or separately metered model provider by default.",
