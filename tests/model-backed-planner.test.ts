@@ -11,10 +11,10 @@ const goal: Goal = {
 
 const intent = { summary: "advance", confidence: 0.9, evidence: [] };
 
-test("local real-machine state is surfaced as a blocker instead of inspect looping", async () => {
+test("explicit machine-bound state is surfaced as a blocker instead of inspect looping", async () => {
   const context: ContextItem[] = [{
     source: "repository.file:PROJECT_STATE.md",
-    summary: "NEXT_PRIORITY: Run Qwen-Image-Edit smoke against actual local ComfyUI on the workstation",
+    summary: "NEXT_PRIORITY: Complete the machine-bound image-editing acceptance requirement before advancing Phase 3",
   }];
   assert.ok(detectLocalOnlyBlocker(context));
   const model: PlanningModel = { async plan() { throw new Error("model must not be called for local blocker"); } };
