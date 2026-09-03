@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { parseUnifiedCommandEnvelope } from "./command-ingress.ts";
 
@@ -10,10 +10,38 @@ export interface ResolvePersistentCommandOptions {
   filename?: string;
 }
 
+export interface InvalidateClosedTargetOptions {
+  envelopeJson: string;
+  stateDir: string;
+  openIssueNumbers: readonly number[];
+  filename?: string;
+}
+
 function validateCommandJson(json: string): string {
   const trimmed = json.trim();
   parseUnifiedCommandEnvelope(trimmed);
   return trimmed;
+}
+
+export function commandTargetIssueNumber(envelopeJson: string): number | undefined {
+  const command = parseUnifiedCommandEnvelope(envelopeJson).command;
+  const match = command.match(/\bIssue\s*#(\d+)\b/i);
+  if (!match) return undefined;
+  const number = Number(match[1]);
+  return Number.isInteger(number) && number > 0 ? number : undefined;
+}
+
+export function invalidatePersistedCommandIfTargetClosed({
+  envelopeJson,
+  stateDir,
+  openIssueNumbers,
+  filename = DEFAULT_FILENAME,
+}: InvalidateClosedTargetOptions): number | undefined {
+  const target = commandTargetIssueNumber(envelopeJson);
+  if (!target || openIssueNumbers.includes(target)) return undefined;
+
+  rmSync(resolve(stateDir, filename), { force: true });
+  return target;
 }
 
 export function resolvePersistentCommandEnvelope({

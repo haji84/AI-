@@ -10,7 +10,7 @@ import { dispatchAutonomyEvent, EventContextSource } from "../src/orchestrator/e
 import { GoalDrivenLoop, type Verifier } from "../src/orchestrator/goal-loop.ts";
 import { githubRuntimeConfig, LiveGitHubReadClient } from "../src/orchestrator/github-live-client.ts";
 import { createLocalBlockerCapability, ModelBackedPlanner } from "../src/orchestrator/model-planner.ts";
-import { resolvePersistentCommandEnvelope } from "../src/orchestrator/persistent-command-handoff.ts";
+import { invalidatePersistedCommandIfTargetClosed, resolvePersistentCommandEnvelope } from "../src/orchestrator/persistent-command-handoff.ts";
 import { createSafePrProposalCapability } from "../src/orchestrator/safe-pr-capability.ts";
 import { TeamAwarePlanner } from "../src/orchestrator/team-aware-planner.ts";
 import { UnifiedPlanningClient } from "../src/orchestrator/unified-planning-client.ts";
@@ -27,6 +27,15 @@ const dbPath = process.env.COMPASS_DB_PATH?.trim() || resolve(stateDir, "compass
 const summaryPath = process.env.AUTONOMY_SUMMARY_PATH?.trim() || resolve(stateDir, "run-summary.json");
 const compass = new CompassStore(dbPath);
 
+function openIssueNumbers(repositoryState: unknown): number[] | null {
+  if (!repositoryState || typeof repositoryState !== "object") return null;
+  const state = repositoryState as { available?: unknown; openIssues?: unknown };
+  if (state.available !== true || !Array.isArray(state.openIssues)) return null;
+  return state.openIssues
+    .map((issue) => issue && typeof issue === "object" ? Number((issue as { number?: unknown }).number) : NaN)
+    .filter((number) => Number.isInteger(number) && number > 0);
+}
+
 try {
   ensureCloudGoal(compass);
   applyCloudControl(compass, mode);
@@ -39,10 +48,27 @@ try {
     const config = githubRuntimeConfig(process.env);
     const github = new LiveGitHubReadClient(config);
     const token = process.env.GITHUB_TOKEN?.trim() || "";
+    const explicitJson = process.env.AUTONOMY_COMMAND_JSON?.trim() || "";
     const envelopeJson = resolvePersistentCommandEnvelope({
-      explicitJson: process.env.AUTONOMY_COMMAND_JSON,
+      explicitJson,
       stateDir,
     });
+
+    if (!explicitJson) {
+      const repositoryState = await github.readRepositoryState();
+      const openIssues = openIssueNumbers(repositoryState);
+      if (openIssues) {
+        const closedTarget = invalidatePersistedCommandIfTargetClosed({
+          envelopeJson,
+          stateDir,
+          openIssueNumbers: openIssues,
+        });
+        if (closedTarget) {
+          throw new Error(`Persisted Chat/Work/Codex command targeted Issue #${closedTarget}, which is no longer open; persisted command was invalidated`);
+        }
+      }
+    }
+
     const planningClient = new UnifiedPlanningClient(envelopeJson);
     commandSource = planningClient.command.source;
     command = planningClient.command.command;
