@@ -1,9 +1,14 @@
-export default function Home() {
-  return (
-    <main>
-      <p className="eyebrow">Phase 1 foundation</p>
-      <h1>Unified AI Creator Studio</h1>
-      <p>The minimal application shell is running.</p>
-    </main>
-  );
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+
+import Dashboard from "./dashboard";
+import { parseProjectState } from "../dashboard/project-state";
+
+export const dynamic = "force-static";
+
+export default async function Home() {
+  const source = await readFile(path.join(process.cwd(), "PROJECT_STATE.md"), "utf8");
+  const project = parseProjectState(source);
+
+  return <Dashboard project={project} />;
 }
