@@ -6,7 +6,7 @@ on:
       mode:
         description: Run, pause, resume, or status
         required: true
-        default: status
+        default: run
         type: choice
         options:
           - run
@@ -67,9 +67,9 @@ jobs:
       - name: Run bounded autonomy cycle
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          RUN_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'status' }}
-          MAX_CYCLES: ${{ github.event_name == 'workflow_dispatch' && inputs.max_cycles || '3' }}
-          AUTONOMY_COMMAND_JSON: ${{ github.event_name == 'workflow_dispatch' && inputs.command_json || '' }}
+          RUN_MODE: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.mode || 'status' }}
+          MAX_CYCLES: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.max_cycles || '3' }}
+          AUTONOMY_COMMAND_JSON: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.command_json || '' }}
         run: pnpm autonomy:cloud -- --mode="$RUN_MODE" --max-cycles="$MAX_CYCLES"
       - name: Publish mobile-readable summary
         if: always()
