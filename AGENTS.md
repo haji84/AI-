@@ -23,6 +23,13 @@ Stop immediately when the goal is complete, the project is paused, a blocker exi
 
 Available connectors and tools are capabilities, not assumptions. GitHub, conversation files, web research, mail, calendar, local runtimes, or other providers may be used only when actually available and relevant to the goal. Missing capability must be reported, never fabricated.
 
+## Zero-additional-AI-API architecture
+Work/Codex is the model-reasoning control plane for AI employee planning and coding work. GitHub Actions is an execution, persistence, CI, verification, and bounded repository-operation host; it must not silently substitute another model provider.
+
+Production runtime and workflows must not add or call direct OpenAI, Anthropic, Gemini/Google AI, GitHub Models, or Copilot CLI model paths. Do not add their API keys, SDKs, inference endpoints, model permissions, or equivalent paid-provider fallback routes. Any future exception requires an explicit Human Gate for billing, secrets, permissions, and architecture change.
+
+When GitHub Actions needs model reasoning, it must receive an explicit bounded plan handed off from Work/Codex. If that handoff is unavailable or invalid, fail visibly rather than degrading to a green no-op or silently choosing another provider.
+
 ## Compass handoff protocol
 When the Compass MCP is available, every AI employee must use it as the persistent task handoff layer.
 
