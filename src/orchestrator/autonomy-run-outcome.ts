@@ -11,7 +11,15 @@ export interface AwaitingCommandOutcome {
   nextAction: string;
 }
 
-export type AutonomyLifecycleOutcome = StaleCommandInvalidationOutcome | AwaitingCommandOutcome;
+export interface GoalDraftNotReadyOutcome {
+  status: "goal_draft_not_ready";
+  invalidatedIssue: null;
+  verificationSummary: string;
+  nextAction: string;
+  goalReadinessReasons: string[];
+}
+
+export type AutonomyLifecycleOutcome = StaleCommandInvalidationOutcome | AwaitingCommandOutcome | GoalDraftNotReadyOutcome;
 
 export function staleCommandInvalidationOutcome(issueNumber: number): StaleCommandInvalidationOutcome {
   if (!Number.isInteger(issueNumber) || issueNumber < 1) {
@@ -31,6 +39,17 @@ export function awaitingCommandOutcome(): AwaitingCommandOutcome {
     invalidatedIssue: null,
     verificationSummary: "No persisted Chat/Work/Codex command is available; autonomy loop was not executed",
     nextAction: "Provide a fresh bounded Chat/Work/Codex command envelope to continue autonomous work",
+  };
+}
+
+export function goalDraftNotReadyOutcome(reasons: readonly string[]): GoalDraftNotReadyOutcome {
+  if (reasons.length === 0) throw new Error("goal readiness reasons are required");
+  return {
+    status: "goal_draft_not_ready",
+    invalidatedIssue: null,
+    verificationSummary: `Collaborative goal draft is not execution-ready: ${reasons.join(", ")}`,
+    nextAction: "Resolve the remaining goal questions with the user and provide an execution-ready goal draft",
+    goalReadinessReasons: [...reasons],
   };
 }
 
