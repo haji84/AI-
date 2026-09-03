@@ -10,6 +10,7 @@ import { dispatchAutonomyEvent, EventContextSource } from "../src/orchestrator/e
 import { GoalDrivenLoop, type Verifier } from "../src/orchestrator/goal-loop.ts";
 import { githubRuntimeConfig, LiveGitHubReadClient } from "../src/orchestrator/github-live-client.ts";
 import { createLocalBlockerCapability, ModelBackedPlanner } from "../src/orchestrator/model-planner.ts";
+import { resolvePersistentCommandEnvelope } from "../src/orchestrator/persistent-command-handoff.ts";
 import { createSafePrProposalCapability } from "../src/orchestrator/safe-pr-capability.ts";
 import { TeamAwarePlanner } from "../src/orchestrator/team-aware-planner.ts";
 import { UnifiedPlanningClient } from "../src/orchestrator/unified-planning-client.ts";
@@ -38,7 +39,11 @@ try {
     const config = githubRuntimeConfig(process.env);
     const github = new LiveGitHubReadClient(config);
     const token = process.env.GITHUB_TOKEN?.trim() || "";
-    const planningClient = new UnifiedPlanningClient();
+    const envelopeJson = resolvePersistentCommandEnvelope({
+      explicitJson: process.env.AUTONOMY_COMMAND_JSON,
+      stateDir,
+    });
+    const planningClient = new UnifiedPlanningClient(envelopeJson);
     commandSource = planningClient.command.source;
     command = planningClient.command.command;
     const event = {
