@@ -1,5 +1,12 @@
 import type { GoalRecord, StateRecord } from "../compass/store.ts";
 import type { CommandIngressSource } from "./command-ingress.ts";
+import {
+  inferReasoningTaskSignals,
+  routeReasoningTask,
+  type ReasoningRoutingDecision,
+  type ReasoningSoftBudgets,
+  type ReasoningUsage,
+} from "./reasoning-router.ts";
 
 export interface ReasoningFeedback {
   version: 1;
@@ -13,6 +20,7 @@ export interface ReasoningFeedback {
   report: unknown;
   reasoningRequired: boolean;
   humanApprovalRequired: boolean;
+  reasoningRoute: ReasoningRoutingDecision;
   generatedAt: string;
 }
 
@@ -26,6 +34,8 @@ export interface BuildReasoningFeedbackInput {
   verificationSummary?: string | null;
   nextAction?: string | null;
   report?: unknown;
+  reasoningUsage?: ReasoningUsage;
+  reasoningSoftBudgets?: ReasoningSoftBudgets;
   generatedAt?: string;
 }
 
@@ -51,6 +61,12 @@ export function buildReasoningFeedback(input: BuildReasoningFeedbackInput): Reas
     || status === "awaiting_command"
     || status === "goal_draft_not_ready"
     || status === "stale_command_invalidated";
+  const routeText = nextAction?.trim() || input.command?.trim() || "Review current status and decide the next bounded step";
+  const reasoningRoute = routeReasoningTask(
+    inferReasoningTaskSignals(routeText),
+    input.reasoningUsage,
+    input.reasoningSoftBudgets,
+  );
 
   return {
     version: 1,
@@ -64,6 +80,7 @@ export function buildReasoningFeedback(input: BuildReasoningFeedbackInput): Reas
     report: input.report ?? null,
     reasoningRequired,
     humanApprovalRequired,
+    reasoningRoute,
     generatedAt: input.generatedAt ?? new Date().toISOString(),
   };
 }

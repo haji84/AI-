@@ -19,7 +19,9 @@ import { GoalDrivenLoop, type Verifier } from "../src/orchestrator/goal-loop.ts"
 import { githubRuntimeConfig, LiveGitHubReadClient } from "../src/orchestrator/github-live-client.ts";
 import { createLocalBlockerCapability, ModelBackedPlanner } from "../src/orchestrator/model-planner.ts";
 import { invalidatePersistedCommandIfTargetClosed, resolvePersistentCommandEnvelope } from "../src/orchestrator/persistent-command-handoff.ts";
+import { readReasoningUsage, recordReasoningUse } from "../src/orchestrator/reasoning-budget.ts";
 import { buildReasoningFeedback } from "../src/orchestrator/reasoning-feedback.ts";
+import { DEFAULT_REASONING_SOFT_BUDGETS, type ReasoningSoftBudgets } from "../src/orchestrator/reasoning-router.ts";
 import { createSafePrProposalCapability } from "../src/orchestrator/safe-pr-capability.ts";
 import { TeamAwarePlanner } from "../src/orchestrator/team-aware-planner.ts";
 import { UnifiedPlanningClient } from "../src/orchestrator/unified-planning-client.ts";
@@ -30,6 +32,18 @@ const maxCycles = Number(args.find((v) => v.startsWith("--max-cycles="))?.split(
 if (!["run", "pause", "resume", "status"].includes(mode)) throw new Error(`unsupported mode: ${mode}`);
 if (!Number.isInteger(maxCycles) || maxCycles < 1 || maxCycles > 20) throw new Error("max-cycles must be an integer from 1 to 20");
 
+function softBudgetFromEnv(name: string, fallback: number): number {
+  const raw = process.env[name]?.trim();
+  if (!raw) return fallback;
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value < 0) throw new Error(`${name} must be a non-negative integer`);
+  return value;
+}
+
+const reasoningSoftBudgets: ReasoningSoftBudgets = {
+  work: softBudgetFromEnv("REASONING_WORK_SOFT_DAILY_BUDGET", DEFAULT_REASONING_SOFT_BUDGETS.work),
+  codex: softBudgetFromEnv("REASONING_CODEX_SOFT_DAILY_BUDGET", DEFAULT_REASONING_SOFT_BUDGETS.codex),
+};
 const stateDir = process.env.AUTONOMY_STATE_DIR?.trim() || resolve(process.cwd(), ".autonomy-state");
 mkdirSync(stateDir, { recursive: true });
 const dbPath = process.env.COMPASS_DB_PATH?.trim() || resolve(stateDir, "compass.db");
@@ -55,6 +69,7 @@ try {
   let commandSource: "chat" | "work" | "codex" | null = null;
   let command: string | null = null;
   let lifecycleOutcome: AutonomyLifecycleOutcome | null = null;
+  let freshCommandHandoff = false;
 
   if (mode === "run" || mode === "resume") {
     const config = githubRuntimeConfig(process.env);
@@ -74,6 +89,7 @@ try {
       const planningClient = new UnifiedPlanningClient(envelopeJson);
       commandSource = planningClient.command.source;
       command = planningClient.command.command;
+      freshCommandHandoff = Boolean(explicitJson);
 
       if (!explicitJson) {
         const repositoryState = await github.readRepositoryState();
@@ -125,6 +141,9 @@ try {
   const goalReadinessReasons = lifecycleOutcome?.status === "goal_draft_not_ready" ? lifecycleOutcome.goalReadinessReasons : [];
   const status = lifecycleOutcome?.status ?? after.status;
   const verificationSummary = lifecycleOutcome?.verificationSummary ?? after.verificationSummary;
+  const reasoningUsage = freshCommandHandoff
+    ? recordReasoningUse(stateDir, commandSource)
+    : readReasoningUsage(stateDir);
   const output = {
     mode,
     commandSource,
@@ -152,6 +171,8 @@ try {
     verificationSummary,
     nextAction,
     report,
+    reasoningUsage,
+    reasoningSoftBudgets,
   });
   writeFileSync(summaryPath, `${JSON.stringify(output, null, 2)}\n`, "utf-8");
   writeFileSync(feedbackPath, `${JSON.stringify(feedback, null, 2)}\n`, "utf-8");

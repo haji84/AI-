@@ -38,6 +38,8 @@ test("emits a compact continuable feedback packet", () => {
   assert.equal(feedback.reasoningRequired, false);
   assert.equal(feedback.humanApprovalRequired, false);
   assert.equal(feedback.nextAction, "inspect the result");
+  assert.equal(feedback.reasoningRoute.surface, "chat");
+  assert.equal(feedback.reasoningRoute.status, "ready");
 });
 
 test("signals fresh reasoning for idle, stale, draft-gated, or blocked states", () => {
@@ -69,4 +71,20 @@ test("surfaces Human Gate evidence separately from general reasoning", () => {
   });
   assert.equal(feedback.reasoningRequired, true);
   assert.equal(feedback.humanApprovalRequired, true);
+});
+
+test("shows budget exhaustion in the structured feedback packet", () => {
+  const { goal, state } = baseInput();
+  const feedback = buildReasoningFeedback({
+    goal,
+    state: { ...state, nextAction: "Refactor repository code and update tests" },
+    status: "RUNNING",
+    commandSource: "chat",
+    command: "continue",
+    reasoningUsage: { work: 0, codex: 3 },
+    reasoningSoftBudgets: { work: 2, codex: 3 },
+  });
+  assert.equal(feedback.reasoningRoute.surface, "codex");
+  assert.equal(feedback.reasoningRoute.status, "defer_heavy_reasoning");
+  assert.equal(feedback.reasoningRoute.budgetRemaining, 0);
 });
