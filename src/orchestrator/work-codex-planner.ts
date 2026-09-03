@@ -1,4 +1,3 @@
-import type { ContextItem, Goal } from "./goal-loop.ts";
 import type { ModelPlan, PlanningModel } from "./model-planner.ts";
 
 export interface WorkCodexPlanEnvelope {
@@ -32,7 +31,7 @@ export class WorkCodexPlanningClient implements PlanningModel {
     this.envelopeJson = envelopeJson;
   }
 
-  async plan(_input: { goal: Goal; context: ContextItem[] }): Promise<ModelPlan> {
+  async plan(): Promise<ModelPlan> {
     if (!this.envelopeJson) {
       throw new Error(
         "Work/Codex planning handoff is required. GitHub Actions is an execution/verification host and must not substitute a model provider.",
