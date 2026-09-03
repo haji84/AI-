@@ -146,7 +146,8 @@ export class ModelBackedPlanner implements Planner {
   constructor(model: PlanningModel, workspace?: WorkspaceReader, options: { explicitBoundedPlan?: boolean } = {}) {
     this.model = model;
     this.workspace = workspace;
-    this.explicitBoundedPlan = options.explicitBoundedPlan === true;
+    const modelCommand = (model as { command?: { plan?: unknown } }).command;
+    this.explicitBoundedPlan = options.explicitBoundedPlan === true || Boolean(modelCommand?.plan);
   }
 
   async inferIntent(input: { goal: Goal; context: ContextItem[]; preferences?: string[]; recentDecisions?: string[] }): Promise<InferredIntent> {
