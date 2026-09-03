@@ -23,8 +23,8 @@ on:
           - "2"
           - "3"
           - "5"
-      work_codex_plan:
-        description: JSON envelope produced by Work/Codex for run or resume
+      command_json:
+        description: Unified Chat/Work/Codex command envelope for run or resume
         required: false
         type: string
   schedule:
@@ -69,7 +69,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           RUN_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'status' }}
           MAX_CYCLES: ${{ github.event_name == 'workflow_dispatch' && inputs.max_cycles || '3' }}
-          AUTONOMY_WORK_CODEX_PLAN_JSON: ${{ github.event_name == 'workflow_dispatch' && inputs.work_codex_plan || '' }}
+          AUTONOMY_COMMAND_JSON: ${{ github.event_name == 'workflow_dispatch' && inputs.command_json || '' }}
         run: pnpm autonomy:cloud -- --mode="$RUN_MODE" --max-cycles="$MAX_CYCLES"
       - name: Publish mobile-readable summary
         if: always()
