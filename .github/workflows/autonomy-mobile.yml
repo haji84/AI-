@@ -29,6 +29,8 @@ on:
         type: string
   issues:
     types: [labeled]
+  repository_dispatch:
+    types: [ai-autonomy-run]
   schedule:
     - cron: "17 */6 * * *"
 
@@ -42,12 +44,48 @@ env:
   AUTONOMY_SUMMARY_PATH: .autonomy-state/run-summary.json
 
 jobs:
-  autonomy:
+  issue-command-bridge:
     if: >-
-      github.event_name != 'issues' ||
-      (github.event.label.name == 'ai-autonomy-run' &&
-       github.event.issue.user.login == github.repository_owner &&
-       github.event.sender.login == github.repository_owner)
+      github.event_name == 'issues' &&
+      github.event.label.name == 'ai-autonomy-run' &&
+      github.event.issue.user.login == github.repository_owner &&
+      github.event.sender.login == github.repository_owner
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Forward owner command to trusted repository dispatch
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          COMMAND_JSON: ${{ github.event.issue.body }}
+        run: |
+          node <<'NODE'
+          const token = process.env.GITHUB_TOKEN;
+          const repository = process.env.GITHUB_REPOSITORY;
+          const commandJson = process.env.COMMAND_JSON ?? '';
+          if (!token || !repository || !commandJson.trim()) {
+            throw new Error('Owner autonomy command bridge is missing required input');
+          }
+          const response = await fetch(`https://api.github.com/repos/${repository}/dispatches`, {
+            method: 'POST',
+            headers: {
+              Accept: 'application/vnd.github+json',
+              Authorization: `Bearer ${token}`,
+              'X-GitHub-Api-Version': '2022-11-28',
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              event_type: 'ai-autonomy-run',
+              client_payload: { command_json: commandJson },
+            }),
+          });
+          if (!response.ok) {
+            const detail = (await response.text()).slice(0, 1000);
+            throw new Error(`repository_dispatch failed with HTTP ${response.status}: ${detail}`);
+          }
+          NODE
+
+  autonomy:
+    if: github.event_name != 'issues'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     concurrency:
@@ -74,9 +112,9 @@ jobs:
       - name: Run bounded autonomy cycle
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          RUN_MODE: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.mode || github.event_name == 'issues' && 'run' || 'status' }}
+          RUN_MODE: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.mode || github.event_name == 'repository_dispatch' && 'run' || 'status' }}
           MAX_CYCLES: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.max_cycles || '3' }}
-          AUTONOMY_COMMAND_JSON: ${{ github.event_name == 'workflow_dispatch' && inputs.command_json || github.event_name == 'issues' && github.event.issue.body || '' }}
+          AUTONOMY_COMMAND_JSON: ${{ github.event_name == 'workflow_dispatch' && inputs.command_json || github.event_name == 'repository_dispatch' && github.event.client_payload.command_json || '' }}
         run: pnpm autonomy:cloud -- --mode="$RUN_MODE" --max-cycles="$MAX_CYCLES"
       - name: Publish mobile-readable summary
         if: always()
