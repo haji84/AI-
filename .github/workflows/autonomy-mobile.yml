@@ -74,6 +74,36 @@ jobs:
       - name: Publish mobile-readable summary
         if: always()
         run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = process.env.GITHUB_STEP_SUMMARY;
+          const readJson = (file) => {
+            try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return null; }
+          };
+          const run = readJson('.autonomy-state/run-summary.json');
+          const feedback = readJson('.autonomy-state/reasoning-feedback.json');
+          const route = feedback?.reasoningRoute ?? null;
+          const surface = route?.surface === 'chat' ? 'Chat' : route?.surface === 'work' ? 'Work' : route?.surface === 'codex' ? 'Codex' : '未判定';
+          const approval = feedback?.humanApprovalRequired === true ? '必要' : feedback ? '不要' : '未判定';
+          const value = (v) => v === null || v === undefined || v === '' ? 'なし' : String(v);
+          const remaining = route?.budgetRemaining === null || route?.budgetRemaining === undefined ? '対象外' : String(route.budgetRemaining);
+          const lines = [
+            '## 📱 AI会社 スマホ確認',
+            '',
+            `- **実行状態:** ${value(run?.status ?? feedback?.status)}`,
+            `- **実行元:** ${value(run?.commandSource ?? feedback?.commandSource)}`,
+            `- **次に必要な頭脳:** ${surface}`,
+            `- **理由:** ${value(route?.reason)}`,
+            `- **Work使用:** ${value(route?.usage?.work)} / 内部上限 ${value(route?.softBudgets?.work)}`,
+            `- **Codex使用:** ${value(route?.usage?.codex)} / 内部上限 ${value(route?.softBudgets?.codex)}`,
+            `- **今回の推奨枠の残り:** ${remaining}`,
+            `- **Human Gate:** ${approval}`,
+            `- **次のアクション:** ${value(feedback?.nextAction ?? run?.nextAction)}`,
+            '',
+          ];
+          fs.appendFileSync(path, `${lines.join('\n')}\n`);
+          NODE
+
           echo "## Mobile Autonomy" >> "$GITHUB_STEP_SUMMARY"
           echo "### Run summary" >> "$GITHUB_STEP_SUMMARY"
           if [ -f .autonomy-state/run-summary.json ]; then
