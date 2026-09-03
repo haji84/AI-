@@ -27,6 +27,8 @@ on:
         description: Unified Chat/Work/Codex command envelope for run or resume
         required: false
         type: string
+  issues:
+    types: [labeled]
   schedule:
     - cron: "17 */6 * * *"
 
@@ -41,6 +43,11 @@ env:
 
 jobs:
   autonomy:
+    if: >-
+      github.event_name != 'issues' ||
+      (github.event.label.name == 'ai-autonomy-run' &&
+       github.event.issue.user.login == github.repository_owner &&
+       github.event.sender.login == github.repository_owner)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     concurrency:
@@ -67,9 +74,9 @@ jobs:
       - name: Run bounded autonomy cycle
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          RUN_MODE: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.mode || 'status' }}
+          RUN_MODE: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.mode || github.event_name == 'issues' && 'run' || 'status' }}
           MAX_CYCLES: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.max_cycles || '3' }}
-          AUTONOMY_COMMAND_JSON: ${{ github.event_name == 'workflow_dispatch' && inputs.command_json || '' }}
+          AUTONOMY_COMMAND_JSON: ${{ github.event_name == 'workflow_dispatch' && inputs.command_json || github.event_name == 'issues' && github.event.issue.body || '' }}
         run: pnpm autonomy:cloud -- --mode="$RUN_MODE" --max-cycles="$MAX_CYCLES"
       - name: Publish mobile-readable summary
         if: always()
