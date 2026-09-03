@@ -19,6 +19,7 @@ import { GoalDrivenLoop, type Verifier } from "../src/orchestrator/goal-loop.ts"
 import { githubRuntimeConfig, LiveGitHubReadClient } from "../src/orchestrator/github-live-client.ts";
 import { createLocalBlockerCapability, ModelBackedPlanner } from "../src/orchestrator/model-planner.ts";
 import { invalidatePersistedCommandIfTargetClosed, resolvePersistentCommandEnvelope } from "../src/orchestrator/persistent-command-handoff.ts";
+import { buildReasoningFeedback } from "../src/orchestrator/reasoning-feedback.ts";
 import { createSafePrProposalCapability } from "../src/orchestrator/safe-pr-capability.ts";
 import { TeamAwarePlanner } from "../src/orchestrator/team-aware-planner.ts";
 import { UnifiedPlanningClient } from "../src/orchestrator/unified-planning-client.ts";
@@ -33,6 +34,7 @@ const stateDir = process.env.AUTONOMY_STATE_DIR?.trim() || resolve(process.cwd()
 mkdirSync(stateDir, { recursive: true });
 const dbPath = process.env.COMPASS_DB_PATH?.trim() || resolve(stateDir, "compass.db");
 const summaryPath = process.env.AUTONOMY_SUMMARY_PATH?.trim() || resolve(stateDir, "run-summary.json");
+const feedbackPath = process.env.AUTONOMY_FEEDBACK_PATH?.trim() || resolve(stateDir, "reasoning-feedback.json");
 const compass = new CompassStore(dbPath);
 
 function openIssueNumbers(repositoryState: unknown): number[] | null {
@@ -50,7 +52,7 @@ try {
   const before = compass.getState();
 
   let report: unknown = null;
-  let commandSource: string | null = null;
+  let commandSource: "chat" | "work" | "codex" | null = null;
   let command: string | null = null;
   let lifecycleOutcome: AutonomyLifecycleOutcome | null = null;
 
@@ -121,24 +123,38 @@ try {
   const after = compass.getState();
   const nextAction = lifecycleOutcome && "nextAction" in lifecycleOutcome ? lifecycleOutcome.nextAction : after.nextAction;
   const goalReadinessReasons = lifecycleOutcome?.status === "goal_draft_not_ready" ? lifecycleOutcome.goalReadinessReasons : [];
+  const status = lifecycleOutcome?.status ?? after.status;
+  const verificationSummary = lifecycleOutcome?.verificationSummary ?? after.verificationSummary;
   const output = {
     mode,
     commandSource,
     command,
     dbPath,
-    status: lifecycleOutcome?.status ?? after.status,
+    status,
     compassStatus: after.status,
     invalidatedIssue: lifecycleOutcome?.invalidatedIssue ?? null,
     goalReadinessReasons,
     paused: after.status === "PAUSED",
     nextAction,
     blockers: after.blockers,
-    verificationSummary: lifecycleOutcome?.verificationSummary ?? after.verificationSummary,
+    verificationSummary,
     report,
     previousStatus: before.status,
     updatedAt: after.updatedAt,
   };
+  const feedback = buildReasoningFeedback({
+    goal: compass.getGoal(),
+    state: after,
+    status,
+    commandSource,
+    command,
+    blockers: after.blockers,
+    verificationSummary,
+    nextAction,
+    report,
+  });
   writeFileSync(summaryPath, `${JSON.stringify(output, null, 2)}\n`, "utf-8");
+  writeFileSync(feedbackPath, `${JSON.stringify(feedback, null, 2)}\n`, "utf-8");
   process.stdout.write(`${JSON.stringify(output, null, 2)}\n`);
 } finally {
   compass.close();
