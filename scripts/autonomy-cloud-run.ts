@@ -11,7 +11,7 @@ import { GoalDrivenLoop, type Verifier } from "../src/orchestrator/goal-loop.ts"
 import { githubRuntimeConfig, LiveGitHubReadClient } from "../src/orchestrator/github-live-client.ts";
 import { createLocalBlockerCapability, ModelBackedPlanner } from "../src/orchestrator/model-planner.ts";
 import { createSafePrProposalCapability } from "../src/orchestrator/safe-pr-capability.ts";
-import { WorkCodexPlanningClient } from "../src/orchestrator/work-codex-planner.ts";
+import { UnifiedPlanningClient } from "../src/orchestrator/unified-planning-client.ts";
 
 const args = process.argv.slice(2);
 const mode = (args.find((v) => v.startsWith("--mode="))?.split("=")[1] ?? "status") as "run" | "pause" | "resume" | "status";
@@ -31,14 +31,19 @@ try {
   const before = compass.getState();
 
   let report: unknown = null;
+  let commandSource: string | null = null;
+  let command: string | null = null;
   if (mode === "run" || mode === "resume") {
     const config = githubRuntimeConfig(process.env);
     const github = new LiveGitHubReadClient(config);
     const token = process.env.GITHUB_TOKEN?.trim() || "";
+    const planningClient = new UnifiedPlanningClient();
+    commandSource = planningClient.command.source;
+    command = planningClient.command.command;
     const event = {
       type: process.env.GITHUB_EVENT_NAME === "schedule" ? "schedule" as const : "manual" as const,
       id: process.env.GITHUB_RUN_ID ? `github-run-${process.env.GITHUB_RUN_ID}` : `cloud-${Date.now()}`,
-      summary: "Work/Codex-planned bounded autonomy run",
+      summary: `${planningClient.command.source} command: ${planningClient.command.command}`,
     };
     const registry = new CapabilityRegistry()
       .register(createContextInspectCapability())
@@ -49,7 +54,7 @@ try {
         return { ok: result.ok, summary: result.ok ? "Cloud capability execution verified" : result.summary, evidence: result.evidence };
       },
     };
-    const planner = new ModelBackedPlanner(new WorkCodexPlanningClient(), new BoundedWorkspaceReader());
+    const planner = new ModelBackedPlanner(planningClient, new BoundedWorkspaceReader());
     const loop = new GoalDrivenLoop(
       planner,
       [new EventContextSource(event), new RepositoryFileContextSource(), new GitHubRepositoryContextSource(github)],
@@ -65,6 +70,8 @@ try {
   const after = compass.getState();
   const output = {
     mode,
+    commandSource,
+    command,
     dbPath,
     status: after.status,
     paused: after.status === "PAUSED",
