@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { CompassStore } from "../src/compass/store.ts";
 import {
   awaitingCommandOutcome,
+  goalDraftNotReadyOutcome,
   isMissingPersistentCommandError,
   staleCommandInvalidationOutcome,
   type AutonomyLifecycleOutcome,
@@ -13,6 +14,7 @@ import { ensureCloudGoal, applyCloudControl, CloudCompassStateStoreAdapter, GitH
 import { compassGoalToLoopGoal } from "../src/orchestrator/compass-state-store.ts";
 import { BoundedWorkspaceReader, RepositoryFileContextSource } from "../src/orchestrator/context-adapters.ts";
 import { dispatchAutonomyEvent, EventContextSource } from "../src/orchestrator/event-runtime.ts";
+import { applyExecutionReadyGoalDraft } from "../src/orchestrator/goal-draft-compass.ts";
 import { GoalDrivenLoop, type Verifier } from "../src/orchestrator/goal-loop.ts";
 import { githubRuntimeConfig, LiveGitHubReadClient } from "../src/orchestrator/github-live-client.ts";
 import { createLocalBlockerCapability, ModelBackedPlanner } from "../src/orchestrator/model-planner.ts";
@@ -62,11 +64,8 @@ try {
     try {
       envelopeJson = resolvePersistentCommandEnvelope({ explicitJson, stateDir });
     } catch (error) {
-      if (!explicitJson && isMissingPersistentCommandError(error)) {
-        lifecycleOutcome = awaitingCommandOutcome();
-      } else {
-        throw error;
-      }
+      if (!explicitJson && isMissingPersistentCommandError(error)) lifecycleOutcome = awaitingCommandOutcome();
+      else throw error;
     }
 
     if (envelopeJson) {
@@ -78,13 +77,14 @@ try {
         const repositoryState = await github.readRepositoryState();
         const openIssues = openIssueNumbers(repositoryState);
         if (openIssues) {
-          const closedTarget = invalidatePersistedCommandIfTargetClosed({
-            envelopeJson,
-            stateDir,
-            openIssueNumbers: openIssues,
-          });
+          const closedTarget = invalidatePersistedCommandIfTargetClosed({ envelopeJson, stateDir, openIssueNumbers: openIssues });
           if (closedTarget) lifecycleOutcome = staleCommandInvalidationOutcome(closedTarget);
         }
+      }
+
+      if (!lifecycleOutcome && planningClient.command.goalDraft) {
+        const goalResult = applyExecutionReadyGoalDraft(compass, planningClient.command.goalDraft);
+        if (!goalResult.ready) lifecycleOutcome = goalDraftNotReadyOutcome(goalResult.reasons);
       }
 
       if (!lifecycleOutcome) {
@@ -119,6 +119,8 @@ try {
   }
 
   const after = compass.getState();
+  const nextAction = lifecycleOutcome && "nextAction" in lifecycleOutcome ? lifecycleOutcome.nextAction : after.nextAction;
+  const goalReadinessReasons = lifecycleOutcome?.status === "goal_draft_not_ready" ? lifecycleOutcome.goalReadinessReasons : [];
   const output = {
     mode,
     commandSource,
@@ -127,8 +129,9 @@ try {
     status: lifecycleOutcome?.status ?? after.status,
     compassStatus: after.status,
     invalidatedIssue: lifecycleOutcome?.invalidatedIssue ?? null,
+    goalReadinessReasons,
     paused: after.status === "PAUSED",
-    nextAction: lifecycleOutcome?.status === "awaiting_command" ? lifecycleOutcome.nextAction : after.nextAction,
+    nextAction,
     blockers: after.blockers,
     verificationSummary: lifecycleOutcome?.verificationSummary ?? after.verificationSummary,
     report,
