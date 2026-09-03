@@ -37,7 +37,7 @@ export function normalizeCommandEnvelope(value: unknown): NormalizedCommand {
     command: envelope.command.trim(),
     goalId: envelope.goalId?.trim() || undefined,
     conversationId: envelope.conversationId?.trim() || undefined,
-    goalDraft: envelope.goalDraft === undefined ? undefined : normalizeGoalDraft(envelope.goalDraft),
+    ...(envelope.goalDraft === undefined ? {} : { goalDraft: normalizeGoalDraft(envelope.goalDraft) }),
     plan: envelope.plan,
   };
 }
