@@ -38,6 +38,7 @@ export interface ProposedAction {
   irreversible?: boolean;
   externalSideEffect?: boolean;
   requiresHumanApproval?: boolean;
+  completesBoundedCommand?: boolean;
   input?: unknown;
 }
 
@@ -223,7 +224,9 @@ export class GoalDrivenLoop {
     }
 
     const verification = await this.verifier.verify({ goal: input.goal, action, result, context });
-    const stopReason: StopReason = verification.ok ? "continue" : "blocked";
+    const stopReason: StopReason = verification.ok
+      ? (action.completesBoundedCommand ? "goal_complete" : "continue")
+      : "blocked";
     const nextAction = verification.ok ? null : action.description;
 
     return this.finish({ goal: input.goal, intent, action, result, verification, stopReason, nextAction }, context);
