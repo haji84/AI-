@@ -60,7 +60,7 @@ const SPECIALIST_RULES: Rule[] = [
   { role: "Accounting / Finance", patterns: [/\b(accounting|finance|bookkeeping|invoice|expense|budget|cash flow|reconciliation|p&l|profit and loss)\b/i, /経理|会計|請求|予算|収支/i] },
   { role: "Legal", patterns: [/\b(legal|contract|terms|privacy policy|license|compliance|regulation|law|copyright)\b/i, /法務|契約|規約|法令|著作権/i], weight: 3 },
   { role: "Advertising", patterns: [/\b(advertising|paid ads|ad creative|ad copy|cpc|cpa|roas|media buying|google ads|meta ads)\b/i, /広告|広告運用|広告文/i] },
-  { role: "Debugger", patterns: [/\b(debug|bug|fix failure|failing test|error|exception|regression|broken|ci failure)\b/i] },
+  { role: "Debugger", patterns: [/\b(debug|bug|fix failure|failing test|error|exception|broken|ci failure)\b/i] },
   { role: "Release Manager", patterns: [/\b(release|release readiness|version|changelog|publish package)\b/i] },
 ];
 
@@ -76,7 +76,7 @@ const QA_PATTERNS = [
 ];
 
 const HUMAN_GATE_PATTERNS: Array<[string, RegExp]> = [
-  ["permissions", /\b(permission|authorization|access control|least privilege)\b/i],
+  ["permissions", /\b(permissions?|authorization|access control|least privilege)\b/i],
   ["secrets", /\b(secret|credential|api key|token)\b/i],
   ["billing", /\b(billing|payment|paid plan|purchase|charge)\b/i],
   ["deployment", /\b(deploy|deployment|production release)\b/i],
@@ -91,6 +91,24 @@ function matchedReasons(text: string, patterns: RegExp[]): string[] {
     if (match?.[0]) reasons.push(match[0]);
   }
   return [...new Set(reasons.map((value) => value.toLowerCase()))];
+}
+
+function isNegatedMatch(text: string, index: number): boolean {
+  const before = text.slice(Math.max(0, index - 80), index);
+  const clause = before.split(/[.!?;\n]/).at(-1) ?? before;
+  return /\b(?:no|without)\s+(?:(?:new|any)\s+)?(?:[\w-]+\s+){0,3}$/i.test(clause)
+    || /\b(?:do not|does not|must not|never)\s+(?:[\w-]+\s+){0,5}$/i.test(clause)
+    || /(?:禁止|しない|なし)[^。！？\n]{0,40}$/.test(clause);
+}
+
+function hasAffirmativeGateSignal(text: string, pattern: RegExp): boolean {
+  const flags = pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`;
+  const scanner = new RegExp(pattern.source, flags);
+  for (const match of text.matchAll(scanner)) {
+    if (match.index === undefined) continue;
+    if (!isNegatedMatch(text, match.index)) return true;
+  }
+  return false;
 }
 
 export function composeTeamFromIssue(input: { title: string; body?: string | null }): TeamComposition {
@@ -109,7 +127,6 @@ export function composeTeamFromIssue(input: { title: string; body?: string | nul
     });
   }
 
-  // Explicit video-editing work should use the dedicated editor instead of generic Media.
   if (selected.has("Video Editor")) selected.delete("Media");
 
   const codeChangeLikely = CODE_CHANGE_PATTERNS.some((pattern) => pattern.test(text));
@@ -123,7 +140,7 @@ export function composeTeamFromIssue(input: { title: string; body?: string | nul
   }
 
   const humanGateSignals = HUMAN_GATE_PATTERNS
-    .filter(([, pattern]) => pattern.test(text))
+    .filter(([, pattern]) => hasAffirmativeGateSignal(text, pattern))
     .map(([signal]) => signal);
 
   if (humanGateSignals.length) {

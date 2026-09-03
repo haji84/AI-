@@ -67,6 +67,50 @@ test("team-aware planner adds completed team execution to downstream planner con
   assert.deepEqual(data.execution.plannedOrder, ["PM", "Backend", "QA", "Reviewer"]);
 });
 
+test("team-aware planner prefers the Issue explicitly named by the command", async () => {
+  let seenContext: ContextItem[] = [];
+  const delegate: Planner = {
+    async inferIntent() { return intent; },
+    async proposeNextAction(input) {
+      seenContext = input.context;
+      return { id: "targeted", description: "target selected", capability: "context.inspect", risk: "low" };
+    },
+  };
+
+  const planner = new TeamAwarePlanner(delegate);
+  await planner.proposeNextAction({
+    goal,
+    intent,
+    context: [
+      {
+        source: "event:manual",
+        summary: "chat command: Run Issue #125 live smoke test using the bounded autonomous PR path.",
+      },
+      {
+        source: "repository.file:PROJECT_STATE.md",
+        summary: "NEXT_PRIORITY: complete machine-bound real-machine smoke before advancing Phase 3",
+      },
+      {
+        source: "github.repository_state",
+        summary: "live repository state",
+        data: {
+          openIssues: [
+            { number: 130, title: "fix: unrelated cloud-safe issue", body: "Add a test." },
+            { number: 128, title: "fix: another cloud-safe issue", body: "Update workflow test." },
+            { number: 125, title: "test: frontend AI employee staffing", body: "Add a React web UI regression test." },
+          ],
+        },
+      },
+    ],
+  });
+
+  const teamContext = seenContext.find((item) => item.source === "team.execution");
+  assert.ok(teamContext);
+  const data = teamContext.data as { issue: { number: number }; execution: { plannedOrder: string[] } };
+  assert.equal(data.issue.number, 125);
+  assert.deepEqual(data.execution.plannedOrder, ["PM", "Frontend", "QA", "Reviewer"]);
+});
+
 test("team-aware planner stops at Human Gate before delegating a privileged issue", async () => {
   let delegated = false;
   const delegate: Planner = {
