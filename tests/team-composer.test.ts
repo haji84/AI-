@@ -46,6 +46,21 @@ test("negated safety language does not create Human Gate signals", () => {
   assert.equal(result.members.some((member) => member.role === "Governor"), false);
 });
 
+test("Issue 125 comma-separated safety list does not staff unrelated roles or create Human Gate", () => {
+  const result = composeTeamFromIssue({
+    title: "test: live smoke test automatic AI employee staffing through PR proposal",
+    body: [
+      "Update tests/team-aware-planner.test.ts with one frontend-oriented regression test.",
+      "No workflow, permissions, secrets, billing, deployment, database, PROJECT_STATE, ROADMAP, AGENTS, destructive, or merge automation changes.",
+      "Merge remains explicit Human Gate.",
+    ].join("\n"),
+  });
+
+  assert.deepEqual(result.humanGateSignals, []);
+  assert.deepEqual(result.members.map((member) => member.role), ["PM", "Frontend", "QA", "Reviewer"]);
+  assert.equal(result.lead, "Frontend");
+});
+
 test("affirmative privileged language still creates Human Gate signals", () => {
   const result = composeTeamFromIssue({
     title: "ops: deploy production and update billing",
