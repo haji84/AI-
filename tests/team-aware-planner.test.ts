@@ -111,6 +111,70 @@ test("team-aware planner prefers the Issue explicitly named by the command", asy
   assert.deepEqual(data.execution.plannedOrder, ["PM", "Frontend", "QA", "Reviewer"]);
 });
 
+test("Issue #125 live smoke reaches downstream planning with the bounded frontend team", async () => {
+  let seenContext: ContextItem[] = [];
+  const expected: ProposedAction = {
+    id: "smoke-pr",
+    description: "propose Issue #125 regression test",
+    capability: "repository.propose_pr",
+    risk: "low",
+    externalSideEffect: true,
+  };
+  const delegate: Planner = {
+    async inferIntent() { return intent; },
+    async proposeNextAction(input) {
+      seenContext = input.context;
+      return expected;
+    },
+  };
+
+  const planner = new TeamAwarePlanner(delegate);
+  const action = await planner.proposeNextAction({
+    goal,
+    intent,
+    context: [
+      {
+        source: "event:manual",
+        summary: "chat command: Run Issue #125 live smoke test using the bounded autonomous PR path.",
+      },
+      {
+        source: "repository.file:PROJECT_STATE.md",
+        summary: "NEXT_PRIORITY: complete machine-bound real-machine smoke before advancing Phase 3",
+      },
+      {
+        source: "github.repository_state",
+        summary: "live repository state",
+        data: {
+          openIssues: [
+            {
+              number: 125,
+              title: "test: frontend AI employee staffing through PR proposal",
+              body: [
+                "Add one React web UI regression test proving bounded team execution reaches downstream planning.",
+                "No workflow, permissions, secrets, billing, deployment, database, PROJECT_STATE, ROADMAP, AGENTS, destructive, or merge automation changes.",
+                "Merge remains explicit Human Gate.",
+              ].join("\n"),
+            },
+          ],
+        },
+      },
+    ],
+  });
+
+  assert.deepEqual(action, expected);
+  const teamContext = seenContext.find((item) => item.source === "team.execution");
+  assert.ok(teamContext);
+  const data = teamContext.data as {
+    issue: { number: number };
+    team: { humanGateSignals: string[] };
+    execution: { stopReason: string; plannedOrder: string[] };
+  };
+  assert.equal(data.issue.number, 125);
+  assert.deepEqual(data.team.humanGateSignals, []);
+  assert.equal(data.execution.stopReason, "completed");
+  assert.deepEqual(data.execution.plannedOrder, ["PM", "Frontend", "QA", "Reviewer"]);
+});
+
 test("team-aware planner stops at Human Gate before delegating a privileged issue", async () => {
   let delegated = false;
   const delegate: Planner = {
