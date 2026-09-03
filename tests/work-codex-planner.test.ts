@@ -1,14 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { WorkCodexPlanningClient } from "../src/orchestrator/work-codex-planner.ts";
-import type { ContextItem, Goal } from "../src/orchestrator/goal-loop.ts";
-
-const goal: Goal = {
-  title: "Advance repository safely",
-  successCriteria: ["verified"],
-  constraints: ["Human Gate for merge"],
-};
-const context: ContextItem[] = [];
 
 test("accepts a bounded plan explicitly handed off by Work/Codex", async () => {
   const client = new WorkCodexPlanningClient(JSON.stringify({
@@ -22,14 +14,14 @@ test("accepts a bounded plan explicitly handed off by Work/Codex", async () => {
     },
   }));
 
-  const plan = await client.plan({ goal, context });
+  const plan = await client.plan();
   assert.equal(plan.kind, "propose_pr");
   assert.equal(plan.files?.length, 1);
 });
 
 test("fails hard when Work/Codex handoff is missing", async () => {
   await assert.rejects(
-    () => new WorkCodexPlanningClient("").plan({ goal, context }),
+    () => new WorkCodexPlanningClient("").plan(),
     /Work\/Codex planning handoff is required/,
   );
 });
@@ -39,7 +31,7 @@ test("rejects handoffs from any other planning source", async () => {
     () => new WorkCodexPlanningClient(JSON.stringify({
       source: "other-provider",
       plan: { kind: "inspect", description: "Inspect" },
-    })).plan({ goal, context }),
+    })).plan(),
     /source=work-codex/,
   );
 });
@@ -49,7 +41,7 @@ test("rejects malformed propose_pr plans", async () => {
     () => new WorkCodexPlanningClient(JSON.stringify({
       source: "work-codex",
       plan: { kind: "propose_pr", description: "Missing files", title: "bad" },
-    })).plan({ goal, context }),
+    })).plan(),
     /1-3 files/,
   );
 });
