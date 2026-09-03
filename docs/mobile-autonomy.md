@@ -1,33 +1,60 @@
 # Mobile-first autonomy
 
-The phone remains a control surface, but model reasoning is owned by Work/Codex. GitHub Actions is the remote execution, persistence, CI, verification, and bounded repository-operation host. It must not call a replacement model provider on its own.
+The phone remains a control surface. Chat, Work, and Codex are now first-class ingress sources into one goal-driven command layer. GitHub Actions is the remote execution, persistence, CI, verification, and bounded repository-operation host. It must not call a replacement model provider on its own.
 
 ## Control-plane flow
 
-1. Work/Codex reads the explicit goal, repository state, issue, and required context.
-2. Work/Codex produces one bounded plan envelope with `source: "work-codex"`.
-3. `Mobile Autonomy` receives that envelope through the `work_codex_plan` workflow input for `run` or `resume`.
-4. GitHub Actions validates and executes only the bounded plan through existing capabilities.
-5. Verification and Compass state are written back and published in the workflow summary.
-6. Merge, deployment, billing, secrets, permissions, and other Human Gates remain outside automatic execution.
+1. Chat, Work, or Codex receives the user's command and reads the explicit goal, repository state, issue, and required context available to that surface.
+2. The source produces one unified JSON command envelope containing `source`, `command`, optional goal/conversation identifiers, and an explicit bounded `plan` when model reasoning is required.
+3. `source` must be exactly `chat`, `work`, or `codex`.
+4. `Mobile Autonomy` receives the same envelope through the `command_json` workflow input for `run` or `resume`.
+5. The command router normalizes all three sources into one downstream execution contract before planning/execution.
+6. GitHub Actions validates and executes only the bounded plan through existing capabilities.
+7. Verification and Compass state are written back and published in the workflow summary.
+8. Merge, deployment, billing, secrets, permissions, and other Human Gates remain outside automatic execution.
 
-If a run requires model reasoning and no valid Work/Codex handoff is supplied, the workflow fails visibly. It must not silently fall back to another model provider or return a misleading green no-op.
+Example envelope:
+
+```json
+{
+  "source": "chat",
+  "command": "continue the current goal",
+  "goalId": "optional-goal-id",
+  "conversationId": "optional-conversation-id",
+  "plan": {
+    "kind": "inspect",
+    "description": "Inspect current repository and Compass state"
+  }
+}
+```
+
+The same schema is used when `source` is `work` or `codex`. Source metadata never bypasses verification, capability policy, or Human Gates.
+
+If a run requires model reasoning and no valid bounded plan is supplied, the workflow fails visibly. It must not silently fall back to another model provider or return a misleading green no-op.
+
+## Roles of the three ingress surfaces
+
+- `chat`: primary conversational command and goal ingress.
+- `work`: general multi-step knowledge and artifact work ingress.
+- `codex`: coding, test, and repository-work ingress.
+
+These are different entry surfaces, not separate state machines. They converge before bounded execution and operate against the same goal-driven loop and Compass-backed state boundary.
 
 ## From iPhone or Android
 
 Open the repository in the GitHub mobile app or mobile browser, open **Actions**, choose **Mobile Autonomy**, then choose **Run workflow**.
 
 Modes:
-- `run`: execute a bounded plan supplied by Work/Codex.
+- `run`: execute a bounded plan supplied through the unified Chat/Work/Codex command envelope.
 - `pause`: persist `PAUSED` state.
-- `resume`: clear the pause and execute a bounded Work/Codex plan.
+- `resume`: clear the pause and execute a bounded unified command.
 - `status`: read and publish current persisted state without model reasoning.
 
-The workflow summary shows status, pause state, blockers, verification summary, and next action in a mobile-readable view.
+The workflow summary shows command source, command, status, pause state, blockers, verification summary, and next action in a mobile-readable view.
 
 ## Scheduled operation
 
-The workflow wakes every six hours at minute 17 in `status` mode only. Scheduled GitHub Actions runs never perform model reasoning and never call an AI model provider. Planning/coding work is initiated by Work/Codex and handed to the bounded execution host explicitly.
+The workflow wakes every six hours at minute 17 in `status` mode only. Scheduled GitHub Actions runs never perform model reasoning and never call an AI model provider. Reasoning work is initiated through Chat, Work, or Codex and handed to the bounded execution host explicitly.
 
 ## Persistence
 
