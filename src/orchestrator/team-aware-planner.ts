@@ -3,6 +3,17 @@ import type { ContextItem, Goal } from "./goal-loop.ts";
 import { detectLocalOnlyBlocker, selectParallelCloudCandidates } from "./model-planner.ts";
 import { buildTeamPlanningBundle } from "./team-planning-context.ts";
 
+function explicitIssueNumber(context: ContextItem[]): number | undefined {
+  for (const item of context) {
+    if (!item.source.startsWith("event:")) continue;
+    const match = item.summary.match(/\bIssue\s*#(\d+)\b/i);
+    if (!match) continue;
+    const number = Number(match[1]);
+    if (Number.isInteger(number) && number > 0) return number;
+  }
+  return undefined;
+}
+
 export class TeamAwarePlanner implements Planner {
   private readonly delegate: Planner;
 
@@ -28,7 +39,7 @@ export class TeamAwarePlanner implements Planner {
     const localBlocker = detectLocalOnlyBlocker(input.context);
     if (!localBlocker) return this.delegate.proposeNextAction(input);
 
-    const selection = selectParallelCloudCandidates(input.context);
+    const selection = selectParallelCloudCandidates(input.context, explicitIssueNumber(input.context));
     const candidate = selection.candidates[0];
     if (!candidate) return this.delegate.proposeNextAction(input);
 
