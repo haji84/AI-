@@ -121,7 +121,7 @@ try {
           },
         };
         const basePlanner = new ModelBackedPlanner(planningClient, new BoundedWorkspaceReader());
-        const planner = new TeamAwarePlanner(basePlanner);
+        const planner = new TeamAwarePlanner(basePlanner, { explicitBoundedPlan: Boolean(planningClient.command.plan) });
         const loop = new GoalDrivenLoop(
           planner,
           [new EventContextSource(event), new RepositoryFileContextSource(), new GitHubRepositoryContextSource(github)],
