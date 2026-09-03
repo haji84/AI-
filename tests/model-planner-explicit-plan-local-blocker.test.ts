@@ -24,7 +24,7 @@ const blockedContext: ContextItem[] = [
         {
           number: 158,
           title: "test: live Chat loop smoke",
-          body: "Do not claim local-runtime evidence. Create one bounded docs PR.",
+          body: "Do not claim local runtime evidence. Create one bounded docs PR.",
         },
       ],
     },
@@ -47,7 +47,7 @@ class ExplicitCommandModel implements PlanningModel {
 }
 
 test("explicit command plan bypasses unrelated model-planner local blocker fallback", async () => {
-  const planner = new ModelBackedPlanner(new ExplicitCommandModel());
+  const planner = new ModelBackedPlanner(new ExplicitCommandModel(), undefined, { explicitBoundedPlan: true });
   const action = await planner.proposeNextAction({ goal, intent, context: blockedContext });
 
   assert.equal(action?.capability, "repository.propose_pr");
