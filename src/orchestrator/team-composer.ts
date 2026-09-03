@@ -93,6 +93,23 @@ function matchedReasons(text: string, patterns: RegExp[]): string[] {
   return [...new Set(reasons.map((value) => value.toLowerCase()))];
 }
 
+function isNegatedMatch(text: string, index: number): boolean {
+  const before = text.slice(Math.max(0, index - 180), index);
+  const clause = before.split(/[.!?;\n]/).at(-1) ?? before;
+  return /\b(no|without|do not|does not|must not|never)\b[^.!?;\n]{0,180}$/i.test(clause)
+    || /(禁止|しない|なし)[^。！？\n]{0,80}$/.test(clause);
+}
+
+function hasAffirmativeGateSignal(text: string, pattern: RegExp): boolean {
+  const flags = pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`;
+  const scanner = new RegExp(pattern.source, flags);
+  for (const match of text.matchAll(scanner)) {
+    if (match.index === undefined) continue;
+    if (!isNegatedMatch(text, match.index)) return true;
+  }
+  return false;
+}
+
 export function composeTeamFromIssue(input: { title: string; body?: string | null }): TeamComposition {
   const text = `${input.title}\n${input.body ?? ""}`.trim();
   const selected = new Map<EmployeeRole, TeamMemberSelection>();
@@ -123,7 +140,7 @@ export function composeTeamFromIssue(input: { title: string; body?: string | nul
   }
 
   const humanGateSignals = HUMAN_GATE_PATTERNS
-    .filter(([, pattern]) => pattern.test(text))
+    .filter(([, pattern]) => hasAffirmativeGateSignal(text, pattern))
     .map(([signal]) => signal);
 
   if (humanGateSignals.length) {
