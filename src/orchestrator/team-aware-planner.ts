@@ -16,9 +16,11 @@ function explicitIssueNumber(context: ContextItem[]): number | undefined {
 
 export class TeamAwarePlanner implements Planner {
   private readonly delegate: Planner;
+  private readonly explicitBoundedPlan: boolean;
 
-  constructor(delegate: Planner) {
+  constructor(delegate: Planner, options: { explicitBoundedPlan?: boolean } = {}) {
     this.delegate = delegate;
+    this.explicitBoundedPlan = options.explicitBoundedPlan === true;
   }
 
   inferIntent(input: {
@@ -36,6 +38,11 @@ export class TeamAwarePlanner implements Planner {
     intent: InferredIntent;
     previousResult?: ActionResult | null;
   }): Promise<ProposedAction | null> {
+    // Explicit Chat/Work/Codex plans have already passed the bounded plan validator.
+    // Keep the normal downstream planner/capability/risk/verifier path intact instead
+    // of replacing that supplied plan with unrelated local-blocker team preselection.
+    if (this.explicitBoundedPlan) return this.delegate.proposeNextAction(input);
+
     const localBlocker = detectLocalOnlyBlocker(input.context);
     if (!localBlocker) return this.delegate.proposeNextAction(input);
 
