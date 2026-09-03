@@ -56,7 +56,7 @@ const SPECIALIST_RULES: Rule[] = [
   { role: "DevOps / SRE", patterns: [/\b(devops|sre|ci\/cd|github actions|workflow|runtime|deployment|deploy|monitoring|uptime|incident|infrastructure)\b/i] },
   { role: "Knowledge Manager", patterns: [/\b(documentation|knowledge base|runbook|decision log|adr|project memory|knowledge management)\b/i] },
   { role: "Marketing", patterns: [/\b(marketing|market research|positioning|go[- ]to[- ]market|audience|campaign strategy|brand strategy)\b/i, /マーケティング|市場調査|市場分析/i] },
-  { role: "Sales", patterns: [/\b(sales|lead generation|prospect|pipeline|crm|proposal|customer outreach|deal)\b/i, /営業|商談|見込み客/i] },
+  { role: "Sales", patterns: [/\b(sales|lead generation|prospect|pipeline|crm|sales proposal|customer outreach|deal)\b/i, /営業|商談|見込み客/i] },
   { role: "Accounting / Finance", patterns: [/\b(accounting|finance|bookkeeping|invoice|expense|budget|cash flow|reconciliation|p&l|profit and loss)\b/i, /経理|会計|請求|予算|収支/i] },
   { role: "Legal", patterns: [/\b(legal|contract|terms|privacy policy|license|compliance|regulation|law|copyright)\b/i, /法務|契約|規約|法令|著作権/i], weight: 3 },
   { role: "Advertising", patterns: [/\b(advertising|paid ads|ad creative|ad copy|cpc|cpa|roas|media buying|google ads|meta ads)\b/i, /広告|広告運用|広告文/i] },
@@ -84,21 +84,35 @@ const HUMAN_GATE_PATTERNS: Array<[string, RegExp]> = [
   ["legal publication", /\b(publish terms|publish privacy policy|external publication)\b/i],
 ];
 
+function isNegatedMatch(text: string, index: number): boolean {
+  const before = text.slice(Math.max(0, index - 180), index);
+  const clause = before.split(/[.!?;\n]/).at(-1) ?? before;
+  if (/\b(?:no|without)\s+(?:(?:new|any)\s+)?(?:[\w-]+\s+){0,3}$/i.test(clause)) return true;
+  if (/\b(?:do not|does not|must not|never)\s+(?:[\w-]+\s+){0,5}$/i.test(clause)) return true;
+  if (/(?:禁止|しない|なし)[^。！？\n]{0,40}$/.test(clause)) return true;
+
+  const listNegations = [...clause.matchAll(/\b(?:no|without)\b/gi)];
+  const latest = listNegations.at(-1);
+  if (latest?.index !== undefined) {
+    const tail = clause.slice(latest.index + latest[0].length);
+    const hasContrast = /\b(?:but|however|except|unless|instead)\b/i.test(tail);
+    if (!hasContrast && tail.length <= 160 && /[,/]/.test(tail)) return true;
+  }
+
+  return false;
+}
+
 function matchedReasons(text: string, patterns: RegExp[]): string[] {
   const reasons: string[] = [];
   for (const pattern of patterns) {
-    const match = text.match(pattern);
-    if (match?.[0]) reasons.push(match[0]);
+    const flags = pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`;
+    const scanner = new RegExp(pattern.source, flags);
+    for (const match of text.matchAll(scanner)) {
+      if (!match[0] || match.index === undefined || isNegatedMatch(text, match.index)) continue;
+      reasons.push(match[0]);
+    }
   }
   return [...new Set(reasons.map((value) => value.toLowerCase()))];
-}
-
-function isNegatedMatch(text: string, index: number): boolean {
-  const before = text.slice(Math.max(0, index - 80), index);
-  const clause = before.split(/[.!?;\n]/).at(-1) ?? before;
-  return /\b(?:no|without)\s+(?:(?:new|any)\s+)?(?:[\w-]+\s+){0,3}$/i.test(clause)
-    || /\b(?:do not|does not|must not|never)\s+(?:[\w-]+\s+){0,5}$/i.test(clause)
-    || /(?:禁止|しない|なし)[^。！？\n]{0,40}$/.test(clause);
 }
 
 function hasAffirmativeGateSignal(text: string, pattern: RegExp): boolean {
