@@ -27,30 +27,17 @@ export function applyCloudControl(compass: CompassStore, mode: "run" | "pause" |
   if (mode === "resume" && compass.getState().status === "PAUSED") compass.updateState({ status: "READY" });
 }
 
-export interface CloudCompassStateStoreAdapterOptions {
-  explicitPlanExecution?: boolean;
-}
-
 export class CloudCompassStateStoreAdapter implements StateStore {
   private readonly compass: CompassStore;
   private readonly delegate: CompassStateStoreAdapter;
-  private readonly explicitPlanExecution: boolean;
 
-  constructor(compass: CompassStore, options: CloudCompassStateStoreAdapterOptions = {}) {
+  constructor(compass: CompassStore) {
     this.compass = compass;
     this.delegate = new CompassStateStoreAdapter(compass);
-    this.explicitPlanExecution = options.explicitPlanExecution === true;
   }
 
   async getState(): Promise<LoopState> {
     const state = compassStateToLoopState(this.compass.getState());
-    if (this.explicitPlanExecution) {
-      return {
-        ...state,
-        blockers: [],
-        nextAction: null,
-      };
-    }
     return {
       ...state,
       blockers: state.blockers.filter((blocker) => blocker !== "local_runtime_required"),
@@ -58,9 +45,6 @@ export class CloudCompassStateStoreAdapter implements StateStore {
   }
 
   async writeBack(record: WriteBackRecord): Promise<void> {
-    if (this.explicitPlanExecution && record.stopReason !== "paused") {
-      this.compass.updateState({ blockers: [], nextAction: null });
-    }
     await this.delegate.writeBack(record);
   }
 }
