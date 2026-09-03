@@ -108,7 +108,7 @@ test("team-aware planner prefers the Issue explicitly named by the command", asy
   assert.ok(teamContext);
   const data = teamContext.data as { issue: { number: number }; execution: { plannedOrder: string[] } };
   assert.equal(data.issue.number, 125);
-  assert.deepEqual(data.execution.plannedOrder, ["PM", "Debugger", "Frontend", "QA", "Reviewer"]);
+  assert.deepEqual(data.execution.plannedOrder, ["PM", "Frontend", "QA", "Reviewer"]);
 });
 
 test("team-aware planner stops at Human Gate before delegating a privileged issue", async () => {
