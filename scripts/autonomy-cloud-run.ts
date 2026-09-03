@@ -1,7 +1,12 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { CompassStore } from "../src/compass/store.ts";
-import { staleCommandInvalidationOutcome, type StaleCommandInvalidationOutcome } from "../src/orchestrator/autonomy-run-outcome.ts";
+import {
+  awaitingCommandOutcome,
+  isMissingPersistentCommandError,
+  staleCommandInvalidationOutcome,
+  type AutonomyLifecycleOutcome,
+} from "../src/orchestrator/autonomy-run-outcome.ts";
 import { createContextInspectCapability } from "../src/orchestrator/baseline-planner.ts";
 import { CapabilityRegistry } from "../src/orchestrator/capabilities.ts";
 import { ensureCloudGoal, applyCloudControl, CloudCompassStateStoreAdapter, GitHubRepositoryContextSource } from "../src/orchestrator/cloud-runtime.ts";
@@ -45,61 +50,71 @@ try {
   let report: unknown = null;
   let commandSource: string | null = null;
   let command: string | null = null;
-  let lifecycleOutcome: StaleCommandInvalidationOutcome | null = null;
+  let lifecycleOutcome: AutonomyLifecycleOutcome | null = null;
 
   if (mode === "run" || mode === "resume") {
     const config = githubRuntimeConfig(process.env);
     const github = new LiveGitHubReadClient(config);
     const token = process.env.GITHUB_TOKEN?.trim() || "";
     const explicitJson = process.env.AUTONOMY_COMMAND_JSON?.trim() || "";
-    const envelopeJson = resolvePersistentCommandEnvelope({
-      explicitJson,
-      stateDir,
-    });
-    const planningClient = new UnifiedPlanningClient(envelopeJson);
-    commandSource = planningClient.command.source;
-    command = planningClient.command.command;
+    let envelopeJson: string | null = null;
 
-    if (!explicitJson) {
-      const repositoryState = await github.readRepositoryState();
-      const openIssues = openIssueNumbers(repositoryState);
-      if (openIssues) {
-        const closedTarget = invalidatePersistedCommandIfTargetClosed({
-          envelopeJson,
-          stateDir,
-          openIssueNumbers: openIssues,
-        });
-        if (closedTarget) lifecycleOutcome = staleCommandInvalidationOutcome(closedTarget);
+    try {
+      envelopeJson = resolvePersistentCommandEnvelope({ explicitJson, stateDir });
+    } catch (error) {
+      if (!explicitJson && isMissingPersistentCommandError(error)) {
+        lifecycleOutcome = awaitingCommandOutcome();
+      } else {
+        throw error;
       }
     }
 
-    if (!lifecycleOutcome) {
-      const event = {
-        type: process.env.GITHUB_EVENT_NAME === "schedule" ? "schedule" as const : "manual" as const,
-        id: process.env.GITHUB_RUN_ID ? `github-run-${process.env.GITHUB_RUN_ID}` : `cloud-${Date.now()}`,
-        summary: `${planningClient.command.source} command: ${planningClient.command.command}`,
-      };
-      const registry = new CapabilityRegistry()
-        .register(createContextInspectCapability())
-        .register(createLocalBlockerCapability())
-        .register(createSafePrProposalCapability({ token, repository: config.repository }));
-      const verifier: Verifier = {
-        async verify({ result }) {
-          return { ok: result.ok, summary: result.ok ? "Cloud capability execution verified" : result.summary, evidence: result.evidence };
-        },
-      };
-      const basePlanner = new ModelBackedPlanner(planningClient, new BoundedWorkspaceReader());
-      const planner = new TeamAwarePlanner(basePlanner);
-      const loop = new GoalDrivenLoop(
-        planner,
-        [new EventContextSource(event), new RepositoryFileContextSource(), new GitHubRepositoryContextSource(github)],
-        registry,
-        verifier,
-        new CloudCompassStateStoreAdapter(compass),
-      );
-      const goal = compass.getGoal();
-      if (!goal) throw new Error("cloud goal bootstrap failed");
-      report = await dispatchAutonomyEvent({ event, loop, goal: compassGoalToLoopGoal(goal), compass, maxCycles });
+    if (envelopeJson) {
+      const planningClient = new UnifiedPlanningClient(envelopeJson);
+      commandSource = planningClient.command.source;
+      command = planningClient.command.command;
+
+      if (!explicitJson) {
+        const repositoryState = await github.readRepositoryState();
+        const openIssues = openIssueNumbers(repositoryState);
+        if (openIssues) {
+          const closedTarget = invalidatePersistedCommandIfTargetClosed({
+            envelopeJson,
+            stateDir,
+            openIssueNumbers: openIssues,
+          });
+          if (closedTarget) lifecycleOutcome = staleCommandInvalidationOutcome(closedTarget);
+        }
+      }
+
+      if (!lifecycleOutcome) {
+        const event = {
+          type: process.env.GITHUB_EVENT_NAME === "schedule" ? "schedule" as const : "manual" as const,
+          id: process.env.GITHUB_RUN_ID ? `github-run-${process.env.GITHUB_RUN_ID}` : `cloud-${Date.now()}`,
+          summary: `${planningClient.command.source} command: ${planningClient.command.command}`,
+        };
+        const registry = new CapabilityRegistry()
+          .register(createContextInspectCapability())
+          .register(createLocalBlockerCapability())
+          .register(createSafePrProposalCapability({ token, repository: config.repository }));
+        const verifier: Verifier = {
+          async verify({ result }) {
+            return { ok: result.ok, summary: result.ok ? "Cloud capability execution verified" : result.summary, evidence: result.evidence };
+          },
+        };
+        const basePlanner = new ModelBackedPlanner(planningClient, new BoundedWorkspaceReader());
+        const planner = new TeamAwarePlanner(basePlanner);
+        const loop = new GoalDrivenLoop(
+          planner,
+          [new EventContextSource(event), new RepositoryFileContextSource(), new GitHubRepositoryContextSource(github)],
+          registry,
+          verifier,
+          new CloudCompassStateStoreAdapter(compass),
+        );
+        const goal = compass.getGoal();
+        if (!goal) throw new Error("cloud goal bootstrap failed");
+        report = await dispatchAutonomyEvent({ event, loop, goal: compassGoalToLoopGoal(goal), compass, maxCycles });
+      }
     }
   }
 
@@ -113,7 +128,7 @@ try {
     compassStatus: after.status,
     invalidatedIssue: lifecycleOutcome?.invalidatedIssue ?? null,
     paused: after.status === "PAUSED",
-    nextAction: after.nextAction,
+    nextAction: lifecycleOutcome?.status === "awaiting_command" ? lifecycleOutcome.nextAction : after.nextAction,
     blockers: after.blockers,
     verificationSummary: lifecycleOutcome?.verificationSummary ?? after.verificationSummary,
     report,
