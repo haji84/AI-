@@ -1,4 +1,5 @@
 import type { ModelPlan } from "./model-planner.ts";
+import { normalizeGoalDraft, type GoalDraft } from "./goal-draft.ts";
 
 export type CommandIngressSource = "chat" | "work" | "codex";
 
@@ -7,6 +8,7 @@ export interface UnifiedCommandEnvelope {
   command: string;
   goalId?: string;
   conversationId?: string;
+  goalDraft?: GoalDraft;
   plan?: ModelPlan;
 }
 
@@ -15,6 +17,7 @@ export interface NormalizedCommand {
   command: string;
   goalId?: string;
   conversationId?: string;
+  goalDraft?: GoalDraft;
   plan?: ModelPlan;
 }
 
@@ -34,6 +37,7 @@ export function normalizeCommandEnvelope(value: unknown): NormalizedCommand {
     command: envelope.command.trim(),
     goalId: envelope.goalId?.trim() || undefined,
     conversationId: envelope.conversationId?.trim() || undefined,
+    goalDraft: envelope.goalDraft === undefined ? undefined : normalizeGoalDraft(envelope.goalDraft),
     plan: envelope.plan,
   };
 }
