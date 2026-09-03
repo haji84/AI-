@@ -76,7 +76,7 @@ const QA_PATTERNS = [
 ];
 
 const HUMAN_GATE_PATTERNS: Array<[string, RegExp]> = [
-  ["permissions", /\b(permission|authorization|access control|least privilege)\b/i],
+  ["permissions", /\b(permissions?|authorization|access control|least privilege)\b/i],
   ["secrets", /\b(secret|credential|api key|token)\b/i],
   ["billing", /\b(billing|payment|paid plan|purchase|charge)\b/i],
   ["deployment", /\b(deploy|deployment|production release)\b/i],
