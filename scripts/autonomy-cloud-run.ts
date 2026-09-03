@@ -44,6 +44,9 @@ try {
   let report: unknown = null;
   let commandSource: string | null = null;
   let command: string | null = null;
+  let lifecycleStatus: "stale_command_invalidated" | null = null;
+  let invalidatedIssue: number | null = null;
+
   if (mode === "run" || mode === "resume") {
     const config = githubRuntimeConfig(process.env);
     const github = new LiveGitHubReadClient(config);
@@ -53,6 +56,9 @@ try {
       explicitJson,
       stateDir,
     });
+    const planningClient = new UnifiedPlanningClient(envelopeJson);
+    commandSource = planningClient.command.source;
+    command = planningClient.command.command;
 
     if (!explicitJson) {
       const repositoryState = await github.readRepositoryState();
@@ -64,40 +70,40 @@ try {
           openIssueNumbers: openIssues,
         });
         if (closedTarget) {
-          throw new Error(`Persisted Chat/Work/Codex command targeted Issue #${closedTarget}, which is no longer open; persisted command was invalidated`);
+          lifecycleStatus = "stale_command_invalidated";
+          invalidatedIssue = closedTarget;
         }
       }
     }
 
-    const planningClient = new UnifiedPlanningClient(envelopeJson);
-    commandSource = planningClient.command.source;
-    command = planningClient.command.command;
-    const event = {
-      type: process.env.GITHUB_EVENT_NAME === "schedule" ? "schedule" as const : "manual" as const,
-      id: process.env.GITHUB_RUN_ID ? `github-run-${process.env.GITHUB_RUN_ID}` : `cloud-${Date.now()}`,
-      summary: `${planningClient.command.source} command: ${planningClient.command.command}`,
-    };
-    const registry = new CapabilityRegistry()
-      .register(createContextInspectCapability())
-      .register(createLocalBlockerCapability())
-      .register(createSafePrProposalCapability({ token, repository: config.repository }));
-    const verifier: Verifier = {
-      async verify({ result }) {
-        return { ok: result.ok, summary: result.ok ? "Cloud capability execution verified" : result.summary, evidence: result.evidence };
-      },
-    };
-    const basePlanner = new ModelBackedPlanner(planningClient, new BoundedWorkspaceReader());
-    const planner = new TeamAwarePlanner(basePlanner);
-    const loop = new GoalDrivenLoop(
-      planner,
-      [new EventContextSource(event), new RepositoryFileContextSource(), new GitHubRepositoryContextSource(github)],
-      registry,
-      verifier,
-      new CloudCompassStateStoreAdapter(compass),
-    );
-    const goal = compass.getGoal();
-    if (!goal) throw new Error("cloud goal bootstrap failed");
-    report = await dispatchAutonomyEvent({ event, loop, goal: compassGoalToLoopGoal(goal), compass, maxCycles });
+    if (!lifecycleStatus) {
+      const event = {
+        type: process.env.GITHUB_EVENT_NAME === "schedule" ? "schedule" as const : "manual" as const,
+        id: process.env.GITHUB_RUN_ID ? `github-run-${process.env.GITHUB_RUN_ID}` : `cloud-${Date.now()}`,
+        summary: `${planningClient.command.source} command: ${planningClient.command.command}`,
+      };
+      const registry = new CapabilityRegistry()
+        .register(createContextInspectCapability())
+        .register(createLocalBlockerCapability())
+        .register(createSafePrProposalCapability({ token, repository: config.repository }));
+      const verifier: Verifier = {
+        async verify({ result }) {
+          return { ok: result.ok, summary: result.ok ? "Cloud capability execution verified" : result.summary, evidence: result.evidence };
+        },
+      };
+      const basePlanner = new ModelBackedPlanner(planningClient, new BoundedWorkspaceReader());
+      const planner = new TeamAwarePlanner(basePlanner);
+      const loop = new GoalDrivenLoop(
+        planner,
+        [new EventContextSource(event), new RepositoryFileContextSource(), new GitHubRepositoryContextSource(github)],
+        registry,
+        verifier,
+        new CloudCompassStateStoreAdapter(compass),
+      );
+      const goal = compass.getGoal();
+      if (!goal) throw new Error("cloud goal bootstrap failed");
+      report = await dispatchAutonomyEvent({ event, loop, goal: compassGoalToLoopGoal(goal), compass, maxCycles });
+    }
   }
 
   const after = compass.getState();
@@ -106,11 +112,15 @@ try {
     commandSource,
     command,
     dbPath,
-    status: after.status,
+    status: lifecycleStatus ?? after.status,
+    compassStatus: after.status,
+    invalidatedIssue,
     paused: after.status === "PAUSED",
     nextAction: after.nextAction,
     blockers: after.blockers,
-    verificationSummary: after.verificationSummary,
+    verificationSummary: lifecycleStatus === "stale_command_invalidated"
+      ? `Persisted command for closed Issue #${invalidatedIssue} was invalidated without executing the autonomy loop`
+      : after.verificationSummary,
     report,
     previousStatus: before.status,
     updatedAt: after.updatedAt,
