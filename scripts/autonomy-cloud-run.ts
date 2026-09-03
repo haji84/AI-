@@ -1,6 +1,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { CompassStore } from "../src/compass/store.ts";
+import { staleCommandInvalidationOutcome, type StaleCommandInvalidationOutcome } from "../src/orchestrator/autonomy-run-outcome.ts";
 import { createContextInspectCapability } from "../src/orchestrator/baseline-planner.ts";
 import { CapabilityRegistry } from "../src/orchestrator/capabilities.ts";
 import { ensureCloudGoal, applyCloudControl, CloudCompassStateStoreAdapter, GitHubRepositoryContextSource } from "../src/orchestrator/cloud-runtime.ts";
@@ -44,8 +45,7 @@ try {
   let report: unknown = null;
   let commandSource: string | null = null;
   let command: string | null = null;
-  let lifecycleStatus: "stale_command_invalidated" | null = null;
-  let invalidatedIssue: number | null = null;
+  let lifecycleOutcome: StaleCommandInvalidationOutcome | null = null;
 
   if (mode === "run" || mode === "resume") {
     const config = githubRuntimeConfig(process.env);
@@ -69,14 +69,11 @@ try {
           stateDir,
           openIssueNumbers: openIssues,
         });
-        if (closedTarget) {
-          lifecycleStatus = "stale_command_invalidated";
-          invalidatedIssue = closedTarget;
-        }
+        if (closedTarget) lifecycleOutcome = staleCommandInvalidationOutcome(closedTarget);
       }
     }
 
-    if (!lifecycleStatus) {
+    if (!lifecycleOutcome) {
       const event = {
         type: process.env.GITHUB_EVENT_NAME === "schedule" ? "schedule" as const : "manual" as const,
         id: process.env.GITHUB_RUN_ID ? `github-run-${process.env.GITHUB_RUN_ID}` : `cloud-${Date.now()}`,
@@ -112,15 +109,13 @@ try {
     commandSource,
     command,
     dbPath,
-    status: lifecycleStatus ?? after.status,
+    status: lifecycleOutcome?.status ?? after.status,
     compassStatus: after.status,
-    invalidatedIssue,
+    invalidatedIssue: lifecycleOutcome?.invalidatedIssue ?? null,
     paused: after.status === "PAUSED",
     nextAction: after.nextAction,
     blockers: after.blockers,
-    verificationSummary: lifecycleStatus === "stale_command_invalidated"
-      ? `Persisted command for closed Issue #${invalidatedIssue} was invalidated without executing the autonomy loop`
-      : after.verificationSummary,
+    verificationSummary: lifecycleOutcome?.verificationSummary ?? after.verificationSummary,
     report,
     previousStatus: before.status,
     updatedAt: after.updatedAt,
