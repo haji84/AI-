@@ -154,9 +154,15 @@ export class ModelBackedPlanner implements Planner {
     return inferIntentFromSignals(input);
   }
 
-  private actionFromPlan(plan: ModelPlan, local: string | null): ProposedAction {
+  private actionFromPlan(plan: ModelPlan, local: string | null, completesBoundedCommand = false): ProposedAction {
     if (plan.kind === "local_blocker") {
-      return { id: "model:local-blocker", description: plan.reason || plan.description, capability: "runtime.local_blocker", risk: "low" };
+      return {
+        id: "model:local-blocker",
+        description: plan.reason || plan.description,
+        capability: "runtime.local_blocker",
+        risk: "low",
+        completesBoundedCommand,
+      };
     }
     if (plan.kind === "propose_pr") {
       return {
@@ -166,6 +172,7 @@ export class ModelBackedPlanner implements Planner {
         risk: "low",
         irreversible: false,
         externalSideEffect: true,
+        completesBoundedCommand,
         input: { title: plan.title, body: plan.body, files: plan.files },
       };
     }
@@ -175,9 +182,16 @@ export class ModelBackedPlanner implements Planner {
         description: `${local} Parallel cloud-safe candidates were found, but no bounded change was proposed.`,
         capability: "runtime.local_blocker",
         risk: "low",
+        completesBoundedCommand,
       };
     }
-    return { id: "model:inspect", description: plan.description, capability: "context.inspect", risk: "low" };
+    return {
+      id: "model:inspect",
+      description: plan.description,
+      capability: "context.inspect",
+      risk: "low",
+      completesBoundedCommand,
+    };
   }
 
   async proposeNextAction(input: { goal: Goal; context: ContextItem[]; intent: InferredIntent }): Promise<ProposedAction | null> {
@@ -188,7 +202,7 @@ export class ModelBackedPlanner implements Planner {
       const workspaceQuery = `${input.goal.title}\n${input.goal.description ?? ""}\n${input.intent.summary}`;
       const workspaceContext = this.workspace ? await this.workspace.collect(workspaceQuery) : [];
       const plan = await this.model.plan({ goal: input.goal, context: [...input.context, ...workspaceContext] });
-      return this.actionFromPlan(plan, null);
+      return this.actionFromPlan(plan, null, true);
     }
 
     const selection = local ? selectParallelCloudCandidates(input.context) : { candidates: [], diagnostics: [] };
