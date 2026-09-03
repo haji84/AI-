@@ -84,9 +84,12 @@ export function detectLocalOnlyBlocker(context: ContextItem[]): string | null {
   return null;
 }
 
-export function selectParallelCloudCandidates(context: ContextItem[]): ParallelCloudCandidateSelection {
+export function selectParallelCloudCandidates(
+  context: ContextItem[],
+  preferredIssueNumber?: number,
+): ParallelCloudCandidateSelection {
   const diagnostics: ParallelCloudCandidateDiagnostic[] = [];
-  const candidates: ParallelCloudCandidate[] = [];
+  const safeCandidates: ParallelCloudCandidate[] = [];
 
   for (const raw of openIssueRecords(context)) {
     if (!raw || typeof raw !== "object") {
@@ -112,16 +115,23 @@ export function selectParallelCloudCandidates(context: ContextItem[]): ParallelC
     }
 
     diagnostics.push({ number, title, selected: true, reason: "cloud_safe_candidate" });
-    candidates.push({
+    safeCandidates.push({
       number,
       title,
       body: body.slice(0, 8000),
       url: typeof issue.html_url === "string" ? issue.html_url : undefined,
     });
-    if (candidates.length >= 5) break;
   }
 
-  return { candidates, diagnostics };
+  if (preferredIssueNumber) {
+    const preferredIndex = safeCandidates.findIndex((candidate) => candidate.number === preferredIssueNumber);
+    if (preferredIndex > 0) {
+      const [preferred] = safeCandidates.splice(preferredIndex, 1);
+      safeCandidates.unshift(preferred);
+    }
+  }
+
+  return { candidates: safeCandidates.slice(0, 5), diagnostics };
 }
 
 export function parallelCloudCandidates(context: ContextItem[]): ParallelCloudCandidate[] {
