@@ -141,19 +141,55 @@ export function parallelCloudCandidates(context: ContextItem[]): ParallelCloudCa
 export class ModelBackedPlanner implements Planner {
   private readonly model: PlanningModel;
   private readonly workspace?: WorkspaceReader;
+  private readonly explicitBoundedPlan: boolean;
 
-  constructor(model: PlanningModel, workspace?: WorkspaceReader) {
+  constructor(model: PlanningModel, workspace?: WorkspaceReader, options: { explicitBoundedPlan?: boolean } = {}) {
     this.model = model;
     this.workspace = workspace;
+    this.explicitBoundedPlan = options.explicitBoundedPlan === true;
   }
 
   async inferIntent(input: { goal: Goal; context: ContextItem[]; preferences?: string[]; recentDecisions?: string[] }): Promise<InferredIntent> {
     return inferIntentFromSignals(input);
   }
 
+  private actionFromPlan(plan: ModelPlan, local: string | null): ProposedAction {
+    if (plan.kind === "local_blocker") {
+      return { id: "model:local-blocker", description: plan.reason || plan.description, capability: "runtime.local_blocker", risk: "low" };
+    }
+    if (plan.kind === "propose_pr") {
+      return {
+        id: `model:propose-pr:${Date.now()}`,
+        description: plan.description,
+        capability: "repository.propose_pr",
+        risk: "low",
+        irreversible: false,
+        externalSideEffect: true,
+        input: { title: plan.title, body: plan.body, files: plan.files },
+      };
+    }
+    if (local) {
+      return {
+        id: "cloud:local-runtime-required",
+        description: `${local} Parallel cloud-safe candidates were found, but no bounded change was proposed.`,
+        capability: "runtime.local_blocker",
+        risk: "low",
+      };
+    }
+    return { id: "model:inspect", description: plan.description, capability: "context.inspect", risk: "low" };
+  }
+
   async proposeNextAction(input: { goal: Goal; context: ContextItem[]; intent: InferredIntent }): Promise<ProposedAction | null> {
     if (input.context.some((item) => item.source === "goal.complete" && item.summary === "true")) return null;
     const local = detectLocalOnlyBlocker(input.context);
+
+    if (this.explicitBoundedPlan) {
+      const workspaceQuery = `${input.goal.title}\n${input.goal.description ?? ""}\n${input.intent.summary}`;
+      const workspaceContext = this.workspace ? await this.workspace.collect(workspaceQuery) : [];
+      const plan = await this.model.plan({ goal: input.goal, context: [...input.context, ...workspaceContext] });
+      return this.actionFromPlan(plan, null);
+    }
+
     const selection = local ? selectParallelCloudCandidates(input.context) : { candidates: [], diagnostics: [] };
     const candidates = selection.candidates;
     if (local && candidates.length === 0) {
@@ -185,29 +221,7 @@ export class ModelBackedPlanner implements Planner {
     const planningContext = [...input.context, ...candidateContext, ...workspaceContext];
 
     const plan = await this.model.plan({ goal: input.goal, context: planningContext });
-    if (plan.kind === "local_blocker") {
-      return { id: "model:local-blocker", description: plan.reason || plan.description, capability: "runtime.local_blocker", risk: "low" };
-    }
-    if (plan.kind === "propose_pr") {
-      return {
-        id: `model:propose-pr:${Date.now()}`,
-        description: plan.description,
-        capability: "repository.propose_pr",
-        risk: "low",
-        irreversible: false,
-        externalSideEffect: true,
-        input: { title: plan.title, body: plan.body, files: plan.files },
-      };
-    }
-    if (local) {
-      return {
-        id: "cloud:local-runtime-required",
-        description: `${local} Parallel cloud-safe candidates were found, but no bounded change was proposed.`,
-        capability: "runtime.local_blocker",
-        risk: "low",
-      };
-    }
-    return { id: "model:inspect", description: plan.description, capability: "context.inspect", risk: "low" };
+    return this.actionFromPlan(plan, local);
   }
 }
 
