@@ -40,7 +40,6 @@ test("keeps legacy command envelopes valid without goal metadata", () => {
     command: "Inspect Issue #144",
     goalId: undefined,
     conversationId: undefined,
-    goalDraft: undefined,
     plan: undefined,
   });
 });
