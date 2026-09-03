@@ -60,6 +60,7 @@ export interface CapabilityExecutor {
 }
 
 export interface Planner {
+  readonly supersedesPriorExecutionState?: boolean;
   inferIntent(input: {
     goal: Goal;
     context: ContextItem[];
@@ -161,8 +162,12 @@ export class GoalDrivenLoop {
     recentDecisions?: string[];
   }): Promise<CycleReport> {
     const state = await this.store.getState();
+    const supersedesPriorState = this.planner.supersedesPriorExecutionState === true;
     const context = (await Promise.all(
-      this.contextSources.map((source) => source.collect({ goal: input.goal, nextAction: state.nextAction })),
+      this.contextSources.map((source) => source.collect({
+        goal: input.goal,
+        nextAction: supersedesPriorState ? null : state.nextAction,
+      })),
     )).flat();
 
     const intent = await this.planner.inferIntent({
@@ -176,7 +181,7 @@ export class GoalDrivenLoop {
       return this.finish({ goal: input.goal, intent, stopReason: "paused", nextAction: state.nextAction }, context);
     }
 
-    if (state.blockers.length > 0) {
+    if (state.blockers.length > 0 && !supersedesPriorState) {
       return this.finish({ goal: input.goal, intent, stopReason: "blocked", nextAction: state.nextAction }, context);
     }
 

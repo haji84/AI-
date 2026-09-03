@@ -42,8 +42,12 @@ export class CompassStateStoreAdapter implements StateStore {
       completed.push(record.action.description);
     }
 
-    const blockers = strings(current.blockers);
-    if (record.result?.blocker && !blockers.includes(record.result.blocker)) blockers.push(record.result.blocker);
+    let blockers = strings(current.blockers);
+    if (record.action && record.result?.blocker) {
+      blockers = [record.result.blocker];
+    } else if (record.action && record.result?.ok && record.verification?.ok) {
+      blockers = [];
+    }
 
     const verification = record.verification
       ? {

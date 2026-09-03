@@ -15,12 +15,14 @@ function explicitIssueNumber(context: ContextItem[]): number | undefined {
 }
 
 export class TeamAwarePlanner implements Planner {
+  readonly supersedesPriorExecutionState: boolean;
   private readonly delegate: Planner;
   private readonly explicitBoundedPlan: boolean;
 
   constructor(delegate: Planner, options: { explicitBoundedPlan?: boolean } = {}) {
     this.delegate = delegate;
     this.explicitBoundedPlan = options.explicitBoundedPlan === true;
+    this.supersedesPriorExecutionState = this.explicitBoundedPlan;
   }
 
   inferIntent(input: {
