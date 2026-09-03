@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { CompassStore } from "../src/compass/store.ts";
+import type { GoalDraft } from "../src/orchestrator/goal-draft.ts";
 import { applyExecutionReadyGoalDraft } from "../src/orchestrator/goal-draft-compass.ts";
 
-function readyDraft() {
+function readyDraft(): GoalDraft {
   return {
     title: "Run the AI company from a collaboratively defined goal",
     desiredOutcome: "Chat/Work/Codex and the user define the goal, then GitHub Actions executes only the bounded plan.",
@@ -13,7 +14,7 @@ function readyDraft() {
     unresolvedQuestions: [],
     confidence: 0.92,
     approvalRequired: false,
-  } as const;
+  };
 }
 
 test("writes an execution-ready collaborative goal into Compass", () => {
