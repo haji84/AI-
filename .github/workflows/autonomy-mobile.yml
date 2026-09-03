@@ -75,12 +75,22 @@ jobs:
         if: always()
         run: |
           echo "## Mobile Autonomy" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Run summary" >> "$GITHUB_STEP_SUMMARY"
           if [ -f .autonomy-state/run-summary.json ]; then
             echo '```json' >> "$GITHUB_STEP_SUMMARY"
             cat .autonomy-state/run-summary.json >> "$GITHUB_STEP_SUMMARY"
             echo '```' >> "$GITHUB_STEP_SUMMARY"
           else
             echo "No run summary was produced." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          echo "### Reasoning feedback" >> "$GITHUB_STEP_SUMMARY"
+          if [ -f .autonomy-state/reasoning-feedback.json ]; then
+            echo '```json' >> "$GITHUB_STEP_SUMMARY"
+            cat .autonomy-state/reasoning-feedback.json >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No reasoning feedback was produced." >> "$GITHUB_STEP_SUMMARY"
           fi
       - name: Save persistent autonomy state
         if: always()
