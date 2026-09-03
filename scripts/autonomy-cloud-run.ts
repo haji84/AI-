@@ -11,6 +11,7 @@ import { GoalDrivenLoop, type Verifier } from "../src/orchestrator/goal-loop.ts"
 import { githubRuntimeConfig, LiveGitHubReadClient } from "../src/orchestrator/github-live-client.ts";
 import { createLocalBlockerCapability, ModelBackedPlanner } from "../src/orchestrator/model-planner.ts";
 import { createSafePrProposalCapability } from "../src/orchestrator/safe-pr-capability.ts";
+import { TeamAwarePlanner } from "../src/orchestrator/team-aware-planner.ts";
 import { UnifiedPlanningClient } from "../src/orchestrator/unified-planning-client.ts";
 
 const args = process.argv.slice(2);
@@ -54,7 +55,8 @@ try {
         return { ok: result.ok, summary: result.ok ? "Cloud capability execution verified" : result.summary, evidence: result.evidence };
       },
     };
-    const planner = new ModelBackedPlanner(planningClient, new BoundedWorkspaceReader());
+    const basePlanner = new ModelBackedPlanner(planningClient, new BoundedWorkspaceReader());
+    const planner = new TeamAwarePlanner(basePlanner);
     const loop = new GoalDrivenLoop(
       planner,
       [new EventContextSource(event), new RepositoryFileContextSource(), new GitHubRepositoryContextSource(github)],
