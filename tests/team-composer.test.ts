@@ -36,6 +36,29 @@ test("security permission work adds Governor and human gate evidence", () => {
   assert.ok(result.humanGateSignals.includes("permissions"));
 });
 
+test("negated safety language does not create Human Gate signals", () => {
+  const result = composeTeamFromIssue({
+    title: "fix: bounded workflow input handling",
+    body: "No deployment, no billing, and no destructive behavior. Do not change permissions or secrets.",
+  });
+
+  assert.deepEqual(result.humanGateSignals, []);
+  assert.equal(result.members.some((member) => member.role === "Governor"), false);
+});
+
+test("affirmative privileged language still creates Human Gate signals", () => {
+  const result = composeTeamFromIssue({
+    title: "ops: deploy production and update billing",
+    body: "Change repository permissions and rotate a secret before deployment.",
+  });
+
+  assert.ok(result.humanGateSignals.includes("permissions"));
+  assert.ok(result.humanGateSignals.includes("secrets"));
+  assert.ok(result.humanGateSignals.includes("billing"));
+  assert.ok(result.humanGateSignals.includes("deployment"));
+  assert.ok(result.members.some((member) => member.role === "Governor"));
+});
+
 test("business roles map to dedicated specialists without unrelated engineers", () => {
   assert.ok(rolesFor("マーケティング市場調査とブランド戦略").includes("Marketing"));
   assert.ok(rolesFor("営業CRMと見込み客パイプラインを整理").includes("Sales"));
