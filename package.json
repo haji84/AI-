@@ -13,7 +13,7 @@
     "lint": "eslint .",
     "test": "node --test",
     "build": "next build",
-    "start": "next start",
+    "start": "node scripts/serve-static.mjs",
     "healthcheck": "node scripts/health-check.mjs",
     "compass:mcp": "node src/compass/server.ts",
     "autonomy:run": "node scripts/autonomy-run.ts",
