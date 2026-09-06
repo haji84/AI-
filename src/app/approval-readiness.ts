@@ -7,6 +7,7 @@ export interface ApprovalReadiness {
 }
 
 export interface ApprovalReadinessEnv {
+  [key: string]: string | undefined;
   AI_COMPANY_OWNER_SECRET?: string;
   AI_COMPANY_GITHUB_TOKEN?: string;
   AI_COMPANY_GITHUB_REPOSITORY?: string;
