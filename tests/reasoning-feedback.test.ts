@@ -35,6 +35,7 @@ test("emits a compact continuable feedback packet", () => {
   });
   assert.equal(feedback.version, 1);
   assert.equal(feedback.goal?.title, "Ship safely");
+  assert.equal(feedback.riskDecision, null);
   assert.equal(feedback.reasoningRequired, false);
   assert.equal(feedback.humanApprovalRequired, false);
   assert.equal(feedback.nextAction, "inspect the result");
@@ -70,6 +71,26 @@ test("surfaces Human Gate evidence separately from general reasoning", () => {
     report: { stopReason: "approval_required" },
   });
   assert.equal(feedback.reasoningRequired, true);
+  assert.equal(feedback.humanApprovalRequired, true);
+});
+
+test("surfaces the latest structured risk decision from bounded cycle reports", () => {
+  const { goal, state } = baseInput();
+  const feedback = buildReasoningFeedback({
+    goal,
+    state,
+    status: "RUNNING",
+    commandSource: "chat",
+    command: "continue",
+    report: {
+      reports: [
+        { riskDecision: { level: "LOW", humanApprovalRequired: false, autoExecutionAllowed: true, executionBlocked: false, reasons: ["No high-risk signals detected"] } },
+        { riskDecision: { level: "HIGH", humanApprovalRequired: true, autoExecutionAllowed: false, executionBlocked: false, reasons: ["Protected operation"] } },
+      ],
+    },
+  });
+  assert.equal(feedback.riskDecision?.level, "HIGH");
+  assert.equal(feedback.riskDecision?.autoExecutionAllowed, false);
   assert.equal(feedback.humanApprovalRequired, true);
 });
 
