@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { approvalReadinessFromEnv } from "./approval-readiness.ts";
 import { readDashboardState } from "./dashboard-state.ts";
 import { OWNER_SESSION_COOKIE, verifyOwnerSessionToken } from "./owner-auth.ts";
 
@@ -14,6 +15,7 @@ export const dynamic = "force-dynamic";
 export default async function Home() {
   const dashboard = await readDashboardState();
   const decisions = dashboard.decisions;
+  const readiness = approvalReadinessFromEnv();
   const ownerSecret = process.env.AI_COMPANY_OWNER_SECRET?.trim() || "";
   const cookieStore = await cookies();
   const ownerAuthenticated = verifyOwnerSessionToken(ownerSecret, cookieStore.get(OWNER_SESSION_COOKIE)?.value);
@@ -47,6 +49,18 @@ export default async function Home() {
           <span className="count-badge">{decisions.length}</span>
         </div>
 
+        <div className="panel" style={{ marginBottom: "1rem" }}>
+          <div className="panel-heading">
+            <h2>承認機能</h2>
+            <span>{readiness.ready ? "準備完了" : "設定不足"}</span>
+          </div>
+          {readiness.ready ? (
+            <p>オーナー認証とGitHub承認経路は利用できます。</p>
+          ) : (
+            <p className="muted">不足: {readiness.missing.join(" / ")}</p>
+          )}
+        </div>
+
         {decisions.length === 0 ? (
           <div className="empty-state">
             <div className="empty-icon">✓</div>
@@ -68,18 +82,18 @@ export default async function Home() {
                   </div>
                 </div>
                 <div className="decision-actions">
-                  {ownerAuthenticated ? (
+                  {!readiness.ready ? (
+                    <span className="muted">承認機能の設定が必要です</span>
+                  ) : ownerAuthenticated ? (
                     <form action="/api/approve" method="post">
                       <input name="approvalKey" type="hidden" value={item.approvalKey} />
                       <button className="button primary" type="submit">承認して再開</button>
                     </form>
-                  ) : ownerSecret ? (
+                  ) : (
                     <form action="/api/owner-login" method="post">
                       <input aria-label="オーナー認証コード" name="passcode" placeholder="認証コード" required type="password" />
                       <button className="button secondary" type="submit">オーナー認証</button>
                     </form>
-                  ) : (
-                    <span className="muted">承認機能の認証設定が必要です</span>
                   )}
                 </div>
               </article>
