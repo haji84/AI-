@@ -3,6 +3,8 @@ import type { ContextItem, Goal } from "./goal-loop.ts";
 import { detectLocalOnlyBlocker, selectParallelCloudCandidates } from "./model-planner.ts";
 import { buildTeamPlanningBundle } from "./team-planning-context.ts";
 
+export const HUMAN_GATE_SMOKE_MARKER = "[HUMAN_GATE_SMOKE_HIGH]";
+
 function explicitIssueNumber(context: ContextItem[]): number | undefined {
   for (const item of context) {
     if (!item.source.startsWith("event:")) continue;
@@ -12,6 +14,25 @@ function explicitIssueNumber(context: ContextItem[]): number | undefined {
     if (Number.isInteger(number) && number > 0) return number;
   }
   return undefined;
+}
+
+function asHarmlessHighSmoke(action: ProposedAction | null): ProposedAction | null {
+  if (!action) return null;
+  if (action.capability !== "context.inspect") return action;
+  if (!action.description.trim().startsWith(HUMAN_GATE_SMOKE_MARKER)) return action;
+  return {
+    ...action,
+    risk: "high",
+    irreversible: false,
+    externalSideEffect: false,
+    requiresHumanApproval: true,
+    riskSignals: { highRiskMainMerge: true },
+    input: {
+      smoke: "human_gate_high",
+      harmless: true,
+      originalInput: action.input ?? null,
+    },
+  };
 }
 
 export class TeamAwarePlanner implements Planner {
@@ -43,7 +64,12 @@ export class TeamAwarePlanner implements Planner {
     // Explicit Chat/Work/Codex plans have already passed the bounded plan validator.
     // Keep the normal downstream planner/capability/risk/verifier path intact instead
     // of replacing that supplied plan with unrelated local-blocker team preselection.
-    if (this.explicitBoundedPlan) return this.delegate.proposeNextAction(input);
+    // The one special case below is a harmless production-smoke marker: it still uses
+    // context.inspect, but exercises the real HIGH Human Gate and exact approval-key path.
+    if (this.explicitBoundedPlan) {
+      const action = await this.delegate.proposeNextAction(input);
+      return asHarmlessHighSmoke(action);
+    }
 
     const localBlocker = detectLocalOnlyBlocker(input.context);
     if (!localBlocker) return this.delegate.proposeNextAction(input);
