@@ -15,7 +15,7 @@ import { compassGoalToLoopGoal } from "../src/orchestrator/compass-state-store.t
 import { BoundedWorkspaceReader, RepositoryFileContextSource } from "../src/orchestrator/context-adapters.ts";
 import { dispatchAutonomyEvent, EventContextSource } from "../src/orchestrator/event-runtime.ts";
 import { applyExecutionReadyGoalDraft } from "../src/orchestrator/goal-draft-compass.ts";
-import { GoalDrivenLoop, type Verifier } from "../src/orchestrator/goal-loop.ts";
+import { DefaultApprovalPolicy, GoalDrivenLoop, type Verifier } from "../src/orchestrator/goal-loop.ts";
 import { githubRuntimeConfig, LiveGitHubReadClient } from "../src/orchestrator/github-live-client.ts";
 import { createLocalBlockerCapability, ModelBackedPlanner } from "../src/orchestrator/model-planner.ts";
 import { invalidatePersistedCommandIfTargetClosed, resolvePersistentCommandEnvelope } from "../src/orchestrator/persistent-command-handoff.ts";
@@ -49,6 +49,7 @@ mkdirSync(stateDir, { recursive: true });
 const dbPath = process.env.COMPASS_DB_PATH?.trim() || resolve(stateDir, "compass.db");
 const summaryPath = process.env.AUTONOMY_SUMMARY_PATH?.trim() || resolve(stateDir, "run-summary.json");
 const feedbackPath = process.env.AUTONOMY_FEEDBACK_PATH?.trim() || resolve(stateDir, "reasoning-feedback.json");
+const approvedActionKey = process.env.AUTONOMY_APPROVAL_KEY?.trim() || null;
 const compass = new CompassStore(dbPath);
 
 function openIssueNumbers(repositoryState: unknown): number[] | null {
@@ -128,6 +129,8 @@ try {
           registry,
           verifier,
           new CloudCompassStateStoreAdapter(compass),
+          new DefaultApprovalPolicy(),
+          { approvedActionKey },
         );
         const goal = compass.getGoal();
         if (!goal) throw new Error("cloud goal bootstrap failed");

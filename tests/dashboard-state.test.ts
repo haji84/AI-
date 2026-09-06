@@ -15,6 +15,8 @@ function feedback(overrides: Partial<ReasoningFeedback> = {}): ReasoningFeedback
     nextAction: "continue bounded work",
     report: null,
     riskDecision: null,
+    approvalKey: null,
+    approvalSatisfied: false,
     reasoningRequired: false,
     humanApprovalRequired: false,
     reasoningRoute: {
@@ -44,10 +46,11 @@ test("dashboard has no owner decision for LOW autonomous work", () => {
   assert.equal(state.riskLevel, "LOW");
 });
 
-test("dashboard promotes HIGH approval to a single owner decision", () => {
+test("dashboard promotes HIGH approval with an exact approval key", () => {
   const state = dashboardStateFromFeedback(feedback({
     nextAction: "本番反映を実行",
     humanApprovalRequired: true,
+    approvalKey: "approval-123",
     riskDecision: {
       level: "HIGH",
       humanApprovalRequired: true,
@@ -58,7 +61,38 @@ test("dashboard promotes HIGH approval to a single owner decision", () => {
   }));
   assert.equal(state.decisions.length, 1);
   assert.equal(state.decisions[0]?.title, "本番反映を実行");
+  assert.equal(state.decisions[0]?.approvalKey, "approval-123");
   assert.deepEqual(state.decisions[0]?.reasons, ["Production deployment requires owner approval"]);
+});
+
+test("HIGH without an approval key is not rendered as an actionable decision", () => {
+  const state = dashboardStateFromFeedback(feedback({
+    humanApprovalRequired: true,
+    riskDecision: {
+      level: "HIGH",
+      humanApprovalRequired: true,
+      autoExecutionAllowed: false,
+      executionBlocked: false,
+      reasons: ["Protected operation"],
+    },
+  }));
+  assert.equal(state.decisions.length, 0);
+});
+
+test("satisfied HIGH approval disappears from owner decisions", () => {
+  const state = dashboardStateFromFeedback(feedback({
+    humanApprovalRequired: false,
+    approvalKey: "approval-123",
+    approvalSatisfied: true,
+    riskDecision: {
+      level: "HIGH",
+      humanApprovalRequired: true,
+      autoExecutionAllowed: false,
+      executionBlocked: false,
+      reasons: ["Protected operation"],
+    },
+  }));
+  assert.equal(state.decisions.length, 0);
 });
 
 test("CRITICAL remains blocked and is not rendered as an approvable owner decision", () => {

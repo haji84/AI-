@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { createApprovalKey } from "../src/orchestrator/approval-key.ts";
 import {
   DefaultApprovalPolicy,
   GoalDrivenLoop,
   type ActionResult,
   type ContextItem,
   type Goal,
+  type GoalLoopOptions,
   type LoopState,
   type ProposedAction,
   type VerificationResult,
@@ -19,7 +21,7 @@ const goal: Goal = {
   constraints: ["preserve Human Gate for genuinely high-risk work"],
 };
 
-function makeLoop(action: ProposedAction, onExecute?: () => void) {
+function makeLoop(action: ProposedAction, onExecute?: () => void, options: GoalLoopOptions = {}) {
   return new GoalDrivenLoop(
     {
       inferIntent: async (input) => inferIntentFromSignals(input),
@@ -37,6 +39,8 @@ function makeLoop(action: ProposedAction, onExecute?: () => void) {
       getState: async () => ({ completed: [], blockers: [] }),
       writeBack: async () => undefined,
     },
+    new DefaultApprovalPolicy(),
+    options,
   );
 }
 
@@ -91,14 +95,54 @@ test("low-risk cycle executes, verifies, and writes back", async () => {
 
 test("human-gated legacy high-risk action stops before execution", async () => {
   let executed = false;
-  const loop = makeLoop({
+  const action: ProposedAction = {
     id: "publish",
     description: "Publish externally",
     capability: "external",
     risk: "high",
     externalSideEffect: true,
-  }, () => { executed = true; });
+  };
+  const loop = makeLoop(action, () => { executed = true; });
 
+  const report = await loop.runCycle({ goal });
+  assert.equal(report.stopReason, "approval_required");
+  assert.equal(report.approvalKey, createApprovalKey(goal, action));
+  assert.equal(executed, false);
+});
+
+test("exact matching approval key executes HIGH action once", async () => {
+  let executions = 0;
+  const action: ProposedAction = {
+    id: "deploy-runtime-id-can-change",
+    description: "Deploy production",
+    capability: "deploy",
+    risk: "low",
+    riskSignals: { productionDeploy: true },
+    input: { release: "v1" },
+  };
+  const loop = makeLoop(action, () => { executions += 1; }, { approvedActionKey: createApprovalKey(goal, action) });
+
+  const first = await loop.runCycle({ goal });
+  assert.equal(first.approvalSatisfied, true);
+  assert.equal(first.stopReason, "continue");
+  assert.equal(executions, 1);
+
+  const second = await loop.runCycle({ goal });
+  assert.equal(second.stopReason, "approval_required");
+  assert.equal(second.approvalSatisfied, false);
+  assert.equal(executions, 1);
+});
+
+test("wrong approval key never executes HIGH action", async () => {
+  let executed = false;
+  const action: ProposedAction = {
+    id: "deploy",
+    description: "Deploy production",
+    capability: "deploy",
+    risk: "low",
+    riskSignals: { productionDeploy: true },
+  };
+  const loop = makeLoop(action, () => { executed = true; }, { approvedActionKey: "not-the-right-key" });
   const report = await loop.runCycle({ goal });
   assert.equal(report.stopReason, "approval_required");
   assert.equal(executed, false);
@@ -120,15 +164,16 @@ test("explicit HIGH policy signal requires Human Gate even when legacy risk is l
   assert.equal(executed, false);
 });
 
-test("CRITICAL policy signal blocks instead of asking for ordinary approval", async () => {
+test("CRITICAL policy signal blocks even when an approval key is supplied", async () => {
   let executed = false;
-  const loop = makeLoop({
+  const action: ProposedAction = {
     id: "relax-policy",
     description: "Relax the Human Gate policy",
     capability: "policy",
     risk: "low",
     riskSignals: { humanGatePolicyRelaxation: true },
-  }, () => { executed = true; });
+  };
+  const loop = makeLoop(action, () => { executed = true; }, { approvedActionKey: createApprovalKey(goal, action) });
 
   const report = await loop.runCycle({ goal });
   assert.equal(report.riskDecision?.level, "CRITICAL");

@@ -1,4 +1,6 @@
+import { cookies } from "next/headers";
 import { readDashboardState } from "./dashboard-state.ts";
+import { OWNER_SESSION_COOKIE, verifyOwnerSessionToken } from "./owner-auth.ts";
 
 const activity = [
   { label: "自動処理", value: "稼働中", tone: "good" },
@@ -12,6 +14,9 @@ export const dynamic = "force-dynamic";
 export default async function Home() {
   const dashboard = await readDashboardState();
   const decisions = dashboard.decisions;
+  const ownerSecret = process.env.AI_COMPANY_OWNER_SECRET?.trim() || "";
+  const cookieStore = await cookies();
+  const ownerAuthenticated = verifyOwnerSessionToken(ownerSecret, cookieStore.get(OWNER_SESSION_COOKIE)?.value);
 
   return (
     <main className="dashboard-shell">
@@ -63,8 +68,19 @@ export default async function Home() {
                   </div>
                 </div>
                 <div className="decision-actions">
-                  <button className="button secondary" type="button">詳細</button>
-                  <button className="button primary" type="button">承認</button>
+                  {ownerAuthenticated ? (
+                    <form action="/api/approve" method="post">
+                      <input name="approvalKey" type="hidden" value={item.approvalKey} />
+                      <button className="button primary" type="submit">承認して再開</button>
+                    </form>
+                  ) : ownerSecret ? (
+                    <form action="/api/owner-login" method="post">
+                      <input aria-label="オーナー認証コード" name="passcode" placeholder="認証コード" required type="password" />
+                      <button className="button secondary" type="submit">オーナー認証</button>
+                    </form>
+                  ) : (
+                    <span className="muted">承認機能の認証設定が必要です</span>
+                  )}
                 </div>
               </article>
             ))}

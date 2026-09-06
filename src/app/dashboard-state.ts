@@ -7,6 +7,7 @@ export interface DashboardDecision {
   detail: string;
   risk: "HIGH";
   reasons: string[];
+  approvalKey: string;
 }
 
 export interface DashboardState {
@@ -33,7 +34,10 @@ export function dashboardStateFromFeedback(feedback: ReasoningFeedback | null): 
   }
 
   const risk = feedback.riskDecision;
-  const needsOwner = feedback.humanApprovalRequired && risk?.level === "HIGH";
+  const needsOwner = feedback.humanApprovalRequired
+    && !feedback.approvalSatisfied
+    && risk?.level === "HIGH"
+    && Boolean(feedback.approvalKey);
   return {
     status: feedback.status ?? "稼働中",
     generatedAt: feedback.generatedAt,
@@ -43,6 +47,7 @@ export function dashboardStateFromFeedback(feedback: ReasoningFeedback | null): 
           detail: "AI社員はここで停止しています。内容を確認して判断してください。",
           risk: "HIGH",
           reasons: risk.reasons,
+          approvalKey: feedback.approvalKey as string,
         }]
       : [],
     riskLevel: risk?.level ?? null,

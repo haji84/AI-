@@ -1,3 +1,4 @@
+import { createApprovalKey } from "./approval-key.ts";
 import {
   evaluateRiskPolicy,
   type MediumRiskChecks,
@@ -109,6 +110,8 @@ export interface WriteBackRecord {
   result?: ActionResult | null;
   verification?: VerificationResult | null;
   riskDecision?: RiskDecision | null;
+  approvalKey?: string | null;
+  approvalSatisfied?: boolean;
   stopReason: StopReason;
   nextAction?: string | null;
 }
@@ -133,6 +136,7 @@ export class DefaultApprovalPolicy implements ApprovalPolicy {
 
 export interface GoalLoopOptions {
   maxRetriesPerAction?: number;
+  approvedActionKey?: string | null;
 }
 
 export interface CycleReport extends WriteBackRecord {
@@ -147,6 +151,8 @@ export class GoalDrivenLoop {
   private readonly store: StateStore;
   private readonly policy: ApprovalPolicy;
   private readonly maxRetriesPerAction: number;
+  private readonly approvedActionKey: string | null;
+  private approvalConsumed = false;
 
   constructor(
     planner: Planner,
@@ -164,6 +170,7 @@ export class GoalDrivenLoop {
     this.store = store;
     this.policy = policy;
     this.maxRetriesPerAction = options.maxRetriesPerAction ?? 3;
+    this.approvedActionKey = options.approvedActionKey?.trim() || null;
   }
 
   async runCycle(input: {
@@ -213,15 +220,24 @@ export class GoalDrivenLoop {
       }, context);
     }
 
+    let approvalKey: string | null = null;
+    let approvalSatisfied = false;
     if (riskDecision.humanApprovalRequired || this.policy.requiresApproval(action)) {
-      return this.finish({
-        goal: input.goal,
-        intent,
-        action,
-        riskDecision,
-        stopReason: "approval_required",
-        nextAction: action.description,
-      }, context);
+      approvalKey = createApprovalKey(input.goal, action);
+      approvalSatisfied = !this.approvalConsumed && this.approvedActionKey === approvalKey;
+      if (!approvalSatisfied) {
+        return this.finish({
+          goal: input.goal,
+          intent,
+          action,
+          riskDecision,
+          approvalKey,
+          approvalSatisfied: false,
+          stopReason: "approval_required",
+          nextAction: action.description,
+        }, context);
+      }
+      this.approvalConsumed = true;
     }
 
     if (riskDecision.level === "MEDIUM" && !riskDecision.autoExecutionAllowed) {
@@ -241,6 +257,8 @@ export class GoalDrivenLoop {
         intent,
         action,
         riskDecision,
+        approvalKey,
+        approvalSatisfied,
         stopReason: "retry_exhausted",
         nextAction: action.description,
       }, context);
@@ -254,6 +272,8 @@ export class GoalDrivenLoop {
         action,
         result,
         riskDecision,
+        approvalKey,
+        approvalSatisfied,
         stopReason: result.blocker ? "blocked" : "continue",
         nextAction: action.description,
       }, context);
@@ -272,6 +292,8 @@ export class GoalDrivenLoop {
       result,
       verification,
       riskDecision,
+      approvalKey,
+      approvalSatisfied,
       stopReason,
       nextAction,
     }, context);
