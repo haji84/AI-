@@ -6,7 +6,13 @@ export interface ApprovalReadiness {
   missing: string[];
 }
 
-export function approvalReadinessFromEnv(env: NodeJS.ProcessEnv = process.env): ApprovalReadiness {
+export interface ApprovalReadinessEnv {
+  AI_COMPANY_OWNER_SECRET?: string;
+  AI_COMPANY_GITHUB_TOKEN?: string;
+  AI_COMPANY_GITHUB_REPOSITORY?: string;
+}
+
+export function approvalReadinessFromEnv(env: ApprovalReadinessEnv = process.env): ApprovalReadiness {
   const ownerSecretConfigured = Boolean(env.AI_COMPANY_OWNER_SECRET?.trim());
   const githubTokenConfigured = Boolean(env.AI_COMPANY_GITHUB_TOKEN?.trim());
   const repository = env.AI_COMPANY_GITHUB_REPOSITORY?.trim() || "haji84/AI-";
