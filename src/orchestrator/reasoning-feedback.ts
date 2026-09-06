@@ -1,5 +1,6 @@
 import type { GoalRecord, StateRecord } from "../compass/store.ts";
 import type { CommandIngressSource } from "./command-ingress.ts";
+import type { RiskDecision } from "./risk-policy.ts";
 import {
   inferReasoningTaskSignals,
   routeReasoningTask,
@@ -18,6 +19,7 @@ export interface ReasoningFeedback {
   verificationSummary: string | null;
   nextAction: string | null;
   report: unknown;
+  riskDecision: RiskDecision | null;
   reasoningRequired: boolean;
   humanApprovalRequired: boolean;
   reasoningRoute: ReasoningRoutingDecision;
@@ -46,6 +48,25 @@ function textSignalsApproval(value: unknown): boolean {
   return false;
 }
 
+function findRiskDecision(value: unknown): RiskDecision | null {
+  if (!value || typeof value !== "object") return null;
+  if (Array.isArray(value)) {
+    for (let index = value.length - 1; index >= 0; index -= 1) {
+      const found = findRiskDecision(value[index]);
+      if (found) return found;
+    }
+    return null;
+  }
+  const record = value as Record<string, unknown>;
+  const candidate = record.riskDecision;
+  if (candidate && typeof candidate === "object") return candidate as RiskDecision;
+  for (const nested of Object.values(record)) {
+    const found = findRiskDecision(nested);
+    if (found) return found;
+  }
+  return null;
+}
+
 export function buildReasoningFeedback(input: BuildReasoningFeedbackInput): ReasoningFeedback {
   const blockers = input.blockers ?? input.state.blockers;
   const verificationSummary = input.verificationSummary === undefined
@@ -53,7 +74,9 @@ export function buildReasoningFeedback(input: BuildReasoningFeedbackInput): Reas
     : input.verificationSummary;
   const nextAction = input.nextAction === undefined ? input.state.nextAction : input.nextAction;
   const status = input.status ?? input.state.status;
-  const humanApprovalRequired = textSignalsApproval(status)
+  const riskDecision = findRiskDecision(input.report);
+  const humanApprovalRequired = riskDecision?.humanApprovalRequired === true
+    || textSignalsApproval(status)
     || textSignalsApproval(blockers)
     || textSignalsApproval(input.report);
   const reasoningRequired = humanApprovalRequired
@@ -78,6 +101,7 @@ export function buildReasoningFeedback(input: BuildReasoningFeedbackInput): Reas
     verificationSummary,
     nextAction,
     report: input.report ?? null,
+    riskDecision,
     reasoningRequired,
     humanApprovalRequired,
     reasoningRoute,

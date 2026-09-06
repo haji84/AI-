@@ -128,6 +128,7 @@ jobs:
           const run = readJson('.autonomy-state/run-summary.json');
           const feedback = readJson('.autonomy-state/reasoning-feedback.json');
           const route = feedback?.reasoningRoute ?? null;
+          const risk = feedback?.riskDecision ?? null;
           const surface = route?.surface === 'chat' ? 'Chat' : route?.surface === 'work' ? 'Work' : route?.surface === 'codex' ? 'Codex' : '未判定';
           const approval = feedback?.humanApprovalRequired === true ? '必要' : feedback ? '不要' : '未判定';
           const value = (v) => v === null || v === undefined || v === '' ? 'なし' : String(v);
@@ -137,6 +138,9 @@ jobs:
             '',
             `- **実行状態:** ${value(run?.status ?? feedback?.status)}`,
             `- **実行元:** ${value(run?.commandSource ?? feedback?.commandSource)}`,
+            `- **リスク判定:** ${value(risk?.level)}`,
+            `- **自動実行:** ${risk ? (risk.autoExecutionAllowed ? '可能' : '停止') : '未判定'}`,
+            `- **リスク理由:** ${value(Array.isArray(risk?.reasons) ? risk.reasons.join(' / ') : null)}`,
             `- **次に必要な頭脳:** ${surface}`,
             `- **理由:** ${value(route?.reason)}`,
             `- **Work使用:** ${value(route?.usage?.work)} / 内部上限 ${value(route?.softBudgets?.work)}`,
