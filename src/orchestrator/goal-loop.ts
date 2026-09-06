@@ -1,3 +1,10 @@
+import {
+  evaluateRiskPolicy,
+  type MediumRiskChecks,
+  type RiskDecision,
+  type RiskSignals,
+} from "./risk-policy.ts";
+
 export type RiskLevel = "low" | "medium" | "high";
 export type StopReason = "goal_complete" | "blocked" | "approval_required" | "paused" | "retry_exhausted" | "continue";
 
@@ -39,6 +46,8 @@ export interface ProposedAction {
   externalSideEffect?: boolean;
   requiresHumanApproval?: boolean;
   completesBoundedCommand?: boolean;
+  riskSignals?: RiskSignals;
+  mediumRiskChecks?: MediumRiskChecks;
   input?: unknown;
 }
 
@@ -99,6 +108,7 @@ export interface WriteBackRecord {
   action?: ProposedAction | null;
   result?: ActionResult | null;
   verification?: VerificationResult | null;
+  riskDecision?: RiskDecision | null;
   stopReason: StopReason;
   nextAction?: string | null;
 }
@@ -117,7 +127,6 @@ export class DefaultApprovalPolicy implements ApprovalPolicy {
     if (action.requiresHumanApproval) return true;
     if (action.irreversible) return true;
     if (action.risk === "high") return true;
-    if (action.externalSideEffect && action.risk !== "low") return true;
     return false;
   }
 }
@@ -191,13 +200,38 @@ export class GoalDrivenLoop {
       return this.finish({ goal: input.goal, intent, action: null, stopReason: "goal_complete", nextAction: null }, context);
     }
 
-    if (this.policy.requiresApproval(action)) {
+    const riskDecision = evaluateRiskPolicy(action.riskSignals ?? {}, action.mediumRiskChecks);
+
+    if (riskDecision.executionBlocked) {
       return this.finish({
         goal: input.goal,
         intent,
         action,
+        riskDecision,
+        stopReason: "blocked",
+        nextAction: `Safety policy blocked: ${action.description}`,
+      }, context);
+    }
+
+    if (riskDecision.humanApprovalRequired || this.policy.requiresApproval(action)) {
+      return this.finish({
+        goal: input.goal,
+        intent,
+        action,
+        riskDecision,
         stopReason: "approval_required",
         nextAction: action.description,
+      }, context);
+    }
+
+    if (riskDecision.level === "MEDIUM" && !riskDecision.autoExecutionAllowed) {
+      return this.finish({
+        goal: input.goal,
+        intent,
+        action,
+        riskDecision,
+        stopReason: "continue",
+        nextAction: `Complete automated MEDIUM-risk verification before: ${action.description}`,
       }, context);
     }
 
@@ -206,6 +240,7 @@ export class GoalDrivenLoop {
         goal: input.goal,
         intent,
         action,
+        riskDecision,
         stopReason: "retry_exhausted",
         nextAction: action.description,
       }, context);
@@ -218,6 +253,7 @@ export class GoalDrivenLoop {
         intent,
         action,
         result,
+        riskDecision,
         stopReason: result.blocker ? "blocked" : "continue",
         nextAction: action.description,
       }, context);
@@ -229,7 +265,16 @@ export class GoalDrivenLoop {
       : "blocked";
     const nextAction = verification.ok ? null : action.description;
 
-    return this.finish({ goal: input.goal, intent, action, result, verification, stopReason, nextAction }, context);
+    return this.finish({
+      goal: input.goal,
+      intent,
+      action,
+      result,
+      verification,
+      riskDecision,
+      stopReason,
+      nextAction,
+    }, context);
   }
 
   private async finish(record: WriteBackRecord, context: ContextItem[]): Promise<CycleReport> {
