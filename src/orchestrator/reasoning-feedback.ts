@@ -20,6 +20,8 @@ export interface ReasoningFeedback {
   nextAction: string | null;
   report: unknown;
   riskDecision: RiskDecision | null;
+  approvalKey: string | null;
+  approvalSatisfied: boolean;
   reasoningRequired: boolean;
   humanApprovalRequired: boolean;
   reasoningRoute: ReasoningRoutingDecision;
@@ -48,20 +50,20 @@ function textSignalsApproval(value: unknown): boolean {
   return false;
 }
 
-function findRiskDecision(value: unknown): RiskDecision | null {
+function findLatestRecord(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== "object") return null;
   if (Array.isArray(value)) {
     for (let index = value.length - 1; index >= 0; index -= 1) {
-      const found = findRiskDecision(value[index]);
+      const found = findLatestRecord(value[index]);
       if (found) return found;
     }
     return null;
   }
   const record = value as Record<string, unknown>;
-  const candidate = record.riskDecision;
-  if (candidate && typeof candidate === "object") return candidate as RiskDecision;
-  for (const nested of Object.values(record)) {
-    const found = findRiskDecision(nested);
+  if (record.riskDecision || record.approvalKey || record.approvalSatisfied !== undefined) return record;
+  const nestedValues = Object.values(record);
+  for (let index = nestedValues.length - 1; index >= 0; index -= 1) {
+    const found = findLatestRecord(nestedValues[index]);
     if (found) return found;
   }
   return null;
@@ -74,11 +76,20 @@ export function buildReasoningFeedback(input: BuildReasoningFeedbackInput): Reas
     : input.verificationSummary;
   const nextAction = input.nextAction === undefined ? input.state.nextAction : input.nextAction;
   const status = input.status ?? input.state.status;
-  const riskDecision = findRiskDecision(input.report);
-  const humanApprovalRequired = riskDecision?.humanApprovalRequired === true
+  const latest = findLatestRecord(input.report);
+  const riskDecision = latest?.riskDecision && typeof latest.riskDecision === "object"
+    ? latest.riskDecision as RiskDecision
+    : null;
+  const approvalKey = typeof latest?.approvalKey === "string" && latest.approvalKey.trim()
+    ? latest.approvalKey
+    : null;
+  const approvalSatisfied = latest?.approvalSatisfied === true;
+  const humanApprovalRequired = !approvalSatisfied && (
+    riskDecision?.humanApprovalRequired === true
     || textSignalsApproval(status)
     || textSignalsApproval(blockers)
-    || textSignalsApproval(input.report);
+    || textSignalsApproval(input.report)
+  );
   const reasoningRequired = humanApprovalRequired
     || blockers.length > 0
     || status === "awaiting_command"
@@ -102,6 +113,8 @@ export function buildReasoningFeedback(input: BuildReasoningFeedbackInput): Reas
     nextAction,
     report: input.report ?? null,
     riskDecision,
+    approvalKey,
+    approvalSatisfied,
     reasoningRequired,
     humanApprovalRequired,
     reasoningRoute,
