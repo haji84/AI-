@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { CompassStore } from "../src/compass/store.ts";
 import {
@@ -17,10 +17,11 @@ import { dispatchAutonomyEvent, EventContextSource } from "../src/orchestrator/e
 import { applyExecutionReadyGoalDraft } from "../src/orchestrator/goal-draft-compass.ts";
 import { DefaultApprovalPolicy, GoalDrivenLoop, type Verifier } from "../src/orchestrator/goal-loop.ts";
 import { githubRuntimeConfig, LiveGitHubReadClient } from "../src/orchestrator/github-live-client.ts";
+import { parseHumanGateShortcut, resolveHumanGateShortcut, type HumanGateShortcutResolution } from "../src/orchestrator/human-gate-shortcuts.ts";
 import { createLocalBlockerCapability, ModelBackedPlanner } from "../src/orchestrator/model-planner.ts";
 import { invalidatePersistedCommandIfTargetClosed, resolvePersistentCommandEnvelope } from "../src/orchestrator/persistent-command-handoff.ts";
 import { readReasoningUsage, recordReasoningUse } from "../src/orchestrator/reasoning-budget.ts";
-import { buildReasoningFeedback } from "../src/orchestrator/reasoning-feedback.ts";
+import { buildReasoningFeedback, type ReasoningFeedback } from "../src/orchestrator/reasoning-feedback.ts";
 import { DEFAULT_REASONING_SOFT_BUDGETS, type ReasoningSoftBudgets } from "../src/orchestrator/reasoning-router.ts";
 import { createSafePrProposalCapability } from "../src/orchestrator/safe-pr-capability.ts";
 import { TeamAwarePlanner } from "../src/orchestrator/team-aware-planner.ts";
@@ -49,8 +50,16 @@ mkdirSync(stateDir, { recursive: true });
 const dbPath = process.env.COMPASS_DB_PATH?.trim() || resolve(stateDir, "compass.db");
 const summaryPath = process.env.AUTONOMY_SUMMARY_PATH?.trim() || resolve(stateDir, "run-summary.json");
 const feedbackPath = process.env.AUTONOMY_FEEDBACK_PATH?.trim() || resolve(stateDir, "reasoning-feedback.json");
-const approvedActionKey = process.env.AUTONOMY_APPROVAL_KEY?.trim() || null;
+const envApprovedActionKey = process.env.AUTONOMY_APPROVAL_KEY?.trim() || null;
 const compass = new CompassStore(dbPath);
+
+function readPreviousReasoningFeedback(): ReasoningFeedback | null {
+  try {
+    return JSON.parse(readFileSync(feedbackPath, "utf-8")) as ReasoningFeedback;
+  } catch {
+    return null;
+  }
+}
 
 function openIssueNumbers(repositoryState: unknown): number[] | null {
   if (!repositoryState || typeof repositoryState !== "object") return null;
@@ -71,28 +80,61 @@ try {
   let command: string | null = null;
   let lifecycleOutcome: AutonomyLifecycleOutcome | null = null;
   let freshCommandHandoff = false;
+  let shortcutResolution: HumanGateShortcutResolution | null = null;
+  let preservedFeedback: ReasoningFeedback | null = null;
 
   if (mode === "run" || mode === "resume") {
     const config = githubRuntimeConfig(process.env);
     const github = new LiveGitHubReadClient(config);
     const token = process.env.GITHUB_TOKEN?.trim() || "";
     const explicitJson = process.env.AUTONOMY_COMMAND_JSON?.trim() || "";
-    let envelopeJson: string | null = null;
+    let effectiveExplicitJson = explicitJson;
+    let effectiveApprovedActionKey = envApprovedActionKey;
+    let shortcutHandledWithoutExecution = false;
 
-    try {
-      envelopeJson = resolvePersistentCommandEnvelope({ explicitJson, stateDir });
-    } catch (error) {
-      if (!explicitJson && isMissingPersistentCommandError(error)) lifecycleOutcome = awaitingCommandOutcome();
-      else throw error;
+    if (explicitJson) {
+      try {
+        const shortcutClient = new UnifiedPlanningClient(explicitJson);
+        const shortcut = parseHumanGateShortcut(shortcutClient.command.command);
+        if (shortcut.kind !== "none") {
+          commandSource = shortcutClient.command.source;
+          command = shortcutClient.command.command;
+          shortcutResolution = resolveHumanGateShortcut(shortcut, readPreviousReasoningFeedback());
+          effectiveExplicitJson = "";
+          freshCommandHandoff = false;
+
+          if (shortcut.kind === "check" || !shortcutResolution.approvedActionKey) {
+            preservedFeedback = readPreviousReasoningFeedback();
+            report = { humanGateShortcut: shortcutResolution };
+            shortcutHandledWithoutExecution = true;
+          } else {
+            effectiveApprovedActionKey = shortcutResolution.approvedActionKey;
+          }
+        }
+      } catch {
+        // Invalid or non-shortcut input continues through the normal command path.
+      }
+    }
+
+    let envelopeJson: string | null = null;
+    if (!shortcutHandledWithoutExecution) {
+      try {
+        envelopeJson = resolvePersistentCommandEnvelope({ explicitJson: effectiveExplicitJson, stateDir });
+      } catch (error) {
+        if (!effectiveExplicitJson && isMissingPersistentCommandError(error)) lifecycleOutcome = awaitingCommandOutcome();
+        else throw error;
+      }
     }
 
     if (envelopeJson) {
       const planningClient = new UnifiedPlanningClient(envelopeJson);
-      commandSource = planningClient.command.source;
-      command = planningClient.command.command;
-      freshCommandHandoff = Boolean(explicitJson);
+      if (!shortcutResolution) {
+        commandSource = planningClient.command.source;
+        command = planningClient.command.command;
+        freshCommandHandoff = Boolean(effectiveExplicitJson);
+      }
 
-      if (!explicitJson) {
+      if (!effectiveExplicitJson && !shortcutResolution) {
         const repositoryState = await github.readRepositoryState();
         const openIssues = openIssueNumbers(repositoryState);
         if (openIssues) {
@@ -110,7 +152,9 @@ try {
         const event = {
           type: process.env.GITHUB_EVENT_NAME === "schedule" ? "schedule" as const : "manual" as const,
           id: process.env.GITHUB_RUN_ID ? `github-run-${process.env.GITHUB_RUN_ID}` : `cloud-${Date.now()}`,
-          summary: `${planningClient.command.source} command: ${planningClient.command.command}`,
+          summary: shortcutResolution
+            ? `${commandSource ?? "chat"} Human Gate shortcut: ${command}`
+            : `${planningClient.command.source} command: ${planningClient.command.command}`,
         };
         const registry = new CapabilityRegistry()
           .register(createContextInspectCapability())
@@ -130,7 +174,7 @@ try {
           verifier,
           new CloudCompassStateStoreAdapter(compass),
           new DefaultApprovalPolicy(),
-          { approvedActionKey },
+          { approvedActionKey: effectiveApprovedActionKey },
         );
         const goal = compass.getGoal();
         if (!goal) throw new Error("cloud goal bootstrap failed");
@@ -151,6 +195,7 @@ try {
     mode,
     commandSource,
     command,
+    humanGateShortcut: shortcutResolution,
     dbPath,
     status,
     compassStatus: after.status,
@@ -164,7 +209,7 @@ try {
     previousStatus: before.status,
     updatedAt: after.updatedAt,
   };
-  const feedback = buildReasoningFeedback({
+  const feedback = preservedFeedback ?? buildReasoningFeedback({
     goal: compass.getGoal(),
     state: after,
     status,
