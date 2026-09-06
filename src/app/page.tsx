@@ -1,10 +1,4 @@
-const decisions = [
-  {
-    title: "本番反映の承認",
-    detail: "高リスク操作のみ、ここに表示されます。",
-    risk: "HIGH",
-  },
-];
+import { readDashboardState } from "./dashboard-state.ts";
 
 const activity = [
   { label: "自動処理", value: "稼働中", tone: "good" },
@@ -13,7 +7,12 @@ const activity = [
   { label: "人間判断", value: "例外のみ", tone: "alert" },
 ];
 
-export default function Home() {
+export const dynamic = "force-dynamic";
+
+export default async function Home() {
+  const dashboard = await readDashboardState();
+  const decisions = dashboard.decisions;
+
   return (
     <main className="dashboard-shell">
       <header className="topbar">
@@ -22,7 +21,7 @@ export default function Home() {
           <h1>AI会社 ダッシュボード</h1>
           <p className="muted">普段は自動。あなたは例外だけ判断。</p>
         </div>
-        <div className="status-pill"><span className="status-dot" />自律運転中</div>
+        <div className="status-pill"><span className="status-dot" />{dashboard.status}</div>
       </header>
 
       <section className="hero-grid" aria-label="運用状況">
@@ -54,12 +53,13 @@ export default function Home() {
         ) : (
           <div className="decision-list">
             {decisions.map((item) => (
-              <article className="decision-card" key={item.title}>
+              <article className="decision-card" key={`${item.risk}-${item.title}`}>
                 <div className="decision-main">
                   <span className="risk-badge">{item.risk}</span>
                   <div>
                     <h3>{item.title}</h3>
                     <p>{item.detail}</p>
+                    {item.reasons.length > 0 && <p className="muted">理由: {item.reasons.join(" / ")}</p>}
                   </div>
                 </div>
                 <div className="decision-actions">
@@ -75,14 +75,14 @@ export default function Home() {
       <section className="lower-grid">
         <article className="panel">
           <div className="panel-heading">
-            <h2>自動処理の流れ</h2>
-            <span>LOW / MEDIUM</span>
+            <h2>現在の自律実行</h2>
+            <span>{dashboard.riskLevel ?? "未判定"}</span>
           </div>
           <ol className="flow-list">
-            <li><b>1</b><span>ゴールから次の作業を決定</span></li>
-            <li><b>2</b><span>AI社員が実行</span></li>
-            <li><b>3</b><span>テスト・レビュー・CIで自動検証</span></li>
-            <li><b>4</b><span>安全なら次へ。高リスクだけあなたへ。</span></li>
+            <li><b>1</b><span>状態: {dashboard.status}</span></li>
+            <li><b>2</b><span>次: {dashboard.nextAction ?? "自動処理待ち"}</span></li>
+            <li><b>3</b><span>検証: {dashboard.verificationSummary ?? "まだありません"}</span></li>
+            <li><b>4</b><span>安全なら自動継続。HIGHだけあなたへ。</span></li>
           </ol>
         </article>
 
