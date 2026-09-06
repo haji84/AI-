@@ -36,6 +36,8 @@ test("emits a compact continuable feedback packet", () => {
   assert.equal(feedback.version, 1);
   assert.equal(feedback.goal?.title, "Ship safely");
   assert.equal(feedback.riskDecision, null);
+  assert.equal(feedback.approvalKey, null);
+  assert.equal(feedback.approvalSatisfied, false);
   assert.equal(feedback.reasoningRequired, false);
   assert.equal(feedback.humanApprovalRequired, false);
   assert.equal(feedback.nextAction, "inspect the result");
@@ -68,10 +70,12 @@ test("surfaces Human Gate evidence separately from general reasoning", () => {
     status: "approval_required",
     commandSource: "codex",
     command: "prepare merge",
-    report: { stopReason: "approval_required" },
+    report: { stopReason: "approval_required", approvalKey: "abc123", approvalSatisfied: false },
   });
   assert.equal(feedback.reasoningRequired, true);
   assert.equal(feedback.humanApprovalRequired, true);
+  assert.equal(feedback.approvalKey, "abc123");
+  assert.equal(feedback.approvalSatisfied, false);
 });
 
 test("surfaces the latest structured risk decision from bounded cycle reports", () => {
@@ -85,13 +89,37 @@ test("surfaces the latest structured risk decision from bounded cycle reports", 
     report: {
       reports: [
         { riskDecision: { level: "LOW", humanApprovalRequired: false, autoExecutionAllowed: true, executionBlocked: false, reasons: ["No high-risk signals detected"] } },
-        { riskDecision: { level: "HIGH", humanApprovalRequired: true, autoExecutionAllowed: false, executionBlocked: false, reasons: ["Protected operation"] } },
+        {
+          riskDecision: { level: "HIGH", humanApprovalRequired: true, autoExecutionAllowed: false, executionBlocked: false, reasons: ["Protected operation"] },
+          approvalKey: "high-key",
+          approvalSatisfied: false,
+        },
       ],
     },
   });
   assert.equal(feedback.riskDecision?.level, "HIGH");
   assert.equal(feedback.riskDecision?.autoExecutionAllowed, false);
+  assert.equal(feedback.approvalKey, "high-key");
   assert.equal(feedback.humanApprovalRequired, true);
+});
+
+test("satisfied approval is no longer promoted as a Human Gate", () => {
+  const { goal, state } = baseInput();
+  const feedback = buildReasoningFeedback({
+    goal,
+    state,
+    status: "RUNNING",
+    commandSource: "chat",
+    command: "continue",
+    report: {
+      riskDecision: { level: "HIGH", humanApprovalRequired: true, autoExecutionAllowed: false, executionBlocked: false, reasons: ["Protected operation"] },
+      approvalKey: "high-key",
+      approvalSatisfied: true,
+      stopReason: "continue",
+    },
+  });
+  assert.equal(feedback.approvalSatisfied, true);
+  assert.equal(feedback.humanApprovalRequired, false);
 });
 
 test("shows budget exhaustion in the structured feedback packet", () => {
