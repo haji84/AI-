@@ -115,6 +115,7 @@ jobs:
           RUN_MODE: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.mode || github.event_name == 'repository_dispatch' && 'run' || 'status' }}
           MAX_CYCLES: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.max_cycles || '3' }}
           AUTONOMY_COMMAND_JSON: ${{ github.event_name == 'workflow_dispatch' && inputs.command_json || github.event_name == 'repository_dispatch' && github.event.client_payload.command_json || '' }}
+          AUTONOMY_APPROVAL_KEY: ${{ github.event_name == 'repository_dispatch' && github.event.client_payload.approval_key || '' }}
         run: pnpm autonomy:cloud -- --mode="$RUN_MODE" --max-cycles="$MAX_CYCLES"
       - name: Publish mobile-readable summary
         if: always()
