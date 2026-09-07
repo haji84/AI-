@@ -19,6 +19,7 @@ import { DefaultApprovalPolicy, GoalDrivenLoop, type Verifier } from "../src/orc
 import { githubRuntimeConfig, LiveGitHubReadClient } from "../src/orchestrator/github-live-client.ts";
 import { parseHumanGateShortcut, resolveHumanGateShortcut, type HumanGateShortcutResolution } from "../src/orchestrator/human-gate-shortcuts.ts";
 import { createLocalBlockerCapability, ModelBackedPlanner } from "../src/orchestrator/model-planner.ts";
+import { shouldValidatePersistedTarget } from "../src/orchestrator/persisted-target-policy.ts";
 import { invalidatePersistedCommandIfTargetClosed, resolvePersistentCommandEnvelope } from "../src/orchestrator/persistent-command-handoff.ts";
 import { readReasoningUsage, recordReasoningUse } from "../src/orchestrator/reasoning-budget.ts";
 import { buildReasoningFeedback, type ReasoningFeedback } from "../src/orchestrator/reasoning-feedback.ts";
@@ -134,7 +135,7 @@ try {
         freshCommandHandoff = Boolean(effectiveExplicitJson);
       }
 
-      if (!effectiveExplicitJson && !shortcutResolution) {
+      if (shouldValidatePersistedTarget(effectiveExplicitJson)) {
         const repositoryState = await github.readRepositoryState();
         const openIssues = openIssueNumbers(repositoryState);
         if (openIssues) {
