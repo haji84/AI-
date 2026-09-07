@@ -1,0 +1,210 @@
+name: Vercel Dashboard Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Deploy target"
+        required: true
+        default: preview
+        type: choice
+        options:
+          - preview
+          - production
+      confirm_production:
+        description: "Production deploy only: explicit confirmation"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vercel-dashboard-${{ github.event.inputs.target }}
+  cancel-in-progress: false
+
+env:
+  PROJECT_NAME: unified-ai-creator-studio
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.target == 'production' && 'production' || 'preview' }}
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      AI_COMPANY_OWNER_SECRET: ${{ secrets.AI_COMPANY_OWNER_SECRET }}
+      AI_COMPANY_GITHUB_TOKEN: ${{ secrets.AI_COMPANY_GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Guard production Human Gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event.inputs.target }}" == "production" && "${{ github.event.inputs.confirm_production }}" != "true" ]]; then
+            echo "Production deploy requires explicit confirm_production=true." >&2
+            exit 1
+          fi
+
+      - name: Verify required secrets are configured
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=0
+          for key in VERCEL_TOKEN AI_COMPANY_OWNER_SECRET AI_COMPANY_GITHUB_TOKEN; do
+            if [[ -z "${!key:-}" ]]; then
+              echo "Missing required secret: ${key}" >&2
+              missing=1
+            fi
+          done
+          if [[ "$missing" -ne 0 ]]; then
+            exit 1
+          fi
+          echo "Required secrets are configured. Values were not printed."
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.19.0
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Ensure Vercel project and sync runtime secrets
+        shell: bash
+        env:
+          DEPLOY_TARGET: ${{ github.event.inputs.target }}
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          import { mkdir, writeFile } from "node:fs/promises";
+
+          const token = process.env.VERCEL_TOKEN;
+          const projectName = process.env.PROJECT_NAME;
+          const deployTarget = process.env.DEPLOY_TARGET;
+          const ownerSecret = process.env.AI_COMPANY_OWNER_SECRET;
+          const githubToken = process.env.AI_COMPANY_GITHUB_TOKEN;
+
+          const headers = {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          };
+
+          async function request(url, init = {}) {
+            const response = await fetch(url, { ...init, headers: { ...headers, ...(init.headers ?? {}) } });
+            const text = await response.text();
+            let body = null;
+            if (text) {
+              try { body = JSON.parse(text); } catch { body = { message: text }; }
+            }
+            return { response, body };
+          }
+
+          let { response, body: project } = await request(`https://api.vercel.com/v9/projects/${encodeURIComponent(projectName)}`);
+          if (response.status === 404) {
+            ({ response, body: project } = await request("https://api.vercel.com/v11/projects", {
+              method: "POST",
+              body: JSON.stringify({ name: projectName, framework: "nextjs" }),
+            }));
+          }
+
+          if (!response.ok || !project?.id || !project?.accountId) {
+            throw new Error(`Unable to ensure Vercel project (status ${response.status}).`);
+          }
+
+          const targets = deployTarget === "production" ? ["production"] : ["preview"];
+          const envPayload = [
+            {
+              key: "AI_COMPANY_OWNER_SECRET",
+              value: ownerSecret,
+              type: "sensitive",
+              target: targets,
+              comment: "AI Company owner login secret",
+            },
+            {
+              key: "AI_COMPANY_GITHUB_TOKEN",
+              value: githubToken,
+              type: "sensitive",
+              target: targets,
+              comment: "AI Company GitHub runtime token",
+            },
+            {
+              key: "AI_COMPANY_GITHUB_REPOSITORY",
+              value: "haji84/AI-",
+              type: "plain",
+              target: targets,
+              comment: "AI Company repository target",
+            },
+          ];
+
+          const envResult = await request(`https://api.vercel.com/v10/projects/${encodeURIComponent(project.id)}/env?upsert=true`, {
+            method: "POST",
+            body: JSON.stringify(envPayload),
+          });
+          if (!envResult.response.ok) {
+            throw new Error(`Unable to sync Vercel environment variables (status ${envResult.response.status}).`);
+          }
+
+          await mkdir(".vercel", { recursive: true });
+          await writeFile(
+            ".vercel/project.json",
+            JSON.stringify({ projectId: project.id, orgId: project.accountId }) + "\n",
+            { mode: 0o600 },
+          );
+
+          console.log(`Vercel project ready: ${projectName}`);
+          console.log(`Runtime environment configured for: ${deployTarget}`);
+          NODE
+
+      - name: Pull Vercel project configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm dlx vercel@latest pull \
+            --yes \
+            --environment="${{ github.event.inputs.target }}" \
+            --token="$VERCEL_TOKEN"
+
+      - name: Build Vercel output
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event.inputs.target }}" == "production" ]]; then
+            pnpm dlx vercel@latest build --prod --token="$VERCEL_TOKEN"
+          else
+            pnpm dlx vercel@latest build --token="$VERCEL_TOKEN"
+          fi
+
+      - name: Deploy prebuilt output
+        id: deploy
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event.inputs.target }}" == "production" ]]; then
+            url="$(pnpm dlx vercel@latest deploy --prebuilt --prod --token="$VERCEL_TOKEN")"
+          else
+            url="$(pnpm dlx vercel@latest deploy --prebuilt --token="$VERCEL_TOKEN")"
+          fi
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          {
+            echo "## Vercel dashboard deployment"
+            echo ""
+            echo "- Target: ${{ github.event.inputs.target }}"
+            echo "- URL: $url"
+            echo "- Secret values: not printed"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Verify deployed dashboard responds
+        shell: bash
+        env:
+          DEPLOYMENT_URL: ${{ steps.deploy.outputs.url }}
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location --retry 3 --retry-delay 2 "$DEPLOYMENT_URL" >/dev/null
+          echo "Dashboard responded successfully."
