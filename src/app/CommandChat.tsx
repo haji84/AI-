@@ -36,7 +36,7 @@ export default function CommandChat({ enabled }: { enabled: boolean }) {
   const [history, setHistory] = useState<ChatEntry[]>([]);
   const lastFingerprint = useRef<string | null>(null);
   const lastAcceptedAt = useRef<string | null>(null);
-  const pollTimer = useRef<ReturnType<typeof window.setInterval> | null>(null);
+  const pollTimer = useRef<number | null>(null);
 
   useEffect(() => {
     try {
@@ -46,7 +46,7 @@ export default function CommandChat({ enabled }: { enabled: boolean }) {
       // Ignore corrupted/local-storage failures. Chat still works in-memory.
     }
     return () => {
-      if (pollTimer.current) window.clearInterval(pollTimer.current);
+      if (pollTimer.current !== null) window.clearInterval(pollTimer.current);
     };
   }, []);
 
@@ -101,12 +101,12 @@ export default function CommandChat({ enabled }: { enabled: boolean }) {
   }
 
   function startPolling() {
-    if (pollTimer.current) window.clearInterval(pollTimer.current);
+    if (pollTimer.current !== null) window.clearInterval(pollTimer.current);
     let count = 0;
     pollTimer.current = window.setInterval(() => {
       count += 1;
       void fetchStatus(false);
-      if (count >= 9 && pollTimer.current) {
+      if (count >= 9 && pollTimer.current !== null) {
         window.clearInterval(pollTimer.current);
         pollTimer.current = null;
       }
