@@ -1,7 +1,10 @@
 import { cookies } from "next/headers";
+import ApprovalControls from "./ApprovalControls.tsx";
 import { approvalReadinessFromEnv } from "./approval-readiness.ts";
 import { readDashboardState } from "./dashboard-state.ts";
 import { OWNER_SESSION_COOKIE, verifyOwnerSessionToken } from "./owner-auth.ts";
+
+const PENDING_APPROVAL_COOKIE = "ai_company_approval_pending";
 
 const activity = [
   { label: "自動処理", value: "稼働中", tone: "good" },
@@ -19,6 +22,7 @@ export default async function Home() {
   const ownerSecret = process.env.AI_COMPANY_OWNER_SECRET?.trim() || "";
   const cookieStore = await cookies();
   const ownerAuthenticated = verifyOwnerSessionToken(ownerSecret, cookieStore.get(OWNER_SESSION_COOKIE)?.value);
+  const pendingApprovalKey = cookieStore.get(PENDING_APPROVAL_COOKIE)?.value ?? null;
 
   return (
     <main className="dashboard-shell">
@@ -55,7 +59,7 @@ export default async function Home() {
             <span>{readiness.ready ? "準備完了" : "設定不足"}</span>
           </div>
           {readiness.ready ? (
-            <p>オーナー認証とGitHub承認経路は利用できます。</p>
+            <p>{ownerAuthenticated ? "この端末はオーナー認証済みです。承認はボタン1つで行えます。" : "初回だけオーナー認証すると、この端末では以後ボタン1つで承認できます。"}</p>
           ) : (
             <p className="muted">不足: {readiness.missing.join(" / ")}</p>
           )}
@@ -84,15 +88,17 @@ export default async function Home() {
                 <div className="decision-actions">
                   {!readiness.ready ? (
                     <span className="muted">承認機能の設定が必要です</span>
+                  ) : pendingApprovalKey === item.approvalKey ? (
+                    <div className="approval-grace" role="status">
+                      <strong>承認を送信しました</strong>
+                      <p className="muted">AI社員の反映待ちです。二重送信はしません。</p>
+                    </div>
                   ) : ownerAuthenticated ? (
-                    <form action="/api/approve" method="post">
-                      <input name="approvalKey" type="hidden" value={item.approvalKey} />
-                      <button className="button primary" type="submit">承認して再開</button>
-                    </form>
+                    <ApprovalControls approvalKey={item.approvalKey} />
                   ) : (
                     <form action="/api/owner-login" method="post">
-                      <input aria-label="オーナー認証コード" name="passcode" placeholder="認証コード" required type="password" />
-                      <button className="button secondary" type="submit">オーナー認証</button>
+                      <input aria-label="オーナー認証コード" name="passcode" placeholder="初回認証コード" required type="password" />
+                      <button className="button secondary" type="submit">この端末をオーナー認証</button>
                     </form>
                   )}
                 </div>
