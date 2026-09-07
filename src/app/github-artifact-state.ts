@@ -14,7 +14,7 @@ interface ArtifactListResponse {
 
 const ARTIFACT_NAME = "autonomy-dashboard-state";
 
-function findZipEntry(zip: Buffer, filename: string): Buffer | null {
+export function findZipEntry(zip: Buffer, filename: string): Buffer | null {
   let offset = 0;
   while (offset + 30 <= zip.length) {
     const signature = zip.readUInt32LE(offset);
