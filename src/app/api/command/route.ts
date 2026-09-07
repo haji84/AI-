@@ -1,19 +1,54 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { readDashboardState } from "../../dashboard-state.ts";
 import { OWNER_SESSION_COOKIE, verifyOwnerSessionToken } from "../../owner-auth.ts";
 
 const MAX_COMMAND_LENGTH = 500;
 
-export async function POST(request: Request) {
+async function ownerContext() {
   const ownerSecret = process.env.AI_COMPANY_OWNER_SECRET?.trim() || "";
   const githubToken = process.env.AI_COMPANY_GITHUB_TOKEN?.trim() || "";
   const repository = process.env.AI_COMPANY_GITHUB_REPOSITORY?.trim() || "haji84/AI-";
-  if (!ownerSecret || !githubToken) return NextResponse.json({ message: "操作機能の設定が不足しています" }, { status: 503 });
+  if (!ownerSecret || !githubToken) return { error: NextResponse.json({ message: "操作機能の設定が不足しています" }, { status: 503 }) };
 
   const cookieStore = await cookies();
   if (!verifyOwnerSessionToken(ownerSecret, cookieStore.get(OWNER_SESSION_COOKIE)?.value)) {
-    return NextResponse.json({ message: "オーナー認証が必要です" }, { status: 401 });
+    return { error: NextResponse.json({ message: "オーナー認証が必要です" }, { status: 401 }) };
   }
+
+  return { ownerSecret, githubToken, repository };
+}
+
+export async function GET() {
+  const context = await ownerContext();
+  if ("error" in context) return context.error;
+
+  const state = await readDashboardState();
+  const humanGateRequired = state.decisions.length > 0;
+  const reply = humanGateRequired
+    ? `Human Gateで停止しています。${state.nextAction ? ` 次: ${state.nextAction}` : " 内容を確認して承認または却下してください。"}`
+    : state.verificationSummary
+      ? `最新の検証結果: ${state.verificationSummary}`
+      : state.nextAction
+        ? `現在は${state.status}です。次: ${state.nextAction}`
+        : `現在は${state.status}です。`;
+
+  return NextResponse.json({
+    status: state.status,
+    generatedAt: state.generatedAt,
+    riskLevel: state.riskLevel,
+    nextAction: state.nextAction,
+    verificationSummary: state.verificationSummary,
+    humanGateRequired,
+    decisionCount: state.decisions.length,
+    reply,
+  }, { headers: { "Cache-Control": "no-store" } });
+}
+
+export async function POST(request: Request) {
+  const context = await ownerContext();
+  if ("error" in context) return context.error;
+  const { githubToken, repository } = context;
 
   const payload = await request.json().catch(() => null) as { command?: unknown } | null;
   const command = typeof payload?.command === "string" ? payload.command.trim() : "";
@@ -47,5 +82,5 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: `GitHubへの指示送信に失敗しました (${response.status})` }, { status: 502 });
   }
 
-  return NextResponse.json({ message: "指示を受け付けました。安全判定後にAI社員が処理します。" });
+  return NextResponse.json({ message: "指示を受け付けました。安全判定後にAI社員が処理します。", acceptedAt: new Date().toISOString() });
 }
