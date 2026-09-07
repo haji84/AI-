@@ -172,6 +172,16 @@ jobs:
           else
             echo "No reasoning feedback was produced." >> "$GITHUB_STEP_SUMMARY"
           fi
+      - name: Publish dashboard state artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: autonomy-dashboard-state
+          path: |
+            .autonomy-state/reasoning-feedback.json
+            .autonomy-state/run-summary.json
+          if-no-files-found: warn
+          retention-days: 7
       - name: Save persistent autonomy state
         if: always()
         uses: actions/cache/save@v4
