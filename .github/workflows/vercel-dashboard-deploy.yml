@@ -119,6 +119,9 @@ jobs:
           }
 
           let { response, body: project } = await request(`https://api.vercel.com/v9/projects/${encodeURIComponent(projectName)}`);
+          if (response.status === 404 && deployTarget !== "production") {
+            throw new Error("Preview bootstrap blocked: Vercel can assign the first deployment of a new project to Production. Create/bootstrap the project only through the explicit Production Human Gate.");
+          }
           if (response.status === 404) {
             ({ response, body: project } = await request("https://api.vercel.com/v11/projects", {
               method: "POST",
