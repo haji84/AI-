@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { ReasoningFeedback } from "../orchestrator/reasoning-feedback.ts";
+import { readReasoningFeedbackFromGitHubArtifact } from "./github-artifact-state.ts";
 
 export interface DashboardDecision {
   title: string;
@@ -56,11 +57,19 @@ export function dashboardStateFromFeedback(feedback: ReasoningFeedback | null): 
   };
 }
 
-export async function readDashboardState(): Promise<DashboardState> {
+async function readLocalReasoningFeedback(): Promise<ReasoningFeedback | null> {
   try {
     const raw = await readFile(FEEDBACK_PATH, "utf-8");
-    return dashboardStateFromFeedback(JSON.parse(raw) as ReasoningFeedback);
+    return JSON.parse(raw) as ReasoningFeedback;
   } catch {
-    return dashboardStateFromFeedback(null);
+    return null;
   }
+}
+
+export async function readDashboardState(): Promise<DashboardState> {
+  const local = await readLocalReasoningFeedback();
+  if (local) return dashboardStateFromFeedback(local);
+
+  const remote = await readReasoningFeedbackFromGitHubArtifact();
+  return dashboardStateFromFeedback(remote);
 }
