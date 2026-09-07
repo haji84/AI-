@@ -16,21 +16,31 @@ on:
         required: false
         default: false
         type: boolean
+  issues:
+    types: [opened]
 
 permissions:
   contents: read
 
 concurrency:
-  group: vercel-dashboard-${{ github.event.inputs.target }}
+  group: vercel-dashboard-${{ github.event_name == 'issues' && 'preview' || github.event.inputs.target }}
   cancel-in-progress: false
 
 env:
   PROJECT_NAME: unified-ai-creator-studio
+  DEPLOY_TARGET: ${{ github.event_name == 'issues' && 'preview' || github.event.inputs.target }}
+  CONFIRM_PRODUCTION: ${{ github.event_name == 'issues' && 'false' || github.event.inputs.confirm_production }}
 
 jobs:
   deploy:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'issues' &&
+       startsWith(github.event.issue.title, '[VERCEL_PREVIEW]') &&
+       github.event.issue.user.login == github.repository_owner &&
+       github.event.sender.login == github.repository_owner)
     runs-on: ubuntu-latest
-    environment: ${{ github.event.inputs.target == 'production' && 'production' || 'preview' }}
+    environment: ${{ github.event_name == 'issues' && 'preview' || github.event.inputs.target }}
     env:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       AI_COMPANY_OWNER_SECRET: ${{ secrets.AI_COMPANY_OWNER_SECRET }}
@@ -42,8 +52,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [[ "${{ github.event.inputs.target }}" == "production" && "${{ github.event.inputs.confirm_production }}" != "true" ]]; then
+          if [[ "$DEPLOY_TARGET" == "production" && "$CONFIRM_PRODUCTION" != "true" ]]; then
             echo "Production deploy requires explicit confirm_production=true." >&2
+            exit 1
+          fi
+          if [[ "${{ github.event_name }}" == "issues" && "$DEPLOY_TARGET" != "preview" ]]; then
+            echo "Issue bridge is Preview-only." >&2
             exit 1
           fi
 
@@ -78,8 +92,6 @@ jobs:
 
       - name: Ensure Vercel project and sync runtime secrets
         shell: bash
-        env:
-          DEPLOY_TARGET: ${{ github.event.inputs.target }}
         run: |
           set -euo pipefail
           node <<'NODE'
@@ -168,14 +180,14 @@ jobs:
           set -euo pipefail
           pnpm dlx vercel@latest pull \
             --yes \
-            --environment="${{ github.event.inputs.target }}" \
+            --environment="$DEPLOY_TARGET" \
             --token="$VERCEL_TOKEN"
 
       - name: Build Vercel output
         shell: bash
         run: |
           set -euo pipefail
-          if [[ "${{ github.event.inputs.target }}" == "production" ]]; then
+          if [[ "$DEPLOY_TARGET" == "production" ]]; then
             pnpm dlx vercel@latest build --prod --token="$VERCEL_TOKEN"
           else
             pnpm dlx vercel@latest build --token="$VERCEL_TOKEN"
@@ -186,7 +198,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [[ "${{ github.event.inputs.target }}" == "production" ]]; then
+          if [[ "$DEPLOY_TARGET" == "production" ]]; then
             url="$(pnpm dlx vercel@latest deploy --prebuilt --prod --token="$VERCEL_TOKEN")"
           else
             url="$(pnpm dlx vercel@latest deploy --prebuilt --token="$VERCEL_TOKEN")"
@@ -195,7 +207,7 @@ jobs:
           {
             echo "## Vercel dashboard deployment"
             echo ""
-            echo "- Target: ${{ github.event.inputs.target }}"
+            echo "- Target: $DEPLOY_TARGET"
             echo "- URL: $url"
             echo "- Secret values: not printed"
           } >> "$GITHUB_STEP_SUMMARY"
