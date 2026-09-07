@@ -13,12 +13,78 @@ interface ArtifactListResponse {
 }
 
 const ARTIFACT_NAME = "autonomy-dashboard-state";
+const LOCAL_FILE_HEADER_SIGNATURE = 0x04034b50;
+const CENTRAL_DIRECTORY_SIGNATURE = 0x02014b50;
+const END_OF_CENTRAL_DIRECTORY_SIGNATURE = 0x06054b50;
 
-export function findZipEntry(zip: Buffer, filename: string): Buffer | null {
+function decodeZipEntry(method: number, data: Buffer): Buffer | null {
+  if (method === 0) return data;
+  if (method === 8) return inflateRawSync(data);
+  return null;
+}
+
+function findEndOfCentralDirectory(zip: Buffer): number {
+  // EOCD is at least 22 bytes. The ZIP comment can be up to 65535 bytes.
+  const minimumOffset = Math.max(0, zip.length - 22 - 0xffff);
+  for (let offset = zip.length - 22; offset >= minimumOffset; offset -= 1) {
+    if (zip.readUInt32LE(offset) === END_OF_CENTRAL_DIRECTORY_SIGNATURE) return offset;
+  }
+  return -1;
+}
+
+function findZipEntryFromCentralDirectory(zip: Buffer, filename: string): Buffer | null {
+  const eocdOffset = findEndOfCentralDirectory(zip);
+  if (eocdOffset < 0 || eocdOffset + 22 > zip.length) return null;
+
+  const centralDirectorySize = zip.readUInt32LE(eocdOffset + 12);
+  const centralDirectoryOffset = zip.readUInt32LE(eocdOffset + 16);
+  const centralDirectoryEnd = centralDirectoryOffset + centralDirectorySize;
+  if (centralDirectoryOffset < 0 || centralDirectoryEnd > zip.length || centralDirectoryEnd > eocdOffset) return null;
+
+  let offset = centralDirectoryOffset;
+  while (offset + 46 <= centralDirectoryEnd) {
+    if (zip.readUInt32LE(offset) !== CENTRAL_DIRECTORY_SIGNATURE) return null;
+
+    const flags = zip.readUInt16LE(offset + 8);
+    const method = zip.readUInt16LE(offset + 10);
+    const compressedSize = zip.readUInt32LE(offset + 20);
+    const fileNameLength = zip.readUInt16LE(offset + 28);
+    const extraLength = zip.readUInt16LE(offset + 30);
+    const commentLength = zip.readUInt16LE(offset + 32);
+    const localHeaderOffset = zip.readUInt32LE(offset + 42);
+    const nameStart = offset + 46;
+    const nameEnd = nameStart + fileNameLength;
+    const nextOffset = nameEnd + extraLength + commentLength;
+
+    if (nextOffset > centralDirectoryEnd) return null;
+    const entryName = zip.subarray(nameStart, nameEnd).toString("utf-8");
+
+    if (entryName === filename) {
+      // Encrypted entries are intentionally unsupported.
+      if ((flags & 0x01) !== 0) return null;
+      if (localHeaderOffset + 30 > zip.length) return null;
+      if (zip.readUInt32LE(localHeaderOffset) !== LOCAL_FILE_HEADER_SIGNATURE) return null;
+
+      const localFileNameLength = zip.readUInt16LE(localHeaderOffset + 26);
+      const localExtraLength = zip.readUInt16LE(localHeaderOffset + 28);
+      const dataStart = localHeaderOffset + 30 + localFileNameLength + localExtraLength;
+      const dataEnd = dataStart + compressedSize;
+      if (dataStart < 0 || dataEnd > zip.length || dataEnd > centralDirectoryOffset) return null;
+
+      return decodeZipEntry(method, zip.subarray(dataStart, dataEnd));
+    }
+
+    offset = nextOffset;
+  }
+
+  return null;
+}
+
+function findZipEntryFromLocalHeaders(zip: Buffer, filename: string): Buffer | null {
   let offset = 0;
   while (offset + 30 <= zip.length) {
     const signature = zip.readUInt32LE(offset);
-    if (signature !== 0x04034b50) break;
+    if (signature !== LOCAL_FILE_HEADER_SIGNATURE) break;
     const flags = zip.readUInt16LE(offset + 6);
     const method = zip.readUInt16LE(offset + 8);
     const compressedSize = zip.readUInt32LE(offset + 18);
@@ -29,18 +95,19 @@ export function findZipEntry(zip: Buffer, filename: string): Buffer | null {
     if (nameEnd + extraLength > zip.length) return null;
     const entryName = zip.subarray(nameStart, nameEnd).toString("utf-8");
     const dataStart = nameEnd + extraLength;
+    // Without the central directory, data-descriptor entries do not expose the
+    // compressed size in the local header, so we cannot safely skip or decode them.
     if ((flags & 0x08) !== 0) return null;
     const dataEnd = dataStart + compressedSize;
     if (dataEnd > zip.length) return null;
-    if (entryName === filename) {
-      const data = zip.subarray(dataStart, dataEnd);
-      if (method === 0) return data;
-      if (method === 8) return inflateRawSync(data);
-      return null;
-    }
+    if (entryName === filename) return decodeZipEntry(method, zip.subarray(dataStart, dataEnd));
     offset = dataEnd;
   }
   return null;
+}
+
+export function findZipEntry(zip: Buffer, filename: string): Buffer | null {
+  return findZipEntryFromCentralDirectory(zip, filename) ?? findZipEntryFromLocalHeaders(zip, filename);
 }
 
 function repositoryFromEnv(): string {
