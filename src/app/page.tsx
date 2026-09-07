@@ -1,140 +1,93 @@
 import { cookies } from "next/headers";
-import ApprovalControls from "./ApprovalControls.tsx";
+import HumanGateActions from "./HumanGateActions.tsx";
+import QuickControls from "./QuickControls.tsx";
 import { approvalReadinessFromEnv } from "./approval-readiness.ts";
+import { employeeRoster, readControlCenterData } from "./dashboard-data.ts";
 import { readDashboardState } from "./dashboard-state.ts";
 import { OWNER_SESSION_COOKIE, verifyOwnerSessionToken } from "./owner-auth.ts";
 
 const PENDING_APPROVAL_COOKIE = "ai_company_approval_pending";
 
-const activity = [
-  { label: "自動処理", value: "稼働中", tone: "good" },
-  { label: "低リスクPR", value: "自動マージ対象", tone: "good" },
-  { label: "中リスク", value: "自動検証", tone: "watch" },
-  { label: "人間判断", value: "例外のみ", tone: "alert" },
-];
-
 export const dynamic = "force-dynamic";
 
+function fmt(value: string) {
+  return new Intl.DateTimeFormat("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tokyo" }).format(new Date(value));
+}
+
 export default async function Home() {
-  const dashboard = await readDashboardState();
-  const decisions = dashboard.decisions;
+  const [dashboard, center] = await Promise.all([readDashboardState(), readControlCenterData()]);
   const readiness = approvalReadinessFromEnv();
   const ownerSecret = process.env.AI_COMPANY_OWNER_SECRET?.trim() || "";
   const cookieStore = await cookies();
   const ownerAuthenticated = verifyOwnerSessionToken(ownerSecret, cookieStore.get(OWNER_SESSION_COOKIE)?.value);
   const pendingApprovalKey = cookieStore.get(PENDING_APPROVAL_COOKIE)?.value ?? null;
+  const currentTask = center.tasks[0] ?? null;
+  const overdue = center.tasks.filter((task) => task.deadlineTone === "overdue").length;
+  const soon = center.tasks.filter((task) => task.deadlineTone === "soon").length;
+  const completed = center.history.filter((item) => item.conclusion === "success").length;
+  const failed = center.history.filter((item) => item.conclusion === "failure").length;
 
   return (
-    <main className="dashboard-shell">
+    <main className="dashboard-shell" id="home">
       <header className="topbar">
         <div>
           <p className="eyebrow">AI COMPANY CONTROL</p>
-          <h1>AI会社 ダッシュボード</h1>
-          <p className="muted">普段は自動。あなたは例外だけ判断。</p>
+          <h1>AI会社 コントロールセンター</h1>
+          <p className="muted">重要なことだけ、ひと目で確認して操作。</p>
         </div>
         <div className="status-pill"><span className="status-dot" />{dashboard.status}</div>
       </header>
 
-      <section className="hero-grid" aria-label="運用状況">
-        {activity.map((item) => (
-          <article className="metric-card" key={item.label}>
-            <span>{item.label}</span>
-            <strong className={`tone-${item.tone}`}>{item.value}</strong>
-          </article>
-        ))}
+      <section className="summary-grid" aria-label="今日の状況">
+        <article className="summary-card current-task-card">
+          <span>現在のタスク</span>
+          {currentTask ? <a href={currentTask.url} target="_blank" rel="noreferrer"><strong>{currentTask.title}</strong><small>タップしてタスクを開く ↗</small></a> : <strong>待機中</strong>}
+        </article>
+        <article className="summary-card"><span>進行中</span><strong>{center.tasks.length}</strong><small>タスク</small></article>
+        <article className="summary-card"><span>期限注意</span><strong className={overdue || soon ? "text-warn" : ""}>{overdue + soon}</strong><small>期限超過 {overdue} / 間近 {soon}</small></article>
+        <article className="summary-card"><span>判断待ち</span><strong className={dashboard.decisions.length ? "text-alert" : ""}>{dashboard.decisions.length}</strong><small>Human Gate</small></article>
+        <article className="summary-card"><span>直近成功</span><strong>{completed}</strong><small>自動処理</small></article>
+        <article className="summary-card"><span>エラー</span><strong className={failed ? "text-alert" : ""}>{failed}</strong><small>直近の自動処理</small></article>
       </section>
 
-      <section className="decision-section">
-        <div className="section-heading">
-          <div>
-            <p className="section-kicker">HUMAN GATE</p>
-            <h2>あなたの判断が必要</h2>
-          </div>
-          <span className="count-badge">{decisions.length}</span>
-        </div>
+      {center.warnings.length > 0 && <section className="warning-strip" id="alerts"><strong>注意</strong><div>{center.warnings.map((item) => <span key={item}>{item}</span>)}</div></section>}
 
-        <div className="panel" style={{ marginBottom: "1rem" }}>
-          <div className="panel-heading">
-            <h2>承認機能</h2>
-            <span>{readiness.ready ? "準備完了" : "設定不足"}</span>
-          </div>
-          {readiness.ready ? (
-            <p>{ownerAuthenticated ? "この端末はオーナー認証済みです。承認はボタン1つで行えます。" : "初回だけオーナー認証すると、この端末では以後ボタン1つで承認できます。"}</p>
-          ) : (
-            <p className="muted">不足: {readiness.missing.join(" / ")}</p>
-          )}
-        </div>
-
-        {decisions.length === 0 ? (
-          <div className="empty-state">
-            <div className="empty-icon">✓</div>
-            <div>
-              <strong>判断待ちはありません</strong>
-              <p>AI社員が自動で作業を継続しています。</p>
+      <section className="control-layout">
+        <div className="main-column">
+          <section className="panel" id="tasks">
+            <div className="section-heading"><div><p className="section-kicker">TASKS</p><h2>現在進行中のタスク</h2></div><span className="count-badge neutral">{center.tasks.length}</span></div>
+            <div className="task-list">
+              {center.tasks.slice(0, 8).map((task) => <a className="task-row" href={task.url} key={task.id} target="_blank" rel="noreferrer">
+                <div className="task-copy"><span className="task-id">#{task.id}</span><strong>{task.title}</strong><small>更新 {fmt(task.updatedAt)}</small></div>
+                <div className="task-meta"><span className={`deadline ${task.deadlineTone}`}>{task.deadlineLabel}</span>{task.progress !== null && <span>{task.progress}%</span>}<b>›</b></div>
+              </a>)}
+              {center.tasks.length === 0 && <div className="empty-state">進行中タスクはありません。</div>}
             </div>
-          </div>
-        ) : (
-          <div className="decision-list">
-            {decisions.map((item) => (
-              <article className="decision-card" key={`${item.risk}-${item.title}`}>
-                <div className="decision-main">
-                  <span className="risk-badge">{item.risk}</span>
-                  <div>
-                    <h3>{item.title}</h3>
-                    <p>{item.detail}</p>
-                    {item.reasons.length > 0 && <p className="muted">理由: {item.reasons.join(" / ")}</p>}
-                  </div>
-                </div>
-                <div className="decision-actions">
-                  {!readiness.ready ? (
-                    <span className="muted">承認機能の設定が必要です</span>
-                  ) : pendingApprovalKey === item.approvalKey ? (
-                    <div className="approval-grace" role="status">
-                      <strong>承認を送信しました</strong>
-                      <p className="muted">AI社員の反映待ちです。二重送信はしません。</p>
-                    </div>
-                  ) : ownerAuthenticated ? (
-                    <ApprovalControls approvalKey={item.approvalKey} />
-                  ) : (
-                    <form action="/api/owner-login" method="post">
-                      <input aria-label="オーナー認証コード" name="passcode" placeholder="初回認証コード" required type="password" />
-                      <button className="button secondary" type="submit">この端末をオーナー認証</button>
-                    </form>
-                  )}
-                </div>
-              </article>
-            ))}
-          </div>
-        )}
+          </section>
+
+          <section className="panel gate-panel" id="approval">
+            <div className="section-heading"><div><p className="section-kicker alert-kicker">HUMAN GATE</p><h2>あなたの判断が必要</h2></div><span className="count-badge">{dashboard.decisions.length}</span></div>
+            {dashboard.decisions.length === 0 ? <div className="empty-success"><span>✓</span><div><strong>判断待ちはありません</strong><p>AI社員が自動で作業を継続できます。</p></div></div> : dashboard.decisions.map((item) => <article className="decision-card" key={item.approvalKey}>
+              <div className="decision-main"><span className="risk-badge">HIGH</span><div><h3>{item.title}</h3><p>{item.detail}</p><details><summary>詳細を見る</summary><p>理由: {item.reasons.join(" / ") || "詳細理由なし"}</p></details></div></div>
+              <div className="decision-actions">{!readiness.ready ? <span>承認機能の設定が必要です</span> : pendingApprovalKey === item.approvalKey ? <div className="approval-grace"><strong>承認を送信しました</strong><p>AI社員の反映待ちです。</p></div> : ownerAuthenticated ? <HumanGateActions approvalKey={item.approvalKey} /> : <form action="/api/owner-login" method="post"><input aria-label="オーナー認証コード" name="passcode" placeholder="初回認証コード" required type="password"/><button className="button secondary" type="submit">この端末を認証</button></form>}</div>
+            </article>)}
+          </section>
+
+          <section className="panel" id="history">
+            <div className="section-heading"><div><p className="section-kicker">HISTORY</p><h2>最近の作業履歴</h2></div></div>
+            <div className="history-list">{center.history.slice(0, 8).map((item) => <a href={item.url} target="_blank" rel="noreferrer" key={item.id}><span className={`history-dot ${item.conclusion === "failure" ? "bad" : item.conclusion === "success" ? "good" : "wait"}`}/><div><strong>{item.title}</strong><small>{fmt(item.createdAt)}</small></div><span>{item.conclusion === "success" ? "完了" : item.conclusion === "failure" ? "失敗" : "実行中"}</span></a>)}</div>
+          </section>
+        </div>
+
+        <aside className="side-column">
+          <section className="panel"><div className="section-heading"><div><p className="section-kicker">QUICK</p><h2>クイック操作</h2></div></div><QuickControls enabled={ownerAuthenticated && readiness.ready}/></section>
+          <section className="panel" id="projects"><div className="section-heading"><div><p className="section-kicker">PROJECTS</p><h2>プロジェクト</h2></div></div><div className="project-list">{center.projects.map((project) => <a href={project.url} target="_blank" rel="noreferrer" key={project.name}><div><strong>{project.name}</strong><small>{project.detail}</small></div><span>{project.status}</span></a>)}</div></section>
+          <section className="panel" id="employees"><div className="section-heading"><div><p className="section-kicker">MEMBERS</p><h2>AI社員 在籍一覧</h2></div><span className="count-badge neutral">{employeeRoster.length}</span></div><div className="employee-grid">{employeeRoster.map((name) => <span key={name}>{name}</span>)}</div></section>
+          <section className="panel compact-panel"><h2>現在の自律実行</h2><dl><div><dt>状態</dt><dd>{dashboard.status}</dd></div><div><dt>リスク</dt><dd>{dashboard.riskLevel ?? "未判定"}</dd></div><div><dt>次</dt><dd>{dashboard.nextAction ?? "自動処理待ち"}</dd></div></dl></section>
+        </aside>
       </section>
 
-      <section className="lower-grid">
-        <article className="panel">
-          <div className="panel-heading">
-            <h2>現在の自律実行</h2>
-            <span>{dashboard.riskLevel ?? "未判定"}</span>
-          </div>
-          <ol className="flow-list">
-            <li><b>1</b><span>状態: {dashboard.status}</span></li>
-            <li><b>2</b><span>次: {dashboard.nextAction ?? "自動処理待ち"}</span></li>
-            <li><b>3</b><span>検証: {dashboard.verificationSummary ?? "まだありません"}</span></li>
-            <li><b>4</b><span>安全なら自動継続。HIGHだけあなたへ。</span></li>
-          </ol>
-        </article>
-
-        <article className="panel">
-          <div className="panel-heading">
-            <h2>Human Gate方針</h2>
-            <span>例外運用</span>
-          </div>
-          <div className="risk-table">
-            <div><span className="risk low">LOW</span><p>自動実行</p></div>
-            <div><span className="risk medium">MEDIUM</span><p>自動検証後に継続</p></div>
-            <div><span className="risk high">HIGH</span><p>あなたが判断</p></div>
-            <div><span className="risk critical">CRITICAL</span><p>自動実行禁止</p></div>
-          </div>
-        </article>
-      </section>
+      <nav className="mobile-nav" aria-label="スマホメニュー"><a href="#home">ホーム</a><a href="#tasks">タスク</a><a href="#employees">AI社員</a><a href="#approval">承認{dashboard.decisions.length > 0 && <b>{dashboard.decisions.length}</b>}</a><a href="#history">履歴</a></nav>
     </main>
   );
 }
