@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import CommandChat from "./CommandChat.tsx";
 import HumanGateActions from "./HumanGateActions.tsx";
 import QuickControls from "./QuickControls.tsx";
 import { approvalReadinessFromEnv } from "./approval-readiness.ts";
@@ -21,6 +22,7 @@ export default async function Home() {
   const cookieStore = await cookies();
   const ownerAuthenticated = verifyOwnerSessionToken(ownerSecret, cookieStore.get(OWNER_SESSION_COOKIE)?.value);
   const pendingApprovalKey = cookieStore.get(PENDING_APPROVAL_COOKIE)?.value ?? null;
+  const controlsEnabled = ownerAuthenticated && readiness.ready;
   const currentTask = center.tasks[0] ?? null;
   const overdue = center.tasks.filter((task) => task.deadlineTone === "overdue").length;
   const soon = center.tasks.filter((task) => task.deadlineTone === "soon").length;
@@ -33,10 +35,22 @@ export default async function Home() {
         <div>
           <p className="eyebrow">AI COMPANY CONTROL</p>
           <h1>AI会社 コントロールセンター</h1>
-          <p className="muted">重要なことだけ、ひと目で確認して操作。</p>
+          <p className="muted">見る、指示する、承認する。ここだけで会社を動かす。</p>
         </div>
         <div className="status-pill"><span className="status-dot" />{dashboard.status}</div>
       </header>
+
+      <section className="command-deck" id="operations" aria-label="操作とAI司令チャット">
+        <article className="panel quick-top-panel">
+          <div className="section-heading"><div><p className="section-kicker">QUICK</p><h2>クイック操作</h2></div><span className="operation-badge">最短操作</span></div>
+          <QuickControls enabled={controlsEnabled}/>
+        </article>
+        <article className="panel command-panel">
+          <div className="section-heading"><div><p className="section-kicker">COMMAND</p><h2>AI司令チャット</h2></div><span className="operation-badge">自然文OK</span></div>
+          <p className="command-intro">やってほしいことをそのまま入力。AI社員の既存ループへ指示を渡します。</p>
+          <CommandChat enabled={controlsEnabled}/>
+        </article>
+      </section>
 
       <section className="summary-grid" aria-label="今日の状況">
         <article className="summary-card current-task-card">
@@ -80,14 +94,13 @@ export default async function Home() {
         </div>
 
         <aside className="side-column">
-          <section className="panel"><div className="section-heading"><div><p className="section-kicker">QUICK</p><h2>クイック操作</h2></div></div><QuickControls enabled={ownerAuthenticated && readiness.ready}/></section>
           <section className="panel" id="projects"><div className="section-heading"><div><p className="section-kicker">PROJECTS</p><h2>プロジェクト</h2></div></div><div className="project-list">{center.projects.map((project) => <a href={project.url} target="_blank" rel="noreferrer" key={project.name}><div><strong>{project.name}</strong><small>{project.detail}</small></div><span>{project.status}</span></a>)}</div></section>
           <section className="panel" id="employees"><div className="section-heading"><div><p className="section-kicker">MEMBERS</p><h2>AI社員 在籍一覧</h2></div><span className="count-badge neutral">{employeeRoster.length}</span></div><div className="employee-grid">{employeeRoster.map((name) => <span key={name}>{name}</span>)}</div></section>
           <section className="panel compact-panel"><h2>現在の自律実行</h2><dl><div><dt>状態</dt><dd>{dashboard.status}</dd></div><div><dt>リスク</dt><dd>{dashboard.riskLevel ?? "未判定"}</dd></div><div><dt>次</dt><dd>{dashboard.nextAction ?? "自動処理待ち"}</dd></div></dl></section>
         </aside>
       </section>
 
-      <nav className="mobile-nav" aria-label="スマホメニュー"><a href="#home">ホーム</a><a href="#tasks">タスク</a><a href="#employees">AI社員</a><a href="#approval">承認{dashboard.decisions.length > 0 && <b>{dashboard.decisions.length}</b>}</a><a href="#history">履歴</a></nav>
+      <nav className="mobile-nav" aria-label="スマホメニュー"><a href="#home">ホーム</a><a href="#tasks">タスク</a><a className="operation-nav" href="#operations">操作</a><a href="#approval">承認{dashboard.decisions.length > 0 && <b>{dashboard.decisions.length}</b>}</a><a href="#history">履歴</a></nav>
     </main>
   );
 }
