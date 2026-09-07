@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import { readDashboardState } from "../../dashboard-state.ts";
 import { OWNER_SESSION_COOKIE, verifyOwnerSessionToken } from "../../owner-auth.ts";
 
+const PENDING_APPROVAL_COOKIE = "ai_company_approval_pending";
+
 export async function POST(request: Request) {
   const ownerSecret = process.env.AI_COMPANY_OWNER_SECRET?.trim() || "";
   const githubToken = process.env.AI_COMPANY_GITHUB_TOKEN?.trim() || "";
@@ -39,5 +41,13 @@ export async function POST(request: Request) {
     return new NextResponse(`Approval dispatch failed: ${response.status} ${detail}`, { status: 502 });
   }
 
-  return NextResponse.redirect(new URL("/?approval=sent", request.url), 303);
+  const redirect = NextResponse.redirect(new URL("/?approval=sent", request.url), 303);
+  redirect.cookies.set(PENDING_APPROVAL_COOKIE, approvalKey, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+    path: "/",
+    maxAge: 120,
+  });
+  return redirect;
 }
