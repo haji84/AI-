@@ -112,6 +112,13 @@ function issueLabels(issue: GitHubIssue): string[] {
   return (issue.labels ?? []).map((item) => typeof item === "string" ? item : item.name ?? "").filter(Boolean);
 }
 
+function isSystemControlIssue(issue: GitHubIssue): boolean {
+  const title = issue.title.trim();
+  return /^\[VERCEL_PREVIEW\]/i.test(title)
+    || /^smoke\s*:/i.test(title)
+    || /^control\s*:/i.test(title);
+}
+
 export async function readControlCenterData(): Promise<ControlCenterData> {
   const [issues, runs] = await Promise.all([
     githubJson<GitHubIssue[]>(`${API}/issues?state=open&sort=updated&direction=desc&per_page=20`),
@@ -119,7 +126,7 @@ export async function readControlCenterData(): Promise<ControlCenterData> {
   ]);
 
   const tasks = (issues ?? [])
-    .filter((issue) => !issue.pull_request)
+    .filter((issue) => !issue.pull_request && !isSystemControlIssue(issue))
     .map((issue) => {
       const deadline = parseDeadline(issue.body);
       return {
