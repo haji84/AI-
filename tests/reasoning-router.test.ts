@@ -7,6 +7,7 @@ test("keeps routine reasoning in Chat by default", () => {
   assert.equal(decision.surface, "chat");
   assert.equal(decision.status, "ready");
   assert.equal(decision.approvalRequired, false);
+  assert.equal(decision.executionMode, "single");
   assert.equal(decision.budgetRemaining, null);
 });
 
@@ -16,6 +17,19 @@ test("asks before using Codex for code-changing work", () => {
   assert.equal(decision.status, "surface_approval_required");
   assert.equal(decision.approvalRequired, true);
   assert.equal(decision.approvalSurface, "codex");
+  assert.deepEqual(decision.continuationSurfaceOptions, ["chat", "codex"]);
+});
+
+test("owner can choose Chat instead of Codex and continue in bounded chunks", () => {
+  const decision = routeReasoningTask({
+    text: "Implement the repository code fix and run tests",
+    approvedSurface: "chat",
+  });
+  assert.equal(decision.surface, "chat");
+  assert.equal(decision.status, "ready");
+  assert.equal(decision.executionMode, "chunked");
+  assert.equal(decision.maxChunkSteps, 3);
+  assert.equal(decision.approvalRequired, false);
 });
 
 test("uses Codex only after explicit approval", () => {
@@ -26,6 +40,7 @@ test("uses Codex only after explicit approval", () => {
   assert.equal(decision.surface, "codex");
   assert.equal(decision.status, "ready");
   assert.equal(decision.approvalRequired, false);
+  assert.equal(decision.executionMode, "single");
 });
 
 test("asks before using Work for materially cross-app work", () => {
@@ -38,6 +53,20 @@ test("asks before using Work for materially cross-app work", () => {
   assert.equal(decision.status, "surface_approval_required");
   assert.equal(decision.approvalRequired, true);
   assert.equal(decision.approvalSurface, "work");
+  assert.deepEqual(decision.continuationSurfaceOptions, ["chat", "work"]);
+});
+
+test("owner can choose Chat instead of Work and continue in bounded chunks", () => {
+  const decision = routeReasoningTask({
+    text: "Coordinate Gmail and Calendar for this recurring workflow",
+    crossApp: true,
+    recurring: true,
+    approvedSurface: "chat",
+  });
+  assert.equal(decision.surface, "chat");
+  assert.equal(decision.status, "ready");
+  assert.equal(decision.executionMode, "chunked");
+  assert.equal(decision.maxChunkSteps, 3);
 });
 
 test("uses Work only after explicit approval", () => {
@@ -63,7 +92,7 @@ test("defers approved heavy reasoning after a soft budget is exhausted", () => {
   assert.equal(decision.budgetRemaining, 0);
 });
 
-test("continues in Chat without asking when heavy routing is explicitly safe to avoid", () => {
+test("continues in chunked Chat without asking when heavy routing is explicitly safe to avoid", () => {
   const decision = routeReasoningTask(
     { text: "Coordinate multiple sources", crossApp: true, fallbackToChatSafe: true },
     { work: 0, codex: 0 },
@@ -72,6 +101,8 @@ test("continues in Chat without asking when heavy routing is explicitly safe to 
   assert.equal(decision.surface, "chat");
   assert.equal(decision.status, "ready");
   assert.equal(decision.approvalRequired, false);
+  assert.equal(decision.executionMode, "chunked");
+  assert.equal(decision.maxChunkSteps, 3);
 });
 
 test("approval for a different heavy surface cannot authorize this step", () => {
