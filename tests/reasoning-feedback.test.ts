@@ -122,7 +122,7 @@ test("satisfied approval is no longer promoted as a Human Gate", () => {
   assert.equal(feedback.humanApprovalRequired, false);
 });
 
-test("shows budget exhaustion in the structured feedback packet", () => {
+test("shows heavy-surface approval before budget consumption in the structured feedback packet", () => {
   const { goal, state } = baseInput();
   const feedback = buildReasoningFeedback({
     goal,
@@ -134,6 +134,8 @@ test("shows budget exhaustion in the structured feedback packet", () => {
     reasoningSoftBudgets: { work: 2, codex: 3 },
   });
   assert.equal(feedback.reasoningRoute.surface, "codex");
-  assert.equal(feedback.reasoningRoute.status, "defer_heavy_reasoning");
+  assert.equal(feedback.reasoningRoute.status, "surface_approval_required");
+  assert.equal(feedback.reasoningRoute.approvalRequired, true);
+  assert.equal(feedback.reasoningRoute.approvalSurface, "codex");
   assert.equal(feedback.reasoningRoute.budgetRemaining, 0);
 });

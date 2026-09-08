@@ -1,5 +1,6 @@
 export type ReasoningSurface = "chat" | "work" | "codex";
-export type ReasoningRouteStatus = "ready" | "defer_heavy_reasoning";
+export type ReasoningRouteStatus = "ready" | "surface_approval_required" | "defer_heavy_reasoning";
+export type ReasoningExecutionMode = "single" | "chunked";
 
 export interface ReasoningUsage {
   work: number;
@@ -22,6 +23,7 @@ export interface ReasoningTaskSignals {
   testing?: boolean;
   refactoring?: boolean;
   fallbackToChatSafe?: boolean;
+  approvedSurface?: ReasoningSurface;
 }
 
 export interface ReasoningRoutingDecision {
@@ -31,12 +33,19 @@ export interface ReasoningRoutingDecision {
   usage: ReasoningUsage;
   softBudgets: ReasoningSoftBudgets;
   budgetRemaining: number | null;
+  approvalRequired: boolean;
+  approvalSurface: Exclude<ReasoningSurface, "chat"> | null;
+  executionMode: ReasoningExecutionMode;
+  maxChunkSteps: number | null;
+  continuationSurfaceOptions: ReasoningSurface[];
 }
 
 export const DEFAULT_REASONING_SOFT_BUDGETS: ReasoningSoftBudgets = {
   work: 2,
   codex: 3,
 };
+
+const CHAT_CHUNK_STEPS = 10;
 
 function validBudget(value: number, field: string): number {
   if (!Number.isInteger(value) || value < 0) throw new Error(`${field} must be a non-negative integer`);
@@ -49,6 +58,26 @@ function codeSignals(text: string): boolean {
 
 function workSignals(text: string): boolean {
   return /(?:cross[- ]app|multiple sources|multi[- ]source|recurring workflow|long[- ]running|gmail.{0,20}calendar|calendar.{0,20}gmail|複数(?:サービス|アプリ|資料)|定期(?:処理|作業)|長時間(?:処理|作業)|Gmail.{0,20}カレンダー)/i.test(text);
+}
+
+function chatChunkDecision(
+  reason: string,
+  normalizedUsage: ReasoningUsage,
+  budgets: ReasoningSoftBudgets,
+): ReasoningRoutingDecision {
+  return {
+    surface: "chat",
+    status: "ready",
+    reason,
+    usage: normalizedUsage,
+    softBudgets: budgets,
+    budgetRemaining: null,
+    approvalRequired: false,
+    approvalSurface: null,
+    executionMode: "chunked",
+    maxChunkSteps: CHAT_CHUNK_STEPS,
+    continuationSurfaceOptions: ["chat", "work", "codex"],
+  };
 }
 
 export function inferReasoningTaskSignals(text: string): ReasoningTaskSignals {
@@ -88,10 +117,49 @@ export function routeReasoningTask(
     return {
       surface: "chat",
       status: "ready",
-      reason: "Routine reasoning stays in Chat to preserve heavier Plus capacity",
+      reason: "Routine reasoning stays in Chat and starts without a separate approval",
       usage: normalizedUsage,
       softBudgets: budgets,
       budgetRemaining: null,
+      approvalRequired: false,
+      approvalSurface: null,
+      executionMode: "single",
+      maxChunkSteps: null,
+      continuationSurfaceOptions: ["chat"],
+    };
+  }
+
+  if (signals.approvedSurface === "chat") {
+    return chatChunkDecision(
+      `${requested} was recommended, but the owner chose Chat; split the task into bounded chunks of at most ${CHAT_CHUNK_STEPS} steps and continue one verified chunk at a time`,
+      normalizedUsage,
+      budgets,
+    );
+  }
+
+  if (signals.fallbackToChatSafe && signals.approvedSurface !== requested) {
+    return chatChunkDecision(
+      `${requested} could help, but this step is safe to continue in Chat; use bounded chunks so large work does not overload a single Chat pass`,
+      normalizedUsage,
+      budgets,
+    );
+  }
+
+  if (signals.approvedSurface !== requested) {
+    return {
+      surface: requested,
+      status: "surface_approval_required",
+      reason: requested === "codex"
+        ? "Codex is recommended for code-changing or code-verification work; owner approval is required before using it"
+        : "Work is recommended for material multi-source, cross-app, recurring, or long-running coordination; owner approval is required before using it",
+      usage: normalizedUsage,
+      softBudgets: budgets,
+      budgetRemaining: Math.max(0, budgets[requested] - normalizedUsage[requested]),
+      approvalRequired: true,
+      approvalSurface: requested,
+      executionMode: "single",
+      maxChunkSteps: null,
+      continuationSurfaceOptions: ["chat", requested],
     };
   }
 
@@ -101,23 +169,25 @@ export function routeReasoningTask(
       surface: requested,
       status: "ready",
       reason: requested === "codex"
-        ? "Code-changing or code-verification work is reserved for Codex"
-        : "Material multi-source, cross-app, recurring, or long-running coordination is reserved for Work",
+        ? "Owner approved Codex for this code-changing or code-verification step"
+        : "Owner approved Work for this multi-source, cross-app, recurring, or long-running step",
       usage: normalizedUsage,
       softBudgets: budgets,
       budgetRemaining: remaining,
+      approvalRequired: false,
+      approvalSurface: null,
+      executionMode: "single",
+      maxChunkSteps: null,
+      continuationSurfaceOptions: ["chat", requested],
     };
   }
 
   if (signals.fallbackToChatSafe) {
-    return {
-      surface: "chat",
-      status: "ready",
-      reason: `${requested} soft budget is exhausted; this step is safe to keep in Chat`,
-      usage: normalizedUsage,
-      softBudgets: budgets,
-      budgetRemaining: 0,
-    };
+    return chatChunkDecision(
+      `${requested} soft budget is exhausted; continue safely in Chat by splitting the remaining work into bounded chunks`,
+      normalizedUsage,
+      budgets,
+    );
   }
 
   return {
@@ -127,5 +197,10 @@ export function routeReasoningTask(
     usage: normalizedUsage,
     softBudgets: budgets,
     budgetRemaining: 0,
+    approvalRequired: false,
+    approvalSurface: null,
+    executionMode: "single",
+    maxChunkSteps: null,
+    continuationSurfaceOptions: ["chat", requested],
   };
 }
