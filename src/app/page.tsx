@@ -23,7 +23,7 @@ export default async function Home() {
   const ownerAuthenticated = verifyOwnerSessionToken(ownerSecret, cookieStore.get(OWNER_SESSION_COOKIE)?.value);
   const pendingApprovalKey = cookieStore.get(PENDING_APPROVAL_COOKIE)?.value ?? null;
   const controlsEnabled = ownerAuthenticated && readiness.ready;
-  const currentTask = center.tasks[0] ?? null;
+  const currentTask = center.currentTask;
   const overdue = center.tasks.filter((task) => task.deadlineTone === "overdue").length;
   const soon = center.tasks.filter((task) => task.deadlineTone === "soon").length;
   const completed = center.history.filter((item) => item.conclusion === "success").length;
@@ -48,6 +48,16 @@ export default async function Home() {
         <article className="panel command-panel">
           <div className="section-heading"><div><p className="section-kicker">COMMAND</p><h2>AI司令チャット</h2></div><span className="operation-badge">自然文OK</span></div>
           <p className="command-intro">やってほしいことをそのまま入力。AI社員の既存ループへ指示を渡します。</p>
+          {!readiness.ready ? (
+            <p className="inline-note">AI司令チャットの実行設定が不足しています。</p>
+          ) : !ownerAuthenticated ? (
+            <form action="/api/owner-login" method="post" className="decision-actions">
+              <input aria-label="オーナー認証コード" name="passcode" placeholder="初回認証コード" required type="password"/>
+              <button className="button secondary" type="submit">この端末を認証</button>
+            </form>
+          ) : (
+            <p className="inline-note">✓ この端末はオーナー認証済みです。</p>
+          )}
           <CommandChat enabled={controlsEnabled}/>
         </article>
       </section>
@@ -55,7 +65,7 @@ export default async function Home() {
       <section className="summary-grid" aria-label="今日の状況">
         <article className="summary-card current-task-card">
           <span>現在のタスク</span>
-          {currentTask ? <a href={currentTask.url} target="_blank" rel="noreferrer"><strong>{currentTask.title}</strong><small>タップしてタスクを開く ↗</small></a> : <strong>待機中</strong>}
+          {currentTask ? <a href={currentTask.url} target="_blank" rel="noreferrer"><strong>{currentTask.title}</strong><small>#{currentTask.id}・タップしてタスクを開く ↗</small></a> : <strong>待機中</strong>}
         </article>
         <article className="summary-card"><span>進行中</span><strong>{center.tasks.length}</strong><small>タスク</small></article>
         <article className="summary-card"><span>期限注意</span><strong className={overdue || soon ? "text-warn" : ""}>{overdue + soon}</strong><small>期限超過 {overdue} / 間近 {soon}</small></article>
