@@ -8,15 +8,16 @@ STATUS: AI_EMPLOYEE_AUTONOMY_PRIORITY
 LAST_UPDATED: 2026-09-08
 CURRENT_EPIC: AI employee autonomous execution
 ACTIVE_ISSUES: #258
-OPEN_PRS: pending
+OPEN_PRS: #259
 BLOCKERS: none for current AI employee autonomy priority
 PRIORITY_OVERRIDE: AI employee autonomy foundation takes precedence over image generation/editing until owner resumes Phase 3 product work
-LAST_SUCCESSFUL_CI: Mobile Autonomy run #84 and main CI #304 succeeded after PR #257 merge
+LAST_SUCCESSFUL_CI: main CI #316 succeeded after reasoning-surface controls merged; latest known Mobile Autonomy success remains #84
 COMPASS_MCP: v1 merged and real-machine interoperability verified PASS
 COMPASS_HANDOFF: standard AI employee handoff protocol merged via PR #64
 AI_EMPLOYEE_COMMAND_INGRESS: dashboard chat source=chat E2E PASS
 AI_EMPLOYEE_BOUNDED_PLAN: inspect plan validation and bounded autonomy cycle E2E PASS
 AI_EMPLOYEE_REASONING_HANDOFF: execution-class natural-language commands persist as reasoning_handoff_required without inspect fake-completion via PR #257
+AI_EMPLOYEE_REASONING_ROUTING: Chat reasoning can continue automatically in bounded chunks; Work/Codex reasoning requires confirmation; dashboard reasoning-surface controls are merged on main
 AI_EMPLOYEE_NEXT_CAPABILITY: verify reasoning_handoff_required E2E so the reasoning plane can supply a bounded LOW/MEDIUM plan, execute once, verify/write back, and preserve Human Gate stops
 PHASE_2_TECHNICAL_ACCEPTANCE: PASS
 PHASE_2_ACCEPTANCE_RECORD: docs/architecture/0009-phase-2-acceptance.md
