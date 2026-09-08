@@ -1,11 +1,28 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, normalize, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
-import { evaluateAutoMergeEligibility } from "./auto-merge-policy.ts";
+import { evaluateTaskScopedAutoMergeEligibility } from "./auto-merge-policy.ts";
 import type { ActionResult, ProposedAction } from "./goal-loop.ts";
+import {
+  normalizeTaskCompletionAuthorization,
+  type TaskCompletionAuthorization,
+} from "./task-authorization.ts";
 
 interface ProposalFile { path: string; content: string; }
-interface ProposalInput { title?: string; body?: string; files?: ProposalFile[]; }
+interface ProposalInput {
+  title?: string;
+  body?: string;
+  files?: ProposalFile[];
+  taskAuthorization?: TaskCompletionAuthorization;
+  taskScopeId?: string;
+}
+interface ParsedProposal {
+  title: string;
+  body: string;
+  files: ProposalFile[];
+  taskAuthorization?: TaskCompletionAuthorization;
+  taskScopeId?: string;
+}
 interface OpenedPullRequest { url: string; nodeId: string; number: number; }
 
 const MAX_FILES = 3;
@@ -13,7 +30,7 @@ const MAX_TOTAL_BYTES = 100_000;
 const ALLOWED_PREFIXES = ["src/", "tests/", "docs/", "scripts/"];
 const FORBIDDEN = new Set(["AGENTS.md", "PROJECT_STATE.md", "ROADMAP.md", "package.json", "pnpm-lock.yaml"]);
 
-function parseInput(action: ProposedAction): Required<Pick<ProposalInput, "title" | "body" | "files">> {
+function parseInput(action: ProposedAction): ParsedProposal {
   const input = action.input as ProposalInput | undefined;
   const files = input?.files;
   if (!input?.title?.trim() || !Array.isArray(files) || files.length < 1 || files.length > MAX_FILES) {
@@ -29,10 +46,18 @@ function parseInput(action: ProposedAction): Required<Pick<ProposalInput, "title
     total += Buffer.byteLength(file.content, "utf-8");
   }
   if (total > MAX_TOTAL_BYTES) throw new Error("autonomous proposal exceeds maximum patch size");
+
+  const taskAuthorization = input.taskAuthorization === undefined
+    ? undefined
+    : normalizeTaskCompletionAuthorization(input.taskAuthorization);
+  const taskScopeId = input.taskScopeId?.trim() || undefined;
+
   return {
     title: input.title.trim(),
-    body: input.body?.trim() || "Bounded autonomous proposal. Verified low-risk proposals may auto-merge after repository protections and required checks succeed.",
+    body: input.body?.trim() || "Bounded autonomous proposal. Verified low-risk proposals may auto-merge only when the owner granted task-scoped completion authorization.",
     files,
+    taskAuthorization,
+    taskScopeId,
   };
 }
 
@@ -106,13 +131,20 @@ export function createSafePrProposalCapability(options: { cwd?: string; token?: 
         run("pnpm", ["build"], cwd);
 
         const changedFiles = proposal.files.map((file) => file.path);
-        const autoMergeDecision = evaluateAutoMergeEligibility({
+        const autoMergeDecision = evaluateTaskScopedAutoMergeEligibility({
           baseBranch: "main",
           changedFiles,
           lintPassed: true,
           testsPassed: true,
           buildPassed: true,
+          qaPassed: true,
+          reviewerPassed: true,
+          unresolvedReviewThreads: 0,
+          destructiveChangeAbsent: true,
+          privilegedChangeAbsent: true,
           draft: false,
+          taskAuthorization: proposal.taskAuthorization,
+          taskScopeId: proposal.taskScopeId,
         });
 
         const runId = process.env.GITHUB_RUN_ID?.replace(/[^0-9A-Za-z_-]/g, "") || Date.now().toString();
@@ -135,7 +167,7 @@ export function createSafePrProposalCapability(options: { cwd?: string; token?: 
           actionId: action.id,
           ok: true,
           summary: autoMerge.enabled
-            ? `Created verified bounded proposal PR with auto-merge queued behind repository protections: ${pr.url}`
+            ? `Created verified task-scoped proposal PR with auto-merge queued behind repository protections: ${pr.url}`
             : `Created verified bounded proposal PR; auto-merge was not enabled: ${pr.url}`,
           evidence: {
             prUrl: pr.url,
@@ -143,6 +175,8 @@ export function createSafePrProposalCapability(options: { cwd?: string; token?: 
             branch,
             changedFiles,
             verification: ["pnpm lint", "pnpm test", "pnpm build"],
+            taskScopeId: proposal.taskScopeId ?? null,
+            taskCompletionAuthorized: Boolean(proposal.taskAuthorization),
             autoMergeEligible: autoMergeDecision.eligible,
             autoMergeEnabled: autoMerge.enabled,
             autoMergeReason: autoMerge.enabled ? null : autoMerge.reason ?? null,
