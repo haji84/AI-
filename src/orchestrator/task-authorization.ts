@@ -12,6 +12,7 @@ export interface TaskCompletionAuthorization {
 const COMPLETION_PATTERNS = [
   /最後まで.{0,12}(進め|やって|任せ)/u,
   /完了まで.{0,12}(進め|やって|任せ)/u,
+  /完成.{0,12}(させ|まで|して|させて)/u,
   /全部.{0,12}(進め|やって|任せ)/u,
   /任せる/u,
   /finish\s+(it|this|the\s+task)/i,
