@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import CommandChat from "./CommandChat.tsx";
 import HumanGateActions from "./HumanGateActions.tsx";
 import QuickControls from "./QuickControls.tsx";
+import ReasoningSurfaceControls from "./ReasoningSurfaceControls.tsx";
 import { approvalReadinessFromEnv } from "./approval-readiness.ts";
 import { employeeRoster, readControlCenterData } from "./dashboard-data.ts";
 import { readDashboardState } from "./dashboard-state.ts";
@@ -13,6 +14,10 @@ export const dynamic = "force-dynamic";
 
 function fmt(value: string) {
   return new Intl.DateTimeFormat("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tokyo" }).format(new Date(value));
+}
+
+function surfaceLabel(value: "chat" | "work" | "codex") {
+  return value === "chat" ? "Chat" : value === "work" ? "Work" : "Codex";
 }
 
 export default async function Home() {
@@ -28,6 +33,7 @@ export default async function Home() {
   const soon = center.tasks.filter((task) => task.deadlineTone === "soon").length;
   const completed = center.history.filter((item) => item.conclusion === "success").length;
   const failed = center.history.filter((item) => item.conclusion === "failure").length;
+  const reasoning = dashboard.reasoning;
 
   return (
     <main className="dashboard-shell" id="home">
@@ -106,7 +112,27 @@ export default async function Home() {
         <aside className="side-column">
           <section className="panel" id="projects"><div className="section-heading"><div><p className="section-kicker">PROJECTS</p><h2>プロジェクト</h2></div></div><div className="project-list">{center.projects.map((project) => <a href={project.url} target="_blank" rel="noreferrer" key={project.name}><div><strong>{project.name}</strong><small>{project.detail}</small></div><span>{project.status}</span></a>)}</div></section>
           <section className="panel" id="employees"><div className="section-heading"><div><p className="section-kicker">MEMBERS</p><h2>AI社員 在籍一覧</h2></div><span className="count-badge neutral">{employeeRoster.length}</span></div><div className="employee-grid">{employeeRoster.map((name) => <span key={name}>{name}</span>)}</div></section>
-          <section className="panel compact-panel"><h2>現在の自律実行</h2><dl><div><dt>状態</dt><dd>{dashboard.status}</dd></div><div><dt>リスク</dt><dd>{dashboard.riskLevel ?? "未判定"}</dd></div><div><dt>次</dt><dd>{dashboard.nextAction ?? "自動処理待ち"}</dd></div></dl></section>
+          <section className="panel compact-panel" id="reasoning">
+            <div className="section-heading"><div><p className="section-kicker">REASONING</p><h2>現在の自律実行</h2></div>{reasoning && <span className="operation-badge">{surfaceLabel(reasoning.surface)}</span>}</div>
+            <dl>
+              <div><dt>状態</dt><dd>{dashboard.status}</dd></div>
+              <div><dt>頭脳</dt><dd>{reasoning ? surfaceLabel(reasoning.surface) : "未判定"}</dd></div>
+              <div><dt>実行方式</dt><dd>{reasoning?.executionMode === "chunked" ? `分割処理・最大${reasoning.maxChunkSteps ?? 10}ステップ` : "通常処理"}</dd></div>
+              <div><dt>リスク</dt><dd>{dashboard.riskLevel ?? "未判定"}</dd></div>
+              <div><dt>次</dt><dd>{dashboard.nextAction ?? "自動処理待ち"}</dd></div>
+            </dl>
+            {reasoning && <p className="inline-note">{reasoning.reason}</p>}
+            {reasoning?.approvalRequired && (
+              <div>
+                <p className="inline-note">{reasoning.approvalSurface === "work" ? "Work" : "Codex"}を使う前に確認が必要です。Chatで続行する場合は最大10ステップずつに分割します。</p>
+                <ReasoningSurfaceControls
+                  approvalSurface={reasoning.approvalSurface}
+                  enabled={controlsEnabled}
+                  options={reasoning.continuationSurfaceOptions}
+                />
+              </div>
+            )}
+          </section>
         </aside>
       </section>
 
