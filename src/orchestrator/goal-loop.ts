@@ -1,5 +1,10 @@
 import { createApprovalKey } from "./approval-key.ts";
 import {
+  evaluateRecovery,
+  type FailureClass,
+  type RecoveryDecision,
+} from "./recovery-policy.ts";
+import {
   evaluateRiskPolicy,
   type MediumRiskChecks,
   type RiskDecision,
@@ -110,6 +115,7 @@ export interface WriteBackRecord {
   result?: ActionResult | null;
   verification?: VerificationResult | null;
   riskDecision?: RiskDecision | null;
+  recoveryDecision?: RecoveryDecision | null;
   approvalKey?: string | null;
   approvalSatisfied?: boolean;
   stopReason: StopReason;
@@ -136,11 +142,41 @@ export class DefaultApprovalPolicy implements ApprovalPolicy {
 
 export interface GoalLoopOptions {
   maxRetriesPerAction?: number;
+  maxStrategyPivots?: number;
+  maxTotalRecoveryAttempts?: number;
   approvedActionKey?: string | null;
 }
 
 export interface CycleReport extends WriteBackRecord {
   contextSources: string[];
+}
+
+interface RecoveryTracker {
+  failureSignature: string;
+  failureClass: FailureClass;
+  attemptsForSignature: number;
+  strategyPivots: number;
+  totalAttempts: number;
+}
+
+function normalizeFailureSignature(result: ActionResult): string {
+  const detail = (result.blocker || result.summary || "unknown-failure")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+  return `${result.actionId}:${detail}`;
+}
+
+function classifyFailure(result: ActionResult): FailureClass {
+  if (result.blocker) return "environment";
+  const text = result.summary.toLowerCase();
+  if (/timeout|timed out|network|connection|rate limit|429|502|503|504|flaky|temporar/.test(text)) {
+    return "transient";
+  }
+  if (/test|lint|build|compile|runtime|import|dependency|package|type|syntax|assert/.test(text)) {
+    return "implementation";
+  }
+  return "unknown";
 }
 
 export class GoalDrivenLoop {
@@ -151,8 +187,12 @@ export class GoalDrivenLoop {
   private readonly store: StateStore;
   private readonly policy: ApprovalPolicy;
   private readonly maxRetriesPerAction: number;
+  private readonly maxStrategyPivots: number;
+  private readonly maxTotalRecoveryAttempts: number;
   private readonly approvedActionKey: string | null;
+  private readonly recoveryByAction = new Map<string, RecoveryTracker>();
   private approvalConsumed = false;
+  private previousResult: ActionResult | null = null;
 
   constructor(
     planner: Planner,
@@ -170,6 +210,8 @@ export class GoalDrivenLoop {
     this.store = store;
     this.policy = policy;
     this.maxRetriesPerAction = options.maxRetriesPerAction ?? 3;
+    this.maxStrategyPivots = options.maxStrategyPivots ?? 2;
+    this.maxTotalRecoveryAttempts = options.maxTotalRecoveryAttempts ?? 9;
     this.approvedActionKey = options.approvedActionKey?.trim() || null;
   }
 
@@ -202,7 +244,12 @@ export class GoalDrivenLoop {
       return this.finish({ goal: input.goal, intent, stopReason: "blocked", nextAction: state.nextAction }, context);
     }
 
-    const action = await this.planner.proposeNextAction({ goal: input.goal, context, intent });
+    const action = await this.planner.proposeNextAction({
+      goal: input.goal,
+      context,
+      intent,
+      previousResult: this.previousResult,
+    });
     if (!action) {
       return this.finish({ goal: input.goal, intent, action: null, stopReason: "goal_complete", nextAction: null }, context);
     }
@@ -251,39 +298,52 @@ export class GoalDrivenLoop {
       }, context);
     }
 
-    if ((state.retriesForCurrentAction ?? 0) >= this.maxRetriesPerAction) {
-      return this.finish({
-        goal: input.goal,
-        intent,
-        action,
-        riskDecision,
-        approvalKey,
-        approvalSatisfied,
-        stopReason: "retry_exhausted",
-        nextAction: action.description,
-      }, context);
-    }
-
     const result = await this.executor.execute(action, context);
+    this.previousResult = result;
     if (!result.ok) {
+      const recoveryDecision = this.evaluateFailure(action, result);
       return this.finish({
         goal: input.goal,
         intent,
         action,
         result,
         riskDecision,
+        recoveryDecision,
         approvalKey,
         approvalSatisfied,
-        stopReason: result.blocker ? "blocked" : "continue",
-        nextAction: action.description,
+        stopReason: recoveryDecision.blocked ? "blocked" : "continue",
+        nextAction: this.recoveryNextAction(action, recoveryDecision),
       }, context);
     }
 
     const verification = await this.verifier.verify({ goal: input.goal, action, result, context });
-    const stopReason: StopReason = verification.ok
-      ? (action.completesBoundedCommand ? "goal_complete" : "continue")
-      : "blocked";
-    const nextAction = verification.ok ? null : action.description;
+    if (!verification.ok) {
+      const verificationFailure: ActionResult = {
+        actionId: action.id,
+        ok: false,
+        summary: `Verification failed: ${verification.summary}`,
+        evidence: verification.evidence,
+      };
+      this.previousResult = verificationFailure;
+      const recoveryDecision = this.evaluateFailure(action, verificationFailure);
+      return this.finish({
+        goal: input.goal,
+        intent,
+        action,
+        result,
+        verification,
+        riskDecision,
+        recoveryDecision,
+        approvalKey,
+        approvalSatisfied,
+        stopReason: recoveryDecision.blocked ? "blocked" : "continue",
+        nextAction: this.recoveryNextAction(action, recoveryDecision),
+      }, context);
+    }
+
+    this.recoveryByAction.delete(action.id);
+    this.previousResult = result;
+    const stopReason: StopReason = action.completesBoundedCommand ? "goal_complete" : "continue";
 
     return this.finish({
       goal: input.goal,
@@ -295,8 +355,52 @@ export class GoalDrivenLoop {
       approvalKey,
       approvalSatisfied,
       stopReason,
-      nextAction,
+      nextAction: null,
     }, context);
+  }
+
+  private evaluateFailure(action: ProposedAction, result: ActionResult): RecoveryDecision {
+    const failureSignature = normalizeFailureSignature(result);
+    const failureClass = classifyFailure(result);
+    const previous = this.recoveryByAction.get(action.id);
+    const sameSignature = previous?.failureSignature === failureSignature;
+    const tracker: RecoveryTracker = {
+      failureSignature,
+      failureClass,
+      attemptsForSignature: sameSignature ? previous.attemptsForSignature + 1 : 1,
+      strategyPivots: previous?.strategyPivots ?? 0,
+      totalAttempts: (previous?.totalAttempts ?? 0) + 1,
+    };
+
+    const decision = evaluateRecovery({
+      ...tracker,
+      explicitBlocker: result.blocker ?? null,
+    }, {
+      maxAttemptsPerSignature: this.maxRetriesPerAction,
+      maxStrategyPivots: this.maxStrategyPivots,
+      maxTotalAttempts: this.maxTotalRecoveryAttempts,
+    });
+
+    if (decision.action === "strategy_pivot") {
+      tracker.strategyPivots = decision.nextStrategyPivot;
+      tracker.attemptsForSignature = 0;
+    }
+    this.recoveryByAction.set(action.id, tracker);
+    return decision;
+  }
+
+  private recoveryNextAction(action: ProposedAction, decision: RecoveryDecision): string {
+    if (decision.action === "retry_same") {
+      return `Retry same operation: ${action.description}`;
+    }
+    if (decision.action === "repair") {
+      return `Repair current strategy and retry: ${action.description}`;
+    }
+    if (decision.action === "strategy_pivot") {
+      return `Strategy pivot ${decision.nextStrategyPivot}: re-plan a different approach for ${action.description}`;
+    }
+    const hint = decision.humanInterventionHint ? ` Human intervention: ${decision.humanInterventionHint}` : "";
+    return `BLOCKED: ${decision.reason}.${hint}`;
   }
 
   private async finish(record: WriteBackRecord, context: ContextItem[]): Promise<CycleReport> {
