@@ -139,3 +139,32 @@ test("shows heavy-surface approval before budget consumption in the structured f
   assert.equal(feedback.reasoningRoute.approvalSurface, "codex");
   assert.equal(feedback.reasoningRoute.budgetRemaining, 0);
 });
+
+test("dashboard Chat choice applies to the existing heavy next action", () => {
+  const { goal, state } = baseInput();
+  const feedback = buildReasoningFeedback({
+    goal,
+    state: { ...state, nextAction: "Refactor repository code and update tests" },
+    status: "RUNNING",
+    commandSource: "chat",
+    command: "Chatで続行",
+  });
+  assert.equal(feedback.reasoningRoute.surface, "chat");
+  assert.equal(feedback.reasoningRoute.status, "ready");
+  assert.equal(feedback.reasoningRoute.executionMode, "chunked");
+  assert.equal(feedback.reasoningRoute.maxChunkSteps, 10);
+});
+
+test("dashboard Codex choice applies only to the matching heavy next action", () => {
+  const { goal, state } = baseInput();
+  const feedback = buildReasoningFeedback({
+    goal,
+    state: { ...state, nextAction: "Refactor repository code and update tests" },
+    status: "RUNNING",
+    commandSource: "chat",
+    command: "Codexを使用",
+  });
+  assert.equal(feedback.reasoningRoute.surface, "codex");
+  assert.equal(feedback.reasoningRoute.status, "ready");
+  assert.equal(feedback.reasoningRoute.approvalRequired, false);
+});

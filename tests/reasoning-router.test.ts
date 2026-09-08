@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { routeReasoningTask } from "../src/orchestrator/reasoning-router.ts";
+import { inferReasoningTaskSignals, routeReasoningTask } from "../src/orchestrator/reasoning-router.ts";
 
 test("keeps routine reasoning in Chat by default", () => {
   const decision = routeReasoningTask({ text: "Review status and decide the next step" });
@@ -9,6 +9,12 @@ test("keeps routine reasoning in Chat by default", () => {
   assert.equal(decision.approvalRequired, false);
   assert.equal(decision.executionMode, "single");
   assert.equal(decision.budgetRemaining, null);
+});
+
+test("explicit dashboard surface buttons are recognized", () => {
+  assert.equal(inferReasoningTaskSignals("Chatで続行").approvedSurface, "chat");
+  assert.equal(inferReasoningTaskSignals("Workを使用").approvedSurface, "work");
+  assert.equal(inferReasoningTaskSignals("Codexを使用").approvedSurface, "codex");
 });
 
 test("asks before using Codex for code-changing work", () => {

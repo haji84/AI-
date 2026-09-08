@@ -60,6 +60,14 @@ function workSignals(text: string): boolean {
   return /(?:cross[- ]app|multiple sources|multi[- ]source|recurring workflow|long[- ]running|gmail.{0,20}calendar|calendar.{0,20}gmail|複数(?:サービス|アプリ|資料)|定期(?:処理|作業)|長時間(?:処理|作業)|Gmail.{0,20}カレンダー)/i.test(text);
 }
 
+function explicitSurfaceChoice(text: string): ReasoningSurface | undefined {
+  const normalized = text.trim().replace(/[！!。.]$/u, "");
+  if (/^(?:chat|チャット)(?:で)?続行$/iu.test(normalized)) return "chat";
+  if (/^(?:work)(?:を)?使用$/iu.test(normalized)) return "work";
+  if (/^(?:codex)(?:を)?使用$/iu.test(normalized)) return "codex";
+  return undefined;
+}
+
 function chatChunkDecision(
   reason: string,
   normalizedUsage: ReasoningUsage,
@@ -86,6 +94,7 @@ export function inferReasoningTaskSignals(text: string): ReasoningTaskSignals {
     text: trimmed,
     changesCode: codeSignals(trimmed),
     crossApp: workSignals(trimmed),
+    approvedSurface: explicitSurfaceChoice(trimmed),
   };
 }
 

@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { ReasoningFeedback } from "../orchestrator/reasoning-feedback.ts";
+import type { ReasoningExecutionMode, ReasoningRouteStatus, ReasoningSurface } from "../orchestrator/reasoning-router.ts";
 import { readReasoningFeedbackFromGitHubArtifact } from "./github-artifact-state.ts";
 
 export interface DashboardDecision {
@@ -11,6 +12,17 @@ export interface DashboardDecision {
   approvalKey: string;
 }
 
+export interface DashboardReasoningState {
+  surface: ReasoningSurface;
+  routeStatus: ReasoningRouteStatus;
+  reason: string;
+  executionMode: ReasoningExecutionMode;
+  maxChunkSteps: number | null;
+  approvalRequired: boolean;
+  approvalSurface: Exclude<ReasoningSurface, "chat"> | null;
+  continuationSurfaceOptions: ReasoningSurface[];
+}
+
 export interface DashboardState {
   status: string;
   generatedAt: string | null;
@@ -18,6 +30,7 @@ export interface DashboardState {
   riskLevel: string | null;
   nextAction: string | null;
   verificationSummary: string | null;
+  reasoning: DashboardReasoningState | null;
 }
 
 const FEEDBACK_PATH = join(process.cwd(), ".autonomy-state", "reasoning-feedback.json");
@@ -31,6 +44,7 @@ export function dashboardStateFromFeedback(feedback: ReasoningFeedback | null): 
       riskLevel: null,
       nextAction: null,
       verificationSummary: null,
+      reasoning: null,
     };
   }
 
@@ -39,6 +53,7 @@ export function dashboardStateFromFeedback(feedback: ReasoningFeedback | null): 
     && !feedback.approvalSatisfied
     && risk?.level === "HIGH"
     && Boolean(feedback.approvalKey);
+  const route = feedback.reasoningRoute;
   return {
     status: feedback.status ?? "稼働中",
     generatedAt: feedback.generatedAt,
@@ -54,6 +69,16 @@ export function dashboardStateFromFeedback(feedback: ReasoningFeedback | null): 
     riskLevel: risk?.level ?? null,
     nextAction: feedback.nextAction,
     verificationSummary: feedback.verificationSummary,
+    reasoning: {
+      surface: route.surface,
+      routeStatus: route.status,
+      reason: route.reason,
+      executionMode: route.executionMode,
+      maxChunkSteps: route.maxChunkSteps,
+      approvalRequired: route.approvalRequired,
+      approvalSurface: route.approvalSurface,
+      continuationSurfaceOptions: [...route.continuationSurfaceOptions],
+    },
   };
 }
 
