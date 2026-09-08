@@ -23,6 +23,25 @@ for (const source of ["chat", "work", "codex"] as const) {
   });
 }
 
+test("task completion authorization is normalized with the command envelope", () => {
+  const normalized = normalizeCommandEnvelope({
+    source: "chat",
+    command: "Issue #243を最後まで進めて",
+    taskAuthorization: {
+      kind: "task_completion",
+      scopeId: "issue:243",
+      allowLowMediumMainMerge: true,
+      issuedBy: "owner",
+      issuedAt: "2026-09-08T00:00:00.000Z",
+      expiresAt: "2026-09-15T00:00:00.000Z",
+    },
+    plan: { kind: "inspect", description: "Inspect current state" },
+  });
+
+  assert.equal(normalized.taskAuthorization?.scopeId, "issue:243");
+  assert.equal(normalized.taskAuthorization?.allowLowMediumMainMerge, true);
+});
+
 test("all three ingress sources use the same bounded planning path", async () => {
   for (const source of ["chat", "work", "codex"] as const) {
     const client = new UnifiedPlanningClient(JSON.stringify({
@@ -39,6 +58,17 @@ test("rejects unknown command sources", () => {
   assert.throws(
     () => normalizeCommandEnvelope({ source: "other", command: "continue" }),
     /source must be chat, work, or codex/,
+  );
+});
+
+test("rejects malformed task completion authorization", () => {
+  assert.throws(
+    () => normalizeCommandEnvelope({
+      source: "chat",
+      command: "continue",
+      taskAuthorization: { kind: "task_completion", scopeId: "issue:243" },
+    }),
+    /Task completion authorization is invalid/,
   );
 });
 
