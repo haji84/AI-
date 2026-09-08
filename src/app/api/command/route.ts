@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { createDashboardBoundedPlan, dashboardCommandNeedsReasoning } from "../../../orchestrator/dashboard-command-routing.ts";
 import { createTaskCompletionAuthorization } from "../../../orchestrator/task-authorization.ts";
 import { readDashboardState } from "../../dashboard-state.ts";
 import { OWNER_SESSION_COOKIE, verifyOwnerSessionToken } from "../../owner-auth.ts";
@@ -57,14 +58,13 @@ export async function POST(request: Request) {
   if (command.length > MAX_COMMAND_LENGTH) return NextResponse.json({ message: `指示は${MAX_COMMAND_LENGTH}文字以内で入力してください` }, { status: 400 });
 
   const taskAuthorization = createTaskCompletionAuthorization(command);
+  const plan = createDashboardBoundedPlan(command);
+  const reasoningHandoffRequired = dashboardCommandNeedsReasoning(command);
   const commandPayload = {
     source: "chat",
     command,
     ...(taskAuthorization ? { taskAuthorization } : {}),
-    plan: {
-      kind: "inspect",
-      description: command,
-    },
+    ...(plan ? { plan } : {}),
   };
 
   const response = await fetch(`https://api.github.com/repos/${repository}/dispatches`, {
@@ -85,11 +85,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: `GitHubへの指示送信に失敗しました (${response.status})` }, { status: 502 });
   }
 
+  const message = reasoningHandoffRequired
+    ? taskAuthorization
+      ? "指示を受け付けました。Work/Codexのbounded reasoningへ引き継ぎ、LOW/MEDIUMの通常main mergeまで事前承認を保持します。"
+      : "指示を受け付けました。Work/Codexのbounded reasoningへ引き継ぎます。"
+    : "確認指示を受け付けました。安全なinspectとして実行します。";
+
   return NextResponse.json({
-    message: taskAuthorization
-      ? "指示を受け付けました。このタスクはLOW/MEDIUMの通常main mergeまで事前承認されています。"
-      : "指示を受け付けました。安全判定後にAI社員が処理します。",
+    message,
     acceptedAt: new Date().toISOString(),
     taskCompletionAuthorized: Boolean(taskAuthorization),
+    reasoningHandoffRequired,
   });
 }
