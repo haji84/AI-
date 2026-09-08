@@ -11,6 +11,13 @@ export interface AwaitingCommandOutcome {
   nextAction: string;
 }
 
+export interface ReasoningHandoffRequiredOutcome {
+  status: "reasoning_handoff_required";
+  invalidatedIssue: null;
+  verificationSummary: string;
+  nextAction: string;
+}
+
 export interface GoalDraftNotReadyOutcome {
   status: "goal_draft_not_ready";
   invalidatedIssue: null;
@@ -19,7 +26,11 @@ export interface GoalDraftNotReadyOutcome {
   goalReadinessReasons: string[];
 }
 
-export type AutonomyLifecycleOutcome = StaleCommandInvalidationOutcome | AwaitingCommandOutcome | GoalDraftNotReadyOutcome;
+export type AutonomyLifecycleOutcome =
+  | StaleCommandInvalidationOutcome
+  | AwaitingCommandOutcome
+  | ReasoningHandoffRequiredOutcome
+  | GoalDraftNotReadyOutcome;
 
 export function staleCommandInvalidationOutcome(issueNumber: number): StaleCommandInvalidationOutcome {
   if (!Number.isInteger(issueNumber) || issueNumber < 1) {
@@ -39,6 +50,18 @@ export function awaitingCommandOutcome(): AwaitingCommandOutcome {
     invalidatedIssue: null,
     verificationSummary: "No persisted Chat/Work/Codex command is available; autonomy loop was not executed",
     nextAction: "Provide a fresh bounded Chat/Work/Codex command envelope to continue autonomous work",
+  };
+}
+
+export function reasoningHandoffRequiredOutcome(source: string, command: string): ReasoningHandoffRequiredOutcome {
+  const normalizedSource = source.trim() || "chat";
+  const normalizedCommand = command.trim();
+  if (!normalizedCommand) throw new Error("reasoning handoff command is required");
+  return {
+    status: "reasoning_handoff_required",
+    invalidatedIssue: null,
+    verificationSummary: `Execution command from ${normalizedSource} is persisted without a fabricated inspect plan; no repository mutation was executed`,
+    nextAction: `Work/Codex must return an explicit bounded plan for: ${normalizedCommand}`,
   };
 }
 
