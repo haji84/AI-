@@ -59,8 +59,8 @@ export async function POST(request: Request) {
     source: "chat",
     command,
     plan: {
-      kind: "user_command",
-      description: "Natural-language owner command from the AI Company dashboard. Classify risk before execution and stop at Human Gate for HIGH actions.",
+      kind: "inspect",
+      description: command,
     },
   };
 
