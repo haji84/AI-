@@ -5,6 +5,7 @@ import {
   awaitingCommandOutcome,
   goalDraftNotReadyOutcome,
   isMissingPersistentCommandError,
+  reasoningHandoffRequiredOutcome,
   staleCommandInvalidationOutcome,
   type AutonomyLifecycleOutcome,
 } from "../src/orchestrator/autonomy-run-outcome.ts";
@@ -147,6 +148,13 @@ try {
       if (!lifecycleOutcome && planningClient.command.goalDraft) {
         const goalResult = applyExecutionReadyGoalDraft(compass, planningClient.command.goalDraft);
         if (!goalResult.ready) lifecycleOutcome = goalDraftNotReadyOutcome(goalResult.reasons);
+      }
+
+      if (!lifecycleOutcome && !planningClient.command.plan) {
+        lifecycleOutcome = reasoningHandoffRequiredOutcome(
+          planningClient.command.source,
+          planningClient.command.command,
+        );
       }
 
       if (!lifecycleOutcome) {
