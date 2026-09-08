@@ -108,6 +108,11 @@ interface WorkflowRunsResponse {
   }>;
 }
 
+interface GitHubContentResponse {
+  content?: string;
+  encoding?: string;
+}
+
 function issueLabels(issue: GitHubIssue): string[] {
   return (issue.labels ?? []).map((item) => typeof item === "string" ? item : item.name ?? "").filter(Boolean);
 }
@@ -119,12 +124,26 @@ function isSystemControlIssue(issue: GitHubIssue): boolean {
     || /^control\s*:/i.test(title);
 }
 
+function activeIssueFromProjectState(file: GitHubContentResponse | null): number | null {
+  if (!file?.content || file.encoding !== "base64") return null;
+  try {
+    const text = Buffer.from(file.content.replace(/\s/g, ""), "base64").toString("utf8");
+    const line = text.match(/^ACTIVE_ISSUES:\s*(.+)$/m)?.[1];
+    const issue = line?.match(/#(\d+)/)?.[1];
+    return issue ? Number(issue) : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function readControlCenterData(): Promise<ControlCenterData> {
-  const [issues, runs] = await Promise.all([
+  const [issues, runs, projectState] = await Promise.all([
     githubJson<GitHubIssue[]>(`${API}/issues?state=open&sort=updated&direction=desc&per_page=20`),
     githubJson<WorkflowRunsResponse>(`${API}/actions/runs?per_page=12`),
+    githubJson<GitHubContentResponse>(`${API}/contents/PROJECT_STATE.md`),
   ]);
 
+  const activeIssue = activeIssueFromProjectState(projectState);
   const tasks = (issues ?? [])
     .filter((issue) => !issue.pull_request && !isSystemControlIssue(issue))
     .map((issue) => {
@@ -141,6 +160,10 @@ export async function readControlCenterData(): Promise<ControlCenterData> {
       } satisfies DashboardTask;
     })
     .sort((a, b) => {
+      if (activeIssue !== null) {
+        if (a.id === activeIssue && b.id !== activeIssue) return -1;
+        if (b.id === activeIssue && a.id !== activeIssue) return 1;
+      }
       const weight = (tone: DeadlineTone) => tone === "overdue" ? 0 : tone === "soon" ? 1 : tone === "normal" ? 2 : 3;
       return weight(a.deadlineTone) - weight(b.deadlineTone) || Date.parse(b.updatedAt) - Date.parse(a.updatedAt);
     });
