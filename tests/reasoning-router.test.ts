@@ -28,7 +28,7 @@ test("owner can choose Chat instead of Codex and continue in bounded chunks", ()
   assert.equal(decision.surface, "chat");
   assert.equal(decision.status, "ready");
   assert.equal(decision.executionMode, "chunked");
-  assert.equal(decision.maxChunkSteps, 3);
+  assert.equal(decision.maxChunkSteps, 10);
   assert.equal(decision.approvalRequired, false);
 });
 
@@ -66,7 +66,7 @@ test("owner can choose Chat instead of Work and continue in bounded chunks", () 
   assert.equal(decision.surface, "chat");
   assert.equal(decision.status, "ready");
   assert.equal(decision.executionMode, "chunked");
-  assert.equal(decision.maxChunkSteps, 3);
+  assert.equal(decision.maxChunkSteps, 10);
 });
 
 test("uses Work only after explicit approval", () => {
@@ -102,7 +102,7 @@ test("continues in chunked Chat without asking when heavy routing is explicitly 
   assert.equal(decision.status, "ready");
   assert.equal(decision.approvalRequired, false);
   assert.equal(decision.executionMode, "chunked");
-  assert.equal(decision.maxChunkSteps, 3);
+  assert.equal(decision.maxChunkSteps, 10);
 });
 
 test("approval for a different heavy surface cannot authorize this step", () => {
