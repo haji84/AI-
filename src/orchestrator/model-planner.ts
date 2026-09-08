@@ -180,8 +180,10 @@ export class ModelBackedPlanner implements Planner {
           title: plan.title,
           body: plan.body,
           files: plan.files,
-          taskAuthorization: this.taskAuthorization,
-          taskScopeId: this.taskAuthorization?.scopeId,
+          ...(this.taskAuthorization ? {
+            taskAuthorization: this.taskAuthorization,
+            taskScopeId: this.taskAuthorization.scopeId,
+          } : {}),
         },
       };
     }
