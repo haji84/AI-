@@ -1,5 +1,9 @@
 import type { ModelPlan } from "./model-planner.ts";
 import { normalizeGoalDraft, type GoalDraft } from "./goal-draft.ts";
+import {
+  normalizeTaskCompletionAuthorization,
+  type TaskCompletionAuthorization,
+} from "./task-authorization.ts";
 
 export type CommandIngressSource = "chat" | "work" | "codex";
 
@@ -10,6 +14,7 @@ export interface UnifiedCommandEnvelope {
   conversationId?: string;
   goalDraft?: GoalDraft;
   plan?: ModelPlan;
+  taskAuthorization?: TaskCompletionAuthorization;
 }
 
 export interface NormalizedCommand {
@@ -19,6 +24,7 @@ export interface NormalizedCommand {
   conversationId?: string;
   goalDraft?: GoalDraft;
   plan?: ModelPlan;
+  taskAuthorization?: TaskCompletionAuthorization;
 }
 
 const SOURCES: readonly CommandIngressSource[] = ["chat", "work", "codex"];
@@ -39,6 +45,9 @@ export function normalizeCommandEnvelope(value: unknown): NormalizedCommand {
     conversationId: envelope.conversationId?.trim() || undefined,
     ...(envelope.goalDraft === undefined ? {} : { goalDraft: normalizeGoalDraft(envelope.goalDraft) }),
     plan: envelope.plan,
+    ...(envelope.taskAuthorization === undefined
+      ? {}
+      : { taskAuthorization: normalizeTaskCompletionAuthorization(envelope.taskAuthorization) }),
   };
 }
 

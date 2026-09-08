@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { evaluateAutoMergeEligibility } from "../src/orchestrator/auto-merge-policy.ts";
+import {
+  evaluateAutoMergeEligibility,
+  evaluateTaskScopedAutoMergeEligibility,
+} from "../src/orchestrator/auto-merge-policy.ts";
+import { createTaskCompletionAuthorization } from "../src/orchestrator/task-authorization.ts";
 
 test("verified bounded source change is eligible for auto-merge", () => {
   const decision = evaluateAutoMergeEligibility({
@@ -63,4 +67,95 @@ test("draft, empty, or non-main proposals are not eligible", () => {
     buildPassed: true,
     draft: true,
   }).eligible, false);
+});
+
+test("task-scoped owner authorization allows verified LOW/MEDIUM main merge", () => {
+  const now = new Date("2026-09-08T00:00:00.000Z");
+  const taskAuthorization = createTaskCompletionAuthorization("Issue #248を最後まで進めて", { now });
+  const decision = evaluateTaskScopedAutoMergeEligibility({
+    baseBranch: "main",
+    changedFiles: ["src/app/example.tsx", "tests/example.test.ts"],
+    lintPassed: true,
+    testsPassed: true,
+    buildPassed: true,
+    qaPassed: true,
+    reviewerPassed: true,
+    unresolvedReviewThreads: 0,
+    destructiveChangeAbsent: true,
+    privilegedChangeAbsent: true,
+    taskAuthorization,
+    taskScopeId: "issue:248",
+  }, now);
+
+  assert.equal(decision.eligible, true);
+  assert.deepEqual(decision.reasons, []);
+});
+
+test("task authorization cannot auto-merge a different task", () => {
+  const now = new Date("2026-09-08T00:00:00.000Z");
+  const taskAuthorization = createTaskCompletionAuthorization("Issue #248を最後まで進めて", { now });
+  const decision = evaluateTaskScopedAutoMergeEligibility({
+    baseBranch: "main",
+    changedFiles: ["src/app/example.tsx"],
+    lintPassed: true,
+    testsPassed: true,
+    buildPassed: true,
+    qaPassed: true,
+    reviewerPassed: true,
+    unresolvedReviewThreads: 0,
+    destructiveChangeAbsent: true,
+    privilegedChangeAbsent: true,
+    taskAuthorization,
+    taskScopeId: "issue:249",
+  }, now);
+
+  assert.equal(decision.eligible, false);
+  assert.ok(decision.reasons.includes("task_completion_authorization_missing_or_invalid"));
+});
+
+test("PROJECT_STATE can only use task-scoped auto-merge when explicitly state-only", () => {
+  const now = new Date("2026-09-08T00:00:00.000Z");
+  const taskAuthorization = createTaskCompletionAuthorization("Issue #248を最後まで進めて", { now });
+  const base = {
+    baseBranch: "main",
+    changedFiles: ["PROJECT_STATE.md"],
+    lintPassed: true,
+    testsPassed: true,
+    buildPassed: true,
+    qaPassed: true,
+    reviewerPassed: true,
+    unresolvedReviewThreads: 0,
+    destructiveChangeAbsent: true,
+    privilegedChangeAbsent: true,
+    taskAuthorization,
+    taskScopeId: "issue:248",
+  };
+
+  assert.equal(evaluateTaskScopedAutoMergeEligibility({ ...base, stateOnlyProjectStateChange: true }, now).eligible, true);
+  assert.equal(evaluateTaskScopedAutoMergeEligibility({ ...base, stateOnlyProjectStateChange: false }, now).eligible, false);
+});
+
+test("governance and workflow paths stay outside task-scoped auto-merge", () => {
+  const now = new Date("2026-09-08T00:00:00.000Z");
+  const taskAuthorization = createTaskCompletionAuthorization("Issue #248を最後まで進めて", { now });
+
+  for (const path of ["AGENTS.md", ".github/workflows/ci.yml", "package.json", "pnpm-lock.yaml"]) {
+    const decision = evaluateTaskScopedAutoMergeEligibility({
+      baseBranch: "main",
+      changedFiles: [path],
+      lintPassed: true,
+      testsPassed: true,
+      buildPassed: true,
+      qaPassed: true,
+      reviewerPassed: true,
+      unresolvedReviewThreads: 0,
+      destructiveChangeAbsent: true,
+      privilegedChangeAbsent: true,
+      taskAuthorization,
+      taskScopeId: "issue:248",
+    }, now);
+
+    assert.equal(decision.eligible, false, path);
+    assert.ok(decision.reasons.includes("unbounded_path"), path);
+  }
 });
