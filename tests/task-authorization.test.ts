@@ -20,6 +20,17 @@ test("explicit completion language creates an owner task authorization", () => {
   assert.equal(isTaskCompletionAuthorizationActive(authorization, "issue:243", now), true);
 });
 
+test("generated fresh task can bind completion authorization to its issue scope", () => {
+  const now = new Date("2026-09-08T00:00:00.000Z");
+  const authorization = createTaskCompletionAuthorization(
+    "操作画面の文言を変更して完成させて",
+    { now, scopeId: "issue:267", idFactory: () => "unused" },
+  );
+
+  assert.equal(authorization?.scopeId, "issue:267");
+  assert.equal(isTaskCompletionAuthorizationActive(authorization, "issue:267", now), true);
+});
+
 test("ordinary progress language does not silently pre-authorize main merge", () => {
   assert.equal(requestsTaskCompletion("Issue #243の状態を確認して進めて"), false);
   assert.equal(createTaskCompletionAuthorization("Issue #243の状態を確認して進めて"), undefined);

@@ -32,14 +32,15 @@ export function requestsTaskCompletion(command: string): boolean {
 
 export function createTaskCompletionAuthorization(
   command: string,
-  options: { now?: Date; ttlHours?: number; idFactory?: () => string } = {},
+  options: { now?: Date; ttlHours?: number; idFactory?: () => string; scopeId?: string } = {},
 ): TaskCompletionAuthorization | undefined {
   if (!requestsTaskCompletion(command)) return undefined;
 
   const now = options.now ?? new Date();
   const ttlHours = options.ttlHours ?? 24 * 7;
   const expiresAt = new Date(now.getTime() + ttlHours * 60 * 60 * 1000);
-  const scopeId = issueScope(command) ?? `command:${(options.idFactory ?? randomUUID)()}`;
+  const explicitScopeId = options.scopeId?.trim();
+  const scopeId = explicitScopeId || issueScope(command) || `command:${(options.idFactory ?? randomUUID)()}`;
 
   return {
     kind: "task_completion",

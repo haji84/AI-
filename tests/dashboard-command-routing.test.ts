@@ -3,12 +3,14 @@ import test from "node:test";
 import {
   createDashboardBoundedPlan,
   dashboardCommandNeedsReasoning,
+  dashboardCommandStartsFreshTask,
 } from "../src/orchestrator/dashboard-command-routing.ts";
 import { reasoningHandoffRequiredOutcome } from "../src/orchestrator/autonomy-run-outcome.ts";
 
 test("read-only issue check keeps the bounded inspect path", () => {
   const command = "Issue #243を確認して";
   assert.equal(dashboardCommandNeedsReasoning(command), false);
+  assert.equal(dashboardCommandStartsFreshTask(command), false);
   assert.deepEqual(createDashboardBoundedPlan(command), {
     kind: "inspect",
     description: command,
@@ -18,6 +20,7 @@ test("read-only issue check keeps the bounded inspect path", () => {
 test("progress language takes precedence over an earlier check phrase", () => {
   const command = "Issue #243を確認して、安全に進めて";
   assert.equal(dashboardCommandNeedsReasoning(command), true);
+  assert.equal(dashboardCommandStartsFreshTask(command), false);
   assert.equal(createDashboardBoundedPlan(command), undefined);
 });
 
@@ -30,6 +33,18 @@ test("implementation and completion requests are not converted into fake inspect
   ]) {
     assert.equal(dashboardCommandNeedsReasoning(command), true, command);
     assert.equal(createDashboardBoundedPlan(command), undefined, command);
+  }
+});
+
+test("specific execution command without an issue reference starts a fresh task", () => {
+  const command = "操作画面の「最新結果を確認」ボタンを「最新の実行結果を見る」に変更して完成させて";
+  assert.equal(dashboardCommandNeedsReasoning(command), true);
+  assert.equal(dashboardCommandStartsFreshTask(command), true);
+});
+
+test("generic continuation commands keep the existing task scope", () => {
+  for (const command of ["進めて", "次へ進んで", "続けて", "完成させて", "最後まで進めて"]) {
+    assert.equal(dashboardCommandStartsFreshTask(command), false, command);
   }
 });
 

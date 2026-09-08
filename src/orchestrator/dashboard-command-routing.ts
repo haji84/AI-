@@ -35,11 +35,33 @@ const INSPECT_PATTERNS = [
   /inspect|check|status|review|investigate/i,
 ];
 
+const ISSUE_REFERENCE_PATTERN = /(?:Issue\s*)?#\d+/i;
+
+const CONTINUATION_ONLY_PATTERNS = [
+  /^(?:安全に)?進めて[。！!]?$/u,
+  /^次(?:へ|に)?進んで[。！!]?$/u,
+  /^続けて[。！!]?$/u,
+  /^そのまま進めて[。！!]?$/u,
+  /^任せる[。！!]?$/u,
+  /^完成させて[。！!]?$/u,
+  /^最後まで進めて[。！!]?$/u,
+  /^finish(?: it| this)?[.!]?$/i,
+  /^continue[.!]?$/i,
+];
+
 export function dashboardCommandNeedsReasoning(command: string): boolean {
   const normalized = command.trim();
   if (!normalized) return false;
   if (EXECUTION_PATTERNS.some((pattern) => pattern.test(normalized))) return true;
   return !INSPECT_PATTERNS.some((pattern) => pattern.test(normalized));
+}
+
+export function dashboardCommandStartsFreshTask(command: string): boolean {
+  const normalized = command.trim();
+  if (!normalized || !dashboardCommandNeedsReasoning(normalized)) return false;
+  if (ISSUE_REFERENCE_PATTERN.test(normalized)) return false;
+  if (CONTINUATION_ONLY_PATTERNS.some((pattern) => pattern.test(normalized))) return false;
+  return true;
 }
 
 export function createDashboardBoundedPlan(command: string): ModelPlan | undefined {
