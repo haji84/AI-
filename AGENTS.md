@@ -75,7 +75,13 @@ If Compass is unavailable, continue using the repository-governed workflow below
 If requirements or scope are unclear, stop and mark the task BLOCKED.
 
 ## Human gate
-A human must approve: merge to main, production deployment, destructive database operations, secrets, permissions, billing, external publication, destructive changes, and unresolved license/security risk.
+Human approval may be either a specific action approval or an explicit task-scoped pre-approval from the owner.
+
+An owner instruction such as `最後まで進めて`, `任せる`, or an equivalent explicit completion instruction may authorize ordinary LOW/MEDIUM merges to `main` for that task only. The authorization must be bound to the exact task/issue and may not be reused for unrelated work. Before an authorized merge, CI, QA, reviewer checks, unresolved review threads, task scope, destructive-change absence, and privileged-change absence must all be verified.
+
+Task-scoped pre-approval does not apply to production deployment, secrets or credentials, permissions or token scope, billing or contracts, destructive database/schema operations, hard-to-recover deletion, security weakening, protection/audit disabling, major external publication, or changes that relax Human Gate / AI employee safety rules. Governance changes such as this `AGENTS.md` rule and workflow changes that alter permissions, deployment, merge authority, token use, or safety enforcement still require a separate Human Gate.
+
+`PROJECT_STATE.md` state-only bookkeeping may be treated as LOW/MEDIUM when machine checks confirm that it changes only permitted state fields and does not alter code, permissions, safety policy, or deployment behavior.
 
 ## Retry limit
 Maximum automatic fix attempts per issue: 3. After that, mark BLOCKED and return to Governor.
