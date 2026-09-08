@@ -1,5 +1,6 @@
 import type { ContextItem, Goal, InferredIntent, Planner, ProposedAction } from "./goal-loop.ts";
 import { inferIntentFromSignals } from "./intent.ts";
+import type { TaskCompletionAuthorization } from "./task-authorization.ts";
 
 export interface ModelPlanFile { path: string; content: string; }
 export interface ModelPlan {
@@ -142,12 +143,14 @@ export class ModelBackedPlanner implements Planner {
   private readonly model: PlanningModel;
   private readonly workspace?: WorkspaceReader;
   private readonly explicitBoundedPlan: boolean;
+  private readonly taskAuthorization?: TaskCompletionAuthorization;
 
   constructor(model: PlanningModel, workspace?: WorkspaceReader, options: { explicitBoundedPlan?: boolean } = {}) {
     this.model = model;
     this.workspace = workspace;
-    const modelCommand = (model as { command?: { plan?: unknown } }).command;
+    const modelCommand = (model as { command?: { plan?: unknown; taskAuthorization?: TaskCompletionAuthorization } }).command;
     this.explicitBoundedPlan = options.explicitBoundedPlan === true || Boolean(modelCommand?.plan);
+    this.taskAuthorization = modelCommand?.taskAuthorization;
   }
 
   async inferIntent(input: { goal: Goal; context: ContextItem[]; preferences?: string[]; recentDecisions?: string[] }): Promise<InferredIntent> {
@@ -173,7 +176,13 @@ export class ModelBackedPlanner implements Planner {
         irreversible: false,
         externalSideEffect: true,
         completesBoundedCommand,
-        input: { title: plan.title, body: plan.body, files: plan.files },
+        input: {
+          title: plan.title,
+          body: plan.body,
+          files: plan.files,
+          taskAuthorization: this.taskAuthorization,
+          taskScopeId: this.taskAuthorization?.scopeId,
+        },
       };
     }
     if (local) {
