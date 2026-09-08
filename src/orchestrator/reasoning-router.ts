@@ -45,7 +45,7 @@ export const DEFAULT_REASONING_SOFT_BUDGETS: ReasoningSoftBudgets = {
   codex: 3,
 };
 
-const CHAT_CHUNK_STEPS = 3;
+const CHAT_CHUNK_STEPS = 10;
 
 function validBudget(value: number, field: string): number {
   if (!Number.isInteger(value) || value < 0) throw new Error(`${field} must be a non-negative integer`);
