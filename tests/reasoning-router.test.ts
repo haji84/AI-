@@ -6,28 +6,55 @@ test("keeps routine reasoning in Chat by default", () => {
   const decision = routeReasoningTask({ text: "Review status and decide the next step" });
   assert.equal(decision.surface, "chat");
   assert.equal(decision.status, "ready");
+  assert.equal(decision.approvalRequired, false);
   assert.equal(decision.budgetRemaining, null);
 });
 
-test("reserves code-changing work for Codex", () => {
+test("asks before using Codex for code-changing work", () => {
   const decision = routeReasoningTask({ text: "Implement the repository code fix and run tests" });
   assert.equal(decision.surface, "codex");
-  assert.equal(decision.status, "ready");
+  assert.equal(decision.status, "surface_approval_required");
+  assert.equal(decision.approvalRequired, true);
+  assert.equal(decision.approvalSurface, "codex");
 });
 
-test("reserves materially cross-app work for Work", () => {
+test("uses Codex only after explicit approval", () => {
+  const decision = routeReasoningTask({
+    text: "Implement the repository code fix and run tests",
+    approvedSurface: "codex",
+  });
+  assert.equal(decision.surface, "codex");
+  assert.equal(decision.status, "ready");
+  assert.equal(decision.approvalRequired, false);
+});
+
+test("asks before using Work for materially cross-app work", () => {
   const decision = routeReasoningTask({
     text: "Coordinate Gmail and Calendar for this recurring workflow",
     crossApp: true,
     recurring: true,
   });
   assert.equal(decision.surface, "work");
-  assert.equal(decision.status, "ready");
+  assert.equal(decision.status, "surface_approval_required");
+  assert.equal(decision.approvalRequired, true);
+  assert.equal(decision.approvalSurface, "work");
 });
 
-test("defers heavy reasoning after a soft budget is exhausted", () => {
+test("uses Work only after explicit approval", () => {
+  const decision = routeReasoningTask({
+    text: "Coordinate Gmail and Calendar for this recurring workflow",
+    crossApp: true,
+    recurring: true,
+    approvedSurface: "work",
+  });
+  assert.equal(decision.surface, "work");
+  assert.equal(decision.status, "ready");
+  assert.equal(decision.approvalRequired, false);
+});
+
+test("defers approved heavy reasoning after a soft budget is exhausted", () => {
   const decision = routeReasoningTask(
-    { text: "Refactor repository code and update tests" },
+    { text: "Refactor repository code and update tests", approvedSurface: "codex" },
     { work: 0, codex: 3 },
     { work: 2, codex: 3 },
   );
@@ -36,12 +63,24 @@ test("defers heavy reasoning after a soft budget is exhausted", () => {
   assert.equal(decision.budgetRemaining, 0);
 });
 
-test("falls back to Chat only when explicitly safe", () => {
+test("continues in Chat without asking when heavy routing is explicitly safe to avoid", () => {
   const decision = routeReasoningTask(
     { text: "Coordinate multiple sources", crossApp: true, fallbackToChatSafe: true },
-    { work: 2, codex: 0 },
+    { work: 0, codex: 0 },
     { work: 2, codex: 3 },
   );
   assert.equal(decision.surface, "chat");
   assert.equal(decision.status, "ready");
+  assert.equal(decision.approvalRequired, false);
+});
+
+test("approval for a different heavy surface cannot authorize this step", () => {
+  const decision = routeReasoningTask({
+    text: "Implement repository code",
+    changesCode: true,
+    approvedSurface: "work",
+  });
+  assert.equal(decision.surface, "codex");
+  assert.equal(decision.status, "surface_approval_required");
+  assert.equal(decision.approvalSurface, "codex");
 });
