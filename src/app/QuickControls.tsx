@@ -8,7 +8,7 @@ const actions: Array<{ action: ControlAction; label: string; hint: string; tone?
   { action: "run", label: "作業を進める", hint: "次の安全な作業へ", tone: "primary" },
   { action: "pause", label: "一時停止", hint: "AI社員を停止" },
   { action: "resume", label: "再開", hint: "停止中の作業を再開" },
-  { action: "status", label: "最新状態を確認", hint: "状態を再取得" },
+  { action: "status", label: "最新の実行結果を見る", hint: "状態を再取得" },
   { action: "test", label: "テスト実行", hint: "安全な検証を実行" },
   { action: "preview", label: "Preview作成", hint: "本番ではなく確認版" },
 ];
