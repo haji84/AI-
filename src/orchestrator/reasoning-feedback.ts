@@ -96,8 +96,11 @@ export function buildReasoningFeedback(input: BuildReasoningFeedbackInput): Reas
     || status === "goal_draft_not_ready"
     || status === "stale_command_invalidated";
   const routeText = nextAction?.trim() || input.command?.trim() || "Review current status and decide the next bounded step";
+  const routeSignals = inferReasoningTaskSignals(routeText);
+  const commandSignals = input.command ? inferReasoningTaskSignals(input.command) : null;
+  if (commandSignals?.approvedSurface) routeSignals.approvedSurface = commandSignals.approvedSurface;
   const reasoningRoute = routeReasoningTask(
-    inferReasoningTaskSignals(routeText),
+    routeSignals,
     input.reasoningUsage,
     input.reasoningSoftBudgets,
   );
