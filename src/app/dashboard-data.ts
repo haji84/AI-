@@ -29,6 +29,7 @@ export interface DashboardProject {
 }
 
 export interface ControlCenterData {
+  currentTask: DashboardTask | null;
   tasks: DashboardTask[];
   history: DashboardHistoryItem[];
   projects: DashboardProject[];
@@ -92,6 +93,7 @@ interface GitHubIssue {
   html_url: string;
   updated_at: string;
   body: string | null;
+  state?: string;
   pull_request?: unknown;
   labels?: Array<{ name?: string } | string>;
 }
@@ -136,6 +138,20 @@ function activeIssueFromProjectState(file: GitHubContentResponse | null): number
   }
 }
 
+function toDashboardTask(issue: GitHubIssue): DashboardTask {
+  const deadline = parseDeadline(issue.body);
+  return {
+    id: issue.number,
+    title: issue.title,
+    url: issue.html_url,
+    updatedAt: issue.updated_at,
+    labels: issueLabels(issue),
+    deadline,
+    ...deadlineMeta(deadline),
+    progress: parseProgress(issue.body),
+  };
+}
+
 export async function readControlCenterData(): Promise<ControlCenterData> {
   const [issues, runs, projectState] = await Promise.all([
     githubJson<GitHubIssue[]>(`${API}/issues?state=open&sort=updated&direction=desc&per_page=20`),
@@ -144,29 +160,28 @@ export async function readControlCenterData(): Promise<ControlCenterData> {
   ]);
 
   const activeIssue = activeIssueFromProjectState(projectState);
-  const tasks = (issues ?? [])
-    .filter((issue) => !issue.pull_request && !isSystemControlIssue(issue))
-    .map((issue) => {
-      const deadline = parseDeadline(issue.body);
-      return {
-        id: issue.number,
-        title: issue.title,
-        url: issue.html_url,
-        updatedAt: issue.updated_at,
-        labels: issueLabels(issue),
-        deadline,
-        ...deadlineMeta(deadline),
-        progress: parseProgress(issue.body),
-      } satisfies DashboardTask;
-    })
-    .sort((a, b) => {
-      if (activeIssue !== null) {
-        if (a.id === activeIssue && b.id !== activeIssue) return -1;
-        if (b.id === activeIssue && a.id !== activeIssue) return 1;
-      }
-      const weight = (tone: DeadlineTone) => tone === "overdue" ? 0 : tone === "soon" ? 1 : tone === "normal" ? 2 : 3;
-      return weight(a.deadlineTone) - weight(b.deadlineTone) || Date.parse(b.updatedAt) - Date.parse(a.updatedAt);
-    });
+  const activeIssueData = activeIssue === null ? null : await githubJson<GitHubIssue>(`${API}/issues/${activeIssue}`);
+  const activeTask = activeIssueData
+    && activeIssueData.state === "open"
+    && !activeIssueData.pull_request
+    && !isSystemControlIssue(activeIssueData)
+    ? toDashboardTask(activeIssueData)
+    : null;
+
+  const taskMap = new Map<number, DashboardTask>();
+  for (const issue of issues ?? []) {
+    if (!issue.pull_request && !isSystemControlIssue(issue)) taskMap.set(issue.number, toDashboardTask(issue));
+  }
+  if (activeTask) taskMap.set(activeTask.id, activeTask);
+
+  const tasks = [...taskMap.values()].sort((a, b) => {
+    if (activeTask) {
+      if (a.id === activeTask.id && b.id !== activeTask.id) return -1;
+      if (b.id === activeTask.id && a.id !== activeTask.id) return 1;
+    }
+    const weight = (tone: DeadlineTone) => tone === "overdue" ? 0 : tone === "soon" ? 1 : tone === "normal" ? 2 : 3;
+    return weight(a.deadlineTone) - weight(b.deadlineTone) || Date.parse(b.updatedAt) - Date.parse(a.updatedAt);
+  });
 
   const history = (runs?.workflow_runs ?? []).map((run) => ({
     id: run.id,
@@ -185,8 +200,10 @@ export async function readControlCenterData(): Promise<ControlCenterData> {
   if (overdue > 0) warnings.push(`期限超過タスクが${overdue}件あります`);
   if (soon > 0) warnings.push(`期限が近いタスクが${soon}件あります`);
   if (!issues) warnings.push("GitHubタスク一覧を取得できませんでした");
+  if (activeIssue !== null && !activeTask) warnings.push(`PROJECT_STATEの現在タスク #${activeIssue} を取得できませんでした`);
 
   return {
+    currentTask: activeTask ?? tasks[0] ?? null,
     tasks,
     history,
     projects: [
