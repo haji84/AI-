@@ -56,7 +56,7 @@ export async function POST(request: Request) {
   if (command.length > MAX_COMMAND_LENGTH) return NextResponse.json({ message: `指示は${MAX_COMMAND_LENGTH}文字以内で入力してください` }, { status: 400 });
 
   const commandPayload = {
-    source: "dashboard-command-chat",
+    source: "chat",
     command,
     plan: {
       kind: "user_command",
