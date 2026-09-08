@@ -1,5 +1,5 @@
 export type ReasoningSurface = "chat" | "work" | "codex";
-export type ReasoningRouteStatus = "ready" | "defer_heavy_reasoning";
+export type ReasoningRouteStatus = "ready" | "surface_approval_required" | "defer_heavy_reasoning";
 
 export interface ReasoningUsage {
   work: number;
@@ -22,6 +22,7 @@ export interface ReasoningTaskSignals {
   testing?: boolean;
   refactoring?: boolean;
   fallbackToChatSafe?: boolean;
+  approvedSurface?: ReasoningSurface;
 }
 
 export interface ReasoningRoutingDecision {
@@ -31,6 +32,8 @@ export interface ReasoningRoutingDecision {
   usage: ReasoningUsage;
   softBudgets: ReasoningSoftBudgets;
   budgetRemaining: number | null;
+  approvalRequired: boolean;
+  approvalSurface: Exclude<ReasoningSurface, "chat"> | null;
 }
 
 export const DEFAULT_REASONING_SOFT_BUDGETS: ReasoningSoftBudgets = {
@@ -88,10 +91,40 @@ export function routeReasoningTask(
     return {
       surface: "chat",
       status: "ready",
-      reason: "Routine reasoning stays in Chat to preserve heavier Plus capacity",
+      reason: "Routine reasoning stays in Chat and starts without a separate approval",
       usage: normalizedUsage,
       softBudgets: budgets,
       budgetRemaining: null,
+      approvalRequired: false,
+      approvalSurface: null,
+    };
+  }
+
+  if (signals.fallbackToChatSafe && signals.approvedSurface !== requested) {
+    return {
+      surface: "chat",
+      status: "ready",
+      reason: `${requested} could help, but this step is explicitly safe to continue in Chat without consuming heavier capacity`,
+      usage: normalizedUsage,
+      softBudgets: budgets,
+      budgetRemaining: null,
+      approvalRequired: false,
+      approvalSurface: null,
+    };
+  }
+
+  if (signals.approvedSurface !== requested) {
+    return {
+      surface: requested,
+      status: "surface_approval_required",
+      reason: requested === "codex"
+        ? "Codex is recommended for code-changing or code-verification work; owner approval is required before using it"
+        : "Work is recommended for material multi-source, cross-app, recurring, or long-running coordination; owner approval is required before using it",
+      usage: normalizedUsage,
+      softBudgets: budgets,
+      budgetRemaining: Math.max(0, budgets[requested] - normalizedUsage[requested]),
+      approvalRequired: true,
+      approvalSurface: requested,
     };
   }
 
@@ -101,11 +134,13 @@ export function routeReasoningTask(
       surface: requested,
       status: "ready",
       reason: requested === "codex"
-        ? "Code-changing or code-verification work is reserved for Codex"
-        : "Material multi-source, cross-app, recurring, or long-running coordination is reserved for Work",
+        ? "Owner approved Codex for this code-changing or code-verification step"
+        : "Owner approved Work for this multi-source, cross-app, recurring, or long-running step",
       usage: normalizedUsage,
       softBudgets: budgets,
       budgetRemaining: remaining,
+      approvalRequired: false,
+      approvalSurface: null,
     };
   }
 
@@ -117,6 +152,8 @@ export function routeReasoningTask(
       usage: normalizedUsage,
       softBudgets: budgets,
       budgetRemaining: 0,
+      approvalRequired: false,
+      approvalSurface: null,
     };
   }
 
@@ -127,5 +164,7 @@ export function routeReasoningTask(
     usage: normalizedUsage,
     softBudgets: budgets,
     budgetRemaining: 0,
+    approvalRequired: false,
+    approvalSurface: null,
   };
 }
