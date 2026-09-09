@@ -115,6 +115,9 @@ function buildTaskScopedPrBody(proposal: ParsedProposal): { body: string; produc
   const metadata = [
     proposal.taskScopeId ? `<!-- ai-company-task-scope: ${proposal.taskScopeId} -->` : "",
     productionDeployAuthorized ? "<!-- ai-company-production-deploy: approved -->" : "",
+    productionDeployAuthorized && proposal.taskAuthorization
+      ? `<!-- ai-company-task-authorization-expires-at: ${proposal.taskAuthorization.expiresAt} -->`
+      : "",
   ].filter(Boolean);
   return {
     body: metadata.length ? `${proposal.body}\n\n${metadata.join("\n")}` : proposal.body,
