@@ -16,6 +16,19 @@ const ALLOWED_EXACT_TYPES = new Set([
   "application/vnd.openxmlformats-officedocument.presentationml.presentation",
   "application/rtf",
 ]);
+const EXTENSION_TYPES: Record<string, string> = {
+  ".pdf": "application/pdf",
+  ".doc": "application/msword",
+  ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ".xls": "application/vnd.ms-excel",
+  ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  ".ppt": "application/vnd.ms-powerpoint",
+  ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  ".rtf": "application/rtf",
+  ".txt": "text/plain",
+  ".csv": "text/csv",
+  ".md": "text/markdown",
+};
 
 type DelegationOperation = "get" | "put";
 
@@ -30,8 +43,6 @@ type DelegationPayload = {
   pathname: string;
   operations: string[];
   validUntil: number;
-  maximumSizeInBytes?: number;
-  allowedContentTypes?: string[];
 };
 
 export type AttachmentDescriptor = {
@@ -46,6 +57,14 @@ export type UploadedAttachmentRef = AttachmentDescriptor & {
   expiresAt: string;
 };
 
+export function inferAttachmentType(name: string, contentType: string): string {
+  const normalized = contentType.trim().toLowerCase();
+  if (normalized && normalized !== "application/octet-stream") return normalized;
+  const lowerName = name.trim().toLowerCase();
+  const extension = Object.keys(EXTENSION_TYPES).find((item) => lowerName.endsWith(item));
+  return extension ? EXTENSION_TYPES[extension] : normalized;
+}
+
 export function isAllowedAttachmentType(contentType: string): boolean {
   const normalized = contentType.trim().toLowerCase();
   return normalized.startsWith("image/") || normalized.startsWith("video/") || normalized.startsWith("text/") || ALLOWED_EXACT_TYPES.has(normalized);
@@ -55,9 +74,10 @@ export function validateAttachmentDescriptor(value: unknown): AttachmentDescript
   if (!value || typeof value !== "object") return null;
   const input = value as Partial<AttachmentDescriptor>;
   const name = typeof input.name === "string" ? input.name.trim() : "";
-  const type = typeof input.type === "string" ? input.type.trim().toLowerCase() : "";
+  const suppliedType = typeof input.type === "string" ? input.type : "";
+  const type = inferAttachmentType(name, suppliedType);
   const size = typeof input.size === "number" ? input.size : Number.NaN;
-  if (!name || name.length > 180 || !type || type.length > 160) return null;
+  if (!name || name.length > 180 || /[\u0000-\u001f\u007f]/.test(name) || !type || type.length > 160) return null;
   if (!Number.isSafeInteger(size) || size < 1 || size > MAX_ATTACHMENT_SIZE_BYTES) return null;
   if (!isAllowedAttachmentType(type)) return null;
   return { name, type, size };
@@ -181,9 +201,15 @@ export function validateUploadedAttachmentRef(value: unknown, now = Date.now()):
   const expiry = Date.parse(expiresAt);
   if (!pathname.startsWith("ai-chat/") || pathname.length > 300 || !Number.isFinite(expiry) || expiry <= now || expiry > now + ATTACHMENT_READ_TTL_MS + 60_000) return null;
   let url: URL;
-  try { url = new URL(readUrl); } catch { return null; }
+  let decodedPathname: string;
+  try {
+    url = new URL(readUrl);
+    decodedPathname = decodeURIComponent(url.pathname.replace(/^\//, ""));
+  } catch {
+    return null;
+  }
   if (url.protocol !== "https:" || !url.hostname.endsWith(".private.blob.vercel-storage.com")) return null;
-  if (decodeURIComponent(url.pathname.replace(/^\//, "")) !== pathname) return null;
+  if (decodedPathname !== pathname) return null;
   if (!url.searchParams.has("vercel-blob-delegation") || !url.searchParams.has("vercel-blob-signature")) return null;
   return { ...descriptor, pathname, readUrl, expiresAt };
 }
