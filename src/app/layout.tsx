@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import ControlCenterViewSwitcher from "./ControlCenterViewSwitcher.tsx";
 import "./globals.css";
+import "./view-switcher.css";
 
 export const metadata: Metadata = {
   title: "Unified AI Creator Studio",
