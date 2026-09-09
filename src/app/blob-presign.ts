@@ -4,7 +4,7 @@ const BLOB_API_VERSION = "12";
 export const MAX_ATTACHMENT_SIZE_BYTES = 512 * 1024 * 1024;
 export const MAX_ATTACHMENT_COUNT = 6;
 export const PUT_URL_TTL_MS = 15 * 60 * 1000;
-export const GET_URL_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+export const GET_URL_TTL_MS = 24 * 60 * 60 * 1000;
 
 export interface ChatAttachment {
   name: string;
@@ -23,20 +23,37 @@ type SignedTokenResponse = {
   validUntil: number;
 };
 
+type BlobCredentials = { token: string; storeId: string };
+
 function base64Url(bytes: ArrayBuffer): string {
   return Buffer.from(bytes).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function normalizeStoreId(storeId: string): string {
+  return storeId.startsWith("store_") ? storeId.slice("store_".length) : storeId;
 }
 
 export function parseBlobStoreId(token: string): string {
   const [, , , storeId = ""] = token.split("_");
   if (!storeId) throw new Error("BLOB_READ_WRITE_TOKENからstore IDを取得できません");
-  return storeId.startsWith("store_") ? storeId.slice(6) : storeId;
+  return normalizeStoreId(storeId);
 }
 
-function blobToken(): string {
-  const token = process.env.BLOB_READ_WRITE_TOKEN?.trim() || "";
-  if (!token) throw new Error("private Vercel Blobが未接続です");
-  return token;
+export function blobCredentialsReady(env: NodeJS.ProcessEnv = process.env): boolean {
+  const readWrite = env.BLOB_READ_WRITE_TOKEN?.trim();
+  if (readWrite) return true;
+  return Boolean(env.VERCEL_OIDC_TOKEN?.trim() && env.BLOB_STORE_ID?.trim());
+}
+
+function blobCredentials(): BlobCredentials {
+  const readWrite = process.env.BLOB_READ_WRITE_TOKEN?.trim() || "";
+  if (readWrite) return { token: readWrite, storeId: parseBlobStoreId(readWrite) };
+
+  const oidc = process.env.VERCEL_OIDC_TOKEN?.trim() || "";
+  const storeId = process.env.BLOB_STORE_ID?.trim() || "";
+  if (oidc && storeId) return { token: oidc, storeId: normalizeStoreId(storeId) };
+
+  throw new Error("private Vercel Blobが未接続です");
 }
 
 function canonicalString(operation: DelegationOperation, pathname: string): string {
@@ -62,15 +79,14 @@ async function issueSignedToken(input: {
   contentType?: string;
   maximumSizeInBytes?: number;
 }): Promise<{ token: SignedTokenResponse; storeId: string }> {
-  const readWriteToken = blobToken();
-  const storeId = parseBlobStoreId(readWriteToken);
+  const credentials = blobCredentials();
   const response = await fetch(`${BLOB_API_BASE}/signed-token`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${readWriteToken}`,
+      Authorization: `Bearer ${credentials.token}`,
       "Content-Type": "application/json",
       "x-api-version": BLOB_API_VERSION,
-      "x-vercel-blob-store-id": storeId,
+      "x-vercel-blob-store-id": credentials.storeId,
     },
     body: JSON.stringify({
       pathname: input.pathname,
@@ -81,11 +97,11 @@ async function issueSignedToken(input: {
     }),
     cache: "no-store",
   });
-  const payload = await response.json().catch(() => null) as Partial<SignedTokenResponse> & { error?: { message?: string } } | null;
+  const payload = await response.json().catch(() => null) as Partial<SignedTokenResponse> & { error?: { message?: string }; message?: string } | null;
   if (!response.ok || !payload?.delegationToken || !payload.clientSigningToken || typeof payload.validUntil !== "number") {
-    throw new Error(payload?.error?.message || `Vercel Blob signed-token failed (${response.status})`);
+    throw new Error(payload?.error?.message || payload?.message || `Vercel Blob signed-token failed (${response.status})`);
   }
-  return { token: payload as SignedTokenResponse, storeId };
+  return { token: payload as SignedTokenResponse, storeId: credentials.storeId };
 }
 
 function addSignedParams(url: string, delegationToken: string, signature: string): string {
