@@ -43,7 +43,10 @@ export default async function Home() {
           <h1>AI会社 コントロールセンター</h1>
           <p className="muted">見る、指示する、承認する。ここだけで会社を動かす。</p>
         </div>
-        <div className="status-pill"><span className="status-dot" />{dashboard.status}</div>
+        <div>
+          <div className="status-pill"><span className="status-dot" />{dashboard.status}</div>
+          <p className="muted" style={{ margin: "8px 0 0", fontSize: ".72rem", textAlign: "right" }}>最終更新 {dashboard.generatedAt ? fmt(dashboard.generatedAt) : "未取得"}</p>
+        </div>
       </header>
 
       <section className="command-deck" id="operations" aria-label="操作とAI司令チャット">
