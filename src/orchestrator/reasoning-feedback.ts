@@ -1,5 +1,5 @@
 import type { GoalRecord, StateRecord } from "../compass/store.ts";
-import type { CommandAttachment, CommandIngressSource } from "./command-ingress.ts";
+import { parseUnifiedCommandEnvelope, type CommandAttachment, type CommandIngressSource } from "./command-ingress.ts";
 import type { RiskDecision } from "./risk-policy.ts";
 import {
   inferReasoningTaskSignals,
@@ -43,6 +43,16 @@ export interface BuildReasoningFeedbackInput {
   reasoningUsage?: ReasoningUsage;
   reasoningSoftBudgets?: ReasoningSoftBudgets;
   generatedAt?: string;
+}
+
+function attachmentsFromFreshCommandEnv(): CommandAttachment[] {
+  const raw = process.env.AUTONOMY_COMMAND_JSON?.trim() || "";
+  if (!raw) return [];
+  try {
+    return parseUnifiedCommandEnvelope(raw).attachments ?? [];
+  } catch {
+    return [];
+  }
 }
 
 function textSignalsApproval(value: unknown): boolean {
@@ -113,7 +123,7 @@ export function buildReasoningFeedback(input: BuildReasoningFeedbackInput): Reas
     status,
     commandSource: input.commandSource,
     command: input.command,
-    attachments: input.attachments ?? [],
+    attachments: input.attachments ?? attachmentsFromFreshCommandEnv(),
     blockers,
     verificationSummary,
     nextAction,
