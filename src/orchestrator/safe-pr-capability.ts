@@ -4,6 +4,7 @@ import { spawnSync } from "node:child_process";
 import { evaluateTaskScopedAutoMergeEligibility } from "./auto-merge-policy.ts";
 import type { ActionResult, ProposedAction } from "./goal-loop.ts";
 import {
+  isTaskProductionDeployAuthorizationActive,
   normalizeTaskCompletionAuthorization,
   type TaskCompletionAuthorization,
 } from "./task-authorization.ts";
@@ -106,6 +107,21 @@ async function enablePullRequestAutoMerge(input: { token: string; nodeId: string
   return { enabled: true };
 }
 
+function buildTaskScopedPrBody(proposal: ParsedProposal): { body: string; productionDeployAuthorized: boolean } {
+  const productionDeployAuthorized = isTaskProductionDeployAuthorizationActive(
+    proposal.taskAuthorization,
+    proposal.taskScopeId,
+  );
+  const metadata = [
+    proposal.taskScopeId ? `<!-- ai-company-task-scope: ${proposal.taskScopeId} -->` : "",
+    productionDeployAuthorized ? "<!-- ai-company-production-deploy: approved -->" : "",
+  ].filter(Boolean);
+  return {
+    body: metadata.length ? `${proposal.body}\n\n${metadata.join("\n")}` : proposal.body,
+    productionDeployAuthorized,
+  };
+}
+
 export function createSafePrProposalCapability(options: { cwd?: string; token?: string | null; repository?: string } = {}) {
   return {
     name: "repository.propose_pr",
@@ -157,7 +173,8 @@ export function createSafePrProposalCapability(options: { cwd?: string; token?: 
         if (!status) return { actionId: action.id, ok: false, summary: "Model proposal produced no repository changes", blocker: "empty_patch" };
         run("git", ["commit", "-m", "chore: bounded autonomous proposal"], cwd);
         run("git", ["push", "origin", `HEAD:${branch}`], cwd);
-        const pr = await openPullRequest({ token, repository, head: branch, title: proposal.title, body: proposal.body });
+        const prBody = buildTaskScopedPrBody(proposal);
+        const pr = await openPullRequest({ token, repository, head: branch, title: proposal.title, body: prBody.body });
 
         const autoMerge = autoMergeDecision.eligible
           ? await enablePullRequestAutoMerge({ token, nodeId: pr.nodeId })
@@ -177,6 +194,7 @@ export function createSafePrProposalCapability(options: { cwd?: string; token?: 
             verification: ["pnpm lint", "pnpm test", "pnpm build"],
             taskScopeId: proposal.taskScopeId ?? null,
             taskCompletionAuthorized: Boolean(proposal.taskAuthorization),
+            productionDeployAuthorized: prBody.productionDeployAuthorized,
             autoMergeEligible: autoMergeDecision.eligible,
             autoMergeEnabled: autoMerge.enabled,
             autoMergeReason: autoMerge.enabled ? null : autoMerge.reason ?? null,
