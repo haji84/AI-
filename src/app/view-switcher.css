@@ -1,0 +1,104 @@
+.view-switcher {
+  position: sticky;
+  top: 8px;
+  z-index: 45;
+  width: min(760px, calc(100% - 28px));
+  margin: 10px auto 6px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 7px;
+  border: 1px solid rgba(148,163,184,.16);
+  border-radius: 18px;
+  background: rgba(5,15,27,.94);
+  box-shadow: 0 18px 42px rgba(0,0,0,.28);
+  backdrop-filter: blur(18px);
+}
+.view-switcher button {
+  min-width: 0;
+  border: 1px solid transparent;
+  border-radius: 13px;
+  padding: 10px 12px;
+  background: transparent;
+  color: #8ea4ba;
+  text-align: left;
+}
+.view-switcher button span,
+.view-switcher button small { display:block; }
+.view-switcher button span { font-weight: 900; font-size: .84rem; }
+.view-switcher button small { margin-top: 2px; color:#667d94; font-size:.63rem; }
+.view-switcher button.active {
+  border-color: rgba(103,232,249,.2);
+  background: linear-gradient(135deg, rgba(14,116,144,.3), rgba(30,64,175,.22));
+  color: #e7fbff;
+}
+.view-switcher button.active small { color:#94dcec; }
+
+.view-dashboard .command-deck { display:none; }
+.view-chat .summary-grid,
+.view-chat .warning-strip,
+.view-chat .control-layout,
+.view-chat .mobile-nav { display:none !important; }
+.view-chat .command-deck {
+  display:block;
+  max-width: 960px;
+  margin: 0 auto;
+}
+.view-chat .quick-top-panel { display:none; }
+.view-chat .command-panel {
+  min-height: calc(100vh - 220px);
+  display:flex;
+  flex-direction:column;
+  border-color: rgba(103,232,249,.24);
+}
+.view-chat .command-chat {
+  flex:1;
+  min-height:0;
+  display:flex;
+  flex-direction:column;
+}
+.view-chat .command-chat .history-list {
+  flex:1;
+  min-height:280px;
+  max-height: calc(100vh - 470px);
+  overflow-y:auto;
+  align-content:start;
+  padding-right:3px;
+}
+.view-chat .command-chat form { margin-top:auto; }
+.view-chat .command-chat textarea { min-height:112px; }
+.view-chat .decision-card,
+.view-chat .task-row,
+.view-chat .empty-state { padding:14px 15px; }
+.view-chat .task-copy strong {
+  white-space:normal;
+  overflow:visible;
+  text-overflow:clip;
+  line-height:1.5;
+}
+.view-chat .topbar { max-width:960px; margin-left:auto; margin-right:auto; }
+.view-chat .dashboard-shell { width:min(100% - 28px, 1100px); }
+.view-dashboard .operation-nav { display:none; }
+
+@media (max-width: 680px) {
+  .view-switcher {
+    top: 6px;
+    width: calc(100% - 18px);
+    margin: 6px auto 2px;
+    border-radius:16px;
+  }
+  .view-switcher button { padding:9px 10px; }
+  .view-switcher button span { font-size:.78rem; }
+  .view-switcher button small { font-size:.58rem; }
+  .view-chat .dashboard-shell { width:calc(100% - 12px); padding-top:8px; }
+  .view-chat .topbar .muted { display:none; }
+  .view-chat .topbar { margin-bottom:8px; }
+  .view-chat .command-panel { min-height:calc(100dvh - 185px); padding:12px; }
+  .view-chat .command-intro { margin-bottom:7px; }
+  .view-chat .command-chat .history-list {
+    min-height:300px;
+    max-height:calc(100dvh - 405px);
+  }
+  .view-chat .command-chat textarea { min-height:96px; max-height:180px; }
+  .view-dashboard .mobile-nav { grid-template-columns:repeat(4,1fr); }
+}
