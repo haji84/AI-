@@ -183,7 +183,7 @@ export default function CommandChat({ enabled }: { enabled: boolean }) {
           <small>{command.length}/500</small>
           <div className="decision-actions">
             <button className="button secondary" disabled={!enabled || checking} onClick={() => void fetchStatus(true)} type="button">
-              {checking ? "確認中…" : "最新結果を確認"}
+              {checking ? "確認中…" : "最新の実行結果を見る"}
             </button>
             <button className="button command-send" disabled={!enabled || busy || !command.trim()} type="submit">
               {busy ? "送信中…" : "指示する"}
