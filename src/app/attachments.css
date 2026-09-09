@@ -1,0 +1,24 @@
+.attachment-input { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; clip-path:inset(50%); }
+.attachment-toolbar { display:flex; align-items:center; gap:9px; min-width:0; }
+.attachment-toolbar small { color:#71869d; font-size:.66rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.attachment-button { flex:none; display:inline-flex; align-items:center; justify-content:center; min-height:38px; padding:8px 11px; border:1px solid rgba(103,232,249,.18); border-radius:11px; background:#0c1b2d; color:#b7e9f5; font-size:.72rem; font-weight:850; }
+.attachment-button:hover:not(:disabled) { border-color:rgba(103,232,249,.42); background:#10253a; color:#e4fbff; }
+.attachment-button:disabled { cursor:not-allowed; opacity:.45; }
+.attachment-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; margin-bottom:2px; }
+.attachment-chip { min-width:0; display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:center; gap:8px; padding:9px 10px; border:1px solid rgba(103,232,249,.12); border-radius:12px; background:rgba(8,22,37,.84); }
+.attachment-chip > div { min-width:0; display:grid; gap:2px; }
+.attachment-chip strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:.74rem; font-weight:820; }
+.attachment-chip small { color:#71869d; font-size:.62rem; }
+.attachment-chip button { width:27px; height:27px; padding:0; border:0; border-radius:8px; background:rgba(148,163,184,.08); color:#91a7bc; font-size:1rem; }
+.attachment-chip button:hover:not(:disabled) { background:rgba(248,113,113,.12); color:#ffaaaa; }
+.attachment-icon { display:grid; place-items:center; min-width:38px; height:26px; padding:0 6px; border-radius:8px; background:rgba(34,211,238,.09); color:#73dff7; font-size:.61rem; font-weight:900; }
+.view-chat .attachment-toolbar { margin-top:2px; }
+.view-chat .attachment-list { margin-top:2px; }
+
+@media (max-width:680px) {
+  .attachment-list { grid-template-columns:1fr; }
+  .attachment-toolbar { align-items:flex-start; }
+  .attachment-toolbar small { white-space:normal; line-height:1.35; }
+  .attachment-button { min-height:40px; padding:9px 12px; }
+  .attachment-chip { padding:9px; }
+}
