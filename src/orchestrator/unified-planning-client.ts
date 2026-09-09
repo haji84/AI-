@@ -7,6 +7,8 @@ const FREE_MODEL = "@cf/zai-org/glm-4.7-flash";
 const MAX_PROMPT_CHARS = 70_000;
 const MAX_OUTPUT_TOKENS = 7_000;
 
+type FreePlannerEnv = Record<string, string | undefined>;
+
 interface CloudflareChatResponse {
   success?: boolean;
   errors?: Array<{ message?: string }>;
@@ -75,7 +77,7 @@ function freePlannerPrompt(command: string, input: { goal: Goal; context: Contex
 async function planWithCloudflareFree(
   command: string,
   input: { goal: Goal; context: ContextItem[] },
-  env: NodeJS.ProcessEnv,
+  env: FreePlannerEnv,
   fetchImpl: typeof fetch,
 ): Promise<ModelPlan> {
   const accountId = env.CLOUDFLARE_ACCOUNT_ID?.trim() || "";
@@ -125,12 +127,12 @@ async function planWithCloudflareFree(
 
 export class UnifiedPlanningClient implements PlanningModel {
   readonly command: NormalizedCommand;
-  private readonly env: NodeJS.ProcessEnv;
+  private readonly env: FreePlannerEnv;
   private readonly fetchImpl: typeof fetch;
 
   constructor(
     envelopeJson = process.env.AUTONOMY_COMMAND_JSON?.trim() || "",
-    options: { env?: NodeJS.ProcessEnv; fetchImpl?: typeof fetch } = {},
+    options: { env?: FreePlannerEnv; fetchImpl?: typeof fetch } = {},
   ) {
     this.command = parseUnifiedCommandEnvelope(envelopeJson);
     this.env = options.env ?? process.env;
