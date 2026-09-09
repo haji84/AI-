@@ -49,6 +49,8 @@ const CONTINUATION_ONLY_PATTERNS = [
   /^continue[.!]?$/i,
 ];
 
+export const FREE_PLANNER_DELEGATE_REASON = "cloudflare-workers-ai-free-planner";
+
 export function dashboardCommandNeedsReasoning(command: string): boolean {
   const normalized = command.trim();
   if (!normalized) return false;
@@ -66,7 +68,14 @@ export function dashboardCommandStartsFreshTask(command: string): boolean {
 
 export function createDashboardBoundedPlan(command: string): ModelPlan | undefined {
   const normalized = command.trim();
-  if (!normalized || dashboardCommandNeedsReasoning(normalized)) return undefined;
+  if (!normalized) return undefined;
+  if (dashboardCommandNeedsReasoning(normalized)) {
+    return {
+      kind: "inspect",
+      description: normalized,
+      reason: FREE_PLANNER_DELEGATE_REASON,
+    };
+  }
   return {
     kind: "inspect",
     description: normalized,
