@@ -15,8 +15,9 @@ test("ダッシュボードとAI Chatを明示的に切り替えられる", asyn
 
   assert.match(switcher, /ダッシュボード/);
   assert.match(switcher, /AI Chat/);
-  assert.match(switcher, /view-dashboard/);
-  assert.match(switcher, /view-chat/);
+  assert.match(switcher, /view-\$\{view\}/);
+  assert.match(switcher, /select\("dashboard"\)/);
+  assert.match(switcher, /select\("chat"\)/);
   assert.match(layout, /ControlCenterViewSwitcher/);
   assert.match(styles, /\.view-dashboard \.command-deck \{ display:none; \}/);
   assert.match(styles, /\.view-chat \.control-layout/);
