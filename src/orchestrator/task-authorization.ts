@@ -4,6 +4,7 @@ export interface TaskCompletionAuthorization {
   kind: "task_completion";
   scopeId: string;
   allowLowMediumMainMerge: true;
+  allowProductionDeploy?: true;
   issuedBy: "owner";
   issuedAt: string;
   expiresAt: string;
@@ -20,6 +21,9 @@ const COMPLETION_PATTERNS = [
   /handle.{0,20}(through|to)\s+(the\s+)?end/i,
 ];
 
+const PRODUCTION_TERMS = /(production|本番)/iu;
+const DEPLOY_TERMS = /(deploy|デプロイ|反映)/iu;
+
 function issueScope(command: string): string | null {
   const match = command.match(/(?:Issue\s*)?#(\d+)/i);
   return match ? `issue:${match[1]}` : null;
@@ -28,6 +32,13 @@ function issueScope(command: string): string | null {
 export function requestsTaskCompletion(command: string): boolean {
   const normalized = command.trim();
   return normalized.length > 0 && COMPLETION_PATTERNS.some((pattern) => pattern.test(normalized));
+}
+
+export function requestsProductionDeploy(command: string): boolean {
+  const normalized = command.trim();
+  return normalized.length > 0
+    && PRODUCTION_TERMS.test(normalized)
+    && DEPLOY_TERMS.test(normalized);
 }
 
 export function createTaskCompletionAuthorization(
@@ -46,6 +57,7 @@ export function createTaskCompletionAuthorization(
     kind: "task_completion",
     scopeId,
     allowLowMediumMainMerge: true,
+    ...(requestsProductionDeploy(command) ? { allowProductionDeploy: true as const } : {}),
     issuedBy: "owner",
     issuedAt: now.toISOString(),
     expiresAt: expiresAt.toISOString(),
@@ -59,6 +71,7 @@ export function normalizeTaskCompletionAuthorization(value: unknown): TaskComple
     || typeof auth.scopeId !== "string"
     || !auth.scopeId.trim()
     || auth.allowLowMediumMainMerge !== true
+    || (auth.allowProductionDeploy !== undefined && auth.allowProductionDeploy !== true)
     || auth.issuedBy !== "owner"
     || typeof auth.issuedAt !== "string"
     || Number.isNaN(Date.parse(auth.issuedAt))
@@ -70,6 +83,7 @@ export function normalizeTaskCompletionAuthorization(value: unknown): TaskComple
     kind: "task_completion",
     scopeId: auth.scopeId.trim(),
     allowLowMediumMainMerge: true,
+    ...(auth.allowProductionDeploy === true ? { allowProductionDeploy: true as const } : {}),
     issuedBy: "owner",
     issuedAt: auth.issuedAt,
     expiresAt: auth.expiresAt,
@@ -87,4 +101,13 @@ export function isTaskCompletionAuthorizationActive(
     && authorization.issuedBy === "owner"
     && Date.parse(authorization.issuedAt) <= now.getTime()
     && Date.parse(authorization.expiresAt) > now.getTime();
+}
+
+export function isTaskProductionDeployAuthorizationActive(
+  authorization: TaskCompletionAuthorization | undefined,
+  scopeId: string | undefined,
+  now = new Date(),
+): boolean {
+  return isTaskCompletionAuthorizationActive(authorization, scopeId, now)
+    && authorization?.allowProductionDeploy === true;
 }
