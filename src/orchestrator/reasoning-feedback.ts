@@ -1,5 +1,5 @@
 import type { GoalRecord, StateRecord } from "../compass/store.ts";
-import type { CommandIngressSource } from "./command-ingress.ts";
+import type { CommandAttachment, CommandIngressSource } from "./command-ingress.ts";
 import type { RiskDecision } from "./risk-policy.ts";
 import {
   inferReasoningTaskSignals,
@@ -15,6 +15,7 @@ export interface ReasoningFeedback {
   status: string | null;
   commandSource: CommandIngressSource | null;
   command: string | null;
+  attachments: CommandAttachment[];
   blockers: unknown[];
   verificationSummary: string | null;
   nextAction: string | null;
@@ -34,6 +35,7 @@ export interface BuildReasoningFeedbackInput {
   status: string | null;
   commandSource: CommandIngressSource | null;
   command: string | null;
+  attachments?: CommandAttachment[];
   blockers?: unknown[];
   verificationSummary?: string | null;
   nextAction?: string | null;
@@ -111,6 +113,7 @@ export function buildReasoningFeedback(input: BuildReasoningFeedbackInput): Reas
     status,
     commandSource: input.commandSource,
     command: input.command,
+    attachments: input.attachments ?? [],
     blockers,
     verificationSummary,
     nextAction,
