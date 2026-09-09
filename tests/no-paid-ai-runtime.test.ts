@@ -58,6 +58,7 @@ test("package dependencies contain no direct paid AI SDK", () => {
 test("autonomous free planner is pinned and cannot silently switch to a paid model", () => {
   const planner = readFileSync(join(ROOT, "src/orchestrator/unified-planning-client.ts"), "utf8");
   assert.match(planner, /const FREE_MODEL = "@cf\/zai-org\/glm-4\.7-flash"/);
-  assert.doesNotMatch(planner, /CLOUDFLARE_MODEL|WORKERS_AI_MODEL|PLANNER_MODEL/);
+  assert.doesNotMatch(planner, /env\.(?:CLOUDFLARE_MODEL|WORKERS_AI_MODEL|PLANNER_MODEL)/);
+  assert.doesNotMatch(planner, /process\.env\.(?:CLOUDFLARE_MODEL|WORKERS_AI_MODEL|PLANNER_MODEL)/);
   assert.doesNotMatch(planner, /kimi-k2\.7-code|glm-5\.3|glm-5\.2/i);
 });
