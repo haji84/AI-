@@ -41,9 +41,10 @@ function stripCodeFence(value: string): string {
 function planningContext(input: { goal: Goal; context: ContextItem[] }): string {
   const compact = {
     goal: {
-      id: input.goal.id,
       title: input.goal.title,
       description: input.goal.description ?? null,
+      successCriteria: input.goal.successCriteria,
+      constraints: input.goal.constraints,
     },
     context: input.context.map((item) => ({
       source: item.source,
