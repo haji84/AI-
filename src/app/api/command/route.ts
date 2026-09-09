@@ -6,10 +6,12 @@ import {
   dashboardCommandStartsFreshTask,
 } from "../../../orchestrator/dashboard-command-routing.ts";
 import { createTaskCompletionAuthorization } from "../../../orchestrator/task-authorization.ts";
+import { validateUploadedAttachmentRef, type UploadedAttachmentRef } from "../../attachment-storage.ts";
 import { readDashboardState } from "../../dashboard-state.ts";
 import { OWNER_SESSION_COOKIE, verifyOwnerSessionToken } from "../../owner-auth.ts";
 
 const MAX_COMMAND_LENGTH = 500;
+const MAX_ATTACHMENTS = 20;
 
 async function ownerContext() {
   const ownerSecret = process.env.AI_COMPANY_OWNER_SECRET?.trim() || "";
@@ -39,7 +41,25 @@ function freshTaskTitle(command: string): string {
   return `task: ${compact}`.slice(0, 120);
 }
 
-async function createFreshTaskIssue(repository: string, githubToken: string, command: string): Promise<number> {
+function attachmentIssueSection(attachments: UploadedAttachmentRef[]): string[] {
+  if (!attachments.length) return [];
+  return [
+    "",
+    "## Attachments",
+    "Files are stored in Private Blob. Read URLs are scoped and expire automatically; do not copy file bodies into GitHub.",
+    ...attachments.flatMap((attachment, index) => [
+      `- attachment ${index + 1}`,
+      `  - name: ${JSON.stringify(attachment.name)}`,
+      `  - content-type: ${attachment.type}`,
+      `  - size: ${attachment.size} bytes`,
+      `  - pathname: ${attachment.pathname}`,
+      `  - read-url-expires-at: ${attachment.expiresAt}`,
+      `  - read-url: ${attachment.readUrl}`,
+    ]),
+  ];
+}
+
+async function createFreshTaskIssue(repository: string, githubToken: string, command: string, attachments: UploadedAttachmentRef[]): Promise<number> {
   const response = await fetch(`https://api.github.com/repos/${repository}/issues`, {
     method: "POST",
     headers: githubHeaders(githubToken),
@@ -48,10 +68,12 @@ async function createFreshTaskIssue(repository: string, githubToken: string, com
       body: [
         "## Owner command",
         command,
+        ...attachmentIssueSection(attachments),
         "",
         "## Execution contract",
         "- source: AI会社コントロールセンター / Chat",
         "- fresh owner command: this Issue is the task scope",
+        "- attachments: use only the scoped Private Blob read URLs above; never mirror file bodies into GitHub",
         "- LOW/MEDIUMのみ自律実行",
         "- Work/Codexは明示承認まで使用しない",
         "- HIGH/CRITICALは既存Human Gateで停止",
@@ -99,18 +121,28 @@ export async function POST(request: Request) {
   if ("error" in context) return context.error;
   const { githubToken, repository } = context;
 
-  const payload = await request.json().catch(() => null) as { command?: unknown } | null;
+  const payload = await request.json().catch(() => null) as { command?: unknown; attachments?: unknown } | null;
   const command = typeof payload?.command === "string" ? payload.command.trim() : "";
   if (!command) return NextResponse.json({ message: "指示を入力してください" }, { status: 400 });
   if (command.length > MAX_COMMAND_LENGTH) return NextResponse.json({ message: `指示は${MAX_COMMAND_LENGTH}文字以内で入力してください` }, { status: 400 });
 
-  const reasoningHandoffRequired = dashboardCommandNeedsReasoning(command);
-  const startsFreshTask = dashboardCommandStartsFreshTask(command);
+  const rawAttachments = payload?.attachments === undefined ? [] : payload.attachments;
+  if (!Array.isArray(rawAttachments) || rawAttachments.length > MAX_ATTACHMENTS) {
+    return NextResponse.json({ message: `添付は${MAX_ATTACHMENTS}件以内にしてください` }, { status: 400 });
+  }
+  const attachments = rawAttachments.map((attachment) => validateUploadedAttachmentRef(attachment));
+  if (attachments.some((attachment) => attachment === null)) {
+    return NextResponse.json({ message: "添付情報が無効または期限切れです。添付し直してください" }, { status: 400 });
+  }
+  const validAttachments = attachments as UploadedAttachmentRef[];
+
+  const reasoningHandoffRequired = validAttachments.length > 0 || dashboardCommandNeedsReasoning(command);
+  const startsFreshTask = validAttachments.length > 0 || dashboardCommandStartsFreshTask(command);
   let taskIssueNumber: number | null = null;
 
   if (startsFreshTask) {
     try {
-      taskIssueNumber = await createFreshTaskIssue(repository, githubToken, command);
+      taskIssueNumber = await createFreshTaskIssue(repository, githubToken, command, validAttachments);
     } catch (error) {
       const detail = error instanceof Error ? error.message : "unknown error";
       return NextResponse.json({ message: `新しいタスクの作成に失敗しました: ${detail}` }, { status: 502 });
@@ -123,6 +155,7 @@ export async function POST(request: Request) {
   const commandPayload = {
     source: "chat",
     command,
+    ...(validAttachments.length ? { attachments: validAttachments } : {}),
     ...(taskIssueNumber ? { goalId: `issue:${taskIssueNumber}` } : {}),
     ...(taskAuthorization ? { taskAuthorization } : {}),
     ...(plan ? { plan } : {}),
@@ -146,10 +179,11 @@ export async function POST(request: Request) {
     }, { status: 502 });
   }
 
+  const attachmentMessage = validAttachments.length ? `添付${validAttachments.length}件をPrivate Blobの期限付きURLで引き渡しました。` : "";
   const message = reasoningHandoffRequired
     ? taskAuthorization
-      ? `${taskIssueNumber ? `Issue #${taskIssueNumber} を新規タスクとして作成しました。` : ""}指示を受け付けました。Chat reasoningへ引き継ぎ、LOW/MEDIUMの通常main mergeまで事前承認を保持します。`
-      : `${taskIssueNumber ? `Issue #${taskIssueNumber} を新規タスクとして作成しました。` : ""}指示を受け付けました。Chat reasoningへ引き継ぎます。`
+      ? `${taskIssueNumber ? `Issue #${taskIssueNumber} を新規タスクとして作成しました。` : ""}${attachmentMessage}指示を受け付けました。Chat reasoningへ引き継ぎ、LOW/MEDIUMの通常main mergeまで事前承認を保持します。`
+      : `${taskIssueNumber ? `Issue #${taskIssueNumber} を新規タスクとして作成しました。` : ""}${attachmentMessage}指示を受け付けました。Chat reasoningへ引き継ぎます。`
     : "確認指示を受け付けました。安全なinspectとして実行します。";
 
   return NextResponse.json({
