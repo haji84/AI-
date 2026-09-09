@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 
 const suggestions = ["進めて", "状態確認", "問題だけ確認", "今日のまとめ"];
 const STORAGE_KEY = "ai_company_command_chat_history_v1";
+const MAX_ATTACHMENTS = 20;
 
 type ChatEntry = {
   id: string;
@@ -146,7 +147,7 @@ export default function CommandChat({ enabled }: { enabled: boolean }) {
 
       const uploadResponse = await fetch(body.uploadUrl, {
         method: "PUT",
-        headers: { "Content-Type": file.type || "application/octet-stream" },
+        headers: { "Content-Type": body.attachment.type },
         body: file,
       });
       if (!uploadResponse.ok) throw new Error(`${file.name} のアップロードに失敗しました`);
@@ -188,6 +189,15 @@ export default function CommandChat({ enabled }: { enabled: boolean }) {
     }
   }
 
+  function addFiles(selected: File[]) {
+    setFiles((current) => {
+      const next = [...current, ...selected].slice(0, MAX_ATTACHMENTS);
+      if (current.length + selected.length > MAX_ATTACHMENTS) setMessage(`添付は${MAX_ATTACHMENTS}件までです`);
+      else setMessage(null);
+      return next;
+    });
+  }
+
   function submit(event: FormEvent) {
     event.preventDefault();
     void send();
@@ -220,7 +230,10 @@ export default function CommandChat({ enabled }: { enabled: boolean }) {
           <div className="attachment-list" aria-label="添付ファイル">
             {files.map((file, index) => (
               <div className="attachment-chip" key={`${file.name}-${file.lastModified}-${index}`}>
-                <span><strong>{file.name}</strong><small>{formatBytes(file.size)}</small></span>
+                <span>
+                  <strong>{file.name}</strong>
+                  <small>{file.type || "形式は送信時に判定"} / {formatBytes(file.size)}</small>
+                </span>
                 <button aria-label={`${file.name}を外す`} disabled={busy} onClick={() => setFiles((current) => current.filter((_, itemIndex) => itemIndex !== index))} type="button">×</button>
               </div>
             ))}
@@ -240,13 +253,13 @@ export default function CommandChat({ enabled }: { enabled: boolean }) {
           className="attachment-input"
           disabled={!enabled || busy}
           multiple
-          onChange={(event) => setFiles((current) => [...current, ...Array.from(event.target.files ?? [])])}
+          onChange={(event) => addFiles(Array.from(event.target.files ?? []))}
           ref={fileInput}
           type="file"
         />
         <div className="command-footer">
           <div className="command-tools">
-            <button className="button secondary attachment-button" disabled={!enabled || busy} onClick={() => fileInput.current?.click()} type="button">＋ 添付</button>
+            <button className="button secondary attachment-button" disabled={!enabled || busy || files.length >= MAX_ATTACHMENTS} onClick={() => fileInput.current?.click()} type="button">＋ 添付</button>
             <small>{command.length}/500{files.length ? ` / 添付${files.length}件` : ""}</small>
           </div>
           <div className="decision-actions">
