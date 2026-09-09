@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import {
   attachmentPathname,
+  blobCredentialsReady,
   createPrivateBlobGetUrl,
   createPrivateBlobPutUrl,
   MAX_ATTACHMENT_SIZE_BYTES,
@@ -12,7 +13,7 @@ import {
 import { OWNER_SESSION_COOKIE, verifyOwnerSessionToken } from "../../owner-auth.ts";
 
 function attachmentOwnerReady(ownerSecret: string): boolean {
-  return Boolean(ownerSecret && process.env.BLOB_READ_WRITE_TOKEN?.trim());
+  return Boolean(ownerSecret && blobCredentialsReady());
 }
 
 async function requireOwner() {
