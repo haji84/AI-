@@ -1,0 +1,15 @@
+.attachment-input { display:none; }
+.attachment-list { display:grid; gap:7px; margin-bottom:2px; }
+.attachment-chip { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:9px 10px; border:1px solid rgba(103,232,249,.14); border-radius:11px; background:rgba(8,22,37,.8); }
+.attachment-chip > span { min-width:0; display:grid; gap:2px; }
+.attachment-chip strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#dcecff; font-size:.78rem; }
+.attachment-chip small { color:#71869d; font-size:.65rem; }
+.attachment-chip button { flex:none; width:28px; height:28px; border:0; border-radius:8px; background:#17283a; color:#9fb4c8; font-size:1rem; }
+.attachment-chip button:hover:not(:disabled) { background:#2b1f2b; color:#ffaaaa; }
+.command-tools { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.attachment-button { padding:8px 10px; }
+@media (max-width:680px) {
+  .command-footer { align-items:stretch; flex-direction:column; }
+  .command-tools { justify-content:space-between; }
+  .attachment-button { min-height:40px; }
+}
