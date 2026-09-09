@@ -88,7 +88,7 @@ async function createFreshTaskIssue(
         "- LOW/MEDIUMのみ自律実行",
         "- Work/Codexは明示承認まで使用しない",
         productionDeployRequested
-          ? "- Production deployのみ、オーナーがこの指示で明示承認。その他のHIGH/CRITICALはHuman Gateで停止"
+          ? "- completion指示により、このタスク成果物のProduction deployまで承認。その他のHIGH/CRITICALはHuman Gateで停止"
           : "- HIGH/CRITICALは既存Human Gateで停止",
         "- verification / write-backを必須とする",
       ].join("\n"),
@@ -201,7 +201,7 @@ export async function POST(request: Request) {
 
   const attachmentMessage = validAttachments.length ? `添付${validAttachments.length}件をPrivate Blobの期限付きURLで引き渡しました。` : "";
   const productionMessage = taskAuthorization?.allowProductionDeploy
-    ? "このタスク限定でProduction deployまで明示承認を保持します。"
+    ? "このタスク限定で、main CI成功後のProduction deployまで承認を保持します。"
     : "";
   const message = reasoningHandoffRequired
     ? taskAuthorization

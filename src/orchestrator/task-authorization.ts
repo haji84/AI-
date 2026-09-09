@@ -36,9 +36,9 @@ export function requestsTaskCompletion(command: string): boolean {
 
 export function requestsProductionDeploy(command: string): boolean {
   const normalized = command.trim();
-  return normalized.length > 0
-    && PRODUCTION_TERMS.test(normalized)
-    && DEPLOY_TERMS.test(normalized);
+  if (!normalized) return false;
+  return requestsTaskCompletion(normalized)
+    || (PRODUCTION_TERMS.test(normalized) && DEPLOY_TERMS.test(normalized));
 }
 
 export function createTaskCompletionAuthorization(
@@ -57,7 +57,7 @@ export function createTaskCompletionAuthorization(
     kind: "task_completion",
     scopeId,
     allowLowMediumMainMerge: true,
-    ...(requestsProductionDeploy(command) ? { allowProductionDeploy: true as const } : {}),
+    allowProductionDeploy: true,
     issuedBy: "owner",
     issuedAt: now.toISOString(),
     expiresAt: expiresAt.toISOString(),
