@@ -45,7 +45,7 @@ export default async function Home() {
         </div>
         <div>
           <div className="status-pill"><span className="status-dot" />{dashboard.status}</div>
-          <p className="muted" style={{ margin: "8px 0 0", fontSize: ".72rem", textAlign: "right" }}>最終更新 {fmt(dashboard.generatedAt)}</p>
+          <p className="muted" style={{ margin: "8px 0 0", fontSize: ".72rem", textAlign: "right" }}>最終更新 {dashboard.generatedAt ? fmt(dashboard.generatedAt) : "未取得"}</p>
         </div>
       </header>
 
