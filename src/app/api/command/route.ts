@@ -6,6 +6,7 @@ import {
   dashboardCommandStartsFreshTask,
 } from "../../../orchestrator/dashboard-command-routing.ts";
 import { createTaskCompletionAuthorization } from "../../../orchestrator/task-authorization.ts";
+import { MAX_ATTACHMENT_COUNT, normalizeAttachment, type ChatAttachment } from "../../blob-presign.ts";
 import { readDashboardState } from "../../dashboard-state.ts";
 import { OWNER_SESSION_COOKIE, verifyOwnerSessionToken } from "../../owner-auth.ts";
 
@@ -39,7 +40,32 @@ function freshTaskTitle(command: string): string {
   return `task: ${compact}`.slice(0, 120);
 }
 
-async function createFreshTaskIssue(repository: string, githubToken: string, command: string): Promise<number> {
+function parseAttachments(value: unknown): ChatAttachment[] {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || value.length > MAX_ATTACHMENT_COUNT) throw new Error(`添付は最大${MAX_ATTACHMENT_COUNT}件です`);
+  return value.map((item) => {
+    const normalized = normalizeAttachment(item);
+    if (!normalized) throw new Error("添付情報が不正です");
+    return normalized;
+  });
+}
+
+function attachmentIssueLines(attachments: ChatAttachment[]): string[] {
+  if (attachments.length === 0) return [];
+  return [
+    "",
+    "## Attachments",
+    ...attachments.map((item) => `- ${item.name} / ${item.contentType} / ${item.size} bytes`),
+    "- 添付本体URLは公開Issueへ保存しない。reasoning handoffの認証済みartifact経由で参照する。",
+  ];
+}
+
+async function createFreshTaskIssue(
+  repository: string,
+  githubToken: string,
+  command: string,
+  attachments: ChatAttachment[],
+): Promise<number> {
   const response = await fetch(`https://api.github.com/repos/${repository}/issues`, {
     method: "POST",
     headers: githubHeaders(githubToken),
@@ -48,6 +74,7 @@ async function createFreshTaskIssue(repository: string, githubToken: string, com
       body: [
         "## Owner command",
         command,
+        ...attachmentIssueLines(attachments),
         "",
         "## Execution contract",
         "- source: AI会社コントロールセンター / Chat",
@@ -99,18 +126,25 @@ export async function POST(request: Request) {
   if ("error" in context) return context.error;
   const { githubToken, repository } = context;
 
-  const payload = await request.json().catch(() => null) as { command?: unknown } | null;
+  const payload = await request.json().catch(() => null) as { command?: unknown; attachments?: unknown } | null;
   const command = typeof payload?.command === "string" ? payload.command.trim() : "";
   if (!command) return NextResponse.json({ message: "指示を入力してください" }, { status: 400 });
   if (command.length > MAX_COMMAND_LENGTH) return NextResponse.json({ message: `指示は${MAX_COMMAND_LENGTH}文字以内で入力してください` }, { status: 400 });
 
-  const reasoningHandoffRequired = dashboardCommandNeedsReasoning(command);
-  const startsFreshTask = dashboardCommandStartsFreshTask(command);
+  let attachments: ChatAttachment[];
+  try {
+    attachments = parseAttachments(payload?.attachments);
+  } catch (error) {
+    return NextResponse.json({ message: error instanceof Error ? error.message : "添付情報が不正です" }, { status: 400 });
+  }
+
+  const reasoningHandoffRequired = dashboardCommandNeedsReasoning(command) || attachments.length > 0;
+  const startsFreshTask = dashboardCommandStartsFreshTask(command) || attachments.length > 0;
   let taskIssueNumber: number | null = null;
 
   if (startsFreshTask) {
     try {
-      taskIssueNumber = await createFreshTaskIssue(repository, githubToken, command);
+      taskIssueNumber = await createFreshTaskIssue(repository, githubToken, command, attachments);
     } catch (error) {
       const detail = error instanceof Error ? error.message : "unknown error";
       return NextResponse.json({ message: `新しいタスクの作成に失敗しました: ${detail}` }, { status: 502 });
@@ -119,12 +153,13 @@ export async function POST(request: Request) {
 
   const taskScopeId = taskIssueNumber ? `issue:${taskIssueNumber}` : undefined;
   const taskAuthorization = createTaskCompletionAuthorization(command, { scopeId: taskScopeId });
-  const plan = createDashboardBoundedPlan(command);
+  const plan = attachments.length === 0 ? createDashboardBoundedPlan(command) : null;
   const commandPayload = {
     source: "chat",
     command,
     ...(taskIssueNumber ? { goalId: `issue:${taskIssueNumber}` } : {}),
     ...(taskAuthorization ? { taskAuthorization } : {}),
+    ...(attachments.length ? { attachments } : {}),
     ...(plan ? { plan } : {}),
   };
 
@@ -146,10 +181,11 @@ export async function POST(request: Request) {
     }, { status: 502 });
   }
 
+  const attachmentNote = attachments.length ? ` 添付${attachments.length}件も安全なreasoning handoffへ渡します。` : "";
   const message = reasoningHandoffRequired
     ? taskAuthorization
-      ? `${taskIssueNumber ? `Issue #${taskIssueNumber} を新規タスクとして作成しました。` : ""}指示を受け付けました。Chat reasoningへ引き継ぎ、LOW/MEDIUMの通常main mergeまで事前承認を保持します。`
-      : `${taskIssueNumber ? `Issue #${taskIssueNumber} を新規タスクとして作成しました。` : ""}指示を受け付けました。Chat reasoningへ引き継ぎます。`
+      ? `${taskIssueNumber ? `Issue #${taskIssueNumber} を新規タスクとして作成しました。` : ""}指示を受け付けました。Chat reasoningへ引き継ぎ、LOW/MEDIUMの通常main mergeまで事前承認を保持します。${attachmentNote}`
+      : `${taskIssueNumber ? `Issue #${taskIssueNumber} を新規タスクとして作成しました。` : ""}指示を受け付けました。Chat reasoningへ引き継ぎます。${attachmentNote}`
     : "確認指示を受け付けました。安全なinspectとして実行します。";
 
   return NextResponse.json({
@@ -159,5 +195,6 @@ export async function POST(request: Request) {
     reasoningHandoffRequired,
     freshTaskCreated: Boolean(taskIssueNumber),
     taskIssueNumber,
+    attachmentCount: attachments.length,
   });
 }
