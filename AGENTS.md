@@ -79,7 +79,13 @@ Human approval may be either a specific action approval or an explicit task-scop
 
 An owner instruction such as `最後まで進めて`, `任せる`, or an equivalent explicit completion instruction may authorize ordinary LOW/MEDIUM merges to `main` for that task only. The authorization must be bound to the exact task/issue and may not be reused for unrelated work. Before an authorized merge, CI, QA, reviewer checks, unresolved review threads, task scope, destructive-change absence, and privileged-change absence must all be verified.
 
-Task-scoped pre-approval does not apply to production deployment, secrets or credentials, permissions or token scope, billing or contracts, destructive database/schema operations, hard-to-recover deletion, security weakening, protection/audit disabling, major external publication, or changes that relax Human Gate / AI employee safety rules. Governance changes such as this `AGENTS.md` rule and workflow changes that alter permissions, deployment, merge authority, token use, or safety enforcement still require a separate Human Gate.
+A completion instruction alone never authorizes Production. Production may be task-scoped pre-approved only when the owner explicitly names the Production target and deployment/production reflection in the same task instruction, for example `完成させてProductionまでデプロイして` or `本番まで反映して完成させて`. That authorization must be persisted as `allowProductionDeploy=true`, bound to the exact task/issue, unexpired, carried into the exact PR scope, and consumed only for the merged commit produced by that task after required CI succeeds. It may not be reused for another Issue, PR, commit, deployment, environment, or later task.
+
+Task-scoped Production pre-approval authorizes Production deployment only. It never authorizes secrets or credentials, permission or token-scope changes, billing or contracts, destructive database/schema operations, hard-to-recover deletion, security weakening, protection/audit disabling, major external publication, or Human Gate / AI employee safety relaxation. Any of those still require a separate Human Gate even when Production deployment itself was pre-approved.
+
+If Production was not explicitly requested, or if scope, expiry, merged commit, CI result, or authorization evidence does not match exactly, the AI employee must not deploy Production and must stop at the Production Human Gate.
+
+Governance changes such as this `AGENTS.md` rule and workflow changes that alter permissions, deployment, merge authority, token use, or safety enforcement still require a separate Human Gate.
 
 `PROJECT_STATE.md` state-only bookkeeping may be treated as LOW/MEDIUM when machine checks confirm that it changes only permitted state fields and does not alter code, permissions, safety policy, or deployment behavior.
 

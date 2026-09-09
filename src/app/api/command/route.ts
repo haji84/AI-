@@ -5,7 +5,10 @@ import {
   dashboardCommandNeedsReasoning,
   dashboardCommandStartsFreshTask,
 } from "../../../orchestrator/dashboard-command-routing.ts";
-import { createTaskCompletionAuthorization } from "../../../orchestrator/task-authorization.ts";
+import {
+  createTaskCompletionAuthorization,
+  requestsProductionDeploy,
+} from "../../../orchestrator/task-authorization.ts";
 import { validateUploadedAttachmentRef, type UploadedAttachmentRef } from "../../attachment-storage.ts";
 import { readDashboardState } from "../../dashboard-state.ts";
 import { OWNER_SESSION_COOKIE, verifyOwnerSessionToken } from "../../owner-auth.ts";
@@ -59,7 +62,13 @@ function attachmentIssueSection(attachments: UploadedAttachmentRef[]): string[] 
   ];
 }
 
-async function createFreshTaskIssue(repository: string, githubToken: string, command: string, attachments: UploadedAttachmentRef[]): Promise<number> {
+async function createFreshTaskIssue(
+  repository: string,
+  githubToken: string,
+  command: string,
+  attachments: UploadedAttachmentRef[],
+  productionDeployRequested: boolean,
+): Promise<number> {
   const response = await fetch(`https://api.github.com/repos/${repository}/issues`, {
     method: "POST",
     headers: githubHeaders(githubToken),
@@ -73,10 +82,14 @@ async function createFreshTaskIssue(repository: string, githubToken: string, com
         "## Execution contract",
         "- source: AI会社コントロールセンター / Chat",
         "- fresh owner command: this Issue is the task scope",
+        `- production-deploy-authorized: ${productionDeployRequested ? "true" : "false"}`,
+        "- production authorization applies only to this exact Issue/merged commit and expires with task authorization",
         "- attachments: use only the scoped Private Blob read URLs above; never mirror file bodies into GitHub",
         "- LOW/MEDIUMのみ自律実行",
         "- Work/Codexは明示承認まで使用しない",
-        "- HIGH/CRITICALは既存Human Gateで停止",
+        productionDeployRequested
+          ? "- Production deployのみ、オーナーがこの指示で明示承認。その他のHIGH/CRITICALはHuman Gateで停止"
+          : "- HIGH/CRITICALは既存Human Gateで停止",
         "- verification / write-backを必須とする",
       ].join("\n"),
     }),
@@ -136,13 +149,20 @@ export async function POST(request: Request) {
   }
   const validAttachments = attachments as UploadedAttachmentRef[];
 
+  const productionDeployRequested = requestsProductionDeploy(command);
   const reasoningHandoffRequired = validAttachments.length > 0 || dashboardCommandNeedsReasoning(command);
   const startsFreshTask = validAttachments.length > 0 || dashboardCommandStartsFreshTask(command);
   let taskIssueNumber: number | null = null;
 
   if (startsFreshTask) {
     try {
-      taskIssueNumber = await createFreshTaskIssue(repository, githubToken, command, validAttachments);
+      taskIssueNumber = await createFreshTaskIssue(
+        repository,
+        githubToken,
+        command,
+        validAttachments,
+        productionDeployRequested,
+      );
     } catch (error) {
       const detail = error instanceof Error ? error.message : "unknown error";
       return NextResponse.json({ message: `新しいタスクの作成に失敗しました: ${detail}` }, { status: 502 });
@@ -180,9 +200,12 @@ export async function POST(request: Request) {
   }
 
   const attachmentMessage = validAttachments.length ? `添付${validAttachments.length}件をPrivate Blobの期限付きURLで引き渡しました。` : "";
+  const productionMessage = taskAuthorization?.allowProductionDeploy
+    ? "このタスク限定でProduction deployまで明示承認を保持します。"
+    : "";
   const message = reasoningHandoffRequired
     ? taskAuthorization
-      ? `${taskIssueNumber ? `Issue #${taskIssueNumber} を新規タスクとして作成しました。` : ""}${attachmentMessage}指示を受け付けました。Chat reasoningへ引き継ぎ、LOW/MEDIUMの通常main mergeまで事前承認を保持します。`
+      ? `${taskIssueNumber ? `Issue #${taskIssueNumber} を新規タスクとして作成しました。` : ""}${attachmentMessage}指示を受け付けました。Chat reasoningへ引き継ぎ、LOW/MEDIUMの通常main mergeまで事前承認を保持します。${productionMessage}`
       : `${taskIssueNumber ? `Issue #${taskIssueNumber} を新規タスクとして作成しました。` : ""}${attachmentMessage}指示を受け付けました。Chat reasoningへ引き継ぎます。`
     : "確認指示を受け付けました。安全なinspectとして実行します。";
 
@@ -190,6 +213,7 @@ export async function POST(request: Request) {
     message,
     acceptedAt: new Date().toISOString(),
     taskCompletionAuthorized: Boolean(taskAuthorization),
+    productionDeployAuthorized: taskAuthorization?.allowProductionDeploy === true,
     reasoningHandoffRequired,
     freshTaskCreated: Boolean(taskIssueNumber),
     taskIssueNumber,
