@@ -30,10 +30,11 @@ function envelope() {
 
 test("dashboard delegated plan uses the allowlisted Cloudflare free model", async () => {
   let requestUrl = "";
-  let requestBody: Record<string, unknown> | null = null;
+  let requestedModel: unknown = null;
   const fetchImpl: typeof fetch = async (input, init) => {
     requestUrl = String(input);
-    requestBody = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
+    const body = JSON.parse(String(init?.body ?? "{}")) as { model?: unknown };
+    requestedModel = body.model;
     return new Response(JSON.stringify({
       success: true,
       choices: [{
@@ -62,7 +63,7 @@ test("dashboard delegated plan uses the allowlisted Cloudflare free model", asyn
   assert.equal(plan.kind, "propose_pr");
   assert.equal(plan.files?.[0]?.content, "export const value = 2;\n");
   assert.match(requestUrl, /api\.cloudflare\.com\/client\/v4\/accounts\/account-123\/ai\/v1\/chat\/completions/);
-  assert.equal(requestBody?.model, FREE_PLANNER_MODEL);
+  assert.equal(requestedModel, FREE_PLANNER_MODEL);
   assert.equal(FREE_PLANNER_MODEL, "@cf/zai-org/glm-4.7-flash");
 });
 
