@@ -26,7 +26,7 @@ jobs:
       pr_number: ${{ steps.scope.outputs.pr_number }}
       deploy_sha: ${{ steps.scope.outputs.deploy_sha }}
     steps:
-      - name: Verify exact task-scoped Production authorization
+      - name: Verify exact task-scoped completion authorization
         id: scope
         shell: bash
         env:
@@ -78,7 +78,7 @@ jobs:
           const approved = /<!--\s*ai-company-production-deploy:\s*approved\s*-->/i.test(body);
           const expiryMatch = body.match(/<!--\s*ai-company-task-authorization-expires-at:\s*([^>]+?)\s*-->/i);
           if (!scopeMatch || !approved || !expiryMatch) {
-            console.log("PR has no complete task-scoped Production authorization metadata. Production remains blocked.");
+            console.log("PR has no complete task-scoped completion authorization metadata. Production remains blocked.");
             await finish({ authorized: "false", issue_number: "", pr_number: String(pr.number ?? ""), deploy_sha: sha });
             process.exit(0);
           }
@@ -86,24 +86,26 @@ jobs:
           const issueNumber = Number(scopeMatch[1]);
           const expiresAt = Date.parse(expiryMatch[1].trim());
           if (!Number.isInteger(issueNumber) || issueNumber < 1 || !Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
-            console.log("Task-scoped Production authorization is invalid or expired. Production remains blocked.");
+            console.log("Task-scoped completion authorization is invalid or expired. Production remains blocked.");
             await finish({ authorized: "false", issue_number: String(issueNumber || ""), pr_number: String(pr.number ?? ""), deploy_sha: sha });
             process.exit(0);
           }
 
           const issue = await get(`/issues/${issueNumber}`);
           const issueBody = typeof issue?.body === "string" ? issue.body : "";
-          const explicitProduction = /((production|本番)[\s\S]{0,100}(deploy|デプロイ|反映)|(deploy|デプロイ|反映)[\s\S]{0,100}(production|本番))/iu.test(issueBody);
+          const ownerCommandMatch = issueBody.match(/## Owner command\s*\n([\s\S]*?)(?:\n\n##|\n## Execution contract|$)/i);
+          const ownerCommand = ownerCommandMatch?.[1]?.trim() || "";
+          const completionInstruction = /(最後まで.{0,12}(進め|やって|任せ)|完了まで.{0,12}(進め|やって|任せ)|完成.{0,12}(させ|まで|して|させて)|全部.{0,12}(進め|やって|任せ)|任せる|finish\s+(it|this|the\s+task)|take\s+it\s+to\s+completion|handle.{0,20}(through|to)\s+(the\s+)?end)/iu.test(ownerCommand);
           const persistedApproval = /production-deploy-authorized:\s*true/i.test(issueBody);
           const ownerIssued = issue?.user?.login === owner;
 
-          if (!ownerIssued || !persistedApproval || !explicitProduction) {
-            console.log("Issue does not prove explicit owner Production authorization. Production remains blocked.");
+          if (!ownerIssued || !persistedApproval || !completionInstruction) {
+            console.log("Issue does not prove an owner completion instruction for this task. Production remains blocked.");
             await finish({ authorized: "false", issue_number: String(issueNumber), pr_number: String(pr.number ?? ""), deploy_sha: sha });
             process.exit(0);
           }
 
-          console.log(`Production authorization verified for issue #${issueNumber}, PR #${pr.number}, commit ${sha}.`);
+          console.log(`Completion authorization verified for issue #${issueNumber}, PR #${pr.number}, commit ${sha}.`);
           await finish({
             authorized: "true",
             issue_number: String(issueNumber),
@@ -247,7 +249,7 @@ jobs:
             echo "- PR: #${{ needs.authorize.outputs.pr_number }}"
             echo "- Commit: ${{ needs.authorize.outputs.deploy_sha }}"
             echo "- URL: $url"
-            echo "- Authorization: explicit task-scoped owner Production approval"
+            echo "- Authorization: owner completion instruction for this exact task"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Verify deployed Production responds
