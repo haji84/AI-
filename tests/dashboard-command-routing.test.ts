@@ -4,6 +4,7 @@ import {
   createDashboardBoundedPlan,
   dashboardCommandNeedsReasoning,
   dashboardCommandStartsFreshTask,
+  FREE_PLANNER_DELEGATE_REASON,
 } from "../src/orchestrator/dashboard-command-routing.ts";
 import { reasoningHandoffRequiredOutcome } from "../src/orchestrator/autonomy-run-outcome.ts";
 
@@ -17,14 +18,18 @@ test("read-only issue check keeps the bounded inspect path", () => {
   });
 });
 
-test("progress language takes precedence over an earlier check phrase", () => {
+test("progress language delegates to the free planner instead of dropping the plan", () => {
   const command = "Issue #243を確認して、安全に進めて";
   assert.equal(dashboardCommandNeedsReasoning(command), true);
   assert.equal(dashboardCommandStartsFreshTask(command), false);
-  assert.equal(createDashboardBoundedPlan(command), undefined);
+  assert.deepEqual(createDashboardBoundedPlan(command), {
+    kind: "inspect",
+    description: command,
+    reason: FREE_PLANNER_DELEGATE_REASON,
+  });
 });
 
-test("implementation and completion requests are not converted into fake inspect plans", () => {
+test("implementation and completion requests are delegated to the bounded free planner", () => {
   for (const command of [
     "UIを修正して最後まで進めて",
     "Windows向けexe化まで完成させて",
@@ -32,7 +37,11 @@ test("implementation and completion requests are not converted into fake inspect
     "Implement the feature and finish it",
   ]) {
     assert.equal(dashboardCommandNeedsReasoning(command), true, command);
-    assert.equal(createDashboardBoundedPlan(command), undefined, command);
+    assert.deepEqual(createDashboardBoundedPlan(command), {
+      kind: "inspect",
+      description: command,
+      reason: FREE_PLANNER_DELEGATE_REASON,
+    }, command);
   }
 });
 
@@ -48,7 +57,7 @@ test("generic continuation commands keep the existing task scope", () => {
   }
 });
 
-test("reasoning handoff outcome preserves the command as the next bounded reasoning target", () => {
+test("reasoning handoff outcome remains available for non-dashboard sources without a plan", () => {
   const outcome = reasoningHandoffRequiredOutcome("chat", "UIを修正して最後まで進めて");
   assert.equal(outcome.status, "reasoning_handoff_required");
   assert.match(outcome.verificationSummary, /without a fabricated inspect plan/);
