@@ -24,8 +24,24 @@ type CommandStatus = {
   reply: string;
 };
 
+type UploadedAttachment = {
+  name: string;
+  type: string;
+  size: number;
+  pathname: string;
+  readUrl: string;
+  expiresAt: string;
+};
+
 function makeEntry(role: ChatEntry["role"], text: string, meta?: string): ChatEntry {
   return { id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, role, text, meta, createdAt: new Date().toISOString() };
+}
+
+function formatBytes(size: number): string {
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 ** 2) return `${(size / 1024).toFixed(1)} KB`;
+  if (size < 1024 ** 3) return `${(size / 1024 ** 2).toFixed(1)} MB`;
+  return `${(size / 1024 ** 3).toFixed(1)} GB`;
 }
 
 export default function CommandChat({ enabled }: { enabled: boolean }) {
@@ -34,9 +50,11 @@ export default function CommandChat({ enabled }: { enabled: boolean }) {
   const [checking, setChecking] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [history, setHistory] = useState<ChatEntry[]>([]);
+  const [files, setFiles] = useState<File[]>([]);
   const lastFingerprint = useRef<string | null>(null);
   const lastAcceptedAt = useRef<string | null>(null);
   const pollTimer = useRef<number | null>(null);
+  const fileInput = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     try {
@@ -113,24 +131,52 @@ export default function CommandChat({ enabled }: { enabled: boolean }) {
     }, 5000);
   }
 
+  async function uploadAttachments(): Promise<UploadedAttachment[]> {
+    const uploaded: UploadedAttachment[] = [];
+    for (const file of files) {
+      const response = await fetch("/api/attachments/presign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: file.name, type: file.type || "application/octet-stream", size: file.size }),
+      });
+      const body = await response.json().catch(() => ({})) as { uploadUrl?: string; attachment?: UploadedAttachment; message?: string };
+      if (!response.ok || !body.uploadUrl || !body.attachment) {
+        throw new Error(body.message || `${file.name} のアップロード準備に失敗しました`);
+      }
+
+      const uploadResponse = await fetch(body.uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": file.type || "application/octet-stream" },
+        body: file,
+      });
+      if (!uploadResponse.ok) throw new Error(`${file.name} のアップロードに失敗しました`);
+      uploaded.push(body.attachment);
+    }
+    return uploaded;
+  }
+
   async function send(value?: string) {
     const text = (value ?? command).trim();
     if (!text || busy || !enabled) return;
     setBusy(true);
     setMessage(null);
-    append(makeEntry("owner", text));
+    const attachmentMeta = files.length ? `添付: ${files.map((file) => file.name).join(", ")}` : undefined;
+    append(makeEntry("owner", text, attachmentMeta));
     try {
+      const attachments = files.length ? await uploadAttachments() : [];
       const response = await fetch("/api/command", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ command: text }),
+        body: JSON.stringify({ command: text, ...(attachments.length ? { attachments } : {}) }),
       });
       const body = await response.json().catch(() => ({})) as { message?: string; acceptedAt?: string };
       if (!response.ok) throw new Error(body.message || "指示の送信に失敗しました");
       lastAcceptedAt.current = body.acceptedAt ?? new Date().toISOString();
       lastFingerprint.current = null;
-      append(makeEntry("system", body.message || "指示を受け付けました", "処理中。最新状態を自動確認します"));
+      append(makeEntry("system", body.message || "指示を受け付けました", attachments.length ? `${attachments.length}件の添付を安全な一時URLで引き渡しました` : "処理中。最新状態を自動確認します"));
       setCommand("");
+      setFiles([]);
+      if (fileInput.current) fileInput.current.value = "";
       window.setTimeout(() => void fetchStatus(false), 1800);
       startPolling();
     } catch (error) {
@@ -170,30 +216,52 @@ export default function CommandChat({ enabled }: { enabled: boolean }) {
       )}
 
       <form onSubmit={submit}>
+        {files.length > 0 && (
+          <div className="attachment-list" aria-label="添付ファイル">
+            {files.map((file, index) => (
+              <div className="attachment-chip" key={`${file.name}-${file.lastModified}-${index}`}>
+                <span><strong>{file.name}</strong><small>{formatBytes(file.size)}</small></span>
+                <button aria-label={`${file.name}を外す`} disabled={busy} onClick={() => setFiles((current) => current.filter((_, itemIndex) => itemIndex !== index))} type="button">×</button>
+              </div>
+            ))}
+          </div>
+        )}
         <textarea
           aria-label="AI社員への指示"
           disabled={!enabled || busy}
           maxLength={500}
           onChange={(event) => setCommand(event.target.value)}
-          placeholder="例：Issue #78の現在地を確認して、次の安全な作業まで進めて"
+          placeholder="例：この資料を確認して、必要な作業まで進めて"
           rows={3}
           value={command}
         />
+        <input
+          accept="image/*,video/*,text/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.rtf"
+          className="attachment-input"
+          disabled={!enabled || busy}
+          multiple
+          onChange={(event) => setFiles((current) => [...current, ...Array.from(event.target.files ?? [])])}
+          ref={fileInput}
+          type="file"
+        />
         <div className="command-footer">
-          <small>{command.length}/500</small>
+          <div className="command-tools">
+            <button className="button secondary attachment-button" disabled={!enabled || busy} onClick={() => fileInput.current?.click()} type="button">＋ 添付</button>
+            <small>{command.length}/500{files.length ? ` / 添付${files.length}件` : ""}</small>
+          </div>
           <div className="decision-actions">
             <button className="button secondary" disabled={!enabled || checking} onClick={() => void fetchStatus(true)} type="button">
               {checking ? "確認中…" : "最新の実行結果を見る"}
             </button>
             <button className="button command-send" disabled={!enabled || busy || !command.trim()} type="submit">
-              {busy ? "送信中…" : "指示する"}
+              {busy ? (files.length ? "アップロード中…" : "送信中…") : "指示する"}
             </button>
           </div>
         </div>
       </form>
       {!enabled && <p className="inline-note">この端末をオーナー認証するとAI社員へ指示できます。</p>}
       {message && <p className="control-message" role="status">{message}</p>}
-      <p className="command-safety">送信後45秒間は最新状態を自動確認します。HIGH操作は従来どおりHuman Gateで停止します。</p>
+      <p className="command-safety">添付はPrivate Blobへ直接アップロードし、実行側には期限付きURLだけを渡します。HIGH操作は従来どおりHuman Gateで停止します。</p>
     </div>
   );
 }
