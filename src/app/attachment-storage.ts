@@ -77,6 +77,7 @@ export function validateAttachmentDescriptor(value: unknown): AttachmentDescript
   const suppliedType = typeof input.type === "string" ? input.type : "";
   const type = inferAttachmentType(name, suppliedType);
   const size = typeof input.size === "number" ? input.size : Number.NaN;
+  // eslint-disable-next-line no-control-regex -- control characters are intentionally rejected from file names.
   if (!name || name.length > 180 || /[\u0000-\u001f\u007f]/.test(name) || !type || type.length > 160) return null;
   if (!Number.isSafeInteger(size) || size < 1 || size > MAX_ATTACHMENT_SIZE_BYTES) return null;
   if (!isAllowedAttachmentType(type)) return null;
