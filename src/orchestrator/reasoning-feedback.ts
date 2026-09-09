@@ -15,7 +15,7 @@ export interface ReasoningFeedback {
   status: string | null;
   commandSource: CommandIngressSource | null;
   command: string | null;
-  attachments: CommandAttachment[];
+  attachments?: CommandAttachment[];
   blockers: unknown[];
   verificationSummary: string | null;
   nextAction: string | null;
@@ -88,6 +88,7 @@ export function buildReasoningFeedback(input: BuildReasoningFeedbackInput): Reas
     : input.verificationSummary;
   const nextAction = input.nextAction === undefined ? input.state.nextAction : input.nextAction;
   const status = input.status ?? input.state.status;
+  const attachments = input.attachments ?? attachmentsFromFreshCommandEnv();
   const latest = findLatestRecord(input.report);
   const riskDecision = latest?.riskDecision && typeof latest.riskDecision === "object"
     ? latest.riskDecision as RiskDecision
@@ -123,7 +124,7 @@ export function buildReasoningFeedback(input: BuildReasoningFeedbackInput): Reas
     status,
     commandSource: input.commandSource,
     command: input.command,
-    attachments: input.attachments ?? attachmentsFromFreshCommandEnv(),
+    ...(attachments.length ? { attachments } : {}),
     blockers,
     verificationSummary,
     nextAction,
