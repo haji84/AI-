@@ -28,15 +28,15 @@ test("legacy conversation metadata remains readable with a default GitHub bridge
 test("owner message marks the GitHub bridge pending and AI reply clears it", () => {
   const owner = message("owner", "owner-1", "続きを完成させて", "2026-09-10T01:00:00.000Z");
   const pending = evolveMemory(defaultConversationMeta(), owner);
-  assert.equal(pending.githubBridge.pendingOwnerMessageId, "owner-1");
-  assert.equal(pending.githubBridge.pendingAt, owner.createdAt);
+  assert.equal(pending.githubBridge!.pendingOwnerMessageId, "owner-1");
+  assert.equal(pending.githubBridge!.pendingAt, owner.createdAt);
   assert.match(encodeConversationBody(pending), /CHATGPT-GITHUB-BRIDGE: pending/);
 
   const ai = message("ai", "ai-1", "完了しました", "2026-09-10T01:01:00.000Z");
   const synced = evolveMemory(pending, ai);
-  assert.equal(synced.githubBridge.pendingOwnerMessageId, null);
-  assert.equal(synced.githubBridge.pendingAt, null);
-  assert.equal(synced.githubBridge.lastAiMessageId, "ai-1");
-  assert.equal(synced.githubBridge.lastSyncedAt, ai.createdAt);
+  assert.equal(synced.githubBridge!.pendingOwnerMessageId, null);
+  assert.equal(synced.githubBridge!.pendingAt, null);
+  assert.equal(synced.githubBridge!.lastAiMessageId, "ai-1");
+  assert.equal(synced.githubBridge!.lastSyncedAt, ai.createdAt);
   assert.match(encodeConversationBody(synced), /CHATGPT-GITHUB-BRIDGE: synced/);
 });
