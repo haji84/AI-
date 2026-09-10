@@ -1,5 +1,4 @@
 import { timingSafeEqual } from "node:crypto";
-import { NextResponse } from "next/server";
 import { REMOTE_MCP_TOOLS, invokeRemoteMcpTool } from "../../mcp-chat-tools.ts";
 
 export const runtime = "nodejs";
@@ -26,11 +25,17 @@ export function isAuthorizedRemoteMcpRequest(request: Request, secret: string): 
 }
 
 function jsonRpcResult(id: JsonRpcRequest["id"], result: unknown, status = 200) {
-  return NextResponse.json({ jsonrpc: "2.0", id: id ?? null, result }, { status, headers: { "Cache-Control": "no-store", "MCP-Protocol-Version": "2025-11-25" } });
+  return Response.json(
+    { jsonrpc: "2.0", id: id ?? null, result },
+    { status, headers: { "Cache-Control": "no-store", "MCP-Protocol-Version": "2025-11-25" } },
+  );
 }
 
 function jsonRpcError(id: JsonRpcRequest["id"], code: number, message: string, status = 200) {
-  return NextResponse.json({ jsonrpc: "2.0", id: id ?? null, error: { code, message } }, { status, headers: { "Cache-Control": "no-store", "MCP-Protocol-Version": "2025-11-25" } });
+  return Response.json(
+    { jsonrpc: "2.0", id: id ?? null, error: { code, message } },
+    { status, headers: { "Cache-Control": "no-store", "MCP-Protocol-Version": "2025-11-25" } },
+  );
 }
 
 function paramsObject(value: unknown): Record<string, unknown> {
@@ -101,7 +106,7 @@ export async function POST(request: Request) {
 export async function GET(request: Request) {
   const ownerSecret = process.env.AI_COMPANY_OWNER_SECRET?.trim() || "";
   if (!isAuthorizedRemoteMcpRequest(request, ownerSecret)) return new Response("Unauthorized", { status: 401 });
-  return NextResponse.json({
+  return Response.json({
     name: "ai-company-control-center",
     transport: "streamable-http-stateless",
     protocolVersion: "2025-11-25",
