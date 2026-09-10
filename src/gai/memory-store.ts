@@ -42,8 +42,11 @@ function relevance(record: MemoryRecord, query: MemoryQuery): number {
 export class PersistentMemoryStore {
   #records = new Map<string, MemoryRecord>();
   #loaded = false;
+  private readonly filePath: string;
 
-  constructor(private readonly filePath: string) {}
+  constructor(filePath: string) {
+    this.filePath = filePath;
+  }
 
   async load(): Promise<void> {
     try {
