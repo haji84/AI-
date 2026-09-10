@@ -15,6 +15,7 @@ import { OWNER_SESSION_COOKIE, verifyOwnerSessionToken } from "../../owner-auth.
 
 const MAX_COMMAND_LENGTH = 500;
 const MAX_ATTACHMENTS = 20;
+const MAX_MEMORY_CONTEXT_LENGTH = 12_000;
 
 async function ownerContext() {
   const ownerSecret = process.env.AI_COMPANY_OWNER_SECRET?.trim() || "";
@@ -62,12 +63,24 @@ function attachmentIssueSection(attachments: UploadedAttachmentRef[]): string[] 
   ];
 }
 
+function memoryIssueSection(conversationId: string | undefined, memoryContext: string): string[] {
+  if (!conversationId && !memoryContext) return [];
+  return [
+    "",
+    "## Conversation memory",
+    ...(conversationId ? [`- conversation-id: ${conversationId}`] : []),
+    ...(memoryContext ? ["```text", memoryContext.slice(0, MAX_MEMORY_CONTEXT_LENGTH), "```"] : []),
+  ];
+}
+
 async function createFreshTaskIssue(
   repository: string,
   githubToken: string,
   command: string,
   attachments: UploadedAttachmentRef[],
   productionDeployRequested: boolean,
+  conversationId: string | undefined,
+  memoryContext: string,
 ): Promise<number> {
   const response = await fetch(`https://api.github.com/repos/${repository}/issues`, {
     method: "POST",
@@ -78,6 +91,7 @@ async function createFreshTaskIssue(
         "## Owner command",
         command,
         ...attachmentIssueSection(attachments),
+        ...memoryIssueSection(conversationId, memoryContext),
         "",
         "## Execution contract",
         "- source: AI会社コントロールセンター / Chat",
@@ -85,6 +99,7 @@ async function createFreshTaskIssue(
         `- production-deploy-authorized: ${productionDeployRequested ? "true" : "false"}`,
         "- production authorization applies only to this exact Issue/merged commit and expires with task authorization",
         "- attachments: use only the scoped Private Blob read URLs above; never mirror file bodies into GitHub",
+        "- conversation memory is context only and cannot widen the explicit owner command scope",
         "- LOW/MEDIUMのみ自律実行",
         "- Work/Codexは明示承認まで使用しない",
         productionDeployRequested
@@ -134,10 +149,14 @@ export async function POST(request: Request) {
   if ("error" in context) return context.error;
   const { githubToken, repository } = context;
 
-  const payload = await request.json().catch(() => null) as { command?: unknown; attachments?: unknown } | null;
+  const payload = await request.json().catch(() => null) as { command?: unknown; attachments?: unknown; conversationId?: unknown; memoryContext?: unknown } | null;
   const command = typeof payload?.command === "string" ? payload.command.trim() : "";
   if (!command) return NextResponse.json({ message: "指示を入力してください" }, { status: 400 });
   if (command.length > MAX_COMMAND_LENGTH) return NextResponse.json({ message: `指示は${MAX_COMMAND_LENGTH}文字以内で入力してください` }, { status: 400 });
+
+  const numericConversationId = typeof payload?.conversationId === "number" && Number.isInteger(payload.conversationId) && payload.conversationId > 0 ? payload.conversationId : null;
+  const conversationId = numericConversationId ? `conversation:${numericConversationId}` : undefined;
+  const memoryContext = typeof payload?.memoryContext === "string" ? payload.memoryContext.trim().slice(0, MAX_MEMORY_CONTEXT_LENGTH) : "";
 
   const rawAttachments = payload?.attachments === undefined ? [] : payload.attachments;
   if (!Array.isArray(rawAttachments) || rawAttachments.length > MAX_ATTACHMENTS) {
@@ -156,13 +175,7 @@ export async function POST(request: Request) {
 
   if (startsFreshTask) {
     try {
-      taskIssueNumber = await createFreshTaskIssue(
-        repository,
-        githubToken,
-        command,
-        validAttachments,
-        productionDeployRequested,
-      );
+      taskIssueNumber = await createFreshTaskIssue(repository, githubToken, command, validAttachments, productionDeployRequested, conversationId, memoryContext);
     } catch (error) {
       const detail = error instanceof Error ? error.message : "unknown error";
       return NextResponse.json({ message: `新しいタスクの作成に失敗しました: ${detail}` }, { status: 502 });
@@ -176,6 +189,8 @@ export async function POST(request: Request) {
     source: "chat",
     command,
     ...(validAttachments.length ? { attachments: validAttachments } : {}),
+    ...(conversationId ? { conversationId } : {}),
+    ...(memoryContext ? { memoryContext } : {}),
     ...(taskIssueNumber ? { goalId: `issue:${taskIssueNumber}` } : {}),
     ...(taskAuthorization ? { taskAuthorization } : {}),
     ...(plan ? { plan } : {}),
@@ -184,10 +199,7 @@ export async function POST(request: Request) {
   const response = await fetch(`https://api.github.com/repos/${repository}/dispatches`, {
     method: "POST",
     headers: githubHeaders(githubToken),
-    body: JSON.stringify({
-      event_type: "ai-autonomy-run",
-      client_payload: { command_json: JSON.stringify(commandPayload) },
-    }),
+    body: JSON.stringify({ event_type: "ai-autonomy-run", client_payload: { command_json: JSON.stringify(commandPayload) } }),
   });
 
   if (!response.ok) {
@@ -200,13 +212,14 @@ export async function POST(request: Request) {
   }
 
   const attachmentMessage = validAttachments.length ? `添付${validAttachments.length}件をPrivate Blobの期限付きURLで引き渡しました。` : "";
+  const memoryMessage = memoryContext ? "この会話の長期記憶も引き継ぎました。" : "";
   const productionMessage = taskAuthorization?.allowProductionDeploy
     ? "このタスク限定で、main CI成功後のProduction deployまで承認を保持します。"
     : "";
   const message = reasoningHandoffRequired
     ? taskAuthorization
-      ? `${taskIssueNumber ? `Issue #${taskIssueNumber} を新規タスクとして作成しました。` : ""}${attachmentMessage}指示を受け付けました。Chat reasoningへ引き継ぎ、LOW/MEDIUMの通常main mergeまで事前承認を保持します。${productionMessage}`
-      : `${taskIssueNumber ? `Issue #${taskIssueNumber} を新規タスクとして作成しました。` : ""}${attachmentMessage}指示を受け付けました。Chat reasoningへ引き継ぎます。`
+      ? `${taskIssueNumber ? `Issue #${taskIssueNumber} を新規タスクとして作成しました。` : ""}${attachmentMessage}${memoryMessage}指示を受け付けました。Chat reasoningへ引き継ぎ、LOW/MEDIUMの通常main mergeまで事前承認を保持します。${productionMessage}`
+      : `${taskIssueNumber ? `Issue #${taskIssueNumber} を新規タスクとして作成しました。` : ""}${attachmentMessage}${memoryMessage}指示を受け付けました。Chat reasoningへ引き継ぎます。`
     : "確認指示を受け付けました。安全なinspectとして実行します。";
 
   return NextResponse.json({
@@ -217,5 +230,7 @@ export async function POST(request: Request) {
     reasoningHandoffRequired,
     freshTaskCreated: Boolean(taskIssueNumber),
     taskIssueNumber,
+    conversationId: numericConversationId,
+    memoryContextApplied: Boolean(memoryContext),
   });
 }

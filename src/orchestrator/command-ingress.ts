@@ -12,6 +12,7 @@ export interface UnifiedCommandEnvelope {
   command: string;
   goalId?: string;
   conversationId?: string;
+  memoryContext?: string;
   goalDraft?: GoalDraft;
   plan?: ModelPlan;
   taskAuthorization?: TaskCompletionAuthorization;
@@ -22,12 +23,14 @@ export interface NormalizedCommand {
   command: string;
   goalId?: string;
   conversationId?: string;
+  memoryContext?: string;
   goalDraft?: GoalDraft;
   plan?: ModelPlan;
   taskAuthorization?: TaskCompletionAuthorization;
 }
 
 const SOURCES: readonly CommandIngressSource[] = ["chat", "work", "codex"];
+const MAX_MEMORY_CONTEXT_LENGTH = 12_000;
 
 export function normalizeCommandEnvelope(value: unknown): NormalizedCommand {
   if (!value || typeof value !== "object") throw new Error("Chat/Work/Codex command envelope is missing or invalid");
@@ -38,11 +41,13 @@ export function normalizeCommandEnvelope(value: unknown): NormalizedCommand {
   if (typeof envelope.command !== "string" || !envelope.command.trim()) {
     throw new Error("Chat/Work/Codex command must be a non-empty string");
   }
+  const memoryContext = typeof envelope.memoryContext === "string" ? envelope.memoryContext.trim().slice(0, MAX_MEMORY_CONTEXT_LENGTH) : undefined;
   return {
     source: envelope.source as CommandIngressSource,
     command: envelope.command.trim(),
     goalId: envelope.goalId?.trim() || undefined,
     conversationId: envelope.conversationId?.trim() || undefined,
+    ...(memoryContext ? { memoryContext } : {}),
     ...(envelope.goalDraft === undefined ? {} : { goalDraft: normalizeGoalDraft(envelope.goalDraft) }),
     plan: envelope.plan,
     ...(envelope.taskAuthorization === undefined

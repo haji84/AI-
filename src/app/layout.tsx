@@ -3,6 +3,7 @@ import ControlCenterViewSwitcher from "./ControlCenterViewSwitcher.tsx";
 import "./globals.css";
 import "./view-switcher.css";
 import "./attachment-chat.css";
+import "./chat-memory.css";
 
 export const metadata: Metadata = {
   title: "Unified AI Creator Studio",
