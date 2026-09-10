@@ -3,15 +3,15 @@
 PROJECT: Unified AI Creator Studio / GAI Research OS
 AI_COMPANY_VERSION: 1.0
 PROJECT_VERSION: 0.0.0
-CURRENT_PHASE: Phase G3 planner integration and transferable skill library on top of existing Phase 3 product baseline
-STATUS: GAI_G3_PLANNER_SKILL_IMPLEMENTATION
+CURRENT_PHASE: Phase G4 benchmark and outcome closed learning loop on top of existing Phase 3 product baseline
+STATUS: GAI_G4_CLOSED_LOOP_IMPLEMENTATION
 LAST_UPDATED: 2026-09-10
 CURRENT_EPIC: General autonomous intelligence research OS
-ACTIVE_ISSUES: #304
-OPEN_PRS: G3 planner/skills pending validation
+ACTIVE_ISSUES: #307
+OPEN_PRS: G4 closed loop pending validation
 BLOCKERS: none
 PRIORITY_OVERRIDE: GAI research and autonomous execution foundation take precedence over deferred image generation/editing until owner resumes Phase 3 product work
-LAST_SUCCESSFUL_CI: G2 world model PR #305 CI run #368 succeeded and merged on 2026-09-10
+LAST_SUCCESSFUL_CI: G3 planner/skills PR #306 CI run #370 succeeded and merged on 2026-09-10
 COMPASS_MCP: v1 merged and real-machine interoperability verified PASS
 COMPASS_HANDOFF: standard AI employee handoff protocol merged via PR #64
 AI_EMPLOYEE_COMMAND_INGRESS: dashboard chat source=chat E2E PASS
@@ -23,11 +23,12 @@ GAI_MODEL_POLICY: replaceable multi-model router; Astra tier for frontier/resear
 GAI_MEMORY_MODEL: working + episodic + semantic + procedural
 GAI_MEMORY_G1: merged via PR #300; file-backed versioned persistence, provenance, confidence, task-relevance retrieval, working-set replacement, and verified learning promotion implemented
 GAI_WORLD_MODEL_G2: merged via PR #305; persistent prediction/observation events, confidence-sensitive prediction error, context retrieval, repeated-evidence calibration, and verified handoff into G1 memory implemented
-GAI_PLANNER_G3: current branch integrates semantic/procedural memory, world-model evidence, and transferable skills into next-action selection; skill confidence is updated from outcomes and repeatedly weak skills are demoted
+GAI_PLANNER_G3: merged via PR #306; semantic/procedural memory, world-model evidence, and transferable skills inform next-action selection; weak skills are automatically demoted from repeated outcomes
+GAI_CLOSED_LOOP_G4: current branch records verified per-task benchmark history, measures second-attempt improvement, writes train-split outcomes into world model and memory, updates selected skill statistics, and prevents held-out/unverified/human-rejected outcomes from contaminating learning
 GAI_INITIAL_KPI: >=100 unknown-task cases; >=80% success; <10% human interventions/task; second-attempt improvement; positive held-out self-improvement; explicit transfer measurement; zero incremental pay-as-you-go AI API cost
 GAI_SELF_IMPROVEMENT_POLICY: candidate changes must be sandboxed and accepted only on held-out measured improvement with no safety/cost regression
 GAI_CROSS_DEVICE_TARGET: iPhone + Android + macOS + Windows via existing web/dashboard control surface with workstation-hosted local capabilities where required
-GAI_NEXT_PHASE: Phase G4 benchmark harness integration and closed-loop outcome write-back after G3 is validated
+GAI_NEXT_PHASE: Phase G5 model execution adapters and usage governance tracked by Issue #308
 PHASE_2_TECHNICAL_ACCEPTANCE: PASS
 PHASE_2_ACCEPTANCE_RECORD: docs/architecture/0009-phase-2-acceptance.md
 PHASE_2_FORMAL_COMPLETION: COMPLETE
@@ -39,7 +40,7 @@ PHASE_3_RUNTIME_SELECTION: ComfyUI + Qwen-Image-Edit merged via PR #75
 PHASE_3_RUNTIME_API_PATH: merged via PR #77; upload, workflow injection, prompt submission, history polling, and output download implemented
 PHASE_3_REAL_MACHINE_SMOKE: deferred; Issue #78 remains open for later workstation execution
 PHASE_3_PRIORITY: deferred by owner on 2026-09-08 until autonomy/GAI foundation is sufficiently complete
-NEXT_PRIORITY: Validate and merge Issue #304 G3 planner integration and transferable skill library, then implement G4 benchmark/outcome closed loop
+NEXT_PRIORITY: Validate and merge Issue #307 G4 closed learning loop, then implement Issue #308 G5 model execution adapters and usage governance
 HUMAN_APPROVAL_PENDING: none for current LOW/MEDIUM implementation work; production, secrets, permissions, billing, destructive, governance-weakening, security-weakening, and publication gates remain in force
 AUTO_FIX_ATTEMPTS_MAX: 3
 MAX_ACTIVE_AGENTS: 3
