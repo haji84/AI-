@@ -9,11 +9,17 @@ export default defineConfig([
     files: ["scripts/**/*.mjs"],
     languageOptions: {
       globals: {
+        AbortSignal: "readonly",
+        clearTimeout: "readonly",
         console: "readonly",
         fetch: "readonly",
         process: "readonly",
         setTimeout: "readonly",
+        WebSocket: "readonly",
       },
+    },
+    rules: {
+      "no-empty": ["error", { allowEmptyCatch: true }],
     },
   },
   globalIgnores([".next/**", "next-env.d.ts"]),
