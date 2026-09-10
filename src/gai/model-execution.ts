@@ -34,7 +34,11 @@ export interface UsageRecord {
 }
 
 export class FileUsageLedger {
-  constructor(private readonly path: string) {}
+  private readonly path: string;
+
+  constructor(path: string) {
+    this.path = path;
+  }
 
   async list(): Promise<UsageRecord[]> {
     try {
@@ -58,8 +62,10 @@ export class FileUsageLedger {
 
 export class GovernedModelExecutor {
   private readonly adapters = new Map<ModelTier, ModelExecutionAdapter>();
+  private readonly ledger: FileUsageLedger;
 
-  constructor(adapters: ModelExecutionAdapter[], private readonly ledger: FileUsageLedger) {
+  constructor(adapters: ModelExecutionAdapter[], ledger: FileUsageLedger) {
+    this.ledger = ledger;
     for (const adapter of adapters) this.adapters.set(adapter.tier, adapter);
   }
 
