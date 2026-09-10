@@ -17,7 +17,7 @@ export type ConversationMeta = {
   pinned: boolean;
   project: string | null;
   memory: ChatMemory;
-  githubBridge: ChatGithubBridgeState;
+  githubBridge?: ChatGithubBridgeState;
 };
 
 export type PersistedChatMessage = {
@@ -36,6 +36,10 @@ const ENTRY_END = "\n-->";
 
 function defaultGithubBridge(): ChatGithubBridgeState {
   return { pendingOwnerMessageId: null, pendingAt: null, lastAiMessageId: null, lastSyncedAt: null };
+}
+
+function normalizedGithubBridge(meta: ConversationMeta): ChatGithubBridgeState {
+  return meta.githubBridge ?? defaultGithubBridge();
 }
 
 export function defaultConversationMeta(): ConversationMeta {
@@ -64,7 +68,7 @@ export function evolveMemory(meta: ConversationMeta, message: PersistedChatMessa
   for (const ref of refs) memory.references = bounded(memory.references, ref, 24);
   for (const attachment of message.attachments ?? []) memory.references = bounded(memory.references, `file:${attachment.name}`, 24);
 
-  let githubBridge = { ...meta.githubBridge };
+  let githubBridge = { ...normalizedGithubBridge(meta) };
   if (message.role === "owner") {
     githubBridge = { ...githubBridge, pendingOwnerMessageId: message.id, pendingAt: message.createdAt };
   } else if (message.role === "ai") {
@@ -80,9 +84,11 @@ export function evolveMemory(meta: ConversationMeta, message: PersistedChatMessa
 }
 
 export function encodeConversationBody(meta: ConversationMeta): string {
-  const bridgeStatus = meta.githubBridge.pendingOwnerMessageId ? "pending" : "synced";
-  const pendingId = meta.githubBridge.pendingOwnerMessageId ?? "none";
-  return `${META_START}${JSON.stringify(meta)}${META_END}\n\nAI会社コントロールセンターの長期会話記憶。本文のJSONはUI/APIから管理します。\n\nCHATGPT-GITHUB-BRIDGE: ${bridgeStatus}\npending-owner-message-id: ${pendingId}`;
+  const githubBridge = normalizedGithubBridge(meta);
+  const normalized = { ...meta, githubBridge };
+  const bridgeStatus = githubBridge.pendingOwnerMessageId ? "pending" : "synced";
+  const pendingId = githubBridge.pendingOwnerMessageId ?? "none";
+  return `${META_START}${JSON.stringify(normalized)}${META_END}\n\nAI会社コントロールセンターの長期会話記憶。本文のJSONはUI/APIから管理します。\n\nCHATGPT-GITHUB-BRIDGE: ${bridgeStatus}\npending-owner-message-id: ${pendingId}`;
 }
 
 export function decodeConversationBody(body: string | null | undefined): ConversationMeta {
@@ -94,7 +100,7 @@ export function decodeConversationBody(body: string | null | undefined): Convers
   try {
     const value = JSON.parse(body.slice(start + META_START.length, end)) as Partial<ConversationMeta>;
     const base = defaultConversationMeta();
-    const bridge = value.githubBridge && typeof value.githubBridge === "object" ? value.githubBridge : base.githubBridge;
+    const bridge = value.githubBridge && typeof value.githubBridge === "object" ? value.githubBridge : defaultGithubBridge();
     return {
       version: 1,
       pinned: value.pinned === true,
