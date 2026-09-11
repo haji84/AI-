@@ -46,7 +46,7 @@ test("continual-learning metrics expose transfer and forgetting", () => {
   assert.equal(report.commonTasks, 2);
   assert.ok(report.forgetting > 0);
   assert.equal(report.regressedTasks[0], "a");
-  assert.equal(forwardTransfer(0.4, 0.6), 0.19999999999999996);
+  assert.ok(Math.abs(forwardTransfer(0.4, 0.6) - 0.2) < 1e-12);
 });
 
 test("curriculum guard blocks heldout leakage and duplicates", () => {
