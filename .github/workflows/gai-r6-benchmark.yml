@@ -1,0 +1,66 @@
+name: GAI R6 Benchmark v1.1
+
+on:
+  workflow_run:
+    workflows: ["GAI R1 Evidence Rerun"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gai-r6-benchmark
+  cancel-in-progress: true
+
+jobs:
+  r6-zbook:
+    name: R6 real Benchmark v1.1 on ZBook
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 180
+    env:
+      GAI_WORKER_ID: zbook
+      GAI_LOCAL_MODEL_ENDPOINT: http://127.0.0.1:11434
+      GAI_LOCAL_MODEL_NAME: qwen3:4b
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Ensure Ollama and qwen3:4b are reachable
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          function Test-Ollama {
+            try { Invoke-RestMethod -Uri "$($env:GAI_LOCAL_MODEL_ENDPOINT)/api/tags" -TimeoutSec 5 | Out-Null; return $true } catch { return $false }
+          }
+          if (-not (Test-Ollama)) {
+            $ollama = Get-Command ollama -ErrorAction SilentlyContinue
+            if ($ollama) { $exe = $ollama.Source } else { $exe = Join-Path $env:LOCALAPPDATA 'Programs\Ollama\ollama.exe' }
+            if (-not (Test-Path $exe)) { throw 'Ollama executable not found on ZBook' }
+            Start-Process -FilePath $exe -ArgumentList 'serve' -WindowStyle Hidden
+            $ready = $false
+            for ($i = 0; $i -lt 30; $i++) { Start-Sleep -Seconds 2; if (Test-Ollama) { $ready = $true; break } }
+            if (-not $ready) { throw 'Ollama API did not become reachable' }
+          }
+          $tags = Invoke-RestMethod -Uri "$($env:GAI_LOCAL_MODEL_ENDPOINT)/api/tags" -TimeoutSec 10
+          $names = @($tags.models | ForEach-Object { if ($_.name) { $_.name } elseif ($_.model) { $_.model } })
+          if (-not ($names | Where-Object { $_ -eq $env:GAI_LOCAL_MODEL_NAME -or $_ -like "$($env:GAI_LOCAL_MODEL_NAME):*" })) { throw "Required model $($env:GAI_LOCAL_MODEL_NAME) is not installed" }
+
+      - name: Execute real R6 Benchmark Suite v1.1
+        shell: powershell
+        run: node scripts/gai-baseline-v11.mjs --real
+
+      - name: Derive verified R6 evidence
+        shell: powershell
+        run: node scripts/gai-r6-evidence.ts
+
+      - name: Upload complete R6 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gai-baseline-zbook
+          path: .gai-results/
+          include-hidden-files: true
+          retention-days: 90

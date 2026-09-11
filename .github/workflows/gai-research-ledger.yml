@@ -2,7 +2,7 @@ name: GAI Research Evidence Ledger
 
 on:
   workflow_run:
-    workflows: ["GAI Multi-Worker Research", "GAI R1 Evidence Rerun"]
+    workflows: ["GAI Multi-Worker Research", "GAI R1 Evidence Rerun", "GAI R6 Benchmark v1.1"]
     types: [completed]
 
 permissions:
