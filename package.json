@@ -24,7 +24,8 @@
     "autonomy:cloud": "node scripts/autonomy-cloud-run.ts",
     "research:worker:preflight": "node scripts/research-worker-preflight.ts",
     "research:worker:require-real": "node scripts/research-worker-preflight.ts --require-real",
-    "research:program:status": "node scripts/research-program-status.ts"
+    "research:program:status": "node scripts/research-program-status.ts",
+    "research:campaign:plan": "node scripts/research-campaign-plan.ts"
   },
   "dependencies": {
     "next": "16.3.2",
