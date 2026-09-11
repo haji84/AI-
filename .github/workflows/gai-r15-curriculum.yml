@@ -44,7 +44,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           run-id: ${{ steps.r1.outputs.run_id }}
       - name: Generate failure-driven heldout-safe curriculum
-        run: node scripts/gai-r15-curriculum.ts
+        run: node scripts/gai-r15-curriculum.mjs
       - name: Upload complete R15 evidence
         uses: actions/upload-artifact@v4
         with:
