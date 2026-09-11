@@ -6,6 +6,7 @@ import { MultiWorkerRuntime, createFunctionWorker } from "../src/gai/worker-runt
 const task = {
   id: "task-1",
   title: "cross-platform task",
+  description: "Verify deterministic multi-worker selection across Windows and macOS workers.",
   difficulty: 6,
   risk: "LOW" as const,
   requiresFrontierReasoning: false,
