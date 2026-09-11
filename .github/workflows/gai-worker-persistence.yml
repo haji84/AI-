@@ -1,0 +1,67 @@
+name: GAI Worker Persistence
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/gai-worker-persistence.yml'
+      - 'scripts/gai-zbook-watchdog.ps1'
+      - 'scripts/install-zbook-persistence.ps1'
+      - 'scripts/gai-macbook-watchdog.sh'
+      - 'scripts/install-macbook-persistence.sh'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gai-worker-persistence
+  cancel-in-progress: false
+
+jobs:
+  zbook-persistence:
+    name: Install ZBook persistent worker
+    runs-on: [self-hosted, zbook]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install logon auto-start and watchdog
+        shell: powershell
+        run: |
+          .\scripts\install-zbook-persistence.ps1 -RunnerRoot 'C:\actions-runner' -OllamaEndpoint 'http://127.0.0.1:11434'
+      - name: Capture ZBook persistence evidence
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path .gai-results | Out-Null
+          Copy-Item "$env:LOCALAPPDATA\GAIWorker\zbook-persistence.json" .gai-results\ -Force
+          Copy-Item "$env:LOCALAPPDATA\GAIWorker\zbook-watchdog-status.json" .gai-results\ -Force
+      - name: Upload ZBook persistence evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: gai-zbook-persistence
+          path: .gai-results/
+          retention-days: 30
+
+  macbook-persistence:
+    name: Install MacBook persistent worker
+    runs-on: [self-hosted, macbook]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install launchd watchdog
+        shell: bash
+        run: |
+          chmod +x scripts/gai-macbook-watchdog.sh scripts/install-macbook-persistence.sh
+          GAI_RUNNER_ROOT="$HOME/actions-runner" GAI_LOCAL_MODEL_ENDPOINT='http://127.0.0.1:11434' ./scripts/install-macbook-persistence.sh
+      - name: Capture MacBook persistence evidence
+        shell: bash
+        run: |
+          mkdir -p .gai-results
+          cp "$HOME/Library/Application Support/GAIWorker/macbook-persistence.json" .gai-results/
+          cp "$HOME/Library/Application Support/GAIWorker/macbook-watchdog-status.json" .gai-results/
+      - name: Upload MacBook persistence evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: gai-macbook-persistence
+          path: .gai-results/
+          retention-days: 30
