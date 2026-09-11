@@ -24,7 +24,9 @@
     "autonomy:cloud": "node scripts/autonomy-cloud-run.ts",
     "research:worker:preflight": "node scripts/research-worker-preflight.ts",
     "research:worker:require-real": "node scripts/research-worker-preflight.ts --require-real",
-    "research:program:status": "node scripts/research-program-status.ts"
+    "research:program:status": "node scripts/research-program-status.ts",
+    "research:r6:dry-run": "node scripts/gai-baseline-v11.mjs",
+    "research:r6:baseline": "node scripts/gai-baseline-v11.mjs --real --resume"
   },
   "dependencies": {
     "next": "16.3.2",
