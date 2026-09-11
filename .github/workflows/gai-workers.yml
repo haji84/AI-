@@ -1,0 +1,112 @@
+name: GAI Multi-Worker Research
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/gai-workers.yml'
+      - 'scripts/gai-baseline.mjs'
+      - 'benchmarks/internal/v1/manifest.json'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: smoke or baseline
+        required: true
+        default: smoke
+        type: choice
+        options: [smoke, baseline]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gai-multi-worker-research
+  cancel-in-progress: false
+
+jobs:
+  zbook-smoke:
+    name: ZBook worker smoke
+    runs-on: [self-hosted, zbook]
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Record ZBook runtime
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path .gai-results | Out-Null
+          $info = [ordered]@{
+            workerId = 'zbook'
+            runnerName = $env:RUNNER_NAME
+            os = $env:RUNNER_OS
+            arch = $env:RUNNER_ARCH
+            machine = $env:COMPUTERNAME
+            node = (node --version)
+            timestamp = (Get-Date).ToUniversalTime().ToString('o')
+            realSelfHosted = $true
+          }
+          $info | ConvertTo-Json | Set-Content -Encoding UTF8 .gai-results/zbook-smoke.json
+          Get-Content .gai-results/zbook-smoke.json
+      - name: Upload ZBook smoke evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: gai-zbook-smoke
+          path: .gai-results/zbook-smoke.json
+          retention-days: 14
+
+  macbook-smoke:
+    name: MacBook worker smoke
+    runs-on: [self-hosted, macbook]
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Record MacBook runtime
+        shell: bash
+        run: |
+          mkdir -p .gai-results
+          node - <<'NODE' > .gai-results/macbook-smoke.json
+          const os = require('node:os');
+          console.log(JSON.stringify({
+            workerId: 'macbook',
+            runnerName: process.env.RUNNER_NAME,
+            os: process.env.RUNNER_OS,
+            arch: process.env.RUNNER_ARCH,
+            machine: os.hostname(),
+            node: process.version,
+            timestamp: new Date().toISOString(),
+            realSelfHosted: true
+          }, null, 2));
+          NODE
+          cat .gai-results/macbook-smoke.json
+      - name: Upload MacBook smoke evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: gai-macbook-smoke
+          path: .gai-results/macbook-smoke.json
+          retention-days: 14
+
+  baseline-zbook:
+    name: Real local-model baseline on ZBook
+    if: github.event_name == 'workflow_dispatch' && inputs.mode == 'baseline'
+    needs: [zbook-smoke, macbook-smoke]
+    runs-on: [self-hosted, zbook]
+    timeout-minutes: 120
+    env:
+      GAI_WORKER_ID: zbook
+      GAI_LOCAL_MODEL_ENDPOINT: http://127.0.0.1:11434
+      GAI_LOCAL_MODEL_NAME: ${{ vars.GAI_LOCAL_MODEL_NAME }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require configured zero-cost local model
+        shell: pwsh
+        run: |
+          if (-not $env:GAI_LOCAL_MODEL_NAME) { throw 'Repository variable GAI_LOCAL_MODEL_NAME is required for a real baseline.' }
+      - name: Execute frozen real baseline
+        shell: pwsh
+        run: node scripts/gai-baseline.mjs --real --resume
+      - name: Upload verified baseline
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gai-baseline-zbook
+          path: .gai-results/
+          retention-days: 30
