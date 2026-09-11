@@ -31,7 +31,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Record ZBook runtime
-        shell: pwsh
+        shell: powershell
         run: |
           New-Item -ItemType Directory -Force -Path .gai-results | Out-Null
           $info = [ordered]@{
@@ -97,11 +97,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Require configured zero-cost local model
-        shell: pwsh
+        shell: powershell
         run: |
           if (-not $env:GAI_LOCAL_MODEL_NAME) { throw 'Repository variable GAI_LOCAL_MODEL_NAME is required for a real baseline.' }
       - name: Execute frozen real baseline
-        shell: pwsh
+        shell: powershell
         run: node scripts/gai-baseline.mjs --real --resume
       - name: Upload verified baseline
         if: always()
