@@ -1,0 +1,20 @@
+{
+  "suiteId": "gai-internal-v1",
+  "version": 1,
+  "frozenAt": "2026-09-11",
+  "description": "Frozen internal evaluation suite for real multi-worker baseline runs. Held-out cases must never be used for learning or promotion.",
+  "cases": [
+    {"id":"reasoning-001","category":"reasoning","split":"train","difficulty":3,"risk":"LOW","prompt":"Given 17, 23, 41, and 59, return the two numbers whose sum is 82.","expected":"23,59"},
+    {"id":"reasoning-002","category":"reasoning","split":"heldout","difficulty":4,"risk":"LOW","prompt":"A process has stages A->B->C. B may retry once. If A takes 2 minutes, B takes 3 minutes per attempt and retries once, and C takes 5 minutes, what is total time?","expected":"13"},
+    {"id":"verification-001","category":"verification","split":"train","difficulty":3,"risk":"LOW","prompt":"Verify whether the claim '15% of 240 is 36' is correct. Return only PASS or FAIL.","expected":"PASS"},
+    {"id":"verification-002","category":"verification","split":"heldout","difficulty":4,"risk":"LOW","prompt":"Verify whether JSON {\"a\":1,\"b\":[2,3]} is syntactically valid JSON. Return only PASS or FAIL.","expected":"PASS"},
+    {"id":"planning-001","category":"planning","split":"train","difficulty":5,"risk":"LOW","prompt":"Return an ordered three-step plan to safely deploy a change: test, review, deploy. Use exactly those three words separated by >.","expected":"test>review>deploy"},
+    {"id":"planning-002","category":"planning","split":"heldout","difficulty":5,"risk":"LOW","prompt":"Return an ordered recovery sequence using exactly: detect, isolate, restore, verify. Separate with >.","expected":"detect>isolate>restore>verify"},
+    {"id":"memory-001","category":"memory","split":"train","difficulty":4,"risk":"LOW","prompt":"Remember token K7M2. Return only the token.","expected":"K7M2"},
+    {"id":"memory-002","category":"memory","split":"heldout","difficulty":4,"risk":"LOW","prompt":"Remember phrase cobalt-fern-27. Return only the phrase.","expected":"cobalt-fern-27"},
+    {"id":"transfer-001","category":"transfer","split":"train","difficulty":5,"risk":"LOW","prompt":"Rule: transform ABC-123 to 123-ABC. Apply to XYZ-908.","expected":"908-XYZ","transferGroup":"reverse-parts"},
+    {"id":"transfer-002","category":"transfer","split":"heldout","difficulty":5,"risk":"LOW","prompt":"Rule: transform RED:BLUE to BLUE:RED. Apply to NORTH:SOUTH.","expected":"SOUTH:NORTH","transferGroup":"reverse-parts"},
+    {"id":"coding-001","category":"coding","split":"train","difficulty":5,"risk":"LOW","prompt":"Return a JavaScript expression that evaluates to the sum of array arr using reduce. No explanation.","expectedContains":"arr.reduce"},
+    {"id":"coding-002","category":"coding","split":"heldout","difficulty":6,"risk":"LOW","prompt":"Return a TypeScript type annotation for an array of strings named names. No explanation.","expectedContains":"string[]"}
+  ]
+}
