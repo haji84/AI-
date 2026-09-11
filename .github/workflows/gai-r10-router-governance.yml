@@ -1,0 +1,36 @@
+name: GAI R10 Router Governance
+
+on:
+  workflow_run:
+    workflows: ["GAI R9 Calibration"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: gai-r10-router-governance
+  cancel-in-progress: true
+
+jobs:
+  r10-policy:
+    name: R10 router fallback and zero-payg governance
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Execute deterministic router governance campaign
+        run: node scripts/gai-r10-router-governance.ts
+      - name: Upload complete R10 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gai-baseline-zbook
+          path: .gai-results/
+          include-hidden-files: true
+          retention-days: 90
