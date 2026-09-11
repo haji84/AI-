@@ -9,6 +9,9 @@ import {
   encodeChatComment,
   encodeConversationBody,
   evolveMemory,
+  mergePendingOwnerFallback,
+  withPendingOwnerFallback,
+  type ConversationMeta,
   type PersistedChatMessage,
 } from "../../chat-memory.ts";
 import { OWNER_SESSION_COOKIE, verifyOwnerSessionToken } from "../../owner-auth.ts";
@@ -31,17 +34,24 @@ function headers(token: string) {
   return { Accept: "application/vnd.github+json", Authorization: `Bearer ${token}`, "X-GitHub-Api-Version": "2022-11-28", "Content-Type": "application/json" };
 }
 
+async function githubError(response: Response, fallback: string): Promise<string> {
+  const payload = await response.clone().json().catch(() => null) as { message?: string } | null;
+  return `${fallback} (GitHub ${response.status}${payload?.message ? `: ${payload.message}` : ""})`;
+}
+
 async function readConversation(repository: string, token: string, id: number) {
   const [issueResponse, commentsResponse] = await Promise.all([
     fetch(`https://api.github.com/repos/${repository}/issues/${id}`, { headers: headers(token), cache: "no-store" }),
     fetch(`https://api.github.com/repos/${repository}/issues/${id}/comments?per_page=100`, { headers: headers(token), cache: "no-store" }),
   ]);
-  if (!issueResponse.ok || !commentsResponse.ok) throw new Error("会話の取得に失敗しました");
+  if (!issueResponse.ok) throw new Error(await githubError(issueResponse, "会話Issueの取得に失敗しました"));
+  if (!commentsResponse.ok) throw new Error(await githubError(commentsResponse, "会話コメントの取得に失敗しました"));
   const issue = await issueResponse.json() as { number: number; title: string; body?: string | null; created_at: string; updated_at: string };
   if (!issue.title.startsWith(CHAT_PREFIX)) throw new Error("指定された会話はAI Chat会話ではありません");
   const comments = await commentsResponse.json() as Array<{ body?: string | null }>;
-  const messages = comments.map((comment) => decodeChatComment(comment.body)).filter((value): value is PersistedChatMessage => value !== null);
+  const commentMessages = comments.map((comment) => decodeChatComment(comment.body)).filter((value): value is PersistedChatMessage => value !== null);
   const meta = decodeConversationBody(issue.body);
+  const messages = mergePendingOwnerFallback(meta, commentMessages);
   return {
     id: issue.number,
     title: issue.title.slice(CHAT_PREFIX.length),
@@ -50,6 +60,7 @@ async function readConversation(repository: string, token: string, id: number) {
     pinned: meta.pinned,
     project: meta.project,
     memory: meta.memory,
+    githubBridge: meta.githubBridge,
     memoryContext: buildMemoryContext(meta, messages),
     messages,
   };
@@ -63,7 +74,7 @@ export async function GET(request: Request) {
   try {
     if (Number.isInteger(id) && id > 0) return NextResponse.json(await readConversation(context.repository, context.githubToken, id), { headers: { "Cache-Control": "no-store" } });
     const response = await fetch(`https://api.github.com/repos/${context.repository}/issues?state=all&sort=updated&direction=desc&per_page=100`, { headers: headers(context.githubToken), cache: "no-store" });
-    if (!response.ok) throw new Error("会話一覧の取得に失敗しました");
+    if (!response.ok) throw new Error(await githubError(response, "会話一覧の取得に失敗しました"));
     const issues = await response.json() as Array<{ number: number; title: string; body?: string | null; created_at: string; updated_at: string; pull_request?: unknown }>;
     const items = issues.filter((issue) => !issue.pull_request && issue.title.startsWith(CHAT_PREFIX)).map((issue) => {
       const meta = decodeConversationBody(issue.body);
@@ -90,7 +101,7 @@ export async function POST(request: Request) {
         method: "POST", headers: headers(context.githubToken), body: JSON.stringify({ title: `${CHAT_PREFIX}${title}`, body: encodeConversationBody(meta) }),
       });
       const issue = await response.json().catch(() => null) as { number?: number; message?: string } | null;
-      if (!response.ok || !issue?.number) throw new Error(issue?.message || "会話の作成に失敗しました");
+      if (!response.ok || !issue?.number) throw new Error(issue?.message || await githubError(response, "会話の作成に失敗しました"));
       return NextResponse.json({ id: issue.number, title, pinned: false, project, messages: [], memory: meta.memory, memoryContext: "" });
     }
 
@@ -107,16 +118,30 @@ export async function POST(request: Request) {
         return { name: String(value.name ?? "file").slice(0, 180), type: String(value.type ?? "application/octet-stream").slice(0, 160), size: Number(value.size ?? 0), pathname: typeof value.pathname === "string" ? value.pathname.slice(0, 300) : undefined };
       }) : undefined;
       const message: PersistedChatMessage = { id: randomUUID(), role: role as PersistedChatMessage["role"], text: text.slice(0, 8000), meta: typeof payload?.meta === "string" ? payload.meta.slice(0, 1000) : undefined, createdAt: new Date().toISOString(), attachments };
+      const currentMeta: ConversationMeta = { version: 1, pinned: conversation.pinned, project: conversation.project, memory: conversation.memory, githubBridge: conversation.githubBridge };
       const comment = await fetch(`https://api.github.com/repos/${context.repository}/issues/${id}/comments`, { method: "POST", headers: headers(context.githubToken), body: JSON.stringify({ body: encodeChatComment(message) }) });
-      if (!comment.ok) throw new Error("会話の保存に失敗しました");
-      const currentMeta = { version: 1 as const, pinned: conversation.pinned, project: conversation.project, memory: conversation.memory };
-      const nextMeta = evolveMemory(currentMeta, message);
-      await fetch(`https://api.github.com/repos/${context.repository}/issues/${id}`, { method: "PATCH", headers: headers(context.githubToken), body: JSON.stringify({ body: encodeConversationBody(nextMeta) }) });
-      return NextResponse.json({ message, memory: nextMeta.memory, memoryContext: buildMemoryContext(nextMeta, [...conversation.messages, message]) });
+
+      let nextMeta: ConversationMeta;
+      let storage: "comment" | "issue_body_fallback" = "comment";
+      let persistenceWarning: string | undefined;
+      if (comment.ok) {
+        nextMeta = evolveMemory(currentMeta, message);
+      } else if (message.role === "owner") {
+        nextMeta = withPendingOwnerFallback(currentMeta, message);
+        storage = "issue_body_fallback";
+        persistenceWarning = await githubError(comment, "Issue Comment保存に失敗したためIssue本文fallbackへ切替");
+      } else {
+        throw new Error(await githubError(comment, "会話の保存に失敗しました"));
+      }
+
+      const patch = await fetch(`https://api.github.com/repos/${context.repository}/issues/${id}`, { method: "PATCH", headers: headers(context.githubToken), body: JSON.stringify({ body: encodeConversationBody(nextMeta) }) });
+      if (!patch.ok) throw new Error(await githubError(patch, "会話状態の保存に失敗しました"));
+      const nextMessages = mergePendingOwnerFallback(nextMeta, [...conversation.messages, ...(storage === "comment" ? [message] : [])]);
+      return NextResponse.json({ message, memory: nextMeta.memory, memoryContext: buildMemoryContext(nextMeta, nextMessages), storage, persistenceWarning });
     }
 
     if (["toggle_pin", "set_project", "rename"].includes(action)) {
-      const meta = { version: 1 as const, pinned: conversation.pinned, project: conversation.project, memory: conversation.memory };
+      const meta: ConversationMeta = { version: 1, pinned: conversation.pinned, project: conversation.project, memory: conversation.memory, githubBridge: conversation.githubBridge };
       if (action === "toggle_pin") meta.pinned = !meta.pinned;
       if (action === "set_project") meta.project = typeof payload?.project === "string" && payload.project.trim() ? payload.project.trim().slice(0, 80) : null;
       const patch: Record<string, unknown> = { body: encodeConversationBody(meta) };
@@ -126,7 +151,7 @@ export async function POST(request: Request) {
         patch.title = `${CHAT_PREFIX}${title}`;
       }
       const response = await fetch(`https://api.github.com/repos/${context.repository}/issues/${id}`, { method: "PATCH", headers: headers(context.githubToken), body: JSON.stringify(patch) });
-      if (!response.ok) throw new Error("会話設定の保存に失敗しました");
+      if (!response.ok) throw new Error(await githubError(response, "会話設定の保存に失敗しました"));
       return NextResponse.json({ ok: true, pinned: meta.pinned, project: meta.project });
     }
 
