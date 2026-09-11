@@ -16,7 +16,7 @@ permissions:
 
 concurrency:
   group: gai-worker-persistence
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   zbook-persistence:
