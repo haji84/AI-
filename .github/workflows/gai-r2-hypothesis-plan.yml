@@ -1,0 +1,49 @@
+name: GAI R2 Hypothesis Plan
+
+on:
+  workflow_run:
+    workflows: ["GAI R1 Evidence Rerun"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: gai-r2-hypothesis-plan
+  cancel-in-progress: true
+
+jobs:
+  plan-r2:
+    name: Derive R2 hypothesis campaign from verified R1 failures
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Download verified R1 evidence
+        if: github.event_name == 'workflow_run'
+        uses: actions/download-artifact@v4
+        with:
+          name: gai-baseline-zbook
+          path: .gai-results
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
+      - name: Require R1 evidence for manual run
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        run: |
+          echo 'Manual R2 planning requires an R1 evidence artifact from a completed real run; use the automatic workflow_run path.'
+          exit 2
+      - name: Derive bounded R2 hypothesis plan
+        run: node scripts/gai-r2-hypothesis-plan.ts
+      - name: Upload R2 hypothesis plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: gai-r2-hypothesis-plan
+          path: .gai-results/r2-hypothesis-plan.json
+          include-hidden-files: true
+          retention-days: 90
