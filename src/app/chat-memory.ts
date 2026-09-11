@@ -5,11 +5,21 @@ export type ChatMemory = {
   references: string[];
 };
 
+export type PersistedChatMessage = {
+  id: string;
+  role: "owner" | "ai" | "system";
+  text: string;
+  meta?: string;
+  createdAt: string;
+  attachments?: Array<{ name: string; type: string; size: number; pathname?: string }>;
+};
+
 export type ChatGithubBridgeState = {
   pendingOwnerMessageId: string | null;
   pendingAt: string | null;
   lastAiMessageId: string | null;
   lastSyncedAt: string | null;
+  pendingOwnerPayload?: PersistedChatMessage | null;
 };
 
 export type ConversationMeta = {
@@ -20,26 +30,17 @@ export type ConversationMeta = {
   githubBridge?: ChatGithubBridgeState;
 };
 
-export type PersistedChatMessage = {
-  id: string;
-  role: "owner" | "ai" | "system";
-  text: string;
-  meta?: string;
-  createdAt: string;
-  attachments?: Array<{ name: string; type: string; size: number; pathname?: string }>;
-};
-
 const META_START = "<!-- ai-chat-conversation:v1\n";
 const META_END = "\n-->";
 const ENTRY_START = "<!-- ai-chat-entry:v1\n";
 const ENTRY_END = "\n-->";
 
 function defaultGithubBridge(): ChatGithubBridgeState {
-  return { pendingOwnerMessageId: null, pendingAt: null, lastAiMessageId: null, lastSyncedAt: null };
+  return { pendingOwnerMessageId: null, pendingAt: null, lastAiMessageId: null, lastSyncedAt: null, pendingOwnerPayload: null };
 }
 
 function normalizedGithubBridge(meta: ConversationMeta): ChatGithubBridgeState {
-  return meta.githubBridge ?? defaultGithubBridge();
+  return { ...defaultGithubBridge(), ...(meta.githubBridge ?? {}) };
 }
 
 export function defaultConversationMeta(): ConversationMeta {
@@ -77,10 +78,30 @@ export function evolveMemory(meta: ConversationMeta, message: PersistedChatMessa
       pendingAt: null,
       lastAiMessageId: message.id,
       lastSyncedAt: message.createdAt,
+      pendingOwnerPayload: null,
     };
   }
 
   return { ...meta, memory, githubBridge };
+}
+
+export function withPendingOwnerFallback(meta: ConversationMeta, message: PersistedChatMessage): ConversationMeta {
+  const next = evolveMemory(meta, message);
+  return {
+    ...next,
+    githubBridge: {
+      ...normalizedGithubBridge(next),
+      pendingOwnerPayload: message.role === "owner" ? message : null,
+    },
+  };
+}
+
+export function mergePendingOwnerFallback(meta: ConversationMeta, messages: PersistedChatMessage[]): PersistedChatMessage[] {
+  const bridge = normalizedGithubBridge(meta);
+  const fallback = bridge.pendingOwnerPayload;
+  if (!fallback || fallback.role !== "owner" || !fallback.id || !fallback.text || !fallback.createdAt) return messages;
+  if (messages.some((message) => message.id === fallback.id)) return messages;
+  return [...messages, fallback].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 }
 
 export function encodeConversationBody(meta: ConversationMeta): string {
@@ -101,6 +122,13 @@ export function decodeConversationBody(body: string | null | undefined): Convers
     const value = JSON.parse(body.slice(start + META_START.length, end)) as Partial<ConversationMeta>;
     const base = defaultConversationMeta();
     const bridge = value.githubBridge && typeof value.githubBridge === "object" ? value.githubBridge : defaultGithubBridge();
+    const pendingOwnerPayload = bridge.pendingOwnerPayload && typeof bridge.pendingOwnerPayload === "object"
+      && bridge.pendingOwnerPayload.role === "owner"
+      && typeof bridge.pendingOwnerPayload.id === "string"
+      && typeof bridge.pendingOwnerPayload.text === "string"
+      && typeof bridge.pendingOwnerPayload.createdAt === "string"
+      ? bridge.pendingOwnerPayload
+      : null;
     return {
       version: 1,
       pinned: value.pinned === true,
@@ -116,6 +144,7 @@ export function decodeConversationBody(body: string | null | undefined): Convers
         pendingAt: typeof bridge.pendingAt === "string" ? bridge.pendingAt : null,
         lastAiMessageId: typeof bridge.lastAiMessageId === "string" ? bridge.lastAiMessageId : null,
         lastSyncedAt: typeof bridge.lastSyncedAt === "string" ? bridge.lastSyncedAt : null,
+        pendingOwnerPayload,
       },
     };
   } catch {
