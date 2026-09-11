@@ -202,7 +202,28 @@ export async function POST(request: Request) {
     body: JSON.stringify({ event_type: "ai-autonomy-run", client_payload: { command_json: JSON.stringify(commandPayload) } }),
   });
 
+  const attachmentMessage = validAttachments.length ? `添付${validAttachments.length}件をPrivate Blobの期限付きURLで引き渡しました。` : "";
+  const memoryMessage = memoryContext ? "この会話の長期記憶も引き継ぎました。" : "";
+  const productionMessage = taskAuthorization?.allowProductionDeploy
+    ? "このタスク限定で、main CI成功後のProduction deployまで承認を保持します。"
+    : "";
+
   if (!response.ok) {
+    if (numericConversationId) {
+      return NextResponse.json({
+        message: `${taskIssueNumber ? `Issue #${taskIssueNumber} は作成済みです。` : ""}ChatGPT共有ブリッジへの会話保存を優先して受け付けました。GitHub自律実行dispatchは権限不足のため保留です (${response.status})。`,
+        acceptedAt: new Date().toISOString(),
+        taskCompletionAuthorized: Boolean(taskAuthorization),
+        productionDeployAuthorized: taskAuthorization?.allowProductionDeploy === true,
+        reasoningHandoffRequired: true,
+        freshTaskCreated: Boolean(taskIssueNumber),
+        taskIssueNumber,
+        conversationId: numericConversationId,
+        memoryContextApplied: Boolean(memoryContext),
+        dispatchAccepted: false,
+        dispatchWarning: `GitHub repository_dispatch failed (${response.status})`,
+      });
+    }
     return NextResponse.json({
       message: taskIssueNumber
         ? `Issue #${taskIssueNumber} は作成しましたが、GitHubへの実行指示送信に失敗しました (${response.status})`
@@ -211,11 +232,6 @@ export async function POST(request: Request) {
     }, { status: 502 });
   }
 
-  const attachmentMessage = validAttachments.length ? `添付${validAttachments.length}件をPrivate Blobの期限付きURLで引き渡しました。` : "";
-  const memoryMessage = memoryContext ? "この会話の長期記憶も引き継ぎました。" : "";
-  const productionMessage = taskAuthorization?.allowProductionDeploy
-    ? "このタスク限定で、main CI成功後のProduction deployまで承認を保持します。"
-    : "";
   const message = reasoningHandoffRequired
     ? taskAuthorization
       ? `${taskIssueNumber ? `Issue #${taskIssueNumber} を新規タスクとして作成しました。` : ""}${attachmentMessage}${memoryMessage}指示を受け付けました。Chat reasoningへ引き継ぎ、LOW/MEDIUMの通常main mergeまで事前承認を保持します。${productionMessage}`
@@ -232,5 +248,6 @@ export async function POST(request: Request) {
     taskIssueNumber,
     conversationId: numericConversationId,
     memoryContextApplied: Boolean(memoryContext),
+    dispatchAccepted: true,
   });
 }

@@ -39,6 +39,27 @@ async function githubError(response: Response, fallback: string): Promise<string
   return `${fallback} (GitHub ${response.status}${payload?.message ? `: ${payload.message}` : ""})`;
 }
 
+async function createPendingContinuation(
+  repository: string,
+  token: string,
+  conversation: { id: number; title: string },
+  meta: ConversationMeta,
+): Promise<number> {
+  const response = await fetch(`https://api.github.com/repos/${repository}/issues`, {
+    method: "POST",
+    headers: headers(token),
+    body: JSON.stringify({
+      title: `${CHAT_PREFIX}${conversation.title}`.slice(0, 120),
+      body: `${encodeConversationBody(meta)}\n\ncontinuation-of: #${conversation.id}`,
+    }),
+  });
+  const issue = await response.json().catch(() => null) as { number?: number; message?: string } | null;
+  if (!response.ok || !issue?.number) {
+    throw new Error(issue?.message || await githubError(response, "pending継続会話の作成に失敗しました"));
+  }
+  return issue.number;
+}
+
 async function readConversation(repository: string, token: string, id: number) {
   const [issueResponse, commentsResponse] = await Promise.all([
     fetch(`https://api.github.com/repos/${repository}/issues/${id}`, { headers: headers(token), cache: "no-store" }),
@@ -122,7 +143,7 @@ export async function POST(request: Request) {
       const comment = await fetch(`https://api.github.com/repos/${context.repository}/issues/${id}/comments`, { method: "POST", headers: headers(context.githubToken), body: JSON.stringify({ body: encodeChatComment(message) }) });
 
       let nextMeta: ConversationMeta;
-      let storage: "comment" | "issue_body_fallback" = "comment";
+      let storage: "comment" | "issue_body_fallback" | "continuation_issue_fallback" | "best_effort_comment" | "skipped" = "comment";
       let persistenceWarning: string | undefined;
       if (comment.ok) {
         nextMeta = evolveMemory(currentMeta, message);
@@ -131,13 +152,30 @@ export async function POST(request: Request) {
         storage = "issue_body_fallback";
         persistenceWarning = await githubError(comment, "Issue Comment保存に失敗したためIssue本文fallbackへ切替");
       } else {
-        throw new Error(await githubError(comment, "会話の保存に失敗しました"));
+        return NextResponse.json({ message, memory: currentMeta.memory, memoryContext: buildMemoryContext(currentMeta, conversation.messages), storage: "skipped", persistenceWarning: await githubError(comment, "補助メッセージ保存をスキップ") });
       }
 
       const patch = await fetch(`https://api.github.com/repos/${context.repository}/issues/${id}`, { method: "PATCH", headers: headers(context.githubToken), body: JSON.stringify({ body: encodeConversationBody(nextMeta) }) });
-      if (!patch.ok) throw new Error(await githubError(patch, "会話状態の保存に失敗しました"));
+      if (!patch.ok) {
+        const patchWarning = await githubError(patch, "会話状態PATCHに失敗");
+        if (message.role === "owner") {
+          const fallbackMeta = withPendingOwnerFallback(currentMeta, message);
+          const continuationId = await createPendingContinuation(context.repository, context.githubToken, conversation, fallbackMeta);
+          const nextMessages = mergePendingOwnerFallback(fallbackMeta, conversation.messages);
+          return NextResponse.json({
+            message,
+            conversationId: continuationId,
+            memory: fallbackMeta.memory,
+            memoryContext: buildMemoryContext(fallbackMeta, nextMessages),
+            storage: "continuation_issue_fallback",
+            persistenceWarning: [persistenceWarning, patchWarning].filter(Boolean).join(" / "),
+          });
+        }
+        const bestEffortMessages = comment.ok ? [...conversation.messages, message] : conversation.messages;
+        return NextResponse.json({ message, memory: currentMeta.memory, memoryContext: buildMemoryContext(currentMeta, bestEffortMessages), storage: comment.ok ? "best_effort_comment" : "skipped", persistenceWarning: patchWarning });
+      }
       const nextMessages = mergePendingOwnerFallback(nextMeta, [...conversation.messages, ...(storage === "comment" ? [message] : [])]);
-      return NextResponse.json({ message, memory: nextMeta.memory, memoryContext: buildMemoryContext(nextMeta, nextMessages), storage, persistenceWarning });
+      return NextResponse.json({ message, conversationId: id, memory: nextMeta.memory, memoryContext: buildMemoryContext(nextMeta, nextMessages), storage, persistenceWarning });
     }
 
     if (["toggle_pin", "set_project", "rename"].includes(action)) {
