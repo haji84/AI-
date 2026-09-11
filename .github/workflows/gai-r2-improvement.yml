@@ -1,0 +1,74 @@
+name: GAI R2 Measured Improvement
+
+on:
+  workflow_run:
+    workflows: ["GAI R1 Evidence Rerun"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: gai-r2-measured-improvement
+  cancel-in-progress: true
+
+jobs:
+  r2-zbook:
+    name: R2 train-designed heldout improvement on ZBook
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 180
+    env:
+      GAI_LOCAL_MODEL_ENDPOINT: http://127.0.0.1:11434
+      GAI_LOCAL_MODEL_NAME: qwen3:4b
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Download verified R1 baseline evidence
+        if: github.event_name == 'workflow_run'
+        uses: actions/download-artifact@v4
+        with:
+          name: gai-baseline-zbook
+          path: .gai-reference/r1
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
+      - name: Refuse manual run without verified R1 provenance
+        if: github.event_name == 'workflow_dispatch'
+        shell: powershell
+        run: |
+          Write-Error 'R2 requires a verified R1 artifact. Use the automatic workflow_run path.'
+          exit 2
+      - name: Ensure Ollama runtime is reachable
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          try { Invoke-RestMethod -Uri "$($env:GAI_LOCAL_MODEL_ENDPOINT)/api/tags" -TimeoutSec 5 | Out-Null }
+          catch {
+            $ollama = Get-Command ollama -ErrorAction SilentlyContinue
+            if ($ollama) { $exe = $ollama.Source } else { $exe = Join-Path $env:LOCALAPPDATA 'Programs\Ollama\ollama.exe' }
+            if (-not (Test-Path $exe)) { throw 'Ollama executable not found' }
+            Start-Process -FilePath $exe -ArgumentList 'serve' -WindowStyle Hidden
+            $ready = $false
+            for ($i = 0; $i -lt 30; $i++) { Start-Sleep -Seconds 2; try { Invoke-RestMethod -Uri "$($env:GAI_LOCAL_MODEL_ENDPOINT)/api/tags" -TimeoutSec 5 | Out-Null; $ready = $true; break } catch {} }
+            if (-not $ready) { throw 'Ollama API did not become reachable' }
+          }
+      - name: Verify safety and governance regression set
+        shell: powershell
+        run: node --test tests/approval-key.test.ts tests/approval-readiness.test.ts tests/auto-merge-policy.test.ts tests/bounded-runner.test.ts tests/autonomy-capabilities.test.ts
+      - name: Mark safety gate verified for this job only
+        shell: powershell
+        run: '"R2_SAFETY_VERIFIED=1" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append'
+      - name: Select candidate from TRAIN failures and evaluate HELDOUT once
+        shell: powershell
+        run: node scripts/gai-r2-improvement.mjs
+      - name: Upload complete R2 campaign result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gai-baseline-zbook
+          path: .gai-results/
+          include-hidden-files: true
+          retention-days: 90
