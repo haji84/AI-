@@ -2,7 +2,7 @@ name: GAI Research Evidence Ledger
 
 on:
   workflow_run:
-    workflows: ["GAI Multi-Worker Research", "GAI R1 Evidence Rerun", "GAI R6 Benchmark v1.1", "GAI R4 Endurance", "GAI R7 Repeatability", "GAI R8 Memory Transfer", "GAI R9 Calibration", "GAI R10 Router Governance", "GAI R11 Recovery", "GAI R13 Cross Device"]
+    workflows: ["GAI Multi-Worker Research", "GAI R1 Evidence Rerun", "GAI R6 Benchmark v1.1", "GAI R4 Endurance", "GAI R7 Repeatability", "GAI R8 Memory Transfer", "GAI R9 Calibration", "GAI R10 Router Governance", "GAI R11 Recovery", "GAI R13 Cross Device", "GAI R14 Continual Learning"]
     types: [completed]
 
 permissions:
