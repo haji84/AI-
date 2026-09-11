@@ -1,0 +1,54 @@
+name: GAI R15 Adversarial Curriculum
+
+on:
+  workflow_run:
+    workflows: ["GAI R14 Continual Learning"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: gai-r15-adversarial-curriculum
+  cancel-in-progress: true
+
+jobs:
+  r15-curriculum:
+    name: R15 failure-driven curriculum with heldout firewall
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Resolve latest successful verified R1 run
+        id: r1
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          run_id="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/workflows/gai-r1-evidence-rerun.yml/runs?status=success&per_page=1" --jq '.workflow_runs[0].id // empty')"
+          if [ -z "$run_id" ]; then
+            echo 'No successful verified R1 run exists; refusing R15 curriculum generation.' >&2
+            exit 2
+          fi
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+      - name: Download verified R1 failure evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: gai-baseline-zbook
+          path: .gai-reference/r1
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ steps.r1.outputs.run_id }}
+      - name: Generate failure-driven heldout-safe curriculum
+        run: node scripts/gai-r15-curriculum.ts
+      - name: Upload complete R15 evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: gai-baseline-zbook
+          path: .gai-results/
+          include-hidden-files: true
+          retention-days: 90
