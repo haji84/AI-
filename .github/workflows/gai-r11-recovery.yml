@@ -1,0 +1,38 @@
+name: GAI R11 Recovery
+
+on:
+  workflow_run:
+    workflows: ["GAI R10 Router Governance"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: gai-r11-recovery
+  cancel-in-progress: true
+
+jobs:
+  r11-recovery:
+    name: R11 checkpoint resume and verified-prefix recovery
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Execute recovery phase 1 and write checkpoint
+        run: node scripts/gai-r11-recovery.ts --phase=1
+      - name: Execute recovery phase 2 in a new process
+        run: node scripts/gai-r11-recovery.ts --phase=2
+      - name: Upload complete R11 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gai-baseline-zbook
+          path: .gai-results/
+          include-hidden-files: true
+          retention-days: 90
