@@ -180,7 +180,7 @@ jobs:
           $installedModels = @($tags.models | ForEach-Object { if ($_.name) { $_.name } elseif ($_.model) { $_.model } }) | Where-Object { $_ }
           $target = $env:GAI_PREFERRED_MODEL_NAME
           if (-not $target) { $target = $env:GAI_BOOTSTRAP_MODEL_NAME }
-          $hasTarget = $installedModels | Where-Object { $_ -eq $target -or $_ -like "$target:*" } | Select-Object -First 1
+          $hasTarget = $installedModels | Where-Object { $_ -eq $target -or $_ -like "${target}:*" } | Select-Object -First 1
           if (-not $hasTarget) {
             Write-Host "Pulling zero-cost local model $target"
             & $ollamaExe pull $target
