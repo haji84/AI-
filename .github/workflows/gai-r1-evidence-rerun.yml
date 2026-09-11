@@ -1,0 +1,95 @@
+name: GAI R1 Evidence Rerun
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/gai-r1-evidence-rerun.yml'
+      - 'scripts/gai-r1-evidence.ts'
+      - 'scripts/gai-r1-safety-evidence.ts'
+      - 'scripts/research-program-status.ts'
+      - 'src/gai/research-ops-program.ts'
+      - 'benchmarks/internal/v1/suite.mjs'
+      - 'scripts/gai-baseline.mjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gai-r1-evidence-rerun
+  cancel-in-progress: true
+
+jobs:
+  r1-zbook:
+    name: R1 real baseline + verified evidence on ZBook
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 180
+    env:
+      GAI_WORKER_ID: zbook
+      GAI_LOCAL_MODEL_ENDPOINT: http://127.0.0.1:11434
+      GAI_LOCAL_MODEL_NAME: qwen3:4b
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ensure Ollama is reachable
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          try {
+            Invoke-RestMethod -Uri "$($env:GAI_LOCAL_MODEL_ENDPOINT)/api/tags" -TimeoutSec 5 | Out-Null
+          } catch {
+            $ollama = Get-Command ollama -ErrorAction SilentlyContinue
+            if (-not $ollama) {
+              $candidate = Join-Path $env:LOCALAPPDATA 'Programs\Ollama\ollama.exe'
+              if (-not (Test-Path $candidate)) { throw 'Ollama is not installed on ZBook.' }
+              $ollamaExe = $candidate
+            } else {
+              $ollamaExe = $ollama.Source
+            }
+            Start-Process -FilePath $ollamaExe -ArgumentList 'serve' -WindowStyle Hidden
+            $ready = $false
+            for ($i = 0; $i -lt 30; $i++) {
+              Start-Sleep -Seconds 2
+              try {
+                Invoke-RestMethod -Uri "$($env:GAI_LOCAL_MODEL_ENDPOINT)/api/tags" -TimeoutSec 5 | Out-Null
+                $ready = $true
+                break
+              } catch {}
+            }
+            if (-not $ready) { throw 'Ollama API did not become reachable.' }
+          }
+          $tags = Invoke-RestMethod -Uri "$($env:GAI_LOCAL_MODEL_ENDPOINT)/api/tags" -TimeoutSec 10
+          $names = @($tags.models | ForEach-Object { if ($_.name) { $_.name } elseif ($_.model) { $_.model } })
+          if (-not ($names | Where-Object { $_ -eq $env:GAI_LOCAL_MODEL_NAME -or $_ -like "$($env:GAI_LOCAL_MODEL_NAME):*" })) {
+            throw "Required local model $($env:GAI_LOCAL_MODEL_NAME) is not installed."
+          }
+
+      - name: Execute frozen R1 real baseline
+        shell: powershell
+        run: node scripts/gai-baseline.mjs --real
+
+      - name: Derive R1 failure taxonomy and AGI-gap evidence
+        shell: powershell
+        run: node scripts/gai-r1-evidence.ts
+
+      - name: Verify safety and governance regression set
+        shell: powershell
+        run: node --test tests/approval-key.test.ts tests/approval-readiness.test.ts tests/auto-merge-policy.test.ts tests/bounded-runner.test.ts tests/autonomy-capabilities.test.ts
+
+      - name: Record verified R1 safety evidence
+        shell: powershell
+        run: node scripts/gai-r1-safety-evidence.ts
+
+      - name: Compute R1-R20 program status
+        shell: powershell
+        run: node scripts/research-program-status.ts --evidence=.gai-results/research-evidence.json --require-evidence | Out-File -Encoding utf8 .gai-results/research-program-status.json
+
+      - name: Upload complete R1 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gai-baseline-zbook
+          path: .gai-results/
+          include-hidden-files: true
+          retention-days: 90

@@ -40,6 +40,7 @@ jobs:
         with:
           name: gai-zbook-persistence
           path: .gai-results/
+          include-hidden-files: true
           retention-days: 30
 
   macbook-persistence:
@@ -64,4 +65,5 @@ jobs:
         with:
           name: gai-macbook-persistence
           path: .gai-results/
+          include-hidden-files: true
           retention-days: 30
