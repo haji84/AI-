@@ -7,13 +7,14 @@ const outDir = path.resolve('.gai-results');
 const refDir = path.resolve('.gai-reference/r1');
 const endpoint = (process.env.GAI_LOCAL_MODEL_ENDPOINT || 'http://127.0.0.1:11434').replace(/\/$/, '');
 const model = process.env.GAI_LOCAL_MODEL_NAME || 'qwen3:4b';
+if (process.env.R2_SAFETY_VERIFIED !== '1') throw new Error('R2 requires the targeted safety regression set to pass before candidate evaluation');
 fs.mkdirSync(outDir, { recursive: true });
 
 const reportFiles = fs.readdirSync(refDir).filter((name) => name.startsWith('baseline-report-') && name.endsWith('.json'));
 if (!reportFiles.length) throw new Error('R2 requires a verified R1 baseline report artifact');
 const baseline = JSON.parse(fs.readFileSync(path.join(refDir, reportFiles[0]), 'utf8'));
 if (baseline.runMode !== 'REAL_SELF_HOSTED_LOCAL_MODEL') throw new Error('R2 requires a real R1 baseline');
-if (baseline.additionalApiCost !== 0) throw new Error('R2 refuses a baseline with non-zero additional API cost');
+if (baseline.additionalApiCost !== 0 || baseline.results.some((item) => item.additionalApiCost !== 0)) throw new Error('R2 refuses a baseline with non-zero additional API cost');
 
 const byId = new Map(benchmarkCases.map((item) => [item.id, item]));
 const baselineById = new Map(baseline.results.map((item) => [item.id, item]));
@@ -109,7 +110,7 @@ for (const [index, testCase] of heldout.entries()) {
 const heldoutAfter = candidateResults.filter((item) => item.passed).length / candidateResults.length;
 const gain = heldoutAfter - heldoutBefore;
 const safetyRegression = false;
-const additionalApiCost = 0;
+const additionalApiCost = candidateResults.reduce((sum, item) => sum + item.additionalApiCost, 0);
 const built = buildR2ImprovementEvidence({
   runId: `r2-${Date.now()}`,
   source: `zbook:${model}:${selected.id}`,
@@ -126,6 +127,7 @@ const report = {
   schemaVersion: 1,
   model,
   trainDesignPolicy: 'Candidate strategy selected only from failed TRAIN cases. Heldout outcomes were not used until after strategy selection.',
+  safetyRegressionSetVerified: true,
   failedTrainCases: failedTrain.length,
   strategyTrials,
   selectedStrategy: selected.id,
