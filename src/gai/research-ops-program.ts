@@ -7,6 +7,7 @@ export type ResearchStageId =
 export type EvidenceKind =
   | "internal-baseline"
   | "heldout-evaluation"
+  | "failure-taxonomy"
   | "external-benchmark"
   | "long-horizon"
   | "memory-transfer"
@@ -61,18 +62,10 @@ const stage = (
   objective: string,
   exitCriteria: string[],
   externalValidationRequired = false,
-): ResearchStageDefinition => ({
-  id,
-  title,
-  dependencies,
-  requiredEvidence,
-  objective,
-  exitCriteria,
-  externalValidationRequired,
-});
+): ResearchStageDefinition => ({ id, title, dependencies, requiredEvidence, objective, exitCriteria, externalValidationRequired });
 
 export const RESEARCH_STAGES: readonly ResearchStageDefinition[] = [
-  stage("R1", "Benchmark Suite v1 and real baseline", [], ["internal-baseline", "heldout-evaluation", "safety-regression", "cost-regression"], "Establish the first reproducible real-model baseline.", [">=100 real cases", "train/heldout isolation", "failure taxonomy", "AGI-gap snapshot", "additional pay-as-you-go API cost = 0"]),
+  stage("R1", "Benchmark Suite v1 and real baseline", [], ["internal-baseline", "heldout-evaluation", "failure-taxonomy", "agi-gap-review", "safety-regression", "cost-regression"], "Establish the first reproducible real-model baseline.", [">=100 real cases", "train/heldout isolation", "failure taxonomy", "AGI-gap snapshot", "additional pay-as-you-go API cost = 0"]),
   stage("R2", "Evidence-driven iterative improvement", ["R1"], ["heldout-evaluation", "research-loop", "safety-regression", "cost-regression"], "Improve measured capability without training on heldout outcomes.", ["candidate changes evaluated on heldout", "positive accepted gain", "no safety regression", "no cost regression"]),
   stage("R3", "Real external benchmark campaign", ["R1"], ["external-benchmark", "reproducibility"], "Measure capability on real external benchmarks.", ["real harness execution", "version/model/runtime provenance", "no inferred external scores"], true),
   stage("R4", "Long-horizon autonomous endurance", ["R1"], ["long-horizon", "safety-regression"], "Measure multi-step autonomy, recovery and memory continuity.", [">=20-step tasks", "restart/resume", "tool-failure recovery", "human intervention accounting"]),
@@ -102,29 +95,14 @@ export function getResearchStage(id: ResearchStageId): ResearchStageDefinition {
   return found;
 }
 
-export function assessResearchStage(
-  id: ResearchStageId,
-  completedStages: ReadonlySet<ResearchStageId>,
-  evidence: readonly ResearchEvidence[],
-): ResearchStageAssessment {
+export function assessResearchStage(id: ResearchStageId, completedStages: ReadonlySet<ResearchStageId>, evidence: readonly ResearchEvidence[]): ResearchStageAssessment {
   const definition = getResearchStage(id);
   const missingDependencies = definition.dependencies.filter((dep) => !completedStages.has(dep));
   const verifiedForStage = evidence.filter((item) => item.stage === id && item.verified);
   const verifiedKinds = new Set(verifiedForStage.map((item) => item.kind));
   const missingEvidence = definition.requiredEvidence.filter((kind) => !verifiedKinds.has(kind));
-  const status = missingDependencies.length > 0
-    ? "blocked"
-    : missingEvidence.length > 0
-      ? "ready"
-      : "complete";
-
-  return {
-    stage: id,
-    status,
-    missingDependencies,
-    missingEvidence,
-    verifiedEvidenceIds: verifiedForStage.map((item) => item.id),
-  };
+  const status = missingDependencies.length > 0 ? "blocked" : missingEvidence.length > 0 ? "ready" : "complete";
+  return { stage: id, status, missingDependencies, missingEvidence, verifiedEvidenceIds: verifiedForStage.map((item) => item.id) };
 }
 
 export function assessResearchProgram(evidence: readonly ResearchEvidence[]): ResearchStageAssessment[] {
@@ -139,9 +117,7 @@ export function assessResearchProgram(evidence: readonly ResearchEvidence[]): Re
 }
 
 export function nextExecutableResearchStages(evidence: readonly ResearchEvidence[]): ResearchStageId[] {
-  return assessResearchProgram(evidence)
-    .filter((item) => item.status === "ready")
-    .map((item) => item.stage);
+  return assessResearchProgram(evidence).filter((item) => item.status === "ready").map((item) => item.stage);
 }
 
 export interface AgiClaimGateInput {
@@ -151,10 +127,7 @@ export interface AgiClaimGateInput {
   additionalPaygApiCost: number;
 }
 
-export interface AgiClaimGateDecision {
-  allowed: boolean;
-  reasons: string[];
-}
+export interface AgiClaimGateDecision { allowed: boolean; reasons: string[]; }
 
 export function evaluateAgiClaimGate(input: AgiClaimGateInput): AgiClaimGateDecision {
   const reasons: string[] = [];
