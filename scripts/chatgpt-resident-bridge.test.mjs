@@ -9,10 +9,11 @@ import {
   evolveMemoryForAi,
   findExistingAiReplyAfterPending,
   isPendingConversationIssue,
+  mergePendingOwnerFallback,
   selectPendingOwnerMessage,
 } from "./chatgpt-resident-bridge-lib.mjs";
 
-function meta(pendingOwnerMessageId = "owner-1") {
+function meta(pendingOwnerMessageId = "owner-1", pendingOwnerPayload = null) {
   return {
     version: 1,
     pinned: false,
@@ -23,6 +24,7 @@ function meta(pendingOwnerMessageId = "owner-1") {
       pendingAt: pendingOwnerMessageId ? "2026-09-10T00:00:00.000Z" : null,
       lastAiMessageId: null,
       lastSyncedAt: null,
+      pendingOwnerPayload,
     },
   };
 }
@@ -41,14 +43,24 @@ test("pending owner message is selected by exact message id", () => {
   assert.equal(selectPendingOwnerMessage(meta("missing"), [owner]), null);
 });
 
+test("issue-body fallback is consumed when comment persistence is unavailable", () => {
+  const fallbackMeta = meta(owner.id, owner);
+  assert.deepEqual(mergePendingOwnerFallback(fallbackMeta, []), [owner]);
+  assert.deepEqual(selectPendingOwnerMessage(fallbackMeta, []), owner);
+  assert.deepEqual(mergePendingOwnerFallback(fallbackMeta, [owner]), [owner]);
+  const prompt = buildBridgePrompt({ issueNumber: 375, meta: fallbackMeta, messages: [], pending: owner });
+  assert.match(prompt, /この方法で進めて/);
+});
+
 test("existing AI reply after pending is recognized for crash reconciliation", () => {
   assert.deepEqual(findExistingAiReplyAfterPending(meta(), [owner, ai]), ai);
   assert.equal(findExistingAiReplyAfterPending(meta(), [ai, owner]), null);
 });
 
-test("AI write-back clears pending and keeps canonical encoding readable", () => {
-  const next = evolveMemoryForAi(meta(), ai);
+test("AI write-back clears pending fallback and keeps canonical encoding readable", () => {
+  const next = evolveMemoryForAi(meta(owner.id, owner), ai);
   assert.equal(next.githubBridge.pendingOwnerMessageId, null);
+  assert.equal(next.githubBridge.pendingOwnerPayload, null);
   assert.equal(next.githubBridge.lastAiMessageId, "ai-1");
   const roundTrip = decodeConversationBody(encodeConversationBody(next));
   assert.equal(roundTrip.githubBridge.lastSyncedAt, ai.createdAt);
