@@ -1,0 +1,41 @@
+name: GAI Research Evidence Ledger
+
+on:
+  workflow_run:
+    workflows: ["GAI Multi-Worker Research"]
+    types: [completed]
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: gai-research-evidence-ledger
+  cancel-in-progress: false
+
+jobs:
+  persist-zbook-evidence:
+    name: Persist verified research evidence
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Download completed baseline evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: gai-baseline-zbook
+          path: .gai-results
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
+      - name: Merge evidence into persistent ledger
+        shell: powershell
+        run: node scripts/research-evidence-sync.ts --source=.gai-results/research-evidence.json
+      - name: Upload ledger status snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: gai-research-ledger-status
+          path: .gai-results/research-ledger-status.json
+          retention-days: 90
