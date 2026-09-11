@@ -1,0 +1,84 @@
+name: GAI R13 Cross Device
+
+on:
+  workflow_run:
+    workflows: ["GAI R11 Recovery"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: gai-r13-cross-device
+  cancel-in-progress: true
+
+jobs:
+  zbook-prefix:
+    name: R13 ZBook common tasks and transferable checkpoint
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Run ZBook common tasks and checkpoint prefix
+        shell: powershell
+        run: node scripts/gai-r13-cross-device.ts --mode=zbook
+      - uses: actions/upload-artifact@v4
+        with:
+          name: r13-zbook
+          path: .gai-results/
+          include-hidden-files: true
+          retention-days: 90
+
+  mac-resume:
+    name: R13 MacBook common tasks and resume ZBook checkpoint
+    needs: zbook-prefix
+    runs-on: [self-hosted, macOS, ARM64]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/download-artifact@v4
+        with:
+          name: r13-zbook
+          path: .gai-reference/r13-zbook
+      - name: Run MacBook common tasks and resume checkpoint
+        shell: bash
+        run: node scripts/gai-r13-cross-device.ts --mode=mac
+      - uses: actions/upload-artifact@v4
+        with:
+          name: r13-mac
+          path: .gai-results/
+          include-hidden-files: true
+          retention-days: 90
+
+  aggregate:
+    name: R13 aggregate cross-device evidence
+    needs: [zbook-prefix, mac-resume]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/download-artifact@v4
+        with:
+          name: r13-zbook
+          path: .gai-reference/r13-zbook
+      - uses: actions/download-artifact@v4
+        with:
+          name: r13-mac
+          path: .gai-reference/r13-mac
+      - name: Aggregate and promote R13 evidence
+        run: node scripts/gai-r13-cross-device.ts --mode=aggregate
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gai-baseline-zbook
+          path: .gai-results/
+          include-hidden-files: true
+          retention-days: 90
