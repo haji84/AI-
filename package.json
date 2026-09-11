@@ -21,7 +21,9 @@
     "autonomy:event": "node scripts/autonomy-event-run.ts",
     "autonomy:schedule": "node scripts/autonomy-event-run.ts --type=schedule --summary=scheduled-autonomy-run",
     "autonomy:repository-event": "node scripts/autonomy-event-run.ts --type=repository_state --summary=repository-state-changed",
-    "autonomy:cloud": "node scripts/autonomy-cloud-run.ts"
+    "autonomy:cloud": "node scripts/autonomy-cloud-run.ts",
+    "research:worker:preflight": "node scripts/research-worker-preflight.ts",
+    "research:worker:require-real": "node scripts/research-worker-preflight.ts --require-real"
   },
   "dependencies": {
     "next": "16.3.2",
