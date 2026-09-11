@@ -16,8 +16,8 @@ function jsonResponse(body: unknown, status = 200) {
 }
 
 test("Vercel owner config fails closed when token or project is missing", () => {
-  assert.equal(vercelOwnerConfigFromEnv({} as NodeJS.ProcessEnv), null);
-  assert.deepEqual(vercelOwnerConfigFromEnv({ AI_COMPANY_VERCEL_TOKEN: "t", AI_COMPANY_VERCEL_PROJECT_ID: "p" } as NodeJS.ProcessEnv), {
+  assert.equal(vercelOwnerConfigFromEnv({} as unknown as NodeJS.ProcessEnv), null);
+  assert.deepEqual(vercelOwnerConfigFromEnv({ AI_COMPANY_VERCEL_TOKEN: "t", AI_COMPANY_VERCEL_PROJECT_ID: "p" } as unknown as NodeJS.ProcessEnv), {
     token: "t",
     projectId: "p",
     accountId: null,
