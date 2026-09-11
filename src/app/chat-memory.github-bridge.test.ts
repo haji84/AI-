@@ -5,6 +5,8 @@ import {
   defaultConversationMeta,
   encodeConversationBody,
   evolveMemory,
+  mergePendingOwnerFallback,
+  withPendingOwnerFallback,
   type PersistedChatMessage,
 } from "./chat-memory.ts";
 
@@ -22,6 +24,7 @@ test("legacy conversation metadata remains readable with a default GitHub bridge
     pendingAt: null,
     lastAiMessageId: null,
     lastSyncedAt: null,
+    pendingOwnerPayload: null,
   });
 });
 
@@ -38,5 +41,22 @@ test("owner message marks the GitHub bridge pending and AI reply clears it", () 
   assert.equal(synced.githubBridge!.pendingAt, null);
   assert.equal(synced.githubBridge!.lastAiMessageId, "ai-1");
   assert.equal(synced.githubBridge!.lastSyncedAt, ai.createdAt);
+  assert.equal(synced.githubBridge!.pendingOwnerPayload, null);
   assert.match(encodeConversationBody(synced), /CHATGPT-GITHUB-BRIDGE: synced/);
+});
+
+test("issue-body fallback preserves owner message and is deduplicated against comments", () => {
+  const owner = message("owner", "owner-fallback", "MacBookブリッジ接続テスト", "2026-09-12T01:00:00.000Z");
+  const pending = withPendingOwnerFallback(defaultConversationMeta(), owner);
+  assert.equal(pending.githubBridge!.pendingOwnerMessageId, owner.id);
+  assert.deepEqual(pending.githubBridge!.pendingOwnerPayload, owner);
+
+  const roundTrip = decodeConversationBody(encodeConversationBody(pending));
+  assert.deepEqual(mergePendingOwnerFallback(roundTrip, []), [owner]);
+  assert.deepEqual(mergePendingOwnerFallback(roundTrip, [owner]), [owner]);
+
+  const ai = message("ai", "ai-fallback", "MacBookブリッジ正常", "2026-09-12T01:01:00.000Z");
+  const synced = evolveMemory(roundTrip, ai);
+  assert.equal(synced.githubBridge!.pendingOwnerPayload, null);
+  assert.equal(synced.githubBridge!.pendingOwnerMessageId, null);
 });
