@@ -6,6 +6,10 @@ on:
     paths:
       - '.github/workflows/gai-workers.yml'
       - 'scripts/gai-baseline.mjs'
+      - 'scripts/gai-r1-evidence.ts'
+      - 'scripts/gai-r1-safety-evidence.ts'
+      - 'scripts/research-program-status.ts'
+      - 'src/gai/research-ops-program.ts'
       - 'benchmarks/internal/v1/manifest.json'
       - 'benchmarks/internal/v1/suite.mjs'
   workflow_dispatch:
@@ -223,6 +227,22 @@ jobs:
       - name: Execute frozen real baseline
         shell: powershell
         run: node scripts/gai-baseline.mjs --real --resume
+
+      - name: Derive R1 failure taxonomy and AGI-gap evidence
+        shell: powershell
+        run: node scripts/gai-r1-evidence.ts
+
+      - name: Verify safety and governance regression set
+        shell: powershell
+        run: node --test tests/approval-key.test.ts tests/approval-readiness.test.ts tests/auto-merge-policy.test.ts tests/bounded-runner.test.ts tests/autonomy-capabilities.test.ts
+
+      - name: Record verified R1 safety evidence
+        shell: powershell
+        run: node scripts/gai-r1-safety-evidence.ts
+
+      - name: Compute R1-R20 program status
+        shell: powershell
+        run: node scripts/research-program-status.ts --evidence=.gai-results/research-evidence.json --require-evidence | Out-File -Encoding utf8 .gai-results/research-program-status.json
 
       - name: Upload baseline evidence
         if: always()
