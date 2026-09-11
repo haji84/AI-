@@ -21,7 +21,7 @@ concurrency:
 jobs:
   zbook-persistence:
     name: Install ZBook persistent worker
-    runs-on: [self-hosted, zbook]
+    runs-on: [self-hosted, Windows, X64]
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4

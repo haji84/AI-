@@ -7,6 +7,7 @@ on:
       - '.github/workflows/gai-workers.yml'
       - 'scripts/gai-baseline.mjs'
       - 'benchmarks/internal/v1/manifest.json'
+      - 'benchmarks/internal/v1/suite.mjs'
   workflow_dispatch:
     inputs:
       mode:
@@ -26,7 +27,7 @@ concurrency:
 jobs:
   zbook-smoke:
     name: ZBook worker smoke
-    runs-on: [self-hosted, zbook]
+    runs-on: [self-hosted, Windows, X64]
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
@@ -88,7 +89,7 @@ jobs:
     name: Real local-model baseline on ZBook
     if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.mode == 'baseline')
     needs: [zbook-smoke, macbook-smoke]
-    runs-on: [self-hosted, zbook]
+    runs-on: [self-hosted, Windows, X64]
     timeout-minutes: 180
     env:
       GAI_WORKER_ID: zbook
