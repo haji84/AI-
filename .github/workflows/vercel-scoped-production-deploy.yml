@@ -159,7 +159,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Ensure Vercel project and sync runtime secrets
+      - name: Ensure Vercel project and bootstrap bounded runtime management
         shell: bash
         run: |
           set -euo pipefail
@@ -188,21 +188,11 @@ jobs:
             throw new Error(`Unable to resolve existing Vercel project (status ${projectResult.response.status}).`);
           }
 
+          const existingResult = await request(`https://api.vercel.com/v10/projects/${encodeURIComponent(project.id)}/env`);
+          const existingEnvs = existingResult.response.ok && Array.isArray(existingResult.body?.envs) ? existingResult.body.envs : [];
+          const existingKeys = new Set(existingEnvs.map((item) => item?.key).filter(Boolean));
+
           const envPayload = [
-            {
-              key: "AI_COMPANY_OWNER_SECRET",
-              value: ownerSecret,
-              type: "sensitive",
-              target: ["production"],
-              comment: "AI Company owner login secret",
-            },
-            {
-              key: "AI_COMPANY_GITHUB_TOKEN",
-              value: githubToken,
-              type: "sensitive",
-              target: ["production"],
-              comment: "AI Company GitHub runtime token",
-            },
             {
               key: "AI_COMPANY_GITHUB_REPOSITORY",
               value: "haji84/AI-",
@@ -210,14 +200,54 @@ jobs:
               target: ["production"],
               comment: "AI Company repository target",
             },
+            {
+              key: "AI_COMPANY_VERCEL_TOKEN",
+              value: token,
+              type: "sensitive",
+              target: ["production"],
+              comment: "Bounded AI Company Vercel management credential",
+            },
+            {
+              key: "AI_COMPANY_VERCEL_PROJECT_ID",
+              value: project.id,
+              type: "plain",
+              target: ["production"],
+              comment: "Fixed Vercel project scope for AI Company management",
+            },
+            {
+              key: "AI_COMPANY_VERCEL_ACCOUNT_ID",
+              value: project.accountId,
+              type: "plain",
+              target: ["production"],
+              comment: "Fixed Vercel account scope for AI Company management",
+            },
           ];
+
+          if (!existingKeys.has("AI_COMPANY_OWNER_SECRET")) {
+            envPayload.push({
+              key: "AI_COMPANY_OWNER_SECRET",
+              value: ownerSecret,
+              type: "sensitive",
+              target: ["production"],
+              comment: "AI Company owner login secret bootstrap",
+            });
+          }
+          if (!existingKeys.has("AI_COMPANY_GITHUB_TOKEN")) {
+            envPayload.push({
+              key: "AI_COMPANY_GITHUB_TOKEN",
+              value: githubToken,
+              type: "sensitive",
+              target: ["production"],
+              comment: "AI Company GitHub runtime token bootstrap",
+            });
+          }
 
           const envResult = await request(`https://api.vercel.com/v10/projects/${encodeURIComponent(project.id)}/env?upsert=true`, {
             method: "POST",
             body: JSON.stringify(envPayload),
           });
           if (!envResult.response.ok) {
-            throw new Error(`Unable to sync Vercel environment variables (status ${envResult.response.status}).`);
+            throw new Error(`Unable to sync bounded Vercel environment variables (status ${envResult.response.status}).`);
           }
 
           await mkdir(".vercel", { recursive: true });
@@ -226,7 +256,7 @@ jobs:
             JSON.stringify({ projectId: project.id, orgId: project.accountId }) + "\n",
             { mode: 0o600 },
           );
-          console.log(`Vercel project ready: ${projectName}`);
+          console.log(`Vercel project ready: ${projectName}. Existing owner/GitHub runtime secrets were preserved.`);
           NODE
 
       - name: Pull Production configuration
