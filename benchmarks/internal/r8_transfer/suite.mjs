@@ -55,6 +55,6 @@ export const transferFamilies = Object.freeze(families.map((family) => Object.fr
     output: family.apply(input),
     fingerprint: fingerprint(`${family.id}|heldout|${input}|${family.apply(input)}`),
   }))),
-}))));
+})));
 
 if (transferFamilies.some((family) => family.train.length < 4 || family.heldout.length < 4)) throw new Error('R8 transfer suite requires >=4 train and >=4 heldout cases per family');
