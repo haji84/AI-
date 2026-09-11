@@ -13,17 +13,19 @@ await mkdir(outDir, { recursive: true });
 
 const digest = (value: unknown) => crypto.createHash("sha256").update(JSON.stringify(value)).digest("hex");
 const solve = (seed: number, step: number) => ((seed * 17) + (step * step) + 13) % 1009;
+const prefixDigest = (results: CheckpointItem[], count = results.length) => digest(results.slice(0, count).map((item) => ({ id: item.id, output: item.output, verified: item.verified, hash: item.hash })));
 
 interface CheckpointItem { id: string; step: number; output: number; expected: number; verified: boolean; hash: string; }
-interface State { schemaVersion: 1; nextIndex: number; injectedFailures: number; retries: number; verifiedPrefixHash: string; results: CheckpointItem[]; }
-let state: State = { schemaVersion: 1, nextIndex: 0, injectedFailures: 0, retries: 0, verifiedPrefixHash: digest([]), results: [] };
+interface State { schemaVersion: 1; nextIndex: number; injectedFailures: number; retries: number; phase1PrefixHash: string | null; results: CheckpointItem[]; }
+let state: State = { schemaVersion: 1, nextIndex: 0, injectedFailures: 0, retries: 0, phase1PrefixHash: null, results: [] };
 
 if (phase === "1") await rm(checkpointPath, { force: true });
 if (phase === "2") {
   state = JSON.parse(await readFile(checkpointPath, "utf8")) as State;
   if (state.nextIndex !== 6) throw new Error(`R11 phase 2 expected nextIndex=6; got ${state.nextIndex}`);
-  const recomputed = digest(state.results.map((item) => ({ id: item.id, output: item.output, verified: item.verified })));
-  if (recomputed !== state.verifiedPrefixHash) throw new Error("R11 verified prefix hash mismatch before resume");
+  if (!state.phase1PrefixHash) throw new Error("R11 phase 2 checkpoint is missing phase1PrefixHash");
+  const recomputed = prefixDigest(state.results, 6);
+  if (recomputed !== state.phase1PrefixHash) throw new Error("R11 verified prefix hash mismatch before resume");
 }
 
 const endExclusive = phase === "1" ? 6 : tasks.length;
@@ -52,17 +54,18 @@ for (let index = state.nextIndex; index < endExclusive; index += 1) {
   const item: CheckpointItem = { id: task.id, step, output, expected, verified, hash: digest({ id: task.id, output, expected }) };
   state.results.push(item);
   state.nextIndex = index + 1;
-  state.verifiedPrefixHash = digest(state.results.map((entry) => ({ id: entry.id, output: entry.output, verified: entry.verified })));
   await writeFile(checkpointPath, `${JSON.stringify(state, null, 2)}\n`, "utf8");
 }
 
 if (phase === "1") {
-  console.log(JSON.stringify({ phase: 1, completed: state.results.length, nextIndex: state.nextIndex, injectedFailures: state.injectedFailures }, null, 2));
+  state.phase1PrefixHash = prefixDigest(state.results, 6);
+  await writeFile(checkpointPath, `${JSON.stringify(state, null, 2)}\n`, "utf8");
+  console.log(JSON.stringify({ phase: 1, completed: state.results.length, nextIndex: state.nextIndex, injectedFailures: state.injectedFailures, phase1PrefixHash: state.phase1PrefixHash }, null, 2));
   process.exit(0);
 }
 
-const prefixBeforeResume = state.results.slice(0, 6);
-const verifiedPrefixRetained = prefixBeforeResume.length === 6 && prefixBeforeResume.every((item) => item.verified) && state.results.slice(0, 6).every((item, index) => item.hash === prefixBeforeResume[index].hash);
+const finalPrefixHash = prefixDigest(state.results, 6);
+const verifiedPrefixRetained = state.results.length >= 6 && state.results.slice(0, 6).every((item) => item.verified) && Boolean(state.phase1PrefixHash) && finalPrefixHash === state.phase1PrefixHash;
 const heldoutTasks = state.results.length;
 const runId = `r11-${Date.now()}`;
 const built = buildR11RecoveryEvidence({
@@ -75,7 +78,7 @@ const built = buildR11RecoveryEvidence({
   verifiedPrefixRetained,
 });
 if (!built.accepted) throw new Error(`R11 evidence rejected: ${built.reasons.join("; ")}`);
-const report = { schemaVersion: 1, runId, totalTasks: tasks.length, heldoutTasks, injectedFailures: state.injectedFailures, retries: state.retries, resumedFromCheckpoint: phase === "2", verifiedPrefixRetained, prefixHash: state.verifiedPrefixHash, results: state.results, completedAt: new Date().toISOString() };
+const report = { schemaVersion: 1, runId, totalTasks: tasks.length, heldoutTasks, injectedFailures: state.injectedFailures, retries: state.retries, resumedFromCheckpoint: phase === "2", verifiedPrefixRetained, phase1PrefixHash: state.phase1PrefixHash, finalPrefixHash, results: state.results, completedAt: new Date().toISOString() };
 await writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
 await writeFile(path.join(outDir, "research-evidence.json"), `${JSON.stringify(built.evidence, null, 2)}\n`, "utf8");
 console.log(JSON.stringify(report, null, 2));
