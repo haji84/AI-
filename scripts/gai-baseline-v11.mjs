@@ -24,10 +24,12 @@ const suiteSha256 = crypto.createHash('sha256').update(fs.readFileSync(suitePath
 fs.mkdirSync(outDir, { recursive: true });
 const checkpointPath = path.join(outDir, `r6-baseline-${workerId}.json`);
 const reportPath = path.join(outDir, `r6-baseline-report-${workerId}.json`);
+const progressPath = path.join(outDir, `r6-progress-${workerId}.json`);
 const previous = resume && fs.existsSync(checkpointPath) ? JSON.parse(fs.readFileSync(checkpointPath, 'utf8')) : null;
 if (previous && previous.suiteSha256 !== suiteSha256) fail('resume checkpoint belongs to a different suite hash');
 const results = previous?.results || [];
 const completedIds = new Set(results.map((item) => item.id));
+const runStartedAt = Date.now();
 
 async function probeOllama() {
   const base = modelEndpoint.replace(/\/$/, '');
@@ -62,18 +64,24 @@ if (realRun) {
   catch (error) { fail(error instanceof Error ? error.message : String(error)); }
 }
 
+console.log(`[R6] suite=${suiteMeta.suiteId}@${suiteMeta.version} cases=${benchmarkCases.length} model=${realRun ? modelName : 'fixture'} resumeCompleted=${results.length}`);
+
 for (const testCase of benchmarkCases) {
   if (completedIds.has(testCase.id)) continue;
+  const ordinal = results.length + 1;
+  console.log(`[R6] START ${ordinal}/${benchmarkCases.length} id=${testCase.id} category=${testCase.category} split=${testCase.split}`);
   const started = Date.now();
   let execution = { output: '', adapter: realRun ? 'ollama-local' : 'fixture-dry-run', model: modelName || 'none' };
   let error = null;
   try { execution = await executeCase(testCase); } catch (caught) { error = caught instanceof Error ? caught.message : String(caught); }
+  const durationMs = Date.now() - started;
+  const passed = !error && verifyTypedBenchmark(testCase.verifier, execution.output);
   results.push({
     id: testCase.id,
     category: testCase.category,
     split: testCase.split,
-    passed: !error && verifyTypedBenchmark(testCase.verifier, execution.output),
-    durationMs: Date.now() - started,
+    passed,
+    durationMs,
     workerId,
     platform: process.platform,
     adapter: execution.adapter,
@@ -85,6 +93,28 @@ for (const testCase of benchmarkCases) {
     createdAt: new Date().toISOString(),
   });
   fs.writeFileSync(checkpointPath, JSON.stringify({ schemaVersion: 1, suiteId: suiteMeta.suiteId, suiteVersion: suiteMeta.version, suiteSha256, runMode: realRun ? 'REAL_SELF_HOSTED_LOCAL_MODEL' : 'DRY_RUN_FIXTURE', runtimeProbe, results }, null, 2));
+
+  const elapsedMs = Date.now() - runStartedAt;
+  const completedThisRun = Math.max(1, results.length - (previous?.results?.length || 0));
+  const averageMs = elapsedMs / completedThisRun;
+  const remaining = benchmarkCases.length - results.length;
+  const etaSeconds = Math.round((averageMs * remaining) / 1000);
+  const passedSoFar = results.filter((item) => item.passed).length;
+  const progress = {
+    suiteId: suiteMeta.suiteId,
+    suiteVersion: suiteMeta.version,
+    completed: results.length,
+    total: benchmarkCases.length,
+    passed: passedSoFar,
+    successRateSoFar: results.length ? passedSoFar / results.length : 0,
+    currentCase: testCase.id,
+    lastCasePassed: passed,
+    lastCaseDurationMs: durationMs,
+    etaSeconds,
+    updatedAt: new Date().toISOString(),
+  };
+  fs.writeFileSync(progressPath, JSON.stringify(progress, null, 2));
+  console.log(`[R6] DONE ${results.length}/${benchmarkCases.length} id=${testCase.id} passed=${passed} durationMs=${durationMs} passRate=${progress.successRateSoFar.toFixed(3)} etaSec=${etaSeconds}${error ? ` error=${error}` : ''}`);
 }
 
 const passed = results.filter((item) => item.passed).length;
