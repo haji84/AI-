@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { benchmarkCases, suiteMeta } from '../benchmarks/internal/v1_1/suite.mjs';
+import { verifyTypedBenchmark } from '../src/gai/typed-benchmark-verifier.ts';
 
 const root = process.cwd();
 const suitePath = path.join(root, 'benchmarks/internal/v1_1/suite.mjs');
@@ -28,35 +29,6 @@ if (previous && previous.suiteSha256 !== suiteSha256) fail('resume checkpoint be
 const results = previous?.results || [];
 const completedIds = new Set(results.map((item) => item.id));
 
-const normalize = (value) => String(value ?? '').trim().replace(/```(?:json|javascript|typescript|js|ts)?/gi, '').replace(/```/g, '').trim();
-const canonical = (value) => {
-  if (Array.isArray(value)) return value.map(canonical);
-  if (value && typeof value === 'object') return Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonical(value[key])]));
-  return value;
-};
-
-export function verifyTyped(verifier, output) {
-  const text = normalize(output);
-  if (verifier.type === 'exact') return text.replace(/\s+/g, ' ').toLowerCase() === String(verifier.expected).trim().replace(/\s+/g, ' ').toLowerCase();
-  if (verifier.type === 'contains') return text.toLowerCase().includes(String(verifier.expected).toLowerCase());
-  if (verifier.type === 'number') {
-    const match = text.match(/[-+]?\d+(?:\.\d+)?(?:e[-+]?\d+)?/i);
-    if (!match) return false;
-    const actual = Number(match[0]);
-    return Number.isFinite(actual) && Math.abs(actual - Number(verifier.expected)) <= (verifier.tolerance ?? 0);
-  }
-  if (verifier.type === 'json') {
-    try { return JSON.stringify(canonical(JSON.parse(text))) === JSON.stringify(canonical(verifier.expected)); } catch { return false; }
-  }
-  if (verifier.type === 'set') {
-    const clean = text.replace(/^\[/, '').replace(/\]$/, '').trim();
-    const actual = clean ? clean.split(',').map((item) => item.trim().replace(/^['"]|['"]$/g, '')).filter(Boolean).sort() : [];
-    const expected = [...verifier.expected].map(String).sort();
-    return JSON.stringify(actual) === JSON.stringify(expected);
-  }
-  return false;
-}
-
 async function probeOllama() {
   const base = modelEndpoint.replace(/\/$/, '');
   const response = await fetch(`${base}/api/tags`, { signal: AbortSignal.timeout(5000) });
@@ -69,8 +41,8 @@ async function probeOllama() {
 
 async function executeCase(testCase) {
   if (!realRun) {
-    const v = testCase.verifier;
-    const output = v.type === 'json' ? JSON.stringify(v.expected) : v.type === 'set' ? v.expected.join(',') : String(v.expected);
+    const verifier = testCase.verifier;
+    const output = verifier.type === 'json' ? JSON.stringify(verifier.expected) : verifier.type === 'set' ? verifier.expected.join(',') : String(verifier.expected);
     return { output, adapter: 'fixture-dry-run', model: 'none' };
   }
   const response = await fetch(`${modelEndpoint.replace(/\/$/, '')}/api/generate`, {
@@ -100,7 +72,7 @@ for (const testCase of benchmarkCases) {
     id: testCase.id,
     category: testCase.category,
     split: testCase.split,
-    passed: !error && verifyTyped(testCase.verifier, execution.output),
+    passed: !error && verifyTypedBenchmark(testCase.verifier, execution.output),
     durationMs: Date.now() - started,
     workerId,
     platform: process.platform,
@@ -119,7 +91,8 @@ const passed = results.filter((item) => item.passed).length;
 const heldout = results.filter((item) => item.split === 'heldout');
 const categories = Object.fromEntries([...new Set(results.map((item) => item.category))].map((category) => {
   const subset = results.filter((item) => item.category === category);
-  return [category, { total: subset.length, passed: subset.filter((item) => item.passed).length, successRate: subset.filter((item) => item.passed).length / subset.length }];
+  const categoryPassed = subset.filter((item) => item.passed).length;
+  return [category, { total: subset.length, passed: categoryPassed, successRate: categoryPassed / subset.length }];
 }));
 const report = {
   schemaVersion: 1,
