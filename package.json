@@ -23,7 +23,8 @@
     "autonomy:repository-event": "node scripts/autonomy-event-run.ts --type=repository_state --summary=repository-state-changed",
     "autonomy:cloud": "node scripts/autonomy-cloud-run.ts",
     "research:worker:preflight": "node scripts/research-worker-preflight.ts",
-    "research:worker:require-real": "node scripts/research-worker-preflight.ts --require-real"
+    "research:worker:require-real": "node scripts/research-worker-preflight.ts --require-real",
+    "research:program:status": "node scripts/research-program-status.ts"
   },
   "dependencies": {
     "next": "16.3.2",
@@ -34,7 +35,7 @@
     "@eslint/js": "9.39.5",
     "@types/node": "24.13.3",
     "@types/react": "19.2.18",
-    "@types/react-dom": "19.2.4",
+    "@types/react-dom": "19.2.18",
     "eslint": "9.39.5",
     "typescript": "6.0.3",
     "typescript-eslint": "8.67.0"
