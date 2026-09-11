@@ -24,7 +24,7 @@ export interface ExternalBenchmarkRun {
 export interface ExternalEvidenceDecision {
   accepted: boolean;
   reasons: string[];
-  evidence?: ResearchEvidence;
+  evidence: ResearchEvidence[];
 }
 
 const sha256 = /^[a-f0-9]{64}$/i;
@@ -45,31 +45,38 @@ export function validateExternalBenchmarkRun(
   if (run.additionalApiCost !== 0) reasons.push("additional pay-as-you-go API cost must be zero");
   if (stage === "R12" && !run.interactive) reasons.push("R12 requires an interactive benchmark run");
   if (stage === "R19" && !run.independentEnvironment) reasons.push("R19 requires an independent replication environment");
+  if (reasons.length) return { accepted: false, reasons, evidence: [] };
 
-  if (reasons.length) return { accepted: false, reasons };
-  return {
-    accepted: true,
-    reasons: [],
-    evidence: {
-      id: `${stage}-external-${run.benchmark}-${run.id}`,
-      stage,
-      kind: stage === "R19" ? "independent-replication" : "external-benchmark",
-      verified: true,
-      source: `${run.harnessRepository}@${run.harnessRevision}`,
-      collectedAt: run.completedAt,
-      metrics: {
-        benchmark: run.benchmark,
-        model: run.model,
-        runtime: run.runtime,
-        taskCount: run.taskCount,
-        score: run.score,
-        scoreName: run.scoreName,
-        rawArtifactSha256: run.rawArtifactSha256,
-        additionalApiCost: run.additionalApiCost,
-        interactive: Boolean(run.interactive),
-        independentEnvironment: Boolean(run.independentEnvironment),
-      },
-      notes: run.notes,
+  const common = {
+    stage,
+    verified: true,
+    source: `${run.harnessRepository}@${run.harnessRevision}`,
+    collectedAt: run.completedAt,
+    metrics: {
+      benchmark: run.benchmark,
+      model: run.model,
+      runtime: run.runtime,
+      taskCount: run.taskCount,
+      score: run.score,
+      scoreName: run.scoreName,
+      rawArtifactSha256: run.rawArtifactSha256,
+      additionalApiCost: run.additionalApiCost,
+      interactive: Boolean(run.interactive),
+      independentEnvironment: Boolean(run.independentEnvironment),
     },
-  };
+    notes: run.notes,
+  } satisfies Omit<ResearchEvidence, "id" | "kind">;
+
+  const evidence: ResearchEvidence[] = [];
+  if (stage === "R3" || stage === "R12" || stage === "R19") {
+    evidence.push({ ...common, id: `${stage}-external-${run.benchmark}-${run.id}`, kind: "external-benchmark" });
+  }
+  evidence.push({ ...common, id: `${stage}-reproducibility-${run.benchmark}-${run.id}`, kind: "reproducibility" });
+  if (stage === "R12") {
+    evidence.push({ ...common, id: `${stage}-interactive-${run.benchmark}-${run.id}`, kind: "long-horizon" });
+  }
+  if (stage === "R19") {
+    evidence.push({ ...common, id: `${stage}-replication-${run.benchmark}-${run.id}`, kind: "independent-replication" });
+  }
+  return { accepted: true, reasons: [], evidence };
 }
