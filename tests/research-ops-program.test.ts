@@ -23,31 +23,35 @@ const evidence = (
   collectedAt: "2026-09-11T00:00:00.000Z",
 });
 
+const completeR1Evidence = (): ResearchEvidence[] => [
+  evidence("R1", "internal-baseline"),
+  evidence("R1", "heldout-evaluation"),
+  evidence("R1", "failure-taxonomy"),
+  evidence("R1", "agi-gap-review"),
+  evidence("R1", "safety-regression"),
+  evidence("R1", "cost-regression"),
+];
+
 test("defines exactly R1 through R20 in order", () => {
   assert.equal(RESEARCH_STAGES.length, 20);
   assert.deepEqual(RESEARCH_STAGES.map((item) => item.id), Array.from({ length: 20 }, (_, index) => `R${index + 1}`));
 });
 
-test("R1 is ready without dependencies but cannot complete without verified evidence", () => {
+test("R1 is ready without dependencies but cannot complete without all verified evidence", () => {
   const empty = assessResearchStage("R1", new Set(), []);
   assert.equal(empty.status, "ready");
   assert.ok(empty.missingEvidence.includes("internal-baseline"));
+  assert.ok(empty.missingEvidence.includes("failure-taxonomy"));
+  assert.ok(empty.missingEvidence.includes("agi-gap-review"));
 
-  const complete = assessResearchStage("R1", new Set(), [
-    evidence("R1", "internal-baseline"),
-    evidence("R1", "heldout-evaluation"),
-    evidence("R1", "safety-regression"),
-    evidence("R1", "cost-regression"),
-  ]);
+  const complete = assessResearchStage("R1", new Set(), completeR1Evidence());
   assert.equal(complete.status, "complete");
 });
 
 test("unverified evidence never satisfies a gate", () => {
   const result = assessResearchStage("R1", new Set(), [
+    ...completeR1Evidence().filter((item) => item.kind !== "internal-baseline"),
     evidence("R1", "internal-baseline", false),
-    evidence("R1", "heldout-evaluation"),
-    evidence("R1", "safety-regression"),
-    evidence("R1", "cost-regression"),
   ]);
   assert.equal(result.status, "ready");
   assert.ok(result.missingEvidence.includes("internal-baseline"));
