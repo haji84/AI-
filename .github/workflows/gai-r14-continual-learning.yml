@@ -1,0 +1,35 @@
+name: GAI R14 Continual Learning
+
+on:
+  workflow_run:
+    workflows: ["GAI R13 Cross Device"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: gai-r14-continual-learning
+  cancel-in-progress: true
+
+jobs:
+  r14-continual:
+    name: R14 sequential memory learning and forgetting metrics
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Execute sequential continual-learning campaign
+        run: node scripts/gai-r14-continual-learning.ts
+      - name: Upload complete R14 evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: gai-baseline-zbook
+          path: .gai-results/
+          include-hidden-files: true
+          retention-days: 90
