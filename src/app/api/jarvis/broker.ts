@@ -8,13 +8,15 @@ export async function requireJarvisOwner(): Promise<boolean> {
   return verifyOwnerSessionToken(ownerSecret, cookieStore.get(OWNER_SESSION_COOKIE)?.value);
 }
 
-export async function jarvisBrokerFetch(path: string, init?: RequestInit): Promise<Response> {
-  const base = process.env.JARVIS_BROKER_URL?.trim().replace(/\/$/, "") || "http://127.0.0.1:8787";
-  const token = process.env.JARVIS_OWNER_TOKEN?.trim() || "";
-  if (!token) throw new Error("JARVIS_OWNER_TOKEN is not configured");
+function validateJarvisEndpoint(base: string, name: string): void {
   if (!base.startsWith("http://127.0.0.1") && !base.startsWith("http://localhost") && !base.startsWith("https://")) {
-    throw new Error("JARVIS_BROKER_URL must be loopback HTTP or HTTPS");
+    throw new Error(`${name} must be loopback HTTP or HTTPS`);
   }
+}
+
+async function authenticatedFetch(base: string, token: string, path: string, init?: RequestInit): Promise<Response> {
+  if (!token) throw new Error("JARVIS service token is not configured");
+  validateJarvisEndpoint(base, "JARVIS endpoint");
   return fetch(`${base}${path}`, {
     ...init,
     cache: "no-store",
@@ -24,4 +26,16 @@ export async function jarvisBrokerFetch(path: string, init?: RequestInit): Promi
       ...(init?.headers ?? {}),
     },
   });
+}
+
+export async function jarvisBrokerFetch(path: string, init?: RequestInit): Promise<Response> {
+  const base = process.env.JARVIS_BROKER_URL?.trim().replace(/\/$/, "") || "http://127.0.0.1:8787";
+  const token = process.env.JARVIS_OWNER_TOKEN?.trim() || "";
+  return authenticatedFetch(base, token, path, init);
+}
+
+export async function jarvisRemoteGatewayFetch(path: string, init?: RequestInit): Promise<Response> {
+  const base = process.env.JARVIS_REMOTE_GATEWAY_URL?.trim().replace(/\/$/, "") || "http://127.0.0.1:8790";
+  const token = process.env.JARVIS_REMOTE_GATEWAY_TOKEN?.trim() || "";
+  return authenticatedFetch(base, token, path, init);
 }
