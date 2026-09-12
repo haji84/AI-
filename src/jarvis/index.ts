@@ -6,3 +6,5 @@ export * from "./enrollment.ts";
 export * from "./human-takeover.ts";
 export * from "./policy-engine.ts";
 export * from "./execution-router.ts";
+export * from "./control-plane.ts";
+export * from "./worker-auth.ts";
