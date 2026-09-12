@@ -42,7 +42,7 @@ export default function JarvisEnrollPage() {
       <p className="muted">下のボタンを1回押すと、この端末専用の期限付き登録URLを発行します。</p>
       <button className="button" disabled={busy} onClick={() => void createLink()}>{busy ? "発行中..." : "登録URLを発行"}</button>
       {link && <div className="jarvis-enrollment-result" style={{ marginTop: 20 }}>
-        <strong>STEP 2　このURLをAndroidで開く</strong>
+        <strong>STEP 2: このURLをAndroidで開く</strong>
         <code style={{ overflowWrap: "anywhere" }}>{link}</code>
         <div className="jarvis-button-row">
           <button className="button" onClick={() => void copyLink()}>URLをコピー</button>
