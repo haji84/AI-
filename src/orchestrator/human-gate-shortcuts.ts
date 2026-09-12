@@ -1,4 +1,5 @@
 import type { ReasoningFeedback } from "./reasoning-feedback.ts";
+import { requestsTaskCompletion } from "./task-authorization.ts";
 
 export type HumanGateShortcut =
   | { kind: "check" }
@@ -22,16 +23,23 @@ export interface HumanGateShortcutResolution {
 }
 
 const CHECK_COMMANDS = new Set(["チェック", "確認", "判子チェック", "ハンコチェック"]);
-const APPROVE_COMMANDS = new Set(["判子", "ハンコ", "承認", "判子押す", "ハンコ押す"]);
+const APPROVE_COMMANDS = new Set(["判子", "ハンコ", "承認", "許可", "判子押す", "ハンコ押す"]);
 
 function normalize(value: string): string {
   return value.trim().replace(/[！!。.]$/u, "").trim();
+}
+
+export function isStandaloneHumanGateApprovalCommand(command: string | null | undefined): boolean {
+  return APPROVE_COMMANDS.has(normalize(command ?? ""));
 }
 
 export function parseHumanGateShortcut(command: string | null | undefined): HumanGateShortcut {
   const normalized = normalize(command ?? "");
   if (CHECK_COMMANDS.has(normalized)) return { kind: "check" };
   if (APPROVE_COMMANDS.has(normalized)) return { kind: "approve" };
+  // Completion language may approve only an already-present single HIGH gate.
+  // resolveHumanGateShortcut still fails closed when there is no exact pending gate.
+  if (requestsTaskCompletion(normalized)) return { kind: "approve" };
   return { kind: "none" };
 }
 
@@ -76,7 +84,7 @@ export function resolveHumanGateShortcut(
       state,
       approvedActionKey: null,
       message: state.pendingCount === 1
-        ? `判子待ちが1件あります: ${state.title}`
+        ? `事前報告: Human Gate承認が必要です。対象: ${state.title}${state.reasons.length ? ` / 理由: ${state.reasons.join(" / ")}` : ""}`
         : "判子待ちはありません。",
     };
   }
@@ -94,13 +102,13 @@ export function resolveHumanGateShortcut(
       kind: "approve",
       state,
       approvedActionKey: null,
-      message: "承認できる判子待ちが1件だけ存在する状態ではありません。",
+      message: "事前報告済みの承認可能なHIGH案件が1件だけ存在する状態ではありません。実行しません。",
     };
   }
   return {
     kind: "approve",
     state,
     approvedActionKey: state.approvalKey,
-    message: `1件のHIGH案件を承認して再開します: ${state.title}`,
+    message: `事前報告済みの1件を承認して再開します: ${state.title}`,
   };
 }

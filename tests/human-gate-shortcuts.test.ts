@@ -43,28 +43,37 @@ function feedback(overrides: Partial<ReasoningFeedback> = {}): ReasoningFeedback
   };
 }
 
-test("parses short Japanese check and stamp commands only", () => {
+test("parses explicit Japanese Human Gate commands", () => {
   assert.deepEqual(parseHumanGateShortcut("チェック"), { kind: "check" });
   assert.deepEqual(parseHumanGateShortcut("判子！"), { kind: "approve" });
   assert.deepEqual(parseHumanGateShortcut("承認"), { kind: "approve" });
+  assert.deepEqual(parseHumanGateShortcut("許可"), { kind: "approve" });
+  assert.deepEqual(parseHumanGateShortcut("最後まで完成させて"), { kind: "approve" });
+  assert.deepEqual(parseHumanGateShortcut("任せる"), { kind: "approve" });
   assert.deepEqual(parseHumanGateShortcut("次へ進んで"), { kind: "none" });
 });
 
-test("check reports one pending HIGH without approving it", () => {
+test("check reports one pending HIGH before approval", () => {
   const result = resolveHumanGateShortcut({ kind: "check" }, feedback());
   assert.equal(result.state.pendingCount, 1);
   assert.equal(result.approvedActionKey, null);
-  assert.match(result.message, /判子待ちが1件/);
+  assert.match(result.message, /事前報告/);
+  assert.match(result.message, /本番反映を実行/);
 });
 
-test("stamp returns the exact approval key only for one active HIGH", () => {
-  const result = resolveHumanGateShortcut({ kind: "approve" }, feedback());
+test("explicit approval returns the exact approval key only for one active HIGH", () => {
+  const result = resolveHumanGateShortcut(parseHumanGateShortcut("許可") as { kind: "approve" }, feedback());
   assert.equal(result.state.pendingCount, 1);
   assert.equal(result.approvedActionKey, "approval-123");
 });
 
-test("stamp does nothing when no approval is pending", () => {
-  const result = resolveHumanGateShortcut({ kind: "approve" }, feedback({
+test("completion language can approve only an already-present single HIGH", () => {
+  const result = resolveHumanGateShortcut(parseHumanGateShortcut("最後まで完成させて") as { kind: "approve" }, feedback());
+  assert.equal(result.approvedActionKey, "approval-123");
+});
+
+test("approval language does nothing when no approval was pre-reported", () => {
+  const result = resolveHumanGateShortcut(parseHumanGateShortcut("許可") as { kind: "approve" }, feedback({
     humanApprovalRequired: false,
     approvalKey: null,
     riskDecision: {
@@ -77,10 +86,11 @@ test("stamp does nothing when no approval is pending", () => {
   }));
   assert.equal(result.state.pendingCount, 0);
   assert.equal(result.approvedActionKey, null);
+  assert.match(result.message, /実行しません/);
 });
 
-test("CRITICAL can never be released by the stamp shortcut", () => {
-  const result = resolveHumanGateShortcut({ kind: "approve" }, feedback({
+test("CRITICAL can never be released by chat approval language", () => {
+  const result = resolveHumanGateShortcut(parseHumanGateShortcut("最後まで完成させて") as { kind: "approve" }, feedback({
     humanApprovalRequired: false,
     riskDecision: {
       level: "CRITICAL",

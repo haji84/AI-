@@ -6,6 +6,10 @@ import {
   dashboardCommandStartsFreshTask,
 } from "../../../orchestrator/dashboard-command-routing.ts";
 import {
+  isStandaloneHumanGateApprovalCommand,
+  parseHumanGateShortcut,
+} from "../../../orchestrator/human-gate-shortcuts.ts";
+import {
   createTaskCompletionAuthorization,
   requestsProductionDeploy,
 } from "../../../orchestrator/task-authorization.ts";
@@ -38,6 +42,17 @@ function githubHeaders(githubToken: string) {
     "X-GitHub-Api-Version": "2022-11-28",
     "Content-Type": "application/json",
   };
+}
+
+async function dispatchApproval(repository: string, githubToken: string, approvalKey: string) {
+  return fetch(`https://api.github.com/repos/${repository}/dispatches`, {
+    method: "POST",
+    headers: githubHeaders(githubToken),
+    body: JSON.stringify({
+      event_type: "ai-autonomy-run",
+      client_payload: { approval_key: approvalKey },
+    }),
+  });
 }
 
 function freshTaskTitle(command: string): string {
@@ -125,7 +140,7 @@ export async function GET() {
   const state = await readDashboardState();
   const humanGateRequired = state.decisions.length > 0;
   const reply = humanGateRequired
-    ? `Human Gateで停止しています。${state.nextAction ? ` 次: ${state.nextAction}` : " 内容を確認して承認または却下してください。"}`
+    ? `事前報告: Human Gateで停止しています。${state.nextAction ? ` 次: ${state.nextAction}` : " 内容を確認して『許可』または『最後まで完成させて』と送ってください。"}`
     : state.verificationSummary
       ? `最新の検証結果: ${state.verificationSummary}`
       : state.nextAction
@@ -153,6 +168,50 @@ export async function POST(request: Request) {
   const command = typeof payload?.command === "string" ? payload.command.trim() : "";
   if (!command) return NextResponse.json({ message: "指示を入力してください" }, { status: 400 });
   if (command.length > MAX_COMMAND_LENGTH) return NextResponse.json({ message: `指示は${MAX_COMMAND_LENGTH}文字以内で入力してください` }, { status: 400 });
+
+  const shortcut = parseHumanGateShortcut(command);
+  if (shortcut.kind === "check" || shortcut.kind === "approve") {
+    const state = await readDashboardState();
+    const activeDecisions = state.decisions.filter((item) => item.approvalKey);
+    if (shortcut.kind === "check") {
+      return NextResponse.json({
+        message: activeDecisions.length === 1
+          ? `事前報告: Human Gate承認が必要です。対象: ${activeDecisions[0].title}。実行する場合は『許可』または『最後まで完成させて』と送ってください。`
+          : activeDecisions.length > 1
+            ? `事前報告: Human Gate承認が${activeDecisions.length}件あります。対象を1件に絞るまで実行しません。`
+            : "現在、事前承認が必要なHuman Gateはありません。",
+        humanGateRequired: activeDecisions.length > 0,
+        decisionCount: activeDecisions.length,
+      });
+    }
+
+    if (activeDecisions.length === 1) {
+      const decision = activeDecisions[0];
+      const response = await dispatchApproval(repository, githubToken, decision.approvalKey);
+      if (!response.ok) {
+        const detail = (await response.text()).slice(0, 1000);
+        return NextResponse.json({ message: `承認指示の送信に失敗しました (${response.status}): ${detail}` }, { status: 502 });
+      }
+      return NextResponse.json({
+        message: `事前報告済みの1件を承認して再開しました: ${decision.title}`,
+        approvedActionKey: decision.approvalKey,
+        humanGateRequired: true,
+        decisionCount: 1,
+        dispatchAccepted: true,
+      });
+    }
+
+    if (isStandaloneHumanGateApprovalCommand(command)) {
+      return NextResponse.json({
+        message: activeDecisions.length > 1
+          ? `承認対象が${activeDecisions.length}件あるため実行しません。先に対象を1件へ絞って事前報告します。`
+          : "事前報告済みの承認対象がないため実行しません。",
+        humanGateRequired: activeDecisions.length > 0,
+        decisionCount: activeDecisions.length,
+      }, { status: 409 });
+    }
+    // Completion language with no active gate remains a normal task-completion command.
+  }
 
   const numericConversationId = typeof payload?.conversationId === "number" && Number.isInteger(payload.conversationId) && payload.conversationId > 0 ? payload.conversationId : null;
   const conversationId = numericConversationId ? `conversation:${numericConversationId}` : undefined;
