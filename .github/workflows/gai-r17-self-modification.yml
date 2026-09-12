@@ -3,6 +3,8 @@ name: GAI R17 Governed Self Modification
 on:
   issue_comment:
     types: [created]
+  issues:
+    types: [edited]
 
 permissions:
   contents: read
@@ -15,7 +17,9 @@ concurrency:
 jobs:
   r17-sandbox:
     name: R17 one-time approved sandbox self-modification
-    if: github.event.issue.number == 416 && github.event.comment.user.login == 'haji84' && github.event.comment.body == 'APPROVE_R17_416_SANDBOX_SELF_MOD_20260912'
+    if: >-
+      (github.event_name == 'issue_comment' && github.event.issue.number == 416 && github.event.comment.user.login == 'haji84' && github.event.comment.body == 'APPROVE_R17_416_SANDBOX_SELF_MOD_20260912') ||
+      (github.event_name == 'issues' && github.event.issue.number == 416 && contains(github.event.issue.body, 'APPROVE_R17_416_CHAT_20260912'))
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -29,7 +33,7 @@ jobs:
         run: |
           prior="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/workflows/gai-r17-self-modification.yml/runs?status=success&per_page=1" --jq '.total_count')"
           if [ "${prior:-0}" -gt 0 ]; then
-            echo 'R17 approval phrase has already been consumed by a successful run.' >&2
+            echo 'R17 approval has already been consumed by a successful run.' >&2
             exit 2
           fi
       - name: Verify safety and governance before mutation
