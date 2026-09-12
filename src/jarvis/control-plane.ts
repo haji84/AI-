@@ -47,6 +47,13 @@ export class JarvisControlPlane {
   readonly router = new JarvisExecutionRouter(this.fleet, this.queue);
   private readonly auditEvents: JarvisAuditEvent[] = [];
 
+  restore(snapshot: JarvisControlPlaneSnapshot): void {
+    this.fleet.restore(snapshot.fleet);
+    this.queue.restore(snapshot.tasks);
+    this.takeovers.restore(snapshot.activeTakeovers);
+    this.auditEvents.splice(0, this.auditEvents.length, ...snapshot.audit.slice(-1000).map((event) => structuredClone(event)));
+  }
+
   createEnrollment(input: {
     mode: JarvisEnrollmentToken["mode"];
     ttlMs?: number;
@@ -156,9 +163,7 @@ export class JarvisControlPlane {
   snapshot(now = new Date()): JarvisControlPlaneSnapshot {
     const fleet = this.fleet.list();
     const tasks = this.queue.list();
-    const activeTakeovers = fleet
-      .map((node) => this.takeovers.activeForNode(node.id))
-      .filter((item): item is JarvisTakeoverSession => Boolean(item));
+    const activeTakeovers = this.takeovers.list().filter((session) => session.status === "requested" || session.status === "active");
     return {
       generatedAt: now.toISOString(),
       fleet,

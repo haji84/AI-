@@ -14,11 +14,18 @@ export class JarvisTaskQueue {
 
   enqueue(task: JarvisTask): JarvisTask {
     const duplicate = [...this.tasks.values()].find((item) => item.idempotencyKey === task.idempotencyKey && item.status !== "failed" && item.status !== "cancelled");
-    if (duplicate || this.completedIdempotencyKeys.has(task.idempotencyKey)) {
-      return structuredClone(duplicate ?? task);
-    }
+    if (duplicate || this.completedIdempotencyKeys.has(task.idempotencyKey)) return structuredClone(duplicate ?? task);
     this.tasks.set(task.id, structuredClone(task));
     return structuredClone(task);
+  }
+
+  restore(tasks: JarvisTask[]): void {
+    this.tasks.clear();
+    this.completedIdempotencyKeys.clear();
+    for (const task of tasks) {
+      this.tasks.set(task.id, structuredClone(task));
+      if (task.status === "completed") this.completedIdempotencyKeys.add(task.idempotencyKey);
+    }
   }
 
   get(taskId: string): JarvisTask | undefined {
@@ -58,11 +65,7 @@ export class JarvisTaskQueue {
 
   complete(taskId: string, now = new Date()): JarvisTask {
     const task = this.mustGet(taskId);
-    const completed = this.patch(taskId, {
-      status: "completed",
-      leaseUntil: undefined,
-      updatedAt: now.toISOString(),
-    });
+    const completed = this.patch(taskId, { status: "completed", leaseUntil: undefined, updatedAt: now.toISOString() });
     this.completedIdempotencyKeys.add(task.idempotencyKey);
     return completed;
   }

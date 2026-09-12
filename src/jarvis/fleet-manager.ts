@@ -28,6 +28,12 @@ export class JarvisFleetManager {
     return structuredClone(node);
   }
 
+  restore(nodes: JarvisNode[]): void {
+    if (nodes.length > JARVIS_MAX_NODES) throw new Error(`JARVIS fleet limit exceeded (${JARVIS_MAX_NODES})`);
+    this.nodes.clear();
+    for (const node of nodes) this.nodes.set(node.id, structuredClone(node));
+  }
+
   unregister(nodeId: string): boolean {
     return this.nodes.delete(nodeId);
   }
