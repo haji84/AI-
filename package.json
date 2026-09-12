@@ -17,6 +17,7 @@
     "healthcheck": "node scripts/health-check.mjs",
     "compass:mcp": "node src/compass/server.ts",
     "jarvis:broker": "node scripts/jarvis-broker.ts",
+    "jarvis:remote": "node scripts/jarvis-remote-gateway.ts",
     "autonomy:run": "node scripts/autonomy-run.ts",
     "autonomy:dry-run": "node scripts/autonomy-run.ts --dry-run",
     "autonomy:event": "node scripts/autonomy-event-run.ts",
