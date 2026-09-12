@@ -99,9 +99,12 @@ os.chmod(tmp,0o600); os.replace(tmp,path)
 PY
 }
 
-mapfile -t usb_devices < <(adb devices | awk 'NR>1 && $2=="device" && $1 !~ /:/ {print $1}' | sort)
-for serial in "${usb_devices[@]:-}"; do
-  [[ -n "$serial" ]] || continue
+usb_devices=()
+while IFS= read -r serial; do
+  [[ -n "$serial" ]] && usb_devices+=("$serial")
+done < <(adb devices | awk 'NR>1 && $2=="device" && $1 !~ /:/ {print $1}' | sort)
+
+for serial in "${usb_devices[@]}"; do
   model="$(adb -s "$serial" shell getprop ro.product.model 2>/dev/null | tr -d '\r' | head -1 || true)"
   manufacturer="$(adb -s "$serial" shell getprop ro.product.manufacturer 2>/dev/null | tr -d '\r' | head -1 || true)"
   android_version="$(adb -s "$serial" shell getprop ro.build.version.release 2>/dev/null | tr -d '\r' | head -1 || true)"
@@ -126,11 +129,15 @@ for serial in "${usb_devices[@]:-}"; do
 done
 
 sync_allowed_serials
+pkill -f 'scripts/jarvis-remote-gateway.ts' >/dev/null 2>&1 || true
 launchctl kickstart -k "gui/$(id -u)/com.aicompany.jarvis-zero-touch" >/dev/null 2>&1 || true
 
-python3 - "$REGISTRY" <<'PY'
+python3 - "$REGISTRY" "$MAX_NODES" <<'PY'
 import json, sys
 with open(sys.argv[1], encoding="utf-8") as f: data=json.load(f)
+capacity=int(sys.argv[2])
 ready=[d for d in data.get("devices",[]) if d.get("status")=="ready"]
-print(json.dumps({"registered":len(ready),"capacity":100,"nextDeviceNumber":f"{len(ready)+1:03d}" if len(ready)<100 else None}, ensure_ascii=False))
+used={int(d.get("slot",0)) for d in ready}
+next_slot=next((n for n in range(1,capacity+1) if n not in used),None)
+print(json.dumps({"registered":len(ready),"capacity":capacity,"nextDeviceNumber":f"{next_slot:03d}" if next_slot else None}, ensure_ascii=False))
 PY
