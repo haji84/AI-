@@ -12,10 +12,13 @@ export interface JarvisDispatchDecision {
 }
 
 export class JarvisExecutionRouter {
-  constructor(
-    readonly fleet: JarvisFleetManager,
-    readonly queue: JarvisTaskQueue,
-  ) {}
+  readonly fleet: JarvisFleetManager;
+  readonly queue: JarvisTaskQueue;
+
+  constructor(fleet: JarvisFleetManager, queue: JarvisTaskQueue) {
+    this.fleet = fleet;
+    this.queue = queue;
+  }
 
   dispatchNext(input: {
     connectivity: JarvisConnectionSnapshot;
