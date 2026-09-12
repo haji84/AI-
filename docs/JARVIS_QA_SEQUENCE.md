@@ -20,10 +20,11 @@ Error has highest priority:
 - あなたのアカウントでエラーが発生しました
 - 別のアカウントでお試しください
 
-URL 1 success requires all:
+URL 1 success requires all markers observed in the supplied green success state:
 - イベント詳細
-- 獲得履歴
-- イベントルール
+- 新規ユーザー
+- 30日以上アプリを使っていない人
+- その他の既存ユーザー
 
 URL 2 success requires all:
 - 受け取りました
