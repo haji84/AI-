@@ -38,3 +38,41 @@ jobs:
           path: android/jarvis-worker/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 30
+
+  deploy-mac:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, macOS, ARM64]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.6.0'
+      - name: Ensure Android SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v sdkmanager >/dev/null 2>&1; then
+            brew install --cask android-commandlinetools
+          fi
+          SDK_ROOT="$HOME/Library/Android/sdk"
+          mkdir -p "$SDK_ROOT"
+          yes | sdkmanager --sdk_root="$SDK_ROOT" --licenses >/dev/null 2>&1 || true
+          sdkmanager --sdk_root="$SDK_ROOT" 'platform-tools' 'platforms;android-37' 'build-tools;37.0.0'
+          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
+      - name: Build persistent-signature APK
+        run: gradle -p android/jarvis-worker :app:assembleDebug --stacktrace
+      - name: Publish APK to resident Broker
+        shell: bash
+        run: |
+          set -euo pipefail
+          STATE_ROOT="$HOME/Library/Application Support/JARVIS"
+          mkdir -p "$STATE_ROOT"
+          install -m 600 android/jarvis-worker/app/build/outputs/apk/debug/app-debug.apk "$STATE_ROOT/jarvis-worker.apk"
+          shasum -a 256 "$STATE_ROOT/jarvis-worker.apk"
+          launchctl kickstart -k "gui/$(id -u)/com.aicompany.jarvis-broker" >/dev/null 2>&1 || true
