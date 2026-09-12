@@ -3,9 +3,12 @@ set -euo pipefail
 
 INSTALL_ROOT="${JARVIS_INSTALL_ROOT:-$HOME/JARVIS-AI-}"
 STATE_ROOT="${JARVIS_STATE_ROOT:-$HOME/Library/Application Support/JARVIS}"
-PLIST="$HOME/Library/LaunchAgents/com.aicompany.jarvis-zero-touch.plist"
+LAUNCH_ROOT="$HOME/Library/LaunchAgents"
+RECONCILER_PLIST="$LAUNCH_ROOT/com.aicompany.jarvis-zero-touch.plist"
+BROKER_PLIST="$LAUNCH_ROOT/com.aicompany.jarvis-broker.plist"
+TUNNEL_PLIST="$LAUNCH_ROOT/com.aicompany.jarvis-broker-tunnel.plist"
 LOCAL_BIN="$HOME/.local/bin"
-mkdir -p "$STATE_ROOT" "$HOME/Library/LaunchAgents" "$LOCAL_BIN"
+mkdir -p "$STATE_ROOT" "$LAUNCH_ROOT" "$LOCAL_BIN"
 
 if [[ ! -d "$INSTALL_ROOT/.git" ]]; then
   git clone https://github.com/haji84/AI-.git "$INSTALL_ROOT"
@@ -19,10 +22,8 @@ if ! command -v brew >/dev/null 2>&1; then
   echo 'JARVIS requires Homebrew on this Mac to provision Node 24 and cloudflared.' >&2
   exit 4
 fi
-
-if ! brew list --versions node@24 >/dev/null 2>&1; then
-  brew install node@24 >/dev/null
-fi
+if ! brew list --versions node@24 >/dev/null 2>&1; then brew install node@24 >/dev/null; fi
+if ! brew list --versions cloudflared >/dev/null 2>&1; then brew install cloudflared >/dev/null; fi
 NODE24_BIN="$(brew --prefix node@24)/bin"
 export PATH="$NODE24_BIN:$LOCAL_BIN:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 
@@ -31,18 +32,15 @@ if [[ "$node_major" != "24" ]]; then
   echo "Expected Node 24 but resolved $(node --version) at $(command -v node)" >&2
   exit 5
 fi
-
-if ! command -v pnpm >/dev/null 2>&1; then
-  npm install -g --prefix "$HOME/.local" pnpm@11.19.0 >/dev/null
-fi
-if ! command -v vercel >/dev/null 2>&1; then
-  npm install -g --prefix "$HOME/.local" vercel >/dev/null
-fi
+if ! command -v pnpm >/dev/null 2>&1; then npm install -g --prefix "$HOME/.local" pnpm@11.19.0 >/dev/null; fi
+if ! command -v vercel >/dev/null 2>&1; then npm install -g --prefix "$HOME/.local" vercel >/dev/null; fi
 node --version
 pnpm --version
 pnpm install --frozen-lockfile >/dev/null
 
-cat >"$PLIST" <<PLIST
+RUNTIME_PATH="$NODE24_BIN:$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+
+cat >"$RECONCILER_PLIST" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
@@ -53,14 +51,68 @@ cat >"$PLIST" <<PLIST
 <key>StartInterval</key><integer>60</integer>
 <key>StandardOutPath</key><string>$STATE_ROOT/zero-touch-launch.out.log</string>
 <key>StandardErrorPath</key><string>$STATE_ROOT/zero-touch-launch.err.log</string>
-<key>EnvironmentVariables</key><dict><key>PATH</key><string>$NODE24_BIN:$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string></dict>
+<key>EnvironmentVariables</key><dict><key>PATH</key><string>$RUNTIME_PATH</string></dict>
 </dict></plist>
 PLIST
 
-# Never let the workflow mistake a previous run's status for the current bootstrap.
-rm -f "$STATE_ROOT/status.json"
-launchctl bootout "gui/$(id -u)" "$PLIST" >/dev/null 2>&1 || true
-launchctl bootstrap "gui/$(id -u)" "$PLIST"
+# Run the reconciler once first so it creates the private local env/tokens.
+launchctl bootout "gui/$(id -u)" "$RECONCILER_PLIST" >/dev/null 2>&1 || true
+launchctl bootstrap "gui/$(id -u)" "$RECONCILER_PLIST"
 launchctl kickstart -k "gui/$(id -u)/com.aicompany.jarvis-zero-touch"
-sleep 5
-cat "$STATE_ROOT/status.json" 2>/dev/null || true
+for _ in $(seq 1 20); do
+  [[ -s "$STATE_ROOT/jarvis.env" ]] && break
+  sleep 1
+done
+[[ -s "$STATE_ROOT/jarvis.env" ]] || { echo 'JARVIS reconciler did not create jarvis.env' >&2; exit 6; }
+
+cat >"$BROKER_PLIST" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>Label</key><string>com.aicompany.jarvis-broker</string>
+<key>ProgramArguments</key><array><string>/bin/bash</string><string>$INSTALL_ROOT/scripts/jarvis-mac-broker-service.sh</string></array>
+<key>WorkingDirectory</key><string>$INSTALL_ROOT</string>
+<key>RunAtLoad</key><true/>
+<key>KeepAlive</key><true/>
+<key>ThrottleInterval</key><integer>5</integer>
+<key>StandardOutPath</key><string>$STATE_ROOT/broker-service.out.log</string>
+<key>StandardErrorPath</key><string>$STATE_ROOT/broker-service.err.log</string>
+<key>EnvironmentVariables</key><dict><key>PATH</key><string>$RUNTIME_PATH</string></dict>
+</dict></plist>
+PLIST
+
+cat >"$TUNNEL_PLIST" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>Label</key><string>com.aicompany.jarvis-broker-tunnel</string>
+<key>ProgramArguments</key><array><string>/bin/bash</string><string>$INSTALL_ROOT/scripts/jarvis-mac-broker-tunnel-service.sh</string></array>
+<key>WorkingDirectory</key><string>$INSTALL_ROOT</string>
+<key>RunAtLoad</key><true/>
+<key>KeepAlive</key><true/>
+<key>ThrottleInterval</key><integer>5</integer>
+<key>StandardOutPath</key><string>$STATE_ROOT/broker-tunnel-service.out.log</string>
+<key>StandardErrorPath</key><string>$STATE_ROOT/broker-tunnel-service.err.log</string>
+<key>EnvironmentVariables</key><dict><key>PATH</key><string>$RUNTIME_PATH</string></dict>
+</dict></plist>
+PLIST
+
+# Remove any legacy background children. launchd will now own these processes.
+pkill -f 'scripts/jarvis-broker.ts' >/dev/null 2>&1 || true
+pkill -f 'cloudflared tunnel.*127.0.0.1:8787' >/dev/null 2>&1 || true
+for plist in "$BROKER_PLIST" "$TUNNEL_PLIST"; do launchctl bootout "gui/$(id -u)" "$plist" >/dev/null 2>&1 || true; done
+launchctl bootstrap "gui/$(id -u)" "$BROKER_PLIST"
+launchctl bootstrap "gui/$(id -u)" "$TUNNEL_PLIST"
+launchctl kickstart -k "gui/$(id -u)/com.aicompany.jarvis-broker"
+launchctl kickstart -k "gui/$(id -u)/com.aicompany.jarvis-broker-tunnel"
+
+# Reconcile the new tunnel URL and current service health.
+rm -f "$STATE_ROOT/status.json"
+sleep 6
+launchctl kickstart -k "gui/$(id -u)/com.aicompany.jarvis-zero-touch"
+for _ in $(seq 1 45); do
+  if [[ -s "$STATE_ROOT/status.json" ]]; then cat "$STATE_ROOT/status.json"; exit 0; fi
+  sleep 2
+done
+echo 'JARVIS did not produce fresh status after launchd-owned service bootstrap.' >&2
+exit 7
