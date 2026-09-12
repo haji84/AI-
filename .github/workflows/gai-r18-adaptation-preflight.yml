@@ -4,19 +4,74 @@ on:
   workflow_run:
     workflows: ["GAI R17 Governed Self Modification"]
     types: [completed]
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/gai-r18-adaptation-preflight.yml"
+  schedule:
+    - cron: "29 * * * *"
   workflow_dispatch:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: gai-r18-adaptation-preflight
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
+  route:
+    name: Hosted R18 capability router
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      zbook_online: ${{ steps.route.outputs.zbook_online }}
+      state: ${{ steps.route.outputs.state }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+      - name: Check R17 provenance and ZBook availability
+        id: route
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .gai-results
+          r17_success="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/workflows/gai-r17-self-modification.yml/runs?status=success&per_page=1" --jq '.total_count // 0' 2>/dev/null || echo 0)"
+          prior=0
+          while IFS= read -r run_id; do
+            [ -z "$run_id" ] && continue
+            count="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/artifacts" --jq '[.artifacts[] | select(.expired == false and .name == "gai-r18-adaptation-preflight")] | length' 2>/dev/null || echo 0)"
+            if [ "${count:-0}" -gt 0 ]; then prior=1; break; fi
+          done < <(gh api "/repos/${GITHUB_REPOSITORY}/actions/workflows/gai-r18-adaptation-preflight.yml/runs?status=success&per_page=20" --jq '.workflow_runs[].id' 2>/dev/null || true)
+
+          online=false
+          state=WAITING_FOR_PREREQUISITE
+          if [ "$prior" -eq 1 ]; then
+            state=ALREADY_EXECUTED
+          elif [ "${r17_success:-0}" -gt 0 ]; then
+            runners="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runners?per_page=100" 2>/dev/null || printf '{"runners":[]}')"
+            n="$(printf '%s' "$runners" | jq -r '[.runners[] | select((.name|ascii_downcase)=="zbook" and .status=="online" and (.busy|not))] | length')"
+            if [ "$n" -gt 0 ]; then online=true; state=RUNNABLE; else state=WAITING_FOR_CAPABILITY; fi
+          fi
+          printf 'zbook_online=%s\nstate=%s\n' "$online" "$state" >> "$GITHUB_OUTPUT"
+          printf '{"schemaVersion":1,"stage":"R18","zbookOnline":%s,"state":"%s","checkedAt":"%s"}\n' "$online" "$state" "$(date -u +%FT%TZ)" > .gai-results/r18-route.json
+          cat .gai-results/r18-route.json
+      - name: Upload R18 routing state
+        uses: actions/upload-artifact@v4
+        with:
+          name: gai-r18-route-status
+          path: .gai-results/r18-route.json
+          retention-days: 30
+
   r18-preflight:
     name: R18 zero-cost local adaptation readiness
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    needs: route
+    if: needs.route.outputs.zbook_online == 'true'
     runs-on: [self-hosted, Windows, X64]
     timeout-minutes: 15
     steps:
