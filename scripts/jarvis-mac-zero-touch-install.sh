@@ -14,7 +14,18 @@ git fetch origin main
 git checkout main
 git reset --hard origin/main
 
-if command -v corepack >/dev/null 2>&1; then corepack enable >/dev/null 2>&1 || true; fi
+export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+if ! command -v pnpm >/dev/null 2>&1; then
+  if command -v npm >/dev/null 2>&1; then
+    npm install -g pnpm@11.19.0 >/dev/null
+  elif command -v brew >/dev/null 2>&1; then
+    brew install pnpm >/dev/null
+  else
+    echo 'pnpm bootstrap failed: npm and Homebrew are unavailable' >&2
+    exit 4
+  fi
+fi
+pnpm --version
 pnpm install --frozen-lockfile >/dev/null
 
 cat >"$PLIST" <<PLIST
@@ -35,5 +46,5 @@ PLIST
 launchctl bootout "gui/$(id -u)" "$PLIST" >/dev/null 2>&1 || true
 launchctl bootstrap "gui/$(id -u)" "$PLIST"
 launchctl kickstart -k "gui/$(id -u)/com.aicompany.jarvis-zero-touch"
-sleep 3
+sleep 5
 cat "$STATE_ROOT/status.json" 2>/dev/null || true
