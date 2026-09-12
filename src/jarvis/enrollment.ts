@@ -30,11 +30,13 @@ export class JarvisEnrollmentService {
     if (new Date(token.expiresAt).getTime() <= now.getTime()) throw new Error("Expired JARVIS enrollment token");
     if (token.usedDevices >= token.maxDevices) throw new Error("JARVIS enrollment token device limit reached");
 
-    const enrollment = token.mode === "full" ? "full" : node.enrollment;
+    // A device must never be able to self-promote from Quick to Full enrollment.
+    // Full enrollment is granted only by an owner-issued full token.
+    const enrollment: JarvisNode["enrollment"] = token.mode === "full" ? "full" : "quick";
     const enrolled: JarvisNode = {
       ...node,
       enrollment,
-      group: node.group ?? token.group,
+      group: token.group ?? node.group,
       lastSeenAt: now.toISOString(),
     };
     const updated = { ...token, usedDevices: token.usedDevices + 1 };
