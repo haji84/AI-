@@ -9,6 +9,7 @@ on:
     paths:
       - ".github/workflows/gai-r2-improvement.yml"
       - "scripts/gai-r2-improvement.mjs"
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -21,7 +22,7 @@ concurrency:
 jobs:
   r2-zbook:
     name: R2 train-designed heldout improvement on ZBook
-    if: github.event_name == 'push' || github.event.workflow_run.conclusion == 'success'
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: [self-hosted, Windows, X64]
     timeout-minutes: 180
     env:
