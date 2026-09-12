@@ -47,20 +47,21 @@ jobs:
             if [ "${count:-0}" -gt 0 ]; then already=1; break; fi
           done < <(gh api "/repos/${GITHUB_REPOSITORY}/actions/workflows/gai-r2-fresh-v2.yml/runs?status=success&per_page=20" --jq '.workflow_runs[].id' 2>/dev/null || true)
 
-          target=none
-          state=WAITING_FOR_CAPABILITY
+          target=hosted
+          state=RUNNABLE
           if [ "$already" -eq 1 ]; then
+            target=none
             state=ALREADY_EXECUTED
           else
             runners="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runners?per_page=100" 2>/dev/null || printf '{"runners":[]}')"
             zbook="$(printf '%s' "$runners" | jq -r '[.runners[] | select((.name|ascii_downcase)=="zbook" and .status=="online" and (.busy|not))] | length')"
             mac="$(printf '%s' "$runners" | jq -r '[.runners[] | select((.name|ascii_downcase)=="macbook" and .status=="online" and (.busy|not))] | length')"
-            if [ "$zbook" -gt 0 ]; then target=zbook; state=RUNNABLE
-            elif [ "$mac" -gt 0 ]; then target=macbook; state=RUNNABLE
+            if [ "$zbook" -gt 0 ]; then target=zbook
+            elif [ "$mac" -gt 0 ]; then target=macbook
             fi
           fi
           printf 'target=%s\nstate=%s\n' "$target" "$state" >> "$GITHUB_OUTPUT"
-          printf '{"schemaVersion":1,"stage":"R2-v2","target":"%s","state":"%s","checkedAt":"%s"}\n' "$target" "$state" "$(date -u +%FT%TZ)" > .gai-results/r2-v2-route.json
+          printf '{"schemaVersion":2,"stage":"R2-v2","target":"%s","state":"%s","fallbackOrder":["zbook","macbook","github-hosted"],"checkedAt":"%s"}\n' "$target" "$state" "$(date -u +%FT%TZ)" > .gai-results/r2-v2-route.json
           cat .gai-results/r2-v2-route.json
       - name: Verify frozen suite and normalizer
         run: node --test tests/r2-fresh-v2.test.ts
@@ -131,6 +132,44 @@ jobs:
           curl -fsS "$GAI_LOCAL_MODEL_ENDPOINT/api/tags" >/dev/null 2>&1 || (nohup ollama serve >/tmp/gai-ollama.log 2>&1 &)
           for _ in $(seq 1 30); do sleep 2; curl -fsS "$GAI_LOCAL_MODEL_ENDPOINT/api/tags" >/dev/null 2>&1 && break; done
           ollama pull "$GAI_LOCAL_MODEL_NAME"
+      - name: Safety regression gate
+        run: node --test tests/approval-key.test.ts tests/approval-readiness.test.ts tests/auto-merge-policy.test.ts tests/bounded-runner.test.ts tests/autonomy-capabilities.test.ts
+      - run: echo 'R2_SAFETY_VERIFIED=1' >> "$GITHUB_ENV"
+      - name: Execute fresh TRAIN-VALIDATION-HELDOUT campaign
+        run: node scripts/gai-r2-fresh-v2.mjs
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gai-baseline-zbook
+          path: .gai-results/
+          include-hidden-files: true
+          retention-days: 90
+
+  hosted:
+    name: R2 v2 fresh heldout on GitHub-hosted CPU fallback
+    needs: route
+    if: needs.route.outputs.target == 'hosted'
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      GAI_LOCAL_MODEL_ENDPOINT: http://127.0.0.1:11434
+      GAI_LOCAL_MODEL_NAME: qwen3:4b
+    steps:
+      - uses: actions/checkout@v5
+        with: { ref: main }
+      - name: Install and start zero-cost Ollama
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL https://ollama.com/install.sh | sh
+          nohup ollama serve >/tmp/gai-ollama.log 2>&1 &
+          for _ in $(seq 1 45); do
+            sleep 2
+            if curl -fsS "$GAI_LOCAL_MODEL_ENDPOINT/api/tags" >/dev/null 2>&1; then break; fi
+          done
+          curl -fsS "$GAI_LOCAL_MODEL_ENDPOINT/api/tags" >/dev/null
+          ollama pull "$GAI_LOCAL_MODEL_NAME"
+          ollama list
       - name: Safety regression gate
         run: node --test tests/approval-key.test.ts tests/approval-readiness.test.ts tests/auto-merge-policy.test.ts tests/bounded-runner.test.ts tests/autonomy-capabilities.test.ts
       - run: echo 'R2_SAFETY_VERIFIED=1' >> "$GITHUB_ENV"
