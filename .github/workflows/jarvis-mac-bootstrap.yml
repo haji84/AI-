@@ -1,0 +1,34 @@
+name: JARVIS Mac Bootstrap
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/jarvis-mac-zero-touch.sh'
+      - 'scripts/jarvis-mac-zero-touch-install.sh'
+      - '.github/workflows/jarvis-mac-bootstrap.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jarvis-mac-bootstrap
+  cancel-in-progress: false
+
+jobs:
+  install:
+    runs-on: [self-hosted, macOS, ARM64]
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+      - name: Install or refresh resident JARVIS runtime
+        shell: bash
+        run: bash scripts/jarvis-mac-zero-touch-install.sh
+      - name: Report JARVIS local status
+        shell: bash
+        run: |
+          STATUS="$HOME/Library/Application Support/JARVIS/status.json"
+          if [[ -f "$STATUS" ]]; then cat "$STATUS"; else echo '{"status":"launching"}'; fi
