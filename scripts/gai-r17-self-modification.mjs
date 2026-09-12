@@ -11,8 +11,8 @@ const outDir = path.resolve('.gai-results');
 fs.mkdirSync(outDir, { recursive: true });
 const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), 'gai-r17-'));
 const modulePath = path.join(sandbox, 'normalizer.mjs');
-const baselineSource = `export const normalize = (value) => String(value).trim();\n`;
-const candidateSource = `export const normalize = (value) => String(value).trim().replace(/^\\`\\`\\`(?:\\w+)?\\s*/i, '').replace(/\\s*\\`\\`\\`$/i, '').replace(/^\\*\\*(.*)\\*\\*$/s, '$1').replace(/[.]$/, '');\n`;
+const baselineSource = "export const normalize = (value) => String(value).trim();\n";
+const candidateSource = "export const normalize = (value) => String(value).trim().replace(/^```(?:\\w+)?\\s*/i, '').replace(/\\s*```$/i, '').replace(/^\\*\\*(.*)\\*\\*$/s, '$1').replace(/[.]$/, '');\n";
 const sha = (text) => crypto.createHash('sha256').update(text).digest('hex');
 const baselineSha = sha(baselineSource);
 
