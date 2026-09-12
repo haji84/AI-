@@ -34,7 +34,7 @@ jobs:
     runs-on: [self-hosted, Windows, X64]
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Record ZBook runtime
         shell: powershell
         run: |
@@ -63,7 +63,7 @@ jobs:
     runs-on: [self-hosted, macbook]
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Record MacBook runtime
         shell: bash
         run: |
@@ -101,7 +101,7 @@ jobs:
       GAI_PREFERRED_MODEL_NAME: ${{ vars.GAI_LOCAL_MODEL_NAME }}
       GAI_BOOTSTRAP_MODEL_NAME: qwen3:4b
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Bootstrap zero-cost Ollama runtime if missing
         id: bootstrap
