@@ -2,6 +2,10 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { OWNER_SESSION_COOKIE, verifyOwnerSessionToken } from "../../owner-auth.ts";
 import {
+  SECRET_OP_APPROVAL_COOKIE,
+  verifySecretOpApprovalToken,
+} from "../../secret-op-approval.ts";
+import {
   getLatestDeploymentDiagnostics,
   getVercelOwnerStatus,
   isManagedSecretKey,
@@ -74,10 +78,29 @@ export async function POST(request: Request) {
       if (!value.trim()) {
         return NextResponse.json({ message: "Secret値を入力してください" }, { status: 400 });
       }
+
+      const ownerSecret = process.env.AI_COMPANY_OWNER_SECRET?.trim() || "";
+      const cookieStore = await cookies();
+      const approved = verifySecretOpApprovalToken(
+        ownerSecret,
+        cookieStore.get(SECRET_OP_APPROVAL_COOKIE)?.value,
+        { action: "update_vercel_secret", key },
+      );
+      if (!approved) {
+        return NextResponse.json({
+          message: "Secret操作は1回限りHuman Gateの承認が必要です",
+          humanGateRequired: true,
+        }, { status: 403 });
+      }
+
+      // Consume the approval before invoking the external mutation. The browser loses
+      // the capability even if the downstream call fails, so retry requires a fresh approval.
+      cookieStore.delete(SECRET_OP_APPROVAL_COOKIE);
+
       const result = await updateManagedSecret(context.config, key, value);
       const redeploy = payload?.redeploy === true;
       const deployment = redeploy ? await redeployLatestProduction(context.config) : null;
-      return NextResponse.json({ ok: true, result, deployment });
+      return NextResponse.json({ ok: true, result, deployment, approvalConsumed: true });
     }
     return NextResponse.json({ message: "未対応のVercel管理操作です" }, { status: 400 });
   } catch (error) {
