@@ -6,10 +6,10 @@ This flow is intended for owned or explicitly authorized QA environments.
 
 1. Open URL 1 exactly once.
 2. Observe the Android UI hierarchy without re-opening the URL.
-3. If an error marker is detected, stop with `error-no-retry` and do not open URL 2.
+3. If an error marker is detected, force-stop the configured Android package, mark the run `error-no-retry`, and do not open URL 2.
 4. If all URL 1 success markers are detected, open URL 2 exactly once.
 5. Observe the UI hierarchy again.
-6. If an error marker is detected, stop with `error-no-retry` and do not re-open the URL.
+6. If an error marker is detected, force-stop the configured Android package, mark the run `error-no-retry`, and do not re-open the URL.
 7. If all URL 2 success markers are detected, force-stop the configured Android package and mark the run `done`.
 8. If a success state cannot be determined before timeout, stop without automatic re-execution so Remote Assist can inspect the device.
 

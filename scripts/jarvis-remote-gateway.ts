@@ -152,6 +152,18 @@ async function openUrl(serial: string, target: string): Promise<void> {
   await adb(serial, ["shell", "am", "start", "-a", "android.intent.action.VIEW", "-d", target], 20_000);
 }
 
+async function closeApp(run: QaRun, stage = "closing-app"): Promise<void> {
+  updateRun(run, { stage });
+  await adb(run.serial, ["shell", "am", "force-stop", run.packageName], 15_000);
+  updateRun(run, { appClosed: true });
+}
+
+async function stopOnError(run: QaRun, step: 1 | 2, matched: string[]): Promise<void> {
+  updateRun(run, { stage: "closing-app-after-error", step, matched });
+  await closeApp(run, "closing-app-after-error");
+  updateRun(run, { status: "error-no-retry", stage: "stopped", step, matched, appClosed: true });
+}
+
 async function runQaSequence(run: QaRun, rules: QaScreenRules, timeoutMs: number, pollMs: number): Promise<void> {
   try {
     updateRun(run, { status: "running", stage: "opening-step1", step: 1 });
@@ -159,7 +171,7 @@ async function runQaSequence(run: QaRun, rules: QaScreenRules, timeoutMs: number
     updateRun(run, { stage: "waiting-step1" });
     const first = await waitForState(run.serial, "step1-success", rules, timeoutMs, pollMs);
     if (first.state === "error") {
-      updateRun(run, { status: "error-no-retry", stage: "stopped", step: 1, matched: first.matched });
+      await stopOnError(run, 1, first.matched);
       return;
     }
     if (first.state !== "step1-success") {
@@ -172,7 +184,7 @@ async function runQaSequence(run: QaRun, rules: QaScreenRules, timeoutMs: number
     updateRun(run, { stage: "waiting-step2" });
     const second = await waitForState(run.serial, "step2-success", rules, timeoutMs, pollMs);
     if (second.state === "error") {
-      updateRun(run, { status: "error-no-retry", stage: "stopped", step: 2, matched: second.matched });
+      await stopOnError(run, 2, second.matched);
       return;
     }
     if (second.state !== "step2-success") {
@@ -181,7 +193,7 @@ async function runQaSequence(run: QaRun, rules: QaScreenRules, timeoutMs: number
     }
 
     updateRun(run, { stage: "closing-app", matched: second.matched });
-    await adb(run.serial, ["shell", "am", "force-stop", run.packageName], 15_000);
+    await closeApp(run);
     updateRun(run, { status: "done", stage: "done", appClosed: true });
   } catch (error) {
     updateRun(run, { status: "failed", stage: "failed", error: error instanceof Error ? error.message : "QA sequence failed" });
@@ -265,7 +277,7 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
     const url2 = typeof payload.url2 === "string" ? payload.url2.trim() : "";
     const packageName = typeof payload.packageName === "string" ? payload.packageName.trim() : "";
     if (!url1.startsWith("https://") || !url2.startsWith("https://")) throw new Error("both QA URLs must use HTTPS");
-    if (!PACKAGE_RE.test(packageName)) throw new Error("valid Android packageName is required so JARVIS can close the app after success");
+    if (!PACKAGE_RE.test(packageName)) throw new Error("valid Android packageName is required so JARVIS can close the app after completion or error");
     const timeoutMs = boundedInt(payload.timeoutMs ?? 90_000, "timeoutMs", 5_000, 180_000);
     const pollMs = boundedInt(payload.pollMs ?? 1_500, "pollMs", 500, 5_000);
     const rules = screenRules(payload);
