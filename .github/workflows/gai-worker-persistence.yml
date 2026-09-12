@@ -24,7 +24,7 @@ jobs:
     runs-on: [self-hosted, Windows, X64]
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install logon auto-start and watchdog
         shell: powershell
         run: |
@@ -48,7 +48,7 @@ jobs:
     runs-on: [self-hosted, macbook]
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install launchd watchdog
         shell: bash
         run: |
