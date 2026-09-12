@@ -58,6 +58,7 @@ export interface JarvisNode {
   policy: JarvisNodePolicy;
   telemetry: JarvisNodeTelemetry;
   enrollment: "quick" | "full";
+  fleetNumber?: number;
   group?: string;
   lastSeenAt: string;
 }

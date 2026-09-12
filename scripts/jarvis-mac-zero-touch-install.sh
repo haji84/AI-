@@ -20,11 +20,12 @@ git checkout main
 git reset --hard origin/main
 
 if ! command -v brew >/dev/null 2>&1; then
-  echo 'JARVIS requires Homebrew on this Mac to provision Node 24, cloudflared, and ADB.' >&2
+  echo 'JARVIS requires Homebrew on this Mac to provision Node 24, cloudflared, qrencode, and ADB.' >&2
   exit 4
 fi
 if ! brew list --versions node@24 >/dev/null 2>&1; then brew install node@24 >/dev/null; fi
 if ! brew list --versions cloudflared >/dev/null 2>&1; then brew install cloudflared >/dev/null; fi
+if ! brew list --versions qrencode >/dev/null 2>&1; then brew install qrencode >/dev/null; fi
 if ! command -v adb >/dev/null 2>&1; then brew install --cask android-platform-tools >/dev/null; fi
 NODE24_BIN="$(brew --prefix node@24)/bin"
 export PATH="$NODE24_BIN:$LOCAL_BIN:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
@@ -39,6 +40,7 @@ if ! command -v vercel >/dev/null 2>&1; then npm install -g --prefix "$HOME/.loc
 node --version
 pnpm --version
 adb version | head -1
+qrencode --version | head -1
 pnpm install --frozen-lockfile >/dev/null
 
 RUNTIME_PATH="$NODE24_BIN:$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"

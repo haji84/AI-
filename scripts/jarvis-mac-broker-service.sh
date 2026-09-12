@@ -8,5 +8,7 @@ set -a
 # shellcheck disable=SC1090
 source "$ENV_FILE"
 set +a
+export JARVIS_WORKER_APK_PATH="${JARVIS_WORKER_APK_PATH:-$STATE_ROOT/jarvis-worker.apk}"
+export JARVIS_QRENCODE_PATH="${JARVIS_QRENCODE_PATH:-$(command -v qrencode || true)}"
 cd "$REPO_ROOT"
 exec pnpm jarvis:broker
