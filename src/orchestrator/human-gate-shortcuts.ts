@@ -29,6 +29,10 @@ function normalize(value: string): string {
   return value.trim().replace(/[！!。.]$/u, "").trim();
 }
 
+export function isStandaloneHumanGateApprovalCommand(command: string | null | undefined): boolean {
+  return APPROVE_COMMANDS.has(normalize(command ?? ""));
+}
+
 export function parseHumanGateShortcut(command: string | null | undefined): HumanGateShortcut {
   const normalized = normalize(command ?? "");
   if (CHECK_COMMANDS.has(normalized)) return { kind: "check" };
