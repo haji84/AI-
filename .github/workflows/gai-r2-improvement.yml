@@ -8,6 +8,7 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/gai-r2-improvement.yml"
+      - "scripts/gai-r2-improvement.mjs"
 
 permissions:
   contents: read
@@ -15,7 +16,7 @@ permissions:
 
 concurrency:
   group: gai-r2-measured-improvement
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   r2-zbook:
