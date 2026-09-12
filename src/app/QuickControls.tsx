@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import SecretOpsPanel from "./SecretOpsPanel.tsx";
 
 type ControlAction = "run" | "resume" | "pause" | "status" | "test" | "preview";
 
@@ -55,6 +56,10 @@ export default function QuickControls({ enabled }: { enabled: boolean }) {
       </div>
       {!enabled && <p className="inline-note">この端末をオーナー認証すると操作できます。</p>}
       {message && <p className="control-message" role="status">{message}</p>}
+      <details style={{ marginTop: 14 }}>
+        <summary>🔐 Secret操作 Human Gate</summary>
+        <SecretOpsPanel enabled={enabled} />
+      </details>
     </div>
   );
 }
