@@ -22,7 +22,11 @@ read_env_value() {
 }
 
 write_env() {
-  local owner="$1" remote="$2" serials="$3" broker_url="$4" remote_url="$5"
+  local owner="$1"
+  local remote="$2"
+  local serials="$3"
+  local broker_url="$4"
+  local remote_url="$5"
   cat >"$ENV_FILE" <<EOF
 JARVIS_OWNER_TOKEN=$owner
 JARVIS_REMOTE_GATEWAY_TOKEN=$remote
@@ -63,21 +67,26 @@ if ! command -v cloudflared >/dev/null 2>&1; then
 fi
 
 start_bg() {
-  local name="$1" pattern="$2" cmd="$3"
+  local name="$1"
+  local pattern="$2"
+  local cmd="$3"
   if pgrep -f "$pattern" >/dev/null 2>&1; then return 0; fi
-  nohup /bin/zsh -lc "$cmd" >>"$STATE_ROOT/$name.out.log" 2>>"$STATE_ROOT/$name.err.log" &
+  nohup /bin/bash -c "$cmd" >>"$STATE_ROOT/$name.out.log" 2>>"$STATE_ROOT/$name.err.log" &
 }
 
 start_bg broker 'scripts/jarvis-broker.ts' "cd '$REPO_ROOT' && pnpm jarvis:broker"
 sleep 2
 
 start_tunnel() {
-  local name="$1" local_url="$2" log="$STATE_ROOT/$name-tunnel.log"
-  if ! pgrep -f "cloudflared tunnel --url $local_url" >/dev/null 2>&1; then
+  local name="$1"
+  local local_url="$2"
+  local log="$STATE_ROOT/${name}-tunnel.log"
+  if ! pgrep -f "cloudflared tunnel --.*url $local_url" >/dev/null 2>&1; then
     : >"$log"
     nohup cloudflared tunnel --no-autoupdate --url "$local_url" >"$log" 2>&1 &
   fi
-  local deadline=$((SECONDS+25)) found=''
+  local deadline=$((SECONDS+25))
+  local found=''
   while (( SECONDS < deadline )); do
     found="$(grep -Eo 'https://[a-zA-Z0-9-]+\.trycloudflare\.com' "$log" 2>/dev/null | tail -1 || true)"
     [[ -n "$found" ]] && { printf '%s' "$found"; return 0; }
@@ -111,12 +120,15 @@ fi
 write_env "$owner_token" "$remote_token" "$serials" "$broker_url" "$remote_url"
 
 vercel_synced=false
+vercel_authenticated=false
 if command -v vercel >/dev/null 2>&1 && vercel whoami >/dev/null 2>&1; then
+  vercel_authenticated=true
   cd "$REPO_ROOT"
   vercel link --yes --project jarvis --scope qq1130034-1738 >/dev/null 2>&1 || true
   if [[ -f .vercel/project.json ]]; then
     upsert_vercel_env() {
-      local key="$1" value="$2"
+      local key="$1"
+      local value="$2"
       [[ -n "$value" ]] || return 0
       vercel env rm "$key" production -y >/dev/null 2>&1 || true
       printf '%s' "$value" | vercel env add "$key" production >/dev/null
@@ -140,6 +152,7 @@ cat >"$STATE_ROOT/status.json" <<JSON
   "remoteGatewayHealthy": $remote_healthy,
   "brokerPublicUrlReady": $([[ -n "$broker_url" ]] && echo true || echo false),
   "remotePublicUrlReady": $([[ -n "$remote_url" ]] && echo true || echo false),
+  "vercelAuthenticated": $vercel_authenticated,
   "vercelSynced": $vercel_synced,
   "authorizedSerialCount": $([[ -n "$serials" ]] && awk -F, '{print NF}' <<<"$serials" || echo 0),
   "checkedAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
