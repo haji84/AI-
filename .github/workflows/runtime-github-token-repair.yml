@@ -1,0 +1,234 @@
+name: Runtime GitHub Token Repair
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+
+concurrency:
+  group: vercel-scoped-production
+  cancel-in-progress: false
+
+jobs:
+  authorize:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+    outputs:
+      authorized: ${{ steps.scope.outputs.authorized }}
+      issue_number: ${{ steps.scope.outputs.issue_number }}
+      pr_number: ${{ steps.scope.outputs.pr_number }}
+      deploy_sha: ${{ steps.scope.outputs.deploy_sha }}
+    steps:
+      - name: Verify exact task-scoped secret repair authorization
+        id: scope
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+          DEPLOY_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          import { appendFile } from "node:fs/promises";
+
+          const token = process.env.GH_TOKEN;
+          const repository = process.env.REPOSITORY;
+          const owner = process.env.REPOSITORY_OWNER;
+          const sha = process.env.DEPLOY_SHA;
+          const output = process.env.GITHUB_OUTPUT;
+          if (!token || !repository || !owner || !sha || !output) throw new Error("authorization context is incomplete");
+
+          const headers = {
+            Accept: "application/vnd.github+json",
+            Authorization: `Bearer ${token}`,
+            "X-GitHub-Api-Version": "2022-11-28",
+          };
+
+          async function get(path) {
+            const response = await fetch(`https://api.github.com/repos/${repository}${path}`, { headers });
+            const body = await response.json().catch(() => null);
+            if (!response.ok) throw new Error(`GitHub authorization lookup failed (${response.status})`);
+            return body;
+          }
+
+          async function finish(values) {
+            await appendFile(output, Object.entries(values).map(([key, value]) => `${key}=${value}\n`).join(""));
+          }
+
+          const pulls = await get(`/commits/${encodeURIComponent(sha)}/pulls`);
+          const pr = Array.isArray(pulls)
+            ? pulls.find((candidate) => candidate?.merged_at && candidate?.base?.ref === "main" && candidate?.merge_commit_sha === sha)
+            : null;
+          if (!pr) {
+            await finish({ authorized: "false", issue_number: "", pr_number: "", deploy_sha: sha });
+            process.exit(0);
+          }
+
+          const prBody = typeof pr.body === "string" ? pr.body : "";
+          const scopeMatch = prBody.match(/<!--\s*ai-company-task-scope:\s*issue:(\d+)\s*-->/i);
+          const approved = /<!--\s*ai-company-production-deploy:\s*approved\s*-->/i.test(prBody);
+          const expiryMatch = prBody.match(/<!--\s*ai-company-task-authorization-expires-at:\s*([^>]+?)\s*-->/i);
+          if (!scopeMatch || !approved || !expiryMatch) {
+            await finish({ authorized: "false", issue_number: "", pr_number: String(pr.number ?? ""), deploy_sha: sha });
+            process.exit(0);
+          }
+
+          const issueNumber = Number(scopeMatch[1]);
+          const expiresAt = Date.parse(expiryMatch[1].trim());
+          if (!Number.isInteger(issueNumber) || issueNumber < 1 || !Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
+            await finish({ authorized: "false", issue_number: String(issueNumber || ""), pr_number: String(pr.number ?? ""), deploy_sha: sha });
+            process.exit(0);
+          }
+
+          const issue = await get(`/issues/${issueNumber}`);
+          const issueBody = typeof issue?.body === "string" ? issue.body : "";
+          const ownerCommandMatch = issueBody.match(/## Owner command\s*\n([\s\S]*?)(?:\n\n##|\n## Execution contract|$)/i);
+          const ownerCommand = ownerCommandMatch?.[1]?.trim() || "";
+          const completionInstruction = /(最後まで.{0,12}(進め|やって|任せ|完成)|完了まで.{0,12}(進め|やって|任せ)|完成.{0,12}(させ|まで|して|させて)|全部.{0,12}(進め|やって|任せ)|任せる|finish\s+(it|this|the\s+task)|take\s+it\s+to\s+completion|handle.{0,20}(through|to)\s+(the\s+)?end)/iu.test(ownerCommand);
+          const productionApproved = /production-deploy-authorized:\s*true/i.test(issueBody);
+          const secretSyncApproved = /secret-sync-authorized:\s*true\s+for\s+AI_COMPANY_GITHUB_TOKEN\s+only/i.test(issueBody);
+          const ownerIssued = issue?.user?.login === owner;
+
+          if (!ownerIssued || !productionApproved || !secretSyncApproved || !completionInstruction) {
+            console.log("No fresh owner authorization for the bounded runtime GitHub token repair. Repair remains blocked.");
+            await finish({ authorized: "false", issue_number: String(issueNumber), pr_number: String(pr.number ?? ""), deploy_sha: sha });
+            process.exit(0);
+          }
+
+          console.log(`Bounded credential repair authorized for issue #${issueNumber}, PR #${pr.number}, commit ${sha}.`);
+          await finish({ authorized: "true", issue_number: String(issueNumber), pr_number: String(pr.number), deploy_sha: sha });
+          NODE
+
+  repair-and-deploy:
+    needs: authorize
+    if: needs.authorize.outputs.authorized == 'true'
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      PROJECT_NAME: unified-ai-creator-studio
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      AI_COMPANY_GITHUB_TOKEN: ${{ secrets.AI_COMPANY_GITHUB_TOKEN }}
+    steps:
+      - name: Checkout exact authorized merged commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.authorize.outputs.deploy_sha }}
+
+      - name: Verify repair credentials without exposing values
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ -n "${VERCEL_TOKEN:-}" ]] || { echo "VERCEL_TOKEN is not configured" >&2; exit 1; }
+          [[ -n "${AI_COMPANY_GITHUB_TOKEN:-}" ]] || { echo "AI_COMPANY_GITHUB_TOKEN is not configured" >&2; exit 1; }
+          status="$(curl --silent --output /dev/null --write-out '%{http_code}' \
+            --header "Authorization: Bearer $AI_COMPANY_GITHUB_TOKEN" \
+            --header "Accept: application/vnd.github+json" \
+            --header "X-GitHub-Api-Version: 2022-11-28" \
+            https://api.github.com/user)"
+          if [[ "$status" != "200" ]]; then
+            echo "Stored GitHub Actions credential is not valid for GitHub authentication (HTTP $status). Secret value was not printed." >&2
+            exit 1
+          fi
+          echo "Stored GitHub Actions credential authenticated successfully. Secret value was not printed."
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.19.0
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Force-sync only the authorized GitHub runtime credential
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const vercelToken = process.env.VERCEL_TOKEN;
+          const githubToken = process.env.AI_COMPANY_GITHUB_TOKEN;
+          const projectName = process.env.PROJECT_NAME;
+          const headers = { Authorization: `Bearer ${vercelToken}`, "Content-Type": "application/json" };
+
+          async function request(url, init = {}) {
+            const response = await fetch(url, { ...init, headers: { ...headers, ...(init.headers ?? {}) } });
+            const text = await response.text();
+            let body = null;
+            if (text) {
+              try { body = JSON.parse(text); } catch { body = { message: text }; }
+            }
+            return { response, body };
+          }
+
+          const projectResult = await request(`https://api.vercel.com/v9/projects/${encodeURIComponent(projectName)}`);
+          const project = projectResult.body;
+          if (!projectResult.response.ok || !project?.id || !project?.accountId) {
+            throw new Error(`Unable to resolve Vercel project (status ${projectResult.response.status}).`);
+          }
+
+          const syncResult = await request(`https://api.vercel.com/v10/projects/${encodeURIComponent(project.id)}/env?upsert=true`, {
+            method: "POST",
+            body: JSON.stringify([
+              {
+                key: "AI_COMPANY_GITHUB_TOKEN",
+                value: githubToken,
+                type: "sensitive",
+                target: ["production"],
+                comment: "Task-scoped repair of AI Company GitHub runtime credential",
+              },
+            ]),
+          });
+          if (!syncResult.response.ok) {
+            throw new Error(`Unable to sync authorized runtime credential (status ${syncResult.response.status}).`);
+          }
+
+          await import("node:fs/promises").then(async ({ mkdir, writeFile }) => {
+            await mkdir(".vercel", { recursive: true });
+            await writeFile(".vercel/project.json", JSON.stringify({ projectId: project.id, orgId: project.accountId }) + "\n", { mode: 0o600 });
+          });
+          console.log("Authorized AI_COMPANY_GITHUB_TOKEN runtime credential was synchronized. Value was not printed.");
+          NODE
+
+      - name: Pull Production configuration after credential repair
+        run: pnpm dlx vercel@latest pull --yes --environment=production --token="$VERCEL_TOKEN"
+
+      - name: Build exact authorized commit
+        run: pnpm dlx vercel@latest build --prod --token="$VERCEL_TOKEN"
+
+      - name: Deploy repaired exact commit to Production
+        id: deploy
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="$(pnpm dlx vercel@latest deploy --prebuilt --prod --token="$VERCEL_TOKEN")"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          {
+            echo "## Runtime GitHub credential repair"
+            echo ""
+            echo "- Issue: #${{ needs.authorize.outputs.issue_number }}"
+            echo "- PR: #${{ needs.authorize.outputs.pr_number }}"
+            echo "- Commit: ${{ needs.authorize.outputs.deploy_sha }}"
+            echo "- Result: bounded GitHub runtime credential synchronized and exact commit redeployed"
+            echo "- Secret values: never printed"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Verify repaired Production responds
+        shell: bash
+        env:
+          DEPLOYMENT_URL: ${{ steps.deploy.outputs.url }}
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location --retry 3 --retry-delay 2 "$DEPLOYMENT_URL" >/dev/null
+          echo "Repaired Production deployment responded successfully."
