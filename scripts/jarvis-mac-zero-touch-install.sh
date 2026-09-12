@@ -15,17 +15,30 @@ git fetch origin main
 git checkout main
 git reset --hard origin/main
 
-export PATH="$LOCAL_BIN:/opt/homebrew/bin:/usr/local/bin:$PATH"
-if ! command -v pnpm >/dev/null 2>&1; then
-  if command -v npm >/dev/null 2>&1; then
-    npm install -g --prefix "$HOME/.local" pnpm@11.19.0 >/dev/null
-  elif command -v brew >/dev/null 2>&1; then
-    brew install pnpm >/dev/null
-  else
-    echo 'pnpm bootstrap failed: npm and Homebrew are unavailable' >&2
-    exit 4
-  fi
+if ! command -v brew >/dev/null 2>&1; then
+  echo 'JARVIS requires Homebrew on this Mac to provision Node 24 and cloudflared.' >&2
+  exit 4
 fi
+
+if ! brew list --versions node@24 >/dev/null 2>&1; then
+  brew install node@24 >/dev/null
+fi
+NODE24_BIN="$(brew --prefix node@24)/bin"
+export PATH="$NODE24_BIN:$LOCAL_BIN:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+
+node_major="$(node -p 'process.versions.node.split(".")[0]')"
+if [[ "$node_major" != "24" ]]; then
+  echo "Expected Node 24 but resolved $(node --version) at $(command -v node)" >&2
+  exit 5
+fi
+
+if ! command -v pnpm >/dev/null 2>&1; then
+  npm install -g --prefix "$HOME/.local" pnpm@11.19.0 >/dev/null
+fi
+if ! command -v vercel >/dev/null 2>&1; then
+  npm install -g --prefix "$HOME/.local" vercel >/dev/null
+fi
+node --version
 pnpm --version
 pnpm install --frozen-lockfile >/dev/null
 
@@ -34,13 +47,13 @@ cat >"$PLIST" <<PLIST
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
 <key>Label</key><string>com.aicompany.jarvis-zero-touch</string>
-<key>ProgramArguments</key><array><string>/bin/zsh</string><string>$INSTALL_ROOT/scripts/jarvis-mac-zero-touch.sh</string></array>
+<key>ProgramArguments</key><array><string>/bin/bash</string><string>$INSTALL_ROOT/scripts/jarvis-mac-zero-touch.sh</string></array>
 <key>WorkingDirectory</key><string>$INSTALL_ROOT</string>
 <key>RunAtLoad</key><true/>
 <key>StartInterval</key><integer>60</integer>
 <key>StandardOutPath</key><string>$STATE_ROOT/zero-touch-launch.out.log</string>
 <key>StandardErrorPath</key><string>$STATE_ROOT/zero-touch-launch.err.log</string>
-<key>EnvironmentVariables</key><dict><key>PATH</key><string>$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string></dict>
+<key>EnvironmentVariables</key><dict><key>PATH</key><string>$NODE24_BIN:$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string></dict>
 </dict></plist>
 PLIST
 
