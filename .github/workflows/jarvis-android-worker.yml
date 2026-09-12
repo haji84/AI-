@@ -28,31 +28,32 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.6.0'
-      - name: Build debug APK
-        run: gradle -p android/jarvis-worker :app:assembleDebug --stacktrace
+      - name: Build unsigned release APK
+        run: gradle -p android/jarvis-worker :app:assembleRelease --stacktrace
       - name: Verify APK
-        run: test -s android/jarvis-worker/app/build/outputs/apk/debug/app-debug.apk
+        run: test -s android/jarvis-worker/app/build/outputs/apk/release/app-release-unsigned.apk
       - uses: actions/upload-artifact@v4
         with:
           name: jarvis-worker-apk
-          path: android/jarvis-worker/app/build/outputs/apk/debug/app-debug.apk
+          path: android/jarvis-worker/app/build/outputs/apk/release/app-release-unsigned.apk
           if-no-files-found: error
           retention-days: 30
 
   deploy-mac:
+    needs: android-worker
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: [self-hosted, macOS, ARM64]
-    timeout-minutes: 30
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: actions/download-artifact@v4
         with:
-          gradle-version: '9.6.0'
-      - name: Ensure Android SDK
+          name: jarvis-worker-apk
+          path: ${{ runner.temp }}/jarvis-worker
+      - name: Ensure APK signing tools
         shell: bash
         run: |
           set -euo pipefail
@@ -62,17 +63,44 @@ jobs:
           SDK_ROOT="$HOME/Library/Android/sdk"
           mkdir -p "$SDK_ROOT"
           yes | sdkmanager --sdk_root="$SDK_ROOT" --licenses >/dev/null 2>&1 || true
-          sdkmanager --sdk_root="$SDK_ROOT" 'platform-tools' 'platforms;android-37' 'build-tools;37.0.0'
-          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
+          if [[ ! -x "$SDK_ROOT/build-tools/36.0.0/apksigner" ]]; then
+            sdkmanager --sdk_root="$SDK_ROOT" 'build-tools;36.0.0'
+          fi
+          test -x "$SDK_ROOT/build-tools/36.0.0/apksigner"
           echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
-      - name: Build persistent-signature APK
-        run: gradle -p android/jarvis-worker :app:assembleDebug --stacktrace
-      - name: Publish APK to resident Broker
+      - name: Sign and publish APK to resident Broker
         shell: bash
         run: |
           set -euo pipefail
           STATE_ROOT="$HOME/Library/Application Support/JARVIS"
+          KEYSTORE="$STATE_ROOT/jarvis-worker-signing.jks"
+          PASS_FILE="$STATE_ROOT/jarvis-worker-signing.pass"
+          UNSIGNED="$RUNNER_TEMP/jarvis-worker/app-release-unsigned.apk"
+          SIGNED="$STATE_ROOT/jarvis-worker.apk"
           mkdir -p "$STATE_ROOT"
-          install -m 600 android/jarvis-worker/app/build/outputs/apk/debug/app-debug.apk "$STATE_ROOT/jarvis-worker.apk"
-          shasum -a 256 "$STATE_ROOT/jarvis-worker.apk"
+          chmod 700 "$STATE_ROOT"
+          if [[ ! -s "$PASS_FILE" ]]; then
+            umask 077
+            openssl rand -hex 24 > "$PASS_FILE"
+          fi
+          STORE_PASS="$(cat "$PASS_FILE")"
+          if [[ ! -s "$KEYSTORE" ]]; then
+            keytool -genkeypair -noprompt \
+              -keystore "$KEYSTORE" \
+              -storepass "$STORE_PASS" \
+              -keypass "$STORE_PASS" \
+              -alias jarvis-worker \
+              -keyalg RSA -keysize 4096 -validity 36500 \
+              -dname 'CN=JARVIS Worker, OU=AI Company, O=Owner Managed, C=JP'
+            chmod 600 "$KEYSTORE"
+          fi
+          "$ANDROID_SDK_ROOT/build-tools/36.0.0/apksigner" sign \
+            --ks "$KEYSTORE" \
+            --ks-key-alias jarvis-worker \
+            --ks-pass "pass:$STORE_PASS" \
+            --key-pass "pass:$STORE_PASS" \
+            --out "$SIGNED" "$UNSIGNED"
+          chmod 600 "$SIGNED"
+          "$ANDROID_SDK_ROOT/build-tools/36.0.0/apksigner" verify --verbose "$SIGNED"
+          shasum -a 256 "$SIGNED"
           launchctl kickstart -k "gui/$(id -u)/com.aicompany.jarvis-broker" >/dev/null 2>&1 || true
