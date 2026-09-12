@@ -1,4 +1,6 @@
+import { execFileSync } from "node:child_process";
 import { createHash, createPublicKey, timingSafeEqual } from "node:crypto";
+import { existsSync, readFileSync } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import {
   JarvisControlPlane,
@@ -14,6 +16,8 @@ const host = process.env.JARVIS_BROKER_HOST?.trim() || "127.0.0.1";
 const port = Number(process.env.JARVIS_BROKER_PORT || 8787);
 const ownerToken = process.env.JARVIS_OWNER_TOKEN?.trim() || "";
 const publicBrokerUrl = process.env.JARVIS_PUBLIC_BROKER_URL?.trim().replace(/\/$/, "") || "";
+const workerApkPath = process.env.JARVIS_WORKER_APK_PATH?.trim() || "";
+const qrencodePath = process.env.JARVIS_QRENCODE_PATH?.trim() || "qrencode";
 
 if (!ownerToken) throw new Error("JARVIS_OWNER_TOKEN is required");
 if (host !== "127.0.0.1" && host !== "::1" && process.env.JARVIS_ALLOW_NON_LOOPBACK !== "1") {
@@ -27,11 +31,55 @@ if (persisted) plane.restore(persisted);
 const nonces = new JarvisNonceRegistry();
 let lastHeartbeatPersist = 0;
 
+type WorkerApkInfo = {
+  path: string;
+  url: string;
+  bytes: Buffer;
+  sha256Base64Url: string;
+};
+
 function json(response: ServerResponse, status: number, body: unknown): void {
   response.statusCode = status;
   response.setHeader("Content-Type", "application/json; charset=utf-8");
   response.setHeader("Cache-Control", "no-store");
   response.end(JSON.stringify(body));
+}
+
+function workerApkInfo(): WorkerApkInfo | undefined {
+  if (!workerApkPath || !publicBrokerUrl || !existsSync(workerApkPath)) return undefined;
+  const bytes = readFileSync(workerApkPath);
+  if (!bytes.length) return undefined;
+  return {
+    path: workerApkPath,
+    url: `${publicBrokerUrl}/downloads/jarvis-worker.apk`,
+    bytes,
+    sha256Base64Url: createHash("sha256").update(bytes).digest("base64url"),
+  };
+}
+
+function fullProvisioningPayload(brokerUrl: string, token: string, apk: WorkerApkInfo): Record<string, unknown> {
+  return {
+    "android.app.extra.PROVISIONING_DEVICE_ADMIN_COMPONENT_NAME": "ai.jarvis.worker/.JarvisDeviceAdminReceiver",
+    "android.app.extra.PROVISIONING_DEVICE_ADMIN_PACKAGE_DOWNLOAD_LOCATION": apk.url,
+    "android.app.extra.PROVISIONING_DEVICE_ADMIN_PACKAGE_CHECKSUM": apk.sha256Base64Url,
+    "android.app.extra.PROVISIONING_ADMIN_EXTRAS_BUNDLE": {
+      jarvis_broker: brokerUrl,
+      jarvis_token: token,
+    },
+  };
+}
+
+function provisioningQrPngBase64(payload: Record<string, unknown>): string | undefined {
+  try {
+    const png = execFileSync(qrencodePath, ["-o", "-", "-t", "PNG", "-m", "2", JSON.stringify(payload)], {
+      encoding: "buffer",
+      timeout: 10_000,
+      maxBuffer: 4 * 1024 * 1024,
+    });
+    return Buffer.isBuffer(png) && png.length ? png.toString("base64") : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 async function readBody(request: IncomingMessage, limit = 1_000_000): Promise<Buffer> {
@@ -128,7 +176,19 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
   const body = method === "GET" || method === "HEAD" ? Buffer.alloc(0) : await readBody(request);
 
   if (method === "GET" && path === "/health") {
-    return json(response, 200, { ok: true, service: "jarvis-broker", stats: plane.snapshot().stats });
+    return json(response, 200, { ok: true, service: "jarvis-broker", stats: plane.snapshot().stats, workerApkReady: Boolean(workerApkInfo()) });
+  }
+
+  if (method === "GET" && path === "/downloads/jarvis-worker.apk") {
+    const apk = workerApkInfo();
+    if (!apk) return json(response, 404, { message: "JARVIS Worker APK is not ready" });
+    response.statusCode = 200;
+    response.setHeader("Content-Type", "application/vnd.android.package-archive");
+    response.setHeader("Content-Disposition", "attachment; filename=jarvis-worker.apk");
+    response.setHeader("Content-Length", String(apk.bytes.length));
+    response.setHeader("Cache-Control", "no-store");
+    response.end(apk.bytes);
+    return;
   }
 
   if (path.startsWith("/api/jarvis/admin/")) {
@@ -148,7 +208,19 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
       const deepLink = publicBrokerUrl
         ? `jarvis://enroll?broker=${encodeURIComponent(publicBrokerUrl)}&token=${encodeURIComponent(token.token)}`
         : undefined;
-      return json(response, 201, { token, deepLink });
+      const apk = workerApkInfo();
+      const provisioning = mode !== "quick" && publicBrokerUrl && apk
+        ? fullProvisioningPayload(publicBrokerUrl, token.token, apk)
+        : undefined;
+      const qrPngBase64 = provisioning ? provisioningQrPngBase64(provisioning) : undefined;
+      return json(response, 201, {
+        token,
+        deepLink,
+        apkUrl: apk?.url,
+        apkSha256Base64Url: apk?.sha256Base64Url,
+        provisioning,
+        qrPngBase64,
+      });
     }
 
     if (method === "POST" && path === "/api/jarvis/admin/tasks") {
@@ -255,7 +327,7 @@ const server = createServer((request, response) => {
 
 server.listen(port, host, () => {
   console.log(`[jarvis-broker] listening on http://${host}:${port}`);
-  console.log(`[jarvis-broker] nodes=${plane.snapshot().stats.registered} tasks=${plane.snapshot().tasks.length}`);
+  console.log(`[jarvis-broker] nodes=${plane.snapshot().stats.registered} tasks=${plane.snapshot().tasks.length} workerApk=${workerApkInfo() ? "ready" : "missing"}`);
 });
 
 function shutdown(): void {
