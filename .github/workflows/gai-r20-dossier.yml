@@ -1,0 +1,38 @@
+name: GAI R20 Evidence Dossier
+
+on:
+  workflow_run:
+    workflows: ["GAI Research Evidence Ledger"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: gai-r20-dossier
+  cancel-in-progress: true
+
+jobs:
+  dossier:
+    name: R20 conservative evidence dossier
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+      - name: Generate dossier from persistent Research Evidence Ledger
+        shell: powershell
+        run: |
+          $ledger = Join-Path $env:LOCALAPPDATA 'GAIWorker\research-evidence-ledger.json'
+          if (-not (Test-Path $ledger)) { throw "Persistent Research Evidence Ledger not found: $ledger" }
+          node scripts/gai-r20-dossier.mjs "--ledger=$ledger"
+      - name: Upload current R20 dossier snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: gai-r20-dossier
+          path: .gai-results/r20-*.json
+          retention-days: 90
