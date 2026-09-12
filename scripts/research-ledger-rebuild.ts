@@ -36,7 +36,7 @@ for (const file of files.sort()) {
   }
 }
 
-const merged = files.length ? JSON.parse(await readFile(ledgerPath, "utf8")) as ResearchEvidence[] : [];
+const merged = await ledger.load();
 const assessments = assessResearchProgram(merged);
 const next = nextExecutableResearchStages(merged);
 const status = {
