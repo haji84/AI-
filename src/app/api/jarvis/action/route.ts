@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { jarvisBrokerFetch, requireJarvisOwner } from "../broker.ts";
 
 type JarvisDashboardAction =
-  | { action: "enrollment"; mode?: "quick" | "full" | "fleet"; maxDevices?: number; group?: string }
+  | { action: "enrollment"; mode?: "quick" | "full" | "fleet"; maxDevices?: number; group?: string; ttlMs?: number }
   | { action: "open-url"; url?: string; targetNodeId?: string; allowJavaScript?: boolean }
   | { action: "resolve-takeover"; sessionId?: string; resumeTask?: boolean };
 
@@ -19,6 +19,7 @@ export async function POST(request: Request) {
       mode: payload.mode ?? "quick",
       maxDevices: payload.maxDevices ?? (payload.mode === "fleet" ? 100 : 1),
       group: payload.group,
+      ttlMs: payload.ttlMs,
     };
   } else if (payload.action === "open-url") {
     if (!payload.url?.startsWith("https://")) return NextResponse.json({ message: "HTTPS URLを指定してください" }, { status: 400 });
@@ -41,7 +42,7 @@ export async function POST(request: Request) {
   } catch (error) {
     const detail = error instanceof Error ? error.message : "unknown error";
     return NextResponse.json({
-      message: payload.action === "enrollment" ? "登録URLを発行できません。JARVIS Brokerの接続設定を確認してください。" : "JARVIS Brokerに接続できません",
+      message: payload.action === "enrollment" ? "登録セットを発行できません。JARVIS Brokerの接続設定を確認してください。" : "JARVIS Brokerに接続できません",
       detail,
     }, { status: 503 });
   }
