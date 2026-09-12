@@ -66,7 +66,9 @@ export default function QaSequenceConsole() {
         setUrl1(parsed.url1 ?? "");
         setUrl2(parsed.url2 ?? "");
         setPackageName(parsed.packageName ?? "");
-      } catch {}
+      } catch {
+        window.localStorage.removeItem("jarvis.qa.profile");
+      }
     }
   }, [loadDevices]);
 
