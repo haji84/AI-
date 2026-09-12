@@ -169,6 +169,19 @@ function validatedNode(value: unknown): JarvisNode {
   return node;
 }
 
+function assignFleetNumber(node: JarvisNode): JarvisNode {
+  const existing = plane.fleet.get(node.id);
+  const used = new Set(plane.fleet.list().map((item) => item.fleetNumber).filter((value): value is number => typeof value === "number"));
+  const fleetNumber = existing?.fleetNumber ?? Array.from({ length: 100 }, (_, index) => index + 1).find((value) => !used.has(value));
+  if (!fleetNumber) throw new Error("JARVIS fleet has no free device number");
+  const plainLabel = node.label.replace(/^Android\s+\d{3}\s+·\s+/, "");
+  return {
+    ...node,
+    fleetNumber,
+    label: `Android ${String(fleetNumber).padStart(3, "0")} · ${plainLabel}`,
+  };
+}
+
 async function handler(request: IncomingMessage, response: ServerResponse): Promise<void> {
   const url = new URL(request.url || "/", "http://localhost");
   const path = url.pathname;
@@ -199,22 +212,24 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
 
     if (method === "POST" && path === "/api/jarvis/admin/enrollment") {
       const mode = payload.mode === "full" || payload.mode === "fleet" ? payload.mode : "quick";
-      const token = plane.createEnrollment({
-        mode,
-        ttlMs: Math.min(Math.max(asNumber(payload.ttlMs, 5 * 60_000), 60_000), 60 * 60_000),
-        maxDevices: Math.min(Math.max(asNumber(payload.maxDevices, mode === "fleet" ? 100 : 1), 1), 100),
-        group: typeof payload.group === "string" ? payload.group : undefined,
-      });
+      const ttlMs = Math.min(Math.max(asNumber(payload.ttlMs, 5 * 60_000), 60_000), 60 * 60_000);
+      const maxDevices = Math.min(Math.max(asNumber(payload.maxDevices, mode === "fleet" ? 100 : 1), 1), 100);
+      const group = typeof payload.group === "string" ? payload.group : undefined;
+      const token = plane.createEnrollment({ mode, ttlMs, maxDevices, group });
+      const fullToken = mode === "fleet"
+        ? plane.createEnrollment({ mode: "full", ttlMs, maxDevices, group })
+        : mode === "full" ? token : undefined;
       const deepLink = publicBrokerUrl
         ? `jarvis://enroll?broker=${encodeURIComponent(publicBrokerUrl)}&token=${encodeURIComponent(token.token)}`
         : undefined;
       const apk = workerApkInfo();
-      const provisioning = mode !== "quick" && publicBrokerUrl && apk
-        ? fullProvisioningPayload(publicBrokerUrl, token.token, apk)
+      const provisioning = fullToken && publicBrokerUrl && apk
+        ? fullProvisioningPayload(publicBrokerUrl, fullToken.token, apk)
         : undefined;
       const qrPngBase64 = provisioning ? provisioningQrPngBase64(provisioning) : undefined;
       return json(response, 201, {
         token,
+        fullToken,
         deepLink,
         apkUrl: apk?.url,
         apkSha256Base64Url: apk?.sha256Base64Url,
@@ -256,7 +271,7 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
   if (method === "POST" && path === "/api/jarvis/enroll") {
     const payload = parseJson(body);
     if (typeof payload.token !== "string") return json(response, 400, { message: "enrollment token required" });
-    const node = validatedNode(payload.node);
+    const node = assignFleetNumber(validatedNode(payload.node));
     const identityInput = payload.identity as Record<string, unknown> | undefined;
     if (!identityInput || typeof identityInput.publicKeyPem !== "string") return json(response, 400, { message: "worker public identity required" });
     const algorithm = identityInput.algorithm === "ed25519" ? "ed25519" : identityInput.algorithm === "ecdsa-p256-sha256" ? "ecdsa-p256-sha256" : undefined;
