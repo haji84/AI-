@@ -4,6 +4,7 @@ on:
   workflow_run:
     workflows: ["GAI Multi-Worker Research", "GAI R1 Evidence Rerun", "GAI R2 Measured Improvement", "GAI R6 Benchmark v1.1", "GAI R4 Endurance", "GAI R7 Repeatability", "GAI R8 Memory Transfer", "GAI R9 Calibration", "GAI R10 Router Governance", "GAI R11 Recovery", "GAI R13 Cross Device", "GAI R14 Continual Learning", "GAI R15 Adversarial Curriculum", "GAI R16 Research Scientist Loop", "GAI R17 Governed Self Modification"]
     types: [completed]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -11,31 +12,52 @@ permissions:
 
 concurrency:
   group: gai-research-evidence-ledger
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
-  persist-zbook-evidence:
-    name: Persist verified research evidence
-    if: github.event.workflow_run.conclusion == 'success'
-    runs-on: [self-hosted, Windows, X64]
-    timeout-minutes: 15
+  rebuild-hosted-ledger:
+    name: Rebuild verified research evidence on GitHub-hosted runner
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
         with:
           ref: main
-      - name: Download completed baseline evidence
-        uses: actions/download-artifact@v4
-        with:
-          name: gai-baseline-zbook
-          path: .gai-results
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          run-id: ${{ github.event.workflow_run.id }}
-      - name: Merge evidence into persistent ledger
-        shell: powershell
-        run: node scripts/research-evidence-sync.ts --source=.gai-results/research-evidence.json
-      - name: Upload ledger status snapshot
+      - name: Collect retained research evidence artifacts
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .gai-evidence-cache .gai-results
+          page=1
+          downloaded=0
+          while [ "$page" -le 5 ]; do
+            json="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts?per_page=100&page=${page}")"
+            count="$(printf '%s' "$json" | jq '.artifacts | length')"
+            [ "$count" -eq 0 ] && break
+            mapfile -t ids < <(printf '%s' "$json" | jq -r '.artifacts[] | select(.expired == false and .name == "gai-baseline-zbook") | .id')
+            for id in "${ids[@]}"; do
+              dir=".gai-evidence-cache/${id}"
+              mkdir -p "$dir"
+              if gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${id}/zip" > "$dir/artifact.zip" 2>/dev/null; then
+                unzip -oq "$dir/artifact.zip" -d "$dir/content" || true
+                rm -f "$dir/artifact.zip"
+                downloaded=$((downloaded + 1))
+              fi
+            done
+            page=$((page + 1))
+          done
+          echo "Collected ${downloaded} retained GAI evidence artifacts"
+      - name: Rebuild canonical evidence ledger from artifacts
+        run: node scripts/research-ledger-rebuild.ts --sources-root=.gai-evidence-cache
+      - name: Upload canonical cloud ledger
         uses: actions/upload-artifact@v4
         with:
-          name: gai-research-ledger-status
-          path: .gai-results/research-ledger-status.json
+          name: gai-research-ledger-state
+          path: |
+            .gai-results/research-evidence-ledger.json
+            .gai-results/research-ledger-status.json
+          include-hidden-files: true
           retention-days: 90

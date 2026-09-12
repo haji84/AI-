@@ -1,0 +1,92 @@
+name: GAI Research Control Plane
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/gai/research-control-plane.ts"
+      - "scripts/research-control-plane-status.ts"
+      - ".github/workflows/gai-research-control-plane.yml"
+      - ".github/workflows/gai-research-ledger.yml"
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: gai-research-control-plane
+  cancel-in-progress: true
+
+jobs:
+  control-plane:
+    name: Hosted research orchestration heartbeat
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+      - name: Probe self-hosted worker registry without blocking
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .gai-results
+          if gh api "/repos/${GITHUB_REPOSITORY}/actions/runners?per_page=100" > .gai-results/runners.json 2>/dev/null; then
+            node <<'NODE'
+          const fs = require('fs');
+          const data = JSON.parse(fs.readFileSync('.gai-results/runners.json', 'utf8'));
+          const runners = Array.isArray(data.runners) ? data.runners : [];
+          const byName = (name) => runners.find((r) => String(r.name || '').toLowerCase() === name);
+          const toWorker = (id, platform, fallbackCaps) => {
+            const runner = byName(id);
+            const labels = new Set((runner?.labels || []).map((x) => String(x.name || '').toLowerCase()));
+            const caps = [...fallbackCaps];
+            if (labels.has('gpu') && !caps.includes('gpu')) caps.push('gpu');
+            if (labels.has('local-model') && !caps.includes('local-model')) caps.push('local-model');
+            return {
+              id,
+              platform,
+              online: runner?.status === 'online',
+              busy: Boolean(runner?.busy),
+              capabilities: caps,
+              source: runner ? 'github-runner-registry' : 'not-registered',
+            };
+          };
+          const out = {
+            schemaVersion: 1,
+            workers: [
+              toWorker('zbook', 'windows', ['local-model','gpu','windows-tooling','filesystem','long-running']),
+              toWorker('macbook', 'macos', ['local-model','macos-tooling','filesystem','long-running']),
+            ],
+            probedAt: new Date().toISOString(),
+          };
+          fs.writeFileSync('.gai-results/worker-state.json', JSON.stringify(out, null, 2));
+          NODE
+          else
+            cat > .gai-results/worker-state.json <<'JSON'
+          {
+            "schemaVersion": 1,
+            "workers": [
+              {"id":"zbook","platform":"windows","online":false,"busy":false,"capabilities":["local-model","gpu","windows-tooling","filesystem","long-running"],"source":"registry-unavailable"},
+              {"id":"macbook","platform":"macos","online":false,"busy":false,"capabilities":["local-model","macos-tooling","filesystem","long-running"],"source":"registry-unavailable"}
+            ],
+            "note": "Runner registry could not be read. Hosted control work continues; worker-only jobs remain deferred."
+          }
+          JSON
+          fi
+      - name: Compute capability-aware research routes
+        run: node scripts/research-control-plane-status.ts --worker-state=.gai-results/worker-state.json
+      - name: Verify control-plane routing
+        run: node --test tests/research-control-plane.test.ts
+      - name: Upload control-plane heartbeat
+        uses: actions/upload-artifact@v4
+        with:
+          name: gai-research-control-plane-status
+          path: .gai-results/
+          include-hidden-files: true
+          retention-days: 30
