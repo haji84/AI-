@@ -16,6 +16,15 @@ export class JarvisHumanTakeoverManager {
     return { ...session };
   }
 
+  restore(sessions: JarvisTakeoverSession[]): void {
+    this.sessions.clear();
+    for (const session of sessions) this.sessions.set(session.id, structuredClone(session));
+  }
+
+  list(): JarvisTakeoverSession[] {
+    return [...this.sessions.values()].map((session) => structuredClone(session));
+  }
+
   activate(sessionId: string, now = new Date()): JarvisTakeoverSession {
     return this.patch(sessionId, { status: "active", updatedAt: now.toISOString() });
   }
@@ -30,7 +39,7 @@ export class JarvisHumanTakeoverManager {
 
   activeForNode(nodeId: string): JarvisTakeoverSession | undefined {
     const item = [...this.sessions.values()].find((session) => session.nodeId === nodeId && (session.status === "requested" || session.status === "active"));
-    return item ? { ...item } : undefined;
+    return item ? structuredClone(item) : undefined;
   }
 
   private patch(sessionId: string, patch: Partial<JarvisTakeoverSession>): JarvisTakeoverSession {
@@ -38,6 +47,6 @@ export class JarvisHumanTakeoverManager {
     if (!current) throw new Error(`Unknown takeover session: ${sessionId}`);
     const updated = { ...current, ...patch };
     this.sessions.set(sessionId, updated);
-    return { ...updated };
+    return structuredClone(updated);
   }
 }
