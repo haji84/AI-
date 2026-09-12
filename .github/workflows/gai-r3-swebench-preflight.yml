@@ -1,0 +1,79 @@
+name: GAI R3 SWE-bench Preflight
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/gai-r3-swebench-preflight.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gai-r3-swebench-preflight
+  cancel-in-progress: false
+
+jobs:
+  zbook-preflight:
+    name: R3 zero-cost SWE-bench readiness on ZBook
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+      - name: Inspect local benchmark capacity
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force -Path .gai-results | Out-Null
+          $os = Get-CimInstance Win32_OperatingSystem
+          $ramGb = [math]::Round($os.TotalVisibleMemorySize / 1MB, 2)
+          $drive = Get-PSDrive -Name C
+          $freeGb = [math]::Round($drive.Free / 1GB, 2)
+          $dockerCommand = [bool](Get-Command docker -ErrorAction SilentlyContinue)
+          $dockerReady = $false
+          $dockerVersion = $null
+          if ($dockerCommand) {
+            try {
+              $dockerVersion = (docker version --format '{{.Server.Version}}' 2>$null | Select-Object -First 1)
+              if ($LASTEXITCODE -eq 0 -and $dockerVersion) { $dockerReady = $true }
+            } catch { $dockerReady = $false }
+          }
+          $ollamaReady = $false
+          $qwenInstalled = $false
+          try {
+            $tags = Invoke-RestMethod -Uri 'http://127.0.0.1:11434/api/tags' -TimeoutSec 5
+            $ollamaReady = $true
+            $names = @($tags.models | ForEach-Object { if ($_.name) { $_.name } elseif ($_.model) { $_.model } })
+            $qwenInstalled = [bool]($names | Where-Object { $_ -eq 'qwen3:4b' -or $_ -like 'qwen3:4b:*' })
+          } catch {}
+          $arch = $env:PROCESSOR_ARCHITECTURE
+          $meetsOfficialLocalRecommendation = ($arch -eq 'AMD64' -and $ramGb -ge 16 -and $freeGb -ge 120 -and $dockerReady)
+          $report = [ordered]@{
+            schemaVersion = 1
+            benchmark = 'SWE-bench'
+            officialHarness = 'https://github.com/SWE-bench/SWE-bench'
+            runner = $env:RUNNER_NAME
+            architecture = $arch
+            ramGb = $ramGb
+            freeSystemDriveGb = $freeGb
+            dockerCommandAvailable = $dockerCommand
+            dockerReady = $dockerReady
+            dockerServerVersion = $dockerVersion
+            ollamaReady = $ollamaReady
+            qwen3_4bInstalled = $qwenInstalled
+            minimumPolicy = [ordered]@{ architecture = 'x86_64'; ramGb = 16; freeDiskGb = 120; dockerRequired = $true }
+            meetsOfficialLocalRecommendation = $meetsOfficialLocalRecommendation
+            additionalApiCost = 0
+            collectedAt = (Get-Date).ToUniversalTime().ToString('o')
+          }
+          $report | ConvertTo-Json -Depth 5 | Set-Content -Encoding UTF8 .gai-results/r3-swebench-preflight.json
+          $report | ConvertTo-Json -Depth 5 | Write-Host
+      - name: Upload R3 preflight evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: gai-r3-swebench-preflight
+          path: .gai-results/r3-swebench-preflight.json
+          retention-days: 30
