@@ -57,6 +57,8 @@ cat >"$PLIST" <<PLIST
 </dict></plist>
 PLIST
 
+# Never let the workflow mistake a previous run's status for the current bootstrap.
+rm -f "$STATE_ROOT/status.json"
 launchctl bootout "gui/$(id -u)" "$PLIST" >/dev/null 2>&1 || true
 launchctl bootstrap "gui/$(id -u)" "$PLIST"
 launchctl kickstart -k "gui/$(id -u)/com.aicompany.jarvis-zero-touch"
