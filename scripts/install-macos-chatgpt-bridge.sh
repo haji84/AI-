@@ -33,7 +33,7 @@ xml_escape() {
 }
 
 NODE_XML="$(xml_escape "$NODE_BIN")"
-SCRIPT_XML="$(xml_escape "$REPO_DIR/scripts/chatgpt-resident-bridge.mjs")"
+SCRIPT_XML="$(xml_escape "$REPO_DIR/scripts/chatgpt-resident-bridge-v2.mjs")"
 PATH_XML="$(xml_escape "$(dirname "$NODE_BIN"):$(dirname "$GH_BIN"):/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin")"
 
 cat > "$PLIST" <<EOF
@@ -79,8 +79,8 @@ launchctl bootout "gui/$(id -u)" "$PLIST" 2>/dev/null || true
 launchctl bootstrap "gui/$(id -u)" "$PLIST"
 launchctl kickstart -k "gui/$(id -u)/$LABEL"
 
-echo "MacBook常駐ブリッジを登録しました。"
-echo "初回だけ、専用ChromeウインドウでChatGPT Plusへ手動ログインしてください。"
+echo "MacBook常駐ブリッジ v2 を登録しました。"
+echo "専用Chromeの既存ログインセッションをそのまま利用します。"
 echo "health: $STATE_DIR/chatgpt-bridge-health.json"
 echo "log:    $LOG_DIR/AICompanyChatGPTBridge.log"
 echo "注意: MacBookの蓋を閉じると通常はスリープします。常駐中は蓋を開けたままAC接続で運用してください。"
