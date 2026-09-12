@@ -1,0 +1,34 @@
+name: GAI R16 Research Scientist Loop
+
+on:
+  workflow_run:
+    workflows: ["GAI R15 Adversarial Curriculum"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gai-r16-research-loop
+  cancel-in-progress: false
+
+jobs:
+  r16-sandbox:
+    name: R16 reproducible bounded hypothesis cycle
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+      - name: Run reproducible sandbox hypothesis cycle
+        run: node scripts/gai-r16-research-loop.mjs
+      - name: Upload complete R16 evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: gai-baseline-zbook
+          path: .gai-results/
+          include-hidden-files: true
+          retention-days: 90
