@@ -37,6 +37,13 @@ export class JarvisTaskQueue {
     return [...this.tasks.values()].map((task) => structuredClone(task));
   }
 
+  assignedTo(nodeId: string): JarvisTask[] {
+    return [...this.tasks.values()]
+      .filter((task) => task.assignedNodeId === nodeId && (task.status === "leased" || task.status === "running"))
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+      .map((task) => structuredClone(task));
+  }
+
   next(now = new Date()): JarvisTask | undefined {
     this.reclaimExpiredLeases(now);
     return [...this.tasks.values()]

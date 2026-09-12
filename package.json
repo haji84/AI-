@@ -16,6 +16,7 @@
     "start": "next start",
     "healthcheck": "node scripts/health-check.mjs",
     "compass:mcp": "node src/compass/server.ts",
+    "jarvis:broker": "node scripts/jarvis-broker.ts",
     "autonomy:run": "node scripts/autonomy-run.ts",
     "autonomy:dry-run": "node scripts/autonomy-run.ts --dry-run",
     "autonomy:event": "node scripts/autonomy-event-run.ts",
