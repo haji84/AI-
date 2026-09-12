@@ -37,6 +37,8 @@ type StatePayload = {
 };
 
 type EnrollmentResult = { deepLink?: string; token?: { token: string; mode: string; expiresAt: string; maxDevices: number } };
+type RemoteDevice = { serial: string; state: string };
+type ScreenshotResult = { serial: string; mimeType: string; imageBase64: string; capturedAt: string };
 
 function fmt(value?: string) {
   if (!value) return "-";
@@ -50,6 +52,12 @@ export default function JarvisConsole() {
   const [enrollment, setEnrollment] = useState<EnrollmentResult | null>(null);
   const [url, setUrl] = useState("");
   const [targetNodeId, setTargetNodeId] = useState("");
+  const [remoteDevices, setRemoteDevices] = useState<RemoteDevice[]>([]);
+  const [remoteSerial, setRemoteSerial] = useState("");
+  const [remoteError, setRemoteError] = useState("");
+  const [screenshot, setScreenshot] = useState<ScreenshotResult | null>(null);
+  const [remoteText, setRemoteText] = useState("");
+  const [remoteUrl, setRemoteUrl] = useState("");
 
   const refresh = useCallback(async () => {
     try {
@@ -63,11 +71,30 @@ export default function JarvisConsole() {
     }
   }, []);
 
+  const refreshRemote = useCallback(async () => {
+    try {
+      const response = await fetch("/api/jarvis/remote", { cache: "no-store" });
+      const body = await response.json() as { devices?: RemoteDevice[]; message?: string };
+      if (!response.ok) throw new Error(body.message || `HTTP ${response.status}`);
+      const devices = body.devices ?? [];
+      setRemoteDevices(devices);
+      setRemoteSerial((current) => current && devices.some((item) => item.serial === current) ? current : devices[0]?.serial ?? "");
+      setRemoteError("");
+    } catch (cause) {
+      setRemoteDevices([]);
+      setRemoteError(cause instanceof Error ? cause.message : "Remote Gatewayに接続できません");
+    }
+  }, []);
+
   useEffect(() => {
     void refresh();
-    const timer = window.setInterval(() => void refresh(), 5000);
+    void refreshRemote();
+    const timer = window.setInterval(() => {
+      void refresh();
+      void refreshRemote();
+    }, 5000);
     return () => window.clearInterval(timer);
-  }, [refresh]);
+  }, [refresh, refreshRemote]);
 
   async function action(payload: Record<string, unknown>) {
     setBusy(true);
@@ -90,6 +117,32 @@ export default function JarvisConsole() {
     }
   }
 
+  async function remoteAction(payload: Record<string, unknown>) {
+    if (!remoteSerial) return null;
+    setBusy(true);
+    try {
+      const response = await fetch("/api/jarvis/remote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ serial: remoteSerial, ...payload }),
+      });
+      const body = await response.json() as Record<string, unknown>;
+      if (!response.ok) throw new Error(typeof body.message === "string" ? body.message : `HTTP ${response.status}`);
+      setRemoteError("");
+      return body;
+    } catch (cause) {
+      setRemoteError(cause instanceof Error ? cause.message : "遠隔操作に失敗しました");
+      return null;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function captureScreen() {
+    const body = await remoteAction({ action: "screenshot" });
+    if (body?.imageBase64 && typeof body.imageBase64 === "string") setScreenshot(body as unknown as ScreenshotResult);
+  }
+
   async function createEnrollment(mode: "quick" | "full" | "fleet") {
     const body = await action({ action: "enrollment", mode, maxDevices: mode === "fleet" ? 100 : 1, group: mode === "fleet" ? "android-fleet" : undefined });
     if (body) setEnrollment(body as EnrollmentResult);
@@ -103,9 +156,9 @@ export default function JarvisConsole() {
         <div>
           <p className="eyebrow">JARVIS DEVICE OS</p>
           <h1>JARVIS Fleet Console</h1>
-          <p className="muted">最大100ノード。登録、稼働、Queue、Human Takeoverをここで見る。</p>
+          <p className="muted">最大100ノード。登録、稼働、Queue、遠隔確認、Human Takeoverをここで管理する。</p>
         </div>
-        <div className="jarvis-toolbar-actions"><button className="button secondary" disabled={busy} onClick={() => void refresh()}>更新</button><a className="button secondary" href="/">AI会社へ戻る</a></div>
+        <div className="jarvis-toolbar-actions"><button className="button secondary" disabled={busy} onClick={() => { void refresh(); void refreshRemote(); }}>更新</button><a className="button secondary" href="/">AI会社へ戻る</a></div>
       </div>
 
       {error && <div className="jarvis-alert"><strong>接続状態</strong><span>{error}</span></div>}
@@ -132,7 +185,7 @@ export default function JarvisConsole() {
             <code>{enrollment.token.token}</code>
             <small>期限 {fmt(enrollment.token.expiresAt)} / 最大 {enrollment.token.maxDevices} 台</small>
             {enrollment.deepLink && <a className="button secondary" href={enrollment.deepLink}>このAndroidをJARVISに登録</a>}
-            <p>QR表示は次段階で追加。現時点でもAndroidでこのリンクを開けばワンタップ登録できます。</p>
+            <p>Androidで登録リンクを開けばワンタップ登録できます。</p>
           </div>}
         </article>
 
@@ -151,6 +204,51 @@ export default function JarvisConsole() {
             <button className="button secondary" disabled={busy}>Queueへ追加</button>
           </form>
         </article>
+      </section>
+
+      <section className="panel jarvis-section jarvis-remote-panel">
+        <div className="section-heading"><div><p className="section-kicker">REMOTE ASSIST</p><h2>遠隔画面・手動操作</h2></div><span className="operation-badge">スマホ / PC</span></div>
+        <p className="muted">対象Androidは拠点PCの許可リストに入っている端末だけ操作できます。ADB自体をインターネットへ公開しません。</p>
+        {remoteError && <div className="jarvis-alert"><strong>Remote Gateway</strong><span>{remoteError}</span></div>}
+        <div className="jarvis-remote-layout">
+          <div className="jarvis-remote-screen">
+            {screenshot ? <button type="button" className="jarvis-screen-button" title="画面をタップ" onClick={(event) => {
+              const image = event.currentTarget.querySelector("img");
+              if (!image) return;
+              const rect = image.getBoundingClientRect();
+              const naturalWidth = image.naturalWidth || rect.width;
+              const naturalHeight = image.naturalHeight || rect.height;
+              const x = Math.round((event.clientX - rect.left) * naturalWidth / rect.width);
+              const y = Math.round((event.clientY - rect.top) * naturalHeight / rect.height);
+              void remoteAction({ action: "tap", x, y }).then(() => captureScreen());
+            }}><img src={`data:${screenshot.mimeType};base64,${screenshot.imageBase64}`} alt={`${screenshot.serial} の現在画面`} /></button> : <div className="jarvis-remote-placeholder">端末を選んで「画面を見る」</div>}
+            {screenshot && <small>取得 {fmt(screenshot.capturedAt)} / 画像上をタップすると実機をタップ</small>}
+          </div>
+          <div className="jarvis-remote-controls">
+            <select value={remoteSerial} onChange={(event) => { setRemoteSerial(event.target.value); setScreenshot(null); }}>
+              <option value="">遠隔端末を選択</option>
+              {remoteDevices.map((device) => <option value={device.serial} key={device.serial}>{device.serial} ({device.state})</option>)}
+            </select>
+            <button className="button secondary" disabled={busy || !remoteSerial} onClick={() => void captureScreen()}>画面を見る</button>
+            <div className="jarvis-button-row">
+              <button className="button secondary" disabled={busy || !remoteSerial} onClick={() => void remoteAction({ action: "keyevent", key: "BACK" }).then(() => captureScreen())}>戻る</button>
+              <button className="button secondary" disabled={busy || !remoteSerial} onClick={() => void remoteAction({ action: "keyevent", key: "HOME" }).then(() => captureScreen())}>ホーム</button>
+              <button className="button secondary" disabled={busy || !remoteSerial} onClick={() => void remoteAction({ action: "keyevent", key: "APP_SWITCH" }).then(() => captureScreen())}>履歴</button>
+            </div>
+            <div className="jarvis-button-row">
+              <button className="button secondary" disabled={busy || !remoteSerial} onClick={() => void remoteAction({ action: "swipe", x1: 500, y1: 1400, x2: 500, y2: 500, durationMs: 300 }).then(() => captureScreen())}>↑ スワイプ</button>
+              <button className="button secondary" disabled={busy || !remoteSerial} onClick={() => void remoteAction({ action: "swipe", x1: 500, y1: 500, x2: 500, y2: 1400, durationMs: 300 }).then(() => captureScreen())}>↓ スワイプ</button>
+            </div>
+            <form className="jarvis-task-form" onSubmit={async (event) => { event.preventDefault(); if (await remoteAction({ action: "text", text: remoteText })) { setRemoteText(""); await captureScreen(); } }}>
+              <input maxLength={256} placeholder="端末へ文字入力" value={remoteText} onChange={(event) => setRemoteText(event.target.value)} />
+              <button className="button secondary" disabled={busy || !remoteSerial || !remoteText}>入力</button>
+            </form>
+            <form className="jarvis-task-form" onSubmit={async (event) => { event.preventDefault(); if (await remoteAction({ action: "open-url", url: remoteUrl })) { setRemoteUrl(""); await captureScreen(); } }}>
+              <input type="url" pattern="https://.*" placeholder="https://... をこの端末で開く" value={remoteUrl} onChange={(event) => setRemoteUrl(event.target.value)} />
+              <button className="button secondary" disabled={busy || !remoteSerial || !remoteUrl}>開く</button>
+            </form>
+          </div>
+        </div>
       </section>
 
       <section className="panel jarvis-section">
