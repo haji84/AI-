@@ -5,18 +5,22 @@ on:
     workflows: ["GAI R1 Evidence Rerun"]
     types: [completed]
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/gai-r6-benchmark.yml"
 
 permissions:
   contents: read
 
 concurrency:
   group: gai-r6-benchmark
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   r6-zbook:
     name: R6 real Benchmark v1.1 on ZBook
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: [self-hosted, Windows, X64]
     timeout-minutes: 180
     env:
@@ -24,7 +28,7 @@ jobs:
       GAI_LOCAL_MODEL_ENDPOINT: http://127.0.0.1:11434
       GAI_LOCAL_MODEL_NAME: qwen3:4b
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: main
 
