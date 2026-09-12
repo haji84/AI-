@@ -1,7 +1,8 @@
 import { execFile } from "node:child_process";
+import { randomUUID, timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
+import { classifyQaScreen, defaultQaScreenRules, type QaScreenRules, type QaScreenState } from "../src/jarvis/qa-sequence.ts";
 
 const execFileAsync = promisify(execFile);
 const host = process.env.JARVIS_REMOTE_GATEWAY_HOST?.trim() || "127.0.0.1";
@@ -17,6 +18,27 @@ if (host !== "127.0.0.1" && host !== "::1" && process.env.JARVIS_REMOTE_ALLOW_NO
 }
 
 const KEYEVENTS = new Set(["BACK", "HOME", "ENTER", "TAB", "DPAD_UP", "DPAD_DOWN", "DPAD_LEFT", "DPAD_RIGHT", "DPAD_CENTER", "APP_SWITCH"]);
+const PACKAGE_RE = /^[A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)+$/;
+
+type QaRunStatus = "queued" | "running" | "done" | "error-no-retry" | "step1-timeout" | "step2-timeout" | "failed";
+type QaRun = {
+  id: string;
+  serial: string;
+  url1: string;
+  url2: string;
+  packageName: string;
+  status: QaRunStatus;
+  stage: string;
+  step: 1 | 2;
+  matched: string[];
+  appClosed: boolean;
+  createdAt: string;
+  updatedAt: string;
+  error?: string;
+};
+
+const qaRuns = new Map<string, QaRun>();
+const activeRunBySerial = new Map<string, string>();
 
 function safeEqualText(a: string, b: string): boolean {
   const left = Buffer.from(a, "utf8");
@@ -79,6 +101,93 @@ async function connectedAuthorizedDevices(): Promise<Array<{ serial: string; sta
 function boundedInt(value: unknown, name: string, min = 0, max = 20_000): number {
   if (typeof value !== "number" || !Number.isInteger(value) || value < min || value > max) throw new Error(`${name} must be an integer between ${min} and ${max}`);
   return value;
+}
+
+function boundedStringArray(value: unknown, fallback: string[]): string[] {
+  if (!Array.isArray(value)) return fallback;
+  const values = value.filter((item): item is string => typeof item === "string").map((item) => item.trim()).filter(Boolean);
+  if (values.length === 0 || values.length > 10 || values.some((item) => item.length > 120)) throw new Error("invalid QA screen marker list");
+  return values;
+}
+
+function screenRules(payload: Record<string, unknown>): QaScreenRules {
+  const raw = payload.rules && typeof payload.rules === "object" && !Array.isArray(payload.rules) ? payload.rules as Record<string, unknown> : {};
+  return {
+    errorAny: boundedStringArray(raw.errorAny, defaultQaScreenRules.errorAny),
+    step1All: boundedStringArray(raw.step1All, defaultQaScreenRules.step1All),
+    step2All: boundedStringArray(raw.step2All, defaultQaScreenRules.step2All),
+  };
+}
+
+function updateRun(run: QaRun, patch: Partial<QaRun>): void {
+  Object.assign(run, patch, { updatedAt: new Date().toISOString() });
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function dumpUi(serial: string): Promise<string> {
+  await adb(serial, ["shell", "uiautomator", "dump", "/sdcard/jarvis-window.xml"], 15_000);
+  const result = await adb(serial, ["shell", "cat", "/sdcard/jarvis-window.xml"], 15_000);
+  return result.stdout;
+}
+
+async function waitForState(serial: string, expected: QaScreenState, rules: QaScreenRules, timeoutMs: number, pollMs: number): Promise<{ state: QaScreenState; matched: string[] }> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try {
+      const judged = classifyQaScreen(await dumpUi(serial), rules);
+      if (judged.state === "error" || judged.state === expected) return judged;
+    } catch {
+      // A transient UI-dump failure is not a re-execution. Keep observing until timeout.
+    }
+    await sleep(pollMs);
+  }
+  return { state: "pending", matched: [] };
+}
+
+async function openUrl(serial: string, target: string): Promise<void> {
+  if (!target.startsWith("https://")) throw new Error("QA URL must use HTTPS");
+  await adb(serial, ["shell", "am", "start", "-a", "android.intent.action.VIEW", "-d", target], 20_000);
+}
+
+async function runQaSequence(run: QaRun, rules: QaScreenRules, timeoutMs: number, pollMs: number): Promise<void> {
+  try {
+    updateRun(run, { status: "running", stage: "opening-step1", step: 1 });
+    await openUrl(run.serial, run.url1);
+    updateRun(run, { stage: "waiting-step1" });
+    const first = await waitForState(run.serial, "step1-success", rules, timeoutMs, pollMs);
+    if (first.state === "error") {
+      updateRun(run, { status: "error-no-retry", stage: "stopped", step: 1, matched: first.matched });
+      return;
+    }
+    if (first.state !== "step1-success") {
+      updateRun(run, { status: "step1-timeout", stage: "stopped", step: 1 });
+      return;
+    }
+
+    updateRun(run, { stage: "opening-step2", step: 2, matched: first.matched });
+    await openUrl(run.serial, run.url2);
+    updateRun(run, { stage: "waiting-step2" });
+    const second = await waitForState(run.serial, "step2-success", rules, timeoutMs, pollMs);
+    if (second.state === "error") {
+      updateRun(run, { status: "error-no-retry", stage: "stopped", step: 2, matched: second.matched });
+      return;
+    }
+    if (second.state !== "step2-success") {
+      updateRun(run, { status: "step2-timeout", stage: "stopped", step: 2 });
+      return;
+    }
+
+    updateRun(run, { stage: "closing-app", matched: second.matched });
+    await adb(run.serial, ["shell", "am", "force-stop", run.packageName], 15_000);
+    updateRun(run, { status: "done", stage: "done", appClosed: true });
+  } catch (error) {
+    updateRun(run, { status: "failed", stage: "failed", error: error instanceof Error ? error.message : "QA sequence failed" });
+  } finally {
+    activeRunBySerial.delete(run.serial);
+  }
 }
 
 async function handleInput(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
@@ -144,9 +253,39 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
   if (request.method === "POST" && url.pathname === "/api/remote/open-url") {
     const serial = requireSerial(payload);
     const target = typeof payload.url === "string" ? payload.url : "";
-    if (!target.startsWith("https://")) throw new Error("remote URL must use HTTPS");
-    await adb(serial, ["shell", "am", "start", "-a", "android.intent.action.VIEW", "-d", target], 20_000);
+    await openUrl(serial, target);
     return json(response, 200, { ok: true, serial, url: target });
+  }
+
+  if (request.method === "POST" && url.pathname === "/api/remote/qa-sequence/start") {
+    const serial = requireSerial(payload);
+    const existing = activeRunBySerial.get(serial);
+    if (existing) return json(response, 409, { message: "this device already has an active QA sequence", run: qaRuns.get(existing) });
+    const url1 = typeof payload.url1 === "string" ? payload.url1.trim() : "";
+    const url2 = typeof payload.url2 === "string" ? payload.url2.trim() : "";
+    const packageName = typeof payload.packageName === "string" ? payload.packageName.trim() : "";
+    if (!url1.startsWith("https://") || !url2.startsWith("https://")) throw new Error("both QA URLs must use HTTPS");
+    if (!PACKAGE_RE.test(packageName)) throw new Error("valid Android packageName is required so JARVIS can close the app after success");
+    const timeoutMs = boundedInt(payload.timeoutMs ?? 90_000, "timeoutMs", 5_000, 180_000);
+    const pollMs = boundedInt(payload.pollMs ?? 1_500, "pollMs", 500, 5_000);
+    const rules = screenRules(payload);
+    const now = new Date().toISOString();
+    const run: QaRun = {
+      id: randomUUID(), serial, url1, url2, packageName,
+      status: "queued", stage: "queued", step: 1, matched: [], appClosed: false,
+      createdAt: now, updatedAt: now,
+    };
+    qaRuns.set(run.id, run);
+    activeRunBySerial.set(serial, run.id);
+    void runQaSequence(run, rules, timeoutMs, pollMs);
+    return json(response, 202, { run });
+  }
+
+  if (request.method === "POST" && url.pathname === "/api/remote/qa-sequence/status") {
+    const runId = typeof payload.runId === "string" ? payload.runId : "";
+    const run = qaRuns.get(runId);
+    if (!run) return json(response, 404, { message: "QA sequence not found" });
+    return json(response, 200, { run });
   }
 
   return json(response, 404, { message: "unknown remote gateway route" });

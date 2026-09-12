@@ -1,0 +1,8 @@
+{
+  "serial": "AUTHORIZED_ANDROID_SERIAL",
+  "url1": "https://example.invalid/step-1",
+  "url2": "https://example.invalid/step-2",
+  "packageName": "com.example.authorized.qa.app",
+  "timeoutMs": 90000,
+  "pollMs": 1500
+}
