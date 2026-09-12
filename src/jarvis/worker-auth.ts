@@ -1,9 +1,12 @@
 import { createPublicKey, randomBytes, verify } from "node:crypto";
 
+export type JarvisWorkerSignatureAlgorithm = "ed25519" | "ecdsa-p256-sha256";
+
 export interface JarvisWorkerIdentity {
   nodeId: string;
   publicKeyPem: string;
   enrolledAt: string;
+  algorithm?: JarvisWorkerSignatureAlgorithm;
   revokedAt?: string;
 }
 
@@ -53,7 +56,10 @@ export function verifyWorkerRequest(input: {
       bodySha256: input.request.bodySha256,
     });
     const signature = Buffer.from(input.request.signatureBase64, "base64");
-    const ok = verify(null, Buffer.from(canonical, "utf8"), publicKey, signature);
+    const algorithm = input.identity.algorithm ?? "ed25519";
+    const ok = algorithm === "ed25519"
+      ? verify(null, Buffer.from(canonical, "utf8"), publicKey, signature)
+      : verify("sha256", Buffer.from(canonical, "utf8"), publicKey, signature);
     return ok ? { ok: true } : { ok: false, reason: "invalid worker signature" };
   } catch {
     return { ok: false, reason: "invalid worker public key or signature" };
