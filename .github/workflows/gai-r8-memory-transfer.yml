@@ -12,7 +12,7 @@ permissions:
 
 concurrency:
   group: gai-r8-memory-transfer
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   r8-zbook:
@@ -24,7 +24,7 @@ jobs:
       GAI_LOCAL_MODEL_ENDPOINT: http://127.0.0.1:11434
       GAI_LOCAL_MODEL_NAME: qwen3:4b
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: main
 
