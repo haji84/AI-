@@ -4,6 +4,10 @@ on:
   workflow_run:
     workflows: ["GAI R1 Evidence Rerun"]
     types: [completed]
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/gai-r2-improvement.yml"
 
 permissions:
   contents: read
@@ -16,7 +20,7 @@ concurrency:
 jobs:
   r2-zbook:
     name: R2 train-designed heldout improvement on ZBook
-    if: github.event.workflow_run.conclusion == 'success'
+    if: github.event_name == 'push' || github.event.workflow_run.conclusion == 'success'
     runs-on: [self-hosted, Windows, X64]
     timeout-minutes: 180
     env:
@@ -26,13 +30,37 @@ jobs:
       - uses: actions/checkout@v5
         with:
           ref: main
+      - name: Resolve verified R1 evidence run
+        id: r1
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ('${{ github.event_name }}' -eq 'workflow_run') {
+            $runId = '${{ github.event.workflow_run.id }}'
+          } else {
+            $headers = @{
+              Authorization = "Bearer $env:GH_TOKEN"
+              Accept = 'application/vnd.github+json'
+              'X-GitHub-Api-Version' = '2022-11-28'
+            }
+            $uri = "https://api.github.com/repos/$env:GITHUB_REPOSITORY/actions/workflows/gai-r1-evidence-rerun.yml/runs?branch=main&status=success&per_page=10"
+            $response = Invoke-RestMethod -Uri $uri -Headers $headers -TimeoutSec 30
+            $candidate = $response.workflow_runs | Where-Object { $_.conclusion -eq 'success' } | Select-Object -First 1
+            if (-not $candidate) { throw 'No successful verified R1 evidence run found' }
+            $runId = [string]$candidate.id
+          }
+          if (-not $runId) { throw 'R1 provenance run id is empty' }
+          "run_id=$runId" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          Write-Host "Using verified R1 run $runId"
       - name: Download verified R1 baseline evidence
         uses: actions/download-artifact@v4
         with:
           name: gai-baseline-zbook
           path: .gai-reference/r1
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          run-id: ${{ github.event.workflow_run.id }}
+          run-id: ${{ steps.r1.outputs.run_id }}
       - name: Ensure Ollama runtime is reachable
         shell: powershell
         run: |
