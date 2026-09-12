@@ -1,0 +1,49 @@
+name: GAI R17 Governed Self Modification
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: gai-r17-governed-self-modification
+  cancel-in-progress: false
+
+jobs:
+  r17-sandbox:
+    name: R17 one-time approved sandbox self-modification
+    if: github.event.issue.number == 416 && github.event.comment.user.login == 'haji84' && github.event.comment.body == 'APPROVE_R17_416_SANDBOX_SELF_MOD_20260912'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+      - name: Reject reused approval after a successful R17 run
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          prior="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/workflows/gai-r17-self-modification.yml/runs?status=success&per_page=1" --jq '.total_count')"
+          if [ "${prior:-0}" -gt 0 ]; then
+            echo 'R17 approval phrase has already been consumed by a successful run.' >&2
+            exit 2
+          fi
+      - name: Verify safety and governance before mutation
+        run: node --test tests/approval-key.test.ts tests/approval-readiness.test.ts tests/auto-merge-policy.test.ts tests/bounded-runner.test.ts tests/risk-policy.test.ts
+      - name: Execute approved ephemeral sandbox self-modification
+        env:
+          R17_HUMAN_APPROVED: '1'
+        run: node scripts/gai-r17-self-modification.mjs
+      - name: Verify safety and governance after rollback
+        run: node --test tests/approval-key.test.ts tests/approval-readiness.test.ts tests/auto-merge-policy.test.ts tests/bounded-runner.test.ts tests/risk-policy.test.ts
+      - name: Upload complete R17 evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: gai-baseline-zbook
+          path: .gai-results/
+          include-hidden-files: true
+          retention-days: 90
