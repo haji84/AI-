@@ -39,9 +39,10 @@ export async function POST(request: Request) {
     const result = await response.json().catch(() => ({ message: "JARVIS Brokerから不正な応答を受信しました" }));
     return NextResponse.json(result, { status: response.status });
   } catch (error) {
+    const detail = error instanceof Error ? error.message : "unknown error";
     return NextResponse.json({
-      message: "JARVIS Brokerに接続できません",
-      detail: error instanceof Error ? error.message : "unknown error",
+      message: payload.action === "enrollment" ? "登録URLを発行できません。JARVIS Brokerの接続設定を確認してください。" : "JARVIS Brokerに接続できません",
+      detail,
     }, { status: 503 });
   }
 }
