@@ -102,7 +102,6 @@ export default function JarvisEnrollPage() {
       <section className="panel jarvis-section" style={{ maxWidth: 860, margin: "0 auto 24px" }}>
         <div className="section-heading"><div><p className="section-kicker">新品・初期化済みAndroid</p><h2>QR一発でDevice Owner登録</h2></div></div>
         {result.qrPngBase64 ? <div style={{ display: "grid", gap: 18, justifyItems: "center" }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={`data:image/png;base64,${result.qrPngBase64}`} alt="JARVIS Device Owner provisioning QR" width={320} height={320} style={{ imageRendering: "pixelated", background: "white", padding: 16, borderRadius: 16 }} />
           <p className="muted">Androidの初回セットアップ画面でこのQRを読み取ると、Worker取得・Device Owner化・JARVIS登録まで進みます。</p>
         </div> : <div className="jarvis-alert"><strong>QR生成準備待ち</strong><span>Mac側でWorker APKとQR生成機能が準備できるとここにQRが表示されます。</span></div>}
