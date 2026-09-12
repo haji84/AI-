@@ -1,0 +1,82 @@
+name: GAI R18 Adaptation Preflight
+
+on:
+  workflow_run:
+    workflows: ["GAI R17 Governed Self Modification"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gai-r18-adaptation-preflight
+  cancel-in-progress: false
+
+jobs:
+  r18-preflight:
+    name: R18 zero-cost local adaptation readiness
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+      - name: Inspect GPU, CUDA, RAM and disk readiness
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force -Path .gai-results | Out-Null
+          $gpuName = $null
+          $vramMb = 0
+          $cuda = $null
+          $nvidiaSmi = Get-Command nvidia-smi -ErrorAction SilentlyContinue
+          if ($nvidiaSmi) {
+            try {
+              $row = nvidia-smi --query-gpu=name,memory.total --format=csv,noheader,nounits | Select-Object -First 1
+              if ($LASTEXITCODE -eq 0 -and $row) {
+                $parts = $row -split ','
+                $gpuName = $parts[0].Trim()
+                $vramMb = [int]$parts[1].Trim()
+              }
+              $cuda = (nvidia-smi | Select-String 'CUDA Version:' | Select-Object -First 1).ToString()
+            } catch {}
+          }
+          $os = Get-CimInstance Win32_OperatingSystem
+          $ramGb = [math]::Round($os.TotalVisibleMemorySize / 1MB, 2)
+          $drive = Get-PSDrive -Name C
+          $freeGb = [math]::Round($drive.Free / 1GB, 2)
+          $python = $null
+          try { $python = (python --version 2>&1 | Select-Object -First 1).ToString() } catch {}
+          $ollamaReady = $false
+          try { Invoke-RestMethod -Uri 'http://127.0.0.1:11434/api/tags' -TimeoutSec 5 | Out-Null; $ollamaReady = $true } catch {}
+          $methods = [ordered]@{
+            specialistModelEvaluation = $ollamaReady
+            distillationSmallLocal = ($ollamaReady -and $freeGb -ge 20)
+            loraCandidate = ($vramMb -ge 8000 -and $freeGb -ge 30)
+            qloraCandidate = ($vramMb -ge 6000 -and $freeGb -ge 30)
+          }
+          $report = [ordered]@{
+            schemaVersion = 1
+            runner = $env:RUNNER_NAME
+            gpuName = $gpuName
+            vramMb = $vramMb
+            cudaSummary = $cuda
+            ramGb = $ramGb
+            freeSystemDriveGb = $freeGb
+            python = $python
+            ollamaReady = $ollamaReady
+            methods = $methods
+            policy = 'Preflight only. No adaptation is trained or accepted by this run.'
+            additionalApiCost = 0
+            collectedAt = (Get-Date).ToUniversalTime().ToString('o')
+          }
+          $report | ConvertTo-Json -Depth 6 | Set-Content -Encoding UTF8 .gai-results/r18-adaptation-preflight.json
+          $report | ConvertTo-Json -Depth 6 | Write-Host
+      - name: Upload R18 preflight
+        uses: actions/upload-artifact@v4
+        with:
+          name: gai-r18-adaptation-preflight
+          path: .gai-results/r18-adaptation-preflight.json
+          retention-days: 30
