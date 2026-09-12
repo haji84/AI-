@@ -5,19 +5,31 @@ import { useState } from "react";
 export default function JarvisEnrollPage() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const [detail, setDetail] = useState("");
+  const [needsAuth, setNeedsAuth] = useState(false);
   const [link, setLink] = useState("");
 
   async function createLink() {
     setBusy(true);
     setMessage("");
+    setDetail("");
+    setNeedsAuth(false);
+    setLink("");
     try {
       const response = await fetch("/api/jarvis/action", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "enrollment", mode: "quick", maxDevices: 1 }),
       });
-      const body = await response.json() as { deepLink?: string; message?: string };
-      if (!response.ok || !body.deepLink) throw new Error(body.message || "登録URLを発行できませんでした");
+      const body = await response.json() as { deepLink?: string; message?: string; detail?: string };
+      if (response.status === 401) {
+        setNeedsAuth(true);
+        throw new Error("先にオーナー認証してください。");
+      }
+      if (!response.ok || !body.deepLink) {
+        setDetail(body.detail || "");
+        throw new Error(body.message || "登録URLを発行できませんでした");
+      }
       setLink(body.deepLink);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "登録URLを発行できませんでした");
@@ -35,7 +47,7 @@ export default function JarvisEnrollPage() {
   return <main className="dashboard-shell">
     <div className="jarvis-toolbar">
       <div><p className="eyebrow">JARVIS</p><h1>端末を登録</h1><p className="muted">URLをAndroid端末で開くだけ。QRコードは不要です。</p></div>
-      <a className="button secondary" href="/jarvis">JARVISへ戻る</a>
+      <div className="jarvis-button-row"><a className="button secondary" href="/jarvis/login?next=/jarvis/enroll">オーナー認証</a><a className="button secondary" href="/jarvis">JARVISへ戻る</a></div>
     </div>
     <section className="panel jarvis-section" style={{ maxWidth: 760, margin: "32px auto" }}>
       <div className="section-heading"><div><p className="section-kicker">STEP 1</p><h2>登録URLを作る</h2></div></div>
@@ -50,7 +62,7 @@ export default function JarvisEnrollPage() {
         </div>
         <p>AndroidにJARVIS Workerが入っていれば、リンクから登録画面が開きます。</p>
       </div>}
-      {message && <div className="jarvis-alert" style={{ marginTop: 16 }}><span>{message}</span></div>}
+      {message && <div className="jarvis-alert" style={{ marginTop: 16 }}><strong>{message}</strong>{detail && <span>{detail}</span>}{needsAuth && <a className="button secondary" href="/jarvis/login?next=/jarvis/enroll">オーナー認証へ</a>}</div>}
     </section>
     <section className="panel jarvis-section" style={{ maxWidth: 760, margin: "0 auto" }}>
       <div className="section-heading"><div><p className="section-kicker">STEP 3</p><h2>登録完了を確認</h2></div></div>
