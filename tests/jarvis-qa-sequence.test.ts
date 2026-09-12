@@ -14,15 +14,28 @@ test("error screen wins and is marked no-retry candidate", () => {
   assert.ok(result.matched.some((value) => value.includes("お友達のお手伝い")));
 });
 
-test("step1 success requires all configured event markers", () => {
+test("step1 success requires the supplied green-state markers", () => {
+  const result = classifyQaScreen(`
+    <hierarchy>
+      <node text="イベント詳細" />
+      <node text="新規ユーザー" />
+      <node text="30日以上アプリを使っていない人" />
+      <node text="今日アプリを使っていない人" />
+      <node text="その他の既存ユーザー" />
+    </hierarchy>
+  `);
+  assert.equal(result.state, "step1-success");
+});
+
+test("generic event screen is not enough for step1 success", () => {
   const result = classifyQaScreen(`
     <hierarchy>
       <node text="イベント詳細" />
       <node text="獲得履歴" />
-      <node text="1.イベントルール" />
+      <node text="イベントルール" />
     </hierarchy>
   `);
-  assert.equal(result.state, "step1-success");
+  assert.equal(result.state, "pending");
 });
 
 test("step2 success requires receipt confirmation and QR action", () => {
