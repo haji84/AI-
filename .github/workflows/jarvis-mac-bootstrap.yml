@@ -34,13 +34,28 @@ jobs:
           for _ in $(seq 1 45); do
             if [[ -s "$STATUS" ]]; then
               cat "$STATUS"
-              exit 0
+              break
             fi
             sleep 2
           done
-          echo 'JARVIS resident runtime did not produce status.json within 90 seconds.' >&2
-          echo '--- LaunchAgent stderr ---' >&2
-          tail -100 "$HOME/Library/Application Support/JARVIS/zero-touch-launch.err.log" 2>/dev/null || true
-          echo '--- LaunchAgent stdout ---' >&2
-          tail -100 "$HOME/Library/Application Support/JARVIS/zero-touch-launch.out.log" 2>/dev/null || true
-          exit 1
+          if [[ ! -s "$STATUS" ]]; then
+            echo 'JARVIS resident runtime did not produce status.json within 90 seconds.' >&2
+          fi
+          echo '--- Versions / processes ---'
+          echo "node=$(command -v node || true)"; node --version || true
+          echo "pnpm=$(command -v pnpm || true)"; pnpm --version || true
+          echo "cloudflared=$(command -v cloudflared || true)"; cloudflared --version || true
+          pgrep -alf 'jarvis-broker|jarvis-remote-gateway|cloudflared' || true
+          echo '--- Broker stderr ---'
+          tail -120 "$HOME/Library/Application Support/JARVIS/broker.err.log" 2>/dev/null || true
+          echo '--- Broker stdout ---'
+          tail -120 "$HOME/Library/Application Support/JARVIS/broker.out.log" 2>/dev/null || true
+          echo '--- Broker tunnel ---'
+          tail -120 "$HOME/Library/Application Support/JARVIS/broker-tunnel.log" 2>/dev/null || true
+          echo '--- Remote stderr ---'
+          tail -120 "$HOME/Library/Application Support/JARVIS/remote-gateway.err.log" 2>/dev/null || true
+          echo '--- LaunchAgent stderr ---'
+          tail -120 "$HOME/Library/Application Support/JARVIS/zero-touch-launch.err.log" 2>/dev/null || true
+          echo '--- LaunchAgent stdout ---'
+          tail -120 "$HOME/Library/Application Support/JARVIS/zero-touch-launch.out.log" 2>/dev/null || true
+          [[ -s "$STATUS" ]]
