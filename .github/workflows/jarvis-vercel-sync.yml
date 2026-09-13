@@ -1,0 +1,146 @@
+name: JARVIS Vercel Sync
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/jarvis-mac-zero-touch.sh'
+      - 'src/app/api/jarvis/**'
+      - '.github/workflows/jarvis-vercel-sync.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jarvis-vercel-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: [self-hosted, macOS, ARM64]
+    timeout-minutes: 20
+    environment: production
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_TEAM_ID: team_YZkN3q7ZfY9s7wTQqqXk9WVU
+      VERCEL_PROJECT_NAME: jarvis
+      JARVIS_PRODUCTION_URL: https://jarvis-fawn-iota.vercel.app
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Sync live JARVIS endpoints into Vercel
+        id: sync
+        shell: bash
+        run: |
+          set -euo pipefail
+          STATE_ROOT="$HOME/Library/Application Support/JARVIS"
+          ENV_FILE="$STATE_ROOT/jarvis.env"
+          SYNC_FILE="$STATE_ROOT/vercel-api-sync.sha256"
+          test -s "$ENV_FILE"
+          set -a
+          source "$ENV_FILE"
+          set +a
+          : "${JARVIS_PUBLIC_BROKER_URL:?missing JARVIS_PUBLIC_BROKER_URL}"
+          : "${JARVIS_OWNER_TOKEN:?missing JARVIS_OWNER_TOKEN}"
+          : "${VERCEL_TOKEN:?missing VERCEL_TOKEN}"
+
+          curl --fail --silent --show-error --max-time 10 "$JARVIS_PUBLIC_BROKER_URL/health" >/dev/null
+
+          desired_hash="$(printf '%s\n%s\n%s\n%s' \
+            "$JARVIS_PUBLIC_BROKER_URL" \
+            "$JARVIS_OWNER_TOKEN" \
+            "${JARVIS_REMOTE_PUBLIC_URL:-}" \
+            "${JARVIS_REMOTE_GATEWAY_TOKEN:-}" | shasum -a 256 | awk '{print $1}')"
+          previous_hash="$(cat "$SYNC_FILE" 2>/dev/null || true)"
+          if [[ "$desired_hash" == "$previous_hash" ]]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "JARVIS Vercel environment already matches the current Mac runtime."
+            exit 0
+          fi
+
+          node <<'NODE'
+          const token = process.env.VERCEL_TOKEN;
+          const teamId = process.env.VERCEL_TEAM_ID;
+          const projectName = process.env.VERCEL_PROJECT_NAME;
+          const brokerUrl = process.env.JARVIS_PUBLIC_BROKER_URL;
+          const ownerToken = process.env.JARVIS_OWNER_TOKEN;
+          const remoteUrl = process.env.JARVIS_REMOTE_PUBLIC_URL || "";
+          const remoteToken = process.env.JARVIS_REMOTE_GATEWAY_TOKEN || "";
+          if (!token || !teamId || !projectName || !brokerUrl || !ownerToken) throw new Error("JARVIS/Vercel sync context is incomplete");
+
+          const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+          async function request(url, init = {}) {
+            const response = await fetch(url, { ...init, headers: { ...headers, ...(init.headers || {}) } });
+            const text = await response.text();
+            let body = null;
+            if (text) { try { body = JSON.parse(text); } catch { body = { message: text }; } }
+            if (!response.ok) throw new Error(`Vercel API ${response.status}: ${body?.error?.message || body?.message || "request failed"}`);
+            return body;
+          }
+
+          const project = await request(`https://api.vercel.com/v9/projects/${encodeURIComponent(projectName)}?teamId=${encodeURIComponent(teamId)}`);
+          if (!project?.id || !project?.accountId) throw new Error("Unable to resolve JARVIS Vercel project");
+
+          const envs = [
+            { key: "JARVIS_BROKER_URL", value: brokerUrl, type: "plain", target: ["production"] },
+            { key: "JARVIS_OWNER_TOKEN", value: ownerToken, type: "sensitive", target: ["production"] },
+          ];
+          if (remoteUrl && remoteToken) {
+            envs.push(
+              { key: "JARVIS_REMOTE_GATEWAY_URL", value: remoteUrl, type: "plain", target: ["production"] },
+              { key: "JARVIS_REMOTE_GATEWAY_TOKEN", value: remoteToken, type: "sensitive", target: ["production"] },
+            );
+          }
+
+          await request(`https://api.vercel.com/v10/projects/${encodeURIComponent(project.id)}/env?upsert=true&teamId=${encodeURIComponent(teamId)}`, {
+            method: "POST",
+            body: JSON.stringify(envs),
+          });
+
+          const fs = await import("node:fs/promises");
+          await fs.mkdir(".vercel", { recursive: true });
+          await fs.writeFile(".vercel/project.json", JSON.stringify({ projectId: project.id, orgId: project.accountId }) + "\n", { mode: 0o600 });
+          console.log(`Synced JARVIS runtime endpoints to Vercel project ${projectName}.`);
+          NODE
+
+          printf '%s\n' "$desired_hash" > "$SYNC_FILE"
+          chmod 600 "$SYNC_FILE"
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - uses: pnpm/action-setup@v4
+        if: steps.sync.outputs.changed == 'true'
+        with:
+          version: 11.19.0
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        if: steps.sync.outputs.changed == 'true'
+        with:
+          node-version: 24.19.0
+
+      - name: Redeploy Production with synchronized environment
+        if: steps.sync.outputs.changed == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm dlx vercel@latest deploy --prod --yes --token="$VERCEL_TOKEN" >/tmp/jarvis-vercel-deploy-url.txt
+          cat /tmp/jarvis-vercel-deploy-url.txt
+
+      - name: Verify Vercel can reach the live Broker
+        if: steps.sync.outputs.changed == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          for _ in $(seq 1 30); do
+            body="$(curl --silent --show-error --location --max-time 10 "$JARVIS_PRODUCTION_URL/api/jarvis/connectivity" || true)"
+            if node -e 'const x=JSON.parse(process.argv[1]); process.exit(x.ok===true && x.brokerConfigured===true && x.ownerTokenConfigured===true && x.brokerReachable===true ? 0 : 1)' "$body" 2>/dev/null; then
+              echo "JARVIS Production connectivity verified."
+              exit 0
+            fi
+            sleep 4
+          done
+          echo "JARVIS Production connectivity verification timed out." >&2
+          exit 1
