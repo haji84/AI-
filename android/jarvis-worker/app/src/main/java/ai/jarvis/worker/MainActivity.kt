@@ -94,6 +94,7 @@ class MainActivity : AppCompatActivity() {
         val enrollmentLink = intent?.data
         if (enrollmentLink != null) handleEnrollmentIntent(intent) else verifyCurrentEnrollment()
         scheduleFallbackWorker()
+        ensureCommandService()
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -110,12 +111,19 @@ class MainActivity : AppCompatActivity() {
             waitingForInstallPermission = false
             installLatestUpdate()
         }
+        ensureCommandService()
         startActivePollingLoop()
     }
 
     override fun onPause() {
         active.set(false)
         super.onPause()
+    }
+
+    private fun ensureCommandService() {
+        val client = BrokerClient(this)
+        if (client.brokerUrl.isBlank()) return
+        runCatching { JarvisCommandService.start(this) }
     }
 
     private fun verifyCurrentEnrollment() {
@@ -128,6 +136,7 @@ class MainActivity : AppCompatActivity() {
         Thread {
             runCatching { client.heartbeat() }
                 .onSuccess {
+                    runCatching { JarvisCommandService.start(this) }
                     runOnUiThread { status.text = "登録完了" }
                     checkForUpdate()
                 }
@@ -216,6 +225,7 @@ class MainActivity : AppCompatActivity() {
                 client.brokerUrl = brokerUrl
                 action(client)
             }.onSuccess {
+                runCatching { JarvisCommandService.start(this) }
                 runOnUiThread { status.text = "登録完了" }
                 checkForUpdate()
             }.onFailure { error ->
