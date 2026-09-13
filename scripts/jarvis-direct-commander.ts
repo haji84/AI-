@@ -1,7 +1,7 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 
-const host = "127.0.0.1";
+const host = process.env.JARVIS_COMMANDER_HOST?.trim() || "127.0.0.1";
 const port = Number(process.env.JARVIS_COMMANDER_PORT || 8790);
 const broker = process.env.JARVIS_COMMANDER_BROKER?.trim().replace(/\/$/, "") || "http://127.0.0.1:8787";
 const ownerToken = process.env.JARVIS_OWNER_TOKEN?.trim() || "";
