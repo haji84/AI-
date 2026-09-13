@@ -1,0 +1,81 @@
+name: JARVIS One-Tap Enrollment E2E
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/jarvis-one-tap-e2e.yml'
+      - 'scripts/jarvis-broker.ts'
+      - 'android/jarvis-worker/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live-one-tap-url:
+    runs-on: [self-hosted, macOS, ARM64]
+    timeout-minutes: 10
+    steps:
+      - name: Issue and open a real one-tap enrollment URL
+        shell: bash
+        run: |
+          set -euo pipefail
+          STATE_ROOT="$HOME/Library/Application Support/JARVIS"
+          ENV_FILE="$STATE_ROOT/jarvis.env"
+          test -s "$ENV_FILE"
+          set -a
+          source "$ENV_FILE"
+          set +a
+
+          test -n "${JARVIS_OWNER_TOKEN:-}"
+          test -n "${JARVIS_PUBLIC_BROKER_URL:-}"
+          [[ "$JARVIS_PUBLIC_BROKER_URL" == https://* ]]
+
+          RESPONSE="$(curl -fsS --max-time 10 \
+            -H "Authorization: Bearer $JARVIS_OWNER_TOKEN" \
+            -H 'Content-Type: application/json' \
+            -d '{"mode":"fleet","maxDevices":100,"ttlMs":3600000,"group":"default"}' \
+            http://127.0.0.1:8787/api/jarvis/admin/enrollment)"
+
+          ONE_TAP_URL="$(printf '%s' "$RESPONSE" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("oneTapUrl", ""))')"
+          test -n "$ONE_TAP_URL"
+          [[ "$ONE_TAP_URL" == https://* ]]
+          echo "::add-mask::$ONE_TAP_URL"
+
+          PAGE_FILE="$RUNNER_TEMP/jarvis-one-tap-page.html"
+          curl -fsS --max-time 15 "$ONE_TAP_URL" -o "$PAGE_FILE"
+          test -s "$PAGE_FILE"
+          grep -q 'JARVISに登録中' "$PAGE_FILE"
+          grep -q 'jarvis://enroll?broker=' "$PAGE_FILE"
+          grep -q '&grant=' "$PAGE_FILE"
+          if grep -q '&token=' "$PAGE_FILE"; then
+            echo 'Raw enrollment token leaked into one-tap page' >&2
+            exit 1
+          fi
+
+          URL_FILE="$RUNNER_TEMP/jarvis-one-tap-url.txt"
+          printf '%s\n' "$ONE_TAP_URL" > "$URL_FILE"
+          chmod 600 "$URL_FILE"
+          echo "ONE_TAP_URL_FILE=$URL_FILE" >> "$GITHUB_ENV"
+          echo 'JARVIS one-tap URL: live HTTPS page opened successfully'
+
+      - name: Check whether a physical Android is attached for true tap verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          if command -v adb >/dev/null 2>&1 && adb devices | awk 'NR>1 && $2=="device" {found=1} END{exit found?0:1}'; then
+            echo 'PHYSICAL_ANDROID_ATTACHED=true' >> "$GITHUB_ENV"
+            echo 'Physical Android detected by ADB'
+          else
+            echo 'PHYSICAL_ANDROID_ATTACHED=false' >> "$GITHUB_ENV"
+            echo 'No physical Android attached; server-side live URL verification completed, physical tap still requires the target phone.'
+          fi
+
+      - name: Save current live registration URL privately as an Actions artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: jarvis-live-one-tap-url
+          path: ${{ env.ONE_TAP_URL_FILE }}
+          if-no-files-found: error
+          retention-days: 1
