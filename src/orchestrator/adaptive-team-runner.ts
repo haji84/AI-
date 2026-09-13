@@ -13,6 +13,7 @@ import {
 } from "./dynamic-capability-team.ts";
 import {
   createTeamBlueprint,
+  deriveTeamBlueprint,
   type TeamBlueprint,
   type TeamMemory,
   type TeamOutcome,
@@ -27,6 +28,27 @@ export interface TeamMemoryPersistence {
   persist(memory: TeamMemory): Promise<void>;
 }
 
+export interface CapabilityExpansionDecision {
+  necessary: boolean;
+  reason: string;
+}
+
+export interface CapabilityExpansionRecord {
+  capability: string;
+  actionId: string;
+  actionDescription: string;
+  accepted: boolean;
+  reason: string;
+}
+
+export interface CapabilityExpansionContext {
+  goal: Goal;
+  action: ProposedAction;
+  descriptor: CapabilityDescriptor;
+  activeTeam: CapabilityTeamPlan;
+  expansionCount: number;
+}
+
 export interface AdaptiveTeamRunInput {
   goal: Goal;
   availableCapabilities: CapabilityDescriptor[];
@@ -38,6 +60,10 @@ export interface AdaptiveTeamRunInput {
   runOptions?: BoundedRunOptions;
   createBlueprintId?: (goal: Goal) => string;
   createBlueprintName?: (goal: Goal) => string;
+  maxCapabilityExpansions?: number;
+  evaluateExpansionNecessity?: (
+    context: CapabilityExpansionContext,
+  ) => CapabilityExpansionDecision | Promise<CapabilityExpansionDecision>;
 }
 
 export interface AdaptiveTeamRunReport {
@@ -47,7 +73,18 @@ export interface AdaptiveTeamRunReport {
   run: BoundedRunReport | null;
   teamOutcome: TeamOutcome | null;
   memoryUpdated: boolean;
+  expansions: CapabilityExpansionRecord[];
   blockedReason?: string;
+}
+
+class CapabilityExpansionNeeded extends Error {
+  readonly action: ProposedAction;
+
+  constructor(action: ProposedAction) {
+    super(`capability expansion needed:${action.capability}`);
+    this.name = "CapabilityExpansionNeeded";
+    this.action = action;
+  }
 }
 
 function normalized(value: string): string {
@@ -78,6 +115,35 @@ function defaultBlueprintId(goal: Goal): string {
   return `team:${slug || "goal"}:${Date.now()}`;
 }
 
+function defaultExpansionNecessity(context: CapabilityExpansionContext): CapabilityExpansionDecision {
+  const explicitRequirement = (context.activeTeam.assignments ?? []).some(
+    (assignment) => normalized(assignment.capability) === normalized(context.action.capability),
+  );
+  if (explicitRequirement) {
+    return { necessary: true, reason: "capability is already explicitly assigned" };
+  }
+
+  const goalText = [
+    context.goal.title,
+    context.goal.description ?? "",
+    ...context.goal.successCriteria,
+    ...context.goal.constraints,
+  ].join(" ").toLowerCase();
+  const evidenceTerms = [
+    context.descriptor.name,
+    ...context.descriptor.roles,
+    ...(context.descriptor.matchTerms ?? []),
+  ].map(normalized).filter((term) => term.length >= 2);
+  const matched = evidenceTerms.find((term) => goalText.includes(term));
+  if (matched) {
+    return { necessary: true, reason: `goal evidence matched:${matched}` };
+  }
+  return {
+    necessary: false,
+    reason: "planner requested capability but current Goal/DoD contains no supporting necessity evidence",
+  };
+}
+
 class TeamScopedExecutor implements CapabilityExecutor {
   private readonly delegate: CapabilityExecutor;
   private readonly allowed: Set<string>;
@@ -89,12 +155,7 @@ class TeamScopedExecutor implements CapabilityExecutor {
 
   async execute(action: ProposedAction, context: ContextItem[]) {
     if (!this.allowed.has(normalized(action.capability))) {
-      return {
-        actionId: action.id,
-        ok: false,
-        summary: `Capability is not part of the active team: ${action.capability}`,
-        blocker: `capability_not_in_active_team:${action.capability}`,
-      };
+      throw new CapabilityExpansionNeeded(action);
     }
     return this.delegate.execute(action, context);
   }
@@ -129,7 +190,34 @@ function inferTeamOutcome(run: BoundedRunReport): TeamOutcome | null {
   return null;
 }
 
+function expandedPlan(
+  current: CapabilityTeamPlan,
+  descriptor: CapabilityDescriptor,
+  action: ProposedAction,
+  reason: string,
+): CapabilityTeamPlan {
+  if (current.assignments.some((assignment) => normalized(assignment.capability) === normalized(descriptor.name))) {
+    return current;
+  }
+  return {
+    ...current,
+    assignments: [
+      ...current.assignments,
+      {
+        role: descriptor.roles[0] ?? `dynamic:${descriptor.name}`,
+        capability: descriptor.name,
+        reason: `runtime expansion for ${action.description}: ${reason}`,
+      },
+    ],
+  };
+}
+
 export async function runAdaptiveTeamGoal(input: AdaptiveTeamRunInput): Promise<AdaptiveTeamRunReport> {
+  const maxCapabilityExpansions = input.maxCapabilityExpansions ?? 8;
+  if (!Number.isInteger(maxCapabilityExpansions) || maxCapabilityExpansions < 0 || maxCapabilityExpansions > 100) {
+    throw new Error("maxCapabilityExpansions must be an integer from 0 to 100");
+  }
+
   const availableNames = input.availableCapabilities.map((capability) => capability.name);
   const recalled = input.memory.recall(input.goal, availableNames);
   const eligibleRecalled = recalled && blueprintSatisfiesRequirements(recalled, input.requirements)
@@ -137,13 +225,14 @@ export async function runAdaptiveTeamGoal(input: AdaptiveTeamRunInput): Promise<
     : null;
 
   const teamSource = eligibleRecalled ? "recalled" : "assembled";
-  const teamPlan = eligibleRecalled
+  let teamPlan = eligibleRecalled
     ? planFromBlueprint(input.goal, eligibleRecalled)
     : assembleCapabilityTeam({
         goal: input.goal,
         availableCapabilities: input.availableCapabilities,
         requirements: input.requirements,
       });
+  const expansions: CapabilityExpansionRecord[] = [];
 
   if (teamPlan.blocked) {
     return {
@@ -153,22 +242,122 @@ export async function runAdaptiveTeamGoal(input: AdaptiveTeamRunInput): Promise<
       run: null,
       teamOutcome: null,
       memoryUpdated: false,
+      expansions,
       blockedReason: `missing_required_capabilities:${teamPlan.missingRequiredCapabilities.map((item) => item.capability).join(",")}`,
     };
   }
 
-  const allowedCapabilities = [...new Set(teamPlan.assignments.map((assignment) => assignment.capability))];
-  const scopedExecutor = new TeamScopedExecutor(input.executor, allowedCapabilities);
-  const loop = input.createLoop(scopedExecutor);
-  const run = await runBoundedGoalLoop(loop, input.goal, input.runOptions);
-  const teamOutcome = inferTeamOutcome(run);
+  let run: BoundedRunReport | null = null;
+  while (true) {
+    const allowedCapabilities = [...new Set(teamPlan.assignments.map((assignment) => assignment.capability))];
+    const scopedExecutor = new TeamScopedExecutor(input.executor, allowedCapabilities);
+    const loop = input.createLoop(scopedExecutor);
+    try {
+      run = await runBoundedGoalLoop(loop, input.goal, input.runOptions);
+      break;
+    } catch (cause) {
+      if (!(cause instanceof CapabilityExpansionNeeded)) throw cause;
+      const requested = cause.action.capability;
+      const descriptor = input.availableCapabilities.find(
+        (capability) => normalized(capability.name) === normalized(requested),
+      );
+      if (!descriptor) {
+        expansions.push({
+          capability: requested,
+          actionId: cause.action.id,
+          actionDescription: cause.action.description,
+          accepted: false,
+          reason: "capability is not registered in the current catalog",
+        });
+        return {
+          teamSource,
+          blueprintId: eligibleRecalled?.id ?? null,
+          teamPlan,
+          run: null,
+          teamOutcome: null,
+          memoryUpdated: false,
+          expansions,
+          blockedReason: `capability_not_registered:${requested}`,
+        };
+      }
 
+      if (expansions.filter((record) => record.accepted).length >= maxCapabilityExpansions) {
+        expansions.push({
+          capability: requested,
+          actionId: cause.action.id,
+          actionDescription: cause.action.description,
+          accepted: false,
+          reason: "capability expansion budget exhausted",
+        });
+        return {
+          teamSource,
+          blueprintId: eligibleRecalled?.id ?? null,
+          teamPlan,
+          run: null,
+          teamOutcome: null,
+          memoryUpdated: false,
+          expansions,
+          blockedReason: `capability_expansion_budget_exhausted:${requested}`,
+        };
+      }
+
+      const decision = await (input.evaluateExpansionNecessity ?? defaultExpansionNecessity)({
+        goal: input.goal,
+        action: cause.action,
+        descriptor,
+        activeTeam: teamPlan,
+        expansionCount: expansions.filter((record) => record.accepted).length,
+      });
+      if (!decision.necessary) {
+        expansions.push({
+          capability: requested,
+          actionId: cause.action.id,
+          actionDescription: cause.action.description,
+          accepted: false,
+          reason: decision.reason,
+        });
+        return {
+          teamSource,
+          blueprintId: eligibleRecalled?.id ?? null,
+          teamPlan,
+          run: null,
+          teamOutcome: null,
+          memoryUpdated: false,
+          expansions,
+          blockedReason: `capability_expansion_not_necessary:${requested}`,
+        };
+      }
+
+      teamPlan = expandedPlan(teamPlan, descriptor, cause.action, decision.reason);
+      expansions.push({
+        capability: requested,
+        actionId: cause.action.id,
+        actionDescription: cause.action.description,
+        accepted: true,
+        reason: decision.reason,
+      });
+    }
+  }
+
+  const teamOutcome = inferTeamOutcome(run);
   let blueprintId: string | null = eligibleRecalled?.id ?? null;
   let memoryUpdated = false;
   if (teamOutcome) {
-    if (eligibleRecalled) {
+    const expanded = expansions.some((record) => record.accepted);
+    if (eligibleRecalled && !expanded) {
       input.memory.record(eligibleRecalled.id, teamOutcome);
       blueprintId = eligibleRecalled.id;
+    } else if (eligibleRecalled && expanded) {
+      const derived = deriveTeamBlueprint({
+        parent: eligibleRecalled,
+        id: input.createBlueprintId?.(input.goal) ?? defaultBlueprintId(input.goal),
+        name: input.createBlueprintName?.(input.goal) ?? `${input.goal.title} expanded team`,
+        goal: input.goal,
+        replaceAssignments: teamPlan.assignments,
+      });
+      input.memory.save(derived);
+      input.memory.record(derived.id, teamOutcome);
+      blueprintId = derived.id;
     } else {
       const blueprint = createTeamBlueprint({
         id: input.createBlueprintId?.(input.goal) ?? defaultBlueprintId(input.goal),
@@ -191,5 +380,6 @@ export async function runAdaptiveTeamGoal(input: AdaptiveTeamRunInput): Promise<
     run,
     teamOutcome,
     memoryUpdated,
+    expansions,
   };
 }
