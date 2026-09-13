@@ -9,6 +9,10 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 
+    <queries>
+        <package android:name="com.google.android.apps.docs.editors.sheets" />
+    </queries>
+
     <application
         android:name=".JarvisWorkerApp"
         android:allowBackup="false"
