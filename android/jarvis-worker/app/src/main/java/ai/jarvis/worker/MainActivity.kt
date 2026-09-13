@@ -59,6 +59,12 @@ class MainActivity : AppCompatActivity() {
             text = "端末設定を開く"
             setOnClickListener { startActivity(Intent(Settings.ACTION_SETTINGS)) }
         }
+        val version = TextView(this).apply {
+            text = "JARVIS Worker v${BuildConfig.VERSION_NAME}"
+            textSize = 12f
+            alpha = 0.65f
+            setPadding(0, 24, 0, 0)
+        }
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(32, 48, 32, 32)
@@ -70,6 +76,7 @@ class MainActivity : AppCompatActivity() {
             addView(tokenField)
             addView(manualEnrollButton)
             addView(settings)
+            addView(version)
         }
         setContentView(root)
 
