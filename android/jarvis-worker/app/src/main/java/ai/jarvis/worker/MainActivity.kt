@@ -59,8 +59,11 @@ class MainActivity : AppCompatActivity() {
             text = "端末設定を開く"
             setOnClickListener { startActivity(Intent(Settings.ACTION_SETTINGS)) }
         }
+        val installedVersion = runCatching {
+            packageManager.getPackageInfo(packageName, 0).versionName ?: "不明"
+        }.getOrDefault("不明")
         val version = TextView(this).apply {
-            text = "JARVIS Worker v${BuildConfig.VERSION_NAME}"
+            text = "JARVIS Worker v$installedVersion"
             textSize = 12f
             alpha = 0.65f
             setPadding(0, 24, 0, 0)
