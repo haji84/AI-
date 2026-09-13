@@ -4,11 +4,11 @@ PROJECT: General Autonomous AI / Unified AI Creator Studio / GAI Research OS
 AI_COMPANY_VERSION: 1.0
 PROJECT_VERSION: 0.0.0
 CURRENT_PHASE: General autonomous AI integration + empirical research operation
-STATUS: ORGANIZATIONAL_TEAM_MEMORY_IMPLEMENTATION
+STATUS: ADAPTIVE_TEAM_RUNTIME_COMPLETE
 LAST_UPDATED: 2026-09-13
 CURRENT_EPIC: One-front-door general autonomous AI with dynamic reusable capability orchestration
-ACTIVE_ISSUES: #470, #320, #315, #316, #317, #318, #319, #321
-OPEN_PRS: organizational team memory + empirical research work may proceed independently when scopes do not conflict
+ACTIVE_ISSUES: #320, #315, #316, #317, #318, #319, #321
+OPEN_PRS: empirical research and device-control work may proceed independently when scopes do not conflict
 BLOCKERS: real empirical runs require configured workstation model/runtime capacity; GitHub CI validates the harness but must not be reported as a real model benchmark run
 PRIORITY_OVERRIDE: General autonomous AI north-star goal governs architecture; empirical GAI research remains active; deferred Phase 3 image smoke stays deferred until owner resumes product work
 NORTH_STAR_GOAL: Human gives one goal; the system determines required work, dynamically recruits available capabilities, executes, verifies, repairs, records, and completes with the fewest necessary human returns
@@ -18,18 +18,19 @@ AI_COMPANY_REUSE_POLICY: retain jobs, workers, providers, dashboard, contracts, 
 DYNAMIC_TEAM_CONTRACT: planner requirements + goal + available capability catalog -> deterministic role/capability assignments; missing required capabilities fail visibly and never get fabricated
 TEAM_MEMORY_POLICY: successful executable teams can become TeamBlueprints; similar future goals recall proven blueprints only after current capability revalidation; changed conditions create child blueprints without overwriting parent evidence
 TEAM_LIFECYCLE_POLICY: experimental -> reusable -> standing_candidate after repeated verified success; repeated poor performance -> demoted and excluded from automatic recall
-ARCHITECTURE_REFERENCE: docs/architecture/general-autonomous-ai-dynamic-orchestration.md + docs/architecture/team-organizational-memory.md
-LAST_SUCCESSFUL_CI: dynamic capability orchestration PR #469 passed project-checks/repository-guard and merged on 2026-09-13
+TEAM_RUNTIME_POLICY: persistent organizational memory -> recall eligible blueprint or assemble current team -> restrict execution to active-team capabilities -> bounded GoalDrivenLoop -> verifier/risk/Human Gate/write-back -> evidence-based team outcome -> atomic persistence for later reuse
+ARCHITECTURE_REFERENCE: docs/architecture/general-autonomous-ai-dynamic-orchestration.md + docs/architecture/team-organizational-memory.md + docs/architecture/adaptive-team-runtime.md
+LAST_SUCCESSFUL_CI: organizational team memory PR #471 passed lint/test/build/health plus repository-guard and merged on 2026-09-13; adaptive runtime requires fresh CI before merge
 COMPASS_MCP: v1 merged and real-machine interoperability verified PASS
 COMPASS_HANDOFF: standard AI employee handoff protocol merged via PR #64
 AI_EMPLOYEE_COMMAND_INGRESS: dashboard chat source=chat E2E PASS
 AI_EMPLOYEE_BOUNDED_PLAN: inspect plan validation and bounded autonomy cycle E2E PASS
 AI_EMPLOYEE_AUTONOMY_FOUNDATION: Issue #243 completed on 2026-09-08
 GAI_MISSION: develop and research a measurable general autonomous intelligence architecture that can plan, act, remember, learn, verify, transfer experience, dynamically compose capabilities, retain successful organization patterns, and improve itself without claiming AGI prematurely
-GAI_CORE_LOOP: Goal -> DoD -> Current State -> Context partition -> Plan -> Recall/assemble capability team -> Predict -> Act -> Observe -> Verify -> Repair -> Deliver -> Write-back -> Record team outcome -> Benchmark -> Learn -> Abstract -> Transfer -> Diagnose -> Hypothesize -> Experiment -> Held-out evaluate -> Accept/Reject -> Re-evaluate
+GAI_CORE_LOOP: Goal -> DoD -> Current State -> Context partition -> Plan -> Recall/assemble capability team -> Predict -> Act -> Observe -> Verify -> Repair -> Deliver -> Write-back -> Record team outcome -> Persist organization memory -> Benchmark -> Learn -> Abstract -> Transfer -> Diagnose -> Hypothesize -> Experiment -> Held-out evaluate -> Accept/Reject -> Re-evaluate
 GAI_MODEL_POLICY: replaceable multi-model router; Astra tier for frontier/research-critical tasks when plan-included, Sol tier for primary reasoning, local tier for routine/always-on work; pay-as-you-go AI API fallback prohibited by default
 GAI_MODEL_EXECUTION_G5: merged via PR #311; governed execution adapters implemented for local / Sol / Astra tiers; frontier escalation requires explicit plan inclusion; unavailable frontier capacity degrades to lower zero-cost tiers; usage ledger enforces additional API cost = 0
-GAI_MEMORY_MODEL: working + episodic + semantic + procedural + organizational team memory
+GAI_MEMORY_MODEL: working + episodic + semantic + procedural + persistent organizational team memory
 GAI_MEMORY_G1: merged via PR #300; file-backed versioned persistence, provenance, confidence, task-relevance retrieval, working-set replacement, and verified learning promotion implemented
 GAI_WORLD_MODEL_G2: merged via PR #305; persistent prediction/observation events, confidence-sensitive prediction error, context retrieval, repeated-evidence calibration, and verified handoff into G1 memory implemented
 GAI_PLANNER_G3: merged via PR #306; semantic/procedural memory, world-model evidence, and transferable skills inform next-action selection; weak skills are automatically demoted from repeated outcomes
@@ -47,7 +48,8 @@ GAI_SELF_IMPROVEMENT_POLICY: candidate changes must be sandboxed and accepted on
 GAI_AGI_CLAIM_POLICY: project-defined target completion never automatically authorizes an AGI claim; independent external evaluation is required
 GAI_CROSS_DEVICE_TARGET: iPhone + Android control surfaces; ZBook + MacBook execution workers; ChatGPT Work/Codex plan-included frontier boundary where available
 GAI_PLATFORM_IMPLEMENTATION: COMPLETE
-GAI_NEXT_PHASE: wire dynamic team recall/assembly and team outcome recording into runtime entry points, then continue real benchmark/baseline execution on configured workers
+GAI_ADAPTIVE_TEAM_RUNTIME: COMPLETE; dynamic assembly, proven-team recall, team-scoped execution, verified outcome learning, and process-persistent organizational memory are integrated without bypassing existing safety gates
+GAI_NEXT_PHASE: execute real Benchmark Suite/Baseline runs on configured workers, measure transfer and intervention rates, and continue cross-device execution integration; runtime architecture completion must not be reported as empirical AGI proof
 PHASE_2_TECHNICAL_ACCEPTANCE: PASS
 PHASE_2_ACCEPTANCE_RECORD: docs/architecture/0009-phase-2-acceptance.md
 PHASE_2_FORMAL_COMPLETION: COMPLETE
@@ -59,8 +61,8 @@ PHASE_3_RUNTIME_SELECTION: ComfyUI + Qwen-Image-Edit merged via PR #75
 PHASE_3_RUNTIME_API_PATH: merged via PR #77; upload, workflow injection, prompt submission, history polling, and output download implemented
 PHASE_3_REAL_MACHINE_SMOKE: deferred; Issue #78 remains open for later workstation execution
 PHASE_3_PRIORITY: deferred by owner on 2026-09-08 until autonomy/GAI research foundation is sufficiently complete
-NEXT_PRIORITY: complete #470 organizational team memory and merge after CI; next runtime task connects recall/assembly/outcome learning to GoalDrivenLoop without weakening gates
-HUMAN_APPROVAL_PENDING: none for LOW/MEDIUM implementation under Issue #470 task-scoped completion authorization; production, secrets, permissions, billing, destructive, governance-weakening, security-weakening, and external-publication gates remain in force
+NEXT_PRIORITY: run real empirical baseline/transfer evaluation on configured ZBook and MacBook workers while continuing independent device-control work; do not confuse CI success with a real model benchmark
+HUMAN_APPROVAL_PENDING: none for ordinary LOW/MEDIUM research/runtime implementation; production, secrets, permissions, billing, destructive, governance-weakening, security-weakening, and external-publication gates remain in force
 AUTO_FIX_ATTEMPTS_MAX: 3
 MAX_ACTIVE_AGENTS: 3
 MAX_PARALLEL_CODE_AGENTS: 2
