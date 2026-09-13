@@ -3,6 +3,7 @@ package ai.jarvis.worker
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
 import android.graphics.Path
+import android.os.Build
 import android.os.Bundle
 import android.os.SystemClock
 import android.view.accessibility.AccessibilityEvent
@@ -23,6 +24,7 @@ class JarvisAccessibilityService : AccessibilityService() {
         }
     }
 
+    private val sheetsPackage = "com.google.android.apps.docs.editors.sheets"
     private val goldfishTexts = setOf("床掘はちみつ", "春巻きプニさん", "ポイ活くんハチミツ")
     private val qrTexts = setOf("オオグンタマQR", "春巻QR", "ポイ活くんQR")
     private val sheetMarkerTexts = (goldfishTexts + qrTexts).toList()
@@ -32,6 +34,8 @@ class JarvisAccessibilityService : AccessibilityService() {
     )
     private val goldfishSuccessTexts = listOf("イベント詳細", "獲得履歴")
     private val qrSuccessTexts = listOf("受け取りしました", "マイQRコードを表示")
+    private val cellRegex = Regex("^[A-Z]{1,3}[1-9][0-9]{0,5}$")
+    private val urlRegex = Regex("https?://\\S+", RegexOption.IGNORE_CASE)
 
     override fun onServiceConnected() {
         current = this
@@ -67,6 +71,11 @@ class JarvisAccessibilityService : AccessibilityService() {
                     step.getString("text"),
                     step.optLong("timeoutMs", 8_000).coerceIn(500, 15_000)
                 )
+                "open-sheet-cell-link" -> openSheetCellLink(
+                    cell = step.getString("cell"),
+                    stage = step.optString("stage", "generic"),
+                    timeoutMs = step.optLong("timeoutMs", 45_000).coerceIn(5_000, 60_000)
+                )
                 "click-view-id" -> clickViewId(step.getString("viewId"))
                 "set-text" -> setText(step)
                 "tap" -> tap(step.getDouble("x").toFloat(), step.getDouble("y").toFloat())
@@ -98,7 +107,7 @@ class JarvisAccessibilityService : AccessibilityService() {
         val queue = ArrayDeque<AccessibilityNodeInfo>()
         queue.add(root)
         var visited = 0
-        while (queue.isNotEmpty() && visited < 600) {
+        while (queue.isNotEmpty() && visited < 800) {
             val node = queue.removeFirst()
             visited++
             val visible = normalizeText(node.text) + normalizeText(node.contentDescription)
@@ -181,16 +190,207 @@ class JarvisAccessibilityService : AccessibilityService() {
         return null
     }
 
+    private fun currentPackage(): String = rootInActiveWindow?.packageName?.toString().orEmpty()
+
+    private fun waitForPackage(packageName: String, timeoutMs: Long): Boolean {
+        val deadline = SystemClock.uptimeMillis() + timeoutMs
+        do {
+            if (currentPackage() == packageName) return true
+            SystemClock.sleep(250)
+        } while (SystemClock.uptimeMillis() < deadline)
+        return false
+    }
+
+    private fun nodeStrings(node: AccessibilityNodeInfo): List<String> = listOfNotNull(
+        node.text?.toString(),
+        node.contentDescription?.toString()
+    )
+
+    private fun isCellMention(value: String, cell: String): Boolean {
+        val normalized = value.uppercase().replace(Regex("\\s+"), " ")
+        val escaped = Regex.escape(cell.uppercase())
+        return Regex("(^|[^A-Z0-9])$escaped([^A-Z0-9]|$)").containsMatchIn(normalized)
+    }
+
+    private fun findCellNode(cell: String): AccessibilityNodeInfo? {
+        val root = rootInActiveWindow ?: return null
+        val queue = ArrayDeque<AccessibilityNodeInfo>()
+        queue.add(root)
+        var visited = 0
+        while (queue.isNotEmpty() && visited < 1000) {
+            val node = queue.removeFirst()
+            visited++
+            if (nodeStrings(node).any { isCellMention(it, cell) }) return node
+            for (i in 0 until node.childCount) node.getChild(i)?.let(queue::addLast)
+        }
+        return null
+    }
+
+    private fun findCellAddressEditor(): AccessibilityNodeInfo? {
+        val root = rootInActiveWindow ?: return null
+        val queue = ArrayDeque<AccessibilityNodeInfo>()
+        queue.add(root)
+        var visited = 0
+        var fallback: AccessibilityNodeInfo? = null
+        while (queue.isNotEmpty() && visited < 1000) {
+            val node = queue.removeFirst()
+            visited++
+            if (node.isEditable) {
+                val strings = nodeStrings(node)
+                val hasCellValue = strings.any { cellRegex.matches(it.trim().uppercase()) }
+                val hint = strings.joinToString(" ").lowercase()
+                val looksLikeNameBox = hint.contains("name") || hint.contains("名前") || hint.contains("cell") || hint.contains("セル")
+                if (hasCellValue || looksLikeNameBox) return node
+                if (fallback == null && node.text?.toString()?.trim()?.uppercase()?.let(cellRegex::matches) == true) fallback = node
+            }
+            for (i in 0 until node.childCount) node.getChild(i)?.let(queue::addLast)
+        }
+        return fallback
+    }
+
+    private fun setCellAddressThroughEditor(cell: String): Boolean {
+        val editor = findCellAddressEditor() ?: return false
+        editor.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
+        val args = Bundle().apply {
+            putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, cell)
+        }
+        if (!editor.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)) return false
+        SystemClock.sleep(150)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            if (editor.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_IME_ENTER.id)) return true
+        }
+        return editor.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+    }
+
+    private fun sheetSwipeLeft(): Boolean {
+        val path = Path().apply {
+            moveTo(850f, 1050f)
+            lineTo(250f, 1050f)
+        }
+        return dispatchAndWait(
+            GestureDescription.Builder()
+                .addStroke(GestureDescription.StrokeDescription(path, 0, 350))
+                .build()
+        )
+    }
+
+    private fun selectSheetCell(cell: String, timeoutMs: Long): Boolean {
+        require(cellRegex.matches(cell.uppercase())) { "Invalid sheet cell: $cell" }
+        val deadline = SystemClock.uptimeMillis() + timeoutMs
+
+        if (setCellAddressThroughEditor(cell.uppercase())) {
+            SystemClock.sleep(500)
+            return true
+        }
+
+        var swipes = 0
+        do {
+            val node = findCellNode(cell.uppercase())
+            if (node != null && clickNodeOrParent(node)) {
+                SystemClock.sleep(500)
+                return true
+            }
+            if (swipes < 5) {
+                sheetSwipeLeft()
+                swipes++
+                SystemClock.sleep(350)
+            } else {
+                SystemClock.sleep(250)
+            }
+        } while (SystemClock.uptimeMillis() < deadline)
+        return false
+    }
+
+    private fun findVisibleUrlNode(): AccessibilityNodeInfo? {
+        val root = rootInActiveWindow ?: return null
+        val queue = ArrayDeque<AccessibilityNodeInfo>()
+        queue.add(root)
+        var visited = 0
+        while (queue.isNotEmpty() && visited < 1200) {
+            val node = queue.removeFirst()
+            visited++
+            val strings = nodeStrings(node)
+            if (strings.any { urlRegex.containsMatchIn(it) }) return node
+            for (i in 0 until node.childCount) node.getChild(i)?.let(queue::addLast)
+        }
+        return null
+    }
+
+    private fun openVisibleUrl(timeoutMs: Long): Boolean {
+        val deadline = SystemClock.uptimeMillis() + timeoutMs
+        do {
+            val node = findVisibleUrlNode()
+            if (node != null && clickNodeOrParent(node)) return true
+            SystemClock.sleep(250)
+        } while (SystemClock.uptimeMillis() < deadline)
+        return false
+    }
+
+    private fun openSheetCellLink(cell: String, stage: String, timeoutMs: Long): Boolean {
+        val stageLabel = when (stage.lowercase()) {
+            "goldfish" -> "金魚"
+            "qr" -> "QR"
+            else -> stage.ifBlank { "セル" }
+        }
+        if (!waitForPackage(sheetsPackage, 10_000)) {
+            throw IllegalStateException("$stageLabel: スプレッドシートへ戻ったことを確認できませんでした")
+        }
+        val selectBudget = (timeoutMs / 3).coerceAtLeast(5_000)
+        if (!selectSheetCell(cell, selectBudget)) {
+            throw IllegalStateException("$stageLabel: 指定セル $cell へ移動できませんでした")
+        }
+        val linkBudget = (timeoutMs / 3).coerceAtLeast(5_000)
+        if (!openVisibleUrl(linkBudget)) {
+            throw IllegalStateException("$stageLabel: $cell 選択後にURLを確認できませんでした")
+        }
+        when (stage.lowercase()) {
+            "goldfish" -> waitForOutcome(goldfishSuccessTexts, 30_000, "金魚")
+            "qr" -> {
+                waitForOutcome(qrSuccessTexts, 30_000, "QR")
+                performGlobalAction(GLOBAL_ACTION_HOME)
+            }
+        }
+        return true
+    }
+
+    private fun looksLikeSheetGrid(): Boolean {
+        if (currentPackage() != sheetsPackage) return false
+        if (firstVisibleText(sheetMarkerTexts) != null) return true
+        if (findCellAddressEditor() != null) return true
+        val root = rootInActiveWindow ?: return false
+        val queue = ArrayDeque<AccessibilityNodeInfo>()
+        queue.add(root)
+        var visited = 0
+        while (queue.isNotEmpty() && visited < 800) {
+            val node = queue.removeFirst()
+            visited++
+            for (value in nodeStrings(node)) {
+                val tokens = value.uppercase().split(Regex("[^A-Z0-9]+"))
+                if (tokens.any(cellRegex::matches)) return true
+            }
+            for (i in 0 until node.childCount) node.getChild(i)?.let(queue::addLast)
+        }
+        return false
+    }
+
+    private fun waitForSheetGrid(timeoutMs: Long): Boolean {
+        val deadline = SystemClock.uptimeMillis() + timeoutMs
+        do {
+            if (looksLikeSheetGrid()) return true
+            SystemClock.sleep(250)
+        } while (SystemClock.uptimeMillis() < deadline)
+        return false
+    }
+
     /**
      * Open a named item on the current surface without issuing BACK automatically.
      * For the TikTok Lite spreadsheet, support both Sheets list and card/grid layouts,
-     * then verify the actual document opened by waiting for a known in-sheet task label.
+     * then verify the document surface itself is visible before continuing.
      */
     private fun ensureOpenText(text: String, timeoutMs: Long): Boolean {
         if (!clickTextOnlyRetry(text, timeoutMs)) return false
         if (normalizeText(text) != normalizeText("TikTok Lite")) return true
-        val marker = waitForAnyText(sheetMarkerTexts, 12_000)
-        if (marker == null) {
+        if (!waitForSheetGrid(12_000)) {
             throw IllegalStateException("TikTok Lite ファイルを開いたことを確認できませんでした")
         }
         return true
