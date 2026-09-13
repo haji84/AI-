@@ -4,6 +4,7 @@ import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
 import android.graphics.Path
 import android.os.Bundle
+import android.os.SystemClock
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import org.json.JSONArray
@@ -43,6 +44,18 @@ class JarvisAccessibilityService : AccessibilityService() {
             val action = step.optString("action")
             val result = when (action) {
                 "click-text" -> clickText(step.getString("text"))
+                "click-text-retry" -> clickTextRetry(
+                    step.getString("text"),
+                    step.optLong("timeoutMs", 6_000).coerceIn(250, 15_000)
+                )
+                "click-text-if-present" -> {
+                    clickText(step.getString("text"))
+                    true
+                }
+                "ensure-open-text" -> ensureOpenText(
+                    step.getString("text"),
+                    step.optLong("timeoutMs", 8_000).coerceIn(500, 15_000)
+                )
                 "click-view-id" -> clickViewId(step.getString("viewId"))
                 "set-text" -> setText(step)
                 "tap" -> tap(step.getDouble("x").toFloat(), step.getDouble("y").toFloat())
@@ -67,6 +80,26 @@ class JarvisAccessibilityService : AccessibilityService() {
         val root = rootInActiveWindow ?: return false
         val node = root.findAccessibilityNodeInfosByText(text).firstOrNull() ?: return false
         return clickNodeOrParent(node)
+    }
+
+    private fun clickTextRetry(text: String, timeoutMs: Long): Boolean {
+        val deadline = SystemClock.uptimeMillis() + timeoutMs
+        do {
+            if (clickText(text)) return true
+            SystemClock.sleep(250)
+        } while (SystemClock.uptimeMillis() < deadline)
+        return false
+    }
+
+    /**
+     * Open a named item regardless of whether the app resumed on a document or on its list screen.
+     * First try the visible screen. If the text is not present, go back once and retry until timeout.
+     */
+    private fun ensureOpenText(text: String, timeoutMs: Long): Boolean {
+        if (clickTextRetry(text, minOf(timeoutMs, 1_500))) return true
+        if (!performGlobalAction(GLOBAL_ACTION_BACK)) return false
+        SystemClock.sleep(700)
+        return clickTextRetry(text, (timeoutMs - 1_500).coerceAtLeast(500))
     }
 
     private fun clickViewId(viewId: String): Boolean {
