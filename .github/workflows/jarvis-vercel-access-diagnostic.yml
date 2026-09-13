@@ -1,0 +1,64 @@
+name: JARVIS Vercel Access Diagnostic
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/jarvis-vercel-access-diagnostic.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      DEFAULT_VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      JARVIS_VERCEL_TOKEN: ${{ secrets.JARVIS_VERCEL_TOKEN }}
+      PROJECT_NAME: jarvis
+    steps:
+      - name: Discover accessible Vercel scopes for JARVIS
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const preferred = process.env.JARVIS_VERCEL_TOKEN || "";
+          const fallback = process.env.DEFAULT_VERCEL_TOKEN || "";
+          const token = preferred || fallback;
+          if (!token) throw new Error("No Vercel token is configured");
+          console.log(`Credential source: ${preferred ? "JARVIS_VERCEL_TOKEN" : "VERCEL_TOKEN"}`);
+          const headers = { Authorization: `Bearer ${token}` };
+
+          async function probe(url) {
+            const response = await fetch(url, { headers });
+            const text = await response.text();
+            let body = null;
+            if (text) { try { body = JSON.parse(text); } catch { body = null; } }
+            return { status: response.status, body };
+          }
+
+          const projectName = process.env.PROJECT_NAME;
+          const attempts = [];
+
+          const personal = await probe(`https://api.vercel.com/v9/projects/${encodeURIComponent(projectName)}`);
+          attempts.push({ scope: "personal/default", status: personal.status, id: personal.body?.id || null, accountId: personal.body?.accountId || null });
+
+          const teamsResult = await probe("https://api.vercel.com/v2/teams?limit=100");
+          const teams = Array.isArray(teamsResult.body?.teams) ? teamsResult.body.teams : [];
+          console.log(`Accessible teams: ${teams.length}`);
+          for (const team of teams) {
+            if (!team?.id) continue;
+            const result = await probe(`https://api.vercel.com/v9/projects/${encodeURIComponent(projectName)}?teamId=${encodeURIComponent(team.id)}`);
+            attempts.push({ scope: `${team.name || team.slug || "team"} (${team.id})`, status: result.status, id: result.body?.id || null, accountId: result.body?.accountId || null });
+          }
+
+          const found = attempts.find((item) => item.status === 200 && item.id);
+          for (const item of attempts) console.log(`Probe ${item.scope}: HTTP ${item.status}${item.id ? ` project=${item.id}` : ""}`);
+          if (!found) {
+            console.error("JARVIS project is not accessible with the configured Vercel credential in any visible scope.");
+            process.exit(2);
+          }
+          console.log(`JARVIS project resolved successfully: ${found.id} / account ${found.accountId || "unknown"}`);
+          NODE
