@@ -3,6 +3,7 @@ package ai.jarvis.worker
 import android.content.Intent
 import android.os.Bundle
 import android.provider.Settings
+import android.view.View
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
@@ -20,14 +21,34 @@ import java.util.concurrent.atomic.AtomicBoolean
 class MainActivity : AppCompatActivity() {
     private val active = AtomicBoolean(false)
     private lateinit var status: TextView
+    private lateinit var brokerField: EditText
+    private lateinit var tokenField: EditText
+    private lateinit var manualEnrollButton: Button
+    private lateinit var advancedButton: Button
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val broker = EditText(this).apply { hint = "https://JARVIS broker" }
-        val token = EditText(this).apply { hint = "Enrollment token" }
+
         status = TextView(this).apply { text = "未登録" }
-        val enroll = Button(this).apply { text = "JARVISに登録" }
-        val accessibility = Button(this).apply {
+        val guide = TextView(this).apply { text = "管理者から届いたJARVIS登録リンクを1回タップすると、自動で登録されます。" }
+        brokerField = EditText(this).apply {
+            hint = "https://JARVIS broker"
+            visibility = View.GONE
+        }
+        tokenField = EditText(this).apply {
+            hint = "Enrollment token"
+            visibility = View.GONE
+        }
+        manualEnrollButton = Button(this).apply {
+            text = "手動で登録"
+            visibility = View.GONE
+            setOnClickListener { enrollToken(brokerField.text.toString(), tokenField.text.toString()) }
+        }
+        advancedButton = Button(this).apply {
+            text = "管理者向け詳細設定"
+            setOnClickListener { toggleAdvanced() }
+        }
+        val settings = Button(this).apply {
             text = "端末設定を開く"
             setOnClickListener { startActivity(Intent(Settings.ACTION_SETTINGS)) }
         }
@@ -35,22 +56,23 @@ class MainActivity : AppCompatActivity() {
             orientation = LinearLayout.VERTICAL
             setPadding(32, 48, 32, 32)
             addView(status)
-            addView(broker)
-            addView(token)
-            addView(enroll)
-            addView(accessibility)
+            addView(guide)
+            addView(advancedButton)
+            addView(brokerField)
+            addView(tokenField)
+            addView(manualEnrollButton)
+            addView(settings)
         }
         setContentView(root)
 
-        val deepLink = intent?.data
-        if (deepLink?.scheme == "jarvis" && deepLink.host == "enroll") {
-            broker.setText(deepLink.getQueryParameter("broker").orEmpty())
-            token.setText(deepLink.getQueryParameter("token").orEmpty())
-            if (broker.text.isNotBlank() && token.text.isNotBlank()) enroll(broker.text.toString(), token.text.toString())
-        }
-
-        enroll.setOnClickListener { enroll(broker.text.toString(), token.text.toString()) }
+        handleEnrollmentIntent(intent)
         scheduleFallbackWorker()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleEnrollmentIntent(intent)
     }
 
     override fun onResume() {
@@ -64,17 +86,58 @@ class MainActivity : AppCompatActivity() {
         super.onPause()
     }
 
-    private fun enroll(brokerUrl: String, token: String) {
-        status.text = "登録中…"
+    private fun handleEnrollmentIntent(source: Intent?) {
+        val link = source?.data ?: return
+        if (link.scheme != "jarvis" || link.host != "enroll") return
+        val brokerUrl = link.getQueryParameter("broker").orEmpty()
+        val grant = link.getQueryParameter("grant").orEmpty()
+        val token = link.getQueryParameter("token").orEmpty()
+        if (brokerUrl.isBlank()) {
+            status.text = "登録リンクが無効です"
+            return
+        }
+        when {
+            grant.isNotBlank() -> enrollGrant(brokerUrl, grant)
+            token.isNotBlank() -> enrollToken(brokerUrl, token)
+            else -> status.text = "登録リンクが無効です"
+        }
+    }
+
+    private fun toggleAdvanced() {
+        val show = brokerField.visibility != View.VISIBLE
+        val visibility = if (show) View.VISIBLE else View.GONE
+        brokerField.visibility = visibility
+        tokenField.visibility = visibility
+        manualEnrollButton.visibility = visibility
+        advancedButton.text = if (show) "詳細設定を閉じる" else "管理者向け詳細設定"
+    }
+
+    private fun enrollToken(brokerUrl: String, token: String) {
+        enroll(brokerUrl) { client -> client.enroll(token) }
+    }
+
+    private fun enrollGrant(brokerUrl: String, grant: String) {
+        enroll(brokerUrl) { client -> client.enrollGrant(grant) }
+    }
+
+    private fun enroll(brokerUrl: String, action: (BrokerClient) -> JSONObject) {
+        if (brokerUrl.isBlank()) {
+            status.text = "登録リンクが無効です"
+            return
+        }
+        status.text = "登録中"
         Thread {
             runCatching {
                 val client = BrokerClient(this)
                 client.brokerUrl = brokerUrl
-                client.enroll(token)
+                action(client)
             }.onSuccess {
-                runOnUiThread { status.text = "READY" }
-            }.onFailure {
-                runOnUiThread { status.text = "登録失敗: ${it.message}" }
+                runOnUiThread { status.text = "登録完了" }
+            }.onFailure { error ->
+                val expired = error.message?.contains("expired", ignoreCase = true) == true ||
+                    error.message?.contains("invalid", ignoreCase = true) == true ||
+                    error.message?.contains("limit", ignoreCase = true) == true
+                runOnUiThread { status.text = if (expired) "リンク期限切れ" else "登録失敗: ${error.message}" }
             }
         }.start()
     }
