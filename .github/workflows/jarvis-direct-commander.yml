@@ -86,6 +86,8 @@ jobs:
           HEALTH="$(curl -fsS --max-time 2 http://127.0.0.1:8790/health)"
           printf '%s' "$HEALTH" | grep -Fq 'jarvis-direct-commander'
           printf '%s' "$HEALTH" | grep -Fq '"host":"0.0.0.0"'
+          LISTENER="$(lsof -nP -iTCP:8790 -sTCP:LISTEN)"
+          printf '%s\n' "$LISTENER" | grep -Eq '(\*:8790|0\.0\.0\.0:8790)'
 
           DEFAULT_IF="$(route get default 2>/dev/null | awk '/interface:/{print $2; exit}')"
           LAN_IP=""
@@ -97,15 +99,17 @@ jobs:
           set -a; source "$ENV_FILE"; set +a
           : "${JARVIS_COMMANDER_KEY:?missing commander key}"
           LAN_URL="http://$LAN_IP:8790/c/$JARVIS_COMMANDER_KEY"
+          LOCAL_URL="http://127.0.0.1:8790/c/$JARVIS_COMMANDER_KEY"
           echo "::add-mask::$JARVIS_COMMANDER_KEY"
           echo "::add-mask::$LAN_URL"
+          echo "::add-mask::$LOCAL_URL"
           printf '%s\n' "$LAN_URL" > "$STATE_ROOT/commander-lan-url.txt"
           chmod 600 "$STATE_ROOT/commander-lan-url.txt"
-          curl -fsS --max-time 5 "$LAN_URL" | grep -Fq 'JARVIS Commander'
+          curl -fsS --max-time 5 "$LOCAL_URL" | grep -Fq 'JARVIS Commander'
           printf '%s' "$LAN_URL" | pbcopy || true
-          open "$LAN_URL" || true
+          open "$LOCAL_URL" || true
           echo "lan_ip=$LAN_IP" >> "$GITHUB_OUTPUT"
-          echo 'LAN Commander is healthy. Secure LAN URL copied to MacBook clipboard and opened in the default browser.'
+          echo 'LAN Commander is bound on all interfaces. Secure LAN URL copied to MacBook clipboard.'
 
       - name: Start optional Internet tunnel
         shell: bash
