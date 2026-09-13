@@ -1,3 +1,4 @@
+// Benchmark trigger marker: rerun real ZBook R1 -> R6 evidence chain on 2026-09-13.
 import { readdir, readFile, writeFile, mkdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import type { ResearchEvidence } from "../src/gai/research-ops-program.ts";
