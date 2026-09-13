@@ -35,11 +35,15 @@ jobs:
             * ) echo 'Resident Broker is not running from haji84/AI-' >&2; exit 1 ;;
           esac
           DIRTY="$(git -C "$BROKER_CWD" status --porcelain)"
-          if [[ -n "$DIRTY" ]]; then
-            echo 'Resident Broker repo has local changes; refusing to overwrite them.' >&2
+          BLOCKING_DIRTY="$(printf '%s\n' "$DIRTY" | grep -vE '^\?\? \.jarvis/$' || true)"
+          if [[ -n "$BLOCKING_DIRTY" ]]; then
+            echo 'Resident Broker repo has non-runtime local changes; refusing to overwrite them.' >&2
             echo 'Dirty paths:' >&2
-            printf '%s\n' "$DIRTY" | sed -E 's/^...//' | sed 's/ -> / -> /' >&2
+            printf '%s\n' "$BLOCKING_DIRTY" | sed -E 's/^...//' >&2
             exit 1
+          fi
+          if [[ -n "$DIRTY" ]]; then
+            echo 'Ignoring untracked .jarvis/ runtime state during source sync.'
           fi
           git -C "$BROKER_CWD" fetch origin main
           git -C "$BROKER_CWD" merge --ff-only origin/main
