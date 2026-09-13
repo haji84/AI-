@@ -15,4 +15,4 @@ if [[ -z "${JARVIS_COMMANDER_KEY:-}" ]]; then
   export JARVIS_COMMANDER_KEY
 fi
 cd "$REPO_ROOT"
-exec pnpm exec tsx scripts/jarvis-direct-commander.ts
+exec node scripts/jarvis-direct-commander.ts
