@@ -7,6 +7,7 @@ on:
     branches: [main]
     paths:
       - 'scripts/jarvis-mac-zero-touch.sh'
+      - 'src/app/jarvis/**'
       - 'src/app/api/jarvis/**'
       - '.github/workflows/jarvis-vercel-sync.yml'
   workflow_dispatch:
@@ -77,15 +78,16 @@ jobs:
           : "${JARVIS_PUBLIC_BROKER_URL:?missing JARVIS_PUBLIC_BROKER_URL after tunnel reconciliation}"
           broker_is_live || { echo "JARVIS public Broker is not reachable after reconciliation." >&2; exit 3; }
 
-          desired_hash="$(printf '%s\n%s\n%s\n%s' \
+          desired_hash="$(printf '%s\n%s\n%s\n%s\n%s' \
             "$JARVIS_PUBLIC_BROKER_URL" \
             "$JARVIS_OWNER_TOKEN" \
             "${JARVIS_REMOTE_PUBLIC_URL:-}" \
-            "${JARVIS_REMOTE_GATEWAY_TOKEN:-}" | shasum -a 256 | awk '{print $1}')"
+            "${JARVIS_REMOTE_GATEWAY_TOKEN:-}" \
+            "$GITHUB_SHA" | shasum -a 256 | awk '{print $1}')"
           previous_hash="$(cat "$SYNC_FILE" 2>/dev/null || true)"
           if [[ "$desired_hash" == "$previous_hash" ]]; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
-            echo "JARVIS Vercel environment already matches the current Mac runtime."
+            echo "JARVIS Vercel environment and deployed commit already match the current runtime."
             exit 0
           fi
 
