@@ -40,6 +40,7 @@ jobs:
           STATE_ROOT="$HOME/Library/Application Support/JARVIS"
           ENV_FILE="$STATE_ROOT/jarvis.env"
           SYNC_FILE="$STATE_ROOT/vercel-api-sync.sha256"
+          RETRY_FILE="$STATE_ROOT/vercel-deploy-retry-after.epoch"
           test -s "$ENV_FILE"
 
           load_runtime() {
@@ -85,11 +86,22 @@ jobs:
             "${JARVIS_REMOTE_GATEWAY_TOKEN:-}" \
             "$GITHUB_SHA" | shasum -a 256 | awk '{print $1}')"
           previous_hash="$(cat "$SYNC_FILE" 2>/dev/null || true)"
+          echo "desired_hash=$desired_hash" >> "$GITHUB_OUTPUT"
+
           if [[ "$desired_hash" == "$previous_hash" ]]; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
             echo "JARVIS Vercel environment and deployed commit already match the current runtime."
             exit 0
           fi
+
+          now="$(date +%s)"
+          retry_after="$(cat "$RETRY_FILE" 2>/dev/null || true)"
+          if [[ "$retry_after" =~ ^[0-9]+$ ]] && (( now < retry_after )); then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "JARVIS Production deploy is deferred by Vercel quota until epoch $retry_after."
+            exit 0
+          fi
+          rm -f "$RETRY_FILE"
 
           node <<'NODE'
           const token = process.env.VERCEL_TOKEN;
@@ -136,8 +148,6 @@ jobs:
           console.log(`Synced JARVIS runtime endpoints to Vercel project ${projectName}.`);
           NODE
 
-          printf '%s\n' "$desired_hash" > "$SYNC_FILE"
-          chmod 600 "$SYNC_FILE"
           echo "changed=true" >> "$GITHUB_OUTPUT"
 
       - uses: pnpm/action-setup@v4
@@ -152,22 +162,53 @@ jobs:
           node-version: 24.19.0
 
       - name: Redeploy Production with synchronized environment
+        id: deploy
         if: steps.sync.outputs.changed == 'true'
         shell: bash
         run: |
-          set -euo pipefail
-          pnpm dlx vercel@latest deploy --prod --yes --token="$VERCEL_TOKEN" >/tmp/jarvis-vercel-deploy-url.txt
-          cat /tmp/jarvis-vercel-deploy-url.txt
+          set -uo pipefail
+          STATE_ROOT="$HOME/Library/Application Support/JARVIS"
+          RETRY_FILE="$STATE_ROOT/vercel-deploy-retry-after.epoch"
+          OUTPUT_FILE="$RUNNER_TEMP/jarvis-vercel-deploy-output.txt"
+
+          set +e
+          pnpm dlx vercel@latest deploy --prod --yes --token="$VERCEL_TOKEN" >"$OUTPUT_FILE" 2>&1
+          status=$?
+          set -e
+          cat "$OUTPUT_FILE"
+
+          if (( status == 0 )); then
+            rm -f "$RETRY_FILE"
+            echo "deployed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if grep -q 'api-deployments-free-per-day' "$OUTPUT_FILE"; then
+            retry_after="$(( $(date +%s) + 86400 ))"
+            printf '%s\n' "$retry_after" > "$RETRY_FILE"
+            chmod 600 "$RETRY_FILE"
+            echo "deployed=false" >> "$GITHUB_OUTPUT"
+            echo "Vercel free deployment quota reached; JARVIS will retry automatically after the quota window."
+            exit 0
+          fi
+
+          exit "$status"
 
       - name: Verify Vercel can reach the live Broker
-        if: steps.sync.outputs.changed == 'true'
+        if: steps.sync.outputs.changed == 'true' && steps.deploy.outputs.deployed == 'true'
         shell: bash
         run: |
           set -euo pipefail
+          STATE_ROOT="$HOME/Library/Application Support/JARVIS"
+          SYNC_FILE="$STATE_ROOT/vercel-api-sync.sha256"
+          RETRY_FILE="$STATE_ROOT/vercel-deploy-retry-after.epoch"
           for _ in $(seq 1 30); do
             body="$(curl --silent --show-error --location --max-time 10 "$JARVIS_PRODUCTION_URL/api/jarvis/connectivity" || true)"
             if node -e 'const x=JSON.parse(process.argv[1]); process.exit(x.ok===true && x.brokerConfigured===true && x.ownerTokenConfigured===true && x.brokerReachable===true ? 0 : 1)' "$body" 2>/dev/null; then
-              echo "JARVIS Production connectivity verified."
+              printf '%s\n' '${{ steps.sync.outputs.desired_hash }}' > "$SYNC_FILE"
+              chmod 600 "$SYNC_FILE"
+              rm -f "$RETRY_FILE"
+              echo "JARVIS Production connectivity verified and deployed commit recorded."
               exit 0
             fi
             sleep 4
