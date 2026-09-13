@@ -10,6 +10,9 @@ class JarvisPollWorker(appContext: Context, params: WorkerParameters) : Worker(a
         if (client.brokerUrl.isBlank()) return Result.success()
         return runCatching {
             client.heartbeat()
+            val manager = UpdateManager(applicationContext)
+            val info = manager.parseUpdateInfo(client.updateInfo())
+            if (info != null) manager.installAutomaticallyIfManaged(info)
             Result.success()
         }.getOrElse { Result.retry() }
     }
