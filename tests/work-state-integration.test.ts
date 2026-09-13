@@ -17,6 +17,7 @@ import {
   WorkStateWriteBackStore,
   goalWorkStateId,
   type WorkStateAction,
+  type WorkStateActionResult,
 } from "../src/orchestrator/work-state-integration.ts";
 import type { WorkEvent, WorkState, WorkStateStore } from "../src/orchestrator/work-state.ts";
 
@@ -105,6 +106,14 @@ test("verified cycle writes artifacts, decisions, DoD and next action back to wo
   });
   const base = new MemoryLoopStore();
   const store = new WorkStateWriteBackStore(base, workStore);
+  const result: WorkStateActionResult = {
+    actionId: "a1",
+    ok: true,
+    summary: "implementation complete",
+    currentState: "implementation complete and tested",
+    artifacts: [{ id: "code", uri: "repo://src/change.ts", kind: "code" }],
+    decisions: [{ id: "d1", summary: "use provider-neutral store", at: "2026-09-13T00:00:00Z" }],
+  };
   await store.writeBack({
     goal,
     intent: { summary: "continue", confidence: 1, evidence: [] },
@@ -117,14 +126,7 @@ test("verified cycle writes artifacts, decisions, DoD and next action back to wo
       completesWorkItem: true,
       satisfiesDefinitionOfDone: ["criterion-1"],
     } as WorkStateAction,
-    result: {
-      actionId: "a1",
-      ok: true,
-      summary: "implementation complete",
-      currentState: "implementation complete and tested",
-      artifacts: [{ id: "code", uri: "repo://src/change.ts", kind: "code" }],
-      decisions: [{ id: "d1", summary: "use provider-neutral store", at: "2026-09-13T00:00:00Z" }],
-    },
+    result,
     verification: { ok: true, summary: "tests pass", evidence: "node --test" },
     stopReason: "continue",
     nextAction: "verify handoff",
