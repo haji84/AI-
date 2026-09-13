@@ -143,7 +143,10 @@ export function rankTeamBlueprints(input: {
       missingCapabilities,
       recallable: missingCapabilities.length === 0 && blueprint.lifecycle !== "demoted",
     };
-  }).sort((a, b) => b.rankScore - a.rankScore || a.blueprint.id.localeCompare(b.blueprint.id));
+  }).sort((a, b) =>
+    b.rankScore - a.rankScore
+    || b.blueprint.generation - a.blueprint.generation
+    || a.blueprint.id.localeCompare(b.blueprint.id));
 }
 
 export function recallBestTeam(input: {
