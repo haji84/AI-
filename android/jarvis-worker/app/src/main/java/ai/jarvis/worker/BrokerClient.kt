@@ -18,9 +18,13 @@ class BrokerClient(private val context: Context) {
         get() = prefs.getString("broker_url", "") ?: ""
         set(value) = prefs.edit().putString("broker_url", value.trimEnd('/')).apply()
 
-    fun enroll(token: String): JSONObject {
+    fun enroll(token: String): JSONObject = enrollWithCredential("token", token)
+
+    fun enrollGrant(grant: String): JSONObject = enrollWithCredential("grant", grant)
+
+    private fun enrollWithCredential(name: String, value: String): JSONObject {
         val body = JSONObject()
-            .put("token", token)
+            .put(name, value)
             .put("node", deviceDescriptor())
             .put("identity", JSONObject()
                 .put("algorithm", "ecdsa-p256-sha256")

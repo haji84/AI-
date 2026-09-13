@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { createHash, createPublicKey, timingSafeEqual } from "node:crypto";
+import { createHash, createPublicKey, randomBytes, timingSafeEqual } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import {
@@ -38,11 +38,29 @@ type WorkerApkInfo = {
   sha256Base64Url: string;
 };
 
+type EnrollmentGrant = {
+  token: string;
+  expiresAt: string;
+};
+
+const enrollmentGrants = new Map<string, EnrollmentGrant>();
+
 function json(response: ServerResponse, status: number, body: unknown): void {
   response.statusCode = status;
   response.setHeader("Content-Type", "application/json; charset=utf-8");
   response.setHeader("Cache-Control", "no-store");
   response.end(JSON.stringify(body));
+}
+
+function html(response: ServerResponse, status: number, body: string): void {
+  response.statusCode = status;
+  response.setHeader("Content-Type", "text/html; charset=utf-8");
+  response.setHeader("Cache-Control", "no-store, max-age=0");
+  response.setHeader("Pragma", "no-cache");
+  response.setHeader("Referrer-Policy", "no-referrer");
+  response.setHeader("X-Content-Type-Options", "nosniff");
+  response.setHeader("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'none'; base-uri 'none'; form-action 'none'");
+  response.end(body);
 }
 
 function workerApkInfo(): WorkerApkInfo | undefined {
@@ -55,6 +73,41 @@ function workerApkInfo(): WorkerApkInfo | undefined {
     bytes,
     sha256Base64Url: createHash("sha256").update(bytes).digest("base64url"),
   };
+}
+
+function issueEnrollmentGrant(token: string, expiresAt: string): string {
+  const grant = randomBytes(24).toString("base64url");
+  enrollmentGrants.set(grant, { token, expiresAt });
+  return grant;
+}
+
+function resolveEnrollmentGrant(grant: string, now = Date.now()): EnrollmentGrant | undefined {
+  const record = enrollmentGrants.get(grant);
+  if (!record) return undefined;
+  if (new Date(record.expiresAt).getTime() <= now) {
+    enrollmentGrants.delete(grant);
+    return undefined;
+  }
+  return record;
+}
+
+function oneTapEnrollmentPage(grant: string): string {
+  const apk = workerApkInfo();
+  const deepLink = `jarvis://enroll?broker=${encodeURIComponent(publicBrokerUrl)}&grant=${encodeURIComponent(grant)}`;
+  const deepLinkJson = JSON.stringify(deepLink).replace(/</g, "\\u003c");
+  const apkButton = apk
+    ? `<a class="secondary" href="${apk.url}">JARVIS Workerをインストール</a>`
+    : "<p class=\"note\">Workerが未インストールの場合は、管理者にAPKの準備状況を確認してください。</p>";
+  return `<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JARVISに登録</title>
+<style>body{font-family:system-ui,sans-serif;background:#f6f7f8;color:#111;margin:0;padding:28px}.card{max-width:560px;margin:10vh auto;background:white;border-radius:20px;padding:28px;box-shadow:0 10px 40px #00000012}h1{font-size:26px;margin:0 0 12px}p{line-height:1.65}.button,.secondary{display:block;text-align:center;text-decoration:none;border-radius:12px;padding:16px;margin-top:16px;font-weight:700}.button{background:#111;color:white}.secondary{background:#e9ecef;color:#111}.note{font-size:14px;color:#666}</style></head>
+<body><main class="card"><h1>JARVISに登録中</h1><p>JARVIS Workerが入っていれば自動で開き、そのまま登録します。</p><a id="open" class="button" href="${deepLink}">JARVISで登録する</a>${apkButton}<p class="note">Androidの仕様により、初回APKインストール時だけ提供元の許可確認が表示される場合があります。</p></main>
+<script>const target=${deepLinkJson};window.location.replace(target);</script></body></html>`;
+}
+
+function expiredEnrollmentPage(): string {
+  return "<!doctype html><html lang=\"ja\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>リンク期限切れ</title></head><body style=\"font-family:system-ui,sans-serif;padding:32px\"><h1>リンク期限切れ</h1><p>このJARVIS登録リンクは無効または期限切れです。管理者から新しい登録リンクを受け取ってください。</p></body></html>";
 }
 
 function fullProvisioningPayload(brokerUrl: string, token: string, apk: WorkerApkInfo): Record<string, unknown> {
@@ -192,6 +245,12 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
     return json(response, 200, { ok: true, service: "jarvis-broker", stats: plane.snapshot().stats, workerApkReady: Boolean(workerApkInfo()) });
   }
 
+  if (method === "GET" && path.startsWith("/enroll/")) {
+    const grant = decodeURIComponent(path.slice("/enroll/".length));
+    if (!publicBrokerUrl || !grant || !resolveEnrollmentGrant(grant)) return html(response, 410, expiredEnrollmentPage());
+    return html(response, 200, oneTapEnrollmentPage(grant));
+  }
+
   if (method === "GET" && path === "/downloads/jarvis-worker.apk") {
     const apk = workerApkInfo();
     if (!apk) return json(response, 404, { message: "JARVIS Worker APK is not ready" });
@@ -222,6 +281,8 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
       const deepLink = publicBrokerUrl
         ? `jarvis://enroll?broker=${encodeURIComponent(publicBrokerUrl)}&token=${encodeURIComponent(token.token)}`
         : undefined;
+      const grant = publicBrokerUrl ? issueEnrollmentGrant(token.token, token.expiresAt) : undefined;
+      const oneTapUrl = grant ? `${publicBrokerUrl}/enroll/${encodeURIComponent(grant)}` : undefined;
       const apk = workerApkInfo();
       const provisioning = fullToken && publicBrokerUrl && apk
         ? fullProvisioningPayload(publicBrokerUrl, fullToken.token, apk)
@@ -230,6 +291,7 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
       return json(response, 201, {
         token,
         fullToken,
+        oneTapUrl,
         deepLink,
         apkUrl: apk?.url,
         apkSha256Base64Url: apk?.sha256Base64Url,
@@ -270,7 +332,13 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
 
   if (method === "POST" && path === "/api/jarvis/enroll") {
     const payload = parseJson(body);
-    if (typeof payload.token !== "string") return json(response, 400, { message: "enrollment token required" });
+    let tokenValue = typeof payload.token === "string" ? payload.token : "";
+    if (!tokenValue && typeof payload.grant === "string") {
+      const grant = resolveEnrollmentGrant(payload.grant);
+      if (!grant) return json(response, 410, { message: "expired or invalid enrollment link" });
+      tokenValue = grant.token;
+    }
+    if (!tokenValue) return json(response, 400, { message: "enrollment token or grant required" });
     const node = assignFleetNumber(validatedNode(payload.node));
     const identityInput = payload.identity as Record<string, unknown> | undefined;
     if (!identityInput || typeof identityInput.publicKeyPem !== "string") return json(response, 400, { message: "worker public identity required" });
@@ -279,7 +347,7 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
     const key = createPublicKey(identityInput.publicKeyPem);
     if (algorithm === "ecdsa-p256-sha256" && key.asymmetricKeyType !== "ec") return json(response, 400, { message: "ECDSA worker must provide EC public key" });
     if (algorithm === "ed25519" && key.asymmetricKeyType !== "ed25519") return json(response, 400, { message: "Ed25519 worker must provide Ed25519 public key" });
-    const enrolled = plane.enroll(payload.token, node);
+    const enrolled = plane.enroll(tokenValue, node);
     const identity: JarvisWorkerIdentity = {
       nodeId: enrolled.id,
       publicKeyPem: identityInput.publicKeyPem,
