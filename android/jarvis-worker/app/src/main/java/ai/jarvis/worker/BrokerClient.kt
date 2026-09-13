@@ -1,5 +1,7 @@
 package ai.jarvis.worker
 
+import android.app.KeyguardManager
+import android.app.admin.DevicePolicyManager
 import android.content.Context
 import android.os.BatteryManager
 import android.os.Build
@@ -36,10 +38,18 @@ class BrokerClient(private val context: Context) {
 
     fun heartbeat(): JSONObject {
         val battery = context.getSystemService(BatteryManager::class.java)
+        val dpm = context.getSystemService(DevicePolicyManager::class.java)
+        val keyguard = context.getSystemService(KeyguardManager::class.java)
+        val admin = JarvisDeviceAdminReceiver.component(context)
         val body = JSONObject()
             .put("status", "ready")
+            .put("capabilities", capabilities())
             .put("telemetry", JSONObject()
                 .put("batteryPercent", battery?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY) ?: JSONObject.NULL)
+                .put("deviceOwner", dpm?.isDeviceOwnerApp(context.packageName) == true)
+                .put("adminActive", dpm?.isAdminActive(admin) == true)
+                .put("accessibilityEnabled", JarvisAccessibilityService.connected())
+                .put("locked", keyguard?.isDeviceLocked == true)
                 .put("checkedAt", Instant.now().toString()))
             .toString()
             .toByteArray(Charsets.UTF_8)
@@ -58,21 +68,38 @@ class BrokerClient(private val context: Context) {
         return request("POST", "/api/jarvis/worker/result", body, signed = true)
     }
 
-    private fun deviceDescriptor(): JSONObject = JSONObject()
-        .put("id", identity.nodeId)
-        .put("label", "${Build.MANUFACTURER} ${Build.MODEL}")
-        .put("kind", "android")
-        .put("status", "ready")
-        .put("capabilities", JSONArray(listOf("browser", "open-url", "wake-device", "background-worker", "self-update")))
-        .put("policy", JSONObject()
-            .put("allowPaidServices", false)
-            .put("allowDestructiveActions", false)
-            .put("allowExternalPublication", false)
-            .put("allowRemoteControl", false)
-            .put("requireHumanForLockedDevice", true))
-        .put("telemetry", JSONObject().put("checkedAt", Instant.now().toString()))
-        .put("enrollment", "quick")
-        .put("lastSeenAt", Instant.now().toString())
+    private fun capabilities(): JSONArray {
+        val dpm = context.getSystemService(DevicePolicyManager::class.java)
+        val admin = JarvisDeviceAdminReceiver.component(context)
+        val values = mutableListOf(
+            "browser", "open-url", "open-app", "launch-settings", "wake-device",
+            "device-status", "show-notification", "background-worker", "self-update"
+        )
+        if (JarvisAccessibilityService.connected()) values += "ui-automation"
+        if (dpm?.isAdminActive(admin) == true) values += "lock-device"
+        if (dpm?.isDeviceOwnerApp(context.packageName) == true) values += listOf("device-owner", "reboot")
+        return JSONArray(values)
+    }
+
+    private fun deviceDescriptor(): JSONObject {
+        val dpm = context.getSystemService(DevicePolicyManager::class.java)
+        val enrollment = if (dpm?.isDeviceOwnerApp(context.packageName) == true) "full" else "quick"
+        return JSONObject()
+            .put("id", identity.nodeId)
+            .put("label", "${Build.MANUFACTURER} ${Build.MODEL}")
+            .put("kind", "android")
+            .put("status", "ready")
+            .put("capabilities", capabilities())
+            .put("policy", JSONObject()
+                .put("allowPaidServices", false)
+                .put("allowDestructiveActions", false)
+                .put("allowExternalPublication", false)
+                .put("allowRemoteControl", JarvisAccessibilityService.connected())
+                .put("requireHumanForLockedDevice", true))
+            .put("telemetry", JSONObject().put("checkedAt", Instant.now().toString()))
+            .put("enrollment", enrollment)
+            .put("lastSeenAt", Instant.now().toString())
+    }
 
     private fun request(method: String, path: String, body: ByteArray, signed: Boolean): JSONObject {
         require(brokerUrl.startsWith("https://") || brokerUrl.startsWith("http://192.168.") || brokerUrl.startsWith("http://10.") || brokerUrl.startsWith("http://172.")) {
