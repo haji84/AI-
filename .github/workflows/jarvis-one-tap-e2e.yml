@@ -30,26 +30,40 @@ jobs:
 
           test -n "${JARVIS_OWNER_TOKEN:-}"
           test -n "${JARVIS_PUBLIC_BROKER_URL:-}"
-          [[ "$JARVIS_PUBLIC_BROKER_URL" == https://* ]]
 
+          case "$JARVIS_PUBLIC_BROKER_URL" in
+            https://*) echo 'Broker URL mode: public HTTPS' ;;
+            http://192.168.*|http://10.*|http://172.*) echo 'Broker URL mode: private LAN HTTP' ;;
+            *) echo 'Broker URL mode is not usable by Android Worker' >&2; exit 1 ;;
+          esac
+
+          echo 'Stage 1: requesting bounded enrollment set from resident Broker'
           RESPONSE="$(curl -fsS --max-time 10 \
             -H "Authorization: Bearer $JARVIS_OWNER_TOKEN" \
             -H 'Content-Type: application/json' \
             -d '{"mode":"fleet","maxDevices":100,"ttlMs":3600000,"group":"default"}' \
             http://127.0.0.1:8787/api/jarvis/admin/enrollment)"
 
+          echo 'Stage 2: extracting oneTapUrl'
           ONE_TAP_URL="$(printf '%s' "$RESPONSE" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("oneTapUrl", ""))')"
           test -n "$ONE_TAP_URL"
-          [[ "$ONE_TAP_URL" == https://* ]]
           echo "::add-mask::$ONE_TAP_URL"
 
+          case "$ONE_TAP_URL" in
+            https://*|http://192.168.*|http://10.*|http://172.*) ;;
+            *) echo 'Issued oneTapUrl is not reachable by Android Worker policy' >&2; exit 1 ;;
+          esac
+
+          echo 'Stage 3: opening the issued enrollment page through the configured Broker URL'
           PAGE_FILE="$RUNNER_TEMP/jarvis-one-tap-page.html"
           curl -fsS --max-time 15 "$ONE_TAP_URL" -o "$PAGE_FILE"
           test -s "$PAGE_FILE"
-          grep -q 'JARVISに登録中' "$PAGE_FILE"
-          grep -q 'jarvis://enroll?broker=' "$PAGE_FILE"
-          grep -q '&grant=' "$PAGE_FILE"
-          if grep -q '&token=' "$PAGE_FILE"; then
+
+          echo 'Stage 4: validating one-tap page contents'
+          grep -Fq 'JARVISに登録中' "$PAGE_FILE"
+          grep -Fq 'jarvis://enroll?broker=' "$PAGE_FILE"
+          grep -Fq '&grant=' "$PAGE_FILE"
+          if grep -Fq '&token=' "$PAGE_FILE"; then
             echo 'Raw enrollment token leaked into one-tap page' >&2
             exit 1
           fi
@@ -58,7 +72,7 @@ jobs:
           printf '%s\n' "$ONE_TAP_URL" > "$URL_FILE"
           chmod 600 "$URL_FILE"
           echo "ONE_TAP_URL_FILE=$URL_FILE" >> "$GITHUB_ENV"
-          echo 'JARVIS one-tap URL: live HTTPS page opened successfully'
+          echo 'JARVIS one-tap URL: live enrollment page opened successfully'
 
       - name: Check whether a physical Android is attached for true tap verification
         shell: bash
@@ -69,7 +83,7 @@ jobs:
             echo 'Physical Android detected by ADB'
           else
             echo 'PHYSICAL_ANDROID_ATTACHED=false' >> "$GITHUB_ENV"
-            echo 'No physical Android attached; server-side live URL verification completed, physical tap still requires the target phone.'
+            echo 'No physical Android attached; live URL opening is verified, but the final physical tap must be performed on the target Android.'
           fi
 
       - name: Save current live registration URL privately as an Actions artifact
