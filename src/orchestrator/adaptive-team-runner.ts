@@ -116,13 +116,6 @@ function defaultBlueprintId(goal: Goal): string {
 }
 
 function defaultExpansionNecessity(context: CapabilityExpansionContext): CapabilityExpansionDecision {
-  const explicitRequirement = (context.activeTeam.assignments ?? []).some(
-    (assignment) => normalized(assignment.capability) === normalized(context.action.capability),
-  );
-  if (explicitRequirement) {
-    return { necessary: true, reason: "capability is already explicitly assigned" };
-  }
-
   const goalText = [
     context.goal.title,
     context.goal.description ?? "",
@@ -207,6 +200,7 @@ function expandedPlan(
         role: descriptor.roles[0] ?? `dynamic:${descriptor.name}`,
         capability: descriptor.name,
         reason: `runtime expansion for ${action.description}: ${reason}`,
+        source: "goal-match",
       },
     ],
   };
