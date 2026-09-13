@@ -13,7 +13,7 @@ export default function manifest(): MetadataRoute.Manifest {
     orientation: "portrait-primary",
     categories: ["utilities", "productivity"],
     icons: [
-      { src: "/jarvis/icon", sizes: "512x512", type: "image/png", purpose: "any maskable" },
+      { src: "/jarvis/icon", sizes: "512x512", type: "image/png", purpose: "maskable" },
     ],
   };
 }
