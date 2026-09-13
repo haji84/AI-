@@ -54,7 +54,7 @@ test("work-state context initializes from the goal and exposes a resumable hando
   assert.equal(store.state?.goalId, goalWorkStateId(goal));
 });
 
-test("material mutation is blocked until it is bound to an active child work item", async () => {
+test("material mutation automatically creates a bounded child work item before execution", async () => {
   const store = new MemoryWorkStateStore();
   await new WorkStateContextSource(store).collect({ goal, nextAction: null });
   const calls: ProposedAction[] = [];
@@ -70,26 +70,42 @@ test("material mutation is blocked until it is bound to an active child work ite
     description: "change code",
     capability: "shell",
     risk: "low",
-    materialMutation: true,
   };
 
-  const rejected = await guarded.execute(action, []);
-  assert.equal(rejected.ok, false);
-  assert.equal(calls.length, 0);
-
-  store.state!.childWorkItems.push({
-    id: "child-1",
-    objective: "change code",
-    definitionOfDone: [{ id: "child-dod", description: "tests pass" }],
-    affectedScope: ["src"],
-    executionApproach: "edit and test",
-    verificationMethod: "node --test",
-    status: "IN_PROGRESS",
-  });
-  action.workItemId = "child-1";
   const accepted = await guarded.execute(action, []);
   assert.equal(accepted.ok, true);
   assert.equal(calls.length, 1);
+  assert.equal(action.workItemId, "action-mutate-1");
+  assert.equal(store.state?.childWorkItems[0].id, "action-mutate-1");
+  assert.equal(store.state?.childWorkItems[0].status, "IN_PROGRESS");
+});
+
+test("explicit binding to an inactive child work item is rejected", async () => {
+  const store = new MemoryWorkStateStore();
+  await new WorkStateContextSource(store).collect({ goal, nextAction: null });
+  store.state!.childWorkItems.push({
+    id: "done-child",
+    objective: "old change",
+    definitionOfDone: [{ id: "done-dod", description: "verified" }],
+    affectedScope: ["src"],
+    executionApproach: "edit",
+    verificationMethod: "tests",
+    status: "COMPLETED",
+  });
+  const guarded = new WorkStateGuardedExecutor({
+    async execute(action: ProposedAction): Promise<ActionResult> {
+      return { actionId: action.id, ok: true, summary: "should not run" };
+    },
+  }, store, goal);
+  const rejected = await guarded.execute({
+    id: "mutate-2",
+    description: "change code again",
+    capability: "shell",
+    risk: "low",
+    workItemId: "done-child",
+  } as WorkStateAction, []);
+  assert.equal(rejected.ok, false);
+  assert.equal(rejected.blocker, "bound_work_item_not_active");
 });
 
 test("verified cycle writes artifacts, decisions, DoD and next action back to work state", async () => {
