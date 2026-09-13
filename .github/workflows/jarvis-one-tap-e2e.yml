@@ -34,8 +34,11 @@ jobs:
             *haji84/AI-* ) ;;
             * ) echo 'Resident Broker is not running from haji84/AI-' >&2; exit 1 ;;
           esac
-          if [[ -n "$(git -C "$BROKER_CWD" status --porcelain)" ]]; then
+          DIRTY="$(git -C "$BROKER_CWD" status --porcelain)"
+          if [[ -n "$DIRTY" ]]; then
             echo 'Resident Broker repo has local changes; refusing to overwrite them.' >&2
+            echo 'Dirty paths:' >&2
+            printf '%s\n' "$DIRTY" | sed -E 's/^...//' | sed 's/ -> / -> /' >&2
             exit 1
           fi
           git -C "$BROKER_CWD" fetch origin main
