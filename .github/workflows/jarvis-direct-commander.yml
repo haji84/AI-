@@ -115,7 +115,17 @@ jobs:
           echo "::add-mask::$REMOTE"
           printf '%s\n' "$REMOTE" > "$STATE_ROOT/commander-url.txt"
           chmod 600 "$STATE_ROOT/commander-url.txt"
-          curl -fsS --max-time 15 "$REMOTE" | grep -Fq 'JARVIS Commander'
+
+          REMOTE_READY=false
+          for _ in $(seq 1 30); do
+            if curl -fsS --max-time 10 "$REMOTE" 2>/dev/null | grep -Fq 'JARVIS Commander'; then
+              REMOTE_READY=true
+              break
+            fi
+            sleep 2
+          done
+          [[ "$REMOTE_READY" == true ]] || { echo 'Commander tunnel did not become reachable in time.' >&2; exit 4; }
+
           printf '%s' "$REMOTE" | pbcopy || true
           open "$REMOTE" || true
           echo "public_base=$PUBLIC" >> "$GITHUB_OUTPUT"
