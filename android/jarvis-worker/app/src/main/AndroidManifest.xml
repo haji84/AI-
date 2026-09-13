@@ -6,8 +6,11 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 
     <application
+        android:name=".JarvisWorkerApp"
         android:allowBackup="false"
         android:label="JARVIS Worker"
         android:usesCleartextTraffic="false"
@@ -53,6 +56,15 @@
         </activity>
 
         <service
+            android:name=".JarvisCommandService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="owner-managed remote device command polling" />
+        </service>
+
+        <service
             android:name=".JarvisAccessibilityService"
             android:exported="false"
             android:label="JARVIS Automation"
@@ -76,6 +88,7 @@
             android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
         </receiver>
 
