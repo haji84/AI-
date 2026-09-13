@@ -34,7 +34,7 @@ async function brokerFetch(path: string, init?: RequestInit) {
   const response = await fetch(`${broker}${path}`, { ...init, headers: { Authorization: `Bearer ${ownerToken}`, "Content-Type": "application/json", ...(init?.headers || {}) } });
   const text = await response.text();
   let body: unknown = text;
-  try { body = text ? JSON.parse(text) : {}; } catch {}
+  try { body = text ? JSON.parse(text) : {}; } catch { body = text; }
   if (!response.ok) throw new Error(typeof body === "object" && body && "message" in body ? String((body as {message?:unknown}).message) : `Broker HTTP ${response.status}`);
   return body;
 }
