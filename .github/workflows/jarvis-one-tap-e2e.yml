@@ -102,10 +102,26 @@ jobs:
           grep -Fq 'JARVISに登録中' "$PAGE_FILE"
           grep -Fq 'jarvis://enroll?broker=' "$PAGE_FILE"
           grep -Fq '&grant=' "$PAGE_FILE"
-          if grep -Fq '&token=' "$PAGE_FILE"; then
-            echo 'Raw enrollment token leaked into one-tap page' >&2
-            exit 1
-          fi
+          grep -Fq '&token=' "$PAGE_FILE"
+          python3 - "$PAGE_FILE" <<'PY'
+          import html
+          import re
+          import sys
+          from urllib.parse import parse_qs, urlparse
+
+          page = open(sys.argv[1], encoding='utf-8').read()
+          match = re.search(r'jarvis://enroll\?[^"<]+', page)
+          if not match:
+              raise SystemExit('deep link not found')
+          link = html.unescape(match.group(0))
+          query = parse_qs(urlparse(link).query)
+          grant = query.get('grant', [''])[0]
+          token = query.get('token', [''])[0]
+          if not grant:
+              raise SystemExit('opaque grant missing')
+          if token != grant:
+              raise SystemExit('legacy token alias must equal opaque grant')
+          PY
 
           URL_FILE="$RUNNER_TEMP/jarvis-one-tap-url.txt"
           printf '%s\n' "$ONE_TAP_URL" > "$URL_FILE"
