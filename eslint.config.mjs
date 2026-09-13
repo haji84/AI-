@@ -22,5 +22,11 @@ export default defineConfig([
       "no-empty": ["error", { allowEmptyCatch: true }],
     },
   },
+  {
+    files: ["scripts/jarvis-direct-commander.ts"],
+    rules: {
+      "no-useless-escape": "off",
+    },
+  },
   globalIgnores([".next/**", "next-env.d.ts"]),
 ]);
