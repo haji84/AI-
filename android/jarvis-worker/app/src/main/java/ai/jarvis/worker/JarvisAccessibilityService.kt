@@ -25,6 +25,14 @@ class JarvisAccessibilityService : AccessibilityService() {
 
     private val goldfishTexts = setOf("床掘はちみつ", "春巻きプニさん", "ポイ活くんハチミツ")
     private val qrTexts = setOf("オオグンタマQR", "春巻QR", "ポイ活くんQR")
+    private val sheetCellByText = mapOf(
+        "床掘はちみつ" to "C7",
+        "春巻きプニさん" to "G7",
+        "ポイ活くんハチミツ" to "J7",
+        "オオグンタマQR" to "C5",
+        "春巻QR" to "G6",
+        "ポイ活くんQR" to "J6"
+    )
     private val sheetMarkerTexts = (goldfishTexts + qrTexts).toList()
     private val errorTexts = listOf(
         "お友達のお手伝いが出来ませんでした",
@@ -125,29 +133,110 @@ class JarvisAccessibilityService : AccessibilityService() {
     }
 
     private fun clickTextRetry(text: String, timeoutMs: Long): Boolean {
-        val deadline = SystemClock.uptimeMillis() + timeoutMs
-        do {
-            if (clickText(text)) {
-                when {
-                    text in goldfishTexts -> waitForOutcome(
-                        successTexts = goldfishSuccessTexts,
-                        timeoutMs = 30_000,
-                        stage = "金魚"
-                    )
-                    text in qrTexts -> {
-                        waitForOutcome(
-                            successTexts = qrSuccessTexts,
-                            timeoutMs = 30_000,
-                            stage = "QR"
-                        )
-                        performGlobalAction(GLOBAL_ACTION_HOME)
-                    }
-                }
-                return true
+        val cell = sheetCellByText[text]
+        val clicked = if (cell != null) {
+            clickConfiguredSheetCell(cell, text, timeoutMs)
+        } else {
+            clickTextOnlyRetry(text, timeoutMs)
+        }
+        if (!clicked) return false
+
+        when {
+            text in goldfishTexts -> waitForOutcome(
+                successTexts = goldfishSuccessTexts,
+                timeoutMs = 30_000,
+                stage = "金魚"
+            )
+            text in qrTexts -> {
+                waitForOutcome(
+                    successTexts = qrSuccessTexts,
+                    timeoutMs = 30_000,
+                    stage = "QR"
+                )
+                performGlobalAction(GLOBAL_ACTION_HOME)
             }
+        }
+        return true
+    }
+
+    private fun clickConfiguredSheetCell(cell: String, expectedText: String, timeoutMs: Long): Boolean {
+        require(Regex("^[A-Z]{1,3}[1-9][0-9]*$").matches(cell)) { "Invalid sheet cell: $cell" }
+        val deadline = SystemClock.uptimeMillis() + timeoutMs
+
+        // Fast path when the configured cell is already visible.
+        if (clickText(expectedText)) return true
+
+        val columnLetters = cell.takeWhile { it.isLetter() }
+        val row = cell.drop(columnLetters.length).toInt()
+        var column = 0
+        for (ch in columnLetters) column = column * 26 + (ch - 'A' + 1)
+
+        // Normalize the viewport near the sheet's top-left. The target cells used by this
+        // workflow are all in rows 5-7 and columns C-J, so a bounded reset plus a short
+        // sweep is faster and safer than blind scrolling forever.
+        repeat(3) {
+            sheetSwipe(horizontal = true, towardStart = true)
+            if (clickText(expectedText)) return true
+        }
+        repeat(3) {
+            sheetSwipe(horizontal = false, towardStart = true)
+            if (clickText(expectedText)) return true
+        }
+
+        val horizontalSweeps = when {
+            column <= 4 -> 1
+            column <= 7 -> 3
+            else -> 5
+        }
+        repeat(horizontalSweeps) {
+            if (SystemClock.uptimeMillis() >= deadline) return false
+            if (clickText(expectedText)) return true
+            sheetSwipe(horizontal = true, towardStart = false)
             SystemClock.sleep(250)
-        } while (SystemClock.uptimeMillis() < deadline)
-        return false
+        }
+
+        val verticalSweeps = if (row <= 7) 2 else ((row - 1) / 5).coerceAtMost(8)
+        repeat(verticalSweeps) {
+            if (SystemClock.uptimeMillis() >= deadline) return false
+            if (clickText(expectedText)) return true
+            sheetSwipe(horizontal = false, towardStart = false)
+            SystemClock.sleep(250)
+        }
+
+        // One compact cross-axis search handles devices with different zoom/cell widths.
+        repeat(3) {
+            if (SystemClock.uptimeMillis() >= deadline) return false
+            if (clickText(expectedText)) return true
+            sheetSwipe(horizontal = true, towardStart = false)
+            if (clickText(expectedText)) return true
+            sheetSwipe(horizontal = false, towardStart = false)
+        }
+        return clickText(expectedText)
+    }
+
+    private fun sheetSwipe(horizontal: Boolean, towardStart: Boolean): Boolean {
+        val dm = resources.displayMetrics
+        val w = dm.widthPixels.toFloat()
+        val h = dm.heightPixels.toFloat()
+        val path = Path()
+        if (horizontal) {
+            val y = h * 0.62f
+            val fromX = if (towardStart) w * 0.30f else w * 0.82f
+            val toX = if (towardStart) w * 0.82f else w * 0.30f
+            path.moveTo(fromX, y)
+            path.lineTo(toX, y)
+        } else {
+            val x = w * 0.62f
+            val fromY = if (towardStart) h * 0.34f else h * 0.82f
+            val toY = if (towardStart) h * 0.82f else h * 0.34f
+            path.moveTo(x, fromY)
+            path.lineTo(x, toY)
+        }
+        return dispatchAndWait(
+            GestureDescription.Builder()
+                .addStroke(GestureDescription.StrokeDescription(path, 0, 260))
+                .build()
+        )
     }
 
     private fun waitForOutcome(successTexts: List<String>, timeoutMs: Long, stage: String) {
