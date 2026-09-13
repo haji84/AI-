@@ -22,13 +22,11 @@ fi
 export JARVIS_COMMANDER_HOST="${JARVIS_COMMANDER_HOST:-0.0.0.0}"
 export JARVIS_COMMANDER_PORT="${JARVIS_COMMANDER_PORT:-8790}"
 
-# A prior launch can leave an orphaned Node listener alive after launchctl bootout.
-# Replace only an old JARVIS Commander process on our dedicated port so the new
-# process definitely serves the current code and current access key.
+# Replace only an old JARVIS Commander listener on the dedicated port.
 if command -v lsof >/dev/null 2>&1; then
   for pid in $(lsof -tiTCP:"$JARVIS_COMMANDER_PORT" -sTCP:LISTEN 2>/dev/null || true); do
     command_line="$(ps -p "$pid" -o command= 2>/dev/null || true)"
-    if [[ "$command_line" == *"jarvis-direct-commander.ts"* ]]; then
+    if [[ "$command_line" == *"jarvis-direct-commander"* ]]; then
       kill "$pid" >/dev/null 2>&1 || true
     fi
   done
@@ -45,4 +43,4 @@ fi
 NODE_BIN="$(command -v node || true)"
 [[ -x "$NODE_BIN" ]] || { echo "Node.js not found in LaunchAgent PATH" >&2; exit 3; }
 cd "$REPO_ROOT"
-exec "$NODE_BIN" scripts/jarvis-direct-commander.ts
+exec "$NODE_BIN" scripts/jarvis-direct-commander-v2.mjs
