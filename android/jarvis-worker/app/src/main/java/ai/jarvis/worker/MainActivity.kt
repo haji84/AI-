@@ -60,8 +60,8 @@ class MainActivity : AppCompatActivity() {
             setOnClickListener { startActivity(Intent(Settings.ACTION_SETTINGS)) }
         }
         val installedVersion = runCatching {
-            packageManager.getPackageInfo(packageName, 0).versionName ?: "不明"
-        }.getOrDefault("不明")
+            packageManager.getPackageInfo(packageName, 0).versionName ?: "unknown"
+        }.getOrDefault("unknown")
         val version = TextView(this).apply {
             text = "JARVIS Worker v$installedVersion"
             textSize = 12f
