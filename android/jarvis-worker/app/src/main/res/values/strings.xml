@@ -2,4 +2,5 @@
 <resources>
     <string name="app_name">JARVIS Worker</string>
     <string name="device_admin_description">JARVIS dedicated-device policy controller</string>
+    <string name="accessibility_service_description">JARVISが登録済み端末上で許可された操作を自動実行するためのサービスです。ロック解除や暗証番号の回避は行いません。</string>
 </resources>
