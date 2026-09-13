@@ -5,10 +5,11 @@ import android.app.admin.DevicePolicyManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageInstaller
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
-import org.json.JSONObject
+import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 import java.security.MessageDigest
@@ -17,8 +18,7 @@ class UpdateManager(private val context: Context) {
     data class UpdateInfo(
         val versionCode: Long,
         val versionName: String,
-        val apkUrl: String,
-        val sha256Base64Url: String,
+        val apkFile: File,
     )
 
     fun currentVersionCode(): Long = if (Build.VERSION.SDK_INT >= 28) {
@@ -28,14 +28,28 @@ class UpdateManager(private val context: Context) {
         context.packageManager.getPackageInfo(context.packageName, 0).versionCode.toLong()
     }
 
-    fun parseUpdateInfo(json: JSONObject): UpdateInfo? {
-        if (!json.optBoolean("available", false)) return null
-        val versionCode = json.optLong("versionCode", 0)
-        val versionName = json.optString("versionName")
-        val apkUrl = json.optString("apkUrl")
-        val sha = json.optString("sha256Base64Url")
-        if (versionCode <= currentVersionCode() || !apkUrl.startsWith("https://") || sha.isBlank()) return null
-        return UpdateInfo(versionCode, versionName, apkUrl, sha)
+    fun checkForUpdate(brokerUrl: String): UpdateInfo? {
+        require(brokerUrl.startsWith("https://")) { "Self-update requires HTTPS Broker" }
+        val apkUrl = "${brokerUrl.trimEnd('/')}/downloads/jarvis-worker.apk"
+        val apkFile = File(context.cacheDir, "jarvis-worker-update.apk")
+        download(apkUrl, apkFile)
+
+        val flags = if (Build.VERSION.SDK_INT >= 28) PackageManager.GET_SIGNING_CERTIFICATES else @Suppress("DEPRECATION") PackageManager.GET_SIGNATURES
+        val archive = context.packageManager.getPackageArchiveInfo(apkFile.absolutePath, flags)
+            ?: throw IllegalStateException("Downloaded JARVIS update is not a valid APK")
+        require(archive.packageName == context.packageName) { "Downloaded APK package does not match JARVIS Worker" }
+
+        val archiveVersion = if (Build.VERSION.SDK_INT >= 28) archive.longVersionCode else {
+            @Suppress("DEPRECATION")
+            archive.versionCode.toLong()
+        }
+        if (archiveVersion <= currentVersionCode()) {
+            apkFile.delete()
+            return null
+        }
+
+        require(signingDigest(archive) == signingDigestCurrent()) { "Downloaded JARVIS update signature mismatch" }
+        return UpdateInfo(archiveVersion, archive.versionName ?: archiveVersion.toString(), apkFile)
     }
 
     fun canRequestPackageInstalls(): Boolean = Build.VERSION.SDK_INT < 26 || context.packageManager.canRequestPackageInstalls()
@@ -49,14 +63,7 @@ class UpdateManager(private val context: Context) {
     }
 
     fun install(info: UpdateInfo) {
-        val bytes = download(info.apkUrl)
-        val digest = MessageDigest.getInstance("SHA-256").digest(bytes)
-        val actual = android.util.Base64.encodeToString(
-            digest,
-            android.util.Base64.URL_SAFE or android.util.Base64.NO_WRAP or android.util.Base64.NO_PADDING,
-        )
-        require(actual == info.sha256Base64Url) { "Downloaded JARVIS update checksum mismatch" }
-
+        require(info.apkFile.exists() && info.apkFile.length() > 0) { "JARVIS update APK is missing" }
         val installer = context.packageManager.packageInstaller
         val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
             setAppPackageName(context.packageName)
@@ -66,9 +73,11 @@ class UpdateManager(private val context: Context) {
         }
         val sessionId = installer.createSession(params)
         installer.openSession(sessionId).use { session ->
-            session.openWrite("jarvis-worker.apk", 0, bytes.size.toLong()).use { out ->
-                out.write(bytes)
-                session.fsync(out)
+            info.apkFile.inputStream().use { input ->
+                session.openWrite("jarvis-worker.apk", 0, info.apkFile.length()).use { out ->
+                    input.copyTo(out)
+                    session.fsync(out)
+                }
             }
             val callback = Intent(context, UpdateInstallReceiver::class.java)
                 .setAction(UpdateInstallReceiver.ACTION_INSTALL_STATUS)
@@ -91,7 +100,7 @@ class UpdateManager(private val context: Context) {
     private fun isDeviceOwner(): Boolean = context.getSystemService(DevicePolicyManager::class.java)
         ?.isDeviceOwnerApp(context.packageName) == true
 
-    private fun download(url: String): ByteArray {
+    private fun download(url: String, file: File) {
         val connection = URL(url).openConnection() as HttpURLConnection
         connection.connectTimeout = 15_000
         connection.readTimeout = 60_000
@@ -99,6 +108,23 @@ class UpdateManager(private val context: Context) {
         connection.setRequestProperty("Cache-Control", "no-cache")
         val code = connection.responseCode
         if (code !in 200..299) throw IllegalStateException("JARVIS update download HTTP $code")
-        return connection.inputStream.use { it.readBytes() }
+        connection.inputStream.use { input -> file.outputStream().use { output -> input.copyTo(output) } }
+    }
+
+    private fun signingDigestCurrent(): String {
+        val flags = if (Build.VERSION.SDK_INT >= 28) PackageManager.GET_SIGNING_CERTIFICATES else @Suppress("DEPRECATION") PackageManager.GET_SIGNATURES
+        val info = context.packageManager.getPackageInfo(context.packageName, flags)
+        return signingDigest(info)
+    }
+
+    private fun signingDigest(info: android.content.pm.PackageInfo): String {
+        val cert = if (Build.VERSION.SDK_INT >= 28) {
+            val signingInfo = info.signingInfo ?: throw IllegalStateException("APK signing info missing")
+            if (signingInfo.hasMultipleSigners()) signingInfo.apkContentsSigners.first() else signingInfo.signingCertificateHistory.first()
+        } else {
+            @Suppress("DEPRECATION")
+            info.signatures.first()
+        }
+        return MessageDigest.getInstance("SHA-256").digest(cert.toByteArray()).joinToString("") { "%02x".format(it) }
     }
 }
