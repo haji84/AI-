@@ -92,14 +92,12 @@ class JarvisAccessibilityService : AccessibilityService() {
     }
 
     /**
-     * Open a named item regardless of whether the app resumed on a document or on its list screen.
-     * First try the visible screen. If the text is not present, go back once and retry until timeout.
+     * Search only the currently visible app surface for the named item.
+     * Never issue BACK automatically: doing so can escape the Sheets file list and
+     * repeatedly walk the device backwards when the text is temporarily unavailable.
      */
     private fun ensureOpenText(text: String, timeoutMs: Long): Boolean {
-        if (clickTextRetry(text, minOf(timeoutMs, 1_500))) return true
-        if (!performGlobalAction(GLOBAL_ACTION_BACK)) return false
-        SystemClock.sleep(700)
-        return clickTextRetry(text, (timeoutMs - 1_500).coerceAtLeast(500))
+        return clickTextRetry(text, timeoutMs)
     }
 
     private fun clickViewId(viewId: String): Boolean {
