@@ -22,6 +22,15 @@ class JarvisAccessibilityService : AccessibilityService() {
         }
     }
 
+    private val goldfishTexts = setOf("床掘はちみつ", "春巻きプニさん", "ポイ活くんハチミツ")
+    private val qrTexts = setOf("オオグンタマQR", "春巻QR", "ポイ活くんQR")
+    private val errorTexts = listOf(
+        "お友達のお手伝いが出来ませんでした",
+        "あなたのアカウントでエラーが発生しました"
+    )
+    private val goldfishSuccessTexts = listOf("イベント詳細", "獲得履歴")
+    private val qrSuccessTexts = listOf("受け取りしました", "マイQRコードを表示")
+
     override fun onServiceConnected() {
         current = this
         super.onServiceConnected()
@@ -85,10 +94,50 @@ class JarvisAccessibilityService : AccessibilityService() {
     private fun clickTextRetry(text: String, timeoutMs: Long): Boolean {
         val deadline = SystemClock.uptimeMillis() + timeoutMs
         do {
-            if (clickText(text)) return true
+            if (clickText(text)) {
+                when {
+                    text in goldfishTexts -> waitForOutcome(
+                        successTexts = goldfishSuccessTexts,
+                        timeoutMs = 30_000,
+                        stage = "金魚"
+                    )
+                    text in qrTexts -> {
+                        waitForOutcome(
+                            successTexts = qrSuccessTexts,
+                            timeoutMs = 30_000,
+                            stage = "QR"
+                        )
+                        // QR success is the end of this TikTok Lite run. Exit the app surface.
+                        performGlobalAction(GLOBAL_ACTION_HOME)
+                    }
+                }
+                return true
+            }
             SystemClock.sleep(250)
         } while (SystemClock.uptimeMillis() < deadline)
         return false
+    }
+
+    private fun waitForOutcome(successTexts: List<String>, timeoutMs: Long, stage: String) {
+        val deadline = SystemClock.uptimeMillis() + timeoutMs
+        do {
+            val error = firstVisibleText(errorTexts)
+            if (error != null) {
+                throw IllegalStateException("$stage エラー画面を検出: $error。以降の処理を停止しました")
+            }
+            val success = firstVisibleText(successTexts)
+            if (success != null) return
+            SystemClock.sleep(250)
+        } while (SystemClock.uptimeMillis() < deadline)
+        throw IllegalStateException("$stage 完了画面を確認できませんでした")
+    }
+
+    private fun firstVisibleText(candidates: List<String>): String? {
+        val root = rootInActiveWindow ?: return null
+        for (text in candidates) {
+            if (root.findAccessibilityNodeInfosByText(text).isNotEmpty()) return text
+        }
+        return null
     }
 
     /**
