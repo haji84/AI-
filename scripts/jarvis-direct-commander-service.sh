@@ -12,7 +12,11 @@ set +a
 : "${JARVIS_OWNER_TOKEN:?missing JARVIS_OWNER_TOKEN}"
 if [[ -z "${JARVIS_COMMANDER_KEY:-}" ]]; then
   JARVIS_COMMANDER_KEY="$(openssl rand -hex 24)"
-  printf '\nJARVIS_COMMANDER_KEY=%q\n' "$JARVIS_COMMANDER_KEY" >> "$ENV_FILE"
+  TMP_ENV="$(mktemp "$STATE_ROOT/jarvis.env.XXXXXX")"
+  grep -v '^JARVIS_COMMANDER_KEY=' "$ENV_FILE" > "$TMP_ENV" || true
+  printf 'JARVIS_COMMANDER_KEY=%s\n' "$JARVIS_COMMANDER_KEY" >> "$TMP_ENV"
+  chmod 600 "$TMP_ENV"
+  mv "$TMP_ENV" "$ENV_FILE"
   export JARVIS_COMMANDER_KEY
 fi
 export JARVIS_COMMANDER_HOST="${JARVIS_COMMANDER_HOST:-0.0.0.0}"
