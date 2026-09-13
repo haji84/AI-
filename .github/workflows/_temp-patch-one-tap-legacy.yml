@@ -15,7 +15,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: fix/jarvis-one-tap-legacy-worker
-      - name: Patch broker and E2E
+      - name: Patch broker compatibility
         shell: bash
         run: |
           python3 - <<'PY'
@@ -37,18 +37,8 @@ jobs:
           elif new2 not in text:
               raise SystemExit('enroll credential target not found')
           broker.write_text(text)
-
-          e2e = Path('.github/workflows/jarvis-one-tap-e2e.yml')
-          text = e2e.read_text()
-          old3 = '''          grep -Fq '&grant=' "$PAGE_FILE"\n          if grep -Fq '&token=' "$PAGE_FILE"; then\n            echo 'Raw enrollment token leaked into one-tap page' >&2\n            exit 1\n          fi'''
-          new3 = '''          grep -Fq '&grant=' "$PAGE_FILE"\n          grep -Fq '&token=' "$PAGE_FILE"\n          python3 - "$PAGE_FILE" <<'PY2'\n          import html, re, sys\n          from urllib.parse import parse_qs, urlparse\n          page = open(sys.argv[1], encoding='utf-8').read()\n          match = re.search(r'jarvis://enroll\\?[^"<]+', page)\n          if not match:\n              raise SystemExit('deep link not found')\n          link = html.unescape(match.group(0))\n          query = parse_qs(urlparse(link).query)\n          grant = query.get('grant', [''])[0]\n          token = query.get('token', [''])[0]\n          if not grant or token != grant:\n              raise SystemExit('legacy token alias must equal opaque grant')\n          PY2'''
-          if old3 in text:
-              text = text.replace(old3, new3, 1)
-          elif new3 not in text:
-              raise SystemExit('E2E target not found')
-          e2e.write_text(text)
           PY
-      - name: Commit patch
+      - name: Commit broker patch
         shell: bash
         run: |
           if git diff --quiet; then
@@ -57,6 +47,6 @@ jobs:
           fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add scripts/jarvis-broker.ts .github/workflows/jarvis-one-tap-e2e.yml
+          git add scripts/jarvis-broker.ts
           git commit -m 'fix: support one-tap enrollment from legacy Worker'
           git push origin HEAD:fix/jarvis-one-tap-legacy-worker
