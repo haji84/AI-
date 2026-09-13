@@ -18,6 +18,7 @@ import {
   mergeDefinitionOfDoneResults,
   validateMutationBinding,
   type ArtifactRef,
+  type ChildWorkItem,
   type DecisionRecord,
   type DefinitionOfDoneResult,
   type WorkEvent,
@@ -38,6 +39,8 @@ export interface WorkStateActionResult extends ActionResult {
   decisions?: DecisionRecord[];
   definitionOfDoneResults?: DefinitionOfDoneResult[];
   currentState?: string;
+  blockers?: string[];
+  resolvedBlockers?: string[];
 }
 
 export function goalWorkStateId(goal: Goal): string {
@@ -90,6 +93,41 @@ async function ensureState(store: WorkStateStore, goal: Goal): Promise<WorkState
   return state;
 }
 
+function hasMutationSignal(action: ProposedAction): boolean {
+  const bound = action as WorkStateAction;
+  if (bound.materialMutation === true) return true;
+  if (action.externalSideEffect === true || action.irreversible === true) return true;
+  if (Object.values(action.riskSignals ?? {}).some((value) => value === true)) return true;
+  return /(^|[.:_-])(write|edit|patch|mutate|create|update|commit|merge|deploy|publish|delete|remove|propose_pr|shell|powershell|pwsh|npm)([.:_-]|$)/i
+    .test(action.capability);
+}
+
+function affectedScope(action: ProposedAction): string[] {
+  const input = action.input;
+  if (input && typeof input === "object") {
+    const files = (input as { files?: unknown }).files;
+    if (Array.isArray(files)) {
+      const paths = files
+        .map((file) => file && typeof file === "object" ? (file as { path?: unknown }).path : null)
+        .filter((path): path is string => typeof path === "string" && path.trim().length > 0);
+      if (paths.length > 0) return paths;
+    }
+  }
+  return [action.capability];
+}
+
+function automaticWorkItem(action: ProposedAction): ChildWorkItem {
+  return {
+    id: `action-${action.id}`,
+    objective: action.description,
+    definitionOfDone: [{ id: `action-${action.id}-verified`, description: "Goal Loop verifier accepts the action result" }],
+    affectedScope: affectedScope(action),
+    executionApproach: `Execute through capability ${action.capability}`,
+    verificationMethod: "Goal Loop verifier evidence",
+    status: "IN_PROGRESS",
+  };
+}
+
 export class WorkStateContextSource implements ContextSource {
   readonly name = "gai-work-state";
   private readonly store: WorkStateStore;
@@ -122,9 +160,26 @@ export class WorkStateGuardedExecutor implements CapabilityExecutor {
 
   async execute(action: ProposedAction, context: ContextItem[]): Promise<ActionResult> {
     const bound = action as WorkStateAction;
-    const state = await ensureState(this.store, this.goal);
+    let state = await ensureState(this.store, this.goal);
+    const materialMutation = hasMutationSignal(action);
+
+    if (materialMutation && !bound.workItemId?.trim()) {
+      const generated = automaticWorkItem(action);
+      const existing = state.childWorkItems.find((item) => item.id === generated.id);
+      if (!existing) {
+        state = {
+          ...state,
+          childWorkItems: [...state.childWorkItems, generated],
+          updatedAt: new Date().toISOString(),
+        };
+        await this.store.put(state);
+      }
+      bound.workItemId = generated.id;
+      bound.completesWorkItem ??= true;
+    }
+
     const validation = validateMutationBinding({
-      materialMutation: bound.materialMutation,
+      materialMutation,
       workItemId: bound.workItemId,
     }, state);
     if (!validation.ok) {
@@ -169,15 +224,19 @@ export class WorkStateWriteBackStore implements StateStore {
       state = mergeDefinitionOfDoneResults(state, incomingResults, now);
     }
 
-    const blockers = record.result?.blocker
-      ? [record.result.blocker]
-      : record.verification?.ok
-        ? []
-        : state.blockers;
+    const resolved = new Set(result?.resolvedBlockers ?? []);
+    const blockers = state.blockers.filter((blocker) => !resolved.has(blocker));
+    for (const blocker of result?.blockers ?? []) {
+      if (!blockers.includes(blocker)) blockers.push(blocker);
+    }
+    if (record.result?.blocker && !blockers.includes(record.result.blocker)) blockers.push(record.result.blocker);
 
     const childWorkItems = state.childWorkItems.map((item) => {
       if (action?.completesWorkItem && action.workItemId === item.id && record.verification?.ok) {
         return { ...item, status: "COMPLETED" as const };
+      }
+      if (action?.workItemId === item.id && record.result?.blocker) {
+        return { ...item, status: "BLOCKED" as const };
       }
       return item;
     });
@@ -205,6 +264,7 @@ export class WorkStateWriteBackStore implements StateStore {
         stopReason: record.stopReason,
         verification: record.verification ?? null,
         riskDecision: record.riskDecision ?? null,
+        workItemId: action?.workItemId ?? null,
       },
     };
     await this.workState.appendEvent(next.goalId, event);
