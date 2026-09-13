@@ -4,7 +4,6 @@ import { CompassStore } from "../src/compass/store.ts";
 import { CompassWorkStateStoreAdapter } from "../src/orchestrator/compass-work-state-store.ts";
 import type {
   ActionResult,
-  ContextItem,
   Goal,
   LoopState,
   ProposedAction,
@@ -59,7 +58,7 @@ test("material mutation automatically creates a bounded child work item before e
   await new WorkStateContextSource(store).collect({ goal, nextAction: null });
   const calls: ProposedAction[] = [];
   const inner = {
-    async execute(action: ProposedAction, _context: ContextItem[]): Promise<ActionResult> {
+    async execute(action: ProposedAction): Promise<ActionResult> {
       calls.push(action);
       return { actionId: action.id, ok: true, summary: "executed" };
     },
