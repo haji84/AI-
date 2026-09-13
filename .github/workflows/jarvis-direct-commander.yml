@@ -28,10 +28,12 @@ jobs:
           test -n "$PID"
           REPO_ROOT="$(lsof -a -p "$PID" -d cwd -Fn 2>/dev/null | sed -n 's/^n//p' | head -n 1)"
           test -d "$REPO_ROOT/.git"
+          chmod -x "$REPO_ROOT/scripts/jarvis-direct-commander-service.sh" "$REPO_ROOT/scripts/jarvis-direct-commander-tunnel-service.sh" 2>/dev/null || true
           DIRTY="$(git -C "$REPO_ROOT" status --porcelain)"
           BLOCKING="$(printf '%s\n' "$DIRTY" | grep -vE '^\?\? \.jarvis/$' || true)"
           if [[ -n "$BLOCKING" ]]; then
             echo 'Resident repo has local source changes; refusing overwrite.' >&2
+            printf '%s\n' "$BLOCKING" >&2
             exit 1
           fi
           git -C "$REPO_ROOT" fetch origin main
@@ -50,7 +52,6 @@ jobs:
           AGENTS="$HOME/Library/LaunchAgents"
           mkdir -p "$STATE_ROOT" "$AGENTS"
           test -s "$ENV_FILE"
-          chmod +x "$REPO_ROOT/scripts/jarvis-direct-commander-service.sh" "$REPO_ROOT/scripts/jarvis-direct-commander-tunnel-service.sh"
 
           if ! grep -q '^JARVIS_COMMANDER_KEY=' "$ENV_FILE"; then
             KEY="$(openssl rand -hex 24)"
