@@ -44,7 +44,7 @@ class MemoryLoopStore implements StateStore {
 test("work-state context initializes from the goal and exposes a resumable handoff", async () => {
   const store = new MemoryWorkStateStore();
   const source = new WorkStateContextSource(store);
-  const items = await source.collect({ goal, nextAction: null });
+  const items = await source.collect({ goal });
 
   assert.equal(items.length, 1);
   assert.equal(items[0].source, "gai-work-state");
@@ -55,7 +55,7 @@ test("work-state context initializes from the goal and exposes a resumable hando
 
 test("material mutation automatically creates a bounded child work item before execution", async () => {
   const store = new MemoryWorkStateStore();
-  await new WorkStateContextSource(store).collect({ goal, nextAction: null });
+  await new WorkStateContextSource(store).collect({ goal });
   const calls: ProposedAction[] = [];
   const inner = {
     async execute(action: ProposedAction): Promise<ActionResult> {
@@ -81,7 +81,7 @@ test("material mutation automatically creates a bounded child work item before e
 
 test("explicit binding to an inactive child work item is rejected", async () => {
   const store = new MemoryWorkStateStore();
-  await new WorkStateContextSource(store).collect({ goal, nextAction: null });
+  await new WorkStateContextSource(store).collect({ goal });
   store.state!.childWorkItems.push({
     id: "done-child",
     objective: "old change",
@@ -109,7 +109,7 @@ test("explicit binding to an inactive child work item is rejected", async () => 
 
 test("verified cycle writes artifacts, decisions, DoD and next action back to work state", async () => {
   const workStore = new MemoryWorkStateStore();
-  await new WorkStateContextSource(workStore).collect({ goal, nextAction: null });
+  await new WorkStateContextSource(workStore).collect({ goal });
   workStore.state!.childWorkItems.push({
     id: "child-1",
     objective: "implement",
