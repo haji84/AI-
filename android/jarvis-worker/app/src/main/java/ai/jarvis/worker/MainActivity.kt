@@ -25,12 +25,19 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tokenField: EditText
     private lateinit var manualEnrollButton: Button
     private lateinit var advancedButton: Button
+    private lateinit var updateButton: Button
+    private var latestUpdate: UpdateManager.UpdateInfo? = null
+    private var waitingForInstallPermission = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         status = TextView(this).apply { text = "未登録" }
         val guide = TextView(this).apply { text = "管理者から届いたJARVIS登録リンクを1回タップすると、自動で登録されます。" }
+        updateButton = Button(this).apply {
+            visibility = View.GONE
+            setOnClickListener { beginUpdate() }
+        }
         brokerField = EditText(this).apply {
             hint = "https://JARVIS broker"
             visibility = View.GONE
@@ -57,6 +64,7 @@ class MainActivity : AppCompatActivity() {
             setPadding(32, 48, 32, 32)
             addView(status)
             addView(guide)
+            addView(updateButton)
             addView(advancedButton)
             addView(brokerField)
             addView(tokenField)
@@ -66,11 +74,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(root)
 
         val enrollmentLink = intent?.data
-        if (enrollmentLink != null) {
-            handleEnrollmentIntent(intent)
-        } else {
-            verifyCurrentEnrollment()
-        }
+        if (enrollmentLink != null) handleEnrollmentIntent(intent) else verifyCurrentEnrollment()
         scheduleFallbackWorker()
     }
 
@@ -83,6 +87,10 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         active.set(true)
+        if (waitingForInstallPermission && UpdateManager(this).canRequestPackageInstalls() && latestUpdate != null) {
+            waitingForInstallPermission = false
+            installLatestUpdate()
+        }
         startActivePollingLoop()
     }
 
@@ -100,8 +108,51 @@ class MainActivity : AppCompatActivity() {
         status.text = "登録状態を確認中"
         Thread {
             runCatching { client.heartbeat() }
-                .onSuccess { runOnUiThread { status.text = "登録完了" } }
+                .onSuccess {
+                    runOnUiThread { status.text = "登録完了" }
+                    checkForUpdate()
+                }
                 .onFailure { runOnUiThread { status.text = "未登録" } }
+        }.start()
+    }
+
+    private fun checkForUpdate() {
+        val client = BrokerClient(this)
+        if (client.brokerUrl.isBlank()) return
+        Thread {
+            runCatching { UpdateManager(this).checkForUpdate(client.brokerUrl) }
+                .onSuccess { info ->
+                    latestUpdate = info
+                    runOnUiThread {
+                        if (info == null) {
+                            updateButton.visibility = View.GONE
+                        } else {
+                            updateButton.text = "JARVISを更新（${info.versionName}）"
+                            updateButton.visibility = View.VISIBLE
+                        }
+                    }
+                }
+        }.start()
+    }
+
+    private fun beginUpdate() {
+        val info = latestUpdate ?: return
+        val manager = UpdateManager(this)
+        if (!manager.canRequestPackageInstalls()) {
+            waitingForInstallPermission = true
+            status.text = "更新許可をオンにしてください"
+            manager.openInstallPermissionSettings()
+            return
+        }
+        status.text = "更新を準備中"
+        installLatestUpdate()
+    }
+
+    private fun installLatestUpdate() {
+        val info = latestUpdate ?: return
+        Thread {
+            runCatching { UpdateManager(this).install(info) }
+                .onFailure { error -> runOnUiThread { status.text = "更新失敗: ${error.message}" } }
         }.start()
     }
 
@@ -131,13 +182,8 @@ class MainActivity : AppCompatActivity() {
         advancedButton.text = if (show) "詳細設定を閉じる" else "管理者向け詳細設定"
     }
 
-    private fun enrollToken(brokerUrl: String, token: String) {
-        enroll(brokerUrl) { client -> client.enroll(token) }
-    }
-
-    private fun enrollGrant(brokerUrl: String, grant: String) {
-        enroll(brokerUrl) { client -> client.enrollGrant(grant) }
-    }
+    private fun enrollToken(brokerUrl: String, token: String) = enroll(brokerUrl) { it.enroll(token) }
+    private fun enrollGrant(brokerUrl: String, grant: String) = enroll(brokerUrl) { it.enrollGrant(grant) }
 
     private fun enroll(brokerUrl: String, action: (BrokerClient) -> JSONObject) {
         if (brokerUrl.isBlank()) {
@@ -152,6 +198,7 @@ class MainActivity : AppCompatActivity() {
                 action(client)
             }.onSuccess {
                 runOnUiThread { status.text = "登録完了" }
+                checkForUpdate()
             }.onFailure { error ->
                 val expired = error.message?.contains("expired", ignoreCase = true) == true ||
                     error.message?.contains("invalid", ignoreCase = true) == true ||

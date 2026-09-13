@@ -63,7 +63,7 @@ class BrokerClient(private val context: Context) {
         .put("label", "${Build.MANUFACTURER} ${Build.MODEL}")
         .put("kind", "android")
         .put("status", "ready")
-        .put("capabilities", JSONArray(listOf("browser", "open-url", "wake-device", "background-worker")))
+        .put("capabilities", JSONArray(listOf("browser", "open-url", "wake-device", "background-worker", "self-update")))
         .put("policy", JSONObject()
             .put("allowPaidServices", false)
             .put("allowDestructiveActions", false)
