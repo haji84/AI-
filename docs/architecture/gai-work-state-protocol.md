@@ -1,6 +1,6 @@
 # GAI Work-State Protocol
 
-Status: Proposed by Issue #464
+Status: Implemented by Issues #464 and #466
 
 ## Decision
 The GAI runtime uses a provider-neutral Work-State layer so autonomous work can continue across sessions, workers, and devices without depending on chat history or any specific task-management product.
@@ -82,9 +82,23 @@ Broad unrecoverable deletion, formatting, disabling audit/protection controls, o
 Thus `powershell:*` may be available while destructive effects remain controlled by policy, scope, verification, and audit trail.
 
 ## Persistence
-The protocol is provider-neutral through `WorkStateStore`.
+The protocol remains provider-neutral through `WorkStateStore`.
 
-Initial persistence may use existing file-backed/versioned storage or Compass-compatible storage, but the domain contract must not require Compass or Addness.
+`CompassWorkStateStoreAdapter` is the default runtime adapter. It stores versioned Work-State envelopes and a bounded event history inside Compass state without adding a product-specific dependency to the domain contract.
+
+## Runtime integration
+Both local and cloud autonomy entry points use `createWorkStateIntegratedGoalLoop`.
+
+The integration layer:
+- injects a compact Handoff Snapshot into planning context before each cycle
+- initializes Work-State deterministically from the Goal when no state exists
+- enforces the Child Work Item mutation gate before executor invocation
+- records current state, artifacts, decisions, blockers, risk class and next action after each cycle
+- converts verified action evidence into explicit DoD results when the action declares which DoD items it satisfies
+- can close the bound Child Work Item after successful verification
+- appends a bounded audit event for each Goal Loop cycle
+
+This keeps the existing planner, verifier, memory, world model, risk policy and capability system intact rather than replacing them with a new monolith.
 
 ## Handoff
 A Handoff Snapshot includes only information required to continue:
@@ -105,12 +119,11 @@ A goal may enter `COMPLETED` only when:
 - no blocker remains
 - completion evidence is written back
 
-## Initial implementation
-`src/orchestrator/work-state.ts` defines the provider-neutral domain and helpers for:
-- DoD evaluation
-- mutation/work-item binding
-- status derivation
-- resumable handoff snapshots
-- persistence adapter contract
-
-Further integration binds this protocol to the existing goal loop, persistence runtime, and cross-device workers without replacing their current responsibilities.
+## Implementation
+- `src/orchestrator/work-state.ts`: provider-neutral domain, DoD evaluation, mutation binding, status derivation and handoff snapshots
+- `src/orchestrator/work-state-integration.ts`: Goal Loop context/executor/write-back integration and integrated-loop factory
+- `src/orchestrator/compass-work-state-store.ts`: default Compass persistence adapter
+- `scripts/autonomy-run.ts`: local runtime integration
+- `scripts/autonomy-cloud-run.ts`: cloud runtime integration
+- `tests/work-state.test.ts`: domain tests
+- `tests/work-state-integration.test.ts`: integration and persistence tests

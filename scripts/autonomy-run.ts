@@ -4,7 +4,9 @@ import { BaselinePlanner, createContextInspectCapability } from "../src/orchestr
 import { runBoundedGoalLoop } from "../src/orchestrator/bounded-runner.ts";
 import { CapabilityRegistry } from "../src/orchestrator/capabilities.ts";
 import { CompassStateStoreAdapter, compassGoalToLoopGoal } from "../src/orchestrator/compass-state-store.ts";
-import { GoalDrivenLoop, type ContextSource, type Verifier } from "../src/orchestrator/goal-loop.ts";
+import { CompassWorkStateStoreAdapter } from "../src/orchestrator/compass-work-state-store.ts";
+import { type ContextSource, type Verifier } from "../src/orchestrator/goal-loop.ts";
+import { createWorkStateIntegratedGoalLoop } from "../src/orchestrator/work-state-integration.ts";
 
 const args = new Set(process.argv.slice(2));
 const dryRun = args.has("--dry-run");
@@ -16,6 +18,7 @@ const compass = new CompassStore(dbPath);
 try {
   const goalRecord = compass.getGoal();
   if (!goalRecord) throw new Error("Compass goal is not set");
+  const goal = compassGoalToLoopGoal(goalRecord);
 
   const contextSource: ContextSource = {
     name: "compass-state",
@@ -36,15 +39,17 @@ try {
     },
   };
 
-  const loop = new GoalDrivenLoop(
-    new BaselinePlanner(),
-    [contextSource],
-    registry,
+  const loop = createWorkStateIntegratedGoalLoop({
+    goal,
+    planner: new BaselinePlanner(),
+    contextSources: [contextSource],
+    executor: registry,
     verifier,
-    new CompassStateStoreAdapter(compass),
-  );
+    stateStore: new CompassStateStoreAdapter(compass),
+    workStateStore: new CompassWorkStateStoreAdapter(compass),
+  });
 
-  const report = await runBoundedGoalLoop(loop, compassGoalToLoopGoal(goalRecord), { maxCycles });
+  const report = await runBoundedGoalLoop(loop, goal, { maxCycles });
   process.stdout.write(`${JSON.stringify({ dryRun, dbPath, report }, null, 2)}\n`);
 } finally {
   compass.close();
