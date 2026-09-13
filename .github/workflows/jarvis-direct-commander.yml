@@ -53,11 +53,16 @@ jobs:
           mkdir -p "$STATE_ROOT" "$AGENTS"
           test -s "$ENV_FILE"
 
-          if ! grep -q '^JARVIS_COMMANDER_KEY=' "$ENV_FILE"; then
-            KEY="$(openssl rand -hex 24)"
-            printf '\nJARVIS_COMMANDER_KEY=%q\n' "$KEY" >> "$ENV_FILE"
-            chmod 600 "$ENV_FILE"
+          set -a; source "$ENV_FILE"; set +a
+          if [[ -z "${JARVIS_COMMANDER_KEY:-}" ]]; then
+            JARVIS_COMMANDER_KEY="$(openssl rand -hex 24)"
+            TMP_ENV="$(mktemp "$STATE_ROOT/jarvis.env.XXXXXX")"
+            grep -v '^JARVIS_COMMANDER_KEY=' "$ENV_FILE" > "$TMP_ENV" || true
+            printf 'JARVIS_COMMANDER_KEY=%s\n' "$JARVIS_COMMANDER_KEY" >> "$TMP_ENV"
+            chmod 600 "$TMP_ENV"
+            mv "$TMP_ENV" "$ENV_FILE"
           fi
+          : "${JARVIS_COMMANDER_KEY:?missing commander key}"
 
           cat >"$AGENTS/com.aicompany.jarvis-commander.plist" <<PLIST
           <?xml version="1.0" encoding="UTF-8"?>
@@ -96,8 +101,6 @@ jobs:
           if [[ -z "$LAN_IP" ]]; then LAN_IP="$(ipconfig getifaddr en1 2>/dev/null || true)"; fi
           [[ -n "$LAN_IP" ]] || { echo 'Could not determine MacBook LAN IPv4 address.' >&2; exit 5; }
 
-          set -a; source "$ENV_FILE"; set +a
-          : "${JARVIS_COMMANDER_KEY:?missing commander key}"
           LAN_URL="http://$LAN_IP:8790/c/$JARVIS_COMMANDER_KEY"
           LOCAL_URL="http://127.0.0.1:8790/c/$JARVIS_COMMANDER_KEY"
           echo "::add-mask::$JARVIS_COMMANDER_KEY"
@@ -107,9 +110,16 @@ jobs:
           chmod 600 "$STATE_ROOT/commander-lan-url.txt"
           curl -fsS --max-time 5 "$LOCAL_URL" | grep -Fq 'JARVIS Commander'
           printf '%s' "$LAN_URL" | pbcopy || true
+
+          if command -v qrencode >/dev/null 2>&1; then
+            QR="$STATE_ROOT/commander-lan-qr.png"
+            qrencode -o "$QR" -s 10 -m 2 "$LAN_URL"
+            chmod 600 "$QR"
+            open "$QR" || true
+          fi
           open "$LOCAL_URL" || true
           echo "lan_ip=$LAN_IP" >> "$GITHUB_OUTPUT"
-          echo 'LAN Commander is bound on all interfaces. Secure LAN URL copied to MacBook clipboard.'
+          echo 'LAN Commander is bound on all interfaces. Secure LAN URL copied to MacBook clipboard; QR opened when qrencode is available.'
 
       - name: Start optional Internet tunnel
         shell: bash
@@ -149,6 +159,7 @@ jobs:
           done
           [[ -n "$PUBLIC" ]] || exit 0
           set -a; source "$ENV_FILE"; set +a
+          [[ -n "${JARVIS_COMMANDER_KEY:-}" ]] || exit 0
           REMOTE="$PUBLIC/c/$JARVIS_COMMANDER_KEY"
           echo "::add-mask::$JARVIS_COMMANDER_KEY"
           echo "::add-mask::$REMOTE"
