@@ -1,24 +1,30 @@
 # Project State
 
-PROJECT: Unified AI Creator Studio / GAI Research OS
+PROJECT: General Autonomous AI / Unified AI Creator Studio / GAI Research OS
 AI_COMPANY_VERSION: 1.0
 PROJECT_VERSION: 0.0.0
-CURRENT_PHASE: Empirical research operation R0/R1 multi-worker baseline runtime
-STATUS: RESEARCH_MULTI_WORKER_RUNTIME_IMPLEMENTATION
-LAST_UPDATED: 2026-09-11
-CURRENT_EPIC: General autonomous intelligence research OS
-ACTIVE_ISSUES: #320, #315, #316, #317, #318, #319, #321
-OPEN_PRS: multi-worker runtime pending validation
+CURRENT_PHASE: General autonomous AI integration + empirical research operation
+STATUS: DYNAMIC_CAPABILITY_ORCHESTRATION_IMPLEMENTATION
+LAST_UPDATED: 2026-09-13
+CURRENT_EPIC: One-front-door general autonomous AI with dynamic capability orchestration
+ACTIVE_ISSUES: #468, #320, #315, #316, #317, #318, #319, #321
+OPEN_PRS: dynamic capability orchestration + empirical research work may proceed independently when scopes do not conflict
 BLOCKERS: real empirical runs require configured workstation model/runtime capacity; GitHub CI validates the harness but must not be reported as a real model benchmark run
-PRIORITY_OVERRIDE: GAI empirical research operation takes precedence over deferred Phase 3 image smoke until owner resumes product work
-LAST_SUCCESSFUL_CI: G6-G10 finalization PR #314 CI run #379 succeeded and merged on 2026-09-10
+PRIORITY_OVERRIDE: General autonomous AI north-star goal governs architecture; empirical GAI research remains active; deferred Phase 3 image smoke stays deferred until owner resumes product work
+NORTH_STAR_GOAL: Human gives one goal; the system determines required work, dynamically recruits available capabilities, executes, verifies, repairs, records, and completes with the fewest necessary human returns
+USER_MENTAL_MODEL: one autonomous AI front door
+INTERNAL_ORCHESTRATION_MODEL: ephemeral task-specific roles assembled from real registered capabilities; fixed named AI employees are not the final architecture
+AI_COMPANY_REUSE_POLICY: retain jobs, workers, providers, dashboard, contracts, cloud/local runtimes, and governance as internal capabilities and experimental infrastructure
+DYNAMIC_TEAM_CONTRACT: planner requirements + goal + available capability catalog -> deterministic role/capability assignments; missing required capabilities fail visibly and never get fabricated
+ARCHITECTURE_REFERENCE: docs/architecture/general-autonomous-ai-dynamic-orchestration.md
+LAST_SUCCESSFUL_CI: GAI Work-State integration PR #467 merged to main on 2026-09-13; Issue #468 requires fresh CI before merge
 COMPASS_MCP: v1 merged and real-machine interoperability verified PASS
 COMPASS_HANDOFF: standard AI employee handoff protocol merged via PR #64
 AI_EMPLOYEE_COMMAND_INGRESS: dashboard chat source=chat E2E PASS
 AI_EMPLOYEE_BOUNDED_PLAN: inspect plan validation and bounded autonomy cycle E2E PASS
 AI_EMPLOYEE_AUTONOMY_FOUNDATION: Issue #243 completed on 2026-09-08
-GAI_MISSION: develop and research a measurable general autonomous intelligence architecture that can plan, act, remember, learn, verify, transfer experience, and improve itself without claiming AGI prematurely
-GAI_CORE_LOOP: Goal -> Plan -> Predict -> Act -> Observe -> Verify -> Benchmark -> Learn -> Abstract -> Transfer -> Diagnose -> Hypothesize -> Experiment -> Held-out evaluate -> Accept/Reject -> Re-evaluate
+GAI_MISSION: develop and research a measurable general autonomous intelligence architecture that can plan, act, remember, learn, verify, transfer experience, dynamically compose capabilities, and improve itself without claiming AGI prematurely
+GAI_CORE_LOOP: Goal -> DoD -> Current State -> Context partition -> Plan -> Capability team -> Predict -> Act -> Observe -> Verify -> Repair -> Deliver -> Write-back -> Benchmark -> Learn -> Abstract -> Transfer -> Diagnose -> Hypothesize -> Experiment -> Held-out evaluate -> Accept/Reject -> Re-evaluate
 GAI_MODEL_POLICY: replaceable multi-model router; Astra tier for frontier/research-critical tasks when plan-included, Sol tier for primary reasoning, local tier for routine/always-on work; pay-as-you-go AI API fallback prohibited by default
 GAI_MODEL_EXECUTION_G5: merged via PR #311; governed execution adapters implemented for local / Sol / Astra tiers; frontier escalation requires explicit plan inclusion; unavailable frontier capacity degrades to lower zero-cost tiers; usage ledger enforces additional API cost = 0
 GAI_MEMORY_MODEL: working + episodic + semantic + procedural
@@ -31,7 +37,7 @@ GAI_SELF_IMPROVEMENT_G7: merged via PR #314; candidates are accepted only on suf
 GAI_CONTINUAL_LEARNING_G8: merged via PR #314; regressions are rejected rather than promoted; train/held-out separation remains enforced
 GAI_TELEMETRY_G9: merged via PR #314; research state exposes stable contracts consumable by the cross-device dashboard
 GAI_EVALUATION_G10: merged via PR #314; long-horizon evaluation, external benchmark adapter contracts, and AGI-gap reporting implemented
-GAI_MULTI_WORKER_R0: current branch adds Windows/macOS workers, health/capability preflight, capability-aware selection, cross-device reproduction metrics, and a hard boundary preventing unconfigured CI/workstations from claiming a real baseline
+GAI_MULTI_WORKER_R0: Windows/macOS worker architecture, health/capability preflight, capability-aware selection, cross-device reproduction metrics, and a hard boundary preventing unconfigured CI/workstations from claiming a real baseline
 GAI_WORKERS: ZBook=Windows/GPU/local-model/long-running; MacBook=macOS/reproduction/local-model/long-running; both share the same GAI version and benchmark definitions
 GAI_DEVICE_EVAL_POLICY: intelligence score and device/OS effects are measured separately; speed differences must never be interpreted as intelligence improvement
 GAI_INITIAL_KPI: >=100 unknown-task cases; >=80% success; <10% human interventions/task; second-attempt improvement; positive held-out self-improvement; explicit transfer measurement; zero incremental pay-as-you-go AI API cost
@@ -39,7 +45,7 @@ GAI_SELF_IMPROVEMENT_POLICY: candidate changes must be sandboxed and accepted on
 GAI_AGI_CLAIM_POLICY: project-defined target completion never automatically authorizes an AGI claim; independent external evaluation is required
 GAI_CROSS_DEVICE_TARGET: iPhone + Android control surfaces; ZBook + MacBook execution workers; ChatGPT Work/Codex plan-included frontier boundary where available
 GAI_PLATFORM_IMPLEMENTATION: COMPLETE
-GAI_NEXT_PHASE: configure both workstation workers, freeze Benchmark Suite v1, then execute real Baseline Run #1 and cross-device reproduction subset
+GAI_NEXT_PHASE: integrate dynamic capability team planning into runtime entry points, then continue real benchmark/baseline execution on configured workers
 PHASE_2_TECHNICAL_ACCEPTANCE: PASS
 PHASE_2_ACCEPTANCE_RECORD: docs/architecture/0009-phase-2-acceptance.md
 PHASE_2_FORMAL_COMPLETION: COMPLETE
@@ -51,8 +57,8 @@ PHASE_3_RUNTIME_SELECTION: ComfyUI + Qwen-Image-Edit merged via PR #75
 PHASE_3_RUNTIME_API_PATH: merged via PR #77; upload, workflow injection, prompt submission, history polling, and output download implemented
 PHASE_3_REAL_MACHINE_SMOKE: deferred; Issue #78 remains open for later workstation execution
 PHASE_3_PRIORITY: deferred by owner on 2026-09-08 until autonomy/GAI research foundation is sufficiently complete
-NEXT_PRIORITY: validate and merge #320 multi-worker runtime; then execute #315 real Benchmark Suite v1 / Baseline Run #1 on configured ZBook and MacBook workers
-HUMAN_APPROVAL_PENDING: none for LOW/MEDIUM implementation; production, secrets, permissions, billing, destructive, governance-weakening, security-weakening, and external-publication gates remain in force
+NEXT_PRIORITY: complete #468 dynamic capability orchestration contract and merge after CI; next runtime task wires planner-produced requirements into the existing GoalDrivenLoop without weakening gates
+HUMAN_APPROVAL_PENDING: none for LOW/MEDIUM implementation under Issue #468 task-scoped completion authorization; production, secrets, permissions, billing, destructive, governance-weakening, security-weakening, and external-publication gates remain in force
 AUTO_FIX_ATTEMPTS_MAX: 3
 MAX_ACTIVE_AGENTS: 3
 MAX_PARALLEL_CODE_AGENTS: 2
