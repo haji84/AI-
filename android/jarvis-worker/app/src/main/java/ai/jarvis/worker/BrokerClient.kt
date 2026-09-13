@@ -46,6 +46,8 @@ class BrokerClient(private val context: Context) {
         return request("POST", "/api/jarvis/worker/heartbeat", body, signed = true)
     }
 
+    fun updateInfo(): JSONObject = request("POST", "/api/jarvis/worker/update", "{}".toByteArray(), signed = true)
+
     fun nextTask(): JSONObject = request("POST", "/api/jarvis/worker/next", "{}".toByteArray(), signed = true)
 
     fun taskResult(taskId: String, ok: Boolean, detail: JSONObject): JSONObject {
@@ -63,7 +65,7 @@ class BrokerClient(private val context: Context) {
         .put("label", "${Build.MANUFACTURER} ${Build.MODEL}")
         .put("kind", "android")
         .put("status", "ready")
-        .put("capabilities", JSONArray(listOf("browser", "open-url", "wake-device", "background-worker")))
+        .put("capabilities", JSONArray(listOf("browser", "open-url", "wake-device", "background-worker", "self-update")))
         .put("policy", JSONObject()
             .put("allowPaidServices", false)
             .put("allowDestructiveActions", false)
