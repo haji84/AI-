@@ -74,11 +74,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(root)
 
         val enrollmentLink = intent?.data
-        if (enrollmentLink != null) {
-            handleEnrollmentIntent(intent)
-        } else {
-            verifyCurrentEnrollment()
-        }
+        if (enrollmentLink != null) handleEnrollmentIntent(intent) else verifyCurrentEnrollment()
         scheduleFallbackWorker()
     }
 
@@ -124,20 +120,18 @@ class MainActivity : AppCompatActivity() {
         val client = BrokerClient(this)
         if (client.brokerUrl.isBlank()) return
         Thread {
-            runCatching {
-                val manager = UpdateManager(this)
-                manager.parseUpdateInfo(client.updateInfo())
-            }.onSuccess { info ->
-                latestUpdate = info
-                runOnUiThread {
-                    if (info == null) {
-                        updateButton.visibility = View.GONE
-                    } else {
-                        updateButton.text = "JARVISを更新（${info.versionName}）"
-                        updateButton.visibility = View.VISIBLE
+            runCatching { UpdateManager(this).checkForUpdate(client.brokerUrl) }
+                .onSuccess { info ->
+                    latestUpdate = info
+                    runOnUiThread {
+                        if (info == null) {
+                            updateButton.visibility = View.GONE
+                        } else {
+                            updateButton.text = "JARVISを更新（${info.versionName}）"
+                            updateButton.visibility = View.VISIBLE
+                        }
                     }
                 }
-            }
         }.start()
     }
 
@@ -188,13 +182,8 @@ class MainActivity : AppCompatActivity() {
         advancedButton.text = if (show) "詳細設定を閉じる" else "管理者向け詳細設定"
     }
 
-    private fun enrollToken(brokerUrl: String, token: String) {
-        enroll(brokerUrl) { client -> client.enroll(token) }
-    }
-
-    private fun enrollGrant(brokerUrl: String, grant: String) {
-        enroll(brokerUrl) { client -> client.enrollGrant(grant) }
-    }
+    private fun enrollToken(brokerUrl: String, token: String) = enroll(brokerUrl) { it.enroll(token) }
+    private fun enrollGrant(brokerUrl: String, grant: String) = enroll(brokerUrl) { it.enrollGrant(grant) }
 
     private fun enroll(brokerUrl: String, action: (BrokerClient) -> JSONObject) {
         if (brokerUrl.isBlank()) {
