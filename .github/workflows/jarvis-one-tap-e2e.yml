@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/jarvis-one-tap-e2e.yml'
       - 'scripts/jarvis-broker.ts'
+      - 'src/jarvis/**'
       - 'android/jarvis-worker/**'
   workflow_dispatch:
 
@@ -17,6 +18,40 @@ jobs:
     runs-on: [self-hosted, macOS, ARM64]
     timeout-minutes: 10
     steps:
+      - name: Ensure resident Broker is running current main
+        shell: bash
+        run: |
+          set -euo pipefail
+          LABEL="com.aicompany.jarvis-broker"
+          SERVICE="gui/$(id -u)/$LABEL"
+          PID="$(launchctl print "$SERVICE" 2>/dev/null | awk '$1=="pid" && $2=="=" {print $3; exit}')"
+          test -n "$PID"
+          BROKER_CWD="$(lsof -a -p "$PID" -d cwd -Fn 2>/dev/null | sed -n 's/^n//p' | head -n 1)"
+          test -n "$BROKER_CWD"
+          test -d "$BROKER_CWD/.git"
+          REMOTE="$(git -C "$BROKER_CWD" remote get-url origin)"
+          case "$REMOTE" in
+            *haji84/AI-* ) ;;
+            * ) echo 'Resident Broker is not running from haji84/AI-' >&2; exit 1 ;;
+          esac
+          if [[ -n "$(git -C "$BROKER_CWD" status --porcelain)" ]]; then
+            echo 'Resident Broker repo has local changes; refusing to overwrite them.' >&2
+            exit 1
+          fi
+          git -C "$BROKER_CWD" fetch origin main
+          git -C "$BROKER_CWD" merge --ff-only origin/main
+          launchctl kickstart -k "$SERVICE"
+          for _ in $(seq 1 30); do
+            HEALTH="$(curl -fsS --max-time 2 http://127.0.0.1:8787/health 2>/dev/null || true)"
+            if printf '%s' "$HEALTH" | grep -Fq '"service":"jarvis-broker"'; then
+              echo 'Resident Broker: current main and healthy'
+              exit 0
+            fi
+            sleep 1
+          done
+          echo 'Resident Broker did not become healthy after sync' >&2
+          exit 1
+
       - name: Issue and open a real one-tap enrollment URL
         shell: bash
         run: |
@@ -37,14 +72,14 @@ jobs:
             *) echo 'Broker URL mode is not usable by Android Worker' >&2; exit 1 ;;
           esac
 
-          echo 'Stage 1: requesting bounded enrollment set from resident Broker'
           RESPONSE="$(curl -fsS --max-time 10 \
             -H "Authorization: Bearer $JARVIS_OWNER_TOKEN" \
             -H 'Content-Type: application/json' \
             -d '{"mode":"fleet","maxDevices":100,"ttlMs":3600000,"group":"default"}' \
             http://127.0.0.1:8787/api/jarvis/admin/enrollment)"
 
-          echo 'Stage 2: extracting oneTapUrl'
+          KEYS="$(printf '%s' "$RESPONSE" | python3 -c 'import json,sys; print(",".join(sorted(json.load(sys.stdin).keys())))')"
+          echo "Enrollment response keys: $KEYS"
           ONE_TAP_URL="$(printf '%s' "$RESPONSE" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("oneTapUrl", ""))')"
           test -n "$ONE_TAP_URL"
           echo "::add-mask::$ONE_TAP_URL"
@@ -54,12 +89,9 @@ jobs:
             *) echo 'Issued oneTapUrl is not reachable by Android Worker policy' >&2; exit 1 ;;
           esac
 
-          echo 'Stage 3: opening the issued enrollment page through the configured Broker URL'
           PAGE_FILE="$RUNNER_TEMP/jarvis-one-tap-page.html"
           curl -fsS --max-time 15 "$ONE_TAP_URL" -o "$PAGE_FILE"
           test -s "$PAGE_FILE"
-
-          echo 'Stage 4: validating one-tap page contents'
           grep -Fq 'JARVISに登録中' "$PAGE_FILE"
           grep -Fq 'jarvis://enroll?broker=' "$PAGE_FILE"
           grep -Fq '&grant=' "$PAGE_FILE"
