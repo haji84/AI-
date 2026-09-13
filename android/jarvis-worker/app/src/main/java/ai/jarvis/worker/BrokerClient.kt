@@ -46,8 +46,6 @@ class BrokerClient(private val context: Context) {
         return request("POST", "/api/jarvis/worker/heartbeat", body, signed = true)
     }
 
-    fun updateInfo(): JSONObject = request("POST", "/api/jarvis/worker/update", "{}".toByteArray(), signed = true)
-
     fun nextTask(): JSONObject = request("POST", "/api/jarvis/worker/next", "{}".toByteArray(), signed = true)
 
     fun taskResult(taskId: String, ok: Boolean, detail: JSONObject): JSONObject {
