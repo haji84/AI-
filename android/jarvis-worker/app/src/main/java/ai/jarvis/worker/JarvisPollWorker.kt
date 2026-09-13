@@ -13,6 +13,12 @@ class JarvisPollWorker(appContext: Context, params: WorkerParameters) : Worker(a
             val manager = UpdateManager(applicationContext)
             val info = manager.checkForUpdate(client.brokerUrl)
             if (info != null) manager.installAutomaticallyIfManaged(info)
+
+            repeat(5) {
+                val response = client.nextTask()
+                val task = response.optJSONObject("task") ?: return@repeat
+                TaskExecutor(applicationContext).execute(task)
+            }
             Result.success()
         }.getOrElse { Result.retry() }
     }
