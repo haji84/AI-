@@ -1,7 +1,7 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 
-const host = "127.0.0.1";
+const host = process.env.JARVIS_COMMANDER_HOST?.trim() || "127.0.0.1";
 const port = Number(process.env.JARVIS_COMMANDER_PORT || 8790);
 const broker = process.env.JARVIS_COMMANDER_BROKER?.trim().replace(/\/$/, "") || "http://127.0.0.1:8787";
 const ownerToken = process.env.JARVIS_OWNER_TOKEN?.trim() || "";
@@ -69,7 +69,7 @@ function page(key: string) {
 createServer(async (request, response) => {
   try {
     const url = new URL(request.url || "/", "http://localhost");
-    if (request.method === "GET" && url.pathname === "/health") return json(response, 200, { ok: true, service: "jarvis-direct-commander" });
+    if (request.method === "GET" && url.pathname === "/health") return json(response, 200, { ok: true, service: "jarvis-direct-commander", host, port });
     if (request.method === "GET" && url.pathname === `/c/${encodeURIComponent(accessKey)}`) return html(response, 200, page(accessKey));
     if (!authorized(request, url)) return json(response, 401, { message: "commander access denied" });
     if (request.method === "GET" && url.pathname === "/api/state") return json(response, 200, await brokerFetch("/api/jarvis/admin/state"));
