@@ -1,10 +1,34 @@
 import { NextResponse } from "next/server";
 import { jarvisBrokerFetch, requireJarvisOwner } from "../broker.ts";
 
+type JarvisDeviceTaskType =
+  | "open-url"
+  | "open-app"
+  | "launch-settings"
+  | "wake-device"
+  | "device-status"
+  | "show-notification"
+  | "lock-device"
+  | "reboot"
+  | "ui-sequence";
+
 type JarvisDashboardAction =
   | { action: "enrollment"; mode?: "quick" | "full" | "fleet"; maxDevices?: number; group?: string; ttlMs?: number }
   | { action: "open-url"; url?: string; targetNodeId?: string; allowJavaScript?: boolean }
+  | { action: "device-task"; type?: JarvisDeviceTaskType; payload?: Record<string, unknown>; targetNodeId?: string; priority?: string }
   | { action: "resolve-takeover"; sessionId?: string; resumeTask?: boolean };
+
+const allowedTaskTypes = new Set<JarvisDeviceTaskType>([
+  "open-url",
+  "open-app",
+  "launch-settings",
+  "wake-device",
+  "device-status",
+  "show-notification",
+  "lock-device",
+  "reboot",
+  "ui-sequence",
+]);
 
 export async function POST(request: Request) {
   if (!(await requireJarvisOwner())) return NextResponse.json({ message: "オーナー認証が必要です" }, { status: 401 });
@@ -28,6 +52,15 @@ export async function POST(request: Request) {
       type: "open-url",
       payload: { url: payload.url, allowJavaScript: payload.allowJavaScript === true },
       targetNodeId: payload.targetNodeId || undefined,
+    };
+  } else if (payload.action === "device-task") {
+    if (!payload.type || !allowedTaskTypes.has(payload.type)) return NextResponse.json({ message: "未対応の端末タスクです" }, { status: 400 });
+    path = "/api/jarvis/admin/tasks";
+    body = {
+      type: payload.type,
+      payload: payload.payload ?? {},
+      targetNodeId: payload.targetNodeId || undefined,
+      priority: payload.priority,
     };
   } else {
     if (!payload.sessionId) return NextResponse.json({ message: "Takeover session IDが必要です" }, { status: 400 });

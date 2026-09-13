@@ -16,6 +16,15 @@ export type JarvisTaskStatus =
 export type JarvisCapability =
   | "browser"
   | "open-url"
+  | "open-app"
+  | "launch-settings"
+  | "device-status"
+  | "show-notification"
+  | "lock-device"
+  | "reboot"
+  | "device-owner"
+  | "ui-automation"
+  | "self-update"
   | "filesystem"
   | "camera"
   | "gps"
@@ -46,6 +55,10 @@ export interface JarvisNodeTelemetry {
   cpuLoadPercent?: number;
   gpuLoadPercent?: number;
   network?: "wifi" | "cellular" | "lan" | "offline";
+  deviceOwner?: boolean;
+  adminActive?: boolean;
+  accessibilityEnabled?: boolean;
+  locked?: boolean;
   checkedAt: string;
 }
 

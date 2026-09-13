@@ -47,13 +47,18 @@ export class JarvisFleetManager {
     return [...this.nodes.values()].map((node) => structuredClone(node));
   }
 
-  updateHeartbeat(nodeId: string, patch: Partial<Pick<JarvisNode, "status" | "telemetry" | "lastSeenAt">>): JarvisNode {
+  updateHeartbeat(
+    nodeId: string,
+    patch: Partial<Pick<JarvisNode, "status" | "telemetry" | "lastSeenAt" | "capabilities" | "policy" | "enrollment">>,
+  ): JarvisNode {
     const current = this.nodes.get(nodeId);
     if (!current) throw new Error(`Unknown JARVIS node: ${nodeId}`);
     const updated: JarvisNode = {
       ...current,
       ...patch,
       telemetry: patch.telemetry ? { ...current.telemetry, ...patch.telemetry } : current.telemetry,
+      policy: patch.policy ? { ...current.policy, ...patch.policy } : current.policy,
+      capabilities: patch.capabilities ? [...patch.capabilities] : current.capabilities,
     };
     this.nodes.set(nodeId, updated);
     return structuredClone(updated);

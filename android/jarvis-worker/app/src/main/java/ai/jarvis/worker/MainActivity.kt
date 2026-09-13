@@ -21,6 +21,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 class MainActivity : AppCompatActivity() {
     private val active = AtomicBoolean(false)
     private lateinit var status: TextView
+    private lateinit var automationStatus: TextView
     private lateinit var brokerField: EditText
     private lateinit var tokenField: EditText
     private lateinit var manualEnrollButton: Button
@@ -34,6 +35,11 @@ class MainActivity : AppCompatActivity() {
 
         status = TextView(this).apply { text = "未登録" }
         val guide = TextView(this).apply { text = "管理者から届いたJARVIS登録リンクを1回タップすると、自動で登録されます。" }
+        automationStatus = TextView(this).apply { text = "自動操作: 確認中" }
+        val automationSettings = Button(this).apply {
+            text = "自動操作を有効化"
+            setOnClickListener { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
+        }
         updateButton = Button(this).apply {
             visibility = View.GONE
             setOnClickListener { beginUpdate() }
@@ -73,6 +79,8 @@ class MainActivity : AppCompatActivity() {
             setPadding(32, 48, 32, 32)
             addView(status)
             addView(guide)
+            addView(automationStatus)
+            addView(automationSettings)
             addView(updateButton)
             addView(advancedButton)
             addView(brokerField)
@@ -97,6 +105,7 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         active.set(true)
+        automationStatus.text = if (JarvisAccessibilityService.connected()) "自動操作: 有効" else "自動操作: 未有効"
         if (waitingForInstallPermission && UpdateManager(this).canRequestPackageInstalls() && latestUpdate != null) {
             waitingForInstallPermission = false
             installLatestUpdate()
@@ -233,21 +242,7 @@ class MainActivity : AppCompatActivity() {
         client.heartbeat()
         val response = client.nextTask()
         val task = response.optJSONObject("task") ?: return
-        executeTask(task)
-    }
-
-    private fun executeTask(task: JSONObject) {
-        when (task.optString("type")) {
-            "open-url" -> {
-                val url = task.optJSONObject("payload")?.optString("url").orEmpty()
-                if (url.startsWith("https://")) {
-                    startActivity(Intent(this, UrlTaskActivity::class.java)
-                        .putExtra("task_id", task.getString("id"))
-                        .putExtra("url", url)
-                        .putExtra("allow_javascript", task.optJSONObject("payload")?.optBoolean("allowJavaScript", false) == true))
-                }
-            }
-        }
+        TaskExecutor(this).execute(task)
     }
 
     private fun scheduleFallbackWorker() {

@@ -82,7 +82,11 @@ export class JarvisControlPlane {
     return registered;
   }
 
-  heartbeat(nodeId: string, input: Partial<Pick<JarvisNode, "status" | "telemetry">>, now = new Date()): JarvisNode {
+  heartbeat(
+    nodeId: string,
+    input: Partial<Pick<JarvisNode, "status" | "telemetry" | "capabilities" | "policy" | "enrollment">>,
+    now = new Date(),
+  ): JarvisNode {
     const before = this.fleet.get(nodeId);
     const updated = this.fleet.updateHeartbeat(nodeId, {
       ...input,
@@ -91,6 +95,9 @@ export class JarvisControlPlane {
     });
     if (before?.status !== updated.status) {
       this.audit(nodeId, "node.status.changed", nodeId, { from: before?.status, to: updated.status }, now);
+    }
+    if (before && JSON.stringify(before.capabilities) !== JSON.stringify(updated.capabilities)) {
+      this.audit(nodeId, "node.capabilities.changed", nodeId, { capabilities: updated.capabilities }, now);
     }
     return updated;
   }

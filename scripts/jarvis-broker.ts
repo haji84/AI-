@@ -7,6 +7,7 @@ import {
   JarvisNonceRegistry,
   JarvisSqliteStateStore,
   verifyWorkerRequest,
+  type JarvisCapability,
   type JarvisNode,
   type JarvisSignedWorkerRequest,
   type JarvisWorkerIdentity,
@@ -31,18 +32,8 @@ if (persisted) plane.restore(persisted);
 const nonces = new JarvisNonceRegistry();
 let lastHeartbeatPersist = 0;
 
-type WorkerApkInfo = {
-  path: string;
-  url: string;
-  bytes: Buffer;
-  sha256Base64Url: string;
-};
-
-type EnrollmentGrant = {
-  token: string;
-  expiresAt: string;
-};
-
+type WorkerApkInfo = { path: string; url: string; bytes: Buffer; sha256Base64Url: string };
+type EnrollmentGrant = { token: string; expiresAt: string };
 const enrollmentGrants = new Map<string, EnrollmentGrant>();
 
 function json(response: ServerResponse, status: number, body: unknown): void {
@@ -51,7 +42,6 @@ function json(response: ServerResponse, status: number, body: unknown): void {
   response.setHeader("Cache-Control", "no-store");
   response.end(JSON.stringify(body));
 }
-
 function html(response: ServerResponse, status: number, body: string): void {
   response.statusCode = status;
   response.setHeader("Content-Type", "text/html; charset=utf-8");
@@ -62,113 +52,73 @@ function html(response: ServerResponse, status: number, body: string): void {
   response.setHeader("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'none'; base-uri 'none'; form-action 'none'");
   response.end(body);
 }
-
 function workerApkInfo(): WorkerApkInfo | undefined {
   if (!workerApkPath || !publicBrokerUrl || !existsSync(workerApkPath)) return undefined;
   const bytes = readFileSync(workerApkPath);
   if (!bytes.length) return undefined;
-  return {
-    path: workerApkPath,
-    url: `${publicBrokerUrl}/downloads/jarvis-worker.apk`,
-    bytes,
-    sha256Base64Url: createHash("sha256").update(bytes).digest("base64url"),
-  };
+  return { path: workerApkPath, url: `${publicBrokerUrl}/downloads/jarvis-worker.apk`, bytes, sha256Base64Url: createHash("sha256").update(bytes).digest("base64url") };
 }
-
 function issueEnrollmentGrant(token: string, expiresAt: string): string {
   const grant = randomBytes(24).toString("base64url");
   enrollmentGrants.set(grant, { token, expiresAt });
   return grant;
 }
-
 function resolveEnrollmentGrant(grant: string, now = Date.now()): EnrollmentGrant | undefined {
   const record = enrollmentGrants.get(grant);
   if (!record) return undefined;
-  if (new Date(record.expiresAt).getTime() <= now) {
-    enrollmentGrants.delete(grant);
-    return undefined;
-  }
+  if (new Date(record.expiresAt).getTime() <= now) { enrollmentGrants.delete(grant); return undefined; }
   return record;
 }
-
 function oneTapEnrollmentPage(grant: string): string {
   const apk = workerApkInfo();
   const deepLink = `jarvis://enroll?broker=${encodeURIComponent(publicBrokerUrl)}&grant=${encodeURIComponent(grant)}&token=${encodeURIComponent(grant)}`;
   const deepLinkJson = JSON.stringify(deepLink).replace(/</g, "\\u003c");
-  const apkButton = apk
-    ? `<a class="secondary" href="${apk.url}">JARVIS Workerをインストール</a>`
-    : "<p class=\"note\">Workerが未インストールの場合は、管理者にAPKの準備状況を確認してください。</p>";
+  const apkButton = apk ? `<a class="secondary" href="${apk.url}">JARVIS Workerをインストール</a>` : "<p class=\"note\">Workerが未インストールの場合は、管理者にAPKの準備状況を確認してください。</p>";
   return `<!doctype html>
-<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>JARVISに登録</title>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>JARVISに登録</title>
 <style>body{font-family:system-ui,sans-serif;background:#f6f7f8;color:#111;margin:0;padding:28px}.card{max-width:560px;margin:10vh auto;background:white;border-radius:20px;padding:28px;box-shadow:0 10px 40px #00000012}h1{font-size:26px;margin:0 0 12px}p{line-height:1.65}.button,.secondary{display:block;text-align:center;text-decoration:none;border-radius:12px;padding:16px;margin-top:16px;font-weight:700}.button{background:#111;color:white}.secondary{background:#e9ecef;color:#111}.note{font-size:14px;color:#666}</style></head>
-<body><main class="card"><h1>JARVISに登録中</h1><p>JARVIS Workerが入っていれば自動で開き、そのまま登録します。</p><a id="open" class="button" href="${deepLink}">JARVISで登録する</a>${apkButton}<p class="note">Androidの仕様により、初回APKインストール時だけ提供元の許可確認が表示される場合があります。</p></main>
-<script>const target=${deepLinkJson};window.location.replace(target);</script></body></html>`;
+<body><main class="card"><h1>JARVISに登録中</h1><p>JARVIS Workerが入っていれば自動で開き、そのまま登録します。</p><a id="open" class="button" href="${deepLink}">JARVISで登録する</a>${apkButton}<p class="note">Androidの仕様により、初回APKインストール時だけ提供元の許可確認が表示される場合があります。</p></main><script>const target=${deepLinkJson};window.location.replace(target);</script></body></html>`;
 }
-
 function expiredEnrollmentPage(): string {
   return "<!doctype html><html lang=\"ja\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>リンク期限切れ</title></head><body style=\"font-family:system-ui,sans-serif;padding:32px\"><h1>リンク期限切れ</h1><p>このJARVIS登録リンクは無効または期限切れです。管理者から新しい登録リンクを受け取ってください。</p></body></html>";
 }
-
 function fullProvisioningPayload(brokerUrl: string, token: string, apk: WorkerApkInfo): Record<string, unknown> {
   return {
     "android.app.extra.PROVISIONING_DEVICE_ADMIN_COMPONENT_NAME": "ai.jarvis.worker/.JarvisDeviceAdminReceiver",
     "android.app.extra.PROVISIONING_DEVICE_ADMIN_PACKAGE_DOWNLOAD_LOCATION": apk.url,
     "android.app.extra.PROVISIONING_DEVICE_ADMIN_PACKAGE_CHECKSUM": apk.sha256Base64Url,
-    "android.app.extra.PROVISIONING_ADMIN_EXTRAS_BUNDLE": {
-      jarvis_broker: brokerUrl,
-      jarvis_token: token,
-    },
+    "android.app.extra.PROVISIONING_ADMIN_EXTRAS_BUNDLE": { jarvis_broker: brokerUrl, jarvis_token: token },
   };
 }
-
 function provisioningQrPngBase64(payload: Record<string, unknown>): string | undefined {
   try {
-    const png = execFileSync(qrencodePath, ["-o", "-", "-t", "PNG", "-m", "2", JSON.stringify(payload)], {
-      encoding: "buffer",
-      timeout: 10_000,
-      maxBuffer: 4 * 1024 * 1024,
-    });
+    const png = execFileSync(qrencodePath, ["-o", "-", "-t", "PNG", "-m", "2", JSON.stringify(payload)], { encoding: "buffer", timeout: 10_000, maxBuffer: 4 * 1024 * 1024 });
     return Buffer.isBuffer(png) && png.length ? png.toString("base64") : undefined;
-  } catch {
-    return undefined;
-  }
+  } catch { return undefined; }
 }
-
 async function readBody(request: IncomingMessage, limit = 1_000_000): Promise<Buffer> {
-  const chunks: Buffer[] = [];
-  let size = 0;
+  const chunks: Buffer[] = []; let size = 0;
   for await (const chunk of request) {
-    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-    size += buffer.length;
-    if (size > limit) throw new Error("request body too large");
-    chunks.push(buffer);
+    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk); size += buffer.length;
+    if (size > limit) throw new Error("request body too large"); chunks.push(buffer);
   }
   return Buffer.concat(chunks);
 }
-
 function parseJson(body: Buffer): Record<string, unknown> {
   if (body.length === 0) return {};
   const value = JSON.parse(body.toString("utf8")) as unknown;
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("JSON object required");
   return value as Record<string, unknown>;
 }
-
 function safeEqualText(a: string, b: string): boolean {
-  const left = Buffer.from(a, "utf8");
-  const right = Buffer.from(b, "utf8");
+  const left = Buffer.from(a, "utf8"); const right = Buffer.from(b, "utf8");
   return left.length === right.length && timingSafeEqual(left, right);
 }
-
 function requireOwner(request: IncomingMessage): boolean {
   const auth = request.headers.authorization || "";
   return auth.startsWith("Bearer ") && safeEqualText(auth.slice(7), ownerToken);
 }
-
-function bodySha256(body: Buffer): string {
-  return createHash("sha256").update(body).digest("hex");
-}
-
+function bodySha256(body: Buffer): string { return createHash("sha256").update(body).digest("hex"); }
 function signedWorkerRequest(request: IncomingMessage, path: string, body: Buffer): JarvisSignedWorkerRequest | undefined {
   const nodeId = request.headers["x-jarvis-node-id"];
   const timestamp = request.headers["x-jarvis-timestamp"];
@@ -177,43 +127,19 @@ function signedWorkerRequest(request: IncomingMessage, path: string, body: Buffe
   const signatureBase64 = request.headers["x-jarvis-signature"];
   if (![nodeId, timestamp, nonce, declaredBodySha, signatureBase64].every((value) => typeof value === "string")) return undefined;
   if (!safeEqualText(declaredBodySha as string, bodySha256(body))) return undefined;
-  return {
-    nodeId: nodeId as string,
-    timestamp: timestamp as string,
-    nonce: nonce as string,
-    method: request.method || "POST",
-    path,
-    bodySha256: declaredBodySha as string,
-    signatureBase64: signatureBase64 as string,
-  };
+  return { nodeId: nodeId as string, timestamp: timestamp as string, nonce: nonce as string, method: request.method || "POST", path, bodySha256: declaredBodySha as string, signatureBase64: signatureBase64 as string };
 }
-
 function authenticateWorker(request: IncomingMessage, path: string, body: Buffer): JarvisWorkerIdentity | undefined {
-  const signed = signedWorkerRequest(request, path, body);
-  if (!signed) return undefined;
-  const identity = store.getWorkerIdentity(signed.nodeId);
-  if (!identity) return undefined;
-  const checked = verifyWorkerRequest({
-    identity,
-    request: signed,
-    seenNonce: (nodeId, nonce) => nonces.has(nodeId, nonce),
-  });
-  if (!checked.ok) return undefined;
-  nonces.record(signed.nodeId, signed.nonce);
-  return identity;
+  const signed = signedWorkerRequest(request, path, body); if (!signed) return undefined;
+  const identity = store.getWorkerIdentity(signed.nodeId); if (!identity) return undefined;
+  const checked = verifyWorkerRequest({ identity, request: signed, seenNonce: (nodeId, nonce) => nonces.has(nodeId, nonce) });
+  if (!checked.ok) return undefined; nonces.record(signed.nodeId, signed.nonce); return identity;
 }
-
 function persist(immediate = true): void {
-  const now = Date.now();
-  if (!immediate && now - lastHeartbeatPersist < 5_000) return;
-  store.save(plane.snapshot());
-  lastHeartbeatPersist = now;
+  const now = Date.now(); if (!immediate && now - lastHeartbeatPersist < 5_000) return;
+  store.save(plane.snapshot()); lastHeartbeatPersist = now;
 }
-
-function asNumber(value: unknown, fallback: number): number {
-  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
-}
-
+function asNumber(value: unknown, fallback: number): number { return typeof value === "number" && Number.isFinite(value) ? value : fallback; }
 function validatedNode(value: unknown): JarvisNode {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("node object required");
   const node = value as JarvisNode;
@@ -221,125 +147,109 @@ function validatedNode(value: unknown): JarvisNode {
   if (node.policy?.allowPaidServices !== false) throw new Error("worker must disable paid services");
   return node;
 }
-
 function assignFleetNumber(node: JarvisNode): JarvisNode {
   const existing = plane.fleet.get(node.id);
   const used = new Set(plane.fleet.list().map((item) => item.fleetNumber).filter((value): value is number => typeof value === "number"));
   const fleetNumber = existing?.fleetNumber ?? Array.from({ length: 100 }, (_, index) => index + 1).find((value) => !used.has(value));
   if (!fleetNumber) throw new Error("JARVIS fleet has no free device number");
   const plainLabel = node.label.replace(/^Android\s+\d{3}\s+·\s+/, "");
-  return {
-    ...node,
-    fleetNumber,
-    label: `Android ${String(fleetNumber).padStart(3, "0")} · ${plainLabel}`,
-  };
+  return { ...node, fleetNumber, label: `Android ${String(fleetNumber).padStart(3, "0")} · ${plainLabel}` };
+}
+
+const androidTaskCapabilities: Record<string, JarvisCapability> = {
+  "open-url": "open-url", "open-app": "open-app", "launch-settings": "launch-settings", "wake-device": "wake-device",
+  "device-status": "device-status", "show-notification": "show-notification", "lock-device": "lock-device", reboot: "reboot", "ui-sequence": "ui-automation",
+};
+function validatedAndroidTask(type: string, payload: Record<string, unknown>): Record<string, unknown> {
+  if (!(type in androidTaskCapabilities)) throw new Error(`unsupported Android task type: ${type}`);
+  if (type === "open-url") {
+    if (typeof payload.url !== "string" || !payload.url.startsWith("https://")) throw new Error("open-url requires HTTPS");
+    return { url: payload.url, allowJavaScript: payload.allowJavaScript === true };
+  }
+  if (type === "open-app") {
+    if (typeof payload.packageName !== "string" || !payload.packageName.trim()) throw new Error("open-app requires packageName");
+    return { packageName: payload.packageName.trim() };
+  }
+  if (type === "launch-settings") {
+    const screen = typeof payload.screen === "string" ? payload.screen : "settings";
+    if (!["settings", "accessibility", "wifi", "bluetooth", "app"].includes(screen)) throw new Error("unsupported settings screen");
+    return { screen };
+  }
+  if (type === "show-notification") return { title: typeof payload.title === "string" ? payload.title.slice(0, 100) : "JARVIS", message: typeof payload.message === "string" ? payload.message.slice(0, 500) : "JARVISからの通知", id: asNumber(payload.id, 4100) };
+  if (type === "ui-sequence") {
+    if (!Array.isArray(payload.steps) || payload.steps.length < 1 || payload.steps.length > 50) throw new Error("ui-sequence requires 1..50 steps");
+    return { steps: payload.steps };
+  }
+  return {};
 }
 
 async function handler(request: IncomingMessage, response: ServerResponse): Promise<void> {
   const url = new URL(request.url || "/", "http://localhost");
-  const path = url.pathname;
-  const method = request.method || "GET";
+  const path = url.pathname; const method = request.method || "GET";
   const body = method === "GET" || method === "HEAD" ? Buffer.alloc(0) : await readBody(request);
 
-  if (method === "GET" && path === "/health") {
-    return json(response, 200, { ok: true, service: "jarvis-broker", stats: plane.snapshot().stats, workerApkReady: Boolean(workerApkInfo()) });
-  }
-
+  if (method === "GET" && path === "/health") return json(response, 200, { ok: true, service: "jarvis-broker", stats: plane.snapshot().stats, workerApkReady: Boolean(workerApkInfo()) });
   if (method === "GET" && path.startsWith("/enroll/")) {
     const grant = decodeURIComponent(path.slice("/enroll/".length));
     if (!publicBrokerUrl || !grant || !resolveEnrollmentGrant(grant)) return html(response, 410, expiredEnrollmentPage());
     return html(response, 200, oneTapEnrollmentPage(grant));
   }
-
   if (method === "GET" && path === "/downloads/jarvis-worker.apk") {
-    const apk = workerApkInfo();
-    if (!apk) return json(response, 404, { message: "JARVIS Worker APK is not ready" });
-    response.statusCode = 200;
-    response.setHeader("Content-Type", "application/vnd.android.package-archive");
-    response.setHeader("Content-Disposition", "attachment; filename=jarvis-worker.apk");
-    response.setHeader("Content-Length", String(apk.bytes.length));
-    response.setHeader("Cache-Control", "no-store");
-    response.end(apk.bytes);
-    return;
+    const apk = workerApkInfo(); if (!apk) return json(response, 404, { message: "JARVIS Worker APK is not ready" });
+    response.statusCode = 200; response.setHeader("Content-Type", "application/vnd.android.package-archive");
+    response.setHeader("Content-Disposition", "attachment; filename=jarvis-worker.apk"); response.setHeader("Content-Length", String(apk.bytes.length));
+    response.setHeader("Cache-Control", "no-store"); response.end(apk.bytes); return;
   }
 
   if (path.startsWith("/api/jarvis/admin/")) {
     if (!requireOwner(request)) return json(response, 401, { message: "owner authorization required" });
     const payload = parseJson(body);
-
     if (method === "GET" && path === "/api/jarvis/admin/state") return json(response, 200, plane.snapshot());
-
     if (method === "POST" && path === "/api/jarvis/admin/enrollment") {
       const mode = payload.mode === "full" || payload.mode === "fleet" ? payload.mode : "quick";
       const ttlMs = Math.min(Math.max(asNumber(payload.ttlMs, 5 * 60_000), 60_000), 60 * 60_000);
       const maxDevices = Math.min(Math.max(asNumber(payload.maxDevices, mode === "fleet" ? 100 : 1), 1), 100);
       const group = typeof payload.group === "string" ? payload.group : undefined;
       const token = plane.createEnrollment({ mode, ttlMs, maxDevices, group });
-      const fullToken = mode === "fleet"
-        ? plane.createEnrollment({ mode: "full", ttlMs, maxDevices, group })
-        : mode === "full" ? token : undefined;
-      const deepLink = publicBrokerUrl
-        ? `jarvis://enroll?broker=${encodeURIComponent(publicBrokerUrl)}&token=${encodeURIComponent(token.token)}`
-        : undefined;
+      const fullToken = mode === "fleet" ? plane.createEnrollment({ mode: "full", ttlMs, maxDevices, group }) : mode === "full" ? token : undefined;
+      const deepLink = publicBrokerUrl ? `jarvis://enroll?broker=${encodeURIComponent(publicBrokerUrl)}&token=${encodeURIComponent(token.token)}` : undefined;
       const grant = publicBrokerUrl ? issueEnrollmentGrant(token.token, token.expiresAt) : undefined;
       const oneTapUrl = grant ? `${publicBrokerUrl}/enroll/${encodeURIComponent(grant)}` : undefined;
       const apk = workerApkInfo();
-      const provisioning = fullToken && publicBrokerUrl && apk
-        ? fullProvisioningPayload(publicBrokerUrl, fullToken.token, apk)
-        : undefined;
+      const provisioning = fullToken && publicBrokerUrl && apk ? fullProvisioningPayload(publicBrokerUrl, fullToken.token, apk) : undefined;
       const qrPngBase64 = provisioning ? provisioningQrPngBase64(provisioning) : undefined;
-      return json(response, 201, {
-        token,
-        fullToken,
-        oneTapUrl,
-        deepLink,
-        apkUrl: apk?.url,
-        apkSha256Base64Url: apk?.sha256Base64Url,
-        provisioning,
-        qrPngBase64,
-      });
+      return json(response, 201, { token, fullToken, oneTapUrl, deepLink, apkUrl: apk?.url, apkSha256Base64Url: apk?.sha256Base64Url, provisioning, qrPngBase64 });
     }
-
     if (method === "POST" && path === "/api/jarvis/admin/tasks") {
-      if (payload.type !== "open-url") return json(response, 400, { message: "only open-url is enabled in Android Worker v0.1" });
-      const taskPayload = payload.payload as Record<string, unknown> | undefined;
-      const targetUrl = typeof taskPayload?.url === "string" ? taskPayload.url : "";
-      if (!targetUrl.startsWith("https://")) return json(response, 400, { message: "open-url requires HTTPS" });
+      const type = typeof payload.type === "string" ? payload.type : "";
+      const taskPayload = payload.payload && typeof payload.payload === "object" && !Array.isArray(payload.payload) ? payload.payload as Record<string, unknown> : {};
+      let cleanPayload: Record<string, unknown>;
+      try { cleanPayload = validatedAndroidTask(type, taskPayload); }
+      catch (error) { return json(response, 400, { message: error instanceof Error ? error.message : "invalid task" }); }
+      const capability = androidTaskCapabilities[type];
+      const targetNodeId = typeof payload.targetNodeId === "string" ? payload.targetNodeId : undefined;
+      const fingerprint = JSON.stringify({ type, cleanPayload, targetNodeId });
       const task = plane.enqueueTask({
-        idempotencyKey: typeof payload.idempotencyKey === "string" ? payload.idempotencyKey : `open-url:${createHash("sha256").update(targetUrl).digest("hex")}`,
-        type: "open-url",
-        payload: { url: targetUrl, allowJavaScript: taskPayload?.allowJavaScript === true },
-        requiredCapabilities: ["open-url"],
-        preferredKinds: ["android"],
+        idempotencyKey: typeof payload.idempotencyKey === "string" ? payload.idempotencyKey : `${type}:${createHash("sha256").update(fingerprint).digest("hex")}`,
+        type, payload: cleanPayload, requiredCapabilities: [capability], preferredKinds: ["android"],
         priority: payload.priority === "urgent" || payload.priority === "high" || payload.priority === "low" || payload.priority === "background" ? payload.priority : "normal",
-        requiresOnline: true,
-        targetNodeId: typeof payload.targetNodeId === "string" ? payload.targetNodeId : undefined,
-        maxAttempts: Math.min(Math.max(asNumber(payload.maxAttempts, 3), 1), 10),
+        requiresOnline: true, targetNodeId, maxAttempts: Math.min(Math.max(asNumber(payload.maxAttempts, 3), 1), 10),
       });
-      persist();
-      return json(response, 201, { task });
+      persist(); return json(response, 201, { task });
     }
-
     if (method === "POST" && path === "/api/jarvis/admin/takeover/resolve") {
       if (typeof payload.sessionId !== "string") return json(response, 400, { message: "sessionId required" });
-      const session = plane.resolveTakeover(payload.sessionId, payload.resumeTask !== false);
-      persist();
-      return json(response, 200, { session });
+      const session = plane.resolveTakeover(payload.sessionId, payload.resumeTask !== false); persist(); return json(response, 200, { session });
     }
-
     return json(response, 404, { message: "unknown admin route" });
   }
 
   if (method === "POST" && path === "/api/jarvis/enroll") {
-    const payload = parseJson(body);
-    let tokenValue = "";
+    const payload = parseJson(body); let tokenValue = "";
     if (typeof payload.grant === "string" && payload.grant) {
-      const grant = resolveEnrollmentGrant(payload.grant);
-      if (!grant) return json(response, 410, { message: "expired or invalid enrollment link" });
-      tokenValue = grant.token;
+      const grant = resolveEnrollmentGrant(payload.grant); if (!grant) return json(response, 410, { message: "expired or invalid enrollment link" }); tokenValue = grant.token;
     } else if (typeof payload.token === "string" && payload.token) {
-      const legacyGrant = resolveEnrollmentGrant(payload.token);
-      tokenValue = legacyGrant?.token ?? payload.token;
+      const legacyGrant = resolveEnrollmentGrant(payload.token); tokenValue = legacyGrant?.token ?? payload.token;
     }
     if (!tokenValue) return json(response, 400, { message: "enrollment token or grant required" });
     const node = assignFleetNumber(validatedNode(payload.node));
@@ -351,78 +261,47 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
     if (algorithm === "ecdsa-p256-sha256" && key.asymmetricKeyType !== "ec") return json(response, 400, { message: "ECDSA worker must provide EC public key" });
     if (algorithm === "ed25519" && key.asymmetricKeyType !== "ed25519") return json(response, 400, { message: "Ed25519 worker must provide Ed25519 public key" });
     const enrolled = plane.enroll(tokenValue, node);
-    const identity: JarvisWorkerIdentity = {
-      nodeId: enrolled.id,
-      publicKeyPem: identityInput.publicKeyPem,
-      algorithm,
-      enrolledAt: new Date().toISOString(),
-    };
-    store.saveWorkerIdentity(identity);
-    persist();
-    return json(response, 201, { node: enrolled });
+    store.saveWorkerIdentity({ nodeId: enrolled.id, publicKeyPem: identityInput.publicKeyPem, algorithm, enrolledAt: new Date().toISOString() });
+    persist(); return json(response, 201, { node: enrolled });
   }
 
   if (path.startsWith("/api/jarvis/worker/")) {
-    const identity = authenticateWorker(request, path, body);
-    if (!identity) return json(response, 401, { message: "valid signed worker request required" });
+    const identity = authenticateWorker(request, path, body); if (!identity) return json(response, 401, { message: "valid signed worker request required" });
     const payload = parseJson(body);
-
     if (method === "POST" && path === "/api/jarvis/worker/heartbeat") {
-      const telemetry = payload.telemetry && typeof payload.telemetry === "object" && !Array.isArray(payload.telemetry)
-        ? payload.telemetry as JarvisNode["telemetry"]
-        : undefined;
+      const telemetry = payload.telemetry && typeof payload.telemetry === "object" && !Array.isArray(payload.telemetry) ? payload.telemetry as JarvisNode["telemetry"] : undefined;
       const status = payload.status === "busy" || payload.status === "locked" || payload.status === "needs-human" ? payload.status : "ready";
-      const node = plane.heartbeat(identity.nodeId, { status, telemetry });
-      persist(false);
-      return json(response, 200, { node });
+      const capabilities = Array.isArray(payload.capabilities) ? payload.capabilities.filter((item): item is JarvisCapability => typeof item === "string") : undefined;
+      const current = plane.fleet.get(identity.nodeId);
+      const policy = current ? { ...current.policy, allowPaidServices: false as const, allowRemoteControl: capabilities?.includes("ui-automation") === true, requireHumanForLockedDevice: true } : undefined;
+      const node = plane.heartbeat(identity.nodeId, { status, telemetry, capabilities, policy }); persist(false); return json(response, 200, { node });
     }
-
     if (method === "POST" && path === "/api/jarvis/worker/next") {
       let assigned = plane.queue.assignedTo(identity.nodeId)[0];
-      if (!assigned) {
-        plane.dispatch({ mobileOnline: true, pcOnline: true, sameLanAvailable: false });
-        assigned = plane.queue.assignedTo(identity.nodeId)[0];
-      }
+      if (!assigned) { plane.dispatch({ mobileOnline: true, pcOnline: true, sameLanAvailable: false }); assigned = plane.queue.assignedTo(identity.nodeId)[0]; }
       if (assigned?.status === "leased") assigned = plane.markRunning(assigned.id, identity.nodeId);
-      if (assigned) persist();
-      return json(response, 200, { task: assigned ?? null });
+      if (assigned) persist(); return json(response, 200, { task: assigned ?? null });
     }
-
     if (method === "POST" && path === "/api/jarvis/worker/result") {
       if (typeof payload.taskId !== "string" || typeof payload.ok !== "boolean") return json(response, 400, { message: "taskId and ok required" });
       const detail = payload.detail && typeof payload.detail === "object" && !Array.isArray(payload.detail) ? payload.detail as Record<string, unknown> : {};
-      const task = payload.ok
-        ? plane.completeTask(payload.taskId, identity.nodeId, detail)
-        : plane.failTask(payload.taskId, identity.nodeId, typeof detail.error === "string" ? detail.error : "worker reported failure");
-      persist();
-      return json(response, 200, { task });
+      const task = payload.ok ? plane.completeTask(payload.taskId, identity.nodeId, detail) : plane.failTask(payload.taskId, identity.nodeId, typeof detail.error === "string" ? detail.error : "worker reported failure");
+      persist(); return json(response, 200, { task });
     }
-
     return json(response, 404, { message: "unknown worker route" });
   }
-
   return json(response, 404, { message: "not found" });
 }
 
 const server = createServer((request, response) => {
-  handler(request, response).catch((error) => {
-    console.error("[jarvis-broker] request failed", error);
-    json(response, 500, { message: error instanceof Error ? error.message : "internal error" });
-  });
+  handler(request, response).catch((error) => { console.error("[jarvis-broker] request failed", error); json(response, 500, { message: error instanceof Error ? error.message : "internal error" }); });
 });
-
 server.listen(port, host, () => {
   console.log(`[jarvis-broker] listening on http://${host}:${port}`);
   console.log(`[jarvis-broker] nodes=${plane.snapshot().stats.registered} tasks=${plane.snapshot().tasks.length} workerApk=${workerApkInfo() ? "ready" : "missing"}`);
 });
-
 function shutdown(): void {
-  server.close(() => {
-    persist();
-    store.close();
-    process.exit(0);
-  });
+  server.close(() => { persist(); store.close(); process.exit(0); });
 }
-
 process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);
