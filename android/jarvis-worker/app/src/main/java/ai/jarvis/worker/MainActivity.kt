@@ -65,7 +65,12 @@ class MainActivity : AppCompatActivity() {
         }
         setContentView(root)
 
-        handleEnrollmentIntent(intent)
+        val enrollmentLink = intent?.data
+        if (enrollmentLink != null) {
+            handleEnrollmentIntent(intent)
+        } else {
+            verifyCurrentEnrollment()
+        }
         scheduleFallbackWorker()
     }
 
@@ -84,6 +89,20 @@ class MainActivity : AppCompatActivity() {
     override fun onPause() {
         active.set(false)
         super.onPause()
+    }
+
+    private fun verifyCurrentEnrollment() {
+        val client = BrokerClient(this)
+        if (client.brokerUrl.isBlank()) {
+            status.text = "未登録"
+            return
+        }
+        status.text = "登録状態を確認中"
+        Thread {
+            runCatching { client.heartbeat() }
+                .onSuccess { runOnUiThread { status.text = "登録完了" } }
+                .onFailure { runOnUiThread { status.text = "未登録" } }
+        }.start()
     }
 
     private fun handleEnrollmentIntent(source: Intent?) {
