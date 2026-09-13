@@ -120,10 +120,11 @@ class UpdateManager(private val context: Context) {
     private fun signingDigest(info: android.content.pm.PackageInfo): String {
         val cert = if (Build.VERSION.SDK_INT >= 28) {
             val signingInfo = info.signingInfo ?: throw IllegalStateException("APK signing info missing")
-            if (signingInfo.hasMultipleSigners()) signingInfo.apkContentsSigners.first() else signingInfo.signingCertificateHistory.first()
+            val signers = if (signingInfo.hasMultipleSigners()) signingInfo.apkContentsSigners else signingInfo.signingCertificateHistory
+            signers?.firstOrNull() ?: throw IllegalStateException("APK signing certificate missing")
         } else {
             @Suppress("DEPRECATION")
-            info.signatures.first()
+            info.signatures?.firstOrNull() ?: throw IllegalStateException("APK signing certificate missing")
         }
         return MessageDigest.getInstance("SHA-256").digest(cert.toByteArray()).joinToString("") { "%02x".format(it) }
     }
