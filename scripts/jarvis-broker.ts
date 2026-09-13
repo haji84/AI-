@@ -93,7 +93,7 @@ function resolveEnrollmentGrant(grant: string, now = Date.now()): EnrollmentGran
 
 function oneTapEnrollmentPage(grant: string): string {
   const apk = workerApkInfo();
-  const deepLink = `jarvis://enroll?broker=${encodeURIComponent(publicBrokerUrl)}&grant=${encodeURIComponent(grant)}`;
+  const deepLink = `jarvis://enroll?broker=${encodeURIComponent(publicBrokerUrl)}&grant=${encodeURIComponent(grant)}&token=${encodeURIComponent(grant)}`;
   const deepLinkJson = JSON.stringify(deepLink).replace(/</g, "\\u003c");
   const apkButton = apk
     ? `<a class="secondary" href="${apk.url}">JARVIS Workerをインストール</a>`
@@ -332,11 +332,14 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
 
   if (method === "POST" && path === "/api/jarvis/enroll") {
     const payload = parseJson(body);
-    let tokenValue = typeof payload.token === "string" ? payload.token : "";
-    if (!tokenValue && typeof payload.grant === "string") {
+    let tokenValue = "";
+    if (typeof payload.grant === "string" && payload.grant) {
       const grant = resolveEnrollmentGrant(payload.grant);
       if (!grant) return json(response, 410, { message: "expired or invalid enrollment link" });
       tokenValue = grant.token;
+    } else if (typeof payload.token === "string" && payload.token) {
+      const legacyGrant = resolveEnrollmentGrant(payload.token);
+      tokenValue = legacyGrant?.token ?? payload.token;
     }
     if (!tokenValue) return json(response, 400, { message: "enrollment token or grant required" });
     const node = assignFleetNumber(validatedNode(payload.node));
