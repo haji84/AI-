@@ -16,9 +16,12 @@ permissions:
   contents: read
   actions: read
 
+# A fresh heldout campaign is a scientific run: a later hourly trigger must never
+# cancel an experiment already in flight. The route job also refuses to start a
+# second campaign while another R2-v2 run is queued or in progress.
 concurrency:
   group: gai-r2-fresh-v2
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   route:
@@ -53,15 +56,23 @@ jobs:
             target=none
             state=ALREADY_EXECUTED
           else
-            runners="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runners?per_page=100" 2>/dev/null || printf '{"runners":[]}')"
-            zbook="$(printf '%s' "$runners" | jq -r '[.runners[] | select((.name|ascii_downcase)=="zbook" and .status=="online" and (.busy|not))] | length')"
-            mac="$(printf '%s' "$runners" | jq -r '[.runners[] | select((.name|ascii_downcase)=="macbook" and .status=="online" and (.busy|not))] | length')"
-            if [ "$zbook" -gt 0 ]; then target=zbook
-            elif [ "$mac" -gt 0 ]; then target=macbook
+            # Do not launch a duplicate scientific campaign. Ignore this router's
+            # own run id and defer if another R2-v2 run is queued/in_progress.
+            active="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/workflows/gai-r2-fresh-v2.yml/runs?per_page=50" --jq "[.workflow_runs[] | select(.id != ${GITHUB_RUN_ID} and (.status == \"queued\" or .status == \"in_progress\" or .status == \"waiting\" or .status == \"pending\"))] | length" 2>/dev/null || echo 0)"
+            if [ "${active:-0}" -gt 0 ]; then
+              target=none
+              state=EXPERIMENT_IN_PROGRESS
+            else
+              runners="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runners?per_page=100" 2>/dev/null || printf '{"runners":[]}')"
+              zbook="$(printf '%s' "$runners" | jq -r '[.runners[] | select((.name|ascii_downcase)=="zbook" and .status=="online" and (.busy|not))] | length')"
+              mac="$(printf '%s' "$runners" | jq -r '[.runners[] | select((.name|ascii_downcase)=="macbook" and .status=="online" and (.busy|not))] | length')"
+              if [ "$zbook" -gt 0 ]; then target=zbook
+              elif [ "$mac" -gt 0 ]; then target=macbook
+              fi
             fi
           fi
           printf 'target=%s\nstate=%s\n' "$target" "$state" >> "$GITHUB_OUTPUT"
-          printf '{"schemaVersion":2,"stage":"R2-v2","target":"%s","state":"%s","fallbackOrder":["zbook","macbook","github-hosted"],"checkedAt":"%s"}\n' "$target" "$state" "$(date -u +%FT%TZ)" > .gai-results/r2-v2-route.json
+          printf '{"schemaVersion":3,"stage":"R2-v2","target":"%s","state":"%s","fallbackOrder":["zbook","macbook","github-hosted"],"cancelInProgress":false,"checkedAt":"%s"}\n' "$target" "$state" "$(date -u +%FT%TZ)" > .gai-results/r2-v2-route.json
           cat .gai-results/r2-v2-route.json
       - name: Verify frozen suite and normalizer
         run: node --test tests/r2-fresh-v2.test.ts
