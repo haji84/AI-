@@ -40,14 +40,42 @@ jobs:
           ENV_FILE="$STATE_ROOT/jarvis.env"
           SYNC_FILE="$STATE_ROOT/vercel-api-sync.sha256"
           test -s "$ENV_FILE"
-          set -a
-          source "$ENV_FILE"
-          set +a
-          : "${JARVIS_PUBLIC_BROKER_URL:?missing JARVIS_PUBLIC_BROKER_URL}"
+
+          load_runtime() {
+            set -a
+            source "$ENV_FILE"
+            set +a
+          }
+          broker_is_live() {
+            [[ -n "${JARVIS_PUBLIC_BROKER_URL:-}" ]] && curl --fail --silent --show-error --max-time 8 "$JARVIS_PUBLIC_BROKER_URL/health" >/dev/null 2>&1
+          }
+
+          load_runtime
           : "${JARVIS_OWNER_TOKEN:?missing JARVIS_OWNER_TOKEN}"
           : "${VERCEL_TOKEN:?missing VERCEL_TOKEN}"
 
-          curl --fail --silent --show-error --max-time 10 "$JARVIS_PUBLIC_BROKER_URL/health" >/dev/null
+          if ! broker_is_live; then
+            echo "Stored Quick Tunnel is stale. Rotating the Broker tunnel automatically."
+            launchctl kickstart -k "gui/$(id -u)/com.aicompany.jarvis-broker" >/dev/null 2>&1 || true
+            launchctl kickstart -k "gui/$(id -u)/com.aicompany.jarvis-broker-tunnel" >/dev/null 2>&1 || true
+            sleep 5
+            launchctl kickstart -k "gui/$(id -u)/com.aicompany.jarvis-zero-touch" >/dev/null 2>&1 || true
+
+            refreshed=false
+            for _ in $(seq 1 30); do
+              sleep 2
+              load_runtime
+              if broker_is_live; then
+                refreshed=true
+                break
+              fi
+            done
+            [[ "$refreshed" == true ]] || { echo "Unable to obtain a healthy replacement Quick Tunnel URL." >&2; exit 2; }
+          fi
+
+          load_runtime
+          : "${JARVIS_PUBLIC_BROKER_URL:?missing JARVIS_PUBLIC_BROKER_URL after tunnel reconciliation}"
+          broker_is_live || { echo "JARVIS public Broker is not reachable after reconciliation." >&2; exit 3; }
 
           desired_hash="$(printf '%s\n%s\n%s\n%s' \
             "$JARVIS_PUBLIC_BROKER_URL" \
