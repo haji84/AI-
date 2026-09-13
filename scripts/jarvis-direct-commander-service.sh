@@ -15,6 +15,7 @@ if [[ -z "${JARVIS_COMMANDER_KEY:-}" ]]; then
   printf '\nJARVIS_COMMANDER_KEY=%q\n' "$JARVIS_COMMANDER_KEY" >> "$ENV_FILE"
   export JARVIS_COMMANDER_KEY
 fi
+export JARVIS_COMMANDER_HOST="${JARVIS_COMMANDER_HOST:-0.0.0.0}"
 NODE_BIN="$(command -v node || true)"
 [[ -x "$NODE_BIN" ]] || { echo "Node.js not found in LaunchAgent PATH" >&2; exit 3; }
 cd "$REPO_ROOT"
