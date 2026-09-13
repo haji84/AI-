@@ -13,10 +13,11 @@ import { createContextInspectCapability } from "../src/orchestrator/baseline-pla
 import { CapabilityRegistry } from "../src/orchestrator/capabilities.ts";
 import { ensureCloudGoal, applyCloudControl, CloudCompassStateStoreAdapter, GitHubRepositoryContextSource } from "../src/orchestrator/cloud-runtime.ts";
 import { compassGoalToLoopGoal } from "../src/orchestrator/compass-state-store.ts";
+import { CompassWorkStateStoreAdapter } from "../src/orchestrator/compass-work-state-store.ts";
 import { BoundedWorkspaceReader, RepositoryFileContextSource } from "../src/orchestrator/context-adapters.ts";
 import { dispatchAutonomyEvent, EventContextSource } from "../src/orchestrator/event-runtime.ts";
 import { applyExecutionReadyGoalDraft } from "../src/orchestrator/goal-draft-compass.ts";
-import { DefaultApprovalPolicy, GoalDrivenLoop, type Verifier } from "../src/orchestrator/goal-loop.ts";
+import { DefaultApprovalPolicy, type Verifier } from "../src/orchestrator/goal-loop.ts";
 import { githubRuntimeConfig, LiveGitHubReadClient } from "../src/orchestrator/github-live-client.ts";
 import { parseHumanGateShortcut, resolveHumanGateShortcut, type HumanGateShortcutResolution } from "../src/orchestrator/human-gate-shortcuts.ts";
 import { createLocalBlockerCapability, ModelBackedPlanner } from "../src/orchestrator/model-planner.ts";
@@ -28,6 +29,7 @@ import { DEFAULT_REASONING_SOFT_BUDGETS, type ReasoningSoftBudgets } from "../sr
 import { createSafePrProposalCapability } from "../src/orchestrator/safe-pr-capability.ts";
 import { TeamAwarePlanner } from "../src/orchestrator/team-aware-planner.ts";
 import { UnifiedPlanningClient } from "../src/orchestrator/unified-planning-client.ts";
+import { createWorkStateIntegratedGoalLoop } from "../src/orchestrator/work-state-integration.ts";
 
 const args = process.argv.slice(2);
 const mode = (args.find((v) => v.startsWith("--mode="))?.split("=")[1] ?? "status") as "run" | "pause" | "resume" | "status";
@@ -176,18 +178,21 @@ try {
         };
         const basePlanner = new ModelBackedPlanner(planningClient, new BoundedWorkspaceReader());
         const planner = new TeamAwarePlanner(basePlanner, { explicitBoundedPlan: Boolean(planningClient.command.plan) });
-        const loop = new GoalDrivenLoop(
+        const goalRecord = compass.getGoal();
+        if (!goalRecord) throw new Error("cloud goal bootstrap failed");
+        const goal = compassGoalToLoopGoal(goalRecord);
+        const loop = createWorkStateIntegratedGoalLoop({
+          goal,
           planner,
-          [new EventContextSource(event), new RepositoryFileContextSource(), new GitHubRepositoryContextSource(github)],
-          registry,
+          contextSources: [new EventContextSource(event), new RepositoryFileContextSource(), new GitHubRepositoryContextSource(github)],
+          executor: registry,
           verifier,
-          new CloudCompassStateStoreAdapter(compass),
-          new DefaultApprovalPolicy(),
-          { approvedActionKey: effectiveApprovedActionKey },
-        );
-        const goal = compass.getGoal();
-        if (!goal) throw new Error("cloud goal bootstrap failed");
-        report = await dispatchAutonomyEvent({ event, loop, goal: compassGoalToLoopGoal(goal), compass, maxCycles });
+          stateStore: new CloudCompassStateStoreAdapter(compass),
+          workStateStore: new CompassWorkStateStoreAdapter(compass),
+          approvalPolicy: new DefaultApprovalPolicy(),
+          options: { approvedActionKey: effectiveApprovedActionKey },
+        });
+        report = await dispatchAutonomyEvent({ event, loop, goal, compass, maxCycles });
       }
     }
   }
