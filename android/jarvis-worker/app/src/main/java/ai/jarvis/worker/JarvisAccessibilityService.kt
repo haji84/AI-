@@ -9,6 +9,7 @@ import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import org.json.JSONArray
 import org.json.JSONObject
+import java.util.ArrayDeque
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
@@ -24,6 +25,7 @@ class JarvisAccessibilityService : AccessibilityService() {
 
     private val goldfishTexts = setOf("床掘はちみつ", "春巻きプニさん", "ポイ活くんハチミツ")
     private val qrTexts = setOf("オオグンタマQR", "春巻QR", "ポイ活くんQR")
+    private val sheetMarkerTexts = (goldfishTexts + qrTexts).toList()
     private val errorTexts = listOf(
         "お友達のお手伝いが出来ませんでした",
         "あなたのアカウントでエラーが発生しました"
@@ -85,10 +87,41 @@ class JarvisAccessibilityService : AccessibilityService() {
         return JSONObject().put("executed", results.length()).put("steps", results)
     }
 
+    private fun normalizeText(value: CharSequence?): String =
+        value?.toString()?.lowercase()?.replace(Regex("\\s+"), "") ?: ""
+
+    private fun findTextNode(text: String): AccessibilityNodeInfo? {
+        val root = rootInActiveWindow ?: return null
+        root.findAccessibilityNodeInfosByText(text).firstOrNull()?.let { return it }
+
+        val target = normalizeText(text)
+        val queue = ArrayDeque<AccessibilityNodeInfo>()
+        queue.add(root)
+        var visited = 0
+        while (queue.isNotEmpty() && visited < 600) {
+            val node = queue.removeFirst()
+            visited++
+            val visible = normalizeText(node.text) + normalizeText(node.contentDescription)
+            if (visible.contains(target)) return node
+            for (i in 0 until node.childCount) {
+                node.getChild(i)?.let(queue::addLast)
+            }
+        }
+        return null
+    }
+
     private fun clickText(text: String): Boolean {
-        val root = rootInActiveWindow ?: return false
-        val node = root.findAccessibilityNodeInfosByText(text).firstOrNull() ?: return false
+        val node = findTextNode(text) ?: return false
         return clickNodeOrParent(node)
+    }
+
+    private fun clickTextOnlyRetry(text: String, timeoutMs: Long): Boolean {
+        val deadline = SystemClock.uptimeMillis() + timeoutMs
+        do {
+            if (clickText(text)) return true
+            SystemClock.sleep(250)
+        } while (SystemClock.uptimeMillis() < deadline)
+        return false
     }
 
     private fun clickTextRetry(text: String, timeoutMs: Long): Boolean {
@@ -107,7 +140,6 @@ class JarvisAccessibilityService : AccessibilityService() {
                             timeoutMs = 30_000,
                             stage = "QR"
                         )
-                        // QR success is the end of this TikTok Lite run. Exit the app surface.
                         performGlobalAction(GLOBAL_ACTION_HOME)
                     }
                 }
@@ -132,21 +164,36 @@ class JarvisAccessibilityService : AccessibilityService() {
         throw IllegalStateException("$stage 完了画面を確認できませんでした")
     }
 
+    private fun waitForAnyText(candidates: List<String>, timeoutMs: Long): String? {
+        val deadline = SystemClock.uptimeMillis() + timeoutMs
+        do {
+            val visible = firstVisibleText(candidates)
+            if (visible != null) return visible
+            SystemClock.sleep(250)
+        } while (SystemClock.uptimeMillis() < deadline)
+        return null
+    }
+
     private fun firstVisibleText(candidates: List<String>): String? {
-        val root = rootInActiveWindow ?: return null
         for (text in candidates) {
-            if (root.findAccessibilityNodeInfosByText(text).isNotEmpty()) return text
+            if (findTextNode(text) != null) return text
         }
         return null
     }
 
     /**
-     * Search only the currently visible app surface for the named item.
-     * Never issue BACK automatically: doing so can escape the Sheets file list and
-     * repeatedly walk the device backwards when the text is temporarily unavailable.
+     * Open a named item on the current surface without issuing BACK automatically.
+     * For the TikTok Lite spreadsheet, support both Sheets list and card/grid layouts,
+     * then verify the actual document opened by waiting for a known in-sheet task label.
      */
     private fun ensureOpenText(text: String, timeoutMs: Long): Boolean {
-        return clickTextRetry(text, timeoutMs)
+        if (!clickTextOnlyRetry(text, timeoutMs)) return false
+        if (normalizeText(text) != normalizeText("TikTok Lite")) return true
+        val marker = waitForAnyText(sheetMarkerTexts, 12_000)
+        if (marker == null) {
+            throw IllegalStateException("TikTok Lite ファイルを開いたことを確認できませんでした")
+        }
+        return true
     }
 
     private fun clickViewId(viewId: String): Boolean {
@@ -169,7 +216,7 @@ class JarvisAccessibilityService : AccessibilityService() {
         val root = rootInActiveWindow ?: return false
         val node = when {
             step.has("viewId") -> root.findAccessibilityNodeInfosByViewId(step.getString("viewId")).firstOrNull()
-            step.has("label") -> root.findAccessibilityNodeInfosByText(step.getString("label")).firstOrNull()
+            step.has("label") -> findTextNode(step.getString("label"))
             else -> root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
         } ?: return false
         val args = Bundle().apply {
