@@ -101,6 +101,7 @@ export interface WorkerExecutionRequest {
   requiredExecutionMode?: WorkerExecutionMode;
   connectivity?: WorkerConnectivity;
   allowOffline?: boolean;
+  excludedWorkerIds?: string[];
 }
 
 export interface WorkerExecutionResult {
@@ -156,8 +157,10 @@ export class MultiWorkerRuntime {
   async select(request: WorkerExecutionRequest): Promise<WorkerSelection> {
     const healthy = new Map((await this.preflight()).map((item) => [item.workerId, item]));
     const required = request.requiredCapabilities ?? [];
+    const excluded = new Set(request.excludedWorkerIds ?? []);
     const candidates = this.workers
       .filter((worker) => worker.descriptor.enabled)
+      .filter((worker) => !excluded.has(worker.descriptor.id))
       .filter((worker) => healthy.get(worker.descriptor.id)?.available)
       .filter((worker) => required.every((capability) => worker.descriptor.capabilities.includes(capability)))
       .filter((worker) => !request.requestedCapability || worker.descriptor.capabilities.includes(request.requestedCapability))
