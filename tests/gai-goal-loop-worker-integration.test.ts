@@ -140,8 +140,10 @@ test("worker execution failure returns into existing Goal Loop recovery path", a
 
   const report = await loop.runCycle({ goal });
   assert.equal(report.result?.ok, false);
-  assert.equal(report.result?.blocker, "WORKER_EXECUTION_FAILED");
+  assert.equal(report.result?.blocker, undefined);
+  assert.equal((report.result?.evidence as Record<string, unknown>).failureCode, "WORKER_EXECUTION_FAILED");
   assert.ok(report.recoveryDecision);
+  assert.equal(report.recoveryDecision?.blocked, false);
   assert.equal(report.stopReason, "continue");
 });
 
@@ -158,7 +160,8 @@ test("unmapped capability fails visibly without inventing a device route", async
   }, []);
 
   assert.equal(result.ok, false);
-  assert.equal(result.blocker, "WORKER_CAPABILITY_MAPPING_UNAVAILABLE");
+  assert.equal(result.blocker, undefined);
+  assert.equal((result.evidence as Record<string, unknown>).failureCode, "WORKER_CAPABILITY_MAPPING_UNAVAILABLE");
   assert.match(result.summary, /future\.android\.capability/);
 });
 
@@ -185,6 +188,7 @@ test("routing hints can express iOS/mobile constraints without Goal Loop platfor
     risk: "low",
   }, []);
   assert.equal(result.ok, false);
-  assert.equal(result.blocker, "WORKER_ROUTING_FAILED");
+  assert.equal(result.blocker, undefined);
+  assert.equal((result.evidence as Record<string, unknown>).failureCode, "WORKER_ROUTING_FAILED");
   assert.match(result.summary, /No healthy worker satisfies task/);
 });
