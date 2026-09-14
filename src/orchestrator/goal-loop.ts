@@ -129,6 +129,7 @@ export interface StateStore {
 
 export interface ApprovalPolicy {
   requiresApproval(action: ProposedAction): boolean;
+  authorizesRisk?(input: { goal: Goal; action: ProposedAction; riskDecision: RiskDecision }): boolean;
 }
 
 export class DefaultApprovalPolicy implements ApprovalPolicy {
@@ -267,9 +268,14 @@ export class GoalDrivenLoop {
       }, context);
     }
 
+    const delegatedRiskAuthorized = this.policy.authorizesRisk?.({
+      goal: input.goal,
+      action,
+      riskDecision,
+    }) === true;
     let approvalKey: string | null = null;
-    let approvalSatisfied = false;
-    if (riskDecision.humanApprovalRequired || this.policy.requiresApproval(action)) {
+    let approvalSatisfied = delegatedRiskAuthorized;
+    if ((riskDecision.humanApprovalRequired && !delegatedRiskAuthorized) || this.policy.requiresApproval(action)) {
       approvalKey = createApprovalKey(input.goal, action);
       approvalSatisfied = !this.approvalConsumed && this.approvedActionKey === approvalKey;
       if (!approvalSatisfied) {
