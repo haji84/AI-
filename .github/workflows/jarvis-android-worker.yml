@@ -13,7 +13,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   android-worker:
@@ -104,6 +104,33 @@ jobs:
           "$ANDROID_SDK_ROOT/build-tools/36.0.0/apksigner" verify --verbose "$SIGNED"
           shasum -a 256 "$SIGNED"
           launchctl kickstart -k "gui/$(id -u)/com.aicompany.jarvis-broker" >/dev/null 2>&1 || true
+      - name: Publish signed APK at stable GitHub URL
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          STATE_ROOT="$HOME/Library/Application Support/JARVIS"
+          SIGNED="$STATE_ROOT/jarvis-worker.apk"
+          TAG="jarvis-worker-latest"
+          test -s "$SIGNED"
+          if ! command -v gh >/dev/null 2>&1; then
+            brew install gh
+          fi
+          if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$TAG" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --title "JARVIS Worker" \
+              --notes "Stable signed JARVIS Worker APK. The asset at this tag is replaced automatically on every Worker build."
+          fi
+          gh release upload "$TAG" "$SIGNED#jarvis-worker.apk" --clobber --repo "$GITHUB_REPOSITORY"
+          FIXED_URL="https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/jarvis-worker.apk"
+          TMP_RELEASE="$RUNNER_TEMP/jarvis-worker-release.apk"
+          curl -fsSL --retry 5 --retry-delay 2 "$FIXED_URL" -o "$TMP_RELEASE"
+          test -s "$TMP_RELEASE"
+          cmp -s "$SIGNED" "$TMP_RELEASE"
+          echo "JARVIS Worker stable APK URL verified: $FIXED_URL"
       - name: Verify resident Broker serves Worker APK
         shell: bash
         run: |
