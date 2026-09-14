@@ -83,7 +83,11 @@ export class MemoryDurableTaskStore implements DurableTaskStore {
 }
 
 export class JsonFileDurableTaskStore implements DurableTaskStore {
-  constructor(private readonly filePath: string) {}
+  private readonly filePath: string;
+
+  constructor(filePath: string) {
+    this.filePath = filePath;
+  }
 
   async load(): Promise<DurableTaskSnapshot | null> {
     try {
@@ -128,9 +132,12 @@ function iso(now: Date): string {
 
 export class DurableTaskRuntime {
   private readonly tasks = new Map<string, DurableTask>();
+  private readonly store: DurableTaskStore;
   private loaded = false;
 
-  constructor(private readonly store: DurableTaskStore) {}
+  constructor(store: DurableTaskStore) {
+    this.store = store;
+  }
 
   async initialize(): Promise<void> {
     if (this.loaded) return;
