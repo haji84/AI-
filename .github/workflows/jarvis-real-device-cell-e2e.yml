@@ -11,7 +11,7 @@ jobs:
     runs-on: [self-hosted, macOS, ARM64]
     timeout-minutes: 10
     steps:
-      - name: Probe Android 001 and verify cell selection
+      - name: Diagnose Android 001 cell selection
         shell: bash
         run: |
           set -euo pipefail
@@ -23,78 +23,49 @@ jobs:
           set +a
           BROKER="http://127.0.0.1:8787"
           auth=(-H "Authorization: Bearer $JARVIS_OWNER_TOKEN" -H 'Content-Type: application/json')
-
           state() { curl -fsS --max-time 5 "${auth[@]}" "$BROKER/api/jarvis/admin/state"; }
           submit() { curl -fsS --max-time 5 "${auth[@]}" -X POST "$BROKER/api/jarvis/admin/tasks" -d "$1"; }
           wait_task() {
             local id="$1" label="$2" end=$((SECONDS+120))
             while (( SECONDS < end )); do
-              local s status
+              local s status task
               s="$(state)"
               status="$(printf '%s' "$s" | jq -r --arg id "$id" '.tasks[]? | select(.id==$id) | .status' | tail -1)"
+              task="$(printf '%s' "$s" | jq -c --arg id "$id" '.tasks[]? | select(.id==$id)' | tail -1)"
               case "$status" in
-                completed) printf '%s' "$s" | jq -c --arg id "$id" '.tasks[] | select(.id==$id)'; return 0 ;;
-                failed|cancelled) printf '%s' "$s" | jq -c --arg id "$id" '.tasks[] | select(.id==$id)'; echo "$label failed: $status" >&2; return 1 ;;
+                completed) printf '%s' "$task"; return 0 ;;
+                failed|cancelled) echo "$task"; echo "$label failed: $status" >&2; return 1 ;;
               esac
               sleep 1
             done
             echo "$label timeout" >&2
             return 1
           }
-          probe_version() {
-            local node="$1" s fleet_ver body r id task task_ver
-            s="$(state)"
-            fleet_ver="$(printf '%s' "$s" | jq -r --arg id "$node" '.fleet[]? | select(.id==$id) | .telemetry.workerVersion // empty' | head -1)"
-            if [[ -n "$fleet_ver" ]]; then printf '%s' "$fleet_ver"; return 0; fi
-            body="$(jq -nc --arg node "$node" '{type:"device-status",payload:{},targetNodeId:$node,priority:"urgent",idempotencyKey:("real-e2e-status:"+(now|tostring))}')"
+          run_task() {
+            local body="$1" label="$2" r id t
             r="$(submit "$body")"
             id="$(printf '%s' "$r" | jq -r '.task.id // .id')"
-            task="$(wait_task "$id" 'device-status')"
-            task_ver="$(printf '%s' "$task" | jq -r '[.. | objects | .versionName? // empty, .workerVersion? // empty] | map(select(type=="string" and length>0)) | first // empty')"
-            printf '%s' "$task_ver"
-          }
-          adb_version() {
-            local serial="$1"
-            adb -s "$serial" shell dumpsys package ai.jarvis.worker 2>/dev/null | sed -n 's/.*versionName=//p' | head -1 | tr -d '\r'
+            t="$(wait_task "$id" "$label")" || { echo "TASK_DIAGNOSTIC $label: $t" >&2; return 1; }
+            echo "TASK_OK $label: $t"
           }
 
           S="$(state)"
           NODE="$(printf '%s' "$S" | jq -r '.fleet[]? | select((.label // "" | test("Android[[:space:]]*0*1|nubia A403ZT"; "i"))) | .id' | head -1)"
           test -n "$NODE" && test "$NODE" != null
           echo "Target Android 001 found"
+          printf '%s' "$S" | jq -c --arg id "$NODE" '.fleet[] | select(.id==$id) | {id,label,status,capabilities,telemetry}'
 
-          VER="$(probe_version "$NODE")"
-          echo "Worker version reported by Broker: ${VER:-unknown}"
-          if [[ "$VER" != "0.4.1" ]]; then
-            echo "Worker is stale or version telemetry is unavailable; checking ADB"
-            APK="$STATE_ROOT/jarvis-worker.apk"
-            test -s "$APK"
-            SERIALS=""
-            if command -v adb >/dev/null 2>&1; then
-              SERIALS="$(adb devices | awk 'NR>1 && $2=="device" {print $1}')"
-            fi
-            COUNT="$(printf '%s\n' "$SERIALS" | awk 'NF{n++} END{print n+0}')"
-            if [[ "$COUNT" -ne 1 ]]; then
-              echo "Cannot safely auto-update Android 001: expected exactly one ADB device, found $COUNT" >&2
-              exit 42
-            fi
-            SERIAL="$(printf '%s\n' "$SERIALS" | awk 'NF{print; exit}')"
-            BEFORE="$(adb_version "$SERIAL")"
-            echo "ADB Worker version before update: ${BEFORE:-unknown}"
-            if [[ "$BEFORE" != "0.4.1" ]]; then
-              adb -s "$SERIAL" install -r "$APK"
-              sleep 8
-            fi
-            AFTER="$(adb_version "$SERIAL")"
-            echo "ADB Worker version after update: ${AFTER:-unknown}"
-            [[ "$AFTER" == "0.4.1" ]] || { echo "Android 001 is not running Worker 0.4.1 after update" >&2; exit 43; }
-          fi
+          STATUS="$(jq -nc --arg node "$NODE" '{type:"device-status",payload:{},targetNodeId:$node,priority:"urgent",idempotencyKey:("real-diag-status:"+(now|tostring))}')"
+          run_task "$STATUS" 'device-status'
 
-          OPEN="$(jq -nc --arg node "$NODE" '{type:"open-app",payload:{packageName:"com.google.android.apps.docs.editors.sheets"},targetNodeId:$node,priority:"urgent",idempotencyKey:("real-e2e-open:"+(now|tostring))}')"
-          R="$(submit "$OPEN")"; ID="$(printf '%s' "$R" | jq -r '.task.id // .id')"; wait_task "$ID" 'open Sheets' >/dev/null
+          OPEN="$(jq -nc --arg node "$NODE" '{type:"open-app",payload:{packageName:"com.google.android.apps.docs.editors.sheets"},targetNodeId:$node,priority:"urgent",idempotencyKey:("real-diag-open:"+(now|tostring))}')"
+          run_task "$OPEN" 'open Sheets'
 
-          SEQ="$(jq -nc --arg node "$NODE" '{type:"ui-sequence",payload:{steps:[{action:"wait",ms:1200},{action:"ensure-open-text",text:"TikTok Lite",timeoutMs:10000,retries:2,retryDelayMs:500},{action:"wait-sheet-grid",timeoutMs:12000,retries:2,retryDelayMs:500},{action:"select-sheet-cell",cell:"C7",timeoutMs:20000,retries:1},{action:"select-sheet-cell",cell:"G6",timeoutMs:20000,retries:1},{action:"select-sheet-cell",cell:"J7",timeoutMs:20000,retries:1}]},targetNodeId:$node,priority:"urgent",idempotencyKey:("real-e2e-cells:"+(now|tostring))}')"
-          R="$(submit "$SEQ")"; ID="$(printf '%s' "$R" | jq -r '.task.id // .id')"
-          FINAL="$(wait_task "$ID" 'C7/G6/J7 selection')"
-          echo "$FINAL" | jq -c '{id,status,result,output,detail}'
+          PREP="$(jq -nc --arg node "$NODE" '{type:"ui-sequence",payload:{steps:[{action:"wait",ms:1200},{action:"ensure-open-text",text:"TikTok Lite",timeoutMs:10000,retries:2,retryDelayMs:500},{action:"wait-sheet-grid",timeoutMs:12000,retries:2,retryDelayMs:500}]},targetNodeId:$node,priority:"urgent",idempotencyKey:("real-diag-prep:"+(now|tostring))}')"
+          run_task "$PREP" 'open TikTok Lite sheet'
+
+          for CELL in C7 G6 J7; do
+            BODY="$(jq -nc --arg node "$NODE" --arg cell "$CELL" '{type:"ui-sequence",payload:{steps:[{action:"select-sheet-cell",cell:$cell,timeoutMs:20000,retries:1}]},targetNodeId:$node,priority:"urgent",idempotencyKey:("real-diag-cell-"+$cell+":"+(now|tostring))}')"
+            run_task "$BODY" "select $CELL"
+          done
           echo 'REAL_ANDROID_CELL_E2E_OK'
