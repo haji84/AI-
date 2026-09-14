@@ -104,9 +104,11 @@ jobs:
           if [[ -z "$LAN_IP" ]]; then LAN_IP="$(ipconfig getifaddr en1 2>/dev/null || true)"; fi
           [[ -n "$LAN_IP" ]] || { echo 'Could not determine MacBook LAN IPv4 address.' >&2; exit 5; }
 
-          LAN_URL="http://$LAN_IP:8790/c/$JARVIS_COMMANDER_KEY"
-          LOCAL_URL="http://127.0.0.1:8790/c/$JARVIS_COMMANDER_KEY"
+          ENCODED_KEY="$(python3 -c 'import sys,urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=""))' "$JARVIS_COMMANDER_KEY")"
+          LAN_URL="http://$LAN_IP:8790/c/$ENCODED_KEY"
+          LOCAL_URL="http://127.0.0.1:8790/c/$ENCODED_KEY"
           echo "::add-mask::$JARVIS_COMMANDER_KEY"
+          echo "::add-mask::$ENCODED_KEY"
           echo "::add-mask::$LAN_URL"
           echo "::add-mask::$LOCAL_URL"
           printf '%s\n' "$LAN_URL" > "$STATE_ROOT/commander-lan-url.txt"
@@ -163,8 +165,10 @@ jobs:
           [[ -n "$PUBLIC" ]] || exit 0
           set -a; source "$ENV_FILE"; set +a
           [[ -n "${JARVIS_COMMANDER_KEY:-}" ]] || exit 0
-          REMOTE="$PUBLIC/c/$JARVIS_COMMANDER_KEY"
+          ENCODED_KEY="$(python3 -c 'import sys,urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=""))' "$JARVIS_COMMANDER_KEY")"
+          REMOTE="$PUBLIC/c/$ENCODED_KEY"
           echo "::add-mask::$JARVIS_COMMANDER_KEY"
+          echo "::add-mask::$ENCODED_KEY"
           echo "::add-mask::$REMOTE"
           printf '%s\n' "$REMOTE" > "$STATE_ROOT/commander-url.txt"
           chmod 600 "$STATE_ROOT/commander-url.txt"
