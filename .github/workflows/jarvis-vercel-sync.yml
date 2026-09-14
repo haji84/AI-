@@ -9,6 +9,7 @@ on:
       - 'scripts/jarvis-mac-zero-touch.sh'
       - 'src/app/jarvis/**'
       - 'src/app/api/jarvis/**'
+      - 'src/app/downloads/jarvis-worker.apk/**'
       - '.github/workflows/jarvis-vercel-sync.yml'
   workflow_dispatch:
 
