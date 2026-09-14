@@ -1,0 +1,68 @@
+name: JARVIS Real Android Cell E2E
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/jarvis-real-device-cell-e2e.yml'
+
+jobs:
+  real-device-cell-e2e:
+    runs-on: [self-hosted, macOS, ARM64]
+    timeout-minutes: 8
+    steps:
+      - name: Probe Android 001 and verify cell selection
+        shell: bash
+        run: |
+          set -euo pipefail
+          STATE_ROOT="$HOME/Library/Application Support/JARVIS"
+          ENV_FILE="$STATE_ROOT/jarvis.env"
+          test -s "$ENV_FILE"
+          set -a
+          source "$ENV_FILE"
+          set +a
+          BROKER="http://127.0.0.1:8787"
+          auth=(-H "Authorization: Bearer $JARVIS_OWNER_TOKEN" -H 'Content-Type: application/json')
+
+          state() { curl -fsS --max-time 5 "${auth[@]}" "$BROKER/api/jarvis/admin/state"; }
+          submit() { curl -fsS --max-time 5 "${auth[@]}" -X POST "$BROKER/api/jarvis/admin/tasks" -d "$1"; }
+          wait_task() {
+            local id="$1" label="$2" end=$((SECONDS+120))
+            while (( SECONDS < end )); do
+              local s status
+              s="$(state)"
+              status="$(printf '%s' "$s" | jq -r --arg id "$id" '.tasks[]? | select(.id==$id) | .status' | tail -1)"
+              case "$status" in
+                completed) printf '%s' "$s" | jq -c --arg id "$id" '.tasks[] | select(.id==$id)'; return 0 ;;
+                failed|cancelled) printf '%s' "$s" | jq -c --arg id "$id" '.tasks[] | select(.id==$id)'; echo "$label failed: $status" >&2; return 1 ;;
+              esac
+              sleep 1
+            done
+            echo "$label timeout" >&2
+            return 1
+          }
+
+          S="$(state)"
+          NODE="$(printf '%s' "$S" | jq -r '.fleet[]? | select((.label // "" | test("Android[[:space:]]*0*1|nubia A403ZT"; "i"))) | .id' | head -1)"
+          test -n "$NODE" && test "$NODE" != null
+          echo "Target Android 001 found"
+
+          BODY="$(jq -nc --arg node "$NODE" '{type:"device-status",payload:{},targetNodeId:$node,priority:"urgent",idempotencyKey:("real-e2e-status:"+(now|tostring))}')"
+          R="$(submit "$BODY")"
+          ID="$(printf '%s' "$R" | jq -r '.task.id // .id')"
+          T="$(wait_task "$ID" 'device-status')"
+          VER="$(printf '%s' "$T" | jq -r '.result.workerVersion // .result.detail.workerVersion // .result.versionName // .detail.workerVersion // empty')"
+          echo "Worker version reported: ${VER:-unknown}"
+          if [[ "$VER" != "0.4.1" ]]; then
+            echo "Android 001 is not running Worker 0.4.1; real cell E2E must not continue on stale code" >&2
+            exit 42
+          fi
+
+          OPEN="$(jq -nc --arg node "$NODE" '{type:"open-app",payload:{packageName:"com.google.android.apps.docs.editors.sheets"},targetNodeId:$node,priority:"urgent",idempotencyKey:("real-e2e-open:"+(now|tostring))}')"
+          R="$(submit "$OPEN")"; ID="$(printf '%s' "$R" | jq -r '.task.id // .id')"; wait_task "$ID" 'open Sheets' >/dev/null
+
+          SEQ="$(jq -nc --arg node "$NODE" '{type:"ui-sequence",payload:{steps:[{action:"wait",ms:1200},{action:"ensure-open-text",text:"TikTok Lite",timeoutMs:10000,retries:2,retryDelayMs:500},{action:"wait-sheet-grid",timeoutMs:12000,retries:2,retryDelayMs:500},{action:"select-sheet-cell",cell:"C7",timeoutMs:20000,retries:1},{action:"select-sheet-cell",cell:"G6",timeoutMs:20000,retries:1},{action:"select-sheet-cell",cell:"J7",timeoutMs:20000,retries:1}]},targetNodeId:$node,priority:"urgent",idempotencyKey:("real-e2e-cells:"+(now|tostring))}')"
+          R="$(submit "$SEQ")"; ID="$(printf '%s' "$R" | jq -r '.task.id // .id')"
+          FINAL="$(wait_task "$ID" 'C7/G6/J7 selection')"
+          echo "$FINAL" | jq -c '{id,status,result}'
+          echo 'REAL_ANDROID_CELL_E2E_OK'
