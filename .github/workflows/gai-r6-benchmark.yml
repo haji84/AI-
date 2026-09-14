@@ -23,6 +23,9 @@ jobs:
       GAI_WORKER_ID: zbook
       GAI_LOCAL_MODEL_ENDPOINT: http://127.0.0.1:11434
       GAI_LOCAL_MODEL_NAME: qwen3:4b
+      GAI_BENCHMARK_CONCURRENCY: '1'
+      GAI_BENCHMARK_CASE_TIMEOUT_MS: '120000'
+      GAI_GPU_SAMPLE_INTERVAL_MS: '1000'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -47,8 +50,9 @@ jobs:
           $tags = Invoke-RestMethod -Uri "$($env:GAI_LOCAL_MODEL_ENDPOINT)/api/tags" -TimeoutSec 10
           $names = @($tags.models | ForEach-Object { if ($_.name) { $_.name } elseif ($_.model) { $_.model } })
           if (-not ($names | Where-Object { $_ -eq $env:GAI_LOCAL_MODEL_NAME -or $_ -like "$($env:GAI_LOCAL_MODEL_NAME):*" })) { throw "Required model $($env:GAI_LOCAL_MODEL_NAME) is not installed" }
+          Write-Host "Benchmark settings: concurrency=$($env:GAI_BENCHMARK_CONCURRENCY) timeoutMs=$($env:GAI_BENCHMARK_CASE_TIMEOUT_MS) gpuSampleMs=$($env:GAI_GPU_SAMPLE_INTERVAL_MS)"
 
-      - name: Execute real R6 Benchmark Suite v1.1
+      - name: Execute real R6 Benchmark Suite v1.1 with telemetry
         shell: powershell
         run: node scripts/gai-baseline-v11.mjs --real
 
