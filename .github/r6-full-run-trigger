@@ -1,0 +1,4 @@
+R6 full benchmark trigger
+Calibration: concurrency=1, caseTimeoutMs=120000
+Requested: 2026-09-14
+Issue: #530
