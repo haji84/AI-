@@ -21,7 +21,6 @@ if [[ -z "${JARVIS_COMMANDER_KEY:-}" ]]; then
 fi
 export JARVIS_COMMANDER_HOST="${JARVIS_COMMANDER_HOST:-0.0.0.0}"
 export JARVIS_COMMANDER_PORT="${JARVIS_COMMANDER_PORT:-8790}"
-
 if command -v lsof >/dev/null 2>&1; then
   for pid in $(lsof -tiTCP:"$JARVIS_COMMANDER_PORT" -sTCP:LISTEN 2>/dev/null || true); do
     command_line="$(ps -p "$pid" -o command= 2>/dev/null || true)"
@@ -36,4 +35,4 @@ fi
 NODE_BIN="$(command -v node || true)"
 [[ -x "$NODE_BIN" ]] || { echo "Node.js not found in LaunchAgent PATH" >&2; exit 3; }
 cd "$REPO_ROOT"
-exec "$NODE_BIN" scripts/jarvis-direct-commander-v4.mjs
+exec "$NODE_BIN" scripts/jarvis-direct-commander-v5.mjs
