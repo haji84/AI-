@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
-import { buildUnifiedAutonomyDecision } from "../src/orchestrator/unified-autonomy-path";
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
+import { buildUnifiedAutonomyDecision } from "../src/orchestrator/unified-autonomy-path.ts";
 
 describe("unified autonomy safety contract", () => {
   it("does not treat a generic command as production delegation", () => {
@@ -10,9 +11,9 @@ describe("unified autonomy safety contract", () => {
       riskSignals: { productionDeploy: true },
     });
 
-    expect(decision.risk.level).toBe("HIGH");
-    expect(decision.canProceed).toBe(false);
-    expect(decision.humanApprovalRequired).toBe(true);
+    assert.equal(decision.risk.level, "HIGH");
+    assert.equal(decision.canProceed, false);
+    assert.equal(decision.humanApprovalRequired, true);
   });
 
   it("keeps critical policy changes blocked even under completion delegation", () => {
@@ -23,8 +24,8 @@ describe("unified autonomy safety contract", () => {
       riskSignals: { humanGatePolicyRelaxation: true },
     });
 
-    expect(decision.authorization).toBeDefined();
-    expect(decision.risk.level).toBe("CRITICAL");
-    expect(decision.canProceed).toBe(false);
+    assert.notEqual(decision.authorization, undefined);
+    assert.equal(decision.risk.level, "CRITICAL");
+    assert.equal(decision.canProceed, false);
   });
 });

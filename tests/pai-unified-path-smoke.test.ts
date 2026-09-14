@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
-import { runUnifiedAutonomyPath } from "../src/orchestrator/unified-autonomy-path";
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
+import { runUnifiedAutonomyPath } from "../src/orchestrator/unified-autonomy-path.ts";
 
 describe("PAI unified path smoke", () => {
   it("returns execution result for approved work", async () => {
@@ -8,6 +9,6 @@ describe("PAI unified path smoke", () => {
       goal: "Complete work",
       definitionOfDone: ["verified complete"],
     }, { execute: async () => ({ ok: true }) });
-    expect(output.result).toEqual({ ok: true });
+    assert.deepEqual(output.result, { ok: true });
   });
 });

@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
-import { buildUnifiedAutonomyDecision } from "../src/orchestrator/unified-autonomy-path";
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
+import { buildUnifiedAutonomyDecision } from "../src/orchestrator/unified-autonomy-path.ts";
 
 describe("PAI low-risk autonomy", () => {
   it("proceeds autonomously", () => {
@@ -8,6 +9,6 @@ describe("PAI low-risk autonomy", () => {
       goal: "Complete work",
       definitionOfDone: ["verified complete"],
     });
-    expect(decision.canProceed).toBe(true);
+    assert.equal(decision.canProceed, true);
   });
 });

@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
-import { buildUnifiedAutonomyDecision } from "../src/orchestrator/unified-autonomy-path";
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
+import { buildUnifiedAutonomyDecision } from "../src/orchestrator/unified-autonomy-path.ts";
 
 describe("PAI critical execution block", () => {
   it("blocks unrecoverable destruction regardless of completion delegation", () => {
@@ -9,7 +10,7 @@ describe("PAI critical execution block", () => {
       definitionOfDone: ["verified complete"],
       riskSignals: { unrecoverableProductionDestruction: true },
     });
-    expect(decision.canProceed).toBe(false);
-    expect(decision.blocker).toBe("risk:critical");
+    assert.equal(decision.canProceed, false);
+    assert.equal(decision.blocker, "risk:critical");
   });
 });

@@ -1,5 +1,5 @@
-import { createTaskCompletionAuthorization } from "./task-authorization";
-import { evaluateRiskPolicy, type MediumRiskChecks, type RiskSignals } from "./risk-policy";
+import { createTaskCompletionAuthorization } from "./task-authorization.ts";
+import { evaluateRiskPolicy, type MediumRiskChecks, type RiskSignals } from "./risk-policy.ts";
 
 export interface UnifiedAutonomyGoal {
   command: string;

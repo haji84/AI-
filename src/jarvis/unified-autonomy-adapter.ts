@@ -1,4 +1,4 @@
-import type { JarvisAutonomyAdapter } from "../orchestrator/unified-autonomy-path";
+import type { JarvisAutonomyAdapter } from "../orchestrator/unified-autonomy-path.ts";
 
 export interface JarvisAutonomyExecutor<T = unknown> {
   enqueueGoal(input: {

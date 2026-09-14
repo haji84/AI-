@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
-import { buildUnifiedAutonomyDecision } from "../src/orchestrator/unified-autonomy-path";
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
+import { buildUnifiedAutonomyDecision } from "../src/orchestrator/unified-autonomy-path.ts";
 
 describe("PAI medium-risk autonomy", () => {
   it("uses completion delegation for main merge", () => {
@@ -9,6 +10,6 @@ describe("PAI medium-risk autonomy", () => {
       definitionOfDone: ["verified complete"],
       riskSignals: { mainMerge: true },
     });
-    expect(decision.canProceed).toBe(true);
+    assert.equal(decision.canProceed, true);
   });
 });

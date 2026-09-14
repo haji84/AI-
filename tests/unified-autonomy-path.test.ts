@@ -1,5 +1,6 @@
-import { describe, expect, it, vi } from "vitest";
-import { buildUnifiedAutonomyDecision, runUnifiedAutonomyPath } from "../src/orchestrator/unified-autonomy-path";
+import assert from "node:assert/strict";
+import { describe, it, mock } from "node:test";
+import { buildUnifiedAutonomyDecision, runUnifiedAutonomyPath } from "../src/orchestrator/unified-autonomy-path.ts";
 
 describe("unified autonomy path", () => {
   it("allows ordinary low-risk work without human approval", () => {
@@ -9,9 +10,9 @@ describe("unified autonomy path", () => {
       definitionOfDone: ["requested work is completed", "result is verified"],
     });
 
-    expect(decision.risk.level).toBe("LOW");
-    expect(decision.canProceed).toBe(true);
-    expect(decision.humanApprovalRequired).toBe(false);
+    assert.equal(decision.risk.level, "LOW");
+    assert.equal(decision.canProceed, true);
+    assert.equal(decision.humanApprovalRequired, false);
   });
 
   it("uses task-completion delegation to continue medium-risk work", () => {
@@ -22,9 +23,9 @@ describe("unified autonomy path", () => {
       riskSignals: { mainMerge: true },
     });
 
-    expect(decision.authorization?.allowLowMediumMainMerge).toBe(true);
-    expect(decision.risk.level).toBe("MEDIUM");
-    expect(decision.canProceed).toBe(true);
+    assert.equal(decision.authorization?.allowLowMediumMainMerge, true);
+    assert.equal(decision.risk.level, "MEDIUM");
+    assert.equal(decision.canProceed, true);
   });
 
   it("never bypasses critical risk blocks", () => {
@@ -35,13 +36,19 @@ describe("unified autonomy path", () => {
       riskSignals: { protectionOrAuditDisable: true },
     });
 
-    expect(decision.risk.level).toBe("CRITICAL");
-    expect(decision.canProceed).toBe(false);
-    expect(decision.blocker).toBe("risk:critical");
+    assert.equal(decision.risk.level, "CRITICAL");
+    assert.equal(decision.canProceed, false);
+    assert.equal(decision.blocker, "risk:critical");
   });
 
   it("hands approved work to the JARVIS adapter", async () => {
-    const execute = vi.fn(async () => ({ taskId: "task-1", status: "queued" }));
+    const execute = mock.fn(async (input: {
+      command: string;
+      goal: string;
+      definitionOfDone: string[];
+      targetNodeId?: string;
+      authorization?: unknown;
+    }) => (void input, { taskId: "task-1", status: "queued" }));
 
     const output = await runUnifiedAutonomyPath({
       command: "最後まで進めて",
@@ -50,12 +57,10 @@ describe("unified autonomy path", () => {
       targetNodeId: "android-1",
     }, { execute });
 
-    expect(output.decision.canProceed).toBe(true);
-    expect(execute).toHaveBeenCalledOnce();
-    expect(execute).toHaveBeenCalledWith(expect.objectContaining({
-      targetNodeId: "android-1",
-      goal: "Complete work on the selected device",
-    }));
-    expect(output.result).toEqual({ taskId: "task-1", status: "queued" });
+    assert.equal(output.decision.canProceed, true);
+    assert.equal(execute.mock.callCount(), 1);
+    assert.equal(execute.mock.calls[0]?.arguments[0].targetNodeId, "android-1");
+    assert.equal(execute.mock.calls[0]?.arguments[0].goal, "Complete work on the selected device");
+    assert.deepEqual(output.result, { taskId: "task-1", status: "queued" });
   });
 });

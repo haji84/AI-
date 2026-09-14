@@ -1,9 +1,16 @@
-import { describe, expect, it, vi } from "vitest";
-import { createJarvisAutonomyAdapter } from "../src/jarvis/unified-autonomy-adapter";
+import assert from "node:assert/strict";
+import { describe, it, mock } from "node:test";
+import { createJarvisAutonomyAdapter } from "../src/jarvis/unified-autonomy-adapter.ts";
 
 describe("JARVIS unified autonomy adapter", () => {
   it("passes goal, DoD, target and authorization scope into JARVIS execution", async () => {
-    const enqueueGoal = vi.fn(async () => ({ id: "task-42" }));
+    const enqueueGoal = mock.fn(async (input: {
+      command: string;
+      goal: string;
+      definitionOfDone: string[];
+      targetNodeId?: string;
+      authorizationScopeId?: string;
+    }) => (void input, { id: "task-42" }));
     const adapter = createJarvisAutonomyAdapter({ enqueueGoal });
 
     const result = await adapter.execute({
@@ -22,13 +29,13 @@ describe("JARVIS unified autonomy adapter", () => {
       },
     });
 
-    expect(enqueueGoal).toHaveBeenCalledWith({
+    assert.deepEqual(enqueueGoal.mock.calls[0]?.arguments[0], {
       command: "最後まで進めて",
       goal: "Finish the work",
       definitionOfDone: ["verified complete"],
       targetNodeId: "android-1",
       authorizationScopeId: "issue:42",
     });
-    expect(result).toEqual({ id: "task-42" });
+    assert.deepEqual(result, { id: "task-42" });
   });
 });
