@@ -27,7 +27,7 @@ concurrency:
 jobs:
   install-zbook:
     name: Install and verify ZBook resident Research Worker
-    runs-on: [self-hosted, zbook]
+    runs-on: [self-hosted, Windows, zbook]
     timeout-minutes: 30
     env:
       GAI_LOCAL_MODEL_ENDPOINT: http://127.0.0.1:11434
@@ -93,7 +93,7 @@ jobs:
   natural-command-e2e:
     name: Owner command to ZBook GPU to local model to result
     needs: [install-zbook, install-macbook]
-    runs-on: [self-hosted, zbook]
+    runs-on: [self-hosted, Windows, zbook]
     timeout-minutes: 15
     env:
       E2E_OWNER_COMMAND: この調査やっといて
