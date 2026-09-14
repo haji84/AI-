@@ -1,5 +1,6 @@
 import { resolve } from "node:path";
 
+import { GeneralResearchExecutor, createCapabilityBackedHostedResearchRunner } from "../gai/research-executor.ts";
 import { PersistentSkillLibrary, type SkillRecord } from "../gai/skill-library.ts";
 import { routeResearchWork, type ResearchWorkKind, type ResearchWorkerState } from "../gai/research-control-plane.ts";
 import type { ActionResult, CapabilityExecutor, ContextItem, ProposedAction } from "./goal-loop.ts";
@@ -39,6 +40,7 @@ export interface AutonomyDelegationOptions {
   env?: Record<string, string | undefined>;
   fetchImpl?: typeof fetch;
   skillLibrary?: PersistentSkillLibrary;
+  researchExecutor?: GeneralResearchExecutor;
   sleep?: (ms: number) => Promise<void>;
   jarvisPollIntervalMs?: number;
   jarvisTimeoutMs?: number;
@@ -135,6 +137,9 @@ export function createAutonomyDelegationCapability(options: AutonomyDelegationOp
   const skillLibrary = options.skillLibrary ?? new PersistentSkillLibrary(
     env.AUTONOMY_SKILL_LIBRARY_PATH?.trim() || resolve(process.cwd(), ".autonomy-state", "skills.json"),
   );
+  const researchExecutor = options.researchExecutor ?? new GeneralResearchExecutor({
+    hosted: createCapabilityBackedHostedResearchRunner(options.downstream),
+  });
 
   return {
     name: "autonomy.delegate",
@@ -230,21 +235,26 @@ export function createAutonomyDelegationCapability(options: AutonomyDelegationOp
         }
       }
       const researchKind = input.researchKind ?? "local-safe";
+      const query = input.query?.trim() || action.description;
       const route = routeResearchWork({
         id: action.id,
         kind: researchKind,
         preferredWorkerId: input.preferredWorkerId,
       }, workers);
-      return errorResult(
-        action,
-        route.action === "defer" ? route.queueState ?? "RESEARCH_DEFERRED" : "RESEARCH_EXECUTOR_UNAVAILABLE",
-        route.action === "run-hosted"
-          ? `Research control plane selected hosted execution, but no general research executor is registered yet: ${route.reason}`
-          : route.action === "run-worker"
-            ? `Research control plane selected worker ${route.workerId}, but no general research task adapter is registered yet`
-            : route.reason,
+      const result = await researchExecutor.execute({
+        id: action.id,
+        query,
+        kind: researchKind,
         route,
-      );
+        context,
+      });
+      return {
+        actionId: action.id,
+        ok: result.ok,
+        summary: result.summary,
+        blocker: result.blocker,
+        evidence: result.evidence,
+      };
     },
   };
 }
