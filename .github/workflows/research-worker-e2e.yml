@@ -24,7 +24,7 @@ concurrency:
 jobs:
   zbook-real:
     name: ZBook real local-model/GPU research E2E
-    runs-on: [self-hosted, Windows]
+    runs-on: [self-hosted, zbook]
     timeout-minutes: 30
     env:
       GAI_WORKER_ID: zbook
