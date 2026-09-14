@@ -1,6 +1,10 @@
 name: GAI R6 Benchmark v1.1
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/r6-full-run-trigger'
   workflow_run:
     workflows: ["GAI R1 Evidence Rerun"]
     types: [completed]
@@ -16,7 +20,7 @@ concurrency:
 jobs:
   r6-zbook:
     name: R6 real Benchmark v1.1 on ZBook
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: [self-hosted, Windows, X64]
     timeout-minutes: 180
     env:
