@@ -29,6 +29,8 @@ $token = (Get-Content $tokenPath -Raw).Trim()
 
 $launcher = @"
 `$ErrorActionPreference = 'Stop'
+# Do not let a GitHub Actions job cleanup tag this persistent worker as an orphan.
+Remove-Item Env:RUNNER_TRACKING_ID -ErrorAction SilentlyContinue
 `$env:GAI_WORKER_ID = '$WorkerId'
 `$env:GAI_LOCAL_MODEL_ENDPOINT = '$ModelEndpoint'
 `$env:GAI_LOCAL_MODEL_NAME = '$ModelName'
@@ -57,14 +59,22 @@ try {
   "@echo off`r`nstart `"`" powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$launcherPath`"`r`n" | Set-Content -Encoding ascii $fallback
 }
 
-Start-Process -FilePath 'powershell.exe' -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-WindowStyle','Hidden','-File',$launcherPath -WindowStyle Hidden
+if ($scheduled) {
+  # Launch through Task Scheduler so the resident process is not a descendant of
+  # the Actions Runner job and therefore survives GitHub's orphan cleanup.
+  Start-ScheduledTask -TaskName $taskName
+} else {
+  # Fallback for hosts where task registration is unavailable. The launcher
+  # clears RUNNER_TRACKING_ID before starting Node so Actions cleanup ignores it.
+  Start-Process -FilePath 'powershell.exe' -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-WindowStyle','Hidden','-File',$launcherPath -WindowStyle Hidden
+}
 
 $healthy = $false
-for ($i = 0; $i -lt 30; $i++) {
+for ($i = 0; $i -lt 40; $i++) {
   Start-Sleep -Milliseconds 500
   try {
     $health = Invoke-RestMethod -Uri "http://127.0.0.1:$Port/health" -Method Get -TimeoutSec 2
-    if ($health.ok -eq $true) { $healthy = $true; break }
+    if ($health.ok -eq $true -and $health.workerId -eq $WorkerId) { $healthy = $true; break }
   } catch {}
 }
 
