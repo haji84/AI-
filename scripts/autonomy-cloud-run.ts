@@ -9,6 +9,7 @@ import {
   staleCommandInvalidationOutcome,
   type AutonomyLifecycleOutcome,
 } from "../src/orchestrator/autonomy-run-outcome.ts";
+import { createAutonomyDelegationCapability } from "../src/orchestrator/autonomy-delegation.ts";
 import { createContextInspectCapability } from "../src/orchestrator/baseline-planner.ts";
 import { CapabilityRegistry } from "../src/orchestrator/capabilities.ts";
 import { ensureCloudGoal, applyCloudControl, CloudCompassStateStoreAdapter, GitHubRepositoryContextSource } from "../src/orchestrator/cloud-runtime.ts";
@@ -172,6 +173,7 @@ try {
           .register(createContextInspectCapability())
           .register(createLocalBlockerCapability())
           .register(createSafePrProposalCapability({ token, repository: config.repository }));
+        registry.register(createAutonomyDelegationCapability({ downstream: registry }));
         const verifier: Verifier = {
           async verify({ result }) {
             return { ok: result.ok, summary: result.ok ? "Cloud capability execution verified" : result.summary, evidence: result.evidence };
