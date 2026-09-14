@@ -1,0 +1,69 @@
+name: GAI R6 ZBook Calibration
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/gai-r6-calibration.yml'
+      - 'scripts/gai-r6-calibration.mjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gai-r6-zbook-calibration
+  cancel-in-progress: true
+
+jobs:
+  calibrate-zbook:
+    name: Compare concurrency 1 vs 2 on ZBook
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 60
+    env:
+      GAI_LOCAL_MODEL_ENDPOINT: http://127.0.0.1:11434
+      GAI_LOCAL_MODEL_NAME: qwen3:4b
+      GAI_CALIBRATION_SAMPLE_SIZE: '12'
+      GAI_CALIBRATION_CASE_TIMEOUT_MS: '120000'
+      GAI_GPU_SAMPLE_INTERVAL_MS: '1000'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ensure Ollama and qwen3:4b are reachable
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          function Test-Ollama {
+            try { Invoke-RestMethod -Uri "$($env:GAI_LOCAL_MODEL_ENDPOINT)/api/tags" -TimeoutSec 5 | Out-Null; return $true } catch { return $false }
+          }
+          if (-not (Test-Ollama)) {
+            $ollama = Get-Command ollama -ErrorAction SilentlyContinue
+            if ($ollama) { $exe = $ollama.Source } else { $exe = Join-Path $env:LOCALAPPDATA 'Programs\Ollama\ollama.exe' }
+            if (-not (Test-Path $exe)) { throw 'Ollama executable not found on ZBook' }
+            Start-Process -FilePath $exe -ArgumentList 'serve' -WindowStyle Hidden
+            $ready = $false
+            for ($i = 0; $i -lt 30; $i++) {
+              Start-Sleep -Seconds 2
+              if (Test-Ollama) { $ready = $true; break }
+            }
+            if (-not $ready) { throw 'Ollama API did not become reachable' }
+          }
+          $tags = Invoke-RestMethod -Uri "$($env:GAI_LOCAL_MODEL_ENDPOINT)/api/tags" -TimeoutSec 10
+          $names = @($tags.models | ForEach-Object { if ($_.name) { $_.name } elseif ($_.model) { $_.model } })
+          if (-not ($names | Where-Object { $_ -eq $env:GAI_LOCAL_MODEL_NAME -or $_ -like "$($env:GAI_LOCAL_MODEL_NAME):*" })) {
+            throw "Required model $($env:GAI_LOCAL_MODEL_NAME) is not installed"
+          }
+          nvidia-smi --query-gpu=name,memory.total --format=csv,noheader
+
+      - name: Run real calibration
+        shell: powershell
+        run: node scripts/gai-r6-calibration.mjs
+
+      - name: Upload calibration evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gai-r6-zbook-calibration
+          path: .gai-results/r6-zbook-calibration.json
+          if-no-files-found: error
+          retention-days: 90
