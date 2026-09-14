@@ -1,0 +1,6 @@
+R6 output-control PDCA canary
+Baseline: 70% with 24 timeouts
+Rejected optimization: /no_think + 96 tokens => 0%, empty outputs
+Candidate: Ollama think=false + 128 output tokens
+Development-only canary: 12 cases
+Issue: #539
