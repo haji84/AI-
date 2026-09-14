@@ -1,0 +1,89 @@
+name: JARVIS Broker Refresh
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/jarvis-broker.ts'
+      - '.github/workflows/jarvis-broker-refresh.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jarvis-broker-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: [self-hosted, macOS, ARM64]
+    timeout-minutes: 10
+    steps:
+      - name: Sync resident repository without touching tunnel
+        id: sync
+        shell: bash
+        run: |
+          set -euo pipefail
+          SERVICE="gui/$(id -u)/com.aicompany.jarvis-broker"
+          PID="$(launchctl print "$SERVICE" 2>/dev/null | awk '$1=="pid" && $2=="=" {print $3; exit}')"
+          test -n "$PID"
+          REPO_ROOT="$(lsof -a -p "$PID" -d cwd -Fn 2>/dev/null | sed -n 's/^n//p' | head -n 1)"
+          test -d "$REPO_ROOT/.git"
+          DIRTY="$(git -C "$REPO_ROOT" status --porcelain)"
+          BLOCKING="$(printf '%s\n' "$DIRTY" | grep -vE '^\?\? \.jarvis/$' || true)"
+          if [[ -n "$BLOCKING" ]]; then
+            echo 'Resident repo has local source changes; refusing overwrite.' >&2
+            printf '%s\n' "$BLOCKING" >&2
+            exit 1
+          fi
+          git -C "$REPO_ROOT" fetch origin main
+          git -C "$REPO_ROOT" merge --ff-only origin/main
+          echo "repo_root=$REPO_ROOT" >> "$GITHUB_OUTPUT"
+
+      - name: Capture public Broker URL before refresh
+        id: before
+        shell: bash
+        run: |
+          set -euo pipefail
+          ENV_FILE="$HOME/Library/Application Support/JARVIS/jarvis.env"
+          test -s "$ENV_FILE"
+          set -a; source "$ENV_FILE"; set +a
+          : "${JARVIS_PUBLIC_BROKER_URL:?missing public Broker URL}"
+          echo "::add-mask::$JARVIS_PUBLIC_BROKER_URL"
+          printf '%s\n' "$JARVIS_PUBLIC_BROKER_URL" > /tmp/jarvis-broker-url-before
+
+      - name: Restart Broker only
+        shell: bash
+        run: |
+          set -euo pipefail
+          BROKER="gui/$(id -u)/com.aicompany.jarvis-broker"
+          TUNNEL="gui/$(id -u)/com.aicompany.jarvis-broker-tunnel"
+          BEFORE_TUNNEL_PID="$(launchctl print "$TUNNEL" 2>/dev/null | awk '$1=="pid" && $2=="=" {print $3; exit}')"
+          test -n "$BEFORE_TUNNEL_PID"
+          launchctl kickstart -k "$BROKER"
+          for _ in $(seq 1 30); do
+            curl -fsS --max-time 2 http://127.0.0.1:8787/health >/dev/null 2>&1 && break
+            sleep 1
+          done
+          curl -fsS --max-time 3 http://127.0.0.1:8787/health | grep -Fq 'jarvis-broker'
+          AFTER_TUNNEL_PID="$(launchctl print "$TUNNEL" 2>/dev/null | awk '$1=="pid" && $2=="=" {print $3; exit}')"
+          [[ "$AFTER_TUNNEL_PID" == "$BEFORE_TUNNEL_PID" ]] || {
+            echo 'Broker tunnel process changed during Broker-only refresh.' >&2
+            exit 2
+          }
+
+      - name: Verify public Broker URL is unchanged and healthy
+        shell: bash
+        run: |
+          set -euo pipefail
+          ENV_FILE="$HOME/Library/Application Support/JARVIS/jarvis.env"
+          set -a; source "$ENV_FILE"; set +a
+          BEFORE="$(cat /tmp/jarvis-broker-url-before)"
+          [[ "$JARVIS_PUBLIC_BROKER_URL" == "$BEFORE" ]] || {
+            echo 'Public Broker URL changed unexpectedly.' >&2
+            exit 3
+          }
+          echo "::add-mask::$JARVIS_PUBLIC_BROKER_URL"
+          curl -fsS --max-time 10 "$JARVIS_PUBLIC_BROKER_URL/health" | grep -Fq 'jarvis-broker'
+          echo 'BROKER_REFRESH_PRESERVED_TUNNEL_URL'
