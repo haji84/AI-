@@ -191,21 +191,19 @@ test("uses previous failure and recovery evidence to avoid repeating the same st
   assert.ok((evidence.replanReasons?.length ?? 0) >= 1);
 });
 
-test("does not weaken a high-risk Human Gate action", async () => {
-  const delegate = new QueuePlanner([{
+test("does not weaken or mutate a high-risk Human Gate action without runtime signals", async () => {
+  const expected: ProposedAction = {
     id: "high:1",
     description: "production deployment",
     capability: "deploy.production",
     risk: "high",
     requiresHumanApproval: true,
     externalSideEffect: true,
-  }]);
+  };
+  const delegate = new QueuePlanner([expected]);
   const planner = new PlannerEnhancementPlanner(delegate);
   const action = await planner.proposeNextAction({ goal, intent, context: [] });
 
-  assert.equal(action?.risk, "high");
-  assert.equal(action?.requiresHumanApproval, true);
-  assert.equal(action?.externalSideEffect, true);
-  const evidence = metadata(action).plannerEnhancement as { replanned?: boolean };
-  assert.equal(evidence.replanned, false);
+  assert.deepEqual(action, expected);
+  assert.equal(metadata(action).plannerEnhancement, undefined);
 });
