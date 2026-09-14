@@ -16,8 +16,14 @@ function replaceOrThrow(before,after,label){
 
 replaceOrThrow(
   "function reqKey(req,url){const h=req.headers['x-jarvis-commander-key'];return typeof h==='string'&&h?h:(url.searchParams.get('key')||'')}",
-  "function reqKey(req,url){const h=req.headers['x-jarvis-commander-key'];if(typeof h==='string'&&h)return h;const p=url.pathname.split('/');const pathKey=(p[1]==='c'||p[1]==='e')&&p[2]?decodeURIComponent(p[2]):'';return url.searchParams.get('key')||pathKey}",
+  "function reqKey(req,url){const h=req.headers['x-jarvis-commander-key'];if(typeof h==='string'&&h)return h;const pathKey=url.pathname.startsWith('/c/')||url.pathname.startsWith('/e/')?decodeURIComponent(url.pathname.slice(3)):'';return url.searchParams.get('key')||pathKey}",
   'path auth',
+);
+
+replaceOrThrow(
+  "const key=decodeURIComponent(location.pathname.split('/').filter(Boolean).pop()||'');",
+  "const key=decodeURIComponent(location.pathname.startsWith('/c/')?location.pathname.slice(3):(location.pathname.split('/').filter(Boolean).pop()||''));",
+  'client path key',
 );
 
 replaceOrThrow(
@@ -49,7 +55,7 @@ replaceOrThrow(
 
 replaceOrThrow(
   "if(req.method==='GET'&&url.pathname===`/c/${encodeURIComponent(KEY)}`)return text(res,200,'text/html',PAGE);if(req.method==='GET'&&url.pathname==='/commander-v4.js')return text(res,200,'text/javascript',CLIENT);if(!auth(req,url))",
-  "if(req.method==='GET'&&url.pathname.startsWith('/e/')){if(!auth(req,url))return json(res,401,{message:'commander access denied'});const x=await broker('/api/jarvis/admin/enrollment',{method:'POST',body:JSON.stringify({mode:'quick',ttlMs:600000,maxDevices:1,group:'default'})});if(!x.oneTapUrl)return json(res,503,{message:'公開Broker URLが未設定です'});res.writeHead(302,{Location:x.oneTapUrl,'Cache-Control':'no-store, max-age=0','Referrer-Policy':'no-referrer'});return res.end()}if(req.method==='GET'&&url.pathname===`/c/${encodeURIComponent(KEY)}`)return text(res,200,'text/html',PAGE);if(req.method==='GET'&&url.pathname==='/commander-v4.js')return text(res,200,'text/javascript',CLIENT);if(!auth(req,url))",
+  "if(req.method==='GET'&&url.pathname.startsWith('/e/')){if(!auth(req,url))return json(res,401,{message:'commander access denied'});const x=await broker('/api/jarvis/admin/enrollment',{method:'POST',body:JSON.stringify({mode:'quick',ttlMs:600000,maxDevices:1,group:'default'})});if(!x.oneTapUrl)return json(res,503,{message:'公開Broker URLが未設定です'});res.writeHead(302,{Location:x.oneTapUrl,'Cache-Control':'no-store, max-age=0','Referrer-Policy':'no-referrer'});return res.end()}if(req.method==='GET'&&url.pathname.startsWith('/c/')){if(!auth(req,url))return json(res,401,{message:'commander access denied'});return text(res,200,'text/html',PAGE)}if(req.method==='GET'&&url.pathname==='/commander-v4.js')return text(res,200,'text/javascript',CLIENT);if(!auth(req,url))",
   'fixed enrollment route',
 );
 
