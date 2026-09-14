@@ -1,0 +1,114 @@
+name: Resident Research Worker E2E
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/install-research-worker-windows.ps1'
+      - 'scripts/install-research-worker-macos.sh'
+      - 'scripts/resident-research-command-e2e.ts'
+      - 'scripts/research-worker-service.ts'
+      - 'scripts/bootstrap-local-research-model.ps1'
+      - 'scripts/bootstrap-local-research-model.sh'
+      - 'src/gai/research-executor.ts'
+      - 'src/gai/research-control-plane.ts'
+      - 'src/orchestrator/task-authorization.ts'
+      - '.github/workflows/resident-research-worker-e2e.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: resident-research-worker-e2e
+  cancel-in-progress: true
+
+jobs:
+  install-zbook:
+    name: Install and verify ZBook resident Research Worker
+    runs-on: [self-hosted, zbook]
+    timeout-minutes: 30
+    env:
+      GAI_LOCAL_MODEL_ENDPOINT: http://127.0.0.1:11434
+      GAI_LOCAL_MODEL_NAME: qwen2.5:1.5b
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+      - name: Require ZBook runner
+        shell: powershell
+        run: |
+          if ('${{ runner.name }}' -ne 'ZBook') { throw 'Expected ZBook runner, got ${{ runner.name }}' }
+      - name: Bootstrap local model
+        shell: powershell
+        run: ./scripts/bootstrap-local-research-model.ps1
+      - name: Install resident service
+        shell: powershell
+        run: ./scripts/install-research-worker-windows.ps1 -WorkerId zbook -ModelName qwen2.5:1.5b
+      - name: Verify resident health
+        shell: powershell
+        run: |
+          $health = Invoke-RestMethod -Uri 'http://127.0.0.1:8795/health' -TimeoutSec 5
+          if ($health.ok -ne $true -or $health.workerId -ne 'zbook') { throw ($health | ConvertTo-Json -Depth 5) }
+          New-Item -ItemType Directory -Force .gai-results | Out-Null
+          $health | ConvertTo-Json -Depth 5 | Set-Content -Encoding UTF8 .gai-results/resident-zbook-health.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: resident-zbook-health
+          path: .gai-results/resident-zbook-health.json
+          retention-days: 30
+
+  install-macbook:
+    name: Install and verify MacBook resident Research Worker
+    runs-on: [self-hosted, macOS]
+    timeout-minutes: 30
+    env:
+      GAI_WORKER_ID: macbook
+      GAI_LOCAL_MODEL_ENDPOINT: http://127.0.0.1:11434
+      GAI_LOCAL_MODEL_NAME: qwen2.5:1.5b
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+      - name: Bootstrap local model
+        shell: bash
+        run: bash scripts/bootstrap-local-research-model.sh
+      - name: Install resident service
+        shell: bash
+        run: bash scripts/install-research-worker-macos.sh
+      - name: Verify resident health
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .gai-results
+          curl -fsS --max-time 5 http://127.0.0.1:8795/health | tee .gai-results/resident-macbook-health.json
+          node -e "const fs=require('fs'); const h=JSON.parse(fs.readFileSync('.gai-results/resident-macbook-health.json','utf8')); if(h.ok!==true || h.workerId!=='macbook') process.exit(2)"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: resident-macbook-health
+          path: .gai-results/resident-macbook-health.json
+          retention-days: 30
+
+  natural-command-e2e:
+    name: Owner command to ZBook GPU to local model to result
+    needs: [install-zbook, install-macbook]
+    runs-on: [self-hosted, zbook]
+    timeout-minutes: 15
+    env:
+      E2E_OWNER_COMMAND: この調査やっといて
+      E2E_MACBOOK_RESIDENT_VERIFIED: '1'
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+      - name: Run natural-command E2E against resident ZBook service
+        shell: powershell
+        run: node scripts/resident-research-command-e2e.ts
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: resident-research-command-e2e
+          path: .gai-results/resident-research-command-e2e.json
+          if-no-files-found: warn
+          retention-days: 30

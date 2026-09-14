@@ -33,6 +33,7 @@ test("natural owner wording delegates the current work without requiring formal 
   });
   assert.equal(requestsTaskCompletion("この仕事やっといて"), true);
   assert.equal(requestsTaskCompletion("この作業進めといて"), true);
+  assert.equal(requestsTaskCompletion("この調査やっといて"), true);
   assert.equal(requestsTaskCompletion("それやっておいて"), true);
   assert.equal(authorization?.scopeId, "command:natural-command");
   assert.equal(isTaskCompletionAuthorizationActive(authorization, "command:natural-command", now), true);
