@@ -25,9 +25,12 @@ test('generic Worker owns mechanics while Commander owns business recipe', () =>
 test('sheet references are coordinates, not visible C7/G6 text searches', () => {
   assert.match(accessibility, /data class SheetCellRef\(val column: String, val row: Int\)/);
   assert.match(accessibility, /parseSheetCellRef/);
-  assert.match(accessibility, /exactHeaderNode\(ref\.column, true\)/);
-  assert.match(accessibility, /exactHeaderNode\(ref\.row\.toString\(\), false\)/);
+  assert.match(accessibility, /headerNode\(ref\.column, true\)/);
+  assert.match(accessibility, /headerNode\(ref\.row\.toString\(\), false\)/);
   assert.match(accessibility, /tapCellIntersection\(ref\)/);
+  assert.match(accessibility, /normalizeSheetOrigin\(\)/);
+  assert.match(accessibility, /text\.contains\("COLUMN"\)/);
+  assert.match(accessibility, /text\.contains\("ROW"\)/);
   assert.doesNotMatch(accessibility, /findCellNode\(normalizedCell\)/);
 });
 
