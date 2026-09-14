@@ -1,4 +1,5 @@
-R6 full benchmark trigger
-Calibration: concurrency=1, caseTimeoutMs=120000
-Requested: 2026-09-14
-Issue: #530
+R6 optimized benchmark trigger
+Baseline: 84/120 (70%), heldout 65%, timeouts 24
+Optimization: /no_think + num_predict=96 + JSON mode + strict answer contracts
+Requested: 2026-09-15
+PDCA: reduce timeout and format failures without using heldout answers
