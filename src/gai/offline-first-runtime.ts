@@ -147,7 +147,7 @@ export class OfflineFirstExecutionCoordinator {
       const state = this.connectivity.state;
 
       if (!canRunForConnectivity(plan.networkRequirement, state, plan.allowOffline ?? true)) {
-        const waiting = await this.tasks.waitForConnectivity(
+        await this.tasks.waitForConnectivity(
           task.id,
           `network requirement ${plan.networkRequirement} cannot run while ${state}`,
           now,
