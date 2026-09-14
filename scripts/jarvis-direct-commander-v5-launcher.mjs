@@ -4,8 +4,8 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 // Commander v5 intentionally reuses the proven v4.1 UI and behavior.
-// v5 adds only the fixed device-enrollment entry point so button placement
-// and existing controls stay where users already expect them.
+// v5 adds only the fixed device-enrollment entry point and recipe-driven execution,
+// so button placement and existing controls stay where users already expect them.
 const sourcePath=new URL('./jarvis-direct-commander-v4.mjs',import.meta.url);
 let source=readFileSync(sourcePath,'utf8');
 
@@ -36,6 +36,15 @@ replaceOrThrow(
   "function boot(){load();$('wake').onclick=()=>send('wake-device',{},'画面を起こす');",
   "function boot(){load();$('addDevice').onclick=()=>window.open(location.origin+'/e/'+encodeURIComponent(key),'_blank');$('wake').onclick=()=>send('wake-device',{},'画面を起こす');",
   'device-add action',
+);
+
+const oldRecipe="const steps=[{action:'wait',ms:1000},{action:'ensure-open-text',text:'TikTok Lite',timeoutMs:10000},{action:'wait',ms:800},{action:'open-sheet-cell-link',cell:first.cell,stage:'goldfish',timeoutMs:45000},{action:'back'},{action:'wait',ms:1200},{action:'open-sheet-cell-link',cell:second.cell,stage:'qr',timeoutMs:45000}]";
+const newRecipe="const steps=[{action:'wait',ms:1000},{action:'ensure-open-text',text:'TikTok Lite',timeoutMs:10000,retries:2,retryDelayMs:500},{action:'wait-sheet-grid',timeoutMs:12000,retries:2,retryDelayMs:500},{action:'open-sheet-cell-link',cell:first.cell,timeoutMs:45000,retries:2,retryDelayMs:600},{action:'wait-outcome',label:'金魚',successTexts:['イベント詳細','獲得履歴'],errorTexts:['お友達のお手伝いが出来ませんでした','あなたのアカウントでエラーが発生しました'],timeoutMs:30000},{action:'back'},{action:'wait',ms:1200},{action:'wait-package',packageName:'com.google.android.apps.docs.editors.sheets',timeoutMs:10000,retries:2,retryDelayMs:500},{action:'open-sheet-cell-link',cell:second.cell,timeoutMs:45000,retries:2,retryDelayMs:600},{action:'wait-outcome',label:'QR',successTexts:['受け取りしました','マイQRコードを表示'],errorTexts:['お友達のお手伝いが出来ませんでした','あなたのアカウントでエラーが発生しました'],timeoutMs:30000},{action:'home'}]";
+replaceOrThrow(oldRecipe,newRecipe,'workflow recipe');
+replaceOrThrow(
+  "task('ui-sequence',{steps},node,'sheet-cell-link-flow','high')",
+  "task('workflow-recipe',{steps,recipeId:'tiktok-lite-sheet-v1'},node,'sheet-cell-link-flow','high')",
+  'workflow task type',
 );
 
 replaceOrThrow(
