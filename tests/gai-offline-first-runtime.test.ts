@@ -161,7 +161,9 @@ test("missing local worker capacity waits for resource instead of failing task",
 test("connectivity transitions emit bounded evidence and ignore duplicate state", async () => {
   const manager = new ConnectivityManager("online");
   const events: string[] = [];
-  manager.subscribe((event) => events.push(`${event.previous}->${event.current}:${event.reason}`));
+  manager.subscribe((event) => {
+    events.push(`${event.previous}->${event.current}:${event.reason}`);
+  });
   assert.equal(await manager.transition("online", "same"), null);
   await manager.transition("degraded", "packet loss");
   await manager.transition("offline", "no route");
