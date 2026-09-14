@@ -74,6 +74,7 @@ export interface HealingEvidence {
   attemptedWorkerIds?: string[];
   selectedFallbackWorkerId?: string;
   recovery: RecoveryDecision;
+  verificationRequired?: boolean;
 }
 
 const HARD_FAILURES = new Set<FailureKind>([
@@ -219,6 +220,7 @@ export class SelfHealingRuntime {
     let task: DurableTask;
     let fallbackResult: WorkerExecutionResult | undefined;
     let selectedFallbackWorkerId: string | undefined;
+    let verificationRequired = false;
 
     if (decision.action === "wait_connectivity") {
       task = await this.tasks.waitForConnectivity(input.task.id, failure.summary, now);
@@ -226,28 +228,30 @@ export class SelfHealingRuntime {
       task = await this.tasks.waitForResource(input.task.id, failure.summary, now);
     } else if (decision.action === "fallback_worker" && input.request) {
       try {
-        const request = { ...input.request, excludedWorkerIds: [...new Set([...(input.request.excludedWorkerIds ?? []), ...(decision.excludedWorkerIds ?? [])])] };
+        const request = {
+          ...input.request,
+          excludedWorkerIds: [...new Set([...(input.request.excludedWorkerIds ?? []), ...(decision.excludedWorkerIds ?? [])])],
+        };
         const selection = await this.workers.select(request);
         selectedFallbackWorkerId = selection.worker.descriptor.id;
+        const current = await this.tasks.get(input.task.id);
+        if (current && (current.status === "leased" || current.status === "running") && current.leaseOwner) {
+          await this.tasks.fail(current.id, current.leaseOwner, failure.summary, 0, now);
+        }
+        await this.tasks.lease(input.task.id, selectedFallbackWorkerId, 120_000, now);
+        await this.tasks.markRunning(input.task.id, selectedFallbackWorkerId, now);
         fallbackResult = await selection.worker.execute(request);
         if (fallbackResult.ok) {
-          const current = await this.tasks.get(input.task.id);
-          if (current?.status === "leased" || current?.status === "running") {
-            const owner = current.leaseOwner;
-            if (!owner) throw new Error(`Task ${current.id} has no lease owner during fallback completion`);
-            task = await this.tasks.complete(current.id, owner, {
-              recoveredBy: selectedFallbackWorkerId,
-              output: fallbackResult.output,
-              evidence: fallbackResult.evidence ?? null,
-              requiresVerification: true,
-            }, now);
-          } else {
-            task = current ?? input.task;
-          }
+          task = (await this.tasks.get(input.task.id)) ?? input.task;
+          verificationRequired = true;
         } else {
-          task = await this.tasks.waitForResource(input.task.id, `Fallback worker ${selectedFallbackWorkerId} also failed: ${fallbackResult.output}`, now);
+          task = await this.tasks.fail(input.task.id, selectedFallbackWorkerId, fallbackResult.output, 0, now);
         }
       } catch (error) {
+        const current = await this.tasks.get(input.task.id);
+        if (current && (current.status === "leased" || current.status === "running") && current.leaseOwner) {
+          await this.tasks.fail(current.id, current.leaseOwner, failure.summary, 0, now);
+        }
         task = await this.tasks.waitForResource(input.task.id, error instanceof Error ? error.message : String(error), now);
       }
     } else if (decision.action === "blocked") {
@@ -274,8 +278,39 @@ export class SelfHealingRuntime {
         attemptedWorkerIds: input.failedWorkerId ? [input.failedWorkerId] : undefined,
         selectedFallbackWorkerId,
         recovery: decision.recovery,
+        verificationRequired,
       },
     };
+  }
+
+  async completeAfterVerification(input: {
+    taskId: string;
+    workerId: string;
+    workerResult: WorkerExecutionResult;
+    verification: VerificationResult;
+    now?: Date;
+  }): Promise<DurableTask> {
+    const now = input.now ?? new Date();
+    if (!input.workerResult.ok) throw new Error("Cannot complete a failed worker result");
+    if (!input.verification.ok) {
+      return this.tasks.fail(
+        input.taskId,
+        input.workerId,
+        `verification failed: ${input.verification.summary}`,
+        0,
+        now,
+      );
+    }
+    return this.tasks.complete(input.taskId, input.workerId, {
+      recoveredBy: input.workerId,
+      output: input.workerResult.output,
+      workerEvidence: input.workerResult.evidence ?? null,
+      verification: {
+        ok: true,
+        summary: input.verification.summary,
+        evidence: input.verification.evidence ?? null,
+      },
+    }, now);
   }
 }
 
