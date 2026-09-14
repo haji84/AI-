@@ -25,6 +25,19 @@ test("explicit completion language creates task-scoped merge and Production auth
   assert.equal(isTaskProductionDeployAuthorizationActive(authorization, "issue:243", now), true);
 });
 
+test("natural owner wording delegates the current work without requiring formal completion language", () => {
+  const now = new Date("2026-09-15T00:00:00.000Z");
+  const authorization = createTaskCompletionAuthorization("この仕事やっといて", {
+    now,
+    idFactory: () => "natural-command",
+  });
+  assert.equal(requestsTaskCompletion("この仕事やっといて"), true);
+  assert.equal(requestsTaskCompletion("この作業進めといて"), true);
+  assert.equal(requestsTaskCompletion("それやっておいて"), true);
+  assert.equal(authorization?.scopeId, "command:natural-command");
+  assert.equal(isTaskCompletionAuthorizationActive(authorization, "command:natural-command", now), true);
+});
+
 test("generated fresh task completion binds Production authorization to its issue scope", () => {
   const now = new Date("2026-09-08T00:00:00.000Z");
   const authorization = createTaskCompletionAuthorization(
