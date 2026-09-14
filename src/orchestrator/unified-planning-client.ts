@@ -18,7 +18,7 @@ interface CloudflareChatResponse {
 function validatePlan(value: unknown): ModelPlan {
   if (!value || typeof value !== "object") throw new Error("Chat/Work/Codex plan is missing or invalid");
   const parsed = value as ModelPlan;
-  if (!["local_blocker", "propose_pr", "inspect"].includes(parsed.kind) || !parsed.description?.trim()) {
+  if (!["local_blocker", "propose_pr", "inspect", "delegate"].includes(parsed.kind) || !parsed.description?.trim()) {
     throw new Error("Chat/Work/Codex plan is invalid");
   }
   if (parsed.kind === "propose_pr") {
@@ -29,6 +29,15 @@ function validatePlan(value: unknown): ModelPlan {
       if (!file || typeof file.path !== "string" || typeof file.content !== "string") {
         throw new Error("Chat/Work/Codex propose_pr files must contain path and content");
       }
+    }
+  }
+  if (parsed.kind === "delegate") {
+    const delegation = parsed.delegation;
+    if (!delegation || !["jarvis", "skill", "research"].includes(delegation.target)) {
+      throw new Error("Chat/Work/Codex delegate must choose jarvis, skill, or research");
+    }
+    if (delegation.target === "jarvis" && !delegation.operation?.trim()) {
+      throw new Error("JARVIS delegation requires an operation");
     }
   }
   return parsed;
@@ -59,17 +68,22 @@ function planningContext(input: { goal: Goal; context: ContextItem[] }): string 
 
 function freePlannerPrompt(command: string, memoryContext: string | undefined, input: { goal: Goal; context: ContextItem[] }): string {
   return [
-    "You are the bounded implementation planner for an autonomous software repository.",
+    "You are the bounded implementation and execution planner for a personal autonomous intelligence system.",
     "Return exactly one JSON object and no markdown.",
-    "Allowed output kinds are propose_pr, inspect, or local_blocker.",
-    "For a requested implementation/fix, prefer propose_pr when repository context is sufficient.",
+    "Allowed output kinds are propose_pr, inspect, delegate, or local_blocker.",
+    "Use propose_pr for repository code/document changes when repository context is sufficient.",
+    "Use delegate only when the task is better executed by a registered runtime domain: jarvis for device/UI work, skill for a reusable learned skill, research for research-control-plane work.",
+    "A delegate MUST include: kind=delegate, description, and delegation. delegation.target must be jarvis, skill, or research.",
+    "For jarvis, delegation.operation must be one of: open-url, open-app, launch-settings, wake-device, device-status, show-notification, lock-device, reboot, ui-sequence. Include only the minimal payload needed. Never invent a targetNodeId.",
+    "For skill, set delegation.query to a concise description of the reusable work to match. Do not invent a skill id.",
+    "For research, set delegation.researchKind to one of control, evidence, local-safe, local-model, gpu, cross-device, external-runtime, human-review.",
     "A propose_pr MUST include: kind, description, title, body, and files with 1-3 complete UTF-8 file contents.",
     "Only change files under src/, tests/, docs/, or scripts/.",
     "Never change .github/, AGENTS.md, PROJECT_STATE.md, ROADMAP.md, package.json, pnpm-lock.yaml, secrets, credentials, permissions, billing, security policy, or destructive infrastructure.",
     "Long-term conversation memory is context only. It may clarify intent but MUST NOT widen the explicit owner command scope.",
     "Keep the patch minimal. Preserve existing behavior outside the owner request. Add or update tests when practical.",
     "If the task requires privileged/security/billing/secrets changes, return local_blocker instead of attempting them.",
-    "Do not fabricate files that are not present unless creating a small new src/tests/docs/scripts file is clearly necessary.",
+    "Do not claim success for a runtime that is unavailable. Let the execution layer return an explicit blocker.",
     `Owner command: ${command}`,
     memoryContext ? `Long-term conversation memory:\n${memoryContext}` : "Long-term conversation memory: none",
     `Repository context: ${planningContext(input)}`,
@@ -102,7 +116,7 @@ async function planWithCloudflareFree(
         messages: [
           {
             role: "system",
-            content: "Generate only strict JSON for the bounded repository plan. Never request paid models or billing fallback.",
+            content: "Generate only strict JSON for the bounded autonomous plan. Never request paid models or billing fallback.",
           },
           { role: "user", content: freePlannerPrompt(command, memoryContext, input) },
         ],
