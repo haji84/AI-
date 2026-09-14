@@ -1,0 +1,58 @@
+name: GAI R6 Output Canary
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/r6-output-canary-trigger'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gai-r6-output-canary
+  cancel-in-progress: true
+
+jobs:
+  canary-zbook:
+    name: R6 think-false canary on ZBook
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 30
+    env:
+      GAI_LOCAL_MODEL_ENDPOINT: http://127.0.0.1:11434
+      GAI_LOCAL_MODEL_NAME: qwen3:4b
+      GAI_CANARY_TIMEOUT_MS: '45000'
+      GAI_CANARY_NUM_PREDICT: '128'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Ensure Ollama and qwen3:4b are reachable
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tags = Invoke-RestMethod -Uri "$($env:GAI_LOCAL_MODEL_ENDPOINT)/api/tags" -TimeoutSec 10
+          $names = @($tags.models | ForEach-Object { if ($_.name) { $_.name } elseif ($_.model) { $_.model } })
+          if (-not ($names | Where-Object { $_ -eq $env:GAI_LOCAL_MODEL_NAME -or $_ -like "$($env:GAI_LOCAL_MODEL_NAME):*" })) { throw "Required model $($env:GAI_LOCAL_MODEL_NAME) is not installed" }
+
+      - name: Execute development-only output canary
+        shell: powershell
+        run: node scripts/gai-r6-output-canary.mjs
+
+      - name: Validate no zero-output regression
+        shell: powershell
+        run: |
+          $report = Get-Content '.gai-canary-results/r6-output-canary.json' -Raw | ConvertFrom-Json
+          if ($report.total -ne 12) { throw 'canary must have 12 cases' }
+          if ($report.emptyOutputCount -gt 0) { throw "empty outputs=$($report.emptyOutputCount)" }
+          if ($report.successRate -lt 0.5) { throw "canary success too low: $($report.successRate)" }
+
+      - name: Upload canary evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gai-r6-output-canary
+          path: .gai-canary-results/
+          retention-days: 90
