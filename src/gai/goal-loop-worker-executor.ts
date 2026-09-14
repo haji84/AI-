@@ -78,8 +78,10 @@ export class GoalLoopWorkerExecutor implements CapabilityExecutor {
         actionId: action.id,
         ok: false,
         summary: `No worker routing mapping is registered for capability ${action.capability}`,
-        blocker: "WORKER_CAPABILITY_MAPPING_UNAVAILABLE",
-        evidence: { actionCapability: action.capability },
+        evidence: {
+          failureCode: "WORKER_CAPABILITY_MAPPING_UNAVAILABLE",
+          actionCapability: action.capability,
+        },
       };
     }
 
@@ -103,8 +105,8 @@ export class GoalLoopWorkerExecutor implements CapabilityExecutor {
         summary: workerResult.ok
           ? `Worker ${workerResult.workerId} completed ${action.description}`
           : `Worker ${workerResult.workerId} failed ${action.description}: ${workerResult.output}`,
-        blocker: workerResult.ok ? undefined : "WORKER_EXECUTION_FAILED",
         evidence: {
+          ...(workerResult.ok ? {} : { failureCode: "WORKER_EXECUTION_FAILED" }),
           actionCapability: action.capability,
           requestedCapability: hints.requestedCapability,
           selectedWorkerId: workerResult.workerId,
@@ -121,8 +123,8 @@ export class GoalLoopWorkerExecutor implements CapabilityExecutor {
         actionId: action.id,
         ok: false,
         summary: error instanceof Error ? error.message : String(error),
-        blocker: "WORKER_ROUTING_FAILED",
         evidence: {
+          failureCode: "WORKER_ROUTING_FAILED",
           actionCapability: action.capability,
           requestedCapability: hints.requestedCapability,
         },
