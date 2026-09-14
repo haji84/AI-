@@ -56,6 +56,16 @@ export interface WorkerVerifierHooks {
   stateEvidence?: boolean;
 }
 
+export interface WorkerRuntimeStateSnapshot {
+  activeTasks: number;
+  completedTasks: number;
+  failedTasks: number;
+  lastTaskId?: string;
+  lastCapability?: WorkerCapability;
+  lastResult?: "success" | "failed";
+  lastCompletedAt?: string;
+}
+
 export interface WorkerDescriptor {
   id: string;
   label: string;
@@ -79,12 +89,14 @@ export interface WorkerHealth {
   connectivity?: WorkerConnectivity;
   executionModes?: WorkerExecutionMode[];
   resources?: WorkerResourceSnapshot;
+  runtimeState?: WorkerRuntimeStateSnapshot;
 }
 
 export interface WorkerExecutionRequest {
   task: TaskProfile;
   input: string;
   requiredCapabilities?: WorkerCapability[];
+  requestedCapability?: WorkerCapability;
   preferredPlatform?: WorkerPlatform;
   requiredExecutionMode?: WorkerExecutionMode;
   connectivity?: WorkerConnectivity;
@@ -148,6 +160,7 @@ export class MultiWorkerRuntime {
       .filter((worker) => worker.descriptor.enabled)
       .filter((worker) => healthy.get(worker.descriptor.id)?.available)
       .filter((worker) => required.every((capability) => worker.descriptor.capabilities.includes(capability)))
+      .filter((worker) => !request.requestedCapability || worker.descriptor.capabilities.includes(request.requestedCapability))
       .filter((worker) => supportsExecutionMode(worker.descriptor, request))
       .filter((worker) => supportsConnectivity(worker.descriptor, healthy.get(worker.descriptor.id)!, request))
       .map((worker) => {
@@ -156,6 +169,10 @@ export class MultiWorkerRuntime {
         if (request.preferredPlatform && worker.descriptor.platform === request.preferredPlatform) {
           score += 4;
           reasons.push(`preferred platform ${request.preferredPlatform}`);
+        }
+        if (request.requestedCapability) {
+          score += 2;
+          reasons.push(`provides requested capability ${request.requestedCapability}`);
         }
         if (request.requiredExecutionMode) {
           score += 2;
