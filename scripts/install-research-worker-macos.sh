@@ -13,6 +13,7 @@ TOKEN_PATH="$ROOT/token.txt"
 STATUS_PATH="$ROOT/install-status.json"
 LOG_PATH="$ROOT/worker.log"
 ERR_PATH="$ROOT/worker.err.log"
+LABEL="com.gai.research-worker"
 
 mkdir -p "$ROOT" "$HOME/Library/LaunchAgents"
 cp "$SERVICE_SOURCE" "$SERVICE_PATH"
@@ -28,7 +29,7 @@ cat > "$PLIST" <<PLIST
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>Label</key><string>com.gai.research-worker</string>
+  <key>Label</key><string>$LABEL</string>
   <key>ProgramArguments</key>
   <array><string>$NODE_BIN</string><string>$SERVICE_PATH</string></array>
   <key>EnvironmentVariables</key>
@@ -50,12 +51,45 @@ PLIST
 chmod 600 "$PLIST"
 
 UID_VALUE="$(id -u)"
-launchctl bootout "gui/$UID_VALUE/com.gai.research-worker" >/dev/null 2>&1 || true
-launchctl bootstrap "gui/$UID_VALUE" "$PLIST"
-launchctl kickstart -k "gui/$UID_VALUE/com.gai.research-worker"
+DOMAIN="gui/$UID_VALUE"
+SERVICE="$DOMAIN/$LABEL"
+
+# Reinstall idempotently. launchd can briefly keep the old service registered
+# after bootout; retry bootstrap instead of treating that transient as fatal.
+launchctl bootout "$SERVICE" >/dev/null 2>&1 || true
+launchctl bootout "$DOMAIN" "$PLIST" >/dev/null 2>&1 || true
+for _ in $(seq 1 20); do
+  if ! launchctl print "$SERVICE" >/dev/null 2>&1; then
+    break
+  fi
+  sleep 0.25
+done
+
+bootstrapped=false
+for attempt in 1 2 3 4 5; do
+  if launchctl bootstrap "$DOMAIN" "$PLIST" >/tmp/gai-research-worker-bootstrap.out 2>/tmp/gai-research-worker-bootstrap.err; then
+    bootstrapped=true
+    break
+  fi
+  # If launchd reports the service as present despite bootstrap returning an
+  # error, continue if it can be restarted and the health check succeeds.
+  if launchctl print "$SERVICE" >/dev/null 2>&1; then
+    bootstrapped=true
+    break
+  fi
+  sleep "$attempt"
+done
+
+if [[ "$bootstrapped" != "true" ]]; then
+  echo "launchctl bootstrap failed" >&2
+  cat /tmp/gai-research-worker-bootstrap.err >&2 || true
+  exit 5
+fi
+
+launchctl kickstart -k "$SERVICE" >/dev/null 2>&1 || true
 
 healthy=false
-for _ in $(seq 1 30); do
+for _ in $(seq 1 40); do
   if curl -fsS --max-time 2 "http://127.0.0.1:$PORT/health" >/tmp/gai-research-worker-health.json 2>/dev/null; then
     healthy=true
     break
