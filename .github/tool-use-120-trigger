@@ -1,0 +1,7 @@
+GAI tool-use 120 benchmark trigger
+Mode: real qwen3:4b planner + real sandbox tools
+Tasks: 120, heldout: 30
+Human Gate remains authoritative
+Paid API fallback: disabled
+Issue: #537
+Requested: 2026-09-15
