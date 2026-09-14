@@ -1,15 +1,17 @@
 import type { ContextItem, Goal, InferredIntent, Planner, ProposedAction } from "./goal-loop.ts";
 import { inferIntentFromSignals } from "./intent.ts";
 import type { TaskCompletionAuthorization } from "./task-authorization.ts";
+import type { AutonomyDelegationInput } from "./autonomy-delegation.ts";
 
 export interface ModelPlanFile { path: string; content: string; }
 export interface ModelPlan {
-  kind: "local_blocker" | "propose_pr" | "inspect";
+  kind: "local_blocker" | "propose_pr" | "inspect" | "delegate";
   description: string;
   reason?: string;
   title?: string;
   body?: string;
   files?: ModelPlanFile[];
+  delegation?: AutonomyDelegationInput;
 }
 
 export interface PlanningModel {
@@ -180,6 +182,36 @@ export class ModelBackedPlanner implements Planner {
           title: plan.title,
           body: plan.body,
           files: plan.files,
+          ...(this.taskAuthorization ? {
+            taskAuthorization: this.taskAuthorization,
+            taskScopeId: this.taskAuthorization.scopeId,
+          } : {}),
+        },
+      };
+    }
+    if (plan.kind === "delegate") {
+      const delegation = plan.delegation;
+      if (!delegation) {
+        return {
+          id: "model:invalid-delegation",
+          description: "Planner selected delegation without a delegation payload",
+          capability: "runtime.local_blocker",
+          risk: "low",
+          completesBoundedCommand,
+        };
+      }
+      const highRiskDeviceOperation = delegation.target === "jarvis"
+        && (delegation.operation === "reboot" || delegation.operation === "lock-device");
+      return {
+        id: `model:delegate:${delegation.target}:${Date.now()}`,
+        description: plan.description,
+        capability: "autonomy.delegate",
+        risk: highRiskDeviceOperation ? "high" : "low",
+        irreversible: false,
+        externalSideEffect: delegation.target === "jarvis",
+        completesBoundedCommand,
+        input: {
+          ...delegation,
           ...(this.taskAuthorization ? {
             taskAuthorization: this.taskAuthorization,
             taskScopeId: this.taskAuthorization.scopeId,
