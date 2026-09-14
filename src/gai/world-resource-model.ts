@@ -8,6 +8,7 @@ import type {
   WorkerDescriptor,
   WorkerExecutionMode,
   WorkerHealth,
+  WorkerNetworkRequirement,
   WorkerPlatform,
   WorkerResourceSnapshot,
 } from "./worker-runtime.ts";
@@ -21,6 +22,7 @@ export interface WorldResourceObservation {
   available: boolean;
   enabled: boolean;
   connectivity: WorkerConnectivity | "unknown";
+  networkRequirement: WorkerNetworkRequirement | "unknown";
   capabilities: WorkerCapability[];
   executionModes: WorkerExecutionMode[];
   maxParallelTasks: number;
@@ -33,10 +35,11 @@ export interface WorldResourceObservation {
   detail?: string;
 }
 
-export interface WorldResourceView extends WorldResourceObservation {
+export type WorldResourceView = Omit<WorldResourceObservation, "platform"> & {
+  platform: WorkerPlatform | "unknown";
   knowledgeState: ResourceKnowledgeState;
   ageMs: number;
-}
+};
 
 interface WorldResourceFile {
   version: 1;
@@ -98,10 +101,11 @@ function viewOf(observation: WorldResourceObservation, now: Date): WorldResource
 function unavailableUnknown(workerId: string, now: Date): WorldResourceView {
   return {
     workerId,
-    platform: "linux",
+    platform: "unknown",
     available: false,
     enabled: false,
     connectivity: "unknown",
+    networkRequirement: "unknown",
     capabilities: [],
     executionModes: [],
     maxParallelTasks: 0,
@@ -136,6 +140,7 @@ export function observationFromWorker(input: {
     available: Boolean(input.descriptor.enabled && input.health.available),
     enabled: input.descriptor.enabled,
     connectivity: input.health.connectivity ?? "unknown",
+    networkRequirement: input.descriptor.networkRequirement ?? "unknown",
     capabilities: unique(input.descriptor.capabilities),
     executionModes: unique(input.health.executionModes ?? input.descriptor.executionModes ?? ["resident"]),
     maxParallelTasks: input.descriptor.maxParallelTasks,
@@ -189,6 +194,7 @@ export class PersistentWorldResourceModel {
         parseTime(observation.expiresAt, "expiresAt");
         this.observations.set(observation.workerId, {
           ...observation,
+          networkRequirement: observation.networkRequirement ?? "unknown",
           capabilities: unique(observation.capabilities ?? []),
           executionModes: unique(observation.executionModes ?? []),
           provenance: unique(observation.provenance ?? []),
@@ -261,18 +267,17 @@ export class PersistentWorldResourceModel {
             ? "degraded"
             : "offline";
 
-    const capabilityMap = new Map<string, { available: boolean; networkRequirement: "offline-capable" | "online-required" | "unknown"; resources: string[]; reason?: string }>();
+    const capabilityMap = new Map<string, { available: boolean; networkRequirement: WorkerNetworkRequirement | "unknown"; resources: string[]; reason?: string }>();
     for (const worker of fresh) {
       for (const capability of worker.capabilities) {
         const existing = capabilityMap.get(capability);
         const available = worker.available;
-        const networkRequirement = worker.connectivity === "unknown" ? "unknown" : "offline-capable";
         const resources: string[] = [];
         if (capability === "gpu") resources.push("gpu");
         if (!existing || (available && !existing.available)) {
           capabilityMap.set(capability, {
             available,
-            networkRequirement,
+            networkRequirement: worker.networkRequirement,
             resources,
             ...(available ? {} : { reason: worker.detail || "no fresh available worker" }),
           });
@@ -303,6 +308,7 @@ export class PersistentWorldResourceModel {
           platform: worker.platform,
           available: worker.available,
           connectivity: worker.connectivity,
+          networkRequirement: worker.networkRequirement,
           capabilities: worker.capabilities,
           executionModes: worker.executionModes,
           resources: worker.resources,
