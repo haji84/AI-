@@ -3,13 +3,13 @@
 PROJECT: General Autonomous AI / Unified AI Creator Studio / GAI Research OS
 AI_COMPANY_VERSION: 1.0
 PROJECT_VERSION: 0.0.0
-CURRENT_PHASE: GAI Phase 3 initial worker adapters
-STATUS: INITIAL_WORKER_ADAPTERS_IMPLEMENTATION
+CURRENT_PHASE: GAI Phase 7 sync and conflict resolution
+STATUS: SYNC_CONFLICT_RESOLUTION_IMPLEMENTATION
 LAST_UPDATED: 2026-09-15
 CURRENT_EPIC: One-front-door general autonomous AI with durable offline-first device-neutral execution and verifier-driven completion
-ACTIVE_ISSUES: #561, #477, #320, #315, #316, #317, #318, #319, #321
-OPEN_PRS: initial worker adapters + empirical research/device-control work may proceed independently when scopes do not conflict
-BLOCKERS: none for Phase 3 adapter implementation; real iPhone transport/provisioning/device E2E remains a later device-integration step and must not be inferred from contract tests
+ACTIVE_ISSUES: #569, #477, #320, #315, #316, #317, #318, #319, #321
+OPEN_PRS: sync/conflict resolution + empirical research/device-control work may proceed independently when scopes do not conflict
+BLOCKERS: none for Phase 7 sync/conflict implementation; real iPhone transport/provisioning/device E2E remains a later device-integration step and must not be inferred from contract tests
 PRIORITY_OVERRIDE: owner-approved General Autonomous AI implementation roadmap governs current architecture work; empirical GAI research remains active; deferred Phase 3 image smoke stays deferred until owner resumes product work
 NORTH_STAR_GOAL: Human gives one goal; the system determines required work, dynamically recruits available capabilities, executes, verifies, repairs, records, and completes with the fewest necessary human returns, including continued local work during connectivity loss where capability permits
 USER_MENTAL_MODEL: one autonomous AI front door; internally recruit only the roles actually needed, including bounded mid-task expansion when new needs are discovered
@@ -22,7 +22,7 @@ TEAM_MEMORY_POLICY: successful executable teams can become TeamBlueprints; simil
 TEAM_LIFECYCLE_POLICY: experimental -> reusable -> standing_candidate after repeated verified success; repeated poor performance -> demoted and excluded from automatic recall; equally proven child generations are preferred over older parents
 TEAM_RUNTIME_POLICY: persistent organizational memory -> recall eligible blueprint or assemble current team -> detect genuine mid-task capability need -> bounded expansion if registered and necessary -> bounded GoalDrivenLoop -> verifier/risk/Human Gate/write-back -> evidence-based team outcome -> atomic persistence for later reuse
 ARCHITECTURE_REFERENCE: docs/architecture/general-autonomous-ai-dynamic-orchestration.md + docs/architecture/team-organizational-memory.md + docs/architecture/adaptive-team-runtime.md + docs/architecture/dynamic-capability-replanning.md + ROADMAP.md General Autonomous AI implementation roadmap
-LAST_SUCCESSFUL_CI: GAI Phase 2 Common Worker Runtime PR #560 passed repository-guard, lint, full tests, build, and production health then merged as f5b707ddaeae832cebc18c103bcd6db81fec9c7f on 2026-09-15
+LAST_SUCCESSFUL_CI: GAI Phase 6 Offline-First Runtime PR #568 passed repository-guard, lint, full tests, build, and production health then merged as 60f09cc66d3e39f051eb3c8ae2c24e0d341f8a0c on 2026-09-15
 COMPASS_MCP: v1 merged and real-machine interoperability verified PASS
 COMPASS_HANDOFF: standard AI employee handoff protocol merged via PR #64
 AI_EMPLOYEE_COMMAND_INGRESS: dashboard chat source=chat E2E PASS
@@ -43,7 +43,11 @@ GAI_CONTINUAL_LEARNING_G8: merged via PR #314; regressions are rejected rather t
 GAI_TELEMETRY_G9: merged via PR #314; research state exposes stable contracts consumable by the cross-device dashboard
 GAI_EVALUATION_G10: merged via PR #314; long-horizon evaluation, external benchmark adapter contracts, and AGI-gap reporting implemented
 GAI_MULTI_WORKER_R0: Windows/macOS worker architecture, health/capability preflight, capability-aware selection, cross-device reproduction metrics, and a hard boundary preventing unconfigured CI/workstations from claiming a real baseline
-GAI_COMMON_WORKER_RUNTIME: COMPLETE via Issue #559 / PR #560; common runtime now provides capability registration/dispatch, runtime state, checkpoint hooks, structured execution evidence, security/verifier metadata, and compatibility with MultiWorkerRuntime
+GAI_COMMON_WORKER_RUNTIME: COMPLETE via Issue #559 / PR #560; common runtime provides capability registration/dispatch, runtime state, checkpoint hooks, structured execution evidence, security/verifier metadata, and compatibility with MultiWorkerRuntime
+GAI_INITIAL_WORKER_ADAPTERS: COMPLETE via Issue #561 / PR #562; ZBook and MacBook common-runtime factories plus OS-managed iPhone adapter and research-capability bridge are merged without Goal Loop device hard-coding
+GAI_GOAL_LOOP_WORKER_INTEGRATION: COMPLETE via Issue #563 / PR #564; planner capability actions route through MultiWorkerRuntime, preserve worker evidence for Verifier, and ordinary worker failures enter existing recovery flow
+GAI_DURABLE_TASK_RUNTIME: COMPLETE via Issue #565 / PR #566; persistent task state, dependencies, idempotency, leases, checkpoint references, retry/cancel, expired-lease reclaim, and orphan recovery are merged
+GAI_OFFLINE_FIRST_RUNTIME: COMPLETE via Issue #567 / PR #568; online-required work waits durably, offline-capable work continues locally, connectivity transitions are explicit, reconnect resumes waiting work, and missing local capacity waits for resource instead of terminal failure
 GAI_WORKERS: initial real-device strategy is ZBook=Windows/GPU/local-model/long-running, MacBook=macOS/reproduction/local-model/long-running, iPhone=iOS OS-managed mobile/offline/sensor worker; Android is a later adapter proof and must not require Goal Loop core changes
 GAI_OFFLINE_FIRST_POLICY: network is an optional capability enhancer, not a survival condition; offline-capable local work continues, online-required work waits durably, and recovery triggers sync/conflict resolution/resume/re-verification
 GAI_EVAL_POLICY: verifier/eval is cross-cutting from the first foundation phase; every phase advances only after implementation, automated checks, strongest available real-device E2E, structured verification, repair, and PASS evidence
@@ -54,7 +58,7 @@ GAI_AGI_CLAIM_POLICY: project-defined target completion never automatically auth
 GAI_CROSS_DEVICE_TARGET: initial ZBook + MacBook + iPhone; Android joins later through the same worker contract/eval path; ChatGPT Work/Codex remains a plan-included frontier boundary where available
 GAI_PLATFORM_IMPLEMENTATION: COMPLETE
 GAI_ADAPTIVE_TEAM_RUNTIME: COMPLETE; dynamic assembly, proven-team recall, team-scoped execution, verified outcome learning, and process-persistent organizational memory are integrated without bypassing existing safety gates
-GAI_NEXT_PHASE: complete Issue #561 GAI Phase 3 initial worker adapters, then continue to GAI Phase 4 Goal Loop to Worker Integration under verifier-driven phase gates
+GAI_NEXT_PHASE: complete Issue #569 GAI Phase 7 sync/conflict resolution, then continue to GAI Phase 8 Self-Healing / Recovery under verifier-driven phase gates
 PHASE_2_TECHNICAL_ACCEPTANCE: PASS
 PHASE_2_ACCEPTANCE_RECORD: docs/architecture/0009-phase-2-acceptance.md
 PHASE_2_FORMAL_COMPLETION: COMPLETE
@@ -66,8 +70,8 @@ PHASE_3_RUNTIME_SELECTION: ComfyUI + Qwen-Image-Edit merged via PR #75
 PHASE_3_RUNTIME_API_PATH: merged via PR #77; upload, workflow injection, prompt submission, history polling, and output download implemented
 PHASE_3_REAL_MACHINE_SMOKE: deferred; Issue #78 remains open for later workstation execution
 PHASE_3_PRIORITY: deferred by owner on 2026-09-08 until autonomy/GAI research foundation is sufficiently complete
-NEXT_PRIORITY: complete #561 and merge after fresh CI; then proceed to Goal Loop to Worker Integration under the recorded GAI roadmap; Human Gate categories remain non-negotiable and must not be auto-executed
-HUMAN_APPROVAL_PENDING: none for ordinary LOW/MEDIUM implementation in Issue #561; production, secrets, permissions, billing, destructive, governance/security weakening, and external-publication gates remain in force
+NEXT_PRIORITY: complete #569 and merge after fresh CI; then proceed to Self-Healing / Recovery under the recorded GAI roadmap; Human Gate categories remain non-negotiable and must not be auto-executed
+HUMAN_APPROVAL_PENDING: none for ordinary LOW/MEDIUM implementation in Issue #569; production, secrets, permissions, billing, destructive, governance/security weakening, and external-publication gates remain in force
 AUTO_FIX_ATTEMPTS_MAX: 3
 MAX_ACTIVE_AGENTS: 3
 MAX_PARALLEL_CODE_AGENTS: 2
