@@ -17,7 +17,11 @@ import java.util.concurrent.TimeUnit
 class JarvisAccessibilityService : AccessibilityService() {
     companion object {
         @Volatile private var current: JarvisAccessibilityService? = null
+
         fun connected(): Boolean = current != null
+
+        fun currentPackageName(): String = current?.currentPackage().orEmpty()
+
         fun execute(payload: JSONObject): JSONObject {
             val service = current ?: throw IllegalStateException("Accessibility automation is not enabled")
             return service.executePayload(payload)
@@ -25,15 +29,6 @@ class JarvisAccessibilityService : AccessibilityService() {
     }
 
     private val sheetsPackage = "com.google.android.apps.docs.editors.sheets"
-    private val goldfishTexts = setOf("床掘はちみつ", "春巻きプニさん", "ポイ活くんハチミツ")
-    private val qrTexts = setOf("オオグンタマQR", "春巻QR", "ポイ活くんQR")
-    private val sheetMarkerTexts = (goldfishTexts + qrTexts).toList()
-    private val errorTexts = listOf(
-        "お友達のお手伝いが出来ませんでした",
-        "あなたのアカウントでエラーが発生しました"
-    )
-    private val goldfishSuccessTexts = listOf("イベント詳細", "獲得履歴")
-    private val qrSuccessTexts = listOf("受け取りしました", "マイQRコードを表示")
     private val cellRegex = Regex("^[A-Z]{1,3}[1-9][0-9]{0,5}$")
     private val urlRegex = Regex("https?://\\S+", RegexOption.IGNORE_CASE)
 
@@ -57,44 +52,95 @@ class JarvisAccessibilityService : AccessibilityService() {
         for (i in 0 until steps.length()) {
             val step = steps.getJSONObject(i)
             val action = step.optString("action")
-            val result = when (action) {
-                "click-text" -> clickText(step.getString("text"))
-                "click-text-retry" -> clickTextRetry(
-                    step.getString("text"),
-                    step.optLong("timeoutMs", 6_000).coerceIn(250, 15_000)
-                )
-                "click-text-if-present" -> {
-                    clickText(step.getString("text"))
-                    true
+            if (action.isBlank()) throw IllegalArgumentException("UI action is required at step $i")
+            val retries = step.optInt("retries", 0).coerceIn(0, 3)
+            val retryDelayMs = step.optLong("retryDelayMs", 350).coerceIn(100, 3_000)
+            WorkerRuntimeState.step(i, action)
+
+            var ok = false
+            var lastError: Throwable? = null
+            for (attempt in 0..retries) {
+                try {
+                    ok = executeAction(step, action)
+                    if (ok) break
+                } catch (t: Throwable) {
+                    lastError = t
                 }
-                "ensure-open-text" -> ensureOpenText(
-                    step.getString("text"),
-                    step.optLong("timeoutMs", 8_000).coerceIn(500, 15_000)
-                )
-                "open-sheet-cell-link" -> openSheetCellLink(
-                    cell = step.getString("cell"),
-                    stage = step.optString("stage", "generic"),
-                    timeoutMs = step.optLong("timeoutMs", 45_000).coerceIn(5_000, 60_000)
-                )
-                "click-view-id" -> clickViewId(step.getString("viewId"))
-                "set-text" -> setText(step)
-                "tap" -> tap(step.getDouble("x").toFloat(), step.getDouble("y").toFloat())
-                "swipe" -> swipe(step)
-                "back" -> performGlobalAction(GLOBAL_ACTION_BACK)
-                "home" -> performGlobalAction(GLOBAL_ACTION_HOME)
-                "recents" -> performGlobalAction(GLOBAL_ACTION_RECENTS)
-                "wait" -> {
-                    val ms = step.optLong("ms", 500).coerceIn(0, 10_000)
-                    Thread.sleep(ms)
-                    true
-                }
-                else -> throw IllegalArgumentException("Unsupported UI action: $action")
+                if (attempt < retries) SystemClock.sleep(retryDelayMs)
             }
-            if (!result) throw IllegalStateException("UI action failed at step $i: $action")
-            results.put(JSONObject().put("step", i).put("action", action).put("ok", true))
+            if (!ok) {
+                val suffix = lastError?.message?.let { ": $it" }.orEmpty()
+                throw IllegalStateException("UI action failed at step $i: $action$suffix", lastError)
+            }
+            results.put(JSONObject()
+                .put("step", i)
+                .put("action", action)
+                .put("ok", true))
         }
         return JSONObject().put("executed", results.length()).put("steps", results)
     }
+
+    private fun executeAction(step: JSONObject, action: String): Boolean = when (action) {
+        "click-text" -> clickText(step.getString("text"))
+        "click-text-retry" -> clickTextOnlyRetry(
+            step.getString("text"),
+            step.optLong("timeoutMs", 6_000).coerceIn(250, 30_000)
+        )
+        "click-text-if-present" -> {
+            clickText(step.getString("text"))
+            true
+        }
+        "ensure-open-text" -> clickTextOnlyRetry(
+            step.getString("text"),
+            step.optLong("timeoutMs", 8_000).coerceIn(500, 30_000)
+        )
+        "wait-text" -> waitForAnyText(
+            jsonStrings(step.getJSONArray("texts")),
+            step.optLong("timeoutMs", 10_000).coerceIn(250, 60_000)
+        ) != null
+        "wait-package" -> waitForPackage(
+            step.getString("packageName"),
+            step.optLong("timeoutMs", 10_000).coerceIn(250, 60_000)
+        )
+        "wait-sheet-grid" -> waitForSheetGrid(
+            step.optLong("timeoutMs", 12_000).coerceIn(500, 60_000)
+        )
+        "wait-outcome" -> waitForOutcome(
+            successTexts = jsonStrings(step.getJSONArray("successTexts")),
+            errorTexts = jsonStrings(step.optJSONArray("errorTexts") ?: JSONArray()),
+            timeoutMs = step.optLong("timeoutMs", 30_000).coerceIn(500, 90_000),
+            label = step.optString("label", "画面")
+        )
+        "select-sheet-cell" -> selectSheetCell(
+            step.getString("cell"),
+            step.optLong("timeoutMs", 20_000).coerceIn(1_000, 60_000)
+        )
+        "open-visible-url" -> openVisibleUrl(
+            step.optLong("timeoutMs", 15_000).coerceIn(500, 60_000)
+        )
+        "open-sheet-cell-link" -> openSheetCellLink(
+            cell = step.getString("cell"),
+            timeoutMs = step.optLong("timeoutMs", 45_000).coerceIn(5_000, 90_000)
+        )
+        "click-view-id" -> clickViewId(step.getString("viewId"))
+        "set-text" -> setText(step)
+        "tap" -> tap(step.getDouble("x").toFloat(), step.getDouble("y").toFloat())
+        "tap-relative" -> tapRelative(step.getDouble("xRatio"), step.getDouble("yRatio"))
+        "swipe" -> swipe(step)
+        "swipe-relative" -> swipeRelative(step)
+        "back" -> performGlobalAction(GLOBAL_ACTION_BACK)
+        "home" -> performGlobalAction(GLOBAL_ACTION_HOME)
+        "recents" -> performGlobalAction(GLOBAL_ACTION_RECENTS)
+        "wait" -> {
+            val ms = step.optLong("ms", 500).coerceIn(0, 10_000)
+            SystemClock.sleep(ms)
+            true
+        }
+        else -> throw IllegalArgumentException("Unsupported UI action: $action")
+    }
+
+    private fun jsonStrings(array: JSONArray): List<String> =
+        (0 until array.length()).map { array.getString(it) }.filter { it.isNotBlank() }
 
     private fun normalizeText(value: CharSequence?): String =
         value?.toString()?.lowercase()?.replace(Regex("\\s+"), "") ?: ""
@@ -102,19 +148,16 @@ class JarvisAccessibilityService : AccessibilityService() {
     private fun findTextNode(text: String): AccessibilityNodeInfo? {
         val root = rootInActiveWindow ?: return null
         root.findAccessibilityNodeInfosByText(text).firstOrNull()?.let { return it }
-
         val target = normalizeText(text)
         val queue = ArrayDeque<AccessibilityNodeInfo>()
         queue.add(root)
         var visited = 0
-        while (queue.isNotEmpty() && visited < 800) {
+        while (queue.isNotEmpty() && visited < 1_200) {
             val node = queue.removeFirst()
             visited++
             val visible = normalizeText(node.text) + normalizeText(node.contentDescription)
             if (visible.contains(target)) return node
-            for (i in 0 until node.childCount) {
-                node.getChild(i)?.let(queue::addLast)
-            }
+            for (i in 0 until node.childCount) node.getChild(i)?.let(queue::addLast)
         }
         return null
     }
@@ -133,61 +176,35 @@ class JarvisAccessibilityService : AccessibilityService() {
         return false
     }
 
-    private fun clickTextRetry(text: String, timeoutMs: Long): Boolean {
-        val deadline = SystemClock.uptimeMillis() + timeoutMs
-        do {
-            if (clickText(text)) {
-                when {
-                    text in goldfishTexts -> waitForOutcome(
-                        successTexts = goldfishSuccessTexts,
-                        timeoutMs = 30_000,
-                        stage = "金魚"
-                    )
-                    text in qrTexts -> {
-                        waitForOutcome(
-                            successTexts = qrSuccessTexts,
-                            timeoutMs = 30_000,
-                            stage = "QR"
-                        )
-                        performGlobalAction(GLOBAL_ACTION_HOME)
-                    }
-                }
-                return true
-            }
-            SystemClock.sleep(250)
-        } while (SystemClock.uptimeMillis() < deadline)
-        return false
-    }
-
-    private fun waitForOutcome(successTexts: List<String>, timeoutMs: Long, stage: String) {
-        val deadline = SystemClock.uptimeMillis() + timeoutMs
-        do {
-            val error = firstVisibleText(errorTexts)
-            if (error != null) {
-                throw IllegalStateException("$stage エラー画面を検出: $error。以降の処理を停止しました")
-            }
-            val success = firstVisibleText(successTexts)
-            if (success != null) return
-            SystemClock.sleep(250)
-        } while (SystemClock.uptimeMillis() < deadline)
-        throw IllegalStateException("$stage 完了画面を確認できませんでした")
-    }
-
     private fun waitForAnyText(candidates: List<String>, timeoutMs: Long): String? {
         val deadline = SystemClock.uptimeMillis() + timeoutMs
         do {
-            val visible = firstVisibleText(candidates)
-            if (visible != null) return visible
+            firstVisibleText(candidates)?.let { return it }
             SystemClock.sleep(250)
         } while (SystemClock.uptimeMillis() < deadline)
         return null
     }
 
     private fun firstVisibleText(candidates: List<String>): String? {
-        for (text in candidates) {
-            if (findTextNode(text) != null) return text
-        }
+        for (text in candidates) if (findTextNode(text) != null) return text
         return null
+    }
+
+    private fun waitForOutcome(
+        successTexts: List<String>,
+        errorTexts: List<String>,
+        timeoutMs: Long,
+        label: String
+    ): Boolean {
+        require(successTexts.isNotEmpty()) { "wait-outcome requires successTexts" }
+        val deadline = SystemClock.uptimeMillis() + timeoutMs
+        do {
+            val error = firstVisibleText(errorTexts)
+            if (error != null) throw IllegalStateException("$label エラー画面を検出: $error")
+            if (firstVisibleText(successTexts) != null) return true
+            SystemClock.sleep(250)
+        } while (SystemClock.uptimeMillis() < deadline)
+        throw IllegalStateException("$label 完了画面を確認できませんでした")
     }
 
     private fun currentPackage(): String = rootInActiveWindow?.packageName?.toString().orEmpty()
@@ -217,7 +234,7 @@ class JarvisAccessibilityService : AccessibilityService() {
         val queue = ArrayDeque<AccessibilityNodeInfo>()
         queue.add(root)
         var visited = 0
-        while (queue.isNotEmpty() && visited < 1000) {
+        while (queue.isNotEmpty() && visited < 1_200) {
             val node = queue.removeFirst()
             visited++
             if (nodeStrings(node).any { isCellMention(it, cell) }) return node
@@ -231,8 +248,7 @@ class JarvisAccessibilityService : AccessibilityService() {
         val queue = ArrayDeque<AccessibilityNodeInfo>()
         queue.add(root)
         var visited = 0
-        var fallback: AccessibilityNodeInfo? = null
-        while (queue.isNotEmpty() && visited < 1000) {
+        while (queue.isNotEmpty() && visited < 1_200) {
             val node = queue.removeFirst()
             visited++
             if (node.isEditable) {
@@ -241,11 +257,10 @@ class JarvisAccessibilityService : AccessibilityService() {
                 val hint = strings.joinToString(" ").lowercase()
                 val looksLikeNameBox = hint.contains("name") || hint.contains("名前") || hint.contains("cell") || hint.contains("セル")
                 if (hasCellValue || looksLikeNameBox) return node
-                if (fallback == null && node.text?.toString()?.trim()?.uppercase()?.let(cellRegex::matches) == true) fallback = node
             }
             for (i in 0 until node.childCount) node.getChild(i)?.let(queue::addLast)
         }
-        return fallback
+        return null
     }
 
     private fun setCellAddressThroughEditor(cell: String): Boolean {
@@ -256,36 +271,24 @@ class JarvisAccessibilityService : AccessibilityService() {
         }
         if (!editor.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)) return false
         SystemClock.sleep(150)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            if (editor.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_IME_ENTER.id)) return true
-        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
+            editor.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_IME_ENTER.id)) return true
         return editor.performAction(AccessibilityNodeInfo.ACTION_CLICK)
     }
 
-    private fun sheetSwipeLeft(): Boolean {
-        val path = Path().apply {
-            moveTo(850f, 1050f)
-            lineTo(250f, 1050f)
-        }
-        return dispatchAndWait(
-            GestureDescription.Builder()
-                .addStroke(GestureDescription.StrokeDescription(path, 0, 350))
-                .build()
-        )
-    }
+    private fun sheetSwipeLeft(): Boolean = swipeByRatio(0.82, 0.62, 0.25, 0.62, 350)
 
     private fun selectSheetCell(cell: String, timeoutMs: Long): Boolean {
-        require(cellRegex.matches(cell.uppercase())) { "Invalid sheet cell: $cell" }
+        val normalizedCell = cell.uppercase()
+        require(cellRegex.matches(normalizedCell)) { "Invalid sheet cell: $cell" }
         val deadline = SystemClock.uptimeMillis() + timeoutMs
-
-        if (setCellAddressThroughEditor(cell.uppercase())) {
+        if (setCellAddressThroughEditor(normalizedCell)) {
             SystemClock.sleep(500)
             return true
         }
-
         var swipes = 0
         do {
-            val node = findCellNode(cell.uppercase())
+            val node = findCellNode(normalizedCell)
             if (node != null && clickNodeOrParent(node)) {
                 SystemClock.sleep(500)
                 return true
@@ -294,9 +297,7 @@ class JarvisAccessibilityService : AccessibilityService() {
                 sheetSwipeLeft()
                 swipes++
                 SystemClock.sleep(350)
-            } else {
-                SystemClock.sleep(250)
-            }
+            } else SystemClock.sleep(250)
         } while (SystemClock.uptimeMillis() < deadline)
         return false
     }
@@ -306,11 +307,10 @@ class JarvisAccessibilityService : AccessibilityService() {
         val queue = ArrayDeque<AccessibilityNodeInfo>()
         queue.add(root)
         var visited = 0
-        while (queue.isNotEmpty() && visited < 1200) {
+        while (queue.isNotEmpty() && visited < 1_500) {
             val node = queue.removeFirst()
             visited++
-            val strings = nodeStrings(node)
-            if (strings.any { urlRegex.containsMatchIn(it) }) return node
+            if (nodeStrings(node).any { urlRegex.containsMatchIn(it) }) return node
             for (i in 0 until node.childCount) node.getChild(i)?.let(queue::addLast)
         }
         return null
@@ -326,36 +326,23 @@ class JarvisAccessibilityService : AccessibilityService() {
         return false
     }
 
-    private fun openSheetCellLink(cell: String, stage: String, timeoutMs: Long): Boolean {
-        val stageLabel = when (stage.lowercase()) {
-            "goldfish" -> "金魚"
-            "qr" -> "QR"
-            else -> stage.ifBlank { "セル" }
-        }
+    private fun openSheetCellLink(cell: String, timeoutMs: Long): Boolean {
         if (!waitForPackage(sheetsPackage, 10_000)) {
-            throw IllegalStateException("$stageLabel: スプレッドシートへ戻ったことを確認できませんでした")
+            throw IllegalStateException("スプレッドシート画面を確認できませんでした")
         }
-        val selectBudget = (timeoutMs / 3).coerceAtLeast(5_000)
+        val selectBudget = (timeoutMs / 2).coerceAtLeast(5_000)
         if (!selectSheetCell(cell, selectBudget)) {
-            throw IllegalStateException("$stageLabel: 指定セル $cell へ移動できませんでした")
+            throw IllegalStateException("指定セル $cell へ移動できませんでした")
         }
-        val linkBudget = (timeoutMs / 3).coerceAtLeast(5_000)
+        val linkBudget = (timeoutMs / 2).coerceAtLeast(5_000)
         if (!openVisibleUrl(linkBudget)) {
-            throw IllegalStateException("$stageLabel: $cell 選択後にURLを確認できませんでした")
-        }
-        when (stage.lowercase()) {
-            "goldfish" -> waitForOutcome(goldfishSuccessTexts, 30_000, "金魚")
-            "qr" -> {
-                waitForOutcome(qrSuccessTexts, 30_000, "QR")
-                performGlobalAction(GLOBAL_ACTION_HOME)
-            }
+            throw IllegalStateException("$cell 選択後にURLを確認できませんでした")
         }
         return true
     }
 
     private fun looksLikeSheetGrid(): Boolean {
         if (currentPackage() != sheetsPackage) return false
-        if (firstVisibleText(sheetMarkerTexts) != null) return true
         if (findCellAddressEditor() != null) return true
         val root = rootInActiveWindow ?: return false
         val queue = ArrayDeque<AccessibilityNodeInfo>()
@@ -380,20 +367,6 @@ class JarvisAccessibilityService : AccessibilityService() {
             SystemClock.sleep(250)
         } while (SystemClock.uptimeMillis() < deadline)
         return false
-    }
-
-    /**
-     * Open a named item on the current surface without issuing BACK automatically.
-     * For the TikTok Lite spreadsheet, support both Sheets list and card/grid layouts,
-     * then verify the document surface itself is visible before continuing.
-     */
-    private fun ensureOpenText(text: String, timeoutMs: Long): Boolean {
-        if (!clickTextOnlyRetry(text, timeoutMs)) return false
-        if (normalizeText(text) != normalizeText("TikTok Lite")) return true
-        if (!waitForSheetGrid(12_000)) {
-            throw IllegalStateException("TikTok Lite ファイルを開いたことを確認できませんでした")
-        }
-        return true
     }
 
     private fun clickViewId(viewId: String): Boolean {
@@ -432,6 +405,14 @@ class JarvisAccessibilityService : AccessibilityService() {
             .build())
     }
 
+    private fun tapRelative(xRatio: Double, yRatio: Double): Boolean {
+        val dm = resources.displayMetrics
+        return tap(
+            (dm.widthPixels * xRatio.coerceIn(0.0, 1.0)).toFloat(),
+            (dm.heightPixels * yRatio.coerceIn(0.0, 1.0)).toFloat()
+        )
+    }
+
     private fun swipe(step: JSONObject): Boolean {
         val path = Path().apply {
             moveTo(step.getDouble("x1").toFloat(), step.getDouble("y1").toFloat())
@@ -440,6 +421,23 @@ class JarvisAccessibilityService : AccessibilityService() {
         val duration = step.optLong("durationMs", 350).coerceIn(100, 5_000)
         return dispatchAndWait(GestureDescription.Builder()
             .addStroke(GestureDescription.StrokeDescription(path, 0, duration))
+            .build())
+    }
+
+    private fun swipeRelative(step: JSONObject): Boolean = swipeByRatio(
+        step.getDouble("x1Ratio"), step.getDouble("y1Ratio"),
+        step.getDouble("x2Ratio"), step.getDouble("y2Ratio"),
+        step.optLong("durationMs", 350).coerceIn(100, 5_000)
+    )
+
+    private fun swipeByRatio(x1: Double, y1: Double, x2: Double, y2: Double, durationMs: Long): Boolean {
+        val dm = resources.displayMetrics
+        val path = Path().apply {
+            moveTo((dm.widthPixels * x1.coerceIn(0.0, 1.0)).toFloat(), (dm.heightPixels * y1.coerceIn(0.0, 1.0)).toFloat())
+            lineTo((dm.widthPixels * x2.coerceIn(0.0, 1.0)).toFloat(), (dm.heightPixels * y2.coerceIn(0.0, 1.0)).toFloat())
+        }
+        return dispatchAndWait(GestureDescription.Builder()
+            .addStroke(GestureDescription.StrokeDescription(path, 0, durationMs))
             .build())
     }
 
