@@ -90,7 +90,7 @@ test("total recovery budget remains bounded", () => {
   assert.equal(decision.recovery.blocked, true);
 });
 
-test("worker failure falls back to another compatible healthy worker", async () => {
+test("worker failure falls back to another compatible worker but waits for verifier before completion", async () => {
   const tasks = new DurableTaskRuntime(new MemoryDurableTaskStore());
   await tasks.enqueue({
     id: "fallback-task",
@@ -139,10 +139,35 @@ test("worker failure falls back to another compatible healthy worker", async () 
 
   assert.equal(outcome.decision.action, "fallback_worker");
   assert.equal(outcome.evidence.selectedFallbackWorkerId, "macbook");
+  assert.equal(outcome.evidence.verificationRequired, true);
   assert.equal(outcome.fallbackResult?.ok, true);
-  assert.equal(outcome.task.status, "completed");
-  assert.equal((outcome.task.result as { recoveredBy?: string }).recoveredBy, "macbook");
-  assert.equal((outcome.task.result as { requiresVerification?: boolean }).requiresVerification, true);
+  assert.equal(outcome.task.status, "running");
+  assert.equal(outcome.task.leaseOwner, "macbook");
+
+  const completed = await runtime.completeAfterVerification({
+    taskId: "fallback-task",
+    workerId: "macbook",
+    workerResult: outcome.fallbackResult!,
+    verification: { ok: true, summary: "fallback evidence verified" },
+  });
+  assert.equal(completed.status, "completed");
+  assert.equal((completed.result as { recoveredBy?: string }).recoveredBy, "macbook");
+});
+
+test("failed verification after fallback re-enters retry instead of completing", async () => {
+  const tasks = new DurableTaskRuntime(new MemoryDurableTaskStore());
+  await tasks.enqueue({ id: "verify-retry", idempotencyKey: "verify-retry", type: "work", maxAttempts: 3 });
+  await tasks.lease("verify-retry", "macbook", 60_000);
+  await tasks.markRunning("verify-retry", "macbook");
+  const runtime = new SelfHealingRuntime({ tasks, workers: new MultiWorkerRuntime([]) });
+  const task = await runtime.completeAfterVerification({
+    taskId: "verify-retry",
+    workerId: "macbook",
+    workerResult: { ok: true, workerId: "macbook", platform: "macos", output: "candidate", durationMs: 1 },
+    verification: { ok: false, summary: "expected artifact missing" },
+  });
+  assert.equal(task.status, "retrying");
+  assert.match(task.error ?? "", /verification failed/);
 });
 
 test("missing fallback capacity waits for resource instead of terminal failure", async () => {
