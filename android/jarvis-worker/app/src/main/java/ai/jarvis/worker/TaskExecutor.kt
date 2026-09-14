@@ -39,10 +39,25 @@ class TaskExecutor(private val context: Context) {
                 .getOrElse { report(taskId, false, JSONObject().put("error", it.message)); true }
         }
 
+        val startedAt = System.currentTimeMillis()
+        WorkerRuntimeState.beginTask(taskId, type)
         val result = runCatching { executeSync(type, payload) }
-        result.onSuccess { report(taskId, true, it) }
-            .onFailure { report(taskId, false, JSONObject().put("error", it.message ?: it.javaClass.simpleName)) }
+        result.onSuccess {
+            WorkerRuntimeState.completeTask()
+            report(taskId, true, decorateResult(it, startedAt))
+        }.onFailure {
+            val message = it.message ?: it.javaClass.simpleName
+            WorkerRuntimeState.fail(message)
+            report(taskId, false, decorateResult(JSONObject().put("error", message), startedAt))
+        }
         return true
+    }
+
+    private fun decorateResult(detail: JSONObject, startedAt: Long): JSONObject {
+        val pkg = context.packageManager.getPackageInfo(context.packageName, 0)
+        return detail
+            .put("durationMs", System.currentTimeMillis() - startedAt)
+            .put("workerVersion", pkg.versionName ?: "unknown")
     }
 
     private fun executeSync(type: String, payload: JSONObject): JSONObject = when (type) {
@@ -53,7 +68,7 @@ class TaskExecutor(private val context: Context) {
         "show-notification" -> showNotification(payload)
         "lock-device" -> lockDevice()
         "reboot" -> rebootDevice()
-        "ui-sequence" -> uiSequence(payload)
+        "ui-sequence", "workflow-recipe" -> uiSequence(payload)
         else -> throw IllegalArgumentException("Unsupported task type: $type")
     }
 
@@ -97,6 +112,7 @@ class TaskExecutor(private val context: Context) {
     private fun deviceStatus(): JSONObject {
         val dpm = context.getSystemService(DevicePolicyManager::class.java)
         val keyguard = context.getSystemService(KeyguardManager::class.java)
+        val pm = context.getSystemService(PowerManager::class.java)
         val admin = JarvisDeviceAdminReceiver.component(context)
         val pkg = context.packageManager.getPackageInfo(context.packageName, 0)
         return JSONObject()
@@ -108,6 +124,9 @@ class TaskExecutor(private val context: Context) {
             .put("accessibilityEnabled", JarvisAccessibilityService.connected())
             .put("locked", keyguard?.isDeviceLocked == true)
             .put("secure", keyguard?.isDeviceSecure == true)
+            .put("screenInteractive", pm?.isInteractive == true)
+            .put("currentPackage", JarvisAccessibilityService.currentPackageName())
+            .put("runtime", WorkerRuntimeState.snapshot())
     }
 
     private fun showNotification(payload: JSONObject): JSONObject {
