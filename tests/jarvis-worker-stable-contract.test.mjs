@@ -21,6 +21,13 @@ test('generic Worker owns mechanics while Commander owns business recipe', () =>
   assert.match(commander, /task\('workflow-recipe'/);
 });
 
+test('Commander secret path consumes the entire suffix instead of one slash-delimited segment', () => {
+  assert.match(commander, /url\.pathname\.slice\(3\)/);
+  assert.match(commander, /url\.pathname\.startsWith\('\/c\/'\)/);
+  assert.match(commander, /location\.pathname\.slice\(3\)/);
+  assert.doesNotMatch(commander, /p\[2\]\?decodeURIComponent\(p\[2\]\)/);
+});
+
 test('Worker telemetry exposes fleet progress without enrollment secrets', () => {
   assert.match(broker, /"charging"/);
   assert.match(broker, /"network"/);
