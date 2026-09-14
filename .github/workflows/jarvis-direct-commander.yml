@@ -6,6 +6,8 @@ on:
     paths:
       - 'scripts/jarvis-direct-commander.ts'
       - 'scripts/jarvis-direct-commander-v4.mjs'
+      - 'scripts/jarvis-direct-commander-v5.mjs'
+      - 'scripts/jarvis-direct-commander-v5-launcher.mjs'
       - 'scripts/jarvis-direct-commander-service.sh'
       - 'scripts/jarvis-direct-commander-tunnel-service.sh'
       - '.github/workflows/jarvis-direct-commander.yml'
