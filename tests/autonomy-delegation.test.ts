@@ -53,13 +53,28 @@ test("JARVIS delegation enqueues a device task and waits for verified completion
   ]);
 });
 
-test("research delegation reports the exact missing executor instead of pretending completion", async () => {
+test("research delegation executes hosted bounded evidence through the shared executor", async () => {
   const capability = createAutonomyDelegationCapability({
-    downstream: { async execute() { throw new Error("unused"); } },
+    downstream: {
+      async execute(delegatedAction, context) {
+        assert.equal(delegatedAction.capability, "context.inspect");
+        assert.equal(context[0]?.source, "repository.file:PROJECT_STATE.md");
+        return {
+          actionId: delegatedAction.id,
+          ok: true,
+          summary: "inspected bounded evidence",
+          evidence: { sourceCount: context.length },
+        };
+      },
+    },
     env: {},
   });
-  const result = await capability.execute(action({ target: "research", researchKind: "local-safe" }), []);
-  assert.equal(result.ok, false);
-  assert.equal(result.blocker, "RESEARCH_EXECUTOR_UNAVAILABLE");
-  assert.match(result.summary, /no general research executor/i);
+  const result = await capability.execute(
+    action({ target: "research", researchKind: "local-safe", query: "inspect current research state" }),
+    [{ source: "repository.file:PROJECT_STATE.md", summary: "current research state" }],
+  );
+  assert.equal(result.ok, true);
+  assert.match(result.summary, /Hosted research completed/);
+  const evidence = result.evidence as { sources: string[] };
+  assert.deepEqual(evidence.sources, ["repository.file:PROJECT_STATE.md"]);
 });
