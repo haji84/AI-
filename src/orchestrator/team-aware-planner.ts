@@ -1,6 +1,7 @@
 import type { ActionResult, InferredIntent, Planner, ProposedAction } from "./goal-loop.ts";
 import type { ContextItem, Goal } from "./goal-loop.ts";
 import { detectLocalOnlyBlocker, selectParallelCloudCandidates } from "./model-planner.ts";
+import { PlannerEnhancementPlanner } from "./planner-enhancement.ts";
 import { buildTeamPlanningBundle } from "./team-planning-context.ts";
 
 export const HUMAN_GATE_SMOKE_MARKER = "[HUMAN_GATE_SMOKE_HIGH]";
@@ -41,7 +42,7 @@ export class TeamAwarePlanner implements Planner {
   private readonly explicitBoundedPlan: boolean;
 
   constructor(delegate: Planner, options: { explicitBoundedPlan?: boolean } = {}) {
-    this.delegate = delegate;
+    this.delegate = new PlannerEnhancementPlanner(delegate);
     this.explicitBoundedPlan = options.explicitBoundedPlan === true;
     this.supersedesPriorExecutionState = this.explicitBoundedPlan;
   }
