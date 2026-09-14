@@ -53,6 +53,10 @@ jobs:
             task_ver="$(printf '%s' "$task" | jq -r '[.. | objects | .versionName? // empty, .workerVersion? // empty] | map(select(type=="string" and length>0)) | first // empty')"
             printf '%s' "$task_ver"
           }
+          adb_version() {
+            local serial="$1"
+            adb -s "$serial" shell dumpsys package ai.jarvis.worker 2>/dev/null | sed -n 's/.*versionName=//p' | head -1 | tr -d '\r'
+          }
 
           S="$(state)"
           NODE="$(printf '%s' "$S" | jq -r '.fleet[]? | select((.label // "" | test("Android[[:space:]]*0*1|nubia A403ZT"; "i"))) | .id' | head -1)"
@@ -60,25 +64,30 @@ jobs:
           echo "Target Android 001 found"
 
           VER="$(probe_version "$NODE")"
-          echo "Worker version reported: ${VER:-unknown}"
+          echo "Worker version reported by Broker: ${VER:-unknown}"
           if [[ "$VER" != "0.4.1" ]]; then
-            echo "Worker is stale; trying safe ADB in-place update to 0.4.1"
+            echo "Worker is stale or version telemetry is unavailable; checking ADB"
             APK="$STATE_ROOT/jarvis-worker.apk"
             test -s "$APK"
+            SERIALS=""
             if command -v adb >/dev/null 2>&1; then
-              mapfile -t DEVICES < <(adb devices | awk 'NR>1 && $2=="device" {print $1}')
-            else
-              DEVICES=()
+              SERIALS="$(adb devices | awk 'NR>1 && $2=="device" {print $1}')"
             fi
-            if [[ "${#DEVICES[@]}" -ne 1 ]]; then
-              echo "Cannot safely auto-update Android 001: expected exactly one ADB device, found ${#DEVICES[@]}" >&2
+            COUNT="$(printf '%s\n' "$SERIALS" | awk 'NF{n++} END{print n+0}')"
+            if [[ "$COUNT" -ne 1 ]]; then
+              echo "Cannot safely auto-update Android 001: expected exactly one ADB device, found $COUNT" >&2
               exit 42
             fi
-            adb -s "${DEVICES[0]}" install -r "$APK"
-            sleep 8
-            VER="$(probe_version "$NODE")"
-            echo "Worker version after ADB update: ${VER:-unknown}"
-            [[ "$VER" == "0.4.1" ]] || { echo "Android 001 did not report Worker 0.4.1 after update" >&2; exit 43; }
+            SERIAL="$(printf '%s\n' "$SERIALS" | awk 'NF{print; exit}')"
+            BEFORE="$(adb_version "$SERIAL")"
+            echo "ADB Worker version before update: ${BEFORE:-unknown}"
+            if [[ "$BEFORE" != "0.4.1" ]]; then
+              adb -s "$SERIAL" install -r "$APK"
+              sleep 8
+            fi
+            AFTER="$(adb_version "$SERIAL")"
+            echo "ADB Worker version after update: ${AFTER:-unknown}"
+            [[ "$AFTER" == "0.4.1" ]] || { echo "Android 001 is not running Worker 0.4.1 after update" >&2; exit 43; }
           fi
 
           OPEN="$(jq -nc --arg node "$NODE" '{type:"open-app",payload:{packageName:"com.google.android.apps.docs.editors.sheets"},targetNodeId:$node,priority:"urgent",idempotencyKey:("real-e2e-open:"+(now|tostring))}')"
