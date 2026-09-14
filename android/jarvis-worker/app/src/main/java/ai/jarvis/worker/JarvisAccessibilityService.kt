@@ -236,30 +236,49 @@ class JarvisAccessibilityService : AccessibilityService() {
     private fun normalizedNodeLabel(node: AccessibilityNodeInfo): String =
         nodeStrings(node).joinToString(" ").trim().uppercase().replace(Regex("\\s+"), " ")
 
-    private fun exactHeaderNode(label: String, columnHeader: Boolean): AccessibilityNodeInfo? {
-        val root = rootInActiveWindow ?: return null
+    private fun tokenPresent(text: String, token: String): Boolean {
+        val escaped = Regex.escape(token.uppercase())
+        return Regex("(^|[^A-Z0-9])$escaped([^A-Z0-9]|$)").containsMatchIn(text.uppercase())
+    }
+
+    private fun looksLikeHeaderNode(node: AccessibilityNodeInfo, label: String, columnHeader: Boolean): Boolean {
+        val text = normalizedNodeLabel(node)
+        if (text.isBlank()) return false
         val wanted = label.uppercase()
+        val bounds = Rect().also(node::getBoundsInScreen)
+        if (bounds.isEmpty) return false
+        val dm = resources.displayMetrics
+        val nearTop = bounds.centerY() < dm.heightPixels * 0.45
+        val nearLeft = bounds.centerX() < dm.widthPixels * 0.30
+
+        if (text == wanted) return if (columnHeader) nearTop else nearLeft
+        if (!tokenPresent(text, wanted)) return false
+
+        val semantic = if (columnHeader) {
+            text.contains("COLUMN") || text.contains("列") || text.contains("COL ") || text.startsWith("COL")
+        } else {
+            text.contains("ROW") || text.contains("行")
+        }
+        return semantic || if (columnHeader) nearTop else nearLeft
+    }
+
+    private fun headerNode(label: String, columnHeader: Boolean): AccessibilityNodeInfo? {
+        val root = rootInActiveWindow ?: return null
         val queue = ArrayDeque<AccessibilityNodeInfo>()
         queue.add(root)
         var visited = 0
-        while (queue.isNotEmpty() && visited < 1_500) {
+        while (queue.isNotEmpty() && visited < 2_000) {
             val node = queue.removeFirst()
             visited++
-            val text = normalizedNodeLabel(node)
-            val matches = if (columnHeader) {
-                text == wanted || text == "COLUMN $wanted" || text == "$wanted COLUMN" || text == "列 $wanted" || text == "$wanted 列"
-            } else {
-                text == wanted || text == "ROW $wanted" || text == "$wanted ROW" || text == "行 $wanted" || text == "$wanted 行"
-            }
-            if (matches) return node
+            if (looksLikeHeaderNode(node, label, columnHeader)) return node
             for (i in 0 until node.childCount) node.getChild(i)?.let(queue::addLast)
         }
         return null
     }
 
     private fun tapCellIntersection(ref: SheetCellRef): Boolean {
-        val columnNode = exactHeaderNode(ref.column, true) ?: return false
-        val rowNode = exactHeaderNode(ref.row.toString(), false) ?: return false
+        val columnNode = headerNode(ref.column, true) ?: return false
+        val rowNode = headerNode(ref.row.toString(), false) ?: return false
         val columnBounds = Rect().also(columnNode::getBoundsInScreen)
         val rowBounds = Rect().also(rowNode::getBoundsInScreen)
         if (columnBounds.isEmpty || rowBounds.isEmpty) return false
@@ -275,14 +294,14 @@ class JarvisAccessibilityService : AccessibilityService() {
         val queue = ArrayDeque<AccessibilityNodeInfo>()
         queue.add(root)
         var visited = 0
-        while (queue.isNotEmpty() && visited < 1_200) {
+        while (queue.isNotEmpty() && visited < 1_500) {
             val node = queue.removeFirst()
             visited++
             if (node.isEditable) {
                 val strings = nodeStrings(node)
                 val hasCellValue = strings.any { cellRegex.matches(it.trim().uppercase()) }
                 val hint = strings.joinToString(" ").lowercase()
-                val looksLikeNameBox = hint.contains("name") || hint.contains("名前") || hint.contains("cell") || hint.contains("セル")
+                val looksLikeNameBox = hint.contains("name") || hint.contains("名前") || hint.contains("cell") || hint.contains("セル") || hint.contains("range") || hint.contains("範囲")
                 if (hasCellValue || looksLikeNameBox) return node
             }
             for (i in 0 until node.childCount) node.getChild(i)?.let(queue::addLast)
@@ -304,15 +323,32 @@ class JarvisAccessibilityService : AccessibilityService() {
     }
 
     private fun sheetSwipeLeft(): Boolean = swipeByRatio(0.82, 0.62, 0.25, 0.62, 350)
+    private fun sheetSwipeRight(): Boolean = swipeByRatio(0.25, 0.62, 0.82, 0.62, 350)
     private fun sheetSwipeUp(): Boolean = swipeByRatio(0.55, 0.78, 0.55, 0.30, 350)
+    private fun sheetSwipeDown(): Boolean = swipeByRatio(0.55, 0.30, 0.55, 0.78, 350)
+
+    private fun normalizeSheetOrigin() {
+        // Put the sheet near A1 before resolving an A1-style reference. This prevents
+        // the previous user's scroll position from changing what C7/G6/J7 means.
+        repeat(5) {
+            sheetSwipeRight()
+            SystemClock.sleep(120)
+        }
+        repeat(5) {
+            sheetSwipeDown()
+            SystemClock.sleep(120)
+        }
+    }
 
     private fun selectSheetCell(cell: String, timeoutMs: Long): Boolean {
         val ref = parseSheetCellRef(cell)
         val normalizedCell = "${ref.column}${ref.row}"
         val deadline = SystemClock.uptimeMillis() + timeoutMs
 
-        // C7 means column C, row 7. Prefer tapping the physical grid intersection
-        // of the visible column/row headers instead of searching for the string "C7".
+        normalizeSheetOrigin()
+        SystemClock.sleep(350)
+
+        // C7 means column C x row 7, never a visible string search for "C7".
         var horizontalSwipes = 0
         var verticalSwipes = 0
         do {
@@ -320,24 +356,23 @@ class JarvisAccessibilityService : AccessibilityService() {
                 SystemClock.sleep(500)
                 return true
             }
-            val columnVisible = exactHeaderNode(ref.column, true) != null
-            val rowVisible = exactHeaderNode(ref.row.toString(), false) != null
+            val columnVisible = headerNode(ref.column, true) != null
+            val rowVisible = headerNode(ref.row.toString(), false) != null
             when {
-                !columnVisible && horizontalSwipes < 8 -> {
+                !columnVisible && horizontalSwipes < 10 -> {
                     sheetSwipeLeft()
                     horizontalSwipes++
                 }
-                !rowVisible && verticalSwipes < 8 -> {
+                !rowVisible && verticalSwipes < 10 -> {
                     sheetSwipeUp()
                     verticalSwipes++
                 }
                 else -> break
             }
-            SystemClock.sleep(350)
+            SystemClock.sleep(300)
         } while (SystemClock.uptimeMillis() < deadline)
 
-        // Name-box navigation remains a fallback for Sheets versions that do not expose
-        // row/column headers through Accessibility.
+        // Fallback for Sheets builds exposing an editable name/range box instead of headers.
         if (setCellAddressThroughEditor(normalizedCell)) {
             SystemClock.sleep(500)
             return true
@@ -398,6 +433,7 @@ class JarvisAccessibilityService : AccessibilityService() {
                 val tokens = value.uppercase().split(Regex("[^A-Z0-9]+"))
                 if (tokens.any(cellRegex::matches)) return true
             }
+            if (headerNode("A", true) != null || headerNode("1", false) != null) return true
             for (i in 0 until node.childCount) node.getChild(i)?.let(queue::addLast)
         }
         return false
