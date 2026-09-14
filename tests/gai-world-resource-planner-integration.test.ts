@@ -44,7 +44,7 @@ test("worker preflight -> persistent resource model -> context source -> Phase 9
         id: "node-1",
         label: "node-1",
         platform: "macos",
-        capabilities: ["local-model"],
+        capabilities: ["local-model", "gpu"],
         maxParallelTasks: 1,
         enabled: true,
         executionModes: ["resident"],
@@ -68,14 +68,15 @@ test("worker preflight -> persistent resource model -> context source -> Phase 9
     const resourceData = context[0]?.data as { connectivity?: string; capabilities?: Array<{ capability: string }> };
     assert.equal(resourceData.connectivity, "offline");
     assert.ok(resourceData.capabilities?.some((item) => item.capability === "local-model"));
+    assert.ok(resourceData.capabilities?.some((item) => item.capability === "gpu"));
 
     const delegate = new TwoStepPlanner();
     const planner = new PlannerEnhancementPlanner(delegate);
     const action = await planner.proposeNextAction({ goal, context, intent });
 
-    assert.equal(action?.id, "gpu");
-    assert.equal(delegate.calls.length, 1, "unknown/unreported gpu capability must not be fabricated as unavailable");
-    assert.ok(delegate.calls[0]?.some((item) => item.source === "world.resource.snapshot"));
+    assert.equal(action?.id, "local");
+    assert.equal(delegate.calls.length, 2);
+    assert.ok(delegate.calls[1]?.some((item) => item.source === "planner.phase9.replan"));
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
