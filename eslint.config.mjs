@@ -32,5 +32,11 @@ export default defineConfig([
       "no-useless-escape": "off",
     },
   },
+  {
+    files: ["scripts/gai-tool-use-benchmark.ts"],
+    rules: {
+      "@typescript-eslint/no-explicit-any": "off",
+    },
+  },
   globalIgnores([".next/**", "next-env.d.ts"]),
 ]);
