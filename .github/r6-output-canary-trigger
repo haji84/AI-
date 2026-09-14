@@ -4,3 +4,4 @@ Rejected optimization: /no_think + 96 tokens => 0%, empty outputs
 Candidate: Ollama think=false + 128 output tokens
 Development-only canary: 12 cases
 Issue: #539
+Restart: 2026-09-14T19:50Z after stale ZBook canary lease
