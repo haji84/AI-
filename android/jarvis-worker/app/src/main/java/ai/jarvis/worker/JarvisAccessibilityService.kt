@@ -3,6 +3,7 @@ package ai.jarvis.worker
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
 import android.graphics.Path
+import android.graphics.Rect
 import android.os.Build
 import android.os.Bundle
 import android.os.SystemClock
@@ -223,24 +224,50 @@ class JarvisAccessibilityService : AccessibilityService() {
         node.contentDescription?.toString()
     )
 
-    private fun isCellMention(value: String, cell: String): Boolean {
-        val normalized = value.uppercase().replace(Regex("\\s+"), " ")
-        val escaped = Regex.escape(cell.uppercase())
-        return Regex("(^|[^A-Z0-9])$escaped([^A-Z0-9]|$)").containsMatchIn(normalized)
+    private data class SheetCellRef(val column: String, val row: Int)
+
+    private fun parseSheetCellRef(cell: String): SheetCellRef {
+        val normalized = cell.trim().uppercase()
+        require(cellRegex.matches(normalized)) { "Invalid sheet cell: $cell" }
+        val split = normalized.indexOfFirst(Char::isDigit)
+        return SheetCellRef(normalized.substring(0, split), normalized.substring(split).toInt())
     }
 
-    private fun findCellNode(cell: String): AccessibilityNodeInfo? {
+    private fun normalizedNodeLabel(node: AccessibilityNodeInfo): String =
+        nodeStrings(node).joinToString(" ").trim().uppercase().replace(Regex("\\s+"), " ")
+
+    private fun exactHeaderNode(label: String, columnHeader: Boolean): AccessibilityNodeInfo? {
         val root = rootInActiveWindow ?: return null
+        val wanted = label.uppercase()
         val queue = ArrayDeque<AccessibilityNodeInfo>()
         queue.add(root)
         var visited = 0
-        while (queue.isNotEmpty() && visited < 1_200) {
+        while (queue.isNotEmpty() && visited < 1_500) {
             val node = queue.removeFirst()
             visited++
-            if (nodeStrings(node).any { isCellMention(it, cell) }) return node
+            val text = normalizedNodeLabel(node)
+            val matches = if (columnHeader) {
+                text == wanted || text == "COLUMN $wanted" || text == "$wanted COLUMN" || text == "列 $wanted" || text == "$wanted 列"
+            } else {
+                text == wanted || text == "ROW $wanted" || text == "$wanted ROW" || text == "行 $wanted" || text == "$wanted 行"
+            }
+            if (matches) return node
             for (i in 0 until node.childCount) node.getChild(i)?.let(queue::addLast)
         }
         return null
+    }
+
+    private fun tapCellIntersection(ref: SheetCellRef): Boolean {
+        val columnNode = exactHeaderNode(ref.column, true) ?: return false
+        val rowNode = exactHeaderNode(ref.row.toString(), false) ?: return false
+        val columnBounds = Rect().also(columnNode::getBoundsInScreen)
+        val rowBounds = Rect().also(rowNode::getBoundsInScreen)
+        if (columnBounds.isEmpty || rowBounds.isEmpty) return false
+        val x = columnBounds.centerX().toFloat()
+        val y = rowBounds.centerY().toFloat()
+        val dm = resources.displayMetrics
+        if (x <= 0 || y <= 0 || x >= dm.widthPixels || y >= dm.heightPixels) return false
+        return tap(x, y)
     }
 
     private fun findCellAddressEditor(): AccessibilityNodeInfo? {
@@ -277,28 +304,44 @@ class JarvisAccessibilityService : AccessibilityService() {
     }
 
     private fun sheetSwipeLeft(): Boolean = swipeByRatio(0.82, 0.62, 0.25, 0.62, 350)
+    private fun sheetSwipeUp(): Boolean = swipeByRatio(0.55, 0.78, 0.55, 0.30, 350)
 
     private fun selectSheetCell(cell: String, timeoutMs: Long): Boolean {
-        val normalizedCell = cell.uppercase()
-        require(cellRegex.matches(normalizedCell)) { "Invalid sheet cell: $cell" }
+        val ref = parseSheetCellRef(cell)
+        val normalizedCell = "${ref.column}${ref.row}"
         val deadline = SystemClock.uptimeMillis() + timeoutMs
+
+        // C7 means column C, row 7. Prefer tapping the physical grid intersection
+        // of the visible column/row headers instead of searching for the string "C7".
+        var horizontalSwipes = 0
+        var verticalSwipes = 0
+        do {
+            if (tapCellIntersection(ref)) {
+                SystemClock.sleep(500)
+                return true
+            }
+            val columnVisible = exactHeaderNode(ref.column, true) != null
+            val rowVisible = exactHeaderNode(ref.row.toString(), false) != null
+            when {
+                !columnVisible && horizontalSwipes < 8 -> {
+                    sheetSwipeLeft()
+                    horizontalSwipes++
+                }
+                !rowVisible && verticalSwipes < 8 -> {
+                    sheetSwipeUp()
+                    verticalSwipes++
+                }
+                else -> break
+            }
+            SystemClock.sleep(350)
+        } while (SystemClock.uptimeMillis() < deadline)
+
+        // Name-box navigation remains a fallback for Sheets versions that do not expose
+        // row/column headers through Accessibility.
         if (setCellAddressThroughEditor(normalizedCell)) {
             SystemClock.sleep(500)
             return true
         }
-        var swipes = 0
-        do {
-            val node = findCellNode(normalizedCell)
-            if (node != null && clickNodeOrParent(node)) {
-                SystemClock.sleep(500)
-                return true
-            }
-            if (swipes < 5) {
-                sheetSwipeLeft()
-                swipes++
-                SystemClock.sleep(350)
-            } else SystemClock.sleep(250)
-        } while (SystemClock.uptimeMillis() < deadline)
         return false
     }
 
@@ -332,7 +375,7 @@ class JarvisAccessibilityService : AccessibilityService() {
         }
         val selectBudget = (timeoutMs / 2).coerceAtLeast(5_000)
         if (!selectSheetCell(cell, selectBudget)) {
-            throw IllegalStateException("指定セル $cell へ移動できませんでした")
+            throw IllegalStateException("指定セル $cell（列・行座標）へ移動できませんでした")
         }
         val linkBudget = (timeoutMs / 2).coerceAtLeast(5_000)
         if (!openVisibleUrl(linkBudget)) {
