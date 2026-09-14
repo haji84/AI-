@@ -72,12 +72,14 @@ function resolveEnrollmentGrant(grant: string, now = Date.now()): EnrollmentGran
 function oneTapEnrollmentPage(grant: string): string {
   const apk = workerApkInfo();
   const deepLink = `jarvis://enroll?broker=${encodeURIComponent(publicBrokerUrl)}&grant=${encodeURIComponent(grant)}&token=${encodeURIComponent(grant)}`;
-  const deepLinkJson = JSON.stringify(deepLink).replace(/</g, "\\u003c");
-  const apkButton = apk ? `<a class="secondary" href="${apk.url}">JARVIS Workerをインストール</a>` : "<p class=\"note\">Workerが未インストールの場合は、管理者にAPKの準備状況を確認してください。</p>";
+  const apkHref = apk ? `${apk.url}?v=${apk.sha256Base64Url.slice(0, 12)}` : "";
+  const installButton = apk
+    ? `<a class="button" href="${apkHref}">最新版JARVIS Workerを更新・インストール</a>`
+    : "<p class=\"note bad\">最新版Worker APKを準備できていません。管理者に確認してください。</p>";
   return `<!doctype html>
 <html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>JARVISに登録</title>
-<style>body{font-family:system-ui,sans-serif;background:#f6f7f8;color:#111;margin:0;padding:28px}.card{max-width:560px;margin:10vh auto;background:white;border-radius:20px;padding:28px;box-shadow:0 10px 40px #00000012}h1{font-size:26px;margin:0 0 12px}p{line-height:1.65}.button,.secondary{display:block;text-align:center;text-decoration:none;border-radius:12px;padding:16px;margin-top:16px;font-weight:700}.button{background:#111;color:white}.secondary{background:#e9ecef;color:#111}.note{font-size:14px;color:#666}</style></head>
-<body><main class="card"><h1>JARVISに登録中</h1><p>JARVIS Workerが入っていれば自動で開き、そのまま登録します。</p><a id="open" class="button" href="${deepLink}">JARVISで登録する</a>${apkButton}<p class="note">Androidの仕様により、初回APKインストール時だけ提供元の許可確認が表示される場合があります。</p></main><script>const target=${deepLinkJson};window.location.replace(target);</script></body></html>`;
+<style>body{font-family:system-ui,sans-serif;background:#f6f7f8;color:#111;margin:0;padding:28px}.card{max-width:560px;margin:10vh auto;background:white;border-radius:20px;padding:28px;box-shadow:0 10px 40px #00000012}h1{font-size:26px;margin:0 0 12px}p{line-height:1.65}.button,.secondary{display:block;text-align:center;text-decoration:none;border-radius:12px;padding:16px;margin-top:16px;font-weight:700}.button{background:#111;color:white}.secondary{background:#e9ecef;color:#111}.note{font-size:14px;color:#666}.bad{color:#a40000}.step{font-weight:700;margin-top:20px}</style></head>
+<body><main class="card"><h1>JARVIS端末登録</h1><p>古いWorkerを先に起動しないよう、必ず最新版へ更新してから登録します。</p><p class="step">1. 最新版Workerへ更新</p>${installButton}<p class="note">既にWorkerが入っている場合は、アンインストールせず「更新」を選んでください。APKは内容ごとに異なるURLになるため、古いダウンロードの再利用を防ぎます。</p><p class="step">2. 更新完了後に登録</p><a id="open" class="secondary" href="${deepLink}">更新後にJARVISで登録する</a><p class="note">Mac/PCではJARVISアプリを自動起動しません。このページをAndroid端末で開いて操作してください。</p></main></body></html>`;
 }
 function expiredEnrollmentPage(): string {
   return "<!doctype html><html lang=\"ja\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>リンク期限切れ</title></head><body style=\"font-family:system-ui,sans-serif;padding:32px\"><h1>リンク期限切れ</h1><p>このJARVIS登録リンクは無効または期限切れです。管理者から新しい登録リンクを受け取ってください。</p></body></html>";
