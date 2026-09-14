@@ -7,7 +7,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $root = Join-Path $env:LOCALAPPDATA 'GAIWorker\research-worker'
-$serviceSource = Join-Path (Resolve-Path (Join-Path $PSScriptRoot 'research-worker-service.ts')) ''
+$serviceSource = (Resolve-Path (Join-Path $PSScriptRoot 'research-worker-service.ts')).Path
 $servicePath = Join-Path $root 'research-worker-service.ts'
 $launcherPath = Join-Path $root 'run-research-worker.ps1'
 $tokenPath = Join-Path $root 'token.txt'
