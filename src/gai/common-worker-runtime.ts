@@ -28,10 +28,15 @@ export interface CapabilityExecutionContext {
   checkpoint?: WorkerCheckpointHooks;
 }
 
+export interface CapabilityHandlerResult {
+  output: string;
+  evidence?: Record<string, unknown>;
+}
+
 export type CapabilityHandler = (
   request: WorkerExecutionRequest,
   context: CapabilityExecutionContext,
-) => Promise<string>;
+) => Promise<string | CapabilityHandlerResult>;
 
 export interface CommonWorkerRuntimeOptions {
   descriptor: WorkerDescriptor;
@@ -107,12 +112,13 @@ export class CommonWorkerRuntime implements GaiWorker {
     this.state = { ...this.state, activeTasks: this.state.activeTasks + 1 };
 
     try {
-      const output = await handler(request, {
+      const raw = await handler(request, {
         worker: this.descriptor,
         taskId: request.task.id,
         capability,
         checkpoint: this.checkpoint,
       });
+      const handlerResult: CapabilityHandlerResult = typeof raw === "string" ? { output: raw } : raw;
       const completedAt = new Date().toISOString();
       this.state = {
         activeTasks: Math.max(0, this.state.activeTasks - 1),
@@ -123,7 +129,7 @@ export class CommonWorkerRuntime implements GaiWorker {
         lastResult: "success",
         lastCompletedAt: completedAt,
       };
-      return this.result(true, request, capability, output, started, startedAt, completedAt);
+      return this.result(true, request, capability, handlerResult.output, started, startedAt, completedAt, handlerResult.evidence);
     } catch (error) {
       const completedAt = new Date().toISOString();
       const output = error instanceof Error ? error.message : String(error);
@@ -171,6 +177,7 @@ export class CommonWorkerRuntime implements GaiWorker {
     started: number,
     startedAt: string,
     completedAt: string,
+    capabilityEvidence?: Record<string, unknown>,
   ): WorkerExecutionResult {
     return {
       ok,
@@ -188,6 +195,7 @@ export class CommonWorkerRuntime implements GaiWorker {
         completedAt,
         securityContext: this.descriptor.securityContext ?? null,
         verifierHooks: this.descriptor.verifierHooks ?? null,
+        capabilityEvidence: capabilityEvidence ?? null,
       },
     };
   }
