@@ -6,6 +6,8 @@ on:
     paths:
       - 'scripts/research-worker-e2e.ts'
       - 'scripts/research-worker-service.ts'
+      - 'scripts/bootstrap-local-research-model.sh'
+      - 'scripts/bootstrap-local-research-model.ps1'
       - 'src/gai/research-executor.ts'
       - 'src/gai/research-control-plane.ts'
       - '.github/workflows/research-worker-e2e.yml'
@@ -23,18 +25,22 @@ jobs:
   zbook-real:
     name: ZBook real local-model/GPU research E2E
     runs-on: [self-hosted, Windows, X64]
-    timeout-minutes: 15
+    timeout-minutes: 30
     env:
       GAI_WORKER_ID: zbook
       GAI_LOCAL_MODEL_ENDPOINT: http://127.0.0.1:11434
+      GAI_LOCAL_MODEL_NAME: qwen2.5:1.5b
       E2E_RESEARCH_KIND: gpu
     steps:
       - uses: actions/checkout@v5
         with:
           ref: main
-      - name: Recover runner and local model
+      - name: Recover GitHub runner state
         shell: powershell
         run: ./scripts/gai-zbook-watchdog.ps1
+      - name: Bootstrap local research model
+        shell: powershell
+        run: ./scripts/bootstrap-local-research-model.ps1
       - name: Execute real Research Worker E2E
         shell: powershell
         run: node scripts/research-worker-e2e.ts
@@ -49,18 +55,22 @@ jobs:
   macbook-real:
     name: MacBook real local-model research E2E
     runs-on: [self-hosted, macOS, ARM64]
-    timeout-minutes: 15
+    timeout-minutes: 30
     env:
       GAI_WORKER_ID: macbook
       GAI_LOCAL_MODEL_ENDPOINT: http://127.0.0.1:11434
+      GAI_LOCAL_MODEL_NAME: qwen2.5:1.5b
       E2E_RESEARCH_KIND: local-model
     steps:
       - uses: actions/checkout@v5
         with:
           ref: main
-      - name: Recover runner and local model
+      - name: Recover GitHub runner state
         shell: bash
         run: bash scripts/gai-macbook-watchdog.sh
+      - name: Bootstrap local research model
+        shell: bash
+        run: bash scripts/bootstrap-local-research-model.sh
       - name: Execute real Research Worker E2E
         shell: bash
         run: node scripts/research-worker-e2e.ts
