@@ -1,14 +1,60 @@
 import type { TaskProfile } from "./types.ts";
 
-export type WorkerPlatform = "windows" | "macos" | "linux";
+export type WorkerPlatform = "windows" | "macos" | "ios" | "android" | "linux";
+export type WorkerDeviceType = "desktop" | "laptop" | "mobile" | "server" | "embedded";
+export type WorkerExecutionMode =
+  | "resident"
+  | "foreground"
+  | "background-scheduled"
+  | "background-continued"
+  | "deferred";
+export type WorkerConnectivity = "online" | "degraded" | "offline" | "recovering";
+export type WorkerNetworkRequirement = "online-required" | "offline-capable" | "offline-preferred";
 export type WorkerCapability =
   | "local-model"
   | "gpu"
   | "macos-tooling"
   | "windows-tooling"
+  | "ios-tooling"
+  | "android-tooling"
   | "browser"
   | "filesystem"
-  | "long-running";
+  | "long-running"
+  | "camera"
+  | "gps"
+  | "sensors"
+  | "local-storage"
+  | "local-inference"
+  | "offline-cache"
+  | "background-task";
+
+export interface WorkerResourceSnapshot {
+  cpuAvailable?: boolean;
+  gpuAvailable?: boolean;
+  memoryAvailableMb?: number;
+  diskAvailableMb?: number;
+  batteryPercent?: number;
+  onExternalPower?: boolean;
+}
+
+export interface WorkerPersistenceProfile {
+  localState: boolean;
+  checkpointResume: boolean;
+  offlineQueue: boolean;
+}
+
+export interface WorkerSecurityContext {
+  credentialIsolation: boolean;
+  taskScopedAuthorization: boolean;
+  acceptsRemoteSecrets?: boolean;
+}
+
+export interface WorkerVerifierHooks {
+  healthEvidence?: boolean;
+  executionEvidence?: boolean;
+  artifactEvidence?: boolean;
+  stateEvidence?: boolean;
+}
 
 export interface WorkerDescriptor {
   id: string;
@@ -17,6 +63,12 @@ export interface WorkerDescriptor {
   capabilities: WorkerCapability[];
   maxParallelTasks: number;
   enabled: boolean;
+  deviceType?: WorkerDeviceType;
+  executionModes?: WorkerExecutionMode[];
+  networkRequirement?: WorkerNetworkRequirement;
+  persistence?: WorkerPersistenceProfile;
+  securityContext?: WorkerSecurityContext;
+  verifierHooks?: WorkerVerifierHooks;
 }
 
 export interface WorkerHealth {
@@ -24,6 +76,9 @@ export interface WorkerHealth {
   available: boolean;
   checkedAt: string;
   detail?: string;
+  connectivity?: WorkerConnectivity;
+  executionModes?: WorkerExecutionMode[];
+  resources?: WorkerResourceSnapshot;
 }
 
 export interface WorkerExecutionRequest {
@@ -31,6 +86,9 @@ export interface WorkerExecutionRequest {
   input: string;
   requiredCapabilities?: WorkerCapability[];
   preferredPlatform?: WorkerPlatform;
+  requiredExecutionMode?: WorkerExecutionMode;
+  connectivity?: WorkerConnectivity;
+  allowOffline?: boolean;
 }
 
 export interface WorkerExecutionResult {
@@ -39,6 +97,7 @@ export interface WorkerExecutionResult {
   platform: WorkerPlatform;
   output: string;
   durationMs: number;
+  evidence?: Record<string, unknown>;
 }
 
 export interface GaiWorker {
@@ -51,6 +110,24 @@ export interface WorkerSelection {
   worker: GaiWorker;
   score: number;
   reasons: string[];
+}
+
+function supportsConnectivity(
+  descriptor: WorkerDescriptor,
+  health: WorkerHealth,
+  request: WorkerExecutionRequest,
+): boolean {
+  const connectivity = request.connectivity ?? health.connectivity ?? "online";
+  if (connectivity === "online" || connectivity === "recovering") return true;
+
+  if (descriptor.networkRequirement === "online-required") return false;
+  if (request.allowOffline === false) return false;
+  return true;
+}
+
+function supportsExecutionMode(descriptor: WorkerDescriptor, request: WorkerExecutionRequest): boolean {
+  if (!request.requiredExecutionMode) return true;
+  return (descriptor.executionModes ?? ["resident"]).includes(request.requiredExecutionMode);
 }
 
 export class MultiWorkerRuntime {
@@ -71,12 +148,18 @@ export class MultiWorkerRuntime {
       .filter((worker) => worker.descriptor.enabled)
       .filter((worker) => healthy.get(worker.descriptor.id)?.available)
       .filter((worker) => required.every((capability) => worker.descriptor.capabilities.includes(capability)))
+      .filter((worker) => supportsExecutionMode(worker.descriptor, request))
+      .filter((worker) => supportsConnectivity(worker.descriptor, healthy.get(worker.descriptor.id)!, request))
       .map((worker) => {
         let score = 1;
         const reasons: string[] = ["healthy"];
         if (request.preferredPlatform && worker.descriptor.platform === request.preferredPlatform) {
           score += 4;
           reasons.push(`preferred platform ${request.preferredPlatform}`);
+        }
+        if (request.requiredExecutionMode) {
+          score += 2;
+          reasons.push(`supports execution mode ${request.requiredExecutionMode}`);
         }
         if (request.task.requiresFrontierReasoning) {
           score += worker.descriptor.capabilities.includes("long-running") ? 1 : 0;
@@ -88,6 +171,13 @@ export class MultiWorkerRuntime {
         if (worker.descriptor.capabilities.includes("gpu")) {
           score += 1;
           reasons.push("gpu available");
+        }
+        if (
+          (request.connectivity === "offline" || request.connectivity === "degraded") &&
+          worker.descriptor.networkRequirement === "offline-preferred"
+        ) {
+          score += 3;
+          reasons.push("offline preferred");
         }
         return { worker, score, reasons };
       })
@@ -109,16 +199,21 @@ export class MultiWorkerRuntime {
 export function createFunctionWorker(input: {
   descriptor: WorkerDescriptor;
   available?: () => boolean | Promise<boolean>;
+  health?: () => Partial<Omit<WorkerHealth, "workerId" | "checkedAt">> | Promise<Partial<Omit<WorkerHealth, "workerId" | "checkedAt">>>;
   run: (request: WorkerExecutionRequest) => Promise<string>;
 }): GaiWorker {
   return {
     descriptor: input.descriptor,
     async health() {
       const available = input.descriptor.enabled && (input.available ? Boolean(await input.available()) : true);
+      const detail = input.health ? await input.health() : {};
       return {
         workerId: input.descriptor.id,
         available,
         checkedAt: new Date().toISOString(),
+        connectivity: "online",
+        executionModes: input.descriptor.executionModes,
+        ...detail,
       };
     },
     async execute(request) {
