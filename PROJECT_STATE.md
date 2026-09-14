@@ -3,13 +3,13 @@
 PROJECT: General Autonomous AI / Unified AI Creator Studio / GAI Research OS
 AI_COMPANY_VERSION: 1.0
 PROJECT_VERSION: 0.0.0
-CURRENT_PHASE: GAI Phase 9 Planner Enhancement
-STATUS: PLANNER_ENHANCEMENT_NEXT
+CURRENT_PHASE: GAI Phase 12 Skill System
+STATUS: SKILL_SYSTEM_NEXT
 LAST_UPDATED: 2026-09-15
 CURRENT_EPIC: One-front-door general autonomous AI with durable offline-first device-neutral execution and verifier-driven completion
 ACTIVE_ISSUES: #477, #320, #315, #316, #317, #318, #319, #321
 OPEN_PRS: empirical research/device-control work may proceed independently when scopes do not conflict
-BLOCKERS: none for Phase 9 planner enhancement; real iPhone transport/provisioning/device E2E remains a later device-integration step and must not be inferred from contract tests
+BLOCKERS: none for Phase 12 skill system; real iPhone transport/provisioning/device E2E remains a later device-integration step and must not be inferred from contract tests
 PRIORITY_OVERRIDE: owner-approved General Autonomous AI implementation roadmap governs current architecture work; empirical GAI research remains active; deferred Phase 3 image smoke stays deferred until owner resumes product work
 NORTH_STAR_GOAL: Human gives one goal; the system determines required work, dynamically recruits available capabilities, executes, verifies, repairs, records, and completes with the fewest necessary human returns, including continued local work during connectivity loss where capability permits
 USER_MENTAL_MODEL: one autonomous AI front door; internally recruit only the roles actually needed, including bounded mid-task expansion when new needs are discovered
@@ -22,7 +22,7 @@ TEAM_MEMORY_POLICY: successful executable teams can become TeamBlueprints; simil
 TEAM_LIFECYCLE_POLICY: experimental -> reusable -> standing_candidate after repeated verified success; repeated poor performance -> demoted and excluded from automatic recall; equally proven child generations are preferred over older parents
 TEAM_RUNTIME_POLICY: persistent organizational memory -> recall eligible blueprint or assemble current team -> detect genuine mid-task capability need -> bounded expansion if registered and necessary -> bounded GoalDrivenLoop -> verifier/risk/Human Gate/write-back -> evidence-based team outcome -> atomic persistence for later reuse
 ARCHITECTURE_REFERENCE: docs/architecture/general-autonomous-ai-dynamic-orchestration.md + docs/architecture/team-organizational-memory.md + docs/architecture/adaptive-team-runtime.md + docs/architecture/dynamic-capability-replanning.md + ROADMAP.md General Autonomous AI implementation roadmap
-LAST_SUCCESSFUL_CI: GAI Phase 8 Self-Healing / Recovery PR #572 passed repository-guard, lint, full tests, build, and production health then merged as 014c4bd63368aedd824f36900352cae07f87d132 on 2026-09-15
+LAST_SUCCESSFUL_CI: GAI Phase 11 Memory Integration PR #579 passed repository-guard, lint, full tests, build, and production health then merged as 10f209b61c05f6109363281bb224c4b245f74e38 on 2026-09-15
 COMPASS_MCP: v1 merged and real-machine interoperability verified PASS
 COMPASS_HANDOFF: standard AI employee handoff protocol merged via PR #64
 AI_EMPLOYEE_COMMAND_INGRESS: dashboard chat source=chat E2E PASS
@@ -50,6 +50,9 @@ GAI_DURABLE_TASK_RUNTIME: COMPLETE via Issue #565 / PR #566; persistent task sta
 GAI_OFFLINE_FIRST_RUNTIME: COMPLETE via Issue #567 / PR #568; online-required work waits durably, offline-capable work continues locally, connectivity transitions are explicit, reconnect resumes waiting work, and missing local capacity waits for resource instead of terminal failure
 GAI_SYNC_CONFLICT_RESOLUTION: COMPLETE via Issue #569 / PR #570; versioned local/shared state uses causal clocks, verifier/task-ownership evidence, bidirectional convergence, and explicit unresolved critical conflicts instead of naive last-write-wins
 GAI_SELF_HEALING_RECOVERY: COMPLETE via Issue #571 / PR #572; ordinary execution failures are classified into bounded repair/retry/fallback/wait/replan paths, compatible-worker fallback excludes failed workers, verifier PASS is required before healed completion, and standing Human Gates remain non-bypassable
+GAI_PLANNER_ENHANCEMENT: COMPLETE via Issue #574 / PR #575; planner consumes Goal/DoD runtime evidence, connectivity, capability/resource state, verifier/recovery signals and failed prior actions, performs one bounded alternative-plan attempt when current conditions invalidate the first proposal, and preserves existing Human Gates and bounded-plan compatibility
+GAI_WORLD_RESOURCE_MODEL: COMPLETE via Issue #576 / PR #577; persistent device-neutral worker/resource observations include provenance, confidence, TTL/freshness, explicit unknown/stale handling, capability/resource queries, offline observations, partial preflight failure isolation, and Phase 9 planner context integration
+GAI_MEMORY_INTEGRATION: COMPLETE via Issue #578 / PR #579; bounded working/episodic/semantic/procedural planner context, local restart/offline recall, verified episodic write-back, explicit-evidence-only semantic/procedural promotion, failure non-promotion, and versioned sync envelopes are merged
 GAI_WORKERS: initial real-device strategy is ZBook=Windows/GPU/local-model/long-running, MacBook=macOS/reproduction/local-model/long-running, iPhone=iOS OS-managed mobile/offline/sensor worker; Android is a later adapter proof and must not require Goal Loop core changes
 GAI_OFFLINE_FIRST_POLICY: network is an optional capability enhancer, not a survival condition; offline-capable local work continues, online-required work waits durably, and recovery triggers sync/conflict resolution/resume/re-verification
 GAI_EVAL_POLICY: verifier/eval is cross-cutting from the first foundation phase; every phase advances only after implementation, automated checks, strongest available real-device E2E, structured verification, repair, and PASS evidence
@@ -60,7 +63,7 @@ GAI_AGI_CLAIM_POLICY: project-defined target completion never automatically auth
 GAI_CROSS_DEVICE_TARGET: initial ZBook + MacBook + iPhone; Android joins later through the same worker contract/eval path; ChatGPT Work/Codex remains a plan-included frontier boundary where available
 GAI_PLATFORM_IMPLEMENTATION: COMPLETE
 GAI_ADAPTIVE_TEAM_RUNTIME: COMPLETE; dynamic assembly, proven-team recall, team-scoped execution, verified outcome learning, and process-persistent organizational memory are integrated without bypassing existing safety gates
-GAI_NEXT_PHASE: implement GAI Phase 9 Planner Enhancement so planning uses Goal, DoD, current state, gaps, available capabilities, connectivity, resources, risk, verifier evidence, and recovery evidence to choose and re-plan work
+GAI_NEXT_PHASE: implement GAI Phase 12 Skill System so repeatedly verified execution patterns become reusable skills with explicit capability, platform, network, tool, verifier, provenance, and regression requirements
 PHASE_2_TECHNICAL_ACCEPTANCE: PASS
 PHASE_2_ACCEPTANCE_RECORD: docs/architecture/0009-phase-2-acceptance.md
 PHASE_2_FORMAL_COMPLETION: COMPLETE
@@ -72,8 +75,8 @@ PHASE_3_RUNTIME_SELECTION: ComfyUI + Qwen-Image-Edit merged via PR #75
 PHASE_3_RUNTIME_API_PATH: merged via PR #77; upload, workflow injection, prompt submission, history polling, and output download implemented
 PHASE_3_REAL_MACHINE_SMOKE: deferred; Issue #78 remains open for later workstation execution
 PHASE_3_PRIORITY: deferred by owner on 2026-09-08 until autonomy/GAI research foundation is sufficiently complete
-NEXT_PRIORITY: implement GAI Phase 9 Planner Enhancement under verifier-driven phase gates; Human Gate categories remain non-negotiable and must not be auto-executed
-HUMAN_APPROVAL_PENDING: none for ordinary LOW/MEDIUM Phase 9 implementation; production, secrets, permissions, billing, destructive, governance/security weakening, and external-publication gates remain in force
+NEXT_PRIORITY: implement GAI Phase 12 Skill System under verifier-driven phase gates; Human Gate categories remain non-negotiable and must not be auto-executed
+HUMAN_APPROVAL_PENDING: none for ordinary LOW/MEDIUM Phase 12 implementation; production, secrets, permissions, billing, destructive, governance/security weakening, and external-publication gates remain in force
 AUTO_FIX_ATTEMPTS_MAX: 3
 MAX_ACTIVE_AGENTS: 3
 MAX_PARALLEL_CODE_AGENTS: 2
