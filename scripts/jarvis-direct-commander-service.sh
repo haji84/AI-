@@ -35,4 +35,4 @@ fi
 NODE_BIN="$(command -v node || true)"
 [[ -x "$NODE_BIN" ]] || { echo "Node.js not found in LaunchAgent PATH" >&2; exit 3; }
 cd "$REPO_ROOT"
-exec "$NODE_BIN" scripts/jarvis-direct-commander-v5.mjs
+exec "$NODE_BIN" scripts/jarvis-direct-commander-v5-launcher.mjs
