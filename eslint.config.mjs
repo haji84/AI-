@@ -11,10 +11,12 @@ export default defineConfig([
       globals: {
         AbortSignal: "readonly",
         Buffer: "readonly",
+        clearInterval: "readonly",
         clearTimeout: "readonly",
         console: "readonly",
         fetch: "readonly",
         process: "readonly",
+        setInterval: "readonly",
         setTimeout: "readonly",
         URL: "readonly",
         WebSocket: "readonly",
