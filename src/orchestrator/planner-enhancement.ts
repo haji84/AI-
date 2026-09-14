@@ -285,6 +285,18 @@ function planningSummary(evidence: PlannerEnhancementEvidence): string {
   ].join("; ");
 }
 
+function hasMeaningfulRuntimeEvidence(evidence: PlannerEnhancementEvidence): boolean {
+  return evidence.connectivity !== "unknown"
+    || evidence.satisfiedCriteria.length > 0
+    || evidence.capabilities.length > 0
+    || evidence.resources.length > 0
+    || evidence.verifierFailures.length > 0
+    || evidence.recoveryAvoidActionIds.length > 0
+    || evidence.recoveryAvoidCapabilities.length > 0
+    || Boolean(evidence.previousFailure)
+    || Boolean(evidence.riskCeiling);
+}
+
 export function buildPlannerEnhancementContext(input: {
   goal: Goal;
   context: ContextItem[];
@@ -309,6 +321,7 @@ function attachEvidence(
   reasons: string[],
   replanned: boolean,
 ): ProposedAction {
+  if (!replanned && reasons.length === 0 && !hasMeaningfulRuntimeEvidence(evidence)) return action;
   const current = action as ActionWithMetadata;
   return {
     ...action,
