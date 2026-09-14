@@ -1,0 +1,47 @@
+name: ZBook Forced Real E2E
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  zbook-forced-real:
+    name: ZBook forced real local-model/GPU research E2E
+    runs-on: [self-hosted]
+    timeout-minutes: 30
+    env:
+      GAI_WORKER_ID: zbook
+      GAI_LOCAL_MODEL_ENDPOINT: http://127.0.0.1:11434
+      GAI_LOCAL_MODEL_NAME: qwen2.5:1.5b
+      E2E_RESEARCH_KIND: gpu
+    steps:
+      - name: Require ZBook runner
+        shell: powershell
+        run: |
+          Write-Host "RUNNER_NAME=$env:RUNNER_NAME"
+          Write-Host "RUNNER_OS=$env:RUNNER_OS"
+          if ($env:RUNNER_NAME -ne 'ZBook') {
+            throw "Expected ZBook runner, got '$env:RUNNER_NAME'"
+          }
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+      - name: Recover GitHub runner state
+        shell: powershell
+        run: ./scripts/gai-zbook-watchdog.ps1
+      - name: Bootstrap local research model
+        shell: powershell
+        run: ./scripts/bootstrap-local-research-model.ps1
+      - name: Execute real Research Worker E2E
+        shell: powershell
+        run: node scripts/research-worker-e2e.ts
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: research-worker-e2e-zbook-forced
+          path: .gai-results/research-worker-e2e-zbook.json
+          if-no-files-found: warn
+          retention-days: 30
