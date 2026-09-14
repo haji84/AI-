@@ -27,6 +27,7 @@ export interface NormalizedCommand {
   goalDraft?: GoalDraft;
   plan?: ModelPlan;
   taskAuthorization?: TaskCompletionAuthorization;
+  taskScopeId?: string;
 }
 
 const SOURCES: readonly CommandIngressSource[] = ["chat", "work", "codex"];
@@ -42,6 +43,9 @@ export function normalizeCommandEnvelope(value: unknown): NormalizedCommand {
     throw new Error("Chat/Work/Codex command must be a non-empty string");
   }
   const memoryContext = typeof envelope.memoryContext === "string" ? envelope.memoryContext.trim().slice(0, MAX_MEMORY_CONTEXT_LENGTH) : undefined;
+  const taskAuthorization = envelope.taskAuthorization === undefined
+    ? undefined
+    : normalizeTaskCompletionAuthorization(envelope.taskAuthorization);
   return {
     source: envelope.source as CommandIngressSource,
     command: envelope.command.trim(),
@@ -50,9 +54,7 @@ export function normalizeCommandEnvelope(value: unknown): NormalizedCommand {
     ...(memoryContext ? { memoryContext } : {}),
     ...(envelope.goalDraft === undefined ? {} : { goalDraft: normalizeGoalDraft(envelope.goalDraft) }),
     plan: envelope.plan,
-    ...(envelope.taskAuthorization === undefined
-      ? {}
-      : { taskAuthorization: normalizeTaskCompletionAuthorization(envelope.taskAuthorization) }),
+    ...(taskAuthorization ? { taskAuthorization, taskScopeId: taskAuthorization.scopeId } : {}),
   };
 }
 
