@@ -18,7 +18,8 @@ test('generic Worker owns mechanics while Commander owns business recipe', () =>
   assert.match(commander, /recipeId:'tiktok-lite-sheet-v1'/);
   assert.match(commander, /successTexts:\['イベント詳細','獲得履歴'\]/);
   assert.match(commander, /successTexts:\['受け取りしました','マイQRコードを表示'\]/);
-  assert.match(commander, /task\('workflow-recipe'/);
+  assert.match(commander, /task\('ui-sequence'/);
+  assert.doesNotMatch(commander, /task\('workflow-recipe'/);
 });
 
 test('Commander secret path consumes the entire suffix instead of one slash-delimited segment', () => {

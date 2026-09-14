@@ -49,7 +49,7 @@ const newRecipe="const steps=[{action:'wait',ms:1000},{action:'ensure-open-text'
 replaceOrThrow(oldRecipe,newRecipe,'workflow recipe');
 replaceOrThrow(
   "task('ui-sequence',{steps},node,'sheet-cell-link-flow','high')",
-  "task('workflow-recipe',{steps,recipeId:'tiktok-lite-sheet-v1'},node,'sheet-cell-link-flow','high')",
+  "task('ui-sequence',{steps,recipeId:'tiktok-lite-sheet-v1'},node,'sheet-cell-link-flow','high')",
   'workflow task type',
 );
 
