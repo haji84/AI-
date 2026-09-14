@@ -1,0 +1,101 @@
+name: Research Worker Real E2E
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/research-worker-e2e.ts'
+      - 'scripts/research-worker-service.ts'
+      - 'src/gai/research-executor.ts'
+      - 'src/gai/research-control-plane.ts'
+      - '.github/workflows/research-worker-e2e.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: research-worker-real-e2e
+  cancel-in-progress: false
+
+jobs:
+  zbook-real:
+    name: ZBook real local-model/GPU research E2E
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 15
+    env:
+      GAI_WORKER_ID: zbook
+      GAI_LOCAL_MODEL_ENDPOINT: http://127.0.0.1:11434
+      E2E_RESEARCH_KIND: gpu
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+      - name: Recover runner and local model
+        shell: powershell
+        run: ./scripts/gai-zbook-watchdog.ps1
+      - name: Execute real Research Worker E2E
+        shell: powershell
+        run: node scripts/research-worker-e2e.ts
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: research-worker-e2e-zbook
+          path: .gai-results/research-worker-e2e-zbook.json
+          if-no-files-found: warn
+          retention-days: 30
+
+  macbook-real:
+    name: MacBook real local-model research E2E
+    runs-on: [self-hosted, macOS, ARM64]
+    timeout-minutes: 15
+    env:
+      GAI_WORKER_ID: macbook
+      GAI_LOCAL_MODEL_ENDPOINT: http://127.0.0.1:11434
+      E2E_RESEARCH_KIND: local-model
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+      - name: Recover runner and local model
+        shell: bash
+        run: bash scripts/gai-macbook-watchdog.sh
+      - name: Execute real Research Worker E2E
+        shell: bash
+        run: node scripts/research-worker-e2e.ts
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: research-worker-e2e-macbook
+          path: .gai-results/research-worker-e2e-macbook.json
+          if-no-files-found: warn
+          retention-days: 30
+
+  aggregate:
+    name: Verify both real workers returned evidence
+    needs: [zbook-real, macbook-real]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: research-worker-e2e-*
+          path: .gai-reference
+          merge-multiple: true
+      - name: Require both worker passes
+        shell: bash
+        run: |
+          set -euo pipefail
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const ids = ['zbook', 'macbook'];
+          for (const id of ids) {
+            const path = `.gai-reference/research-worker-e2e-${id}.json`;
+            if (!fs.existsSync(path)) throw new Error(`Missing real E2E evidence for ${id}`);
+            const report = JSON.parse(fs.readFileSync(path, 'utf8'));
+            if (report.ok !== true) throw new Error(`${id} E2E failed: ${report.blocker ?? 'unknown blocker'}`);
+            console.log(`${id}: PASS model=${report.model} kind=${report.kind}`);
+          }
+          NODE
