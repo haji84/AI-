@@ -15,9 +15,10 @@ import { ensureCloudGoal, applyCloudControl, CloudCompassStateStoreAdapter, GitH
 import { compassGoalToLoopGoal } from "../src/orchestrator/compass-state-store.ts";
 import { CompassWorkStateStoreAdapter } from "../src/orchestrator/compass-work-state-store.ts";
 import { BoundedWorkspaceReader, RepositoryFileContextSource } from "../src/orchestrator/context-adapters.ts";
+import { DelegatedApprovalPolicy } from "../src/orchestrator/delegated-approval-policy.ts";
 import { dispatchAutonomyEvent, EventContextSource } from "../src/orchestrator/event-runtime.ts";
 import { applyExecutionReadyGoalDraft } from "../src/orchestrator/goal-draft-compass.ts";
-import { DefaultApprovalPolicy, type Verifier } from "../src/orchestrator/goal-loop.ts";
+import { type Verifier } from "../src/orchestrator/goal-loop.ts";
 import { githubRuntimeConfig, LiveGitHubReadClient } from "../src/orchestrator/github-live-client.ts";
 import { parseHumanGateShortcut, resolveHumanGateShortcut, type HumanGateShortcutResolution } from "../src/orchestrator/human-gate-shortcuts.ts";
 import { createLocalBlockerCapability, ModelBackedPlanner } from "../src/orchestrator/model-planner.ts";
@@ -189,7 +190,10 @@ try {
           verifier,
           stateStore: new CloudCompassStateStoreAdapter(compass),
           workStateStore: new CompassWorkStateStoreAdapter(compass),
-          approvalPolicy: new DefaultApprovalPolicy(),
+          approvalPolicy: new DelegatedApprovalPolicy(
+            planningClient.command.taskAuthorization,
+            planningClient.command.taskScopeId,
+          ),
           options: { approvedActionKey: effectiveApprovedActionKey },
         });
         report = await dispatchAutonomyEvent({ event, loop, goal, compass, maxCycles });
