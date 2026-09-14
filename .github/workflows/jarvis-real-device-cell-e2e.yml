@@ -9,7 +9,7 @@ on:
 jobs:
   real-device-cell-e2e:
     runs-on: [self-hosted, macOS, ARM64]
-    timeout-minutes: 8
+    timeout-minutes: 10
     steps:
       - name: Probe Android 001 and verify cell selection
         shell: bash
@@ -41,21 +41,44 @@ jobs:
             echo "$label timeout" >&2
             return 1
           }
+          probe_version() {
+            local node="$1" s fleet_ver body r id task task_ver
+            s="$(state)"
+            fleet_ver="$(printf '%s' "$s" | jq -r --arg id "$node" '.fleet[]? | select(.id==$id) | .telemetry.workerVersion // empty' | head -1)"
+            if [[ -n "$fleet_ver" ]]; then printf '%s' "$fleet_ver"; return 0; fi
+            body="$(jq -nc --arg node "$node" '{type:"device-status",payload:{},targetNodeId:$node,priority:"urgent",idempotencyKey:("real-e2e-status:"+(now|tostring))}')"
+            r="$(submit "$body")"
+            id="$(printf '%s' "$r" | jq -r '.task.id // .id')"
+            task="$(wait_task "$id" 'device-status')"
+            task_ver="$(printf '%s' "$task" | jq -r '[.. | objects | .versionName? // empty, .workerVersion? // empty] | map(select(type=="string" and length>0)) | first // empty')"
+            printf '%s' "$task_ver"
+          }
 
           S="$(state)"
           NODE="$(printf '%s' "$S" | jq -r '.fleet[]? | select((.label // "" | test("Android[[:space:]]*0*1|nubia A403ZT"; "i"))) | .id' | head -1)"
           test -n "$NODE" && test "$NODE" != null
           echo "Target Android 001 found"
 
-          BODY="$(jq -nc --arg node "$NODE" '{type:"device-status",payload:{},targetNodeId:$node,priority:"urgent",idempotencyKey:("real-e2e-status:"+(now|tostring))}')"
-          R="$(submit "$BODY")"
-          ID="$(printf '%s' "$R" | jq -r '.task.id // .id')"
-          T="$(wait_task "$ID" 'device-status')"
-          VER="$(printf '%s' "$T" | jq -r '.result.workerVersion // .result.detail.workerVersion // .result.versionName // .detail.workerVersion // empty')"
+          VER="$(probe_version "$NODE")"
           echo "Worker version reported: ${VER:-unknown}"
           if [[ "$VER" != "0.4.1" ]]; then
-            echo "Android 001 is not running Worker 0.4.1; real cell E2E must not continue on stale code" >&2
-            exit 42
+            echo "Worker is stale; trying safe ADB in-place update to 0.4.1"
+            APK="$STATE_ROOT/jarvis-worker.apk"
+            test -s "$APK"
+            if command -v adb >/dev/null 2>&1; then
+              mapfile -t DEVICES < <(adb devices | awk 'NR>1 && $2=="device" {print $1}')
+            else
+              DEVICES=()
+            fi
+            if [[ "${#DEVICES[@]}" -ne 1 ]]; then
+              echo "Cannot safely auto-update Android 001: expected exactly one ADB device, found ${#DEVICES[@]}" >&2
+              exit 42
+            fi
+            adb -s "${DEVICES[0]}" install -r "$APK"
+            sleep 8
+            VER="$(probe_version "$NODE")"
+            echo "Worker version after ADB update: ${VER:-unknown}"
+            [[ "$VER" == "0.4.1" ]] || { echo "Android 001 did not report Worker 0.4.1 after update" >&2; exit 43; }
           fi
 
           OPEN="$(jq -nc --arg node "$NODE" '{type:"open-app",payload:{packageName:"com.google.android.apps.docs.editors.sheets"},targetNodeId:$node,priority:"urgent",idempotencyKey:("real-e2e-open:"+(now|tostring))}')"
@@ -64,5 +87,5 @@ jobs:
           SEQ="$(jq -nc --arg node "$NODE" '{type:"ui-sequence",payload:{steps:[{action:"wait",ms:1200},{action:"ensure-open-text",text:"TikTok Lite",timeoutMs:10000,retries:2,retryDelayMs:500},{action:"wait-sheet-grid",timeoutMs:12000,retries:2,retryDelayMs:500},{action:"select-sheet-cell",cell:"C7",timeoutMs:20000,retries:1},{action:"select-sheet-cell",cell:"G6",timeoutMs:20000,retries:1},{action:"select-sheet-cell",cell:"J7",timeoutMs:20000,retries:1}]},targetNodeId:$node,priority:"urgent",idempotencyKey:("real-e2e-cells:"+(now|tostring))}')"
           R="$(submit "$SEQ")"; ID="$(printf '%s' "$R" | jq -r '.task.id // .id')"
           FINAL="$(wait_task "$ID" 'C7/G6/J7 selection')"
-          echo "$FINAL" | jq -c '{id,status,result}'
+          echo "$FINAL" | jq -c '{id,status,result,output,detail}'
           echo 'REAL_ANDROID_CELL_E2E_OK'
