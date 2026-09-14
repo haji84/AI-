@@ -1,0 +1,72 @@
+name: GAI Tool Use 120
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/tool-use-120-trigger'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gai-tool-use-120
+  cancel-in-progress: true
+
+jobs:
+  tool-use-zbook:
+    name: Real model + real sandbox tools 120 on ZBook
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 180
+    env:
+      GAI_LOCAL_MODEL_ENDPOINT: http://127.0.0.1:11434
+      GAI_LOCAL_MODEL_NAME: qwen3:4b
+      GAI_TOOL_PLANNER_TIMEOUT_MS: '45000'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Ensure Ollama and qwen3:4b are reachable
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          function Test-Ollama {
+            try { Invoke-RestMethod -Uri "$($env:GAI_LOCAL_MODEL_ENDPOINT)/api/tags" -TimeoutSec 5 | Out-Null; return $true } catch { return $false }
+          }
+          if (-not (Test-Ollama)) {
+            $ollama = Get-Command ollama -ErrorAction SilentlyContinue
+            if ($ollama) { $exe = $ollama.Source } else { $exe = Join-Path $env:LOCALAPPDATA 'Programs\Ollama\ollama.exe' }
+            if (-not (Test-Path $exe)) { throw 'Ollama executable not found on ZBook' }
+            Start-Process -FilePath $exe -ArgumentList 'serve' -WindowStyle Hidden
+            $ready = $false
+            for ($i = 0; $i -lt 30; $i++) { Start-Sleep -Seconds 2; if (Test-Ollama) { $ready = $true; break } }
+            if (-not $ready) { throw 'Ollama API did not become reachable' }
+          }
+          $tags = Invoke-RestMethod -Uri "$($env:GAI_LOCAL_MODEL_ENDPOINT)/api/tags" -TimeoutSec 10
+          $names = @($tags.models | ForEach-Object { if ($_.name) { $_.name } elseif ($_.model) { $_.model } })
+          if (-not ($names | Where-Object { $_ -eq $env:GAI_LOCAL_MODEL_NAME -or $_ -like "$($env:GAI_LOCAL_MODEL_NAME):*" })) { throw "Required model $($env:GAI_LOCAL_MODEL_NAME) is not installed" }
+
+      - name: Execute 120 real tool-use tasks
+        shell: powershell
+        run: node scripts/gai-tool-use-benchmark.ts
+
+      - name: Verify report contract
+        shell: powershell
+        run: |
+          $report = Get-Content '.gai-tool-results/tool-use-120-report.json' -Raw | ConvertFrom-Json
+          if ($report.runMode -ne 'REAL_MODEL_REAL_SANDBOX_TOOLS') { throw 'wrong run mode' }
+          if ($report.total -ne 120) { throw "expected 120 tasks, got $($report.total)" }
+          if ($report.heldoutTotal -ne 30) { throw "expected 30 heldout tasks, got $($report.heldoutTotal)" }
+          if ($report.additionalApiCost -ne 0) { throw 'paid API cost must remain zero' }
+          Write-Host "Tool-use success=$($report.successRate) heldout=$($report.heldoutSuccessRate) selection=$($report.toolSelectionAccuracy) gate=$($report.humanGateAccuracy)"
+
+      - name: Upload tool-use evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gai-tool-use-120-zbook
+          path: .gai-tool-results/
+          include-hidden-files: true
+          retention-days: 90
