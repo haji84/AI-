@@ -15,11 +15,39 @@ test('macOS recovery requires autorestart and a system daemon', () => {
   assert.equal(macSystemDaemonLoaded('Could not find service "ai.jarvis.remote-host" in domain for system'), false);
 });
 
-test('Windows recovery requires AtStartup task and automatic running Tailscale service', () => {
-  assert.equal(windowsStartupTaskReady({ State: 'Ready', Trigger: 'MSFT_TaskBootTrigger' }), true);
-  assert.equal(windowsStartupTaskReady({ State: 'Ready', Trigger: 'MSFT_TaskLogonTrigger' }), false);
+test('Windows recovery requires unattended AtStartup task with laptop-safe battery settings', () => {
+  const ready = {
+    State: 'Ready',
+    Trigger: 'MSFT_TaskBootTrigger',
+    UserId: 'SYSTEM',
+    LogonType: 'ServiceAccount',
+    StartWhenAvailable: true,
+    DisallowStartIfOnBatteries: false,
+    StopIfGoingOnBatteries: false,
+  };
+  assert.equal(windowsStartupTaskReady(ready), true);
+  assert.equal(windowsStartupTaskReady({ ...ready, Trigger: 'MSFT_TaskLogonTrigger' }), false);
+  assert.equal(windowsStartupTaskReady({ ...ready, LogonType: 'InteractiveToken' }), false);
+  assert.equal(windowsStartupTaskReady({ ...ready, LogonType: 'S4U' }), false);
+  assert.equal(windowsStartupTaskReady({ ...ready, UserId: '' }), false);
+  assert.equal(windowsStartupTaskReady({ ...ready, StartWhenAvailable: false }), false);
+  assert.equal(windowsStartupTaskReady({ ...ready, DisallowStartIfOnBatteries: true }), false);
+  assert.equal(windowsStartupTaskReady({ ...ready, StopIfGoingOnBatteries: true }), false);
   assert.equal(windowsTailscaleServiceReady({ Status: 'Running', StartType: 'Automatic' }), true);
   assert.equal(windowsTailscaleServiceReady({ Status: 'Stopped', StartType: 'Automatic' }), false);
+});
+
+test('Windows unattended readiness accepts explicit password principals', () => {
+  const base = {
+    State: 'Running',
+    Trigger: 'MSFT_TaskBootTrigger',
+    UserId: 'DESKTOP\\haji',
+    StartWhenAvailable: true,
+    DisallowStartIfOnBatteries: false,
+    StopIfGoingOnBatteries: false,
+  };
+  assert.equal(windowsStartupTaskReady({ ...base, LogonType: 'Password' }), true);
+  assert.equal(windowsStartupTaskReady({ ...base, LogonType: 'InteractiveTokenOrPassword' }), true);
 });
 
 test('optional firmware checks do not fail software readiness verdict', () => {

@@ -56,7 +56,7 @@ if (process.platform === 'darwin') {
   const daemon = run('/bin/launchctl', ['print', 'system/ai.jarvis.remote-host'], { allowFailure: true });
   add('mac-system-autostart', macSystemDaemonLoaded(daemon), 'system LaunchDaemon ai.jarvis.remote-host is loaded');
 } else if (process.platform === 'win32') {
-  const taskJson = run('powershell.exe', ['-NoProfile', '-Command', "$t=Get-ScheduledTask -TaskName 'JARVIS Remote Host' -ErrorAction SilentlyContinue; if($t){$tr=($t.Triggers | ForEach-Object {$_.CimClass.CimClassName}) -join ','; [pscustomobject]@{State=[string]$t.State;Trigger=$tr}|ConvertTo-Json -Compress}"], { allowFailure: true });
+  const taskJson = run('powershell.exe', ['-NoProfile', '-Command', "$t=Get-ScheduledTask -TaskName 'JARVIS Remote Host' -ErrorAction SilentlyContinue; if($t){$tr=($t.Triggers | ForEach-Object {$_.CimClass.CimClassName}) -join ','; $p=$t.Principal; $s=$t.Settings; [pscustomobject]@{State=[string]$t.State;Trigger=$tr;UserId=[string]$p.UserId;LogonType=[string]$p.LogonType;RunLevel=[string]$p.RunLevel;StartWhenAvailable=[bool]$s.StartWhenAvailable;DisallowStartIfOnBatteries=[bool]$s.DisallowStartIfOnBatteries;StopIfGoingOnBatteries=[bool]$s.StopIfGoingOnBatteries}|ConvertTo-Json -Compress}"], { allowFailure: true });
   let task = null;
   try { task = taskJson ? JSON.parse(taskJson) : null; } catch {}
   add('windows-startup-task', windowsStartupTaskReady(task), `Scheduled Task=${taskJson || 'missing'}`);

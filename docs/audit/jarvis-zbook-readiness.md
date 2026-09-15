@@ -1,6 +1,6 @@
-# JARVIS ZBook readiness repair (#683)
+# JARVIS ZBook readiness repair (#683 / #686)
 
-Parent #681, after P0 PR #682 merged at `687701002b81ceb5bdec01a552ce28403fbaf27a`.
+Parent #681, after P0 PR #682 merged at `687701002b81ceb5bdec01a552ce28403fbaf27a` and process/readiness repair PR #684 merged at `1e364e1bb82c487474487b3ef26003c5af6ed119`.
 
 ## Observed defects and correction
 
@@ -10,16 +10,35 @@ Parent #681, after P0 PR #682 merged at `687701002b81ceb5bdec01a552ce28403fbaf27
 - The recovery checker no longer prints private-ingress PASS when Tailscale is absent. Read-only local observation returns FAIL and exit 2.
 - Preflight now requires matching HTTP 200 JSON health from dashboard, Broker and Gateway, rejects redirects/wrong service/auth failures, and emits SOFTWARE_READY only. This is not cellular/physical acceptance.
 
+## #686 unattended Windows readiness hardening
+
+The next audit found that an `AtStartup` trigger alone did not prove that the ZBook task could execute before interactive logon, and the existing installer inherited the default Windows task battery restrictions.
+
+The bounded software change now:
+
+- records the Scheduled Task principal, logon type, `StartWhenAvailable`, `DisallowStartIfOnBatteries`, and `StopIfGoingOnBatteries` in `pnpm jarvis:power:check`
+- rejects `InteractiveToken` because it requires an already logged-on user
+- rejects `S4U` for JARVIS readiness because Microsoft documents that S4U has no network/encrypted-file access and JARVIS is a networked service
+- accepts only explicit network-capable unattended logon modes (`ServiceAccount`, `Password`, or legacy `InteractiveTokenOrPassword`) plus a concrete UserId
+- requires `StartWhenAvailable=true`
+- requires starting and continuing on battery to be allowed
+- changes future installer-created tasks to allow start/continuation on battery
+- deliberately does not choose/change the Windows principal or credential in repository code; applying a noninteractive principal remains an explicit admin/Human Gate and must be physically verified
+
+This change can make readiness fail more often, by design. It removes a false-positive path rather than claiming the ZBook is already unattended-ready.
+
 ## Source basis
 
-[Official Serve command documentation](https://tailscale.com/docs/reference/tailscale-cli/serve) documents `status --json`. [Tailscale ServeConfig](https://github.com/tailscale/tailscale/blob/main/ipn/serve.go) defines AllowFunnel as a host/port boolean map and checks foreground configurations as well. Sources inspected 2026-09-16 JST. No Funnel configuration was enabled or changed during this work.
+[Official Serve command documentation](https://tailscale.com/docs/reference/tailscale-cli/serve) documents `status --json`. [Tailscale ServeConfig](https://github.com/tailscale/tailscale/blob/main/ipn/serve.go) defines AllowFunnel as a host/port boolean map and checks foreground configurations as well. Microsoft Task Scheduler documentation states that `InteractiveToken` requires an existing interactive session and that S4U stores no password but has no network or encrypted-file access. Sources inspected 2026-09-16 JST. No Funnel configuration was enabled or changed during this work.
 
 ## Verification and remaining gates
 
-13 focused tests and the full 683-test suite passed, including direct Next process launch, lifecycle failures, malformed/private/public ingress and health identity. Lint and production build passed. Successful null/empty Serve config is unconfigured (eligible for first-time setup, never READY); malformed/error objects fail closed. Local readiness remains FAIL: Tailscale command unavailable, startup task/service unavailable, firmware unknown. These are genuine unpassed conditions; no Windows service installation, account login, permission change, reboot or AC test was performed.
+For PR #684, 13 focused tests and the full 683-test suite passed, including direct Next process launch, lifecycle failures, malformed/private/public ingress and health identity. Lint and production build passed. Successful null/empty Serve config is unconfigured (eligible for first-time setup, never READY); malformed/error objects fail closed. No Windows service installation, account login, permission change, reboot or AC test was performed.
 
-P0 PR CI #941 passed including health; merged-main workflow query returned no runs during this cycle. Main CI is therefore unverified, not silently assumed green. Deployment remains inactive.
+For #686, the isolated Node recovery predicate suite passes locally in this automation environment. Repository-wide CI remains the authoritative code/build check and physical readiness remains unverified until the ZBook task is explicitly configured and observed after reboot/power/network recovery.
 
-Next: confirm full test/build/PR CI, then improve Windows unattended task readiness (noninteractive principal and battery policy) without installing it; prepare isolated startup/recovery verification. P3 remote session safety/live view remains independent software work. Requirement status remains PARTIAL until integration/physical evidence is complete.
+P1/P2 remain PARTIAL. Required physical evidence still includes cellular ingress, a real remote Android task/result, reconnect after network loss, pre-logon reboot recovery and AC-loss recovery where hardware permits. Firmware/BIOS AC-restore remains a separate physical gate.
 
-Risk LOW/MEDIUM: local process lifecycle and fail-closed diagnostics, no access grants or new public endpoints. Rollback by reverting this PR; no state schema change. Automatic fix attempts for #683: 0 as of focused verification.
+Next: complete PR/CI for #686, then continue software work independent of the physical gate, beginning with P3 Remote Assist/session/live-view safety and capability surfaces. Requirement rows must remain conservative until their required evidence classes pass.
+
+Risk LOW/MEDIUM: fail-closed diagnostics and battery-safe future task settings only. No access grant, principal/credential mutation, new public endpoint, security relaxation, deployment, or physical PASS claim. Rollback by reverting the relevant PR; no state schema change.
