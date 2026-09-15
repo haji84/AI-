@@ -34,8 +34,8 @@ test("Android adapter rejects undeclared bridge capabilities and resident semant
   assert.throws(() => createAndroidWorkerAdapter({ bridge: { capabilities: ["gpu"], execute: async () => ({ output: "bad" }) } }), /unsupported capabilities/);
   const worker = createAndroidWorkerAdapter({ bridge: { capabilities: ["gps"], execute: async () => ({ output: "ok" }) } });
   const result = await worker.execute({ task, input: "x", requestedCapability: "gps", requiredCapabilities: ["gps"], preferredPlatform: "android", requiredExecutionMode: "resident" });
-  assert.equal(result.success, false);
-  assert.match(result.error ?? "", /does not claim unrestricted resident execution/);
+  assert.equal(result.ok, false);
+  assert.match(result.output, /does not claim unrestricted resident execution/);
 });
 
 test("unavailable Android adapter falls back to another compatible Android worker without core changes", async () => {
