@@ -55,7 +55,7 @@ export function remoteAssistDescriptorForNode(node: Pick<JarvisNode, "kind" | "s
     platform: node.kind,
     capability,
     availability: unavailableNow ? "temporarily-unavailable" : "available",
-    canView: true,
+    canView: !unavailableNow,
     canControl: capability === "CONTROLLABLE" && !unavailableNow,
     fullManagementVerified: false,
     reason: unavailableNow ? `${reason}; current node status is ${node.status}` : reason,
