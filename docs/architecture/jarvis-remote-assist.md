@@ -46,6 +46,24 @@ The console may offer **画面自動更新** as a sufficiently-live convenience 
 
 This mode is software evidence for a bounded refresh UX only. It is not physical live-stream evidence and does not satisfy recording or low-latency streaming requirements.
 
+## Bounded multi-view
+
+P3 also provides observation-first multi-view modes for authorized Remote Gateway devices:
+
+- `split2`: at most 2 device tiles
+- `split4`: at most 4 device tiles
+- `fleet`: paged/windowed at 12 device tiles per page even when the registered fleet is 100 devices
+- multi-view screenshot refresh interval: 4 seconds
+- global screenshot/start/stop concurrency cap: 4
+- each visible device receives its own bounded Remote Assist session; a session ID is never reused across serials
+- one screenshot request may be in flight per tile, while the global concurrency cap prevents a screenshot storm
+- polling pauses when the document is hidden
+- expired/missing sessions fail closed per tile and stale/error state is shown instead of pretending the image is current
+- mode/page/slot changes are disabled while the view is running; the owner ends the bounded view before changing its membership
+- selecting a tile promotes its serial to the existing single-device Remote Assist surface, but does not reuse the multi-view session for manual input
+
+Multi-view is deliberately not a 100-device simultaneous video wall. It is a bounded screenshot-monitoring surface intended to remain safe on the current ADB/HTTP gateway path. Required physical evidence is still separate from code/CI evidence.
+
 ## Human Takeover linkage
 
 The control plane already has a separate Human Takeover lifecycle. The console may surface an inline takeover action beside Remote Assist only when the takeover `nodeId` exactly equals the selected Remote Gateway serial. It must not guess an identity mapping.
@@ -60,12 +78,11 @@ Remote Assist never changes the existing Human Gate policy. Pointing/tapping is 
 
 This foundation does not make P3 complete. The following still require separate implementation and evidence:
 
-- 2-way / 4-way / fleet thumbnail grid
 - supported recording with explicit policy boundary
 - broader Human Takeover -> Remote Assist identity linkage where node IDs and gateway serials differ
 - durable/auditable session history beyond process-local bounded audit where required
 - per-platform capability presentation including iOS degradation
-- physical evidence for screenshot refresh and manual control on each supported platform
+- physical evidence for single-view and multi-view screenshot refresh and manual control on each supported platform
 - any true continuous/low-latency streaming implementation if retained as a product requirement
 
 Until those gates pass, the corresponding Requirement Ledger rows remain PARTIAL or MISSING. CI is not physical evidence.
