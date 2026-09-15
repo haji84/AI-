@@ -37,9 +37,8 @@ test("Android adapter rejects undeclared bridge capabilities and resident semant
 });
 
 test("unavailable Android adapter falls back to another compatible Android worker without core changes", async () => {
-  const unavailable = createAndroidWorkerAdapter({ bridge: { capabilities: ["gps"], available: () => false, execute: async () => ({ output: "never" }) } });
-  const fallback = createAndroidWorkerAdapter({ bridge: { capabilities: ["gps"], execute: async () => ({ output: "fallback" }) } });
-  fallback.descriptor.id = "android-fallback";
+  const unavailable = createAndroidWorkerAdapter({ workerId: "android-primary", bridge: { capabilities: ["gps"], available: () => false, execute: async () => ({ output: "never" }) } });
+  const fallback = createAndroidWorkerAdapter({ workerId: "android-fallback", bridge: { capabilities: ["gps"], execute: async () => ({ output: "fallback" }) } });
   const result = await new MultiWorkerRuntime([unavailable, fallback]).execute({ task, input: "x", requestedCapability: "gps", requiredCapabilities: ["gps"], preferredPlatform: "android", connectivity: "offline", allowOffline: true });
   assert.equal(result.workerId, "android-fallback");
   assert.equal(result.output, "fallback");
