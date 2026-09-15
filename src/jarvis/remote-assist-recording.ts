@@ -54,8 +54,20 @@ function bounded(value: number | undefined, fallback: number, min: number, max: 
 }
 
 function publicRecording(recording: InternalRecording): RemoteAssistRecording {
-  const { stopRequested: _stopRequested, ...result } = recording;
-  return { ...result };
+  return {
+    id: recording.id,
+    sessionId: recording.sessionId,
+    serial: recording.serial,
+    status: recording.status,
+    createdAt: recording.createdAt,
+    updatedAt: recording.updatedAt,
+    expiresAt: recording.expiresAt,
+    intervalMs: recording.intervalMs,
+    maxFrames: recording.maxFrames,
+    frameCount: recording.frameCount,
+    totalBytes: recording.totalBytes,
+    ...(recording.stopReason ? { stopReason: recording.stopReason } : {}),
+  };
 }
 
 export class JarvisRemoteAssistFrameRecorder {
