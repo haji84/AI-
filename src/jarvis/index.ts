@@ -4,6 +4,7 @@ export * from "./fleet-manager.ts";
 export * from "./task-queue.ts";
 export * from "./enrollment.ts";
 export * from "./human-takeover.ts";
+export * from "./remote-assist.ts";
 export * from "./policy-engine.ts";
 export * from "./execution-router.ts";
 export * from "./control-plane.ts";
