@@ -15,6 +15,8 @@
     "compass:mcp": "node src/compass/server.ts",
     "jarvis:broker": "node scripts/jarvis-broker.ts",
     "jarvis:remote": "node scripts/jarvis-remote-gateway.ts",
+    "jarvis:remote:host": "node scripts/jarvis-remote-host.mjs",
+    "jarvis:remote:preflight": "node scripts/jarvis-remote-preflight.mjs",
     "iphone:bridge": "node scripts/iphone-bridge-server-entry.ts",
     "autonomy:run": "node scripts/autonomy-run.ts",
     "autonomy:dry-run": "node scripts/autonomy-run.ts --dry-run",
@@ -31,5 +33,5 @@
     "research:r6:baseline": "node scripts/gai-baseline-v11.mjs --real --resume"
   },
   "dependencies": { "next": "16.3.2", "react": "19.2.8", "react-dom": "19.2.8" },
-  "devDependencies": { "@eslint/js": "9.39.5", "@types/node": "24.13.3", "@types/react": "19.2.18", "@types/react-dom": "19.2.4", "eslint": "9.39.5", "typescript": "6.0.3", "typescript-eslint": "8.67.0" }
+  "devDependencies": { "@eslint/js": "9.39.5", "@types/node": "24.13.3", "@types/react": "19.2.8", "@types/react-dom": "19.2.4", "eslint": "9.39.5", "typescript": "6.0.3", "typescript-eslint": "8.67.0" }
 }
