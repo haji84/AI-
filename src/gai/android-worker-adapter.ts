@@ -11,9 +11,9 @@ export const androidWorkerProfile: WorkerDescriptor = {
   networkRequirement: "offline-capable",
   maxParallelTasks: 1,
   enabled: true,
-  persistence: { localState: true, durableCheckpoint: true, offlineQueue: true },
-  securityContext: { credentialIsolation: true, leastPrivilege: true, humanGateEnforced: true },
-  verifierHooks: { preflight: true, postExecution: true, evidenceCapture: true },
+  persistence: { localState: true, checkpointResume: true, offlineQueue: true },
+  securityContext: { credentialIsolation: true, taskScopedAuthorization: true },
+  verifierHooks: { preflight: true, postExecution: true, executionEvidence: true },
 };
 
 export interface AndroidManagedExecutionRequest {
