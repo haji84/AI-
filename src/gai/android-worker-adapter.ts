@@ -13,7 +13,7 @@ export const androidWorkerProfile: WorkerDescriptor = {
   enabled: true,
   persistence: { localState: true, checkpointResume: true, offlineQueue: true },
   securityContext: { credentialIsolation: true, taskScopedAuthorization: true },
-  verifierHooks: { preflight: true, postExecution: true, executionEvidence: true },
+  verifierHooks: { healthEvidence: true, executionEvidence: true, artifactEvidence: true, stateEvidence: true },
 };
 
 export interface AndroidManagedExecutionRequest {
@@ -46,8 +46,18 @@ export function createAndroidWorkerAdapter(options: { bridge: AndroidManagedExec
   const unsupported = options.bridge.capabilities.filter((capability) => !androidWorkerProfile.capabilities.includes(capability));
   if (unsupported.length > 0) throw new Error(`Android bridge declares unsupported capabilities: ${unsupported.join(",")}`);
 
+  const descriptor: WorkerDescriptor = {
+    ...androidWorkerProfile,
+    id: options.workerId ?? androidWorkerProfile.id,
+    label: options.label ?? androidWorkerProfile.label,
+    capabilities: [...androidWorkerProfile.capabilities],
+    executionModes: [...(androidWorkerProfile.executionModes ?? [])],
+    persistence: { localState: true, checkpointResume: true, offlineQueue: true },
+    securityContext: { credentialIsolation: true, taskScopedAuthorization: true },
+    verifierHooks: { healthEvidence: true, executionEvidence: true, artifactEvidence: true, stateEvidence: true },
+  };
   const runtime = new CommonWorkerRuntime({
-    descriptor: { ...androidWorkerProfile, id: options.workerId ?? androidWorkerProfile.id, label: options.label ?? androidWorkerProfile.label, capabilities: [...androidWorkerProfile.capabilities], executionModes: [...(androidWorkerProfile.executionModes ?? [])], persistence: { ...androidWorkerProfile.persistence }, securityContext: { ...androidWorkerProfile.securityContext }, verifierHooks: { ...androidWorkerProfile.verifierHooks } },
+    descriptor,
     runtimeVersion: "gai-phase14",
     checkpoint: options.checkpoint,
     available: options.bridge.available,
