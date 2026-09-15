@@ -33,7 +33,9 @@ interface LearningLedgerFile { version: 1; records: ContinualLearningRecord[] }
 export class ContinualLearningRuntime {
   #records: ContinualLearningRecord[] = [];
   #loaded = false;
-  constructor(private readonly filePath: string) {}
+  private readonly filePath: string;
+
+  constructor(filePath: string) { this.filePath = filePath; }
 
   async evaluate(candidate: ContinualLearningCandidate): Promise<ContinualLearningRecord> {
     await this.#ensureLoaded();
