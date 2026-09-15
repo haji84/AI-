@@ -4,7 +4,7 @@ export const FIXED_ENROLLMENT_TTL_MS = 10 * 60_000;
 export const FIXED_ENROLLMENT_MAX_DEVICES = 1;
 export const FIXED_ENROLLMENT_RATE_WINDOW_MS = 60_000;
 
-const LOOPBACK_HOSTS = new Set(["127.0.0.1", "::1", "localhost"]);
+const LOOPBACK_HOSTS = new Set(["127.0.0.1", "::1", "[::1]", "localhost"]);
 
 export type FixedEnrollmentRequest = {
   mode: "quick";
