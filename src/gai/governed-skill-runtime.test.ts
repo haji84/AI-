@@ -14,7 +14,7 @@ test("eligible only when capability platform tool verifier and gate requirements
   assert.equal(evaluateSkillEligibility(base, { capabilities: ["local-model"], online: false, platform: "windows", tools: ["filesystem"], verifierIds: ["artifact-verifier"] }).eligible, true);
   const rejected = evaluateSkillEligibility(base, { capabilities: [], online: false, platform: "ios", tools: [], verifierIds: [], humanGateRequired: true, humanGateApproved: false });
   assert.equal(rejected.eligible, false);
-  assert.deepEqual(rejected.reasons, ["capability:local-model", "human-gate:approval-required", "platform:ios", "tool:filesystem", "verifier:artifact-verifier"]);
+  assert.deepEqual(rejected.reasons, ["capability:local-model", "human-gate:approval-required", "platform:ios", "tool:filesystem", "verifier:artifact-verifier"].sort());
 });
 
 test("unresolved regression evidence blocks reuse", () => {
