@@ -1,5 +1,5 @@
 import { readFile, readdir, stat } from "node:fs/promises";
-import { extname, relative, resolve } from "node:path";
+import { extname, relative, resolve, sep } from "node:path";
 import type { ContextItem, ContextSource, Goal } from "./goal-loop.ts";
 
 const DEFAULT_REPOSITORY_FILES = ["PROJECT_STATE.md", "ROADMAP.md", "package.json"] as const;
@@ -96,7 +96,7 @@ export class BoundedWorkspaceReader {
     for (const path of ranked) {
       if (files.length >= MAX_SELECTED_FILES || totalBytes >= MAX_TOTAL_BYTES) break;
       const absolute = resolve(this.root, path);
-      if (!absolute.startsWith(resolve(this.root) + "/")) continue;
+      if (!absolute.startsWith(resolve(this.root) + sep)) continue;
       try {
         const info = await stat(absolute);
         if (!info.isFile() || info.size > MAX_FILE_BYTES) continue;
