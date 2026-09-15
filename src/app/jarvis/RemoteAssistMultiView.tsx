@@ -51,6 +51,11 @@ export default function RemoteAssistMultiView({ devices, onPromote }: Props) {
   const [running, setRunning] = useState(false);
   const [busy, setBusy] = useState(false);
   const refreshRunning = useRef(false);
+  const sessionsRef = useRef<Record<string, Session>>({});
+
+  useEffect(() => {
+    sessionsRef.current = sessions;
+  }, [sessions]);
 
   const availableSerials = useMemo(
     () => devices.filter((device) => device.remoteAssistCapability).map((device) => device.serial),
@@ -81,17 +86,16 @@ export default function RemoteAssistMultiView({ devices, onPromote }: Props) {
   }, []);
 
   const stop = useCallback(async () => {
-    const snapshot = sessions;
+    const snapshot = sessionsRef.current;
     setRunning(false);
     setSessions({});
     setShots({});
     setErrors({});
     await stopSessions(snapshot);
-  }, [sessions, stopSessions]);
+  }, [stopSessions]);
 
   useEffect(() => () => {
-    const snapshot = sessions;
-    for (const session of Object.values(snapshot)) {
+    for (const session of Object.values(sessionsRef.current)) {
       if (session.status !== "active") continue;
       void fetch("/api/jarvis/remote", {
         method: "POST",
@@ -100,7 +104,7 @@ export default function RemoteAssistMultiView({ devices, onPromote }: Props) {
         keepalive: true,
       });
     }
-  }, [sessions]);
+  }, []);
 
   const refreshShots = useCallback(async (sessionSnapshot: Record<string, Session>) => {
     if (refreshRunning.current || document.visibilityState !== "visible") return;
@@ -151,7 +155,7 @@ export default function RemoteAssistMultiView({ devices, onPromote }: Props) {
     setBusy(true);
     setErrors({});
     try {
-      await stopSessions(sessions);
+      await stopSessions(sessionsRef.current);
       const created = await runRemoteAssistBounded(visibleSerials, REMOTE_ASSIST_REFRESH_CONCURRENCY, async (serial) => {
         try {
           const body = await postRemote({ action: "session-start", serial });
