@@ -1,17 +1,30 @@
 import { createHmac, randomBytes } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { networkInterfaces } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 const port = Number(process.env.IPHONE_BRIDGE_PORT ?? 8787);
 const host = process.env.IPHONE_BRIDGE_HOST ?? "0.0.0.0";
-const token = process.env.IPHONE_ENROLLMENT_TOKEN ?? randomBytes(32).toString("hex");
+const adminToken = process.env.IPHONE_ADMIN_TOKEN ?? randomBytes(32).toString("hex");
 const mainSha = process.env.GIT_SHA ?? process.env.GITHUB_SHA ?? "local-working-tree";
+const pairingWindowMs = Number(process.env.IPHONE_PAIRING_WINDOW_MS ?? 120_000);
+const bootstrapTtlMs = Number(process.env.IPHONE_BOOTSTRAP_TTL_MS ?? 30_000);
+const pairingStartedAt = Date.now();
+const pairingEndsAt = pairingStartedAt + pairingWindowMs;
+const bridgeId = randomBytes(8).toString("hex");
+const masterKeyPath = process.env.IPHONE_BRIDGE_MASTER_KEY_PATH ?? join(process.cwd(), ".jarvis", "iphone-bridge-master.key");
+
 type Envelope = Record<string, unknown>;
-const enrolled = new Map<string, { capabilities: string[]; enrolledAt: string }>();
+type Enrollment = { capabilities: string[]; enrolledAt: string };
+type BootstrapGrant = { deviceId: string; expiresAt: number; used: boolean };
+
+const enrolled = new Map<string, Enrollment>();
 const queues = new Map<string, Envelope[]>();
 const results = new Map<string, Envelope>();
+const bootstrapGrants = new Map<string, BootstrapGrant>();
+let pairingClaimedBy: string | null = null;
+let masterKey = "";
 
 function canonical(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
@@ -20,51 +33,99 @@ function canonical(value: unknown): string {
   }
   return JSON.stringify(value);
 }
-function sign(value: unknown) { return createHmac("sha256", token).update(canonical(value)).digest("hex"); }
-function bearer(req: IncomingMessage) { return req.headers.authorization === `Bearer ${token}`; }
+function hmac(secret: string, value: unknown) { return createHmac("sha256", secret).update(canonical(value)).digest("hex"); }
+function bearerValue(req: IncomingMessage) { const value = req.headers.authorization ?? ""; return value.startsWith("Bearer ") ? value.slice(7) : null; }
+function adminAuthorized(req: IncomingMessage) { return bearerValue(req) === adminToken; }
+function bootstrapValue(req: IncomingMessage) { const value = req.headers.authorization ?? ""; return value.startsWith("Bootstrap ") ? value.slice(10) : null; }
+function expectedDeviceSecret(deviceId: string) { return createHmac("sha256", masterKey).update(`device:${deviceId}`).digest("hex"); }
+function deviceAuthorized(req: IncomingMessage, deviceId: string) { return bearerValue(req) === expectedDeviceSecret(deviceId); }
 async function body(req: IncomingMessage): Promise<Envelope> { const chunks: Buffer[] = []; for await (const c of req) chunks.push(Buffer.isBuffer(c) ? c : Buffer.from(c)); return JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}") as Envelope; }
 function json(res: ServerResponse, status: number, value?: unknown) { res.statusCode = status; if (value === undefined) return res.end(); res.setHeader("content-type", "application/json"); res.end(JSON.stringify(value)); }
 function lanAddress() { for (const entries of Object.values(networkInterfaces())) for (const e of entries ?? []) if (e.family === "IPv4" && !e.internal) return e.address; return "127.0.0.1"; }
+function pairingOpen() { return Date.now() <= pairingEndsAt; }
+function validDeviceId(value: unknown): value is string { return typeof value === "string" && value.length >= 8 && value.length <= 128 && /^[a-zA-Z0-9._:-]+$/.test(value); }
+function allowedCapabilities(input: unknown) {
+  const allowed = ["ios-tooling", "local-storage"];
+  return Array.isArray(input) ? input.filter((c): c is string => typeof c === "string" && allowed.includes(c)) : [];
+}
+
+async function loadMasterKey() {
+  if (process.env.IPHONE_BRIDGE_MASTER_KEY) return process.env.IPHONE_BRIDGE_MASTER_KEY;
+  try { return (await readFile(masterKeyPath, "utf8")).trim(); }
+  catch {
+    const value = randomBytes(32).toString("hex");
+    await mkdir(dirname(masterKeyPath), { recursive: true });
+    await writeFile(masterKeyPath, `${value}\n`, { mode: 0o600 });
+    return value;
+  }
+}
 
 const server = createServer(async (req, res) => {
   try {
     const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
-    if (url.pathname === "/health") return json(res, 200, { ok: true, mainSha, enrolled: [...enrolled.keys()] });
-    if (!bearer(req)) return json(res, 401, { error: "unauthorized" });
+    if (url.pathname === "/health") return json(res, 200, { ok: true, service: "jarvis-iphone-bridge", protocolVersion: 2, mainSha, enrolled: [...enrolled.keys()] });
+    if (url.pathname === "/discover") return json(res, 200, { service: "jarvis-iphone-bridge", protocolVersion: 2, bridgeId, pairingOpen: pairingOpen(), pairingEndsAt: new Date(pairingEndsAt).toISOString(), mainSha });
+
+    if (req.method === "POST" && url.pathname === "/bootstrap") {
+      if (!pairingOpen()) return json(res, 403, { error: "pairing window closed" });
+      const input = await body(req);
+      if (!validDeviceId(input.deviceId) || typeof input.clientNonce !== "string" || input.clientNonce.length < 16) return json(res, 400, { error: "invalid bootstrap request" });
+      if (pairingClaimedBy && pairingClaimedBy !== input.deviceId) return json(res, 409, { error: "pairing window already claimed" });
+      pairingClaimedBy = input.deviceId;
+      const bootstrapToken = randomBytes(32).toString("hex");
+      const expiresAt = Math.min(pairingEndsAt, Date.now() + bootstrapTtlMs);
+      bootstrapGrants.set(bootstrapToken, { deviceId: input.deviceId, expiresAt, used: false });
+      console.log(`BOOTSTRAP_GRANTED device=${input.deviceId} expires=${new Date(expiresAt).toISOString()}`);
+      return json(res, 200, { bootstrapToken, expiresAt: new Date(expiresAt).toISOString(), bridgeId });
+    }
 
     if (req.method === "POST" && url.pathname === "/enroll") {
       const input = await body(req);
-      if (input.platform !== "ios" || input.physicalDevice !== true || typeof input.deviceId !== "string") return json(res, 400, { error: "invalid enrollment" });
-      const allowed = ["ios-tooling", "local-storage"];
-      const capabilities = Array.isArray(input.capabilities) ? input.capabilities.filter((c): c is string => typeof c === "string" && allowed.includes(c)) : [];
+      const bootstrapToken = bootstrapValue(req);
+      const grant = bootstrapToken ? bootstrapGrants.get(bootstrapToken) : undefined;
+      if (!bootstrapToken || !grant || grant.used || grant.expiresAt < Date.now()) return json(res, 401, { error: "invalid or expired bootstrap" });
+      if (!validDeviceId(input.deviceId) || input.deviceId !== grant.deviceId || input.platform !== "ios" || input.physicalDevice !== true) return json(res, 400, { error: "invalid enrollment" });
+      grant.used = true;
+      const capabilities = allowedCapabilities(input.capabilities);
       enrolled.set(input.deviceId, { capabilities, enrolledAt: new Date().toISOString() });
       queues.set(input.deviceId, queues.get(input.deviceId) ?? []);
+      const deviceSecret = expectedDeviceSecret(input.deviceId);
       console.log(`ENROLLED device=${input.deviceId} capabilities=${capabilities.join(",")}`);
+      return json(res, 200, { ok: true, deviceId: input.deviceId, capabilities, deviceSecret, mainSha });
+    }
+
+    if (req.method === "POST" && url.pathname === "/reconnect") {
+      const input = await body(req);
+      if (!validDeviceId(input.deviceId) || !deviceAuthorized(req, input.deviceId)) return json(res, 401, { error: "invalid device credential" });
+      const capabilities = allowedCapabilities(input.capabilities);
+      enrolled.set(input.deviceId, { capabilities, enrolledAt: new Date().toISOString() });
+      queues.set(input.deviceId, queues.get(input.deviceId) ?? []);
       return json(res, 200, { ok: true, deviceId: input.deviceId, capabilities, mainSha });
     }
 
     if (req.method === "GET" && url.pathname === "/tasks/next") {
       const deviceId = url.searchParams.get("deviceId") ?? "";
-      if (!enrolled.has(deviceId)) return json(res, 403, { error: "not enrolled" });
+      if (!enrolled.has(deviceId) || !deviceAuthorized(req, deviceId)) return json(res, 403, { error: "not enrolled or unauthorized" });
       const task = queues.get(deviceId)?.shift();
       return task ? json(res, 200, task) : json(res, 204);
     }
 
     if (req.method === "POST" && url.pathname === "/tasks") {
+      if (!adminAuthorized(req)) return json(res, 401, { error: "admin unauthorized" });
       const input = await body(req); const deviceId = typeof input.deviceId === "string" ? input.deviceId : "";
       const enrollment = enrolled.get(deviceId); if (!enrollment) return json(res, 404, { error: "device not enrolled" });
       const capability = typeof input.capability === "string" ? input.capability : "";
       if (!enrollment.capabilities.includes(capability)) return json(res, 403, { error: "capability not enrolled" });
       const now = new Date();
       const unsigned = { protocolVersion: 1, taskId: typeof input.taskId === "string" ? input.taskId : `iphone-${Date.now()}`, deviceId, capability, mode: typeof input.mode === "string" ? input.mode : "foreground", input: String(input.input ?? ""), issuedAt: now.toISOString(), expiresAt: new Date(now.getTime() + 5 * 60_000).toISOString(), nonce: randomBytes(16).toString("hex") };
-      const task = { ...unsigned, signature: sign(unsigned) }; queues.get(deviceId)!.push(task);
+      const task = { ...unsigned, signature: hmac(expectedDeviceSecret(deviceId), unsigned) }; queues.get(deviceId)!.push(task);
       console.log(`QUEUED task=${task.taskId} device=${deviceId}`); return json(res, 202, task);
     }
 
     if (req.method === "POST" && url.pathname === "/results") {
       const result = await body(req); const { signature, ...unsigned } = result;
       const deviceId = typeof result.deviceId === "string" ? result.deviceId : "";
-      if (!enrolled.has(deviceId) || typeof signature !== "string" || signature !== sign(unsigned)) return json(res, 400, { error: "invalid result signature or enrollment" });
+      if (!enrolled.has(deviceId) || !deviceAuthorized(req, deviceId) || typeof signature !== "string" || signature !== hmac(expectedDeviceSecret(deviceId), unsigned)) return json(res, 400, { error: "invalid result signature or enrollment" });
       if (typeof result.taskId !== "string" || typeof result.nonce !== "string") return json(res, 400, { error: "invalid result binding" });
       results.set(result.taskId, result);
       await mkdir("evidence/iphone", { recursive: true });
@@ -75,16 +136,22 @@ const server = createServer(async (req, res) => {
       return json(res, 200, { ok: true, evidencePath: `evidence/iphone/${result.taskId}.json`, mainSha });
     }
 
-    if (req.method === "GET" && url.pathname.startsWith("/results/")) return json(res, results.has(url.pathname.slice(9)) ? 200 : 404, results.get(url.pathname.slice(9)) ?? { error: "not found" });
+    if (req.method === "GET" && url.pathname.startsWith("/results/")) {
+      if (!adminAuthorized(req)) return json(res, 401, { error: "admin unauthorized" });
+      return json(res, results.has(url.pathname.slice(9)) ? 200 : 404, results.get(url.pathname.slice(9)) ?? { error: "not found" });
+    }
     return json(res, 404, { error: "not found" });
   } catch (error) { console.error(error); return json(res, 500, { error: error instanceof Error ? error.message : String(error) }); }
 });
 
+masterKey = await loadMasterKey();
 server.listen(port, host, () => {
   const address = lanAddress();
   console.log("\nJARVIS PHYSICAL iPHONE BRIDGE");
   console.log(`Bridge URL: http://${address}:${port}/`);
-  console.log(`Enrollment token: ${token}`);
+  console.log(`Admin task token: ${adminToken}`);
+  console.log(`Pairing window: ${Math.round(pairingWindowMs / 1000)}s (first device claim, bootstrap single-use)`);
   console.log(`Main SHA evidence: ${mainSha}`);
-  console.log("Keep this terminal open. Token is ephemeral unless IPHONE_ENROLLMENT_TOKEN is explicitly supplied.\n");
+  console.log(`Device master key: ${process.env.IPHONE_BRIDGE_MASTER_KEY ? "environment" : masterKeyPath}`);
+  console.log("Keep this terminal open. No enrollment secret is advertised by discovery.\n");
 });

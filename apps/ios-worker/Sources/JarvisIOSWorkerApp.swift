@@ -14,27 +14,45 @@ struct JarvisIOSWorkerApp: App {
 
 struct ContentView: View {
     @EnvironmentObject private var worker: WorkerRuntime
+    @State private var showAdvanced = false
 
     var body: some View {
         NavigationStack {
             Form {
-                Section("Worker") {
+                Section("JARVIS Worker") {
+                    LabeledContent("State", value: worker.status)
+                    LabeledContent("Device", value: worker.deviceId)
+                        .font(.caption)
+                    if !worker.bridgeURL.isEmpty {
+                        LabeledContent("Bridge", value: worker.bridgeURL)
+                            .font(.caption)
+                    }
+                    Button(worker.isRunning ? "Stop Worker" : "Connect") {
+                        Task { await worker.toggle() }
+                    }
+                    if worker.isDiscovering {
+                        ProgressView("Searching the local network…")
+                    }
+                }
+
+                Section("Status") {
+                    LabeledContent("Last task", value: worker.lastTaskId ?? "-")
+                    LabeledContent("Last result", value: worker.lastResult ?? "-")
+                }
+
+                DisclosureGroup("Advanced / fallback", isExpanded: $showAdvanced) {
                     TextField("Bridge URL", text: $worker.bridgeURL)
                         .textInputAutocapitalization(.never)
                         .keyboardType(.URL)
                     TextField("Device ID", text: $worker.deviceId)
                         .textInputAutocapitalization(.never)
-                    SecureField("Enrollment token", text: $worker.token)
-                    Button(worker.isRunning ? "Stop Worker" : "Enroll & Start") {
+                    SecureField("Device credential", text: $worker.token)
+                    Button("Retry with these settings") {
                         Task { await worker.toggle() }
                     }
-                    .disabled(worker.bridgeURL.isEmpty || worker.deviceId.isEmpty || worker.token.isEmpty)
-                }
-
-                Section("Status") {
-                    LabeledContent("State", value: worker.status)
-                    LabeledContent("Last task", value: worker.lastTaskId ?? "-")
-                    LabeledContent("Last result", value: worker.lastResult ?? "-")
+                    Button("Forget saved connection", role: .destructive) {
+                        worker.forgetConnection()
+                    }
                 }
 
                 Section("Evidence") {
@@ -44,6 +62,7 @@ struct ContentView: View {
                 }
             }
             .navigationTitle("JARVIS Worker")
+            .task { await worker.autoStart() }
         }
     }
 }
