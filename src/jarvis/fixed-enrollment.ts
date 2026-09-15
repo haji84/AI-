@@ -80,16 +80,24 @@ export class FixedEnrollmentRateLimiter {
   private globalStartedAt = 0;
   private globalCount = 0;
   private readonly clients = new Map<string, ClientWindow>();
+  private readonly windowMs: number;
+  private readonly perClientLimit: number;
+  private readonly globalLimit: number;
+  private readonly maxTrackedClients: number;
 
   constructor(
-    private readonly windowMs = FIXED_ENROLLMENT_RATE_WINDOW_MS,
-    private readonly perClientLimit = 6,
-    private readonly globalLimit = 60,
-    private readonly maxTrackedClients = 256,
+    windowMs = FIXED_ENROLLMENT_RATE_WINDOW_MS,
+    perClientLimit = 6,
+    globalLimit = 60,
+    maxTrackedClients = 256,
   ) {
     if (windowMs <= 0 || perClientLimit <= 0 || globalLimit <= 0 || maxTrackedClients <= 0) {
       throw new Error("Rate-limit bounds must be positive");
     }
+    this.windowMs = windowMs;
+    this.perClientLimit = perClientLimit;
+    this.globalLimit = globalLimit;
+    this.maxTrackedClients = maxTrackedClients;
   }
 
   consume(clientKey: string, now = Date.now()): RateLimitResult {
