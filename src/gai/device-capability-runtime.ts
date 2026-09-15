@@ -72,7 +72,11 @@ function assertRequest(request: DeviceCapabilityRequest): void {
 }
 
 export class DeviceCapabilityRuntime {
-  constructor(private readonly workers: MultiWorkerRuntime) {}
+  private readonly workers: MultiWorkerRuntime;
+
+  constructor(workers: MultiWorkerRuntime) {
+    this.workers = workers;
+  }
 
   async execute(request: DeviceCapabilityRequest): Promise<{ result: WorkerExecutionResult; evidence: DeviceCapabilityEvidence }> {
     assertRequest(request);
