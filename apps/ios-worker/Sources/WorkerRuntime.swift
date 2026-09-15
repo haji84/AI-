@@ -107,7 +107,8 @@ final class WorkerRuntime: ObservableObject {
                 }
             }
 
-            if bridgeURL.isEmpty || !(await bridgeIsReachable(bridgeURL)) {
+            let bridgeReachable = bridgeURL.isEmpty ? false : await bridgeIsReachable(bridgeURL)
+            if !bridgeReachable {
                 status = "Finding Mac Bridge"
                 isDiscovering = true
                 defer { isDiscovering = false }
