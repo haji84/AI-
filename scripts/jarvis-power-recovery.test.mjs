@@ -28,6 +28,7 @@ test('Windows recovery requires unattended AtStartup task with laptop-safe batte
   assert.equal(windowsStartupTaskReady(ready), true);
   assert.equal(windowsStartupTaskReady({ ...ready, Trigger: 'MSFT_TaskLogonTrigger' }), false);
   assert.equal(windowsStartupTaskReady({ ...ready, LogonType: 'InteractiveToken' }), false);
+  assert.equal(windowsStartupTaskReady({ ...ready, LogonType: 'S4U' }), false);
   assert.equal(windowsStartupTaskReady({ ...ready, UserId: '' }), false);
   assert.equal(windowsStartupTaskReady({ ...ready, StartWhenAvailable: false }), false);
   assert.equal(windowsStartupTaskReady({ ...ready, DisallowStartIfOnBatteries: true }), false);
@@ -36,7 +37,7 @@ test('Windows recovery requires unattended AtStartup task with laptop-safe batte
   assert.equal(windowsTailscaleServiceReady({ Status: 'Stopped', StartType: 'Automatic' }), false);
 });
 
-test('Windows unattended readiness accepts explicit S4U/password principals', () => {
+test('Windows unattended readiness accepts explicit password principals', () => {
   const base = {
     State: 'Running',
     Trigger: 'MSFT_TaskBootTrigger',
@@ -45,8 +46,8 @@ test('Windows unattended readiness accepts explicit S4U/password principals', ()
     DisallowStartIfOnBatteries: false,
     StopIfGoingOnBatteries: false,
   };
-  assert.equal(windowsStartupTaskReady({ ...base, LogonType: 'S4U' }), true);
   assert.equal(windowsStartupTaskReady({ ...base, LogonType: 'Password' }), true);
+  assert.equal(windowsStartupTaskReady({ ...base, LogonType: 'InteractiveTokenOrPassword' }), true);
 });
 
 test('optional firmware checks do not fail software readiness verdict', () => {
