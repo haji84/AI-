@@ -1,0 +1,31 @@
+import { PersistentSkillLibrary, type SkillEnvironment } from "../gai/skill-library.ts";
+import type { ContextItem, ContextSource, Goal } from "./goal-loop.ts";
+
+export class GaiSkillContextSource implements ContextSource {
+  readonly name = "gai-skills";
+
+  constructor(
+    private readonly skills: PersistentSkillLibrary,
+    private readonly environment?: () => Promise<SkillEnvironment>,
+    private readonly limit = 5,
+  ) {}
+
+  async collect(input: { goal: Goal; nextAction?: string | null }): Promise<ContextItem[]> {
+    const task = [input.goal.title, input.goal.description, input.nextAction].filter(Boolean).join(" ");
+    const environment = this.environment ? await this.environment() : undefined;
+    const skills = await this.skills.query(task, this.limit, environment);
+    return skills.map((skill) => ({
+      source: this.name,
+      summary: `Certified skill ${skill.name} v${skill.version ?? 1}: ${skill.description}`,
+      data: {
+        skillId: skill.id,
+        version: skill.version ?? 1,
+        procedure: skill.procedure,
+        confidence: skill.confidence,
+        constraints: skill.constraints,
+        provenance: skill.provenance,
+        certificationEvidence: skill.certificationEvidence ?? [],
+      },
+    }));
+  }
+}
