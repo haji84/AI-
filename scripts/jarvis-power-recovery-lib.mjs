@@ -12,7 +12,8 @@ export function windowsStartupTaskReady(task) {
   if (!task || typeof task !== 'object') return false;
   const state = String(task.State || task.state || '').toLowerCase();
   const trigger = String(task.Trigger || task.trigger || '').toLowerCase();
-  return ['ready', 'running'].includes(state) && trigger.includes('startup');
+  const bootTriggered = trigger.includes('startup') || trigger.includes('boottigger') || trigger.includes('boottrigger');
+  return ['ready', 'running'].includes(state) && bootTriggered;
 }
 
 export function windowsTailscaleServiceReady(service) {
