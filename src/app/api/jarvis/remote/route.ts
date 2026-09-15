@@ -3,6 +3,7 @@ import {
   JarvisRemoteAssistSessionManager,
   capabilityForRemoteDevice,
   isManualRemoteAction,
+  remoteCapabilityAllowsAction,
 } from "../../../../jarvis/remote-assist.ts";
 import { jarvisRemoteGatewayFetch, requireJarvisOwner } from "../broker.ts";
 
@@ -119,6 +120,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "Remote Assist sessionを開始してください" }, { status: 409 });
     }
     try {
+      const session = remoteAssist.requireActive(sessionId, payload.serial);
+      if (!remoteCapabilityAllowsAction(session.capability, payload.action)) {
+        return NextResponse.json({ message: "このRemote Assist sessionは画面閲覧のみです" }, { status: 403 });
+      }
       remoteAssist.touch(sessionId, payload.serial);
     } catch (error) {
       return remoteSessionError(error);
