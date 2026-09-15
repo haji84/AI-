@@ -12,15 +12,15 @@ const goal = {
 };
 
 const executor: CapabilityExecutor = {
-  async execute() { return { ok: true, summary: "done" }; },
+  async execute(action) { return { actionId: action.id, ok: true, summary: "done" }; },
 };
 
 function loop(): GoalDrivenLoop {
-  return {
+  return ({
     async runCycle() {
       return { stopReason: "goal_complete", result: null, verification: null } as never;
     },
-  } as GoalDrivenLoop;
+  } as unknown) as GoalDrivenLoop;
 }
 
 test("assembles deterministic registered roles without inventing capabilities", async () => {
