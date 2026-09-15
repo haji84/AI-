@@ -114,11 +114,12 @@ export async function POST(request: Request) {
   if (payload.action !== "qa-sequence-status" && !payload.serial) return NextResponse.json({ message: "端末を指定してください" }, { status: 400 });
 
   if (isManualRemoteAction(payload.action)) {
-    if (!payload.sessionId || !payload.serial) {
+    const sessionId = "sessionId" in payload ? payload.sessionId : undefined;
+    if (!sessionId || !payload.serial) {
       return NextResponse.json({ message: "Remote Assist sessionを開始してください" }, { status: 409 });
     }
     try {
-      remoteAssist.touch(payload.sessionId, payload.serial);
+      remoteAssist.touch(sessionId, payload.serial);
     } catch (error) {
       return remoteSessionError(error);
     }
