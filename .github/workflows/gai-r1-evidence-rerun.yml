@@ -15,6 +15,7 @@ on:
 
 permissions:
   contents: read
+  issues: write
 
 concurrency:
   group: gai-r1-evidence-rerun
@@ -84,6 +85,50 @@ jobs:
       - name: Compute R1-R20 program status
         shell: powershell
         run: node scripts/research-program-status.ts --evidence=.gai-results/research-evidence.json --require-evidence | Out-File -Encoding utf8 .gai-results/research-program-status.json
+
+      - name: Publish R1 real measurement to Issue 321
+        if: always()
+        shell: powershell
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $reportPath = '.gai-results/baseline-report-zbook.json'
+          if (Test-Path $reportPath) {
+            $report = Get-Content $reportPath -Raw | ConvertFrom-Json
+            $successPct = [math]::Round([double]$report.successRate * 100, 2)
+            $heldoutPct = [math]::Round([double]$report.heldoutSuccessRate * 100, 2)
+            $body = @"
+          ## R1 real measurement
+          - SHA: `$env:GITHUB_SHA`
+          - runner: `$env:RUNNER_NAME`
+          - run mode: `$($report.runMode)`
+          - model: `$($report.model)`
+          - total: **$($report.total)**
+          - passed: **$($report.passed)**
+          - success rate: **$successPct%**
+          - heldout total: **$($report.heldoutTotal)**
+          - heldout success rate: **$heldoutPct%**
+          - human interventions/task: **$($report.humanInterventionsPerTask)**
+          - additional API cost: **$($report.additionalApiCost)**
+          - completed at: `$($report.completedAt)`
+          "@
+          } else {
+            $body = @"
+          ## R1 real measurement failed before report generation
+          - SHA: `$env:GITHUB_SHA`
+          - runner: `$env:RUNNER_NAME`
+          - workflow status: report file was not produced
+          - inspect the `GAI R1 Evidence Rerun` job log for the exact blocker
+          "@
+          }
+          $payload = @{ body = $body } | ConvertTo-Json -Depth 5
+          $headers = @{
+            Authorization = "Bearer $env:GITHUB_TOKEN"
+            Accept = 'application/vnd.github+json'
+            'X-GitHub-Api-Version' = '2022-11-28'
+          }
+          Invoke-RestMethod -Uri "https://api.github.com/repos/$env:GITHUB_REPOSITORY/issues/321/comments" -Method Post -Headers $headers -ContentType 'application/json' -Body $payload | Out-Null
 
       - name: Upload complete R1 evidence
         if: always()
