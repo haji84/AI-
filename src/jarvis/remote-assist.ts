@@ -38,6 +38,14 @@ export function isManualRemoteAction(value: unknown): value is JarvisManualRemot
   return typeof value === "string" && MANUAL_REMOTE_ACTIONS.has(value as JarvisManualRemoteAction);
 }
 
+export function remoteCapabilityAllowsAction(
+  capability: JarvisRemoteAssistCapability,
+  action: JarvisManualRemoteAction,
+): boolean {
+  if (action === "screenshot") return true;
+  return capability === "CONTROLLABLE" || capability === "FULL_MANAGEMENT";
+}
+
 export function capabilityForRemoteDevice(input: {
   canView: boolean;
   canControl: boolean;
