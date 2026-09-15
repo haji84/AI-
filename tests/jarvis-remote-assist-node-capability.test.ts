@@ -55,11 +55,11 @@ test("nodes without remote-view are explicitly unsupported", () => {
   assert.equal(descriptor.canControl, false);
 });
 
-test("offline nodes preserve their capability but are marked temporarily unavailable", () => {
+test("offline nodes preserve their declared capability but are unavailable now", () => {
   const descriptor = remoteAssistDescriptorForNode(node({ status: "offline" }));
   assert.equal(descriptor.capability, "CONTROLLABLE");
   assert.equal(descriptor.availability, "temporarily-unavailable");
-  assert.equal(descriptor.canView, true);
+  assert.equal(descriptor.canView, false);
   assert.equal(descriptor.canControl, false);
   assert.match(descriptor.reason, /current node status is offline/);
 });
