@@ -18,6 +18,7 @@
     "jarvis:remote:host": "node scripts/jarvis-remote-host.mjs",
     "jarvis:remote:preflight": "node scripts/jarvis-remote-preflight.mjs",
     "jarvis:power:check": "node scripts/jarvis-power-recovery-check.mjs",
+    "jarvis:enroll:portal": "node scripts/jarvis-fixed-enrollment-portal.ts",
     "iphone:bridge": "node scripts/iphone-bridge-server-entry.ts",
     "autonomy:run": "node scripts/autonomy-run.ts",
     "autonomy:dry-run": "node scripts/autonomy-run.ts --dry-run",
