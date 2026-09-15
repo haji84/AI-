@@ -96,7 +96,7 @@ export class JarvisRemoteAssistSessionManager {
   }
 
   touch(sessionId: string, serial: string, now = new Date()): JarvisRemoteAssistSession {
-    const current = this.requireActive(sessionId, serial, now);
+    this.requireActive(sessionId, serial, now);
     const original = this.sessions.get(sessionId)!;
     const ttlMs = Math.min(this.maxTtlMs, Math.max(1, new Date(original.expiresAt).getTime() - new Date(original.lastActivityAt).getTime()));
     const updated: JarvisRemoteAssistSession = {
