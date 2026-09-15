@@ -17,8 +17,8 @@ const executor: CapabilityExecutor = {
 
 function loop(): GoalDrivenLoop {
   return {
-    async run() {
-      return { stopReason: "goal_complete", cycles: [] } as never;
+    async runCycle() {
+      return { stopReason: "goal_complete", result: null, verification: null } as never;
     },
   } as GoalDrivenLoop;
 }
