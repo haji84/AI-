@@ -1,10 +1,11 @@
+import { spawn, type ChildProcess } from "node:child_process";
 import { createHmac, randomBytes } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { networkInterfaces } from "node:os";
+import { networkInterfaces, platform } from "node:os";
 import { dirname, join } from "node:path";
 
-const port = Number(process.env.IPHONE_BRIDGE_PORT ?? 8787);
+const requestedPort = process.env.IPHONE_BRIDGE_PORT === undefined ? 0 : Number(process.env.IPHONE_BRIDGE_PORT);
 const host = process.env.IPHONE_BRIDGE_HOST ?? "0.0.0.0";
 const adminToken = process.env.IPHONE_ADMIN_TOKEN ?? randomBytes(32).toString("hex");
 const mainSha = process.env.GIT_SHA ?? process.env.GITHUB_SHA ?? "local-working-tree";
@@ -14,6 +15,7 @@ const pairingStartedAt = Date.now();
 const pairingEndsAt = pairingStartedAt + pairingWindowMs;
 const bridgeId = randomBytes(8).toString("hex");
 const masterKeyPath = process.env.IPHONE_BRIDGE_MASTER_KEY_PATH ?? join(process.cwd(), ".jarvis", "iphone-bridge-master.key");
+const bonjourServiceType = "_jarvisiphone._tcp";
 
 type Envelope = Record<string, unknown>;
 type Enrollment = { capabilities: string[]; enrolledAt: string };
@@ -25,6 +27,7 @@ const results = new Map<string, Envelope>();
 const bootstrapGrants = new Map<string, BootstrapGrant>();
 let pairingClaimedBy: string | null = null;
 let masterKey = "";
+let bonjourProcess: ChildProcess | null = null;
 
 function canonical(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
@@ -58,6 +61,38 @@ async function loadMasterKey() {
     await writeFile(masterKeyPath, `${value}\n`, { mode: 0o600 });
     return value;
   }
+}
+
+function advertiseBonjour(port: number) {
+  if (process.env.IPHONE_BRIDGE_DISABLE_BONJOUR === "1") return;
+  if (platform() !== "darwin") {
+    console.log(`Bonjour advertisement skipped on ${platform()} (manual/fallback discovery remains available).`);
+    return;
+  }
+
+  const args = [
+    "-R",
+    "JARVIS iPhone Bridge",
+    bonjourServiceType,
+    "local",
+    String(port),
+    `bridgeId=${bridgeId}`,
+    "protocolVersion=2",
+  ];
+  bonjourProcess = spawn("dns-sd", args, { stdio: ["ignore", "ignore", "pipe"] });
+  bonjourProcess.once("error", (error) => {
+    console.warn(`Bonjour advertisement unavailable: ${error.message}`);
+    bonjourProcess = null;
+  });
+  bonjourProcess.stderr?.on("data", (chunk) => {
+    const line = String(chunk).trim();
+    if (line) console.warn(`Bonjour: ${line}`);
+  });
+}
+
+function stopBonjour() {
+  if (bonjourProcess && !bonjourProcess.killed) bonjourProcess.kill("SIGTERM");
+  bonjourProcess = null;
 }
 
 const server = createServer(async (req, res) => {
@@ -145,13 +180,26 @@ const server = createServer(async (req, res) => {
 });
 
 masterKey = await loadMasterKey();
-server.listen(port, host, () => {
+server.listen(requestedPort, host, () => {
+  const addressInfo = server.address();
+  if (!addressInfo || typeof addressInfo === "string") throw new Error("Could not determine iPhone Bridge listen address");
+  const actualPort = addressInfo.port;
   const address = lanAddress();
+  advertiseBonjour(actualPort);
+
   console.log("\nJARVIS PHYSICAL iPHONE BRIDGE");
-  console.log(`Bridge URL: http://${address}:${port}/`);
+  console.log(`Bridge URL: http://${address}:${actualPort}/`);
+  console.log(`Bonjour: ${bonjourServiceType} (automatic IP/port discovery)`);
   console.log(`Admin task token: ${adminToken}`);
   console.log(`Pairing window: ${Math.round(pairingWindowMs / 1000)}s (first device claim, bootstrap single-use)`);
   console.log(`Main SHA evidence: ${mainSha}`);
   console.log(`Device master key: ${process.env.IPHONE_BRIDGE_MASTER_KEY ? "environment" : masterKeyPath}`);
   console.log("Keep this terminal open. No enrollment secret is advertised by discovery.\n");
 });
+
+const shutdown = () => {
+  stopBonjour();
+  server.close(() => process.exit(0));
+};
+process.once("SIGINT", shutdown);
+process.once("SIGTERM", shutdown);

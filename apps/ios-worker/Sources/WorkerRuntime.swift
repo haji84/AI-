@@ -116,8 +116,13 @@ final class WorkerRuntime: ObservableObject {
                 UserDefaults.standard.set(bridgeURL, forKey: "bridgeURL")
             }
 
-            status = "Secure pairing"
-            try await bootstrapAndEnroll()
+            if !token.isEmpty {
+                status = "Reconnecting"
+                try await reconnect()
+            } else {
+                status = "Secure pairing"
+                try await bootstrapAndEnroll()
+            }
             try startPolling()
         } catch {
             isRunning = false
@@ -217,6 +222,14 @@ final class WorkerRuntime: ObservableObject {
                         status = "ACTIVE"
                     } catch {
                         status = "RECOVERING"
+                        do {
+                            bridgeURL = try await discoverBridge()
+                            UserDefaults.standard.set(bridgeURL, forKey: "bridgeURL")
+                            try await reconnect()
+                            status = "ACTIVE"
+                        } catch {
+                            status = "RECOVERING"
+                        }
                     }
                 }
             }
@@ -325,11 +338,20 @@ final class WorkerRuntime: ObservableObject {
 
     private func discoverBridge() async throws -> String {
         if !bridgeURL.isEmpty, let found = await Self.probeBridge(base: bridgeURL) { return found }
+
+        if let bonjour = await BonjourBridgeDiscovery.findBridge(),
+           let found = await Self.probeBridge(base: bonjour) {
+            return found
+        }
+
         guard let prefix = Self.localIPv4Prefix() else { throw WorkerError.discovery }
+        let fallbackPorts = [8788, 8787]
         return try await withThrowingTaskGroup(of: String?.self) { group in
-            for host in 1...254 {
-                let candidate = "http://\(prefix).\(host):8787/"
-                group.addTask { await Self.probeBridge(base: candidate) }
+            for port in fallbackPorts {
+                for host in 1...254 {
+                    let candidate = "http://\(prefix).\(host):\(port)/"
+                    group.addTask { await Self.probeBridge(base: candidate) }
+                }
             }
             for try await result in group {
                 if let result {
