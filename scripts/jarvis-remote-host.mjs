@@ -17,21 +17,27 @@ function loadEnvFile(file) {
     if (index <= 0) continue;
     const key = line.slice(0, index).trim();
     let value = line.slice(index + 1).trim();
-    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
-      value = value.slice(1, -1);
-    }
+    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) value = value.slice(1, -1);
     if (!(key in process.env)) process.env[key] = value;
   }
+}
+
+function refuse(message) {
+  console.error(`REMOTE_HOST_REFUSED: ${message}`);
+  process.exit(2);
 }
 
 loadEnvFile('.env');
 loadEnvFile('.env.local');
 
-for (const key of ['JARVIS_OWNER_TOKEN', 'JARVIS_REMOTE_GATEWAY_TOKEN']) {
-  if (!process.env[key]?.trim()) {
-    console.error(`REMOTE_HOST_REFUSED: ${key} is required in the environment or .env.local`);
-    process.exit(2);
-  }
+for (const key of ['JARVIS_OWNER_TOKEN', 'JARVIS_REMOTE_GATEWAY_TOKEN', 'JARVIS_REMOTE_ALLOWED_SERIALS']) {
+  if (!process.env[key]?.trim()) refuse(`${key} is required in the environment or .env.local`);
+}
+if (!process.env.JARVIS_OWNER_SECRET?.trim() && !process.env.AI_COMPANY_OWNER_SECRET?.trim()) {
+  refuse('JARVIS_OWNER_SECRET or AI_COMPANY_OWNER_SECRET is required for owner-authenticated dashboard access');
+}
+if (!fs.existsSync(path.join(root, '.next', 'BUILD_ID'))) {
+  refuse('production dashboard build is missing; run pnpm build before starting the remote host');
 }
 
 const pnpm = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
@@ -67,9 +73,7 @@ function startManaged(spec, attempt = 1) {
     setTimeout(() => startManaged(spec, nextAttempt), delay).unref();
   });
 
-  child.once('error', (error) => {
-    console.error(`[remote-host] ${spec.name} spawn error: ${error.message}`);
-  });
+  child.once('error', (error) => console.error(`[remote-host] ${spec.name} spawn error: ${error.message}`));
 }
 
 function shutdown(signal) {
