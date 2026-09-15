@@ -42,12 +42,12 @@ function resolveAndroidMode(request: WorkerExecutionRequest): Exclude<WorkerExec
   return mode;
 }
 
-export function createAndroidWorkerAdapter(options: { bridge: AndroidManagedExecutionBridge; checkpoint?: WorkerCheckpointHooks }): CommonWorkerRuntime {
+export function createAndroidWorkerAdapter(options: { bridge: AndroidManagedExecutionBridge; checkpoint?: WorkerCheckpointHooks; workerId?: string; label?: string }): CommonWorkerRuntime {
   const unsupported = options.bridge.capabilities.filter((capability) => !androidWorkerProfile.capabilities.includes(capability));
   if (unsupported.length > 0) throw new Error(`Android bridge declares unsupported capabilities: ${unsupported.join(",")}`);
 
   const runtime = new CommonWorkerRuntime({
-    descriptor: { ...androidWorkerProfile, capabilities: [...androidWorkerProfile.capabilities], executionModes: [...(androidWorkerProfile.executionModes ?? [])], persistence: { ...androidWorkerProfile.persistence }, securityContext: { ...androidWorkerProfile.securityContext }, verifierHooks: { ...androidWorkerProfile.verifierHooks } },
+    descriptor: { ...androidWorkerProfile, id: options.workerId ?? androidWorkerProfile.id, label: options.label ?? androidWorkerProfile.label, capabilities: [...androidWorkerProfile.capabilities], executionModes: [...(androidWorkerProfile.executionModes ?? [])], persistence: { ...androidWorkerProfile.persistence }, securityContext: { ...androidWorkerProfile.securityContext }, verifierHooks: { ...androidWorkerProfile.verifierHooks } },
     runtimeVersion: "gai-phase14",
     checkpoint: options.checkpoint,
     available: options.bridge.available,
