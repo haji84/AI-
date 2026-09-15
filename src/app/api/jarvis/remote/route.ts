@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { JarvisRemoteAssistAuditStore } from "../../../../jarvis/remote-assist-audit.ts";
+import { JarvisRemoteAssistFrameRecorder } from "../../../../jarvis/remote-assist-recording.ts";
 import {
   JarvisRemoteAssistSessionManager,
   capabilityForRemoteDevice,
@@ -14,6 +16,9 @@ type RemotePayload =
   | { action: "session-end"; sessionId?: string }
   | { action: "session-status"; sessionId?: string }
   | { action: "session-audit"; sessionId?: string }
+  | { action: "recording-start"; serial?: string; sessionId?: string; durationMs?: number; intervalMs?: number }
+  | { action: "recording-status"; serial?: string; sessionId?: string; recordingId?: string }
+  | { action: "recording-stop"; serial?: string; sessionId?: string; recordingId?: string }
   | { action: "screenshot"; serial?: string; sessionId?: string }
   | { action: "tap"; serial?: string; sessionId?: string; x?: number; y?: number }
   | { action: "swipe"; serial?: string; sessionId?: string; x1?: number; y1?: number; x2?: number; y2?: number; durationMs?: number }
@@ -25,12 +30,63 @@ type RemotePayload =
 
 type GatewayDevice = { serial: string; state: string };
 type GatewayDevicesBody = { devices?: GatewayDevice[]; message?: string };
+type GatewayScreenshotBody = { serial?: string; mimeType?: string; imageBase64?: string; capturedAt?: string; message?: string };
 
 const globalForRemoteAssist = globalThis as typeof globalThis & {
+  __jarvisRemoteAssistAuditStore?: JarvisRemoteAssistAuditStore;
   __jarvisRemoteAssistSessions?: JarvisRemoteAssistSessionManager;
+  __jarvisRemoteAssistRecorder?: JarvisRemoteAssistFrameRecorder;
 };
-const remoteAssist = globalForRemoteAssist.__jarvisRemoteAssistSessions ?? new JarvisRemoteAssistSessionManager();
+
+const auditStore = globalForRemoteAssist.__jarvisRemoteAssistAuditStore ?? new JarvisRemoteAssistAuditStore(
+  process.env.JARVIS_REMOTE_ASSIST_AUDIT_PATH?.trim() || undefined,
+);
+globalForRemoteAssist.__jarvisRemoteAssistAuditStore = auditStore;
+
+const remoteAssist = globalForRemoteAssist.__jarvisRemoteAssistSessions ?? new JarvisRemoteAssistSessionManager(
+  10 * 60_000,
+  30 * 60_000,
+  1_000,
+  (event) => auditStore.append(event),
+);
 globalForRemoteAssist.__jarvisRemoteAssistSessions = remoteAssist;
+
+const recorder = globalForRemoteAssist.__jarvisRemoteAssistRecorder ?? new JarvisRemoteAssistFrameRecorder({
+  rootDir: process.env.JARVIS_REMOTE_ASSIST_RECORDING_DIR?.trim() || undefined,
+  captureFrame: async (serial) => {
+    const response = await jarvisRemoteGatewayFetch("/api/remote/screenshot", {
+      method: "POST",
+      body: JSON.stringify({ serial }),
+    });
+    const body = await response.json().catch(() => ({ message: "Remote Gatewayから不正な応答を受信しました" })) as GatewayScreenshotBody;
+    if (!response.ok || !body.imageBase64 || body.mimeType !== "image/png") {
+      throw new Error(body.message || `Remote Gateway screenshot failed: HTTP ${response.status}`);
+    }
+    return {
+      mimeType: body.mimeType,
+      imageBase64: body.imageBase64,
+      capturedAt: body.capturedAt || new Date().toISOString(),
+    };
+  },
+  onFinished: (recording) => {
+    const action = recording.status === "completed"
+      ? "recording.completed"
+      : recording.status === "stopped"
+        ? "recording.stopped"
+        : "recording.failed";
+    try {
+      remoteAssist.recordAudit(action, recording.sessionId, recording.serial, {
+        recordingId: recording.id,
+        frameCount: recording.frameCount,
+        totalBytes: recording.totalBytes,
+        stopReason: recording.stopReason,
+      });
+    } catch (error) {
+      console.error("[jarvis-remote-assist] final recording audit failed", error);
+    }
+  },
+});
+globalForRemoteAssist.__jarvisRemoteAssistRecorder = recorder;
 
 function remoteSessionError(error: unknown) {
   return NextResponse.json({
@@ -42,6 +98,13 @@ async function gatewayDevices(): Promise<{ response: Response; body: GatewayDevi
   const response = await jarvisRemoteGatewayFetch("/api/remote/devices");
   const body = await response.json().catch(() => ({ message: "Remote Gatewayから不正な応答を受信しました" })) as GatewayDevicesBody;
   return { response, body };
+}
+
+function requireRecordingBinding(payload: Extract<RemotePayload, { action: "recording-start" | "recording-status" | "recording-stop" }>) {
+  if (!payload.serial || !payload.sessionId) throw new Error("Remote Assist sessionを開始してください");
+  const session = remoteAssist.requireActive(payload.sessionId, payload.serial);
+  remoteAssist.touch(payload.sessionId, payload.serial);
+  return session;
 }
 
 export async function GET() {
@@ -78,12 +141,20 @@ export async function POST(request: Request) {
   }
 
   if (payload.action === "session-audit") {
-    return NextResponse.json({ audit: remoteAssist.auditFor(payload.sessionId) });
+    try {
+      return NextResponse.json({ audit: auditStore.list(payload.sessionId) });
+    } catch (error) {
+      return NextResponse.json({
+        message: "Remote Assist監査ログを読み込めません",
+        detail: error instanceof Error ? error.message : "unknown error",
+      }, { status: 503 });
+    }
   }
 
   if (payload.action === "session-end") {
     if (!payload.sessionId) return NextResponse.json({ message: "sessionIdが必要です" }, { status: 400 });
     try {
+      await recorder.stopForSession(payload.sessionId);
       return NextResponse.json({ session: remoteAssist.end(payload.sessionId) });
     } catch (error) {
       return remoteSessionError(error);
@@ -112,8 +183,46 @@ export async function POST(request: Request) {
     }
   }
 
+  if (payload.action === "recording-start") {
+    try {
+      const session = requireRecordingBinding(payload);
+      const remainingMs = new Date(session.expiresAt).getTime() - Date.now();
+      const durationMs = Math.min(payload.durationMs ?? 30_000, Math.max(0, remainingMs - 1_000));
+      if (durationMs < 2_000) throw new Error("Remote Assist sessionの残り時間が短いため記録を開始できません");
+      const recording = recorder.start({
+        sessionId: payload.sessionId!,
+        serial: payload.serial!,
+        durationMs,
+        intervalMs: payload.intervalMs,
+      });
+      remoteAssist.recordAudit("recording.started", payload.sessionId!, payload.serial!, {
+        recordingId: recording.id,
+        durationMs,
+        intervalMs: recording.intervalMs,
+        maxFrames: recording.maxFrames,
+      });
+      return NextResponse.json({ recording, format: "png-frame-sequence", videoStream: false }, { status: 202 });
+    } catch (error) {
+      return remoteSessionError(error);
+    }
+  }
+
+  if (payload.action === "recording-status" || payload.action === "recording-stop") {
+    if (!payload.recordingId) return NextResponse.json({ message: "recordingIdが必要です" }, { status: 400 });
+    try {
+      requireRecordingBinding(payload);
+      const recording = payload.action === "recording-stop"
+        ? await recorder.stop(payload.recordingId, payload.sessionId!, payload.serial!)
+        : recorder.status(payload.recordingId, payload.sessionId!, payload.serial!);
+      return NextResponse.json({ recording, format: "png-frame-sequence", videoStream: false });
+    } catch (error) {
+      return remoteSessionError(error);
+    }
+  }
+
   if (payload.action !== "qa-sequence-status" && !payload.serial) return NextResponse.json({ message: "端末を指定してください" }, { status: 400 });
 
+  let manualAudit: { sessionId: string; serial: string; action: string } | undefined;
   if (isManualRemoteAction(payload.action)) {
     const sessionId = "sessionId" in payload ? payload.sessionId : undefined;
     if (!sessionId || !payload.serial) {
@@ -125,6 +234,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ message: "このRemote Assist sessionは画面閲覧のみです" }, { status: 403 });
       }
       remoteAssist.touch(sessionId, payload.serial);
+      manualAudit = { sessionId, serial: payload.serial, action: payload.action };
     } catch (error) {
       return remoteSessionError(error);
     }
@@ -163,8 +273,25 @@ export async function POST(request: Request) {
   try {
     const response = await jarvisRemoteGatewayFetch(path, { method: "POST", body: JSON.stringify(body) });
     const result = await response.json().catch(() => ({ message: "Remote Gatewayから不正な応答を受信しました" }));
+    if (manualAudit) {
+      remoteAssist.recordAudit("action.forwarded", manualAudit.sessionId, manualAudit.serial, {
+        action: manualAudit.action,
+        outcome: response.ok ? "ok" : "error",
+        httpStatus: response.status,
+      });
+    }
     return NextResponse.json(result, { status: response.status });
   } catch (error) {
+    if (manualAudit) {
+      try {
+        remoteAssist.recordAudit("action.forwarded", manualAudit.sessionId, manualAudit.serial, {
+          action: manualAudit.action,
+          outcome: "transport-error",
+        });
+      } catch {
+        // The request already failed closed; do not replace the transport failure with audit cleanup noise.
+      }
+    }
     return NextResponse.json({
       message: "JARVIS Remote Gatewayに接続できません",
       detail: error instanceof Error ? error.message : "unknown error",
