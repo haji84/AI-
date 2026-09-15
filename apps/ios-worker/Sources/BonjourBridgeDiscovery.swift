@@ -1,7 +1,7 @@
 import Foundation
 
 @MainActor
-final class BonjourBridgeDiscovery: NSObject, NetServiceBrowserDelegate, NetServiceDelegate {
+final class BonjourBridgeDiscovery: NSObject, @preconcurrency NetServiceBrowserDelegate, @preconcurrency NetServiceDelegate {
     private var browser: NetServiceBrowser?
     private var services: [NetService] = []
     private var continuation: CheckedContinuation<String?, Never>?
