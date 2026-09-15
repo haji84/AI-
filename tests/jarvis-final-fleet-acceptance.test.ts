@@ -27,7 +27,7 @@ function node(id: string, overrides: Partial<JarvisNode> = {}): JarvisNode {
       network: "wifi",
       checkedAt: "2026-09-15T09:00:00.000Z",
     },
-    enrollment: "fleet",
+    enrollment: "quick",
     lastSeenAt: "2026-09-15T09:00:00.000Z",
     ...overrides,
   };
