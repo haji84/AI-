@@ -4,20 +4,20 @@ Parent product program: Issue #681, P3.
 
 ## Current capability boundary
 
-The existing Android Remote Gateway is loopback-only by default, requires a bearer token, restricts ADB operations to an explicit serial allowlist, and already supports on-demand screenshots plus bounded tap/swipe/text/keyevent/open-URL operations. Those primitives are useful Remote Assist building blocks, but an on-demand screenshot is not evidence of a continuous live stream and the existence of ADB primitives is not evidence of full device management.
+The existing Android Remote Gateway is loopback-only by default, requires a bearer token, restricts ADB operations to an explicit serial allowlist, and supports on-demand screenshots plus bounded tap/swipe/text/keyevent/open-URL operations. Those primitives are Remote Assist building blocks, but screenshot refresh is not evidence of a continuous video stream and ADB control is not evidence of full device management.
 
-P3 therefore advances in layers rather than relabeling the old controls as complete live view.
+P3 advances in layers instead of relabeling existing controls as complete live view.
 
 ## Owner-facing session contract
 
-Manual Remote Assist actions pass through `/api/jarvis/remote`, which already requires owner authentication. Before a manual screenshot/control action can be forwarded to the loopback Remote Gateway, the owner-facing API now requires a bounded Remote Assist session:
+Manual Remote Assist actions pass through `/api/jarvis/remote`, which requires owner authentication. Before a manual screenshot/control action can be forwarded to the loopback Remote Gateway, the owner-facing API requires a bounded Remote Assist session:
 
 1. `session-start` validates that the requested serial is in the gateway's authorized device list and currently usable.
 2. The returned session is bound to exactly that serial and has a short idle expiry (10 minutes by default, capped at 30 minutes).
 3. Manual `screenshot`, `tap`, `swipe`, `text`, `keyevent`, and `open-url` calls require the matching active session ID.
 4. Activity renews the idle timeout. Cross-device reuse, expired sessions and ended sessions fail closed.
 5. `session-end` ends control explicitly. Session audit events are retained in bounded in-process memory.
-6. QA automation endpoints remain outside the manual Remote Assist session because they have their own bounded workflow contract and should not be misrepresented as human remote control.
+6. QA automation endpoints remain outside the manual Remote Assist session because they have their own bounded workflow contract and are not human remote control.
 
 The loopback Remote Gateway continues to require its bearer token and serial allowlist. The session layer does not expose ADB directly and does not make the gateway public.
 
@@ -29,7 +29,28 @@ Capability labels are deliberately conservative:
 - `CONTROLLABLE`: observation and bounded remote input exist.
 - `FULL_MANAGEMENT`: reserved for a separately verified management contract; current Android ADB Remote Assist does **not** claim this merely because ADB is connected.
 
-A connected, allowlisted Android on the current screenshot/input path is surfaced as `CONTROLLABLE`. A device that is not in a usable ADB state receives no usable Remote Assist capability from this path.
+The API enforces the capability, not only the UI. A `VIEW_ONLY` session may request screenshots but cannot forward tap/swipe/text/keyevent/open-URL input. A connected, allowlisted Android on the current screenshot/input path is surfaced as `CONTROLLABLE`. A device that is not in a usable ADB state receives no usable Remote Assist capability from this path.
+
+## Console lifecycle and sufficiently-live refresh
+
+The JARVIS console must explicitly start Remote Assist for the selected serial before any manual screen/control request is enabled. Every manual request carries the active session ID. Changing device clears the local session and attempts to close the previous bounded session; a session can never be reused for another serial.
+
+The console may offer **画面自動更新** as a sufficiently-live convenience mode. Its current contract is intentionally narrow:
+
+- screenshot polling interval: 2 seconds
+- at most one screenshot request in flight
+- polling runs only while the page is visible and the matching session is active
+- session expiry/mismatch fails closed and stops refresh
+- refresh is opt-in and stops when Remote Assist ends
+- UI copy must call this screenshot refresh, not video streaming
+
+This mode is software evidence for a bounded refresh UX only. It is not physical live-stream evidence and does not satisfy recording or low-latency streaming requirements.
+
+## Human Takeover linkage
+
+The control plane already has a separate Human Takeover lifecycle. The console may surface an inline takeover action beside Remote Assist only when the takeover `nodeId` exactly equals the selected Remote Gateway serial. It must not guess an identity mapping.
+
+`続きやって` remains an explicit owner action that calls the existing takeover resolution path and resumes the waiting task. Ending a Remote Assist session must never silently resolve a Human Takeover.
 
 ## Security boundary
 
@@ -39,12 +60,12 @@ Remote Assist never changes the existing Human Gate policy. Pointing/tapping is 
 
 This foundation does not make P3 complete. The following still require separate implementation and evidence:
 
-- sufficiently-live refresh/streaming UX rather than manual screenshot refresh
 - 2-way / 4-way / fleet thumbnail grid
-- recording where supported and policy-approved
-- explicit Human Takeover -> Remote Assist -> owner intervention -> `続きやって` resume linkage
+- supported recording with explicit policy boundary
+- broader Human Takeover -> Remote Assist identity linkage where node IDs and gateway serials differ
 - durable/auditable session history beyond process-local bounded audit where required
 - per-platform capability presentation including iOS degradation
-- physical evidence on each supported platform
+- physical evidence for screenshot refresh and manual control on each supported platform
+- any true continuous/low-latency streaming implementation if retained as a product requirement
 
 Until those gates pass, the corresponding Requirement Ledger rows remain PARTIAL or MISSING. CI is not physical evidence.
