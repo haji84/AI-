@@ -25,7 +25,7 @@ $quotedRoot = $RepoRoot.Replace("'", "''")
 $command = "Set-Location '$quotedRoot'; pnpm jarvis:remote:host"
 $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument "-NoProfile -WindowStyle Hidden -Command `"$command`""
 $trigger = if ($AtStartup) { New-ScheduledTaskTrigger -AtStartup } else { New-ScheduledTaskTrigger -AtLogOn }
-$settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -RestartCount 20 -RestartInterval (New-TimeSpan -Minutes 1) -ExecutionTimeLimit ([TimeSpan]::Zero)
+$settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -RestartCount 20 -RestartInterval (New-TimeSpan -Minutes 1) -ExecutionTimeLimit ([TimeSpan]::Zero)
 
 Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger -Settings $settings -Force | Out-Null
 Start-ScheduledTask -TaskName $TaskName
@@ -33,6 +33,8 @@ Start-ScheduledTask -TaskName $TaskName
 Write-Host "Installed '$TaskName'."
 if ($AtStartup) {
   Write-Host 'Mode: startup. This was an explicit Administrator operation.'
+  Write-Host 'Battery policy: start and continue while on battery.'
+  Write-Host 'Important: an AtStartup trigger alone does not prove pre-logon unattended execution. Run pnpm jarvis:power:check and inspect the reported task principal/logon type.'
 } else {
   Write-Host 'Mode: user logon. For unattended boot before logon, rerun in an elevated PowerShell with -AtStartup.'
 }
