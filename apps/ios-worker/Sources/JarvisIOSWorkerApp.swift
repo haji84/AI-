@@ -38,6 +38,8 @@ struct ContentView: View {
                 Section("Status") {
                     LabeledContent("Last task", value: worker.lastTaskId ?? "-")
                     LabeledContent("Last result", value: worker.lastResult ?? "-")
+                    LabeledContent("Transport error", value: worker.lastTransportError ?? "-")
+                        .font(.caption)
                 }
 
                 DisclosureGroup("Advanced / fallback", isExpanded: $showAdvanced) {
