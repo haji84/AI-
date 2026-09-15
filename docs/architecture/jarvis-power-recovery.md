@@ -31,7 +31,19 @@ powershell -ExecutionPolicy Bypass -File .\scripts\install-jarvis-remote-autosta
 pnpm jarvis:power:check
 ```
 
-The readiness checker verifies that the Scheduled Task uses an AtStartup trigger and that the Tailscale Windows service is running with automatic start.
+The installer creates a task but does not by itself prove unattended boot. The read-only checker now requires an enabled boot trigger, the inspected owner's noninteractive Password logon, Limited run level, exact Node/host-script action and working directory, battery continuation, offline startup, bounded restart settings, and duplicate-instance prevention. A boot trigger alone, Interactive logon, or S4U is not sufficient. Tailscale must also be running with automatic start.
+
+The current installer uses a PowerShell/pnpm action and does not configure all these conditions, so it will correctly remain unready. Do not respond by weakening the diagnostic or silently registering a more privileged account.
+
+### One-time setup gate (prepared, not executed)
+
+The owner or Windows administrator must review the existing `JARVIS Remote Host` task in Task Scheduler. When this gate is scheduled, use the normal owner identity with “Run whether user is logged on or not”, without highest privileges. Windows may require the owner password locally; never send it to JARVIS, chat, source control or logs. S4U is not a substitute for this network-dependent host.
+
+Configure one action with the absolute Node executable, argument `"<repository>\scripts\jarvis-remote-host.mjs"`, and Start in `<repository>`. Enable the boot trigger, Start when available, restart every minute up to 20 times, no execution time limit and “Do not start a new instance”. Allow start/continuation on battery and do not require a network connection before startup. These are preparation instructions, not authorization to change credentials or task permissions automatically. Alternate service identities require separate review.
+
+Run `pnpm jarvis:power:check` afterwards from that same owner account. A configuration pass still requires subsequent real reboot/network/power-loss evidence; it does not validate saved credentials, account rights, resource accessibility, battery duration or firmware behavior.
+
+References: [Microsoft Scheduled Task principal](https://learn.microsoft.com/en-us/powershell/module/scheduledtasks/new-scheduledtaskprincipal), [battery/restart settings](https://learn.microsoft.com/en-us/powershell/module/scheduledtasks/new-scheduledtasksettingsset), [S4U network restriction](https://learn.microsoft.com/en-us/windows/win32/api/taskschd/ne-taskschd-task_logon_type). Read-only collector: `scripts/inspect-jarvis-startup-windows.ps1`. The CLI reports safe diagnostic messages rather than dumping task arguments or credentials.
 
 ### Firmware gate
 

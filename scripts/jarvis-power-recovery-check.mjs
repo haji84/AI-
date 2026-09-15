@@ -6,7 +6,7 @@ import {
   macAutoRestartEnabled,
   macSystemDaemonLoaded,
   recoveryVerdict,
-  windowsStartupTaskReady,
+  windowsStartupTaskReadiness,
   windowsTailscaleServiceReady,
 } from './jarvis-power-recovery-lib.mjs';
 import { inspectPrivateIngress, tailscaleBackendIsRunning } from './jarvis-remote-access-lib.mjs';
@@ -56,10 +56,11 @@ if (process.platform === 'darwin') {
   const daemon = run('/bin/launchctl', ['print', 'system/ai.jarvis.remote-host'], { allowFailure: true });
   add('mac-system-autostart', macSystemDaemonLoaded(daemon), 'system LaunchDaemon ai.jarvis.remote-host is loaded');
 } else if (process.platform === 'win32') {
-  const taskJson = run('powershell.exe', ['-NoProfile', '-Command', "$t=Get-ScheduledTask -TaskName 'JARVIS Remote Host' -ErrorAction SilentlyContinue; if($t){$tr=($t.Triggers | ForEach-Object {$_.CimClass.CimClassName}) -join ','; [pscustomobject]@{State=[string]$t.State;Trigger=$tr}|ConvertTo-Json -Compress}"], { allowFailure: true });
+  const taskJson = run('powershell.exe', ['-NoProfile', '-File', path.join(root, 'scripts/inspect-jarvis-startup-windows.ps1')], { allowFailure: true });
   let task = null;
   try { task = taskJson ? JSON.parse(taskJson) : null; } catch {}
-  add('windows-startup-task', windowsStartupTaskReady(task), `Scheduled Task=${taskJson || 'missing'}`);
+  const startup = windowsStartupTaskReadiness(task, { repoRoot: root, nodePath: process.execPath });
+  for (const [name, check] of Object.entries(startup.checks)) add(`windows-startup-${name}`, check.ok, check.detail);
 
   const svcJson = run('powershell.exe', ['-NoProfile', '-Command', "$s=Get-CimInstance Win32_Service -Filter \"Name='Tailscale'\" -ErrorAction SilentlyContinue; if($s){[pscustomobject]@{Status=$s.State;StartType=$s.StartMode}|ConvertTo-Json -Compress}"], { allowFailure: true });
   let svc = null;
