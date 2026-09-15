@@ -52,15 +52,21 @@ export function capabilityForRemoteDevice(input: {
 export class JarvisRemoteAssistSessionManager {
   private readonly sessions = new Map<string, JarvisRemoteAssistSession>();
   private readonly auditEvents: JarvisRemoteAssistAuditEvent[] = [];
+  private readonly defaultTtlMs: number;
+  private readonly maxTtlMs: number;
+  private readonly maxAuditEvents: number;
 
   constructor(
-    private readonly defaultTtlMs = 10 * 60_000,
-    private readonly maxTtlMs = 30 * 60_000,
-    private readonly maxAuditEvents = 1_000,
+    defaultTtlMs = 10 * 60_000,
+    maxTtlMs = 30 * 60_000,
+    maxAuditEvents = 1_000,
   ) {
     if (!Number.isFinite(defaultTtlMs) || defaultTtlMs <= 0) throw new Error("defaultTtlMs must be positive");
     if (!Number.isFinite(maxTtlMs) || maxTtlMs < defaultTtlMs) throw new Error("maxTtlMs must be >= defaultTtlMs");
     if (!Number.isInteger(maxAuditEvents) || maxAuditEvents <= 0) throw new Error("maxAuditEvents must be positive");
+    this.defaultTtlMs = defaultTtlMs;
+    this.maxTtlMs = maxTtlMs;
+    this.maxAuditEvents = maxAuditEvents;
   }
 
   start(input: {
