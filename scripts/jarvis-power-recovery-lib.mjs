@@ -24,9 +24,11 @@ export function windowsStartupTaskReadiness(task, expected = {}) {
   const node = normalize(expected.nodePath);
   const action = Array.isArray(task?.Actions) && task.Actions.length === 1 ? task.Actions[0] : null;
   const rawArgument = typeof action?.Arguments === 'string' ? action.Arguments.trim() : '';
-  const argument = rawArgument.startsWith('"') && rawArgument.endsWith('"') ? rawArgument.slice(1, -1) : rawArgument;
+  const quoted = rawArgument.startsWith('"') && rawArgument.endsWith('"');
+  const argument = quoted ? rawArgument.slice(1, -1) : rawArgument;
+  const singleArgument = !argument.includes('"') && (quoted || !/\s/.test(argument));
   const script = root && argument ? normalize(path.win32.resolve(root, argument)) : '';
-  const exactAction = Boolean(root && node && action && normalize(action.Execute) === node && normalize(action.WorkingDirectory) === root && script === normalize(path.win32.join(root, 'scripts/jarvis-remote-host.mjs')));
+  const exactAction = Boolean(root && node && action && singleArgument && normalize(action.Execute) === node && normalize(action.WorkingDirectory) === root && script === normalize(path.win32.join(root, 'scripts/jarvis-remote-host.mjs')));
   add('action', exactAction, 'One direct Node action must launch this repository host script in its expected working directory');
   add('battery', settings.DisallowStartIfOnBatteries === false && settings.StopIfGoingOnBatteries === false, 'Task must start and continue on battery power');
   add('offline', settings.RunOnlyIfNetworkAvailable === false, 'Network availability must not be an OS startup condition');

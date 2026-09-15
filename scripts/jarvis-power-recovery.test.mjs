@@ -62,6 +62,7 @@ test('missing, disabled or shell-substituted task actions fail with safe diagnos
     task => { task.Actions = []; },
     task => { task.Actions.push(task.Actions[0]); },
     task => { task.Actions[0].Execute = 'powershell.exe'; },
+    task => { task.Actions[0].Arguments = 'C:\\JARVIS Home\\scripts\\jarvis-remote-host.mjs'; },
     task => { task.Actions[0].Arguments += ' --token=SECRET_SENTINEL'; },
     task => { task.Actions[0].WorkingDirectory = 'C:\\Other'; },
   ]) {
