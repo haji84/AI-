@@ -9,12 +9,12 @@ import type { TaskProfile } from "../src/gai/types.ts";
 const task: TaskProfile = { id: "android-task", description: "mobile offline work", difficulty: 1, risk: "LOW" };
 
 test("Android profile satisfies the same persistent offline-aware worker contract", () => {
-  const result = evaluateWorkerContract(androidWorkerProfile);
-  assert.equal(result.passed, true, result.failures.join("; "));
+  const result = evaluateWorkerContract(androidWorkerProfile, { requireLocalPersistence: true, requireCheckpointResume: true, requireOfflineQueue: true, requireCredentialIsolation: true, requireTaskScopedAuthorization: true, requireExecutionEvidence: true });
+  assert.equal(result.passed, true, result.failureReasons.join("; "));
   assert.equal(androidWorkerProfile.platform, "android");
   assert.equal(androidWorkerProfile.persistence?.offlineQueue, true);
-  assert.equal(androidWorkerProfile.securityContext?.humanGateEnforced, true);
-  assert.equal(androidWorkerProfile.verifierHooks?.evidenceCapture, true);
+  assert.equal(androidWorkerProfile.securityContext?.taskScopedAuthorization, true);
+  assert.equal(androidWorkerProfile.verifierHooks?.executionEvidence, true);
 });
 
 test("Android adapter executes offline mobile capability through common runtime", async () => {
@@ -33,7 +33,9 @@ test("Android adapter executes offline mobile capability through common runtime"
 test("Android adapter rejects undeclared bridge capabilities and resident semantics", async () => {
   assert.throws(() => createAndroidWorkerAdapter({ bridge: { capabilities: ["gpu"], execute: async () => ({ output: "bad" }) } }), /unsupported capabilities/);
   const worker = createAndroidWorkerAdapter({ bridge: { capabilities: ["gps"], execute: async () => ({ output: "ok" }) } });
-  await assert.rejects(() => worker.execute({ task, input: "x", requestedCapability: "gps", requiredCapabilities: ["gps"], preferredPlatform: "android", requiredExecutionMode: "resident" }), /does not claim unrestricted resident execution/);
+  const result = await worker.execute({ task, input: "x", requestedCapability: "gps", requiredCapabilities: ["gps"], preferredPlatform: "android", requiredExecutionMode: "resident" });
+  assert.equal(result.success, false);
+  assert.match(result.error ?? "", /does not claim unrestricted resident execution/);
 });
 
 test("unavailable Android adapter falls back to another compatible Android worker without core changes", async () => {
