@@ -9,7 +9,7 @@ import {
   windowsStartupTaskReady,
   windowsTailscaleServiceReady,
 } from './jarvis-power-recovery-lib.mjs';
-import { looksLikePublicFunnel, tailscaleBackendIsRunning } from './jarvis-remote-access-lib.mjs';
+import { inspectPrivateIngress, tailscaleBackendIsRunning } from './jarvis-remote-access-lib.mjs';
 
 const root = process.cwd();
 const checks = {};
@@ -44,9 +44,11 @@ try {
   add('tailscale-connected', false, `Tailscale status unavailable: ${error instanceof Error ? error.message : String(error)}`);
 }
 
-const serveStatus = run(tailscale, ['serve', 'status'], { allowFailure: true });
-const funnelStatus = run(tailscale, ['funnel', 'status'], { allowFailure: true });
-add('private-ingress-only', !looksLikePublicFunnel(`${serveStatus}\n${funnelStatus}`), 'Tailscale Funnel/public ingress is not active');
+let ingress = { ready: false, reason: 'Tailscale configuration could not be read' };
+try {
+  ingress = inspectPrivateIngress(run(tailscale, ['serve', 'status', '--json']), { dashboardPort: Number(process.env.JARVIS_DASHBOARD_PORT || 3000), dnsName: tsStatus?.Self?.DNSName });
+} catch { /* Unknown is a failed check, never a private-ingress PASS. */ }
+add('private-ingress-only', ingress.ready, ingress.reason);
 
 if (process.platform === 'darwin') {
   const pmset = run('/usr/bin/pmset', ['-g', 'custom'], { allowFailure: true });

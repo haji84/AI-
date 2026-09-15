@@ -3,12 +3,12 @@
 PROJECT: General Autonomous AI / Unified AI Creator Studio / GAI Research OS
 AI_COMPANY_VERSION: 1.0
 PROJECT_VERSION: 0.0.0
-CURRENT_PHASE: JARVIS Completion Program #681 P0 requirement audit; P1 ZBook private-host hardening next
+CURRENT_PHASE: JARVIS #681 P0 merged via #682; P1/P2 ZBook supervisor and readiness repair #683
 STATUS: JARVIS_PRODUCT_COMPLETION_IN_PROGRESS
 LAST_UPDATED: 2026-09-16
 CURRENT_EPIC: One-front-door general autonomous AI with durable offline-first device-neutral execution and verifier-driven completion
-ACTIVE_ISSUES: JARVIS Product Completion parent #681; Research Ops #321 / R1-R20 separate; historical #401/#609/#612 acceptance retained
-OPEN_PRS: #681 P0 ledger and Windows context-reader correction pending PR/CI
+ACTIVE_ISSUES: JARVIS Product Completion parent #681 and child #683; Research Ops #321 / R1-R20 separate; historical #401/#609/#612 acceptance retained
+OPEN_PRS: #682 merged; #683 supervisor/readiness repair pending PR/CI
 BLOCKERS: Expanded product scope has 169 PARTIAL, 2 IMPLEMENTED_UNVERIFIED and 67 MISSING requirements; no new physical PASS. Tailscale/startup/ADB not found by initial ZBook inventory; physical login, OS permissions and firmware remain evidence-gated. See docs/audit/jarvis-product-p0.md
 PRIORITY_OVERRIDE: Owner 2026-09-16 instruction resumes expanded JARVIS product completion #681 with ZBook main-host priority; preserve Human Gates and separate research evidence
 NORTH_STAR_GOAL: Human gives one goal; the system determines required work, dynamically recruits available capabilities, executes, verifies, repairs, records, and completes with the fewest necessary human returns, including continued local work during connectivity loss where capability permits
@@ -44,7 +44,7 @@ JARVIS_100_NODE_CAPACITY: PASS in deterministic CI; node 101 is rejected
 JARVIS_PHYSICAL_ANDROID_E2E: PASS for the acceptance scope through real Android 001 resident-Broker/Worker execution evidence from PR #526 and follow-up hardening. This does not imply unverified physical wake/Device Owner/live-screen/real-offline claims
 GAI_RESEARCH_OPS: SEPARATE_EVIDENCE_PROGRAM; Issue #321 and R1-R20 remain open until their real scientific evidence gates pass
 GAI_NEXT_PHASE: Complete #681 P0–P10 using docs/JARVIS_PRODUCT_SPEC.md and docs/jarvis-requirements.json; keep #321 research separate
-NEXT_PRIORITY: Verify/merge P0, then reproduce and fix Windows supervisor/recovery and private-ingress readiness defects; continue independent software work while physical gates remain open
+NEXT_PRIORITY: Verify/merge #683, then Windows unattended startup diagnostics and P3 remote-session/live-view work. Main CI for #682 merge has not been returned by workflow query; no deployment. Physical gates remain open
 HUMAN_APPROVAL_PENDING: none for ordinary code/CI/device validation; production, secrets, permissions, billing, destructive, governance/security weakening, and external-publication gates remain in force
 AUTO_FIX_ATTEMPTS_MAX: 3
 MAX_ACTIVE_AGENTS: 3
