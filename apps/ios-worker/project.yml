@@ -1,0 +1,23 @@
+name: JarvisIOSWorker
+options:
+  bundleIdPrefix: com.haji84.jarvis
+settings:
+  base:
+    SWIFT_VERSION: 6.0
+targets:
+  JarvisIOSWorker:
+    type: application
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - Sources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.haji84.jarvis.iosworker
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: JARVIS Worker
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
+        CODE_SIGN_STYLE: Automatic
+    scheme:
+      testTargets: []
