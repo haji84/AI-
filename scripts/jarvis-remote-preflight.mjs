@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { looksLikePublicFunnel, privateServeUrl, tailscaleBackendIsRunning } from './jarvis-remote-access-lib.mjs';
+import { inspectPrivateIngress, privateServeUrl, serviceHealthMatches, tailscaleBackendIsRunning } from './jarvis-remote-access-lib.mjs';
 
 const dashboardPort = Number(process.env.JARVIS_DASHBOARD_PORT || 3000);
 const tailscale = process.platform === 'win32' ? 'tailscale.exe' : 'tailscale';
@@ -21,18 +21,15 @@ function run(args, options = {}) {
   }
 }
 
-async function checkHttp(name, url, optional = false) {
+async function checkHttp(name, url) {
   try {
-    const response = await fetch(url, { signal: AbortSignal.timeout(5_000), redirect: 'follow' });
-    if (response.status >= 500) throw new Error(`HTTP ${response.status}`);
+    const response = await fetch(url, { signal: AbortSignal.timeout(5_000), redirect: 'error' });
+    const body = await response.json();
+    if (!serviceHealthMatches(name, response.status, body)) throw new Error(`Invalid ${name} health response (HTTP ${response.status})`);
     console.log(`PASS ${name}: ${url} -> HTTP ${response.status}`);
     return true;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    if (optional) {
-      console.warn(`WARN ${name}: ${message}`);
-      return false;
-    }
     throw new Error(`${name} unavailable at ${url}: ${message}`);
   }
 }
@@ -56,22 +53,24 @@ if (!privateUrl) {
   process.exit(2);
 }
 
-const funnelStatus = run(['funnel', 'status'], { allowFailure: true });
-if (looksLikePublicFunnel(funnelStatus)) {
-  console.error('REMOTE_ACCESS_REFUSED: public Tailscale Funnel appears active. Disable Funnel before enabling JARVIS remote access.');
+const ingressOptions = { dashboardPort, dnsName: status.Self?.DNSName };
+const before = inspectPrivateIngress(run(['serve', 'status', '--json']), ingressOptions);
+if (['public', 'unknown'].includes(before.state)) {
+  console.error(`REMOTE_ACCESS_REFUSED: ${before.reason}`);
   process.exit(2);
 }
 
 run(['serve', '--bg', '--yes', String(dashboardPort)], { timeout: 30_000 });
-const serveStatus = run(['serve', 'status'], { allowFailure: true });
-if (looksLikePublicFunnel(serveStatus)) {
-  console.error('REMOTE_ACCESS_REFUSED: Serve status indicates public Funnel exposure.');
+const after = inspectPrivateIngress(run(['serve', 'status', '--json']), ingressOptions);
+if (!after.ready) {
+  console.error(`REMOTE_ACCESS_REFUSED: ${after.reason}`);
   process.exit(2);
 }
 
-await checkHttp('dashboard', `http://127.0.0.1:${dashboardPort}`, true);
-await checkHttp('broker', 'http://127.0.0.1:8787/health', true);
-await checkHttp('remote gateway', 'http://127.0.0.1:8790/health', true);
+await checkHttp('dashboard', `http://127.0.0.1:${dashboardPort}/api/health`);
+await checkHttp('broker', 'http://127.0.0.1:8787/health');
+await checkHttp('remote-gateway', 'http://127.0.0.1:8790/health');
 
-console.log(`REMOTE_ACCESS_READY: ${privateUrl}`);
+console.log(`REMOTE_ACCESS_SOFTWARE_READY: ${privateUrl}`);
+console.log('Cellular access and real-worker execution still require physical acceptance.');
 console.log('This URL is tailnet-private. Keep Tailscale connected on the remote phone; do not enable Funnel.');

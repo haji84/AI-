@@ -6,12 +6,55 @@ export function restartDelayMs(attempt, baseMs = 1_000, maxMs = 30_000) {
 }
 
 export function looksLikePublicFunnel(statusText) {
+  try { if (funnelState(JSON.parse(String(statusText))) === 'public') return true; } catch {}
   const value = String(statusText || "").toLowerCase();
   if (!value.trim()) return false;
   return value.includes("available on the internet") ||
     value.includes("funnel on") ||
-    value.includes('"funnel":true') ||
-    value.includes('"allowfunnel":true');
+    /"(?:funnel|allowfunnel)"\s*:\s*true/.test(value);
+}
+
+const object = value => value !== null && typeof value === 'object' && !Array.isArray(value);
+
+function funnelState(config) {
+  if (!object(config)) return 'unknown';
+  let state = 'private';
+  for (const [key, value] of Object.entries(config)) {
+    if (['allowfunnel', 'funnel'].includes(key.toLowerCase())) {
+      const flags = object(value) ? Object.values(value) : [value];
+      if (flags.includes(true)) return 'public';
+      if (flags.some(flag => flag !== false)) state = 'unknown';
+    } else if (object(value)) {
+      const nested = funnelState(value);
+      if (nested === 'public') return 'public';
+      if (nested === 'unknown') state = 'unknown';
+    }
+  }
+  return state;
+}
+
+// Call with successful `tailscale serve status --json` output only.
+// Unknown/failed responses must never be reported as proof of private ingress.
+export function inspectPrivateIngress(output, { commandSucceeded = true, dashboardPort = 3000, dnsName } = {}) {
+  if (!commandSucceeded) return { state: 'unknown', ready: false, reason: 'Tailscale status command failed' };
+  let config;
+  try { config = JSON.parse(String(output)); } catch { return { state: 'unknown', ready: false, reason: 'Invalid Tailscale status JSON' }; }
+  if (config === null) return { state: 'unconfigured', ready: false, reason: 'No Serve configuration yet' };
+  if (!object(config)) return { state: 'unknown', ready: false, reason: 'Tailscale configuration unavailable' };
+  const state = funnelState(config);
+  if (state !== 'private') return { state, ready: false, reason: state === 'public' ? 'Public Funnel enabled' : 'Invalid Funnel configuration' };
+  const known = new Set(['TCP', 'Web', 'AllowFunnel', 'Foreground', 'Services']);
+  if (Object.entries(config).some(([key, value]) => !known.has(key) || !object(value))) return { state: 'unknown', ready: false, reason: 'Unrecognized Serve configuration shape' };
+  const expectedProxy = `http://127.0.0.1:${dashboardPort}`;
+  const expectedHost = typeof dnsName === 'string' ? `${dnsName.replace(/\.$/, '')}:443` : null;
+  const configured = config.TCP?.['443']?.HTTPS === true && object(config.Web) && Object.entries(config.Web).some(([host, server]) =>
+    (!expectedHost || host === expectedHost) && server?.Handlers?.['/']?.Proxy === expectedProxy);
+  return { state: configured ? 'private' : 'unconfigured', ready: configured, reason: configured ? 'Private HTTPS routes to the loopback dashboard' : 'Expected private HTTPS dashboard route is missing' };
+}
+
+export function serviceHealthMatches(name, status, body) {
+  if (status !== 200 || !object(body)) return false;
+  return name === 'dashboard' ? body.status === 'ok' : body.ok === true && body.service === `jarvis-${name}`;
 }
 
 export function tailscaleBackendIsRunning(status) {

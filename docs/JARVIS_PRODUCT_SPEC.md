@@ -54,14 +54,17 @@ The JSON blocks are the authoritative rows. Validate exact mirror and evidence g
     "docs/architecture/jarvis-remote-access.md"
   ],
   "test_refs": [
-    "scripts/jarvis-remote-access.test.mjs"
+    "scripts/jarvis-remote-access.test.mjs",
+    "scripts/jarvis-managed-process.test.mjs"
   ],
-  "evidence_refs": [],
+  "evidence_refs": [
+    "docs/audit/jarvis-zbook-readiness.md"
+  ],
   "status": "PARTIAL",
-  "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+  "blocker": "子Issue #683でWindows spawn/backoffとprivate-ingress判定を修正。Tailscale/OS startup・cellular/実機復旧Evidenceは未取得。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P1: 外出先スマホのWi-FiをOFFにし4G/5G→private encrypted network→ZBook→JARVIS→Broker/Remote Gateway→Home Wi-Fi Workersへ接続。Router Port Forwarding禁止。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "P1/P2: Windows非対話起動・battery policy診断を完成し、OS/account gate準備と実機接続・復旧Evidenceを取得する。独立するP3以降のソフトウェア作業を継続。",
   "last_verified_commit": null
 }
 ```
@@ -86,14 +89,17 @@ The JSON blocks are the authoritative rows. Validate exact mirror and evidence g
     "docs/architecture/jarvis-remote-access.md"
   ],
   "test_refs": [
-    "scripts/jarvis-remote-access.test.mjs"
+    "scripts/jarvis-remote-access.test.mjs",
+    "scripts/jarvis-managed-process.test.mjs"
   ],
-  "evidence_refs": [],
+  "evidence_refs": [
+    "docs/audit/jarvis-zbook-readiness.md"
+  ],
   "status": "PARTIAL",
-  "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+  "blocker": "子Issue #683でWindows spawn/backoffとprivate-ingress判定を修正。Tailscale/OS startup・cellular/実機復旧Evidenceは未取得。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P1: Tailscale等のPrivate Overlayを利用しPublic Funnelを使用しない。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "P1/P2: Windows非対話起動・battery policy診断を完成し、OS/account gate準備と実機接続・復旧Evidenceを取得する。独立するP3以降のソフトウェア作業を継続。",
   "last_verified_commit": null
 }
 ```
@@ -275,18 +281,22 @@ The JSON blocks are the authoritative rows. Validate exact mirror and evidence g
   "implementation_refs": [
     "scripts/jarvis-remote-host.mjs",
     "scripts/jarvis-power-recovery-lib.mjs",
-    "scripts/install-jarvis-remote-autostart-windows.ps1"
+    "scripts/install-jarvis-remote-autostart-windows.ps1",
+    "scripts/jarvis-managed-process.mjs"
   ],
   "test_refs": [
     "scripts/jarvis-power-recovery.test.mjs",
-    "scripts/jarvis-remote-access.test.mjs"
+    "scripts/jarvis-remote-access.test.mjs",
+    "scripts/jarvis-managed-process.test.mjs"
   ],
-  "evidence_refs": [],
+  "evidence_refs": [
+    "docs/audit/jarvis-zbook-readiness.md"
+  ],
   "status": "PARTIAL",
-  "blocker": "Windows主ホストの実稼働証拠なし。現行installerの起動アカウント、dashboard起動と監視を検証する。",
+  "blocker": "子Issue #683でWindows spawn/backoffとprivate-ingress判定を修正。Tailscale/OS startup・cellular/実機復旧Evidenceは未取得。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P2: ZBook/Windowsを家側常時稼働Main Hostとする。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "P1/P2: Windows非対話起動・battery policy診断を完成し、OS/account gate準備と実機接続・復旧Evidenceを取得する。独立するP3以降のソフトウェア作業を継続。",
   "last_verified_commit": null
 }
 ```
@@ -342,18 +352,22 @@ The JSON blocks are the authoritative rows. Validate exact mirror and evidence g
   "implementation_refs": [
     "scripts/jarvis-remote-host.mjs",
     "scripts/jarvis-power-recovery-lib.mjs",
-    "scripts/install-jarvis-remote-autostart-windows.ps1"
+    "scripts/install-jarvis-remote-autostart-windows.ps1",
+    "scripts/jarvis-managed-process.mjs"
   ],
   "test_refs": [
     "scripts/jarvis-power-recovery.test.mjs",
-    "scripts/jarvis-remote-access.test.mjs"
+    "scripts/jarvis-remote-access.test.mjs",
+    "scripts/jarvis-managed-process.test.mjs"
   ],
-  "evidence_refs": [],
+  "evidence_refs": [
+    "docs/audit/jarvis-zbook-readiness.md"
+  ],
   "status": "PARTIAL",
-  "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+  "blocker": "子Issue #683でWindows spawn/backoffとprivate-ingress判定を修正。Tailscale/OS startup・cellular/実機復旧Evidenceは未取得。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P2: Windows起動後にdashboard、Broker、Remote Gateway、supervisor、private network entry、health monitoringが手動起動なしで稼働。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "P1/P2: Windows非対話起動・battery policy診断を完成し、OS/account gate準備と実機接続・復旧Evidenceを取得する。独立するP3以降のソフトウェア作業を継続。",
   "last_verified_commit": null
 }
 ```
@@ -376,18 +390,22 @@ The JSON blocks are the authoritative rows. Validate exact mirror and evidence g
   "implementation_refs": [
     "scripts/jarvis-remote-host.mjs",
     "scripts/jarvis-power-recovery-lib.mjs",
-    "scripts/install-jarvis-remote-autostart-windows.ps1"
+    "scripts/install-jarvis-remote-autostart-windows.ps1",
+    "scripts/jarvis-managed-process.mjs"
   ],
   "test_refs": [
     "scripts/jarvis-power-recovery.test.mjs",
-    "scripts/jarvis-remote-access.test.mjs"
+    "scripts/jarvis-remote-access.test.mjs",
+    "scripts/jarvis-managed-process.test.mjs"
   ],
-  "evidence_refs": [],
+  "evidence_refs": [
+    "docs/audit/jarvis-zbook-readiness.md"
+  ],
   "status": "PARTIAL",
-  "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+  "blocker": "子Issue #683でWindows spawn/backoffとprivate-ingress判定を修正。Tailscale/OS startup・cellular/実機復旧Evidenceは未取得。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P2: プロセス異常終了時にbounded exponential backoffで自動再起動。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "P1/P2: Windows非対話起動・battery policy診断を完成し、OS/account gate準備と実機接続・復旧Evidenceを取得する。独立するP3以降のソフトウェア作業を継続。",
   "last_verified_commit": null
 }
 ```
@@ -410,18 +428,22 @@ The JSON blocks are the authoritative rows. Validate exact mirror and evidence g
   "implementation_refs": [
     "scripts/jarvis-remote-host.mjs",
     "scripts/jarvis-power-recovery-lib.mjs",
-    "scripts/install-jarvis-remote-autostart-windows.ps1"
+    "scripts/install-jarvis-remote-autostart-windows.ps1",
+    "scripts/jarvis-managed-process.mjs"
   ],
   "test_refs": [
     "scripts/jarvis-power-recovery.test.mjs",
-    "scripts/jarvis-remote-access.test.mjs"
+    "scripts/jarvis-remote-access.test.mjs",
+    "scripts/jarvis-managed-process.test.mjs"
   ],
-  "evidence_refs": [],
+  "evidence_refs": [
+    "docs/audit/jarvis-zbook-readiness.md"
+  ],
   "status": "PARTIAL",
-  "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+  "blocker": "子Issue #683でWindows spawn/backoffとprivate-ingress判定を修正。Tailscale/OS startup・cellular/実機復旧Evidenceは未取得。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P2: Internet/Wi-Fi復帰後に自動再接続。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "P1/P2: Windows非対話起動・battery policy診断を完成し、OS/account gate準備と実機接続・復旧Evidenceを取得する。独立するP3以降のソフトウェア作業を継続。",
   "last_verified_commit": null
 }
 ```
@@ -6173,14 +6195,17 @@ The JSON blocks are the authoritative rows. Validate exact mirror and evidence g
     "scripts/jarvis-broker.ts"
   ],
   "test_refs": [
-    "scripts/jarvis-remote-access.test.mjs"
+    "scripts/jarvis-remote-access.test.mjs",
+    "scripts/jarvis-managed-process.test.mjs"
   ],
-  "evidence_refs": [],
+  "evidence_refs": [
+    "docs/audit/jarvis-zbook-readiness.md"
+  ],
   "status": "PARTIAL",
-  "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+  "blocker": "子Issue #683でWindows spawn/backoffとprivate-ingress判定を修正。Tailscale/OS startup・cellular/実機復旧Evidenceは未取得。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P8: Private ingress only。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "P1/P2: Windows非対話起動・battery policy診断を完成し、OS/account gate準備と実機接続・復旧Evidenceを取得する。独立するP3以降のソフトウェア作業を継続。",
   "last_verified_commit": null
 }
 ```
@@ -6687,15 +6712,21 @@ The JSON blocks are the authoritative rows. Validate exact mirror and evidence g
   "implementation_refs": [
     "src/app/jarvis/JarvisConsole.tsx",
     "scripts/jarvis-remote-preflight.mjs",
-    "scripts/jarvis-power-recovery-check.mjs"
+    "scripts/jarvis-power-recovery-check.mjs",
+    "scripts/jarvis-remote-access-lib.mjs"
   ],
-  "test_refs": [],
-  "evidence_refs": [],
+  "test_refs": [
+    "scripts/jarvis-managed-process.test.mjs",
+    "scripts/jarvis-remote-access.test.mjs"
+  ],
+  "evidence_refs": [
+    "docs/audit/jarvis-zbook-readiness.md"
+  ],
   "status": "PARTIAL",
-  "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+  "blocker": "子Issue #683でWindows spawn/backoffとprivate-ingress判定を修正。Tailscale/OS startup・cellular/実機復旧Evidenceは未取得。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P10: Self Diagnostics: Tailscale disconnected/build missing/worker missing/host down/Broker down/Gateway down/auth missing/Device permission missing/firmware gate/Human Gate pendingを具体表示。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "P1/P2: Windows非対話起動・battery policy診断を完成し、OS/account gate準備と実機接続・復旧Evidenceを取得する。独立するP3以降のソフトウェア作業を継続。",
   "last_verified_commit": null
 }
 ```
@@ -6746,17 +6777,22 @@ The JSON blocks are the authoritative rows. Validate exact mirror and evidence g
   ],
   "implementation_refs": [
     "scripts/install-jarvis-remote-autostart-windows.ps1",
-    "scripts/jarvis-remote-host.mjs"
+    "scripts/jarvis-remote-host.mjs",
+    "scripts/jarvis-remote-access-lib.mjs"
   ],
   "test_refs": [
-    "scripts/jarvis-power-recovery.test.mjs"
+    "scripts/jarvis-power-recovery.test.mjs",
+    "scripts/jarvis-managed-process.test.mjs",
+    "scripts/jarvis-remote-access.test.mjs"
   ],
-  "evidence_refs": [],
+  "evidence_refs": [
+    "docs/audit/jarvis-zbook-readiness.md"
+  ],
   "status": "PARTIAL",
-  "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+  "blocker": "子Issue #683でWindows spawn/backoffとprivate-ingress判定を修正。Tailscale/OS startup・cellular/実機復旧Evidenceは未取得。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P10: Automatic startup。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "P1/P2: Windows非対話起動・battery policy診断を完成し、OS/account gate準備と実機接続・復旧Evidenceを取得する。独立するP3以降のソフトウェア作業を継続。",
   "last_verified_commit": null
 }
 ```

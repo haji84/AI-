@@ -1,7 +1,6 @@
-import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import { restartDelayMs } from './jarvis-remote-access-lib.mjs';
+import { manageProcess, serviceSpecs } from './jarvis-managed-process.mjs';
 
 const root = process.cwd();
 const shuttingDown = { value: false };
@@ -40,18 +39,12 @@ if (!fs.existsSync(path.join(root, '.next', 'BUILD_ID'))) {
   refuse('production dashboard build is missing; run pnpm build before starting the remote host');
 }
 
-const pnpm = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
-const specs = [
-  { name: 'broker', command: process.execPath, args: ['scripts/jarvis-broker.ts'] },
-  { name: 'remote-gateway', command: process.execPath, args: ['scripts/jarvis-remote-gateway.ts'] },
-  { name: 'dashboard', command: pnpm, args: ['exec', 'next', 'start', '-H', '127.0.0.1', '-p', process.env.JARVIS_DASHBOARD_PORT || '3000'] },
-];
+const specs = serviceSpecs(root, process.execPath, process.env.JARVIS_DASHBOARD_PORT || '3000');
 
-function startManaged(spec, attempt = 1) {
+function startManaged(spec) {
   if (shuttingDown.value) return;
   console.log(`[remote-host] starting ${spec.name}`);
-  const startedAt = Date.now();
-  const child = spawn(spec.command, spec.args, {
+  const child = manageProcess(spec, {
     cwd: root,
     env: {
       ...process.env,
@@ -59,38 +52,28 @@ function startManaged(spec, attempt = 1) {
       JARVIS_REMOTE_GATEWAY_URL: process.env.JARVIS_REMOTE_GATEWAY_URL || 'http://127.0.0.1:8790',
     },
     stdio: 'inherit',
-    windowsHide: true,
+    report: event => console.log(`[remote-host] ${JSON.stringify(event)}`),
+    onExhausted: () => shutdown('restart-budget-exhausted', 2),
   });
   children.set(spec.name, child);
-
-  child.once('exit', (code, signal) => {
-    children.delete(spec.name);
-    if (shuttingDown.value) return;
-    const stable = Date.now() - startedAt >= 60_000;
-    const nextAttempt = stable ? 1 : attempt + 1;
-    const delay = restartDelayMs(nextAttempt);
-    console.error(`[remote-host] ${spec.name} exited code=${code ?? 'null'} signal=${signal ?? 'null'}; restarting in ${delay}ms`);
-    setTimeout(() => startManaged(spec, nextAttempt), delay).unref();
-  });
-
-  child.once('error', (error) => console.error(`[remote-host] ${spec.name} spawn error: ${error.message}`));
 }
 
-function shutdown(signal) {
+function shutdown(signal, exitCode = 0) {
   if (shuttingDown.value) return;
   shuttingDown.value = true;
   console.log(`[remote-host] shutting down on ${signal}`);
   for (const child of children.values()) {
-    try { child.kill('SIGTERM'); } catch {}
+    try { child.stop(); } catch {}
   }
-  setTimeout(() => process.exit(0), 2_000).unref();
+  process.exitCode = exitCode;
+  setTimeout(() => process.exit(exitCode), 2_000).unref();
 }
 
 process.on('SIGINT', () => shutdown('SIGINT'));
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('uncaughtException', (error) => {
   console.error('[remote-host] uncaught exception', error);
-  shutdown('uncaughtException');
+  shutdown('uncaughtException', 2);
 });
 
 for (const spec of specs) startManaged(spec);
