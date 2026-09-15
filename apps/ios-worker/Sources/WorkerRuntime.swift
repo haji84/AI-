@@ -67,6 +67,7 @@ final class WorkerRuntime: ObservableObject {
     @Published private(set) var status = "Starting"
     @Published private(set) var lastTaskId: String?
     @Published private(set) var lastResult: String?
+    @Published private(set) var lastTransportError: String?
     @Published private(set) var evidenceLog = ""
     @Published private(set) var isRunning = false
     @Published private(set) var isDiscovering = false
@@ -103,6 +104,7 @@ final class WorkerRuntime: ObservableObject {
                     try startPolling()
                     return
                 } catch {
+                    lastTransportError = error.localizedDescription
                     status = "Saved connection unavailable"
                 }
             }
@@ -126,6 +128,7 @@ final class WorkerRuntime: ObservableObject {
             try startPolling()
         } catch {
             isRunning = false
+            lastTransportError = error.localizedDescription
             status = "Waiting: \(error.localizedDescription)"
         }
     }
@@ -139,6 +142,7 @@ final class WorkerRuntime: ObservableObject {
         stop()
         bridgeURL = ""
         token = ""
+        lastTransportError = nil
         UserDefaults.standard.removeObject(forKey: "bridgeURL")
         KeychainStore.delete(account: Self.credentialAccount)
         status = "Connection cleared"
@@ -155,6 +159,7 @@ final class WorkerRuntime: ObservableObject {
         guard !bridgeURL.isEmpty, !deviceId.isEmpty, !token.isEmpty else { throw WorkerError.configuration }
         UserDefaults.standard.set(bridgeURL, forKey: "bridgeURL")
         UserDefaults.standard.set(deviceId, forKey: "deviceId")
+        lastTransportError = nil
         status = "ACTIVE"
         loop = Task { await pollLoop() }
     }
@@ -210,17 +215,25 @@ final class WorkerRuntime: ObservableObject {
     private func pollLoop() async {
         while !Task.isCancelled {
             do {
-                if let task = try await nextTask() { try await execute(task) }
-                else { try await Task.sleep(for: .seconds(2)) }
-            } catch is CancellationError { break }
-            catch {
+                if let task = try await nextTask() {
+                    lastTaskId = task.taskId
+                    evidenceLog = "received task=\(task.taskId) nonce=\(task.nonce)"
+                    try await execute(task)
+                } else {
+                    try await Task.sleep(for: .seconds(2))
+                }
+            } catch is CancellationError {
+                break
+            } catch {
+                lastTransportError = error.localizedDescription
                 status = "DEGRADED: \(error.localizedDescription)"
-                try? await Task.sleep(for: .seconds(5))
+                try? await Task.sleep(for: .seconds(2))
                 if !Task.isCancelled {
                     do {
                         try await reconnect()
                         status = "ACTIVE"
                     } catch {
+                        lastTransportError = error.localizedDescription
                         status = "RECOVERING"
                         do {
                             bridgeURL = try await discoverBridge()
@@ -228,6 +241,7 @@ final class WorkerRuntime: ObservableObject {
                             try await reconnect()
                             status = "ACTIVE"
                         } catch {
+                            lastTransportError = error.localizedDescription
                             status = "RECOVERING"
                         }
                     }
@@ -255,14 +269,15 @@ final class WorkerRuntime: ObservableObject {
         guard verifyTask(task) else { throw WorkerError.signature }
         guard ISO8601DateFormatter().date(from: task.expiresAt).map({ $0 > Date() }) == true else { throw WorkerError.expired }
 
-        lastTaskId = task.taskId
         let output: String
         switch task.capability {
-        case "ios-tooling": output = "physical-ios-worker-ok: \(task.input)"
+        case "ios-tooling":
+            output = "physical-ios-worker-ok: \(task.input)"
         case "local-storage":
             UserDefaults.standard.set(task.input, forKey: "jarvis.lastBoundedValue")
             output = "stored-on-device"
-        default: throw WorkerError.capability
+        default:
+            throw WorkerError.capability
         }
 
         let unsigned = WorkerResultUnsigned(
@@ -282,10 +297,21 @@ final class WorkerRuntime: ObservableObject {
             nonce: task.nonce
         )
         let signature = try hmac(canonical(unsigned))
-        let result = WorkerResult(protocolVersion: unsigned.protocolVersion, taskId: unsigned.taskId, deviceId: unsigned.deviceId, ok: unsigned.ok, output: unsigned.output, evidence: unsigned.evidence, completedAt: unsigned.completedAt, nonce: unsigned.nonce, signature: signature)
+        let result = WorkerResult(
+            protocolVersion: unsigned.protocolVersion,
+            taskId: unsigned.taskId,
+            deviceId: unsigned.deviceId,
+            ok: unsigned.ok,
+            output: unsigned.output,
+            evidence: unsigned.evidence,
+            completedAt: unsigned.completedAt,
+            nonce: unsigned.nonce,
+            signature: signature
+        )
         try await submit(result)
         completed.insert(task.taskId)
         lastResult = output
+        lastTransportError = nil
         evidenceLog = "task=\(task.taskId) device=\(deviceId) physical=true completed=\(unsigned.completedAt)"
         status = "ACTIVE"
     }
@@ -303,9 +329,27 @@ final class WorkerRuntime: ObservableObject {
 
     private func verifyTask(_ task: WorkerTask) -> Bool {
         struct Unsigned: Encodable {
-            let protocolVersion: Int; let taskId: String; let deviceId: String; let capability: String; let mode: String; let input: String; let issuedAt: String; let expiresAt: String; let nonce: String
+            let protocolVersion: Int
+            let taskId: String
+            let deviceId: String
+            let capability: String
+            let mode: String
+            let input: String
+            let issuedAt: String
+            let expiresAt: String
+            let nonce: String
         }
-        let value = Unsigned(protocolVersion: task.protocolVersion, taskId: task.taskId, deviceId: task.deviceId, capability: task.capability, mode: task.mode, input: task.input, issuedAt: task.issuedAt, expiresAt: task.expiresAt, nonce: task.nonce)
+        let value = Unsigned(
+            protocolVersion: task.protocolVersion,
+            taskId: task.taskId,
+            deviceId: task.deviceId,
+            capability: task.capability,
+            mode: task.mode,
+            input: task.input,
+            issuedAt: task.issuedAt,
+            expiresAt: task.expiresAt,
+            nonce: task.nonce
+        )
         guard let data = try? canonical(value), let expected = try? hmac(data) else { return false }
         return expected.lowercased() == task.signature.lowercased()
     }
@@ -323,9 +367,13 @@ final class WorkerRuntime: ObservableObject {
     }
 
     private func endpoint(_ path: String) -> URL? {
-        guard var base = URL(string: bridgeURL) else { return nil }
-        base.append(path: path)
-        return base
+        guard var components = URLComponents(string: bridgeURL) else { return nil }
+        let suffix = path.split(separator: "/").map(String.init).joined(separator: "/")
+        let basePath = components.path == "/" ? "" : components.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        components.path = "/" + [basePath, suffix].filter { !$0.isEmpty }.joined(separator: "/")
+        components.query = nil
+        components.fragment = nil
+        return components.url
     }
 
     private func requireSuccess(_ response: URLResponse) throws {
@@ -375,7 +423,9 @@ final class WorkerRuntime: ObservableObject {
             let discovery = try JSONDecoder().decode(DiscoveryResponse.self, from: data)
             guard discovery.service == "jarvis-iphone-bridge", discovery.protocolVersion >= 2 else { return nil }
             return base.hasSuffix("/") ? base : base + "/"
-        } catch { return nil }
+        } catch {
+            return nil
+        }
     }
 
     nonisolated private static func localIPv4Prefix() -> String? {
