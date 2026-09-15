@@ -47,6 +47,22 @@ Capability labels are deliberately conservative:
 
 The API enforces the capability, not only the UI. A `VIEW_ONLY` session may request screenshots and bounded screenshot-frame recording but cannot forward tap/swipe/text/keyevent/open-URL input. A connected, allowlisted Android on the current screenshot/input path is surfaced as `CONTROLLABLE`. A device that is not in a usable ADB state receives no usable Remote Assist capability from this path.
 
+## Per-platform fleet capability presentation
+
+The owner-authenticated `/api/jarvis/state` response enriches each registered fleet node with a conservative Remote Assist descriptor derived from the node's declared capabilities, current status and owner policy. `/jarvis/devices` presents that matrix for every registered platform.
+
+The descriptor never invents a transport path:
+
+- no `remote-view` declaration -> `UNAVAILABLE`
+- `remote-view` without policy-approved `remote-control` -> `VIEW_ONLY`
+- `remote-view` plus policy-approved `remote-control` -> at most `CONTROLLABLE`
+- `FULL_MANAGEMENT` is never inferred from generic capability flags
+- offline/disabled/locked/needs-human nodes keep their underlying capability label but are marked temporarily unavailable for current control
+- iOS is always degraded to at most `VIEW_ONLY` by this generic fleet descriptor, even if a generic `remote-control` flag is present; unrestricted external iOS control requires a separately implemented and verified path
+- cloud nodes are observation-only in this device-control model
+
+This fleet-level descriptor is presentation and policy evidence, not proof that a given transport is physically working. Android ADB Remote Gateway sessions remain a separate, stricter serial-allowlisted runtime path.
+
 ## Console lifecycle and sufficiently-live refresh
 
 The JARVIS console must explicitly start Remote Assist for the selected serial before any manual screen/control request is enabled. Every manual request carries the active session ID. Changing device clears the local session and attempts to close the previous bounded session; a session can never be reused for another serial.
@@ -113,10 +129,9 @@ Remote Assist never changes the existing Human Gate policy. Pointing/tapping is 
 
 This foundation does not make P3 complete. The following still require separate implementation and evidence:
 
-- owner-console controls/status presentation for the new bounded frame recording path
 - broader Human Takeover -> Remote Assist identity linkage where node IDs and gateway serials differ, if an authoritative mapping is added
-- per-platform capability presentation including iOS degradation
 - physical evidence for single-view, multi-view, recording and manual control on each supported platform
 - any true continuous/low-latency streaming or encoded-video implementation if retained as a product requirement
+- Requirement Ledger reconciliation for already-merged P3 software evidence; physical-dependent rows must remain below VERIFIED until actual device evidence exists
 
 Until those gates pass, the corresponding Requirement Ledger rows remain PARTIAL or MISSING. CI is not physical evidence.
