@@ -38,12 +38,12 @@ The readiness checker therefore requires all of the following before `windows-st
 - task state is Ready or Running
 - trigger is a boot/AtStartup trigger
 - a concrete task principal exists
-- the logon mode is explicitly noninteractive (`ServiceAccount`, `S4U`, or `Password`)
+- the logon mode is explicitly noninteractive and network-capable (`ServiceAccount`, `Password`, or legacy `InteractiveTokenOrPassword`)
 - `StartWhenAvailable` is enabled
 - starting on battery is allowed
 - switching to battery does not stop the task
 
-An existing task that is AtStartup but still uses `InteractiveToken` must fail closed. Choosing or changing the noninteractive principal is an explicit Windows/admin configuration action and is not silently performed by the repository installer.
+An existing task that is AtStartup but still uses `InteractiveToken` must fail closed. `S4U` also fails closed for this readiness check because Microsoft documents that S4U has no access to network or encrypted files, while JARVIS is a networked service. Choosing or changing the noninteractive principal is an explicit Windows/admin configuration action and is not silently performed by the repository installer.
 
 The checker separately verifies that the Tailscale Windows service is running with automatic start.
 
