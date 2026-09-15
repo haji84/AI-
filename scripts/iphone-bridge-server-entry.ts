@@ -1,3 +1,5 @@
+export {};
+
 const originalToISOString = Date.prototype.toISOString;
 
 Date.prototype.toISOString = function toISOStringWithoutFractionalSeconds(): string {
