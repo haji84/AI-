@@ -42,7 +42,7 @@ test('complete unattended owner task configuration passes without claiming physi
 });
 
 test('interactive, S4U, unknown or elevated principals cannot pass unattended readiness', () => {
-  for (const logon of ['Interactive', 'InteractiveOrPassword', 'S4U', 'ServiceAccount', '', undefined]) {
+  for (const logon of ['Interactive', 'InteractiveToken', 'InteractiveOrPassword', 'InteractiveTokenOrPassword', 'S4U', 'ServiceAccount', '', undefined]) {
     const task = readyTask(); task.Principal.LogonType = logon;
     assert.equal(windowsStartupTaskReadiness(task, expected).checks['logon-type'].ok, false);
   }
@@ -50,6 +50,8 @@ test('interactive, S4U, unknown or elevated principals cannot pass unattended re
   assert.equal(windowsStartupTaskReady(task, expected), false);
   task.Principal.RunLevel = 'Limited'; task.Principal.MatchesCurrentIdentity = false;
   assert.equal(windowsStartupTaskReady(task, expected), false);
+  const missingIdentity = readyTask(); missingIdentity.Principal.IdentityPresent = false;
+  assert.equal(windowsStartupTaskReady(missingIdentity, expected), false);
 });
 
 test('missing, disabled or shell-substituted task actions fail with safe diagnostics', () => {

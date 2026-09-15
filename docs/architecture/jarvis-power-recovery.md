@@ -33,7 +33,7 @@ pnpm jarvis:power:check
 
 The installer creates a task but does not by itself prove unattended boot. The read-only checker now requires an enabled boot trigger, the inspected owner's noninteractive Password logon, Limited run level, exact Node/host-script action and working directory, battery continuation, offline startup, bounded restart settings, and duplicate-instance prevention. A boot trigger alone, Interactive logon, or S4U is not sufficient. Tailscale must also be running with automatic start.
 
-The current installer uses a PowerShell/pnpm action and does not configure all these conditions, so it will correctly remain unready. Do not respond by weakening the diagnostic or silently registering a more privileged account.
+The current installer allows startup and continuation on battery (PR #687), but uses a PowerShell/pnpm action and does not configure all these conditions, so it will correctly remain unready. Its battery settings are retained. Do not respond by weakening the diagnostic or silently registering a more privileged account.
 
 ### One-time setup gate (prepared, not executed)
 
@@ -79,7 +79,7 @@ Required checks fail closed. The command verifies:
 - Tailscale backend is connected
 - Funnel/public ingress is not active
 - platform startup registration is ready
-- macOS `autorestart=1`, or Windows Tailscale automatic startup
+- macOS `autorestart=1`, or Windows unattended task + Tailscale automatic startup readiness
 
 Hardware/firmware items that cannot be verified generically are emitted as explicit warnings, not silently marked PASS.
 
@@ -90,6 +90,6 @@ Never claim automatic outage recovery until all applicable observations exist:
 1. remote phone on cellular reaches the private JARVIS URL
 2. an Android task is issued remotely and returns a verified result
 3. router/Internet interruption recovers without re-enrollment
-4. host OS reboot restores Tailscale + JARVIS without manual app launch
+4. host OS reboot restores Tailscale + JARVIS without manual app launch or interactive user logon
 5. for long-outage recovery, a real AC-loss/restore test proves the host powers on automatically
 6. live screen control remains a separate evidence gate

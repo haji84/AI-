@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import RemoteAssistMultiView from "./RemoteAssistMultiView";
 
 type NodeItem = {
   id: string;
@@ -37,8 +38,34 @@ type StatePayload = {
 };
 
 type EnrollmentResult = { deepLink?: string; token?: { token: string; mode: string; expiresAt: string; maxDevices: number } };
-type RemoteDevice = { serial: string; state: string };
+type RemoteAssistCapability = "VIEW_ONLY" | "CONTROLLABLE" | "FULL_MANAGEMENT";
+type RemoteDevice = { serial: string; state: string; remoteAssistCapability?: RemoteAssistCapability | null };
+type RemoteAssistSession = {
+  id: string;
+  serial: string;
+  capability: RemoteAssistCapability;
+  status: "active" | "ended" | "expired";
+  createdAt: string;
+  lastActivityAt: string;
+  expiresAt: string;
+  endedAt?: string;
+};
+type RemoteAssistRecording = {
+  id: string;
+  sessionId: string;
+  serial: string;
+  status: "recording" | "stopping" | "completed" | "stopped" | "failed";
+  createdAt: string;
+  updatedAt: string;
+  expiresAt: string;
+  intervalMs: number;
+  maxFrames: number;
+  frameCount: number;
+  totalBytes: number;
+  stopReason?: string;
+};
 type ScreenshotResult = { serial: string; mimeType: string; imageBase64: string; capturedAt: string };
+type RemoteRequestOptions = { manual?: boolean; sessionBound?: boolean; silent?: boolean; serial?: string; serialRequired?: boolean };
 
 function fmt(value?: string) {
   if (!value) return "-";
@@ -54,6 +81,9 @@ export default function JarvisConsole() {
   const [targetNodeId, setTargetNodeId] = useState("");
   const [remoteDevices, setRemoteDevices] = useState<RemoteDevice[]>([]);
   const [remoteSerial, setRemoteSerial] = useState("");
+  const [remoteSession, setRemoteSession] = useState<RemoteAssistSession | null>(null);
+  const [recording, setRecording] = useState<RemoteAssistRecording | null>(null);
+  const [liveRefresh, setLiveRefresh] = useState(false);
   const [remoteError, setRemoteError] = useState("");
   const [screenshot, setScreenshot] = useState<ScreenshotResult | null>(null);
   const [remoteText, setRemoteText] = useState("");
@@ -78,10 +108,22 @@ export default function JarvisConsole() {
       if (!response.ok) throw new Error(body.message || `HTTP ${response.status}`);
       const devices = body.devices ?? [];
       setRemoteDevices(devices);
-      setRemoteSerial((current) => current && devices.some((item) => item.serial === current) ? current : devices[0]?.serial ?? "");
+      setRemoteSerial((current) => {
+        const next = current && devices.some((item) => item.serial === current) ? current : devices[0]?.serial ?? "";
+        if (current && current !== next) {
+          setRemoteSession(null);
+          setRecording(null);
+          setLiveRefresh(false);
+          setScreenshot(null);
+        }
+        return next;
+      });
       setRemoteError("");
     } catch (cause) {
       setRemoteDevices([]);
+      setRemoteSession(null);
+      setRecording(null);
+      setLiveRefresh(false);
       setRemoteError(cause instanceof Error ? cause.message : "Remote Gatewayに接続できません");
     }
   }, []);
@@ -117,30 +159,180 @@ export default function JarvisConsole() {
     }
   }
 
-  async function remoteAction(payload: Record<string, unknown>) {
-    if (!remoteSerial) return null;
-    setBusy(true);
+  const remoteRequest = useCallback(async (
+    payload: Record<string, unknown>,
+    options: RemoteRequestOptions = {},
+  ) => {
+    const serial = options.serial ?? remoteSerial;
+    if (options.serialRequired !== false && !serial) return null;
+
+    let sessionId: string | undefined;
+    const sessionBound = options.manual || options.sessionBound;
+    if (sessionBound) {
+      if (!remoteSession || remoteSession.status !== "active" || remoteSession.serial !== serial) {
+        setRemoteError("この端末のRemote Assist sessionを開始してください");
+        setLiveRefresh(false);
+        return null;
+      }
+      sessionId = remoteSession.id;
+    }
+
+    if (!options.silent) setBusy(true);
     try {
       const response = await fetch("/api/jarvis/remote", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ serial: remoteSerial, ...payload }),
+        body: JSON.stringify({
+          ...(serial ? { serial } : {}),
+          ...payload,
+          ...(sessionId ? { sessionId } : {}),
+        }),
       });
       const body = await response.json() as Record<string, unknown>;
-      if (!response.ok) throw new Error(typeof body.message === "string" ? body.message : `HTTP ${response.status}`);
+      if (!response.ok) {
+        if (options.manual && response.status === 409) {
+          setRemoteSession(null);
+          setRecording(null);
+          setLiveRefresh(false);
+          setScreenshot(null);
+        }
+        throw new Error(typeof body.message === "string" ? body.message : `HTTP ${response.status}`);
+      }
       setRemoteError("");
       return body;
     } catch (cause) {
       setRemoteError(cause instanceof Error ? cause.message : "遠隔操作に失敗しました");
       return null;
     } finally {
-      setBusy(false);
+      if (!options.silent) setBusy(false);
+    }
+  }, [remoteSerial, remoteSession]);
+
+  const captureScreen = useCallback(async (silent = false) => {
+    const body = await remoteRequest({ action: "screenshot" }, { manual: true, silent });
+    if (body?.imageBase64 && typeof body.imageBase64 === "string") {
+      setScreenshot(body as unknown as ScreenshotResult);
+      return true;
+    }
+    return false;
+  }, [remoteRequest]);
+
+  const remoteSessionActive = remoteSession?.status === "active" && remoteSession.serial === remoteSerial;
+  const recordingActive = recording?.status === "recording" || recording?.status === "stopping";
+  const selectedRemoteDevice = useMemo(
+    () => remoteDevices.find((device) => device.serial === remoteSerial),
+    [remoteDevices, remoteSerial],
+  );
+  const canViewRemote = remoteSessionActive && Boolean(selectedRemoteDevice?.remoteAssistCapability);
+  const canControlRemote = remoteSessionActive && (
+    selectedRemoteDevice?.remoteAssistCapability === "CONTROLLABLE" ||
+    selectedRemoteDevice?.remoteAssistCapability === "FULL_MANAGEMENT"
+  );
+  const selectedTakeover = useMemo(
+    () => state?.activeTakeovers.find((item) => item.nodeId === remoteSerial),
+    [state?.activeTakeovers, remoteSerial],
+  );
+
+  useEffect(() => {
+    if (!liveRefresh || !canViewRemote) return;
+    let stopped = false;
+    let inFlight = false;
+
+    const tick = async () => {
+      if (stopped || inFlight || document.visibilityState !== "visible") return;
+      inFlight = true;
+      try {
+        await captureScreen(true);
+      } finally {
+        inFlight = false;
+      }
+    };
+
+    void tick();
+    const timer = window.setInterval(() => void tick(), 2000);
+    return () => {
+      stopped = true;
+      window.clearInterval(timer);
+    };
+  }, [captureScreen, canViewRemote, liveRefresh]);
+
+  useEffect(() => {
+    if (!recording || (recording.status !== "recording" && recording.status !== "stopping") || !remoteSessionActive) return;
+    let stopped = false;
+    let inFlight = false;
+    const tick = async () => {
+      if (stopped || inFlight) return;
+      inFlight = true;
+      try {
+        const body = await remoteRequest(
+          { action: "recording-status", recordingId: recording.id },
+          { sessionBound: true, silent: true },
+        );
+        const next = body?.recording;
+        if (next && typeof next === "object") setRecording(next as RemoteAssistRecording);
+      } finally {
+        inFlight = false;
+      }
+    };
+    const timer = window.setInterval(() => void tick(), 2000);
+    return () => {
+      stopped = true;
+      window.clearInterval(timer);
+    };
+  }, [recording, remoteRequest, remoteSessionActive]);
+
+  async function startRemoteAssist() {
+    if (!remoteSerial || !selectedRemoteDevice?.remoteAssistCapability) return;
+    const body = await remoteRequest({ action: "session-start" });
+    const session = body?.session;
+    if (session && typeof session === "object") {
+      setRemoteSession(session as RemoteAssistSession);
+      setRecording(null);
+      setScreenshot(null);
+      setLiveRefresh(false);
     }
   }
 
-  async function captureScreen() {
-    const body = await remoteAction({ action: "screenshot" });
-    if (body?.imageBase64 && typeof body.imageBase64 === "string") setScreenshot(body as unknown as ScreenshotResult);
+  async function endRemoteAssist() {
+    const session = remoteSession;
+    setRemoteSession(null);
+    setRecording(null);
+    setLiveRefresh(false);
+    setScreenshot(null);
+    if (!session) return;
+    await remoteRequest(
+      { action: "session-end", sessionId: session.id },
+      { serial: session.serial, serialRequired: false },
+    );
+  }
+
+  async function startRecording() {
+    const body = await remoteRequest(
+      { action: "recording-start", durationMs: 30_000, intervalMs: 2_000 },
+      { sessionBound: true },
+    );
+    const next = body?.recording;
+    if (next && typeof next === "object") setRecording(next as RemoteAssistRecording);
+  }
+
+  async function stopRecording() {
+    if (!recording) return;
+    const body = await remoteRequest(
+      { action: "recording-stop", recordingId: recording.id },
+      { sessionBound: true },
+    );
+    const next = body?.recording;
+    if (next && typeof next === "object") setRecording(next as RemoteAssistRecording);
+  }
+
+  function selectRemoteDevice(nextSerial: string) {
+    if (remoteSession && remoteSession.serial !== nextSerial) void endRemoteAssist();
+    setRemoteSerial(nextSerial);
+    setRemoteSession(null);
+    setRecording(null);
+    setLiveRefresh(false);
+    setScreenshot(null);
+    setRemoteError("");
   }
 
   async function createEnrollment(mode: "quick" | "full" | "fleet") {
@@ -207,49 +399,78 @@ export default function JarvisConsole() {
       </section>
 
       <section className="panel jarvis-section jarvis-remote-panel">
-        <div className="section-heading"><div><p className="section-kicker">REMOTE ASSIST</p><h2>遠隔画面・手動操作</h2></div><span className="operation-badge">スマホ / PC</span></div>
-        <p className="muted">対象Androidは拠点PCの許可リストに入っている端末だけ操作できます。ADB自体をインターネットへ公開しません。</p>
+        <div className="section-heading">
+          <div><p className="section-kicker">REMOTE ASSIST</p><h2>遠隔画面・手動操作</h2></div>
+          <span className="operation-badge">{selectedRemoteDevice?.remoteAssistCapability ?? "UNAVAILABLE"}</span>
+        </div>
+        <p className="muted">対象Androidは拠点PCの許可リストに入っている端末だけ操作できます。ADB自体をインターネットへ公開しません。画面自動更新は2秒間隔のスクリーンショット更新で、動画ストリーミングではありません。</p>
         {remoteError && <div className="jarvis-alert"><strong>Remote Gateway</strong><span>{remoteError}</span></div>}
+        {selectedTakeover && <div className="jarvis-alert">
+          <strong>Human Takeover: {selectedTakeover.nodeId}</strong>
+          <span>{selectedTakeover.reason}</span>
+          <button className="button secondary" disabled={busy} onClick={() => void action({ action: "resolve-takeover", sessionId: selectedTakeover.id, resumeTask: true })}>続きやって</button>
+        </div>}
         <div className="jarvis-remote-layout">
           <div className="jarvis-remote-screen">
-            {screenshot ? <button type="button" className="jarvis-screen-button" title="画面をタップ" onClick={(event) => {
-              const image = event.currentTarget.querySelector("img");
-              if (!image) return;
-              const rect = image.getBoundingClientRect();
-              const naturalWidth = image.naturalWidth || rect.width;
-              const naturalHeight = image.naturalHeight || rect.height;
-              const x = Math.round((event.clientX - rect.left) * naturalWidth / rect.width);
-              const y = Math.round((event.clientY - rect.top) * naturalHeight / rect.height);
-              void remoteAction({ action: "tap", x, y }).then(() => captureScreen());
-            }}><img src={`data:${screenshot.mimeType};base64,${screenshot.imageBase64}`} alt={`${screenshot.serial} の現在画面`} /></button> : <div className="jarvis-remote-placeholder">端末を選んで「画面を見る」</div>}
-            {screenshot && <small>取得 {fmt(screenshot.capturedAt)} / 画像上をタップすると実機をタップ</small>}
+            {screenshot ? <button
+              type="button"
+              className="jarvis-screen-button"
+              title={canControlRemote ? "画面をタップ" : "閲覧のみ"}
+              disabled={!canControlRemote}
+              onClick={(event) => {
+                const image = event.currentTarget.querySelector("img");
+                if (!image || !canControlRemote) return;
+                const rect = image.getBoundingClientRect();
+                const naturalWidth = image.naturalWidth || rect.width;
+                const naturalHeight = image.naturalHeight || rect.height;
+                const x = Math.round((event.clientX - rect.left) * naturalWidth / rect.width);
+                const y = Math.round((event.clientY - rect.top) * naturalHeight / rect.height);
+                void remoteRequest({ action: "tap", x, y }, { manual: true }).then(() => captureScreen());
+              }}
+            ><img src={`data:${screenshot.mimeType};base64,${screenshot.imageBase64}`} alt={`${screenshot.serial} の現在画面`} /></button> : <div className="jarvis-remote-placeholder">端末を選び、Remote Assistを開始してください</div>}
+            {screenshot && <small>取得 {fmt(screenshot.capturedAt)} / {canControlRemote ? "画像上をタップすると実機をタップ" : "VIEW ONLY"}</small>}
           </div>
           <div className="jarvis-remote-controls">
-            <select value={remoteSerial} onChange={(event) => { setRemoteSerial(event.target.value); setScreenshot(null); }}>
+            <select value={remoteSerial} onChange={(event) => selectRemoteDevice(event.target.value)}>
               <option value="">遠隔端末を選択</option>
-              {remoteDevices.map((device) => <option value={device.serial} key={device.serial}>{device.serial} ({device.state})</option>)}
+              {remoteDevices.map((device) => <option value={device.serial} key={device.serial}>{device.serial} ({device.remoteAssistCapability ?? device.state})</option>)}
             </select>
-            <button className="button secondary" disabled={busy || !remoteSerial} onClick={() => void captureScreen()}>画面を見る</button>
             <div className="jarvis-button-row">
-              <button className="button secondary" disabled={busy || !remoteSerial} onClick={() => void remoteAction({ action: "keyevent", key: "BACK" }).then(() => captureScreen())}>戻る</button>
-              <button className="button secondary" disabled={busy || !remoteSerial} onClick={() => void remoteAction({ action: "keyevent", key: "HOME" }).then(() => captureScreen())}>ホーム</button>
-              <button className="button secondary" disabled={busy || !remoteSerial} onClick={() => void remoteAction({ action: "keyevent", key: "APP_SWITCH" }).then(() => captureScreen())}>履歴</button>
+              <button className="button secondary" disabled={busy || !remoteSerial || !selectedRemoteDevice?.remoteAssistCapability || Boolean(remoteSessionActive)} onClick={() => void startRemoteAssist()}>Remote Assist開始</button>
+              <button className="button secondary" disabled={busy || !remoteSessionActive} onClick={() => void endRemoteAssist()}>終了</button>
+            </div>
+            {remoteSessionActive && <small>Session {remoteSession.id.slice(0, 8)}… / {remoteSession.capability} / idle timeoutは操作時に更新</small>}
+            <div className="jarvis-button-row">
+              <button className="button secondary" disabled={busy || !canViewRemote} onClick={() => void captureScreen()}>画面を見る</button>
+              <button className="button secondary" disabled={!canViewRemote} onClick={() => setLiveRefresh((current) => !current)}>画面自動更新 {liveRefresh ? "ON" : "OFF"}</button>
             </div>
             <div className="jarvis-button-row">
-              <button className="button secondary" disabled={busy || !remoteSerial} onClick={() => void remoteAction({ action: "swipe", x1: 500, y1: 1400, x2: 500, y2: 500, durationMs: 300 }).then(() => captureScreen())}>↑ スワイプ</button>
-              <button className="button secondary" disabled={busy || !remoteSerial} onClick={() => void remoteAction({ action: "swipe", x1: 500, y1: 500, x2: 500, y2: 1400, durationMs: 300 }).then(() => captureScreen())}>↓ スワイプ</button>
+              <button className="button secondary" disabled={busy || !canViewRemote || recordingActive} onClick={() => void startRecording()}>PNG記録開始</button>
+              <button className="button secondary" disabled={busy || !recordingActive} onClick={() => void stopRecording()}>記録停止</button>
             </div>
-            <form className="jarvis-task-form" onSubmit={async (event) => { event.preventDefault(); if (await remoteAction({ action: "text", text: remoteText })) { setRemoteText(""); await captureScreen(); } }}>
+            {recording && <small>PNGフレーム記録 {recording.status} / {recording.frameCount}/{recording.maxFrames}枚 / {Math.ceil(recording.totalBytes / 1024)}KiB{recording.stopReason ? ` / ${recording.stopReason}` : ""}。動画ファイルではありません。</small>}
+            <div className="jarvis-button-row">
+              <button className="button secondary" disabled={busy || !canControlRemote} onClick={() => void remoteRequest({ action: "keyevent", key: "BACK" }, { manual: true }).then(() => captureScreen())}>戻る</button>
+              <button className="button secondary" disabled={busy || !canControlRemote} onClick={() => void remoteRequest({ action: "keyevent", key: "HOME" }, { manual: true }).then(() => captureScreen())}>ホーム</button>
+              <button className="button secondary" disabled={busy || !canControlRemote} onClick={() => void remoteRequest({ action: "keyevent", key: "APP_SWITCH" }, { manual: true }).then(() => captureScreen())}>履歴</button>
+            </div>
+            <div className="jarvis-button-row">
+              <button className="button secondary" disabled={busy || !canControlRemote} onClick={() => void remoteRequest({ action: "swipe", x1: 500, y1: 1400, x2: 500, y2: 500, durationMs: 300 }, { manual: true }).then(() => captureScreen())}>↑ スワイプ</button>
+              <button className="button secondary" disabled={busy || !canControlRemote} onClick={() => void remoteRequest({ action: "swipe", x1: 500, y1: 500, x2: 500, y2: 1400, durationMs: 300 }, { manual: true }).then(() => captureScreen())}>↓ スワイプ</button>
+            </div>
+            <form className="jarvis-task-form" onSubmit={async (event) => { event.preventDefault(); if (await remoteRequest({ action: "text", text: remoteText }, { manual: true })) { setRemoteText(""); await captureScreen(); } }}>
               <input maxLength={256} placeholder="端末へ文字入力" value={remoteText} onChange={(event) => setRemoteText(event.target.value)} />
-              <button className="button secondary" disabled={busy || !remoteSerial || !remoteText}>入力</button>
+              <button className="button secondary" disabled={busy || !canControlRemote || !remoteText}>入力</button>
             </form>
-            <form className="jarvis-task-form" onSubmit={async (event) => { event.preventDefault(); if (await remoteAction({ action: "open-url", url: remoteUrl })) { setRemoteUrl(""); await captureScreen(); } }}>
+            <form className="jarvis-task-form" onSubmit={async (event) => { event.preventDefault(); if (await remoteRequest({ action: "open-url", url: remoteUrl }, { manual: true })) { setRemoteUrl(""); await captureScreen(); } }}>
               <input type="url" pattern="https://.*" placeholder="https://... をこの端末で開く" value={remoteUrl} onChange={(event) => setRemoteUrl(event.target.value)} />
-              <button className="button secondary" disabled={busy || !remoteSerial || !remoteUrl}>開く</button>
+              <button className="button secondary" disabled={busy || !canControlRemote || !remoteUrl}>開く</button>
             </form>
           </div>
         </div>
       </section>
+
+      <RemoteAssistMultiView devices={remoteDevices} onPromote={selectRemoteDevice} />
 
       <section className="panel jarvis-section">
         <div className="section-heading"><div><p className="section-kicker">FLEET</p><h2>端末一覧</h2></div><span className="count-badge neutral">{state?.fleet.length ?? 0}</span></div>

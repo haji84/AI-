@@ -2,6 +2,8 @@
 
 Parent: #681. Baseline main: `1e364e1bb82c487474487b3ef26003c5af6ed119`.
 
+Integration follow-up: reconciled main `382af40` including #687 battery-safe installer and #689–#697 Remote Assist changes. The installer battery settings remain intact. Strict diagnostics additionally reject unknown battery flags, missing actions/settings, elevated or unreviewed identities, and unbounded restart behavior. Integrated verification: 713/713 tests, lint, 238-ID validator and production build PASS. These are software checks only.
+
 ## Verified software change
 
 The old Ready+BootTrigger predicate accepted a task that could require interactive login or stop when AC disconnected. The new read-only collector/predicate checks enabled trigger, owner identity, Password logon, Limited execution, a single exact Node action/working directory, battery/offline settings, bounded restart and duplicate prevention. Unknown properties fail closed. Diagnostics do not echo raw actions or secret-bearing arguments. No task or credentials were changed.
