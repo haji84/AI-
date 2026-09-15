@@ -51,6 +51,11 @@ function allowedCapabilities(input: unknown) {
   const allowed = ["ios-tooling", "local-storage"];
   return Array.isArray(input) ? input.filter((c): c is string => typeof c === "string" && allowed.includes(c)) : [];
 }
+function taskExpired(task: Envelope) {
+  if (typeof task.expiresAt !== "string") return false;
+  const expiry = Date.parse(task.expiresAt);
+  return Number.isFinite(expiry) && expiry <= Date.now();
+}
 
 async function loadMasterKey() {
   if (process.env.IPHONE_BRIDGE_MASTER_KEY) return process.env.IPHONE_BRIDGE_MASTER_KEY;
@@ -141,8 +146,15 @@ const server = createServer(async (req, res) => {
     if (req.method === "GET" && url.pathname === "/tasks/next") {
       const deviceId = url.searchParams.get("deviceId") ?? "";
       if (!enrolled.has(deviceId) || !deviceAuthorized(req, deviceId)) return json(res, 403, { error: "not enrolled or unauthorized" });
-      const task = queues.get(deviceId)?.shift();
-      return task ? json(res, 200, task) : json(res, 204);
+      const queue = queues.get(deviceId) ?? [];
+      while (queue.length > 0 && taskExpired(queue[0])) {
+        const expired = queue.shift();
+        console.log(`EXPIRED task=${String(expired?.taskId ?? "unknown")} device=${deviceId}`);
+      }
+      const task = queue[0];
+      if (!task) return json(res, 204);
+      console.log(`DELIVERED task=${String(task.taskId ?? "unknown")} device=${deviceId}`);
+      return json(res, 200, task);
     }
 
     if (req.method === "POST" && url.pathname === "/tasks") {
@@ -152,7 +164,9 @@ const server = createServer(async (req, res) => {
       const capability = typeof input.capability === "string" ? input.capability : "";
       if (!enrollment.capabilities.includes(capability)) return json(res, 403, { error: "capability not enrolled" });
       const now = new Date();
-      const unsigned = { protocolVersion: 1, taskId: typeof input.taskId === "string" ? input.taskId : `iphone-${Date.now()}`, deviceId, capability, mode: typeof input.mode === "string" ? input.mode : "foreground", input: String(input.input ?? ""), issuedAt: now.toISOString(), expiresAt: new Date(now.getTime() + 5 * 60_000).toISOString(), nonce: randomBytes(16).toString("hex") };
+      const taskId = typeof input.taskId === "string" ? input.taskId : `iphone-${Date.now()}`;
+      if ((queues.get(deviceId) ?? []).some((task) => task.taskId === taskId) || results.has(taskId)) return json(res, 409, { error: "duplicate taskId" });
+      const unsigned = { protocolVersion: 1, taskId, deviceId, capability, mode: typeof input.mode === "string" ? input.mode : "foreground", input: String(input.input ?? ""), issuedAt: now.toISOString(), expiresAt: new Date(now.getTime() + 5 * 60_000).toISOString(), nonce: randomBytes(16).toString("hex") };
       const task = { ...unsigned, signature: hmac(expectedDeviceSecret(deviceId), unsigned) }; queues.get(deviceId)!.push(task);
       console.log(`QUEUED task=${task.taskId} device=${deviceId}`); return json(res, 202, task);
     }
@@ -162,10 +176,22 @@ const server = createServer(async (req, res) => {
       const deviceId = typeof result.deviceId === "string" ? result.deviceId : "";
       if (!enrolled.has(deviceId) || !deviceAuthorized(req, deviceId) || typeof signature !== "string" || signature !== hmac(expectedDeviceSecret(deviceId), unsigned)) return json(res, 400, { error: "invalid result signature or enrollment" });
       if (typeof result.taskId !== "string" || typeof result.nonce !== "string") return json(res, 400, { error: "invalid result binding" });
+
+      const existing = results.get(result.taskId);
+      if (existing) {
+        if (canonical(existing) === canonical(result)) return json(res, 200, { ok: true, evidencePath: `evidence/iphone/${result.taskId}.json`, mainSha, duplicate: true });
+        return json(res, 409, { error: "conflicting duplicate result" });
+      }
+
+      const queue = queues.get(deviceId) ?? [];
+      const taskIndex = queue.findIndex((task) => task.taskId === result.taskId && task.nonce === result.nonce);
+      if (taskIndex < 0) return json(res, 409, { error: "result has no matching pending task" });
+
       results.set(result.taskId, result);
       await mkdir("evidence/iphone", { recursive: true });
       const evidence = { evidenceType: "physical-iphone-e2e", verifiedBy: "iphone-bridge-server", mainSha, receivedAt: new Date().toISOString(), result };
       await writeFile(join("evidence/iphone", `${result.taskId}.json`), JSON.stringify(evidence, null, 2));
+      queue.splice(taskIndex, 1);
       const physical = result.evidence && typeof result.evidence === "object" ? (result.evidence as Record<string, unknown>).physicalDevice : "unknown";
       console.log(`VERIFIED RESULT task=${result.taskId} physical=${physical ?? "unknown"}`);
       return json(res, 200, { ok: true, evidencePath: `evidence/iphone/${result.taskId}.json`, mainSha });
