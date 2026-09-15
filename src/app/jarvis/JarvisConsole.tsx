@@ -50,8 +50,22 @@ type RemoteAssistSession = {
   expiresAt: string;
   endedAt?: string;
 };
+type RemoteAssistRecording = {
+  id: string;
+  sessionId: string;
+  serial: string;
+  status: "recording" | "stopping" | "completed" | "stopped" | "failed";
+  createdAt: string;
+  updatedAt: string;
+  expiresAt: string;
+  intervalMs: number;
+  maxFrames: number;
+  frameCount: number;
+  totalBytes: number;
+  stopReason?: string;
+};
 type ScreenshotResult = { serial: string; mimeType: string; imageBase64: string; capturedAt: string };
-type RemoteRequestOptions = { manual?: boolean; silent?: boolean; serial?: string; serialRequired?: boolean };
+type RemoteRequestOptions = { manual?: boolean; sessionBound?: boolean; silent?: boolean; serial?: string; serialRequired?: boolean };
 
 function fmt(value?: string) {
   if (!value) return "-";
@@ -68,6 +82,7 @@ export default function JarvisConsole() {
   const [remoteDevices, setRemoteDevices] = useState<RemoteDevice[]>([]);
   const [remoteSerial, setRemoteSerial] = useState("");
   const [remoteSession, setRemoteSession] = useState<RemoteAssistSession | null>(null);
+  const [recording, setRecording] = useState<RemoteAssistRecording | null>(null);
   const [liveRefresh, setLiveRefresh] = useState(false);
   const [remoteError, setRemoteError] = useState("");
   const [screenshot, setScreenshot] = useState<ScreenshotResult | null>(null);
@@ -97,6 +112,7 @@ export default function JarvisConsole() {
         const next = current && devices.some((item) => item.serial === current) ? current : devices[0]?.serial ?? "";
         if (current && current !== next) {
           setRemoteSession(null);
+          setRecording(null);
           setLiveRefresh(false);
           setScreenshot(null);
         }
@@ -106,6 +122,7 @@ export default function JarvisConsole() {
     } catch (cause) {
       setRemoteDevices([]);
       setRemoteSession(null);
+      setRecording(null);
       setLiveRefresh(false);
       setRemoteError(cause instanceof Error ? cause.message : "Remote Gatewayに接続できません");
     }
@@ -150,7 +167,8 @@ export default function JarvisConsole() {
     if (options.serialRequired !== false && !serial) return null;
 
     let sessionId: string | undefined;
-    if (options.manual) {
+    const sessionBound = options.manual || options.sessionBound;
+    if (sessionBound) {
       if (!remoteSession || remoteSession.status !== "active" || remoteSession.serial !== serial) {
         setRemoteError("この端末のRemote Assist sessionを開始してください");
         setLiveRefresh(false);
@@ -174,6 +192,7 @@ export default function JarvisConsole() {
       if (!response.ok) {
         if (options.manual && response.status === 409) {
           setRemoteSession(null);
+          setRecording(null);
           setLiveRefresh(false);
           setScreenshot(null);
         }
@@ -199,6 +218,7 @@ export default function JarvisConsole() {
   }, [remoteRequest]);
 
   const remoteSessionActive = remoteSession?.status === "active" && remoteSession.serial === remoteSerial;
+  const recordingActive = recording?.status === "recording" || recording?.status === "stopping";
   const selectedRemoteDevice = useMemo(
     () => remoteDevices.find((device) => device.serial === remoteSerial),
     [remoteDevices, remoteSerial],
@@ -236,12 +256,38 @@ export default function JarvisConsole() {
     };
   }, [captureScreen, canViewRemote, liveRefresh]);
 
+  useEffect(() => {
+    if (!recording || (recording.status !== "recording" && recording.status !== "stopping") || !remoteSessionActive) return;
+    let stopped = false;
+    let inFlight = false;
+    const tick = async () => {
+      if (stopped || inFlight) return;
+      inFlight = true;
+      try {
+        const body = await remoteRequest(
+          { action: "recording-status", recordingId: recording.id },
+          { sessionBound: true, silent: true },
+        );
+        const next = body?.recording;
+        if (next && typeof next === "object") setRecording(next as RemoteAssistRecording);
+      } finally {
+        inFlight = false;
+      }
+    };
+    const timer = window.setInterval(() => void tick(), 2000);
+    return () => {
+      stopped = true;
+      window.clearInterval(timer);
+    };
+  }, [recording, remoteRequest, remoteSessionActive]);
+
   async function startRemoteAssist() {
     if (!remoteSerial || !selectedRemoteDevice?.remoteAssistCapability) return;
     const body = await remoteRequest({ action: "session-start" });
     const session = body?.session;
     if (session && typeof session === "object") {
       setRemoteSession(session as RemoteAssistSession);
+      setRecording(null);
       setScreenshot(null);
       setLiveRefresh(false);
     }
@@ -250,6 +296,7 @@ export default function JarvisConsole() {
   async function endRemoteAssist() {
     const session = remoteSession;
     setRemoteSession(null);
+    setRecording(null);
     setLiveRefresh(false);
     setScreenshot(null);
     if (!session) return;
@@ -259,10 +306,30 @@ export default function JarvisConsole() {
     );
   }
 
+  async function startRecording() {
+    const body = await remoteRequest(
+      { action: "recording-start", durationMs: 30_000, intervalMs: 2_000 },
+      { sessionBound: true },
+    );
+    const next = body?.recording;
+    if (next && typeof next === "object") setRecording(next as RemoteAssistRecording);
+  }
+
+  async function stopRecording() {
+    if (!recording) return;
+    const body = await remoteRequest(
+      { action: "recording-stop", recordingId: recording.id },
+      { sessionBound: true },
+    );
+    const next = body?.recording;
+    if (next && typeof next === "object") setRecording(next as RemoteAssistRecording);
+  }
+
   function selectRemoteDevice(nextSerial: string) {
     if (remoteSession && remoteSession.serial !== nextSerial) void endRemoteAssist();
     setRemoteSerial(nextSerial);
     setRemoteSession(null);
+    setRecording(null);
     setLiveRefresh(false);
     setScreenshot(null);
     setRemoteError("");
@@ -377,6 +444,11 @@ export default function JarvisConsole() {
               <button className="button secondary" disabled={busy || !canViewRemote} onClick={() => void captureScreen()}>画面を見る</button>
               <button className="button secondary" disabled={!canViewRemote} onClick={() => setLiveRefresh((current) => !current)}>画面自動更新 {liveRefresh ? "ON" : "OFF"}</button>
             </div>
+            <div className="jarvis-button-row">
+              <button className="button secondary" disabled={busy || !canViewRemote || recordingActive} onClick={() => void startRecording()}>PNG記録開始</button>
+              <button className="button secondary" disabled={busy || !recordingActive} onClick={() => void stopRecording()}>記録停止</button>
+            </div>
+            {recording && <small>PNGフレーム記録 {recording.status} / {recording.frameCount}/{recording.maxFrames}枚 / {Math.ceil(recording.totalBytes / 1024)}KiB{recording.stopReason ? ` / ${recording.stopReason}` : ""}。動画ファイルではありません。</small>}
             <div className="jarvis-button-row">
               <button className="button secondary" disabled={busy || !canControlRemote} onClick={() => void remoteRequest({ action: "keyevent", key: "BACK" }, { manual: true }).then(() => captureScreen())}>戻る</button>
               <button className="button secondary" disabled={busy || !canControlRemote} onClick={() => void remoteRequest({ action: "keyevent", key: "HOME" }, { manual: true }).then(() => captureScreen())}>ホーム</button>

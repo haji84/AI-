@@ -73,7 +73,18 @@ test("only manual Remote Assist actions are session-gated by the route contract"
   for (const action of ["screenshot", "tap", "swipe", "text", "keyevent", "open-url"]) {
     assert.equal(isManualRemoteAction(action), true, action);
   }
-  for (const action of ["qa-sequence-start", "qa-sequence-status", "session-start", "session-end", "reboot", "delete"]) {
+  for (const action of ["qa-sequence-start", "qa-sequence-status", "session-start", "session-end", "recording-start", "recording-stop", "reboot", "delete"]) {
     assert.equal(isManualRemoteAction(action), false, action);
   }
+});
+
+test("Remote Assist lifecycle fails closed when the durable audit sink rejects persistence", () => {
+  const manager = new JarvisRemoteAssistSessionManager(1_000, 5_000, 100, () => {
+    throw new Error("audit disk unavailable");
+  });
+  assert.throws(
+    () => manager.start({ serial: "android-001", capability: "CONTROLLABLE" }, new Date("2026-09-16T00:00:00.000Z")),
+    /audit disk unavailable/,
+  );
+  assert.equal(manager.auditFor().length, 0);
 });

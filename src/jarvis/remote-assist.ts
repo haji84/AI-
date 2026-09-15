@@ -2,6 +2,16 @@ import { randomUUID } from "node:crypto";
 
 export type JarvisRemoteAssistCapability = "VIEW_ONLY" | "CONTROLLABLE" | "FULL_MANAGEMENT";
 export type JarvisRemoteAssistSessionStatus = "active" | "ended" | "expired";
+export type JarvisRemoteAssistAuditAction =
+  | "session.created"
+  | "session.touched"
+  | "session.ended"
+  | "session.expired"
+  | "action.forwarded"
+  | "recording.started"
+  | "recording.completed"
+  | "recording.stopped"
+  | "recording.failed";
 
 export interface JarvisRemoteAssistSession {
   id: string;
@@ -17,7 +27,7 @@ export interface JarvisRemoteAssistSession {
 export interface JarvisRemoteAssistAuditEvent {
   id: string;
   at: string;
-  action: "session.created" | "session.touched" | "session.ended" | "session.expired";
+  action: JarvisRemoteAssistAuditAction;
   sessionId: string;
   serial: string;
   detail?: Record<string, unknown>;
@@ -63,11 +73,13 @@ export class JarvisRemoteAssistSessionManager {
   private readonly defaultTtlMs: number;
   private readonly maxTtlMs: number;
   private readonly maxAuditEvents: number;
+  private readonly auditSink?: (event: JarvisRemoteAssistAuditEvent) => void;
 
   constructor(
     defaultTtlMs = 10 * 60_000,
     maxTtlMs = 30 * 60_000,
     maxAuditEvents = 1_000,
+    auditSink?: (event: JarvisRemoteAssistAuditEvent) => void,
   ) {
     if (!Number.isFinite(defaultTtlMs) || defaultTtlMs <= 0) throw new Error("defaultTtlMs must be positive");
     if (!Number.isFinite(maxTtlMs) || maxTtlMs < defaultTtlMs) throw new Error("maxTtlMs must be >= defaultTtlMs");
@@ -75,6 +87,7 @@ export class JarvisRemoteAssistSessionManager {
     this.defaultTtlMs = defaultTtlMs;
     this.maxTtlMs = maxTtlMs;
     this.maxAuditEvents = maxAuditEvents;
+    this.auditSink = auditSink;
   }
 
   start(input: {
@@ -96,8 +109,8 @@ export class JarvisRemoteAssistSessionManager {
       lastActivityAt: at,
       expiresAt: new Date(now.getTime() + ttlMs).toISOString(),
     };
-    this.sessions.set(session.id, session);
     this.audit("session.created", session, now, { capability: session.capability, ttlMs });
+    this.sessions.set(session.id, session);
     return structuredClone(session);
   }
 
@@ -118,8 +131,8 @@ export class JarvisRemoteAssistSessionManager {
       lastActivityAt: now.toISOString(),
       expiresAt: new Date(now.getTime() + ttlMs).toISOString(),
     };
-    this.sessions.set(sessionId, updated);
     this.audit("session.touched", updated, now);
+    this.sessions.set(sessionId, updated);
     return structuredClone(updated);
   }
 
@@ -134,8 +147,8 @@ export class JarvisRemoteAssistSessionManager {
       endedAt: now.toISOString(),
       lastActivityAt: now.toISOString(),
     };
-    this.sessions.set(sessionId, updated);
     this.audit("session.ended", updated, now);
+    this.sessions.set(sessionId, updated);
     return structuredClone(updated);
   }
 
@@ -149,6 +162,19 @@ export class JarvisRemoteAssistSessionManager {
     return this.auditEvents
       .filter((event) => !sessionId || event.sessionId === sessionId)
       .map((event) => structuredClone(event));
+  }
+
+  recordAudit(
+    action: Exclude<JarvisRemoteAssistAuditAction, "session.created" | "session.touched" | "session.ended" | "session.expired">,
+    sessionId: string,
+    serial: string,
+    detail?: Record<string, unknown>,
+    now = new Date(),
+  ): JarvisRemoteAssistAuditEvent {
+    const session = this.sessions.get(sessionId);
+    if (!session) throw new Error("Unknown Remote Assist session");
+    if (session.serial !== serial) throw new Error("Remote Assist session is bound to another device");
+    return this.audit(action, session, now, detail);
   }
 
   private normalizeTtl(requested?: number): number {
@@ -166,8 +192,8 @@ export class JarvisRemoteAssistSessionManager {
         status: "expired",
         lastActivityAt: now.toISOString(),
       };
-      this.sessions.set(id, expired);
       this.audit("session.expired", expired, now);
+      this.sessions.set(id, expired);
     }
   }
 
@@ -176,17 +202,20 @@ export class JarvisRemoteAssistSessionManager {
     session: JarvisRemoteAssistSession,
     now: Date,
     detail?: Record<string, unknown>,
-  ): void {
-    this.auditEvents.push({
+  ): JarvisRemoteAssistAuditEvent {
+    const event: JarvisRemoteAssistAuditEvent = {
       id: randomUUID(),
       at: now.toISOString(),
       action,
       sessionId: session.id,
       serial: session.serial,
       detail,
-    });
+    };
+    this.auditSink?.(structuredClone(event));
+    this.auditEvents.push(event);
     if (this.auditEvents.length > this.maxAuditEvents) {
       this.auditEvents.splice(0, this.auditEvents.length - this.maxAuditEvents);
     }
+    return structuredClone(event);
   }
 }
