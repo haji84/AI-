@@ -5,7 +5,7 @@ import { DeviceCapabilityRuntime } from "../src/gai/device-capability-runtime.ts
 import { createFunctionWorker, MultiWorkerRuntime, type WorkerDescriptor } from "../src/gai/worker-runtime.ts";
 import type { TaskProfile } from "../src/gai/types.ts";
 
-const task: TaskProfile = { id: "cap-task", title: "capability task", complexity: "simple", risk: "low" };
+const task: TaskProfile = { id: "cap-task", title: "capability task", complexity: "simple", risk: "LOW" };
 
 function descriptor(id: string, platform: WorkerDescriptor["platform"], capabilities: WorkerDescriptor["capabilities"], modes: WorkerDescriptor["executionModes"]): WorkerDescriptor {
   return { id, label: id, platform, deviceType: platform === "ios" ? "mobile" : "laptop", capabilities, executionModes: modes, networkRequirement: "offline-capable", maxParallelTasks: 1, enabled: true };
