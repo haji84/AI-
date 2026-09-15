@@ -4,6 +4,7 @@ import {
   JarvisRemoteAssistSessionManager,
   capabilityForRemoteDevice,
   isManualRemoteAction,
+  remoteCapabilityAllowsAction,
 } from "../src/jarvis/remote-assist.ts";
 
 test("Remote Assist session is bounded to one device and expires closed", () => {
@@ -57,6 +58,15 @@ test("Remote Assist TTL is capped and capability derivation is conservative", ()
   assert.equal(capabilityForRemoteDevice({ canView: true, canControl: true }), "CONTROLLABLE");
   assert.equal(capabilityForRemoteDevice({ canView: true, canControl: true, fullManagement: true }), "FULL_MANAGEMENT");
   assert.equal(capabilityForRemoteDevice({ canView: true, canControl: false, fullManagement: true }), "VIEW_ONLY");
+});
+
+test("VIEW_ONLY sessions cannot perform remote input", () => {
+  assert.equal(remoteCapabilityAllowsAction("VIEW_ONLY", "screenshot"), true);
+  for (const action of ["tap", "swipe", "text", "keyevent", "open-url"] as const) {
+    assert.equal(remoteCapabilityAllowsAction("VIEW_ONLY", action), false, action);
+    assert.equal(remoteCapabilityAllowsAction("CONTROLLABLE", action), true, action);
+    assert.equal(remoteCapabilityAllowsAction("FULL_MANAGEMENT", action), true, action);
+  }
 });
 
 test("only manual Remote Assist actions are session-gated by the route contract", () => {
