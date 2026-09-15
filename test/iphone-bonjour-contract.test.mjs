@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { URL } from "node:url";
 
 const bridge = await readFile(new URL("../scripts/iphone-bridge-server.ts", import.meta.url), "utf8");
 const worker = await readFile(new URL("../apps/ios-worker/Sources/WorkerRuntime.swift", import.meta.url), "utf8");
