@@ -31,7 +31,21 @@ powershell -ExecutionPolicy Bypass -File .\scripts\install-jarvis-remote-autosta
 pnpm jarvis:power:check
 ```
 
-The readiness checker verifies that the Scheduled Task uses an AtStartup trigger and that the Tailscale Windows service is running with automatic start.
+The installer configures the task so it may start and keep running on laptop battery, but it deliberately does not invent or change a Windows credential/principal. An `AtStartup` trigger by itself is not proof that the task can run before interactive logon.
+
+The readiness checker therefore requires all of the following before `windows-startup-task` can PASS:
+
+- task state is Ready or Running
+- trigger is a boot/AtStartup trigger
+- a concrete task principal exists
+- the logon mode is explicitly noninteractive (`ServiceAccount`, `S4U`, or `Password`)
+- `StartWhenAvailable` is enabled
+- starting on battery is allowed
+- switching to battery does not stop the task
+
+An existing task that is AtStartup but still uses `InteractiveToken` must fail closed. Choosing or changing the noninteractive principal is an explicit Windows/admin configuration action and is not silently performed by the repository installer.
+
+The checker separately verifies that the Tailscale Windows service is running with automatic start.
 
 ### Firmware gate
 
@@ -67,7 +81,7 @@ Required checks fail closed. The command verifies:
 - Tailscale backend is connected
 - Funnel/public ingress is not active
 - platform startup registration is ready
-- macOS `autorestart=1`, or Windows Tailscale automatic startup
+- macOS `autorestart=1`, or Windows unattended task + Tailscale automatic startup readiness
 
 Hardware/firmware items that cannot be verified generically are emitted as explicit warnings, not silently marked PASS.
 
@@ -78,6 +92,6 @@ Never claim automatic outage recovery until all applicable observations exist:
 1. remote phone on cellular reaches the private JARVIS URL
 2. an Android task is issued remotely and returns a verified result
 3. router/Internet interruption recovers without re-enrollment
-4. host OS reboot restores Tailscale + JARVIS without manual app launch
+4. host OS reboot restores Tailscale + JARVIS without manual app launch or interactive user logon
 5. for long-outage recovery, a real AC-loss/restore test proves the host powers on automatically
 6. live screen control remains a separate evidence gate
