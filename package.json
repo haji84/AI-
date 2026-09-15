@@ -33,5 +33,5 @@
     "research:r6:baseline": "node scripts/gai-baseline-v11.mjs --real --resume"
   },
   "dependencies": { "next": "16.3.2", "react": "19.2.8", "react-dom": "19.2.8" },
-  "devDependencies": { "@eslint/js": "9.39.5", "@types/node": "24.13.3", "@types/react": "19.2.8", "@types/react-dom": "19.2.4", "eslint": "9.39.5", "typescript": "6.0.3", "typescript-eslint": "8.67.0" }
+  "devDependencies": { "@eslint/js": "9.39.5", "@types/node": "24.13.3", "@types/react": "19.2.18", "@types/react-dom": "19.2.4", "eslint": "9.39.5", "typescript": "6.0.3", "typescript-eslint": "8.67.0" }
 }
