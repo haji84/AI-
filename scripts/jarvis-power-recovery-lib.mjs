@@ -8,12 +8,29 @@ export function macSystemDaemonLoaded(launchctlOutput) {
   return text.includes('ai.jarvis.remote-host') && !text.includes('could not find service');
 }
 
+function boolValue(value) {
+  if (typeof value === 'boolean') return value;
+  return String(value ?? '').trim().toLowerCase() === 'true';
+}
+
 export function windowsStartupTaskReady(task) {
   if (!task || typeof task !== 'object') return false;
   const state = String(task.State || task.state || '').toLowerCase();
   const trigger = String(task.Trigger || task.trigger || '').toLowerCase();
+  const userId = String(task.UserId || task.userId || '').trim();
+  const logonType = String(task.LogonType || task.logonType || '').toLowerCase();
   const bootTriggered = trigger.includes('startup') || trigger.includes('boottigger') || trigger.includes('boottrigger');
-  return ['ready', 'running'].includes(state) && bootTriggered;
+  const unattendedLogon = ['serviceaccount', 'password', 's4u'].includes(logonType);
+  const startWhenAvailable = boolValue(task.StartWhenAvailable ?? task.startWhenAvailable);
+  const disallowStartOnBattery = boolValue(task.DisallowStartIfOnBatteries ?? task.disallowStartIfOnBatteries);
+  const stopOnBattery = boolValue(task.StopIfGoingOnBatteries ?? task.stopIfGoingOnBatteries);
+  return ['ready', 'running'].includes(state)
+    && bootTriggered
+    && Boolean(userId)
+    && unattendedLogon
+    && startWhenAvailable
+    && !disallowStartOnBattery
+    && !stopOnBattery;
 }
 
 export function windowsTailscaleServiceReady(service) {
