@@ -3,12 +3,19 @@ import type { ContextItem, ContextSource, Goal } from "./goal-loop.ts";
 
 export class GaiSkillContextSource implements ContextSource {
   readonly name = "gai-skills";
+  private readonly skills: PersistentSkillLibrary;
+  private readonly environment?: () => Promise<SkillEnvironment>;
+  private readonly limit: number;
 
   constructor(
-    private readonly skills: PersistentSkillLibrary,
-    private readonly environment?: () => Promise<SkillEnvironment>,
-    private readonly limit = 5,
-  ) {}
+    skills: PersistentSkillLibrary,
+    environment?: () => Promise<SkillEnvironment>,
+    limit = 5,
+  ) {
+    this.skills = skills;
+    this.environment = environment;
+    this.limit = limit;
+  }
 
   async collect(input: { goal: Goal; nextAction?: string | null }): Promise<ContextItem[]> {
     const task = [input.goal.title, input.goal.description, input.nextAction].filter(Boolean).join(" ");
