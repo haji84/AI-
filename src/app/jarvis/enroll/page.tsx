@@ -30,13 +30,34 @@ type EnrollmentResult = {
   detail?: string;
 };
 
+type ReplacementCandidate = {
+  candidateId: string;
+  nodeId: string;
+  publicKeyFingerprint: string;
+  verifiedAt: string;
+  expiresAt: string;
+  status: "READY_FOR_HUMAN_GATE";
+  requiresHumanGate: true;
+};
+
+type ReplacementReviewResult = {
+  candidates?: ReplacementCandidate[];
+  pendingCount?: number;
+  discarded?: boolean;
+  message?: string;
+  detail?: string;
+};
+
 export default function JarvisEnrollPage() {
   const [busy, setBusy] = useState(false);
+  const [replacementBusy, setReplacementBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [detail, setDetail] = useState("");
   const [needsAuth, setNeedsAuth] = useState(false);
   const [pairing, setPairing] = useState<PairingResult | null>(null);
   const [provisioning, setProvisioning] = useState<EnrollmentResult | null>(null);
+  const [replacementReview, setReplacementReview] = useState<ReplacementReviewResult | null>(null);
+  const [replacementMessage, setReplacementMessage] = useState("");
 
   async function pairingAction(operation: "open" | "close" | "status") {
     setBusy(true);
@@ -74,8 +95,55 @@ export default function JarvisEnrollPage() {
     }
   }
 
+  async function loadReplacementReady() {
+    setReplacementBusy(true);
+    setReplacementMessage("");
+    try {
+      const response = await fetch("/api/jarvis/action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "replacement-ready" }),
+      });
+      const body = await response.json() as ReplacementReviewResult;
+      if (response.status === 401) {
+        setNeedsAuth(true);
+        throw new Error("交換候補の確認にはオーナー認証が必要です。");
+      }
+      if (!response.ok) throw new Error(body.message || "交換候補を取得できませんでした");
+      setReplacementReview(body);
+    } catch (error) {
+      setReplacementMessage(error instanceof Error ? error.message : "交換候補を取得できませんでした");
+    } finally {
+      setReplacementBusy(false);
+    }
+  }
+
+  async function discardReplacement(candidateId: string) {
+    setReplacementBusy(true);
+    setReplacementMessage("");
+    try {
+      const response = await fetch("/api/jarvis/action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "replacement-discard", candidateId }),
+      });
+      const body = await response.json() as ReplacementReviewResult;
+      if (response.status === 401) {
+        setNeedsAuth(true);
+        throw new Error("交換候補の破棄にはオーナー認証が必要です。");
+      }
+      if (!response.ok || body.discarded !== true) throw new Error(body.message || "交換候補を破棄できませんでした");
+      setReplacementMessage("交換候補を破棄しました。現在の端末Identityは変更していません。");
+      await loadReplacementReady();
+    } catch (error) {
+      setReplacementMessage(error instanceof Error ? error.message : "交換候補を破棄できませんでした");
+      setReplacementBusy(false);
+    }
+  }
+
   useEffect(() => {
     void pairingAction("status");
+    void loadReplacementReady();
   }, []);
 
   async function createProvisioningSet() {
@@ -128,6 +196,7 @@ export default function JarvisEnrollPage() {
 
   const window = pairing?.window;
   const statusText = !window ? "確認中" : window.open ? "受付中" : window.reason === "expired" ? "期限切れ" : window.reason === "exhausted" ? "上限到達" : "停止中";
+  const replacementCandidates = replacementReview?.candidates ?? [];
 
   return <main className="dashboard-shell">
     <div className="jarvis-toolbar">
@@ -178,6 +247,32 @@ export default function JarvisEnrollPage() {
         <p className="muted">Androidの初回セットアップ画面でQRを読み取ります。OS側の確認や対応条件は省略できません。</p>
       </div> : provisioning && <div className="jarvis-alert" style={{ marginTop: 16 }}><strong>QR生成準備待ち</strong><span>Worker APKとQR生成機能の準備状況を確認してください。</span></div>}
       {provisioning?.provisioning && <div className="jarvis-button-row" style={{ marginTop: 16 }}><button className="button secondary" onClick={() => void copyProvisioning()}>provisioning JSONをコピー</button></div>}
+    </section>
+
+    <section className="panel jarvis-section" style={{ maxWidth: 860, margin: "0 auto 24px" }}>
+      <div className="section-heading">
+        <div><p className="section-kicker">DEVICE REPLACEMENT</p><h2>交換端末の本人確認待ち</h2></div>
+        <strong>{replacementCandidates.length}件</strong>
+      </div>
+      <p className="muted">ここに出るのは、新端末が提案された秘密鍵を実際に持っていることまで確認できた候補だけです。まだ交換は完了していません。旧Identityの失効・新Identityの登録は資格情報を変更するため、別のHuman Gateが必要です。</p>
+      <div className="jarvis-button-row" style={{ marginTop: 16 }}>
+        <button className="button secondary" disabled={replacementBusy} onClick={() => void loadReplacementReady()}>{replacementBusy ? "確認中..." : "交換候補を更新"}</button>
+      </div>
+      {replacementCandidates.length === 0 ? <div className="jarvis-alert" style={{ marginTop: 16 }}>
+        <strong>確認待ちの交換候補はありません</strong>
+        <span>候補は短時間だけ保持され、Broker再起動でも消えます。</span>
+      </div> : <div style={{ display: "grid", gap: 12, marginTop: 16 }}>
+        {replacementCandidates.map((candidate) => <div className="jarvis-alert" key={candidate.candidateId}>
+          <strong>{candidate.nodeId} · Human Gate required</strong>
+          <span>Fingerprint: <code>{candidate.publicKeyFingerprint}</code></span>
+          <span>確認: {new Date(candidate.verifiedAt).toLocaleString("ja-JP")} / 期限: {new Date(candidate.expiresAt).toLocaleString("ja-JP")}</span>
+          <div className="jarvis-button-row">
+            <button className="button secondary" disabled={replacementBusy} onClick={() => void discardReplacement(candidate.candidateId)}>候補を破棄</button>
+          </div>
+        </div>)}
+      </div>}
+      {typeof replacementReview?.pendingCount === "number" && replacementReview.pendingCount > 0 && <p className="muted" style={{ marginTop: 12 }}>鍵所有証明待ち: {replacementReview.pendingCount}件</p>}
+      {replacementMessage && <div className="jarvis-alert" style={{ marginTop: 16 }}><strong>{replacementMessage}</strong>{needsAuth && <a className="button secondary" href="/jarvis/login?next=/jarvis/enroll">オーナー認証へ</a>}</div>}
     </section>
 
     <section className="panel jarvis-section" style={{ maxWidth: 860, margin: "0 auto" }}>
