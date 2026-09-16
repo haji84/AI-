@@ -65,7 +65,7 @@ test("sensor is explicit, visible, stoppable, local-only and cannot execute devi
   assert.match(pointerSurface, /onKeyDown/);
   assert.match(pointerSurface, /選択中の「\{selectedTarget\.label\}」を開く/);
   assert.doesNotMatch(pointerSurface, /\/api\/jarvis\/action|fetch\(|device-task|approve|factory-reset|reboot|lock-device/);
-  assert.doesNotMatch(pointerSurface, /useEffect\([^]*startSensor\(/);
+  assert.equal(pointerSurface.match(/startSensor\(\)/g)?.length, 2, "startSensor is only declared and bound to the explicit Start button");
 });
 
 test("mobile commander exposes the IMU surface without replacing voice or text fallback", () => {
