@@ -1,5 +1,6 @@
 import type { SharedCommandContext, SharedCommandHistoryEntry } from "./command-context";
-import { parseSafeMobileCommand } from "./voice-command";
+
+export type SafeCommandPredicate = (command: string) => boolean;
 
 export type SafeContextCandidate = {
   index: number;
@@ -11,16 +12,16 @@ export type ContextReferenceResolution =
   | { kind: "resolved"; command: string; entryId: string; label: string }
   | { kind: "rejected"; message: string };
 
-function isReusable(entry: SharedCommandHistoryEntry, targetNodeId?: string): boolean {
+function isReusable(entry: SharedCommandHistoryEntry, targetNodeId: string | undefined, isSafeCommand: SafeCommandPredicate): boolean {
   if (entry.outcome !== "sent") return false;
   if (entry.command.includes("[REDACTED]")) return false;
   if (targetNodeId && entry.targetNodeId && entry.targetNodeId !== targetNodeId) return false;
-  return parseSafeMobileCommand(entry.command).ok;
+  return isSafeCommand(entry.command);
 }
 
-export function getSafeContextCandidates(context: SharedCommandContext): SafeContextCandidate[] {
+export function getSafeContextCandidates(context: SharedCommandContext, isSafeCommand: SafeCommandPredicate): SafeContextCandidate[] {
   return context.history
-    .filter((entry) => isReusable(entry, context.targetNodeId))
+    .filter((entry) => isReusable(entry, context.targetNodeId, isSafeCommand))
     .slice()
     .reverse()
     .map((entry, index) => ({ index: index + 1, entry }));
@@ -30,9 +31,13 @@ function normalizedReference(input: string): string {
   return input.trim().replace(/[。！!？?]+$/g, "").trim();
 }
 
-export function resolveSafeContextReference(input: string, context: SharedCommandContext): ContextReferenceResolution {
+export function resolveSafeContextReference(
+  input: string,
+  context: SharedCommandContext,
+  isSafeCommand: SafeCommandPredicate,
+): ContextReferenceResolution {
   const text = normalizedReference(input);
-  const candidates = getSafeContextCandidates(context);
+  const candidates = getSafeContextCandidates(context, isSafeCommand);
 
   const selectedReference = /^(?:これ|これやって|これを(?:実行|やって))$/.test(text);
   if (selectedReference) {
