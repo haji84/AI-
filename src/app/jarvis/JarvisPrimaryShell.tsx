@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { useEffect } from "react";
+import JarvisHomeLayoutEditor from "./JarvisHomeLayoutEditor";
 import { applyJarvisPreferences, readJarvisPreferences } from "./ui-preferences";
 
 const NAV_ITEMS = [
@@ -50,7 +51,10 @@ export default function JarvisPrimaryShell({ children }: { children: ReactNode }
         </nav>
         <a className="button secondary jarvis-owner-link" href={`/jarvis/login?next=${encodeURIComponent(pathname)}`}>オーナー認証</a>
       </header>
-      <div className="jarvis-primary-content">{children}</div>
+      <div className="jarvis-primary-content">
+        {pathname === "/jarvis" ? <JarvisHomeLayoutEditor /> : null}
+        {children}
+      </div>
     </div>
   );
 }
