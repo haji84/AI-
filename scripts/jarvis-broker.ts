@@ -13,6 +13,7 @@ import {
   type JarvisWorkerIdentity,
 } from "../src/jarvis/index.ts";
 import { JarvisEnrollmentPairingWindow } from "../src/jarvis/enrollment-pairing-window.ts";
+import { JarvisDeviceReplacementTransport } from "../src/jarvis/device-replacement-transport.ts";
 
 const host = process.env.JARVIS_BROKER_HOST?.trim() || "127.0.0.1";
 const port = Number(process.env.JARVIS_BROKER_PORT || 8787);
@@ -32,6 +33,7 @@ const persisted = store.load();
 if (persisted) plane.restore(persisted);
 const nonces = new JarvisNonceRegistry();
 const pairingWindow = new JarvisEnrollmentPairingWindow();
+const replacementTransport = new JarvisDeviceReplacementTransport({ identityForNode: (nodeId) => store.getWorkerIdentity(nodeId) });
 let lastHeartbeatPersist = 0;
 
 type WorkerApkInfo = { path: string; url: string; bytes: Buffer; sha256Base64Url: string };
@@ -222,6 +224,25 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
     if (!requireOwner(request)) return json(response, 401, { message: "owner authorization required" });
     const payload = parseJson(body);
     if (method === "GET" && path === "/api/jarvis/admin/state") return json(response, 200, plane.snapshot());
+    if (method === "GET" && path === "/api/jarvis/admin/replacement/ready") {
+      return json(response, 200, { candidates: replacementTransport.listReady(), pendingCount: replacementTransport.pendingSize() });
+    }
+    if (method === "POST" && path === "/api/jarvis/admin/replacement/challenge") {
+      const nodeId = typeof payload.nodeId === "string" ? payload.nodeId : "";
+      const publicKeyPem = typeof payload.publicKeyPem === "string" ? payload.publicKeyPem : "";
+      const algorithm = payload.algorithm === "ed25519" ? "ed25519" : payload.algorithm === "ecdsa-p256-sha256" ? "ecdsa-p256-sha256" : undefined;
+      if (!nodeId || !publicKeyPem || !algorithm) return json(response, 400, { message: "nodeId, publicKeyPem and supported algorithm are required" });
+      try {
+        const challenge = replacementTransport.createChallenge({ nodeId, publicKeyPem, algorithm, ttlMs: asNumber(payload.ttlMs, 10 * 60_000) });
+        return json(response, 201, { challenge });
+      } catch (error) {
+        return json(response, 400, { message: error instanceof Error ? error.message : "invalid replacement candidate" });
+      }
+    }
+    if (method === "POST" && path === "/api/jarvis/admin/replacement/discard") {
+      if (typeof payload.candidateId !== "string" || !payload.candidateId) return json(response, 400, { message: "candidateId required" });
+      return json(response, 200, { discarded: replacementTransport.discard(payload.candidateId) });
+    }
     if (method === "GET" && path === "/api/jarvis/admin/enrollment-window") {
       return json(response, 200, { window: pairingWindow.status(), fixedUrl: publicBrokerUrl ? `${publicBrokerUrl}/enroll` : undefined });
     }
@@ -274,6 +295,19 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
       const session = plane.resolveTakeover(payload.sessionId, payload.resumeTask !== false); persist(); return json(response, 200, { session });
     }
     return json(response, 404, { message: "unknown admin route" });
+  }
+
+  if (method === "POST" && path === "/api/jarvis/replacement/prove") {
+    const payload = parseJson(body);
+    if (typeof payload.candidateId !== "string" || typeof payload.nodeId !== "string" || typeof payload.signatureBase64 !== "string") {
+      return json(response, 400, { message: "candidateId, nodeId and signatureBase64 are required" });
+    }
+    try {
+      const candidate = replacementTransport.prove({ candidateId: payload.candidateId, nodeId: payload.nodeId, signatureBase64: payload.signatureBase64 });
+      return json(response, 200, { candidate });
+    } catch (error) {
+      return json(response, 400, { message: error instanceof Error ? error.message : "replacement proof rejected" });
+    }
   }
 
   if (method === "POST" && path === "/api/jarvis/enroll") {
