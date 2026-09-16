@@ -11,15 +11,16 @@ export type ContextReferenceResolution =
   | { kind: "resolved"; command: string; entryId: string; label: string }
   | { kind: "rejected"; message: string };
 
-function isReusable(entry: SharedCommandHistoryEntry): boolean {
+function isReusable(entry: SharedCommandHistoryEntry, targetNodeId?: string): boolean {
   if (entry.outcome !== "sent") return false;
   if (entry.command.includes("[REDACTED]")) return false;
+  if (targetNodeId && entry.targetNodeId && entry.targetNodeId !== targetNodeId) return false;
   return parseSafeMobileCommand(entry.command).ok;
 }
 
 export function getSafeContextCandidates(context: SharedCommandContext): SafeContextCandidate[] {
   return context.history
-    .filter(isReusable)
+    .filter((entry) => isReusable(entry, context.targetNodeId))
     .slice()
     .reverse()
     .map((entry, index) => ({ index: index + 1, entry }));
@@ -40,14 +41,14 @@ export function resolveSafeContextReference(input: string, context: SharedComman
     }
     const selected = candidates.find((candidate) => candidate.entry.id === context.selectedHistoryId);
     if (!selected) {
-      return { kind: "rejected", message: "選択した指示は安全に再利用できません。履歴から別の指示を選んでください。" };
+      return { kind: "rejected", message: "選択した指示は現在の端末で安全に再利用できません。履歴から別の指示を選んでください。" };
     }
     return { kind: "resolved", command: selected.entry.command, entryId: selected.entry.id, label: "これ" };
   }
 
   if (/^(?:さっきのやつ|さっきの|前のやつ|前の)$/.test(text)) {
     const latest = candidates[0];
-    if (!latest) return { kind: "rejected", message: "安全に再利用できる直近の指示がありません。" };
+    if (!latest) return { kind: "rejected", message: "現在の端末で安全に再利用できる直近の指示がありません。" };
     return { kind: "resolved", command: latest.entry.command, entryId: latest.entry.id, label: "さっきのやつ" };
   }
 
@@ -58,7 +59,7 @@ export function resolveSafeContextReference(input: string, context: SharedComman
       return { kind: "rejected", message: "履歴の番号は1〜12番目で指定してください。" };
     }
     const candidate = candidates[index - 1];
-    if (!candidate) return { kind: "rejected", message: `${index}番目に安全に再利用できる指示はありません。` };
+    if (!candidate) return { kind: "rejected", message: `現在の端末の${index}番目に安全に再利用できる指示はありません。` };
     return { kind: "resolved", command: candidate.entry.command, entryId: candidate.entry.id, label: `${index}番目` };
   }
 
