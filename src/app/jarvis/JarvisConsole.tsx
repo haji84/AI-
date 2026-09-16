@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import RemoteAssistMultiView from "./RemoteAssistMultiView";
+import RemoteAssistRecordings from "./RemoteAssistRecordings";
 
 type NodeItem = {
   id: string;
@@ -471,6 +472,7 @@ export default function JarvisConsole() {
       </section>
 
       <RemoteAssistMultiView devices={remoteDevices} onPromote={selectRemoteDevice} />
+      <RemoteAssistRecordings />
 
       <section className="panel jarvis-section">
         <div className="section-heading"><div><p className="section-kicker">FLEET</p><h2>端末一覧</h2></div><span className="count-badge neutral">{state?.fleet.length ?? 0}</span></div>
