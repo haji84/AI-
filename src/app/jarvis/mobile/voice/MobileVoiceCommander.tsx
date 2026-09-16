@@ -6,8 +6,10 @@ import {
   loadSharedCommandContext,
   recordSharedCommand,
   saveSharedTargetNode,
+  selectSharedHistoryEntry,
   type SharedCommandContext,
 } from "../command-context";
+import { getSafeContextCandidates, resolveSafeContextReference } from "../context-reference";
 import { parseSafeMobileCommand } from "../voice-command";
 
 type FleetNode = { id: string; label: string; status: string; lastSeenAt: string };
@@ -62,6 +64,7 @@ export default function MobileVoiceCommander() {
   const recognitionRef = useRef<RecognitionLike | null>(null);
   const selectedNode = useMemo(() => nodes.find((node) => node.id === selectedNodeId), [nodes, selectedNodeId]);
   const recentCommands = useMemo(() => sharedContext.history.slice(-4).reverse(), [sharedContext]);
+  const contextCandidates = useMemo(() => getSafeContextCandidates(sharedContext), [sharedContext]);
 
   const refresh = useCallback(async () => {
     try {
@@ -92,9 +95,21 @@ export default function MobileVoiceCommander() {
     };
   }, [refresh]);
 
+  useEffect(() => {
+    if (selectedNodeId && sharedContext.targetNodeId !== selectedNodeId) {
+      setSharedContext(saveSharedTargetNode(selectedNodeId));
+    }
+  }, [selectedNodeId, sharedContext.targetNodeId]);
+
   function selectNode(value: string) {
     setSelectedNodeId(value);
     setSharedContext(saveSharedTargetNode(value));
+  }
+
+  function selectHistoryReference(id: string) {
+    setSharedContext(selectSharedHistoryEntry(id));
+    setError("");
+    setMessage("参照する履歴を選択しました。まだ端末操作は送信していません。");
   }
 
   function stopListening() {
@@ -155,12 +170,21 @@ export default function MobileVoiceCommander() {
 
   async function executeTranscript() {
     const text = transcript.trim();
-    const parsed = parseSafeMobileCommand(text);
+    const currentContext = { ...loadSharedCommandContext(), targetNodeId: selectedNodeId || undefined };
+    const reference = resolveSafeContextReference(text, currentContext);
+    if (reference.kind === "rejected") {
+      setError(reference.message);
+      setSharedContext(recordSharedCommand({ source: "voice", command: text, outcome: "unsupported", targetNodeId: selectedNodeId || undefined }));
+      return;
+    }
+    const effectiveText = reference.kind === "resolved" ? reference.command : text;
+    const parsed = parseSafeMobileCommand(effectiveText);
     if (!parsed.ok) {
       setError(parsed.message);
       setSharedContext(recordSharedCommand({
         source: "voice",
         command: text,
+        detail: reference.kind === "resolved" ? `参照元: ${effectiveText}` : undefined,
         outcome: parsed.reason === "protected" ? "blocked" : "unsupported",
         targetNodeId: selectedNodeId || undefined,
       }));
@@ -190,12 +214,24 @@ export default function MobileVoiceCommander() {
       const body = await response.json() as { message?: string };
       if (!response.ok) throw new Error(body.message || `HTTP ${response.status}`);
       setMessage(`${selectedNode?.label ?? "端末"}へ確認済みの音声指示を送信しました。`);
-      setSharedContext(recordSharedCommand({ source: "voice", command: text, outcome: "sent", targetNodeId: selectedNodeId }));
+      setSharedContext(recordSharedCommand({
+        source: "voice",
+        command: text,
+        detail: reference.kind === "resolved" ? `参照元: ${effectiveText}` : undefined,
+        outcome: "sent",
+        targetNodeId: selectedNodeId,
+      }));
       setTranscript("");
       setInterimTranscript("");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "音声指示を送信できませんでした");
-      setSharedContext(recordSharedCommand({ source: "voice", command: text, outcome: "failed", targetNodeId: selectedNodeId }));
+      setSharedContext(recordSharedCommand({
+        source: "voice",
+        command: text,
+        detail: reference.kind === "resolved" ? `参照元: ${effectiveText}` : undefined,
+        outcome: "failed",
+        targetNodeId: selectedNodeId,
+      }));
     } finally {
       setBusy(false);
     }
@@ -259,13 +295,24 @@ export default function MobileVoiceCommander() {
         <button className="voice-clear" type="button" disabled={busy || listening || (!transcript && !interimTranscript)} onClick={() => { setTranscript(""); setInterimTranscript(""); setError(""); }}>
           字幕をクリア
         </button>
-        <p className="commander-hint">文字司令と同じ安全パーサー・端末選択・直近履歴を共有します。再起動、ロック、初期化、削除、承認、権限変更などの保護対象は音声から実行も承認もしません。</p>
+        <p className="commander-hint">「さっきのやつ」「2番目」は同じ端末の安全な履歴だけを再解釈します。「これ」は下で参照対象を選択してから、必ず「この指示を実行」で確定します。保護対象は音声から実行も承認もしません。</p>
       </section>
 
       <section className="commander-card">
         <div className="commander-card-title"><span>共通コマンド履歴</span><small>音声＋文字</small></div>
         <div className="commander-tasks" aria-live="polite">
-          {recentCommands.map((entry) => <div key={entry.id}><span>{entry.source === "voice" ? "音声" : "文字"}: {entry.command}</span><strong>{entry.outcome}</strong><small>{shortAge(entry.createdAt)}</small></div>)}
+          {recentCommands.map((entry) => {
+            const candidate = contextCandidates.find((item) => item.entry.id === entry.id);
+            const selected = sharedContext.selectedHistoryId === entry.id;
+            return (
+              <div key={entry.id}>
+                <span>{candidate ? `${candidate.index}番目 · ` : ""}{entry.source === "voice" ? "音声" : "文字"}: {entry.command}</span>
+                <strong>{entry.outcome}</strong>
+                <small>{shortAge(entry.createdAt)}</small>
+                {candidate && <button type="button" disabled={busy || listening || selected} onClick={() => selectHistoryReference(entry.id)}>{selected ? "これに選択中" : "これを選択"}</button>}
+              </div>
+            );
+          })}
           {!recentCommands.length && <div className="commander-empty">共通コマンド履歴はまだありません</div>}
         </div>
       </section>
