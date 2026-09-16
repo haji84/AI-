@@ -8,8 +8,9 @@ const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0
 
 const MAX_MANIFEST_BYTES = 32 * 1024;
 const MAX_FRAME_BYTES = 8 * 1024 * 1024;
-const MAX_RECORDING_BYTES = 64 * 1024 * 1024;
-const MAX_FRAMES = 60;
+const MAX_RECORDING_BYTES = 512 * 1024 * 1024;
+const MAX_FRAMES = 600;
+const MAX_EXPORT_BYTES = 64 * 1024 * 1024;
 const MAX_DIRECTORY_ENTRIES = 256;
 const MIN_INTERVAL_MS = 500;
 const MAX_INTERVAL_MS = 5_000;
@@ -151,7 +152,7 @@ export class JarvisRemoteAssistRecordingHistory {
     for (let index = 0; index < recording.frameCount; index += 1) {
       const frame = this.readFrame(recordingId, index + 1);
       aggregateBytes += Buffer.byteLength(frame.imageBase64, "base64");
-      if (aggregateBytes > MAX_RECORDING_BYTES || aggregateBytes > recording.totalBytes) {
+      if (aggregateBytes > MAX_EXPORT_BYTES || aggregateBytes > recording.totalBytes) {
         throw new JarvisRemoteAssistRecordingHistoryError("resource-limit", "Remote Assist recording export exceeds safe size bounds");
       }
       frames.push(frame);

@@ -141,3 +141,16 @@ test("interrupted recordings are marked failed after process restart", () => {
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test("default recording supports five minutes and rejects longer requests", async () => {
+  const root = mkdtempSync(join(tmpdir(), "jarvis-five-minute-"));
+  const store = new JarvisRemoteAssistFrameRecorder({rootDir:root,captureFrame:async()=>({mimeType:"image/png",imageBase64:Buffer.from("frame").toString("base64"),capturedAt:new Date().toISOString()})});
+  try {
+    const started=store.start({sessionId:"five-minute",serial:"android-five"});
+    assert.equal(Date.parse(started.expiresAt)-Date.parse(started.createdAt),300_000);
+    assert.equal(started.maxFrames,150);
+    assert.throws(()=>store.start({sessionId:"too-long",serial:"other",durationMs:300_001}),/durationMs/);
+    await store.stop(started.id,"five-minute","android-five");
+    assert.equal(store.status(started.id,"five-minute","android-five").stopReason,"owner-stop");
+  } finally { rmSync(root,{recursive:true,force:true}); }
+});

@@ -318,7 +318,7 @@ export default function JarvisConsole() {
 
   async function startRecording() {
     const body = await remoteRequest(
-      { action: "recording-start", durationMs: 30_000, intervalMs: 2_000 },
+      { action: "recording-start", durationMs: 300_000, intervalMs: 2_000 },
       { sessionBound: true },
     );
     const next = body?.recording;
@@ -458,7 +458,7 @@ export default function JarvisConsole() {
               <button className="button secondary" disabled={!canViewRemote} onClick={() => setLiveRefresh((current) => !current)}>画面自動更新 {liveRefresh ? "ON" : "OFF"}</button>
             </div>
             <div className="jarvis-button-row">
-              <button className="button secondary" disabled={busy || !canViewRemote || recordingActive} onClick={() => void startRecording()}>画面写真を30秒保存（手順学習なし）</button>
+              <button className="button secondary" disabled={busy || !canViewRemote || recordingActive} onClick={() => void startRecording()}>画面写真を5分保存（手順学習なし）</button>
               <button className="button secondary" disabled={busy || !recordingActive} onClick={() => void stopRecording()}>画面写真の保存を停止</button>
             </div>
             {recording && <small>PNGフレーム記録 {recording.status} / {recording.frameCount}/{recording.maxFrames}枚 / {Math.ceil(recording.totalBytes / 1024)}KiB{recording.stopReason ? ` / ${recording.stopReason}` : ""}。動画ファイルではありません。</small>}

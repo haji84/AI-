@@ -243,7 +243,7 @@ export async function POST(request: Request) {
     try {
       const session = requireRecordingBinding(payload);
       const remainingMs = new Date(session.expiresAt).getTime() - Date.now();
-      const durationMs = Math.min(payload.durationMs ?? 30_000, Math.max(0, remainingMs - 1_000));
+      const durationMs = Math.min(payload.durationMs ?? 300_000, Math.max(0, remainingMs - 1_000));
       if (durationMs < 2_000) throw new Error("Remote Assist sessionの残り時間が短いため記録を開始できません");
       const recording = recorder.start({
         sessionId: payload.sessionId!,
