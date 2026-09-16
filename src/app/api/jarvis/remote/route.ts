@@ -13,6 +13,7 @@ import { jarvisRemoteGatewayFetch, requireJarvisOwner } from "../broker.ts";
 export const dynamic = "force-dynamic";
 
 type RemotePayload =
+  | { action: "video"; serial?: string; sessionId?: string }
   | { action: "session-start"; serial?: string; ttlMs?: number }
   | { action: "session-end"; sessionId?: string }
   | { action: "session-status"; sessionId?: string }
@@ -145,6 +146,41 @@ export async function POST(request: Request) {
   if (!(await requireJarvisOwner())) return NextResponse.json({ message: "オーナー認証が必要です" }, { status: 401 });
   const payload = await request.json().catch(() => null) as RemotePayload | null;
   if (!payload?.action) return NextResponse.json({ message: "操作内容を指定してください" }, { status: 400 });
+
+  if (payload.action === "video") {
+    if (!payload.serial || !payload.sessionId) return NextResponse.json({ message: "Remote Assist sessionが必要です" }, { status: 409 });
+    const { serial, sessionId } = payload;
+    const abort = new AbortController();
+    const validate = () => remoteAssist.requireActive(sessionId, serial);
+    let timer: ReturnType<typeof setInterval> | undefined;
+    let auditStarted = false;
+    const stop = () => {
+      clearInterval(timer); abort.abort();
+      if (auditStarted) {
+        auditStarted = false;
+        try { remoteAssist.recordAudit("action.forwarded", sessionId, serial, { action: "video", outcome: "ended" }); }
+        catch { console.error("Remote video stopped; end-audit persistence failed"); }
+      }
+    };
+    try {
+      validate(); remoteAssist.touch(sessionId, serial);
+      remoteAssist.recordAudit("action.forwarded", sessionId, serial, { action: "video", outcome: "starting" });
+      auditStarted = true;
+      request.signal.addEventListener("abort", stop, { once: true });
+      timer = setInterval(() => { try { validate(); } catch { stop(); } }, 250);
+      const upstream = await jarvisRemoteGatewayFetch("/api/remote/video", { method: "POST", body: JSON.stringify({ serial }), signal: AbortSignal.any([abort.signal, AbortSignal.timeout(65_000)]) });
+      if (!upstream.ok || !upstream.body) throw new Error("動画接続を開始できません。画像更新へ戻してください");
+      const reader = upstream.body.getReader();
+      const cleanup = () => { stop(); request.signal.removeEventListener("abort", stop); };
+      return new Response(new ReadableStream({
+        async pull(controller) {
+          try { validate(); const item = await reader.read(); validate(); if (item.done) { cleanup(); controller.close(); } else controller.enqueue(item.value); }
+          catch (error) { cleanup(); controller.error(error); }
+        },
+        async cancel() { cleanup(); await reader.cancel().catch(() => {}); },
+      }), { headers: { "Content-Type": "application/octet-stream", "Cache-Control": "no-store", "X-Accel-Buffering": "no" } });
+    } catch (error) { stop(); request.signal.removeEventListener("abort", stop); return remoteSessionError(error); }
+  }
 
   if (payload.action === "session-status") {
     if (!payload.sessionId) return NextResponse.json({ message: "sessionIdが必要です" }, { status: 400 });

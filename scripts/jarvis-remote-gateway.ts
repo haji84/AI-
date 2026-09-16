@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { streamAndroidVideo } from "../src/jarvis/android-video.ts";
 import { randomUUID, timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { promisify } from "node:util";
@@ -246,6 +247,9 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
   if (!requireOwner(request)) return json(response, 401, { message: "remote gateway authorization required" });
 
   const payload = request.method === "POST" ? await readJson(request) : {};
+  if (request.method === "POST" && url.pathname === "/api/remote/video") {
+    return streamAndroidVideo(adbPath, requireSerial(payload), response);
+  }
 
   if (request.method === "GET" && url.pathname === "/api/remote/devices") {
     const devices = await connectedAuthorizedDevices();

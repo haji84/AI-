@@ -5,6 +5,7 @@ import RemoteAssistMultiView from "./RemoteAssistMultiView";
 import { startRemoteRefreshLoop } from "../../jarvis/remote-refresh-loop";
 import { RemoteCaptureQueue } from "../../jarvis/remote-capture-queue";
 import RemoteScreenControl from "./RemoteScreenControl";
+import RemoteVideo from "./RemoteVideo";
 
 type NodeItem = {
   id: string;
@@ -87,6 +88,7 @@ export default function JarvisConsole() {
   const [remoteSession, setRemoteSession] = useState<RemoteAssistSession | null>(null);
   const [recording, setRecording] = useState<RemoteAssistRecording | null>(null);
   const [liveRefresh, setLiveRefresh] = useState(false);
+  const [videoSession, setVideoSession] = useState("");
   const [remoteError, setRemoteError] = useState("");
   const [screenshot, setScreenshot] = useState<ScreenshotResult | null>(null);
   const remoteInteraction = useRef(false);
@@ -419,7 +421,13 @@ export default function JarvisConsole() {
         </div>}
         <div className="jarvis-remote-layout">
           <div className="jarvis-remote-screen">
-            {screenshot ? <RemoteScreenControl
+            {videoSession && videoSession === remoteSession?.id && canViewRemote && screenshot ? <RemoteVideo
+              serial={remoteSerial} sessionId={videoSession}
+              nativeWidth={screenshot.nativeWidth} nativeHeight={screenshot.nativeHeight}
+              controllable={Boolean(canControlRemote)}
+              onInput={(input) => { void remoteRequest(input, { manual: true }); }}
+              onStop={() => { setVideoSession(""); setLiveRefresh(true); }}
+            /> : screenshot ? <RemoteScreenControl
               key={JSON.stringify([remoteSession?.id, remoteSerial, canControlRemote, screenshot.capturedAt])}
               src={"data:" + screenshot.mimeType + ";base64," + screenshot.imageBase64}
               serial={screenshot.serial}
@@ -429,8 +437,9 @@ export default function JarvisConsole() {
               enabled={Boolean(canControlRemote) && screenshot.serial === remoteSerial}
               onInput={(input) => { void remoteRequest(input, { manual: true }).then(() => captureScreen()); }}
             /> : <div className="jarvis-remote-placeholder">端末を選び、Remote Assistを開始してください</div>}
-            <p role="status" aria-live="polite">{screenUpdating ? "画面更新中…" : liveRefresh ? "自動更新 ON（通信速度に応じて更新）" : "自動更新 OFF：表示は前回取得した画像です"}</p>
-            {screenshot && <small>取得 {fmt(screenshot.capturedAt)} / {canControlRemote ? "画像上をタップ・スワイプで操作（5秒以内）" : "VIEW ONLY"}</small>}
+            {canViewRemote && screenshot && videoSession !== remoteSession?.id && <button className="button" onClick={() => { setLiveRefresh(false); setVideoSession(remoteSession!.id); }}>低遅延動画を開始（60秒）</button>}
+            {videoSession !== remoteSession?.id && <p role="status" aria-live="polite">{screenUpdating ? "画面更新中…" : liveRefresh ? "自動更新 ON（通信速度に応じて更新）" : "自動更新 OFF：表示は前回取得した画像です"}</p>}
+            {screenshot && videoSession !== remoteSession?.id && <small>取得 {fmt(screenshot.capturedAt)} / {canControlRemote ? "画像上をタップ・スワイプで操作（5秒以内）" : "VIEW ONLY"}</small>}
           </div>
           <div className="jarvis-remote-controls">
             <select value={remoteSerial} onChange={(event) => selectRemoteDevice(event.target.value)}>
