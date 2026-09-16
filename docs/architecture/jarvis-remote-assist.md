@@ -137,3 +137,7 @@ This foundation does not make P3 complete. The following still require separate 
 The #694 reconciliation maps merged P3 software into the canonical ledger. Physical-dependent rows remain PARTIAL until actual device evidence exists.
 
 Until those gates pass, the corresponding Requirement Ledger rows remain PARTIAL or MISSING. CI is not physical evidence.
+
+## Five-minute screen recording (#748)
+
+The screen-photo recording button requests five minutes at two-second intervals. API and recorder defaults match; maximum requested duration is five minutes, maximum frame count600, per-frame limit8MiB and per-recording budget512MiB. Default cadence captures150frames, with the last frame held through the requested end time. Storage exhaustion, capture errors and session expiry remain visible stop conditions; owner-stop remains immediate. Ten-recording retention remains unchanged. These are PNG frame sequences, separate from procedure teaching and H264 live view. No business-task learning is inferred from recording alone.

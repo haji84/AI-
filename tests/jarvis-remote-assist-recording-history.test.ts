@@ -136,13 +136,13 @@ test("history rejects oversized and malformed manifests before trusting frame co
   const root = mkdtempSync(join(tmpdir(), "jarvis-history-"));
   try {
     const tooManyFrames = persist(root);
-    rewriteManifest(root, { ...tooManyFrames, maxFrames: 61, frameCount: 61 });
+    rewriteManifest(root, { ...tooManyFrames, maxFrames: 601, frameCount: 601 });
 
     const badTimestamp = persist(root);
     rewriteManifest(root, { ...badTimestamp, updatedAt: "not-a-date" });
 
     const tooManyBytes = persist(root);
-    rewriteManifest(root, { ...tooManyBytes, totalBytes: 64 * 1024 * 1024 + 1 });
+    rewriteManifest(root, { ...tooManyBytes, totalBytes: 512 * 1024 * 1024 + 1 });
 
     const oversizedManifestId = randomUUID();
     const oversizedDir = join(root, oversizedManifestId);
@@ -213,3 +213,8 @@ test("recording history route and UI stay owner-authenticated and fail with no-s
   assert.match(page, /STALE ACTIVE/);
   assert.match(page, /現在のPNGを保存/);
 });
+
+ test("five-minute recordings retain replayable 150-frame history", () => {
+ const root=mkdtempSync(join(tmpdir(),"jarvis-five-minute-history-"));
+ try { const saved=persist(root,{frameCount:150,maxFrames:150});const history=new JarvisRemoteAssistRecordingHistory(root);assert.equal(history.get(saved.id).frameCount,150);assert.equal(history.readFrame(saved.id,150).frameNumber,150); } finally { rmSync(root,{recursive:true,force:true}); }
+ });
