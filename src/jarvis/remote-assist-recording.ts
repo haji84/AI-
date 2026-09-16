@@ -186,7 +186,7 @@ export class JarvisRemoteAssistFrameRecorder {
       while (!recording.stopRequested && Date.now() < deadline && recording.frameCount < recording.maxFrames) {
         // Avoid starting a final capture with less than one interval remaining.
         if (recording.frameCount > 0 && deadline - Date.now() < recording.intervalMs) {
-          await this.waitForNextFrame(recording, Math.max(0, deadline - Date.now()));
+          await this.waitUntil(recording, deadline);
           break;
         }
         const frameStartedAt = Date.now();
@@ -214,8 +214,7 @@ export class JarvisRemoteAssistFrameRecorder {
       // Hold the last frame until the full requested window has elapsed.
       if (!recording.stopRequested && !recording.stopReason && recording.frameCount >= recording.maxFrames &&
           recording.maxFrames >= Math.ceil((deadline - Date.parse(recording.createdAt)) / recording.intervalMs)) {
-        const remaining = deadline - Date.now();
-        if (remaining > 0) await this.waitForNextFrame(recording, remaining);
+        await this.waitUntil(recording, deadline);
       }
       if (recording.stopRequested) {
         recording.status = "stopped";
@@ -269,6 +268,12 @@ export class JarvisRemoteAssistFrameRecorder {
     }
   }
 
+  private async waitUntil(recording: InternalRecording, deadline: number): Promise<void> {
+    while (!recording.stopRequested && Date.now() < deadline) {
+      await this.waitForNextFrame(recording, Math.max(1, deadline - Date.now()));
+    }
+  }
+
   private waitForNextFrame(recording: InternalRecording, ms: number): Promise<void> {
     return new Promise(resolvePromise => {
       const signal = recording.controller.signal;
@@ -318,6 +323,7 @@ export class JarvisRemoteAssistFrameRecorder {
   }
 
   private recoverInterruptedRecordings(): void {
+    if (!existsSync(this.rootDir)) return;
     for (const entry of readdirSync(this.rootDir, { withFileTypes: true })) {
       if (!entry.isDirectory() || !RECORDING_ID_RE.test(entry.name)) continue;
       const persisted = this.loadPersisted(entry.name);
@@ -330,19 +336,26 @@ export class JarvisRemoteAssistFrameRecorder {
         stopRequested: false,
         controller: new AbortController(),
       };
+      this.recordings.set(recovered.id, recovered);
       this.persist(recovered);
     }
   }
 
   private pruneOldRecordings(): void {
-    const directories = readdirSync(this.rootDir, { withFileTypes: true })
+    const entries = readdirSync(this.rootDir, { withFileTypes: true })
       .filter((entry) => entry.isDirectory() && RECORDING_ID_RE.test(entry.name))
-      .map((entry) => ({ name: entry.name, mtimeMs: statSync(resolve(this.rootDir, entry.name)).mtimeMs }))
-      .sort((a, b) => b.mtimeMs - a.mtimeMs);
-    for (const old of directories.slice(this.maxRecordings)) {
-      if (this.activeBySerial.get(this.recordings.get(old.name)?.serial ?? "") === old.name) continue;
-      rmSync(resolve(this.rootDir, old.name), { recursive: true, force: true });
-      this.recordings.delete(old.name);
+      .map((entry) => {
+        const path = this.manifestPath(entry.name);
+        if (!existsSync(path)) return null;
+        return { id: entry.name, updatedAt: statSync(path).mtimeMs };
+      })
+      .filter((entry): entry is { id: string; updatedAt: number } => Boolean(entry))
+      .sort((a, b) => b.updatedAt - a.updatedAt);
+    for (const entry of entries.slice(this.maxRecordings)) {
+      const active = this.recordings.get(entry.id);
+      if (active?.status === "recording" || active?.status === "stopping") continue;
+      rmSync(this.recordingDir(entry.id), { recursive: true, force: true });
+      this.recordings.delete(entry.id);
     }
   }
 }

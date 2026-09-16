@@ -1,0 +1,23 @@
+.jarvis-operation-modes{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 14px;border-bottom:1px solid rgba(148,163,184,.12);background:rgba(3,10,18,.9)}
+.jarvis-operation-mode-buttons{display:flex;flex-wrap:wrap;gap:6px}
+.jarvis-readonly-banner{display:flex;align-items:center;gap:10px;margin:10px 14px;padding:10px 12px;border:1px solid rgba(251,191,36,.28);border-radius:12px;background:rgba(92,58,8,.2);color:#f8d889}
+.jarvis-readonly-banner span{color:#cbb989;font-size:.75rem}
+html[data-jarvis-operation-mode="read-only"] .jarvis-operation-boundary button,
+html[data-jarvis-operation-mode="read-only"] .jarvis-operation-boundary input,
+html[data-jarvis-operation-mode="read-only"] .jarvis-operation-boundary select,
+html[data-jarvis-operation-mode="read-only"] .jarvis-operation-boundary textarea,
+html[data-jarvis-operation-mode="kiosk"] .jarvis-operation-boundary button,
+html[data-jarvis-operation-mode="kiosk"] .jarvis-operation-boundary input,
+html[data-jarvis-operation-mode="kiosk"] .jarvis-operation-boundary select,
+html[data-jarvis-operation-mode="kiosk"] .jarvis-operation-boundary textarea{cursor:not-allowed;opacity:.68}
+html[data-jarvis-operation-mode="read-only"] .jarvis-operation-boundary .jarvis-remote-screen,
+html[data-jarvis-operation-mode="read-only"] .jarvis-operation-boundary .jarvis-multiview-shot,
+html[data-jarvis-operation-mode="kiosk"] .jarvis-operation-boundary .jarvis-remote-screen,
+html[data-jarvis-operation-mode="kiosk"] .jarvis-operation-boundary .jarvis-multiview-shot{pointer-events:none}
+html[data-jarvis-operation-mode="kiosk"] .jarvis-primary-nav,
+html[data-jarvis-operation-mode="kiosk"] .jarvis-display-modes,
+html[data-jarvis-operation-mode="kiosk"] .jarvis-command-search,
+html[data-jarvis-operation-mode="kiosk"] .jarvis-widget-editor{display:none!important}
+html[data-jarvis-operation-mode="kiosk"] .jarvis-owner-link{display:inline-flex!important}
+@media(max-width:720px){.jarvis-operation-modes{align-items:stretch;flex-direction:column}.jarvis-operation-mode-buttons{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:480px){.jarvis-operation-mode-buttons{grid-template-columns:1fr}.jarvis-readonly-banner{align-items:flex-start;flex-direction:column}}
