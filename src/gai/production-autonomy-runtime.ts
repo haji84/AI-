@@ -19,6 +19,14 @@ export interface ProductionReadiness {
   missingEvidence: string[];
 }
 
+export interface DurableRecoveryBudget {
+  fingerprint: string | null;
+  consecutiveNonProgress: number;
+  limit: number;
+  lastProgressAt?: string;
+  blockedReason?: string;
+}
+
 export interface ProductionRunRecord {
   runId: string;
   goal: Goal;
@@ -26,6 +34,7 @@ export interface ProductionRunRecord {
   cycles: number;
   lastReport?: CycleReport;
   completionEvidence: unknown[];
+  recoveryBudget?: DurableRecoveryBudget;
   updatedAt: string;
 }
 
@@ -36,24 +45,71 @@ export interface ProductionAutonomyHooks {
   onVerifiedCompletion?(report: CycleReport): Promise<void>;
 }
 
+export interface ProductionAutonomyOptions {
+  maxConsecutiveNonProgressCycles?: number;
+}
+
+const DEFAULT_MAX_CONSECUTIVE_NON_PROGRESS_CYCLES = 9;
+
+function nonProgressFingerprint(report: CycleReport): string {
+  return JSON.stringify({
+    stopReason: report.stopReason,
+    actionId: report.action?.id ?? null,
+    nextAction: report.nextAction ?? null,
+    result: report.result
+      ? { ok: report.result.ok, summary: report.result.summary, blocker: report.result.blocker ?? null }
+      : null,
+    verification: report.verification
+      ? { ok: report.verification.ok, summary: report.verification.summary }
+      : null,
+    recovery: report.recoveryDecision
+      ? { action: report.recoveryDecision.action, reason: report.recoveryDecision.reason }
+      : null,
+  });
+}
+
+function assertRecoveryLimit(value: number): number {
+  if (!Number.isInteger(value) || value < 2 || value > 100) {
+    throw new Error("maxConsecutiveNonProgressCycles must be an integer from 2 to 100");
+  }
+  return value;
+}
+
 export class ProductionAutonomyRuntime {
   #runs: ProductionRunRecord[] = [];
   #loaded = false;
   private readonly filePath: string;
   private readonly loopFactory: (runId: string) => GoalDrivenLoop;
   private readonly hooks: ProductionAutonomyHooks;
+  private readonly maxConsecutiveNonProgressCycles: number;
 
-  constructor(filePath: string, loopFactory: (runId: string) => GoalDrivenLoop, hooks: ProductionAutonomyHooks = {}) {
+  constructor(
+    filePath: string,
+    loopFactory: (runId: string) => GoalDrivenLoop,
+    hooks: ProductionAutonomyHooks = {},
+    options: ProductionAutonomyOptions = {},
+  ) {
     this.filePath = filePath;
     this.loopFactory = loopFactory;
     this.hooks = hooks;
+    this.maxConsecutiveNonProgressCycles = assertRecoveryLimit(
+      options.maxConsecutiveNonProgressCycles ?? DEFAULT_MAX_CONSECUTIVE_NON_PROGRESS_CYCLES,
+    );
   }
 
   async run(input: { runId: string; goal: Goal; maxCycles?: number }): Promise<ProductionRunRecord> {
     await this.#ensureLoaded();
     const existing = this.#runs.find((item) => item.runId === input.runId);
     if (existing?.state === "completed") return existing;
-    const record = existing ?? { runId: input.runId, goal: input.goal, state: "running" as const, cycles: 0, completionEvidence: [], updatedAt: new Date().toISOString() };
+    const record = existing ?? {
+      runId: input.runId,
+      goal: input.goal,
+      state: "running" as const,
+      cycles: 0,
+      completionEvidence: [],
+      updatedAt: new Date().toISOString(),
+    };
+    this.#ensureRecoveryBudget(record);
     this.#upsert(record);
     const loop = this.loopFactory(input.runId);
     const maxCycles = input.maxCycles ?? 25;
@@ -66,7 +122,12 @@ export class ProductionAutonomyRuntime {
 
       if (report.verification?.ok) {
         if (report.verification.evidence !== undefined) record.completionEvidence.push(report.verification.evidence);
+        this.#recordVerifiedProgress(record);
         await this.hooks.onVerifiedCycle?.(report);
+      } else if (report.stopReason === "continue" && this.#recordNonProgress(record, report)) {
+        record.state = "blocked";
+        await this.#persistRecord(record);
+        return record;
       }
 
       if (report.stopReason === "goal_complete") {
@@ -95,7 +156,9 @@ export class ProductionAutonomyRuntime {
 
   async get(runId: string): Promise<ProductionRunRecord | undefined> {
     await this.#ensureLoaded();
-    return this.#runs.find((item) => item.runId === runId);
+    const record = this.#runs.find((item) => item.runId === runId);
+    if (record) this.#ensureRecoveryBudget(record);
+    return record;
   }
 
   readiness(evidence: ProductionReadinessEvidence = {}): ProductionReadiness {
@@ -110,6 +173,47 @@ export class ProductionAutonomyRuntime {
     return { implementationComplete: true, realMultiDeviceE2E, realIPhoneE2E, longDurationRun, productionReady: missingEvidence.length === 0, missingEvidence };
   }
 
+  #ensureRecoveryBudget(record: ProductionRunRecord): DurableRecoveryBudget {
+    const current = record.recoveryBudget;
+    const persistedLimit = current?.limit;
+    const limit = Number.isInteger(persistedLimit) && (persistedLimit as number) >= 2 && (persistedLimit as number) <= 100
+      ? Math.min(persistedLimit as number, this.maxConsecutiveNonProgressCycles)
+      : this.maxConsecutiveNonProgressCycles;
+    const consecutiveNonProgress = Number.isInteger(current?.consecutiveNonProgress) && (current?.consecutiveNonProgress ?? -1) >= 0
+      ? Math.min(current?.consecutiveNonProgress ?? 0, limit)
+      : 0;
+    const normalized: DurableRecoveryBudget = {
+      fingerprint: typeof current?.fingerprint === "string" ? current.fingerprint : null,
+      consecutiveNonProgress,
+      limit,
+      ...(typeof current?.lastProgressAt === "string" ? { lastProgressAt: current.lastProgressAt } : {}),
+      ...(typeof current?.blockedReason === "string" ? { blockedReason: current.blockedReason } : {}),
+    };
+    record.recoveryBudget = normalized;
+    return normalized;
+  }
+
+  #recordVerifiedProgress(record: ProductionRunRecord): void {
+    const budget = this.#ensureRecoveryBudget(record);
+    budget.fingerprint = null;
+    budget.consecutiveNonProgress = 0;
+    budget.lastProgressAt = new Date().toISOString();
+    delete budget.blockedReason;
+  }
+
+  #recordNonProgress(record: ProductionRunRecord, report: CycleReport): boolean {
+    const budget = this.#ensureRecoveryBudget(record);
+    const fingerprint = nonProgressFingerprint(report);
+    if (budget.fingerprint === fingerprint) budget.consecutiveNonProgress += 1;
+    else {
+      budget.fingerprint = fingerprint;
+      budget.consecutiveNonProgress = 1;
+    }
+    if (budget.consecutiveNonProgress < budget.limit) return false;
+    budget.blockedReason = `Durable non-progress budget exhausted (${budget.consecutiveNonProgress}/${budget.limit}); persisted outcome did not change across retries/restarts.`;
+    return true;
+  }
+
   #upsert(record: ProductionRunRecord): void {
     this.#runs = this.#runs.filter((item) => item.runId !== record.runId);
     this.#runs.push(record);
@@ -119,7 +223,13 @@ export class ProductionAutonomyRuntime {
 
   async #ensureLoaded(): Promise<void> {
     if (this.#loaded) return;
-    try { const parsed = JSON.parse(await readFile(this.filePath, "utf8")) as RunFile; this.#runs = parsed.runs ?? []; }
+    try {
+      const parsed = JSON.parse(await readFile(this.filePath, "utf8")) as RunFile;
+      this.#runs = (parsed.runs ?? []).map((record) => {
+        this.#ensureRecoveryBudget(record);
+        return record;
+      });
+    }
     catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
     this.#loaded = true;
   }

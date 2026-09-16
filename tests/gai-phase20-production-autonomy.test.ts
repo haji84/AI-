@@ -52,3 +52,65 @@ test("readiness never substitutes CI for real-device and long-run evidence", asy
   const ready = runtime.readiness({ multiDeviceE2E: ["zbook-mac-real"], iPhoneE2E: ["iphone-real"], longDurationRun: ["24h-pass"] });
   assert.equal(ready.productionReady, true);
 });
+
+test("durable non-progress budget survives runtime reconstruction and blocks repeated identical outcome", async () => {
+  const path = await file();
+  const stuck = report({
+    action: { id: "retry-a", description: "retry same", capability: "local", risk: "low" },
+    result: { actionId: "retry-a", ok: false, summary: "same temporary failure" },
+    nextAction: "Retry same operation: retry same",
+  });
+
+  const first = new ProductionAutonomyRuntime(path, () => loop([stuck]) as never, {}, { maxConsecutiveNonProgressCycles: 2 });
+  const firstResult = await first.run({ runId: "restart-budget", goal, maxCycles: 1 });
+  assert.equal(firstResult.state, "waiting");
+  assert.equal(firstResult.recoveryBudget?.consecutiveNonProgress, 1);
+  assert.equal(firstResult.recoveryBudget?.limit, 2);
+
+  const restarted = new ProductionAutonomyRuntime(path, () => loop([stuck]) as never, {}, { maxConsecutiveNonProgressCycles: 2 });
+  const secondResult = await restarted.run({ runId: "restart-budget", goal, maxCycles: 3 });
+  assert.equal(secondResult.state, "blocked");
+  assert.equal(secondResult.recoveryBudget?.consecutiveNonProgress, 2);
+  assert.match(secondResult.recoveryBudget?.blockedReason ?? "", /Durable non-progress budget exhausted \(2\/2\)/);
+});
+
+test("verified progress resets durable non-progress streak and a changed strategy gets a fresh bounded streak", async () => {
+  const path = await file();
+  const sameFailure = report({
+    action: { id: "work", description: "work", capability: "local", risk: "low" },
+    result: { actionId: "work", ok: false, summary: "failure" },
+    nextAction: "Retry same operation: work",
+  });
+  const verifiedProgress = report({
+    action: { id: "repair", description: "repair", capability: "local", risk: "low" },
+    result: { actionId: "repair", ok: true, summary: "repair passed" },
+    verification: { ok: true, summary: "verified repair", evidence: { step: "repair" } },
+    nextAction: "Continue after repair",
+  });
+  const changedStrategy = report({
+    action: { id: "work", description: "work", capability: "local", risk: "low" },
+    result: { actionId: "work", ok: false, summary: "different failure" },
+    nextAction: "Strategy pivot 1: alternative work",
+  });
+
+  const runtime = new ProductionAutonomyRuntime(
+    path,
+    () => loop([sameFailure, verifiedProgress, changedStrategy]) as never,
+    {},
+    { maxConsecutiveNonProgressCycles: 2 },
+  );
+  const result = await runtime.run({ runId: "progress-reset", goal, maxCycles: 3 });
+  assert.equal(result.state, "waiting");
+  assert.equal(result.cycles, 3);
+  assert.equal(result.completionEvidence.length, 1);
+  assert.equal(result.recoveryBudget?.consecutiveNonProgress, 1);
+  assert.equal(result.recoveryBudget?.blockedReason, undefined);
+  assert.ok(result.recoveryBudget?.lastProgressAt);
+});
+
+test("invalid durable recovery budget configuration fails closed", async () => {
+  assert.throws(
+    () => new ProductionAutonomyRuntime("/tmp/unused.json", () => loop([report()]) as never, {}, { maxConsecutiveNonProgressCycles: 1 }),
+    /integer from 2 to 100/,
+  );
+});
