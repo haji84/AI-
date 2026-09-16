@@ -18,8 +18,8 @@ test("P5 primary shell exposes the five frozen top-level operating screens", asy
     ["/jarvis/research", "リサーチ"],
     ["/jarvis/settings", "設定"],
   ]) {
-    assert.ok(shell.includes(`href: \"${href}\"`), `missing ${href}`);
-    assert.ok(shell.includes(`label: \"${label}\"`), `missing ${label}`);
+    assert.ok(shell.includes(`href: "${href}"`), `missing ${href}`);
+    assert.ok(shell.includes(`label: "${label}"`), `missing ${label}`);
   }
 
   assert.match(shell, /aria-label="JARVIS メインナビゲーション"/);
