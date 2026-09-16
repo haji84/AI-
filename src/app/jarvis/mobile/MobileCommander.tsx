@@ -6,8 +6,10 @@ import {
   loadSharedCommandContext,
   recordSharedCommand,
   saveSharedTargetNode,
+  selectSharedHistoryEntry,
   type SharedCommandContext,
 } from "./command-context";
+import { getSafeContextCandidates, resolveSafeContextReference } from "./context-reference";
 import { parseSafeMobileCommand } from "./voice-command";
 
 type NodeItem = {
@@ -97,13 +99,26 @@ export default function MobileCommander() {
     return () => window.clearInterval(timer);
   }, [refresh]);
 
+  useEffect(() => {
+    if (selectedNodeId && sharedContext.targetNodeId !== selectedNodeId) {
+      setSharedContext(saveSharedTargetNode(selectedNodeId));
+    }
+  }, [selectedNodeId, sharedContext.targetNodeId]);
+
   const selectedNode = useMemo(() => state?.fleet.find((node) => node.id === selectedNodeId), [state, selectedNodeId]);
   const recentTasks = useMemo(() => state?.tasks.slice().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 6) ?? [], [state]);
   const recentCommands = useMemo(() => sharedContext.history.slice(-4).reverse(), [sharedContext]);
+  const contextCandidates = useMemo(() => getSafeContextCandidates(sharedContext), [sharedContext]);
 
   function selectNode(value: string) {
     setSelectedNodeId(value);
     setSharedContext(saveSharedTargetNode(value));
+  }
+
+  function selectHistoryReference(id: string) {
+    setSharedContext(selectSharedHistoryEntry(id));
+    setError("");
+    setMessage("参照する履歴を選択しました。まだ端末操作は送信していません。");
   }
 
   async function sendTask(type: DeviceTaskType, payload: Record<string, unknown> = {}) {
@@ -136,12 +151,21 @@ export default function MobileCommander() {
   async function runSimpleCommand() {
     const text = command.trim();
     if (!text) return;
-    const parsed = parseSafeMobileCommand(text);
+    const currentContext = { ...loadSharedCommandContext(), targetNodeId: selectedNodeId || undefined };
+    const reference = resolveSafeContextReference(text, currentContext);
+    if (reference.kind === "rejected") {
+      setError(reference.message);
+      setSharedContext(recordSharedCommand({ source: "text", command: text, outcome: "unsupported", targetNodeId: selectedNodeId || undefined }));
+      return;
+    }
+    const effectiveText = reference.kind === "resolved" ? reference.command : text;
+    const parsed = parseSafeMobileCommand(effectiveText);
     if (!parsed.ok) {
       setError(parsed.message);
       setSharedContext(recordSharedCommand({
         source: "text",
         command: text,
+        detail: reference.kind === "resolved" ? `参照元: ${effectiveText}` : undefined,
         outcome: parsed.reason === "protected" ? "blocked" : "unsupported",
         targetNodeId: selectedNodeId || undefined,
       }));
@@ -151,6 +175,7 @@ export default function MobileCommander() {
     setSharedContext(recordSharedCommand({
       source: "text",
       command: text,
+      detail: reference.kind === "resolved" ? `参照元: ${effectiveText}` : undefined,
       outcome: ok ? "sent" : "failed",
       targetNodeId: selectedNodeId || undefined,
     }));
@@ -209,12 +234,23 @@ export default function MobileCommander() {
       <section className="commander-card">
         <div className="commander-card-title"><span>JARVISに指示</span></div>
         <div className="commander-command-row">
-          <input value={command} onChange={(event) => setCommand(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void runSimpleCommand(); }} placeholder="例：スプレッドシート開いて" />
+          <input value={command} onChange={(event) => setCommand(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void runSimpleCommand(); }} placeholder="例：スプレッドシート開いて / さっきのやつ / 2番目" />
           <button disabled={busy || !command.trim()} onClick={() => void runSimpleCommand()}>実行</button>
         </div>
-        <div className="commander-hint">音声司令と同じ安全パーサー・端末選択・直近履歴を共有します。保護対象はここから承認も実行もしません。</div>
+        <div className="commander-hint">「さっきのやつ」「2番目」は同じ端末の安全な履歴だけを再解釈します。「これ」は下で参照対象を選択してから実行してください。履歴を選ぶだけでは端末操作しません。</div>
         <div className="commander-tasks" aria-label="共通コマンド履歴">
-          {recentCommands.map((entry) => <div key={entry.id}><span>{entry.source === "voice" ? "音声" : "文字"}: {entry.command}</span><strong>{entry.outcome}</strong><small>{relativeTime(entry.createdAt)}</small></div>)}
+          {recentCommands.map((entry) => {
+            const candidate = contextCandidates.find((item) => item.entry.id === entry.id);
+            const selected = sharedContext.selectedHistoryId === entry.id;
+            return (
+              <div key={entry.id}>
+                <span>{candidate ? `${candidate.index}番目 · ` : ""}{entry.source === "voice" ? "音声" : "文字"}: {entry.command}</span>
+                <strong>{entry.outcome}</strong>
+                <small>{relativeTime(entry.createdAt)}</small>
+                {candidate && <button type="button" disabled={busy || selected} onClick={() => selectHistoryReference(entry.id)}>{selected ? "これに選択中" : "これを選択"}</button>}
+              </div>
+            );
+          })}
           {!recentCommands.length && <div className="commander-empty">共通コマンド履歴はまだありません</div>}
         </div>
       </section>
