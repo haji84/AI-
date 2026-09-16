@@ -3,13 +3,13 @@
 PROJECT: General Autonomous AI / Unified AI Creator Studio / GAI Research OS
 AI_COMPANY_VERSION: 1.0
 PROJECT_VERSION: 0.0.0
-CURRENT_PHASE: JARVIS #681 P0 ledger and P1/P2 software merged; P3 evidence reconciliation #694 with physical exits still open
+CURRENT_PHASE: JARVIS #681 P3 physical Remote Assist latency investigation #728
 STATUS: JARVIS_PRODUCT_COMPLETION_IN_PROGRESS
 LAST_UPDATED: 2026-09-16
 CURRENT_EPIC: One-front-door general autonomous AI with durable offline-first device-neutral execution and verifier-driven completion
 ACTIVE_ISSUES: JARVIS Product Completion parent #681 and #694 P3 reconciliation; Research Ops #321 / R1-R20 separate; historical #401/#609/#612 acceptance retained
-OPEN_PRS: #698 merged at d00d4ca844b34785b16f2309d03eb284f7b3b34e after CI #971; #694 ledger follow-up in progress
-BLOCKERS: Expanded product scope has 175 PARTIAL, 2 IMPLEMENTED_UNVERIFIED and 61 MISSING requirements; no new physical PASS. Recording admission/cancellation and terminal-free retrieval need hardening. Tailscale/startup/ADB absent in initial inventory; physical login/OS/firmware remain evidence-gated. See docs/audit/jarvis-p3-reconciliation.md
+OPEN_PRS: #724 merged; #728 measured Android preview improvement awaiting CI/review
+BLOCKERS: All-product physical acceptance remains open. Cellular owner screen usability retest pending after raw/compact preview; Android backhaul remains USB. Temporary physical runtime expires 2026-09-16T03:39:35Z. Requirement statuses not promoted by software checks.
 PRIORITY_OVERRIDE: Owner 2026-09-16 instruction resumes expanded JARVIS product completion #681 with ZBook main-host priority; preserve Human Gates and separate research evidence
 NORTH_STAR_GOAL: Human gives one goal; the system determines required work, dynamically recruits available capabilities, executes, verifies, repairs, records, and completes with the fewest necessary human returns, including continued local work during connectivity loss where capability permits
 HUMAN_GATE_INVARIANT: payment/purchase, destructive deletion, permission/credential changes, production deployment/publication, security/governance weakening, and all existing approval-required actions remain human-gated; autonomy, skill reuse, learning, team expansion, recovery, and self-improvement never grant permission
@@ -44,7 +44,7 @@ JARVIS_100_NODE_CAPACITY: PASS in deterministic CI; node 101 is rejected
 JARVIS_PHYSICAL_ANDROID_E2E: PASS for the acceptance scope through real Android 001 resident-Broker/Worker execution evidence from PR #526 and follow-up hardening. This does not imply unverified physical wake/Device Owner/live-screen/real-offline claims
 GAI_RESEARCH_OPS: SEPARATE_EVIDENCE_PROGRAM; Issue #321 and R1-R20 remain open until their real scientific evidence gates pass
 GAI_NEXT_PHASE: Complete #681 P0–P10 using docs/JARVIS_PRODUCT_SPEC.md and docs/jarvis-requirements.json; keep #321 research separate
-NEXT_PRIORITY: Verify/merge #694 P3 ledger reconciliation; fix recording audit-before-capture admission and stalled capture stop/deadline, then authenticated retrieval and remaining P4-P10 gaps. Physical Task Scheduler/account/firmware gates remain; main CI/deployment unverified
+NEXT_PRIORITY: Finish #728 CI/review and owner cellular latency verification; retain P0-P10 product completion and Research #321 separation.
 HUMAN_APPROVAL_PENDING: none for ordinary code/CI/device validation; production, secrets, permissions, billing, destructive, governance/security weakening, and external-publication gates remain in force
 AUTO_FIX_ATTEMPTS_MAX: 3
 MAX_ACTIVE_AGENTS: 3
