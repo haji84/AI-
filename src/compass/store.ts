@@ -21,6 +21,8 @@ export interface StateRecord {
   completed: unknown[];
   active: unknown[];
   blockers: unknown[];
+  decisions: unknown[];
+  deliverables: unknown[];
   verificationSummary: string | null;
   nextAction: string | null;
   updatedAt: string;
@@ -40,6 +42,8 @@ export interface HistoryRecord {
   summary: string;
   completed: unknown[];
   blockers: unknown[];
+  decisions: unknown[];
+  deliverables: unknown[];
   verificationId: number | null;
   nextAction: string | null;
   createdAt: string;
@@ -51,6 +55,8 @@ export interface StatePatch {
   completed?: unknown[];
   active?: unknown[];
   blockers?: unknown[];
+  decisions?: unknown[];
+  deliverables?: unknown[];
   verificationSummary?: string | null;
   nextAction?: string | null;
 }
@@ -61,6 +67,8 @@ export interface WriteBackInput {
   completed?: unknown[];
   blockers?: unknown[];
   active?: unknown[];
+  decisions?: unknown[];
+  deliverables?: unknown[];
   phase?: string | null;
   verification?: {
     status: VerificationStatus;
@@ -118,6 +126,12 @@ export class CompassStore {
     this.db.close();
   }
 
+  private ensureJsonArrayColumn(table: "state" | "history", column: "decisions" | "deliverables"): void {
+    const rows = this.db.prepare(`PRAGMA table_info(${table})`).all() as Record<string, unknown>[];
+    if (rows.some((row) => String(row.name) === column)) return;
+    this.db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} TEXT NOT NULL DEFAULT '[]'`);
+  }
+
   private initialize(): void {
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS goal (
@@ -137,6 +151,8 @@ export class CompassStore {
         completed TEXT NOT NULL,
         active TEXT NOT NULL,
         blockers TEXT NOT NULL,
+        decisions TEXT NOT NULL,
+        deliverables TEXT NOT NULL,
         verification_summary TEXT,
         next_action TEXT,
         updated_at TEXT NOT NULL
@@ -156,6 +172,8 @@ export class CompassStore {
         summary TEXT NOT NULL,
         completed TEXT NOT NULL,
         blockers TEXT NOT NULL,
+        decisions TEXT NOT NULL,
+        deliverables TEXT NOT NULL,
         verification_id INTEGER,
         next_action TEXT,
         created_at TEXT NOT NULL,
@@ -163,12 +181,17 @@ export class CompassStore {
       );
     `);
 
+    this.ensureJsonArrayColumn("state", "decisions");
+    this.ensureJsonArrayColumn("state", "deliverables");
+    this.ensureJsonArrayColumn("history", "decisions");
+    this.ensureJsonArrayColumn("history", "deliverables");
+
     const timestamp = nowIso();
     this.db.prepare(`
       INSERT OR IGNORE INTO state (
-        project_id, phase, status, completed, active, blockers,
+        project_id, phase, status, completed, active, blockers, decisions, deliverables,
         verification_summary, next_action, updated_at
-      ) VALUES (?, NULL, NULL, '[]', '[]', '[]', NULL, NULL, ?)
+      ) VALUES (?, NULL, NULL, '[]', '[]', '[]', '[]', '[]', NULL, NULL, ?)
     `).run(PROJECT_ID, timestamp);
   }
 
@@ -225,6 +248,8 @@ export class CompassStore {
       completed: decodeArray(row.completed),
       active: decodeArray(row.active),
       blockers: decodeArray(row.blockers),
+      decisions: decodeArray(row.decisions),
+      deliverables: decodeArray(row.deliverables),
       verificationSummary: row.verification_summary === null ? null : String(row.verification_summary),
       nextAction: row.next_action === null ? null : String(row.next_action),
       updatedAt: String(row.updated_at),
@@ -239,13 +264,15 @@ export class CompassStore {
       completed: patch.completed === undefined ? current.completed : patch.completed,
       active: patch.active === undefined ? current.active : patch.active,
       blockers: patch.blockers === undefined ? current.blockers : patch.blockers,
+      decisions: patch.decisions === undefined ? current.decisions : patch.decisions,
+      deliverables: patch.deliverables === undefined ? current.deliverables : patch.deliverables,
       verificationSummary:
         patch.verificationSummary === undefined ? current.verificationSummary : patch.verificationSummary,
       nextAction: patch.nextAction === undefined ? current.nextAction : patch.nextAction,
     };
     this.db.prepare(`
       UPDATE state SET
-        phase = ?, status = ?, completed = ?, active = ?, blockers = ?,
+        phase = ?, status = ?, completed = ?, active = ?, blockers = ?, decisions = ?, deliverables = ?,
         verification_summary = ?, next_action = ?, updated_at = ?
       WHERE project_id = ?
     `).run(
@@ -254,6 +281,8 @@ export class CompassStore {
       encode(next.completed),
       encode(next.active),
       encode(next.blockers),
+      encode(next.decisions),
+      encode(next.deliverables),
       next.verificationSummary,
       next.nextAction,
       nowIso(),
@@ -308,6 +337,8 @@ export class CompassStore {
       summary: String(row.summary),
       completed: decodeArray(row.completed),
       blockers: decodeArray(row.blockers),
+      decisions: decodeArray(row.decisions),
+      deliverables: decodeArray(row.deliverables),
       verificationId: row.verification_id === null ? null : Number(row.verification_id),
       nextAction: row.next_action === null ? null : String(row.next_action),
       createdAt: String(row.created_at),
@@ -339,18 +370,23 @@ export class CompassStore {
       const nextCompleted = input.completed ?? current.completed;
       const nextBlockers = input.blockers ?? current.blockers;
       const nextActive = input.active ?? current.active;
+      const nextDecisions = input.decisions ?? current.decisions;
+      const nextDeliverables = input.deliverables ?? current.deliverables;
       const nextAction = input.nextAction === undefined ? current.nextAction : input.nextAction;
       const timestamp = nowIso();
 
       const historyResult = this.db.prepare(`
         INSERT INTO history (
-          task_status, summary, completed, blockers, verification_id, next_action, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+          task_status, summary, completed, blockers, decisions, deliverables,
+          verification_id, next_action, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         input.status,
         input.summary,
         encode(nextCompleted),
         encode(nextBlockers),
+        encode(nextDecisions),
+        encode(nextDeliverables),
         verificationId,
         nextAction,
         timestamp,
@@ -358,7 +394,7 @@ export class CompassStore {
 
       this.db.prepare(`
         UPDATE state SET
-          phase = ?, status = ?, completed = ?, active = ?, blockers = ?,
+          phase = ?, status = ?, completed = ?, active = ?, blockers = ?, decisions = ?, deliverables = ?,
           verification_summary = ?, next_action = ?, updated_at = ?
         WHERE project_id = ?
       `).run(
@@ -367,6 +403,8 @@ export class CompassStore {
         encode(nextCompleted),
         encode(nextActive),
         encode(nextBlockers),
+        encode(nextDecisions),
+        encode(nextDeliverables),
         verification?.summary ?? current.verificationSummary,
         nextAction,
         timestamp,
