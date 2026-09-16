@@ -11,6 +11,14 @@ import {
 } from "../command-context";
 import { getSafeContextCandidates, resolveSafeContextReference } from "../context-reference";
 import { parseSafeMobileCommand } from "../voice-command";
+import {
+  cancelLocalSpeech,
+  DEFAULT_SPEECH_POLICY,
+  enqueueLocalSpeech,
+  readSpeechPolicySettings,
+  writeSpeechPolicySettings,
+  type SpeechPolicySettings,
+} from "./speech-policy";
 
 type FleetNode = { id: string; label: string; status: string; lastSeenAt: string };
 type StatePayload = { fleet?: FleetNode[]; message?: string };
@@ -60,6 +68,8 @@ export default function MobileVoiceCommander() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [supported, setSupported] = useState(false);
+  const [speechSupported, setSpeechSupported] = useState(false);
+  const [speechSettings, setSpeechSettings] = useState<SpeechPolicySettings>(() => ({ ...DEFAULT_SPEECH_POLICY }));
   const [sharedContext, setSharedContext] = useState<SharedCommandContext>(() => emptySharedCommandContext());
   const recognitionRef = useRef<RecognitionLike | null>(null);
   const selectedNode = useMemo(() => nodes.find((node) => node.id === selectedNodeId), [nodes, selectedNodeId]);
@@ -87,11 +97,14 @@ export default function MobileVoiceCommander() {
 
   useEffect(() => {
     setSupported(Boolean(recognitionConstructor()));
+    setSpeechSupported(typeof window !== "undefined" && Boolean(window.speechSynthesis) && typeof SpeechSynthesisUtterance !== "undefined");
+    setSpeechSettings(readSpeechPolicySettings());
     setSharedContext(loadSharedCommandContext());
     void refresh();
     return () => {
       recognitionRef.current?.abort();
       recognitionRef.current = null;
+      cancelLocalSpeech();
     };
   }, [refresh]);
 
@@ -112,12 +125,19 @@ export default function MobileVoiceCommander() {
     setMessage("参照する履歴を選択しました。まだ端末操作は送信していません。");
   }
 
+  function updateSpeechSettings(patch: Partial<SpeechPolicySettings>) {
+    const next = writeSpeechPolicySettings({ ...speechSettings, ...patch });
+    setSpeechSettings(next);
+    if (next.muted) cancelLocalSpeech();
+  }
+
   function stopListening() {
     recognitionRef.current?.stop();
   }
 
   function startListening() {
     if (listening) return;
+    cancelLocalSpeech();
     setError("");
     setMessage("");
     const Recognition = recognitionConstructor();
@@ -181,6 +201,9 @@ export default function MobileVoiceCommander() {
     const parsed = parseSafeMobileCommand(effectiveText);
     if (!parsed.ok) {
       setError(parsed.message);
+      if (parsed.reason === "protected") {
+        enqueueLocalSpeech("この操作は音声から実行できません。画面の確認手順を使ってください。", "high", speechSettings);
+      }
       setSharedContext(recordSharedCommand({
         source: "voice",
         command: text,
@@ -192,6 +215,7 @@ export default function MobileVoiceCommander() {
     }
     if (!selectedNodeId) {
       setError("操作する端末を選択してください。");
+      enqueueLocalSpeech("操作する端末を選択してください。", "normal", speechSettings);
       setSharedContext(recordSharedCommand({ source: "voice", command: text, outcome: "failed" }));
       return;
     }
@@ -214,6 +238,7 @@ export default function MobileVoiceCommander() {
       const body = await response.json() as { message?: string };
       if (!response.ok) throw new Error(body.message || `HTTP ${response.status}`);
       setMessage(`${selectedNode?.label ?? "端末"}へ確認済みの音声指示を送信しました。`);
+      enqueueLocalSpeech("指示を送信しました。", "normal", speechSettings);
       setSharedContext(recordSharedCommand({
         source: "voice",
         command: text,
@@ -225,6 +250,7 @@ export default function MobileVoiceCommander() {
       setInterimTranscript("");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "音声指示を送信できませんでした");
+      enqueueLocalSpeech("指示を送信できませんでした。", "high", speechSettings);
       setSharedContext(recordSharedCommand({
         source: "voice",
         command: text,
@@ -261,6 +287,38 @@ export default function MobileVoiceCommander() {
           <option value="">端末を選択</option>
           {nodes.map((node) => <option key={node.id} value={node.id}>{node.label} · {node.status}</option>)}
         </select>
+      </section>
+
+      <section className="commander-card voice-policy-card">
+        <div className="commander-card-title"><span>音声応答</span><small>{speechSupported ? "端末内Web Speech" : "未対応"}</small></div>
+        <button
+          type="button"
+          className="voice-mute-toggle"
+          aria-pressed={!speechSettings.muted}
+          disabled={!speechSupported}
+          onClick={() => updateSpeechSettings({ muted: !speechSettings.muted })}
+        >
+          {speechSettings.muted ? "音声応答をON" : "音声応答をミュート"}
+        </button>
+        <label className="voice-policy-check">
+          <input
+            type="checkbox"
+            checked={speechSettings.quietHoursEnabled}
+            onChange={(event) => updateSpeechSettings({ quietHoursEnabled: event.target.checked })}
+          />
+          静音時間を使う
+        </label>
+        <div className="voice-policy-times">
+          <label>開始<input type="time" value={speechSettings.quietStart} onChange={(event) => updateSpeechSettings({ quietStart: event.target.value })} /></label>
+          <label>終了<input type="time" value={speechSettings.quietEnd} onChange={(event) => updateSpeechSettings({ quietEnd: event.target.value })} /></label>
+          <label>静音中に読む最低優先度
+            <select value={speechSettings.quietMinimumPriority} onChange={(event) => updateSpeechSettings({ quietMinimumPriority: event.target.value === "high" ? "high" : "critical" })}>
+              <option value="critical">重大のみ</option>
+              <option value="high">高＋重大</option>
+            </select>
+          </label>
+        </div>
+        <p className="commander-hint">初期状態はミュートです。音声応答は端末内のWeb Speechだけを使い、有料APIへ送りません。Push-to-talk開始時は再生中の音声と待ち行列を停止して発話を優先します。</p>
       </section>
 
       <section className="commander-card voice-input-card">
