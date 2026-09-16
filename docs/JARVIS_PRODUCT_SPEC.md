@@ -7576,20 +7576,25 @@ The JSON blocks are the authoritative rows. Validate exact mirror and evidence g
     "src/jarvis/teaching.ts",
     "src/jarvis/teaching-runtime.ts",
     "src/app/jarvis/TeachingControls.tsx",
-    "src/app/jarvis/teach/page.tsx"
+    "src/app/jarvis/teach/page.tsx",
+    "src/jarvis/local-video-reasoner.ts",
+    "src/jarvis/video-action-plan.ts",
+    "src/app/api/jarvis/teaching/video/route.ts"
   ],
   "test_refs": [
     "tests/jarvis-teaching.test.ts",
-    "tests/jarvis-teaching-runtime.test.ts"
+    "tests/jarvis-teaching-runtime.test.ts",
+    "tests/jarvis-video-actions.test.ts"
   ],
   "evidence_refs": [
-    "docs/architecture/jarvis-device-teaching.md"
+    "docs/architecture/jarvis-device-teaching.md",
+    "docs/architecture/jarvis-video-teaching.md"
   ],
   "status": "PARTIAL",
-  "blocker": "JARVIS経由操作を観測して記録。実端末直接タッチ/動画解釈は未実装。",
+  "blocker": "ローカル動画理解と実機照合を実装。実機での成功再現は未検証。Chromeページ操作対象が観測できず、ユーザー補助サービスも無効。未対応操作は停止。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "実機で実演→保存→別run再現を検証し、未接続platform adapterを実装する。",
+  "next_action": "Android権限と開始画面を確認し、中立的な録画→照合→再現検証を実機で完了する。",
   "last_verified_commit": null
 }
 ```
