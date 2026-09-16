@@ -11,6 +11,7 @@ import {
 } from "../src/app/jarvis/mobile/pointer/imu-pointer.ts";
 
 const pointerSurface = readFileSync(new URL("../src/app/jarvis/mobile/pointer/ImuPointerCommander.tsx", import.meta.url), "utf8");
+const pointerCss = readFileSync(new URL("../src/app/jarvis/mobile/pointer/pointer.css", import.meta.url), "utf8");
 const mobilePage = readFileSync(new URL("../src/app/jarvis/mobile/page.tsx", import.meta.url), "utf8");
 
 test("orientation samples reject missing values and clamp browser extremes", () => {
@@ -66,6 +67,14 @@ test("sensor is explicit, visible, stoppable, local-only and cannot execute devi
   assert.match(pointerSurface, /選択中の「\{selectedTarget\.label\}」を開く/);
   assert.doesNotMatch(pointerSurface, /\/api\/jarvis\/action|fetch\(|device-task|approve|factory-reset|reboot|lock-device/);
   assert.equal(pointerSurface.match(/startSensor\(\)/g)?.length, 2, "startSensor is only declared and bound to the explicit Start button");
+});
+
+test("Distance Mode enlarges the local pointer surface without altering activation semantics", () => {
+  assert.match(pointerCss, /html\[data-jarvis-display-mode="distance"\] \.imu-stage\{min-height:560px/);
+  assert.match(pointerCss, /html\[data-jarvis-display-mode="distance"\] \.imu-pointer\{width:36px;height:36px/);
+  assert.match(pointerCss, /html\[data-jarvis-display-mode="distance"\] \.imu-target\{width:min\(280px,40vw\);min-height:118px/);
+  assert.match(pointerCss, /html\[data-jarvis-display-mode="distance"\] \.imu-controls button\{min-height:62px/);
+  assert.doesNotMatch(pointerCss, /fetch\(|device-task|approve|Human Gate/);
 });
 
 test("mobile commander exposes the IMU surface without replacing voice or text fallback", () => {
