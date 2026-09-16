@@ -31,6 +31,7 @@ export default function OwnerInvitationPanel() {
       {url && <button className="button" onClick={() => void copy()}>登録リンクをコピー</button>}
     </div>
     {url && <input aria-label="専用登録リンク" readOnly value={url} style={{ width: "100%", marginTop: 12 }} />}
+    {url && <a className="button" href={url} rel="noreferrer">このAndroidを登録する</a>}
     {message && <p role="status">{message}</p>}
     <p>Androidはアプリのインストール後、同じリンクに戻って「登録する」を押してください。OSが要求する操作権限は省略できません。</p>
   </section>;

@@ -48,6 +48,8 @@ export interface JarvisNodePolicy {
 }
 
 export interface JarvisNodeTelemetry {
+  remoteProtocol?: number;
+  androidApi?: number;
   batteryPercent?: number;
   charging?: boolean;
   temperatureC?: number;

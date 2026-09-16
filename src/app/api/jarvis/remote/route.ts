@@ -9,7 +9,9 @@ import {
   isManualRemoteAction,
   remoteCapabilityAllowsAction,
 } from "../../../../jarvis/remote-assist.ts";
-import { jarvisRemoteGatewayFetch, requireJarvisOwner } from "../broker.ts";
+import { jarvisBrokerFetch, jarvisRemoteGatewayFetch, requireJarvisOwner } from "../broker.ts";
+import { remoteDeviceInventory } from "../../../../jarvis/remote-device-inventory.ts";
+import type { JarvisNode } from "../../../../jarvis/types.ts";
 
 export const dynamic = "force-dynamic";
 
@@ -112,7 +114,7 @@ function remoteSessionError(error: unknown) {
 }
 
 async function gatewayDevices(): Promise<{ response: Response; body: GatewayDevicesBody }> {
-  const response = await jarvisRemoteGatewayFetch("/api/remote/devices");
+  const response = await jarvisRemoteGatewayFetch("/api/remote/devices", { signal: AbortSignal.timeout(3_000) });
   const body = await response.json().catch(() => ({ message: "Remote Gatewayから不正な応答を受信しました" })) as GatewayDevicesBody;
   return { response, body };
 }
@@ -127,16 +129,24 @@ function requireRecordingBinding(payload: Extract<RemotePayload, { action: "reco
 export async function GET() {
   if (!(await requireJarvisOwner())) return NextResponse.json({ message: "オーナー認証が必要です" }, { status: 401 });
   try {
-    const { response, body } = await gatewayDevices();
-    if (!response.ok) return NextResponse.json(body, { status: response.status });
-    const devices = (body.devices ?? []).map((device) => ({
-      ...device,
-      remoteAssistCapability: capabilityForRemoteDevice({
-        canView: device.state === "device",
-        canControl: device.state === "device",
-      }),
-    }));
-    return NextResponse.json({ ...body, devices }, { status: response.status });
+    const [gateway, broker] = await Promise.allSettled([
+      gatewayDevices(),
+      (async () => {
+        const response = await jarvisBrokerFetch("/api/jarvis/admin/state", { signal: AbortSignal.timeout(3_000) });
+        if (!response.ok) throw new Error("登録済み端末を取得できません");
+        const body = await response.json() as { fleet?: JarvisNode[] };
+        if (!Array.isArray(body.fleet)) throw new Error("登録済み端末の応答が不正です");
+        return body.fleet;
+      })(),
+    ]);
+    const gatewayAvailable = gateway.status === "fulfilled" && gateway.value.response.ok;
+    const brokerAvailable = broker.status === "fulfilled";
+    if (!gatewayAvailable && !brokerAvailable) throw new Error("BrokerとRemote Gatewayの両方に接続できません");
+    const devices = remoteDeviceInventory(brokerAvailable ? broker.value : [], gatewayAvailable ? gateway.value.body.devices ?? [] : []);
+    return NextResponse.json({ devices, warnings: [
+      ...(!brokerAvailable ? ["登録済み端末を取得できません。Brokerの接続を確認してください"] : []),
+      ...(!gatewayAvailable ? ["USB / ADB接続を確認できません。登録済み端末は表示しています"] : []),
+    ] }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     return NextResponse.json({
       message: "JARVIS Remote Gatewayに接続できません",
@@ -149,6 +159,24 @@ export async function POST(request: Request) {
   if (!(await requireJarvisOwner())) return NextResponse.json({ message: "オーナー認証が必要です" }, { status: 401 });
   const payload = await request.json().catch(() => null) as RemotePayload | null;
   if (!payload?.action) return NextResponse.json({ message: "操作内容を指定してください" }, { status: 400 });
+  if ("serial" in payload && payload.serial?.startsWith("worker:") && !payload.action.startsWith("session-")) {
+    if (!["screenshot", "tap", "swipe", "text", "keyevent"].includes(payload.action)) return NextResponse.json({ message: "この操作はWi-Fi Workerでは未対応です" }, { status: 409 });
+    try {
+      const sessionId = "sessionId" in payload ? payload.sessionId : undefined;
+      if (!sessionId) throw new Error("Remote Assist sessionが必要です");
+      const session = remoteAssist.requireActive(sessionId, payload.serial);
+      if (!isManualRemoteAction(payload.action) || !remoteCapabilityAllowsAction(session.capability, payload.action)) throw new Error("操作権限がありません");
+      remoteAssist.touch(sessionId, payload.serial);
+      // Persist intent before dispatch; never log text or screen contents.
+      remoteAssist.recordAudit("action.forwarded", sessionId, payload.serial, { action: payload.action, outcome: "dispatching" });
+      const response = await jarvisBrokerFetch("/api/jarvis/admin/remote/command", { method: "POST", signal: AbortSignal.any([request.signal, AbortSignal.timeout(9_000)]), body: JSON.stringify({ nodeId: payload.serial.slice(7), sessionId, expiresAt: Math.min(Date.parse(session.expiresAt), Date.now() + 8_000), input: payload }) });
+      const result = await response.json();
+      result.serial = payload.serial;
+      remoteAssist.requireActive(sessionId, payload.serial);
+      remoteAssist.recordAudit("action.forwarded", sessionId, payload.serial, { action: payload.action, outcome: response.ok ? "ok" : "error" });
+      return NextResponse.json(result, { status: response.status, headers: { "Cache-Control": "no-store" } });
+    } catch (error) { return remoteSessionError(error); }
+  }
   if (payload.action.startsWith("teach-")) {
     try { return NextResponse.json(await teachingCommand(payload, remoteAssist, jarvisRemoteGatewayFetch)); }
     catch (error) { return remoteSessionError(error); }
@@ -212,7 +240,12 @@ export async function POST(request: Request) {
     try {
       await recorder.stopForSession(payload.sessionId);
       stopTeachingSession(payload.sessionId);
-      return NextResponse.json({ session: remoteAssist.end(payload.sessionId) });
+      const session = remoteAssist.end(payload.sessionId);
+      if (session.serial.startsWith("worker:")) {
+        const response = await jarvisBrokerFetch("/api/jarvis/admin/remote/end", { method: "POST", body: JSON.stringify({ sessionId: payload.sessionId }), signal: AbortSignal.timeout(3_000) });
+        if (!response.ok) throw new Error("セッションは終了しましたが端末への停止確認に失敗しました。保留操作は8秒以内に期限切れになります");
+      }
+      return NextResponse.json({ session });
     } catch (error) {
       return remoteSessionError(error);
     }
@@ -221,6 +254,14 @@ export async function POST(request: Request) {
   if (payload.action === "session-start") {
     if (!payload.serial) return NextResponse.json({ message: "端末を指定してください" }, { status: 400 });
     try {
+      if (payload.serial.startsWith("worker:")) {
+        const response = await jarvisBrokerFetch("/api/jarvis/admin/state");
+        if (!response.ok) throw new Error("Brokerに接続できません");
+        const body = await response.json() as { fleet: JarvisNode[] };
+        const device = remoteDeviceInventory(body.fleet, []).find(item => item.serial === payload.serial);
+        if (!device?.remoteAssistCapability) throw new Error(device?.reason || "登録済み端末ではありません");
+        return NextResponse.json({ session: remoteAssist.start({ serial: payload.serial, capability: device.remoteAssistCapability, ttlMs: payload.ttlMs }) });
+      }
       const { response, body } = await gatewayDevices();
       if (!response.ok) return NextResponse.json(body, { status: response.status });
       const device = (body.devices ?? []).find((item) => item.serial === payload.serial);

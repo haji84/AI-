@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import OwnerInvitationPanel from "./OwnerInvitationPanel";
+import EnrollmentProgress from "./EnrollmentProgress";
+import PendingRegistration from "./PendingRegistration";
 
 type PairingWindow = {
   open: boolean;
@@ -204,7 +206,7 @@ export default function JarvisEnrollPage() {
       <div>
         <p className="eyebrow">JARVIS</p>
         <h1>Android端末登録</h1>
-        <p className="muted">家のWi-FiにつないだAndroidを、USBなしで登録できます。専用リンクは一度発行すれば繰り返し使えます（全体で最大100台）。</p>
+        <p className="muted">家のWi-FiでWorkerを開き、この画面からまとめて登録できます。登録後は遠隔操作一覧へ自動反映。USB不要・全体で最大100台です。</p>
       </div>
       <div className="jarvis-button-row">
         <a className="button secondary" href="/jarvis/login?next=/jarvis/enroll">オーナー認証</a>
@@ -212,7 +214,11 @@ export default function JarvisEnrollPage() {
       </div>
     </div>
 
-    <OwnerInvitationPanel />
+    <PendingRegistration />
+    <details style={{ maxWidth: 860, margin: "24px auto" }}><summary>専用リンクを配って登録する場合</summary><OwnerInvitationPanel /></details>
+    <EnrollmentProgress />
+    <details style={{ maxWidth: 860, margin: "24px auto" }}>
+      <summary>管理者向け詳細（従来の受付・新品端末・端末交換）</summary>
     <section className="panel jarvis-section" style={{ maxWidth: 860, margin: "32px auto 24px" }}>
       <div className="section-heading"><div><p className="section-kicker">PAIRING WINDOW</p><h2>従来の時間限定受付</h2></div><strong>{statusText}</strong></div>
       <p className="muted">1回の操作で最大100台・最長1時間の受付を開けます。同じURLを各端末で開いてください。トークンと端末の認証情報は端末ごとに分かれます。トークンは最大30分、受付終了が先ならその時刻まで有効です。Brokerを再起動すると受付は閉じます。</p>
@@ -237,7 +243,7 @@ export default function JarvisEnrollPage() {
 
     <section className="panel jarvis-section" style={{ maxWidth: 860, margin: "0 auto 24px" }}>
       <div className="section-heading"><div><p className="section-kicker">使用中のAndroid</p><h2>同じ固定URLを端末ごとに開く</h2></div></div>
-      <p className="muted">100台分のURLを100個作る必要はありません。同じURLを各Androidで開いてください。アプリのダウンロードが始まった場合は、アンインストールせず更新して「開く」を押すと自動登録します。登録受付中に端末ごとの最大30分のトークンを発行します。</p>
+      <p className="muted">これは従来の時間限定受付を使う場合だけの手順です。通常は上の専用リンクで登録してください。アプリのインストールだけでは専用リンクの情報は渡らないため、リンク上の登録ボタンを押してください。</p>
     </section>
 
     <section className="panel jarvis-section" style={{ maxWidth: 860, margin: "0 auto 24px" }}>
@@ -277,6 +283,7 @@ export default function JarvisEnrollPage() {
       {replacementMessage && <div className="jarvis-alert" style={{ marginTop: 16 }}><strong>{replacementMessage}</strong>{needsAuth && <a className="button secondary" href="/jarvis/login?next=/jarvis/enroll">オーナー認証へ</a>}</div>}
     </section>
 
+    </details>
     <section className="panel jarvis-section" style={{ maxWidth: 860, margin: "0 auto" }}>
       <div className="section-heading"><div><p className="section-kicker">登録確認</p><h2>端末一覧へ自動反映</h2></div></div>
       <p className="muted">登録できた端末はJARVISの端末一覧へ表示されます。001〜100の管理番号はJARVIS側で割り当てます。</p>

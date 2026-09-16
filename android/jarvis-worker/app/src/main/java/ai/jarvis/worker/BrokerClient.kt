@@ -28,6 +28,11 @@ class BrokerClient(private val context: Context) {
     fun enroll(token: String): JSONObject = enrollWithCredential("token", token)
     fun enrollGrant(grant: String): JSONObject = enrollWithCredential("grant", grant)
 
+    fun requestOwnerRegistration(): JSONObject {
+        val body = JSONObject().put("node", deviceDescriptor()).put("publicKeyPem", identity.publicKeyPem()).toString().toByteArray(Charsets.UTF_8)
+        return request("POST", "/api/jarvis/enrollment-request", body, signed = true)
+    }
+
     fun enrollFromPairingWindow(): JSONObject {
         EnrollmentBootstrap.validatedOrigin(brokerUrl)
         val issued = request("POST", "/api/jarvis/enrollment-grant", "{}".toByteArray(), signed = false)
@@ -57,7 +62,7 @@ class BrokerClient(private val context: Context) {
         val runtime = WorkerRuntimeState.snapshot()
         val pkg = context.packageManager.getPackageInfo(context.packageName, 0)
         val body = JSONObject()
-            .put("status", if (runtime.optBoolean("working")) "working" else "ready")
+            .put("status", if (runtime.optBoolean("working")) "busy" else "ready")
             .put("capabilities", capabilities())
             .put("telemetry", JSONObject()
                 .put("batteryPercent", battery?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY) ?: JSONObject.NULL)
@@ -70,6 +75,8 @@ class BrokerClient(private val context: Context) {
                 .put("deviceOwner", dpm?.isDeviceOwnerApp(context.packageName) == true)
                 .put("adminActive", dpm?.isAdminActive(admin) == true)
                 .put("accessibilityEnabled", JarvisAccessibilityService.connected())
+                .put("remoteProtocol", 1)
+                .put("androidApi", Build.VERSION.SDK_INT)
                 .put("locked", keyguard?.isDeviceLocked == true)
                 .put("runtime", runtime)
                 .put("checkedAt", Instant.now().toString()))
@@ -107,6 +114,15 @@ class BrokerClient(private val context: Context) {
 
     fun nextTask(): JSONObject = request("POST", "/api/jarvis/worker/next", "{}".toByteArray(), signed = true)
 
+    fun pollRemote() {
+        val command = request("POST", "/api/jarvis/worker/remote/next", "{}".toByteArray(), signed = true).optJSONObject("command") ?: return
+        val result = runCatching { JarvisAccessibilityService.executeRemote(command) }
+            .getOrElse { JSONObject().put("ok", false).put("message", "画面取得・操作に失敗しました。ロック・操作権限・接続を確認してください") }
+        result.put("id", command.getString("id"))
+        // Failure to deliver a result never resends the input command.
+        request("POST", "/api/jarvis/worker/remote/result", result.toString().toByteArray(Charsets.UTF_8), signed = true)
+    }
+
     fun taskResult(taskId: String, ok: Boolean, detail: JSONObject): JSONObject {
         val body = JSONObject()
             .put("taskId", taskId)
@@ -127,6 +143,7 @@ class BrokerClient(private val context: Context) {
         if (JarvisAccessibilityService.connected()) values += listOf(
             "ui-automation", "sheet-cell-navigation", "visible-url-open", "screen-verification"
         )
+        if (JarvisAccessibilityService.connected() && Build.VERSION.SDK_INT >= 30) values += listOf("remote-view", "remote-control")
         if (dpm?.isAdminActive(admin) == true) values += "lock-device"
         if (dpm?.isDeviceOwnerApp(context.packageName) == true) values += listOf("device-owner", "reboot")
         return JSONArray(values)

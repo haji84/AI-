@@ -43,9 +43,8 @@ type StatePayload = {
   message?: string;
 };
 
-type EnrollmentResult = { deepLink?: string; token?: { token: string; mode: string; expiresAt: string; maxDevices: number } };
 type RemoteAssistCapability = "VIEW_ONLY" | "CONTROLLABLE" | "FULL_MANAGEMENT";
-type RemoteDevice = { serial: string; state: string; remoteAssistCapability?: RemoteAssistCapability | null };
+type RemoteDevice = { serial: string; state: string; label?: string; reason?: string; remoteAssistCapability?: RemoteAssistCapability | null };
 type RemoteAssistSession = {
   id: string;
   serial: string;
@@ -82,7 +81,6 @@ export default function JarvisConsole() {
   const [state, setState] = useState<StatePayload | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const [enrollment, setEnrollment] = useState<EnrollmentResult | null>(null);
   const [url, setUrl] = useState("");
   const [targetNodeId, setTargetNodeId] = useState("");
   const [remoteDevices, setRemoteDevices] = useState<RemoteDevice[]>([]);
@@ -117,7 +115,7 @@ export default function JarvisConsole() {
   const refreshRemote = useCallback(async () => {
     try {
       const response = await fetch("/api/jarvis/remote", { cache: "no-store" });
-      const body = await response.json() as { devices?: RemoteDevice[]; message?: string };
+      const body = await response.json() as { devices?: RemoteDevice[]; message?: string; warnings?: string[] };
       if (!response.ok) throw new Error(body.message || `HTTP ${response.status}`);
       const devices = body.devices ?? [];
       setRemoteDevices(devices);
@@ -131,7 +129,7 @@ export default function JarvisConsole() {
         }
         return next;
       });
-      setRemoteError("");
+      setRemoteError(body.warnings?.join(" / ") || "");
     } catch (cause) {
       setRemoteDevices([]);
       setRemoteSession(null);
@@ -346,10 +344,6 @@ export default function JarvisConsole() {
     setRemoteError("");
   }
 
-  async function createEnrollment(mode: "quick" | "full" | "fleet") {
-    const body = await action({ action: "enrollment", mode, maxDevices: mode === "fleet" ? 100 : 1, group: mode === "fleet" ? "android-fleet" : undefined });
-    if (body) setEnrollment(body as EnrollmentResult);
-  }
 
   const recentTasks = useMemo(() => state?.tasks.slice().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 20) ?? [], [state]);
 
@@ -379,17 +373,9 @@ export default function JarvisConsole() {
         <article className="panel">
           <div className="section-heading"><div><p className="section-kicker">ENROLLMENT</p><h2>端末を追加</h2></div></div>
           <div className="jarvis-button-row">
-            <button className="button secondary" disabled={busy} onClick={() => void createEnrollment("quick")}>既存Android</button>
-            <button className="button secondary" disabled={busy} onClick={() => void createEnrollment("full")}>新品・初期化Android</button>
-            <button className="button secondary" disabled={busy} onClick={() => void createEnrollment("fleet")}>100台Fleet</button>
+            <a className="button" href="/jarvis/enroll">Androidを登録（複数台対応）</a>
           </div>
-          {enrollment?.token && <div className="jarvis-enrollment-result">
-            <strong>{enrollment.token.mode.toUpperCase()} 登録トークン</strong>
-            <code>{enrollment.token.token}</code>
-            <small>期限 {fmt(enrollment.token.expiresAt)} / 最大 {enrollment.token.maxDevices} 台</small>
-            {enrollment.deepLink && <a className="button secondary" href={enrollment.deepLink}>このAndroidをJARVISに登録</a>}
-            <p>Androidで登録リンクを開けばワンタップ登録できます。</p>
-          </div>}
+          <p>家のWi-FiでWorkerを開くと、所有者の登録画面に表示されます。登録後は遠隔操作一覧へ自動反映します。</p>
         </article>
 
         <article className="panel">
@@ -414,7 +400,7 @@ export default function JarvisConsole() {
           <div><p className="section-kicker">REMOTE ASSIST</p><h2>遠隔画面・手動操作</h2></div>
           <span className="operation-badge">{selectedRemoteDevice?.remoteAssistCapability ?? "UNAVAILABLE"}</span>
         </div>
-        <p className="muted">対象Androidは拠点PCの許可リストに入っている端末だけ操作できます。ADB自体をインターネットへ公開しません。画面自動更新は前の画像を受信してから次を取得する方式で、動画ストリーミングではありません。</p>
+        <p className="muted">登録済み端末は自動で表示されます。Wi-Fi操作は対応Workerと端末の操作権限が必要です。USB / ADB接続も引き続き利用できます。画面自動更新は画像を順番に取得し、動画ストリーミングではありません。</p>
         {remoteError && <div className="jarvis-alert"><strong>Remote Gateway</strong><span>{remoteError}</span></div>}
         {selectedTakeover && <div className="jarvis-alert">
           <strong>Human Takeover: {selectedTakeover.nodeId}</strong>
@@ -439,15 +425,17 @@ export default function JarvisConsole() {
               enabled={Boolean(canControlRemote) && screenshot.serial === remoteSerial}
               onInput={(input) => { void remoteRequest(input, { manual: true }).then(() => captureScreen()); }}
             /> : <div className="jarvis-remote-placeholder">端末を選び、Remote Assistを開始してください</div>}
-            {canViewRemote && screenshot && videoSession !== remoteSession?.id && <button className="button" onClick={() => { setLiveRefresh(false); setVideoSession(remoteSession!.id); }}>低遅延動画を開始（60秒）</button>}
+            {canViewRemote && screenshot && !remoteSerial.startsWith("worker:") && videoSession !== remoteSession?.id && <button className="button" onClick={() => { setLiveRefresh(false); setVideoSession(remoteSession!.id); }}>低遅延動画を開始（60秒）</button>}
             {videoSession !== remoteSession?.id && <p role="status" aria-live="polite">{screenUpdating ? "画面更新中…" : liveRefresh ? "自動更新 ON（通信速度に応じて更新）" : "自動更新 OFF：表示は前回取得した画像です"}</p>}
             {screenshot && videoSession !== remoteSession?.id && <small>取得 {fmt(screenshot.capturedAt)} / {canControlRemote ? "画像上をタップ・スワイプで操作（5秒以内）" : "VIEW ONLY"}</small>}
           </div>
           <div className="jarvis-remote-controls">
             <select value={remoteSerial} onChange={(event) => selectRemoteDevice(event.target.value)}>
               <option value="">遠隔端末を選択</option>
-              {remoteDevices.map((device) => <option value={device.serial} key={device.serial}>{device.serial} ({device.remoteAssistCapability ?? device.state})</option>)}
+              <optgroup label="登録済み端末（Wi-Fi）">{remoteDevices.filter(device => device.serial.startsWith("worker:")).map((device) => <option value={device.serial} key={device.serial}>{device.label || device.serial} ({device.remoteAssistCapability ?? device.state})</option>)}</optgroup>
+              <optgroup label="USB / ADB接続（同じ端末の別接続を含む）">{remoteDevices.filter(device => !device.serial.startsWith("worker:")).map((device) => <option value={device.serial} key={device.serial}>{device.label || device.serial} ({device.remoteAssistCapability ?? device.state})</option>)}</optgroup>
             </select>
+            {selectedRemoteDevice?.reason && <p role="status">{selectedRemoteDevice.reason}</p>}
             <div className="jarvis-button-row">
               <button className="button secondary" disabled={busy || !remoteSerial || !selectedRemoteDevice?.remoteAssistCapability || Boolean(remoteSessionActive)} onClick={() => void startRemoteAssist()}>Remote Assist開始</button>
               <button className="button secondary" disabled={busy || !remoteSessionActive} onClick={() => void endRemoteAssist()}>終了</button>
@@ -457,10 +445,10 @@ export default function JarvisConsole() {
               <button className="button secondary" disabled={busy || !canViewRemote} onClick={() => void captureScreen()}>画面を見る</button>
               <button className="button secondary" disabled={!canViewRemote} onClick={() => setLiveRefresh((current) => !current)}>画面自動更新 {liveRefresh ? "ON" : "OFF"}</button>
             </div>
-            <TeachingControls serial={remoteSerial} sessionId={canControlRemote ? remoteSession?.id : undefined} />
+            {remoteSerial.startsWith("worker:") ? <p>Wi-Fi接続では画面確認と手動操作が利用できます。手順記録・動画・連続写真保存は現在USB / ADB接続が必要です。</p> : <TeachingControls serial={remoteSerial} sessionId={canControlRemote ? remoteSession?.id : undefined} />}
             <details open={recordingActive || undefined}><summary>補助機能：画面写真の保存</summary>
             <div className="jarvis-button-row">
-              <button className="button secondary" disabled={busy || !canViewRemote || recordingActive} onClick={() => void startRecording()}>画面写真を5分保存（手順学習なし）</button>
+              <button className="button secondary" disabled={busy || !canViewRemote || recordingActive || remoteSerial.startsWith("worker:")} onClick={() => void startRecording()}>画面写真を5分保存（手順学習なし）</button>
               <button className="button secondary" disabled={busy || !recordingActive} onClick={() => void stopRecording()}>画面写真の保存を停止</button>
             </div>
             {recording && <small>PNGフレーム記録 {recording.status} / {recording.frameCount}/{recording.maxFrames}枚 / {Math.ceil(recording.totalBytes / 1024)}KiB{recording.stopReason ? ` / ${recording.stopReason}` : ""}。動画ファイルではありません。</small>}
@@ -480,7 +468,7 @@ export default function JarvisConsole() {
             </form>
             <form className="jarvis-task-form" onSubmit={async (event) => { event.preventDefault(); if (await remoteRequest({ action: "open-url", url: remoteUrl }, { manual: true })) { setRemoteUrl(""); await captureScreen(); } }}>
               <input type="url" pattern="https://.*" placeholder="https://... をこの端末で開く" value={remoteUrl} onChange={(event) => setRemoteUrl(event.target.value)} />
-              <button className="button secondary" disabled={busy || !canControlRemote || !remoteUrl}>開く</button>
+              <button className="button secondary" disabled={busy || !canControlRemote || !remoteUrl || remoteSerial.startsWith("worker:")}>開く</button>
             </form>
           </div>
         </div>

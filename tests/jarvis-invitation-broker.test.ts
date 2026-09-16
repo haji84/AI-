@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
-import { generateKeyPairSync, randomBytes } from "node:crypto";
+import { createHash, generateKeyPairSync, randomBytes, sign } from "node:crypto";
+import { canonicalWorkerRequest } from "../src/jarvis/worker-auth.ts";
 import { mkdtemp, rm } from "node:fs/promises";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
@@ -40,19 +41,69 @@ test("owner invitation enrolls while window is closed, persists restart and revo
     const link = new URL((await issued.json()).url);
     const token = new URLSearchParams(link.hash.slice(1)).get("token");
     assert.ok(token);
+    const keys = generateKeyPairSync("ec", { namedCurve: "prime256v1" });
+    const signedRequest = (id: string, path: string, payload: unknown) => {
+      const body = JSON.stringify(payload);
+      const unsigned = { nodeId: id, method: "POST", path, timestamp: new Date().toISOString(), nonce: randomBytes(16).toString("hex"), bodySha256: createHash("sha256").update(body).digest("hex") };
+      return { method: "POST", body, headers: { "Content-Type": "application/json", "X-Jarvis-Node-Id": id, "X-Jarvis-Timestamp": unsigned.timestamp, "X-Jarvis-Nonce": unsigned.nonce, "X-Jarvis-Body-Sha256": unsigned.bodySha256, "X-Jarvis-Signature": sign("sha256", Buffer.from(canonicalWorkerRequest(unsigned)), keys.privateKey).toString("base64") } };
+    };
     const enroll = (id: string) => post("/api/jarvis/enroll", { token,
       node: { id, label: "Fixture Android", kind: "android", status: "ready", capabilities: ["open-url"],
         policy: { allowPaidServices: false, allowDestructiveActions: false, allowExternalPublication: false, allowRemoteControl: false, requireHumanForLockedDevice: true },
         telemetry: { checkedAt: new Date().toISOString() }, enrollment: "quick", lastSeenAt: new Date().toISOString() },
-      identity: { algorithm: "ecdsa-p256-sha256", publicKeyPem: generateKeyPairSync("ec", { namedCurve: "prime256v1" }).publicKey.export({ type: "spki", format: "pem" }) } });
+      identity: { algorithm: "ecdsa-p256-sha256", publicKeyPem: keys.publicKey.export({ type: "spki", format: "pem" }) } });
     assert.equal((await post("/api/jarvis/enrollment-grant", {})).status, 503);
     assert.equal((await enroll("invite-first")).status, 201);
     assert.equal((await enroll("invite-first")).status, 409);
+    const heartbeatPath = "/api/jarvis/worker/heartbeat";
+    assert.equal((await fetch(base + heartbeatPath, signedRequest("invite-first", heartbeatPath, { status: "ready", capabilities: ["ui-automation", "remote-view", "remote-control"], telemetry: { checkedAt: new Date().toISOString(), accessibilityEnabled: true, remoteProtocol: 1, androidApi: 30, locked: false } }))).status, 200);
+    const commandPath = "/api/jarvis/admin/remote/command";
+    const commandInput = { nodeId: "invite-first", sessionId: "fixture-session", expiresAt: Date.now() + 5_000, input: { action: "tap", x: 10, y: 20 } };
+    assert.equal((await post(commandPath, commandInput)).status, 401);
+    const remoteResult = post(commandPath, commandInput, true);
+    const nextPath = "/api/jarvis/worker/remote/next";
+    assert.equal((await post(nextPath, {})).status, 401);
+    let command: { id: string; input: unknown } | undefined;
+    for (let attempt = 0; attempt < 20 && !command; attempt++) {
+      command = (await (await fetch(base + nextPath, signedRequest("invite-first", nextPath, {}))).json()).command;
+      if (!command) await new Promise(resolve => setTimeout(resolve, 20));
+    }
+    assert.ok(command);
+    assert.deepEqual(command.input, commandInput.input);
+    assert.equal((await (await fetch(base + nextPath, signedRequest("invite-first", nextPath, {}))).json()).command, null);
+    const resultPath = "/api/jarvis/worker/remote/result";
+    const signedResult = signedRequest("invite-first", resultPath, { id: command.id, ok: true });
+    assert.equal((await fetch(base + resultPath, signedResult)).status, 200);
+    assert.equal((await remoteResult).status, 200);
+    assert.equal((await fetch(base + resultPath, signedResult)).status, 401, "replayed nonce rejected");
+    assert.equal((await fetch(base + resultPath, signedRequest("invite-first", resultPath, { id: command.id, ok: true }))).status, 409, "finished command rejected even with fresh signature");
     await stop(); child = start(); await waitReady();
     assert.equal((await enroll("invite-second")).status, 201);
     assert.equal((await post(path, { action: "revoke" }, true)).status, 200);
     assert.equal((await enroll("invite-third")).status, 403);
     assert.equal((await (await fetch(base + "/health")).json()).stats.registered, 2);
+    const pendingPath = "/api/jarvis/enrollment-request";
+    const pendingBody = { node: { id: "pending-third", label: "Owner page fixture", kind: "android", status: "ready", capabilities: ["ui-automation"], policy: { allowPaidServices: false, allowDestructiveActions: true, allowExternalPublication: true, allowRemoteControl: true } }, publicKeyPem: keys.publicKey.export({ type: "spki", format: "pem" }).toString() };
+    assert.equal((await post(pendingPath, pendingBody)).status, 401);
+    const offer = signedRequest("pending-third", pendingPath, pendingBody);
+    assert.equal((await fetch(base + pendingPath, offer)).status, 202);
+    assert.equal((await fetch(base + pendingPath, offer)).status, 401);
+    assert.equal((await (await fetch(base + "/health")).json()).stats.registered, 2, "a pending request is not registered");
+    const ownerPending = "/api/jarvis/admin/enrollment-pending";
+    assert.equal((await fetch(base + ownerPending)).status, 401);
+    const candidates = await (await fetch(base + ownerPending, { headers: { Authorization: `Bearer ${owner}` } })).json();
+    assert.equal(candidates.pending.length, 1);
+    const ids = candidates.pending.map((item: { id: string }) => item.id);
+    assert.equal((await post(ownerPending, { ids })).status, 401);
+    assert.equal((await post(ownerPending, { ids }, true)).status, 201);
+    assert.equal((await post(ownerPending, { ids }, true)).status, 409, "one owner selection cannot enroll twice");
+    assert.equal((await fetch(base + pendingPath, signedRequest("pending-third", pendingPath, pendingBody))).status, 409, "existing identity is never overwritten");
+    const enrolledState = await (await fetch(base + "/api/jarvis/admin/state", { headers: { Authorization: `Bearer ${owner}` } })).json();
+    const registered = enrolledState.fleet.find((item: { id: string }) => item.id === "pending-third");
+    assert.equal(registered.policy.allowDestructiveActions, false);
+    assert.equal(registered.policy.allowExternalPublication, false);
+    assert.equal(registered.policy.allowRemoteControl, false, "fresh signed heartbeat must establish capability");
+    assert.equal((await fetch(base + heartbeatPath, signedRequest("pending-third", heartbeatPath, { status: "ready" }))).status, 200);
     assert.equal((await post("/api/jarvis/worker/heartbeat", {})).status, 401);
   } finally { await stop(); await rm(directory, { recursive: true, force: true }); }
 });

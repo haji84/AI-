@@ -23,6 +23,32 @@ class JarvisAccessibilityService : AccessibilityService() {
 
         fun currentPackageName(): String = current?.currentPackage().orEmpty()
 
+        fun executeRemote(command: JSONObject): JSONObject {
+            val service = current ?: error("Accessibility is disabled")
+            require(Build.VERSION.SDK_INT >= 30) { "Screen capture needs Android 11" }
+            require(command.getLong("expiresAt") > System.currentTimeMillis()) { "Expired command" }
+            require(!WorkerRuntimeState.snapshot().optBoolean("working")) { "Device busy" }
+            require(service.getSystemService(android.app.KeyguardManager::class.java)?.isDeviceLocked == false) { "Device locked" }
+            val input = command.getJSONObject("input")
+            if (input.getString("action") == "screenshot") return service.captureRemoteScreen()
+            val action = when (input.getString("action")) {
+                "tap", "swipe" -> input
+                "text" -> {
+                    val focused = service.rootInActiveWindow?.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
+                    require(focused != null && !focused.isPassword) { "Sensitive or missing text field" }
+                    require(input.getString("text").length <= 2_000)
+                    JSONObject().put("action", "set-text").put("text", input.getString("text")).put("refusePassword", true)
+                }
+                "keyevent" -> JSONObject().put("action", when (input.getString("key").removePrefix("KEYCODE_")) {
+                    "BACK" -> "back"; "HOME" -> "home"; "APP_SWITCH" -> "recents"; else -> error("Unsupported key")
+                })
+                else -> error("Unsupported remote action")
+            }
+            require(command.getLong("expiresAt") > System.currentTimeMillis())
+            val result = service.executePayload(JSONObject().put("steps", JSONArray().put(action)))
+            return result.put("ok", true)
+        }
+
         fun execute(payload: JSONObject): JSONObject {
             val service = current ?: throw IllegalStateException("Accessibility automation is not enabled")
             return service.executePayload(payload)
@@ -30,6 +56,38 @@ class JarvisAccessibilityService : AccessibilityService() {
     }
 
     private val sheetsPackage = "com.google.android.apps.docs.editors.sheets"
+
+    @android.annotation.TargetApi(30)
+    private fun captureRemoteScreen(): JSONObject {
+        val latch = CountDownLatch(1)
+        var output: JSONObject? = null
+        takeScreenshot(android.view.Display.DEFAULT_DISPLAY, mainExecutor, object : TakeScreenshotCallback {
+            override fun onSuccess(result: ScreenshotResult) {
+                try {
+                    result.hardwareBuffer.use { buffer ->
+                        val hardware = android.graphics.Bitmap.wrapHardwareBuffer(buffer, result.colorSpace) ?: error("No bitmap")
+                        val bitmap = hardware.copy(android.graphics.Bitmap.Config.ARGB_8888, false)
+                        hardware.recycle()
+                        requireNotNull(bitmap)
+                        try {
+                            val stream = java.io.ByteArrayOutputStream()
+                            bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 55, stream)
+                            val bytes = stream.toByteArray()
+                            require(bytes.size <= 650_000) { "Screenshot too large" }
+                            output = JSONObject().put("ok", true).put("mimeType", "image/jpeg")
+                                .put("nativeWidth", bitmap.width).put("nativeHeight", bitmap.height)
+                                .put("imageBase64", android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP))
+                                .put("capturedAt", java.time.Instant.now().toString())
+                        } finally { bitmap.recycle() }
+                    }
+                } catch (_: Exception) { /* Return a visible failure, never a stale frame. */ }
+                finally { latch.countDown() }
+            }
+            override fun onFailure(errorCode: Int) { latch.countDown() }
+        })
+        require(latch.await(3, TimeUnit.SECONDS)) { "Screenshot timed out" }
+        return output ?: error("Screenshot unavailable")
+    }
     private val cellRegex = Regex("^[A-Z]{1,3}[1-9][0-9]{0,5}$")
     private val urlRegex = Regex("https?://\\S+", RegexOption.IGNORE_CASE)
 
@@ -471,6 +529,7 @@ class JarvisAccessibilityService : AccessibilityService() {
             step.has("label") -> findTextNode(step.getString("label"))
             else -> root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
         } ?: return false
+        if (step.optBoolean("refusePassword") && node.isPassword) return false
         val args = Bundle().apply {
             putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, step.getString("text"))
         }
