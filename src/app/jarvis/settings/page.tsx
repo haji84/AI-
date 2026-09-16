@@ -20,7 +20,7 @@ export default function JarvisSettingsPage() {
           <p>認証情報、端末権限、ネットワーク公開範囲、課金、破壊的操作、Human Gateルールはこのローカル表示設定から変更できない。</p>
         </div>
       </section>
-      <p className="jarvis-boundary-note">Universal Command/Searchと画面別レイアウトは実装済み。Focus/Distance/Privacy、Accessibility等はP5の後続Requirementとして残る。</p>
+      <p className="jarvis-boundary-note">Widget移動/resize/hide、Universal Command/Search、画面別レイアウトは実装済み。Focus/Distance/Privacy、Accessibility等はP5の後続Requirementとして残る。</p>
     </main>
   );
 }
