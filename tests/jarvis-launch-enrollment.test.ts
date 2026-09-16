@@ -8,7 +8,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-test("launch enrollment reuses owner window and single-use grants without leaking owner credentials", { timeout: 30_000 }, async () => {
+test("launch and shared-URL enrollment protect individual identities and cap the fleet at 100", { timeout: 60_000 }, async () => {
   const reservation = createServer();
   reservation.listen(0, "127.0.0.1");
   await once(reservation, "listening");
@@ -71,6 +71,32 @@ test("launch enrollment reuses owner window and single-use grants without leakin
     assert.equal((await post("/api/jarvis/enrollment-grant")).status, 503, "budget exhausted");
     await post("/api/jarvis/admin/enrollment-window", { action: "close" }, true);
     assert.equal((await post("/api/jarvis/enrollment-grant")).status, 503);
+
+    // Every simulated Android opens exactly the same stable URL, not a reused grant link.
+    await post("/api/jarvis/admin/enrollment-window", { action: "open", ttlMs: 3_600_000, maxIssues: 100 }, true);
+    const grants = new Set<string>();
+    const enrollViaSharedUrl = async (index: number) => {
+      const page = await fetch(base + "/enroll");
+      assert.equal(page.status, 200);
+      const deepLink = (await page.text()).match(/jarvis:\/\/enroll[^"\s]+/)?.[0];
+      assert(deepLink);
+      const credential = new URL(deepLink).searchParams.get("grant");
+      assert(credential && !grants.has(credential));
+      grants.add(credential);
+      const deviceKey = generateKeyPairSync("ec", { namedCurve: "prime256v1" }).publicKey;
+      return post("/api/jarvis/enroll", {
+        ...payload, grant: credential, node: { ...payload.node, id: `shared-url-${index}` },
+        identity: { algorithm: "ecdsa-p256-sha256", publicKeyPem: deviceKey.export({ type: "spki", format: "pem" }) },
+      });
+    };
+    for (let first = 2; first <= 100; first += 10) {
+      const results = await Promise.all(Array.from({ length: Math.min(10, 101 - first) }, (_, offset) => enrollViaSharedUrl(first + offset)));
+      for (const result of results) assert.equal(result.status, 201);
+    }
+    assert((await enrollViaSharedUrl(101)).status >= 400, "101st device rejected");
+    assert.equal(grants.size, 100, "shared URL issues distinct per-device grants");
+    assert.equal((await (await fetch(base + "/health")).json()).stats.registered, 100);
+    assert.equal((await fetch(base + "/enroll")).status, 503, "issuance budget remains bounded");
   } finally {
     const stopped = once(child, "exit");
     child.kill();

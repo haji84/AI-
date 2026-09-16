@@ -21,6 +21,14 @@ it publicly, enable Funnel, port forwarding, cleartext, or bypass TLS validation
 
 ## Owner authorization and bounded issuance
 
+The same fixed `/enroll` URL can be opened on multiple Android devices, up to the
+100-node fleet capacity. Each open creates an independent 30-minute grant; the
+one-device limit applies to each grant, not to the shared URL or owner's fleet.
+App-launch enrollment likewise obtains a separate grant for each installation.
+The integration test enrolls 100 distinct logical devices through the Broker and
+rejects the 101st, including concurrent opens of the same URL. This is simulated
+fleet integration evidence, not evidence from 100 physical phones.
+
 The owner opens the existing enrollment window from JARVIS Devices/registration.
 `POST /api/jarvis/enrollment-grant` consumes one of its maximum 100 issuance slots.
 The window lasts at most one hour (default thirty minutes); each returned grant lasts

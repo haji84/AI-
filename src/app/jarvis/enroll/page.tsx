@@ -203,7 +203,7 @@ export default function JarvisEnrollPage() {
       <div>
         <p className="eyebrow">JARVIS</p>
         <h1>Android端末登録</h1>
-        <p className="muted">固定URLは常設ですが、登録権限は常設しません。オーナーが受付を開いている間だけ、URLを開くたびに1台限り・最大30分の新しい登録権限を発行します。</p>
+        <p className="muted">同じ登録URLで複数台を登録できます（全体で最大100台）。各AndroidでURLを開くと、その端末用の最大30分の登録トークンを自動発行します。</p>
       </div>
       <div className="jarvis-button-row">
         <a className="button secondary" href="/jarvis/login?next=/jarvis/enroll">オーナー認証</a>
@@ -213,13 +213,13 @@ export default function JarvisEnrollPage() {
 
     <section className="panel jarvis-section" style={{ maxWidth: 860, margin: "32px auto 24px" }}>
       <div className="section-heading"><div><p className="section-kicker">PAIRING WINDOW</p><h2>固定URLの登録受付</h2></div><strong>{statusText}</strong></div>
-      <p className="muted">1回の操作で最大100台・最長1時間の受付を開けます。受付中でも各端末へ渡る登録権限は別々で、1台限り・30分以内です。Brokerを再起動すると受付は閉じます。</p>
+      <p className="muted">1回の操作で最大100台・最長1時間の受付を開けます。同じURLを各端末で開いてください。トークンと端末の認証情報は端末ごとに分かれます。トークンは最大30分、受付終了が先ならその時刻まで有効です。Brokerを再起動すると受付は閉じます。</p>
       {window && <div className="jarvis-alert" style={{ marginTop: 16 }}>
         <strong>{window.open ? `残り ${window.remaining} / ${window.maxIssues} 台` : `受付停止: ${statusText}`}</strong>
         {window.expiresAt && <span>終了予定: {new Date(window.expiresAt).toLocaleString("ja-JP")}</span>}
       </div>}
       <div className="jarvis-button-row" style={{ marginTop: 16 }}>
-        <button className="button" disabled={busy || window?.open === true} onClick={() => void pairingAction("open")}>{busy ? "処理中..." : "最大100台の受付を開く"}</button>
+        <button className="button" disabled={busy || window?.open === true} onClick={() => void pairingAction("open")}>{busy ? "処理中..." : "複数台の登録を開始（最大100台）"}</button>
         <button className="button secondary" disabled={busy || !window?.open} onClick={() => void pairingAction("close")}>受付を閉じる</button>
         <button className="button secondary" disabled={busy} onClick={() => void pairingAction("status")}>状態を更新</button>
       </div>
