@@ -1784,20 +1784,24 @@
         "src/app/jarvis/JarvisConsole.tsx",
         "scripts/jarvis-remote-gateway.ts",
         "src/app/api/jarvis/remote/route.ts",
-        "src/jarvis/remote-assist.ts"
+        "src/jarvis/remote-assist.ts",
+        "src/app/jarvis/RemoteScreenControl.tsx",
+        "src/jarvis/remote-screen-input.ts"
       ],
       "test_refs": [
         "tests/jarvis-remote-assist-console.test.ts",
-        "tests/jarvis-remote-assist-session.test.ts"
+        "tests/jarvis-remote-assist-session.test.ts",
+        "tests/jarvis-remote-screen-input.test.ts"
       ],
       "evidence_refs": [
-        "docs/audit/jarvis-p3-reconciliation.md"
+        "docs/audit/jarvis-p3-reconciliation.md",
+        "docs/audit/jarvis-remote-touch-input.md"
       ],
       "status": "PARTIAL",
-      "blocker": "Android screenshot/inputとsession UI実装済み。PC transport、browser/API統合と実機操作Evidence未取得。",
+      "blocker": "Android直接タップ/スワイプと取消境界の単体検証済み。PC transport、browser touchと実機操作Evidence未取得。",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "録画の監査・停止/期限境界を修正し、残るplatform/統合/実機Evidenceを取得。詳細: docs/audit/jarvis-p3-reconciliation.md",
+      "next_action": "認証済みRemote Assistで実ブラウザのタッチ・取消・端末切替を検証し、cellularから実Android操作を実証する。",
       "last_verified_commit": null
     },
     {
@@ -1846,20 +1850,24 @@
         "src/app/jarvis/JarvisConsole.tsx",
         "scripts/jarvis-remote-gateway.ts",
         "src/app/api/jarvis/remote/route.ts",
-        "src/jarvis/remote-assist.ts"
+        "src/jarvis/remote-assist.ts",
+        "src/app/jarvis/RemoteScreenControl.tsx",
+        "src/jarvis/remote-screen-input.ts"
       ],
       "test_refs": [
         "tests/jarvis-remote-assist-console.test.ts",
-        "tests/jarvis-remote-assist-session.test.ts"
+        "tests/jarvis-remote-assist-session.test.ts",
+        "tests/jarvis-remote-screen-input.test.ts"
       ],
       "evidence_refs": [
-        "docs/audit/jarvis-p3-reconciliation.md"
+        "docs/audit/jarvis-p3-reconciliation.md",
+        "docs/audit/jarvis-remote-touch-input.md"
       ],
       "status": "PARTIAL",
-      "blocker": "Android screenshot/inputとsession UI実装済み。PC transport、browser/API統合と実機操作Evidence未取得。",
+      "blocker": "Android直接タップ/スワイプと取消境界の単体検証済み。PC transport、browser touchと実機操作Evidence未取得。",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "録画の監査・停止/期限境界を修正し、残るplatform/統合/実機Evidenceを取得。詳細: docs/audit/jarvis-p3-reconciliation.md",
+      "next_action": "認証済みRemote Assistで実ブラウザのタッチ・取消・端末切替を検証し、cellularから実Android操作を実証する。",
       "last_verified_commit": null
     },
     {

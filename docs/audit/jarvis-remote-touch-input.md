@@ -13,7 +13,8 @@ The existing owner-authenticated, allowlisted, session-bound API handles command
 - `node --test tests/jarvis-remote-screen-input.test.ts`: six tests PASS, including scaled coordinates, edges, invalid data, cancellation, multitouch and duplicate completion.
 - `pnpm lint`: PASS.
 - `node node_modules/typescript/bin/tsc --noEmit`: PASS.
-- `pnpm build`: PASS before the tracker extraction; final build recorded in PR checks.
+- `pnpm build`: PASS on final integrated implementation.
+- Full Windows suite: 744/745 PASS; existing recording-history symlink fixture fails EPERM, tracked in #714. No test disabled.
 - Physical phone-to-Android operation, browser touch behavior and cellular connectivity remain unverified. No PHYSICAL PASS or requirement completion is claimed.
 
 ## Follow-up and rollback
