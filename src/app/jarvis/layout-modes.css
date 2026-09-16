@@ -1,0 +1,13 @@
+html[data-jarvis-layout="command"]:not([data-jarvis-screen-layout]) .jarvis-screen-page{max-width:1400px}
+html[data-jarvis-layout="balanced"]:not([data-jarvis-screen-layout]) .jarvis-screen-page{max-width:1180px}
+html[data-jarvis-layout="focus"]:not([data-jarvis-screen-layout]) .jarvis-screen-page{max-width:920px}
+html[data-jarvis-layout="mobile"]:not([data-jarvis-screen-layout]) .jarvis-screen-page{max-width:720px}
+
+:is(html[data-jarvis-screen-layout="mobile"],html[data-jarvis-layout="mobile"]:not([data-jarvis-screen-layout])) .jarvis-primary-nav{justify-content:flex-start;overflow-x:auto}
+:is(html[data-jarvis-screen-layout="mobile"],html[data-jarvis-layout="mobile"]:not([data-jarvis-screen-layout])) :is(.jarvis-info-grid,.jarvis-grid,.jarvis-remote-layout,.jarvis-task-form,.jarvis-multiview-selectors,.jarvis-multiview-grid.mode-split2,.jarvis-multiview-grid.mode-split4,.jarvis-multiview-grid.mode-fleet){grid-template-columns:minmax(0,1fr)}
+:is(html[data-jarvis-screen-layout="mobile"],html[data-jarvis-layout="mobile"]:not([data-jarvis-screen-layout])) .jarvis-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+:is(html[data-jarvis-screen-layout="mobile"],html[data-jarvis-layout="mobile"]:not([data-jarvis-screen-layout])) .jarvis-screen-heading{align-items:stretch;flex-direction:column}
+:is(html[data-jarvis-screen-layout="mobile"],html[data-jarvis-layout="mobile"]:not([data-jarvis-screen-layout])) .jarvis-screen-heading>.button{width:100%}
+
+@media(max-width:900px){html[data-jarvis-layout] .jarvis-primary-content{min-width:0}html[data-jarvis-layout] .jarvis-screen-page{width:100%;box-sizing:border-box}}
+@media(max-width:560px){html[data-jarvis-layout] .jarvis-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
