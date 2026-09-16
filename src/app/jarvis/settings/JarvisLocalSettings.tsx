@@ -50,39 +50,39 @@ export default function JarvisLocalSettings() {
     <section className="panel jarvis-settings-card" aria-busy={!ready}>
       <div>
         <p className="eyebrow">LOCAL CUSTOMIZATION</p>
-        <h2>表示・Persona設定</h2>
-        <p className="muted">Theme / Persona / Voice / Color / Layoutを別々に保存する。この画面はブラウザ内のUI設定だけを変更し、端末権限、認証、秘密情報、課金設定には触れない。</p>
+        <h2>表示・ペルソナ設定</h2>
+        <p className="muted">テーマ / ペルソナ / 音声設定 / 色 / レイアウトを別々に保存する。この画面はブラウザ内のUI設定だけを変更し、端末権限、認証、秘密情報、課金設定には触れない。</p>
       </div>
 
       <div className="jarvis-preference-grid">
         <label>
-          <span>Theme <small>{JARVIS_THEMES.length} presets</small></span>
+          <span>テーマ <small>{JARVIS_THEMES.length}種類</small></span>
           <select value={preferences.theme} onChange={(event) => save({ theme: event.target.value })}>
             {JARVIS_THEMES.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
           </select>
         </label>
         <label>
-          <span>Persona <small>{JARVIS_PERSONAS.length} presets</small></span>
+          <span>ペルソナ <small>{JARVIS_PERSONAS.length}種類</small></span>
           <select value={preferences.persona} onChange={(event) => save({ persona: event.target.value })}>
             {JARVIS_PERSONAS.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
           </select>
           <small className="jarvis-setting-help">{personaDescription}</small>
         </label>
         <label>
-          <span>Voice preference</span>
+          <span>音声設定</span>
           <select value={preferences.voice} onChange={(event) => save({ voice: event.target.value })}>
             {JARVIS_VOICES.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
           </select>
           <small className="jarvis-setting-help">P6の音声runtimeがこの設定を利用するためのPreference。ここでは音声機能の完成を主張しない。</small>
         </label>
         <label>
-          <span>Accent Color</span>
+          <span>アクセントカラー</span>
           <select value={preferences.accent} onChange={(event) => save({ accent: event.target.value })}>
             {JARVIS_ACCENTS.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
           </select>
         </label>
         <label>
-          <span>Layout profile</span>
+          <span>レイアウト</span>
           <select value={preferences.layout} onChange={(event) => save({ layout: event.target.value })}>
             {JARVIS_LAYOUTS.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
           </select>
@@ -102,11 +102,11 @@ export default function JarvisLocalSettings() {
       </fieldset>
 
       <div className="jarvis-preference-summary" aria-live="polite">
-        <span>Theme: <strong>{preferences.theme}</strong></span>
-        <span>Persona: <strong>{preferences.persona}</strong></span>
-        <span>Voice: <strong>{preferences.voice}</strong></span>
-        <span>Accent: <strong>{preferences.accent}</strong></span>
-        <span>Layout: <strong>{preferences.layout}</strong></span>
+        <span>テーマ: <strong>{preferences.theme}</strong></span>
+        <span>ペルソナ: <strong>{preferences.persona}</strong></span>
+        <span>音声: <strong>{preferences.voice}</strong></span>
+        <span>色: <strong>{preferences.accent}</strong></span>
+        <span>レイアウト: <strong>{preferences.layout}</strong></span>
       </div>
 
       <div className="jarvis-button-row"><button className="button secondary" type="button" onClick={reset}>この端末の表示設定をリセット</button></div>
