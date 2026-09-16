@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { WORKER_APK } from "../../../jarvis/invitation-link";
 
 type Pending = { id: string; label: string; code: string; expiresAt: number };
 export default function PendingRegistration() {
@@ -37,6 +38,7 @@ export default function PendingRegistration() {
   }
   return <section className="panel jarvis-section" style={{ maxWidth: 860, margin: "0 auto 24px" }}>
     <h2>Androidをまとめて登録</h2>
+    <a className="button secondary" href={WORKER_APK} rel="noreferrer">Android用Workerをインストール・更新</a>
     <ol><li>Androidを家のWi-Fiにつなぎ、Worker 0.4.3以降を開く</li><li>下の端末名・確認コードを確認して登録する</li></ol>
     <p>USB・受付の開始・登録リンクの開き直しは不要です。登録した端末は遠隔一覧へ自動で追加されます。</p>
     <p>登録待ち {pending.length}台。確認コードはAndroidにも表示されます。自分の端末だけ選んでください。</p>

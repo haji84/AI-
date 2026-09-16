@@ -37,7 +37,7 @@ class JarvisAccessibilityService : AccessibilityService() {
                     val focused = service.rootInActiveWindow?.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
                     require(focused != null && !focused.isPassword) { "Sensitive or missing text field" }
                     require(input.getString("text").length <= 2_000)
-                    JSONObject().put("action", "set-text").put("text", input.getString("text"))
+                    JSONObject().put("action", "set-text").put("text", input.getString("text")).put("refusePassword", true)
                 }
                 "keyevent" -> JSONObject().put("action", when (input.getString("key").removePrefix("KEYCODE_")) {
                     "BACK" -> "back"; "HOME" -> "home"; "APP_SWITCH" -> "recents"; else -> error("Unsupported key")
@@ -529,6 +529,7 @@ class JarvisAccessibilityService : AccessibilityService() {
             step.has("label") -> findTextNode(step.getString("label"))
             else -> root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
         } ?: return false
+        if (step.optBoolean("refusePassword") && node.isPassword) return false
         val args = Bundle().apply {
             putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, step.getString("text"))
         }

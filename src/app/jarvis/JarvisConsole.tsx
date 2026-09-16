@@ -43,7 +43,6 @@ type StatePayload = {
   message?: string;
 };
 
-type EnrollmentResult = { deepLink?: string; token?: { token: string; mode: string; expiresAt: string; maxDevices: number } };
 type RemoteAssistCapability = "VIEW_ONLY" | "CONTROLLABLE" | "FULL_MANAGEMENT";
 type RemoteDevice = { serial: string; state: string; label?: string; reason?: string; remoteAssistCapability?: RemoteAssistCapability | null };
 type RemoteAssistSession = {
@@ -82,7 +81,6 @@ export default function JarvisConsole() {
   const [state, setState] = useState<StatePayload | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const [enrollment, setEnrollment] = useState<EnrollmentResult | null>(null);
   const [url, setUrl] = useState("");
   const [targetNodeId, setTargetNodeId] = useState("");
   const [remoteDevices, setRemoteDevices] = useState<RemoteDevice[]>([]);
@@ -346,10 +344,6 @@ export default function JarvisConsole() {
     setRemoteError("");
   }
 
-  async function createEnrollment(mode: "quick" | "full" | "fleet") {
-    const body = await action({ action: "enrollment", mode, maxDevices: mode === "fleet" ? 100 : 1, group: mode === "fleet" ? "android-fleet" : undefined });
-    if (body) setEnrollment(body as EnrollmentResult);
-  }
 
   const recentTasks = useMemo(() => state?.tasks.slice().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 20) ?? [], [state]);
 
@@ -379,17 +373,9 @@ export default function JarvisConsole() {
         <article className="panel">
           <div className="section-heading"><div><p className="section-kicker">ENROLLMENT</p><h2>端末を追加</h2></div></div>
           <div className="jarvis-button-row">
-            <button className="button secondary" disabled={busy} onClick={() => void createEnrollment("quick")}>既存Android</button>
-            <button className="button secondary" disabled={busy} onClick={() => void createEnrollment("full")}>新品・初期化Android</button>
-            <button className="button secondary" disabled={busy} onClick={() => void createEnrollment("fleet")}>100台Fleet</button>
+            <a className="button" href="/jarvis/enroll">Androidを登録（複数台対応）</a>
           </div>
-          {enrollment?.token && <div className="jarvis-enrollment-result">
-            <strong>{enrollment.token.mode.toUpperCase()} 登録トークン</strong>
-            <code>{enrollment.token.token}</code>
-            <small>期限 {fmt(enrollment.token.expiresAt)} / 最大 {enrollment.token.maxDevices} 台</small>
-            {enrollment.deepLink && <a className="button secondary" href={enrollment.deepLink}>このAndroidをJARVISに登録</a>}
-            <p>Androidで登録リンクを開けばワンタップ登録できます。</p>
-          </div>}
+          <p>家のWi-FiでWorkerを開くと、所有者の登録画面に表示されます。登録後は遠隔操作一覧へ自動反映します。</p>
         </article>
 
         <article className="panel">
@@ -482,7 +468,7 @@ export default function JarvisConsole() {
             </form>
             <form className="jarvis-task-form" onSubmit={async (event) => { event.preventDefault(); if (await remoteRequest({ action: "open-url", url: remoteUrl }, { manual: true })) { setRemoteUrl(""); await captureScreen(); } }}>
               <input type="url" pattern="https://.*" placeholder="https://... をこの端末で開く" value={remoteUrl} onChange={(event) => setRemoteUrl(event.target.value)} />
-              <button className="button secondary" disabled={busy || !canControlRemote || !remoteUrl}>開く</button>
+              <button className="button secondary" disabled={busy || !canControlRemote || !remoteUrl || remoteSerial.startsWith("worker:")}>開く</button>
             </form>
           </div>
         </div>
