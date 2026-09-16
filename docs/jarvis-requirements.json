@@ -5971,17 +5971,23 @@
       ],
       "implementation_refs": [
         "android/jarvis-worker/app/src/main/java/ai/jarvis/worker/UpdateManager.kt",
-        "src/gai/self-improvement-runtime.ts"
+        "src/gai/self-improvement-runtime.ts",
+        "android/jarvis-worker/app/src/main/java/ai/jarvis/worker/UpdatePolicy.kt",
+        "src/jarvis/remote-device-inventory.ts"
       ],
       "test_refs": [
-        "tests/gai-phase19-self-improvement.test.ts"
+        "tests/gai-phase19-self-improvement.test.ts",
+        "android/jarvis-worker/app/src/test/java/ai/jarvis/worker/UpdatePolicyTest.kt",
+        "tests/jarvis-worker-update-inventory.test.ts"
       ],
-      "evidence_refs": [],
+      "evidence_refs": [
+        "docs/evidence/857-worker-updates.md"
+      ],
       "status": "PARTIAL",
       "blocker": "端末更新/研究rollbackの土台あり。製品stack全体のupdate/rollback・互換性・失敗復旧は未確認。",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "P10: Update。 について実装の不足を埋め、required_evidenceを取得する。",
+      "next_action": "Issue857/PR858: publish same-key signed Worker0.4.4 after release approval and Mac signer recovery; physically verify upgrade/identity retention/reconnect and native remote operation. Keep PARTIAL until physical evidence.",
       "last_verified_commit": null
     },
     {
