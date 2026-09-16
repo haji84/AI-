@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import type { TeachingVariant, TeachingRun } from "../../jarvis/teaching";
 export default function TeachingControls({serial,sessionId}:{serial:string;sessionId?:string}){
  const [variants,setVariants]=useState<TeachingVariant[]>([]),[goal,setGoal]=useState(''),[completion,setCompletion]=useState(''),[scope,setScope]=useState('device'),[selected,setSelected]=useState(''),[url,setUrl]=useState(''),[message,setMessage]=useState(''),[busy,setBusy]=useState(false);
@@ -13,10 +14,10 @@ export default function TeachingControls({serial,sessionId}:{serial:string;sessi
  <details className="jarvis-teaching-options"><summary>作業名・機種の設定（省略できます）</summary><label>共通の作業名<input value={goal} onChange={e=>setGoal(e.target.value)} placeholder="スプレッドシートのURLを開く" maxLength={160}/></label>
  <label>手順の範囲<select value={scope} onChange={e=>setScope(e.target.value)}><option value="device">この端末固有</option><option value="model">同機種用（端末ごとに再検証）</option><option value="common">共通（互換性のある操作のみ）</option></select></label>
  </details>
- <div className="jarvis-teaching-dock" aria-label="手順の記録">
+ {typeof document!=="undefined"&&createPortal(<div className="jarvis-teaching-dock" aria-label="手順の記録">
  <div><strong>{recording?'● 手順を記録中':'手順を覚えさせる'}</strong><small>{recording?`${recording.steps.length}操作を保存済み`:'開始 → JARVISで操作 → 停止して保存'}</small></div>
  <button className="button" disabled={busy} onClick={()=>void command(recording?'teach-finish':'teach-start')}>{busy?'確認中…':recording?'■ 停止して保存':'● 手順の記録開始'}</button>
- <p role="status">{message}</p></div>
+ <p role="status">{message}</p></div>,document.body)}
  {recording&&<p>停止すると、その時点の画面を完了画面として保存します。1操作以上行ってください。</p>}
  <details className="jarvis-teaching-options"><summary>保存手順・再現テスト</summary>
  <label>完了条件（省略可）<input value={completion} onChange={e=>setCompletion(e.target.value)} maxLength={500}/></label>

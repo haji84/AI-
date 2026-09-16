@@ -17,4 +17,4 @@
 .jarvis-teaching-dock small { color: #b7ccdc; font-size: .8rem; }
 .jarvis-teaching-dock .button { min-height: 48px; min-width: 180px; }
 .jarvis-teaching-dock p { flex-basis: 100%; margin: 0; text-align: center; font-size: .85rem; overflow-wrap: anywhere; }
-.jarvis-console:has(.jarvis-teaching-dock) { padding-bottom: 190px; }
+body:has(.jarvis-teaching-dock) { padding-bottom: 190px; }
