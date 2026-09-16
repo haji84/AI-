@@ -157,7 +157,7 @@ export class ProductionAutonomyRuntime {
   async run(input: { runId: string; goal: Goal; maxCycles?: number }): Promise<ProductionRunRecord> {
     await this.#ensureLoaded();
     const existing = this.#runs.find((item) => item.runId === input.runId);
-    if (existing?.state === "completed") return existing;
+    if (existing?.state === "completed" || existing?.state === "blocked") return existing;
     const record = existing ?? {
       runId: input.runId,
       goal: input.goal,
