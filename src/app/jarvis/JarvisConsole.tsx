@@ -420,7 +420,6 @@ export default function JarvisConsole() {
           <span>{selectedTakeover.reason}</span>
           <button className="button secondary" disabled={busy} onClick={() => void action({ action: "resolve-takeover", sessionId: selectedTakeover.id, resumeTask: true })}>続きやって</button>
         </div>}
-        <TeachingControls serial={remoteSerial} sessionId={canControlRemote ? remoteSession?.id : undefined} />
         <div className="jarvis-remote-layout">
           <div className="jarvis-remote-screen">
             {videoSession && videoSession === remoteSession?.id && canViewRemote && screenshot ? <RemoteVideo
@@ -444,6 +443,7 @@ export default function JarvisConsole() {
             {screenshot && videoSession !== remoteSession?.id && <small>取得 {fmt(screenshot.capturedAt)} / {canControlRemote ? "画像上をタップ・スワイプで操作（5秒以内）" : "VIEW ONLY"}</small>}
           </div>
           <div className="jarvis-remote-controls">
+            <TeachingControls serial={remoteSerial} sessionId={canControlRemote ? remoteSession?.id : undefined} />
             <select value={remoteSerial} onChange={(event) => selectRemoteDevice(event.target.value)}>
               <option value="">遠隔端末を選択</option>
               {remoteDevices.map((device) => <option value={device.serial} key={device.serial}>{device.serial} ({device.remoteAssistCapability ?? device.state})</option>)}
@@ -458,8 +458,8 @@ export default function JarvisConsole() {
               <button className="button secondary" disabled={!canViewRemote} onClick={() => setLiveRefresh((current) => !current)}>画面自動更新 {liveRefresh ? "ON" : "OFF"}</button>
             </div>
             <div className="jarvis-button-row">
-              <button className="button secondary" disabled={busy || !canViewRemote || recordingActive} onClick={() => void startRecording()}>PNG記録開始</button>
-              <button className="button secondary" disabled={busy || !recordingActive} onClick={() => void stopRecording()}>記録停止</button>
+              <button className="button secondary" disabled={busy || !canViewRemote || recordingActive} onClick={() => void startRecording()}>画面写真を30秒保存（手順学習なし）</button>
+              <button className="button secondary" disabled={busy || !recordingActive} onClick={() => void stopRecording()}>画面写真の保存を停止</button>
             </div>
             {recording && <small>PNGフレーム記録 {recording.status} / {recording.frameCount}/{recording.maxFrames}枚 / {Math.ceil(recording.totalBytes / 1024)}KiB{recording.stopReason ? ` / ${recording.stopReason}` : ""}。動画ファイルではありません。</small>}
             <div className="jarvis-button-row">
