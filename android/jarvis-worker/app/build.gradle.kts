@@ -54,8 +54,8 @@ android {
         applicationId = "ai.jarvis.worker"
         minSdk = 26
         targetSdk = 37
-        versionCode = 18
-        versionName = "0.4.5"
+        versionCode = 19
+        versionName = "0.4.6"
         // Public installation configuration only; no private keys or enrollment credentials.
         val bootstrap = installationOrigin.get()
         require(bootstrap.isEmpty() || Regex("https://[A-Za-z0-9.-]+(:[0-9]+)?/?").matches(bootstrap))
