@@ -71,16 +71,8 @@ export default function JarvisHomeLayoutEditor() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    const next = readLayout();
-    setLayout(next);
-    applyLayout(next);
+    setLayout(readLayout());
     setReady(true);
-
-    const root = document.querySelector<HTMLElement>(".jarvis-console");
-    if (!root) return;
-    const observer = new MutationObserver(() => applyLayout(next));
-    observer.observe(root, { childList: true, subtree: true });
-    return () => observer.disconnect();
   }, []);
 
   useEffect(() => {
@@ -108,7 +100,7 @@ export default function JarvisHomeLayoutEditor() {
   }
 
   return (
-    <details className="jarvis-widget-editor" open={false}>
+    <details className="jarvis-widget-editor">
       <summary>ホーム配置を編集</summary>
       <div className="jarvis-widget-editor-body" aria-busy={!ready}>
         <p className="jarvis-boundary-note">ドラッグまたは上下ボタンで並び替え。サイズと表示状態はこのブラウザだけに保存される。Human Takeoverは安全のため非表示にできない。</p>
