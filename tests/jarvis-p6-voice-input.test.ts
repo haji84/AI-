@@ -32,7 +32,8 @@ test("push-to-talk requires explicit activation and a second explicit execute ac
   assert.match(voiceSurface, /この指示を実行/);
   assert.match(voiceSurface, /onClick=\{\(\) => void executeTranscript\(\)\}/);
   assert.match(voiceSurface, /マイクは自動起動しません/);
-  assert.doesNotMatch(voiceSurface, /useEffect\(\(\) => \{[\s\S]{0,300}startListening\(\)/);
+  assert.match(voiceSurface, /useEffect\(\(\) => \{\s*setSupported\(Boolean\(recognitionConstructor\(\)\)\);\s*void refresh\(\);/);
+  assert.doesNotMatch(voiceSurface, /useEffect\(\(\) => \{\s*startListening\(\)/);
 });
 
 test("voice surface keeps captions visible and uses the existing owner-protected action endpoint", () => {
