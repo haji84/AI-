@@ -42,6 +42,8 @@ jobs:
         run: pnpm lint
       - name: Test
         run: pnpm test
+      - name: P8 Security Regression Suite
+        run: pnpm test:p8-security
       - name: Build
         run: pnpm build
       - name: Verify production health endpoint
