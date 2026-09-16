@@ -7480,3 +7480,228 @@ The JSON blocks are the authoritative rows. Validate exact mirror and evidence g
   "last_verified_commit": null
 }
 ```
+
+## Owner addendum: cross-device teaching (2026-09-16, #734)
+
+### TEACH-001
+
+```json
+{
+  "id": "TEACH-001",
+  "title": "全端末共通の実演・手順記憶",
+  "description": "全端末共通の実演・手順記憶。Android・iPhone・Windows・Mac・Linuxの対応範囲を偽らず共通機能として扱う。",
+  "phase": "P7",
+  "required_evidence": [
+    "CODE",
+    "UNIT",
+    "INTEGRATION",
+    "SECURITY",
+    "PHYSICAL"
+  ],
+  "implementation_refs": [
+    "src/jarvis/teaching.ts",
+    "src/jarvis/teaching-runtime.ts",
+    "src/app/jarvis/TeachingControls.tsx",
+    "src/app/jarvis/teach/page.tsx"
+  ],
+  "test_refs": [
+    "tests/jarvis-teaching.test.ts",
+    "tests/jarvis-teaching-runtime.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/architecture/jarvis-device-teaching.md"
+  ],
+  "status": "PARTIAL",
+  "blocker": "全platformの保存と共通契約あり。実機自動操作はAndroid経路のみ。他のnative adapterと実機教示検証が必要。",
+  "platform_limit": null,
+  "fallback": null,
+  "next_action": "実機で実演→保存→別run再現を検証し、未接続platform adapterを実装する。",
+  "last_verified_commit": null
+}
+```
+
+### TEACH-002
+
+```json
+{
+  "id": "TEACH-002",
+  "title": "機種・OS・アプリ・端末別の手順選択",
+  "description": "機種・OS・アプリ・端末別の手順選択。Android・iPhone・Windows・Mac・Linuxの対応範囲を偽らず共通機能として扱う。",
+  "phase": "P7",
+  "required_evidence": [
+    "CODE",
+    "UNIT",
+    "INTEGRATION",
+    "SECURITY",
+    "PHYSICAL"
+  ],
+  "implementation_refs": [
+    "src/jarvis/teaching.ts",
+    "src/jarvis/teaching-runtime.ts",
+    "src/app/jarvis/TeachingControls.tsx",
+    "src/app/jarvis/teach/page.tsx"
+  ],
+  "test_refs": [
+    "tests/jarvis-teaching.test.ts",
+    "tests/jarvis-teaching-runtime.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/architecture/jarvis-device-teaching.md"
+  ],
+  "status": "PARTIAL",
+  "blocker": "互換性照合実装済み。実機の複数機種・OS/app更新検証が必要。",
+  "platform_limit": null,
+  "fallback": null,
+  "next_action": "実機で実演→保存→別run再現を検証し、未接続platform adapterを実装する。",
+  "last_verified_commit": null
+}
+```
+
+### TEACH-003
+
+```json
+{
+  "id": "TEACH-003",
+  "title": "観測付き教示記録と完了条件",
+  "description": "観測付き教示記録と完了条件。Android・iPhone・Windows・Mac・Linuxの対応範囲を偽らず共通機能として扱う。",
+  "phase": "P7",
+  "required_evidence": [
+    "CODE",
+    "UNIT",
+    "INTEGRATION",
+    "SECURITY",
+    "PHYSICAL"
+  ],
+  "implementation_refs": [
+    "src/jarvis/teaching.ts",
+    "src/jarvis/teaching-runtime.ts",
+    "src/app/jarvis/TeachingControls.tsx",
+    "src/app/jarvis/teach/page.tsx"
+  ],
+  "test_refs": [
+    "tests/jarvis-teaching.test.ts",
+    "tests/jarvis-teaching-runtime.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/architecture/jarvis-device-teaching.md"
+  ],
+  "status": "PARTIAL",
+  "blocker": "JARVIS経由操作を観測して記録。実端末直接タッチ/動画解釈は未実装。",
+  "platform_limit": null,
+  "fallback": null,
+  "next_action": "実機で実演→保存→別run再現を検証し、未接続platform adapterを実装する。",
+  "last_verified_commit": null
+}
+```
+
+### TEACH-004
+
+```json
+{
+  "id": "TEACH-004",
+  "title": "別実行で検証した手順のみ自動再実行",
+  "description": "別実行で検証した手順のみ自動再実行。Android・iPhone・Windows・Mac・Linuxの対応範囲を偽らず共通機能として扱う。",
+  "phase": "P7",
+  "required_evidence": [
+    "CODE",
+    "UNIT",
+    "INTEGRATION",
+    "SECURITY",
+    "PHYSICAL"
+  ],
+  "implementation_refs": [
+    "src/jarvis/teaching.ts",
+    "src/jarvis/teaching-runtime.ts",
+    "src/app/jarvis/TeachingControls.tsx",
+    "src/app/jarvis/teach/page.tsx"
+  ],
+  "test_refs": [
+    "tests/jarvis-teaching.test.ts",
+    "tests/jarvis-teaching-runtime.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/architecture/jarvis-device-teaching.md"
+  ],
+  "status": "PARTIAL",
+  "blocker": "観測付き別run検証とURLパラメーター実装。実機replayとspreadsheet一括処理は未検証/未実装。",
+  "platform_limit": null,
+  "fallback": null,
+  "next_action": "実機で実演→保存→別run再現を検証し、未接続platform adapterを実装する。",
+  "last_verified_commit": null
+}
+```
+
+### TEACH-005
+
+```json
+{
+  "id": "TEACH-005",
+  "title": "教示時の秘密情報保護とHuman Gate",
+  "description": "教示時の秘密情報保護とHuman Gate。Android・iPhone・Windows・Mac・Linuxの対応範囲を偽らず共通機能として扱う。",
+  "phase": "P7",
+  "required_evidence": [
+    "CODE",
+    "UNIT",
+    "INTEGRATION",
+    "SECURITY",
+    "PHYSICAL"
+  ],
+  "implementation_refs": [
+    "src/jarvis/teaching.ts",
+    "src/jarvis/teaching-runtime.ts",
+    "src/app/jarvis/TeachingControls.tsx",
+    "src/app/jarvis/teach/page.tsx"
+  ],
+  "test_refs": [
+    "tests/jarvis-teaching.test.ts",
+    "tests/jarvis-teaching-runtime.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/architecture/jarvis-device-teaching.md"
+  ],
+  "status": "PARTIAL",
+  "blocker": "未知/保護操作は手動へ。各platform負例と実機privacy検証が必要。",
+  "platform_limit": null,
+  "fallback": null,
+  "next_action": "実機で実演→保存→別run再現を検証し、未接続platform adapterを実装する。",
+  "last_verified_commit": null
+}
+```
+
+### TEACH-006
+
+```json
+{
+  "id": "TEACH-006",
+  "title": "手順・検証・途中状態の永続化と重複操作防止",
+  "description": "手順・検証・途中状態の永続化と重複操作防止。Android・iPhone・Windows・Mac・Linuxの対応範囲を偽らず共通機能として扱う。",
+  "phase": "P7",
+  "required_evidence": [
+    "CODE",
+    "UNIT",
+    "INTEGRATION",
+    "SECURITY",
+    "PHYSICAL",
+    "RECOVERY"
+  ],
+  "implementation_refs": [
+    "src/jarvis/teaching.ts",
+    "src/jarvis/teaching-runtime.ts",
+    "src/app/jarvis/TeachingControls.tsx",
+    "src/app/jarvis/teach/page.tsx"
+  ],
+  "test_refs": [
+    "tests/jarvis-teaching.test.ts",
+    "tests/jarvis-teaching-runtime.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/architecture/jarvis-device-teaching.md"
+  ],
+  "status": "PARTIAL",
+  "blocker": "atomic local store/checkpoint実装。単一ZBookプロセス前提。実機再起動検証が必要。",
+  "platform_limit": null,
+  "fallback": null,
+  "next_action": "実機で実演→保存→別run再現を検証し、未接続platform adapterを実装する。",
+  "last_verified_commit": null
+}
+```

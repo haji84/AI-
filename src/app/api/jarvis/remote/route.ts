@@ -1,4 +1,5 @@
 import { remotePreview } from "../../../../jarvis/remote-preview.ts";
+import { teachingCommand, beforeTeachingInput, stopTeachingSession } from "../../../../jarvis/teaching-runtime.ts";
 import { NextResponse } from "next/server";
 import { JarvisRemoteAssistAuditStore } from "../../../../jarvis/remote-assist-audit.ts";
 import { JarvisRemoteAssistFrameRecorder } from "../../../../jarvis/remote-assist-recording.ts";
@@ -13,6 +14,7 @@ import { jarvisRemoteGatewayFetch, requireJarvisOwner } from "../broker.ts";
 export const dynamic = "force-dynamic";
 
 type RemotePayload =
+  | { action: "teach-start" | "teach-finish" | "teach-cancel" | "teach-verify" | "teach-execute"; serial?: string; sessionId?: string; goal?: string; scope?: string; completion?: string; variantId?: string; url?: string }
   | { action: "video"; serial?: string; sessionId?: string }
   | { action: "session-start"; serial?: string; ttlMs?: number }
   | { action: "session-end"; sessionId?: string }
@@ -146,6 +148,10 @@ export async function POST(request: Request) {
   if (!(await requireJarvisOwner())) return NextResponse.json({ message: "オーナー認証が必要です" }, { status: 401 });
   const payload = await request.json().catch(() => null) as RemotePayload | null;
   if (!payload?.action) return NextResponse.json({ message: "操作内容を指定してください" }, { status: 400 });
+  if (payload.action.startsWith("teach-")) {
+    try { return NextResponse.json(await teachingCommand(payload, remoteAssist, jarvisRemoteGatewayFetch)); }
+    catch (error) { return remoteSessionError(error); }
+  }
 
   if (payload.action === "video") {
     if (!payload.serial || !payload.sessionId) return NextResponse.json({ message: "Remote Assist sessionが必要です" }, { status: 409 });
@@ -204,6 +210,7 @@ export async function POST(request: Request) {
     if (!payload.sessionId) return NextResponse.json({ message: "sessionIdが必要です" }, { status: 400 });
     try {
       await recorder.stopForSession(payload.sessionId);
+      stopTeachingSession(payload.sessionId);
       return NextResponse.json({ session: remoteAssist.end(payload.sessionId) });
     } catch (error) {
       return remoteSessionError(error);
@@ -313,7 +320,9 @@ export async function POST(request: Request) {
     body = { runId: payload.runId };
   }
 
+  let teachingCapture: Awaited<ReturnType<typeof beforeTeachingInput>> = null;
   try {
+    teachingCapture = await beforeTeachingInput(payload, remoteAssist, jarvisRemoteGatewayFetch);
     const response = await jarvisRemoteGatewayFetch(path, { method: "POST", body: JSON.stringify(body) });
     const result = await response.json().catch(() => ({ message: "Remote Gatewayから不正な応答を受信しました" }));
     if (manualAudit) {
@@ -323,11 +332,13 @@ export async function POST(request: Request) {
         httpStatus: response.status,
       });
     }
+    if (teachingCapture) await teachingCapture.finish(response.ok);
     if (payload.action === "screenshot" && "preview" in payload && payload.preview === true && response.ok && result.mimeType === "image/png" && typeof result.imageBase64 === "string") {
       Object.assign(result, await remotePreview(result.imageBase64, true));
     }
     return NextResponse.json(result, { status: response.status, headers: { "Cache-Control": "no-store" } });
   } catch (error) {
+    teachingCapture?.abort();
     if (manualAudit) {
       try {
         remoteAssist.recordAudit("action.forwarded", manualAudit.sessionId, manualAudit.serial, {
@@ -342,5 +353,7 @@ export async function POST(request: Request) {
       message: "JARVIS Remote Gatewayに接続できません",
       detail: error instanceof Error ? error.message : "unknown error",
     }, { status: 503 });
+  } finally {
+    teachingCapture?.release();
   }
 }
