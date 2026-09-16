@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { useEffect } from "react";
 import JarvisCommandSearch from "./JarvisCommandSearch";
 import JarvisHomeLayoutEditor from "./JarvisHomeLayoutEditor";
+import { applyJarvisScreenLayoutProfile, readJarvisScreenLayoutProfiles } from "./screen-layout-profiles";
 import { applyJarvisPreferences, readJarvisPreferences } from "./ui-preferences";
 
 const NAV_ITEMS = [
@@ -28,6 +29,13 @@ export default function JarvisPrimaryShell({ children }: { children: ReactNode }
     window.addEventListener("jarvis-preferences-changed", listener);
     return () => window.removeEventListener("jarvis-preferences-changed", listener);
   }, []);
+
+  useEffect(() => {
+    const apply = () => applyJarvisScreenLayoutProfile(pathname, readJarvisScreenLayoutProfiles());
+    apply();
+    window.addEventListener("jarvis-screen-layout-profiles-changed", apply);
+    return () => window.removeEventListener("jarvis-screen-layout-profiles-changed", apply);
+  }, [pathname]);
 
   if (pathname.startsWith("/jarvis/login")) return children;
 
