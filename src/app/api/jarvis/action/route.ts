@@ -13,6 +13,7 @@ type JarvisDeviceTaskType =
   | "ui-sequence";
 
 type JarvisDashboardAction =
+  | { action: "invitation"; operation?: "create" | "revoke" | "status" }
   | { action: "enrollment"; mode?: "quick" | "full" | "fleet"; maxDevices?: number; group?: string; ttlMs?: number }
   | { action: "pairing-window"; operation?: "open" | "close" | "status"; maxIssues?: number; group?: string; ttlMs?: number }
   | { action: "replacement-ready" }
@@ -72,7 +73,12 @@ export async function POST(request: Request) {
   let path: string;
   let method = "POST";
   let body: Record<string, unknown> | undefined;
-  if (payload.action === "enrollment") {
+  if (payload.action === "invitation") {
+    path = "/api/jarvis/admin/invitation";
+    if (payload.operation === "status") method = "GET";
+    else if (payload.operation === "create" || payload.operation === "revoke") body = { action: payload.operation, maxDevices: 100 };
+    else return NextResponse.json({ message: "招待リンクの操作が不正です" }, { status: 400 });
+  } else if (payload.action === "enrollment") {
     path = "/api/jarvis/admin/enrollment";
     body = {
       mode: payload.mode ?? "quick",
@@ -133,7 +139,7 @@ export async function POST(request: Request) {
     return NextResponse.json(result, { status: response.status });
   } catch (error) {
     const detail = error instanceof Error ? error.message : "unknown error";
-    const setupAction = payload.action === "enrollment" || payload.action === "pairing-window" || payload.action === "replacement-ready" || payload.action === "replacement-discard";
+    const setupAction = payload.action === "invitation" || payload.action === "enrollment" || payload.action === "pairing-window" || payload.action === "replacement-ready" || payload.action === "replacement-discard";
     return NextResponse.json({
       message: setupAction ? "端末登録・交換設定を更新できません。JARVIS Brokerの接続設定を確認してください。" : "JARVIS Brokerに接続できません",
       detail,
