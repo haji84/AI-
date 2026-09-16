@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import { randomUUID, timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { promisify } from "node:util";
+import { captureRemotePreview } from "../src/jarvis/remote-preview.ts";
 import { classifyQaScreen, defaultQaScreenRules, type QaScreenRules, type QaScreenState } from "../src/jarvis/qa-sequence.ts";
 
 const execFileAsync = promisify(execFile);
@@ -253,6 +254,10 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
 
   if (request.method === "POST" && url.pathname === "/api/remote/screenshot") {
     const serial = requireSerial(payload);
+    if (payload.preview === true) {
+      const preview = await captureRemotePreview((raw) => adbBinary(serial, ["exec-out", "screencap", ...(raw ? [] : ["-p"])], 8_000));
+      return json(response, 200, { serial, ...preview, capturedAt: new Date().toISOString() });
+    }
     const png = await adbBinary(serial, ["exec-out", "screencap", "-p"], 20_000);
     if (!png.length) throw new Error("empty screenshot returned by device");
     return json(response, 200, { serial, mimeType: "image/png", imageBase64: png.toString("base64"), capturedAt: new Date().toISOString() });

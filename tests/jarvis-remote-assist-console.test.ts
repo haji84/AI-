@@ -16,8 +16,8 @@ test("Remote Assist console requires a bounded session for manual actions", () =
 
 test("Remote Assist console labels bounded screenshot refresh without overclaiming streaming", () => {
   assert.match(source, /画面自動更新/);
-  assert.match(source, /2000/);
-  assert.match(source, /document\.visibilityState !== "visible"/);
+  assert.match(source, /startRemoteRefreshLoop/);
+  assert.match(source, /document\.visibilityState === "visible"/);
   assert.match(source, /動画ストリーミングではありません/);
 });
 

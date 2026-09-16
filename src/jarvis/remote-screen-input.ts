@@ -1,5 +1,11 @@
 export type ScreenGeometry = { left: number; top: number; width: number; height: number; nativeWidth: number; nativeHeight: number };
 export type ScreenPoint = { x: number; y: number };
+// object-fit: contain can leave margins inside the image element's box.
+export function containedScreenGeometry(box: { left: number; top: number; width: number; height: number }, imageWidth: number, imageHeight: number, nativeWidth = imageWidth, nativeHeight = imageHeight): ScreenGeometry {
+  const scale = Math.min(box.width / imageWidth, box.height / imageHeight);
+  const width = imageWidth * scale, height = imageHeight * scale;
+  return { left: box.left + (box.width - width) / 2, top: box.top + (box.height - height) / 2, width, height, nativeWidth, nativeHeight };
+}
 export type ScreenInput = { action: "tap"; x: number; y: number } | { action: "swipe"; x1: number; y1: number; x2: number; y2: number; durationMs: number };
 
 export function screenPoint(point: ScreenPoint, geometry: ScreenGeometry): ScreenPoint | null {
