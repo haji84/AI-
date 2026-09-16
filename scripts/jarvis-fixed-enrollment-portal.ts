@@ -2,24 +2,16 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import {
   FIXED_ENROLLMENT_PORTAL_DEFAULT_PORT,
   FixedEnrollmentRateLimiter,
-  fixedEnrollmentRequest,
   normalizeFixedEnrollmentBindHost,
   normalizeFixedEnrollmentBrokerUrl,
-  safeEqualEnrollmentKey,
-  validateFixedEnrollmentRedirect,
 } from "../src/jarvis/fixed-enrollment.ts";
 
-const portalKey = process.env.JARVIS_ENROLLMENT_PORTAL_KEY?.trim() || "";
-const ownerToken = process.env.JARVIS_OWNER_TOKEN?.trim() || "";
 const allowLan = process.env.JARVIS_ENROLLMENT_PORTAL_ALLOW_LAN === "1";
 const host = normalizeFixedEnrollmentBindHost(process.env.JARVIS_ENROLLMENT_PORTAL_HOST, allowLan);
 const port = Number(process.env.JARVIS_ENROLLMENT_PORTAL_PORT || FIXED_ENROLLMENT_PORTAL_DEFAULT_PORT);
 const brokerUrl = normalizeFixedEnrollmentBrokerUrl(process.env.JARVIS_BROKER_URL);
-const group = process.env.JARVIS_ENROLLMENT_PORTAL_GROUP?.trim() || "fixed-url";
 const limiter = new FixedEnrollmentRateLimiter();
 
-if (portalKey.length < 32) throw new Error("JARVIS_ENROLLMENT_PORTAL_KEY must be an opaque secret of at least 32 characters");
-if (!ownerToken) throw new Error("JARVIS_OWNER_TOKEN is required for the fixed enrollment portal");
 if (!Number.isInteger(port) || port < 1 || port > 65_535) throw new Error("JARVIS_ENROLLMENT_PORTAL_PORT must be a valid TCP port");
 
 function setPrivateResponseHeaders(response: ServerResponse): void {
@@ -40,20 +32,19 @@ function clientKey(request: IncomingMessage): string {
   return request.socket.remoteAddress || "unknown";
 }
 
-async function mintFreshOneTapUrl(): Promise<string> {
-  const response = await fetch(`${brokerUrl}/api/jarvis/admin/enrollment`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${ownerToken}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(fixedEnrollmentRequest(group)),
+async function proxyFixedEnrollment(response: ServerResponse): Promise<void> {
+  const upstream = await fetch(`${brokerUrl}/enroll`, {
+    method: "GET",
+    redirect: "manual",
+    cache: "no-store",
     signal: AbortSignal.timeout(5_000),
   });
-
-  if (!response.ok) throw new Error(`Broker enrollment request failed with status ${response.status}`);
-  const payload = await response.json().catch(() => null) as { oneTapUrl?: unknown } | null;
-  return validateFixedEnrollmentRedirect(payload?.oneTapUrl);
+  response.statusCode = upstream.status;
+  setPrivateResponseHeaders(response);
+  response.setHeader("Content-Type", upstream.headers.get("content-type") || "text/html; charset=utf-8");
+  const location = upstream.headers.get("location");
+  if (location) response.setHeader("Location", location);
+  response.end(Buffer.from(await upstream.arrayBuffer()));
 }
 
 async function handler(request: IncomingMessage, response: ServerResponse): Promise<void> {
@@ -66,12 +57,13 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
       service: "jarvis-fixed-enrollment-portal",
       lanEnabled: allowLan,
       broker: "loopback",
-      grantTtlSeconds: 600,
+      fixedPath: "/enroll",
+      authorization: "broker-pairing-window",
       maxDevicesPerOpen: 1,
     });
   }
 
-  if (method !== "GET" || !url.pathname.startsWith("/enroll/")) {
+  if (method !== "GET" || url.pathname !== "/enroll") {
     return json(response, 404, { message: "not found" });
   }
 
@@ -81,25 +73,11 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
     return json(response, 429, { message: "enrollment portal rate limit exceeded" });
   }
 
-  let presented = "";
   try {
-    presented = decodeURIComponent(url.pathname.slice("/enroll/".length));
-  } catch {
-    return json(response, 404, { message: "not found" });
-  }
-  if (!presented || !safeEqualEnrollmentKey(presented, portalKey)) {
-    return json(response, 404, { message: "not found" });
-  }
-
-  try {
-    const location = await mintFreshOneTapUrl();
-    response.statusCode = 303;
-    setPrivateResponseHeaders(response);
-    response.setHeader("Location", location);
-    response.end();
+    await proxyFixedEnrollment(response);
   } catch (error) {
-    console.error("[jarvis-fixed-enrollment] fresh grant failed", error instanceof Error ? error.message : "unknown error");
-    return json(response, 503, { message: "fresh enrollment grant unavailable" });
+    console.error("[jarvis-fixed-enrollment] broker enrollment route unavailable", error instanceof Error ? error.message : "unknown error");
+    return json(response, 503, { message: "fixed enrollment route unavailable" });
   }
 }
 
@@ -112,7 +90,7 @@ const server = createServer((request, response) => {
 
 server.listen(port, host, () => {
   console.log(`[jarvis-fixed-enrollment] listening on http://${host}:${port}`);
-  console.log(`[jarvis-fixed-enrollment] fixed path=/enroll/<opaque-key> ttl=600s maxDevices=1 lan=${allowLan ? "enabled" : "disabled"}`);
+  console.log(`[jarvis-fixed-enrollment] fixed path=/enroll auth=broker-pairing-window maxDevicesPerOpen=1 lan=${allowLan ? "enabled" : "disabled"}`);
 });
 
 function shutdown(): void {

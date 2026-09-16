@@ -39,7 +39,7 @@ if (!fs.existsSync(path.join(root, '.next', 'BUILD_ID'))) {
   refuse('production dashboard build is missing; run pnpm build before starting the remote host');
 }
 
-const enrollmentPortalEnabled = Boolean(process.env.JARVIS_ENROLLMENT_PORTAL_KEY?.trim());
+const enrollmentPortalEnabled = process.env.JARVIS_ENROLLMENT_PORTAL_ENABLED !== '0';
 const specs = serviceSpecs(root, process.execPath, process.env.JARVIS_DASHBOARD_PORT || '3000', { enableEnrollmentPortal: enrollmentPortalEnabled });
 
 function startManaged(spec) {
@@ -78,7 +78,7 @@ process.on('uncaughtException', (error) => {
 });
 
 if (!enrollmentPortalEnabled) {
-  console.log('[remote-host] enrollment portal disabled: JARVIS_ENROLLMENT_PORTAL_KEY is not provisioned');
+  console.log('[remote-host] enrollment portal disabled by JARVIS_ENROLLMENT_PORTAL_ENABLED=0');
 }
 for (const spec of specs) startManaged(spec);
 console.log('[remote-host] JARVIS remote stack supervisor active');

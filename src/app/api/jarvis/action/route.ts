@@ -14,6 +14,7 @@ type JarvisDeviceTaskType =
 
 type JarvisDashboardAction =
   | { action: "enrollment"; mode?: "quick" | "full" | "fleet"; maxDevices?: number; group?: string; ttlMs?: number }
+  | { action: "pairing-window"; operation?: "open" | "close" | "status"; maxIssues?: number; group?: string; ttlMs?: number }
   | { action: "open-url"; url?: string; targetNodeId?: string; allowJavaScript?: boolean }
   | { action: "device-task"; type?: JarvisDeviceTaskType; payload?: Record<string, unknown>; targetNodeId?: string; priority?: string }
   | { action: "resolve-takeover"; sessionId?: string; resumeTask?: boolean };
@@ -36,7 +37,8 @@ export async function POST(request: Request) {
   if (!payload?.action) return NextResponse.json({ message: "操作内容がありません" }, { status: 400 });
 
   let path: string;
-  let body: Record<string, unknown>;
+  let method = "POST";
+  let body: Record<string, unknown> | undefined;
   if (payload.action === "enrollment") {
     path = "/api/jarvis/admin/enrollment";
     body = {
@@ -45,6 +47,18 @@ export async function POST(request: Request) {
       group: payload.group,
       ttlMs: payload.ttlMs,
     };
+  } else if (payload.action === "pairing-window") {
+    path = "/api/jarvis/admin/enrollment-window";
+    if (payload.operation === "status") {
+      method = "GET";
+    } else {
+      body = {
+        action: payload.operation === "close" ? "close" : "open",
+        maxIssues: payload.maxIssues,
+        group: payload.group,
+        ttlMs: payload.ttlMs,
+      };
+    }
   } else if (payload.action === "open-url") {
     if (!payload.url?.startsWith("https://")) return NextResponse.json({ message: "HTTPS URLを指定してください" }, { status: 400 });
     path = "/api/jarvis/admin/tasks";
@@ -69,13 +83,13 @@ export async function POST(request: Request) {
   }
 
   try {
-    const response = await jarvisBrokerFetch(path, { method: "POST", body: JSON.stringify(body) });
+    const response = await jarvisBrokerFetch(path, { method, ...(body ? { body: JSON.stringify(body) } : {}) });
     const result = await response.json().catch(() => ({ message: "JARVIS Brokerから不正な応答を受信しました" }));
     return NextResponse.json(result, { status: response.status });
   } catch (error) {
     const detail = error instanceof Error ? error.message : "unknown error";
     return NextResponse.json({
-      message: payload.action === "enrollment" ? "登録セットを発行できません。JARVIS Brokerの接続設定を確認してください。" : "JARVIS Brokerに接続できません",
+      message: payload.action === "enrollment" || payload.action === "pairing-window" ? "端末登録設定を更新できません。JARVIS Brokerの接続設定を確認してください。" : "JARVIS Brokerに接続できません",
       detail,
     }, { status: 503 });
   }
