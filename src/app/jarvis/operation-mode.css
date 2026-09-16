@@ -17,10 +17,7 @@ html[data-jarvis-operation-mode="kiosk"] .jarvis-operation-boundary .jarvis-mult
 html[data-jarvis-operation-mode="kiosk"] .jarvis-primary-nav,
 html[data-jarvis-operation-mode="kiosk"] .jarvis-display-modes,
 html[data-jarvis-operation-mode="kiosk"] .jarvis-command-search,
-html[data-jarvis-operation-mode="kiosk"] .jarvis-home-layout-editor{display:none!important}
+html[data-jarvis-operation-mode="kiosk"] .jarvis-widget-editor{display:none!important}
 html[data-jarvis-operation-mode="kiosk"] .jarvis-owner-link{display:inline-flex!important}
-html[data-jarvis-operation-mode="kiosk"] .jarvis-alert,
-html[data-jarvis-operation-mode="kiosk"] .jarvis-takeover,
-html[data-jarvis-operation-mode="kiosk"] .jarvis-takeover-row{visibility:visible!important;display:revert}
 @media(max-width:720px){.jarvis-operation-modes{align-items:stretch;flex-direction:column}.jarvis-operation-mode-buttons{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:480px){.jarvis-operation-mode-buttons{grid-template-columns:1fr}.jarvis-readonly-banner{align-items:flex-start;flex-direction:column}}
