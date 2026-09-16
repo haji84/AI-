@@ -17,6 +17,9 @@ importers:
       react-dom:
         specifier: 19.2.8
         version: 19.2.8(react@19.2.8)
+      sharp:
+        specifier: 0.35.3
+        version: 0.35.3(@types/node@24.13.3)
     devDependencies:
       '@eslint/js':
         specifier: 9.39.5
@@ -1148,8 +1151,7 @@ snapshots:
 
   '@humanwhocodes/retry@0.4.3': {}
 
-  '@img/colour@1.1.0':
-    optional: true
+  '@img/colour@1.1.0': {}
 
   '@img/sharp-darwin-arm64@0.35.3':
     optionalDependencies:
@@ -1497,8 +1499,7 @@ snapshots:
 
   deep-is@0.1.4: {}
 
-  detect-libc@2.1.2:
-    optional: true
+  detect-libc@2.1.2: {}
 
   electron-to-chromium@1.5.412:
     optional: true
@@ -1800,7 +1801,6 @@ snapshots:
       '@img/sharp-win32-ia32': 0.35.3
       '@img/sharp-win32-x64': 0.35.3
       '@types/node': 24.13.3
-    optional: true
 
   shebang-command@2.0.0:
     dependencies:
