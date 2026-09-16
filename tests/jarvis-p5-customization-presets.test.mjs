@@ -32,9 +32,11 @@ test("P5 customization persists theme persona voice accent and layout as separat
   const preferences = await source("src/app/jarvis/ui-preferences.ts");
   const settings = await source("src/app/jarvis/settings/JarvisLocalSettings.tsx");
 
-  for (const field of ["theme", "persona", "voice", "accent", "layout", "density", "motion"]) {
-    assert.match(preferences, new RegExp(`${field}: string|${field}: \\\"`), `missing ${field} preference`);
+  for (const field of ["theme", "persona", "voice", "accent", "layout"]) {
+    assert.ok(preferences.includes(`${field}: string;`), `missing ${field} preference`);
   }
+  assert.ok(preferences.includes('density: "comfortable" | "compact";'));
+  assert.ok(preferences.includes('motion: "full" | "reduced";'));
 
   assert.match(preferences, /normalizeJarvisPreferences/);
   assert.match(preferences, /localStorage\.getItem\(JARVIS_PREFERENCE_KEY\)/);
@@ -45,11 +47,7 @@ test("P5 customization persists theme persona voice accent and layout as separat
   assert.match(preferences, /dataset\.jarvisAccent/);
   assert.match(preferences, /dataset\.jarvisLayout/);
 
-  assert.match(settings, /Theme \\//);
-  assert.match(settings, /Persona \\//);
-  assert.match(settings, /Voice \\//);
-  assert.match(settings, /Color \\//);
-  assert.match(settings, /Layout/);
+  assert.match(settings, /Theme \/ Persona \/ Voice \/ Color \/ Layout/);
   assert.match(settings, /ここでは音声機能の完成を主張しない/);
   assert.doesNotMatch(settings, /fetch\(/);
 });
