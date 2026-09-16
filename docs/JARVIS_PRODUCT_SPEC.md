@@ -1215,14 +1215,22 @@ The JSON blocks are the authoritative rows. Validate exact mirror and evidence g
     "INTEGRATION",
     "PHYSICAL"
   ],
-  "implementation_refs": [],
-  "test_refs": [],
-  "evidence_refs": [],
-  "status": "MISSING",
-  "blocker": "Supported recordingの実装・許可・保存・停止フロー未発見。",
+  "implementation_refs": [
+    "src/jarvis/remote-assist-recording.ts",
+    "src/app/api/jarvis/remote/route.ts",
+    "src/app/jarvis/JarvisConsole.tsx"
+  ],
+  "test_refs": [
+    "tests/jarvis-remote-assist-recording.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/audit/jarvis-p3-reconciliation.md"
+  ],
+  "status": "PARTIAL",
+  "blocker": "PNG frame sequenceとUI開始/停止あり。audit admission、capture timeout/stop、認証付き閲覧/export、実機Evidenceが不足。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P4: Supported recording。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "録画の監査・停止/期限境界を修正し、残るplatform/統合/実機Evidenceを取得。詳細: docs/audit/jarvis-p3-reconciliation.md",
   "last_verified_commit": null
 }
 ```
@@ -1649,17 +1657,22 @@ The JSON blocks are the authoritative rows. Validate exact mirror and evidence g
   ],
   "implementation_refs": [
     "src/gai/device-capability-runtime.ts",
-    "apps/ios-worker/Sources/WorkerRuntime.swift"
+    "apps/ios-worker/Sources/WorkerRuntime.swift",
+    "src/jarvis/remote-assist-node-capability.ts",
+    "src/app/jarvis/devices/page.tsx"
   ],
   "test_refs": [
-    "tests/gai-device-capability-runtime.test.ts"
+    "tests/gai-device-capability-runtime.test.ts",
+    "tests/jarvis-remote-assist-node-capability.test.ts"
   ],
-  "evidence_refs": [],
+  "evidence_refs": [
+    "docs/audit/jarvis-p3-reconciliation.md"
+  ],
   "status": "PARTIAL",
-  "blocker": "iOS resident mode拒否は実装済み。公式OS制約の根拠・safe fallback・JARVIS capability badgeの全条件は未確認。",
+  "blocker": "端末別badgeとiOSの保守的degradation実装済み。実動transport・fallback実機証明と公式platform制約根拠は未確認。FULL_MANAGEMENTは未証明。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P4: Android同等の自由操作ができない場合view-only/limited-control等を明示。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "録画の監査・停止/期限境界を修正し、残るplatform/統合/実機Evidenceを取得。詳細: docs/audit/jarvis-p3-reconciliation.md",
   "last_verified_commit": null
 }
 ```
@@ -1904,15 +1917,22 @@ The JSON blocks are the authoritative rows. Validate exact mirror and evidence g
   ],
   "implementation_refs": [
     "src/app/jarvis/JarvisConsole.tsx",
-    "scripts/jarvis-remote-gateway.ts"
+    "scripts/jarvis-remote-gateway.ts",
+    "src/app/api/jarvis/remote/route.ts",
+    "src/jarvis/remote-assist.ts"
   ],
-  "test_refs": [],
-  "evidence_refs": [],
+  "test_refs": [
+    "tests/jarvis-remote-assist-console.test.ts",
+    "tests/jarvis-remote-assist-session.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/audit/jarvis-p3-reconciliation.md"
+  ],
   "status": "PARTIAL",
-  "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+  "blocker": "Android screenshot/inputとsession UI実装済み。PC transport、browser/API統合と実機操作Evidence未取得。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P3: Devices画面から端末画面を確認。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "録画の監査・停止/期限境界を修正し、残るplatform/統合/実機Evidenceを取得。詳細: docs/audit/jarvis-p3-reconciliation.md",
   "last_verified_commit": null
 }
 ```
@@ -1933,15 +1953,22 @@ The JSON blocks are the authoritative rows. Validate exact mirror and evidence g
   ],
   "implementation_refs": [
     "src/app/jarvis/JarvisConsole.tsx",
-    "scripts/jarvis-remote-gateway.ts"
+    "scripts/jarvis-remote-gateway.ts",
+    "src/app/api/jarvis/remote/route.ts",
+    "src/jarvis/remote-assist.ts"
   ],
-  "test_refs": [],
-  "evidence_refs": [],
+  "test_refs": [
+    "tests/jarvis-remote-assist-console.test.ts",
+    "tests/jarvis-remote-assist-session.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/audit/jarvis-p3-reconciliation.md"
+  ],
   "status": "PARTIAL",
-  "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+  "blocker": "Android screenshot/inputとsession UI実装済み。PC transport、browser/API統合と実機操作Evidence未取得。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P3: Single device view。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "録画の監査・停止/期限境界を修正し、残るplatform/統合/実機Evidenceを取得。詳細: docs/audit/jarvis-p3-reconciliation.md",
   "last_verified_commit": null
 }
 ```
@@ -1960,14 +1987,22 @@ The JSON blocks are the authoritative rows. Validate exact mirror and evidence g
     "INTEGRATION",
     "PHYSICAL"
   ],
-  "implementation_refs": [],
-  "test_refs": [],
-  "evidence_refs": [],
-  "status": "MISSING",
-  "blocker": "現行consoleは単一Android画像表示。split/gridおよび要求されたcapability badgeを未発見。",
+  "implementation_refs": [
+    "src/app/jarvis/RemoteAssistMultiView.tsx",
+    "src/jarvis/remote-assist-view.ts"
+  ],
+  "test_refs": [
+    "tests/jarvis-remote-assist-view.test.ts",
+    "tests/jarvis-remote-assist-multiview-ui.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/audit/jarvis-p3-reconciliation.md"
+  ],
+  "status": "PARTIAL",
+  "blocker": "2/4分割と12台windowのfleet表示実装済み。実機同時表示・切断復帰未検証。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P3: 2画面split。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "録画の監査・停止/期限境界を修正し、残るplatform/統合/実機Evidenceを取得。詳細: docs/audit/jarvis-p3-reconciliation.md",
   "last_verified_commit": null
 }
 ```
@@ -1986,14 +2021,22 @@ The JSON blocks are the authoritative rows. Validate exact mirror and evidence g
     "INTEGRATION",
     "PHYSICAL"
   ],
-  "implementation_refs": [],
-  "test_refs": [],
-  "evidence_refs": [],
-  "status": "MISSING",
-  "blocker": "現行consoleは単一Android画像表示。split/gridおよび要求されたcapability badgeを未発見。",
+  "implementation_refs": [
+    "src/app/jarvis/RemoteAssistMultiView.tsx",
+    "src/jarvis/remote-assist-view.ts"
+  ],
+  "test_refs": [
+    "tests/jarvis-remote-assist-view.test.ts",
+    "tests/jarvis-remote-assist-multiview-ui.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/audit/jarvis-p3-reconciliation.md"
+  ],
+  "status": "PARTIAL",
+  "blocker": "2/4分割と12台windowのfleet表示実装済み。実機同時表示・切断復帰未検証。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P3: 4画面split。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "録画の監査・停止/期限境界を修正し、残るplatform/統合/実機Evidenceを取得。詳細: docs/audit/jarvis-p3-reconciliation.md",
   "last_verified_commit": null
 }
 ```
@@ -2012,14 +2055,22 @@ The JSON blocks are the authoritative rows. Validate exact mirror and evidence g
     "INTEGRATION",
     "PHYSICAL"
   ],
-  "implementation_refs": [],
-  "test_refs": [],
-  "evidence_refs": [],
-  "status": "MISSING",
-  "blocker": "現行consoleは単一Android画像表示。split/gridおよび要求されたcapability badgeを未発見。",
+  "implementation_refs": [
+    "src/app/jarvis/RemoteAssistMultiView.tsx",
+    "src/jarvis/remote-assist-view.ts"
+  ],
+  "test_refs": [
+    "tests/jarvis-remote-assist-view.test.ts",
+    "tests/jarvis-remote-assist-multiview-ui.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/audit/jarvis-p3-reconciliation.md"
+  ],
+  "status": "PARTIAL",
+  "blocker": "2/4分割と12台windowのfleet表示実装済み。実機同時表示・切断復帰未検証。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P3: Fleet thumbnail/grid。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "録画の監査・停止/期限境界を修正し、残るplatform/統合/実機Evidenceを取得。詳細: docs/audit/jarvis-p3-reconciliation.md",
   "last_verified_commit": null
 }
 ```
@@ -2038,14 +2089,21 @@ The JSON blocks are the authoritative rows. Validate exact mirror and evidence g
     "INTEGRATION",
     "PHYSICAL"
   ],
-  "implementation_refs": [],
-  "test_refs": [],
-  "evidence_refs": [],
-  "status": "MISSING",
-  "blocker": "現行consoleは単一Android画像表示。split/gridおよび要求されたcapability badgeを未発見。",
+  "implementation_refs": [
+    "src/jarvis/remote-assist-node-capability.ts",
+    "src/app/jarvis/devices/page.tsx"
+  ],
+  "test_refs": [
+    "tests/jarvis-remote-assist-node-capability.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/audit/jarvis-p3-reconciliation.md"
+  ],
+  "status": "PARTIAL",
+  "blocker": "端末別badgeとiOSの保守的degradation実装済み。実動transport・fallback実機証明と公式platform制約根拠は未確認。FULL_MANAGEMENTは未証明。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P3: Device capability badge: VIEW ONLY / CONTROLLABLE / FULL MANAGEMENT。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "録画の監査・停止/期限境界を修正し、残るplatform/統合/実機Evidenceを取得。詳細: docs/audit/jarvis-p3-reconciliation.md",
   "last_verified_commit": null
 }
 ```
@@ -2066,15 +2124,22 @@ The JSON blocks are the authoritative rows. Validate exact mirror and evidence g
   ],
   "implementation_refs": [
     "src/app/jarvis/JarvisConsole.tsx",
-    "scripts/jarvis-remote-gateway.ts"
+    "scripts/jarvis-remote-gateway.ts",
+    "src/app/api/jarvis/remote/route.ts",
+    "src/jarvis/remote-assist.ts"
   ],
-  "test_refs": [],
-  "evidence_refs": [],
+  "test_refs": [
+    "tests/jarvis-remote-assist-console.test.ts",
+    "tests/jarvis-remote-assist-session.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/audit/jarvis-p3-reconciliation.md"
+  ],
   "status": "PARTIAL",
-  "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+  "blocker": "Android screenshot/inputとsession UI実装済み。PC transport、browser/API統合と実機操作Evidence未取得。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P3: Android/PC remote tap/click。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "録画の監査・停止/期限境界を修正し、残るplatform/統合/実機Evidenceを取得。詳細: docs/audit/jarvis-p3-reconciliation.md",
   "last_verified_commit": null
 }
 ```
@@ -2095,15 +2160,22 @@ The JSON blocks are the authoritative rows. Validate exact mirror and evidence g
   ],
   "implementation_refs": [
     "src/app/jarvis/JarvisConsole.tsx",
-    "scripts/jarvis-remote-gateway.ts"
+    "scripts/jarvis-remote-gateway.ts",
+    "src/app/api/jarvis/remote/route.ts",
+    "src/jarvis/remote-assist.ts"
   ],
-  "test_refs": [],
-  "evidence_refs": [],
+  "test_refs": [
+    "tests/jarvis-remote-assist-console.test.ts",
+    "tests/jarvis-remote-assist-session.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/audit/jarvis-p3-reconciliation.md"
+  ],
   "status": "PARTIAL",
-  "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+  "blocker": "Android screenshot/inputとsession UI実装済み。PC transport、browser/API統合と実機操作Evidence未取得。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P3: Remote text。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "録画の監査・停止/期限境界を修正し、残るplatform/統合/実機Evidenceを取得。詳細: docs/audit/jarvis-p3-reconciliation.md",
   "last_verified_commit": null
 }
 ```
@@ -2124,15 +2196,22 @@ The JSON blocks are the authoritative rows. Validate exact mirror and evidence g
   ],
   "implementation_refs": [
     "src/app/jarvis/JarvisConsole.tsx",
-    "scripts/jarvis-remote-gateway.ts"
+    "scripts/jarvis-remote-gateway.ts",
+    "src/app/api/jarvis/remote/route.ts",
+    "src/jarvis/remote-assist.ts"
   ],
-  "test_refs": [],
-  "evidence_refs": [],
+  "test_refs": [
+    "tests/jarvis-remote-assist-console.test.ts",
+    "tests/jarvis-remote-assist-session.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/audit/jarvis-p3-reconciliation.md"
+  ],
   "status": "PARTIAL",
-  "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+  "blocker": "Android screenshot/inputとsession UI実装済み。PC transport、browser/API統合と実機操作Evidence未取得。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P3: Remote scroll/swipe。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "録画の監査・停止/期限境界を修正し、残るplatform/統合/実機Evidenceを取得。詳細: docs/audit/jarvis-p3-reconciliation.md",
   "last_verified_commit": null
 }
 ```
@@ -2153,15 +2232,22 @@ The JSON blocks are the authoritative rows. Validate exact mirror and evidence g
   ],
   "implementation_refs": [
     "src/app/jarvis/JarvisConsole.tsx",
-    "scripts/jarvis-remote-gateway.ts"
+    "scripts/jarvis-remote-gateway.ts",
+    "src/app/api/jarvis/remote/route.ts",
+    "src/jarvis/remote-assist.ts"
   ],
-  "test_refs": [],
-  "evidence_refs": [],
+  "test_refs": [
+    "tests/jarvis-remote-assist-console.test.ts",
+    "tests/jarvis-remote-assist-session.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/audit/jarvis-p3-reconciliation.md"
+  ],
   "status": "PARTIAL",
-  "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+  "blocker": "Android screenshot/inputとsession UI実装済み。PC transport、browser/API統合と実機操作Evidence未取得。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P3: Back/Home。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "録画の監査・停止/期限境界を修正し、残るplatform/統合/実機Evidenceを取得。詳細: docs/audit/jarvis-p3-reconciliation.md",
   "last_verified_commit": null
 }
 ```
@@ -2182,15 +2268,22 @@ The JSON blocks are the authoritative rows. Validate exact mirror and evidence g
   ],
   "implementation_refs": [
     "src/app/jarvis/JarvisConsole.tsx",
-    "scripts/jarvis-remote-gateway.ts"
+    "scripts/jarvis-remote-gateway.ts",
+    "src/app/api/jarvis/remote/route.ts",
+    "src/jarvis/remote-assist.ts"
   ],
-  "test_refs": [],
-  "evidence_refs": [],
+  "test_refs": [
+    "tests/jarvis-remote-assist-console.test.ts",
+    "tests/jarvis-remote-assist-session.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/audit/jarvis-p3-reconciliation.md"
+  ],
   "status": "PARTIAL",
-  "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+  "blocker": "Android screenshot/inputとsession UI実装済み。PC transport、browser/API統合と実機操作Evidence未取得。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P3: App switch。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "録画の監査・停止/期限境界を修正し、残るplatform/統合/実機Evidenceを取得。詳細: docs/audit/jarvis-p3-reconciliation.md",
   "last_verified_commit": null
 }
 ```
@@ -2211,15 +2304,22 @@ The JSON blocks are the authoritative rows. Validate exact mirror and evidence g
   ],
   "implementation_refs": [
     "src/app/jarvis/JarvisConsole.tsx",
-    "scripts/jarvis-remote-gateway.ts"
+    "scripts/jarvis-remote-gateway.ts",
+    "src/app/api/jarvis/remote/route.ts",
+    "src/jarvis/remote-assist.ts"
   ],
-  "test_refs": [],
-  "evidence_refs": [],
+  "test_refs": [
+    "tests/jarvis-remote-assist-console.test.ts",
+    "tests/jarvis-remote-assist-session.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/audit/jarvis-p3-reconciliation.md"
+  ],
   "status": "PARTIAL",
-  "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+  "blocker": "Android screenshot/inputとsession UI実装済み。PC transport、browser/API統合と実機操作Evidence未取得。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P3: Screenshot。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "録画の監査・停止/期限境界を修正し、残るplatform/統合/実機Evidenceを取得。詳細: docs/audit/jarvis-p3-reconciliation.md",
   "last_verified_commit": null
 }
 ```
@@ -2238,14 +2338,22 @@ The JSON blocks are the authoritative rows. Validate exact mirror and evidence g
     "INTEGRATION",
     "PHYSICAL"
   ],
-  "implementation_refs": [],
-  "test_refs": [],
-  "evidence_refs": [],
-  "status": "MISSING",
-  "blocker": "Supported recordingの実装・許可・保存・停止フロー未発見。",
+  "implementation_refs": [
+    "src/jarvis/remote-assist-recording.ts",
+    "src/app/api/jarvis/remote/route.ts",
+    "src/app/jarvis/JarvisConsole.tsx"
+  ],
+  "test_refs": [
+    "tests/jarvis-remote-assist-recording.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/audit/jarvis-p3-reconciliation.md"
+  ],
+  "status": "PARTIAL",
+  "blocker": "PNG frame sequenceとUI開始/停止あり。audit admission、capture timeout/stop、認証付き閲覧/export、実機Evidenceが不足。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P3: Recording。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "録画の監査・停止/期限境界を修正し、残るplatform/統合/実機Evidenceを取得。詳細: docs/audit/jarvis-p3-reconciliation.md",
   "last_verified_commit": null
 }
 ```
@@ -2267,18 +2375,23 @@ The JSON blocks are the authoritative rows. Validate exact mirror and evidence g
   "implementation_refs": [
     "src/jarvis/human-takeover.ts",
     "src/jarvis/control-plane.ts",
-    "src/app/jarvis/JarvisConsole.tsx"
+    "src/app/jarvis/JarvisConsole.tsx",
+    "src/jarvis/remote-assist.ts",
+    "src/app/api/jarvis/remote/route.ts"
   ],
   "test_refs": [
     "tests/jarvis-final-fleet-acceptance.test.ts",
-    "tests/jarvis-persistence.test.ts"
+    "tests/jarvis-persistence.test.ts",
+    "tests/jarvis-remote-assist-session.test.ts"
   ],
-  "evidence_refs": [],
+  "evidence_refs": [
+    "docs/audit/jarvis-p3-reconciliation.md"
+  ],
   "status": "PARTIAL",
-  "blocker": "Takeover state/resolveは存在するがremote session timeout、audit、再観測してresumeする実機フローは未証明。",
+  "blocker": "owner/serial/session/TTL実装と単体試験あり。実API認証・期限切れ統合と実機Evidence不足。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P3: Remote Assist Session。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "録画の監査・停止/期限境界を修正し、残るplatform/統合/実機Evidenceを取得。詳細: docs/audit/jarvis-p3-reconciliation.md",
   "last_verified_commit": null
 }
 ```
@@ -2302,18 +2415,22 @@ The JSON blocks are the authoritative rows. Validate exact mirror and evidence g
     "src/app/owner-auth.ts",
     "src/app/api/jarvis/remote/route.ts",
     "scripts/jarvis-remote-gateway.ts",
-    "scripts/jarvis-remote-access-lib.mjs"
+    "scripts/jarvis-remote-access-lib.mjs",
+    "src/jarvis/remote-assist.ts"
   ],
   "test_refs": [
     "tests/owner-auth.test.ts",
-    "scripts/jarvis-remote-access.test.mjs"
+    "scripts/jarvis-remote-access.test.mjs",
+    "tests/jarvis-remote-assist-session.test.ts"
   ],
-  "evidence_refs": [],
+  "evidence_refs": [
+    "docs/audit/jarvis-p3-reconciliation.md"
+  ],
   "status": "PARTIAL",
-  "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+  "blocker": "owner/serial/session/TTL実装と単体試験あり。実API認証・期限切れ統合と実機Evidence不足。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P3: Session auth。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "録画の監査・停止/期限境界を修正し、残るplatform/統合/実機Evidenceを取得。詳細: docs/audit/jarvis-p3-reconciliation.md",
   "last_verified_commit": null
 }
 ```
@@ -2370,18 +2487,23 @@ The JSON blocks are the authoritative rows. Validate exact mirror and evidence g
   "implementation_refs": [
     "src/jarvis/human-takeover.ts",
     "src/jarvis/control-plane.ts",
-    "src/app/jarvis/JarvisConsole.tsx"
+    "src/app/jarvis/JarvisConsole.tsx",
+    "src/jarvis/remote-assist.ts",
+    "src/app/api/jarvis/remote/route.ts"
   ],
   "test_refs": [
     "tests/jarvis-final-fleet-acceptance.test.ts",
-    "tests/jarvis-persistence.test.ts"
+    "tests/jarvis-persistence.test.ts",
+    "tests/jarvis-remote-assist-session.test.ts"
   ],
-  "evidence_refs": [],
+  "evidence_refs": [
+    "docs/audit/jarvis-p3-reconciliation.md"
+  ],
   "status": "PARTIAL",
-  "blocker": "Takeover state/resolveは存在するがremote session timeout、audit、再観測してresumeする実機フローは未証明。",
+  "blocker": "owner/serial/session/TTL実装と単体試験あり。実API認証・期限切れ統合と実機Evidence不足。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P3: Timeout。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "録画の監査・停止/期限境界を修正し、残るplatform/統合/実機Evidenceを取得。詳細: docs/audit/jarvis-p3-reconciliation.md",
   "last_verified_commit": null
 }
 ```
@@ -2403,18 +2525,25 @@ The JSON blocks are the authoritative rows. Validate exact mirror and evidence g
   "implementation_refs": [
     "src/jarvis/human-takeover.ts",
     "src/jarvis/control-plane.ts",
-    "src/app/jarvis/JarvisConsole.tsx"
+    "src/app/jarvis/JarvisConsole.tsx",
+    "src/jarvis/remote-assist-audit.ts",
+    "src/jarvis/remote-assist.ts",
+    "src/app/api/jarvis/remote/route.ts"
   ],
   "test_refs": [
     "tests/jarvis-final-fleet-acceptance.test.ts",
-    "tests/jarvis-persistence.test.ts"
+    "tests/jarvis-persistence.test.ts",
+    "tests/jarvis-remote-assist-audit.test.ts",
+    "tests/jarvis-remote-assist-session.test.ts"
   ],
-  "evidence_refs": [],
+  "evidence_refs": [
+    "docs/audit/jarvis-p3-reconciliation.md"
+  ],
   "status": "PARTIAL",
-  "blocker": "Takeover state/resolveは存在するがremote session timeout、audit、再観測してresumeする実機フローは未証明。",
+  "blocker": "永続JSONL監査とprivacy filteringあり。録画開始監査の失敗時にcaptureが先行する問題、API negative coverageが残る。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P3: Audit log。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "録画の監査・停止/期限境界を修正し、残るplatform/統合/実機Evidenceを取得。詳細: docs/audit/jarvis-p3-reconciliation.md",
   "last_verified_commit": null
 }
 ```
@@ -2440,14 +2569,17 @@ The JSON blocks are the authoritative rows. Validate exact mirror and evidence g
   ],
   "test_refs": [
     "tests/jarvis-final-fleet-acceptance.test.ts",
-    "tests/jarvis-persistence.test.ts"
+    "tests/jarvis-persistence.test.ts",
+    "tests/jarvis-remote-assist-console.test.ts"
   ],
-  "evidence_refs": [],
+  "evidence_refs": [
+    "docs/audit/jarvis-p3-reconciliation.md"
+  ],
   "status": "PARTIAL",
-  "blocker": "Takeover state/resolveは存在するがremote session timeout、audit、再観測してresumeする実機フローは未証明。",
+  "blocker": "nodeIdとserialの完全一致時だけUI連携。再観測・異なるidentityの正式mapping・実機failure/takeover/resume未検証。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P3: AI作業→UI変化/失敗→OwnerへHuman Takeover提示→Live View→Owner操作→「続きやって」→画面再観測→自律処理再開。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "録画の監査・停止/期限境界を修正し、残るplatform/統合/実機Evidenceを取得。詳細: docs/audit/jarvis-p3-reconciliation.md",
   "last_verified_commit": null
 }
 ```
@@ -2473,14 +2605,17 @@ The JSON blocks are the authoritative rows. Validate exact mirror and evidence g
   ],
   "test_refs": [
     "tests/jarvis-final-fleet-acceptance.test.ts",
-    "tests/jarvis-persistence.test.ts"
+    "tests/jarvis-persistence.test.ts",
+    "tests/jarvis-remote-assist-console.test.ts"
   ],
-  "evidence_refs": [],
+  "evidence_refs": [
+    "docs/audit/jarvis-p3-reconciliation.md"
+  ],
   "status": "PARTIAL",
-  "blocker": "Takeover state/resolveは存在するがremote session timeout、audit、再観測してresumeする実機フローは未証明。",
+  "blocker": "nodeIdとserialの完全一致時だけUI連携。再観測・異なるidentityの正式mapping・実機failure/takeover/resume未検証。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P3: Human Takeover前後の状態を保存。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "録画の監査・停止/期限境界を修正し、残るplatform/統合/実機Evidenceを取得。詳細: docs/audit/jarvis-p3-reconciliation.md",
   "last_verified_commit": null
 }
 ```
@@ -2503,13 +2638,17 @@ The JSON blocks are the authoritative rows. Validate exact mirror and evidence g
   "implementation_refs": [
     "src/jarvis/policy-engine.ts"
   ],
-  "test_refs": [],
-  "evidence_refs": [],
+  "test_refs": [
+    "tests/jarvis-remote-pointer-policy.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/audit/jarvis-p3-reconciliation.md"
+  ],
   "status": "PARTIAL",
-  "blocker": "Remote inputから重要操作へ至る経路のpolicy連携・negative tests未確認。",
+  "blocker": "pointer/gesture provenanceによる保護操作のnegative policy testsあり。command routing全経路のpolicy適用を統合検証する。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P3: Pointing/gestureだけではdestructive actionを許可しない。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "録画の監査・停止/期限境界を修正し、残るplatform/統合/実機Evidenceを取得。詳細: docs/audit/jarvis-p3-reconciliation.md",
   "last_verified_commit": null
 }
 ```
@@ -2530,17 +2669,22 @@ The JSON blocks are the authoritative rows. Validate exact mirror and evidence g
   ],
   "implementation_refs": [
     "src/gai/device-capability-runtime.ts",
-    "apps/ios-worker/Sources/WorkerRuntime.swift"
+    "apps/ios-worker/Sources/WorkerRuntime.swift",
+    "src/jarvis/remote-assist-node-capability.ts",
+    "src/app/jarvis/devices/page.tsx"
   ],
   "test_refs": [
-    "tests/gai-device-capability-runtime.test.ts"
+    "tests/gai-device-capability-runtime.test.ts",
+    "tests/jarvis-remote-assist-node-capability.test.ts"
   ],
-  "evidence_refs": [],
+  "evidence_refs": [
+    "docs/audit/jarvis-p3-reconciliation.md"
+  ],
   "status": "PARTIAL",
-  "blocker": "iOS resident mode拒否は実装済み。公式OS制約の根拠・safe fallback・JARVIS capability badgeの全条件は未確認。",
+  "blocker": "端末別badgeとiOSの保守的degradation実装済み。実動transport・fallback実機証明と公式platform制約根拠は未確認。FULL_MANAGEMENTは未証明。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P3: iPhoneはOS制約に応じてgraceful degradation。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "録画の監査・停止/期限境界を修正し、残るplatform/統合/実機Evidenceを取得。詳細: docs/audit/jarvis-p3-reconciliation.md",
   "last_verified_commit": null
 }
 ```
@@ -3529,15 +3673,22 @@ The JSON blocks are the authoritative rows. Validate exact mirror and evidence g
   ],
   "implementation_refs": [
     "src/app/jarvis/JarvisConsole.tsx",
-    "src/app/jarvis/jarvis.css"
+    "src/app/jarvis/jarvis.css",
+    "src/app/api/jarvis/remote/route.ts",
+    "src/jarvis/remote-assist.ts"
   ],
-  "test_refs": [],
-  "evidence_refs": [],
+  "test_refs": [
+    "tests/jarvis-remote-assist-console.test.ts",
+    "tests/jarvis-remote-assist-session.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/audit/jarvis-p3-reconciliation.md"
+  ],
   "status": "PARTIAL",
-  "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+  "blocker": "Android screenshot/inputとsession UI実装済み。PC transport、browser/API統合と実機操作Evidence未取得。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P5: Device Live View統合。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "録画の監査・停止/期限境界を修正し、残るplatform/統合/実機Evidenceを取得。詳細: docs/audit/jarvis-p3-reconciliation.md",
   "last_verified_commit": null
 }
 ```
@@ -6352,17 +6503,22 @@ The JSON blocks are the authoritative rows. Validate exact mirror and evidence g
     "SECURITY"
   ],
   "implementation_refs": [
-    "src/jarvis/human-takeover.ts"
+    "src/jarvis/human-takeover.ts",
+    "src/app/jarvis/JarvisConsole.tsx",
+    "src/jarvis/control-plane.ts"
   ],
   "test_refs": [
-    "tests/jarvis-persistence.test.ts"
+    "tests/jarvis-persistence.test.ts",
+    "tests/jarvis-remote-assist-console.test.ts"
   ],
-  "evidence_refs": [],
+  "evidence_refs": [
+    "docs/audit/jarvis-p3-reconciliation.md"
+  ],
   "status": "PARTIAL",
-  "blocker": "Takeover状態保存あり。セッション全操作の永続監査の網羅性未確認。",
+  "blocker": "nodeIdとserialの完全一致時だけUI連携。再観測・異なるidentityの正式mapping・実機failure/takeover/resume未検証。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P8: Human Takeover audit。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "録画の監査・停止/期限境界を修正し、残るplatform/統合/実機Evidenceを取得。詳細: docs/audit/jarvis-p3-reconciliation.md",
   "last_verified_commit": null
 }
 ```
@@ -6382,17 +6538,24 @@ The JSON blocks are the authoritative rows. Validate exact mirror and evidence g
     "SECURITY"
   ],
   "implementation_refs": [
-    "src/jarvis/human-takeover.ts"
+    "src/jarvis/human-takeover.ts",
+    "src/jarvis/remote-assist-audit.ts",
+    "src/jarvis/remote-assist.ts",
+    "src/app/api/jarvis/remote/route.ts"
   ],
   "test_refs": [
-    "tests/jarvis-persistence.test.ts"
+    "tests/jarvis-persistence.test.ts",
+    "tests/jarvis-remote-assist-audit.test.ts",
+    "tests/jarvis-remote-assist-session.test.ts"
   ],
-  "evidence_refs": [],
+  "evidence_refs": [
+    "docs/audit/jarvis-p3-reconciliation.md"
+  ],
   "status": "PARTIAL",
-  "blocker": "Takeover状態保存あり。セッション全操作の永続監査の網羅性未確認。",
+  "blocker": "永続JSONL監査とprivacy filteringあり。録画開始監査の失敗時にcaptureが先行する問題、API negative coverageが残る。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P8: Remote Assist audit。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "録画の監査・停止/期限境界を修正し、残るplatform/統合/実機Evidenceを取得。詳細: docs/audit/jarvis-p3-reconciliation.md",
   "last_verified_commit": null
 }
 ```
