@@ -1,6 +1,10 @@
 import { execFileSync } from "node:child_process";
 import { createHash, createPublicKey, randomBytes, timingSafeEqual } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { OwnerInvitationStore, INVITATION_PREFIX } from "../src/jarvis/owner-invitation.ts";
+import { invitationUrl } from "../src/jarvis/invitation-link.ts";
+import { FixedEnrollmentRateLimiter } from "../src/jarvis/fixed-enrollment.ts";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import {
   JarvisControlPlane,
@@ -39,6 +43,8 @@ const persisted = store.load();
 if (persisted) plane.restore(persisted);
 const nonces = new JarvisNonceRegistry();
 const pairingWindow = new JarvisEnrollmentPairingWindow();
+const invitations = new OwnerInvitationStore((process.env.JARVIS_DB_PATH?.trim() || resolve(".jarvis/jarvis.db")) + ".invitation.json");
+const invitationLimiter = new FixedEnrollmentRateLimiter(60_000, 100, 200);
 const replacementTransport = new JarvisDeviceReplacementTransport({ identityForNode: (nodeId) => store.getWorkerIdentity(nodeId) });
 let lastHeartbeatPersist = 0;
 
@@ -264,6 +270,19 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
       if (typeof payload.candidateId !== "string" || !payload.candidateId) return json(response, 400, { message: "candidateId required" });
       return json(response, 200, { discarded: replacementTransport.discard(payload.candidateId) });
     }
+    if (path === "/api/jarvis/admin/invitation") {
+      if (method === "GET") return json(response, 200, { invitation: invitations.status() });
+      if (method === "POST" && payload.action === "revoke") return json(response, 200, { invitation: invitations.revoke() });
+      if (method === "POST" && payload.action === "create") {
+        try {
+          // Validate installation before creating a credential; never return an unusable link.
+          invitationUrl(publicBrokerUrl, "ji_" + "a".repeat(43));
+          const { secret, ...invitation } = invitations.create(asNumber(payload.maxDevices, 100));
+          return json(response, 201, { invitation, url: invitationUrl(publicBrokerUrl, secret) });
+        } catch { return json(response, 409, { message: "招待リンクを作成できません。既存リンクの状態と拠点設定を確認してください。" }); }
+      }
+      return json(response, 400, { message: "Invitation action must be create or revoke" });
+    }
     if (method === "GET" && path === "/api/jarvis/admin/enrollment-window") {
       return json(response, 200, { window: pairingWindow.status(), fixedUrl: fixedEnrollmentUrl });
     }
@@ -347,6 +366,15 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
     const key = createPublicKey(identityInput.publicKeyPem);
     if (algorithm === "ecdsa-p256-sha256" && key.asymmetricKeyType !== "ec") return json(response, 400, { message: "ECDSA worker must provide EC public key" });
     if (algorithm === "ed25519" && key.asymmetricKeyType !== "ed25519") return json(response, 400, { message: "Ed25519 worker must provide Ed25519 public key" });
+    if (tokenValue.startsWith(INVITATION_PREFIX)) {
+      if (!invitationLimiter.consume(request.socket.remoteAddress || "unknown").allowed) return json(response, 429, { message: "Registration rate limit" });
+      if (plane.fleet.get(node.id)) return json(response, 409, { message: "Existing identity must reconnect, not re-enroll" });
+      if (plane.snapshot().fleet.length >= 100) return json(response, 409, { message: "Fleet capacity reached" });
+      try { invitations.consume(tokenValue, node.id); }
+      catch { return json(response, 403, { message: "招待リンクは無効・停止中、または登録上限です" }); }
+      // Reusable invitation remains local; each successful redemption uses a fresh bounded quick grant.
+      tokenValue = plane.createEnrollment({ mode: "quick", ttlMs: 30 * 60_000, maxDevices: 1 }).token;
+    }
     const enrolled = plane.enroll(tokenValue, node);
     store.saveWorkerIdentity({ nodeId: enrolled.id, publicKeyPem: identityInput.publicKeyPem, algorithm, enrolledAt: new Date().toISOString() });
     persist(); return json(response, 201, { node: enrolled });

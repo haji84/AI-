@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import OwnerInvitationPanel from "./OwnerInvitationPanel";
 
 type PairingWindow = {
   open: boolean;
@@ -203,7 +204,7 @@ export default function JarvisEnrollPage() {
       <div>
         <p className="eyebrow">JARVIS</p>
         <h1>Android端末登録</h1>
-        <p className="muted">同じ登録URLで複数台を登録できます（全体で最大100台）。各AndroidでURLを開くと、その端末用の最大30分の登録トークンを自動発行します。</p>
+        <p className="muted">家のWi-FiにつないだAndroidを、USBなしで登録できます。専用リンクは一度発行すれば繰り返し使えます（全体で最大100台）。</p>
       </div>
       <div className="jarvis-button-row">
         <a className="button secondary" href="/jarvis/login?next=/jarvis/enroll">オーナー認証</a>
@@ -211,8 +212,9 @@ export default function JarvisEnrollPage() {
       </div>
     </div>
 
+    <OwnerInvitationPanel />
     <section className="panel jarvis-section" style={{ maxWidth: 860, margin: "32px auto 24px" }}>
-      <div className="section-heading"><div><p className="section-kicker">PAIRING WINDOW</p><h2>固定URLの登録受付</h2></div><strong>{statusText}</strong></div>
+      <div className="section-heading"><div><p className="section-kicker">PAIRING WINDOW</p><h2>従来の時間限定受付</h2></div><strong>{statusText}</strong></div>
       <p className="muted">1回の操作で最大100台・最長1時間の受付を開けます。同じURLを各端末で開いてください。トークンと端末の認証情報は端末ごとに分かれます。トークンは最大30分、受付終了が先ならその時刻まで有効です。Brokerを再起動すると受付は閉じます。</p>
       {window && <div className="jarvis-alert" style={{ marginTop: 16 }}>
         <strong>{window.open ? `残り ${window.remaining} / ${window.maxIssues} 台` : `受付停止: ${statusText}`}</strong>
