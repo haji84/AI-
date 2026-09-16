@@ -1,6 +1,8 @@
+import { safeOwnerReturnPath } from "../../owner-login-redirect.ts";
+
 export default async function JarvisLoginPage({ searchParams }: { searchParams: Promise<{ error?: string; next?: string }> }) {
   const params = await searchParams;
-  const next = params.next?.startsWith("/") && !params.next.startsWith("//") ? params.next : "/jarvis";
+  const next = safeOwnerReturnPath(params.next);
   return (
     <main className="dashboard-shell">
       <div className="jarvis-toolbar">
