@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import JarvisPrimaryShell from "./JarvisPrimaryShell";
 import "./jarvis.css";
+import "./shell.css";
 
 export const metadata: Metadata = {
   title: "JARVIS Commander",
