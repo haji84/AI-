@@ -49,6 +49,7 @@ export default function JarvisPrimaryShell({ children }: { children: ReactNode }
 
   return (
     <div className="jarvis-primary-shell">
+      <a className="jarvis-skip-link" href="#jarvis-main-content">本文へ移動</a>
       <header className="jarvis-primary-header">
         <a className="jarvis-brand" href="/jarvis" aria-label="JARVIS ホーム">
           <span className="jarvis-brand-mark" aria-hidden="true">J</span>
@@ -73,10 +74,10 @@ export default function JarvisPrimaryShell({ children }: { children: ReactNode }
       <JarvisCommandSearch pathname={pathname} />
       <JarvisPriorityNotifications />
       <JarvisReadOnlyBoundary>
-        <div className="jarvis-primary-content">
+        <main id="jarvis-main-content" className="jarvis-primary-content" tabIndex={-1}>
           {pathname === "/jarvis" ? <JarvisHomeLayoutEditor /> : null}
           {children}
-        </div>
+        </main>
       </JarvisReadOnlyBoundary>
     </div>
   );
