@@ -4,7 +4,9 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { useEffect } from "react";
 import JarvisCommandSearch from "./JarvisCommandSearch";
+import JarvisDisplayModeControls from "./JarvisDisplayModeControls";
 import JarvisHomeLayoutEditor from "./JarvisHomeLayoutEditor";
+import { applyJarvisDisplayMode, readJarvisDisplayMode } from "./display-modes";
 import { applyJarvisScreenLayoutProfile, readJarvisScreenLayoutProfiles } from "./screen-layout-profiles";
 import { applyJarvisPreferences, readJarvisPreferences } from "./ui-preferences";
 
@@ -18,6 +20,7 @@ const NAV_ITEMS = [
 
 function applyStoredPreferences() {
   applyJarvisPreferences(readJarvisPreferences());
+  applyJarvisDisplayMode(readJarvisDisplayMode());
 }
 
 export default function JarvisPrimaryShell({ children }: { children: ReactNode }) {
@@ -60,6 +63,7 @@ export default function JarvisPrimaryShell({ children }: { children: ReactNode }
         </nav>
         <a className="button secondary jarvis-owner-link" href={`/jarvis/login?next=${encodeURIComponent(pathname)}`}>オーナー認証</a>
       </header>
+      <JarvisDisplayModeControls />
       <JarvisCommandSearch pathname={pathname} />
       <div className="jarvis-primary-content">
         {pathname === "/jarvis" ? <JarvisHomeLayoutEditor /> : null}
