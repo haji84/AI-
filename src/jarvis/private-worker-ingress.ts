@@ -13,6 +13,7 @@ export function privateWorkerBind(value: string): string {
 const workerPaths = new Set([
   "/api/jarvis/enrollment-grant", "/api/jarvis/enroll",
   "/api/jarvis/worker/heartbeat", "/api/jarvis/worker/next", "/api/jarvis/worker/result",
+  "/api/jarvis/worker/remote/next", "/api/jarvis/worker/remote/result",
 ]);
 
 export function allowedPrivateWorkerRequest(method: string, path: string): boolean {

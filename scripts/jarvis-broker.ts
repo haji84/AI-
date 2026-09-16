@@ -18,6 +18,8 @@ import {
 } from "../src/jarvis/index.ts";
 import { JarvisEnrollmentPairingWindow } from "../src/jarvis/enrollment-pairing-window.ts";
 import { JarvisDeviceReplacementTransport } from "../src/jarvis/device-replacement-transport.ts";
+import { WorkerRemoteMailbox } from "../src/jarvis/worker-remote-mailbox.ts";
+import { remoteDeviceInventory } from "../src/jarvis/remote-device-inventory.ts";
 
 const host = process.env.JARVIS_BROKER_HOST?.trim() || "127.0.0.1";
 const port = Number(process.env.JARVIS_BROKER_PORT || 8787);
@@ -42,6 +44,7 @@ const store = new JarvisSqliteStateStore(process.env.JARVIS_DB_PATH?.trim() || u
 const persisted = store.load();
 if (persisted) plane.restore(persisted);
 const nonces = new JarvisNonceRegistry();
+const remoteMailbox = new WorkerRemoteMailbox();
 const pairingWindow = new JarvisEnrollmentPairingWindow();
 const invitations = new OwnerInvitationStore((process.env.JARVIS_DB_PATH?.trim() || resolve(".jarvis/jarvis.db")) + ".invitation.json");
 const invitationLimiter = new FixedEnrollmentRateLimiter(60_000, 100, 200);
@@ -251,6 +254,24 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
     if (!requireOwner(request)) return json(response, 401, { message: "owner authorization required" });
     const payload = parseJson(body);
     if (method === "GET" && path === "/api/jarvis/admin/state") return json(response, 200, plane.snapshot());
+    if (method === "POST" && path === "/api/jarvis/admin/remote/end") {
+      if (typeof payload.sessionId !== "string") return json(response, 400, { message: "sessionId required" });
+      remoteMailbox.endSession(payload.sessionId);
+      return json(response, 200, { ok: true });
+    }
+    if (method === "POST" && path === "/api/jarvis/admin/remote/command") {
+      const node = typeof payload.nodeId === "string" ? plane.fleet.get(payload.nodeId) : undefined;
+      if (!node || !remoteDeviceInventory([node], [])[0].remoteAssistCapability || plane.queue.assignedTo(node.id).length) return json(response, 409, { message: "Worker未接続・権限不足・作業中です" });
+      if (typeof payload.sessionId !== "string" || typeof payload.expiresAt !== "number" || !Number.isFinite(payload.expiresAt) || !payload.input || typeof payload.input !== "object" || Array.isArray(payload.input)) return json(response, 400, { message: "Remote session binding required" });
+      const abort = new AbortController();
+      const close = () => abort.abort();
+      response.on("close", close);
+      try {
+        const result = await remoteMailbox.request(node.id, payload.sessionId, payload.input as Record<string, unknown>, payload.expiresAt, abort.signal);
+        return json(response, result.ok === true ? 200 : 409, result);
+      } catch { return json(response, 409, { message: "端末の操作結果を確認できません。画面を再確認してください。操作は再送していません" }); }
+      finally { response.off("close", close); }
+    }
     if (method === "GET" && path === "/api/jarvis/admin/replacement/ready") {
       return json(response, 200, { candidates: replacementTransport.listReady(), pendingCount: replacementTransport.pendingSize() });
     }
@@ -391,7 +412,18 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
       const policy = current ? { ...current.policy, allowPaidServices: false as const, allowRemoteControl: capabilities?.includes("ui-automation") === true, requireHumanForLockedDevice: true } : undefined;
       const node = plane.heartbeat(identity.nodeId, { status, telemetry, capabilities, policy }); persist(false); return json(response, 200, { node });
     }
+    if (method === "POST" && path === "/api/jarvis/worker/remote/next") {
+      const node = plane.fleet.get(identity.nodeId);
+      const ready = node && remoteDeviceInventory([node], [])[0].remoteAssistCapability && !plane.queue.assignedTo(node.id).length;
+      return json(response, 200, { command: ready ? remoteMailbox.claim(identity.nodeId) : null });
+    }
+    if (method === "POST" && path === "/api/jarvis/worker/remote/result") {
+      if (typeof payload.id !== "string" || typeof payload.ok !== "boolean") return json(response, 400, { message: "Invalid remote result" });
+      try { remoteMailbox.finish(identity.nodeId, payload.id, payload); return json(response, 200, { ok: true }); }
+      catch { return json(response, 409, { message: "Unknown or expired remote result" }); }
+    }
     if (method === "POST" && path === "/api/jarvis/worker/next") {
+      if (remoteMailbox.pending(identity.nodeId)) return json(response, 200, { task: null });
       let assigned = plane.queue.assignedTo(identity.nodeId)[0];
       if (!assigned) { plane.dispatch({ mobileOnline: true, pcOnline: true, sameLanAvailable: false }); assigned = plane.queue.assignedTo(identity.nodeId)[0]; }
       if (assigned?.status === "leased") assigned = plane.markRunning(assigned.id, identity.nodeId);

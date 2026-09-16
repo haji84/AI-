@@ -45,6 +45,7 @@ class JarvisCommandService : Service() {
         }
 
         var lastHeartbeatAt = 0L
+        var lastTaskPollAt = 0L
         while (running.get()) {
             try {
                 val now = System.currentTimeMillis()
@@ -53,7 +54,10 @@ class JarvisCommandService : Service() {
                     lastHeartbeatAt = now
                 }
 
-                repeat(MAX_TASKS_PER_TICK) {
+                // Older Brokers do not have remote routes; ordinary tasks still work.
+                try { client.pollRemote() } catch (error: BrokerHttpException) { if (error.statusCode != 404) throw error }
+                if (now - lastTaskPollAt >= 3_000) repeat(MAX_TASKS_PER_TICK) {
+                    lastTaskPollAt = now
                     val response = client.nextTask()
                     val task = response.optJSONObject("task") ?: return@repeat
                     TaskExecutor(applicationContext).execute(task)
@@ -97,7 +101,7 @@ class JarvisCommandService : Service() {
     companion object {
         private const val CHANNEL_ID = "jarvis-command-channel"
         private const val NOTIFICATION_ID = 4101
-        private const val POLL_INTERVAL_MS = 3_000L
+        private const val POLL_INTERVAL_MS = 750L
         private const val HEARTBEAT_INTERVAL_MS = 15_000L
         private const val MAX_TASKS_PER_TICK = 5
 

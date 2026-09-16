@@ -35,7 +35,7 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
 
         status = TextView(this).apply { text = "未登録" }
-        val guide = TextView(this).apply { text = "このアプリを開くと登録・接続を確認します。初回はJARVIS側の登録受付が必要です。" }
+        val guide = TextView(this).apply { text = "登録済みなら自動で再接続します。初回は所有者から届いた専用リンクの「登録する」を押してください。USBやPCでの受付操作は不要です。" }
         val retryEnrollment = Button(this).apply {
             text = "登録・接続を再確認"
             setOnClickListener { verifyCurrentEnrollment() }
@@ -175,7 +175,7 @@ class MainActivity : AppCompatActivity() {
                 .onFailure { error ->
                     runOnUiThread {
                         status.text = when ((error as? BrokerHttpException)?.statusCode) {
-                            503 -> "登録受付が閉じています。JARVISで登録受付を開いてから再確認してください。"
+                            503 -> "まだ登録されていません。所有者の専用リンクを開いて「登録する」を押してください。アプリのインストールだけでは登録は完了しません。"
                             401 -> "端末の認証を確認できません。JARVISの端末登録画面を確認してください。"
                             else -> "JARVISへ接続できません。家のWi-Fiとホストの起動を確認して再確認してください。"
                         }
@@ -268,8 +268,19 @@ class MainActivity : AppCompatActivity() {
         Thread {
             runCatching {
                 val client = BrokerClient(this)
-                client.brokerUrl = brokerUrl
-                action(client)
+                val previousBroker = client.brokerUrl
+                val destination = EnrollmentBootstrap.validatedOrigin(brokerUrl)
+                val verified = getSharedPreferences("jarvis_config", MODE_PRIVATE).getBoolean("enrollment_verified", false)
+                require(!verified || previousBroker == destination) { "登録済み端末の接続先変更は所有者の確認が必要です" }
+                client.brokerUrl = destination
+                // Reopening an invitation must reconnect an existing signed identity,
+                // not consume another slot or overwrite its key.
+                try { client.heartbeat() }
+                catch (error: BrokerHttpException) {
+                    if (error.statusCode != 401) throw error
+                    require(!verified) { "登録済み端末の認証を確認できません。再登録せず所有者へ確認してください" }
+                    action(client)
+                }
                 client.heartbeat()
                 getSharedPreferences("jarvis_config", MODE_PRIVATE).edit().putBoolean("enrollment_verified", true).apply()
             }.onSuccess {
