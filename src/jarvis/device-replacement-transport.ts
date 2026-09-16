@@ -7,6 +7,7 @@ import {
 
 const MAX_READY = 100;
 const MAX_READY_TTL_MS = 10 * 60_000;
+const MAX_PROOF_FAILURES = 5;
 
 type ReadyRecord = {
   candidate: JarvisVerifiedReplacementCandidate;
@@ -27,6 +28,8 @@ export class JarvisDeviceReplacementTransport {
   private readonly candidates: JarvisDeviceReplacementCandidateManager;
   private readonly identityForNode: (nodeId: string) => JarvisWorkerIdentity | undefined;
   private readonly ready = new Map<string, ReadyRecord>();
+  private readonly challengeExpiry = new Map<string, string>();
+  private readonly proofFailures = new Map<string, number>();
 
   constructor(input: {
     identityForNode: (nodeId: string) => JarvisWorkerIdentity | undefined;
@@ -47,12 +50,14 @@ export class JarvisDeviceReplacementTransport {
     if (!nodeId) throw new Error("replacement candidate requires nodeId");
     const currentIdentity = this.identityForNode(nodeId);
     if (!currentIdentity) throw new Error("replacement candidate current identity not found");
-    return this.candidates.create({
+    const challenge = this.candidates.create({
       currentIdentity,
       replacement: { nodeId, publicKeyPem: input.publicKeyPem, algorithm: input.algorithm },
       ttlMs: input.ttlMs,
       now: input.now,
     });
+    this.challengeExpiry.set(challenge.candidateId, challenge.expiresAt);
+    return challenge;
   }
 
   prove(input: {
@@ -63,13 +68,26 @@ export class JarvisDeviceReplacementTransport {
   }): JarvisReplacementProofSummary {
     const now = input.now ?? new Date();
     this.cleanup(now);
+    if ((this.proofFailures.get(input.candidateId) ?? 0) >= MAX_PROOF_FAILURES) {
+      throw new Error("replacement candidate proof attempt limit reached");
+    }
     if (this.ready.size >= MAX_READY) throw new Error("replacement ready queue capacity reached");
-    const candidate = this.candidates.verify({
-      candidateId: input.candidateId,
-      nodeId: input.nodeId,
-      signatureBase64: input.signatureBase64,
-      now,
-    });
+    let candidate: JarvisVerifiedReplacementCandidate;
+    try {
+      candidate = this.candidates.verify({
+        candidateId: input.candidateId,
+        nodeId: input.nodeId,
+        signatureBase64: input.signatureBase64,
+        now,
+      });
+    } catch (error) {
+      if (this.challengeExpiry.has(input.candidateId)) {
+        this.proofFailures.set(input.candidateId, (this.proofFailures.get(input.candidateId) ?? 0) + 1);
+      }
+      throw error;
+    }
+    this.challengeExpiry.delete(candidate.candidateId);
+    this.proofFailures.delete(candidate.candidateId);
     const expiresAt = new Date(now.getTime() + MAX_READY_TTL_MS).toISOString();
     this.ready.set(candidate.candidateId, { candidate, expiresAt });
     return this.summary(candidate, expiresAt);
@@ -85,6 +103,7 @@ export class JarvisDeviceReplacementTransport {
   }
 
   pendingSize(now = new Date()): number {
+    this.cleanup(now);
     return this.candidates.size(now);
   }
 
@@ -108,6 +127,12 @@ export class JarvisDeviceReplacementTransport {
   private cleanup(now: Date): void {
     for (const [candidateId, record] of this.ready) {
       if (Date.parse(record.expiresAt) <= now.getTime()) this.ready.delete(candidateId);
+    }
+    for (const [candidateId, expiresAt] of this.challengeExpiry) {
+      if (Date.parse(expiresAt) <= now.getTime()) {
+        this.challengeExpiry.delete(candidateId);
+        this.proofFailures.delete(candidateId);
+      }
     }
   }
 }
