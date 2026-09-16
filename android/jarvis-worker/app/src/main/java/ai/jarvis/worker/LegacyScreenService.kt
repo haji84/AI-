@@ -111,7 +111,13 @@ class LegacyScreenService : Service() {
             current = null; stopSelf(); error("画面の向きが変わりました。画面共有を再開してください")
         }
         val request = Capture(SystemClock.elapsedRealtime() + 2_500)
-        pending = request
+        // Drain queued frames on the capture thread before accepting a new one.
+        check(handler?.post {
+            if (current === this && SystemClock.elapsedRealtime() < request.deadline) {
+                reader?.acquireLatestImage()?.close()
+                pending = request
+            } else request.done.countDown()
+        } == true)
         try {
             check(request.done.await(2500, TimeUnit.MILLISECONDS)) { "Screen capture timed out" }
             check(current === this && !getSystemService(KeyguardManager::class.java).isDeviceLocked)

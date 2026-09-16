@@ -13,6 +13,9 @@ test("Android8 requires explicit capture readiness and both capabilities", () =>
   assert.equal(remoteDeviceInventory([node], [])[0].remoteAssistCapability, null);
   node.capabilities = ["remote-view", "remote-control"];
   assert.equal(remoteDeviceInventory([node], [])[0].remoteAssistCapability, "CONTROLLABLE");
+  node.telemetry!.screenCaptureReady = false;
+  assert.equal(remoteDeviceInventory([node], [])[0].remoteAssistCapability, null);
+  node.telemetry!.screenCaptureReady = true;
   node.policy.allowRemoteControl = false;
   assert.equal(remoteDeviceInventory([node], [])[0].remoteAssistCapability, null);
 });

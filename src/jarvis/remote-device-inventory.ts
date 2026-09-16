@@ -25,7 +25,7 @@ export function remoteDeviceInventory(
       const version = typeof node.telemetry?.workerVersion === "string" && /^[0-9.]{1,24}$/.test(node.telemetry.workerVersion) ? `Worker ${node.telemetry.workerVersion}` : "Worker版不明";
       const seen = Date.parse(node.lastSeenAt);
       const offline = !Number.isFinite(seen) || now - seen > 90_000 || now < seen - 30_000 || node.status === "offline";
-      const available = !offline && node.kind === "android" && node.status === "ready" && !node.telemetry?.locked && node.telemetry?.remoteProtocol === 1 && node.telemetry?.accessibilityEnabled === true && node.policy.allowRemoteControl && node.capabilities.includes("remote-view") && node.capabilities.includes("remote-control");
+      const available = !offline && node.kind === "android" && node.status === "ready" && !node.telemetry?.locked && node.telemetry?.screenCaptureReady !== false && node.telemetry?.remoteProtocol === 1 && node.telemetry?.accessibilityEnabled === true && node.policy.allowRemoteControl && node.capabilities.includes("remote-view") && node.capabilities.includes("remote-control");
       const reason = available ? "Wi-Fiで画面確認・タップ・文字入力・スワイプ・戻る／ホームを操作できます"
         : offline ? "登録済み・未接続。家のWi-FiにつないでWorkerを開いてください（再登録不要）"
         : node.status === "disabled" ? "この端末は無効化されています"
