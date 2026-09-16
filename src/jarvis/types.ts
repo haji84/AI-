@@ -53,6 +53,7 @@ export interface JarvisNodeTelemetry {
   updateStatus?: string;
   remoteProtocol?: number;
   androidApi?: number;
+  screenCaptureReady?: boolean;
   batteryPercent?: number;
   charging?: boolean;
   temperatureC?: number;

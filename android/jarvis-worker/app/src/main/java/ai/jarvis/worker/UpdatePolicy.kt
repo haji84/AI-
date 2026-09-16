@@ -5,12 +5,15 @@ import java.net.URI
 /** Public artifact only: never send Broker credentials to the release host. */
 object UpdatePolicy {
     const val APK_URL = "https://github.com/haji84/AI-/releases/download/jarvis-worker-latest/jarvis-worker.apk"
+    const val WINDOWS_APK_URL = "https://github.com/haji84/AI-/releases/download/jarvis-worker-latest/jarvis-worker-windows.apk"
+    const val WINDOWS_SIGNER = "a77134424c5c6de70441075122ffb53613fa9692f96ccbbad54c2061ebbcebba"
+    fun source(signers: Set<String>): String = if (signers == setOf(WINDOWS_SIGNER)) WINDOWS_APK_URL else APK_URL
     const val MAX_BYTES = 32L * 1024 * 1024
     const val CHECK_INTERVAL_MS = 60L * 60 * 1000
     fun allowedUrl(value: String): Boolean = runCatching {
         val uri = URI(value)
         uri.scheme == "https" && uri.userInfo == null && uri.port in listOf(-1, 443) &&
-            (value == APK_URL || uri.host == "release-assets.githubusercontent.com")
+            (value == APK_URL || value == WINDOWS_APK_URL || uri.host == "release-assets.githubusercontent.com")
     }.getOrDefault(false)
     fun due(last: Long, now: Long): Boolean = last == 0L || now < last || now - last >= CHECK_INTERVAL_MS
     fun trustedUpgrade(packageName: String, expectedPackage: String, version: Long, installed: Long,

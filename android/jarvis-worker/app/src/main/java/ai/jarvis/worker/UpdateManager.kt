@@ -31,7 +31,10 @@ class UpdateManager(private val context: Context) {
             // Persist attempt time before I/O so offline/error loops remain bounded.
             prefs.edit().putLong("lastCheck", now).apply()
             recordStatus("署名付き更新を確認中")
-            try { download(UpdatePolicy.APK_URL, apkFile) }
+            try {
+                val installed = context.packageManager.getPackageInfo(context.packageName, signatureFlags())
+                download(UpdatePolicy.source(signingDigests(installed)), apkFile)
+            }
             catch (error: Exception) {
                 recordStatus("更新を取得できません。配信・通信を確認し、1時間後に自動再試行します")
                 throw error

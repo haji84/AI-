@@ -32,7 +32,9 @@ export function remoteDeviceInventory(
         : node.telemetry?.locked || node.status === "locked" ? "登録済み。端末のロックを解除してください"
         : !node.telemetry?.accessibilityEnabled ? "登録済み。端末のWorkerで「自動操作を有効化」を押してください"
         : node.status !== "ready" ? "別の作業を実行中、または端末の確認が必要です"
-        : node.telemetry?.androidApi !== undefined && node.telemetry.androidApi < 30 ? "このOSではWi-Fi画面取得に未対応です。USB / ADBで操作できます"
+        : node.telemetry?.androidApi !== undefined && node.telemetry.androidApi < 30 ? (node.telemetry.screenCaptureReady === false
+          ? "端末のWorkerで「画面共有を開始」を押し、Androidの確認を許可してください。再起動・共有停止後は再許可が必要です"
+          : "このWorkerではWi-Fi画面取得に未対応です。Android 8対応版への更新が必要です。USB / ADBで操作できます")
         : node.telemetry?.remoteProtocol !== 1 ? `${version}：Wi-Fi操作には0.4.3以降への更新が必要です。再インストール後も版が変わらない場合は新版が未配信です（再登録不要）`
         : "登録・接続済み。操作権限・対応機能を確認してください（再登録不要）";
       return { serial: `worker:${node.id}`, label: node.label || node.id,
