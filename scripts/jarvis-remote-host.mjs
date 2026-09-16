@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { manageProcess, serviceSpecs } from './jarvis-managed-process.mjs';
+import { loadWindowsProductionConfig } from './jarvis-production-config.mjs';
 
 const root = process.cwd();
 const shuttingDown = { value: false };
@@ -26,6 +27,7 @@ function refuse(message) {
   process.exit(2);
 }
 
+try { loadWindowsProductionConfig(root); } catch { refuse('protected production configuration cannot be loaded; check owner identity, release and configuration'); }
 loadEnvFile('.env');
 loadEnvFile('.env.local');
 
@@ -40,7 +42,10 @@ if (!fs.existsSync(path.join(root, '.next', 'BUILD_ID'))) {
 }
 
 const enrollmentPortalEnabled = process.env.JARVIS_ENROLLMENT_PORTAL_ENABLED !== '0';
-const specs = serviceSpecs(root, process.execPath, process.env.JARVIS_DASHBOARD_PORT || '3000', { enableEnrollmentPortal: enrollmentPortalEnabled });
+const specs = serviceSpecs(root, process.execPath, process.env.JARVIS_DASHBOARD_PORT || '3000', {
+  enableEnrollmentPortal: enrollmentPortalEnabled,
+  enablePrivateWorkerIngress: process.env.JARVIS_PRIVATE_WORKER_INGRESS_ENABLED === '1',
+});
 
 function startManaged(spec) {
   if (shuttingDown.value) return;
