@@ -2,15 +2,15 @@
 
 import type { FormEvent, KeyboardEvent, MouseEvent, PointerEvent, ReactNode } from "react";
 import { useEffect, useState } from "react";
-import { isJarvisReadOnlyMode, readJarvisOperationMode, type JarvisOperationMode } from "./operation-mode";
+import {
+  isJarvisReadOnlyMode,
+  isSafeJarvisReadOnlyHref,
+  readJarvisOperationMode,
+  type JarvisOperationMode,
+} from "./operation-mode";
 
 function elementFromTarget(target: EventTarget | null): Element | null {
   return target instanceof Element ? target : null;
-}
-
-export function isSafeJarvisReadOnlyHref(rawHref: string) {
-  if (rawHref === "/") return true;
-  return rawHref === "/jarvis" || rawHref.startsWith("/jarvis?") || rawHref.startsWith("/jarvis/");
 }
 
 function shouldBlockClick(target: Element | null) {
