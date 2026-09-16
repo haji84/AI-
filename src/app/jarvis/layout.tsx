@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import JarvisPrimaryShell from "./JarvisPrimaryShell";
 import "./jarvis.css";
 import "./shell.css";
+import "./themes.css";
 
 export const metadata: Metadata = {
   title: "JARVIS Commander",
