@@ -1,21 +1,65 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
 export const OWNER_SESSION_COOKIE = "ai_company_owner_session";
-const SESSION_PAYLOAD = "ai-company-owner-v1";
+export const OWNER_SESSION_MAX_AGE_SECONDS = 60 * 60 * 12;
+export const OWNER_SESSION_FUTURE_TOLERANCE_SECONDS = 60;
 
-function digest(secret: string): string {
-  return createHmac("sha256", secret).update(SESSION_PAYLOAD).digest("hex");
+const OWNER_SESSION_VERSION = "v2";
+const OWNER_SESSION_NONCE_BYTES = 18;
+const NONCE_PATTERN = /^[A-Za-z0-9_-]{24}$/;
+const SIGNATURE_PATTERN = /^[A-Za-z0-9_-]{43}$/;
+
+type CreateOwnerSessionOptions = {
+  issuedAtSeconds?: number;
+  nonce?: string;
+};
+
+type VerifyOwnerSessionOptions = {
+  nowSeconds?: number;
+};
+
+function currentUnixSeconds(): number {
+  return Math.floor(Date.now() / 1000);
 }
 
-export function createOwnerSessionToken(secret: string): string {
+function signSessionPayload(secret: string, payload: string): Buffer {
+  return createHmac("sha256", secret).update(payload).digest();
+}
+
+function sessionPayload(issuedAtSeconds: number, nonce: string): string {
+  return `${OWNER_SESSION_VERSION}.${issuedAtSeconds}.${nonce}`;
+}
+
+export function createOwnerSessionToken(secret: string, options: CreateOwnerSessionOptions = {}): string {
   if (!secret.trim()) throw new Error("owner secret is required");
-  return digest(secret);
+
+  const issuedAtSeconds = options.issuedAtSeconds ?? currentUnixSeconds();
+  if (!Number.isSafeInteger(issuedAtSeconds) || issuedAtSeconds <= 0) throw new Error("owner session issued-at must be a positive integer");
+
+  const nonce = options.nonce ?? randomBytes(OWNER_SESSION_NONCE_BYTES).toString("base64url");
+  if (!NONCE_PATTERN.test(nonce)) throw new Error("owner session nonce is invalid");
+
+  const payload = sessionPayload(issuedAtSeconds, nonce);
+  const signature = signSessionPayload(secret, payload).toString("base64url");
+  return `${payload}.${signature}`;
 }
 
-export function verifyOwnerSessionToken(secret: string, token: string | undefined): boolean {
+export function verifyOwnerSessionToken(secret: string, token: string | undefined, options: VerifyOwnerSessionOptions = {}): boolean {
   if (!secret.trim() || !token) return false;
-  const expected = Buffer.from(digest(secret), "utf8");
-  const actual = Buffer.from(token, "utf8");
+
+  const [version, issuedAtRaw, nonce, signature, extra] = token.split(".");
+  if (extra !== undefined || version !== OWNER_SESSION_VERSION || !issuedAtRaw || !nonce || !signature) return false;
+  if (!/^\d+$/.test(issuedAtRaw) || !NONCE_PATTERN.test(nonce) || !SIGNATURE_PATTERN.test(signature)) return false;
+
+  const issuedAtSeconds = Number(issuedAtRaw);
+  const nowSeconds = options.nowSeconds ?? currentUnixSeconds();
+  if (!Number.isSafeInteger(issuedAtSeconds) || issuedAtSeconds <= 0 || !Number.isSafeInteger(nowSeconds) || nowSeconds <= 0) return false;
+  if (issuedAtSeconds > nowSeconds + OWNER_SESSION_FUTURE_TOLERANCE_SECONDS) return false;
+  if (nowSeconds - issuedAtSeconds > OWNER_SESSION_MAX_AGE_SECONDS) return false;
+
+  const payload = sessionPayload(issuedAtSeconds, nonce);
+  const expected = signSessionPayload(secret, payload);
+  const actual = Buffer.from(signature, "base64url");
   return expected.length === actual.length && timingSafeEqual(expected, actual);
 }
 
