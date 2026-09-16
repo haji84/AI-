@@ -540,13 +540,14 @@
         "tests/jarvis-private-worker-ingress.test.ts"
       ],
       "evidence_refs": [
-        "docs/architecture/jarvis-launch-enrollment.md"
+        "docs/architecture/jarvis-launch-enrollment.md",
+        "docs/evidence/779-installation-rollout.md"
       ],
       "status": "PARTIAL",
-      "blocker": "#779: launch enrollment, private HTTPS Worker ingress and installation certificate-scoped APK configuration implemented. Real certificate/private-key creation requires the credentials Human Gate. Configured signed APK deployment and physical enrollment/reopen remain unverified.",
+      "blocker": "#779: approved installation TLS provisioned; configured APK build and exact merged commit main CI passed. Existing Mac signing job is queued; published APK remains 0.4.1. Android LAN connection times out with an explicit Windows Node TCP block. Separate scoped firewall approval and real enrollment/reopen verification remain required.",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "After explicit installation-credential approval, provision the private Worker origin and signed installation APK; verify launch enrollment and reopen without consuming another grant.",
+      "next_action": "Restore existing Mac signer, verify configured signed APK, obtain separate LAN-only TCP 8792 firewall approval, then install without clearing data and verify actual Wi-Fi enrollment/signed heartbeat/reopen within valid authorization.",
       "last_verified_commit": null
     },
     {
@@ -578,13 +579,14 @@
         "tests/jarvis-private-worker-ingress.test.ts"
       ],
       "evidence_refs": [
-        "docs/architecture/jarvis-launch-enrollment.md"
+        "docs/architecture/jarvis-launch-enrollment.md",
+        "docs/evidence/779-installation-rollout.md"
       ],
       "status": "PARTIAL",
-      "blocker": "#779: launch enrollment, private HTTPS Worker ingress and installation certificate-scoped APK configuration implemented. Real certificate/private-key creation requires the credentials Human Gate. Configured signed APK deployment and physical enrollment/reopen remain unverified.",
+      "blocker": "#779: approved installation TLS provisioned; configured APK build and exact merged commit main CI passed. Existing Mac signing job is queued; published APK remains 0.4.1. Android LAN connection times out with an explicit Windows Node TCP block. Separate scoped firewall approval and real enrollment/reopen verification remain required.",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "After explicit installation-credential approval, provision the private Worker origin and signed installation APK; verify launch enrollment and reopen without consuming another grant.",
+      "next_action": "Restore existing Mac signer, verify configured signed APK, obtain separate LAN-only TCP 8792 firewall approval, then install without clearing data and verify actual Wi-Fi enrollment/signed heartbeat/reopen within valid authorization.",
       "last_verified_commit": null
     },
     {
@@ -644,13 +646,14 @@
         "tests/jarvis-private-worker-ingress.test.ts"
       ],
       "evidence_refs": [
-        "docs/architecture/jarvis-launch-enrollment.md"
+        "docs/architecture/jarvis-launch-enrollment.md",
+        "docs/evidence/779-installation-rollout.md"
       ],
       "status": "PARTIAL",
-      "blocker": "#779: launch enrollment, private HTTPS Worker ingress and installation certificate-scoped APK configuration implemented. Real certificate/private-key creation requires the credentials Human Gate. Configured signed APK deployment and physical enrollment/reopen remain unverified.",
+      "blocker": "#779: approved installation TLS provisioned; configured APK build and exact merged commit main CI passed. Existing Mac signing job is queued; published APK remains 0.4.1. Android LAN connection times out with an explicit Windows Node TCP block. Separate scoped firewall approval and real enrollment/reopen verification remain required.",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "After explicit installation-credential approval, provision the private Worker origin and signed installation APK; verify launch enrollment and reopen without consuming another grant.",
+      "next_action": "Restore existing Mac signer, verify configured signed APK, obtain separate LAN-only TCP 8792 firewall approval, then install without clearing data and verify actual Wi-Fi enrollment/signed heartbeat/reopen within valid authorization.",
       "last_verified_commit": null
     },
     {
