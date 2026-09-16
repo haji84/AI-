@@ -23,8 +23,10 @@ it publicly, enable Funnel, port forwarding, cleartext, or bypass TLS validation
 
 The owner opens the existing enrollment window from JARVIS Devices/registration.
 `POST /api/jarvis/enrollment-grant` consumes one of its maximum 100 issuance slots.
-The window lasts at most one hour; each returned grant lasts at most ten minutes
-and enrolls one device. Closed, expired, exhausted, and non-HTTPS host configurations
+The window lasts at most one hour (default thirty minutes); each returned grant lasts
+thirty minutes or the remaining window time, whichever is shorter, and enrolls one
+device. This lifetime was explicitly requested by the owner on 2026-09-16.
+Closed, expired, exhausted, and non-HTTPS host configurations
 fail closed. Responses are no-store and contain only the grant and expiry. Existing
 worker request signing, replay protection and duplicate identity rejection remain.
 HTTP redirects are not followed by the Worker. Opening/retry makes one attempt;

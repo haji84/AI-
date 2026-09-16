@@ -4,7 +4,7 @@ Parent: Issue #681 P4. Children: #702, #704.
 
 ## Goal
 
-Provide one stable installation-scoped enrollment URL that can be reused on many existing Android devices. Opening the stable URL must never reuse a long-lived Broker enrollment token. Instead, each authorized open requests a fresh 10-minute, single-device `quick` enrollment from the existing loopback Broker and redirects to the existing one-tap page.
+Provide one stable installation-scoped enrollment URL that can be reused on many existing Android devices. Opening the stable URL must never reuse a long-lived Broker enrollment token. Instead, each authorized open requests a fresh 30-minute, single-device `quick` enrollment from the existing loopback Broker and redirects to the existing one-tap page.
 
 This is a software capability only. It is not physical enrollment evidence.
 
@@ -32,7 +32,7 @@ The portal is a separate local service and fails closed.
 5. Each valid GET calls the loopback Broker `POST /api/jarvis/admin/enrollment` with:
    - `mode: quick`
    - `maxDevices: 1`
-   - `ttlMs: 600000`
+   - `ttlMs: 1800000`
 6. The Broker returns its normal one-tap URL backed by a new bounded grant.
 7. The portal validates that URL as HTTPS and returns a `303` redirect.
 8. The existing Worker/deep-link flow performs enrollment and keeps the current per-device identity/signing behavior.
@@ -65,7 +65,7 @@ The portal is not required for already-enrolled workers to reconnect. Existing d
 The following are CODE/UNIT evidence once CI passes:
 
 - fixed route policy
-- fresh 10-minute single-device request generation
+- fresh 30-minute single-device request generation
 - exact portal-key comparison
 - loopback Broker enforcement
 - explicit LAN opt-in

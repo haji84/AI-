@@ -35,14 +35,15 @@ test("launch enrollment reuses owner window and single-use grants without leakin
     assert(ready, "test broker started");
     assert.equal((await post("/api/jarvis/enrollment-grant")).status, 503);
     assert.equal((await post("/api/jarvis/admin/enrollment-window", { action: "open" })).status, 401);
-    assert.equal((await post("/api/jarvis/admin/enrollment-window", { action: "open", maxIssues: 2 }, true)).status, 200);
+    assert.equal((await post("/api/jarvis/admin/enrollment-window", { action: "open", ttlMs: 60 * 60_000, maxIssues: 2 }, true)).status, 200);
     const issued = await post("/api/jarvis/enrollment-grant");
     assert.equal(issued.status, 201);
     assert.equal(issued.headers.get("cache-control"), "no-store");
     const grant = await issued.json();
     assert.deepEqual(Object.keys(grant).sort(), ["expiresAt", "grant"]);
     assert(!JSON.stringify(grant).includes(owner));
-    assert(Date.parse(grant.expiresAt) - Date.now() <= 600_000);
+    const remaining = Date.parse(grant.expiresAt) - Date.now();
+    assert(remaining <= 1_800_000 && remaining >= 1_790_000, "fresh grant lasts 30 minutes");
     const { publicKey, privateKey } = generateKeyPairSync("ec", { namedCurve: "prime256v1" });
     const payload = {
       grant: grant.grant,

@@ -203,7 +203,7 @@ export default function JarvisEnrollPage() {
       <div>
         <p className="eyebrow">JARVIS</p>
         <h1>Android端末登録</h1>
-        <p className="muted">固定URLは常設ですが、登録権限は常設しません。オーナーが受付を開いている間だけ、URLを開くたびに1台限り・最大10分の新しい登録権限を発行します。</p>
+        <p className="muted">固定URLは常設ですが、登録権限は常設しません。オーナーが受付を開いている間だけ、URLを開くたびに1台限り・最大30分の新しい登録権限を発行します。</p>
       </div>
       <div className="jarvis-button-row">
         <a className="button secondary" href="/jarvis/login?next=/jarvis/enroll">オーナー認証</a>
@@ -213,7 +213,7 @@ export default function JarvisEnrollPage() {
 
     <section className="panel jarvis-section" style={{ maxWidth: 860, margin: "32px auto 24px" }}>
       <div className="section-heading"><div><p className="section-kicker">PAIRING WINDOW</p><h2>固定URLの登録受付</h2></div><strong>{statusText}</strong></div>
-      <p className="muted">1回の操作で最大100台・最長1時間の受付を開けます。受付中でも各端末へ渡る登録権限は別々で、1台限り・10分以内です。Brokerを再起動すると受付は閉じます。</p>
+      <p className="muted">1回の操作で最大100台・最長1時間の受付を開けます。受付中でも各端末へ渡る登録権限は別々で、1台限り・30分以内です。Brokerを再起動すると受付は閉じます。</p>
       {window && <div className="jarvis-alert" style={{ marginTop: 16 }}>
         <strong>{window.open ? `残り ${window.remaining} / ${window.maxIssues} 台` : `受付停止: ${statusText}`}</strong>
         {window.expiresAt && <span>終了予定: {new Date(window.expiresAt).toLocaleString("ja-JP")}</span>}
