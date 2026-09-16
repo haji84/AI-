@@ -98,7 +98,7 @@ export function containsSensitiveSpeechText(text: string): boolean {
   return text.includes("[REDACTED]")
     || /%5bredacted%5d/i.test(text)
     || /\b(?:token|api[_-]?key|password|passwd|secret|authorization)\b\s*[:=]/i.test(text)
-    || /\bbearer\s+[a-z0-9._~+\/-]+/i.test(text);
+    || /\bbearer\s+[a-z0-9._~+/-]+/i.test(text);
 }
 
 export function shouldSpeakLocal(
