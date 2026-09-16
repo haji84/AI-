@@ -1,11 +1,11 @@
 export const JARVIS_PREFERENCE_KEY = "jarvis-ui-preferences-v1";
 
 export const JARVIS_THEMES = [
-  ["jarvis", "JARVIS Core"], ["arc", "Arc Reactor"], ["obsidian", "Obsidian"], ["cobalt", "Cobalt"],
-  ["emerald", "Emerald"], ["amber", "Amber Ops"], ["crimson", "Crimson"], ["violet", "Violet"],
-  ["ice", "Ice"], ["solar", "Solar"], ["lunar", "Lunar"], ["titan", "Titan"],
-  ["neon", "Neon Grid"], ["stealth", "Stealth"], ["ocean", "Ocean"], ["forest", "Forest"],
-  ["sand", "Desert"], ["mono", "Monochrome"], ["retro", "Retro Terminal"], ["aurora", "Aurora"],
+  ["jarvis", "JARVIS コア"], ["arc", "アーク・リアクター"], ["obsidian", "オブシディアン"], ["cobalt", "コバルト"],
+  ["emerald", "エメラルド"], ["amber", "アンバー・オプス"], ["crimson", "クリムゾン"], ["violet", "バイオレット"],
+  ["ice", "アイス"], ["solar", "ソーラー"], ["lunar", "ルナー"], ["titan", "タイタン"],
+  ["neon", "ネオン・グリッド"], ["stealth", "ステルス"], ["ocean", "オーシャン"], ["forest", "フォレスト"],
+  ["sand", "デザート"], ["mono", "モノクローム"], ["retro", "レトロ・ターミナル"], ["aurora", "オーロラ"],
 ] as const;
 
 export const JARVIS_PERSONAS = [
@@ -18,7 +18,7 @@ export const JARVIS_PERSONAS = [
   ["navigator", "ナビゲーター", "次の一手と経路を重視"],
   ["mechanic", "整備士", "現物・手順・復旧を重視"],
   ["auditor", "監査官", "証拠・境界・矛盾を重視"],
-  ["responder", "レスポンダー", "状況整理と即応を重視"],
+  ["responder", "即応", "状況整理と即応を重視"],
   ["quiet", "静音", "通知と発話を最小化"],
   ["concise", "簡潔", "短く結論優先"],
   ["mentor", "教育", "理由と学習を重視"],
@@ -43,7 +43,7 @@ export const JARVIS_ACCENTS = [
 ] as const;
 
 export const JARVIS_LAYOUTS = [
-  ["command", "Command Center"], ["balanced", "Balanced"], ["focus", "Focus Canvas"], ["mobile", "Mobile First"],
+  ["command", "司令センター"], ["balanced", "バランス"], ["focus", "フォーカス"], ["mobile", "モバイル優先"],
 ] as const;
 
 export type JarvisPreferences = {
