@@ -199,6 +199,21 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
   const body = method === "GET" || method === "HEAD" ? Buffer.alloc(0) : await readBody(request);
 
   if (method === "GET" && path === "/health") return json(response, 200, { ok: true, service: "jarvis-broker", stats: plane.snapshot().stats, workerApkReady: Boolean(workerApkInfo()), pairingWindow: pairingWindow.status() });
+  if (method === "POST" && path === "/api/jarvis/enrollment-grant") {
+    // Same owner-opened, bounded window as /enroll; never opens itself on worker demand.
+    let origin: URL;
+    try { origin = new URL(publicBrokerUrl); }
+    catch { return json(response, 503, { message: "enrollment host not configured" }); }
+    if (origin.protocol !== "https:" || origin.username || origin.password || origin.search || origin.hash || origin.pathname !== "/") {
+      return json(response, 503, { message: "HTTPS enrollment origin required" });
+    }
+    const reservation = pairingWindow.reserveIssue();
+    if (!reservation) return json(response, 503, { message: "enrollment window unavailable" });
+    const token = plane.createEnrollment({ mode: "quick", ttlMs: reservation.grantTtlMs, maxDevices: 1, group: reservation.group });
+    const grant = issueEnrollmentGrant(token.token, token.expiresAt);
+    response.setHeader("Referrer-Policy", "no-referrer");
+    return json(response, 201, { grant, expiresAt: token.expiresAt });
+  }
   if (method === "GET" && path === "/enroll") {
     const current = pairingWindow.status();
     if (!publicBrokerUrl || !current.open) return html(response, 503, pairingWindowUnavailablePage(publicBrokerUrl ? current.reason : "closed"));

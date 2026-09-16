@@ -1,6 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 
-export const FIXED_ENROLLMENT_TTL_MS = 10 * 60_000;
+export const FIXED_ENROLLMENT_TTL_MS = 30 * 60_000;
 export const FIXED_ENROLLMENT_MAX_DEVICES = 1;
 export const FIXED_ENROLLMENT_RATE_WINDOW_MS = 60_000;
 export const FIXED_ENROLLMENT_PORTAL_DEFAULT_PORT = 8791;

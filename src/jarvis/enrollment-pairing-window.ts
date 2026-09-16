@@ -1,8 +1,8 @@
-export const JARVIS_PAIRING_WINDOW_DEFAULT_TTL_MS = 10 * 60_000;
+export const JARVIS_PAIRING_WINDOW_DEFAULT_TTL_MS = 30 * 60_000;
 export const JARVIS_PAIRING_WINDOW_MAX_TTL_MS = 60 * 60_000;
 export const JARVIS_PAIRING_WINDOW_MIN_TTL_MS = 60_000;
 export const JARVIS_PAIRING_WINDOW_MAX_ISSUES = 100;
-export const JARVIS_PAIRING_GRANT_MAX_TTL_MS = 10 * 60_000;
+export const JARVIS_PAIRING_GRANT_MAX_TTL_MS = 30 * 60_000;
 
 export type JarvisPairingWindowStatus = {
   open: boolean;

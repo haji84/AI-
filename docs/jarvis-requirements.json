@@ -525,18 +525,28 @@
       "implementation_refs": [
         "src/jarvis/fleet-manager.ts",
         "src/jarvis/enrollment.ts",
-        "src/app/jarvis/enroll/page.tsx"
+        "src/app/jarvis/enroll/page.tsx",
+        "scripts/jarvis-broker.ts",
+        "android/jarvis-worker/app/src/main/java/ai/jarvis/worker/MainActivity.kt",
+        "android/jarvis-worker/app/src/main/java/ai/jarvis/worker/EnrollmentBootstrap.kt",
+        "scripts/jarvis-private-worker-ingress.ts",
+        "src/jarvis/private-worker-ingress.ts"
       ],
       "test_refs": [
         "tests/jarvis-final-fleet-acceptance.test.ts",
-        "tests/jarvis-enrollment-security.test.ts"
+        "tests/jarvis-enrollment-security.test.ts",
+        "tests/jarvis-launch-enrollment.test.ts",
+        "android/jarvis-worker/app/src/test/java/ai/jarvis/worker/EnrollmentBootstrapTest.kt",
+        "tests/jarvis-private-worker-ingress.test.ts"
       ],
-      "evidence_refs": [],
+      "evidence_refs": [
+        "docs/architecture/jarvis-launch-enrollment.md"
+      ],
       "status": "PARTIAL",
-      "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+      "blocker": "#779: launch enrollment, private HTTPS Worker ingress and installation certificate-scoped APK configuration implemented. Real certificate/private-key creation requires the credentials Human Gate. Configured signed APK deployment and physical enrollment/reopen remain unverified.",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "P4: 固定端末登録URL→server側fresh短時間token→Worker enrollment→完了。 について実装の不足を埋め、required_evidenceを取得する。",
+      "next_action": "After explicit installation-credential approval, provision the private Worker origin and signed installation APK; verify launch enrollment and reopen without consuming another grant.",
       "last_verified_commit": null
     },
     {
@@ -553,18 +563,28 @@
       "implementation_refs": [
         "src/jarvis/fleet-manager.ts",
         "src/jarvis/enrollment.ts",
-        "src/app/jarvis/enroll/page.tsx"
+        "src/app/jarvis/enroll/page.tsx",
+        "scripts/jarvis-broker.ts",
+        "android/jarvis-worker/app/src/main/java/ai/jarvis/worker/MainActivity.kt",
+        "android/jarvis-worker/app/src/main/java/ai/jarvis/worker/EnrollmentBootstrap.kt",
+        "scripts/jarvis-private-worker-ingress.ts",
+        "src/jarvis/private-worker-ingress.ts"
       ],
       "test_refs": [
         "tests/jarvis-final-fleet-acceptance.test.ts",
-        "tests/jarvis-enrollment-security.test.ts"
+        "tests/jarvis-enrollment-security.test.ts",
+        "tests/jarvis-launch-enrollment.test.ts",
+        "android/jarvis-worker/app/src/test/java/ai/jarvis/worker/EnrollmentBootstrapTest.kt",
+        "tests/jarvis-private-worker-ingress.test.ts"
       ],
-      "evidence_refs": [],
+      "evidence_refs": [
+        "docs/architecture/jarvis-launch-enrollment.md"
+      ],
       "status": "PARTIAL",
-      "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+      "blocker": "#779: launch enrollment, private HTTPS Worker ingress and installation certificate-scoped APK configuration implemented. Real certificate/private-key creation requires the credentials Human Gate. Configured signed APK deployment and physical enrollment/reopen remain unverified.",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "P4: 既存Androidを簡単登録。 について実装の不足を埋め、required_evidenceを取得する。",
+      "next_action": "After explicit installation-credential approval, provision the private Worker origin and signed installation APK; verify launch enrollment and reopen without consuming another grant.",
       "last_verified_commit": null
     },
     {
@@ -609,18 +629,28 @@
       "implementation_refs": [
         "src/jarvis/fleet-manager.ts",
         "src/jarvis/enrollment.ts",
-        "src/app/jarvis/enroll/page.tsx"
+        "src/app/jarvis/enroll/page.tsx",
+        "scripts/jarvis-broker.ts",
+        "android/jarvis-worker/app/src/main/java/ai/jarvis/worker/MainActivity.kt",
+        "android/jarvis-worker/app/src/main/java/ai/jarvis/worker/EnrollmentBootstrap.kt",
+        "scripts/jarvis-private-worker-ingress.ts",
+        "src/jarvis/private-worker-ingress.ts"
       ],
       "test_refs": [
         "tests/jarvis-final-fleet-acceptance.test.ts",
-        "tests/jarvis-enrollment-security.test.ts"
+        "tests/jarvis-enrollment-security.test.ts",
+        "tests/jarvis-launch-enrollment.test.ts",
+        "android/jarvis-worker/app/src/test/java/ai/jarvis/worker/EnrollmentBootstrapTest.kt",
+        "tests/jarvis-private-worker-ingress.test.ts"
       ],
-      "evidence_refs": [],
+      "evidence_refs": [
+        "docs/architecture/jarvis-launch-enrollment.md"
+      ],
       "status": "PARTIAL",
-      "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+      "blocker": "#779: launch enrollment, private HTTPS Worker ingress and installation certificate-scoped APK configuration implemented. Real certificate/private-key creation requires the credentials Human Gate. Configured signed APK deployment and physical enrollment/reopen remain unverified.",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "P4: 既存使用中Androidにも可能な範囲でone-touch onboarding。 について実装の不足を埋め、required_evidenceを取得する。",
+      "next_action": "After explicit installation-credential approval, provision the private Worker origin and signed installation APK; verify launch enrollment and reopen without consuming another grant.",
       "last_verified_commit": null
     },
     {

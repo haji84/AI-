@@ -28,6 +28,14 @@ class BrokerClient(private val context: Context) {
     fun enroll(token: String): JSONObject = enrollWithCredential("token", token)
     fun enrollGrant(grant: String): JSONObject = enrollWithCredential("grant", grant)
 
+    fun enrollFromPairingWindow(): JSONObject {
+        EnrollmentBootstrap.validatedOrigin(brokerUrl)
+        val issued = request("POST", "/api/jarvis/enrollment-grant", "{}".toByteArray(), signed = false)
+        val grant = issued.getString("grant")
+        require(grant.isNotBlank()) { "empty enrollment grant" }
+        return enrollGrant(grant)
+    }
+
     private fun enrollWithCredential(name: String, value: String): JSONObject {
         val body = JSONObject()
             .put(name, value)
@@ -150,6 +158,8 @@ class BrokerClient(private val context: Context) {
         }
         val connection = URL("$brokerUrl$path").openConnection() as HttpURLConnection
         connection.requestMethod = method
+        // Do not forward enrollment credentials or signed requests to redirect destinations.
+        connection.instanceFollowRedirects = false
         connection.connectTimeout = 10_000
         connection.readTimeout = 20_000
         connection.doOutput = true
@@ -171,7 +181,9 @@ class BrokerClient(private val context: Context) {
         val code = connection.responseCode
         val stream = if (code in 200..299) connection.inputStream else connection.errorStream
         val text = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
-        if (code !in 200..299) throw IllegalStateException("JARVIS broker HTTP $code: $text")
+        if (code !in 200..299) throw BrokerHttpException(code)
         return if (text.isBlank()) JSONObject() else JSONObject(text)
     }
 }
+
+class BrokerHttpException(val statusCode: Int) : IllegalStateException("JARVIS broker HTTP $statusCode")

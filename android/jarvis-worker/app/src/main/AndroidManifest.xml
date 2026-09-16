@@ -18,6 +18,7 @@
         android:allowBackup="false"
         android:label="JARVIS Worker"
         android:usesCleartextTraffic="false"
+        android:networkSecurityConfig="@xml/jarvis_network_security"
         android:theme="@style/Theme.JarvisWorker">
 
         <activity

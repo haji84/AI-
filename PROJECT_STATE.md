@@ -3,13 +3,13 @@
 PROJECT: General Autonomous AI / Unified AI Creator Studio / GAI Research OS
 AI_COMPANY_VERSION: 1.0
 PROJECT_VERSION: 0.0.0
-CURRENT_PHASE: JARVIS #681 P7 #734 local video understanding and guarded autonomous teaching
+CURRENT_PHASE: JARVIS #681 P4 #779 Android launch enrollment; #734 teaching physical acceptance pending
 STATUS: JARVIS_PRODUCT_COMPLETION_IN_PROGRESS
 LAST_UPDATED: 2026-09-16
 CURRENT_EPIC: One-front-door general autonomous AI with durable offline-first device-neutral execution and verifier-driven completion
 ACTIVE_ISSUES: JARVIS Product Completion parent #681 and #694 P3 reconciliation; Research Ops #321 / R1-R20 separate; historical #401/#609/#612 acceptance retained
-OPEN_PRS: #734 local video understanding increment pending review/CI
-BLOCKERS: Physical video replay remains unverified: Chrome page targets absent from Android hierarchy, accessibility service disabled, live visual match rejected. Unsupported actions and non-Android adapters remain gated. Trial expires 2026-09-16T08:17:02Z.
+OPEN_PRS: #780 (#779) Android launch enrollment and private HTTPS Worker ingress; #734 implementation merged via #774
+BLOCKERS: #779 private HTTPS ingress and certificate-scoped APK configuration implemented; real installation certificate/private-key creation remains a credentials Human Gate. Configured signed APK deployment and physical enrollment/reopen remain unverified; current v0.4.1 remains installed. #734 physical video replay remains unverified; owner reports accessibility enabled. Trial expires 2026-09-16T08:17:02Z.
 PRIORITY_OVERRIDE: Owner 2026-09-16 instruction resumes expanded JARVIS product completion #681 with ZBook main-host priority; preserve Human Gates and separate research evidence
 NORTH_STAR_GOAL: Human gives one goal; the system determines required work, dynamically recruits available capabilities, executes, verifies, repairs, records, and completes with the fewest necessary human returns, including continued local work during connectivity loss where capability permits
 HUMAN_GATE_INVARIANT: payment/purchase, destructive deletion, permission/credential changes, production deployment/publication, security/governance weakening, and all existing approval-required actions remain human-gated; autonomy, skill reuse, learning, team expansion, recovery, and self-improvement never grant permission

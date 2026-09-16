@@ -20,18 +20,18 @@ import {
   JarvisEnrollmentPairingWindow,
 } from "../src/jarvis/enrollment-pairing-window.ts";
 
-test("fixed enrollment request is always fresh, single-device and 10 minutes", () => {
-  assert.equal(FIXED_ENROLLMENT_TTL_MS, 600_000);
+test("fixed enrollment request is always fresh, single-device and 30 minutes", () => {
+  assert.equal(FIXED_ENROLLMENT_TTL_MS, 1_800_000);
   assert.deepEqual(fixedEnrollmentRequest("default"), {
     mode: "quick",
     maxDevices: 1,
-    ttlMs: 600_000,
+    ttlMs: 1_800_000,
     group: "default",
   });
   assert.deepEqual(fixedEnrollmentRequest("  "), {
     mode: "quick",
     maxDevices: 1,
-    ttlMs: 600_000,
+    ttlMs: 1_800_000,
   });
 });
 
@@ -131,6 +131,18 @@ test("pairing window clamps owner input to one hour and 100 issues", () => {
   const opened = window.open({ ttlMs: 24 * 60 * 60_000, maxIssues: 999 }, 100_000);
   assert.equal(opened.maxIssues, JARVIS_PAIRING_WINDOW_MAX_ISSUES);
   assert.equal(Date.parse(opened.expiresAt!) - 100_000, JARVIS_PAIRING_WINDOW_MAX_TTL_MS);
+});
+
+test("enrollment grants last 30 minutes and never exceed the remaining owner window", () => {
+  const window = new JarvisEnrollmentPairingWindow();
+  const start = 100_000;
+  const defaultWindow = window.open({}, start);
+  assert.equal(Date.parse(defaultWindow.expiresAt!) - start, 1_800_000);
+  assert.equal(window.reserveIssue(start)?.grantTtlMs, 1_800_000);
+  window.open({ ttlMs: 3_600_000 }, start);
+  assert.equal(window.reserveIssue(start)?.grantTtlMs, 1_800_000);
+  assert.equal(window.reserveIssue(start + 2_400_000)?.grantTtlMs, 1_200_000);
+  assert.equal(window.reserveIssue(start + 3_600_000), undefined);
 });
 
 test("fixed broker route is token-free and pairing-window gated", () => {
