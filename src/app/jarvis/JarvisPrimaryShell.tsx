@@ -6,6 +6,7 @@ import { useEffect } from "react";
 import JarvisCommandSearch from "./JarvisCommandSearch";
 import JarvisDisplayModeControls from "./JarvisDisplayModeControls";
 import JarvisHomeLayoutEditor from "./JarvisHomeLayoutEditor";
+import JarvisPriorityNotifications from "./JarvisPriorityNotifications";
 import { applyJarvisDisplayMode, readJarvisDisplayMode } from "./display-modes";
 import { applyJarvisScreenLayoutProfile, readJarvisScreenLayoutProfiles } from "./screen-layout-profiles";
 import { applyJarvisPreferences, readJarvisPreferences } from "./ui-preferences";
@@ -65,6 +66,7 @@ export default function JarvisPrimaryShell({ children }: { children: ReactNode }
       </header>
       <JarvisDisplayModeControls />
       <JarvisCommandSearch pathname={pathname} />
+      <JarvisPriorityNotifications />
       <div className="jarvis-primary-content">
         {pathname === "/jarvis" ? <JarvisHomeLayoutEditor /> : null}
         {children}
