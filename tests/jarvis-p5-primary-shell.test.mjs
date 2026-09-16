@@ -47,6 +47,8 @@ test("P5 research screen keeps product completion separate from R1-R20 and AGI c
 test("P5 settings are local display preferences only and do not mutate protected settings", async () => {
   const settings = await source("src/app/jarvis/settings/JarvisLocalSettings.tsx");
   const preferences = await source("src/app/jarvis/ui-preferences.ts");
+  const accessibility = await source("src/app/jarvis/JarvisAccessibilityControls.tsx");
+  const accessibilityPreferences = await source("src/app/jarvis/accessibility-preferences.ts");
   const page = await source("src/app/jarvis/settings/page.tsx");
 
   assert.match(settings, /readJarvisPreferences/);
@@ -55,7 +57,10 @@ test("P5 settings are local display preferences only and do not mutate protected
   assert.match(preferences, /localStorage\.setItem\(JARVIS_PREFERENCE_KEY/);
   assert.doesNotMatch(settings, /fetch\(/);
   assert.doesNotMatch(preferences, /fetch\(/);
+  assert.doesNotMatch(accessibility, /fetch\(/);
+  assert.doesNotMatch(accessibilityPreferences, /fetch\(/);
   assert.match(settings, /端末権限、認証、秘密情報、課金設定には触れない/);
   assert.match(page, /認証情報、端末権限、ネットワーク公開範囲、課金、破壊的操作、Human Gateルール/);
-  assert.match(page, /Widget移動\/resize\/hide[\s\S]*P5の後続Requirementとして残る/);
+  assert.match(page, /Widget編集[\s\S]*アクセシビリティ表示設定は実装済み/);
+  assert.match(page, /音声runtimeの字幕や実機操作性は別途検証する/);
 });

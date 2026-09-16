@@ -4,11 +4,13 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { useEffect } from "react";
 import JarvisCommandSearch from "./JarvisCommandSearch";
+import JarvisConnectivityStatus from "./JarvisConnectivityStatus";
 import JarvisDisplayModeControls from "./JarvisDisplayModeControls";
 import JarvisHomeLayoutEditor from "./JarvisHomeLayoutEditor";
 import JarvisOperationModeControls from "./JarvisOperationModeControls";
 import JarvisPriorityNotifications from "./JarvisPriorityNotifications";
 import JarvisReadOnlyBoundary from "./JarvisReadOnlyBoundary";
+import { applyJarvisAccessibilityPreferences, readJarvisAccessibilityPreferences } from "./accessibility-preferences";
 import { applyJarvisDisplayMode, readJarvisDisplayMode } from "./display-modes";
 import { applyJarvisOperationMode, readJarvisOperationMode } from "./operation-mode";
 import { applyJarvisScreenLayoutProfile, readJarvisScreenLayoutProfiles } from "./screen-layout-profiles";
@@ -24,6 +26,7 @@ const NAV_ITEMS = [
 
 function applyStoredPreferences() {
   applyJarvisPreferences(readJarvisPreferences());
+  applyJarvisAccessibilityPreferences(readJarvisAccessibilityPreferences());
   applyJarvisDisplayMode(readJarvisDisplayMode());
   applyJarvisOperationMode(readJarvisOperationMode());
 }
@@ -35,7 +38,11 @@ export default function JarvisPrimaryShell({ children }: { children: ReactNode }
     applyStoredPreferences();
     const listener = () => applyStoredPreferences();
     window.addEventListener("jarvis-preferences-changed", listener);
-    return () => window.removeEventListener("jarvis-preferences-changed", listener);
+    window.addEventListener("jarvis-accessibility-preferences-changed", listener);
+    return () => {
+      window.removeEventListener("jarvis-preferences-changed", listener);
+      window.removeEventListener("jarvis-accessibility-preferences-changed", listener);
+    };
   }, []);
 
   useEffect(() => {
@@ -49,6 +56,7 @@ export default function JarvisPrimaryShell({ children }: { children: ReactNode }
 
   return (
     <div className="jarvis-primary-shell">
+      <a className="jarvis-skip-link" href="#jarvis-main-content">メインコンテンツへ移動</a>
       <header className="jarvis-primary-header">
         <a className="jarvis-brand" href="/jarvis" aria-label="JARVIS ホーム">
           <span className="jarvis-brand-mark" aria-hidden="true">J</span>
@@ -68,12 +76,13 @@ export default function JarvisPrimaryShell({ children }: { children: ReactNode }
         </nav>
         <a className="button secondary jarvis-owner-link" href={`/jarvis/login?next=${encodeURIComponent(pathname)}`}>オーナー認証</a>
       </header>
+      <JarvisConnectivityStatus />
       <JarvisOperationModeControls />
       <JarvisDisplayModeControls />
       <JarvisCommandSearch pathname={pathname} />
       <JarvisPriorityNotifications />
       <JarvisReadOnlyBoundary>
-        <div className="jarvis-primary-content">
+        <div id="jarvis-main-content" className="jarvis-primary-content" tabIndex={-1}>
           {pathname === "/jarvis" ? <JarvisHomeLayoutEditor /> : null}
           {children}
         </div>

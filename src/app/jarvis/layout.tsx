@@ -8,6 +8,7 @@ import "./widget-layout.css";
 import "./command-search.css";
 import "./screen-layout-profiles.css";
 import "./operation-mode.css";
+import "./accessibility-status.css";
 
 export const metadata: Metadata = {
   title: "JARVIS Commander",
