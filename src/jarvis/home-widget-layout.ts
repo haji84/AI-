@@ -24,11 +24,43 @@ const ID_SET = new Set<string>(IDS);
 const CRITICAL_IDS = new Set<JarvisHomeWidgetId>(JARVIS_HOME_WIDGETS.filter((widget) => widget.critical).map((widget) => widget.id));
 const SIZES = new Set<JarvisHomeWidgetSize>(["normal", "wide", "full"]);
 
+function fullSizes(): Record<JarvisHomeWidgetId, JarvisHomeWidgetSize> {
+  return Object.fromEntries(IDS.map((id) => [id, "full"])) as Record<JarvisHomeWidgetId, JarvisHomeWidgetSize>;
+}
+
 export const DEFAULT_JARVIS_HOME_WIDGET_LAYOUT: JarvisHomeWidgetLayout = {
   order: [...IDS],
   hidden: [],
-  sizes: Object.fromEntries(IDS.map((id) => [id, "full"])) as Record<JarvisHomeWidgetId, JarvisHomeWidgetSize>,
+  sizes: fullSizes(),
 };
+
+export const JARVIS_HOME_LAYOUT_PRESETS = [
+  {
+    id: "standard",
+    label: "標準",
+    layout: DEFAULT_JARVIS_HOME_WIDGET_LAYOUT,
+  },
+  {
+    id: "dashboard",
+    label: "ダッシュボード",
+    layout: {
+      order: ["status", "fleet", "recent-tasks", "quick-actions", "remote-assist", "multi-view", "human-takeover"],
+      hidden: [],
+      sizes: { ...fullSizes(), status: "normal", fleet: "normal", "recent-tasks": "wide" },
+    },
+  },
+  {
+    id: "remote-assist",
+    label: "遠隔操作",
+    layout: {
+      order: ["remote-assist", "multi-view", "human-takeover", "status", "fleet", "recent-tasks", "quick-actions"],
+      hidden: [],
+      sizes: { ...fullSizes(), status: "normal", fleet: "normal" },
+    },
+  },
+] as const satisfies readonly { id: string; label: string; layout: JarvisHomeWidgetLayout }[];
+
+export type JarvisHomeLayoutPresetId = typeof JARVIS_HOME_LAYOUT_PRESETS[number]["id"];
 
 function isWidgetId(value: unknown): value is JarvisHomeWidgetId {
   return typeof value === "string" && ID_SET.has(value);
@@ -61,6 +93,11 @@ export function normalizeJarvisHomeWidgetLayout(value: unknown): JarvisHomeWidge
     return [id, SIZES.has(size as JarvisHomeWidgetSize) ? size : "full"];
   })) as Record<JarvisHomeWidgetId, JarvisHomeWidgetSize>;
   return { order: normalizeOrder(candidate.order), hidden, sizes };
+}
+
+export function getJarvisHomeLayoutPreset(id: JarvisHomeLayoutPresetId): JarvisHomeWidgetLayout {
+  const preset = JARVIS_HOME_LAYOUT_PRESETS.find((item) => item.id === id) ?? JARVIS_HOME_LAYOUT_PRESETS[0];
+  return normalizeJarvisHomeWidgetLayout(preset.layout);
 }
 
 export function reorderJarvisHomeWidget(
