@@ -48,8 +48,9 @@ export function nextTargetIndex(currentIndex: number, direction: GestureDirectio
 }
 
 export function canAcceptGestureCandidate(lastAcceptedAt: number, now: number, cooldownMs = 1_000): boolean {
-  if (!Number.isFinite(now) || !Number.isFinite(lastAcceptedAt)) return false;
-  if (cooldownMs < 0) return false;
+  if (!Number.isFinite(now) || cooldownMs < 0) return false;
+  if (lastAcceptedAt === Number.NEGATIVE_INFINITY) return true;
+  if (!Number.isFinite(lastAcceptedAt)) return false;
   return now - lastAcceptedAt >= cooldownMs;
 }
 
