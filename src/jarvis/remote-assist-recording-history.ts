@@ -1,5 +1,5 @@
-import { existsSync, readFileSync, readdirSync } from "node:fs";
-import { resolve } from "node:path";
+import { existsSync, lstatSync, readFileSync, readdirSync, realpathSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 import type { RemoteAssistRecording } from "./remote-assist-recording.ts";
 
 const RECORDING_ID_RE = /^[0-9a-f-]{36}$/i;
@@ -8,6 +8,7 @@ const FRAME_NAME_RE = /^frame-(\d{4})\.png$/;
 export type RemoteAssistRecordingHistoryItem = RemoteAssistRecording & {
   partial: boolean;
   replayable: boolean;
+  stale: boolean;
 };
 
 export type RemoteAssistRecordingFrame = {
@@ -23,11 +24,14 @@ export type RemoteAssistRecordingBundle = {
   frames: RemoteAssistRecordingFrame[];
 };
 
-function historyItem(recording: RemoteAssistRecording): RemoteAssistRecordingHistoryItem {
+function historyItem(recording: RemoteAssistRecording, now = Date.now()): RemoteAssistRecordingHistoryItem {
+  const active = recording.status === "recording" || recording.status === "stopping";
+  const updatedAt = Date.parse(recording.updatedAt);
   return {
     ...recording,
     partial: recording.status === "failed" && recording.frameCount > 0,
-    replayable: recording.status !== "recording" && recording.status !== "stopping" && recording.frameCount > 0,
+    replayable: !active && recording.frameCount > 0,
+    stale: active && (!Number.isFinite(updatedAt) || now - updatedAt > Math.max(10_000, recording.intervalMs * 3)),
   };
 }
 
@@ -42,10 +46,10 @@ export class JarvisRemoteAssistRecordingHistory {
     if (!Number.isInteger(limit) || limit < 1 || limit > 50) throw new Error("limit must be an integer between 1 and 50");
     if (!existsSync(this.rootDir)) return [];
     return readdirSync(this.rootDir, { withFileTypes: true })
-      .filter((entry) => entry.isDirectory() && RECORDING_ID_RE.test(entry.name))
+      .filter((entry) => entry.isDirectory() && !entry.isSymbolicLink() && RECORDING_ID_RE.test(entry.name))
       .map((entry) => this.readManifest(entry.name))
       .filter((recording): recording is RemoteAssistRecording => Boolean(recording))
-      .map(historyItem)
+      .map((recording) => historyItem(recording))
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
       .slice(0, limit);
   }
@@ -60,13 +64,16 @@ export class JarvisRemoteAssistRecordingHistory {
   readFrame(recordingId: string, frameNumber: number): RemoteAssistRecordingFrame {
     const recording = this.get(recordingId);
     if (!recording.replayable) throw new Error("Remote Assist recording is not ready for replay");
-    if (!Number.isInteger(frameNumber) || frameNumber < 1 || frameNumber > recording.frameCount) {
-      throw new Error("invalid frameNumber");
-    }
+    if (!Number.isInteger(frameNumber) || frameNumber < 1 || frameNumber > recording.frameCount) throw new Error("invalid frameNumber");
     const frameName = `frame-${String(frameNumber).padStart(4, "0")}.png`;
     if (!FRAME_NAME_RE.test(frameName)) throw new Error("invalid frameName");
-    const framePath = resolve(this.recordingDir(recordingId), frameName);
+    const recordingDir = this.safeRecordingDir(recordingId);
+    const framePath = resolve(recordingDir, frameName);
     if (!existsSync(framePath)) throw new Error("Remote Assist recording frame not found");
+    const stat = lstatSync(framePath);
+    if (!stat.isFile() || stat.isSymbolicLink() || dirname(realpathSync(framePath)) !== recordingDir) {
+      throw new Error("Remote Assist recording frame path is unsafe");
+    }
     return {
       recordingId,
       frameNumber,
@@ -86,15 +93,26 @@ export class JarvisRemoteAssistRecordingHistory {
     if (!RECORDING_ID_RE.test(recordingId)) throw new Error("invalid recordingId");
   }
 
-  private recordingDir(recordingId: string): string {
+  private safeRecordingDir(recordingId: string): string {
     this.assertRecordingId(recordingId);
-    return resolve(this.rootDir, recordingId);
+    if (!existsSync(this.rootDir)) throw new Error("Remote Assist recording not found");
+    const root = realpathSync(this.rootDir);
+    const candidate = resolve(this.rootDir, recordingId);
+    if (!existsSync(candidate)) throw new Error("Remote Assist recording not found");
+    const stat = lstatSync(candidate);
+    if (!stat.isDirectory() || stat.isSymbolicLink()) throw new Error("Remote Assist recording path is unsafe");
+    const real = realpathSync(candidate);
+    if (dirname(real) !== root) throw new Error("Remote Assist recording path is unsafe");
+    return real;
   }
 
   private readManifest(recordingId: string): RemoteAssistRecording | undefined {
     try {
-      const path = resolve(this.recordingDir(recordingId), "manifest.json");
+      const recordingDir = this.safeRecordingDir(recordingId);
+      const path = resolve(recordingDir, "manifest.json");
       if (!existsSync(path)) return undefined;
+      const stat = lstatSync(path);
+      if (!stat.isFile() || stat.isSymbolicLink() || dirname(realpathSync(path)) !== recordingDir) return undefined;
       const parsed = JSON.parse(readFileSync(path, "utf8")) as Partial<RemoteAssistRecording>;
       if (parsed.id !== recordingId || !parsed.sessionId || !parsed.serial || !parsed.status || !parsed.createdAt || !parsed.updatedAt) return undefined;
       if (!Number.isInteger(parsed.frameCount) || (parsed.frameCount ?? -1) < 0 || !Number.isInteger(parsed.totalBytes) || (parsed.totalBytes ?? -1) < 0) return undefined;
