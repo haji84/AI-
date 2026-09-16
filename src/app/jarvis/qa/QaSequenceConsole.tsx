@@ -137,7 +137,7 @@ export default function QaSequenceConsole() {
         <div>
           <p className="eyebrow">JARVIS QA SEQUENCE</p>
           <h1>2 URL 自動判定</h1>
-          <p className="muted">URL①成功を確認してからURL②へ。指定エラーは再実行せず停止し、URL②成功後だけ対象アプリを閉じます。</p>
+          <p className="muted">URL①の完了を確認してからシート経由でURL②へ。完了または指定エラーでアプリを閉じてホームへ戻ります。エラー時は次のURLへ進まず、再実行もしません。</p>
         </div>
         <div className="jarvis-toolbar-actions"><a className="button secondary" href="/jarvis">Fleet Consoleへ戻る</a></div>
       </div>
