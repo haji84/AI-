@@ -47,11 +47,15 @@ test("tool dispatcher supports goal, state, verification, history and next actio
     }) as { title: string };
     assert.equal(goal.title, "Compass v1");
 
-    invokeCompassTool(store, "update_state", {
+    const state = invokeCompassTool(store, "update_state", {
       phase: "implementation",
       completed: ["store"],
+      decisions: ["persist explicit decisions"],
+      deliverables: ["store migration"],
       nextAction: "transport",
-    });
+    }) as { decisions: unknown[]; deliverables: unknown[] };
+    assert.deepEqual(state.decisions, ["persist explicit decisions"]);
+    assert.deepEqual(state.deliverables, ["store migration"]);
     assert.deepEqual(invokeCompassTool(store, "get_next_action", {}), { nextAction: "transport" });
 
     const verification = invokeCompassTool(store, "record_verification", {
@@ -60,14 +64,29 @@ test("tool dispatcher supports goal, state, verification, history and next actio
     }) as { status: string };
     assert.equal(verification.status, "PASS");
 
-    invokeCompassTool(store, "write_back", {
+    const writeBack = invokeCompassTool(store, "write_back", {
       status: "completed",
       summary: "tool contract complete",
+      decisions: ["history records explicit decisions"],
+      deliverables: ["tool contract"],
       nextAction: null,
-    });
+    }) as {
+      state: { decisions: unknown[]; deliverables: unknown[] };
+      history: { decisions: unknown[]; deliverables: unknown[] };
+    };
+    assert.deepEqual(writeBack.state.decisions, ["history records explicit decisions"]);
+    assert.deepEqual(writeBack.state.deliverables, ["tool contract"]);
+    assert.deepEqual(writeBack.history.decisions, ["history records explicit decisions"]);
+    assert.deepEqual(writeBack.history.deliverables, ["tool contract"]);
 
-    const history = invokeCompassTool(store, "get_history", { limit: 1 }) as { summary: string }[];
+    const history = invokeCompassTool(store, "get_history", { limit: 1 }) as {
+      summary: string;
+      decisions: unknown[];
+      deliverables: unknown[];
+    }[];
     assert.equal(history[0]?.summary, "tool contract complete");
+    assert.deepEqual(history[0]?.decisions, ["history records explicit decisions"]);
+    assert.deepEqual(history[0]?.deliverables, ["tool contract"]);
     assert.deepEqual(invokeCompassTool(store, "get_next_action", {}), { nextAction: null });
   });
 });
@@ -82,5 +101,11 @@ test("tool dispatcher rejects malformed calls", () => {
     );
     assert.throws(() => invokeCompassTool(store, "get_history", { limit: 1.5 }), /integer/);
     assert.throws(() => invokeCompassTool(store, "update_state", { completed: "not-array" }), /array/);
+    assert.throws(() => invokeCompassTool(store, "update_state", { decisions: "not-array" }), /array/);
+    assert.throws(() => invokeCompassTool(store, "write_back", {
+      status: "RUNNING",
+      summary: "bad deliverables",
+      deliverables: "not-array",
+    }), /array/);
   });
 });
