@@ -4,6 +4,7 @@ export const JARVIS_SPEECH_POLICY_KEY = "jarvis-speech-policy-v1";
 export const MAX_LOCAL_SPEECH_QUEUE = 8;
 
 export type SpeechPriority = "low" | "normal" | "high" | "critical";
+export type SpeechStyle = "standard" | "brief" | "formal";
 
 export type SpeechPolicySettings = {
   muted: boolean;
@@ -11,6 +12,7 @@ export type SpeechPolicySettings = {
   quietStart: string;
   quietEnd: string;
   quietMinimumPriority: "high" | "critical";
+  style: SpeechStyle;
 };
 
 export type SpeechQueueEntry = {
@@ -26,6 +28,7 @@ export const DEFAULT_SPEECH_POLICY: SpeechPolicySettings = {
   quietStart: "22:00",
   quietEnd: "07:00",
   quietMinimumPriority: "critical",
+  style: "standard",
 };
 
 const PRIORITY_WEIGHT: Record<SpeechPriority, number> = {
@@ -33,6 +36,27 @@ const PRIORITY_WEIGHT: Record<SpeechPriority, number> = {
   normal: 1,
   high: 2,
   critical: 3,
+};
+
+const FIXED_STATUS_PHRASES: Record<SpeechStyle, Record<string, string>> = {
+  standard: {
+    "指示を送信しました。": "指示を送信しました。",
+    "指示を送信できませんでした。": "指示を送信できませんでした。",
+    "操作する端末を選択してください。": "操作する端末を選択してください。",
+    "この操作は音声から実行できません。画面の確認手順を使ってください。": "この操作は音声から実行できません。画面の確認手順を使ってください。",
+  },
+  brief: {
+    "指示を送信しました。": "送信しました。",
+    "指示を送信できませんでした。": "送信できませんでした。",
+    "操作する端末を選択してください。": "端末を選択してください。",
+    "この操作は音声から実行できません。画面の確認手順を使ってください。": "音声では実行できません。",
+  },
+  formal: {
+    "指示を送信しました。": "確認済みの指示を送信しました。",
+    "指示を送信できませんでした。": "指示を送信できませんでした。画面をご確認ください。",
+    "操作する端末を選択してください。": "操作対象の端末を選択してください。",
+    "この操作は音声から実行できません。画面の確認手順を使ってください。": "この操作は音声では実行できません。画面の確認手順をご利用ください。",
+  },
 };
 
 const queue: SpeechQueueEntry[] = [];
@@ -46,6 +70,11 @@ function normalizeTime(value: unknown, fallback: string): string {
   return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
 }
 
+function normalizeSpeechStyle(value: unknown): SpeechStyle {
+  if (value === "brief" || value === "formal") return value;
+  return "standard";
+}
+
 export function normalizeSpeechPolicySettings(value: unknown): SpeechPolicySettings {
   const candidate = value && typeof value === "object" ? value as Partial<SpeechPolicySettings> : {};
   return {
@@ -54,6 +83,7 @@ export function normalizeSpeechPolicySettings(value: unknown): SpeechPolicySetti
     quietStart: normalizeTime(candidate.quietStart, DEFAULT_SPEECH_POLICY.quietStart),
     quietEnd: normalizeTime(candidate.quietEnd, DEFAULT_SPEECH_POLICY.quietEnd),
     quietMinimumPriority: candidate.quietMinimumPriority === "high" ? "high" : "critical",
+    style: normalizeSpeechStyle(candidate.style),
   };
 }
 
@@ -123,6 +153,10 @@ export function sortSpeechQueueEntries(entries: SpeechQueueEntry[]): SpeechQueue
   });
 }
 
+export function applySpeechStyle(text: string, style: SpeechStyle): string {
+  return FIXED_STATUS_PHRASES[normalizeSpeechStyle(style)][text] ?? text;
+}
+
 export function speechProfileForPreference(voicePreference: string): { rate: number; pitch: number; volume: number } {
   switch (voicePreference) {
     case "deep": return { rate: 0.92, pitch: 0.75, volume: 1 };
@@ -136,6 +170,47 @@ export function speechProfileForPreference(voicePreference: string): { rate: num
   }
 }
 
+function clampSpeechValue(value: number, minimum: number, maximum: number): number {
+  return Math.min(maximum, Math.max(minimum, value));
+}
+
+export function speechProfileForPreferences(
+  voicePreference: string,
+  personaPreference: string,
+): { rate: number; pitch: number; volume: number } {
+  const base = speechProfileForPreference(voicePreference);
+  let rateOffset = 0;
+  let pitchOffset = 0;
+  let volumeMultiplier = 1;
+
+  switch (personaPreference) {
+    case "commander":
+    case "operator":
+    case "responder":
+    case "concise":
+      rateOffset = 0.04;
+      break;
+    case "butler":
+    case "concierge":
+    case "mentor":
+      rateOffset = -0.03;
+      pitchOffset = 0.02;
+      break;
+    case "quiet":
+      rateOffset = -0.04;
+      volumeMultiplier = 0.72;
+      break;
+    default:
+      break;
+  }
+
+  return {
+    rate: clampSpeechValue(base.rate + rateOffset, 0.75, 1.3),
+    pitch: clampSpeechValue(base.pitch + pitchOffset, 0.65, 1.25),
+    volume: clampSpeechValue(base.volume * volumeMultiplier, 0, 1),
+  };
+}
+
 function drainLocalSpeechQueue() {
   if (activeSpeech || typeof window === "undefined") return;
   const synthesis = window.speechSynthesis;
@@ -144,7 +219,8 @@ function drainLocalSpeechQueue() {
   if (!entry) return;
 
   const utterance = new SpeechSynthesisUtterance(entry.text);
-  const profile = speechProfileForPreference(readJarvisPreferences().voice);
+  const preferences = readJarvisPreferences();
+  const profile = speechProfileForPreferences(preferences.voice, preferences.persona);
   utterance.lang = "ja-JP";
   utterance.rate = profile.rate;
   utterance.pitch = profile.pitch;
@@ -172,7 +248,8 @@ export function enqueueLocalSpeech(
   }
 
   sequence += 1;
-  queue.push({ id: `speech-${sequence}`, text: text.trim().slice(0, 240), priority, sequence });
+  const styledText = applySpeechStyle(text.trim(), settings.style).slice(0, 240);
+  queue.push({ id: `speech-${sequence}`, text: styledText, priority, sequence });
   const ordered = sortSpeechQueueEntries(queue).slice(0, MAX_LOCAL_SPEECH_QUEUE);
   queue.splice(0, queue.length, ...ordered);
   drainLocalSpeechQueue();
