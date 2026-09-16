@@ -9,6 +9,7 @@ export default function JarvisMobilePage() {
     <>
       <div className="commander-voice-launch">
         <a href="/jarvis/mobile/pointer">傾きポインター</a>
+        <a href="/jarvis/mobile/gesture">カメラジェスチャー</a>
         <a href="/jarvis/mobile/voice">🎙 音声司令</a>
       </div>
       <MobileCommander />
