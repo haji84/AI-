@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import RemoteAssistMultiView from "./RemoteAssistMultiView";
+import RemoteScreenControl from "./RemoteScreenControl";
 
 type NodeItem = {
   id: string;
@@ -412,23 +413,14 @@ export default function JarvisConsole() {
         </div>}
         <div className="jarvis-remote-layout">
           <div className="jarvis-remote-screen">
-            {screenshot ? <button
-              type="button"
-              className="jarvis-screen-button"
-              title={canControlRemote ? "画面をタップ" : "閲覧のみ"}
-              disabled={!canControlRemote}
-              onClick={(event) => {
-                const image = event.currentTarget.querySelector("img");
-                if (!image || !canControlRemote) return;
-                const rect = image.getBoundingClientRect();
-                const naturalWidth = image.naturalWidth || rect.width;
-                const naturalHeight = image.naturalHeight || rect.height;
-                const x = Math.round((event.clientX - rect.left) * naturalWidth / rect.width);
-                const y = Math.round((event.clientY - rect.top) * naturalHeight / rect.height);
-                void remoteRequest({ action: "tap", x, y }, { manual: true }).then(() => captureScreen());
-              }}
-            ><img src={`data:${screenshot.mimeType};base64,${screenshot.imageBase64}`} alt={`${screenshot.serial} の現在画面`} /></button> : <div className="jarvis-remote-placeholder">端末を選び、Remote Assistを開始してください</div>}
-            {screenshot && <small>取得 {fmt(screenshot.capturedAt)} / {canControlRemote ? "画像上をタップすると実機をタップ" : "VIEW ONLY"}</small>}
+            {screenshot ? <RemoteScreenControl
+              key={JSON.stringify([remoteSession?.id, remoteSerial, canControlRemote, screenshot.capturedAt])}
+              src={"data:" + screenshot.mimeType + ";base64," + screenshot.imageBase64}
+              serial={screenshot.serial}
+              enabled={Boolean(canControlRemote) && screenshot.serial === remoteSerial}
+              onInput={(input) => { void remoteRequest(input, { manual: true }).then(() => captureScreen()); }}
+            /> : <div className="jarvis-remote-placeholder">端末を選び、Remote Assistを開始してください</div>}
+            {screenshot && <small>取得 {fmt(screenshot.capturedAt)} / {canControlRemote ? "画像上をタップ・スワイプで操作（5秒以内）" : "VIEW ONLY"}</small>}
           </div>
           <div className="jarvis-remote-controls">
             <select value={remoteSerial} onChange={(event) => selectRemoteDevice(event.target.value)}>
