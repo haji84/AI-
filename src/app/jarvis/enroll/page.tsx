@@ -235,7 +235,7 @@ export default function JarvisEnrollPage() {
 
     <section className="panel jarvis-section" style={{ maxWidth: 860, margin: "0 auto 24px" }}>
       <div className="section-heading"><div><p className="section-kicker">使用中のAndroid</p><h2>同じ固定URLを端末ごとに開く</h2></div></div>
-      <p className="muted">100台分のURLを100個作る必要はありません。受付中に同じURLを各Androidで開くと、そのアクセス専用の短命な登録Grantが作られます。URLそのものにオーナートークンやEnrollment tokenは入りません。</p>
+      <p className="muted">100台分のURLを100個作る必要はありません。同じURLを各Androidで開いてください。アプリのダウンロードが始まった場合は、アンインストールせず更新して「開く」を押すと自動登録します。登録受付中に端末ごとの最大30分のトークンを発行します。</p>
     </section>
 
     <section className="panel jarvis-section" style={{ maxWidth: 860, margin: "0 auto 24px" }}>

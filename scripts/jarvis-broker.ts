@@ -19,6 +19,12 @@ const host = process.env.JARVIS_BROKER_HOST?.trim() || "127.0.0.1";
 const port = Number(process.env.JARVIS_BROKER_PORT || 8787);
 const ownerToken = process.env.JARVIS_OWNER_TOKEN?.trim() || "";
 const publicBrokerUrl = process.env.JARVIS_PUBLIC_BROKER_URL?.trim().replace(/\/$/, "") || "";
+const workerInstallUrl = process.env.JARVIS_WORKER_INSTALL_URL?.trim() || "";
+if (workerInstallUrl) {
+  const parsed = new URL(workerInstallUrl);
+  if (parsed.protocol !== "https:" || parsed.username || parsed.password) throw new Error("Worker installation URL must be HTTPS without credentials");
+}
+const fixedEnrollmentUrl = workerInstallUrl || (publicBrokerUrl ? `${publicBrokerUrl}/enroll` : undefined);
 const workerApkPath = process.env.JARVIS_WORKER_APK_PATH?.trim() || "";
 const qrencodePath = process.env.JARVIS_QRENCODE_PATH?.trim() || "qrencode";
 
@@ -259,7 +265,7 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
       return json(response, 200, { discarded: replacementTransport.discard(payload.candidateId) });
     }
     if (method === "GET" && path === "/api/jarvis/admin/enrollment-window") {
-      return json(response, 200, { window: pairingWindow.status(), fixedUrl: publicBrokerUrl ? `${publicBrokerUrl}/enroll` : undefined });
+      return json(response, 200, { window: pairingWindow.status(), fixedUrl: fixedEnrollmentUrl });
     }
     if (method === "POST" && path === "/api/jarvis/admin/enrollment-window") {
       const action = payload.action === "close" ? "close" : payload.action === "open" ? "open" : "";
@@ -268,7 +274,7 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
         const window = action === "close"
           ? pairingWindow.close()
           : pairingWindow.open({ ttlMs: asNumber(payload.ttlMs, 10 * 60_000), maxIssues: asNumber(payload.maxIssues, 100), group: typeof payload.group === "string" ? payload.group : undefined });
-        return json(response, 200, { window, fixedUrl: publicBrokerUrl ? `${publicBrokerUrl}/enroll` : undefined });
+        return json(response, 200, { window, fixedUrl: fixedEnrollmentUrl });
       } catch (error) {
         return json(response, 400, { message: error instanceof Error ? error.message : "invalid pairing window request" });
       }
