@@ -18,7 +18,7 @@ export default function JarvisSettingsPage() {
           <p>認証情報、端末権限、ネットワーク公開範囲、課金、破壊的操作、Human Gateルールはこのローカル表示設定から変更できない。</p>
         </div>
       </section>
-      <p className="jarvis-boundary-note">20テーマ、Persona/Voice/Color/Layout分離、Widget編集、Privacy/Distance/Accessibility等はP5の後続Requirementとして残る。</p>
+      <p className="jarvis-boundary-note">Widget移動/resize/hide、Layout編集とUndo/Redo、Universal Command/Search、Focus/Distance/Privacy、Accessibility等はP5の後続Requirementとして残る。</p>
     </main>
   );
 }
