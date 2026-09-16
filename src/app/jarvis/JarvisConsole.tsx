@@ -443,7 +443,6 @@ export default function JarvisConsole() {
             {screenshot && videoSession !== remoteSession?.id && <small>取得 {fmt(screenshot.capturedAt)} / {canControlRemote ? "画像上をタップ・スワイプで操作（5秒以内）" : "VIEW ONLY"}</small>}
           </div>
           <div className="jarvis-remote-controls">
-            <TeachingControls serial={remoteSerial} sessionId={canControlRemote ? remoteSession?.id : undefined} />
             <select value={remoteSerial} onChange={(event) => selectRemoteDevice(event.target.value)}>
               <option value="">遠隔端末を選択</option>
               {remoteDevices.map((device) => <option value={device.serial} key={device.serial}>{device.serial} ({device.remoteAssistCapability ?? device.state})</option>)}
@@ -457,11 +456,14 @@ export default function JarvisConsole() {
               <button className="button secondary" disabled={busy || !canViewRemote} onClick={() => void captureScreen()}>画面を見る</button>
               <button className="button secondary" disabled={!canViewRemote} onClick={() => setLiveRefresh((current) => !current)}>画面自動更新 {liveRefresh ? "ON" : "OFF"}</button>
             </div>
+            <TeachingControls serial={remoteSerial} sessionId={canControlRemote ? remoteSession?.id : undefined} />
+            <details open={recordingActive || undefined}><summary>補助機能：画面写真の保存</summary>
             <div className="jarvis-button-row">
               <button className="button secondary" disabled={busy || !canViewRemote || recordingActive} onClick={() => void startRecording()}>画面写真を5分保存（手順学習なし）</button>
               <button className="button secondary" disabled={busy || !recordingActive} onClick={() => void stopRecording()}>画面写真の保存を停止</button>
             </div>
             {recording && <small>PNGフレーム記録 {recording.status} / {recording.frameCount}/{recording.maxFrames}枚 / {Math.ceil(recording.totalBytes / 1024)}KiB{recording.stopReason ? ` / ${recording.stopReason}` : ""}。動画ファイルではありません。</small>}
+            </details>
             <div className="jarvis-button-row">
               <button className="button secondary" disabled={busy || !canControlRemote} onClick={() => void remoteRequest({ action: "keyevent", key: "BACK" }, { manual: true }).then(() => captureScreen())}>戻る</button>
               <button className="button secondary" disabled={busy || !canControlRemote} onClick={() => void remoteRequest({ action: "keyevent", key: "HOME" }, { manual: true }).then(() => captureScreen())}>ホーム</button>
