@@ -29,7 +29,7 @@ jobs:
         with:
           gradle-version: '9.6.0'
       - name: Build unsigned release APK
-        run: gradle -p android/jarvis-worker :app:assembleRelease --stacktrace
+        run: gradle -p android/jarvis-worker :app:testReleaseUnitTest :app:assembleRelease --stacktrace
       - name: Verify APK
         run: test -s android/jarvis-worker/app/build/outputs/apk/release/app-release-unsigned.apk
       - uses: actions/upload-artifact@v4

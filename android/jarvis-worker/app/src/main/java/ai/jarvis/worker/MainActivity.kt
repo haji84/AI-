@@ -29,12 +29,17 @@ class MainActivity : AppCompatActivity() {
     private lateinit var updateButton: Button
     private var latestUpdate: UpdateManager.UpdateInfo? = null
     private var waitingForInstallPermission = false
+    private val enrollmentInProgress = AtomicBoolean(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         status = TextView(this).apply { text = "未登録" }
-        val guide = TextView(this).apply { text = "管理者から届いたJARVIS登録リンクを1回タップすると、自動で登録されます。" }
+        val guide = TextView(this).apply { text = "このアプリを開くと登録・接続を確認します。初回はJARVIS側の登録受付が必要です。" }
+        val retryEnrollment = Button(this).apply {
+            text = "登録・接続を再確認"
+            setOnClickListener { verifyCurrentEnrollment() }
+        }
         automationStatus = TextView(this).apply { text = "自動操作: 確認中" }
         val automationSettings = Button(this).apply {
             text = "自動操作を有効化"
@@ -79,6 +84,7 @@ class MainActivity : AppCompatActivity() {
             setPadding(32, 48, 32, 32)
             addView(status)
             addView(guide)
+            addView(retryEnrollment)
             addView(automationStatus)
             addView(automationSettings)
             addView(updateButton)
@@ -106,6 +112,7 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         active.set(true)
+        verifyCurrentEnrollment()
         automationStatus.text = if (JarvisAccessibilityService.connected()) "自動操作: 有効" else "自動操作: 未有効"
         if (waitingForInstallPermission && UpdateManager(this).canRequestPackageInstalls() && latestUpdate != null) {
             waitingForInstallPermission = false
@@ -127,20 +134,54 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun verifyCurrentEnrollment() {
+        if (!enrollmentInProgress.compareAndSet(false, true)) return
         val client = BrokerClient(this)
         if (client.brokerUrl.isBlank()) {
-            status.text = "未登録"
-            return
+            val bootstrap = BuildConfig.ENROLLMENT_BOOTSTRAP_URL
+            if (bootstrap.isBlank()) {
+                status.text = "接続先の準備が必要です。JARVISの端末登録画面から登録リンクを開いてください。"
+                enrollmentInProgress.set(false)
+                return
+            }
+            try {
+                client.brokerUrl = EnrollmentBootstrap.validatedOrigin(bootstrap)
+            } catch (_: Exception) {
+                status.text = "JARVISの接続先設定が無効です"
+                enrollmentInProgress.set(false)
+                return
+            }
         }
         status.text = "登録状態を確認中"
         Thread {
-            runCatching { client.heartbeat() }
+            runCatching {
+                try {
+                    client.heartbeat()
+                } catch (error: BrokerHttpException) {
+                    val prefs = getSharedPreferences("jarvis_config", MODE_PRIVATE)
+                    // Network failures and previously registered identities must never mint grants.
+                    if (error.statusCode != 401 || prefs.getBoolean("enrollment_verified", false) ||
+                        client.brokerUrl != BuildConfig.ENROLLMENT_BOOTSTRAP_URL.trimEnd('/')) throw error
+                    runOnUiThread { status.text = "JARVISへ自動登録中" }
+                    client.enrollFromPairingWindow()
+                    client.heartbeat()
+                }
+                getSharedPreferences("jarvis_config", MODE_PRIVATE).edit().putBoolean("enrollment_verified", true).apply()
+            }
                 .onSuccess {
                     runCatching { JarvisCommandService.start(this) }
                     runOnUiThread { status.text = "登録完了" }
                     checkForUpdate()
                 }
-                .onFailure { runOnUiThread { status.text = "未登録" } }
+                .onFailure { error ->
+                    runOnUiThread {
+                        status.text = when ((error as? BrokerHttpException)?.statusCode) {
+                            503 -> "登録受付が閉じています。JARVISで登録受付を開いてから再確認してください。"
+                            401 -> "端末の認証を確認できません。JARVISの端末登録画面を確認してください。"
+                            else -> "JARVISへ接続できません。家のWi-Fiとホストの起動を確認して再確認してください。"
+                        }
+                    }
+                }
+            enrollmentInProgress.set(false)
         }.start()
     }
 
@@ -218,22 +259,26 @@ class MainActivity : AppCompatActivity() {
             status.text = "登録リンクが無効です"
             return
         }
+        if (!enrollmentInProgress.compareAndSet(false, true)) return
         status.text = "登録中"
         Thread {
             runCatching {
                 val client = BrokerClient(this)
                 client.brokerUrl = brokerUrl
                 action(client)
+                client.heartbeat()
+                getSharedPreferences("jarvis_config", MODE_PRIVATE).edit().putBoolean("enrollment_verified", true).apply()
             }.onSuccess {
                 runCatching { JarvisCommandService.start(this) }
                 runOnUiThread { status.text = "登録完了" }
                 checkForUpdate()
             }.onFailure { error ->
-                val expired = error.message?.contains("expired", ignoreCase = true) == true ||
+                val expired = (error as? BrokerHttpException)?.statusCode == 410 || error.message?.contains("expired", ignoreCase = true) == true ||
                     error.message?.contains("invalid", ignoreCase = true) == true ||
                     error.message?.contains("limit", ignoreCase = true) == true
                 runOnUiThread { status.text = if (expired) "リンク期限切れ" else "登録失敗: ${error.message}" }
             }
+            enrollmentInProgress.set(false)
         }.start()
     }
 

@@ -642,18 +642,25 @@ The JSON blocks are the authoritative rows. Validate exact mirror and evidence g
   "implementation_refs": [
     "src/jarvis/fleet-manager.ts",
     "src/jarvis/enrollment.ts",
-    "src/app/jarvis/enroll/page.tsx"
+    "src/app/jarvis/enroll/page.tsx",
+    "scripts/jarvis-broker.ts",
+    "android/jarvis-worker/app/src/main/java/ai/jarvis/worker/MainActivity.kt",
+    "android/jarvis-worker/app/src/main/java/ai/jarvis/worker/EnrollmentBootstrap.kt"
   ],
   "test_refs": [
     "tests/jarvis-final-fleet-acceptance.test.ts",
-    "tests/jarvis-enrollment-security.test.ts"
+    "tests/jarvis-enrollment-security.test.ts",
+    "tests/jarvis-launch-enrollment.test.ts",
+    "android/jarvis-worker/app/src/test/java/ai/jarvis/worker/EnrollmentBootstrapTest.kt"
   ],
-  "evidence_refs": [],
+  "evidence_refs": [
+    "docs/architecture/jarvis-launch-enrollment.md"
+  ],
   "status": "PARTIAL",
-  "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+  "blocker": "#779: launch enrollment code added; current ZBook trial lacks a home-Wi-Fi-reachable private HTTPS Worker origin and installation-configured signed APK. Physical enrollment/reopen not verified.",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P4: 固定端末登録URL→server側fresh短時間token→Worker enrollment→完了。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "Provision trusted private Worker ingress, build/sign the installation-configured APK, then verify launch enrollment and reopen without consuming another grant.",
   "last_verified_commit": null
 }
 ```
@@ -675,18 +682,25 @@ The JSON blocks are the authoritative rows. Validate exact mirror and evidence g
   "implementation_refs": [
     "src/jarvis/fleet-manager.ts",
     "src/jarvis/enrollment.ts",
-    "src/app/jarvis/enroll/page.tsx"
+    "src/app/jarvis/enroll/page.tsx",
+    "scripts/jarvis-broker.ts",
+    "android/jarvis-worker/app/src/main/java/ai/jarvis/worker/MainActivity.kt",
+    "android/jarvis-worker/app/src/main/java/ai/jarvis/worker/EnrollmentBootstrap.kt"
   ],
   "test_refs": [
     "tests/jarvis-final-fleet-acceptance.test.ts",
-    "tests/jarvis-enrollment-security.test.ts"
+    "tests/jarvis-enrollment-security.test.ts",
+    "tests/jarvis-launch-enrollment.test.ts",
+    "android/jarvis-worker/app/src/test/java/ai/jarvis/worker/EnrollmentBootstrapTest.kt"
   ],
-  "evidence_refs": [],
+  "evidence_refs": [
+    "docs/architecture/jarvis-launch-enrollment.md"
+  ],
   "status": "PARTIAL",
-  "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+  "blocker": "#779: launch enrollment code added; current ZBook trial lacks a home-Wi-Fi-reachable private HTTPS Worker origin and installation-configured signed APK. Physical enrollment/reopen not verified.",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P4: 既存Androidを簡単登録。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "Provision trusted private Worker ingress, build/sign the installation-configured APK, then verify launch enrollment and reopen without consuming another grant.",
   "last_verified_commit": null
 }
 ```
@@ -741,18 +755,25 @@ The JSON blocks are the authoritative rows. Validate exact mirror and evidence g
   "implementation_refs": [
     "src/jarvis/fleet-manager.ts",
     "src/jarvis/enrollment.ts",
-    "src/app/jarvis/enroll/page.tsx"
+    "src/app/jarvis/enroll/page.tsx",
+    "scripts/jarvis-broker.ts",
+    "android/jarvis-worker/app/src/main/java/ai/jarvis/worker/MainActivity.kt",
+    "android/jarvis-worker/app/src/main/java/ai/jarvis/worker/EnrollmentBootstrap.kt"
   ],
   "test_refs": [
     "tests/jarvis-final-fleet-acceptance.test.ts",
-    "tests/jarvis-enrollment-security.test.ts"
+    "tests/jarvis-enrollment-security.test.ts",
+    "tests/jarvis-launch-enrollment.test.ts",
+    "android/jarvis-worker/app/src/test/java/ai/jarvis/worker/EnrollmentBootstrapTest.kt"
   ],
-  "evidence_refs": [],
+  "evidence_refs": [
+    "docs/architecture/jarvis-launch-enrollment.md"
+  ],
   "status": "PARTIAL",
-  "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+  "blocker": "#779: launch enrollment code added; current ZBook trial lacks a home-Wi-Fi-reachable private HTTPS Worker origin and installation-configured signed APK. Physical enrollment/reopen not verified.",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P4: 既存使用中Androidにも可能な範囲でone-touch onboarding。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "Provision trusted private Worker ingress, build/sign the installation-configured APK, then verify launch enrollment and reopen without consuming another grant.",
   "last_verified_commit": null
 }
 ```
