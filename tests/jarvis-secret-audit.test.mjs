@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
+import { URL, fileURLToPath } from "node:url";
 import { auditText, formatFindings, scanRepository } from "../scripts/jarvis-secret-audit.mjs";
 
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
