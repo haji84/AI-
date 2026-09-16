@@ -7,7 +7,7 @@ type ProbeState = "idle" | "pending" | "ok" | "failed" | "auth-required";
 
 export default function JarvisConnectivityStatus() {
   const [browserOnline, setBrowserOnline] = useState(true);
-  const [probe, setProbe] = useState<ProbeState>("idle");
+  const [probe, setProbe] = useState<ProbeState>("pending");
   const [reconnecting, setReconnecting] = useState(false);
   const reconnectTimer = useRef<number | null>(null);
 
