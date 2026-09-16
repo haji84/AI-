@@ -18,6 +18,7 @@ type Recording = {
   stopReason?: string;
   partial: boolean;
   replayable: boolean;
+  stale: boolean;
 };
 type Frame = { recordingId: string; frameNumber: number; mimeType: "image/png"; imageBase64: string };
 
@@ -32,6 +33,7 @@ function fmt(value: string) {
 }
 
 function statusLabel(recording: Recording) {
+  if (recording.stale) return "STALE ACTIVE";
   if (recording.partial) return "FAILED / PARTIAL";
   return recording.status.toUpperCase();
 }
@@ -42,12 +44,14 @@ export default function RecordingHistory() {
   const [frameNumber, setFrameNumber] = useState(1);
   const [frame, setFrame] = useState<Frame | null>(null);
   const [playing, setPlaying] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
   const selected = useMemo(() => recordings.find((item) => item.id === selectedId) ?? null, [recordings, selectedId]);
 
   const refresh = useCallback(async () => {
+    setLoading(true);
     try {
       const response = await fetch("/api/jarvis/recordings?limit=10", { cache: "no-store" });
       const body = await response.json() as { recordings?: Recording[]; message?: string };
@@ -58,6 +62,8 @@ export default function RecordingHistory() {
       setError("");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "記録履歴を取得できません");
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -105,14 +111,14 @@ export default function RecordingHistory() {
     return () => window.clearInterval(timer);
   }, [playing, selected, loadFrame]);
 
-  async function downloadSelected() {
+  async function download(action: "download-frame" | "export") {
     if (!selected?.replayable) return;
     setBusy(true);
     try {
       const response = await fetch("/api/jarvis/recordings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "export", recordingId: selected.id }),
+        body: JSON.stringify({ action, recordingId: selected.id, ...(action === "download-frame" ? { frameNumber } : {}) }),
       });
       if (!response.ok) {
         const body = await response.json().catch(() => ({ message: `HTTP ${response.status}` })) as { message?: string };
@@ -122,7 +128,9 @@ export default function RecordingHistory() {
       const href = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = href;
-      anchor.download = `jarvis-recording-${selected.id}.json`;
+      anchor.download = action === "download-frame"
+        ? `jarvis-recording-${selected.id}-frame-${String(frameNumber).padStart(4, "0")}.png`
+        : `jarvis-recording-${selected.id}.json`;
       document.body.appendChild(anchor);
       anchor.click();
       anchor.remove();
@@ -141,20 +149,21 @@ export default function RecordingHistory() {
         <div>
           <p className="eyebrow">REMOTE ASSIST HISTORY</p>
           <h1>遠隔記録</h1>
-          <p className="muted">ローカルに保存されたPNGフレーム記録を、オーナー認証されたJARVIS経由だけで再生・書き出しします。</p>
+          <p className="muted">ローカル保存のPNGフレーム記録を、オーナー認証されたJARVIS経由だけで再生・ダウンロードします。</p>
         </div>
         <div className="jarvis-toolbar-actions">
-          <button className="button secondary" disabled={busy} onClick={() => void refresh()}>更新</button>
+          <button className="button secondary" disabled={busy || loading} onClick={() => void refresh()}>更新</button>
           <a className="button secondary" href="/jarvis">Fleet Consoleへ戻る</a>
         </div>
       </div>
 
+      {loading && <div className="jarvis-alert"><strong>LOADING</strong><span>記録履歴を読み込んでいます。</span></div>}
       {error && <div className="jarvis-alert"><strong>記録履歴</strong><span>{error}</span></div>}
 
       <section className="jarvis-grid">
         <article className="panel">
           <div className="section-heading"><div><p className="section-kicker">RECENT 10</p><h2>保存済み記録</h2></div></div>
-          {recordings.length === 0 ? <p className="muted">保存済み記録はありません。</p> : (
+          {!loading && recordings.length === 0 ? <p className="muted">保存済み記録はありません。</p> : (
             <div style={{ display: "grid", gap: 8 }}>
               {recordings.map((item) => (
                 <button
@@ -173,9 +182,10 @@ export default function RecordingHistory() {
         </article>
 
         <article className="panel">
-          <div className="section-heading"><div><p className="section-kicker">PLAYBACK</p><h2>再生</h2></div></div>
+          <div className="section-heading"><div><p className="section-kicker">PLAYBACK</p><h2>PNGフレーム再生</h2></div></div>
           {!selected ? <p className="muted">記録を選択してください。</p> : <>
             <p><strong>{selected.serial}</strong> / {statusLabel(selected)} / {selected.frameCount}枚</p>
+            {selected.stale && <p className="muted">更新が止まったACTIVE記録です。再読み込み後もSTALEなら、記録プロセスまたは端末状態を確認してください。</p>}
             {selected.stopReason && <p className="muted">終了理由: {selected.stopReason}{selected.partial ? "。失敗前までのフレームを保持しています。" : ""}</p>}
             {frame ? <div className="jarvis-remote-screen">
               <img src={`data:${frame.mimeType};base64,${frame.imageBase64}`} alt={`${selected.serial} 記録フレーム ${frame.frameNumber}`} style={{ maxWidth: "100%", height: "auto" }} />
@@ -185,14 +195,15 @@ export default function RecordingHistory() {
               <button className="button secondary" disabled={busy || !selected.replayable || frameNumber <= 1} onClick={() => void loadFrame(selected.id, frameNumber - 1)}>前へ</button>
               <button className="button secondary" disabled={!selected.replayable || selected.frameCount <= 1} onClick={() => setPlaying((current) => !current)}>{playing ? "停止" : "再生"}</button>
               <button className="button secondary" disabled={busy || !selected.replayable || frameNumber >= selected.frameCount} onClick={() => void loadFrame(selected.id, frameNumber + 1)}>次へ</button>
-              <button className="button secondary" disabled={busy || !selected.replayable} onClick={() => void downloadSelected()}>JSON書き出し</button>
+              <button className="button secondary" disabled={busy || !selected.replayable} onClick={() => void download("download-frame")}>現在のPNGを保存</button>
+              <button className="button secondary" disabled={busy || !selected.replayable} onClick={() => void download("export")}>全フレームJSONを書き出し</button>
             </div>
           </>}
         </article>
       </section>
 
       <section className="panel jarvis-section">
-        <p className="muted">記録は公開URLへ出しません。履歴一覧、フレーム取得、書き出しはすべてオーナー認証API経由です。FAILED / PARTIAL は完成扱いにせず、残ったフレームだけを明示して再生します。</p>
+        <p className="muted">記録は公開URLへ出しません。履歴一覧、PNG取得、書き出しはすべてオーナー認証API経由です。FAILED / PARTIAL は完成扱いにせず、残ったフレームだけを明示して再生します。</p>
       </section>
     </div>
   );
