@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { URL } from 'node:url';
 
 const foundation = fs.readFileSync(new URL('./jarvis-v1-foundation.test.ts', import.meta.url), 'utf8');
 const audit = fs.readFileSync(new URL('../docs/audit/jarvis-p4-capacity-evidence-2026-09-16.md', import.meta.url), 'utf8');
