@@ -67,7 +67,7 @@ type RemoteAssistRecording = {
   totalBytes: number;
   stopReason?: string;
 };
-type ScreenshotResult = { serial: string; mimeType: string; imageBase64: string; capturedAt: string };
+type ScreenshotResult = { serial: string; mimeType: string; imageBase64: string; capturedAt: string; nativeWidth?: number; nativeHeight?: number };
 type RemoteRequestOptions = { manual?: boolean; sessionBound?: boolean; silent?: boolean; serial?: string; serialRequired?: boolean };
 
 function fmt(value?: string) {
@@ -423,6 +423,8 @@ export default function JarvisConsole() {
               key={JSON.stringify([remoteSession?.id, remoteSerial, canControlRemote, screenshot.capturedAt])}
               src={"data:" + screenshot.mimeType + ";base64," + screenshot.imageBase64}
               serial={screenshot.serial}
+              nativeWidth={screenshot.nativeWidth}
+              nativeHeight={screenshot.nativeHeight}
               onInteractionChange={setRemoteInteraction}
               enabled={Boolean(canControlRemote) && screenshot.serial === remoteSerial}
               onInput={(input) => { void remoteRequest(input, { manual: true }).then(() => captureScreen()); }}

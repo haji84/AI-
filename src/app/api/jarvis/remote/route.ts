@@ -252,7 +252,7 @@ export async function POST(request: Request) {
   delete body.sessionId;
   if (payload.action === "screenshot") {
     path = "/api/remote/screenshot";
-    body = { serial: payload.serial };
+    body = { serial: payload.serial, ...("preview" in payload && payload.preview === true ? { preview: true } : {}) };
   } else if (payload.action === "open-url") {
     if (!payload.url?.startsWith("https://")) return NextResponse.json({ message: "HTTPS URLを指定してください" }, { status: 400 });
     path = "/api/remote/open-url";
@@ -287,8 +287,8 @@ export async function POST(request: Request) {
         httpStatus: response.status,
       });
     }
-    if (payload.action === "screenshot" && "preview" in payload && payload.preview === true && response.ok && typeof result.imageBase64 === "string") {
-      Object.assign(result, await remotePreview(result.imageBase64));
+    if (payload.action === "screenshot" && "preview" in payload && payload.preview === true && response.ok && result.mimeType === "image/png" && typeof result.imageBase64 === "string") {
+      Object.assign(result, await remotePreview(result.imageBase64, true));
     }
     return NextResponse.json(result, { status: response.status, headers: { "Cache-Control": "no-store" } });
   } catch (error) {
