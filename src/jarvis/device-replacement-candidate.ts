@@ -158,8 +158,16 @@ export class JarvisDeviceReplacementCandidateManager {
   }
 
   private publicChallenge(record: PendingCandidate): JarvisReplacementChallenge {
-    const { publicKeyPem: _publicKeyPem, ...challenge } = record;
-    return { ...challenge };
+    return {
+      candidateId: record.candidateId,
+      nodeId: record.nodeId,
+      algorithm: record.algorithm,
+      publicKeyFingerprint: record.publicKeyFingerprint,
+      challenge: record.challenge,
+      issuedAt: record.issuedAt,
+      expiresAt: record.expiresAt,
+      signingPayload: record.signingPayload,
+    };
   }
 
   private cleanup(now: Date): void {
