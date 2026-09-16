@@ -89,4 +89,3 @@ export async function replayTeaching(store:TeachingStore,id:string,adapter:Teach
  } catch(error){if(run)return store.updateRun(run.id,{status:"NEEDS_HUMAN",reason:error instanceof Error?error.message:"Replay failed"});throw error;}
  finally{busyDevices.delete(device);}
 }
-

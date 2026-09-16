@@ -39,5 +39,3 @@ export async function beforeTeachingInput(payload:Record<string,unknown>,session
  try {const before=await adapter.observe();return {finish:async(ok:boolean)=>{try{if(ok){const after=await adapter.observe();teachingStore().append(variant.id,demonstratedStep(payload,before,after));}else teachingStore().cancel(variant.id);}catch(error){if(teachingStore().recording(sessionId))teachingStore().cancel(variant.id);throw error;}finally{actionLocks.delete(serial);}},abort:()=>{if(teachingStore().recording(sessionId))teachingStore().cancel(variant.id);},release:()=>actionLocks.delete(serial)};}
  catch(error){actionLocks.delete(serial);throw error;}
 }
-
-

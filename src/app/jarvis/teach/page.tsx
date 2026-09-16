@@ -16,4 +16,3 @@ export default function TeachingLibrary(){
  <section className="panel jarvis-section"><h2>記憶した手順</h2>{variants.length===0?<p>まだ手順はありません。</p>:variants.map(v=><details key={v.id}><summary>{v.goal} — {v.profile.model} / {v.profile.platform} / {v.status}</summary><p>{v.profile.deviceId} · OS {v.profile.osVersion} · {v.profile.app} {v.profile.appVersion} · {v.scope}</p><p>完了条件：{v.completion||'未指定'}</p><ol>{v.steps.map((s,i)=><li key={i}>{s.action.kind==='manual'?s.action.instruction:s.action.kind}{s.gate?'（手動対応が必要）':''}</li>)}</ol><p>変更する場合は新しい実演を保存してください。以前の検証結果は新しい手順へ転用しません。</p></details>)}</section>
  <section className="panel jarvis-section"><h2>再現・実行履歴</h2>{runs.slice(-30).reverse().map(r=><p key={r.id}>{r.deviceId} / {r.mode} / {r.status} / {r.nextStep}手順完了 {r.reason}</p>)}</section></main>;
 }
-

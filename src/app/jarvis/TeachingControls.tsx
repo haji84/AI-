@@ -22,4 +22,3 @@ export default function TeachingControls({serial,sessionId}:{serial:string;sessi
  </>}
  <p role="status">{busy?'画面を確認しています… ':''}{message}</p></section>;
 }
-
