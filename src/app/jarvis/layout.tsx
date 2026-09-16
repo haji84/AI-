@@ -6,6 +6,7 @@ import "./shell.css";
 import "./themes.css";
 import "./widget-layout.css";
 import "./command-search.css";
+import "./layout-modes.css";
 import "./screen-layout-profiles.css";
 import "./operation-mode.css";
 import "./accessibility-status.css";
