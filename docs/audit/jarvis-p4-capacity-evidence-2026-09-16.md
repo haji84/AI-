@@ -44,7 +44,7 @@ PR #722 was merged to main as `d72b3b9bede549ad3f10c4c85d61df3a75330683`.
 
 For the repository implementation represented by the merge above, the required software evidence classes for `FLEET-010` and `FLEET-011` are satisfied: CODE, UNIT, and INTEGRATION.
 
-The machine Requirement Ledger is still the canonical completion source. Its rows must be reconciled to this evidence without changing the requirement text or weakening any PHYSICAL/RECOVERY evidence class elsewhere.
+The machine Requirement Ledger remains the canonical completion source. Its current rows have not yet been rewritten by this evidence-only change, so this audit record alone does not change their machine-readable status and does not make P4 complete. A subsequent bounded reconciliation must update the canonical matrix and mirrored product spec without changing requirement text or weakening any PHYSICAL/RECOVERY evidence class.
 
 ## Explicitly unresolved
 
