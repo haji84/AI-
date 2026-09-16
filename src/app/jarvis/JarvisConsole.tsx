@@ -7,6 +7,7 @@ import { RemoteCaptureQueue } from "../../jarvis/remote-capture-queue";
 import RemoteScreenControl from "./RemoteScreenControl";
 import RemoteVideo from "./RemoteVideo";
 import TeachingControls from "./TeachingControls";
+import { networkLabel } from "./network-label";
 
 type NodeItem = {
   id: string;
@@ -16,7 +17,7 @@ type NodeItem = {
   enrollment: string;
   group?: string;
   capabilities: string[];
-  telemetry?: { batteryPercent?: number; charging?: boolean; network?: string };
+  telemetry?: { batteryPercent?: number; charging?: boolean; network?: unknown };
   lastSeenAt: string;
 };
 
@@ -490,7 +491,7 @@ export default function JarvisConsole() {
       <section className="panel jarvis-section">
         <div className="section-heading"><div><p className="section-kicker">FLEET</p><h2>端末一覧</h2></div><span className="count-badge neutral">{state?.fleet.length ?? 0}</span></div>
         <div className="jarvis-table-wrap"><table className="jarvis-table"><thead><tr><th>端末</th><th>状態</th><th>登録</th><th>通信</th><th>電池</th><th>最終接続</th></tr></thead><tbody>
-          {(state?.fleet ?? []).map((node) => <tr key={node.id}><td><strong>{node.label}</strong><small>{node.id}</small></td><td><span className={`jarvis-node-status ${node.status}`}>{node.status}</span></td><td>{node.enrollment}</td><td>{node.telemetry?.network ?? "-"}</td><td>{node.telemetry?.batteryPercent ?? "-"}%{node.telemetry?.charging ? " ⚡" : ""}</td><td>{fmt(node.lastSeenAt)}</td></tr>)}
+          {(state?.fleet ?? []).map((node) => <tr key={node.id}><td><strong>{node.label}</strong><small>{node.id}</small></td><td><span className={`jarvis-node-status ${node.status}`}>{node.status}</span></td><td>{node.enrollment}</td><td>{networkLabel(node.telemetry?.network)}</td><td>{node.telemetry?.batteryPercent ?? "-"}%{node.telemetry?.charging ? " ⚡" : ""}</td><td>{fmt(node.lastSeenAt)}</td></tr>)}
           {(state?.fleet.length ?? 0) === 0 && <tr><td colSpan={6} className="jarvis-empty">まだ端末は登録されていません。</td></tr>}
         </tbody></table></div>
       </section>
