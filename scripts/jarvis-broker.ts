@@ -12,6 +12,7 @@ import {
   type JarvisSignedWorkerRequest,
   type JarvisWorkerIdentity,
 } from "../src/jarvis/index.ts";
+import { JarvisEnrollmentPairingWindow } from "../src/jarvis/enrollment-pairing-window.ts";
 
 const host = process.env.JARVIS_BROKER_HOST?.trim() || "127.0.0.1";
 const port = Number(process.env.JARVIS_BROKER_PORT || 8787);
@@ -30,6 +31,7 @@ const store = new JarvisSqliteStateStore(process.env.JARVIS_DB_PATH?.trim() || u
 const persisted = store.load();
 if (persisted) plane.restore(persisted);
 const nonces = new JarvisNonceRegistry();
+const pairingWindow = new JarvisEnrollmentPairingWindow();
 let lastHeartbeatPersist = 0;
 
 type WorkerApkInfo = { path: string; url: string; bytes: Buffer; sha256Base64Url: string };
@@ -83,6 +85,10 @@ function oneTapEnrollmentPage(grant: string): string {
 }
 function expiredEnrollmentPage(): string {
   return "<!doctype html><html lang=\"ja\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>リンク期限切れ</title></head><body style=\"font-family:system-ui,sans-serif;padding:32px\"><h1>リンク期限切れ</h1><p>このJARVIS登録リンクは無効または期限切れです。管理者から新しい登録リンクを受け取ってください。</p></body></html>";
+}
+function pairingWindowUnavailablePage(reason: string): string {
+  const detail = reason === "expired" ? "登録受付時間が終了しました。" : reason === "exhausted" ? "この登録受付枠は上限に達しました。" : "現在、端末登録の受付は停止しています。";
+  return `<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>登録受付停止中</title></head><body style="font-family:system-ui,sans-serif;padding:32px"><h1>登録受付停止中</h1><p>${detail}</p><p>JARVISのオーナー画面から登録ウィンドウを開いてください。</p></body></html>`;
 }
 function fullProvisioningPayload(brokerUrl: string, token: string, apk: WorkerApkInfo): Record<string, unknown> {
   return {
@@ -190,7 +196,16 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
   const path = url.pathname; const method = request.method || "GET";
   const body = method === "GET" || method === "HEAD" ? Buffer.alloc(0) : await readBody(request);
 
-  if (method === "GET" && path === "/health") return json(response, 200, { ok: true, service: "jarvis-broker", stats: plane.snapshot().stats, workerApkReady: Boolean(workerApkInfo()) });
+  if (method === "GET" && path === "/health") return json(response, 200, { ok: true, service: "jarvis-broker", stats: plane.snapshot().stats, workerApkReady: Boolean(workerApkInfo()), pairingWindow: pairingWindow.status() });
+  if (method === "GET" && path === "/enroll") {
+    const current = pairingWindow.status();
+    if (!publicBrokerUrl || !current.open) return html(response, 503, pairingWindowUnavailablePage(publicBrokerUrl ? current.reason : "closed"));
+    const reservation = pairingWindow.reserveIssue();
+    if (!reservation) return html(response, 503, pairingWindowUnavailablePage(pairingWindow.status().reason));
+    const token = plane.createEnrollment({ mode: "quick", ttlMs: reservation.grantTtlMs, maxDevices: 1, group: reservation.group });
+    const grant = issueEnrollmentGrant(token.token, token.expiresAt);
+    return html(response, 200, oneTapEnrollmentPage(grant));
+  }
   if (method === "GET" && path.startsWith("/enroll/")) {
     const grant = decodeURIComponent(path.slice("/enroll/".length));
     if (!publicBrokerUrl || !grant || !resolveEnrollmentGrant(grant)) return html(response, 410, expiredEnrollmentPage());
@@ -207,6 +222,21 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
     if (!requireOwner(request)) return json(response, 401, { message: "owner authorization required" });
     const payload = parseJson(body);
     if (method === "GET" && path === "/api/jarvis/admin/state") return json(response, 200, plane.snapshot());
+    if (method === "GET" && path === "/api/jarvis/admin/enrollment-window") {
+      return json(response, 200, { window: pairingWindow.status(), fixedUrl: publicBrokerUrl ? `${publicBrokerUrl}/enroll` : undefined });
+    }
+    if (method === "POST" && path === "/api/jarvis/admin/enrollment-window") {
+      const action = payload.action === "close" ? "close" : payload.action === "open" ? "open" : "";
+      if (!action) return json(response, 400, { message: "pairing window action must be open or close" });
+      try {
+        const window = action === "close"
+          ? pairingWindow.close()
+          : pairingWindow.open({ ttlMs: asNumber(payload.ttlMs, 10 * 60_000), maxIssues: asNumber(payload.maxIssues, 100), group: typeof payload.group === "string" ? payload.group : undefined });
+        return json(response, 200, { window, fixedUrl: publicBrokerUrl ? `${publicBrokerUrl}/enroll` : undefined });
+      } catch (error) {
+        return json(response, 400, { message: error instanceof Error ? error.message : "invalid pairing window request" });
+      }
+    }
     if (method === "POST" && path === "/api/jarvis/admin/enrollment") {
       const mode = payload.mode === "full" || payload.mode === "fleet" ? payload.mode : "quick";
       const ttlMs = Math.min(Math.max(asNumber(payload.ttlMs, 5 * 60_000), 60_000), 60 * 60_000);
