@@ -27,6 +27,7 @@ function statusLabel(run: QaRun | null): string {
   if (run.status === "failed") return "実行失敗";
   if (run.stage === "opening-step1") return "URL①を開いています";
   if (run.stage === "waiting-step1") return "URL①の成功画面を確認中";
+  if (run.stage === "returning-to-sheet") return "URL①成功 → 指定スプレッドシートを開き直しています";
   if (run.stage === "opening-step2") return "URL①成功 → URL②を開いています";
   if (run.stage === "waiting-step2") return "URL②の受取完了画面を確認中";
   if (run.stage === "closing-app") return "URL②成功 → アプリを終了中";
@@ -36,9 +37,10 @@ function statusLabel(run: QaRun | null): string {
 export default function QaSequenceConsole() {
   const [devices, setDevices] = useState<RemoteDevice[]>([]);
   const [serial, setSerial] = useState("");
+  const [sheetUrl, setSheetUrl] = useState("");
   const [url1, setUrl1] = useState("");
   const [url2, setUrl2] = useState("");
-  const [packageName, setPackageName] = useState("");
+  const [packageName, setPackageName] = useState("com.ss.android.ugc.tiktok.lite");
   const [run, setRun] = useState<QaRun | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -62,10 +64,11 @@ export default function QaSequenceConsole() {
     const saved = window.localStorage.getItem("jarvis.qa.profile");
     if (saved) {
       try {
-        const parsed = JSON.parse(saved) as { url1?: string; url2?: string; packageName?: string };
+        const parsed = JSON.parse(saved) as { url1?: string; url2?: string; sheetUrl?: string; packageName?: string };
+        setSheetUrl(parsed.sheetUrl ?? "");
         setUrl1(parsed.url1 ?? "");
         setUrl2(parsed.url2 ?? "");
-        setPackageName(parsed.packageName ?? "");
+        setPackageName(parsed.packageName || "com.ss.android.ugc.tiktok.lite");
       } catch {
         window.localStorage.removeItem("jarvis.qa.profile");
       }
@@ -73,8 +76,8 @@ export default function QaSequenceConsole() {
   }, [loadDevices]);
 
   useEffect(() => {
-    window.localStorage.setItem("jarvis.qa.profile", JSON.stringify({ url1, url2, packageName }));
-  }, [url1, url2, packageName]);
+    window.localStorage.setItem("jarvis.qa.profile", JSON.stringify({ url1, url2, sheetUrl, packageName }));
+  }, [url1, url2, sheetUrl, packageName]);
 
   const fetchRun = useCallback(async (runId: string) => {
     const response = await fetch("/api/jarvis/remote", {
@@ -97,7 +100,7 @@ export default function QaSequenceConsole() {
   }, [run, fetchRun]);
 
   async function start() {
-    if (!serial || !url1 || !url2 || !packageName) return;
+    if (!serial || !url1 || !url2 || !sheetUrl || !packageName) return;
     setBusy(true);
     setError("");
     try {
@@ -109,6 +112,7 @@ export default function QaSequenceConsole() {
           serial,
           url1,
           url2,
+          sheetUrl,
           packageName,
           timeoutMs: 90000,
           pollMs: 1500,
@@ -147,15 +151,16 @@ export default function QaSequenceConsole() {
             <option value="">Android端末を選択</option>
             {devices.map((device) => <option value={device.serial} key={device.serial}>{device.serial} ({device.state})</option>)}
           </select>
+          <input aria-label="スプレッドシートURL" type="url" placeholder="TikTok Liteの対象スプレッドシートURL" value={sheetUrl} onChange={(event) => setSheetUrl(event.target.value)} disabled={!!run && !terminal} />
           <input type="url" pattern="https://.*" placeholder="URL①" value={url1} onChange={(event) => setUrl1(event.target.value)} disabled={!!run && !terminal} />
           <input type="url" pattern="https://.*" placeholder="URL②" value={url2} onChange={(event) => setUrl2(event.target.value)} disabled={!!run && !terminal} />
         </div>
         <div className="jarvis-task-form" style={{ marginTop: 8 }}>
           <input placeholder="Android packageName 例: com.example.app" value={packageName} onChange={(event) => setPackageName(event.target.value)} disabled={!!run && !terminal} />
-          <button className="button secondary" disabled={busy || !serial || !url1 || !url2 || !packageName || (!!run && !terminal)} onClick={() => void start()}>この端末で開始</button>
+          <button className="button secondary" disabled={busy || !serial || !url1 || !url2 || !sheetUrl || !packageName || (!!run && !terminal)} onClick={() => void start()}>この端末で開始</button>
           <button className="button secondary" disabled={busy} onClick={() => void loadDevices()}>端末更新</button>
         </div>
-        <p className="muted">設定はこのブラウザに保存されるので、同じURL・アプリなら次回の再入力は不要です。</p>
+        <p className="muted">設定はこのブラウザに保存されます。URL①の完了後に指定シートを開き直し、入力されたURL②を開きます。シート内のセル検索・タップはまだ自動化されていません。</p>
       </section>
 
       <section className="panel jarvis-section">
@@ -166,10 +171,11 @@ export default function QaSequenceConsole() {
           {run.matched.length > 0 && <small>検出: {run.matched.join(" / ")}</small>}
           {run.error && <small>エラー: {run.error}</small>}
           {run.status === "error-no-retry" && <p>指定エラー画面を検出したため、このURLは押し直していません。次URLにも進んでいません。</p>}
-          {run.status === "done" && <p>URL① → URL② の成功確認が完了し、対象アプリを終了しました。</p>}
+          {run.status === "done" && <p>URL① → URL② の成功確認が完了し、対象アプリを終了し、ホーム画面への復帰を確認しました。</p>}
           {(run.status === "step1-timeout" || run.status === "step2-timeout") && <p>判定できない画面のため自動再実行はしていません。Remote Assistで画面確認できます。</p>}
         </div>}
       </section>
     </div>
   );
 }
+

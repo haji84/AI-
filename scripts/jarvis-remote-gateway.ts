@@ -6,7 +6,7 @@ import { randomUUID, timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { promisify } from "node:util";
 import { captureRemotePreview } from "../src/jarvis/remote-preview.ts";
-import { classifyQaScreen, defaultQaScreenRules, type QaScreenRules, type QaScreenState } from "../src/jarvis/qa-sequence.ts";
+import { classifyQaScreen, defaultQaScreenRules, executeQaSequence, validateQaSheetUrl, type QaScreenRules, type QaScreenState } from "../src/jarvis/qa-sequence.ts";
 
 const execFileAsync = promisify(execFile);
 const host = process.env.JARVIS_REMOTE_GATEWAY_HOST?.trim() || "127.0.0.1";
@@ -30,6 +30,7 @@ type QaRun = {
   serial: string;
   url1: string;
   url2: string;
+  sheetUrl?: string;
   packageName: string;
   status: QaRunStatus;
   stage: string;
@@ -149,13 +150,19 @@ async function teachingObservation(serial: string) {
   return observeAndroidUi(xml, { deviceId: serial, platform: "android", model: model.stdout.trim(), osVersion: os.stdout.trim(), app, appVersion: version.stdout.match(/versionName=([^\s]+)/)?.[1] || "unknown" });
 }
 
-async function waitForState(serial: string, expected: QaScreenState, rules: QaScreenRules, timeoutMs: number, pollMs: number): Promise<{ state: QaScreenState; matched: string[] }> {
+async function waitForState(serial: string, expected: QaScreenState, rules: QaScreenRules, timeoutMs: number, pollMs: number, packageName: string): Promise<{ state: QaScreenState; matched: string[] }> {
   const deadline = Date.now() + timeoutMs;
+  let confirmations = 0;
   while (Date.now() < deadline) {
     try {
-      const judged = classifyQaScreen(await dumpUi(serial), rules);
-      if (judged.state === "error" || judged.state === expected) return judged;
+      const xml = await dumpUi(serial);
+      if (!xml.includes(`package="${packageName}"`)) { confirmations = 0; await sleep(pollMs); continue; }
+      const judged = classifyQaScreen(xml, rules);
+      if (judged.state === "error") return judged;
+      confirmations = judged.state === expected ? confirmations + 1 : 0;
+      if (confirmations >= 2) return judged;
     } catch {
+      confirmations = 0;
       // A transient UI-dump failure is not a re-execution. Keep observing until timeout.
     }
     await sleep(pollMs);
@@ -163,61 +170,54 @@ async function waitForState(serial: string, expected: QaScreenState, rules: QaSc
   return { state: "pending", matched: [] };
 }
 
-async function openUrl(serial: string, target: string): Promise<void> {
-  if (!target.startsWith("https://")) throw new Error("QA URL must use HTTPS");
-  await adb(serial, ["shell", "am", "start", "-a", "android.intent.action.VIEW", "-d", target], 20_000);
+async function openUrl(serial: string, target: string, spreadsheet = false): Promise<void> {
+  const url = spreadsheet ? validateQaSheetUrl(target) : safeUrl(target);
+  // adb shell joins arguments again: quote the URL for the Android shell.
+  const quoted = "'" + url.replace(/'/g, "'\\''") + "'";
+  await adb(serial, ["shell", "am", "start", "-a", "android.intent.action.VIEW", "-d", quoted], 20_000);
 }
 
 async function closeApp(run: QaRun, stage = "closing-app"): Promise<void> {
   updateRun(run, { stage });
   await adb(run.serial, ["shell", "am", "force-stop", run.packageName], 15_000);
   updateRun(run, { appClosed: true });
-}
-
-async function stopOnError(run: QaRun, step: 1 | 2, matched: string[]): Promise<void> {
-  updateRun(run, { stage: "closing-app-after-error", step, matched });
-  await closeApp(run, "closing-app-after-error");
-  updateRun(run, { status: "error-no-retry", stage: "stopped", step, matched, appClosed: true });
+  const resolved = await adb(run.serial, ['shell','cmd','package','resolve-activity','--brief','-a','android.intent.action.MAIN','-c','android.intent.category.HOME']);
+  const launcher = resolved.stdout.trim().split(/\s+/).at(-1)?.split('/')[0];
+  if (!launcher || !PACKAGE_RE.test(launcher)) throw Error('Home launcher could not be identified');
+  await adb(run.serial, ['shell','input','keyevent','HOME']);
+  for (let attempt=0;attempt<3;attempt++) {
+    if ((await dumpUi(run.serial)).includes(`package="${launcher}"`)) return;
+    await sleep(500);
+  }
+  throw Error('Home screen not confirmed');
 }
 
 async function runQaSequence(run: QaRun, rules: QaScreenRules, timeoutMs: number, pollMs: number): Promise<void> {
   try {
-    updateRun(run, { status: "running", stage: "opening-step1", step: 1 });
-    await openUrl(run.serial, run.url1);
-    updateRun(run, { stage: "waiting-step1" });
-    const first = await waitForState(run.serial, "step1-success", rules, timeoutMs, pollMs);
-    if (first.state === "error") {
-      await stopOnError(run, 1, first.matched);
-      return;
-    }
-    if (first.state !== "step1-success") {
-      updateRun(run, { status: "step1-timeout", stage: "stopped", step: 1 });
-      return;
-    }
-
-    updateRun(run, { stage: "opening-step2", step: 2, matched: first.matched });
-    await openUrl(run.serial, run.url2);
-    updateRun(run, { stage: "waiting-step2" });
-    const second = await waitForState(run.serial, "step2-success", rules, timeoutMs, pollMs);
-    if (second.state === "error") {
-      await stopOnError(run, 2, second.matched);
-      return;
-    }
-    if (second.state !== "step2-success") {
-      updateRun(run, { status: "step2-timeout", stage: "stopped", step: 2 });
-      return;
-    }
-
-    updateRun(run, { stage: "closing-app", matched: second.matched });
-    await closeApp(run);
-    updateRun(run, { status: "done", stage: "done", appClosed: true });
-  } catch (error) {
-    updateRun(run, { status: "failed", stage: "failed", error: error instanceof Error ? error.message : "QA sequence failed" });
+    const result = await executeQaSequence({
+      progress: (stage, step) => updateRun(run, {status:'running',stage,step}),
+      open: step => openUrl(run.serial, step === 1 ? run.url1 : run.url2),
+      wait: step => waitForState(run.serial, step === 1 ? 'step1-success' : 'step2-success', rules, timeoutMs, pollMs, run.packageName),
+      returnToSheet: async () => {
+        if (!run.sheetUrl) return; // Existing direct two-URL callers remain compatible.
+        await openUrl(run.serial, run.sheetUrl, true);
+        for (let attempt=0;attempt<3;attempt++) {
+          const xml=await dumpUi(run.serial);
+          if(xml.includes('package="com.google.android.apps.docs.editors.sheets"')) return;
+          await sleep(pollMs);
+        }
+        throw Error('Spreadsheet application not confirmed; second URL not opened');
+      },
+      closeAndHome: () => closeApp(run, run.stage),
+    });
+    updateRun(run, {status:result.outcome,stage:result.outcome === 'done' ? 'done' : 'stopped',step:result.step,matched:result.matched,appClosed:result.appClosed});
+  } catch {
+    // Child-process errors can contain private URLs; never expose them in run history.
+    updateRun(run, {status:'failed',stage:'failed',error:'画面または接続を確認できないため停止しました。操作は再送していません。'});
   } finally {
     activeRunBySerial.delete(run.serial);
   }
 }
-
 async function handleInput(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
   const serial = requireSerial(payload);
   const action = typeof payload.action === "string" ? payload.action : "";
@@ -321,14 +321,15 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
     const url1 = typeof payload.url1 === "string" ? payload.url1.trim() : "";
     const url2 = typeof payload.url2 === "string" ? payload.url2.trim() : "";
     const packageName = typeof payload.packageName === "string" ? payload.packageName.trim() : "";
-    if (!url1.startsWith("https://") || !url2.startsWith("https://")) throw new Error("both QA URLs must use HTTPS");
+    safeUrl(url1); safeUrl(url2);
+    const sheetUrl = typeof payload.sheetUrl === 'string' && payload.sheetUrl.trim() ? validateQaSheetUrl(payload.sheetUrl.trim()) : undefined;
     if (!PACKAGE_RE.test(packageName)) throw new Error("valid Android packageName is required so JARVIS can close the app after completion or error");
     const timeoutMs = boundedInt(payload.timeoutMs ?? 90_000, "timeoutMs", 5_000, 180_000);
     const pollMs = boundedInt(payload.pollMs ?? 1_500, "pollMs", 500, 5_000);
     const rules = screenRules(payload);
     const now = new Date().toISOString();
     const run: QaRun = {
-      id: randomUUID(), serial, url1, url2, packageName,
+      id: randomUUID(), serial, url1, url2, sheetUrl, packageName,
       status: "queued", stage: "queued", step: 1, matched: [], appClosed: false,
       createdAt: now, updatedAt: now,
     };
@@ -359,3 +360,4 @@ server.listen(port, host, () => {
   console.log(`[jarvis-remote-gateway] listening on http://${host}:${port}`);
   console.log(`[jarvis-remote-gateway] authorized devices=${allowedSerials.size}`);
 });
+
