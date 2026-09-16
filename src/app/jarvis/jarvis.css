@@ -12,7 +12,6 @@
 .jarvis-teaching-options { grid-column: 1 / -1; min-width: 0; }
 .jarvis-teaching-options summary { cursor: pointer; padding: 12px 0; }
 .jarvis-teaching-options label { margin: 12px 0; }
-body:has(
 .jarvis-teaching-inline { grid-column: 1 / -1; display: grid; gap: 10px; padding: 12px; border: 1px solid #67e8f9; border-radius: 12px; background: #071a29; }
 .jarvis-teaching-inline strong, .jarvis-teaching-inline small { display: block; }
 .jarvis-teaching-inline .button { min-height: 52px; width: 100%; }
