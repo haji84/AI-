@@ -9,12 +9,12 @@ const history = new JarvisRemoteAssistRecordingHistory(
 );
 
 type RecordingPayload =
-  | { action: "frame"; recordingId?: string; frameNumber?: number }
+  | { action: "frame" | "download-frame"; recordingId?: string; frameNumber?: number }
   | { action: "export"; recordingId?: string };
 
 function errorStatus(message: string): number {
   if (message.includes("not found")) return 404;
-  if (message.includes("invalid") || message.includes("not ready")) return 400;
+  if (message.includes("invalid") || message.includes("not ready") || message.includes("unsafe")) return 400;
   return 500;
 }
 
@@ -24,7 +24,7 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const rawLimit = url.searchParams.get("limit");
     const limit = rawLimit === null ? 10 : Number(rawLimit);
-    return NextResponse.json({ recordings: history.listRecent(limit) });
+    return NextResponse.json({ recordings: history.listRecent(limit) }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to list Remote Assist recordings";
     return NextResponse.json({ message }, { status: errorStatus(message) });
@@ -42,12 +42,20 @@ export async function POST(request: Request) {
 
   try {
     if (!payload.recordingId) throw new Error("invalid recordingId");
-    if (payload.action === "frame") {
+    if (payload.action === "frame" || payload.action === "download-frame") {
       if (!Number.isInteger(payload.frameNumber)) throw new Error("invalid frameNumber");
-      return NextResponse.json({
-        recording: history.get(payload.recordingId),
-        frame: history.readFrame(payload.recordingId, payload.frameNumber as number),
-      });
+      const frame = history.readFrame(payload.recordingId, payload.frameNumber as number);
+      if (payload.action === "download-frame") {
+        return new Response(Buffer.from(frame.imageBase64, "base64"), {
+          status: 200,
+          headers: {
+            "Content-Type": "image/png",
+            "Content-Disposition": `attachment; filename="jarvis-recording-${frame.recordingId}-frame-${String(frame.frameNumber).padStart(4, "0")}.png"`,
+            "Cache-Control": "no-store",
+          },
+        });
+      }
+      return NextResponse.json({ recording: history.get(payload.recordingId), frame }, { headers: { "Cache-Control": "no-store" } });
     }
     if (payload.action === "export") {
       const bundle = history.exportBundle(payload.recordingId);
