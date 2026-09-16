@@ -42,7 +42,7 @@ export function validateProductionConfig(value, root) {
 
 export function loadWindowsProductionConfig(root) {
   if (process.platform !== 'win32') return;
-  const file = process.env.JARVIS_PRODUCTION_CONFIG || path.join(process.env.LOCALAPPDATA || '', 'JARVIS', 'production', 'config.dpapi');
+  const file = productionConfigPath(process.env, fs.existsSync);
   if (!fs.existsSync(file)) {
     if (process.env.JARVIS_PRODUCTION_CONFIG) throw Error('Missing configuration');
     return;
@@ -56,4 +56,12 @@ export function loadWindowsProductionConfig(root) {
   const release = JSON.parse(fs.readFileSync(path.join(root, 'jarvis-release.json'), 'utf8'));
   if (release.commit !== value.commit) throw Error('Release does not match configuration');
   Object.assign(process.env, env);
+}
+
+export function productionConfigPath(env, exists) {
+  if (env.JARVIS_PRODUCTION_CONFIG) return env.JARVIS_PRODUCTION_CONFIG;
+  const native = env.USERPROFILE && path.join(env.USERPROFILE, 'JARVIS', 'production', 'config.dpapi');
+  if (native && exists(native)) return native;
+  // Read-only compatibility for existing installations. New setup never writes here.
+  return path.join(env.LOCALAPPDATA || '', 'JARVIS', 'production', 'config.dpapi');
 }

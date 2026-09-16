@@ -16,15 +16,15 @@ if (-not $Apply) {
 $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
 if (-not ([Security.Principal.WindowsPrincipal]$identity).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { throw 'Explicit Windows elevation required' }
 $ReleaseRoot = (Resolve-Path -LiteralPath $ReleaseRoot).Path
-$manifest = Get-Content -LiteralPath (Join-Path $ReleaseRoot 'jarvis-release.json') -Raw | ConvertFrom-Json
-$authorization = Get-Content -LiteralPath $AuthorizationPath -Raw | ConvertFrom-Json
+$manifest = Get-Content -LiteralPath (Join-Path $ReleaseRoot 'jarvis-release.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+$authorization = Get-Content -LiteralPath $AuthorizationPath -Raw -Encoding UTF8 | ConvertFrom-Json
 if ($authorization.ownerSid -ne $identity.User.Value) { throw 'Installation must run as the approved Windows owner' }
 if ($authorization.scopeId -ne 'issue:786' -or $authorization.commit -ne $manifest.commit -or $authorization.mainCi -ne 'success' -or $authorization.credentialAndTaskApproval -ne $true -or [datetimeoffset]::Parse($authorization.expiresAt) -le [datetimeoffset]::Now) { throw 'Exact release authorization and separate credential/task approval required' }
 if (-not (Test-Path -LiteralPath (Join-Path $ReleaseRoot '.next/BUILD_ID'))) { throw 'Production build missing' }
-$settings = Get-Content -LiteralPath $SettingsPath -Raw | ConvertFrom-Json
+$settings = Get-Content -LiteralPath $SettingsPath -Raw -Encoding UTF8 | ConvertFrom-Json
 $node = (Get-Command node.exe -ErrorAction Stop).Source
 if (Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue) { throw 'Existing task requires reviewed update; refusing overwrite' }
-$stateRoot = Join-Path $env:LOCALAPPDATA 'JARVIS/production'
+$stateRoot = Join-Path $env:USERPROFILE 'JARVIS/production'
 $configPath = Join-Path $stateRoot 'config.dpapi'
 if (Test-Path -LiteralPath $configPath) { throw 'Production configuration already exists; refusing credential rotation' }
 foreach ($port in @(3000,3098,8787,8790,8792)) {
@@ -45,7 +45,7 @@ $environment.JARVIS_OWNER_TOKEN = New-LocalSecret
 $environment.JARVIS_REMOTE_GATEWAY_TOKEN = New-LocalSecret
 $config = @{version=1;releaseRoot=$ReleaseRoot;commit=$manifest.commit;environment=$environment} | ConvertTo-Json -Depth 5 -Compress
 # Validate without logging credentials; JavaScript reads the candidate through stdin.
-$config | & $node (Join-Path $ReleaseRoot 'scripts/validate-jarvis-production-config.mjs') $ReleaseRoot
+$config | & $node (Join-Path $ReleaseRoot 'scripts/validate-jarvis-production-config.mjs') $ReleaseRoot $stateRoot
 if ($LASTEXITCODE -ne 0) { throw 'Production settings validation failed' }
 if (-not (Test-Path -LiteralPath $environment.JARVIS_DB_PATH)) { throw 'Preserved Broker database missing' }
 foreach ($file in @($environment.JARVIS_PRIVATE_WORKER_CERT_PATH,$environment.JARVIS_PRIVATE_WORKER_KEY_PATH,$environment.JARVIS_ADB_PATH)) { if (-not (Test-Path -LiteralPath $file)) { throw 'Required installation file missing' } }
@@ -63,6 +63,16 @@ $triggers = @(New-ScheduledTaskTrigger -AtStartup; New-ScheduledTaskTrigger -AtL
 $taskSettings = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -RestartCount 20 -RestartInterval (New-TimeSpan -Minutes 1) -ExecutionTimeLimit ([TimeSpan]::Zero) -MultipleInstances IgnoreNew
 Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $triggers -Settings $taskSettings -User $identity.Name -Password $windowsCredential.GetNetworkCredential().Password -RunLevel Limited | Out-Null
 Start-ScheduledTask -TaskName $taskName
+# Registration alone did not prove startup in the MSIX incident. Require the
+# task to remain running and all four services to bind before announcing setup.
+$healthy=$false
+for($attempt=0;$attempt -lt 30;$attempt++) {
+  Start-Sleep -Seconds 1
+  $running=(Get-ScheduledTask -TaskName $taskName).State -eq 'Running'
+  $listeners=@(Get-NetTCPConnection -State Listen -LocalPort 3000,8787,8790,8792 -ErrorAction SilentlyContinue)
+  if($running -and @($listeners.LocalPort | Select-Object -Unique).Count -eq 4){$healthy=$true;break}
+}
+if(-not $healthy){throw 'Task registered but services did not start. Keep encrypted configuration; inspect task result and paths. Do not reinstall or rotate credentials.'}
 # Display once locally, never write the owner code into shell output, repository or logs.
 Add-Type -AssemblyName System.Windows.Forms
 [System.Windows.Forms.MessageBox]::Show("JARVIS owner login code (save privately):`n`n$ownerCode",'JARVIS production login') | Out-Null
