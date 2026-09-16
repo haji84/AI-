@@ -206,6 +206,12 @@ export class JarvisRemoteAssistFrameRecorder {
         const waitMs = Math.min(recording.intervalMs - (Date.now() - frameStartedAt), deadline - Date.now());
         if (waitMs > 0) await this.waitForNextFrame(recording, waitMs);
       }
+      // Hold the last frame until the full requested window has elapsed.
+      if (!recording.stopRequested && !recording.stopReason && recording.frameCount >= recording.maxFrames &&
+          recording.maxFrames >= Math.ceil((deadline - Date.parse(recording.createdAt)) / recording.intervalMs)) {
+        const remaining = deadline - Date.now();
+        if (remaining > 0) await this.waitForNextFrame(recording, remaining);
+      }
       if (recording.stopRequested) {
         recording.status = "stopped";
         recording.stopReason = "owner-stop";
