@@ -6,8 +6,11 @@ import { useEffect } from "react";
 import JarvisCommandSearch from "./JarvisCommandSearch";
 import JarvisDisplayModeControls from "./JarvisDisplayModeControls";
 import JarvisHomeLayoutEditor from "./JarvisHomeLayoutEditor";
+import JarvisOperationModeControls from "./JarvisOperationModeControls";
 import JarvisPriorityNotifications from "./JarvisPriorityNotifications";
+import JarvisReadOnlyBoundary from "./JarvisReadOnlyBoundary";
 import { applyJarvisDisplayMode, readJarvisDisplayMode } from "./display-modes";
+import { applyJarvisOperationMode, readJarvisOperationMode } from "./operation-mode";
 import { applyJarvisScreenLayoutProfile, readJarvisScreenLayoutProfiles } from "./screen-layout-profiles";
 import { applyJarvisPreferences, readJarvisPreferences } from "./ui-preferences";
 
@@ -22,6 +25,7 @@ const NAV_ITEMS = [
 function applyStoredPreferences() {
   applyJarvisPreferences(readJarvisPreferences());
   applyJarvisDisplayMode(readJarvisDisplayMode());
+  applyJarvisOperationMode(readJarvisOperationMode());
 }
 
 export default function JarvisPrimaryShell({ children }: { children: ReactNode }) {
@@ -64,13 +68,16 @@ export default function JarvisPrimaryShell({ children }: { children: ReactNode }
         </nav>
         <a className="button secondary jarvis-owner-link" href={`/jarvis/login?next=${encodeURIComponent(pathname)}`}>オーナー認証</a>
       </header>
+      <JarvisOperationModeControls />
       <JarvisDisplayModeControls />
       <JarvisCommandSearch pathname={pathname} />
       <JarvisPriorityNotifications />
-      <div className="jarvis-primary-content">
-        {pathname === "/jarvis" ? <JarvisHomeLayoutEditor /> : null}
-        {children}
-      </div>
+      <JarvisReadOnlyBoundary>
+        <div className="jarvis-primary-content">
+          {pathname === "/jarvis" ? <JarvisHomeLayoutEditor /> : null}
+          {children}
+        </div>
+      </JarvisReadOnlyBoundary>
     </div>
   );
 }
