@@ -50,6 +50,7 @@ export default function CameraGestureCommander() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const timerRef = useRef<number | null>(null);
+  const cameraActiveRef = useRef(false);
   const previousFrameRef = useRef<Uint8ClampedArray | null>(null);
   const motionPointsRef = useRef<MotionPoint[]>([]);
   const lastAcceptedAtRef = useRef(Number.NEGATIVE_INFINITY);
@@ -67,6 +68,7 @@ export default function CameraGestureCommander() {
   }
 
   function releaseCamera() {
+    cameraActiveRef.current = false;
     if (timerRef.current !== null && typeof window !== "undefined") {
       window.clearInterval(timerRef.current);
       timerRef.current = null;
@@ -78,6 +80,7 @@ export default function CameraGestureCommander() {
   }
 
   useEffect(() => () => {
+    cameraActiveRef.current = false;
     if (timerRef.current !== null) window.clearInterval(timerRef.current);
     timerRef.current = null;
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -88,9 +91,11 @@ export default function CameraGestureCommander() {
   }, []);
 
   function cycleTarget(direction: GestureDirection) {
-    const currentIndex = Math.max(0, SAFE_TARGETS.findIndex((target) => target.id === selectedTargetId));
-    const nextIndex = nextTargetIndex(currentIndex, direction, SAFE_TARGETS.length);
-    setSelectedTargetId(SAFE_TARGETS[nextIndex].id);
+    setSelectedTargetId((currentTargetId) => {
+      const currentIndex = Math.max(0, SAFE_TARGETS.findIndex((target) => target.id === currentTargetId));
+      const nextIndex = nextTargetIndex(currentIndex, direction, SAFE_TARGETS.length);
+      return SAFE_TARGETS[nextIndex].id;
+    });
     setLastGesture(direction);
     setMessage("動き候補で画面内の選択だけを移動しました。まだ何も実行していません。");
   }
@@ -98,7 +103,7 @@ export default function CameraGestureCommander() {
   function processFrame() {
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    if (!video || !canvas || status !== "active" || video.readyState < 2) return;
+    if (!cameraActiveRef.current || !video || !canvas || video.readyState < 2) return;
     const context = canvas.getContext("2d", { willReadFrequently: true });
     if (!context) return;
 
@@ -158,6 +163,7 @@ export default function CameraGestureCommander() {
       if (!videoRef.current) throw new Error("camera preview unavailable");
       videoRef.current.srcObject = stream;
       await videoRef.current.play();
+      cameraActiveRef.current = true;
       setStatus("active");
       setMessage("カメラ入力中です。フレームはこのブラウザ内だけで粗い動き候補に変換し、保存・送信しません。");
       timerRef.current = window.setInterval(processFrame, 140);
