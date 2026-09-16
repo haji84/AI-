@@ -1,14 +1,21 @@
 import java.net.URI
 import java.security.cert.CertificateFactory
 import java.security.cert.X509Certificate
+import java.util.Properties
 
 plugins {
     id("com.android.application")
 }
 
 val installationResources = layout.buildDirectory.dir("generated/res/jarvisInstallation")
-val installationOrigin = providers.gradleProperty("jarvisBootstrapUrl").orElse("")
-val installationCertificate = providers.gradleProperty("jarvisCaCertificate").orElse("")
+val installationSettings = Properties().apply {
+    val config = rootProject.file("installation/zbook.properties")
+    if (config.exists()) config.inputStream().use { load(it) }
+}
+val installationOrigin = providers.gradleProperty("jarvisBootstrapUrl")
+    .orElse(installationSettings.getProperty("bootstrapUrl", ""))
+val installationCertificate = providers.gradleProperty("jarvisCaCertificate")
+    .orElse(installationSettings.getProperty("certificate")?.let { rootProject.file(it).absolutePath } ?: "")
 val generateInstallationResources = tasks.register("generateInstallationResources") {
     inputs.property("origin", installationOrigin)
     inputs.property("certificatePath", installationCertificate)
@@ -49,8 +56,8 @@ android {
         targetSdk = 37
         versionCode = 15
         versionName = "0.4.2"
-        // Non-secret installation origin. Generic distribution deliberately has no guessed host.
-        val bootstrap = providers.gradleProperty("jarvisBootstrapUrl").orElse("").get()
+        // Public installation configuration only; no private keys or enrollment credentials.
+        val bootstrap = installationOrigin.get()
         require(bootstrap.isEmpty() || Regex("https://[A-Za-z0-9.-]+(:[0-9]+)?/?").matches(bootstrap))
         buildConfigField("String", "ENROLLMENT_BOOTSTRAP_URL", "\"$bootstrap\"")
 

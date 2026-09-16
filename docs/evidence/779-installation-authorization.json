@@ -1,0 +1,25 @@
+{
+  "task": "issue:779",
+  "repository": "haji84/AI-",
+  "owner_instruction": "承認",
+  "context": "Explicit reply to: ZBook専用TLS証明書・秘密鍵の作成と、Androidへの公開証明書の組み込みを承認. Continues requested completion of working registration in #779, including the previously proposed one-hour ZBook/Android rollout scope.",
+  "status": "APPROVED_TASK_SCOPED",
+  "active_authorization": {
+    "kind": "task_completion",
+    "scopeId": "issue:779",
+    "allowLowMediumMainMerge": true,
+    "allowProductionDeploy": true,
+    "issuedBy": "owner",
+    "issuedAt": "2026-09-16T08:28:15.000Z",
+    "expiresAt": "2026-09-16T09:28:15.000Z"
+  },
+  "specific_initial_setup": [
+    "Create and protect ZBook installation TLS credentials outside the repository",
+    "Embed only public certificate and private LAN origin in the Worker APK",
+    "Reuse existing Worker APK signing identity",
+    "Reflect this issue on ZBook and connected Android 320234270653 and verify registration"
+  ],
+  "excluded": ["billing", "public Broker or Gateway", "Funnel", "router forwarding", "unrelated permissions", "new APK signing identity", "destructive data changes"],
+  "deployment_commit": null,
+  "review_outcome": "New explicit owner approval received after prior rejection. Credential creation approved and performed at 08:31Z. No real private key enters this repository. Bind exact merged commit with successful main CI in local deployment evidence before rollout."
+}

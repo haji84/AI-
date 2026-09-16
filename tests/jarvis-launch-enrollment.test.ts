@@ -19,6 +19,7 @@ test("launch and shared-URL enrollment protect individual identities and cap the
   const child = spawn(process.execPath, ["scripts/jarvis-broker.ts"], {
     env: { ...process.env, JARVIS_BROKER_HOST: "127.0.0.1", JARVIS_BROKER_PORT: String(port),
       JARVIS_OWNER_TOKEN: owner, JARVIS_PUBLIC_BROKER_URL: "https://jarvis.example.invalid",
+      JARVIS_WORKER_INSTALL_URL: "https://github.com/haji84/AI-/releases/download/jarvis-worker-latest/jarvis-worker.apk",
       JARVIS_DB_PATH: join(directory, "broker.sqlite") }, stdio: "ignore",
   });
   const base = `http://127.0.0.1:${port}`;
@@ -35,7 +36,9 @@ test("launch and shared-URL enrollment protect individual identities and cap the
     assert(ready, "test broker started");
     assert.equal((await post("/api/jarvis/enrollment-grant")).status, 503);
     assert.equal((await post("/api/jarvis/admin/enrollment-window", { action: "open" })).status, 401);
-    assert.equal((await post("/api/jarvis/admin/enrollment-window", { action: "open", ttlMs: 60 * 60_000, maxIssues: 2 }, true)).status, 200);
+    const opened = await post("/api/jarvis/admin/enrollment-window", { action: "open", ttlMs: 60 * 60_000, maxIssues: 2 }, true);
+    assert.equal(opened.status, 200);
+    assert.equal((await opened.json()).fixedUrl, "https://github.com/haji84/AI-/releases/download/jarvis-worker-latest/jarvis-worker.apk");
     const issued = await post("/api/jarvis/enrollment-grant");
     assert.equal(issued.status, 201);
     assert.equal(issued.headers.get("cache-control"), "no-store");
