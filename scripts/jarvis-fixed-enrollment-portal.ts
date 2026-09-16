@@ -1,5 +1,6 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import {
+  FIXED_ENROLLMENT_PORTAL_DEFAULT_PORT,
   FixedEnrollmentRateLimiter,
   fixedEnrollmentRequest,
   normalizeFixedEnrollmentBindHost,
@@ -12,7 +13,7 @@ const portalKey = process.env.JARVIS_ENROLLMENT_PORTAL_KEY?.trim() || "";
 const ownerToken = process.env.JARVIS_OWNER_TOKEN?.trim() || "";
 const allowLan = process.env.JARVIS_ENROLLMENT_PORTAL_ALLOW_LAN === "1";
 const host = normalizeFixedEnrollmentBindHost(process.env.JARVIS_ENROLLMENT_PORTAL_HOST, allowLan);
-const port = Number(process.env.JARVIS_ENROLLMENT_PORTAL_PORT || 8790);
+const port = Number(process.env.JARVIS_ENROLLMENT_PORTAL_PORT || FIXED_ENROLLMENT_PORTAL_DEFAULT_PORT);
 const brokerUrl = normalizeFixedEnrollmentBrokerUrl(process.env.JARVIS_BROKER_URL);
 const group = process.env.JARVIS_ENROLLMENT_PORTAL_GROUP?.trim() || "fixed-url";
 const limiter = new FixedEnrollmentRateLimiter();

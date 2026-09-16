@@ -27,6 +27,15 @@ test('Windows-safe dashboard command directly launches Next with Node', () => {
   assert.match(run.stdout, /Next.js/);
 });
 
+test('enrollment portal joins bounded supervision only when explicitly enabled', () => {
+  const normal = serviceSpecs(process.cwd());
+  assert.deepEqual(normal.map(spec => spec.name), ['broker', 'remote-gateway', 'dashboard']);
+
+  const enabled = serviceSpecs(process.cwd(), process.execPath, '3000', { enableEnrollmentPortal: true });
+  assert.deepEqual(enabled.map(spec => spec.name), ['broker', 'remote-gateway', 'dashboard', 'enrollment-portal']);
+  assert.match(enabled[3].args[0], /jarvis-fixed-enrollment-portal\.ts$/);
+});
+
 test('synchronous spawn errors retry with bounded budget and survive without children', () => {
   const h = harness(() => { throw Object.assign(new Error('failed'), { code: 'EINVAL' }); });
   const manager = manageProcess({ name: 'test' }, h.options);

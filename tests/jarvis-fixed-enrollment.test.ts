@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  FIXED_ENROLLMENT_PORTAL_DEFAULT_PORT,
   FIXED_ENROLLMENT_TTL_MS,
   FixedEnrollmentRateLimiter,
   fixedEnrollmentRequest,
@@ -24,6 +25,11 @@ test("fixed enrollment request is always fresh, single-device and 10 minutes", (
     maxDevices: 1,
     ttlMs: 600_000,
   });
+});
+
+test("fixed enrollment portal default port does not collide with Remote Gateway", () => {
+  assert.equal(FIXED_ENROLLMENT_PORTAL_DEFAULT_PORT, 8791);
+  assert.notEqual(FIXED_ENROLLMENT_PORTAL_DEFAULT_PORT, 8790);
 });
 
 test("portal key comparison is exact", () => {
