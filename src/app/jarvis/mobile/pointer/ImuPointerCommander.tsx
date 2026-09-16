@@ -48,6 +48,7 @@ export default function ImuPointerCommander() {
   const [message, setMessage] = useState("IMUはOFFです。通常のタップ操作はいつでも使えます。");
   const calibrationRef = useRef<OrientationCalibration | null>(null);
   const lastSampleRef = useRef<OrientationSample | null>(null);
+  const pointerRef = useRef<PointerPosition>(DEFAULT_POINTER_POSITION);
   const handlerRef = useRef<((event: DeviceOrientationEvent) => void) | null>(null);
 
   const selectedTarget = useMemo(
@@ -64,12 +65,22 @@ export default function ImuPointerCommander() {
     lastSampleRef.current = null;
   }
 
-  useEffect(() => () => detachSensor(), []);
+  useEffect(() => () => {
+    if (handlerRef.current) window.removeEventListener("deviceorientation", handlerRef.current, true);
+    handlerRef.current = null;
+    calibrationRef.current = null;
+    lastSampleRef.current = null;
+  }, []);
+
+  function resetPointer() {
+    pointerRef.current = DEFAULT_POINTER_POSITION;
+    setPointer(DEFAULT_POINTER_POSITION);
+  }
 
   function stopSensor() {
     detachSensor();
     setStatus("idle");
-    setPointer(DEFAULT_POINTER_POSITION);
+    resetPointer();
     setMessage("IMUを停止しました。通常のタップ・キーボード操作はそのまま使えます。");
   }
 
@@ -83,13 +94,12 @@ export default function ImuPointerCommander() {
       return;
     }
 
-    setPointer((previous) => {
-      const next = projectOrientation(sample, calibrationRef.current!, previous);
-      if (!next) return previous;
-      const nearest = nearestPointerTarget(next, SAFE_TARGETS);
-      if (nearest) setSelectedTargetId(nearest);
-      return next;
-    });
+    const next = projectOrientation(sample, calibrationRef.current, pointerRef.current);
+    if (!next) return;
+    pointerRef.current = next;
+    setPointer(next);
+    const nearest = nearestPointerTarget(next, SAFE_TARGETS);
+    if (nearest) setSelectedTargetId(nearest);
   }
 
   async function startSensor() {
@@ -114,6 +124,7 @@ export default function ImuPointerCommander() {
       }
 
       detachSensor();
+      resetPointer();
       handlerRef.current = handleOrientation;
       window.addEventListener("deviceorientation", handleOrientation, true);
       setStatus("active");
@@ -132,7 +143,7 @@ export default function ImuPointerCommander() {
       return;
     }
     calibrationRef.current = calibration;
-    setPointer(DEFAULT_POINTER_POSITION);
+    resetPointer();
     setMessage("現在の端末角度を中央として再補正しました。");
   }
 
