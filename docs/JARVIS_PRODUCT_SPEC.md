@@ -370,10 +370,10 @@ The JSON blocks are the authoritative rows. Validate exact mirror and evidence g
     "docs/evidence/786-native-startup.md"
   ],
   "status": "PARTIAL",
-  "blocker": "#786 native session-0 task and two READY Workers observed; Tailscale NoState, physical reboot/AC-loss and crash recovery remain unverified.",
+  "blocker": "#786 native session-0 task, two READY Workers and private URL HTTP200 observed after explicitly approved Tailscale unattended setting. Physical reboot/AC-loss/crash recovery remain unverified.",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "Complete specifically approved Tailscale service recovery, then coordinate actual reboot/network/crash acceptance. Preserve credentials, enrollment and unchanged firewall.",
+  "next_action": "Coordinate actual Windows reboot and remote/network/crash acceptance. Routine Tailscale recovery has standing owner approval; preserve credentials, enrollment and unchanged firewall.",
   "last_verified_commit": null
 }
 ```
@@ -412,10 +412,10 @@ The JSON blocks are the authoritative rows. Validate exact mirror and evidence g
     "docs/evidence/786-native-startup.md"
   ],
   "status": "PARTIAL",
-  "blocker": "#786 native session-0 task and two READY Workers observed; Tailscale NoState, physical reboot/AC-loss and crash recovery remain unverified.",
+  "blocker": "#786 native session-0 task, two READY Workers and private URL HTTP200 observed after explicitly approved Tailscale unattended setting. Physical reboot/AC-loss/crash recovery remain unverified.",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "Complete specifically approved Tailscale service recovery, then coordinate actual reboot/network/crash acceptance. Preserve credentials, enrollment and unchanged firewall.",
+  "next_action": "Coordinate actual Windows reboot and remote/network/crash acceptance. Routine Tailscale recovery has standing owner approval; preserve credentials, enrollment and unchanged firewall.",
   "last_verified_commit": null
 }
 ```
@@ -7038,10 +7038,10 @@ The JSON blocks are the authoritative rows. Validate exact mirror and evidence g
     "docs/evidence/786-native-startup.md"
   ],
   "status": "PARTIAL",
-  "blocker": "#786 native session-0 task and two READY Workers observed; Tailscale NoState, physical reboot/AC-loss and crash recovery remain unverified.",
+  "blocker": "#786 native session-0 task, two READY Workers and private URL HTTP200 observed after explicitly approved Tailscale unattended setting. Physical reboot/AC-loss/crash recovery remain unverified.",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "Complete specifically approved Tailscale service recovery, then coordinate actual reboot/network/crash acceptance. Preserve credentials, enrollment and unchanged firewall.",
+  "next_action": "Coordinate actual Windows reboot and remote/network/crash acceptance. Routine Tailscale recovery has standing owner approval; preserve credentials, enrollment and unchanged firewall.",
   "last_verified_commit": null
 }
 ```
