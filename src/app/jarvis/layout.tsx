@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
+import JarvisPrimaryShell from "./JarvisPrimaryShell";
 import "./jarvis.css";
 
 export const metadata: Metadata = {
@@ -25,5 +26,5 @@ export const viewport: Viewport = {
 };
 
 export default function JarvisLayout({ children }: { children: ReactNode }) {
-  return children;
+  return <JarvisPrimaryShell>{children}</JarvisPrimaryShell>;
 }
