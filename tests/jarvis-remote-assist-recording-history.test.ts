@@ -59,6 +59,7 @@ test("durable history survives a fresh reader and exposes completed/partial/stal
     });
     const active = persist(root, {
       status: "recording",
+      createdAt: "2026-09-15T00:00:00.000Z",
       updatedAt: "2026-09-15T00:00:00.000Z",
     });
 
