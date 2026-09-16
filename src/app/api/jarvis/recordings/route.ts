@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { JarvisRemoteAssistRecordingHistory } from "../../../../../jarvis/remote-assist-recording-history.ts";
+import { JarvisRemoteAssistRecordingHistory } from "../../../../jarvis/remote-assist-recording-history.ts";
 import { requireJarvisOwner } from "../broker.ts";
 
 export const dynamic = "force-dynamic";
