@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { URL } from "node:url";
 
 const auditUrl = new URL(
   "../docs/audit/jarvis-p4-iphone-physical-evidence-2026-09-16.md",
