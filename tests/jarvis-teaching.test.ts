@@ -19,7 +19,23 @@ test('permission revocation is checked again before executing',async()=>{const f
 test('drafts and Human Gate steps cannot become verified',async()=>{const f=fixture();try{const v=draft(f.store,device,true);const a=adapter();assert.equal((await replayTeaching(f.store,v.id,a.driver,'verify')).status,'NEEDS_HUMAN');assert.equal(a.calls(),0);assert.equal(f.store.get(v.id).status,'DRAFT');}finally{f.clean();}});
 test('URL parameter rejects credentials, sensitive query, non-HTTPS and host substitution',()=>{assert.equal(safeUrl('https://example.com/row/2','example.com'),'https://example.com/row/2');for(const url of ['http://example.com','https://user:pass@example.com','https://example.com?token=x','https://evil.example','https://example.com/#secret'])assert.throws(()=>safeUrl(url,'example.com'));});
 test('recordings do not serialize raw URL or typed credentials',()=>{const before=obs('a'),after=obs('b');const typed=demonstratedStep({action:'text',text:'TOP_SECRET'},before,after);const opened=demonstratedStep({action:'open-url',url:'https://example.com/private?id=123'},before,after);assert(typed.gate);assert(!JSON.stringify([typed,opened]).includes('TOP_SECRET'));assert(!JSON.stringify(opened).includes('private'));assert.equal(opened.action.kind,'url');});
+test('unsupported demonstrations retain actionable geometry without granting replay permission',()=>{
+ const before=obs('a'),after=obs('b');
+ for(const payload of [{action:'tap',x:123,y:456},{action:'swipe',x1:123,y1:456,x2:789,y2:100}]){
+  const step=demonstratedStep(payload,before,after);assert.equal(step.action.kind,'manual');assert(step.gate);assert(JSON.stringify(step.action).includes('123'));assert(JSON.stringify(step.action).includes('456'));
+ }
+ const protectedStep=demonstratedStep({action:'tap',x:123,y:456},{...before,protectedScreen:true},after);
+ assert(protectedStep.gate);assert(!JSON.stringify(protectedStep.action).includes('123'));
+ const invalid=demonstratedStep({action:'tap',x:'SECRET',y:Infinity},before,after);assert(!JSON.stringify(invalid).includes('SECRET'));
+});
 function xml(label='Next',password='false'){return `<hierarchy><node package="com.example.app" resource-id="com.example.app:id/next" class="Button" text="${label}" bounds="[0,0][100,100]" clickable="true" enabled="true" password="${password}"/></hierarchy>`;}
+test('unique navigation labels without resource IDs can be recorded; ambiguous and protected labels cannot',()=>{
+ const source=xml().replace('com.example.app:id/next','');const o=observeAndroidUi(source,device);
+ assert.equal(demonstratedStep({action:'tap',x:50,y:50},o,o).gate,false);
+ assert(!o.targets[0].selector.includes('Next'));
+ const duplicate=source.replace('</hierarchy>',source.replace(/<\/?hierarchy>/g,'')+'</hierarchy>');assert.equal(observeAndroidUi(duplicate,device).targets.length,0);
+ assert.equal(observeAndroidUi(xml('購入').replace('com.example.app:id/next',''),device).targets.length,0);
+});
 test('semantic recording identifies unique navigation target and blocks purchases/password screens',()=>{const o=observeAndroidUi(xml(),device);const step=demonstratedStep({action:'tap',x:50,y:50},o,o);assert.equal(step.action.kind,'tap');assert.equal(step.gate,false);assert.equal(step.contextKey,profileKey(device));for(const label of ['購入','Delete','Unknown button']){const o=observeAndroidUi(xml(label),device);assert(demonstratedStep({action:'tap',x:50,y:50},o,o).gate);}assert(observeAndroidUi(xml('Next','true'),device).protectedScreen);const dup=xml().replace('</hierarchy>',xml().replace(/<\/?hierarchy>/g,'')+'</hierarchy>');assert.equal(observeAndroidUi(dup,device).targets.length,0);});
 test('invalid observations/storage fail closed instead of resetting evidence',()=>{assert.throws(()=>observeAndroidUi('<hierarchy/>',device));const f=fixture();try{writeFileSync(f.path,'{bad');assert.throws(()=>new TeachingStore(f.path));}finally{f.clean();}});
 test('re-recording creates a distinct unverified variant and active device recordings cannot overlap',()=>{const f=fixture();try{const first=f.store.start({goal:'work',scope:'device',profile:device,sessionId:'a'});assert.throws(()=>f.store.start({goal:'work',scope:'device',profile:device,sessionId:'b'}));f.store.cancel(first.id);const second=f.store.start({goal:'work',scope:'device',profile:device,sessionId:'b'});assert.notEqual(first.id,second.id);assert.equal(second.verifiedRunId,undefined);}finally{f.clean();}});
