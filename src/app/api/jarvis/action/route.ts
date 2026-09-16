@@ -33,6 +33,37 @@ const allowedTaskTypes = new Set<JarvisDeviceTaskType>([
   "ui-sequence",
 ]);
 
+function safeReplacementReady(result: unknown): Record<string, unknown> {
+  if (!result || typeof result !== "object" || Array.isArray(result)) return { candidates: [], pendingCount: 0 };
+  const source = result as Record<string, unknown>;
+  const candidates = Array.isArray(source.candidates) ? source.candidates.flatMap((candidate) => {
+    if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) return [];
+    const item = candidate as Record<string, unknown>;
+    if (
+      typeof item.candidateId !== "string"
+      || typeof item.nodeId !== "string"
+      || typeof item.publicKeyFingerprint !== "string"
+      || typeof item.verifiedAt !== "string"
+      || typeof item.expiresAt !== "string"
+      || item.status !== "READY_FOR_HUMAN_GATE"
+      || item.requiresHumanGate !== true
+    ) return [];
+    return [{
+      candidateId: item.candidateId,
+      nodeId: item.nodeId,
+      publicKeyFingerprint: item.publicKeyFingerprint,
+      verifiedAt: item.verifiedAt,
+      expiresAt: item.expiresAt,
+      status: "READY_FOR_HUMAN_GATE" as const,
+      requiresHumanGate: true as const,
+    }];
+  }) : [];
+  return {
+    candidates,
+    pendingCount: typeof source.pendingCount === "number" && Number.isFinite(source.pendingCount) ? Math.max(0, Math.trunc(source.pendingCount)) : 0,
+  };
+}
+
 export async function POST(request: Request) {
   if (!(await requireJarvisOwner())) return NextResponse.json({ message: "オーナー認証が必要です" }, { status: 401 });
   const payload = await request.json().catch(() => null) as JarvisDashboardAction | null;
@@ -94,6 +125,11 @@ export async function POST(request: Request) {
   try {
     const response = await jarvisBrokerFetch(path, { method, ...(body ? { body: JSON.stringify(body) } : {}) });
     const result = await response.json().catch(() => ({ message: "JARVIS Brokerから不正な応答を受信しました" }));
+    if (response.ok && payload.action === "replacement-ready") return NextResponse.json(safeReplacementReady(result), { status: response.status });
+    if (response.ok && payload.action === "replacement-discard") {
+      const source = result && typeof result === "object" && !Array.isArray(result) ? result as Record<string, unknown> : {};
+      return NextResponse.json({ discarded: source.discarded === true }, { status: response.status });
+    }
     return NextResponse.json(result, { status: response.status });
   } catch (error) {
     const detail = error instanceof Error ? error.message : "unknown error";
