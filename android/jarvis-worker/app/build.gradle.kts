@@ -1,9 +1,44 @@
+import java.net.URI
+import java.security.cert.CertificateFactory
+import java.security.cert.X509Certificate
+
 plugins {
     id("com.android.application")
 }
 
+val installationResources = layout.buildDirectory.dir("generated/res/jarvisInstallation")
+val installationOrigin = providers.gradleProperty("jarvisBootstrapUrl").orElse("")
+val installationCertificate = providers.gradleProperty("jarvisCaCertificate").orElse("")
+val generateInstallationResources = tasks.register("generateInstallationResources") {
+    inputs.property("origin", installationOrigin)
+    inputs.property("certificatePath", installationCertificate)
+    if (installationCertificate.get().isNotBlank()) inputs.file(installationCertificate.get())
+    outputs.dir(installationResources)
+    doLast {
+        val root = installationResources.get().asFile
+        val xml = root.resolve("xml/jarvis_network_security.xml")
+        xml.parentFile.mkdirs()
+        val certificatePath = installationCertificate.get()
+        val domainConfig = if (certificatePath.isNotBlank()) {
+            val uri = URI(installationOrigin.get())
+            require(uri.scheme == "https" && !uri.host.isNullOrBlank())
+            val bytes = file(certificatePath).readBytes()
+            val certificate = CertificateFactory.getInstance("X.509")
+                .generateCertificate(bytes.inputStream()) as X509Certificate
+            certificate.checkValidity()
+            val raw = root.resolve("raw/jarvis_installation_ca.cer")
+            raw.parentFile.mkdirs()
+            raw.writeBytes(certificate.encoded)
+            """<domain-config cleartextTrafficPermitted="false"><domain includeSubdomains="false">${uri.host}</domain><trust-anchors><certificates src="@raw/jarvis_installation_ca"/></trust-anchors></domain-config>"""
+        } else ""
+        xml.writeText("""<network-security-config><base-config cleartextTrafficPermitted="false"><trust-anchors><certificates src="system"/></trust-anchors></base-config>$domainConfig</network-security-config>""")
+    }
+}
+tasks.configureEach { if (name == "preBuild") dependsOn(generateInstallationResources) }
+
 android {
     buildFeatures { buildConfig = true }
+    sourceSets.getByName("main").res.srcDir(installationResources)
     namespace = "ai.jarvis.worker"
     compileSdk = 37
 

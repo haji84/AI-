@@ -645,22 +645,25 @@ The JSON blocks are the authoritative rows. Validate exact mirror and evidence g
     "src/app/jarvis/enroll/page.tsx",
     "scripts/jarvis-broker.ts",
     "android/jarvis-worker/app/src/main/java/ai/jarvis/worker/MainActivity.kt",
-    "android/jarvis-worker/app/src/main/java/ai/jarvis/worker/EnrollmentBootstrap.kt"
+    "android/jarvis-worker/app/src/main/java/ai/jarvis/worker/EnrollmentBootstrap.kt",
+    "scripts/jarvis-private-worker-ingress.ts",
+    "src/jarvis/private-worker-ingress.ts"
   ],
   "test_refs": [
     "tests/jarvis-final-fleet-acceptance.test.ts",
     "tests/jarvis-enrollment-security.test.ts",
     "tests/jarvis-launch-enrollment.test.ts",
-    "android/jarvis-worker/app/src/test/java/ai/jarvis/worker/EnrollmentBootstrapTest.kt"
+    "android/jarvis-worker/app/src/test/java/ai/jarvis/worker/EnrollmentBootstrapTest.kt",
+    "tests/jarvis-private-worker-ingress.test.ts"
   ],
   "evidence_refs": [
     "docs/architecture/jarvis-launch-enrollment.md"
   ],
   "status": "PARTIAL",
-  "blocker": "#779: launch enrollment code added; current ZBook trial lacks a home-Wi-Fi-reachable private HTTPS Worker origin and installation-configured signed APK. Physical enrollment/reopen not verified.",
+  "blocker": "#779: launch enrollment, private HTTPS Worker ingress and installation certificate-scoped APK configuration implemented. Real certificate/private-key creation requires the credentials Human Gate. Configured signed APK deployment and physical enrollment/reopen remain unverified.",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "Provision trusted private Worker ingress, build/sign the installation-configured APK, then verify launch enrollment and reopen without consuming another grant.",
+  "next_action": "After explicit installation-credential approval, provision the private Worker origin and signed installation APK; verify launch enrollment and reopen without consuming another grant.",
   "last_verified_commit": null
 }
 ```
@@ -685,22 +688,25 @@ The JSON blocks are the authoritative rows. Validate exact mirror and evidence g
     "src/app/jarvis/enroll/page.tsx",
     "scripts/jarvis-broker.ts",
     "android/jarvis-worker/app/src/main/java/ai/jarvis/worker/MainActivity.kt",
-    "android/jarvis-worker/app/src/main/java/ai/jarvis/worker/EnrollmentBootstrap.kt"
+    "android/jarvis-worker/app/src/main/java/ai/jarvis/worker/EnrollmentBootstrap.kt",
+    "scripts/jarvis-private-worker-ingress.ts",
+    "src/jarvis/private-worker-ingress.ts"
   ],
   "test_refs": [
     "tests/jarvis-final-fleet-acceptance.test.ts",
     "tests/jarvis-enrollment-security.test.ts",
     "tests/jarvis-launch-enrollment.test.ts",
-    "android/jarvis-worker/app/src/test/java/ai/jarvis/worker/EnrollmentBootstrapTest.kt"
+    "android/jarvis-worker/app/src/test/java/ai/jarvis/worker/EnrollmentBootstrapTest.kt",
+    "tests/jarvis-private-worker-ingress.test.ts"
   ],
   "evidence_refs": [
     "docs/architecture/jarvis-launch-enrollment.md"
   ],
   "status": "PARTIAL",
-  "blocker": "#779: launch enrollment code added; current ZBook trial lacks a home-Wi-Fi-reachable private HTTPS Worker origin and installation-configured signed APK. Physical enrollment/reopen not verified.",
+  "blocker": "#779: launch enrollment, private HTTPS Worker ingress and installation certificate-scoped APK configuration implemented. Real certificate/private-key creation requires the credentials Human Gate. Configured signed APK deployment and physical enrollment/reopen remain unverified.",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "Provision trusted private Worker ingress, build/sign the installation-configured APK, then verify launch enrollment and reopen without consuming another grant.",
+  "next_action": "After explicit installation-credential approval, provision the private Worker origin and signed installation APK; verify launch enrollment and reopen without consuming another grant.",
   "last_verified_commit": null
 }
 ```
@@ -758,22 +764,25 @@ The JSON blocks are the authoritative rows. Validate exact mirror and evidence g
     "src/app/jarvis/enroll/page.tsx",
     "scripts/jarvis-broker.ts",
     "android/jarvis-worker/app/src/main/java/ai/jarvis/worker/MainActivity.kt",
-    "android/jarvis-worker/app/src/main/java/ai/jarvis/worker/EnrollmentBootstrap.kt"
+    "android/jarvis-worker/app/src/main/java/ai/jarvis/worker/EnrollmentBootstrap.kt",
+    "scripts/jarvis-private-worker-ingress.ts",
+    "src/jarvis/private-worker-ingress.ts"
   ],
   "test_refs": [
     "tests/jarvis-final-fleet-acceptance.test.ts",
     "tests/jarvis-enrollment-security.test.ts",
     "tests/jarvis-launch-enrollment.test.ts",
-    "android/jarvis-worker/app/src/test/java/ai/jarvis/worker/EnrollmentBootstrapTest.kt"
+    "android/jarvis-worker/app/src/test/java/ai/jarvis/worker/EnrollmentBootstrapTest.kt",
+    "tests/jarvis-private-worker-ingress.test.ts"
   ],
   "evidence_refs": [
     "docs/architecture/jarvis-launch-enrollment.md"
   ],
   "status": "PARTIAL",
-  "blocker": "#779: launch enrollment code added; current ZBook trial lacks a home-Wi-Fi-reachable private HTTPS Worker origin and installation-configured signed APK. Physical enrollment/reopen not verified.",
+  "blocker": "#779: launch enrollment, private HTTPS Worker ingress and installation certificate-scoped APK configuration implemented. Real certificate/private-key creation requires the credentials Human Gate. Configured signed APK deployment and physical enrollment/reopen remain unverified.",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "Provision trusted private Worker ingress, build/sign the installation-configured APK, then verify launch enrollment and reopen without consuming another grant.",
+  "next_action": "After explicit installation-credential approval, provision the private Worker origin and signed installation APK; verify launch enrollment and reopen without consuming another grant.",
   "last_verified_commit": null
 }
 ```

@@ -32,6 +32,38 @@ overlapping lifecycle events are guarded against concurrent enrollment attempts.
 
 ## Verification and remaining installation work
 
+### ZBook home-LAN Worker ingress
+
+`scripts/jarvis-private-worker-ingress.ts` is an optional HTTPS listener bound to an
+explicit RFC1918 address. It forwards only five enrollment/signed-worker POST routes
+to the loopback Broker. Dashboard, owner/admin routes, cookies and owner Authorization
+headers are not forwarded. There is no public bind, generic proxy, plaintext fallback,
+or automatic credential generation.
+
+Required installation configuration (not enabled by this PR):
+
+- `JARVIS_PRIVATE_WORKER_INGRESS_ENABLED=1`
+- `JARVIS_PRIVATE_WORKER_HOST=<ZBook home-LAN IPv4>`
+- `JARVIS_PRIVATE_WORKER_PORT=8792`
+- `JARVIS_PRIVATE_WORKER_CERT_PATH=<local installation certificate>`
+- `JARVIS_PRIVATE_WORKER_KEY_PATH=<local private key; never in git or APK>`
+- Broker `JARVIS_PUBLIC_BROKER_URL=https://<same home-LAN IPv4>:8792`
+
+For an owner-managed certificate, build the APK with the same `jarvisBootstrapUrl`
+and `-PjarvisCaCertificate=<public certificate file>`. Generated Android network
+security resources trust this certificate only for that exact hostname. Other hosts
+retain system trust; hostname checks and certificate validation remain enabled.
+Only the public certificate enters the APK. No Android-wide CA installation needed.
+The certificate must have a valid IP subject alternative name for this address.
+
+The current ZBook LAN address was observed as `192.168.0.169`; it is not a permanent
+address guarantee. Reserve it or regenerate/reconfigure upon an address change.
+Creating the real certificate/private key is a credential Human Gate under AGENTS.md.
+It has not been performed. A separate protected directory outside the repository
+must hold the key; no secret material belongs in version control, issue text or logs.
+Existing release signing credentials must be reused, never replaced. Physical launch,
+heartbeat, reopen and network recovery remain required after owner-authorized setup.
+
 `tests/jarvis-launch-enrollment.test.ts` exercises the actual isolated Broker HTTP
 server: closed window, owner authentication, grant shape/TTL, enrollment, replay,
 unsigned heartbeat rejection, capacity and close. Android unit tests validate the
