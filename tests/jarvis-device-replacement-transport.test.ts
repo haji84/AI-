@@ -99,6 +99,38 @@ test("replacement transport rejects unknown worker, wrong proof and replay", () 
   }), /unknown, expired, or already verified/);
 });
 
+test("replacement transport stops repeated invalid proof attempts", () => {
+  const current = currentIdentity();
+  const replacement = keyPair();
+  const attacker = keyPair();
+  const transport = new JarvisDeviceReplacementTransport({
+    identityForNode: (nodeId) => nodeId === current.nodeId ? current : undefined,
+  });
+  const now = new Date("2026-09-16T05:00:00.000Z");
+  const challenge = transport.createChallenge({
+    nodeId: current.nodeId,
+    publicKeyPem: replacement.publicKeyPem,
+    algorithm: "ed25519",
+    now,
+  });
+  const badSignature = sign(null, Buffer.from(challenge.signingPayload, "utf8"), attacker.privateKey).toString("base64");
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    assert.throws(() => transport.prove({
+      candidateId: challenge.candidateId,
+      nodeId: current.nodeId,
+      signatureBase64: badSignature,
+      now,
+    }), /proof is invalid/);
+  }
+  const goodSignature = sign(null, Buffer.from(challenge.signingPayload, "utf8"), replacement.privateKey).toString("base64");
+  assert.throws(() => transport.prove({
+    candidateId: challenge.candidateId,
+    nodeId: current.nodeId,
+    signatureBase64: goodSignature,
+    now,
+  }), /proof attempt limit reached/);
+});
+
 test("replacement transport keeps both challenge and ready-review state time bounded", () => {
   const current = currentIdentity();
   const replacement = keyPair();
