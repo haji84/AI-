@@ -19,6 +19,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
 class MainActivity : AppCompatActivity() {
+    companion object { @Volatile var visible = false; private set }
     private val active = AtomicBoolean(false)
     private lateinit var status: TextView
     private lateinit var automationStatus: TextView
@@ -89,6 +90,20 @@ class MainActivity : AppCompatActivity() {
             addView(retryEnrollment)
             addView(automationStatus)
             addView(automationSettings)
+            if (android.os.Build.VERSION.SDK_INT < 30) {
+                addView(TextView(this@MainActivity).apply { text = "Android 8〜10：遠隔操作には画面共有の許可も必要です。再起動・共有停止後は再度許可してください。" })
+                addView(Button(this@MainActivity).apply {
+                    text = "画面共有を開始"
+                    setOnClickListener {
+                        if (!LegacyScreenService.available()) startActivityForResult(
+                            getSystemService(android.media.projection.MediaProjectionManager::class.java).createScreenCaptureIntent(), 859)
+                    }
+                })
+                addView(Button(this@MainActivity).apply {
+                    text = "画面共有を停止"
+                    setOnClickListener { stopService(Intent(this@MainActivity, LegacyScreenService::class.java)) }
+                })
+            }
             addView(updateStatus)
             addView(updateButton)
             addView(advancedButton)
@@ -98,12 +113,21 @@ class MainActivity : AppCompatActivity() {
             addView(settings)
             addView(version)
         }
-        setContentView(root)
+        setContentView(android.widget.ScrollView(this).apply { addView(root) })
 
         val enrollmentLink = intent?.data
         if (enrollmentLink != null) handleEnrollmentIntent(intent) else verifyCurrentEnrollment()
         scheduleFallbackWorker()
         ensureCommandService()
+    }
+
+    @Deprecated("Android activity result compatibility")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == 859 && android.os.Build.VERSION.SDK_INT in 26..29 && resultCode == RESULT_OK && data != null) {
+            androidx.core.content.ContextCompat.startForegroundService(this,
+                Intent(this, LegacyScreenService::class.java).putExtra("result", resultCode).putExtra("consent", data))
+        }
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -115,6 +139,7 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         active.set(true)
+        visible = true
         verifyCurrentEnrollment()
         automationStatus.text = if (JarvisAccessibilityService.connected()) "自動操作: 有効" else "自動操作: 未有効"
         if (waitingForInstallPermission && UpdateManager(this).canRequestPackageInstalls() && latestUpdate != null) {
@@ -127,6 +152,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onPause() {
         active.set(false)
+        visible = false
         super.onPause()
     }
 

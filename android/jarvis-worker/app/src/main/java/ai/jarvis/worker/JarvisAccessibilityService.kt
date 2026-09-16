@@ -25,12 +25,12 @@ class JarvisAccessibilityService : AccessibilityService() {
 
         fun executeRemote(command: JSONObject): JSONObject {
             val service = current ?: error("Accessibility is disabled")
-            require(Build.VERSION.SDK_INT >= 30) { "Screen capture needs Android 11" }
+            require(Build.VERSION.SDK_INT >= 30 || LegacyScreenService.available()) { "端末で画面共有を許可してください" }
             require(command.getLong("expiresAt") > System.currentTimeMillis()) { "Expired command" }
             require(!WorkerRuntimeState.snapshot().optBoolean("working")) { "Device busy" }
             require(service.getSystemService(android.app.KeyguardManager::class.java)?.isDeviceLocked == false) { "Device locked" }
             val input = command.getJSONObject("input")
-            if (input.getString("action") == "screenshot") return service.captureRemoteScreen()
+            if (input.getString("action") == "screenshot") return if (Build.VERSION.SDK_INT >= 30) service.captureRemoteScreen() else LegacyScreenService.capture()
             val action = when (input.getString("action")) {
                 "tap", "swipe" -> input
                 "text" -> {

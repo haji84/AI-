@@ -18,7 +18,9 @@ class UpdateManager(private val context: Context) {
     data class UpdateInfo(val versionCode: Long, val versionName: String, val apkFile: File)
     private val prefs get() = context.getSharedPreferences("jarvis_updates", Context.MODE_PRIVATE)
     private val apkFile get() = File(context.cacheDir, "jarvis-worker-update.apk")
-    fun currentVersionCode(): Long = context.packageManager.getPackageInfo(context.packageName, 0).longVersionCode
+    private fun version(info: android.content.pm.PackageInfo): Long = androidx.core.content.pm.PackageInfoCompat.getLongVersionCode(info)
+    fun currentVersionCode(): Long = version(context.packageManager.getPackageInfo(context.packageName, 0))
+    private fun signatureFlags(): Int = if (Build.VERSION.SDK_INT >= 28) PackageManager.GET_SIGNING_CERTIFICATES else PackageManager.GET_SIGNATURES
     fun status(): String = prefs.getString("status", "更新を自動確認します（最大1時間間隔）").orEmpty()
     fun recordStatus(value: String) { prefs.edit().putString("status", value).apply() }
 
@@ -53,15 +55,15 @@ class UpdateManager(private val context: Context) {
     }
 
     private fun inspect(file: File): UpdateInfo? {
-        val archive = context.packageManager.getPackageArchiveInfo(file.absolutePath, PackageManager.GET_SIGNING_CERTIFICATES)
+        val archive = context.packageManager.getPackageArchiveInfo(file.absolutePath, signatureFlags())
             ?: error("Invalid update APK")
-        val installed = context.packageManager.getPackageInfo(context.packageName, PackageManager.GET_SIGNING_CERTIFICATES)
+        val installed = context.packageManager.getPackageInfo(context.packageName, signatureFlags())
         require(archive.packageName == context.packageName) { "Wrong APK package" }
         require(signingDigests(archive) == signingDigests(installed)) { "APK signer mismatch" }
-        if (archive.longVersionCode <= installed.longVersionCode) return null
-        require(UpdatePolicy.trustedUpgrade(archive.packageName, context.packageName, archive.longVersionCode,
-            installed.longVersionCode, signingDigests(archive), signingDigests(installed)))
-        return UpdateInfo(archive.longVersionCode, archive.versionName ?: archive.longVersionCode.toString(), file)
+        if (version(archive) <= version(installed)) return null
+        require(UpdatePolicy.trustedUpgrade(archive.packageName, context.packageName, version(archive),
+            version(installed), signingDigests(archive), signingDigests(installed)))
+        return UpdateInfo(version(archive), archive.versionName ?: version(archive).toString(), file)
     }
 
     fun canRequestPackageInstalls(): Boolean = context.packageManager.canRequestPackageInstalls()
@@ -71,7 +73,7 @@ class UpdateManager(private val context: Context) {
     }
 
     fun install(info: UpdateInfo) = synchronized(lock) {
-        check(!WorkerRuntimeState.snapshot().optBoolean("working")) { "作業終了後に更新してください" }
+        check(updateIdle(manual = true)) { "登録・操作・画面共有の終了後に更新してください" }
         val verified = inspect(info.apkFile) ?: error("Update no longer newer")
         require(verified.versionCode == info.versionCode)
         val installer = context.packageManager.packageInstaller
@@ -88,7 +90,7 @@ class UpdateManager(private val context: Context) {
                     session.openWrite("jarvis-worker.apk", 0, info.apkFile.length()).use { out -> input.copyTo(out); session.fsync(out) }
                 }
                 val callback = Intent(context, UpdateInstallReceiver::class.java).setAction(UpdateInstallReceiver.ACTION_INSTALL_STATUS)
-                val pending = PendingIntent.getBroadcast(context, id, callback, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE)
+                val pending = PendingIntent.getBroadcast(context, id, callback, PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= 31) PendingIntent.FLAG_MUTABLE else 0))
                 recordStatus("Androidに更新を要求しました。完了確認待ちです")
                 session.commit(pending.intentSender)
             }
@@ -96,7 +98,7 @@ class UpdateManager(private val context: Context) {
     }
 
     fun installAutomaticallyIfManaged(info: UpdateInfo): Boolean {
-        if (!isDeviceOwner() || WorkerRuntimeState.snapshot().optBoolean("working") ||
+        if (!isDeviceOwner() || !updateIdle() ||
             context.packageManager.packageInstaller.mySessions.isNotEmpty()) return false
         if (prefs.getLong("attemptVersion", 0) != info.versionCode) prefs.edit().putLong("attemptVersion", info.versionCode).putInt("attempts", 0).apply()
         val attempts = prefs.getInt("attempts", 0)
@@ -116,6 +118,10 @@ class UpdateManager(private val context: Context) {
         // Notification permission may be absent; the same state stays visible in Worker and owner UI.
         runCatching { manager.notify(857, notice) }
     }
+    private fun updateIdle(manual: Boolean = false): Boolean = RemoteSupport.updateIdle(
+        context.getSharedPreferences("jarvis_config", Context.MODE_PRIVATE).getBoolean("enrollment_verified", false),
+        WorkerRuntimeState.snapshot().optBoolean("working"), MainActivity.visible, LegacyScreenService.available(),
+        android.os.SystemClock.elapsedRealtime(), BrokerClient.lastRemoteAt, manual)
     private fun isDeviceOwner(): Boolean = context.getSystemService(DevicePolicyManager::class.java)?.isDeviceOwnerApp(context.packageName) == true
 
     private fun download(initial: String, target: File) {
@@ -159,7 +165,8 @@ class UpdateManager(private val context: Context) {
     }
 
     private fun signingDigests(info: android.content.pm.PackageInfo): Set<String> {
-        val signers = info.signingInfo?.apkContentsSigners ?: error("APK signing info missing")
+        @Suppress("DEPRECATION")
+        val signers = (if (Build.VERSION.SDK_INT >= 28) info.signingInfo?.apkContentsSigners else info.signatures) ?: error("APK signing info missing")
         require(signers.isNotEmpty())
         return signers.map { cert -> MessageDigest.getInstance("SHA-256").digest(cert.toByteArray()).joinToString("") { "%02x".format(it) } }.toSet()
     }
