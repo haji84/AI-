@@ -2,8 +2,17 @@
 
 import { useCallback, useEffect, useState, type DragEvent } from "react";
 import {
+  createJarvisHomeLayoutHistory,
+  pushJarvisHomeLayoutHistory,
+  redoJarvisHomeLayoutHistory,
+  undoJarvisHomeLayoutHistory,
+  type JarvisHomeLayoutHistory,
+} from "../../jarvis/home-widget-history";
+import {
   DEFAULT_JARVIS_HOME_WIDGET_LAYOUT,
+  getJarvisHomeLayoutPreset,
   isCriticalJarvisHomeWidget,
+  JARVIS_HOME_LAYOUT_PRESETS,
   JARVIS_HOME_WIDGET_LAYOUT_KEY,
   JARVIS_HOME_WIDGETS,
   moveJarvisHomeWidget,
@@ -11,6 +20,7 @@ import {
   reorderJarvisHomeWidget,
   resizeJarvisHomeWidget,
   setJarvisHomeWidgetHidden,
+  type JarvisHomeLayoutPresetId,
   type JarvisHomeWidgetId,
   type JarvisHomeWidgetLayout,
   type JarvisHomeWidgetSize,
@@ -66,12 +76,19 @@ function readLayout() {
   }
 }
 
+function persistLayout(layout: JarvisHomeWidgetLayout) {
+  const normalized = normalizeJarvisHomeWidgetLayout(layout);
+  window.localStorage.setItem(JARVIS_HOME_WIDGET_LAYOUT_KEY, JSON.stringify(normalized));
+  applyLayout(normalized);
+}
+
 export default function JarvisHomeLayoutEditor() {
-  const [layout, setLayout] = useState<JarvisHomeWidgetLayout>(DEFAULT_JARVIS_HOME_WIDGET_LAYOUT);
+  const [history, setHistory] = useState<JarvisHomeLayoutHistory>(() => createJarvisHomeLayoutHistory(DEFAULT_JARVIS_HOME_WIDGET_LAYOUT));
   const [ready, setReady] = useState(false);
+  const layout = history.present;
 
   useEffect(() => {
-    setLayout(readLayout());
+    setHistory(createJarvisHomeLayoutHistory(readLayout()));
     setReady(true);
   }, []);
 
@@ -86,10 +103,27 @@ export default function JarvisHomeLayoutEditor() {
   }, [layout, ready]);
 
   const commit = useCallback((next: JarvisHomeWidgetLayout) => {
-    const normalized = normalizeJarvisHomeWidgetLayout(next);
-    setLayout(normalized);
-    window.localStorage.setItem(JARVIS_HOME_WIDGET_LAYOUT_KEY, JSON.stringify(normalized));
-    applyLayout(normalized);
+    setHistory((current) => {
+      const updated = pushJarvisHomeLayoutHistory(current, next);
+      persistLayout(updated.present);
+      return updated;
+    });
+  }, []);
+
+  const undo = useCallback(() => {
+    setHistory((current) => {
+      const updated = undoJarvisHomeLayoutHistory(current);
+      persistLayout(updated.present);
+      return updated;
+    });
+  }, []);
+
+  const redo = useCallback(() => {
+    setHistory((current) => {
+      const updated = redoJarvisHomeLayoutHistory(current);
+      persistLayout(updated.present);
+      return updated;
+    });
   }, []);
 
   function drop(event: DragEvent<HTMLDivElement>, targetId: JarvisHomeWidgetId) {
@@ -104,6 +138,18 @@ export default function JarvisHomeLayoutEditor() {
       <summary>ホーム配置を編集</summary>
       <div className="jarvis-widget-editor-body" aria-busy={!ready}>
         <p className="jarvis-boundary-note">ドラッグまたは上下ボタンで並び替え。サイズと表示状態はこのブラウザだけに保存される。Human Takeoverは安全のため非表示にできない。</p>
+        <div className="jarvis-widget-editor-toolbar">
+          <div className="jarvis-widget-presets" aria-label="ホーム配置プリセット">
+            {JARVIS_HOME_LAYOUT_PRESETS.map((preset) => (
+              <button key={preset.id} type="button" className="button secondary" onClick={() => commit(getJarvisHomeLayoutPreset(preset.id as JarvisHomeLayoutPresetId))}>{preset.label}</button>
+            ))}
+          </div>
+          <div className="jarvis-widget-history-actions">
+            <button type="button" className="button secondary" disabled={history.past.length === 0} onClick={undo}>元に戻す</button>
+            <button type="button" className="button secondary" disabled={history.future.length === 0} onClick={redo}>やり直す</button>
+            <button type="button" className="button secondary" onClick={() => commit(DEFAULT_JARVIS_HOME_WIDGET_LAYOUT)}>初期配置へ戻す</button>
+          </div>
+        </div>
         <div className="jarvis-widget-editor-list">
           {layout.order.map((id, index) => {
             const definition = JARVIS_HOME_WIDGETS.find((widget) => widget.id === id)!;
