@@ -95,6 +95,8 @@ The current recording path is intentionally honest: it records a bounded sequenc
 - stale `recording`/`stopping` manifests found after process restart are marked failed with `process-restart`, never presented as still active
 - `session-end` requests recording stop before closing the Remote Assist session
 
+Recording admission is audited before the first capture. Audit failure rejects admission with zero captures. Each frame rechecks the active session and observation capability before capture and before persistence; background capture does not renew session authority. The gateway request receives an abort signal, and the recorder races it against the remaining recording deadline. Owner stop aborts capture and the interval wait immediately. A late response from an adapter that ignores cancellation is discarded. Final audit/storage failures produce an explicit failed recording status instead of an unhandled background rejection. These safeguards are software-tested; they do not prove physical recording or network recovery.
+
 Recording paths and filenames are server-generated. A remote caller cannot supply a filesystem path. This provides a supported evidence/recording path without adding ffmpeg, a paid service or a public media endpoint. A later product phase may add an owner-facing export/container format, but must not relabel this frame sequence as MP4/video until that implementation exists.
 
 ## Bounded multi-view
