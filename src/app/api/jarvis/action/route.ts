@@ -15,6 +15,8 @@ type JarvisDeviceTaskType =
 type JarvisDashboardAction =
   | { action: "enrollment"; mode?: "quick" | "full" | "fleet"; maxDevices?: number; group?: string; ttlMs?: number }
   | { action: "pairing-window"; operation?: "open" | "close" | "status"; maxIssues?: number; group?: string; ttlMs?: number }
+  | { action: "replacement-ready" }
+  | { action: "replacement-discard"; candidateId?: string }
   | { action: "open-url"; url?: string; targetNodeId?: string; allowJavaScript?: boolean }
   | { action: "device-task"; type?: JarvisDeviceTaskType; payload?: Record<string, unknown>; targetNodeId?: string; priority?: string }
   | { action: "resolve-takeover"; sessionId?: string; resumeTask?: boolean };
@@ -59,6 +61,13 @@ export async function POST(request: Request) {
         ttlMs: payload.ttlMs,
       };
     }
+  } else if (payload.action === "replacement-ready") {
+    path = "/api/jarvis/admin/replacement/ready";
+    method = "GET";
+  } else if (payload.action === "replacement-discard") {
+    if (!payload.candidateId) return NextResponse.json({ message: "Replacement candidate IDが必要です" }, { status: 400 });
+    path = "/api/jarvis/admin/replacement/discard";
+    body = { candidateId: payload.candidateId };
   } else if (payload.action === "open-url") {
     if (!payload.url?.startsWith("https://")) return NextResponse.json({ message: "HTTPS URLを指定してください" }, { status: 400 });
     path = "/api/jarvis/admin/tasks";
@@ -88,8 +97,9 @@ export async function POST(request: Request) {
     return NextResponse.json(result, { status: response.status });
   } catch (error) {
     const detail = error instanceof Error ? error.message : "unknown error";
+    const setupAction = payload.action === "enrollment" || payload.action === "pairing-window" || payload.action === "replacement-ready" || payload.action === "replacement-discard";
     return NextResponse.json({
-      message: payload.action === "enrollment" || payload.action === "pairing-window" ? "端末登録設定を更新できません。JARVIS Brokerの接続設定を確認してください。" : "JARVIS Brokerに接続できません",
+      message: setupAction ? "端末登録・交換設定を更新できません。JARVIS Brokerの接続設定を確認してください。" : "JARVIS Brokerに接続できません",
       detail,
     }, { status: 503 });
   }
