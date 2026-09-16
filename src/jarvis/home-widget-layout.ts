@@ -5,7 +5,9 @@ export const JARVIS_HOME_WIDGETS = [
   { id: "quick-actions", label: "端末追加・URLジョブ", selector: ".jarvis-grid", critical: false },
   { id: "remote-assist", label: "Remote Assist", selector: ".jarvis-remote-panel", critical: false },
   { id: "multi-view", label: "複数端末ビュー", selector: ".jarvis-multiview-panel", critical: false },
+  { id: "fleet", label: "端末一覧", selector: ".jarvis-section", heading: "端末一覧", critical: false },
   { id: "human-takeover", label: "Human Takeover", selector: ".jarvis-takeover", critical: true },
+  { id: "recent-tasks", label: "最近のJARVISタスク", selector: ".jarvis-section", heading: "最近のJARVISタスク", critical: false },
 ] as const;
 
 export type JarvisHomeWidgetId = typeof JARVIS_HOME_WIDGETS[number]["id"];
