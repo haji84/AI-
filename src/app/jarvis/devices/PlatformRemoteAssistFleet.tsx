@@ -64,7 +64,7 @@ export default function PlatformRemoteAssistFleet() {
         </div>
         <div className="jarvis-toolbar-actions">
           <button className="button secondary" disabled={loading} onClick={() => void refresh()}>更新</button>
-          <a className="button secondary" href="/jarvis">Fleet Console</a>
+          <a className="button" href="/jarvis">遠隔操作・JARVISホーム</a>
           <a className="button secondary" href="/jarvis/teach">操作を教える・手順ライブラリ</a>
         </div>
       </div>
