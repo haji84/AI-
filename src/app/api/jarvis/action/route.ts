@@ -15,6 +15,8 @@ type JarvisDeviceTaskType =
 type JarvisDashboardAction =
   | { action: "enrollment"; mode?: "quick" | "full" | "fleet"; maxDevices?: number; group?: string; ttlMs?: number }
   | { action: "pairing-window"; operation?: "open" | "close" | "status"; maxIssues?: number; group?: string; ttlMs?: number }
+  | { action: "replacement-ready" }
+  | { action: "replacement-discard"; candidateId?: string }
   | { action: "open-url"; url?: string; targetNodeId?: string; allowJavaScript?: boolean }
   | { action: "device-task"; type?: JarvisDeviceTaskType; payload?: Record<string, unknown>; targetNodeId?: string; priority?: string }
   | { action: "resolve-takeover"; sessionId?: string; resumeTask?: boolean };
@@ -30,6 +32,37 @@ const allowedTaskTypes = new Set<JarvisDeviceTaskType>([
   "reboot",
   "ui-sequence",
 ]);
+
+function safeReplacementReady(result: unknown): Record<string, unknown> {
+  if (!result || typeof result !== "object" || Array.isArray(result)) return { candidates: [], pendingCount: 0 };
+  const source = result as Record<string, unknown>;
+  const candidates = Array.isArray(source.candidates) ? source.candidates.flatMap((candidate) => {
+    if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) return [];
+    const item = candidate as Record<string, unknown>;
+    if (
+      typeof item.candidateId !== "string"
+      || typeof item.nodeId !== "string"
+      || typeof item.publicKeyFingerprint !== "string"
+      || typeof item.verifiedAt !== "string"
+      || typeof item.expiresAt !== "string"
+      || item.status !== "READY_FOR_HUMAN_GATE"
+      || item.requiresHumanGate !== true
+    ) return [];
+    return [{
+      candidateId: item.candidateId,
+      nodeId: item.nodeId,
+      publicKeyFingerprint: item.publicKeyFingerprint,
+      verifiedAt: item.verifiedAt,
+      expiresAt: item.expiresAt,
+      status: "READY_FOR_HUMAN_GATE" as const,
+      requiresHumanGate: true as const,
+    }];
+  }) : [];
+  return {
+    candidates,
+    pendingCount: typeof source.pendingCount === "number" && Number.isFinite(source.pendingCount) ? Math.max(0, Math.trunc(source.pendingCount)) : 0,
+  };
+}
 
 export async function POST(request: Request) {
   if (!(await requireJarvisOwner())) return NextResponse.json({ message: "オーナー認証が必要です" }, { status: 401 });
@@ -59,6 +92,13 @@ export async function POST(request: Request) {
         ttlMs: payload.ttlMs,
       };
     }
+  } else if (payload.action === "replacement-ready") {
+    path = "/api/jarvis/admin/replacement/ready";
+    method = "GET";
+  } else if (payload.action === "replacement-discard") {
+    if (!payload.candidateId) return NextResponse.json({ message: "Replacement candidate IDが必要です" }, { status: 400 });
+    path = "/api/jarvis/admin/replacement/discard";
+    body = { candidateId: payload.candidateId };
   } else if (payload.action === "open-url") {
     if (!payload.url?.startsWith("https://")) return NextResponse.json({ message: "HTTPS URLを指定してください" }, { status: 400 });
     path = "/api/jarvis/admin/tasks";
@@ -85,11 +125,17 @@ export async function POST(request: Request) {
   try {
     const response = await jarvisBrokerFetch(path, { method, ...(body ? { body: JSON.stringify(body) } : {}) });
     const result = await response.json().catch(() => ({ message: "JARVIS Brokerから不正な応答を受信しました" }));
+    if (response.ok && payload.action === "replacement-ready") return NextResponse.json(safeReplacementReady(result), { status: response.status });
+    if (response.ok && payload.action === "replacement-discard") {
+      const source = result && typeof result === "object" && !Array.isArray(result) ? result as Record<string, unknown> : {};
+      return NextResponse.json({ discarded: source.discarded === true }, { status: response.status });
+    }
     return NextResponse.json(result, { status: response.status });
   } catch (error) {
     const detail = error instanceof Error ? error.message : "unknown error";
+    const setupAction = payload.action === "enrollment" || payload.action === "pairing-window" || payload.action === "replacement-ready" || payload.action === "replacement-discard";
     return NextResponse.json({
-      message: payload.action === "enrollment" || payload.action === "pairing-window" ? "端末登録設定を更新できません。JARVIS Brokerの接続設定を確認してください。" : "JARVIS Brokerに接続できません",
+      message: setupAction ? "端末登録・交換設定を更新できません。JARVIS Brokerの接続設定を確認してください。" : "JARVIS Brokerに接続できません",
       detail,
     }, { status: 503 });
   }
