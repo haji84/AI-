@@ -31,12 +31,12 @@ export type RemoteAssistRecordingHistoryErrorCode =
   | "unavailable";
 
 export class JarvisRemoteAssistRecordingHistoryError extends Error {
-  constructor(
-    readonly code: RemoteAssistRecordingHistoryErrorCode,
-    message: string,
-  ) {
+  readonly code: RemoteAssistRecordingHistoryErrorCode;
+
+  constructor(code: RemoteAssistRecordingHistoryErrorCode, message: string) {
     super(message);
     this.name = "JarvisRemoteAssistRecordingHistoryError";
+    this.code = code;
   }
 }
 
