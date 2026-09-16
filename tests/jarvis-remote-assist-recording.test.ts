@@ -28,23 +28,50 @@ function recorder(rootDir: string) {
   });
 }
 
+async function waitForFile(path: string): Promise<void> {
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    if (existsSync(path)) return;
+    await new Promise<void>((resolve) => setImmediate(resolve));
+  }
+  assert.fail(`expected file to be created: ${path}`);
+}
+
 test("Remote Assist frame recording is session/serial bound and stops explicitly", async () => {
   const root = mkdtempSync(join(tmpdir(), "jarvis-recording-"));
   try {
-    const store = recorder(root);
-    const started = store.start({ sessionId: "session-1", serial: "android-001", durationMs: 80, intervalMs: 10 });
+    let count = 0;
+    const store = new JarvisRemoteAssistFrameRecorder({
+      rootDir: root,
+      captureFrame: async () => ({
+        mimeType: "image/png",
+        imageBase64: Buffer.from(`frame-${++count}`).toString("base64"),
+        capturedAt: new Date().toISOString(),
+      }),
+      defaultDurationMs: 60_000,
+      minDurationMs: 20,
+      maxDurationMs: 60_000,
+      defaultIntervalMs: 10_000,
+      minIntervalMs: 5,
+      maxIntervalMs: 10_000,
+      maxFrames: 10,
+      maxFrameBytes: 1024,
+      maxRecordingBytes: 4096,
+      maxRecordings: 3,
+    });
+    const started = store.start({ sessionId: "session-1", serial: "android-001", durationMs: 60_000, intervalMs: 10_000 });
     assert.equal(started.status, "recording");
-    assert.equal(started.maxFrames, 8);
+    assert.equal(started.maxFrames, 6);
     assert.throws(() => store.status(started.id, "session-1", "android-002"), /another session or device/);
 
-    await new Promise((resolve) => setTimeout(resolve, 25));
+    const firstFramePath = join(root, started.id, "frame-0001.png");
+    await waitForFile(firstFramePath);
     const stopped = await store.stop(started.id, "session-1", "android-001");
     assert.equal(stopped.status, "stopped");
     assert.equal(stopped.stopReason, "owner-stop");
     assert(stopped.frameCount >= 1);
     assert(stopped.frameCount <= stopped.maxFrames);
     assert(existsSync(join(root, started.id, "manifest.json")));
-    assert(existsSync(join(root, started.id, "frame-0001.png")));
+    assert(existsSync(firstFramePath));
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
