@@ -144,7 +144,8 @@ test("fixed broker route is token-free and pairing-window gated", () => {
 
 test("fixed portal no longer carries a permanent enrollment bearer in its URL", () => {
   const portal = readFileSync(resolve(process.cwd(), "scripts/jarvis-fixed-enrollment-portal.ts"), "utf8");
-  assert.match(portal, /url\.pathname === "\/enroll"/);
+  assert.match(portal, /url\.pathname !== "\/enroll"/);
+  assert.match(portal, /`\$\{brokerUrl\}\/enroll`/);
   assert.doesNotMatch(portal, /JARVIS_ENROLLMENT_PORTAL_KEY/);
   assert.doesNotMatch(portal, /Authorization:/);
   assert.doesNotMatch(portal, /\/enroll\/<opaque-key>/);
