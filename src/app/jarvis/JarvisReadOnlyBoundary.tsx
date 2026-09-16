@@ -21,7 +21,7 @@ function shouldBlockClick(target: Element | null) {
 }
 
 export default function JarvisReadOnlyBoundary({ children }: { children: ReactNode }) {
-  const [mode, setMode] = useState<JarvisOperationMode>("standard");
+  const [mode, setMode] = useState<JarvisOperationMode | null>(null);
 
   useEffect(() => {
     setMode(readJarvisOperationMode());
@@ -30,7 +30,7 @@ export default function JarvisReadOnlyBoundary({ children }: { children: ReactNo
     return () => window.removeEventListener("jarvis-operation-mode-changed", listener);
   }, []);
 
-  const readOnly = isJarvisReadOnlyMode(mode);
+  const readOnly = mode === null || isJarvisReadOnlyMode(mode);
 
   function blockClick(event: MouseEvent<HTMLDivElement>) {
     if (!readOnly || !shouldBlockClick(elementFromTarget(event.target))) return;
@@ -71,8 +71,8 @@ export default function JarvisReadOnlyBoundary({ children }: { children: ReactNo
     >
       {readOnly ? (
         <div className="jarvis-readonly-banner" role="status">
-          <strong>{mode === "kiosk" ? "キオスク" : "読み取り専用"}</strong>
-          <span>状態確認のみ。変更操作・遠隔入力・外部アクションは停止中です。</span>
+          <strong>{mode === null ? "操作モード確認中" : mode === "kiosk" ? "キオスク" : "読み取り専用"}</strong>
+          <span>{mode === null ? "設定を確認するまで変更操作を停止しています。" : "状態確認のみ。変更操作・遠隔入力・外部アクションは停止中です。"}</span>
         </div>
       ) : null}
       {children}
