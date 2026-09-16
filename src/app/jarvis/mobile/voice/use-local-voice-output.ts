@@ -81,7 +81,7 @@ export function useLocalVoiceOutput() {
   }, []);
 
   const speak = useCallback((message: SafeVoiceMessageKey, priority: VoiceOutputPriority = "normal") => {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined" || !("speechSynthesis" in window) || typeof SpeechSynthesisUtterance === "undefined") return;
     counterRef.current += 1;
     const item: QueuedVoiceOutput = {
       id: `${Date.now()}-${counterRef.current}`,
@@ -90,7 +90,7 @@ export function useLocalVoiceOutput() {
       createdAt: new Date().toISOString(),
     };
     queueRef.current = enqueueVoiceOutput(queueRef.current, item);
-    if (priority === "critical" && speakingRef.current && "speechSynthesis" in window) {
+    if (priority === "critical" && speakingRef.current) {
       window.speechSynthesis.cancel();
       speakingRef.current = false;
     }
