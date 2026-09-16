@@ -14,18 +14,23 @@ function block(sourceText, exportName, nextExportName) {
   return sourceText.slice(start, end);
 }
 
-test("P5 customization exposes at least 20 independent theme and persona presets", async () => {
+test("P5 customization exposes at least 20 independent Japanese-first theme and persona presets", async () => {
   const preferences = await source("src/app/jarvis/ui-preferences.ts");
   const themes = block(preferences, "JARVIS_THEMES", "JARVIS_PERSONAS");
   const personas = block(preferences, "JARVIS_PERSONAS", "JARVIS_VOICES");
 
-  const themeIds = [...themes.matchAll(/\["([a-z0-9-]+)",\s*"[^"]+"\]/g)].map((match) => match[1]);
-  const personaIds = [...personas.matchAll(/\["([a-z0-9-]+)",\s*"[^"]+",\s*"[^"]+"\]/g)].map((match) => match[1]);
+  const themeMatches = [...themes.matchAll(/\["([a-z0-9-]+)",\s*"([^"]+)"\]/g)];
+  const personaMatches = [...personas.matchAll(/\["([a-z0-9-]+)",\s*"([^"]+)",\s*"[^"]+"\]/g)];
+  const themeIds = themeMatches.map((match) => match[1]);
+  const personaIds = personaMatches.map((match) => match[1]);
+  const japaneseText = /[ぁ-んァ-ヶ一-龯]/;
 
   assert.ok(themeIds.length >= 20, `expected >=20 themes, got ${themeIds.length}`);
   assert.ok(personaIds.length >= 20, `expected >=20 personas, got ${personaIds.length}`);
   assert.equal(new Set(themeIds).size, themeIds.length, "theme ids must be unique");
   assert.equal(new Set(personaIds).size, personaIds.length, "persona ids must be unique");
+  assert.ok(themeMatches.every((match) => japaneseText.test(match[2])), "theme display names must be Japanese-first");
+  assert.ok(personaMatches.every((match) => japaneseText.test(match[2])), "persona display names must be Japanese-first");
 });
 
 test("P5 customization persists theme persona voice accent and layout as separate fields", async () => {
@@ -47,7 +52,7 @@ test("P5 customization persists theme persona voice accent and layout as separat
   assert.match(preferences, /dataset\.jarvisAccent/);
   assert.match(preferences, /dataset\.jarvisLayout/);
 
-  assert.match(settings, /Theme \/ Persona \/ Voice \/ Color \/ Layout/);
+  assert.match(settings, /テーマ \/ ペルソナ \/ 音声設定 \/ 色 \/ レイアウト/);
   assert.match(settings, /ここでは音声機能の完成を主張しない/);
   assert.doesNotMatch(settings, /fetch\(/);
 });
