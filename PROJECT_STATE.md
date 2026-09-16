@@ -5,11 +5,11 @@ AI_COMPANY_VERSION: 1.0
 PROJECT_VERSION: 0.0.0
 CURRENT_PHASE: JARVIS #681 P4 #779 Android launch enrollment; #734 teaching physical acceptance pending
 STATUS: JARVIS_PRODUCT_COMPLETION_IN_PROGRESS
-LAST_UPDATED: 2026-09-16
+LAST_UPDATED: 2026-09-17
 CURRENT_EPIC: One-front-door general autonomous AI with durable offline-first device-neutral execution and verifier-driven completion
 ACTIVE_ISSUES: JARVIS Product Completion parent #681 and #694 P3 reconciliation; Research Ops #321 / R1-R20 separate; historical #401/#609/#612 acceptance retained
 OPEN_PRS: #779 rollout evidence follow-up; implementation merged via #780 and #782; #734 implementation merged via #774
-BLOCKERS: #779 credentials approved and provisioned; #782 exact merged main CI and configured Android build passed. Existing Mac APK signing job queued; stable APK still 0.4.1. Android Wi-Fi ingress times out with Windows explicit Node TCP block; separate scoped firewall Human Gate required. Physical enrollment/reopen unverified. Bounded trial expires 2026-09-16T09:28:15Z. #734 physical video replay remains unverified.
+BLOCKERS: #786 MSIX AppData startup root cause repaired operationally with native owner-profile release90a111b; Limited Windows task and four services running in session0, existing two Workers READY. Tailscale backend NoState blocks current remote URL; elevated service restart awaits specific owner approval. Physical Windows reboot/AC-loss and #734 video replay remain unverified. See docs/evidence/786-native-startup.md. Owner requires firewall unchanged.
 PRIORITY_OVERRIDE: Owner 2026-09-16 instruction resumes expanded JARVIS product completion #681 with ZBook main-host priority; preserve Human Gates and separate research evidence
 NORTH_STAR_GOAL: Human gives one goal; the system determines required work, dynamically recruits available capabilities, executes, verifies, repairs, records, and completes with the fewest necessary human returns, including continued local work during connectivity loss where capability permits
 HUMAN_GATE_INVARIANT: payment/purchase, destructive deletion, permission/credential changes, production deployment/publication, security/governance weakening, and all existing approval-required actions remain human-gated; autonomy, skill reuse, learning, team expansion, recovery, and self-improvement never grant permission
