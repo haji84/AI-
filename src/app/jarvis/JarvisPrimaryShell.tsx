@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { useEffect } from "react";
+import { applyJarvisPreferences, readJarvisPreferences } from "./ui-preferences";
 
 const NAV_ITEMS = [
   { href: "/jarvis", label: "ホーム", key: "home" },
@@ -12,24 +13,8 @@ const NAV_ITEMS = [
   { href: "/jarvis/settings", label: "設定", key: "settings" },
 ] as const;
 
-const PREFERENCE_KEY = "jarvis-ui-preferences-v1";
-
-type StoredPreferences = {
-  density?: "comfortable" | "compact";
-  motion?: "full" | "reduced";
-};
-
 function applyStoredPreferences() {
-  try {
-    const raw = window.localStorage.getItem(PREFERENCE_KEY);
-    if (!raw) return;
-    const parsed = JSON.parse(raw) as StoredPreferences;
-    document.documentElement.dataset.jarvisDensity = parsed.density === "compact" ? "compact" : "comfortable";
-    document.documentElement.dataset.jarvisMotion = parsed.motion === "reduced" ? "reduced" : "full";
-  } catch {
-    document.documentElement.dataset.jarvisDensity = "comfortable";
-    document.documentElement.dataset.jarvisMotion = "full";
-  }
+  applyJarvisPreferences(readJarvisPreferences());
 }
 
 export default function JarvisPrimaryShell({ children }: { children: ReactNode }) {
