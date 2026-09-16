@@ -18,6 +18,11 @@ export function isJarvisReadOnlyMode(mode: JarvisOperationMode) {
   return mode === "read-only" || mode === "kiosk";
 }
 
+export function isSafeJarvisReadOnlyHref(rawHref: string) {
+  if (rawHref === "/") return true;
+  return rawHref === "/jarvis" || rawHref.startsWith("/jarvis?") || rawHref.startsWith("/jarvis/");
+}
+
 export function readJarvisOperationMode(): JarvisOperationMode {
   try {
     return normalizeJarvisOperationMode(window.localStorage.getItem(JARVIS_OPERATION_MODE_KEY));
