@@ -6,6 +6,7 @@ import "./shell.css";
 import "./themes.css";
 import "./widget-layout.css";
 import "./command-search.css";
+import "./screen-layout-profiles.css";
 
 export const metadata: Metadata = {
   title: "JARVIS Commander",
