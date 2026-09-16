@@ -72,6 +72,9 @@ export class JarvisControlPlane {
   }
 
   enroll(token: string, node: JarvisNode, now = new Date()): JarvisNode {
+    if (this.fleet.get(node.id)) {
+      throw new Error(`JARVIS node already registered: ${node.id}; owner-approved replacement required`);
+    }
     const consumed = this.enrollment.consume(token, node, now);
     const registered = this.fleet.register(consumed.node);
     this.audit(registered.id, "node.enrolled", registered.id, {
