@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import OwnerInvitationPanel from "./OwnerInvitationPanel";
 import EnrollmentProgress from "./EnrollmentProgress";
+import PendingRegistration from "./PendingRegistration";
 
 type PairingWindow = {
   open: boolean;
@@ -205,7 +206,7 @@ export default function JarvisEnrollPage() {
       <div>
         <p className="eyebrow">JARVIS</p>
         <h1>Android端末登録</h1>
-        <p className="muted">家のWi-FiにつないだAndroidを、USBなしで登録できます。専用リンクは一度発行すれば繰り返し使えます（全体で最大100台）。</p>
+        <p className="muted">家のWi-FiでWorkerを開き、この画面からまとめて登録できます。登録後は遠隔操作一覧へ自動反映。USB不要・全体で最大100台です。</p>
       </div>
       <div className="jarvis-button-row">
         <a className="button secondary" href="/jarvis/login?next=/jarvis/enroll">オーナー認証</a>
@@ -213,7 +214,8 @@ export default function JarvisEnrollPage() {
       </div>
     </div>
 
-    <OwnerInvitationPanel />
+    <PendingRegistration />
+    <details style={{ maxWidth: 860, margin: "24px auto" }}><summary>専用リンクを配って登録する場合</summary><OwnerInvitationPanel /></details>
     <EnrollmentProgress />
     <details style={{ maxWidth: 860, margin: "24px auto" }}>
       <summary>管理者向け詳細（従来の受付・新品端末・端末交換）</summary>

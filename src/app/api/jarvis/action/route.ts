@@ -13,6 +13,7 @@ type JarvisDeviceTaskType =
   | "ui-sequence";
 
 type JarvisDashboardAction =
+  | { action: "pending-enrollment"; ids?: string[] }
   | { action: "invitation"; operation?: "create" | "revoke" | "status" }
   | { action: "enrollment"; mode?: "quick" | "full" | "fleet"; maxDevices?: number; group?: string; ttlMs?: number }
   | { action: "pairing-window"; operation?: "open" | "close" | "status"; maxIssues?: number; group?: string; ttlMs?: number }
@@ -73,7 +74,11 @@ export async function POST(request: Request) {
   let path: string;
   let method = "POST";
   let body: Record<string, unknown> | undefined;
-  if (payload.action === "invitation") {
+  if (payload.action === "pending-enrollment") {
+    path = "/api/jarvis/admin/enrollment-pending";
+    if (payload.ids === undefined) method = "GET";
+    else body = { ids: payload.ids };
+  } else if (payload.action === "invitation") {
     path = "/api/jarvis/admin/invitation";
     if (payload.operation === "status") method = "GET";
     else if (payload.operation === "create" || payload.operation === "revoke") body = { action: payload.operation, maxDevices: 100 };

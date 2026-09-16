@@ -20,6 +20,7 @@ import { JarvisEnrollmentPairingWindow } from "../src/jarvis/enrollment-pairing-
 import { JarvisDeviceReplacementTransport } from "../src/jarvis/device-replacement-transport.ts";
 import { WorkerRemoteMailbox } from "../src/jarvis/worker-remote-mailbox.ts";
 import { remoteDeviceInventory } from "../src/jarvis/remote-device-inventory.ts";
+import { PendingEnrollment } from "../src/jarvis/pending-enrollment.ts";
 
 const host = process.env.JARVIS_BROKER_HOST?.trim() || "127.0.0.1";
 const port = Number(process.env.JARVIS_BROKER_PORT || 8787);
@@ -45,6 +46,7 @@ const persisted = store.load();
 if (persisted) plane.restore(persisted);
 const nonces = new JarvisNonceRegistry();
 const remoteMailbox = new WorkerRemoteMailbox();
+const pendingEnrollment = new PendingEnrollment();
 const pairingWindow = new JarvisEnrollmentPairingWindow();
 const invitations = new OwnerInvitationStore((process.env.JARVIS_DB_PATH?.trim() || resolve(".jarvis/jarvis.db")) + ".invitation.json");
 const invitationLimiter = new FixedEnrollmentRateLimiter(60_000, 100, 200);
@@ -254,6 +256,25 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
     if (!requireOwner(request)) return json(response, 401, { message: "owner authorization required" });
     const payload = parseJson(body);
     if (method === "GET" && path === "/api/jarvis/admin/state") return json(response, 200, plane.snapshot());
+    if (path === "/api/jarvis/admin/enrollment-pending") {
+      if (method === "GET") return json(response, 200, { pending: pendingEnrollment.list() });
+      if (method === "POST") {
+        if (!Array.isArray(payload.ids) || !payload.ids.every(id => typeof id === "string")) return json(response, 400, { message: "登録する端末を選択してください" });
+        try {
+          const candidates = pendingEnrollment.selected(payload.ids as string[]);
+          if (plane.fleet.list().length + candidates.length > 100) throw new Error("Fleet capacity reached");
+          if (candidates.some(item => plane.fleet.get(item.node.id) || store.getWorkerIdentity(item.node.id))) throw new Error("Existing identity cannot be overwritten");
+          const enrolled: string[] = [];
+          for (const candidate of candidates) {
+            const token = plane.createEnrollment({ mode: "quick", ttlMs: 30 * 60_000, maxDevices: 1 }).token;
+            const node = plane.enroll(token, assignFleetNumber(candidate.node));
+            store.saveWorkerIdentity(candidate.identity); persist();
+            pendingEnrollment.complete(node.id); enrolled.push(node.id);
+          }
+          return json(response, 201, { enrolled, pending: pendingEnrollment.list() });
+        } catch (error) { return json(response, 409, { message: error instanceof Error ? error.message : "登録できません" }); }
+      }
+    }
     if (method === "POST" && path === "/api/jarvis/admin/remote/end") {
       if (typeof payload.sessionId !== "string") return json(response, 400, { message: "sessionId required" });
       remoteMailbox.endSession(payload.sessionId);
@@ -401,6 +422,22 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
     persist(); return json(response, 201, { node: enrolled });
   }
 
+  if (method === "POST" && path === "/api/jarvis/enrollment-request") {
+    if (!invitationLimiter.consume(request.socket.remoteAddress || "unknown").allowed) return json(response, 429, { message: "Registration rate limit" });
+    try {
+      const payload = parseJson(body);
+      const node = validatedNode(payload.node);
+      if (plane.fleet.get(node.id) || store.getWorkerIdentity(node.id)) return json(response, 409, { message: "Existing identity must reconnect" });
+      const key = payload.publicKeyPem;
+      if (typeof key !== "string" || key.length > 2_000 || !/^[A-Za-z0-9_-]{1,100}$/.test(node.id) || typeof node.label !== "string" || node.label.length > 150 || node.capabilities.length > 64 || !node.capabilities.every(value => typeof value === "string" && value.length <= 64)) throw new Error("Invalid device identity");
+      const identity = { nodeId: node.id, publicKeyPem: key, algorithm: "ecdsa-p256-sha256" as const, enrolledAt: new Date().toISOString() };
+      const signed = signedWorkerRequest(request, path, body);
+      if (!signed || !verifyWorkerRequest({ identity, request: signed, seenNonce: (id, nonce) => nonces.has(id, nonce) }).ok) return json(response, 401, { message: "Device key proof required" });
+      nonces.record(signed.nodeId, signed.nonce);
+      const safeNode: JarvisNode = { id: node.id, label: node.label, kind: "android", capabilities: node.capabilities, status: "offline", enrollment: "quick", lastSeenAt: new Date().toISOString(), telemetry: { checkedAt: new Date().toISOString() }, policy: { allowPaidServices: false, allowDestructiveActions: false, allowExternalPublication: false, allowRemoteControl: false, requireHumanForLockedDevice: true } };
+      return json(response, 202, { pending: true, ...pendingEnrollment.offer(safeNode, identity) });
+    } catch { return json(response, 400, { message: "Invalid registration request" }); }
+  }
   if (path.startsWith("/api/jarvis/worker/")) {
     const identity = authenticateWorker(request, path, body); if (!identity) return json(response, 401, { message: "valid signed worker request required" });
     const payload = parseJson(body);

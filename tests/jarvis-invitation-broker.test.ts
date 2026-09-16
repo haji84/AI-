@@ -82,6 +82,28 @@ test("owner invitation enrolls while window is closed, persists restart and revo
     assert.equal((await post(path, { action: "revoke" }, true)).status, 200);
     assert.equal((await enroll("invite-third")).status, 403);
     assert.equal((await (await fetch(base + "/health")).json()).stats.registered, 2);
+    const pendingPath = "/api/jarvis/enrollment-request";
+    const pendingBody = { node: { id: "pending-third", label: "Owner page fixture", kind: "android", status: "ready", capabilities: ["ui-automation"], policy: { allowPaidServices: false, allowDestructiveActions: true, allowExternalPublication: true, allowRemoteControl: true } }, publicKeyPem: keys.publicKey.export({ type: "spki", format: "pem" }).toString() };
+    assert.equal((await post(pendingPath, pendingBody)).status, 401);
+    const offer = signedRequest("pending-third", pendingPath, pendingBody);
+    assert.equal((await fetch(base + pendingPath, offer)).status, 202);
+    assert.equal((await fetch(base + pendingPath, offer)).status, 401);
+    assert.equal((await (await fetch(base + "/health")).json()).stats.registered, 2, "a pending request is not registered");
+    const ownerPending = "/api/jarvis/admin/enrollment-pending";
+    assert.equal((await fetch(base + ownerPending)).status, 401);
+    const candidates = await (await fetch(base + ownerPending, { headers: { Authorization: `Bearer ${owner}` } })).json();
+    assert.equal(candidates.pending.length, 1);
+    const ids = candidates.pending.map((item: { id: string }) => item.id);
+    assert.equal((await post(ownerPending, { ids })).status, 401);
+    assert.equal((await post(ownerPending, { ids }, true)).status, 201);
+    assert.equal((await post(ownerPending, { ids }, true)).status, 409, "one owner selection cannot enroll twice");
+    assert.equal((await fetch(base + pendingPath, signedRequest("pending-third", pendingPath, pendingBody))).status, 409, "existing identity is never overwritten");
+    const enrolledState = await (await fetch(base + "/api/jarvis/admin/state", { headers: { Authorization: `Bearer ${owner}` } })).json();
+    const registered = enrolledState.fleet.find((item: { id: string }) => item.id === "pending-third");
+    assert.equal(registered.policy.allowDestructiveActions, false);
+    assert.equal(registered.policy.allowExternalPublication, false);
+    assert.equal(registered.policy.allowRemoteControl, false, "fresh signed heartbeat must establish capability");
+    assert.equal((await fetch(base + heartbeatPath, signedRequest("pending-third", heartbeatPath, { status: "ready" }))).status, 200);
     assert.equal((await post("/api/jarvis/worker/heartbeat", {})).status, 401);
   } finally { await stop(); await rm(directory, { recursive: true, force: true }); }
 });

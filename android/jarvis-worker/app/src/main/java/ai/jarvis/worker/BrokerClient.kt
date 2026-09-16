@@ -28,6 +28,11 @@ class BrokerClient(private val context: Context) {
     fun enroll(token: String): JSONObject = enrollWithCredential("token", token)
     fun enrollGrant(grant: String): JSONObject = enrollWithCredential("grant", grant)
 
+    fun requestOwnerRegistration(): JSONObject {
+        val body = JSONObject().put("node", deviceDescriptor()).put("publicKeyPem", identity.publicKeyPem()).toString().toByteArray(Charsets.UTF_8)
+        return request("POST", "/api/jarvis/enrollment-request", body, signed = true)
+    }
+
     fun enrollFromPairingWindow(): JSONObject {
         EnrollmentBootstrap.validatedOrigin(brokerUrl)
         val issued = request("POST", "/api/jarvis/enrollment-grant", "{}".toByteArray(), signed = false)

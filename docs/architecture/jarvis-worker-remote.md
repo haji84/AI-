@@ -1,11 +1,22 @@
 # Registered Android Remote Assist (#852)
 
-The owner enrollment page is the normal front door. It shows registered devices
+The owner enrollment page is the normal front door. Opening Worker 0.4.3 on
+home Wi-Fi submits a signed request proving possession of the device key. It
+does not enroll the device. The owner sees the device label and key comparison
+code, selects the devices, and registers the selection once. No ZBook action,
+pairing window, USB or post-install invitation handoff is required for this flow.
+Requests expire after 30 minutes, are capped at 100, and cannot replace a pending
+key or existing registered identity. Owner selection binds to a random offer ID;
+an expired selection cannot approve a different subsequent key. Restart discards
+pending offers; reopening Worker resubmits. Registered identities persist normally.
+
+The page shows registered devices
 and their missing permission/connectivity/update actions without navigating to
 another registration page. The legacy time-limited enrollment and Device Owner
 flows remain under administrator details. Installation of a generic APK does
-not carry the private invitation into Android: the user must tap Register in
-the invitation page once. Do not claim deferred installation handoff exists.
+not carry a private invitation into Android. The optional invitation flow still
+requires Register in the invitation page once; it is under a separate details
+section. Do not claim deferred installation handoff exists.
 Reopening an invitation first checks the existing signed identity; it must not
 consume a second invitation slot or overwrite an existing key.
 

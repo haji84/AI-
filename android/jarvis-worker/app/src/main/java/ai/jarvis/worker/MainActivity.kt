@@ -35,7 +35,7 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
 
         status = TextView(this).apply { text = "未登録" }
-        val guide = TextView(this).apply { text = "登録済みなら自動で再接続します。初回は所有者から届いた専用リンクの「登録する」を押してください。USBやPCでの受付操作は不要です。" }
+        val guide = TextView(this).apply { text = "家のWi-Fiでこのアプリを開き、所有者の登録画面からこの端末を登録してください。登録後は自動で再接続します。USB・PCでの受付・リンクの開き直しは不要です。" }
         val retryEnrollment = Button(this).apply {
             text = "登録・接続を再確認"
             setOnClickListener { verifyCurrentEnrollment() }
@@ -153,6 +153,7 @@ class MainActivity : AppCompatActivity() {
         }
         status.text = "登録状態を確認中"
         Thread {
+            var waitingForOwner = false
             runCatching {
                 try {
                     client.heartbeat()
@@ -161,16 +162,18 @@ class MainActivity : AppCompatActivity() {
                     // Network failures and previously registered identities must never mint grants.
                     if (error.statusCode != 401 || prefs.getBoolean("enrollment_verified", false) ||
                         client.brokerUrl != BuildConfig.ENROLLMENT_BOOTSTRAP_URL.trimEnd('/')) throw error
-                    runOnUiThread { status.text = "JARVISへ自動登録中" }
-                    client.enrollFromPairingWindow()
-                    client.heartbeat()
+                    val pending = client.requestOwnerRegistration()
+                    waitingForOwner = true
+                    runOnUiThread { status.text = "登録待ち：${pending.getString("code")}\n所有者の登録画面にこの端末が表示されました。そこで登録すると自動で接続します。" }
                 }
-                getSharedPreferences("jarvis_config", MODE_PRIVATE).edit().putBoolean("enrollment_verified", true).apply()
+                if (!waitingForOwner) getSharedPreferences("jarvis_config", MODE_PRIVATE).edit().putBoolean("enrollment_verified", true).apply()
             }
                 .onSuccess {
                     runCatching { JarvisCommandService.start(this) }
-                    runOnUiThread { status.text = "登録完了" }
-                    checkForUpdate()
+                    if (!waitingForOwner) {
+                        runOnUiThread { status.text = "登録完了・接続済み" }
+                        checkForUpdate()
+                    }
                 }
                 .onFailure { error ->
                     runOnUiThread {
@@ -310,9 +313,11 @@ class MainActivity : AppCompatActivity() {
         val client = BrokerClient(this)
         if (client.brokerUrl.isBlank()) return
         client.heartbeat()
-        val response = client.nextTask()
-        val task = response.optJSONObject("task") ?: return
-        TaskExecutor(this).execute(task)
+        val prefs = getSharedPreferences("jarvis_config", MODE_PRIVATE)
+        if (!prefs.getBoolean("enrollment_verified", false)) {
+            prefs.edit().putBoolean("enrollment_verified", true).apply()
+            runOnUiThread { status.text = "登録完了・接続済み。遠隔操作一覧に追加されました" }
+        }
     }
 
     private fun scheduleFallbackWorker() {
