@@ -6,6 +6,7 @@ import {
   emptySharedCommandContext,
   normalizeSharedCommandContext,
   redactCommandContextText,
+  type SharedCommandContext,
 } from "../src/app/jarvis/mobile/command-context.ts";
 import { getSafeContextCandidates, resolveSafeContextReference } from "../src/app/jarvis/mobile/context-reference.ts";
 import { parseSafeMobileCommand, parseSafeVoiceCommand } from "../src/app/jarvis/mobile/voice-command.ts";
@@ -67,7 +68,7 @@ test("browser-local shared context is bounded and redacts common credential mate
 });
 
 test("safe context references reuse only sent, reparsable, same-target, non-redacted commands", () => {
-  let context = { ...emptySharedCommandContext(), targetNodeId: "android-1" };
+  let context: SharedCommandContext = { ...emptySharedCommandContext(), targetNodeId: "android-1" };
   context = appendSharedCommandHistory(context, { source: "text", command: "YouTubeを開いて", outcome: "sent", targetNodeId: "android-1" }, new Date("2026-09-16T01:00:00.000Z"));
   const youtubeId = context.history.at(-1)?.id;
   context = appendSharedCommandHistory(context, { source: "voice", command: "端末を再起動", outcome: "blocked", targetNodeId: "android-1" }, new Date("2026-09-16T01:01:00.000Z"));
@@ -90,7 +91,7 @@ test("safe context references reuse only sent, reparsable, same-target, non-reda
     label: "2番目",
   });
 
-  const selected = { ...context, selectedHistoryId: youtubeId };
+  const selected: SharedCommandContext = { ...context, selectedHistoryId: youtubeId };
   assert.deepEqual(resolveSafeContextReference("これ", selected), {
     kind: "resolved",
     command: "YouTubeを開いて",
@@ -103,7 +104,7 @@ test("safe context references reuse only sent, reparsable, same-target, non-reda
 });
 
 test("selected context cannot cross device targets or replay redacted credential text", () => {
-  let context = { ...emptySharedCommandContext(), targetNodeId: "android-1" };
+  let context: SharedCommandContext = { ...emptySharedCommandContext(), targetNodeId: "android-1" };
   context = appendSharedCommandHistory(context, { source: "text", command: "Chromeを開いて", outcome: "sent", targetNodeId: "android-2" }, new Date("2026-09-16T02:00:00.000Z"));
   const otherTargetId = context.history.at(-1)?.id;
   context = appendSharedCommandHistory(context, { source: "text", command: "https://example.com/?token=abc", outcome: "sent", targetNodeId: "android-1" }, new Date("2026-09-16T02:01:00.000Z"));
