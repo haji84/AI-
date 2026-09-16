@@ -16,7 +16,7 @@ export type RemoteAssistRecording = {
   maxFrames: number;
   frameCount: number;
   totalBytes: number;
-  stopReason?: "duration" | "frame-limit" | "storage-limit" | "owner-stop" | "process-restart" | "capture-error";
+  stopReason?: "duration" | "frame-limit" | "storage-limit" | "owner-stop" | "process-restart" | "capture-error" | "capture-timeout" | "storage-error" | "audit-error";
 };
 
 export type RemoteAssistCapturedFrame = {
@@ -25,11 +25,13 @@ export type RemoteAssistCapturedFrame = {
   capturedAt: string;
 };
 
-type InternalRecording = RemoteAssistRecording & { stopRequested: boolean };
+type InternalRecording = RemoteAssistRecording & { stopRequested: boolean; controller: AbortController };
 
 type RecorderOptions = {
   rootDir?: string;
-  captureFrame: (serial: string) => Promise<RemoteAssistCapturedFrame>;
+  captureFrame: (serial: string, context: { sessionId: string; signal: AbortSignal }) => Promise<RemoteAssistCapturedFrame>;
+  beforeStart?: (recording: RemoteAssistRecording) => void;
+  validateCapture?: (sessionId: string, serial: string) => void;
   onFinished?: (recording: RemoteAssistRecording) => void;
   defaultDurationMs?: number;
   maxDurationMs?: number;
@@ -74,6 +76,8 @@ export class JarvisRemoteAssistFrameRecorder {
   private readonly rootDir: string;
   private readonly captureFrame: RecorderOptions["captureFrame"];
   private readonly onFinished?: RecorderOptions["onFinished"];
+  private readonly beforeStart?: RecorderOptions["beforeStart"];
+  private readonly validateCapture?: RecorderOptions["validateCapture"];
   private readonly defaultDurationMs: number;
   private readonly maxDurationMs: number;
   private readonly minDurationMs: number;
@@ -92,6 +96,8 @@ export class JarvisRemoteAssistFrameRecorder {
     this.rootDir = options.rootDir ?? resolve(process.cwd(), ".jarvis", "remote-assist-recordings");
     this.captureFrame = options.captureFrame;
     this.onFinished = options.onFinished;
+    this.beforeStart = options.beforeStart;
+    this.validateCapture = options.validateCapture;
     this.defaultDurationMs = options.defaultDurationMs ?? 30_000;
     this.maxDurationMs = options.maxDurationMs ?? 60_000;
     this.minDurationMs = options.minDurationMs ?? 2_000;
@@ -132,15 +138,24 @@ export class JarvisRemoteAssistFrameRecorder {
       frameCount: 0,
       totalBytes: 0,
       stopRequested: false,
+      controller: new AbortController(),
     };
+    this.validateCapture?.(recording.sessionId, recording.serial);
+    this.beforeStart?.(publicRecording(recording));
     mkdirSync(this.recordingDir(id), { recursive: true });
+    this.persist(recording);
     this.recordings.set(id, recording);
     this.activeBySerial.set(input.serial, id);
-    this.persist(recording);
-    this.pruneOldRecordings();
-    const job = this.run(recording);
+    try { this.pruneOldRecordings(); } catch (error) {
+      this.activeBySerial.delete(input.serial);
+      recording.status = "failed";
+      recording.stopReason = "storage-error";
+      try { this.persist(recording); } catch { /* The in-memory failure remains visible. */ }
+      throw error;
+    }
+    const job = Promise.resolve().then(() => this.run(recording));
     this.jobs.set(id, job);
-    void job.finally(() => this.jobs.delete(id));
+    void job.then(() => this.jobs.delete(id), () => this.jobs.delete(id));
     return publicRecording(recording);
   }
 
@@ -155,7 +170,7 @@ export class JarvisRemoteAssistFrameRecorder {
     recording.stopRequested = true;
     recording.status = "stopping";
     recording.updatedAt = new Date().toISOString();
-    this.persist(recording);
+    recording.controller.abort();
     await this.jobs.get(recording.id);
     return publicRecording(recording);
   }
@@ -170,7 +185,10 @@ export class JarvisRemoteAssistFrameRecorder {
       const deadline = new Date(recording.expiresAt).getTime();
       while (!recording.stopRequested && Date.now() < deadline && recording.frameCount < recording.maxFrames) {
         const frameStartedAt = Date.now();
-        const frame = await this.captureFrame(recording.serial);
+        this.validateCapture?.(recording.sessionId, recording.serial);
+        const frame = await this.captureWithinDeadline(recording, deadline);
+        if (recording.stopRequested || Date.now() >= deadline) break;
+        this.validateCapture?.(recording.sessionId, recording.serial);
         if (frame.mimeType !== "image/png") throw new Error("Remote Assist recording only accepts image/png frames");
         const bytes = Buffer.from(frame.imageBase64, "base64");
         if (!bytes.length || bytes.length > this.maxFrameBytes) throw new Error("Remote Assist recording frame exceeds safe size bounds");
@@ -186,7 +204,7 @@ export class JarvisRemoteAssistFrameRecorder {
         this.persist(recording);
         if (recording.stopRequested || recording.frameCount >= recording.maxFrames || Date.now() >= deadline) break;
         const waitMs = Math.min(recording.intervalMs - (Date.now() - frameStartedAt), deadline - Date.now());
-        if (waitMs > 0) await new Promise((resolvePromise) => setTimeout(resolvePromise, waitMs));
+        if (waitMs > 0) await this.waitForNextFrame(recording, waitMs);
       }
       if (recording.stopRequested) {
         recording.status = "stopped";
@@ -197,15 +215,57 @@ export class JarvisRemoteAssistFrameRecorder {
         recording.status = "completed";
         recording.stopReason = recording.frameCount >= recording.maxFrames ? "frame-limit" : "duration";
       }
-    } catch {
-      recording.status = "failed";
-      recording.stopReason = "capture-error";
+    } catch (error) {
+      recording.status = recording.stopRequested ? "stopped" : "failed";
+      recording.stopReason = recording.stopRequested ? "owner-stop" : error instanceof Error && error.message === "capture-timeout" ? "capture-timeout" : "capture-error";
     } finally {
       recording.updatedAt = new Date().toISOString();
       this.activeBySerial.delete(recording.serial);
-      this.persist(recording);
-      this.onFinished?.(publicRecording(recording));
+      try { this.persist(recording); } catch {
+        recording.status = "failed";
+        recording.stopReason = "storage-error";
+      }
+      try { this.onFinished?.(publicRecording(recording)); } catch {
+        recording.status = "failed";
+        recording.stopReason = "audit-error";
+        try { this.persist(recording); } catch { recording.stopReason = "storage-error"; }
+      }
     }
+  }
+
+  private async captureWithinDeadline(recording: InternalRecording, deadline: number): Promise<RemoteAssistCapturedFrame> {
+    const signal = recording.controller.signal;
+    signal.throwIfAborted();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let abort: () => void = () => {};
+    const cancelled = new Promise<never>((_resolve, reject) => {
+      abort = () => reject(signal.reason ?? new Error("capture aborted"));
+      signal.addEventListener("abort", abort, { once: true });
+      timer = setTimeout(() => {
+        const error = new Error("capture-timeout");
+        reject(error);
+        recording.controller.abort(error);
+      }, Math.max(1, deadline - Date.now()));
+    });
+    try {
+      return await Promise.race([
+        this.captureFrame(recording.serial, { sessionId: recording.sessionId, signal }),
+        cancelled,
+      ]);
+    } finally {
+      clearTimeout(timer);
+      signal.removeEventListener("abort", abort);
+    }
+  }
+
+  private waitForNextFrame(recording: InternalRecording, ms: number): Promise<void> {
+    return new Promise(resolvePromise => {
+      const signal = recording.controller.signal;
+      const done = () => { clearTimeout(timer); signal.removeEventListener("abort", done); resolvePromise(); };
+      const timer = setTimeout(done, ms);
+      signal.addEventListener("abort", done, { once: true });
+      if (signal.aborted) done();
+    });
   }
 
   private requireBound(recordingId: string, sessionId: string, serial: string): InternalRecording {
@@ -214,7 +274,7 @@ export class JarvisRemoteAssistFrameRecorder {
     if (!recording) {
       const persisted = this.loadPersisted(recordingId);
       if (persisted) {
-        recording = { ...persisted, stopRequested: false };
+        recording = { ...persisted, stopRequested: false, controller: new AbortController() };
         this.recordings.set(recording.id, recording);
       }
     }
@@ -257,6 +317,7 @@ export class JarvisRemoteAssistFrameRecorder {
         stopReason: "process-restart",
         updatedAt: new Date().toISOString(),
         stopRequested: false,
+        controller: new AbortController(),
       };
       this.persist(recovered);
     }
