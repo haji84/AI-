@@ -11,8 +11,11 @@ class JarvisPollWorker(appContext: Context, params: WorkerParameters) : Worker(a
         return runCatching {
             client.heartbeat()
             val manager = UpdateManager(applicationContext)
-            val info = manager.checkForUpdate(client.brokerUrl)
-            if (info != null) manager.installAutomaticallyIfManaged(info)
+            // Update distribution failures must not block task processing.
+            runCatching {
+                val info = manager.checkForUpdate(client.brokerUrl)
+                if (info != null && !manager.installAutomaticallyIfManaged(info)) manager.notifyUpdate(info)
+            }
 
             repeat(5) {
                 val response = client.nextTask()
