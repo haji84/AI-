@@ -354,22 +354,26 @@ The JSON blocks are the authoritative rows. Validate exact mirror and evidence g
     "scripts/jarvis-power-recovery-lib.mjs",
     "scripts/install-jarvis-remote-autostart-windows.ps1",
     "scripts/jarvis-managed-process.mjs",
-    "scripts/inspect-jarvis-startup-windows.ps1"
+    "scripts/inspect-jarvis-startup-windows.ps1",
+    "scripts/install-jarvis-production-windows.ps1",
+    "scripts/jarvis-windows-install-paths.mjs"
   ],
   "test_refs": [
     "scripts/jarvis-power-recovery.test.mjs",
     "scripts/jarvis-remote-access.test.mjs",
-    "scripts/jarvis-managed-process.test.mjs"
+    "scripts/jarvis-managed-process.test.mjs",
+    "scripts/jarvis-windows-install-paths.test.mjs"
   ],
   "evidence_refs": [
     "docs/audit/jarvis-zbook-readiness.md",
-    "docs/audit/jarvis-windows-unattended.md"
+    "docs/audit/jarvis-windows-unattended.md",
+    "docs/evidence/786-native-startup.md"
   ],
   "status": "PARTIAL",
-  "blocker": "#685 adds strict read-only owner/task/action/battery readiness. Current machine is not ready; physical reboot, credential validity and AC recovery remain unverified.",
+  "blocker": "#786 native session-0 task and two READY Workers observed; Tailscale NoState, physical reboot/AC-loss and crash recovery remain unverified.",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "Prepare the one-time owner Task Scheduler gate; continue independent P3 software work, then collect actual reboot/network/power evidence.",
+  "next_action": "Complete specifically approved Tailscale service recovery, then coordinate actual reboot/network/crash acceptance. Preserve credentials, enrollment and unchanged firewall.",
   "last_verified_commit": null
 }
 ```
@@ -393,21 +397,25 @@ The JSON blocks are the authoritative rows. Validate exact mirror and evidence g
     "scripts/jarvis-remote-host.mjs",
     "scripts/jarvis-power-recovery-lib.mjs",
     "scripts/install-jarvis-remote-autostart-windows.ps1",
-    "scripts/jarvis-managed-process.mjs"
+    "scripts/jarvis-managed-process.mjs",
+    "scripts/install-jarvis-production-windows.ps1",
+    "scripts/jarvis-windows-install-paths.mjs"
   ],
   "test_refs": [
     "scripts/jarvis-power-recovery.test.mjs",
     "scripts/jarvis-remote-access.test.mjs",
-    "scripts/jarvis-managed-process.test.mjs"
+    "scripts/jarvis-managed-process.test.mjs",
+    "scripts/jarvis-windows-install-paths.test.mjs"
   ],
   "evidence_refs": [
-    "docs/audit/jarvis-zbook-readiness.md"
+    "docs/audit/jarvis-zbook-readiness.md",
+    "docs/evidence/786-native-startup.md"
   ],
   "status": "PARTIAL",
-  "blocker": "子Issue #683でWindows spawn/backoffとprivate-ingress判定を修正。Tailscale/OS startup・cellular/実機復旧Evidenceは未取得。",
+  "blocker": "#786 native session-0 task and two READY Workers observed; Tailscale NoState, physical reboot/AC-loss and crash recovery remain unverified.",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P1/P2: Windows非対話起動・battery policy診断を完成し、OS/account gate準備と実機接続・復旧Evidenceを取得する。独立するP3以降のソフトウェア作業を継続。",
+  "next_action": "Complete specifically approved Tailscale service recovery, then coordinate actual reboot/network/crash acceptance. Preserve credentials, enrollment and unchanged firewall.",
   "last_verified_commit": null
 }
 ```
@@ -7014,22 +7022,26 @@ The JSON blocks are the authoritative rows. Validate exact mirror and evidence g
     "scripts/jarvis-remote-host.mjs",
     "scripts/jarvis-remote-access-lib.mjs",
     "scripts/inspect-jarvis-startup-windows.ps1",
-    "scripts/jarvis-power-recovery-lib.mjs"
+    "scripts/jarvis-power-recovery-lib.mjs",
+    "scripts/install-jarvis-production-windows.ps1",
+    "scripts/jarvis-windows-install-paths.mjs"
   ],
   "test_refs": [
     "scripts/jarvis-power-recovery.test.mjs",
     "scripts/jarvis-managed-process.test.mjs",
-    "scripts/jarvis-remote-access.test.mjs"
+    "scripts/jarvis-remote-access.test.mjs",
+    "scripts/jarvis-windows-install-paths.test.mjs"
   ],
   "evidence_refs": [
     "docs/audit/jarvis-zbook-readiness.md",
-    "docs/audit/jarvis-windows-unattended.md"
+    "docs/audit/jarvis-windows-unattended.md",
+    "docs/evidence/786-native-startup.md"
   ],
   "status": "PARTIAL",
-  "blocker": "#685 adds strict read-only owner/task/action/battery readiness. Current machine is not ready; physical reboot, credential validity and AC recovery remain unverified.",
+  "blocker": "#786 native session-0 task and two READY Workers observed; Tailscale NoState, physical reboot/AC-loss and crash recovery remain unverified.",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "Prepare the one-time owner Task Scheduler gate; continue independent P3 software work, then collect actual reboot/network/power evidence.",
+  "next_action": "Complete specifically approved Tailscale service recovery, then coordinate actual reboot/network/crash acceptance. Preserve credentials, enrollment and unchanged firewall.",
   "last_verified_commit": null
 }
 ```
