@@ -14,6 +14,7 @@ export type SharedCommandHistoryEntry = {
 export type SharedCommandContext = {
   version: 1;
   targetNodeId?: string;
+  selectedHistoryId?: string;
   history: SharedCommandHistoryEntry[];
 };
 
@@ -57,7 +58,7 @@ function isSource(value: unknown): value is CommandSource {
 
 export function normalizeSharedCommandContext(value: unknown): SharedCommandContext {
   if (!value || typeof value !== "object") return emptySharedCommandContext();
-  const candidate = value as { targetNodeId?: unknown; history?: unknown };
+  const candidate = value as { targetNodeId?: unknown; selectedHistoryId?: unknown; history?: unknown };
   const targetNodeId = typeof candidate.targetNodeId === "string" && candidate.targetNodeId.length <= 128
     ? candidate.targetNodeId
     : undefined;
@@ -77,7 +78,10 @@ export function normalizeSharedCommandContext(value: unknown): SharedCommandCont
         }];
       }).slice(-MAX_SHARED_COMMAND_HISTORY)
     : [];
-  return { version: 1, targetNodeId, history };
+  const selectedHistoryId = typeof candidate.selectedHistoryId === "string" && history.some((entry) => entry.id === candidate.selectedHistoryId)
+    ? candidate.selectedHistoryId
+    : undefined;
+  return { version: 1, targetNodeId, selectedHistoryId, history };
 }
 
 export function parseSharedCommandContext(serialized: string | null): SharedCommandContext {
@@ -103,23 +107,43 @@ export function appendSharedCommandHistory(
     detail: input.detail ? redactCommandContextText(input.detail) : undefined,
     createdAt: now.toISOString(),
   };
-  return { ...context, history: [...context.history, entry].slice(-MAX_SHARED_COMMAND_HISTORY) };
+  const history = [...context.history, entry].slice(-MAX_SHARED_COMMAND_HISTORY);
+  const selectedHistoryId = context.selectedHistoryId && history.some((item) => item.id === context.selectedHistoryId)
+    ? context.selectedHistoryId
+    : undefined;
+  return { ...context, selectedHistoryId, history };
 }
 
 export function loadSharedCommandContext(): SharedCommandContext {
   if (typeof window === "undefined") return emptySharedCommandContext();
-  return parseSharedCommandContext(window.localStorage.getItem(SHARED_COMMAND_CONTEXT_KEY));
+  try {
+    return parseSharedCommandContext(window.localStorage.getItem(SHARED_COMMAND_CONTEXT_KEY));
+  } catch {
+    return emptySharedCommandContext();
+  }
 }
 
 export function saveSharedCommandContext(context: SharedCommandContext): SharedCommandContext {
   const normalized = normalizeSharedCommandContext(context);
-  if (typeof window !== "undefined") window.localStorage.setItem(SHARED_COMMAND_CONTEXT_KEY, JSON.stringify(normalized));
+  if (typeof window !== "undefined") {
+    try {
+      window.localStorage.setItem(SHARED_COMMAND_CONTEXT_KEY, JSON.stringify(normalized));
+    } catch {
+      // Storage can be unavailable in private/restricted browser modes. Keep the UI fail-safe and in-memory.
+    }
+  }
   return normalized;
 }
 
 export function saveSharedTargetNode(targetNodeId: string): SharedCommandContext {
   const current = loadSharedCommandContext();
   return saveSharedCommandContext({ ...current, targetNodeId: targetNodeId ? targetNodeId.slice(0, 128) : undefined });
+}
+
+export function selectSharedHistoryEntry(selectedHistoryId: string): SharedCommandContext {
+  const current = loadSharedCommandContext();
+  const selected = current.history.some((entry) => entry.id === selectedHistoryId) ? selectedHistoryId : undefined;
+  return saveSharedCommandContext({ ...current, selectedHistoryId: selected });
 }
 
 export function recordSharedCommand(
