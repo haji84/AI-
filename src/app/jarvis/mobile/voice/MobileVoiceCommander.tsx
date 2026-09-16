@@ -1,7 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { parseSafeVoiceCommand } from "../voice-command";
+import {
+  emptySharedCommandContext,
+  loadSharedCommandContext,
+  recordSharedCommand,
+  saveSharedTargetNode,
+  type SharedCommandContext,
+} from "../command-context";
+import { parseSafeMobileCommand } from "../voice-command";
 
 type FleetNode = { id: string; label: string; status: string; lastSeenAt: string };
 type StatePayload = { fleet?: FleetNode[]; message?: string };
@@ -34,6 +41,13 @@ function recognitionConstructor(): RecognitionCtor | null {
   return speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition ?? null;
 }
 
+function shortAge(value: string) {
+  const seconds = Math.max(0, Math.round((Date.now() - new Date(value).getTime()) / 1000));
+  if (seconds < 60) return `${seconds}秒前`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}分前`;
+  return `${Math.floor(seconds / 3600)}時間前`;
+}
+
 export default function MobileVoiceCommander() {
   const [nodes, setNodes] = useState<FleetNode[]>([]);
   const [selectedNodeId, setSelectedNodeId] = useState("");
@@ -44,8 +58,10 @@ export default function MobileVoiceCommander() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [supported, setSupported] = useState(false);
+  const [sharedContext, setSharedContext] = useState<SharedCommandContext>(() => emptySharedCommandContext());
   const recognitionRef = useRef<RecognitionLike | null>(null);
   const selectedNode = useMemo(() => nodes.find((node) => node.id === selectedNodeId), [nodes, selectedNodeId]);
+  const recentCommands = useMemo(() => sharedContext.history.slice(-4).reverse(), [sharedContext]);
 
   const refresh = useCallback(async () => {
     try {
@@ -53,10 +69,13 @@ export default function MobileVoiceCommander() {
       const body = await response.json() as StatePayload;
       if (!response.ok) throw new Error(body.message || `HTTP ${response.status}`);
       const fleet = body.fleet ?? [];
+      const rememberedTarget = loadSharedCommandContext().targetNodeId;
       setNodes(fleet);
       setSelectedNodeId((current) => current && fleet.some((node) => node.id === current)
         ? current
-        : fleet.find((node) => node.status === "ready")?.id ?? fleet[0]?.id ?? "");
+        : rememberedTarget && fleet.some((node) => node.id === rememberedTarget)
+          ? rememberedTarget
+          : fleet.find((node) => node.status === "ready")?.id ?? fleet[0]?.id ?? "");
       setError("");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "JARVIS状態を取得できません");
@@ -65,12 +84,18 @@ export default function MobileVoiceCommander() {
 
   useEffect(() => {
     setSupported(Boolean(recognitionConstructor()));
+    setSharedContext(loadSharedCommandContext());
     void refresh();
     return () => {
       recognitionRef.current?.abort();
       recognitionRef.current = null;
     };
   }, [refresh]);
+
+  function selectNode(value: string) {
+    setSelectedNodeId(value);
+    setSharedContext(saveSharedTargetNode(value));
+  }
 
   function stopListening() {
     recognitionRef.current?.stop();
@@ -129,13 +154,21 @@ export default function MobileVoiceCommander() {
   }
 
   async function executeTranscript() {
-    const parsed = parseSafeVoiceCommand(transcript);
+    const text = transcript.trim();
+    const parsed = parseSafeMobileCommand(text);
     if (!parsed.ok) {
       setError(parsed.message);
+      setSharedContext(recordSharedCommand({
+        source: "voice",
+        command: text,
+        outcome: parsed.reason === "protected" ? "blocked" : "unsupported",
+        targetNodeId: selectedNodeId || undefined,
+      }));
       return;
     }
     if (!selectedNodeId) {
       setError("操作する端末を選択してください。");
+      setSharedContext(recordSharedCommand({ source: "voice", command: text, outcome: "failed" }));
       return;
     }
 
@@ -157,10 +190,12 @@ export default function MobileVoiceCommander() {
       const body = await response.json() as { message?: string };
       if (!response.ok) throw new Error(body.message || `HTTP ${response.status}`);
       setMessage(`${selectedNode?.label ?? "端末"}へ確認済みの音声指示を送信しました。`);
+      setSharedContext(recordSharedCommand({ source: "voice", command: text, outcome: "sent", targetNodeId: selectedNodeId }));
       setTranscript("");
       setInterimTranscript("");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "音声指示を送信できませんでした");
+      setSharedContext(recordSharedCommand({ source: "voice", command: text, outcome: "failed", targetNodeId: selectedNodeId }));
     } finally {
       setBusy(false);
     }
@@ -186,7 +221,7 @@ export default function MobileVoiceCommander() {
 
       <section className="commander-card">
         <div className="commander-card-title"><span>操作する端末</span><button type="button" onClick={() => void refresh()} disabled={busy}>更新</button></div>
-        <select value={selectedNodeId} onChange={(event) => setSelectedNodeId(event.target.value)} disabled={busy}>
+        <select value={selectedNodeId} onChange={(event) => selectNode(event.target.value)} disabled={busy}>
           <option value="">端末を選択</option>
           {nodes.map((node) => <option key={node.id} value={node.id}>{node.label} · {node.status}</option>)}
         </select>
@@ -224,7 +259,15 @@ export default function MobileVoiceCommander() {
         <button className="voice-clear" type="button" disabled={busy || listening || (!transcript && !interimTranscript)} onClick={() => { setTranscript(""); setInterimTranscript(""); setError(""); }}>
           字幕をクリア
         </button>
-        <p className="commander-hint">再起動、ロック、初期化、削除、承認、権限変更などの保護対象は音声から実行しません。</p>
+        <p className="commander-hint">文字司令と同じ安全パーサー・端末選択・直近履歴を共有します。再起動、ロック、初期化、削除、承認、権限変更などの保護対象は音声から実行も承認もしません。</p>
+      </section>
+
+      <section className="commander-card">
+        <div className="commander-card-title"><span>共通コマンド履歴</span><small>音声＋文字</small></div>
+        <div className="commander-tasks" aria-live="polite">
+          {recentCommands.map((entry) => <div key={entry.id}><span>{entry.source === "voice" ? "音声" : "文字"}: {entry.command}</span><strong>{entry.outcome}</strong><small>{shortAge(entry.createdAt)}</small></div>)}
+          {!recentCommands.length && <div className="commander-empty">共通コマンド履歴はまだありません</div>}
+        </div>
       </section>
     </main>
   );

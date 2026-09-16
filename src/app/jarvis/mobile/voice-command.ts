@@ -24,13 +24,17 @@ const BLOCKED_TERMS = [
   "approve",
   "権限",
   "permission",
+  "支払",
+  "billing",
+  "credential",
+  "認証情報",
 ];
 
 export type VoiceIntentResult =
   | { ok: true; task: SafeVoiceTask }
   | { ok: false; reason: "empty" | "protected" | "unsupported"; message: string };
 
-export function parseSafeVoiceCommand(input: string): VoiceIntentResult {
+export function parseSafeMobileCommand(input: string): VoiceIntentResult {
   const text = input.trim();
   if (!text) return { ok: false, reason: "empty", message: "音声または文字で指示を入力してください。" };
   const lower = text.toLowerCase();
@@ -39,7 +43,7 @@ export function parseSafeVoiceCommand(input: string): VoiceIntentResult {
     return {
       ok: false,
       reason: "protected",
-      message: "保護対象の操作は音声から実行しません。通常のJARVIS画面とHuman Gateを使ってください。",
+      message: "保護対象の操作は音声・文字司令から実行も承認もしません。通常のJARVIS画面とHuman Gateを使ってください。",
     };
   }
 
@@ -76,6 +80,8 @@ export function parseSafeVoiceCommand(input: string): VoiceIntentResult {
   return {
     ok: false,
     reason: "unsupported",
-    message: "この音声指示はまだ安全に解釈できません。文字で確認するか、通常の操作画面を使ってください。",
+    message: "この指示はまだ安全に解釈できません。通常の操作画面を使ってください。",
   };
 }
+
+export const parseSafeVoiceCommand = parseSafeMobileCommand;

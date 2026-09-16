@@ -1,6 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  emptySharedCommandContext,
+  loadSharedCommandContext,
+  recordSharedCommand,
+  saveSharedTargetNode,
+  type SharedCommandContext,
+} from "./command-context";
+import { parseSafeMobileCommand } from "./voice-command";
 
 type NodeItem = {
   id: string;
@@ -59,6 +67,7 @@ export default function MobileCommander() {
   const [sequenceJson, setSequenceJson] = useState('[{"action":"wait","ms":500}]');
   const [standalone, setStandalone] = useState(false);
   const [isIos, setIsIos] = useState(false);
+  const [sharedContext, setSharedContext] = useState<SharedCommandContext>(() => emptySharedCommandContext());
 
   const refresh = useCallback(async () => {
     try {
@@ -67,8 +76,10 @@ export default function MobileCommander() {
       if (!response.ok) throw new Error(body.message || `HTTP ${response.status}`);
       setState(body);
       setError("");
+      const rememberedTarget = loadSharedCommandContext().targetNodeId;
       setSelectedNodeId((current) => {
         if (current && body.fleet.some((node) => node.id === current)) return current;
+        if (rememberedTarget && body.fleet.some((node) => node.id === rememberedTarget)) return rememberedTarget;
         return body.fleet.find((node) => node.status === "ready")?.id ?? body.fleet[0]?.id ?? "";
       });
     } catch (cause) {
@@ -80,6 +91,7 @@ export default function MobileCommander() {
     const nav = navigator as Navigator & { standalone?: boolean };
     setStandalone(window.matchMedia("(display-mode: standalone)").matches || nav.standalone === true);
     setIsIos(/iPad|iPhone|iPod/.test(navigator.userAgent));
+    setSharedContext(loadSharedCommandContext());
     void refresh();
     const timer = window.setInterval(() => void refresh(), 3000);
     return () => window.clearInterval(timer);
@@ -87,6 +99,12 @@ export default function MobileCommander() {
 
   const selectedNode = useMemo(() => state?.fleet.find((node) => node.id === selectedNodeId), [state, selectedNodeId]);
   const recentTasks = useMemo(() => state?.tasks.slice().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 6) ?? [], [state]);
+  const recentCommands = useMemo(() => sharedContext.history.slice(-4).reverse(), [sharedContext]);
+
+  function selectNode(value: string) {
+    setSelectedNodeId(value);
+    setSharedContext(saveSharedTargetNode(value));
+  }
 
   async function sendTask(type: DeviceTaskType, payload: Record<string, unknown> = {}) {
     if (!selectedNodeId) {
@@ -118,34 +136,24 @@ export default function MobileCommander() {
   async function runSimpleCommand() {
     const text = command.trim();
     if (!text) return;
-    const lower = text.toLowerCase();
-    let ok = false;
-    if (text.includes("起こ") || text.includes("画面オン") || lower === "wake") {
-      ok = await sendTask("wake-device");
-    } else if (text.includes("wifi") || text.includes("Wi-Fi") || text.includes("ワイファイ")) {
-      ok = await sendTask("launch-settings", { screen: "wifi" });
-    } else if (text.includes("bluetooth") || text.includes("Bluetooth") || text.includes("ブルートゥース")) {
-      ok = await sendTask("launch-settings", { screen: "bluetooth" });
-    } else if (text.includes("設定")) {
-      ok = await sendTask("launch-settings", { screen: "settings" });
-    } else if (text.includes("状態") || text.includes("ステータス")) {
-      ok = await sendTask("device-status");
-    } else if (text.includes("スプレッドシート") || text.includes("Sheets")) {
-      ok = await sendTask("open-app", { packageName: "com.google.android.apps.docs.editors.sheets" });
-    } else if (lower.includes("youtube") || text.includes("ユーチューブ")) {
-      ok = await sendTask("open-app", { packageName: "com.google.android.youtube" });
-    } else if (lower.includes("chrome") || text.includes("クローム")) {
-      ok = await sendTask("open-app", { packageName: "com.android.chrome" });
-    } else if (text.includes("マップ") || lower.includes("maps")) {
-      ok = await sendTask("open-app", { packageName: "com.google.android.apps.maps" });
-    } else if (/https:\/\//i.test(text)) {
-      const found = text.match(/https:\/\/\S+/i)?.[0];
-      if (found) ok = await sendTask("open-url", { url: found });
-    } else if (text.startsWith("通知")) {
-      ok = await sendTask("show-notification", { title: "JARVIS", message: text.replace(/^通知[:：]?\s*/, "") || "JARVISからの通知" });
-    } else {
-      setError("その指示はまだ直接解釈できません。下の操作ボタンか詳細操作を使ってください。");
+    const parsed = parseSafeMobileCommand(text);
+    if (!parsed.ok) {
+      setError(parsed.message);
+      setSharedContext(recordSharedCommand({
+        source: "text",
+        command: text,
+        outcome: parsed.reason === "protected" ? "blocked" : "unsupported",
+        targetNodeId: selectedNodeId || undefined,
+      }));
+      return;
     }
+    const ok = await sendTask(parsed.task.type, parsed.task.payload);
+    setSharedContext(recordSharedCommand({
+      source: "text",
+      command: text,
+      outcome: ok ? "sent" : "failed",
+      targetNodeId: selectedNodeId || undefined,
+    }));
     if (ok) setCommand("");
   }
 
@@ -184,7 +192,7 @@ export default function MobileCommander() {
 
       <section className="commander-card commander-device-card">
         <div className="commander-card-title"><span>操作する端末</span><button onClick={() => void refresh()} disabled={busy}>更新</button></div>
-        <select value={selectedNodeId} onChange={(event) => setSelectedNodeId(event.target.value)}>
+        <select value={selectedNodeId} onChange={(event) => selectNode(event.target.value)}>
           <option value="">端末を選択</option>
           {(state?.fleet ?? []).map((node) => <option key={node.id} value={node.id}>{node.label} · {node.status}</option>)}
         </select>
@@ -204,7 +212,11 @@ export default function MobileCommander() {
           <input value={command} onChange={(event) => setCommand(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void runSimpleCommand(); }} placeholder="例：スプレッドシート開いて" />
           <button disabled={busy || !command.trim()} onClick={() => void runSimpleCommand()}>実行</button>
         </div>
-        <div className="commander-hint">「画面起こして」「Wi-Fi設定」「YouTube開いて」「通知: 帰ってきて」など</div>
+        <div className="commander-hint">音声司令と同じ安全パーサー・端末選択・直近履歴を共有します。保護対象はここから承認も実行もしません。</div>
+        <div className="commander-tasks" aria-label="共通コマンド履歴">
+          {recentCommands.map((entry) => <div key={entry.id}><span>{entry.source === "voice" ? "音声" : "文字"}: {entry.command}</span><strong>{entry.outcome}</strong><small>{relativeTime(entry.createdAt)}</small></div>)}
+          {!recentCommands.length && <div className="commander-empty">共通コマンド履歴はまだありません</div>}
+        </div>
       </section>
 
       <section className="commander-card">
