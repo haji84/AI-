@@ -60,6 +60,8 @@ export const COMPASS_TOOLS: CompassToolDefinition[] = [
       completed: { type: "array" },
       active: { type: "array" },
       blockers: { type: "array" },
+      decisions: { type: "array" },
+      deliverables: { type: "array" },
       verificationSummary: { type: ["string", "null"] },
       nextAction: { type: ["string", "null"] },
     }),
@@ -88,7 +90,7 @@ export const COMPASS_TOOLS: CompassToolDefinition[] = [
   },
   {
     name: "write_back",
-    description: "Atomically append task history and update state, verification, and next action.",
+    description: "Atomically append task history and update state, verification, decisions, deliverables, and next action.",
     inputSchema: objectSchema(
       {
         status: { type: "string", minLength: 1 },
@@ -96,6 +98,8 @@ export const COMPASS_TOOLS: CompassToolDefinition[] = [
         completed: { type: "array" },
         blockers: { type: "array" },
         active: { type: "array" },
+        decisions: { type: "array" },
+        deliverables: { type: "array" },
         phase: { type: ["string", "null"] },
         verification: objectSchema(
           {
@@ -165,6 +169,8 @@ export function invokeCompassTool(store: CompassStore, name: string, rawArgs?: u
         completed: optionalArray(args.completed, "completed"),
         active: optionalArray(args.active, "active"),
         blockers: optionalArray(args.blockers, "blockers"),
+        decisions: optionalArray(args.decisions, "decisions"),
+        deliverables: optionalArray(args.deliverables, "deliverables"),
         verificationSummary: optionalString(args.verificationSummary, "verificationSummary"),
         nextAction: optionalString(args.nextAction, "nextAction"),
       };
@@ -203,6 +209,8 @@ export function invokeCompassTool(store: CompassStore, name: string, rawArgs?: u
         completed: optionalArray(args.completed, "completed"),
         blockers: optionalArray(args.blockers, "blockers"),
         active: optionalArray(args.active, "active"),
+        decisions: optionalArray(args.decisions, "decisions"),
+        deliverables: optionalArray(args.deliverables, "deliverables"),
         phase: optionalString(args.phase, "phase"),
         verification,
         nextAction: optionalString(args.nextAction, "nextAction"),
