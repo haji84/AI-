@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 import { auditText, formatFindings, scanRepository } from "../scripts/jarvis-secret-audit.mjs";
+
+const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
 
 test("secret audit detects credential material without returning the secret value", () => {
   const pem = ["-----BEGIN ", "PRIVATE KEY-----"].join("");
@@ -23,6 +26,6 @@ test("secret audit rejects direct sensitive variable logging but allows non-sens
 });
 
 test("current repository passes the high-confidence P8 secret audit", () => {
-  const findings = scanRepository(process.cwd());
+  const findings = scanRepository(repositoryRoot);
   assert.deepEqual(findings, [], formatFindings(findings));
 });
