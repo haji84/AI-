@@ -38,7 +38,8 @@ tasks.configureEach { if (name == "preBuild") dependsOn(generateInstallationReso
 
 android {
     buildFeatures { buildConfig = true }
-    sourceSets.getByName("main").res.srcDir(installationResources)
+    // AGP 9 SourceSet accepts a concrete directory; preBuild carries the task dependency above.
+    sourceSets.getByName("main").res.srcDir(installationResources.get().asFile)
     namespace = "ai.jarvis.worker"
     compileSdk = 37
 
