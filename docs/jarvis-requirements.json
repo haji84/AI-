@@ -1014,16 +1014,18 @@
         "src/app/jarvis/JarvisConsole.tsx"
       ],
       "test_refs": [
-        "tests/jarvis-remote-assist-recording.test.ts"
+        "tests/jarvis-remote-assist-recording.test.ts",
+        "tests/jarvis-recording-cancellation.test.ts"
       ],
       "evidence_refs": [
-        "docs/audit/jarvis-p3-reconciliation.md"
+        "docs/audit/jarvis-p3-reconciliation.md",
+        "docs/audit/jarvis-recording-cancellation.md"
       ],
       "status": "PARTIAL",
-      "blocker": "PNG frame sequenceとUI開始/停止あり。audit admission、capture timeout/stop、認証付き閲覧/export、実機Evidenceが不足。",
+      "blocker": "録画のaudit admission/停止/deadline/session再検証を#707で修正しnegative tests通過。認証付き閲覧#709、実HTTP全経路と実機Evidenceが残る。",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "録画の監査・停止/期限境界を修正し、残るplatform/統合/実機Evidenceを取得。詳細: docs/audit/jarvis-p3-reconciliation.md",
+      "next_action": "#709の記録閲覧を統合し、実機record/stop/playbackとoffline recovery Evidenceを取得する。",
       "last_verified_commit": null
     },
     {
@@ -1972,16 +1974,18 @@
         "src/app/jarvis/JarvisConsole.tsx"
       ],
       "test_refs": [
-        "tests/jarvis-remote-assist-recording.test.ts"
+        "tests/jarvis-remote-assist-recording.test.ts",
+        "tests/jarvis-recording-cancellation.test.ts"
       ],
       "evidence_refs": [
-        "docs/audit/jarvis-p3-reconciliation.md"
+        "docs/audit/jarvis-p3-reconciliation.md",
+        "docs/audit/jarvis-recording-cancellation.md"
       ],
       "status": "PARTIAL",
-      "blocker": "PNG frame sequenceとUI開始/停止あり。audit admission、capture timeout/stop、認証付き閲覧/export、実機Evidenceが不足。",
+      "blocker": "録画のaudit admission/停止/deadline/session再検証を#707で修正しnegative tests通過。認証付き閲覧#709、実HTTP全経路と実機Evidenceが残る。",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "録画の監査・停止/期限境界を修正し、残るplatform/統合/実機Evidenceを取得。詳細: docs/audit/jarvis-p3-reconciliation.md",
+      "next_action": "#709の記録閲覧を統合し、実機record/stop/playbackとoffline recovery Evidenceを取得する。",
       "last_verified_commit": null
     },
     {
@@ -2137,16 +2141,18 @@
         "tests/jarvis-final-fleet-acceptance.test.ts",
         "tests/jarvis-persistence.test.ts",
         "tests/jarvis-remote-assist-audit.test.ts",
-        "tests/jarvis-remote-assist-session.test.ts"
+        "tests/jarvis-remote-assist-session.test.ts",
+        "tests/jarvis-recording-cancellation.test.ts"
       ],
       "evidence_refs": [
-        "docs/audit/jarvis-p3-reconciliation.md"
+        "docs/audit/jarvis-p3-reconciliation.md",
+        "docs/audit/jarvis-recording-cancellation.md"
       ],
       "status": "PARTIAL",
-      "blocker": "永続JSONL監査とprivacy filteringあり。録画開始監査の失敗時にcaptureが先行する問題、API negative coverageが残る。",
+      "blocker": "録画のaudit admission/停止/deadline/session再検証を#707で修正しnegative tests通過。認証付き閲覧#709、実HTTP全経路と実機Evidenceが残る。",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "録画の監査・停止/期限境界を修正し、残るplatform/統合/実機Evidenceを取得。詳細: docs/audit/jarvis-p3-reconciliation.md",
+      "next_action": "#709の記録閲覧を統合し、実機record/stop/playbackとoffline recovery Evidenceを取得する。",
       "last_verified_commit": null
     },
     {
@@ -5479,16 +5485,18 @@
       "test_refs": [
         "tests/jarvis-persistence.test.ts",
         "tests/jarvis-remote-assist-audit.test.ts",
-        "tests/jarvis-remote-assist-session.test.ts"
+        "tests/jarvis-remote-assist-session.test.ts",
+        "tests/jarvis-recording-cancellation.test.ts"
       ],
       "evidence_refs": [
-        "docs/audit/jarvis-p3-reconciliation.md"
+        "docs/audit/jarvis-p3-reconciliation.md",
+        "docs/audit/jarvis-recording-cancellation.md"
       ],
       "status": "PARTIAL",
-      "blocker": "永続JSONL監査とprivacy filteringあり。録画開始監査の失敗時にcaptureが先行する問題、API negative coverageが残る。",
+      "blocker": "録画のaudit admission/停止/deadline/session再検証を#707で修正しnegative tests通過。認証付き閲覧#709、実HTTP全経路と実機Evidenceが残る。",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "録画の監査・停止/期限境界を修正し、残るplatform/統合/実機Evidenceを取得。詳細: docs/audit/jarvis-p3-reconciliation.md",
+      "next_action": "#709の記録閲覧を統合し、実機record/stop/playbackとoffline recovery Evidenceを取得する。",
       "last_verified_commit": null
     },
     {
