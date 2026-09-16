@@ -49,7 +49,7 @@ export function loadWindowsProductionConfig(root) {
   }
   // DPAPI CurrentUser: decrypt only as the same Windows owner. Never print the result.
   const output = execFileSync(path.join(process.env.SystemRoot, 'System32/WindowsPowerShell/v1.0/powershell.exe'),
-    ['-NoProfile', '-NonInteractive', '-File', path.join(root, 'scripts/read-jarvis-production-config.ps1'), '-Path', file],
+    ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'RemoteSigned', '-File', path.join(root, 'scripts/read-jarvis-production-config.ps1'), '-Path', file],
     { windowsHide: true, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 128 * 1024 });
   const value = JSON.parse(output.replace(/^\uFEFF/, ''));
   const env = validateProductionConfig(value, root);

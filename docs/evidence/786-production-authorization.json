@@ -5,7 +5,8 @@
   "expiresAt": "2026-09-17T09:21:35Z",
   "allowLowMediumMainMerge": true,
   "allowProductionDeploy": true,
-  "credentialAndTaskApproval": false,
+  "credentialAndTaskApproval": true,
+  "specificApproval": "Owner reply 全部承認 to protected production credential persistence, Windows automatic startup, and JARVIS process-only PowerShell execution permission. No firewall or global execution-policy change.",
   "commit": null,
   "mainCi": "pending",
   "constraints": [

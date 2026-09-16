@@ -36,3 +36,7 @@ The local Windows test found and fixed trailing-newline handling in the DPAPI re
 Remaining explicit approval must cover: production credential generation/protected persistence, Limited owner boot/logon task registration, and a process-only RemoteSigned execution policy for the reviewed JARVIS setup and dedicated configuration-reader processes. No machine-wide or user-wide policy change, Unrestricted/Bypass setting, firewall change, or alternative privileged service account is proposed. The process policy option is not yet added or executed. A group policy, if subsequently configured, must remain authoritative.
 
 Once approved, implement that exact process-scoped option, rerun the real Windows DPAPI regression and full CI, then merge, stage the exact main-CI-passing release and apply setup. Enter the Windows account password only in its local dialog. Do not merge/deploy while the physical Windows configuration test is failing. The trial has now stopped; restarting it requires a fresh authorized scope rather than editing its expiry.
+
+### Approval fulfilled
+
+The owner subsequently replied `全部承認` to the three specific setup actions above. The dedicated configuration-reader process now uses `-ExecutionPolicy RemoteSigned`; the Windows DPAPI roundtrip regression passes. Invoke the reviewed setup with the same process-only option. Machine/user execution policies and firewall settings remain untouched. Actual installation, owner-password entry, reconnect and reboot acceptance must still be recorded separately.

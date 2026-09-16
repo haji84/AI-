@@ -40,7 +40,7 @@ test('Windows DPAPI reader accepts the newline written by Set-Content', {skip:pr
     const encoded=spawnSync(powershell,['-NoProfile','-NonInteractive','-Command',"$env:PSModulePath=Join-Path $PSHOME 'Modules'; 'non-secret-fixture' | ConvertTo-SecureString -AsPlainText -Force | ConvertFrom-SecureString"],{encoding:'utf8',windowsHide:true});
     assert.equal(encoded.status,0,encoded.stderr);
     fs.writeFileSync(file,encoded.stdout.trim()+'\r\n');
-    const decoded=spawnSync(powershell,['-NoProfile','-NonInteractive','-File',path.resolve('scripts/read-jarvis-production-config.ps1'),'-Path',file],{encoding:'utf8',windowsHide:true});
+    const decoded=spawnSync(powershell,['-NoProfile','-NonInteractive','-ExecutionPolicy','RemoteSigned','-File',path.resolve('scripts/read-jarvis-production-config.ps1'),'-Path',file],{encoding:'utf8',windowsHide:true});
     assert.equal(decoded.status,0,decoded.stderr);
     assert.equal(decoded.stdout,'non-secret-fixture');
   } finally { if(fs.existsSync(file))fs.unlinkSync(file);fs.rmdirSync(directory); }
