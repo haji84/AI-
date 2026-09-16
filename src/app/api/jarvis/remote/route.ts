@@ -29,7 +29,7 @@ type RemotePayload =
   | { action: "text"; serial?: string; sessionId?: string; text?: string }
   | { action: "keyevent"; serial?: string; sessionId?: string; key?: string }
   | { action: "open-url"; serial?: string; sessionId?: string; url?: string }
-  | { action: "qa-sequence-start"; serial?: string; url1?: string; url2?: string; packageName?: string; timeoutMs?: number; pollMs?: number }
+  | { action: "qa-sequence-start"; serial?: string; url1?: string; url2?: string; sheetUrl?: string; packageName?: string; timeoutMs?: number; pollMs?: number }
   | { action: "qa-sequence-status"; serial?: string; runId?: string };
 
 type GatewayDevice = { serial: string; state: string };
@@ -310,6 +310,7 @@ export async function POST(request: Request) {
       serial: payload.serial,
       url1: payload.url1,
       url2: payload.url2,
+      sheetUrl: payload.sheetUrl,
       packageName: payload.packageName,
       timeoutMs: payload.timeoutMs,
       pollMs: payload.pollMs,
