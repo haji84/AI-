@@ -10,6 +10,15 @@ import {
 } from "../src/app/jarvis/mobile/command-context.ts";
 import { getSafeContextCandidates, resolveSafeContextReference } from "../src/app/jarvis/mobile/context-reference.ts";
 import { parseSafeMobileCommand, parseSafeVoiceCommand } from "../src/app/jarvis/mobile/voice-command.ts";
+import {
+  DEFAULT_SPEECH_POLICY,
+  containsSensitiveSpeechText,
+  isQuietHoursActive,
+  normalizeSpeechPolicySettings,
+  shouldSpeakLocal,
+  sortSpeechQueueEntries,
+  speechProfileForPreference,
+} from "../src/app/jarvis/mobile/voice/speech-policy.ts";
 
 const voiceSurface = readFileSync(new URL("../src/app/jarvis/mobile/voice/MobileVoiceCommander.tsx", import.meta.url), "utf8");
 const mobileSurface = readFileSync(new URL("../src/app/jarvis/mobile/MobileCommander.tsx", import.meta.url), "utf8");
@@ -116,14 +125,51 @@ test("selected context cannot cross device targets or replay redacted credential
   assert.equal(resolveSafeContextReference("これ", { ...context, selectedHistoryId: redactedId }).kind, "rejected");
 });
 
-test("push-to-talk requires explicit activation and a second explicit execute action", () => {
+test("local speech policy defaults muted, validates quiet hours and suppresses sensitive text", () => {
+  assert.equal(DEFAULT_SPEECH_POLICY.muted, true);
+  const normalized = normalizeSpeechPolicySettings({ muted: false, quietHoursEnabled: true, quietStart: "99:77", quietEnd: "07:30", quietMinimumPriority: "high" });
+  assert.equal(normalized.muted, false);
+  assert.equal(normalized.quietStart, "22:00");
+  assert.equal(normalized.quietEnd, "07:30");
+  assert.equal(normalized.quietMinimumPriority, "high");
+
+  const quiet = { ...normalized, quietStart: "22:00", quietEnd: "07:00" };
+  assert.equal(isQuietHoursActive(quiet, new Date(2026, 8, 16, 23, 0)), true);
+  assert.equal(isQuietHoursActive(quiet, new Date(2026, 8, 17, 6, 30)), true);
+  assert.equal(isQuietHoursActive(quiet, new Date(2026, 8, 17, 12, 0)), false);
+  assert.deepEqual(shouldSpeakLocal("通常通知", "normal", quiet, new Date(2026, 8, 16, 23, 0)), { allowed: false, reason: "quiet-hours" });
+  assert.deepEqual(shouldSpeakLocal("重要通知", "high", quiet, new Date(2026, 8, 16, 23, 0)), { allowed: true });
+
+  for (const sensitive of ["token=abc123", "password=hunter2", "Authorization=secret", "Bearer abc.def", "[REDACTED]"]) {
+    assert.equal(containsSensitiveSpeechText(sensitive), true);
+    assert.deepEqual(shouldSpeakLocal(sensitive, "critical", { ...quiet, muted: false }, new Date(2026, 8, 17, 12, 0)), { allowed: false, reason: "sensitive" });
+  }
+});
+
+test("local speech queue is priority ordered and JARVIS voice preference only changes speech profile", () => {
+  const ordered = sortSpeechQueueEntries([
+    { id: "normal-1", text: "n1", priority: "normal", sequence: 1 },
+    { id: "critical-3", text: "c", priority: "critical", sequence: 3 },
+    { id: "high-2", text: "h", priority: "high", sequence: 2 },
+    { id: "normal-4", text: "n2", priority: "normal", sequence: 4 },
+  ]);
+  assert.deepEqual(ordered.map((entry) => entry.id), ["critical-3", "high-2", "normal-1", "normal-4"]);
+  assert.deepEqual(speechProfileForPreference("deep"), { rate: 0.92, pitch: 0.75, volume: 1 });
+  assert.deepEqual(speechProfileForPreference("silent"), { rate: 1, pitch: 1, volume: 0 });
+  assert.deepEqual(speechProfileForPreference("unknown"), { rate: 1, pitch: 1, volume: 1 });
+});
+
+test("push-to-talk requires explicit activation, cancels local speech first and needs a second explicit execute action", () => {
+  assert.match(voiceSurface, /function startListening\(\) \{[\s\S]*?cancelLocalSpeech\(\);[\s\S]*?recognitionConstructor\(\)/);
   assert.match(voiceSurface, /onPointerDown=.*startListening/);
   assert.match(voiceSurface, /onPointerUp=\{\(\) => stopListening\(\)\}/);
   assert.match(voiceSurface, /onKeyDown=.*startListening/);
   assert.match(voiceSurface, /この指示を実行/);
   assert.match(voiceSurface, /onClick=\{\(\) => void executeTranscript\(\)\}/);
   assert.match(voiceSurface, /マイクは自動起動しません/);
-  assert.match(voiceSurface, /useEffect\(\(\) => \{\s*setSupported\(Boolean\(recognitionConstructor\(\)\)\);\s*setSharedContext\(loadSharedCommandContext\(\)\);\s*void refresh\(\);/);
+  assert.match(voiceSurface, /初期状態はミュート/);
+  assert.match(voiceSurface, /有料APIへ送りません/);
+  assert.match(voiceSurface, /useEffect\(\(\) => \{\s*setSupported\(Boolean\(recognitionConstructor\(\)\)\);/);
   assert.doesNotMatch(voiceSurface, /useEffect\(\(\) => \{\s*startListening\(\)/);
 });
 
