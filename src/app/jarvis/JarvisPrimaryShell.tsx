@@ -82,10 +82,10 @@ export default function JarvisPrimaryShell({ children }: { children: ReactNode }
       <JarvisCommandSearch pathname={pathname} />
       <JarvisPriorityNotifications />
       <JarvisReadOnlyBoundary>
-        <div id="jarvis-main-content" className="jarvis-primary-content" tabIndex={-1}>
+        <main id="jarvis-main-content" className="jarvis-primary-content" tabIndex={-1}>
           {pathname === "/jarvis" ? <JarvisHomeLayoutEditor /> : null}
           {children}
-        </div>
+        </main>
       </JarvisReadOnlyBoundary>
     </div>
   );
