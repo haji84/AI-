@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import RemoteAssistMultiView from "./RemoteAssistMultiView";
+import { RemoteCaptureQueue } from "../../jarvis/remote-capture-queue";
 import RemoteScreenControl from "./RemoteScreenControl";
 
 type NodeItem = {
@@ -87,6 +88,10 @@ export default function JarvisConsole() {
   const [liveRefresh, setLiveRefresh] = useState(false);
   const [remoteError, setRemoteError] = useState("");
   const [screenshot, setScreenshot] = useState<ScreenshotResult | null>(null);
+  const captureQueue = useRef(new RemoteCaptureQueue());
+  const [screenUpdating, setScreenUpdating] = useState(false);
+  const captureContext = remoteSession?.status === "active" && remoteSession.serial === remoteSerial ? remoteSession.id + ":" + remoteSerial : "";
+  useEffect(() => { captureQueue.current.setContext(captureContext); return () => captureQueue.current.setContext(""); }, [captureContext]);
   const [remoteText, setRemoteText] = useState("");
   const [remoteUrl, setRemoteUrl] = useState("");
 
@@ -182,6 +187,7 @@ export default function JarvisConsole() {
     try {
       const response = await fetch("/api/jarvis/remote", {
         method: "POST",
+        signal: AbortSignal.timeout(20_000),
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...(serial ? { serial } : {}),
@@ -210,13 +216,18 @@ export default function JarvisConsole() {
   }, [remoteSerial, remoteSession]);
 
   const captureScreen = useCallback(async (silent = false) => {
-    const body = await remoteRequest({ action: "screenshot" }, { manual: true, silent });
-    if (body?.imageBase64 && typeof body.imageBase64 === "string") {
-      setScreenshot(body as unknown as ScreenshotResult);
-      return true;
-    }
-    return false;
-  }, [remoteRequest]);
+    setScreenUpdating(true);
+    try {
+      return await captureQueue.current.request(captureContext,
+        () => remoteRequest({ action: "screenshot", preview: true }, { manual: true, silent }),
+        (body) => {
+          if (body?.imageBase64 && typeof body.imageBase64 === "string") {
+            const next = body as unknown as ScreenshotResult;
+            setScreenshot((current) => !current || current.serial !== next.serial || Date.parse(next.capturedAt) >= Date.parse(current.capturedAt) ? next : current);
+          }
+        });
+    } finally { setScreenUpdating(false); }
+  }, [remoteRequest, captureContext]);
 
   const remoteSessionActive = remoteSession?.status === "active" && remoteSession.serial === remoteSerial;
   const recordingActive = recording?.status === "recording" || recording?.status === "stopping";
@@ -290,7 +301,7 @@ export default function JarvisConsole() {
       setRemoteSession(session as RemoteAssistSession);
       setRecording(null);
       setScreenshot(null);
-      setLiveRefresh(false);
+      setLiveRefresh(true);
     }
   }
 
@@ -420,6 +431,7 @@ export default function JarvisConsole() {
               enabled={Boolean(canControlRemote) && screenshot.serial === remoteSerial}
               onInput={(input) => { void remoteRequest(input, { manual: true }).then(() => captureScreen()); }}
             /> : <div className="jarvis-remote-placeholder">端末を選び、Remote Assistを開始してください</div>}
+            <p role="status" aria-live="polite">{screenUpdating ? "画面更新中…" : liveRefresh ? "自動更新 ON（通信速度に応じて更新）" : "自動更新 OFF：表示は前回取得した画像です"}</p>
             {screenshot && <small>取得 {fmt(screenshot.capturedAt)} / {canControlRemote ? "画像上をタップ・スワイプで操作（5秒以内）" : "VIEW ONLY"}</small>}
           </div>
           <div className="jarvis-remote-controls">

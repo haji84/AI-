@@ -1,3 +1,4 @@
+import { remotePreview } from "../../../../jarvis/remote-preview.ts";
 import { NextResponse } from "next/server";
 import { JarvisRemoteAssistAuditStore } from "../../../../jarvis/remote-assist-audit.ts";
 import { JarvisRemoteAssistFrameRecorder } from "../../../../jarvis/remote-assist-recording.ts";
@@ -286,7 +287,10 @@ export async function POST(request: Request) {
         httpStatus: response.status,
       });
     }
-    return NextResponse.json(result, { status: response.status });
+    if (payload.action === "screenshot" && "preview" in payload && payload.preview === true && response.ok && typeof result.imageBase64 === "string") {
+      Object.assign(result, await remotePreview(result.imageBase64));
+    }
+    return NextResponse.json(result, { status: response.status, headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     if (manualAudit) {
       try {
