@@ -11,6 +11,9 @@ export function serviceSpecs(root, node = process.execPath, port = '3000', optio
   if (options.enableEnrollmentPortal === true) {
     specs.push({ name: 'enrollment-portal', command: node, args: [path.join(root, 'scripts/jarvis-fixed-enrollment-portal.ts')] });
   }
+  if (options.enablePrivateWorkerIngress === true) {
+    specs.push({ name: 'private-worker-ingress', command: node, args: [path.join(root, 'scripts/jarvis-private-worker-ingress.ts')] });
+  }
   return specs;
 }
 

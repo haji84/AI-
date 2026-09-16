@@ -1,0 +1,19 @@
+{
+  "scopeId": "issue:786",
+  "ownerInstruction": "検証用でなく本番用を出して",
+  "issuedAt": "2026-09-16T09:21:35Z",
+  "expiresAt": "2026-09-17T09:21:35Z",
+  "allowLowMediumMainMerge": true,
+  "allowProductionDeploy": true,
+  "credentialAndTaskApproval": true,
+  "specificApproval": "Owner reply 全部承認 to protected production credential persistence, Windows automatic startup, and JARVIS process-only PowerShell execution permission. No firewall or global execution-policy change.",
+  "commit": null,
+  "mainCi": "pending",
+  "constraints": [
+    "Windows firewall unchanged by explicit owner decision",
+    "Existing registration database preserved",
+    "DPAPI credential persistence and Windows boot-task permissions require separate approval",
+    "Bind exact merged commit, successful main CI and owner SID in local receipt before setup",
+    "No physical reboot or permanent operation PASS until observed"
+  ]
+}
