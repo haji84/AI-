@@ -1924,11 +1924,14 @@ The JSON blocks are the authoritative rows. Validate exact mirror and evidence g
   "test_refs": [
     "tests/jarvis-remote-assist-console.test.ts",
     "tests/jarvis-remote-assist-session.test.ts",
-    "tests/jarvis-fast-preview.test.ts"
+    "tests/jarvis-fast-preview.test.ts",
+    "tests/jarvis-video-packets.test.ts",
+    "tests/jarvis-video-runtime.test.ts"
   ],
   "evidence_refs": [
     "docs/audit/jarvis-p3-reconciliation.md",
-    "docs/audit/jarvis-fast-preview.md"
+    "docs/audit/jarvis-fast-preview.md",
+    "docs/audit/jarvis-video-trial.md"
   ],
   "status": "PARTIAL",
   "blocker": "Android screenshot/inputとsession UI実装済み。PC transport、browser/API統合と実機操作Evidence未取得。",
@@ -2136,12 +2139,15 @@ The JSON blocks are the authoritative rows. Validate exact mirror and evidence g
     "tests/jarvis-remote-assist-console.test.ts",
     "tests/jarvis-remote-assist-session.test.ts",
     "tests/jarvis-remote-screen-input.test.ts",
-    "tests/jarvis-fast-preview.test.ts"
+    "tests/jarvis-fast-preview.test.ts",
+    "tests/jarvis-video-packets.test.ts",
+    "tests/jarvis-video-runtime.test.ts"
   ],
   "evidence_refs": [
     "docs/audit/jarvis-p3-reconciliation.md",
     "docs/audit/jarvis-remote-touch-input.md",
-    "docs/audit/jarvis-fast-preview.md"
+    "docs/audit/jarvis-fast-preview.md",
+    "docs/audit/jarvis-video-trial.md"
   ],
   "status": "PARTIAL",
   "blocker": "Android直接タップ/スワイプと取消境界の単体検証済み。PC transport、browser touchと実機操作Evidence未取得。",
@@ -2214,12 +2220,15 @@ The JSON blocks are the authoritative rows. Validate exact mirror and evidence g
     "tests/jarvis-remote-assist-console.test.ts",
     "tests/jarvis-remote-assist-session.test.ts",
     "tests/jarvis-remote-screen-input.test.ts",
-    "tests/jarvis-fast-preview.test.ts"
+    "tests/jarvis-fast-preview.test.ts",
+    "tests/jarvis-video-packets.test.ts",
+    "tests/jarvis-video-runtime.test.ts"
   ],
   "evidence_refs": [
     "docs/audit/jarvis-p3-reconciliation.md",
     "docs/audit/jarvis-remote-touch-input.md",
-    "docs/audit/jarvis-fast-preview.md"
+    "docs/audit/jarvis-fast-preview.md",
+    "docs/audit/jarvis-video-trial.md"
   ],
   "status": "PARTIAL",
   "blocker": "Android直接タップ/スワイプと取消境界の単体検証済み。PC transport、browser touchと実機操作Evidence未取得。",
