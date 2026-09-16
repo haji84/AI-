@@ -53,10 +53,22 @@ globalForRemoteAssist.__jarvisRemoteAssistSessions = remoteAssist;
 
 const recorder = globalForRemoteAssist.__jarvisRemoteAssistRecorder ?? new JarvisRemoteAssistFrameRecorder({
   rootDir: process.env.JARVIS_REMOTE_ASSIST_RECORDING_DIR?.trim() || undefined,
-  captureFrame: async (serial) => {
+  beforeStart: (recording) => {
+    remoteAssist.recordAudit("recording.started", recording.sessionId, recording.serial, {
+      recordingId: recording.id,
+      intervalMs: recording.intervalMs,
+      maxFrames: recording.maxFrames,
+    });
+  },
+  validateCapture: (sessionId, serial) => {
+    const session = remoteAssist.requireActive(sessionId, serial);
+    if (!remoteCapabilityAllowsAction(session.capability, "screenshot")) throw new Error("Remote Assist observation is unavailable");
+  },
+  captureFrame: async (serial, { signal }) => {
     const response = await jarvisRemoteGatewayFetch("/api/remote/screenshot", {
       method: "POST",
       body: JSON.stringify({ serial }),
+      signal,
     });
     const body = await response.json().catch(() => ({ message: "Remote Gatewayから不正な応答を受信しました" })) as GatewayScreenshotBody;
     if (!response.ok || !body.imageBase64 || body.mimeType !== "image/png") {
@@ -81,8 +93,8 @@ const recorder = globalForRemoteAssist.__jarvisRemoteAssistRecorder ?? new Jarvi
         totalBytes: recording.totalBytes,
         stopReason: recording.stopReason,
       });
-    } catch (error) {
-      console.error("[jarvis-remote-assist] final recording audit failed", error);
+    } catch {
+      throw new Error("Remote Assist recording audit persistence failed");
     }
   },
 });
@@ -194,12 +206,6 @@ export async function POST(request: Request) {
         serial: payload.serial!,
         durationMs,
         intervalMs: payload.intervalMs,
-      });
-      remoteAssist.recordAudit("recording.started", payload.sessionId!, payload.serial!, {
-        recordingId: recording.id,
-        durationMs,
-        intervalMs: recording.intervalMs,
-        maxFrames: recording.maxFrames,
       });
       return NextResponse.json({ recording, format: "png-frame-sequence", videoStream: false }, { status: 202 });
     } catch (error) {
