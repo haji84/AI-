@@ -114,7 +114,7 @@ function remoteSessionError(error: unknown) {
 }
 
 async function gatewayDevices(): Promise<{ response: Response; body: GatewayDevicesBody }> {
-  const response = await jarvisRemoteGatewayFetch("/api/remote/devices");
+  const response = await jarvisRemoteGatewayFetch("/api/remote/devices", { signal: AbortSignal.timeout(3_000) });
   const body = await response.json().catch(() => ({ message: "Remote Gatewayから不正な応答を受信しました" })) as GatewayDevicesBody;
   return { response, body };
 }
@@ -132,7 +132,7 @@ export async function GET() {
     const [gateway, broker] = await Promise.allSettled([
       gatewayDevices(),
       (async () => {
-        const response = await jarvisBrokerFetch("/api/jarvis/admin/state");
+        const response = await jarvisBrokerFetch("/api/jarvis/admin/state", { signal: AbortSignal.timeout(3_000) });
         if (!response.ok) throw new Error("登録済み端末を取得できません");
         const body = await response.json() as { fleet?: JarvisNode[] };
         if (!Array.isArray(body.fleet)) throw new Error("登録済み端末の応答が不正です");
