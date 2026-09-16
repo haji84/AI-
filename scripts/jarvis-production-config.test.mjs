@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import path from 'node:path';
+import fs from 'node:fs';
+import os from 'node:os';
+import { spawnSync } from 'node:child_process';
 import { validateProductionConfig } from './jarvis-production-config.mjs';
 import { serviceSpecs } from './jarvis-managed-process.mjs';
 
@@ -28,4 +31,17 @@ test('production config rejects injection, wrong release, public origin, missing
     c=>c.environment.JARVIS_WORKER_INSTALL_URL='https://user:password@example.invalid',c=>c.environment.JARVIS_DB_PATH='a\nb']) {
     const c=fixture();mutate(c);assert.throws(()=>validateProductionConfig(c,process.cwd()));
   }
+});
+test('Windows DPAPI reader accepts the newline written by Set-Content', {skip:process.platform!=='win32'},()=>{
+  const directory=fs.mkdtempSync(path.join(os.tmpdir(),'jarvis-dpapi-test-'));
+  const file=path.join(directory,'fixture.dpapi');
+  const powershell=path.join(process.env.SystemRoot,'System32/WindowsPowerShell/v1.0/powershell.exe');
+  try {
+    const encoded=spawnSync(powershell,['-NoProfile','-NonInteractive','-Command',"$env:PSModulePath=Join-Path $PSHOME 'Modules'; 'non-secret-fixture' | ConvertTo-SecureString -AsPlainText -Force | ConvertFrom-SecureString"],{encoding:'utf8',windowsHide:true});
+    assert.equal(encoded.status,0,encoded.stderr);
+    fs.writeFileSync(file,encoded.stdout.trim()+'\r\n');
+    const decoded=spawnSync(powershell,['-NoProfile','-NonInteractive','-File',path.resolve('scripts/read-jarvis-production-config.ps1'),'-Path',file],{encoding:'utf8',windowsHide:true});
+    assert.equal(decoded.status,0,decoded.stderr);
+    assert.equal(decoded.stdout,'non-secret-fixture');
+  } finally { if(fs.existsSync(file))fs.unlinkSync(file);fs.rmdirSync(directory); }
 });

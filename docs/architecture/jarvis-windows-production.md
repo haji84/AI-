@@ -28,3 +28,11 @@ Check scheduled-task identity/action/settings, authenticated UI, two existing wo
 Rollback stops/disables only this named task, stops its identified children, retains credentials and durable data, and restores the prior known-good release/configuration with a backup. Never revive an expired trial approval. Retain source DB until migration/reconnect is verified. Release and credential rotation require a new reviewed operation.
 
 The #779 bounded trial expires 2026-09-16T09:28:15Z. Until production setup and physical validation actually pass, describe this as prepared production software, not an operational production release.
+
+## Observed Windows gate (2026-09-16 09:31Z)
+
+The local Windows test found and fixed trailing-newline handling in the DPAPI reader and inherited PowerShell module-path incompatibility. Windows PowerShell then refused the helper script with `UnauthorizedAccess` because effective script execution is restricted (all policy scopes are Undefined on this client). This is a real failed acceptance test, not a reason to skip or disable it. Linux CI does not prove the Windows DPAPI roundtrip.
+
+Remaining explicit approval must cover: production credential generation/protected persistence, Limited owner boot/logon task registration, and a process-only RemoteSigned execution policy for the reviewed JARVIS setup and dedicated configuration-reader processes. No machine-wide or user-wide policy change, Unrestricted/Bypass setting, firewall change, or alternative privileged service account is proposed. The process policy option is not yet added or executed. A group policy, if subsequently configured, must remain authoritative.
+
+Once approved, implement that exact process-scoped option, rerun the real Windows DPAPI regression and full CI, then merge, stage the exact main-CI-passing release and apply setup. Enter the Windows account password only in its local dialog. Do not merge/deploy while the physical Windows configuration test is failing. The trial has now stopped; restarting it requires a fresh authorized scope rather than editing its expiry.

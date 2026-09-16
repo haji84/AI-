@@ -5,6 +5,8 @@ param(
   [switch]$Apply
 )
 $ErrorActionPreference = 'Stop'
+$env:PSModulePath = Join-Path $PSHOME 'Modules'
+$OutputEncoding = New-Object System.Text.UTF8Encoding($false)
 $taskName = 'JARVIS Remote Host'
 if (-not $Apply) {
   Write-Output 'PLAN ONLY: save owner-scoped DPAPI configuration outside repo and register Limited owner boot/logon task; no firewall changes.'
