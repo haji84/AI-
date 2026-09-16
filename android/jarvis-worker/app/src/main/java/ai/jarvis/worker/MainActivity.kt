@@ -231,6 +231,10 @@ class MainActivity : AppCompatActivity() {
         val brokerUrl = link.getQueryParameter("broker").orEmpty()
         val grant = link.getQueryParameter("grant").orEmpty()
         val token = link.getQueryParameter("token").orEmpty()
+        if (brokerUrl.isBlank() && grant.isBlank() && token.isBlank()) {
+            verifyCurrentEnrollment()
+            return
+        }
         if (brokerUrl.isBlank()) {
             status.text = "登録リンクが無効です"
             return

@@ -9,6 +9,9 @@ fresh single-device grant, enrolls, and verifies a signed heartbeat before showi
 ## Trusted installation bootstrap
 
 Build an installation APK with `-PjarvisBootstrapUrl=https://<private-worker-origin>`.
+This owner's build defaults to `installation/zbook.properties` and its public
+certificate, approved on 2026-09-16. Gradle properties still override these defaults
+for tests/other installations. The private key is outside the repository on ZBook.
 This contains an origin, never an owner token, pairing token, or private key. Use the
 installation's existing signing identity for updates. Arbitrary LAN advertisements
 and intent extras cannot replace this bootstrap. Generic APKs have no guessed host;
@@ -69,7 +72,8 @@ The certificate must have a valid IP subject alternative name for this address.
 The current ZBook LAN address was observed as `192.168.0.169`; it is not a permanent
 address guarantee. Reserve it or regenerate/reconfigure upon an address change.
 Creating the real certificate/private key is a credential Human Gate under AGENTS.md.
-It has not been performed. A separate protected directory outside the repository
+The owner explicitly approved it and creation completed at 2026-09-16T08:31Z.
+A separate protected directory outside the repository
 must hold the key; no secret material belongs in version control, issue text or logs.
 Existing release signing credentials must be reused, never replaced. Physical launch,
 heartbeat, reopen and network recovery remain required after owner-authorized setup.
@@ -79,10 +83,15 @@ server: closed window, owner authentication, grant shape/TTL, enrollment, replay
 unsigned heartbeat rejection, capacity and close. Android unit tests validate the
 bootstrap origin; Android CI builds the release and executes those tests.
 
-The installed v0.4.1 and the current ZBook private trial have NOT been changed by
-this source change. The trial exposes only the dashboard to Tailnet; a reachable
-private HTTPS Worker origin, installation-configured signed APK, and physical
-launch/heartbeat/reopen verification are still required. No PHYSICAL PASS claimed.
+For this installation set `JARVIS_WORKER_INSTALL_URL` to the existing HTTPS signed
+APK release URL. The owner registration page then shares that URL. Android users
+install/update and open the app; it enrolls through the certificate-scoped private
+origin. No browser certificate-warning bypass or Android-wide CA installation is
+required. Existing installations may also open `jarvis://enroll`. The direct private
+IP HTTPS origin is a Worker endpoint, not a browser-trusted installation page.
+
+Signed APK rollout and physical launch/heartbeat/reopen verification remain required.
+No PHYSICAL PASS is claimed by this source change.
 
 Rollback: revert this issue's code and build a higher-version APK with the existing
 signing identity. Preserve app data, device identity and Broker state; no migration.
