@@ -71,11 +71,13 @@ export function replacementCandidateSigningPayload(input: {
 
 export class JarvisDeviceReplacementCandidateManager {
   private readonly pending = new Map<string, PendingCandidate>();
+  private readonly maxPending: number;
 
-  constructor(private readonly maxPending = DEFAULT_MAX_PENDING) {
+  constructor(maxPending = DEFAULT_MAX_PENDING) {
     if (!Number.isInteger(maxPending) || maxPending < 1 || maxPending > 100) {
       throw new Error("replacement candidate maxPending must be 1..100");
     }
+    this.maxPending = maxPending;
   }
 
   create(input: {
