@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import RemoteAssistMultiView from "./RemoteAssistMultiView";
+import { startRemoteRefreshLoop } from "../../jarvis/remote-refresh-loop";
 import { RemoteCaptureQueue } from "../../jarvis/remote-capture-queue";
 import RemoteScreenControl from "./RemoteScreenControl";
 
@@ -88,10 +89,12 @@ export default function JarvisConsole() {
   const [liveRefresh, setLiveRefresh] = useState(false);
   const [remoteError, setRemoteError] = useState("");
   const [screenshot, setScreenshot] = useState<ScreenshotResult | null>(null);
+  const remoteInteraction = useRef(false);
+  const setRemoteInteraction = useCallback((active: boolean) => { remoteInteraction.current = active; }, []);
   const captureQueue = useRef(new RemoteCaptureQueue());
   const [screenUpdating, setScreenUpdating] = useState(false);
   const captureContext = remoteSession?.status === "active" && remoteSession.serial === remoteSerial ? remoteSession.id + ":" + remoteSerial : "";
-  useEffect(() => { captureQueue.current.setContext(captureContext); return () => captureQueue.current.setContext(""); }, [captureContext]);
+  useEffect(() => { remoteInteraction.current = false; captureQueue.current.setContext(captureContext); return () => captureQueue.current.setContext(""); }, [captureContext]);
   const [remoteText, setRemoteText] = useState("");
   const [remoteUrl, setRemoteUrl] = useState("");
 
@@ -219,9 +222,13 @@ export default function JarvisConsole() {
     setScreenUpdating(true);
     try {
       return await captureQueue.current.request(captureContext,
-        () => remoteRequest({ action: "screenshot", preview: true }, { manual: true, silent }),
+        async () => {
+          const body = await remoteRequest({ action: "screenshot", preview: true }, { manual: true, silent });
+          if (!body?.imageBase64) throw new Error("Screen capture failed");
+          return body;
+        },
         (body) => {
-          if (body?.imageBase64 && typeof body.imageBase64 === "string") {
+          if (!remoteInteraction.current && body?.imageBase64 && typeof body.imageBase64 === "string") {
             const next = body as unknown as ScreenshotResult;
             setScreenshot((current) => !current || current.serial !== next.serial || Date.parse(next.capturedAt) >= Date.parse(current.capturedAt) ? next : current);
           }
@@ -247,25 +254,13 @@ export default function JarvisConsole() {
 
   useEffect(() => {
     if (!liveRefresh || !canViewRemote) return;
-    let stopped = false;
-    let inFlight = false;
-
-    const tick = async () => {
-      if (stopped || inFlight || document.visibilityState !== "visible") return;
-      inFlight = true;
-      try {
-        await captureScreen(true);
-      } finally {
-        inFlight = false;
-      }
-    };
-
-    void tick();
-    const timer = window.setInterval(() => void tick(), 2000);
-    return () => {
-      stopped = true;
-      window.clearInterval(timer);
-    };
+    const loop = startRemoteRefreshLoop({
+      capture: () => captureScreen(true),
+      visible: () => document.visibilityState === "visible" && !remoteInteraction.current,
+    });
+    const resume = () => { if (document.visibilityState === "visible") loop.resume(); };
+    document.addEventListener("visibilitychange", resume);
+    return () => { loop.stop(); document.removeEventListener("visibilitychange", resume); };
   }, [captureScreen, canViewRemote, liveRefresh]);
 
   useEffect(() => {
@@ -415,7 +410,7 @@ export default function JarvisConsole() {
           <div><p className="section-kicker">REMOTE ASSIST</p><h2>遠隔画面・手動操作</h2></div>
           <span className="operation-badge">{selectedRemoteDevice?.remoteAssistCapability ?? "UNAVAILABLE"}</span>
         </div>
-        <p className="muted">対象Androidは拠点PCの許可リストに入っている端末だけ操作できます。ADB自体をインターネットへ公開しません。画面自動更新は2秒間隔のスクリーンショット更新で、動画ストリーミングではありません。</p>
+        <p className="muted">対象Androidは拠点PCの許可リストに入っている端末だけ操作できます。ADB自体をインターネットへ公開しません。画面自動更新は前の画像を受信してから次を取得する方式で、動画ストリーミングではありません。</p>
         {remoteError && <div className="jarvis-alert"><strong>Remote Gateway</strong><span>{remoteError}</span></div>}
         {selectedTakeover && <div className="jarvis-alert">
           <strong>Human Takeover: {selectedTakeover.nodeId}</strong>
@@ -428,6 +423,7 @@ export default function JarvisConsole() {
               key={JSON.stringify([remoteSession?.id, remoteSerial, canControlRemote, screenshot.capturedAt])}
               src={"data:" + screenshot.mimeType + ";base64," + screenshot.imageBase64}
               serial={screenshot.serial}
+              onInteractionChange={setRemoteInteraction}
               enabled={Boolean(canControlRemote) && screenshot.serial === remoteSerial}
               onInput={(input) => { void remoteRequest(input, { manual: true }).then(() => captureScreen()); }}
             /> : <div className="jarvis-remote-placeholder">端末を選び、Remote Assistを開始してください</div>}
