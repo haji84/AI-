@@ -134,6 +134,8 @@ This foundation does not make P3 complete. The following still require separate 
 - broader Human Takeover -> Remote Assist identity linkage where node IDs and gateway serials differ, if an authoritative mapping is added
 - physical evidence for single-view, multi-view, recording and manual control on each supported platform
 - any true continuous/low-latency streaming or encoded-video implementation if retained as a product requirement
-- Requirement Ledger reconciliation for already-merged P3 software evidence; physical-dependent rows must remain below VERIFIED until actual device evidence exists
+- recording audit admission, cancellation/deadline and authenticated retrieval hardening described in `docs/audit/jarvis-p3-reconciliation.md`
+
+The #694 reconciliation maps merged P3 software into the canonical ledger. Physical-dependent rows remain PARTIAL until actual device evidence exists.
 
 Until those gates pass, the corresponding Requirement Ledger rows remain PARTIAL or MISSING. CI is not physical evidence.
