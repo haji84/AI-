@@ -1,4 +1,6 @@
 import { execFile } from "node:child_process";
+import { observeAndroidUi } from "../src/jarvis/teaching-observation.ts";
+import { safeUrl, profileKey } from "../src/jarvis/teaching.ts";
 import { streamAndroidVideo } from "../src/jarvis/android-video.ts";
 import { randomUUID, timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
@@ -135,6 +137,18 @@ async function dumpUi(serial: string): Promise<string> {
   return result.stdout;
 }
 
+async function teachingObservation(serial: string) {
+  const xml = await dumpUi(serial);
+  const app = xml.match(/package="([A-Za-z0-9_.]+)"/)?.[1];
+  if (!app || !PACKAGE_RE.test(app)) throw new Error("Foreground application unavailable");
+  const [model, os, version] = await Promise.all([
+    adb(serial, ["shell", "getprop", "ro.product.model"]),
+    adb(serial, ["shell", "getprop", "ro.build.version.release"]),
+    adb(serial, ["shell", "dumpsys", "package", app]),
+  ]);
+  return observeAndroidUi(xml, { deviceId: serial, platform: "android", model: model.stdout.trim(), osVersion: os.stdout.trim(), app, appVersion: version.stdout.match(/versionName=([^\s]+)/)?.[1] || "unknown" });
+}
+
 async function waitForState(serial: string, expected: QaScreenState, rules: QaScreenRules, timeoutMs: number, pollMs: number): Promise<{ state: QaScreenState; matched: string[] }> {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
@@ -247,6 +261,28 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
   if (!requireOwner(request)) return json(response, 401, { message: "remote gateway authorization required" });
 
   const payload = request.method === "POST" ? await readJson(request) : {};
+  if (request.method === "POST" && url.pathname === "/api/remote/teach-observe") {
+    return json(response, 200, await teachingObservation(requireSerial(payload)));
+  }
+  if (request.method === "POST" && url.pathname === "/api/remote/teach-input") {
+    const serial = requireSerial(payload);
+    const observed = await teachingObservation(serial);
+    if (observed.signature !== payload.expectedScreen || profileKey(observed.profile) !== payload.expectedProfile || observed.protectedScreen) throw new Error("Teaching screen changed or Human Gate required");
+    const action = payload.step as Record<string, unknown> | undefined;
+    if (action?.kind === "tap") {
+      const target = observed.targets.find(t => t.selector === action.selector && t.safeNavigation);
+      if (!target) throw new Error("Teaching target unavailable or Human Gate required");
+      return json(response, 200, await handleInput({ serial, action: "tap", x: target.x, y: target.y }));
+    }
+    if (action?.kind === "key" && ["BACK", "HOME", "APP_SWITCH"].includes(String(action.key))) {
+      return json(response, 200, await handleInput({ serial, action: "keyevent", key: action.key }));
+    }
+    if (action?.kind === "url" && typeof action.host === "string") {
+      await openUrl(serial, safeUrl(payload.url, action.host));
+      return json(response, 200, { ok: true });
+    }
+    throw new Error("Teaching action requires Human Takeover");
+  }
   if (request.method === "POST" && url.pathname === "/api/remote/video") {
     return streamAndroidVideo(adbPath, requireSerial(payload), response);
   }

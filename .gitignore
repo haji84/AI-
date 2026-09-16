@@ -5,3 +5,4 @@ next-server*.log
 .compass/
 *.db-wal
 *.db-shm
+.jarvis/

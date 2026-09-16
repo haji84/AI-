@@ -6,6 +6,7 @@ import { startRemoteRefreshLoop } from "../../jarvis/remote-refresh-loop";
 import { RemoteCaptureQueue } from "../../jarvis/remote-capture-queue";
 import RemoteScreenControl from "./RemoteScreenControl";
 import RemoteVideo from "./RemoteVideo";
+import TeachingControls from "./TeachingControls";
 
 type NodeItem = {
   id: string;
@@ -419,6 +420,7 @@ export default function JarvisConsole() {
           <span>{selectedTakeover.reason}</span>
           <button className="button secondary" disabled={busy} onClick={() => void action({ action: "resolve-takeover", sessionId: selectedTakeover.id, resumeTask: true })}>続きやって</button>
         </div>}
+        <TeachingControls serial={remoteSerial} sessionId={canControlRemote ? remoteSession?.id : undefined} />
         <div className="jarvis-remote-layout">
           <div className="jarvis-remote-screen">
             {videoSession && videoSession === remoteSession?.id && canViewRemote && screenshot ? <RemoteVideo
