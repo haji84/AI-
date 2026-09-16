@@ -154,3 +154,8 @@ test("default recording supports five minutes and rejects longer requests", asyn
     assert.equal(store.status(started.id,"five-minute","android-five").stopReason,"owner-stop");
   } finally { rmSync(root,{recursive:true,force:true}); }
 });
+
+test("recording waits to its deadline without starting a doomed final capture", async () => {
+ const root=mkdtempSync(join(tmpdir(),"jarvis-recording-end-"));let finish!:()=>void;const finished=new Promise<void>(r=>{finish=r;});let captures=0;
+ try {const store=new JarvisRemoteAssistFrameRecorder({rootDir:root,defaultDurationMs:80,minDurationMs:1,maxDurationMs:80,defaultIntervalMs:30,minIntervalMs:1,maxIntervalMs:30,captureFrame:async()=>{captures++;return {mimeType:"image/png",imageBase64:Buffer.from("frame").toString("base64"),capturedAt:new Date().toISOString()};},onFinished:finish});const start=store.start({sessionId:"end",serial:"device"});await finished;const end=store.status(start.id,"end","device");assert.equal(end.status,"completed");assert.equal(end.stopReason,"duration");assert(captures<3);assert(Date.parse(end.updatedAt)>=Date.parse(end.expiresAt));}finally{rmSync(root,{recursive:true,force:true});}
+});
