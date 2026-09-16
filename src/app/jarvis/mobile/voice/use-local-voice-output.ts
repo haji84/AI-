@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { readJarvisPreferences } from "../../ui-preferences";
+import { JARVIS_PERSONAS, JARVIS_VOICES, readJarvisPreferences } from "../../ui-preferences";
 import {
   DEFAULT_VOICE_OUTPUT_SETTINGS,
   enqueueVoiceOutput,
@@ -125,5 +125,7 @@ export function useLocalVoiceOutput() {
     };
   }, [interrupt]);
 
-  return { settings, voicePreference, persona, supported, speak, interrupt, updateSettings };
+  const voiceLabel = JARVIS_VOICES.find(([id]) => id === voicePreference)?.[1] ?? voicePreference;
+  const personaLabel = JARVIS_PERSONAS.find(([id]) => id === persona)?.[1] ?? persona;
+  return { settings, voicePreference, voiceLabel, persona, personaLabel, supported, speak, interrupt, updateSettings };
 }
