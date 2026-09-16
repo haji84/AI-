@@ -11,9 +11,13 @@ export type ContextReferenceResolution =
   | { kind: "resolved"; command: string; entryId: string; label: string }
   | { kind: "rejected"; message: string };
 
+function containsRedactionMarker(command: string): boolean {
+  return command.includes("[REDACTED]") || /%5bredacted%5d/i.test(command);
+}
+
 function isReusable(entry: SharedCommandHistoryEntry, targetNodeId?: string): boolean {
   if (entry.outcome !== "sent") return false;
-  if (entry.command.includes("[REDACTED]")) return false;
+  if (containsRedactionMarker(entry.command)) return false;
   if (targetNodeId && entry.targetNodeId && entry.targetNodeId !== targetNodeId) return false;
   return parseSafeMobileCommand(entry.command).ok;
 }
