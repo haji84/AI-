@@ -51,6 +51,7 @@ test("expired and cancelled input is never redelivered; ending one session prese
   mailbox.endSession("one");
   await rejected;
   assert.equal(mailbox.claim("A"), null);
+  assert.throws(() => mailbox.request("A", "one", { action: "tap", x: 1, y: 1 }, Date.now() + 1_000), "session end may arrive before a delayed dispatch");
   const command = mailbox.claim("B")!;
   mailbox.finish("B", command.id, { ok: true });
   await preserved;

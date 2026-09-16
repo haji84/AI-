@@ -22,8 +22,12 @@ type Entry = { command: Command; claimed: boolean; resolve: (value: Record<strin
  * Only the authenticated Broker routes may enqueue, claim or finish. */
 export class WorkerRemoteMailbox {
   private entries = new Map<string, Entry>();
+  private endedSessions = new Map<string, number>();
+  private pruneEnded() { for (const [id, expires] of this.endedSessions) if (expires <= Date.now()) this.endedSessions.delete(id); }
   pending(nodeId: string) { return this.entries.has(nodeId); }
   request(nodeId: string, sessionId: string, input: Record<string, unknown>, expiresAt: number, signal?: AbortSignal) {
+    this.pruneEnded();
+    if (this.endedSessions.has(sessionId)) throw new Error("Remote session ended");
     if (!nodeId || !sessionId || this.entries.has(nodeId)) throw new Error("Device busy or invalid session");
     const ttl = Math.min(8_000, expiresAt - Date.now());
     if (ttl <= 0 || signal?.aborted) throw new Error("Remote command expired");
@@ -53,6 +57,10 @@ export class WorkerRemoteMailbox {
     this.entries.delete(nodeId); clearTimeout(entry.timer); entry.reject(new Error("Remote command ended without confirmation; input was not retried"));
   }
   endSession(sessionId: string) {
+    this.pruneEnded();
+    // Retain cancellation beyond the eight-second command horizon so an end
+    // request that overtakes dispatch cannot be followed by a late input.
+    this.endedSessions.set(sessionId, Date.now() + 30_000);
     for (const [nodeId, entry] of this.entries) if (entry.command.sessionId === sessionId) this.cancel(nodeId, entry.command.id);
   }
 }
