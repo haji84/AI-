@@ -2,12 +2,16 @@ import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { restartDelayMs } from './jarvis-remote-access-lib.mjs';
 
-export function serviceSpecs(root, node = process.execPath, port = '3000') {
-  return [
+export function serviceSpecs(root, node = process.execPath, port = '3000', options = {}) {
+  const specs = [
     { name: 'broker', command: node, args: [path.join(root, 'scripts/jarvis-broker.ts')] },
     { name: 'remote-gateway', command: node, args: [path.join(root, 'scripts/jarvis-remote-gateway.ts')] },
     { name: 'dashboard', command: node, args: [path.join(root, 'node_modules/next/dist/bin/next'), 'start', '-H', '127.0.0.1', '-p', String(port)] },
   ];
+  if (options.enableEnrollmentPortal === true) {
+    specs.push({ name: 'enrollment-portal', command: node, args: [path.join(root, 'scripts/jarvis-fixed-enrollment-portal.ts')] });
+  }
+  return specs;
 }
 
 export function manageProcess(spec, options = {}) {
