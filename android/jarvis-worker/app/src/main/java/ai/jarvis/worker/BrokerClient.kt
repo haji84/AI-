@@ -71,6 +71,7 @@ class BrokerClient(private val context: Context) {
                 .put("screenInteractive", power?.isInteractive == true)
                 .put("currentPackage", JarvisAccessibilityService.currentPackageName())
                 .put("workerVersion", pkg.versionName ?: "unknown")
+                .put("updateStatus", UpdateManager(context).status())
                 .put("workerVersionCode", if (Build.VERSION.SDK_INT >= 28) pkg.longVersionCode else pkg.versionCode.toLong())
                 .put("deviceOwner", dpm?.isDeviceOwnerApp(context.packageName) == true)
                 .put("adminActive", dpm?.isAdminActive(admin) == true)

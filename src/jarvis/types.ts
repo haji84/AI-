@@ -48,6 +48,9 @@ export interface JarvisNodePolicy {
 }
 
 export interface JarvisNodeTelemetry {
+  workerVersion?: string;
+  workerVersionCode?: number;
+  updateStatus?: string;
   remoteProtocol?: number;
   androidApi?: number;
   batteryPercent?: number;

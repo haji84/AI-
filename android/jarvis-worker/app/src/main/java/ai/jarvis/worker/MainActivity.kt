@@ -27,6 +27,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var manualEnrollButton: Button
     private lateinit var advancedButton: Button
     private lateinit var updateButton: Button
+    private lateinit var updateStatus: TextView
     private var latestUpdate: UpdateManager.UpdateInfo? = null
     private var waitingForInstallPermission = false
     private val enrollmentInProgress = AtomicBoolean(false)
@@ -46,9 +47,10 @@ class MainActivity : AppCompatActivity() {
             setOnClickListener { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
         }
         updateButton = Button(this).apply {
-            visibility = View.GONE
-            setOnClickListener { beginUpdate() }
+            text = "更新状態を確認"
+            setOnClickListener { if (latestUpdate == null) checkForUpdate() else beginUpdate() }
         }
+        updateStatus = TextView(this).apply { text = UpdateManager(this@MainActivity).status() }
         brokerField = EditText(this).apply {
             hint = "https://JARVIS broker"
             visibility = View.GONE
@@ -87,6 +89,7 @@ class MainActivity : AppCompatActivity() {
             addView(retryEnrollment)
             addView(automationStatus)
             addView(automationSettings)
+            addView(updateStatus)
             addView(updateButton)
             addView(advancedButton)
             addView(brokerField)
@@ -189,6 +192,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun checkForUpdate() {
+        updateStatus.text = UpdateManager(this).status()
         val client = BrokerClient(this)
         if (client.brokerUrl.isBlank()) return
         Thread {
@@ -196,14 +200,15 @@ class MainActivity : AppCompatActivity() {
                 .onSuccess { info ->
                     latestUpdate = info
                     runOnUiThread {
+                        updateStatus.text = UpdateManager(this).status()
                         if (info == null) {
-                            updateButton.visibility = View.GONE
+                            updateButton.text = "更新状態を確認"
                         } else {
                             updateButton.text = "JARVISを更新（${info.versionName}）"
                             updateButton.visibility = View.VISIBLE
                         }
                     }
-                }
+                }.onFailure { runOnUiThread { updateStatus.text = UpdateManager(this).status() } }
         }.start()
     }
 
@@ -224,7 +229,7 @@ class MainActivity : AppCompatActivity() {
         val info = latestUpdate ?: return
         Thread {
             runCatching { UpdateManager(this).install(info) }
-                .onFailure { error -> runOnUiThread { status.text = "更新失敗: ${error.message}" } }
+                .onFailure { error -> runOnUiThread { updateStatus.text = "更新失敗。Androidの許可・空き容量を確認してください" } }
         }.start()
     }
 
