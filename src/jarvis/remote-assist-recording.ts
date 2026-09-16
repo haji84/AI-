@@ -184,6 +184,11 @@ export class JarvisRemoteAssistFrameRecorder {
     try {
       const deadline = new Date(recording.expiresAt).getTime();
       while (!recording.stopRequested && Date.now() < deadline && recording.frameCount < recording.maxFrames) {
+        // Avoid starting a final capture with less than one interval remaining.
+        if (recording.frameCount > 0 && deadline - Date.now() < recording.intervalMs) {
+          await this.waitForNextFrame(recording, Math.max(0, deadline - Date.now()));
+          break;
+        }
         const frameStartedAt = Date.now();
         this.validateCapture?.(recording.sessionId, recording.serial);
         const frame = await this.captureWithinDeadline(recording, deadline);
