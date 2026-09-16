@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
-import { createOwnerSessionToken, OWNER_SESSION_COOKIE, verifyOwnerPasscode } from "../../owner-auth.ts";
+import {
+  createOwnerSessionToken,
+  OWNER_SESSION_COOKIE,
+  OWNER_SESSION_MAX_AGE_SECONDS,
+  verifyOwnerPasscode,
+} from "../../owner-auth.ts";
 import { jarvisOwnerSecret } from "../jarvis/broker.ts";
 import { ownerLoginLocation } from "../../owner-login-redirect.ts";
-
-const OWNER_SESSION_MAX_AGE = 60 * 60 * 24 * 180;
 
 export async function POST(request: Request) {
   const inline = request.headers.get("accept")?.includes("application/json");
@@ -21,7 +24,7 @@ export async function POST(request: Request) {
     secure: process.env.NODE_ENV === "production",
     sameSite: "strict",
     path: "/",
-    maxAge: OWNER_SESSION_MAX_AGE,
+    maxAge: OWNER_SESSION_MAX_AGE_SECONDS,
   });
   return response;
 }
