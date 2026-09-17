@@ -66,11 +66,28 @@ class LegacyScreenService : Service() {
             projection!!.registerCallback(object : MediaProjection.Callback() {
                 override fun onStop() { current = null; stopSelf() }
             }, Handler(Looper.getMainLooper()))
-            reader = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, 2)
-            reader!!.setOnImageAvailableListener({ source ->
+            // An idle reader may never receive another frame from a static screen.
+            // Attach a new drawing surface for each owner capture request instead.
+            display = projection!!.createVirtualDisplay("JARVIS owner view", width, height, metrics.densityDpi,
+                DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR, null, null, handler)
+            current = this
+        } catch (_: Exception) { current = null; stopSelf() }
+        return START_NOT_STICKY
+    }
+    // Capture handler only. A fresh BufferQueue requests the current composition;
+    // pixels queued for an earlier request can never satisfy this request.
+    private fun requestFrame(request: Capture) {
+        display?.surface = null
+        reader?.setOnImageAvailableListener(null, null)
+        reader?.close()
+        reader = null
+        val nextReader = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, 2)
+        reader = nextReader
+        pending = request
+        nextReader.setOnImageAvailableListener({ source ->
+                if (reader !== source || pending !== request || current !== this) return@setOnImageAvailableListener
                 val image = source.acquireLatestImage() ?: return@setOnImageAvailableListener
                 image.use {
-                    val request = pending ?: return@use
                     if (SystemClock.elapsedRealtime() > request.deadline || current !== this ||
                         getSystemService(KeyguardManager::class.java).isDeviceLocked) return@use
                     try {
@@ -92,14 +109,10 @@ class LegacyScreenService : Service() {
                             } finally { if (bitmap !== padded) bitmap.recycle() }
                         } finally { padded.recycle() }
                     } catch (_: Exception) { /* Fail visibly; never serve a previous frame. */ }
-                    finally { pending = null; request.done.countDown() }
+                    finally { if (pending === request) pending = null; request.done.countDown() }
                 }
             }, handler)
-            display = projection!!.createVirtualDisplay("JARVIS owner view", width, height, metrics.densityDpi,
-                DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR, reader!!.surface, null, handler)
-            current = this
-        } catch (_: Exception) { current = null; stopSelf() }
-        return START_NOT_STICKY
+        checkNotNull(display).surface = nextReader.surface
     }
     @Synchronized private fun captureFrame(): JSONObject {
         require(current === this)
@@ -111,11 +124,14 @@ class LegacyScreenService : Service() {
             current = null; stopSelf(); error("画面の向きが変わりました。画面共有を再開してください")
         }
         val request = Capture(SystemClock.elapsedRealtime() + 2_500)
-        // Drain queued frames on the capture thread before accepting a new one.
+        // Serialize surface replacement with image delivery on the capture handler.
         check(handler?.post {
             if (current === this && SystemClock.elapsedRealtime() < request.deadline) {
-                reader?.acquireLatestImage()?.close()
-                pending = request
+                try { requestFrame(request) }
+                catch (_: Exception) {
+                    if (pending === request) pending = null
+                    request.done.countDown()
+                }
             } else request.done.countDown()
         } == true)
         try {
