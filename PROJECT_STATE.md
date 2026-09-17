@@ -5,7 +5,7 @@ AI_COMPANY_VERSION: 1.0
 PROJECT_VERSION: 0.0.0
 CURRENT_PHASE: JARVIS #681 P4/P10 #859 Android8 compatibility and enrollment-safe updates staged on #857; active enrollment release hold
 STATUS: JARVIS_PRODUCT_COMPLETION_IN_PROGRESS
-LAST_UPDATED: 2026-09-17
+LAST_UPDATED: 2026-09-18
 CURRENT_EPIC: One-front-door general autonomous AI with durable offline-first device-neutral execution and verifier-driven completion
 ACTIVE_ISSUES: JARVIS Product Completion parent #681 and #694 P3 reconciliation; Research Ops #321 / R1-R20 separate; historical #401/#609/#612 acceptance retained
 OPEN_PRS: #860 draft Android8 support stacked on #858; no merge/deploy during owner enrollment; production14f0651 unchanged; Android8 physical acceptance and signer-matched fleet artifacts pending
@@ -44,7 +44,7 @@ JARVIS_100_NODE_CAPACITY: PASS in deterministic CI; node 101 is rejected
 JARVIS_PHYSICAL_ANDROID_E2E: PASS for the acceptance scope through real Android 001 resident-Broker/Worker execution evidence from PR #526 and follow-up hardening. This does not imply unverified physical wake/Device Owner/live-screen/real-offline claims
 GAI_RESEARCH_OPS: SEPARATE_EVIDENCE_PROGRAM; Issue #321 and R1-R20 remain open until their real scientific evidence gates pass
 GAI_NEXT_PHASE: Complete #681 P0–P10 using docs/JARVIS_PRODUCT_SPEC.md and docs/jarvis-requirements.json; keep #321 research separate
-NEXT_PRIORITY: Verify local-video inference and per-device replay on neutral physical task; retain PARTIAL until actual end-to-end passes.
+NEXT_PRIORITY: #859 Android8 static-capture and browser-input emulator regressions repaired; 978 tests and emulator single-view controls pass (docs/evidence/859-android8-emulator.md). Next signer-matched physical Android8 canary and enrollment-safe release coordination; no production deployment or physical PASS. Retain local-video inference/replay and other #681 acceptance gaps.
 HUMAN_APPROVAL_PENDING: none for ordinary code/CI/device validation; production, secrets, permissions, billing, destructive, governance/security weakening, and external-publication gates remain in force
 AUTO_FIX_ATTEMPTS_MAX: 3
 MAX_ACTIVE_AGENTS: 3
