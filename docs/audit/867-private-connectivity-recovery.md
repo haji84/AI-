@@ -50,4 +50,20 @@ This temporary bridge still depends on ZBook staying powered/networked outside h
 
 Transport-key test covers matching-key decryptability, wrong-key refusal and untrusted URL refusal. Fresh remote diagnostics proved the current route failure and Mac accessibility, not fleet restoration. Existing device credentials were not altered; no firmware, OS restart, public tunnel or billing operation occurred.
 
-Next: owner signs into the displayed Mac Tailscale challenge; re-read Mac state and Windows peers, then assess legacy IP ownership and private compatibility bridge conditions before any network cutover. If OS-local permission or router ownership cannot be verified remotely, record that exact gate. Do not ask the owner to re-enroll the fleet.
+## Post-login verification — 2026-09-17
+
+Owner completed Connect. Windows now sees Mac `100.96.168.57` in the same owner tailnet. `tailscale ping` returned a relay response in152ms and then a direct response in217ms. These are reachability samples, not Remote Assist latency benchmarks.
+
+Fresh read-only Mac run [35226624177](https://github.com/haji84/AI-/actions/runs/35226624177) and home-route audit [35226821176](https://github.com/haji84/AI-/actions/runs/35226821176) establish:
+
+- Mac backend Running, self online; Mac, ZBook and iPhone user IDs match.
+- Mac can open TCP443 on the ZBook tailnet address. Worker TCP8792 on that address times out: current ingress only binds the old home-LAN address.
+- Home legacy192.168.0.169:8792 still times out; ARP entry is incomplete. This does NOT establish DHCP ownership or that the address can be reassigned safely.
+- Mac receives192.168.0.107 by DHCP from192.168.0.1, lease7200seconds, subnet/24. Router reservation/ownership table has not been authenticated or verified. Router landing HTTP200 is not proof of an authenticated admin session.
+- `sudo -n true` failed: no currently usable noninteractive administrator authorization was demonstrated. No password guessing, security changes or network aliases attempted.
+
+Completed gate: same-tailnet login and host-to-host reachability. Not completed: legacy endpoint takeover, Worker path and Android remote control. Tailscale authentication does not grant macOS network-administration authority.
+
+Next dependent action requires verified legacy address ownership and authorized macOS network configuration, followed by constrained private ingress/relay and canary. Current tooling cannot complete that privileged home-network cutover without further owner credential/physical access; do not replace this with public tunnels or bulk re-enrollment. A lower-change fallback is returning ZBook to its original home LAN, then verifying actual assigned address, ingress and heartbeat; even that is not PASS until observed.
+
+No service restart, IP alias, DHCP change, device credential change or production update was performed after login. Both stores remain separate and untouched. Source changes after login are the read-only audit workflow and this evidence record only.
