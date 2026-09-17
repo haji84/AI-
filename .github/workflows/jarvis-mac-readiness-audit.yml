@@ -40,3 +40,36 @@ jobs:
           const probes=[['loopback-ui','127.0.0.1',3000],['loopback-broker','127.0.0.1',8787],['loopback-iphone','127.0.0.1',8788],['loopback-gateway','127.0.0.1',8790],['legacy-ingress','192.168.0.169',8792]];
           Promise.all(probes.map(([name,host,port])=>new Promise(resolve=>{const s=net.connect({host,port});let done=false;function finish(status){if(done)return;done=true;s.destroy();resolve({name,port,status});}s.setTimeout(2500,()=>finish('timeout'));s.on('connect',()=>finish('open'));s.on('error',()=>finish('unreachable'));}))).then(probes=>console.log(JSON.stringify({...report,probes},null,2)));
           NODE
+      - name: Inspect existing service contracts without exposing configuration secrets
+        shell: bash
+        run: |
+          node <<'NODE'
+          const {execFileSync}=require('node:child_process');
+          const fs=require('node:fs'),os=require('node:os'),path=require('node:path');
+          function read(cmd,args){try{return execFileSync(cmd,args,{encoding:'utf8',timeout:10000,stdio:['ignore','pipe','pipe']}).trim()}catch(e){return `UNAVAILABLE(exit=${e.status??'timeout'})`}}
+          const home=os.homedir(),report={timestamp:new Date().toISOString()};
+          report.sleepAssertions=read('/usr/bin/pmset',['-g','assertions']).split('Listed by owning process:')[0];
+          report.memoryPressure=read('/usr/bin/memory_pressure',['-Q']);
+          report.listeners=read('/usr/sbin/lsof',['-nP','-iTCP','-sTCP:LISTEN']).split('\n').filter(l=>/node|COMMAND|sshd|screenshar/i.test(l));
+          report.plists=[];
+          for(const dir of ['/Library/LaunchDaemons',home+'/Library/LaunchAgents']){
+            if(!fs.existsSync(dir))continue;
+            for(const name of fs.readdirSync(dir).filter(n=>/jarvis|actions\.runner/i.test(n))){
+              try{const p=JSON.parse(read('/usr/bin/plutil',['-convert','json','-o','-',path.join(dir,name)]));
+              report.plists.push({name,scope:dir.startsWith(home)?'user':'system',runAtLoad:p.RunAtLoad??false,keepAlive:p.KeepAlive??false,startInterval:p.StartInterval??null,workingDirectoryExists:p.WorkingDirectory?fs.existsSync(p.WorkingDirectory):null,configKeyNames:Object.keys(p.EnvironmentVariables??{}),programNames:(p.ProgramArguments??[]).filter(a=>typeof a==='string'&&/\.(sh|mjs|ts)$/.test(a)&&!a.includes(' ')).map(a=>path.basename(a))});}catch{report.plists.push({name,status:'unreadable'});}
+            }
+          }
+          report.resident=[];
+          for(const label of ['com.aicompany.jarvis-broker','com.aicompany.jarvis-commander','ai.jarvis.remote-host']){
+            const domain=label==='ai.jarvis.remote-host'?'system':`gui/${process.getuid()}`;
+            const info=read('/bin/launchctl',['print',`${domain}/${label}`]);
+            const pid=info.match(/\n\s*pid = (\d+)/)?.[1];
+            const state=info.match(/\n\s*state = ([^\n]+)/)?.[1];
+            const item={label,state:state??'not-observed',pidExists:!!pid};
+            if(pid){const cwd=read('/usr/sbin/lsof',['-a','-p',pid,'-d','cwd','-Fn']).split('\n').find(l=>l.startsWith('n'))?.slice(1);
+              if(cwd&&fs.existsSync(path.join(cwd,'package.json'))){item.commit=read('/usr/bin/git',['-C',cwd,'rev-parse','HEAD']);item.buildExists=fs.existsSync(path.join(cwd,'.next/BUILD_ID'));item.dbExists=fs.existsSync(path.join(cwd,'.jarvis/jarvis.db'));item.hasPrivateIngress=fs.existsSync(path.join(cwd,'src/jarvis/private-worker-ingress.ts'));}
+            }report.resident.push(item);
+          }
+          report.health=[];
+          Promise.all([8787,8790,3000].map(async port=>{try{const r=await fetch(`http://127.0.0.1:${port}/health`,{signal:AbortSignal.timeout(3000)});const s=await r.json();report.health.push({port,status:r.status,service:s.service??null,ok:s.ok??null,registered:s.stats?.registered??null});}catch{report.health.push({port,status:'unavailable-or-not-json'});}})).then(()=>console.log(JSON.stringify(report,null,2)));
+          NODE
