@@ -8,6 +8,13 @@ export function containedScreenGeometry(box: { left: number; top: number; width:
 }
 export type ScreenInput = { action: "tap"; x: number; y: number } | { action: "swipe"; x1: number; y1: number; x2: number; y2: number; durationMs: number };
 
+export function screenSwipe(width: number, height: number, direction: "up" | "down"): ScreenInput | null {
+  const top = { x: width / 2, y: height * 0.25 };
+  const bottom = { x: width / 2, y: height * 0.8 };
+  return screenGesture(direction === "up" ? bottom : top, direction === "up" ? top : bottom,
+    { left: 0, top: 0, width, height, nativeWidth: width, nativeHeight: height }, 350);
+}
+
 export function screenPoint(point: ScreenPoint, geometry: ScreenGeometry): ScreenPoint | null {
   if (!Object.values(geometry).every(Number.isFinite) || !Number.isFinite(point.x) || !Number.isFinite(point.y)) return null;
   const { left, top, width, height, nativeWidth, nativeHeight } = geometry;
