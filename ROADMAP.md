@@ -116,3 +116,7 @@ Each GAI phase advances through:
 `Implement -> Unit/Integration -> available real-device E2E -> Verifier/Eval -> failure diagnosis -> repair -> PASS -> write-back -> next phase`
 
 A green CI harness is evidence that the harness works; it must not be misreported as a real-device or real-model result unless that execution actually occurred.
+
+## Home Coordinator compatibility migration (#681 / #863)
+
+Owner selected always-home Mac candidate; current ZBook remains production Coordinator. MIG-001–030 and M0–M10: P0 inventory/baseline, P1 logical role/private bridge/routes, P2 durable state/fencing/recovery, P4 existing identity/protocol/update compatibility, P9 Android+iPhone/ZBook away-return physical tests, P10 rollback/operator-free release. See docs/architecture/jarvis-coordinator-migration.md. Existing P0–P10 work continues; no re-enrollment or active-registration interruption. M0 live topology remains PARTIAL; no physical migration PASS.

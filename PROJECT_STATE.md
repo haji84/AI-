@@ -3,12 +3,12 @@
 PROJECT: General Autonomous AI / Unified AI Creator Studio / GAI Research OS
 AI_COMPANY_VERSION: 1.0
 PROJECT_VERSION: 0.0.0
-CURRENT_PHASE: JARVIS #681 P4/P10 #859 Android8 compatibility and enrollment-safe updates staged on #857; active enrollment release hold
+CURRENT_PHASE: JARVIS #681 / #863 M0 Home Coordinator compatibility audit; Mac home candidate; updater/Android8/wake drafts retained
 STATUS: JARVIS_PRODUCT_COMPLETION_IN_PROGRESS
 LAST_UPDATED: 2026-09-17
 CURRENT_EPIC: One-front-door general autonomous AI with durable offline-first device-neutral execution and verifier-driven completion
 ACTIVE_ISSUES: JARVIS Product Completion parent #681 and #694 P3 reconciliation; Research Ops #321 / R1-R20 separate; historical #401/#609/#612 acceptance retained
-OPEN_PRS: #860 draft Android8 support stacked on #858; no merge/deploy during owner enrollment; production14f0651 unchanged; Android8 physical acceptance and signer-matched fleet artifacts pending
+OPEN_PRS: #858/#860/#862 draft stack retained; #863 audit branch pending PR; no deployment or enrollment interruption
 BLOCKERS: #786 MSIX AppData startup root cause repaired operationally with native owner-profile release90a111b; Limited Windows task and four services running in session0, existing two Workers READY. Tailscale Running and private URL HTTP200 after explicitly approved unattended mode; routine Tailscale recovery standing approval recorded. Physical Windows reboot/AC-loss and #734 video replay remain unverified. See docs/evidence/786-native-startup.md. Owner requires firewall unchanged.
 PRIORITY_OVERRIDE: Owner 2026-09-16 instruction resumes expanded JARVIS product completion #681 with ZBook main-host priority; preserve Human Gates and separate research evidence
 NORTH_STAR_GOAL: Human gives one goal; the system determines required work, dynamically recruits available capabilities, executes, verifies, repairs, records, and completes with the fewest necessary human returns, including continued local work during connectivity loss where capability permits
@@ -50,3 +50,5 @@ AUTO_FIX_ATTEMPTS_MAX: 3
 MAX_ACTIVE_AGENTS: 3
 MAX_PARALLEL_CODE_AGENTS: 2
 MAX_ISSUES_PER_CYCLE: 2
+
+JARVIS_COORDINATOR_MIGRATION: #863 M0 audit; 38 Android registry entries observed, durable snapshot stale; Mac/iPhone live inventory and canaries unverified. MIG-001–030 recorded. Next: reconcile durable freshness and inspect Mac read-only before M1/M2; preserve production path and all identities.
