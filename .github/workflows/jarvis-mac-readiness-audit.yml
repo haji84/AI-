@@ -1,0 +1,42 @@
+name: JARVIS Mac read-only readiness audit
+
+on:
+  push:
+    branches: [codex/863-coordinator-audit]
+    paths: [.github/workflows/jarvis-mac-readiness-audit.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jarvis-mac-readiness-audit
+  cancel-in-progress: false
+
+jobs:
+  inspect:
+    runs-on: [self-hosted, macOS, ARM64]
+    timeout-minutes: 5
+    steps:
+      # No checkout: leave the resident repository, credentials and services untouched.
+      - name: Read hardware, power, runtime and service metadata
+        shell: bash
+        run: |
+          node <<'NODE'
+          const {execFileSync}=require('node:child_process');
+          const fs=require('node:fs'),os=require('node:os'),net=require('node:net');
+          function read(cmd,args){try{return execFileSync(cmd,args,{encoding:'utf8',timeout:10000,stdio:['ignore','pipe','pipe']}).trim()}catch(e){return `UNAVAILABLE(exit=${e.status??'timeout'})`}}
+          const home=os.homedir();
+          const report={timestamp:new Date().toISOString(),platform:os.platform(),arch:os.arch(),os:read('/usr/bin/sw_vers',['-productVersion']),cpu:os.cpus()[0]?.model,cpuCount:os.cpus().length,memoryGiB:Math.round(os.totalmem()/2**30),freeMemoryGiB:Math.round(os.freemem()/2**30),load:os.loadavg(),uptimeSeconds:os.uptime(),node:process.version,disk:read('/bin/df',['-Pk',home]).split('\n').slice(-1).map(l=>{const p=l.trim().split(/\s+/);return {blocksKiB:p[1],availableKiB:p[3],used:p[4]}}),power:read('/usr/bin/pmset',['-g','custom']),battery:read('/usr/bin/pmset',['-g','batt']),fileVault:read('/usr/bin/fdesetup',['status']),firewall:read('/usr/libexec/ApplicationFirewall/socketfilterfw',['--getglobalstate'])};
+          report.interfaces=Object.entries(os.networkInterfaces()).flatMap(([name,a])=>a.filter(i=>!i.internal&&i.family==='IPv4').map(i=>({name,address:i.address,netmask:i.netmask})));
+          report.services=read('/bin/launchctl',['list']).split('\n').filter(l=>/jarvis|tailscale|actions\.runner|aicompany/i.test(l));
+          report.serviceFiles=['/Library/LaunchDaemons',home+'/Library/LaunchAgents'].map(dir=>({scope:dir.startsWith(home)?'user':'system',names:fs.existsSync(dir)?fs.readdirSync(dir).filter(n=>/jarvis|tailscale|actions\.runner|aicompany/i.test(n)):[]}));
+          report.stateExists=['/Library/Application Support/JARVIS',home+'/Library/Application Support/JARVIS',home+'/.jarvis'].map((p,i)=>({slot:i,exists:fs.existsSync(p)}));
+          report.appExists={tailscale:fs.existsSync('/Applications/Tailscale.app')};
+          report.processNames=read('/bin/ps',['-axo','comm=']).split('\n').filter(l=>/node|tailscale|cloudflared|caffeinate|Runner.Listener/i.test(l)).map(p=>p.split('/').pop());
+          report.tools={pnpm:read('/bin/bash',['-lc','command -v pnpm']),ffmpeg:read('/bin/bash',['-lc','command -v ffmpeg'])};
+          const ts=['/Applications/Tailscale.app/Contents/MacOS/Tailscale','/opt/homebrew/bin/tailscale','/usr/local/bin/tailscale'].find(p=>fs.existsSync(p));
+          if(ts){try{const s=JSON.parse(read(ts,['status','--json']));report.tailnet={backend:s.BackendState,selfOnline:s.Self?.Online,peerCount:Object.keys(s.Peer??{}).length};}catch{report.tailnet={status:'UNAVAILABLE'};}}else report.tailnet={status:'NOT_FOUND'};
+          const probes=[['loopback-ui','127.0.0.1',3000],['loopback-broker','127.0.0.1',8787],['loopback-iphone','127.0.0.1',8788],['loopback-gateway','127.0.0.1',8790],['legacy-ingress','192.168.0.169',8792]];
+          Promise.all(probes.map(([name,host,port])=>new Promise(resolve=>{const s=net.connect({host,port});let done=false;function finish(status){if(done)return;done=true;s.destroy();resolve({name,port,status});}s.setTimeout(2500,()=>finish('timeout'));s.on('connect',()=>finish('open'));s.on('error',()=>finish('unreachable'));}))).then(probes=>console.log(JSON.stringify({...report,probes},null,2)));
+          NODE
