@@ -9,6 +9,7 @@ const source = JSON.parse(fs.readFileSync(new URL('../docs/jarvis-requirements.j
 const ledger = fs.readFileSync(new URL('../docs/JARVIS_PRODUCT_SPEC.md', import.meta.url), 'utf8');
 const mirror = data => data.requirements.map(row => '```json\n' + JSON.stringify(row) + '\n```').join('\n');
 const structuredClone = value => JSON.parse(JSON.stringify(value));
+const normalizeNewlines = value => value.replace(/\r\n?/g, '\n');
 
 test('all 340 preserved and expanded owner requirements have exact canonical mapping', () => {
   assert.equal(source.requirements.length, 340);
@@ -32,7 +33,7 @@ test('source crosswalk preserves original inventory and maps all owner/addendum 
   assert.equal(sections.length, 28);
   for (let i=0; i<sections.length; i++) {
     const row = source.requirements.find(r=>r.id===crosswalk.addendum[i].requirement_id);
-    assert.equal(row.description, sections[i][3].trim(), `addendum ${sections[i][1]} must not be abridged`);
+    assert.equal(normalizeNewlines(row.description), normalizeNewlines(sections[i][3].trim()), `addendum ${sections[i][1]} must not be abridged`);
   }
 });
 
