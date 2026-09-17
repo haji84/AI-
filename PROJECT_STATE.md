@@ -3,14 +3,14 @@
 PROJECT: General Autonomous AI / Unified AI Creator Studio / GAI Research OS
 AI_COMPANY_VERSION: 1.0
 PROJECT_VERSION: 0.0.0
-CURRENT_PHASE: JARVIS #681 P4 #852 unified owner enrollment and native Wi-Fi Remote Assist; #734 teaching physical acceptance pending
+CURRENT_PHASE: JARVIS #681 P0 resynchronization #865; preserve P1-P10, #783 expansion and backward-compatible Home Coordinator migration; no production cutover
 STATUS: JARVIS_PRODUCT_COMPLETION_IN_PROGRESS
 LAST_UPDATED: 2026-09-17
 CURRENT_EPIC: One-front-door general autonomous AI with durable offline-first device-neutral execution and verifier-driven completion
-ACTIVE_ISSUES: JARVIS Product Completion parent #681 and #694 P3 reconciliation; Research Ops #321 / R1-R20 separate; historical #401/#609/#612 acceptance retained
-OPEN_PRS: #856 implements #852 app-open pending registration and native Wi-Fi Remote Assist; production/APK permission gate and physical acceptance pending; #734 implementation merged via #774
-BLOCKERS: #786 MSIX AppData startup root cause repaired operationally with native owner-profile release90a111b; Limited Windows task and four services running in session0, existing two Workers READY. Tailscale Running and private URL HTTP200 after explicitly approved unattended mode; routine Tailscale recovery standing approval recorded. Physical Windows reboot/AC-loss and #734 video replay remain unverified. See docs/evidence/786-native-startup.md. Owner requires firewall unchanged.
-PRIORITY_OVERRIDE: Owner 2026-09-16 instruction resumes expanded JARVIS product completion #681 with ZBook main-host priority; preserve Human Gates and separate research evidence
+ACTIVE_ISSUES: Product parent #681; spec expansion #783; resync audit #865; update #857, Android8 #859, wake #861, migration #863; Research #321/R1-R20 separate; historical #401/#609/#612 evidence retained
+OPEN_PRS: #784 spec addendum, #858 Worker updates, #860 Android8, #862 wake, #864 migration audit remain open and not in audited main14f0651; #865 audit branch adds canonical source crosswalk
+BLOCKERS: #865 read-only Windows snapshot 2026-09-17T11:49:22Z: 38 Android identities, zero missing credentials, zero recent heartbeats, zero stored tasks; live connectivity and cross-host inventory unresolved. Windows reboot/AC-loss, current video replay, Android8/update/wake and Coordinator migration physical acceptance pending. Original owner sections1-102 full historical text not in inspected sources; see docs/JARVIS_COMPLETION_STATUS.md. Owner registration must remain undisturbed and firewall unchanged.
+PRIORITY_OVERRIDE: Owner 2026-09-17 full-spec resynchronization; target logical Home Coordinator plus mobile ZBook, temporary travel workaround leaves ZBook home. Preserve existing identities/keys/queues and Human Gates; source mappings are not physical PASS.
 NORTH_STAR_GOAL: Human gives one goal; the system determines required work, dynamically recruits available capabilities, executes, verifies, repairs, records, and completes with the fewest necessary human returns, including continued local work during connectivity loss where capability permits
 HUMAN_GATE_INVARIANT: payment/purchase, destructive deletion, permission/credential changes, production deployment/publication, security/governance weakening, and all existing approval-required actions remain human-gated; autonomy, skill reuse, learning, team expansion, recovery, and self-improvement never grant permission
 GAI_MODEL_POLICY: replaceable multi-model router; local/zero-incremental-cost paths preferred; pay-as-you-go AI API fallback prohibited by default
