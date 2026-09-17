@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import RemoteAssistMultiView from "./RemoteAssistMultiView";
 import { startRemoteRefreshLoop } from "../../jarvis/remote-refresh-loop";
 import { RemoteCaptureQueue } from "../../jarvis/remote-capture-queue";
+import { screenSwipe } from "../../jarvis/remote-screen-input";
 import RemoteScreenControl from "./RemoteScreenControl";
 import RemoteVideo from "./RemoteVideo";
 import TeachingControls from "./TeachingControls";
@@ -190,7 +191,7 @@ export default function JarvisConsole() {
 
     if (!options.silent) setBusy(true);
     try {
-      const response = await fetch("/api/jarvis/remote", {
+      const send = () => fetch("/api/jarvis/remote", {
         method: "POST",
         signal: AbortSignal.timeout(20_000),
         headers: { "Content-Type": "application/json" },
@@ -200,6 +201,10 @@ export default function JarvisConsole() {
           ...(sessionId ? { sessionId } : {}),
         }),
       });
+      const response = options.manual && payload.action !== "screenshot"
+        ? await captureQueue.current.input(`${sessionId}:${serial}`, send)
+        : await send();
+      if (!response) return null;
       const body = await response.json() as Record<string, unknown>;
       if (!response.ok) {
         if (options.manual && response.status === 409) {
@@ -304,6 +309,7 @@ export default function JarvisConsole() {
 
   async function endRemoteAssist() {
     const session = remoteSession;
+    captureQueue.current.setContext("");
     setRemoteSession(null);
     setRecording(null);
     setLiveRefresh(false);
@@ -342,6 +348,12 @@ export default function JarvisConsole() {
     setLiveRefresh(false);
     setScreenshot(null);
     setRemoteError("");
+  }
+
+  async function swipeRemote(direction: "up" | "down") {
+    if (!screenshot || screenshot.serial !== remoteSerial) return;
+    const input = screenSwipe(screenshot.nativeWidth ?? 0, screenshot.nativeHeight ?? 0, direction);
+    if (input && await remoteRequest(input, { manual: true })) await captureScreen();
   }
 
 
@@ -459,8 +471,8 @@ export default function JarvisConsole() {
               <button className="button secondary" disabled={busy || !canControlRemote} onClick={() => void remoteRequest({ action: "keyevent", key: "APP_SWITCH" }, { manual: true }).then(() => captureScreen())}>履歴</button>
             </div>
             <div className="jarvis-button-row">
-              <button className="button secondary" disabled={busy || !canControlRemote} onClick={() => void remoteRequest({ action: "swipe", x1: 500, y1: 1400, x2: 500, y2: 500, durationMs: 300 }, { manual: true }).then(() => captureScreen())}>↑ スワイプ</button>
-              <button className="button secondary" disabled={busy || !canControlRemote} onClick={() => void remoteRequest({ action: "swipe", x1: 500, y1: 500, x2: 500, y2: 1400, durationMs: 300 }, { manual: true }).then(() => captureScreen())}>↓ スワイプ</button>
+              <button className="button secondary" disabled={busy || !canControlRemote || !screenshot?.nativeWidth || !screenshot?.nativeHeight} onClick={() => void swipeRemote("up")}>↑ スワイプ</button>
+              <button className="button secondary" disabled={busy || !canControlRemote || !screenshot?.nativeWidth || !screenshot?.nativeHeight} onClick={() => void swipeRemote("down")}>↓ スワイプ</button>
             </div>
             <form className="jarvis-task-form" onSubmit={async (event) => { event.preventDefault(); if (await remoteRequest({ action: "text", text: remoteText }, { manual: true })) { setRemoteText(""); await captureScreen(); } }}>
               <input maxLength={256} placeholder="端末へ文字入力" value={remoteText} onChange={(event) => setRemoteText(event.target.value)} />

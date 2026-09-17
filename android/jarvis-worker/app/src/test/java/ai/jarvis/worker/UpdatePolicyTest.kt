@@ -4,6 +4,14 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class UpdatePolicyTest {
+    @Test fun signerLineagesUseSeparateArtifactsWithoutAcceptingOtherKeys() {
+        assertEquals(UpdatePolicy.WINDOWS_APK_URL, UpdatePolicy.source(setOf(UpdatePolicy.WINDOWS_SIGNER)))
+        assertEquals(UpdatePolicy.APK_URL, UpdatePolicy.source(setOf("original")))
+        assertTrue(UpdatePolicy.allowedUrl(UpdatePolicy.WINDOWS_APK_URL))
+        assertFalse(UpdatePolicy.allowedUrl(UpdatePolicy.WINDOWS_APK_URL + "?override=1"))
+        assertFalse(UpdatePolicy.trustedUpgrade("ai.jarvis.worker", "ai.jarvis.worker", 18, 17,
+            setOf("original"), setOf(UpdatePolicy.WINDOWS_SIGNER)))
+    }
     @Test fun onlyOfficialHttpsArtifactAndAssetRedirects() {
         assertTrue(UpdatePolicy.allowedUrl(UpdatePolicy.APK_URL))
         assertTrue(UpdatePolicy.allowedUrl("https://release-assets.githubusercontent.com/github-production-release-asset/x?sig=fixture"))

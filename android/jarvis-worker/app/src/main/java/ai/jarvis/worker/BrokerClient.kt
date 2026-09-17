@@ -18,6 +18,7 @@ import java.time.Instant
 import java.util.UUID
 
 class BrokerClient(private val context: Context) {
+    companion object { @Volatile var lastRemoteAt: Long = 0; private set }
     private val prefs = context.getSharedPreferences("jarvis_config", Context.MODE_PRIVATE)
     private val identity = DeviceIdentity(context)
 
@@ -78,6 +79,7 @@ class BrokerClient(private val context: Context) {
                 .put("accessibilityEnabled", JarvisAccessibilityService.connected())
                 .put("remoteProtocol", 1)
                 .put("androidApi", Build.VERSION.SDK_INT)
+                .put("screenCaptureReady", Build.VERSION.SDK_INT >= 30 || LegacyScreenService.available())
                 .put("locked", keyguard?.isDeviceLocked == true)
                 .put("runtime", runtime)
                 .put("checkedAt", Instant.now().toString()))
@@ -117,6 +119,7 @@ class BrokerClient(private val context: Context) {
 
     fun pollRemote() {
         val command = request("POST", "/api/jarvis/worker/remote/next", "{}".toByteArray(), signed = true).optJSONObject("command") ?: return
+        lastRemoteAt = android.os.SystemClock.elapsedRealtime()
         val result = runCatching { JarvisAccessibilityService.executeRemote(command) }
             .getOrElse { JSONObject().put("ok", false).put("message", "画面取得・操作に失敗しました。ロック・操作権限・接続を確認してください") }
         result.put("id", command.getString("id"))
@@ -144,7 +147,7 @@ class BrokerClient(private val context: Context) {
         if (JarvisAccessibilityService.connected()) values += listOf(
             "ui-automation", "sheet-cell-navigation", "visible-url-open", "screen-verification"
         )
-        if (JarvisAccessibilityService.connected() && Build.VERSION.SDK_INT >= 30) values += listOf("remote-view", "remote-control")
+        if (RemoteSupport.available(Build.VERSION.SDK_INT, JarvisAccessibilityService.connected(), LegacyScreenService.available())) values += listOf("remote-view", "remote-control")
         if (dpm?.isAdminActive(admin) == true) values += "lock-device"
         if (dpm?.isDeviceOwnerApp(context.packageName) == true) values += listOf("device-owner", "reboot")
         return JSONArray(values)

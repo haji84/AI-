@@ -60,6 +60,8 @@
             </intent-filter>
         </activity>
 
+        <service android:name=".LegacyScreenService" android:exported="false" android:foregroundServiceType="mediaProjection" />
+
         <service
             android:name=".JarvisCommandService"
             android:exported="false"

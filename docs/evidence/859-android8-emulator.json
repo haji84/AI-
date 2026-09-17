@@ -1,0 +1,132 @@
+{
+  "staticBefore": {
+    "nodeId": "80d19537-615d-4dc4-b18b-6a53991be3cd",
+    "sessionId": "static-regression-1789677588503",
+    "status": "FAIL",
+    "steps": [
+      {
+        "action": "keyevent",
+        "status": 200,
+        "elapsedMs": 748
+      },
+      {
+        "action": "screenshot",
+        "status": 409,
+        "elapsedMs": 3233
+      }
+    ]
+  },
+  "staticAfter": {
+    "nodeId": "80d19537-615d-4dc4-b18b-6a53991be3cd",
+    "sessionId": "static-regression-1789677963364",
+    "status": "PASS",
+    "steps": [
+      {
+        "action": "keyevent",
+        "status": 200,
+        "elapsedMs": 811
+      },
+      {
+        "action": "screenshot",
+        "status": 200,
+        "elapsedMs": 654,
+        "capturedAt": "2026-09-17T20:46:08.164Z",
+        "nativeWidth": 320,
+        "nativeHeight": 640
+      },
+      {
+        "action": "screenshot",
+        "status": 200,
+        "elapsedMs": 132,
+        "capturedAt": "2026-09-17T20:46:11.337Z",
+        "nativeWidth": 320,
+        "nativeHeight": 640
+      },
+      {
+        "action": "screenshot",
+        "status": 200,
+        "elapsedMs": 153,
+        "capturedAt": "2026-09-17T20:46:14.537Z",
+        "nativeWidth": 320,
+        "nativeHeight": 640
+      }
+    ]
+  },
+  "staticAfterReboot": {
+    "nodeId": "80d19537-615d-4dc4-b18b-6a53991be3cd",
+    "sessionId": "static-regression-1789678537250",
+    "status": "PASS",
+    "steps": [
+      {
+        "action": "keyevent",
+        "status": 200,
+        "elapsedMs": 198
+      },
+      {
+        "action": "screenshot",
+        "status": 200,
+        "elapsedMs": 791,
+        "capturedAt": "2026-09-17T20:55:39.429Z",
+        "nativeWidth": 320,
+        "nativeHeight": 640
+      },
+      {
+        "action": "screenshot",
+        "status": 200,
+        "elapsedMs": 189,
+        "capturedAt": "2026-09-17T20:55:42.678Z",
+        "nativeWidth": 320,
+        "nativeHeight": 640
+      },
+      {
+        "action": "screenshot",
+        "status": 200,
+        "elapsedMs": 160,
+        "capturedAt": "2026-09-17T20:55:45.890Z",
+        "nativeWidth": 320,
+        "nativeHeight": 640
+      }
+    ]
+  },
+  "reboot": {
+    "sameId": true,
+    "lastSeen": "2026-09-17T20:54:28.154Z",
+    "screenCaptureReady": false,
+    "accessibilityEnabled": true,
+    "enrollmentCount": 1
+  },
+  "negative": {
+    "wrong": {
+      "status": 401,
+      "body": {
+        "message": "owner authorization required"
+      }
+    },
+    "expired": {
+      "status": 409,
+      "body": {
+        "message": "端末の操作結果を確認できません。画面を再確認してください。操作は再送していません"
+      }
+    },
+    "ended": {
+      "status": 409,
+      "body": {
+        "message": "端末の操作結果を確認できません。画面を再確認してください。操作は再送していません"
+      }
+    }
+  },
+  "browser": {
+    "sessionPrefix": "4367f79c",
+    "success": {
+      "screenshot": 122,
+      "tap": 1,
+      "text": 1,
+      "keyevent": 3
+    },
+    "errors": 0
+  },
+  "apkSourceCommit": "8470a70a143d8630d047f0422b3cc2db016dbed6",
+  "uiSourceCommit": "ac7ee1f254903a1e74be73a43a4a8cb461bd9cf6",
+  "evidenceClass": "INTEGRATION",
+  "physical": false
+}
