@@ -67,7 +67,10 @@ jobs:
             const state=info.match(/\n\s*state = ([^\n]+)/)?.[1];
             const item={label,state:state??'not-observed',pidExists:!!pid};
             if(pid){const cwd=read('/usr/sbin/lsof',['-a','-p',pid,'-d','cwd','-Fn']).split('\n').find(l=>l.startsWith('n'))?.slice(1);
-              if(cwd&&fs.existsSync(path.join(cwd,'package.json'))){item.commit=read('/usr/bin/git',['-C',cwd,'rev-parse','HEAD']);item.buildExists=fs.existsSync(path.join(cwd,'.next/BUILD_ID'));item.dbExists=fs.existsSync(path.join(cwd,'.jarvis/jarvis.db'));item.hasPrivateIngress=fs.existsSync(path.join(cwd,'src/jarvis/private-worker-ingress.ts'));}
+              if(cwd&&fs.existsSync(path.join(cwd,'package.json'))){item.commit=read('/usr/bin/git',['-C',cwd,'rev-parse','HEAD']);item.buildExists=fs.existsSync(path.join(cwd,'.next/BUILD_ID'));item.dbExists=fs.existsSync(path.join(cwd,'.jarvis/jarvis.db'));item.hasPrivateIngress=fs.existsSync(path.join(cwd,'src/jarvis/private-worker-ingress.ts'));
+                if(label==='com.aicompany.jarvis-broker'&&item.dbExists){try{const {DatabaseSync}=require('node:sqlite');const db=new DatabaseSync(path.join(cwd,'.jarvis/jarvis.db'),{readOnly:true,timeout:1000});db.exec('BEGIN');const row=db.prepare('SELECT payload FROM jarvis_state WHERE id=1').get();const snap=row?JSON.parse(row.payload):null;item.persisted={snapshotAt:snap?.generatedAt,fleet:snap?.fleet?.length,tasks:snap?.tasks?.length,identities:db.prepare('SELECT count(*) AS n FROM jarvis_worker_identity').get().n};db.exec('COMMIT');db.close();}catch{item.persisted={status:'unavailable'};}}
+                item.legacyTunnelScripts=['jarvis-mac-broker-tunnel-service.sh','jarvis-direct-commander-tunnel-service.sh'].map(name=>{const p=path.join(cwd,'scripts',name);return {name,quickTunnel:fs.existsSync(p)&&/cloudflared|CLOUDFLARED_BIN/.test(fs.readFileSync(p,'utf8'))&&/--url/.test(fs.readFileSync(p,'utf8'))};});
+              }
             }report.resident.push(item);
           }
           report.health=[];
