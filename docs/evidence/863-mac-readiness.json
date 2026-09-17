@@ -1,0 +1,322 @@
+{
+  "issue": 863,
+  "source": "https://github.com/haji84/AI-/actions/runs/35205781413",
+  "diagnostic_commit": "69a59955c21978ac216d77630b6b121248d94d13",
+  "purpose": "Read-only host inventory; not migration/remote-control acceptance",
+  "reports": [
+    {
+      "timestamp": "2026-09-17T09:33:48.388Z",
+      "platform": "darwin",
+      "arch": "arm64",
+      "os": "26.6.2",
+      "cpu": "Apple M1 Pro",
+      "cpuCount": 8,
+      "memoryGiB": 16,
+      "freeMemoryGiB": 0,
+      "load": [
+        1.4501953125,
+        1.6337890625,
+        1.55810546875
+      ],
+      "uptimeSeconds": 60003,
+      "node": "v24.21.0",
+      "disk": [
+        {
+          "blocksKiB": "482797652",
+          "availableKiB": "164834728",
+          "used": "65%"
+        }
+      ],
+      "power": "Battery Power:\n Sleep On Power Button 1\n lowpowermode         0\n standby              1\n ttyskeepawake        1\n hibernatemode        3\n powernap             1\n hibernatefile        /var/vm/sleepimage\n displaysleep         60\n womp                 0\n networkoversleep     0\n sleep                1\n lessbright           1\n tcpkeepalive         1\n disksleep            10\nAC Power:\n Sleep On Power Button 1\n lowpowermode         0\n standby              1\n ttyskeepawake        1\n hibernatemode        3\n powernap             1\n hibernatefile        /var/vm/sleepimage\n displaysleep         60\n womp                 1\n networkoversleep     0\n sleep                1\n tcpkeepalive         1\n disksleep            10",
+      "battery": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=26411107)\t100%; charged; 0:00 remaining present: true",
+      "fileVault": "FileVault is On.",
+      "firewall": "Firewall is enabled. (State = 1)",
+      "interfaces": [
+        {
+          "name": "en0",
+          "address": "192.168.0.107",
+          "netmask": "255.255.255.0"
+        }
+      ],
+      "services": [
+        "-\t0\tio.tailscale.ipn.macsys.login-item-helper",
+        "-\t0\tcom.aicompany.jarvis-adb-enrollment",
+        "1253\t0\tcom.aicompany.jarvis-commander-tunnel",
+        "-\t0\tcom.aicompany.jarvis-zero-touch",
+        "1246\t0\tcom.aicompany.jarvis-broker-tunnel",
+        "1273\t0\tapplication.io.tailscale.ipn.macsys.151411597.151411602",
+        "1234\t0\tcom.aicompany.jarvis-commander",
+        "5806\t0\tcom.aicompany.jarvis-broker"
+      ],
+      "serviceFiles": [
+        {
+          "scope": "system",
+          "names": [
+            "ai.jarvis.remote-host.plist"
+          ]
+        },
+        {
+          "scope": "user",
+          "names": [
+            "com.aicompany.jarvis-adb-enrollment.plist",
+            "com.aicompany.jarvis-broker-tunnel.plist",
+            "com.aicompany.jarvis-broker.plist",
+            "com.aicompany.jarvis-commander-tunnel.plist",
+            "com.aicompany.jarvis-commander.plist",
+            "com.aicompany.jarvis-zero-touch.plist"
+          ]
+        }
+      ],
+      "stateExists": [
+        {
+          "slot": 0,
+          "exists": false
+        },
+        {
+          "slot": 1,
+          "exists": true
+        },
+        {
+          "slot": 2,
+          "exists": false
+        }
+      ],
+      "appExists": {
+        "tailscale": true
+      },
+      "processNames": [
+        "node",
+        "node",
+        "cloudflared",
+        "node",
+        "cloudflared",
+        "Tailscale",
+        "caffeinate",
+        "io.tailscale.ipn.macsys.network-extension",
+        "node",
+        "node",
+        "node_repl",
+        "node",
+        "node",
+        "node_repl",
+        "node",
+        "node",
+        "Creative Cloud Content Manager.node",
+        "Runner.Listener",
+        "node"
+      ],
+      "tools": {
+        "pnpm": "/opt/homebrew/bin/pnpm",
+        "ffmpeg": "/opt/homebrew/bin/ffmpeg"
+      },
+      "tailnet": {
+        "backend": "NeedsLogin",
+        "selfOnline": false,
+        "peerCount": 0
+      },
+      "probes": [
+        {
+          "name": "loopback-ui",
+          "port": 3000,
+          "status": "unreachable"
+        },
+        {
+          "name": "loopback-broker",
+          "port": 8787,
+          "status": "open"
+        },
+        {
+          "name": "loopback-iphone",
+          "port": 8788,
+          "status": "unreachable"
+        },
+        {
+          "name": "loopback-gateway",
+          "port": 8790,
+          "status": "open"
+        },
+        {
+          "name": "legacy-ingress",
+          "port": 8792,
+          "status": "timeout"
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-09-17T09:33:51.167Z",
+      "sleepAssertions": "2026-09-17 18:33:51 +0900 \nAssertion status system-wide:\n   BackgroundTask                 0\n   ApplePushServiceTask           0\n   UserIsActive                   0\n   PreventUserIdleDisplaySleep    1\n   SoftwareUpdateTask             0\n   PreventSystemSleep             1\n   ExternalMedia                  0\n   PreventUserIdleSystemSleep     1\n   NetworkClientActive            0\n",
+      "memoryPressure": "The system has 17179869184 (1048576 pages with a page size of 16384).\nSystem-wide memory free percentage: 69%",
+      "listeners": [
+        "COMMAND    PID USER   FD   TYPE             DEVICE SIZE/OFF NODE NAME",
+        "node      1234 haji   12u  IPv4 0x2f17d337bb67ab8e      0t0  TCP *:8790 (LISTEN)",
+        "node      1250 haji   12u  IPv4 0x5838eacfceb823e0      0t0  TCP 127.0.0.1:8795 (LISTEN)",
+        "node      5817 haji   17u  IPv4 0x6fb8d52e19eb70d7      0t0  TCP 127.0.0.1:8787 (LISTEN)"
+      ],
+      "plists": [
+        {
+          "name": "ai.jarvis.remote-host.plist",
+          "scope": "system",
+          "runAtLoad": true,
+          "keepAlive": true,
+          "startInterval": null,
+          "workingDirectoryExists": true,
+          "configKeyNames": [],
+          "programNames": []
+        },
+        {
+          "name": "com.aicompany.jarvis-adb-enrollment.plist",
+          "scope": "user",
+          "runAtLoad": true,
+          "keepAlive": false,
+          "startInterval": 5,
+          "workingDirectoryExists": true,
+          "configKeyNames": [
+            "PATH",
+            "JARVIS_ADB_MASS_ENABLE_TCP",
+            "JARVIS_ADB_MAX_NODES"
+          ],
+          "programNames": [
+            "jarvis-adb-mass-enroll.sh"
+          ]
+        },
+        {
+          "name": "com.aicompany.jarvis-broker-tunnel.plist",
+          "scope": "user",
+          "runAtLoad": true,
+          "keepAlive": true,
+          "startInterval": null,
+          "workingDirectoryExists": true,
+          "configKeyNames": [
+            "PATH"
+          ],
+          "programNames": [
+            "jarvis-mac-broker-tunnel-service.sh"
+          ]
+        },
+        {
+          "name": "com.aicompany.jarvis-broker.plist",
+          "scope": "user",
+          "runAtLoad": true,
+          "keepAlive": true,
+          "startInterval": null,
+          "workingDirectoryExists": true,
+          "configKeyNames": [
+            "PATH"
+          ],
+          "programNames": [
+            "jarvis-mac-broker-service.sh"
+          ]
+        },
+        {
+          "name": "com.aicompany.jarvis-commander-tunnel.plist",
+          "scope": "user",
+          "runAtLoad": true,
+          "keepAlive": true,
+          "startInterval": null,
+          "workingDirectoryExists": true,
+          "configKeyNames": [],
+          "programNames": [
+            "jarvis-direct-commander-tunnel-service.sh"
+          ]
+        },
+        {
+          "name": "com.aicompany.jarvis-commander.plist",
+          "scope": "user",
+          "runAtLoad": true,
+          "keepAlive": true,
+          "startInterval": null,
+          "workingDirectoryExists": true,
+          "configKeyNames": [],
+          "programNames": [
+            "jarvis-direct-commander-service.sh"
+          ]
+        },
+        {
+          "name": "com.aicompany.jarvis-zero-touch.plist",
+          "scope": "user",
+          "runAtLoad": true,
+          "keepAlive": false,
+          "startInterval": 60,
+          "workingDirectoryExists": true,
+          "configKeyNames": [
+            "PATH"
+          ],
+          "programNames": [
+            "jarvis-mac-zero-touch.sh"
+          ]
+        }
+      ],
+      "resident": [
+        {
+          "label": "com.aicompany.jarvis-broker",
+          "state": "running",
+          "pidExists": true,
+          "commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+          "buildExists": false,
+          "dbExists": true,
+          "hasPrivateIngress": true,
+          "persisted": {
+            "snapshotAt": "2026-09-16T21:23:22.915Z",
+            "fleet": 1,
+            "tasks": 141,
+            "identities": 1
+          },
+          "legacyTunnelScripts": [
+            {
+              "name": "jarvis-mac-broker-tunnel-service.sh",
+              "quickTunnel": true
+            },
+            {
+              "name": "jarvis-direct-commander-tunnel-service.sh",
+              "quickTunnel": true
+            }
+          ]
+        },
+        {
+          "label": "com.aicompany.jarvis-commander",
+          "state": "running",
+          "pidExists": true,
+          "commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+          "buildExists": false,
+          "dbExists": true,
+          "hasPrivateIngress": true,
+          "legacyTunnelScripts": [
+            {
+              "name": "jarvis-mac-broker-tunnel-service.sh",
+              "quickTunnel": true
+            },
+            {
+              "name": "jarvis-direct-commander-tunnel-service.sh",
+              "quickTunnel": true
+            }
+          ]
+        },
+        {
+          "label": "ai.jarvis.remote-host",
+          "state": "spawn scheduled",
+          "pidExists": false
+        }
+      ],
+      "health": [
+        {
+          "port": 3000,
+          "status": "unavailable-or-not-json"
+        },
+        {
+          "port": 8790,
+          "status": 200,
+          "service": "jarvis-direct-commander-v5",
+          "ok": true,
+          "registered": null
+        },
+        {
+          "port": 8787,
+          "status": 200,
+          "service": "jarvis-broker",
+          "ok": true,
+          "registered": 1
+        }
+      ]
+    }
+  ]
+}

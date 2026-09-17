@@ -8,7 +8,7 @@ STATUS: JARVIS_PRODUCT_COMPLETION_IN_PROGRESS
 LAST_UPDATED: 2026-09-17
 CURRENT_EPIC: One-front-door general autonomous AI with durable offline-first device-neutral execution and verifier-driven completion
 ACTIVE_ISSUES: JARVIS Product Completion parent #681 and #694 P3 reconciliation; Research Ops #321 / R1-R20 separate; historical #401/#609/#612 acceptance retained
-OPEN_PRS: #858/#860/#862 draft stack retained; #863 audit branch pending PR; no deployment or enrollment interruption
+OPEN_PRS: #858/#860/#862 draft stack retained; #864 draft Mac readiness audit; no deployment or enrollment interruption
 BLOCKERS: #786 MSIX AppData startup root cause repaired operationally with native owner-profile release90a111b; Limited Windows task and four services running in session0, existing two Workers READY. Tailscale Running and private URL HTTP200 after explicitly approved unattended mode; routine Tailscale recovery standing approval recorded. Physical Windows reboot/AC-loss and #734 video replay remain unverified. See docs/evidence/786-native-startup.md. Owner requires firewall unchanged.
 PRIORITY_OVERRIDE: Owner 2026-09-16 instruction resumes expanded JARVIS product completion #681 with ZBook main-host priority; preserve Human Gates and separate research evidence
 NORTH_STAR_GOAL: Human gives one goal; the system determines required work, dynamically recruits available capabilities, executes, verifies, repairs, records, and completes with the fewest necessary human returns, including continued local work during connectivity loss where capability permits
@@ -51,4 +51,4 @@ MAX_ACTIVE_AGENTS: 3
 MAX_PARALLEL_CODE_AGENTS: 2
 MAX_ISSUES_PER_CYCLE: 2
 
-JARVIS_COORDINATOR_MIGRATION: #863 M0 audit; 38 Android registry entries observed, durable snapshot stale; Mac/iPhone live inventory and canaries unverified. MIG-001–030 recorded. Next: reconcile durable freshness and inspect Mac read-only before M1/M2; preserve production path and all identities.
+JARVIS_COORDINATOR_MIGRATION: #863 M0 audit; 38 Android registry entries observed, durable snapshot stale; Mac/iPhone live inventory and canaries unverified. MIG-001–030 recorded. Mac read-only runs35205390167/35205560188/35205781413 PASS: M1 Pro16GiB/AC; Tailscale NeedsLogin, independent Mac registry1/tasks141, no UI build, legacy public tunnels, no reboot proof. Current Windows38 heartbeats stale and Wi-Fi changed subnet. See docs/audit/jarvis-mac-home-readiness.md. Next: reviewed tailnet auth and isolated shadow/endpoint/state preservation plan; no production cutover.
