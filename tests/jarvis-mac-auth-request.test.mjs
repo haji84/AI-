@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {Buffer} from 'node:buffer';
 import {generateKeyPairSync,privateDecrypt} from 'node:crypto';
 import {sealAuthUrl} from '../scripts/jarvis-mac-auth-request.mjs';
 
