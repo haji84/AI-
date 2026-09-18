@@ -1,4 +1,5 @@
 "use client";
+import { isRecoverableCaptureFailure, remoteCaptureGapMs } from "../../jarvis/remote-capture-policy";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import RemoteAssistMultiView from "./RemoteAssistMultiView";
@@ -96,6 +97,7 @@ export default function JarvisConsole() {
   const [liveRefresh, setLiveRefresh] = useState(false);
   const [videoSession, setVideoSession] = useState("");
   const [remoteError, setRemoteError] = useState("");
+  const inventoryWarning = useRef("");
   const [screenshot, setScreenshot] = useState<ScreenshotResult | null>(null);
   const remoteInteraction = useRef(false);
   const setRemoteInteraction = useCallback((active: boolean) => { remoteInteraction.current = active; }, []);
@@ -135,7 +137,10 @@ export default function JarvisConsole() {
         }
         return next;
       });
-      setRemoteError(body.warnings?.join(" / ") || "");
+      const warning = body.warnings?.join(" / ") || "";
+      const previousWarning = inventoryWarning.current;
+      inventoryWarning.current = warning;
+      setRemoteError(current => !current || current === previousWarning ? warning : current);
     } catch (cause) {
       setRemoteDevices([]);
       setRemoteSession(null);
@@ -212,7 +217,11 @@ export default function JarvisConsole() {
       if (!response) return null;
       const body = await response.json() as Record<string, unknown>;
       if (!response.ok) {
-        if (options.manual && response.status === 409) {
+        if (isRecoverableCaptureFailure(payload.action, response.status, body)) {
+          setRemoteError("画面取得を再試行中です。表示画像は前回取得時のものです");
+          return null;
+        }
+        if (options.manual && [401, 403, 409].includes(response.status)) {
           setRemoteSession(null);
           setRecording(null);
           setLiveRefresh(false);
@@ -268,12 +277,15 @@ export default function JarvisConsole() {
     if (!liveRefresh || !canViewRemote) return;
     const loop = startRemoteRefreshLoop({
       capture: () => captureScreen(true),
+      successDelayMs: remoteCaptureGapMs(selectedRemoteDevice?.label),
+      maxFailures: 4,
+      onExhausted: () => { setLiveRefresh(false); setRemoteError("画面取得に連続して失敗したため自動更新を停止しました。接続状態を確認して再開してください。表示画像は前回取得時のものです"); },
       visible: () => document.visibilityState === "visible" && !remoteInteraction.current,
     });
     const resume = () => { if (document.visibilityState === "visible") loop.resume(); };
     document.addEventListener("visibilitychange", resume);
     return () => { loop.stop(); document.removeEventListener("visibilitychange", resume); };
-  }, [captureScreen, canViewRemote, liveRefresh]);
+  }, [captureScreen, canViewRemote, liveRefresh, selectedRemoteDevice?.label]);
 
   useEffect(() => {
     if (!recording || (recording.status !== "recording" && recording.status !== "stopping") || !remoteSessionActive) return;

@@ -298,6 +298,9 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
       response.on("close", close);
       try {
         const result = await remoteMailbox.request(node.id, payload.sessionId, payload.input as Record<string, unknown>, payload.expiresAt, abort.signal);
+        if (result.ok !== true && (payload.input as Record<string, unknown>).action === "screenshot") {
+          return json(response, 503, { ...result, code: "REMOTE_CAPTURE_UNAVAILABLE", message: "画面を取得できませんでした。接続を保持して間隔を空けて再確認します" });
+        }
         return json(response, result.ok === true ? 200 : 409, result);
       } catch { return json(response, 409, { message: "端末の操作結果を確認できません。画面を再確認してください。操作は再送していません" }); }
       finally { response.off("close", close); }
@@ -498,3 +501,4 @@ function shutdown(): void {
 }
 process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);
+

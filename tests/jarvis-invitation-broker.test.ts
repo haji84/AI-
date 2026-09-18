@@ -77,6 +77,19 @@ test("owner invitation enrolls while window is closed, persists restart and revo
     assert.equal((await remoteResult).status, 200);
     assert.equal((await fetch(base + resultPath, signedResult)).status, 401, "replayed nonce rejected");
     assert.equal((await fetch(base + resultPath, signedRequest("invite-first", resultPath, { id: command.id, ok: true }))).status, 409, "finished command rejected even with fresh signature");
+    for (const action of ["screenshot", "tap"]) {
+      const pending = post(commandPath, { ...commandInput, expiresAt: Date.now() + 5_000, input: { action, x: 10, y: 20 } }, true);
+      let failedCommand: {id: string} | undefined;
+      for (let attempt=0;attempt<20&&!failedCommand;attempt++) {
+        failedCommand=(await(await fetch(base+nextPath,signedRequest("invite-first",nextPath,{}))).json()).command;
+        if(!failedCommand)await new Promise(resolve=>setTimeout(resolve,20));
+      }
+      assert.ok(failedCommand);
+      assert.equal((await fetch(base+resultPath,signedRequest("invite-first",resultPath,{id:failedCommand.id,ok:false,message:"capture unavailable"}))).status,200);
+      const failure=await pending;
+      assert.equal(failure.status,action==="screenshot"?503:409);
+      assert.equal((await failure.json()).code,action==="screenshot"?"REMOTE_CAPTURE_UNAVAILABLE":undefined);
+    }
     const wakePath = "/api/jarvis/admin/remote/wake";
     assert.equal((await post(wakePath, { nodeId: "invite-first" })).status, 401);
     assert.equal((await post(wakePath, { nodeId: "unknown" }, true)).status, 409);
@@ -123,3 +136,4 @@ test("owner invitation enrolls while window is closed, persists restart and revo
     assert.equal((await post("/api/jarvis/worker/heartbeat", {})).status, 401);
   } finally { await stop(); await rm(directory, { recursive: true, force: true }); }
 });
+
