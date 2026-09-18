@@ -25,6 +25,15 @@ class JarvisAccessibilityService : AccessibilityService() {
 
         fun executeRemote(command: JSONObject): JSONObject {
             val service = current ?: error("Accessibility is disabled")
+            return RemoteScreenWake.run(service, command.getLong("expiresAt")) { woke ->
+                val result = executeRemoteReady(command)
+                RemoteScreenWake.checkReady(service, command.getLong("expiresAt"))
+                result.put("screenWoken", woke)
+            }
+        }
+
+        private fun executeRemoteReady(command: JSONObject): JSONObject {
+            val service = current ?: error("Accessibility is disabled")
             require(Build.VERSION.SDK_INT >= 30 || LegacyScreenService.available()) { "端末で画面共有を許可してください" }
             require(command.getLong("expiresAt") > System.currentTimeMillis()) { "Expired command" }
             require(!WorkerRuntimeState.snapshot().optBoolean("working")) { "Device busy" }
@@ -44,7 +53,7 @@ class JarvisAccessibilityService : AccessibilityService() {
                 })
                 else -> error("Unsupported remote action")
             }
-            require(command.getLong("expiresAt") > System.currentTimeMillis())
+            RemoteScreenWake.checkReady(service, command.getLong("expiresAt"))
             val result = service.executePayload(JSONObject().put("steps", JSONArray().put(action)))
             return result.put("ok", true)
         }

@@ -121,7 +121,10 @@ class BrokerClient(private val context: Context) {
         val command = request("POST", "/api/jarvis/worker/remote/next", "{}".toByteArray(), signed = true).optJSONObject("command") ?: return
         lastRemoteAt = android.os.SystemClock.elapsedRealtime()
         val result = runCatching { JarvisAccessibilityService.executeRemote(command) }
-            .getOrElse { JSONObject().put("ok", false).put("message", "画面取得・操作に失敗しました。ロック・操作権限・接続を確認してください") }
+            .getOrElse { error ->
+                if (error is RemoteWakeFailure) JSONObject().put("ok", false).put("code", error.code).put("message", error.message)
+                else JSONObject().put("ok", false).put("message", "画面取得・操作に失敗しました。ロック・操作権限・接続を確認してください")
+            }
         result.put("id", command.getString("id"))
         // Failure to deliver a result never resends the input command.
         request("POST", "/api/jarvis/worker/remote/result", result.toString().toByteArray(Charsets.UTF_8), signed = true)

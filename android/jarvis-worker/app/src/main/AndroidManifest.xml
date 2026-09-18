@@ -21,6 +21,9 @@
         android:networkSecurityConfig="@xml/jarvis_network_security"
         android:theme="@style/Theme.JarvisWorker">
 
+        <activity android:name=".SwipeWakeActivity" android:exported="false"
+            android:excludeFromRecents="true" android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
         <activity
             android:name=".UrlTaskActivity"
             android:exported="false" />
