@@ -10,7 +10,7 @@ Statuses: VERIFIED, IMPLEMENTED_UNVERIFIED, PARTIAL, MISSING, PLATFORM_LIMITED. 
 
 ## Architecture and safety
 
-Main host: ZBook / Windows, always on. MacBook: auxiliary / development / potential failover. External smartphone → cellular Internet → private encrypted Tailscale tailnet → ZBook → JARVIS → Broker / Remote Gateway → home Wi-Fi Android fleet. Android devices need not each install Tailscale. Router public port forwarding, Funnel, public Broker and public Remote Gateway are prohibited.
+Current deployed host: ZBook / Windows. Owner target (2026-09-17): logical Home Coordinator on an always-home Mac candidate plus mobile ZBook Worker, through MIG-001–030 staged compatibility migration. Existing IDs, credentials and endpoints must be preserved. The following is the current deployed route, not a permanent physical-host restriction. External smartphone → cellular Internet → private encrypted Tailscale tailnet → ZBook → JARVIS → Broker / Remote Gateway → home Wi-Fi Android fleet. Android devices need not each install Tailscale. Router public port forwarding, Funnel, public Broker and public Remote Gateway are prohibited.
 
 One user-visible JARVIS dynamically composes Planner, Executor, Verifier, Researcher, Device/Browser/PC/Mobile Worker, Recovery, Memory, Skill, Security and Auditor roles as needed. Work/Codex supplies model reasoning; no additional paid AI API path. Credentials, permissions, billing, irreversible/destructive operations and security/governance changes retain Human Gates. Routine low/medium work continues within authorized execution; bounded retries (maximum 3 per issue), durable next action and fail-visible behavior remain required.
 
@@ -7758,6 +7758,944 @@ The JSON blocks are the authoritative rows. Validate exact mirror and evidence g
   "platform_limit": null,
   "fallback": null,
   "next_action": "実機で実演→保存→別run再現を検証し、未接続platform adapterを実装する。",
+  "last_verified_commit": null
+}
+```
+
+## Home Coordinator Migration (owner instruction 2026-09-17)
+
+Mac can remain at home. M0–M10 maps into P0/P1/P2/P4/P9/P10; see `docs/architecture/jarvis-coordinator-migration.md`. No production cutover is performed by this audit.
+
+### MIG-001
+
+```json
+{
+  "id": "MIG-001",
+  "title": "Android再登録不要",
+  "description": "既存AndroidのID・鍵・設定を保持し再Enrollmentなしで接続する",
+  "phase": "P4",
+  "migration_phase": "M5",
+  "required_evidence": [
+    "CODE",
+    "UNIT",
+    "INTEGRATION",
+    "SECURITY",
+    "PHYSICAL",
+    "RECOVERY"
+  ],
+  "implementation_refs": [],
+  "test_refs": [],
+  "evidence_refs": [
+    "docs/audit/jarvis-coordinator-compatibility.md"
+  ],
+  "status": "PARTIAL",
+  "blocker": "Mac実機inventoryと互換path・durable state検証が未完了。既存登録中の本番切替禁止。",
+  "platform_limit": null,
+  "fallback": "現在のZBook Coordinator pathを保持する。",
+  "next_action": "docs/architecture/jarvis-coordinator-migration.md の段階順に実装・検証し、実機Evidence取得前はVERIFIEDにしない。",
+  "last_verified_commit": null
+}
+```
+
+### MIG-002
+
+```json
+{
+  "id": "MIG-002",
+  "title": "iPhone identity維持",
+  "description": "stable Device IDとKeychain credentialを保持する",
+  "phase": "P4",
+  "migration_phase": "M6",
+  "required_evidence": [
+    "CODE",
+    "UNIT",
+    "INTEGRATION",
+    "SECURITY",
+    "PHYSICAL",
+    "RECOVERY"
+  ],
+  "implementation_refs": [],
+  "test_refs": [],
+  "evidence_refs": [
+    "docs/audit/jarvis-coordinator-compatibility.md"
+  ],
+  "status": "PARTIAL",
+  "blocker": "Mac実機inventoryと互換path・durable state検証が未完了。既存登録中の本番切替禁止。",
+  "platform_limit": null,
+  "fallback": "現在のZBook Coordinator pathを保持する。",
+  "next_action": "docs/architecture/jarvis-coordinator-migration.md の段階順に実装・検証し、実機Evidence取得前はVERIFIEDにしない。",
+  "last_verified_commit": null
+}
+```
+
+### MIG-003
+
+```json
+{
+  "id": "MIG-003",
+  "title": "署名関係維持",
+  "description": "既存signed worker request/resultとnonce・clock保護を維持する",
+  "phase": "P1",
+  "migration_phase": "M2",
+  "required_evidence": [
+    "CODE",
+    "UNIT",
+    "INTEGRATION",
+    "SECURITY",
+    "PHYSICAL",
+    "RECOVERY"
+  ],
+  "implementation_refs": [],
+  "test_refs": [],
+  "evidence_refs": [
+    "docs/audit/jarvis-coordinator-compatibility.md"
+  ],
+  "status": "PARTIAL",
+  "blocker": "Mac実機inventoryと互換path・durable state検証が未完了。既存登録中の本番切替禁止。",
+  "platform_limit": null,
+  "fallback": "現在のZBook Coordinator pathを保持する。",
+  "next_action": "docs/architecture/jarvis-coordinator-migration.md の段階順に実装・検証し、実機Evidence取得前はVERIFIEDにしない。",
+  "last_verified_commit": null
+}
+```
+
+### MIG-004
+
+```json
+{
+  "id": "MIG-004",
+  "title": "Pending Task保全",
+  "description": "未完了タスク・lease・idempotencyを保持し二重実行を防ぐ",
+  "phase": "P2",
+  "migration_phase": "M4",
+  "required_evidence": [
+    "CODE",
+    "UNIT",
+    "INTEGRATION",
+    "SECURITY",
+    "PHYSICAL",
+    "RECOVERY"
+  ],
+  "implementation_refs": [],
+  "test_refs": [],
+  "evidence_refs": [
+    "docs/audit/jarvis-coordinator-compatibility.md"
+  ],
+  "status": "PARTIAL",
+  "blocker": "Mac実機inventoryと互換path・durable state検証が未完了。既存登録中の本番切替禁止。",
+  "platform_limit": null,
+  "fallback": "現在のZBook Coordinator pathを保持する。",
+  "next_action": "docs/architecture/jarvis-coordinator-migration.md の段階順に実装・検証し、実機Evidence取得前はVERIFIEDにしない。",
+  "last_verified_commit": null
+}
+```
+
+### MIG-005
+
+```json
+{
+  "id": "MIG-005",
+  "title": "Offline Queue保全",
+  "description": "端末とCoordinatorのoffline queueを消失させない",
+  "phase": "P2",
+  "migration_phase": "M4",
+  "required_evidence": [
+    "CODE",
+    "UNIT",
+    "INTEGRATION",
+    "SECURITY",
+    "PHYSICAL",
+    "RECOVERY"
+  ],
+  "implementation_refs": [],
+  "test_refs": [],
+  "evidence_refs": [
+    "docs/audit/jarvis-coordinator-compatibility.md"
+  ],
+  "status": "MISSING",
+  "blocker": "Mac実機inventoryと互換path・durable state検証が未完了。既存登録中の本番切替禁止。",
+  "platform_limit": null,
+  "fallback": "現在のZBook Coordinator pathを保持する。",
+  "next_action": "docs/architecture/jarvis-coordinator-migration.md の段階順に実装・検証し、実機Evidence取得前はVERIFIEDにしない。",
+  "last_verified_commit": null
+}
+```
+
+### MIG-006
+
+```json
+{
+  "id": "MIG-006",
+  "title": "履歴Evidence保全",
+  "description": "task/result履歴・検証履歴・外部Evidenceを保持する",
+  "phase": "P10",
+  "migration_phase": "M4",
+  "required_evidence": [
+    "CODE",
+    "UNIT",
+    "INTEGRATION",
+    "SECURITY",
+    "PHYSICAL",
+    "RECOVERY"
+  ],
+  "implementation_refs": [],
+  "test_refs": [],
+  "evidence_refs": [
+    "docs/audit/jarvis-coordinator-compatibility.md"
+  ],
+  "status": "PARTIAL",
+  "blocker": "Mac実機inventoryと互換path・durable state検証が未完了。既存登録中の本番切替禁止。",
+  "platform_limit": null,
+  "fallback": "現在のZBook Coordinator pathを保持する。",
+  "next_action": "docs/architecture/jarvis-coordinator-migration.md の段階順に実装・検証し、実機Evidence取得前はVERIFIEDにしない。",
+  "last_verified_commit": null
+}
+```
+
+### MIG-007
+
+```json
+{
+  "id": "MIG-007",
+  "title": "100台個別再設定禁止",
+  "description": "既存端末の一括削除・再登録・QR再読込を移行条件にしない",
+  "phase": "P4",
+  "migration_phase": "M7",
+  "required_evidence": [
+    "CODE",
+    "UNIT",
+    "INTEGRATION",
+    "SECURITY",
+    "PHYSICAL",
+    "RECOVERY"
+  ],
+  "implementation_refs": [],
+  "test_refs": [],
+  "evidence_refs": [
+    "docs/audit/jarvis-coordinator-compatibility.md"
+  ],
+  "status": "MISSING",
+  "blocker": "Mac実機inventoryと互換path・durable state検証が未完了。既存登録中の本番切替禁止。",
+  "platform_limit": null,
+  "fallback": "現在のZBook Coordinator pathを保持する。",
+  "next_action": "docs/architecture/jarvis-coordinator-migration.md の段階順に実装・検証し、実機Evidence取得前はVERIFIEDにしない。",
+  "last_verified_commit": null
+}
+```
+
+### MIG-008
+
+```json
+{
+  "id": "MIG-008",
+  "title": "Coordinator役割分離",
+  "description": "durable Broker・registry・enrollment・routingを物理PCと独立した論理roleにする",
+  "phase": "P1",
+  "migration_phase": "M1",
+  "required_evidence": [
+    "CODE",
+    "UNIT",
+    "INTEGRATION",
+    "SECURITY",
+    "PHYSICAL",
+    "RECOVERY"
+  ],
+  "implementation_refs": [],
+  "test_refs": [],
+  "evidence_refs": [
+    "docs/audit/jarvis-coordinator-compatibility.md"
+  ],
+  "status": "MISSING",
+  "blocker": "Mac実機inventoryと互換path・durable state検証が未完了。既存登録中の本番切替禁止。",
+  "platform_limit": null,
+  "fallback": "現在のZBook Coordinator pathを保持する。",
+  "next_action": "docs/architecture/jarvis-coordinator-migration.md の段階順に実装・検証し、実機Evidence取得前はVERIFIEDにしない。",
+  "last_verified_commit": null
+}
+```
+
+### MIG-009
+
+```json
+{
+  "id": "MIG-009",
+  "title": "Mobile ZBook Worker",
+  "description": "ZBookを持ち出せる高性能Workerとし家側稼働を維持する",
+  "phase": "P1",
+  "migration_phase": "M8",
+  "required_evidence": [
+    "CODE",
+    "UNIT",
+    "INTEGRATION",
+    "SECURITY",
+    "PHYSICAL",
+    "RECOVERY"
+  ],
+  "implementation_refs": [],
+  "test_refs": [],
+  "evidence_refs": [
+    "docs/audit/jarvis-coordinator-compatibility.md"
+  ],
+  "status": "MISSING",
+  "blocker": "Mac実機inventoryと互換path・durable state検証が未完了。既存登録中の本番切替禁止。",
+  "platform_limit": null,
+  "fallback": "現在のZBook Coordinator pathを保持する。",
+  "next_action": "docs/architecture/jarvis-coordinator-migration.md の段階順に実装・検証し、実機Evidence取得前はVERIFIEDにしない。",
+  "last_verified_commit": null
+}
+```
+
+### MIG-010
+
+```json
+{
+  "id": "MIG-010",
+  "title": "Legacy endpoint互換",
+  "description": "固定IP・hostname・cached endpoint・TLS信頼を実装監査し旧pathをbridgeで維持する",
+  "phase": "P1",
+  "migration_phase": "M2",
+  "required_evidence": [
+    "CODE",
+    "UNIT",
+    "INTEGRATION",
+    "SECURITY",
+    "PHYSICAL",
+    "RECOVERY"
+  ],
+  "implementation_refs": [],
+  "test_refs": [],
+  "evidence_refs": [
+    "docs/audit/jarvis-coordinator-compatibility.md"
+  ],
+  "status": "PARTIAL",
+  "blocker": "Mac実機inventoryと互換path・durable state検証が未完了。既存登録中の本番切替禁止。",
+  "platform_limit": null,
+  "fallback": "現在のZBook Coordinator pathを保持する。",
+  "next_action": "docs/architecture/jarvis-coordinator-migration.md の段階順に実装・検証し、実機Evidence取得前はVERIFIEDにしない。",
+  "last_verified_commit": null
+}
+```
+
+### MIG-011
+
+```json
+{
+  "id": "MIG-011",
+  "title": "Logical Coordinator ID",
+  "description": "物理host移動で変化しないservice identityを既存protocolを壊さず導入する",
+  "phase": "P1",
+  "migration_phase": "M1",
+  "required_evidence": [
+    "CODE",
+    "UNIT",
+    "INTEGRATION",
+    "SECURITY",
+    "PHYSICAL",
+    "RECOVERY"
+  ],
+  "implementation_refs": [],
+  "test_refs": [],
+  "evidence_refs": [
+    "docs/audit/jarvis-coordinator-compatibility.md"
+  ],
+  "status": "MISSING",
+  "blocker": "Mac実機inventoryと互換path・durable state検証が未完了。既存登録中の本番切替禁止。",
+  "platform_limit": null,
+  "fallback": "現在のZBook Coordinator pathを保持する。",
+  "next_action": "docs/architecture/jarvis-coordinator-migration.md の段階順に実装・検証し、実機Evidence取得前はVERIFIEDにしない。",
+  "last_verified_commit": null
+}
+```
+
+### MIG-012
+
+```json
+{
+  "id": "MIG-012",
+  "title": "Protocol migration window",
+  "description": "vCurrentを継続しvNextと共存、強制全台更新を移行条件にしない",
+  "phase": "P4",
+  "migration_phase": "M2",
+  "required_evidence": [
+    "CODE",
+    "UNIT",
+    "INTEGRATION",
+    "SECURITY",
+    "PHYSICAL",
+    "RECOVERY"
+  ],
+  "implementation_refs": [],
+  "test_refs": [],
+  "evidence_refs": [
+    "docs/audit/jarvis-coordinator-compatibility.md"
+  ],
+  "status": "MISSING",
+  "blocker": "Mac実機inventoryと互換path・durable state検証が未完了。既存登録中の本番切替禁止。",
+  "platform_limit": null,
+  "fallback": "現在のZBook Coordinator pathを保持する。",
+  "next_action": "docs/architecture/jarvis-coordinator-migration.md の段階順に実装・検証し、実機Evidence取得前はVERIFIEDにしない。",
+  "last_verified_commit": null
+}
+```
+
+### MIG-013
+
+```json
+{
+  "id": "MIG-013",
+  "title": "M0–M10段階移行",
+  "description": "inventoryからshadow/canary/段階展開/physical/cleanupまでexit gateを順に満たす",
+  "phase": "P0",
+  "migration_phase": "M0",
+  "required_evidence": [
+    "CODE",
+    "UNIT",
+    "INTEGRATION",
+    "SECURITY",
+    "PHYSICAL",
+    "RECOVERY"
+  ],
+  "implementation_refs": [],
+  "test_refs": [],
+  "evidence_refs": [
+    "docs/audit/jarvis-coordinator-compatibility.md"
+  ],
+  "status": "PARTIAL",
+  "blocker": "Mac実機inventoryと互換path・durable state検証が未完了。既存登録中の本番切替禁止。",
+  "platform_limit": null,
+  "fallback": "現在のZBook Coordinator pathを保持する。",
+  "next_action": "docs/architecture/jarvis-coordinator-migration.md の段階順に実装・検証し、実機Evidence取得前はVERIFIEDにしない。",
+  "last_verified_commit": null
+}
+```
+
+### MIG-014
+
+```json
+{
+  "id": "MIG-014",
+  "title": "Shadow副作用禁止",
+  "description": "shadowはregistry・task・signature・queue・health・evidenceを比較しdispatchや登録変更しない",
+  "phase": "P2",
+  "migration_phase": "M3",
+  "required_evidence": [
+    "CODE",
+    "UNIT",
+    "INTEGRATION",
+    "SECURITY",
+    "PHYSICAL",
+    "RECOVERY"
+  ],
+  "implementation_refs": [],
+  "test_refs": [],
+  "evidence_refs": [
+    "docs/audit/jarvis-coordinator-compatibility.md"
+  ],
+  "status": "MISSING",
+  "blocker": "Mac実機inventoryと互換path・durable state検証が未完了。既存登録中の本番切替禁止。",
+  "platform_limit": null,
+  "fallback": "現在のZBook Coordinator pathを保持する。",
+  "next_action": "docs/architecture/jarvis-coordinator-migration.md の段階順に実装・検証し、実機Evidence取得前はVERIFIEDにしない。",
+  "last_verified_commit": null
+}
+```
+
+### MIG-015
+
+```json
+{
+  "id": "MIG-015",
+  "title": "State copy validation",
+  "description": "consistent copy→validate→switchとしcritical stateのnaive last-write-winsは禁止",
+  "phase": "P2",
+  "migration_phase": "M4",
+  "required_evidence": [
+    "CODE",
+    "UNIT",
+    "INTEGRATION",
+    "SECURITY",
+    "PHYSICAL",
+    "RECOVERY"
+  ],
+  "implementation_refs": [],
+  "test_refs": [],
+  "evidence_refs": [
+    "docs/audit/jarvis-coordinator-compatibility.md"
+  ],
+  "status": "MISSING",
+  "blocker": "Mac実機inventoryと互換path・durable state検証が未完了。既存登録中の本番切替禁止。",
+  "platform_limit": null,
+  "fallback": "現在のZBook Coordinator pathを保持する。",
+  "next_action": "docs/architecture/jarvis-coordinator-migration.md の段階順に実装・検証し、実機Evidence取得前はVERIFIEDにしない。",
+  "last_verified_commit": null
+}
+```
+
+### MIG-016
+
+```json
+{
+  "id": "MIG-016",
+  "title": "Android/iPhone canary",
+  "description": "各1台でidentity/key・delivery・signed result・verifier・history・reboot/network recoveryを実証する",
+  "phase": "P9",
+  "migration_phase": "M6",
+  "required_evidence": [
+    "CODE",
+    "UNIT",
+    "INTEGRATION",
+    "SECURITY",
+    "PHYSICAL",
+    "RECOVERY"
+  ],
+  "implementation_refs": [],
+  "test_refs": [],
+  "evidence_refs": [
+    "docs/audit/jarvis-coordinator-compatibility.md"
+  ],
+  "status": "MISSING",
+  "blocker": "Mac実機inventoryと互換path・durable state検証が未完了。既存登録中の本番切替禁止。",
+  "platform_limit": null,
+  "fallback": "現在のZBook Coordinator pathを保持する。",
+  "next_action": "docs/architecture/jarvis-coordinator-migration.md の段階順に実装・検証し、実機Evidence取得前はVERIFIEDにしない。",
+  "last_verified_commit": null
+}
+```
+
+### MIG-017
+
+```json
+{
+  "id": "MIG-017",
+  "title": "Authenticated update migration",
+  "description": "必要なWorker更新は署名検証し既存configを移行して再接続、手作業100台を要求しない",
+  "phase": "P4",
+  "migration_phase": "M7",
+  "required_evidence": [
+    "CODE",
+    "UNIT",
+    "INTEGRATION",
+    "SECURITY",
+    "PHYSICAL",
+    "RECOVERY"
+  ],
+  "implementation_refs": [],
+  "test_refs": [],
+  "evidence_refs": [
+    "docs/audit/jarvis-coordinator-compatibility.md"
+  ],
+  "status": "MISSING",
+  "blocker": "Mac実機inventoryと互換path・durable state検証が未完了。既存登録中の本番切替禁止。",
+  "platform_limit": null,
+  "fallback": "現在のZBook Coordinator pathを保持する。",
+  "next_action": "docs/architecture/jarvis-coordinator-migration.md の段階順に実装・検証し、実機Evidence取得前はVERIFIEDにしない。",
+  "last_verified_commit": null
+}
+```
+
+### MIG-018
+
+```json
+{
+  "id": "MIG-018",
+  "title": "Protected backup",
+  "description": "registry/state/queue/configとcredential metadataを保存、秘密鍵は平文backup/commitしない",
+  "phase": "P10",
+  "migration_phase": "M4",
+  "required_evidence": [
+    "CODE",
+    "UNIT",
+    "INTEGRATION",
+    "SECURITY",
+    "PHYSICAL",
+    "RECOVERY"
+  ],
+  "implementation_refs": [],
+  "test_refs": [],
+  "evidence_refs": [
+    "docs/audit/jarvis-coordinator-compatibility.md"
+  ],
+  "status": "MISSING",
+  "blocker": "Mac実機inventoryと互換path・durable state検証が未完了。既存登録中の本番切替禁止。",
+  "platform_limit": null,
+  "fallback": "現在のZBook Coordinator pathを保持する。",
+  "next_action": "docs/architecture/jarvis-coordinator-migration.md の段階順に実装・検証し、実機Evidence取得前はVERIFIEDにしない。",
+  "last_verified_commit": null
+}
+```
+
+### MIG-019
+
+```json
+{
+  "id": "MIG-019",
+  "title": "Lossless rollback",
+  "description": "旧Coordinator pathへ戻してもID/key/queue/history/evidenceと切替後の新規進捗を失わない",
+  "phase": "P2",
+  "migration_phase": "M9",
+  "required_evidence": [
+    "CODE",
+    "UNIT",
+    "INTEGRATION",
+    "SECURITY",
+    "PHYSICAL",
+    "RECOVERY"
+  ],
+  "implementation_refs": [],
+  "test_refs": [],
+  "evidence_refs": [
+    "docs/audit/jarvis-coordinator-compatibility.md"
+  ],
+  "status": "MISSING",
+  "blocker": "Mac実機inventoryと互換path・durable state検証が未完了。既存登録中の本番切替禁止。",
+  "platform_limit": null,
+  "fallback": "現在のZBook Coordinator pathを保持する。",
+  "next_action": "docs/architecture/jarvis-coordinator-migration.md の段階順に実装・検証し、実機Evidence取得前はVERIFIEDにしない。",
+  "last_verified_commit": null
+}
+```
+
+### MIG-020
+
+```json
+{
+  "id": "MIG-020",
+  "title": "ZBook removal test",
+  "description": "ZBookを家Wi-Fiから外してもhome fleet/job/private accessが継続し再登録不要",
+  "phase": "P9",
+  "migration_phase": "M8",
+  "required_evidence": [
+    "CODE",
+    "UNIT",
+    "INTEGRATION",
+    "SECURITY",
+    "PHYSICAL",
+    "RECOVERY"
+  ],
+  "implementation_refs": [],
+  "test_refs": [],
+  "evidence_refs": [
+    "docs/audit/jarvis-coordinator-compatibility.md"
+  ],
+  "status": "MISSING",
+  "blocker": "Mac実機inventoryと互換path・durable state検証が未完了。既存登録中の本番切替禁止。",
+  "platform_limit": null,
+  "fallback": "現在のZBook Coordinator pathを保持する。",
+  "next_action": "docs/architecture/jarvis-coordinator-migration.md の段階順に実装・検証し、実機Evidence取得前はVERIFIEDにしない。",
+  "last_verified_commit": null
+}
+```
+
+### MIG-021
+
+```json
+{
+  "id": "MIG-021",
+  "title": "ZBook return test",
+  "description": "外部networkと自宅帰還で同じWorker IDを保持しLAN優先へ戻る",
+  "phase": "P9",
+  "migration_phase": "M8",
+  "required_evidence": [
+    "CODE",
+    "UNIT",
+    "INTEGRATION",
+    "SECURITY",
+    "PHYSICAL",
+    "RECOVERY"
+  ],
+  "implementation_refs": [],
+  "test_refs": [],
+  "evidence_refs": [
+    "docs/audit/jarvis-coordinator-compatibility.md"
+  ],
+  "status": "MISSING",
+  "blocker": "Mac実機inventoryと互換path・durable state検証が未完了。既存登録中の本番切替禁止。",
+  "platform_limit": null,
+  "fallback": "現在のZBook Coordinator pathを保持する。",
+  "next_action": "docs/architecture/jarvis-coordinator-migration.md の段階順に実装・検証し、実機Evidence取得前はVERIFIEDにしない。",
+  "last_verified_commit": null
+}
+```
+
+### MIG-022
+
+```json
+{
+  "id": "MIG-022",
+  "title": "Automatic route selection",
+  "description": "trusted LAN fast path/private tailnet/durable offlineをidentity変更なしで選択する",
+  "phase": "P1",
+  "migration_phase": "M8",
+  "required_evidence": [
+    "CODE",
+    "UNIT",
+    "INTEGRATION",
+    "SECURITY",
+    "PHYSICAL",
+    "RECOVERY"
+  ],
+  "implementation_refs": [],
+  "test_refs": [],
+  "evidence_refs": [
+    "docs/audit/jarvis-coordinator-compatibility.md"
+  ],
+  "status": "MISSING",
+  "blocker": "Mac実機inventoryと互換path・durable state検証が未完了。既存登録中の本番切替禁止。",
+  "platform_limit": null,
+  "fallback": "現在のZBook Coordinator pathを保持する。",
+  "next_action": "docs/architecture/jarvis-coordinator-migration.md の段階順に実装・検証し、実機Evidence取得前はVERIFIEDにしない。",
+  "last_verified_commit": null
+}
+```
+
+### MIG-023
+
+```json
+{
+  "id": "MIG-023",
+  "title": "Authenticated discovery",
+  "description": "signed discovery/trusted bootstrap/cached known-goodを用い偽Coordinatorへcredentialを渡さない",
+  "phase": "P1",
+  "migration_phase": "M2",
+  "required_evidence": [
+    "CODE",
+    "UNIT",
+    "INTEGRATION",
+    "SECURITY",
+    "PHYSICAL",
+    "RECOVERY"
+  ],
+  "implementation_refs": [],
+  "test_refs": [],
+  "evidence_refs": [
+    "docs/audit/jarvis-coordinator-compatibility.md"
+  ],
+  "status": "MISSING",
+  "blocker": "Mac実機inventoryと互換path・durable state検証が未完了。既存登録中の本番切替禁止。",
+  "platform_limit": null,
+  "fallback": "現在のZBook Coordinator pathを保持する。",
+  "next_action": "docs/architecture/jarvis-coordinator-migration.md の段階順に実装・検証し、実機Evidence取得前はVERIFIEDにしない。",
+  "last_verified_commit": null
+}
+```
+
+### MIG-024
+
+```json
+{
+  "id": "MIG-024",
+  "title": "Security invariants",
+  "description": "owner auth・signing・nonce/replay/clock・allowlist・capability・Human Gate・private ingressを維持しFunnel/公開Broker禁止",
+  "phase": "P1",
+  "migration_phase": "M2",
+  "required_evidence": [
+    "CODE",
+    "UNIT",
+    "INTEGRATION",
+    "SECURITY",
+    "PHYSICAL",
+    "RECOVERY"
+  ],
+  "implementation_refs": [],
+  "test_refs": [],
+  "evidence_refs": [
+    "docs/audit/jarvis-coordinator-compatibility.md"
+  ],
+  "status": "MISSING",
+  "blocker": "Mac実機inventoryと互換path・durable state検証が未完了。既存登録中の本番切替禁止。",
+  "platform_limit": null,
+  "fallback": "現在のZBook Coordinator pathを保持する。",
+  "next_action": "docs/architecture/jarvis-coordinator-migration.md の段階順に実装・検証し、実機Evidence取得前はVERIFIEDにしない。",
+  "last_verified_commit": null
+}
+```
+
+### MIG-025
+
+```json
+{
+  "id": "MIG-025",
+  "title": "Connected baseline比較",
+  "description": "変更前後にID/platform/protocol/capability/connectivity/heartbeat/enrollment/pending/credential存在/verificationを比較する",
+  "phase": "P0",
+  "migration_phase": "M0",
+  "required_evidence": [
+    "CODE",
+    "UNIT",
+    "INTEGRATION",
+    "SECURITY",
+    "PHYSICAL",
+    "RECOVERY"
+  ],
+  "implementation_refs": [
+    "src/jarvis/migration-baseline.ts"
+  ],
+  "test_refs": [
+    "tests/jarvis-migration-baseline.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/audit/jarvis-coordinator-compatibility.md"
+  ],
+  "status": "PARTIAL",
+  "blocker": "Mac実機inventoryと互換path・durable state検証が未完了。既存登録中の本番切替禁止。",
+  "platform_limit": null,
+  "fallback": "現在のZBook Coordinator pathを保持する。",
+  "next_action": "docs/architecture/jarvis-coordinator-migration.md の段階順に実装・検証し、実機Evidence取得前はVERIFIEDにしない。",
+  "last_verified_commit": null
+}
+```
+
+### MIG-026
+
+```json
+{
+  "id": "MIG-026",
+  "title": "Physical existing-device evidence",
+  "description": "既存Android/iPhoneとZBook home/away/returnの実機証明をCIから分離する",
+  "phase": "P9",
+  "migration_phase": "M8",
+  "required_evidence": [
+    "CODE",
+    "UNIT",
+    "INTEGRATION",
+    "SECURITY",
+    "PHYSICAL",
+    "RECOVERY"
+  ],
+  "implementation_refs": [],
+  "test_refs": [],
+  "evidence_refs": [
+    "docs/audit/jarvis-coordinator-compatibility.md"
+  ],
+  "status": "MISSING",
+  "blocker": "Mac実機inventoryと互換path・durable state検証が未完了。既存登録中の本番切替禁止。",
+  "platform_limit": null,
+  "fallback": "現在のZBook Coordinator pathを保持する。",
+  "next_action": "docs/architecture/jarvis-coordinator-migration.md の段階順に実装・検証し、実機Evidence取得前はVERIFIEDにしない。",
+  "last_verified_commit": null
+}
+```
+
+### MIG-027
+
+```json
+{
+  "id": "MIG-027",
+  "title": "切替操作不要UX",
+  "description": "ZBookを持ち出す前後にユーザーのnetwork切替操作を求めない",
+  "phase": "P10",
+  "migration_phase": "M9",
+  "required_evidence": [
+    "CODE",
+    "UNIT",
+    "INTEGRATION",
+    "SECURITY",
+    "PHYSICAL",
+    "RECOVERY"
+  ],
+  "implementation_refs": [],
+  "test_refs": [],
+  "evidence_refs": [
+    "docs/audit/jarvis-coordinator-compatibility.md"
+  ],
+  "status": "MISSING",
+  "blocker": "Mac実機inventoryと互換path・durable state検証が未完了。既存登録中の本番切替禁止。",
+  "platform_limit": null,
+  "fallback": "現在のZBook Coordinator pathを保持する。",
+  "next_action": "docs/architecture/jarvis-coordinator-migration.md の段階順に実装・検証し、実機Evidence取得前はVERIFIEDにしない。",
+  "last_verified_commit": null
+}
+```
+
+### MIG-028
+
+```json
+{
+  "id": "MIG-028",
+  "title": "Hardware independence",
+  "description": "Macを自宅candidateとしlogical roleをWindows/Linux等へ将来移設できる設計にする",
+  "phase": "P1",
+  "migration_phase": "M1",
+  "required_evidence": [
+    "CODE",
+    "UNIT",
+    "INTEGRATION",
+    "SECURITY",
+    "PHYSICAL",
+    "RECOVERY"
+  ],
+  "implementation_refs": [],
+  "test_refs": [],
+  "evidence_refs": [
+    "docs/audit/jarvis-coordinator-compatibility.md"
+  ],
+  "status": "PARTIAL",
+  "blocker": "Mac実機inventoryと互換path・durable state検証が未完了。既存登録中の本番切替禁止。",
+  "platform_limit": null,
+  "fallback": "現在のZBook Coordinator pathを保持する。",
+  "next_action": "docs/architecture/jarvis-coordinator-migration.md の段階順に実装・検証し、実機Evidence取得前はVERIFIEDにしない。",
+  "last_verified_commit": null
+}
+```
+
+### MIG-029
+
+```json
+{
+  "id": "MIG-029",
+  "title": "Single writer fencing",
+  "description": "shadowとprimaryの二重lease/dispatchを防ぎreplay windowと進行中登録を保護する",
+  "phase": "P2",
+  "migration_phase": "M4",
+  "required_evidence": [
+    "CODE",
+    "UNIT",
+    "INTEGRATION",
+    "SECURITY",
+    "PHYSICAL",
+    "RECOVERY"
+  ],
+  "implementation_refs": [],
+  "test_refs": [],
+  "evidence_refs": [
+    "docs/audit/jarvis-coordinator-compatibility.md"
+  ],
+  "status": "MISSING",
+  "blocker": "Mac実機inventoryと互換path・durable state検証が未完了。既存登録中の本番切替禁止。",
+  "platform_limit": null,
+  "fallback": "現在のZBook Coordinator pathを保持する。",
+  "next_action": "docs/architecture/jarvis-coordinator-migration.md の段階順に実装・検証し、実機Evidence取得前はVERIFIEDにしない。",
+  "last_verified_commit": null
+}
+```
+
+### MIG-030
+
+```json
+{
+  "id": "MIG-030",
+  "title": "Evidence後の依存整理",
+  "description": "fallbackを保持したprimary化と充分な実機evidence取得後のみlegacy依存を整理する",
+  "phase": "P10",
+  "migration_phase": "M10",
+  "required_evidence": [
+    "CODE",
+    "UNIT",
+    "INTEGRATION",
+    "SECURITY",
+    "PHYSICAL",
+    "RECOVERY"
+  ],
+  "implementation_refs": [],
+  "test_refs": [],
+  "evidence_refs": [
+    "docs/audit/jarvis-coordinator-compatibility.md"
+  ],
+  "status": "MISSING",
+  "blocker": "Mac実機inventoryと互換path・durable state検証が未完了。既存登録中の本番切替禁止。",
+  "platform_limit": null,
+  "fallback": "現在のZBook Coordinator pathを保持する。",
+  "next_action": "docs/architecture/jarvis-coordinator-migration.md の段階順に実装・検証し、実機Evidence取得前はVERIFIEDにしない。",
   "last_verified_commit": null
 }
 ```

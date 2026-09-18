@@ -1,0 +1,78 @@
+name: JARVIS Mac read-only readiness audit
+
+on:
+  push:
+    branches: [codex/863-coordinator-audit]
+    paths: [.github/workflows/jarvis-mac-readiness-audit.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jarvis-mac-readiness-audit
+  cancel-in-progress: false
+
+jobs:
+  inspect:
+    runs-on: [self-hosted, macOS, ARM64]
+    timeout-minutes: 5
+    steps:
+      # No checkout: leave the resident repository, credentials and services untouched.
+      - name: Read hardware, power, runtime and service metadata
+        shell: bash
+        run: |
+          node <<'NODE'
+          const {execFileSync}=require('node:child_process');
+          const fs=require('node:fs'),os=require('node:os'),net=require('node:net');
+          function read(cmd,args){try{return execFileSync(cmd,args,{encoding:'utf8',timeout:10000,stdio:['ignore','pipe','pipe']}).trim()}catch(e){return `UNAVAILABLE(exit=${e.status??'timeout'})`}}
+          const home=os.homedir();
+          const report={timestamp:new Date().toISOString(),platform:os.platform(),arch:os.arch(),os:read('/usr/bin/sw_vers',['-productVersion']),cpu:os.cpus()[0]?.model,cpuCount:os.cpus().length,memoryGiB:Math.round(os.totalmem()/2**30),freeMemoryGiB:Math.round(os.freemem()/2**30),load:os.loadavg(),uptimeSeconds:os.uptime(),node:process.version,disk:read('/bin/df',['-Pk',home]).split('\n').slice(-1).map(l=>{const p=l.trim().split(/\s+/);return {blocksKiB:p[1],availableKiB:p[3],used:p[4]}}),power:read('/usr/bin/pmset',['-g','custom']),battery:read('/usr/bin/pmset',['-g','batt']),fileVault:read('/usr/bin/fdesetup',['status']),firewall:read('/usr/libexec/ApplicationFirewall/socketfilterfw',['--getglobalstate'])};
+          report.interfaces=Object.entries(os.networkInterfaces()).flatMap(([name,a])=>a.filter(i=>!i.internal&&i.family==='IPv4').map(i=>({name,address:i.address,netmask:i.netmask})));
+          report.services=read('/bin/launchctl',['list']).split('\n').filter(l=>/jarvis|tailscale|actions\.runner|aicompany/i.test(l));
+          report.serviceFiles=['/Library/LaunchDaemons',home+'/Library/LaunchAgents'].map(dir=>({scope:dir.startsWith(home)?'user':'system',names:fs.existsSync(dir)?fs.readdirSync(dir).filter(n=>/jarvis|tailscale|actions\.runner|aicompany/i.test(n)):[]}));
+          report.stateExists=['/Library/Application Support/JARVIS',home+'/Library/Application Support/JARVIS',home+'/.jarvis'].map((p,i)=>({slot:i,exists:fs.existsSync(p)}));
+          report.appExists={tailscale:fs.existsSync('/Applications/Tailscale.app')};
+          report.processNames=read('/bin/ps',['-axo','comm=']).split('\n').filter(l=>/node|tailscale|cloudflared|caffeinate|Runner.Listener/i.test(l)).map(p=>p.split('/').pop());
+          report.tools={pnpm:read('/bin/bash',['-lc','command -v pnpm']),ffmpeg:read('/bin/bash',['-lc','command -v ffmpeg'])};
+          const ts=['/Applications/Tailscale.app/Contents/MacOS/Tailscale','/opt/homebrew/bin/tailscale','/usr/local/bin/tailscale'].find(p=>fs.existsSync(p));
+          if(ts){try{const s=JSON.parse(read(ts,['status','--json']));report.tailnet={backend:s.BackendState,selfOnline:s.Self?.Online,peerCount:Object.keys(s.Peer??{}).length};}catch{report.tailnet={status:'UNAVAILABLE'};}}else report.tailnet={status:'NOT_FOUND'};
+          const probes=[['loopback-ui','127.0.0.1',3000],['loopback-broker','127.0.0.1',8787],['loopback-iphone','127.0.0.1',8788],['loopback-gateway','127.0.0.1',8790],['legacy-ingress','192.168.0.169',8792]];
+          Promise.all(probes.map(([name,host,port])=>new Promise(resolve=>{const s=net.connect({host,port});let done=false;function finish(status){if(done)return;done=true;s.destroy();resolve({name,port,status});}s.setTimeout(2500,()=>finish('timeout'));s.on('connect',()=>finish('open'));s.on('error',()=>finish('unreachable'));}))).then(probes=>console.log(JSON.stringify({...report,probes},null,2)));
+          NODE
+      - name: Inspect existing service contracts without exposing configuration secrets
+        shell: bash
+        run: |
+          node <<'NODE'
+          const {execFileSync}=require('node:child_process');
+          const fs=require('node:fs'),os=require('node:os'),path=require('node:path');
+          function read(cmd,args){try{return execFileSync(cmd,args,{encoding:'utf8',timeout:10000,stdio:['ignore','pipe','pipe']}).trim()}catch(e){return `UNAVAILABLE(exit=${e.status??'timeout'})`}}
+          const home=os.homedir(),report={timestamp:new Date().toISOString()};
+          report.sleepAssertions=read('/usr/bin/pmset',['-g','assertions']).split('Listed by owning process:')[0];
+          report.memoryPressure=read('/usr/bin/memory_pressure',['-Q']);
+          report.listeners=read('/usr/sbin/lsof',['-nP','-iTCP','-sTCP:LISTEN']).split('\n').filter(l=>/node|COMMAND|sshd|screenshar/i.test(l));
+          report.plists=[];
+          for(const dir of ['/Library/LaunchDaemons',home+'/Library/LaunchAgents']){
+            if(!fs.existsSync(dir))continue;
+            for(const name of fs.readdirSync(dir).filter(n=>/jarvis|actions\.runner/i.test(n))){
+              try{const p=JSON.parse(read('/usr/bin/plutil',['-convert','json','-o','-',path.join(dir,name)]));
+              report.plists.push({name,scope:dir.startsWith(home)?'user':'system',runAtLoad:p.RunAtLoad??false,keepAlive:p.KeepAlive??false,startInterval:p.StartInterval??null,workingDirectoryExists:p.WorkingDirectory?fs.existsSync(p.WorkingDirectory):null,configKeyNames:Object.keys(p.EnvironmentVariables??{}),programNames:(p.ProgramArguments??[]).filter(a=>typeof a==='string'&&/\.(sh|mjs|ts)$/.test(a)&&!a.includes(' ')).map(a=>path.basename(a))});}catch{report.plists.push({name,status:'unreadable'});}
+            }
+          }
+          report.resident=[];
+          for(const label of ['com.aicompany.jarvis-broker','com.aicompany.jarvis-commander','ai.jarvis.remote-host']){
+            const domain=label==='ai.jarvis.remote-host'?'system':`gui/${process.getuid()}`;
+            const info=read('/bin/launchctl',['print',`${domain}/${label}`]);
+            const pid=info.match(/\n\s*pid = (\d+)/)?.[1];
+            const state=info.match(/\n\s*state = ([^\n]+)/)?.[1];
+            const item={label,state:state??'not-observed',pidExists:!!pid};
+            if(pid){const cwd=read('/usr/sbin/lsof',['-a','-p',pid,'-d','cwd','-Fn']).split('\n').find(l=>l.startsWith('n'))?.slice(1);
+              if(cwd&&fs.existsSync(path.join(cwd,'package.json'))){item.commit=read('/usr/bin/git',['-C',cwd,'rev-parse','HEAD']);item.buildExists=fs.existsSync(path.join(cwd,'.next/BUILD_ID'));item.dbExists=fs.existsSync(path.join(cwd,'.jarvis/jarvis.db'));item.hasPrivateIngress=fs.existsSync(path.join(cwd,'src/jarvis/private-worker-ingress.ts'));
+                if(label==='com.aicompany.jarvis-broker'&&item.dbExists){try{const {DatabaseSync}=require('node:sqlite');const db=new DatabaseSync(path.join(cwd,'.jarvis/jarvis.db'),{readOnly:true,timeout:1000});db.exec('BEGIN');const row=db.prepare('SELECT payload FROM jarvis_state WHERE id=1').get();const snap=row?JSON.parse(row.payload):null;item.persisted={snapshotAt:snap?.generatedAt,fleet:snap?.fleet?.length,tasks:snap?.tasks?.length,identities:db.prepare('SELECT count(*) AS n FROM jarvis_worker_identity').get().n};db.exec('COMMIT');db.close();}catch{item.persisted={status:'unavailable'};}}
+                item.legacyTunnelScripts=['jarvis-mac-broker-tunnel-service.sh','jarvis-direct-commander-tunnel-service.sh'].map(name=>{const p=path.join(cwd,'scripts',name);return {name,quickTunnel:fs.existsSync(p)&&/cloudflared|CLOUDFLARED_BIN/.test(fs.readFileSync(p,'utf8'))&&/--url/.test(fs.readFileSync(p,'utf8'))};});
+              }
+            }report.resident.push(item);
+          }
+          report.health=[];
+          Promise.all([8787,8790,3000].map(async port=>{try{const r=await fetch(`http://127.0.0.1:${port}/health`,{signal:AbortSignal.timeout(3000)});const s=await r.json();report.health.push({port,status:r.status,service:s.service??null,ok:s.ok??null,registered:s.stats?.registered??null});}catch{report.health.push({port,status:'unavailable-or-not-json'});}})).then(()=>console.log(JSON.stringify(report,null,2)));
+          NODE
