@@ -190,7 +190,7 @@ export default function JarvisConsole() {
 
     if (!options.silent) setBusy(true);
     try {
-      const response = await fetch("/api/jarvis/remote", {
+      const send = () => fetch("/api/jarvis/remote", {
         method: "POST",
         signal: AbortSignal.timeout(20_000),
         headers: { "Content-Type": "application/json" },
@@ -200,6 +200,10 @@ export default function JarvisConsole() {
           ...(sessionId ? { sessionId } : {}),
         }),
       });
+      const response = options.manual && payload.action !== "screenshot"
+        ? await captureQueue.current.input(`${sessionId}:${serial}`, send)
+        : await send();
+      if (!response) return null;
       const body = await response.json() as Record<string, unknown>;
       if (!response.ok) {
         if (options.manual && response.status === 409) {
@@ -304,6 +308,7 @@ export default function JarvisConsole() {
 
   async function endRemoteAssist() {
     const session = remoteSession;
+    captureQueue.current.setContext("");
     setRemoteSession(null);
     setRecording(null);
     setLiveRefresh(false);
