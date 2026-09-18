@@ -1,0 +1,33 @@
+name: JARVIS read-only home route audit
+on:
+  push:
+    branches: [codex/867-private-recovery]
+    paths: [.github/workflows/jarvis-home-route-audit.yml]
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: [self-hosted, macOS, ARM64]
+    timeout-minutes: 2
+    steps:
+      - name: Inspect private route and legacy address ownership evidence
+        shell: bash
+        run: |
+          node <<'NODE'
+          const {execFileSync}=require('node:child_process');
+          const net=require('node:net');
+          const run=(bin,args)=>{try{return execFileSync(bin,args,{encoding:'utf8',timeout:7000,stdio:['ignore','pipe','pipe']}).trim()}catch{return 'UNAVAILABLE'}};
+          const ts='/Applications/Tailscale.app/Contents/MacOS/Tailscale';
+          let status={};try{status=JSON.parse(run(ts,['status','--json']))}catch{}
+          const route=run('/sbin/route',['-n','get','default']);
+          const gateway=route.match(/gateway:\s*(\d+\.\d+\.\d+\.\d+)/)?.[1];
+          const packet=run('/usr/sbin/ipconfig',['getpacket','en0']);
+          const fields=packet.split('\n').filter(l=>/yiaddr|server_identifier|lease_time|subnet_mask|router \(/.test(l));
+          const report={timestamp:new Date().toISOString(),backend:status.BackendState,self:status.Self?{name:status.Self.HostName,online:status.Self.Online,addresses:status.Self.TailscaleIPs,userId:status.Self.UserID}:null,peers:Object.values(status.Peer??{}).map(p=>({name:p.HostName,online:p.Online,addresses:p.TailscaleIPs,userId:p.UserID})),gateway,dhcpFields:fields,legacyArp:run('/usr/sbin/arp',['-n','192.168.0.169']),adminNonInteractive:run('/usr/bin/sudo',['-n','/usr/bin/true'])===''};
+          const targets=[['windows-tailnet-ui','100.71.220.44',443],['windows-tailnet-worker','100.71.220.44',8792],['legacy-home-worker','192.168.0.169',8792]];
+          Promise.all(targets.map(([name,host,port])=>new Promise(resolve=>{const s=net.connect({host,port});let done=false;const finish=state=>{if(done)return;done=true;s.destroy();resolve({name,state})};s.setTimeout(2500,()=>finish('timeout'));s.on('connect',()=>finish('open'));s.on('error',()=>finish('unreachable'))}))).then(async probes=>{
+            report.probes=probes;
+            if(gateway&&/^192\.168\.0\.\d+$/.test(gateway))try{const r=await fetch('http://'+gateway,{signal:AbortSignal.timeout(3000),redirect:'error'});const text=(await r.text()).slice(0,65536);report.router={status:r.status,title:text.match(/<title[^>]*>([^<]{0,120})/i)?.[1]??null,server:r.headers.get('server'),authenticationRequired:r.status===401};}catch{report.router={status:'UNAVAILABLE'}};
+            console.log(JSON.stringify(report,null,2));
+          });
+          NODE
