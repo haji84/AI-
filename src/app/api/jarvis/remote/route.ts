@@ -1,3 +1,4 @@
+import { prepareWorkerRemote } from "../../../../jarvis/prepare-worker-remote.ts";
 import { remotePreview } from "../../../../jarvis/remote-preview.ts";
 import { teachingCommand, beforeTeachingInput, stopTeachingSession } from "../../../../jarvis/teaching-runtime.ts";
 import { NextResponse } from "next/server";
@@ -260,7 +261,9 @@ export async function POST(request: Request) {
         const body = await response.json() as { fleet: JarvisNode[] };
         const device = remoteDeviceInventory(body.fleet, []).find(item => item.serial === payload.serial);
         if (!device?.remoteAssistCapability) throw new Error(device?.reason || "登録済み端末ではありません");
-        return NextResponse.json({ session: remoteAssist.start({ serial: payload.serial, capability: device.remoteAssistCapability, ttlMs: payload.ttlMs }) });
+        const node = body.fleet.find(item => `worker:${item.id}` === payload.serial)!;
+        const preparation = await prepareWorkerRemote(node, jarvisBrokerFetch);
+        return NextResponse.json({ preparation, session: remoteAssist.start({ serial: payload.serial, capability: device.remoteAssistCapability, ttlMs: payload.ttlMs }) });
       }
       const { response, body } = await gatewayDevices();
       if (!response.ok) return NextResponse.json(body, { status: response.status });

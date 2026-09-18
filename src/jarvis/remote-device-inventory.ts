@@ -25,7 +25,9 @@ export function remoteDeviceInventory(
       const seen = Date.parse(node.lastSeenAt);
       const offline = !Number.isFinite(seen) || now - seen > 90_000 || now < seen - 30_000 || node.status === "offline";
       const available = !offline && node.kind === "android" && node.status === "ready" && !node.telemetry?.locked && node.telemetry?.remoteProtocol === 1 && node.telemetry?.accessibilityEnabled === true && node.policy.allowRemoteControl && node.capabilities.includes("remote-view") && node.capabilities.includes("remote-control");
-      const reason = available ? "Wi-Fiで画面確認・タップ・文字入力・スワイプ・戻る／ホームを操作できます"
+      const asleep = node.telemetry?.screenInteractive === false;
+      const reason = available && asleep ? "接続済み・画面OFF。Remote Assist開始時に画面を起こして確認します。安全なロックの解除は端末で必要です"
+        : available ? "Wi-Fiで画面確認・タップ・文字入力・スワイプ・戻る／ホームを操作できます"
         : offline ? "登録済み・未接続。家のWi-FiにつないでWorkerを開いてください（再登録不要）"
         : node.status === "disabled" ? "この端末は無効化されています"
         : node.telemetry?.locked || node.status === "locked" ? "登録済み。端末のロックを解除してください"
@@ -34,7 +36,7 @@ export function remoteDeviceInventory(
         : node.telemetry?.androidApi !== undefined && node.telemetry.androidApi < 30 ? "このOSではWi-Fi画面取得に未対応です。USB / ADBで操作できます"
         : "登録・接続済み。Workerの更新または操作権限の確認が必要です（再登録不要）";
       return { serial: `worker:${node.id}`, label: node.label || node.id,
-        state: offline ? "offline" : node.status, transport: "worker", remoteAssistCapability: available ? "CONTROLLABLE" : null, reason };
+        state: offline ? "offline" : available && asleep ? "sleeping" : !available && node.status === "ready" ? "unavailable" : node.status, transport: "worker", remoteAssistCapability: available ? "CONTROLLABLE" : null, reason };
     }),
   ];
 }

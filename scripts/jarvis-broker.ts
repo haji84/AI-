@@ -275,6 +275,15 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
         } catch (error) { return json(response, 409, { message: error instanceof Error ? error.message : "登録できません" }); }
       }
     }
+    if (method === "POST" && path === "/api/jarvis/admin/remote/wake") {
+      const node = typeof payload.nodeId === "string" ? plane.fleet.get(payload.nodeId) : undefined;
+      if (!node || !remoteDeviceInventory([node], [])[0].remoteAssistCapability || !node.capabilities.includes("wake-device")) return json(response, 409, { message: "画面起動に対応した接続済み端末ではありません" });
+      const current = plane.queue.list().find(task => task.type === "wake-device" && task.targetNodeId === node.id && task.dispatchBefore && ["queued", "leased", "running"].includes(task.status) && Date.parse(task.dispatchBefore) > Date.now());
+      if (current) return json(response, 200, { task: current });
+      if (plane.queue.assignedTo(node.id).length || remoteMailbox.pending(node.id)) return json(response, 409, { message: "端末は別の操作を実行中です" });
+      const task = plane.enqueueTask({ type: "wake-device", payload: {}, targetNodeId: node.id, requiredCapabilities: ["wake-device"], preferredKinds: ["android"], requiresOnline: true, priority: "high", maxAttempts: 1, idempotencyKey: `remote-wake:${node.id}:${Date.now()}`, dispatchBefore: new Date(Date.now() + 15_000).toISOString() });
+      persist(); return json(response, 201, { task });
+    }
     if (method === "POST" && path === "/api/jarvis/admin/remote/end") {
       if (typeof payload.sessionId !== "string") return json(response, 400, { message: "sessionId required" });
       remoteMailbox.endSession(payload.sessionId);

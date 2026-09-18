@@ -45,6 +45,11 @@ type StatePayload = {
 
 type RemoteAssistCapability = "VIEW_ONLY" | "CONTROLLABLE" | "FULL_MANAGEMENT";
 type RemoteDevice = { serial: string; state: string; label?: string; reason?: string; remoteAssistCapability?: RemoteAssistCapability | null };
+function remoteStateLabel(device: RemoteDevice | undefined, fallback: string): string {
+  const labels: Record<string, string> = { sleeping: "画面OFF", offline: "未接続", unavailable: "操作条件不足", ready: "遠隔対応" };
+  return device ? labels[device.state] ?? device.state : fallback;
+}
+
 type RemoteAssistSession = {
   id: string;
   serial: string;
@@ -81,6 +86,7 @@ export default function JarvisConsole() {
   const [state, setState] = useState<StatePayload | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [preparingRemote, setPreparingRemote] = useState(false);
   const [url, setUrl] = useState("");
   const [targetNodeId, setTargetNodeId] = useState("");
   const [remoteDevices, setRemoteDevices] = useState<RemoteDevice[]>([]);
@@ -296,14 +302,17 @@ export default function JarvisConsole() {
 
   async function startRemoteAssist() {
     if (!remoteSerial || !selectedRemoteDevice?.remoteAssistCapability) return;
-    const body = await remoteRequest({ action: "session-start" });
-    const session = body?.session;
-    if (session && typeof session === "object") {
-      setRemoteSession(session as RemoteAssistSession);
-      setRecording(null);
-      setScreenshot(null);
-      setLiveRefresh(true);
-    }
+    setPreparingRemote(true);
+    try {
+      const body = await remoteRequest({ action: "session-start" });
+      const session = body?.session;
+      if (session && typeof session === "object") {
+        setRemoteSession(session as RemoteAssistSession);
+        setRecording(null);
+        setScreenshot(null);
+        setLiveRefresh(true);
+      }
+    } finally { setPreparingRemote(false); }
   }
 
   async function endRemoteAssist() {
@@ -367,7 +376,7 @@ export default function JarvisConsole() {
 
       <section className="jarvis-stats">
         <article><span>登録</span><strong>{state?.stats.registered ?? 0}<small>/100</small></strong></article>
-        <article><span>READY</span><strong>{state?.stats.ready ?? 0}</strong></article>
+        <article><span>タスク待機（操作可否は端末欄）</span><strong>{state?.stats.ready ?? 0}</strong></article>
         <article><span>実行中</span><strong>{state?.stats.running ?? 0}</strong></article>
         <article><span>Queue</span><strong>{state?.stats.queued ?? 0}</strong></article>
         <article><span>要操作</span><strong className={(state?.stats.needsHuman ?? 0) > 0 ? "text-alert" : ""}>{state?.stats.needsHuman ?? 0}</strong></article>
@@ -437,12 +446,12 @@ export default function JarvisConsole() {
           <div className="jarvis-remote-controls">
             <select value={remoteSerial} onChange={(event) => selectRemoteDevice(event.target.value)}>
               <option value="">遠隔端末を選択</option>
-              <optgroup label="登録済み端末（Wi-Fi）">{remoteDevices.filter(device => device.serial.startsWith("worker:")).map((device) => <option value={device.serial} key={device.serial}>{device.label || device.serial} ({device.remoteAssistCapability ?? device.state})</option>)}</optgroup>
-              <optgroup label="USB / ADB接続（同じ端末の別接続を含む）">{remoteDevices.filter(device => !device.serial.startsWith("worker:")).map((device) => <option value={device.serial} key={device.serial}>{device.label || device.serial} ({device.remoteAssistCapability ?? device.state})</option>)}</optgroup>
+              <optgroup label="登録済み端末（Wi-Fi）">{remoteDevices.filter(device => device.serial.startsWith("worker:")).map((device) => <option value={device.serial} key={device.serial}>{device.label || device.serial} ({device.state === "sleeping" ? "画面OFF・起動待ち" : device.remoteAssistCapability ?? device.state})</option>)}</optgroup>
+              <optgroup label="USB / ADB接続（同じ端末の別接続を含む）">{remoteDevices.filter(device => !device.serial.startsWith("worker:")).map((device) => <option value={device.serial} key={device.serial}>{device.label || device.serial} ({device.state === "sleeping" ? "画面OFF・起動待ち" : device.remoteAssistCapability ?? device.state})</option>)}</optgroup>
             </select>
             {selectedRemoteDevice?.reason && <p role="status">{selectedRemoteDevice.reason}</p>}
             <div className="jarvis-button-row">
-              <button className="button secondary" disabled={busy || !remoteSerial || !selectedRemoteDevice?.remoteAssistCapability || Boolean(remoteSessionActive)} onClick={() => void startRemoteAssist()}>Remote Assist開始</button>
+              <button className="button secondary" disabled={busy || !remoteSerial || !selectedRemoteDevice?.remoteAssistCapability || Boolean(remoteSessionActive)} onClick={() => void startRemoteAssist()}>{preparingRemote ? "画面起動・接続準備中…" : "Remote Assist開始"}</button>
               <button className="button secondary" disabled={busy || !remoteSessionActive} onClick={() => void endRemoteAssist()}>終了</button>
             </div>
             {remoteSessionActive && <small>Session {remoteSession.id.slice(0, 8)}… / {remoteSession.capability} / idle timeoutは操作時に更新</small>}
@@ -484,7 +493,7 @@ export default function JarvisConsole() {
       <section className="panel jarvis-section">
         <div className="section-heading"><div><p className="section-kicker">FLEET</p><h2>端末一覧</h2></div><span className="count-badge neutral">{state?.fleet.length ?? 0}</span></div>
         <div className="jarvis-table-wrap"><table className="jarvis-table"><thead><tr><th>端末</th><th>状態</th><th>登録</th><th>通信</th><th>電池</th><th>最終接続</th></tr></thead><tbody>
-          {(state?.fleet ?? []).map((node) => <tr key={node.id}><td><strong>{node.label}</strong><small>{node.id}</small></td><td><span className={`jarvis-node-status ${node.status}`}>{node.status}</span></td><td>{node.enrollment}</td><td>{networkLabel(node.telemetry?.network)}</td><td>{node.telemetry?.batteryPercent ?? "-"}%{node.telemetry?.charging ? " ⚡" : ""}</td><td>{fmt(node.lastSeenAt)}</td></tr>)}
+          {(state?.fleet ?? []).map((node) => <tr key={node.id}><td><strong>{node.label}</strong><small>{node.id}</small></td><td><span className={`jarvis-node-status ${node.status}`}>{remoteStateLabel(remoteDevices.find(device => device.serial === `worker:${node.id}`), node.status)}</span></td><td>{node.enrollment}</td><td>{networkLabel(node.telemetry?.network)}</td><td>{node.telemetry?.batteryPercent ?? "-"}%{node.telemetry?.charging ? " ⚡" : ""}</td><td>{fmt(node.lastSeenAt)}</td></tr>)}
           {(state?.fleet.length ?? 0) === 0 && <tr><td colSpan={6} className="jarvis-empty">まだ端末は登録されていません。</td></tr>}
         </tbody></table></div>
       </section>
