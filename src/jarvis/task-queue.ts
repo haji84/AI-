@@ -37,7 +37,8 @@ export class JarvisTaskQueue {
     return [...this.tasks.values()].map((task) => structuredClone(task));
   }
 
-  assignedTo(nodeId: string): JarvisTask[] {
+  assignedTo(nodeId: string, now = new Date()): JarvisTask[] {
+    this.expireUndispatched(now);
     return [...this.tasks.values()]
       .filter((task) => task.assignedNodeId === nodeId && (task.status === "leased" || task.status === "running"))
       .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
@@ -46,12 +47,14 @@ export class JarvisTaskQueue {
 
   next(now = new Date()): JarvisTask | undefined {
     this.reclaimExpiredLeases(now);
+    this.expireUndispatched(now);
     return [...this.tasks.values()]
       .filter((task) => task.status === "queued")
       .sort((a, b) => PRIORITY_WEIGHT[b.priority] - PRIORITY_WEIGHT[a.priority] || a.createdAt.localeCompare(b.createdAt))[0];
   }
 
   lease(taskId: string, nodeId: string, leaseMs = 120_000, now = new Date()): JarvisTask {
+    this.expireUndispatched(now);
     const task = this.mustGet(taskId);
     if (task.status !== "queued") throw new Error(`Task ${taskId} is not queued`);
     const leased: JarvisTask = {
@@ -126,6 +129,15 @@ export class JarvisTaskQueue {
       reclaimed += 1;
     }
     return reclaimed;
+  }
+
+  private expireUndispatched(now: Date): void {
+    for (const task of this.tasks.values()) {
+      if (!task.dispatchBefore || !["queued", "leased", "waiting-connectivity"].includes(task.status)) continue;
+      const deadline = Date.parse(task.dispatchBefore);
+      if (Number.isFinite(deadline) && deadline > now.getTime()) continue;
+      this.tasks.set(task.id, { ...task, status: "cancelled", leaseUntil: undefined, updatedAt: now.toISOString() });
+    }
   }
 
   private mustGet(taskId: string): JarvisTask {

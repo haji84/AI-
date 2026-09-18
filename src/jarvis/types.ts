@@ -61,6 +61,7 @@ export interface JarvisNodeTelemetry {
   adminActive?: boolean;
   accessibilityEnabled?: boolean;
   locked?: boolean;
+  screenInteractive?: boolean;
   checkedAt: string;
 }
 
@@ -91,6 +92,8 @@ export interface JarvisTask {
   targetNodeId?: string;
   assignedNodeId?: string;
   leaseUntil?: string;
+  /** Latest server dispatch time for bounded preparation; never retries input. */
+  dispatchBefore?: string;
   attempts: number;
   maxAttempts: number;
   createdAt: string;
