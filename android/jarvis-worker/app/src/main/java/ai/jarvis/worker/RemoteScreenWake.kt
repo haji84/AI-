@@ -13,6 +13,7 @@ object RemoteScreenWake {
         val keyguard = context.getSystemService(KeyguardManager::class.java) ?: error("Keyguard unavailable")
         var lease: PowerManager.WakeLock? = null
         try {
+            SwipeWakeActivity.dismissIfAllowed(context, expiresAt)
             val woke = RemoteWakeGate.awaitReady(expiresAt, System::currentTimeMillis, SystemClock::elapsedRealtime,
                 { power.isInteractive }, { keyguard.isDeviceLocked || keyguard.isKeyguardLocked },
                 { WorkerRuntimeState.snapshot().optBoolean("working") },

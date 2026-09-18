@@ -1,11 +1,20 @@
 # Native remote screen wake (#861)
 
-Worker0.4.6 stages automatic wake before a signed native Remote Assist screenshot
+Worker0.4.7 stages automatic wake before a signed native Remote Assist screenshot
 or input. It uses the existing WAKE_LOCK permission and a temporary screen wake
 lock; it does not change keyguard settings or open another foreground app.
 
-Expired, busy, locked (including a visible non-PIN keyguard), and missing legacy
-capture consent commands fail before requesting wake. Already interactive phones
+Expired, busy, credential-locked, and missing legacy
+capture consent commands fail before requesting wake. A visible non-secure swipe
+keyguard can now be dismissed by the OS requestDismissKeyguard API through a
+non-exported, transient Activity. This is allowed only when isKeyguardSecure,
+isDeviceSecure and isDeviceLocked are all false. The signed command deadline,
+capture consent and busy state are rechecked before dismissal. A process-local
+one-use token binds the Activity to the pending request; its lifetime is bounded
+to 2.5 seconds and the command deadline. It never calls disableKeyguard, changes
+lock settings, enters credentials, or sends a synthetic unlock swipe. OS refusal
+remains an explicit failure. All original post-wake guards still apply.
+Already interactive phones
 do not acquire a wake lock. A screen-off unlocked phone receives one wake request
 and is observed for at most2seconds, bounded by its original command expiry.
 The lease is bounded to at most8seconds and released in finally. Guards are
@@ -28,6 +37,7 @@ Reference: https://developer.android.com/reference/android/os/PowerManager#ACQUI
 
 ## Enrollment hold
 
-Stacked on #860. Keep draft: no main merge, APK publication, live host restart,
-device installation, or registration mutation while the owner is enrolling.
-Rollback at this stage is source-only. Existing signed production remains intact.
+Stacked on #860. The owner's 2026-09-18 physical-test and completion request
+authorizes the connected A202ZT canary update; fleet publication and host release
+remain separate. Same signer and install-r preserve its existing registration.
+No enrollment, credential, or lock-setting reset is permitted for rollback.
