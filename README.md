@@ -4,14 +4,14 @@ Phase 1 application foundation for a guarded AI software-development
 organization.
 
 ## Operating model
-ChatGPT/Work handles planning and research. Codex handles implementation. GitHub is the source of truth. GitHub Actions provides deterministic quality gates. Human approval is required for merge, production deployment, destructive migrations, secrets, billing, and destructive changes.
+JARVIS/AI Company follows the goal-directed autonomous development protocol in `AGENTS.md`: Goal Controller/decomposition drives discovery, planning, capability routing, implementation, testing, verification, autonomous recovery, Goal-progress evaluation, and write-back. ChatGPT/Work, Codex, local models, code engines, and future providers are replaceable capabilities rather than fixed owners of planning or implementation. GitHub remains repository governance state and GitHub Actions provides deterministic quality evidence. Human approval remains mandatory for approval-scoped and non-bypassable actions.
 
 ## Start here
 1. Read `AGENTS.md`.
 2. Read `PROJECT_STATE.md`.
 3. Read the assigned GitHub issue.
 4. Work only inside the issue scope.
-5. Open a PR and stop at the human gate.
+5. Continue autonomously through allowed implementation, verification, diagnosis, recovery, and write-back; stop only at a required Human Gate/Human Assistance condition or another protocol stop condition.
 
 ## Toolchain
 

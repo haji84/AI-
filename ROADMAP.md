@@ -107,12 +107,12 @@ Use verified outcomes to improve routing, planning, recovery, model/tool selecti
 Allow bounded changes to prompts/policies/planner/router/recovery/skills/code only through sandbox -> tests -> device E2E -> regression eval -> canary -> monitored promotion with rollback.
 
 ### GAI Phase 20 - Production Autonomy
-Unify the complete loop: Goal -> DoD -> Plan -> Tasks -> Worker selection -> Execution -> Offline/Checkpoint as needed -> Failure diagnosis/repair/replan -> Resume -> Verify -> Learn -> Goal completion, with the fewest necessary human returns.
+Unify the complete RC2 loop: locked Goal -> success criteria/DoD -> current-state/gap discovery -> decomposition -> plan -> risk-derived gates -> capability routing -> execution -> test/verification -> Goal-progress evaluation. Failure does not end the Goal: diagnose -> record failure signature/evidence -> recovery planning -> targeted fix, research, replan, alternate implementation/architecture/capability, decomposition, or rollback -> retest/reverify -> continue until verified Goal completion or a genuine safety/authority/resource/no-safe-strategy stop condition. Human Assistance is distinct from Human Gate and is requested only after safe autonomous resolution paths are exhausted.
 
 ## Phase advancement rule
 
 Each GAI phase advances through:
 
-`Implement -> Unit/Integration -> available real-device E2E -> Verifier/Eval -> failure diagnosis -> repair -> PASS -> write-back -> next phase`
+`Goal/Gap -> Plan -> Implement -> Unit/Integration -> available real-device E2E -> Verifier/Eval -> Goal-progress evaluation -> if FAIL/NOT-ACHIEVED: diagnosis -> recovery/replan/alternate strategy -> retest -> if PASS: write-back -> next Goal action/phase`
 
 A green CI harness is evidence that the harness works; it must not be misreported as a real-device or real-model result unless that execution actually occurred.
