@@ -75,12 +75,21 @@ The old fixed rule "three failed fixes then BLOCKED" is replaced by progress-awa
 
 Available connectors and tools are capabilities, not assumptions. Missing capability must never be fabricated. If one capability is unavailable, evaluate safe alternatives before declaring the Goal blocked.
 
-## Zero-additional-AI-API architecture
-Work/Codex is the model-reasoning control plane for AI employee planning and coding work. GitHub Actions is an execution, persistence, CI, verification, and bounded repository-operation host; it must not silently substitute another model provider.
+## Zero-incremental-cost capability architecture
+Work/Codex remains an available reasoning/coding capability, not an exclusive control plane. GitHub Actions is an execution, persistence, CI, verification, and bounded repository-operation host.
 
-Production runtime and workflows must not add or call direct OpenAI, Anthropic, Gemini/Google AI, GitHub Models, or Copilot CLI model paths. Do not add their API keys, SDKs, inference endpoints, model permissions, or equivalent paid-provider fallback routes. Any future exception requires an explicit Human Gate for billing, secrets, permissions, and architecture change.
+The system may autonomously discover, register, and use APIs, SDKs, models, services, and tokens only when all of the following are true:
+- verified monetary cost is zero for the intended usage and no paid subscription, credit purchase, billing account, payment method, or auto-upgrade is required;
+- usage stays within documented free limits/quotas and the capability can fail closed when the free allowance is unavailable or exhausted;
+- no new secret/token creation, permission grant, OAuth consent, account linkage, or scope expansion is performed without the Human Gate required below;
+- privacy, data handling, licensing/terms, network, and security constraints are compatible with the current Goal;
+- the provider is treated as a replaceable capability and is recorded in capability/evidence history.
 
-When GitHub Actions needs model reasoning, it must receive an explicit bounded plan handed off from Work/Codex. If that handoff is unavailable or invalid, fail visibly rather than degrading to a green no-op or silently choosing another provider.
+Existing already-authorized credentials/tokens may be used autonomously within their existing scope when the service remains verified zero-cost for the intended operation. A free API/token must never be treated as permission to widen scopes or expose project/user data.
+
+Paid or potentially billable provider fallback remains prohibited by default. If cost cannot be verified as zero, treat it as billing-risk and require Human Gate rather than guessing.
+
+When remote/model reasoning is unavailable, the Goal Controller should evaluate other authorized zero-cost/local capabilities and recovery strategies before blocking. It must fail visibly rather than silently producing a green no-op.
 
 ## Compass handoff protocol
 When the Compass MCP is available, every AI employee must use it as the persistent task handoff layer.
@@ -119,6 +128,7 @@ If Compass is unavailable, continue using the repository-governed workflow below
 - secrets or permission changes
 - production deployment
 - paid service activation
+- creating/linking a new external account, API credential, token, OAuth consent, or expanding credential/token scope, even when the service itself is free
 - data deletion
 - weakening or disabling tests to obtain a pass
 - hiding errors
