@@ -45,7 +45,7 @@ let spec = fs.readFileSync(specPath, 'utf8');
 for (const id of IDS) {
   const row = byId.get(id);
   const replacement = `### ${id}\n\n\`\`\`json\n${JSON.stringify(row, null, 2)}\n\`\`\``;
-  const pattern = new RegExp(`### ${id}\\r?\\n\\r?\\n\\`\\`\\`json\\r?\\n[\\s\\S]*?\\r?\\n\\`\\`\\``, 'm');
+  const pattern = new RegExp('### ' + id + '\\r?\\n\\r?\\n```json\\r?\\n[\\s\\S]*?\\r?\\n```', 'm');
   if (!pattern.test(spec)) throw new Error(`canonical block missing for ${id}`);
   spec = spec.replace(pattern, replacement);
 }
