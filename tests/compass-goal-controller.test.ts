@@ -9,9 +9,8 @@ import {
   CompassGoalRegistryAdapter,
   CompassSharedContextStoreAdapter,
 } from "../src/orchestrator/compass-goal-controller.ts";
-import { GoalControllerRuntime } from "../src/orchestrator/goal-controller-runtime.ts";
+import { GoalControllerRuntime, normalizeIntake } from "../src/orchestrator/goal-controller-runtime.ts";
 import { ContextResolver, contextRecordFromIntake } from "../src/orchestrator/shared-context.ts";
-import { normalizeIntake } from "../src/orchestrator/goal-controller-runtime.ts";
 import { goalWorkStateId } from "../src/orchestrator/work-state-integration.ts";
 
 function tempDb(): { dir: string; path: string } {
@@ -38,13 +37,15 @@ test("Goal registry reuses the canonical Compass Goal and stable WorkState ident
     assert.equal(active.length, 1);
     assert.equal(active[0]?.goalId, created.goalId);
 
-    const secondCreate = await registry.create({
-      title: "competing goal",
-      description: "must not silently overwrite",
-      successCriteria: [],
-      constraints: [],
-    });
-    assert.equal(secondCreate.goalId, created.goalId);
+    await assert.rejects(
+      registry.create({
+        title: "competing goal",
+        description: "must not silently overwrite",
+        successCriteria: [],
+        constraints: [],
+      }),
+      /active Compass Goal already exists/,
+    );
     assert.equal(compass.getGoal()?.title, "JARVIS completion");
   } finally {
     compass.close();
@@ -115,16 +116,16 @@ test("Shared Context persists in Compass, resolves relevant context, and superse
     const firstCompass = new CompassStore(fixture.path);
     firstCompass.updateState({ status: "RUNNING", nextAction: "keep-authoritative-state" });
     const store = new CompassSharedContextStoreAdapter(firstCompass);
-    const inspectionIntake = normalizeIntake({ source: "chat", text: "端末登録コードのnonce検証を確認して" });
+    const inspectionIntake = normalizeIntake({ source: "chat", text: "端末登録 nonce 検証を確認して" });
     const firstRecord = contextRecordFromIntake(inspectionIntake, "INSPECTION", {
-      summary: "端末登録コードのnonce検証が不足している",
+      summary: "端末登録 nonce 検証が不足している",
     });
     await store.put(firstRecord);
     await store.put({
       ...firstRecord,
       id: "ctx-correction",
       type: "CORRECTION",
-      summary: "端末登録コードのnonce検証を追加する必要がある",
+      summary: "端末登録 nonce 検証を追加する必要がある",
       supersedes: firstRecord.id,
       createdAt: new Date(Date.parse(firstRecord.createdAt) + 1_000).toISOString(),
     });
@@ -140,7 +141,7 @@ test("Shared Context persists in Compass, resolves relevant context, and superse
 
     const resolver = new ContextResolver(reopened);
     const relevant = await resolver.resolve({
-      intake: normalizeIntake({ source: "codex", text: "端末登録コードのnonce検証を修正して" }),
+      intake: normalizeIntake({ source: "codex", text: "端末登録 nonce 検証を修正して" }),
       limit: 5,
     });
     assert.equal(relevant.some((record) => record.id === "ctx-correction"), true);
