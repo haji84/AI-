@@ -28,10 +28,13 @@ test("focus mode never hides Human Takeover safety surfaces", () => {
   assert.equal(focusRules.some((rule) => rule.includes("jarvis-alert")), false);
 });
 
-test("distance mode enlarges root type and interactive controls", () => {
-  assert.match(css, /data-jarvis-display-mode="distance"\]\{font-size:118%}/);
+test("distance mode uses calibrated 3-5m variables and enlarges interactive controls", () => {
+  assert.match(css, /data-jarvis-display-mode="distance"\]\{font-size:calc\(100% \* var\(--jarvis-distance-font-scale,1\.18\)\)/);
   assert.match(css, /data-jarvis-display-mode="distance"\][^}]*button/);
-  assert.match(css, /min-height:48px/);
+  assert.match(css, /min-height:var\(--jarvis-distance-target-px,56px\)/);
+  assert.match(controls, /約3m/);
+  assert.match(controls, /約4m/);
+  assert.match(controls, /約5m/);
 });
 
 test("display controls expose native keyboard buttons and pressed state", () => {
