@@ -93,3 +93,16 @@ export function verifyOwnerRecoveryRestrictionToken(secret: string, token: strin
   const actual = Buffer.from(signature, "base64url");
   return expected.length === actual.length && timingSafeEqual(expected, actual);
 }
+
+
+export function parseOwnerRecoveryRestrictionUnlockAt(secret: string, token: string | undefined): number | null {
+  if (!secret.trim() || !token) return null;
+  const [version, untilRaw, nonce, signature, extra] = token.split(".");
+  if (extra !== undefined || version !== OWNER_RECOVERY_RESTRICTION_VERSION || !/^\d+$/.test(untilRaw || "") || !NONCE_PATTERN.test(nonce || "") || !SIGNATURE_PATTERN.test(signature || "")) return null;
+  const until = Number(untilRaw);
+  if (!Number.isSafeInteger(until) || until <= 0) return null;
+  const payload = `${version}.${until}.${nonce}`;
+  const expected = signSessionPayload(secret, payload);
+  const actual = Buffer.from(signature, "base64url");
+  return expected.length === actual.length && timingSafeEqual(expected, actual) ? until : null;
+}
