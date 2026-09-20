@@ -49,6 +49,11 @@ export interface GoalRegistry {
   create(input: { title: string; description: string; successCriteria: string[]; constraints: string[] }): Promise<ActiveGoal>;
 }
 
+export interface GoalDecisionStore {
+  get(idempotencyKey: string): Promise<GoalControllerDecision | null>;
+  put(idempotencyKey: string, decision: GoalControllerDecision): Promise<void>;
+}
+
 export interface ClassifierCapability {
   classify(input: NormalizedIntake): Promise<IntakeIntent>;
 }
@@ -165,18 +170,23 @@ export class GoalControllerRuntime {
   private readonly resolver: GoalResolver;
   private readonly classifier?: ClassifierCapability;
   private readonly workStateStore?: WorkStateStore;
+  private readonly decisionStore?: GoalDecisionStore;
   private readonly seen = new Map<string, GoalControllerDecision>();
 
-  constructor(input: { registry: GoalRegistry; classifier?: ClassifierCapability; workStateStore?: WorkStateStore }) {
+  constructor(input: { registry: GoalRegistry; classifier?: ClassifierCapability; workStateStore?: WorkStateStore; decisionStore?: GoalDecisionStore }) {
     this.resolver = new GoalResolver(input.registry);
     this.classifier = input.classifier;
     this.workStateStore = input.workStateStore;
+    this.decisionStore = input.decisionStore;
   }
 
   async handle(request: UnifiedIntakeRequest): Promise<GoalControllerDecision> {
     const intake = normalizeIntake(request);
-    const existing = this.seen.get(intake.idempotencyKey);
-    if (existing) return existing;
+    const existing = this.seen.get(intake.idempotencyKey) ?? await this.decisionStore?.get(intake.idempotencyKey) ?? undefined;
+    if (existing) {
+      this.seen.set(intake.idempotencyKey, existing);
+      return existing;
+    }
     const intent = await classifyIntent(intake, this.classifier);
     const resolution = await this.resolver.resolve(intake, intent);
 
@@ -200,6 +210,7 @@ export class GoalControllerRuntime {
       };
     }
     this.seen.set(intake.idempotencyKey, decision);
+    await this.decisionStore?.put(intake.idempotencyKey, decision);
     return decision;
   }
 }
