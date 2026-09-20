@@ -24,7 +24,7 @@ export async function POST(request: Request) {
   const nowSeconds = Math.floor(Date.now() / 1000);
   const cookieStore = await cookies();
   cookieStore.set(OWNER_RECOVERY_RESTRICTED_COOKIE, createOwnerRecoveryRestrictionToken(secret, untilSeconds), {
-    httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "strict", path: "/", maxAge: Math.max(1, untilSeconds - nowSeconds),
+    httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "strict", path: "/", maxAge: Math.max(1, untilSeconds - nowSeconds + 24 * 60 * 60),
   });
   return NextResponse.json({ ok: true, recoveryLimited: true, restrictedUntil: body.restrictedUntil }, { headers: { "Cache-Control": "no-store" } });
 }
