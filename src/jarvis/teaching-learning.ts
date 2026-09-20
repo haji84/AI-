@@ -16,7 +16,7 @@ export type TeachingLearningCandidate = {
  * The legacy recording format has no explicit correction relation. Do not invent
  * mistakes or silently delete actions based on similar screens/targets. */
 export function teachingLearningCandidate(variant: TeachingVariant, runs: TeachingRun[]): TeachingLearningCandidate {
-  const digest = createHash('sha256').update(JSON.stringify([variant.id,variant.profile,variant.steps,variant.finalScreen])).digest('hex');
+  const digest = createHash('sha256').update(JSON.stringify([variant.id,variant.profile,variant.scope,variant.goal,variant.completion,variant.steps,variant.finalScreen])).digest('hex');
   const events: DemoEvent[] = [];
   let incomplete = variant.status === 'RECORDING' || !variant.completion || !variant.finalScreen || !variant.steps.length;
   for (const [index, step] of variant.steps.entries()) {
@@ -38,11 +38,13 @@ export function teachingLearningCandidate(variant: TeachingVariant, runs: Teachi
 }
 
 /** Shared by the actual owner-authenticated route and integration tests. */
-export async function teachingLibraryResponse(authorize: () => Promise<boolean>, getStore: () => TeachingStore): Promise<Response> {
+export async function teachingLibraryResponse(authorize: () => Promise<boolean>, getStore: () => TeachingStore, project?: (store: TeachingStore) => unknown): Promise<Response> {
   const headers = {'Cache-Control':'no-store'};
   try {
     if (!await authorize()) return Response.json({message:'オーナー認証が必要です'},{status:401,headers});
-    const snapshot = getStore().list();
+    const store = getStore();
+    if (project) return Response.json(project(store),{headers});
+    const snapshot = store.list();
     if (snapshot.variants.length > 500 || snapshot.runs.length > 2000 || snapshot.variants.some(v => v.steps.length > 50)) throw Error('Teaching capacity exceeded');
     const learningCandidates = snapshot.variants.map(variant => teachingLearningCandidate(variant,snapshot.runs));
     return Response.json({...snapshot,learningCandidates},{headers});

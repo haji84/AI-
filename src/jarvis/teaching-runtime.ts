@@ -1,3 +1,4 @@
+import { teachingLessons } from "./teaching-lessons.ts";
 import { teachingStore } from "./teaching-store.ts";
 import { replayTeaching, selectVariant, profileKey, type Observation, type TeachingAdapter } from "./teaching.ts";
 import { demonstratedStep } from "./teaching-observation.ts";
@@ -34,10 +35,18 @@ export async function teachingCommand(payload:Record<string,unknown>,sessions:Ja
   if(payload.action==='teach-cancel'){const v=store.recording(sessionId);if(!v)throw Error('No active demonstration');store.cancel(v.id);return {ok:true};}
   if(payload.action==='teach-verify'||payload.action==='teach-execute'){
    if(store.recording(sessionId))throw Error('Finish demonstration before replay');
-   const requested=store.get(String(payload.variantId||''));
-   const selected=payload.action==='teach-execute'?selectVariant(store.list().variants,requested.goal,(await adapter.observe()).profile):requested;
+   const lessons=teachingLessons();
+   const observed=(await adapter.observe()).profile;
+   const skillRequested=payload.action==='teach-execute'&&typeof payload.skillId==='string'&&payload.skillId.length>0;
+   const requested=skillRequested?lessons.resolveSkill(store,String(payload.skillId),observed):store.get(String(payload.variantId||''));
+   lessons.assertCurrent(store,requested.id);
+   const superseded=new Set(lessons.list().corrections.map(c=>c.from));
+   const selected=payload.action==='teach-execute'&&!skillRequested?selectVariant(store.list().variants.filter(v=>!superseded.has(v.id)),requested.goal,observed):requested;
+   if(selected)lessons.assertCurrent(store,selected.id);
    if(!selected)throw Error('No compatible device procedure');
-   const run=await replayTeaching(store,selected.id,adapter,payload.action==='teach-verify'?'verify':'execute',typeof payload.url==='string'?payload.url:undefined);
+   const checkCurrent=()=>{lessons.assertCurrent(store,selected.id);if(skillRequested)lessons.resolveSkill(store,String(payload.skillId),observed,true);};
+   const guarded:TeachingAdapter={...adapter,authorize:async()=>{await adapter.authorize();checkCurrent();},execute:async(action,observation,url)=>{checkCurrent();await adapter.execute(action,observation,url);}};
+   const run=await replayTeaching(store,selected.id,guarded,payload.action==='teach-verify'?'verify':'execute',typeof payload.url==='string'?payload.url:undefined);
    return {run};
   }
   throw Error('Unknown teaching command');

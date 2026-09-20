@@ -86,7 +86,7 @@ test('other devices/profiles/variants and repeated run IDs cannot certify a cand
 
 test('actual route uses authenticated projection and candidate view does not offer replay',()=>{
  const route=readFileSync(new URL('../src/app/api/jarvis/teaching/route.ts',import.meta.url),'utf8');
- assert.match(route,/GET\(\)\{return teachingLibraryResponse\(requireJarvisOwner,teachingStore\)/);
+ assert.match(route,/GET\(\)\{return teachingLibraryResponse\(requireJarvisOwner,teachingStore,/);
  const ui=readFileSync(new URL('../src/app/jarvis/teach/page.tsx',import.meta.url),'utf8');
  assert.match(ui,/setCandidates\(b.learningCandidates\|\|\[\]\)/);
  assert.match(ui,/候補は自動実行の許可ではありません/);
