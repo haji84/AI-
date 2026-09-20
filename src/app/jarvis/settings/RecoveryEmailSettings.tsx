@@ -2,25 +2,35 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 
+type RecoveryEvent = { at: string; event: string };
+
 export default function RecoveryEmailSettings() {
   const [configured, setConfigured] = useState(false);
   const [maskedEmail, setMaskedEmail] = useState("");
+  const [events, setEvents] = useState<RecoveryEvent[]>([]);
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [step, setStep] = useState<"email" | "code">("email");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
-    fetch("/api/owner-recovery", { credentials: "same-origin" })
-      .then(async response => response.ok ? response.json() : null)
-      .then(body => {
-        if (!body) return;
-        setConfigured(body.configured === true);
-        setMaskedEmail(typeof body.maskedEmail === "string" ? body.maskedEmail : "");
-      })
-      .catch(() => undefined);
-  }, []);
+  async function refresh() {
+    const response = await fetch("/api/owner-recovery", { credentials: "same-origin" });
+    if (!response.ok) return;
+    const body = await response.json().catch(() => null);
+    if (!body) return;
+    setConfigured(body.configured === true);
+    setMaskedEmail(typeof body.maskedEmail === "string" ? body.maskedEmail : "");
+    setEvents(Array.isArray(body.events)
+      ? body.events.filter((item: unknown): item is RecoveryEvent => Boolean(
+        item && typeof item === "object"
+        && typeof (item as RecoveryEvent).at === "string"
+        && typeof (item as RecoveryEvent).event === "string",
+      )).slice(-5).reverse()
+      : []);
+  }
+
+  useEffect(() => { refresh().catch(() => undefined); }, []);
 
   async function start(event: FormEvent) {
     event.preventDefault();
@@ -37,6 +47,7 @@ export default function RecoveryEmailSettings() {
       if (!response.ok) throw new Error(body.message || "確認メールを送信できませんでした");
       setStep("code");
       setMessage("確認コードを送信しました。");
+      await refresh();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "確認メールを送信できませんでした");
     } finally {
@@ -63,6 +74,7 @@ export default function RecoveryEmailSettings() {
       setEmail("");
       setStep("email");
       setMessage("復旧用メールを確認して登録しました。");
+      await refresh();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "確認コードを確認できませんでした");
     } finally {
@@ -87,5 +99,12 @@ export default function RecoveryEmailSettings() {
       <button className="button" type="submit" disabled={busy || code.length !== 6}>復旧用メールを確定</button>
     </form>}
     {message && <p className="jarvis-alert" role="status">{message}</p>}
+    {events.length > 0 && <div>
+      <h3>復旧セキュリティ履歴</h3>
+      <ul>
+        {events.map((item, index) => <li key={`${item.at}-${index}`}><time dateTime={item.at}>{new Date(item.at).toLocaleString("ja-JP")}</time> {item.event}</li>)}
+      </ul>
+      <p className="muted">確認コードやメール本文は履歴へ保存・表示しません。</p>
+    </div>}
   </section>;
 }
