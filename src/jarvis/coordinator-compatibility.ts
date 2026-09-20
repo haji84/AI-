@@ -12,10 +12,14 @@ function validPrivateTarget(raw:string){
   return url.protocol==="http:"&&(url.hostname==="127.0.0.1"||url.hostname==="localhost"||url.hostname==="::1");
 }
 export class CoordinatorCompatibilityBridge {
+  readonly legacy: BridgeTarget;
+  readonly candidate: BridgeTarget;
   private mode:BridgeMode="LEGACY";
   private canaries=new Set<string>();
-  constructor(readonly legacy:BridgeTarget,readonly candidate:BridgeTarget){
+  constructor(legacy:BridgeTarget,candidate:BridgeTarget){
     if(!validPrivateTarget(legacy.baseUrl)||!validPrivateTarget(candidate.baseUrl))throw new Error("coordinator targets must be loopback HTTP or HTTPS");
+    this.legacy = legacy;
+    this.candidate = candidate;
   }
   setMode(mode:BridgeMode){this.mode=mode;if(mode!=="CANARY")this.canaries.clear();}
   setCanaries(ids:string[]){if(!ids.length)throw new Error("canary devices required");this.canaries=new Set(ids);this.mode="CANARY";}
