@@ -41,3 +41,19 @@ export function repositoryTrigger(input: {
     data: { kind: input.kind, payload: input.data },
   };
 }
+
+import type { UnifiedIntakeRequest } from "./goal-controller-runtime.ts";
+
+export function triggerToUnifiedIntake(input: TriggerInput): UnifiedIntakeRequest {
+  return {
+    source: input.source === "repository" ? "github" : "event",
+    text: input.summary,
+    idempotencyKey: `trigger:${input.source}:${input.id}`,
+    sourceContext: {
+      triggerId: input.id,
+      triggerSource: input.source,
+      occurredAt: input.occurredAt ?? null,
+      data: input.data ?? null,
+    },
+  };
+}
