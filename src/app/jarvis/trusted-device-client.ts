@@ -56,7 +56,7 @@ function openDb(): Promise<IDBDatabase> {
 }
 async function readRecord(): Promise<StoredTrustedDevice | null> {
   const db = await openDb();
-  return new Promise((resolve, reject) => {
+  return new Promise<StoredTrustedDevice | null>((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, "readonly");
     const req = tx.objectStore(STORE_NAME).get(RECORD_KEY);
     req.onsuccess = () => resolve((req.result as StoredTrustedDevice | undefined) ?? null);
@@ -79,9 +79,9 @@ async function decryptPrivate(record: StoredTrustedDevice, pin: string): Promise
     const salt = b64urlToBytes(record.salt);
     const key = await pinKey(pin, salt);
     const plain = await crypto.subtle.decrypt(
-      { name: "AES-GCM", iv: b64urlToBytes(record.iv) },
+      { name: "AES-GCM", iv: arrayBuffer(b64urlToBytes(record.iv)) },
       key,
-      b64urlToBytes(record.encryptedPrivateJwk),
+      arrayBuffer(b64urlToBytes(record.encryptedPrivateJwk)),
     );
     if (record.failedAttempts) await writeRecord({ ...record, failedAttempts: 0, lockedUntil: 0 });
     return JSON.parse(new TextDecoder().decode(plain)) as JsonWebKey;
