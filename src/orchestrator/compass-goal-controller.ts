@@ -43,6 +43,12 @@ function digest(value: string): string {
   return createHash("sha256").update(value).digest("hex");
 }
 
+function decisionForPersistence(decision: GoalControllerDecision, keyDigest: string): GoalControllerDecision {
+  const persisted = clone(decision);
+  persisted.resolution.intake.idempotencyKey = `sha256:${keyDigest}`;
+  return persisted;
+}
+
 function isDecisionEnvelope(value: unknown): value is DecisionEnvelope {
   if (!value || typeof value !== "object") return false;
   const record = value as Record<string, unknown>;
@@ -125,7 +131,7 @@ export class CompassGoalDecisionStoreAdapter implements GoalDecisionStore {
     const envelope = this.read();
     const next: DecisionRecord = {
       keyDigest,
-      decision: clone(decision),
+      decision: decisionForPersistence(decision, keyDigest),
       updatedAt: new Date().toISOString(),
     };
     const records = [...envelope.records.filter((entry) => entry.keyDigest !== keyDigest), next]
