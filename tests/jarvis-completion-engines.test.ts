@@ -191,7 +191,7 @@ test("Multimodal interaction resolves context, free voice goals, safe gestures, 
   assert.equal(e.accessibilityAudit({keyboard:true,captions:true,contrastRatio:7,targetPx:64,labels:true}).pass,true);
 });
 
-test("Completion runtime exposes every non-physical engine as one integrated surface", () => {
+test("Completion runtime exposes components without claiming integrated readiness", () => {
   const runtime=new JarvisCompletionRuntime();
-  assert.equal(Object.values(runtime.softwareReadiness()).every(Boolean),true);
+  assert.equal(Object.values(runtime.softwareReadiness()).every(value => value === false),true);
 });
