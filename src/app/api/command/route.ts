@@ -1,3 +1,4 @@
+import { auditCommandAttachments } from "../../../jarvis/command-input-audit.ts";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import {
@@ -226,6 +227,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: "添付情報が無効または期限切れです。添付し直してください" }, { status: 400 });
   }
   const validAttachments = attachments as UploadedAttachmentRef[];
+  const inputAudit = auditCommandAttachments(validAttachments);
 
   const productionDeployRequested = requestsProductionDeploy(command);
   const reasoningHandoffRequired = validAttachments.length > 0 || dashboardCommandNeedsReasoning(command);
@@ -246,6 +248,7 @@ export async function POST(request: Request) {
   const plan = createDashboardBoundedPlan(command);
   const commandPayload = {
     source: "chat",
+    inputAudit,
     command,
     ...(validAttachments.length ? { attachments: validAttachments } : {}),
     ...(conversationId ? { conversationId } : {}),
@@ -271,7 +274,8 @@ export async function POST(request: Request) {
     if (numericConversationId) {
       return NextResponse.json({
         message: `${taskIssueNumber ? `Issue #${taskIssueNumber} は作成済みです。` : ""}ChatGPT共有ブリッジへの会話保存を優先して受け付けました。GitHub自律実行dispatchは権限不足のため保留です (${response.status})。`,
-        acceptedAt: new Date().toISOString(),
+        inputAudit,
+    acceptedAt: new Date().toISOString(),
         taskCompletionAuthorized: Boolean(taskAuthorization),
         productionDeployAuthorized: taskAuthorization?.allowProductionDeploy === true,
         reasoningHandoffRequired: true,
@@ -299,6 +303,7 @@ export async function POST(request: Request) {
 
   return NextResponse.json({
     message,
+    inputAudit,
     acceptedAt: new Date().toISOString(),
     taskCompletionAuthorized: Boolean(taskAuthorization),
     productionDeployAuthorized: taskAuthorization?.allowProductionDeploy === true,
