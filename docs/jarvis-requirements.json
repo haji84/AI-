@@ -137,13 +137,18 @@
       "test_refs": [
         "tests/owner-auth.test.ts"
       ],
-      "evidence_refs": [],
-      "status": "PARTIAL",
-      "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+      "evidence_refs": [
+        "NETSEC-885-CODE",
+        "NETSEC-885-UNIT",
+        "NETSEC-885-INTEGRATION",
+        "NETSEC-885-SECURITY"
+      ],
+      "status": "VERIFIED",
+      "blocker": null,
       "platform_limit": null,
       "fallback": null,
-      "next_action": "P1: Owner authenticationを維持。 について実装の不足を埋め、required_evidenceを取得する。",
-      "last_verified_commit": null
+      "next_action": "Maintain regression coverage; reopen if owner authentication, worker signing, nonce/replay, or clock protection regresses.",
+      "last_verified_commit": "4040e22a61b1069213de5ee159a80cdf7846dc7e"
     },
     {
       "id": "NET-006",
@@ -164,13 +169,18 @@
         "tests/jarvis-worker-auth-ecdsa.test.ts",
         "tests/jarvis-enrollment-security.test.ts"
       ],
-      "evidence_refs": [],
-      "status": "PARTIAL",
-      "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+      "evidence_refs": [
+        "NETSEC-885-CODE",
+        "NETSEC-885-UNIT",
+        "NETSEC-885-INTEGRATION",
+        "NETSEC-885-SECURITY"
+      ],
+      "status": "VERIFIED",
+      "blocker": null,
       "platform_limit": null,
       "fallback": null,
-      "next_action": "P1: Signed worker request/resultを維持。 について実装の不足を埋め、required_evidenceを取得する。",
-      "last_verified_commit": null
+      "next_action": "Maintain regression coverage; reopen if owner authentication, worker signing, nonce/replay, or clock protection regresses.",
+      "last_verified_commit": "4040e22a61b1069213de5ee159a80cdf7846dc7e"
     },
     {
       "id": "NET-007",
@@ -191,13 +201,18 @@
         "tests/jarvis-worker-auth-ecdsa.test.ts",
         "tests/jarvis-enrollment-security.test.ts"
       ],
-      "evidence_refs": [],
-      "status": "PARTIAL",
-      "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+      "evidence_refs": [
+        "NETSEC-885-CODE",
+        "NETSEC-885-UNIT",
+        "NETSEC-885-INTEGRATION",
+        "NETSEC-885-SECURITY"
+      ],
+      "status": "VERIFIED",
+      "blocker": null,
       "platform_limit": null,
       "fallback": null,
-      "next_action": "P1: Nonce/replay/clock protectionを維持。 について実装の不足を埋め、required_evidenceを取得する。",
-      "last_verified_commit": null
+      "next_action": "Maintain regression coverage; reopen if owner authentication, worker signing, nonce/replay, or clock protection regresses.",
+      "last_verified_commit": "4040e22a61b1069213de5ee159a80cdf7846dc7e"
     },
     {
       "id": "HOST-001",
@@ -6506,5 +6521,62 @@
       "last_verified_commit": null
     }
   ],
-  "evidence_records": []
+  "evidence_records": [
+    {
+      "id": "NETSEC-885-CODE",
+      "requirement_ids": [
+        "NET-005",
+        "NET-006",
+        "NET-007"
+      ],
+      "class": "CODE",
+      "result": "PASS",
+      "commit": "4040e22a61b1069213de5ee159a80cdf7846dc7e",
+      "source": "docs/evidence/885-net-security-invariants.md",
+      "verifier": "GitHub Actions main CI #1275 (run 35512801434)",
+      "timestamp": "2026-09-20T13:12:50Z"
+    },
+    {
+      "id": "NETSEC-885-UNIT",
+      "requirement_ids": [
+        "NET-005",
+        "NET-006",
+        "NET-007"
+      ],
+      "class": "UNIT",
+      "result": "PASS",
+      "commit": "4040e22a61b1069213de5ee159a80cdf7846dc7e",
+      "source": "docs/evidence/885-net-security-invariants.md",
+      "verifier": "GitHub Actions main CI #1275 (run 35512801434)",
+      "timestamp": "2026-09-20T13:12:50Z"
+    },
+    {
+      "id": "NETSEC-885-INTEGRATION",
+      "requirement_ids": [
+        "NET-005",
+        "NET-006",
+        "NET-007"
+      ],
+      "class": "INTEGRATION",
+      "result": "PASS",
+      "commit": "4040e22a61b1069213de5ee159a80cdf7846dc7e",
+      "source": "docs/evidence/885-net-security-invariants.md",
+      "verifier": "GitHub Actions main CI #1275 (run 35512801434)",
+      "timestamp": "2026-09-20T13:12:50Z"
+    },
+    {
+      "id": "NETSEC-885-SECURITY",
+      "requirement_ids": [
+        "NET-005",
+        "NET-006",
+        "NET-007"
+      ],
+      "class": "SECURITY",
+      "result": "PASS",
+      "commit": "4040e22a61b1069213de5ee159a80cdf7846dc7e",
+      "source": "docs/evidence/885-net-security-invariants.md",
+      "verifier": "GitHub Actions main CI #1275 (run 35512801434)",
+      "timestamp": "2026-09-20T13:12:50Z"
+    }
+  ]
 }

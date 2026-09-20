@@ -189,13 +189,18 @@ The JSON blocks are the authoritative rows. Validate exact mirror and evidence g
   "test_refs": [
     "tests/owner-auth.test.ts"
   ],
-  "evidence_refs": [],
-  "status": "PARTIAL",
-  "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+  "evidence_refs": [
+    "NETSEC-885-CODE",
+    "NETSEC-885-UNIT",
+    "NETSEC-885-INTEGRATION",
+    "NETSEC-885-SECURITY"
+  ],
+  "status": "VERIFIED",
+  "blocker": null,
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P1: Owner authenticationを維持。 について実装の不足を埋め、required_evidenceを取得する。",
-  "last_verified_commit": null
+  "next_action": "Maintain regression coverage; reopen if owner authentication, worker signing, nonce/replay, or clock protection regresses.",
+  "last_verified_commit": "4040e22a61b1069213de5ee159a80cdf7846dc7e"
 }
 ```
 
@@ -221,13 +226,18 @@ The JSON blocks are the authoritative rows. Validate exact mirror and evidence g
     "tests/jarvis-worker-auth-ecdsa.test.ts",
     "tests/jarvis-enrollment-security.test.ts"
   ],
-  "evidence_refs": [],
-  "status": "PARTIAL",
-  "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+  "evidence_refs": [
+    "NETSEC-885-CODE",
+    "NETSEC-885-UNIT",
+    "NETSEC-885-INTEGRATION",
+    "NETSEC-885-SECURITY"
+  ],
+  "status": "VERIFIED",
+  "blocker": null,
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P1: Signed worker request/resultを維持。 について実装の不足を埋め、required_evidenceを取得する。",
-  "last_verified_commit": null
+  "next_action": "Maintain regression coverage; reopen if owner authentication, worker signing, nonce/replay, or clock protection regresses.",
+  "last_verified_commit": "4040e22a61b1069213de5ee159a80cdf7846dc7e"
 }
 ```
 
@@ -253,13 +263,18 @@ The JSON blocks are the authoritative rows. Validate exact mirror and evidence g
     "tests/jarvis-worker-auth-ecdsa.test.ts",
     "tests/jarvis-enrollment-security.test.ts"
   ],
-  "evidence_refs": [],
-  "status": "PARTIAL",
-  "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+  "evidence_refs": [
+    "NETSEC-885-CODE",
+    "NETSEC-885-UNIT",
+    "NETSEC-885-INTEGRATION",
+    "NETSEC-885-SECURITY"
+  ],
+  "status": "VERIFIED",
+  "blocker": null,
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P1: Nonce/replay/clock protectionを維持。 について実装の不足を埋め、required_evidenceを取得する。",
-  "last_verified_commit": null
+  "next_action": "Maintain regression coverage; reopen if owner authentication, worker signing, nonce/replay, or clock protection regresses.",
+  "last_verified_commit": "4040e22a61b1069213de5ee159a80cdf7846dc7e"
 }
 ```
 
