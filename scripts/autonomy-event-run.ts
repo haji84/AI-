@@ -4,7 +4,7 @@ import { BaselinePlanner, createContextInspectCapability } from "../src/orchestr
 import { CapabilityRegistry } from "../src/orchestrator/capabilities.ts";
 import { CompassStateStoreAdapter, compassGoalToLoopGoal } from "../src/orchestrator/compass-state-store.ts";
 import { RepositoryFileContextSource } from "../src/orchestrator/context-adapters.ts";
-import { dispatchAutonomyEvent, EventContextSource, type AutonomyEventType } from "../src/orchestrator/event-runtime.ts";
+import { dispatchAutonomyEvent, EventContextSource, type AutonomyEventType } from "../src/orchestrator/event-runtime.ts";\nimport { normalizeIntake, deterministicIntent } from "../src/orchestrator/goal-controller-runtime.ts";
 import { GoalDrivenLoop, type Verifier } from "../src/orchestrator/goal-loop.ts";
 
 const args = process.argv.slice(2);
@@ -27,6 +27,13 @@ try {
   const goalRecord = compass.getGoal();
   if (!goalRecord) throw new Error("Compass goal is not set");
   const event = { type: eventType, id: eventId, summary: eventSummary };
+  const unifiedIntake = normalizeIntake({
+    source: eventType === "repository_state" ? "github" : "event",
+    text: eventSummary,
+    idempotencyKey: `autonomy-event:${eventType}:${eventId}`,
+    sourceContext: { eventId, eventType },
+  });
+  const intakeIntent = deterministicIntent(unifiedIntake);
 
   const registry = new CapabilityRegistry().register(createContextInspectCapability());
   const verifier: Verifier = {
@@ -49,7 +56,7 @@ try {
     compass,
     maxCycles,
   });
-  process.stdout.write(`${JSON.stringify({ event, dbPath, report }, null, 2)}\n`);
+  process.stdout.write(`${JSON.stringify({ event, unifiedIntake, intakeIntent, dbPath, report }, null, 2)}\n`);
 } finally {
   compass.close();
 }
