@@ -6,22 +6,60 @@ Before modifying anything, read in order:
 3. the assigned GitHub issue
 4. relevant files under `docs/architecture/` and `docs/decisions/`
 
-## Goal-driven operating loop
-For every non-trivial task, operate as a bounded loop instead of a one-shot chat response:
-1. read the explicit goal and success criteria
-2. read current project state and the current next action
-3. collect only the context required for that action from available capabilities
-4. infer likely user intent from explicit goals, constraints, preferences, and recent decisions; attach confidence and evidence and never claim mind-reading
-5. propose the smallest next action that advances the goal
-6. classify risk before execution
-7. execute low-risk reversible work when policy permits
-8. verify the result
-9. write back completed work, blockers, verification, and next action
-10. repeat only when the runtime explicitly schedules another cycle
+## JARVIS Autonomous Development Protocol v1.0-RC2
 
-Stop immediately when the goal is complete, the project is paused, a blocker exists, retry budget is exhausted, or Human Gate approval is required. Never create a silent infinite loop.
+For every non-trivial development goal, optimize for verified GOAL achievement inside the safety envelope, not merely for completing the current issue or preserving the first plan.
 
-Available connectors and tools are capabilities, not assumptions. GitHub, conversation files, web research, mail, calendar, local runtimes, or other providers may be used only when actually available and relevant to the goal. Missing capability must be reported, never fabricated.
+### Goal persistence and autonomous recovery
+1. Read the locked Goal, success criteria, constraints, non-goals, current state, prior attempts, evidence, and remaining gaps.
+2. Decompose the Goal into the smallest useful jobs/subgoals with explicit contribution to Goal success criteria.
+3. Discover current repository/runtime reality before choosing implementation details.
+4. Plan a bounded next strategy, including tests, rollback when material, required capabilities, and how it differs from failed prior attempts.
+5. Classify change/risk and derive only the gates required for that change.
+6. Route by required capability rather than hard-coding a provider. Provider/model/tool choice is replaceable and must respect availability, privacy, cost, risk, and project model policy.
+7. Execute the smallest useful reversible change.
+8. Test and verify against Goal/requirements/acceptance criteria. Job completion or deployment is not Goal completion.
+9. On failure, diagnose before corrective production change, record evidence and a failure signature, then select the next best recovery strategy.
+10. Recovery may use a targeted fix, diagnostic experiment, additional research, alternative implementation, alternative architecture, different available capability, job decomposition, rollback plus replan, or requirement clarification.
+11. Do not repeat a materially equivalent failed strategy without new evidence or a changed hypothesis. Repeated failure or lack of verified progress must trigger strategy escalation.
+12. Re-evaluate verified Goal progress after material attempts. If the Goal is not achieved, generate the next useful action and continue when policy/runtime permits.
+13. Human Assistance is a last resort for information, authority, or capability that cannot be obtained safely and autonomously. Human Gate is separate and remains mandatory for approval-required actions.
+14. Never create a silent infinite loop. Persist checkpoints and resume through the durable runtime/scheduler rather than relying on one unbounded process.
+
+A failed job is not a failed Goal. A blocker is itself a resolution target: investigate safe autonomous resolution and alternate paths before requesting Human Assistance. Goal status becomes ACHIEVED only when required success criteria are supported by valid evidence.
+
+### Development contracts
+Development work uses these logical contracts:
+- Goal Contract: locked Goal, success criteria, constraints, non-goals, progress, remaining gaps, child jobs, attempt/failure history, and evidence.
+- Development Job Contract: identity, Goal linkage, requirements, acceptance criteria, DoD, context, risk, approval scope, plan, execution, tests, verification, security, failure/correction, evidence/provenance, decisions, write-back, and final result.
+- Development State Machine: explicit job states and append-only transition history. Agents request transitions; only the State Controller may commit state changes.
+- Gate Contract: gates return PASS, FAIL, INCONCLUSIVE, or HUMAN_REQUIRED from contract conditions and valid evidence. INCONCLUSIVE is never PASS.
+- Recovery Contract: failure -> diagnosis -> evidence/hypotheses -> recovery strategy -> execution -> retest -> verification -> Goal-progress evaluation.
+
+### Evidence and authority
+- No Evidence, No Done.
+- AI/Codex/model statements are AI_ASSERTED claims, not machine evidence.
+- Evidence classes are MACHINE_VERIFIED, HUMAN_VERIFIED, and AI_ASSERTED. Critical gates must not pass on AI_ASSERTED evidence alone.
+- Evidence must record its trusted issuer and, when applicable, source revision, artifact hash/provenance, environment, and time.
+- Material code/config/dependency changes invalidate affected stale evidence and require the affected checks again.
+- For HIGH/CRITICAL risk, Builder, Final Verifier, and Gate Authority must be separated.
+- Verified and deployed artifacts must match when artifact identity is applicable.
+- Merge/deploy success is not DONE. Required post-test, evidence, Goal evaluation, and write-back still apply.
+
+### Safe escalation and non-bypassable controls
+Autonomy never grants permission. Goal persistence and recovery may not bypass Security Gates, approval scope, or Human Gates.
+
+Separate Human Gate approval remains required for secrets/credentials, permission or token-scope changes, billing/contracts, destructive or hard-to-recover data/schema actions, security/governance weakening, protection/audit disabling, major external publication, major authority expansion, or safety-control relaxation. Changes that materially weaken this protocol, Gate/State Controller authority, verifier/security enforcement, Human Gate policy, or audit/evidence integrity are non-bypassable governance changes.
+
+### Persistent write-back and learning
+Do not treat chat history as project truth. Preserve PRODUCT_SPEC/requirements, PROJECT_STATE, decision records, evidence, Goal state, attempt history, capability outcomes, and failure history in the repository/runtime stores appropriate to each record.
+
+Every material attempt feeds its verified result back into planning/routing/recovery. Reusable patterns may become candidate skills/rules only after verification; a single success must not silently become an immutable rule.
+
+### Runtime boundedness
+The old fixed rule "three failed fixes then BLOCKED" is replaced by progress-aware bounded autonomy. Resource limits remain mandatory, but exhausting one strategy's retry budget must trigger diagnosis/replan/capability escalation rather than automatically abandoning an achievable Goal. The runtime must pause/escalate on safety gates, explicit pause/cancel, unavailable required authority, exhausted overall resource budget, or demonstrated lack of any safe actionable strategy.
+
+Available connectors and tools are capabilities, not assumptions. Missing capability must never be fabricated. If one capability is unavailable, evaluate safe alternatives before declaring the Goal blocked.
 
 ## Zero-additional-AI-API architecture
 Work/Codex is the model-reasoning control plane for AI employee planning and coding work. GitHub Actions is an execution, persistence, CI, verification, and bounded repository-operation host; it must not silently substitute another model provider.
@@ -72,7 +110,7 @@ If Compass is unavailable, continue using the repository-governed workflow below
 - hiding errors
 - adding features outside the issue
 
-If requirements or scope are unclear, stop and mark the task BLOCKED.
+If requirements or scope are unclear, first research available evidence and determine whether a safe clarification can be inferred from the locked Goal, constraints, decisions, or authoritative project state. If material ambiguity remains, request Human Assistance and mark the affected job BLOCKED without abandoning the parent Goal.
 
 ## Human gate
 Human approval may be either a specific action approval or an explicit task-scoped pre-approval from the owner.
@@ -89,5 +127,3 @@ Governance changes such as this `AGENTS.md` rule and workflow changes that alter
 
 `PROJECT_STATE.md` state-only bookkeeping may be treated as LOW/MEDIUM when machine checks confirm that it changes only permitted state fields and does not alter code, permissions, safety policy, or deployment behavior.
 
-## Retry limit
-Maximum automatic fix attempts per issue: 3. After that, mark BLOCKED and return to Governor.
