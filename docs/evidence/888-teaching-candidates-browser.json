@@ -1,0 +1,16 @@
+{
+  "status": "PASS",
+  "simulated": true,
+  "health": 200,
+  "unauthenticated": 401,
+  "authenticated": 200,
+  "viewports": [
+    "390x844",
+    "1440x1000"
+  ],
+  "candidate": "OBSERVED",
+  "executable": false,
+  "storeUnchanged": true,
+  "pageErrors": [],
+  "physical": false
+}
