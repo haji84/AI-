@@ -1,0 +1,37 @@
+name: JARVIS 885 Ledger Reconcile
+
+on:
+  push:
+    branches:
+      - feature/885-ledger-reconcile
+    paths:
+      - scripts/reconcile-885-ledgers.mjs
+      - .github/workflows/885-ledger-reconcile.yml
+
+permissions:
+  contents: read
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+      - name: Generate bounded canonical reconciliation
+        run: node scripts/reconcile-885-ledgers.mjs
+      - name: Validate canonical mirror and evidence gates
+        run: node scripts/validate-jarvis-requirements.mjs
+      - name: Show bounded diff
+        run: git diff --check && git diff -- docs/JARVIS_PRODUCT_SPEC.md docs/jarvis-requirements.json
+      - name: Upload reconciled ledgers
+        uses: actions/upload-artifact@v4
+        with:
+          name: issue-885-reconciled-ledgers
+          path: |
+            docs/JARVIS_PRODUCT_SPEC.md
+            docs/jarvis-requirements.json
+          if-no-files-found: error
+          retention-days: 1
