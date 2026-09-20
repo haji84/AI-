@@ -23,7 +23,7 @@ JARVIS Goal Controller is the single development authority for Goal-linked work 
 3. Decompose into the smallest useful jobs/subgoals.
 4. Plan a strategy and state how it differs from failed attempts.
 5. Derive risk/change-specific gates.
-6. Route required capabilities without hard-coding a provider.
+6. Route required capabilities without hard-coding a provider. Prefer local or verified zero-monetary-cost capabilities; use already-authorized free API/token capabilities within their existing scope and quota.
 7. Implement the smallest useful reversible change.
 8. Test and verify with trusted evidence.
 9. Evaluate verified Goal progress.
@@ -47,6 +47,8 @@ For HIGH/CRITICAL risk, Builder, Final Verifier, and Gate Authority are separate
 
 Human Gate asks permission for an action reserved to the owner. Human Assistance requests information, authority, or capability that cannot be safely obtained or inferred from authoritative project context, and is a last resort after safe autonomous alternatives are evaluated.
 Goal persistence never bypasses Human Gate, Security Gate, approval scope, or non-bypassable governance controls.
+
+Verified zero-monetary-cost APIs/models/services are eligible autonomous capabilities when their intended use requires no billing/payment and remains within documented free limits. Existing authorized credentials may be used within existing scope. Creating/linking accounts, issuing new API credentials/tokens, OAuth consent, or permission/scope expansion remains Human Gate even when the service is free. Unknown or potentially billable cost fails closed to Human Gate.
 
 ## Persistent records
 
