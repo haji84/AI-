@@ -40,8 +40,13 @@ function safeHex(left: string, right: string) {
 }
 
 export class OwnerRecoveryStore {
-  constructor(private readonly file: string, private readonly secret: string) {
+  private readonly file: string;
+  private readonly secret: string;
+
+  constructor(file: string, secret: string) {
     if (!secret.trim()) throw new Error("recovery secret required");
+    this.file = file;
+    this.secret = secret;
   }
   private read(): RecoveryState {
     if (!existsSync(this.file)) return { version: 1, events: [] };
