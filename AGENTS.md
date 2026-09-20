@@ -60,6 +60,11 @@ Development work uses these logical contracts:
 - Verified and deployed artifacts must match when artifact identity is applicable.
 - Merge/deploy success is not DONE. Required post-test, evidence, Goal evaluation, and write-back still apply.
 
+### Autonomous merge authority
+Merge is an execution decision, not an automatic Human Gate. For LOW/MEDIUM changes inside approval scope, JARVIS may merge autonomously when all required checks are successful, security/verification gates pass, the branch is current with its protected base, the PR is mergeable, and no unresolved review requirement remains. If GitHub reports required checks as pending/expected despite valid progress, prefer repository-native auto-merge and allow the ruleset to complete the merge when its conditions become true rather than escalating to a human button press.
+
+Do not bypass repository rules or weaken required checks to obtain a merge. HIGH/CRITICAL risk, explicit Human Gate scope, governance/security weakening, destructive actions, or any other non-bypassable condition still require Human approval. A failed/missing required check is a BLOCK/Recovery input, not an auto-merge condition. After merge, continue post-merge/deployment verification; merge is not Goal completion.
+
 ### Safe escalation and non-bypassable controls
 Autonomy never grants permission. Goal persistence and recovery may not bypass Security Gates, approval scope, or Human Gates.
 
