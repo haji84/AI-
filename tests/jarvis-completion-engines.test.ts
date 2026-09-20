@@ -160,7 +160,7 @@ test("Self-generated benchmarks derive regression cases from repeated runtime ev
 
 test("Automatic escalation exhausts alternatives before Human except for high risk", () => {
   const e=new AutomaticEscalationEngine();
-  const base={attempted:[] as any[],risk:"LOW" as const,confidence:0.2,recoverable:true,available:{models:1,agents:1,tools:1,research:true,specialists:true}};
+  const base={attempted:[] as Array<"MODEL"|"AGENT"|"TOOL"|"RESEARCH"|"SPECIALIST"|"HUMAN">,risk:"LOW" as const,confidence:0.2,recoverable:true,available:{models:1,agents:1,tools:1,research:true,specialists:true}};
   assert.equal(e.next(base),"MODEL");
   assert.equal(e.next({...base,risk:"HIGH"}),"HUMAN");
 });
