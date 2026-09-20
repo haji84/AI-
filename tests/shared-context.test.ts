@@ -39,3 +39,13 @@ test("question context can persist without creating a goal linkage", async () =>
   assert.equal(records[0].goalId, undefined);
   store.close();
 });
+
+// RC2 verification retrigger: keep this assertion tied to the cross-entry context contract.
+test("shared context record keeps source identity", async () => {
+  const store = new SqliteSharedContextStore(":memory:");
+  const intake = normalizeIntake({ source: "chat", text: "状態を確認して", idempotencyKey: "source-check" });
+  await store.put(contextRecordFromIntake(intake, "INSPECTION"));
+  const [record] = await store.list({ status: "ACTIVE" });
+  assert.equal(record.source, "chat");
+  store.close();
+});
