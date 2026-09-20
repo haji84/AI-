@@ -8,21 +8,19 @@ import test from 'node:test';
 
 const ROOT = process.cwd();
 const TARGET_IDS = ['FLEET-010', 'FLEET-011'];
+const COPY_EXCLUDES = new Set(['.git', '.next', '.autonomy-state', 'node_modules']);
 
 test('issue #725 reconciliation is atomic, validator-clean, and does not certify physical fleet rows', () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'jarvis-725-'));
   try {
-    fs.mkdirSync(path.join(tmp, 'docs', 'evidence'), { recursive: true });
-    fs.mkdirSync(path.join(tmp, 'scripts'), { recursive: true });
-
-    for (const rel of [
-      'docs/jarvis-requirements.json',
-      'docs/JARVIS_PRODUCT_SPEC.md',
-      'scripts/reconcile-issue-725-fleet.mjs',
-      'scripts/validate-jarvis-requirements.mjs',
-    ]) {
-      fs.copyFileSync(path.join(ROOT, rel), path.join(tmp, rel));
-    }
+    fs.cpSync(ROOT, tmp, {
+      recursive: true,
+      filter(source) {
+        if (source === ROOT) return true;
+        const relative = path.relative(ROOT, source);
+        return !relative.split(path.sep).some(segment => COPY_EXCLUDES.has(segment));
+      },
+    });
 
     const before = JSON.parse(fs.readFileSync(path.join(tmp, 'docs/jarvis-requirements.json'), 'utf8'));
     const beforeFleet009 = JSON.parse(JSON.stringify(before.requirements.find(row => row.id === 'FLEET-009')));
