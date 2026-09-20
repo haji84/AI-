@@ -174,8 +174,11 @@ test("push-to-talk requires explicit activation, cancels local speech first and 
 });
 
 test("voice and text surfaces share target, history and explicit safe context selection", () => {
+  assert.match(voiceSurface, /parseMobileVoiceOrGoal/);
+  assert.match(voiceSurface, /fetch\("\/api\/command"/);
+  assert.match(voiceSurface, /Goal Completionへ引き渡し/);
+  assert.match(mobileSurface, /parseSafeMobileCommand/);
   for (const surface of [voiceSurface, mobileSurface]) {
-    assert.match(surface, /parseSafeMobileCommand/);
     assert.match(surface, /resolveSafeContextReference/);
     assert.match(surface, /saveSharedTargetNode/);
     assert.match(surface, /selectSharedHistoryEntry/);
