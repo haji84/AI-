@@ -38,13 +38,24 @@ export class SqliteSharedContextStore implements SharedContextStore {
 
   async list(input: { goalId?: string; status?: SharedContextStatus; limit?: number } = {}): Promise<SharedContextRecord[]> {
     const limit = Math.min(200, Math.max(1, input.limit ?? 50));
-    let sql = "SELECT payload FROM shared_context WHERE 1=1";
-    const args: unknown[] = [];
-    if (input.goalId) { sql += " AND goal_id = ?"; args.push(input.goalId); }
-    if (input.status) { sql += " AND status = ?"; args.push(input.status); }
-    sql += " ORDER BY created_at DESC LIMIT ?";
-    args.push(limit);
-    const rows = this.db.prepare(sql).all(...args) as unknown as Row[];
+    let rows: Row[];
+    if (input.goalId && input.status) {
+      rows = this.db.prepare(
+        "SELECT payload FROM shared_context WHERE goal_id = ? AND status = ? ORDER BY created_at DESC LIMIT ?",
+      ).all(input.goalId, input.status, limit) as unknown as Row[];
+    } else if (input.goalId) {
+      rows = this.db.prepare(
+        "SELECT payload FROM shared_context WHERE goal_id = ? ORDER BY created_at DESC LIMIT ?",
+      ).all(input.goalId, limit) as unknown as Row[];
+    } else if (input.status) {
+      rows = this.db.prepare(
+        "SELECT payload FROM shared_context WHERE status = ? ORDER BY created_at DESC LIMIT ?",
+      ).all(input.status, limit) as unknown as Row[];
+    } else {
+      rows = this.db.prepare(
+        "SELECT payload FROM shared_context ORDER BY created_at DESC LIMIT ?",
+      ).all(limit) as unknown as Row[];
+    }
     return rows.map((row) => JSON.parse(row.payload) as SharedContextRecord);
   }
 
