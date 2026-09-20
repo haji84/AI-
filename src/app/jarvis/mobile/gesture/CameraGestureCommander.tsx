@@ -9,6 +9,7 @@ import {
   type GestureDirection,
   type MotionPoint,
 } from "./gesture-motion.ts";
+import { StableHandGestureRecognizer, type HandLandmark } from "./hand-gesture.ts";
 
 type CameraStatus = "idle" | "requesting" | "active" | "denied" | "unsupported" | "error";
 
@@ -46,6 +47,7 @@ export default function CameraGestureCommander() {
   const [selectedTargetId, setSelectedTargetId] = useState(SAFE_TARGETS[0].id);
   const [message, setMessage] = useState("カメラはOFFです。タップ・キーボード操作はいつでも使えます。");
   const [lastGesture, setLastGesture] = useState<GestureDirection | null>(null);
+  const [lastHandGesture, setLastHandGesture] = useState("なし");
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -54,17 +56,40 @@ export default function CameraGestureCommander() {
   const previousFrameRef = useRef<Uint8ClampedArray | null>(null);
   const motionPointsRef = useRef<MotionPoint[]>([]);
   const lastAcceptedAtRef = useRef(Number.NEGATIVE_INFINITY);
+  const handRecognizerRef = useRef(new StableHandGestureRecognizer());
 
   const selectedTarget = useMemo(
     () => SAFE_TARGETS.find((target) => target.id === selectedTargetId) ?? SAFE_TARGETS[0],
     [selectedTargetId],
   );
 
+  useEffect(() => {
+    const onLandmarks = (event: Event) => {
+      const detail = (event as CustomEvent<{ landmarks?: HandLandmark[] }>).detail;
+      if (!detail?.landmarks) return;
+      try {
+        const result = handRecognizerRef.current.update(detail.landmarks);
+        setLastHandGesture(result.name);
+        if (!result.accepted || !canAcceptGestureCandidate(lastAcceptedAtRef.current, Date.now())) return;
+        lastAcceptedAtRef.current = Date.now();
+        if (result.name === "open-palm" || result.name === "point") cycleTarget("right");
+        else if (result.name === "fist") cycleTarget("left");
+        else if (result.name === "pinch") setMessage("ピンチを検出しました。安全のため実行せず、タップまたはEnterで確定してください。");
+      } catch {
+        setLastHandGesture("invalid");
+      }
+    };
+    window.addEventListener("jarvis-hand-landmarks", onLandmarks);
+    return () => window.removeEventListener("jarvis-hand-landmarks", onLandmarks);
+  }, []);
+
   function clearAnalysisState() {
     previousFrameRef.current = null;
     motionPointsRef.current = [];
     lastAcceptedAtRef.current = Number.NEGATIVE_INFINITY;
     setLastGesture(null);
+    handRecognizerRef.current.reset();
+    setLastHandGesture("なし");
   }
 
   function releaseCamera() {
@@ -256,8 +281,8 @@ export default function CameraGestureCommander() {
       </section>
 
       <section className="gesture-fallback">
-        <strong>実験的な粗い動き判定です</strong>
-        <span>これは手の形を理解するAIではありません。カメラ内の大きな動き方向を端末内で推定する安全な入口です。最後の候補: {lastGesture ?? "なし"}。カメラ拒否・非対応でもタップとキーボードで操作できます。</span>
+        <strong>ローカル手形状認識＋動きフォールバック</strong>
+        <span>21点Hand Landmark入力が利用できる場合はopen-palm / fist / point / pinchを端末内で認識します。Landmark providerがない場合は従来の粗い動き方向へ安全にフォールバックします。手形状: {lastHandGesture} / 動き: {lastGesture ?? "なし"}。ジェスチャーだけでは操作を確定しません。</span>
       </section>
     </main>
   );
