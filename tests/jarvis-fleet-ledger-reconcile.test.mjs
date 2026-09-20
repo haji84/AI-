@@ -3,6 +3,7 @@ import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import process from 'node:process';
 import test from 'node:test';
 
 const ROOT = process.cwd();
@@ -24,7 +25,7 @@ test('issue #725 reconciliation is atomic, validator-clean, and does not certify
     }
 
     const before = JSON.parse(fs.readFileSync(path.join(tmp, 'docs/jarvis-requirements.json'), 'utf8'));
-    const beforeFleet009 = structuredClone(before.requirements.find(row => row.id === 'FLEET-009'));
+    const beforeFleet009 = JSON.parse(JSON.stringify(before.requirements.find(row => row.id === 'FLEET-009')));
 
     execFileSync(process.execPath, ['scripts/reconcile-issue-725-fleet.mjs'], { cwd: tmp, stdio: 'pipe' });
     execFileSync(process.execPath, ['scripts/validate-jarvis-requirements.mjs'], { cwd: tmp, stdio: 'pipe' });
