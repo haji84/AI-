@@ -16,6 +16,7 @@ import {
 import { validateUploadedAttachmentRef, type UploadedAttachmentRef } from "../../attachment-storage.ts";
 import { readDashboardState } from "../../dashboard-state.ts";
 import { OWNER_SESSION_COOKIE, verifyOwnerSessionToken } from "../../owner-auth.ts";
+import { normalizeIntake, deterministicIntent } from "../../../orchestrator/goal-controller-runtime.ts";
 
 const MAX_COMMAND_LENGTH = 500;
 const MAX_ATTACHMENTS = 20;
@@ -227,9 +228,16 @@ export async function POST(request: Request) {
   }
   const validAttachments = attachments as UploadedAttachmentRef[];
 
+  const normalizedIntake = normalizeIntake({
+    source: "chat",
+    text: command,
+    sourceContext: { conversationId: conversationId ?? null, attachmentCount: validAttachments.length },
+    idempotencyKey: conversationId ? `${conversationId}:${command}` : undefined,
+  });
+  const intakeIntent = deterministicIntent(normalizedIntake);
   const productionDeployRequested = requestsProductionDeploy(command);
   const reasoningHandoffRequired = validAttachments.length > 0 || dashboardCommandNeedsReasoning(command);
-  const startsFreshTask = validAttachments.length > 0 || dashboardCommandStartsFreshTask(command);
+  const startsFreshTask = validAttachments.length > 0 || intakeIntent === "GOAL" || dashboardCommandStartsFreshTask(command);
   let taskIssueNumber: number | null = null;
 
   if (startsFreshTask) {
@@ -247,6 +255,8 @@ export async function POST(request: Request) {
   const commandPayload = {
     source: "chat",
     command,
+    unifiedIntake: normalizedIntake,
+    ...(intakeIntent ? { intakeIntent } : {}),
     ...(validAttachments.length ? { attachments: validAttachments } : {}),
     ...(conversationId ? { conversationId } : {}),
     ...(memoryContext ? { memoryContext } : {}),

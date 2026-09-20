@@ -28,7 +28,7 @@ test("attachment presign endpoint is owner-only and fails closed without Blob st
 
 test("attachment commands always create a fresh task and pass only metadata URLs", async () => {
   const source = await readFile(commandRouteSource, "utf8");
-  assert.match(source, /validAttachments\.length > 0 \|\| dashboardCommandStartsFreshTask/);
+  assert.match(source, /validAttachments\.length > 0 \|\| intakeIntent === "GOAL" \|\| dashboardCommandStartsFreshTask/);
   assert.match(source, /validAttachments\.length > 0 \|\| dashboardCommandNeedsReasoning/);
   assert.match(source, /Private Blob/);
   assert.match(source, /read-url:/);
