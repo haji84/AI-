@@ -21,6 +21,8 @@ import { JarvisDeviceReplacementTransport } from "../src/jarvis/device-replaceme
 import { WorkerRemoteMailbox } from "../src/jarvis/worker-remote-mailbox.ts";
 import { remoteDeviceInventory } from "../src/jarvis/remote-device-inventory.ts";
 import { PendingEnrollment } from "../src/jarvis/pending-enrollment.ts";
+import { OwnerRecoveryStore } from "../src/jarvis/owner-recovery-store.ts";
+import { deliverOwnerRecoveryCode } from "../src/jarvis/recovery-mail.ts";
 
 const host = process.env.JARVIS_BROKER_HOST?.trim() || "127.0.0.1";
 const port = Number(process.env.JARVIS_BROKER_PORT || 8787);
@@ -51,6 +53,7 @@ const pairingWindow = new JarvisEnrollmentPairingWindow();
 const invitations = new OwnerInvitationStore((process.env.JARVIS_DB_PATH?.trim() || resolve(".jarvis/jarvis.db")) + ".invitation.json");
 const invitationLimiter = new FixedEnrollmentRateLimiter(60_000, 100, 200);
 const replacementTransport = new JarvisDeviceReplacementTransport({ identityForNode: (nodeId) => store.getWorkerIdentity(nodeId) });
+const recoveryStore = new OwnerRecoveryStore((process.env.JARVIS_DB_PATH?.trim() || resolve(".jarvis/jarvis.db")) + ".owner-recovery.json", ownerToken);
 let lastHeartbeatPersist = 0;
 
 type WorkerApkInfo = { path: string; url: string; bytes: Buffer; sha256Base64Url: string };
@@ -336,6 +339,33 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
         } catch { return json(response, 409, { message: "招待リンクを作成できません。既存リンクの状態と拠点設定を確認してください。" }); }
       }
       return json(response, 400, { message: "Invitation action must be create or revoke" });
+    }
+    if (path === "/api/jarvis/admin/recovery") {
+      if (method === "GET") return json(response, 200, recoveryStore.status());
+      const action = typeof payload.action === "string" ? payload.action : "";
+      try {
+        if (action === "register-start") {
+          const address = typeof payload.email === "string" ? payload.email : "";
+          return json(response, 202, await recoveryStore.startRegistration(address, deliverOwnerRecoveryCode));
+        }
+        if (action === "register-verify") {
+          const code = typeof payload.code === "string" ? payload.code : "";
+          return json(response, 200, recoveryStore.verifyRegistration(code));
+        }
+        if (action === "recover-start") {
+          const address = typeof payload.email === "string" ? payload.email : "";
+          return json(response, 202, await recoveryStore.startRecovery(address, deliverOwnerRecoveryCode));
+        }
+        if (action === "recover-verify") {
+          const code = typeof payload.code === "string" ? payload.code : "";
+          return json(response, 200, recoveryStore.verifyRecovery(code));
+        }
+        return json(response, 400, { message: "unsupported recovery action" });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "owner recovery failed";
+        const status = message.includes("rate limited") ? 429 : message.includes("transport") || message.includes("delivery failed") ? 503 : 400;
+        return json(response, status, { message });
+      }
     }
     if (method === "GET" && path === "/api/jarvis/admin/enrollment-window") {
       return json(response, 200, { window: pairingWindow.status(), fixedUrl: fixedEnrollmentUrl });
