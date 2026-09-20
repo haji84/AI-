@@ -1,0 +1,1044 @@
+{
+  "source": "Owner resynchronization 2026-09-17 sections 0–67",
+  "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+  "coverage": "SECTION_MAPPING_NOT_EXHAUSTIVE_HISTORICAL_SEMANTIC_PROOF",
+  "historical_source_gap": "Original owner sections 1–102 referenced in #783/#784 are not reproduced by the inspected sources.",
+  "sections": [
+    {
+      "section": 0,
+      "requirement_ids": [
+        "MIG-001",
+        "MIG-002",
+        "MIG-003",
+        "MIG-004",
+        "MIG-005",
+        "MIG-006",
+        "MIG-007"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 1,
+      "requirement_ids": [],
+      "governance_refs": [
+        "AGENTS.md",
+        "PROJECT_STATE.md",
+        "ROADMAP.md",
+        "docs/JARVIS_PRODUCT_SPEC.md"
+      ]
+    },
+    {
+      "section": 2,
+      "requirement_ids": [
+        "CORE-001"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 3,
+      "requirement_ids": [
+        "CORE-002"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 4,
+      "requirement_ids": [
+        "CORE-003"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 5,
+      "requirement_ids": [
+        "CORE-004"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 6,
+      "requirement_ids": [
+        "CORE-005"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 7,
+      "requirement_ids": [
+        "CORE-006"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 8,
+      "requirement_ids": [
+        "CORE-007"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 9,
+      "requirement_ids": [
+        "CORE-008"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 10,
+      "requirement_ids": [
+        "CORE-009"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 11,
+      "requirement_ids": [
+        "CORE-010"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 12,
+      "requirement_ids": [
+        "CORE-011"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 13,
+      "requirement_ids": [
+        "CORE-012"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 14,
+      "requirement_ids": [
+        "CORE-013"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 15,
+      "requirement_ids": [
+        "CORE-014"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 16,
+      "requirement_ids": [
+        "CORE-015"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 17,
+      "requirement_ids": [
+        "CORE-016"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 18,
+      "requirement_ids": [
+        "CORE-017"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 19,
+      "requirement_ids": [
+        "CORE-018"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 20,
+      "requirement_ids": [
+        "CORE-019"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 21,
+      "requirement_ids": [
+        "CORE-020"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 22,
+      "requirement_ids": [
+        "CORE-021"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 23,
+      "requirement_ids": [
+        "CORE-022"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 24,
+      "requirement_ids": [
+        "CORE-023"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 25,
+      "requirement_ids": [
+        "CORE-024"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 26,
+      "requirement_ids": [
+        "CORE-025"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 27,
+      "requirement_ids": [
+        "CORE-026"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 28,
+      "requirement_ids": [
+        "CORE-027"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 29,
+      "requirement_ids": [
+        "CORE-028"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 30,
+      "requirement_ids": [
+        "CORE-029"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 31,
+      "requirement_ids": [
+        "CORE-030"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 32,
+      "requirement_ids": [
+        "CORE-031"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 33,
+      "requirement_ids": [
+        "CORE-032"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 34,
+      "requirement_ids": [
+        "CORE-033"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 35,
+      "requirement_ids": [
+        "CORE-034"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 36,
+      "requirement_ids": [
+        "UI-001",
+        "UI-002",
+        "UI-003",
+        "UI-004",
+        "UI-005",
+        "UI-006",
+        "UI-007",
+        "UI-008",
+        "UI-009",
+        "UI-010",
+        "UI-011",
+        "UI-012",
+        "UI-013",
+        "UI-014",
+        "UI-015",
+        "UI-016",
+        "UI-017",
+        "UI-018",
+        "UI-019",
+        "UI-020",
+        "UI-021",
+        "UI-022",
+        "UI-023",
+        "UI-024",
+        "UI-025",
+        "UI-026",
+        "UI-027",
+        "UI-028",
+        "UI-029",
+        "UI-030",
+        "UI-031",
+        "UI-032",
+        "UI-033",
+        "UI-034",
+        "UI-035",
+        "UI-036",
+        "UI-037",
+        "UI-038"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 37,
+      "requirement_ids": [
+        "INT-001",
+        "INT-002",
+        "INT-003",
+        "INT-004",
+        "INT-005",
+        "INT-006",
+        "INT-007",
+        "INT-008",
+        "INT-009",
+        "INT-010",
+        "INT-011",
+        "INT-012",
+        "INT-013",
+        "INT-014",
+        "INT-015",
+        "INT-016",
+        "INT-017",
+        "GEST-001",
+        "GEST-002",
+        "GEST-003",
+        "GEST-004",
+        "GEST-005",
+        "GEST-006",
+        "GEST-007",
+        "GEST-008"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 38,
+      "requirement_ids": [
+        "RA-001",
+        "RA-002",
+        "RA-003",
+        "RA-004",
+        "RA-005",
+        "RA-006",
+        "RA-007",
+        "RA-008",
+        "RA-009",
+        "RA-010",
+        "RA-011",
+        "RA-012",
+        "RA-013",
+        "RA-014",
+        "RA-015",
+        "RA-016",
+        "RA-017",
+        "RA-018",
+        "RA-019",
+        "RA-020",
+        "RA-021",
+        "RA-022"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 39,
+      "requirement_ids": [
+        "FLEET-001",
+        "FLEET-002",
+        "FLEET-003",
+        "FLEET-004",
+        "FLEET-005",
+        "FLEET-006",
+        "FLEET-007",
+        "FLEET-008",
+        "FLEET-009",
+        "FLEET-010",
+        "FLEET-011"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 40,
+      "requirement_ids": [
+        "OFF-001",
+        "OFF-002",
+        "OFF-003",
+        "OFF-004",
+        "OFF-005",
+        "OFF-006",
+        "OFF-007",
+        "OFF-008",
+        "OFF-009",
+        "OFF-010",
+        "OFF-011",
+        "OFF-012"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 41,
+      "requirement_ids": [
+        "MIG-008",
+        "MIG-009"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 42,
+      "requirement_ids": [
+        "MIG-008",
+        "MIG-028"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 43,
+      "requirement_ids": [
+        "MIG-009"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 44,
+      "requirement_ids": [
+        "NET-001",
+        "NET-002",
+        "NET-003",
+        "NET-004",
+        "NET-005",
+        "NET-006",
+        "NET-007"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 45,
+      "requirement_ids": [
+        "MIG-001",
+        "MIG-002",
+        "MIG-003",
+        "MIG-004",
+        "MIG-005",
+        "MIG-006",
+        "MIG-007"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 46,
+      "requirement_ids": [
+        "MIG-011"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 47,
+      "requirement_ids": [
+        "MIG-010",
+        "MIG-023"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 48,
+      "requirement_ids": [
+        "MIG-012"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 49,
+      "requirement_ids": [
+        "MIG-013",
+        "MIG-030"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 50,
+      "requirement_ids": [
+        "MIG-014",
+        "MIG-029"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 51,
+      "requirement_ids": [
+        "MIG-016"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 52,
+      "requirement_ids": [
+        "MIG-015",
+        "MIG-018",
+        "MIG-019"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 53,
+      "requirement_ids": [
+        "MIG-020"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 54,
+      "requirement_ids": [
+        "MIG-021"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 55,
+      "requirement_ids": [
+        "MIG-022"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 56,
+      "requirement_ids": [
+        "MIG-025"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 57,
+      "requirement_ids": [
+        "MIG-026"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 58,
+      "requirement_ids": [
+        "MIG-027"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 59,
+      "requirement_ids": [
+        "AUTO-001",
+        "AUTO-002",
+        "AUTO-003",
+        "AUTO-004",
+        "AUTO-005",
+        "AUTO-006",
+        "AUTO-007",
+        "AUTO-008",
+        "AUTO-009",
+        "AUTO-010",
+        "AUTO-011",
+        "AUTO-012",
+        "AUTO-013",
+        "AUTO-014",
+        "AUTO-015",
+        "AUTO-016",
+        "AUTO-017",
+        "AUTO-018",
+        "AUTO-019",
+        "AUTO-020",
+        "AUTO-021",
+        "AUTO-022",
+        "AUTO-023",
+        "AUTO-024",
+        "AUTO-025",
+        "AUTO-026",
+        "AUTO-027",
+        "AUTO-028",
+        "AUTO-029",
+        "AUTO-030",
+        "AUTO-031"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 60,
+      "requirement_ids": [],
+      "governance_refs": [
+        "AGENTS.md",
+        "PROJECT_STATE.md",
+        "ROADMAP.md",
+        "docs/JARVIS_PRODUCT_SPEC.md"
+      ]
+    },
+    {
+      "section": 61,
+      "requirement_ids": [],
+      "governance_refs": [
+        "AGENTS.md",
+        "PROJECT_STATE.md",
+        "ROADMAP.md",
+        "docs/JARVIS_PRODUCT_SPEC.md"
+      ]
+    },
+    {
+      "section": 62,
+      "requirement_ids": [
+        "GOV-025"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 63,
+      "requirement_ids": [
+        "GOV-025"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 64,
+      "requirement_ids": [
+        "SEC-014"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 65,
+      "requirement_ids": [],
+      "governance_refs": [
+        "AGENTS.md",
+        "PROJECT_STATE.md",
+        "ROADMAP.md",
+        "docs/JARVIS_PRODUCT_SPEC.md"
+      ]
+    },
+    {
+      "section": 66,
+      "requirement_ids": [
+        "ACC-001",
+        "ACC-002",
+        "ACC-003",
+        "ACC-004",
+        "ACC-005",
+        "ACC-006",
+        "ACC-007",
+        "ACC-008",
+        "ACC-009",
+        "MIG-020",
+        "MIG-021",
+        "MIG-022"
+      ],
+      "governance_refs": []
+    },
+    {
+      "section": 67,
+      "requirement_ids": [
+        "MIG-013",
+        "MIG-025"
+      ],
+      "governance_refs": []
+    }
+  ],
+  "addendum": [
+    {
+      "section": 103,
+      "requirement_id": "GOV-001"
+    },
+    {
+      "section": 104,
+      "requirement_id": "GOV-002"
+    },
+    {
+      "section": 105,
+      "requirement_id": "GOV-003"
+    },
+    {
+      "section": 106,
+      "requirement_id": "GOV-004"
+    },
+    {
+      "section": 107,
+      "requirement_id": "GOV-005"
+    },
+    {
+      "section": 108,
+      "requirement_id": "GOV-006"
+    },
+    {
+      "section": 109,
+      "requirement_id": "GOV-007"
+    },
+    {
+      "section": 110,
+      "requirement_id": "GOV-008"
+    },
+    {
+      "section": 111,
+      "requirement_id": "GOV-009"
+    },
+    {
+      "section": 112,
+      "requirement_id": "GOV-010"
+    },
+    {
+      "section": 113,
+      "requirement_id": "GOV-011"
+    },
+    {
+      "section": 114,
+      "requirement_id": "GOV-012"
+    },
+    {
+      "section": 115,
+      "requirement_id": "GOV-013"
+    },
+    {
+      "section": 116,
+      "requirement_id": "GOV-014"
+    },
+    {
+      "section": 117,
+      "requirement_id": "GOV-015"
+    },
+    {
+      "section": 118,
+      "requirement_id": "GOV-016"
+    },
+    {
+      "section": 119,
+      "requirement_id": "GOV-017"
+    },
+    {
+      "section": 120,
+      "requirement_id": "GOV-018"
+    },
+    {
+      "section": 121,
+      "requirement_id": "GOV-019"
+    },
+    {
+      "section": 122,
+      "requirement_id": "GOV-020"
+    },
+    {
+      "section": 123,
+      "requirement_id": "GOV-021"
+    },
+    {
+      "section": 124,
+      "requirement_id": "GOV-022"
+    },
+    {
+      "section": 125,
+      "requirement_id": "GOV-023"
+    },
+    {
+      "section": 126,
+      "requirement_id": "GOV-024"
+    },
+    {
+      "section": 127,
+      "requirement_id": "GOV-025"
+    },
+    {
+      "section": 128,
+      "requirement_id": "GOV-026"
+    },
+    {
+      "section": 129,
+      "requirement_id": "GOV-027"
+    },
+    {
+      "section": 130,
+      "requirement_id": "GOV-028"
+    }
+  ],
+  "preserved_ids": [
+    "NET-001",
+    "NET-002",
+    "NET-003",
+    "NET-004",
+    "NET-005",
+    "NET-006",
+    "NET-007",
+    "HOST-001",
+    "HOST-002",
+    "HOST-003",
+    "HOST-004",
+    "HOST-005",
+    "HOST-006",
+    "HOST-007",
+    "HOST-008",
+    "FLEET-001",
+    "FLEET-002",
+    "FLEET-003",
+    "FLEET-004",
+    "FLEET-005",
+    "FLEET-006",
+    "FLEET-007",
+    "FLEET-008",
+    "FLEET-009",
+    "FLEET-010",
+    "FLEET-011",
+    "DEV-A-001",
+    "DEV-A-002",
+    "DEV-A-003",
+    "DEV-A-004",
+    "DEV-A-005",
+    "DEV-A-006",
+    "DEV-A-007",
+    "DEV-A-008",
+    "DEV-A-009",
+    "DEV-A-010",
+    "DEV-A-011",
+    "DEV-A-012",
+    "DEV-A-013",
+    "DEV-A-014",
+    "DEV-A-015",
+    "DEV-I-001",
+    "DEV-I-002",
+    "DEV-I-003",
+    "DEV-I-004",
+    "DEV-I-005",
+    "DEV-I-006",
+    "DEV-I-007",
+    "DEV-I-008",
+    "DEV-PC-001",
+    "DEV-PC-002",
+    "DEV-PC-003",
+    "DEV-PC-004",
+    "DEV-PC-005",
+    "DEV-PC-006",
+    "DEV-PC-007",
+    "RA-001",
+    "RA-002",
+    "RA-003",
+    "RA-004",
+    "RA-005",
+    "RA-006",
+    "RA-007",
+    "RA-008",
+    "RA-009",
+    "RA-010",
+    "RA-011",
+    "RA-012",
+    "RA-013",
+    "RA-014",
+    "RA-015",
+    "RA-016",
+    "RA-017",
+    "RA-018",
+    "RA-019",
+    "RA-020",
+    "RA-021",
+    "RA-022",
+    "UI-001",
+    "UI-002",
+    "UI-003",
+    "UI-004",
+    "UI-005",
+    "UI-006",
+    "UI-007",
+    "UI-008",
+    "UI-009",
+    "UI-010",
+    "UI-011",
+    "UI-012",
+    "UI-013",
+    "UI-014",
+    "UI-015",
+    "UI-016",
+    "UI-017",
+    "UI-018",
+    "UI-019",
+    "UI-020",
+    "UI-021",
+    "UI-022",
+    "UI-023",
+    "UI-024",
+    "UI-025",
+    "UI-026",
+    "UI-027",
+    "UI-028",
+    "UI-029",
+    "UI-030",
+    "UI-031",
+    "UI-032",
+    "UI-033",
+    "UI-034",
+    "UI-035",
+    "UI-036",
+    "UI-037",
+    "UI-038",
+    "INT-001",
+    "INT-002",
+    "INT-003",
+    "INT-004",
+    "INT-005",
+    "INT-006",
+    "INT-007",
+    "INT-008",
+    "INT-009",
+    "INT-010",
+    "INT-011",
+    "INT-012",
+    "INT-013",
+    "INT-014",
+    "INT-015",
+    "INT-016",
+    "INT-017",
+    "GEST-001",
+    "GEST-002",
+    "GEST-003",
+    "GEST-004",
+    "GEST-005",
+    "GEST-006",
+    "GEST-007",
+    "GEST-008",
+    "AUTO-001",
+    "AUTO-002",
+    "AUTO-003",
+    "AUTO-004",
+    "AUTO-005",
+    "AUTO-006",
+    "AUTO-007",
+    "AUTO-008",
+    "AUTO-009",
+    "AUTO-010",
+    "AUTO-011",
+    "AUTO-012",
+    "AUTO-013",
+    "AUTO-014",
+    "AUTO-015",
+    "AUTO-016",
+    "AUTO-017",
+    "AUTO-018",
+    "AUTO-019",
+    "AUTO-020",
+    "AUTO-021",
+    "AUTO-022",
+    "AUTO-023",
+    "AUTO-024",
+    "AUTO-025",
+    "AUTO-026",
+    "AUTO-027",
+    "AUTO-028",
+    "AUTO-029",
+    "AUTO-030",
+    "AUTO-031",
+    "MEM-001",
+    "MEM-002",
+    "MEM-003",
+    "MEM-004",
+    "MEM-005",
+    "MEM-006",
+    "MEM-007",
+    "MEM-008",
+    "OFF-001",
+    "OFF-002",
+    "OFF-003",
+    "OFF-004",
+    "OFF-005",
+    "OFF-006",
+    "OFF-007",
+    "OFF-008",
+    "OFF-009",
+    "OFF-010",
+    "OFF-011",
+    "OFF-012",
+    "SEC-001",
+    "SEC-002",
+    "SEC-003",
+    "SEC-004",
+    "SEC-005",
+    "SEC-006",
+    "SEC-007",
+    "SEC-008",
+    "SEC-009",
+    "SEC-010",
+    "SEC-011",
+    "SEC-012",
+    "SEC-013",
+    "SEC-014",
+    "SEC-015",
+    "SEC-016",
+    "SEC-017",
+    "SEC-018",
+    "SEC-019",
+    "OPS-001",
+    "OPS-002",
+    "OPS-003",
+    "OPS-004",
+    "OPS-005",
+    "OPS-006",
+    "OPS-007",
+    "OPS-008",
+    "OPS-009",
+    "OPS-010",
+    "OPS-011",
+    "OPS-012",
+    "OPS-013",
+    "OPS-014",
+    "OPS-015",
+    "OPS-016",
+    "OPS-017",
+    "OPS-018",
+    "ACC-001",
+    "ACC-002",
+    "ACC-003",
+    "ACC-004",
+    "ACC-005",
+    "ACC-006",
+    "ACC-007",
+    "ACC-008",
+    "ACC-009",
+    "TEACH-001",
+    "TEACH-002",
+    "TEACH-003",
+    "TEACH-004",
+    "TEACH-005",
+    "TEACH-006"
+  ],
+  "prior_confirmed_additions": [
+    {
+      "requirement_id": "DEV-AX-001",
+      "source": "Owner prior request and PR #860"
+    },
+    {
+      "requirement_id": "DEV-AX-002",
+      "source": "Owner prior request and PR #858"
+    },
+    {
+      "requirement_id": "DEV-AX-003",
+      "source": "Owner prior request and PR #862"
+    },
+    {
+      "requirement_id": "DEV-AX-004",
+      "source": "Owner prior request and PR #860"
+    }
+  ]
+}

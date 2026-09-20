@@ -9,10 +9,40 @@ const source = JSON.parse(fs.readFileSync(new URL('../docs/jarvis-requirements.j
 const ledger = fs.readFileSync(new URL('../docs/JARVIS_PRODUCT_SPEC.md', import.meta.url), 'utf8');
 const mirror = data => data.requirements.map(row => '```json\n' + JSON.stringify(row) + '\n```').join('\n');
 const structuredClone = value => JSON.parse(JSON.stringify(value));
+const normalizeNewlines = value => value.replace(/\r\n?/g, '\n');
 
-test('all 244 owner requirements have exact canonical mapping', () => {
-  assert.equal(source.requirements.length, 244);
+test('all 340 preserved and expanded owner requirements have exact canonical mapping', () => {
+  assert.equal(source.requirements.length, 340);
   assert.deepEqual(validateRequirements(source, ledger, root), []);
+});
+
+test('source crosswalk preserves original inventory and maps all owner/addendum sections', () => {
+  const crosswalk = JSON.parse(fs.readFileSync(new URL('../docs/jarvis-spec-crosswalk.json', import.meta.url), 'utf8'));
+  const ids = new Set(source.requirements.map(r => r.id));
+  assert.equal(crosswalk.preserved_ids.length, 244);
+  assert.equal(new Set(crosswalk.preserved_ids).size, 244);
+  for (const id of crosswalk.preserved_ids) assert.ok(ids.has(id), id);
+  assert.deepEqual(crosswalk.sections.map(r => r.section), Array.from({length:68}, (_,i)=>i));
+  for (const row of crosswalk.sections) {
+    assert.ok(row.requirement_ids.length || row.governance_refs.length);
+    for (const id of row.requirement_ids) assert.ok(ids.has(id), id);
+  }
+  assert.deepEqual(crosswalk.addendum.map(r=>r.section), Array.from({length:28}, (_,i)=>i+103));
+  const addendum = fs.readFileSync(new URL('../docs/JARVIS_SPEC_ADDENDUM.md', import.meta.url), 'utf8');
+  const sections = [...addendum.matchAll(/^### (1\d\d)\. (.+)\r?\n([\s\S]*?)(?=^### |^## |$(?![\s\S]))/gm)];
+  assert.equal(sections.length, 28);
+  for (let i=0; i<sections.length; i++) {
+    const row = source.requirements.find(r=>r.id===crosswalk.addendum[i].requirement_id);
+    assert.equal(normalizeNewlines(row.description), normalizeNewlines(sections[i][3].trim()), `addendum ${sections[i][1]} must not be abridged`);
+  }
+});
+
+test('migration cannot drop physical evidence and production controls cannot drop security evidence', () => {
+  for (const [id, kind] of [['MIG-020','PHYSICAL'], ['GOV-001','SECURITY']]) {
+    const data = structuredClone(source);
+    data.requirements.find(r=>r.id===id).required_evidence = ['CODE','UNIT'];
+    assert.ok(validateRequirements(data, mirror(data), root).some(error=>error.includes(`${id}: ${kind} evidence may not be removed`)));
+  }
 });
 
 test('missing, duplicated, unknown and silently edited requirements fail closed', () => {
