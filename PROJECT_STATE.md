@@ -44,7 +44,7 @@ JARVIS_100_NODE_CAPACITY: PASS in deterministic CI; node 101 is rejected
 JARVIS_PHYSICAL_ANDROID_E2E: PASS for the acceptance scope through real Android 001 resident-Broker/Worker execution evidence from PR #526 and follow-up hardening. This does not imply unverified physical wake/Device Owner/live-screen/real-offline claims
 GAI_RESEARCH_OPS: SEPARATE_EVIDENCE_PROGRAM; Issue #321 and R1-R20 remain open until their real scientific evidence gates pass
 GAI_NEXT_PHASE: Complete #681 P0–P10 using docs/JARVIS_PRODUCT_SPEC.md and docs/jarvis-requirements.json; keep #321 research separate
-NEXT_PRIORITY: #882 candidate integration: #892/PR894 correction memory and guarded Skills CI PASS; #893 resource-aware governed model execution under verification. Keep all stacked PRs unmerged. Next cycle: integrate remaining concrete model callers and claim/evidence workflows; physical acceptance remains pending.
+NEXT_PRIORITY: #882 staged #892/894 correction Skills, #893/895 model execution, #902/903 input intake CI PASS; #904 fact audit UI/API verified locally. Next: scoped document content recovery, independent claim evidence, organization planner and remaining runtime bindings. All physical-facing PRs remain unmerged.
 HUMAN_APPROVAL_PENDING: none for ordinary code/CI/device validation; production, secrets, permissions, billing, destructive, governance/security weakening, and external-publication gates remain in force
 AUTO_FIX_ATTEMPTS_MAX: 3
 MAX_ACTIVE_AGENTS: 3

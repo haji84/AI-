@@ -68,7 +68,7 @@ function entailment(claim: string, passage: string): boolean {
 function isFresh(source: FactSource, claim: FactClaim, now = Date.now()): boolean {
   const anchor = source.effectiveAt || source.publishedAt || source.retrievedAt;
   const sourceTime = Date.parse(anchor);
-  if (!Number.isFinite(sourceTime)) return false;
+  if (!Number.isFinite(sourceTime) || !Number.isFinite(now) || sourceTime > now) return false;
   if (claim.asOf) {
     const target=Date.parse(claim.asOf);
     if (Number.isFinite(target) && sourceTime > target + 24*60*60*1000) return false;
@@ -143,11 +143,12 @@ export class FactVerificationEngine {
     const uniqueOrigins=new Map<string,FactEvidence>();
     for (const e of evidence) {
       const current=uniqueOrigins.get(e.independentOrigin);
-      if (!current || current.authority<e.authority) uniqueOrigins.set(e.independentOrigin,e);
+      const rank=(item:FactEvidence)=>(item.entails&&!item.contradicts?10:0)+(item.fresh?2:0)+item.authority;
+      if (!current || rank(current)<rank(e)) uniqueOrigins.set(e.independentOrigin,e);
     }
     const independent=[...uniqueOrigins.values()];
     const positive=independent.filter(e=>e.entails && !e.contradicts);
-    const negative=independent.filter(e=>e.contradicts);
+    const negative=evidence.filter(e=>e.contradicts);
     const stalePositive=positive.filter(e=>!e.fresh);
     const freshPositive=positive.filter(e=>e.fresh);
     const reasons:string[]=[];
@@ -156,12 +157,12 @@ export class FactVerificationEngine {
       const actual=await this.deterministicCalculator(claim);
       if (actual!==undefined) {
         const tolerance=claim.numericExpression.tolerance ?? 0;
-        numericCheck={ok:Math.abs(actual-claim.numericExpression.expected)<=tolerance,actual};
+        numericCheck={ok:Number.isFinite(actual)&&Number.isFinite(claim.numericExpression.expected)&&Number.isFinite(tolerance)&&tolerance>=0&&Math.abs(actual-claim.numericExpression.expected)<=tolerance,actual};
         if (!numericCheck.ok) reasons.push("deterministic numeric validation failed");
       }
     }
     let status:EvidenceStatus="UNKNOWN";
-    if (negative.length && positive.length) status="CONFLICTED";
+    if (negative.length || numericCheck?.ok === false) status="CONFLICTED";
     else if (numericCheck?.ok && freshPositive.some(e=>e.authority>=0.9)) status="VERIFIED";
     else if (freshPositive.length>=2 && freshPositive.some(e=>e.authority>=0.8)) status="SUPPORTED";
     else if (freshPositive.length===1) status=freshPositive[0].authority>=0.9 ? "SUPPORTED" : "INFERRED";

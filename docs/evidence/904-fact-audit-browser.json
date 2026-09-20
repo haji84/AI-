@@ -1,0 +1,11 @@
+{
+  "status": "PASS",
+  "physical": false,
+  "unauthenticated": 401,
+  "saveAndReload": true,
+  "pageErrors": [],
+  "viewports": [
+    "390x844",
+    "1440x1000"
+  ]
+}
