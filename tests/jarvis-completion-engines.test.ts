@@ -108,12 +108,13 @@ test("Model Router enforces data, hardware, modality, local/cloud and cost-per-s
 
 test("Security Kernel is default-deny, tenant-isolated, ephemeral and Human-Gated for high risk", () => {
   const k=new SecurityKernel();
-  k.issueGrant({id:"g1",tenantId:"t1",actorId:"a1",workerId:"w1",actions:["read"],resources:["repo"],destinations:["github"],expiresAt:10_000});
-  assert.equal(k.evaluate({tenantId:"t1",actorId:"a1",workerId:"w1",action:"read",resource:"repo/file",destination:"github",risk:"LOW",capabilities:[]},1000).allow,true);
-  assert.equal(k.evaluate({tenantId:"t1",actorId:"a1",workerId:"w2",action:"read",resource:"repo/file",destination:"github",risk:"LOW",capabilities:[]},1000).allow,false);
-  assert.equal(k.evaluate({tenantId:"t1",actorId:"a1",workerId:"w1",action:"write",resource:"repo",risk:"HIGH",capabilities:[]},1000).humanGate,true);
-  k.revokeGrant("g1",2000);
-  assert.equal(k.evaluate({tenantId:"t1",actorId:"a1",workerId:"w1",action:"read",resource:"repo",risk:"LOW",capabilities:[]},3000).allow,false);
+  const now=Date.now();
+  k.issueGrant({id:"g1",tenantId:"t1",actorId:"a1",workerId:"w1",actions:["read"],resources:["repo"],destinations:["github"],expiresAt:now+10_000});
+  assert.equal(k.evaluate({tenantId:"t1",actorId:"a1",workerId:"w1",action:"read",resource:"repo/file",destination:"github",risk:"LOW",capabilities:[]},now+1000).allow,true);
+  assert.equal(k.evaluate({tenantId:"t1",actorId:"a1",workerId:"w2",action:"read",resource:"repo/file",destination:"github",risk:"LOW",capabilities:[]},now+1000).allow,false);
+  assert.equal(k.evaluate({tenantId:"t1",actorId:"a1",workerId:"w1",action:"write",resource:"repo",risk:"HIGH",capabilities:[]},now+1000).humanGate,true);
+  k.revokeGrant("g1",now+2000);
+  assert.equal(k.evaluate({tenantId:"t1",actorId:"a1",workerId:"w1",action:"read",resource:"repo",risk:"LOW",capabilities:[]},now+3000).allow,false);
   assert.throws(()=>k.enforceTenant("t1","t2"));
 });
 
