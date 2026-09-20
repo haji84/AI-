@@ -1,0 +1,32 @@
+name: Issue 899 SEC001 current ledger generation
+
+on:
+  push:
+    branches:
+      - feature/899-sec001-ledger-current
+
+permissions:
+  contents: read
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Generate SEC-001 canonical ledgers
+        run: node scripts/reconcile-issue-899-sec001.mjs
+      - name: Validate canonical ledgers
+        run: node scripts/validate-jarvis-requirements.mjs
+      - name: Check generated diff
+        run: git diff --check
+      - name: Upload generated ledgers
+        uses: actions/upload-artifact@v4
+        with:
+          name: issue-899-sec001-current-ledgers
+          path: |
+            docs/JARVIS_PRODUCT_SPEC.md
+            docs/jarvis-requirements.json
+          if-no-files-found: error
