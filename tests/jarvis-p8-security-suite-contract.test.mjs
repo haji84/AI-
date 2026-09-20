@@ -15,6 +15,7 @@ test("P8 security suite remains explicit, focused, and CI-enforced", () => {
     "tests/jarvis-sec001-owner-auth-integration.test.ts",
     "tests/jarvis-sec002-session-control.test.ts",
     "tests/jarvis-sec003-signed-worker-request.test.ts",
+    "tests/jarvis-sec004-signed-result.test.ts",
     "tests/jarvis-p8-negative-security.test.ts",
     "tests/jarvis-p8-threat-model.test.mjs",
     "tests/jarvis-private-worker-ingress.test.ts",
