@@ -75,7 +75,11 @@ function isFresh(source: FactSource, claim: FactClaim, now = Date.now()): boolea
 }
 
 export class FactVerificationEngine {
-  constructor(private readonly deterministicCalculator?: (claim: FactClaim) => Promise<number | undefined>) {}
+  private readonly deterministicCalculator?: (claim: FactClaim) => Promise<number | undefined>;
+
+  constructor(deterministicCalculator?: (claim: FactClaim) => Promise<number | undefined>) {
+    this.deterministicCalculator = deterministicCalculator;
+  }
 
   sourceAuthority(claim: FactClaim, source: FactSource): number {
     return authorityByType[claim.type][source.sourceType] ?? 0.2;
