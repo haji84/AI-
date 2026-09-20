@@ -6662,11 +6662,14 @@
         "src/jarvis/teaching.ts",
         "src/jarvis/teaching-runtime.ts",
         "src/app/jarvis/TeachingControls.tsx",
-        "src/app/jarvis/teach/page.tsx"
+        "src/app/jarvis/teach/page.tsx",
+        "src/jarvis/teaching-learning.ts",
+        "src/app/api/jarvis/teaching/route.ts"
       ],
       "test_refs": [
         "tests/jarvis-teaching.test.ts",
-        "tests/jarvis-teaching-runtime.test.ts"
+        "tests/jarvis-teaching-runtime.test.ts",
+        "tests/jarvis-teaching-learning.test.ts"
       ],
       "evidence_refs": [
         "docs/architecture/jarvis-device-teaching.md"
@@ -6675,7 +6678,7 @@
       "blocker": "互換性照合実装済み。実機の複数機種・OS/app更新検証が必要。",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "実機で実演→保存→別run再現を検証し、未接続platform adapterを実装する。",
+      "next_action": "Read-only candidate generation is wired to the authenticated teaching library. Add explicit correction observations, governed skill write-back and full device acceptance; candidate validation grants no execution authority.",
       "last_verified_commit": null
     },
     {
@@ -6697,12 +6700,15 @@
         "src/app/jarvis/teach/page.tsx",
         "src/jarvis/local-video-reasoner.ts",
         "src/jarvis/video-action-plan.ts",
-        "src/app/api/jarvis/teaching/video/route.ts"
+        "src/app/api/jarvis/teaching/video/route.ts",
+        "src/jarvis/teaching-learning.ts",
+        "src/app/api/jarvis/teaching/route.ts"
       ],
       "test_refs": [
         "tests/jarvis-teaching.test.ts",
         "tests/jarvis-teaching-runtime.test.ts",
-        "tests/jarvis-video-actions.test.ts"
+        "tests/jarvis-video-actions.test.ts",
+        "tests/jarvis-teaching-learning.test.ts"
       ],
       "evidence_refs": [
         "docs/architecture/jarvis-device-teaching.md",
@@ -6712,7 +6718,7 @@
       "blocker": "ローカル動画理解と実機照合を実装。実機での成功再現は未検証。Chromeページ操作対象が観測できず、ユーザー補助サービスも無効。未対応操作は停止。",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "Android権限と開始画面を確認し、中立的な録画→照合→再現検証を実機で完了する。",
+      "next_action": "Read-only candidate generation is wired to the authenticated teaching library. Add explicit correction observations, governed skill write-back and full device acceptance; candidate validation grants no execution authority.",
       "last_verified_commit": null
     },
     {
@@ -8007,18 +8013,22 @@
       ],
       "implementation_refs": [
         "docs/architecture/jarvis-video-teaching.md",
-        "src/jarvis/demonstration-learning.ts"
+        "src/jarvis/demonstration-learning.ts",
+        "src/jarvis/teaching-learning.ts",
+        "src/app/api/jarvis/teaching/route.ts",
+        "src/app/jarvis/teach/page.tsx"
       ],
       "test_refs": [
         "tests/jarvis-completion-engines.test.ts",
-        "tests/jarvis-completion-readiness.test.ts"
+        "tests/jarvis-completion-readiness.test.ts",
+        "tests/jarvis-teaching-learning.test.ts"
       ],
       "evidence_refs": [],
       "status": "PARTIAL",
       "blocker": "Component software exists in unmerged #884; actual execution-path integration and requirement-wide evidence remain incomplete.",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "Wire the component into the applicable authenticated execution path, add integration/security acceptance, then obtain all required evidence classes. See docs/audit/887-completion-integration.md.",
+      "next_action": "Read-only candidate generation is wired to the authenticated teaching library. Add explicit correction observations, governed skill write-back and full device acceptance; candidate validation grants no execution authority.",
       "last_verified_commit": null
     },
     {
