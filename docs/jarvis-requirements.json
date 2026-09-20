@@ -775,13 +775,17 @@
         "tests/jarvis-v1-foundation.test.ts",
         "tests/jarvis-final-fleet-acceptance.test.ts"
       ],
-      "evidence_refs": [],
-      "status": "IMPLEMENTED_UNVERIFIED",
-      "blocker": "既存capacity regressionを現在の監査対象commitで再実行し証拠を紐付ける。",
+      "evidence_refs": [
+        "FLEET725-CODE",
+        "FLEET725-UNIT",
+        "FLEET725-INTEGRATION"
+      ],
+      "status": "VERIFIED",
+      "blocker": null,
       "platform_limit": null,
       "fallback": null,
-      "next_action": "P4: 100-node capacity regression test。 について実装の不足を埋め、required_evidenceを取得する。",
-      "last_verified_commit": null
+      "next_action": "Maintain the 100-node capacity and fail-closed overflow regression; reopen if the fleet capacity boundary changes.",
+      "last_verified_commit": "6a2be422b1a5de793a6b0e522b35e678aa5aba53"
     },
     {
       "id": "FLEET-011",
@@ -800,13 +804,17 @@
         "tests/jarvis-v1-foundation.test.ts",
         "tests/jarvis-final-fleet-acceptance.test.ts"
       ],
-      "evidence_refs": [],
-      "status": "IMPLEMENTED_UNVERIFIED",
-      "blocker": "既存capacity regressionを現在の監査対象commitで再実行し証拠を紐付ける。",
+      "evidence_refs": [
+        "FLEET725-CODE",
+        "FLEET725-UNIT",
+        "FLEET725-INTEGRATION"
+      ],
+      "status": "VERIFIED",
+      "blocker": null,
       "platform_limit": null,
       "fallback": null,
-      "next_action": "P4: 101台目等のcapacity overflowを安全に拒否。 について実装の不足を埋め、required_evidenceを取得する。",
-      "last_verified_commit": null
+      "next_action": "Maintain the 100-node capacity and fail-closed overflow regression; reopen if the fleet capacity boundary changes.",
+      "last_verified_commit": "6a2be422b1a5de793a6b0e522b35e678aa5aba53"
     },
     {
       "id": "DEV-A-001",
@@ -6577,6 +6585,45 @@
       "source": "docs/evidence/885-net-security-invariants.md",
       "verifier": "GitHub Actions main CI #1275 (run 35512801434)",
       "timestamp": "2026-09-20T13:12:50Z"
+    },
+    {
+      "id": "FLEET725-CODE",
+      "requirement_ids": [
+        "FLEET-010",
+        "FLEET-011"
+      ],
+      "class": "CODE",
+      "result": "PASS",
+      "commit": "6a2be422b1a5de793a6b0e522b35e678aa5aba53",
+      "source": "docs/audit/jarvis-p4-capacity-evidence-2026-09-16.md",
+      "verifier": "GitHub Actions main CI #1292 (run 35523573773)",
+      "timestamp": "2026-09-20T16:44:00Z"
+    },
+    {
+      "id": "FLEET725-UNIT",
+      "requirement_ids": [
+        "FLEET-010",
+        "FLEET-011"
+      ],
+      "class": "UNIT",
+      "result": "PASS",
+      "commit": "6a2be422b1a5de793a6b0e522b35e678aa5aba53",
+      "source": "docs/audit/jarvis-p4-capacity-evidence-2026-09-16.md",
+      "verifier": "GitHub Actions main CI #1292 (run 35523573773)",
+      "timestamp": "2026-09-20T16:44:00Z"
+    },
+    {
+      "id": "FLEET725-INTEGRATION",
+      "requirement_ids": [
+        "FLEET-010",
+        "FLEET-011"
+      ],
+      "class": "INTEGRATION",
+      "result": "PASS",
+      "commit": "6a2be422b1a5de793a6b0e522b35e678aa5aba53",
+      "source": "docs/audit/jarvis-p4-capacity-evidence-2026-09-16.md",
+      "verifier": "GitHub Actions main CI #1292 (run 35523573773)",
+      "timestamp": "2026-09-20T16:44:00Z"
     }
   ]
 }

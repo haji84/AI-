@@ -927,13 +927,17 @@ The JSON blocks are the authoritative rows. Validate exact mirror and evidence g
     "tests/jarvis-v1-foundation.test.ts",
     "tests/jarvis-final-fleet-acceptance.test.ts"
   ],
-  "evidence_refs": [],
-  "status": "IMPLEMENTED_UNVERIFIED",
-  "blocker": "既存capacity regressionを現在の監査対象commitで再実行し証拠を紐付ける。",
+  "evidence_refs": [
+    "FLEET725-CODE",
+    "FLEET725-UNIT",
+    "FLEET725-INTEGRATION"
+  ],
+  "status": "VERIFIED",
+  "blocker": null,
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P4: 100-node capacity regression test。 について実装の不足を埋め、required_evidenceを取得する。",
-  "last_verified_commit": null
+  "next_action": "Maintain the 100-node capacity and fail-closed overflow regression; reopen if the fleet capacity boundary changes.",
+  "last_verified_commit": "6a2be422b1a5de793a6b0e522b35e678aa5aba53"
 }
 ```
 
@@ -957,13 +961,17 @@ The JSON blocks are the authoritative rows. Validate exact mirror and evidence g
     "tests/jarvis-v1-foundation.test.ts",
     "tests/jarvis-final-fleet-acceptance.test.ts"
   ],
-  "evidence_refs": [],
-  "status": "IMPLEMENTED_UNVERIFIED",
-  "blocker": "既存capacity regressionを現在の監査対象commitで再実行し証拠を紐付ける。",
+  "evidence_refs": [
+    "FLEET725-CODE",
+    "FLEET725-UNIT",
+    "FLEET725-INTEGRATION"
+  ],
+  "status": "VERIFIED",
+  "blocker": null,
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P4: 101台目等のcapacity overflowを安全に拒否。 について実装の不足を埋め、required_evidenceを取得する。",
-  "last_verified_commit": null
+  "next_action": "Maintain the 100-node capacity and fail-closed overflow regression; reopen if the fleet capacity boundary changes.",
+  "last_verified_commit": "6a2be422b1a5de793a6b0e522b35e678aa5aba53"
 }
 ```
 
