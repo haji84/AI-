@@ -2,10 +2,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import {
   createOwnerRecoveryRestrictionToken,
-  createOwnerSessionToken,
   OWNER_RECOVERY_RESTRICTED_COOKIE,
-  OWNER_SESSION_COOKIE,
-  OWNER_SESSION_MAX_AGE_SECONDS,
 } from "../../owner-auth.ts";
 import { jarvisBrokerFetch, jarvisOwnerSecret } from "../jarvis/broker.ts";
 
@@ -26,9 +23,6 @@ export async function POST(request: Request) {
   const untilSeconds = Math.floor(Date.parse(body.restrictedUntil) / 1000);
   const nowSeconds = Math.floor(Date.now() / 1000);
   const cookieStore = await cookies();
-  cookieStore.set(OWNER_SESSION_COOKIE, createOwnerSessionToken(secret), {
-    httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "strict", path: "/", maxAge: OWNER_SESSION_MAX_AGE_SECONDS,
-  });
   cookieStore.set(OWNER_RECOVERY_RESTRICTED_COOKIE, createOwnerRecoveryRestrictionToken(secret, untilSeconds), {
     httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "strict", path: "/", maxAge: Math.max(1, untilSeconds - nowSeconds),
   });
