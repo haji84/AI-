@@ -75,6 +75,9 @@ The old fixed rule "three failed fixes then BLOCKED" is replaced by progress-awa
 
 Available connectors and tools are capabilities, not assumptions. Missing capability must never be fabricated. If one capability is unavailable, evaluate safe alternatives before declaring the Goal blocked.
 
+### Non-billable external capability policy
+External APIs/tokens may be selected without a billing Human Gate only when current provider terms are verified to make owner charges impossible for the selected usage: either the capability is permanently no-charge, or the provider enforces a hard free-tier/spending ceiling with no automatic pay-as-you-go/overage conversion. Free trials/credits that can become billable, free tiers with automatic overage, or unclear billing behavior are not auto-approved. Before first use and when terms may have changed, record provider/tier, billing mode, hard-cap evidence/source, verification time, credential scope, and relevant privacy/data-egress classification. If non-billable status cannot be verified, require the normal billing Human Gate. Never fabricate credentials or widen credential scope. Privacy, secret, security, and external-data gates still apply even when cost is zero.
+
 ## Zero-incremental-cost capability architecture
 Work/Codex remains an available reasoning/coding capability, not an exclusive control plane. GitHub Actions is an execution, persistence, CI, verification, and bounded repository-operation host.
 
