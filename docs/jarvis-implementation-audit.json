@@ -1,0 +1,2471 @@
+{
+  "issue": 865,
+  "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+  "baseline_tests": {
+    "passed": 972,
+    "failed": 0,
+    "skipped": 0,
+    "environment_note": "Git Bash added to PATH after shell syntax subprocess was unavailable; no test changes."
+  },
+  "production_mutations": false,
+  "physical_revalidation": false,
+  "requirements": [
+    {
+      "id": "UI-005",
+      "review": "SOURCE_SCOPE_REVIEWED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "mainに20 theme・20 personaとVoice/Color/Layoutの独立設定がある。設定UIの機能存在と全presetのブラウザー・実機品質保証は別。"
+    },
+    {
+      "id": "UI-007",
+      "review": "SOURCE_SCOPE_REVIEWED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "mainに20 theme・20 personaとVoice/Color/Layoutの独立設定がある。設定UIの機能存在と全presetのブラウザー・実機品質保証は別。"
+    },
+    {
+      "id": "UI-008",
+      "review": "SOURCE_SCOPE_REVIEWED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "mainに20 theme・20 personaとVoice/Color/Layoutの独立設定がある。設定UIの機能存在と全presetのブラウザー・実機品質保証は別。"
+    },
+    {
+      "id": "UI-009",
+      "review": "SOURCE_SCOPE_REVIEWED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "mainに20 theme・20 personaとVoice/Color/Layoutの独立設定がある。設定UIの機能存在と全presetのブラウザー・実機品質保証は別。"
+    },
+    {
+      "id": "UI-010",
+      "review": "SOURCE_SCOPE_REVIEWED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "mainに20 theme・20 personaとVoice/Color/Layoutの独立設定がある。設定UIの機能存在と全presetのブラウザー・実機品質保証は別。"
+    },
+    {
+      "id": "UI-011",
+      "review": "SOURCE_SCOPE_REVIEWED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "mainに20 theme・20 personaとVoice/Color/Layoutの独立設定がある。設定UIの機能存在と全presetのブラウザー・実機品質保証は別。"
+    },
+    {
+      "id": "UI-012",
+      "review": "SOURCE_SCOPE_REVIEWED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "移動・resize・hide/show・preset・Undo/Redo/Resetのコードと単体テストが存在。全画面・入力機器の受入検証は未完了。"
+    },
+    {
+      "id": "UI-013",
+      "review": "SOURCE_SCOPE_REVIEWED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "移動・resize・hide/show・preset・Undo/Redo/Resetのコードと単体テストが存在。全画面・入力機器の受入検証は未完了。"
+    },
+    {
+      "id": "UI-014",
+      "review": "SOURCE_SCOPE_REVIEWED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "移動・resize・hide/show・preset・Undo/Redo/Resetのコードと単体テストが存在。全画面・入力機器の受入検証は未完了。"
+    },
+    {
+      "id": "UI-015",
+      "review": "SOURCE_SCOPE_REVIEWED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "移動・resize・hide/show・preset・Undo/Redo/Resetのコードと単体テストが存在。全画面・入力機器の受入検証は未完了。"
+    },
+    {
+      "id": "UI-017",
+      "review": "SOURCE_SCOPE_REVIEWED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "移動・resize・hide/show・preset・Undo/Redo/Resetのコードと単体テストが存在。全画面・入力機器の受入検証は未完了。"
+    },
+    {
+      "id": "UI-018",
+      "review": "SOURCE_SCOPE_REVIEWED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "移動・resize・hide/show・preset・Undo/Redo/Resetのコードと単体テストが存在。全画面・入力機器の受入検証は未完了。"
+    },
+    {
+      "id": "UI-019",
+      "review": "SOURCE_SCOPE_REVIEWED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "移動・resize・hide/show・preset・Undo/Redo/Resetのコードと単体テストが存在。全画面・入力機器の受入検証は未完了。"
+    },
+    {
+      "id": "UI-016",
+      "review": "SOURCE_SCOPE_REVIEWED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "画面profileの実装あり。端末間・画面サイズ別の統合検証が残る。"
+    },
+    {
+      "id": "UI-020",
+      "review": "SOURCE_SCOPE_REVIEWED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "Command/Search UIは存在。あらゆる作業を理解・実行する汎用Goal Engineの完成を意味しない。"
+    },
+    {
+      "id": "UI-021",
+      "review": "SOURCE_SCOPE_REVIEWED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "Command/Search UIは存在。あらゆる作業を理解・実行する汎用Goal Engineの完成を意味しない。"
+    },
+    {
+      "id": "UI-022",
+      "review": "SOURCE_SCOPE_REVIEWED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "通知優先度のコード・テストあり。実運用の割込品質は未検証。"
+    },
+    {
+      "id": "UI-023",
+      "review": "SOURCE_SCOPE_REVIEWED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "Focus/Distance/Mobile/Privacy等のUI設定は存在。3〜5m視認性、適応layout、機密情報の全経路遮蔽の実機・統合証拠は不足。"
+    },
+    {
+      "id": "UI-024",
+      "review": "SOURCE_SCOPE_REVIEWED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "Focus/Distance/Mobile/Privacy等のUI設定は存在。3〜5m視認性、適応layout、機密情報の全経路遮蔽の実機・統合証拠は不足。"
+    },
+    {
+      "id": "UI-025",
+      "review": "SOURCE_SCOPE_REVIEWED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "Focus/Distance/Mobile/Privacy等のUI設定は存在。3〜5m視認性、適応layout、機密情報の全経路遮蔽の実機・統合証拠は不足。"
+    },
+    {
+      "id": "UI-026",
+      "review": "SOURCE_SCOPE_REVIEWED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "Focus/Distance/Mobile/Privacy等のUI設定は存在。3〜5m視認性、適応layout、機密情報の全経路遮蔽の実機・統合証拠は不足。"
+    },
+    {
+      "id": "UI-027",
+      "review": "SOURCE_SCOPE_REVIEWED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "Focus/Distance/Mobile/Privacy等のUI設定は存在。3〜5m視認性、適応layout、機密情報の全経路遮蔽の実機・統合証拠は不足。"
+    },
+    {
+      "id": "UI-028",
+      "review": "SOURCE_SCOPE_REVIEWED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "Focus/Distance/Mobile/Privacy等のUI設定は存在。3〜5m視認性、適応layout、機密情報の全経路遮蔽の実機・統合証拠は不足。"
+    },
+    {
+      "id": "UI-029",
+      "review": "SOURCE_SCOPE_REVIEWED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "Focus/Distance/Mobile/Privacy等のUI設定は存在。3〜5m視認性、適応layout、機密情報の全経路遮蔽の実機・統合証拠は不足。"
+    },
+    {
+      "id": "UI-030",
+      "review": "SOURCE_SCOPE_REVIEWED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "Read-only UI境界あり。全APIに対する権限制御をUIだけで保証しない。"
+    },
+    {
+      "id": "UI-031",
+      "review": "SOURCE_SCOPE_REVIEWED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "アクセシビリティ・keyboard補助あり。全フローの支援技術検証は未完了。"
+    },
+    {
+      "id": "UI-032",
+      "review": "SOURCE_SCOPE_REVIEWED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "アクセシビリティ・keyboard補助あり。全フローの支援技術検証は未完了。"
+    },
+    {
+      "id": "UI-034",
+      "review": "SOURCE_SCOPE_REVIEWED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "Offline/Reconnecting/Sync表示は存在。実際の全サービス状態との整合検証が残る。"
+    },
+    {
+      "id": "UI-035",
+      "review": "SOURCE_SCOPE_REVIEWED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "Offline/Reconnecting/Sync表示は存在。実際の全サービス状態との整合検証が残る。"
+    },
+    {
+      "id": "UI-036",
+      "review": "SOURCE_SCOPE_REVIEWED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "Offline/Reconnecting/Sync表示は存在。実際の全サービス状態との整合検証が残る。"
+    },
+    {
+      "id": "INT-001",
+      "review": "SOURCE_SCOPE_REVIEWED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "限定した安全コマンドと共有履歴・参照解決を実装済み。一般的な画面理解・自由な自然言語操作は未完成。"
+    },
+    {
+      "id": "INT-002",
+      "review": "SOURCE_SCOPE_REVIEWED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "限定した安全コマンドと共有履歴・参照解決を実装済み。一般的な画面理解・自由な自然言語操作は未完成。"
+    },
+    {
+      "id": "INT-004",
+      "review": "SOURCE_SCOPE_REVIEWED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "限定した安全コマンドと共有履歴・参照解決を実装済み。一般的な画面理解・自由な自然言語操作は未完成。"
+    },
+    {
+      "id": "INT-005",
+      "review": "SOURCE_SCOPE_REVIEWED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "限定した安全コマンドと共有履歴・参照解決を実装済み。一般的な画面理解・自由な自然言語操作は未完成。"
+    },
+    {
+      "id": "INT-006",
+      "review": "SOURCE_SCOPE_REVIEWED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "限定した安全コマンドと共有履歴・参照解決を実装済み。一般的な画面理解・自由な自然言語操作は未完成。"
+    },
+    {
+      "id": "INT-007",
+      "review": "SOURCE_SCOPE_REVIEWED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "限定した安全コマンドと共有履歴・参照解決を実装済み。一般的な画面理解・自由な自然言語操作は未完成。"
+    },
+    {
+      "id": "INT-017",
+      "review": "SOURCE_SCOPE_REVIEWED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "限定した安全コマンドと共有履歴・参照解決を実装済み。一般的な画面理解・自由な自然言語操作は未完成。"
+    },
+    {
+      "id": "INT-008",
+      "review": "SOURCE_SCOPE_REVIEWED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "音声入力・発話制御・字幕関連の実装とテストあり。各OS/browserでのbarge-in・音声認識・queue・権限を含む実機受入は未完了。"
+    },
+    {
+      "id": "INT-009",
+      "review": "SOURCE_SCOPE_REVIEWED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "音声入力・発話制御・字幕関連の実装とテストあり。各OS/browserでのbarge-in・音声認識・queue・権限を含む実機受入は未完了。"
+    },
+    {
+      "id": "INT-010",
+      "review": "SOURCE_SCOPE_REVIEWED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "音声入力・発話制御・字幕関連の実装とテストあり。各OS/browserでのbarge-in・音声認識・queue・権限を含む実機受入は未完了。"
+    },
+    {
+      "id": "INT-011",
+      "review": "SOURCE_SCOPE_REVIEWED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "音声入力・発話制御・字幕関連の実装とテストあり。各OS/browserでのbarge-in・音声認識・queue・権限を含む実機受入は未完了。"
+    },
+    {
+      "id": "INT-012",
+      "review": "SOURCE_SCOPE_REVIEWED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "音声入力・発話制御・字幕関連の実装とテストあり。各OS/browserでのbarge-in・音声認識・queue・権限を含む実機受入は未完了。"
+    },
+    {
+      "id": "INT-013",
+      "review": "SOURCE_SCOPE_REVIEWED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "音声入力・発話制御・字幕関連の実装とテストあり。各OS/browserでのbarge-in・音声認識・queue・権限を含む実機受入は未完了。"
+    },
+    {
+      "id": "INT-014",
+      "review": "SOURCE_SCOPE_REVIEWED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "音声入力・発話制御・字幕関連の実装とテストあり。各OS/browserでのbarge-in・音声認識・queue・権限を含む実機受入は未完了。"
+    },
+    {
+      "id": "INT-015",
+      "review": "SOURCE_SCOPE_REVIEWED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "音声入力・発話制御・字幕関連の実装とテストあり。各OS/browserでのbarge-in・音声認識・queue・権限を含む実機受入は未完了。"
+    },
+    {
+      "id": "INT-016",
+      "review": "SOURCE_SCOPE_REVIEWED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "音声入力・発話制御・字幕関連の実装とテストあり。各OS/browserでのbarge-in・音声認識・queue・権限を含む実機受入は未完了。"
+    },
+    {
+      "id": "UI-033",
+      "review": "SOURCE_SCOPE_REVIEWED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "音声入力・発話制御・字幕関連の実装とテストあり。各OS/browserでのbarge-in・音声認識・queue・権限を含む実機受入は未完了。"
+    },
+    {
+      "id": "GEST-001",
+      "review": "SOURCE_SCOPE_REVIEWED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "local画面差分による粗い動き検出と4リンク選択・明示確定がある。手指認識や任意アプリの自由操作ではない。"
+    },
+    {
+      "id": "GEST-002",
+      "review": "SOURCE_SCOPE_REVIEWED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "local画面差分による粗い動き検出と4リンク選択・明示確定がある。手指認識や任意アプリの自由操作ではない。"
+    },
+    {
+      "id": "GEST-003",
+      "review": "SOURCE_SCOPE_REVIEWED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "local画面差分による粗い動き検出と4リンク選択・明示確定がある。手指認識や任意アプリの自由操作ではない。"
+    },
+    {
+      "id": "GEST-004",
+      "review": "SOURCE_SCOPE_REVIEWED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "local画面差分による粗い動き検出と4リンク選択・明示確定がある。手指認識や任意アプリの自由操作ではない。"
+    },
+    {
+      "id": "GEST-005",
+      "review": "SOURCE_SCOPE_REVIEWED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "local画面差分による粗い動き検出と4リンク選択・明示確定がある。手指認識や任意アプリの自由操作ではない。"
+    },
+    {
+      "id": "GEST-006",
+      "review": "SOURCE_SCOPE_REVIEWED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "IMU pointerの限定ナビゲーション実装あり。端末遠隔操作全体との統合と実機検証が残る。"
+    },
+    {
+      "id": "GEST-007",
+      "review": "SOURCE_SCOPE_REVIEWED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "IMU pointerの限定ナビゲーション実装あり。端末遠隔操作全体との統合と実機検証が残る。"
+    },
+    {
+      "id": "GEST-008",
+      "review": "SOURCE_SCOPE_REVIEWED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "IMU pointerの限定ナビゲーション実装あり。端末遠隔操作全体との統合と実機検証が残る。"
+    },
+    {
+      "id": "SEC-011",
+      "review": "SOURCE_SCOPE_REVIEWED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "限定ルールのsecret scannerを実装済み。過去履歴・OS/外部ログ・全機密情報の検出を保証しない。"
+    },
+    {
+      "id": "SEC-012",
+      "review": "SOURCE_SCOPE_REVIEWED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "限定ルールのsecret scannerを実装済み。過去履歴・OS/外部ログ・全機密情報の検出を保証しない。"
+    },
+    {
+      "id": "MIG-001",
+      "review": "MAIN_VS_STAGED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_DEPLOYED",
+      "staged_pr": "https://github.com/haji84/AI-/pull/864",
+      "staged_refs": [],
+      "note": "mainには互換Coordinator移行の完成実装・実機証拠なし。#863/PR #864は監査準備として別管理。既存device/credential/queueを変更していない。"
+    },
+    {
+      "id": "MIG-002",
+      "review": "MAIN_VS_STAGED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_DEPLOYED",
+      "staged_pr": "https://github.com/haji84/AI-/pull/864",
+      "staged_refs": [],
+      "note": "mainには互換Coordinator移行の完成実装・実機証拠なし。#863/PR #864は監査準備として別管理。既存device/credential/queueを変更していない。"
+    },
+    {
+      "id": "MIG-003",
+      "review": "MAIN_VS_STAGED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_DEPLOYED",
+      "staged_pr": "https://github.com/haji84/AI-/pull/864",
+      "staged_refs": [],
+      "note": "mainには互換Coordinator移行の完成実装・実機証拠なし。#863/PR #864は監査準備として別管理。既存device/credential/queueを変更していない。"
+    },
+    {
+      "id": "MIG-004",
+      "review": "MAIN_VS_STAGED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_DEPLOYED",
+      "staged_pr": "https://github.com/haji84/AI-/pull/864",
+      "staged_refs": [],
+      "note": "mainには互換Coordinator移行の完成実装・実機証拠なし。#863/PR #864は監査準備として別管理。既存device/credential/queueを変更していない。"
+    },
+    {
+      "id": "MIG-005",
+      "review": "MAIN_VS_STAGED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_DEPLOYED",
+      "staged_pr": "https://github.com/haji84/AI-/pull/864",
+      "staged_refs": [],
+      "note": "mainには互換Coordinator移行の完成実装・実機証拠なし。#863/PR #864は監査準備として別管理。既存device/credential/queueを変更していない。"
+    },
+    {
+      "id": "MIG-006",
+      "review": "MAIN_VS_STAGED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_DEPLOYED",
+      "staged_pr": "https://github.com/haji84/AI-/pull/864",
+      "staged_refs": [],
+      "note": "mainには互換Coordinator移行の完成実装・実機証拠なし。#863/PR #864は監査準備として別管理。既存device/credential/queueを変更していない。"
+    },
+    {
+      "id": "MIG-007",
+      "review": "MAIN_VS_STAGED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_DEPLOYED",
+      "staged_pr": "https://github.com/haji84/AI-/pull/864",
+      "staged_refs": [],
+      "note": "mainには互換Coordinator移行の完成実装・実機証拠なし。#863/PR #864は監査準備として別管理。既存device/credential/queueを変更していない。"
+    },
+    {
+      "id": "MIG-008",
+      "review": "MAIN_VS_STAGED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_DEPLOYED",
+      "staged_pr": "https://github.com/haji84/AI-/pull/864",
+      "staged_refs": [],
+      "note": "mainには互換Coordinator移行の完成実装・実機証拠なし。#863/PR #864は監査準備として別管理。既存device/credential/queueを変更していない。"
+    },
+    {
+      "id": "MIG-009",
+      "review": "MAIN_VS_STAGED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_DEPLOYED",
+      "staged_pr": "https://github.com/haji84/AI-/pull/864",
+      "staged_refs": [],
+      "note": "mainには互換Coordinator移行の完成実装・実機証拠なし。#863/PR #864は監査準備として別管理。既存device/credential/queueを変更していない。"
+    },
+    {
+      "id": "MIG-010",
+      "review": "MAIN_VS_STAGED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_DEPLOYED",
+      "staged_pr": "https://github.com/haji84/AI-/pull/864",
+      "staged_refs": [],
+      "note": "mainには互換Coordinator移行の完成実装・実機証拠なし。#863/PR #864は監査準備として別管理。既存device/credential/queueを変更していない。"
+    },
+    {
+      "id": "MIG-011",
+      "review": "MAIN_VS_STAGED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_DEPLOYED",
+      "staged_pr": "https://github.com/haji84/AI-/pull/864",
+      "staged_refs": [],
+      "note": "mainには互換Coordinator移行の完成実装・実機証拠なし。#863/PR #864は監査準備として別管理。既存device/credential/queueを変更していない。"
+    },
+    {
+      "id": "MIG-012",
+      "review": "MAIN_VS_STAGED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_DEPLOYED",
+      "staged_pr": "https://github.com/haji84/AI-/pull/864",
+      "staged_refs": [],
+      "note": "mainには互換Coordinator移行の完成実装・実機証拠なし。#863/PR #864は監査準備として別管理。既存device/credential/queueを変更していない。"
+    },
+    {
+      "id": "MIG-013",
+      "review": "MAIN_VS_STAGED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_DEPLOYED",
+      "staged_pr": "https://github.com/haji84/AI-/pull/864",
+      "staged_refs": [],
+      "note": "mainには互換Coordinator移行の完成実装・実機証拠なし。#863/PR #864は監査準備として別管理。既存device/credential/queueを変更していない。"
+    },
+    {
+      "id": "MIG-014",
+      "review": "MAIN_VS_STAGED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_DEPLOYED",
+      "staged_pr": "https://github.com/haji84/AI-/pull/864",
+      "staged_refs": [],
+      "note": "mainには互換Coordinator移行の完成実装・実機証拠なし。#863/PR #864は監査準備として別管理。既存device/credential/queueを変更していない。"
+    },
+    {
+      "id": "MIG-015",
+      "review": "MAIN_VS_STAGED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_DEPLOYED",
+      "staged_pr": "https://github.com/haji84/AI-/pull/864",
+      "staged_refs": [],
+      "note": "mainには互換Coordinator移行の完成実装・実機証拠なし。#863/PR #864は監査準備として別管理。既存device/credential/queueを変更していない。"
+    },
+    {
+      "id": "MIG-016",
+      "review": "MAIN_VS_STAGED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_DEPLOYED",
+      "staged_pr": "https://github.com/haji84/AI-/pull/864",
+      "staged_refs": [],
+      "note": "mainには互換Coordinator移行の完成実装・実機証拠なし。#863/PR #864は監査準備として別管理。既存device/credential/queueを変更していない。"
+    },
+    {
+      "id": "MIG-017",
+      "review": "MAIN_VS_STAGED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_DEPLOYED",
+      "staged_pr": "https://github.com/haji84/AI-/pull/864",
+      "staged_refs": [],
+      "note": "mainには互換Coordinator移行の完成実装・実機証拠なし。#863/PR #864は監査準備として別管理。既存device/credential/queueを変更していない。"
+    },
+    {
+      "id": "MIG-018",
+      "review": "MAIN_VS_STAGED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_DEPLOYED",
+      "staged_pr": "https://github.com/haji84/AI-/pull/864",
+      "staged_refs": [],
+      "note": "mainには互換Coordinator移行の完成実装・実機証拠なし。#863/PR #864は監査準備として別管理。既存device/credential/queueを変更していない。"
+    },
+    {
+      "id": "MIG-019",
+      "review": "MAIN_VS_STAGED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_DEPLOYED",
+      "staged_pr": "https://github.com/haji84/AI-/pull/864",
+      "staged_refs": [],
+      "note": "mainには互換Coordinator移行の完成実装・実機証拠なし。#863/PR #864は監査準備として別管理。既存device/credential/queueを変更していない。"
+    },
+    {
+      "id": "MIG-020",
+      "review": "MAIN_VS_STAGED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_DEPLOYED",
+      "staged_pr": "https://github.com/haji84/AI-/pull/864",
+      "staged_refs": [],
+      "note": "mainには互換Coordinator移行の完成実装・実機証拠なし。#863/PR #864は監査準備として別管理。既存device/credential/queueを変更していない。"
+    },
+    {
+      "id": "MIG-021",
+      "review": "MAIN_VS_STAGED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_DEPLOYED",
+      "staged_pr": "https://github.com/haji84/AI-/pull/864",
+      "staged_refs": [],
+      "note": "mainには互換Coordinator移行の完成実装・実機証拠なし。#863/PR #864は監査準備として別管理。既存device/credential/queueを変更していない。"
+    },
+    {
+      "id": "MIG-022",
+      "review": "MAIN_VS_STAGED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_DEPLOYED",
+      "staged_pr": "https://github.com/haji84/AI-/pull/864",
+      "staged_refs": [],
+      "note": "mainには互換Coordinator移行の完成実装・実機証拠なし。#863/PR #864は監査準備として別管理。既存device/credential/queueを変更していない。"
+    },
+    {
+      "id": "MIG-023",
+      "review": "MAIN_VS_STAGED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_DEPLOYED",
+      "staged_pr": "https://github.com/haji84/AI-/pull/864",
+      "staged_refs": [],
+      "note": "mainには互換Coordinator移行の完成実装・実機証拠なし。#863/PR #864は監査準備として別管理。既存device/credential/queueを変更していない。"
+    },
+    {
+      "id": "MIG-024",
+      "review": "MAIN_VS_STAGED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_DEPLOYED",
+      "staged_pr": "https://github.com/haji84/AI-/pull/864",
+      "staged_refs": [],
+      "note": "mainには互換Coordinator移行の完成実装・実機証拠なし。#863/PR #864は監査準備として別管理。既存device/credential/queueを変更していない。"
+    },
+    {
+      "id": "MIG-025",
+      "review": "MAIN_VS_STAGED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_DEPLOYED",
+      "staged_pr": "https://github.com/haji84/AI-/pull/864",
+      "staged_refs": [
+        "src/jarvis/migration-baseline.ts",
+        "tests/jarvis-migration-baseline.test.ts"
+      ],
+      "note": "mainには互換Coordinator移行の完成実装・実機証拠なし。#863/PR #864は監査準備として別管理。既存device/credential/queueを変更していない。"
+    },
+    {
+      "id": "MIG-026",
+      "review": "MAIN_VS_STAGED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_DEPLOYED",
+      "staged_pr": "https://github.com/haji84/AI-/pull/864",
+      "staged_refs": [],
+      "note": "mainには互換Coordinator移行の完成実装・実機証拠なし。#863/PR #864は監査準備として別管理。既存device/credential/queueを変更していない。"
+    },
+    {
+      "id": "MIG-027",
+      "review": "MAIN_VS_STAGED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_DEPLOYED",
+      "staged_pr": "https://github.com/haji84/AI-/pull/864",
+      "staged_refs": [],
+      "note": "mainには互換Coordinator移行の完成実装・実機証拠なし。#863/PR #864は監査準備として別管理。既存device/credential/queueを変更していない。"
+    },
+    {
+      "id": "MIG-028",
+      "review": "MAIN_VS_STAGED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_DEPLOYED",
+      "staged_pr": "https://github.com/haji84/AI-/pull/864",
+      "staged_refs": [],
+      "note": "mainには互換Coordinator移行の完成実装・実機証拠なし。#863/PR #864は監査準備として別管理。既存device/credential/queueを変更していない。"
+    },
+    {
+      "id": "MIG-029",
+      "review": "MAIN_VS_STAGED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_DEPLOYED",
+      "staged_pr": "https://github.com/haji84/AI-/pull/864",
+      "staged_refs": [],
+      "note": "mainには互換Coordinator移行の完成実装・実機証拠なし。#863/PR #864は監査準備として別管理。既存device/credential/queueを変更していない。"
+    },
+    {
+      "id": "MIG-030",
+      "review": "MAIN_VS_STAGED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_DEPLOYED",
+      "staged_pr": "https://github.com/haji84/AI-/pull/864",
+      "staged_refs": [],
+      "note": "mainには互換Coordinator移行の完成実装・実機証拠なし。#863/PR #864は監査準備として別管理。既存device/credential/queueを変更していない。"
+    },
+    {
+      "id": "NET-001",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "NET-002",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "NET-003",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "NET-004",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "NET-005",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "NET-006",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "NET-007",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "HOST-001",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "HOST-002",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "HOST-003",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "HOST-004",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "HOST-005",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "HOST-006",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "HOST-007",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "HOST-008",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "FLEET-001",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "FLEET-002",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "FLEET-003",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "FLEET-004",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "FLEET-005",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "FLEET-006",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "FLEET-007",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "FLEET-008",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "FLEET-009",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "FLEET-010",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "FLEET-011",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "DEV-A-001",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "DEV-A-002",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "DEV-A-003",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "DEV-A-004",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "DEV-A-005",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "DEV-A-006",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "DEV-A-007",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "DEV-A-008",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "DEV-A-009",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "DEV-A-010",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "DEV-A-011",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "DEV-A-012",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "DEV-A-013",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "DEV-A-014",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "DEV-A-015",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "DEV-I-001",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "DEV-I-002",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "DEV-I-003",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "DEV-I-004",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "DEV-I-005",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "DEV-I-006",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "DEV-I-007",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "DEV-I-008",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "DEV-PC-001",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "DEV-PC-002",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "DEV-PC-003",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "DEV-PC-004",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "DEV-PC-005",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "DEV-PC-006",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "DEV-PC-007",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "RA-001",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "RA-002",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "RA-003",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "RA-004",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "RA-005",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "RA-006",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "RA-007",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "RA-008",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "RA-009",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "RA-010",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "RA-011",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "RA-012",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "RA-013",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "RA-014",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "RA-015",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "RA-016",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "RA-017",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "RA-018",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "RA-019",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "RA-020",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "RA-021",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "RA-022",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "UI-001",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "UI-002",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "UI-003",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "UI-004",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "UI-006",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "UI-037",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "UI-038",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "INT-003",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "AUTO-001",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "AUTO-002",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "AUTO-003",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "AUTO-004",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "AUTO-005",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "AUTO-006",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "AUTO-007",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "AUTO-008",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "AUTO-009",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "AUTO-010",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "AUTO-011",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "AUTO-012",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "AUTO-013",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "AUTO-014",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "AUTO-015",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "AUTO-016",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "AUTO-017",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "AUTO-018",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "AUTO-019",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "AUTO-020",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "AUTO-021",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "AUTO-022",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "AUTO-023",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "AUTO-024",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "AUTO-025",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "AUTO-026",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "AUTO-027",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "AUTO-028",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "AUTO-029",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "AUTO-030",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "AUTO-031",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "MEM-001",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "MEM-002",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "MEM-003",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "MEM-004",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "MEM-005",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "MEM-006",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "MEM-007",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "MEM-008",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "OFF-001",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "OFF-002",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "OFF-003",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "OFF-004",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "OFF-005",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "OFF-006",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "OFF-007",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "OFF-008",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "OFF-009",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "OFF-010",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "OFF-011",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "OFF-012",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "SEC-001",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "SEC-002",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "SEC-003",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "SEC-004",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "SEC-005",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "SEC-006",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "SEC-007",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "SEC-008",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "SEC-009",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "SEC-010",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "SEC-013",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "SEC-014",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "SEC-015",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "SEC-016",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "SEC-017",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "関連基盤のみ存在。この拡張要求の全条件を強制する統合機能とEvidenceは未完成。関連ファイルは要件全体の実装済みを意味しない。"
+    },
+    {
+      "id": "SEC-018",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "SEC-019",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "OPS-001",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "OPS-002",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "OPS-003",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "OPS-004",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "OPS-005",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "OPS-006",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "OPS-007",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "OPS-008",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "OPS-009",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "OPS-010",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "OPS-011",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "OPS-012",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "OPS-013",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "OPS-014",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "OPS-015",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "OPS-016",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "OPS-017",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "OPS-018",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "ACC-001",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "ACC-002",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "ACC-003",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "ACC-004",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "ACC-005",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "ACC-006",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "ACC-007",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "ACC-008",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "ACC-009",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "TEACH-001",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "TEACH-002",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "TEACH-003",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "TEACH-004",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "TEACH-005",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "TEACH-006",
+      "review": "CARRIED_FORWARD_EVIDENCE_MAPPING",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "既存mappingを保持。972件のmain回帰テスト成功は行全体の実機再検証ではない。"
+    },
+    {
+      "id": "CORE-001",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "関連する基盤は存在するが、この拡張要求の全範囲・統合・必要Evidenceを満たしていない。"
+    },
+    {
+      "id": "CORE-002",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "関連する基盤は存在するが、この拡張要求の全範囲・統合・必要Evidenceを満たしていない。"
+    },
+    {
+      "id": "CORE-003",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "関連する基盤は存在するが、この拡張要求の全範囲・統合・必要Evidenceを満たしていない。"
+    },
+    {
+      "id": "CORE-004",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "この要求全体を満たすmain実装を本監査では特定できていない。MISSINGは検索・監査範囲内の判定。"
+    },
+    {
+      "id": "CORE-005",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "この要求全体を満たすmain実装を本監査では特定できていない。MISSINGは検索・監査範囲内の判定。"
+    },
+    {
+      "id": "CORE-006",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "関連する基盤は存在するが、この拡張要求の全範囲・統合・必要Evidenceを満たしていない。"
+    },
+    {
+      "id": "CORE-007",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "関連する基盤は存在するが、この拡張要求の全範囲・統合・必要Evidenceを満たしていない。"
+    },
+    {
+      "id": "CORE-008",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "関連する基盤は存在するが、この拡張要求の全範囲・統合・必要Evidenceを満たしていない。"
+    },
+    {
+      "id": "CORE-009",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "関連する基盤は存在するが、この拡張要求の全範囲・統合・必要Evidenceを満たしていない。"
+    },
+    {
+      "id": "CORE-010",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "関連する基盤は存在するが、この拡張要求の全範囲・統合・必要Evidenceを満たしていない。"
+    },
+    {
+      "id": "CORE-011",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "関連する基盤は存在するが、この拡張要求の全範囲・統合・必要Evidenceを満たしていない。"
+    },
+    {
+      "id": "CORE-012",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "この要求全体を満たすmain実装を本監査では特定できていない。MISSINGは検索・監査範囲内の判定。"
+    },
+    {
+      "id": "CORE-013",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "この要求全体を満たすmain実装を本監査では特定できていない。MISSINGは検索・監査範囲内の判定。"
+    },
+    {
+      "id": "CORE-014",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "関連する基盤は存在するが、この拡張要求の全範囲・統合・必要Evidenceを満たしていない。"
+    },
+    {
+      "id": "CORE-015",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "関連する基盤は存在するが、この拡張要求の全範囲・統合・必要Evidenceを満たしていない。"
+    },
+    {
+      "id": "CORE-016",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "関連する基盤は存在するが、この拡張要求の全範囲・統合・必要Evidenceを満たしていない。"
+    },
+    {
+      "id": "CORE-017",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "関連する基盤は存在するが、この拡張要求の全範囲・統合・必要Evidenceを満たしていない。"
+    },
+    {
+      "id": "CORE-018",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "関連する基盤は存在するが、この拡張要求の全範囲・統合・必要Evidenceを満たしていない。"
+    },
+    {
+      "id": "CORE-019",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "関連する基盤は存在するが、この拡張要求の全範囲・統合・必要Evidenceを満たしていない。"
+    },
+    {
+      "id": "CORE-020",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "関連する基盤は存在するが、この拡張要求の全範囲・統合・必要Evidenceを満たしていない。"
+    },
+    {
+      "id": "CORE-021",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "関連する基盤は存在するが、この拡張要求の全範囲・統合・必要Evidenceを満たしていない。"
+    },
+    {
+      "id": "CORE-022",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "関連する基盤は存在するが、この拡張要求の全範囲・統合・必要Evidenceを満たしていない。"
+    },
+    {
+      "id": "CORE-023",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "関連する基盤は存在するが、この拡張要求の全範囲・統合・必要Evidenceを満たしていない。"
+    },
+    {
+      "id": "CORE-024",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "関連する基盤は存在するが、この拡張要求の全範囲・統合・必要Evidenceを満たしていない。"
+    },
+    {
+      "id": "CORE-025",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "関連する基盤は存在するが、この拡張要求の全範囲・統合・必要Evidenceを満たしていない。"
+    },
+    {
+      "id": "CORE-026",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "関連する基盤は存在するが、この拡張要求の全範囲・統合・必要Evidenceを満たしていない。"
+    },
+    {
+      "id": "CORE-027",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "関連する基盤は存在するが、この拡張要求の全範囲・統合・必要Evidenceを満たしていない。"
+    },
+    {
+      "id": "CORE-028",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "この要求全体を満たすmain実装を本監査では特定できていない。MISSINGは検索・監査範囲内の判定。"
+    },
+    {
+      "id": "CORE-029",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "関連する基盤は存在するが、この拡張要求の全範囲・統合・必要Evidenceを満たしていない。"
+    },
+    {
+      "id": "CORE-030",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "関連する基盤は存在するが、この拡張要求の全範囲・統合・必要Evidenceを満たしていない。"
+    },
+    {
+      "id": "CORE-031",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "関連する基盤は存在するが、この拡張要求の全範囲・統合・必要Evidenceを満たしていない。"
+    },
+    {
+      "id": "CORE-032",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "この要求全体を満たすmain実装を本監査では特定できていない。MISSINGは検索・監査範囲内の判定。"
+    },
+    {
+      "id": "CORE-033",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "この要求全体を満たすmain実装を本監査では特定できていない。MISSINGは検索・監査範囲内の判定。"
+    },
+    {
+      "id": "CORE-034",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "関連する基盤は存在するが、この拡張要求の全範囲・統合・必要Evidenceを満たしていない。"
+    },
+    {
+      "id": "GOV-001",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "関連基盤のみ存在。この拡張要求の全条件を強制する統合機能とEvidenceは未完成。関連ファイルは要件全体の実装済みを意味しない。"
+    },
+    {
+      "id": "GOV-002",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "関連基盤のみ存在。この拡張要求の全条件を強制する統合機能とEvidenceは未完成。関連ファイルは要件全体の実装済みを意味しない。"
+    },
+    {
+      "id": "GOV-003",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "関連基盤のみ存在。この拡張要求の全条件を強制する統合機能とEvidenceは未完成。関連ファイルは要件全体の実装済みを意味しない。"
+    },
+    {
+      "id": "GOV-004",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "この要求全体を満たすmain実装を本監査では特定できていない。MISSINGは検索・監査範囲内の判定。"
+    },
+    {
+      "id": "GOV-005",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "関連基盤のみ存在。この拡張要求の全条件を強制する統合機能とEvidenceは未完成。関連ファイルは要件全体の実装済みを意味しない。"
+    },
+    {
+      "id": "GOV-006",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "関連基盤のみ存在。この拡張要求の全条件を強制する統合機能とEvidenceは未完成。関連ファイルは要件全体の実装済みを意味しない。"
+    },
+    {
+      "id": "GOV-007",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "関連基盤のみ存在。この拡張要求の全条件を強制する統合機能とEvidenceは未完成。関連ファイルは要件全体の実装済みを意味しない。"
+    },
+    {
+      "id": "GOV-008",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "関連基盤のみ存在。この拡張要求の全条件を強制する統合機能とEvidenceは未完成。関連ファイルは要件全体の実装済みを意味しない。"
+    },
+    {
+      "id": "GOV-009",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "関連基盤のみ存在。この拡張要求の全条件を強制する統合機能とEvidenceは未完成。関連ファイルは要件全体の実装済みを意味しない。"
+    },
+    {
+      "id": "GOV-010",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "この要求全体を満たすmain実装を本監査では特定できていない。MISSINGは検索・監査範囲内の判定。"
+    },
+    {
+      "id": "GOV-011",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "この要求全体を満たすmain実装を本監査では特定できていない。MISSINGは検索・監査範囲内の判定。"
+    },
+    {
+      "id": "GOV-012",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "関連基盤のみ存在。この拡張要求の全条件を強制する統合機能とEvidenceは未完成。関連ファイルは要件全体の実装済みを意味しない。"
+    },
+    {
+      "id": "GOV-013",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "関連基盤のみ存在。この拡張要求の全条件を強制する統合機能とEvidenceは未完成。関連ファイルは要件全体の実装済みを意味しない。"
+    },
+    {
+      "id": "GOV-014",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "この要求全体を満たすmain実装を本監査では特定できていない。MISSINGは検索・監査範囲内の判定。"
+    },
+    {
+      "id": "GOV-015",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "関連基盤のみ存在。この拡張要求の全条件を強制する統合機能とEvidenceは未完成。関連ファイルは要件全体の実装済みを意味しない。"
+    },
+    {
+      "id": "GOV-016",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "この要求全体を満たすmain実装を本監査では特定できていない。MISSINGは検索・監査範囲内の判定。"
+    },
+    {
+      "id": "GOV-017",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "この要求全体を満たすmain実装を本監査では特定できていない。MISSINGは検索・監査範囲内の判定。"
+    },
+    {
+      "id": "GOV-018",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "関連基盤のみ存在。この拡張要求の全条件を強制する統合機能とEvidenceは未完成。関連ファイルは要件全体の実装済みを意味しない。"
+    },
+    {
+      "id": "GOV-019",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "この要求全体を満たすmain実装を本監査では特定できていない。MISSINGは検索・監査範囲内の判定。"
+    },
+    {
+      "id": "GOV-020",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "この要求全体を満たすmain実装を本監査では特定できていない。MISSINGは検索・監査範囲内の判定。"
+    },
+    {
+      "id": "GOV-021",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "関連基盤のみ存在。この拡張要求の全条件を強制する統合機能とEvidenceは未完成。関連ファイルは要件全体の実装済みを意味しない。"
+    },
+    {
+      "id": "GOV-022",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "関連基盤のみ存在。この拡張要求の全条件を強制する統合機能とEvidenceは未完成。関連ファイルは要件全体の実装済みを意味しない。"
+    },
+    {
+      "id": "GOV-023",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "この要求全体を満たすmain実装を本監査では特定できていない。MISSINGは検索・監査範囲内の判定。"
+    },
+    {
+      "id": "GOV-024",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "この要求全体を満たすmain実装を本監査では特定できていない。MISSINGは検索・監査範囲内の判定。"
+    },
+    {
+      "id": "GOV-025",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "関連基盤のみ存在。この拡張要求の全条件を強制する統合機能とEvidenceは未完成。関連ファイルは要件全体の実装済みを意味しない。"
+    },
+    {
+      "id": "GOV-026",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "関連基盤のみ存在。この拡張要求の全条件を強制する統合機能とEvidenceは未完成。関連ファイルは要件全体の実装済みを意味しない。"
+    },
+    {
+      "id": "GOV-027",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "この要求全体を満たすmain実装を本監査では特定できていない。MISSINGは検索・監査範囲内の判定。"
+    },
+    {
+      "id": "GOV-028",
+      "review": "EXPANDED_SCOPE_GAP",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "note": "関連基盤のみ存在。この拡張要求の全条件を強制する統合機能とEvidenceは未完成。関連ファイルは要件全体の実装済みを意味しない。"
+    },
+    {
+      "id": "DEV-AX-001",
+      "review": "MAIN_VS_STAGED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "staged_pr": "https://github.com/haji84/AI-/pull/860",
+      "note": "過去に明示された追加要件。MISSINGはmainのこの追加範囲についての判定であり、staged code不存在を意味しない。"
+    },
+    {
+      "id": "DEV-AX-002",
+      "review": "MAIN_VS_STAGED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "staged_pr": "https://github.com/haji84/AI-/pull/858",
+      "note": "過去に明示された追加要件。MISSINGはmainのこの追加範囲についての判定であり、staged code不存在を意味しない。"
+    },
+    {
+      "id": "DEV-AX-003",
+      "review": "MAIN_VS_STAGED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "staged_pr": "https://github.com/haji84/AI-/pull/862",
+      "note": "過去に明示された追加要件。MISSINGはmainのこの追加範囲についての判定であり、staged code不存在を意味しない。"
+    },
+    {
+      "id": "DEV-AX-004",
+      "review": "MAIN_VS_STAGED",
+      "main_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "delivery": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "staged_pr": "https://github.com/haji84/AI-/pull/860",
+      "note": "過去に明示された追加要件。MISSINGはmainのこの追加範囲についての判定であり、staged code不存在を意味しない。"
+    }
+  ],
+  "fleet_snapshot": {
+    "collected_at": "2026-09-17T11:49:22.738Z",
+    "production_commit": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+    "registered": 38,
+    "recent_heartbeat": 0,
+    "credential_missing": 0,
+    "tasks_in_snapshot": 0,
+    "source_sha256": "09eac260feab6fded7938541884656b0698a073b470129cf74adfb712e0c8cd7",
+    "scope": "Read-only Windows persisted Broker state; not a full cross-host inventory or live end-to-end test."
+  }
+}
