@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import test from "node:test";
+import test from "node:test";\nimport { URL } from "node:url";
 
 test("trusted PIN client keeps the PIN local and retains passcode fallback", async () => {
   const client = await readFile(new URL("../src/app/jarvis/trusted-device-client.ts", import.meta.url), "utf8");
