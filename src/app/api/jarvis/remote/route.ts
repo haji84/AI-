@@ -18,7 +18,7 @@ export const dynamic = "force-dynamic";
 
 type RemotePayload =
   | { action: "teach-video"; serial?: string; sessionId?: string; planId?: string }
-  | { action: "teach-start" | "teach-finish" | "teach-cancel" | "teach-verify" | "teach-execute"; serial?: string; sessionId?: string; goal?: string; scope?: string; completion?: string; variantId?: string; url?: string }
+  | { action: "teach-start" | "teach-finish" | "teach-cancel" | "teach-verify" | "teach-execute"; serial?: string; sessionId?: string; goal?: string; scope?: string; completion?: string; variantId?: string; skillId?: string; url?: string }
   | { action: "video"; serial?: string; sessionId?: string }
   | { action: "session-start"; serial?: string; ttlMs?: number }
   | { action: "session-end"; sessionId?: string }

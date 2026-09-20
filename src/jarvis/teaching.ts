@@ -84,7 +84,7 @@ export async function replayTeaching(store:TeachingStore,id:string,adapter:Teach
    if(after.signature!==step.after||after.protectedScreen)throw Error("Expected screen not reached; no automatic retry of input");
    store.updateRun(run.id,{nextStep:i+1,pendingStep:undefined});
   }
-  const final=await adapter.observe();if(final.signature!==v.finalScreen||final.protectedScreen)throw Error("Completion screen mismatch or Human Gate");
+  const final=await adapter.observe();await adapter.authorize();if(final.signature!==v.finalScreen||final.protectedScreen)throw Error("Completion screen mismatch or Human Gate");
   return store.updateRun(run.id,{status:"PASSED"});
  } catch(error){if(run)return store.updateRun(run.id,{status:"NEEDS_HUMAN",reason:error instanceof Error?error.message:"Replay failed"});throw error;}
  finally{busyDevices.delete(device);}
