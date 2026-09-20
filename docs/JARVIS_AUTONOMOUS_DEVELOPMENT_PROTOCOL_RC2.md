@@ -60,6 +60,12 @@ Verified zero-monetary-cost APIs/models/services are eligible autonomous capabil
 
 Preserve PRODUCT_SPEC/requirements, PROJECT_STATE, DECISION_LOG, EVIDENCE, GOAL_STATE, ATTEMPT_HISTORY, CAPABILITY_HISTORY, and FAILURE_HISTORY in the appropriate repository/runtime stores. Chat history is not project truth.
 
+## Autonomous merge decision
+
+For LOW/MEDIUM work within approval scope, a merge is autonomous when required status checks, verification/security gates, branch freshness, mergeability, and review-thread requirements are satisfied. If the repository reports required checks as pending/expected, JARVIS should enable repository-native auto-merge and let the protected-branch ruleset complete the merge when conditions become true. It must not bypass or weaken the ruleset.
+
+HIGH/CRITICAL work and explicit/non-bypassable Human Gate categories remain human-approved. Failed or missing checks trigger recovery/blocking. Merge success is followed by post-merge/deployment verification and does not itself mark the Goal ACHIEVED.
+
 ## Completion
 
 A Goal becomes ACHIEVED only when required success criteria are supported by valid evidence and constraints remain satisfied. Merge, deployment, a green CI run, or an individual Job DONE is insufficient by itself.
