@@ -9195,18 +9195,22 @@ Canonical rows, mirrored exactly in `docs/jarvis-requirements.json`.
   ],
   "implementation_refs": [
     "src/gai/model-router.ts",
-    "src/jarvis/model-router-v2.ts"
+    "src/jarvis/model-router-v2.ts",
+    "src/gai/model-execution.ts"
   ],
   "test_refs": [
     "tests/jarvis-completion-engines.test.ts",
-    "tests/jarvis-completion-readiness.test.ts"
+    "tests/jarvis-completion-readiness.test.ts",
+    "tests/gai-model-router-integration.test.ts"
   ],
-  "evidence_refs": [],
+  "evidence_refs": [
+    "docs/evidence/893-model-router-integration.md"
+  ],
   "status": "PARTIAL",
   "blocker": "Component software exists in unmerged #884; actual execution-path integration and requirement-wide evidence remain incomplete.",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "Wire the component into the applicable authenticated execution path, add integration/security acceptance, then obtain all required evidence classes. See docs/audit/887-completion-integration.md.",
+  "next_action": "Wire resource metadata into remaining concrete runtime callers; legacy and direct local-video model paths are not covered by resource-aware routing. Verify physical resource behavior separately.",
   "last_verified_commit": null
 }
 ```
@@ -9225,17 +9229,22 @@ Canonical rows, mirrored exactly in `docs/jarvis-requirements.json`.
     "INTEGRATION"
   ],
   "implementation_refs": [
-    "src/gai/model-router.ts"
+    "src/gai/model-router.ts",
+    "src/gai/model-execution.ts",
+    "src/jarvis/model-router-v2.ts"
   ],
   "test_refs": [
-    "tests/gai-foundation.test.ts"
+    "tests/gai-foundation.test.ts",
+    "tests/gai-model-router-integration.test.ts"
   ],
-  "evidence_refs": [],
+  "evidence_refs": [
+    "docs/evidence/893-model-router-integration.md"
+  ],
   "status": "PARTIAL",
   "blocker": "関連する基盤は存在するが、この拡張要求の全範囲・統合・必要Evidenceを満たしていない。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "関連する既存基盤を再利用し、要求の各条件・DoDを細分化して不足実装と検証Evidenceを追加する。",
+  "next_action": "Wire resource metadata into remaining concrete runtime callers; legacy and direct local-video model paths are not covered by resource-aware routing. Verify physical resource behavior separately.",
   "last_verified_commit": null
 }
 ```
