@@ -14,7 +14,7 @@ export type WorkerCapability =
   | "local-model"
   | "gpu"
   | "macos-tooling"
-  | "windows-tooling"
+  | "windows-tooling"\n  | "code-builder"
   | "ios-tooling"
   | "android-tooling"
   | "browser"
