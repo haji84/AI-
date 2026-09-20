@@ -5,6 +5,16 @@ export type RecoveredField={field:string;value?:unknown;state:EvidenceClass;sour
 
 function versionWeight(v?:string){ if(!v)return 0; const m=v.match(/\d+(?:\.\d+)*/); return m?m[0].split(".").reduce((a,n)=>a*100+Number(n),0):0; }
 export class InputRecoveryEngine {
+  auditInputSet(requiredNames:string[],docs:InputDocument[],currentCaseId?:string){
+    const normalized=(s:string)=>s.trim().toLowerCase();
+    const present=new Map<string,InputDocument[]>();
+    for(const d of docs){const key=normalized(d.name);const list=present.get(key)||[];list.push(d);present.set(key,list);}
+    const missing=requiredNames.filter(name=>!present.has(normalized(name)));
+    const duplicates=[...present.entries()].filter(([,items])=>items.length>1).map(([name,items])=>({name,ids:items.map(x=>x.id)}));
+    const roles={current:[] as string[],reference:[] as string[],"other-case":[] as string[],unknown:[] as string[]};
+    for(const d of docs)roles[this.classify(d,currentCaseId)].push(d.id);
+    return {missing,duplicates,roles,complete:missing.length===0};
+  }
   classify(doc:InputDocument,currentCaseId?:string):InputRole{
     if(doc.declaredRole&&doc.declaredRole!=="unknown") return doc.declaredRole;
     if(currentCaseId&&doc.caseId===currentCaseId) return "current";
