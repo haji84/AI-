@@ -10,6 +10,20 @@ Before modifying anything, read in order:
 
 For every non-trivial development goal, optimize for verified GOAL achievement inside the safety envelope, not merely for completing the current issue or preserving the first plan.
 
+### Unified intake and Goal ownership
+All supported user-facing entry points must converge on one intake contract before development authority is exercised. Chat/Work, Codex, JARVIS UI, device clients, GitHub-triggered work, and future interfaces are entry points or capabilities; they are not independent development authorities.
+
+The intake path is:
+1. Unified Intake receives the request with source identity/context.
+2. Intent Classifier classifies it as QUESTION, INSPECTION, COMMAND, DEVELOPMENT_TASK, or GOAL.
+3. Goal Resolver checks active Goal state and decides whether the request is informational, a bounded standalone action, a child/update/correction of an existing Goal, a Goal-change request, or a genuinely new Goal.
+4. GOAL and Goal-linked development work are owned by the JARVIS Goal Controller. It reads authoritative state, creates/updates jobs, selects next actions, and routes capabilities.
+5. Chat/Work, Codex, local models, code engines, Jev, and future providers may propose, research, implement, or verify only through the capability/job contracts assigned to them. They must not silently fork a parallel source of truth or bypass Goal/Gate/State authority.
+6. A direct instruction received by Codex or Chat that materially changes an active development Goal must be handed off/resolved through Goal Resolver before implementation. Pure questions and inspections must not be inflated into persistent Goals.
+7. Goal creation, Goal mutation, and Goal completion must be idempotent/deduplicated against active Goal identifiers and success criteria so multiple entry points do not create duplicate competing Goals.
+
+The desired invariant is: entry point is replaceable; Goal ownership remains with JARVIS.
+
 ### Goal persistence and autonomous recovery
 1. Read the locked Goal, success criteria, constraints, non-goals, current state, prior attempts, evidence, and remaining gaps.
 2. Decompose the Goal into the smallest useful jobs/subgoals with explicit contribution to Goal success criteria.
