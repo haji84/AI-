@@ -1,15 +1,21 @@
-export const JARVIS_ACCESSIBILITY_PREFERENCE_KEY = "jarvis-accessibility-preferences-v1";
+export const JARVIS_ACCESSIBILITY_PREFERENCE_KEY = "jarvis-accessibility-preferences-v2";
 
 export type JarvisAccessibilityPreferences = {
   textScale: "standard" | "large";
   contrast: "standard" | "high";
   captions: "off" | "on";
+  reducedMotion: "system" | "on" | "off";
+  largeTargets: "off" | "on";
+  screenReaderHints: "off" | "on";
 };
 
 export const DEFAULT_JARVIS_ACCESSIBILITY_PREFERENCES: JarvisAccessibilityPreferences = {
   textScale: "standard",
   contrast: "standard",
   captions: "off",
+  reducedMotion: "system",
+  largeTargets: "off",
+  screenReaderHints: "on",
 };
 
 export function normalizeJarvisAccessibilityPreferences(value: unknown): JarvisAccessibilityPreferences {
@@ -21,6 +27,9 @@ export function normalizeJarvisAccessibilityPreferences(value: unknown): JarvisA
     textScale: candidate.textScale === "large" ? "large" : "standard",
     contrast: candidate.contrast === "high" ? "high" : "standard",
     captions: candidate.captions === "on" ? "on" : "off",
+    reducedMotion: candidate.reducedMotion === "on" || candidate.reducedMotion === "off" ? candidate.reducedMotion : "system",
+    largeTargets: candidate.largeTargets === "on" ? "on" : "off",
+    screenReaderHints: candidate.screenReaderHints === "off" ? "off" : "on",
   };
 }
 
@@ -48,4 +57,7 @@ export function applyJarvisAccessibilityPreferences(preferences: JarvisAccessibi
   root.dataset.jarvisTextScale = normalized.textScale;
   root.dataset.jarvisContrast = normalized.contrast;
   root.dataset.jarvisCaptions = normalized.captions;
+  root.dataset.jarvisReducedMotion = normalized.reducedMotion;
+  root.dataset.jarvisLargeTargets = normalized.largeTargets;
+  root.dataset.jarvisScreenReaderHints = normalized.screenReaderHints;
 }
