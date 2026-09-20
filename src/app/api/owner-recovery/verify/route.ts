@@ -3,8 +3,8 @@ import { NextResponse } from "next/server";
 import {
   createOwnerRecoveryRestrictionToken,
   OWNER_RECOVERY_RESTRICTED_COOKIE,
-} from "../../owner-auth.ts";
-import { jarvisBrokerFetch, jarvisOwnerSecret } from "../jarvis/broker.ts";
+} from "../../../owner-auth.ts";
+import { jarvisBrokerFetch, jarvisOwnerSecret } from "../../jarvis/broker.ts";
 
 export async function POST(request: Request) {
   const secret = jarvisOwnerSecret();

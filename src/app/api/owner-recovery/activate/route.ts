@@ -6,8 +6,8 @@ import {
   OWNER_SESSION_COOKIE,
   OWNER_SESSION_MAX_AGE_SECONDS,
   parseOwnerRecoveryRestrictionUnlockAt,
-} from "../../owner-auth.ts";
-import { jarvisOwnerSecret } from "../jarvis/broker.ts";
+} from "../../../owner-auth.ts";
+import { jarvisOwnerSecret } from "../../jarvis/broker.ts";
 
 const COMPLETION_WINDOW_SECONDS = 24 * 60 * 60;
 

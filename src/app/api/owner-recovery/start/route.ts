@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { jarvisBrokerFetch } from "../jarvis/broker.ts";
+import { jarvisBrokerFetch } from "../../jarvis/broker.ts";
 
 export async function POST(request: Request) {
   const payload = await request.json().catch(() => null) as { email?: string } | null;
