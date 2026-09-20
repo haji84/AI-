@@ -32,11 +32,14 @@ function b64urlToBytes(value: string): Uint8Array {
 function requirePin(pin: string): void {
   if (!/^\d{4}$/.test(pin)) throw new Error("PINは4桁の数字で入力してください");
 }
+function arrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  return bytes.slice().buffer;
+}
 async function pinKey(pin: string, salt: Uint8Array): Promise<CryptoKey> {
   requirePin(pin);
   const material = await crypto.subtle.importKey("raw", new TextEncoder().encode(pin), "PBKDF2", false, ["deriveKey"]);
   return crypto.subtle.deriveKey(
-    { name: "PBKDF2", salt, iterations: PBKDF2_ITERATIONS, hash: "SHA-256" },
+    { name: "PBKDF2", salt: arrayBuffer(salt), iterations: PBKDF2_ITERATIONS, hash: "SHA-256" },
     material,
     { name: "AES-GCM", length: 256 },
     false,
@@ -140,7 +143,7 @@ export async function changeTrustedDevicePin(currentPin: string, nextPin: string
   const salt = crypto.getRandomValues(new Uint8Array(16));
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const key = await pinKey(nextPin, salt);
-  const encrypted = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, new TextEncoder().encode(JSON.stringify(privateKeyJwk)));
+  const encrypted = await crypto.subtle.encrypt({ name: "AES-GCM", iv: arrayBuffer(iv) }, key, new TextEncoder().encode(JSON.stringify(privateKeyJwk)));
   await writeRecord({
     ...record,
     encryptedPrivateJwk: bytesToB64url(new Uint8Array(encrypted)),
