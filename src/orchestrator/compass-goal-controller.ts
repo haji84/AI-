@@ -65,10 +65,13 @@ function isContextEnvelope(value: unknown): value is ContextEnvelope {
  * established Goal. WorkState remains authoritative in its own adapter.
  */
 export class CompassGoalRegistryAdapter implements GoalRegistry {
-  constructor(
-    private readonly compass: CompassStore,
-    private readonly workStateStore?: WorkStateStore,
-  ) {}
+  private readonly compass: CompassStore;
+  private readonly workStateStore?: WorkStateStore;
+
+  constructor(compass: CompassStore, workStateStore?: WorkStateStore) {
+    this.compass = compass;
+    this.workStateStore = workStateStore;
+  }
 
   async listActive(): Promise<ActiveGoal[]> {
     const record = this.compass.getGoal();
@@ -86,7 +89,9 @@ export class CompassGoalRegistryAdapter implements GoalRegistry {
     constraints: string[];
   }): Promise<ActiveGoal> {
     const existing = await this.listActive();
-    if (existing.length > 0) return existing[0];
+    if (existing.length > 0) {
+      throw new Error("active Compass Goal already exists; resolve or explicitly change it before creating a new Goal");
+    }
     const record = this.compass.setGoal({
       title: input.title,
       description: input.description,
@@ -103,7 +108,11 @@ export class CompassGoalRegistryAdapter implements GoalRegistry {
  * idempotency keys are not stored. This avoids a second schema/source of truth.
  */
 export class CompassGoalDecisionStoreAdapter implements GoalDecisionStore {
-  constructor(private readonly compass: CompassStore) {}
+  private readonly compass: CompassStore;
+
+  constructor(compass: CompassStore) {
+    this.compass = compass;
+  }
 
   async get(idempotencyKey: string): Promise<GoalControllerDecision | null> {
     const keyDigest = digest(idempotencyKey);
@@ -142,7 +151,11 @@ export class CompassGoalDecisionStoreAdapter implements GoalDecisionStore {
  * verification records, Goal state, or WorkState.
  */
 export class CompassSharedContextStoreAdapter implements SharedContextStore {
-  constructor(private readonly compass: CompassStore) {}
+  private readonly compass: CompassStore;
+
+  constructor(compass: CompassStore) {
+    this.compass = compass;
+  }
 
   async put(record: SharedContextRecord): Promise<void> {
     const envelope = this.read();
