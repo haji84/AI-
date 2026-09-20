@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { requireJarvisOwner, jarvisOwnerSecret } from "../../jarvis/broker.ts";
-import { createTrustedDeviceCredential } from "../../../trusted-device-auth.ts";
+import { requireJarvisOwner, jarvisOwnerSecret } from "../../../jarvis/broker.ts";
+import { createTrustedDeviceCredential } from "../../../../trusted-device-auth.ts";
 
 export async function POST(request: Request) {
   if (!(await requireJarvisOwner())) return NextResponse.json({ message: "オーナー認証が必要です" }, { status: 401 });
