@@ -28,3 +28,12 @@ export * from "./release-ops.ts";
 export * from "./live-view-runtime.ts";
 export * from "./multimodal-interaction.ts";
 export * from "./completion-runtime.ts";
+
+export * from "./coordinator-compatibility.ts";
+export * from "./coordinator-replica-store.ts";
+export * from "./remote-video-reconnect.ts";
+export * from "./policy-as-code.ts";
+export * from "./agent-communication.ts";
+export * from "./egress-policy.ts";
+export * from "./revocation-registry.ts";
+export * from "./data-lifecycle.ts";
