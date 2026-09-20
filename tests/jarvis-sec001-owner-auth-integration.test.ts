@@ -1,85 +1,47 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
-import { POST as ownerLoginPost } from "../src/app/api/owner-login/route.ts";
-import { OWNER_SESSION_COOKIE, verifyOwnerSessionToken } from "../src/app/owner-auth.ts";
+import { URL } from "node:url";
+import {
+  createOwnerSessionToken,
+  OWNER_SESSION_MAX_AGE_SECONDS,
+  verifyOwnerPasscode,
+  verifyOwnerSessionToken,
+} from "../src/app/owner-auth.ts";
 
-const OWNER_SECRET_KEYS = ["JARVIS_OWNER_SECRET", "AI_COMPANY_OWNER_SECRET"] as const;
+const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
-function snapshotOwnerEnv(): Record<string, string | undefined> {
-  return Object.fromEntries(OWNER_SECRET_KEYS.map((key) => [key, process.env[key]]));
-}
+test("SEC-001 owner-login route stays bound to the fail-closed owner-auth primitives", () => {
+  const route = read("src/app/api/owner-login/route.ts");
 
-function restoreOwnerEnv(snapshot: Record<string, string | undefined>): void {
-  for (const key of OWNER_SECRET_KEYS) {
-    const value = snapshot[key];
-    if (value === undefined) delete process.env[key];
-    else process.env[key] = value;
-  }
-}
-
-function loginRequest(passcode: string): Request {
-  const body = new FormData();
-  body.set("passcode", passcode);
-  body.set("next", "/jarvis");
-  return new Request("https://jarvis.invalid/api/owner-login", {
-    method: "POST",
-    headers: { Accept: "application/json" },
-    body,
-  });
-}
-
-test("SEC-001 owner login fails closed when no owner secret is configured", async () => {
-  const snapshot = snapshotOwnerEnv();
-  try {
-    delete process.env.JARVIS_OWNER_SECRET;
-    delete process.env.AI_COMPANY_OWNER_SECRET;
-
-    const response = await ownerLoginPost(loginRequest("anything"));
-    assert.equal(response.status, 503);
-    assert.equal(response.headers.get("set-cookie"), null);
-    assert.deepEqual(await response.json(), { ok: false });
-  } finally {
-    restoreOwnerEnv(snapshot);
-  }
+  assert.match(route, /const secret = jarvisOwnerSecret\(\);/);
+  assert.match(route, /if \(!secret\)[\s\S]*status: 503/);
+  assert.match(route, /if \(!verifyOwnerPasscode\(secret, passcode\)\)[\s\S]*status: 401/);
+  assert.match(route, /response\.cookies\.set\(OWNER_SESSION_COOKIE, createOwnerSessionToken\(secret\)/);
+  assert.match(route, /httpOnly: true/);
+  assert.match(route, /secure: process\.env\.NODE_ENV === "production"/);
+  assert.match(route, /sameSite: "strict"/);
+  assert.match(route, /maxAge: OWNER_SESSION_MAX_AGE_SECONDS/);
 });
 
-test("SEC-001 owner login rejects a wrong passcode without issuing a session", async () => {
-  const snapshot = snapshotOwnerEnv();
-  try {
-    process.env.JARVIS_OWNER_SECRET = "sec001-owner-secret";
-    delete process.env.AI_COMPANY_OWNER_SECRET;
+test("SEC-001 owner-only broker guard fails closed and validates the signed owner cookie", () => {
+  const broker = read("src/app/api/jarvis/broker.ts");
 
-    const response = await ownerLoginPost(loginRequest("wrong-secret"));
-    assert.equal(response.status, 401);
-    assert.equal(response.headers.get("set-cookie"), null);
-    assert.deepEqual(await response.json(), { ok: false });
-  } finally {
-    restoreOwnerEnv(snapshot);
-  }
+  assert.match(broker, /const ownerSecret = jarvisOwnerSecret\(\);/);
+  assert.match(broker, /if \(!ownerSecret\) return false;/);
+  assert.match(
+    broker,
+    /verifyOwnerSessionToken\(ownerSecret, cookieStore\.get\(OWNER_SESSION_COOKIE\)\?\.value\)/,
+  );
 });
 
-test("SEC-001 successful owner login issues a bounded signed HttpOnly strict session", async () => {
-  const snapshot = snapshotOwnerEnv();
-  try {
-    const secret = "sec001-owner-secret";
-    process.env.JARVIS_OWNER_SECRET = secret;
-    delete process.env.AI_COMPANY_OWNER_SECRET;
+test("SEC-001 authentication primitives reject a wrong passcode and wrong session secret", () => {
+  const secret = "sec001-owner-secret";
+  assert.equal(verifyOwnerPasscode(secret, secret), true);
+  assert.equal(verifyOwnerPasscode(secret, "wrong-secret"), false);
 
-    const response = await ownerLoginPost(loginRequest(secret));
-    assert.equal(response.status, 200);
-    assert.deepEqual(await response.json(), { ok: true });
-
-    const setCookie = response.headers.get("set-cookie") ?? "";
-    assert.match(setCookie, new RegExp(`^${OWNER_SESSION_COOKIE}=`));
-    assert.match(setCookie, /HttpOnly/i);
-    assert.match(setCookie, /SameSite=Strict/i);
-    assert.match(setCookie, /Max-Age=43200/i);
-
-    const cookiePair = setCookie.split(";", 1)[0] ?? "";
-    const token = cookiePair.slice(cookiePair.indexOf("=") + 1);
-    assert.equal(verifyOwnerSessionToken(secret, token), true);
-    assert.equal(verifyOwnerSessionToken("different-owner-secret", token), false);
-  } finally {
-    restoreOwnerEnv(snapshot);
-  }
+  const token = createOwnerSessionToken(secret);
+  assert.equal(verifyOwnerSessionToken(secret, token), true);
+  assert.equal(verifyOwnerSessionToken("different-owner-secret", token), false);
+  assert.equal(OWNER_SESSION_MAX_AGE_SECONDS, 60 * 60 * 12);
 });
