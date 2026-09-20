@@ -43,6 +43,12 @@ Root cause may be CONFIRMED, PROBABLE, or UNKNOWN. UNKNOWN still permits logging
 Evidence classes are MACHINE_VERIFIED, HUMAN_VERIFIED, and AI_ASSERTED. Critical gates may not pass on AI_ASSERTED evidence alone. Evidence records trusted issuer and, where applicable, revision, artifact hash/provenance, environment, and timestamp. Material changes invalidate affected stale evidence.
 For HIGH/CRITICAL risk, Builder, Final Verifier, and Gate Authority are separated. State transitions are committed only by the State Controller. AI/model confidence alone cannot satisfy a gate. Verified and deployed artifacts must match where artifact identity applies.
 
+## Non-billable external capabilities
+
+Capability Router may autonomously use an external API/token only after verifying that the selected plan cannot create owner charges: permanently free, or provider-enforced hard-capped free usage with no automatic overage/pay-as-you-go. Free credits/trials that may convert to billing, automatic-overage tiers, or unclear billing remain Human Gate items.
+
+Record provider/tier, billing mode, hard-cap evidence/source, verification timestamp, credential scope, and privacy/data-egress classification. Zero monetary cost never bypasses secret, privacy, security, or external-data controls. Credentials must not be invented or silently widened.
+
 ## Human interaction
 
 Human Gate asks permission for an action reserved to the owner. Human Assistance requests information, authority, or capability that cannot be safely obtained or inferred from authoritative project context, and is a last resort after safe autonomous alternatives are evaluated.
