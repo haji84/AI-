@@ -33,6 +33,9 @@ export type FactEvidence = {
   contradicts: boolean;
 };
 
+export type VerificationDepth="LOW"|"MEDIUM"|"HIGH"|"CRITICAL";
+export type FactSourceRetriever=(claim:FactClaim,depth:VerificationDepth)=>Promise<FactSource[]>;
+
 export type FactAudit = {
   claim: FactClaim;
   status: EvidenceStatus;
@@ -76,9 +79,47 @@ function isFresh(source: FactSource, claim: FactClaim, now = Date.now()): boolea
 
 export class FactVerificationEngine {
   private readonly deterministicCalculator?: (claim: FactClaim) => Promise<number | undefined>;
+  private readonly retriever?: FactSourceRetriever;
 
-  constructor(deterministicCalculator?: (claim: FactClaim) => Promise<number | undefined>) {
+  constructor(deterministicCalculator?: (claim: FactClaim) => Promise<number | undefined>, retriever?: FactSourceRetriever) {
     this.deterministicCalculator = deterministicCalculator;
+    this.retriever = retriever;
+  }
+
+  classifyClaim(text:string):ClaimType {
+    const lower=text.toLowerCase();
+    if(/\b(law|act|regulation|ordinance|法|条例|規則)\b/u.test(lower))return "law";
+    if(/\b(revenue|profit|earnings|売上|利益|決算)\b/u.test(lower))return "finance";
+    if(/\b(study|trial|research|研究|試験|論文)\b/u.test(lower))return "science";
+    if(/\b(spec|仕様|version|型番|メーカー)\b/u.test(lower))return "product-spec";
+    if(/\b(performance|benchmark|性能|速度|精度)\b/u.test(lower))return "performance";
+    if(/\d/.test(text))return "numeric";
+    return "general";
+  }
+
+  extractClaims(text:string):FactClaim[] {
+    return text.split(/(?<=[。！？.!?])\s*|\n+/u).map(x=>x.trim()).filter(x=>x.length>=4).map((sentence,index)=>({
+      id:`claim-${index+1}`,
+      text:sentence,
+      type:this.classifyClaim(sentence),
+    }));
+  }
+
+  verificationDepth(claim:FactClaim,input:{risk?:"LOW"|"MEDIUM"|"HIGH"|"CRITICAL";freshnessCritical?:boolean}={}):VerificationDepth {
+    if(input.risk==="CRITICAL")return "CRITICAL";
+    if(input.risk==="HIGH"||claim.type==="law"||claim.type==="finance")return "HIGH";
+    if(input.freshnessCritical||claim.type==="science"||claim.type==="performance")return "MEDIUM";
+    return "LOW";
+  }
+
+  async verifyText(text:string,input:{risk?:"LOW"|"MEDIUM"|"HIGH"|"CRITICAL";freshnessCritical?:boolean;now?:number}={}){
+    const claims=this.extractClaims(text);const audits:FactAudit[]=[];
+    for(const claim of claims){
+      const depth=this.verificationDepth(claim,input);
+      const sources=this.retriever?await this.retriever(claim,depth):[];
+      audits.push(await this.audit(claim,sources,input.now??Date.now()));
+    }
+    return {claims,audits,graph:this.evidenceGraph(audits)};
   }
 
   sourceAuthority(claim: FactClaim, source: FactSource): number {
