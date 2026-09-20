@@ -11,8 +11,8 @@ ACTIVE_ISSUES: JARVIS Product Completion parent #681 and #694 P3 reconciliation;
 OPEN_PRS: #856 implements #852 app-open pending registration and native Wi-Fi Remote Assist; production/APK permission gate and physical acceptance pending; #734 implementation merged via #774
 BLOCKERS: #786 MSIX AppData startup root cause repaired operationally with native owner-profile release90a111b; Limited Windows task and four services running in session0, existing two Workers READY. Tailscale Running and private URL HTTP200 after explicitly approved unattended mode; routine Tailscale recovery standing approval recorded. Physical Windows reboot/AC-loss and #734 video replay remain unverified. See docs/evidence/786-native-startup.md. Owner requires firewall unchanged.
 PRIORITY_OVERRIDE: Owner 2026-09-16 instruction resumes expanded JARVIS product completion #681 with ZBook main-host priority; preserve Human Gates and separate research evidence
-NORTH_STAR_GOAL: Human gives one goal; the system determines required work, dynamically recruits available capabilities, executes, verifies, repairs, records, and completes with the fewest necessary human returns, including continued local work during connectivity loss where capability permits
-HUMAN_GATE_INVARIANT: payment/purchase, destructive deletion, permission/credential changes, production deployment/publication, security/governance weakening, and all existing approval-required actions remain human-gated; autonomy, skill reuse, learning, team expansion, recovery, and self-improvement never grant permission
+NORTH_STAR_GOAL: Human gives one goal; the system persists that locked Goal, determines required work, dynamically recruits available capabilities, executes, verifies, diagnoses failures, changes strategy, repairs/replans, records evidence, and continues toward verified Goal achievement with the fewest necessary human returns, including continued local work during connectivity loss where capability permits
+HUMAN_GATE_INVARIANT: payment/purchase, destructive deletion, permission/credential changes, production deployment/publication, security/governance weakening, and all existing approval-required actions remain human-gated; autonomy, Goal persistence, strategy escalation, skill reuse, learning, team expansion, recovery, and self-improvement never grant permission
 GAI_MODEL_POLICY: replaceable multi-model router; local/zero-incremental-cost paths preferred; pay-as-you-go AI API fallback prohibited by default
 GAI_OFFLINE_FIRST_POLICY: network is an optional capability enhancer, not a survival condition; offline-capable local work continues, online-required work waits durably, and recovery triggers sync/conflict resolution/resume/re-verification
 GAI_EVAL_POLICY: verifier/eval is cross-cutting; code/CI evidence and physical-device evidence are separate evidence classes and must never be conflated
@@ -46,7 +46,7 @@ GAI_RESEARCH_OPS: SEPARATE_EVIDENCE_PROGRAM; Issue #321 and R1-R20 remain open u
 GAI_NEXT_PHASE: Complete #681 P0–P10 using docs/JARVIS_PRODUCT_SPEC.md and docs/jarvis-requirements.json; keep #321 research separate
 NEXT_PRIORITY: Verify local-video inference and per-device replay on neutral physical task; retain PARTIAL until actual end-to-end passes.
 HUMAN_APPROVAL_PENDING: none for ordinary code/CI/device validation; production, secrets, permissions, billing, destructive, governance/security weakening, and external-publication gates remain in force
-AUTO_FIX_ATTEMPTS_MAX: 3
+AUTONOMOUS_RECOVERY_POLICY: progress-aware bounded autonomy; per-strategy retry exhaustion triggers diagnose/replan/alternate capability or strategy, not automatic Goal abandonment; stop/escalate only for safety/approval gates, explicit pause/cancel, unavailable required authority, exhausted overall resource budget, or no safe actionable strategy
 MAX_ACTIVE_AGENTS: 3
 MAX_PARALLEL_CODE_AGENTS: 2
 MAX_ISSUES_PER_CYCLE: 2
