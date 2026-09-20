@@ -7706,18 +7706,23 @@
         "INTEGRATION"
       ],
       "implementation_refs": [
-        "src/jarvis/input-recovery.ts"
+        "src/jarvis/input-recovery.ts",
+        "src/jarvis/command-input-audit.ts",
+        "src/app/api/command/route.ts"
       ],
       "test_refs": [
         "tests/jarvis-completion-engines.test.ts",
-        "tests/jarvis-completion-readiness.test.ts"
+        "tests/jarvis-completion-readiness.test.ts",
+        "tests/jarvis-command-input-audit.test.ts"
       ],
-      "evidence_refs": [],
+      "evidence_refs": [
+        "docs/evidence/902-input-intake.md"
+      ],
       "status": "PARTIAL",
       "blocker": "Component software exists in unmerged #884; actual execution-path integration and requirement-wide evidence remain incomplete.",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "Wire the component into the applicable authenticated execution path, add integration/security acceptance, then obtain all required evidence classes. See docs/audit/887-completion-integration.md.",
+      "next_action": "Read scoped document contents and integrate OCR, field recovery and missing-source retrieval; metadata intake alone is not completion.",
       "last_verified_commit": null
     },
     {
@@ -7884,18 +7889,25 @@
         "INTEGRATION"
       ],
       "implementation_refs": [
-        "src/jarvis/fact-verification.ts"
+        "src/jarvis/fact-verification.ts",
+        "src/jarvis/fact-audit-runtime.ts",
+        "src/app/api/jarvis/facts/route.ts",
+        "src/app/jarvis/research/FactAuditPanel.tsx"
       ],
       "test_refs": [
         "tests/jarvis-completion-engines.test.ts",
-        "tests/jarvis-completion-readiness.test.ts"
+        "tests/jarvis-completion-readiness.test.ts",
+        "tests/jarvis-fact-audit-runtime.test.ts",
+        "tests/jarvis-fact-conservative.test.ts"
       ],
-      "evidence_refs": [],
+      "evidence_refs": [
+        "docs/evidence/904-fact-audit.md"
+      ],
       "status": "PARTIAL",
       "blocker": "Component software exists in unmerged #884; actual execution-path integration and requirement-wide evidence remain incomplete.",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "Wire the component into the applicable authenticated execution path, add integration/security acceptance, then obtain all required evidence classes. See docs/audit/887-completion-integration.md.",
+      "next_action": "Integrate independently retrieved/authenticated evidence and semantic verification across claim-bearing outputs.",
       "last_verified_commit": null
     },
     {

@@ -1,3 +1,4 @@
+import FactAuditPanel from "./FactAuditPanel";
 const PRODUCT_PHASES = [
   ["P0", "仕様監査", "Requirement Ledgerで実装・Evidenceを照合"],
   ["P1-P4", "接続・復旧・Remote Assist・Fleet", "ソフト実装を継続し、実機必須項目はPHYSICAL/RECOVERY証拠待ち"],
@@ -15,6 +16,7 @@ export default function JarvisResearchPage() {
         </div>
       </div>
 
+      <FactAuditPanel />
       <section className="jarvis-info-grid">
         <article className="panel jarvis-info-card">
           <span className="jarvis-node-status ready">PRODUCT TRACK</span>
