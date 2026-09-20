@@ -111,7 +111,7 @@ export function verifyTrustedDeviceProof(input: {
 }): boolean {
   if (input.credential.deviceId !== input.challenge.deviceId) return false;
   try {
-    const key = createPublicKey({ key: input.credential.publicKeyJwk, format: "jwk" });
+    const key = createPublicKey({ key: JSON.parse(JSON.stringify(input.credential.publicKeyJwk)), format: "jwk" });
     return verify(
       "sha256",
       Buffer.from(input.challenge.nonce, "utf8"),
