@@ -61,6 +61,11 @@ export interface GoalControllerDecision {
   remainingCriteria?: string[];
 }
 
+export interface GoalControllerDecisionStore {
+  get(idempotencyKey: string): Promise<GoalControllerDecision | null>;
+  put(idempotencyKey: string, decision: GoalControllerDecision): Promise<void>;
+}
+
 function digest(value: string): string {
   return createHash("sha256").update(value).digest("hex").slice(0, 20);
 }
@@ -102,6 +107,10 @@ export async function classifyIntent(input: NormalizedIntake, capability?: Class
   if (deterministic) return deterministic;
   if (capability) return capability.classify(input);
   return "COMMAND";
+}
+
+export function isMaterialDevelopmentIntent(intent: IntakeIntent): boolean {
+  return intent === "DEVELOPMENT_TASK" || intent === "GOAL";
 }
 
 function tokens(value: string): Set<string> {
@@ -165,18 +174,33 @@ export class GoalControllerRuntime {
   private readonly resolver: GoalResolver;
   private readonly classifier?: ClassifierCapability;
   private readonly workStateStore?: WorkStateStore;
+  private readonly decisionStore?: GoalControllerDecisionStore;
   private readonly seen = new Map<string, GoalControllerDecision>();
 
-  constructor(input: { registry: GoalRegistry; classifier?: ClassifierCapability; workStateStore?: WorkStateStore }) {
+  constructor(input: {
+    registry: GoalRegistry;
+    classifier?: ClassifierCapability;
+    workStateStore?: WorkStateStore;
+    decisionStore?: GoalControllerDecisionStore;
+  }) {
     this.resolver = new GoalResolver(input.registry);
     this.classifier = input.classifier;
     this.workStateStore = input.workStateStore;
+    this.decisionStore = input.decisionStore;
   }
 
   async handle(request: UnifiedIntakeRequest): Promise<GoalControllerDecision> {
     const intake = normalizeIntake(request);
-    const existing = this.seen.get(intake.idempotencyKey);
-    if (existing) return existing;
+    const local = this.seen.get(intake.idempotencyKey);
+    if (local) return this.refreshDecision(local);
+
+    const persisted = await this.decisionStore?.get(intake.idempotencyKey);
+    if (persisted) {
+      const refreshed = await this.refreshDecision(persisted);
+      this.seen.set(intake.idempotencyKey, refreshed);
+      return refreshed;
+    }
+
     const intent = await classifyIntent(intake, this.classifier);
     const resolution = await this.resolver.resolve(intake, intent);
 
@@ -186,20 +210,43 @@ export class GoalControllerRuntime {
     } else if (resolution.kind === "STANDALONE_ACTION") {
       decision = { resolution, action: "EXECUTE_BOUNDED" };
     } else {
-      const goalId = resolution.goal?.goalId;
-      const state = goalId && this.workStateStore ? await this.workStateStore.get(goalId) : resolution.goal?.workState;
-      const remainingCriteria = state
-        ? state.definitionOfDone.filter((item) => !state.verificationResults.some((r) => r.itemId === item.id && (r.passed || r.waived))).map((item) => item.id)
-        : resolution.goal?.goal.successCriteria.map((_, index) => `criterion-${index + 1}`) ?? [];
-      decision = {
-        resolution,
-        action: "CONTINUE_GOAL",
-        goalId,
-        nextAction: state?.nextAction ?? null,
-        remainingCriteria,
-      };
+      decision = await this.goalDecision(resolution);
     }
+
     this.seen.set(intake.idempotencyKey, decision);
+    if (resolution.kind !== "NO_GOAL") {
+      await this.decisionStore?.put(intake.idempotencyKey, decision);
+    }
     return decision;
+  }
+
+  private async goalDecision(resolution: GoalResolution): Promise<GoalControllerDecision> {
+    const goalId = resolution.goal?.goalId;
+    const state = goalId && this.workStateStore ? await this.workStateStore.get(goalId) : resolution.goal?.workState;
+    const remainingCriteria = state
+      ? state.definitionOfDone
+        .filter((item) => !state.verificationResults.some((result) => result.itemId === item.id && (result.passed || result.waived)))
+        .map((item) => item.id)
+      : resolution.goal?.goal.successCriteria.map((_, index) => `criterion-${index + 1}`) ?? [];
+    return {
+      resolution,
+      action: "CONTINUE_GOAL",
+      goalId,
+      nextAction: state?.nextAction ?? null,
+      remainingCriteria,
+    };
+  }
+
+  private async refreshDecision(decision: GoalControllerDecision): Promise<GoalControllerDecision> {
+    if (decision.action !== "CONTINUE_GOAL" || !decision.goalId || !this.workStateStore) return decision;
+    const state = await this.workStateStore.get(decision.goalId);
+    if (!state) return decision;
+    return {
+      ...decision,
+      nextAction: state.nextAction ?? null,
+      remainingCriteria: state.definitionOfDone
+        .filter((item) => !state.verificationResults.some((result) => result.itemId === item.id && (result.passed || result.waived)))
+        .map((item) => item.id),
+    };
   }
 }
