@@ -6,6 +6,16 @@ Status: Release Candidate. This protocol governs AI Company development and JARV
 
 The system optimizes for verified Goal achievement inside a bounded safety envelope. A failed job, implementation, tool, model, or plan does not by itself fail the parent Goal.
 
+## Unified Intake and Goal ownership
+
+All supported instruction surfaces converge before development execution:
+
+Human -> Chat/Work | Codex | JARVIS UI | device client | GitHub/event -> Unified Intake -> Intent Classifier -> Goal Resolver -> Goal Controller when Goal-linked -> RC2 loop -> Capability Router.
+
+Intent classes are QUESTION, INSPECTION, COMMAND, DEVELOPMENT_TASK, and GOAL. Questions/inspections are not automatically persisted as Goals. Goal Resolver deduplicates against active Goals and decides whether an instruction is a child job, correction, requirement update, Goal-change request, standalone bounded action, or new Goal.
+
+JARVIS Goal Controller is the single development authority for Goal-linked work regardless of entry point. Chat/Work and Codex remain replaceable capabilities/entry points. A direct Goal-changing instruction received through either must resolve through authoritative Goal state before implementation, and neither may silently maintain a competing Goal/state source.
+
 ## Core loop
 
 1. Lock Goal, success criteria, constraints, and non-goals.
