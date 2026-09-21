@@ -21,7 +21,7 @@ try {
   const record = compass.setGoal({
     title: "Implement normal JARVIS runtime Builder smoke",
     description: `Edit only ${fixture}. Follow the current implementation strategy. Do not modify any other file.`,
-    successCriteria: ["Normal JARVIS runtime completes the trusted deterministic verification contract"],
+    successCriteria: ["Implement the requested controlled change"],
     constraints: ["Only the controlled smoke fixture may change"],
   });
   compass.updateState({
