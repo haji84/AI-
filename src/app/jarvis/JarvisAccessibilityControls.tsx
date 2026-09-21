@@ -63,8 +63,21 @@ export default function JarvisAccessibilityControls() {
         <small className="jarvis-setting-help">JARVIS UIの字幕・文字情報表示を優先する設定。P6の音声認識やリアルタイム音声字幕の完成を意味しない。</small>
       </fieldset>
 
+      <fieldset>
+        <legend>動き</legend>
+        <label><input type="radio" name="jarvis-motion" checked={preferences.reducedMotion === "system"} onChange={() => save({ reducedMotion: "system" })} /> OS設定に従う</label>
+        <label><input type="radio" name="jarvis-motion" checked={preferences.reducedMotion === "on"} onChange={() => save({ reducedMotion: "on" })} /> アニメーションを抑える</label>
+        <label><input type="radio" name="jarvis-motion" checked={preferences.reducedMotion === "off"} onChange={() => save({ reducedMotion: "off" })} /> 標準</label>
+      </fieldset>
+
+      <fieldset>
+        <legend>操作対象</legend>
+        <label><input type="checkbox" checked={preferences.largeTargets === "on"} onChange={(event) => save({ largeTargets: event.target.checked ? "on" : "off" })} /> ボタン・入力欄を大きくする</label>
+        <label><input type="checkbox" checked={preferences.screenReaderHints === "on"} onChange={(event) => save({ screenReaderHints: event.target.checked ? "on" : "off" })} /> 読み上げ補助ラベルを優先</label>
+      </fieldset>
+
       <p className="jarvis-accessibility-summary" aria-live="polite">
-        文字 {preferences.textScale === "large" ? "大" : "標準"} / コントラスト {preferences.contrast === "high" ? "高" : "標準"} / 字幕 {preferences.captions === "on" ? "ON" : "OFF"}
+        文字 {preferences.textScale === "large" ? "大" : "標準"} / コントラスト {preferences.contrast === "high" ? "高" : "標準"} / 字幕 {preferences.captions === "on" ? "ON" : "OFF"} / 大型ターゲット {preferences.largeTargets === "on" ? "ON" : "OFF"} / 読み上げ補助 {preferences.screenReaderHints === "on" ? "ON" : "OFF"}
       </p>
       <div className="jarvis-button-row"><button className="button secondary" type="button" onClick={reset}>アクセシビリティ設定をリセット</button></div>
     </section>

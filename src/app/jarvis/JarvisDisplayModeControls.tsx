@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { applyJarvisDistanceMeters, readJarvisDistanceMeters, writeJarvisDistanceMeters, type JarvisDistanceMeters } from "./distance-mode";
 import {
   applyJarvisDisplayMode,
   JARVIS_DISPLAY_MODES,
@@ -11,11 +12,15 @@ import {
 
 export default function JarvisDisplayModeControls() {
   const [mode, setMode] = useState<JarvisDisplayMode>("standard");
+  const [distance, setDistance] = useState<JarvisDistanceMeters>(3);
 
   useEffect(() => {
     const initial = readJarvisDisplayMode();
     setMode(initial);
     applyJarvisDisplayMode(initial);
+    const initialDistance = readJarvisDistanceMeters();
+    setDistance(initialDistance);
+    applyJarvisDistanceMeters(initialDistance);
   }, []);
 
   function select(next: JarvisDisplayMode) {
@@ -41,6 +46,11 @@ export default function JarvisDisplayModeControls() {
           </button>
         ))}
       </div>
+      {mode === "distance" && <label className="jarvis-distance-control">想定距離
+        <select value={distance} onChange={(event) => { const next = Number(event.target.value) as JarvisDistanceMeters; setDistance(next); writeJarvisDistanceMeters(next); }}>
+          <option value={3}>約3m</option><option value={4}>約4m</option><option value={5}>約5m</option>
+        </select>
+      </label>}
       <p className="jarvis-display-mode-status" aria-live="polite">
         表示モード: <strong>{JARVIS_DISPLAY_MODES.find(([id]) => id === mode)?.[1]}</strong>
         <span>{description}</span>

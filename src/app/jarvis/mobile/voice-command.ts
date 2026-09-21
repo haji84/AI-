@@ -85,3 +85,21 @@ export function parseSafeMobileCommand(input: string): VoiceIntentResult {
 }
 
 export const parseSafeVoiceCommand = parseSafeMobileCommand;
+
+
+export type MobileVoiceOrGoalResult =
+  | { kind: "device-task"; task: SafeVoiceTask }
+  | { kind: "goal"; goal: string }
+  | { kind: "blocked"; message: string }
+  | { kind: "empty"; message: string };
+
+export function parseMobileVoiceOrGoal(input: string): MobileVoiceOrGoalResult {
+  const parsed = parseSafeMobileCommand(input);
+  if (parsed.ok) return { kind: "device-task", task: parsed.task };
+  if (parsed.reason === "protected") return { kind: "blocked", message: parsed.message };
+  if (parsed.reason === "empty") return { kind: "empty", message: parsed.message };
+  const goal = input.trim();
+  return goal
+    ? { kind: "goal", goal }
+    : { kind: "empty", message: "音声または文字で指示を入力してください。" };
+}

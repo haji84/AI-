@@ -7,3 +7,7 @@ html[data-jarvis-contrast="high"]{--jarvis-muted:#cbd5e1}html[data-jarvis-contra
 .jarvis-caption{display:none}html[data-jarvis-captions="on"] .jarvis-caption{display:block}
 @media(max-width:720px){.jarvis-connectivity-status{align-items:flex-start}.jarvis-connectivity-status>span:nth-child(2){display:grid;gap:2px}.jarvis-connectivity-status a{align-self:center}}
 @media(prefers-reduced-motion:reduce){.jarvis-primary-shell,.jarvis-primary-shell *,.jarvis-primary-shell *::before,.jarvis-primary-shell *::after{scroll-behavior:auto!important;animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;transition-delay:0s!important}.jarvis-connectivity-dot{animation:none!important}}
+
+html[data-jarvis-large-targets="on"] :where(button,input,select,textarea,[role="button"]){min-height:52px;min-width:52px}
+html[data-jarvis-screen-reader-hints="off"] .jarvis-sr-hint{display:none!important}
+html[data-jarvis-reduced-motion="on"] .jarvis-primary-shell,html[data-jarvis-reduced-motion="on"] .jarvis-primary-shell *,html[data-jarvis-reduced-motion="on"] .jarvis-primary-shell *::before,html[data-jarvis-reduced-motion="on"] .jarvis-primary-shell *::after{scroll-behavior:auto!important;animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;transition-delay:0s!important}

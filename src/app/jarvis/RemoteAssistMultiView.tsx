@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   REMOTE_ASSIST_FLEET_WINDOW,
-  REMOTE_ASSIST_MULTI_REFRESH_MS,
   REMOTE_ASSIST_REFRESH_CONCURRENCY,
+  remoteAssistAdaptiveRefreshMs,
+  remoteAssistRefreshConcurrency,
   remoteAssistVisibleSerials,
   runRemoteAssistBounded,
   type RemoteAssistViewMode,
@@ -68,6 +69,9 @@ export default function RemoteAssistMultiView({ devices, onPromote }: Props) {
     fleetPage,
   }), [availableSerials, fleetPage, mode, selectedSerials]);
   const fleetPages = Math.max(1, Math.ceil(availableSerials.length / REMOTE_ASSIST_FLEET_WINDOW));
+  const visibleFailureRate = visibleSerials.length ? visibleSerials.filter((serial) => Boolean(errors[serial])).length / visibleSerials.length : 0;
+  const refreshIntervalMs = useMemo(() => remoteAssistAdaptiveRefreshMs(mode, visibleSerials.length, visibleFailureRate), [mode, visibleFailureRate, visibleSerials.length]);
+  const refreshConcurrency = useMemo(() => remoteAssistRefreshConcurrency(visibleSerials.length), [visibleSerials.length]);
 
   useEffect(() => {
     if (fleetPage >= fleetPages) setFleetPage(Math.max(0, fleetPages - 1));
@@ -113,7 +117,7 @@ export default function RemoteAssistMultiView({ devices, onPromote }: Props) {
       const targets = visibleSerials
         .map((serial) => sessionSnapshot[serial])
         .filter((session): session is Session => Boolean(session && session.status === "active"));
-      await runRemoteAssistBounded(targets, REMOTE_ASSIST_REFRESH_CONCURRENCY, async (session) => {
+      await runRemoteAssistBounded(targets, refreshConcurrency, async (session) => {
         try {
           const body = await postRemote({ action: "screenshot", serial: session.serial, sessionId: session.id });
           if (typeof body.imageBase64 === "string") {
@@ -141,14 +145,14 @@ export default function RemoteAssistMultiView({ devices, onPromote }: Props) {
     } finally {
       refreshRunning.current = false;
     }
-  }, [visibleSerials]);
+  }, [refreshConcurrency, visibleSerials]);
 
   useEffect(() => {
     if (!running) return;
     void refreshShots(sessions);
-    const timer = window.setInterval(() => void refreshShots(sessions), REMOTE_ASSIST_MULTI_REFRESH_MS);
+    const timer = window.setInterval(() => void refreshShots(sessions), refreshIntervalMs);
     return () => window.clearInterval(timer);
-  }, [refreshShots, running, sessions]);
+  }, [refreshIntervalMs, refreshShots, running, sessions]);
 
   async function start() {
     if (visibleSerials.length === 0) return;
@@ -156,7 +160,7 @@ export default function RemoteAssistMultiView({ devices, onPromote }: Props) {
     setErrors({});
     try {
       await stopSessions(sessionsRef.current);
-      const created = await runRemoteAssistBounded(visibleSerials, REMOTE_ASSIST_REFRESH_CONCURRENCY, async (serial) => {
+      const created = await runRemoteAssistBounded(visibleSerials, refreshConcurrency, async (serial) => {
         try {
           const body = await postRemote({ action: "session-start", serial });
           const session = body.session;
@@ -202,9 +206,9 @@ export default function RemoteAssistMultiView({ devices, onPromote }: Props) {
     <section className="panel jarvis-section jarvis-multiview-panel">
       <div className="section-heading">
         <div><p className="section-kicker">MULTI VIEW</p><h2>2 / 4 / Fleet 画面</h2></div>
-        <span className="operation-badge">最大同時取得 {REMOTE_ASSIST_REFRESH_CONCURRENCY}</span>
+        <span className="operation-badge">同時取得 {refreshConcurrency} · 更新 {Math.round(refreshIntervalMs / 100) / 10}s</span>
       </div>
-      <p className="muted">複数端末は端末ごとに別Sessionで閲覧します。Fleetは1ページ最大{REMOTE_ASSIST_FLEET_WINDOW}台、4秒ごとのスクリーンショット更新です。100台同時動画ではありません。</p>
+      <p className="muted">複数端末は端末ごとに別Sessionで閲覧します。Fleetは1ページ最大{REMOTE_ASSIST_FLEET_WINDOW}台。表示台数と失敗率から更新間隔・同時取得数を自動調整し、負荷上昇時は安全に間引きます。</p>
       <div className="jarvis-button-row">
         <button className="button secondary" disabled={running || busy} onClick={() => setViewMode("split2")}>2画面</button>
         <button className="button secondary" disabled={running || busy} onClick={() => setViewMode("split4")}>4画面</button>

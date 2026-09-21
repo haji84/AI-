@@ -56,3 +56,17 @@ export async function runRemoteAssistBounded<T, R>(
   await Promise.all(Array.from({ length: workerCount }, () => worker()));
   return results;
 }
+
+
+export function remoteAssistAdaptiveRefreshMs(mode: RemoteAssistViewMode, visibleCount: number, failureRate = 0): number {
+  const count = Math.max(1, visibleCount);
+  const base = mode === "single" ? 500 : mode === "split2" ? 750 : mode === "split4" ? 1_200 : Math.min(4_000, 1_500 + count * 180);
+  const penalty = Math.min(4_000, Math.round(Math.max(0, failureRate) * 4_000));
+  return Math.min(8_000, base + penalty);
+}
+
+export function remoteAssistRefreshConcurrency(visibleCount: number): number {
+  if (visibleCount <= 2) return Math.max(1, visibleCount);
+  if (visibleCount <= 4) return 3;
+  return REMOTE_ASSIST_REFRESH_CONCURRENCY;
+}

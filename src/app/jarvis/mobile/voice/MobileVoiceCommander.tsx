@@ -10,7 +10,7 @@ import {
   type SharedCommandContext,
 } from "../command-context";
 import { getSafeContextCandidates, resolveSafeContextReference } from "../context-reference";
-import { parseSafeMobileCommand } from "../voice-command";
+import { parseMobileVoiceOrGoal } from "../voice-command";
 import {
   cancelLocalSpeech,
   DEFAULT_SPEECH_POLICY,
@@ -198,21 +198,53 @@ export default function MobileVoiceCommander() {
       return;
     }
     const effectiveText = reference.kind === "resolved" ? reference.command : text;
-    const parsed = parseSafeMobileCommand(effectiveText);
-    if (!parsed.ok) {
+    const parsed = parseMobileVoiceOrGoal(effectiveText);
+    if (parsed.kind === "blocked" || parsed.kind === "empty") {
       setError(parsed.message);
-      if (parsed.reason === "protected") {
+      if (parsed.kind === "blocked") {
         enqueueLocalSpeech("この操作は音声から実行できません。画面の確認手順を使ってください。", "high", speechSettings);
       }
       setSharedContext(recordSharedCommand({
         source: "voice",
         command: text,
         detail: reference.kind === "resolved" ? `参照元: ${effectiveText}` : undefined,
-        outcome: parsed.reason === "protected" ? "blocked" : "unsupported",
+        outcome: parsed.kind === "blocked" ? "blocked" : "unsupported",
         targetNodeId: selectedNodeId || undefined,
       }));
       return;
     }
+
+    if (parsed.kind === "goal") {
+      setBusy(true);
+      setError("");
+      setMessage("");
+      try {
+        const response = await fetch("/api/command", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ command: parsed.goal }),
+        });
+        const body = await response.json() as { message?: string };
+        if (!response.ok) throw new Error(body.message || `HTTP ${response.status}`);
+        setMessage("自由GoalとしてJARVISへ引き渡しました。端末直接操作ではなくGoal Completion経路で処理します。");
+        enqueueLocalSpeech("JARVISへ依頼しました。", "normal", speechSettings);
+        setSharedContext(recordSharedCommand({
+          source: "voice",
+          command: text,
+          detail: "Goal Completionへ引き渡し",
+          outcome: "sent",
+        }));
+        setTranscript("");
+        setInterimTranscript("");
+      } catch (cause) {
+        setError(cause instanceof Error ? cause.message : "JARVISへGoalを送信できませんでした");
+        setSharedContext(recordSharedCommand({ source: "voice", command: text, outcome: "failed" }));
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
+
     if (!selectedNodeId) {
       setError("操作する端末を選択してください。");
       enqueueLocalSpeech("操作する端末を選択してください。", "normal", speechSettings);

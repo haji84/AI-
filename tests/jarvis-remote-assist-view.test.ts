@@ -3,6 +3,8 @@ import test from "node:test";
 import {
   REMOTE_ASSIST_FLEET_WINDOW,
   REMOTE_ASSIST_REFRESH_CONCURRENCY,
+  remoteAssistAdaptiveRefreshMs,
+  remoteAssistRefreshConcurrency,
   remoteAssistVisibleSerials,
   remoteAssistViewLimit,
   runRemoteAssistBounded,
@@ -56,4 +58,16 @@ test("bounded runner never exceeds the requested concurrency", async () => {
   });
   assert.equal(maximum <= REMOTE_ASSIST_REFRESH_CONCURRENCY, true);
   assert.deepEqual(result, values.map((value) => value * 2));
+});
+
+test("adaptive refresh slows down under fleet load and failures while keeping concurrency bounded", () => {
+  assert.equal(remoteAssistRefreshConcurrency(1), 1);
+  assert.equal(remoteAssistRefreshConcurrency(4), 3);
+  assert.equal(remoteAssistRefreshConcurrency(12), REMOTE_ASSIST_REFRESH_CONCURRENCY);
+  const fast = remoteAssistAdaptiveRefreshMs("single", 1, 0);
+  const fleet = remoteAssistAdaptiveRefreshMs("fleet", 12, 0);
+  const degraded = remoteAssistAdaptiveRefreshMs("fleet", 12, 0.5);
+  assert.ok(fast < fleet);
+  assert.ok(fleet < degraded);
+  assert.ok(degraded <= 8_000);
 });

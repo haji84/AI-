@@ -23,6 +23,9 @@ test("accessibility preferences normalize malformed persisted values conservativ
     textScale: "large",
     contrast: "high",
     captions: "on",
+    reducedMotion: "system",
+    largeTargets: "off",
+    screenReaderHints: "on",
   });
 });
 
@@ -59,6 +62,9 @@ test("keyboard and accessibility controls remain local presentation behavior", (
   assert.match(accessibilityControls, /文字サイズ/);
   assert.match(accessibilityControls, /高コントラスト/);
   assert.match(accessibilityControls, /字幕表示を優先/);
+  assert.match(accessibilityControls, /アニメーションを抑える/);
+  assert.match(accessibilityControls, /ボタン・入力欄を大きくする/);
+  assert.match(accessibilityControls, /読み上げ補助ラベルを優先/);
   assert.match(accessibilityControls, /P6の音声認識やリアルタイム音声字幕の完成を意味しない/);
   assert.doesNotMatch(accessibilityControls, /fetch\(/);
   assert.match(css, /focus-visible/);

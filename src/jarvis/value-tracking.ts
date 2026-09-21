@@ -1,0 +1,4 @@
+export type ValueEvent={jobId:string;at:string;humanMinutesBefore:number;humanMinutesAfter:number;costBefore:number;costAfter:number;errorsBefore:number;errorsAfter:number;interventions:number;automatedSteps:number;totalSteps:number;qualityBefore?:number;qualityAfter?:number};
+export class ValueTracker {
+  summarize(events:ValueEvent[]){const sum=(fn:(e:ValueEvent)=>number)=>events.reduce((a,e)=>a+fn(e),0);const beforeTime=sum(e=>e.humanMinutesBefore),afterTime=sum(e=>e.humanMinutesAfter);return {jobs:new Set(events.map(e=>e.jobId)).size,timeSavedMinutes:beforeTime-afterTime,costSaved:sum(e=>e.costBefore-e.costAfter),errorsReduced:sum(e=>e.errorsBefore-e.errorsAfter),humanInterventions:sum(e=>e.interventions),automationRate:sum(e=>e.automatedSteps)/Math.max(1,sum(e=>e.totalSteps)),qualityImprovement:sum(e=>(e.qualityAfter??0)-(e.qualityBefore??0))};}
+}
