@@ -56,7 +56,7 @@ export function createRuntimeBuilderPrPromotionCapability(options: {
     name: "repository.promote_builder_changes",
     async execute(action: ProposedAction): Promise<ActionResult> {
       try {
-        const cwd = resolve(options.cwd ?? process.env.AUTONOMY_REPOSITORY_WORKSPACE?.trim() || process.cwd());
+        const cwd = resolve(options.cwd?.trim() || process.env.AUTONOMY_REPOSITORY_WORKSPACE?.trim() || process.cwd());
         const gitRoot = resolve(run("git", ["rev-parse", "--show-toplevel"], cwd));
         if (gitRoot !== cwd) {
           return {
