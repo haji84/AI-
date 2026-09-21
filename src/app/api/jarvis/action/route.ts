@@ -129,8 +129,9 @@ export async function POST(request: Request) {
     };
   } else {
     if (!payload.sessionId) return NextResponse.json({ message: "Takeover session IDが必要です" }, { status: 400 });
+    if (typeof payload.resumeTask !== "boolean") return NextResponse.json({ message: "Takeover再開可否を明示してください" }, { status: 400 });
     path = "/api/jarvis/admin/takeover/resolve";
-    body = { sessionId: payload.sessionId, resumeTask: payload.resumeTask !== false };
+    body = { sessionId: payload.sessionId, resumeTask: payload.resumeTask };
   }
 
   try {
