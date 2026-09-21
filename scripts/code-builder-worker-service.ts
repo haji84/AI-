@@ -152,6 +152,9 @@ async function runBuild(body: Record<string, unknown>) {
     ? await run(engine.command, args, executionTimeoutMs, prompt)
     : await run(engine.command, args);
   const diff = await run("git", ["diff", "--stat"]);
+  const combinedOutput = `${result.stdout}\n${result.stderr}`.toLowerCase();
+  const transientEngineFailure = result.timedOut
+    || /at capacity|rate limit|429|502|503|504|temporar|try again|overloaded|service unavailable/.test(combinedOutput);
   return {
     status: result.code === 0 ? 200 : 502,
     body: {
@@ -160,13 +163,23 @@ async function runBuild(body: Record<string, unknown>) {
         ? `${engine.id} completed bounded build`
         : result.timedOut
           ? `${engine.id} timed out after ${executionTimeoutMs}ms`
-          : `${engine.id} failed with exit ${result.code}`,
-      blocker: result.code === 0
+          : transientEngineFailure
+            ? `${engine.id} transiently unavailable with exit ${result.code}`
+            : `${engine.id} failed with exit ${result.code}`,
+      blocker: result.code === 0 || transientEngineFailure
         ? undefined
-        : result.timedOut
-          ? undefined
-          : "CODING_ENGINE_FAILED",
-      evidence: { workerId, engine: engine.id, exitCode: result.code, timedOut: result.timedOut, timeoutMs: executionTimeoutMs, diffStat: diff.stdout.trim(), stdoutTail: result.stdout.slice(-4000), stderrTail: result.stderr.slice(-4000) },
+        : "CODING_ENGINE_FAILED",
+      evidence: {
+        workerId,
+        engine: engine.id,
+        exitCode: result.code,
+        timedOut: result.timedOut,
+        transientEngineFailure,
+        timeoutMs: executionTimeoutMs,
+        diffStat: diff.stdout.trim(),
+        stdoutTail: result.stdout.slice(-4000),
+        stderrTail: result.stderr.slice(-4000),
+      },
     },
   };
 }
