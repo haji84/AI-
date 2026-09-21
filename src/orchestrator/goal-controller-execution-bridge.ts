@@ -51,10 +51,10 @@ export class GoalControllerExecutionBridge {
       if (report.goalEvaluation?.achieved === true || report.stopReason === "goal_complete") {
         return { decision, executed: true, report, reports, reason: "goal_complete" };
       }
-      if (report.stopReason === "human_gate") {
+      if (report.stopReason === "approval_required") {
         return { decision, executed: true, report, reports, reason: "human_gate" };
       }
-      if (report.stopReason === "blocked" || report.stopReason === "recovery_exhausted") {
+      if (report.stopReason === "blocked" || report.stopReason === "retry_exhausted") {
         return { decision, executed: true, report, reports, reason: report.stopReason };
       }
     }
