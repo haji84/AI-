@@ -90,23 +90,26 @@ test("SEC-016 final audit persistence failure cannot leave a recording reported 
 
 test("SEC-016 Remote Assist audit and recording API paths remain owner-authenticated and binding-first", () => {
   const source = readFileSync(join(repoRoot, "src/app/api/jarvis/remote/route.ts"), "utf8");
+  const postStart = source.indexOf("export async function POST(request: Request)");
+  assert(postStart >= 0, "Remote Assist POST handler must exist");
+  const postSource = source.slice(postStart);
 
-  const ownerGuard = source.indexOf("if (!(await requireJarvisOwner()))");
-  const parsePayload = source.indexOf("const payload = await request.json()");
-  assert(ownerGuard >= 0 && parsePayload > ownerGuard, "owner authentication must occur before payload dispatch");
+  const ownerGuard = postSource.indexOf("if (!(await requireJarvisOwner()))");
+  const parsePayload = postSource.indexOf("const payload = await request.json()");
+  assert(ownerGuard >= 0 && parsePayload > ownerGuard, "POST owner authentication must occur before payload dispatch");
 
-  assert.match(source, /payload\.action === "session-audit"[\s\S]*auditStore\.list\(payload\.sessionId\)/);
-  assert.match(source, /function requireRecordingBinding[\s\S]*remoteAssist\.requireActive\(payload\.sessionId, payload\.serial\)/);
+  assert.match(postSource, /payload\.action === "session-audit"[\s\S]*auditStore\.list\(payload\.sessionId\)/);
+  assert.match(postSource, /function requireRecordingBinding[\s\S]*remoteAssist\.requireActive\(payload\.sessionId, payload\.serial\)/);
 
-  const recordingStart = source.indexOf('if (payload.action === "recording-start")');
-  const startBinding = source.indexOf("const session = requireRecordingBinding(payload);", recordingStart);
-  const startRecorder = source.indexOf("const recording = recorder.start", recordingStart);
+  const recordingStart = postSource.indexOf('if (payload.action === "recording-start")');
+  const startBinding = postSource.indexOf("const session = requireRecordingBinding(payload);", recordingStart);
+  const startRecorder = postSource.indexOf("const recording = recorder.start", recordingStart);
   assert(recordingStart >= 0 && startBinding > recordingStart && startRecorder > startBinding,
     "recording-start must validate the active session/device binding before starting capture");
 
-  const recordingStatus = source.indexOf('if (payload.action === "recording-status" || payload.action === "recording-stop")');
-  const statusBinding = source.indexOf("requireRecordingBinding(payload);", recordingStatus);
-  const statusRecorder = source.indexOf("? await recorder.stop", recordingStatus);
+  const recordingStatus = postSource.indexOf('if (payload.action === "recording-status" || payload.action === "recording-stop")');
+  const statusBinding = postSource.indexOf("requireRecordingBinding(payload);", recordingStatus);
+  const statusRecorder = postSource.indexOf("? await recorder.stop", recordingStatus);
   assert(recordingStatus >= 0 && statusBinding > recordingStatus && statusRecorder > statusBinding,
     "recording status/stop must validate the active session/device binding before recorder access");
 });
