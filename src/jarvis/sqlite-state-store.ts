@@ -2,7 +2,7 @@ import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import type { JarvisControlPlaneSnapshot } from "./control-plane.ts";
-import type { JarvisWorkerIdentity } from "./worker-auth.ts";
+import { installJarvisNoncePersistence, type JarvisWorkerIdentity } from "./worker-auth.ts";
 
 interface SnapshotRow {
   payload: string;
@@ -14,6 +14,7 @@ interface IdentityRow {
 
 export class JarvisSqliteStateStore {
   private readonly db: DatabaseSync;
+  private readonly releaseNoncePersistence: () => void;
 
   constructor(path = resolve(process.cwd(), ".jarvis", "jarvis.db")) {
     if (path !== ":memory:") mkdirSync(dirname(path), { recursive: true });
@@ -31,7 +32,20 @@ export class JarvisSqliteStateStore {
         payload TEXT NOT NULL,
         updated_at TEXT NOT NULL
       ) STRICT;
+      CREATE TABLE IF NOT EXISTS jarvis_worker_nonce (
+        node_id TEXT NOT NULL,
+        nonce TEXT NOT NULL,
+        expires_at INTEGER NOT NULL,
+        PRIMARY KEY (node_id, nonce)
+      ) STRICT;
+      CREATE INDEX IF NOT EXISTS jarvis_worker_nonce_expires_at
+      ON jarvis_worker_nonce (expires_at);
     `);
+    this.releaseNoncePersistence = installJarvisNoncePersistence({
+      has: (nodeId, nonce, now) => this.hasWorkerNonce(nodeId, nonce, now),
+      record: (nodeId, nonce, expiresAt) => this.recordWorkerNonce(nodeId, nonce, expiresAt),
+      cleanup: (now) => this.cleanupExpiredWorkerNonces(now),
+    });
   }
 
   save(snapshot: JarvisControlPlaneSnapshot): void {
@@ -74,7 +88,31 @@ export class JarvisSqliteStateStore {
     return revoked;
   }
 
+  hasWorkerNonce(nodeId: string, nonce: string, now = Date.now()): boolean {
+    this.cleanupExpiredWorkerNonces(now);
+    const row = this.db.prepare(`
+      SELECT 1 AS present
+      FROM jarvis_worker_nonce
+      WHERE node_id = ? AND nonce = ? AND expires_at > ?
+      LIMIT 1
+    `).get(nodeId, nonce, now) as { present: number } | undefined;
+    return row?.present === 1;
+  }
+
+  recordWorkerNonce(nodeId: string, nonce: string, expiresAt: number): void {
+    this.db.prepare(`
+      INSERT INTO jarvis_worker_nonce (node_id, nonce, expires_at)
+      VALUES (?, ?, ?)
+      ON CONFLICT(node_id, nonce) DO NOTHING
+    `).run(nodeId, nonce, expiresAt);
+  }
+
+  cleanupExpiredWorkerNonces(now = Date.now()): void {
+    this.db.prepare("DELETE FROM jarvis_worker_nonce WHERE expires_at <= ?").run(now);
+  }
+
   close(): void {
+    this.releaseNoncePersistence();
     this.db.close();
   }
 }
