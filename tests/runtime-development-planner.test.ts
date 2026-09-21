@@ -179,11 +179,7 @@ test("recovery objective uses verifier evidence only after failure", async () =>
       actionId: "a1",
       ok: false,
       summary: "Verification failed",
-      verification: {
-        ok: false,
-        summary: "file_exact verification failed",
-        evidence: { kind: "file_exact", path: "tests/fixtures/runtime-builder-smoke.txt", expected: "runtime-daily", actual: "runtime-wrong" },
-      },
+      evidence: { kind: "file_exact", path: "tests/fixtures/runtime-builder-smoke.txt", expected: "runtime-daily", actual: "runtime-wrong" },
     },
   });
   const objective = String((action?.input as { objective?: string }).objective);
