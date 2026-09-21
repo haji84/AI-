@@ -1,4 +1,4 @@
-import JarvisConsole from "./JarvisConsole.tsx";
+import JarvisConsole from "./JarvisConsole.tsx";\nimport JarvisWorkShell from "./JarvisWorkShell.tsx";
 import OwnerLogin from "./OwnerLogin";
 import { requireJarvisOwner } from "../api/jarvis/broker.ts";
 
@@ -17,7 +17,7 @@ export default async function JarvisPage() {
         <a className="button secondary" href="/jarvis/recordings">遠隔記録</a>
         <a className="button secondary" href="/jarvis/qa">2 URL 自動実行</a>
       </div>
-      <JarvisConsole />
+      <JarvisWorkShell />\n      <details style={{ marginTop: 16 }}>\n        <summary className="button secondary">従来の詳細操作を開く</summary>\n        <JarvisConsole />\n      </details>
     </main>
   );
 }
