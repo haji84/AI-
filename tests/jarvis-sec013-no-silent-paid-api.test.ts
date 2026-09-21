@@ -19,15 +19,15 @@ function task(): JarvisTask {
   };
 }
 
-function node(allowPaidServices: boolean): JarvisNode {
+function node(): JarvisNode {
   return {
     id: "sec013-node",
     label: "SEC-013 node",
-    kind: "pc",
+    kind: "android",
     status: "ready",
     capabilities: ["open-url"],
     policy: {
-      allowPaidServices,
+      allowPaidServices: false,
       allowDestructiveActions: false,
       allowExternalPublication: false,
       allowRemoteControl: false,
@@ -36,7 +36,7 @@ function node(allowPaidServices: boolean): JarvisNode {
     telemetry: {
       batteryPercent: 100,
       charging: true,
-      network: "ethernet",
+      network: "wifi",
       checkedAt: "2026-09-21T00:00:00.000Z",
     },
     enrollment: "full",
@@ -47,7 +47,7 @@ function node(allowPaidServices: boolean): JarvisNode {
 test("SEC-013 allows only explicit no-paid policy with zero incremental cost", () => {
   const decision = evaluateJarvisPolicy({
     task: task(),
-    node: node(false),
+    node: node(),
     incrementalCostYen: 0,
   });
 
@@ -60,7 +60,7 @@ test("SEC-013 requires Human Gate for any positive incremental cost even when no
   for (const incrementalCostYen of [0.01, 1, 1000]) {
     const decision = evaluateJarvisPolicy({
       task: task(),
-      node: node(false),
+      node: node(),
       incrementalCostYen,
     });
 
@@ -71,9 +71,18 @@ test("SEC-013 requires Human Gate for any positive incremental cost even when no
 });
 
 test("SEC-013 cannot silently enable paid services by setting allowPaidServices true", () => {
+  const baseline = node();
+  const malformedPersistedNode = {
+    ...baseline,
+    policy: {
+      ...baseline.policy,
+      allowPaidServices: true,
+    },
+  } as unknown as JarvisNode;
+
   const decision = evaluateJarvisPolicy({
     task: task(),
-    node: node(true),
+    node: malformedPersistedNode,
     incrementalCostYen: 0,
   });
 
@@ -83,12 +92,20 @@ test("SEC-013 cannot silently enable paid services by setting allowPaidServices 
 });
 
 test("SEC-013 fails closed when allowPaidServices is missing from persisted policy state", () => {
-  const candidate = node(false) as JarvisNode & { policy: Record<string, unknown> };
-  delete candidate.policy.allowPaidServices;
+  const baseline = node();
+  const malformedPersistedNode = {
+    ...baseline,
+    policy: {
+      allowDestructiveActions: baseline.policy.allowDestructiveActions,
+      allowExternalPublication: baseline.policy.allowExternalPublication,
+      allowRemoteControl: baseline.policy.allowRemoteControl,
+      requireHumanForLockedDevice: baseline.policy.requireHumanForLockedDevice,
+    },
+  } as unknown as JarvisNode;
 
   const decision = evaluateJarvisPolicy({
     task: task(),
-    node: candidate as JarvisNode,
+    node: malformedPersistedNode,
     incrementalCostYen: 0,
   });
 
