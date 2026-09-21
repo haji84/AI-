@@ -1,0 +1,40 @@
+name: GAI Code Builder ZBook
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/gai-code-builder-zbook.yml'
+      - 'scripts/code-builder-worker-service.ts'
+      - 'scripts/install-code-builder-windows.ps1'
+      - 'src/gai/http-worker-builder-capability.ts'
+      - 'src/gai/worker-builder-capability.ts'
+      - 'src/gai/worker-runtime.ts'
+
+permissions:
+  contents: read
+
+jobs:
+  install-and-probe:
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install bounded code builder
+        shell: powershell
+        run: |
+          .\scripts\install-code-builder-windows.ps1 -WorkerId 'zbook' -Workspace "$env:GITHUB_WORKSPACE"
+      - name: Capture builder evidence
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path .gai-results | Out-Null
+          Copy-Item "$env:LOCALAPPDATA\GAIWorker\code-builder\install-status.json" .gai-results\ -Force
+          Get-Content .gai-results\install-status.json
+      - name: Upload evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: gai-zbook-code-builder
+          path: .gai-results/
+          include-hidden-files: true
+          retention-days: 30
