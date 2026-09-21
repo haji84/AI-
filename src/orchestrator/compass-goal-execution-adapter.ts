@@ -3,6 +3,7 @@ import { CompassStore } from "../compass/store.ts";
 import { BaselinePlanner, createContextInspectCapability } from "./baseline-planner.ts";
 import { RuntimeDevelopmentPlanner } from "./runtime-development-planner.ts";
 import { createCodeBuilderCapability, createRuntimeBuilderRouter } from "./runtime-builder-capability.ts";
+import { createRuntimeDevelopmentVerifier } from "./runtime-development-verifier.ts";
 import { runBoundedGoalLoop, type BoundedRunReport } from "./bounded-runner.ts";
 import { CapabilityRegistry } from "./capabilities.ts";
 import { CompassStateStoreAdapter, compassGoalToLoopGoal } from "./compass-state-store.ts";
