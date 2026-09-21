@@ -48,7 +48,7 @@ test("control plane enrolls, dispatches, completes and audits a URL task", () =>
   assert.equal(dispatched?.status, "dispatched");
   assert.equal(dispatched?.task.id, queued.id);
   plane.markRunning(queued.id, "android-001", new Date("2026-09-12T08:03:10.000Z"));
-  plane.completeTask(queued.id, "android-001", { loaded: true }, new Date("2026-09-12T08:03:20.000Z"));
+  plane.completeTask(queued.id, "android-001", { url: "https://example.com", opened: true }, new Date("2026-09-12T08:03:20.000Z"));
   const snapshot = plane.snapshot(new Date("2026-09-12T08:04:00.000Z"));
   assert.equal(snapshot.stats.registered, 1);
   assert.equal(snapshot.stats.completed, 1);

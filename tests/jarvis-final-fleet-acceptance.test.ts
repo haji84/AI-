@@ -83,11 +83,12 @@ test("Issue #401 stage 7: ten-node scheduling survives Human Takeover and resume
 
   for (let i = 1; i <= 10; i += 1) {
     const nodeId = `android-${String(i).padStart(3, "0")}`;
+    const url = `https://example.com/${i}`;
     const queued = plane.enqueueTask({
       id: `acceptance-task-${i}`,
       idempotencyKey: `acceptance-task-${i}`,
       type: "open-url",
-      payload: { url: `https://example.com/${i}` },
+      payload: { url },
       requiredCapabilities: ["open-url"],
       priority: "normal",
       requiresOnline: true,
@@ -124,7 +125,7 @@ test("Issue #401 stage 7: ten-node scheduling survives Human Takeover and resume
     }
 
     plane.markRunning(queued.id, nodeId);
-    plane.completeTask(queued.id, nodeId, { acceptance: true });
+    plane.completeTask(queued.id, nodeId, { url, opened: true });
   }
 
   const snapshot = plane.snapshot();
