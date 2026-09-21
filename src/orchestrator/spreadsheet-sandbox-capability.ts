@@ -16,6 +16,7 @@ function key(cell: Pick<SpreadsheetCell, "sheet" | "cell">) {
 }
 
 export class SpreadsheetSandboxCapability implements WorkCapability {
+  private readonly workbook: SpreadsheetWorkbook;
   readonly name = "spreadsheet.write";
   readonly domain = "spreadsheet" as const;
   readonly operations = ["set_cells"];
@@ -24,7 +25,7 @@ export class SpreadsheetSandboxCapability implements WorkCapability {
   readonly maxRisk = "low" as const;
   readonly requiresHumanApproval = false;
 
-  constructor(private readonly workbook: SpreadsheetWorkbook) {}
+  constructor(workbook: SpreadsheetWorkbook) { this.workbook = workbook; }
 
   async available() { return true; }
 
