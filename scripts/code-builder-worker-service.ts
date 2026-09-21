@@ -119,16 +119,16 @@ async function runBuild(body: Record<string, unknown>) {
     "You are a bounded code builder operating inside the current git workspace.",
     "Do not commit, push, merge, deploy, change credentials, or weaken tests/security.",
     "Implement only the requested objective. Preserve unrelated files.",
-    `Goal: ${goalId}`,
-    `Attempt: ${attemptId}`,
-    `Strategy: ${strategyId}`,
-    `Objective: ${objective}`,
-    files.length ? `Preferred files: ${files.join(", ")}` : "Preferred files: infer the smallest safe scope.",
-    `Context: ${JSON.stringify(Array.isArray(body.context) ? body.context : []).slice(0, 30_000)}`,
-  ].join("\n");
+    `Goal=${goalId}`,
+    `Attempt=${attemptId}`,
+    `Strategy=${strategyId}`,
+    `Objective=${objective.replace(/\s+/g, " ").trim()}`,
+    files.length ? `PreferredFiles=${files.join(",")}` : "PreferredFiles=infer-smallest-safe-scope",
+    `Context=${JSON.stringify(Array.isArray(body.context) ? body.context : []).replace(/\s+/g, " ").slice(0, 30_000)}`,
+  ].join(" | ");
 
   const args = engine.id === "codex"
-    ? ["--ask-for-approval", "never", "exec", "--sandbox", "workspace-write", "--ephemeral", "--ignore-user-config", prompt]
+    ? ["--sandbox", "workspace-write", "--ask-for-approval", "never", "exec", "--ephemeral", "--ignore-user-config", prompt]
     : ["--yes-always", "--message", prompt];
   const result = await run(engine.command, args);
   const diff = await run("git", ["diff", "--stat"]);
