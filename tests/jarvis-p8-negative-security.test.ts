@@ -102,13 +102,13 @@ test("owner authentication fails closed for missing, wrong, tampered, expired, f
 
   const expiredToken = createOwnerSessionToken(secret, {
     issuedAtSeconds: NOW_SECONDS - OWNER_SESSION_MAX_AGE_SECONDS - 1,
-    nonce: "expiredsessionnonce000001",
+    nonce: "e".repeat(24),
   });
   assert.equal(verifyOwnerSessionToken(secret, expiredToken, { nowSeconds: NOW_SECONDS }), false);
 
   const futureToken = createOwnerSessionToken(secret, {
     issuedAtSeconds: NOW_SECONDS + OWNER_SESSION_FUTURE_TOLERANCE_SECONDS + 1,
-    nonce: "futuresessionnonce0000002",
+    nonce: "f".repeat(24),
   });
   assert.equal(verifyOwnerSessionToken(secret, futureToken, { nowSeconds: NOW_SECONDS }), false);
 });
