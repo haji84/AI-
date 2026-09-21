@@ -13,5 +13,7 @@ test("ZBook code-builder installer launches Node immediately and preserves logon
   assert.match(source, /worker\.pid/);
   assert.ok(source.includes("if ($oldPid -match '^\\d+$')"));
   assert.match(source, /CODE_BUILDER_ENGINE/);
+  assert.match(source, /Resolve-PreferredEnginePath/);
+  assert.match(source, /ChangeExtension\(\$source, 'cmd'\)/);
   assert.doesNotMatch(source, /Start-ScheduledTask -TaskName \$taskName/);
 });
