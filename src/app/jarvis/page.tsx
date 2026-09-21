@@ -11,6 +11,7 @@ export default async function JarvisPage() {
       <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginBottom: 10, flexWrap: "wrap" }}>
         <a className="button" href="/jarvis/mobile">📱 iPhone司令塔</a>
         <a className="button" href="/jarvis/enroll">＋ 端末を登録</a>
+        <a className="button secondary" href="/jarvis/setup">初回セットアップ</a>
         <a className="button secondary" href="/jarvis/diagnostics">自己診断</a>
         <a className="button secondary" href="/jarvis/recovery">Recovery</a>
         <a className="button secondary" href="/jarvis/recordings">遠隔記録</a>
