@@ -164,7 +164,7 @@ async function runBuild(body: Record<string, unknown>) {
         : result.timedOut
           ? `${engine.id} timed out after ${executionTimeoutMs}ms`
           : transientEngineFailure
-            ? `${engine.id} transiently unavailable with exit ${result.code}`
+            ? `${engine.id} temporarily unavailable with exit ${result.code}`
             : `${engine.id} failed with exit ${result.code}`,
       blocker: result.code === 0 || transientEngineFailure
         ? undefined
