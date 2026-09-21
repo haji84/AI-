@@ -99,7 +99,7 @@ test("SEC-016 Remote Assist audit and recording API paths remain owner-authentic
   assert(ownerGuard >= 0 && parsePayload > ownerGuard, "POST owner authentication must occur before payload dispatch");
 
   assert.match(postSource, /payload\.action === "session-audit"[\s\S]*auditStore\.list\(payload\.sessionId\)/);
-  assert.match(postSource, /function requireRecordingBinding[\s\S]*remoteAssist\.requireActive\(payload\.sessionId, payload\.serial\)/);
+  assert.match(source, /function requireRecordingBinding[\s\S]*remoteAssist\.requireActive\(payload\.sessionId, payload\.serial\)[\s\S]*return session;/);
 
   const recordingStart = postSource.indexOf('if (payload.action === "recording-start")');
   const startBinding = postSource.indexOf("const session = requireRecordingBinding(payload);", recordingStart);
