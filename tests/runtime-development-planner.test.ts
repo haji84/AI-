@@ -80,3 +80,26 @@ test("completed WorkState stops normal development planning", async () => {
   });
   assert.equal(action, null);
 });
+
+
+test("Builder wording in implementation DoD is not misclassified as build verification", async () => {
+  const planner = new RuntimeDevelopmentPlanner(new BaselinePlanner());
+  const action = await planner.proposeNextAction({
+    goal,
+    context: [{
+      source: "gai-work-state",
+      summary: "work state",
+      data: {
+        status: "IN_PROGRESS",
+        blockers: [],
+        remainingDefinitionOfDone: [
+          { id: "criterion-1", description: "Normal JARVIS runtime routes a development action to the real Builder" },
+        ],
+        nextAction: null,
+      },
+    }, { source: "state.next_action", summary: "none" }],
+    intent,
+  });
+  assert.deepEqual((action as { satisfiesDefinitionOfDone?: string[] })?.satisfiesDefinitionOfDone, ["criterion-1"]);
+  assert.notEqual(action?.description, "none");
+});
