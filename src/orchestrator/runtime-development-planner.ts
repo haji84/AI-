@@ -3,7 +3,7 @@ import { goalWorkStateId } from "./work-state-integration.ts";
 
 const DEVELOPMENT_MARKERS = /(code|coding|implement|implementation|fix|repair|refactor|test|build|source|repository|script|patch|develop|development|コード|実装|修正|改修|開発|テスト)/i;
 const IMPLEMENTATION_DOD_MARKERS = /(code|implement|implementation|fix|repair|refactor|source|script|patch|develop|development|コード|実装|修正|改修|開発)/i;
-const VERIFICATION_DOD_MARKERS = /(test|verify|verification|lint|build|security|review|deploy|テスト|検証|確認|ビルド|セキュリティ|レビュー|デプロイ)/i;
+const VERIFICATION_DOD_MARKERS = /(^|[^a-z])(test|tests|verify|verification|lint|build|security|review|deploy)([^a-z]|$)|テスト|検証|確認|ビルド|セキュリティ|レビュー|デプロイ/i;
 
 interface WorkStateSnapshotData {
   status?: unknown;
@@ -45,11 +45,11 @@ function implementationDefinitionOfDoneIds(context: ContextItem[]): string[] {
 
 function nextAction(context: ContextItem[]): string | null {
   const direct = context.find((item) => item.source === "state.next_action")?.summary?.trim();
-  if (direct) return direct;
+  if (direct && !["none", "null", "undefined"].includes(direct.toLowerCase())) return direct;
   for (const item of context) {
     if (!item.data || typeof item.data !== "object" || Array.isArray(item.data)) continue;
     const value = (item.data as { nextAction?: unknown }).nextAction;
-    if (typeof value === "string" && value.trim()) return value.trim();
+    if (typeof value === "string" && value.trim() && !["none", "null", "undefined"].includes(value.trim().toLowerCase())) return value.trim();
   }
   return null;
 }
