@@ -2,6 +2,46 @@ import type { ActionResult, ContextItem, Goal, InferredIntent, Planner, Proposed
 import { goalWorkStateId } from "./work-state-integration.ts";
 
 const DEVELOPMENT_MARKERS = /(code|coding|implement|implementation|fix|repair|refactor|test|build|source|repository|script|patch|develop|development|コード|実装|修正|改修|開発|テスト)/i;
+const IMPLEMENTATION_DOD_MARKERS = /(code|implement|implementation|fix|repair|refactor|source|script|patch|develop|development|コード|実装|修正|改修|開発)/i;
+const VERIFICATION_DOD_MARKERS = /(test|verify|verification|lint|build|security|review|deploy|テスト|検証|確認|ビルド|セキュリティ|レビュー|デプロイ)/i;
+
+interface WorkStateSnapshotData {
+  status?: unknown;
+  blockers?: unknown;
+  remainingDefinitionOfDone?: unknown;
+}
+
+interface RemainingDefinitionOfDoneItem {
+  id?: unknown;
+  description?: unknown;
+}
+
+function workStateSnapshot(context: ContextItem[]): WorkStateSnapshotData | null {
+  const item = context.find((entry) => entry.source === "gai-work-state");
+  if (!item?.data || typeof item.data !== "object" || Array.isArray(item.data)) return null;
+  return item.data as WorkStateSnapshotData;
+}
+
+function workStateCompleted(context: ContextItem[]): boolean {
+  const snapshot = workStateSnapshot(context);
+  if (!snapshot || snapshot.status !== "COMPLETED") return false;
+  const blockers = Array.isArray(snapshot.blockers) ? snapshot.blockers : [];
+  return blockers.length === 0;
+}
+
+function implementationDefinitionOfDoneIds(context: ContextItem[]): string[] {
+  const snapshot = workStateSnapshot(context);
+  if (!snapshot || !Array.isArray(snapshot.remainingDefinitionOfDone)) return [];
+  return snapshot.remainingDefinitionOfDone.flatMap((raw) => {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return [];
+    const item = raw as RemainingDefinitionOfDoneItem;
+    const id = typeof item.id === "string" ? item.id.trim() : "";
+    const description = typeof item.description === "string" ? item.description.trim() : "";
+    if (!id || !description) return [];
+    if (!IMPLEMENTATION_DOD_MARKERS.test(description) || VERIFICATION_DOD_MARKERS.test(description)) return [];
+    return [id];
+  });
+}
 
 function nextAction(context: ContextItem[]): string | null {
   const direct = context.find((item) => item.source === "state.next_action")?.summary?.trim();
@@ -53,6 +93,7 @@ export class RuntimeDevelopmentPlanner implements Planner {
     previousResult?: ActionResult | null;
   }): Promise<ProposedAction | null> {
     if (input.context.some((item) => item.source === "goal.complete" && item.summary === "true")) return null;
+    if (workStateCompleted(input.context)) return null;
 
     const next = nextAction(input.context);
     const scope = [input.goal.title, input.goal.description ?? "", next ?? "", input.intent.summary].join("\n");
@@ -64,6 +105,7 @@ export class RuntimeDevelopmentPlanner implements Planner {
     const now = Date.now();
     const objective = next || input.goal.description?.trim() || input.goal.title;
     const files = extractFiles(scope);
+    const satisfiesDefinitionOfDone = implementationDefinitionOfDoneIds(input.context);
     return {
       id: `runtime-builder:${now}`,
       description: objective,
@@ -71,6 +113,7 @@ export class RuntimeDevelopmentPlanner implements Planner {
       risk: "low",
       irreversible: false,
       externalSideEffect: false,
+      ...(satisfiesDefinitionOfDone.length > 0 ? { satisfiesDefinitionOfDone } : {}),
       input: {
         goalId: goalWorkStateId(input.goal),
         attemptId: `attempt-${now}`,
