@@ -4,6 +4,12 @@ function stringList(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
 }
 
+function evidenceRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
 export function createRuntimeDevelopmentVerifier(): Verifier {
   return {
     async verify({ action, result }) {
@@ -26,7 +32,7 @@ export function createRuntimeDevelopmentVerifier(): Verifier {
         return {
           ok: false,
           summary: "Builder diff verification failed",
-          evidence: { ...result.evidence, diffCheckOutput: remote?.diffCheckOutput ?? null },
+          evidence: { ...evidenceRecord(result.evidence), diffCheckOutput: remote?.diffCheckOutput ?? null },
         };
       }
       if (changedFiles.length === 0) {
@@ -39,7 +45,7 @@ export function createRuntimeDevelopmentVerifier(): Verifier {
           return {
             ok: false,
             summary: `Builder changed files outside the approved scope: ${unexpected.join(", ")}`,
-            evidence: { ...result.evidence, expectedFiles, changedFiles, unexpected },
+            evidence: { ...evidenceRecord(result.evidence), expectedFiles, changedFiles, unexpected },
           };
         }
       }
@@ -47,7 +53,7 @@ export function createRuntimeDevelopmentVerifier(): Verifier {
       return {
         ok: true,
         summary: "Builder change scope and git diff verification passed",
-        evidence: { ...result.evidence, expectedFiles, changedFiles },
+        evidence: { ...evidenceRecord(result.evidence), expectedFiles, changedFiles },
       };
     },
   };
