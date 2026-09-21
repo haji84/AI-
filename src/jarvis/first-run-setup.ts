@@ -66,7 +66,9 @@ function buildStep(definition: StepDefinition, byCode: Map<JarvisDiagnosticCode,
 }
 
 export function buildJarvisFirstRunSetup(report: JarvisSelfDiagnosticReport): JarvisFirstRunSetup {
-  const byCode = new Map(report.items.map((entry) => [entry.code, entry]));
+  const byCode = new Map<JarvisDiagnosticCode, JarvisDiagnosticItem>(
+    report.items.map((entry) => [entry.code, entry] as const),
+  );
   const steps = definitions.map((definition) => buildStep(definition, byCode));
   return {
     overall: aggregate(steps.map((step) => step.state)),
