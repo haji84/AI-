@@ -30,8 +30,7 @@ async function changedFiles(): Promise<string[]> {
   const { stdout } = await git(["status", "--porcelain"]);
   return stdout
     .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
+    .filter((line) => line.length >= 4)
     .map((line) => line.slice(3).trim());
 }
 
