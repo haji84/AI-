@@ -32,10 +32,10 @@ test("OPS-017 exposes the owner guide from Settings without adding a sixth prima
     "/jarvis/devices",
     "/jarvis/diagnostics",
     "/jarvis/recovery",
-    "/jarvis/setup",
   ]) {
-    assert.match(guideComponent, new RegExp(`href=["']${href.replaceAll("/", "\\/")}["']`));
+    assert.match(guideComponent, new RegExp(`href: ["']${href.replaceAll("/", "\\/")}["']`));
   }
+  assert.match(guideComponent, /href="\/jarvis\/setup"/);
 });
 
 test("OPS-017 routine guide keeps Human Gate, physical acceptance and unknown states fail-closed", async () => {
