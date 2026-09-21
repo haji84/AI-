@@ -28,13 +28,13 @@
     "autonomy:repository-event": "node scripts/autonomy-event-run.ts --type=repository_state --summary=repository-state-changed",
     "autonomy:cloud": "node scripts/autonomy-cloud-run.ts",
     "research:worker:serve": "node scripts/research-worker-service.ts",
-    "research:worker:preflight": "node scripts/research-worker-preflight.ts",
-    "research:worker:require-real": "node scripts/research-worker-preflight.ts --require-real",
+    "research:worker:preflight": "node scripts/research-worker-preflight.mjs",
+    "research:worker:require-real": "node scripts/research-worker-preflight.mjs --require-real",
     "research:program:status": "node scripts/research-program-status.ts",
     "research:campaign:plan": "node scripts/research-campaign-plan.ts",
     "research:r6:dry-run": "node scripts/gai-baseline-v11.mjs",
     "research:r6:baseline": "node scripts/gai-baseline-v11.mjs --real --resume"
   },
   "dependencies": { "next": "16.3.2", "react": "19.2.8", "react-dom": "19.2.8", "sharp": "0.35.3" },
-  "devDependencies": { "@eslint/js": "9.39.5", "@types/node": "24.13.3", "@types/react": "19.2.18", "@types/react-dom": "19.2.4", "typescript": "6.0.3", "typescript-eslint": "8.67.0" }
+  "devDependencies": { "@eslint/js": "9.39.5", "@types/node": "24.13.3", "@types/react": "19.2.18", "@types/react-dom": "19.2.4", "eslint": "9.39.5", "typescript": "6.0.3", "typescript-eslint": "8.67.0" }
 }
