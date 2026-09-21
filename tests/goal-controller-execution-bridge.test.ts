@@ -64,7 +64,7 @@ test("goal continuation stops at a real human gate", async () => {
   const adapter: GoalExecutionAdapter = {
     async run() {
       calls += 1;
-      return { cycles: [], stopReason: "approval_required", goalEvaluation: { achieved: false, reason: "approval required" } };
+      return { cycles: [], stopReason: "approval_required", goalEvaluation: { achieved: false, reason: "approval required", verifiedRequired: [], failedRequired: [], unverifiedRequired: [], blockers: ["approval_required"], remainingGaps: ["approval_required"] } };
     },
   };
   const result = await new GoalControllerExecutionBridge(adapter).executeUntilGoalTerminal(decision("CONTINUE_GOAL", "goal-1"));
