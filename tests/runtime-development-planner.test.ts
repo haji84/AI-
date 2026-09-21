@@ -103,3 +103,37 @@ test("Builder wording in implementation DoD is not misclassified as build verifi
   assert.deepEqual((action as { satisfiesDefinitionOfDone?: string[] })?.satisfiesDefinitionOfDone, ["criterion-1"]);
   assert.notEqual(action?.description, "none");
 });
+
+
+test("exact-content development goal emits a deterministic file verification contract", async () => {
+  const planner = new RuntimeDevelopmentPlanner(new BaselinePlanner());
+  const exactGoal: Goal = {
+    title: "Implement exact fixture",
+    description: "Edit only tests/fixtures/exact.txt. Make its complete content exactly runtime-daily. Do not modify any other file.",
+    successCriteria: ["Implement the requested code change"],
+    constraints: [],
+  };
+  const action = await planner.proposeNextAction({
+    goal: exactGoal,
+    context: [{ source: "state.next_action", summary: "Initial strategy: make tests/fixtures/exact.txt runtime-wrong" }],
+    intent,
+  });
+  const input = action?.input as { verificationContract?: unknown };
+  assert.deepEqual(input.verificationContract, {
+    kind: "file_exact",
+    path: "tests/fixtures/exact.txt",
+    expected: "runtime-daily",
+  });
+});
+
+test("runtime Builder action id stays stable across recovery attempts", async () => {
+  const planner = new RuntimeDevelopmentPlanner(new BaselinePlanner());
+  const first = await planner.proposeNextAction({ goal, context: [], intent });
+  const second = await planner.proposeNextAction({
+    goal,
+    context: [{ source: "state.next_action", summary: "Retry implementation" }],
+    intent,
+    previousResult: { actionId: first?.id ?? "missing", ok: false, summary: "verification failed" },
+  });
+  assert.equal(first?.id, second?.id);
+});
