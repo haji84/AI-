@@ -75,7 +75,7 @@ export function verifySpreadsheet(workbook: SpreadsheetWorkbook, contract: WorkV
   }
   const expected = Array.isArray(contract.spec.cells) ? contract.spec.cells as SpreadsheetCell[] : [];
   const actual = new Map(workbook.cells.map((cell) => [key(cell), cell]));
-  const mismatches = expected.flatMap((cell) => {
+  const mismatches: Array<{ resource: string; reason: string; expected: unknown; actual?: unknown }> = [];\n  for (const cell of expected) {
     const found = actual.get(key(cell));
     if (!found) return [{ resource: key(cell), reason: "missing", expected: cell }];
     if (cell.formula !== undefined && found.formula !== cell.formula) return [{ resource: key(cell), reason: "formula", expected: cell.formula, actual: found.formula }];
