@@ -1,9 +1,11 @@
-import type { ActionResult, ContextItem, Goal, InferredIntent, Planner, ProposedAction } from "./goal-loop.ts";
-import { goalWorkStateId } from "./work-state-integration.ts";
+import type { ActionResult, ContextItem, Goal, InferredIntent, Planner } from "./goal-loop.ts";
+import { goalWorkStateId, type WorkStateAction } from "./work-state-integration.ts";
 
 const DEVELOPMENT_MARKERS = /(code|coding|implement|implementation|fix|repair|refactor|test|build|source|repository|script|patch|develop|development|コード|実装|修正|改修|開発|テスト)/i;
 const IMPLEMENTATION_DOD_MARKERS = /(code|implement|implementation|fix|repair|refactor|source|script|patch|develop|development|コード|実装|修正|改修|開発)/i;
 const VERIFICATION_DOD_MARKERS = /(^|[^a-z])(test|tests|verify|verification|lint|build|security|review|deploy)([^a-z]|$)|テスト|検証|確認|ビルド|セキュリティ|レビュー|デプロイ/i;
+const PROMOTION_DOD_MARKERS = /(^|[^a-z])(test|tests|lint|build|pull request|pr|proposal|review)([^a-z]|$)|テスト|ビルド|プルリク|PR作成|レビュー/i;
+const PROMOTION_EXCLUDE_MARKERS = /(^|[^a-z])(security|merge|merged|deploy|deployed)([^a-z]|$)|セキュリティ|マージ|デプロイ/i;
 
 interface WorkStateSnapshotData {
   status?: unknown;
@@ -27,6 +29,20 @@ function workStateCompleted(context: ContextItem[]): boolean {
   if (!snapshot || snapshot.status !== "COMPLETED") return false;
   const blockers = Array.isArray(snapshot.blockers) ? snapshot.blockers : [];
   return blockers.length === 0;
+}
+
+function promotionDefinitionOfDoneIds(context: ContextItem[]): string[] {
+  const snapshot = workStateSnapshot(context);
+  if (!snapshot || !Array.isArray(snapshot.remainingDefinitionOfDone)) return [];
+  return snapshot.remainingDefinitionOfDone.flatMap((raw) => {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return [];
+    const item = raw as RemainingDefinitionOfDoneItem;
+    const id = typeof item.id === "string" ? item.id.trim() : "";
+    const description = typeof item.description === "string" ? item.description.trim() : "";
+    if (!id || !description) return [];
+    if (!PROMOTION_DOD_MARKERS.test(description) || PROMOTION_EXCLUDE_MARKERS.test(description)) return [];
+    return [id];
+  });
 }
 
 function implementationDefinitionOfDoneIds(context: ContextItem[]): string[] {
@@ -91,7 +107,7 @@ export class RuntimeDevelopmentPlanner implements Planner {
     context: ContextItem[];
     intent: InferredIntent;
     previousResult?: ActionResult | null;
-  }): Promise<ProposedAction | null> {
+  }): Promise<WorkStateAction | null> {
     if (input.context.some((item) => item.source === "goal.complete" && item.summary === "true")) return null;
     if (workStateCompleted(input.context)) return null;
 
@@ -106,6 +122,24 @@ export class RuntimeDevelopmentPlanner implements Planner {
     const objective = next || input.goal.description?.trim() || input.goal.title;
     const files = extractFiles(scope);
     const satisfiesDefinitionOfDone = implementationDefinitionOfDoneIds(input.context);
+    const promotionDoD = promotionDefinitionOfDoneIds(input.context);
+
+    if (satisfiesDefinitionOfDone.length === 0 && promotionDoD.length > 0) {
+      return {
+        id: `runtime-promote:${now}`,
+        description: `Promote verified Builder changes for ${input.goal.title}`,
+        capability: "repository.promote_builder_changes",
+        risk: "low",
+        irreversible: false,
+        externalSideEffect: true,
+        satisfiesDefinitionOfDone: promotionDoD,
+        input: {
+          title: `JARVIS: ${input.goal.title}`,
+          body: `Autonomous promotion for Goal ${goalWorkStateId(input.goal)} after real Builder execution.`,
+        },
+      };
+    }
+
     return {
       id: `runtime-builder:${now}`,
       description: objective,

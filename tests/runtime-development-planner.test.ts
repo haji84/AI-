@@ -103,3 +103,49 @@ test("Builder wording in implementation DoD is not misclassified as build verifi
   assert.deepEqual((action as { satisfiesDefinitionOfDone?: string[] })?.satisfiesDefinitionOfDone, ["criterion-1"]);
   assert.notEqual(action?.description, "none");
 });
+
+
+test("remaining PR/test DoD promotes Builder changes instead of rebuilding", async () => {
+  const planner = new RuntimeDevelopmentPlanner(new BaselinePlanner());
+  const action = await planner.proposeNextAction({
+    goal,
+    context: [{
+      source: "gai-work-state",
+      summary: "verification pending",
+      data: {
+        status: "VERIFYING",
+        blockers: [],
+        remainingDefinitionOfDone: [
+          { id: "tests", description: "Tests and build pass" },
+          { id: "pr", description: "Pull request is created" },
+        ],
+        nextAction: null,
+      },
+    }, { source: "state.next_action", summary: "none" }],
+    intent,
+  });
+  assert.equal(action?.capability, "repository.promote_builder_changes");
+  assert.deepEqual((action as { satisfiesDefinitionOfDone?: string[] })?.satisfiesDefinitionOfDone, ["tests", "pr"]);
+});
+
+test("security or merge DoD is never auto-satisfied by PR promotion", async () => {
+  const planner = new RuntimeDevelopmentPlanner(new BaselinePlanner());
+  const action = await planner.proposeNextAction({
+    goal,
+    context: [{
+      source: "gai-work-state",
+      summary: "security pending",
+      data: {
+        status: "VERIFYING",
+        blockers: [],
+        remainingDefinitionOfDone: [
+          { id: "security", description: "Security review passes" },
+          { id: "merge", description: "PR is merged to main" },
+        ],
+        nextAction: null,
+      },
+    }],
+    intent,
+  });
+  assert.notEqual(action?.capability, "repository.promote_builder_changes");
+});

@@ -3,6 +3,7 @@ import { CompassStore } from "../src/compass/store.ts";
 import { BaselinePlanner, createContextInspectCapability } from "../src/orchestrator/baseline-planner.ts";
 import { RuntimeDevelopmentPlanner } from "../src/orchestrator/runtime-development-planner.ts";
 import { createCodeBuilderCapability, createRuntimeBuilderRouter } from "../src/orchestrator/runtime-builder-capability.ts";
+import { createRuntimeBuilderPrPromotionCapability } from "../src/orchestrator/runtime-builder-pr-capability.ts";
 import { runBoundedGoalLoop } from "../src/orchestrator/bounded-runner.ts";
 import { CapabilityRegistry } from "../src/orchestrator/capabilities.ts";
 import { CompassStateStoreAdapter, compassGoalToLoopGoal } from "../src/orchestrator/compass-state-store.ts";
@@ -36,7 +37,8 @@ try {
 
   const registry = new CapabilityRegistry({ dryRun })
     .register(createContextInspectCapability())
-    .register(createCodeBuilderCapability(createRuntimeBuilderRouter()));
+    .register(createCodeBuilderCapability(createRuntimeBuilderRouter()))
+    .register(createRuntimeBuilderPrPromotionCapability());
   const verifier: Verifier = {
     async verify({ result }) {
       return { ok: result.ok, summary: result.ok ? "Capability execution verified" : result.summary, evidence: result.evidence };
