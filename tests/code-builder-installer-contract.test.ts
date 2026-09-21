@@ -9,10 +9,7 @@ test("ZBook code-builder installer launches immediately and preserves logon pers
   assert.match(source, /Register-ScheduledTask/);
   assert.match(source, /Start-Process -FilePath 'powershell\.exe'/);
   assert.match(source, /worker\.pid/);
-  assert.match(source, /\$oldPid -match '\^\\d\+\
-  assert.doesNotMatch(source, /Start-ScheduledTask -TaskName \$taskName/);
-});
-/);
+  assert.ok(source.includes("if ($oldPid -match '^\\d+$')"));
   assert.match(source, /CODE_BUILDER_ENGINE/);
   assert.doesNotMatch(source, /Start-ScheduledTask -TaskName \$taskName/);
 });
