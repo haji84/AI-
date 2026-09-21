@@ -32,7 +32,7 @@ export default function RemoteVideo({ serial, sessionId, onStop, nativeWidth, na
   })().catch(error=>{if(alive)setStatus(abort.signal.aborted?"動画停止：再開してください":error.message);}).finally(()=>{streaming.current=false;tracker.current.cancel();abort.abort();if(decoder&&decoder.state!=="closed")decoder.close();});
   return()=>{alive=false;streaming.current=false;abort.abort();document.removeEventListener("visibilitychange",hidden);if(decoder&&decoder.state!=="closed")decoder.close();};
  },[serial,sessionId]);
- return <section><p role="status">{status}</p><div className="jarvis-remote-video-screen"><canvas ref={canvas} style={{width:"100%",maxHeight:640,objectFit:"contain",touchAction:controllable?"none":"auto"}} aria-label="端末の動画画面：タップ・スワイプ"
+ return <section><p role="status">{status}</p><div className="jarvis-remote-screen jarvis-remote-video-screen"><canvas ref={canvas} style={{width:"100%",maxHeight:640,objectFit:"contain",touchAction:controllable?"none":"auto"}} aria-label="端末の動画画面：タップ・スワイプ"
  onPointerDown={e=>{if(canInput()&&e.button===0&&tracker.current.begin(e.pointerId,e.isPrimary,{x:e.clientX,y:e.clientY},geometry(),performance.now()))e.currentTarget.setPointerCapture(e.pointerId);}}
  onPointerUp={e=>{if(!canInput()){tracker.current.cancel();return;}const input=tracker.current.finish(e.pointerId,{x:e.clientX,y:e.clientY},geometry(),performance.now());if(input)onInput(input);}}
  onPointerCancel={()=>tracker.current.cancel()} onLostPointerCapture={()=>tracker.current.cancel()}
