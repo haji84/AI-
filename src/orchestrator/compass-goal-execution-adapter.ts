@@ -3,12 +3,13 @@ import { CompassStore } from "../compass/store.ts";
 import { BaselinePlanner, createContextInspectCapability } from "./baseline-planner.ts";
 import { RuntimeDevelopmentPlanner } from "./runtime-development-planner.ts";
 import { createCodeBuilderCapability, createRuntimeBuilderRouter } from "./runtime-builder-capability.ts";
+import { createRuntimeDevelopmentVerifier } from "./runtime-development-verifier.ts";
 import { runBoundedGoalLoop, type BoundedRunReport } from "./bounded-runner.ts";
 import { CapabilityRegistry } from "./capabilities.ts";
 import { CompassStateStoreAdapter, compassGoalToLoopGoal } from "./compass-state-store.ts";
 import { CompassWorkStateStoreAdapter } from "./compass-work-state-store.ts";
 import { evaluateGoalFromWorkState } from "./goal-evaluator.ts";
-import type { ContextItem, ContextSource, Verifier } from "./goal-loop.ts";
+import type { ContextItem, ContextSource } from "./goal-loop.ts";
 import type { GoalExecutionAdapter } from "./goal-controller-execution-bridge.ts";
 import { createWorkStateIntegratedGoalLoop, goalWorkStateId } from "./work-state-integration.ts";
 
@@ -56,11 +57,7 @@ export class CompassGoalExecutionAdapter implements GoalExecutionAdapter {
       const registry = new CapabilityRegistry()
         .register(createContextInspectCapability())
         .register(createCodeBuilderCapability(createRuntimeBuilderRouter()));
-      const verifier: Verifier = {
-        async verify({ result }) {
-          return { ok: result.ok, summary: result.ok ? "Capability execution verified" : result.summary, evidence: result.evidence };
-        },
-      };
+      const verifier = createRuntimeDevelopmentVerifier();
       const workStateStore = new CompassWorkStateStoreAdapter(compass);
       const loop = createWorkStateIntegratedGoalLoop({
         goal,
