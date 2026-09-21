@@ -120,7 +120,16 @@ export class RuntimeDevelopmentPlanner implements Planner {
         attemptId: `attempt-${now}`,
         strategyId: recovery ? `recovery-${now}` : `initial-${now}`,
         objective: recovery
-          ? `${objective}. Previous attempt failed: ${input.previousResult?.summary ?? "unknown failure"}. Use a materially different implementation strategy.`
+          ? (() => {
+              const evidence = input.previousResult?.verification?.evidence;
+              if (evidence && typeof evidence === "object" && !Array.isArray(evidence)) {
+                const exact = evidence as { kind?: unknown; path?: unknown; expected?: unknown; actual?: unknown };
+                if (exact.kind === "file_exact" && typeof exact.path === "string" && typeof exact.expected === "string") {
+                  return `Repair ${exact.path} so its complete content exactly matches verifier expected value ${JSON.stringify(exact.expected)}. The prior result was ${JSON.stringify(exact.actual ?? null)}. This verifier evidence is available only after failure; use it to correct the implementation.`;
+                }
+              }
+              return `${objective}. Previous attempt failed: ${input.previousResult?.summary ?? "unknown failure"}. Use a materially different implementation strategy.`;
+            })()
           : objective,
         ...(files.length > 0 ? { files } : {}),
         ...(verificationContract ? { verificationContract } : {}),
