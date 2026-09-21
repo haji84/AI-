@@ -127,7 +127,7 @@ async function runBuild(body: Record<string, unknown>) {
   ].join("\n");
 
   const args = engine.id === "codex"
-    ? ["exec", "--sandbox", "workspace-write", "--ask-for-approval", "never", "--ephemeral", "--ignore-user-config", prompt]
+    ? ["--ask-for-approval", "never", "exec", "--sandbox", "workspace-write", "--ephemeral", "--ignore-user-config", prompt]
     : ["--yes-always", "--message", prompt];
   const result = await run(engine.command, args);
   const diff = await run("git", ["diff", "--stat"]);
