@@ -20,6 +20,22 @@ export interface JarvisSignedWorkerRequest {
   signatureBase64: string;
 }
 
+export interface JarvisNoncePersistence {
+  has(nodeId: string, nonce: string, now: number): boolean;
+  record(nodeId: string, nonce: string, expiresAt: number): void;
+  cleanup(now: number): void;
+}
+
+let defaultNoncePersistence: JarvisNoncePersistence | undefined;
+
+export function installJarvisNoncePersistence(persistence: JarvisNoncePersistence): () => void {
+  const previous = defaultNoncePersistence;
+  defaultNoncePersistence = persistence;
+  return () => {
+    if (defaultNoncePersistence === persistence) defaultNoncePersistence = previous;
+  };
+}
+
 export function createEnrollmentChallenge(): string {
   return randomBytes(32).toString("base64url");
 }
@@ -68,18 +84,26 @@ export function verifyWorkerRequest(input: {
 
 export class JarvisNonceRegistry {
   private readonly entries = new Map<string, number>();
+  private readonly persistence?: JarvisNoncePersistence;
+
+  constructor(persistence = defaultNoncePersistence) {
+    this.persistence = persistence;
+  }
 
   has(nodeId: string, nonce: string, now = Date.now()): boolean {
     this.cleanup(now);
-    return this.entries.has(`${nodeId}:${nonce}`);
+    return this.entries.has(`${nodeId}:${nonce}`) || this.persistence?.has(nodeId, nonce, now) === true;
   }
 
   record(nodeId: string, nonce: string, ttlMs = 10 * 60_000, now = Date.now()): void {
     this.cleanup(now);
-    this.entries.set(`${nodeId}:${nonce}`, now + ttlMs);
+    const expiresAt = now + ttlMs;
+    this.entries.set(`${nodeId}:${nonce}`, expiresAt);
+    this.persistence?.record(nodeId, nonce, expiresAt);
   }
 
   private cleanup(now: number): void {
     for (const [key, expiresAt] of this.entries) if (expiresAt <= now) this.entries.delete(key);
+    this.persistence?.cleanup(now);
   }
 }
