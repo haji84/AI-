@@ -4,6 +4,7 @@ import { JarvisExecutionRouter } from "./execution-router.ts";
 import { JarvisFleetManager } from "./fleet-manager.ts";
 import { JarvisHumanTakeoverManager } from "./human-takeover.ts";
 import { JarvisTaskQueue } from "./task-queue.ts";
+import { verifyWorkerTaskResult } from "./task-result-verifier.ts";
 import type {
   JarvisConnectionSnapshot,
   JarvisEnrollmentToken,
@@ -140,8 +141,17 @@ export class JarvisControlPlane {
   completeTask(taskId: string, nodeId: string, result?: Record<string, unknown>, now = new Date()): JarvisTask {
     const task = this.queue.get(taskId);
     if (!task || task.assignedNodeId !== nodeId) throw new Error("Task lease is not owned by this node");
+    const verification = verifyWorkerTaskResult(task, nodeId, result ?? {});
+    if (!verification.pass) {
+      this.audit(nodeId, "task.verification.failed", taskId, {
+        reason: verification.reason,
+        confidence: verification.confidence,
+        checks: verification.checks,
+      }, now);
+      throw new Error(`Task result verification failed: ${verification.reason}`);
+    }
     const completed = this.queue.complete(taskId, now);
-    this.audit(nodeId, "task.completed", taskId, { result }, now);
+    this.audit(nodeId, "task.completed", taskId, { result, verification }, now);
     return completed;
   }
 
