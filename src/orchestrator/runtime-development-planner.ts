@@ -10,25 +10,19 @@ interface WorkStateSnapshotData {
   blockers?: unknown;
   remainingDefinitionOfDone?: unknown;
 }
-
-interface RemainingDefinitionOfDoneItem {
-  id?: unknown;
-  description?: unknown;
-}
+interface RemainingDefinitionOfDoneItem { id?: unknown; description?: unknown; }
 
 function workStateSnapshot(context: ContextItem[]): WorkStateSnapshotData | null {
   const item = context.find((entry) => entry.source === "gai-work-state");
   if (!item?.data || typeof item.data !== "object" || Array.isArray(item.data)) return null;
   return item.data as WorkStateSnapshotData;
 }
-
 function workStateCompleted(context: ContextItem[]): boolean {
   const snapshot = workStateSnapshot(context);
   if (!snapshot || snapshot.status !== "COMPLETED") return false;
   const blockers = Array.isArray(snapshot.blockers) ? snapshot.blockers : [];
   return blockers.length === 0;
 }
-
 function implementationDefinitionOfDoneIds(context: ContextItem[]): string[] {
   const snapshot = workStateSnapshot(context);
   if (!snapshot || !Array.isArray(snapshot.remainingDefinitionOfDone)) return [];
@@ -42,69 +36,59 @@ function implementationDefinitionOfDoneIds(context: ContextItem[]): string[] {
     return [id];
   });
 }
-
 function nextAction(context: ContextItem[]): string | null {
   const direct = context.find((item) => item.source === "state.next_action")?.summary?.trim();
-  if (direct && !["none", "null", "undefined"].includes(direct.toLowerCase())) return direct;
+  if (direct && !["none","null","undefined"].includes(direct.toLowerCase())) return direct;
   for (const item of context) {
     if (!item.data || typeof item.data !== "object" || Array.isArray(item.data)) continue;
     const value = (item.data as { nextAction?: unknown }).nextAction;
-    if (typeof value === "string" && value.trim() && !["none", "null", "undefined"].includes(value.trim().toLowerCase())) return value.trim();
+    if (typeof value === "string" && value.trim() && !["none","null","undefined"].includes(value.trim().toLowerCase())) return value.trim();
   }
   return null;
 }
-
 function extractFiles(value: string): string[] {
   const matches = value.match(/(?:src|tests|scripts|docs)\/[A-Za-z0-9_./-]+/g) ?? [];
   return [...new Set(matches.map((item) => item.replace(/[),.;:]+$/, "")))].slice(0, 20);
 }
-
+function exactFileVerification(value: string, files: string[]) {
+  if (files.length !== 1) return null;
+  const marker = "complete content exactly";
+  const lower = value.toLowerCase();
+  const idx = lower.indexOf(marker);
+  if (idx < 0) return null;
+  const tail = value.slice(idx + marker.length).trim().replace(/^[:=]\s*/, "");
+  const expected = tail.split(/[.\n]/)[0]?.trim().replace(/^["']|["']$/g, "") ?? "";
+  if (!expected || expected.length > 10000) return null;
+  return { kind: "file_exact" as const, path: files[0], expected };
+}
 function failureSignature(result?: ActionResult | null): string[] {
   if (!result || result.ok) return [];
-  const detail = (result.blocker || result.summary || "unknown-failure")
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, " ");
+  const detail = (result.blocker || result.summary || "unknown-failure").trim().toLowerCase().replace(/\s+/g, " ");
   return [`${result.actionId}:${detail}`];
 }
 
 export class RuntimeDevelopmentPlanner implements Planner {
   readonly supersedesPriorExecutionState?: boolean;
   private readonly delegate: Planner;
-
   constructor(delegate: Planner) {
     this.delegate = delegate;
     this.supersedesPriorExecutionState = delegate.supersedesPriorExecutionState;
   }
-
-  inferIntent(input: {
-    goal: Goal;
-    context: ContextItem[];
-    preferences?: string[];
-    recentDecisions?: string[];
-  }): Promise<InferredIntent> {
+  inferIntent(input: { goal: Goal; context: ContextItem[]; preferences?: string[]; recentDecisions?: string[]; }): Promise<InferredIntent> {
     return this.delegate.inferIntent(input);
   }
-
-  async proposeNextAction(input: {
-    goal: Goal;
-    context: ContextItem[];
-    intent: InferredIntent;
-    previousResult?: ActionResult | null;
-  }): Promise<ProposedAction | null> {
+  async proposeNextAction(input: { goal: Goal; context: ContextItem[]; intent: InferredIntent; previousResult?: ActionResult | null; }): Promise<ProposedAction | null> {
     if (input.context.some((item) => item.source === "goal.complete" && item.summary === "true")) return null;
     if (workStateCompleted(input.context)) return null;
-
     const next = nextAction(input.context);
     const scope = [input.goal.title, input.goal.description ?? "", next ?? "", input.intent.summary].join("\n");
-    if (!DEVELOPMENT_MARKERS.test(scope)) {
-      return this.delegate.proposeNextAction(input);
-    }
+    if (!DEVELOPMENT_MARKERS.test(scope)) return this.delegate.proposeNextAction(input);
 
     const recovery = input.previousResult && !input.previousResult.ok;
     const now = Date.now();
     const objective = next || input.goal.description?.trim() || input.goal.title;
     const files = extractFiles(scope);
+    const verificationContract = exactFileVerification(scope, files);
     const satisfiesDefinitionOfDone = implementationDefinitionOfDoneIds(input.context);
     return {
       id: `runtime-builder:${now}`,
@@ -122,6 +106,7 @@ export class RuntimeDevelopmentPlanner implements Planner {
           ? `${objective}. Previous attempt failed: ${input.previousResult?.summary ?? "unknown failure"}. Use a materially different implementation strategy.`
           : objective,
         ...(files.length > 0 ? { files } : {}),
+        ...(verificationContract ? { verificationContract } : {}),
         previousFailureSignatures: failureSignature(input.previousResult),
       },
     };
