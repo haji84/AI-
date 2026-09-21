@@ -121,7 +121,7 @@ export class RuntimeDevelopmentPlanner implements Planner {
         strategyId: recovery ? `recovery-${now}` : `initial-${now}`,
         objective: recovery
           ? (() => {
-              const evidence = input.previousResult?.verification?.evidence;
+              const evidence = input.previousResult?.evidence;
               if (evidence && typeof evidence === "object" && !Array.isArray(evidence)) {
                 const exact = evidence as { kind?: unknown; path?: unknown; expected?: unknown; actual?: unknown };
                 if (exact.kind === "file_exact" && typeof exact.path === "string" && typeof exact.expected === "string") {
