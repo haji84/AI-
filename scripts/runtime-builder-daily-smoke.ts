@@ -35,7 +35,7 @@ try {
 }
 
 const adapter = new CompassGoalExecutionAdapter(dbPath);
-const report = await adapter.run(goalId, { maxCycles: 2 });
+const report = await adapter.run(goalId, { maxCycles: 3 });
 const cycle = report.cycles[0];
 const actual = (await readFile(resolve(workspace, fixture), "utf8")).trim();
 
