@@ -3,6 +3,7 @@ import { dirname } from "node:path";
 import type { CycleReport, Goal, GoalDrivenLoop } from "../orchestrator/goal-loop.ts";
 
 export type ProductionRunState = "running" | "waiting" | "approval-required" | "blocked" | "completed";
+export type ProductionFailureKind = "execution" | "verification" | "terminal";
 
 export interface ProductionReadinessEvidence {
   multiDeviceE2E?: string[];
@@ -45,6 +46,16 @@ export interface ProductionVerificationHistoryEntry {
   actionDescription: string | null;
 }
 
+export interface ProductionFailureHistoryEntry {
+  cycle: number;
+  observedAt: string;
+  kind: ProductionFailureKind;
+  summary: string;
+  blocker: string | null;
+  actionId: string | null;
+  actionDescription: string | null;
+}
+
 export interface ProductionRunRecord {
   runId: string;
   goal: Goal;
@@ -53,6 +64,7 @@ export interface ProductionRunRecord {
   lastReport?: CycleReport;
   completionEvidence: unknown[];
   verificationHistory?: ProductionVerificationHistoryEntry[];
+  failureHistory?: ProductionFailureHistoryEntry[];
   recoveryBudget?: DurableRecoveryBudget;
   journal?: DurableRunJournal;
   updatedAt: string;
@@ -72,6 +84,7 @@ export interface ProductionAutonomyOptions {
 const DEFAULT_MAX_CONSECUTIVE_NON_PROGRESS_CYCLES = 9;
 const MAX_JOURNAL_ENTRIES = 50;
 const MAX_VERIFICATION_HISTORY_ENTRIES = 200;
+const MAX_FAILURE_HISTORY_ENTRIES = 200;
 
 function pushBounded(list: string[], value: string): void {
   const normalized = value.trim();
@@ -109,6 +122,33 @@ function sanitizeVerificationHistoryEntry(entry: ProductionVerificationHistoryEn
     observedAt: entry.observedAt,
     ok: entry.ok,
     summary: entry.summary.trim(),
+    actionId: entry.actionId?.trim() ?? null,
+    actionDescription: entry.actionDescription?.trim() ?? null,
+  };
+}
+
+function isFailureHistoryEntry(value: unknown): value is ProductionFailureHistoryEntry {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const candidate = value as Partial<ProductionFailureHistoryEntry>;
+  return Number.isInteger(candidate.cycle)
+    && (candidate.cycle ?? 0) >= 1
+    && typeof candidate.observedAt === "string"
+    && Number.isFinite(Date.parse(candidate.observedAt))
+    && (candidate.kind === "execution" || candidate.kind === "verification" || candidate.kind === "terminal")
+    && typeof candidate.summary === "string"
+    && candidate.summary.trim().length > 0
+    && (candidate.blocker === null || (typeof candidate.blocker === "string" && candidate.blocker.trim().length > 0))
+    && (candidate.actionId === null || (typeof candidate.actionId === "string" && candidate.actionId.trim().length > 0))
+    && (candidate.actionDescription === null || (typeof candidate.actionDescription === "string" && candidate.actionDescription.trim().length > 0));
+}
+
+function sanitizeFailureHistoryEntry(entry: ProductionFailureHistoryEntry): ProductionFailureHistoryEntry {
+  return {
+    cycle: entry.cycle,
+    observedAt: entry.observedAt,
+    kind: entry.kind,
+    summary: entry.summary.trim(),
+    blocker: entry.blocker?.trim() ?? null,
     actionId: entry.actionId?.trim() ?? null,
     actionDescription: entry.actionDescription?.trim() ?? null,
   };
@@ -205,6 +245,7 @@ export class ProductionAutonomyRuntime {
     this.#ensureRecoveryBudget(record);
     this.#ensureJournal(record);
     this.#ensureVerificationHistory(record);
+    this.#ensureFailureHistory(record);
     this.#upsert(record);
     const loop = this.loopFactory(input.runId);
     const maxCycles = input.maxCycles ?? 25;
@@ -214,6 +255,7 @@ export class ProductionAutonomyRuntime {
       record.cycles += 1;
       record.updatedAt = new Date().toISOString();
       this.#recordVerificationHistory(record, report);
+      this.#recordFailureHistory(record, report);
       record.lastReport = report;
       this.#recordJournal(record, report);
 
@@ -258,6 +300,7 @@ export class ProductionAutonomyRuntime {
       this.#ensureRecoveryBudget(record);
       this.#ensureJournal(record);
       this.#ensureVerificationHistory(record);
+      this.#ensureFailureHistory(record);
     }
     return record;
   }
@@ -330,6 +373,21 @@ export class ProductionAutonomyRuntime {
     return record.verificationHistory;
   }
 
+  #ensureFailureHistory(record: ProductionRunRecord): ProductionFailureHistoryEntry[] {
+    const current = record.failureHistory;
+    if (current === undefined) {
+      record.failureHistory = [];
+      return record.failureHistory;
+    }
+    if (!Array.isArray(current) || !current.every(isFailureHistoryEntry)) {
+      throw new Error("invalid production failure history");
+    }
+    record.failureHistory = current
+      .slice(-MAX_FAILURE_HISTORY_ENTRIES)
+      .map(sanitizeFailureHistoryEntry);
+    return record.failureHistory;
+  }
+
   #recordVerificationHistory(record: ProductionRunRecord, report: CycleReport): void {
     if (!report.verification) return;
     const history = this.#ensureVerificationHistory(record);
@@ -343,6 +401,51 @@ export class ProductionAutonomyRuntime {
     });
     if (history.length > MAX_VERIFICATION_HISTORY_ENTRIES) {
       history.splice(0, history.length - MAX_VERIFICATION_HISTORY_ENTRIES);
+    }
+  }
+
+  #appendFailure(record: ProductionRunRecord, entry: Omit<ProductionFailureHistoryEntry, "cycle" | "observedAt">): void {
+    const history = this.#ensureFailureHistory(record);
+    history.push({ cycle: record.cycles, observedAt: record.updatedAt, ...entry });
+    if (history.length > MAX_FAILURE_HISTORY_ENTRIES) {
+      history.splice(0, history.length - MAX_FAILURE_HISTORY_ENTRIES);
+    }
+  }
+
+  #recordFailureHistory(record: ProductionRunRecord, report: CycleReport): void {
+    let explicitFailure = false;
+    if (report.result && !report.result.ok) {
+      explicitFailure = true;
+      this.#appendFailure(record, {
+        kind: "execution",
+        summary: report.result.summary.trim(),
+        blocker: report.result.blocker?.trim() || null,
+        actionId: report.action?.id?.trim() || report.result.actionId?.trim() || null,
+        actionDescription: report.action?.description?.trim() || null,
+      });
+    }
+    if (report.verification && !report.verification.ok) {
+      explicitFailure = true;
+      this.#appendFailure(record, {
+        kind: "verification",
+        summary: report.verification.summary.trim(),
+        blocker: null,
+        actionId: report.action?.id?.trim() || null,
+        actionDescription: report.action?.description?.trim() || null,
+      });
+    }
+    if (!explicitFailure && (report.stopReason === "blocked" || report.stopReason === "retry_exhausted")) {
+      this.#appendFailure(record, {
+        kind: "terminal",
+        summary: report.result?.blocker?.trim()
+          || report.result?.summary.trim()
+          || report.verification?.summary.trim()
+          || report.nextAction?.trim()
+          || report.stopReason,
+        blocker: report.result?.blocker?.trim() || null,
+        actionId: report.action?.id?.trim() || null,
+        actionDescription: report.action?.description?.trim() || null,
+      });
     }
   }
 
@@ -376,6 +479,13 @@ export class ProductionAutonomyRuntime {
     }
     if (budget.consecutiveNonProgress < budget.limit) return false;
     budget.blockedReason = `Durable non-progress budget exhausted (${budget.consecutiveNonProgress}/${budget.limit}); persisted outcome did not change across retries/restarts.`;
+    this.#appendFailure(record, {
+      kind: "terminal",
+      summary: budget.blockedReason,
+      blocker: budget.blockedReason,
+      actionId: report.action?.id?.trim() || null,
+      actionDescription: report.action?.description?.trim() || null,
+    });
     const journal = this.#ensureJournal(record);
     journal.currentState = budget.blockedReason;
     pushBounded(journal.decisions, budget.blockedReason);
@@ -397,6 +507,7 @@ export class ProductionAutonomyRuntime {
         this.#ensureRecoveryBudget(record);
         this.#ensureJournal(record);
         this.#ensureVerificationHistory(record);
+        this.#ensureFailureHistory(record);
         return record;
       });
     }
