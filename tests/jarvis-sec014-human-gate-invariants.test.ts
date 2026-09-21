@@ -95,7 +95,7 @@ test("SEC-014 irreversible and explicitly approval-required actions cannot ride 
   );
 });
 
-test("SEC-014 Production authorization is exact-scope, active, and not implied by a stripped authorization", () => {
+test("SEC-014 Production authorization is exact-scope, active, and not implied by an authorization without deploy scope", () => {
   const authorization = createTaskCompletionAuthorization("Issue #964を最後まで進めて", { now: NOW });
   assert.ok(authorization);
   const productionDecision = evaluateRiskPolicy({ productionDeploy: true });
@@ -120,8 +120,14 @@ test("SEC-014 Production authorization is exact-scope, active, and not implied b
     false,
   );
 
-  const { allowProductionDeploy: _ignored, ...withoutProduction } = authorization;
-  const noProductionAuthorization = withoutProduction as TaskCompletionAuthorization;
+  const noProductionAuthorization: TaskCompletionAuthorization = {
+    kind: authorization.kind,
+    scopeId: authorization.scopeId,
+    allowLowMediumMainMerge: true,
+    issuedBy: authorization.issuedBy,
+    issuedAt: authorization.issuedAt,
+    expiresAt: authorization.expiresAt,
+  };
   const noProductionPolicy = new DelegatedApprovalPolicy(noProductionAuthorization, "issue:964", { now: () => NOW });
   assert.equal(
     noProductionPolicy.authorizesRisk({ goal: GOAL, action: action(), riskDecision: productionDecision }),
