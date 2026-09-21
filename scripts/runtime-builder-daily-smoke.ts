@@ -20,8 +20,8 @@ let goalId = "";
 try {
   const record = compass.setGoal({
     title: "Implement normal JARVIS runtime Builder smoke",
-    description: `Edit only ${fixture}. Make its complete content exactly runtime-daily. Do not modify any other file.`,
-    successCriteria: ["Normal JARVIS runtime routes a development action to the real Builder"],
+    description: `Edit only ${fixture}. Follow the current implementation strategy. Do not modify any other file.`,
+    successCriteria: ["Normal JARVIS runtime completes the trusted deterministic verification contract"],
     constraints: ["Only the controlled smoke fixture may change"],
   });
   compass.updateState({
@@ -35,7 +35,14 @@ try {
 }
 
 const adapter = new CompassGoalExecutionAdapter(dbPath, { maxRetriesPerAction: 1, maxStrategyPivots: 2, maxTotalRecoveryAttempts: 4 });
-const report = await adapter.run(goalId, { maxCycles: 4 });
+const report = await adapter.run(goalId, {
+  maxCycles: 4,
+  context: [{
+    source: "development.verification_contract",
+    summary: "trusted deterministic oracle",
+    data: { kind: "file_exact", path: fixture, expected: "runtime-daily" },
+  }],
+});
 const firstCycle = report.cycles[0];
 const recoveryCycle = report.cycles.find((item) => item.recoveryDecision?.action === "strategy_pivot");
 const successfulCycle = report.cycles.find((item) => item.action?.capability === "code.builder" && item.verification?.ok === true);
