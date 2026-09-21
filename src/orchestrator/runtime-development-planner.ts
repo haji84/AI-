@@ -50,6 +50,23 @@ function extractFiles(value: string): string[] {
   const matches = value.match(/(?:src|tests|scripts|docs)\/[A-Za-z0-9_./-]+/g) ?? [];
   return [...new Set(matches.map((item) => item.replace(/[),.;:]+$/, "")))].slice(0, 20);
 }
+function trustedVerificationContract(context: ContextItem[], files: string[]) {
+  for (const item of context) {
+    let raw: unknown = null;
+    if (item.source === "development.verification_contract") raw = item.data;
+    else if (item.data && typeof item.data === "object" && !Array.isArray(item.data)) {
+      const wrapper = item.data as { source?: unknown; data?: unknown };
+      if (wrapper.source === "development.verification_contract") raw = wrapper.data;
+    }
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) continue;
+    const contract = raw as { kind?: unknown; path?: unknown; expected?: unknown };
+    if (contract.kind !== "file_exact" || typeof contract.path !== "string" || typeof contract.expected !== "string") continue;
+    if (!files.includes(contract.path) || !contract.expected || contract.expected.length > 10_000) continue;
+    return { kind: "file_exact" as const, path: contract.path, expected: contract.expected };
+  }
+  return null;
+}
+
 function exactFileVerification(value: string, files: string[]) {
   if (files.length !== 1) return null;
   const marker = "complete content exactly";
@@ -88,7 +105,7 @@ export class RuntimeDevelopmentPlanner implements Planner {
     const now = Date.now();
     const objective = next || input.goal.description?.trim() || input.goal.title;
     const files = extractFiles(scope);
-    const verificationContract = exactFileVerification(scope, files);
+    const verificationContract = trustedVerificationContract(input.context, files) ?? exactFileVerification(scope, files);
     const satisfiesDefinitionOfDone = implementationDefinitionOfDoneIds(input.context);
     return {
       id: `runtime-builder:${goalWorkStateId(input.goal)}`,

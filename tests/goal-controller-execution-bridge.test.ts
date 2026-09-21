@@ -43,3 +43,44 @@ test("question and bounded commands do not invoke Goal Loop", async () => {
   assert.equal((await bridge.execute(decision("EXECUTE_BOUNDED"))).executed, false);
   assert.equal(calls, 0);
 });
+
+test("goal continuation automatically advances across routine bounded runs until achieved", async () => {
+  let calls = 0;
+  const adapter: GoalExecutionAdapter = {
+    async run() {
+      calls += 1;
+      if (calls < 3) return { cycles: [], stopReason: "cycle_budget_exhausted", goalEvaluation: { achieved: false, reason: "remaining work", verifiedRequired: [], failedRequired: [], unverifiedRequired: ["remaining"], blockers: [], remainingGaps: ["remaining"] } };
+      return { cycles: [], stopReason: "goal_complete", goalEvaluation: { achieved: true, reason: "done", verifiedRequired: ["done"], failedRequired: [], unverifiedRequired: [], blockers: [], remainingGaps: [] } };
+    },
+  };
+  const result = await new GoalControllerExecutionBridge(adapter).executeUntilGoalTerminal(decision("CONTINUE_GOAL", "goal-1"));
+  assert.equal(calls, 3);
+  assert.equal(result.reason, "goal_complete");
+  assert.equal(result.reports?.length, 3);
+});
+
+test("goal continuation stops at a real human gate", async () => {
+  let calls = 0;
+  const adapter: GoalExecutionAdapter = {
+    async run() {
+      calls += 1;
+      return { cycles: [], stopReason: "approval_required", goalEvaluation: { achieved: false, reason: "approval required", verifiedRequired: [], failedRequired: [], unverifiedRequired: [], blockers: ["approval_required"], remainingGaps: ["approval_required"] } };
+    },
+  };
+  const result = await new GoalControllerExecutionBridge(adapter).executeUntilGoalTerminal(decision("CONTINUE_GOAL", "goal-1"));
+  assert.equal(calls, 1);
+  assert.equal(result.reason, "human_gate");
+});
+
+test("goal continuation has a bounded stagnation guard", async () => {
+  let calls = 0;
+  const adapter: GoalExecutionAdapter = {
+    async run() {
+      calls += 1;
+      return { cycles: [], stopReason: "cycle_budget_exhausted", goalEvaluation: { achieved: false, reason: "remaining work", verifiedRequired: [], failedRequired: [], unverifiedRequired: ["remaining"], blockers: [], remainingGaps: ["remaining"] } };
+    },
+  };
+  const result = await new GoalControllerExecutionBridge(adapter).executeUntilGoalTerminal(decision("CONTINUE_GOAL", "goal-1"), { maxRuns: 3 });
+  assert.equal(calls, 3);
+  assert.equal(result.reason, "goal_continuation_budget_exhausted");
+});
