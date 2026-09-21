@@ -26,7 +26,7 @@ try {
   });
   compass.updateState({
     status: "READY",
-    nextAction: `Implement tests/fixtures/runtime-builder-daily-smoke.txt so its complete content is runtime-daily`,
+    nextAction: `Initial strategy: edit tests/fixtures/runtime-builder-daily-smoke.txt so its complete content is runtime-wrong`,
     blockers: [],
   });
   goalId = goalWorkStateId(compassGoalToLoopGoal(record));
@@ -34,21 +34,29 @@ try {
   compass.close();
 }
 
-const adapter = new CompassGoalExecutionAdapter(dbPath);
-const report = await adapter.run(goalId, { maxCycles: 3 });
-const cycle = report.cycles[0];
+const adapter = new CompassGoalExecutionAdapter(dbPath, { maxRetriesPerAction: 1, maxStrategyPivots: 2, maxTotalRecoveryAttempts: 4 });
+const report = await adapter.run(goalId, { maxCycles: 4 });
+const firstCycle = report.cycles[0];
+const recoveryCycle = report.cycles.find((item) => item.recoveryDecision?.action === "strategy_pivot");
+const successfulCycle = report.cycles.find((item) => item.action?.capability === "code.builder" && item.verification?.ok === true);
 const actual = (await readFile(resolve(workspace, fixture), "utf8")).trim();
 
 const evidence = {
   goalId,
   report,
-  actionCapability: cycle?.action?.capability ?? null,
-  resultOk: cycle?.result?.ok ?? false,
+  actionCapability: firstCycle?.action?.capability ?? null,
+  firstVerificationOk: firstCycle?.verification?.ok ?? null,
+  recoveryAction: recoveryCycle?.recoveryDecision?.action ?? null,
+  successfulStrategyId: (successfulCycle?.action?.input as { strategyId?: string } | undefined)?.strategyId ?? null,
+  resultOk: successfulCycle?.result?.ok ?? false,
   actual,
   expected: "runtime-daily",
   goalEvaluation: report.goalEvaluation ?? null,
-  passed: cycle?.action?.capability === "code.builder"
-    && cycle?.result?.ok === true
+  passed: firstCycle?.action?.capability === "code.builder"
+    && firstCycle?.verification?.ok === false
+    && recoveryCycle?.recoveryDecision?.action === "strategy_pivot"
+    && successfulCycle?.result?.ok === true
+    && successfulCycle?.verification?.ok === true
     && actual === "runtime-daily"
     && report.stopReason === "goal_complete"
     && report.goalEvaluation?.achieved === true,
