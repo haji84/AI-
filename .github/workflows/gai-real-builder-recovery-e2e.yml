@@ -21,9 +21,11 @@ jobs:
         shell: powershell
         run: |
           .\scripts\install-code-builder-windows.ps1 -WorkerId 'zbook' -Workspace "$env:GITHUB_WORKSPACE" -ExecTimeoutMs 120000
-          $codexVersion = (& codex --version 2>&1 | Out-String).Trim()
+          $codexVersion = (& cmd.exe /d /c "codex --version 2>&1" | Out-String).Trim()
+          $codexVersionExit = $LASTEXITCODE
           Write-Host "Codex version: $codexVersion"
-          $codexLogin = (& codex login status 2>&1 | Out-String).Trim()
+          if ($codexVersionExit -ne 0) { throw "Codex version probe failed" }
+          $codexLogin = (& cmd.exe /d /c "codex login status 2>&1" | Out-String).Trim()
           $codexLoginExit = $LASTEXITCODE
           Write-Host "Codex login status: $codexLogin"
           if ($codexLoginExit -ne 0) { throw "Codex is not logged in for headless execution" }
