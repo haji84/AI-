@@ -80,7 +80,7 @@ function safeWorkspacePath(path: string): boolean {
   return !isAbsolute(rel) && rel !== ".." && !rel.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`);
 }
 
-function run(command: string, args: string[], timeoutMs = executionTimeoutMs): Promise<{ code: number | null; stdout: string; stderr: string }> {
+function run(command: string, args: string[], timeoutMs = executionTimeoutMs): Promise<{ code: number | null; stdout: string; stderr: string; timedOut: boolean }> {
   return new Promise((done) => {
     const extension = extname(command).toLowerCase();
     const invocation = process.platform === "win32" && extension === ".ps1"
@@ -88,14 +88,15 @@ function run(command: string, args: string[], timeoutMs = executionTimeoutMs): P
       : process.platform === "win32" && (extension === ".cmd" || extension === ".bat")
         ? { command: process.env.ComSpec || "cmd.exe", args: ["/d", "/s", "/c", command, ...args] }
         : { command, args };
-    const child = spawn(invocation.command, invocation.args, { cwd: workspace, windowsHide: true, shell: false, env: process.env });
+    const child = spawn(invocation.command, invocation.args, { cwd: workspace, windowsHide: true, shell: false, env: process.env, stdio: ["ignore", "pipe", "pipe"] });
     let stdout = "";
     let stderr = "";
-    const timer = setTimeout(() => child.kill(), timeoutMs);
+    let timedOut = false;
+    const timer = setTimeout(() => { timedOut = true; child.kill(); }, timeoutMs);
     child.stdout?.on("data", (chunk) => { stdout += String(chunk).slice(0, 100_000); });
     child.stderr?.on("data", (chunk) => { stderr += String(chunk).slice(0, 100_000); });
-    child.once("error", (error) => { clearTimeout(timer); done({ code: -1, stdout, stderr: String(error) }); });
-    child.once("exit", (code) => { clearTimeout(timer); done({ code, stdout, stderr }); });
+    child.once("error", (error) => { clearTimeout(timer); done({ code: -1, stdout, stderr: String(error), timedOut }); });
+    child.once("exit", (code) => { clearTimeout(timer); done({ code, stdout, stderr, timedOut }); });
   });
 }
 
@@ -137,7 +138,7 @@ async function runBuild(body: Record<string, unknown>) {
       ok: result.code === 0,
       summary: result.code === 0 ? `${engine.id} completed bounded build` : `${engine.id} failed with exit ${result.code}`,
       blocker: result.code === 0 ? undefined : "CODING_ENGINE_FAILED",
-      evidence: { workerId, engine: engine.id, exitCode: result.code, timeoutMs: executionTimeoutMs, diffStat: diff.stdout.trim(), stdoutTail: result.stdout.slice(-4000), stderrTail: result.stderr.slice(-4000) },
+      evidence: { workerId, engine: engine.id, exitCode: result.code, timedOut: result.timedOut, timeoutMs: executionTimeoutMs, diffStat: diff.stdout.trim(), stdoutTail: result.stdout.slice(-4000), stderrTail: result.stderr.slice(-4000) },
     },
   };
 }
