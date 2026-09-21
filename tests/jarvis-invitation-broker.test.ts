@@ -105,7 +105,7 @@ test("owner invitation enrolls while window is closed, persists restart and revo
     const claimedWake = (await (await fetch(base + taskPath, signedRequest("invite-first", taskPath, {}))).json()).task;
     assert.equal(claimedWake.id, wakeTask.id);
     const taskResultPath = "/api/jarvis/worker/result";
-    assert.equal((await fetch(base + taskResultPath, signedRequest("invite-first", taskResultPath, { taskId: wakeTask.id, ok: true, detail: { wakeRequested: true } }))).status, 200);
+    assert.equal((await fetch(base + taskResultPath, signedRequest("invite-first", taskResultPath, { taskId: wakeTask.id, ok: true, detail: { screenInteractive: true } }))).status, 200);
     await stop(); child = start(); await waitReady();
     assert.equal((await enroll("invite-second")).status, 201);
     assert.equal((await post(path, { action: "revoke" }, true)).status, 200);
@@ -136,4 +136,3 @@ test("owner invitation enrolls while window is closed, persists restart and revo
     assert.equal((await post("/api/jarvis/worker/heartbeat", {})).status, 401);
   } finally { await stop(); await rm(directory, { recursive: true, force: true }); }
 });
-
