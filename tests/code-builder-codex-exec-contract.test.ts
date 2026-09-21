@@ -5,24 +5,18 @@ import { readFile } from "node:fs/promises";
 const service = new URL("../scripts/code-builder-worker-service.ts", import.meta.url);
 const installer = new URL("../scripts/install-code-builder-windows.ps1", import.meta.url);
 
-test("code-builder uses explicit noninteractive Codex policy and bounded timeout", async () => {
+test("code-builder uses read-only Codex proposal and JARVIS allowlisted apply", async () => {
   const source = await readFile(service, "utf8");
-  assert.match(source, /"exec"/);
-  assert.match(source, /"--sandbox", "workspace-write"/);
-  assert.ok(
-    source.indexOf('"exec"') < source.indexOf('"--sandbox", "workspace-write"'),
-    "Codex exec subcommand must precede exec sandbox options",
-  );
-  assert.doesNotMatch(source, /"--ask-for-approval", "never"/);
-  assert.match(source, /"--ephemeral"/);
-  assert.match(source, /"--ignore-user-config"/);
-  assert.match(source, /"--ignore-rules"/);
-  assert.doesNotMatch(source, /"--full-auto"/);
+  assert.match(source, /"--sandbox", "read-only"/);
+  assert.match(source, /"--output-schema"/);
+  assert.match(source, /"--output-last-message"/);
+  assert.match(source, /"executionMode":?/);
+  assert.match(source, /codex-read-only-proposal-jarvis-apply/);
+  assert.match(source, /allowed\.has\(proposed\.path\)/);
+  assert.match(source, /writeFile\(resolve\(workspace, proposed\.path\), proposed\.content/);
+  assert.doesNotMatch(source, /"--sandbox", "workspace-write"/);
   assert.match(source, /CODE_BUILDER_EXEC_TIMEOUT_MS/);
-  assert.ok(source.includes('windows.sandbox="unelevated"'));
-  assert.ok(source.includes('.join(" | ")'));
-  assert.match(source, /stdio: \["ignore", "pipe", "pipe"\]/);
-  assert.match(source, /timedOut/);
+  assert.match(source, /stdio: \["pipe", "pipe", "pipe"\]/);
 });
 
 test("Windows installer propagates code-builder execution timeout", async () => {
