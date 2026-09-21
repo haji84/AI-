@@ -12,3 +12,4 @@ export * from "./worker-auth.ts";
 export * from "./sqlite-state-store.ts";
 export * from "./state-backup.ts";
 export * from "./state-restore.ts";
+export * from "./fleet-goal-evidence.ts";
