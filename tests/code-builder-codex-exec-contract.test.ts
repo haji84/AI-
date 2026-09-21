@@ -39,7 +39,7 @@ test("Builder timeout is recoverable and Windows process trees are terminated", 
   assert.match(source, /taskkill\.exe/);
   assert.match(source, /result\.timedOut/);
   assert.match(source, /timed out after/);
-  assert.match(source, /result\.timedOut\s*\?\s*undefined/);
+  assert.match(source, /result\.code === 0 \|\| transientEngineFailure/);
 });
 
 
