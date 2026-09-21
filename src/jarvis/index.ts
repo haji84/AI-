@@ -11,3 +11,4 @@ export * from "./control-plane.ts";
 export * from "./worker-auth.ts";
 export * from "./sqlite-state-store.ts";
 export * from "./state-backup.ts";
+export * from "./state-restore.ts";
