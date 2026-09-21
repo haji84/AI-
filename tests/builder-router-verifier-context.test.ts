@@ -31,5 +31,7 @@ test("BuilderRouter strips trusted verification oracle from Builder context", as
     },
   ]);
   assert.equal(result.ok, true);
-  assert.ok(observed);\n  const captured = observed as BuilderRequest;\n  assert.deepEqual(captured.context.map((item: { source: string }) => item.source), ["normal"]);
+  assert.ok(observed);
+  const captured = observed as BuilderRequest;
+  assert.deepEqual(captured.context.map((item: { source: string }) => item.source), ["normal"]);
 });
