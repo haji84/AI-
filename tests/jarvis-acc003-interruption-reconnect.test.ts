@@ -67,7 +67,7 @@ test("ACC-003 Android polling survives temporary network failures and resumes wi
   assert.match(service, /while \(running\.get\(\)\)/);
   assert.match(service, /client\.heartbeat\(\)/);
   assert.match(service, /client\.nextTask\(\)/);
-  assert.match(service, /catch \(_: Throwable\) \{\s*\/\/ Keep the foreground service alive across temporary network\/Broker failures\./s);
+  assert.match(service, /catch \(_: Throwable\) \{\s*\/\/ Keep the foreground service alive across temporary network\/Broker failures\./);
   assert.doesNotMatch(service, /enrollFromPairingWindow|\.enroll\(|\.enrollGrant\(/);
 });
 
