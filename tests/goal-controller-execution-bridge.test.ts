@@ -49,8 +49,8 @@ test("goal continuation automatically advances across routine bounded runs until
   const adapter: GoalExecutionAdapter = {
     async run() {
       calls += 1;
-      if (calls < 3) return { cycles: [], stopReason: "cycle_budget_exhausted", goalEvaluation: { achieved: false, reason: "remaining work" } };
-      return { cycles: [], stopReason: "goal_complete", goalEvaluation: { achieved: true, reason: "done" } };
+      if (calls < 3) return { cycles: [], stopReason: "cycle_budget_exhausted", goalEvaluation: { achieved: false, reason: "remaining work", verifiedRequired: [], failedRequired: [], unverifiedRequired: ["remaining"], blockers: [], remainingGaps: ["remaining"] } };
+      return { cycles: [], stopReason: "goal_complete", goalEvaluation: { achieved: true, reason: "done", verifiedRequired: ["done"], failedRequired: [], unverifiedRequired: [], blockers: [], remainingGaps: [] } };
     },
   };
   const result = await new GoalControllerExecutionBridge(adapter).executeUntilGoalTerminal(decision("CONTINUE_GOAL", "goal-1"));
@@ -64,7 +64,7 @@ test("goal continuation stops at a real human gate", async () => {
   const adapter: GoalExecutionAdapter = {
     async run() {
       calls += 1;
-      return { cycles: [], stopReason: "human_gate", goalEvaluation: { achieved: false, reason: "approval required" } };
+      return { cycles: [], stopReason: "approval_required", goalEvaluation: { achieved: false, reason: "approval required" } };
     },
   };
   const result = await new GoalControllerExecutionBridge(adapter).executeUntilGoalTerminal(decision("CONTINUE_GOAL", "goal-1"));
@@ -77,7 +77,7 @@ test("goal continuation has a bounded stagnation guard", async () => {
   const adapter: GoalExecutionAdapter = {
     async run() {
       calls += 1;
-      return { cycles: [], stopReason: "cycle_budget_exhausted", goalEvaluation: { achieved: false, reason: "remaining work" } };
+      return { cycles: [], stopReason: "cycle_budget_exhausted", goalEvaluation: { achieved: false, reason: "remaining work", verifiedRequired: [], failedRequired: [], unverifiedRequired: ["remaining"], blockers: [], remainingGaps: ["remaining"] } };
     },
   };
   const result = await new GoalControllerExecutionBridge(adapter).executeUntilGoalTerminal(decision("CONTINUE_GOAL", "goal-1"), { maxRuns: 3 });
