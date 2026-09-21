@@ -58,11 +58,17 @@ test("ACC-002 fails closed on missing task, wrong node, inactive task, mismatch,
   assert.equal(verifyWorkerTaskResult(runningTask({ type: "future-task" }), "android-1", {}).reason, "no-host-verifier-for-task-type");
 });
 
-test("ACC-002 Broker completion path must use host verification rather than worker ok alone", async () => {
-  const source = await readFile(new URL("../scripts/jarvis-broker.ts", import.meta.url), "utf8");
-  const resultRoute = source.slice(source.indexOf('path === "/api/jarvis/worker/result"'), source.indexOf('return json(response, 404, { message: "unknown worker route" })'));
-  assert.match(resultRoute, /verifyWorkerTaskResult\(/);
-  assert.doesNotMatch(resultRoute, /payload\.ok \? plane\.completeTask/);
-  assert.match(resultRoute, /verification\.pass/);
-  assert.match(resultRoute, /result verification failed/);
+test("ACC-002 signed Broker success cannot complete until the host verifier passes", async () => {
+  const [broker, controlPlane] = await Promise.all([
+    readFile(new URL("../scripts/jarvis-broker.ts", import.meta.url), "utf8"),
+    readFile(new URL("../src/jarvis/control-plane.ts", import.meta.url), "utf8"),
+  ]);
+  const resultRoute = broker.slice(broker.indexOf('path === "/api/jarvis/worker/result"'), broker.indexOf('return json(response, 404, { message: "unknown worker route" })'));
+  const completion = controlPlane.slice(controlPlane.indexOf("completeTask("), controlPlane.indexOf("failTask("));
+
+  assert.match(resultRoute, /payload\.ok \? plane\.completeTask/);
+  assert.match(completion, /verifyWorkerTaskResult\(task, nodeId, result \?\? \{\}\)/);
+  assert.match(completion, /if \(!verification\.pass\)/);
+  assert.match(completion, /Task result verification failed/);
+  assert.ok(completion.indexOf("verifyWorkerTaskResult") < completion.indexOf("this.queue.complete"));
 });
