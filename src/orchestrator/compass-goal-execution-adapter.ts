@@ -7,6 +7,7 @@ import { runBoundedGoalLoop, type BoundedRunReport } from "./bounded-runner.ts";
 import { CapabilityRegistry } from "./capabilities.ts";
 import { CompassStateStoreAdapter, compassGoalToLoopGoal } from "./compass-state-store.ts";
 import { CompassWorkStateStoreAdapter } from "./compass-work-state-store.ts";
+import { evaluateGoalFromWorkState } from "./goal-evaluator.ts";
 import type { ContextItem, ContextSource, Verifier } from "./goal-loop.ts";
 import type { GoalExecutionAdapter } from "./goal-controller-execution-bridge.ts";
 import { createWorkStateIntegratedGoalLoop, goalWorkStateId } from "./work-state-integration.ts";
@@ -60,6 +61,7 @@ export class CompassGoalExecutionAdapter implements GoalExecutionAdapter {
           return { ok: result.ok, summary: result.ok ? "Capability execution verified" : result.summary, evidence: result.evidence };
         },
       };
+      const workStateStore = new CompassWorkStateStoreAdapter(compass);
       const loop = createWorkStateIntegratedGoalLoop({
         goal,
         planner: new RuntimeDevelopmentPlanner(new BaselinePlanner()),
@@ -67,9 +69,13 @@ export class CompassGoalExecutionAdapter implements GoalExecutionAdapter {
         executor: registry,
         verifier,
         stateStore: new CompassStateStoreAdapter(compass),
-        workStateStore: new CompassWorkStateStoreAdapter(compass),
+        workStateStore,
       });
-      return await runBoundedGoalLoop(loop, goal, { maxCycles: input.maxCycles ?? 3 });
+      const report = await runBoundedGoalLoop(loop, goal, { maxCycles: input.maxCycles ?? 3 });
+      const workState = await workStateStore.get(authoritativeGoalId);
+      return workState
+        ? { ...report, goalEvaluation: evaluateGoalFromWorkState(workState) }
+        : report;
     } finally {
       compass.close();
     }
