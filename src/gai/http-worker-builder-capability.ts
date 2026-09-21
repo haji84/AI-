@@ -43,8 +43,28 @@ export class HttpWorkerBuilderCapability implements BuilderCapability {
       const payload = await response.json().catch(() => null) as {
         ok?: boolean; summary?: string; blocker?: string; evidence?: unknown;
       } | null;
-      if (!response.ok || !payload) {
-        return { actionId: request.attemptId, ok: false, summary: `Builder HTTP ${response.status}`, blocker: "http_code_builder_error" };
+      if (!payload) {
+        return {
+          actionId: request.attemptId,
+          ok: false,
+          summary: `Builder HTTP ${response.status} returned no JSON payload`,
+          blocker: "http_code_builder_error",
+          evidence: { builderId: this.id, strategyId: request.strategyId, status: response.status },
+        };
+      }
+      if (!response.ok) {
+        return {
+          actionId: request.attemptId,
+          ok: false,
+          summary: payload.summary ?? `Builder HTTP ${response.status}`,
+          blocker: payload.blocker ?? "http_code_builder_error",
+          evidence: {
+            builderId: this.id,
+            strategyId: request.strategyId,
+            status: response.status,
+            remoteEvidence: payload.evidence ?? null,
+          },
+        };
       }
       return {
         actionId: request.attemptId,
