@@ -9,6 +9,10 @@ test("code-builder uses explicit noninteractive Codex policy and bounded timeout
   const source = await readFile(service, "utf8");
   assert.match(source, /"--sandbox", "workspace-write"/);
   assert.match(source, /"--ask-for-approval", "never"/);
+  assert.ok(
+    source.indexOf('"--ask-for-approval", "never"') < source.indexOf('"exec"'),
+    "approval flag must be placed before the exec subcommand",
+  );
   assert.match(source, /"--ephemeral"/);
   assert.match(source, /"--ignore-user-config"/);
   assert.doesNotMatch(source, /"--full-auto"/);
