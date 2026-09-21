@@ -36,6 +36,15 @@ export interface DurableRunJournal {
   nextAction: string | null;
 }
 
+export interface ProductionVerificationHistoryEntry {
+  cycle: number;
+  observedAt: string;
+  ok: boolean;
+  summary: string;
+  actionId: string | null;
+  actionDescription: string | null;
+}
+
 export interface ProductionRunRecord {
   runId: string;
   goal: Goal;
@@ -43,6 +52,7 @@ export interface ProductionRunRecord {
   cycles: number;
   lastReport?: CycleReport;
   completionEvidence: unknown[];
+  verificationHistory?: ProductionVerificationHistoryEntry[];
   recoveryBudget?: DurableRecoveryBudget;
   journal?: DurableRunJournal;
   updatedAt: string;
@@ -61,6 +71,7 @@ export interface ProductionAutonomyOptions {
 
 const DEFAULT_MAX_CONSECUTIVE_NON_PROGRESS_CYCLES = 9;
 const MAX_JOURNAL_ENTRIES = 50;
+const MAX_VERIFICATION_HISTORY_ENTRIES = 200;
 
 function pushBounded(list: string[], value: string): void {
   const normalized = value.trim();
@@ -76,6 +87,31 @@ function normalizeJournalEntries(value: unknown): string[] {
     .filter((item): item is string => typeof item === "string" && item.trim().length > 0)
     .map((item) => item.trim())
     .slice(-MAX_JOURNAL_ENTRIES);
+}
+
+function isVerificationHistoryEntry(value: unknown): value is ProductionVerificationHistoryEntry {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const candidate = value as Partial<ProductionVerificationHistoryEntry>;
+  return Number.isInteger(candidate.cycle)
+    && (candidate.cycle ?? 0) >= 1
+    && typeof candidate.observedAt === "string"
+    && Number.isFinite(Date.parse(candidate.observedAt))
+    && typeof candidate.ok === "boolean"
+    && typeof candidate.summary === "string"
+    && candidate.summary.trim().length > 0
+    && (candidate.actionId === null || (typeof candidate.actionId === "string" && candidate.actionId.trim().length > 0))
+    && (candidate.actionDescription === null || (typeof candidate.actionDescription === "string" && candidate.actionDescription.trim().length > 0));
+}
+
+function sanitizeVerificationHistoryEntry(entry: ProductionVerificationHistoryEntry): ProductionVerificationHistoryEntry {
+  return {
+    cycle: entry.cycle,
+    observedAt: entry.observedAt,
+    ok: entry.ok,
+    summary: entry.summary.trim(),
+    actionId: entry.actionId?.trim() ?? null,
+    actionDescription: entry.actionDescription?.trim() ?? null,
+  };
 }
 
 function cycleCurrentState(report: CycleReport): string {
@@ -168,6 +204,7 @@ export class ProductionAutonomyRuntime {
     };
     this.#ensureRecoveryBudget(record);
     this.#ensureJournal(record);
+    this.#ensureVerificationHistory(record);
     this.#upsert(record);
     const loop = this.loopFactory(input.runId);
     const maxCycles = input.maxCycles ?? 25;
@@ -175,8 +212,9 @@ export class ProductionAutonomyRuntime {
     while (record.cycles < maxCycles) {
       const report = await loop.runCycle({ goal: record.goal });
       record.cycles += 1;
-      record.lastReport = report;
       record.updatedAt = new Date().toISOString();
+      this.#recordVerificationHistory(record, report);
+      record.lastReport = report;
       this.#recordJournal(record, report);
 
       if (report.verification?.ok) {
@@ -219,6 +257,7 @@ export class ProductionAutonomyRuntime {
     if (record) {
       this.#ensureRecoveryBudget(record);
       this.#ensureJournal(record);
+      this.#ensureVerificationHistory(record);
     }
     return record;
   }
@@ -276,6 +315,37 @@ export class ProductionAutonomyRuntime {
     return normalized;
   }
 
+  #ensureVerificationHistory(record: ProductionRunRecord): ProductionVerificationHistoryEntry[] {
+    const current = record.verificationHistory;
+    if (current === undefined) {
+      record.verificationHistory = [];
+      return record.verificationHistory;
+    }
+    if (!Array.isArray(current) || !current.every(isVerificationHistoryEntry)) {
+      throw new Error("invalid production verification history");
+    }
+    record.verificationHistory = current
+      .slice(-MAX_VERIFICATION_HISTORY_ENTRIES)
+      .map(sanitizeVerificationHistoryEntry);
+    return record.verificationHistory;
+  }
+
+  #recordVerificationHistory(record: ProductionRunRecord, report: CycleReport): void {
+    if (!report.verification) return;
+    const history = this.#ensureVerificationHistory(record);
+    history.push({
+      cycle: record.cycles,
+      observedAt: record.updatedAt,
+      ok: report.verification.ok,
+      summary: report.verification.summary.trim(),
+      actionId: report.action?.id?.trim() || null,
+      actionDescription: report.action?.description?.trim() || null,
+    });
+    if (history.length > MAX_VERIFICATION_HISTORY_ENTRIES) {
+      history.splice(0, history.length - MAX_VERIFICATION_HISTORY_ENTRIES);
+    }
+  }
+
   #recordJournal(record: ProductionRunRecord, report: CycleReport): void {
     const journal = this.#ensureJournal(record);
     journal.goal = record.goal.title;
@@ -326,6 +396,7 @@ export class ProductionAutonomyRuntime {
       this.#runs = (parsed.runs ?? []).map((record) => {
         this.#ensureRecoveryBudget(record);
         this.#ensureJournal(record);
+        this.#ensureVerificationHistory(record);
         return record;
       });
     }
