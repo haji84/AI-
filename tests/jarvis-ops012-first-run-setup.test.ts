@@ -40,6 +40,7 @@ test("OPS-012 integrates host, connection, and permission readiness without inve
   assert.equal(setup.overall, "ready");
   assert.deepEqual(setup.steps.map((step) => step.id), ["host", "connection", "permission"]);
   assert.equal(setup.steps.every((step) => step.state === "ready"), true);
+  assert.equal(setup.steps.find((step) => step.id === "permission")?.actionHref, "/jarvis/enroll");
   assert.equal(setup.steps.some((step) => step.diagnosticCodes.includes("FIRMWARE_GATE")), false);
   assert.equal(setup.steps.some((step) => step.diagnosticCodes.includes("HUMAN_GATE")), false);
 });
@@ -74,6 +75,5 @@ test("OPS-012 setup surface is read-only and uses canonical diagnostics instead 
   assert.doesNotMatch(page, /method\s*:\s*["'](?:POST|PUT|PATCH|DELETE)["']/i);
   assert.doesNotMatch(page, /\/api\/jarvis\/action/);
   assert.match(page, /buildJarvisFirstRunSetup/);
-  assert.match(page, /\/jarvis\/enroll/);
   assert.match(home, /href=["']\/jarvis\/setup["']/);
 });
