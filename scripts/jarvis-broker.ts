@@ -20,7 +20,11 @@ import { JarvisEnrollmentPairingWindow } from "../src/jarvis/enrollment-pairing-
 import { JarvisDeviceReplacementTransport } from "../src/jarvis/device-replacement-transport.ts";
 import { WorkerRemoteMailbox } from "../src/jarvis/worker-remote-mailbox.ts";
 import { remoteDeviceInventory } from "../src/jarvis/remote-device-inventory.ts";
-import { PendingEnrollment } from "../src/jarvis/pending-enrollment.ts";\nimport { CompassStore } from "../src/compass/store.ts";\nimport { GoalControllerRuntime } from "../src/orchestrator/goal-controller-runtime.ts";\nimport { CompassGoalRegistryAdapter, CompassGoalDecisionStoreAdapter } from "../src/orchestrator/compass-goal-controller.ts";\n
+import { PendingEnrollment } from "../src/jarvis/pending-enrollment.ts";
+import { CompassStore } from "../src/compass/store.ts";
+import { GoalControllerRuntime } from "../src/orchestrator/goal-controller-runtime.ts";
+import { CompassGoalRegistryAdapter, CompassGoalDecisionStoreAdapter } from "../src/orchestrator/compass-goal-controller.ts";
+
 
 const host = process.env.JARVIS_BROKER_HOST?.trim() || "127.0.0.1";
 const port = Number(process.env.JARVIS_BROKER_PORT || 8787);
@@ -41,7 +45,8 @@ if (host !== "127.0.0.1" && host !== "::1" && process.env.JARVIS_ALLOW_NON_LOOPB
 }
 
 const plane = new JarvisControlPlane();
-const store = new JarvisSqliteStateStore(process.env.JARVIS_DB_PATH?.trim() || undefined);\nconst compass = new CompassStore(process.env.JARVIS_COMPASS_DB_PATH?.trim() || resolve(".jarvis/compass.db"));
+const store = new JarvisSqliteStateStore(process.env.JARVIS_DB_PATH?.trim() || undefined);
+const compass = new CompassStore(process.env.JARVIS_COMPASS_DB_PATH?.trim() || resolve(".jarvis/compass.db"));
 const goalController = new GoalControllerRuntime({
   registry: new CompassGoalRegistryAdapter(compass),
   decisionStore: new CompassGoalDecisionStoreAdapter(compass),
@@ -259,7 +264,8 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
   if (path.startsWith("/api/jarvis/admin/")) {
     if (!requireOwner(request)) return json(response, 401, { message: "owner authorization required" });
     const payload = parseJson(body);
-    if (method === "GET" && path === "/api/jarvis/admin/state") return json(response, 200, plane.snapshot());\n    if (method === "POST" && path === "/api/jarvis/admin/work") {
+    if (method === "GET" && path === "/api/jarvis/admin/state") return json(response, 200, plane.snapshot());
+    if (method === "POST" && path === "/api/jarvis/admin/work") {
       try {
         const payload = parseJson(await readBody(request, 64_000));
         const text = typeof payload.text === "string" ? payload.text.trim() : "";
