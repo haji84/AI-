@@ -80,7 +80,7 @@ function safeWorkspacePath(path: string): boolean {
   return !isAbsolute(rel) && rel !== ".." && !rel.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`);
 }
 
-function run(command: string, args: string[], timeoutMs = executionTimeoutMs): Promise<{ code: number | null; stdout: string; stderr: string; timedOut: boolean }> {
+function run(command: string, args: string[], timeoutMs = executionTimeoutMs, stdinInput?: string): Promise<{ code: number | null; stdout: string; stderr: string; timedOut: boolean }> {
   return new Promise((done) => {
     const extension = extname(command).toLowerCase();
     const invocation = process.platform === "win32" && extension === ".ps1"
@@ -88,13 +88,16 @@ function run(command: string, args: string[], timeoutMs = executionTimeoutMs): P
       : process.platform === "win32" && (extension === ".cmd" || extension === ".bat")
         ? { command: process.env.ComSpec || "cmd.exe", args: ["/d", "/s", "/c", command, ...args] }
         : { command, args };
-    const child = spawn(invocation.command, invocation.args, { cwd: workspace, windowsHide: true, shell: false, env: process.env, stdio: ["ignore", "pipe", "pipe"] });
+    const child = spawn(invocation.command, invocation.args, { cwd: workspace, windowsHide: true, shell: false, env: process.env, stdio: [stdinInput === undefined ? "ignore" : "pipe", "pipe", "pipe"] });
     let stdout = "";
     let stderr = "";
     let timedOut = false;
     const timer = setTimeout(() => { timedOut = true; child.kill(); }, timeoutMs);
     child.stdout?.on("data", (chunk) => { stdout += String(chunk).slice(0, 100_000); });
     child.stderr?.on("data", (chunk) => { stderr += String(chunk).slice(0, 100_000); });
+    if (stdinInput !== undefined && child.stdin) {
+      child.stdin.end(stdinInput);
+    }
     child.once("error", (error) => { clearTimeout(timer); done({ code: -1, stdout, stderr: String(error), timedOut }); });
     child.once("exit", (code) => { clearTimeout(timer); done({ code, stdout, stderr, timedOut }); });
   });
@@ -135,10 +138,12 @@ async function runBuild(body: Record<string, unknown>) {
         "--ephemeral",
         "--ignore-user-config",
         "--ignore-rules",
-        prompt,
+        "-",
       ]
     : ["--yes-always", "--message", prompt];
-  const result = await run(engine.command, args);
+  const result = engine.id === "codex"
+    ? await run(engine.command, args, executionTimeoutMs, prompt)
+    : await run(engine.command, args);
   const diff = await run("git", ["diff", "--stat"]);
   return {
     status: result.code === 0 ? 200 : 502,

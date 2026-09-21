@@ -20,7 +20,16 @@ jobs:
         continue-on-error: true
         shell: powershell
         run: |
-          .\scripts\install-code-builder-windows.ps1 -WorkerId 'zbook' -Workspace "$env:GITHUB_WORKSPACE" -ExecTimeoutMs 120000
+          $e2eWorkspace = Join-Path $env:LOCALAPPDATA 'GAIWorker\real-builder-e2e-workspace'
+          Remove-Item $e2eWorkspace -Recurse -Force -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force -Path (Join-Path $e2eWorkspace 'tests\fixtures') | Out-Null
+          Copy-Item "$env:GITHUB_WORKSPACE\tests\fixtures\autonomous-builder-e2e.txt" (Join-Path $e2eWorkspace 'tests\fixtures\autonomous-builder-e2e.txt') -Force
+          & git -C $e2eWorkspace init
+          & git -C $e2eWorkspace config user.name 'JARVIS E2E'
+          & git -C $e2eWorkspace config user.email 'jarvis-e2e@local.invalid'
+          & git -C $e2eWorkspace add tests/fixtures/autonomous-builder-e2e.txt
+          & git -C $e2eWorkspace commit -m 'baseline'
+          .\scripts\install-code-builder-windows.ps1 -WorkerId 'zbook' -Workspace $e2eWorkspace -ExecTimeoutMs 120000
           $codexVersion = (& cmd.exe /d /c "codex --version 2>&1" | Out-String).Trim()
           $codexVersionExit = $LASTEXITCODE
           Write-Host "Codex version: $codexVersion"
@@ -37,10 +46,12 @@ jobs:
           if (-not (@($health.capabilities) -contains 'code-builder')) { throw 'PowerShell health probe did not expose code-builder' }
           $env:CODE_BUILDER_URL = 'http://127.0.0.1:8796'
           $env:CODE_BUILDER_TOKEN = $token
+          $env:CODE_BUILDER_TEST_WORKSPACE = $e2eWorkspace
           & node .\scripts\real-builder-recovery-e2e.ts
           $exit = $LASTEXITCODE
           Remove-Item Env:CODE_BUILDER_TOKEN -ErrorAction SilentlyContinue
           Remove-Item Env:CODE_BUILDER_URL -ErrorAction SilentlyContinue
+          Remove-Item Env:CODE_BUILDER_TEST_WORKSPACE -ErrorAction SilentlyContinue
           if ($exit -ne 0) { exit $exit }
       - name: Capture real Builder evidence
         if: always()
