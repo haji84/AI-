@@ -21,7 +21,9 @@ test("code-builder uses explicit noninteractive Codex policy and bounded timeout
   assert.match(source, /CODE_BUILDER_EXEC_TIMEOUT_MS/);
   assert.ok(source.includes('windows.sandbox="unelevated"'));
   assert.ok(source.includes('.join(" | ")'));
-  assert.match(source, /stdio: \["ignore", "pipe", "pipe"\]/);
+  assert.match(source, /stdio: \[stdinInput === undefined \? "ignore" : "pipe", "pipe", "pipe"\]/);
+  assert.match(source, /child\.stdin\.end\(stdinInput\)/);
+  assert.match(source, /"--ignore-rules",\s*"-"/);
   assert.match(source, /timedOut/);
 });
 
