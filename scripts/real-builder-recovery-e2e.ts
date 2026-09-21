@@ -12,16 +12,18 @@ const execFileAsync = promisify(execFile);
 const endpoint = process.env.CODE_BUILDER_URL?.trim() || "http://127.0.0.1:8796";
 const token = process.env.CODE_BUILDER_TOKEN?.trim() || "";
 const fixture = "tests/fixtures/autonomous-builder-e2e.txt";
-const evidencePath = resolve(process.cwd(), ".gai-results", "real-builder-e2e.json");
+const repoRoot = process.cwd();
+const testWorkspace = resolve(process.env.CODE_BUILDER_TEST_WORKSPACE?.trim() || repoRoot);
+const evidencePath = resolve(repoRoot, ".gai-results", "real-builder-e2e.json");
 
 if (!token) throw new Error("CODE_BUILDER_TOKEN is required");
 
 async function git(args: string[]) {
-  return execFileAsync("git", args, { cwd: process.cwd(), windowsHide: true });
+  return execFileAsync("git", args, { cwd: testWorkspace, windowsHide: true });
 }
 
 async function fixtureValue() {
-  return (await readFile(resolve(process.cwd(), fixture), "utf8")).trim();
+  return (await readFile(resolve(testWorkspace, fixture), "utf8")).trim();
 }
 
 async function changedFiles(): Promise<string[]> {
@@ -94,6 +96,7 @@ const evidence: Record<string, unknown> = {
   goalId: "goal-real-builder-e2e",
   startedAt: new Date().toISOString(),
   endpoint,
+  testWorkspace,
   attempts: [],
 };
 
