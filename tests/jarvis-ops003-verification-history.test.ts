@@ -105,7 +105,11 @@ test("OPS-003 fails closed on malformed persisted verification history", async (
     version: 1,
     runs: [{
       runId: "bad-run",
-      goal: { title: "bad history" },
+      goal: { title: "bad history", successCriteria: ["verified"], constraints: [] },
+      state: "running",
+      cycles: 1,
+      completionEvidence: [],
+      updatedAt: "2026-09-21T09:00:00.000Z",
       verificationHistory: [{
         cycle: 1,
         observedAt: "not-a-date",
