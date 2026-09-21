@@ -35,7 +35,7 @@ try {
 }
 
 const adapter = new CompassGoalExecutionAdapter(dbPath);
-const report = await adapter.run(goalId, { maxCycles: 1 });
+const report = await adapter.run(goalId, { maxCycles: 2 });
 const cycle = report.cycles[0];
 const actual = (await readFile(resolve(workspace, fixture), "utf8")).trim();
 
@@ -46,7 +46,12 @@ const evidence = {
   resultOk: cycle?.result?.ok ?? false,
   actual,
   expected: "runtime-daily",
-  passed: cycle?.action?.capability === "code.builder" && cycle?.result?.ok === true && actual === "runtime-daily",
+  goalEvaluation: report.goalEvaluation ?? null,
+  passed: cycle?.action?.capability === "code.builder"
+    && cycle?.result?.ok === true
+    && actual === "runtime-daily"
+    && report.stopReason === "goal_complete"
+    && report.goalEvaluation?.achieved === true,
   checkedAt: new Date().toISOString(),
 };
 
