@@ -75,13 +75,20 @@ export function verifySpreadsheet(workbook: SpreadsheetWorkbook, contract: WorkV
   }
   const expected = Array.isArray(contract.spec.cells) ? contract.spec.cells as SpreadsheetCell[] : [];
   const actual = new Map(workbook.cells.map((cell) => [key(cell), cell]));
-  const mismatches: Array<{ resource: string; reason: string; expected: unknown; actual?: unknown }> = [];\n  for (const cell of expected) {
+  const mismatches: Array<{ resource: string; reason: string; expected: unknown; actual?: unknown }> = [];
+  for (const cell of expected) {
     const found = actual.get(key(cell));
-    if (!found) return [{ resource: key(cell), reason: "missing", expected: cell }];
-    if (cell.formula !== undefined && found.formula !== cell.formula) return [{ resource: key(cell), reason: "formula", expected: cell.formula, actual: found.formula }];
-    if (cell.value !== undefined && found.value !== cell.value) return [{ resource: key(cell), reason: "value", expected: cell.value, actual: found.value }];
-    return [];
-  });
+    if (!found) {
+      mismatches.push({ resource: key(cell), reason: "missing", expected: cell });
+      continue;
+    }
+    if (cell.formula !== undefined && found.formula !== cell.formula) {
+      mismatches.push({ resource: key(cell), reason: "formula", expected: cell.formula, actual: found.formula });
+    }
+    if (cell.value !== undefined && found.value !== cell.value) {
+      mismatches.push({ resource: key(cell), reason: "value", expected: cell.value, actual: found.value });
+    }
+  }
   return {
     ok: mismatches.length === 0,
     summary: mismatches.length === 0 ? "spreadsheet verification passed" : `spreadsheet verification failed: ${mismatches.length} mismatch(es)`,
