@@ -19,3 +19,20 @@ test("HTTP code builder verifies health capability and executes bounded build", 
   assert.equal(result.ok, true);
   assert.deepEqual(calls, ["https://worker.example/health", "https://worker.example/build"]);
 });
+
+
+test("HTTP code builder preserves structured remote failure evidence", async () => {
+  const fetchImpl: typeof fetch = async () => new Response(JSON.stringify({
+    ok: false,
+    summary: "codex failed with exit 2",
+    blocker: "CODING_ENGINE_FAILED",
+    evidence: { exitCode: 2, stderrTail: "unexpected argument" },
+  }), { status: 502 });
+  const builder = new HttpWorkerBuilderCapability("zbook", { url: "https://worker.example", token: "secret" }, fetchImpl);
+  const result = await builder.build({ goalId: "g", attemptId: "a1", strategyId: "s1", objective: "change fixture", context: [] });
+  assert.equal(result.ok, false);
+  assert.equal(result.summary, "codex failed with exit 2");
+  assert.equal(result.blocker, "CODING_ENGINE_FAILED");
+  assert.equal((result.evidence as { status: number }).status, 502);
+  assert.deepEqual((result.evidence as { remoteEvidence: unknown }).remoteEvidence, { exitCode: 2, stderrTail: "unexpected argument" });
+});
