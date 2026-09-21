@@ -6,6 +6,7 @@ import test from "node:test";
 
 import { JarvisRemoteAssistFrameRecorder } from "../src/jarvis/remote-assist-recording.ts";
 
+// SEC-016 regression coverage is intentionally runtime-neutral: this suite proves existing fail-closed boundaries.
 test("SEC-016 fails closed before capture or storage when recording audit admission fails", () => {
   const root = mkdtempSync(join(tmpdir(), "jarvis-sec016-audit-"));
   let captures = 0;
