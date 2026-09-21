@@ -16,4 +16,7 @@ test("ZBook code-builder installer launches Node immediately and preserves logon
   assert.match(source, /Resolve-PreferredEnginePath/);
   assert.match(source, /ChangeExtension\(\$source, 'cmd'\)/);
   assert.doesNotMatch(source, /Start-ScheduledTask -TaskName \$taskName/);
+  assert.equal((source.match(/function Resolve-PreferredEnginePath/g) ?? []).length, 1);
+  assert.equal((source.match(/\$launcherLines = @\(/g) ?? []).length, 1);
+  assert.equal((source.match(/installedAt =/g) ?? []).length, 1);
 });
