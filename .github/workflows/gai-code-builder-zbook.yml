@@ -37,8 +37,12 @@ jobs:
           New-Item -ItemType Directory -Force -Path .gai-results | Out-Null
           Copy-Item "$env:LOCALAPPDATA\GAIWorker\code-builder\install-status.json" .gai-results\ -Force -ErrorAction SilentlyContinue
           Copy-Item "$env:LOCALAPPDATA\GAIWorker\code-builder\worker.log" .gai-results\ -Force -ErrorAction SilentlyContinue
+          Copy-Item "$env:LOCALAPPDATA\GAIWorker\code-builder\worker.stdout.log" .gai-results\ -Force -ErrorAction SilentlyContinue
+          Copy-Item "$env:LOCALAPPDATA\GAIWorker\code-builder\worker.stderr.log" .gai-results\ -Force -ErrorAction SilentlyContinue
           if (Test-Path .gai-results\install-status.json) { Get-Content .gai-results\install-status.json }
           if (Test-Path .gai-results\worker.log) { Get-Content .gai-results\worker.log -Tail 80 }
+          if (Test-Path .gai-results\worker.stdout.log) { Get-Content .gai-results\worker.stdout.log -Tail 80 }
+          if (Test-Path .gai-results\worker.stderr.log) { Get-Content .gai-results\worker.stderr.log -Tail 120 }
       - name: Upload evidence
         if: always()
         uses: actions/upload-artifact@v4
