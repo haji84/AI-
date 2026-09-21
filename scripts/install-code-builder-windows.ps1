@@ -41,13 +41,12 @@ function Resolve-PreferredEnginePath {
   param([System.Management.Automation.CommandInfo]$Command)
 
   $source = [string]$Command.Source
-  if ($source -match '\.cmd$') {
-    $ps1Sibling = [IO.Path]::ChangeExtension($source, 'ps1')
-    if (Test-Path $ps1Sibling) {
-      return $ps1Sibling
+  if ($source -match '\.ps1$') {
+    $cmdSibling = [IO.Path]::ChangeExtension($source, 'cmd')
+    if (Test-Path $cmdSibling) {
+      return $cmdSibling
     }
   }
-
   return $source
 }
 
