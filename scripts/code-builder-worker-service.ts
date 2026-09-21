@@ -128,7 +128,15 @@ async function runBuild(body: Record<string, unknown>) {
   ].join(" | ");
 
   const args = engine.id === "codex"
-    ? ["--sandbox", "workspace-write", "--ask-for-approval", "never", "exec", "--ephemeral", "--ignore-user-config", prompt]
+    ? [
+        ...(process.platform === "win32" ? ["-c", 'windows.sandbox="unelevated"'] : []),
+        "--sandbox", "workspace-write",
+        "--ask-for-approval", "never",
+        "exec",
+        "--ephemeral",
+        "--ignore-user-config",
+        prompt,
+      ]
     : ["--yes-always", "--message", prompt];
   const result = await run(engine.command, args);
   const diff = await run("git", ["diff", "--stat"]);
