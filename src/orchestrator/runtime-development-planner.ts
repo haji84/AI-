@@ -14,6 +14,11 @@ function nextAction(context: ContextItem[]): string | null {
   return null;
 }
 
+function extractFiles(value: string): string[] {
+  const matches = value.match(/(?:src|tests|scripts|docs)\/[A-Za-z0-9_./-]+/g) ?? [];
+  return [...new Set(matches.map((item) => item.replace(/[),.;:]+$/, "")))].slice(0, 20);
+}
+
 function failureSignature(result?: ActionResult | null): string[] {
   if (!result || result.ok) return [];
   const detail = (result.blocker || result.summary || "unknown-failure")
@@ -58,6 +63,7 @@ export class RuntimeDevelopmentPlanner implements Planner {
     const recovery = input.previousResult && !input.previousResult.ok;
     const now = Date.now();
     const objective = next || input.goal.description?.trim() || input.goal.title;
+    const files = extractFiles(scope);
     return {
       id: `runtime-builder:${now}`,
       description: objective,
@@ -72,6 +78,7 @@ export class RuntimeDevelopmentPlanner implements Planner {
         objective: recovery
           ? `${objective}. Previous attempt failed: ${input.previousResult?.summary ?? "unknown failure"}. Use a materially different implementation strategy.`
           : objective,
+        ...(files.length > 0 ? { files } : {}),
         previousFailureSignatures: failureSignature(input.previousResult),
       },
     };
