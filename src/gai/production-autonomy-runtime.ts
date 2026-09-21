@@ -4,6 +4,7 @@ import type { CycleReport, Goal, GoalDrivenLoop } from "../orchestrator/goal-loo
 
 export type ProductionRunState = "running" | "waiting" | "approval-required" | "blocked" | "completed";
 export type ProductionFailureKind = "execution" | "verification" | "terminal";
+export type ProductionRecoveryAction = "retry_same" | "repair" | "strategy_pivot" | "blocked";
 
 export interface ProductionReadinessEvidence {
   multiDeviceE2E?: string[];
@@ -56,6 +57,18 @@ export interface ProductionFailureHistoryEntry {
   actionDescription: string | null;
 }
 
+export interface ProductionRecoveryHistoryEntry {
+  cycle: number;
+  observedAt: string;
+  action: ProductionRecoveryAction;
+  reason: string;
+  blocked: boolean;
+  nextStrategyPivot: number;
+  actionId: string | null;
+  actionDescription: string | null;
+  nextAction: string | null;
+}
+
 export interface ProductionRunRecord {
   runId: string;
   goal: Goal;
@@ -65,6 +78,7 @@ export interface ProductionRunRecord {
   completionEvidence: unknown[];
   verificationHistory?: ProductionVerificationHistoryEntry[];
   failureHistory?: ProductionFailureHistoryEntry[];
+  recoveryHistory?: ProductionRecoveryHistoryEntry[];
   recoveryBudget?: DurableRecoveryBudget;
   journal?: DurableRunJournal;
   updatedAt: string;
@@ -85,6 +99,7 @@ const DEFAULT_MAX_CONSECUTIVE_NON_PROGRESS_CYCLES = 9;
 const MAX_JOURNAL_ENTRIES = 50;
 const MAX_VERIFICATION_HISTORY_ENTRIES = 200;
 const MAX_FAILURE_HISTORY_ENTRIES = 200;
+const MAX_RECOVERY_HISTORY_ENTRIES = 200;
 
 function pushBounded(list: string[], value: string): void {
   const normalized = value.trim();
@@ -151,6 +166,38 @@ function sanitizeFailureHistoryEntry(entry: ProductionFailureHistoryEntry): Prod
     blocker: entry.blocker?.trim() ?? null,
     actionId: entry.actionId?.trim() ?? null,
     actionDescription: entry.actionDescription?.trim() ?? null,
+  };
+}
+
+function isRecoveryHistoryEntry(value: unknown): value is ProductionRecoveryHistoryEntry {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const candidate = value as Partial<ProductionRecoveryHistoryEntry>;
+  return Number.isInteger(candidate.cycle)
+    && (candidate.cycle ?? 0) >= 1
+    && typeof candidate.observedAt === "string"
+    && Number.isFinite(Date.parse(candidate.observedAt))
+    && (candidate.action === "retry_same" || candidate.action === "repair" || candidate.action === "strategy_pivot" || candidate.action === "blocked")
+    && typeof candidate.reason === "string"
+    && candidate.reason.trim().length > 0
+    && typeof candidate.blocked === "boolean"
+    && Number.isInteger(candidate.nextStrategyPivot)
+    && (candidate.nextStrategyPivot ?? -1) >= 0
+    && (candidate.actionId === null || (typeof candidate.actionId === "string" && candidate.actionId.trim().length > 0))
+    && (candidate.actionDescription === null || (typeof candidate.actionDescription === "string" && candidate.actionDescription.trim().length > 0))
+    && (candidate.nextAction === null || (typeof candidate.nextAction === "string" && candidate.nextAction.trim().length > 0));
+}
+
+function sanitizeRecoveryHistoryEntry(entry: ProductionRecoveryHistoryEntry): ProductionRecoveryHistoryEntry {
+  return {
+    cycle: entry.cycle,
+    observedAt: entry.observedAt,
+    action: entry.action,
+    reason: entry.reason.trim(),
+    blocked: entry.blocked,
+    nextStrategyPivot: entry.nextStrategyPivot,
+    actionId: entry.actionId?.trim() ?? null,
+    actionDescription: entry.actionDescription?.trim() ?? null,
+    nextAction: entry.nextAction?.trim() ?? null,
   };
 }
 
@@ -246,6 +293,7 @@ export class ProductionAutonomyRuntime {
     this.#ensureJournal(record);
     this.#ensureVerificationHistory(record);
     this.#ensureFailureHistory(record);
+    this.#ensureRecoveryHistory(record);
     this.#upsert(record);
     const loop = this.loopFactory(input.runId);
     const maxCycles = input.maxCycles ?? 25;
@@ -256,6 +304,7 @@ export class ProductionAutonomyRuntime {
       record.updatedAt = new Date().toISOString();
       this.#recordVerificationHistory(record, report);
       this.#recordFailureHistory(record, report);
+      this.#recordRecoveryHistory(record, report);
       record.lastReport = report;
       this.#recordJournal(record, report);
 
@@ -301,6 +350,7 @@ export class ProductionAutonomyRuntime {
       this.#ensureJournal(record);
       this.#ensureVerificationHistory(record);
       this.#ensureFailureHistory(record);
+      this.#ensureRecoveryHistory(record);
     }
     return record;
   }
@@ -388,6 +438,21 @@ export class ProductionAutonomyRuntime {
     return record.failureHistory;
   }
 
+  #ensureRecoveryHistory(record: ProductionRunRecord): ProductionRecoveryHistoryEntry[] {
+    const current = record.recoveryHistory;
+    if (current === undefined) {
+      record.recoveryHistory = [];
+      return record.recoveryHistory;
+    }
+    if (!Array.isArray(current) || !current.every(isRecoveryHistoryEntry)) {
+      throw new Error("invalid production recovery history");
+    }
+    record.recoveryHistory = current
+      .slice(-MAX_RECOVERY_HISTORY_ENTRIES)
+      .map(sanitizeRecoveryHistoryEntry);
+    return record.recoveryHistory;
+  }
+
   #recordVerificationHistory(record: ProductionRunRecord, report: CycleReport): void {
     if (!report.verification) return;
     const history = this.#ensureVerificationHistory(record);
@@ -446,6 +511,26 @@ export class ProductionAutonomyRuntime {
         actionId: report.action?.id?.trim() || null,
         actionDescription: report.action?.description?.trim() || null,
       });
+    }
+  }
+
+  #recordRecoveryHistory(record: ProductionRunRecord, report: CycleReport): void {
+    if (!report.recoveryDecision) return;
+    const decision = report.recoveryDecision;
+    const history = this.#ensureRecoveryHistory(record);
+    history.push({
+      cycle: record.cycles,
+      observedAt: record.updatedAt,
+      action: decision.action,
+      reason: decision.reason.trim(),
+      blocked: decision.blocked,
+      nextStrategyPivot: decision.nextStrategyPivot,
+      actionId: report.action?.id?.trim() || null,
+      actionDescription: report.action?.description?.trim() || null,
+      nextAction: report.nextAction?.trim() || null,
+    });
+    if (history.length > MAX_RECOVERY_HISTORY_ENTRIES) {
+      history.splice(0, history.length - MAX_RECOVERY_HISTORY_ENTRIES);
     }
   }
 
@@ -508,6 +593,7 @@ export class ProductionAutonomyRuntime {
         this.#ensureJournal(record);
         this.#ensureVerificationHistory(record);
         this.#ensureFailureHistory(record);
+        this.#ensureRecoveryHistory(record);
         return record;
       });
     }
