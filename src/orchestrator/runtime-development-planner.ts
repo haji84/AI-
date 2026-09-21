@@ -91,7 +91,7 @@ export class RuntimeDevelopmentPlanner implements Planner {
     const verificationContract = exactFileVerification(scope, files);
     const satisfiesDefinitionOfDone = implementationDefinitionOfDoneIds(input.context);
     return {
-      id: `runtime-builder:${now}`,
+      id: `runtime-builder:${goalWorkStateId(input.goal)}`,
       description: objective,
       capability: "code.builder",
       risk: "low",
