@@ -14,7 +14,7 @@ test("CompassGoalExecutionAdapter keeps Compass DB alive until Goal Loop resolve
   const compass = new CompassStore(dbPath);
   const record = compass.setGoal({
     title: "Inspect runtime status",
-    description: "Read current state without changing code",
+    description: "Read and report the current runtime status only",
     successCriteria: ["status inspected"],
     constraints: [],
   });
