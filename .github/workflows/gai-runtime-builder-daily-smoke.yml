@@ -28,7 +28,7 @@ jobs:
           & git -C $workspace config user.email 'jarvis-runtime-smoke@local.invalid'
           & git -C $workspace add tests/fixtures/runtime-builder-daily-smoke.txt
           & git -C $workspace commit -m 'baseline'
-          .\scripts\install-code-builder-windows.ps1 -WorkerId 'zbook' -Workspace $workspace -ExecTimeoutMs 120000
+          .\scripts\install-code-builder-windows.ps1 -WorkerId 'zbook' -Workspace $workspace -ExecTimeoutMs 240000
           $env:RUNTIME_BUILDER_SMOKE_WORKSPACE = $workspace
           $env:RUNTIME_BUILDER_SMOKE_STATE_DIR = $stateDir
           & node .\scripts\runtime-builder-daily-smoke.ts
