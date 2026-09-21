@@ -44,3 +44,39 @@ test("non-development goal delegates to baseline planner", async () => {
   });
   assert.equal(action?.capability, "context.inspect");
 });
+
+
+test("development planner binds Builder success only to implementation DoD", async () => {
+  const planner = new RuntimeDevelopmentPlanner(new BaselinePlanner());
+  const action = await planner.proposeNextAction({
+    goal,
+    context: [{
+      source: "gai-work-state",
+      summary: "work state",
+      data: {
+        status: "IN_PROGRESS",
+        blockers: [],
+        remainingDefinitionOfDone: [
+          { id: "implement", description: "Implement the requested code change" },
+          { id: "tests", description: "All tests and verification pass" },
+        ],
+      },
+    }],
+    intent,
+  });
+  assert.deepEqual((action as { satisfiesDefinitionOfDone?: string[] })?.satisfiesDefinitionOfDone, ["implement"]);
+});
+
+test("completed WorkState stops normal development planning", async () => {
+  const planner = new RuntimeDevelopmentPlanner(new BaselinePlanner());
+  const action = await planner.proposeNextAction({
+    goal,
+    context: [{
+      source: "gai-work-state",
+      summary: "completed",
+      data: { status: "COMPLETED", blockers: [], remainingDefinitionOfDone: [] },
+    }],
+    intent,
+  });
+  assert.equal(action, null);
+});
