@@ -99,7 +99,7 @@ jobs:
           PAGE_FILE="$RUNNER_TEMP/jarvis-one-tap-page.html"
           curl -fsS --max-time 15 "$ONE_TAP_URL" -o "$PAGE_FILE"
           test -s "$PAGE_FILE"
-          grep -Fq 'JARVISに登録中' "$PAGE_FILE"
+          grep -Fq '<h1>JARVIS端末登録</h1>' "$PAGE_FILE"
           grep -Fq 'jarvis://enroll?broker=' "$PAGE_FILE"
           grep -Fq '&grant=' "$PAGE_FILE"
           grep -Fq '&token=' "$PAGE_FILE"
