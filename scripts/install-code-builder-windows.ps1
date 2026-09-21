@@ -2,7 +2,8 @@ param(
   [string]$WorkerId = 'zbook',
   [int]$Port = 8796,
   [string]$Workspace = '',
-  [string]$Engine = ''
+  [string]$Engine = '',
+  [int]$ExecTimeoutMs = 600000
 )
 
 $ErrorActionPreference = 'Stop'
@@ -67,6 +68,7 @@ $launcherLines = @(
   '$env:CODE_BUILDER_TOKEN = ''' + $token + '''',
   '$env:CODE_BUILDER_WORKSPACE = ''' + $Workspace + '''',
   '$env:CODE_BUILDER_ENGINE = ''' + $selectedEngine + '''',
+  '$env:CODE_BUILDER_EXEC_TIMEOUT_MS = ''' + $ExecTimeoutMs + '''',
   'Set-Content -Encoding ascii ''' + $pidPath + ''' $PID',
   '& ''' + $node + ''' ''' + $servicePath + ''' *>> ''' + $logPath + ''''
 )
@@ -91,6 +93,7 @@ $previousEnv = [ordered]@{
   CODE_BUILDER_TOKEN = $env:CODE_BUILDER_TOKEN
   CODE_BUILDER_WORKSPACE = $env:CODE_BUILDER_WORKSPACE
   CODE_BUILDER_ENGINE = $env:CODE_BUILDER_ENGINE
+  CODE_BUILDER_EXEC_TIMEOUT_MS = $env:CODE_BUILDER_EXEC_TIMEOUT_MS
   RUNNER_TRACKING_ID = $env:RUNNER_TRACKING_ID
 }
 
@@ -101,6 +104,7 @@ try {
   $env:CODE_BUILDER_TOKEN = $token
   $env:CODE_BUILDER_WORKSPACE = $Workspace
   $env:CODE_BUILDER_ENGINE = $selectedEngine
+  $env:CODE_BUILDER_EXEC_TIMEOUT_MS = [string]$ExecTimeoutMs
   Remove-Item Env:RUNNER_TRACKING_ID -ErrorAction SilentlyContinue
 
   Remove-Item $stdoutPath,$stderrPath -Force -ErrorAction SilentlyContinue
@@ -165,6 +169,7 @@ $status = [ordered]@{
   workspace = $Workspace
   nodePath = $node
   nodeVersion = $nodeVersion
+  execTimeoutMs = $ExecTimeoutMs
   configuredEngine = $selectedEngine
   detectedEngines = $detected
   activeEngine = $(if ($health) { $health.engine } else { $null })
