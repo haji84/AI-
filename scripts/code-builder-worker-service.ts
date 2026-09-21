@@ -10,6 +10,7 @@ const token = process.env.CODE_BUILDER_TOKEN?.trim() || "";
 const workspace = resolve(process.env.CODE_BUILDER_WORKSPACE?.trim() || process.cwd());
 const workerId = process.env.GAI_WORKER_ID?.trim() || hostname();
 const explicitEngine = process.env.CODE_BUILDER_ENGINE?.trim() || "";
+const executionTimeoutMs = Number(process.env.CODE_BUILDER_EXEC_TIMEOUT_MS || 600_000);
 
 if (!token) throw new Error("CODE_BUILDER_TOKEN is required");
 if (host !== "127.0.0.1" && host !== "::1" && process.env.CODE_BUILDER_ALLOW_NON_LOOPBACK !== "1") {
@@ -79,7 +80,7 @@ function safeWorkspacePath(path: string): boolean {
   return !isAbsolute(rel) && rel !== ".." && !rel.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`);
 }
 
-function run(command: string, args: string[], timeoutMs = 600_000): Promise<{ code: number | null; stdout: string; stderr: string }> {
+function run(command: string, args: string[], timeoutMs = executionTimeoutMs): Promise<{ code: number | null; stdout: string; stderr: string }> {
   return new Promise((done) => {
     const extension = extname(command).toLowerCase();
     const invocation = process.platform === "win32" && extension === ".ps1"
@@ -126,7 +127,7 @@ async function runBuild(body: Record<string, unknown>) {
   ].join("\n");
 
   const args = engine.id === "codex"
-    ? ["exec", "--full-auto", "--sandbox", "workspace-write", prompt]
+    ? ["exec", "--sandbox", "workspace-write", "--ask-for-approval", "never", "--ephemeral", "--ignore-user-config", prompt]
     : ["--yes-always", "--message", prompt];
   const result = await run(engine.command, args);
   const diff = await run("git", ["diff", "--stat"]);
@@ -136,7 +137,7 @@ async function runBuild(body: Record<string, unknown>) {
       ok: result.code === 0,
       summary: result.code === 0 ? `${engine.id} completed bounded build` : `${engine.id} failed with exit ${result.code}`,
       blocker: result.code === 0 ? undefined : "CODING_ENGINE_FAILED",
-      evidence: { workerId, engine: engine.id, exitCode: result.code, diffStat: diff.stdout.trim(), stdoutTail: result.stdout.slice(-4000), stderrTail: result.stderr.slice(-4000) },
+      evidence: { workerId, engine: engine.id, exitCode: result.code, timeoutMs: executionTimeoutMs, diffStat: diff.stdout.trim(), stdoutTail: result.stdout.slice(-4000), stderrTail: result.stderr.slice(-4000) },
     },
   };
 }
