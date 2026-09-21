@@ -29,6 +29,12 @@ foreach ($candidate in @('codex','aider')) {
   if ($cmd) { $detected += [ordered]@{ id=$candidate; path=$cmd.Source } }
 }
 if ($Engine -and -not (Get-Command $Engine -ErrorAction SilentlyContinue)) { throw "Requested engine is not installed or not on PATH" }
+$selectedEngine = ''
+if ($Engine) {
+  $selectedEngine = (Get-Command $Engine -ErrorAction Stop).Source
+} elseif ($detected.Count -gt 0) {
+  $selectedEngine = [string]$detected[0].path
+}
 $lines = @(
   '$ErrorActionPreference = ''Stop''',
   'Remove-Item Env:RUNNER_TRACKING_ID -ErrorAction SilentlyContinue',
@@ -37,7 +43,7 @@ $lines = @(
   '$env:CODE_BUILDER_PORT = ''' + $Port + '''',
   '$env:CODE_BUILDER_TOKEN = ''' + $token + '''',
   '$env:CODE_BUILDER_WORKSPACE = ''' + $Workspace + '''',
-  '$env:CODE_BUILDER_ENGINE = ''' + $Engine + '''',
+  '$env:CODE_BUILDER_ENGINE = ''' + $selectedEngine + '''',
   '& ''' + $node + ''' ''' + $servicePath + ''' *>> ''' + $logPath + ''''
 )
 Set-Content -Encoding UTF8 -Path $launcherPath -Value ($lines -join [Environment]::NewLine)
@@ -52,12 +58,12 @@ for ($i = 0; $i -lt 40; $i++) {
   try {
     $headers = @{ Authorization = "Bearer $token" }
     $health = Invoke-RestMethod -Uri "http://127.0.0.1:$Port/health" -Headers $headers -Method Get -TimeoutSec 2
-    if ($health.ok -eq $true) { $healthy = $true; break }
+    if ($health.ok -eq $true -and @($health.capabilities) -contains 'code-builder') { $healthy = $true; break }
   } catch {}
 }
 $status = [ordered]@{
   ok = $healthy; workerId = $WorkerId; port = $Port; workspace = $Workspace
-  configuredEngine = $Engine; detectedEngines = $detected
+  configuredEngine = $selectedEngine; detectedEngines = $detected
   activeEngine = $(if ($health) { $health.engine } else { $null })
   capabilities = $(if ($health) { $health.capabilities } else { @() })
   taskName = $taskName; root = $root
