@@ -1,5 +1,5 @@
-import type { ActionResult, ContextItem, Goal, InferredIntent, Planner, ProposedAction } from "./goal-loop.ts";
-import { goalWorkStateId } from "./work-state-integration.ts";
+import type { ActionResult, ContextItem, Goal, InferredIntent, Planner } from "./goal-loop.ts";
+import { goalWorkStateId, type WorkStateAction } from "./work-state-integration.ts";
 
 const DEVELOPMENT_MARKERS = /(code|coding|implement|implementation|fix|repair|refactor|test|build|source|repository|script|patch|develop|development|コード|実装|修正|改修|開発|テスト)/i;
 const IMPLEMENTATION_DOD_MARKERS = /(code|implement|implementation|fix|repair|refactor|source|script|patch|develop|development|コード|実装|修正|改修|開発)/i;
@@ -107,7 +107,7 @@ export class RuntimeDevelopmentPlanner implements Planner {
     context: ContextItem[];
     intent: InferredIntent;
     previousResult?: ActionResult | null;
-  }): Promise<ProposedAction | null> {
+  }): Promise<WorkStateAction | null> {
     if (input.context.some((item) => item.source === "goal.complete" && item.summary === "true")) return null;
     if (workStateCompleted(input.context)) return null;
 
