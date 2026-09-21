@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { request as httpRequest } from "node:http";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { promisify } from "node:util";
 import { resolve } from "node:path";
@@ -58,7 +59,37 @@ function workState(passed: boolean): WorkState {
   };
 }
 
-const builder = new HttpWorkerBuilderCapability("zbook-real-code-builder", { url: endpoint, token });
+const directLocalFetch: typeof fetch = async (input, init = {}) => {
+  const url = new URL(typeof input === "string" || input instanceof URL ? input.toString() : input.url);
+  if (url.protocol !== "http:" || (url.hostname !== "127.0.0.1" && url.hostname !== "localhost")) {
+    throw new Error(`Refusing non-local Builder URL: ${url.toString()}`);
+  }
+  const body = typeof init.body === "string" ? init.body : undefined;
+  return new Promise<Response>((resolveResponse, reject) => {
+    const req = httpRequest({
+      protocol: url.protocol,
+      hostname: url.hostname,
+      port: url.port,
+      path: url.pathname + url.search,
+      method: init.method ?? "GET",
+      headers: init.headers as Record<string, string> | undefined,
+    }, (res) => {
+      const chunks: Buffer[] = [];
+      res.on("data", (chunk) => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));
+      res.on("end", () => {
+        resolveResponse(new Response(Buffer.concat(chunks), {
+          status: res.statusCode ?? 500,
+          headers: res.headers as HeadersInit,
+        }));
+      });
+    });
+    req.once("error", reject);
+    if (body) req.write(body);
+    req.end();
+  });
+};
+
+const builder = new HttpWorkerBuilderCapability("zbook-real-code-builder", { url: endpoint, token }, directLocalFetch);
 const evidence: Record<string, unknown> = {
   goalId: "goal-real-builder-e2e",
   startedAt: new Date().toISOString(),
