@@ -41,3 +41,12 @@ test("Builder timeout is recoverable and Windows process trees are terminated", 
   assert.match(source, /timed out after/);
   assert.match(source, /result\.timedOut\s*\?\s*undefined/);
 });
+
+
+test("capacity and rate-limit failures stay recoverable instead of becoming explicit blockers", async () => {
+  const source = await readFile(service, "utf8");
+  assert.match(source, /at capacity\|rate limit\|429\|502\|503\|504/);
+  assert.match(source, /transientEngineFailure/);
+  assert.match(source, /temporarily unavailable/);
+  assert.match(source, /result\.code === 0 \|\| transientEngineFailure\s*\? undefined/);
+});
