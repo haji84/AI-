@@ -10,7 +10,7 @@ test("real Builder E2E uses isolated user-writable workspace", async () => {
   const script = await readFile(runner, "utf8");
   assert.match(wf, /real-builder-e2e-workspace/);
   assert.match(wf, /CODE_BUILDER_TEST_WORKSPACE/);
-  assert.match(wf, /git -C $e2eWorkspace init/);
+  assert.ok(wf.includes("& git -C $e2eWorkspace init"));
   assert.match(script, /CODE_BUILDER_TEST_WORKSPACE/);
   assert.match(script, /cwd: testWorkspace/);
   assert.match(script, /resolve\(testWorkspace, fixture\)/);
