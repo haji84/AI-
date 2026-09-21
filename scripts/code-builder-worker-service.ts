@@ -1,5 +1,5 @@
 import { createServer } from "node:http";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { spawn } from "node:child_process";
 import { hostname } from "node:os";
 import { basename, extname, resolve, relative, isAbsolute } from "node:path";
@@ -110,6 +110,30 @@ function run(command: string, args: string[], timeoutMs = executionTimeoutMs, st
   });
 }
 
+async function runVerify(body: Record<string, unknown>) {
+  const contract = body.contract;
+  if (!contract || typeof contract !== "object" || Array.isArray(contract)) {
+    return { status: 400, body: { ok: false, summary: "verification contract required", blocker: "VERIFICATION_CONTRACT_INVALID" } };
+  }
+  const value = contract as { kind?: unknown; path?: unknown; expected?: unknown; profile?: unknown };
+  if (value.kind === "file_exact") {
+    if (typeof value.path !== "string" || typeof value.expected !== "string" || !safeWorkspacePath(value.path)) {
+      return { status: 400, body: { ok: false, summary: "invalid file_exact contract", blocker: "VERIFICATION_CONTRACT_INVALID" } };
+    }
+    const actual = readFileSync(resolve(workspace, value.path), "utf8");
+    const ok = actual === value.expected || actual === value.expected + "\n";
+    return {
+      status: 200,
+      body: {
+        ok,
+        summary: ok ? "file_exact verification passed" : "file_exact verification failed",
+        evidence: { kind: "file_exact", path: value.path, expected: value.expected, actual },
+      },
+    };
+  }
+  return { status: 400, body: { ok: false, summary: "unsupported verification contract", blocker: "VERIFICATION_CONTRACT_UNSUPPORTED" } };
+}
+
 async function runBuild(body: Record<string, unknown>) {
   const objective = typeof body.objective === "string" ? body.objective.trim() : "";
   const files = Array.isArray(body.files) ? body.files.filter((v): v is string => typeof v === "string").slice(0, 50) : [];
@@ -191,6 +215,10 @@ createServer(async (request, response) => {
     if (request.method === "GET" && url.pathname === "/health") {
       const engine = await detectEngine();
       return json(response, 200, { ok: true, service: "code-builder-worker", workerId, workspace, engine: engine?.id ?? null, capabilities: engine ? ["code-builder", "filesystem"] : ["filesystem"] });
+    }
+    if (request.method === "POST" && url.pathname === "/verify") {
+      const result = await runVerify(await readJson(request));
+      return json(response, result.status, result.body);
     }
     if (request.method !== "POST" || url.pathname !== "/build") return json(response, 404, { message: "not found" });
     const result = await runBuild(await readJson(request));
