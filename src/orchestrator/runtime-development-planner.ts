@@ -5,7 +5,7 @@ const DEVELOPMENT_MARKERS = /(code|coding|implement|implementation|fix|repair|re
 const IMPLEMENTATION_DOD_MARKERS = /(code|implement|implementation|fix|repair|refactor|source|script|patch|develop|development|コード|実装|修正|改修|開発)/i;
 const VERIFICATION_DOD_MARKERS = /(^|[^a-z])(test|tests|verify|verification|lint|build|security|review|deploy)([^a-z]|$)|テスト|検証|確認|ビルド|セキュリティ|レビュー|デプロイ/i;
 const PROMOTION_DOD_MARKERS = /(^|[^a-z])(test|tests|lint|build|pull request|pr|proposal|review)([^a-z]|$)|テスト|ビルド|プルリク|PR作成|レビュー/i;
-const PROMOTION_EXCLUDE_MARKERS = /(^|[^a-z])(security|merge|deploy)([^a-z]|$)|セキュリティ|マージ|デプロイ/i;
+const PROMOTION_EXCLUDE_MARKERS = /(^|[^a-z])(security|merge|merged|deploy|deployed)([^a-z]|$)|セキュリティ|マージ|デプロイ/i;
 
 interface WorkStateSnapshotData {
   status?: unknown;
