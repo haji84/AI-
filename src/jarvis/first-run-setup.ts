@@ -49,15 +49,16 @@ const stepDefinitions: Array<{
   },
 ];
 
-function worstState(items: JarvisDiagnosticItem[]): JarvisDiagnosticState {
-  if (items.length === 0) return "unknown";
-  return items.reduce<JarvisDiagnosticState>((worst, entry) => (
-    stateRank[entry.state] > stateRank[worst] ? entry.state : worst
+function worstState(states: JarvisDiagnosticState[]): JarvisDiagnosticState {
+  if (states.length === 0) return "unknown";
+  return states.reduce<JarvisDiagnosticState>((worst, state) => (
+    stateRank[state] > stateRank[worst] ? state : worst
   ), "ready");
 }
 
-function stepDetail(state: JarvisDiagnosticState, items: JarvisDiagnosticItem[]): string {
+function stepDetail(state: JarvisDiagnosticState, items: JarvisDiagnosticItem[], complete: boolean): string {
   if (items.length === 0) return "必要な診断結果を確認できません。詳細診断を実行してください。";
+  if (!complete && state === "unknown") return "一部の診断結果が不足しています。詳細診断を実行してください。";
   if (state === "ready") return "このステップで確認できるソフトウェア条件は整っています。";
 
   const relevant = items.filter((entry) => entry.state === state);
@@ -71,7 +72,10 @@ export function buildJarvisFirstRunSetup(items: JarvisDiagnosticItem[]): JarvisF
     const diagnostics = definition.codes
       .map((code) => byCode.get(code))
       .filter((entry): entry is JarvisDiagnosticItem => Boolean(entry));
-    const state = diagnostics.length === definition.codes.length ? worstState(diagnostics) : "unknown";
+    const complete = diagnostics.length === definition.codes.length;
+    const states = diagnostics.map((entry) => entry.state);
+    if (!complete) states.push("unknown");
+    const state = worstState(states);
     const actions = [...new Set(
       diagnostics
         .filter((entry) => entry.state !== "ready" && entry.action)
@@ -82,19 +86,14 @@ export function buildJarvisFirstRunSetup(items: JarvisDiagnosticItem[]): JarvisF
       id: definition.id,
       title: definition.title,
       state,
-      detail: stepDetail(state, diagnostics),
+      detail: stepDetail(state, diagnostics, complete),
       actions,
       diagnostics,
     };
   });
 
   return {
-    overall: worstState(steps.map((step) => ({
-      code: "HOST",
-      label: step.title,
-      state: step.state,
-      detail: step.detail,
-    }))),
+    overall: worstState(steps.map((step) => step.state)),
     steps,
   };
 }
