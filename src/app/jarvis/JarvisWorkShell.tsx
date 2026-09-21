@@ -1,4 +1,5 @@
 "use client";
+import "./work-shell.css";
 import { useEffect, useState } from "react";
 import { JARVIS_THEMES, jarvisTheme, type JarvisThemeId } from "./theme-catalog";
 
