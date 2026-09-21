@@ -21,6 +21,12 @@ jobs:
         shell: powershell
         run: |
           .\scripts\install-code-builder-windows.ps1 -WorkerId 'zbook' -Workspace "$env:GITHUB_WORKSPACE" -ExecTimeoutMs 120000
+          $codexVersion = (& codex --version 2>&1 | Out-String).Trim()
+          Write-Host "Codex version: $codexVersion"
+          $codexLogin = (& codex login status 2>&1 | Out-String).Trim()
+          $codexLoginExit = $LASTEXITCODE
+          Write-Host "Codex login status: $codexLogin"
+          if ($codexLoginExit -ne 0) { throw "Codex is not logged in for headless execution" }
           $tokenPath = Join-Path $env:LOCALAPPDATA 'GAIWorker\code-builder\token.txt'
           $token = (Get-Content $tokenPath -Raw).Trim()
           $headers = @{ Authorization = "Bearer $token" }
