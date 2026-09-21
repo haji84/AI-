@@ -2,6 +2,8 @@ name: GAI Code Builder ZBook
 
 on:
   workflow_dispatch:
+  issues:
+    types: [opened, reopened]
   push:
     branches: [main]
     paths:
@@ -17,6 +19,7 @@ permissions:
 
 jobs:
   install-and-probe:
+    if: github.event_name != 'issues' || startsWith(github.event.issue.title, '[JARVIS CODE BUILDER PROBE]')
     runs-on: [self-hosted, Windows, X64]
     timeout-minutes: 15
     steps:
