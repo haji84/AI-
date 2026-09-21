@@ -137,3 +137,34 @@ test("runtime Builder action id stays stable across recovery attempts", async ()
   });
   assert.equal(first?.id, second?.id);
 });
+
+
+test("trusted verification oracle is consumed even when expected value is absent from goal text", async () => {
+  const planner = new RuntimeDevelopmentPlanner(new BaselinePlanner());
+  const oracleGoal: Goal = {
+    title: "Implement controlled fixture",
+    description: "Edit only tests/fixtures/oracle.txt using the current implementation strategy.",
+    successCriteria: ["Implement the requested controlled change"],
+    constraints: [],
+  };
+  const action = await planner.proposeNextAction({
+    goal: oracleGoal,
+    context: [
+      { source: "state.next_action", summary: "Initial strategy: make tests/fixtures/oracle.txt runtime-wrong" },
+      {
+        source: "unified-entry:1",
+        summary: "trusted deterministic oracle",
+        data: {
+          source: "development.verification_contract",
+          data: { kind: "file_exact", path: "tests/fixtures/oracle.txt", expected: "runtime-daily" },
+        },
+      },
+    ],
+    intent,
+  });
+  assert.deepEqual((action?.input as { verificationContract?: unknown }).verificationContract, {
+    kind: "file_exact",
+    path: "tests/fixtures/oracle.txt",
+    expected: "runtime-daily",
+  });
+});
