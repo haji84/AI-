@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import { createHash, generateKeyPairSync, sign } from "node:crypto";
 import test from "node:test";
+import {
+  createOwnerSessionToken,
+  OWNER_SESSION_FUTURE_TOLERANCE_SECONDS,
+  OWNER_SESSION_MAX_AGE_SECONDS,
+  verifyOwnerPasscode,
+  verifyOwnerSessionToken,
+} from "../src/app/owner-auth.ts";
 import { evaluateJarvisPolicy } from "../src/jarvis/policy-engine.ts";
 import {
   JarvisNonceRegistry,
@@ -12,6 +19,7 @@ import {
 import type { JarvisNode, JarvisTask } from "../src/jarvis/types.ts";
 
 const NOW = new Date("2026-09-17T00:00:00.000Z");
+const NOW_SECONDS = Math.floor(NOW.getTime() / 1000);
 
 function signedRequest(overrides: Partial<JarvisSignedWorkerRequest> = {}) {
   const { privateKey, publicKey } = generateKeyPairSync("ed25519");
@@ -73,6 +81,38 @@ function task(overrides: Partial<JarvisTask> = {}): JarvisTask {
   };
 }
 
+test("owner authentication fails closed for missing, wrong, tampered, expired, future, and malformed credentials", () => {
+  const secret = "owner-secret-value";
+  const validToken = createOwnerSessionToken(secret, {
+    issuedAtSeconds: NOW_SECONDS,
+    nonce: "abcdefghijklmnopqrstuvwx",
+  });
+  assert.equal(verifyOwnerPasscode(secret, secret), true);
+  assert.equal(verifyOwnerSessionToken(secret, validToken, { nowSeconds: NOW_SECONDS }), true);
+
+  assert.equal(verifyOwnerPasscode("", secret), false);
+  assert.equal(verifyOwnerPasscode(secret, "wrong-owner-secret"), false);
+  assert.equal(verifyOwnerSessionToken("", validToken, { nowSeconds: NOW_SECONDS }), false);
+  assert.equal(verifyOwnerSessionToken(secret, undefined, { nowSeconds: NOW_SECONDS }), false);
+  assert.equal(verifyOwnerSessionToken(secret, "not.a.valid.session", { nowSeconds: NOW_SECONDS }), false);
+
+  const [version, issuedAt, nonce] = validToken.split(".");
+  const tamperedToken = `${version}.${issuedAt}.${nonce}.${"A".repeat(43)}`;
+  assert.equal(verifyOwnerSessionToken(secret, tamperedToken, { nowSeconds: NOW_SECONDS }), false);
+
+  const expiredToken = createOwnerSessionToken(secret, {
+    issuedAtSeconds: NOW_SECONDS - OWNER_SESSION_MAX_AGE_SECONDS - 1,
+    nonce: "expiredsessionnonce000001",
+  });
+  assert.equal(verifyOwnerSessionToken(secret, expiredToken, { nowSeconds: NOW_SECONDS }), false);
+
+  const futureToken = createOwnerSessionToken(secret, {
+    issuedAtSeconds: NOW_SECONDS + OWNER_SESSION_FUTURE_TOLERANCE_SECONDS + 1,
+    nonce: "futuresessionnonce0000002",
+  });
+  assert.equal(verifyOwnerSessionToken(secret, futureToken, { nowSeconds: NOW_SECONDS }), false);
+});
+
 test("signed worker request fails closed for tampering, stale time, identity mismatch, and revocation", () => {
   const valid = signedRequest();
   assert.deepEqual(verifyWorkerRequest({ identity: valid.identity, request: valid.request, now: NOW }), { ok: true });
@@ -100,6 +140,42 @@ test("signed worker request fails closed for tampering, stale time, identity mis
     request: valid.request,
     now: NOW,
   }), { ok: false, reason: "worker identity revoked" });
+});
+
+test("signed worker request rejects malformed and future timestamps before trust", () => {
+  const malformed = signedRequest({ timestamp: "not-a-date", nonce: "nonce-malformed-time" });
+  assert.deepEqual(verifyWorkerRequest({ identity: malformed.identity, request: malformed.request, now: NOW }), {
+    ok: false,
+    reason: "invalid worker timestamp",
+  });
+
+  const future = signedRequest({ timestamp: "2026-09-17T00:05:00.001Z", nonce: "nonce-future-time" });
+  assert.deepEqual(verifyWorkerRequest({ identity: future.identity, request: future.request, now: NOW, maxClockSkewMs: 5 * 60_000 }), {
+    ok: false,
+    reason: "worker timestamp outside allowed clock skew",
+  });
+});
+
+test("signed worker request binds nonce and body digest to the signature and rejects invalid public keys", () => {
+  const valid = signedRequest({ nonce: "nonce-bound-fields" });
+
+  assert.deepEqual(verifyWorkerRequest({
+    identity: valid.identity,
+    request: { ...valid.request, nonce: "nonce-after-signing" },
+    now: NOW,
+  }), { ok: false, reason: "invalid worker signature" });
+
+  assert.deepEqual(verifyWorkerRequest({
+    identity: valid.identity,
+    request: { ...valid.request, bodySha256: "0".repeat(64) },
+    now: NOW,
+  }), { ok: false, reason: "invalid worker signature" });
+
+  assert.deepEqual(verifyWorkerRequest({
+    identity: { ...valid.identity, publicKeyPem: "not-a-public-key" },
+    request: valid.request,
+    now: NOW,
+  }), { ok: false, reason: "invalid worker public key or signature" });
 });
 
 test("recorded worker nonce is rejected as replay until its bounded registry TTL expires", () => {
