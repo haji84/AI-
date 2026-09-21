@@ -1,10 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  createOwnerRecoveryRestrictionToken,
   createOwnerSessionToken,
   OWNER_SESSION_FUTURE_TOLERANCE_SECONDS,
   OWNER_SESSION_MAX_AGE_SECONDS,
+  parseOwnerRecoveryRestrictionUnlockAt,
   verifyOwnerPasscode,
+  verifyOwnerRecoveryRestrictionToken,
   verifyOwnerSessionToken,
 } from "../src/app/owner-auth.ts";
 
@@ -60,4 +63,14 @@ test("owner sessions include a fresh nonce when one is not supplied", () => {
 test("owner passcode comparison rejects mismatches", () => {
   assert.equal(verifyOwnerPasscode("secret-a", "secret-a"), true);
   assert.equal(verifyOwnerPasscode("secret-a", "secret-b"), false);
+});
+
+test("recovery restriction proof is not a normal owner session", () => {
+  const unlockAt = 2_000_000_000;
+  const token = createOwnerRecoveryRestrictionToken("secret-a", unlockAt);
+  assert.equal(verifyOwnerSessionToken("secret-a", token, { nowSeconds: unlockAt - 60 }), false);
+  assert.equal(verifyOwnerRecoveryRestrictionToken("secret-a", token, unlockAt - 60), true);
+  assert.equal(verifyOwnerRecoveryRestrictionToken("secret-a", token, unlockAt), false);
+  assert.equal(parseOwnerRecoveryRestrictionUnlockAt("secret-a", token), unlockAt);
+  assert.equal(parseOwnerRecoveryRestrictionUnlockAt("secret-b", token), null);
 });

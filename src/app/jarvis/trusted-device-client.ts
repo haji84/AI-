@@ -3,6 +3,7 @@
 const DB_NAME = "jarvis-trusted-operator";
 const STORE_NAME = "credentials";
 const RECORD_KEY = "owner";
+const RECOVERY_PENDING_KEY = "jarvis-trusted-operator-recovery-pending";
 const PBKDF2_ITERATIONS = 600_000;
 const MAX_PIN_FAILURES = 5;
 const LOCK_MS = 5 * 60_000;
@@ -18,6 +19,8 @@ type StoredTrustedDevice = {
   failedAttempts: number;
   lockedUntil: number;
 };
+
+type PendingTrustedDevice = Omit<StoredTrustedDevice, "credential" | "failedAttempts" | "lockedUntil">;
 
 function bytesToB64url(bytes: Uint8Array): string {
   let binary = "";
@@ -92,17 +95,10 @@ async function decryptPrivate(record: StoredTrustedDevice, pin: string): Promise
     throw new Error(lockedUntil ? "PIN入力を一時ロックしました。5分後に再試行してください" : "PINが違います");
   }
 }
-
-export async function hasTrustedDevice(): Promise<boolean> {
-  if (typeof indexedDB === "undefined") return false;
-  return Boolean(await readRecord());
-}
-export async function trustedDeviceInfo(): Promise<{ id: string; label: string } | null> {
-  const record = await readRecord();
-  return record ? { id: record.id, label: record.label } : null;
-}
-export async function enrollTrustedDevice(pin: string, label: string): Promise<void> {
+async function createEncryptedDevice(pin: string, label: string): Promise<PendingTrustedDevice> {
   requirePin(pin);
+  const normalizedLabel = label.trim().slice(0, 80);
+  if (!normalizedLabel) throw new Error("端末名を入力してください");
   const id = crypto.randomUUID().replace(/-/g, "_");
   const pair = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
   const publicKeyJwk = await crypto.subtle.exportKey("jwk", pair.publicKey);
@@ -115,30 +111,80 @@ export async function enrollTrustedDevice(pin: string, label: string): Promise<v
     key,
     new TextEncoder().encode(JSON.stringify(privateKeyJwk)),
   );
-  const response = await fetch("/api/owner-login/trusted/enroll", {
-    method: "POST",
-    credentials: "same-origin",
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
-    body: JSON.stringify({ deviceId: id, label, publicKeyJwk }),
-  });
-  const result = await response.json();
-  if (!response.ok || typeof result.credential !== "string") throw new Error(result.message || "信頼済み端末を登録できませんでした");
-  await writeRecord({
+  return {
     id,
-    label,
+    label: normalizedLabel,
     publicKeyJwk,
     encryptedPrivateJwk: bytesToB64url(new Uint8Array(encrypted)),
     iv: bytesToB64url(iv),
     salt: bytesToB64url(salt),
+  };
+}
+
+export async function hasTrustedDevice(): Promise<boolean> {
+  if (typeof indexedDB === "undefined") return false;
+  const record = await readRecord();
+  return Boolean(record?.credential);
+}
+export async function trustedDeviceInfo(): Promise<{ id: string; label: string } | null> {
+  const record = await readRecord();
+  return record?.credential ? { id: record.id, label: record.label } : null;
+}
+export async function enrollTrustedDevice(pin: string, label: string): Promise<void> {
+  const pending = await createEncryptedDevice(pin, label);
+  const response = await fetch("/api/owner-login/trusted/enroll", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ deviceId: pending.id, label: pending.label, publicKeyJwk: pending.publicKeyJwk }),
+  });
+  const result = await response.json();
+  if (!response.ok || typeof result.credential !== "string") throw new Error(result.message || "信頼済み端末を登録できませんでした");
+  await writeRecord({
+    ...pending,
     credential: result.credential,
     failedAttempts: 0,
     lockedUntil: 0,
   });
 }
+export async function createTrustedDeviceRecoveryRequest(pin: string, label: string): Promise<string> {
+  if (typeof sessionStorage === "undefined") throw new Error("このブラウザでは復旧登録を利用できません");
+  const pending = await createEncryptedDevice(pin, label);
+  sessionStorage.setItem(RECOVERY_PENDING_KEY, JSON.stringify(pending));
+  const request = {
+    deviceId: pending.id,
+    label: pending.label,
+    publicKeyJwk: pending.publicKeyJwk,
+  };
+  return `tqr1.${bytesToB64url(new TextEncoder().encode(JSON.stringify(request)))}`;
+}
+export async function completeTrustedDeviceRecovery(grant: string): Promise<void> {
+  if (typeof sessionStorage === "undefined") throw new Error("このブラウザでは復旧登録を利用できません");
+  const raw = sessionStorage.getItem(RECOVERY_PENDING_KEY);
+  if (!raw) throw new Error("このブラウザの復旧要求がありません。要求コードを作り直してください");
+  const pending = JSON.parse(raw) as PendingTrustedDevice;
+  const response = await fetch("/api/owner-login/trusted/recover-enroll", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ grant: grant.trim() }),
+  });
+  const result = await response.json();
+  if (!response.ok || typeof result.credential !== "string" || result.deviceId !== pending.id) {
+    throw new Error(result.message || "復旧登録の承認を確認できませんでした");
+  }
+  await writeRecord({
+    ...pending,
+    credential: result.credential,
+    failedAttempts: 0,
+    lockedUntil: 0,
+  });
+  sessionStorage.removeItem(RECOVERY_PENDING_KEY);
+}
 export async function changeTrustedDevicePin(currentPin: string, nextPin: string): Promise<void> {
   requirePin(nextPin);
   const record = await readRecord();
-  if (!record) throw new Error("この端末はまだ信頼済み端末ではありません");
+  if (!record?.credential) throw new Error("この端末はまだ信頼済み端末ではありません");
   const privateKeyJwk = await decryptPrivate(record, currentPin);
   const salt = crypto.getRandomValues(new Uint8Array(16));
   const iv = crypto.getRandomValues(new Uint8Array(12));
@@ -158,7 +204,7 @@ export async function removeTrustedDevice(): Promise<void> {
 }
 export async function signInWithTrustedPin(pin: string): Promise<void> {
   const record = await readRecord();
-  if (!record) throw new Error("この端末は信頼済み登録されていません");
+  if (!record?.credential) throw new Error("この端末は信頼済み登録されていません");
   const privateKeyJwk = await decryptPrivate(record, pin);
   const challengeResponse = await fetch("/api/owner-login/trusted/challenge", {
     method: "POST",

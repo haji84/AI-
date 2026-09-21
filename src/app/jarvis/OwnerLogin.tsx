@@ -89,5 +89,6 @@ export default function OwnerLogin({ next = "/jarvis", initialError = false }: {
     </form>
     {error && <p className="jarvis-alert" role="alert">{error}</p>}
     <p className="muted">信頼済み端末の登録やPIN変更は、ログイン後の「設定」から行えます。</p>
+    <p><a href="/jarvis/recover">PINを忘れた場合</a></p>
   </section>;
 }

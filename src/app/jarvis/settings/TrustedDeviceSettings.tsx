@@ -16,6 +16,9 @@ export default function TrustedDeviceSettings() {
   const [nextPin, setNextPin] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [recoveryRequest, setRecoveryRequest] = useState("");
+  const [recoveryGrant, setRecoveryGrant] = useState("");
+  const [grantExpiresAt, setGrantExpiresAt] = useState("");
 
   async function refresh() {
     const exists = await hasTrustedDevice();
@@ -59,6 +62,26 @@ export default function TrustedDeviceSettings() {
     } finally { setBusy(false); }
   }
 
+  async function authorizeRecovery(event: FormEvent) {
+    event.preventDefault();
+    setBusy(true); setMessage(""); setRecoveryGrant(""); setGrantExpiresAt("");
+    try {
+      const response = await fetch("/api/owner-recovery/trusted-grant", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ requestCode: recoveryRequest.trim() }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok || typeof body.grant !== "string") throw new Error(body.message || "復旧登録を承認できませんでした");
+      setRecoveryGrant(body.grant);
+      setGrantExpiresAt(typeof body.expiresAt === "string" ? body.expiresAt : "");
+      setMessage("復旧対象ブラウザ専用の承認コードを発行しました。10分以内に対象ブラウザへ戻してください。");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "復旧登録を承認できませんでした");
+    } finally { setBusy(false); }
+  }
+
   return <section className="panel jarvis-settings-card">
     <div>
       <p className="eyebrow">TRUSTED OPERATOR DEVICE</p>
@@ -81,6 +104,19 @@ export default function TrustedDeviceSettings() {
       <button className="button" type="submit" disabled={busy || currentPin.length !== 4 || nextPin.length !== 4}>PINを変更</button>
       <button className="button secondary" type="button" disabled={busy} onClick={remove}>このブラウザの信頼登録を削除</button>
     </form>}
+
+    <form onSubmit={authorizeRecovery} className="jarvis-task-form">
+      <h3>別ブラウザの信頼登録を承認</h3>
+      <p className="muted">復旧先ブラウザが自分で作った公開鍵だけを承認します。PINや秘密鍵は移動しません。承認コードは対象端末に固定され、10分で失効します。</p>
+      <label htmlFor="jarvis-trusted-recovery-request">復旧先ブラウザの要求コード</label>
+      <textarea id="jarvis-trusted-recovery-request" rows={4} value={recoveryRequest} onChange={(event) => setRecoveryRequest(event.target.value)} required disabled={busy} />
+      <button className="button secondary" type="submit" disabled={busy || !recoveryRequest.trim()}>10分間だけ承認</button>
+      {recoveryGrant && <>
+        <label htmlFor="jarvis-trusted-recovery-grant">復旧先へ返す承認コード</label>
+        <textarea id="jarvis-trusted-recovery-grant" rows={4} value={recoveryGrant} readOnly />
+        {grantExpiresAt && <p className="muted">有効期限: {new Date(grantExpiresAt).toLocaleString("ja-JP")}</p>}
+      </>}
+    </form>
 
     {message && <p className="jarvis-alert" role="status">{message}</p>}
     <p className="muted">5回連続でPINを間違えると、このブラウザでは5分間ロックします。サーバー側では端末ID単位の失効リストを使えます。</p>

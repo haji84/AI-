@@ -3,6 +3,7 @@ import JarvisLocalSettings from "./JarvisLocalSettings";
 import JarvisOperatorGuide from "./JarvisOperatorGuide";
 import JarvisScreenLayoutProfilesSettings from "./JarvisScreenLayoutProfiles";
 import TrustedDeviceSettings from "./TrustedDeviceSettings";
+import RecoveryEmailSettings from "./RecoveryEmailSettings";
 
 export default function JarvisSettingsPage() {
   return (
@@ -16,6 +17,7 @@ export default function JarvisSettingsPage() {
       </div>
       <JarvisOperatorGuide />
       <TrustedDeviceSettings />
+      <RecoveryEmailSettings />
       <JarvisLocalSettings />
       <JarvisAccessibilityControls />
       <JarvisScreenLayoutProfilesSettings />

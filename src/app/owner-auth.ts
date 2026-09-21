@@ -69,3 +69,40 @@ export function verifyOwnerPasscode(secret: string, candidate: string): boolean 
   const actual = Buffer.from(candidate, "utf8");
   return expected.length === actual.length && timingSafeEqual(expected, actual);
 }
+
+
+export const OWNER_RECOVERY_RESTRICTED_COOKIE = "jarvis_owner_recovery_restricted";
+const OWNER_RECOVERY_RESTRICTION_VERSION = "rr1";
+
+export function createOwnerRecoveryRestrictionToken(secret: string, restrictedUntilSeconds: number): string {
+  if (!secret.trim() || !Number.isSafeInteger(restrictedUntilSeconds) || restrictedUntilSeconds <= 0) throw new Error("invalid recovery restriction");
+  const nonce = randomBytes(OWNER_SESSION_NONCE_BYTES).toString("base64url");
+  const payload = `${OWNER_RECOVERY_RESTRICTION_VERSION}.${restrictedUntilSeconds}.${nonce}`;
+  const signature = signSessionPayload(secret, payload).toString("base64url");
+  return `${payload}.${signature}`;
+}
+
+export function verifyOwnerRecoveryRestrictionToken(secret: string, token: string | undefined, nowSeconds = currentUnixSeconds()): boolean {
+  if (!secret.trim() || !token) return false;
+  const [version, untilRaw, nonce, signature, extra] = token.split(".");
+  if (extra !== undefined || version !== OWNER_RECOVERY_RESTRICTION_VERSION || !/^\d+$/.test(untilRaw || "") || !NONCE_PATTERN.test(nonce || "") || !SIGNATURE_PATTERN.test(signature || "")) return false;
+  const until = Number(untilRaw);
+  if (!Number.isSafeInteger(until) || until <= nowSeconds) return false;
+  const payload = `${version}.${until}.${nonce}`;
+  const expected = signSessionPayload(secret, payload);
+  const actual = Buffer.from(signature, "base64url");
+  return expected.length === actual.length && timingSafeEqual(expected, actual);
+}
+
+
+export function parseOwnerRecoveryRestrictionUnlockAt(secret: string, token: string | undefined): number | null {
+  if (!secret.trim() || !token) return null;
+  const [version, untilRaw, nonce, signature, extra] = token.split(".");
+  if (extra !== undefined || version !== OWNER_RECOVERY_RESTRICTION_VERSION || !/^\d+$/.test(untilRaw || "") || !NONCE_PATTERN.test(nonce || "") || !SIGNATURE_PATTERN.test(signature || "")) return null;
+  const until = Number(untilRaw);
+  if (!Number.isSafeInteger(until) || until <= 0) return null;
+  const payload = `${version}.${until}.${nonce}`;
+  const expected = signSessionPayload(secret, payload);
+  const actual = Buffer.from(signature, "base64url");
+  return expected.length === actual.length && timingSafeEqual(expected, actual) ? until : null;
+}
