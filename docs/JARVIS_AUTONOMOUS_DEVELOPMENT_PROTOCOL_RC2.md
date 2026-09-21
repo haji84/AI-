@@ -66,6 +66,18 @@ For LOW/MEDIUM work within approval scope, a merge is autonomous when required s
 
 HIGH/CRITICAL work and explicit/non-bypassable Human Gate categories remain human-approved. Failed or missing checks trigger recovery/blocking. Merge success is followed by post-merge/deployment verification and does not itself mark the Goal ACHIEVED.
 
+## Configuration Baseline & Rollback Intelligence
+
+Before a material autonomous code, configuration, workflow, permission, governance, deployment, runtime, or external-integration mutation, capture an evidence-backed Baseline Snapshot for every affected recoverable surface. The snapshot records repository revision/files, applicable GitHub ruleset/branch-protection and Actions/CI configuration, permission and secret metadata without secret values, Agent/Codex/AGENTS configuration, Workflow/Gate/Risk configuration, external-integration metadata, and applicable deployment/runtime/durable-state version metadata.
+
+Every material mutation is a Change Set linked to its Goal/Job/Issue and records target, reason, actor, timestamp, dependencies, before/after references, verification evidence, rollback procedure, and reversibility classification. Secret values must never enter Baseline Snapshots, Change Sets, logs, issues, evidence, or commits; unknown sensitive material fails closed.
+
+Rollback is a governed Recovery strategy, not merely `git revert`. Recovery may restore a dependency-safe subset, one Change Set, or the complete Baseline across code and applicable configuration/permission/workflow/external state. Before partial restoration, analyze dependencies and refuse the rollback when consistency cannot be established. Stale baseline or stale verification evidence cannot certify restoration.
+
+Irreversible or hard-to-reverse operations must be detected before execution. Destructive external mutations, database/schema migrations, credential/permission changes, security/governance changes, and other existing non-bypassable categories retain Human Gate requirements and require an appropriate backup, compensating action, reverse migration, or explicit documented non-reversibility where technically applicable. Rollback authority never expands execution authority.
+
+A restoration is not complete until required CI, Verifier, security, runtime, and Goal-progress checks rerun against the restored state and produce valid evidence. The Goal Controller receives the resulting state and decides the next recovery/replan action; rollback does not silently abandon the parent Goal.
+
 ## Completion
 
 A Goal becomes ACHIEVED only when required success criteria are supported by valid evidence and constraints remain satisfied. Merge, deployment, a green CI run, or an individual Job DONE is insufficient by itself.
