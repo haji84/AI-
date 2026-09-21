@@ -15,34 +15,25 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
-      - name: Install and verify local code builder
-        id: install
+      - name: Install Builder and run real Codex recovery E2E in one runner step
+        id: run
         continue-on-error: true
         shell: powershell
         run: |
           .\scripts\install-code-builder-windows.ps1 -WorkerId 'zbook' -Workspace "$env:GITHUB_WORKSPACE"
-      - name: Verify local Builder health from PowerShell
-        shell: powershell
-        run: |
           $tokenPath = Join-Path $env:LOCALAPPDATA 'GAIWorker\code-builder\token.txt'
-          $headers = @{ Authorization = "Bearer $((Get-Content $tokenPath -Raw).Trim())" }
+          $token = (Get-Content $tokenPath -Raw).Trim()
+          $headers = @{ Authorization = "Bearer $token" }
           $health = Invoke-RestMethod -Uri 'http://127.0.0.1:8796/health' -Headers $headers -Method Get -TimeoutSec 5
           $health | ConvertTo-Json -Depth 5
           if (-not (@($health.capabilities) -contains 'code-builder')) { throw 'PowerShell health probe did not expose code-builder' }
-      - name: Run real Codex failure-to-recovery E2E
-        id: e2e
-        if: steps.install.outcome == 'success'
-        continue-on-error: true
-        shell: powershell
-        run: |
-          $tokenPath = Join-Path $env:LOCALAPPDATA 'GAIWorker\code-builder\token.txt'
           $env:CODE_BUILDER_URL = 'http://127.0.0.1:8796'
-          $env:CODE_BUILDER_TOKEN = (Get-Content $tokenPath -Raw).Trim()
+          $env:CODE_BUILDER_TOKEN = $token
           & node .\scripts\real-builder-recovery-e2e.ts
           $exit = $LASTEXITCODE
           Remove-Item Env:CODE_BUILDER_TOKEN -ErrorAction SilentlyContinue
           Remove-Item Env:CODE_BUILDER_URL -ErrorAction SilentlyContinue
-          exit $exit
+          if ($exit -ne 0) { exit $exit }
       - name: Capture real Builder evidence
         if: always()
         shell: powershell
@@ -64,5 +55,4 @@ jobs:
         if: always()
         shell: powershell
         run: |
-          if ('${{ steps.install.outcome }}' -ne 'success') { throw 'Code Builder install failed' }
-          if ('${{ steps.e2e.outcome }}' -ne 'success') { throw 'Real Builder recovery E2E failed' }
+          if ('${{ steps.run.outcome }}' -ne 'success') { throw 'Real Builder recovery E2E failed' }
