@@ -12,6 +12,7 @@ export default async function JarvisPage() {
         <a className="button" href="/jarvis/mobile">📱 iPhone司令塔</a>
         <a className="button" href="/jarvis/enroll">＋ 端末を登録</a>
         <a className="button secondary" href="/jarvis/diagnostics">自己診断</a>
+        <a className="button secondary" href="/jarvis/recovery">Recovery</a>
         <a className="button secondary" href="/jarvis/recordings">遠隔記録</a>
         <a className="button secondary" href="/jarvis/qa">2 URL 自動実行</a>
       </div>
