@@ -25,19 +25,29 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - name: Install bounded code builder
+        id: install
+        continue-on-error: true
         shell: powershell
         run: |
           .\scripts\install-code-builder-windows.ps1 -WorkerId 'zbook' -Workspace "$env:GITHUB_WORKSPACE"
       - name: Capture builder evidence
+        if: always()
         shell: powershell
         run: |
           New-Item -ItemType Directory -Force -Path .gai-results | Out-Null
-          Copy-Item "$env:LOCALAPPDATA\GAIWorker\code-builder\install-status.json" .gai-results\ -Force
-          Get-Content .gai-results\install-status.json
+          Copy-Item "$env:LOCALAPPDATA\GAIWorker\code-builder\install-status.json" .gai-results\ -Force -ErrorAction SilentlyContinue
+          Copy-Item "$env:LOCALAPPDATA\GAIWorker\code-builder\worker.log" .gai-results\ -Force -ErrorAction SilentlyContinue
+          if (Test-Path .gai-results\install-status.json) { Get-Content .gai-results\install-status.json }
+          if (Test-Path .gai-results\worker.log) { Get-Content .gai-results\worker.log -Tail 80 }
       - name: Upload evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: gai-zbook-code-builder
           path: .gai-results/
           include-hidden-files: true
           retention-days: 30
+      - name: Enforce install result
+        if: always() && steps.install.outcome != 'success'
+        shell: powershell
+        run: exit 1

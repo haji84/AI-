@@ -1,7 +1,8 @@
 import { createServer } from "node:http";
+import { existsSync } from "node:fs";
 import { spawn } from "node:child_process";
 import { hostname } from "node:os";
-import { resolve, relative, isAbsolute } from "node:path";
+import { basename, extname, resolve, relative, isAbsolute } from "node:path";
 
 const host = process.env.CODE_BUILDER_HOST?.trim() || "127.0.0.1";
 const port = Number(process.env.CODE_BUILDER_PORT || 8796);
@@ -40,18 +41,35 @@ function authorized(request: import("node:http").IncomingMessage): boolean {
   return request.headers.authorization === `Bearer ${token}`;
 }
 
-async function commandExists(command: string): Promise<boolean> {
+async function resolveCommand(command: string): Promise<string | null> {
+  if (existsSync(command)) return command;
   const probe = process.platform === "win32" ? "where.exe" : "which";
   return new Promise((done) => {
-    const child = spawn(probe, [command], { stdio: "ignore", windowsHide: true });
-    child.once("error", () => done(false));
-    child.once("exit", (code) => done(code === 0));
+    const child = spawn(probe, [command], { windowsHide: true });
+    let stdout = "";
+    child.stdout?.on("data", (chunk) => { stdout += String(chunk); });
+    child.once("error", () => done(null));
+    child.once("exit", (code) => {
+      if (code !== 0) return done(null);
+      const first = stdout.split(/\r?\n/).map((value) => value.trim()).find(Boolean);
+      done(first ?? null);
+    });
   });
+}
+
+function engineId(command: string): string {
+  const name = basename(command).toLowerCase();
+  if (name.startsWith("codex")) return "codex";
+  if (name.startsWith("aider")) return "aider";
+  return name.replace(extname(name), "") || "unknown";
 }
 
 async function detectEngine(): Promise<{ id: string; command: string } | null> {
   const candidates = explicitEngine ? [explicitEngine] : ["codex", "aider"];
-  for (const command of candidates) if (await commandExists(command)) return { id: command, command };
+  for (const candidate of candidates) {
+    const command = await resolveCommand(candidate);
+    if (command) return { id: engineId(command), command };
+  }
   return null;
 }
 
@@ -63,7 +81,13 @@ function safeWorkspacePath(path: string): boolean {
 
 function run(command: string, args: string[], timeoutMs = 600_000): Promise<{ code: number | null; stdout: string; stderr: string }> {
   return new Promise((done) => {
-    const child = spawn(command, args, { cwd: workspace, windowsHide: true, shell: false, env: process.env });
+    const extension = extname(command).toLowerCase();
+    const invocation = process.platform === "win32" && extension === ".ps1"
+      ? { command: "powershell.exe", args: ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", command, ...args] }
+      : process.platform === "win32" && (extension === ".cmd" || extension === ".bat")
+        ? { command: process.env.ComSpec || "cmd.exe", args: ["/d", "/s", "/c", command, ...args] }
+        : { command, args };
+    const child = spawn(invocation.command, invocation.args, { cwd: workspace, windowsHide: true, shell: false, env: process.env });
     let stdout = "";
     let stderr = "";
     const timer = setTimeout(() => child.kill(), timeoutMs);
