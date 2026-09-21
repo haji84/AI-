@@ -51,9 +51,14 @@ export function createRuntimeDevelopmentVerifier(
           body: JSON.stringify({ contract: input.verificationContract }),
         });
         const payload = await response.json().catch(() => null) as { ok?: boolean; summary?: string; evidence?: unknown } | null;
+        const ok = response.ok && payload?.ok === true;
+        const evidence = payload?.evidence as { expected?: unknown; actual?: unknown } | undefined;
+        const detail = !ok && evidence && typeof evidence.expected === "string" && typeof evidence.actual === "string"
+          ? ` expected=${JSON.stringify(evidence.expected)} actual=${JSON.stringify(evidence.actual)}`
+          : "";
         return {
-          ok: response.ok && payload?.ok === true,
-          summary: payload?.summary ?? `Development verification HTTP ${response.status}`,
+          ok,
+          summary: `${payload?.summary ?? `Development verification HTTP ${response.status}`}${detail}`,
           evidence: payload?.evidence,
         };
       } catch (error) {
