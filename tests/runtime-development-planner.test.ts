@@ -168,3 +168,22 @@ test("trusted verification oracle is consumed even when expected value is absent
     expected: "runtime-daily",
   });
 });
+
+test("recovery objective uses verifier evidence only after failure", async () => {
+  const planner = new RuntimeDevelopmentPlanner(new BaselinePlanner());
+  const action = await planner.proposeNextAction({
+    goal,
+    context: [{ source: "state.next_action", summary: "Retry tests/fixtures/runtime-builder-smoke.txt" }],
+    intent,
+    previousResult: {
+      actionId: "a1",
+      ok: false,
+      summary: "Verification failed",
+      evidence: { kind: "file_exact", path: "tests/fixtures/runtime-builder-smoke.txt", expected: "runtime-daily", actual: "runtime-wrong" },
+    },
+  });
+  const objective = String((action?.input as { objective?: string }).objective);
+  assert.match(objective, /runtime-daily/);
+  assert.match(objective, /runtime-wrong/);
+  assert.match(objective, /available only after failure/);
+});
