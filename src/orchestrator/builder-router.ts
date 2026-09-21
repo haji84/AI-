@@ -16,6 +16,12 @@ export interface BuilderCapability {
   build(request: BuilderRequest): Promise<ActionResult>;
 }
 
+function isVerifierOnlyContext(item: ContextItem): boolean {
+  if (item.source === "development.verification_contract") return true;
+  if (!item.data || typeof item.data !== "object" || Array.isArray(item.data)) return false;
+  return (item.data as { source?: unknown }).source === "development.verification_contract";
+}
+
 export class BuilderRouter {
   private readonly builders: BuilderCapability[];
   constructor(builders: BuilderCapability[]) { this.builders = builders; }
@@ -33,7 +39,7 @@ export class BuilderRouter {
           strategyId: input.strategyId,
           objective: input.objective ?? action.description,
           files: input.files,
-          context,
+          context: context.filter((item) => !isVerifierOnlyContext(item)),
           previousFailureSignatures: input.previousFailureSignatures,
         });
         return { ...result, actionId: action.id };
