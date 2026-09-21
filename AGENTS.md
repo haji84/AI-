@@ -50,6 +50,11 @@ Development work uses these logical contracts:
 - Gate Contract: gates return PASS, FAIL, INCONCLUSIVE, or HUMAN_REQUIRED from contract conditions and valid evidence. INCONCLUSIVE is never PASS.
 - Recovery Contract: failure -> diagnosis -> evidence/hypotheses -> recovery strategy -> execution -> retest -> verification -> Goal-progress evaluation.
 
+### Configuration baseline and rollback
+Before every material change, identify all affected state surfaces and capture an evidence-backed Baseline Snapshot sufficient for safe recovery. Record each material mutation as a Goal/Job-linked Change Set with dependencies, before/after references, verification evidence, rollback procedure, and reversibility classification.
+
+Rollback planning must cover applicable repository code plus configuration, workflow, permission metadata, runtime/deployment state, and external-integration state rather than assuming `git revert` is sufficient. Never record secret values. Detect irreversible or hard-to-reverse work before execution and preserve every existing Human Gate; require backup/compensating/reverse-migration planning where applicable. Refuse dependency-inconsistent partial rollback. After restoration, rerun affected CI/Verifier/security/runtime checks and do not report restored without valid evidence. Rollback is a Recovery strategy under Goal Controller authority and never abandons the Goal by itself.
+
 ### Evidence and authority
 - No Evidence, No Done.
 - AI/Codex/model statements are AI_ASSERTED claims, not machine evidence.
