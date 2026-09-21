@@ -17,6 +17,8 @@ $servicePath = Join-Path $root 'code-builder-worker-service.ts'
 $launcherPath = Join-Path $root 'run-code-builder.ps1'
 $tokenPath = Join-Path $root 'token.txt'
 $logPath = Join-Path $root 'worker.log'
+$stdoutPath = Join-Path $root 'worker.stdout.log'
+$stderrPath = Join-Path $root 'worker.stderr.log'
 $pidPath = Join-Path $root 'worker.pid'
 $statusPath = Join-Path $root 'install-status.json'
 $taskName = 'GAI Code Builder Worker'
@@ -25,6 +27,7 @@ New-Item -ItemType Directory -Force -Path $root | Out-Null
 Copy-Item -Force $serviceSource $servicePath
 
 $node = (Get-Command node -ErrorAction Stop).Source
+$nodeVersion = (& $node --version 2>&1 | Out-String).Trim()
 
 if (-not (Test-Path $tokenPath)) {
   $bytes = New-Object byte[] 32
@@ -81,15 +84,38 @@ if (Test-Path $pidPath) {
   }
 }
 
-Start-Process -FilePath 'powershell.exe' -ArgumentList @(
-  '-NoProfile',
-  '-ExecutionPolicy',
-  'Bypass',
-  '-WindowStyle',
-  'Hidden',
-  '-File',
-  $launcherPath
-) -WindowStyle Hidden
+$previousEnv = [ordered]@{
+  GAI_WORKER_ID = $env:GAI_WORKER_ID
+  CODE_BUILDER_HOST = $env:CODE_BUILDER_HOST
+  CODE_BUILDER_PORT = $env:CODE_BUILDER_PORT
+  CODE_BUILDER_TOKEN = $env:CODE_BUILDER_TOKEN
+  CODE_BUILDER_WORKSPACE = $env:CODE_BUILDER_WORKSPACE
+  CODE_BUILDER_ENGINE = $env:CODE_BUILDER_ENGINE
+  RUNNER_TRACKING_ID = $env:RUNNER_TRACKING_ID
+}
+
+try {
+  $env:GAI_WORKER_ID = $WorkerId
+  $env:CODE_BUILDER_HOST = '127.0.0.1'
+  $env:CODE_BUILDER_PORT = [string]$Port
+  $env:CODE_BUILDER_TOKEN = $token
+  $env:CODE_BUILDER_WORKSPACE = $Workspace
+  $env:CODE_BUILDER_ENGINE = $selectedEngine
+  Remove-Item Env:RUNNER_TRACKING_ID -ErrorAction SilentlyContinue
+
+  Remove-Item $stdoutPath,$stderrPath -Force -ErrorAction SilentlyContinue
+  $process = Start-Process -FilePath $node -ArgumentList @($servicePath) -PassThru -WindowStyle Hidden -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath
+  Set-Content -Encoding ascii $pidPath $process.Id
+} finally {
+  foreach ($name in $previousEnv.Keys) {
+    $value = $previousEnv[$name]
+    if ($null -eq $value) {
+      Remove-Item -Path ("Env:" + $name) -ErrorAction SilentlyContinue
+    } else {
+      Set-Item -Path ("Env:" + $name) -Value $value
+    }
+  }
+}
 
 $healthy = $false
 $health = $null
@@ -114,15 +140,39 @@ try {
   $lastTaskResult = $taskInfo.LastTaskResult
 } catch {}
 
+$pidValue = $null
+$processAlive = $false
+if (Test-Path $pidPath) {
+  $pidValue = (Get-Content $pidPath -Raw -ErrorAction SilentlyContinue).Trim()
+  if ($pidValue -match '^\d+$') {
+    $processAlive = $null -ne (Get-Process -Id ([int]$pidValue) -ErrorAction SilentlyContinue)
+  }
+}
+
+$stdoutTail = ''
+$stderrTail = ''
+if (Test-Path $stdoutPath) {
+  $stdoutTail = (Get-Content $stdoutPath -Tail 40 -ErrorAction SilentlyContinue | Out-String).Trim()
+}
+if (Test-Path $stderrPath) {
+  $stderrTail = (Get-Content $stderrPath -Tail 80 -ErrorAction SilentlyContinue | Out-String).Trim()
+}
+
 $status = [ordered]@{
   ok = $healthy
   workerId = $WorkerId
   port = $Port
   workspace = $Workspace
+  nodePath = $node
+  nodeVersion = $nodeVersion
   configuredEngine = $selectedEngine
   detectedEngines = $detected
   activeEngine = $(if ($health) { $health.engine } else { $null })
   capabilities = $(if ($health) { $health.capabilities } else { @() })
+  processId = $pidValue
+  processAlive = $processAlive
+  stdoutTail = $stdoutTail
+  stderrTail = $stderrTail
   taskName = $taskName
   taskState = $taskState
   lastTaskResult = $lastTaskResult
