@@ -119,6 +119,7 @@ test("SEC-015 resolution without resume is audited and cannot silently resume th
 test("SEC-015 console association remains fail-closed on identity mismatch", () => {
   const source = readFileSync("src/app/jarvis/JarvisConsole.tsx", "utf8");
 
+  // Different identifiers are intentionally not guessed here; formal cross-identity mapping remains unverified.
   assert.match(source, /activeTakeovers\.find\(\(item\) => item\.nodeId === remoteSerial\)/);
   assert.doesNotMatch(source, /activeTakeovers\.find\(\(item\) => item\.nodeId !== remoteSerial\)/);
   assert.match(source, /resolve-takeover/);
