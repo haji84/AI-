@@ -8,6 +8,7 @@ const threatModel = readFileSync(new URL("../docs/architecture/phase20-security-
 const REQUIRED_SECTIONS = [
   "## Protected assets",
   "## Trust boundaries",
+  "## Concrete adversaries and abuse cases",
   "## Owner and session authentication",
   "## Worker identity, signing, freshness, and replay protection",
   "## Device allowlist and capability authorization",
@@ -35,6 +36,21 @@ test("P8 threat model preserves signing freshness replay private ingress and pai
   assert.match(threatModel, /stale or replayed signed message remains invalid/);
   assert.match(threatModel, /private by default/);
   assert.match(threatModel, /must not be selected silently/);
+});
+
+test("P8 threat model names concrete private-ingress fleet assist recovery and protected-action abuse cases", () => {
+  assert.match(threatModel, /\| Private ingress \|/);
+  assert.match(threatModel, /public Funnel is prohibited/);
+  assert.match(threatModel, /\| Fleet identity and capability \|/);
+  assert.match(threatModel, /replacement cannot inherit trust from a label/);
+  assert.match(threatModel, /\| Remote Assist and Human Takeover \|/);
+  assert.match(threatModel, /audit-before-protected-capture/);
+  assert.match(threatModel, /\| Restart, reconnect, and replay \|/);
+  assert.match(threatModel, /blocked\/waiting\/approval-required states survive recovery/);
+  assert.match(threatModel, /\| Protected actions \|/);
+  assert.match(threatModel, /cannot approve their own protected action/);
+  assert.match(threatModel, /\| Provider\/cost routing \|/);
+  assert.match(threatModel, /billing Human Gate/);
 });
 
 test("P8 threat model keeps privacy blackout and recovery evidence bounded", () => {
