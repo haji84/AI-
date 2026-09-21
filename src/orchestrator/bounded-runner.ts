@@ -1,4 +1,5 @@
 import type { CycleReport, Goal, GoalDrivenLoop, StopReason } from "./goal-loop.ts";
+import type { GoalEvaluation } from "./goal-evaluator.ts";
 
 const TERMINAL: ReadonlySet<StopReason> = new Set([
   "goal_complete",
@@ -17,6 +18,7 @@ export interface BoundedRunOptions {
 export interface BoundedRunReport {
   cycles: CycleReport[];
   stopReason: StopReason | "cycle_budget_exhausted";
+  goalEvaluation?: GoalEvaluation;
 }
 
 export async function runBoundedGoalLoop(
