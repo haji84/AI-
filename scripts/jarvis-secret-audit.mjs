@@ -42,7 +42,7 @@ const SECRET_RULES = [
 ];
 
 const SENSITIVE_IDENTIFIER = /\b(?:authorization|bearerToken|ownerSecret|ownerToken|passcode|password|privateKey|secret|sessionToken|token)\b/i;
-const CONSOLE_CALL = /\bconsole\.(?:debug|error|info|log|trace|warn)\s*\((.*)$/;
+const CONSOLE_CALL_START = /\bconsole\.(?:debug|error|info|log|trace|warn)\s*\(/;
 
 function lineNumberAt(text, offset) {
   let line = 1;
@@ -76,6 +76,52 @@ function stripStringLiterals(line) {
   return output;
 }
 
+function parenthesisDelta(text) {
+  let delta = 0;
+  for (const char of text) {
+    if (char === "(") delta += 1;
+    if (char === ")") delta -= 1;
+  }
+  return delta;
+}
+
+function auditSensitiveConsoleLogging(text, path) {
+  const findings = [];
+  const lines = text.split(/\r?\n/);
+  let activeCall = null;
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const stripped = stripStringLiterals(lines[index]);
+
+    if (!activeCall) {
+      const match = stripped.match(CONSOLE_CALL_START);
+      if (!match) continue;
+      const fragment = stripped.slice(match.index ?? 0);
+      activeCall = {
+        line: index + 1,
+        source: fragment,
+        depth: parenthesisDelta(fragment),
+      };
+    } else {
+      activeCall.source += `\n${stripped}`;
+      activeCall.depth += parenthesisDelta(stripped);
+    }
+
+    if (activeCall.depth <= 0) {
+      if (SENSITIVE_IDENTIFIER.test(activeCall.source)) {
+        findings.push({ path, line: activeCall.line, rule: "sensitive-value-console-log" });
+      }
+      activeCall = null;
+    }
+  }
+
+  if (activeCall && SENSITIVE_IDENTIFIER.test(activeCall.source)) {
+    findings.push({ path, line: activeCall.line, rule: "sensitive-value-console-log" });
+  }
+
+  return findings;
+}
+
 export function auditText(text, { path = "<memory>", source = true } = {}) {
   const findings = [];
   for (const [rule, expression] of SECRET_RULES) {
@@ -85,16 +131,7 @@ export function auditText(text, { path = "<memory>", source = true } = {}) {
     }
   }
 
-  if (source) {
-    const lines = text.split(/\r?\n/);
-    for (let index = 0; index < lines.length; index += 1) {
-      const stripped = stripStringLiterals(lines[index]);
-      const call = stripped.match(CONSOLE_CALL);
-      if (call && SENSITIVE_IDENTIFIER.test(call[1])) {
-        findings.push({ path, line: index + 1, rule: "sensitive-value-console-log" });
-      }
-    }
-  }
+  if (source) findings.push(...auditSensitiveConsoleLogging(text, path));
 
   return findings;
 }
