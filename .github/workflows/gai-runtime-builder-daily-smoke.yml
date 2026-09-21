@@ -1,0 +1,54 @@
+name: GAI Runtime Builder Daily Smoke
+
+on:
+  workflow_dispatch:
+  issues:
+    types: [opened, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  runtime-builder-smoke:
+    if: github.event_name != 'issues' || startsWith(github.event.issue.title, '[JARVIS RUNTIME BUILDER SMOKE]')
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - name: Prepare isolated runtime workspace and real Builder
+        shell: powershell
+        run: |
+          $workspace = Join-Path $env:LOCALAPPDATA 'GAIWorker\runtime-builder-daily-smoke'
+          $stateDir = Join-Path $env:LOCALAPPDATA 'GAIWorker\runtime-builder-daily-state'
+          Remove-Item $workspace,$stateDir -Recurse -Force -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force -Path (Join-Path $workspace 'tests\fixtures') | Out-Null
+          Set-Content -NoNewline -Encoding utf8 (Join-Path $workspace 'tests\fixtures\runtime-builder-daily-smoke.txt') 'initial'
+          & git -C $workspace init
+          & git -C $workspace config user.name 'JARVIS Runtime Smoke'
+          & git -C $workspace config user.email 'jarvis-runtime-smoke@local.invalid'
+          & git -C $workspace add tests/fixtures/runtime-builder-daily-smoke.txt
+          & git -C $workspace commit -m 'baseline'
+          .\scripts\install-code-builder-windows.ps1 -WorkerId 'zbook' -Workspace $workspace -ExecTimeoutMs 120000
+          $env:RUNTIME_BUILDER_SMOKE_WORKSPACE = $workspace
+          $env:RUNTIME_BUILDER_SMOKE_STATE_DIR = $stateDir
+          & node .\scripts\runtime-builder-daily-smoke.ts
+          $exit = $LASTEXITCODE
+          Remove-Item Env:RUNTIME_BUILDER_SMOKE_WORKSPACE -ErrorAction SilentlyContinue
+          Remove-Item Env:RUNTIME_BUILDER_SMOKE_STATE_DIR -ErrorAction SilentlyContinue
+          exit $exit
+      - name: Capture runtime smoke evidence
+        if: always()
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path .gai-results | Out-Null
+          Copy-Item "$env:LOCALAPPDATA\GAIWorker\runtime-builder-daily-state\runtime-builder-daily-smoke.json" .gai-results\ -Force -ErrorAction SilentlyContinue
+          Copy-Item "$env:LOCALAPPDATA\GAIWorker\code-builder\install-status.json" .gai-results\ -Force -ErrorAction SilentlyContinue
+          if (Test-Path .gai-results\runtime-builder-daily-smoke.json) { Get-Content .gai-results\runtime-builder-daily-smoke.json }
+      - name: Upload runtime smoke evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gai-runtime-builder-daily-smoke
+          path: .gai-results/
+          include-hidden-files: true
+          retention-days: 30
