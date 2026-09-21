@@ -21,6 +21,14 @@ jobs:
         shell: powershell
         run: |
           .\scripts\install-code-builder-windows.ps1 -WorkerId 'zbook' -Workspace "$env:GITHUB_WORKSPACE"
+      - name: Verify local Builder health from PowerShell
+        shell: powershell
+        run: |
+          $tokenPath = Join-Path $env:LOCALAPPDATA 'GAIWorker\code-builder\token.txt'
+          $headers = @{ Authorization = "Bearer $((Get-Content $tokenPath -Raw).Trim())" }
+          $health = Invoke-RestMethod -Uri 'http://127.0.0.1:8796/health' -Headers $headers -Method Get -TimeoutSec 5
+          $health | ConvertTo-Json -Depth 5
+          if (-not (@($health.capabilities) -contains 'code-builder')) { throw 'PowerShell health probe did not expose code-builder' }
       - name: Run real Codex failure-to-recovery E2E
         id: e2e
         if: steps.install.outcome == 'success'
