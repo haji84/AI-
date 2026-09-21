@@ -4,12 +4,12 @@ import test from "node:test";
 import { URL } from "node:url";
 
 import { buildJarvisFirstRunSetup } from "../src/jarvis/first-run-setup.ts";
-import type { JarvisSelfDiagnosticReport } from "../src/jarvis/self-diagnostics.ts";
+import type { JarvisDiagnosticState, JarvisSelfDiagnosticReport } from "../src/jarvis/self-diagnostics.ts";
 
 const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
-function report(overrides: Partial<Record<string, "ready" | "blocked" | "pending" | "unknown">> = {}): JarvisSelfDiagnosticReport {
-  const states = {
+function report(overrides: Partial<Record<string, JarvisDiagnosticState>> = {}): JarvisSelfDiagnosticReport {
+  const states: Record<string, JarvisDiagnosticState> = {
     AUTH: "ready",
     BUILD: "ready",
     TAILSCALE: "ready",
@@ -21,10 +21,11 @@ function report(overrides: Partial<Record<string, "ready" | "blocked" | "pending
     FIRMWARE_GATE: "pending",
     HUMAN_GATE: "ready",
     ...overrides,
-  } as const;
+  };
+  const values = Object.values(states);
 
   return {
-    overall: Object.values(states).includes("blocked") ? "blocked" : Object.values(states).includes("pending") ? "pending" : Object.values(states).includes("unknown") ? "unknown" : "ready",
+    overall: values.includes("blocked") ? "blocked" : values.includes("pending") ? "pending" : values.includes("unknown") ? "unknown" : "ready",
     items: Object.entries(states).map(([code, state]) => ({
       code: code as JarvisSelfDiagnosticReport["items"][number]["code"],
       label: code,
