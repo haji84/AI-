@@ -208,3 +208,123 @@ export async function exportMemorySyncEnvelope(
     records: records.map((record) => ({ ...record, tags: [...record.tags] })),
   };
 }
+
+
+export interface MemorySyncImportResult {
+  imported: number;
+  unchanged: number;
+}
+
+const MAX_MEMORY_SYNC_RECORDS = 500;
+const MAX_MEMORY_SYNC_ID_CHARS = 512;
+const MAX_MEMORY_SYNC_CONTENT_CHARS = 100_000;
+const MAX_MEMORY_SYNC_TAGS = 64;
+const MAX_MEMORY_SYNC_TAG_CHARS = 256;
+
+function normalizeSyncRecord(value: unknown): MemoryRecord {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("invalid memory sync record");
+  }
+  const record = value as Partial<MemoryRecord>;
+  if (typeof record.id !== "string" || !record.id.trim() || record.id.length > MAX_MEMORY_SYNC_ID_CHARS) {
+    throw new Error("invalid memory sync record id");
+  }
+  if (record.kind !== "working" && record.kind !== "episodic" && record.kind !== "semantic" && record.kind !== "procedural") {
+    throw new Error(`invalid memory sync kind for ${record.id}`);
+  }
+  if (typeof record.content !== "string" || !record.content.trim() || record.content.length > MAX_MEMORY_SYNC_CONTENT_CHARS) {
+    throw new Error(`invalid memory sync content for ${record.id}`);
+  }
+  if (record.source !== undefined && (typeof record.source !== "string" || !record.source.trim())) {
+    throw new Error(`invalid memory sync source for ${record.id}`);
+  }
+  if (typeof record.confidence !== "number" || !Number.isFinite(record.confidence) || record.confidence < 0 || record.confidence > 1) {
+    throw new Error(`invalid memory sync confidence for ${record.id}`);
+  }
+  if (!Array.isArray(record.tags) || record.tags.length > MAX_MEMORY_SYNC_TAGS || record.tags.some((tag) => typeof tag !== "string" || !tag.trim() || tag.length > MAX_MEMORY_SYNC_TAG_CHARS)) {
+    throw new Error(`invalid memory sync tags for ${record.id}`);
+  }
+  if (typeof record.createdAt !== "string" || !Number.isFinite(Date.parse(record.createdAt))) {
+    throw new Error(`invalid memory sync createdAt for ${record.id}`);
+  }
+  if (record.lastUsedAt !== undefined && (typeof record.lastUsedAt !== "string" || !Number.isFinite(Date.parse(record.lastUsedAt)))) {
+    throw new Error(`invalid memory sync lastUsedAt for ${record.id}`);
+  }
+  return {
+    id: record.id.trim(),
+    kind: record.kind,
+    content: record.content.trim(),
+    source: record.source?.trim(),
+    confidence: record.confidence,
+    tags: [...new Set(record.tags.map((tag) => tag.trim()))].sort(),
+    createdAt: record.createdAt,
+    ...(record.lastUsedAt ? { lastUsedAt: record.lastUsedAt } : {}),
+  };
+}
+
+function syncIdentity(record: MemoryRecord): string {
+  return JSON.stringify({
+    id: record.id,
+    kind: record.kind,
+    content: record.content,
+    source: record.source ?? null,
+    confidence: record.confidence,
+    tags: [...record.tags].sort(),
+    createdAt: record.createdAt,
+  });
+}
+
+export async function importMemorySyncEnvelope(
+  store: PersistentMemoryStore,
+  envelope: unknown,
+): Promise<MemorySyncImportResult> {
+  if (!envelope || typeof envelope !== "object" || Array.isArray(envelope)) {
+    throw new Error("invalid memory sync envelope");
+  }
+  const candidate = envelope as Partial<MemorySyncEnvelope>;
+  if (candidate.version !== 1) throw new Error("unsupported memory sync envelope version");
+  if (typeof candidate.generatedAt !== "string" || !Number.isFinite(Date.parse(candidate.generatedAt))) {
+    throw new Error("invalid memory sync generatedAt");
+  }
+  if (!Array.isArray(candidate.records) || candidate.records.length > MAX_MEMORY_SYNC_RECORDS) {
+    throw new Error("invalid memory sync record count");
+  }
+
+  const unique = new Map<string, MemoryRecord>();
+  for (const raw of candidate.records) {
+    const record = normalizeSyncRecord(raw);
+    const previous = unique.get(record.id);
+    if (previous && syncIdentity(previous) !== syncIdentity(record)) {
+      throw new Error(`conflicting memory sync records for ${record.id}`);
+    }
+    unique.set(record.id, record);
+  }
+
+  const pending: MemoryRecord[] = [];
+  let unchanged = 0;
+  for (const record of unique.values()) {
+    const existing = await store.get(record.id);
+    if (!existing) {
+      pending.push(record);
+      continue;
+    }
+    if (syncIdentity(existing) !== syncIdentity(record)) {
+      throw new Error(`memory sync conflict for ${record.id}`);
+    }
+    unchanged += 1;
+  }
+
+  for (const record of pending) {
+    await store.upsert({
+      id: record.id,
+      kind: record.kind,
+      content: record.content,
+      source: record.source,
+      confidence: record.confidence,
+      tags: record.tags,
+      createdAt: record.createdAt,
+    });
+  }
+
+  return { imported: pending.length, unchanged };
+}
