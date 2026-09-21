@@ -69,7 +69,7 @@ export class CompassGoalExecutionAdapter implements GoalExecutionAdapter {
         stateStore: new CompassStateStoreAdapter(compass),
         workStateStore: new CompassWorkStateStoreAdapter(compass),
       });
-      return runBoundedGoalLoop(loop, goal, { maxCycles: input.maxCycles ?? 3 });
+      return await runBoundedGoalLoop(loop, goal, { maxCycles: input.maxCycles ?? 3 });
     } finally {
       compass.close();
     }
