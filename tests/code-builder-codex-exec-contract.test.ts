@@ -32,3 +32,12 @@ test("Windows installer propagates code-builder execution timeout", async () => 
   assert.match(source, /ExecTimeoutMs/);
   assert.match(source, /CODE_BUILDER_EXEC_TIMEOUT_MS/);
 });
+
+
+test("Builder timeout is recoverable and Windows process trees are terminated", async () => {
+  const source = await readFile(service, "utf8");
+  assert.match(source, /taskkill\.exe/);
+  assert.match(source, /result\.timedOut/);
+  assert.match(source, /timed out after/);
+  assert.match(source, /result\.timedOut\s*\?\s*undefined/);
+});

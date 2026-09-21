@@ -92,7 +92,14 @@ function run(command: string, args: string[], timeoutMs = executionTimeoutMs, st
     let stdout = "";
     let stderr = "";
     let timedOut = false;
-    const timer = setTimeout(() => { timedOut = true; child.kill(); }, timeoutMs);
+    const timer = setTimeout(() => {
+      timedOut = true;
+      if (process.platform === "win32" && child.pid) {
+        spawn("taskkill.exe", ["/PID", String(child.pid), "/T", "/F"], { windowsHide: true, stdio: "ignore" });
+      } else {
+        child.kill();
+      }
+    }, timeoutMs);
     child.stdout?.on("data", (chunk) => { stdout += String(chunk).slice(0, 100_000); });
     child.stderr?.on("data", (chunk) => { stderr += String(chunk).slice(0, 100_000); });
     if (stdinInput !== undefined && child.stdin) {
@@ -149,8 +156,16 @@ async function runBuild(body: Record<string, unknown>) {
     status: result.code === 0 ? 200 : 502,
     body: {
       ok: result.code === 0,
-      summary: result.code === 0 ? `${engine.id} completed bounded build` : `${engine.id} failed with exit ${result.code}`,
-      blocker: result.code === 0 ? undefined : "CODING_ENGINE_FAILED",
+      summary: result.code === 0
+        ? `${engine.id} completed bounded build`
+        : result.timedOut
+          ? `${engine.id} timed out after ${executionTimeoutMs}ms`
+          : `${engine.id} failed with exit ${result.code}`,
+      blocker: result.code === 0
+        ? undefined
+        : result.timedOut
+          ? undefined
+          : "CODING_ENGINE_FAILED",
       evidence: { workerId, engine: engine.id, exitCode: result.code, timedOut: result.timedOut, timeoutMs: executionTimeoutMs, diffStat: diff.stdout.trim(), stdoutTail: result.stdout.slice(-4000), stderrTail: result.stderr.slice(-4000) },
     },
   };
