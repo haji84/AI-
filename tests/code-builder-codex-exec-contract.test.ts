@@ -17,6 +17,8 @@ test("code-builder uses explicit noninteractive Codex policy and bounded timeout
   assert.match(source, /"--ignore-user-config"/);
   assert.doesNotMatch(source, /"--full-auto"/);
   assert.match(source, /CODE_BUILDER_EXEC_TIMEOUT_MS/);
+  assert.match(source, /stdio: \["ignore", "pipe", "pipe"\]/);
+  assert.match(source, /timedOut/);
 });
 
 test("Windows installer propagates code-builder execution timeout", async () => {
