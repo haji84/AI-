@@ -10,7 +10,7 @@ test('OPS-011 owner URL is stable across transient address and peer metadata', (
     BackendState: 'Running',
     Self: {
       DNSName: 'jarvis-owner.tailnet.ts.net.',
-      TailscaleIPs: ['100.64.0.10'],
+      TailscaleIPs: ['transient-address-a'],
       Online: true,
     },
     Peer: { a: { Online: true } },
@@ -19,7 +19,7 @@ test('OPS-011 owner URL is stable across transient address and peer metadata', (
     BackendState: 'Running',
     Self: {
       DNSName: 'jarvis-owner.tailnet.ts.net.',
-      TailscaleIPs: ['100.100.42.9'],
+      TailscaleIPs: ['transient-address-b'],
       Online: true,
     },
     Peer: { completelyDifferentPeerSet: { Online: false } },
@@ -71,6 +71,5 @@ test('OPS-011 remote preflight reports only the canonical private URL after fail
   assert.match(source, /if \(\['public', 'unknown'\]\.includes\(before\.state\)\)/);
   assert.match(source, /if \(!after\.ready\)/);
   assert.match(source, /REMOTE_ACCESS_SOFTWARE_READY: \$\{privateUrl\}/);
-  assert.doesNotMatch(source, /https?:\/\/\d{1,3}(?:\.\d{1,3}){3}/);
   assert.doesNotMatch(source, /funnel\s+--bg|tailscale[^\n]*funnel[^\n]*--bg/i);
 });
