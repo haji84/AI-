@@ -1,0 +1,5 @@
+import{routeFabricJob,type FabricJob,type FabricNode,type FabricRoute}from "./capability-fabric-router.ts";
+export interface AdaptiveAttempt{nodeId:string;outcome:"success"|"failure"|"low-confidence"|"unavailable";reason?:string;}
+export interface AdaptiveRouteInput{job:FabricJob;nodes:FabricNode[];attempts:AdaptiveAttempt[];maxEscalations?:number;}
+export interface AdaptiveRouteDecision extends FabricRoute{escalation:number;excludedNodeIds:string[];}
+export function routeAdaptive(input:AdaptiveRouteInput):AdaptiveRouteDecision{const max=input.maxEscalations??3;const failed=new Set(input.attempts.filter(a=>a.outcome!=="success").map(a=>a.nodeId));const escalation=Math.min(input.attempts.filter(a=>a.outcome!=="success").length,max);const candidates=input.nodes.filter(n=>!failed.has(n.id));if(escalation>=max&&candidates.length===0)return{node:null,blocked:true,reasons:["adaptive escalation exhausted"],alternatives:[],escalation,excludedNodeIds:[...failed]};const route=routeFabricJob(input.job,candidates);return{...route,escalation,excludedNodeIds:[...failed]}}
