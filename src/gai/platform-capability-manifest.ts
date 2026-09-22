@@ -53,7 +53,7 @@ const platformToolingEntries = Object.entries(PLATFORM_TOOLING_CAPABILITIES) as 
 const toolingOwner = new Map<WorkerCapability, WorkerPlatform>(
   platformToolingEntries
     .filter((entry): entry is [WorkerPlatform, WorkerCapability] => entry[1] !== null)
-    .map(([platform, capability]) => [capability, platform]),
+    .map(([platform, capability]): [WorkerCapability, WorkerPlatform] => [capability, platform]),
 );
 
 const knownCapabilities = new Set<string>([
