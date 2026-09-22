@@ -26,6 +26,7 @@ export type JarvisCapability =
   | "ui-automation"
   | "self-update"
   | "filesystem"
+  | "windows-tooling"
   | "camera"
   | "gps"
   | "bluetooth"
