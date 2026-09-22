@@ -38,7 +38,7 @@ test("local spreadsheet adapter creates a real XLSX and round-trips primitive ce
     ];
 
     const written = await capability.execute(action("write", "reports/data.xlsx", rows));
-    assert.equal(written.ok, true);
+    assert.equal(written.ok, true, `spreadsheet write failed: ${written.error ?? JSON.stringify(written.outputs)}`);
     assert.equal(written.outputs.rowCount, 3);
     assert.equal(written.outputs.columnCount, 4);
     assert.match(String(written.outputs.sha256), /^[a-f0-9]{64}$/);
@@ -86,7 +86,7 @@ test("local spreadsheet adapter is idempotent and blocks conflicting replacement
   try {
     const capability = new LocalSpreadsheetCapability(root);
     const first = await capability.execute(action("write", "result.xlsx", [["one"]]));
-    assert.equal(first.ok, true);
+    assert.equal(first.ok, true, `spreadsheet first write failed: ${first.error ?? JSON.stringify(first.outputs)}`);
     assert.equal(first.changes[0]?.operation, "create");
 
     const repeat = await capability.execute(action("write", "result.xlsx", [["one"]]));
