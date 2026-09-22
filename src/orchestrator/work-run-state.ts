@@ -1,0 +1,5 @@
+export type WorkRunPhase="QUEUED"|"PLANNING"|"RUNNING"|"VERIFYING"|"RECOVERING"|"HUMAN_GATE"|"BLOCKED"|"COMPLETED"|"FAILED";
+export interface WorkRunState{runId:string;goalId:string;phase:WorkRunPhase;currentWork:string|null;completedJobs:number;totalJobs:number|null;recoveryCount:number;blockers:string[];nextAction:string|null;evidenceRefs:string[];createdAt:string;updatedAt:string;}
+export interface WorkRunStore{getByGoal(goalId:string):Promise<WorkRunState|null>;put(state:WorkRunState):Promise<void>;}
+export function createQueuedWorkRun(goalId:string,now=new Date().toISOString()):WorkRunState{return{runId:`run-${goalId}`,goalId,phase:"QUEUED",currentWork:null,completedJobs:0,totalJobs:null,recoveryCount:0,blockers:[],nextAction:"Plan Goal",evidenceRefs:[],createdAt:now,updatedAt:now};}
+export function workRunProgress(state:WorkRunState):{determinate:boolean;value:number|null}{if(state.phase==="COMPLETED")return{determinate:true,value:1};if(!state.totalJobs||state.totalJobs<1)return{determinate:false,value:null};return{determinate:true,value:Math.max(0,Math.min(1,state.completedJobs/state.totalJobs))};}
