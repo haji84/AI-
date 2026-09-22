@@ -150,7 +150,7 @@ test("MEM-008 replay is idempotent across restart and does not mint another skil
   assert.equal((await restartedMemory.query({ limit: 10 })).length, 2);
 });
 
-test("MEM-008 fails closed before persistence when a trace contains credential-like material", async () => {
+test("MEM-008 fails closed before persistence when a procedure contains credential-like material", async () => {
   const paths = await stores();
   const memory = new PersistentMemoryStore(paths.memoryPath);
   const skills = new PersistentSkillLibrary(paths.skillsPath);
@@ -159,6 +159,22 @@ test("MEM-008 fails closed before persistence when a trace contains credential-l
   trace.attempts[1] = {
     ...trace.attempts[1],
     procedure: "curl -H 'Authorization: Bearer abcdefghijklmnop' https://example.test",
+  };
+
+  await assert.rejects(() => engine.learn(trace), /credential-like material/);
+  assert.deepEqual(await memory.query(), []);
+  assert.deepEqual(await skills.query("document report"), []);
+});
+
+test("MEM-008 validates constraint metadata before any durable learning", async () => {
+  const paths = await stores();
+  const memory = new PersistentMemoryStore(paths.memoryPath);
+  const skills = new PersistentSkillLibrary(paths.skillsPath);
+  const engine = new VerifiedWorkLearningEngine(memory, skills);
+  const trace = recoveredSuccess();
+  trace.constraints = {
+    ...trace.constraints,
+    resources: ["api_key=SUPERSECRET123"],
   };
 
   await assert.rejects(() => engine.learn(trace), /credential-like material/);
