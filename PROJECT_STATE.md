@@ -8,7 +8,7 @@ STATUS: JARVIS_PRODUCT_COMPLETION_IN_PROGRESS
 LAST_UPDATED: 2026-09-23
 CURRENT_EPIC: One-front-door general autonomous AI with durable offline-first device-neutral execution and verifier-driven completion
 ACTIVE_ISSUES: #681 Product Completion / #882 software completion; #1187 bounded research and #1188 full-ledger/Windows audit; #321 research separate
-OPEN_PRS: #1188 software audit/fixes pending PR CI; #1189 merged at 547889a with successful main CI; existing physical-facing PR holds including #883 remain
+OPEN_PRS: #1190 completes #1188 requirement/Windows software audit; exact-head CI/merge tracked in PR. #1189 merged at 547889a; existing physical-facing PR holds including #883 remain
 BLOCKERS: #786 MSIX AppData startup root cause repaired operationally with native owner-profile release90a111b; Limited Windows task and four services running in session0, existing two Workers READY. Tailscale Running and private URL HTTP200 after explicitly approved unattended mode; routine Tailscale recovery standing approval recorded. Physical Windows reboot/AC-loss and #734 video replay remain unverified. See docs/evidence/786-native-startup.md. Owner requires firewall unchanged.
 PRIORITY_OVERRIDE: Owner 2026-09-16 instruction resumes expanded JARVIS product completion #681 with ZBook main-host priority; preserve Human Gates and separate research evidence
 NORTH_STAR_GOAL: Human gives one goal; the system persists that locked Goal, determines required work, dynamically recruits available capabilities, executes, verifies, diagnoses failures, changes strategy, repairs/replans, records evidence, and continues toward verified Goal achievement with the fewest necessary human returns, including continued local work during connectivity loss where capability permits
