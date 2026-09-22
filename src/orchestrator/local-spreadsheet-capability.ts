@@ -162,7 +162,27 @@ function normalizeCell(value: unknown, rowIndex: number, columnIndex: number): S
   throw new Error(`unsupported spreadsheet cell type at ${cellRef(rowIndex, columnIndex)}`);
 }
 
-export function encodeXlsx(workbookInput: { cells: Array<{ sheet: string; cell: string; value?: unknown; formula?: string }> }): Buffer {\n  const cells = Array.isArray(workbookInput?.cells) ? workbookInput.cells : [];\n  const rows: SpreadsheetRows = [];\n  for (const item of cells) {\n    if (item.sheet !== "Sheet1") throw new Error("compatibility encoder supports Sheet1 only");\n    const match = /^([A-Z]+)([1-9][0-9]*)$/.exec(item.cell);\n    if (!match) throw new Error("invalid cell reference");\n    let column = 0; for (const ch of match[1]) column = column * 26 + ch.charCodeAt(0) - 64;\n    const row = Number(match[2]) - 1; column -= 1;\n    rows[row] ??= []; rows[row][column] = normalizeCell(item.value ?? null, row, column);\n  }\n  return writeWorkbook(rows);\n}\n\nexport function decodeXlsx(bytes: Buffer): { cells: Array<{ sheet: string; cell: string; value: SpreadsheetCell }> } {\n  const rows = readWorkbook(bytes); const cells: Array<{ sheet: string; cell: string; value: SpreadsheetCell }> = [];\n  rows.forEach((row, r) => row.forEach((value, col) => { if (value !== null) cells.push({ sheet: "Sheet1", cell: cellRef(r, col), value }); }));\n  return { cells };\n}\n\nfunction writeWorkbook(rows: SpreadsheetRows): Buffer {
+export function encodeXlsx(workbookInput: { cells: Array<{ sheet: string; cell: string; value?: unknown; formula?: string }> }): Buffer {
+  const cells = Array.isArray(workbookInput?.cells) ? workbookInput.cells : [];
+  const rows: SpreadsheetRows = [];
+  for (const item of cells) {
+    if (item.sheet !== "Sheet1") throw new Error("compatibility encoder supports Sheet1 only");
+    const match = /^([A-Z]+)([1-9][0-9]*)$/.exec(item.cell);
+    if (!match) throw new Error("invalid cell reference");
+    let column = 0; for (const ch of match[1]) column = column * 26 + ch.charCodeAt(0) - 64;
+    const row = Number(match[2]) - 1; column -= 1;
+    rows[row] ??= []; rows[row][column] = normalizeCell(item.value ?? null, row, column);
+  }
+  return writeWorkbook(rows);
+}
+
+export function decodeXlsx(bytes: Buffer): { cells: Array<{ sheet: string; cell: string; value: SpreadsheetCell }> } {
+  const rows = readWorkbook(bytes); const cells: Array<{ sheet: string; cell: string; value: SpreadsheetCell }> = [];
+  rows.forEach((row, r) => row.forEach((value, col) => { if (value !== null) cells.push({ sheet: "Sheet1", cell: cellRef(r, col), value }); }));
+  return { cells };
+}
+
+function writeWorkbook(rows: SpreadsheetRows): Buffer {
   const worksheetRows = rows
     .map((row, rowIndex) => {
       const cells = row
