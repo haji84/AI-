@@ -525,7 +525,7 @@ server.listen(port, host, () => {
   console.log(`[jarvis-broker] nodes=${plane.snapshot().stats.registered} tasks=${plane.snapshot().tasks.length} workerApk=${workerApkInfo() ? "ready" : "missing"}`);
 });
 function shutdown(): void {
-  server.close(() => { persist(); store.close(); process.exit(0); });
+  server.close(() => { persist(); store.close(); compass.close(); process.exit(0); });
 }
 process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);
