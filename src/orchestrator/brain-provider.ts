@@ -1,0 +1,6 @@
+export type BrainClass="local"|"online"|"frontier"|"specialist";
+export interface BrainRequest{task:string;context:string[];maxCost:number;requiresEvidence:boolean;}
+export interface BrainResponse{ok:boolean;output:string;evidenceRefs:string[];providerId:string;modelId?:string;cost:number;}
+export interface BrainProvider{id:string;class:BrainClass;available():Promise<boolean>;execute(request:BrainRequest):Promise<BrainResponse>;}
+export class BrainProviderRegistry{private providers=new Map<string,BrainProvider>();register(p:BrainProvider){this.providers.set(p.id,p);return this}async available(){const out:BrainProvider[]=[];for(const p of this.providers.values())if(await p.available())out.push(p);return out}get(id:string){return this.providers.get(id)??null}}
+export async function executeBrain(provider:BrainProvider,request:BrainRequest):Promise<BrainResponse>{if(!(await provider.available()))return{ok:false,output:"",evidenceRefs:[],providerId:provider.id,cost:0};const result=await provider.execute(request);if(result.cost>request.maxCost)return{...result,ok:false,output:"",evidenceRefs:[]};if(request.requiresEvidence&&result.evidenceRefs.length===0)return{...result,ok:false};return result}
