@@ -118,8 +118,8 @@ export class JarvisControlPlane {
     return queued;
   }
 
-  dispatch(connectivity: JarvisConnectionSnapshot, now = new Date()) {
-    const decision = this.router.dispatchNext({ connectivity, now });
+  dispatch(connectivity: JarvisConnectionSnapshot, now = new Date(), taskFilter?: { targetNodeId: string; taskType: string }) {
+    const decision = this.router.dispatchNext({ connectivity, now, taskFilter });
     if (decision) {
       this.audit("jarvis", `task.${decision.status}`, decision.task.id, {
         nodeId: decision.node?.id,

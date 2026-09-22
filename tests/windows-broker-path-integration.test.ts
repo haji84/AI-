@@ -59,13 +59,13 @@ test("real Broker HTTP path dispatches a pinned Windows job, verifies signed res
   assert.equal(JSON.parse(output).platform,process.platform);
   const outputSha256=createHash("sha256").update(output).digest("hex");
   const resultPath="/api/jarvis/worker/result";
-  const result=signed("win-fixture",resultPath,{taskId:task.id,ok:true,detail:{outputSha256,platform:process.platform,simulatedWorker:true}});
+  const result=signed("win-fixture",resultPath,{taskId:task.id,ok:process.platform === "win32",detail:process.platform === "win32" ? {schema:"jarvis.real-machine-result.v1",operation:"smoke",check:"platform",platform:"win32",nodeVersion:process.version,outputSha256,checkIds:["windows-native-process","platform-win32"]} : {schema:"jarvis.real-machine-result.v1",error:"windows_worker_not_running_on_windows"}});
   assert.equal((await post(resultPath,{taskId:task.id,ok:true},false)).status,401);
-  const complete=await fetch(base+resultPath,result);assert.equal(complete.status,200);assert.equal((await complete.json()).task.status,"completed");
+  const complete=await fetch(base+resultPath,result);assert.equal(complete.status,200);assert.equal((await complete.json()).task.status,process.platform === "win32" ? "completed" : "failed");
   assert.equal((await fetch(base+resultPath,result)).status,401);
   await stop();await launch();
   const state=await (await fetch(base+"/api/jarvis/admin/state",{headers:{Authorization:`Bearer ${owner}`}})).json();
-  assert.equal(state.tasks.find((t:{id:string})=>t.id===task.id).status,"completed");
+  assert.equal(state.tasks.find((t:{id:string})=>t.id===task.id).status,process.platform === "win32" ? "completed" : "failed");
   assert.equal(state.fleet.find((n:{id:string})=>n.id==="win-fixture").id,"win-fixture");
   assert.equal((await fetch(base+resultPath,result)).status,401,"nonce replay remains denied after Broker restart");
   await stop();

@@ -26,6 +26,7 @@ import { GoalControllerRuntime } from "../src/orchestrator/goal-controller-runti
 import { CompassGoalRegistryAdapter, CompassGoalDecisionStoreAdapter } from "../src/orchestrator/compass-goal-controller.ts";
 import { CompassWorkRunStore } from "../src/orchestrator/compass-work-run-store.ts";
 import { workRunProgress } from "../src/orchestrator/work-run-state.ts";
+import { validWindowsReport } from "../src/jarvis/windows-worker-journal.ts";
 import { validateWindowsVerificationDispatch } from "../src/orchestrator/windows-verification-dispatch.ts";
 
 
@@ -504,6 +505,14 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
     const identity = authenticateWorker(request, path, body); if (!identity) return json(response, 401, { message: "valid signed worker request required" });
     const payload = parseJson(body);
     if (method === "POST" && path === "/api/jarvis/worker/heartbeat") {
+      if(payload.runtime === "windows-verification-v1") {
+        const current=plane.fleet.get(identity.nodeId);
+        if(!current || current.kind!=="windows")return json(response,403,{message:"Windows identity required"});
+        // Read-only verifier reconnect never grants capabilities or clears owner control state.
+        if(["disabled","locked","needs-human"].includes(current.status))return json(response,200,{node:current});
+        const node=plane.heartbeat(identity.nodeId,{status:current.status==="busy"?"busy":"ready"});
+        persist(false);return json(response,200,{node});
+      }
       const telemetry = payload.telemetry && typeof payload.telemetry === "object" && !Array.isArray(payload.telemetry) ? payload.telemetry as JarvisNode["telemetry"] : undefined;
       const status = payload.status === "busy" || payload.status === "locked" || payload.status === "needs-human" ? payload.status : "ready";
       const capabilities = Array.isArray(payload.capabilities) ? payload.capabilities.filter((item): item is JarvisCapability => typeof item === "string") : undefined;
@@ -523,6 +532,16 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
     }
     if (method === "POST" && path === "/api/jarvis/worker/next") {
       if (remoteMailbox.pending(identity.nodeId)) return json(response, 200, { task: null });
+      if(payload.runtime === "windows-verification-v1") {
+        const node=plane.fleet.get(identity.nodeId);
+        if(!node || node.kind!=="windows" || !["ready","busy"].includes(node.status) || !node.capabilities.includes("windows-tooling"))return json(response,403,{message:"Windows worker not available"});
+        const active=plane.queue.assignedTo(identity.nodeId);
+        if(active.some(task=>task.type!=="windows-real-machine-verification"))return json(response,200,{task:null});
+        let native: (typeof active)[number] | undefined=active[0];
+        if(!native){plane.dispatch({mobileOnline:true,pcOnline:true,sameLanAvailable:false},new Date(),{targetNodeId:identity.nodeId,taskType:"windows-real-machine-verification"});native=plane.queue.assignedTo(identity.nodeId).find(task=>task.type==="windows-real-machine-verification");}
+        if(native?.status==="leased")native=plane.markRunning(native.id,identity.nodeId);
+        persist();return json(response,200,{task:native??null});
+      }
       let assigned = plane.queue.assignedTo(identity.nodeId)[0];
       if (!assigned) { plane.dispatch({ mobileOnline: true, pcOnline: true, sameLanAvailable: false }); assigned = plane.queue.assignedTo(identity.nodeId)[0]; }
       if (assigned?.status === "leased") assigned = plane.markRunning(assigned.id, identity.nodeId);
@@ -531,6 +550,33 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
     if (method === "POST" && path === "/api/jarvis/worker/result") {
       if (typeof payload.taskId !== "string" || typeof payload.ok !== "boolean") return json(response, 400, { message: "taskId and ok required" });
       const detail = payload.detail && typeof payload.detail === "object" && !Array.isArray(payload.detail) ? payload.detail as Record<string, unknown> : {};
+      const current=plane.queue.get(payload.taskId);
+      // The stored task selects the contract, never a caller-controlled result discriminator.
+      if(current?.type === "windows-real-machine-verification" || detail.schema === "jarvis.real-machine-result.v1") {
+        const nativeReport={taskId:payload.taskId,ok:payload.ok,detail};
+        if(!current || current.type!=="windows-real-machine-verification" || current.assignedNodeId!==identity.nodeId || current.targetNodeId!==identity.nodeId)return json(response,409,{message:"Native result target mismatch"});
+        if(!validWindowsReport(nativeReport))return json(response,400,{message:"Invalid native result evidence"});
+        if(nativeReport.ok) {
+          const d=nativeReport.detail as {nodeVersion:string;outputSha256:string};
+          const expected=createHash("sha256").update(JSON.stringify({platform:"win32",node:d.nodeVersion})+"\n").digest("hex");
+          const request=current.payload;
+          if(request.schema!=="jarvis.real-machine.v1" || request.operation!=="smoke" || (request.payload as {check?:string}|undefined)?.check!=="platform" || d.outputSha256!==expected)return json(response,400,{message:"Native evidence does not match task/probe"});
+        }
+        if(current.status==="completed" || current.status==="failed") {
+          const previous=plane.snapshot().audit.filter(e=>e.target===current.id && (e.action==="task.completed" || e.action==="task.failed")).at(-1);
+          const same=nativeReport.ok ? current.status==="completed" && (previous?.detail?.result as {outputSha256?:string}|undefined)?.outputSha256===(nativeReport.detail as {outputSha256:string}).outputSha256 : current.status==="failed" && previous?.detail?.reason===(nativeReport.detail as {error:string}).error;
+          return same?json(response,200,{task:current}):json(response,409,{code:previous?"native_result_conflict":"native_result_unverifiable",task:current,message:"Terminal native outcome retained; result not acknowledged"});
+        }
+        if(current.status==="cancelled")return json(response,409,{code:"native_task_terminal",task:current,message:"Native task is terminal"});
+        if(current.status!=="running")return json(response,409,{message:"Native task is not running"});
+        if(nativeReport.ok && (!current.leaseUntil || !Number.isFinite(Date.parse(current.leaseUntil)) || Date.parse(current.leaseUntil)<=Date.now())) {
+          const task=plane.failTask(current.id,identity.nodeId,"windows_worker_result_lease_expired");
+          persist();return json(response,409,{code:"native_lease_expired",task,message:"Native task lease expired; execution evidence unverified"});
+        }
+        const verifiedDetail={...detail,verification:{status:"PASS",scope:"signed-native-platform-smoke",nodeId:identity.nodeId}};
+        const task=nativeReport.ok?plane.completeTask(payload.taskId,identity.nodeId,verifiedDetail):plane.failTask(payload.taskId,identity.nodeId,(nativeReport.detail as {error:string}).error);
+        persist();return json(response,200,{task});
+      }
       const task = payload.ok ? plane.completeTask(payload.taskId, identity.nodeId, detail) : plane.failTask(payload.taskId, identity.nodeId, typeof detail.error === "string" ? detail.error : "worker reported failure");
       persist(); return json(response, 200, { task });
     }
