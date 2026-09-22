@@ -39,10 +39,8 @@ function protectedBackendProxy(config, protectedLocalPorts) {
     if (key.toLowerCase() === 'proxy' && typeof value === 'string') {
       try {
         const target = new URL(value);
-        const hostname = target.hostname.toLowerCase();
-        const loopback = hostname === '127.0.0.1' || hostname === 'localhost' || hostname === '[::1]' || hostname === '::1';
         const port = Number(target.port || (target.protocol === 'https:' ? 443 : 80));
-        if (loopback && protectedLocalPorts.includes(port)) return target.toString();
+        if (protectedLocalPorts.includes(port)) return target.toString();
       } catch {
         // Shape validation below remains responsible for malformed Serve configuration.
       }
