@@ -26,6 +26,7 @@ import { GoalControllerRuntime } from "../src/orchestrator/goal-controller-runti
 import { CompassGoalRegistryAdapter, CompassGoalDecisionStoreAdapter } from "../src/orchestrator/compass-goal-controller.ts";
 import { CompassWorkRunStore } from "../src/orchestrator/compass-work-run-store.ts";
 import { workRunProgress } from "../src/orchestrator/work-run-state.ts";
+import { validateWindowsVerificationDispatch } from "../src/orchestrator/windows-verification-dispatch.ts";
 
 
 const host = process.env.JARVIS_BROKER_HOST?.trim() || "127.0.0.1";
@@ -404,6 +405,17 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
       const provisioning = fullToken && publicBrokerUrl && apk ? fullProvisioningPayload(publicBrokerUrl, fullToken.token, apk) : undefined;
       const qrPngBase64 = provisioning ? provisioningQrPngBase64(provisioning) : undefined;
       return json(response, 201, { token, fullToken, oneTapUrl, deepLink, apkUrl: apk?.url, apkSha256Base64Url: apk?.sha256Base64Url, provisioning, qrPngBase64 });
+    }
+    if (method === "POST" && path === "/api/jarvis/admin/windows-verification") {
+      const targetNodeId = typeof payload.targetNodeId === "string" ? payload.targetNodeId : "";
+      const operation = typeof payload.operation === "string" ? payload.operation : "";
+      const taskPayload = payload.payload && typeof payload.payload === "object" && !Array.isArray(payload.payload) ? payload.payload as Record<string, unknown> : {};
+      const node = targetNodeId ? plane.fleet.get(targetNodeId) : undefined;
+      try {
+        const spec = validateWindowsVerificationDispatch({ targetNodeId, operation, payload: taskPayload, idempotencyKey: typeof payload.idempotencyKey === "string" ? payload.idempotencyKey : undefined }, node ? { id: node.id, kind: node.kind, capabilities: node.capabilities } : undefined);
+        const task = plane.enqueueTask(spec);
+        persist(); return json(response, 201, { task });
+      } catch (error) { return json(response, 400, { message: error instanceof Error ? error.message : "invalid Windows verification task" }); }
     }
     if (method === "POST" && path === "/api/jarvis/admin/tasks") {
       const type = typeof payload.type === "string" ? payload.type : "";
