@@ -41,5 +41,18 @@
     "tests": "1a9eee01535f7b0a8e3d9eb1f9c8f2c8214336f8f8214b95578d6cd428b5f182",
     "p8": "f156094ae5115799ad93463df360907be8d07a83191f9962f07c7703856445a9",
     "build": "e2c5eae0c65358e32b36ccecdf937f4e33f4dc13d10845db41688102b35cf1b6"
+  },
+  "combined_main_verification": {
+    "revision": "74e450937bb5fa8fbe7ee8ecb329f38f2362e824",
+    "main": "f974cc39dc25697e6cf999764e9d695ee753e14d",
+    "full_tests": 1418,
+    "p8_tests": 270,
+    "lint": "PASS",
+    "build": "PASS",
+    "log_sha256": {
+      "tests": "ae521834cec24f5f570127065944942f7f7cfe47871d514456247ede34d3cd33",
+      "p8": "76a89ecf9bf2a8325bc67289f709b58eb77973b66f1a21b6db54f4acb648f7b2",
+      "build": "6b36e82a6740161e70d5eb785abf7917418b4bfbfe56469ae8056fb0ed70a0de"
+    }
   }
 }

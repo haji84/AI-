@@ -48,3 +48,7 @@ On one already registered neutral test device: start session; record a harmless 
 Revert this code while retaining personal teaching/Skill files; old teaching JSON version1 and Skill version2 remain readable. Do not delete histories or reset registrations. No DB schema, Android version, credential, permissions, paid API, firewall or production deployment change.
 
 Next independent software work: wire #1187 bounded research acquisition into actual claim-bearing workflows under trusted policy; then add the bounded native Windows Worker consumer identified by #1188. Broader #681/#882 requirements remain tracked individually.
+
+## Current-main compatibility follow-up
+
+PR #1194 merged API-only correction core at f974cc39dc25697e6cf999764e9d695ee753e14d during this work. The complete module and its P8 tests are retained in merge revision 74e450937bb5fa8fbe7ee8ecb329f38f2362e824. Combined Windows checks: 1418 full tests, 270 P8 tests, lint and build PASS. Existing library-only correction API remains compatible; #1195 owns the physical-facing runtime/UI path and remains unmerged. No main code was removed. This does not imply the two different correction ledgers are cross-migrated; only the runtime journal is wired to this UI.
