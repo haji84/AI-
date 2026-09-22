@@ -32,6 +32,7 @@ test("P8 security suite remains explicit, focused, and CI-enforced", () => {
     "tests/jarvis-acc008-offline-reconnect.test.ts",
     "tests/jarvis-acc009-multi-device-goal.test.ts",
     "tests/jarvis-teach001-common-memory.test.ts",
+    "tests/jarvis-teach004-verified-batch-replay.test.ts",
     "tests/jarvis-p8-negative-security.test.ts",
     "tests/jarvis-p8-threat-model.test.mjs",
     "tests/jarvis-private-worker-ingress.test.ts",
