@@ -12,6 +12,8 @@ test("P8 security suite remains explicit, focused, and CI-enforced", () => {
   assert.equal(typeof securityScript, "string");
   for (const requiredTest of [
     "tests/owner-auth.test.ts",
+    "tests/production-research-security.test.ts",
+    "tests/research-delegation-integration.test.ts",
     "tests/jarvis-sec001-owner-auth-integration.test.ts",
     "tests/jarvis-sec002-session-control.test.ts",
     "tests/jarvis-sec003-signed-worker-request.test.ts",

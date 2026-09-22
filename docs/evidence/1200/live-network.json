@@ -1,0 +1,76 @@
+{
+  "kind": "software-network-integration",
+  "physical": false,
+  "productionActivated": false,
+  "runs": [
+    {
+      "label": "match",
+      "processExit": 0,
+      "stopReason": "goal_complete",
+      "resultOk": true,
+      "verifierOk": true,
+      "evidence": {
+        "kind": "bounded-fact-research",
+        "version": 1,
+        "actionId": "model:delegate:research:1790102866412",
+        "trust": "reference_only_no_authority",
+        "claims": [
+          {
+            "id": "package-version",
+            "required": true,
+            "status": "CONFIRMED",
+            "valueSha256": "fc74384c893a9e6e0d2010c2f5b0a77a2a83d1025cad11a612a00a7f55c5cc65",
+            "sourceIds": [
+              "https://registry.npmjs.org/-/package/typescript/dist-tags"
+            ]
+          }
+        ],
+        "citations": [
+          {
+            "claimId": "package-version",
+            "url": "https://registry.npmjs.org/-/package/typescript/dist-tags",
+            "retrievedAt": "2026-09-22T18:47:46.806Z",
+            "sha256": "a885ec50e68fd705feed7577d07f1611ab795fe7112c6f82838fc46cac651fc4",
+            "sourceClass": "primary_original"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "label": "conflict",
+      "processExit": 0,
+      "stopReason": "blocked",
+      "resultOk": false,
+      "evidence": {
+        "kind": "bounded-fact-research",
+        "version": 1,
+        "actionId": "model:delegate:research:1790102867063",
+        "trust": "reference_only_no_authority",
+        "claims": [
+          {
+            "id": "package-version",
+            "required": true,
+            "status": "CONFLICTED",
+            "valueSha256": "5e475b985c16597a121df00c5aa24304402a0e75adbb4bd3943799c8fc530803",
+            "sourceIds": [
+              "https://registry.npmjs.org/-/package/typescript/dist-tags"
+            ]
+          }
+        ],
+        "citations": [
+          {
+            "claimId": "package-version",
+            "url": "https://registry.npmjs.org/-/package/typescript/dist-tags",
+            "retrievedAt": "2026-09-22T18:47:47.412Z",
+            "sha256": "a885ec50e68fd705feed7577d07f1611ab795fe7112c6f82838fc46cac651fc4",
+            "sourceClass": "primary_original"
+          }
+        ],
+        "blocked": [
+          "package-version"
+        ]
+      }
+    }
+  ]
+}

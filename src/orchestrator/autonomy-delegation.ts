@@ -1,3 +1,5 @@
+import { createResearchDelegationRuntime } from './research-delegation.ts';
+import type { ResearchTransportOptions } from './research-transport.ts';
 import { resolve } from "node:path";
 
 import { GeneralResearchExecutor, createCapabilityBackedHostedResearchRunner } from "../gai/research-executor.ts";
@@ -15,6 +17,8 @@ export interface AutonomyDelegationInput {
   priority?: "urgent" | "high" | "normal" | "low" | "background";
   query?: string;
   researchKind?: ResearchWorkKind;
+  /** Structured public fact claims; never a network/authority policy. */
+  factCheck?: { claims: import("./production-research.ts").ProductionResearchClaim[] };
   preferredWorkerId?: string;
 }
 
@@ -41,6 +45,8 @@ export interface AutonomyDelegationOptions {
   fetchImpl?: typeof fetch;
   skillLibrary?: PersistentSkillLibrary;
   researchExecutor?: GeneralResearchExecutor;
+  /** Trusted host/test injection only; never populated from a request. */
+  researchTransport?: Pick<ResearchTransportOptions, "resolve" | "fetchImpl" | "maxBytes" | "timeoutMs">;
   sleep?: (ms: number) => Promise<void>;
   jarvisPollIntervalMs?: number;
   jarvisTimeoutMs?: number;
@@ -131,6 +137,7 @@ function parseExecutableSkill(skill: SkillRecord): { capability: string; input?:
 export function createAutonomyDelegationCapability(options: AutonomyDelegationOptions) {
   const env = options.env ?? process.env;
   const fetchImpl = options.fetchImpl ?? fetch;
+  const factResearch = createResearchDelegationRuntime({ env, transport: options.researchTransport });
   const sleep = options.sleep ?? ((ms: number) => new Promise<void>((resolveSleep) => setTimeout(resolveSleep, ms)));
   const pollInterval = options.jarvisPollIntervalMs ?? 750;
   const timeout = options.jarvisTimeoutMs ?? 60_000;
@@ -143,6 +150,8 @@ export function createAutonomyDelegationCapability(options: AutonomyDelegationOp
 
   return {
     name: "autonomy.delegate",
+    verifyResearch: factResearch.verify,
+    withResearchWriteBack: factResearch.withWriteBack,
     async execute(action: ProposedAction, context: ContextItem[]): Promise<ActionResult> {
       let input: AutonomyDelegationInput;
       try {
@@ -223,6 +232,8 @@ export function createAutonomyDelegationCapability(options: AutonomyDelegationOp
           evidence: { skillId: skill.id, delegatedCapability: executable.capability, result: result.evidence },
         };
       }
+
+      if (Object.hasOwn(input, "factCheck")) return factResearch.execute(action);
 
       const config = brokerConfig(env);
       let workers: ResearchWorkerState[] = [];

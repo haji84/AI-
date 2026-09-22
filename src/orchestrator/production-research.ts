@@ -68,7 +68,7 @@ export async function runProductionResearch(input: ProductionResearchInput) {
       const sources: FactSource[] = [];
       for (const source of spec.sources) {
         if (totalBytes >= maxTotalBytes) throw new Error("research total byte limit");
-        const result = await readResearchSource(source.url, { ...input, signal, maxBytes: Math.min(boundedInteger(input.maxBytes, 2_000_000, 2_000_000), maxTotalBytes - totalBytes) });
+        const result = await readResearchSource(source.url, { ...input, accept: "application/json", signal, maxBytes: Math.min(boundedInteger(input.maxBytes, 2_000_000, 2_000_000), maxTotalBytes - totalBytes) });
         totalBytes += result.bytes.byteLength;
         if (result.contentType !== "application/json") throw new Error("research requires JSON source");
         const body: unknown = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(result.bytes));
