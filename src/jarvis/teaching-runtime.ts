@@ -5,6 +5,12 @@ import type { JarvisRemoteAssistSessionManager } from "./remote-assist.ts";
 import { groundVideoPlan } from './video-action-plan.ts';
 import { readVideoPlan } from './video-plan-store.ts';
 import { localVideoReasoning } from './local-video-reasoner.ts';
+import { learningSkills } from './learning-skills.ts';
+import { publishTeachingSkill, resolveTeachingSkill } from './teaching-skills.ts';
+async function learnRun(runId:string) {
+ try { return {...await publishTeachingSkill(teachingStore(),runId,learningSkills()),message:undefined as string|undefined,reused:false}; }
+ catch { return {status:'error',skillId:undefined,message:'操作結果は保存済みですが、Skillの保存に失敗しました。操作を繰り返さず保存先を確認してください。',reused:false}; }
+}
 type FetchGateway=(path:string,init?:RequestInit)=>Promise<Response>;
 const actionLocks=new Set<string>();
 export function teachingAdapter(serial:string,sessionId:string,sessions:JarvisRemoteAssistSessionManager,fetchGateway:FetchGateway):TeachingAdapter {
@@ -27,18 +33,27 @@ export async function teachingCommand(payload:Record<string,unknown>,sessions:Ja
     return result.match===true&&result.unsafe===false&&typeof result.confidence==='number'&&result.confidence>=0.95&&result.confidence<=1;
    }},sessionId);
    const run=await replayTeaching(store,variant.id,adapter,'verify');
-   return {variant:store.get(variant.id),run};
+   return {variant:store.get(variant.id),run,learning:await learnRun(run.id)};
   }
   if(payload.action==='teach-start'){for(const old of store.list().variants.filter(v=>v.status==='RECORDING'&&v.profile.deviceId===serial)){try{sessions.requireActive(old.sessionId!,serial);}catch{store.cancel(old.id);}}const observed=await adapter.observe();return {variant:store.start({goal:payload.goal,scope:payload.scope,profile:observed.profile,sessionId})};}
+  if(payload.action==='teach-correct'){const v=store.recording(sessionId);if(!v)throw Error('No active demonstration');return {variant:store.requestCorrection(v.id)};}
   if(payload.action==='teach-finish'){const v=store.recording(sessionId);if(!v)throw Error('No active demonstration');return {variant:store.finish(v.id,payload.completion,(await adapter.observe()).signature)};}
   if(payload.action==='teach-cancel'){const v=store.recording(sessionId);if(!v)throw Error('No active demonstration');store.cancel(v.id);return {ok:true};}
   if(payload.action==='teach-verify'||payload.action==='teach-execute'){
    if(store.recording(sessionId))throw Error('Finish demonstration before replay');
    const requested=store.get(String(payload.variantId||''));
-   const selected=payload.action==='teach-execute'?selectVariant(store.list().variants,requested.goal,(await adapter.observe()).profile):requested;
+   const observed=payload.action==='teach-execute'?await adapter.observe():undefined;
+   const selected=observed?selectVariant(store.list().variants,requested.goal,observed.profile):requested;
    if(!selected)throw Error('No compatible device procedure');
-   const run=await replayTeaching(store,selected.id,adapter,payload.action==='teach-verify'?'verify':'execute',typeof payload.url==='string'?payload.url:undefined);
-   return {run};
+   let skill=null,lookupFailed=false;
+   try {skill=observed?await resolveTeachingSkill(store,selected.id,observed.profile,learningSkills()):null;}
+   catch {lookupFailed=true;}
+   // Optional learning cannot invalidate an independently verified legacy replay.
+   // The original session, per-device verification and screen gates still apply.
+   const variantId=skill?JSON.parse(skill.procedure).variantId as string:selected.id;
+   const run=await replayTeaching(store,variantId,adapter,payload.action==='teach-verify'?'verify':'execute',typeof payload.url==='string'?payload.url:undefined);
+   const learning=await learnRun(run.id);
+   return {run,learning:{...learning,...(lookupFailed?{status:'error',message:'認定Skillを読めませんでした。既存の検証済み手順で実行しました。保存先を確認してください。'}:{}),reused:!!skill}};
   }
   throw Error('Unknown teaching command');
  }finally{actionLocks.delete(serial);}
@@ -49,8 +64,8 @@ export async function beforeTeachingInput(payload:Record<string,unknown>,session
  if(actionLocks.has(serial))throw Error('Teaching device busy');
  if(teachingStore().list().variants.some(v=>v.status==='RECORDING'&&v.profile.deviceId===serial&&v.sessionId!==sessionId))throw Error('This device is recording in another session');
  const variant=teachingStore().recording(sessionId);if(!variant)return null;
- if(variant.steps.length>=50)throw Error('Teaching step limit reached');
+ if(variant.steps.length>=50&&!variant.learning?.pendingCorrection)throw Error('Teaching step limit reached');
  actionLocks.add(serial);const adapter=teachingAdapter(serial,sessionId,sessions,gateway);
- try {const before=await adapter.observe();return {finish:async(ok:boolean)=>{try{if(ok){const after=await adapter.observe();teachingStore().append(variant.id,demonstratedStep(payload,before,after));}else teachingStore().cancel(variant.id);}catch(error){if(teachingStore().recording(sessionId))teachingStore().cancel(variant.id);throw error;}finally{actionLocks.delete(serial);}},abort:()=>{if(teachingStore().recording(sessionId))teachingStore().cancel(variant.id);},release:()=>actionLocks.delete(serial)};}
+ try {const before=await adapter.observe();if(variant.learning?.pendingCorrection)teachingStore().resumeCorrection(variant.id,before);const capture=teachingStore().get(variant.id);return {finish:async(ok:boolean)=>{try{if(ok){const after=await adapter.observe();if(capture.learning?.pendingCorrection)teachingStore().resumeCorrection(variant.id,after);else teachingStore().append(variant.id,demonstratedStep(payload,before,after));}else teachingStore().cancel(variant.id);}catch(error){if(teachingStore().recording(sessionId))teachingStore().cancel(variant.id);throw error;}finally{actionLocks.delete(serial);}},abort:()=>{if(teachingStore().recording(sessionId))teachingStore().cancel(variant.id);},release:()=>actionLocks.delete(serial)};}
  catch(error){actionLocks.delete(serial);throw error;}
 }

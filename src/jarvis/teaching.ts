@@ -1,3 +1,4 @@
+import { recordLearningStep, requestLearningCorrection, correctedLearningSteps, type TeachingLearning } from "./teaching-learning.ts";
 import { randomUUID, createHash } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync, renameSync } from "node:fs";
 import { dirname } from "node:path";
@@ -5,7 +6,7 @@ export type TeachingPlatform = "android" | "ios" | "windows" | "macos" | "linux"
 export type DeviceProfile = { deviceId: string; platform: TeachingPlatform; model: string; osVersion: string; app: string; appVersion: string };
 export type TeachingAction = { kind: "tap"; selector: string } | { kind: "key"; key: "BACK" | "HOME" | "APP_SWITCH" } | { kind: "url"; host: string } | { kind: "manual"; instruction: string };
 export type TeachingStep = { action: TeachingAction; before: string; after: string; gate: boolean; contextKey?: string };
-export type TeachingVariant = { id: string; goal: string; completion: string; scope: "device" | "model" | "common"; profile: DeviceProfile; status: "RECORDING" | "DRAFT" | "VERIFIED"; sessionId?: string; steps: TeachingStep[]; finalScreen: string; createdAt: string; verifiedRunId?: string };
+export type TeachingVariant = { id: string; goal: string; completion: string; scope: "device" | "model" | "common"; profile: DeviceProfile; status: "RECORDING" | "DRAFT" | "VERIFIED"; sessionId?: string; steps: TeachingStep[]; finalScreen: string; createdAt: string; verifiedRunId?: string; learning?: TeachingLearning };
 export type TeachingRun = { id: string; variantId: string; deviceId: string; profileKey: string; mode: "verify" | "execute"; status: "RUNNING" | "PASSED" | "FAILED" | "NEEDS_HUMAN"; nextStep: number; pendingStep?: number; reason?: string; startedAt: string; finishedAt?: string };
 export type Observation = { signature: string; profile: DeviceProfile; targets: Array<{ selector: string; labelHash?: string; x: number; y: number; left: number; top: number; right: number; bottom: number; safeNavigation: boolean }>; protectedScreen: boolean };
 export interface TeachingAdapter { observe(): Promise<Observation>; execute(action: TeachingAction, observation: Observation, url?: string): Promise<void>; authorize(): void | Promise<void> }
@@ -51,15 +52,18 @@ export class TeachingStore {
   if(input.sessionId&&(this.recording(input.sessionId)||this.data.variants.some(v=>v.status==='RECORDING'&&v.profile.deviceId===profile(input.profile).deviceId)))throw Error("Already recording");
   const v:TeachingVariant={id:randomUUID(),goal:text(input.goal,"goal"),completion:"",scope:input.scope as TeachingVariant["scope"],profile:profile(input.profile),status:input.sessionId?"RECORDING":"DRAFT",sessionId:input.sessionId,steps:[],finalScreen:"",createdAt:new Date().toISOString()};this.data.variants.push(v);this.save();return structuredClone(v);
  }
- append(id:string,step:TeachingStep){const v=this.data.variants.find(v=>v.id===id);if(!v||v.status!=="RECORDING"||v.steps.length>=50)throw Error("Recording unavailable or step limit reached");v.steps.push(structuredClone(step));this.save();}
+ append(id:string,step:TeachingStep){const v=this.data.variants.find(v=>v.id===id);if(!v||v.status!=="RECORDING"||v.steps.length>=50)throw Error("Recording unavailable or step limit reached");v.learning=recordLearningStep(v,step);v.steps.push(structuredClone(step));this.save();}
+ requestCorrection(id:string){const v=this.data.variants.find(v=>v.id===id);if(!v||v.status!=="RECORDING"||!v.steps.length)throw Error("Correction requires active recording");v.learning=requestLearningCorrection(v);this.save();return this.get(id);}
+ resumeCorrection(id:string,observation:Observation){const v=this.data.variants.find(v=>v.id===id);if(!v||v.status!=="RECORDING")throw Error("Correction requires active recording");const steps=correctedLearningSteps(v,observation);if(!steps)return false;v.steps=steps;delete v.learning!.pendingCorrection;this.save();return true;}
  manual(input:{goal:unknown;scope:unknown;profile:unknown;instructions:unknown;completion:unknown}){
   if(typeof input.instructions!=="string")throw Error("Instructions required");const lines=input.instructions.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);if(!lines.length||lines.length>50)throw Error("1–50 steps required");const instructions=lines.map(s=>text(s,"instruction",500));const completion=text(input.completion,"completion",500);
   if(/password|token|secret|パスワード|秘密鍵/i.test(instructions.join(" ")))throw Error("Do not save credentials in teaching steps");
   const v=this.start(input);const stored=this.data.variants.find(r=>r.id===v.id)!;stored.steps=instructions.map(instruction=>({action:{kind:"manual",instruction},before:"",after:"",gate:true}));stored.completion=completion;this.save();return this.get(v.id);
  }
- finish(id:string,completion:unknown,finalScreen:string){const v=this.data.variants.find(v=>v.id===id);if(!v||v.status!=="RECORDING"||!v.steps.length)throw Error("Record at least one action first");const value=text(completion,"completion",500);if(!finalScreen)throw Error("Completion observation required");v.completion=value;v.finalScreen=finalScreen;v.status="DRAFT";delete v.sessionId;this.save();return this.get(id);}
+ finish(id:string,completion:unknown,finalScreen:string){const v=this.data.variants.find(v=>v.id===id);if(!v||v.status!=="RECORDING"||!v.steps.length)throw Error("Record at least one action first");if(v.learning?.pendingCorrection)throw Error("Finish correction before saving");const value=text(completion,"completion",500);if(!finalScreen)throw Error("Completion observation required");v.completion=value;v.finalScreen=finalScreen;v.status="DRAFT";delete v.sessionId;this.save();return this.get(id);}
  cancel(id:string){const v=this.data.variants.find(v=>v.id===id);if(!v||v.status!=="RECORDING")throw Error("No active recording");v.status="DRAFT";delete v.sessionId;this.save();}
  beginRun(v:TeachingVariant,p:DeviceProfile,mode:TeachingRun["mode"]){
+  if(v.learning?.pendingCorrection)throw Error("Unfinished correction requires a new demonstration");
   if(v.status==="RECORDING"||!v.completion||!v.finalScreen||!v.steps.length||!matchesVariant(v,p))throw Error("Procedure not ready or device/version mismatch");
   if(Object.values(p).includes("unknown"))throw Error("Device/application version must be known before replay");
   if(this.data.runs.length>=2000)throw Error("Run history capacity reached");

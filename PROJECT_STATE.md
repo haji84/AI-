@@ -3,12 +3,12 @@
 PROJECT: General Autonomous AI / Unified AI Creator Studio / GAI Research OS
 AI_COMPANY_VERSION: 1.0
 PROJECT_VERSION: 0.0.0
-CURRENT_PHASE: JARVIS #681/#882 P0/P8 full requirement reconciliation and bounded research; P9 Windows execution-path verification
+CURRENT_PHASE: JARVIS #681/#882 P7 demonstration correction and durable Skill integration; P0/P8/P9 audited baseline retained
 STATUS: JARVIS_PRODUCT_COMPLETION_IN_PROGRESS
 LAST_UPDATED: 2026-09-23
 CURRENT_EPIC: One-front-door general autonomous AI with durable offline-first device-neutral execution and verifier-driven completion
-ACTIVE_ISSUES: #681 Product Completion / #882 software completion; #1187 bounded research and #1188 full-ledger/Windows audit; #321 research separate
-OPEN_PRS: #1190 completes #1188 requirement/Windows software audit; exact-head CI/merge tracked in PR. #1189 merged at 547889a; existing physical-facing PR holds including #883 remain
+ACTIVE_ISSUES: #681 Product Completion / #882 software completion; #1192 demonstration-Skill integration; #321 research separate
+OPEN_PRS: #1195 implements #1192 with passing local software checks, physical acceptance hold before merge; #1194 API-only correction core retained from main; #1190/#1189 merged; older physical-facing holds remain
 BLOCKERS: #786 MSIX AppData startup root cause repaired operationally with native owner-profile release90a111b; Limited Windows task and four services running in session0, existing two Workers READY. Tailscale Running and private URL HTTP200 after explicitly approved unattended mode; routine Tailscale recovery standing approval recorded. Physical Windows reboot/AC-loss and #734 video replay remain unverified. See docs/evidence/786-native-startup.md. Owner requires firewall unchanged.
 PRIORITY_OVERRIDE: Owner 2026-09-16 instruction resumes expanded JARVIS product completion #681 with ZBook main-host priority; preserve Human Gates and separate research evidence
 NORTH_STAR_GOAL: Human gives one goal; the system persists that locked Goal, determines required work, dynamically recruits available capabilities, executes, verifies, diagnoses failures, changes strategy, repairs/replans, records evidence, and continues toward verified Goal achievement with the fewest necessary human returns, including continued local work during connectivity loss where capability permits
@@ -44,7 +44,7 @@ JARVIS_100_NODE_CAPACITY: PASS in deterministic CI; node 101 is rejected
 JARVIS_PHYSICAL_ANDROID_E2E: PASS for the acceptance scope through real Android 001 resident-Broker/Worker execution evidence from PR #526 and follow-up hardening. This does not imply unverified physical wake/Device Owner/live-screen/real-offline claims
 GAI_RESEARCH_OPS: SEPARATE_EVIDENCE_PROGRAM; Issue #321 and R1-R20 remain open until their real scientific evidence gates pass
 GAI_NEXT_PHASE: Complete #681 P0–P10 using docs/JARVIS_PRODUCT_SPEC.md and docs/jarvis-requirements.json; keep #321 research separate
-NEXT_PRIORITY: Land #1188 requirement/Windows software audit after exact-head CI; integrate demonstration corrections with durable verified Skill write-back; implement bounded native Windows Worker handler before production canary without re-enrollment
+NEXT_PRIORITY: Complete #1192 PR/CI and write-back; retain unmerged until neutral existing-device correction/replay acceptance. Next independent software integration: trusted bounded research acquisition -> claim-bearing workflow; then bounded native Windows Worker consumer without re-enrollment
 HUMAN_APPROVAL_PENDING: none for ordinary code/CI/device validation; production, secrets, permissions, billing, destructive, governance/security weakening, and external-publication gates remain in force
 AUTONOMOUS_RECOVERY_POLICY: progress-aware bounded autonomy; per-strategy retry exhaustion triggers diagnose/replan/alternate capability or strategy, not automatic Goal abandonment; stop/escalate only for safety/approval gates, explicit pause/cancel, unavailable required authority, exhausted overall resource budget, or no safe actionable strategy
 MAX_ACTIVE_AGENTS: 3

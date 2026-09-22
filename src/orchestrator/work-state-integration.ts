@@ -1,3 +1,7 @@
+import { learningSkills } from '../jarvis/learning-skills.ts';
+import type { PersistentSkillLibrary, SkillEnvironment } from '../gai/skill-library.ts';
+import { GaiSkillContextSource } from './gai-skill-context.ts';
+import { VerifiedSkillWriteBackStore } from './verified-skill-writeback.ts';
 import { createHash } from "node:crypto";
 import type {
   ActionResult,
@@ -281,10 +285,18 @@ export function createWorkStateIntegratedGoalLoop(input: {
   workStateStore: WorkStateStore;
   approvalPolicy?: ApprovalPolicy;
   options?: GoalLoopOptions;
+  skillLibrary?: PersistentSkillLibrary;
+  skillEnvironment?: () => Promise<SkillEnvironment>;
 }): GoalDrivenLoop {
-  const contextSources = [new WorkStateContextSource(input.workStateStore), ...input.contextSources];
+  const skills=input.skillLibrary??learningSkills();
+  const contextSources = [new WorkStateContextSource(input.workStateStore), new GaiSkillContextSource(skills,input.skillEnvironment??(async()=>({capabilities:[],resources:[],online:false,risk:'low'}))), ...input.contextSources];
   const executor = new WorkStateGuardedExecutor(input.executor, input.workStateStore, input.goal);
-  const store = new WorkStateWriteBackStore(input.stateStore, input.workStateStore);
+  const store = new VerifiedSkillWriteBackStore(new WorkStateWriteBackStore(input.stateStore, input.workStateStore),skills,{
+    onExtractionError:async()=>{await input.workStateStore.appendEvent(goalWorkStateId(input.goal),{
+      id:'skill-writeback-'+Date.now(),at:new Date().toISOString(),type:'skill_writeback_failed',
+      summary:'Verified result saved; optional Skill extraction failed. Do not repeat the completed action.'
+    });}
+  });
   return new GoalDrivenLoop(
     input.planner,
     contextSources,

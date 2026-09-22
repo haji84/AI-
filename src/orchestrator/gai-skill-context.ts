@@ -20,11 +20,14 @@ export class GaiSkillContextSource implements ContextSource {
   async collect(input: { goal: Goal; nextAction?: string | null }): Promise<ContextItem[]> {
     const task = [input.goal.title, input.goal.description, input.nextAction].filter(Boolean).join(" ");
     const environment = this.environment ? await this.environment() : undefined;
-    const skills = await this.skills.query(task, this.limit, environment);
+    let skills;
+    try { skills = await this.skills.query(task, this.limit, environment); }
+    catch { return [{source:this.name,summary:'Optional Skill memory unavailable; continue without learned procedures',data:{status:'unavailable'}}]; }
     return skills.map((skill) => ({
       source: this.name,
       summary: `Certified skill ${skill.name} v${skill.version ?? 1}: ${skill.description}`,
       data: {
+        trust: "reference_only_no_authority",
         skillId: skill.id,
         version: skill.version ?? 1,
         procedure: skill.procedure,

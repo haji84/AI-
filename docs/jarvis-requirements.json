@@ -6392,18 +6392,32 @@
       ],
       "implementation_refs": [
         "src/gai/skill-library.ts",
-        "src/gai/governed-skill-runtime.ts"
+        "src/gai/governed-skill-runtime.ts",
+        "src/jarvis/teaching-learning.ts",
+        "src/jarvis/teaching-skills.ts",
+        "src/jarvis/learning-skills.ts",
+        "src/orchestrator/work-state-integration.ts",
+        "src/orchestrator/gai-skill-context.ts"
       ],
       "test_refs": [
         "tests/gai-phase12-skill-system.test.ts",
-        "src/gai/governed-skill-runtime.test.ts"
+        "src/gai/governed-skill-runtime.test.ts",
+        "tests/teaching-correction-integration.test.ts",
+        "tests/teaching-skills.test.ts",
+        "tests/goal-loop-skill-integration.test.ts"
       ],
-      "evidence_refs": [],
+      "evidence_refs": [
+        "docs/evidence/1192-teaching-skill-integration.md",
+        "1192-teaching-skills-code",
+        "1192-teaching-skills-unit",
+        "1192-teaching-skills-integration",
+        "1192-teaching-skills-security"
+      ],
       "status": "PARTIAL",
-      "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+      "blocker": "Scoped software integration passed in #1192 candidate; physical-facing acceptance and broader requirement coverage remain open. Teaching store still has one writer; Skill store serializes cooperating local processes.",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "P7: Verified execution→reusable knowledge。 について実装の不足を埋め、required_evidenceを取得する。",
+      "next_action": "Accept neutral real-device record -> explicit correction -> two independent replays -> Skill reuse/restart before merging #1192. Broader arbitrary-video/error inference, native adapters and autonomous Goal-to-device capability remain incomplete.",
       "last_verified_commit": null,
       "delivery_audit": {
         "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -6412,7 +6426,11 @@
         "physical": "PENDING",
         "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
         "staged_implementation_refs": [],
-        "audit_ref": "docs/evidence/1188-requirements-windows.md"
+        "audit_ref": "docs/evidence/1188-requirements-windows.md",
+        "candidate_revision": "043db1d60f4afad003709c3e2cc75c0a7df0ff67",
+        "candidate_connection": "SCOPED_INTEGRATION_PASS_PHYSICAL_HOLD",
+        "candidate_evidence": "docs/evidence/1192-teaching-skill-integration.md",
+        "candidate_notes": "Issue #1192 wires explicit correction observations to durable device/profile-bound Skill candidate/certification and guarded teaching replay. Goal factory now wires generic certified context/candidate write-back. No new autonomous device capability or physical acceptance; main/production unchanged until acceptance."
       }
     },
     {
@@ -8504,20 +8522,33 @@
         "src/jarvis/teaching.ts",
         "src/jarvis/teaching-runtime.ts",
         "src/app/jarvis/TeachingControls.tsx",
-        "src/app/jarvis/teach/page.tsx"
+        "src/app/jarvis/teach/page.tsx",
+        "src/jarvis/teaching-learning.ts",
+        "src/jarvis/teaching-skills.ts",
+        "src/jarvis/learning-skills.ts",
+        "src/orchestrator/work-state-integration.ts",
+        "src/orchestrator/gai-skill-context.ts"
       ],
       "test_refs": [
         "tests/jarvis-teaching.test.ts",
-        "tests/jarvis-teaching-runtime.test.ts"
+        "tests/jarvis-teaching-runtime.test.ts",
+        "tests/teaching-correction-integration.test.ts",
+        "tests/teaching-skills.test.ts",
+        "tests/goal-loop-skill-integration.test.ts"
       ],
       "evidence_refs": [
-        "docs/architecture/jarvis-device-teaching.md"
+        "docs/architecture/jarvis-device-teaching.md",
+        "docs/evidence/1192-teaching-skill-integration.md",
+        "1192-teaching-skills-code",
+        "1192-teaching-skills-unit",
+        "1192-teaching-skills-integration",
+        "1192-teaching-skills-security"
       ],
       "status": "PARTIAL",
-      "blocker": "全platformの保存と共通契約あり。実機自動操作はAndroid経路のみ。他のnative adapterと実機教示検証が必要。",
+      "blocker": "Scoped software integration passed in #1192 candidate; physical-facing acceptance and broader requirement coverage remain open. Teaching store still has one writer; Skill store serializes cooperating local processes.",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "実機で実演→保存→別run再現を検証し、未接続platform adapterを実装する。",
+      "next_action": "Accept neutral real-device record -> explicit correction -> two independent replays -> Skill reuse/restart before merging #1192. Broader arbitrary-video/error inference, native adapters and autonomous Goal-to-device capability remain incomplete.",
       "last_verified_commit": null,
       "delivery_audit": {
         "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -8526,7 +8557,11 @@
         "physical": "PENDING",
         "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
         "staged_implementation_refs": [],
-        "audit_ref": "docs/evidence/1188-requirements-windows.md"
+        "audit_ref": "docs/evidence/1188-requirements-windows.md",
+        "candidate_revision": "043db1d60f4afad003709c3e2cc75c0a7df0ff67",
+        "candidate_connection": "SCOPED_INTEGRATION_PASS_PHYSICAL_HOLD",
+        "candidate_evidence": "docs/evidence/1192-teaching-skill-integration.md",
+        "candidate_notes": "Issue #1192 wires explicit correction observations to durable device/profile-bound Skill candidate/certification and guarded teaching replay. Goal factory now wires generic certified context/candidate write-back. No new autonomous device capability or physical acceptance; main/production unchanged until acceptance."
       }
     },
     {
@@ -8545,20 +8580,33 @@
         "src/jarvis/teaching.ts",
         "src/jarvis/teaching-runtime.ts",
         "src/app/jarvis/TeachingControls.tsx",
-        "src/app/jarvis/teach/page.tsx"
+        "src/app/jarvis/teach/page.tsx",
+        "src/jarvis/teaching-learning.ts",
+        "src/jarvis/teaching-skills.ts",
+        "src/jarvis/learning-skills.ts",
+        "src/orchestrator/work-state-integration.ts",
+        "src/orchestrator/gai-skill-context.ts"
       ],
       "test_refs": [
         "tests/jarvis-teaching.test.ts",
-        "tests/jarvis-teaching-runtime.test.ts"
+        "tests/jarvis-teaching-runtime.test.ts",
+        "tests/teaching-correction-integration.test.ts",
+        "tests/teaching-skills.test.ts",
+        "tests/goal-loop-skill-integration.test.ts"
       ],
       "evidence_refs": [
-        "docs/architecture/jarvis-device-teaching.md"
+        "docs/architecture/jarvis-device-teaching.md",
+        "docs/evidence/1192-teaching-skill-integration.md",
+        "1192-teaching-skills-code",
+        "1192-teaching-skills-unit",
+        "1192-teaching-skills-integration",
+        "1192-teaching-skills-security"
       ],
       "status": "PARTIAL",
-      "blocker": "互換性照合実装済み。実機の複数機種・OS/app更新検証が必要。",
+      "blocker": "Scoped software integration passed in #1192 candidate; physical-facing acceptance and broader requirement coverage remain open. Teaching store still has one writer; Skill store serializes cooperating local processes.",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "実機で実演→保存→別run再現を検証し、未接続platform adapterを実装する。",
+      "next_action": "Accept neutral real-device record -> explicit correction -> two independent replays -> Skill reuse/restart before merging #1192. Broader arbitrary-video/error inference, native adapters and autonomous Goal-to-device capability remain incomplete.",
       "last_verified_commit": null,
       "delivery_audit": {
         "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -8570,7 +8618,11 @@
           "https://github.com/haji84/AI-/blob/6af365ceb1b52b9111f98760da8d352449632871/src/jarvis/teaching-learning.ts",
           "https://github.com/haji84/AI-/blob/6af365ceb1b52b9111f98760da8d352449632871/src/jarvis/teaching-lessons.ts"
         ],
-        "audit_ref": "docs/evidence/1188-requirements-windows.md"
+        "audit_ref": "docs/evidence/1188-requirements-windows.md",
+        "candidate_revision": "043db1d60f4afad003709c3e2cc75c0a7df0ff67",
+        "candidate_connection": "SCOPED_INTEGRATION_PASS_PHYSICAL_HOLD",
+        "candidate_evidence": "docs/evidence/1192-teaching-skill-integration.md",
+        "candidate_notes": "Issue #1192 wires explicit correction observations to durable device/profile-bound Skill candidate/certification and guarded teaching replay. Goal factory now wires generic certified context/candidate write-back. No new autonomous device capability or physical acceptance; main/production unchanged until acceptance."
       }
     },
     {
@@ -8592,22 +8644,35 @@
         "src/app/jarvis/teach/page.tsx",
         "src/jarvis/local-video-reasoner.ts",
         "src/jarvis/video-action-plan.ts",
-        "src/app/api/jarvis/teaching/video/route.ts"
+        "src/app/api/jarvis/teaching/video/route.ts",
+        "src/jarvis/teaching-learning.ts",
+        "src/jarvis/teaching-skills.ts",
+        "src/jarvis/learning-skills.ts",
+        "src/orchestrator/work-state-integration.ts",
+        "src/orchestrator/gai-skill-context.ts"
       ],
       "test_refs": [
         "tests/jarvis-teaching.test.ts",
         "tests/jarvis-teaching-runtime.test.ts",
-        "tests/jarvis-video-actions.test.ts"
+        "tests/jarvis-video-actions.test.ts",
+        "tests/teaching-correction-integration.test.ts",
+        "tests/teaching-skills.test.ts",
+        "tests/goal-loop-skill-integration.test.ts"
       ],
       "evidence_refs": [
         "docs/architecture/jarvis-device-teaching.md",
-        "docs/architecture/jarvis-video-teaching.md"
+        "docs/architecture/jarvis-video-teaching.md",
+        "docs/evidence/1192-teaching-skill-integration.md",
+        "1192-teaching-skills-code",
+        "1192-teaching-skills-unit",
+        "1192-teaching-skills-integration",
+        "1192-teaching-skills-security"
       ],
       "status": "PARTIAL",
-      "blocker": "ローカル動画理解と実機照合を実装。実機での成功再現は未検証。Chromeページ操作対象が観測できず、ユーザー補助サービスも無効。未対応操作は停止。",
+      "blocker": "Scoped software integration passed in #1192 candidate; physical-facing acceptance and broader requirement coverage remain open. Teaching store still has one writer; Skill store serializes cooperating local processes.",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "Android権限と開始画面を確認し、中立的な録画→照合→再現検証を実機で完了する。",
+      "next_action": "Accept neutral real-device record -> explicit correction -> two independent replays -> Skill reuse/restart before merging #1192. Broader arbitrary-video/error inference, native adapters and autonomous Goal-to-device capability remain incomplete.",
       "last_verified_commit": null,
       "delivery_audit": {
         "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -8619,7 +8684,11 @@
           "https://github.com/haji84/AI-/blob/6af365ceb1b52b9111f98760da8d352449632871/src/jarvis/teaching-learning.ts",
           "https://github.com/haji84/AI-/blob/6af365ceb1b52b9111f98760da8d352449632871/src/jarvis/teaching-lessons.ts"
         ],
-        "audit_ref": "docs/evidence/1188-requirements-windows.md"
+        "audit_ref": "docs/evidence/1188-requirements-windows.md",
+        "candidate_revision": "043db1d60f4afad003709c3e2cc75c0a7df0ff67",
+        "candidate_connection": "SCOPED_INTEGRATION_PASS_PHYSICAL_HOLD",
+        "candidate_evidence": "docs/evidence/1192-teaching-skill-integration.md",
+        "candidate_notes": "Issue #1192 wires explicit correction observations to durable device/profile-bound Skill candidate/certification and guarded teaching replay. Goal factory now wires generic certified context/candidate write-back. No new autonomous device capability or physical acceptance; main/production unchanged until acceptance."
       }
     },
     {
@@ -8638,20 +8707,33 @@
         "src/jarvis/teaching.ts",
         "src/jarvis/teaching-runtime.ts",
         "src/app/jarvis/TeachingControls.tsx",
-        "src/app/jarvis/teach/page.tsx"
+        "src/app/jarvis/teach/page.tsx",
+        "src/jarvis/teaching-learning.ts",
+        "src/jarvis/teaching-skills.ts",
+        "src/jarvis/learning-skills.ts",
+        "src/orchestrator/work-state-integration.ts",
+        "src/orchestrator/gai-skill-context.ts"
       ],
       "test_refs": [
         "tests/jarvis-teaching.test.ts",
-        "tests/jarvis-teaching-runtime.test.ts"
+        "tests/jarvis-teaching-runtime.test.ts",
+        "tests/teaching-correction-integration.test.ts",
+        "tests/teaching-skills.test.ts",
+        "tests/goal-loop-skill-integration.test.ts"
       ],
       "evidence_refs": [
-        "docs/architecture/jarvis-device-teaching.md"
+        "docs/architecture/jarvis-device-teaching.md",
+        "docs/evidence/1192-teaching-skill-integration.md",
+        "1192-teaching-skills-code",
+        "1192-teaching-skills-unit",
+        "1192-teaching-skills-integration",
+        "1192-teaching-skills-security"
       ],
       "status": "PARTIAL",
-      "blocker": "観測付き別run検証とURLパラメーター実装。実機replayとspreadsheet一括処理は未検証/未実装。",
+      "blocker": "Scoped software integration passed in #1192 candidate; physical-facing acceptance and broader requirement coverage remain open. Teaching store still has one writer; Skill store serializes cooperating local processes.",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "実機で実演→保存→別run再現を検証し、未接続platform adapterを実装する。",
+      "next_action": "Accept neutral real-device record -> explicit correction -> two independent replays -> Skill reuse/restart before merging #1192. Broader arbitrary-video/error inference, native adapters and autonomous Goal-to-device capability remain incomplete.",
       "last_verified_commit": null,
       "delivery_audit": {
         "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -8662,7 +8744,11 @@
         "staged_implementation_refs": [
           "https://github.com/haji84/AI-/blob/6af365ceb1b52b9111f98760da8d352449632871/src/jarvis/teaching-lessons.ts"
         ],
-        "audit_ref": "docs/evidence/1188-requirements-windows.md"
+        "audit_ref": "docs/evidence/1188-requirements-windows.md",
+        "candidate_revision": "043db1d60f4afad003709c3e2cc75c0a7df0ff67",
+        "candidate_connection": "SCOPED_INTEGRATION_PASS_PHYSICAL_HOLD",
+        "candidate_evidence": "docs/evidence/1192-teaching-skill-integration.md",
+        "candidate_notes": "Issue #1192 wires explicit correction observations to durable device/profile-bound Skill candidate/certification and guarded teaching replay. Goal factory now wires generic certified context/candidate write-back. No new autonomous device capability or physical acceptance; main/production unchanged until acceptance."
       }
     },
     {
@@ -8681,20 +8767,33 @@
         "src/jarvis/teaching.ts",
         "src/jarvis/teaching-runtime.ts",
         "src/app/jarvis/TeachingControls.tsx",
-        "src/app/jarvis/teach/page.tsx"
+        "src/app/jarvis/teach/page.tsx",
+        "src/jarvis/teaching-learning.ts",
+        "src/jarvis/teaching-skills.ts",
+        "src/jarvis/learning-skills.ts",
+        "src/orchestrator/work-state-integration.ts",
+        "src/orchestrator/gai-skill-context.ts"
       ],
       "test_refs": [
         "tests/jarvis-teaching.test.ts",
-        "tests/jarvis-teaching-runtime.test.ts"
+        "tests/jarvis-teaching-runtime.test.ts",
+        "tests/teaching-correction-integration.test.ts",
+        "tests/teaching-skills.test.ts",
+        "tests/goal-loop-skill-integration.test.ts"
       ],
       "evidence_refs": [
-        "docs/architecture/jarvis-device-teaching.md"
+        "docs/architecture/jarvis-device-teaching.md",
+        "docs/evidence/1192-teaching-skill-integration.md",
+        "1192-teaching-skills-code",
+        "1192-teaching-skills-unit",
+        "1192-teaching-skills-integration",
+        "1192-teaching-skills-security"
       ],
       "status": "PARTIAL",
-      "blocker": "未知/保護操作は手動へ。各platform負例と実機privacy検証が必要。",
+      "blocker": "Scoped software integration passed in #1192 candidate; physical-facing acceptance and broader requirement coverage remain open. Teaching store still has one writer; Skill store serializes cooperating local processes.",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "実機で実演→保存→別run再現を検証し、未接続platform adapterを実装する。",
+      "next_action": "Accept neutral real-device record -> explicit correction -> two independent replays -> Skill reuse/restart before merging #1192. Broader arbitrary-video/error inference, native adapters and autonomous Goal-to-device capability remain incomplete.",
       "last_verified_commit": null,
       "delivery_audit": {
         "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -8703,7 +8802,11 @@
         "physical": "PENDING",
         "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
         "staged_implementation_refs": [],
-        "audit_ref": "docs/evidence/1188-requirements-windows.md"
+        "audit_ref": "docs/evidence/1188-requirements-windows.md",
+        "candidate_revision": "043db1d60f4afad003709c3e2cc75c0a7df0ff67",
+        "candidate_connection": "SCOPED_INTEGRATION_PASS_PHYSICAL_HOLD",
+        "candidate_evidence": "docs/evidence/1192-teaching-skill-integration.md",
+        "candidate_notes": "Issue #1192 wires explicit correction observations to durable device/profile-bound Skill candidate/certification and guarded teaching replay. Goal factory now wires generic certified context/candidate write-back. No new autonomous device capability or physical acceptance; main/production unchanged until acceptance."
       }
     },
     {
@@ -8723,20 +8826,33 @@
         "src/jarvis/teaching.ts",
         "src/jarvis/teaching-runtime.ts",
         "src/app/jarvis/TeachingControls.tsx",
-        "src/app/jarvis/teach/page.tsx"
+        "src/app/jarvis/teach/page.tsx",
+        "src/jarvis/teaching-learning.ts",
+        "src/jarvis/teaching-skills.ts",
+        "src/jarvis/learning-skills.ts",
+        "src/orchestrator/work-state-integration.ts",
+        "src/orchestrator/gai-skill-context.ts"
       ],
       "test_refs": [
         "tests/jarvis-teaching.test.ts",
-        "tests/jarvis-teaching-runtime.test.ts"
+        "tests/jarvis-teaching-runtime.test.ts",
+        "tests/teaching-correction-integration.test.ts",
+        "tests/teaching-skills.test.ts",
+        "tests/goal-loop-skill-integration.test.ts"
       ],
       "evidence_refs": [
-        "docs/architecture/jarvis-device-teaching.md"
+        "docs/architecture/jarvis-device-teaching.md",
+        "docs/evidence/1192-teaching-skill-integration.md",
+        "1192-teaching-skills-code",
+        "1192-teaching-skills-unit",
+        "1192-teaching-skills-integration",
+        "1192-teaching-skills-security"
       ],
       "status": "PARTIAL",
-      "blocker": "atomic local store/checkpoint実装。単一ZBookプロセス前提。実機再起動検証が必要。",
+      "blocker": "Scoped software integration passed in #1192 candidate; physical-facing acceptance and broader requirement coverage remain open. Teaching store still has one writer; Skill store serializes cooperating local processes.",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "実機で実演→保存→別run再現を検証し、未接続platform adapterを実装する。",
+      "next_action": "Accept neutral real-device record -> explicit correction -> two independent replays -> Skill reuse/restart before merging #1192. Broader arbitrary-video/error inference, native adapters and autonomous Goal-to-device capability remain incomplete.",
       "last_verified_commit": null,
       "delivery_audit": {
         "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -8745,7 +8861,11 @@
         "physical": "PENDING",
         "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
         "staged_implementation_refs": [],
-        "audit_ref": "docs/evidence/1188-requirements-windows.md"
+        "audit_ref": "docs/evidence/1188-requirements-windows.md",
+        "candidate_revision": "043db1d60f4afad003709c3e2cc75c0a7df0ff67",
+        "candidate_connection": "SCOPED_INTEGRATION_PASS_PHYSICAL_HOLD",
+        "candidate_evidence": "docs/evidence/1192-teaching-skill-integration.md",
+        "candidate_notes": "Issue #1192 wires explicit correction observations to durable device/profile-bound Skill candidate/certification and guarded teaching replay. Goal factory now wires generic certified context/candidate write-back. No new autonomous device capability or physical acceptance; main/production unchanged until acceptance."
       }
     },
     {
@@ -10311,19 +10431,33 @@
         "src/jarvis/teaching-runtime.ts",
         "src/app/api/jarvis/teaching/route.ts",
         "src/orchestrator/verified-skill-writeback.ts",
-        "src/gai/governed-skill-runtime.ts"
+        "src/gai/governed-skill-runtime.ts",
+        "src/jarvis/teaching-learning.ts",
+        "src/jarvis/teaching-skills.ts",
+        "src/jarvis/learning-skills.ts",
+        "src/orchestrator/work-state-integration.ts",
+        "src/orchestrator/gai-skill-context.ts"
       ],
       "test_refs": [
         "tests/gai-phase12-skill-system.test.ts",
         "tests/verified-skill-writeback.test.ts",
-        "tests/skill-synthesis-learning-acceptance.test.ts"
+        "tests/skill-synthesis-learning-acceptance.test.ts",
+        "tests/teaching-correction-integration.test.ts",
+        "tests/teaching-skills.test.ts",
+        "tests/goal-loop-skill-integration.test.ts"
       ],
-      "evidence_refs": [],
+      "evidence_refs": [
+        "docs/evidence/1192-teaching-skill-integration.md",
+        "1192-teaching-skills-code",
+        "1192-teaching-skills-unit",
+        "1192-teaching-skills-integration",
+        "1192-teaching-skills-security"
+      ],
       "status": "PARTIAL",
-      "blocker": "Expanded requirement reconciled from staged ledger; main runtime integration and required evidence remain to be verified. 関連する基盤は存在するが、この拡張要求の全範囲・統合・必要Evidenceを満たしていない。",
+      "blocker": "Scoped software integration passed in #1192 candidate; physical-facing acceptance and broader requirement coverage remain open. Teaching store still has one writer; Skill store serializes cooperating local processes.",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "Explicit owner-confirmed correction links and revalidated Skill references are wired. Verify real-device reuse; automatic inference of arbitrary mistakes and cross-platform native adapters remain incomplete. See docs/evidence/892-teaching-skills.md.",
+      "next_action": "Accept neutral real-device record -> explicit correction -> two independent replays -> Skill reuse/restart before merging #1192. Broader arbitrary-video/error inference, native adapters and autonomous Goal-to-device capability remain incomplete.",
       "last_verified_commit": null,
       "delivery_audit": {
         "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -10339,7 +10473,11 @@
           "src/orchestrator/verified-skill-writeback.ts",
           "src/orchestrator/gai-skill-context.ts"
         ],
-        "connection_notes": "Verified write-back wrapper and skill context library exist; no production constructor call was found in src/scripts. Existing teaching store is a separate path. Candidate persistence tests do not prove owner workflow integration."
+        "connection_notes": "Verified write-back wrapper and skill context library exist; no production constructor call was found in src/scripts. Existing teaching store is a separate path. Candidate persistence tests do not prove owner workflow integration.",
+        "candidate_revision": "043db1d60f4afad003709c3e2cc75c0a7df0ff67",
+        "candidate_connection": "SCOPED_INTEGRATION_PASS_PHYSICAL_HOLD",
+        "candidate_evidence": "docs/evidence/1192-teaching-skill-integration.md",
+        "candidate_notes": "Issue #1192 wires explicit correction observations to durable device/profile-bound Skill candidate/certification and guarded teaching replay. Goal factory now wires generic certified context/candidate write-back. No new autonomous device capability or physical acceptance; main/production unchanged until acceptance."
       }
     },
     {
@@ -10392,18 +10530,32 @@
         "src/app/api/jarvis/teaching/route.ts",
         "src/app/jarvis/teach/page.tsx",
         "src/jarvis/teaching-runtime.ts",
-        "src/orchestrator/demonstration-learning.ts"
+        "src/orchestrator/demonstration-learning.ts",
+        "src/jarvis/teaching-learning.ts",
+        "src/jarvis/teaching-skills.ts",
+        "src/jarvis/learning-skills.ts",
+        "src/orchestrator/work-state-integration.ts",
+        "src/orchestrator/gai-skill-context.ts"
       ],
       "test_refs": [
         "tests/demonstration-learning.test.ts",
-        "tests/skill-synthesis-learning-acceptance.test.ts"
+        "tests/skill-synthesis-learning-acceptance.test.ts",
+        "tests/teaching-correction-integration.test.ts",
+        "tests/teaching-skills.test.ts",
+        "tests/goal-loop-skill-integration.test.ts"
       ],
-      "evidence_refs": [],
+      "evidence_refs": [
+        "docs/evidence/1192-teaching-skill-integration.md",
+        "1192-teaching-skills-code",
+        "1192-teaching-skills-unit",
+        "1192-teaching-skills-integration",
+        "1192-teaching-skills-security"
+      ],
       "status": "PARTIAL",
-      "blocker": "Expanded requirement reconciled from staged ledger; main runtime integration and required evidence remain to be verified. Component software exists in unmerged #884; actual execution-path integration and requirement-wide evidence remain incomplete.",
+      "blocker": "Scoped software integration passed in #1192 candidate; physical-facing acceptance and broader requirement coverage remain open. Teaching store still has one writer; Skill store serializes cooperating local processes.",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "Explicit owner-confirmed correction links and revalidated Skill references are wired. Verify real-device reuse; automatic inference of arbitrary mistakes and cross-platform native adapters remain incomplete. See docs/evidence/892-teaching-skills.md.",
+      "next_action": "Accept neutral real-device record -> explicit correction -> two independent replays -> Skill reuse/restart before merging #1192. Broader arbitrary-video/error inference, native adapters and autonomous Goal-to-device capability remain incomplete.",
       "last_verified_commit": null,
       "delivery_audit": {
         "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -10422,7 +10574,11 @@
           "src/jarvis/teaching-runtime.ts",
           "src/orchestrator/demonstration-learning.ts"
         ],
-        "connection_notes": "Owner-authenticated teaching storage exists. learnDemonstration has no non-test caller in src/scripts; recording-to-correction-to-certified-Skill integration remains unproven. Video-only arbitrary workflow learning is not complete."
+        "connection_notes": "Owner-authenticated teaching storage exists. learnDemonstration has no non-test caller in src/scripts; recording-to-correction-to-certified-Skill integration remains unproven. Video-only arbitrary workflow learning is not complete.",
+        "candidate_revision": "043db1d60f4afad003709c3e2cc75c0a7df0ff67",
+        "candidate_connection": "SCOPED_INTEGRATION_PASS_PHYSICAL_HOLD",
+        "candidate_evidence": "docs/evidence/1192-teaching-skill-integration.md",
+        "candidate_notes": "Issue #1192 wires explicit correction observations to durable device/profile-bound Skill candidate/certification and guarded teaching replay. Goal factory now wires generic certified context/candidate write-back. No new autonomous device capability or physical acceptance; main/production unchanged until acceptance."
       }
     },
     {
@@ -12069,6 +12225,94 @@
       "source": "docs/evidence/885-net-security-invariants.md",
       "verifier": "GitHub Actions main CI #1275 (run 35512801434)",
       "timestamp": "2026-09-20T13:12:50Z"
+    },
+    {
+      "id": "1192-teaching-skills-code",
+      "class": "CODE",
+      "result": "PASS",
+      "commit": "043db1d60f4afad003709c3e2cc75c0a7df0ff67",
+      "source": "docs/evidence/1192-teaching-skill-integration.md",
+      "verifier": "Windows local automated tests/build and isolated HTTP/browser fixture checks",
+      "timestamp": "2026-09-22T18:18:07.918Z",
+      "requirement_ids": [
+        "CORE-016",
+        "CORE-018",
+        "MEM-008",
+        "TEACH-001",
+        "TEACH-002",
+        "TEACH-003",
+        "TEACH-004",
+        "TEACH-005",
+        "TEACH-006"
+      ],
+      "scope": "Explicit recorded corrections and durable certified Skill integration only; not all requirement clauses",
+      "simulated": true
+    },
+    {
+      "id": "1192-teaching-skills-unit",
+      "class": "UNIT",
+      "result": "PASS",
+      "commit": "043db1d60f4afad003709c3e2cc75c0a7df0ff67",
+      "source": "docs/evidence/1192-teaching-skill-integration.md",
+      "verifier": "Windows local automated tests/build and isolated HTTP/browser fixture checks",
+      "timestamp": "2026-09-22T18:18:07.918Z",
+      "requirement_ids": [
+        "CORE-016",
+        "CORE-018",
+        "MEM-008",
+        "TEACH-001",
+        "TEACH-002",
+        "TEACH-003",
+        "TEACH-004",
+        "TEACH-005",
+        "TEACH-006"
+      ],
+      "scope": "Explicit recorded corrections and durable certified Skill integration only; not all requirement clauses",
+      "simulated": true
+    },
+    {
+      "id": "1192-teaching-skills-integration",
+      "class": "INTEGRATION",
+      "result": "PASS",
+      "commit": "043db1d60f4afad003709c3e2cc75c0a7df0ff67",
+      "source": "docs/evidence/1192-teaching-skill-integration.md",
+      "verifier": "Windows local automated tests/build and isolated HTTP/browser fixture checks",
+      "timestamp": "2026-09-22T18:18:07.918Z",
+      "requirement_ids": [
+        "CORE-016",
+        "CORE-018",
+        "MEM-008",
+        "TEACH-001",
+        "TEACH-002",
+        "TEACH-003",
+        "TEACH-004",
+        "TEACH-005",
+        "TEACH-006"
+      ],
+      "scope": "Explicit recorded corrections and durable certified Skill integration only; not all requirement clauses",
+      "simulated": true
+    },
+    {
+      "id": "1192-teaching-skills-security",
+      "class": "SECURITY",
+      "result": "PASS",
+      "commit": "043db1d60f4afad003709c3e2cc75c0a7df0ff67",
+      "source": "docs/evidence/1192-teaching-skill-integration.md",
+      "verifier": "Windows local automated tests/build and isolated HTTP/browser fixture checks",
+      "timestamp": "2026-09-22T18:18:07.918Z",
+      "requirement_ids": [
+        "CORE-016",
+        "CORE-018",
+        "MEM-008",
+        "TEACH-001",
+        "TEACH-002",
+        "TEACH-003",
+        "TEACH-004",
+        "TEACH-005",
+        "TEACH-006"
+      ],
+      "scope": "Explicit recorded corrections and durable certified Skill integration only; not all requirement clauses",
+      "simulated": true
     }
   ],
   "reconciliation": {
