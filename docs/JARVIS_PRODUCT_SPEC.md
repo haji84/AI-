@@ -11615,21 +11615,28 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   "implementation_refs": [
     "src/orchestrator/fact-verifier.ts",
     "src/orchestrator/fact-completion-gate.ts",
-    "src/orchestrator/production-research.ts"
+    "src/orchestrator/production-research.ts",
+    "src/orchestrator/research-delegation.ts",
+    "src/orchestrator/autonomy-delegation.ts",
+    "scripts/autonomy-cloud-run.ts",
+    "src/orchestrator/research-transport.ts"
   ],
   "test_refs": [
     "tests/fact-verifier.test.ts",
     "tests/fact-completion-gate.test.ts",
-    "tests/production-research.test.ts"
+    "tests/production-research.test.ts",
+    "tests/research-delegation-integration.test.ts",
+    "tests/production-research-security.test.ts"
   ],
   "evidence_refs": [
-    "docs/evidence/904-fact-audit.md"
+    "docs/evidence/904-fact-audit.md",
+    "docs/evidence/1200-bounded-research-integration.md"
   ],
   "status": "PARTIAL",
   "blocker": "Expanded requirement reconciled from staged ledger; main runtime integration and required evidence remain to be verified. Component software exists in unmerged #884; actual execution-path integration and requirement-wide evidence remain incomplete.",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "Integrate independently retrieved/authenticated evidence and semantic verification across claim-bearing outputs.",
+  "next_action": "Retain the full requirement as PARTIAL. Review this bounded research integration; then integrate document/prose claim extraction and report presentation without promoting retrieved data to authority.",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -11649,6 +11656,15 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
       "src/orchestrator/fact-completion-gate.ts"
     ],
     "connection_notes": "WorkDispatcher invokes an optional fact gate. External acquisition helpers have only test callers in current src/scripts. Automatic claim extraction, trusted source policy and durable graph/report integration are not established."
+  },
+  "candidate_audit": {
+    "issue": 1200,
+    "revision": "febc171aed0be8f82e3bba3902d91d6b66d3a59c",
+    "implementation": "STRUCTURED_PUBLIC_JSON_FACTS_IN_EXISTING_CLOUD_EXECUTION_PATH",
+    "connection": "UNIFIED_PLAN_TO_DELEGATION_TO_ACQUISITION_TO_RECEIPT_VERIFIER_TO_COMPASS_AND_WORK_STATE",
+    "evidence_ref": "docs/evidence/1200-bounded-research-integration.md",
+    "production_activation": "NOT_CONFIGURED",
+    "scope": "Bounded structured claims only; automatic prose/document extraction, semantic entailment and universal fact report integration remain incomplete."
   }
 }
 ```
@@ -12812,15 +12828,24 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "SECURITY"
   ],
   "implementation_refs": [
-    "src/gai/production-autonomy-runtime.ts"
+    "src/gai/production-autonomy-runtime.ts",
+    "src/orchestrator/research-delegation.ts",
+    "src/orchestrator/autonomy-delegation.ts",
+    "scripts/autonomy-cloud-run.ts",
+    "src/orchestrator/research-transport.ts"
   ],
-  "test_refs": [],
-  "evidence_refs": [],
+  "test_refs": [
+    "tests/research-delegation-integration.test.ts",
+    "tests/production-research-security.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/evidence/1200-bounded-research-integration.md"
+  ],
   "status": "PARTIAL",
   "blocker": "Expanded requirement reconciled from staged ledger; main runtime integration and required evidence remain to be verified. 関連基盤のみ存在。この拡張要求の全条件を強制する統合機能とEvidenceは未完成。関連ファイルは要件全体の実装済みを意味しない。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "関連する既存基盤を再利用し、要求の各条件・DoDを細分化して不足実装と検証Evidenceを追加する。",
+  "next_action": "Retain the full requirement as PARTIAL. Review this bounded research integration; then integrate document/prose claim extraction and report presentation without promoting retrieved data to authority.",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -12830,6 +12855,15 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
     "staged_implementation_refs": [],
     "audit_ref": "docs/evidence/1188-requirements-windows.md"
+  },
+  "candidate_audit": {
+    "issue": 1200,
+    "revision": "febc171aed0be8f82e3bba3902d91d6b66d3a59c",
+    "implementation": "STRUCTURED_PUBLIC_JSON_FACTS_IN_EXISTING_CLOUD_EXECUTION_PATH",
+    "connection": "UNIFIED_PLAN_TO_DELEGATION_TO_ACQUISITION_TO_RECEIPT_VERIFIER_TO_COMPASS_AND_WORK_STATE",
+    "evidence_ref": "docs/evidence/1200-bounded-research-integration.md",
+    "production_activation": "NOT_CONFIGURED",
+    "scope": "Bounded structured claims only; automatic prose/document extraction, semantic entailment and universal fact report integration remain incomplete."
   }
 }
 ```

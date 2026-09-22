@@ -1,0 +1,45 @@
+{
+  "issue": 1200,
+  "parent": 681,
+  "master": 882,
+  "code_commit": "febc171aed0be8f82e3bba3902d91d6b66d3a59c",
+  "baseline": "f974cc39dc25697e6cf999764e9d695ee753e14d",
+  "timestamp": "2026-09-22T18:52:40.473Z",
+  "full_tests": {
+    "passed": 1416,
+    "failed": 0,
+    "skipped": 0
+  },
+  "p8": {
+    "passed": 296,
+    "failed": 0,
+    "skipped": 0
+  },
+  "lint": "PASS",
+  "build": "PASS",
+  "live_software_execution": {
+    "matched": "PASS",
+    "conflict": "BLOCKED_AS_EXPECTED",
+    "artifact": "docs/evidence/1200/live-network.json"
+  },
+  "health": "HTTP200 status=ok",
+  "independent_review": "no remaining blocking findings; focused tests pass",
+  "logs": {
+    "tests-final": {
+      "sha256": "d86009141a618be6d701d30d15d0d6e6722daa7f1a0e3b8dac3cb1d6d24e0404"
+    },
+    "p8-final": {
+      "sha256": "3bda2e0d6ab3a6c9372a262f794da5b4ec7eacd0a34496b52b85d684e986d5da"
+    },
+    "lint": {
+      "sha256": "cc5a0b39c7052d24c24888403c48018b4fcccc9d799f81be6c9c30c9e19c85fc"
+    },
+    "build": {
+      "sha256": "2509eb31122dd37031cc153a9e7e26dc695518796d6a6065a70fa8ae4386ed8c"
+    }
+  },
+  "production_changed": false,
+  "device_changed": false,
+  "physical_evidence": false,
+  "whole_product_complete": false
+}
