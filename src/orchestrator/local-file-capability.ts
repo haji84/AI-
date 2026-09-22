@@ -8,6 +8,23 @@ interface SecureWriteTarget {
   exists: boolean;
 }
 
+export interface LocalFileBytes {
+  target: string;
+  bytes: Buffer;
+  sha256: string;
+}
+
+export interface LocalFileCreateResult {
+  target: string;
+  sha256: string;
+  status: "created" | "idempotent" | "blocked";
+  currentSha256?: string;
+}
+
+function sha256(bytes: Buffer): string {
+  return createHash("sha256").update(bytes).digest("hex");
+}
+
 export class LocalFileCapability implements WorkCapability {
   readonly name = "file.local";
   readonly domain = "file" as const;
@@ -91,37 +108,72 @@ export class LocalFileCapability implements WorkCapability {
     }
   }
 
+  async readBytes(path: unknown): Promise<LocalFileBytes> {
+    const target = await this.secureReadPath(path);
+    const bytes = await readFile(target);
+    return { target, bytes, sha256: sha256(bytes) };
+  }
+
+  async createBytes(path: unknown, bytes: Buffer): Promise<LocalFileCreateResult> {
+    const { target, exists } = await this.secureWritePath(path);
+    const requestedSha256 = sha256(bytes);
+
+    if (exists) {
+      const currentBytes = await readFile(target);
+      const currentSha256 = sha256(currentBytes);
+      if (currentBytes.equals(bytes)) {
+        return { target, sha256: requestedSha256, status: "idempotent", currentSha256 };
+      }
+      return { target, sha256: requestedSha256, status: "blocked", currentSha256 };
+    }
+
+    const temp = resolve(target + `.jarvis-${process.pid}-${randomUUID()}.tmp`);
+    try {
+      await writeFile(temp, bytes, { flag: "wx" });
+      await rename(temp, target);
+    } finally {
+      await rm(temp, { force: true }).catch(() => undefined);
+    }
+    const actualBytes = await readFile(target);
+    return { target, sha256: sha256(actualBytes), status: "created" };
+  }
+
   async execute(action: WorkAction): Promise<WorkResult> {
     try {
       if (action.operation === "read") {
-        const target = await this.secureReadPath(action.input.path);
-        const bytes = await readFile(target);
-        const sha256 = createHash("sha256").update(bytes).digest("hex");
-        return this.ok(action, { text: bytes.toString("utf8"), sha256 }, [], target, sha256);
+        const result = await this.readBytes(action.input.path);
+        return this.ok(
+          action,
+          { text: result.bytes.toString("utf8"), sha256: result.sha256 },
+          [],
+          result.target,
+          result.sha256,
+        );
       }
 
       if (action.operation === "write") {
-        const { target, exists } = await this.secureWritePath(action.input.path);
         const data = String(action.input.text ?? "");
-        const nextBytes = Buffer.from(data, "utf8");
-        const sha256 = createHash("sha256").update(nextBytes).digest("hex");
+        const result = await this.createBytes(action.input.path, Buffer.from(data, "utf8"));
 
-        if (exists) {
-          const currentBytes = await readFile(target);
-          const currentSha256 = createHash("sha256").update(currentBytes).digest("hex");
-          if (currentBytes.equals(nextBytes)) {
-            return this.ok(action, { path: target, sha256, idempotent: true }, [], target, sha256);
-          }
+        if (result.status === "blocked") {
           return {
             ok: false,
             status: "blocked",
-            outputs: { path: target, currentSha256, requestedSha256: sha256 },
+            outputs: {
+              path: result.target,
+              currentSha256: result.currentSha256,
+              requestedSha256: result.sha256,
+            },
             changes: [],
             evidence: [
               {
                 kind: "file.overwrite_blocked",
-                ref: `file:${target}`,
-                data: { path: target, currentSha256, requestedSha256: sha256 },
+                ref: `file:${result.target}`,
+                data: {
+                  path: result.target,
+                  currentSha256: result.currentSha256,
+                  requestedSha256: result.sha256,
+                },
               },
             ],
             failureClass: "policy",
@@ -134,21 +186,18 @@ export class LocalFileCapability implements WorkCapability {
           };
         }
 
-        const temp = resolve(target + `.jarvis-${process.pid}-${randomUUID()}.tmp`);
-        try {
-          await writeFile(temp, nextBytes, { flag: "wx" });
-          await rename(temp, target);
-        } finally {
-          await rm(temp, { force: true }).catch(() => undefined);
-        }
-        const bytes = await readFile(target);
-        const actualSha256 = createHash("sha256").update(bytes).digest("hex");
         return this.ok(
           action,
-          { path: target, sha256: actualSha256 },
-          [{ resource: target, operation: "create", reversible: true }],
-          target,
-          actualSha256,
+          {
+            path: result.target,
+            sha256: result.sha256,
+            ...(result.status === "idempotent" ? { idempotent: true } : {}),
+          },
+          result.status === "created"
+            ? [{ resource: result.target, operation: "create", reversible: true }]
+            : [],
+          result.target,
+          result.sha256,
         );
       }
 
@@ -176,14 +225,14 @@ export class LocalFileCapability implements WorkCapability {
     outputs: Record<string, unknown>,
     changes: WorkResult["changes"],
     target: string,
-    sha256: string,
+    digest: string,
   ): WorkResult {
     return {
       ok: true,
       status: "completed",
       outputs,
       changes,
-      evidence: [{ kind: "file.artifact", ref: `file:${target}`, data: { path: target, sha256 } }],
+      evidence: [{ kind: "file.artifact", ref: `file:${target}`, data: { path: target, sha256: digest } }],
       provenance: {
         capability: this.name,
         attemptId: action.attemptId,
