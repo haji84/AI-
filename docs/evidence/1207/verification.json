@@ -84,5 +84,11 @@
   "physical_acceptance": "PENDING",
   "production_deployment": "NOT_PERFORMED",
   "merge_hold": true,
-  "scope": "Fixed smoke/platform only; no existing production enrollment/reboot/remote execution acceptance."
+  "scope": "Fixed smoke/platform only; no existing production enrollment/reboot/remote execution acceptance.",
+  "integration_base": "9cbf6accaec5eb1ec76359a6b88af6bf225eb51e",
+  "previous_candidate_ci": {
+    "commit": "d94a4532928923618383814c1789c1568cc8a89f",
+    "run": 35794037590,
+    "result": "SUCCESS"
+  }
 }

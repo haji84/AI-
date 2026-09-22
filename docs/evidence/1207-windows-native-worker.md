@@ -31,3 +31,6 @@ Check exact PR-head CI, then retain PR #1208 unmerged until a bounded existing-d
 
 ## Rollback
 Stop only the candidate process, retain its journal and restore the prior candidate code. Production services were not replaced. No state migration or destructive cleanup is needed.
+
+## Latest main integration
+UI-007 reconciliation from main 9cbf6accaec5eb1ec76359a6b88af6bf225eb51e is retained in this branch. Previous candidate d94a4532928923618383814c1789c1568cc8a89f passed CI35794037590; that result does not substitute for the new combined head. Exact current-head CI is recorded on PR #1208. This merge adds canonical documentation only; native code remains cb7db43a4c0796a2569b98f5fd05b46047c9a280. Physical merge hold is unchanged.
