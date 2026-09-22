@@ -1,0 +1,3708 @@
+{
+  "schema_version": 1,
+  "source_main": "1ba440a4daf1bc2e1ffb20088d42b07fc62d21fa",
+  "scope": "Declared audit roots; no functional or physical completion inference",
+  "surfaces": [
+    {
+      "path": "android/jarvis-worker/app/build.gradle.kts",
+      "sha256": "06aa50f6d3c6e6da743028e9cf8fc66296574553bbc6f4e739d7ff4898657f0c",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-AX-001"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "android/jarvis-worker/app/src/main/AndroidManifest.xml",
+      "sha256": "d0c7483ffeda2b7182037e242f5a40adbb5af6bc64540835d4150cd1f086d7a5",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "DEV-A-011"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "android/jarvis-worker/app/src/main/java/ai/jarvis/worker/BootReceiver.kt",
+      "sha256": "89c1b2e09e02cb32aba8c6f2a76d1ade763b026e7e1a42f4f3328d1ddbd62d4d",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-A-011"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "android/jarvis-worker/app/src/main/java/ai/jarvis/worker/BrokerClient.kt",
+      "sha256": "a9c5dd7e29fb02ad4316fcc82ea6e3d4c795394d468e67679dc3b202883fcbfc",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-A-001",
+        "DEV-A-002",
+        "DEV-A-004",
+        "DEV-A-012",
+        "DEV-A-013",
+        "DEV-A-014",
+        "DEV-A-015"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "android/jarvis-worker/app/src/main/java/ai/jarvis/worker/DeviceIdentity.kt",
+      "sha256": "4af615cab7ed126ffd6de99808fe7350ef31d02d26dcb2f2a9b62788f54fcf31",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "FLEET-007",
+        "SEC-003"
+      ],
+      "reason": "Android stable credential and signed identity storage"
+    },
+    {
+      "path": "android/jarvis-worker/app/src/main/java/ai/jarvis/worker/EnrollmentBootstrap.kt",
+      "sha256": "bb6935c52cfecf5ac10bccc682fea36e2164706d3f5d82def97d9cd0db9ffd7e",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "FLEET-003",
+        "FLEET-004",
+        "FLEET-006"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "android/jarvis-worker/app/src/main/java/ai/jarvis/worker/JarvisAccessibilityService.kt",
+      "sha256": "365a031cb056deda38850fc96e842a7db7d36d8199aed8094c1354f391585ed9",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-A-003",
+        "DEV-A-005",
+        "DEV-A-006",
+        "DEV-A-007",
+        "DEV-A-008"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "android/jarvis-worker/app/src/main/java/ai/jarvis/worker/JarvisCommandService.kt",
+      "sha256": "b1f8cdb4a4dc21a028207da9b1263e8faa3179806a8512bb2bbff222fa19d7c4",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-A-001",
+        "DEV-A-002",
+        "DEV-A-004",
+        "DEV-A-012",
+        "DEV-A-013",
+        "DEV-A-014",
+        "DEV-A-015"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "android/jarvis-worker/app/src/main/java/ai/jarvis/worker/JarvisDeviceAdminReceiver.kt",
+      "sha256": "f1e548c0077398d67bff8482d8b6d4f0ee92ccaf56f62a54f38f7a55d20f9422",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-A-015",
+        "FLEET-005"
+      ],
+      "reason": "Android device-owner provisioning and capability boundary"
+    },
+    {
+      "path": "android/jarvis-worker/app/src/main/java/ai/jarvis/worker/JarvisPollWorker.kt",
+      "sha256": "c16267b263307f95779bda311e6832084a28358194a5c3b5c9b0367d1772b0ac",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-A-011"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "android/jarvis-worker/app/src/main/java/ai/jarvis/worker/JarvisWorkerApp.kt",
+      "sha256": "895953d608723f90e43bafbd78e444a00b08617862fe043c31993f189d015953",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-A-001"
+      ],
+      "reason": "Android application initialization"
+    },
+    {
+      "path": "android/jarvis-worker/app/src/main/java/ai/jarvis/worker/MainActivity.kt",
+      "sha256": "5b5e1de52fbdce4943145abac648e0ecd1f9c443f898dbf669ae9db05162d7ed",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "FLEET-003",
+        "FLEET-004",
+        "FLEET-006"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "android/jarvis-worker/app/src/main/java/ai/jarvis/worker/PolicyComplianceActivity.kt",
+      "sha256": "d7c8ad7399ba5257cdd3173b549a854dff0391cd3ea10fa301566e47cfe5eaf6",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-A-015",
+        "FLEET-005"
+      ],
+      "reason": "Android device-owner provisioning and capability boundary"
+    },
+    {
+      "path": "android/jarvis-worker/app/src/main/java/ai/jarvis/worker/ProvisioningModeActivity.kt",
+      "sha256": "f109bc59a81159f769dbf819f87078bd9764ae9bacd41fe69156bf9e7d2cddad",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-A-015",
+        "FLEET-005"
+      ],
+      "reason": "Android device-owner provisioning and capability boundary"
+    },
+    {
+      "path": "android/jarvis-worker/app/src/main/java/ai/jarvis/worker/TaskExecutor.kt",
+      "sha256": "5b8c5f6c5759154c92f85ebfec5c4dd9a32313a51c876841a18d0b6cc69e50ca",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-A-001",
+        "DEV-A-002",
+        "DEV-A-003",
+        "DEV-A-004",
+        "DEV-A-005",
+        "DEV-A-006",
+        "DEV-A-007",
+        "DEV-A-008",
+        "DEV-A-012",
+        "DEV-A-013",
+        "DEV-A-014",
+        "DEV-A-015",
+        "DEV-AX-001",
+        "DEV-AX-003"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "android/jarvis-worker/app/src/main/java/ai/jarvis/worker/UpdateInstallReceiver.kt",
+      "sha256": "5b9c9ef70a18e26e4bed65f081e50f038ada7dcf684ceb84dceeae4b1e7fc089",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-AX-002"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "android/jarvis-worker/app/src/main/java/ai/jarvis/worker/UpdateManager.kt",
+      "sha256": "da1bc5f2989a1e8baa61450e3f290ac34a8b75ee1fae3bbcc32061acee2311c7",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OPS-013",
+        "OPS-014",
+        "DEV-AX-002",
+        "DEV-AX-004"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "android/jarvis-worker/app/src/main/java/ai/jarvis/worker/UrlTaskActivity.kt",
+      "sha256": "05a9dc9898a509cf5c99ea4bcd1f893a233ebeff88fccd090fe388282ccdf647",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-A-002",
+        "DEV-A-004"
+      ],
+      "reason": "Android foreground URL task activity"
+    },
+    {
+      "path": "android/jarvis-worker/app/src/main/java/ai/jarvis/worker/WorkerRuntimeState.kt",
+      "sha256": "15e9e6dd2baad4404156d9afbbefff544a7c6c59be41f3f5af24bafafd26605d",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-A-013",
+        "DEV-A-014"
+      ],
+      "reason": "Android durable state and reconnect"
+    },
+    {
+      "path": "android/jarvis-worker/app/src/main/res/values/strings.xml",
+      "sha256": "555d5f536b05ef49a87506f0344ad7ae3d90ed1603657077a3add38d7d1b3739",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "UI-038",
+        "DEV-A-001"
+      ],
+      "reason": "Android user-visible resources"
+    },
+    {
+      "path": "android/jarvis-worker/app/src/main/res/values/themes.xml",
+      "sha256": "9ea24fbb769998f14bd7d4a871176e6819a7e6b008b67413961e60757a45e61d",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "UI-038",
+        "DEV-A-001"
+      ],
+      "reason": "Android user-visible resources"
+    },
+    {
+      "path": "android/jarvis-worker/app/src/main/res/xml/device_admin_receiver.xml",
+      "sha256": "76af01703eb24a59ef16f13eef2025eb30de8cbb6db7f920920e04b6d6de84e6",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "DEV-A-015",
+        "FLEET-005"
+      ],
+      "reason": "Android device-owner provisioning and capability boundary"
+    },
+    {
+      "path": "android/jarvis-worker/app/src/main/res/xml/jarvis_accessibility_service.xml",
+      "sha256": "a256b8b35cfd67408c93f85635270ac6d2c53f238718842b9d7ec9c9d29fe748",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "DEV-A-003"
+      ],
+      "reason": "Android accessibility capability metadata"
+    },
+    {
+      "path": "android/jarvis-worker/build.gradle.kts",
+      "sha256": "786a6aef9d41e1075240be92fad07fb11f25717c0253245646957542649034f3",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-AX-001",
+        "DEV-A-001"
+      ],
+      "reason": "Android build and minimum OS contract"
+    },
+    {
+      "path": "android/jarvis-worker/gradle.properties",
+      "sha256": "7c4f770806b04a1c62289315bd07a78626290c0b0726b9ca0edb69818b89cbe2",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-AX-001",
+        "DEV-A-001"
+      ],
+      "reason": "Android build and minimum OS contract"
+    },
+    {
+      "path": "android/jarvis-worker/settings.gradle.kts",
+      "sha256": "6aa6486bfe70d9af3d07af585e02a61e3e023778072779cf1de32bd74a92b8a5",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-AX-001",
+        "DEV-A-001"
+      ],
+      "reason": "Android build and minimum OS contract"
+    },
+    {
+      "path": "apps/ios-worker/Info.plist",
+      "sha256": "48c652fbdc079351211a88fade57667f0af1df63d780dfba541e40a81ab3f111",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "DEV-I-001",
+        "DEV-I-007"
+      ],
+      "reason": "iOS Worker lifecycle, app packaging and documented platform limits"
+    },
+    {
+      "path": "apps/ios-worker/README.md",
+      "sha256": "1e8bea2297893986653bc03326794f1fa5b5e4897397c59bfef4c8495b7af293",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-I-001",
+        "DEV-I-007"
+      ],
+      "reason": "iOS Worker lifecycle, app packaging and documented platform limits"
+    },
+    {
+      "path": "apps/ios-worker/Sources/BonjourBridgeDiscovery.swift",
+      "sha256": "5c18e2039809357de4215ae25d67799ed370d8885f059f6f03d945c2b51f915a",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-I-005",
+        "MIG-023"
+      ],
+      "reason": "iOS local bridge discovery; authentication implementation still governed by its requirement"
+    },
+    {
+      "path": "apps/ios-worker/Sources/JarvisIOSWorkerApp.swift",
+      "sha256": "a8d3a51f5b2e7c121c582507d3c491054d58a9f71d899442c405111a9b87ba47",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-I-001",
+        "DEV-I-007"
+      ],
+      "reason": "iOS Worker lifecycle, app packaging and documented platform limits"
+    },
+    {
+      "path": "apps/ios-worker/Sources/WorkerRuntime.swift",
+      "sha256": "d1ba996270c7f1e8460b9aa7b89f21a2ee6525182e5e8c0db6f42c064f6f32c4",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-I-001",
+        "DEV-I-002",
+        "DEV-I-003",
+        "DEV-I-004",
+        "DEV-I-005",
+        "DEV-I-006",
+        "DEV-I-007",
+        "DEV-I-008",
+        "RA-022"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "apps/ios-worker/project.yml",
+      "sha256": "dc7b823f90021417fe9fa9e29a632f5712bbb1b13984027e850bd19014fc387f",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "DEV-I-001",
+        "DEV-I-007"
+      ],
+      "reason": "iOS Worker lifecycle, app packaging and documented platform limits"
+    },
+    {
+      "path": "docs/architecture/0001-ai-company-operating-model.md",
+      "sha256": "275e2dd73c808442af110ff51c0af1e6c779d46e9cdd558fca601c780de400e9",
+      "classification": "HISTORICAL_DEAD_SUPERSEDED",
+      "requirement_ids": [],
+      "reason": "Historical Creator Studio/AI Company architecture or retired-provider decision; retained for history, not evidence of a currently deployed JARVIS capability",
+      "exclusion_ref": "docs/architecture/0013-jarvis-v1-distributed-device-os.md"
+    },
+    {
+      "path": "docs/architecture/0002-phase-1-application-foundation.md",
+      "sha256": "8b0d15c5666bca3b13f82fd186f981a76b64a1df53abfdd32c3193e0f65997f8",
+      "classification": "HISTORICAL_DEAD_SUPERSEDED",
+      "requirement_ids": [],
+      "reason": "Historical Creator Studio/AI Company architecture or retired-provider decision; retained for history, not evidence of a currently deployed JARVIS capability",
+      "exclusion_ref": "docs/architecture/0013-jarvis-v1-distributed-device-os.md"
+    },
+    {
+      "path": "docs/architecture/0003-phase-1-project-contract.md",
+      "sha256": "a3288980292539fdeba176430fa0b54ddbef45f961acc5ad5177894eb16e12ea",
+      "classification": "HISTORICAL_DEAD_SUPERSEDED",
+      "requirement_ids": [],
+      "reason": "Historical Creator Studio/AI Company architecture or retired-provider decision; retained for history, not evidence of a currently deployed JARVIS capability",
+      "exclusion_ref": "docs/architecture/0013-jarvis-v1-distributed-device-os.md"
+    },
+    {
+      "path": "docs/architecture/0004-phase-1-project-storage-contract.md",
+      "sha256": "52d46c4860a8a5dd56cdfb6d43520139b3bab50b0661ad9cdb3e44f5c30046f8",
+      "classification": "HISTORICAL_DEAD_SUPERSEDED",
+      "requirement_ids": [],
+      "reason": "Historical Creator Studio/AI Company architecture or retired-provider decision; retained for history, not evidence of a currently deployed JARVIS capability",
+      "exclusion_ref": "docs/architecture/0013-jarvis-v1-distributed-device-os.md"
+    },
+    {
+      "path": "docs/architecture/0005-phase-1-job-contract.md",
+      "sha256": "69beaf272d6ff79b3c3cb6c15066b6b129838f1a189d8debaea628dcd44ec7d5",
+      "classification": "HISTORICAL_DEAD_SUPERSEDED",
+      "requirement_ids": [],
+      "reason": "Historical Creator Studio/AI Company architecture or retired-provider decision; retained for history, not evidence of a currently deployed JARVIS capability",
+      "exclusion_ref": "docs/architecture/0013-jarvis-v1-distributed-device-os.md"
+    },
+    {
+      "path": "docs/architecture/0006-phase-1-provider-contract.md",
+      "sha256": "d28a47166ae67e67aa35ba3cd589b29fec8b811904e8d7f0fb64e1b8bfc8907f",
+      "classification": "HISTORICAL_DEAD_SUPERSEDED",
+      "requirement_ids": [],
+      "reason": "Historical Creator Studio/AI Company architecture or retired-provider decision; retained for history, not evidence of a currently deployed JARVIS capability",
+      "exclusion_ref": "docs/architecture/0013-jarvis-v1-distributed-device-os.md"
+    },
+    {
+      "path": "docs/architecture/0007-phase-2-image-generation-contract.md",
+      "sha256": "8c58af047bd71b87ab8b64c49bc1bae079fd82b04785fc37f7861e3d053a271d",
+      "classification": "HISTORICAL_DEAD_SUPERSEDED",
+      "requirement_ids": [],
+      "reason": "Historical Creator Studio/AI Company architecture or retired-provider decision; retained for history, not evidence of a currently deployed JARVIS capability",
+      "exclusion_ref": "docs/architecture/0013-jarvis-v1-distributed-device-os.md"
+    },
+    {
+      "path": "docs/architecture/0008-phase-2-comfyui-runtime.md",
+      "sha256": "a08f9b01d55460ad85c13b45e00978dad4b66bd1ad33e52c1a5118ab28127759",
+      "classification": "HISTORICAL_DEAD_SUPERSEDED",
+      "requirement_ids": [],
+      "reason": "Historical Creator Studio/AI Company architecture or retired-provider decision; retained for history, not evidence of a currently deployed JARVIS capability",
+      "exclusion_ref": "docs/architecture/0013-jarvis-v1-distributed-device-os.md"
+    },
+    {
+      "path": "docs/architecture/0009-phase-2-acceptance.md",
+      "sha256": "1577425b30c5ea810c44348e14ef75eae5e7cd0f42b6f1c77f6073ffb9be7bc8",
+      "classification": "HISTORICAL_DEAD_SUPERSEDED",
+      "requirement_ids": [],
+      "reason": "Historical Creator Studio/AI Company architecture or retired-provider decision; retained for history, not evidence of a currently deployed JARVIS capability",
+      "exclusion_ref": "docs/architecture/0013-jarvis-v1-distributed-device-os.md"
+    },
+    {
+      "path": "docs/architecture/0010-phase-3-image-editing-contract.md",
+      "sha256": "5abd6803aa980b79a2cb544294b02f8e53820965247419806a9f0154b13867e2",
+      "classification": "HISTORICAL_DEAD_SUPERSEDED",
+      "requirement_ids": [],
+      "reason": "Historical Creator Studio/AI Company architecture or retired-provider decision; retained for history, not evidence of a currently deployed JARVIS capability",
+      "exclusion_ref": "docs/architecture/0013-jarvis-v1-distributed-device-os.md"
+    },
+    {
+      "path": "docs/architecture/0011-goal-driven-autonomous-loop.md",
+      "sha256": "4e6b098d69dafd36a9f7dc369ef83587c31ade83d5d93a76195b86e3619b423f",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-002",
+        "CORE-006"
+      ],
+      "reason": "Goal completion and dynamic capability design"
+    },
+    {
+      "path": "docs/architecture/0011-phase-3-local-image-editing-runtime.md",
+      "sha256": "86dbd37fdc2cb7606aba79440fc8e36480c7581ba7e331bcd9ed890272c8b867",
+      "classification": "HISTORICAL_DEAD_SUPERSEDED",
+      "requirement_ids": [],
+      "reason": "Historical Creator Studio/AI Company architecture or retired-provider decision; retained for history, not evidence of a currently deployed JARVIS capability",
+      "exclusion_ref": "docs/architecture/0013-jarvis-v1-distributed-device-os.md"
+    },
+    {
+      "path": "docs/architecture/0011-planner-provider-retirement.md",
+      "sha256": "dab7279da972bff52c7314a600fef4bc9fda94c84ecbd5dcec6c9dd7696e75d0",
+      "classification": "HISTORICAL_DEAD_SUPERSEDED",
+      "requirement_ids": [],
+      "reason": "Historical Creator Studio/AI Company architecture or retired-provider decision; retained for history, not evidence of a currently deployed JARVIS capability",
+      "exclusion_ref": "docs/architecture/0013-jarvis-v1-distributed-device-os.md"
+    },
+    {
+      "path": "docs/architecture/0012-mobile-cloud-autonomy.md",
+      "sha256": "ac4414da74dd162045b7d58933bb83b552ea1a10d405b4380ae9309735622610",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-002",
+        "CORE-006"
+      ],
+      "reason": "Goal completion and dynamic capability design"
+    },
+    {
+      "path": "docs/architecture/0012-real-capabilities-and-events.md",
+      "sha256": "719e1b550544334e2da971f8f15629d42bd25298c2e983db058a6aff68d892a0",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-002",
+        "CORE-006"
+      ],
+      "reason": "Goal completion and dynamic capability design"
+    },
+    {
+      "path": "docs/architecture/0013-jarvis-v1-distributed-device-os.md",
+      "sha256": "b09d57edfab83a0b22134ddbcdd6ab0242a0342dcff6cf45e3fbd7b288b0d13a",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "FLEET-001",
+        "AUTO-001"
+      ],
+      "reason": "Distributed JARVIS device operating model"
+    },
+    {
+      "path": "docs/architecture/adaptive-team-runtime.md",
+      "sha256": "f07ea5ada630dc290bc9435111dfd4c2d9dafdc2340c50f5ad09abc31de75ece",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-002",
+        "CORE-006"
+      ],
+      "reason": "Goal completion and dynamic capability design"
+    },
+    {
+      "path": "docs/architecture/compass-mcp-v1.md",
+      "sha256": "2c077238333fe1d56dc9f4c6b74f71421ab2c93366e88fcb9a0a5e124d0e8e47",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-002",
+        "AUTO-008"
+      ],
+      "reason": "Durable goal/state/handoff contract"
+    },
+    {
+      "path": "docs/architecture/dynamic-capability-replanning.md",
+      "sha256": "6cb4f99e71ad0817c5337c1e6834a14ba9ee080b45576cf81c8be92c4ab2174e",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-010",
+        "AUTO-018"
+      ],
+      "reason": "Capability failure replanning contract"
+    },
+    {
+      "path": "docs/architecture/gai-phase20-production-autonomy.md",
+      "sha256": "5816b08a559854265cade0367a4c06d462193f28ed49819c5bda111b17f20855",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-001",
+        "CORE-031"
+      ],
+      "reason": "Historical Phase20 composition and acceptance; does not imply JARVIS completion"
+    },
+    {
+      "path": "docs/architecture/gai-work-state-protocol.md",
+      "sha256": "c30caf53bcbb0502aa4ad31eb4f9818077fdb61f8fe5c601d3fa4b3bc3ba247c",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-002",
+        "AUTO-008"
+      ],
+      "reason": "Durable goal/state/handoff contract"
+    },
+    {
+      "path": "docs/architecture/general-autonomous-ai-dynamic-orchestration.md",
+      "sha256": "0efda350988e03f98a540cd2296dd60364f7105e161e5e6e9694ea6b3bf76946",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-002",
+        "CORE-006"
+      ],
+      "reason": "Goal completion and dynamic capability design"
+    },
+    {
+      "path": "docs/architecture/jarvis-bounded-fact-research.md",
+      "sha256": "9d7d1dc90a7e71bcd7c9bd121fe2c4d595ebac1e282deb78a90c16e13e48ac2d",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-012"
+      ],
+      "reason": "Bounded external fact acquisition"
+    },
+    {
+      "path": "docs/architecture/jarvis-device-teaching.md",
+      "sha256": "d6ae1c5f2090be5b48f5971495c55b1e4f81197cf21026f6be78595ccfddaa77",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "TEACH-001",
+        "TEACH-003"
+      ],
+      "reason": "Device demonstration and video teaching boundaries"
+    },
+    {
+      "path": "docs/architecture/jarvis-fixed-enrollment.md",
+      "sha256": "6594045351491b61a6d6570c404e77f62c81ea287950f17b9ed47450954716c9",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "FLEET-003",
+        "FLEET-006"
+      ],
+      "reason": "Enrollment and invitation contract"
+    },
+    {
+      "path": "docs/architecture/jarvis-kyv-remote-stability.md",
+      "sha256": "d3d6f7c07c068c8225e1167903f787d1532c895145a51df693b6fc95833dcc6f",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-AX-003",
+        "NET-004"
+      ],
+      "reason": "Wake/reconnect recovery design"
+    },
+    {
+      "path": "docs/architecture/jarvis-launch-enrollment.md",
+      "sha256": "c3feea9b2bce9fa35572c58124eb5bd34fbf2aa4fefdc46a3dbd856377310cff",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "FLEET-003",
+        "FLEET-006"
+      ],
+      "reason": "Enrollment and invitation contract"
+    },
+    {
+      "path": "docs/architecture/jarvis-owner-invitation.md",
+      "sha256": "304156bb93bb0ab803662df1e8ec6caff1782e93bf72c14ee23145a39af56cc8",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "FLEET-003",
+        "FLEET-006"
+      ],
+      "reason": "Enrollment and invitation contract"
+    },
+    {
+      "path": "docs/architecture/jarvis-owner-screen-sequence.md",
+      "sha256": "c41ece1aac344c5df221a58356f01cb7c0f661a9d482316cc29f6fe01da283a5",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "TEACH-003"
+      ],
+      "reason": "Observed owner screen-sequence condition contract"
+    },
+    {
+      "path": "docs/architecture/jarvis-power-recovery.md",
+      "sha256": "e1d1545beb3d1795c463abef9ece88ec37eaeaa5d6b692c0850cfcd7ef2def6a",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "HOST-006",
+        "HOST-008",
+        "OPS-017"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "docs/architecture/jarvis-remote-access.md",
+      "sha256": "a537b86720d9d84fa681a77361ea858ff42b4c6dc2525a902e0fa3be21c25ec0",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "NET-001",
+        "NET-002",
+        "NET-003",
+        "NET-004",
+        "HOST-002",
+        "OPS-017"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "docs/architecture/jarvis-remote-assist-human-gates.md",
+      "sha256": "c33c0ff04e9d8b5ac94b89e5319c2d23e63a74c13c30347d46ac4d7f92d65db0",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "SEC-014",
+        "RA-019"
+      ],
+      "reason": "Owner control and takeover gates"
+    },
+    {
+      "path": "docs/architecture/jarvis-remote-assist.md",
+      "sha256": "c706779ee070289b97af140aa07db9e283573b20e74f3901be55b0304e70a846",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "RA-014",
+        "DEV-A-003"
+      ],
+      "reason": "Remote Assist session/worker transport"
+    },
+    {
+      "path": "docs/architecture/jarvis-remote-wake.md",
+      "sha256": "06b54a0369ae36ae9e208fc73bca70940a604c00c6142d530ec5fc25ccdd0efa",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-AX-003",
+        "NET-004"
+      ],
+      "reason": "Wake/reconnect recovery design"
+    },
+    {
+      "path": "docs/architecture/jarvis-requirement-traceability.md",
+      "sha256": "8440bcb6fed133b0a1ec37348cd0659318a4d2d9dab2335ea75a0814b410ed6f",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "GOV-025",
+        "CORE-015"
+      ],
+      "reason": "Specification traceability gate and reverse inventory"
+    },
+    {
+      "path": "docs/architecture/jarvis-video-teaching.md",
+      "sha256": "cf64c20b1a726dc10c7b0e253f0ea405e3410c1e69ae4fc4befbb4935c7dbc9c",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-018"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "docs/architecture/jarvis-windows-production.md",
+      "sha256": "ca29c5357d2b339a5623b4899b95d48c292a67d7e5cf779d126d7b26f15f5b9a",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "HOST-003"
+      ],
+      "reason": "Windows persistent host deployment design"
+    },
+    {
+      "path": "docs/architecture/jarvis-worker-remote.md",
+      "sha256": "b6f1ec5242fa8616f6f06047ede5379e43192be8f2abc316cf1a03edeaffe27b",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "RA-014",
+        "DEV-A-003"
+      ],
+      "reason": "Remote Assist session/worker transport"
+    },
+    {
+      "path": "docs/architecture/phase20-acceptance.md",
+      "sha256": "be1dca9708f3cfbb21ea73c09a827528d8acc2865444c45bb3384183815b0f32",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-001",
+        "CORE-031"
+      ],
+      "reason": "Historical Phase20 composition and acceptance; does not imply JARVIS completion"
+    },
+    {
+      "path": "docs/architecture/phase20-composition.md",
+      "sha256": "17dd1c77da97b074a688aaf15a7a10b24d55fd04a418567dc1b7f7f43cf8b1de",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-001",
+        "CORE-031"
+      ],
+      "reason": "Historical Phase20 composition and acceptance; does not imply JARVIS completion"
+    },
+    {
+      "path": "docs/architecture/phase20-cost-invariant.md",
+      "sha256": "44b5d326c890e8c8c83f76004780bf89c8414f2b0e211b1eaa151317ef6ecf16",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "SEC-013",
+        "SEC-014"
+      ],
+      "reason": "Existing cost and security invariants"
+    },
+    {
+      "path": "docs/architecture/phase20-definition-of-done.md",
+      "sha256": "c02a0493b77fda3aa1e6e863b69085903fdd5ce2e6ebdf42002d631375667843",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-001",
+        "CORE-031"
+      ],
+      "reason": "Historical Phase20 composition and acceptance; does not imply JARVIS completion"
+    },
+    {
+      "path": "docs/architecture/phase20-failure-truth.md",
+      "sha256": "a4fb5c267ffd9ddaef91a316f76ebb7ad32175db479259f36c07da1a28de9182",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OPS-004",
+        "GOV-028"
+      ],
+      "reason": "Failure transparency and operational evidence"
+    },
+    {
+      "path": "docs/architecture/phase20-final-validation-plan.md",
+      "sha256": "0715e3bd3093f98f0806d8d7eddd4c24289f9851303c73f5f9c947367abeddc3",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-001",
+        "CORE-031"
+      ],
+      "reason": "Historical Phase20 composition and acceptance; does not imply JARVIS completion"
+    },
+    {
+      "path": "docs/architecture/phase20-human-return-policy.md",
+      "sha256": "3927b6fad01fcdc852e976749e6b9687e3d75a811cc524489c58bdfb661cd7ec",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-022"
+      ],
+      "reason": "Human Gate return policy"
+    },
+    {
+      "path": "docs/architecture/phase20-integration-hooks.md",
+      "sha256": "8aba5d11b9e268eee348fe46e8fe94135a77dfbb16e604935f1ba5179523c2cd",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-023",
+        "CORE-019"
+      ],
+      "reason": "Long-running integration and resume semantics"
+    },
+    {
+      "path": "docs/architecture/phase20-learning.md",
+      "sha256": "3c2dccc6bc0591ec88e2fc859d4e9d65c8eb8740cb449e6dcd728f81103c90d3",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "MEM-008"
+      ],
+      "reason": "Verified learning promotion contract"
+    },
+    {
+      "path": "docs/architecture/phase20-no-agi-claim.md",
+      "sha256": "e8d030b344f1881b58d66cff3108023075263e0116655680658885440c95330e",
+      "classification": "EXCLUDED",
+      "requirement_ids": [],
+      "reason": "Separate Research Ops and AGI evidence track; no JARVIS product completion inference",
+      "exclusion_ref": "https://github.com/haji84/AI-/issues/321"
+    },
+    {
+      "path": "docs/architecture/phase20-observability.md",
+      "sha256": "578ba89ccdce9bc42e304a18e848b51b693b114d579fa2ac1a9054e09f003b26",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OPS-004",
+        "GOV-028"
+      ],
+      "reason": "Failure transparency and operational evidence"
+    },
+    {
+      "path": "docs/architecture/phase20-offline.md",
+      "sha256": "5aff8a90fe04b8ce1bbfe1112b1e886cf6004ccc1ddb292281960611b7cea3a7",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OFF-001",
+        "OFF-006"
+      ],
+      "reason": "Offline continuation contract"
+    },
+    {
+      "path": "docs/architecture/phase20-readiness-schema.md",
+      "sha256": "8f182ece0ea45498c3b6cb1e3c56b1907546d0567744816be9c7438bcbb8231a",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-001",
+        "CORE-031"
+      ],
+      "reason": "Historical Phase20 composition and acceptance; does not imply JARVIS completion"
+    },
+    {
+      "path": "docs/architecture/phase20-resume-semantics.md",
+      "sha256": "644dfdfe1defa3ec32f781404aa1199c04c7359358ee9814d9ff2fa121d13bf0",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-023",
+        "CORE-019"
+      ],
+      "reason": "Long-running integration and resume semantics"
+    },
+    {
+      "path": "docs/architecture/phase20-scope.md",
+      "sha256": "242d35e2cb89abc1bddff2f35cfe16522c242ea3a5f09ee94765580ad3a28f4e",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-001",
+        "CORE-031"
+      ],
+      "reason": "Historical Phase20 composition and acceptance; does not imply JARVIS completion"
+    },
+    {
+      "path": "docs/architecture/phase20-security-invariant.md",
+      "sha256": "68c2714bea4b18ad088805bb0d11f495179b07043fe23a05c64cabfad81b1e4e",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "SEC-018"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "docs/architecture/phase20-self-improvement.md",
+      "sha256": "38a11f5d5696ce13daf4f4dd70b5661f7d5ebc761900a5a16f13dd2d964e536f",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-028",
+        "AUTO-029"
+      ],
+      "reason": "Candidate self-improvement contract"
+    },
+    {
+      "path": "docs/architecture/phase20-state-update-note.md",
+      "sha256": "7acb423c469ca34fe2160583140f3ebd40f18269ba317fb9792f8bd0e50e8fbc",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-001",
+        "CORE-031"
+      ],
+      "reason": "Historical Phase20 composition and acceptance; does not imply JARVIS completion"
+    },
+    {
+      "path": "docs/architecture/phase20-verifier-invariant.md",
+      "sha256": "546d3da1d40d15344dd36d68d6baab7a570fc11c6be9a5931aeab64f16631530",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-026"
+      ],
+      "reason": "Evidence-driven completion invariant"
+    },
+    {
+      "path": "docs/architecture/team-organizational-memory.md",
+      "sha256": "c97be58e4af3609b5723cf62cd78e83d12e7536b27e8bdb4117d826dcbd00b27",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "MEM-003",
+        "CORE-032"
+      ],
+      "reason": "Organization-aware reusable memory"
+    },
+    {
+      "path": "scripts/jarvis-adb-mass-enroll.sh",
+      "sha256": "218d856fc06b462305ac093bea39fca09a44f768575fd1abf9719a8b12b98455",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "FLEET-002"
+      ],
+      "reason": "Existing batch enrollment script; no assertion of USB-free setup"
+    },
+    {
+      "path": "scripts/jarvis-broker.ts",
+      "sha256": "8e34a4787a353b9d24c7565092808d59391368ddcf7e7cdcb6a456398506a485",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "NET-006",
+        "NET-007",
+        "FLEET-003",
+        "FLEET-004",
+        "FLEET-006",
+        "DEV-PC-001",
+        "SEC-003",
+        "SEC-004",
+        "SEC-005",
+        "SEC-006",
+        "SEC-007",
+        "SEC-010"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "scripts/jarvis-direct-commander-service.sh",
+      "sha256": "35023aabcaf464beccedead3bc5c543593f7ba28cec2b5a760b4da70a2f4e90c",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-001",
+        "FLEET-003"
+      ],
+      "reason": "Legacy owner command/enrollment compatibility entry; current compliance is not attested"
+    },
+    {
+      "path": "scripts/jarvis-direct-commander-tunnel-service.sh",
+      "sha256": "b5603e2fc8d7d13e4984013a7ebd4858304c884b88f95c493dfc14ce299557e7",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-001",
+        "FLEET-003"
+      ],
+      "reason": "Legacy owner command/enrollment compatibility entry; current compliance is not attested"
+    },
+    {
+      "path": "scripts/jarvis-direct-commander-v2.mjs",
+      "sha256": "cc4f96f6e57f5c43014a1706645bb56d84cf154c91ecec8c461716d846678aa2",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-001",
+        "FLEET-003"
+      ],
+      "reason": "Legacy owner command/enrollment compatibility entry; current compliance is not attested"
+    },
+    {
+      "path": "scripts/jarvis-direct-commander-v3.mjs",
+      "sha256": "d8ec29245d658e685f2d71810bf2bf55ce4d62e5e75b9fbc9ad5a15edf3daad3",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-001",
+        "FLEET-003"
+      ],
+      "reason": "Legacy owner command/enrollment compatibility entry; current compliance is not attested"
+    },
+    {
+      "path": "scripts/jarvis-direct-commander-v4.mjs",
+      "sha256": "ac9b28a89f048fab22c3b84cd63c18728d2dc1ed304d3bf176af2bccd82fdda7",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-001",
+        "FLEET-003"
+      ],
+      "reason": "Legacy owner command/enrollment compatibility entry; current compliance is not attested"
+    },
+    {
+      "path": "scripts/jarvis-direct-commander-v5-launcher.mjs",
+      "sha256": "f1a54028881cb1c325f1ea90f8f3ba160911b578d6d7019efd0e508520395147",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-001",
+        "FLEET-003"
+      ],
+      "reason": "Legacy owner command/enrollment compatibility entry; current compliance is not attested"
+    },
+    {
+      "path": "scripts/jarvis-direct-commander-v5.mjs",
+      "sha256": "bb575fb86641e0a881d6590ab71f65bdf36ac2b132daa89dbf31d146b118b16d",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-001",
+        "FLEET-003"
+      ],
+      "reason": "Legacy owner command/enrollment compatibility entry; current compliance is not attested"
+    },
+    {
+      "path": "scripts/jarvis-direct-commander.ts",
+      "sha256": "b5776a030196504905fb0dcd9351453e7e5d34e574739913c5ba3b5219ab2036",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-001",
+        "FLEET-003"
+      ],
+      "reason": "Legacy owner command/enrollment compatibility entry; current compliance is not attested"
+    },
+    {
+      "path": "scripts/jarvis-fixed-enrollment-portal.ts",
+      "sha256": "3580139e3c13bfa6c738fa2d9c4463402f36fad6e0c431c81f622c1970aae1f2",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "FLEET-003"
+      ],
+      "reason": "Fixed enrollment portal"
+    },
+    {
+      "path": "scripts/jarvis-mac-broker-service.sh",
+      "sha256": "758829570c688be78eb381463b070e1addfe2619ae3ca157e5f798f0a22dbb11",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "HOST-002",
+        "DEV-PC-006"
+      ],
+      "reason": "Mac auxiliary resident/installation compatibility scripts; no deployment performed"
+    },
+    {
+      "path": "scripts/jarvis-mac-broker-tunnel-service.sh",
+      "sha256": "1b7aabd93c47e2113e104870d429f8132d83a1afd1927ab77f2a1353f9394e7b",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "HOST-002",
+        "DEV-PC-006"
+      ],
+      "reason": "Mac auxiliary resident/installation compatibility scripts; no deployment performed"
+    },
+    {
+      "path": "scripts/jarvis-mac-install-launchagent.sh",
+      "sha256": "a5e54c04162ebcabfc348355983d8d08065b23bee1a44826c09e9ab4f6415360",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "HOST-002",
+        "DEV-PC-006"
+      ],
+      "reason": "Mac auxiliary resident/installation compatibility scripts; no deployment performed"
+    },
+    {
+      "path": "scripts/jarvis-mac-resident.sh",
+      "sha256": "7d570018ae0cb75d5dd512b96c3b53ce716b7cd0e89a812c11766f7af1259b93",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "HOST-002",
+        "DEV-PC-006"
+      ],
+      "reason": "Mac auxiliary resident/installation compatibility scripts; no deployment performed"
+    },
+    {
+      "path": "scripts/jarvis-mac-zero-touch-install.sh",
+      "sha256": "dd5ad7d5fe4ac34190094dc6c7d651abf5d951f00e8c1c8cd25b271d1764b473",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "HOST-002",
+        "DEV-PC-006"
+      ],
+      "reason": "Mac auxiliary resident/installation compatibility scripts; no deployment performed"
+    },
+    {
+      "path": "scripts/jarvis-mac-zero-touch.sh",
+      "sha256": "9d5e45a33894aef729fe88790036af42dcbf0946ca1b46b3f78245530a4d406a",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "HOST-002",
+        "DEV-PC-006"
+      ],
+      "reason": "Mac auxiliary resident/installation compatibility scripts; no deployment performed"
+    },
+    {
+      "path": "scripts/jarvis-managed-process.mjs",
+      "sha256": "ff387097abf53cdd0c89f64baa31f4955bd4e9869aaaef9b83f32cf59f3798c5",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "HOST-001",
+        "HOST-003",
+        "HOST-004",
+        "HOST-005"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "scripts/jarvis-power-recovery-check.mjs",
+      "sha256": "5d24f4c6c327e90283973d2affdf9d43d5ef61eea238ba8c857d2a2c03ba943e",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OPS-006",
+        "OPS-008",
+        "OPS-009",
+        "OPS-011",
+        "OPS-018"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "scripts/jarvis-power-recovery-lib.mjs",
+      "sha256": "c5fa5ae031489893bb039b1445fef9430a3feef3e232af605421fbf7d1e783d2",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "HOST-001",
+        "HOST-003",
+        "HOST-004",
+        "HOST-005",
+        "HOST-006",
+        "HOST-007",
+        "HOST-008",
+        "OPS-008",
+        "OPS-010"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "scripts/jarvis-private-worker-ingress.ts",
+      "sha256": "8eddbaeec9d9c7104094a10cecdc82c72aba29154446b4a44e90b3d29198a86a",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "FLEET-003",
+        "FLEET-004",
+        "FLEET-006"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "scripts/jarvis-production-config.mjs",
+      "sha256": "0dbb0cd252230ea109db300ceb9ee979f3fafa59449b60c5e3ba4d69f1cb339b",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "HOST-003",
+        "SEC-011"
+      ],
+      "reason": "Windows protected host configuration handling"
+    },
+    {
+      "path": "scripts/jarvis-provisioning-payload.ts",
+      "sha256": "a2215c4ebf571f4e00ca9901a34ec3cc2072fb234793f15b50aa136fa739cb94",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "FLEET-005"
+      ],
+      "reason": "Android provisioning payload"
+    },
+    {
+      "path": "scripts/jarvis-remote-access-lib.mjs",
+      "sha256": "f17d1d217563e4df89b395f9877c0690ba61023f77f6fb5b440f074014b0eab4",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "NET-001",
+        "NET-002",
+        "NET-003",
+        "NET-004",
+        "RA-015",
+        "RA-016",
+        "SEC-010",
+        "OPS-008",
+        "OPS-010"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "scripts/jarvis-remote-gateway.ts",
+      "sha256": "7f1be46eaf9ecfc3e1fd9b1935d22777d4db21c44d1b4c77517df7fff06dc9c2",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-A-009",
+        "RA-001",
+        "RA-002",
+        "RA-007",
+        "RA-008",
+        "RA-009",
+        "RA-010",
+        "RA-011",
+        "RA-012",
+        "RA-015",
+        "RA-016",
+        "SEC-008",
+        "SEC-009",
+        "SEC-010"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "scripts/jarvis-remote-host.mjs",
+      "sha256": "d1f8a3dc6059351b970764d9a15a70a14c58e8743b5690e740d53f69c19e0b8c",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "HOST-001",
+        "HOST-003",
+        "HOST-004",
+        "HOST-005",
+        "HOST-007",
+        "OPS-010"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "scripts/jarvis-remote-preflight.mjs",
+      "sha256": "72f08a8a9f202533489f5d3304be6a42b36e01c71a9997863adb9da5757dc3fe",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "NET-001",
+        "NET-002",
+        "NET-003",
+        "NET-004",
+        "OPS-006",
+        "OPS-008",
+        "OPS-009",
+        "OPS-011",
+        "OPS-018"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "scripts/jarvis-requirement-audit.mjs",
+      "sha256": "02a23518a568a40b95a5d15e3fa13cc55b9d7956f6cbc68ba213e31173b3f332",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "GOV-025",
+        "CORE-015"
+      ],
+      "reason": "Specification traceability gate and reverse inventory"
+    },
+    {
+      "path": "scripts/jarvis-secret-audit.mjs",
+      "sha256": "91f2a5b2da53364ea2e6d973d83ec71e6da857af27f054e97b07f318a5ac5859",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-023"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "scripts/jarvis-windows-install-paths.mjs",
+      "sha256": "b54bec2195f1f493c5d655433229d71a0258c6d16527c716082c63769b0be95d",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "HOST-003",
+        "HOST-004",
+        "OPS-010"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/app/api/jarvis/action/route.ts",
+      "sha256": "83c1f8371fef69eb9c6131350f82cda509d69a646ca67fbee5feeb0e17a48f4f",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "INT-002",
+        "AUTO-001"
+      ],
+      "reason": "Owner action API"
+    },
+    {
+      "path": "src/app/api/jarvis/broker.ts",
+      "sha256": "22ea654aae30bf332ecb3a7aa231e3f5eb2e1f3dc1b20ca719f35a0fb3393494",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "NET-005",
+        "SEC-001",
+        "SEC-002"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/app/api/jarvis/connectivity/route.ts",
+      "sha256": "784c8322706a6e18d95c7fd75f563843538d7ba963ad9e4bb41a466c37de2762",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OPS-006"
+      ],
+      "reason": "Connectivity API"
+    },
+    {
+      "path": "src/app/api/jarvis/diagnostics/route.ts",
+      "sha256": "ae22c2781ec2363aa56a8695c482fb1d8b53613c29d1bf7e670f1acdacedf091",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OPS-008"
+      ],
+      "reason": "Diagnostics API"
+    },
+    {
+      "path": "src/app/api/jarvis/recordings/route.ts",
+      "sha256": "2ececc0f478e0dff0be8b5eec3032c13ef5eeef34031adbce36830a75c70a811",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "RA-013"
+      ],
+      "reason": "Recording history API"
+    },
+    {
+      "path": "src/app/api/jarvis/recovery/route.ts",
+      "sha256": "38b95e81153b87c661d0d17d63dfeb745e008ccd3efa2d795621c291b691dbf4",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OPS-009"
+      ],
+      "reason": "Recovery state API"
+    },
+    {
+      "path": "src/app/api/jarvis/remote/route.ts",
+      "sha256": "05ef07987d0671a0c2e5a01197d18c5858370801127e6956de7b3504cede771a",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-A-010",
+        "RA-001",
+        "RA-002",
+        "RA-007",
+        "RA-008",
+        "RA-009",
+        "RA-010",
+        "RA-011",
+        "RA-012",
+        "RA-013",
+        "RA-014",
+        "RA-015",
+        "RA-016",
+        "RA-017",
+        "RA-018",
+        "UI-037",
+        "SEC-016"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/app/api/jarvis/state/route.ts",
+      "sha256": "c7197644ac2bf7f6436cd72e127f3e60a9383692b647e8f557d5e9a86b5576dc",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "FLEET-001"
+      ],
+      "reason": "Fleet state API"
+    },
+    {
+      "path": "src/app/api/jarvis/teaching/route.ts",
+      "sha256": "59cf393c918fd431f8c8238c9432216d4fb74eb88d90dc86984e1c2f8bb3fcd7",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-016",
+        "CORE-018"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/app/api/jarvis/teaching/video/route.ts",
+      "sha256": "58cd0c0f1f92f1e8f0c7a12f1e18a5863785baccef3ae36cb14376f07a71072e",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "TEACH-003"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/app/api/jarvis/work/[goalId]/route.ts",
+      "sha256": "2a44b52a1b53bcb2f12406e2f1f91b004e3044f12aa3276993f3acb5a901f048",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-001",
+        "AUTO-004"
+      ],
+      "reason": "Persisted work intake/state API"
+    },
+    {
+      "path": "src/app/api/jarvis/work/route.ts",
+      "sha256": "0c4adf5c0d0f2bafbd15e110d04150a665f902e2d9a1ab492bbd6a7712b62251",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-001",
+        "AUTO-004"
+      ],
+      "reason": "Persisted work intake/state API"
+    },
+    {
+      "path": "src/app/jarvis/JarvisAccessibilityControls.tsx",
+      "sha256": "bd860c01d89e83ca68f9c9f401eaa946647417f6774b5c830c635fa833c5045f",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-031"
+      ],
+      "reason": "Accessibility display preferences"
+    },
+    {
+      "path": "src/app/jarvis/JarvisCommandSearch.tsx",
+      "sha256": "cc7e8ea10d58ef4b6998e03f9f0de278725cd0b933c8334f48d3863399cf6dfc",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-021"
+      ],
+      "reason": "Universal command search UI"
+    },
+    {
+      "path": "src/app/jarvis/JarvisConnectivityStatus.tsx",
+      "sha256": "4bfc2f67134a9c019f958d1c089172f508310307928e5f4b765448efedc73595",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OPS-006",
+        "UI-034"
+      ],
+      "reason": "Connectivity and degraded state labels"
+    },
+    {
+      "path": "src/app/jarvis/JarvisConsole.tsx",
+      "sha256": "16c2dd7c1eb704d0522f232afc884de6617fa90f91b3500cd2a69986ee60a054",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-A-010",
+        "RA-001",
+        "RA-002",
+        "RA-007",
+        "RA-008",
+        "RA-009",
+        "RA-010",
+        "RA-011",
+        "RA-012",
+        "RA-013",
+        "RA-014",
+        "RA-017",
+        "RA-018",
+        "RA-019",
+        "RA-020",
+        "UI-001",
+        "UI-002",
+        "UI-003",
+        "UI-006",
+        "UI-020",
+        "UI-026",
+        "UI-027",
+        "UI-031",
+        "UI-032",
+        "UI-034",
+        "UI-037",
+        "UI-038",
+        "INT-002",
+        "INT-003",
+        "SEC-015",
+        "OPS-006",
+        "OPS-008",
+        "OPS-009",
+        "OPS-011",
+        "OPS-018"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/app/jarvis/JarvisDisplayModeControls.tsx",
+      "sha256": "8ae1e127bc10e711cd1a85d3d9eec9d2f5382629cb8e9cea3b167e632ca408e8",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-024",
+        "UI-026"
+      ],
+      "reason": "Distance/mobile display profiles"
+    },
+    {
+      "path": "src/app/jarvis/JarvisHomeLayoutEditor.tsx",
+      "sha256": "d7743d9909e9819bdcdf6b2302b89f1e6c262d596513c9b7d0c210417c48e1bb",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-012",
+        "UI-013",
+        "UI-014"
+      ],
+      "reason": "Editable Home widgets"
+    },
+    {
+      "path": "src/app/jarvis/JarvisOperationModeControls.tsx",
+      "sha256": "b198f2623d6abe337c796212037849df09a596ee133ba9b28db7e25ee9d6cb9c",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-023",
+        "UI-028",
+        "UI-030"
+      ],
+      "reason": "Focus/privacy/read-only operating modes"
+    },
+    {
+      "path": "src/app/jarvis/JarvisPrimaryShell.tsx",
+      "sha256": "12783b8adba311b43cc0190cd929b1b48bee2b360e62493a4bc3cae568adaf06",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-001",
+        "AUTO-001"
+      ],
+      "reason": "Single owner front door and navigation shell"
+    },
+    {
+      "path": "src/app/jarvis/JarvisPriorityNotifications.tsx",
+      "sha256": "35947302cccf9640c3717ceb42864af0e75e6e279c9544b237e273af44dc4e85",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-022"
+      ],
+      "reason": "Notification priority UI"
+    },
+    {
+      "path": "src/app/jarvis/JarvisReadOnlyBoundary.tsx",
+      "sha256": "adc14003d2bd864fd36dd5b01f15880dba3a927198cfc64106f1c01e695935a4",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-023",
+        "UI-028",
+        "UI-030"
+      ],
+      "reason": "Focus/privacy/read-only operating modes"
+    },
+    {
+      "path": "src/app/jarvis/JarvisWorkShell.tsx",
+      "sha256": "b1f6be9dc49845ab7979faac606a9dcc35331e6ab7fedea4f2076b34b4032634",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-001",
+        "AUTO-001"
+      ],
+      "reason": "Single owner front door and navigation shell"
+    },
+    {
+      "path": "src/app/jarvis/OwnerLogin.tsx",
+      "sha256": "1c52c76c96c935ea90ff2125e8e81b6746262d2ea71852c54489549484a0d4bd",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "SEC-001",
+        "SEC-002"
+      ],
+      "reason": "Owner trusted browser authentication UI"
+    },
+    {
+      "path": "src/app/jarvis/RemoteAssistMultiView.tsx",
+      "sha256": "11a822414eeb041b1ee7f5cdcca1145c909e606212bd9ad67f38b2b70ce3a122",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "RA-003",
+        "RA-004",
+        "RA-005"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/app/jarvis/RemoteScreenControl.tsx",
+      "sha256": "9d7958f9494c31d4d7fa1aba7cb25f50255ef4b4f1ec7192faa90e3355d22cc3",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "RA-007",
+        "RA-009"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/app/jarvis/RemoteVideo.tsx",
+      "sha256": "20b5fa5981f99c1702ee3b4543ba0a814514c999ece8285a184750b9000a743a",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "RA-013",
+        "RA-014"
+      ],
+      "reason": "Remote video presentation"
+    },
+    {
+      "path": "src/app/jarvis/TeachingControls.tsx",
+      "sha256": "f6ea5fe271c8cd070222b819f67c943451964ba169a04de19c787cfea81cc793",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "TEACH-001",
+        "TEACH-002",
+        "TEACH-003",
+        "TEACH-004",
+        "TEACH-005",
+        "TEACH-006"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/app/jarvis/accessibility-preferences.ts",
+      "sha256": "03c2d24603cdfd7fc6c07f507244373c8ecb5f7da855d094c62bcf0ce7d97700",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "GOV-028"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/app/jarvis/accessibility-status.css",
+      "sha256": "fe235cacad2461fbd652ad5f7af0651a819ebc44cdb1f2a8c3092b1939a3fcd5",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "UI-031"
+      ],
+      "reason": "Accessibility display preferences"
+    },
+    {
+      "path": "src/app/jarvis/apple-icon.tsx",
+      "sha256": "d2fb532ad8216c8179c739614e4a8c03898ae1202940e77e05a403ab6f01d536",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-006"
+      ],
+      "reason": "App branding and manifest assets"
+    },
+    {
+      "path": "src/app/jarvis/command-search.css",
+      "sha256": "ed9777db8b48b6f6238bf9e2d06a3fe84f8dc3f40b33c95606f827db59f77ec0",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "UI-021"
+      ],
+      "reason": "Universal command search UI"
+    },
+    {
+      "path": "src/app/jarvis/connectivity-status.ts",
+      "sha256": "034abf592db0b6b256057415edac703ccb4fce2fbd5e281aa76394199fa140a8",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "GOV-028"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/app/jarvis/devices/PlatformRemoteAssistFleet.tsx",
+      "sha256": "7ff7b178c79c9f3a513442ed909f82e4f44b5e0b76f46c47d46e76c716618eeb",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-002",
+        "RA-006"
+      ],
+      "reason": "Fleet page and capability display"
+    },
+    {
+      "path": "src/app/jarvis/devices/page.tsx",
+      "sha256": "985aa9c049c6eda01f429a820da312ef66b28a8d0cc2e05482950a1e2b3e7f47",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-I-008",
+        "RA-006",
+        "RA-022"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/app/jarvis/diagnostics/page.tsx",
+      "sha256": "230afc816899892dd00e7ab3f1c03d2c2eeb8f8343ff7980eb114e1cabc6206e",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OPS-008"
+      ],
+      "reason": "Owner diagnostics page"
+    },
+    {
+      "path": "src/app/jarvis/display-modes.ts",
+      "sha256": "f00bc9fdea794adea1188f2999c066ee81f47fa3c83971ea3f603b9e2ad77977",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-024",
+        "UI-026"
+      ],
+      "reason": "Distance/mobile display profiles"
+    },
+    {
+      "path": "src/app/jarvis/enroll/EnrollmentProgress.tsx",
+      "sha256": "e6138a25d2806a27cc29c43843eac23d605dc4bac904862ba853a2f2364011a0",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "FLEET-003",
+        "FLEET-006"
+      ],
+      "reason": "Owner enrollment progress/invitation/pending pages"
+    },
+    {
+      "path": "src/app/jarvis/enroll/OwnerInvitationPanel.tsx",
+      "sha256": "8ab754db12d9ce247229449f2d1a173cee0f2c77289102677947d8bd4cfee535",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "FLEET-003",
+        "FLEET-006"
+      ],
+      "reason": "Owner enrollment progress/invitation/pending pages"
+    },
+    {
+      "path": "src/app/jarvis/enroll/PendingRegistration.tsx",
+      "sha256": "671715958180754b4b53e8e039afee8adbb9e472bb85c77291f8fa5b53db4fac",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "FLEET-003",
+        "FLEET-006"
+      ],
+      "reason": "Owner enrollment progress/invitation/pending pages"
+    },
+    {
+      "path": "src/app/jarvis/enroll/page.tsx",
+      "sha256": "53eefdcc604922a8522260518593a1efd89d569773133a0118d55a16345357a4",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "FLEET-001",
+        "FLEET-002",
+        "FLEET-003",
+        "FLEET-004",
+        "FLEET-005",
+        "FLEET-006",
+        "FLEET-007",
+        "FLEET-008"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/app/jarvis/icon.tsx",
+      "sha256": "60701017daeeeae58ced9ff0031ffb693b6b7694dad414d668d5d4c83fa0c1c9",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-006"
+      ],
+      "reason": "App branding and manifest assets"
+    },
+    {
+      "path": "src/app/jarvis/jarvis.css",
+      "sha256": "edfe5d563e9b899ddb8cae2f6c7263f7a84622d3ad6c3072d755e8e2487a422f",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "UI-001",
+        "UI-002",
+        "UI-003",
+        "UI-006",
+        "UI-020",
+        "UI-026",
+        "UI-027",
+        "UI-031",
+        "UI-032",
+        "UI-034",
+        "UI-037",
+        "UI-038"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/app/jarvis/layout-modes.css",
+      "sha256": "69eb0f8f33c810f16d329244c01e8af70ce07f8eabe203bf0f36246a7f3a966f",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "UI-015",
+        "UI-016"
+      ],
+      "reason": "Per-screen layout presets"
+    },
+    {
+      "path": "src/app/jarvis/layout.tsx",
+      "sha256": "08e4afa64f7fa3ed568860a8115ca5db205055abac0904c33b5fced02d9c7bbb",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-001",
+        "AUTO-001"
+      ],
+      "reason": "Single owner front door and navigation shell"
+    },
+    {
+      "path": "src/app/jarvis/login/page.tsx",
+      "sha256": "d31d371199d637ff5d37049ab5684f8a74df7be13ffdda54ab24e21999325605",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "SEC-001",
+        "SEC-002"
+      ],
+      "reason": "Owner trusted browser authentication UI"
+    },
+    {
+      "path": "src/app/jarvis/manifest.ts",
+      "sha256": "e19f4d8a87a9239970fe9a8eb8248df257e59cbc2e5bad7861d2f55a0c6ce272",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-006"
+      ],
+      "reason": "App branding and manifest assets"
+    },
+    {
+      "path": "src/app/jarvis/mobile/MobileCommander.tsx",
+      "sha256": "9536bf4ce65f46c3dd4374cf516d4a48c98e076a2da7680166d773a8c6aaa196",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "INT-003"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/app/jarvis/mobile/command-context.ts",
+      "sha256": "051adaf6c0b15eb57bcc93f4671034f4a489a74739450abff55e096ae2245d97",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "INT-004",
+        "INT-005",
+        "INT-006",
+        "INT-007"
+      ],
+      "reason": "Bounded cross-input context references"
+    },
+    {
+      "path": "src/app/jarvis/mobile/context-reference.ts",
+      "sha256": "7d61ba90571f0867c916031536e131e1b63004faa677bbaadb1011bfea0a2468",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "INT-004",
+        "INT-005",
+        "INT-006",
+        "INT-007"
+      ],
+      "reason": "Bounded cross-input context references"
+    },
+    {
+      "path": "src/app/jarvis/mobile/gesture/CameraGestureCommander.tsx",
+      "sha256": "6dee58d933402850ac9e65df5225df96cef65ed292a97ed0226ecbbf27979d8a",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "GEST-001",
+        "GEST-004"
+      ],
+      "reason": "Camera gesture UI and stability filters"
+    },
+    {
+      "path": "src/app/jarvis/mobile/gesture/gesture-motion.ts",
+      "sha256": "5ac0eeb6e6c423942f5b73d23f12c987f0433e4d771c00880710356a34e1f6b5",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "GEST-001",
+        "GEST-004"
+      ],
+      "reason": "Camera gesture UI and stability filters"
+    },
+    {
+      "path": "src/app/jarvis/mobile/gesture/gesture.css",
+      "sha256": "fd6975a4a9ff4196e9514d70dffcb50e0dd37e929bcdd3ad5b7b15c2eb7ccea1",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "GEST-001",
+        "GEST-004"
+      ],
+      "reason": "Camera gesture UI and stability filters"
+    },
+    {
+      "path": "src/app/jarvis/mobile/gesture/page.tsx",
+      "sha256": "50281f6a36b644717a451949443ba895210e3e19fdc8084317ca8ee420de41f9",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "GEST-001",
+        "GEST-004"
+      ],
+      "reason": "Camera gesture UI and stability filters"
+    },
+    {
+      "path": "src/app/jarvis/mobile/mobile.css",
+      "sha256": "3515e29acea3e98cd3fa8a7c120ad79c8628096fab4f99487e0836be6b3a497a",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "UI-026",
+        "GEST-007"
+      ],
+      "reason": "Mobile owner command surface"
+    },
+    {
+      "path": "src/app/jarvis/mobile/page.tsx",
+      "sha256": "6d94fe5259ce8f3a4ab3f252e930044797c1c93a86f79f043bec8a944f394f19",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-026",
+        "GEST-007"
+      ],
+      "reason": "Mobile owner command surface"
+    },
+    {
+      "path": "src/app/jarvis/mobile/pointer/ImuPointerCommander.tsx",
+      "sha256": "e8728b510435ded9bb3879d1866d7771474a32b6b94b2a2eb2a9a25309dbb3ea",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "GEST-006",
+        "GEST-007"
+      ],
+      "reason": "Smartphone inertial pointer"
+    },
+    {
+      "path": "src/app/jarvis/mobile/pointer/imu-pointer.ts",
+      "sha256": "a4ab9ea2b772c946a1db4fdfaafac7d4c973bf4654f80e48da23dff805d16a46",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "GEST-006",
+        "GEST-007"
+      ],
+      "reason": "Smartphone inertial pointer"
+    },
+    {
+      "path": "src/app/jarvis/mobile/pointer/page.tsx",
+      "sha256": "194e4c431b17453f8d42d23e2af5f68f3b703c8e3de7991e4452463160a13923",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "GEST-006",
+        "GEST-007"
+      ],
+      "reason": "Smartphone inertial pointer"
+    },
+    {
+      "path": "src/app/jarvis/mobile/pointer/pointer.css",
+      "sha256": "1cc49029ffbb406459b2b41be6b46c895f36a3bd681cc65653dab399c81a481f",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "GEST-006",
+        "GEST-007"
+      ],
+      "reason": "Smartphone inertial pointer"
+    },
+    {
+      "path": "src/app/jarvis/mobile/voice-command.ts",
+      "sha256": "b612e1a5f806664b3606d4d5e377f20a2a4cc493bef841f053b736d11cd7c1b0",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "INT-001",
+        "INT-008",
+        "INT-009",
+        "INT-017"
+      ],
+      "reason": "Voice input/persona/policy UI"
+    },
+    {
+      "path": "src/app/jarvis/mobile/voice-entry.css",
+      "sha256": "89ec2d97721ce54099ea7ddec578a9eab1ebf21b795816736ee32908e516f220",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "INT-001",
+        "INT-008",
+        "INT-009",
+        "INT-017"
+      ],
+      "reason": "Voice input/persona/policy UI"
+    },
+    {
+      "path": "src/app/jarvis/mobile/voice/MobileVoiceCommander.tsx",
+      "sha256": "fc76108fd6e901292b6aef291799b027554cb42f6e268fd98b60841bf3fdfd33",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "INT-001",
+        "INT-008",
+        "INT-009",
+        "INT-017"
+      ],
+      "reason": "Voice input/persona/policy UI"
+    },
+    {
+      "path": "src/app/jarvis/mobile/voice/SpeechPersonaStylePanel.tsx",
+      "sha256": "0de1d4de22700c4ad77aeefacb22738e7db26ba9a2801222efa349ee6897b2f1",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "INT-001",
+        "INT-008",
+        "INT-009",
+        "INT-017"
+      ],
+      "reason": "Voice input/persona/policy UI"
+    },
+    {
+      "path": "src/app/jarvis/mobile/voice/page.tsx",
+      "sha256": "4c24ae25115829edad996c7476b15a95c4ba9c4aa6992367e1dc4f649171a84d",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "INT-001",
+        "INT-008",
+        "INT-009",
+        "INT-017"
+      ],
+      "reason": "Voice input/persona/policy UI"
+    },
+    {
+      "path": "src/app/jarvis/mobile/voice/speech-policy.ts",
+      "sha256": "480268b92f0d64355b39a35e292e95f6e7599416702c251dc9646cf4da013093",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "INT-001",
+        "INT-008",
+        "INT-009",
+        "INT-017"
+      ],
+      "reason": "Voice input/persona/policy UI"
+    },
+    {
+      "path": "src/app/jarvis/mobile/voice/voice.css",
+      "sha256": "205727bc3af241014861345a778abc0280f38ff2a8f4eaeb6cb5d16d2d7a20f9",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "INT-001",
+        "INT-008",
+        "INT-009",
+        "INT-017"
+      ],
+      "reason": "Voice input/persona/policy UI"
+    },
+    {
+      "path": "src/app/jarvis/network-label.ts",
+      "sha256": "f41140c6c5f3b75cf6117fee4fe75824f99a5ad2b8596424bd5cf11cd95788c3",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OPS-006",
+        "UI-034"
+      ],
+      "reason": "Connectivity and degraded state labels"
+    },
+    {
+      "path": "src/app/jarvis/notification-priority.ts",
+      "sha256": "73a13cc3385c9e15d660d3f13443f8ff05938f0f701b3592d5e70857ca85e8ed",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-022"
+      ],
+      "reason": "Notification priority UI"
+    },
+    {
+      "path": "src/app/jarvis/operation-mode.css",
+      "sha256": "5db3c6d076da17554857df2b544cd9553f36505d098906537e397d4e8b46e656",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "UI-023",
+        "UI-028",
+        "UI-030"
+      ],
+      "reason": "Focus/privacy/read-only operating modes"
+    },
+    {
+      "path": "src/app/jarvis/operation-mode.ts",
+      "sha256": "364a0964426c36381d363cb1162d0f8388b05ec9e5ef95951d2e7c0aa75395fe",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-023",
+        "UI-028",
+        "UI-030"
+      ],
+      "reason": "Focus/privacy/read-only operating modes"
+    },
+    {
+      "path": "src/app/jarvis/page.tsx",
+      "sha256": "b60a1b6f724b89193f5076d82c542c619be53acc7eaeffb8277c47f5b4fba314",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-001",
+        "AUTO-001"
+      ],
+      "reason": "Single owner front door and navigation shell"
+    },
+    {
+      "path": "src/app/jarvis/qa/QaSequenceConsole.tsx",
+      "sha256": "f52c50aa3ccee08601e0fc8d1d7bfc9a6b2ea0f5f273f8421609f6b4c13d164a",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "TEACH-003"
+      ],
+      "reason": "Owner-authorized sequence observation and condition QA"
+    },
+    {
+      "path": "src/app/jarvis/qa/page.tsx",
+      "sha256": "8f857c3eb351b7f8ca1a257db41be8fd975cf75075c2a468c4104415eaca45a2",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "TEACH-003"
+      ],
+      "reason": "Owner-authorized sequence observation and condition QA"
+    },
+    {
+      "path": "src/app/jarvis/recordings/RecordingHistory.tsx",
+      "sha256": "cb38f6c544ec1ec9cb58841ddca89331590cd8ff6230d3c22f9c946997f8e0d8",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "RA-013"
+      ],
+      "reason": "Recording list and retention UI"
+    },
+    {
+      "path": "src/app/jarvis/recordings/page.tsx",
+      "sha256": "f52bcf34b672e36388bd978b478dfbd65f9468e76a7d2844a6a0716371cbe9e5",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "RA-013"
+      ],
+      "reason": "Recording list and retention UI"
+    },
+    {
+      "path": "src/app/jarvis/recovery/page.tsx",
+      "sha256": "ea35d8d3042b96c1a8cc50e77dc4eb9ba4dbcd5f2b799d43894f5ad164a52f1a",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OPS-009"
+      ],
+      "reason": "Recovery dashboard page"
+    },
+    {
+      "path": "src/app/jarvis/research/page.tsx",
+      "sha256": "48b432864db2fbc09ff8dc6b654aed929eed3139628ee36d3f481322c50e26c4",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-004"
+      ],
+      "reason": "Research page; research claims remain separate"
+    },
+    {
+      "path": "src/app/jarvis/screen-layout-profiles.css",
+      "sha256": "571feab309f3b87a8eb960d064ac61aba3579a0d95de4836cd19d820a9840f32",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "UI-015",
+        "UI-016"
+      ],
+      "reason": "Per-screen layout presets"
+    },
+    {
+      "path": "src/app/jarvis/screen-layout-profiles.ts",
+      "sha256": "806ea838fb73efd71fcbcc8a4b0aae8f4f0a1148c060c26c388ee8608ef5ed64",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-015",
+        "UI-016"
+      ],
+      "reason": "Per-screen layout presets"
+    },
+    {
+      "path": "src/app/jarvis/settings/JarvisLocalSettings.tsx",
+      "sha256": "ffd603ccccba66f6748089b76c51e1543ce50b6768e5e0bbdea758abf00222b2",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-005",
+        "UI-008"
+      ],
+      "reason": "Local settings entry"
+    },
+    {
+      "path": "src/app/jarvis/settings/JarvisOperatorGuide.tsx",
+      "sha256": "a01b0a169e914416f32add8344f2b6d628699cf148ae5ccadbe268504d315f89",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OPS-017"
+      ],
+      "reason": "Terminal-free operator guide"
+    },
+    {
+      "path": "src/app/jarvis/settings/JarvisScreenLayoutProfiles.tsx",
+      "sha256": "764d5c6ced9db15d1385ebbc6a90ff6ddd41a59390cf4c4a310b9ee1ee9e2b27",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-015",
+        "UI-016"
+      ],
+      "reason": "Per-screen layout presets"
+    },
+    {
+      "path": "src/app/jarvis/settings/TrustedDeviceSettings.tsx",
+      "sha256": "5b9147a4c98a30cfe740c91dbca8ee7a4422dad70c64ab5aef5de284c59b0d4d",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "SEC-001",
+        "SEC-002"
+      ],
+      "reason": "Owner trusted browser authentication UI"
+    },
+    {
+      "path": "src/app/jarvis/settings/page.tsx",
+      "sha256": "01d526982eafa09bbf8c23ea58d4e276180421e198fa6443120424a91d68bd50",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-005"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/app/jarvis/setup/SetupWizardClient.tsx",
+      "sha256": "d3cbc9c86ccb82055d9ca24826d719816e3a42145a0767d2e36ccd6205716331",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OPS-012"
+      ],
+      "reason": "First-run setup wizard"
+    },
+    {
+      "path": "src/app/jarvis/setup/page.tsx",
+      "sha256": "f39c20e9ebe835ce196e39b7605466479247c8cecb69c066f76398c3310875ab",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OPS-012"
+      ],
+      "reason": "First-run setup wizard"
+    },
+    {
+      "path": "src/app/jarvis/shell.css",
+      "sha256": "06d242f6c441ff64945af43d71927002349032935f035dae7601250fd84c7195",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "UI-001",
+        "AUTO-001"
+      ],
+      "reason": "Single owner front door and navigation shell"
+    },
+    {
+      "path": "src/app/jarvis/tasks/TaskBoard.tsx",
+      "sha256": "9a1c867b4d453e105fad78fbc83b40ab78ed917dd3c1f065159cba00a3e5e9ca",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-003",
+        "OPS-001"
+      ],
+      "reason": "Task board and history"
+    },
+    {
+      "path": "src/app/jarvis/tasks/page.tsx",
+      "sha256": "32639ad1a2ab93f224aec905f0c41ec0d25db457e30a17664ac0f615f5245517",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-003",
+        "OPS-001"
+      ],
+      "reason": "Task board and history"
+    },
+    {
+      "path": "src/app/jarvis/teach/VideoReplayControls.tsx",
+      "sha256": "061fb606d2327bbd2a05da8c64dc0feb0d2c278c8617c14989a5269ee58547a7",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "TEACH-001",
+        "TEACH-003"
+      ],
+      "reason": "Teaching/video candidate controls"
+    },
+    {
+      "path": "src/app/jarvis/teach/VideoTeachingPanel.tsx",
+      "sha256": "f78dc5b71bb179386d459e8fce8fc7f5e3d4dc2e9daab49ebd91f9bce3b8351d",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "TEACH-001",
+        "TEACH-003"
+      ],
+      "reason": "Teaching/video candidate controls"
+    },
+    {
+      "path": "src/app/jarvis/teach/page.tsx",
+      "sha256": "17cd9cf2bb278e2c4c03b928edd6f679585ab4035645ea46e3ce1e6c1764a991",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "TEACH-001",
+        "TEACH-002",
+        "TEACH-003",
+        "TEACH-004",
+        "TEACH-005",
+        "TEACH-006",
+        "CORE-018"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/app/jarvis/theme-catalog.ts",
+      "sha256": "08bd542fbddf3bfe559c3fdf40427b4dc96f586a5144c60b42514b9a7fb32d4b",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-007",
+        "UI-008",
+        "UI-010"
+      ],
+      "reason": "Theme/persona and display preference storage"
+    },
+    {
+      "path": "src/app/jarvis/themes.css",
+      "sha256": "a2ae82be16f6c0b8ac20235435e1576e9d394114701125bbb537d8501951a45e",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "UI-007",
+        "UI-008",
+        "UI-010"
+      ],
+      "reason": "Theme/persona and display preference storage"
+    },
+    {
+      "path": "src/app/jarvis/trusted-device-client.ts",
+      "sha256": "7f81b7c42914f9a70f675f56996b8d849c2cf94e2634721e475a210575bef9c5",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "SEC-001",
+        "SEC-002"
+      ],
+      "reason": "Owner trusted browser authentication UI"
+    },
+    {
+      "path": "src/app/jarvis/ui-preferences.ts",
+      "sha256": "29fb71141ef567aaaaf948f9f002abf9010fc734a026a28c8df664a10a802695",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-007",
+        "UI-008",
+        "UI-010"
+      ],
+      "reason": "Theme/persona and display preference storage"
+    },
+    {
+      "path": "src/app/jarvis/widget-layout.css",
+      "sha256": "5c194f7d59368c6e22372344cc03ec653bc9856cd0d3e900b30229167977df35",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "UI-012",
+        "UI-013",
+        "UI-014"
+      ],
+      "reason": "Editable Home widgets"
+    },
+    {
+      "path": "src/app/jarvis/work-shell.css",
+      "sha256": "488d4b08363ec3471d41b9a6a15e84686c2bef729d511a33aae133ee6365a82d",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "UI-001",
+        "AUTO-001"
+      ],
+      "reason": "Single owner front door and navigation shell"
+    },
+    {
+      "path": "src/gai/agi-gap-report.ts",
+      "sha256": "ce892eff1230e5007aaf2b465c9d026b9b3f6bed52bdee713c8d4e6ff3d8eaef",
+      "classification": "EXCLUDED",
+      "requirement_ids": [],
+      "reason": "Separate Research Ops and AGI evidence track; no JARVIS product completion inference",
+      "exclusion_ref": "https://github.com/haji84/AI-/issues/321"
+    },
+    {
+      "path": "src/gai/android-worker-adapter.ts",
+      "sha256": "554c0f8bfa12446941502d6a29b3a9d49b2c7461c5bcc13017fc904391969204",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-A-002"
+      ],
+      "reason": "Android worker task adapter"
+    },
+    {
+      "path": "src/gai/benchmark-history.ts",
+      "sha256": "7b29562f7807fa84586444d2fa84e2507ebf0a52c966ddc1e9ddea01803c8b19",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-031"
+      ],
+      "reason": "Internal benchmark/evaluation machinery; no independent external validation claim"
+    },
+    {
+      "path": "src/gai/benchmark.ts",
+      "sha256": "61e126bd5f4a84a1495f2e59bac332a55d5b4e27ec06e91bb3c947df26c70b00",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-031",
+        "GOV-009"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/gai/closed-learning-loop.ts",
+      "sha256": "5eea6a2457160110d8fa4c003cc05ffa80ae74622e4b0c736f2a66c1d2422b2b",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-016",
+        "MEM-008"
+      ],
+      "reason": "Verified execution learning and repeat-error metrics"
+    },
+    {
+      "path": "src/gai/common-worker-runtime.ts",
+      "sha256": "add5f6c755e94002063e6867d2c961c2013a0ab0eefee08a8b5cf6d01a54d311",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-011",
+        "FLEET-007"
+      ],
+      "reason": "Common worker capabilities and device selection"
+    },
+    {
+      "path": "src/gai/continual-learning-metrics.ts",
+      "sha256": "86ac06c37850649b8845478dff50e5917b77d21144025498690a4f719a45f84e",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-016",
+        "MEM-008"
+      ],
+      "reason": "Verified execution learning and repeat-error metrics"
+    },
+    {
+      "path": "src/gai/continual-learning-runtime.ts",
+      "sha256": "af258e6caf4f762b774243656d0871fb1ae5b535eb4e393a47d1a432f79bb103",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-017"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/gai/cross-device-evaluation.ts",
+      "sha256": "c36115bdb38f5ee283caf2b8ef14063fc37af421ce367a91c2ae58c3964a3e73",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-031"
+      ],
+      "reason": "Internal benchmark/evaluation machinery; no independent external validation claim"
+    },
+    {
+      "path": "src/gai/curriculum-guard.ts",
+      "sha256": "dd820fd1e7117120620acce636bebb8f1179d361d5385b72aadf26385724e948",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-031"
+      ],
+      "reason": "Internal benchmark/evaluation machinery; no independent external validation claim"
+    },
+    {
+      "path": "src/gai/development-tooling-capability.ts",
+      "sha256": "9c0bd301f2e0228b4ce5abb085f43bacd13e041c6a12186165cfd251e598c9e4",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-PC-004"
+      ],
+      "reason": "Development capability adapter"
+    },
+    {
+      "path": "src/gai/device-capability-runtime.ts",
+      "sha256": "3ba9981216cb67255c46e15fc2b12ec544baf6501e45146c360061bdccae07d5",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-I-007",
+        "DEV-I-008",
+        "DEV-PC-001",
+        "DEV-PC-002",
+        "DEV-PC-003",
+        "DEV-PC-004",
+        "DEV-PC-005",
+        "DEV-PC-006",
+        "DEV-PC-007",
+        "RA-022",
+        "SEC-008",
+        "SEC-009"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/gai/durable-task-runtime.ts",
+      "sha256": "911d39769d72cfe3a4288db60e285c214731d2cd7c9a74f9b622f0d88edc5104",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OFF-001",
+        "OFF-002",
+        "OFF-003",
+        "OFF-004",
+        "OFF-005",
+        "OFF-006",
+        "OFF-007",
+        "OFF-008",
+        "OFF-009",
+        "OFF-010",
+        "OFF-011",
+        "OFF-012",
+        "CORE-019",
+        "GOV-021"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/gai/external-benchmark-evidence.ts",
+      "sha256": "c8ba639c346212b0d9cdbaeb4df87276bb30686abd619652d91c48a237ac2868",
+      "classification": "EXCLUDED",
+      "requirement_ids": [],
+      "reason": "Separate Research Ops and AGI evidence track; no JARVIS product completion inference",
+      "exclusion_ref": "https://github.com/haji84/AI-/issues/321"
+    },
+    {
+      "path": "src/gai/goal-loop-worker-executor.ts",
+      "sha256": "a1bad4a1b175e654782550b631a69908bdd9f2de5c70addb06407ad350a50494",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-010",
+        "AUTO-011"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/gai/governed-skill-runtime.ts",
+      "sha256": "4f0b84f850ffc67b6b15968ba83e4a5cd39dc62a7d2fb6eaa9ce70803d80a09a",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-027",
+        "MEM-008",
+        "CORE-016"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/gai/http-worker-builder-capability.ts",
+      "sha256": "2a59b86fbb9d516e48145af57fdcaae80864b13d22e97a15aebdfc36557be87b",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-014"
+      ],
+      "reason": "Worker-backed software builder transport"
+    },
+    {
+      "path": "src/gai/initial-worker-adapters.ts",
+      "sha256": "db3ea9ca6c621e5c06f29ac8d4581a9ab3dccd0b8767ef6bb0327be622196370",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-PC-001",
+        "DEV-PC-002",
+        "DEV-PC-003",
+        "DEV-PC-004",
+        "DEV-PC-005",
+        "DEV-PC-006",
+        "DEV-PC-007"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/gai/initial-worker-profiles.ts",
+      "sha256": "9c793c18eae792d7e30f686e1ed1c6110d8e6238e4b1e4ed6091c32fc065b2a2",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-011",
+        "FLEET-007"
+      ],
+      "reason": "Common worker capabilities and device selection"
+    },
+    {
+      "path": "src/gai/iphone-worker-bridge.ts",
+      "sha256": "310a39bb15056d0c9d53bf54251ec541e6e15c1e0a198614f858cac194a39091",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-I-001",
+        "DEV-I-002",
+        "DEV-I-003",
+        "DEV-I-004",
+        "DEV-I-005",
+        "DEV-I-006"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/gai/learning.ts",
+      "sha256": "549edcd922c6d2674e5b7bb9a38a81981309c9f2ca03fcfeacc31f99c4b96fe3",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-016",
+        "MEM-008"
+      ],
+      "reason": "Verified execution learning and repeat-error metrics"
+    },
+    {
+      "path": "src/gai/local-device-mesh.ts",
+      "sha256": "a68747af0a4af0a487f5184e2eaa678f595d531616f510f277e96c0ed8497e8a",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-011",
+        "FLEET-007"
+      ],
+      "reason": "Common worker capabilities and device selection"
+    },
+    {
+      "path": "src/gai/long-horizon-evaluation.ts",
+      "sha256": "2b793748e7bc4af7c0a043640dddb2a347ef4e9be2b984c3eb4ed6de57068acd",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-031"
+      ],
+      "reason": "Internal benchmark/evaluation machinery; no independent external validation claim"
+    },
+    {
+      "path": "src/gai/mac-worker-goal.ts",
+      "sha256": "fd1a08786420fed43eb6b14d46c29720efb124731b1b8b0183b0b2b7f43237d8",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-PC-006"
+      ],
+      "reason": "Mac worker goal contract"
+    },
+    {
+      "path": "src/gai/memory-integration.ts",
+      "sha256": "ad262faab1f59ffc72dbca4e27bb80f18188c03750e491c7e00a525c8e4fd93d",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "MEM-001",
+        "MEM-002",
+        "MEM-003",
+        "MEM-004",
+        "MEM-005",
+        "MEM-006",
+        "MEM-007"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/gai/memory-store.ts",
+      "sha256": "9140ce74c8407f8dcb836a9ee809d07bbf00ce5ee6800a9a9cd948a922fe0ac9",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "MEM-001",
+        "MEM-002",
+        "MEM-003",
+        "MEM-004",
+        "MEM-005",
+        "MEM-006",
+        "MEM-007",
+        "CORE-029",
+        "GOV-015"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/gai/model-adaptation-gate.ts",
+      "sha256": "6a344e6d1fb1bf3154532eb59f6bdfe3cbc42aab25835cacdff556da03b39065",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-007"
+      ],
+      "reason": "Model eligibility/response normalization"
+    },
+    {
+      "path": "src/gai/model-execution.ts",
+      "sha256": "c740676e5c5b87d3ba46ab8440459e79426c965ef63c417c5451971e7c83758a",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-007",
+        "CORE-008"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/gai/model-output-normalizer.ts",
+      "sha256": "33b0029ecff77b8868abb8cd3b39ff5ce13cd757fb3c4cf677c83b7636e5fdd3",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-007"
+      ],
+      "reason": "Model eligibility/response normalization"
+    },
+    {
+      "path": "src/gai/model-router.ts",
+      "sha256": "b6efee16aef2e6fc631d2ead821a5a78fd3fa9f1812f838637b77054a394fd78",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-007",
+        "CORE-008",
+        "GOV-007"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/gai/offline-first-runtime.ts",
+      "sha256": "9032596547068b54c82005c33729e4758d7054c6ed0de4b2cc91bec1005db96c",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OFF-001",
+        "OFF-002",
+        "OFF-003",
+        "OFF-004",
+        "OFF-005",
+        "OFF-006",
+        "OFF-007",
+        "OFF-008",
+        "OFF-009",
+        "OFF-010",
+        "OFF-011",
+        "OFF-012",
+        "GOV-026"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/gai/platform-capability-manifest.ts",
+      "sha256": "c6634fcc9899e2caf143858429fb6463d3057b4e92e1eea88b4d42a263217e81",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-PC-007"
+      ],
+      "reason": "Platform-specific capability manifest"
+    },
+    {
+      "path": "src/gai/production-autonomy-runtime.ts",
+      "sha256": "c676bc34968d56ec68b346f13b6273edd9471bbda31e11fa89a1ad2794433f64",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-001",
+        "AUTO-002",
+        "AUTO-003",
+        "AUTO-004",
+        "AUTO-005",
+        "AUTO-006",
+        "AUTO-007",
+        "AUTO-008",
+        "AUTO-009",
+        "AUTO-015",
+        "AUTO-016",
+        "AUTO-021",
+        "AUTO-022",
+        "AUTO-023",
+        "AUTO-024",
+        "AUTO-025",
+        "AUTO-026",
+        "OPS-001",
+        "OPS-002",
+        "OPS-003",
+        "OPS-004",
+        "OPS-005",
+        "CORE-001",
+        "CORE-011",
+        "CORE-015",
+        "GOV-008"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/gai/production-failure-history.ts",
+      "sha256": "ebb2c28fe29bf4ff93c6fce3fc2f45dc44bda7f47e36fd938eae879434e7b0af",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OPS-004"
+      ],
+      "reason": "Durable failure history"
+    },
+    {
+      "path": "src/gai/production-recovery-history.ts",
+      "sha256": "64a3cf1692952199f1347ef59e811ad132ba4e6ea776426af2f0e2ab434fdb03",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OPS-005"
+      ],
+      "reason": "Durable recovery history"
+    },
+    {
+      "path": "src/gai/production-task-history.ts",
+      "sha256": "3fea59f7dfc38c48f7fa793c2b334f7111e8b9a8fef278161bed4e0448da7d1e",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OPS-001"
+      ],
+      "reason": "Durable task history"
+    },
+    {
+      "path": "src/gai/production-verification-history.ts",
+      "sha256": "d45885e668a2237fd17bf39e5574038b4fdbed07039deeee4d5a8bfd70e6f2bc",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OPS-003"
+      ],
+      "reason": "Durable verification history"
+    },
+    {
+      "path": "src/gai/replication-evaluation.ts",
+      "sha256": "6fb35b9ce24c5d571810eeb597bf1550141430d10b350590208a2a3d2b8ad294",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-031"
+      ],
+      "reason": "Internal benchmark/evaluation machinery; no independent external validation claim"
+    },
+    {
+      "path": "src/gai/research-campaign-orchestrator.ts",
+      "sha256": "67b93bcba181452b9c7184678c503ac46228365f0edefad7ed7283f5a85d3752",
+      "classification": "EXCLUDED",
+      "requirement_ids": [],
+      "reason": "Separate Research Ops and AGI evidence track; no JARVIS product completion inference",
+      "exclusion_ref": "https://github.com/haji84/AI-/issues/321"
+    },
+    {
+      "path": "src/gai/research-control-plane.ts",
+      "sha256": "f14eb79671157c9a1ad771826a069d3ad258cae576ee281a638bdb41ec91816b",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-010",
+        "CORE-012"
+      ],
+      "reason": "Shared product research routing/execution imported by autonomy-delegation and initial-worker-adapters; Research scientific validation remains a separate #321 claim"
+    },
+    {
+      "path": "src/gai/research-dossier.ts",
+      "sha256": "5ce8a912920fcac558e48d902676b61007eb9ee5c308a1bbd26ace3d7ec39979",
+      "classification": "EXCLUDED",
+      "requirement_ids": [],
+      "reason": "Separate Research Ops and AGI evidence track; no JARVIS product completion inference",
+      "exclusion_ref": "https://github.com/haji84/AI-/issues/321"
+    },
+    {
+      "path": "src/gai/research-evidence-ledger.ts",
+      "sha256": "1f933d4555f50c7aaab6631b68f1727fc286f3cfac26ec3abf9a48987a7b624a",
+      "classification": "EXCLUDED",
+      "requirement_ids": [],
+      "reason": "Separate Research Ops and AGI evidence track; no JARVIS product completion inference",
+      "exclusion_ref": "https://github.com/haji84/AI-/issues/321"
+    },
+    {
+      "path": "src/gai/research-executor.ts",
+      "sha256": "ee2a1bd8e0d740b47e40331e43e51b0d14e867ffbf6c590f5697dc8d72e79eb3",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-010",
+        "CORE-012"
+      ],
+      "reason": "Shared product research routing/execution imported by autonomy-delegation and initial-worker-adapters; Research scientific validation remains a separate #321 claim"
+    },
+    {
+      "path": "src/gai/research-loop.ts",
+      "sha256": "d410b36a9edbc51e632be928881a13c1b1229ad1233eef4adad605ed3941763b",
+      "classification": "EXCLUDED",
+      "requirement_ids": [],
+      "reason": "Separate Research Ops and AGI evidence track; no JARVIS product completion inference",
+      "exclusion_ref": "https://github.com/haji84/AI-/issues/321"
+    },
+    {
+      "path": "src/gai/research-ops-program.ts",
+      "sha256": "92ba0a9ca68b0a65fe8bdb845a6815979d0cd793288b3539118cb8686f334784",
+      "classification": "EXCLUDED",
+      "requirement_ids": [],
+      "reason": "Separate Research Ops and AGI evidence track; no JARVIS product completion inference",
+      "exclusion_ref": "https://github.com/haji84/AI-/issues/321"
+    },
+    {
+      "path": "src/gai/research-stage-evidence.ts",
+      "sha256": "cf3852600abd942f5d66e676ff35247483ed02415db7be1afa4347c84e78c6d2",
+      "classification": "EXCLUDED",
+      "requirement_ids": [],
+      "reason": "Separate Research Ops and AGI evidence track; no JARVIS product completion inference",
+      "exclusion_ref": "https://github.com/haji84/AI-/issues/321"
+    },
+    {
+      "path": "src/gai/research-statistics.ts",
+      "sha256": "3f317c97adb790850851ca3173e65fd115ee402d2f760d84f7efe2529ced2c9d",
+      "classification": "EXCLUDED",
+      "requirement_ids": [],
+      "reason": "Separate Research Ops and AGI evidence track; no JARVIS product completion inference",
+      "exclusion_ref": "https://github.com/haji84/AI-/issues/321"
+    },
+    {
+      "path": "src/gai/self-healing-runtime.ts",
+      "sha256": "35c0fea9ea7dd5e8d4b97fb28eafd148ba8e0a46a289e85f8b21fd12b7cb5239",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-017",
+        "AUTO-018",
+        "AUTO-019",
+        "AUTO-020",
+        "GOV-012"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/gai/self-healing-ui.ts",
+      "sha256": "a74fccc619a14df88bc656ea02b509a1b7e3d81f73bf280e3a9b154c6ce11c0f",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-017",
+        "GOV-028"
+      ],
+      "reason": "Repair state presentation"
+    },
+    {
+      "path": "src/gai/self-improvement-runtime.ts",
+      "sha256": "e91567ee60904ed8439ec5efe9265a3c0a18ccb300169c7cf52f1930850f1ac1",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-028",
+        "AUTO-029",
+        "AUTO-030",
+        "AUTO-031",
+        "OPS-013",
+        "OPS-014",
+        "CORE-021",
+        "CORE-022"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/gai/self-improvement.ts",
+      "sha256": "6e35a41cb65d2a8b117d6e4cc6793330a559f8d008be433c087667926f3b7306",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-028",
+        "AUTO-029"
+      ],
+      "reason": "Self-improvement candidate runtime"
+    },
+    {
+      "path": "src/gai/skill-execution-runtime.ts",
+      "sha256": "36f061fc711f71d863b985ed9a534facbab6eb413dfb326312dd0bfdc7126be4",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-016"
+      ],
+      "reason": "Governed reusable Skill execution"
+    },
+    {
+      "path": "src/gai/skill-library.ts",
+      "sha256": "569cf30011cf04213fb337bedf0bfc45bf0b8e447ee70555d41c2731b95e4b4c",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-027",
+        "MEM-008",
+        "CORE-016"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/gai/sync-engine.ts",
+      "sha256": "0714f461a44493242d94ae366e219f3c06c0020bd0acce4dff22939ef29b874e",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OFF-001",
+        "OFF-002",
+        "OFF-003",
+        "OFF-004",
+        "OFF-005",
+        "OFF-006",
+        "OFF-007",
+        "OFF-008",
+        "OFF-009",
+        "OFF-010",
+        "OFF-011",
+        "OFF-012"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/gai/typed-benchmark-verifier.ts",
+      "sha256": "9c637002d9d3520218db95caf7c67c5e9aa0aabcb01118ede6f26a4bc77ce435",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-010"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/gai/types.ts",
+      "sha256": "9e5383494c86921cc33d061f2395485c0887b8d46225b12d4a099fae9532893d",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "CORE-001"
+      ],
+      "reason": "Shared internal runtime types"
+    },
+    {
+      "path": "src/gai/usage-ledger.ts",
+      "sha256": "a2ac2dfac167a3e019299e72d7316f8af147640504ee08035cfa1e0e11258d3c",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-007",
+        "SEC-013"
+      ],
+      "reason": "Persisted model usage and paid-cost evidence"
+    },
+    {
+      "path": "src/gai/work-learning.ts",
+      "sha256": "a4e980f9b2a418f6f5cb7b350afbfe0c4d9c260f71e38f195991fd305f155920",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-016",
+        "MEM-008"
+      ],
+      "reason": "Verified execution learning and repeat-error metrics"
+    },
+    {
+      "path": "src/gai/worker-builder-capability.ts",
+      "sha256": "5798ead586a8dd27c05b43bbaae52f48c43686f4009ef019c84324bef899898b",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-014"
+      ],
+      "reason": "Worker-backed software builder transport"
+    },
+    {
+      "path": "src/gai/worker-contract-evaluation.ts",
+      "sha256": "57efd61d8bbf51a5598eb715984425641718c30b8a26c8d28bb9bea132cbbd09",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-031"
+      ],
+      "reason": "Internal benchmark/evaluation machinery; no independent external validation claim"
+    },
+    {
+      "path": "src/gai/worker-runtime.ts",
+      "sha256": "ebccd1a262f5c926cab86ae659c4b2f9b882c20291a70e773c11f0074cabd717",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-010",
+        "AUTO-011"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/gai/world-model-calibration.ts",
+      "sha256": "0b47af4bed955e06d401cfc3492ace341be4388a3d8152eb13c901238f208124",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-011",
+        "AUTO-009"
+      ],
+      "reason": "Planner world-state prediction/calibration; prediction is not verified completion"
+    },
+    {
+      "path": "src/gai/world-model.ts",
+      "sha256": "34af4d8973d7b4a5a9c059f720dd1d510e43e9753acc609a0a4b815ecef8e74c",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-011",
+        "AUTO-009"
+      ],
+      "reason": "Planner world-state prediction/calibration; prediction is not verified completion"
+    },
+    {
+      "path": "src/gai/world-resource-collector.ts",
+      "sha256": "759c3736e0a1bd972431db4740e2765a2ef97c8ff45be7f8aa95f0f1015657b5",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OPS-007"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/gai/world-resource-model.ts",
+      "sha256": "150171f169fe66e87184a57a2ef6a2299887625c428dcb8f5acb30de05c823bd",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OPS-007"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/jarvis/android-video.ts",
+      "sha256": "9dbb1a948ae2b62696f1e8fef2ca915e39d2d93f00d388b565b99dee2f3d2387",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-A-010",
+        "RA-013"
+      ],
+      "reason": "Android screen recording helper"
+    },
+    {
+      "path": "src/jarvis/command-search.ts",
+      "sha256": "c414bc7b2e450d46a340c9187a05a9d765179640d2de70273ea6789d14b1c6d0",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-021"
+      ],
+      "reason": "Universal search indexing"
+    },
+    {
+      "path": "src/jarvis/config-baseline-rollback.ts",
+      "sha256": "4d6205912319bd18b08a1c0954047eca8dbc5829b64c0c054ec27a5dfaaf2731",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OPS-014"
+      ],
+      "reason": "Configuration rollback baseline"
+    },
+    {
+      "path": "src/jarvis/connection-router.ts",
+      "sha256": "fcf6f5acd195431daff4c64b30494526c1acc6bd13eea774cc7f364617cfd402",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "MIG-022",
+        "NET-004"
+      ],
+      "reason": "Connection route selection"
+    },
+    {
+      "path": "src/jarvis/control-plane.ts",
+      "sha256": "e94fe332d48aa869eb1b8bd31fb759e88d16b6f8576aca7786bc5eb0edec0c45",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "RA-014",
+        "RA-017",
+        "RA-018",
+        "RA-019",
+        "RA-020",
+        "SEC-015"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/jarvis/device-replacement-candidate.ts",
+      "sha256": "5f6fb09f73c5fb744d04d7cfac0b8c38f333a3a4fdb2880d6a6cff2c3ba32526",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "FLEET-009"
+      ],
+      "reason": "Protected device replacement flow and transport"
+    },
+    {
+      "path": "src/jarvis/device-replacement-transport.ts",
+      "sha256": "f1f88d2ac0b93ad5625072d527a46eb94f54e865036a4164237214b87d439a8e",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "FLEET-009"
+      ],
+      "reason": "Protected device replacement flow and transport"
+    },
+    {
+      "path": "src/jarvis/device-replacement.ts",
+      "sha256": "7f4cfbba3403fab242638b157a1ca7b25796dc21ad408232dcddea2a5e92ec44",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "FLEET-009"
+      ],
+      "reason": "Protected device replacement flow and transport"
+    },
+    {
+      "path": "src/jarvis/enrollment-pairing-window.ts",
+      "sha256": "9640e1bdc3075430f894beee748e0cc9b44ba055754bf08395fac6c87e445d37",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "FLEET-003",
+        "FLEET-006"
+      ],
+      "reason": "Bounded enrollment and owner invitation lifecycle"
+    },
+    {
+      "path": "src/jarvis/enrollment.ts",
+      "sha256": "3b5ebf2bfe36c4b128fa7bdba7ce14950f1905a60cfbe1f2227e62533dbcd76d",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "FLEET-001",
+        "FLEET-002",
+        "FLEET-003",
+        "FLEET-004",
+        "FLEET-005",
+        "FLEET-006",
+        "FLEET-007",
+        "FLEET-008"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/jarvis/execution-router.ts",
+      "sha256": "e053f3c097df5875314fe4e823be14b0ae638dde56d080ffc54a1bbbf4b4bbc8",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-011"
+      ],
+      "reason": "Capability/connection execution dispatch"
+    },
+    {
+      "path": "src/jarvis/first-run-setup.ts",
+      "sha256": "ba3af287697e3c31d2d42597cb97165d6214f27f2bfc81ea29e2a67225766213",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OPS-012"
+      ],
+      "reason": "First-run setup readiness"
+    },
+    {
+      "path": "src/jarvis/fixed-enrollment.ts",
+      "sha256": "f646ea2880b5c348127048ddfcb4f0077d839251ae189e61f246e89b2536b0e6",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "FLEET-003",
+        "FLEET-006"
+      ],
+      "reason": "Bounded enrollment and owner invitation lifecycle"
+    },
+    {
+      "path": "src/jarvis/fleet-device-record.ts",
+      "sha256": "b3ba472002c98d0b4772e5fd1a4e9911e566918035d63f9fc22b3488d7a19b43",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "FLEET-007"
+      ],
+      "reason": "Identity/capability/health device record"
+    },
+    {
+      "path": "src/jarvis/fleet-goal-evidence.ts",
+      "sha256": "1185fbed7af4ce917aa115b93d7ca9b1d0c0e86b374015695117a19402585bfa",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "ACC-009"
+      ],
+      "reason": "Cross-device goal evidence collection"
+    },
+    {
+      "path": "src/jarvis/fleet-manager.ts",
+      "sha256": "b33f8640ca7280d85bdc32af1784bbe4bd1b83f20beadea259177208740453d1",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "FLEET-001",
+        "FLEET-002",
+        "FLEET-003",
+        "FLEET-004",
+        "FLEET-005",
+        "FLEET-006",
+        "FLEET-007",
+        "FLEET-008",
+        "FLEET-010",
+        "FLEET-011"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/jarvis/home-widget-history.ts",
+      "sha256": "257ded9beabbc949c0f2b704221be4d2c364270316c359b6b68fc9bb0afa0b2c",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-017",
+        "UI-018"
+      ],
+      "reason": "Undo/redo widget history"
+    },
+    {
+      "path": "src/jarvis/home-widget-layout.ts",
+      "sha256": "399d1f561ab29dafce860d52de1cdce6a9c96041a86ece83af28737ef46dc0a4",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-012",
+        "UI-013",
+        "UI-014"
+      ],
+      "reason": "Widget positioning and visibility"
+    },
+    {
+      "path": "src/jarvis/human-takeover.ts",
+      "sha256": "03590595738de5a0b663053ce37ef3fd5035fcb6be411c3177dcd8f1bc2ad8e8",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "RA-014",
+        "RA-017",
+        "RA-018",
+        "RA-019",
+        "RA-020",
+        "SEC-015",
+        "SEC-016"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/jarvis/index.ts",
+      "sha256": "3a6e30bdb2b1559c9ae56b9175d84af9fdbbc008b6958618a18ac867058ae32e",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "FLEET-001"
+      ],
+      "reason": "Internal exported fleet contracts"
+    },
+    {
+      "path": "src/jarvis/invitation-link.ts",
+      "sha256": "e66edf6bb95037588bb0905904564ddbb2fd51a0c8a7eddcd27443c645346d88",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "FLEET-003",
+        "FLEET-006"
+      ],
+      "reason": "Bounded enrollment and owner invitation lifecycle"
+    },
+    {
+      "path": "src/jarvis/local-video-reasoner.ts",
+      "sha256": "8d13d55f2baeaf8ca356d53ba2f5127aac135aa796cb13ea4336e185300c6aae",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "TEACH-003"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/jarvis/owner-invitation.ts",
+      "sha256": "753a69ee66dee32a314f78a9dd10cfdb90a2bacd3181e9c948d903b96f25e1d1",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "FLEET-003",
+        "FLEET-006"
+      ],
+      "reason": "Bounded enrollment and owner invitation lifecycle"
+    },
+    {
+      "path": "src/jarvis/pending-enrollment.ts",
+      "sha256": "5117da66f54d6bb58024a459515ec5eab519586dc7c9eec59e7e42c4630b9d0c",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "FLEET-003",
+        "FLEET-006"
+      ],
+      "reason": "Bounded enrollment and owner invitation lifecycle"
+    },
+    {
+      "path": "src/jarvis/policy-engine.ts",
+      "sha256": "95841ed4b9dfde2d098bcbbdd6428c6fbd3620ee52bae0366ef85370c174df2c",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "RA-021",
+        "SEC-008",
+        "SEC-009",
+        "SEC-013",
+        "SEC-014",
+        "SEC-019",
+        "CORE-024",
+        "CORE-025",
+        "CORE-030",
+        "CORE-034",
+        "GOV-001",
+        "GOV-003",
+        "GOV-022"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/jarvis/prepare-worker-remote.ts",
+      "sha256": "6abaa11f6bc5a0341e225fbefa223c38ac7a28ff6c9f88d7be885d3eb4a3c1ca",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "RA-014",
+        "DEV-AX-003"
+      ],
+      "reason": "Remote worker readiness/wake checks"
+    },
+    {
+      "path": "src/jarvis/private-worker-ingress.ts",
+      "sha256": "2ce7eb8626845db94b204bce4f8e4b252da7b691df8e7fe267fe94bcf95e3f0d",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "FLEET-003",
+        "FLEET-004",
+        "FLEET-006"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/jarvis/product-rollback-readiness.ts",
+      "sha256": "b7838f4bdfbabe2dc8d0b0ce22e8f9cb6a75153ccc958a50c6358f2c5d108e2c",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OPS-014"
+      ],
+      "reason": "Rollback readiness contract"
+    },
+    {
+      "path": "src/jarvis/product-update-readiness.ts",
+      "sha256": "5720cc35d484c49a72ac8acc9092679a4f619288570b1417ae67d792ab327420",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OPS-013"
+      ],
+      "reason": "Update readiness contract"
+    },
+    {
+      "path": "src/jarvis/qa-sequence.ts",
+      "sha256": "33e17d901199bccce84c774445d38fd32e1f4be4302f6dc00f9bb2fa2bcddfec",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "TEACH-003"
+      ],
+      "reason": "Recorded owner-screen conditions and safe sequence QA"
+    },
+    {
+      "path": "src/jarvis/recovery-dashboard.ts",
+      "sha256": "de2c5ce3f56e4d721617bf081dd79863822e7a252549c74619d897db12348e10",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OPS-009"
+      ],
+      "reason": "Recovery diagnostics aggregation"
+    },
+    {
+      "path": "src/jarvis/remote-assist-audit.ts",
+      "sha256": "0c57741c920b86fb95337485f0a2b05601292e6e78e493528a04b7f2eedb5bdf",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "RA-018",
+        "SEC-016",
+        "GOV-018"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/jarvis/remote-assist-node-capability.ts",
+      "sha256": "ef37048178f10313d67473fe98ad60f99a271151ace8b41bf2c686c8c3453430",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-I-008",
+        "RA-006",
+        "RA-022"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/jarvis/remote-assist-recording-history.ts",
+      "sha256": "6e718fd025ffa77d745a353385e17e4a1f2869d81f8a3d2e834717b832dfb260",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "RA-013",
+        "OPS-003"
+      ],
+      "reason": "Recording evidence/history"
+    },
+    {
+      "path": "src/jarvis/remote-assist-recording.ts",
+      "sha256": "7e675cfe1dfc5260c6cd87ca94bbbe5f53ed09c3bc3bb951415d48704d283195",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-A-010",
+        "RA-013"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/jarvis/remote-assist-view.ts",
+      "sha256": "4046f459c2828dc348ec070f3c3665b3fa9c7973b9851c44c599b23001d3c1d6",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "RA-003",
+        "RA-004",
+        "RA-005"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/jarvis/remote-assist.ts",
+      "sha256": "4dd989e9d2fbe185d699db424581f2021e8ff61a073ebf22a8ade6629b1a11f4",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "RA-001",
+        "RA-002",
+        "RA-007",
+        "RA-008",
+        "RA-009",
+        "RA-010",
+        "RA-011",
+        "RA-012",
+        "RA-014",
+        "RA-015",
+        "RA-017",
+        "RA-018",
+        "UI-037",
+        "SEC-016"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/jarvis/remote-capture-policy.ts",
+      "sha256": "c0b47b52e7bf751dc0a203ab0b20a9f4d8d53e02a45b8fa9d996fbd273d8f9fb",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "RA-012",
+        "RA-013"
+      ],
+      "reason": "Bounded screen capture queue and policy"
+    },
+    {
+      "path": "src/jarvis/remote-capture-queue.ts",
+      "sha256": "ec482e1c93baecce07899918e2313f2f2c811647948ce1481f4fa5f57ed6de66",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "RA-012",
+        "RA-013"
+      ],
+      "reason": "Bounded screen capture queue and policy"
+    },
+    {
+      "path": "src/jarvis/remote-device-inventory.ts",
+      "sha256": "2f860bd036e126c83c13e3c4c547063f81b01e7450f9bdfe9b5c9aa07fdca9f3",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "FLEET-007",
+        "RA-006"
+      ],
+      "reason": "Remote capability inventory"
+    },
+    {
+      "path": "src/jarvis/remote-preview.ts",
+      "sha256": "2061abe1e5ed180b88895dde93682216e9285e321ac81801594bc4b6a9f0948e",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "RA-001"
+      ],
+      "reason": "Remote screen observation and refresh pacing"
+    },
+    {
+      "path": "src/jarvis/remote-refresh-loop.ts",
+      "sha256": "225d93063d5165f7c5686055bbe6602435d289d4f5a0693b3185ae7826d5478e",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "RA-001"
+      ],
+      "reason": "Remote screen observation and refresh pacing"
+    },
+    {
+      "path": "src/jarvis/remote-screen-input.ts",
+      "sha256": "c0dadd36a409cf029efb53e8e52463d7aa47e694f5334c0e73904d4023fd638f",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "RA-007",
+        "RA-009"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/jarvis/self-diagnostics.ts",
+      "sha256": "a2979764007c188d874f5e67a01b507f02488ce11c6802900be7342b15c322f1",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OPS-008"
+      ],
+      "reason": "Owner-visible diagnostic assessment"
+    },
+    {
+      "path": "src/jarvis/sqlite-state-store.ts",
+      "sha256": "fa3c63a6160f8a70ac17f5674b6b4e0cb0f650dbb3e4b6ca8826659c43ee8598",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OPS-001",
+        "OPS-002",
+        "OPS-003",
+        "OPS-004",
+        "OPS-005",
+        "OPS-015",
+        "OPS-016"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/jarvis/state-backup.ts",
+      "sha256": "0412accc79f4fba0ad7afb9c9b4a107896945590b94327cfecd7cebf09d9ad9c",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OPS-015"
+      ],
+      "reason": "Protected backup manifest"
+    },
+    {
+      "path": "src/jarvis/state-restore.ts",
+      "sha256": "08212d3b7a7bdb4684241a840947ac5094e090a199f9a2bca7d6f37cc7667d40",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OPS-016"
+      ],
+      "reason": "Restore verification contract"
+    },
+    {
+      "path": "src/jarvis/task-queue.ts",
+      "sha256": "e81927f1db801707207783c2dcb44bdc0f62da191d12ca785bf35b64cd7bcdff",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OFF-004",
+        "OFF-007",
+        "OFF-008"
+      ],
+      "reason": "Durable task scheduling/idempotency/lease semantics"
+    },
+    {
+      "path": "src/jarvis/teaching-batch.ts",
+      "sha256": "8328bb20f63e2d07f2298bdf093d9675e2ed7382cc3a0ce493e7194c35015f22",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "TEACH-001",
+        "TEACH-003",
+        "TEACH-006"
+      ],
+      "reason": "Demonstration candidates, corrections and durable store; not full runtime acceptance"
+    },
+    {
+      "path": "src/jarvis/teaching-correction-learning.ts",
+      "sha256": "6f407e8172cff0d7c73cf528d003944abad6b701b24f668e2f5c2a17b96afd85",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "TEACH-001",
+        "TEACH-003",
+        "TEACH-006"
+      ],
+      "reason": "Demonstration candidates, corrections and durable store; not full runtime acceptance"
+    },
+    {
+      "path": "src/jarvis/teaching-observation.ts",
+      "sha256": "e24fcc38c0180a842f5d1edf56b014c0b6de039a6c621ef3103328f972759dcf",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "TEACH-001",
+        "TEACH-003",
+        "TEACH-006"
+      ],
+      "reason": "Demonstration candidates, corrections and durable store; not full runtime acceptance"
+    },
+    {
+      "path": "src/jarvis/teaching-runtime.ts",
+      "sha256": "16488669a6b050d4289503de27bd3ffcbda19acd067033ecdfb705bdb867fe51",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "TEACH-001",
+        "TEACH-002",
+        "TEACH-003",
+        "TEACH-004",
+        "TEACH-005",
+        "TEACH-006",
+        "CORE-016",
+        "CORE-018"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/jarvis/teaching-store.ts",
+      "sha256": "84de11ad1bb64f71067b48f239d8de1adb7301e3533c844591545be2cf6f0a03",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "TEACH-001",
+        "TEACH-003",
+        "TEACH-006"
+      ],
+      "reason": "Demonstration candidates, corrections and durable store; not full runtime acceptance"
+    },
+    {
+      "path": "src/jarvis/teaching.ts",
+      "sha256": "950bfa14d650f2f96cd416688c513148b52a8f48b148276bc894143a6b6d9c24",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "TEACH-001",
+        "TEACH-002",
+        "TEACH-003",
+        "TEACH-004",
+        "TEACH-005",
+        "TEACH-006"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/jarvis/types.ts",
+      "sha256": "5a1091def61c958907fa2b0f0cae805f731292c9b6fed272a8e9647fa3e7edf4",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "FLEET-001"
+      ],
+      "reason": "Internal exported fleet contracts"
+    },
+    {
+      "path": "src/jarvis/video-action-plan.ts",
+      "sha256": "422ff7677821b9574b344d5ed84be9933e43adaae3f2641b8848d70b9239d032",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "TEACH-003"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/jarvis/video-packets.ts",
+      "sha256": "ea46501de7ec54efccab8fcfe0b73f36dcd1ed15ced054fc19d660a2a5101ad6",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "TEACH-003",
+        "TEACH-006"
+      ],
+      "reason": "Video observation and retained plan candidates"
+    },
+    {
+      "path": "src/jarvis/video-plan-store.ts",
+      "sha256": "9a64adc3c89a79cd64841a57171e56901788bc295d6bfa8f8c8ac7b3963b409b",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "TEACH-003",
+        "TEACH-006"
+      ],
+      "reason": "Video observation and retained plan candidates"
+    },
+    {
+      "path": "src/jarvis/video-teaching.ts",
+      "sha256": "dcea251c1a10f3e2539ad0b00bc2ba656b7d50bde9046e0f08d4f4324d6c6005",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "TEACH-003",
+        "TEACH-006"
+      ],
+      "reason": "Video observation and retained plan candidates"
+    },
+    {
+      "path": "src/jarvis/worker-auth.ts",
+      "sha256": "5f5abf889b07931be3ca6b88bf535440cb0d9e311306bbc3642bdc6725cf7f95",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "NET-006",
+        "NET-007",
+        "FLEET-009",
+        "SEC-003",
+        "SEC-004",
+        "SEC-005",
+        "SEC-006",
+        "SEC-007",
+        "SEC-019",
+        "GOV-006",
+        "GOV-013"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/jarvis/worker-identity-history.ts",
+      "sha256": "ebf5886692543daed85333ef2c7a286829684309d160f31105a1637d6ce09137",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "FLEET-009",
+        "MIG-006"
+      ],
+      "reason": "Identity replacement history"
+    },
+    {
+      "path": "src/jarvis/worker-remote-mailbox.ts",
+      "sha256": "092c149f6afe86be944f174173a904cb1a3689a909f85a26ed4a245b897489ca",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-A-002",
+        "RA-014"
+      ],
+      "reason": "Signed worker remote command mailbox"
+    }
+  ],
+  "hash_policy": "utf8-crlf-to-lf-v1;binary-raw"
+}

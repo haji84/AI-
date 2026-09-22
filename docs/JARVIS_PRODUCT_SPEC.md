@@ -11756,7 +11756,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 {
   "id": "CORE-015",
   "title": "Software Lifecycle",
-  "description": "Build→Operate→Monitor→Improve→Update→Repair。Product Spec/Architecture/Code/DB Schema/Tests/Deployment/Decisions/Change HistoryをLiving Specificationとして同期。",
+  "description": "Build→Operate→Monitor→Improve→Update→Repair。Product Spec/Architecture/Code/DB Schema/Tests/Deployment/Decisions/Change HistoryをLiving Specificationとして同期。 Ownerが採用した会話要求をIDEA/PROPOSEDと区別し、出典・採用状態・既存要件への意味対応・supersede履歴を保持してPRODUCT_SPEC/JSON mirrorへ同期する。採用済み要求の仕様未同期は完了扱いにしない。重大変更は既存Human Gateを維持する。",
   "phase": "P7",
   "required_evidence": [
     "CODE",
@@ -11764,17 +11764,21 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "INTEGRATION"
   ],
   "implementation_refs": [
-    "src/gai/production-autonomy-runtime.ts"
+    "src/gai/production-autonomy-runtime.ts",
+    "scripts/jarvis-requirement-audit.mjs"
   ],
   "test_refs": [
-    "tests/gai-phase20-production-autonomy.test.ts"
+    "tests/gai-phase20-production-autonomy.test.ts",
+    "tests/jarvis-requirement-traceability.test.mjs"
   ],
-  "evidence_refs": [],
+  "evidence_refs": [
+    "docs/evidence/1205-reverse-traceability.md"
+  ],
   "status": "PARTIAL",
   "blocker": "Expanded requirement reconciled from staged ledger; main runtime integration and required evidence remain to be verified. 関連する基盤は存在するが、この拡張要求の全範囲・統合・必要Evidenceを満たしていない。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "関連する既存基盤を再利用し、要求の各条件・DoDを細分化して不足実装と検証Evidenceを追加する。",
+  "next_action": "Review repository reverse index/accepted-decision contract in #1205; integrate authenticated live intake, semantic match/conflict review and bounded spec PR generation before claiming automatic living specification.",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -11784,7 +11788,10 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
     "staged_implementation_refs": [],
     "audit_ref": "docs/evidence/1188-requirements-windows.md"
-  }
+  },
+  "source_decisions": [
+    "owner-1205-living-specification"
+  ]
 }
 ```
 
@@ -13472,7 +13479,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 {
   "id": "GOV-025",
   "title": "127. Requirement-to-Evidence Traceability",
-  "description": "Every production requirement must map to:\r\n- implementation\r\n- tests\r\n- required evidence class\r\n- observed evidence\r\n- limitations\r\n- last verified version/commit\r\n\r\nA requirement is not complete while the required evidence slot is empty.",
+  "description": "Every production requirement must map to:\r\n- implementation\r\n- tests\r\n- required evidence class\r\n- observed evidence\r\n- limitations\r\n- last verified version/commit\r\n\r\nA requirement is not complete while the required evidence slot is empty. Ownerが採用した会話要求をIDEA/PROPOSEDと区別し、出典・採用状態・既存要件への意味対応・supersede履歴を保持してPRODUCT_SPEC/JSON mirrorへ同期する。採用済み要求の仕様未同期は完了扱いにしない。重大変更は既存Human Gateを維持する。",
   "phase": "P8",
   "required_evidence": [
     "CODE",
@@ -13481,15 +13488,20 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "SECURITY"
   ],
   "implementation_refs": [
-    "scripts/validate-jarvis-requirements.mjs"
+    "scripts/validate-jarvis-requirements.mjs",
+    "scripts/jarvis-requirement-audit.mjs"
   ],
-  "test_refs": [],
-  "evidence_refs": [],
+  "test_refs": [
+    "tests/jarvis-requirement-traceability.test.mjs"
+  ],
+  "evidence_refs": [
+    "docs/evidence/1205-reverse-traceability.md"
+  ],
   "status": "PARTIAL",
   "blocker": "Expanded requirement reconciled from staged ledger; main runtime integration and required evidence remain to be verified. 関連基盤のみ存在。この拡張要求の全条件を強制する統合機能とEvidenceは未完成。関連ファイルは要件全体の実装済みを意味しない。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "関連する既存基盤を再利用し、要求の各条件・DoDを細分化して不足実装と検証Evidenceを追加する。",
+  "next_action": "Review repository reverse index/accepted-decision contract in #1205; integrate authenticated live intake, semantic match/conflict review and bounded spec PR generation before claiming automatic living specification.",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -13499,7 +13511,10 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
     "staged_implementation_refs": [],
     "audit_ref": "docs/evidence/1188-requirements-windows.md"
-  }
+  },
+  "source_decisions": [
+    "owner-1205-living-specification"
+  ]
 }
 ```
 
