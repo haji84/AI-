@@ -28,9 +28,10 @@ export class JarvisExecutionRouter {
     requiresSecret?: boolean;
     requiresPermissionChange?: boolean;
     now?: Date;
+    taskFilter?: { targetNodeId: string; taskType: string };
   }): JarvisDispatchDecision | undefined {
     const now = input.now ?? new Date();
-    const task = this.queue.next(now);
+    const task = this.queue.next(now, input.taskFilter);
     if (!task) return undefined;
 
     const route = resolveJarvisRoute(input.connectivity);

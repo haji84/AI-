@@ -48,6 +48,10 @@ export function validateWindowsVerificationTask(task: JarvisTask, nodeId: string
   operation: "smoke";
   check: "platform";
 } {
+  if (!task || typeof task !== "object") fail("windows_worker_invalid_task");
+  if (typeof task.id !== "string" || !SAFE_ID.test(task.id)) fail("windows_worker_invalid_task_id");
+  if (typeof task.leaseUntil !== "string" || !Number.isFinite(Date.parse(task.leaseUntil))) fail("windows_worker_invalid_lease");
+  if (Date.parse(task.leaseUntil) <= Date.now()) fail("windows_worker_lease_expired");
   if (!SAFE_ID.test(nodeId)) fail("windows_worker_invalid_node_id");
   const serialized = JSON.stringify(task);
   if (Buffer.byteLength(serialized, "utf8") > MAX_TASK_BYTES) fail("windows_worker_task_too_large");
@@ -56,10 +60,10 @@ export function validateWindowsVerificationTask(task: JarvisTask, nodeId: string
   if (task.targetNodeId !== nodeId || task.assignedNodeId !== nodeId) fail("windows_worker_node_mismatch");
   if (task.maxAttempts !== 1 || task.attempts !== 1) fail("windows_worker_attempt_policy_mismatch");
   if (task.requiresOnline !== true) fail("windows_worker_online_required");
-  if (task.requiredCapabilities.length !== 1 || task.requiredCapabilities[0] !== "windows-tooling") {
+  if (!Array.isArray(task.requiredCapabilities) || task.requiredCapabilities.length !== 1 || task.requiredCapabilities[0] !== "windows-tooling") {
     fail("windows_worker_capability_mismatch");
   }
-  if (task.preferredKinds?.length !== 1 || task.preferredKinds[0] !== "windows") {
+  if (!Array.isArray(task.preferredKinds) || task.preferredKinds.length !== 1 || task.preferredKinds[0] !== "windows") {
     fail("windows_worker_platform_mismatch");
   }
   if (!isRecord(task.payload) || !exactKeys(task.payload, ["schema", "operation", "payload"])) {
@@ -77,9 +81,13 @@ export function validateWindowsVerificationTask(task: JarvisTask, nodeId: string
 
 export function createDefaultWindowsNativeProbe(): WindowsNativeProbe {
   return () => new Promise((resolve, reject) => {
+    const env = { ...process.env };
+    delete env.NODE_OPTIONS;
+    delete env.NODE_PATH;
     const child = spawn(process.execPath, ["-p", probeExpression], {
       windowsHide: true,
       shell: false,
+      env,
       stdio: ["ignore", "pipe", "pipe"],
     });
     let stdout = "";
@@ -117,7 +125,7 @@ export function createDefaultWindowsNativeProbe(): WindowsNativeProbe {
       settled = true;
       reject(new Error(`windows_worker_probe_spawn_failed:${error.name}`));
     });
-    child.once("exit", (exitCode) => {
+    child.once("close", (exitCode) => {
       clearTimeout(timer);
       if (stdoutBytes > MAX_PROBE_OUTPUT_BYTES || stderrBytes > MAX_PROBE_OUTPUT_BYTES) {
         return finish({ stdout: "", stderr: "", exitCode, timedOut: false });
@@ -148,7 +156,7 @@ export async function executeWindowsVerificationTask(input: {
   } catch {
     fail("windows_worker_probe_invalid_json");
   }
-  if (!isRecord(parsed) || parsed.platform !== "win32" || typeof parsed.node !== "string" || !/^v\d+\.\d+\.\d+/.test(parsed.node)) {
+  if (!isRecord(parsed) || parsed.platform !== "win32" || typeof parsed.node !== "string" || !/^v\d+\.\d+\.\d+$/.test(parsed.node)) {
     fail("windows_worker_probe_evidence_mismatch");
   }
 

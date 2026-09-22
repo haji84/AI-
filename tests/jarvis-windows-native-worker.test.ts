@@ -7,7 +7,7 @@ import { executeWindowsVerificationTask, validateWindowsVerificationTask } from 
 import { WindowsVerificationWorkerClient } from "../src/jarvis/windows-worker-client.ts";
 
 function task(overrides: Partial<JarvisTask> = {}): JarvisTask {
-  const now = "2026-09-23T00:00:00.000Z";
+  const now = new Date().toISOString();
   return {
     id: "task-win-smoke-1",
     idempotencyKey: "windows-smoke-key",
@@ -22,6 +22,7 @@ function task(overrides: Partial<JarvisTask> = {}): JarvisTask {
     assignedNodeId: "win-node-1",
     attempts: 1,
     maxAttempts: 1,
+    leaseUntil: new Date(Date.now()+120000).toISOString(),
     createdAt: now,
     updatedAt: now,
     ...overrides,
@@ -105,9 +106,10 @@ test("signed Worker client reports bounded evidence and reuses identity after re
       request,
       now: new Date(request.timestamp),
     }).ok, true);
-    assert.ok(url.pathname === "/api/jarvis/worker/next" || url.pathname === "/api/jarvis/worker/result");
+    assert.ok(url.pathname === "/api/jarvis/worker/heartbeat" || url.pathname === "/api/jarvis/worker/next" || url.pathname === "/api/jarvis/worker/result");
     requests.push({ path: url.pathname, body });
 
+    if (url.pathname === "/api/jarvis/worker/heartbeat") return new Response(JSON.stringify({node:{id:"win-node-1",kind:"windows",status:"ready",capabilities:["windows-tooling"]}}),{headers:{"content-type":"application/json"}});
     if (url.pathname === "/api/jarvis/worker/next") {
       nextCalls += 1;
       return new Response(JSON.stringify({ task: nextCalls === 1 ? task() : null }), { status: 200, headers: { "content-type": "application/json" } });
@@ -137,11 +139,13 @@ test("signed Worker client reports bounded evidence and reuses identity after re
   assert.deepEqual(await secondProcess.runOnce(), { status: "idle" });
 
   assert.deepEqual(requests.map((request) => request.path), [
+    "/api/jarvis/worker/heartbeat",
     "/api/jarvis/worker/next",
     "/api/jarvis/worker/result",
+    "/api/jarvis/worker/heartbeat",
     "/api/jarvis/worker/next",
   ]);
-  const resultBody = requests[1]?.body ?? "";
+  const resultBody = requests[2]?.body ?? "";
   assert.match(resultBody, /jarvis\.real-machine-result\.v1/);
   assert.doesNotMatch(resultBody, /BEGIN PRIVATE KEY/);
   assert.ok(requests.every((request) => !request.path.includes("enroll")));
