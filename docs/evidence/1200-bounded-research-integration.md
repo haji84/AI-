@@ -30,3 +30,5 @@ Full CORE-012 and GOV-008 remain PARTIAL. Arbitrary prose/PDF/OCR extraction, se
 ## Current main compatibility
 
 Main ab792ecaac73c961a12141d437971134102f6515 adds UI-007 reconciliation only. Preserved and merged at ee294bd5fff4278f269f6a82e237e12bc5aaffa5; full tests1418/1418 PASS and340-row ledger PASS. PR #1206 contains the scoped research integration. PR #1195 remains held for physical acceptance.
+
+CI run35770434323 failed lint on the added standalone evidence reproducer because the docs directory has no implicit Node globals. Added explicit node:process and node:console imports; no lint/test rule was disabled. Exact-head CI must pass on the correction.

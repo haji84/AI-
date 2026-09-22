@@ -1,3 +1,5 @@
+import process from 'node:process';
+import console from 'node:console';
 import {mkdtempSync, readFileSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
