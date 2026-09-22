@@ -99,6 +99,8 @@ export interface WorkerExecutionRequest {
   requiredCapabilities?: WorkerCapability[];
   requestedCapability?: WorkerCapability;
   preferredPlatform?: WorkerPlatform;
+  requiredPlatform?: WorkerPlatform;
+  requiredWorkerId?: string;
   requiredExecutionMode?: WorkerExecutionMode;
   connectivity?: WorkerConnectivity;
   allowOffline?: boolean;
@@ -161,6 +163,8 @@ export class MultiWorkerRuntime {
     const excluded = new Set(request.excludedWorkerIds ?? []);
     const candidates = this.workers
       .filter((worker) => worker.descriptor.enabled)
+      .filter((worker) => !request.requiredPlatform || worker.descriptor.platform === request.requiredPlatform)
+      .filter((worker) => !request.requiredWorkerId || worker.descriptor.id === request.requiredWorkerId)
       .filter((worker) => !excluded.has(worker.descriptor.id))
       .filter((worker) => healthy.get(worker.descriptor.id)?.available)
       .filter((worker) => required.every((capability) => worker.descriptor.capabilities.includes(capability)))

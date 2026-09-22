@@ -55,7 +55,7 @@ test("SEC-008 fails closed when the remote device allowlist is empty", async () 
   try {
     const fake = await makeFakeAdb(directory);
     const port = await freePort();
-    const child = spawn(process.execPath, [gatewayPath], {
+    const child = spawn(process.execPath, ["--import", new URL("./fixtures/fake-adb-launcher.mjs", import.meta.url).href, gatewayPath], {
       env: {
         ...process.env,
         JARVIS_REMOTE_GATEWAY_HOST: "127.0.0.1",
@@ -82,7 +82,7 @@ test("SEC-008 filters discovery and rejects a non-allowlisted serial before devi
   const directory = await mkdtemp(join(tmpdir(), "jarvis-sec008-gateway-"));
   const fake = await makeFakeAdb(directory);
   const port = await freePort();
-  const child = spawn(process.execPath, [gatewayPath], {
+  const child = spawn(process.execPath, ["--import", new URL("./fixtures/fake-adb-launcher.mjs", import.meta.url).href, gatewayPath], {
     env: {
       ...process.env,
       JARVIS_REMOTE_GATEWAY_HOST: "127.0.0.1",

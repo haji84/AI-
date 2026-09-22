@@ -10,8 +10,8 @@ const ledger = fs.readFileSync(new URL('../docs/JARVIS_PRODUCT_SPEC.md', import.
 const mirror = data => data.requirements.map(row => '```json\n' + JSON.stringify(row) + '\n```').join('\n');
 const structuredClone = value => JSON.parse(JSON.stringify(value));
 
-test('all 244 owner requirements have exact canonical mapping', () => {
-  assert.equal(source.requirements.length, 244);
+test('all 340 owner requirements have exact canonical mapping', () => {
+  assert.equal(source.requirements.length, 340);
   assert.deepEqual(validateRequirements(source, ledger, root), []);
 });
 
@@ -47,4 +47,13 @@ test('simulated physical evidence and missing paths are rejected', () => {
   const errors = validateRequirements(data, mirror(data), root);
   assert.ok(errors.some(error => error.includes('requires real device')));
   assert.ok(errors.some(error => error.includes('invalid repository reference')));
+});
+
+test('expansion and migration IDs cannot silently disappear or claim physical PASS', () => {
+ for (const id of ['CORE-034', 'GOV-028', 'MIG-030', 'DEV-AX-004']) {
+  const data = structuredClone(source); data.requirements = data.requirements.filter(row => row.id !== id);
+  assert.ok(validateRequirements(data, mirror(data), root).some(error => error.includes(id + ': must occur exactly once')));
+ }
+ const data=structuredClone(source); const row=data.requirements.find(r=>r.id==='MIG-020');row.required_evidence=['CODE','UNIT'];
+ assert.ok(validateRequirements(data,mirror(data),root).some(error=>error.includes('MIG-020: PHYSICAL evidence may not be removed')));
 });

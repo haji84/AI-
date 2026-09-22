@@ -99,8 +99,8 @@ test("SEC-010 supervised dashboard remains loopback-bound", () => {
 
   const broker = specs.find((spec) => spec.name === "broker");
   const gateway = specs.find((spec) => spec.name === "remote-gateway");
-  assert.ok(broker?.args[0].endsWith("scripts/jarvis-broker.ts"));
-  assert.ok(gateway?.args[0].endsWith("scripts/jarvis-remote-gateway.ts"));
+  assert.ok(broker?.args[0].replaceAll("\\", "/").endsWith("scripts/jarvis-broker.ts"));
+  assert.ok(gateway?.args[0].replaceAll("\\", "/").endsWith("scripts/jarvis-remote-gateway.ts"));
 });
 
 test("SEC-010 Broker, Remote Gateway, and supervisor defaults fail closed around loopback", () => {
