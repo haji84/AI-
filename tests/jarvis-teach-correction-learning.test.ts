@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -203,7 +203,9 @@ test("correction provenance and verified learning remain durable and idempotent 
     );
     assert.equal(second.status, "IDEMPOTENT_REPLAY");
     assert.equal(second.skill?.id, first.skill?.id);
-    assert.equal(restartedCorrections.provenanceForDerived(derivedId)?.sourceVariantId.length > 0, true);
+    const provenance = restartedCorrections.provenanceForDerived(derivedId);
+    assert(provenance);
+    assert(provenance.sourceVariantId.length > 0);
   } finally {
     f.clean();
   }
@@ -216,7 +218,6 @@ test("correction storage fails closed on tampering instead of manufacturing lear
       corrections: Array<{ status: string }>;
     };
     raw.corrections[0].status = "CERTIFIED_BY_MAGIC";
-    const { writeFileSync } = await import("node:fs");
     writeFileSync(f.correctionPath, JSON.stringify(raw), "utf8");
     assert.throws(() => new TeachingCorrectionLedger(f.correctionPath), /Invalid correction status/);
   } finally {
