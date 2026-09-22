@@ -62,7 +62,7 @@ export function verifiedSkillCandidateFromWriteBack(record: WriteBackRecord): Ve
 }
 
 export interface VerifiedSkillWriteBackOptions {
-  onExtractionError?: (error: unknown, candidate: VerifiedSkillCandidate) => void | Promise<void>;
+  onExtractionError?: (error: unknown, candidate: VerifiedSkillCandidate | null) => void | Promise<void>;
 }
 
 /**
@@ -96,10 +96,14 @@ export class VerifiedSkillWriteBackStore implements StateStore {
 
   async writeBack(record: WriteBackRecord): Promise<void> {
     await this.inner.writeBack(record);
-    const candidate = verifiedSkillCandidateFromWriteBack(record);
-    if (!candidate) return;
-
+    let candidate:VerifiedSkillCandidate|null=null;
     try {
+      candidate = verifiedSkillCandidateFromWriteBack(record);
+      if (!candidate) return;
+      const previous=await this.skills.get(candidate.id);
+      if(previous&&previous.procedure===candidate.procedure&&previous.name===candidate.name&&
+        previous.description===candidate.description&&JSON.stringify(previous.applicability)===JSON.stringify(candidate.applicability)&&
+        JSON.stringify(previous.constraints)===JSON.stringify(candidate.constraints)&&previous.provenance.includes(candidate.source))return;
       await this.skills.createCandidate(candidate);
     } catch (error) {
       try {
