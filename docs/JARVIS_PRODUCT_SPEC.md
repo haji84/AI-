@@ -13742,3 +13742,305 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   }
 }
 ```
+
+
+## Reset & Recovery Lifecycle (#1203)
+
+Undo / Rollback / Recovery / Reset / Selective Reset / Factory Reset are distinct operations. Reset follows: Reset Request → Impact Analysis → Recoverability Classification → Pre-Reset Snapshot → destructive/irreversible Human Gate when applicable → Reset → Integrity Check → Functional Verification → Commit New Baseline. Verification failure requires restore of the Pre-Reset Snapshot and recovery verification. Existing baseline/rollback mechanisms are foundations, not evidence that these expanded requirements are complete.
+
+### RST-001
+
+```json
+{
+  "phase": "P8",
+  "required_evidence": [
+    "CODE",
+    "UNIT",
+    "INTEGRATION",
+    "SECURITY",
+    "RECOVERY"
+  ],
+  "implementation_refs": [],
+  "test_refs": [],
+  "evidence_refs": [],
+  "status": "MISSING",
+  "blocker": "Reset & Recovery Lifecycle requirement added by #1203. Canonical behavior is specified, but runtime implementation and required evidence are not yet complete.",
+  "platform_limit": null,
+  "fallback": null,
+  "next_action": "Implement against existing baseline/rollback foundations, add tests and obtain all required evidence before changing status.",
+  "last_verified_commit": null,
+  "id": "RST-001",
+  "title": "Undo:直前Change Setの安全な取消",
+  "description": "直前のChange Setだけを取り消し、対象外の状態へ波及させない。取消後は整合性と機能を検証し、Evidenceなしで成功扱いしない。"
+}
+```
+
+### RST-002
+
+```json
+{
+  "phase": "P8",
+  "required_evidence": [
+    "CODE",
+    "UNIT",
+    "INTEGRATION",
+    "SECURITY",
+    "RECOVERY"
+  ],
+  "implementation_refs": [],
+  "test_refs": [],
+  "evidence_refs": [],
+  "status": "MISSING",
+  "blocker": "Reset & Recovery Lifecycle requirement added by #1203. Canonical behavior is specified, but runtime implementation and required evidence are not yet complete.",
+  "platform_limit": null,
+  "fallback": null,
+  "next_action": "Implement against existing baseline/rollback foundations, add tests and obtain all required evidence before changing status.",
+  "last_verified_commit": null,
+  "id": "RST-002",
+  "title": "Rollback:任意Checkpoint/Baseline/Change Setへの復元",
+  "description": "指定したCheckpoint、Known-Good Baseline、Change Setへ復元できる。復元可能性を事前判定し、不可逆な外部副作用をRollback可能と偽らない。"
+}
+```
+
+### RST-003
+
+```json
+{
+  "phase": "P8",
+  "required_evidence": [
+    "CODE",
+    "UNIT",
+    "INTEGRATION",
+    "SECURITY",
+    "RECOVERY"
+  ],
+  "implementation_refs": [],
+  "test_refs": [],
+  "evidence_refs": [],
+  "status": "MISSING",
+  "blocker": "Reset & Recovery Lifecycle requirement added by #1203. Canonical behavior is specified, but runtime implementation and required evidence are not yet complete.",
+  "platform_limit": null,
+  "fallback": null,
+  "next_action": "Implement against existing baseline/rollback foundations, add tests and obtain all required evidence before changing status.",
+  "last_verified_commit": null,
+  "id": "RST-003",
+  "title": "Recovery:Last Known Goodへの自動復旧",
+  "description": "障害時はLast Known Goodへ自動復旧し、復旧後にIntegrity/Functional Verificationを実施する。復旧不能はfail-visibleにして必要時Human escalationする。"
+}
+```
+
+### RST-004
+
+```json
+{
+  "phase": "P8",
+  "required_evidence": [
+    "CODE",
+    "UNIT",
+    "INTEGRATION",
+    "SECURITY",
+    "RECOVERY"
+  ],
+  "implementation_refs": [],
+  "test_refs": [],
+  "evidence_refs": [],
+  "status": "MISSING",
+  "blocker": "Reset & Recovery Lifecycle requirement added by #1203. Canonical behavior is specified, but runtime implementation and required evidence are not yet complete.",
+  "platform_limit": null,
+  "fallback": null,
+  "next_action": "Implement against existing baseline/rollback foundations, add tests and obtain all required evidence before changing status.",
+  "last_verified_commit": null,
+  "id": "RST-004",
+  "title": "Reset:非破壊の設定初期化",
+  "description": "通常Resetは設定を既定値へ戻すが、既定ではuser data、Owner Identity、device enrollment、credentials、evidence、audit historyを保持する。"
+}
+```
+
+### RST-005
+
+```json
+{
+  "phase": "P8",
+  "required_evidence": [
+    "CODE",
+    "UNIT",
+    "INTEGRATION",
+    "SECURITY",
+    "RECOVERY"
+  ],
+  "implementation_refs": [],
+  "test_refs": [],
+  "evidence_refs": [],
+  "status": "MISSING",
+  "blocker": "Reset & Recovery Lifecycle requirement added by #1203. Canonical behavior is specified, but runtime implementation and required evidence are not yet complete.",
+  "platform_limit": null,
+  "fallback": null,
+  "next_action": "Implement against existing baseline/rollback foundations, add tests and obtain all required evidence before changing status.",
+  "last_verified_commit": null,
+  "id": "RST-005",
+  "title": "Selective Reset:対象領域だけを初期化",
+  "description": "Memory、UI preferences、learned workflow、capability config、queue、device-local config等を明示選択して初期化でき、対象外領域や別Privacy Partitionへ暗黙に波及しない。"
+}
+```
+
+### RST-006
+
+```json
+{
+  "phase": "P8",
+  "required_evidence": [
+    "CODE",
+    "UNIT",
+    "INTEGRATION",
+    "SECURITY",
+    "RECOVERY"
+  ],
+  "implementation_refs": [],
+  "test_refs": [],
+  "evidence_refs": [],
+  "status": "MISSING",
+  "blocker": "Reset & Recovery Lifecycle requirement added by #1203. Canonical behavior is specified, but runtime implementation and required evidence are not yet complete.",
+  "platform_limit": null,
+  "fallback": null,
+  "next_action": "Implement against existing baseline/rollback foundations, add tests and obtain all required evidence before changing status.",
+  "last_verified_commit": null,
+  "id": "RST-006",
+  "title": "Factory Reset:初期導入状態への破壊的初期化",
+  "description": "Factory Resetは通常Resetと分離する。Owner Identity、device enrollment、暗号鍵/credentials、memory、history、evidence等のpreserve/destroyを事前表示し、曖昧な一括削除を禁止し、Human Gateを必須とする。"
+}
+```
+
+### RST-007
+
+```json
+{
+  "phase": "P8",
+  "required_evidence": [
+    "CODE",
+    "UNIT",
+    "INTEGRATION",
+    "SECURITY",
+    "RECOVERY"
+  ],
+  "implementation_refs": [],
+  "test_refs": [],
+  "evidence_refs": [],
+  "status": "MISSING",
+  "blocker": "Reset & Recovery Lifecycle requirement added by #1203. Canonical behavior is specified, but runtime implementation and required evidence are not yet complete.",
+  "platform_limit": null,
+  "fallback": null,
+  "next_action": "Implement against existing baseline/rollback foundations, add tests and obtain all required evidence before changing status.",
+  "last_verified_commit": null,
+  "id": "RST-007",
+  "title": "Pre-Reset Snapshotと復元可能性判定",
+  "description": "Reset/Factory Reset前にImpact AnalysisとRecoverability Classificationを行い、復元可能な状態のPre-Reset Snapshotを自動取得する。秘密値そのものを平文Snapshotへ保存しない。"
+}
+```
+
+### RST-008
+
+```json
+{
+  "phase": "P8",
+  "required_evidence": [
+    "CODE",
+    "UNIT",
+    "INTEGRATION",
+    "SECURITY",
+    "RECOVERY"
+  ],
+  "implementation_refs": [],
+  "test_refs": [],
+  "evidence_refs": [],
+  "status": "MISSING",
+  "blocker": "Reset & Recovery Lifecycle requirement added by #1203. Canonical behavior is specified, but runtime implementation and required evidence are not yet complete.",
+  "platform_limit": null,
+  "fallback": null,
+  "next_action": "Implement against existing baseline/rollback foundations, add tests and obtain all required evidence before changing status.",
+  "last_verified_commit": null,
+  "id": "RST-008",
+  "title": "Post-Reset Integrity/Functional Verification",
+  "description": "Reset後はIntegrity CheckとFunctional Verificationを必須とし、検証Evidenceが揃うまで新Baselineまたは成功状態を確定しない。"
+}
+```
+
+### RST-009
+
+```json
+{
+  "phase": "P8",
+  "required_evidence": [
+    "CODE",
+    "UNIT",
+    "INTEGRATION",
+    "SECURITY",
+    "RECOVERY"
+  ],
+  "implementation_refs": [],
+  "test_refs": [],
+  "evidence_refs": [],
+  "status": "MISSING",
+  "blocker": "Reset & Recovery Lifecycle requirement added by #1203. Canonical behavior is specified, but runtime implementation and required evidence are not yet complete.",
+  "platform_limit": null,
+  "fallback": null,
+  "next_action": "Implement against existing baseline/rollback foundations, add tests and obtain all required evidence before changing status.",
+  "last_verified_commit": null,
+  "id": "RST-009",
+  "title": "Failed Resetの自動復元",
+  "description": "Reset後検証がFAILした場合、Pre-Reset Snapshotへ自動復元しRecovery Verificationを行う。復元もFAILした場合は状態を隠さずHuman escalationする。"
+}
+```
+
+### RST-010
+
+```json
+{
+  "phase": "P8",
+  "required_evidence": [
+    "CODE",
+    "UNIT",
+    "INTEGRATION",
+    "SECURITY",
+    "RECOVERY"
+  ],
+  "implementation_refs": [],
+  "test_refs": [],
+  "evidence_refs": [],
+  "status": "MISSING",
+  "blocker": "Reset & Recovery Lifecycle requirement added by #1203. Canonical behavior is specified, but runtime implementation and required evidence are not yet complete.",
+  "platform_limit": null,
+  "fallback": null,
+  "next_action": "Implement against existing baseline/rollback foundations, add tests and obtain all required evidence before changing status.",
+  "last_verified_commit": null,
+  "id": "RST-010",
+  "title": "Reset Audit・Impact・Concurrency Control",
+  "description": "reset request、actor、scope、impact、snapshot id、result、verification、recovery resultを監査記録する。Reset中はquiesce/lockして競合Jobや変更を防ぐ。"
+}
+```
+
+### RST-011
+
+```json
+{
+  "phase": "P8",
+  "required_evidence": [
+    "CODE",
+    "UNIT",
+    "INTEGRATION",
+    "SECURITY",
+    "RECOVERY"
+  ],
+  "implementation_refs": [],
+  "test_refs": [],
+  "evidence_refs": [],
+  "status": "MISSING",
+  "blocker": "Reset & Recovery Lifecycle requirement added by #1203. Canonical behavior is specified, but runtime implementation and required evidence are not yet complete.",
+  "platform_limit": null,
+  "fallback": null,
+  "next_action": "Implement against existing baseline/rollback foundations, add tests and obtain all required evidence before changing status.",
+  "last_verified_commit": null,
+  "id": "RST-011",
+  "title": "Fleet・Privacy Partition・Offline安全性",
+  "description": "Owner Fleetでは対象端末/Host/共有状態への影響範囲を表示する。Privacy Partition境界を保持し、Offlineで安全に完結できる範囲とonline復帰待ちが必要な範囲を明示する。"
+}
+```
