@@ -40,7 +40,9 @@ export class LocalSpreadsheetCapability implements WorkCapability {
       }
 
       if (action.operation === "write") {
-        const rows = action.input.workbook && typeof action.input.workbook === "object"\n          ? workbookToRows(action.input.workbook as { cells?: unknown })\n          : normalizeRows(action.input.rows);
+        const rows = action.input.workbook && typeof action.input.workbook === "object"
+          ? workbookToRows(action.input.workbook as { cells?: unknown })
+          : normalizeRows(action.input.rows);
         const workbook = writeWorkbook(rows);
         const artifact = await this.store.create(path, workbook);
         return this.ok(action, rows, artifact.path, artifact.sha256, artifact.created, artifact.idempotent);
