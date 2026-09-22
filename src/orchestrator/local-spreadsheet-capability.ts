@@ -43,7 +43,7 @@ export class LocalSpreadsheetCapability implements WorkCapability {
         const rows = action.input.workbook && typeof action.input.workbook === "object"
           ? workbookToRows(action.input.workbook as { cells?: unknown })
           : normalizeRows(action.input.rows);
-        const workbook = writeWorkbook(rows);
+        const sheetName = action.input.workbook && typeof action.input.workbook === "object" ? workbookSheetName(action.input.workbook as { cells?: unknown }) : "Sheet1";\n        const workbook = writeWorkbook(rows, sheetName);
         const artifact = await this.store.create(path, workbook);
         return this.ok(action, rows, artifact.path, artifact.sha256, artifact.created, artifact.idempotent);
       }
@@ -140,7 +140,7 @@ function requireXlsxPath(value: unknown): string {
   return value;
 }
 
-function workbookToRows(value: { cells?: unknown }): SpreadsheetRows {
+function workbookSheetName(value: { cells?: unknown }): string {\n  if (!Array.isArray(value.cells) || value.cells.length === 0) return "Sheet1";\n  const names = [...new Set(value.cells.map((raw) => raw && typeof raw === "object" ? (raw as { sheet?: unknown }).sheet : undefined))];\n  if (names.length !== 1 || typeof names[0] !== "string" || !names[0]) throw new Error("compatibility workbook requires exactly one sheet");\n  return names[0];\n}\n\nfunction workbookToRows(value: { cells?: unknown }): SpreadsheetRows {
   if (!Array.isArray(value.cells)) throw new Error("spreadsheet workbook cells must be an array");
   const rows: SpreadsheetRows = [];
   for (const raw of value.cells) {
@@ -204,7 +204,7 @@ export function decodeXlsx(bytes: Buffer): { cells: Array<{ sheet: string; cell:
   return { cells };
 }
 
-function writeWorkbook(rows: SpreadsheetRows): Buffer {
+function writeWorkbook(rows: SpreadsheetRows, sheetName = "Sheet1"): Buffer {
   const worksheetRows = rows
     .map((row, rowIndex) => {
       const cells = row
@@ -226,7 +226,7 @@ function writeWorkbook(rows: SpreadsheetRows): Buffer {
     ),
     xmlEntry(
       "xl/workbook.xml",
-      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets></workbook>`,
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="${xmlEscape(sheetName)}" sheetId="1" r:id="rId1"/></sheets></workbook>`,
     ),
     xmlEntry(
       "xl/_rels/workbook.xml.rels",
