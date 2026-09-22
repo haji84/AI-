@@ -31,7 +31,7 @@ import { DEFAULT_REASONING_SOFT_BUDGETS, type ReasoningSoftBudgets } from "../sr
 import { createSafePrProposalCapability } from "../src/orchestrator/safe-pr-capability.ts";
 import { TeamAwarePlanner } from "../src/orchestrator/team-aware-planner.ts";
 import { UnifiedPlanningClient } from "../src/orchestrator/unified-planning-client.ts";
-import { createWorkStateIntegratedGoalLoop } from "../src/orchestrator/work-state-integration.ts";
+import { createWorkStateIntegratedGoalLoop, goalWorkStateId } from "../src/orchestrator/work-state-integration.ts";
 
 const args = process.argv.slice(2);
 const mode = (args.find((v) => v.startsWith("--mode="))?.split("=")[1] ?? "status") as "run" | "pause" | "resume" | "status";
@@ -173,9 +173,13 @@ try {
           .register(createContextInspectCapability())
           .register(createLocalBlockerCapability())
           .register(createSafePrProposalCapability({ token, repository: config.repository }));
-        registry.register(createAutonomyDelegationCapability({ downstream: registry }));
+        const delegation = createAutonomyDelegationCapability({ downstream: registry });
+        registry.register(delegation);
         const verifier: Verifier = {
-          async verify({ result }) {
+          async verify(input) {
+            const research = delegation.verifyResearch(input);
+            if (research) return research;
+            const { result } = input;
             return { ok: result.ok, summary: result.ok ? "Cloud capability execution verified" : result.summary, evidence: result.evidence };
           },
         };
@@ -184,14 +188,15 @@ try {
         const goalRecord = compass.getGoal();
         if (!goalRecord) throw new Error("cloud goal bootstrap failed");
         const goal = compassGoalToLoopGoal(goalRecord);
+        const workStateStore = new CompassWorkStateStoreAdapter(compass);
         const loop = createWorkStateIntegratedGoalLoop({
           goal,
           planner,
           contextSources: [new EventContextSource(event), new RepositoryFileContextSource(), new GitHubRepositoryContextSource(github)],
           executor: registry,
           verifier,
-          stateStore: new CloudCompassStateStoreAdapter(compass),
-          workStateStore: new CompassWorkStateStoreAdapter(compass),
+          stateStore: delegation.withResearchWriteBack(new CloudCompassStateStoreAdapter(compass), { store: workStateStore, goalId: goalWorkStateId(goal) }),
+          workStateStore,
           approvalPolicy: new DelegatedApprovalPolicy(
             planningClient.command.taskAuthorization,
             planningClient.command.taskScopeId,

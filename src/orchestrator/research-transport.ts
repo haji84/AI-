@@ -8,6 +8,7 @@ export interface ResolvedAddress { address: string; family: number }
 export interface ResearchTransportOptions {
   /** Trusted per-job configuration, never populated from a retrieved document. Empty means deny. */
   allowedOrigins?: readonly string[];
+  accept?: "application/json";
   maxBytes?: number;
   timeoutMs?: number;
   signal?: AbortSignal;
@@ -67,12 +68,12 @@ export function pinnedResearchLookup(address: ResolvedAddress): LookupFunction {
     else callback(null, address.address, address.family);
   };
 }
-function pinnedFetch(url: URL, address: ResolvedAddress, signal: AbortSignal): Promise<Response> {
+function pinnedFetch(url: URL, address: ResolvedAddress, signal: AbortSignal, accept: string): Promise<Response> {
   return new Promise((resolve, reject) => {
     const req = request(url, {
       method: "GET", agent: false, lookup: pinnedResearchLookup(address),
       family: address.family, signal, maxHeaderSize: 16_384,
-      headers: { Accept: "text/html,text/plain,application/json", "Accept-Encoding": "identity" },
+      headers: { Accept: accept, "Accept-Encoding": "identity" },
     }, response => {
       try {
       if (!response.statusCode || response.statusCode < 200 || response.statusCode >= 300) throw new Error('research HTTP status rejected');
@@ -111,9 +112,10 @@ export async function readResearchSource(raw: string, options: ResearchTransport
       throw new Error("private, reserved or invalid DNS address");
     }
     signal.throwIfAborted();
+    const accept = options.accept === "application/json" ? "application/json" : "text/html,text/plain,application/json";
     const response = await abortable(options.fetchImpl
-      ? options.fetchImpl(url, { redirect: "error", signal, credentials: "omit", headers: { Accept: "text/html,text/plain,application/json", "Accept-Encoding": "identity" } })
-      : pinnedFetch(url, addresses[0], signal), signal);
+      ? options.fetchImpl(url, { redirect: "error", signal, credentials: "omit", headers: { Accept: accept, "Accept-Encoding": "identity" } })
+      : pinnedFetch(url, addresses[0], signal, accept), signal);
     reader = response.body?.getReader();
     if (!response.ok || response.redirected || response.url && response.url !== url.href) throw new Error("research HTTP status or redirect rejected");
     const contentType = (response.headers.get("content-type") ?? "").split(";")[0].trim().toLowerCase();

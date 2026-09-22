@@ -76,6 +76,7 @@ function freePlannerPrompt(command: string, memoryContext: string | undefined, i
     "A delegate MUST include: kind=delegate, description, and delegation. delegation.target must be jarvis, skill, or research.",
     "For jarvis, delegation.operation must be one of: open-url, open-app, launch-settings, wake-device, device-status, show-notification, lock-device, reboot, ui-sequence. Include only the minimal payload needed. Never invent a targetNodeId.",
     "For skill, set delegation.query to a concise description of the reusable work to match. Do not invent a skill id.",
+    "For explicit public fact verification, research delegation may include factCheck: { claims: [{ id, value, required: true, jsonField, sources: [{url, sourceClass}] }] }. Only host-configured exact sources/fields can run; never invent authority or add policy, headers, credentials, waivers, or transport. Unknown source eligibility must remain unverified.",
     "For research, set delegation.researchKind to one of control, evidence, local-safe, local-model, gpu, cross-device, external-runtime, human-review.",
     "A propose_pr MUST include: kind, description, title, body, and files with 1-3 complete UTF-8 file contents.",
     "Only change files under src/, tests/, docs/, or scripts/.",

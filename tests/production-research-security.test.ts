@@ -99,3 +99,8 @@ test("JSON numeric overflow cannot become a confirmed null (including nested val
  }
  await assert.rejects(() => runProductionResearch({ ...policy, claims: [{ ...claims[0], value: Infinity }] }), /finite JSON/);
 });
+
+test('structured fact retrieval explicitly negotiates JSON without weakening the generic acquirer',async()=>{
+ let accept:unknown;const r=await runProductionResearch({...policy,claims,classify:()=> 'official',fetchImpl:async(_url,init)=>{accept=new Headers(init?.headers).get('accept');return accept==='application/json'?new Response('{"amount":42}',{headers:{'content-type':'application/json'}}):new Response('<html/>',{headers:{'content-type':'text/html'}});}});
+ assert.equal(accept,'application/json');assert.equal(r.verification.ok,true);
+});
