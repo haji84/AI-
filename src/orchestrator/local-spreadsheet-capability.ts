@@ -43,7 +43,8 @@ export class LocalSpreadsheetCapability implements WorkCapability {
         const rows = action.input.workbook && typeof action.input.workbook === "object"
           ? workbookToRows(action.input.workbook as { cells?: unknown })
           : normalizeRows(action.input.rows);
-        const sheetName = action.input.workbook && typeof action.input.workbook === "object" ? workbookSheetName(action.input.workbook as { cells?: unknown }) : "Sheet1";\n        const workbook = writeWorkbook(rows, sheetName);
+        const sheetName = action.input.workbook && typeof action.input.workbook === "object" ? workbookSheetName(action.input.workbook as { cells?: unknown }) : "Sheet1";
+        const workbook = writeWorkbook(rows, sheetName);
         const artifact = await this.store.create(path, workbook);
         return this.ok(action, rows, artifact.path, artifact.sha256, artifact.created, artifact.idempotent);
       }
@@ -140,7 +141,14 @@ function requireXlsxPath(value: unknown): string {
   return value;
 }
 
-function workbookSheetName(value: { cells?: unknown }): string {\n  if (!Array.isArray(value.cells) || value.cells.length === 0) return "Sheet1";\n  const names = [...new Set(value.cells.map((raw) => raw && typeof raw === "object" ? (raw as { sheet?: unknown }).sheet : undefined))];\n  if (names.length !== 1 || typeof names[0] !== "string" || !names[0]) throw new Error("compatibility workbook requires exactly one sheet");\n  return names[0];\n}\n\nfunction workbookToRows(value: { cells?: unknown }): SpreadsheetRows {
+function workbookSheetName(value: { cells?: unknown }): string {
+  if (!Array.isArray(value.cells) || value.cells.length === 0) return "Sheet1";
+  const names = [...new Set(value.cells.map((raw) => raw && typeof raw === "object" ? (raw as { sheet?: unknown }).sheet : undefined))];
+  if (names.length !== 1 || typeof names[0] !== "string" || !names[0]) throw new Error("compatibility workbook requires exactly one sheet");
+  return names[0];
+}
+
+function workbookToRows(value: { cells?: unknown }): SpreadsheetRows {
   if (!Array.isArray(value.cells)) throw new Error("spreadsheet workbook cells must be an array");
   const rows: SpreadsheetRows = [];
   for (const raw of value.cells) {
