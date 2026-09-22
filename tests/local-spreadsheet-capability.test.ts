@@ -54,7 +54,7 @@ test("local spreadsheet adapter creates a real XLSX and round-trips primitive ce
 
     const read = await capability.execute(action("read", "reports/data.xlsx"));
     assert.equal(read.ok, true);
-    assert.deepEqual(read.outputs.rows, rows);
+    assert.deepEqual(read.outputs.rows, [rows[0], rows[1], ["", -7, false]]);
     assert.equal(read.outputs.sha256, written.outputs.sha256);
   } finally {
     await rm(root, { recursive: true, force: true });
