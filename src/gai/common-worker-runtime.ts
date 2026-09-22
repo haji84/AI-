@@ -1,3 +1,4 @@
+import { assertWorkerDescriptorMatchesPlatformManifest } from "./platform-capability-manifest.ts";
 import type {
   GaiWorker,
   WorkerCapability,
@@ -60,6 +61,7 @@ export class CommonWorkerRuntime implements GaiWorker {
   };
 
   constructor(options: CommonWorkerRuntimeOptions) {
+    assertWorkerDescriptorMatchesPlatformManifest(options.descriptor);
     this.descriptor = options.descriptor;
     this.runtimeVersion = options.runtimeVersion ?? "1";
     this.checkpoint = options.checkpoint;
