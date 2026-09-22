@@ -26,3 +26,7 @@ Earlier live endpoint /typescript/latest returned JSON-looking text/plain and wa
 No production policy, credential, permission, device version, enrollment, queue, schema, firewall or network exposure changed. New acquisition defaults to deny until a host policy is legitimately configured. Return to the earlier context-only path by reverting this additive implementation; retain historical evidence.
 
 Full CORE-012 and GOV-008 remain PARTIAL. Arbitrary prose/PDF/OCR extraction, semantic entailment, broad independent-source analysis, organization claim authority and owner report UI remain incomplete. #1195 correction/Skill runtime is independently CI-green but unmerged pending actual-device acceptance. Native Windows worker execution and physical/recovery acceptance remain separate work. All340 requirement IDs/statuses/evidence obligations are retained.
+
+## Current main compatibility
+
+Main ab792ecaac73c961a12141d437971134102f6515 adds UI-007 reconciliation only. Preserved and merged at ee294bd5fff4278f269f6a82e237e12bc5aaffa5; full tests1418/1418 PASS and340-row ledger PASS. PR #1206 contains the scoped research integration. PR #1195 remains held for physical acceptance.

@@ -41,5 +41,15 @@
   "production_changed": false,
   "device_changed": false,
   "physical_evidence": false,
-  "whole_product_complete": false
+  "whole_product_complete": false,
+  "current_main_compatibility": {
+    "tested_commit": "ee294bd5fff4278f269f6a82e237e12bc5aaffa5",
+    "main_revision": "ab792ecaac73c961a12141d437971134102f6515",
+    "full_tests": {
+      "passed": 1418,
+      "failed": 0,
+      "skipped": 0
+    },
+    "log_sha256": "b133d4db2f999c0b78689a5110adb8de20c5a5d6264a9a9c937a6f5be2487b58"
+  }
 }
