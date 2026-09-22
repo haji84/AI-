@@ -23,7 +23,7 @@ import { remoteDeviceInventory } from "../src/jarvis/remote-device-inventory.ts"
 import { PendingEnrollment } from "../src/jarvis/pending-enrollment.ts";
 import { CompassStore } from "../src/compass/store.ts";
 import { GoalControllerRuntime } from "../src/orchestrator/goal-controller-runtime.ts";
-import { CompassGoalRegistryAdapter, CompassGoalDecisionStoreAdapter } from "../src/orchestrator/compass-goal-controller.ts";
+import { CompassGoalRegistryAdapter, CompassGoalDecisionStoreAdapter } from "../src/orchestrator/compass-goal-controller.ts";\nimport { CompassWorkRunStore } from "../src/orchestrator/compass-work-run-store.ts";\nimport { workRunProgress } from "../src/orchestrator/work-run-state.ts";
 
 
 const host = process.env.JARVIS_BROKER_HOST?.trim() || "127.0.0.1";
@@ -48,7 +48,7 @@ const plane = new JarvisControlPlane();
 const store = new JarvisSqliteStateStore(process.env.JARVIS_DB_PATH?.trim() || undefined);
 const compassPath = process.env.JARVIS_COMPASS_DB_PATH?.trim() || (process.env.JARVIS_DB_PATH?.trim() ? `${process.env.JARVIS_DB_PATH.trim()}.compass.sqlite` : resolve(".jarvis/compass.db"));
 const compass = new CompassStore(compassPath);
-const goalController = new GoalControllerRuntime({
+const workRuns = new CompassWorkRunStore(compass);\nconst goalController = new GoalControllerRuntime({
   registry: new CompassGoalRegistryAdapter(compass),
   decisionStore: new CompassGoalDecisionStoreAdapter(compass),
 });
@@ -266,6 +266,12 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
     if (!requireOwner(request)) return json(response, 401, { message: "owner authorization required" });
     const payload = parseJson(body);
     if (method === "GET" && path === "/api/jarvis/admin/state") return json(response, 200, plane.snapshot());
+    if (method === "GET" && path.startsWith("/api/jarvis/admin/work/")) {
+      const goalId = decodeURIComponent(path.slice("/api/jarvis/admin/work/".length));
+      const run = await workRuns.getByGoal(goalId);
+      if (!run) return json(response, 404, { message: "Work Runがありません", goalId });
+      return json(response, 200, { run, progress: workRunProgress(run) });
+    }
     if (method === "POST" && path === "/api/jarvis/admin/work") {
       try {
         const payload = parseJson(await readBody(request, 64_000));
