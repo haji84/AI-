@@ -33,9 +33,31 @@ function funnelState(config) {
   return state;
 }
 
+function protectedBackendProxy(config, protectedLocalPorts) {
+  if (!object(config)) return null;
+  for (const [key, value] of Object.entries(config)) {
+    if (key.toLowerCase() === 'proxy' && typeof value === 'string') {
+      try {
+        const target = new URL(value);
+        const hostname = target.hostname.toLowerCase();
+        const loopback = hostname === '127.0.0.1' || hostname === 'localhost' || hostname === '[::1]' || hostname === '::1';
+        const port = Number(target.port || (target.protocol === 'https:' ? 443 : 80));
+        if (loopback && protectedLocalPorts.includes(port)) return target.toString();
+      } catch {
+        // Shape validation below remains responsible for malformed Serve configuration.
+      }
+    }
+    if (object(value)) {
+      const nested = protectedBackendProxy(value, protectedLocalPorts);
+      if (nested) return nested;
+    }
+  }
+  return null;
+}
+
 // Call with successful `tailscale serve status --json` output only.
 // Unknown/failed responses must never be reported as proof of private ingress.
-export function inspectPrivateIngress(output, { commandSucceeded = true, dashboardPort = 3000, dnsName } = {}) {
+export function inspectPrivateIngress(output, { commandSucceeded = true, dashboardPort = 3000, dnsName, protectedLocalPorts = [8787, 8790] } = {}) {
   if (!commandSucceeded) return { state: 'unknown', ready: false, reason: 'Tailscale status command failed' };
   let config;
   try { config = JSON.parse(String(output)); } catch { return { state: 'unknown', ready: false, reason: 'Invalid Tailscale status JSON' }; }
@@ -45,6 +67,8 @@ export function inspectPrivateIngress(output, { commandSucceeded = true, dashboa
   if (state !== 'private') return { state, ready: false, reason: state === 'public' ? 'Public Funnel enabled' : 'Invalid Funnel configuration' };
   const known = new Set(['TCP', 'Web', 'AllowFunnel', 'Foreground', 'Services']);
   if (Object.entries(config).some(([key, value]) => !known.has(key) || !object(value))) return { state: 'unknown', ready: false, reason: 'Unrecognized Serve configuration shape' };
+  const protectedTarget = protectedBackendProxy(config, protectedLocalPorts);
+  if (protectedTarget) return { state: 'unknown', ready: false, reason: `Protected backend exposed directly through private ingress: ${protectedTarget}` };
   const expectedProxy = `http://127.0.0.1:${dashboardPort}`;
   const expectedHost = typeof dnsName === 'string' ? `${dnsName.replace(/\.$/, '')}:443` : null;
   const configured = config.TCP?.['443']?.HTTPS === true && object(config.Web) && Object.entries(config.Web).some(([host, server]) =>
