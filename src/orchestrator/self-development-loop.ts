@@ -1,0 +1,5 @@
+export type DevelopmentStage="INSPECT"|"RESEARCH"|"IMPLEMENT"|"TEST"|"RECOVER"|"INDEPENDENT_VERIFY"|"DONE"|"BLOCKED";
+export interface DevelopmentAttempt{stage:DevelopmentStage;ok:boolean;evidenceRefs:string[];reason?:string;}
+export interface DevelopmentState{stage:DevelopmentStage;attempts:DevelopmentAttempt[];recoveryCount:number;}
+export function nextDevelopmentState(state:DevelopmentState,attempt:DevelopmentAttempt):DevelopmentState{const attempts=[...state.attempts,attempt];if(!attempt.evidenceRefs.length)return{stage:"BLOCKED",attempts,recoveryCount:state.recoveryCount};if(!attempt.ok){if(state.recoveryCount>=2)return{stage:"BLOCKED",attempts,recoveryCount:state.recoveryCount};return{stage:"RECOVER",attempts,recoveryCount:state.recoveryCount+1}}const next:Record<DevelopmentStage,DevelopmentStage>={INSPECT:"RESEARCH",RESEARCH:"IMPLEMENT",IMPLEMENT:"TEST",TEST:"INDEPENDENT_VERIFY",RECOVER:"IMPLEMENT",INDEPENDENT_VERIFY:"DONE",DONE:"DONE",BLOCKED:"BLOCKED"};return{stage:next[attempt.stage],attempts,recoveryCount:state.recoveryCount}}
+export function createDevelopmentState():DevelopmentState{return{stage:"INSPECT",attempts:[],recoveryCount:0}}
