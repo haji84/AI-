@@ -4,10 +4,16 @@ import test from "node:test";
 
 import { JarvisTaskQueue } from "../src/jarvis/task-queue.ts";
 import type { JarvisTask } from "../src/jarvis/types.ts";
-import {
-  inspectPrivateIngress,
-  tailscaleBackendIsRunning,
-} from "../scripts/jarvis-remote-access-lib.mjs";
+
+const remoteAccessModulePath = "../scripts/jarvis-remote-access-lib.mjs";
+const remoteAccess = (await import(remoteAccessModulePath)) as {
+  inspectPrivateIngress: (
+    rawConfig: string,
+    options?: { dnsName?: string },
+  ) => { ready: boolean; state: string; reason: string };
+  tailscaleBackendIsRunning: (status: { BackendState?: string }) => boolean;
+};
+const { inspectPrivateIngress, tailscaleBackendIsRunning } = remoteAccess;
 
 const serviceSource = readFileSync(
   "android/jarvis-worker/app/src/main/java/ai/jarvis/worker/JarvisCommandService.kt",
@@ -25,6 +31,12 @@ const identitySource = readFileSync(
   "android/jarvis-worker/app/src/main/java/ai/jarvis/worker/DeviceIdentity.kt",
   "utf8",
 );
+
+type ServeConfig = {
+  TCP: Record<string, { HTTPS: boolean }>;
+  Web: Record<string, { Handlers: Record<string, { Proxy: string }> }>;
+  AllowFunnel?: Record<string, boolean>;
+};
 
 function task(id: string): JarvisTask {
   return {
@@ -45,7 +57,7 @@ function task(id: string): JarvisTask {
   };
 }
 
-function privateServeConfig() {
+function privateServeConfig(): ServeConfig {
   return {
     TCP: { "443": { HTTPS: true } },
     Web: {
@@ -127,7 +139,10 @@ test("NET-004 network recovery never converts unsafe ingress into ready state", 
   assert.equal(recovered.ready, true);
   assert.equal(recovered.state, "private");
 
-  const funnel = { ...privateConfig, AllowFunnel: { "jarvis-host.example.ts.net:443": true } };
+  const funnel: ServeConfig = {
+    ...privateConfig,
+    AllowFunnel: { "jarvis-host.example.ts.net:443": true },
+  };
   assert.equal(inspectPrivateIngress(JSON.stringify(funnel)).ready, false);
 
   const protectedProxy = privateServeConfig();
