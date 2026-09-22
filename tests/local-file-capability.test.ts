@@ -49,6 +49,31 @@ test("local file adapter writes atomically, reads real bytes and blocks lexical 
   }
 });
 
+test("local file adapter is idempotent for identical writes and blocks conflicting replacement", async () => {
+  const root = await mkdtemp(join(tmpdir(), "jarvis-file-overwrite-"));
+  try {
+    const capability = new LocalFileCapability(root);
+    const first = await capability.execute(action("write", "result.txt", "original"));
+    assert.equal(first.ok, true);
+    assert.equal(first.changes[0]?.operation, "create");
+
+    const repeated = await capability.execute(action("write", "result.txt", "original"));
+    assert.equal(repeated.ok, true);
+    assert.equal(repeated.outputs.idempotent, true);
+    assert.deepEqual(repeated.changes, []);
+
+    const replacement = await capability.execute(action("write", "result.txt", "different"));
+    assert.equal(replacement.ok, false);
+    assert.equal(replacement.status, "blocked");
+    assert.equal(replacement.failureClass, "policy");
+    assert.match(replacement.error ?? "", /approved replacement path/);
+    assert.equal(replacement.evidence[0]?.kind, "file.overwrite_blocked");
+    assert.equal(await readFile(join(root, "result.txt"), "utf8"), "original");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("local file adapter fails closed on symlink escape for read and write", async () => {
   const root = await mkdtemp(join(tmpdir(), "jarvis-file-root-"));
   const outside = await mkdtemp(join(tmpdir(), "jarvis-file-outside-"));
