@@ -40,7 +40,7 @@ export class LocalSpreadsheetCapability implements WorkCapability {
       }
 
       if (action.operation === "write") {
-        const rows = normalizeRows(action.input.rows);
+        const rows = action.input.workbook && typeof action.input.workbook === "object"\n          ? workbookToRows(action.input.workbook as { cells?: unknown })\n          : normalizeRows(action.input.rows);
         const workbook = writeWorkbook(rows);
         const artifact = await this.store.create(path, workbook);
         return this.ok(action, rows, artifact.path, artifact.sha256, artifact.created, artifact.idempotent);
@@ -136,6 +136,26 @@ function requireXlsxPath(value: unknown): string {
   if (typeof value !== "string" || !value.trim()) throw new Error("path required");
   if (!value.toLowerCase().endsWith(".xlsx")) throw new Error("spreadsheet path must end in .xlsx");
   return value;
+}
+
+function workbookToRows(value: { cells?: unknown }): SpreadsheetRows {
+  if (!Array.isArray(value.cells)) throw new Error("spreadsheet workbook cells must be an array");
+  const rows: SpreadsheetRows = [];
+  for (const raw of value.cells) {
+    if (!raw || typeof raw !== "object") throw new Error("invalid spreadsheet workbook cell");
+    const cell = raw as { sheet?: unknown; cell?: unknown; value?: unknown };
+    if (typeof cell.sheet !== "string" || typeof cell.cell !== "string") throw new Error("invalid spreadsheet workbook cell");
+    if (cell.sheet !== "Summary" && cell.sheet !== "Sheet1") throw new Error("compatibility workbook supports one sheet");
+    const match = /^([A-Z]+)([1-9][0-9]*)$/.exec(cell.cell);
+    if (!match) throw new Error("invalid cell reference");
+    let column = 0;
+    for (const ch of match[1]) column = column * 26 + ch.charCodeAt(0) - 64;
+    const row = Number(match[2]) - 1;
+    column -= 1;
+    rows[row] ??= [];
+    rows[row][column] = normalizeCell(cell.value ?? null, row, column);
+  }
+  return normalizeRows(rows);
 }
 
 function normalizeRows(value: unknown): SpreadsheetRows {
