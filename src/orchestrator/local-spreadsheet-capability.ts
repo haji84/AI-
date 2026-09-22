@@ -386,8 +386,7 @@ function columnIndexFromReference(reference: string): number {
   return value - 1;
 }
 
-function xmlEscape(value: string): string { return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("\'", "&apos;"); }
-function xmlUnescape(value: string): string { return value.replaceAll("&lt;", "<").replaceAll("&gt;", ">").replaceAll("&quot;", '"').replaceAll("&apos;", "\'").replaceAll("&amp;", "&"); }
+function xmlEscape(value: string): string { return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&apos;"); }
 
 function xmlEntry(name: string, xml: string): { name: string; data: Buffer } {
   return { name, data: Buffer.from(xml, "utf8") };
