@@ -2195,21 +2195,32 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "src/gai/device-capability-runtime.ts",
     "src/orchestrator/windows-verification-dispatch.ts",
     "src/orchestrator/windows-real-machine-verifier.ts",
-    "scripts/jarvis-broker.ts"
+    "scripts/jarvis-broker.ts",
+    "src/jarvis/windows-verification-worker.ts",
+    "src/jarvis/windows-worker-client.ts",
+    "src/jarvis/windows-worker-journal.ts",
+    "scripts/jarvis-windows-worker-service.ts"
   ],
   "test_refs": [
     "tests/gai-initial-worker-adapters.test.ts",
     "tests/gai-device-capability-runtime.test.ts",
     "tests/windows-real-machine-verifier.test.ts",
     "tests/windows-verification-target-binding.test.ts",
-    "tests/broker-windows-verification.test.ts"
+    "tests/broker-windows-verification.test.ts",
+    "tests/jarvis-windows-native-worker.test.ts",
+    "tests/windows-native-broker-integration.test.ts",
+    "tests/windows-worker-recovery-security.test.ts",
+    "tests/windows-broker-path-integration.test.ts"
   ],
-  "evidence_refs": [],
+  "evidence_refs": [
+    "docs/evidence/1207-windows-native-worker.md",
+    "docs/evidence/1207/verification.json"
+  ],
   "status": "PARTIAL",
   "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P4: ZBook PC Worker。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "Keep PARTIAL; pass exact-head CI, then validate the unchanged existing enrolled Windows identity through the approved production canary before merge/deployment. Continue remaining Windows capabilities separately.",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -2225,6 +2236,15 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
       "src/orchestrator/windows-real-machine-verifier.ts"
     ],
     "connection_notes": "Actual isolated Broker HTTP, signatures, task persistence and a read-only local Node process tested. A test adapter supplies the Worker result; no production handler for windows-real-machine-verification was found. Existing registered Windows Worker acceptance remains pending."
+  },
+  "candidate_audit": {
+    "issue": 1207,
+    "revision": "cb7db43a4c0796a2569b98f5fd05b46047c9a280",
+    "implementation": "BOUNDED_NATIVE_WINDOWS_PLATFORM_CONSUMER",
+    "connection": "ACTUAL_WINDOWS_SERVICE_TO_ISOLATED_SIGNED_BROKER_AND_DURABLE_TASK_STATE",
+    "evidence_ref": "docs/evidence/1207-windows-native-worker.md",
+    "production_activation": "NOT_DEPLOYED_PHYSICAL_HOLD",
+    "scope": "Fixed smoke/platform only. Existing owner identity, production path, reboot and full Windows capability acceptance remain pending."
   }
 }
 ```

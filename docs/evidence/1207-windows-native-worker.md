@@ -1,56 +1,33 @@
-# Issue #1207 Windows native verification worker evidence
+# Windows native Worker integration (#1207 / PR #1208)
 
-Status: SOFTWARE IMPLEMENTED / CI PENDING / PHYSICAL PENDING
+Status: SOFTWARE VALIDATED LOCALLY / PR CI PENDING / PHYSICAL PENDING / MERGE HOLD.
+Code revision: cb7db43a4c0796a2569b98f5fd05b46047c9a280. Base main: 1ba440a4daf1bc2e1ffb20088d42b07fc62d21fa.
+Machine-readable local checks and log hashes: [verification.json](1207/verification.json).
 
-## Requirement
+## Reproduced failures and corrections
+- An offline persisted Windows identity never became schedulable. Signed native heartbeat restores connectivity while retaining disabled/locked/needs-human, policy and capabilities.
+- Lost success acknowledgement entered the execution catch and sent a contradictory failure. The durable identity/endpoint-bound journal retains exact execution evidence and separates execution from delivery.
+- Default fetch redirected signed requests; redirects are now refused. Request/body time and byte limits are enforced.
+- Unrelated Windows tasks could be claimed by the new consumer; native polling filters by exact task type/target through the existing scheduler.
+- Caller-selected result schema bypassed validation and allowed terminal outcome changes. Stored task type now selects validation; malformed evidence is rejected and terminal outcomes are immutable.
+- Expired results permanently wedged the worker. A definitive terminal rejection is persisted visibly with original report; unknown/transient failures stay pending. After an existing audit event ages out, the Broker says UNVERIFIABLE instead of claiming matching evidence.
+- Crash-stale file locks were replaced by OS-owned Windows pipe mutexes for both identity/origin and journal path. Acquire before loading durable state; process termination releases them.
 
-Continue the Windows path left by #1188 without re-enrollment or Production credential changes. Reuse the existing Broker dispatch and signed worker result contract while adding the missing bounded native Windows consumer.
+## Verification
+- 1436/1436 full tests; 314/314 P8 security; 19/19 focused; zero skipped/failing.
+- Typecheck, lint, build and isolated production-build health HTTP200 PASS.
+- Real Windows service process (not a substituted probe) completed a fixed native Node platform check through an isolated signed HTTP Broker and durable SQLite.
+- Crash/restart, duplicate service, same identity, unrelated queue preservation, schema omission, redirect denial, response bounds, network result loss, expired lease, terminal audit eviction and resumed polling are covered.
+- Independent review found no remaining blocking findings after the corrections.
+- Linux CI refuses native Windows execution. Its delivery reconciliation uses an explicitly labeled synthetic probe; it does not claim Windows physical evidence.
 
-## Implemented software evidence
+## Scope and remaining acceptance
+Only fixed read-only smoke/platform is supported. The Broker checks signature, task binding and expected output shape/hash; this is not remote hardware attestation or a general Windows automation verifier. Browser/Office/development operations remain outside this consumer.
 
-- `src/jarvis/windows-verification-worker.ts`
-  - accepts only `windows-real-machine-verification`
-  - requires exact target and assigned node identity
-  - requires `windows-tooling`, Windows preference, online execution and exactly one attempt
-  - accepts only schema `jarvis.real-machine.v1`, operation `smoke`, payload `{check:"platform"}`
-  - refuses non-Windows runtime before native execution
-  - launches only the current Node executable with a fixed read-only platform/version probe; no caller command or arguments are accepted
-  - bounds probe time and output, validates the returned platform/version, and hashes the exact native output
-- `src/jarvis/windows-worker-client.ts`
-  - polls `/api/jarvis/worker/next` and posts `/api/jarvis/worker/result`
-  - signs both requests with the existing canonical worker-auth contract
-  - accepts an existing private key only; it has no enrollment, key-generation or rotation path
-  - allows plain HTTP only for loopback and requires HTTPS for remote Broker URLs
-  - bounds Broker response size and request timeout
-  - sanitizes failure detail before returning it to the Broker
-- `scripts/jarvis-windows-worker-service.ts`
-  - refuses to start outside Windows
-  - reads an existing identity key from an explicit file path
-  - does not install startup tasks, change ACLs, open firewall ports, re-enroll a device or create credentials
-- `tests/jarvis-windows-native-worker.test.ts`
-  - fail-closed task/schema/node/capability/attempt checks
-  - bounded native probe success and platform-mismatch rejection
-  - cryptographic verification of signed poll/result requests
-  - test-only process restart by constructing a second client with the same fixture identity; no enrollment endpoint is invoked
-  - remote non-TLS Broker rejection
-- The new regression test is pinned into `test:p8-security`.
+Temporary test identity/keys and loopback state are CODE/UNIT/INTEGRATION/SECURITY evidence only. Existing enrolled owner device, production Broker path, actual Windows reboot/AC loss/network recovery and physical acceptance remain pending. DEV-PC-001 stays PARTIAL with last_verified_commit null. No device version, enrollment, identity, key, credential, permission, firewall, billing, DB schema or production setting was changed.
 
-## Reconciliation with #1181 / #1182
+## Durable next action
+Check exact PR-head CI, then retain PR #1208 unmerged until a bounded existing-device canary can use the existing credential and task path. Compare device ID, public key metadata, enrollment and pending queue before/after; never extract secrets into logs or re-enroll. Reconcile full requirement coverage in #1205 independently of this physical gate.
 
-Current main already contains the bounded Windows dispatch validator and owner-authenticated Broker enqueue endpoint originally proposed by those stale PRs. #1207 starts from current main and does not revive their stale branches.
-
-## Explicit evidence boundary
-
-The fixture runtime platform and fixture worker identity used in CI are test inputs. They are CODE/UNIT/INTEGRATION/SECURITY evidence only. They do not establish:
-
-- execution on the owner's actual Windows device
-- reuse of the owner's actual enrolled private key
-- process survival or reconnect after an actual reboot
-- Production Broker reachability
-- physical acceptance
-- independent audit
-- AGI evidence
-
-No device app version, enrollment, secret, credential, permission, firewall, billing or Human Gate is changed by this implementation.
-
-Because this is physical-facing Worker code, the PR must remain unmerged if merging current main would deploy it before owner physical acceptance.
+## Rollback
+Stop only the candidate process, retain its journal and restore the prior candidate code. Production services were not replaced. No state migration or destructive cleanup is needed.

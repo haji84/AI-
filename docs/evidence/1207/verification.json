@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "issue": 1207,
+  "pr": 1208,
+  "code_commit": "cb7db43a4c0796a2569b98f5fd05b46047c9a280",
+  "base_main": "1ba440a4daf1bc2e1ffb20088d42b07fc62d21fa",
+  "environment": {
+    "platform": "win32",
+    "node": "v24.19.0",
+    "identity": "ephemeral fixture only",
+    "broker": "isolated loopback / temporary SQLite"
+  },
+  "checks": [
+    {
+      "name": "full-tests",
+      "command": "pnpm test",
+      "result": "PASS",
+      "passed": 1436,
+      "failed": 0,
+      "skipped": 0,
+      "log_sha256": "3608c7e5ec47b037036eaf8ebd5b2e439415735e032df87510610a150c798fbb",
+      "verified_at": "2026-09-22T22:42:57.430Z"
+    },
+    {
+      "name": "p8",
+      "command": "pnpm run test:p8-security",
+      "result": "PASS",
+      "passed": 314,
+      "failed": 0,
+      "skipped": 0,
+      "log_sha256": "5050ba66e871ca83cc89f33bd2b9adec287a5c76d91c1c429307a2d67bfa3b85",
+      "verified_at": "2026-09-22T22:40:25.455Z"
+    },
+    {
+      "name": "focused",
+      "command": "node --test tests/jarvis-windows-native-worker.test.ts tests/windows-worker-recovery-security.test.ts tests/windows-native-broker-integration.test.ts tests/windows-broker-path-integration.test.ts",
+      "result": "PASS",
+      "passed": 19,
+      "failed": 0,
+      "skipped": 0,
+      "log_sha256": "32989a933855038c3fe36ac8dd6b3d738b17567b559768d200100a3bd09890fa",
+      "verified_at": "2026-09-22T22:42:04.596Z"
+    },
+    {
+      "name": "typecheck",
+      "command": "pnpm exec tsc --noEmit",
+      "result": "PASS",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "verified_at": "2026-09-22T22:39:06.129Z"
+    },
+    {
+      "name": "lint",
+      "command": "pnpm lint",
+      "result": "PASS",
+      "log_sha256": "cc5a0b39c7052d24c24888403c48018b4fcccc9d799f81be6c9c30c9e19c85fc",
+      "verified_at": "2026-09-22T22:39:22.144Z"
+    },
+    {
+      "name": "build",
+      "command": "pnpm build",
+      "result": "PASS",
+      "log_sha256": "ec3e266983bc6cace4482c8f2918e0a512d062b0839c6611e6f4e3b58fe2928d",
+      "verified_at": "2026-09-22T22:40:28.208Z"
+    },
+    {
+      "name": "health",
+      "command": "isolated Next production build /api/health",
+      "result": "PASS",
+      "log_sha256": "2aaaf520d7f5725381119c2af2b36ef7a8d8c212e5841fab7af8ca1745868836",
+      "verified_at": "2026-09-22T22:43:22.038Z"
+    }
+  ],
+  "review": {
+    "reviewer": "independent Codex subagent review_windows_1207",
+    "result": "NO_BLOCKING_FINDINGS",
+    "findings_resolved": [
+      "stored-task native schema enforcement",
+      "result expiry reconciliation",
+      "audit eviction returns UNVERIFIABLE",
+      "duplicate consumer exclusion before journal load",
+      "non-string evidence rejected"
+    ]
+  },
+  "physical_acceptance": "PENDING",
+  "production_deployment": "NOT_PERFORMED",
+  "merge_hold": true,
+  "scope": "Fixed smoke/platform only; no existing production enrollment/reboot/remote execution acceptance."
+}
