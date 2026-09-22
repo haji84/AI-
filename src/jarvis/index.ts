@@ -1,6 +1,7 @@
 export * from "./types.ts";
 export * from "./connection-router.ts";
 export * from "./fleet-manager.ts";
+export * from "./fleet-device-record.ts";
 export * from "./task-queue.ts";
 export * from "./enrollment.ts";
 export * from "./human-takeover.ts";
