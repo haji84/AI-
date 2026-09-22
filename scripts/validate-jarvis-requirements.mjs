@@ -4,13 +4,13 @@ import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
 
 // Frozen owner inventory, independent of the matrix: deleting a row must fail.
-export const REQUIRED_COUNTS = Object.freeze({ NET: 7, HOST: 8, FLEET: 11, 'DEV-A': 15, 'DEV-I': 8, 'DEV-PC': 7, RA: 22, UI: 38, INT: 17, GEST: 8, AUTO: 31, MEM: 8, OFF: 12, SEC: 19, OPS: 18, ACC: 9, TEACH: 6 });
+export const REQUIRED_COUNTS = Object.freeze({ NET: 7, HOST: 8, FLEET: 11, 'DEV-A': 15, 'DEV-I': 8, 'DEV-PC': 7, RA: 22, UI: 38, INT: 17, GEST: 8, AUTO: 31, MEM: 8, OFF: 12, SEC: 19, OPS: 18, ACC: 9, TEACH: 6, MIG: 30, CORE: 34, GOV: 28, 'DEV-AX': 4 });
 const statuses = new Set(['VERIFIED', 'IMPLEMENTED_UNVERIFIED', 'PARTIAL', 'MISSING', 'PLATFORM_LIMITED']);
 const classes = new Set(['CODE', 'UNIT', 'INTEGRATION', 'SECURITY', 'PHYSICAL', 'RECOVERY']);
 const requiredFields = ['id', 'title', 'description', 'phase', 'required_evidence', 'implementation_refs', 'test_refs', 'evidence_refs', 'status', 'blocker', 'platform_limit', 'fallback', 'next_action', 'last_verified_commit'];
 const sha = value => typeof value === 'string' && /^[a-f0-9]{40}$/.test(value);
 const text = value => typeof value === 'string' && value.trim().length > 0;
-const physicalRequired = id => /^(NET-00[1-4]|HOST-|DEV-|RA-(?!021)|ACC-|TEACH-|OFF-012)/.test(id);
+const physicalRequired = id => /^(NET-00[1-4]|HOST-|DEV-|RA-(?!021)|ACC-|TEACH-|OFF-012|MIG-|CORE-0(?:18|19|21|22)|GOV-0(?:11|12))/.test(id);
 
 export function validateRequirements(matrix, ledger, root) {
   const errors = [];
