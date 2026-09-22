@@ -20,10 +20,12 @@ Independent review identified and resolved CRLF portability, accepted-history de
 ## Open work — #1205 remains open
 Authenticated live conversation ingestion, semantic requirement matching/conflict resolution and automatic specification PR creation are still missing. The validator is integrated into node --test/CI; it is not a live chat synchronization engine. Extend reverse audit beyond the explicitly declared roots (remaining orchestrator/providers/owner-auth entry points) before claiming repository-wide coverage. Unmerged #1204/#1208/#1195/#884 content is not main implementation.
 
-Main ledger status is unchanged: VERIFIED 3, IMPLEMENTED_UNVERIFIED 2, PARTIAL 231, MISSING 104. Parent ownership of a file does not imply feature completion. No PHYSICAL/RECOVERY status promotion, fleet registration/configuration change, merge or production deployment.
+After incorporating parallel main PR #1212 (9cbf6accaec5eb1ec76359a6b88af6bf225eb51e), current ledger status is VERIFIED 3, IMPLEMENTED_UNVERIFIED 2, PARTIAL 232, MISSING 103. The UI-007 change belongs to that main PR; this audit does not promote statuses. Parent ownership of a file does not imply feature completion. No PHYSICAL/RECOVERY status promotion, fleet registration/configuration change, merge or production deployment.
 
 ## Next cycle
 Finish #1205 live intake-to-reviewed-spec proposal integration with authenticated owner provenance, preserved Human Gates, durable supersede history and execution-completion gating. Reconcile staged specification additions separately and revalidate their exact combined base. Keep #1208 existing-device acceptance and all prior physical-facing merge holds.
 
 ## Rollback
 Revert this candidate branch's checker/index/decision records together; runtime device data is untouched. Do not delete canonical requirements or original decision history as a shortcut to pass checks.
+
+Latest-base validation: source main 9cbf6accaec5eb1ec76359a6b88af6bf225eb51e merged without losing either ledger. Targeted10/10 and reverse346/canonical340 validation passed; PR CI must cover the exact combined head.

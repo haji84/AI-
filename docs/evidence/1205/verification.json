@@ -68,5 +68,13 @@
     "expand reverse inventory to other orchestration/provider/owner-auth surfaces"
   ],
   "product_complete": false,
-  "production_changes": false
+  "production_changes": false,
+  "integration_base": "9cbf6accaec5eb1ec76359a6b88af6bf225eb51e",
+  "integration_validation": {
+    "targeted_passed": 10,
+    "reverse_surfaces": 346,
+    "canonical_requirements": 340,
+    "result": "PASS",
+    "note": "Main UI-007 reconciliation retained; exact combined-head CI tracked in PR"
+  }
 }
