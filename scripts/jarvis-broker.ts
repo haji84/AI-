@@ -46,7 +46,7 @@ if (host !== "127.0.0.1" && host !== "::1" && process.env.JARVIS_ALLOW_NON_LOOPB
 
 const plane = new JarvisControlPlane();
 const store = new JarvisSqliteStateStore(process.env.JARVIS_DB_PATH?.trim() || undefined);
-const compass = new CompassStore(process.env.JARVIS_COMPASS_DB_PATH?.trim() || resolve(".jarvis/compass.db"));
+const compassPath = process.env.JARVIS_COMPASS_DB_PATH?.trim() || (process.env.JARVIS_DB_PATH?.trim() ? `${process.env.JARVIS_DB_PATH.trim()}.compass.sqlite` : resolve(".jarvis/compass.db"));\nconst compass = new CompassStore(compassPath);
 const goalController = new GoalControllerRuntime({
   registry: new CompassGoalRegistryAdapter(compass),
   decisionStore: new CompassGoalDecisionStoreAdapter(compass),
