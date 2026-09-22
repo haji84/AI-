@@ -6,6 +6,8 @@ Audit baseline: 278d17c28528476f12bc6f9b8d5221ea340686b9; followed through main 
 
 See [full ledger](JARVIS_PRODUCT_SPEC.md) and [Windows/inventory evidence](evidence/1188-requirements-windows.md). Existing verified evidence is retained with its original commit/scope, never generalized to the full product.
 
+Candidate #1192 (`043db1d60f4afad003709c3e2cc75c0a7df0ff67`) adds scoped software integration for CORE-016/018, MEM-008 and TEACH-001..006; see [evidence](evidence/1192-teaching-skill-integration.md). The table retains main-baseline classification until the physical-facing merge hold is satisfied. No status is promoted.
+
 | ID | Requirement | Evidence status | Implementation location | Runtime acceptance | Physical |
 |---|---|---|---|---|---|
 | NET-001 | 外出先スマホのWi-FiをOFFにし4G/5G→private encrypted network→ZBook→JARVIS→Broker/Remote Gateway→Home Wi-Fi Workersへ接続 | PARTIAL | MAIN_CODE_PRESENT | RUNTIME_ACCEPTANCE_REQUIRED | PENDING |

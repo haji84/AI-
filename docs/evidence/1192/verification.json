@@ -1,0 +1,45 @@
+{
+  "revision": "043db1d60f4afad003709c3e2cc75c0a7df0ff67",
+  "environment": {
+    "platform": "win32",
+    "node": "v24.19.0"
+  },
+  "tests": {
+    "full": 1414,
+    "p8": 266,
+    "failed": 0
+  },
+  "lint": "PASS",
+  "build": "PASS",
+  "http": {
+    "health": 200,
+    "unauthenticatedTeaching": 401,
+    "unauthenticatedCorrection": 401
+  },
+  "browser": {
+    "status": "PASS",
+    "environment": "isolated browser UI with fixture API/device responses",
+    "actions": [
+      "teach-start",
+      "teach-correct",
+      "teach-finish",
+      "teach-verify",
+      "teach-verify",
+      "teach-execute"
+    ],
+    "checks": 2,
+    "errors": [],
+    "overflow": false,
+    "screenshots": [
+      "desktop-correction.png",
+      "mobile-certified.png"
+    ]
+  },
+  "physical": "NOT_RUN",
+  "production": "UNCHANGED",
+  "log_sha256": {
+    "tests": "1a9eee01535f7b0a8e3d9eb1f9c8f2c8214336f8f8214b95578d6cd428b5f182",
+    "p8": "f156094ae5115799ad93463df360907be8d07a83191f9962f07c7703856445a9",
+    "build": "e2c5eae0c65358e32b36ccecdf937f4e33f4dc13d10845db41688102b35cf1b6"
+  }
+}
