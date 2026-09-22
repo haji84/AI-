@@ -59,8 +59,22 @@ const MAX_EVIDENCE_REF = 256;
 const CREDENTIAL_ASSIGNMENT = /(?:password|passwd|api[_-]?key|secret|access[_-]?token|refresh[_-]?token|authorization|cookie)\s*[:=]\s*\S+/i;
 const BEARER_CREDENTIAL = /\bbearer\s+[a-z0-9._~+/=-]{8,}/i;
 const SECRET_KEY = /\bsk-[a-z0-9_-]{8,}/i;
+const VALID_OUTCOMES = new Set<WorkLearningOutcome>(["COMPLETED", "FAILED", "BLOCKED"]);
+const VALID_RECOVERY_ACTIONS = new Set<WorkRecoveryAction>([
+  "retry_same",
+  "repair",
+  "strategy_pivot",
+  "human_takeover",
+]);
+const VALID_CONNECTIVITY = new Set<NonNullable<SkillConstraints["connectivity"]>>([
+  "offline-capable",
+  "online-required",
+  "either",
+]);
+const VALID_RISK = new Set<NonNullable<SkillConstraints["maxRisk"]>>(["low", "medium", "high"]);
 
 function boundedText(value: string, field: string, max = MAX_TEXT): string {
+  if (typeof value !== "string") throw new Error(`${field} must be a string`);
   const text = value.trim();
   if (!text) throw new Error(`${field} is required`);
   if (text.length > max) throw new Error(`${field} exceeds ${max} characters`);
@@ -71,19 +85,45 @@ function boundedText(value: string, field: string, max = MAX_TEXT): string {
 }
 
 function uniqueBounded(values: string[], field: string, maxItems: number, maxText = MAX_TEXT): string[] {
+  if (!Array.isArray(values)) throw new Error(`${field} must be an array`);
   if (values.length > maxItems) throw new Error(`${field} exceeds ${maxItems} items`);
   return [...new Set(values.map((value, index) => boundedText(value, `${field}[${index}]`, maxText)))];
 }
 
+function normalizeConstraints(input: SkillConstraints | undefined): SkillConstraints | undefined {
+  if (!input) return undefined;
+  const constraints: SkillConstraints = {};
+  if (input.capabilities !== undefined) {
+    constraints.capabilities = uniqueBounded(input.capabilities, "constraints.capabilities", 32, 256);
+  }
+  if (input.resources !== undefined) {
+    constraints.resources = uniqueBounded(input.resources, "constraints.resources", 32, 256);
+  }
+  if (input.executionModes !== undefined) {
+    constraints.executionModes = uniqueBounded(input.executionModes, "constraints.executionModes", 16, 128);
+  }
+  if (input.connectivity !== undefined) {
+    if (!VALID_CONNECTIVITY.has(input.connectivity)) throw new Error("constraints.connectivity is invalid");
+    constraints.connectivity = input.connectivity;
+  }
+  if (input.maxRisk !== undefined) {
+    if (!VALID_RISK.has(input.maxRisk)) throw new Error("constraints.maxRisk is invalid");
+    constraints.maxRisk = input.maxRisk;
+  }
+  return constraints;
+}
+
 function canonicalTrace(trace: WorkLearningTrace) {
+  if (!VALID_OUTCOMES.has(trace.outcome)) throw new Error("outcome is invalid");
   const goalId = boundedText(trace.goalId, "goalId", 256);
   const goalSummary = boundedText(trace.goalSummary, "goalSummary");
   const capability = boundedText(trace.capability, "capability", 256);
   const applicability = uniqueBounded(trace.applicability, "applicability", 32, 256).sort();
   const plan = uniqueBounded(trace.plan, "plan", MAX_PLAN_STEPS);
+  const constraints = normalizeConstraints(trace.constraints);
   if (applicability.length === 0) throw new Error("applicability is required");
   if (plan.length === 0) throw new Error("plan is required");
-  if (trace.attempts.length === 0 || trace.attempts.length > MAX_ATTEMPTS) {
+  if (!Array.isArray(trace.attempts) || trace.attempts.length === 0 || trace.attempts.length > MAX_ATTEMPTS) {
     throw new Error(`attempts must contain 1-${MAX_ATTEMPTS} items`);
   }
   const completedAt = new Date(trace.completedAt);
@@ -113,6 +153,9 @@ function canonicalTrace(trace: WorkLearningTrace) {
     if (!isFinal && succeeded) throw new Error(`attempt ${id} passed before the final attempt`);
     if (!isFinal && !succeeded && !attempt.recovery) {
       throw new Error(`attempt ${id} requires a recovery decision before the next attempt`);
+    }
+    if (attempt.recovery && !VALID_RECOVERY_ACTIONS.has(attempt.recovery.action)) {
+      throw new Error(`attempt ${id} has invalid recovery action`);
     }
     const recovery = attempt.recovery
       ? {
@@ -148,7 +191,7 @@ function canonicalTrace(trace: WorkLearningTrace) {
       attempts,
       outcome: trace.outcome,
       completedAt: completedAt.toISOString(),
-      constraints: trace.constraints,
+      constraints,
       reason: "COMPLETED work cannot be learned without final execution and verifier PASS",
     };
   }
@@ -163,7 +206,7 @@ function canonicalTrace(trace: WorkLearningTrace) {
     attempts,
     outcome: trace.outcome,
     completedAt: completedAt.toISOString(),
-    constraints: trace.constraints,
+    constraints,
     verifiedCompletion,
   };
 }
