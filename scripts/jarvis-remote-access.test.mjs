@@ -31,6 +31,21 @@ test('private readiness requires successful structured config and exact loopback
   assert.equal(inspectPrivateIngress(JSON.stringify(config)).ready, false);
 });
 
+test('private ingress refuses direct Serve proxies to protected Broker and Remote Gateway ports', () => {
+  for (const target of [
+    'http://127.0.0.1:8787',
+    'http://localhost:8790',
+    'http://192.168.1.50:8787',
+  ]) {
+    const config = privateConfig();
+    config.Web['host.example.ts.net:443'].Handlers['/protected'] = { Proxy: target };
+    const result = inspectPrivateIngress(JSON.stringify(config), { dnsName: 'host.example.ts.net' });
+    assert.equal(result.ready, false);
+    assert.equal(result.state, 'unknown');
+    assert.match(result.reason, /Protected backend exposed directly/);
+  }
+});
+
 test('Funnel host maps, whitespace, foreground configs and malformed flags fail closed', () => {
   assert.equal(looksLikePublicFunnel('{"AllowFunnel": true}'), true);
   for (const extra of [
