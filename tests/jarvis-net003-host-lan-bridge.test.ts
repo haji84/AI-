@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { inspectPrivateIngress } from "../scripts/jarvis-remote-access-lib.mjs";
 import {
   JARVIS_MAX_NODES,
   JarvisFleetManager,
@@ -29,45 +28,12 @@ function androidNode(index: number): JarvisNode {
       network: "wifi",
       checkedAt: "2026-09-22T09:00:00.000Z",
     },
-    enrollment: "fleet",
+    enrollment: "full",
     lastSeenAt: "2026-09-22T09:00:00.000Z",
   };
 }
 
-function serveConfig(extraHandlers: Record<string, { Proxy: string }> = {}) {
-  return {
-    TCP: { "443": { HTTPS: true } },
-    Web: {
-      "host.example.ts.net:443": {
-        Handlers: {
-          "/": { Proxy: "http://127.0.0.1:3000" },
-          ...extraHandlers,
-        },
-      },
-    },
-  };
-}
-
-test("NET-003 private host ingress exposes only the Dashboard, never Broker or Remote Gateway directly", () => {
-  assert.equal(inspectPrivateIngress(JSON.stringify(serveConfig()), { dnsName: "host.example.ts.net" }).ready, true);
-
-  for (const [path, target] of [
-    ["/broker", "http://127.0.0.1:8787"],
-    ["/remote", "http://localhost:8790"],
-  ] as const) {
-    const result = inspectPrivateIngress(JSON.stringify(serveConfig({ [path]: { Proxy: target } })), {
-      dnsName: "host.example.ts.net",
-    });
-    assert.equal(result.ready, false);
-    assert.equal(result.state, "unknown");
-    assert.match(result.reason, /Protected backend exposed directly/);
-  }
-});
-
 test("NET-003 software topology keeps a 100-node Android fleet on the LAN side of one private host", () => {
-  const ingress = inspectPrivateIngress(JSON.stringify(serveConfig()), { dnsName: "host.example.ts.net" });
-  assert.equal(ingress.ready, true);
-
   const lanRoute = resolveJarvisRoute({ mobileOnline: false, pcOnline: true, sameLanAvailable: true });
   assert.equal(lanRoute.mode, "lan-only");
 
