@@ -3,12 +3,12 @@
 PROJECT: General Autonomous AI / Unified AI Creator Studio / GAI Research OS
 AI_COMPANY_VERSION: 1.0
 PROJECT_VERSION: 0.0.0
-CURRENT_PHASE: JARVIS #681/#882 P7 bounded fact acquisition integration; physical-facing teaching candidate held for acceptance
+CURRENT_PHASE: JARVIS #681/#882 two-issue cycle: native Windows #1207 software validated; #1205 repository reverse audit candidate
 STATUS: JARVIS_PRODUCT_COMPLETION_IN_PROGRESS
 LAST_UPDATED: 2026-09-23
 CURRENT_EPIC: One-front-door general autonomous AI with durable offline-first device-neutral execution and verifier-driven completion
-ACTIVE_ISSUES: #681 Product Completion / #882 software completion; #1200 bounded fact execution integration; #1192 runtime correction/Skill candidate pending physical acceptance; #321 separate
-OPEN_PRS: #1195 correction/Skill runtime held unmerged pending physical acceptance; #1206 for #1200 bounded research integration; exact-head CI tracked in PR; other existing physical holds remain
+ACTIVE_ISSUES: #681 Product Completion / #882 software completion; #1207 existing-device physical acceptance; #1205 authenticated live intake/spec sync still pending; #1192 correction/Skill physical acceptance; #321 separate
+OPEN_PRS: #1208 Windows worker d94a453 with CI35794037590 SUCCESS held unmerged; #1195 correction/Skill physical hold; #1205 audit candidate exact-head CI tracked in its PR; #1206 merged
 BLOCKERS: #786 MSIX AppData startup root cause repaired operationally with native owner-profile release90a111b; Limited Windows task and four services running in session0, existing two Workers READY. Tailscale Running and private URL HTTP200 after explicitly approved unattended mode; routine Tailscale recovery standing approval recorded. Physical Windows reboot/AC-loss and #734 video replay remain unverified. See docs/evidence/786-native-startup.md. Owner requires firewall unchanged.
 PRIORITY_OVERRIDE: Owner 2026-09-16 instruction resumes expanded JARVIS product completion #681 with ZBook main-host priority; preserve Human Gates and separate research evidence
 NORTH_STAR_GOAL: Human gives one goal; the system persists that locked Goal, determines required work, dynamically recruits available capabilities, executes, verifies, diagnoses failures, changes strategy, repairs/replans, records evidence, and continues toward verified Goal achievement with the fewest necessary human returns, including continued local work during connectivity loss where capability permits
@@ -44,7 +44,7 @@ JARVIS_100_NODE_CAPACITY: PASS in deterministic CI; node 101 is rejected
 JARVIS_PHYSICAL_ANDROID_E2E: PASS for the acceptance scope through real Android 001 resident-Broker/Worker execution evidence from PR #526 and follow-up hardening. This does not imply unverified physical wake/Device Owner/live-screen/real-offline claims
 GAI_RESEARCH_OPS: SEPARATE_EVIDENCE_PROGRAM; Issue #321 and R1-R20 remain open until their real scientific evidence gates pass
 GAI_NEXT_PHASE: Complete #681 P0–P10 using docs/JARVIS_PRODUCT_SPEC.md and docs/jarvis-requirements.json; keep #321 research separate
-NEXT_PRIORITY: Complete #1200 review and exact-head CI/write-back; reuse existing Windows worker PRs to verify actual native execution path; retain #1195 actual-device acceptance and full 340 requirement gaps
+NEXT_PRIORITY: Next scheduled cycle: finish #1205 authenticated owner intake -> semantic match/conflict -> reviewed specification proposal -> durable sync/completion gate; preserve #1208/#1195 existing-device physical acceptance holds; no product-complete claim
 HUMAN_APPROVAL_PENDING: none for ordinary code/CI/device validation; production, secrets, permissions, billing, destructive, governance/security weakening, and external-publication gates remain in force
 AUTONOMOUS_RECOVERY_POLICY: progress-aware bounded autonomy; per-strategy retry exhaustion triggers diagnose/replan/alternate capability or strategy, not automatic Goal abandonment; stop/escalate only for safety/approval gates, explicit pause/cancel, unavailable required authority, exhausted overall resource budget, or no safe actionable strategy
 MAX_ACTIVE_AGENTS: 3

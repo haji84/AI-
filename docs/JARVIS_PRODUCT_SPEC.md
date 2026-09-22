@@ -11791,7 +11791,16 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   },
   "source_decisions": [
     "owner-1205-living-specification"
-  ]
+  ],
+  "candidate_audit": {
+    "issue": 1205,
+    "revision": "0e55e4d7b84ee5bda505af7d35e22bb5ed445e99",
+    "implementation": "REPOSITORY_REVERSE_TRACEABILITY_AND_ACCEPTED_OWNER_DECISION_CONTRACT",
+    "connection": "STANDARD_TEST_DISCOVERY_IN_EXISTING_CI",
+    "evidence_ref": "docs/evidence/1205-reverse-traceability.md",
+    "production_activation": "NO_RUNTIME_ACTIVATION",
+    "scope": "Declared roots only. Authenticated live intake, semantic matching/conflicts and automatic spec PR creation remain pending."
+  }
 }
 ```
 
@@ -13514,7 +13523,16 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   },
   "source_decisions": [
     "owner-1205-living-specification"
-  ]
+  ],
+  "candidate_audit": {
+    "issue": 1205,
+    "revision": "0e55e4d7b84ee5bda505af7d35e22bb5ed445e99",
+    "implementation": "REPOSITORY_REVERSE_TRACEABILITY_AND_ACCEPTED_OWNER_DECISION_CONTRACT",
+    "connection": "STANDARD_TEST_DISCOVERY_IN_EXISTING_CI",
+    "evidence_ref": "docs/evidence/1205-reverse-traceability.md",
+    "production_activation": "NO_RUNTIME_ACTIVATION",
+    "scope": "Declared roots only. Authenticated live intake, semantic matching/conflicts and automatic spec PR creation remain pending."
+  }
 }
 ```
 
