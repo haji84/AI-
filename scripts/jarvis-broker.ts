@@ -23,7 +23,9 @@ import { remoteDeviceInventory } from "../src/jarvis/remote-device-inventory.ts"
 import { PendingEnrollment } from "../src/jarvis/pending-enrollment.ts";
 import { CompassStore } from "../src/compass/store.ts";
 import { GoalControllerRuntime } from "../src/orchestrator/goal-controller-runtime.ts";
-import { CompassGoalRegistryAdapter, CompassGoalDecisionStoreAdapter } from "../src/orchestrator/compass-goal-controller.ts";\nimport { CompassWorkRunStore } from "../src/orchestrator/compass-work-run-store.ts";\nimport { workRunProgress } from "../src/orchestrator/work-run-state.ts";
+import { CompassGoalRegistryAdapter, CompassGoalDecisionStoreAdapter } from "../src/orchestrator/compass-goal-controller.ts";
+import { CompassWorkRunStore } from "../src/orchestrator/compass-work-run-store.ts";
+import { workRunProgress } from "../src/orchestrator/work-run-state.ts";
 
 
 const host = process.env.JARVIS_BROKER_HOST?.trim() || "127.0.0.1";
@@ -48,7 +50,8 @@ const plane = new JarvisControlPlane();
 const store = new JarvisSqliteStateStore(process.env.JARVIS_DB_PATH?.trim() || undefined);
 const compassPath = process.env.JARVIS_COMPASS_DB_PATH?.trim() || (process.env.JARVIS_DB_PATH?.trim() ? `${process.env.JARVIS_DB_PATH.trim()}.compass.sqlite` : resolve(".jarvis/compass.db"));
 const compass = new CompassStore(compassPath);
-const workRuns = new CompassWorkRunStore(compass);\nconst goalController = new GoalControllerRuntime({
+const workRuns = new CompassWorkRunStore(compass);
+const goalController = new GoalControllerRuntime({
   registry: new CompassGoalRegistryAdapter(compass),
   decisionStore: new CompassGoalDecisionStoreAdapter(compass),
 });
