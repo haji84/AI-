@@ -54,6 +54,23 @@ test("SEC-010 accepts only private HTTPS Serve routed to the loopback dashboard"
   }).ready, false);
 });
 
+test("SEC-010 refuses additional Serve handlers that expose protected backend ports", () => {
+  for (const target of [
+    "http://127.0.0.1:8787",
+    "http://localhost:8790",
+    "http://192.168.1.50:8787",
+  ]) {
+    const config = privateServeConfig();
+    config.Web["jarvis-host.example.ts.net:443"].Handlers["/protected"] = { Proxy: target };
+    const result = inspectPrivateIngress(JSON.stringify(config), {
+      dnsName: "jarvis-host.example.ts.net",
+    });
+    assert.equal(result.ready, false);
+    assert.equal(result.state, "unknown");
+    assert.match(result.reason, /Protected backend exposed directly/);
+  }
+});
+
 test("SEC-010 rejects public Funnel, malformed Funnel state, and unverifiable ingress", () => {
   for (const config of [
     { ...privateServeConfig(), AllowFunnel: true },
