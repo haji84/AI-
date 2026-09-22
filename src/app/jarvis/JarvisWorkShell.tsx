@@ -10,12 +10,12 @@ export default function JarvisWorkShell() {
   const [admin, setAdmin] = useState(false);
   const [command, setCommand] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [workStatus, setWorkStatus] = useState<{ goalId?: string | null; action?: string; nextAction?: string | null; error?: string } | null>(null);
+  const [workStatus, setWorkStatus] = useState<{ goalId?: string | null; action?: string; nextAction?: string | null; error?: string } | null>(null);\n  const [runStatus, setRunStatus] = useState<{ phase?: string; currentWork?: string | null; completedJobs?: number; totalJobs?: number | null; recoveryCount?: number; blockers?: string[]; progress?: { determinate: boolean; value: number | null } } | null>(null);
   useEffect(() => {
     const saved = window.localStorage.getItem(STORAGE_KEY);
     setThemeId(jarvisTheme(saved).id);
   }, []);
-  const theme = jarvisTheme(themeId);
+  const theme = jarvisTheme(themeId);\n  useEffect(() => {\n    const goalId = workStatus?.goalId;\n    if (!goalId) return;\n    let cancelled = false;\n    const poll = async () => {\n      try {\n        const response = await fetch(`/api/jarvis/work/${encodeURIComponent(goalId)}`, { cache: "no-store" });\n        if (!response.ok) return;\n        const body = await response.json() as { run?: Record<string, unknown>; progress?: { determinate: boolean; value: number | null } };\n        if (!cancelled && body.run) setRunStatus({ ...(body.run as object), progress: body.progress });\n      } catch { /* status polling is best effort; command state remains visible */ }\n    };\n    void poll();\n    const timer = window.setInterval(() => void poll(), 1500);\n    return () => { cancelled = true; window.clearInterval(timer); };\n  }, [workStatus?.goalId]);
   function select(id: JarvisThemeId) {
     setThemeId(id);
     window.localStorage.setItem(STORAGE_KEY, id);
@@ -46,9 +46,9 @@ export default function JarvisWorkShell() {
     <main>
       <form className="jarvis-command" onSubmit={(event) => { event.preventDefault(); void submitCommand(); }}>
         <label htmlFor="jarvis-command-input">JARVISに何を任せますか？</label>
-        <div><input id="jarvis-command-input" value={command} onChange={(event) => setCommand(event.target.value)} placeholder="例：資料を調べてExcelにまとめて報告書を作って" /><button className="jarvis-launch-core" type="submit" aria-label="JARVISへ送信" data-state={submitting ? "accepting" : workStatus?.goalId ? "running" : command.trim() ? "ready" : "idle"} disabled={!command.trim() || submitting}><span aria-hidden="true">›</span></button></div>
+        <div><input id="jarvis-command-input" value={command} onChange={(event) => setCommand(event.target.value)} placeholder="例：資料を調べてExcelにまとめて報告書を作って" /><button className="jarvis-launch-core" type="submit" aria-label="JARVISへ送信" data-state={submitting ? "accepting" : runStatus?.phase === "COMPLETED" ? "completed" : runStatus?.phase === "BLOCKED" || runStatus?.phase === "FAILED" ? "blocked" : workStatus?.goalId ? "running" : command.trim() ? "ready" : "idle"} style={runStatus?.progress?.determinate && runStatus.progress.value !== null ? { "--jarvis-progress": `${Math.round(runStatus.progress.value * 360)}deg` } as React.CSSProperties : undefined} disabled={!command.trim() || submitting}><span aria-hidden="true">›</span></button></div>
       </form>
-      {workStatus && <div className="jarvis-work-status" role="status">{workStatus.error ? `受付失敗: ${workStatus.error}` : `Goal受付完了${workStatus.nextAction ? ` · 次: ${workStatus.nextAction}` : ""}`}</div>}
+      {workStatus && <div className="jarvis-work-status" role="status">{workStatus.error ? `受付失敗: ${workStatus.error}` : runStatus ? `${runStatus.phase ?? "実行中"}${runStatus.currentWork ? ` · ${runStatus.currentWork}` : ""}${runStatus.progress?.determinate && runStatus.progress.value !== null ? ` · ${Math.round(runStatus.progress.value * 100)}%` : ""}` : `Goal受付完了${workStatus.nextAction ? ` · 次: ${workStatus.nextAction}` : ""}`}</div>}
       <div className="jarvis-summary-grid">
         <article><span>現在のゴール</span><strong>待機中</strong><small>仕事を入力するとここに進捗を表示します</small></article>
         <article><span>実行中</span><strong>0</strong><small>自動で更新</small></article>
