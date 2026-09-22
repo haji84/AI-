@@ -29,7 +29,11 @@ export type TeachingBatchResult = {
 function normalizeRowId(value: unknown, index: number): string {
   if (typeof value !== "string") throw Error(`Invalid batch row ${index + 1}`);
   const rowId = value.trim();
-  if (!rowId || rowId.length > 80 || /[\u0000-\u001f\u007f]/.test(rowId)) {
+  const hasControlCharacter = [...rowId].some((character) => {
+    const code = character.charCodeAt(0);
+    return code < 32 || code === 127;
+  });
+  if (!rowId || rowId.length > 80 || hasControlCharacter) {
     throw Error(`Invalid batch row ${index + 1}`);
   }
   return rowId;
