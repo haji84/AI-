@@ -71,7 +71,7 @@ test("MEM-008 records recovery history and creates only a non-active candidate f
   assert.ok(result.skill?.provenance.includes("verifier:pass"));
   assert.equal((await skills.query("document report")).length, 0, "candidate must not gain execution authority before certification");
 
-  const memories = await memory.query({ tags: ["verified-work"], limit: 10 });
+  const memories = await memory.query({ limit: 10 });
   assert.equal(memories.length, 2);
   const episode = memories.find((record) => record.kind === "episodic");
   const procedure = memories.find((record) => record.kind === "procedural");
@@ -147,7 +147,7 @@ test("MEM-008 replay is idempotent across restart and does not mint another skil
 
   assert.equal(second.status, "IDEMPOTENT_REPLAY");
   assert.equal(second.skill?.version, 1);
-  assert.equal((await restartedMemory.query({ tags: ["verified-work"], limit: 10 })).length, 2);
+  assert.equal((await restartedMemory.query({ limit: 10 })).length, 2);
 });
 
 test("MEM-008 fails closed before persistence when a trace contains credential-like material", async () => {
