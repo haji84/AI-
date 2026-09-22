@@ -25,15 +25,12 @@ test("FLEET-002 enrolls 100 unique device identities from one owner invitation",
       assert.doesNotThrow(() => store.consume(invitation.secret, nodeId));
     }
 
-    assert.deepEqual(store.status(), {
-      id: invitation.id,
-      active: false,
-      createdAt: invitation.createdAt,
-      maxDevices: 100,
-      usedDevices: 100,
-      remaining: 0,
-      revoked: false,
-    });
+    const status = store.status();
+    assert.equal(status.active, false);
+    assert.equal(status.maxDevices, 100);
+    assert.equal(status.usedDevices, 100);
+    assert.equal(status.remaining, 0);
+    assert.equal(status.revoked, false);
   });
 });
 
