@@ -21,6 +21,10 @@ import { JarvisDeviceReplacementTransport } from "../src/jarvis/device-replaceme
 import { WorkerRemoteMailbox } from "../src/jarvis/worker-remote-mailbox.ts";
 import { remoteDeviceInventory } from "../src/jarvis/remote-device-inventory.ts";
 import { PendingEnrollment } from "../src/jarvis/pending-enrollment.ts";
+import { CompassStore } from "../src/compass/store.ts";
+import { GoalControllerRuntime } from "../src/orchestrator/goal-controller-runtime.ts";
+import { CompassGoalRegistryAdapter, CompassGoalDecisionStoreAdapter } from "../src/orchestrator/compass-goal-controller.ts";
+
 
 const host = process.env.JARVIS_BROKER_HOST?.trim() || "127.0.0.1";
 const port = Number(process.env.JARVIS_BROKER_PORT || 8787);
@@ -42,6 +46,12 @@ if (host !== "127.0.0.1" && host !== "::1" && process.env.JARVIS_ALLOW_NON_LOOPB
 
 const plane = new JarvisControlPlane();
 const store = new JarvisSqliteStateStore(process.env.JARVIS_DB_PATH?.trim() || undefined);
+const compassPath = process.env.JARVIS_COMPASS_DB_PATH?.trim() || (process.env.JARVIS_DB_PATH?.trim() ? `${process.env.JARVIS_DB_PATH.trim()}.compass.sqlite` : resolve(".jarvis/compass.db"));
+const compass = new CompassStore(compassPath);
+const goalController = new GoalControllerRuntime({
+  registry: new CompassGoalRegistryAdapter(compass),
+  decisionStore: new CompassGoalDecisionStoreAdapter(compass),
+});
 const persisted = store.load();
 if (persisted) plane.restore(persisted);
 const nonces = new JarvisNonceRegistry();
@@ -256,6 +266,25 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
     if (!requireOwner(request)) return json(response, 401, { message: "owner authorization required" });
     const payload = parseJson(body);
     if (method === "GET" && path === "/api/jarvis/admin/state") return json(response, 200, plane.snapshot());
+    if (method === "POST" && path === "/api/jarvis/admin/work") {
+      try {
+        const payload = parseJson(await readBody(request, 64_000));
+        const text = typeof payload.text === "string" ? payload.text.trim() : "";
+        if (!text) return json(response, 400, { message: "仕事の内容を入力してください" });
+        const idempotencyKey = typeof payload.idempotencyKey === "string" ? payload.idempotencyKey.trim() : undefined;
+        const decision = await goalController.handle({ source: "jarvis", text, idempotencyKey });
+        return json(response, 202, {
+          accepted: true,
+          goalId: decision.goalId ?? null,
+          action: decision.action,
+          resolution: decision.resolution.kind,
+          nextAction: decision.nextAction ?? null,
+          remainingCriteria: decision.remainingCriteria ?? [],
+        });
+      } catch (error) {
+        return json(response, 409, { message: error instanceof Error ? error.message : "Goal受付に失敗しました" });
+      }
+    }
     if (path === "/api/jarvis/admin/enrollment-pending") {
       if (method === "GET") return json(response, 200, { pending: pendingEnrollment.list() });
       if (method === "POST") {
@@ -497,7 +526,7 @@ server.listen(port, host, () => {
   console.log(`[jarvis-broker] nodes=${plane.snapshot().stats.registered} tasks=${plane.snapshot().tasks.length} workerApk=${workerApkInfo() ? "ready" : "missing"}`);
 });
 function shutdown(): void {
-  server.close(() => { persist(); store.close(); process.exit(0); });
+  server.close(() => { persist(); store.close(); compass.close(); process.exit(0); });
 }
 process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);
