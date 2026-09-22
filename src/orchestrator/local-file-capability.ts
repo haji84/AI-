@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { lstat, mkdir, readFile, realpath, rename, stat, writeFile } from "node:fs/promises";
-import { basename, relative, resolve, sep } from "node:path";
+import { relative, resolve, sep } from "node:path";
 import type { WorkAction, WorkCapability, WorkResult } from "./work-capability.ts";
 
 export class LocalFileCapability implements WorkCapability {
