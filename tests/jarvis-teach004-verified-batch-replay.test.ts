@@ -140,14 +140,14 @@ test("TEACH-004 stops on the first failed row and never advances to later rows",
     const variant = batchVariant(f.store);
     const d = driver({ failUrlExecution: 3 });
     await verify(f.store, variant.id, d.adapter);
-    await assert.rejects(
-      replayVerifiedTeachingBatch(f.store, variant.id, d.adapter, [
-        { rowId: "row-1", url: "https://example.com/rows/1" },
-        { rowId: "row-2", url: "https://example.com/rows/2" },
-        { rowId: "row-3", url: "https://example.com/rows/3" },
-      ]),
-      /Expected screen not reached/,
-    );
+    const result = await replayVerifiedTeachingBatch(f.store, variant.id, d.adapter, [
+      { rowId: "row-1", url: "https://example.com/rows/1" },
+      { rowId: "row-2", url: "https://example.com/rows/2" },
+      { rowId: "row-3", url: "https://example.com/rows/3" },
+    ]);
+    assert.equal(result.status, "NEEDS_HUMAN");
+    assert.deepEqual(result.rows.map((row) => row.rowId), ["row-1", "row-2"]);
+    assert.equal(result.rows.at(-1)?.status, "NEEDS_HUMAN");
     assert(d.urls.includes("https://example.com/rows/1"));
     assert(d.urls.includes("https://example.com/rows/2"));
     assert(!d.urls.includes("https://example.com/rows/3"));
