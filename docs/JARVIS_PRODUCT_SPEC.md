@@ -3744,23 +3744,31 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "INTEGRATION",
     "PHYSICAL"
   ],
-  "implementation_refs": [],
-  "test_refs": [],
-  "evidence_refs": [],
-  "status": "MISSING",
-  "blocker": "現行JARVIS UIに当該製品機能を未発見。P5で実装と操作検証が必要。",
+  "implementation_refs": [
+    "src/app/jarvis/ui-preferences.ts",
+    "src/app/jarvis/settings/JarvisLocalSettings.tsx",
+    "src/app/jarvis/themes.css"
+  ],
+  "test_refs": [
+    "tests/jarvis-p5-customization-presets.test.mjs"
+  ],
+  "evidence_refs": [
+    "docs/evidence/1191-ui007-presets.md"
+  ],
+  "status": "PARTIAL",
+  "blocker": "Software implementation and regression evidence are mapped on current main; required PHYSICAL acceptance remains pending.",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P5: 20以上のtheme/persona preset。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "Retain PARTIAL until UI-007 PHYSICAL acceptance is captured; continue independent non-physical JARVIS gaps without treating CI as physical proof.",
   "last_verified_commit": null,
   "delivery_audit": {
-    "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
-    "implementation": "NO_CODE_MAPPED",
+    "main_revision": "f974cc39dc25697e6cf999764e9d695ee753e14d",
+    "implementation": "MAIN_CODE_PRESENT",
     "connection": "RUNTIME_ACCEPTANCE_REQUIRED",
     "physical": "PENDING",
     "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
     "staged_implementation_refs": [],
-    "audit_ref": "docs/evidence/1188-requirements-windows.md"
+    "audit_ref": "docs/evidence/1191-ui007-presets.md"
   }
 }
 ```
