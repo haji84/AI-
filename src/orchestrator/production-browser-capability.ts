@@ -1,0 +1,5 @@
+import{createHash}from "node:crypto";
+export interface BrowserObservation{url:string;title?:string;text:string;capturedAt:string;}
+export interface ProductionBrowserDriver{navigate(url:string):Promise<BrowserObservation>;read():Promise<BrowserObservation>;}
+export interface BrowserEvidence{url:string;capturedAt:string;sha256:string;title?:string;}
+export class ProductionBrowserCapability{private readonly driver:ProductionBrowserDriver;constructor(driver:ProductionBrowserDriver){this.driver=driver}async navigateAndRead(rawUrl:string){const url=new URL(rawUrl);if(url.protocol!=="https:")throw new Error("production browser requires https navigation");await this.driver.navigate(url.toString());const observation=await this.driver.read();if(new URL(observation.url).origin!==url.origin)throw new Error("browser navigated to unexpected origin");const sha256=createHash("sha256").update(observation.text).digest("hex");const evidence:BrowserEvidence={url:observation.url,capturedAt:observation.capturedAt,sha256,...(observation.title===undefined?{}:{title:observation.title})};return{observation,evidence}}}
