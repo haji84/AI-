@@ -1,4 +1,10 @@
-import { JARVIS_MAX_NODES, type JarvisCapability, type JarvisNode, type JarvisTask } from "./types.ts";
+import {
+  JARVIS_MAX_NODES,
+  type JarvisCapability,
+  type JarvisNode,
+  type JarvisNodeKind,
+  type JarvisTask,
+} from "./types.ts";
 
 function hasCapabilities(node: JarvisNode, required: JarvisCapability[]): boolean {
   return required.every((capability) => node.capabilities.includes(capability));
@@ -17,6 +23,21 @@ function nodeScore(node: JarvisNode, task: JarvisTask): number {
   return score;
 }
 
+export interface JarvisFleetGroupSummary {
+  group: string | null;
+  registered: number;
+  ready: number;
+  busy: number;
+  offline: number;
+  needsHuman: number;
+  disabled: number;
+  kinds: Partial<Record<JarvisNodeKind, number>>;
+}
+
+function groupSortKey(group: string | null): string {
+  return group === null ? "\uffff" : group;
+}
+
 export class JarvisFleetManager {
   private readonly nodes = new Map<string, JarvisNode>();
 
@@ -30,8 +51,18 @@ export class JarvisFleetManager {
 
   restore(nodes: JarvisNode[]): void {
     if (nodes.length > JARVIS_MAX_NODES) throw new Error(`JARVIS fleet limit exceeded (${JARVIS_MAX_NODES})`);
+
+    const ids = new Set<string>();
+    for (const node of nodes) {
+      if (ids.has(node.id)) throw new Error(`Duplicate JARVIS node identity in fleet restore: ${node.id}`);
+      ids.add(node.id);
+    }
+
+    const restored = new Map<string, JarvisNode>();
+    for (const node of nodes) restored.set(node.id, structuredClone(node));
+
     this.nodes.clear();
-    for (const node of nodes) this.nodes.set(node.id, structuredClone(node));
+    for (const [nodeId, node] of restored) this.nodes.set(nodeId, node);
   }
 
   unregister(nodeId: string): boolean {
@@ -45,6 +76,40 @@ export class JarvisFleetManager {
 
   list(): JarvisNode[] {
     return [...this.nodes.values()].map((node) => structuredClone(node));
+  }
+
+  listByGroup(group: string | null): JarvisNode[] {
+    return [...this.nodes.values()]
+      .filter((node) => (node.group ?? null) === group)
+      .sort((a, b) => a.id.localeCompare(b.id))
+      .map((node) => structuredClone(node));
+  }
+
+  summarizeGroups(): JarvisFleetGroupSummary[] {
+    const groups = new Map<string | null, JarvisNode[]>();
+    for (const node of this.nodes.values()) {
+      const group = node.group ?? null;
+      const entries = groups.get(group) ?? [];
+      entries.push(node);
+      groups.set(group, entries);
+    }
+
+    return [...groups.entries()]
+      .sort(([a], [b]) => groupSortKey(a).localeCompare(groupSortKey(b)))
+      .map(([group, nodes]) => {
+        const kinds: Partial<Record<JarvisNodeKind, number>> = {};
+        for (const node of nodes) kinds[node.kind] = (kinds[node.kind] ?? 0) + 1;
+        return {
+          group,
+          registered: nodes.length,
+          ready: nodes.filter((node) => node.status === "ready").length,
+          busy: nodes.filter((node) => node.status === "busy").length,
+          offline: nodes.filter((node) => node.status === "offline").length,
+          needsHuman: nodes.filter((node) => node.status === "needs-human" || node.status === "locked").length,
+          disabled: nodes.filter((node) => node.status === "disabled").length,
+          kinds,
+        };
+      });
   }
 
   updateHeartbeat(
