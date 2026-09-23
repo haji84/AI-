@@ -1,0 +1,341 @@
+/* An opt-in layer. Removing data-jarvis-concept restores all legacy preferences. */
+html[data-jarvis-concept] .jarvis-primary-shell {
+  --jarvis-accent: var(--personal-accent);
+  --jarvis-theme-bg: var(--personal-bg);
+  --jarvis-theme-header: var(--personal-panel);
+  --jarvis-theme-panel: var(--personal-panel);
+  --jarvis-theme-text: var(--personal-text);
+  --jarvis-theme-muted: var(--personal-muted);
+  --surface: var(--personal-panel-elevated);
+  color-scheme: var(--personal-mode);
+  background-color: var(--personal-bg);
+  background-image: var(--personal-geometry);
+  background-attachment: scroll;
+  color: var(--personal-text);
+}
+
+/* The work shell has its own older data-theme palette; only this layer overrides it. */
+html[data-jarvis-concept] .jarvis-work-shell {
+  --j-bg: var(--personal-bg);
+  --j-surface: var(--personal-panel);
+  --j-fg: var(--personal-text);
+  --j-muted: var(--personal-muted);
+  --j-accent: var(--personal-accent);
+  --j-border: var(--personal-border);
+  background: transparent;
+  color: var(--personal-text);
+  border-radius: var(--personal-radius);
+}
+
+html[data-jarvis-concept] .jarvis-primary-header,
+html[data-jarvis-concept] .jarvis-connectivity-status,
+html[data-jarvis-concept] .jarvis-display-modes,
+html[data-jarvis-concept] .jarvis-operation-modes {
+  background: var(--personal-panel);
+  color: var(--personal-muted);
+  border-color: var(--personal-border);
+}
+
+html[data-jarvis-concept] .jarvis-primary-shell :where(
+  .panel, .summary-card, .jarvis-settings-card, .jarvis-info-card,
+  .jarvis-command, .jarvis-summary-grid article, .jarvis-stats article,
+  .jarvis-evidence-grid > div, .jarvis-research-list > div,
+  .jarvis-multiview-tile, .jarvis-enrollment-result, .jarvis-teaching-inline,
+  .jarvis-command-search-box, .jarvis-command-search-results,
+  .requirements-record, .requirements-preview, .jarvis-widget-editor,
+  .jarvis-screen-layout-controls, .jarvis-theme-picker
+) {
+  background: var(--personal-panel);
+  border-color: var(--personal-border);
+  color: var(--personal-text);
+  border-radius: var(--personal-radius);
+  box-shadow: 0 8px 26px color-mix(in srgb, var(--personal-text) 5%, transparent);
+}
+
+html[data-jarvis-concept] .jarvis-primary-shell :where(
+  .task-row, .quick-button, .employee-grid span, .jarvis-preference-summary span,
+  .jarvis-remote-placeholder, .requirements-notice
+) {
+  background: var(--personal-panel-elevated);
+  border-color: var(--personal-border);
+  color: var(--personal-text);
+}
+
+html[data-jarvis-concept] .jarvis-primary-shell :where(
+  .jarvis-brand, .jarvis-connectivity-status strong, .jarvis-info-card h2,
+  .jarvis-table td, .jarvis-table td strong, .jarvis-command-search-results a,
+  .current-task-card strong, .jarvis-preference-grid > label,
+  .jarvis-settings-card label, .jarvis-work-header strong, dd
+) { color: var(--personal-text); }
+
+html[data-jarvis-concept] .jarvis-primary-shell :where(
+  .muted, .inline-note, .jarvis-brand small, .jarvis-boundary-note,
+  .jarvis-setting-help, .jarvis-info-card p, .jarvis-info-card li,
+  .jarvis-accessibility-summary, .jarvis-preference-grid small,
+  .jarvis-settings-card legend, .jarvis-connectivity-status small,
+  .jarvis-display-mode-status, .jarvis-research-list small,
+  .jarvis-evidence-grid span, .jarvis-table th, .jarvis-table td small,
+  .jarvis-stats span, .jarvis-stats small, .jarvis-work-status,
+  .jarvis-updated, .jarvis-takeover-row p, .jarvis-takeover-row small,
+  .jarvis-remote-screen small, .jarvis-multiview-tile small,
+  .jarvis-multiview-pager, .jarvis-enrollment-result small, .jarvis-enrollment-result p,
+  .jarvis-command-search-results span, .jarvis-command-search-empty,
+  .jarvis-command-search-boundary, .jarvis-command-search-clear,
+  .summary-card > span, .summary-card small, .task-copy small, .task-meta,
+  .history-list small, .project-list small, .quick-button span,
+  .decision-main p, .gate-message, .approval-grace p, .empty-success p,
+  .command-intro, .command-footer small, .command-safety, dt
+) { color: var(--personal-muted); }
+
+html[data-jarvis-concept] .jarvis-empty { color: var(--personal-muted) !important; }
+
+html[data-jarvis-concept] .jarvis-primary-shell :where(
+  .eyebrow, .section-kicker, .task-id, .jarvis-device-link,
+  .jarvis-evidence-grid strong, .jarvis-preference-summary strong,
+  .jarvis-command-search-icon, .requirements-state, .jarvis-connectivity-status a
+) { color: var(--personal-accent); }
+
+html[data-jarvis-concept] .jarvis-primary-shell :where(input, select, textarea) {
+  background: var(--personal-panel-elevated);
+  border-color: var(--personal-border);
+  color: var(--personal-text);
+  caret-color: var(--personal-accent);
+  accent-color: var(--personal-accent);
+  color-scheme: var(--personal-mode);
+}
+html[data-jarvis-concept] .jarvis-primary-shell :where(option, optgroup) {
+  background: var(--personal-panel-elevated);
+  color: var(--personal-text);
+}
+html[data-jarvis-concept] .jarvis-primary-shell :where(input, textarea)::placeholder {
+  color: var(--personal-muted);
+  opacity: 1;
+}
+html[data-jarvis-concept] .jarvis-primary-shell :where(input, select, textarea):focus {
+  border-color: var(--personal-accent);
+}
+html[data-jarvis-concept] .jarvis-primary-shell :where(button, .button.secondary, .quick-button) {
+  background-color: var(--personal-panel-elevated);
+  border-color: var(--personal-border);
+  color: var(--personal-text);
+}
+html[data-jarvis-concept] .jarvis-primary-shell :where(.jarvis-command button, .command-send) {
+  background: var(--personal-accent);
+  color: var(--personal-accent-text);
+  border-color: var(--personal-accent);
+}
+html[data-jarvis-concept] .jarvis-primary-shell :where(.button.primary) {
+  background: var(--personal-danger);
+  color: var(--personal-bg);
+}
+html[data-jarvis-concept] .jarvis-primary-shell :where(.button.danger-ghost) {
+  background: var(--personal-panel);
+  color: var(--personal-danger);
+  border-color: var(--personal-danger);
+}
+html[data-jarvis-concept] .jarvis-primary-shell :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 3px solid var(--personal-accent);
+  outline-offset: 3px;
+}
+html[data-jarvis-concept] .jarvis-primary-nav a {
+  color: var(--personal-muted);
+  border-radius: min(var(--personal-radius), 12px);
+}
+html[data-jarvis-concept] .jarvis-primary-nav a.active,
+html[data-jarvis-concept] .jarvis-primary-nav a:hover,
+html[data-jarvis-concept] .jarvis-command-search-results a.active,
+html[data-jarvis-concept] .jarvis-command-search-results a:hover,
+html[data-jarvis-concept] .jarvis-display-mode-button[aria-pressed="true"] {
+  color: var(--personal-accent);
+  background: var(--personal-panel-elevated);
+  border-color: var(--personal-accent);
+}
+html[data-jarvis-concept] .jarvis-brand-mark {
+  background: var(--personal-panel-elevated);
+  color: var(--personal-accent);
+  border-color: var(--personal-accent);
+}
+html[data-jarvis-concept] .jarvis-table :where(th, td) { border-color: var(--personal-border); }
+
+/* Status hues remain semantic; the concept does not change state or protected controls. */
+html[data-jarvis-concept] .jarvis-primary-shell :where(
+  .jarvis-alert, .jarvis-takeover-row, .decision-card, .risk-badge,
+  .count-badge, .jarvis-node-status.needs-human, .jarvis-node-status.locked,
+  .text-alert, .alert-kicker, .deadline.overdue
+) {
+  color: var(--personal-danger);
+  border-color: color-mix(in srgb, var(--personal-danger) 55%, var(--personal-border));
+  background-color: var(--personal-panel);
+}
+html[data-jarvis-concept] .jarvis-alert span { color: var(--personal-danger); }
+html[data-jarvis-concept] .jarvis-primary-shell :where(
+  .jarvis-readonly-banner, .jarvis-readonly-banner span, .warning-strip,
+  .warning-strip > strong, .warning-strip span, .text-warn, .deadline.soon
+) {
+  color: var(--personal-warning);
+  background-color: var(--personal-panel);
+  border-color: color-mix(in srgb, var(--personal-warning) 55%, var(--personal-border));
+}
+html[data-jarvis-concept] .jarvis-primary-shell :where(
+  .jarvis-node-status.ready, .empty-success, .empty-state, .control-message,
+  .status-pill, .deadline.normal
+) {
+  color: var(--personal-success);
+  background-color: var(--personal-panel);
+}
+html[data-jarvis-concept] .jarvis-primary-shell :where(
+  .jarvis-node-status.busy, .count-badge.neutral, .operation-badge
+) {
+  color: var(--personal-accent);
+  background-color: var(--personal-panel-elevated);
+}
+html[data-jarvis-concept] .jarvis-node-status.offline { color: var(--personal-muted); }
+
+/* Own components also work before a concept is selected. Each card receives its own
+   manifest variables, so a light preview remains legible within a dark gallery. */
+.personal-concept-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  width: 100%;
+}
+.personal-concept-card,
+html[data-jarvis-concept] .jarvis-primary-shell .personal-concept-card {
+  position: relative;
+  display: grid;
+  align-content: start;
+  gap: 0;
+  min-width: 0;
+  padding: 0;
+  overflow: hidden;
+  text-align: left;
+  font: inherit;
+  border: 1px solid var(--personal-border, #52647a);
+  border-radius: 18px;
+  background: var(--personal-panel, #111d2e);
+  color: var(--personal-text, #f2f7ff);
+  box-shadow: 0 5px 16px #0000000a;
+  cursor: pointer;
+  transition: box-shadow 160ms ease, border-color 160ms ease;
+}
+.personal-concept-card:hover,
+html[data-jarvis-concept] .jarvis-primary-shell .personal-concept-card:hover {
+  border-color: var(--personal-accent, #67e8f9);
+  box-shadow: 0 8px 24px #00000020;
+}
+.personal-concept-card:focus-visible,
+html[data-jarvis-concept] .jarvis-primary-shell .personal-concept-card:focus-visible {
+  outline: 3px solid var(--personal-accent, #67e8f9);
+  outline-offset: 4px;
+}
+.personal-concept-card[aria-pressed="true"],
+html[data-jarvis-concept] .jarvis-primary-shell .personal-concept-card[aria-pressed="true"] {
+  border-color: var(--personal-accent, #67e8f9);
+  box-shadow: 0 0 0 2px var(--personal-accent, #67e8f9);
+}
+.personal-concept-art {
+  display: block;
+  width: 100%;
+  aspect-ratio: 9 / 4;
+  min-height: 140px;
+  background-color: var(--personal-bg, #080f1b);
+  background-image: var(--personal-art, none);
+  background-repeat: no-repeat;
+  /* Slight overscan trims generated atlas dividers; coordinates remain fixed. */
+  background-size: var(--personal-art-size, 220% 340%);
+  background-position: var(--personal-art-position, 0% 0%);
+  pointer-events: none;
+}
+.personal-concept-hero {
+  min-height: 280px;
+  border: 1px solid var(--personal-border, #50627a);
+  border-radius: var(--personal-radius, 20px);
+  overflow: hidden;
+}
+.personal-concept-copy { display: grid; gap: 7px; padding: 16px; }
+.personal-concept-number {
+  color: var(--personal-accent, #67e8f9);
+  font-size: .68rem;
+  font-weight: 800;
+  letter-spacing: .14em;
+  font-variant-numeric: tabular-nums;
+}
+.personal-concept-label { color: var(--personal-text, #f2f7ff); font-size: .96rem; line-height: 1.5; }
+.personal-concept-description { margin: 0; color: var(--personal-muted, #afc0d4); font-size: .76rem; line-height: 1.7; }
+.personal-concept-selected {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: var(--personal-accent, #67e8f9);
+  color: var(--personal-accent-text, #0a101a);
+  font-size: .7rem;
+  font-weight: 800;
+}
+
+/* Explicit accessibility preferences take precedence over decorative palette. */
+html[data-jarvis-concept][data-jarvis-contrast="high"] .jarvis-primary-shell,
+html[data-jarvis-contrast="high"] .jarvis-primary-shell .personal-concept-card {
+  --personal-bg: #080c12 !important;
+  --personal-panel: #080c12 !important;
+  --personal-panel-elevated: #151b24 !important;
+  --personal-text: #ffffff !important;
+  --personal-muted: #e0e8f2 !important;
+  --personal-border: #e0e8f2 !important;
+  --personal-accent: #a4eaff !important;
+  --personal-accent-text: #080c12 !important;
+  --personal-success: #b2f5c2 !important;
+  --personal-warning: #ffe1a6 !important;
+  --personal-danger: #ffc5cc !important;
+  --personal-geometry: none !important;
+  --personal-mode: dark !important;
+}
+html[data-jarvis-concept][data-jarvis-contrast="high"] .jarvis-primary-shell :where(.panel, button, input, select, textarea) {
+  border-color: var(--personal-border) !important;
+}
+html[data-jarvis-concept][data-jarvis-contrast="high"] .jarvis-primary-shell :where(.muted, .jarvis-setting-help, .jarvis-boundary-note) {
+  color: var(--personal-muted) !important;
+}
+html[data-jarvis-concept][data-jarvis-motion="reduced"] .jarvis-primary-shell .personal-concept-card {
+  transition: none;
+}
+
+@media (max-width: 1000px) {
+  .personal-concept-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+}
+@media (max-width: 580px) {
+  .personal-concept-grid { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+  .personal-concept-art { min-height: 130px; }
+  .personal-concept-hero { min-height: 190px; }
+  .personal-concept-copy { padding: 14px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .personal-concept-card { transition: none; }
+}
+@media (prefers-contrast: more) {
+  html[data-jarvis-concept] .jarvis-primary-shell :where(.panel, input, select, textarea, button),
+  .personal-concept-card { border-width: 2px; box-shadow: none; }
+}
+@media (forced-colors: active) {
+  html[data-jarvis-concept] .jarvis-primary-shell,
+  .personal-concept-card,
+  html[data-jarvis-concept] .jarvis-primary-shell .personal-concept-card {
+    --personal-bg: Canvas !important;
+    --personal-panel: Canvas !important;
+    --personal-panel-elevated: Canvas !important;
+    --personal-text: CanvasText !important;
+    --personal-muted: CanvasText !important;
+    --personal-border: ButtonText !important;
+    --personal-accent: LinkText !important;
+    --personal-accent-text: Canvas !important;
+    --personal-success: CanvasText !important;
+    --personal-warning: CanvasText !important;
+    --personal-danger: CanvasText !important;
+    --personal-geometry: none !important;
+    forced-color-adjust: auto;
+  }
+  .personal-concept-art { background-image: none; }
+  .personal-concept-card[aria-pressed="true"],
+html[data-jarvis-concept] .jarvis-primary-shell .personal-concept-card[aria-pressed="true"] { outline: 3px solid Highlight; outline-offset: 2px; }
+}

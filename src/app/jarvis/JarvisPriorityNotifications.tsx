@@ -40,7 +40,7 @@ export default function JarvisPriorityNotifications() {
   );
 
   return (
-    <aside className="panel jarvis-section" aria-label="優先通知" aria-live="polite">
+    <aside className={`panel jarvis-section jarvis-priority-notifications${stats && !error && notifications.length === 0 ? " is-quiet" : ""}`} aria-label="優先通知" aria-live="polite">
       <div className="jarvis-screen-heading compact">
         <div>
           <p className="eyebrow">PRIORITY NOTIFICATIONS</p>

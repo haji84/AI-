@@ -1,4 +1,6 @@
 "use client";
+import { usePersonalUi } from "./PersonalizationProvider";
+
 
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
@@ -33,6 +35,8 @@ function applyStoredPreferences() {
 
 export default function JarvisPrimaryShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const { profile, legacy } = usePersonalUi();
+  const navigation = profile.navOrder.map(key => NAV_ITEMS.find(item => item.key === key)!);
 
   useEffect(() => {
     applyStoredPreferences();
@@ -55,15 +59,18 @@ export default function JarvisPrimaryShell({ children }: { children: ReactNode }
   if (pathname.startsWith("/jarvis/login")) return children;
 
   return (
-    <div className="jarvis-primary-shell">
+    <div className="jarvis-primary-shell" data-personal-nav={legacy ? "top" : profile.navPosition}>
       <a className="jarvis-skip-link" href="#jarvis-main-content">メインコンテンツへ移動</a>
       <header className="jarvis-primary-header">
         <a className="jarvis-brand" href="/jarvis" aria-label="JARVIS ホーム">
           <span className="jarvis-brand-mark" aria-hidden="true">J</span>
           <span><strong>JARVIS</strong><small>COMMAND CENTER</small></span>
         </a>
+
+        <a className="button secondary jarvis-owner-link" href={`/jarvis/login?next=${encodeURIComponent(pathname)}`}>オーナー認証</a>
+      </header>
         <nav className="jarvis-primary-nav" aria-label="JARVIS メインナビゲーション">
-          {NAV_ITEMS.map((item) => {
+          {navigation.map((item) => {
             const active = item.href === "/jarvis"
               ? pathname === "/jarvis"
               : pathname === item.href || pathname.startsWith(`${item.href}/`);
@@ -74,16 +81,17 @@ export default function JarvisPrimaryShell({ children }: { children: ReactNode }
             );
           })}
         </nav>
-        <a className="button secondary jarvis-owner-link" href={`/jarvis/login?next=${encodeURIComponent(pathname)}`}>オーナー認証</a>
-      </header>
       <JarvisConnectivityStatus />
-      <JarvisOperationModeControls />
-      <JarvisDisplayModeControls />
-      <JarvisCommandSearch pathname={pathname} />
+      <details className="personal-shell-tools">
+        <summary>表示・操作設定と検索</summary>
+        <JarvisOperationModeControls />
+        <JarvisDisplayModeControls />
+        <JarvisCommandSearch pathname={pathname} />
+      </details>
       <JarvisPriorityNotifications />
       <JarvisReadOnlyBoundary>
         <main id="jarvis-main-content" className="jarvis-primary-content" tabIndex={-1}>
-          {pathname === "/jarvis" ? <JarvisHomeLayoutEditor /> : null}
+          {pathname === "/jarvis" && legacy ? <JarvisHomeLayoutEditor /> : null}
           {children}
         </main>
       </JarvisReadOnlyBoundary>

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
+import PersonalizationProvider from "./PersonalizationProvider";
 import JarvisPrimaryShell from "./JarvisPrimaryShell";
 import "./jarvis.css";
 import "./shell.css";
@@ -10,6 +11,8 @@ import "./layout-modes.css";
 import "./screen-layout-profiles.css";
 import "./operation-mode.css";
 import "./accessibility-status.css";
+import "./personal-appearance.css";
+import "./personal-workspace.css";
 
 export const metadata: Metadata = {
   title: "JARVIS Commander",
@@ -34,5 +37,5 @@ export const viewport: Viewport = {
 };
 
 export default function JarvisLayout({ children }: { children: ReactNode }) {
-  return <JarvisPrimaryShell>{children}</JarvisPrimaryShell>;
+  return <PersonalizationProvider><JarvisPrimaryShell>{children}</JarvisPrimaryShell></PersonalizationProvider>;
 }

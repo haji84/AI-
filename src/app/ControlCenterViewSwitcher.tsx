@@ -1,12 +1,14 @@
 "use client";
 
 import { ReactNode, useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 
 type ControlCenterView = "dashboard" | "chat";
 
 const STORAGE_KEY = "ai_company_control_center_view_v1";
 
 export default function ControlCenterViewSwitcher({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
   const [view, setView] = useState<ControlCenterView>("dashboard");
 
   useEffect(() => {
@@ -27,6 +29,8 @@ export default function ControlCenterViewSwitcher({ children }: { children: Reac
     }
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
+
+  if (pathname === "/jarvis" || pathname.startsWith("/jarvis/")) return children;
 
   return (
     <div className={`control-center-view view-${view}`}>

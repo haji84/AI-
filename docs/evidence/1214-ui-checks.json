@@ -1,0 +1,61 @@
+{
+  "issue": 1214,
+  "base_commit": "54b5df2a41eaef75e7c40a83474aceb8fc15b3be",
+  "code_commit": null,
+  "at": "2026-09-23T10:11:41.834Z",
+  "environment": "Windows; isolated Next production build and real empty Broker/SQLite; Codex in-app browser",
+  "physical_device_acceptance": false,
+  "production_changed": false,
+  "checks": {
+    "full_tests": {
+      "result": "PASS",
+      "count": 1485
+    },
+    "p8": {
+      "result": "PASS",
+      "count": 331
+    },
+    "lint": "PASS",
+    "build": "PASS",
+    "requirement_audit": {
+      "result": "PASS",
+      "requirements": 340,
+      "surfaces": 488
+    },
+    "browser": {
+      "all_twenty_concepts": "PASS",
+      "local_profiles_isolation_and_reload": "PASS",
+      "navigation_four_edges": "PASS",
+      "panel_arrow_move_add_hide_resize_undo_redo_reset_reload": "PASS",
+      "all_five_routes": "PASS",
+      "viewport_390_and_1440_no_overflow": "PASS",
+      "keyboard_focus_and_enter": "PASS",
+      "high_contrast_and_reduced_motion": "PASS",
+      "read_only_arrow_blocking": "PASS",
+      "native_html5_drag": "INCONCLUSIVE: CUA drag did not reorder in three bounded attempts; movement via arrows passed; drag code and readonly capture guards retained for owner validation",
+      "console_errors": 0
+    }
+  },
+  "assets": [
+    {
+      "file": "public/jarvis/concepts/scenes-a.png",
+      "bytes": 3015882,
+      "sha256": "e89e96ebdc1e27c29adad8ba5c93f74b156b4f2313c5789ea919b3eb16a657a8"
+    },
+    {
+      "file": "public/jarvis/concepts/scenes-b.png",
+      "bytes": 3144745,
+      "sha256": "46b6a8d8308975241ac7a8fc7f7ec8964a47fd6affb07eaa51bc65d0a00d745e"
+    },
+    {
+      "file": "public/jarvis/concepts/scenes-c.png",
+      "bytes": 3275598,
+      "sha256": "dc96515bb994711ea733957e8c3fc5143606ead9153803b4384d09e373f67259"
+    },
+    {
+      "file": "public/jarvis/concepts/scenes-d.png",
+      "bytes": 3199066,
+      "sha256": "61f52fee9eea6073b08d7a90a4dcf54b45678474808f8dcae7343770cec6fbaf"
+    }
+  ]
+}

@@ -1805,43 +1805,55 @@
     },
     {
       "path": "src/app/jarvis/JarvisPrimaryShell.tsx",
-      "sha256": "12783b8adba311b43cc0190cd929b1b48bee2b360e62493a4bc3cae568adaf06",
+      "sha256": "9c17184d1cb95c9ec60361531ab318cce1724746e90e63656064f088588eeef4",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "UI-001",
-        "AUTO-001"
+        "AUTO-001",
+        "UI-011",
+        "UI-014",
+        "UI-026",
+        "UI-027",
+        "UI-032"
       ],
-      "reason": "Single owner front door and navigation shell"
+      "reason": "#1214 reviewed: Profile-controlled fixed navigation order/edge; owner/connectivity/priority surfaces remain outside removable home panels.",
+      "review_ref": "docs/evidence/1214-personal-ui.md"
     },
     {
       "path": "src/app/jarvis/JarvisPriorityNotifications.tsx",
-      "sha256": "35947302cccf9640c3717ceb42864af0e75e6e279c9544b237e273af44dc4e85",
+      "sha256": "c8f51dfc3e9462728ba20a07493f1047de1974aca19f93f737eba5c1a2c4fa10",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
-        "UI-022"
+        "UI-022",
+        "UI-001"
       ],
-      "reason": "Notification priority UI"
+      "reason": "#1214 reviewed: Dedicated scoped class permits appearance styling while retaining the existing notification content and priority/safety path.",
+      "review_ref": "docs/evidence/1214-personal-ui.md"
     },
     {
       "path": "src/app/jarvis/JarvisReadOnlyBoundary.tsx",
-      "sha256": "adc14003d2bd864fd36dd5b01f15880dba3a927198cfc64106f1c01e695935a4",
+      "sha256": "5c1d0af8fba4fcbbdeb2463bf11c1660b85cca69d606aff00162bb166d6e1093",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "UI-023",
         "UI-028",
-        "UI-030"
+        "UI-030",
+        "UI-012"
       ],
-      "reason": "Focus/privacy/read-only operating modes"
+      "reason": "Owner #1214: retain existing read-only enforcement and cover new dashboard drag/drop events; no backend authority change."
     },
     {
       "path": "src/app/jarvis/JarvisWorkShell.tsx",
-      "sha256": "09dfdbb679317968f73916fc969369573a8aba6c2d5d6629d9f52716b84877c5",
+      "sha256": "14026a2b0ee1effe1044825c5ba4f5573a5d91100501d890d934198a85597959",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "UI-001",
-        "AUTO-001"
+        "AUTO-001",
+        "UI-012",
+        "UI-014"
       ],
-      "reason": "Single owner front door and navigation shell"
+      "reason": "#1214 reviewed: Default request, goal, real summary and requirements are placed through the editable home wrapper; underlying work execution contracts remain.",
+      "review_ref": "docs/evidence/1214-personal-ui.md"
     },
     {
       "path": "src/app/jarvis/layout-modes.css",
@@ -1855,13 +1867,18 @@
     },
     {
       "path": "src/app/jarvis/layout.tsx",
-      "sha256": "08e4afa64f7fa3ed568860a8115ca5db205055abac0904c33b5fced02d9c7bbb",
+      "sha256": "5f2ac1d8d86d7bf5dbcabdb7ef1c73e6c2cddf431e0a49d6b7cd3ea62b5ee5dc",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "UI-001",
-        "AUTO-001"
+        "AUTO-001",
+        "UI-005",
+        "UI-006",
+        "UI-008",
+        "UI-011"
       ],
-      "reason": "Single owner front door and navigation shell"
+      "reason": "#1214 reviewed: Provider and opt-in appearance styles connect the browser-local display state across JARVIS routes.",
+      "review_ref": "docs/evidence/1214-personal-ui.md"
     },
     {
       "path": "src/app/jarvis/login/page.tsx",
@@ -2152,13 +2169,136 @@
     },
     {
       "path": "src/app/jarvis/page.tsx",
-      "sha256": "b60a1b6f724b89193f5076d82c542c619be53acc7eaeffb8277c47f5b4fba314",
+      "sha256": "9f99dd9d3a17e8ee416fea930f5aa9cb482ddf45bcc472dcbe742fb432dd5360",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "UI-001",
-        "AUTO-001"
+        "AUTO-001",
+        "UI-027"
       ],
-      "reason": "Single owner front door and navigation shell"
+      "reason": "#1214 reviewed: Existing quick operations remain reachable in a disclosure alongside the personalized work home.",
+      "review_ref": "docs/evidence/1214-personal-ui.md"
+    },
+    {
+      "path": "src/app/jarvis/personal-appearance.css",
+      "sha256": "ad8ad923e96f714b9b4c3b86ef8043eef1227e9b32e94039e66dd91fa3c7e2ae",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-006",
+        "UI-007",
+        "UI-026",
+        "UI-031",
+        "UI-032"
+      ],
+      "reason": "#1214 reviewed: Opt-in theme surfaces and gallery; readable palettes, focus, high contrast, forced colors and reduced motion preserve privacy behavior.",
+      "review_ref": "docs/evidence/1214-personal-ui.md"
+    },
+    {
+      "path": "src/app/jarvis/personal-workspace.css",
+      "sha256": "fdc8385ba3bebe8de65175db3314c2cab661bcee8e465ba01fc8f4cc8db7e6b2",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-001",
+        "UI-011",
+        "UI-013",
+        "UI-026",
+        "UI-027",
+        "UI-031",
+        "UI-032"
+      ],
+      "reason": "#1214 reviewed: Responsive personal home/menu/editor layout and scoped presentation controls; fixed-route access and accessible controls remain.",
+      "review_ref": "docs/evidence/1214-personal-ui.md"
+    },
+    {
+      "path": "src/app/jarvis/PersonalAppearance.tsx",
+      "sha256": "7cdb7d3c1fa762cc2587131ca4d2177b1140829646b646c5fdb8b069535cb339",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-005",
+        "UI-007",
+        "UI-011",
+        "UI-017",
+        "UI-018",
+        "UI-019",
+        "UI-032",
+        "UI-038"
+      ],
+      "reason": "#1214 reviewed: Twenty-concept gallery, named local display profiles, fixed navigation reorder/placement and history/reset controls.",
+      "review_ref": "docs/evidence/1214-personal-ui.md"
+    },
+    {
+      "path": "src/app/jarvis/PersonalDashboard.tsx",
+      "sha256": "979945864bbcc721cdce0de382b730597423f0be5a9351ae9a6640515b036444",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-001",
+        "UI-012",
+        "UI-013",
+        "UI-014",
+        "UI-017",
+        "UI-018",
+        "UI-019",
+        "UI-032",
+        "UI-038"
+      ],
+      "reason": "#1214 reviewed: Bounded default/optional panel registry with drag and arrow movement, widths, hide/add, plain-text note and fixed shortcuts.",
+      "review_ref": "docs/evidence/1214-personal-ui.md"
+    },
+    {
+      "path": "src/app/jarvis/PersonalHero.tsx",
+      "sha256": "1eee5ffeb2a59988d9b542f6baae5613d8a88243740d49e16b97f621b1abf375",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-006",
+        "UI-007",
+        "UI-038"
+      ],
+      "reason": "#1214 reviewed: Decorative fixed local atlas SVG crop and selected-profile hero; it presents no fabricated runtime status.",
+      "review_ref": "docs/evidence/1214-personal-ui.md"
+    },
+    {
+      "path": "src/app/jarvis/personalization-store.ts",
+      "sha256": "a6c7a64429b37325fe5938abbb3087fe06b8f4f4415aae166fef01eed403a8c8",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-005",
+        "UI-007",
+        "UI-011",
+        "UI-012",
+        "UI-013",
+        "UI-014",
+        "UI-017",
+        "UI-018",
+        "UI-019",
+        "UI-031"
+      ],
+      "reason": "#1214 reviewed: Pure bounded profile/panel/history normalization; fixed routes, unique stable IDs and safe storage preserve independent display preferences.",
+      "review_ref": "docs/evidence/1214-personal-ui.md"
+    },
+    {
+      "path": "src/app/jarvis/PersonalizationProvider.tsx",
+      "sha256": "6daea64beed5689de593203056ada97af6897b7916333d69d919a4cefb83c0a1",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-005",
+        "UI-008",
+        "UI-011",
+        "UI-017",
+        "UI-018",
+        "UI-031"
+      ],
+      "reason": "#1214 reviewed: Browser-local state/history persistence, cross-tab sync, separate legacy appearance key and visible read/save failures.",
+      "review_ref": "docs/evidence/1214-personal-ui.md"
+    },
+    {
+      "path": "src/app/jarvis/PersonalLiveSummary.tsx",
+      "sha256": "8f9e7e401d0a48581137baa06f9810a3525ec7e154dc8f4728ae56b0c240767f",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-001"
+      ],
+      "reason": "#1214 reviewed: Read-only actual-state summary with visible loading/error behavior and bounded existing authenticated API polling.",
+      "review_ref": "docs/evidence/1214-personal-ui.md"
     },
     {
       "path": "src/app/jarvis/qa/page.tsx",
@@ -2296,12 +2436,15 @@
     },
     {
       "path": "src/app/jarvis/settings/page.tsx",
-      "sha256": "01d526982eafa09bbf8c23ea58d4e276180421e198fa6443120424a91d68bd50",
+      "sha256": "599477fe026efdbc943d49662a54f6e499946d01d24b314ac0d36dbaf76b888a",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
-        "UI-005"
+        "UI-005",
+        "UI-007",
+        "UI-011"
       ],
-      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+      "reason": "#1214 reviewed: Settings embeds the appearance/profile/menu editor while preserving existing settings sections.",
+      "review_ref": "docs/evidence/1214-personal-ui.md"
     },
     {
       "path": "src/app/jarvis/settings/TrustedDeviceSettings.tsx",
@@ -2472,6 +2615,19 @@
         "UI-010"
       ],
       "reason": "Theme/persona and display preference storage"
+    },
+    {
+      "path": "src/app/jarvis/visual-concepts.ts",
+      "sha256": "a5c7040d8624ab1726d0d7acfc838020e763a89898f5085d9dffa2e4e7289ed6",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-006",
+        "UI-007",
+        "UI-008",
+        "UI-031"
+      ],
+      "reason": "#1214 reviewed: Immutable twenty-concept local art/color manifest and separate root appearance application with safe removal/fallback.",
+      "review_ref": "docs/evidence/1214-personal-ui.md"
     },
     {
       "path": "src/app/jarvis/widget-layout.css",

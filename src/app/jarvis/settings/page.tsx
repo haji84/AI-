@@ -1,3 +1,4 @@
+import PersonalAppearance from "../PersonalAppearance";
 import JarvisAccessibilityControls from "../JarvisAccessibilityControls";
 import JarvisLocalSettings from "./JarvisLocalSettings";
 import JarvisOperatorGuide from "./JarvisOperatorGuide";
@@ -14,6 +15,7 @@ export default function JarvisSettingsPage() {
           <p className="muted">JARVISの表示と操作面を整える。権限や秘密情報を変える設定はHuman Gateの外へ出さない。</p>
         </div>
       </div>
+      <div id="appearance"><PersonalAppearance /></div>
       <JarvisOperatorGuide />
       <TrustedDeviceSettings />
       <JarvisLocalSettings />
