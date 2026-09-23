@@ -85,7 +85,7 @@ export default function MobileCommander() {
         return body.fleet.find((node) => node.status === "ready")?.id ?? body.fleet[0]?.id ?? "";
       });
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "JARVISに接続できません");
+      setError(cause instanceof Error ? cause.message : "GORIQに接続できません");
     }
   }, []);
 
@@ -198,7 +198,7 @@ export default function MobileCommander() {
     <main className="commander-shell">
       <header className="commander-header">
         <div>
-          <div className="commander-kicker">JARVIS COMMANDER</div>
+          <div className="commander-kicker">GORIQ COMMANDER</div>
           <h1>司令塔</h1>
         </div>
         <a className="commander-link" href="/jarvis">管理画面</a>
@@ -206,8 +206,8 @@ export default function MobileCommander() {
 
       {isIos && !standalone && (
         <section className="commander-install">
-          <strong>iPhoneにJARVISを入れる</strong>
-          <span>Safariの共有ボタン →「ホーム画面に追加」→「追加」。以後はホーム画面のJARVISから起動できます。</span>
+          <strong>iPhoneにGORIQを入れる</strong>
+          <span>Safariの共有ボタン →「ホーム画面に追加」→「追加」。以後はホーム画面のGORIQから起動できます。</span>
         </section>
       )}
 
@@ -232,7 +232,7 @@ export default function MobileCommander() {
       </section>
 
       <section className="commander-card">
-        <div className="commander-card-title"><span>JARVISに指示</span></div>
+        <div className="commander-card-title"><span>GORIQに指示</span></div>
         <div className="commander-command-row">
           <input value={command} onChange={(event) => setCommand(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void runSimpleCommand(); }} placeholder="例：スプレッドシート開いて / さっきのやつ / 2番目" />
           <button disabled={busy || !command.trim()} onClick={() => void runSimpleCommand()}>実行</button>
@@ -285,7 +285,7 @@ export default function MobileCommander() {
           </div>
           <div className="commander-command-row compact">
             <input value={notification} onChange={(event) => setNotification(event.target.value)} placeholder="端末へ通知" />
-            <button disabled={busy || !notification.trim()} onClick={() => void sendTask("show-notification", { title: "JARVIS", message: notification.trim() })}>通知</button>
+            <button disabled={busy || !notification.trim()} onClick={() => void sendTask("show-notification", { title: "GORIQ", message: notification.trim() })}>通知</button>
           </div>
         </div>
       </section>
@@ -316,7 +316,7 @@ export default function MobileCommander() {
         </div>
       </section>
 
-      <footer className="commander-footer">JARVIS Commander · iPhone司令塔</footer>
+      <footer className="commander-footer">GORIQ Commander · iPhone司令塔</footer>
     </main>
   );
 }

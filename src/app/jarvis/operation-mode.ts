@@ -1,8 +1,8 @@
 export const JARVIS_OPERATION_MODE_KEY = "jarvis-operation-mode-v1";
 
 export const JARVIS_OPERATION_MODES = [
-  ["standard", "標準", "通常のJARVIS操作"],
-  ["read-only", "読み取り専用", "状態確認とJARVIS内の安全な画面移動だけを許可"],
+  ["standard", "標準", "通常のGORIQ操作"],
+  ["read-only", "読み取り専用", "状態確認とGORIQ内の安全な画面移動だけを許可"],
   ["kiosk", "キオスク", "読み取り専用に加えて補助ナビゲーションを抑える"],
 ] as const;
 

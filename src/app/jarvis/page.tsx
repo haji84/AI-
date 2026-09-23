@@ -1,28 +1,27 @@
 import JarvisConsole from "./JarvisConsole.tsx";
 import JarvisWorkShell from "./JarvisWorkShell.tsx";
 import OwnerLogin from "./OwnerLogin";
+import RemoteConsoleDisclosure from "./RemoteConsoleDisclosure";
+import GoriqIcon, { type GoriqIconName } from "./GoriqIcon";
 import { requireJarvisOwner } from "../api/jarvis/broker.ts";
-
 export const dynamic = "force-dynamic";
-
+const tools: {href:string; label:string; icon:GoriqIconName}[] = [
+  {href:"/jarvis/enroll",label:"端末を追加",icon:"plus"},
+  {href:"/jarvis/teach",label:"操作を教える",icon:"learn"},
+  {href:"/jarvis/recordings",label:"画面の記録",icon:"record"},
+  {href:"/jarvis/mobile",label:"スマホ操作パネル",icon:"devices"},
+  {href:"/jarvis/diagnostics",label:"接続を診断",icon:"shield"},
+  {href:"/jarvis/recovery",label:"復旧状況",icon:"recovery"},
+  {href:"/jarvis/setup",label:"初回セットアップ",icon:"settings"},
+  {href:"/jarvis/qa",label:"URLの順番実行",icon:"tasks"},
+];
 export default async function JarvisPage() {
   if (!await requireJarvisOwner()) return <main className="dashboard-shell"><OwnerLogin /></main>;
-  return (
-    <main className="dashboard-shell">
-      <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginBottom: 10, flexWrap: "wrap" }}>
-        <a className="button" href="/jarvis/mobile">📱 iPhone司令塔</a>
-        <a className="button" href="/jarvis/enroll">＋ 端末を登録</a>
-        <a className="button secondary" href="/jarvis/setup">初回セットアップ</a>
-        <a className="button secondary" href="/jarvis/diagnostics">自己診断</a>
-        <a className="button secondary" href="/jarvis/recovery">Recovery</a>
-        <a className="button secondary" href="/jarvis/recordings">遠隔記録</a>
-        <a className="button secondary" href="/jarvis/qa">2 URL 自動実行</a>
-      </div>
-      <JarvisWorkShell />
-      <details style={{ marginTop: 16 }}>
-        <summary className="button secondary">従来の詳細操作を開く</summary>
-        <JarvisConsole />
-      </details>
-    </main>
-  );
+  return <div className="dashboard-shell goriq-home">
+    <JarvisWorkShell />
+    <details className="goriq-more-tools"><summary><GoriqIcon name="grid" /><span>その他のツール</span><span className="goriq-more-count">{tools.length}</span></summary>
+      <nav aria-label="便利なツール">{tools.map(item=><a key={item.href} href={item.href}><GoriqIcon name={item.icon} /><span>{item.label}</span><GoriqIcon name="arrow" /></a>)}</nav>
+    </details>
+    <RemoteConsoleDisclosure><JarvisConsole /></RemoteConsoleDisclosure>
+  </div>;
 }

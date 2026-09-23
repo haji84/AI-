@@ -23,7 +23,7 @@ const SAFE_TARGETS: SafeTarget[] = [
   { id: "text", label: "文字司令", description: "文字で安全な指示を確認して送信", href: "/jarvis/mobile" },
   { id: "voice", label: "音声司令", description: "Push-to-talkと字幕で確認して送信", href: "/jarvis/mobile/voice" },
   { id: "pointer", label: "傾きポインター", description: "スマホIMUで安全な画面移動を選択", href: "/jarvis/mobile/pointer" },
-  { id: "home", label: "JARVISホーム", description: "司令センターへ戻る", href: "/jarvis" },
+  { id: "home", label: "GORIQホーム", description: "司令センターへ戻る", href: "/jarvis" },
 ];
 
 const STATUS_LABELS: Record<CameraStatus, string> = {
@@ -194,7 +194,7 @@ export default function CameraGestureCommander() {
     <main className="gesture-shell">
       <header className="gesture-header">
         <div>
-          <div className="gesture-kicker">JARVIS LOCAL AIR GESTURE</div>
+          <div className="gesture-kicker">GORIQ LOCAL AIR GESTURE</div>
           <h1>カメラ動きポインター</h1>
         </div>
         <a href="/jarvis/mobile">文字司令へ</a>

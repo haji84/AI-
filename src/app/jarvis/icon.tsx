@@ -23,7 +23,7 @@ export default function Icon() {
           boxShadow: "inset 0 0 80px rgba(84,197,255,.24)",
         }}
       >
-        J
+        G
       </div>
     ),
     size,

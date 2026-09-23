@@ -149,7 +149,7 @@ export default function RecordingHistory() {
         <div>
           <p className="eyebrow">REMOTE ASSIST HISTORY</p>
           <h1>遠隔記録</h1>
-          <p className="muted">ローカル保存のPNGフレーム記録を、オーナー認証されたJARVIS経由だけで再生・ダウンロードします。</p>
+          <p className="muted">ローカル保存のPNGフレーム記録を、オーナー認証されたGORIQ経由だけで再生・ダウンロードします。</p>
         </div>
         <div className="jarvis-toolbar-actions">
           <button className="button secondary" disabled={busy || loading} onClick={() => void refresh()}>更新</button>

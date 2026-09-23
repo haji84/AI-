@@ -22,7 +22,7 @@ export default function AppleIcon() {
           border: "4px solid rgba(130,220,255,.34)",
         }}
       >
-        J
+        G
       </div>
     ),
     size,

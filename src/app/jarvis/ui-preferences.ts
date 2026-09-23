@@ -1,7 +1,7 @@
 export const JARVIS_PREFERENCE_KEY = "jarvis-ui-preferences-v1";
 
 export const JARVIS_THEMES = [
-  ["jarvis", "JARVIS コア"], ["arc", "アーク・リアクター"], ["obsidian", "オブシディアン"], ["cobalt", "コバルト"],
+  ["jarvis", "GORIQ コア"], ["arc", "アーク・リアクター"], ["obsidian", "オブシディアン"], ["cobalt", "コバルト"],
   ["emerald", "エメラルド"], ["amber", "アンバー・オプス"], ["crimson", "クリムゾン"], ["violet", "バイオレット"],
   ["ice", "アイス"], ["solar", "ソーラー"], ["lunar", "ルナー"], ["titan", "タイタン"],
   ["neon", "ネオン・グリッド"], ["stealth", "ステルス"], ["ocean", "オーシャン"], ["forest", "フォレスト"],

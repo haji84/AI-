@@ -36,6 +36,9 @@ test("readonly navigation permits JARVIS inspection but rejects action and exter
 
 test("readonly boundary blocks mutation surfaces without pretending to be backend authorization", () => {
   assert.match(boundary, /onSubmitCapture=\{blockSubmit\}/);
+  for (const event of ["onDragStartCapture", "onDragOverCapture", "onDropCapture"]) {
+    assert.ok(boundary.includes(event + "={blockSubmit}"), "read-only mode must block " + event);
+  }
   assert.match(boundary, /onPointerDownCapture=\{blockRemotePointer\}/);
   assert.match(boundary, /button,input,select,textarea/);
   assert.match(boundary, /\.jarvis-remote-screen,\.jarvis-multiview-shot/);

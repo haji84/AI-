@@ -30,7 +30,7 @@ test("voice and text share the same bounded safe mobile command parser", () => {
   assert.deepEqual(parseSafeMobileCommand("Wi-Fi設定"), { ok: true, task: { type: "launch-settings", payload: { screen: "wifi" } } });
   assert.deepEqual(parseSafeMobileCommand("YouTubeを開いて"), { ok: true, task: { type: "open-app", payload: { packageName: "com.google.android.youtube" } } });
   assert.deepEqual(parseSafeMobileCommand("https://example.com を開いて"), { ok: true, task: { type: "open-url", payload: { url: "https://example.com" } } });
-  assert.deepEqual(parseSafeMobileCommand("通知: テスト"), { ok: true, task: { type: "show-notification", payload: { title: "JARVIS", message: "テスト" } } });
+  assert.deepEqual(parseSafeMobileCommand("通知: テスト"), { ok: true, task: { type: "show-notification", payload: { title: "GORIQ", message: "テスト" } } });
 });
 
 test("shared parser fail-closes protected and unknown instructions for both input modes", () => {

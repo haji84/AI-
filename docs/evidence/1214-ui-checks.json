@@ -1,0 +1,118 @@
+{
+  "issue": 1214,
+  "base_commit": "54b5df2a41eaef75e7c40a83474aceb8fc15b3be",
+  "code_commit": "df2f39b902191b8561fff59ecb2582d1bfa92889",
+  "at": "2026-09-23T11:06:13.404Z",
+  "environment": "Windows; isolated Next production build and real empty Broker/SQLite; Codex in-app browser",
+  "physical_device_acceptance": false,
+  "production_changed": false,
+  "checks": {
+    "full_tests": {
+      "result": "PASS",
+      "count": 1487,
+      "failed": 0,
+      "skipped": 0
+    },
+    "p8": {
+      "result": "PASS",
+      "count": 331,
+      "failed": 0,
+      "skipped": 0
+    },
+    "lint": "PASS",
+    "build": "PASS",
+    "requirement_audit": {
+      "result": "PASS",
+      "requirements": 340,
+      "surfaces": 491
+    },
+    "browser": {
+      "brand_title_home_nav": "PASS",
+      "remote_open_close_reopen_same_hash": "PASS",
+      "composer_focus_and_hidden_panel_restore": "PASS",
+      "tasks_shortcut": "PASS",
+      "search_shortcut_result_navigation": "PASS",
+      "mobile_search_outside_and_close_button": "PASS",
+      "mobile_display_popover_above_search": "PASS",
+      "read_only_composer_blocking": "PASS",
+      "navigation_four_edges": "PASS",
+      "all_five_routes": "PASS",
+      "light_and_dark_palette": "PASS",
+      "viewport_390_and_1440_no_overflow": "PASS",
+      "mobile_nav_targets": "all five 62px height / approximately 66.7px width",
+      "legacy_profile_name_no_false_warning": "PASS",
+      "console_errors": 0,
+      "native_html5_drag": "INCONCLUSIVE: CUA drag did not reorder in three bounded attempts; movement via arrows passed; drag code and readonly capture guards retained for owner validation"
+    }
+  },
+  "assets": [
+    {
+      "file": "public/jarvis/concepts/scenes-a.png",
+      "bytes": 3015882,
+      "sha256": "e89e96ebdc1e27c29adad8ba5c93f74b156b4f2313c5789ea919b3eb16a657a8"
+    },
+    {
+      "file": "public/jarvis/concepts/scenes-b.png",
+      "bytes": 3144745,
+      "sha256": "46b6a8d8308975241ac7a8fc7f7ec8964a47fd6affb07eaa51bc65d0a00d745e"
+    },
+    {
+      "file": "public/jarvis/concepts/scenes-c.png",
+      "bytes": 3275598,
+      "sha256": "dc96515bb994711ea733957e8c3fc5143606ead9153803b4384d09e373f67259"
+    },
+    {
+      "file": "public/jarvis/concepts/scenes-d.png",
+      "bytes": 3199066,
+      "sha256": "61f52fee9eea6073b08d7a90a4dcf54b45678474808f8dcae7343770cec6fbaf"
+    }
+  ],
+  "pull_request": "https://github.com/haji84/AI-/pull/1215",
+  "review": {
+    "status": "PASS_AFTER_FIXES",
+    "notes": "Independent review confirmed all three navigation findings resolved. Local test expectations updated for GORIQ copy and exact structured navigation binding; safety assertions retained."
+  },
+  "previous_revision": {
+    "code_commit": "61f3dc57387c5efc5988dbf0ab933d877698d1e3",
+    "checks": {
+      "full_tests": {
+        "result": "PASS",
+        "count": 1485
+      },
+      "p8": {
+        "result": "PASS",
+        "count": 331
+      },
+      "lint": "PASS",
+      "build": "PASS",
+      "requirement_audit": {
+        "result": "PASS",
+        "requirements": 340,
+        "surfaces": 488
+      },
+      "browser": {
+        "all_twenty_concepts": "PASS",
+        "local_profiles_isolation_and_reload": "PASS",
+        "navigation_four_edges": "PASS",
+        "panel_arrow_move_add_hide_resize_undo_redo_reset_reload": "PASS",
+        "all_five_routes": "PASS",
+        "viewport_390_and_1440_no_overflow": "PASS",
+        "keyboard_focus_and_enter": "PASS",
+        "high_contrast_and_reduced_motion": "PASS",
+        "read_only_arrow_blocking": "PASS",
+        "native_html5_drag": "INCONCLUSIVE: CUA drag did not reorder in three bounded attempts; movement via arrows passed; drag code and readonly capture guards retained for owner validation",
+        "console_errors": 0
+      }
+    }
+  },
+  "screenshots": [
+    {
+      "file": "docs/evidence/1214-goriq-desktop.png",
+      "sha256": "82788b272a23bb771337e4b5a7f3d55e1e500db9054e7509994bfffee339bacd"
+    },
+    {
+      "file": "docs/evidence/1214-goriq-mobile.png",
+      "sha256": "83cd0e8ae06f05e732dc3521d95288647896e2eeb085b0f94076e6568308f453"
+    }
+  ]
+}

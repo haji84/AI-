@@ -3490,7 +3490,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 {
   "id": "UI-001",
   "title": "Home: 24h clock/date/JARVIS status/connectivity/Current Goal/progress/NOW/NEXT/Human Gate/active workers/device health/activity/failures/suggestions",
-  "description": "Home: 24h clock/date/JARVIS status/connectivity/Current Goal/progress/NOW/NEXT/Human Gate/active workers/device health/activity/failures/suggestions。",
+  "description": "Home: 24h clock/date/JARVIS status/connectivity/Current Goal/progress/NOW/NEXT/Human Gate/active workers/device health/activity/failures/suggestions。 #1214: 既定ホームに依頼入力、現在のGoal/状態、実データの端末・タスク概要、仕様・要望を配置し、時計・メモ・固定ルートのショートカットを追加可能とする。認証・接続・優先通知と安全確認へのアクセスは非表示可能なホームパネルから分離する。 #1214オーナー訂正: ホームに端末操作・依頼入力・進捗への常設入口を設ける。遠隔画面は繰り返し表示でき、隠した依頼入力は入口から復帰できる。入口だけでは端末操作・仕事を自動実行しない。",
   "phase": "P5",
   "required_evidence": [
     "CODE",
@@ -3500,15 +3500,28 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   ],
   "implementation_refs": [
     "src/app/jarvis/JarvisConsole.tsx",
-    "src/app/jarvis/jarvis.css"
+    "src/app/jarvis/jarvis.css",
+    "src/app/jarvis/JarvisWorkShell.tsx",
+    "src/app/jarvis/PersonalDashboard.tsx",
+    "src/app/jarvis/PersonalLiveSummary.tsx",
+    "src/app/jarvis/JarvisPrimaryShell.tsx",
+    "src/app/jarvis/JarvisPriorityNotifications.tsx",
+    "src/app/jarvis/page.tsx",
+    "src/app/jarvis/RemoteConsoleDisclosure.tsx",
+    "src/app/jarvis/GoriqIcon.tsx",
+    "src/app/jarvis/goriq-navigation.css"
   ],
-  "test_refs": [],
-  "evidence_refs": [],
+  "test_refs": [
+    "tests/jarvis-personalization-store.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/evidence/1214-personal-ui.md"
+  ],
   "status": "PARTIAL",
-  "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+  "blocker": "#1214候補: ホーム要件全体の情報表示・状態遷移と実機受入は未完了。 PHYSICAL証拠をCODE/UNIT/ブラウザー証拠で代替しない。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P5: Home: 24h clock/date/JARVIS status/connectivity/Current Goal/progress/NOW/NEXT/Human Gate/active workers/device health/activity/failures/suggestions。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "#1214 / PR #1215: GORIQ名称・メニュー候補のexact-head CIを記録し、オーナー実機表示と未確認のドラッグを受入確認する。本番有効化とPHYSICAL要件完了は保留。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -3518,6 +3531,21 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
     "staged_implementation_refs": [],
     "audit_ref": "docs/evidence/1188-requirements-windows.md"
+  },
+  "source_decisions": [
+    "owner-1214-personal-ui",
+    "owner-1214-goriq-menu"
+  ],
+  "candidate_audit": {
+    "issue": "https://github.com/haji84/AI-/issues/1214",
+    "source_main": "54b5df2a41eaef75e7c40a83474aceb8fc15b3be",
+    "implementation": "CANDIDATE_CODE_PRESENT",
+    "physical": "PENDING",
+    "audit_ref": "docs/evidence/1214-personal-ui.md",
+    "pull_request": "https://github.com/haji84/AI-/pull/1215",
+    "local_software_verification": "PASS",
+    "native_drag_acceptance": "INCONCLUSIVE",
+    "code_commit": "df2f39b902191b8561fff59ecb2582d1bfa92889"
   }
 }
 ```
@@ -3660,7 +3688,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 {
   "id": "UI-005",
   "title": "Settings",
-  "description": "Settings。",
+  "description": "Settings。 #1214: 設定画面でブラウザー内の名前付き表示プロフィールを追加・切替し、デザインとメニュー配置を保存できる。表示プロフィールは認証アカウントやクラウド同期プロフィールと区別する。",
   "phase": "P5",
   "required_evidence": [
     "CODE",
@@ -3669,15 +3697,23 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "PHYSICAL"
   ],
   "implementation_refs": [
-    "src/app/jarvis/settings/page.tsx"
+    "src/app/jarvis/settings/page.tsx",
+    "src/app/jarvis/PersonalAppearance.tsx",
+    "src/app/jarvis/PersonalizationProvider.tsx",
+    "src/app/jarvis/personalization-store.ts"
   ],
-  "test_refs": [],
-  "evidence_refs": [],
+  "test_refs": [
+    "tests/jarvis-personalization-store.test.ts",
+    "tests/jarvis-visual-concepts.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/evidence/1214-personal-ui.md"
+  ],
   "status": "PARTIAL",
-  "blocker": "Settings画面のコードはmainに存在。全設定項目の永続化・権限制御・画面からの操作受入証拠が未整理。",
+  "blocker": "#1214候補: 全設定の保存・再読込・権限制御と実機受入は未完了。 PHYSICAL証拠をCODE/UNIT/ブラウザー証拠で代替しない。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "既存Settings画面を再利用し、必要設定ごとに保存・再読込・Owner認証の受入証拠を対応付ける。",
+  "next_action": "#1214 / PR #1215: GORIQ名称・メニュー候補のexact-head CIを記録し、オーナー実機表示と未確認のドラッグを受入確認する。本番有効化とPHYSICAL要件完了は保留。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -3687,6 +3723,20 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
     "staged_implementation_refs": [],
     "audit_ref": "docs/evidence/1188-requirements-windows.md"
+  },
+  "source_decisions": [
+    "owner-1214-personal-ui"
+  ],
+  "candidate_audit": {
+    "issue": "https://github.com/haji84/AI-/issues/1214",
+    "source_main": "54b5df2a41eaef75e7c40a83474aceb8fc15b3be",
+    "implementation": "CANDIDATE_CODE_PRESENT",
+    "physical": "PENDING",
+    "audit_ref": "docs/evidence/1214-personal-ui.md",
+    "pull_request": "https://github.com/haji84/AI-/pull/1215",
+    "local_software_verification": "PASS",
+    "native_drag_acceptance": "INCONCLUSIVE",
+    "code_commit": "df2f39b902191b8561fff59ecb2582d1bfa92889"
   }
 }
 ```
@@ -3697,7 +3747,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 {
   "id": "UI-006",
   "title": "未来的JARVIS表示と可読性の両立",
-  "description": "未来的JARVIS表示と可読性の両立。",
+  "description": "未来的JARVIS表示と可読性の両立。 #1214: 20のアート付き外観は背景構成・配色を変え、本文・入力・カードは読みやすい不透明な面に載せる。人物・AR・都市模型などの装飾画像を実際の機能や稼働状態の証拠として表示しない。 #1214オーナー訂正: 表示名はGORIQ（ゴリック）。PCは説明付きアイコンメニュー、スマホはアイコンとラベル付き下部メニューを既定とする。20候補のテーマを維持する。",
   "phase": "P5",
   "required_evidence": [
     "CODE",
@@ -3707,15 +3757,25 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   ],
   "implementation_refs": [
     "src/app/jarvis/JarvisConsole.tsx",
-    "src/app/jarvis/jarvis.css"
+    "src/app/jarvis/jarvis.css",
+    "src/app/jarvis/visual-concepts.ts",
+    "src/app/jarvis/personal-appearance.css",
+    "src/app/jarvis/PersonalHero.tsx",
+    "src/app/jarvis/PersonalAppearance.tsx",
+    "src/app/jarvis/GoriqIcon.tsx",
+    "src/app/jarvis/goriq-navigation.css"
   ],
-  "test_refs": [],
-  "evidence_refs": [],
+  "test_refs": [
+    "tests/jarvis-visual-concepts.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/evidence/1214-personal-ui.md"
+  ],
   "status": "PARTIAL",
-  "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+  "blocker": "#1214候補: 全ルートの可読性・実機表示と最終統合受入は未完了。 PHYSICAL証拠をCODE/UNIT/ブラウザー証拠で代替しない。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P5: 未来的JARVIS表示と可読性の両立。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "#1214 / PR #1215: GORIQ名称・メニュー候補のexact-head CIを記録し、オーナー実機表示と未確認のドラッグを受入確認する。本番有効化とPHYSICAL要件完了は保留。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -3725,6 +3785,21 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
     "staged_implementation_refs": [],
     "audit_ref": "docs/evidence/1188-requirements-windows.md"
+  },
+  "source_decisions": [
+    "owner-1214-personal-ui",
+    "owner-1214-goriq-menu"
+  ],
+  "candidate_audit": {
+    "issue": "https://github.com/haji84/AI-/issues/1214",
+    "source_main": "54b5df2a41eaef75e7c40a83474aceb8fc15b3be",
+    "implementation": "CANDIDATE_CODE_PRESENT",
+    "physical": "PENDING",
+    "audit_ref": "docs/evidence/1214-personal-ui.md",
+    "pull_request": "https://github.com/haji84/AI-/pull/1215",
+    "local_software_verification": "PASS",
+    "native_drag_acceptance": "INCONCLUSIVE",
+    "code_commit": "df2f39b902191b8561fff59ecb2582d1bfa92889"
   }
 }
 ```
@@ -3735,7 +3810,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 {
   "id": "UI-007",
   "title": "20以上のtheme/persona preset",
-  "description": "20以上のtheme/persona preset。",
+  "description": "20以上のtheme/persona preset。 #1214: 所有者提示の方向性に沿う20の固定ビジュアル候補から表示プロフィールごとに選択できる。既存ペルソナプリセットと独立し、従来外観へ戻せる。",
   "phase": "P5",
   "required_evidence": [
     "CODE",
@@ -3746,19 +3821,27 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   "implementation_refs": [
     "src/app/jarvis/ui-preferences.ts",
     "src/app/jarvis/settings/JarvisLocalSettings.tsx",
-    "src/app/jarvis/themes.css"
+    "src/app/jarvis/themes.css",
+    "src/app/jarvis/visual-concepts.ts",
+    "src/app/jarvis/PersonalAppearance.tsx",
+    "src/app/jarvis/PersonalizationProvider.tsx",
+    "src/app/jarvis/PersonalHero.tsx",
+    "src/app/jarvis/personal-appearance.css"
   ],
   "test_refs": [
-    "tests/jarvis-p5-customization-presets.test.mjs"
+    "tests/jarvis-p5-customization-presets.test.mjs",
+    "tests/jarvis-visual-concepts.test.ts",
+    "tests/jarvis-personalization-store.test.ts"
   ],
   "evidence_refs": [
-    "docs/evidence/1191-ui007-presets.md"
+    "docs/evidence/1191-ui007-presets.md",
+    "docs/evidence/1214-personal-ui.md"
   ],
   "status": "PARTIAL",
-  "blocker": "Software implementation and regression evidence are mapped on current main; required PHYSICAL acceptance remains pending.",
+  "blocker": "#1214候補: 20案の候補実装・隔離ブラウザー適用は確認済みだが、実機受入と最終exact-commit検証は未完了。 PHYSICAL証拠をCODE/UNIT/ブラウザー証拠で代替しない。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "Retain PARTIAL until UI-007 PHYSICAL acceptance is captured; continue independent non-physical JARVIS gaps without treating CI as physical proof.",
+  "next_action": "#1214 / PR #1215: GORIQ名称・メニュー候補のexact-head CIを記録し、オーナー実機表示と未確認のドラッグを受入確認する。本番有効化とPHYSICAL要件完了は保留。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "f974cc39dc25697e6cf999764e9d695ee753e14d",
@@ -3768,6 +3851,20 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
     "staged_implementation_refs": [],
     "audit_ref": "docs/evidence/1191-ui007-presets.md"
+  },
+  "source_decisions": [
+    "owner-1214-personal-ui"
+  ],
+  "candidate_audit": {
+    "issue": "https://github.com/haji84/AI-/issues/1214",
+    "source_main": "54b5df2a41eaef75e7c40a83474aceb8fc15b3be",
+    "implementation": "CANDIDATE_CODE_PRESENT",
+    "physical": "PENDING",
+    "audit_ref": "docs/evidence/1214-personal-ui.md",
+    "pull_request": "https://github.com/haji84/AI-/pull/1215",
+    "local_software_verification": "PASS",
+    "native_drag_acceptance": "INCONCLUSIVE",
+    "code_commit": "df2f39b902191b8561fff59ecb2582d1bfa92889"
   }
 }
 ```
@@ -3778,7 +3875,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 {
   "id": "UI-008",
   "title": "ThemeとPersonaは独立設定",
-  "description": "ThemeとPersonaは独立設定。",
+  "description": "ThemeとPersonaは独立設定。 #1214: 新しいビジュアル候補を選択・解除しても既存Theme/Persona/Voice/Accent設定キーを変更しない。",
   "phase": "P5",
   "required_evidence": [
     "CODE",
@@ -3786,14 +3883,24 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "INTEGRATION",
     "PHYSICAL"
   ],
-  "implementation_refs": [],
-  "test_refs": [],
-  "evidence_refs": [],
-  "status": "MISSING",
-  "blocker": "現行JARVIS UIに当該製品機能を未発見。P5で実装と操作検証が必要。",
+  "implementation_refs": [
+    "src/app/jarvis/ui-preferences.ts",
+    "src/app/jarvis/visual-concepts.ts",
+    "src/app/jarvis/PersonalizationProvider.tsx",
+    "src/app/jarvis/PersonalAppearance.tsx"
+  ],
+  "test_refs": [
+    "tests/jarvis-visual-concepts.test.ts",
+    "tests/jarvis-personalization-store.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/evidence/1214-personal-ui.md"
+  ],
+  "status": "PARTIAL",
+  "blocker": "#1214候補: 独立設定の候補単体証拠は取得済み。既存全設定との統合・実機受入は未完了。 PHYSICAL証拠をCODE/UNIT/ブラウザー証拠で代替しない。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P5: ThemeとPersonaは独立設定。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "#1214 / PR #1215: GORIQ名称・メニュー候補のexact-head CIを記録し、オーナー実機表示と未確認のドラッグを受入確認する。本番有効化とPHYSICAL要件完了は保留。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -3803,6 +3910,20 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
     "staged_implementation_refs": [],
     "audit_ref": "docs/evidence/1188-requirements-windows.md"
+  },
+  "source_decisions": [
+    "owner-1214-personal-ui"
+  ],
+  "candidate_audit": {
+    "issue": "https://github.com/haji84/AI-/issues/1214",
+    "source_main": "54b5df2a41eaef75e7c40a83474aceb8fc15b3be",
+    "implementation": "CANDIDATE_CODE_PRESENT",
+    "physical": "PENDING",
+    "audit_ref": "docs/evidence/1214-personal-ui.md",
+    "pull_request": "https://github.com/haji84/AI-/pull/1215",
+    "local_software_verification": "PASS",
+    "native_drag_acceptance": "INCONCLUSIVE",
+    "code_commit": "df2f39b902191b8561fff59ecb2582d1bfa92889"
   }
 }
 ```
@@ -3883,7 +4004,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 {
   "id": "UI-011",
   "title": "Layoutは独立設定",
-  "description": "Layoutは独立設定。Theme/Persona/Voice/Color/Layoutを独立管理。",
+  "description": "Layoutは独立設定。Theme/Persona/Voice/Color/Layoutを独立管理。 #1214: 表示プロフィールごとに固定5メニューの順番・配置辺とホームパネルの順番・幅を保持し、ビジュアル候補から独立して変更できる。 #1214オーナー訂正: 名称変更後もプロフィールID・配置・個人の名前を保持し、既定名だけ更新する。メニュー配置の変更も継続利用可能。",
   "phase": "P5",
   "required_evidence": [
     "CODE",
@@ -3891,14 +4012,25 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "INTEGRATION",
     "PHYSICAL"
   ],
-  "implementation_refs": [],
-  "test_refs": [],
-  "evidence_refs": [],
-  "status": "MISSING",
-  "blocker": "現行JARVIS UIに当該製品機能を未発見。P5で実装と操作検証が必要。",
+  "implementation_refs": [
+    "src/app/jarvis/personalization-store.ts",
+    "src/app/jarvis/PersonalizationProvider.tsx",
+    "src/app/jarvis/PersonalAppearance.tsx",
+    "src/app/jarvis/PersonalDashboard.tsx",
+    "src/app/jarvis/JarvisPrimaryShell.tsx",
+    "src/app/jarvis/personal-workspace.css"
+  ],
+  "test_refs": [
+    "tests/jarvis-personalization-store.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/evidence/1214-personal-ui.md"
+  ],
+  "status": "PARTIAL",
+  "blocker": "#1214候補: 独立プロフィールは隔離ブラウザーで観測済み。配置変更・再読込の最終統合と実機受入は未完了。 PHYSICAL証拠をCODE/UNIT/ブラウザー証拠で代替しない。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P5: Layoutは独立設定。Theme/Persona/Voice/Color/Layoutを独立管理。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "#1214 / PR #1215: GORIQ名称・メニュー候補のexact-head CIを記録し、オーナー実機表示と未確認のドラッグを受入確認する。本番有効化とPHYSICAL要件完了は保留。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -3908,6 +4040,21 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
     "staged_implementation_refs": [],
     "audit_ref": "docs/evidence/1188-requirements-windows.md"
+  },
+  "source_decisions": [
+    "owner-1214-personal-ui",
+    "owner-1214-goriq-menu"
+  ],
+  "candidate_audit": {
+    "issue": "https://github.com/haji84/AI-/issues/1214",
+    "source_main": "54b5df2a41eaef75e7c40a83474aceb8fc15b3be",
+    "implementation": "CANDIDATE_CODE_PRESENT",
+    "physical": "PENDING",
+    "audit_ref": "docs/evidence/1214-personal-ui.md",
+    "pull_request": "https://github.com/haji84/AI-/pull/1215",
+    "local_software_verification": "PASS",
+    "native_drag_acceptance": "INCONCLUSIVE",
+    "code_commit": "df2f39b902191b8561fff59ecb2582d1bfa92889"
   }
 }
 ```
@@ -3918,7 +4065,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 {
   "id": "UI-012",
   "title": "Widget drag/move",
-  "description": "Widget drag/move。",
+  "description": "Widget drag/move。 #1214: ホームパネルの配置編集はドラッグと前後移動ボタンを備え、選択中プロフィールの画面内グリッド順序を変更する。",
   "phase": "P5",
   "required_evidence": [
     "CODE",
@@ -3926,14 +4073,23 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "INTEGRATION",
     "PHYSICAL"
   ],
-  "implementation_refs": [],
-  "test_refs": [],
-  "evidence_refs": [],
-  "status": "MISSING",
-  "blocker": "現行JARVIS UIに当該製品機能を未発見。P5で実装と操作検証が必要。",
+  "implementation_refs": [
+    "src/app/jarvis/PersonalDashboard.tsx",
+    "src/app/jarvis/personalization-store.ts",
+    "src/app/jarvis/PersonalizationProvider.tsx",
+    "src/app/jarvis/personal-workspace.css"
+  ],
+  "test_refs": [
+    "tests/jarvis-personalization-store.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/evidence/1214-personal-ui.md"
+  ],
+  "status": "PARTIAL",
+  "blocker": "#1214候補: 並べ替えモデルは単体検証済み。ドラッグ・矢印操作の最終ブラウザーと実機受入は未完了。 PHYSICAL証拠をCODE/UNIT/ブラウザー証拠で代替しない。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P5: Widget drag/move。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "#1214 / PR #1215: GORIQ名称・メニュー候補のexact-head CIを記録し、オーナー実機表示と未確認のドラッグを受入確認する。本番有効化とPHYSICAL要件完了は保留。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -3943,6 +4099,20 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
     "staged_implementation_refs": [],
     "audit_ref": "docs/evidence/1188-requirements-windows.md"
+  },
+  "source_decisions": [
+    "owner-1214-personal-ui"
+  ],
+  "candidate_audit": {
+    "issue": "https://github.com/haji84/AI-/issues/1214",
+    "source_main": "54b5df2a41eaef75e7c40a83474aceb8fc15b3be",
+    "implementation": "CANDIDATE_CODE_PRESENT",
+    "physical": "PENDING",
+    "audit_ref": "docs/evidence/1214-personal-ui.md",
+    "pull_request": "https://github.com/haji84/AI-/pull/1215",
+    "local_software_verification": "PASS",
+    "native_drag_acceptance": "INCONCLUSIVE",
+    "code_commit": "df2f39b902191b8561fff59ecb2582d1bfa92889"
   }
 }
 ```
@@ -3953,7 +4123,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 {
   "id": "UI-013",
   "title": "Widget resize",
-  "description": "Widget resize。",
+  "description": "Widget resize。 #1214: ホームパネルは標準幅・広め・全幅から選択でき、狭い画面では収まる幅へ適応する。",
   "phase": "P5",
   "required_evidence": [
     "CODE",
@@ -3961,14 +4131,22 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "INTEGRATION",
     "PHYSICAL"
   ],
-  "implementation_refs": [],
-  "test_refs": [],
-  "evidence_refs": [],
-  "status": "MISSING",
-  "blocker": "現行JARVIS UIに当該製品機能を未発見。P5で実装と操作検証が必要。",
+  "implementation_refs": [
+    "src/app/jarvis/PersonalDashboard.tsx",
+    "src/app/jarvis/personalization-store.ts",
+    "src/app/jarvis/personal-workspace.css"
+  ],
+  "test_refs": [
+    "tests/jarvis-personalization-store.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/evidence/1214-personal-ui.md"
+  ],
+  "status": "PARTIAL",
+  "blocker": "#1214候補: 幅保存モデルは単体検証済み。レスポンシブ実表示と実機受入は未完了。 PHYSICAL証拠をCODE/UNIT/ブラウザー証拠で代替しない。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P5: Widget resize。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "#1214 / PR #1215: GORIQ名称・メニュー候補のexact-head CIを記録し、オーナー実機表示と未確認のドラッグを受入確認する。本番有効化とPHYSICAL要件完了は保留。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -3978,6 +4156,20 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
     "staged_implementation_refs": [],
     "audit_ref": "docs/evidence/1188-requirements-windows.md"
+  },
+  "source_decisions": [
+    "owner-1214-personal-ui"
+  ],
+  "candidate_audit": {
+    "issue": "https://github.com/haji84/AI-/issues/1214",
+    "source_main": "54b5df2a41eaef75e7c40a83474aceb8fc15b3be",
+    "implementation": "CANDIDATE_CODE_PRESENT",
+    "physical": "PENDING",
+    "audit_ref": "docs/evidence/1214-personal-ui.md",
+    "pull_request": "https://github.com/haji84/AI-/pull/1215",
+    "local_software_verification": "PASS",
+    "native_drag_acceptance": "INCONCLUSIVE",
+    "code_commit": "df2f39b902191b8561fff59ecb2582d1bfa92889"
   }
 }
 ```
@@ -3988,7 +4180,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 {
   "id": "UI-014",
   "title": "Widget hide/show",
-  "description": "Widget hide/show。",
+  "description": "Widget hide/show。 #1214: 既定パネルを非表示にし、対応する既定パネル・時計・メモ・固定ルートのショートカットを追加できる。認証・接続・安全確認へのアクセスを取り除かない。",
   "phase": "P5",
   "required_evidence": [
     "CODE",
@@ -3996,14 +4188,23 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "INTEGRATION",
     "PHYSICAL"
   ],
-  "implementation_refs": [],
-  "test_refs": [],
-  "evidence_refs": [],
-  "status": "MISSING",
-  "blocker": "現行JARVIS UIに当該製品機能を未発見。P5で実装と操作検証が必要。",
+  "implementation_refs": [
+    "src/app/jarvis/PersonalDashboard.tsx",
+    "src/app/jarvis/personalization-store.ts",
+    "src/app/jarvis/JarvisPrimaryShell.tsx",
+    "src/app/jarvis/JarvisWorkShell.tsx"
+  ],
+  "test_refs": [
+    "tests/jarvis-personalization-store.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/evidence/1214-personal-ui.md"
+  ],
+  "status": "PARTIAL",
+  "blocker": "#1214候補: 追加・非表示・空配置モデルは単体検証済み。保護された画面への到達性を含む実機受入は未完了。 PHYSICAL証拠をCODE/UNIT/ブラウザー証拠で代替しない。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P5: Widget hide/show。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "#1214 / PR #1215: GORIQ名称・メニュー候補のexact-head CIを記録し、オーナー実機表示と未確認のドラッグを受入確認する。本番有効化とPHYSICAL要件完了は保留。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -4013,6 +4214,20 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
     "staged_implementation_refs": [],
     "audit_ref": "docs/evidence/1188-requirements-windows.md"
+  },
+  "source_decisions": [
+    "owner-1214-personal-ui"
+  ],
+  "candidate_audit": {
+    "issue": "https://github.com/haji84/AI-/issues/1214",
+    "source_main": "54b5df2a41eaef75e7c40a83474aceb8fc15b3be",
+    "implementation": "CANDIDATE_CODE_PRESENT",
+    "physical": "PENDING",
+    "audit_ref": "docs/evidence/1214-personal-ui.md",
+    "pull_request": "https://github.com/haji84/AI-/pull/1215",
+    "local_software_verification": "PASS",
+    "native_drag_acceptance": "INCONCLUSIVE",
+    "code_commit": "df2f39b902191b8561fff59ecb2582d1bfa92889"
   }
 }
 ```
@@ -4093,7 +4308,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 {
   "id": "UI-017",
   "title": "Undo",
-  "description": "Undo。",
+  "description": "Undo。 #1214: 表示プロフィールの編集を、上限のある履歴から元に戻せる。",
   "phase": "P5",
   "required_evidence": [
     "CODE",
@@ -4101,14 +4316,23 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "INTEGRATION",
     "PHYSICAL"
   ],
-  "implementation_refs": [],
-  "test_refs": [],
-  "evidence_refs": [],
-  "status": "MISSING",
-  "blocker": "現行JARVIS UIに当該製品機能を未発見。P5で実装と操作検証が必要。",
+  "implementation_refs": [
+    "src/app/jarvis/personalization-store.ts",
+    "src/app/jarvis/PersonalizationProvider.tsx",
+    "src/app/jarvis/PersonalDashboard.tsx",
+    "src/app/jarvis/PersonalAppearance.tsx"
+  ],
+  "test_refs": [
+    "tests/jarvis-personalization-store.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/evidence/1214-personal-ui.md"
+  ],
+  "status": "PARTIAL",
+  "blocker": "#1214候補: 履歴モデルは単体検証済み。実操作と実機受入は未完了。 PHYSICAL証拠をCODE/UNIT/ブラウザー証拠で代替しない。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P5: Undo。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "#1214 / PR #1215: GORIQ名称・メニュー候補のexact-head CIを記録し、オーナー実機表示と未確認のドラッグを受入確認する。本番有効化とPHYSICAL要件完了は保留。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -4118,6 +4342,20 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
     "staged_implementation_refs": [],
     "audit_ref": "docs/evidence/1188-requirements-windows.md"
+  },
+  "source_decisions": [
+    "owner-1214-personal-ui"
+  ],
+  "candidate_audit": {
+    "issue": "https://github.com/haji84/AI-/issues/1214",
+    "source_main": "54b5df2a41eaef75e7c40a83474aceb8fc15b3be",
+    "implementation": "CANDIDATE_CODE_PRESENT",
+    "physical": "PENDING",
+    "audit_ref": "docs/evidence/1214-personal-ui.md",
+    "pull_request": "https://github.com/haji84/AI-/pull/1215",
+    "local_software_verification": "PASS",
+    "native_drag_acceptance": "INCONCLUSIVE",
+    "code_commit": "df2f39b902191b8561fff59ecb2582d1bfa92889"
   }
 }
 ```
@@ -4128,7 +4366,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 {
   "id": "UI-018",
   "title": "Redo",
-  "description": "Redo。",
+  "description": "Redo。 #1214: 元に戻した表示プロフィール編集をやり直せる。新しい編集後は古いやり直し分岐を維持しない。",
   "phase": "P5",
   "required_evidence": [
     "CODE",
@@ -4136,14 +4374,23 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "INTEGRATION",
     "PHYSICAL"
   ],
-  "implementation_refs": [],
-  "test_refs": [],
-  "evidence_refs": [],
-  "status": "MISSING",
-  "blocker": "現行JARVIS UIに当該製品機能を未発見。P5で実装と操作検証が必要。",
+  "implementation_refs": [
+    "src/app/jarvis/personalization-store.ts",
+    "src/app/jarvis/PersonalizationProvider.tsx",
+    "src/app/jarvis/PersonalDashboard.tsx",
+    "src/app/jarvis/PersonalAppearance.tsx"
+  ],
+  "test_refs": [
+    "tests/jarvis-personalization-store.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/evidence/1214-personal-ui.md"
+  ],
+  "status": "PARTIAL",
+  "blocker": "#1214候補: 履歴モデルは単体検証済み。実操作と実機受入は未完了。 PHYSICAL証拠をCODE/UNIT/ブラウザー証拠で代替しない。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P5: Redo。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "#1214 / PR #1215: GORIQ名称・メニュー候補のexact-head CIを記録し、オーナー実機表示と未確認のドラッグを受入確認する。本番有効化とPHYSICAL要件完了は保留。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -4153,6 +4400,20 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
     "staged_implementation_refs": [],
     "audit_ref": "docs/evidence/1188-requirements-windows.md"
+  },
+  "source_decisions": [
+    "owner-1214-personal-ui"
+  ],
+  "candidate_audit": {
+    "issue": "https://github.com/haji84/AI-/issues/1214",
+    "source_main": "54b5df2a41eaef75e7c40a83474aceb8fc15b3be",
+    "implementation": "CANDIDATE_CODE_PRESENT",
+    "physical": "PENDING",
+    "audit_ref": "docs/evidence/1214-personal-ui.md",
+    "pull_request": "https://github.com/haji84/AI-/pull/1215",
+    "local_software_verification": "PASS",
+    "native_drag_acceptance": "INCONCLUSIVE",
+    "code_commit": "df2f39b902191b8561fff59ecb2582d1bfa92889"
   }
 }
 ```
@@ -4163,7 +4424,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 {
   "id": "UI-019",
   "title": "Reset",
-  "description": "Reset。",
+  "description": "Reset。 #1214: 選択中の表示プロフィールのホーム、またはホームとメニュー配置を初期配置へ戻せる。別プロフィールを変更しない。",
   "phase": "P5",
   "required_evidence": [
     "CODE",
@@ -4171,14 +4432,23 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "INTEGRATION",
     "PHYSICAL"
   ],
-  "implementation_refs": [],
-  "test_refs": [],
-  "evidence_refs": [],
-  "status": "MISSING",
-  "blocker": "現行JARVIS UIに当該製品機能を未発見。P5で実装と操作検証が必要。",
+  "implementation_refs": [
+    "src/app/jarvis/personalization-store.ts",
+    "src/app/jarvis/PersonalizationProvider.tsx",
+    "src/app/jarvis/PersonalDashboard.tsx",
+    "src/app/jarvis/PersonalAppearance.tsx"
+  ],
+  "test_refs": [
+    "tests/jarvis-personalization-store.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/evidence/1214-personal-ui.md"
+  ],
+  "status": "PARTIAL",
+  "blocker": "#1214候補: 既定値とプロフィール分離モデルは単体検証済み。リセット操作と実機受入は未完了。 PHYSICAL証拠をCODE/UNIT/ブラウザー証拠で代替しない。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P5: Reset。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "#1214 / PR #1215: GORIQ名称・メニュー候補のexact-head CIを記録し、オーナー実機表示と未確認のドラッグを受入確認する。本番有効化とPHYSICAL要件完了は保留。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -4188,6 +4458,20 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
     "staged_implementation_refs": [],
     "audit_ref": "docs/evidence/1188-requirements-windows.md"
+  },
+  "source_decisions": [
+    "owner-1214-personal-ui"
+  ],
+  "candidate_audit": {
+    "issue": "https://github.com/haji84/AI-/issues/1214",
+    "source_main": "54b5df2a41eaef75e7c40a83474aceb8fc15b3be",
+    "implementation": "CANDIDATE_CODE_PRESENT",
+    "physical": "PENDING",
+    "audit_ref": "docs/evidence/1214-personal-ui.md",
+    "pull_request": "https://github.com/haji84/AI-/pull/1215",
+    "local_software_verification": "PASS",
+    "native_drag_acceptance": "INCONCLUSIVE",
+    "code_commit": "df2f39b902191b8561fff59ecb2582d1bfa92889"
   }
 }
 ```
@@ -4236,7 +4520,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 {
   "id": "UI-021",
   "title": "Universal Search",
-  "description": "Universal Search。",
+  "description": "Universal Search。 #1214オーナー訂正: 検索入口を常設し、画面移動だけを行う。タッチで閉じる操作と外側タップを提供する。",
   "phase": "P5",
   "required_evidence": [
     "CODE",
@@ -4244,14 +4528,19 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "INTEGRATION",
     "PHYSICAL"
   ],
-  "implementation_refs": [],
+  "implementation_refs": [
+    "src/app/jarvis/JarvisCommandSearch.tsx",
+    "src/app/jarvis/JarvisPrimaryShell.tsx"
+  ],
   "test_refs": [],
-  "evidence_refs": [],
+  "evidence_refs": [
+    "docs/evidence/1214-personal-ui.md"
+  ],
   "status": "MISSING",
   "blocker": "現行JARVIS UIに当該製品機能を未発見。P5で実装と操作検証が必要。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P5: Universal Search。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "#1214 / PR #1215: GORIQ名称・メニュー候補のexact-head CIを記録し、オーナー実機表示と未確認のドラッグを受入確認する。本番有効化とPHYSICAL要件完了は保留。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -4261,6 +4550,19 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
     "staged_implementation_refs": [],
     "audit_ref": "docs/evidence/1188-requirements-windows.md"
+  },
+  "source_decisions": [
+    "owner-1214-goriq-menu"
+  ],
+  "candidate_audit": {
+    "issue": "https://github.com/haji84/AI-/issues/1214",
+    "source_main": "54b5df2a41eaef75e7c40a83474aceb8fc15b3be",
+    "implementation": "CANDIDATE_CODE_PRESENT",
+    "physical": "PENDING",
+    "audit_ref": "docs/evidence/1214-personal-ui.md",
+    "pull_request": "https://github.com/haji84/AI-/pull/1215",
+    "local_software_verification": "PASS",
+    "code_commit": "df2f39b902191b8561fff59ecb2582d1bfa92889"
   }
 }
 ```
@@ -4411,7 +4713,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 {
   "id": "UI-026",
   "title": "Mobile Mode",
-  "description": "Mobile Mode。",
+  "description": "Mobile Mode。 #1214: スマホ幅では左右メニューを下部に適応し、パネルと編集コントロールを画面内に収める。 #1214オーナー訂正: アイコンとラベル付き下部メニュー、指で押せる主要操作と表示設定を提供する。",
   "phase": "P5",
   "required_evidence": [
     "CODE",
@@ -4421,15 +4723,24 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   ],
   "implementation_refs": [
     "src/app/jarvis/JarvisConsole.tsx",
-    "src/app/jarvis/jarvis.css"
+    "src/app/jarvis/jarvis.css",
+    "src/app/jarvis/personal-workspace.css",
+    "src/app/jarvis/personal-appearance.css",
+    "src/app/jarvis/JarvisPrimaryShell.tsx",
+    "src/app/jarvis/PersonalDashboard.tsx",
+    "src/app/jarvis/goriq-navigation.css"
   ],
-  "test_refs": [],
-  "evidence_refs": [],
+  "test_refs": [
+    "tests/jarvis-personalization-store.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/evidence/1214-personal-ui.md"
+  ],
   "status": "PARTIAL",
-  "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+  "blocker": "#1214候補: レスポンシブ候補コードは実装済み。狭い画面の最終ブラウザーと物理端末受入は未完了。 PHYSICAL証拠をCODE/UNIT/ブラウザー証拠で代替しない。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P5: Mobile Mode。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "#1214 / PR #1215: GORIQ名称・メニュー候補のexact-head CIを記録し、オーナー実機表示と未確認のドラッグを受入確認する。本番有効化とPHYSICAL要件完了は保留。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -4439,6 +4750,21 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
     "staged_implementation_refs": [],
     "audit_ref": "docs/evidence/1188-requirements-windows.md"
+  },
+  "source_decisions": [
+    "owner-1214-personal-ui",
+    "owner-1214-goriq-menu"
+  ],
+  "candidate_audit": {
+    "issue": "https://github.com/haji84/AI-/issues/1214",
+    "source_main": "54b5df2a41eaef75e7c40a83474aceb8fc15b3be",
+    "implementation": "CANDIDATE_CODE_PRESENT",
+    "physical": "PENDING",
+    "audit_ref": "docs/evidence/1214-personal-ui.md",
+    "pull_request": "https://github.com/haji84/AI-/pull/1215",
+    "local_software_verification": "PASS",
+    "native_drag_acceptance": "INCONCLUSIVE",
+    "code_commit": "df2f39b902191b8561fff59ecb2582d1bfa92889"
   }
 }
 ```
@@ -4449,7 +4775,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 {
   "id": "UI-027",
   "title": "Adaptive Layout",
-  "description": "Adaptive Layout。",
+  "description": "Adaptive Layout。 #1214: デスクトップの上下左右メニュー配置とレスポンシブなホームグリッドを、プロフィールの順番を保って画面幅へ適応させる。",
   "phase": "P5",
   "required_evidence": [
     "CODE",
@@ -4459,15 +4785,23 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   ],
   "implementation_refs": [
     "src/app/jarvis/JarvisConsole.tsx",
-    "src/app/jarvis/jarvis.css"
+    "src/app/jarvis/jarvis.css",
+    "src/app/jarvis/personal-workspace.css",
+    "src/app/jarvis/personalization-store.ts",
+    "src/app/jarvis/JarvisPrimaryShell.tsx",
+    "src/app/jarvis/PersonalDashboard.tsx"
   ],
-  "test_refs": [],
-  "evidence_refs": [],
+  "test_refs": [
+    "tests/jarvis-personalization-store.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/evidence/1214-personal-ui.md"
+  ],
   "status": "PARTIAL",
-  "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+  "blocker": "#1214候補: 配置候補コードとモデルは実装済み。全配置・幅の統合と実機受入は未完了。 PHYSICAL証拠をCODE/UNIT/ブラウザー証拠で代替しない。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P5: Adaptive Layout。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "#1214 / PR #1215: GORIQ名称・メニュー候補のexact-head CIを記録し、オーナー実機表示と未確認のドラッグを受入確認する。本番有効化とPHYSICAL要件完了は保留。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -4477,6 +4811,20 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
     "staged_implementation_refs": [],
     "audit_ref": "docs/evidence/1188-requirements-windows.md"
+  },
+  "source_decisions": [
+    "owner-1214-personal-ui"
+  ],
+  "candidate_audit": {
+    "issue": "https://github.com/haji84/AI-/issues/1214",
+    "source_main": "54b5df2a41eaef75e7c40a83474aceb8fc15b3be",
+    "implementation": "CANDIDATE_CODE_PRESENT",
+    "physical": "PENDING",
+    "audit_ref": "docs/evidence/1214-personal-ui.md",
+    "pull_request": "https://github.com/haji84/AI-/pull/1215",
+    "local_software_verification": "PASS",
+    "native_drag_acceptance": "INCONCLUSIVE",
+    "code_commit": "df2f39b902191b8561fff59ecb2582d1bfa92889"
   }
 }
 ```
@@ -4592,7 +4940,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 {
   "id": "UI-031",
   "title": "Accessibility",
-  "description": "Accessibility。",
+  "description": "Accessibility。 #1214: 外観選択後も高コントラスト・動作抑制・フォーカス表示・プライバシー表示を尊重し、保存失敗を明示する。",
   "phase": "P5",
   "required_evidence": [
     "CODE",
@@ -4602,15 +4950,27 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   ],
   "implementation_refs": [
     "src/app/jarvis/JarvisConsole.tsx",
-    "src/app/jarvis/jarvis.css"
+    "src/app/jarvis/jarvis.css",
+    "src/app/jarvis/personal-appearance.css",
+    "src/app/jarvis/personal-workspace.css",
+    "src/app/jarvis/visual-concepts.ts",
+    "src/app/jarvis/PersonalizationProvider.tsx",
+    "src/app/jarvis/PersonalDashboard.tsx",
+    "src/app/jarvis/PersonalAppearance.tsx"
   ],
-  "test_refs": [],
-  "evidence_refs": [],
+  "test_refs": [
+    "tests/jarvis-visual-concepts.test.ts",
+    "tests/jarvis-personalization-store.test.ts",
+    "tests/jarvis-display-modes.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/evidence/1214-personal-ui.md"
+  ],
   "status": "PARTIAL",
-  "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+  "blocker": "#1214候補: 配色比・安全な保存モデルは単体検証済み。支援機能を含む最終統合と実機受入は未完了。 PHYSICAL証拠をCODE/UNIT/ブラウザー証拠で代替しない。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P5: Accessibility。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "#1214 / PR #1215: GORIQ名称・メニュー候補のexact-head CIを記録し、オーナー実機表示と未確認のドラッグを受入確認する。本番有効化とPHYSICAL要件完了は保留。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -4620,6 +4980,20 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
     "staged_implementation_refs": [],
     "audit_ref": "docs/evidence/1188-requirements-windows.md"
+  },
+  "source_decisions": [
+    "owner-1214-personal-ui"
+  ],
+  "candidate_audit": {
+    "issue": "https://github.com/haji84/AI-/issues/1214",
+    "source_main": "54b5df2a41eaef75e7c40a83474aceb8fc15b3be",
+    "implementation": "CANDIDATE_CODE_PRESENT",
+    "physical": "PENDING",
+    "audit_ref": "docs/evidence/1214-personal-ui.md",
+    "pull_request": "https://github.com/haji84/AI-/pull/1215",
+    "local_software_verification": "PASS",
+    "native_drag_acceptance": "INCONCLUSIVE",
+    "code_commit": "df2f39b902191b8561fff59ecb2582d1bfa92889"
   }
 }
 ```
@@ -4630,7 +5004,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 {
   "id": "UI-032",
   "title": "Keyboard navigation",
-  "description": "Keyboard navigation。",
+  "description": "Keyboard navigation。 #1214: デザイン選択・メニュー順序・パネル移動と幅変更・追加/非表示・履歴操作はネイティブなボタン/選択肢で操作でき、ドラッグのみを要求しない。 #1214オーナー訂正: GORIQメニューをキーボードで操作でき、Ctrl/Cmd+Kで常設検索へ移動できる。",
   "phase": "P5",
   "required_evidence": [
     "CODE",
@@ -4640,15 +5014,25 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   ],
   "implementation_refs": [
     "src/app/jarvis/JarvisConsole.tsx",
-    "src/app/jarvis/jarvis.css"
+    "src/app/jarvis/jarvis.css",
+    "src/app/jarvis/PersonalDashboard.tsx",
+    "src/app/jarvis/PersonalAppearance.tsx",
+    "src/app/jarvis/personal-appearance.css",
+    "src/app/jarvis/JarvisPrimaryShell.tsx",
+    "src/app/jarvis/JarvisCommandSearch.tsx"
   ],
-  "test_refs": [],
-  "evidence_refs": [],
+  "test_refs": [
+    "tests/jarvis-personalization-store.test.ts",
+    "tests/jarvis-visual-concepts.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/evidence/1214-personal-ui.md"
+  ],
   "status": "PARTIAL",
-  "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+  "blocker": "#1214候補: キーボード操作用コントロールは実装済み。フォーカス順・全操作と実機受入は未完了。 PHYSICAL証拠をCODE/UNIT/ブラウザー証拠で代替しない。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P5: Keyboard navigation。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "#1214 / PR #1215: GORIQ名称・メニュー候補のexact-head CIを記録し、オーナー実機表示と未確認のドラッグを受入確認する。本番有効化とPHYSICAL要件完了は保留。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -4658,6 +5042,21 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
     "staged_implementation_refs": [],
     "audit_ref": "docs/evidence/1188-requirements-windows.md"
+  },
+  "source_decisions": [
+    "owner-1214-personal-ui",
+    "owner-1214-goriq-menu"
+  ],
+  "candidate_audit": {
+    "issue": "https://github.com/haji84/AI-/issues/1214",
+    "source_main": "54b5df2a41eaef75e7c40a83474aceb8fc15b3be",
+    "implementation": "CANDIDATE_CODE_PRESENT",
+    "physical": "PENDING",
+    "audit_ref": "docs/evidence/1214-personal-ui.md",
+    "pull_request": "https://github.com/haji84/AI-/pull/1215",
+    "local_software_verification": "PASS",
+    "native_drag_acceptance": "INCONCLUSIVE",
+    "code_commit": "df2f39b902191b8561fff59ecb2582d1bfa92889"
   }
 }
 ```
@@ -4856,7 +5255,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 {
   "id": "UI-038",
   "title": "Japanese-first UI",
-  "description": "Japanese-first UI。",
+  "description": "Japanese-first UI。 #1214: 20案の説明、プロフィール・メニュー・ホーム配置編集、保存エラーを日本語主体で表示する。 #1214オーナー訂正: Web画面・メタデータ・PWA表示名はGORIQ（ゴリック）。既存/jarvisルート・保存キー・端末アプリID・署名/認証プロトコルは互換性のため保持する。",
   "phase": "P5",
   "required_evidence": [
     "CODE",
@@ -4866,15 +5265,31 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   ],
   "implementation_refs": [
     "src/app/jarvis/JarvisConsole.tsx",
-    "src/app/jarvis/jarvis.css"
+    "src/app/jarvis/jarvis.css",
+    "src/app/jarvis/PersonalAppearance.tsx",
+    "src/app/jarvis/PersonalDashboard.tsx",
+    "src/app/jarvis/personalization-store.ts",
+    "src/app/jarvis/visual-concepts.ts",
+    "src/app/jarvis/PersonalizationProvider.tsx",
+    "src/app/jarvis/PersonalHero.tsx",
+    "src/app/jarvis/PersonalLiveSummary.tsx",
+    "src/app/jarvis/layout.tsx",
+    "src/app/jarvis/manifest.ts",
+    "src/app/jarvis/icon.tsx",
+    "src/app/jarvis/apple-icon.tsx"
   ],
-  "test_refs": [],
-  "evidence_refs": [],
+  "test_refs": [
+    "tests/jarvis-personalization-store.test.ts",
+    "tests/jarvis-visual-concepts.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/evidence/1214-personal-ui.md"
+  ],
   "status": "PARTIAL",
-  "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+  "blocker": "#1214候補: 候補UIの日本語文言は実装済み。全画面の表示確認と実機受入は未完了。 PHYSICAL証拠をCODE/UNIT/ブラウザー証拠で代替しない。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P5: Japanese-first UI。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "#1214 / PR #1215: GORIQ名称・メニュー候補のexact-head CIを記録し、オーナー実機表示と未確認のドラッグを受入確認する。本番有効化とPHYSICAL要件完了は保留。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -4884,6 +5299,21 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
     "staged_implementation_refs": [],
     "audit_ref": "docs/evidence/1188-requirements-windows.md"
+  },
+  "source_decisions": [
+    "owner-1214-personal-ui",
+    "owner-1214-goriq-menu"
+  ],
+  "candidate_audit": {
+    "issue": "https://github.com/haji84/AI-/issues/1214",
+    "source_main": "54b5df2a41eaef75e7c40a83474aceb8fc15b3be",
+    "implementation": "CANDIDATE_CODE_PRESENT",
+    "physical": "PENDING",
+    "audit_ref": "docs/evidence/1214-personal-ui.md",
+    "pull_request": "https://github.com/haji84/AI-/pull/1215",
+    "local_software_verification": "PASS",
+    "native_drag_acceptance": "INCONCLUSIVE",
+    "code_commit": "df2f39b902191b8561fff59ecb2582d1bfa92889"
   }
 }
 ```

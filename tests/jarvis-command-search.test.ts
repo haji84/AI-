@@ -36,7 +36,7 @@ test("command search UI provides keyboard navigation without protected mutation 
   assert.match(component, /event\.key === "Escape"/);
   assert.match(component, /event\.key === "Enter"/);
   assert.match(component, /window\.location\.assign\(results\[0\]\.href\)/);
-  assert.match(component, /aria-label="JARVIS コマンドと画面を検索"/);
+  assert.match(component, /aria-label="GORIQ コマンドと画面を検索"/);
   assert.match(component, /端末操作・承認・権限変更は各画面の既存Human Gateを通ります/);
   assert.doesNotMatch(component, /fetch\(/);
   assert.doesNotMatch(component, /\/api\//);

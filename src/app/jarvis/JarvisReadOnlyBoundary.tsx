@@ -66,6 +66,9 @@ export default function JarvisReadOnlyBoundary({ children }: { children: ReactNo
       data-jarvis-read-only={readOnly ? "true" : "false"}
       onClickCapture={blockClick}
       onSubmitCapture={blockSubmit}
+      onDragStartCapture={blockSubmit}
+      onDragOverCapture={blockSubmit}
+      onDropCapture={blockSubmit}
       onPointerDownCapture={blockRemotePointer}
       onKeyDownCapture={blockEditingKeys}
     >

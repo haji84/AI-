@@ -22,7 +22,7 @@ test("P5 primary shell exposes the five frozen top-level operating screens", asy
     assert.ok(shell.includes(`label: "${label}"`), `missing ${label}`);
   }
 
-  assert.match(shell, /aria-label="JARVIS メインナビゲーション"/);
+  assert.match(shell, /aria-label="GORIQ メインナビゲーション"/);
   assert.match(shell, /pathname\.startsWith\("\/jarvis\/login"\)/);
   assert.match(layout, /<JarvisPrimaryShell>\{children\}<\/JarvisPrimaryShell>/);
 });

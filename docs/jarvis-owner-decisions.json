@@ -28,6 +28,140 @@
       "supersedes": [],
       "superseded_by": [],
       "next_action": "Candidate Broker intake, correction/withdrawal proposals and completion gating added; broader semantic extraction, new-ID allocation and automatic reviewed PR publishing remain pending."
+    },
+    {
+      "id": "owner-1214-personal-ui",
+      "state": "SPEC_SYNCED",
+      "source": {
+        "kind": "owner_instruction",
+        "decision": "accepted",
+        "author": "haji84",
+        "ref": "https://github.com/haji84/AI-/issues/1214",
+        "excerpt": "こういう系のを20候補作成して使う人によって変えられるようにする。あとメニューや表示はデフォルトで置いて置くけど好きな配置に変更したり付け足したりできるようにする。",
+        "text_sha256": "730cba4312a37fd833ba01b1ba061f2935ff8ecfc8694fc794a98ed643039e1d",
+        "recorded_at": "2026-09-23T10:00:56.257Z"
+      },
+      "protected_changes": [],
+      "canonical": [
+        {
+          "id": "UI-001",
+          "fingerprint": "ff86d329ed7b8b21bdd1e8a94e4d425a8a6fc73933c99059df6ea2f93373b4a7"
+        },
+        {
+          "id": "UI-005",
+          "fingerprint": "bb5b77f006198d1146c94a29957f73293e6b43a50f56857c70a1cf27decf4efb"
+        },
+        {
+          "id": "UI-006",
+          "fingerprint": "6b4785732286eae64448d6dcb654b164e478bc99bd7c7119ab3004f7c5811bc4"
+        },
+        {
+          "id": "UI-007",
+          "fingerprint": "a3aa1e833cfc509782466e2d367ee506b995dd48c3064e660d5f5e3af916334d"
+        },
+        {
+          "id": "UI-008",
+          "fingerprint": "a4bf035c5272a25fa2fc79f2f99f195e27a1b536f242321a2f85794fd33efe50"
+        },
+        {
+          "id": "UI-011",
+          "fingerprint": "6a0961eb115c120fbc159f263b866c5a26f31adda7e2b57bdae27c684726e074"
+        },
+        {
+          "id": "UI-012",
+          "fingerprint": "2669d140171f72b693d36ec77c67a08d544ab85f72b7a9a83a5fb97de2292a4a"
+        },
+        {
+          "id": "UI-013",
+          "fingerprint": "dc48f54f6974c731a5e414bf52eb6dc17ff9e3b8f2b3e48a7004560d24491a69"
+        },
+        {
+          "id": "UI-014",
+          "fingerprint": "1f09267a8cccf72b010382727e776b96d0a692b4928ce333bee43d439981ae84"
+        },
+        {
+          "id": "UI-017",
+          "fingerprint": "10ad6aa8449bcc5f30a3743488ff16cb0481a41687fe5d8e556acd4090e67d17"
+        },
+        {
+          "id": "UI-018",
+          "fingerprint": "89882cf81e625a70305b85cfac5553b2e35dec6a2aca157ea8f7dc1bdf6a3df6"
+        },
+        {
+          "id": "UI-019",
+          "fingerprint": "0c2cfc8b283d64ead9b36988b0ea715383db93d0958b783f2a51ca015d2cc43a"
+        },
+        {
+          "id": "UI-026",
+          "fingerprint": "c60a10cc1752f73d5cbe2f84a536989e5c9389250941785eb67159252ec5a3e0"
+        },
+        {
+          "id": "UI-027",
+          "fingerprint": "fe14275290bbff48bc0739de96807f90ea881b8ecb96c98b5a3b5c2d0d52995a"
+        },
+        {
+          "id": "UI-031",
+          "fingerprint": "9bea6ec7d5f4c6fe896dd156ac07bddd2d72a4edb47e79a203672b5f31e34bd5"
+        },
+        {
+          "id": "UI-032",
+          "fingerprint": "f33c638da297800e076cf220edea3e5bf85ee07a079d01cea05af70a36464ceb"
+        },
+        {
+          "id": "UI-038",
+          "fingerprint": "540f38d1802310a0e3e82635d9013f7f74897c4caca9d5e7000cfff8ab8526f6"
+        }
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "next_action": "Complete exact-commit regression/CI and isolated browser QA, then obtain separately identified physical acceptance. SPEC_SYNCED records scope adoption, not deployed or product completion."
+    },
+    {
+      "id": "owner-1214-goriq-menu",
+      "state": "SPEC_SYNCED",
+      "source": {
+        "kind": "owner_instruction",
+        "decision": "accepted",
+        "author": "haji84",
+        "ref": "https://github.com/haji84/AI-/issues/1214#issuecomment-5793235806",
+        "excerpt": "名前をジャービスからGORIQ(ゴリック)に変更して！\n\nあとUI画面なんやけど表示は変わっていい感じなんやけど\nデフォルトの操作メニューがダサいし使いにくそう。",
+        "text_sha256": "e5441feca9857a0c4f06b8021b1f9d72cffb40c9b95659760c9c4379c60f37f2",
+        "recorded_at": "2026-09-23T10:55:43.341Z"
+      },
+      "protected_changes": [],
+      "canonical": [
+        {
+          "id": "UI-001",
+          "fingerprint": "ff86d329ed7b8b21bdd1e8a94e4d425a8a6fc73933c99059df6ea2f93373b4a7"
+        },
+        {
+          "id": "UI-006",
+          "fingerprint": "6b4785732286eae64448d6dcb654b164e478bc99bd7c7119ab3004f7c5811bc4"
+        },
+        {
+          "id": "UI-011",
+          "fingerprint": "6a0961eb115c120fbc159f263b866c5a26f31adda7e2b57bdae27c684726e074"
+        },
+        {
+          "id": "UI-021",
+          "fingerprint": "25ab0f5bbbf6f98edd91c01ab2d68b696dc1467bd36032ff7922a13bf6e2ee66"
+        },
+        {
+          "id": "UI-026",
+          "fingerprint": "c60a10cc1752f73d5cbe2f84a536989e5c9389250941785eb67159252ec5a3e0"
+        },
+        {
+          "id": "UI-032",
+          "fingerprint": "f33c638da297800e076cf220edea3e5bf85ee07a079d01cea05af70a36464ceb"
+        },
+        {
+          "id": "UI-038",
+          "fingerprint": "540f38d1802310a0e3e82635d9013f7f74897c4caca9d5e7000cfff8ab8526f6"
+        }
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "next_action": "Verify GORIQ candidate browser/tests/CI; preserve physical and Production holds and existing protocol contracts."
     }
   ]
 }

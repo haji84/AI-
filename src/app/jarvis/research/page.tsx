@@ -18,7 +18,7 @@ export default function JarvisResearchPage() {
       <section className="jarvis-info-grid">
         <article className="panel jarvis-info-card">
           <span className="jarvis-node-status ready">PRODUCT TRACK</span>
-          <h2>JARVIS Product Completion</h2>
+          <h2>GORIQ Product Completion</h2>
           <p>Issue #681のP0-P10が製品トラック。CODE/UNIT/INTEGRATIONとPHYSICAL/RECOVERYを別Evidenceとして扱い、必要な実機確認が無い項目を完成扱いにしない。</p>
           <div className="jarvis-research-list">
             {PRODUCT_PHASES.map(([phase, title, detail]) => (
@@ -30,7 +30,7 @@ export default function JarvisResearchPage() {
         <article className="panel jarvis-info-card jarvis-research-track">
           <span className="jarvis-node-status needs-human">RESEARCH TRACK</span>
           <h2>Research Ops R1-R20</h2>
-          <p>R1-R20は製品完成とは別の科学的Evidenceプログラム。JARVISの製品機能が完成しても、それだけでAGI達成とは扱わない。</p>
+          <p>R1-R20は製品完成とは別の科学的Evidenceプログラム。GORIQの製品機能が完成しても、それだけでAGI達成とは扱わない。</p>
           <ul>
             <li>実測Evidenceのみを採用</li>
             <li>シミュレーションやCIを実世界Evidenceへ水増ししない</li>

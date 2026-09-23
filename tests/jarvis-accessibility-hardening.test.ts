@@ -9,7 +9,7 @@ const layout = readFileSync(new URL("../src/app/jarvis/layout.tsx", import.meta.
 test("JARVIS exposes a skip path to a semantic main landmark", () => {
   assert.match(shell, /className="jarvis-skip-link" href="#jarvis-main-content"/);
   assert.match(shell, /<main id="jarvis-main-content" className="jarvis-primary-content" tabIndex=\{-1\}>/);
-  assert.match(shell, /<nav className="jarvis-primary-nav" aria-label="JARVIS メインナビゲーション">/);
+  assert.match(shell, /<nav className="jarvis-primary-nav" aria-label="GORIQ メインナビゲーション">/);
   assert.match(shell, /aria-current=\{active \? "page" : undefined\}/);
 });
 
