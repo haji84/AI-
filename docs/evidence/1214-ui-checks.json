@@ -1,7 +1,7 @@
 {
   "issue": 1214,
   "base_commit": "54b5df2a41eaef75e7c40a83474aceb8fc15b3be",
-  "code_commit": null,
+  "code_commit": "61f3dc57387c5efc5988dbf0ab933d877698d1e3",
   "at": "2026-09-23T10:11:41.834Z",
   "environment": "Windows; isolated Next production build and real empty Broker/SQLite; Codex in-app browser",
   "physical_device_acceptance": false,
@@ -57,5 +57,10 @@
       "bytes": 3199066,
       "sha256": "61f52fee9eea6073b08d7a90a4dcf54b45678474808f8dcae7343770cec6fbaf"
     }
-  ]
+  ],
+  "pull_request": "https://github.com/haji84/AI-/pull/1215",
+  "review": {
+    "status": "PASS_AFTER_FIXES",
+    "notes": "Storage write now catches/report errors before visible theme change; read-only drag capture prevents the prior bypass. Native drag browser acceptance remains inconclusive."
+  }
 }

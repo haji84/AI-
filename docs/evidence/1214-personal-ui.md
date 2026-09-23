@@ -38,3 +38,7 @@ Environment findings: initial shared node_modules junction was rejected by Turbo
 Independent review found and fixed save-error masking, repaired-ID collisions, legacy storage exceptions and read-only drag interception. Code/storage tests and browser evidence are separate. Last verified commit will reference the code candidate, not infer PHYSICAL evidence.
 
 Revert this branch's UI integration and dependent canonical mapping together. Keep the local profile key inert; no deletion/re-enrollment/reset of devices is needed. No Production deployment, secrets/permissions, paid service, DB migration or unrelated physical-PR hold is changed. Production review and owner visual/drag acceptance remain before activation.
+
+## Exact candidate
+
+Code commit: 61f3dc57387c5efc5988dbf0ab933d877698d1e3. Draft PR: https://github.com/haji84/AI-/pull/1215. Final evidence/state-only follow-up changes no runtime behavior. Candidate audit stores this software revision; last_verified_commit remains null because the full physical requirement is not verified. CI result is recorded on the exact PR head in GitHub and Compass.

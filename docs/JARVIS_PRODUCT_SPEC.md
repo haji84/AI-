@@ -3518,7 +3518,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   "blocker": "#1214候補: ホーム要件全体の情報表示・状態遷移と実機受入は未完了。 PHYSICAL証拠をCODE/UNIT/ブラウザー証拠で代替しない。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "#1214: 最終コードcommitの回帰・CIと隔離ブラウザーQAを記録し、当該要件の未検証範囲およびPHYSICAL受入を取得する。",
+  "next_action": "#1214 / PR #1215: exact-head CIを記録し、ドラッグ操作とオーナー実機表示を確認する。PHYSICAL条件付きの要件は未完了のまま本番有効化を保留する。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -3537,7 +3537,11 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "source_main": "54b5df2a41eaef75e7c40a83474aceb8fc15b3be",
     "implementation": "CANDIDATE_CODE_PRESENT",
     "physical": "PENDING",
-    "audit_ref": "docs/evidence/1214-personal-ui.md"
+    "audit_ref": "docs/evidence/1214-personal-ui.md",
+    "code_commit": "61f3dc57387c5efc5988dbf0ab933d877698d1e3",
+    "pull_request": "https://github.com/haji84/AI-/pull/1215",
+    "local_software_verification": "PASS",
+    "native_drag_acceptance": "INCONCLUSIVE"
   }
 }
 ```
@@ -3705,7 +3709,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   "blocker": "#1214候補: 全設定の保存・再読込・権限制御と実機受入は未完了。 PHYSICAL証拠をCODE/UNIT/ブラウザー証拠で代替しない。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "#1214: 最終コードcommitの回帰・CIと隔離ブラウザーQAを記録し、当該要件の未検証範囲およびPHYSICAL受入を取得する。",
+  "next_action": "#1214 / PR #1215: exact-head CIを記録し、ドラッグ操作とオーナー実機表示を確認する。PHYSICAL条件付きの要件は未完了のまま本番有効化を保留する。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -3724,7 +3728,11 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "source_main": "54b5df2a41eaef75e7c40a83474aceb8fc15b3be",
     "implementation": "CANDIDATE_CODE_PRESENT",
     "physical": "PENDING",
-    "audit_ref": "docs/evidence/1214-personal-ui.md"
+    "audit_ref": "docs/evidence/1214-personal-ui.md",
+    "code_commit": "61f3dc57387c5efc5988dbf0ab933d877698d1e3",
+    "pull_request": "https://github.com/haji84/AI-/pull/1215",
+    "local_software_verification": "PASS",
+    "native_drag_acceptance": "INCONCLUSIVE"
   }
 }
 ```
@@ -3761,7 +3769,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   "blocker": "#1214候補: 全ルートの可読性・実機表示と最終統合受入は未完了。 PHYSICAL証拠をCODE/UNIT/ブラウザー証拠で代替しない。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "#1214: 最終コードcommitの回帰・CIと隔離ブラウザーQAを記録し、当該要件の未検証範囲およびPHYSICAL受入を取得する。",
+  "next_action": "#1214 / PR #1215: exact-head CIを記録し、ドラッグ操作とオーナー実機表示を確認する。PHYSICAL条件付きの要件は未完了のまま本番有効化を保留する。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -3780,7 +3788,11 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "source_main": "54b5df2a41eaef75e7c40a83474aceb8fc15b3be",
     "implementation": "CANDIDATE_CODE_PRESENT",
     "physical": "PENDING",
-    "audit_ref": "docs/evidence/1214-personal-ui.md"
+    "audit_ref": "docs/evidence/1214-personal-ui.md",
+    "code_commit": "61f3dc57387c5efc5988dbf0ab933d877698d1e3",
+    "pull_request": "https://github.com/haji84/AI-/pull/1215",
+    "local_software_verification": "PASS",
+    "native_drag_acceptance": "INCONCLUSIVE"
   }
 }
 ```
@@ -3822,7 +3834,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   "blocker": "#1214候補: 20案の候補実装・隔離ブラウザー適用は確認済みだが、実機受入と最終exact-commit検証は未完了。 PHYSICAL証拠をCODE/UNIT/ブラウザー証拠で代替しない。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "#1214: 最終コードcommitの回帰・CIと隔離ブラウザーQAを記録し、当該要件の未検証範囲およびPHYSICAL受入を取得する。",
+  "next_action": "#1214 / PR #1215: exact-head CIを記録し、ドラッグ操作とオーナー実機表示を確認する。PHYSICAL条件付きの要件は未完了のまま本番有効化を保留する。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "f974cc39dc25697e6cf999764e9d695ee753e14d",
@@ -3841,7 +3853,11 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "source_main": "54b5df2a41eaef75e7c40a83474aceb8fc15b3be",
     "implementation": "CANDIDATE_CODE_PRESENT",
     "physical": "PENDING",
-    "audit_ref": "docs/evidence/1214-personal-ui.md"
+    "audit_ref": "docs/evidence/1214-personal-ui.md",
+    "code_commit": "61f3dc57387c5efc5988dbf0ab933d877698d1e3",
+    "pull_request": "https://github.com/haji84/AI-/pull/1215",
+    "local_software_verification": "PASS",
+    "native_drag_acceptance": "INCONCLUSIVE"
   }
 }
 ```
@@ -3877,7 +3893,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   "blocker": "#1214候補: 独立設定の候補単体証拠は取得済み。既存全設定との統合・実機受入は未完了。 PHYSICAL証拠をCODE/UNIT/ブラウザー証拠で代替しない。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "#1214: 最終コードcommitの回帰・CIと隔離ブラウザーQAを記録し、当該要件の未検証範囲およびPHYSICAL受入を取得する。",
+  "next_action": "#1214 / PR #1215: exact-head CIを記録し、ドラッグ操作とオーナー実機表示を確認する。PHYSICAL条件付きの要件は未完了のまま本番有効化を保留する。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -3896,7 +3912,11 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "source_main": "54b5df2a41eaef75e7c40a83474aceb8fc15b3be",
     "implementation": "CANDIDATE_CODE_PRESENT",
     "physical": "PENDING",
-    "audit_ref": "docs/evidence/1214-personal-ui.md"
+    "audit_ref": "docs/evidence/1214-personal-ui.md",
+    "code_commit": "61f3dc57387c5efc5988dbf0ab933d877698d1e3",
+    "pull_request": "https://github.com/haji84/AI-/pull/1215",
+    "local_software_verification": "PASS",
+    "native_drag_acceptance": "INCONCLUSIVE"
   }
 }
 ```
@@ -4003,7 +4023,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   "blocker": "#1214候補: 独立プロフィールは隔離ブラウザーで観測済み。配置変更・再読込の最終統合と実機受入は未完了。 PHYSICAL証拠をCODE/UNIT/ブラウザー証拠で代替しない。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "#1214: 最終コードcommitの回帰・CIと隔離ブラウザーQAを記録し、当該要件の未検証範囲およびPHYSICAL受入を取得する。",
+  "next_action": "#1214 / PR #1215: exact-head CIを記録し、ドラッグ操作とオーナー実機表示を確認する。PHYSICAL条件付きの要件は未完了のまま本番有効化を保留する。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -4022,7 +4042,11 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "source_main": "54b5df2a41eaef75e7c40a83474aceb8fc15b3be",
     "implementation": "CANDIDATE_CODE_PRESENT",
     "physical": "PENDING",
-    "audit_ref": "docs/evidence/1214-personal-ui.md"
+    "audit_ref": "docs/evidence/1214-personal-ui.md",
+    "code_commit": "61f3dc57387c5efc5988dbf0ab933d877698d1e3",
+    "pull_request": "https://github.com/haji84/AI-/pull/1215",
+    "local_software_verification": "PASS",
+    "native_drag_acceptance": "INCONCLUSIVE"
   }
 }
 ```
@@ -4057,7 +4081,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   "blocker": "#1214候補: 並べ替えモデルは単体検証済み。ドラッグ・矢印操作の最終ブラウザーと実機受入は未完了。 PHYSICAL証拠をCODE/UNIT/ブラウザー証拠で代替しない。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "#1214: 最終コードcommitの回帰・CIと隔離ブラウザーQAを記録し、当該要件の未検証範囲およびPHYSICAL受入を取得する。",
+  "next_action": "#1214 / PR #1215: exact-head CIを記録し、ドラッグ操作とオーナー実機表示を確認する。PHYSICAL条件付きの要件は未完了のまま本番有効化を保留する。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -4076,7 +4100,11 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "source_main": "54b5df2a41eaef75e7c40a83474aceb8fc15b3be",
     "implementation": "CANDIDATE_CODE_PRESENT",
     "physical": "PENDING",
-    "audit_ref": "docs/evidence/1214-personal-ui.md"
+    "audit_ref": "docs/evidence/1214-personal-ui.md",
+    "code_commit": "61f3dc57387c5efc5988dbf0ab933d877698d1e3",
+    "pull_request": "https://github.com/haji84/AI-/pull/1215",
+    "local_software_verification": "PASS",
+    "native_drag_acceptance": "INCONCLUSIVE"
   }
 }
 ```
@@ -4110,7 +4138,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   "blocker": "#1214候補: 幅保存モデルは単体検証済み。レスポンシブ実表示と実機受入は未完了。 PHYSICAL証拠をCODE/UNIT/ブラウザー証拠で代替しない。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "#1214: 最終コードcommitの回帰・CIと隔離ブラウザーQAを記録し、当該要件の未検証範囲およびPHYSICAL受入を取得する。",
+  "next_action": "#1214 / PR #1215: exact-head CIを記録し、ドラッグ操作とオーナー実機表示を確認する。PHYSICAL条件付きの要件は未完了のまま本番有効化を保留する。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -4129,7 +4157,11 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "source_main": "54b5df2a41eaef75e7c40a83474aceb8fc15b3be",
     "implementation": "CANDIDATE_CODE_PRESENT",
     "physical": "PENDING",
-    "audit_ref": "docs/evidence/1214-personal-ui.md"
+    "audit_ref": "docs/evidence/1214-personal-ui.md",
+    "code_commit": "61f3dc57387c5efc5988dbf0ab933d877698d1e3",
+    "pull_request": "https://github.com/haji84/AI-/pull/1215",
+    "local_software_verification": "PASS",
+    "native_drag_acceptance": "INCONCLUSIVE"
   }
 }
 ```
@@ -4164,7 +4196,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   "blocker": "#1214候補: 追加・非表示・空配置モデルは単体検証済み。保護された画面への到達性を含む実機受入は未完了。 PHYSICAL証拠をCODE/UNIT/ブラウザー証拠で代替しない。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "#1214: 最終コードcommitの回帰・CIと隔離ブラウザーQAを記録し、当該要件の未検証範囲およびPHYSICAL受入を取得する。",
+  "next_action": "#1214 / PR #1215: exact-head CIを記録し、ドラッグ操作とオーナー実機表示を確認する。PHYSICAL条件付きの要件は未完了のまま本番有効化を保留する。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -4183,7 +4215,11 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "source_main": "54b5df2a41eaef75e7c40a83474aceb8fc15b3be",
     "implementation": "CANDIDATE_CODE_PRESENT",
     "physical": "PENDING",
-    "audit_ref": "docs/evidence/1214-personal-ui.md"
+    "audit_ref": "docs/evidence/1214-personal-ui.md",
+    "code_commit": "61f3dc57387c5efc5988dbf0ab933d877698d1e3",
+    "pull_request": "https://github.com/haji84/AI-/pull/1215",
+    "local_software_verification": "PASS",
+    "native_drag_acceptance": "INCONCLUSIVE"
   }
 }
 ```
@@ -4288,7 +4324,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   "blocker": "#1214候補: 履歴モデルは単体検証済み。実操作と実機受入は未完了。 PHYSICAL証拠をCODE/UNIT/ブラウザー証拠で代替しない。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "#1214: 最終コードcommitの回帰・CIと隔離ブラウザーQAを記録し、当該要件の未検証範囲およびPHYSICAL受入を取得する。",
+  "next_action": "#1214 / PR #1215: exact-head CIを記録し、ドラッグ操作とオーナー実機表示を確認する。PHYSICAL条件付きの要件は未完了のまま本番有効化を保留する。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -4307,7 +4343,11 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "source_main": "54b5df2a41eaef75e7c40a83474aceb8fc15b3be",
     "implementation": "CANDIDATE_CODE_PRESENT",
     "physical": "PENDING",
-    "audit_ref": "docs/evidence/1214-personal-ui.md"
+    "audit_ref": "docs/evidence/1214-personal-ui.md",
+    "code_commit": "61f3dc57387c5efc5988dbf0ab933d877698d1e3",
+    "pull_request": "https://github.com/haji84/AI-/pull/1215",
+    "local_software_verification": "PASS",
+    "native_drag_acceptance": "INCONCLUSIVE"
   }
 }
 ```
@@ -4342,7 +4382,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   "blocker": "#1214候補: 履歴モデルは単体検証済み。実操作と実機受入は未完了。 PHYSICAL証拠をCODE/UNIT/ブラウザー証拠で代替しない。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "#1214: 最終コードcommitの回帰・CIと隔離ブラウザーQAを記録し、当該要件の未検証範囲およびPHYSICAL受入を取得する。",
+  "next_action": "#1214 / PR #1215: exact-head CIを記録し、ドラッグ操作とオーナー実機表示を確認する。PHYSICAL条件付きの要件は未完了のまま本番有効化を保留する。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -4361,7 +4401,11 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "source_main": "54b5df2a41eaef75e7c40a83474aceb8fc15b3be",
     "implementation": "CANDIDATE_CODE_PRESENT",
     "physical": "PENDING",
-    "audit_ref": "docs/evidence/1214-personal-ui.md"
+    "audit_ref": "docs/evidence/1214-personal-ui.md",
+    "code_commit": "61f3dc57387c5efc5988dbf0ab933d877698d1e3",
+    "pull_request": "https://github.com/haji84/AI-/pull/1215",
+    "local_software_verification": "PASS",
+    "native_drag_acceptance": "INCONCLUSIVE"
   }
 }
 ```
@@ -4396,7 +4440,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   "blocker": "#1214候補: 既定値とプロフィール分離モデルは単体検証済み。リセット操作と実機受入は未完了。 PHYSICAL証拠をCODE/UNIT/ブラウザー証拠で代替しない。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "#1214: 最終コードcommitの回帰・CIと隔離ブラウザーQAを記録し、当該要件の未検証範囲およびPHYSICAL受入を取得する。",
+  "next_action": "#1214 / PR #1215: exact-head CIを記録し、ドラッグ操作とオーナー実機表示を確認する。PHYSICAL条件付きの要件は未完了のまま本番有効化を保留する。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -4415,7 +4459,11 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "source_main": "54b5df2a41eaef75e7c40a83474aceb8fc15b3be",
     "implementation": "CANDIDATE_CODE_PRESENT",
     "physical": "PENDING",
-    "audit_ref": "docs/evidence/1214-personal-ui.md"
+    "audit_ref": "docs/evidence/1214-personal-ui.md",
+    "code_commit": "61f3dc57387c5efc5988dbf0ab933d877698d1e3",
+    "pull_request": "https://github.com/haji84/AI-/pull/1215",
+    "local_software_verification": "PASS",
+    "native_drag_acceptance": "INCONCLUSIVE"
   }
 }
 ```
@@ -4665,7 +4713,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   "blocker": "#1214候補: レスポンシブ候補コードは実装済み。狭い画面の最終ブラウザーと物理端末受入は未完了。 PHYSICAL証拠をCODE/UNIT/ブラウザー証拠で代替しない。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "#1214: 最終コードcommitの回帰・CIと隔離ブラウザーQAを記録し、当該要件の未検証範囲およびPHYSICAL受入を取得する。",
+  "next_action": "#1214 / PR #1215: exact-head CIを記録し、ドラッグ操作とオーナー実機表示を確認する。PHYSICAL条件付きの要件は未完了のまま本番有効化を保留する。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -4684,7 +4732,11 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "source_main": "54b5df2a41eaef75e7c40a83474aceb8fc15b3be",
     "implementation": "CANDIDATE_CODE_PRESENT",
     "physical": "PENDING",
-    "audit_ref": "docs/evidence/1214-personal-ui.md"
+    "audit_ref": "docs/evidence/1214-personal-ui.md",
+    "code_commit": "61f3dc57387c5efc5988dbf0ab933d877698d1e3",
+    "pull_request": "https://github.com/haji84/AI-/pull/1215",
+    "local_software_verification": "PASS",
+    "native_drag_acceptance": "INCONCLUSIVE"
   }
 }
 ```
@@ -4721,7 +4773,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   "blocker": "#1214候補: 配置候補コードとモデルは実装済み。全配置・幅の統合と実機受入は未完了。 PHYSICAL証拠をCODE/UNIT/ブラウザー証拠で代替しない。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "#1214: 最終コードcommitの回帰・CIと隔離ブラウザーQAを記録し、当該要件の未検証範囲およびPHYSICAL受入を取得する。",
+  "next_action": "#1214 / PR #1215: exact-head CIを記録し、ドラッグ操作とオーナー実機表示を確認する。PHYSICAL条件付きの要件は未完了のまま本番有効化を保留する。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -4740,7 +4792,11 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "source_main": "54b5df2a41eaef75e7c40a83474aceb8fc15b3be",
     "implementation": "CANDIDATE_CODE_PRESENT",
     "physical": "PENDING",
-    "audit_ref": "docs/evidence/1214-personal-ui.md"
+    "audit_ref": "docs/evidence/1214-personal-ui.md",
+    "code_commit": "61f3dc57387c5efc5988dbf0ab933d877698d1e3",
+    "pull_request": "https://github.com/haji84/AI-/pull/1215",
+    "local_software_verification": "PASS",
+    "native_drag_acceptance": "INCONCLUSIVE"
   }
 }
 ```
@@ -4886,7 +4942,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   "blocker": "#1214候補: 配色比・安全な保存モデルは単体検証済み。支援機能を含む最終統合と実機受入は未完了。 PHYSICAL証拠をCODE/UNIT/ブラウザー証拠で代替しない。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "#1214: 最終コードcommitの回帰・CIと隔離ブラウザーQAを記録し、当該要件の未検証範囲およびPHYSICAL受入を取得する。",
+  "next_action": "#1214 / PR #1215: exact-head CIを記録し、ドラッグ操作とオーナー実機表示を確認する。PHYSICAL条件付きの要件は未完了のまま本番有効化を保留する。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -4905,7 +4961,11 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "source_main": "54b5df2a41eaef75e7c40a83474aceb8fc15b3be",
     "implementation": "CANDIDATE_CODE_PRESENT",
     "physical": "PENDING",
-    "audit_ref": "docs/evidence/1214-personal-ui.md"
+    "audit_ref": "docs/evidence/1214-personal-ui.md",
+    "code_commit": "61f3dc57387c5efc5988dbf0ab933d877698d1e3",
+    "pull_request": "https://github.com/haji84/AI-/pull/1215",
+    "local_software_verification": "PASS",
+    "native_drag_acceptance": "INCONCLUSIVE"
   }
 }
 ```
@@ -4943,7 +5003,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   "blocker": "#1214候補: キーボード操作用コントロールは実装済み。フォーカス順・全操作と実機受入は未完了。 PHYSICAL証拠をCODE/UNIT/ブラウザー証拠で代替しない。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "#1214: 最終コードcommitの回帰・CIと隔離ブラウザーQAを記録し、当該要件の未検証範囲およびPHYSICAL受入を取得する。",
+  "next_action": "#1214 / PR #1215: exact-head CIを記録し、ドラッグ操作とオーナー実機表示を確認する。PHYSICAL条件付きの要件は未完了のまま本番有効化を保留する。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -4962,7 +5022,11 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "source_main": "54b5df2a41eaef75e7c40a83474aceb8fc15b3be",
     "implementation": "CANDIDATE_CODE_PRESENT",
     "physical": "PENDING",
-    "audit_ref": "docs/evidence/1214-personal-ui.md"
+    "audit_ref": "docs/evidence/1214-personal-ui.md",
+    "code_commit": "61f3dc57387c5efc5988dbf0ab933d877698d1e3",
+    "pull_request": "https://github.com/haji84/AI-/pull/1215",
+    "local_software_verification": "PASS",
+    "native_drag_acceptance": "INCONCLUSIVE"
   }
 }
 ```
@@ -5191,7 +5255,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   "blocker": "#1214候補: 候補UIの日本語文言は実装済み。全画面の表示確認と実機受入は未完了。 PHYSICAL証拠をCODE/UNIT/ブラウザー証拠で代替しない。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "#1214: 最終コードcommitの回帰・CIと隔離ブラウザーQAを記録し、当該要件の未検証範囲およびPHYSICAL受入を取得する。",
+  "next_action": "#1214 / PR #1215: exact-head CIを記録し、ドラッグ操作とオーナー実機表示を確認する。PHYSICAL条件付きの要件は未完了のまま本番有効化を保留する。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -5210,7 +5274,11 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "source_main": "54b5df2a41eaef75e7c40a83474aceb8fc15b3be",
     "implementation": "CANDIDATE_CODE_PRESENT",
     "physical": "PENDING",
-    "audit_ref": "docs/evidence/1214-personal-ui.md"
+    "audit_ref": "docs/evidence/1214-personal-ui.md",
+    "code_commit": "61f3dc57387c5efc5988dbf0ab933d877698d1e3",
+    "pull_request": "https://github.com/haji84/AI-/pull/1215",
+    "local_software_verification": "PASS",
+    "native_drag_acceptance": "INCONCLUSIVE"
   }
 }
 ```
