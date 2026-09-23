@@ -1,4 +1,4 @@
-# Personal JARVIS appearance and workspace — #1214
+# GORIQ appearance and workspace — #1214
 
 Parent #681 P5. Source main54b5df2a41eaef75e7c40a83474aceb8fc15b3be; candidate branch codex/1214-personal-ui. Not deployed. Exact code revision and CI are recorded below after commit.
 
@@ -12,7 +12,7 @@ The accepted owner instruction in issue1214 requests20 selectable visual styles 
 - Main navigation keeps all5 fixed routes. Four desktop edges, bottom adaptation for mobile. Removed the unrelated app-level dashboard/chat overlay on JARVIS routes; its original behavior remains on other routes. Common display/operation controls are in a disclosure outside the read-only boundary. Empty notifications are compact; actual alerts keep full content.
 - Storage failures are visible; invalid data and IDs are normalized without stealing another valid profile identity. Arbitrary scripts/HTML/URLs/widgets are rejected. Read-only/kiosk capture also blocks drag/drop. Protected auth, device and work API contracts are unchanged.
 
-## Verification
+## Earlier twenty-concept verification (61f3dc5)
 
 Machine-readable result: [1214-ui-checks.json](1214-ui-checks.json).
 
@@ -39,6 +39,30 @@ Independent review found and fixed save-error masking, repaired-ID collisions, l
 
 Revert this branch's UI integration and dependent canonical mapping together. Keep the local profile key inert; no deletion/re-enrollment/reset of devices is needed. No Production deployment, secrets/permissions, paid service, DB migration or unrelated physical-PR hold is changed. Production review and owner visual/drag acceptance remain before activation.
 
-## Exact candidate
+## Previous candidate
 
 Code commit: 61f3dc57387c5efc5988dbf0ab933d877698d1e3. Draft PR: https://github.com/haji84/AI-/pull/1215. Final evidence/state-only follow-up changes no runtime behavior. Candidate audit stores this software revision; last_verified_commit remains null because the full physical requirement is not verified. CI result is recorded on the exact PR head in GitHub and Compass.
+
+## GORIQ owner correction — 2026-09-23
+
+Exact code commit: df2f39b902191b8561fff59ecb2582d1bfa92889. Existing Issue #1214 / draft PR #1215. Owner decision owner-1214-goriq-menu retains the original20-concept request and binds the newer name/menu correction. No new requirement IDs or physical completion claims.
+
+- Web branding, app metadata, PWA display name, icons and UI copy become GORIQ（ゴリック）. Existing URL paths, local preference keys, Worker app IDs, APK/signing, device identities/enrollment and authorization contracts remain unchanged. Installed native Worker labels are not updated by this Web PR.
+- Icon/label/description desktop navigation and icon/label mobile dock. Existing four-edge placement and local profiles remain available.
+- Home quick actions open the existing remote console, focus/restore the request panel, or navigate to task progress. Clicking an entry does not start a remote session or submit a job.
+- Always-visible search supports Ctrl/Cmd+K, result navigation, outside tap, focus leave and a visible close button. Display controls remain outside the read-only boundary; mobile stacking keeps them usable.
+- Default profile name migrates from マイJARVIS to マイGORIQ without a false corruption warning. Custom names, IDs, notes, layout and true damaged-data warnings are preserved.
+
+### Current verification
+
+Full tests1487/P8 security331: PASS, zero failures/skips. Lint, normal Turbopack build (including TypeScript),340-requirement/491-surface audit: PASS. Existing video-plan-store tracing warning remains.
+
+Desktop1440 and mobile390 browser: direct remote open/close/reopen; request focus and hidden panel restoration; task navigation; search shortcut/results; touch dismissal; display-menu stacking; read-only blocking; five routes; four navigation edges; light/dark palettes; no horizontal overflow. All PASS. Mobile navigation targets62px high and approximately66.7px wide. Inspected browser error log:0. Viewport reset after testing. This is isolated software/browser evidence, not phone/Worker physical acceptance.
+
+Independent review found three P2 issues (repeat remote link, mobile search dismissal, mobile menu stacking), all fixed and re-reviewed. Source tests changed only for new display strings and exact structured navigation/render bindings; protection assertions retained. Runtime code was not changed after the passing build and browser checks.
+
+![GORIQ desktop](1214-goriq-desktop.png)
+
+![GORIQ mobile viewport](1214-goriq-mobile.png)
+
+Native HTML5 drag remains INCONCLUSIVE from the earlier three-attempt acceptance; arrows/keyboard remain supported. Production, main, physical-facing PR holds, device registration, credentials and private networking are unchanged. Rollback: revert UI/code and its ledger mapping together; no device reset or re-enrollment. Next: exact-head CI, owner visual/drag acceptance, then separately governed activation.
