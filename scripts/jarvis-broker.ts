@@ -1,3 +1,4 @@
+import { createSpecificationPublisher } from "./jarvis-spec-publisher.mjs";
 import { fileURLToPath } from "node:url";
 import { loadCanonicalBundle, prepareSpecificationProposal } from "./jarvis-owner-spec-sync.mjs";
 import { OwnerRequirementIntake, matchRequirementCandidates } from "../src/orchestrator/owner-requirement-intake.ts";
@@ -56,6 +57,7 @@ const compassPath = process.env.JARVIS_COMPASS_DB_PATH?.trim() || (process.env.J
 const compass = new CompassStore(compassPath);
 const workRuns = new CompassWorkRunStore(compass);
 const ownerRequirements = new OwnerRequirementIntake(compass);
+const specificationPublisher = createSpecificationPublisher({root:fileURLToPath(new URL("../",import.meta.url)),intake:ownerRequirements,token:process.env.GITHUB_TOKEN});
 const goalController = new GoalControllerRuntime({
   registry: new CompassGoalRegistryAdapter(compass),
   decisionStore: new CompassGoalDecisionStoreAdapter(compass),
@@ -275,6 +277,11 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
     const payload = parseJson(body);
     if (method === "GET" && path === "/api/jarvis/admin/state") return json(response, 200, plane.snapshot());
     if (method === "GET" && path === "/api/jarvis/admin/requirements") return json(response, 200, { records: ownerRequirements.list() });
+    if (method === "POST" && path === "/api/jarvis/admin/requirements/publish") {
+      if (body.byteLength > 32768 || typeof payload.decisionId !== "string" || Object.keys(payload).some(k => !["decisionId","review"].includes(k))) return json(response,400,{message:"invalid specification publication input"});
+      try { return json(response,200,await specificationPublisher.publish(payload.decisionId,payload.review)); }
+      catch(error) { const message=error instanceof Error?error.message:"specification_publication_failed"; return json(response,message==="github_write_unavailable"?503:409,{message}); }
+    }
     if (method === "POST" && path === "/api/jarvis/admin/requirements/proposal") {
       try {
         const record = ownerRequirements.list().find(r => r.id === payload.decisionId);

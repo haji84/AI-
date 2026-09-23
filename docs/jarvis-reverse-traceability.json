@@ -673,7 +673,7 @@
     },
     {
       "path": "docs/architecture/jarvis-requirement-traceability.md",
-      "sha256": "dacbfccbd05bc87460ea4ead7bfc0a349aaa1465bec4aa6af906cde78ab84a4e",
+      "sha256": "f3c068481b5a35f7f235bb3ae95ca62ff9aba8958c62ccddfa93fe4b4645d785",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "GOV-025",
@@ -914,7 +914,7 @@
     },
     {
       "path": "scripts/jarvis-broker.ts",
-      "sha256": "e984d55a0c38965750c0149ae9bc1df8b23b7039af632ef980094a6287a0ae44",
+      "sha256": "02f1080e75f1004e51966767322b4968039f2101d85db7d962e481c8590b2789",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "NET-006",
@@ -1256,12 +1256,32 @@
     },
     {
       "path": "scripts/jarvis-secret-audit.mjs",
-      "sha256": "91f2a5b2da53364ea2e6d973d83ec71e6da857af27f054e97b07f318a5ac5859",
+      "sha256": "ae2e1486458e10d734e529543526fbdb083a42a05f7f798861bf0482f75e6838",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-023"
       ],
       "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "scripts/jarvis-spec-publisher.d.mts",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-015",
+        "GOV-025"
+      ],
+      "reason": "Bounded authenticated canonical Draft publication and retry/proxy contract; mapping is ownership, not completion or deployment evidence.",
+      "sha256": "5317e1d91ec8ecac93d65a1a6845802067a4a08e2cf7aa323a9b45468e17a805"
+    },
+    {
+      "path": "scripts/jarvis-spec-publisher.mjs",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-015",
+        "GOV-025"
+      ],
+      "reason": "Bounded authenticated canonical Draft publication and retry/proxy contract; mapping is ownership, not completion or deployment evidence.",
+      "sha256": "255971f5a685e14586198c3973e19bb48e74464f3e6b6eaf193038d80404d3dd"
     },
     {
       "path": "scripts/jarvis-windows-install-paths.mjs",
@@ -1364,6 +1384,16 @@
         "SEC-016"
       ],
       "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/app/api/jarvis/requirements/route.ts",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-015",
+        "GOV-025"
+      ],
+      "reason": "Bounded authenticated canonical Draft publication and retry/proxy contract; mapping is ownership, not completion or deployment evidence.",
+      "sha256": "686a1cb1f60d28ac820a172cd707e2d0a4c8b673c070316b04f8cb22e4ed33cb"
     },
     {
       "path": "src/app/api/jarvis/state/route.ts",
@@ -4541,7 +4571,7 @@
     },
     {
       "path": "src/orchestrator/owner-requirement-intake.ts",
-      "sha256": "af019c436069e5b6ab304d4ff9e20e005fb7ac332db6300214d76194562778ae",
+      "sha256": "894b98bb9bba74ab2ca0e13201b6619981a34785a6086fd6b3e8b48048b005d3",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "GOV-025",
@@ -4668,6 +4698,16 @@
         "AUTO-019"
       ],
       "reason": "Declared recovery-policy.ts responsibility implements/supports Repair; Replan; Bounded retry. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/requirements-proxy.ts",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-015",
+        "GOV-025"
+      ],
+      "reason": "Bounded authenticated canonical Draft publication and retry/proxy contract; mapping is ownership, not completion or deployment evidence.",
+      "sha256": "9cd09ef2775173f1e27532d506bd0c960bc97f982656b662bb4b0f9f38189673"
     },
     {
       "path": "src/orchestrator/research-delegation.ts",

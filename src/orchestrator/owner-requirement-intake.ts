@@ -7,6 +7,7 @@ export type RequirementState = "IDEA" | "PROPOSED" | "ACCEPTED_REQUIREMENT" | "S
 export interface RequirementInput { decision: RequirementDecision; statement: string; canonicalIds: string[]; supersedes?: string; }
 export interface CanonicalRequirement { id: string; title: string; description: string; required_evidence: string[]; source_decisions?: string[]; }
 export interface RequirementMatch { id: string; score: number; reason: "explicit_id" | "text_candidate"; fingerprint: string; }
+export interface RequirementPublication { baseSha:string; artifactHash:string; reviewHash:string; branch:string; headSha?:string; prNumber?:number; }
 export interface OwnerRequirementRecord {
  id: string; goalId: string | null; state: RequirementState; statement: string;
  requestHash: string; keyDigest: string;
@@ -14,11 +15,17 @@ export interface OwnerRequirementRecord {
  canonicalIds: string[]; matches: RequirementMatch[]; reviewRequired: true;
  supersedes: string[]; supersededBy: string[];
  history: { state: RequirementState; at: string; reason: string }[];
+ publication?: RequirementPublication;
  sync?: { canonicalSha256: string; decisionId: string; at: string };
 }
 interface Envelope { kind: typeof OWNER_REQUIREMENTS_KIND; version: 1; records: OwnerRequirementRecord[]; }
 export const sha256 = (text: string) => createHash("sha256").update(text).digest("hex");
 export const canonicalFingerprint = (r: CanonicalRequirement) => sha256(JSON.stringify({id:r.id,title:r.title,description:r.description,required_evidence:r.required_evidence}));
+function validPublication(p:RequirementPublication,id:string):boolean {
+ return !!p&&typeof p==="object"&&!Array.isArray(p)&&Object.keys(p).every(k=>["baseSha","artifactHash","reviewHash","branch","headSha","prNumber"].includes(k))&&
+ /^[a-f0-9]{40}$/.test(p.baseSha)&&/^[a-f0-9]{64}$/.test(p.artifactHash)&&/^[a-f0-9]{64}$/.test(p.reviewHash)&&p.branch==="codex/spec-sync/"+id&&
+ (p.headSha===undefined||/^[a-f0-9]{40}$/.test(p.headSha))&&(p.prNumber===undefined||!!p.headSha&&Number.isSafeInteger(p.prNumber)&&p.prNumber>0);
+}
 const states: RequirementState[] = ["IDEA","PROPOSED","ACCEPTED_REQUIREMENT","SPEC_SYNCED","SUPERSEDED","WITHDRAWN"];
 
 // A lexical hint proposes work; it is never permission or proof of semantic equivalence.
@@ -59,6 +66,7 @@ export function ownerRequirementRecords(active: unknown[]): OwnerRequirementReco
  const records=found[0]?.records??[];
  const byId=new Map(records.map(r=>[r.id,r]));
  for(const r of records){
+  if(r.publication&&!validPublication(r.publication,r.id))throw Error("owner requirement publication corrupt");
   if(r.history.at(-1)?.state!==r.state||r.history.some(h=>!states.includes(h.state)||!Number.isFinite(Date.parse(h.at))||typeof h.reason!=="string"))throw Error("owner requirement lifecycle corrupt");
   if(r.state==="SUPERSEDED"&&!r.supersededBy.length||r.state!=="SUPERSEDED"&&r.supersededBy.length)throw Error("owner requirement successor missing");
   if(r.state==="WITHDRAWN"&&!r.history.some(h=>h.reason==="owner_withdrawal_pending_canonical_sync"))throw Error("owner requirement withdrawal provenance missing");
@@ -80,6 +88,16 @@ export class OwnerRequirementIntake {
  private readonly compass: CompassStore;
  constructor(compass: CompassStore){this.compass=compass;}
  list(){return ownerRequirementRecords(this.compass.getState().active);}
+ recordPublication(id:string,plan:RequirementPublication):void {
+  if(!validPublication(plan,id))throw Error("invalid publication plan");
+  this.compass.updateActive(active=>{
+   const records=ownerRequirementRecords(active),r=records.find(v=>v.id===id);
+   if(!r||r.state!=="ACCEPTED_REQUIREMENT")throw Error("receipt_changed");
+   if(r.publication&&Object.entries(plan).some(([k,v])=>r.publication![k as keyof RequirementPublication]!==undefined&&r.publication![k as keyof RequirementPublication]!==v))throw Error("publication_plan_conflict");
+   r.publication=structuredClone({...r.publication,...plan});
+   return [...active.filter(v=>!(v&&typeof v==="object"&&(v as {kind?:unknown}).kind===OWNER_REQUIREMENTS_KIND)),{kind:OWNER_REQUIREMENTS_KIND,version:1,records}];
+  });
+ }
  bindGoal(id:string,goalId:string|null):OwnerRequirementRecord {
   let result:OwnerRequirementRecord|undefined;
   this.compass.updateActive(active=>{

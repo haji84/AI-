@@ -36,6 +36,7 @@ const SOURCE_EXTENSIONS = new Set([".cjs", ".js", ".jsx", ".mjs", ".ts", ".tsx"]
 const SECRET_RULES = [
   ["private-key-pem", /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/g],
   ["github-token", /\bgh(?:p|o|u|s|r)_[A-Za-z0-9]{30,255}\b/g],
+  ["github-fine-grained-token", /\bgithub_pat_[A-Za-z0-9_]{20,255}\b/g],
   ["aws-access-key-id", /\bAKIA[0-9A-Z]{16}\b/g],
   ["slack-token", /\bxox(?:a|b|p|r|s)-[A-Za-z0-9-]{20,}\b/g],
   ["openai-api-key", /\bsk-(?:proj-)?[A-Za-z0-9_-]{24,}\b/g],
