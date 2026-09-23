@@ -13945,8 +13945,8 @@ Owner instruction 2026-09-23, Issue #1216. Full normative integration contract: 
   "blocker": "Bounded local outcome compilation is integrated; unrestricted novel decomposition, natural-language material authorization, historical/teaching/research integration and physical/cross-device acceptance remain.",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "Finish exact-head validation of outcome compilation; continue historical/teaching/research and authorized material intake under #1216. Preserve production holds and required physical evidence.",
-  "last_verified_commit": null,
+  "next_action": "Bind existing owner upload grants to authoritative Goal identity, stage bounded text materials under the existing authorized root with server-derived hashes, then use the outcome compiler. Continue historical/teaching/research integration under #1216; preserve production holds and required physical evidence.",
+  "last_verified_commit": "bee371198444408217cfa19fbcff97424933ef18",
   "source_decisions": [
     "owner-intake-cc6f2a30e8336d322129e2972d1e8f90"
   ]

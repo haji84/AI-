@@ -33,7 +33,7 @@
       "evidence_refs": [
         "docs/evidence/1216-cognitive-core.md"
       ],
-      "last_verified_commit": null,
+      "last_verified_commit": "bee371198444408217cfa19fbcff97424933ef18",
       "remaining": "Bounded registered action plans work with actual local model. Open-ended plan synthesis and broad model-quality calibration remain."
     },
     {
@@ -81,7 +81,7 @@
       "evidence_refs": [
         "docs/evidence/1216-cognitive-core.md"
       ],
-      "last_verified_commit": null,
+      "last_verified_commit": "bee371198444408217cfa19fbcff97424933ef18",
       "remaining": "Host materials/outcomes compile read/conversion plans without per-step instructions; source-derived artifact verification is integrated. Arbitrary novel decomposition/new executable tools and natural-language material authorization are not implemented."
     },
     {
@@ -105,7 +105,7 @@
       "evidence_refs": [
         "docs/evidence/1216-cognitive-core.md"
       ],
-      "last_verified_commit": null,
+      "last_verified_commit": "bee371198444408217cfa19fbcff97424933ef18",
       "remaining": "Same-host restart, bound Goal/contract/root recovery and verified local effects pass. Unbound prior material histories require explicit review; arbitrary external effects and physical power-loss acceptance remain."
     },
     {
@@ -398,16 +398,15 @@
         "tests/goriq-cognitive-broker.test.ts",
         "tests/goriq-cognitive-runtime.test.ts",
         "tests/goriq-cognitive-proxy.test.ts",
-        "tests/goriq-cognitive-broker.test.ts",
         "tests/goriq-cognitive-config.test.ts"
       ],
       "evidence_refs": [
         "docs/evidence/1216-cognitive-core.md"
       ],
-      "last_verified_commit": null,
+      "last_verified_commit": "bee371198444408217cfa19fbcff97424933ef18",
       "remaining": "Actual Compass/Broker/API/Task UI candidate integrated. Hosts can configure either outcomes/materials or legacy steps; unconfigured goals inspect only. Normal intake-to-authorized-material setup and Production activation remain."
     }
   ],
-  "verified_software_commit": "596b3f893ddfcc0ea5d5989a55e29e7f1265cc70",
-  "ci_evidence": "https://github.com/haji84/AI-/actions/runs/35873940497"
+  "verified_software_commit": "bee371198444408217cfa19fbcff97424933ef18",
+  "ci_evidence": "https://github.com/haji84/AI-/actions/runs/35930238569"
 }
