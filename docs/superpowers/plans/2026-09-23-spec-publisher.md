@@ -10,10 +10,10 @@ Generic repository.propose_pr stays at 3 complete files / 100000 bytes and is un
 Use existing already-authorized GITHUB_TOKEN only. Missing token fails visibly. No new token, permission, workflow, paid API or secrets operation. Read/write requests go only to api.github.com/repos/haji84/AI-; no redirects. Validate source issue and canonical base content before remote writes. Secret audit before egress. Persist publication plan in the protected receipt envelope, retain deterministic branch, never force/update main, and verify retry branch/PR metadata. Successful publication is not canonical sync.
 
 ## Tasks and tests
-- [ ] Test RED typed publisher contract: strict input, no credential route, successful draft, stale base, timeout/response cap, retries and conflicting branch.
-- [ ] Implement scripts/jarvis-spec-publisher.mjs + .d.mts; dedicated OwnerRequirementIntake publication metadata; real Broker owner-auth POST publish and browser-owner proxy route. No request-supplied token/host/files.
-- [ ] Test actual HTTP missing auth/missing existing GitHub token; exercise GitHub adapter with deterministic fake transport and persisted Compass restart. No external test PRs.
-- [ ] Update requirement refs, ADR, reverse mapping and state-only bookkeeping. Run focused/full/P8/lint/type/build; independent review.
+- [x] Test RED typed publisher contract: strict input, no credential route, successful draft, stale base, timeout/response cap, retries and conflicting branch.
+- [x] Implement scripts/jarvis-spec-publisher.mjs + .d.mts; dedicated OwnerRequirementIntake publication metadata; real Broker owner-auth POST publish and browser-owner proxy route. No request-supplied token/host/files.
+- [x] Test actual HTTP missing auth/missing existing GitHub token; exercise GitHub adapter with deterministic fake transport and persisted Compass restart. No external test PRs.
+- [x] Update requirement refs, ADR, reverse mapping and state-only bookkeeping. Run focused/full/P8/lint/type/build; independent review.
 - [ ] Update existing PR #1213, exact-head CI and GitHub/Compass write-back. Preserve missing free-form/new-ID integration and physical holds accurately.
 
 ## Review focus

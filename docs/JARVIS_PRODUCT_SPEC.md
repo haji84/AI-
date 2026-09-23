@@ -11796,7 +11796,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   ],
   "evidence_refs": [
     "docs/evidence/1205-reverse-traceability.md",
-    "docs/evidence/1205-live-owner-intake.md"
+    "docs/evidence/1205-live-owner-intake.md",
+    "docs/evidence/1205-spec-publisher.md"
   ],
   "status": "PARTIAL",
   "blocker": "Expanded requirement reconciled from staged ledger; main runtime integration and required evidence remain to be verified. 関連する基盤は存在するが、この拡張要求の全範囲・統合・必要Evidenceを満たしていない。",
@@ -11818,12 +11819,12 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   ],
   "candidate_audit": {
     "issue": 1205,
-    "revision": "e1c261173b7e808ec73e8f745bab732f31cc4753",
-    "implementation": "AUTHENTICATED_BROKER_OWNER_RECEIPTS_AND_REVIEWED_SPEC_PROPOSALS",
-    "connection": "BROKER_HTTP_RESTART_AND_GOAL_COMPLETION_GATES",
-    "evidence_ref": "docs/evidence/1205-live-owner-intake.md",
+    "revision": "10f684f664e1d8f9ee0932952e55091d6688a0f9",
+    "implementation": "AUTHENTICATED_RECEIPTS_AND_BOUNDED_DRAFT_PUBLISHER",
+    "connection": "BROKER_HTTP_BROWSER_PROXY_AND_GITHUB_ADAPTER_SIMULATION",
+    "evidence_ref": "docs/evidence/1205-spec-publisher.md",
     "production_activation": "DRAFT_PR_UNMERGED_NOT_DEPLOYED",
-    "scope": "Existing-ID proposals and exact saved receipt history; publisher/new-ID/semantic/other-route work remains."
+    "scope": "Existing-ID amendments and resumable Draft PR adapter tested; live publication/new-ID/semantic/UI/other-route work remains."
   }
 }
 ```
@@ -13544,7 +13545,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   ],
   "evidence_refs": [
     "docs/evidence/1205-reverse-traceability.md",
-    "docs/evidence/1205-live-owner-intake.md"
+    "docs/evidence/1205-live-owner-intake.md",
+    "docs/evidence/1205-spec-publisher.md"
   ],
   "status": "PARTIAL",
   "blocker": "Expanded requirement reconciled from staged ledger; main runtime integration and required evidence remain to be verified. 関連基盤のみ存在。この拡張要求の全条件を強制する統合機能とEvidenceは未完成。関連ファイルは要件全体の実装済みを意味しない。",
@@ -13566,12 +13568,12 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   ],
   "candidate_audit": {
     "issue": 1205,
-    "revision": "e1c261173b7e808ec73e8f745bab732f31cc4753",
-    "implementation": "AUTHENTICATED_BROKER_OWNER_RECEIPTS_AND_REVIEWED_SPEC_PROPOSALS",
-    "connection": "BROKER_HTTP_RESTART_AND_GOAL_COMPLETION_GATES",
-    "evidence_ref": "docs/evidence/1205-live-owner-intake.md",
+    "revision": "10f684f664e1d8f9ee0932952e55091d6688a0f9",
+    "implementation": "AUTHENTICATED_RECEIPTS_AND_BOUNDED_DRAFT_PUBLISHER",
+    "connection": "BROKER_HTTP_BROWSER_PROXY_AND_GITHUB_ADAPTER_SIMULATION",
+    "evidence_ref": "docs/evidence/1205-spec-publisher.md",
     "production_activation": "DRAFT_PR_UNMERGED_NOT_DEPLOYED",
-    "scope": "Existing-ID proposals and exact saved receipt history; publisher/new-ID/semantic/other-route work remains."
+    "scope": "Existing-ID amendments and resumable Draft PR adapter tested; live publication/new-ID/semantic/UI/other-route work remains."
   }
 }
 ```
