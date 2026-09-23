@@ -1,3 +1,4 @@
+import { MATERIAL_REQUEST_BYTES } from "../src/gai/cognitive-material-intake.ts";
 import { cognitiveHostOptions } from "../src/gai/cognitive-host-config.ts";
 import { CognitiveService } from "../src/gai/cognitive-service.ts";
 import {requirementWorkflow,prepareOwnerPreview} from "./jarvis-requirement-workflow.mjs";
@@ -306,6 +307,33 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
         void _bundle;
         return json(response, 200, artifact);
       } catch (error) { return json(response, 409, { message: error instanceof Error ? error.message : "specification proposal failed" }); }
+    }
+    if (path === "/api/jarvis/admin/cognitive/materials") {
+      try {
+        if (method === "POST") {
+          if (body.length > MATERIAL_REQUEST_BYTES) return json(response, 413, { message: "Material input too large" });
+          return json(response, 200, await cognitive.prepareMaterials(payload));
+        }
+        if (method === "GET") {
+          const params = new URL(request.url!, "http://localhost").searchParams;
+          if ([...params.keys()].some(k => !["goalId", "outputId"].includes(k)) || params.getAll("goalId").length !== 1 || params.getAll("outputId").length !== 1) return json(response, 400, { message: "Invalid output request" });
+          const output = await cognitive.output(params.get("goalId")!, params.get("outputId")!);
+          return json(response, 200, { contentBase64: output.bytes.toString("base64"), filename: output.filename, contentType: output.contentType });
+        }
+        return json(response, 405, { message: "Method not allowed" });
+      } catch { return json(response, 409, { message: "材料・Goal条件・検証済み成果物を確認してください。既存作業は変更していません。" }); }
+    }
+    if (path === "/api/jarvis/admin/cognitive/learning" && method === "POST") {
+      if (body.length > 2048 || Object.keys(payload).some(k => !["operation", "goalId", "originalId", "replacementId"].includes(k))) return json(response, 400, { message: "Invalid learning request" });
+      try {
+        if (payload.operation === "import-history" && Object.keys(payload).length === 1) return json(response, 200, await cognitive.importHistory());
+        if (payload.operation === "training-candidate" && Object.keys(payload).length === 1) {
+          const candidate = await cognitive.trainingCandidate();
+          return json(response, 200, { digest: candidate.digest, train: candidate.train.length, validation: candidate.validation.length, heldout: candidate.heldout.length, rejected: candidate.rejected.length, training: candidate.training });
+        }
+        if (payload.operation === "correct" && Object.keys(payload).length === 4 && [payload.goalId,payload.originalId,payload.replacementId].every(v => typeof v === "string")) return json(response, 200, await cognitive.correct(payload.goalId as string, payload.originalId as string, payload.replacementId as string));
+        return json(response, 400, { message: "Invalid learning operation" });
+      } catch { return json(response, 409, { message: "学習対象と検証結果を確認してください。未検証の内容は昇格しません。" }); }
     }
     if (path === "/api/jarvis/admin/cognitive") {
       try {

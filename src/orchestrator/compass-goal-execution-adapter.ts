@@ -1,3 +1,4 @@
+import { CognitiveMaterialIntake } from "../gai/cognitive-material-intake.ts";
 import { acquireCognitiveLease } from "../gai/cognitive-lease.ts";
 import { CognitiveLearningEngine } from "../gai/cognitive-learning.ts";
 import { PersistentWorldModel } from "../gai/world-model.ts";
@@ -30,11 +31,17 @@ export interface CognitiveRuntimeOptions {
   allowExternalAI?: boolean;
   localWork?: { manifestPath: string; dataRoot: string };
   localOutcomes?: { manifestPath: string; dataRoot: string };
+  materialIntake?: { dataRoot: string };
+  historyImport?: { manifestPath: string; dataRoot: string };
 }
 
 /** Host-selected catalog shared by execution and read-only status validation. */
 export async function loadCognitiveRuntimeWork(options: CognitiveRuntimeOptions, goalId: string, goal: Goal) {
-  if (options.localWork && options.localOutcomes) throw Error("Choose one local work contract");
+  if ([options.localWork, options.localOutcomes, options.materialIntake].filter(Boolean).length > 1) throw Error("Choose one local work contract");
+  if (options.materialIntake) {
+    if (!options.stateRoot || !options.partition) throw Error("Material intake state scope required");
+    return (await new CognitiveMaterialIntake(options.stateRoot, options.materialIntake.dataRoot, options.partition).load(goalId, goal))?.catalog;
+  }
   if (options.localOutcomes) return loadCognitiveLocalOutcomes(options.localOutcomes.manifestPath, options.localOutcomes.dataRoot, goalId, goal);
   if (options.localWork) return loadCognitiveLocalWork(options.localWork.manifestPath, options.localWork.dataRoot, goalId, goal);
   return undefined;
@@ -96,7 +103,7 @@ export class CompassGoalExecutionAdapter implements GoalExecutionAdapter {
       const registry = new CapabilityRegistry()
         .register(createContextInspectCapability())
         .register(createCodeBuilderCapability(createRuntimeBuilderRouter()));
-      const localWork = await loadCognitiveRuntimeWork(this.cognitiveOptions, authoritativeGoalId, goal);
+      const localWork = await loadCognitiveRuntimeWork({ ...this.cognitiveOptions, stateRoot: this.cognitiveOptions.stateRoot ?? resolve(dirname(this.dbPath), "cognitive"), partition: this.cognitiveOptions.partition ?? { tenantId: "local", principalId: "owner" } }, authoritativeGoalId, goal);
       localWork?.register(registry);
       const verifier = localWork?.verifier(createRuntimeDevelopmentVerifier()) ?? createRuntimeDevelopmentVerifier();
       const workStateStore = new CompassWorkStateStoreAdapter(compass);

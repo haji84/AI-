@@ -12182,7 +12182,15 @@
         "src/orchestrator/compass-goal-execution-adapter.ts",
         "src/app/api/jarvis/cognitive/route.ts",
         "src/gai/cognitive-local-outcomes.ts",
-        "src/gai/cognitive-host-config.ts"
+        "src/gai/cognitive-host-config.ts",
+        "src/gai/cognitive-material-intake.ts",
+        "src/gai/cognitive-history.ts",
+        "src/app/jarvis/tasks/CognitivePanel.tsx",
+        "src/app/jarvis/tasks/CognitiveMaterials.tsx",
+        "src/app/jarvis/tasks/CognitiveLearning.tsx",
+        "src/orchestrator/cognitive-material-proxy.ts",
+        "src/app/api/jarvis/cognitive/materials/route.ts",
+        "src/app/api/jarvis/cognitive/learning/route.ts"
       ],
       "test_refs": [
         "tests/goriq-cognitive-core.test.ts",
@@ -12195,7 +12203,15 @@
         "tests/goriq-cognitive-outcome-runtime.test.ts",
         "tests/goriq-cognitive-config.test.ts",
         "tests/goriq-cognitive-broker.test.ts",
-        "tests/goriq-cognitive-recovery.test.ts"
+        "tests/goriq-cognitive-recovery.test.ts",
+        "tests/cognitive-history.test.ts",
+        "tests/goriq-cognitive-history-service.test.ts",
+        "tests/goriq-cognitive-correction-boundary.test.ts",
+        "tests/goriq-cognitive-material-proxy.test.ts",
+        "tests/goriq-material-intake.test.ts",
+        "tests/goriq-material-review.test.ts",
+        "tests/goriq-cognitive-legacy-ui.test.mjs",
+        "scripts/goriq-cognitive-browser-smoke.mjs"
       ],
       "evidence_refs": [
         "docs/evidence/1216-cognitive-core.md",
@@ -12203,11 +12219,11 @@
         "docs/audit/goriq-cognitive-learning-audit.md"
       ],
       "status": "PARTIAL",
-      "blocker": "Bounded local outcome compilation is integrated; unrestricted novel decomposition, natural-language material authorization, historical/teaching/research integration and physical/cross-device acceptance remain.",
+      "blocker": "Bounded owner material intake, outcome execution/download and explicit historical/correction UI are integrated. Normal conversational DoD semantics, unrestricted novel decomposition/executable skills, historical claim revalidation, teaching/R16 experiment/R17 promotion integration and physical/cross-device acceptance remain.",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "Bind existing owner upload grants to authoritative Goal identity, stage bounded text materials under the existing authorized root with server-derived hashes, then use the outcome compiler. Continue historical/teaching/research integration under #1216; preserve production holds and required physical evidence.",
-      "last_verified_commit": "bee371198444408217cfa19fbcff97424933ef18",
+      "next_action": "Finish exact-head CI/evidence for explicit owner material intake and historical/correction controls. Then connect ordinary Goal intake to trusted nonempty success criteria and semantic outcome verification; continue verified historical/teaching/research and model-improvement integration without promoting raw claims or weakening existing gates.",
+      "last_verified_commit": null,
       "source_decisions": [
         "owner-intake-cc6f2a30e8336d322129e2972d1e8f90"
       ]

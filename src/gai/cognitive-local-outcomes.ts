@@ -53,7 +53,7 @@ function dataPath(root: string, value: unknown): string {
   if (!rel || isAbsolute(rel) || rel === ".." || rel.startsWith(".." + sep)) throw Error("Local outcome path outside data scope");
   return target;
 }
-async function containedFile(root: string, path: string): Promise<string> {
+export async function containedFile(root: string, path: string): Promise<string> {
   const rootInfo = await lstat(root);
   if (!rootInfo.isDirectory() || rootInfo.isSymbolicLink()) throw Error("Unsafe local data root");
   const actualRoot = await realpath(root);
@@ -69,7 +69,7 @@ async function containedFile(root: string, path: string): Promise<string> {
   return actual;
 }
 /** Fixed-size allocation and handle metadata checks also bound files that grow during a read. */
-async function boundedRead(path: string, maximum: number): Promise<Buffer> {
+export async function boundedRead(path: string, maximum: number): Promise<Buffer> {
   const before = await lstat(path);
   if (!before.isFile() || before.isSymbolicLink() || before.size > maximum) throw Error("Local file exceeds bound or is unsafe");
   const handle = await open(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
@@ -125,6 +125,14 @@ function document(value: unknown): SandboxDocument {
     if (forbiddenKey.test(name)) throw Error("Invalid section key"); sections[name] = value;
   }
   return { title: value.title, sections };
+}
+
+export function validateCognitiveMaterial(content: string, format: Material["format"]) {
+  text(content, MAX_MATERIAL_BYTES, "source material"); assertCognitiveSafe(content);
+  if (Buffer.byteLength(content) > MAX_MATERIAL_BYTES) throw Error("Material exceeds byte bound");
+  if (!["text", "workbook-json", "document-json"].includes(format)) throw Error("Unsupported material format");
+  const parsed: unknown = format === "text" ? content : JSON.parse(content); assertCognitiveSafe(parsed);
+  return { book: format === "workbook-json" ? workbook(parsed) : undefined, doc: format === "document-json" ? document(parsed) : undefined };
 }
 
 export class CognitiveLocalOutcomeCatalog {
@@ -203,12 +211,9 @@ export class CognitiveLocalOutcomeCatalog {
     const bytes = await boundedRead(await containedFile(this.root, material.path), MAX_MATERIAL_BYTES);
     if (sha(bytes) !== material.sha256) throw Error("Source material hash mismatch");
     const content = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes);
-    text(content, MAX_MATERIAL_BYTES, "source material"); assertCognitiveSafe(content);
-    const parsed: unknown = material.format === "text" ? content : JSON.parse(content);
-    assertCognitiveSafe(parsed);
+    const { book, doc } = validateCognitiveMaterial(content, material.format);
     const source: LocalArtifactExpectation = { domain: "file", path: material.path, expectedSha256: material.sha256, expectedText: content };
-    const book = material.format === "workbook-json" ? workbook(parsed) : undefined;
-    const doc = material.format === "document-json" ? document(parsed) : undefined;
+
     if (!outcome) return { source };
     const outputBytes = book ? encodeXlsx(book) : doc ? encodeDocx(doc) : bytes;
     if (outputBytes.length > MAX_OUTPUT_BYTES) throw Error("Output bound exceeded");

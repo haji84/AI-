@@ -550,7 +550,7 @@
     },
     {
       "path": "docs/architecture/goriq-cognitive-core.md",
-      "sha256": "b6b58b410b81af2a6265b0b34fd55657620545b1f819e0b4704a675d49f2efae",
+      "sha256": "4fda7c62454dffcb3a3b73b7a3ae34a5a023ec7d3cc6ecd32e09df8b6ca58cf3",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OWN-001"
@@ -933,7 +933,7 @@
     },
     {
       "path": "scripts/jarvis-broker.ts",
-      "sha256": "b76ffbe0373983f6150e1f73800ec1ed712902bb4aa3dafe34932b3b3f38daf3",
+      "sha256": "250bec86f1a56cb491ae6cbecd7a58c4a0d8d70ba708eb82fe0ef05177488a57",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "NET-006",
@@ -1363,6 +1363,24 @@
         "SEC-002"
       ],
       "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/app/api/jarvis/cognitive/learning/route.ts",
+      "sha256": "538440fff5ba4a21d36f3ea3d00bc561181b05cd3e6448f83812993729907e8a",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OWN-001"
+      ],
+      "reason": "Owner-authenticated proxy for explicit historical import, count-only summaries and checked correction/dataset actions; no automatic knowledge promotion"
+    },
+    {
+      "path": "src/app/api/jarvis/cognitive/materials/route.ts",
+      "sha256": "f98f92c5141bba7ffdcf58593f095a48f9ed7d2466238aadd35727b157c94377",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OWN-001"
+      ],
+      "reason": "Owner-authenticated bounded direct-material intake and independently verified output download through the private Broker"
     },
     {
       "path": "src/app/api/jarvis/cognitive/route.ts",
@@ -2361,8 +2379,26 @@
       "reason": "Single owner front door and navigation shell"
     },
     {
+      "path": "src/app/jarvis/tasks/CognitiveLearning.tsx",
+      "sha256": "6bc040301091ca084ec7f787eefac441a9c0ea9956cf0348fb28547cc11ccba1",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OWN-001"
+      ],
+      "reason": "Explicit owner controls for historical candidate import and verified-attempt correction; summaries omit raw history and host paths"
+    },
+    {
+      "path": "src/app/jarvis/tasks/CognitiveMaterials.tsx",
+      "sha256": "416d1f8a25e64a79c46c689e3cadce2324b0121bd2d9e75cb98cb3e256a704d2",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OWN-001"
+      ],
+      "reason": "Direct owner material submission bound to the current Goal and explicit success-criteria mapping; verified output controls preserve legacy fallback"
+    },
+    {
       "path": "src/app/jarvis/tasks/CognitivePanel.tsx",
-      "sha256": "785465c57c360e68c8b4d2fcb7d3d505e7006c7814e10d4fa6f6f217113873f7",
+      "sha256": "cdebe99c67099f67cb60ab8d04e2c73e64d72bd7fd009da33b0a18bbcd2339f6",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OWN-001"
@@ -2641,13 +2677,22 @@
       "reason": "Issue #1216 reviewed Cognitive Core integration/hardening; mapped requirement does not imply full acceptance"
     },
     {
+      "path": "src/gai/cognitive-history.ts",
+      "sha256": "7903ea73f9f8f4040b8a29ba023fd54b58f088bfd583a24b9d60fc4368ed8fc8",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OWN-001"
+      ],
+      "reason": "Bounded host-manifest historical ingestion with immutable provenance, partition isolation, UNVERIFIED candidates and held-out-preserving dataset filtering"
+    },
+    {
       "path": "src/gai/cognitive-host-config.ts",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OWN-001"
       ],
       "reason": "Bounded local outcome compilation and host configuration under Cognitive Core #1216",
-      "sha256": "21aa4d4b41bd25074eb448d56307978fad54dc77b44d3b6cd3a470af52a5457a"
+      "sha256": "2325c55fe5b5ac3d4c1cb258881180d3b0756a994c2c79777f41fc18b5254450"
     },
     {
       "path": "src/gai/cognitive-learning-data.ts",
@@ -2683,7 +2728,7 @@
         "OWN-001"
       ],
       "reason": "Bounded local outcome compilation and host configuration under Cognitive Core #1216",
-      "sha256": "0b44a05a7a668077817c4123c39a1145a3255edcfb4bfdde8a6257accb24b8dd"
+      "sha256": "0ca17ba5fd1b67f39196bbb1bd1d79d15a67cc22b81d115973d6e7601082b179"
     },
     {
       "path": "src/gai/cognitive-local-work.ts",
@@ -2695,8 +2740,17 @@
       "reason": "Issue #1216 reviewed Cognitive Core integration/hardening; mapped requirement does not imply full acceptance"
     },
     {
+      "path": "src/gai/cognitive-material-intake.ts",
+      "sha256": "69e58876291ca3b338d948f5f2a9edd81ace82793d320f44d398883a39fe8e5b",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OWN-001"
+      ],
+      "reason": "Opt-in host-root material receipts bind supplied content to an immutable Goal, root and success criteria; independent output verification prevents false completion"
+    },
+    {
       "path": "src/gai/cognitive-service.ts",
-      "sha256": "b1f8aeaa36c81a536ef9bd1e675930b0d0c76a6e3b8de5e658a602b651d22107",
+      "sha256": "6e7c31e576101a8bcf24d953f1e1a76af7246b38efef5e789f1f98c90d34cde6",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OWN-001"
@@ -4232,6 +4286,15 @@
       "reason": "Declared cloud-runtime.ts responsibility implements/supports Software Development Autopilot; Executor. Parent ownership is not functional or physical acceptance evidence."
     },
     {
+      "path": "src/orchestrator/cognitive-material-proxy.ts",
+      "sha256": "71ea14eea701a470485962e10449ed551da7d91d92f9ff852cf70d6f66682cdd",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OWN-001"
+      ],
+      "reason": "Owner-first strict-schema bounded material/learning proxy with timeout, safe response handling and verified-download checks"
+    },
+    {
       "path": "src/orchestrator/cognitive-proxy.ts",
       "sha256": "7c2d48ab7ce026ce26fd1e782d75c7778f04719751ffa330c593af8b41197d38",
       "classification": "COVERED_BY_REQUIREMENT",
@@ -4263,7 +4326,7 @@
     },
     {
       "path": "src/orchestrator/compass-goal-execution-adapter.ts",
-      "sha256": "0df5b80fa404507f08152d6ff46a2679af15c3bc87e807be59ccb4b4c9c69089",
+      "sha256": "83b771939c1a5b1c5356f3e0ef9044c251951e2603661ae9941973f67385907c",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-002",

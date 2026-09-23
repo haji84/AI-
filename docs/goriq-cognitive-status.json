@@ -33,7 +33,7 @@
       "evidence_refs": [
         "docs/evidence/1216-cognitive-core.md"
       ],
-      "last_verified_commit": "bee371198444408217cfa19fbcff97424933ef18",
+      "last_verified_commit": null,
       "remaining": "Bounded registered action plans work with actual local model. Open-ended plan synthesis and broad model-quality calibration remain."
     },
     {
@@ -71,18 +71,21 @@
       "implementation_refs": [
         "src/gai/cognitive-core.ts",
         "src/gai/cognitive-local-work.ts",
-        "src/gai/cognitive-local-outcomes.ts"
+        "src/gai/cognitive-local-outcomes.ts",
+        "src/gai/cognitive-material-intake.ts"
       ],
       "test_refs": [
         "tests/goriq-cognitive-acceptance.test.ts",
         "tests/goriq-cognitive-outcomes.test.ts",
-        "tests/goriq-cognitive-outcome-runtime.test.ts"
+        "tests/goriq-cognitive-outcome-runtime.test.ts",
+        "tests/goriq-material-intake.test.ts",
+        "tests/goriq-material-review.test.ts"
       ],
       "evidence_refs": [
         "docs/evidence/1216-cognitive-core.md"
       ],
-      "last_verified_commit": "bee371198444408217cfa19fbcff97424933ef18",
-      "remaining": "Host materials/outcomes compile read/conversion plans without per-step instructions; source-derived artifact verification is integrated. Arbitrary novel decomposition/new executable tools and natural-language material authorization are not implemented."
+      "last_verified_commit": null,
+      "remaining": "Owner-selected text/canonical JSON with explicit existing-criterion mapping now feeds fixed local conversion plans. Arbitrary novel decomposition, executable tool synthesis, conversational DoD discovery and general semantic outcome verification remain."
     },
     {
       "id": "COG-004",
@@ -95,18 +98,22 @@
       ],
       "implementation_refs": [
         "src/gai/cognitive-state.ts",
-        "src/gai/cognitive-lease.ts"
+        "src/gai/cognitive-lease.ts",
+        "src/gai/cognitive-material-intake.ts",
+        "src/gai/cognitive-service.ts"
       ],
       "test_refs": [
         "tests/goriq-cognitive-recovery.test.ts",
         "tests/goriq-cognitive-runtime.test.ts",
-        "tests/goriq-cognitive-outcome-runtime.test.ts"
+        "tests/goriq-cognitive-outcome-runtime.test.ts",
+        "tests/goriq-material-intake.test.ts",
+        "tests/goriq-material-review.test.ts"
       ],
       "evidence_refs": [
         "docs/evidence/1216-cognitive-core.md"
       ],
-      "last_verified_commit": "bee371198444408217cfa19fbcff97424933ef18",
-      "remaining": "Same-host restart, bound Goal/contract/root recovery and verified local effects pass. Unbound prior material histories require explicit review; arbitrary external effects and physical power-loss acceptance remain."
+      "last_verified_commit": null,
+      "remaining": "Same-host Goal/root/request-bound material receipts, no-replace retries, restart and verified-download checks are integrated. Arbitrary external effects, cross-device transport and physical power-loss acceptance remain."
     },
     {
       "id": "COG-005",
@@ -151,7 +158,7 @@
         "docs/evidence/1216-cognitive-core.md"
       ],
       "last_verified_commit": "596b3f893ddfcc0ea5d5989a55e29e7f1265cc70",
-      "remaining": "Verified experiences feed existing memory/world/ClosedLearningLoop. Research campaign orchestration and generalization quality remain experimental."
+      "remaining": "Verified experiences feed existing memory/world/ClosedLearningLoop and R16 failure-derived hypotheses. Real research experiment execution, teaching replay-to-current-action binding and generalization quality remain experimental."
     },
     {
       "id": "COG-007",
@@ -208,17 +215,23 @@
       ],
       "implementation_refs": [
         "src/gai/cognitive-learning.ts",
-        "src/gai/cognitive-service.ts"
+        "src/gai/cognitive-service.ts",
+        "src/app/jarvis/tasks/CognitiveLearning.tsx",
+        "src/orchestrator/cognitive-material-proxy.ts",
+        "src/app/api/jarvis/cognitive/learning/route.ts"
       ],
       "test_refs": [
         "tests/cognitive-learning.test.ts",
-        "tests/goriq-cognitive-acceptance.test.ts"
+        "tests/goriq-cognitive-acceptance.test.ts",
+        "tests/goriq-cognitive-correction-boundary.test.ts",
+        "tests/goriq-cognitive-material-proxy.test.ts",
+        "tests/goriq-cognitive-legacy-ui.test.mjs"
       ],
       "evidence_refs": [
         "docs/evidence/1216-cognitive-core.md"
       ],
-      "last_verified_commit": "596b3f893ddfcc0ea5d5989a55e29e7f1265cc70",
-      "remaining": "Explicit correction of existing verified attempts via service/CLI is integrated. Free-form human corrections and teaching UI binding remain."
+      "last_verified_commit": null,
+      "remaining": "Owner UI/CLI corrections use existing attempts and verified replacements, current Goal/contract checks, shared execution lease and idempotent learning. Free-form human corrections and Goal/catalog binding for TeachingStore replay remain."
     },
     {
       "id": "COG-010",
@@ -227,19 +240,26 @@
         "SPECIFIED",
         "IMPLEMENTED",
         "TESTED",
+        "INTEGRATED",
         "EXPERIMENTAL"
       ],
       "implementation_refs": [
-        "src/gai/cognitive-learning-data.ts"
+        "src/gai/cognitive-learning-data.ts",
+        "src/gai/cognitive-history.ts",
+        "src/gai/cognitive-service.ts",
+        "src/app/jarvis/tasks/CognitiveLearning.tsx"
       ],
       "test_refs": [
-        "tests/cognitive-learning-data.test.ts"
+        "tests/cognitive-learning-data.test.ts",
+        "tests/cognitive-history.test.ts",
+        "tests/goriq-cognitive-history-service.test.ts",
+        "tests/goriq-cognitive-material-proxy.test.ts"
       ],
       "evidence_refs": [
         "docs/evidence/1216-cognitive-core.md"
       ],
-      "last_verified_commit": "596b3f893ddfcc0ea5d5989a55e29e7f1265cc70",
-      "remaining": "Bounded supplied historical artifacts preserve provenance. Live GitHub harvesting and automatic history-to-verified-knowledge promotion are not implemented."
+      "last_verified_commit": null,
+      "remaining": "Explicit configured local historical artifacts are acquired, hashed and persisted as partitioned UNVERIFIED candidates through service/Broker/CLI/UI. Live GitHub harvesting, historical claim revalidation and verified knowledge promotion remain; raw claims never become recall or executable authority."
     },
     {
       "id": "COG-011",
@@ -276,16 +296,20 @@
       ],
       "implementation_refs": [
         "src/gai/cognitive-learning-data.ts",
-        "src/gai/cognitive-service.ts"
+        "src/gai/cognitive-service.ts",
+        "src/gai/cognitive-history.ts",
+        "src/app/jarvis/tasks/CognitiveLearning.tsx"
       ],
       "test_refs": [
-        "tests/cognitive-learning-data.test.ts"
+        "tests/cognitive-learning-data.test.ts",
+        "tests/cognitive-history.test.ts",
+        "tests/goriq-cognitive-history-service.test.ts"
       ],
       "evidence_refs": [
         "docs/evidence/1216-cognitive-core.md"
       ],
-      "last_verified_commit": "596b3f893ddfcc0ea5d5989a55e29e7f1265cc70",
-      "remaining": "Private live verified experiences produce isolated training candidates. Fine-tuning/LoRA execution and model promotion are not activated."
+      "last_verified_commit": null,
+      "remaining": "Candidate preview merges actual verified live experience with historical candidates, excludes unverified claims and preserves held-out separation. Fine-tuning/LoRA execution, training resource acceptance and model promotion remain unimplemented/inactive."
     },
     {
       "id": "COG-013",
@@ -299,17 +323,22 @@
       "implementation_refs": [
         "src/gai/cognitive-state.ts",
         "src/gai/cognitive-learning.ts",
-        "src/gai/cognitive-learning-data.ts"
+        "src/gai/cognitive-learning-data.ts",
+        "src/gai/cognitive-history.ts",
+        "src/gai/cognitive-material-intake.ts"
       ],
       "test_refs": [
         "tests/cognitive-learning-data.test.ts",
-        "tests/cognitive-learning.test.ts"
+        "tests/cognitive-learning.test.ts",
+        "tests/cognitive-history.test.ts",
+        "tests/goriq-cognitive-history-service.test.ts",
+        "tests/goriq-material-review.test.ts"
       ],
       "evidence_refs": [
         "docs/evidence/1216-cognitive-core.md"
       ],
-      "last_verified_commit": "596b3f893ddfcc0ea5d5989a55e29e7f1265cc70",
-      "remaining": "Owner/tester partitions and sanitized generalized candidates are tested. Multi-user production identity provisioning and sharing authorization integration remain."
+      "last_verified_commit": null,
+      "remaining": "Host-bound owner/tester history, material receipts and learning remain partitioned; no raw historical content is exposed in status/UI. Multi-user production identity provisioning and authorized generalized sharing remain."
     },
     {
       "id": "COG-014",
@@ -392,19 +421,34 @@
         "src/gai/cognitive-service.ts",
         "src/gai/cognitive-local-work.ts",
         "src/gai/cognitive-host-config.ts",
-        "src/gai/cognitive-local-outcomes.ts"
+        "src/gai/cognitive-local-outcomes.ts",
+        "src/gai/cognitive-material-intake.ts",
+        "src/gai/cognitive-history.ts",
+        "src/app/jarvis/tasks/CognitivePanel.tsx",
+        "src/app/jarvis/tasks/CognitiveMaterials.tsx",
+        "src/app/jarvis/tasks/CognitiveLearning.tsx",
+        "src/orchestrator/cognitive-material-proxy.ts",
+        "src/app/api/jarvis/cognitive/materials/route.ts",
+        "src/app/api/jarvis/cognitive/learning/route.ts"
       ],
       "test_refs": [
         "tests/goriq-cognitive-broker.test.ts",
         "tests/goriq-cognitive-runtime.test.ts",
         "tests/goriq-cognitive-proxy.test.ts",
-        "tests/goriq-cognitive-config.test.ts"
+        "tests/goriq-cognitive-config.test.ts",
+        "tests/goriq-material-intake.test.ts",
+        "tests/goriq-material-review.test.ts",
+        "tests/goriq-cognitive-material-proxy.test.ts",
+        "tests/goriq-cognitive-history-service.test.ts",
+        "tests/goriq-cognitive-correction-boundary.test.ts",
+        "tests/goriq-cognitive-legacy-ui.test.mjs",
+        "scripts/goriq-cognitive-browser-smoke.mjs"
       ],
       "evidence_refs": [
         "docs/evidence/1216-cognitive-core.md"
       ],
-      "last_verified_commit": "bee371198444408217cfa19fbcff97424933ef18",
-      "remaining": "Actual Compass/Broker/API/Task UI candidate integrated. Hosts can configure either outcomes/materials or legacy steps; unconfigured goals inspect only. Normal intake-to-authorized-material setup and Production activation remain."
+      "last_verified_commit": null,
+      "remaining": "Owner material body → immutable Goal/root/criterion receipt → actual Compass/Broker execution → verified download is integrated under opt-in host storage. UI history/correction controls preserve old Broker status compatibility. Normal conversational Goal criteria semantics, general attachment conversion, Production activation and required physical acceptance remain."
     }
   ],
   "verified_software_commit": "bee371198444408217cfa19fbcff97424933ef18",

@@ -1,6 +1,8 @@
 "use client";
+import CognitiveMaterials, { type MaterialSnapshot } from "./CognitiveMaterials";
+import CognitiveLearning, { type LearningSnapshot } from "./CognitiveLearning";
 import { useEffect, useState } from "react";
-type Snapshot = { goalId: string | null; goalTitle: string | null; busy: boolean; goalComplete: boolean; mode: string; attempts: number; nextAction: string | null; blockers: string[]; externalAIEnabled: boolean; localActionsConfigured: boolean; metrics: { goals: number; completedGoals: number; externalAiFreeCompletionRate: number | null; externalAiCallsPerGoal: number | null } };
+type Snapshot = MaterialSnapshot & LearningSnapshot & { goalId: string | null; goalTitle: string | null; busy: boolean; goalComplete: boolean; mode: string; attempts: number; nextAction: string | null; blockers: string[]; externalAIEnabled: boolean; localActionsConfigured: boolean; metrics: { goals: number; completedGoals: number; externalAiFreeCompletionRate: number | null; externalAiCallsPerGoal: number | null } };
 export default function CognitivePanel() {
   const [state, setState] = useState<Snapshot | null>(null);
   const [message, setMessage] = useState("");
@@ -38,7 +40,9 @@ export default function CognitivePanel() {
       <dt>次の作業</dt><dd>{state?.nextAction ?? "受付待ち"}</dd></dl>
     {state?.blockers.length ? <p className="jarvis-alert">{state.blockers.join(" / ")}</p> : null}
     {state && !state.localActionsConfigured && <p className="muted">現在は状態確認が利用できます。ファイル処理には対象・成果物・検証条件を設定した作業が必要です。</p>}
+    {state && <CognitiveMaterials key={`materials:${state.goalDigest}`} state={state} disabled={busy} onSaved={refresh}/> }
     <button className="button" disabled={busy || state?.busy || state?.goalComplete || !state?.goalId} onClick={() => void continueGoal()}>{state?.goalComplete ? "このGoalは完了しました" : busy ? "処理中…" : "現在のGoalを続ける"}</button>
+    {state && <CognitiveLearning key={`learning:${state.goalDigest}`} state={state} disabled={busy || state.busy} onSaved={refresh}/> }
     <p role="status" aria-live="polite">{message}</p>
   </section>;
 }
