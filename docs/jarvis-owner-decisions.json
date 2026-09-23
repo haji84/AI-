@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "scope": "Reviewed canonical decisions; authenticated runtime receipts require exact deployed canonical synchronization.",
+  "decisions": [
+    {
+      "id": "owner-1205-living-specification",
+      "state": "SPEC_SYNCED",
+      "source": {
+        "kind": "owner_instruction",
+        "decision": "accepted",
+        "author": "haji84",
+        "ref": "https://github.com/haji84/AI-/issues/1205",
+        "excerpt": "Ownerとの会話・指示もreverse traceabilityの正式な入力源とする。",
+        "text_sha256": "d81a2d48aea3daa343f22845d4a5eca167fb7f5f371e7fcb9acc1abc7040abf4",
+        "recorded_at": "2026-09-22T22:55:32.037Z"
+      },
+      "protected_changes": [],
+      "canonical": [
+        {
+          "id": "GOV-025",
+          "fingerprint": "4bf82254b5712b3e9a3c8ad4040f7f1cd834201193bc21f114a7bf0a266b03a1"
+        },
+        {
+          "id": "CORE-015",
+          "fingerprint": "3a892524d479779e6e02bc99805f65b8e3137011e80b7f1f527de7ed815f8177"
+        }
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "next_action": "Candidate Broker intake, correction/withdrawal proposals and completion gating added; broader semantic extraction, new-ID allocation and automatic reviewed PR publishing remain pending."
+    }
+  ]
+}

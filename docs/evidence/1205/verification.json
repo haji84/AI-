@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "issue": 1205,
+  "code_commit": "0e55e4d7b84ee5bda505af7d35e22bb5ed445e99",
+  "source_main": "1ba440a4daf1bc2e1ffb20088d42b07fc62d21fa",
+  "checks": [
+    {
+      "name": "full-tests",
+      "command": "pnpm test",
+      "result": "PASS",
+      "passed": 1428,
+      "failed": 0,
+      "skipped": 0,
+      "log_sha256": "ce5351ca566f89ceffeeb3e33a4521a29dacdb09a4e09d83c255095c7515bb0b",
+      "verified_at": "2026-09-22T23:01:25.772Z"
+    },
+    {
+      "name": "p8",
+      "command": "pnpm run test:p8-security",
+      "result": "PASS",
+      "passed": 296,
+      "failed": 0,
+      "skipped": 0,
+      "log_sha256": "5a0c59a2002feedb3ec186401232ad1158a009dbd4a2a14677bba8f3642061aa",
+      "verified_at": "2026-09-22T23:01:29.444Z"
+    },
+    {
+      "name": "lint",
+      "command": "pnpm lint",
+      "result": "PASS",
+      "log_sha256": "cc5a0b39c7052d24c24888403c48018b4fcccc9d799f81be6c9c30c9e19c85fc",
+      "verified_at": "2026-09-22T23:00:06.863Z"
+    },
+    {
+      "name": "build",
+      "command": "pnpm build",
+      "result": "PASS",
+      "log_sha256": "7122c0597756cd5b1b6c0c744878afc68486e407af4343cef19f6f44933a9c74",
+      "verified_at": "2026-09-22T23:01:37.040Z"
+    },
+    {
+      "name": "typecheck",
+      "command": "pnpm exec tsc --noEmit",
+      "result": "PASS",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "verified_at": "2026-09-22T23:03:37.995Z"
+    }
+  ],
+  "focused": {
+    "passed": 10,
+    "failed": 0,
+    "skipped": 0
+  },
+  "surface_counts": {
+    "covered": 299,
+    "internal": 25,
+    "historical": 12,
+    "research_excluded": 10,
+    "total": 346
+  },
+  "requirements": 340,
+  "status_changes": 0,
+  "review": "Independent Codex review found no remaining blocking findings in the repository-only slice",
+  "remaining": [
+    "authenticated live intake",
+    "semantic match and conflict resolution",
+    "automatic specification PR creation",
+    "expand reverse inventory to other orchestration/provider/owner-auth surfaces"
+  ],
+  "product_complete": false,
+  "production_changes": false,
+  "integration_base": "9cbf6accaec5eb1ec76359a6b88af6bf225eb51e",
+  "integration_validation": {
+    "targeted_passed": 10,
+    "reverse_surfaces": 346,
+    "canonical_requirements": 340,
+    "result": "PASS",
+    "note": "Main UI-007 reconciliation retained; exact combined-head CI tracked in PR"
+  }
+}

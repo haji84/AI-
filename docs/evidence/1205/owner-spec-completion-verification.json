@@ -1,0 +1,128 @@
+{
+  "issue": 1205,
+  "code_commit": "0b1c4a7fd9f52c2548a3e62261d6423c23c55e59",
+  "source_main": "9cbf6accaec5eb1ec76359a6b88af6bf225eb51e",
+  "timestamp": "2026-09-23T08:14:59.113Z",
+  "physical_claim": false,
+  "production_changed": false,
+  "tests": {
+    "full": 1463,
+    "security": 331,
+    "failed": 0,
+    "skipped": 0
+  },
+  "browser": {
+    "status": "PASS",
+    "timestamp": "2026-09-23T08:12:18.066Z",
+    "checks": [
+      "real isolated Broker + browser owner auth",
+      "natural adoption persisted",
+      "lost response retry is idempotent",
+      "adopted source marked used",
+      "new-ID preview",
+      "publication-disabled without capability",
+      "example kept IDEA",
+      "selected saved-reference adoption",
+      "desktop/mobile no horizontal overflow",
+      "no browser page errors"
+    ],
+    "pageErrors": [],
+    "physical": false
+  },
+  "independent_review": {
+    "fixed_findings": 8,
+    "remaining_delta_blockers": 0,
+    "focused_tests": 23,
+    "existing_goal_compass_work_regression_tests": 63
+  },
+  "logs": [
+    {
+      "command": "pnpm test (process-local Git Bash PATH)",
+      "result": "PASS",
+      "path": ".jarvis/verification-1205-ui/tests.log",
+      "sha256": "faf774860b82033bc747432998d8ad63f109c9d1d595a46b1bad90bffa7e58b2",
+      "timestamp": "2026-09-23T08:07:45.441Z"
+    },
+    {
+      "command": "pnpm test:p8-security",
+      "result": "PASS",
+      "path": ".jarvis/verification-1205-ui/p8.log",
+      "sha256": "31af8c4a601d0564e423ae580d3d3ba43ab34494df123e82a73d16747a5d4dd9",
+      "timestamp": "2026-09-23T08:08:11.206Z"
+    },
+    {
+      "command": "pnpm lint",
+      "result": "PASS",
+      "path": ".jarvis/verification-1205-ui/lint.log",
+      "sha256": "cc5a0b39c7052d24c24888403c48018b4fcccc9d799f81be6c9c30c9e19c85fc",
+      "timestamp": "2026-09-23T08:06:36.663Z"
+    },
+    {
+      "command": "pnpm exec tsc --noEmit",
+      "result": "PASS",
+      "path": ".jarvis/verification-1205-ui/typecheck.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "timestamp": "2026-09-23T08:07:57.712Z"
+    },
+    {
+      "command": "pnpm build",
+      "result": "PASS",
+      "path": ".jarvis/verification-1205-ui/build.log",
+      "sha256": "fb59b223805f0571fa0e97f42e7a8589b001767e1b4dea3fd6235391ced993d5",
+      "timestamp": "2026-09-23T08:08:14.807Z"
+    },
+    {
+      "command": "isolated Next production healthcheck",
+      "result": "PASS",
+      "path": ".jarvis/verification-1205-ui/health.log",
+      "sha256": "516f1098a43f662a92fe3592ef062ee08ead859a75fe429d065f80fb594fdf7a",
+      "timestamp": "2026-09-23T08:09:10.469Z"
+    }
+  ],
+  "screenshots": [
+    {
+      "path": "docs/evidence/1205/owner-spec-desktop.png",
+      "sha256": "7d9c6dfeb0a1b907cf2bf7baa4cb82687e4794dea0839e09cf769179dd20ae9d"
+    },
+    {
+      "path": "docs/evidence/1205/owner-spec-mobile.png",
+      "sha256": "783044cd70824592fe1ae7b893f963e7d520b46a520df7e6c58ce87771b38f45"
+    }
+  ],
+  "merge_impact": {
+    "status": "MAC_TRIGGER_GATE_APPROVED_PENDING_EXACT_HEAD_CI_REVIEW",
+    "reason": "Active unrelated live Broker refresh and enrollment-grant workflows match this main push; separate workflow authority required before altering or triggering them.",
+    "observed_workflows": [
+      {
+        "id": 357969264,
+        "path": ".github/workflows/jarvis-broker-refresh.yml",
+        "state": "active"
+      },
+      {
+        "id": 356948934,
+        "path": ".github/workflows/jarvis-one-tap-e2e.yml",
+        "state": "active"
+      },
+      {
+        "id": 356928059,
+        "path": ".github/workflows/jarvis-vercel-sync.yml",
+        "state": "disabled_manually"
+      }
+    ],
+    "source": "GitHub REST GET /repos/haji84/AI-/actions/workflows?per_page=100",
+    "checked_at": "2026-09-23T08:14:59.117Z",
+    "resolution": {
+      "owner_approval": "Macbookは後日追加するから手動実行でOK",
+      "evidence": "docs/evidence/1205/manual-mac-approval.json",
+      "applied": true,
+      "manual_execution_authorized": false
+    },
+    "production_boundary": "Existing scoped Vercel deploy upserts credentials; activation metadata withheld. Windows installation is separately pinned."
+  },
+  "limits": [
+    "No live GitHub publication claim from adapter fixture",
+    "Bounded interpretation; unknown references stay explicit",
+    "No main merge/deployment or device changes",
+    "Broader #1205 audit roots and all intake surfaces remain"
+  ]
+}

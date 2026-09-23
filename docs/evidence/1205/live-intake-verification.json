@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "issue": 1205,
+  "code_commit": "e1c261173b7e808ec73e8f745bab732f31cc4753",
+  "source_main": "9cbf6accaec5eb1ec76359a6b88af6bf225eb51e",
+  "environment": "Windows / Node 24.19.0 / pnpm 11.19.0; isolated temp SQLite/Broker; Git Bash process-local PATH for shell syntax test",
+  "checks": [
+    {
+      "name": "tests",
+      "command": "pnpm test",
+      "result": "PASS",
+      "passed": 1442,
+      "failed": 0,
+      "skipped": 0,
+      "log_sha256": "951f97885a046265ea87da35ad10d695bdc4d0ea50ec21d3afba5c71f87cf1be",
+      "verified_at": "2026-09-23T06:29:26.641Z"
+    },
+    {
+      "name": "security",
+      "command": "pnpm run test:p8-security",
+      "result": "PASS",
+      "passed": 310,
+      "failed": 0,
+      "skipped": 0,
+      "log_sha256": "d9a7b304a7fbdc8e665f982e809227e4cfab71faf090450e82c848d6bfd07f96",
+      "verified_at": "2026-09-23T06:29:23.297Z"
+    },
+    {
+      "name": "focused",
+      "command": "node --test tests/owner-requirement-intake.test.ts tests/owner-requirement-ingress.test.ts tests/owner-requirement-gate.test.ts tests/owner-specification-sync.test.mjs tests/jarvis-requirement-traceability.test.mjs",
+      "result": "PASS",
+      "passed": 24,
+      "failed": 0,
+      "skipped": 0,
+      "log_sha256": "118ca6917c306920d0b0e16135247708aa101d49f43eba5bf682256b35564af2",
+      "verified_at": "2026-09-23T06:28:15.548Z"
+    },
+    {
+      "name": "lint",
+      "command": "pnpm lint",
+      "result": "PASS",
+      "log_sha256": "cc5a0b39c7052d24c24888403c48018b4fcccc9d799f81be6c9c30c9e19c85fc",
+      "verified_at": "2026-09-23T06:27:33.343Z"
+    },
+    {
+      "name": "build",
+      "command": "pnpm build",
+      "result": "PASS",
+      "log_sha256": "c46cce938daf40047f7b5a7c0231335e1eb661880a72cd34c8ff67a565d40a9f",
+      "verified_at": "2026-09-23T06:27:46.216Z"
+    },
+    {
+      "name": "types",
+      "command": "pnpm exec tsc --noEmit",
+      "result": "PASS",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "verified_at": "2026-09-23T06:27:46.729Z"
+    }
+  ],
+  "requirements": 340,
+  "reverse_surfaces": 469,
+  "status_changes": 0,
+  "independent_review": "All reproduced findings fixed; no remaining blocking finding for this candidate scope",
+  "build_warning": "Existing video-plan-store dynamic filesystem trace warning; build successful",
+  "production_changes": false,
+  "physical_verified": false,
+  "issue_complete": false,
+  "product_complete": false,
+  "remaining": [
+    "bounded reviewed specification PR publisher",
+    "new-ID/frozen-inventory integration",
+    "broad semantic/coreference extraction",
+    "other intake routes and visible proposal workflow",
+    "remaining reverse-audit roots",
+    "existing-device physical acceptance"
+  ]
+}

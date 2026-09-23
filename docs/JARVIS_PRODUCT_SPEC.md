@@ -3576,15 +3576,25 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   ],
   "implementation_refs": [
     "src/app/jarvis/JarvisConsole.tsx",
-    "src/app/jarvis/jarvis.css"
+    "src/app/jarvis/jarvis.css",
+    "src/app/jarvis/tasks/RequirementsPanel.tsx",
+    "src/app/jarvis/tasks/TaskBoard.tsx",
+    "src/app/jarvis/JarvisWorkShell.tsx"
   ],
-  "test_refs": [],
-  "evidence_refs": [],
+  "test_refs": [
+    "tests/owner-conversation.test.ts",
+    "tests/owner-requirement-additions.test.mjs",
+    "tests/owner-requirement-workflow.test.mjs",
+    "scripts/verify-owner-requirement-ui.mjs"
+  ],
+  "evidence_refs": [
+    "docs/evidence/1205-owner-spec-completion.md"
+  ],
   "status": "PARTIAL",
   "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P5: Tasks。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "Mac manual-only hook gate approved/applied; complete exact-head CI/review and main CI. Production activation must preserve credentials and physical holds. Broader audit/semantic routes remain.",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -3594,6 +3604,15 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
     "staged_implementation_refs": [],
     "audit_ref": "docs/evidence/1188-requirements-windows.md"
+  },
+  "candidate_audit": {
+    "issue": 1205,
+    "revision": "0b1c4a7fd9f52c2548a3e62261d6423c23c55e59",
+    "implementation": "ADDITIVE_IDS_SAVED_CONVERSATION_OWNER_UI",
+    "connection": "BROKER_HTTP_BROWSER_QA_AND_BOUNDED_PUBLISHER_FIXTURE",
+    "evidence_ref": "docs/evidence/1205-owner-spec-completion.md",
+    "production_activation": "MAC_HOOK_APPROVED_CANDIDATE_PENDING_CI_PRODUCTION_NOT_APPLIED",
+    "scope": "Requested software paths tested; arbitrary language/all-route audit and applicable physical acceptance not claimed."
   }
 }
 ```
@@ -11764,7 +11783,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 {
   "id": "CORE-015",
   "title": "Software Lifecycle",
-  "description": "Build→Operate→Monitor→Improve→Update→Repair。Product Spec/Architecture/Code/DB Schema/Tests/Deployment/Decisions/Change HistoryをLiving Specificationとして同期。",
+  "description": "Build→Operate→Monitor→Improve→Update→Repair。Product Spec/Architecture/Code/DB Schema/Tests/Deployment/Decisions/Change HistoryをLiving Specificationとして同期。 Ownerが採用した会話要求をIDEA/PROPOSEDと区別し、出典・採用状態・既存要件への意味対応・supersede履歴を保持してPRODUCT_SPEC/JSON mirrorへ同期する。採用済み要求の仕様未同期は完了扱いにしない。重大変更は既存Human Gateを維持する。",
   "phase": "P7",
   "required_evidence": [
     "CODE",
@@ -11772,17 +11791,47 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "INTEGRATION"
   ],
   "implementation_refs": [
-    "src/gai/production-autonomy-runtime.ts"
+    "src/gai/production-autonomy-runtime.ts",
+    "scripts/jarvis-requirement-audit.mjs",
+    "src/orchestrator/owner-requirement-intake.ts",
+    "src/orchestrator/owner-requirement-canonical.ts",
+    "scripts/jarvis-owner-spec-sync.mjs",
+    "scripts/jarvis-broker.ts",
+    "src/compass/store.ts",
+    "src/orchestrator/goal-loop.ts",
+    "scripts/jarvis-spec-publisher.mjs",
+    "src/orchestrator/requirements-proxy.ts",
+    "src/app/api/jarvis/requirements/route.ts",
+    "scripts/jarvis-additional-inventory.mjs",
+    "scripts/jarvis-requirement-workflow.mjs",
+    "src/orchestrator/owner-conversation.ts",
+    "src/app/jarvis/tasks/RequirementsPanel.tsx"
   ],
   "test_refs": [
-    "tests/gai-phase20-production-autonomy.test.ts"
+    "tests/gai-phase20-production-autonomy.test.ts",
+    "tests/jarvis-requirement-traceability.test.mjs",
+    "tests/owner-requirement-intake.test.ts",
+    "tests/owner-requirement-ingress.test.ts",
+    "tests/owner-requirement-gate.test.ts",
+    "tests/owner-specification-sync.test.mjs",
+    "tests/jarvis-spec-publisher.test.mjs",
+    "tests/requirements-proxy.test.ts",
+    "tests/owner-conversation.test.ts",
+    "tests/owner-requirement-additions.test.mjs",
+    "tests/owner-requirement-workflow.test.mjs",
+    "scripts/verify-owner-requirement-ui.mjs"
   ],
-  "evidence_refs": [],
+  "evidence_refs": [
+    "docs/evidence/1205-reverse-traceability.md",
+    "docs/evidence/1205-live-owner-intake.md",
+    "docs/evidence/1205-spec-publisher.md",
+    "docs/evidence/1205-owner-spec-completion.md"
+  ],
   "status": "PARTIAL",
   "blocker": "Expanded requirement reconciled from staged ledger; main runtime integration and required evidence remain to be verified. 関連する基盤は存在するが、この拡張要求の全範囲・統合・必要Evidenceを満たしていない。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "関連する既存基盤を再利用し、要求の各条件・DoDを細分化して不足実装と検証Evidenceを追加する。",
+  "next_action": "Mac manual-only hook gate approved/applied; complete exact-head CI/review and main CI. Production activation must preserve credentials and physical holds. Broader audit/semantic routes remain.",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -11792,6 +11841,18 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
     "staged_implementation_refs": [],
     "audit_ref": "docs/evidence/1188-requirements-windows.md"
+  },
+  "source_decisions": [
+    "owner-1205-living-specification"
+  ],
+  "candidate_audit": {
+    "issue": 1205,
+    "revision": "0b1c4a7fd9f52c2548a3e62261d6423c23c55e59",
+    "implementation": "ADDITIVE_IDS_SAVED_CONVERSATION_OWNER_UI",
+    "connection": "BROKER_HTTP_BROWSER_QA_AND_BOUNDED_PUBLISHER_FIXTURE",
+    "evidence_ref": "docs/evidence/1205-owner-spec-completion.md",
+    "production_activation": "MAC_HOOK_APPROVED_CANDIDATE_PENDING_CI_PRODUCTION_NOT_APPLIED",
+    "scope": "Requested software paths tested; arbitrary language/all-route audit and applicable physical acceptance not claimed."
   }
 }
 ```
@@ -13480,7 +13541,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 {
   "id": "GOV-025",
   "title": "127. Requirement-to-Evidence Traceability",
-  "description": "Every production requirement must map to:\r\n- implementation\r\n- tests\r\n- required evidence class\r\n- observed evidence\r\n- limitations\r\n- last verified version/commit\r\n\r\nA requirement is not complete while the required evidence slot is empty.",
+  "description": "Every production requirement must map to:\r\n- implementation\r\n- tests\r\n- required evidence class\r\n- observed evidence\r\n- limitations\r\n- last verified version/commit\r\n\r\nA requirement is not complete while the required evidence slot is empty. Ownerが採用した会話要求をIDEA/PROPOSEDと区別し、出典・採用状態・既存要件への意味対応・supersede履歴を保持してPRODUCT_SPEC/JSON mirrorへ同期する。採用済み要求の仕様未同期は完了扱いにしない。重大変更は既存Human Gateを維持する。",
   "phase": "P8",
   "required_evidence": [
     "CODE",
@@ -13489,15 +13550,46 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "SECURITY"
   ],
   "implementation_refs": [
-    "scripts/validate-jarvis-requirements.mjs"
+    "scripts/validate-jarvis-requirements.mjs",
+    "scripts/jarvis-requirement-audit.mjs",
+    "src/orchestrator/owner-requirement-intake.ts",
+    "src/orchestrator/owner-requirement-canonical.ts",
+    "scripts/jarvis-owner-spec-sync.mjs",
+    "scripts/jarvis-broker.ts",
+    "src/compass/store.ts",
+    "src/orchestrator/goal-loop.ts",
+    "scripts/jarvis-spec-publisher.mjs",
+    "src/orchestrator/requirements-proxy.ts",
+    "src/app/api/jarvis/requirements/route.ts",
+    "scripts/jarvis-additional-inventory.mjs",
+    "scripts/jarvis-requirement-workflow.mjs",
+    "src/orchestrator/owner-conversation.ts",
+    "src/app/jarvis/tasks/RequirementsPanel.tsx"
   ],
-  "test_refs": [],
-  "evidence_refs": [],
+  "test_refs": [
+    "tests/jarvis-requirement-traceability.test.mjs",
+    "tests/owner-requirement-intake.test.ts",
+    "tests/owner-requirement-ingress.test.ts",
+    "tests/owner-requirement-gate.test.ts",
+    "tests/owner-specification-sync.test.mjs",
+    "tests/jarvis-spec-publisher.test.mjs",
+    "tests/requirements-proxy.test.ts",
+    "tests/owner-conversation.test.ts",
+    "tests/owner-requirement-additions.test.mjs",
+    "tests/owner-requirement-workflow.test.mjs",
+    "scripts/verify-owner-requirement-ui.mjs"
+  ],
+  "evidence_refs": [
+    "docs/evidence/1205-reverse-traceability.md",
+    "docs/evidence/1205-live-owner-intake.md",
+    "docs/evidence/1205-spec-publisher.md",
+    "docs/evidence/1205-owner-spec-completion.md"
+  ],
   "status": "PARTIAL",
   "blocker": "Expanded requirement reconciled from staged ledger; main runtime integration and required evidence remain to be verified. 関連基盤のみ存在。この拡張要求の全条件を強制する統合機能とEvidenceは未完成。関連ファイルは要件全体の実装済みを意味しない。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "関連する既存基盤を再利用し、要求の各条件・DoDを細分化して不足実装と検証Evidenceを追加する。",
+  "next_action": "Mac manual-only hook gate approved/applied; complete exact-head CI/review and main CI. Production activation must preserve credentials and physical holds. Broader audit/semantic routes remain.",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -13507,6 +13599,18 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
     "staged_implementation_refs": [],
     "audit_ref": "docs/evidence/1188-requirements-windows.md"
+  },
+  "source_decisions": [
+    "owner-1205-living-specification"
+  ],
+  "candidate_audit": {
+    "issue": 1205,
+    "revision": "0b1c4a7fd9f52c2548a3e62261d6423c23c55e59",
+    "implementation": "ADDITIVE_IDS_SAVED_CONVERSATION_OWNER_UI",
+    "connection": "BROKER_HTTP_BROWSER_QA_AND_BOUNDED_PUBLISHER_FIXTURE",
+    "evidence_ref": "docs/evidence/1205-owner-spec-completion.md",
+    "production_activation": "MAC_HOOK_APPROVED_CANDIDATE_PENDING_CI_PRODUCTION_NOT_APPLIED",
+    "scope": "Requested software paths tested; arbitrary language/all-route audit and applicable physical acceptance not claimed."
   }
 }
 ```
