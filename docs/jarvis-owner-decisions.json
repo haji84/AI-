@@ -45,7 +45,7 @@
       "canonical": [
         {
           "id": "UI-001",
-          "fingerprint": "8193262d20171589c656cb02e4fc541b8565bf80384a19fb27977004f2c9027b"
+          "fingerprint": "ff86d329ed7b8b21bdd1e8a94e4d425a8a6fc73933c99059df6ea2f93373b4a7"
         },
         {
           "id": "UI-005",
@@ -53,7 +53,7 @@
         },
         {
           "id": "UI-006",
-          "fingerprint": "bd7b723707f3b53d0e7a28129bc18d1537b557d64a32756b2bf2fdc255f6840a"
+          "fingerprint": "6b4785732286eae64448d6dcb654b164e478bc99bd7c7119ab3004f7c5811bc4"
         },
         {
           "id": "UI-007",
@@ -65,7 +65,7 @@
         },
         {
           "id": "UI-011",
-          "fingerprint": "c1b32c1409997f298e4ec874c05b5ddb9cd78c515d631d0acc4861f6853e2908"
+          "fingerprint": "6a0961eb115c120fbc159f263b866c5a26f31adda7e2b57bdae27c684726e074"
         },
         {
           "id": "UI-012",
@@ -93,7 +93,7 @@
         },
         {
           "id": "UI-026",
-          "fingerprint": "96c30108c1a855c475e2c4964deda26ce8e9eaf8dbc8c269b6f60680ea22b968"
+          "fingerprint": "c60a10cc1752f73d5cbe2f84a536989e5c9389250941785eb67159252ec5a3e0"
         },
         {
           "id": "UI-027",
@@ -105,16 +105,63 @@
         },
         {
           "id": "UI-032",
-          "fingerprint": "39d8edc720046a1489fd1c4b616a3a6073a636f3c3a9e6c56b5962a9a5f4fc38"
+          "fingerprint": "f33c638da297800e076cf220edea3e5bf85ee07a079d01cea05af70a36464ceb"
         },
         {
           "id": "UI-038",
-          "fingerprint": "f3ffe0b41e15ffd86fca0b1c7bec24e7c07aa111c67bfd7361c1637fc7751fa1"
+          "fingerprint": "540f38d1802310a0e3e82635d9013f7f74897c4caca9d5e7000cfff8ab8526f6"
         }
       ],
       "supersedes": [],
       "superseded_by": [],
       "next_action": "Complete exact-commit regression/CI and isolated browser QA, then obtain separately identified physical acceptance. SPEC_SYNCED records scope adoption, not deployed or product completion."
+    },
+    {
+      "id": "owner-1214-goriq-menu",
+      "state": "SPEC_SYNCED",
+      "source": {
+        "kind": "owner_instruction",
+        "decision": "accepted",
+        "author": "haji84",
+        "ref": "https://github.com/haji84/AI-/issues/1214#issuecomment-5793235806",
+        "excerpt": "名前をジャービスからGORIQ(ゴリック)に変更して！\n\nあとUI画面なんやけど表示は変わっていい感じなんやけど\nデフォルトの操作メニューがダサいし使いにくそう。",
+        "text_sha256": "e5441feca9857a0c4f06b8021b1f9d72cffb40c9b95659760c9c4379c60f37f2",
+        "recorded_at": "2026-09-23T10:55:43.341Z"
+      },
+      "protected_changes": [],
+      "canonical": [
+        {
+          "id": "UI-001",
+          "fingerprint": "ff86d329ed7b8b21bdd1e8a94e4d425a8a6fc73933c99059df6ea2f93373b4a7"
+        },
+        {
+          "id": "UI-006",
+          "fingerprint": "6b4785732286eae64448d6dcb654b164e478bc99bd7c7119ab3004f7c5811bc4"
+        },
+        {
+          "id": "UI-011",
+          "fingerprint": "6a0961eb115c120fbc159f263b866c5a26f31adda7e2b57bdae27c684726e074"
+        },
+        {
+          "id": "UI-021",
+          "fingerprint": "25ab0f5bbbf6f98edd91c01ab2d68b696dc1467bd36032ff7922a13bf6e2ee66"
+        },
+        {
+          "id": "UI-026",
+          "fingerprint": "c60a10cc1752f73d5cbe2f84a536989e5c9389250941785eb67159252ec5a3e0"
+        },
+        {
+          "id": "UI-032",
+          "fingerprint": "f33c638da297800e076cf220edea3e5bf85ee07a079d01cea05af70a36464ceb"
+        },
+        {
+          "id": "UI-038",
+          "fingerprint": "540f38d1802310a0e3e82635d9013f7f74897c4caca9d5e7000cfff8ab8526f6"
+        }
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "next_action": "Verify GORIQ candidate browser/tests/CI; preserve physical and Production holds and existing protocol contracts."
     }
   ]
 }

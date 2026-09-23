@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState, type ReactNode } from "react";
+import GoriqIcon from "./GoriqIcon";
 import { usePersonalUi } from "./PersonalizationProvider";
 import { addPersonalUiPanel, defaultPersonalUiState, activePersonalUiProfile, movePersonalUiPanel, removePersonalUiPanel, updatePersonalUiProfile, PERSONAL_PANEL_KINDS, type PersonalPanelKind, type PersonalPanelWidth } from "./personalization-store";
 export const PANEL_LABELS: Record<PersonalPanelKind,string> = { command:"依頼する", goal:"現在の依頼", summary:"端末・タスクの状況", requirements:"仕様・要望", clock:"時計", note:"メモ", shortcuts:"ショートカット" };
@@ -22,7 +23,7 @@ export default function PersonalDashboard({ contents }: { contents: Partial<Reco
     shortcuts: <nav className="personal-shortcuts" aria-label="ホームのショートカット"><a href="/jarvis/devices">端末を操作する ↗</a><a href="/jarvis/enroll">端末を追加する ↗</a><a href="/jarvis/teach">操作を教える ↗</a><a href="/jarvis/tasks">タスクを見る ↗</a><a href="/jarvis/recovery">復旧状況 ↗</a></nav>,
   };
   return <div className="personal-dashboard">
-    <div className="personal-toolbar"><span>{ui.profile.name}</span><button type="button" disabled={!ui.ready} aria-pressed={editing} onClick={() => setEditing(!editing)}>{editing ? "配置編集を終了" : "配置を編集"}</button><a href="/jarvis/settings#appearance">デザイン・メニュー設定</a></div>
+    <div className="personal-toolbar"><span className="goriq-profile-badge"><span className="goriq-profile-dot" />{ui.profile.name}</span><button type="button" disabled={!ui.ready} aria-pressed={editing} onClick={() => setEditing(!editing)}><GoriqIcon name="grid" />{editing ? "編集を終える" : "配置を編集"}</button><a href="/jarvis/settings#appearance"><GoriqIcon name="palette" />外観を選ぶ</a></div>
     {ui.error && <p role="alert" className="jarvis-alert">{ui.error}</p>}
     {editing && <div className="personal-edit-toolbar"><p>ドラッグ、または矢印で移動できます。変更はこのプロフィールに保存されます。</p>
       <div className="personal-toolbar"><label>追加する表示<select value={selected ?? ""} disabled={!available.length} onChange={event => setAdding(event.target.value as PersonalPanelKind)}>{available.length ? available.map(kind => <option key={kind} value={kind}>{PANEL_LABELS[kind]}</option>) : <option value="">すべて追加済み</option>}</select></label><button type="button" disabled={!selected} onClick={() => { if (!selected) return; const result=addPersonalUiPanel(ui.state,ui.state.activeProfileId,selected); if(result.error)ui.report(result.error);else ui.change(result.state); }}>表示を追加</button>

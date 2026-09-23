@@ -24,7 +24,7 @@ test("new local profiles include the working home panels and all navigation rout
   assert.deepEqual(activePersonalUiProfile(state).navOrder, nav);
   assert.deepEqual(activePersonalUiProfile(state).panels.map(panel => panel.kind), ["command", "goal", "summary", "requirements"]);
   assert.equal(activePersonalUiProfile(state).note, "");
-  assert.equal(activePersonalUiProfile(state).name, "マイJARVIS");
+  assert.equal(activePersonalUiProfile(state).name, "マイGORIQ");
   assert.equal(activePersonalUiProfile(state).conceptId, "ai-core");
   state.profiles[0].panels.pop();
   assert.equal(defaultPersonalUiState().profiles[0].panels.length, 4);
@@ -242,4 +242,21 @@ test("panel ID repair preserves later valid IDs and remains stable after reload"
   const storage = memoryStorage();
   assert.equal(writePersonalUiState(normalized, storage).ok, true);
   assert.deepEqual(readPersonalUiState(storage), { state: normalized, error: null });
+});
+
+test("GORIQ branding preserves legacy profile identity and personalized layout", () => {
+ const old=defaultPersonalUiState();old.profiles[0].name="マイJARVIS";old.profiles[0].navPosition="right";old.profiles[0].conceptId="black-gold";old.profiles[0].note="利用者のメモ";
+ const restored=normalizePersonalUiState(old);assert.equal(restored.activeProfileId,old.activeProfileId);assert.deepEqual(restored.profiles[0],{...old.profiles[0],name:"マイGORIQ"});
+ const custom={...old,profiles:[{...old.profiles[0],name:"私のJARVIS用画面"}]};assert.equal(normalizePersonalUiState(custom).profiles[0].name,"私のJARVIS用画面");
+ assert.equal(PERSONAL_UI_STORAGE_KEY,"jarvis-personal-ui-v1");
+});
+
+test("legacy default name updates without a repair warning, but damaged fields still warn", () => {
+  const legacy = defaultPersonalUiState();
+  legacy.profiles[0].name = "マイJARVIS";
+  const read = readPersonalUiState(memoryStorage({ [PERSONAL_UI_STORAGE_KEY]: JSON.stringify(legacy) }));
+  assert.equal(read.error, null);
+  assert.deepEqual(read.state, defaultPersonalUiState());
+  const damaged = { ...legacy, unexpected: "unsupported field" };
+  assert.ok(readPersonalUiState(memoryStorage({ [PERSONAL_UI_STORAGE_KEY]: JSON.stringify(damaged) })).error);
 });

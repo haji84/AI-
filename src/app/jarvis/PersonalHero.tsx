@@ -21,6 +21,6 @@ export default function PersonalHero() {
   return <section className="personal-hero" style={visualConceptStyle(concept) as CSSProperties} aria-label="選択中のデザイン">
     <ConceptArtwork concept={concept} />
     <div className="personal-hero-shade" />
-    <div className="personal-hero-copy"><p>YOUR PERSONAL JARVIS</p><h1>おかえりなさい。</h1><span>{profile.name} · {concept.label}</span><a href="/jarvis/settings#appearance" className="button">デザインを選ぶ</a></div>
+    <div className="personal-hero-copy"><p>YOUR PERSONAL GORIQ</p><h1>おかえりなさい。</h1><span>{profile.name} · {concept.label}</span><a href="/jarvis/settings#appearance" className="button">デザインを選ぶ</a></div>
   </section>;
 }

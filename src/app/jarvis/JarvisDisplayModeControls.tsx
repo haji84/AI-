@@ -28,7 +28,7 @@ export default function JarvisDisplayModeControls() {
 
   return (
     <section className="jarvis-display-modes" aria-label="表示モード">
-      <div className="jarvis-display-mode-buttons" role="group" aria-label="JARVIS表示モード">
+      <div className="jarvis-display-mode-buttons" role="group" aria-label="GORIQ表示モード">
         {JARVIS_DISPLAY_MODES.map(([id, label]) => (
           <button
             key={id}

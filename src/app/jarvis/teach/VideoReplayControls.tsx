@@ -15,7 +15,7 @@ export default function VideoReplayControls({ id, plan, onBusy }: { id: string; 
     const b = await r.json(); if (!r.ok) throw Error(b.message || b.error || '操作失敗'); return b;
   }
   async function run(action: 'teach-video' | 'teach-verify' | 'teach-execute', device = serial) {
-    cancelled.current = false; setBusy(true); onBusy(true); setVerified(false); setMessage('JARVISが画面照合・再現・検証を進めています。操作中は端末を触らないでください');
+    cancelled.current = false; setBusy(true); onBusy(true); setVerified(false); setMessage('GORIQが画面照合・再現・検証を進めています。操作中は端末を触らないでください');
     try {
       const started = await command({ action: 'session-start', serial: device, ttlMs: 10 * 60000 });
       session.current = started.session.id;

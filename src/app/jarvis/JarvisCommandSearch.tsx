@@ -11,6 +11,7 @@ function isEditableTarget(target: EventTarget | null) {
 }
 
 export default function JarvisCommandSearch({ pathname }: { pathname: string }) {
+  const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
@@ -29,6 +30,14 @@ export default function JarvisCommandSearch({ pathname }: { pathname: string }) 
     return () => window.removeEventListener("keydown", onGlobalKeyDown);
   }, []);
 
+  useEffect(() => {
+    const closeOutside = (event: PointerEvent) => {
+      if (event.target instanceof Node && !containerRef.current?.contains(event.target)) setOpen(false);
+    };
+    document.addEventListener("pointerdown", closeOutside);
+    return () => document.removeEventListener("pointerdown", closeOutside);
+  }, []);
+
   const onInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "Escape") {
       event.preventDefault();
@@ -44,7 +53,9 @@ export default function JarvisCommandSearch({ pathname }: { pathname: string }) 
   };
 
   return (
-    <div className="jarvis-command-search" role="search">
+    <div ref={containerRef} className="jarvis-command-search" role="search" onBlur={(event) => {
+      if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
+    }}>
       <div className="jarvis-command-search-box">
         <span className="jarvis-command-search-icon" aria-hidden="true">⌕</span>
         <input
@@ -57,15 +68,15 @@ export default function JarvisCommandSearch({ pathname }: { pathname: string }) 
           }}
           onFocus={() => setOpen(true)}
           onKeyDown={onInputKeyDown}
-          aria-label="JARVIS コマンドと画面を検索"
+          aria-label="GORIQ コマンドと画面を検索"
           aria-controls="jarvis-command-search-results"
           aria-expanded={open}
           aria-autocomplete="list"
-          placeholder="JARVISを検索 / コマンド  ⌘K・Ctrl+K・/"
+          placeholder="画面や操作を検索"
           autoComplete="off"
         />
-        {query ? (
-          <button type="button" className="jarvis-command-search-clear" onClick={() => setQuery("")} aria-label="検索をクリア">×</button>
+        {open || query ? (
+          <button type="button" className="jarvis-command-search-clear" onClick={() => { setQuery(""); setOpen(false); inputRef.current?.blur(); }} aria-label="検索を閉じる">×</button>
         ) : null}
       </div>
       {open ? (
@@ -78,7 +89,7 @@ export default function JarvisCommandSearch({ pathname }: { pathname: string }) 
                 <span>{item.description}</span>
               </a>
             );
-          }) : <p className="jarvis-command-search-empty">一致するJARVIS画面はありません。</p>}
+          }) : <p className="jarvis-command-search-empty">一致するGORIQ画面はありません。</p>}
           <p className="jarvis-command-search-boundary">ここから実行するのは画面移動だけです。端末操作・承認・権限変更は各画面の既存Human Gateを通ります。</p>
         </div>
       ) : null}

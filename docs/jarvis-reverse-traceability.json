@@ -1560,12 +1560,12 @@
     },
     {
       "path": "src/app/jarvis/apple-icon.tsx",
-      "sha256": "d2fb532ad8216c8179c739614e4a8c03898ae1202940e77e05a403ab6f01d536",
+      "sha256": "91e3c7c92b67219825e190828f6be99c166c61807491da0fb6e6f927abb0875a",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "UI-006"
       ],
-      "reason": "App branding and manifest assets"
+      "reason": "App branding and manifest assets; #1214 owner GORIQ display/menu correction; protocol contracts unchanged"
     },
     {
       "path": "src/app/jarvis/command-search.css",
@@ -1578,12 +1578,12 @@
     },
     {
       "path": "src/app/jarvis/connectivity-status.ts",
-      "sha256": "034abf592db0b6b256057415edac703ccb4fce2fbd5e281aa76394199fa140a8",
+      "sha256": "48d606024448ecd103ff3b1324a03d33d0d85bd84ee6ee9912e1a8f7bd3753b8",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "GOV-028"
       ],
-      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification; #1214 owner GORIQ display/menu correction; protocol contracts unchanged"
     },
     {
       "path": "src/app/jarvis/devices/page.tsx",
@@ -1598,22 +1598,22 @@
     },
     {
       "path": "src/app/jarvis/devices/PlatformRemoteAssistFleet.tsx",
-      "sha256": "7ff7b178c79c9f3a513442ed909f82e4f44b5e0b76f46c47d46e76c716618eeb",
+      "sha256": "3198a3dd1bf49e7d93daf84258926d9f16f90221141d7cf5eb64964c85c1dd1b",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "UI-002",
         "RA-006"
       ],
-      "reason": "Fleet page and capability display"
+      "reason": "Fleet page and capability display; #1214 owner GORIQ display/menu correction; protocol contracts unchanged"
     },
     {
       "path": "src/app/jarvis/diagnostics/page.tsx",
-      "sha256": "230afc816899892dd00e7ab3f1c03d2c2eeb8f8343ff7980eb114e1cabc6206e",
+      "sha256": "e1180f96644a936fb5352c0a8ff2f1965321e3a62eff31596227f808e3475fd1",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OPS-008"
       ],
-      "reason": "Owner diagnostics page"
+      "reason": "Owner diagnostics page; #1214 owner GORIQ display/menu correction; protocol contracts unchanged"
     },
     {
       "path": "src/app/jarvis/display-modes.ts",
@@ -1647,7 +1647,7 @@
     },
     {
       "path": "src/app/jarvis/enroll/page.tsx",
-      "sha256": "53eefdcc604922a8522260518593a1efd89d569773133a0118d55a16345357a4",
+      "sha256": "ab01e7c44a93c4ba7dde0a443a8a57aaacca0a2c01652d4e8f224f3e4b015054",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "FLEET-001",
@@ -1659,7 +1659,7 @@
         "FLEET-007",
         "FLEET-008"
       ],
-      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification; #1214 owner GORIQ display/menu correction; protocol contracts unchanged"
     },
     {
       "path": "src/app/jarvis/enroll/PendingRegistration.tsx",
@@ -1673,12 +1673,12 @@
     },
     {
       "path": "src/app/jarvis/icon.tsx",
-      "sha256": "60701017daeeeae58ced9ff0031ffb693b6b7694dad414d668d5d4c83fa0c1c9",
+      "sha256": "4debd1c19488c8a5af92c3ffc0988757317dfb400968ddfe839c4a1a527755f0",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "UI-006"
       ],
-      "reason": "App branding and manifest assets"
+      "reason": "App branding and manifest assets; #1214 owner GORIQ display/menu correction; protocol contracts unchanged"
     },
     {
       "path": "src/app/jarvis/jarvis.css",
@@ -1702,21 +1702,21 @@
     },
     {
       "path": "src/app/jarvis/JarvisAccessibilityControls.tsx",
-      "sha256": "bd860c01d89e83ca68f9c9f401eaa946647417f6774b5c830c635fa833c5045f",
+      "sha256": "7f65863753c8297ca40e6ecdabf1038657fe6c175d096b802625a0f230fc7c7a",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "UI-031"
       ],
-      "reason": "Accessibility display preferences"
+      "reason": "Accessibility display preferences; #1214 owner GORIQ display/menu correction; protocol contracts unchanged"
     },
     {
       "path": "src/app/jarvis/JarvisCommandSearch.tsx",
-      "sha256": "cc7e8ea10d58ef4b6998e03f9f0de278725cd0b933c8334f48d3863399cf6dfc",
+      "sha256": "793792d6b5b85dd9c41f1e175d1b7fcfce6305b810f0416e64c1c3f65fca520d",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "UI-021"
       ],
-      "reason": "Universal command search UI"
+      "reason": "Universal command search UI; #1214 owner GORIQ display/menu correction; protocol contracts unchanged"
     },
     {
       "path": "src/app/jarvis/JarvisConnectivityStatus.tsx",
@@ -1730,7 +1730,7 @@
     },
     {
       "path": "src/app/jarvis/JarvisConsole.tsx",
-      "sha256": "16c2dd7c1eb704d0522f232afc884de6617fa90f91b3500cd2a69986ee60a054",
+      "sha256": "015faa177905687e1cd3c9b090713abfd58f659ca9aa1545777a109f51991d98",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "DEV-A-010",
@@ -1769,17 +1769,17 @@
         "OPS-011",
         "OPS-018"
       ],
-      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification; #1214 owner GORIQ display/menu correction; protocol contracts unchanged"
     },
     {
       "path": "src/app/jarvis/JarvisDisplayModeControls.tsx",
-      "sha256": "8ae1e127bc10e711cd1a85d3d9eec9d2f5382629cb8e9cea3b167e632ca408e8",
+      "sha256": "a0f8f92a635578882f1540c0522aa03f5e254c768de49524b580ef270fe7b0d7",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "UI-024",
         "UI-026"
       ],
-      "reason": "Distance/mobile display profiles"
+      "reason": "Distance/mobile display profiles; #1214 owner GORIQ display/menu correction; protocol contracts unchanged"
     },
     {
       "path": "src/app/jarvis/JarvisHomeLayoutEditor.tsx",
@@ -1794,18 +1794,18 @@
     },
     {
       "path": "src/app/jarvis/JarvisOperationModeControls.tsx",
-      "sha256": "b198f2623d6abe337c796212037849df09a596ee133ba9b28db7e25ee9d6cb9c",
+      "sha256": "934c14ecc97809b22f260a8b40e9b1ed9d50c852015caf9b8c4f34728f399f17",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "UI-023",
         "UI-028",
         "UI-030"
       ],
-      "reason": "Focus/privacy/read-only operating modes"
+      "reason": "Focus/privacy/read-only operating modes; #1214 owner GORIQ display/menu correction; protocol contracts unchanged"
     },
     {
       "path": "src/app/jarvis/JarvisPrimaryShell.tsx",
-      "sha256": "9c17184d1cb95c9ec60361531ab318cce1724746e90e63656064f088588eeef4",
+      "sha256": "bd4298bfd5e61fb43a6ffa2c9e69296fbe8ca040915af61556e6c9b8e38e1441",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "UI-001",
@@ -1816,7 +1816,7 @@
         "UI-027",
         "UI-032"
       ],
-      "reason": "#1214 reviewed: Profile-controlled fixed navigation order/edge; owner/connectivity/priority surfaces remain outside removable home panels.",
+      "reason": "#1214 reviewed: Profile-controlled fixed navigation order/edge; owner/connectivity/priority surfaces remain outside removable home panels.; #1214 owner GORIQ display/menu correction; protocol contracts unchanged",
       "review_ref": "docs/evidence/1214-personal-ui.md"
     },
     {
@@ -1844,7 +1844,7 @@
     },
     {
       "path": "src/app/jarvis/JarvisWorkShell.tsx",
-      "sha256": "14026a2b0ee1effe1044825c5ba4f5573a5d91100501d890d934198a85597959",
+      "sha256": "0c496a34437f759b6826f57cb006c6defaf6a0bed90c588651a4a48803daf392",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "UI-001",
@@ -1852,7 +1852,7 @@
         "UI-012",
         "UI-014"
       ],
-      "reason": "#1214 reviewed: Default request, goal, real summary and requirements are placed through the editable home wrapper; underlying work execution contracts remain.",
+      "reason": "#1214 reviewed: Default request, goal, real summary and requirements are placed through the editable home wrapper; underlying work execution contracts remain.; #1214 owner GORIQ display/menu correction; protocol contracts unchanged",
       "review_ref": "docs/evidence/1214-personal-ui.md"
     },
     {
@@ -1867,7 +1867,7 @@
     },
     {
       "path": "src/app/jarvis/layout.tsx",
-      "sha256": "5f2ac1d8d86d7bf5dbcabdb7ef1c73e6c2cddf431e0a49d6b7cd3ea62b5ee5dc",
+      "sha256": "4571fe4bd8fc7cdbaddd1a6aded5951a91cfdb33ee44a291d187799a4b91acb4",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "UI-001",
@@ -1877,7 +1877,7 @@
         "UI-008",
         "UI-011"
       ],
-      "reason": "#1214 reviewed: Provider and opt-in appearance styles connect the browser-local display state across JARVIS routes.",
+      "reason": "#1214 reviewed: Provider and opt-in appearance styles connect the browser-local display state across JARVIS routes.; #1214 owner GORIQ display/menu correction; protocol contracts unchanged",
       "review_ref": "docs/evidence/1214-personal-ui.md"
     },
     {
@@ -1892,12 +1892,12 @@
     },
     {
       "path": "src/app/jarvis/manifest.ts",
-      "sha256": "e19f4d8a87a9239970fe9a8eb8248df257e59cbc2e5bad7861d2f55a0c6ce272",
+      "sha256": "8a4377b16acdd1edf3493bdac84304a41ca2d234adc32db9e8285f4600a95550",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "UI-006"
       ],
-      "reason": "App branding and manifest assets"
+      "reason": "App branding and manifest assets; #1214 owner GORIQ display/menu correction; protocol contracts unchanged"
     },
     {
       "path": "src/app/jarvis/mobile/command-context.ts",
@@ -1925,13 +1925,13 @@
     },
     {
       "path": "src/app/jarvis/mobile/gesture/CameraGestureCommander.tsx",
-      "sha256": "6dee58d933402850ac9e65df5225df96cef65ed292a97ed0226ecbbf27979d8a",
+      "sha256": "55d4fa03f264420d1b1e204c8ade1114ac5a6e6835842677c1bebcf71fc6c617",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "GEST-001",
         "GEST-004"
       ],
-      "reason": "Camera gesture UI and stability filters"
+      "reason": "Camera gesture UI and stability filters; #1214 owner GORIQ display/menu correction; protocol contracts unchanged"
     },
     {
       "path": "src/app/jarvis/mobile/gesture/gesture-motion.ts",
@@ -1975,12 +1975,12 @@
     },
     {
       "path": "src/app/jarvis/mobile/MobileCommander.tsx",
-      "sha256": "9536bf4ce65f46c3dd4374cf516d4a48c98e076a2da7680166d773a8c6aaa196",
+      "sha256": "c7179b25c246a498bdc3f74c88f25886b43e145bb463221705baf67e3a4916c4",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "INT-003"
       ],
-      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification; #1214 owner GORIQ display/menu correction; protocol contracts unchanged"
     },
     {
       "path": "src/app/jarvis/mobile/page.tsx",
@@ -2004,13 +2004,13 @@
     },
     {
       "path": "src/app/jarvis/mobile/pointer/ImuPointerCommander.tsx",
-      "sha256": "e8728b510435ded9bb3879d1866d7771474a32b6b94b2a2eb2a9a25309dbb3ea",
+      "sha256": "caa943280639a21a6fd8f8106b3a9446d515decc855a460f15c20c7d925d14e9",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "GEST-006",
         "GEST-007"
       ],
-      "reason": "Smartphone inertial pointer"
+      "reason": "Smartphone inertial pointer; #1214 owner GORIQ display/menu correction; protocol contracts unchanged"
     },
     {
       "path": "src/app/jarvis/mobile/pointer/page.tsx",
@@ -2034,7 +2034,7 @@
     },
     {
       "path": "src/app/jarvis/mobile/voice-command.ts",
-      "sha256": "b612e1a5f806664b3606d4d5e377f20a2a4cc493bef841f053b736d11cd7c1b0",
+      "sha256": "4b8769b6901a7b4307c668d432e42f304388dd0a6e51c3afc6409e29fc6cfc00",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "INT-001",
@@ -2042,7 +2042,7 @@
         "INT-009",
         "INT-017"
       ],
-      "reason": "Voice input/persona/policy UI"
+      "reason": "Voice input/persona/policy UI; #1214 owner GORIQ display/menu correction; protocol contracts unchanged"
     },
     {
       "path": "src/app/jarvis/mobile/voice-entry.css",
@@ -2058,7 +2058,7 @@
     },
     {
       "path": "src/app/jarvis/mobile/voice/MobileVoiceCommander.tsx",
-      "sha256": "fc76108fd6e901292b6aef291799b027554cb42f6e268fd98b60841bf3fdfd33",
+      "sha256": "7fd2ab1f25999b6178de5a872af10f3590c75a2a8b576da64eaeb51e0b81f80d",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "INT-001",
@@ -2066,7 +2066,7 @@
         "INT-009",
         "INT-017"
       ],
-      "reason": "Voice input/persona/policy UI"
+      "reason": "Voice input/persona/policy UI; #1214 owner GORIQ display/menu correction; protocol contracts unchanged"
     },
     {
       "path": "src/app/jarvis/mobile/voice/page.tsx",
@@ -2148,35 +2148,35 @@
     },
     {
       "path": "src/app/jarvis/operation-mode.ts",
-      "sha256": "364a0964426c36381d363cb1162d0f8388b05ec9e5ef95951d2e7c0aa75395fe",
+      "sha256": "c4602511d7ade8e0cd657a677543384ede7d85414fccddb3b4a135b4345620b9",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "UI-023",
         "UI-028",
         "UI-030"
       ],
-      "reason": "Focus/privacy/read-only operating modes"
+      "reason": "Focus/privacy/read-only operating modes; #1214 owner GORIQ display/menu correction; protocol contracts unchanged"
     },
     {
       "path": "src/app/jarvis/OwnerLogin.tsx",
-      "sha256": "1c52c76c96c935ea90ff2125e8e81b6746262d2ea71852c54489549484a0d4bd",
+      "sha256": "6f5f53d0d0fa231874cdefd9bf129530a818747df8f5133e4b7420d864bac36b",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "SEC-001",
         "SEC-002"
       ],
-      "reason": "Owner trusted browser authentication UI"
+      "reason": "Owner trusted browser authentication UI; #1214 owner GORIQ display/menu correction; protocol contracts unchanged"
     },
     {
       "path": "src/app/jarvis/page.tsx",
-      "sha256": "9f99dd9d3a17e8ee416fea930f5aa9cb482ddf45bcc472dcbe742fb432dd5360",
+      "sha256": "1ffe0d7b83859819d0a1bea30b977f046d251d4a64184b845467666d9ce0c3b7",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "UI-001",
         "AUTO-001",
         "UI-027"
       ],
-      "reason": "#1214 reviewed: Existing quick operations remain reachable in a disclosure alongside the personalized work home.",
+      "reason": "#1214 reviewed: Existing quick operations remain reachable in a disclosure alongside the personalized work home.; #1214 owner GORIQ display/menu correction; protocol contracts unchanged",
       "review_ref": "docs/evidence/1214-personal-ui.md"
     },
     {
@@ -2211,7 +2211,7 @@
     },
     {
       "path": "src/app/jarvis/PersonalAppearance.tsx",
-      "sha256": "7cdb7d3c1fa762cc2587131ca4d2177b1140829646b646c5fdb8b069535cb339",
+      "sha256": "e980a89b532d8f64cdb3e914a47e5ef6203eb82628eb52be784cc75b0e4ff84a",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "UI-005",
@@ -2223,12 +2223,12 @@
         "UI-032",
         "UI-038"
       ],
-      "reason": "#1214 reviewed: Twenty-concept gallery, named local display profiles, fixed navigation reorder/placement and history/reset controls.",
+      "reason": "#1214 reviewed: Twenty-concept gallery, named local display profiles, fixed navigation reorder/placement and history/reset controls.; #1214 owner GORIQ display/menu correction; protocol contracts unchanged",
       "review_ref": "docs/evidence/1214-personal-ui.md"
     },
     {
       "path": "src/app/jarvis/PersonalDashboard.tsx",
-      "sha256": "979945864bbcc721cdce0de382b730597423f0be5a9351ae9a6640515b036444",
+      "sha256": "7d4324e28409c2a233ceee21f13469606c4cdbe62a4fba159f62e62e89f90f3f",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "UI-001",
@@ -2241,24 +2241,24 @@
         "UI-032",
         "UI-038"
       ],
-      "reason": "#1214 reviewed: Bounded default/optional panel registry with drag and arrow movement, widths, hide/add, plain-text note and fixed shortcuts.",
+      "reason": "#1214 reviewed: Bounded default/optional panel registry with drag and arrow movement, widths, hide/add, plain-text note and fixed shortcuts.; #1214 owner GORIQ display/menu correction; protocol contracts unchanged",
       "review_ref": "docs/evidence/1214-personal-ui.md"
     },
     {
       "path": "src/app/jarvis/PersonalHero.tsx",
-      "sha256": "1eee5ffeb2a59988d9b542f6baae5613d8a88243740d49e16b97f621b1abf375",
+      "sha256": "ac3636009a4fc7d24799a238873d4c49be6539e552e1752c4aac2747ec141a62",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "UI-006",
         "UI-007",
         "UI-038"
       ],
-      "reason": "#1214 reviewed: Decorative fixed local atlas SVG crop and selected-profile hero; it presents no fabricated runtime status.",
+      "reason": "#1214 reviewed: Decorative fixed local atlas SVG crop and selected-profile hero; it presents no fabricated runtime status.; #1214 owner GORIQ display/menu correction; protocol contracts unchanged",
       "review_ref": "docs/evidence/1214-personal-ui.md"
     },
     {
       "path": "src/app/jarvis/personalization-store.ts",
-      "sha256": "a6c7a64429b37325fe5938abbb3087fe06b8f4f4415aae166fef01eed403a8c8",
+      "sha256": "11bc270084a4d24a4c191f52e90345bc77b812c085aff518a539bf36a324983b",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "UI-005",
@@ -2272,7 +2272,7 @@
         "UI-019",
         "UI-031"
       ],
-      "reason": "#1214 reviewed: Pure bounded profile/panel/history normalization; fixed routes, unique stable IDs and safe storage preserve independent display preferences.",
+      "reason": "#1214 reviewed: Pure bounded profile/panel/history normalization; fixed routes, unique stable IDs and safe storage preserve independent display preferences.; #1214 owner GORIQ display/menu correction; protocol contracts unchanged",
       "review_ref": "docs/evidence/1214-personal-ui.md"
     },
     {
@@ -2311,12 +2311,12 @@
     },
     {
       "path": "src/app/jarvis/qa/QaSequenceConsole.tsx",
-      "sha256": "f52c50aa3ccee08601e0fc8d1d7bfc9a6b2ea0f5f273f8421609f6b4c13d164a",
+      "sha256": "367972c205fc811272b50f991093b8a671dc246d6f3bbdb2638739548e30fb17",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "TEACH-003"
       ],
-      "reason": "Owner-authorized sequence observation and condition QA"
+      "reason": "Owner-authorized sequence observation and condition QA; #1214 owner GORIQ display/menu correction; protocol contracts unchanged"
     },
     {
       "path": "src/app/jarvis/recordings/page.tsx",
@@ -2329,21 +2329,21 @@
     },
     {
       "path": "src/app/jarvis/recordings/RecordingHistory.tsx",
-      "sha256": "cb38f6c544ec1ec9cb58841ddca89331590cd8ff6230d3c22f9c946997f8e0d8",
+      "sha256": "fb3b02ea546d787b001a5ec678c9551e935a2220504aab00634852383aa9c3aa",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "RA-013"
       ],
-      "reason": "Recording list and retention UI"
+      "reason": "Recording list and retention UI; #1214 owner GORIQ display/menu correction; protocol contracts unchanged"
     },
     {
       "path": "src/app/jarvis/recovery/page.tsx",
-      "sha256": "ea35d8d3042b96c1a8cc50e77dc4eb9ba4dbcd5f2b799d43894f5ad164a52f1a",
+      "sha256": "5b0da1e65edd1a69a1897e686a977550f09a5e06149ad349437e60969c7c7b61",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OPS-009"
       ],
-      "reason": "Recovery dashboard page"
+      "reason": "Recovery dashboard page; #1214 owner GORIQ display/menu correction; protocol contracts unchanged"
     },
     {
       "path": "src/app/jarvis/RemoteAssistMultiView.tsx",
@@ -2378,12 +2378,12 @@
     },
     {
       "path": "src/app/jarvis/research/page.tsx",
-      "sha256": "48b432864db2fbc09ff8dc6b654aed929eed3139628ee36d3f481322c50e26c4",
+      "sha256": "68bc80b5b08228f9aca2dc8c952d243375e889350179a1202b845b279a0f8b38",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "UI-004"
       ],
-      "reason": "Research page; research claims remain separate"
+      "reason": "Research page; research claims remain separate; #1214 owner GORIQ display/menu correction; protocol contracts unchanged"
     },
     {
       "path": "src/app/jarvis/screen-layout-profiles.css",
@@ -2417,12 +2417,12 @@
     },
     {
       "path": "src/app/jarvis/settings/JarvisOperatorGuide.tsx",
-      "sha256": "a01b0a169e914416f32add8344f2b6d628699cf148ae5ccadbe268504d315f89",
+      "sha256": "42b2f323d5ea661f464121d988a8beb9e3744a41cab76413bc68ca0c8ef692fc",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OPS-017"
       ],
-      "reason": "Terminal-free operator guide"
+      "reason": "Terminal-free operator guide; #1214 owner GORIQ display/menu correction; protocol contracts unchanged"
     },
     {
       "path": "src/app/jarvis/settings/JarvisScreenLayoutProfiles.tsx",
@@ -2436,14 +2436,14 @@
     },
     {
       "path": "src/app/jarvis/settings/page.tsx",
-      "sha256": "599477fe026efdbc943d49662a54f6e499946d01d24b314ac0d36dbaf76b888a",
+      "sha256": "814260b01e41be79e0a1b44dbad29173494f5b0d4276933127f55f4aab59b31f",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "UI-005",
         "UI-007",
         "UI-011"
       ],
-      "reason": "#1214 reviewed: Settings embeds the appearance/profile/menu editor while preserving existing settings sections.",
+      "reason": "#1214 reviewed: Settings embeds the appearance/profile/menu editor while preserving existing settings sections.; #1214 owner GORIQ display/menu correction; protocol contracts unchanged",
       "review_ref": "docs/evidence/1214-personal-ui.md"
     },
     {
@@ -2467,12 +2467,12 @@
     },
     {
       "path": "src/app/jarvis/setup/SetupWizardClient.tsx",
-      "sha256": "d3cbc9c86ccb82055d9ca24826d719816e3a42145a0767d2e36ccd6205716331",
+      "sha256": "e068e4610cad615648fc93f590488d92088bdbb6200504f949ca324769de35c7",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OPS-012"
       ],
-      "reason": "First-run setup wizard"
+      "reason": "First-run setup wizard; #1214 owner GORIQ display/menu correction; protocol contracts unchanged"
     },
     {
       "path": "src/app/jarvis/shell.css",
@@ -2511,8 +2511,8 @@
         "CORE-015",
         "GOV-025"
       ],
-      "reason": "Issue1205 additive requirement inventory, saved conversation and owner-visible workflow; parent mapping does not claim functional/physical completion",
-      "sha256": "1eaca910d3f7c845c0f5a568301df7b01b56770a05201f84ee930af3efd732bf"
+      "reason": "Issue1205 additive requirement inventory, saved conversation and owner-visible workflow; parent mapping does not claim functional/physical completion; #1214 owner GORIQ display/menu correction; protocol contracts unchanged",
+      "sha256": "b1501e46c182a49675d910e9f4515dd9d8647928cf1e03012f05c082118bd00e"
     },
     {
       "path": "src/app/jarvis/tasks/TaskBoard.tsx",
@@ -2541,27 +2541,27 @@
     },
     {
       "path": "src/app/jarvis/teach/VideoReplayControls.tsx",
-      "sha256": "061fb606d2327bbd2a05da8c64dc0feb0d2c278c8617c14989a5269ee58547a7",
+      "sha256": "f39cbfd30058746525978e4484a3ed4b12af218d6979cb671fcfcee95f780e0c",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "TEACH-001",
         "TEACH-003"
       ],
-      "reason": "Teaching/video candidate controls"
+      "reason": "Teaching/video candidate controls; #1214 owner GORIQ display/menu correction; protocol contracts unchanged"
     },
     {
       "path": "src/app/jarvis/teach/VideoTeachingPanel.tsx",
-      "sha256": "f78dc5b71bb179386d459e8fce8fc7f5e3d4dc2e9daab49ebd91f9bce3b8351d",
+      "sha256": "7b4ee2bbd955ced583922f474e3cf4976d47f92f6fd533d60472b00790b0921e",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "TEACH-001",
         "TEACH-003"
       ],
-      "reason": "Teaching/video candidate controls"
+      "reason": "Teaching/video candidate controls; #1214 owner GORIQ display/menu correction; protocol contracts unchanged"
     },
     {
       "path": "src/app/jarvis/TeachingControls.tsx",
-      "sha256": "f6ea5fe271c8cd070222b819f67c943451964ba169a04de19c787cfea81cc793",
+      "sha256": "99740a02db48d20160f362df8c6cdb6eab067c8051d8586bcb8c024aa0ba8334",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "TEACH-001",
@@ -2571,7 +2571,7 @@
         "TEACH-005",
         "TEACH-006"
       ],
-      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification; #1214 owner GORIQ display/menu correction; protocol contracts unchanged"
     },
     {
       "path": "src/app/jarvis/theme-catalog.ts",
@@ -2607,14 +2607,14 @@
     },
     {
       "path": "src/app/jarvis/ui-preferences.ts",
-      "sha256": "29fb71141ef567aaaaf948f9f002abf9010fc734a026a28c8df664a10a802695",
+      "sha256": "d9278b40bf016e454c7896e3972d1a0b7dda018ada14b7ad933b76692e5a5d75",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "UI-007",
         "UI-008",
         "UI-010"
       ],
-      "reason": "Theme/persona and display preference storage"
+      "reason": "Theme/persona and display preference storage; #1214 owner GORIQ display/menu correction; protocol contracts unchanged"
     },
     {
       "path": "src/app/jarvis/visual-concepts.ts",
@@ -5231,6 +5231,35 @@
         "MEM-001"
       ],
       "reason": "Declared world-resource-context.ts responsibility implements/supports Context Partitioning; Working Memory. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/app/jarvis/GoriqIcon.tsx",
+      "sha256": "c22a4dc2fcc3af93249464abc962286544e5566147d84fa154819bffe67461a7",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-006",
+        "UI-026"
+      ],
+      "reason": "#1214 GORIQ presentation and fixed menu entry; navigation/reveal only, no device execution authorization"
+    },
+    {
+      "path": "src/app/jarvis/RemoteConsoleDisclosure.tsx",
+      "sha256": "4182649856db26ab0101b7281fb56a619ff73cece7363c4d793bb0b62001f548",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-001"
+      ],
+      "reason": "#1214 GORIQ presentation and fixed menu entry; navigation/reveal only, no device execution authorization"
+    },
+    {
+      "path": "src/app/jarvis/goriq-navigation.css",
+      "sha256": "04e01dd3cce154bce7d59705eb2acf6bcb6399fc1f9bb7f35116f5791dff9377",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-006",
+        "UI-026"
+      ],
+      "reason": "#1214 GORIQ presentation and fixed menu entry; navigation/reveal only, no device execution authorization"
     }
   ],
   "hash_policy": "utf8-crlf-to-lf-v1;binary-raw"

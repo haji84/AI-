@@ -13,16 +13,17 @@ import "./operation-mode.css";
 import "./accessibility-status.css";
 import "./personal-appearance.css";
 import "./personal-workspace.css";
+import "./goriq-navigation.css";
 
 export const metadata: Metadata = {
-  title: "JARVIS Commander",
-  description: "登録済みJARVIS端末を管理・操作する司令塔",
+  title: "GORIQ（ゴリック）",
+  description: "登録済みGORIQ端末を管理・操作する司令塔",
   manifest: "/jarvis/manifest.webmanifest",
-  applicationName: "JARVIS",
+  applicationName: "GORIQ",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "JARVIS",
+    title: "GORIQ",
   },
   formatDetection: {
     telephone: false,

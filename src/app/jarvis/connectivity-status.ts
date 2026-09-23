@@ -20,12 +20,12 @@ export function jarvisConnectivityCopy(status: JarvisConnectivityStatus) {
     case "offline":
       return { label: "オフライン", detail: "ネットワーク接続を確認してください。" };
     case "reconnecting":
-      return { label: "再接続中", detail: "JARVISとの接続復帰を確認しています。" };
+      return { label: "再接続中", detail: "GORIQとの接続復帰を確認しています。" };
     case "syncing":
-      return { label: "同期中", detail: "最新のJARVIS状態を読み込んでいます。" };
+      return { label: "同期中", detail: "最新のGORIQ状態を読み込んでいます。" };
     case "auth-required":
       return { label: "認証が必要", detail: "ネットワークには接続済みです。状態同期にはオーナー認証が必要です。" };
     default:
-      return { label: "オンライン", detail: "JARVIS状態を確認できました。" };
+      return { label: "オンライン", detail: "GORIQ状態を確認できました。" };
   }
 }

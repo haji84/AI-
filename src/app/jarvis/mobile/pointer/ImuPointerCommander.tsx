@@ -29,7 +29,7 @@ type SafeTarget = {
 const SAFE_TARGETS: SafeTarget[] = [
   { id: "text", label: "文字司令", description: "文字で安全な端末指示を確認して送信", href: "/jarvis/mobile", x: 22, y: 28 },
   { id: "voice", label: "音声司令", description: "Push-to-talkで音声を字幕確認して送信", href: "/jarvis/mobile/voice", x: 78, y: 28 },
-  { id: "home", label: "JARVISホーム", description: "司令センターへ戻る", href: "/jarvis", x: 50, y: 76 },
+  { id: "home", label: "GORIQホーム", description: "司令センターへ戻る", href: "/jarvis", x: 50, y: 76 },
 ];
 
 const STATUS_LABELS: Record<ImuPointerStatus, string> = {
@@ -162,7 +162,7 @@ export default function ImuPointerCommander() {
     <main className="imu-shell">
       <header className="imu-header">
         <div>
-          <div className="imu-kicker">JARVIS LOCAL POINTER</div>
+          <div className="imu-kicker">GORIQ LOCAL POINTER</div>
           <h1>スマホ傾きポインター</h1>
         </div>
         <a href="/jarvis/mobile">文字司令へ</a>

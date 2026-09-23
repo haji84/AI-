@@ -59,14 +59,14 @@ export default function SetupWizardClient() {
     <div className="jarvis-console">
       <div className="jarvis-toolbar">
         <div>
-          <p className="eyebrow">JARVIS FIRST-RUN SETUP</p>
+          <p className="eyebrow">GORIQ FIRST-RUN SETUP</p>
           <h1>初回セットアップ</h1>
           <p className="muted">ホスト、接続、権限を順番に確認します。この画面は案内専用で、設定を自動変更しません。</p>
         </div>
         <div className="jarvis-toolbar-actions">
           <button className="button secondary" disabled={loading} onClick={() => void refresh()}>再確認</button>
           <a className="button secondary" href="/jarvis/diagnostics">詳細診断</a>
-          <a className="button secondary" href="/jarvis">JARVISへ戻る</a>
+          <a className="button secondary" href="/jarvis">GORIQへ戻る</a>
         </div>
       </div>
 

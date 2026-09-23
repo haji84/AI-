@@ -135,7 +135,7 @@ export default function QaSequenceConsole() {
     <div className="jarvis-console">
       <div className="jarvis-toolbar">
         <div>
-          <p className="eyebrow">JARVIS QA SEQUENCE</p>
+          <p className="eyebrow">GORIQ QA SEQUENCE</p>
           <h1>2 URL 自動判定</h1>
           <p className="muted">URL①の完了を確認してからシート経由でURL②へ。完了または指定エラーでアプリを閉じてホームへ戻ります。エラー時は次のURLへ進まず、再実行もしません。</p>
         </div>

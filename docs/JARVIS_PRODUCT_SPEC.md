@@ -3490,7 +3490,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 {
   "id": "UI-001",
   "title": "Home: 24h clock/date/JARVIS status/connectivity/Current Goal/progress/NOW/NEXT/Human Gate/active workers/device health/activity/failures/suggestions",
-  "description": "Home: 24h clock/date/JARVIS status/connectivity/Current Goal/progress/NOW/NEXT/Human Gate/active workers/device health/activity/failures/suggestions。 #1214: 既定ホームに依頼入力、現在のGoal/状態、実データの端末・タスク概要、仕様・要望を配置し、時計・メモ・固定ルートのショートカットを追加可能とする。認証・接続・優先通知と安全確認へのアクセスは非表示可能なホームパネルから分離する。",
+  "description": "Home: 24h clock/date/JARVIS status/connectivity/Current Goal/progress/NOW/NEXT/Human Gate/active workers/device health/activity/failures/suggestions。 #1214: 既定ホームに依頼入力、現在のGoal/状態、実データの端末・タスク概要、仕様・要望を配置し、時計・メモ・固定ルートのショートカットを追加可能とする。認証・接続・優先通知と安全確認へのアクセスは非表示可能なホームパネルから分離する。 #1214オーナー訂正: ホームに端末操作・依頼入力・進捗への常設入口を設ける。遠隔画面は繰り返し表示でき、隠した依頼入力は入口から復帰できる。入口だけでは端末操作・仕事を自動実行しない。",
   "phase": "P5",
   "required_evidence": [
     "CODE",
@@ -3506,7 +3506,10 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "src/app/jarvis/PersonalLiveSummary.tsx",
     "src/app/jarvis/JarvisPrimaryShell.tsx",
     "src/app/jarvis/JarvisPriorityNotifications.tsx",
-    "src/app/jarvis/page.tsx"
+    "src/app/jarvis/page.tsx",
+    "src/app/jarvis/RemoteConsoleDisclosure.tsx",
+    "src/app/jarvis/GoriqIcon.tsx",
+    "src/app/jarvis/goriq-navigation.css"
   ],
   "test_refs": [
     "tests/jarvis-personalization-store.test.ts"
@@ -3530,7 +3533,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "audit_ref": "docs/evidence/1188-requirements-windows.md"
   },
   "source_decisions": [
-    "owner-1214-personal-ui"
+    "owner-1214-personal-ui",
+    "owner-1214-goriq-menu"
   ],
   "candidate_audit": {
     "issue": "https://github.com/haji84/AI-/issues/1214",
@@ -3538,9 +3542,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "implementation": "CANDIDATE_CODE_PRESENT",
     "physical": "PENDING",
     "audit_ref": "docs/evidence/1214-personal-ui.md",
-    "code_commit": "61f3dc57387c5efc5988dbf0ab933d877698d1e3",
     "pull_request": "https://github.com/haji84/AI-/pull/1215",
-    "local_software_verification": "PASS",
+    "local_software_verification": "PENDING_GORIQ_CORRECTION",
     "native_drag_acceptance": "INCONCLUSIVE"
   }
 }
@@ -3729,9 +3732,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "implementation": "CANDIDATE_CODE_PRESENT",
     "physical": "PENDING",
     "audit_ref": "docs/evidence/1214-personal-ui.md",
-    "code_commit": "61f3dc57387c5efc5988dbf0ab933d877698d1e3",
     "pull_request": "https://github.com/haji84/AI-/pull/1215",
-    "local_software_verification": "PASS",
+    "local_software_verification": "PENDING_GORIQ_CORRECTION",
     "native_drag_acceptance": "INCONCLUSIVE"
   }
 }
@@ -3743,7 +3745,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 {
   "id": "UI-006",
   "title": "未来的JARVIS表示と可読性の両立",
-  "description": "未来的JARVIS表示と可読性の両立。 #1214: 20のアート付き外観は背景構成・配色を変え、本文・入力・カードは読みやすい不透明な面に載せる。人物・AR・都市模型などの装飾画像を実際の機能や稼働状態の証拠として表示しない。",
+  "description": "未来的JARVIS表示と可読性の両立。 #1214: 20のアート付き外観は背景構成・配色を変え、本文・入力・カードは読みやすい不透明な面に載せる。人物・AR・都市模型などの装飾画像を実際の機能や稼働状態の証拠として表示しない。 #1214オーナー訂正: 表示名はGORIQ（ゴリック）。PCは説明付きアイコンメニュー、スマホはアイコンとラベル付き下部メニューを既定とする。20候補のテーマを維持する。",
   "phase": "P5",
   "required_evidence": [
     "CODE",
@@ -3757,7 +3759,9 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "src/app/jarvis/visual-concepts.ts",
     "src/app/jarvis/personal-appearance.css",
     "src/app/jarvis/PersonalHero.tsx",
-    "src/app/jarvis/PersonalAppearance.tsx"
+    "src/app/jarvis/PersonalAppearance.tsx",
+    "src/app/jarvis/GoriqIcon.tsx",
+    "src/app/jarvis/goriq-navigation.css"
   ],
   "test_refs": [
     "tests/jarvis-visual-concepts.test.ts"
@@ -3781,7 +3785,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "audit_ref": "docs/evidence/1188-requirements-windows.md"
   },
   "source_decisions": [
-    "owner-1214-personal-ui"
+    "owner-1214-personal-ui",
+    "owner-1214-goriq-menu"
   ],
   "candidate_audit": {
     "issue": "https://github.com/haji84/AI-/issues/1214",
@@ -3789,9 +3794,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "implementation": "CANDIDATE_CODE_PRESENT",
     "physical": "PENDING",
     "audit_ref": "docs/evidence/1214-personal-ui.md",
-    "code_commit": "61f3dc57387c5efc5988dbf0ab933d877698d1e3",
     "pull_request": "https://github.com/haji84/AI-/pull/1215",
-    "local_software_verification": "PASS",
+    "local_software_verification": "PENDING_GORIQ_CORRECTION",
     "native_drag_acceptance": "INCONCLUSIVE"
   }
 }
@@ -3854,9 +3858,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "implementation": "CANDIDATE_CODE_PRESENT",
     "physical": "PENDING",
     "audit_ref": "docs/evidence/1214-personal-ui.md",
-    "code_commit": "61f3dc57387c5efc5988dbf0ab933d877698d1e3",
     "pull_request": "https://github.com/haji84/AI-/pull/1215",
-    "local_software_verification": "PASS",
+    "local_software_verification": "PENDING_GORIQ_CORRECTION",
     "native_drag_acceptance": "INCONCLUSIVE"
   }
 }
@@ -3913,9 +3916,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "implementation": "CANDIDATE_CODE_PRESENT",
     "physical": "PENDING",
     "audit_ref": "docs/evidence/1214-personal-ui.md",
-    "code_commit": "61f3dc57387c5efc5988dbf0ab933d877698d1e3",
     "pull_request": "https://github.com/haji84/AI-/pull/1215",
-    "local_software_verification": "PASS",
+    "local_software_verification": "PENDING_GORIQ_CORRECTION",
     "native_drag_acceptance": "INCONCLUSIVE"
   }
 }
@@ -3997,7 +3999,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 {
   "id": "UI-011",
   "title": "Layoutは独立設定",
-  "description": "Layoutは独立設定。Theme/Persona/Voice/Color/Layoutを独立管理。 #1214: 表示プロフィールごとに固定5メニューの順番・配置辺とホームパネルの順番・幅を保持し、ビジュアル候補から独立して変更できる。",
+  "description": "Layoutは独立設定。Theme/Persona/Voice/Color/Layoutを独立管理。 #1214: 表示プロフィールごとに固定5メニューの順番・配置辺とホームパネルの順番・幅を保持し、ビジュアル候補から独立して変更できる。 #1214オーナー訂正: 名称変更後もプロフィールID・配置・個人の名前を保持し、既定名だけ更新する。メニュー配置の変更も継続利用可能。",
   "phase": "P5",
   "required_evidence": [
     "CODE",
@@ -4035,7 +4037,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "audit_ref": "docs/evidence/1188-requirements-windows.md"
   },
   "source_decisions": [
-    "owner-1214-personal-ui"
+    "owner-1214-personal-ui",
+    "owner-1214-goriq-menu"
   ],
   "candidate_audit": {
     "issue": "https://github.com/haji84/AI-/issues/1214",
@@ -4043,9 +4046,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "implementation": "CANDIDATE_CODE_PRESENT",
     "physical": "PENDING",
     "audit_ref": "docs/evidence/1214-personal-ui.md",
-    "code_commit": "61f3dc57387c5efc5988dbf0ab933d877698d1e3",
     "pull_request": "https://github.com/haji84/AI-/pull/1215",
-    "local_software_verification": "PASS",
+    "local_software_verification": "PENDING_GORIQ_CORRECTION",
     "native_drag_acceptance": "INCONCLUSIVE"
   }
 }
@@ -4101,9 +4103,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "implementation": "CANDIDATE_CODE_PRESENT",
     "physical": "PENDING",
     "audit_ref": "docs/evidence/1214-personal-ui.md",
-    "code_commit": "61f3dc57387c5efc5988dbf0ab933d877698d1e3",
     "pull_request": "https://github.com/haji84/AI-/pull/1215",
-    "local_software_verification": "PASS",
+    "local_software_verification": "PENDING_GORIQ_CORRECTION",
     "native_drag_acceptance": "INCONCLUSIVE"
   }
 }
@@ -4158,9 +4159,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "implementation": "CANDIDATE_CODE_PRESENT",
     "physical": "PENDING",
     "audit_ref": "docs/evidence/1214-personal-ui.md",
-    "code_commit": "61f3dc57387c5efc5988dbf0ab933d877698d1e3",
     "pull_request": "https://github.com/haji84/AI-/pull/1215",
-    "local_software_verification": "PASS",
+    "local_software_verification": "PENDING_GORIQ_CORRECTION",
     "native_drag_acceptance": "INCONCLUSIVE"
   }
 }
@@ -4216,9 +4216,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "implementation": "CANDIDATE_CODE_PRESENT",
     "physical": "PENDING",
     "audit_ref": "docs/evidence/1214-personal-ui.md",
-    "code_commit": "61f3dc57387c5efc5988dbf0ab933d877698d1e3",
     "pull_request": "https://github.com/haji84/AI-/pull/1215",
-    "local_software_verification": "PASS",
+    "local_software_verification": "PENDING_GORIQ_CORRECTION",
     "native_drag_acceptance": "INCONCLUSIVE"
   }
 }
@@ -4344,9 +4343,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "implementation": "CANDIDATE_CODE_PRESENT",
     "physical": "PENDING",
     "audit_ref": "docs/evidence/1214-personal-ui.md",
-    "code_commit": "61f3dc57387c5efc5988dbf0ab933d877698d1e3",
     "pull_request": "https://github.com/haji84/AI-/pull/1215",
-    "local_software_verification": "PASS",
+    "local_software_verification": "PENDING_GORIQ_CORRECTION",
     "native_drag_acceptance": "INCONCLUSIVE"
   }
 }
@@ -4402,9 +4400,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "implementation": "CANDIDATE_CODE_PRESENT",
     "physical": "PENDING",
     "audit_ref": "docs/evidence/1214-personal-ui.md",
-    "code_commit": "61f3dc57387c5efc5988dbf0ab933d877698d1e3",
     "pull_request": "https://github.com/haji84/AI-/pull/1215",
-    "local_software_verification": "PASS",
+    "local_software_verification": "PENDING_GORIQ_CORRECTION",
     "native_drag_acceptance": "INCONCLUSIVE"
   }
 }
@@ -4460,9 +4457,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "implementation": "CANDIDATE_CODE_PRESENT",
     "physical": "PENDING",
     "audit_ref": "docs/evidence/1214-personal-ui.md",
-    "code_commit": "61f3dc57387c5efc5988dbf0ab933d877698d1e3",
     "pull_request": "https://github.com/haji84/AI-/pull/1215",
-    "local_software_verification": "PASS",
+    "local_software_verification": "PENDING_GORIQ_CORRECTION",
     "native_drag_acceptance": "INCONCLUSIVE"
   }
 }
@@ -4512,7 +4508,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 {
   "id": "UI-021",
   "title": "Universal Search",
-  "description": "Universal Search。",
+  "description": "Universal Search。 #1214オーナー訂正: 検索入口を常設し、画面移動だけを行う。タッチで閉じる操作と外側タップを提供する。",
   "phase": "P5",
   "required_evidence": [
     "CODE",
@@ -4520,9 +4516,14 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "INTEGRATION",
     "PHYSICAL"
   ],
-  "implementation_refs": [],
+  "implementation_refs": [
+    "src/app/jarvis/JarvisCommandSearch.tsx",
+    "src/app/jarvis/JarvisPrimaryShell.tsx"
+  ],
   "test_refs": [],
-  "evidence_refs": [],
+  "evidence_refs": [
+    "docs/evidence/1214-personal-ui.md"
+  ],
   "status": "MISSING",
   "blocker": "現行JARVIS UIに当該製品機能を未発見。P5で実装と操作検証が必要。",
   "platform_limit": null,
@@ -4537,6 +4538,18 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
     "staged_implementation_refs": [],
     "audit_ref": "docs/evidence/1188-requirements-windows.md"
+  },
+  "source_decisions": [
+    "owner-1214-goriq-menu"
+  ],
+  "candidate_audit": {
+    "issue": "https://github.com/haji84/AI-/issues/1214",
+    "source_main": "54b5df2a41eaef75e7c40a83474aceb8fc15b3be",
+    "implementation": "CANDIDATE_CODE_PRESENT",
+    "physical": "PENDING",
+    "audit_ref": "docs/evidence/1214-personal-ui.md",
+    "pull_request": "https://github.com/haji84/AI-/pull/1215",
+    "local_software_verification": "PENDING_GORIQ_CORRECTION"
   }
 }
 ```
@@ -4687,7 +4700,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 {
   "id": "UI-026",
   "title": "Mobile Mode",
-  "description": "Mobile Mode。 #1214: スマホ幅では左右メニューを下部に適応し、パネルと編集コントロールを画面内に収める。",
+  "description": "Mobile Mode。 #1214: スマホ幅では左右メニューを下部に適応し、パネルと編集コントロールを画面内に収める。 #1214オーナー訂正: アイコンとラベル付き下部メニュー、指で押せる主要操作と表示設定を提供する。",
   "phase": "P5",
   "required_evidence": [
     "CODE",
@@ -4701,7 +4714,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "src/app/jarvis/personal-workspace.css",
     "src/app/jarvis/personal-appearance.css",
     "src/app/jarvis/JarvisPrimaryShell.tsx",
-    "src/app/jarvis/PersonalDashboard.tsx"
+    "src/app/jarvis/PersonalDashboard.tsx",
+    "src/app/jarvis/goriq-navigation.css"
   ],
   "test_refs": [
     "tests/jarvis-personalization-store.test.ts"
@@ -4725,7 +4739,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "audit_ref": "docs/evidence/1188-requirements-windows.md"
   },
   "source_decisions": [
-    "owner-1214-personal-ui"
+    "owner-1214-personal-ui",
+    "owner-1214-goriq-menu"
   ],
   "candidate_audit": {
     "issue": "https://github.com/haji84/AI-/issues/1214",
@@ -4733,9 +4748,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "implementation": "CANDIDATE_CODE_PRESENT",
     "physical": "PENDING",
     "audit_ref": "docs/evidence/1214-personal-ui.md",
-    "code_commit": "61f3dc57387c5efc5988dbf0ab933d877698d1e3",
     "pull_request": "https://github.com/haji84/AI-/pull/1215",
-    "local_software_verification": "PASS",
+    "local_software_verification": "PENDING_GORIQ_CORRECTION",
     "native_drag_acceptance": "INCONCLUSIVE"
   }
 }
@@ -4793,9 +4807,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "implementation": "CANDIDATE_CODE_PRESENT",
     "physical": "PENDING",
     "audit_ref": "docs/evidence/1214-personal-ui.md",
-    "code_commit": "61f3dc57387c5efc5988dbf0ab933d877698d1e3",
     "pull_request": "https://github.com/haji84/AI-/pull/1215",
-    "local_software_verification": "PASS",
+    "local_software_verification": "PENDING_GORIQ_CORRECTION",
     "native_drag_acceptance": "INCONCLUSIVE"
   }
 }
@@ -4962,9 +4975,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "implementation": "CANDIDATE_CODE_PRESENT",
     "physical": "PENDING",
     "audit_ref": "docs/evidence/1214-personal-ui.md",
-    "code_commit": "61f3dc57387c5efc5988dbf0ab933d877698d1e3",
     "pull_request": "https://github.com/haji84/AI-/pull/1215",
-    "local_software_verification": "PASS",
+    "local_software_verification": "PENDING_GORIQ_CORRECTION",
     "native_drag_acceptance": "INCONCLUSIVE"
   }
 }
@@ -4976,7 +4988,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 {
   "id": "UI-032",
   "title": "Keyboard navigation",
-  "description": "Keyboard navigation。 #1214: デザイン選択・メニュー順序・パネル移動と幅変更・追加/非表示・履歴操作はネイティブなボタン/選択肢で操作でき、ドラッグのみを要求しない。",
+  "description": "Keyboard navigation。 #1214: デザイン選択・メニュー順序・パネル移動と幅変更・追加/非表示・履歴操作はネイティブなボタン/選択肢で操作でき、ドラッグのみを要求しない。 #1214オーナー訂正: GORIQメニューをキーボードで操作でき、Ctrl/Cmd+Kで常設検索へ移動できる。",
   "phase": "P5",
   "required_evidence": [
     "CODE",
@@ -4990,7 +5002,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "src/app/jarvis/PersonalDashboard.tsx",
     "src/app/jarvis/PersonalAppearance.tsx",
     "src/app/jarvis/personal-appearance.css",
-    "src/app/jarvis/JarvisPrimaryShell.tsx"
+    "src/app/jarvis/JarvisPrimaryShell.tsx",
+    "src/app/jarvis/JarvisCommandSearch.tsx"
   ],
   "test_refs": [
     "tests/jarvis-personalization-store.test.ts",
@@ -5015,7 +5028,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "audit_ref": "docs/evidence/1188-requirements-windows.md"
   },
   "source_decisions": [
-    "owner-1214-personal-ui"
+    "owner-1214-personal-ui",
+    "owner-1214-goriq-menu"
   ],
   "candidate_audit": {
     "issue": "https://github.com/haji84/AI-/issues/1214",
@@ -5023,9 +5037,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "implementation": "CANDIDATE_CODE_PRESENT",
     "physical": "PENDING",
     "audit_ref": "docs/evidence/1214-personal-ui.md",
-    "code_commit": "61f3dc57387c5efc5988dbf0ab933d877698d1e3",
     "pull_request": "https://github.com/haji84/AI-/pull/1215",
-    "local_software_verification": "PASS",
+    "local_software_verification": "PENDING_GORIQ_CORRECTION",
     "native_drag_acceptance": "INCONCLUSIVE"
   }
 }
@@ -5225,7 +5238,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 {
   "id": "UI-038",
   "title": "Japanese-first UI",
-  "description": "Japanese-first UI。 #1214: 20案の説明、プロフィール・メニュー・ホーム配置編集、保存エラーを日本語主体で表示する。",
+  "description": "Japanese-first UI。 #1214: 20案の説明、プロフィール・メニュー・ホーム配置編集、保存エラーを日本語主体で表示する。 #1214オーナー訂正: Web画面・メタデータ・PWA表示名はGORIQ（ゴリック）。既存/jarvisルート・保存キー・端末アプリID・署名/認証プロトコルは互換性のため保持する。",
   "phase": "P5",
   "required_evidence": [
     "CODE",
@@ -5242,7 +5255,11 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "src/app/jarvis/visual-concepts.ts",
     "src/app/jarvis/PersonalizationProvider.tsx",
     "src/app/jarvis/PersonalHero.tsx",
-    "src/app/jarvis/PersonalLiveSummary.tsx"
+    "src/app/jarvis/PersonalLiveSummary.tsx",
+    "src/app/jarvis/layout.tsx",
+    "src/app/jarvis/manifest.ts",
+    "src/app/jarvis/icon.tsx",
+    "src/app/jarvis/apple-icon.tsx"
   ],
   "test_refs": [
     "tests/jarvis-personalization-store.test.ts",
@@ -5267,7 +5284,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "audit_ref": "docs/evidence/1188-requirements-windows.md"
   },
   "source_decisions": [
-    "owner-1214-personal-ui"
+    "owner-1214-personal-ui",
+    "owner-1214-goriq-menu"
   ],
   "candidate_audit": {
     "issue": "https://github.com/haji84/AI-/issues/1214",
@@ -5275,9 +5293,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "implementation": "CANDIDATE_CODE_PRESENT",
     "physical": "PENDING",
     "audit_ref": "docs/evidence/1214-personal-ui.md",
-    "code_commit": "61f3dc57387c5efc5988dbf0ab933d877698d1e3",
     "pull_request": "https://github.com/haji84/AI-/pull/1215",
-    "local_software_verification": "PASS",
+    "local_software_verification": "PENDING_GORIQ_CORRECTION",
     "native_drag_acceptance": "INCONCLUSIVE"
   }
 }

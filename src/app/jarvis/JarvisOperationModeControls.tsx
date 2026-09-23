@@ -27,7 +27,7 @@ export default function JarvisOperationModeControls() {
 
   const current = JARVIS_OPERATION_MODES.find(([id]) => id === mode) ?? JARVIS_OPERATION_MODES[0];
   return (
-    <section className="jarvis-operation-modes" aria-label="JARVIS 操作モード">
+    <section className="jarvis-operation-modes" aria-label="GORIQ 操作モード">
       <div className="jarvis-operation-mode-buttons">
         {JARVIS_OPERATION_MODES.map(([id, label, description]) => (
           <button

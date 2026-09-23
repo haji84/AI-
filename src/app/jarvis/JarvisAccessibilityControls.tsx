@@ -60,7 +60,7 @@ export default function JarvisAccessibilityControls() {
         <legend>字幕・文字情報</legend>
         <label><input type="radio" name="jarvis-captions" checked={preferences.captions === "off"} onChange={() => save({ captions: "off" })} /> 標準</label>
         <label><input type="radio" name="jarvis-captions" checked={preferences.captions === "on"} onChange={() => save({ captions: "on" })} /> 字幕表示を優先</label>
-        <small className="jarvis-setting-help">JARVIS UIの字幕・文字情報表示を優先する設定。P6の音声認識やリアルタイム音声字幕の完成を意味しない。</small>
+        <small className="jarvis-setting-help">GORIQ UIの字幕・文字情報表示を優先する設定。P6の音声認識やリアルタイム音声字幕の完成を意味しない。</small>
       </fieldset>
 
       <p className="jarvis-accessibility-summary" aria-live="polite">

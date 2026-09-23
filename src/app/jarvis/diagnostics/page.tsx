@@ -56,13 +56,13 @@ export default function JarvisDiagnosticsPage() {
       <div className="jarvis-console">
         <div className="jarvis-toolbar">
           <div>
-            <p className="eyebrow">JARVIS SELF DIAGNOSTICS</p>
+            <p className="eyebrow">GORIQ SELF DIAGNOSTICS</p>
             <h1>自己診断</h1>
             <p className="muted">確認できた証拠だけで原因を分けます。分からないものは「未確認」のままにします。</p>
           </div>
           <div className="jarvis-toolbar-actions">
             <button className="button secondary" disabled={loading} onClick={() => void refresh()}>再診断</button>
-            <a className="button secondary" href="/jarvis">JARVISへ戻る</a>
+            <a className="button secondary" href="/jarvis">GORIQへ戻る</a>
           </div>
         </div>
 

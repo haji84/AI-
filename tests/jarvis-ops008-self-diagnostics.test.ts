@@ -102,7 +102,8 @@ test("OPS-008 has an owner-facing page linked from the primary JARVIS page", asy
   const jarvisPage = await readFile(new URL("../src/app/jarvis/page.tsx", import.meta.url), "utf8");
 
   assert.match(diagnosticsPage, /fetch\("\/api\/jarvis\/diagnostics", \{ cache: "no-store" \}\)/);
-  assert.match(diagnosticsPage, /JARVIS SELF DIAGNOSTICS/);
+  assert.match(diagnosticsPage, /GORIQ SELF DIAGNOSTICS/);
   assert.match(diagnosticsPage, /分からないものは「未確認」のまま/);
-  assert.match(jarvisPage, /href="\/jarvis\/diagnostics">自己診断/);
+  assert.match(jarvisPage, /tools\.map\(item=><a key=\{item\.href\} href=\{item\.href\}/);
+  assert.match(jarvisPage, /href:"\/jarvis\/diagnostics",label:"接続を診断"/);
 });

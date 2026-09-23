@@ -14,7 +14,7 @@ export default function PersonalAppearance() {
     return ui.change(current => updatePersonalUiProfile(current, current.activeProfileId, value));
   }
   function add() {
-    const result = addPersonalUiProfile(ui.state, name.trim() || "新しいJARVIS");
+    const result = addPersonalUiProfile(ui.state, name.trim() || "新しいGORIQ");
     if (result.error) { ui.report(result.error); return; }
     ui.change(result.state);
     setName("");
@@ -27,7 +27,7 @@ export default function PersonalAppearance() {
     patch({ navOrder: next });
   }
   return <section className="personal-studio" aria-labelledby="personal-studio-title" aria-busy={!ui.ready}>
-    <header><p className="eyebrow">YOUR JARVIS</p><h2 id="personal-studio-title">あなたのJARVISをつくる</h2><p>20のデザインから選び、ホームとメニューを自分の使いやすい配置に。</p></header>
+    <header><p className="eyebrow">YOUR GORIQ</p><h2 id="personal-studio-title">あなたのGORIQをつくる</h2><p>20のデザインから選び、ホームとメニューを自分の使いやすい配置に。</p></header>
     {ui.error && <p role="alert" className="jarvis-alert">{ui.error}</p>}
     <fieldset disabled={!ui.ready}>
       <legend>自分用の表示プロフィール</legend>

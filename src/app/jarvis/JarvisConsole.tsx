@@ -116,7 +116,7 @@ export default function JarvisConsole() {
       setState(body);
       setError("");
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "JARVIS状態を取得できません");
+      setError(cause instanceof Error ? cause.message : "GORIQ状態を取得できません");
     }
   }, []);
 
@@ -377,8 +377,8 @@ export default function JarvisConsole() {
     <div className="jarvis-console">
       <div className="jarvis-toolbar">
         <div>
-          <p className="eyebrow">JARVIS DEVICE OS</p>
-          <h1>JARVIS Fleet Console</h1>
+          <p className="eyebrow">GORIQ DEVICE OS</p>
+          <h1>GORIQ Fleet Console</h1>
           <p className="muted">最大100ノード。登録、稼働、Queue、遠隔確認、Human Takeoverをここで管理する。</p>
         </div>
         <div className="jarvis-toolbar-actions"><button className="button secondary" disabled={busy} onClick={() => { void refresh(); void refreshRemote(); }}>更新</button><a className="button secondary" href="/">AI会社へ戻る</a></div>
@@ -516,10 +516,10 @@ export default function JarvisConsole() {
       </section> : null}
 
       <section className="panel jarvis-section">
-        <div className="section-heading"><div><p className="section-kicker">QUEUE</p><h2>最近のJARVISタスク</h2></div><span className="count-badge neutral">{state?.tasks.length ?? 0}</span></div>
+        <div className="section-heading"><div><p className="section-kicker">QUEUE</p><h2>最近のGORIQタスク</h2></div><span className="count-badge neutral">{state?.tasks.length ?? 0}</span></div>
         <div className="jarvis-table-wrap"><table className="jarvis-table"><thead><tr><th>Task</th><th>種類</th><th>状態</th><th>端末</th><th>試行</th><th>更新</th></tr></thead><tbody>
           {recentTasks.map((task) => <tr key={task.id}><td><small>{task.id}</small></td><td>{task.type}</td><td>{task.status}</td><td>{task.assignedNodeId ?? task.targetNodeId ?? "自動"}</td><td>{task.attempts}/{task.maxAttempts}</td><td>{fmt(task.updatedAt)}</td></tr>)}
-          {recentTasks.length === 0 && <tr><td colSpan={6} className="jarvis-empty">JARVISタスクはありません。</td></tr>}
+          {recentTasks.length === 0 && <tr><td colSpan={6} className="jarvis-empty">GORIQタスクはありません。</td></tr>}
         </tbody></table></div>
       </section>
 

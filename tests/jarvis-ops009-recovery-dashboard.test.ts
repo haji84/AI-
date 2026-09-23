@@ -152,10 +152,11 @@ test("OPS-009 owner-facing page is linked and contains no recovery execution con
   const jarvisPage = await readFile(new URL("../src/app/jarvis/page.tsx", import.meta.url), "utf8");
 
   assert.match(pageSource, /fetch\("\/api\/jarvis\/recovery", \{ cache: "no-store" \}\)/);
-  assert.match(pageSource, /JARVIS RECOVERY DASHBOARD/);
+  assert.match(pageSource, /GORIQ RECOVERY DASHBOARD/);
   assert.match(pageSource, /ここから復旧操作は実行しません/);
   assert.match(pageSource, /Blocker/);
   assert.doesNotMatch(pageSource, /fetch\([^\n]+method:\s*["'](?:POST|PUT|PATCH|DELETE)/i);
   assert.doesNotMatch(pageSource, /再実行|復旧開始|resume|trigger recovery/i);
-  assert.match(jarvisPage, /href="\/jarvis\/recovery">Recovery/);
+  assert.match(jarvisPage, /tools\.map\(item=><a key=\{item\.href\} href=\{item\.href\}/);
+  assert.match(jarvisPage, /href:"\/jarvis\/recovery",label:"復旧状況"/);
 });

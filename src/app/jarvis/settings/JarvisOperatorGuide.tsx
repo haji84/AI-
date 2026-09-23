@@ -33,7 +33,7 @@ export default function JarvisOperatorGuide() {
         <p className="eyebrow">OWNER GUIDE</p>
         <h2 id="jarvis-operator-guide-title">日常操作ガイド</h2>
         <p className="muted">
-          普段の確認と操作はJARVIS画面内で完結する。開発者向けコマンドを使わず、必要な画面へ順番に進む。
+          普段の確認と操作はGORIQ画面内で完結する。開発者向けコマンドを使わず、必要な画面へ順番に進む。
         </p>
       </div>
 

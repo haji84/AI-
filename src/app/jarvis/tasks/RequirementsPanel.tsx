@@ -68,7 +68,7 @@ export default function RequirementsPanel(){
   <form className="requirements-input" onSubmit={e=>{e.preventDefault();void submit();}}>
    <label htmlFor={inputId}>追加・変更したいこと</label><textarea id={inputId} maxLength={4000} rows={3} placeholder="例：通知音を変更できる機能を追加して" value={text} onChange={e=>setText(e.target.value)} disabled={busy}/>
    <label htmlFor={inputId+"-reference"}>「それ」「さっきの仕様」が指す要求</label><select id={inputId+"-reference"} value={reference} onChange={e=>setReference(e.target.value)} disabled={busy}><option value="">文脈から判断（候補が複数なら確認）</option>{data?.records.filter(r=>!r.adopted&&!["SUPERSEDED","WITHDRAWN"].includes(r.displayState)).map(r=><option key={r.id} value={r.id}>{r.statement.slice(0,80)}</option>)}</select>
-   <button className="button primary" type="submit" disabled={busy||!text.trim()}>{busy?"処理中…":"JARVISに伝える"}</button>
+   <button className="button primary" type="submit" disabled={busy||!text.trim()}>{busy?"処理中…":"GORIQに伝える"}</button>
   </form>
   {notice&&<p className="requirements-notice" role="status">{notice}</p>}
   {error&&<div className="jarvis-alert" role="alert"><span>{error}</span>{error.includes("認証")&&<a href="/jarvis/login?next=/jarvis/tasks">オーナー認証を開く</a>}</div>}

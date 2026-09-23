@@ -108,7 +108,7 @@ export default function VideoTeachingPanel({ onApply }: { onApply: (instructions
     </div>
     {scanning && <p role="status">解析中 {progress}%</p>}
     <label>録画で教える作業<input maxLength={160} value={goal} disabled={scanning || executing} onChange={e => { setGoal(e.target.value); setLearned(null); }}/></label>
-    <button type="button" className="button" disabled={!ready || scanning || executing || !goal.trim()} onClick={() => void understand()}>JARVISに学習・再現検証を任せる</button>
+    <button type="button" className="button" disabled={!ready || scanning || executing || !goal.trim()} onClick={() => void understand()}>GORIQに学習・再現検証を任せる</button>
     <p>接続端末が1台なら、解析後にその端末を操作して検証まで自動で進めます。複数台の場合だけ端末を選択してください。</p>
     <p>現在の自動再現は「次へ・詳細・戻る」など既存の安全なナビゲーション操作です。文字入力・スワイプ・購入などは自動再現せず停止します。</p>
     {learned && <VideoReplayControls key={learned.id} id={learned.id} plan={learned.plan} onBusy={setExecuting}/>}

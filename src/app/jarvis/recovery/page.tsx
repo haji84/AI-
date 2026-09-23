@@ -54,13 +54,13 @@ export default function JarvisRecoveryPage() {
       <div className="jarvis-console">
         <div className="jarvis-toolbar">
           <div>
-            <p className="eyebrow">JARVIS RECOVERY DASHBOARD</p>
+            <p className="eyebrow">GORIQ RECOVERY DASHBOARD</p>
             <h1>Recovery Dashboard</h1>
             <p className="muted">永続化済みの復旧状態だけを表示します。ここから復旧操作は実行しません。</p>
           </div>
           <div className="jarvis-toolbar-actions">
             <button className="button secondary" disabled={loading} onClick={() => void refresh()}>再読込</button>
-            <a className="button secondary" href="/jarvis">JARVISへ戻る</a>
+            <a className="button secondary" href="/jarvis">GORIQへ戻る</a>
           </div>
         </div>
 

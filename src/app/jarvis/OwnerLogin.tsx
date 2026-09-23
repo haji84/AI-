@@ -53,12 +53,12 @@ export default function OwnerLogin({ next = "/jarvis", initialError = false }: {
       form.reset();
       await finishLogin();
     } catch {
-      setError("JARVISとの通信に失敗しました。接続を確認して、もう一度ログインしてください。");
+      setError("GORIQとの通信に失敗しました。接続を確認して、もう一度ログインしてください。");
     } finally { setBusy(false); }
   }
 
   return <section className="panel jarvis-section" style={{ maxWidth: 560, margin: "32px auto" }}>
-    <h1>JARVISにログイン</h1>
+    <h1>GORIQにログイン</h1>
     <p>信頼済み端末では4桁PINで入れます。PINはこの端末の鍵を開くためだけに使われ、サーバーへ送信されません。</p>
 
     {trustedReady && <>

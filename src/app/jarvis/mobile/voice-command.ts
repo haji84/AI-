@@ -43,7 +43,7 @@ export function parseSafeMobileCommand(input: string): VoiceIntentResult {
     return {
       ok: false,
       reason: "protected",
-      message: "保護対象の操作は音声・文字司令から実行も承認もしません。通常のJARVIS画面とHuman Gateを使ってください。",
+      message: "保護対象の操作は音声・文字司令から実行も承認もしません。通常のGORIQ画面とHuman Gateを使ってください。",
     };
   }
 
@@ -73,8 +73,8 @@ export function parseSafeMobileCommand(input: string): VoiceIntentResult {
   if (url) return { ok: true, task: { type: "open-url", payload: { url } } };
 
   if (text.startsWith("通知")) {
-    const message = text.replace(/^通知[:：]?\s*/, "") || "JARVISからの通知";
-    return { ok: true, task: { type: "show-notification", payload: { title: "JARVIS", message } } };
+    const message = text.replace(/^通知[:：]?\s*/, "") || "GORIQからの通知";
+    return { ok: true, task: { type: "show-notification", payload: { title: "GORIQ", message } } };
   }
 
   return {

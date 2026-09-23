@@ -60,11 +60,11 @@ export default function PlatformRemoteAssistFleet() {
         <div>
           <p className="eyebrow">DEVICES / REMOTE ASSIST</p>
           <h1>端末能力</h1>
-          <p className="muted">端末が自己申告した能力とJARVISの安全ポリシーから、遠隔閲覧・操作の範囲を保守的に表示します。</p>
+          <p className="muted">端末が自己申告した能力とGORIQの安全ポリシーから、遠隔閲覧・操作の範囲を保守的に表示します。</p>
         </div>
         <div className="jarvis-toolbar-actions">
           <button className="button secondary" disabled={loading} onClick={() => void refresh()}>更新</button>
-          <a className="button" href="/jarvis">遠隔操作・JARVISホーム</a>
+          <a className="button" href="/jarvis#remote-controls">遠隔操作を開く</a>
           <a className="button secondary" href="/jarvis/teach">操作を教える・手順ライブラリ</a>
         </div>
       </div>

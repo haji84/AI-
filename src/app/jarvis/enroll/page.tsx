@@ -204,13 +204,13 @@ export default function JarvisEnrollPage() {
   return <main className="dashboard-shell">
     <div className="jarvis-toolbar">
       <div>
-        <p className="eyebrow">JARVIS</p>
+        <p className="eyebrow">GORIQ</p>
         <h1>Android端末登録</h1>
         <p className="muted">家のWi-FiでWorkerを開き、この画面からまとめて登録できます。登録後は遠隔操作一覧へ自動反映。USB不要・全体で最大100台です。</p>
       </div>
       <div className="jarvis-button-row">
         <a className="button secondary" href="/jarvis/login?next=/jarvis/enroll">オーナー認証</a>
-        <a className="button secondary" href="/jarvis">JARVISへ戻る</a>
+        <a className="button secondary" href="/jarvis">GORIQへ戻る</a>
       </div>
     </div>
 
@@ -251,7 +251,7 @@ export default function JarvisEnrollPage() {
       <p className="muted">初回セットアップから管理端末化する場合だけ、別途Provisioning QRを発行します。これは固定URLの受付とは別経路です。</p>
       {!provisioning && <button className="button secondary" disabled={busy} onClick={() => void createProvisioningSet()}>Device Owner用QRを発行</button>}
       {provisioning?.qrPngBase64 ? <div style={{ display: "grid", gap: 18, justifyItems: "center", marginTop: 16 }}>
-        <img src={`data:image/png;base64,${provisioning.qrPngBase64}`} alt="JARVIS Device Owner provisioning QR" width={320} height={320} style={{ imageRendering: "pixelated", background: "white", padding: 16, borderRadius: 16 }} />
+        <img src={`data:image/png;base64,${provisioning.qrPngBase64}`} alt="GORIQ Device Owner provisioning QR" width={320} height={320} style={{ imageRendering: "pixelated", background: "white", padding: 16, borderRadius: 16 }} />
         <p className="muted">Androidの初回セットアップ画面でQRを読み取ります。OS側の確認や対応条件は省略できません。</p>
       </div> : provisioning && <div className="jarvis-alert" style={{ marginTop: 16 }}><strong>QR生成準備待ち</strong><span>Worker APKとQR生成機能の準備状況を確認してください。</span></div>}
       {provisioning?.provisioning && <div className="jarvis-button-row" style={{ marginTop: 16 }}><button className="button secondary" onClick={() => void copyProvisioning()}>provisioning JSONをコピー</button></div>}
@@ -286,7 +286,7 @@ export default function JarvisEnrollPage() {
     </details>
     <section className="panel jarvis-section" style={{ maxWidth: 860, margin: "0 auto" }}>
       <div className="section-heading"><div><p className="section-kicker">登録確認</p><h2>端末一覧へ自動反映</h2></div></div>
-      <p className="muted">登録できた端末はJARVISの端末一覧へ表示されます。001〜100の管理番号はJARVIS側で割り当てます。</p>
+      <p className="muted">登録できた端末はGORIQの端末一覧へ表示されます。001〜100の管理番号はGORIQ側で割り当てます。</p>
       <a className="button secondary" href="/jarvis">端末一覧を確認</a>
     </section>
   </main>;

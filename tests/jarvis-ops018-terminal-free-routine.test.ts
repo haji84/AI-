@@ -37,8 +37,9 @@ test("OPS-018 keeps routine owner navigation entirely inside the JARVIS UI", asy
     assert.match(shell, new RegExp(`href: ["']${route.replaceAll("/", "\\/")}["']`));
   }
 
+  assert.match(home, /tools\.map\(item=><a key=\{item\.href\} href=\{item\.href\}/);
   for (const route of ["/jarvis/setup", "/jarvis/diagnostics", "/jarvis/recovery"]) {
-    assert.match(home, new RegExp(`href=["']${route.replaceAll("/", "\\/")}["']`));
+    assert.match(home, new RegExp(`href:["']${route.replaceAll("/", "\\/")}["']`));
   }
 
   assert.match(settings, /<JarvisOperatorGuide \/>/);

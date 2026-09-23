@@ -96,8 +96,13 @@ function defaultPanels(): PersonalUiPanel[] {
   ];
 }
 
+function profileName(value: unknown) {
+  const name = boundedText(value, 40).trim();
+  return !name || name === "マイJARVIS" ? "マイGORIQ" : name;
+}
+
 function defaultProfile(): PersonalUiProfile {
-  return { id: "profile-1", name: "マイJARVIS", conceptId: "ai-core", navPosition: "left", navOrder: [...PERSONAL_NAV_IDS], panels: defaultPanels(), note: "" };
+  return { id: "profile-1", name: "マイGORIQ", conceptId: "ai-core", navPosition: "left", navOrder: [...PERSONAL_NAV_IDS], panels: defaultPanels(), note: "" };
 }
 
 export function defaultPersonalUiState(): PersonalUiState {
@@ -140,7 +145,7 @@ export function normalizePersonalUiState(value: unknown): PersonalUiState {
     if (!plainRecord(candidate)) continue;
     profiles.push({
       id: uniqueId(own(candidate, "id"), "profile", used, reserved),
-      name: boundedText(own(candidate, "name"), 40).trim() || "マイJARVIS",
+      name: profileName(own(candidate, "name")),
       conceptId: member(PERSONAL_CONCEPT_IDS, own(candidate, "conceptId"), "ai-core"),
       navPosition: member(["top", "bottom", "left", "right"], own(candidate, "navPosition"), "left"),
       navOrder: normalizeNav(own(candidate, "navOrder")),
@@ -218,6 +223,14 @@ export function readPersonalUiState(storage?: PersonalUiStorage | null): Persona
     if (raw === null) return { state: defaultPersonalUiState(), error: null };
     if (raw.length > MAX_STORAGE_LENGTH) return { state: defaultPersonalUiState(), error: "保存された表示設定が大きすぎます。初期設定を使用します。" };
     const parsed: unknown = JSON.parse(raw);
+    // A display-name update is not corrupt storage. Leave every other field
+    // untouched so genuine repair warnings still reach the owner.
+    const storedProfiles = own(parsed, "profiles");
+    if (Array.isArray(storedProfiles)) {
+      for (const profile of storedProfiles) {
+        if (plainRecord(profile) && profile.name === "マイJARVIS") profile.name = "マイGORIQ";
+      }
+    }
     const state = normalizePersonalUiState(parsed);
     const repaired = JSON.stringify(parsed) !== JSON.stringify(state);
     return { state, error: repaired ? "保存された表示設定に対応できない内容があり、安全な設定に復元しました。" : null };

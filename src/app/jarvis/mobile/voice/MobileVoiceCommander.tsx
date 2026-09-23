@@ -91,7 +91,7 @@ export default function MobileVoiceCommander() {
           : fleet.find((node) => node.status === "ready")?.id ?? fleet[0]?.id ?? "");
       setError("");
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "JARVIS状態を取得できません");
+      setError(cause instanceof Error ? cause.message : "GORIQ状態を取得できません");
     }
   }, []);
 
@@ -268,7 +268,7 @@ export default function MobileVoiceCommander() {
   return (
     <main className="commander-shell voice-commander-shell">
       <header className="commander-header">
-        <div><div className="commander-kicker">JARVIS VOICE</div><h1>音声司令</h1></div>
+        <div><div className="commander-kicker">GORIQ VOICE</div><h1>音声司令</h1></div>
         <a className="commander-link" href="/jarvis/mobile">文字司令へ</a>
       </header>
 
