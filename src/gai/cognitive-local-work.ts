@@ -19,6 +19,7 @@ const MAX_FILE_BYTES = 64_000;
 const sha = (value: string) => createHash("sha256").update(value).digest("hex");
 
 export class CognitiveLocalWorkCatalog {
+  readonly contractDigest: string;
   private readonly manifest: CognitiveLocalWorkManifest;
   private readonly root: string;
   private readonly files: LocalFileCapability;
@@ -40,7 +41,7 @@ export class CognitiveLocalWorkCatalog {
       if (step.operation === "read" && step.text !== undefined) throw Error("Read cannot carry content");
       ids.add(step.id);
     }
-    this.manifest = structuredClone(manifest); this.root = resolve(root); this.files = new LocalFileCapability(this.root);
+    this.manifest = structuredClone(manifest); this.root = resolve(root); this.contractDigest = cognitiveDigest({ kind: "steps", root: this.root, manifest: this.manifest }); this.files = new LocalFileCapability(this.root);
   }
   private candidateId(step: CognitiveLocalWorkManifest["steps"][number]) { return "local-file:" + cognitiveDigest(step).slice(0, 32); }
   async candidates(completedIds: string[] = []): Promise<CognitiveCandidate[]> {
@@ -55,6 +56,9 @@ export class CognitiveLocalWorkCatalog {
         satisfiesDefinitionOfDone: step.criteria, input: { stepId: step.id } };
       return { id, kind: "experiment", action, expectedOutcome: "Artifact matches host SHA-256 and Goal criterion", evidenceRequired: ["independent-local-artifact-verifier"] };
     });
+  }
+  completionSatisfied(completedIds: string[]): boolean {
+    return this.manifest.steps.every(step => completedIds.includes(this.candidateId(step)));
   }
   private step(action: ProposedAction) {
     const step = this.manifest.steps.find(s => this.candidateId(s) === action.id);
@@ -97,5 +101,5 @@ export class CognitiveLocalWorkCatalog {
 /** Only the configured host file is loaded; HTTP callers cannot choose a path/root. */
 export async function loadCognitiveLocalWork(path: string, root: string, goalId: string, goal: Goal) {
   if ((await lstat(path)).size > MAX_FILE_BYTES) throw Error("Local manifest exceeds bound");
-  return new CognitiveLocalWorkCatalog(root, JSON.parse(await readFile(path, "utf8")), goalId, goal);
+  return new CognitiveLocalWorkCatalog(await realpath(root), JSON.parse(await readFile(path, "utf8")), goalId, goal);
 }

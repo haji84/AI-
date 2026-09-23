@@ -14,6 +14,7 @@ export interface CognitiveAttempt {
 }
 export interface CognitiveState {
   version: 1; revision: number; partition: CognitivePartition; goal_id: string;
+  execution_contract_digest?: string | null;
   goal_digest: string; current_hypothesis: string; active_plan: string[]; current_step: number;
   known_facts: string[]; uncertain_facts: string[]; assumptions: string[]; relevant_memories: string[];
   selected_strategy: string | null; alternatives: string[]; prediction: string | null; observation: string | null;
@@ -48,8 +49,9 @@ function partitionValid(p: CognitivePartition) {
 }
 function validate(state: CognitiveState, partition: CognitivePartition, goalId: string): void {
   assertCognitiveSafe(state);
-  const fields = ["version", "revision", "partition", "goal_id", "goal_digest", "current_hypothesis", "active_plan", "current_step", "known_facts", "uncertain_facts", "assumptions", "relevant_memories", "selected_strategy", "alternatives", "prediction", "observation", "prediction_error", "confidence", "blockers", "next_action", "research_needed", "external_expert_needed", "learning_candidates", "mode", "attempts", "external_ai_calls", "pending_action", "learning_outbox", "updated_at"];
+  const fields = ["version", "revision", "partition", "goal_id", "goal_digest", "execution_contract_digest", "current_hypothesis", "active_plan", "current_step", "known_facts", "uncertain_facts", "assumptions", "relevant_memories", "selected_strategy", "alternatives", "prediction", "observation", "prediction_error", "confidence", "blockers", "next_action", "research_needed", "external_expert_needed", "learning_candidates", "mode", "attempts", "external_ai_calls", "pending_action", "learning_outbox", "updated_at"];
   if (!state || Object.keys(state).some(k => !fields.includes(k))) throw new Error("unknown cognitive fields");
+  if (state.execution_contract_digest != null && !/^[a-f0-9]{64}$/.test(state.execution_contract_digest)) throw Error("invalid execution contract digest");
   partitionValid(state.partition);
   if (state.version !== 1 || state.goal_id !== goalId || cognitiveDigest(state.partition) !== cognitiveDigest(partition)) throw new Error("cognitive identity mismatch");
   if (!Number.isSafeInteger(state.revision) || state.revision < 0 || !Array.isArray(state.attempts) || state.attempts.length > MAX_ATTEMPTS) throw new Error("invalid cognitive revision/history");

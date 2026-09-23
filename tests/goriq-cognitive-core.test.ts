@@ -4,7 +4,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { CognitiveStateStore } from "../src/gai/cognitive-state.ts";
-import { CognitiveCore, createCognitiveGoalLoop, type CognitiveCandidate } from "../src/gai/cognitive-core.ts";
+import { CognitiveCore, cognitiveActionFingerprint, createCognitiveGoalLoop, type CognitiveCandidate } from "../src/gai/cognitive-core.ts";
 import { OllamaPrimaryBrainAdapter } from "../src/gai/primary-brain.ts";
 import { CapabilityRegistry } from "../src/orchestrator/capabilities.ts";
 import { CognitiveLearningEngine } from "../src/gai/cognitive-learning.ts";
@@ -129,5 +129,20 @@ test("external expert capabilities require explicit opt-in and online connectivi
     const enabled = new CognitiveCore({ ...base, goalId: "enabled", allowExternal: true, connectivity: "online" });
     assert.equal((await enabled.proposeNextAction(input))?.capability, "expert-action");
     assert.equal(calls, 1);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+
+test("pending reconciliation rejects changed Goal before any authority write", async () => {
+  const root = await mkdtemp(join(tmpdir(), "goriq-goal-drift-"));
+  try {
+    const state = new CognitiveStateStore(root, partition);
+    const previous = await state.initialize("g", goal), action = candidate("persisted-result");
+    await state.save({ ...previous, pending_action: { actionId: action.id, fingerprint: cognitiveActionFingerprint({ ...action.action, completesBoundedCommand: false }), startedAt: new Date().toISOString() } }, previous.revision);
+    const core = new CognitiveCore({ goalId: "g", partition, state, environment: "test", candidates: async () => [action] });
+    const authority = stateStore(); core.decorateStore(authority);
+    await assert.rejects(core.reconcileVerifiedAction(action, { ...goal, successCriteria: ["Different output"] }, { actionId: action.id, ok: true, summary: "old artifact" }, { ok: true, summary: "old evidence", evidence: { refs: ["independent-artifact"] } }), /goal contract changed/);
+    assert.equal(authority.records.length, 0, "rejected recovery must not mutate Goal authority");
+    assert.ok((await state.get("g"))?.pending_action);
   } finally { await rm(root, { recursive: true, force: true }); }
 });

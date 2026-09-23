@@ -69,3 +69,35 @@ The existing code-builder is an explicit opt-in external expert: its loopback Wo
 Still PARTIAL: arbitrary novel decomposition and generated executable skills; full historical GitHub ingestion; free-form correction/teaching UI; autonomous R8/R14/R16/R17 campaigns and improvement proposals; full strategy quality calibration; model fine-tuning/promotion; automatic cross-device cognitive checkpoint transport; production activation and physical acceptance. A host work manifest is currently required for material local work. These are retained requirements, not removed scope or completed claims. Full component status: `docs/goriq-cognitive-status.json`.
 
 Rollback: revert candidate source composition; preserve existing Compass/device DBs and scoped cognition/learning files. No production processes, credentials, enrollment, network/firewall or installed models were changed. Never delete stored state as rollback.
+
+## Exact candidate CI
+
+Software commit `596b3f893ddfcc0ea5d5989a55e29e7f1265cc70`: [CI #1853](https://github.com/haji84/AI-/actions/runs/35873940497) **SUCCESS**. Repository guard, lint, full tests, P8 security, build and production-health verification passed on the repository Linux runner. [PR #1217](https://github.com/haji84/AI-/pull/1217) remains draft/unmerged. This records software evidence only; OWN-001 remains PARTIAL.
+
+
+## 2026-09-24 continuation: outcome-driven local work
+
+Added `cognitive-local-outcomes.ts` and host configuration wiring through the same Broker → CognitiveService → Compass adapter → CognitiveCore/GoalDrivenLoop → WorkState → learner path. The owner supplies trusted source hashes and desired outputs, not prewritten read/write steps or output hashes. Existing file/XLSX/DOCX adapters and independent artifact-lineage verifier are reused.
+
+Measured virtual acceptance:
+- A new Goal with workbook JSON and document JSON automatically performs four actions, resumes after its first three-cycle budget, saves XLSX/DOCX, decodes the expected contents, completes and records zero external-AI calls. A repeated continue performs no extra writes.
+- Real isolated authenticated Broker: legacy steps and new outcome contracts both execute, independently verify and retain the same Goal/results after restart. Caller-supplied scope remains rejected.
+- Source drift, occupied outputs, unsafe paths, secrets, formulas, invalid schemas, oversize input/output, invalid Office XML and normalization-sensitive Office data fail closed. Plain-text CRLF remains intact.
+- Current Goal and complete host contract/root are checked before recovery or completion. Changed contracts cannot reuse old PASS, and unbound authoritative history cannot acquire a new contract silently.
+- All declared outputs need verified action evidence even when they share one criterion. The final report and persisted completion use this condition.
+
+Independent review reproduced premature multi-output completion and invalid XML acceptance; regression tests demonstrated RED before correction. Final independent review: **39/39 PASS**, zero skipped, approved for bounded local transformations and same-host recovery only.
+
+Final local verification:
+- `node --test --test-concurrency=1`: **1,541/1,541 PASS**, zero skipped.
+- `pnpm test:p8-security`: **331/331 PASS**; final full suite includes those tests too.
+- `pnpm lint`: PASS.
+- `pnpm build`: PASS, including TypeScript.
+- Isolated production-format Next `/api/health`: HTTP200, status `ok`; server stopped afterward.
+- Requirement audit: PASS, 493 surfaces, 341 requirements, functional completion claim false.
+
+One final parallel full-suite run failed the existing registration grant 30-minute wall-clock assertion (1,540 PASS / 1 FAIL). The affected enrollment implementation and assertion were not changed. Standalone rerun passed; a bounded diagnostic measured 1,799,996ms remaining and passed. The exact cause of the intermittent timing failure was not established. With test concurrency1 the whole final suite passed. This failure is retained as evidence, not hidden or converted to a weaker assertion. Linux exact-head CI is recorded separately.
+
+Remaining: unrestricted task decomposition/executable skill synthesis, natural-language material/authorization intake, live historical and teaching/research integration, model training/promotion, cross-device transport and physical acceptance. Fixed conversion verifies preservation of supplied data, not factual truth or arbitrary Office functionality. The work is still OWN-001 PARTIAL. No Production activation, Worker update, re-enrollment, credential, permission, network or database schema change.
+
+Rollback: revert this additive compiler/wiring increment while preserving Compass/WorkState/device stores. The prior candidate cannot read newly bound checkpoint fields; retain these scoped cognition files and review/replay under the matching candidate rather than deleting them or silently downgrading state. Existing enrolled Worker identity is unaffected.

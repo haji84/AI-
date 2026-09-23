@@ -55,7 +55,7 @@
       "evidence_refs": [
         "docs/evidence/1216-cognitive-core.md"
       ],
-      "last_verified_commit": null,
+      "last_verified_commit": "596b3f893ddfcc0ea5d5989a55e29e7f1265cc70",
       "remaining": "Local-first and explicit optional expert routing are integrated. Actual external-provider teacher acceptance remains; no paid fallback."
     },
     {
@@ -70,16 +70,19 @@
       ],
       "implementation_refs": [
         "src/gai/cognitive-core.ts",
-        "src/gai/cognitive-local-work.ts"
+        "src/gai/cognitive-local-work.ts",
+        "src/gai/cognitive-local-outcomes.ts"
       ],
       "test_refs": [
-        "tests/goriq-cognitive-acceptance.test.ts"
+        "tests/goriq-cognitive-acceptance.test.ts",
+        "tests/goriq-cognitive-outcomes.test.ts",
+        "tests/goriq-cognitive-outcome-runtime.test.ts"
       ],
       "evidence_refs": [
         "docs/evidence/1216-cognitive-core.md"
       ],
       "last_verified_commit": null,
-      "remaining": "Unknown inputs within host-supplied catalogs are tested. Arbitrary novel task decomposition/new tool or code synthesis is not implemented."
+      "remaining": "Host materials/outcomes compile read/conversion plans without per-step instructions; source-derived artifact verification is integrated. Arbitrary novel decomposition/new executable tools and natural-language material authorization are not implemented."
     },
     {
       "id": "COG-004",
@@ -96,13 +99,14 @@
       ],
       "test_refs": [
         "tests/goriq-cognitive-recovery.test.ts",
-        "tests/goriq-cognitive-runtime.test.ts"
+        "tests/goriq-cognitive-runtime.test.ts",
+        "tests/goriq-cognitive-outcome-runtime.test.ts"
       ],
       "evidence_refs": [
         "docs/evidence/1216-cognitive-core.md"
       ],
       "last_verified_commit": null,
-      "remaining": "Same-host process restart and verified file-effect reconciliation pass. Unknown/foreign legacy writers fail closed; arbitrary external effects and physical power-loss acceptance remain."
+      "remaining": "Same-host restart, bound Goal/contract/root recovery and verified local effects pass. Unbound prior material histories require explicit review; arbitrary external effects and physical power-loss acceptance remain."
     },
     {
       "id": "COG-005",
@@ -124,7 +128,7 @@
       "evidence_refs": [
         "docs/evidence/1216-cognitive-core.md"
       ],
-      "last_verified_commit": null,
+      "last_verified_commit": "596b3f893ddfcc0ea5d5989a55e29e7f1265cc70",
       "remaining": "Scoped memory/world updates are on the same execution loop. Broad domain prediction quality and cross-device transfer remain."
     },
     {
@@ -146,7 +150,7 @@
       "evidence_refs": [
         "docs/evidence/1216-cognitive-core.md"
       ],
-      "last_verified_commit": null,
+      "last_verified_commit": "596b3f893ddfcc0ea5d5989a55e29e7f1265cc70",
       "remaining": "Verified experiences feed existing memory/world/ClosedLearningLoop. Research campaign orchestration and generalization quality remain experimental."
     },
     {
@@ -168,7 +172,7 @@
       "evidence_refs": [
         "docs/evidence/1216-cognitive-core.md"
       ],
-      "last_verified_commit": null,
+      "last_verified_commit": "596b3f893ddfcc0ea5d5989a55e29e7f1265cc70",
       "remaining": "Multiple verified goals synthesize host-catalog bindings; independent certification and quarantine tested. New executable procedures are not synthesized from prose."
     },
     {
@@ -190,7 +194,7 @@
       "evidence_refs": [
         "docs/evidence/1216-cognitive-core.md"
       ],
-      "last_verified_commit": null,
+      "last_verified_commit": "596b3f893ddfcc0ea5d5989a55e29e7f1265cc70",
       "remaining": "Failure avoidance and bounded scoring work. Full environment-specific cost/time/quality strategy calibration remains."
     },
     {
@@ -213,7 +217,7 @@
       "evidence_refs": [
         "docs/evidence/1216-cognitive-core.md"
       ],
-      "last_verified_commit": null,
+      "last_verified_commit": "596b3f893ddfcc0ea5d5989a55e29e7f1265cc70",
       "remaining": "Explicit correction of existing verified attempts via service/CLI is integrated. Free-form human corrections and teaching UI binding remain."
     },
     {
@@ -234,7 +238,7 @@
       "evidence_refs": [
         "docs/evidence/1216-cognitive-core.md"
       ],
-      "last_verified_commit": null,
+      "last_verified_commit": "596b3f893ddfcc0ea5d5989a55e29e7f1265cc70",
       "remaining": "Bounded supplied historical artifacts preserve provenance. Live GitHub harvesting and automatic history-to-verified-knowledge promotion are not implemented."
     },
     {
@@ -257,7 +261,7 @@
       "evidence_refs": [
         "docs/evidence/1216-cognitive-core.md"
       ],
-      "last_verified_commit": null,
+      "last_verified_commit": "596b3f893ddfcc0ea5d5989a55e29e7f1265cc70",
       "remaining": "Synthetic expert-to-verified-host-skill reuse passes. Actual provider response/query/rejection learning coverage remains."
     },
     {
@@ -280,7 +284,7 @@
       "evidence_refs": [
         "docs/evidence/1216-cognitive-core.md"
       ],
-      "last_verified_commit": null,
+      "last_verified_commit": "596b3f893ddfcc0ea5d5989a55e29e7f1265cc70",
       "remaining": "Private live verified experiences produce isolated training candidates. Fine-tuning/LoRA execution and model promotion are not activated."
     },
     {
@@ -304,7 +308,7 @@
       "evidence_refs": [
         "docs/evidence/1216-cognitive-core.md"
       ],
-      "last_verified_commit": null,
+      "last_verified_commit": "596b3f893ddfcc0ea5d5989a55e29e7f1265cc70",
       "remaining": "Owner/tester partitions and sanitized generalized candidates are tested. Multi-user production identity provisioning and sharing authorization integration remain."
     },
     {
@@ -328,7 +332,7 @@
       "evidence_refs": [
         "docs/evidence/1216-cognitive-core.md"
       ],
-      "last_verified_commit": null,
+      "last_verified_commit": "596b3f893ddfcc0ea5d5989a55e29e7f1265cc70",
       "remaining": "Same-host offline state/recovery is tested; network cross-device checkpoint transport and physical acceptance remain."
     },
     {
@@ -350,7 +354,7 @@
       "evidence_refs": [
         "docs/evidence/1216-cognitive-core.md"
       ],
-      "last_verified_commit": null,
+      "last_verified_commit": "596b3f893ddfcc0ea5d5989a55e29e7f1265cc70",
       "remaining": "12 metrics and matched bounded memory ablation are measured. Broad actual-model independence/transfer campaigns remain; absent denominators are null."
     },
     {
@@ -372,7 +376,7 @@
       "evidence_refs": [
         "docs/evidence/1216-cognitive-core.md"
       ],
-      "last_verified_commit": null,
+      "last_verified_commit": "596b3f893ddfcc0ea5d5989a55e29e7f1265cc70",
       "remaining": "R17 adapter rejects no-gain, requires independent/security checks and verifies rollback. Autonomous proposal-to-model/code promotion is not integrated."
     },
     {
@@ -386,18 +390,24 @@
       ],
       "implementation_refs": [
         "src/gai/cognitive-service.ts",
-        "src/gai/cognitive-local-work.ts"
+        "src/gai/cognitive-local-work.ts",
+        "src/gai/cognitive-host-config.ts",
+        "src/gai/cognitive-local-outcomes.ts"
       ],
       "test_refs": [
         "tests/goriq-cognitive-broker.test.ts",
         "tests/goriq-cognitive-runtime.test.ts",
-        "tests/goriq-cognitive-proxy.test.ts"
+        "tests/goriq-cognitive-proxy.test.ts",
+        "tests/goriq-cognitive-broker.test.ts",
+        "tests/goriq-cognitive-config.test.ts"
       ],
       "evidence_refs": [
         "docs/evidence/1216-cognitive-core.md"
       ],
       "last_verified_commit": null,
-      "remaining": "Actual Compass/Broker/API/Task UI candidate integrated. Normal unconfigured goals can inspect only; host work manifests are currently required for material local work. Production activation is held."
+      "remaining": "Actual Compass/Broker/API/Task UI candidate integrated. Hosts can configure either outcomes/materials or legacy steps; unconfigured goals inspect only. Normal intake-to-authorized-material setup and Production activation remain."
     }
-  ]
+  ],
+  "verified_software_commit": "596b3f893ddfcc0ea5d5989a55e29e7f1265cc70",
+  "ci_evidence": "https://github.com/haji84/AI-/actions/runs/35873940497"
 }

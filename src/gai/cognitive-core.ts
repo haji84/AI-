@@ -210,7 +210,7 @@ export class CognitiveCore implements Planner, ContextSource {
   }
   /** Reconcile an already persisted outcome; this never executes a tool again. */
   async reconcileVerifiedAction(candidate: CognitiveCandidate, goal: Goal, result: ActionResult, verification: VerificationResult): Promise<void> {
-    const state = await this.options.state.get(this.options.goalId);
+    const state = await this.options.state.initialize(this.options.goalId, goal);
     const pending = state?.pending_action;
     const action = { ...candidate.action, completesBoundedCommand: false };
     if (!this.authorityStore || !pending || pending.actionId !== candidate.id || pending.fingerprint !== cognitiveActionFingerprint(action) ||

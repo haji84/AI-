@@ -550,7 +550,7 @@
     },
     {
       "path": "docs/architecture/goriq-cognitive-core.md",
-      "sha256": "645de9f196a6595614205516dfd34b67b0be7d1b7452e8612bd8ebf5e7d1ecf1",
+      "sha256": "b6b58b410b81af2a6265b0b34fd55657620545b1f819e0b4704a675d49f2efae",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OWN-001"
@@ -933,7 +933,7 @@
     },
     {
       "path": "scripts/jarvis-broker.ts",
-      "sha256": "5eb68b80ef2cbfa5b75182a8165ac4deb20a86f02068aef2b525301b12d9fa84",
+      "sha256": "b76ffbe0373983f6150e1f73800ec1ed712902bb4aa3dafe34932b3b3f38daf3",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "NET-006",
@@ -2633,12 +2633,21 @@
     },
     {
       "path": "src/gai/cognitive-core.ts",
-      "sha256": "b6765f380e5f9a76a38eecfad6eaa98b17a68a05bbd6edad0aa253db2266e697",
+      "sha256": "eb317cb5556bf85133d6a59e13e2274df5ead194e130861ca60eba81ff670537",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OWN-001"
       ],
       "reason": "Issue #1216 reviewed Cognitive Core integration/hardening; mapped requirement does not imply full acceptance"
+    },
+    {
+      "path": "src/gai/cognitive-host-config.ts",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OWN-001"
+      ],
+      "reason": "Bounded local outcome compilation and host configuration under Cognitive Core #1216",
+      "sha256": "21aa4d4b41bd25074eb448d56307978fad54dc77b44d3b6cd3a470af52a5457a"
     },
     {
       "path": "src/gai/cognitive-learning-data.ts",
@@ -2668,8 +2677,17 @@
       "reason": "Issue #1216 reviewed Cognitive Core integration/hardening; mapped requirement does not imply full acceptance"
     },
     {
+      "path": "src/gai/cognitive-local-outcomes.ts",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OWN-001"
+      ],
+      "reason": "Bounded local outcome compilation and host configuration under Cognitive Core #1216",
+      "sha256": "0b44a05a7a668077817c4123c39a1145a3255edcfb4bfdde8a6257accb24b8dd"
+    },
+    {
       "path": "src/gai/cognitive-local-work.ts",
-      "sha256": "b66d3da5daaf5769efed68dcdecba1db9748d7d2c959ebb965a9c11b5c781f5b",
+      "sha256": "c5ec126638ceee4ce68ca22d271d158251b854dc08cb82fe951627f2a20a329d",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OWN-001"
@@ -2678,7 +2696,7 @@
     },
     {
       "path": "src/gai/cognitive-service.ts",
-      "sha256": "898f145edc130b4ead32f6a8abed20b53f679c5afffffb72cc6a6f313099a679",
+      "sha256": "b1f8aeaa36c81a536ef9bd1e675930b0d0c76a6e3b8de5e658a602b651d22107",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OWN-001"
@@ -2687,7 +2705,7 @@
     },
     {
       "path": "src/gai/cognitive-state.ts",
-      "sha256": "c8d37cab9cfb16b275004039ff88d6548ac44af1cf3001c15f47ba855ab34f0a",
+      "sha256": "0d0d78fd52db2f34a7eb4605c726a39eaae731b46d7aa1834c930008cbf7b4fe",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OWN-001"
@@ -4245,7 +4263,7 @@
     },
     {
       "path": "src/orchestrator/compass-goal-execution-adapter.ts",
-      "sha256": "f3726cb5e6e05cd737f93bcec15b6cfd4828200294e0e5543b6e9e15989a92d0",
+      "sha256": "0df5b80fa404507f08152d6ff46a2679af15c3bc87e807be59ccb4b4c9c69089",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-002",

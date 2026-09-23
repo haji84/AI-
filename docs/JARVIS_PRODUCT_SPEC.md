@@ -13919,7 +13919,9 @@ Owner instruction 2026-09-23, Issue #1216. Full normative integration contract: 
     "src/gai/cognitive-local-work.ts",
     "src/gai/cognitive-service.ts",
     "src/orchestrator/compass-goal-execution-adapter.ts",
-    "src/app/api/jarvis/cognitive/route.ts"
+    "src/app/api/jarvis/cognitive/route.ts",
+    "src/gai/cognitive-local-outcomes.ts",
+    "src/gai/cognitive-host-config.ts"
   ],
   "test_refs": [
     "tests/goriq-cognitive-core.test.ts",
@@ -13927,7 +13929,12 @@ Owner instruction 2026-09-23, Issue #1216. Full normative integration contract: 
     "tests/goriq-cognitive-acceptance.test.ts",
     "tests/cognitive-learning.test.ts",
     "tests/cognitive-learning-data.test.ts",
-    "tests/goriq-cognitive-proxy.test.ts"
+    "tests/goriq-cognitive-proxy.test.ts",
+    "tests/goriq-cognitive-outcomes.test.ts",
+    "tests/goriq-cognitive-outcome-runtime.test.ts",
+    "tests/goriq-cognitive-config.test.ts",
+    "tests/goriq-cognitive-broker.test.ts",
+    "tests/goriq-cognitive-recovery.test.ts"
   ],
   "evidence_refs": [
     "docs/evidence/1216-cognitive-core.md",
@@ -13935,10 +13942,10 @@ Owner instruction 2026-09-23, Issue #1216. Full normative integration contract: 
     "docs/audit/goriq-cognitive-learning-audit.md"
   ],
   "status": "PARTIAL",
-  "blocker": "Bounded host-catalog integration implemented; unrestricted novel decomposition, model-quality/physical/cross-device acceptance and independent exact-head release verification remain pending.",
+  "blocker": "Bounded local outcome compilation is integrated; unrestricted novel decomposition, natural-language material authorization, historical/teaching/research integration and physical/cross-device acceptance remain.",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "Verify the candidate and preserve software/real-model/physical evidence distinctions; complete remaining integration gaps under #1216.",
+  "next_action": "Finish exact-head validation of outcome compilation; continue historical/teaching/research and authorized material intake under #1216. Preserve production holds and required physical evidence.",
   "last_verified_commit": null,
   "source_decisions": [
     "owner-intake-cc6f2a30e8336d322129e2972d1e8f90"

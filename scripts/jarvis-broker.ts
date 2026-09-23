@@ -1,3 +1,4 @@
+import { cognitiveHostOptions } from "../src/gai/cognitive-host-config.ts";
 import { CognitiveService } from "../src/gai/cognitive-service.ts";
 import {requirementWorkflow,prepareOwnerPreview} from "./jarvis-requirement-workflow.mjs";
 import { createSpecificationPublisher } from "./jarvis-spec-publisher.mjs";
@@ -58,7 +59,7 @@ const store = new JarvisSqliteStateStore(process.env.JARVIS_DB_PATH?.trim() || u
 const compassPath = process.env.JARVIS_COMPASS_DB_PATH?.trim() || (process.env.JARVIS_DB_PATH?.trim() ? `${process.env.JARVIS_DB_PATH.trim()}.compass.sqlite` : resolve(".jarvis/compass.db"));
 const compass = new CompassStore(compassPath);
 const workRuns = new CompassWorkRunStore(compass);
-const cognitive = new CognitiveService(compassPath, process.env.GORIQ_LOCAL_WORK_MANIFEST?.trim() && process.env.GORIQ_LOCAL_DATA_ROOT?.trim() ? { localWork: { manifestPath: process.env.GORIQ_LOCAL_WORK_MANIFEST.trim(), dataRoot: process.env.GORIQ_LOCAL_DATA_ROOT.trim() } } : {});
+const cognitive = new CognitiveService(compassPath, cognitiveHostOptions(process.env));
 const ownerRequirements = new OwnerRequirementIntake(compass);
 const specificationPublisher = createSpecificationPublisher({root:fileURLToPath(new URL("../",import.meta.url)),intake:ownerRequirements,token:process.env.GITHUB_TOKEN});
 const goalController = new GoalControllerRuntime({

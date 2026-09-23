@@ -1,13 +1,11 @@
+import { cognitiveHostOptions } from "../src/gai/cognitive-host-config.ts";
 import { resolve } from "node:path";
 import { CognitiveService } from "../src/gai/cognitive-service.ts";
 const dbPath = process.env.JARVIS_COMPASS_DB_PATH?.trim() || process.env.COMPASS_DB_PATH?.trim();
 if (!dbPath) throw Error("Explicit existing Compass DB path required");
 const mode = process.argv[2] ?? "status";
 if (!["status", "continue", "training-candidate", "correct"].includes(mode)) throw Error("Use status, continue, training-candidate, or correct ORIGINAL_EXPERIENCE REPLACEMENT_EXPERIENCE");
-const manifestPath = process.env.GORIQ_LOCAL_WORK_MANIFEST?.trim();
-const dataRoot = process.env.GORIQ_LOCAL_DATA_ROOT?.trim();
-if (Boolean(manifestPath) !== Boolean(dataRoot)) throw Error("Both local manifest and isolated data root are required");
-const service = new CognitiveService(resolve(dbPath), { ...(manifestPath && dataRoot ? { localWork: { manifestPath: resolve(manifestPath), dataRoot: resolve(dataRoot) } } : {}) });
+const service = new CognitiveService(resolve(dbPath), cognitiveHostOptions(process.env));
 const status = await service.status();
 if (mode === "continue") {
   if (!status.goalId) throw Error("Set a Goal using existing Goal Controller first");

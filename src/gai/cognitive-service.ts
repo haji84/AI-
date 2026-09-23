@@ -2,7 +2,7 @@ import { dirname, resolve } from "node:path";
 import { CompassStore } from "../compass/store.ts";
 import { compassGoalToLoopGoal } from "../orchestrator/compass-state-store.ts";
 import { goalWorkStateId } from "../orchestrator/work-state-integration.ts";
-import { CompassGoalExecutionAdapter, type CognitiveRuntimeOptions } from "../orchestrator/compass-goal-execution-adapter.ts";
+import { CompassGoalExecutionAdapter, loadCognitiveRuntimeWork, type CognitiveRuntimeOptions } from "../orchestrator/compass-goal-execution-adapter.ts";
 import { cognitiveDigest, CognitiveStateStore } from "./cognitive-state.ts";
 import { CognitiveLearningEngine } from "./cognitive-learning.ts";
 import { prepareCognitiveTrainingDataset } from "./cognitive-learning-data.ts";
@@ -27,13 +27,24 @@ export class CognitiveService {
       const goalId = goal ? goalWorkStateId(goal) : null;
       const state = goalId ? await new CognitiveStateStore(this.options.stateRoot!, this.options.partition!).get(goalId) : null;
       const metrics = await this.learning.metrics(this.options.partition!);
-      return { goalId, goalTitle: goal?.title ?? null, busy: this.busy, goalComplete: compass.getState().status === "goal_complete",
-        mode: state?.mode ?? "READY", attempts: state?.attempts.length ?? 0,
-        nextAction: state?.next_action ?? null, blockers: state?.blockers ?? [],
+      const localConfigured = Boolean(this.options.localWork || this.options.localOutcomes);
+      let configurationBlocker: string | null = null;
+      if (state && goal && goalId) {
+        if (state.goal_digest !== cognitiveDigest(goal)) configurationBlocker = "Goalの条件が変更されています。再計画が必要です。";
+        else if (state.execution_contract_digest) {
+          try {
+            const current = await loadCognitiveRuntimeWork(this.options, goalId, goal);
+            if (current?.contractDigest !== state.execution_contract_digest) configurationBlocker = "作業の対象または成果物が変更されています。再計画が必要です。";
+          } catch { configurationBlocker = "保存した作業条件を確認できません。ホストの作業設定を確認してください。"; }
+        }
+      }
+      return { goalId, goalTitle: goal?.title ?? null, busy: this.busy, goalComplete: !configurationBlocker && (!localConfigured || Boolean(state?.execution_contract_digest)) && compass.getState().status === "goal_complete",
+        mode: configurationBlocker ? "DEGRADED" : state?.mode ?? "READY", attempts: state?.attempts.length ?? 0,
+        nextAction: state?.next_action ?? null, blockers: [...(state?.blockers ?? []), ...(configurationBlocker ? [configurationBlocker] : [])],
         confidence: state?.confidence ?? null, updatedAt: state?.updated_at ?? null,
         externalAIEnabled: this.options.allowExternalAI === true,
         recentAttempts: state?.attempts.slice(-16).map(a => ({ id: a.id, actionId: a.actionId, verified: a.verified, success: a.success })) ?? [],
-        localActionsConfigured: Boolean(this.options.localWork), metrics };
+        localActionsConfigured: localConfigured, metrics };
     } finally { compass.close(); }
   }
   async continue(goalId: string) {

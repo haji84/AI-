@@ -25,3 +25,13 @@ Brain worker: PrimaryBrain/state/Core and Compass execution seam/tests. Learning
 
 ## Phase gate
 A test failure blocks promotion of its component and dependent phase; independent audit/docs can continue. Preserve failures and bounded repair history. Production/model/physical acceptance is not manufactured by green unit tests.
+
+
+## Continuation 2026-09-24: material/outcome compilation
+Baseline candidate `596b3f893ddfcc0ea5d5989a55e29e7f1265cc70` passed CI1853; component stage evidence is in `docs/goriq-cognitive-status.json`. This next increment keeps #1216 and PR #1217; no Production mutation.
+
+Minimum change: a host-authorized material/outcome contract compiles prerequisite reads and output actions through existing GoalDrivenLoop/WorkState. Reuse LocalFileCapability, LocalSpreadsheetCapability, LocalDocumentCapability and independent LocalArtifactVerifier. Fixed conversions: text copy, validated workbook JSON to XLSX, validated document JSON to DOCX. Owner specifies material hash, output path/domain and criterion bindings, not per-step procedure or expected generated artifact hash. HTTP callers and models cannot supply scope/verification authority.
+
+Verification: RED runtime integration test first (outcome configuration ignored); compiler unit/security cases; full Core restart/outcome test; actual authenticated Broker and CLI host configuration; independent review; repository tests/P8/lint/build/CI and evidence. Reject source changes, occupied outputs, malformed/oversized/private data, unsupported transforms and conflicting legacy/new configuration. Prior step manifests remain compatible.
+
+This is bounded task compilation, not arbitrary novel planning, truth validation of supplied claims, model fine-tuning or physical acceptance. Remaining work stays in the canonical requirement ledger.

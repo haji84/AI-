@@ -1,6 +1,7 @@
 import { acquireCognitiveLease } from "../gai/cognitive-lease.ts";
 import { CognitiveLearningEngine } from "../gai/cognitive-learning.ts";
 import { PersistentWorldModel } from "../gai/world-model.ts";
+import { loadCognitiveLocalOutcomes } from "../gai/cognitive-local-outcomes.ts";
 import { loadCognitiveLocalWork } from "../gai/cognitive-local-work.ts";
 import { resolve, dirname } from "node:path";
 import { CompassStore } from "../compass/store.ts";
@@ -12,7 +13,7 @@ import { CapabilityRegistry } from "./capabilities.ts";
 import { CompassStateStoreAdapter, compassGoalToLoopGoal } from "./compass-state-store.ts";
 import { CompassWorkStateStoreAdapter } from "./compass-work-state-store.ts";
 import { evaluateGoalFromWorkState } from "./goal-evaluator.ts";
-import type { ContextItem, ContextSource, GoalLoopOptions } from "./goal-loop.ts";
+import type { ContextItem, ContextSource, GoalLoopOptions, Goal } from "./goal-loop.ts";
 import { createRuntimeDevelopmentVerifier } from "./runtime-development-verifier.ts";
 import type { GoalExecutionAdapter } from "./goal-controller-execution-bridge.ts";
 import { goalWorkStateId, type WorkStateAction } from "./work-state-integration.ts";
@@ -28,6 +29,15 @@ export interface CognitiveRuntimeOptions {
   learning?: CognitiveLearningBridge;
   allowExternalAI?: boolean;
   localWork?: { manifestPath: string; dataRoot: string };
+  localOutcomes?: { manifestPath: string; dataRoot: string };
+}
+
+/** Host-selected catalog shared by execution and read-only status validation. */
+export async function loadCognitiveRuntimeWork(options: CognitiveRuntimeOptions, goalId: string, goal: Goal) {
+  if (options.localWork && options.localOutcomes) throw Error("Choose one local work contract");
+  if (options.localOutcomes) return loadCognitiveLocalOutcomes(options.localOutcomes.manifestPath, options.localOutcomes.dataRoot, goalId, goal);
+  if (options.localWork) return loadCognitiveLocalWork(options.localWork.manifestPath, options.localWork.dataRoot, goalId, goal);
+  return undefined;
 }
 
 class EntryContextSource implements ContextSource {
@@ -58,6 +68,7 @@ export class CompassGoalExecutionAdapter implements GoalExecutionAdapter {
   }
 
   async run(goalId: string, input: { maxCycles?: number; context?: unknown[] } = {}): Promise<BoundedRunReport> {
+    if (this.cognitiveOptions.localWork && this.cognitiveOptions.localOutcomes) throw Error("Choose one local work contract");
     const compass = new CompassStore(this.dbPath);
     let releaseLease: (() => Promise<void>) | undefined;
     const leasePath = `${this.dbPath}.cognitive-run.lock`;
@@ -85,7 +96,7 @@ export class CompassGoalExecutionAdapter implements GoalExecutionAdapter {
       const registry = new CapabilityRegistry()
         .register(createContextInspectCapability())
         .register(createCodeBuilderCapability(createRuntimeBuilderRouter()));
-      const localWork = this.cognitiveOptions.localWork ? await loadCognitiveLocalWork(this.cognitiveOptions.localWork.manifestPath, this.cognitiveOptions.localWork.dataRoot, authoritativeGoalId, goal) : undefined;
+      const localWork = await loadCognitiveRuntimeWork(this.cognitiveOptions, authoritativeGoalId, goal);
       localWork?.register(registry);
       const verifier = localWork?.verifier(createRuntimeDevelopmentVerifier()) ?? createRuntimeDevelopmentVerifier();
       const workStateStore = new CompassWorkStateStoreAdapter(compass);
@@ -93,6 +104,17 @@ export class CompassGoalExecutionAdapter implements GoalExecutionAdapter {
       const partition = this.cognitiveOptions.partition ?? { tenantId: "local", principalId: "owner" };
       const stateRoot = this.cognitiveOptions.stateRoot ?? resolve(dirname(this.dbPath), "cognitive");
       const state = new CognitiveStateStore(stateRoot, partition);
+      // Bind before reconciliation, completion or any authoritative write. Old PASS cannot
+      // certify a new source, target, root or host contract under an unchanged Goal ID.
+      const checkpoint = await state.initialize(authoritativeGoalId, goal);
+      const contract = localWork?.contractDigest ?? null;
+      if (checkpoint.execution_contract_digest && checkpoint.execution_contract_digest !== contract) throw Error("Cognitive execution contract changed; explicit replanning required");
+      if (contract && !checkpoint.execution_contract_digest) {
+        const prior = await workStateStore.get(authoritativeGoalId);
+        const observationsOnly = checkpoint.attempts.every(a => a.actionId === "local:inspect" || (a.actionId === "cognitive:inspect" && a.source === "degraded"));
+        if (!observationsOnly || checkpoint.pending_action || checkpoint.learning_outbox || prior?.verificationResults.length || prior?.childWorkItems.length) throw Error("Cognitive unbound execution history requires explicit review");
+        await state.save({ ...checkpoint, execution_contract_digest: contract }, checkpoint.revision);
+      }
       const learning = this.cognitiveOptions.learning ?? new CognitiveLearningEngine(resolve(stateRoot, "learning"));
       const core = new CognitiveCore({
         goalId: authoritativeGoalId, partition,
@@ -111,7 +133,7 @@ export class CompassGoalExecutionAdapter implements GoalExecutionAdapter {
         async candidates(input) {
           const current = await state.get(authoritativeGoalId);
           const localCandidates = await localWork?.candidates(current?.attempts.filter(a => a.verified).map(a => a.actionId) ?? []);
-          if (localCandidates?.length) return localCandidates;
+          if (localWork) return localCandidates ?? [];
           const intent = await fallback.inferIntent(input);
           const proposal = await fallback.proposeNextAction({ ...input, intent });
           const inspection = { id: "local:inspect", kind: "research" as const, action: { id: "cognitive-local-inspect", capability: "context.inspect", description: `Inspect local evidence for ${goal.title}`, risk: "low" as const }, expectedOutcome: "Identify available local evidence and missing capabilities", evidenceRequired: ["local-context"] };
@@ -120,7 +142,8 @@ export class CompassGoalExecutionAdapter implements GoalExecutionAdapter {
           const builder = proposal.input as { objective?: string; files?: string[] };
           return [inspection, { id: `builder:${cognitiveDigest({ capability: proposal.capability, objective: builder.objective, files: builder.files }).slice(0, 24)}`, kind: "experiment" as const, action: proposal, requiresExternalAI: true, expectedOutcome: "Requested implementation satisfies independent verifier", evidenceRequired: ["development-verifier"] }];
         },
-        async completion(_state, currentGoal) {
+        async completion(currentState, currentGoal) {
+          if (localWork && !localWork.completionSatisfied(currentState.attempts.filter(a => a.verified).map(a => a.actionId))) return false;
           const work = await workStateStore.get(authoritativeGoalId);
           return currentGoal.successCriteria.length > 0 && Boolean(work && work.childWorkItems.every(item => item.status === "COMPLETED") && evaluateGoalFromWorkState(work).achieved);
         },
@@ -159,6 +182,7 @@ export class CompassGoalExecutionAdapter implements GoalExecutionAdapter {
       const evaluation = evaluateGoalFromWorkState(workState);
       const cognitive = await state.get(authoritativeGoalId);
       const completionGaps = await new CompassStateStoreAdapter(compass).completionBlockers(goal);
+      if (localWork && !localWork.completionSatisfied(cognitive?.attempts.filter(a => a.verified).map(a => a.actionId) ?? [])) completionGaps.push("local_contract_outputs_incomplete");
       if (workState.childWorkItems.some(item => item.status !== "COMPLETED")) completionGaps.push("child_work_incomplete");
       if (!goal.successCriteria.length) completionGaps.push("definition_of_done_required");
       if (cognitive?.learning_outbox) completionGaps.push("learning_write_pending");
