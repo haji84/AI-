@@ -13,7 +13,7 @@ test('adopted requirement prepares both canonical ledgers and proves exact sync 
  const db=new CompassStore(':memory:');try{
  const intake=new OwnerRequirementIntake(db),record=intake.capture(intake.prepare('work','sync',{decision:'accept',statement:'採用要求の同期状態を完了判定へ表示する',canonicalIds:['CORE-015']}),'goal',bundle.matrix.requirements);
  const proposal=prepareSpecificationProposal(record,bundle,{sourceRef:'https://github.com/haji84/AI-/issues/1205',bindings:[{id:'CORE-015',baseFingerprint:record.matches.find(x=>x.id==='CORE-015').fingerprint}]},root);
- assert.equal(proposal.files.length,3);assert.equal(proposal.autoMerge,false);
+ assert.equal(proposal.files.length,4);assert.equal(proposal.autoMerge,false);
  const next=proposal.bundle;assert.equal(next.matrix.requirements.length,bundle.matrix.requirements.length);
  assert.deepEqual(next.matrix.requirements.map(r=>r.status),bundle.matrix.requirements.map(r=>r.status));
  assert.equal(verifyCanonicalReceipt(record,bundle,root).ok,false);

@@ -1,18 +1,18 @@
 import {createHash} from 'node:crypto';
-import {loadCanonicalBundle,prepareSpecificationProposal} from './jarvis-owner-spec-sync.mjs';
+import {loadCanonicalBundle,prepareSpecificationProposal,CANONICAL_PATHS} from './jarvis-owner-spec-sync.mjs';
 import {surfaceFingerprint} from './jarvis-requirement-audit.mjs';
 import {auditText} from './jarvis-secret-audit.mjs';
 
 const API='https://api.github.com/repos/haji84/AI-';
-const PATHS=['docs/JARVIS_PRODUCT_SPEC.md','docs/jarvis-requirements.json','docs/jarvis-owner-decisions.json'];
+const PATHS=CANONICAL_PATHS;
 const MAX_BYTES=2*1024*1024;
 const hash=v=>createHash('sha256').update(v).digest('hex');
 const sha=v=>{if(typeof v!=='string'||!/^[a-f0-9]{40}$/.test(v))throw Error('github_invalid_sha');return v;};
 const plain=v=>!!v&&typeof v==='object'&&!Array.isArray(v);
 function reviewInput(review){
- if(!plain(review)||Object.keys(review).some(k=>!['sourceRef','bindings'].includes(k))||Buffer.byteLength(JSON.stringify(review))>32768||
+ if(!plain(review)||Object.keys(review).some(k=>!['sourceRef','bindings','newRequirement'].includes(k))||Buffer.byteLength(JSON.stringify(review))>32768||
  !/^https:\/\/github\.com\/haji84\/AI-\/issues\/[1-9][0-9]*$/.test(review.sourceRef??'')||
- !Array.isArray(review.bindings)||!review.bindings.length||review.bindings.length>8||
+ !Array.isArray(review.bindings)||review.bindings.length>8||
  review.bindings.some(b=>!plain(b)||Object.keys(b).some(k=>!['id','baseFingerprint'].includes(k))||!/^[-A-Z]+-\d{3}$/.test(b.id??'')||!(/^[a-f0-9]{64}$/).test(b.baseFingerprint??'')))throw Error('invalid_specification_review');
  return globalThis.structuredClone(review);
 }
@@ -63,9 +63,10 @@ export function createSpecificationPublisher({root,intake,token,fetchImpl=fetch,
   }
   try{
    const record=current(),history=intake.list(),bundle=loadCanonicalBundle(root);
+   if(auditText(record.statement,{path:"owner-requirement",source:false}).length)throw Error("specification_secret_detected");
    const proposal=prepareSpecificationProposal(record,bundle,review,root,history);
-   const originals=[bundle.ledger,JSON.stringify(bundle.matrix,null,2)+'\n',JSON.stringify(bundle.decisions,null,2)+'\n'];
-   if(proposal.files.length!==3||proposal.files.some((f,i)=>f.path!==PATHS[i])||
+   const originals=[bundle.ledger,JSON.stringify(bundle.matrix,null,2)+'\n',JSON.stringify(bundle.decisions,null,2)+'\n',JSON.stringify(bundle.inventory,null,2)+'\n'];
+   if(proposal.files.length!==4||proposal.files.some((f,i)=>f.path!==PATHS[i])||
     proposal.files.reduce((n,f)=>n+Buffer.byteLength(f.content),0)>MAX_BYTES||
     proposal.files.reduce((n,f,i)=>n+changedBytes(originals[i],f.content),0)>100000)throw Error('specification_output_limit');
    if(proposal.files.some(f=>auditText(f.content,{path:f.path,source:false}).length))throw Error('specification_secret_detected');

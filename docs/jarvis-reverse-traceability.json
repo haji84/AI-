@@ -673,7 +673,7 @@
     },
     {
       "path": "docs/architecture/jarvis-requirement-traceability.md",
-      "sha256": "f3c068481b5a35f7f235bb3ae95ca62ff9aba8958c62ccddfa93fe4b4645d785",
+      "sha256": "9afddedb19ddd8d28bf510d0a323857f054fb6801b70cc9cec75b9d6939d9f2b",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "GOV-025",
@@ -913,8 +913,18 @@
       "reason": "Existing batch enrollment script; no assertion of USB-free setup"
     },
     {
+      "path": "scripts/jarvis-additional-inventory.mjs",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-015",
+        "GOV-025"
+      ],
+      "reason": "Issue1205 additive requirement inventory, saved conversation and owner-visible workflow; parent mapping does not claim functional/physical completion",
+      "sha256": "204917ff08bba3f54ec2926b7eed837d92984c7e04d35726b5be988a7b7cabb9"
+    },
+    {
       "path": "scripts/jarvis-broker.ts",
-      "sha256": "02f1080e75f1004e51966767322b4968039f2101d85db7d962e481c8590b2789",
+      "sha256": "6c218498fa32b88217f1d3581f3f4b0bdba35a06011c918e84f6c2cf4f48c1ad",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "NET-006",
@@ -1096,7 +1106,7 @@
     },
     {
       "path": "scripts/jarvis-owner-spec-sync.d.mts",
-      "sha256": "d81fb11aa2e405ba657eb2a23aff06b0f70ae8550a6fbca2e7cb1e138576f79d",
+      "sha256": "1350ad1ba47c18754dba4df72633e98c43c2113983df43b867b41a83b4eb13e1",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "GOV-025",
@@ -1106,7 +1116,7 @@
     },
     {
       "path": "scripts/jarvis-owner-spec-sync.mjs",
-      "sha256": "2ae5e603caab63ee52a49bea540714d80223f099401f4de6736842c5c642f959",
+      "sha256": "5a85231d706953df389cf94ec29b97c424e4f2d4198fcba3ed9597067162718a",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "GOV-025",
@@ -1246,13 +1256,33 @@
     },
     {
       "path": "scripts/jarvis-requirement-audit.mjs",
-      "sha256": "14546aeece3cc770874d74ae0aa0b8e03e06c2a47a4fd62046e488a928b6ebba",
+      "sha256": "42d8c02f83c499d453468d25c4c8303567a420c73053c3f006b92530c801d302",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "GOV-025",
         "CORE-015"
       ],
       "reason": "Specification traceability gate and reverse inventory"
+    },
+    {
+      "path": "scripts/jarvis-requirement-workflow.d.mts",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-015",
+        "GOV-025"
+      ],
+      "reason": "Issue1205 additive requirement inventory, saved conversation and owner-visible workflow; parent mapping does not claim functional/physical completion",
+      "sha256": "e59ca7acaa8f8ef47f67fba5dafac2a771895380f7351944a43730413073da58"
+    },
+    {
+      "path": "scripts/jarvis-requirement-workflow.mjs",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-015",
+        "GOV-025"
+      ],
+      "reason": "Issue1205 additive requirement inventory, saved conversation and owner-visible workflow; parent mapping does not claim functional/physical completion",
+      "sha256": "e8c1a705df2b0165f4c5f4d4ba2df539579af470d4c82cdea9060da68fdb45c2"
     },
     {
       "path": "scripts/jarvis-secret-audit.mjs",
@@ -1281,7 +1311,7 @@
         "GOV-025"
       ],
       "reason": "Bounded authenticated canonical Draft publication and retry/proxy contract; mapping is ownership, not completion or deployment evidence.",
-      "sha256": "255971f5a685e14586198c3973e19bb48e74464f3e6b6eaf193038d80404d3dd"
+      "sha256": "5157a4c8cbf4a9e4d58ac34a75dcb50a66ebfdec5fb644ad93e8af64e917b958"
     },
     {
       "path": "scripts/jarvis-windows-install-paths.mjs",
@@ -1435,7 +1465,7 @@
     },
     {
       "path": "src/app/api/jarvis/work/route.ts",
-      "sha256": "893972ed254700c9ba5b87e5a7c352d9281fa3cdc284e8bb91fd048461f3f3e2",
+      "sha256": "88a9dc1b19b0b2096edca344f58badfdbcf38295fba73a0fd2cfda562e7b05fa",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-001",
@@ -1805,7 +1835,7 @@
     },
     {
       "path": "src/app/jarvis/JarvisWorkShell.tsx",
-      "sha256": "b1f6be9dc49845ab7979faac606a9dcc35331e6ab7fedea4f2076b34b4032634",
+      "sha256": "09dfdbb679317968f73916fc969369573a8aba6c2d5d6629d9f52716b84877c5",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "UI-001",
@@ -2322,8 +2352,28 @@
       "reason": "Task board and history"
     },
     {
+      "path": "src/app/jarvis/tasks/requirements-panel.css",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-003"
+      ],
+      "reason": "Issue1205 additive requirement inventory, saved conversation and owner-visible workflow; parent mapping does not claim functional/physical completion",
+      "sha256": "1f408ea3c6b3d5705b2a7a30351a116942abbfe2ac9d06ec92208322c9f4f489"
+    },
+    {
+      "path": "src/app/jarvis/tasks/RequirementsPanel.tsx",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-003",
+        "CORE-015",
+        "GOV-025"
+      ],
+      "reason": "Issue1205 additive requirement inventory, saved conversation and owner-visible workflow; parent mapping does not claim functional/physical completion",
+      "sha256": "1eaca910d3f7c845c0f5a568301df7b01b56770a05201f84ee930af3efd732bf"
+    },
+    {
       "path": "src/app/jarvis/tasks/TaskBoard.tsx",
-      "sha256": "9a1c867b4d453e105fad78fbc83b40ab78ed917dd3c1f065159cba00a3e5e9ca",
+      "sha256": "3c3f5cd3120fd8982536b35668b8eb274ccc0ffeed55a091aaa142e82c9c04c1",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "UI-003",
@@ -4550,6 +4600,16 @@
       "reason": "Declared outbound-privacy-gate.ts responsibility implements/supports Privacy / Data Security; 103. Instruction Trust Boundary. Parent ownership is not functional or physical acceptance evidence."
     },
     {
+      "path": "src/orchestrator/owner-conversation.ts",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-015",
+        "GOV-025"
+      ],
+      "reason": "Issue1205 additive requirement inventory, saved conversation and owner-visible workflow; parent mapping does not claim functional/physical completion",
+      "sha256": "5acb2ca6e35c714f3960e15848059ea2bb5aac96d253d3cc4c7b95453acc35f1"
+    },
+    {
       "path": "src/orchestrator/owner-fleet-capability-pool.ts",
       "sha256": "50dd5232fea9253405f4fc4c9e3f76170229313c5767afd6a11049c0bcce9697",
       "classification": "COVERED_BY_REQUIREMENT",
@@ -4571,7 +4631,7 @@
     },
     {
       "path": "src/orchestrator/owner-requirement-intake.ts",
-      "sha256": "894b98bb9bba74ab2ca0e13201b6619981a34785a6086fd6b3e8b48048b005d3",
+      "sha256": "3b6140d299a64254a0570981f233b67de10646d9793a8c0fc52d204254bcd4f0",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "GOV-025",
@@ -4707,7 +4767,7 @@
         "GOV-025"
       ],
       "reason": "Bounded authenticated canonical Draft publication and retry/proxy contract; mapping is ownership, not completion or deployment evidence.",
-      "sha256": "9cd09ef2775173f1e27532d506bd0c960bc97f982656b662bb4b0f9f38189673"
+      "sha256": "66db328f61657fe94671a4a26fb0f4ead9e3c1476d74f97a34b825e0630c85fb"
     },
     {
       "path": "src/orchestrator/research-delegation.ts",

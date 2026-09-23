@@ -63,8 +63,8 @@ export function validateReverseTraceability(report,matrix,root) {
  return errors;
 }
 export function requirementFingerprint(row){return hash(JSON.stringify({id:row.id,title:row.title,description:row.description,required_evidence:row.required_evidence}));}
-export function validateOwnerDecisions(envelope,matrix,ledger,root){
- const errors=validateRequirements(matrix,ledger,root);
+export function validateOwnerDecisions(envelope,matrix,ledger,root,inventory){
+ const errors=validateRequirements(matrix,ledger,root,inventory);
  if(envelope?.schema_version!==1 || !Array.isArray(envelope.decisions))return [...errors,'Invalid owner decision envelope'];
  const rows=new Map(matrix.requirements.map(r=>[r.id,r])),records=new Map();
  const states=['IDEA','PROPOSED','ACCEPTED_REQUIREMENT','SPEC_SYNCED','IMPLEMENTED','VERIFIED','SUPERSEDED','WITHDRAWN'];
@@ -80,6 +80,9 @@ export function validateOwnerDecisions(envelope,matrix,ledger,root){
   if(d.state==='ACCEPTED_REQUIREMENT')errors.push('unsynced accepted owner requirement: '+d.id);
   if(['SPEC_SYNCED','IMPLEMENTED','VERIFIED'].includes(d.state)){
    if(!Array.isArray(d.canonical)||!d.canonical.length){errors.push('missing canonical binding: '+d.id);continue;}
+  }
+  if(!Array.isArray(d.canonical))errors.push('invalid canonical bindings: '+d.id);
+  else {
    for(const link of d.canonical){
     const row=rows.get(link.id);if(!row){errors.push('unknown canonical binding: '+d.id);continue;}
     if(link.fingerprint!==requirementFingerprint(row)||!row.source_decisions?.includes(d.id))errors.push('stale or unlinked canonical binding: '+d.id);
@@ -101,6 +104,7 @@ export function validateOwnerDecisions(envelope,matrix,ledger,root){
    if(['IDEA','PROPOSED'].includes(d.state)||!d.canonical?.some(link=>link.id===row.id))errors.push('canonical link lacks adopted decision: '+id);
   }
  }
+ for(const allocation of inventory?.allocations??[]){const d=records.get(allocation.decision_id);if(!d?.canonical?.some(link=>link.id===allocation.id))errors.push('allocation provenance lost: '+allocation.id);}
  const active=new Set(),done=new Set();
  const visit=id=>{if(active.has(id)){errors.push('supersede cycle: '+id);return;}if(done.has(id))return;active.add(id);for(const n of records.get(id)?.superseded_by??[])if(records.has(n))visit(n);active.delete(id);done.add(id);};
  for(const id of records.keys())visit(id);

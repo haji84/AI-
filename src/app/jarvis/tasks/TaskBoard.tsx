@@ -1,5 +1,6 @@
 "use client";
 
+import RequirementsPanel from "./RequirementsPanel";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 type TaskItem = {
@@ -90,6 +91,7 @@ export default function TaskBoard() {
         </div>
       )}
 
+      <RequirementsPanel />
       <section className="jarvis-stats" aria-label="タスク集計">
         <article><span>Queue</span><strong>{state?.stats.queued ?? "-"}</strong></article>
         <article><span>実行中</span><strong>{state?.stats.running ?? "-"}</strong></article>

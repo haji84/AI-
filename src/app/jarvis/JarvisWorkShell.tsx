@@ -1,11 +1,13 @@
 "use client";
 import "./work-shell.css";
-import { useEffect, useState } from "react";
+import RequirementsPanel from "./tasks/RequirementsPanel";
+import { useEffect, useRef, useState } from "react";
 import { JARVIS_THEMES, jarvisTheme, type JarvisThemeId } from "./theme-catalog";
 
 const STORAGE_KEY = "jarvis-ui-theme";
 
 export default function JarvisWorkShell() {
+  const pendingCommand = useRef<{text:string;key:string}|null>(null);
   const [themeId, setThemeId] = useState<JarvisThemeId>("clean-modern");
   const [admin, setAdmin] = useState(false);
   const [command, setCommand] = useState("");
@@ -42,10 +44,13 @@ export default function JarvisWorkShell() {
     if (!text || submitting) return;
     setSubmitting(true);
     setWorkStatus(null);
+    if(pendingCommand.current?.text!==text)pendingCommand.current={text,key:crypto.randomUUID()};
     try {
-      const response = await fetch("/api/jarvis/work", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) });
-      const body = await response.json() as { goalId?: string | null; action?: string; nextAction?: string | null; message?: string };
+      const response = await fetch("/api/jarvis/work", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text, idempotencyKey:pendingCommand.current.key }) });
+      const body = await response.json() as { goalId?: string | null; action?: string; nextAction?: string | null; message?: string; conversation?: {needsClarification:boolean;message:string} };
       if (!response.ok) throw new Error(body.message || `HTTP ${response.status}`);
+      pendingCommand.current=null;
+      if(body.conversation?.needsClarification){setWorkStatus({error:body.conversation.message+" 下の仕様・要望で参照先を選択できます。"});return;}
       setWorkStatus({ goalId: body.goalId, action: body.action, nextAction: body.nextAction });
       setCommand("");
     } catch (error) {
@@ -81,6 +86,7 @@ export default function JarvisWorkShell() {
           <article><span>Fleet</span><strong>待機</strong><small>端末・Runner状態</small></article>
         </div>
       </section>}
+      <RequirementsPanel />
       <details className="jarvis-theme-picker"><summary>外観を変更</summary><div className="jarvis-theme-grid">
         {JARVIS_THEMES.map((item) => <button type="button" key={item.id} aria-pressed={item.id === themeId} onClick={() => select(item.id)} data-preview={item.id}><span>{item.label}</span><small>{item.mode} / {item.density}</small></button>)}
       </div></details>

@@ -1,4 +1,5 @@
-import { createHash } from "node:crypto";
+import {resolveOwnerConversation,semanticTerms,type ConversationResolution} from "./owner-conversation.ts";
+import { createHash, randomUUID } from "node:crypto";
 import type { CompassStore } from "../compass/store.ts";
 
 export const OWNER_REQUIREMENTS_KIND = "jarvis-owner-requirements";
@@ -8,6 +9,8 @@ export interface RequirementInput { decision: RequirementDecision; statement: st
 export interface CanonicalRequirement { id: string; title: string; description: string; required_evidence: string[]; source_decisions?: string[]; }
 export interface RequirementMatch { id: string; score: number; reason: "explicit_id" | "text_candidate"; fingerprint: string; }
 export interface RequirementPublication { baseSha:string; artifactHash:string; reviewHash:string; branch:string; headSha?:string; prNumber?:number; }
+export interface RequirementConversation {inputHash:string;contextHash:string;resolution:ConversationResolution["resolution"];confidence:number;referenceIds:string[];message:string;}
+export interface PreparedRequirement {input:RequirementInput|null;requestHash:string;keyDigest:string;conversation?:RequirementConversation;resolution?:ConversationResolution;}
 export interface OwnerRequirementRecord {
  id: string; goalId: string | null; state: RequirementState; statement: string;
  requestHash: string; keyDigest: string;
@@ -15,6 +18,7 @@ export interface OwnerRequirementRecord {
  canonicalIds: string[]; matches: RequirementMatch[]; reviewRequired: true;
  supersedes: string[]; supersededBy: string[];
  history: { state: RequirementState; at: string; reason: string }[];
+ conversation?: RequirementConversation;
  publication?: RequirementPublication;
  sync?: { canonicalSha256: string; decisionId: string; at: string };
 }
@@ -51,7 +55,7 @@ export function parseRequirementInput(value: unknown, text: string): Requirement
  return {decision:r.decision as RequirementDecision,statement:r.statement.trim(),canonicalIds:[...ids] as string[],...(r.supersedes?{supersedes:r.supersedes as string}:{})};
 }
 function terms(value:string): Set<string> {
- const parts=value.toLowerCase().match(/[a-z0-9_-]{2,}|[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]+/gu)??[];
+ const parts=semanticTerms(value).match(/[a-z0-9_-]{2,}|[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]+/gu)??[];
  return new Set(parts.flatMap(p=>/^[a-z0-9]/.test(p)?[p]:Array.from({length:Math.max(0,p.length-1)},(_,i)=>p.slice(i,i+2))));
 }
 export function matchRequirementCandidates(input: RequirementInput, rows: CanonicalRequirement[]): RequirementMatch[] {
@@ -66,6 +70,7 @@ export function ownerRequirementRecords(active: unknown[]): OwnerRequirementReco
  const records=found[0]?.records??[];
  const byId=new Map(records.map(r=>[r.id,r]));
  for(const r of records){
+  if(r.conversation&&(!/^[a-f0-9]{64}$/.test(r.conversation.inputHash)||!/^[a-f0-9]{64}$/.test(r.conversation.contextHash)||!Array.isArray(r.conversation.referenceIds)||r.conversation.referenceIds.some(id=>!byId.has(id)||byId.get(id)?.goalId!==r.goalId)))throw Error("owner conversation provenance corrupt");
   if(r.publication&&!validPublication(r.publication,r.id))throw Error("owner requirement publication corrupt");
   if(r.history.at(-1)?.state!==r.state||r.history.some(h=>!states.includes(h.state)||!Number.isFinite(Date.parse(h.at))||typeof h.reason!=="string"))throw Error("owner requirement lifecycle corrupt");
   if(r.state==="SUPERSEDED"&&!r.supersededBy.length||r.state!=="SUPERSEDED"&&r.supersededBy.length)throw Error("owner requirement successor missing");
@@ -106,6 +111,7 @@ export class OwnerRequirementIntake {
    if(record.goalId!==null&&record.goalId!==goalId)throw Error("owner receipt already bound to another Goal");
    if(record.goalId===null&&goalId!==null){
     if(record.supersedes.length||record.supersededBy.length)throw Error("cannot rebind an existing requirement chain");
+    for(const ref of record.conversation?.referenceIds??[]){const source=records.find(r=>r.id===ref);if(!source||source.goalId!==null)throw Error("cannot rebind conversation source");source.goalId=goalId;}
     record.goalId=goalId;
    }
    result=record;
@@ -113,7 +119,25 @@ export class OwnerRequirementIntake {
   });
   return structuredClone(result!);
  }
- prepare(text:string,key:string|undefined,raw:unknown){
+ prepareConversation(text:string,key:string|undefined,context:{goalId:string|null;referenceId?:string}):PreparedRequirement {
+  if(!text.trim()||Buffer.byteLength(text)>16000||(key!==undefined&&(!key.trim()||key.length>200)))throw Error("bounded owner work input required");
+  if(context.referenceId!==undefined&&!/^owner-intake-[a-f0-9]{32}$/.test(context.referenceId))throw Error("invalid conversation reference");
+  const inputHash=sha256(text.trim()),contextHash=sha256(JSON.stringify({referenceId:context.referenceId??null})),requestKey=key??randomUUID();
+  const prior=this.list().find(r=>r.keyDigest===sha256(requestKey.trim()));
+  if(prior){
+   if(prior.goalId!==context.goalId||prior.conversation?.inputHash!==inputHash||prior.conversation.contextHash!==contextHash)throw Error("owner requirement idempotency conflict");
+   const initial=prior.history[0].reason;
+   const decision:RequirementDecision=initial==="owner_withdrawal_pending_canonical_sync"?"withdraw":initial==="authenticated_owner_accept"?"accept":initial==="authenticated_owner_idea"?"idea":"propose";
+   return {input:{decision,statement:prior.statement,canonicalIds:prior.canonicalIds,...(prior.supersedes[0]?{supersedes:prior.supersedes[0]}:{})},requestHash:prior.requestHash,keyDigest:prior.keyDigest,conversation:prior.conversation};
+  }
+  const resolution=resolveOwnerConversation(text,{...context,records:this.list()});
+  const prepared=this.prepare(text,requestKey,resolution.input??undefined);
+  prepared.input=resolution.input;
+  prepared.resolution=resolution;
+  prepared.conversation={inputHash,contextHash,resolution:resolution.resolution,confidence:resolution.confidence,referenceIds:resolution.referenceIds,message:resolution.message};
+  return prepared;
+ }
+ prepare(text:string,key:string|undefined,raw:unknown):PreparedRequirement {
   if(!text.trim()||Buffer.byteLength(text)>16000||(key!==undefined&&(!key.trim()||key.length>200)))throw Error("bounded owner work input required");
   const input=parseRequirementInput(raw,text);
   const requestHash=sha256(JSON.stringify({text:text.trim(),requirement:input}));
@@ -137,6 +161,7 @@ export class OwnerRequirementIntake {
    const at=new Date().toISOString(),id="owner-intake-"+sha256(keyDigest).slice(0,32);
    const state:RequirementState=input.decision==="accept"||input.decision==="withdraw"?"ACCEPTED_REQUIREMENT":input.decision==="idea"?"IDEA":"PROPOSED";
    result={id,goalId,state,statement:input.statement,requestHash,keyDigest,source:{boundary:"broker_owner_auth",textSha256:sha256(input.statement),recordedAt:at},canonicalIds:input.canonicalIds,matches,reviewRequired:true,supersedes:previous?[previous.id]:[],supersededBy:[],history:[{state,at,reason:input.decision==="withdraw"?"owner_withdrawal_pending_canonical_sync":"authenticated_owner_"+input.decision}]};
+   if(prepared.conversation)result.conversation=structuredClone(prepared.conversation);
    if(previous){previous.state="SUPERSEDED";previous.supersededBy.push(id);previous.history.push({state:"SUPERSEDED",at,reason:id});}
    records.push(result);
    return [...active.filter(v=>!(v&&typeof v==="object"&&(v as {kind?:unknown}).kind===OWNER_REQUIREMENTS_KIND)),{kind:OWNER_REQUIREMENTS_KIND,version:1,records}];

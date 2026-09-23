@@ -1,3 +1,4 @@
+import {requirementWorkflow,prepareOwnerPreview} from "./jarvis-requirement-workflow.mjs";
 import { createSpecificationPublisher } from "./jarvis-spec-publisher.mjs";
 import { fileURLToPath } from "node:url";
 import { loadCanonicalBundle, prepareSpecificationProposal } from "./jarvis-owner-spec-sync.mjs";
@@ -276,11 +277,21 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
     if (!requireOwner(request)) return json(response, 401, { message: "owner authorization required" });
     const payload = parseJson(body);
     if (method === "GET" && path === "/api/jarvis/admin/state") return json(response, 200, plane.snapshot());
-    if (method === "GET" && path === "/api/jarvis/admin/requirements") return json(response, 200, { records: ownerRequirements.list() });
+    if (method === "GET" && path === "/api/jarvis/admin/requirements") return json(response, 200, requirementWorkflow(ownerRequirements.list(),loadCanonicalBundle(fileURLToPath(new URL("../",import.meta.url))),fileURLToPath(new URL("../",import.meta.url)),!!process.env.GITHUB_TOKEN));
     if (method === "POST" && path === "/api/jarvis/admin/requirements/publish") {
       if (body.byteLength > 32768 || typeof payload.decisionId !== "string" || Object.keys(payload).some(k => !["decisionId","review"].includes(k))) return json(response,400,{message:"invalid specification publication input"});
       try { return json(response,200,await specificationPublisher.publish(payload.decisionId,payload.review)); }
       catch(error) { const message=error instanceof Error?error.message:"specification_publication_failed"; return json(response,message==="github_write_unavailable"?503:409,{message}); }
+    }
+    if(method==="POST"&&path==="/api/jarvis/admin/requirements/preview"){
+      if(body.byteLength>32768||Object.keys(payload).some(k=>!["decisionId","choice"].includes(k)))return json(response,400,{message:"invalid preview input"});
+      try{
+       const record=ownerRequirements.list().find(r=>r.id===payload.decisionId);
+       if(!record)return json(response,404,{message:"owner requirement not found"});
+       const root=fileURLToPath(new URL("../",import.meta.url));
+       const {bundle:_bundle,files,...preview}=prepareOwnerPreview(record,loadCanonicalBundle(root),payload.choice,root,ownerRequirements.list());
+       void _bundle;return json(response,200,{...preview,files:files.map(f=>({path:f.path,baseSha256:f.baseSha256,bytes:Buffer.byteLength(f.content)}))});
+      }catch(e){return json(response,409,{message:e instanceof Error?e.message:"preview_failed"});}
     }
     if (method === "POST" && path === "/api/jarvis/admin/requirements/proposal") {
       try {
@@ -305,18 +316,21 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
         const text = typeof payload.text === "string" ? payload.text.trim() : "";
         if (!text) return json(response, 400, { message: "仕事の内容を入力してください" });
         const idempotencyKey = typeof payload.idempotencyKey === "string" ? payload.idempotencyKey.trim() : undefined;
-        const prepared = ownerRequirements.prepare(text, idempotencyKey, payload.requirement);
+        const activeGoal = (await new CompassGoalRegistryAdapter(compass).listActive())[0];
+        if(payload.requirementReferenceId!==undefined&&typeof payload.requirementReferenceId!=="string")return json(response,400,{message:"invalid requirement reference"});
+        const prepared = payload.requirement!==undefined ? ownerRequirements.prepare(text,idempotencyKey,payload.requirement) : ownerRequirements.prepareConversation(text,idempotencyKey,{goalId:activeGoal?.goalId??null,referenceId:payload.requirementReferenceId as string|undefined});
+        if(prepared.resolution?.needsClarification)return json(response,202,{accepted:false,requirement:null,conversation:prepared.resolution,goalId:activeGoal?.goalId??null,action:"CLARIFY_REQUIREMENT",nextAction:prepared.resolution.message});
         const rows = JSON.parse(readFileSync(new URL("../docs/jarvis-requirements.json", import.meta.url), "utf8")).requirements;
         if (prepared.input) matchRequirementCandidates(prepared.input, rows);
-        const activeGoal = (await new CompassGoalRegistryAdapter(compass).listActive())[0];
         // Write the receipt before creating/changing Goal state. An interrupted bind
         // leaves a visible unassigned sync gate instead of an untracked accepted Goal.
         let requirement = ownerRequirements.capture(prepared, activeGoal?.goalId ?? null, rows);
-        const decision = await goalController.handle({ source: "jarvis", text, idempotencyKey });
+        const decision = await goalController.handle({ source: "jarvis", text, idempotencyKey: prepared.input ? prepared.keyDigest : idempotencyKey });
         if (requirement) requirement = ownerRequirements.bindGoal(requirement.id, decision.goalId ?? activeGoal?.goalId ?? null);
         return json(response, 202, {
           accepted: true,
           requirement,
+          conversation: prepared.resolution ?? null,
           goalId: decision.goalId ?? null,
           action: decision.action,
           resolution: decision.resolution.kind,

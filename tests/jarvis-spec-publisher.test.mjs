@@ -29,8 +29,8 @@ function fixture(options={}) {
  const record=intake.capture(intake.prepare('request','publisher-test',{decision:'accept',statement:options.statement??'同期結果を表示する',canonicalIds:['CORE-015']}),'goal',bundle.matrix.requirements);
  const review={sourceRef:'https://github.com/haji84/AI-/issues/1205',bindings:[{id:'CORE-015',baseFingerprint:requirementFingerprint(bundle.matrix.requirements.find(r=>r.id==='CORE-015'))}]};
  const main='a'.repeat(40),tree='b'.repeat(40),commit='c'.repeat(40),branch='codex/spec-sync/'+record.id;
- const originals=[bundle.ledger,JSON.stringify(bundle.matrix,null,2)+'\n',JSON.stringify(bundle.decisions,null,2)+'\n'];
- const paths=['docs/JARVIS_PRODUCT_SPEC.md','docs/jarvis-requirements.json','docs/jarvis-owner-decisions.json'];
+ const originals=[bundle.ledger,JSON.stringify(bundle.matrix,null,2)+'\n',JSON.stringify(bundle.decisions,null,2)+'\n',JSON.stringify(bundle.inventory,null,2)+'\n'];
+ const paths=['docs/JARVIS_PRODUCT_SPEC.md','docs/jarvis-requirements.json','docs/jarvis-owner-decisions.json','docs/jarvis-additional-requirements.json'];
  const state={calls:[],ref:null,pr:null,posts:0,tree:null,main};
  const json=(v,status=200)=>new globalThis.Response(JSON.stringify(v),{status});
  const fetchImpl=async(url,init={})=>{
@@ -58,7 +58,7 @@ function fixture(options={}) {
  };
  return {db,intake,record,review,state,fetchImpl};
 }
-test('creates only a draft with exact three-file tree; restart resumes lost PR response',async()=>{
+test('creates only a draft with exact four-file tree; restart resumes lost PR response',async()=>{
  const {mkdtempSync,rmSync}=await import('node:fs'),{tmpdir}=await import('node:os'),{join}=await import('node:path');
  const dir=mkdtempSync(join(tmpdir(),'spec-publish-')),dbPath=join(dir,'compass.sqlite');
  const f=fixture({dbPath,losePostResponse:true});
@@ -161,5 +161,21 @@ test('fine-grained credential pattern is stopped before GitHub reads or writes',
  const f=fixture({statement:'Credential: '+'github_pat_'+'a'.repeat(82)});try{
   await assert.rejects(()=>createSpecificationPublisher({root,intake:f.intake,token:'fixture-only',fetchImpl:f.fetchImpl}).publish(f.record.id,f.review),/specification_secret_detected/);
   assert.equal(f.state.calls.length,0);
+ }finally{f.db.close();}
+});
+
+test('publisher serializes new allocation with its adopted source, while keeping evidence pending',async()=>{
+ const {createSpecificationPublisher}=await import('../scripts/jarvis-spec-publisher.mjs');
+ const {prepareOwnerPreview}=await import('../scripts/jarvis-requirement-workflow.mjs');
+ const f=fixture({statement:'郵便を分類する一覧機能を追加して'});try{
+  const preview=prepareOwnerPreview(f.record,loadCanonicalBundle(root),{mode:'new'},root,f.intake.list());
+  const review={...preview.review,sourceRef:f.review.sourceRef};
+  await createSpecificationPublisher({root,intake:f.intake,token:'fixture-only',fetchImpl:f.fetchImpl}).publish(f.record.id,review);
+  const content=p=>JSON.parse(f.state.tree.tree.find(v=>v.path===p).content);
+  const row=content('docs/jarvis-requirements.json').requirements.at(-1);
+  assert.equal(row.id,'OWN-001');assert.equal(row.status,'MISSING');
+  assert.equal(content('docs/jarvis-additional-requirements.json').allocations[0].decision_id,f.record.id);
+  assert.equal(content('docs/jarvis-owner-decisions.json').decisions.at(-1).canonical[0].id,'OWN-001');
+  assert.equal(f.intake.list()[0].state,'ACCEPTED_REQUIREMENT');
  }finally{f.db.close();}
 });

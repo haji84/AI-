@@ -1,3 +1,5 @@
+import {protectedRequirementReasons} from "../src/orchestrator/owner-conversation.ts";
+import {loadAdditionalInventory,allocateAdditionalRequirement} from "./jarvis-additional-inventory.mjs";
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -7,13 +9,14 @@ import {ownerRequirementRecords,OWNER_REQUIREMENTS_KIND} from '../src/orchestrat
 
 const digest=value=>createHash('sha256').update(value).digest('hex');
 const json=value=>JSON.stringify(value,null,2)+'\n';
-const paths=['docs/JARVIS_PRODUCT_SPEC.md','docs/jarvis-requirements.json','docs/jarvis-owner-decisions.json'];
+export const CANONICAL_PATHS=['docs/JARVIS_PRODUCT_SPEC.md','docs/jarvis-requirements.json','docs/jarvis-owner-decisions.json','docs/jarvis-additional-requirements.json'];
+const paths=CANONICAL_PATHS;
 export function loadCanonicalBundle(root){
  const texts=paths.map(p=>fs.readFileSync(path.join(root,p),'utf8').replace(/^\uFEFF/,''));
- return {ledger:texts[0],matrix:JSON.parse(texts[1]),decisions:JSON.parse(texts[2])};
+ return {ledger:texts[0],matrix:JSON.parse(texts[1]),decisions:JSON.parse(texts[2]),inventory:loadAdditionalInventory(root)};
 }
 function validate(bundle,root){
- const errors=validateOwnerDecisions(bundle.decisions,bundle.matrix,bundle.ledger,root);
+ const errors=validateOwnerDecisions(bundle.decisions,bundle.matrix,bundle.ledger,root,bundle.inventory);
  if(errors.length)throw Error('canonical validation failed: '+errors.slice(0,5).join('; '));
 }
 function receiptMatches(record,d){
@@ -25,7 +28,7 @@ export function verifyCanonicalReceipt(record,bundle,root){
   const d=bundle.decisions.decisions.find(d=>d.id===record.id);
   if(!receiptMatches(record,d)||JSON.stringify(d.supersedes)!==JSON.stringify(record.supersedes)||!['SPEC_SYNCED','IMPLEMENTED','VERIFIED','WITHDRAWN'].includes(d.state))return {ok:false,reason:'exact_owner_receipt_not_synced'};
   if((d.state==='WITHDRAWN')!==record.history.some(h=>h.reason==='owner_withdrawal_pending_canonical_sync'))return {ok:false,reason:'withdrawal_mismatch'};
-  return {ok:true,canonicalSha256:digest(json(bundle)),decisionId:d.id};
+  return {ok:true,state:d.state,canonicalSha256:digest(json(bundle)),decisionId:d.id};
  }catch{return {ok:false,reason:'canonical_validation_failed'};}
 }
 
@@ -37,6 +40,7 @@ function canonicalDecision(record,sourceRef,canonical,state){
  * handoff; similarity does not establish equivalence or execution authority. */
 export function prepareSpecificationProposal(record,bundle,review,root,history=[]){
  validate(bundle,root);
+ if(protectedRequirementReasons(record?.statement??'').length)throw Error('requirement_human_gate_required');
  if(record?.state!=='ACCEPTED_REQUIREMENT'||record.source?.boundary!=='broker_owner_auth'||digest(record.statement)!==record.source.textSha256)throw Error('adopted owner receipt required');
  if(!/^https:\/\/github\.com\/haji84\/AI-\/issues\/\d+$/.test(review?.sourceRef??''))throw Error('repository issue source required');
  const previous=[];
@@ -47,9 +51,22 @@ export function prepareSpecificationProposal(record,bundle,review,root,history=[
   const visit=r=>{for(const id of r.supersedes){const old=trusted.find(v=>v.id===id);if(!old)throw Error('previous receipt missing');if(!old.history.some(h=>['authenticated_owner_accept','owner_withdrawal_pending_canonical_sync'].includes(h.reason)))throw Error('adopted previous receipt required');visit(old);if(!previous.some(v=>v.id===old.id))previous.push(old);}};visit(current);
  }
  if(bundle.decisions.decisions.some(d=>d.id===record.id))throw Error('decision already in canonical history; reconcile instead of duplicating');
- if(!Array.isArray(review.bindings)||!review.bindings.length||review.bindings.length>8||new Set(review.bindings.map(b=>b.id)).size!==review.bindings.length)throw Error('explicit reviewed bindings required');
- const next=globalThis.structuredClone(bundle);
  const withdrawn=record.history.some(h=>h.reason==='owner_withdrawal_pending_canonical_sync');
+ if(!Array.isArray(review.bindings)||(!review.bindings.length&&!review.newRequirement&&!withdrawn)||review.bindings.length>8||new Set(review.bindings.map(b=>b.id)).size!==review.bindings.length)throw Error('explicit reviewed bindings required');
+ review=globalThis.structuredClone(review);
+ if(review.newRequirement){
+  const n=review.newRequirement;
+  if(review.bindings.length||withdrawn||previous.some(old=>bundle.decisions.decisions.find(d=>d.id===old.id)?.canonical?.length)||!n||typeof n!=='object'||Object.keys(n).some(k=>!['title','phase','baseInventorySha256'].includes(k))||typeof n.title!=='string'||!n.title.trim()||n.title.length>120||/[\r\n]/.test(n.title)||!/^P(?:[0-9]|10)$/.test(n.phase??''))throw Error('invalid new requirement');
+  if(n.baseInventorySha256!==digest(JSON.stringify(bundle.inventory)))throw Error('additional inventory base conflict');
+  const normalized=value=>value.normalize('NFKC').replace(/[\s。、.!！?？]/g,'').toLowerCase();
+  if(bundle.matrix.requirements.some(r=>normalized(r.title)===normalized(n.title)||normalized(r.description).includes(normalized(record.statement)))||bundle.decisions.decisions.some(d=>d.source?.excerpt&&normalized(d.source.excerpt)===normalized(record.statement)))throw Error('duplicate requirement needs existing-ID reconciliation');
+ }
+ const next=globalThis.structuredClone(bundle);
+ if(review.newRequirement){
+  const a=allocateAdditionalRequirement(next.inventory,record);
+  const row={id:a.id,title:review.newRequirement.title.trim(),description:'Owner-adopted additional product requirement; decision history records its current definition.',phase:review.newRequirement.phase,required_evidence:a.required_evidence,implementation_refs:[],test_refs:[],evidence_refs:[],status:'MISSING',blocker:'Implementation and required evidence pending',platform_limit:null,fallback:null,next_action:'Implement the adopted requirement and collect all required evidence; no completion from specification publication.',last_verified_commit:null,source_decisions:[]};
+  next.matrix.requirements.push(row);review.bindings=[{id:row.id,baseFingerprint:requirementFingerprint(row)}];
+ }
  const bindingIds=new Set(review.bindings.map(b=>b.id));
  for(const old of previous){
   const canonical=next.decisions.decisions.find(d=>d.id===old.id);
@@ -81,8 +98,9 @@ export function prepareSpecificationProposal(record,bundle,review,root,history=[
  next.decisions.decisions.push(canonicalDecision(record,review.sourceRef,review.bindings.map(b=>{const row=next.matrix.requirements.find(r=>r.id===b.id);return{id:row.id,fingerprint:requirementFingerprint(row)};}),withdrawn?'WITHDRAWN':'SPEC_SYNCED'));
  let index=0;
  next.ledger=next.ledger.replace(/```json\r?\n[\s\S]*?\r?\n```/g,()=> '```json\n'+JSON.stringify(next.matrix.requirements[index++],null,2)+'\n```');
+ for(;index<next.matrix.requirements.length;index++){const row=next.matrix.requirements[index];next.ledger+='\n### '+row.id+'\n\n'+'```json\n'+JSON.stringify(row,null,2)+'\n```\n';}
  validate(next,root);
- const contents=[next.ledger,json(next.matrix),json(next.decisions)],originals=[bundle.ledger,json(bundle.matrix),json(bundle.decisions)];
+ const contents=[next.ledger,json(next.matrix),json(next.decisions),json(next.inventory)],originals=[bundle.ledger,json(bundle.matrix),json(bundle.decisions),json(bundle.inventory)];
  return {kind:'specification_review_proposal',decisionId:record.id,reviewRequired:true,autoMerge:false,productionAuthorized:false,semanticAuthority:'explicit_work_codex_review_required',files:paths.map((p,i)=>({path:p,baseSha256:surfaceFingerprint(Buffer.from(originals[i])),content:contents[i]})),bundle:next};
 }
 

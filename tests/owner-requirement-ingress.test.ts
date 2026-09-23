@@ -28,7 +28,7 @@ test("actual authenticated Broker work ingress captures owner requirement and su
   assert.equal((await send({...payload,text:"different"})).status,409,"same key cannot silently accept another statement");
   const proposalRequest={decisionId:result.requirement.id,review:{sourceRef:"https://github.com/haji84/AI-/issues/1205",bindings:[{id:"CORE-015",baseFingerprint:result.requirement.matches.find((x:{id:string})=>x.id==="CORE-015").fingerprint}]}};
   const proposal=await fetch(base+"/api/jarvis/admin/requirements/proposal",{method:"POST",headers:{Authorization:"Bearer "+token,"content-type":"application/json"},body:JSON.stringify(proposalRequest),signal:AbortSignal.timeout(5000)});
-  assert.equal(proposal.status,200);const artifact=await proposal.json();assert.equal(artifact.files.length,3);assert.equal(artifact.autoMerge,false);assert.equal(artifact.productionAuthorized,false);
+  assert.equal(proposal.status,200);const artifact=await proposal.json();assert.equal(artifact.files.length,4);assert.equal(artifact.autoMerge,false);assert.equal(artifact.productionAuthorized,false);
   assert.equal((await fetch(base+"/api/jarvis/admin/requirements/proposal",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(proposalRequest),signal:AbortSignal.timeout(5000)})).status,401);
   for(const authorized of [false,true]){
    const pub=await fetch(base+"/api/jarvis/admin/requirements/publish",{method:"POST",headers:{"content-type":"application/json",...(authorized?{Authorization:"Bearer "+token}:{})},body:JSON.stringify(proposalRequest),signal:AbortSignal.timeout(5000)});
@@ -39,5 +39,21 @@ test("actual authenticated Broker work ingress captures owner requirement and su
   const retry=await (await send(payload)).json();assert.equal(retry.requirement.id,result.requirement.id);
   const list=await fetch(base+"/api/jarvis/admin/requirements",{headers:{Authorization:"Bearer "+token},signal:AbortSignal.timeout(5000)});assert.equal(list.status,200);assert.equal((await list.json()).records.length,1);
   assert.equal((await fetch(base+"/api/jarvis/admin/requirements",{signal:AbortSignal.timeout(5000)})).status,401);
+
+  const adopt=await (await send({text:"郵便を分類できる機能を追加して",idempotencyKey:"natural"})).json();
+  assert.equal(adopt.requirement.state,"ACCEPTED_REQUIREMENT");
+  const previewRequest={decisionId:adopt.requirement.id,choice:{mode:"new"}};
+  const previewUrl=base+"/api/jarvis/admin/requirements/preview";
+  assert.equal((await fetch(previewUrl,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(previewRequest)})).status,401);
+  const preview=await fetch(previewUrl,{method:"POST",headers:{Authorization:"Bearer "+token,"content-type":"application/json"},body:JSON.stringify(previewRequest)});
+  assert.equal(preview.status,200);const display=await preview.json();assert.deepEqual(display.requirementIds,["OWN-001"]);assert.equal(display.bundle,undefined);assert.equal(display.files[0].content,undefined);
+  const idea=await (await send({text:"たとえば通知機能を追加して",idempotencyKey:"example"})).json();assert.equal(idea.requirement.state,"IDEA");
+  const chosen=await (await send({text:"それで進めて",idempotencyKey:"chosen",requirementReferenceId:idea.requirement.id})).json();
+  assert.equal(chosen.requirement.statement,idea.requirement.statement);assert.deepEqual(chosen.requirement.conversation.referenceIds,[idea.requirement.id]);
+  const retryChosen=await (await send({text:"それで進めて",idempotencyKey:"chosen",requirementReferenceId:idea.requirement.id})).json();assert.equal(retryChosen.requirement.id,chosen.requirement.id);
+  await send({text:"文字サイズ機能が欲しい"});const nextChosen=await (await send({text:"それで進めて"})).json();assert.match(nextChosen.requirement.statement,/文字/);
+  assert.notEqual(nextChosen.requirement.id,chosen.requirement.id);
+  await send({text:"仕様として追加: calendar display",idempotencyKey:"calendar"});
+  const ambiguous=await (await send({text:"この仕様を撤回して",idempotencyKey:"ambiguous"})).json();assert.equal(ambiguous.accepted,false);assert.equal(ambiguous.conversation.needsClarification,true);
  }finally{await stop();assert.ok(resolve(dir).startsWith(resolve(tmpdir())+sep));rmSync(dir,{recursive:true,force:true});}
 });

@@ -25,9 +25,11 @@ export function createRequirementsProxy(owner:()=>Promise<boolean>,broker:Broker
    let payload;
    try{
     payload=JSON.parse(await boundedText(request.body,32768));
-    if(!payload||typeof payload!=="object"||Array.isArray(payload)||Object.keys(payload).some(k=>!["decisionId","review"].includes(k))||typeof payload.decisionId!=="string")throw Error("invalid");
+    if(!payload||typeof payload!=="object"||Array.isArray(payload)||Object.keys(payload).some(k=>!["decisionId","review","action","choice"].includes(k))||typeof payload.decisionId!=="string"||(payload.action!==undefined&&payload.action!=="preview"))throw Error("invalid");
    }catch{return Response.json({message:"仕様更新の入力が不正または上限超過です"},{status:400});}
-   return relay("/api/jarvis/admin/requirements/publish",{method:"POST",body:JSON.stringify(payload)});
+   const target=payload.action==="preview"?"preview":"publish";
+   const body=target==="preview"?{decisionId:payload.decisionId,choice:payload.choice}:{decisionId:payload.decisionId,review:payload.review};
+   return relay("/api/jarvis/admin/requirements/"+target,{method:"POST",body:JSON.stringify(body)});
   }
  };
 }
