@@ -3594,7 +3594,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "Exact-head CI and separately approved main-push live-hook gating before merge/activation. Broader audit/semantic routes and physical holds remain.",
+  "next_action": "Mac manual-only hook gate approved/applied; complete exact-head CI/review and main CI. Production activation must preserve credentials and physical holds. Broader audit/semantic routes remain.",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -3611,7 +3611,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "implementation": "ADDITIVE_IDS_SAVED_CONVERSATION_OWNER_UI",
     "connection": "BROKER_HTTP_BROWSER_QA_AND_BOUNDED_PUBLISHER_FIXTURE",
     "evidence_ref": "docs/evidence/1205-owner-spec-completion.md",
-    "production_activation": "DRAFT_PR_UNMERGED_LIVE_WORKFLOW_GATE",
+    "production_activation": "MAC_HOOK_APPROVED_CANDIDATE_PENDING_CI_PRODUCTION_NOT_APPLIED",
     "scope": "Requested software paths tested; arbitrary language/all-route audit and applicable physical acceptance not claimed."
   }
 }
@@ -11831,7 +11831,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   "blocker": "Expanded requirement reconciled from staged ledger; main runtime integration and required evidence remain to be verified. 関連する基盤は存在するが、この拡張要求の全範囲・統合・必要Evidenceを満たしていない。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "Exact-head CI and separately approved main-push live-hook gating before merge/activation. Broader audit/semantic routes and physical holds remain.",
+  "next_action": "Mac manual-only hook gate approved/applied; complete exact-head CI/review and main CI. Production activation must preserve credentials and physical holds. Broader audit/semantic routes remain.",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -11851,7 +11851,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "implementation": "ADDITIVE_IDS_SAVED_CONVERSATION_OWNER_UI",
     "connection": "BROKER_HTTP_BROWSER_QA_AND_BOUNDED_PUBLISHER_FIXTURE",
     "evidence_ref": "docs/evidence/1205-owner-spec-completion.md",
-    "production_activation": "DRAFT_PR_UNMERGED_LIVE_WORKFLOW_GATE",
+    "production_activation": "MAC_HOOK_APPROVED_CANDIDATE_PENDING_CI_PRODUCTION_NOT_APPLIED",
     "scope": "Requested software paths tested; arbitrary language/all-route audit and applicable physical acceptance not claimed."
   }
 }
@@ -13589,7 +13589,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   "blocker": "Expanded requirement reconciled from staged ledger; main runtime integration and required evidence remain to be verified. 関連基盤のみ存在。この拡張要求の全条件を強制する統合機能とEvidenceは未完成。関連ファイルは要件全体の実装済みを意味しない。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "Exact-head CI and separately approved main-push live-hook gating before merge/activation. Broader audit/semantic routes and physical holds remain.",
+  "next_action": "Mac manual-only hook gate approved/applied; complete exact-head CI/review and main CI. Production activation must preserve credentials and physical holds. Broader audit/semantic routes remain.",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -13609,7 +13609,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "implementation": "ADDITIVE_IDS_SAVED_CONVERSATION_OWNER_UI",
     "connection": "BROKER_HTTP_BROWSER_QA_AND_BOUNDED_PUBLISHER_FIXTURE",
     "evidence_ref": "docs/evidence/1205-owner-spec-completion.md",
-    "production_activation": "DRAFT_PR_UNMERGED_LIVE_WORKFLOW_GATE",
+    "production_activation": "MAC_HOOK_APPROVED_CANDIDATE_PENDING_CI_PRODUCTION_NOT_APPLIED",
     "scope": "Requested software paths tested; arbitrary language/all-route audit and applicable physical acceptance not claimed."
   }
 }

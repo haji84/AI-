@@ -1,0 +1,36 @@
+{
+  "issue": 1205,
+  "pr": 1213,
+  "recorded_at": "2026-09-23T08:42:33.199Z",
+  "expires_at": "2026-09-24T08:30:00Z",
+  "owner_command": "新規要件IDの追加、会話の意味解釈、画面への統合\nここを全部完成させて",
+  "separate_workflow_approval": "Macbookは後日追加するから手動実行でOK",
+  "scope": [
+    ".github/workflows/jarvis-broker-refresh.yml",
+    ".github/workflows/jarvis-one-tap-e2e.yml"
+  ],
+  "authorized_change": "Remove only automatic main-push triggers; retain manual workflow_dispatch and all jobs, permissions and steps.",
+  "does_not_authorize": [
+    "Manual execution of live Mac jobs",
+    "Mac setup",
+    "Credential or permission changes",
+    "Protected physical-facing releases",
+    "Existing Vercel credential bootstrap/upsert workflow"
+  ],
+  "checks": [
+    {
+      "file": ".github/workflows/jarvis-broker-refresh.yml",
+      "result": "PASS",
+      "change": "remove push trigger only; manual inputs, jobs, permissions and steps byte-equivalent",
+      "sha256": "cece31c3a2838325bb7d8bf7522d431c7423a5a28a242e70bd38fe1cc30fe8d7"
+    },
+    {
+      "file": ".github/workflows/jarvis-one-tap-e2e.yml",
+      "result": "PASS",
+      "change": "remove push trigger only; manual inputs, jobs, permissions and steps byte-equivalent",
+      "sha256": "4dc691117ab7a45186437b269cfaa6840d6eb6d4fd4aa37fe0b2f066f8f0eec2"
+    }
+  ],
+  "physical_claim": false,
+  "production_changed": false
+}

@@ -1,13 +1,6 @@
 name: JARVIS One-Tap Enrollment E2E
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/jarvis-one-tap-e2e.yml'
-      - 'scripts/jarvis-broker.ts'
-      - 'src/jarvis/**'
-      - 'android/jarvis-worker/**'
   workflow_dispatch:
 
 permissions:

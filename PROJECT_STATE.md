@@ -44,7 +44,7 @@ JARVIS_100_NODE_CAPACITY: PASS in deterministic CI; node 101 is rejected
 JARVIS_PHYSICAL_ANDROID_E2E: PASS for the acceptance scope through real Android 001 resident-Broker/Worker execution evidence from PR #526 and follow-up hardening. This does not imply unverified physical wake/Device Owner/live-screen/real-offline claims
 GAI_RESEARCH_OPS: SEPARATE_EVIDENCE_PROGRAM; Issue #321 and R1-R20 remain open until their real scientific evidence gates pass
 GAI_NEXT_PHASE: Complete #681 P0–P10 using docs/JARVIS_PRODUCT_SPEC.md and docs/jarvis-requirements.json; keep #321 research separate
-NEXT_PRIORITY: Complete #1213 exact-head CI/write-back; obtain separate approval for manual-only gating of active Broker Refresh/One-Tap main-push workflows before merge. Requested additive-ID/conversation/UI software paths are tested. Preserve receipts/allocations and all device/physical holds.
+NEXT_PRIORITY: #1213 owner-approved Mac manual-only trigger patch applied; exact-head CI/review then main CI. Keep credential-upsert deployment gated and Windows pinned installation unchanged until release compatibility is established. Preserve #1208/#1195/#883/#884 physical holds.
 HUMAN_APPROVAL_PENDING: none for ordinary code/CI/device validation; production, secrets, permissions, billing, destructive, governance/security weakening, and external-publication gates remain in force
 AUTONOMOUS_RECOVERY_POLICY: progress-aware bounded autonomy; per-strategy retry exhaustion triggers diagnose/replan/alternate capability or strategy, not automatic Goal abandonment; stop/escalate only for safety/approval gates, explicit pause/cancel, unavailable required authority, exhausted overall resource budget, or no safe actionable strategy
 MAX_ACTIVE_AGENTS: 3

@@ -90,7 +90,7 @@
     }
   ],
   "merge_impact": {
-    "status": "HUMAN_GATE",
+    "status": "MAC_TRIGGER_GATE_APPROVED_PENDING_EXACT_HEAD_CI_REVIEW",
     "reason": "Active unrelated live Broker refresh and enrollment-grant workflows match this main push; separate workflow authority required before altering or triggering them.",
     "observed_workflows": [
       {
@@ -110,7 +110,14 @@
       }
     ],
     "source": "GitHub REST GET /repos/haji84/AI-/actions/workflows?per_page=100",
-    "checked_at": "2026-09-23T08:14:59.117Z"
+    "checked_at": "2026-09-23T08:14:59.117Z",
+    "resolution": {
+      "owner_approval": "Macbookは後日追加するから手動実行でOK",
+      "evidence": "docs/evidence/1205/manual-mac-approval.json",
+      "applied": true,
+      "manual_execution_authorized": false
+    },
+    "production_boundary": "Existing scoped Vercel deploy upserts credentials; activation metadata withheld. Windows installation is separately pinned."
   },
   "limits": [
     "No live GitHub publication claim from adapter fixture",
