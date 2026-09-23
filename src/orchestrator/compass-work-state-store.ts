@@ -1,3 +1,4 @@
+import { canonicalRequirementBlockers } from "./owner-requirement-canonical.ts";
 import type { CompassStore } from "../compass/store.ts";
 import type { WorkEvent, WorkState, WorkStateStore } from "./work-state.ts";
 
@@ -33,7 +34,12 @@ export class CompassWorkStateStoreAdapter implements WorkStateStore {
 
   async get(goalId: string): Promise<WorkState | null> {
     const envelope = this.envelopes().find((entry) => entry.goalId === goalId);
-    return envelope ? structuredClone(envelope.state) : null;
+    if (!envelope) return null;
+    const state = structuredClone(envelope.state);
+    const pending = canonicalRequirementBlockers(this.compass.getState().active, goalId);
+    state.blockers = [...state.blockers.filter(b => !b.startsWith("spec_sync_")), ...pending];
+    if (pending.length) state.status = "BLOCKED";
+    return state;
   }
 
   async put(state: WorkState): Promise<void> {

@@ -79,6 +79,12 @@ export interface WriteBackInput {
 }
 
 const PROJECT_ID = "default";
+// Owner requirement receipts are written exclusively by the authenticated intake
+// controller via updateActive. Generic model/worker write-back cannot replace them.
+function preserveOwnerReceipts(current: unknown[], proposed: unknown[]): unknown[] {
+  const reserved = (v: unknown) => !!v && typeof v === "object" && (v as {kind?: unknown}).kind === "jarvis-owner-requirements";
+  return [...proposed.filter(v => !reserved(v)), ...current.filter(reserved)];
+}
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -280,13 +286,25 @@ export class CompassStore {
     };
   }
 
+  /** Atomic envelope update: no schema change and no lost concurrent intake history. */
+  updateActive(transform: (active: unknown[]) => unknown[]): void {
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      const active = transform(this.getState().active);
+      this.db.prepare("UPDATE state SET active = ?, updated_at = ? WHERE project_id = ?").run(encode(active), nowIso(), PROJECT_ID);
+      this.db.exec("COMMIT");
+    } catch (error) { this.db.exec("ROLLBACK"); throw error; }
+  }
+
   updateState(patch: StatePatch): StateRecord {
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
     const current = this.getState();
     const next = {
       phase: patch.phase === undefined ? current.phase : patch.phase,
       status: patch.status === undefined ? current.status : patch.status,
       completed: patch.completed === undefined ? current.completed : patch.completed,
-      active: patch.active === undefined ? current.active : patch.active,
+      active: patch.active === undefined ? current.active : preserveOwnerReceipts(current.active, patch.active),
       blockers: patch.blockers === undefined ? current.blockers : patch.blockers,
       decisions: patch.decisions === undefined ? current.decisions : patch.decisions,
       deliverables: patch.deliverables === undefined ? current.deliverables : patch.deliverables,
@@ -312,7 +330,10 @@ export class CompassStore {
       nowIso(),
       PROJECT_ID,
     );
-    return this.getState();
+    const result = this.getState();
+    this.db.exec("COMMIT");
+    return result;
+    } catch (error) { this.db.exec("ROLLBACK"); throw error; }
   }
 
   getNextAction(): string | null {
@@ -393,7 +414,7 @@ export class CompassStore {
       const current = this.getState();
       const nextCompleted = input.completed ?? current.completed;
       const nextBlockers = input.blockers ?? current.blockers;
-      const nextActive = input.active ?? current.active;
+      const nextActive = input.active === undefined ? current.active : preserveOwnerReceipts(current.active, input.active);
       const nextDecisions = input.decisions ?? current.decisions;
       const nextDeliverables = input.deliverables ?? current.deliverables;
       const nextAction = input.nextAction === undefined ? current.nextAction : input.nextAction;

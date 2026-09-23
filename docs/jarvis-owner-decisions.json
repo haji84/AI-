@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "scope": "Reviewed repository decisions only; live intake extraction is pending",
+  "scope": "Reviewed canonical decisions; authenticated runtime receipts require exact deployed canonical synchronization.",
   "decisions": [
     {
       "id": "owner-1205-living-specification",
@@ -27,7 +27,7 @@
       ],
       "supersedes": [],
       "superseded_by": [],
-      "next_action": "Authenticated live intake and automatic specification PR path remain pending."
+      "next_action": "Candidate Broker intake, correction/withdrawal proposals and completion gating added; broader semantic extraction, new-ID allocation and automatic reviewed PR publishing remain pending."
     }
   ]
 }

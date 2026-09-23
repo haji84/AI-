@@ -1,3 +1,6 @@
+import { fileURLToPath } from "node:url";
+import { loadCanonicalBundle, prepareSpecificationProposal } from "./jarvis-owner-spec-sync.mjs";
+import { OwnerRequirementIntake, matchRequirementCandidates } from "../src/orchestrator/owner-requirement-intake.ts";
 import { execFileSync } from "node:child_process";
 import { createHash, createPublicKey, randomBytes, timingSafeEqual } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
@@ -52,6 +55,7 @@ const store = new JarvisSqliteStateStore(process.env.JARVIS_DB_PATH?.trim() || u
 const compassPath = process.env.JARVIS_COMPASS_DB_PATH?.trim() || (process.env.JARVIS_DB_PATH?.trim() ? `${process.env.JARVIS_DB_PATH.trim()}.compass.sqlite` : resolve(".jarvis/compass.db"));
 const compass = new CompassStore(compassPath);
 const workRuns = new CompassWorkRunStore(compass);
+const ownerRequirements = new OwnerRequirementIntake(compass);
 const goalController = new GoalControllerRuntime({
   registry: new CompassGoalRegistryAdapter(compass),
   decisionStore: new CompassGoalDecisionStoreAdapter(compass),
@@ -270,6 +274,18 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
     if (!requireOwner(request)) return json(response, 401, { message: "owner authorization required" });
     const payload = parseJson(body);
     if (method === "GET" && path === "/api/jarvis/admin/state") return json(response, 200, plane.snapshot());
+    if (method === "GET" && path === "/api/jarvis/admin/requirements") return json(response, 200, { records: ownerRequirements.list() });
+    if (method === "POST" && path === "/api/jarvis/admin/requirements/proposal") {
+      try {
+        const record = ownerRequirements.list().find(r => r.id === payload.decisionId);
+        if (!record) return json(response, 404, { message: "owner requirement not found" });
+        const root = fileURLToPath(new URL("../", import.meta.url));
+        const proposal = prepareSpecificationProposal(record, loadCanonicalBundle(root), payload.review, root, ownerRequirements.list());
+        const { bundle: _bundle, ...artifact } = proposal;
+        void _bundle;
+        return json(response, 200, artifact);
+      } catch (error) { return json(response, 409, { message: error instanceof Error ? error.message : "specification proposal failed" }); }
+    }
     if (method === "GET" && path.startsWith("/api/jarvis/admin/work/")) {
       const goalId = decodeURIComponent(path.slice("/api/jarvis/admin/work/".length));
       const run = await workRuns.getByGoal(goalId);
@@ -278,13 +294,22 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
     }
     if (method === "POST" && path === "/api/jarvis/admin/work") {
       try {
-        const payload = parseJson(await readBody(request, 64_000));
+        if (body.length > 64_000) return json(response, 413, { message: "work input too large" });
         const text = typeof payload.text === "string" ? payload.text.trim() : "";
         if (!text) return json(response, 400, { message: "仕事の内容を入力してください" });
         const idempotencyKey = typeof payload.idempotencyKey === "string" ? payload.idempotencyKey.trim() : undefined;
+        const prepared = ownerRequirements.prepare(text, idempotencyKey, payload.requirement);
+        const rows = JSON.parse(readFileSync(new URL("../docs/jarvis-requirements.json", import.meta.url), "utf8")).requirements;
+        if (prepared.input) matchRequirementCandidates(prepared.input, rows);
+        const activeGoal = (await new CompassGoalRegistryAdapter(compass).listActive())[0];
+        // Write the receipt before creating/changing Goal state. An interrupted bind
+        // leaves a visible unassigned sync gate instead of an untracked accepted Goal.
+        let requirement = ownerRequirements.capture(prepared, activeGoal?.goalId ?? null, rows);
         const decision = await goalController.handle({ source: "jarvis", text, idempotencyKey });
+        if (requirement) requirement = ownerRequirements.bindGoal(requirement.id, decision.goalId ?? activeGoal?.goalId ?? null);
         return json(response, 202, {
           accepted: true,
+          requirement,
           goalId: decision.goalId ?? null,
           action: decision.action,
           resolution: decision.resolution.kind,

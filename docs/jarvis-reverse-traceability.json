@@ -296,6 +296,16 @@
       "reason": "iOS Worker lifecycle, app packaging and documented platform limits"
     },
     {
+      "path": "apps/ios-worker/project.yml",
+      "sha256": "dc7b823f90021417fe9fa9e29a632f5712bbb1b13984027e850bd19014fc387f",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "DEV-I-001",
+        "DEV-I-007"
+      ],
+      "reason": "iOS Worker lifecycle, app packaging and documented platform limits"
+    },
+    {
       "path": "apps/ios-worker/README.md",
       "sha256": "1e8bea2297893986653bc03326794f1fa5b5e4897397c59bfef4c8495b7af293",
       "classification": "COVERED_BY_REQUIREMENT",
@@ -341,16 +351,6 @@
         "RA-022"
       ],
       "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
-    },
-    {
-      "path": "apps/ios-worker/project.yml",
-      "sha256": "dc7b823f90021417fe9fa9e29a632f5712bbb1b13984027e850bd19014fc387f",
-      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
-      "requirement_ids": [
-        "DEV-I-001",
-        "DEV-I-007"
-      ],
-      "reason": "iOS Worker lifecycle, app packaging and documented platform limits"
     },
     {
       "path": "docs/architecture/0001-ai-company-operating-model.md",
@@ -673,7 +673,7 @@
     },
     {
       "path": "docs/architecture/jarvis-requirement-traceability.md",
-      "sha256": "8440bcb6fed133b0a1ec37348cd0659318a4d2d9dab2335ea75a0814b410ed6f",
+      "sha256": "dacbfccbd05bc87460ea4ead7bfc0a349aaa1465bec4aa6af906cde78ab84a4e",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "GOV-025",
@@ -914,7 +914,7 @@
     },
     {
       "path": "scripts/jarvis-broker.ts",
-      "sha256": "8e34a4787a353b9d24c7565092808d59391368ddcf7e7cdcb6a456398506a485",
+      "sha256": "e984d55a0c38965750c0149ae9bc1df8b23b7039af632ef980094a6287a0ae44",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "NET-006",
@@ -928,7 +928,8 @@
         "SEC-005",
         "SEC-006",
         "SEC-007",
-        "SEC-010"
+        "SEC-010",
+        "GOV-025"
       ],
       "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
     },
@@ -1094,6 +1095,26 @@
       "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
     },
     {
+      "path": "scripts/jarvis-owner-spec-sync.d.mts",
+      "sha256": "d81fb11aa2e405ba657eb2a23aff06b0f70ae8550a6fbca2e7cb1e138576f79d",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "GOV-025",
+        "CORE-015"
+      ],
+      "reason": "Declared jarvis-owner-spec-sync.d.mts responsibility implements/supports 127. Requirement-to-Evidence Traceability; Software Lifecycle. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "scripts/jarvis-owner-spec-sync.mjs",
+      "sha256": "2ae5e603caab63ee52a49bea540714d80223f099401f4de6736842c5c642f959",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "GOV-025",
+        "CORE-015"
+      ],
+      "reason": "Declared jarvis-owner-spec-sync.mjs responsibility implements/supports 127. Requirement-to-Evidence Traceability; Software Lifecycle. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
       "path": "scripts/jarvis-power-recovery-check.mjs",
       "sha256": "5d24f4c6c327e90283973d2affdf9d43d5ef61eea238ba8c857d2a2c03ba943e",
       "classification": "COVERED_BY_REQUIREMENT",
@@ -1225,7 +1246,7 @@
     },
     {
       "path": "scripts/jarvis-requirement-audit.mjs",
-      "sha256": "02a23518a568a40b95a5d15e3fa13cc55b9d7956f6cbc68ba213e31173b3f332",
+      "sha256": "14546aeece3cc770874d74ae0aa0b8e03e06c2a47a4fd62046e488a928b6ebba",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "GOV-025",
@@ -1252,6 +1273,15 @@
         "OPS-010"
       ],
       "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/app/api/command/route.ts",
+      "sha256": "582f1c23119bb405fca49359a449d5d1c80269f8e74939284538369e44c4da1b",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-005"
+      ],
+      "reason": "Declared route.ts responsibility implements/supports Input Recovery. Parent ownership is not functional or physical acceptance evidence."
     },
     {
       "path": "src/app/api/jarvis/action/route.ts",
@@ -1375,13 +1405,240 @@
     },
     {
       "path": "src/app/api/jarvis/work/route.ts",
-      "sha256": "0c4adf5c0d0f2bafbd15e110d04150a665f902e2d9a1ab492bbd6a7712b62251",
+      "sha256": "893972ed254700c9ba5b87e5a7c352d9281fa3cdc284e8bb91fd048461f3f3e2",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-001",
-        "AUTO-004"
+        "AUTO-004",
+        "GOV-025"
       ],
       "reason": "Persisted work intake/state API"
+    },
+    {
+      "path": "src/app/api/owner-login/route.ts",
+      "sha256": "96ed1ba593273ed6b777596e8503921df5594381ac157799a96931a7dd75cfca",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "SEC-001",
+        "SEC-002",
+        "AUTO-001"
+      ],
+      "reason": "Declared route.ts responsibility implements/supports Owner Authentication; Session Control; One Front Door. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/app/api/owner-login/trusted/challenge/route.ts",
+      "sha256": "9d47424b11ffb26f57a87f3cf2b2f295327a3b344e742225ec96e1db11dd739f",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "SEC-001",
+        "SEC-002",
+        "AUTO-001"
+      ],
+      "reason": "Declared route.ts responsibility implements/supports Owner Authentication; Session Control; One Front Door. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/app/api/owner-login/trusted/enroll/route.ts",
+      "sha256": "8f6cf397b5db8917de0f7c1208df5c232179ab498e05acf6fbe2f3d9bab60081",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "SEC-001",
+        "SEC-002",
+        "AUTO-001"
+      ],
+      "reason": "Declared route.ts responsibility implements/supports Owner Authentication; Session Control; One Front Door. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/app/api/owner-login/trusted/verify/route.ts",
+      "sha256": "2187ed10c0e18b9cc518de8de93e9e9cd0c9ced2e5fcce3b09c5dc8841b67150",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "SEC-001",
+        "SEC-002",
+        "AUTO-001"
+      ],
+      "reason": "Declared route.ts responsibility implements/supports Owner Authentication; Session Control; One Front Door. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/app/api/owner-logout/route.ts",
+      "sha256": "9aecfa0193fa8cc60d1d5a4c6be9383439ba7b4d2d0173f5e8c77704eab4437d",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "SEC-001",
+        "SEC-002",
+        "AUTO-001"
+      ],
+      "reason": "Declared route.ts responsibility implements/supports Owner Authentication; Session Control; One Front Door. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/app/api/vercel-owner/route.ts",
+      "sha256": "29034ec1a801531f383c2d9c18e73f818b68a149f25405dc9a91c68104ecfe77",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "SEC-001",
+        "SEC-002",
+        "AUTO-001"
+      ],
+      "reason": "Declared route.ts responsibility implements/supports Owner Authentication; Session Control; One Front Door. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/app/jarvis/accessibility-preferences.ts",
+      "sha256": "03c2d24603cdfd7fc6c07f507244373c8ecb5f7da855d094c62bcf0ce7d97700",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "GOV-028"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/app/jarvis/accessibility-status.css",
+      "sha256": "fe235cacad2461fbd652ad5f7af0651a819ebc44cdb1f2a8c3092b1939a3fcd5",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "UI-031"
+      ],
+      "reason": "Accessibility display preferences"
+    },
+    {
+      "path": "src/app/jarvis/apple-icon.tsx",
+      "sha256": "d2fb532ad8216c8179c739614e4a8c03898ae1202940e77e05a403ab6f01d536",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-006"
+      ],
+      "reason": "App branding and manifest assets"
+    },
+    {
+      "path": "src/app/jarvis/command-search.css",
+      "sha256": "ed9777db8b48b6f6238bf9e2d06a3fe84f8dc3f40b33c95606f827db59f77ec0",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "UI-021"
+      ],
+      "reason": "Universal command search UI"
+    },
+    {
+      "path": "src/app/jarvis/connectivity-status.ts",
+      "sha256": "034abf592db0b6b256057415edac703ccb4fce2fbd5e281aa76394199fa140a8",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "GOV-028"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/app/jarvis/devices/page.tsx",
+      "sha256": "985aa9c049c6eda01f429a820da312ef66b28a8d0cc2e05482950a1e2b3e7f47",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-I-008",
+        "RA-006",
+        "RA-022"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/app/jarvis/devices/PlatformRemoteAssistFleet.tsx",
+      "sha256": "7ff7b178c79c9f3a513442ed909f82e4f44b5e0b76f46c47d46e76c716618eeb",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-002",
+        "RA-006"
+      ],
+      "reason": "Fleet page and capability display"
+    },
+    {
+      "path": "src/app/jarvis/diagnostics/page.tsx",
+      "sha256": "230afc816899892dd00e7ab3f1c03d2c2eeb8f8343ff7980eb114e1cabc6206e",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OPS-008"
+      ],
+      "reason": "Owner diagnostics page"
+    },
+    {
+      "path": "src/app/jarvis/display-modes.ts",
+      "sha256": "f00bc9fdea794adea1188f2999c066ee81f47fa3c83971ea3f603b9e2ad77977",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-024",
+        "UI-026"
+      ],
+      "reason": "Distance/mobile display profiles"
+    },
+    {
+      "path": "src/app/jarvis/enroll/EnrollmentProgress.tsx",
+      "sha256": "e6138a25d2806a27cc29c43843eac23d605dc4bac904862ba853a2f2364011a0",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "FLEET-003",
+        "FLEET-006"
+      ],
+      "reason": "Owner enrollment progress/invitation/pending pages"
+    },
+    {
+      "path": "src/app/jarvis/enroll/OwnerInvitationPanel.tsx",
+      "sha256": "8ab754db12d9ce247229449f2d1a173cee0f2c77289102677947d8bd4cfee535",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "FLEET-003",
+        "FLEET-006"
+      ],
+      "reason": "Owner enrollment progress/invitation/pending pages"
+    },
+    {
+      "path": "src/app/jarvis/enroll/page.tsx",
+      "sha256": "53eefdcc604922a8522260518593a1efd89d569773133a0118d55a16345357a4",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "FLEET-001",
+        "FLEET-002",
+        "FLEET-003",
+        "FLEET-004",
+        "FLEET-005",
+        "FLEET-006",
+        "FLEET-007",
+        "FLEET-008"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/app/jarvis/enroll/PendingRegistration.tsx",
+      "sha256": "671715958180754b4b53e8e039afee8adbb9e472bb85c77291f8fa5b53db4fac",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "FLEET-003",
+        "FLEET-006"
+      ],
+      "reason": "Owner enrollment progress/invitation/pending pages"
+    },
+    {
+      "path": "src/app/jarvis/icon.tsx",
+      "sha256": "60701017daeeeae58ced9ff0031ffb693b6b7694dad414d668d5d4c83fa0c1c9",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-006"
+      ],
+      "reason": "App branding and manifest assets"
+    },
+    {
+      "path": "src/app/jarvis/jarvis.css",
+      "sha256": "edfe5d563e9b899ddb8cae2f6c7263f7a84622d3ad6c3072d755e8e2487a422f",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "UI-001",
+        "UI-002",
+        "UI-003",
+        "UI-006",
+        "UI-020",
+        "UI-026",
+        "UI-027",
+        "UI-031",
+        "UI-032",
+        "UI-034",
+        "UI-037",
+        "UI-038"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
     },
     {
       "path": "src/app/jarvis/JarvisAccessibilityControls.tsx",
@@ -1527,221 +1784,6 @@
       "reason": "Single owner front door and navigation shell"
     },
     {
-      "path": "src/app/jarvis/OwnerLogin.tsx",
-      "sha256": "1c52c76c96c935ea90ff2125e8e81b6746262d2ea71852c54489549484a0d4bd",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "SEC-001",
-        "SEC-002"
-      ],
-      "reason": "Owner trusted browser authentication UI"
-    },
-    {
-      "path": "src/app/jarvis/RemoteAssistMultiView.tsx",
-      "sha256": "11a822414eeb041b1ee7f5cdcca1145c909e606212bd9ad67f38b2b70ce3a122",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "RA-003",
-        "RA-004",
-        "RA-005"
-      ],
-      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
-    },
-    {
-      "path": "src/app/jarvis/RemoteScreenControl.tsx",
-      "sha256": "9d7958f9494c31d4d7fa1aba7cb25f50255ef4b4f1ec7192faa90e3355d22cc3",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "RA-007",
-        "RA-009"
-      ],
-      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
-    },
-    {
-      "path": "src/app/jarvis/RemoteVideo.tsx",
-      "sha256": "20b5fa5981f99c1702ee3b4543ba0a814514c999ece8285a184750b9000a743a",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "RA-013",
-        "RA-014"
-      ],
-      "reason": "Remote video presentation"
-    },
-    {
-      "path": "src/app/jarvis/TeachingControls.tsx",
-      "sha256": "f6ea5fe271c8cd070222b819f67c943451964ba169a04de19c787cfea81cc793",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "TEACH-001",
-        "TEACH-002",
-        "TEACH-003",
-        "TEACH-004",
-        "TEACH-005",
-        "TEACH-006"
-      ],
-      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
-    },
-    {
-      "path": "src/app/jarvis/accessibility-preferences.ts",
-      "sha256": "03c2d24603cdfd7fc6c07f507244373c8ecb5f7da855d094c62bcf0ce7d97700",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "GOV-028"
-      ],
-      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
-    },
-    {
-      "path": "src/app/jarvis/accessibility-status.css",
-      "sha256": "fe235cacad2461fbd652ad5f7af0651a819ebc44cdb1f2a8c3092b1939a3fcd5",
-      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
-      "requirement_ids": [
-        "UI-031"
-      ],
-      "reason": "Accessibility display preferences"
-    },
-    {
-      "path": "src/app/jarvis/apple-icon.tsx",
-      "sha256": "d2fb532ad8216c8179c739614e4a8c03898ae1202940e77e05a403ab6f01d536",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "UI-006"
-      ],
-      "reason": "App branding and manifest assets"
-    },
-    {
-      "path": "src/app/jarvis/command-search.css",
-      "sha256": "ed9777db8b48b6f6238bf9e2d06a3fe84f8dc3f40b33c95606f827db59f77ec0",
-      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
-      "requirement_ids": [
-        "UI-021"
-      ],
-      "reason": "Universal command search UI"
-    },
-    {
-      "path": "src/app/jarvis/connectivity-status.ts",
-      "sha256": "034abf592db0b6b256057415edac703ccb4fce2fbd5e281aa76394199fa140a8",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "GOV-028"
-      ],
-      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
-    },
-    {
-      "path": "src/app/jarvis/devices/PlatformRemoteAssistFleet.tsx",
-      "sha256": "7ff7b178c79c9f3a513442ed909f82e4f44b5e0b76f46c47d46e76c716618eeb",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "UI-002",
-        "RA-006"
-      ],
-      "reason": "Fleet page and capability display"
-    },
-    {
-      "path": "src/app/jarvis/devices/page.tsx",
-      "sha256": "985aa9c049c6eda01f429a820da312ef66b28a8d0cc2e05482950a1e2b3e7f47",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "DEV-I-008",
-        "RA-006",
-        "RA-022"
-      ],
-      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
-    },
-    {
-      "path": "src/app/jarvis/diagnostics/page.tsx",
-      "sha256": "230afc816899892dd00e7ab3f1c03d2c2eeb8f8343ff7980eb114e1cabc6206e",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "OPS-008"
-      ],
-      "reason": "Owner diagnostics page"
-    },
-    {
-      "path": "src/app/jarvis/display-modes.ts",
-      "sha256": "f00bc9fdea794adea1188f2999c066ee81f47fa3c83971ea3f603b9e2ad77977",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "UI-024",
-        "UI-026"
-      ],
-      "reason": "Distance/mobile display profiles"
-    },
-    {
-      "path": "src/app/jarvis/enroll/EnrollmentProgress.tsx",
-      "sha256": "e6138a25d2806a27cc29c43843eac23d605dc4bac904862ba853a2f2364011a0",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "FLEET-003",
-        "FLEET-006"
-      ],
-      "reason": "Owner enrollment progress/invitation/pending pages"
-    },
-    {
-      "path": "src/app/jarvis/enroll/OwnerInvitationPanel.tsx",
-      "sha256": "8ab754db12d9ce247229449f2d1a173cee0f2c77289102677947d8bd4cfee535",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "FLEET-003",
-        "FLEET-006"
-      ],
-      "reason": "Owner enrollment progress/invitation/pending pages"
-    },
-    {
-      "path": "src/app/jarvis/enroll/PendingRegistration.tsx",
-      "sha256": "671715958180754b4b53e8e039afee8adbb9e472bb85c77291f8fa5b53db4fac",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "FLEET-003",
-        "FLEET-006"
-      ],
-      "reason": "Owner enrollment progress/invitation/pending pages"
-    },
-    {
-      "path": "src/app/jarvis/enroll/page.tsx",
-      "sha256": "53eefdcc604922a8522260518593a1efd89d569773133a0118d55a16345357a4",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "FLEET-001",
-        "FLEET-002",
-        "FLEET-003",
-        "FLEET-004",
-        "FLEET-005",
-        "FLEET-006",
-        "FLEET-007",
-        "FLEET-008"
-      ],
-      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
-    },
-    {
-      "path": "src/app/jarvis/icon.tsx",
-      "sha256": "60701017daeeeae58ced9ff0031ffb693b6b7694dad414d668d5d4c83fa0c1c9",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "UI-006"
-      ],
-      "reason": "App branding and manifest assets"
-    },
-    {
-      "path": "src/app/jarvis/jarvis.css",
-      "sha256": "edfe5d563e9b899ddb8cae2f6c7263f7a84622d3ad6c3072d755e8e2487a422f",
-      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
-      "requirement_ids": [
-        "UI-001",
-        "UI-002",
-        "UI-003",
-        "UI-006",
-        "UI-020",
-        "UI-026",
-        "UI-027",
-        "UI-031",
-        "UI-032",
-        "UI-034",
-        "UI-037",
-        "UI-038"
-      ],
-      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
-    },
-    {
       "path": "src/app/jarvis/layout-modes.css",
       "sha256": "69eb0f8f33c810f16d329244c01e8af70ce07f8eabe203bf0f36246a7f3a966f",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
@@ -1779,15 +1821,6 @@
         "UI-006"
       ],
       "reason": "App branding and manifest assets"
-    },
-    {
-      "path": "src/app/jarvis/mobile/MobileCommander.tsx",
-      "sha256": "9536bf4ce65f46c3dd4374cf516d4a48c98e076a2da7680166d773a8c6aaa196",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "INT-003"
-      ],
-      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
     },
     {
       "path": "src/app/jarvis/mobile/command-context.ts",
@@ -1864,6 +1897,15 @@
       "reason": "Mobile owner command surface"
     },
     {
+      "path": "src/app/jarvis/mobile/MobileCommander.tsx",
+      "sha256": "9536bf4ce65f46c3dd4374cf516d4a48c98e076a2da7680166d773a8c6aaa196",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "INT-003"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
       "path": "src/app/jarvis/mobile/page.tsx",
       "sha256": "6d94fe5259ce8f3a4ab3f252e930044797c1c93a86f79f043bec8a944f394f19",
       "classification": "COVERED_BY_REQUIREMENT",
@@ -1874,8 +1916,8 @@
       "reason": "Mobile owner command surface"
     },
     {
-      "path": "src/app/jarvis/mobile/pointer/ImuPointerCommander.tsx",
-      "sha256": "e8728b510435ded9bb3879d1866d7771474a32b6b94b2a2eb2a9a25309dbb3ea",
+      "path": "src/app/jarvis/mobile/pointer/imu-pointer.ts",
+      "sha256": "a4ab9ea2b772c946a1db4fdfaafac7d4c973bf4654f80e48da23dff805d16a46",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "GEST-006",
@@ -1884,8 +1926,8 @@
       "reason": "Smartphone inertial pointer"
     },
     {
-      "path": "src/app/jarvis/mobile/pointer/imu-pointer.ts",
-      "sha256": "a4ab9ea2b772c946a1db4fdfaafac7d4c973bf4654f80e48da23dff805d16a46",
+      "path": "src/app/jarvis/mobile/pointer/ImuPointerCommander.tsx",
+      "sha256": "e8728b510435ded9bb3879d1866d7771474a32b6b94b2a2eb2a9a25309dbb3ea",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "GEST-006",
@@ -1950,18 +1992,6 @@
       "reason": "Voice input/persona/policy UI"
     },
     {
-      "path": "src/app/jarvis/mobile/voice/SpeechPersonaStylePanel.tsx",
-      "sha256": "0de1d4de22700c4ad77aeefacb22738e7db26ba9a2801222efa349ee6897b2f1",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "INT-001",
-        "INT-008",
-        "INT-009",
-        "INT-017"
-      ],
-      "reason": "Voice input/persona/policy UI"
-    },
-    {
       "path": "src/app/jarvis/mobile/voice/page.tsx",
       "sha256": "4c24ae25115829edad996c7476b15a95c4ba9c4aa6992367e1dc4f649171a84d",
       "classification": "COVERED_BY_REQUIREMENT",
@@ -1976,6 +2006,18 @@
     {
       "path": "src/app/jarvis/mobile/voice/speech-policy.ts",
       "sha256": "480268b92f0d64355b39a35e292e95f6e7599416702c251dc9646cf4da013093",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "INT-001",
+        "INT-008",
+        "INT-009",
+        "INT-017"
+      ],
+      "reason": "Voice input/persona/policy UI"
+    },
+    {
+      "path": "src/app/jarvis/mobile/voice/SpeechPersonaStylePanel.tsx",
+      "sha256": "0de1d4de22700c4ad77aeefacb22738e7db26ba9a2801222efa349ee6897b2f1",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "INT-001",
@@ -2039,6 +2081,16 @@
       "reason": "Focus/privacy/read-only operating modes"
     },
     {
+      "path": "src/app/jarvis/OwnerLogin.tsx",
+      "sha256": "1c52c76c96c935ea90ff2125e8e81b6746262d2ea71852c54489549484a0d4bd",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "SEC-001",
+        "SEC-002"
+      ],
+      "reason": "Owner trusted browser authentication UI"
+    },
+    {
       "path": "src/app/jarvis/page.tsx",
       "sha256": "b60a1b6f724b89193f5076d82c542c619be53acc7eaeffb8277c47f5b4fba314",
       "classification": "COVERED_BY_REQUIREMENT",
@@ -2047,15 +2099,6 @@
         "AUTO-001"
       ],
       "reason": "Single owner front door and navigation shell"
-    },
-    {
-      "path": "src/app/jarvis/qa/QaSequenceConsole.tsx",
-      "sha256": "f52c50aa3ccee08601e0fc8d1d7bfc9a6b2ea0f5f273f8421609f6b4c13d164a",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "TEACH-003"
-      ],
-      "reason": "Owner-authorized sequence observation and condition QA"
     },
     {
       "path": "src/app/jarvis/qa/page.tsx",
@@ -2067,8 +2110,17 @@
       "reason": "Owner-authorized sequence observation and condition QA"
     },
     {
-      "path": "src/app/jarvis/recordings/RecordingHistory.tsx",
-      "sha256": "cb38f6c544ec1ec9cb58841ddca89331590cd8ff6230d3c22f9c946997f8e0d8",
+      "path": "src/app/jarvis/qa/QaSequenceConsole.tsx",
+      "sha256": "f52c50aa3ccee08601e0fc8d1d7bfc9a6b2ea0f5f273f8421609f6b4c13d164a",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "TEACH-003"
+      ],
+      "reason": "Owner-authorized sequence observation and condition QA"
+    },
+    {
+      "path": "src/app/jarvis/recordings/page.tsx",
+      "sha256": "f52bcf34b672e36388bd978b478dfbd65f9468e76a7d2844a6a0716371cbe9e5",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "RA-013"
@@ -2076,8 +2128,8 @@
       "reason": "Recording list and retention UI"
     },
     {
-      "path": "src/app/jarvis/recordings/page.tsx",
-      "sha256": "f52bcf34b672e36388bd978b478dfbd65f9468e76a7d2844a6a0716371cbe9e5",
+      "path": "src/app/jarvis/recordings/RecordingHistory.tsx",
+      "sha256": "cb38f6c544ec1ec9cb58841ddca89331590cd8ff6230d3c22f9c946997f8e0d8",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "RA-013"
@@ -2092,6 +2144,37 @@
         "OPS-009"
       ],
       "reason": "Recovery dashboard page"
+    },
+    {
+      "path": "src/app/jarvis/RemoteAssistMultiView.tsx",
+      "sha256": "11a822414eeb041b1ee7f5cdcca1145c909e606212bd9ad67f38b2b70ce3a122",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "RA-003",
+        "RA-004",
+        "RA-005"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/app/jarvis/RemoteScreenControl.tsx",
+      "sha256": "9d7958f9494c31d4d7fa1aba7cb25f50255ef4b4f1ec7192faa90e3355d22cc3",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "RA-007",
+        "RA-009"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/app/jarvis/RemoteVideo.tsx",
+      "sha256": "20b5fa5981f99c1702ee3b4543ba0a814514c999ece8285a184750b9000a743a",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "RA-013",
+        "RA-014"
+      ],
+      "reason": "Remote video presentation"
     },
     {
       "path": "src/app/jarvis/research/page.tsx",
@@ -2152,6 +2235,15 @@
       "reason": "Per-screen layout presets"
     },
     {
+      "path": "src/app/jarvis/settings/page.tsx",
+      "sha256": "01d526982eafa09bbf8c23ea58d4e276180421e198fa6443120424a91d68bd50",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-005"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
       "path": "src/app/jarvis/settings/TrustedDeviceSettings.tsx",
       "sha256": "5b9147a4c98a30cfe740c91dbca8ee7a4422dad70c64ab5aef5de284c59b0d4d",
       "classification": "COVERED_BY_REQUIREMENT",
@@ -2162,17 +2254,8 @@
       "reason": "Owner trusted browser authentication UI"
     },
     {
-      "path": "src/app/jarvis/settings/page.tsx",
-      "sha256": "01d526982eafa09bbf8c23ea58d4e276180421e198fa6443120424a91d68bd50",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "UI-005"
-      ],
-      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
-    },
-    {
-      "path": "src/app/jarvis/setup/SetupWizardClient.tsx",
-      "sha256": "d3cbc9c86ccb82055d9ca24826d719816e3a42145a0767d2e36ccd6205716331",
+      "path": "src/app/jarvis/setup/page.tsx",
+      "sha256": "f39c20e9ebe835ce196e39b7605466479247c8cecb69c066f76398c3310875ab",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OPS-012"
@@ -2180,8 +2263,8 @@
       "reason": "First-run setup wizard"
     },
     {
-      "path": "src/app/jarvis/setup/page.tsx",
-      "sha256": "f39c20e9ebe835ce196e39b7605466479247c8cecb69c066f76398c3310875ab",
+      "path": "src/app/jarvis/setup/SetupWizardClient.tsx",
+      "sha256": "d3cbc9c86ccb82055d9ca24826d719816e3a42145a0767d2e36ccd6205716331",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OPS-012"
@@ -2199,6 +2282,16 @@
       "reason": "Single owner front door and navigation shell"
     },
     {
+      "path": "src/app/jarvis/tasks/page.tsx",
+      "sha256": "32639ad1a2ab93f224aec905f0c41ec0d25db457e30a17664ac0f615f5245517",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-003",
+        "OPS-001"
+      ],
+      "reason": "Task board and history"
+    },
+    {
       "path": "src/app/jarvis/tasks/TaskBoard.tsx",
       "sha256": "9a1c867b4d453e105fad78fbc83b40ab78ed917dd3c1f065159cba00a3e5e9ca",
       "classification": "COVERED_BY_REQUIREMENT",
@@ -2209,14 +2302,19 @@
       "reason": "Task board and history"
     },
     {
-      "path": "src/app/jarvis/tasks/page.tsx",
-      "sha256": "32639ad1a2ab93f224aec905f0c41ec0d25db457e30a17664ac0f615f5245517",
+      "path": "src/app/jarvis/teach/page.tsx",
+      "sha256": "17cd9cf2bb278e2c4c03b928edd6f679585ab4035645ea46e3ce1e6c1764a991",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
-        "UI-003",
-        "OPS-001"
+        "TEACH-001",
+        "TEACH-002",
+        "TEACH-003",
+        "TEACH-004",
+        "TEACH-005",
+        "TEACH-006",
+        "CORE-018"
       ],
-      "reason": "Task board and history"
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
     },
     {
       "path": "src/app/jarvis/teach/VideoReplayControls.tsx",
@@ -2239,8 +2337,8 @@
       "reason": "Teaching/video candidate controls"
     },
     {
-      "path": "src/app/jarvis/teach/page.tsx",
-      "sha256": "17cd9cf2bb278e2c4c03b928edd6f679585ab4035645ea46e3ce1e6c1764a991",
+      "path": "src/app/jarvis/TeachingControls.tsx",
+      "sha256": "f6ea5fe271c8cd070222b819f67c943451964ba169a04de19c787cfea81cc793",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "TEACH-001",
@@ -2248,8 +2346,7 @@
         "TEACH-003",
         "TEACH-004",
         "TEACH-005",
-        "TEACH-006",
-        "CORE-018"
+        "TEACH-006"
       ],
       "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
     },
@@ -2316,6 +2413,68 @@
         "AUTO-001"
       ],
       "reason": "Single owner front door and navigation shell"
+    },
+    {
+      "path": "src/app/owner-auth.ts",
+      "sha256": "2b4cc20a626bb61078e53c12259de1779990cf71be2d4bd5bb73757b0ed31a1a",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "NET-005",
+        "RA-015",
+        "RA-016",
+        "SEC-001",
+        "SEC-002",
+        "SEC-019"
+      ],
+      "reason": "Declared owner-auth.ts responsibility implements/supports Owner authenticationを維持; Session auth; Encryption; Owner Authentication; Session Control; Negative Security Tests. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/app/owner-login-redirect.ts",
+      "sha256": "2ae40a13801fbe25ee1a911f049f8a28622d415ea07b64dbd9b03075ba096dcb",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "SEC-001",
+        "SEC-002",
+        "AUTO-001"
+      ],
+      "reason": "Declared owner-login-redirect.ts responsibility implements/supports Owner Authentication; Session Control; One Front Door. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/compass/server.ts",
+      "sha256": "e371b1cbf51098c3f9f4b10a40d68a4ebf000f74b2cd6826c6c3ca2e7c2d6ee8",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-002",
+        "AUTO-004",
+        "AUTO-008"
+      ],
+      "reason": "Declared server.ts responsibility implements/supports Goal persistence; Current State persistence; Next Action persistence. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/compass/store.ts",
+      "sha256": "d4f411709b300b12f4e75d8a53d29a0efc91c785343eeb2e69d7363ae44e6326",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-002",
+        "AUTO-003",
+        "AUTO-004",
+        "AUTO-005",
+        "AUTO-006",
+        "AUTO-007",
+        "AUTO-008"
+      ],
+      "reason": "Declared store.ts responsibility implements/supports Goal persistence; DoD persistence; Current State persistence; Decisions persistence; Deliverables persistence; Verification persistence; Next Action persistence. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/compass/tools.ts",
+      "sha256": "7dbae5bffa35570a6b9338fb4a760c0a6888bc35c9f4b66e0946ec825f2bf073",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-002",
+        "AUTO-004",
+        "AUTO-008"
+      ],
+      "reason": "Declared tools.ts responsibility implements/supports Goal persistence; Current State persistence; Next Action persistence. Parent ownership is not functional or physical acceptance evidence."
     },
     {
       "path": "src/gai/agi-gap-report.ts",
@@ -3702,6 +3861,1120 @@
         "RA-014"
       ],
       "reason": "Signed worker remote command mailbox"
+    },
+    {
+      "path": "src/orchestrator/adaptive-intelligence-router.ts",
+      "sha256": "b46363989da7f9643fa2895573023b69c28511535cff6ac0a8196256cac4c74a",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-007",
+        "AUTO-010"
+      ],
+      "reason": "Declared adaptive-intelligence-router.ts responsibility implements/supports Model Router; Capability Router. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/adaptive-team-runner.ts",
+      "sha256": "8cfc3a39efbb36fbffdadd18c37b40c88021ebcb596e124699334aeb9d89b62d",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-006",
+        "CORE-009"
+      ],
+      "reason": "Declared adaptive-team-runner.ts responsibility implements/supports Dynamic Orchestration; Parallel / Adaptive / Multi-plan. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/approval-key.ts",
+      "sha256": "d419cf1c2251cc29399f4ac348b13a3c0bb86bb5a7c99b221a52e45ce1d6822b",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "SEC-014",
+        "CORE-020"
+      ],
+      "reason": "Declared approval-key.ts responsibility implements/supports Human Gate: payment/purchase/billing/contract/permission changes/credentials/tokens/security weakening/destructive deletion/irreversible action/governance changes/protected external publication/protected production action; Risk / Capability Grant. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/auto-merge-policy.ts",
+      "sha256": "72645f53ad2c20547632d5d8c5a25ecc5e4581e4a6f0ae062046e0319c3ddf01",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "SEC-014",
+        "CORE-020"
+      ],
+      "reason": "Declared auto-merge-policy.ts responsibility implements/supports Human Gate: payment/purchase/billing/contract/permission changes/credentials/tokens/security weakening/destructive deletion/irreversible action/governance changes/protected external publication/protected production action; Risk / Capability Grant. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/autonomous-merge-policy.ts",
+      "sha256": "fba77adbbfe2a5de06c0a43dda2aa30bb7c9faf2eec3c8a7cb7840d5981e470f",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "SEC-014",
+        "CORE-020"
+      ],
+      "reason": "Declared autonomous-merge-policy.ts responsibility implements/supports Human Gate: payment/purchase/billing/contract/permission changes/credentials/tokens/security weakening/destructive deletion/irreversible action/governance changes/protected external publication/protected production action; Risk / Capability Grant. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/autonomy-delegation.ts",
+      "sha256": "5c200033bdb0d473fb053e01bc929ebdf41c3b63cb81e9fb06097fd499ca4026",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-012",
+        "GOV-008"
+      ],
+      "reason": "Declared autonomy-delegation.ts responsibility implements/supports Fact Verification Engine; 110. Provenance and Reproducibility. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/autonomy-run-outcome.ts",
+      "sha256": "bea78f6ef2f6cf6fb851aed292f153678c3c06bf775b59844417b4ee7747f488",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-002",
+        "AUTO-004",
+        "AUTO-026"
+      ],
+      "reason": "Declared autonomy-run-outcome.ts responsibility implements/supports Goal persistence; Current State persistence; Verified completion only. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/baseline-planner.ts",
+      "sha256": "5c1031bbc6f2108be770cec291010845efbf45aff333b0750c2628f5656d3d08",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-002",
+        "AUTO-009"
+      ],
+      "reason": "Declared baseline-planner.ts responsibility implements/supports Goal Completion Engine; Planner. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/bounded-runner.ts",
+      "sha256": "3b7c7fd57496879ef148ba3323c5e97fd359b88be91eebde45c166e11beb2c91",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-017",
+        "AUTO-018",
+        "AUTO-019"
+      ],
+      "reason": "Declared bounded-runner.ts responsibility implements/supports Repair; Replan; Bounded retry. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/brain-provider.ts",
+      "sha256": "bd43dcd9506c69b00bcfeb1723380a922184b685739b0a182022fdafa6fe6cd1",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-007",
+        "AUTO-010"
+      ],
+      "reason": "Declared brain-provider.ts responsibility implements/supports Model Router; Capability Router. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/browser-sandbox-capability.ts",
+      "sha256": "e13d8dc69a07780df53d412c1a29133e9a13ac5192a1b2a12771005ad0b1b27f",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-PC-002"
+      ],
+      "reason": "Declared browser-sandbox-capability.ts responsibility implements/supports Browser operation. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/builder-router.ts",
+      "sha256": "3bf13ca74a9b7739df993e832f6241b10e3c2a8f94de41c9bf7b30fbf084d523",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-007",
+        "AUTO-010"
+      ],
+      "reason": "Declared builder-router.ts responsibility implements/supports Model Router; Capability Router. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/capabilities.ts",
+      "sha256": "8b09cd983219b3ca4815f5d111a8fb9fbe0e009abf3282baeff2de919fc09b54",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-007",
+        "AUTO-010"
+      ],
+      "reason": "Declared capabilities.ts responsibility implements/supports Model Router; Capability Router. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/capability-fabric-router.ts",
+      "sha256": "44e7ee2f8ff94d94d506a22cd1d5879660a7ec66dfa3dae4b6d8183b0679d187",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-007",
+        "AUTO-010"
+      ],
+      "reason": "Declared capability-fabric-router.ts responsibility implements/supports Model Router; Capability Router. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/capability-policy.ts",
+      "sha256": "39df80842b760277cfc92d96afc4703a7f5c276ef6159fab5812f69e5a6a87fe",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-026"
+      ],
+      "reason": "Declared capability-policy.ts responsibility implements/supports Scoped Ephemeral Authorization. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/capability-racing.ts",
+      "sha256": "f6d28bd1c9957738c1944c722d8e329a2bb53a6d0f3ab3df637340dbe12ce6a1",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-007",
+        "AUTO-010"
+      ],
+      "reason": "Declared capability-racing.ts responsibility implements/supports Model Router; Capability Router. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/cloud-runtime.ts",
+      "sha256": "5cb619b14aa3ab2feaf47b17082e1ab0be14f4670d0ad924d3f4b01dd17491d5",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-014",
+        "AUTO-015"
+      ],
+      "reason": "Declared cloud-runtime.ts responsibility implements/supports Software Development Autopilot; Executor. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/command-ingress.ts",
+      "sha256": "4291d4e6b6513455273550540fb39767c9e90e538f86d5a69d787b53625a2ddf",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-001",
+        "CORE-002"
+      ],
+      "reason": "Declared command-ingress.ts responsibility implements/supports One Front Door; Goal Completion Engine. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/compass-goal-controller.ts",
+      "sha256": "133ede30533ca6ee8acfc606d67e1e0f7225fd3024341ff446e64dde782a2fdf",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-002",
+        "AUTO-004",
+        "AUTO-026"
+      ],
+      "reason": "Declared compass-goal-controller.ts responsibility implements/supports Goal persistence; Current State persistence; Verified completion only. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/compass-goal-execution-adapter.ts",
+      "sha256": "6aa238c9b1bcabbab7c69615531a788543e840022e815bf979288083d7294609",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-002",
+        "AUTO-004",
+        "AUTO-026"
+      ],
+      "reason": "Declared compass-goal-execution-adapter.ts responsibility implements/supports Goal persistence; Current State persistence; Verified completion only. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/compass-state-store.ts",
+      "sha256": "dd5bbd882b40a12c645662aa9975f38bf6e401df92dec3aad2c68cf09b295374",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-002",
+        "AUTO-004",
+        "AUTO-026"
+      ],
+      "reason": "Declared compass-state-store.ts responsibility implements/supports Goal persistence; Current State persistence; Verified completion only. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/compass-store.ts",
+      "sha256": "051dbd36ac22eef841693e69273b42959a97af624d0883b653d8094c77d54930",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-002",
+        "AUTO-004",
+        "AUTO-026"
+      ],
+      "reason": "Declared compass-store.ts responsibility implements/supports Goal persistence; Current State persistence; Verified completion only. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/compass-work-run-store.ts",
+      "sha256": "6d837f5e43173ff33c3bdb2e8d07af7808fefdfbfa22c2b1497013ab7195044b",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-002",
+        "AUTO-004",
+        "AUTO-026"
+      ],
+      "reason": "Declared compass-work-run-store.ts responsibility implements/supports Goal persistence; Current State persistence; Verified completion only. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/compass-work-state-store.ts",
+      "sha256": "1aee990907e0c50b4317cddaf6f009d3fb8818c58077a2dff17c1ffed5e7c129",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-002",
+        "AUTO-004",
+        "AUTO-026"
+      ],
+      "reason": "Declared compass-work-state-store.ts responsibility implements/supports Goal persistence; Current State persistence; Verified completion only. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/context-adapters.ts",
+      "sha256": "6c47e4a8675532c6774722cc65d10956c7bcc9e1bdf8fb4f4d6a1b5f974ad1ed",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-005"
+      ],
+      "reason": "Declared context-adapters.ts responsibility implements/supports Input Recovery. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/context-engineering.ts",
+      "sha256": "c23b41eeb488b347423ae3b3e9700d3e898ccdb2ce14ba30ea59872cb1e5031d",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-014",
+        "MEM-001"
+      ],
+      "reason": "Declared context-engineering.ts responsibility implements/supports Context Partitioning; Working Memory. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/dashboard-command-routing.ts",
+      "sha256": "ef2293938a97bb82fb09d52a4b051718accd5ccbec1aab58246bfde3efb11a2b",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-001",
+        "CORE-002"
+      ],
+      "reason": "Declared dashboard-command-routing.ts responsibility implements/supports One Front Door; Goal Completion Engine. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/deferred-verification.ts",
+      "sha256": "e132954a6521d808c1470759699e9f6ad88ad1647c1fc4ef7ee99a3a692bf5a6",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-010",
+        "CORE-011"
+      ],
+      "reason": "Declared deferred-verification.ts responsibility implements/supports 独立Verification; World-state Verification. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/delegated-approval-policy.ts",
+      "sha256": "0a51a5969d88d1335598d014df8a84294783b9fc27148fde038e3c7c0e0d304e",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "SEC-014",
+        "CORE-020"
+      ],
+      "reason": "Declared delegated-approval-policy.ts responsibility implements/supports Human Gate: payment/purchase/billing/contract/permission changes/credentials/tokens/security weakening/destructive deletion/irreversible action/governance changes/protected external publication/protected production action; Risk / Capability Grant. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/demonstration-learning.ts",
+      "sha256": "9e093660bf5b75546cf5ff9547910bb9b98581ee310a976f75a12bd2176fe448",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-018"
+      ],
+      "reason": "Declared demonstration-learning.ts responsibility implements/supports Demonstration Learning. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/device-sandbox-capability.ts",
+      "sha256": "671eae9c7584dc7069242f5544ed8953f5534502b34cc149371e0b16c0a66a54",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-011",
+        "FLEET-007"
+      ],
+      "reason": "Declared device-sandbox-capability.ts responsibility implements/supports Dynamic worker selection; 各Deviceにidentity/signing/capability/platform/connectivity/healthを保持. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/document-sandbox-capability.ts",
+      "sha256": "d218a1856e7358058dbb37d35b7c7fc68448c14ee9b887f747680dde2631e6e4",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-PC-003",
+        "CORE-005"
+      ],
+      "reason": "Declared document-sandbox-capability.ts responsibility implements/supports Filesystem operation; Input Recovery. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/dynamic-capability-team.ts",
+      "sha256": "fa1d4e1ef1e17ea48a8bbdfa4ee037249dd9e1917658348c68c10a0ba6dddf93",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-012",
+        "AUTO-013",
+        "AUTO-014"
+      ],
+      "reason": "Declared dynamic-capability-team.ts responsibility implements/supports Dynamic role composition; Child Goal Gate; Context Partitioning. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/dynamic-multi-agent-runtime.ts",
+      "sha256": "6f85e90fbd3abd0c0741f8a8f5ef885e73785f7813c3daaa5875f75675dcbe0f",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-006",
+        "CORE-009",
+        "CORE-027"
+      ],
+      "reason": "Declared dynamic-multi-agent-runtime.ts responsibility implements/supports Dynamic Orchestration; Parallel / Adaptive / Multi-plan; Agent Communication. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/event-runtime.ts",
+      "sha256": "81a8fe2b913383afd8f01b041e2fb44efdb2a32743a9f03a4d007a7a0dd956ff",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-001",
+        "CORE-002"
+      ],
+      "reason": "Declared event-runtime.ts responsibility implements/supports One Front Door; Goal Completion Engine. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/execution-context-capsule.ts",
+      "sha256": "b06b702bb9cc8442f9ae1d1dbd6dc554083b1b01be975fe27f7e73c2310c09d1",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-023",
+        "GOV-001"
+      ],
+      "reason": "Declared execution-context-capsule.ts responsibility implements/supports Privacy / Data Security; 103. Instruction Trust Boundary. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/fact-completion-gate.ts",
+      "sha256": "bde616a4a3e0d98d64cab1e7275dc39cde55b0bb967c183c5d134a412197e515",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-012"
+      ],
+      "reason": "Declared fact-completion-gate.ts responsibility implements/supports Fact Verification Engine. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/fact-verifier.ts",
+      "sha256": "a135be9a066c49973fe3c024946eba76a48a3e18c94e15fd979db35853f8dac4",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-012"
+      ],
+      "reason": "Declared fact-verifier.ts responsibility implements/supports Fact Verification Engine. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/gai-informed-planner.ts",
+      "sha256": "3fbe08be04d632eb4e95dc73ab27d4f46a322c3a827b921e39e851db84b4665b",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-002",
+        "AUTO-009"
+      ],
+      "reason": "Declared gai-informed-planner.ts responsibility implements/supports Goal Completion Engine; Planner. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/gai-memory-context.ts",
+      "sha256": "22f3970646eb99e0ef4c6c5141287eb6a132e6e6ee7d826bf5540d474f29d887",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "MEM-008",
+        "CORE-016"
+      ],
+      "reason": "Declared gai-memory-context.ts responsibility implements/supports Verified execution→reusable knowledge; Learning / Skills. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/gai-skill-context.ts",
+      "sha256": "1e461bc174b4a24b06084fdf973900208270216d53adf8e315aa106e6836ecc2",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "MEM-008",
+        "CORE-016"
+      ],
+      "reason": "Declared gai-skill-context.ts responsibility implements/supports Verified execution→reusable knowledge; Learning / Skills. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/github-capability.ts",
+      "sha256": "8194b3e65a0e03019585e43074ebb150d9f0543a9d5eb5d4da2c57ad9f443fcd",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-007",
+        "AUTO-010"
+      ],
+      "reason": "Declared github-capability.ts responsibility implements/supports Model Router; Capability Router. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/github-live-client.ts",
+      "sha256": "85d9867c4179dd4f4926e4b322328a5c7082b021bd888cfde13a492a2e03ccc2",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-014",
+        "AUTO-015"
+      ],
+      "reason": "Declared github-live-client.ts responsibility implements/supports Software Development Autopilot; Executor. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/goal-controller-execution-bridge.ts",
+      "sha256": "3b7ecb88ec56dfb5d3a0641bcd83a5afbc1d2ac73b746252dd26869191677543",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-001",
+        "CORE-002"
+      ],
+      "reason": "Declared goal-controller-execution-bridge.ts responsibility implements/supports One Front Door; Goal Completion Engine. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/goal-controller-runtime.ts",
+      "sha256": "c7a748ca15b8c2a2828280310c421edcfc45674c6dfb6cc25f5e44be6398f15f",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-002"
+      ],
+      "reason": "Declared goal-controller-runtime.ts responsibility implements/supports Goal Completion Engine. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/goal-decision-store.ts",
+      "sha256": "9beff56eeda0e3fb790ecc9cbf92cfafb47e2fe485a8d6df59aa2b87ec12d41b",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-001",
+        "CORE-002"
+      ],
+      "reason": "Declared goal-decision-store.ts responsibility implements/supports One Front Door; Goal Completion Engine. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/goal-draft-compass.ts",
+      "sha256": "168a54f62756ac68fd21a8c909cf0277d35c6847ecc385f5636eca802451b513",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-002",
+        "AUTO-004",
+        "AUTO-026"
+      ],
+      "reason": "Declared goal-draft-compass.ts responsibility implements/supports Goal persistence; Current State persistence; Verified completion only. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/goal-draft.ts",
+      "sha256": "b58ea2d9b24749c9ab9cb5dfbbaa9262d3727b27a223b999cd79483df048c348",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-001",
+        "CORE-002"
+      ],
+      "reason": "Declared goal-draft.ts responsibility implements/supports One Front Door; Goal Completion Engine. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/goal-evaluator.ts",
+      "sha256": "3730387cfe3fd3a2c90c0aac07f9930e8361dcadd50ba4cb463e9faf967476de",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-002",
+        "AUTO-004",
+        "AUTO-026"
+      ],
+      "reason": "Declared goal-evaluator.ts responsibility implements/supports Goal persistence; Current State persistence; Verified completion only. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/goal-loop.ts",
+      "sha256": "b19dac16a4ff0363892a127913cf929044a02cdb3d3d98a1c5f693849699e80b",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-001",
+        "AUTO-002",
+        "AUTO-003",
+        "AUTO-004",
+        "AUTO-005",
+        "AUTO-006",
+        "AUTO-007",
+        "AUTO-008",
+        "AUTO-009",
+        "AUTO-015",
+        "AUTO-016",
+        "AUTO-017",
+        "AUTO-018",
+        "AUTO-019",
+        "AUTO-020",
+        "AUTO-021",
+        "AUTO-022",
+        "AUTO-023",
+        "AUTO-024",
+        "AUTO-025",
+        "AUTO-026",
+        "SEC-013",
+        "SEC-014",
+        "CORE-002",
+        "CORE-014",
+        "GOV-002"
+      ],
+      "reason": "Declared goal-loop.ts responsibility implements/supports One Front Door; Goal persistence; DoD persistence; Current State persistence; Decisions persistence; Deliverables persistence; Verification persistence; Next Action persistence; Planner; Executor; Verifier; Repair; Replan; Bounded retry; Failure classification; Ordinary LOW/MEDIUM auto-continue; Only genuine Human Gate interrupts; Restart resume; Offline resume; Reconnect resume; Verified completion only; No silent paid API; Human Gate: payment/purchase/billing/contract/permission changes/credentials/tokens/security weakening/destructive deletion/irreversible action/governance changes/protected external publication/protected production action; Goal Completion Engine; Software Development Autopilot; 104. Agent Goal Integrity. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/governed-fabric-dispatch.ts",
+      "sha256": "99581b5beadc9e22660a388da142389420374886a081673832c6ca59d311f33c",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-010",
+        "CORE-023",
+        "AUTO-014"
+      ],
+      "reason": "Capability dispatch checks execution-context completeness and outbound privacy before routing. Not proof of real Worker execution."
+    },
+    {
+      "path": "src/orchestrator/http-source-acquirer.ts",
+      "sha256": "b484d8c5a1ae198a0fdd8d418ad1f2352951898906731e32f92ccb1ae02a5b09",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-012",
+        "CORE-013"
+      ],
+      "reason": "Declared http-source-acquirer.ts responsibility implements/supports Fact Verification Engine; Numerical Verification. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/human-gate-shortcuts.ts",
+      "sha256": "e7fe8e3b33ca429772890c5ee058bd291095e3e1a94df92e6ae10ad5e65c7e58",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "SEC-014",
+        "CORE-020"
+      ],
+      "reason": "Declared human-gate-shortcuts.ts responsibility implements/supports Human Gate: payment/purchase/billing/contract/permission changes/credentials/tokens/security weakening/destructive deletion/irreversible action/governance changes/protected external publication/protected production action; Risk / Capability Grant. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/hybrid-evidence-router.ts",
+      "sha256": "5c3bd37403f683932762e915c9d37f1c7f3228f806d340b3ebeb5a9a4884e508",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-012",
+        "CORE-013"
+      ],
+      "reason": "Declared hybrid-evidence-router.ts responsibility implements/supports Fact Verification Engine; Numerical Verification. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/independent-critic-gate.ts",
+      "sha256": "0d61cd43effe2fe8437200ba635561fb6b4e6d6dfa26e8c12b00844abaf88e8e",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-010",
+        "CORE-011"
+      ],
+      "reason": "Declared independent-critic-gate.ts responsibility implements/supports 独立Verification; World-state Verification. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/intent.ts",
+      "sha256": "cb4aff5988fdc59dd3c6d95a6c9aa2e8c3a73b25c60eebcf6787896c29bb2d24",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-003"
+      ],
+      "reason": "Declared intent.ts responsibility implements/supports MUST / INTENT / BETTER. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/local-artifact-verifier.ts",
+      "sha256": "7b4c56a1d41c5bbf1c60cd9881b3a3616ba98a240fd3363f88c9dd9662a6de91",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-012",
+        "CORE-013"
+      ],
+      "reason": "Declared local-artifact-verifier.ts responsibility implements/supports Fact Verification Engine; Numerical Verification. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/local-document-capability.ts",
+      "sha256": "0d9770812bc86748cffed06b6b342f6553bb6988a6114de0aab0b60b3667ae88",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-005"
+      ],
+      "reason": "Declared local-document-capability.ts responsibility implements/supports Input Recovery. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/local-file-capability.ts",
+      "sha256": "2df31c4bf070c1368b879ee9ec36b6312b32b780e82b53e185becdd74f8a31c2",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-PC-003",
+        "CORE-005"
+      ],
+      "reason": "Declared local-file-capability.ts responsibility implements/supports Filesystem operation; Input Recovery. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/local-spreadsheet-capability.ts",
+      "sha256": "370780847923181e2bfbca02ccc0cc1e3888367d66bfe8c0f8ce2d5ac42c0753",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-013"
+      ],
+      "reason": "Declared local-spreadsheet-capability.ts responsibility implements/supports Numerical Verification. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/mid-task-steering.ts",
+      "sha256": "c2392db88090fa6eb22584c2a0d5404b69964aed945e70770a2ec3232fd96428",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-001",
+        "CORE-002"
+      ],
+      "reason": "Declared mid-task-steering.ts responsibility implements/supports One Front Door; Goal Completion Engine. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/model-planner.ts",
+      "sha256": "89622d8a2d89241444dcf2d1e8f6e04af6401d3320e187870fdbacb590dd7388",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-007",
+        "AUTO-010"
+      ],
+      "reason": "Declared model-planner.ts responsibility implements/supports Model Router; Capability Router. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/outbound-privacy-gate.ts",
+      "sha256": "f592809515ce88487b4bea043529a02c717b28b3be8fbc3d0366b9ea1b84386e",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-023",
+        "GOV-001"
+      ],
+      "reason": "Declared outbound-privacy-gate.ts responsibility implements/supports Privacy / Data Security; 103. Instruction Trust Boundary. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/owner-fleet-capability-pool.ts",
+      "sha256": "50dd5232fea9253405f4fc4c9e3f76170229313c5767afd6a11049c0bcce9697",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-011",
+        "FLEET-007"
+      ],
+      "reason": "Declared owner-fleet-capability-pool.ts responsibility implements/supports Dynamic worker selection; 各Deviceにidentity/signing/capability/platform/connectivity/healthを保持. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/owner-requirement-canonical.ts",
+      "sha256": "d9de3efc672c83c8e732d1511e4e80c9476b13e106510eebac5faa155040ef9a",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "GOV-025",
+        "CORE-015"
+      ],
+      "reason": "Declared owner-requirement-canonical.ts responsibility implements/supports 127. Requirement-to-Evidence Traceability; Software Lifecycle. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/owner-requirement-intake.ts",
+      "sha256": "af019c436069e5b6ab304d4ff9e20e005fb7ac332db6300214d76194562778ae",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "GOV-025",
+        "CORE-015"
+      ],
+      "reason": "Declared owner-requirement-intake.ts responsibility implements/supports 127. Requirement-to-Evidence Traceability; Software Lifecycle. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/parallel-research.ts",
+      "sha256": "aef8373d9202fb792b60831d25e11b2622586ee6748b7624e42309cf00301e05",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-012",
+        "CORE-013"
+      ],
+      "reason": "Declared parallel-research.ts responsibility implements/supports Fact Verification Engine; Numerical Verification. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/parallel-work-dag.ts",
+      "sha256": "b03ea9c726f3efa287cf92c8549f70b42ea5a418178db0edf9d610c7b389fda5",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-006",
+        "CORE-009"
+      ],
+      "reason": "Declared parallel-work-dag.ts responsibility implements/supports Dynamic Orchestration; Parallel / Adaptive / Multi-plan. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/persisted-target-policy.ts",
+      "sha256": "b733f8b62984f6aec00818d1578342116c66fa2623d9272e2b2ee8790f621907",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-012",
+        "CORE-013"
+      ],
+      "reason": "Declared persisted-target-policy.ts responsibility implements/supports Fact Verification Engine; Numerical Verification. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/persistent-command-handoff.ts",
+      "sha256": "a6dacf441f5b2bc1474614239be31d9ac61728c551c715664189497e6972ec51",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-001",
+        "CORE-002"
+      ],
+      "reason": "Declared persistent-command-handoff.ts responsibility implements/supports One Front Door; Goal Completion Engine. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/persistent-team-memory.ts",
+      "sha256": "4edae44a2def72b727c2dd1e7c19f051a59904e0e70f323c1a2b9668886f7359",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "MEM-008",
+        "CORE-016"
+      ],
+      "reason": "Declared persistent-team-memory.ts responsibility implements/supports Verified execution→reusable knowledge; Learning / Skills. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/planner-enhancement.ts",
+      "sha256": "9b6947024d89840f229203bd218f5cef411a022d31eb669758628cc58af7618f",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-017",
+        "AUTO-018",
+        "AUTO-019"
+      ],
+      "reason": "Declared planner-enhancement.ts responsibility implements/supports Repair; Replan; Bounded retry. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/production-browser-capability.ts",
+      "sha256": "45bf6ca7320636d6f1c75129cd938654ba7ca8086d551c5c63a2ba55a5874da0",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-PC-002"
+      ],
+      "reason": "Declared production-browser-capability.ts responsibility implements/supports Browser operation. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/production-research.ts",
+      "sha256": "1364d579e3390f8626c00518941f8e05e8ee93326bd2475fdc35ecf1ed8c35d6",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-012"
+      ],
+      "reason": "Declared production-research.ts responsibility implements/supports Fact Verification Engine. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/reasoning-budget.ts",
+      "sha256": "aa867c9a7e8590c2513501b0c94fd201f2ca0c852cb4f6d142ea7dc0e0c0e838",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-007",
+        "AUTO-010"
+      ],
+      "reason": "Declared reasoning-budget.ts responsibility implements/supports Model Router; Capability Router. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/reasoning-feedback.ts",
+      "sha256": "7b2c8d6b8d3b55e277d888641de516763353fe23ab4086ed2a09dffa492ae638",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-007",
+        "AUTO-010"
+      ],
+      "reason": "Declared reasoning-feedback.ts responsibility implements/supports Model Router; Capability Router. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/reasoning-router.ts",
+      "sha256": "9aee5dd4cc092fa541230a322e10bb28c8c2d8d42602682ea81d2f4be5f6b5ff",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-007",
+        "AUTO-010"
+      ],
+      "reason": "Declared reasoning-router.ts responsibility implements/supports Model Router; Capability Router. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/recovery-policy.ts",
+      "sha256": "8938a00cb232ad69592fabdff7a1e56ec72b913334a666235b6ee50364d813ae",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-017",
+        "AUTO-018",
+        "AUTO-019"
+      ],
+      "reason": "Declared recovery-policy.ts responsibility implements/supports Repair; Replan; Bounded retry. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/research-delegation.ts",
+      "sha256": "b87650b7817be871eee28408b098a6a62f76c09fda4cd795a3a0767684fba461",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-012",
+        "GOV-008"
+      ],
+      "reason": "Declared research-delegation.ts responsibility implements/supports Fact Verification Engine; 110. Provenance and Reproducibility. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/research-sandbox-capability.ts",
+      "sha256": "39eddfd330e513d3e0f64ea2eefe35e9ec7f43acf3feaee3872bafa54941e363",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-012",
+        "CORE-013"
+      ],
+      "reason": "Declared research-sandbox-capability.ts responsibility implements/supports Fact Verification Engine; Numerical Verification. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/research-transport.ts",
+      "sha256": "f1e77af9d6e8c986b2f1bfdf27f2efe1d340c34404cc1e7bd27fb2f6d5223c04",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-012",
+        "GOV-008"
+      ],
+      "reason": "Declared research-transport.ts responsibility implements/supports Fact Verification Engine; 110. Provenance and Reproducibility. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/risk-policy.ts",
+      "sha256": "4ba44a81720a79084ef93079c4b55c3677076537ac690f2f35726cefdbf85434",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-020",
+        "GOV-005"
+      ],
+      "reason": "Declared risk-policy.ts responsibility implements/supports Risk / Capability Grant; 107. Policy-as-Code Enforcement. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/runtime-builder-capability.ts",
+      "sha256": "566debf7203da63faedcea553258c330f001bf2ad7fade862d313d674ba3766f",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-014"
+      ],
+      "reason": "Declared runtime-builder-capability.ts responsibility implements/supports Software Development Autopilot. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/runtime-development-planner.ts",
+      "sha256": "f1203baa788ee48e812214468aa177f4b61b0b9cb848668f47a9e6e2b96c0f5c",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-014",
+        "AUTO-015"
+      ],
+      "reason": "Declared runtime-development-planner.ts responsibility implements/supports Software Development Autopilot; Executor. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/runtime-development-verifier.ts",
+      "sha256": "949766ac28fbdd591ba5913a903785dc138f2622c9945c8df1e317b4f31a4761",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-010",
+        "CORE-011"
+      ],
+      "reason": "Declared runtime-development-verifier.ts responsibility implements/supports 独立Verification; World-state Verification. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/safe-pr-capability.ts",
+      "sha256": "b6b4d0c702546fc9dc7fbc2c0f5651ff99432f8159ac55ec8b620144b78f69e4",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-007",
+        "AUTO-010"
+      ],
+      "reason": "Declared safe-pr-capability.ts responsibility implements/supports Model Router; Capability Router. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/self-development-loop.ts",
+      "sha256": "133a28546e11d4a587847886cb1e73a76e0118f729aa32757afe506a26b93d6d",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-014"
+      ],
+      "reason": "Declared self-development-loop.ts responsibility implements/supports Software Development Autopilot. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/shared-context-store.ts",
+      "sha256": "50e8c080e07fce67660a40d5a1d73bd52b708cb3c0b7d6a15d0fb4e316852132",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-014",
+        "MEM-001"
+      ],
+      "reason": "Declared shared-context-store.ts responsibility implements/supports Context Partitioning; Working Memory. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/shared-context.ts",
+      "sha256": "1b79ee1060214957af0bac1be6506c3d16b77d4b0cd32af490159eb6fd3cfcfc",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-014",
+        "MEM-001"
+      ],
+      "reason": "Declared shared-context.ts responsibility implements/supports Context Partitioning; Working Memory. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/spreadsheet-sandbox-capability.ts",
+      "sha256": "4e2b9fe8745bb265fd9ea0191fe64e73b2ef71aca9c9898cdb2986f4dfd38b75",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-PC-005",
+        "CORE-013"
+      ],
+      "reason": "Declared spreadsheet-sandbox-capability.ts responsibility implements/supports Office等のPC capability; Numerical Verification. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/task-authorization.ts",
+      "sha256": "f78bd51648ea83485b8c99151360c5dd4166642b49a19aeabc7a18fd9e30c5e6",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "SEC-014",
+        "CORE-020"
+      ],
+      "reason": "Declared task-authorization.ts responsibility implements/supports Human Gate: payment/purchase/billing/contract/permission changes/credentials/tokens/security weakening/destructive deletion/irreversible action/governance changes/protected external publication/protected production action; Risk / Capability Grant. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/team-aware-planner.ts",
+      "sha256": "5990300ac1ffd465f141dc881199e6e5b1e3f59dabc36ccddbdd96bac23e17ac",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-006",
+        "CORE-009"
+      ],
+      "reason": "Declared team-aware-planner.ts responsibility implements/supports Dynamic Orchestration; Parallel / Adaptive / Multi-plan. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/team-composer.ts",
+      "sha256": "c99f6bfcd54b035e533725ea5d3a8a78662e191ed8c9511a0de2d1d38f8ae6a5",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-012",
+        "AUTO-013",
+        "AUTO-014"
+      ],
+      "reason": "Declared team-composer.ts responsibility implements/supports Dynamic role composition; Child Goal Gate; Context Partitioning. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/team-execution.ts",
+      "sha256": "c9fe98b84c2e4f02a6a17324d305cd9e1fb0cddf3933a233decc74b5b8db0565",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-006",
+        "CORE-009"
+      ],
+      "reason": "Declared team-execution.ts responsibility implements/supports Dynamic Orchestration; Parallel / Adaptive / Multi-plan. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/team-organizational-memory.ts",
+      "sha256": "b9996ef60820980a9e4b4b0ceaac3e9986b836a29d32ad1c6343339d238f9924",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-032"
+      ],
+      "reason": "Declared team-organizational-memory.ts responsibility implements/supports Organization Digital Twin. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/team-planning-context.ts",
+      "sha256": "7d52dc82124c12c6e1226e6f92ffaf5a63c3bfbcd8ef3186738f48fe41db096c",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-006",
+        "CORE-009"
+      ],
+      "reason": "Declared team-planning-context.ts responsibility implements/supports Dynamic Orchestration; Parallel / Adaptive / Multi-plan. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/trigger-runtime.ts",
+      "sha256": "4914e8db0ae2371ed89c3ed95af2bfaec6c72e12ce08c8d78ee1931d33f474df",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-001",
+        "CORE-002"
+      ],
+      "reason": "Declared trigger-runtime.ts responsibility implements/supports One Front Door; Goal Completion Engine. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/unified-entry-runtime.ts",
+      "sha256": "1a988685257de3eece1f58c74d8ee6f7d2f7fa280499b3a43af0f43cfdae571a",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-001",
+        "CORE-002"
+      ],
+      "reason": "Declared unified-entry-runtime.ts responsibility implements/supports One Front Door; Goal Completion Engine. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/unified-planning-client.ts",
+      "sha256": "60483fdc4b3f3cddf273c66f6fffe5e2756e0a69ecc8219f1deb42915770b165",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-014",
+        "AUTO-015"
+      ],
+      "reason": "Declared unified-planning-client.ts responsibility implements/supports Software Development Autopilot; Executor. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/verified-skill-writeback.ts",
+      "sha256": "ff33ed0668db50752c3eb6c1972d62ccf79d17feaa85b58ecf5efc9eba298e9b",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-016"
+      ],
+      "reason": "Declared verified-skill-writeback.ts responsibility implements/supports Learning / Skills. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/windows-real-machine-verifier.ts",
+      "sha256": "b5df15dabef1ed0281e921a553bfb8cf88b1f37094a0029d6dd8dce97a90570f",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-PC-001"
+      ],
+      "reason": "Declared windows-real-machine-verifier.ts responsibility implements/supports ZBook PC Worker. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/windows-verification-dispatch.ts",
+      "sha256": "de2c46caf9f4bf914cb44f58af65cae4ced11a634d6837aa68e2903e0f4147f3",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-PC-001"
+      ],
+      "reason": "Declared windows-verification-dispatch.ts responsibility implements/supports ZBook PC Worker. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/work-capability.ts",
+      "sha256": "4d6702ce1b0c0015b93de773a1e0d840a1a352c051b41bb5ee919dadff9161e3",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-007",
+        "AUTO-010"
+      ],
+      "reason": "Declared work-capability.ts responsibility implements/supports Model Router; Capability Router. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/work-codex-planner.ts",
+      "sha256": "a5c50c3a753c75dd35e223d14e1ab7e32633d3440ab924303b55920446d3faf9",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-014",
+        "AUTO-015"
+      ],
+      "reason": "Declared work-codex-planner.ts responsibility implements/supports Software Development Autopilot; Executor. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/work-dispatcher.ts",
+      "sha256": "a9d21aba6f0514df2d0529f622e6c5f0b635b967ac23c88eae40fb7472475f72",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-002"
+      ],
+      "reason": "Declared work-dispatcher.ts responsibility implements/supports Goal Completion Engine. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/work-run-state.ts",
+      "sha256": "b246d100e79091450d66f99aa99e71d3b4805ba5fa0b612eafd1b0d9250f982a",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-002",
+        "AUTO-004",
+        "AUTO-026"
+      ],
+      "reason": "Declared work-run-state.ts responsibility implements/supports Goal persistence; Current State persistence; Verified completion only. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/work-state-integration.ts",
+      "sha256": "d4fab8488d46770550fee4748a18966a4d6cf7b7427099a7b30e7fed99928c4a",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-002",
+        "AUTO-004",
+        "AUTO-026"
+      ],
+      "reason": "Declared work-state-integration.ts responsibility implements/supports Goal persistence; Current State persistence; Verified completion only. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/work-state.ts",
+      "sha256": "24ad1a6134d3945ca91ea94bd6e56962c08466064ddec281fcc17f0e4ca46053",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-002",
+        "AUTO-004",
+        "AUTO-026"
+      ],
+      "reason": "Declared work-state.ts responsibility implements/supports Goal persistence; Current State persistence; Verified completion only. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/world-resource-context.ts",
+      "sha256": "9b423d45ca5992cffb4176964d90bb86bbe2f31c0036b772ebecc3e1ede1d1cc",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-014",
+        "MEM-001"
+      ],
+      "reason": "Declared world-resource-context.ts responsibility implements/supports Context Partitioning; Working Memory. Parent ownership is not functional or physical acceptance evidence."
     }
   ],
   "hash_policy": "utf8-crlf-to-lf-v1;binary-raw"

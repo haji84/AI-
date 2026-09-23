@@ -5,8 +5,8 @@ import {TextDecoder} from 'node:util';
 import {fileURLToPath} from 'node:url';
 import {validateRequirements} from './validate-jarvis-requirements.mjs';
 
-export const AUDIT_ROOTS = Object.freeze(['src/jarvis','src/gai','src/app/jarvis','src/app/api/jarvis','apps/ios-worker','android/jarvis-worker/app/src/main','docs/architecture']);
-const configFiles=['android/jarvis-worker/build.gradle.kts','android/jarvis-worker/app/build.gradle.kts','android/jarvis-worker/gradle.properties','android/jarvis-worker/settings.gradle.kts'];
+export const AUDIT_ROOTS = Object.freeze(['src/jarvis','src/gai','src/app/jarvis','src/app/api/jarvis','apps/ios-worker','android/jarvis-worker/app/src/main','docs/architecture','src/orchestrator','src/compass','src/app/api/command','src/app/api/owner-login','src/app/api/owner-logout','src/app/api/vercel-owner']);
+const configFiles=['src/app/owner-auth.ts','src/app/owner-login-redirect.ts','android/jarvis-worker/build.gradle.kts','android/jarvis-worker/app/build.gradle.kts','android/jarvis-worker/gradle.properties','android/jarvis-worker/settings.gradle.kts'];
 const isTestSource = p => /\.(test|spec)\.[cm]?[jt]sx?$/.test(p);
 const safePath = p => typeof p==='string' && !path.isAbsolute(p) && !p.includes('\\') && !p.split('/').some(x=>!x || x==='.' || x==='..');
 const nonempty = x => typeof x==='string' && x.trim().length>0;

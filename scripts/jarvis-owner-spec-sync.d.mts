@@ -1,0 +1,5 @@
+import type { OwnerRequirementRecord, CanonicalRequirement } from '../src/orchestrator/owner-requirement-intake.ts';
+export interface CanonicalBundle { ledger: string; matrix: {requirements: CanonicalRequirement[]}; decisions: unknown; }
+export function loadCanonicalBundle(root: string): CanonicalBundle;
+export function verifyCanonicalReceipt(record: OwnerRequirementRecord, bundle: CanonicalBundle, root: string): {ok: boolean; reason?: string; canonicalSha256?: string; decisionId?: string};
+export function prepareSpecificationProposal(record: OwnerRequirementRecord, bundle: CanonicalBundle, review: unknown, root: string, history?: OwnerRequirementRecord[]): {kind: string; decisionId: string; reviewRequired: true; autoMerge: false; productionAuthorized: false; files: {path: string; baseSha256: string; content: string}[]; bundle: CanonicalBundle};

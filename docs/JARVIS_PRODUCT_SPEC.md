@@ -11773,11 +11773,21 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   ],
   "implementation_refs": [
     "src/gai/production-autonomy-runtime.ts",
-    "scripts/jarvis-requirement-audit.mjs"
+    "scripts/jarvis-requirement-audit.mjs",
+    "src/orchestrator/owner-requirement-intake.ts",
+    "src/orchestrator/owner-requirement-canonical.ts",
+    "scripts/jarvis-owner-spec-sync.mjs",
+    "scripts/jarvis-broker.ts",
+    "src/compass/store.ts",
+    "src/orchestrator/goal-loop.ts"
   ],
   "test_refs": [
     "tests/gai-phase20-production-autonomy.test.ts",
-    "tests/jarvis-requirement-traceability.test.mjs"
+    "tests/jarvis-requirement-traceability.test.mjs",
+    "tests/owner-requirement-intake.test.ts",
+    "tests/owner-requirement-ingress.test.ts",
+    "tests/owner-requirement-gate.test.ts",
+    "tests/owner-specification-sync.test.mjs"
   ],
   "evidence_refs": [
     "docs/evidence/1205-reverse-traceability.md"
@@ -11786,7 +11796,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   "blocker": "Expanded requirement reconciled from staged ledger; main runtime integration and required evidence remain to be verified. 関連する基盤は存在するが、この拡張要求の全範囲・統合・必要Evidenceを満たしていない。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "Review repository reverse index/accepted-decision contract in #1205; integrate authenticated live intake, semantic match/conflict review and bounded spec PR generation before claiming automatic living specification.",
+  "next_action": "Complete bounded reviewed specification publishing/new-ID and semantic/coreference integration; verify all intake routes and deployed canonical sync before automatic living-spec completion. Candidate Broker receipt/correction/withdrawal/completion gates in PR #1213; no Production activation.",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -13506,10 +13516,20 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   ],
   "implementation_refs": [
     "scripts/validate-jarvis-requirements.mjs",
-    "scripts/jarvis-requirement-audit.mjs"
+    "scripts/jarvis-requirement-audit.mjs",
+    "src/orchestrator/owner-requirement-intake.ts",
+    "src/orchestrator/owner-requirement-canonical.ts",
+    "scripts/jarvis-owner-spec-sync.mjs",
+    "scripts/jarvis-broker.ts",
+    "src/compass/store.ts",
+    "src/orchestrator/goal-loop.ts"
   ],
   "test_refs": [
-    "tests/jarvis-requirement-traceability.test.mjs"
+    "tests/jarvis-requirement-traceability.test.mjs",
+    "tests/owner-requirement-intake.test.ts",
+    "tests/owner-requirement-ingress.test.ts",
+    "tests/owner-requirement-gate.test.ts",
+    "tests/owner-specification-sync.test.mjs"
   ],
   "evidence_refs": [
     "docs/evidence/1205-reverse-traceability.md"
@@ -13518,7 +13538,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   "blocker": "Expanded requirement reconciled from staged ledger; main runtime integration and required evidence remain to be verified. 関連基盤のみ存在。この拡張要求の全条件を強制する統合機能とEvidenceは未完成。関連ファイルは要件全体の実装済みを意味しない。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "Review repository reverse index/accepted-decision contract in #1205; integrate authenticated live intake, semantic match/conflict review and bounded spec PR generation before claiming automatic living specification.",
+  "next_action": "Complete bounded reviewed specification publishing/new-ID and semantic/coreference integration; verify all intake routes and deployed canonical sync before automatic living-spec completion. Candidate Broker receipt/correction/withdrawal/completion gates in PR #1213; no Production activation.",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
