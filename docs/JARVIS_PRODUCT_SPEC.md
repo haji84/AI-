@@ -3594,7 +3594,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "Complete exact-head candidate verification and production-facing review; broader all-route semantic/audit scope and required physical evidence remain separate. Preserve existing-device and unmerged physical-facing holds.",
+  "next_action": "Exact-head CI and separately approved main-push live-hook gating before merge/activation. Broader audit/semantic routes and physical holds remain.",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -3604,6 +3604,15 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
     "staged_implementation_refs": [],
     "audit_ref": "docs/evidence/1188-requirements-windows.md"
+  },
+  "candidate_audit": {
+    "issue": 1205,
+    "revision": "0b1c4a7fd9f52c2548a3e62261d6423c23c55e59",
+    "implementation": "ADDITIVE_IDS_SAVED_CONVERSATION_OWNER_UI",
+    "connection": "BROKER_HTTP_BROWSER_QA_AND_BOUNDED_PUBLISHER_FIXTURE",
+    "evidence_ref": "docs/evidence/1205-owner-spec-completion.md",
+    "production_activation": "DRAFT_PR_UNMERGED_LIVE_WORKFLOW_GATE",
+    "scope": "Requested software paths tested; arbitrary language/all-route audit and applicable physical acceptance not claimed."
   }
 }
 ```
@@ -11822,7 +11831,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   "blocker": "Expanded requirement reconciled from staged ledger; main runtime integration and required evidence remain to be verified. 関連する基盤は存在するが、この拡張要求の全範囲・統合・必要Evidenceを満たしていない。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "Complete exact-head candidate verification and production-facing review; broader all-route semantic/audit scope and required physical evidence remain separate. Preserve existing-device and unmerged physical-facing holds.",
+  "next_action": "Exact-head CI and separately approved main-push live-hook gating before merge/activation. Broader audit/semantic routes and physical holds remain.",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -11838,12 +11847,12 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   ],
   "candidate_audit": {
     "issue": 1205,
-    "revision": "10f684f664e1d8f9ee0932952e55091d6688a0f9",
-    "implementation": "AUTHENTICATED_RECEIPTS_AND_BOUNDED_DRAFT_PUBLISHER",
-    "connection": "BROKER_HTTP_BROWSER_PROXY_AND_GITHUB_ADAPTER_SIMULATION",
-    "evidence_ref": "docs/evidence/1205-spec-publisher.md",
-    "production_activation": "DRAFT_PR_UNMERGED_NOT_DEPLOYED",
-    "scope": "Existing-ID amendments and resumable Draft PR adapter tested; live publication/new-ID/semantic/UI/other-route work remains."
+    "revision": "0b1c4a7fd9f52c2548a3e62261d6423c23c55e59",
+    "implementation": "ADDITIVE_IDS_SAVED_CONVERSATION_OWNER_UI",
+    "connection": "BROKER_HTTP_BROWSER_QA_AND_BOUNDED_PUBLISHER_FIXTURE",
+    "evidence_ref": "docs/evidence/1205-owner-spec-completion.md",
+    "production_activation": "DRAFT_PR_UNMERGED_LIVE_WORKFLOW_GATE",
+    "scope": "Requested software paths tested; arbitrary language/all-route audit and applicable physical acceptance not claimed."
   }
 }
 ```
@@ -13580,7 +13589,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   "blocker": "Expanded requirement reconciled from staged ledger; main runtime integration and required evidence remain to be verified. 関連基盤のみ存在。この拡張要求の全条件を強制する統合機能とEvidenceは未完成。関連ファイルは要件全体の実装済みを意味しない。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "Complete exact-head candidate verification and production-facing review; broader all-route semantic/audit scope and required physical evidence remain separate. Preserve existing-device and unmerged physical-facing holds.",
+  "next_action": "Exact-head CI and separately approved main-push live-hook gating before merge/activation. Broader audit/semantic routes and physical holds remain.",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -13596,12 +13605,12 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   ],
   "candidate_audit": {
     "issue": 1205,
-    "revision": "10f684f664e1d8f9ee0932952e55091d6688a0f9",
-    "implementation": "AUTHENTICATED_RECEIPTS_AND_BOUNDED_DRAFT_PUBLISHER",
-    "connection": "BROKER_HTTP_BROWSER_PROXY_AND_GITHUB_ADAPTER_SIMULATION",
-    "evidence_ref": "docs/evidence/1205-spec-publisher.md",
-    "production_activation": "DRAFT_PR_UNMERGED_NOT_DEPLOYED",
-    "scope": "Existing-ID amendments and resumable Draft PR adapter tested; live publication/new-ID/semantic/UI/other-route work remains."
+    "revision": "0b1c4a7fd9f52c2548a3e62261d6423c23c55e59",
+    "implementation": "ADDITIVE_IDS_SAVED_CONVERSATION_OWNER_UI",
+    "connection": "BROKER_HTTP_BROWSER_QA_AND_BOUNDED_PUBLISHER_FIXTURE",
+    "evidence_ref": "docs/evidence/1205-owner-spec-completion.md",
+    "production_activation": "DRAFT_PR_UNMERGED_LIVE_WORKFLOW_GATE",
+    "scope": "Requested software paths tested; arbitrary language/all-route audit and applicable physical acceptance not claimed."
   }
 }
 ```

@@ -1,0 +1,24 @@
+diff --git a/.github/workflows/jarvis-broker-refresh.yml b/.github/workflows/jarvis-broker-refresh.yml
+--- a/.github/workflows/jarvis-broker-refresh.yml
++++ b/.github/workflows/jarvis-broker-refresh.yml
+@@ -3,7 +3,2 @@
+ on:
+-  push:
+-    branches: [main]
+-    paths:
+-      - 'scripts/jarvis-broker.ts'
+-      - '.github/workflows/jarvis-broker-refresh.yml'
+   workflow_dispatch:
+diff --git a/.github/workflows/jarvis-one-tap-e2e.yml b/.github/workflows/jarvis-one-tap-e2e.yml
+--- a/.github/workflows/jarvis-one-tap-e2e.yml
++++ b/.github/workflows/jarvis-one-tap-e2e.yml
+@@ -3,9 +3,2 @@
+ on:
+-  push:
+-    branches: [main]
+-    paths:
+-      - '.github/workflows/jarvis-one-tap-e2e.yml'
+-      - 'scripts/jarvis-broker.ts'
+-      - 'src/jarvis/**'
+-      - 'android/jarvis-worker/**'
+   workflow_dispatch:
