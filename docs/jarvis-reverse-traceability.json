@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "source_main": "9cbf6accaec5eb1ec76359a6b88af6bf225eb51e",
+  "source_main": "54b5df2a41eaef75e7c40a83474aceb8fc15b3be",
   "scope": "Declared audit roots; no functional or physical completion inference",
   "surfaces": [
     {
@@ -549,6 +549,15 @@
       "reason": "Goal completion and dynamic capability design"
     },
     {
+      "path": "docs/architecture/goriq-cognitive-core.md",
+      "sha256": "645de9f196a6595614205516dfd34b67b0be7d1b7452e8612bd8ebf5e7d1ecf1",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OWN-001"
+      ],
+      "reason": "Issue #1216 reviewed Cognitive Core integration/hardening; mapped requirement does not imply full acceptance"
+    },
+    {
       "path": "docs/architecture/jarvis-bounded-fact-research.md",
       "sha256": "9d7d1dc90a7e71bcd7c9bd121fe2c4d595ebac1e282deb78a90c16e13e48ac2d",
       "classification": "COVERED_BY_REQUIREMENT",
@@ -924,7 +933,7 @@
     },
     {
       "path": "scripts/jarvis-broker.ts",
-      "sha256": "6c218498fa32b88217f1d3581f3f4b0bdba35a06011c918e84f6c2cf4f48c1ad",
+      "sha256": "5eb68b80ef2cbfa5b75182a8165ac4deb20a86f02068aef2b525301b12d9fa84",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "NET-006",
@@ -939,9 +948,10 @@
         "SEC-006",
         "SEC-007",
         "SEC-010",
-        "GOV-025"
+        "GOV-025",
+        "OWN-001"
       ],
-      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification; #1216 bounded local cognition/owner entry integration, not full capability or physical acceptance"
     },
     {
       "path": "scripts/jarvis-direct-commander-service.sh",
@@ -1353,6 +1363,15 @@
         "SEC-002"
       ],
       "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/app/api/jarvis/cognitive/route.ts",
+      "sha256": "8a93f1e9a2a54162dc57bd595453f1dd6398189cc212f63655b0b7d2a313b9c9",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OWN-001"
+      ],
+      "reason": "#1216 Cognitive Core component; implementation link only, benchmark and product acceptance tracked separately"
     },
     {
       "path": "src/app/api/jarvis/connectivity/route.ts",
@@ -2342,6 +2361,15 @@
       "reason": "Single owner front door and navigation shell"
     },
     {
+      "path": "src/app/jarvis/tasks/CognitivePanel.tsx",
+      "sha256": "785465c57c360e68c8b4d2fcb7d3d505e7006c7814e10d4fa6f6f217113873f7",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OWN-001"
+      ],
+      "reason": "#1216 Cognitive Core component; implementation link only, benchmark and product acceptance tracked separately"
+    },
+    {
       "path": "src/app/jarvis/tasks/page.tsx",
       "sha256": "32639ad1a2ab93f224aec905f0c41ec0d25db457e30a17664ac0f615f5245517",
       "classification": "COVERED_BY_REQUIREMENT",
@@ -2373,13 +2401,14 @@
     },
     {
       "path": "src/app/jarvis/tasks/TaskBoard.tsx",
-      "sha256": "3c3f5cd3120fd8982536b35668b8eb274ccc0ffeed55a091aaa142e82c9c04c1",
+      "sha256": "1f30d2d1cbc4a7f0095af09e28a5e9fe76b7b0c2fd7ef0188a5d56145e44f199",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "UI-003",
-        "OPS-001"
+        "OPS-001",
+        "OWN-001"
       ],
-      "reason": "Task board and history"
+      "reason": "Task board and history; #1216 bounded local cognition/owner entry integration, not full capability or physical acceptance"
     },
     {
       "path": "src/app/jarvis/teach/page.tsx",
@@ -2601,6 +2630,69 @@
         "MEM-008"
       ],
       "reason": "Verified execution learning and repeat-error metrics"
+    },
+    {
+      "path": "src/gai/cognitive-core.ts",
+      "sha256": "b6765f380e5f9a76a38eecfad6eaa98b17a68a05bbd6edad0aa253db2266e697",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OWN-001"
+      ],
+      "reason": "Issue #1216 reviewed Cognitive Core integration/hardening; mapped requirement does not imply full acceptance"
+    },
+    {
+      "path": "src/gai/cognitive-learning-data.ts",
+      "sha256": "d7145bc1d8c1fc72152dd9db9bd7984bbca22d6f187b09122b66b3d8eec1c0db",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OWN-001"
+      ],
+      "reason": "Issue #1216 reviewed Cognitive Core integration/hardening; mapped requirement does not imply full acceptance"
+    },
+    {
+      "path": "src/gai/cognitive-learning.ts",
+      "sha256": "7ac5cb5897cd06c07c7e696f8a2e2ceadc6a5a4dc353310dd139415b12e63fc8",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OWN-001"
+      ],
+      "reason": "Issue #1216 reviewed Cognitive Core integration/hardening; mapped requirement does not imply full acceptance"
+    },
+    {
+      "path": "src/gai/cognitive-lease.ts",
+      "sha256": "3a94a275cdf70efe57990d212c7d12ae36d88d80f356f51d847f6e91c4f8b057",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OWN-001"
+      ],
+      "reason": "Issue #1216 reviewed Cognitive Core integration/hardening; mapped requirement does not imply full acceptance"
+    },
+    {
+      "path": "src/gai/cognitive-local-work.ts",
+      "sha256": "b66d3da5daaf5769efed68dcdecba1db9748d7d2c959ebb965a9c11b5c781f5b",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OWN-001"
+      ],
+      "reason": "Issue #1216 reviewed Cognitive Core integration/hardening; mapped requirement does not imply full acceptance"
+    },
+    {
+      "path": "src/gai/cognitive-service.ts",
+      "sha256": "898f145edc130b4ead32f6a8abed20b53f679c5afffffb72cc6a6f313099a679",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OWN-001"
+      ],
+      "reason": "#1216 Cognitive Core component; implementation link only, benchmark and product acceptance tracked separately"
+    },
+    {
+      "path": "src/gai/cognitive-state.ts",
+      "sha256": "c8d37cab9cfb16b275004039ff88d6548ac44af1cf3001c15f47ba855ab34f0a",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OWN-001"
+      ],
+      "reason": "Issue #1216 reviewed Cognitive Core integration/hardening; mapped requirement does not imply full acceptance"
     },
     {
       "path": "src/gai/common-worker-runtime.ts",
@@ -2915,6 +3007,15 @@
         "DEV-PC-007"
       ],
       "reason": "Platform-specific capability manifest"
+    },
+    {
+      "path": "src/gai/primary-brain.ts",
+      "sha256": "1ac0c2c89b035bf39e7ee4b98d7c48ff83feb64f056ff678cbf5983b0205fa8a",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OWN-001"
+      ],
+      "reason": "#1216 Cognitive Core component; implementation link only, benchmark and product acceptance tracked separately"
     },
     {
       "path": "src/gai/production-autonomy-runtime.ts",
@@ -4113,6 +4214,15 @@
       "reason": "Declared cloud-runtime.ts responsibility implements/supports Software Development Autopilot; Executor. Parent ownership is not functional or physical acceptance evidence."
     },
     {
+      "path": "src/orchestrator/cognitive-proxy.ts",
+      "sha256": "7c2d48ab7ce026ce26fd1e782d75c7778f04719751ffa330c593af8b41197d38",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OWN-001"
+      ],
+      "reason": "#1216 Cognitive Core component; implementation link only, benchmark and product acceptance tracked separately"
+    },
+    {
       "path": "src/orchestrator/command-ingress.ts",
       "sha256": "4291d4e6b6513455273550540fb39767c9e90e538f86d5a69d787b53625a2ddf",
       "classification": "COVERED_BY_REQUIREMENT",
@@ -4135,14 +4245,15 @@
     },
     {
       "path": "src/orchestrator/compass-goal-execution-adapter.ts",
-      "sha256": "6aa238c9b1bcabbab7c69615531a788543e840022e815bf979288083d7294609",
+      "sha256": "f3726cb5e6e05cd737f93bcec15b6cfd4828200294e0e5543b6e9e15989a92d0",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-002",
         "AUTO-004",
-        "AUTO-026"
+        "AUTO-026",
+        "OWN-001"
       ],
-      "reason": "Declared compass-goal-execution-adapter.ts responsibility implements/supports Goal persistence; Current State persistence; Verified completion only. Parent ownership is not functional or physical acceptance evidence."
+      "reason": "Issue #1216 reviewed Cognitive Core integration/hardening; mapped requirement does not imply full acceptance"
     },
     {
       "path": "src/orchestrator/compass-state-store.ts",
@@ -4552,13 +4663,14 @@
     },
     {
       "path": "src/orchestrator/local-file-capability.ts",
-      "sha256": "2df31c4bf070c1368b879ee9ec36b6312b32b780e82b53e185becdd74f8a31c2",
+      "sha256": "1e12ec666b36b430c614c7eeddea3769e9a1ecfbe0f53c603e797fdd0e30d55f",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "DEV-PC-003",
-        "CORE-005"
+        "CORE-005",
+        "OWN-001"
       ],
-      "reason": "Declared local-file-capability.ts responsibility implements/supports Filesystem operation; Input Recovery. Parent ownership is not functional or physical acceptance evidence."
+      "reason": "Issue #1216 reviewed Cognitive Core integration/hardening; mapped requirement does not imply full acceptance"
     },
     {
       "path": "src/orchestrator/local-spreadsheet-capability.ts",
@@ -4764,10 +4876,11 @@
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-015",
-        "GOV-025"
+        "GOV-025",
+        "OWN-001"
       ],
-      "reason": "Bounded authenticated canonical Draft publication and retry/proxy contract; mapping is ownership, not completion or deployment evidence.",
-      "sha256": "66db328f61657fe94671a4a26fb0f4ead9e3c1476d74f97a34b825e0630c85fb"
+      "reason": "Bounded authenticated canonical Draft publication and retry/proxy contract; mapping is ownership, not completion or deployment evidence.; #1216 bounded local cognition/owner entry integration, not full capability or physical acceptance",
+      "sha256": "bfa90b28708b2783579d64885056242612843ad3fd25594e02db00ed8676017e"
     },
     {
       "path": "src/orchestrator/research-delegation.ts",

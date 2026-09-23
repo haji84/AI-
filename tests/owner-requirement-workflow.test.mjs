@@ -4,6 +4,7 @@ import {validateOwnerDecisions,requirementFingerprint} from '../scripts/jarvis-r
 import {loadCanonicalBundle,prepareSpecificationProposal} from '../scripts/jarvis-owner-spec-sync.mjs';
 import {requirementWorkflow,prepareOwnerPreview} from '../scripts/jarvis-requirement-workflow.mjs';
 const root=fileURLToPath(new URL('../',import.meta.url));
+const nextId = offset => `OWN-${String(loadCanonicalBundle(root).inventory.allocations.length + offset).padStart(3, '0')}`;
 test('owner preview binds immutable selected requirement/new inventory and distinguishes publication from canonical sync',()=>{
  const db=new CompassStore(':memory:');try{
   const b=loadCanonicalBundle(root),intake=new OwnerRequirementIntake(db);
@@ -11,7 +12,7 @@ test('owner preview binds immutable selected requirement/new inventory and disti
   const view=requirementWorkflow(intake.list(),b,root,false);
   assert.equal(view.records[0].displayState,'ACCEPTED_REQUIREMENT');assert.equal(view.publishAvailable,false);
   const preview=prepareOwnerPreview(r,b,{mode:'new'},root,intake.list());
-  assert.equal(preview.requirementIds[0],'OWN-001');assert.equal(preview.files.length,4);assert.equal(preview.autoMerge,false);
+  assert.equal(preview.requirementIds[0],nextId(1));assert.equal(preview.files.length,4);assert.equal(preview.autoMerge,false);
   assert.ok(preview.review.newRequirement.baseInventorySha256);
   assert.throws(()=>prepareOwnerPreview(r,b,{mode:'existing',id:'CORE-015',token:'x'},root,intake.list()),/invalid/);
   const pending={...r,publication:{baseSha:'a'.repeat(40),artifactHash:'b'.repeat(64),reviewHash:'c'.repeat(64),branch:'codex/spec-sync/'+r.id,headSha:'d'.repeat(40),prNumber:9}};
@@ -35,21 +36,21 @@ test('correction before publication allocates once and withdrawal permanently pr
   const original=add('郵便を分類できる機能を追加して','initial');
   const corrected=add('さっきの仕様を「郵便を種類ごとに分類できるようにする」に変更して','correct');
   const p=prepareOwnerPreview(corrected,b,{mode:'new'},root,intake.list());
-  assert.equal(p.requirementIds[0],'OWN-001');
-  const allocation=p.bundle.inventory.allocations[0];assert.equal(allocation.decision_id,corrected.id);
+  assert.equal(p.requirementIds[0],nextId(1));
+  const allocation=p.bundle.inventory.allocations.at(-1);assert.equal(allocation.decision_id,corrected.id);
   assert.equal(p.bundle.decisions.decisions.find(d=>d.id===original.id).state,'SUPERSEDED');
   const withdrawal=add('この仕様を撤回して','withdraw');
   const w=prepareOwnerPreview(withdrawal,p.bundle,{mode:'history'},root,intake.list());
-  assert.equal(w.bundle.matrix.requirements.at(-1).id,'OWN-001');
+  assert.equal(w.bundle.matrix.requirements.at(-1).id,nextId(1));
   assert.equal(requirementWorkflow(intake.list(),w.bundle,root,true).records[0].displayState,'WITHDRAWN');
   assert.throws(()=>prepareOwnerPreview(withdrawal,p.bundle,{mode:'new'},root,intake.list()),/invalid new|withdrawal/);
-  const removed=globalThis.structuredClone(w.bundle);removed.inventory.allocations=[];removed.matrix.requirements.pop();
-  removed.ledger=removed.ledger.slice(0,removed.ledger.lastIndexOf('\n### OWN-001'));
+  const removed=globalThis.structuredClone(w.bundle);removed.inventory.allocations.pop();removed.matrix.requirements.pop();
+  removed.ledger=removed.ledger.slice(0,removed.ledger.lastIndexOf('\n### '+nextId(1)));
   assert.match(validateOwnerDecisions(removed.decisions,removed.matrix,removed.ledger,root,removed.inventory).join(' '),/unknown canonical binding/);
   const english=add('仕様として追加: calendar display','english');
   const p2=prepareOwnerPreview(english,w.bundle,{mode:'new'},root,intake.list());
-  assert.equal(p2.requirementIds[0],'OWN-002');
-  assert.deepEqual(p2.bundle.inventory.allocations[0],allocation);
+  assert.equal(p2.requirementIds[0],nextId(2));
+  assert.deepEqual(p2.bundle.inventory.allocations.at(-2),allocation);
  }finally{db.close();}
 });
 test('unpublished withdrawal preserves decision history without inventing a new capability',()=>{

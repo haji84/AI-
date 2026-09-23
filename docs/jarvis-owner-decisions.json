@@ -28,6 +28,29 @@
       "supersedes": [],
       "superseded_by": [],
       "next_action": "Candidate Broker intake, correction/withdrawal proposals and completion gating added; broader semantic extraction, new-ID allocation and automatic reviewed PR publishing remain pending."
+    },
+    {
+      "id": "owner-intake-cc6f2a30e8336d322129e2972d1e8f90",
+      "state": "SPEC_SYNCED",
+      "source": {
+        "kind": "owner_instruction",
+        "decision": "accepted",
+        "author": "haji84",
+        "ref": "https://github.com/haji84/AI-/issues/1216",
+        "excerpt": "GORIQ owns the cognition. External AI supplies optional expertise.",
+        "text_sha256": "23e3f81c06832bfc4724db648b6061aee08d0ed8060b502c37bb6938e0cfbc24",
+        "recorded_at": "2026-09-23T11:39:01.093Z"
+      },
+      "protected_changes": [],
+      "canonical": [
+        {
+          "id": "OWN-001",
+          "fingerprint": "f797c7184629d024be3054c23b17d18e3efef4051642332d7dc4463bbc6d4a18"
+        }
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "next_action": "Implement audited reuse-first composition and tests A–J; retain local/model/physical evidence distinctions."
     }
   ]
 }

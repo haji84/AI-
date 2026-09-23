@@ -13888,3 +13888,60 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   }
 }
 ```
+
+
+## GORIQ (formerly JARVIS) Cognitive Core / Primary Brain
+
+Owner instruction 2026-09-23, Issue #1216. Full normative integration contract: [Cognitive Core architecture](architecture/goriq-cognitive-core.md). The local Primary Brain proposes reasoning and plans; existing Goal/Gate/State authority remains unchanged. External AI is optional expertise, not a runtime dependency. No new paid-provider, credential or permission path is authorized. Existing R8/R14/R16/R17 research evidence is reused only within its original scope. See [delivery stages](goriq-cognitive-status.json) for SPECIFIED/IMPLEMENTED/TESTED/INTEGRATED/VERIFIED/EXPERIMENTAL distinctions. These stages do not replace canonical evidence statuses.
+
+### OWN-001
+
+```json
+{
+  "id": "OWN-001",
+  "title": "GORIQ Cognitive Core / Local Primary Brain",
+  "description": "Integrate the existing GAI execution, memory, world model, research and governed learning assets into one durable local-first cognition loop. Owner scope includes PrimaryBrainAdapter, unknown-task experiments, failure/correction/strategy recall, skill synthesis, historical import, optional verified expert learning, privacy-separated users, local training candidate pipeline, independence benchmarks, sandboxed improvement and offline recovery. Full contract: docs/architecture/goriq-cognitive-core.md; delivery stages: docs/goriq-cognitive-status.json. External AI availability is not a local-work stop condition.",
+  "phase": "P7",
+  "required_evidence": [
+    "CODE",
+    "UNIT",
+    "INTEGRATION",
+    "SECURITY",
+    "PHYSICAL",
+    "RECOVERY"
+  ],
+  "implementation_refs": [
+    "src/gai/cognitive-core.ts",
+    "src/gai/primary-brain.ts",
+    "src/gai/cognitive-state.ts",
+    "src/gai/cognitive-learning.ts",
+    "src/gai/cognitive-learning-data.ts",
+    "src/gai/cognitive-local-work.ts",
+    "src/gai/cognitive-service.ts",
+    "src/orchestrator/compass-goal-execution-adapter.ts",
+    "src/app/api/jarvis/cognitive/route.ts"
+  ],
+  "test_refs": [
+    "tests/goriq-cognitive-core.test.ts",
+    "tests/goriq-cognitive-runtime.test.ts",
+    "tests/goriq-cognitive-acceptance.test.ts",
+    "tests/cognitive-learning.test.ts",
+    "tests/cognitive-learning-data.test.ts",
+    "tests/goriq-cognitive-proxy.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/evidence/1216-cognitive-core.md",
+    "docs/audit/goriq-cognitive-brain-audit.md",
+    "docs/audit/goriq-cognitive-learning-audit.md"
+  ],
+  "status": "PARTIAL",
+  "blocker": "Bounded host-catalog integration implemented; unrestricted novel decomposition, model-quality/physical/cross-device acceptance and independent exact-head release verification remain pending.",
+  "platform_limit": null,
+  "fallback": null,
+  "next_action": "Verify the candidate and preserve software/real-model/physical evidence distinctions; complete remaining integration gaps under #1216.",
+  "last_verified_commit": null,
+  "source_decisions": [
+    "owner-intake-cc6f2a30e8336d322129e2972d1e8f90"
+  ]
+}
+```

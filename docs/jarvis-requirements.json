@@ -12157,6 +12157,53 @@
         "staged_implementation_refs": [],
         "audit_ref": "docs/evidence/1188-requirements-windows.md"
       }
+    },
+    {
+      "id": "OWN-001",
+      "title": "GORIQ Cognitive Core / Local Primary Brain",
+      "description": "Integrate the existing GAI execution, memory, world model, research and governed learning assets into one durable local-first cognition loop. Owner scope includes PrimaryBrainAdapter, unknown-task experiments, failure/correction/strategy recall, skill synthesis, historical import, optional verified expert learning, privacy-separated users, local training candidate pipeline, independence benchmarks, sandboxed improvement and offline recovery. Full contract: docs/architecture/goriq-cognitive-core.md; delivery stages: docs/goriq-cognitive-status.json. External AI availability is not a local-work stop condition.",
+      "phase": "P7",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "implementation_refs": [
+        "src/gai/cognitive-core.ts",
+        "src/gai/primary-brain.ts",
+        "src/gai/cognitive-state.ts",
+        "src/gai/cognitive-learning.ts",
+        "src/gai/cognitive-learning-data.ts",
+        "src/gai/cognitive-local-work.ts",
+        "src/gai/cognitive-service.ts",
+        "src/orchestrator/compass-goal-execution-adapter.ts",
+        "src/app/api/jarvis/cognitive/route.ts"
+      ],
+      "test_refs": [
+        "tests/goriq-cognitive-core.test.ts",
+        "tests/goriq-cognitive-runtime.test.ts",
+        "tests/goriq-cognitive-acceptance.test.ts",
+        "tests/cognitive-learning.test.ts",
+        "tests/cognitive-learning-data.test.ts",
+        "tests/goriq-cognitive-proxy.test.ts"
+      ],
+      "evidence_refs": [
+        "docs/evidence/1216-cognitive-core.md",
+        "docs/audit/goriq-cognitive-brain-audit.md",
+        "docs/audit/goriq-cognitive-learning-audit.md"
+      ],
+      "status": "PARTIAL",
+      "blocker": "Bounded host-catalog integration implemented; unrestricted novel decomposition, model-quality/physical/cross-device acceptance and independent exact-head release verification remain pending.",
+      "platform_limit": null,
+      "fallback": null,
+      "next_action": "Verify the candidate and preserve software/real-model/physical evidence distinctions; complete remaining integration gaps under #1216.",
+      "last_verified_commit": null,
+      "source_decisions": [
+        "owner-intake-cc6f2a30e8336d322129e2972d1e8f90"
+      ]
     }
   ],
   "evidence_records": [

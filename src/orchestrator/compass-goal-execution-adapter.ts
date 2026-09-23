@@ -1,4 +1,8 @@
-import { resolve } from "node:path";
+import { acquireCognitiveLease } from "../gai/cognitive-lease.ts";
+import { CognitiveLearningEngine } from "../gai/cognitive-learning.ts";
+import { PersistentWorldModel } from "../gai/world-model.ts";
+import { loadCognitiveLocalWork } from "../gai/cognitive-local-work.ts";
+import { resolve, dirname } from "node:path";
 import { CompassStore } from "../compass/store.ts";
 import { BaselinePlanner, createContextInspectCapability } from "./baseline-planner.ts";
 import { RuntimeDevelopmentPlanner } from "./runtime-development-planner.ts";
@@ -11,7 +15,20 @@ import { evaluateGoalFromWorkState } from "./goal-evaluator.ts";
 import type { ContextItem, ContextSource, GoalLoopOptions } from "./goal-loop.ts";
 import { createRuntimeDevelopmentVerifier } from "./runtime-development-verifier.ts";
 import type { GoalExecutionAdapter } from "./goal-controller-execution-bridge.ts";
-import { createWorkStateIntegratedGoalLoop, goalWorkStateId } from "./work-state-integration.ts";
+import { goalWorkStateId, type WorkStateAction } from "./work-state-integration.ts";
+import { CognitiveCore, createCognitiveGoalLoop, type CognitiveLearningBridge } from "../gai/cognitive-core.ts";
+import { CognitiveStateStore, cognitiveDigest, type CognitivePartition } from "../gai/cognitive-state.ts";
+import { configuredPrimaryBrain, type PrimaryBrainAdapter } from "../gai/primary-brain.ts";
+
+export interface CognitiveRuntimeOptions {
+  stateRoot?: string;
+  partition?: CognitivePartition;
+  environment?: string;
+  brain?: PrimaryBrainAdapter;
+  learning?: CognitiveLearningBridge;
+  allowExternalAI?: boolean;
+  localWork?: { manifestPath: string; dataRoot: string };
+}
 
 class EntryContextSource implements ContextSource {
   readonly name = "unified-entry-context";
@@ -29,17 +46,23 @@ class EntryContextSource implements ContextSource {
 export class CompassGoalExecutionAdapter implements GoalExecutionAdapter {
   private readonly dbPath: string;
   private readonly goalLoopOptions: GoalLoopOptions;
+  private readonly cognitiveOptions: CognitiveRuntimeOptions;
   constructor(
     dbPath = process.env.COMPASS_DB_PATH?.trim() || resolve(process.cwd(), ".compass", "compass.db"),
     goalLoopOptions: GoalLoopOptions = {},
+    cognitiveOptions: CognitiveRuntimeOptions = {},
   ) {
     this.dbPath = dbPath;
     this.goalLoopOptions = goalLoopOptions;
+    this.cognitiveOptions = cognitiveOptions;
   }
 
   async run(goalId: string, input: { maxCycles?: number; context?: unknown[] } = {}): Promise<BoundedRunReport> {
     const compass = new CompassStore(this.dbPath);
+    let releaseLease: (() => Promise<void>) | undefined;
+    const leasePath = `${this.dbPath}.cognitive-run.lock`;
     try {
+      releaseLease = await acquireCognitiveLease(leasePath);
       const record = compass.getGoal();
       if (!record) throw new Error("Compass goal is not set");
       const goal = compassGoalToLoopGoal(record);
@@ -62,11 +85,49 @@ export class CompassGoalExecutionAdapter implements GoalExecutionAdapter {
       const registry = new CapabilityRegistry()
         .register(createContextInspectCapability())
         .register(createCodeBuilderCapability(createRuntimeBuilderRouter()));
-      const verifier = createRuntimeDevelopmentVerifier();
+      const localWork = this.cognitiveOptions.localWork ? await loadCognitiveLocalWork(this.cognitiveOptions.localWork.manifestPath, this.cognitiveOptions.localWork.dataRoot, authoritativeGoalId, goal) : undefined;
+      localWork?.register(registry);
+      const verifier = localWork?.verifier(createRuntimeDevelopmentVerifier()) ?? createRuntimeDevelopmentVerifier();
       const workStateStore = new CompassWorkStateStoreAdapter(compass);
-      const loop = createWorkStateIntegratedGoalLoop({
+      const fallback = new RuntimeDevelopmentPlanner(new BaselinePlanner());
+      const partition = this.cognitiveOptions.partition ?? { tenantId: "local", principalId: "owner" };
+      const stateRoot = this.cognitiveOptions.stateRoot ?? resolve(dirname(this.dbPath), "cognitive");
+      const state = new CognitiveStateStore(stateRoot, partition);
+      const learning = this.cognitiveOptions.learning ?? new CognitiveLearningEngine(resolve(stateRoot, "learning"));
+      const core = new CognitiveCore({
+        goalId: authoritativeGoalId, partition,
+        state,
+        environment: this.cognitiveOptions.environment ?? `${process.platform}:local`,
+        brain: this.cognitiveOptions.brain ?? configuredPrimaryBrain(),
+        learning,
+        world: learning instanceof CognitiveLearningEngine ? new PersistentWorldModel(learning.partitionPath(partition, "world.json")) : undefined,
+        allowExternal: this.cognitiveOptions.allowExternalAI === true,
+        connectivity: this.cognitiveOptions.allowExternalAI === true ? "online" : "unknown",
+        expert: this.cognitiveOptions.allowExternalAI === true ? {
+          id: "registered-code-builder",
+          async eligible(c) { return c.candidates.some(a => a.id.startsWith("builder:")); },
+          async suggest(c) { return { candidateId: c.candidates.find(a => a.id.startsWith("builder:"))?.id ?? null, assessment: "Use already configured coding capability as optional expert", hypotheses: [], expectedOutcome: "Builder creates output for independent verification", confidence: 0.5, requiredEvidence: ["development-verifier"], recoveryOptions: ["local-inspection"], escalation: "none" }; },
+        } : undefined,
+        async candidates(input) {
+          const current = await state.get(authoritativeGoalId);
+          const localCandidates = await localWork?.candidates(current?.attempts.filter(a => a.verified).map(a => a.actionId) ?? []);
+          if (localCandidates?.length) return localCandidates;
+          const intent = await fallback.inferIntent(input);
+          const proposal = await fallback.proposeNextAction({ ...input, intent });
+          const inspection = { id: "local:inspect", kind: "research" as const, action: { id: "cognitive-local-inspect", capability: "context.inspect", description: `Inspect local evidence for ${goal.title}`, risk: "low" as const }, expectedOutcome: "Identify available local evidence and missing capabilities", evidenceRequired: ["local-context"] };
+          if (!proposal || proposal.capability !== "code.builder") return [inspection];
+          // Attempt timestamps must not become strategy identity or evade failure recall.
+          const builder = proposal.input as { objective?: string; files?: string[] };
+          return [inspection, { id: `builder:${cognitiveDigest({ capability: proposal.capability, objective: builder.objective, files: builder.files }).slice(0, 24)}`, kind: "experiment" as const, action: proposal, requiresExternalAI: true, expectedOutcome: "Requested implementation satisfies independent verifier", evidenceRequired: ["development-verifier"] }];
+        },
+        async completion(_state, currentGoal) {
+          const work = await workStateStore.get(authoritativeGoalId);
+          return currentGoal.successCriteria.length > 0 && Boolean(work && work.childWorkItems.every(item => item.status === "COMPLETED") && evaluateGoalFromWorkState(work).achieved);
+        },
+      });
+      const loop = createCognitiveGoalLoop({
+        core,
         goal,
-        planner: new RuntimeDevelopmentPlanner(new BaselinePlanner()),
         contextSources: [contextSource, new EntryContextSource(input.context ?? [])],
         executor: registry,
         verifier,
@@ -74,13 +135,41 @@ export class CompassGoalExecutionAdapter implements GoalExecutionAdapter {
         workStateStore,
         options: this.goalLoopOptions,
       });
+      const pending = await state.get(authoritativeGoalId);
+      if (pending?.pending_action && localWork) {
+        const registered = await localWork.candidates(pending.attempts.filter(a => a.verified).map(a => a.actionId));
+        const candidate = registered.find(c => c.id === pending.pending_action!.actionId);
+        if (candidate) {
+          const result = { actionId: candidate.action.id, ok: true, summary: "Local artifact outcome recovered by independent readback" };
+          const verification = await verifier.verify({ goal, action: candidate.action, result, context: [] });
+          if (verification.ok) {
+            const bound = candidate.action as WorkStateAction;
+            const work = await workStateStore.get(authoritativeGoalId);
+            const child = work?.childWorkItems.find(item => item.id === "action-" + bound.id);
+            if (!bound.materialMutation || (child?.objective === bound.description && child.affectedScope.length === 1 && child.affectedScope[0] === bound.capability)) {
+              const recovered = bound.materialMutation ? { ...candidate, action: { ...bound, workItemId: child!.id, completesWorkItem: true } } : candidate;
+              await core.reconcileVerifiedAction(recovered, goal, result, verification);
+            }
+          }
+        }
+      }
       const report = await runBoundedGoalLoop(loop, goal, { maxCycles: input.maxCycles ?? 3 });
       const workState = await workStateStore.get(authoritativeGoalId);
-      return workState
-        ? { ...report, goalEvaluation: evaluateGoalFromWorkState(workState) }
-        : report;
+      if (!workState) return report;
+      const evaluation = evaluateGoalFromWorkState(workState);
+      const cognitive = await state.get(authoritativeGoalId);
+      const completionGaps = await new CompassStateStoreAdapter(compass).completionBlockers(goal);
+      if (workState.childWorkItems.some(item => item.status !== "COMPLETED")) completionGaps.push("child_work_incomplete");
+      if (!goal.successCriteria.length) completionGaps.push("definition_of_done_required");
+      if (cognitive?.learning_outbox) completionGaps.push("learning_write_pending");
+      if (cognitive?.pending_action) completionGaps.push("action_outcome_unknown_reconciliation_required");
+      return { ...report,
+        stopReason: completionGaps.length && report.stopReason === "goal_complete" ? "blocked" : report.stopReason,
+        goalEvaluation: { ...evaluation, achieved: evaluation.achieved && completionGaps.length === 0,
+          blockers: [...evaluation.blockers, ...completionGaps], remainingGaps: [...evaluation.remainingGaps, ...completionGaps] } };
     } finally {
       compass.close();
+      if (releaseLease) await releaseLease();
     }
   }
 }

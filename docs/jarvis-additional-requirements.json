@@ -1,4 +1,18 @@
 {
   "schema_version": 1,
-  "allocations": []
+  "allocations": [
+    {
+      "id": "OWN-001",
+      "decision_id": "owner-intake-cc6f2a30e8336d322129e2972d1e8f90",
+      "created_at": "2026-09-23T11:39:01.093Z",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY",
+        "PHYSICAL",
+        "RECOVERY"
+      ]
+    }
+  ]
 }

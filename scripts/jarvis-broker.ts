@@ -1,3 +1,4 @@
+import { CognitiveService } from "../src/gai/cognitive-service.ts";
 import {requirementWorkflow,prepareOwnerPreview} from "./jarvis-requirement-workflow.mjs";
 import { createSpecificationPublisher } from "./jarvis-spec-publisher.mjs";
 import { fileURLToPath } from "node:url";
@@ -57,6 +58,7 @@ const store = new JarvisSqliteStateStore(process.env.JARVIS_DB_PATH?.trim() || u
 const compassPath = process.env.JARVIS_COMPASS_DB_PATH?.trim() || (process.env.JARVIS_DB_PATH?.trim() ? `${process.env.JARVIS_DB_PATH.trim()}.compass.sqlite` : resolve(".jarvis/compass.db"));
 const compass = new CompassStore(compassPath);
 const workRuns = new CompassWorkRunStore(compass);
+const cognitive = new CognitiveService(compassPath, process.env.GORIQ_LOCAL_WORK_MANIFEST?.trim() && process.env.GORIQ_LOCAL_DATA_ROOT?.trim() ? { localWork: { manifestPath: process.env.GORIQ_LOCAL_WORK_MANIFEST.trim(), dataRoot: process.env.GORIQ_LOCAL_DATA_ROOT.trim() } } : {});
 const ownerRequirements = new OwnerRequirementIntake(compass);
 const specificationPublisher = createSpecificationPublisher({root:fileURLToPath(new URL("../",import.meta.url)),intake:ownerRequirements,token:process.env.GITHUB_TOKEN});
 const goalController = new GoalControllerRuntime({
@@ -303,6 +305,16 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
         void _bundle;
         return json(response, 200, artifact);
       } catch (error) { return json(response, 409, { message: error instanceof Error ? error.message : "specification proposal failed" }); }
+    }
+    if (path === "/api/jarvis/admin/cognitive") {
+      try {
+        if (method === "GET") return json(response, 200, await cognitive.status());
+        if (method === "POST") {
+          if (body.length > 512 || Object.keys(payload).some(k => k !== "goalId") || typeof payload.goalId !== "string") return json(response, 400, { message: "Invalid bounded cognitive request" });
+          return json(response, 200, await cognitive.continue(payload.goalId));
+        }
+        return json(response, 405, { message: "Method not allowed" });
+      } catch (error) { return json(response, 409, { message: error instanceof Error ? error.message : "Cognitive cycle unavailable" }); }
     }
     if (method === "GET" && path.startsWith("/api/jarvis/admin/work/")) {
       const goalId = decodeURIComponent(path.slice("/api/jarvis/admin/work/".length));

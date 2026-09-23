@@ -173,9 +173,9 @@ test('publisher serializes new allocation with its adopted source, while keeping
   await createSpecificationPublisher({root,intake:f.intake,token:'fixture-only',fetchImpl:f.fetchImpl}).publish(f.record.id,review);
   const content=p=>JSON.parse(f.state.tree.tree.find(v=>v.path===p).content);
   const row=content('docs/jarvis-requirements.json').requirements.at(-1);
-  assert.equal(row.id,'OWN-001');assert.equal(row.status,'MISSING');
-  assert.equal(content('docs/jarvis-additional-requirements.json').allocations[0].decision_id,f.record.id);
-  assert.equal(content('docs/jarvis-owner-decisions.json').decisions.at(-1).canonical[0].id,'OWN-001');
+  assert.equal(row.id,`OWN-${String(loadCanonicalBundle(root).inventory.allocations.length+1).padStart(3,'0')}`);assert.equal(row.status,'MISSING');
+  assert.equal(content('docs/jarvis-additional-requirements.json').allocations.at(-1).decision_id,f.record.id);
+  assert.equal(content('docs/jarvis-owner-decisions.json').decisions.at(-1).canonical[0].id,row.id);
   assert.equal(f.intake.list()[0].state,'ACCEPTED_REQUIREMENT');
  }finally{f.db.close();}
 });
