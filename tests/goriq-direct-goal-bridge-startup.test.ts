@@ -21,7 +21,7 @@ test("Direct Goal Bridge Broker startup diagnostic", { timeout: 15000 }, async (
     let healthy = false;
     for (let n = 0; n < 100; n++) {
       if (child.exitCode !== null) break;
-      try { if ((await fetch(`http://127.0.0.1:${port}/health`, { signal: AbortSignal.timeout(500) })).ok) { healthy = true; break; } } catch {}
+      try { if ((await fetch(`http://127.0.0.1:${port}/health`, { signal: AbortSignal.timeout(500) })).ok) { healthy = true; break; } } catch { /* bounded startup probe */ }
       await new Promise(r => setTimeout(r, 50));
     }
     assert.equal(healthy, true, `Broker failed to start: ${stderr.slice(-6000)}`);
