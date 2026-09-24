@@ -108,7 +108,7 @@ test("an implementation criterion naming a file under tests is not mistaken for 
     context: [{ source: "gai-work-state", summary: "work", data: { status: "IN_PROGRESS", blockers: [], remainingDefinitionOfDone: [{ id: "criterion-1", description: "Implement code in tests/fixtures/autonomous-builder-e2e.txt with complete content exactly beta" }] } }],
     intent,
   });
-  assert.deepEqual(action?.satisfiesDefinitionOfDone, ["criterion-1"]);
+  assert.deepEqual((action as { satisfiesDefinitionOfDone?: string[] })?.satisfiesDefinitionOfDone, ["criterion-1"]);
 });
 
 test("completed WorkState stops normal development planning", async () => {
