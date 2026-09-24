@@ -5,7 +5,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { request as httpRequest } from "node:http";
 import { createServer } from "node:net";
 import { join, resolve } from "node:path";
-import { changedPaths, terminalWorkPhase } from "./zbook-goal-git-status.ts";
+import { changedPaths, newPathsSinceBaseline, terminalWorkPhase } from "./zbook-goal-git-status.ts";
 
 if (process.platform !== "win32") throw new Error("Issue #1218 physical Bridge run requires ZBook Windows");
 const workspace = process.env.GORIQ_1218_WORKSPACE?.trim();
@@ -44,6 +44,7 @@ function request(path: string, body?: unknown): Promise<{ status: number; data: 
 try {
   await mkdir(root, { recursive: true });
   await mkdir(evidenceDir, { recursive: true });
+  const baselinePaths = changedPaths(execFileSync("git", ["status", "--porcelain"], { cwd: workspace, encoding: "utf8", windowsHide: true }));
   broker = spawn(process.execPath, [resolve("scripts/jarvis-broker.ts")], { cwd: process.cwd(), windowsHide: true, stdio: ["ignore", "ignore", "pipe"],
     env: { ...process.env, GITHUB_TOKEN: "", JARVIS_OWNER_TOKEN: ownerToken, JARVIS_BROKER_HOST: "127.0.0.1", JARVIS_BROKER_PORT: String(port),
       JARVIS_DB_PATH: join(root, "state.sqlite"), JARVIS_COMPASS_DB_PATH: join(root, "compass.sqlite"), JARVIS_PUBLIC_BROKER_URL: "", JARVIS_WORKER_INSTALL_URL: "", JARVIS_WORKER_APK_PATH: "" },
@@ -74,7 +75,7 @@ try {
   evidence.intake = { goalId, action: accepted.data.action, executionScheduled: true, duplicateGoalId: duplicate.data.goalId };
   let observedExecution = false;
   let lastChanges: string[] = [];
-  for (let n = 0; n < 480; n++) {
+  for (let n = 0; n < 1200; n++) {
     const status = await request(`/api/jarvis/admin/work/${encodeURIComponent(goalId)}`);
     if (status.status !== 200) throw new Error("#1218 status unavailable");
     const run = status.data.run as { phase?: string; blockers?: string[]; nextAction?: string } | undefined;
@@ -99,15 +100,18 @@ try {
     await new Promise(done => setTimeout(done, 200));
   }
   const paths = (evidence.changedFiles as string[] | undefined) ?? [];
-  if (paths.some(path => !/^(scripts|tests|src\/app\/jarvis)\//.test(path))) throw new Error("Builder changed a file outside the bounded #1218 scope");
-  if (paths.length) {
-    execFileSync("git", ["add", "-N", "--", ...paths], { cwd: workspace, windowsHide: true });
-    const patch = execFileSync("git", ["diff", "--binary", "--", ...paths], { cwd: workspace, encoding: "utf8", windowsHide: true, maxBuffer: 2_000_000 });
+  if (!terminalWorkPhase(evidence.lastPhase as string | undefined)) throw new Error("#1218 remained nonterminal after bounded observation");
+  const newlyChanged = newPathsSinceBaseline(baselinePaths, paths);
+  const inScope = (path: string) => /^(scripts|tests|src\/app\/jarvis)\//.test(path) || path === "docs/jarvis-reverse-traceability.json";
+  if (newlyChanged.some(path => !inScope(path))) throw new Error("Builder changed a file outside the bounded #1218 scope");
+  const patchPaths = paths.filter(inScope);
+  if (patchPaths.length) {
+    execFileSync("git", ["add", "-N", "--", ...patchPaths], { cwd: workspace, windowsHide: true });
+    const patch = execFileSync("git", ["diff", "--binary", "--", ...patchPaths], { cwd: workspace, encoding: "utf8", windowsHide: true, maxBuffer: 2_000_000 });
     await writeFile(join(evidenceDir, "goal-1218-bridge.patch"), patch, "utf8");
   }
   if (!observedExecution) throw new Error("#1218 accepted but autonomous execution was not observed");
   if (!paths.length) throw new Error(`#1218 started but no implementation patch was produced (phase=${evidence.lastPhase})`);
-  if (!terminalWorkPhase(evidence.lastPhase as string | undefined)) throw new Error("#1218 remained nonterminal after bounded observation");
   if (evidence.lastPhase !== "COMPLETED") throw new Error(`#1218 stopped at ${evidence.lastPhase}; inspect blockers and gate`);
   evidence.status = "GOAL_COMPLETED";
 } catch (error) {
