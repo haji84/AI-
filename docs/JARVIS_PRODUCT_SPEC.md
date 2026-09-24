@@ -13888,3 +13888,82 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   }
 }
 ```
+
+
+## Canonical Fact / Evidence / Local-Online execution specification
+
+This section is normative. Agents MUST preserve these state transitions and MUST reuse the existing verifier/privacy/evidence implementations before creating alternatives.
+
+### FE-001 Claim-first fact model
+Material factual output is represented as Claims with supporting Source/Evidence metadata. Evidence quality includes source class/authority, retrieval time/freshness, and whether the evidence directly supports the Claim. Do not promote an inference beyond what its evidence establishes.
+Implementation: `src/orchestrator/fact-verifier.ts`, `src/orchestrator/production-research.ts`.
+
+### FE-002 Fact states
+A material Claim must remain explicitly distinguishable as verified/confirmed, conflicted, or unverified. Conflicting authoritative values MUST remain `CONFLICTED`; missing/insufficient support MUST remain `UNVERIFIED`. Majority vote between models/sources does not erase a material conflict.
+
+### FE-003 Fact Completion Gate
+A Goal/Job that requires material factual verification cannot complete while a required Claim is unsupported, conflicted, stale when freshness is required, or otherwise unverified. The Fact Completion Gate is separate from artifact creation success.
+Implementation: `src/orchestrator/fact-completion-gate.ts`.
+
+### FE-004 Artifact Verification
+Creation success is not artifact correctness. XLSX/DOCX/PDF/data artifacts must be independently checked against required structure/content and verified Claims before acceptance. Artifact verification does not substitute for Fact Verification, and Fact Verification does not substitute for artifact verification.
+Implementation: `src/orchestrator/local-artifact-verifier.ts` and domain artifact verifier contracts.
+
+### FE-005 Independent Critic
+Where independent verification is required, the Maker cannot satisfy the Critic requirement. Evidence-backed Critic findings block completion until resolved or explicitly escalated.
+Implementation: `src/orchestrator/independent-critic-gate.ts`.
+
+### FE-006 Evidence lineage
+Evidence used for a material Claim/result must retain enough lineage to identify its source, retrieval/observation time where relevant, and the Claim/result it supports. Generated summaries are not treated as primary evidence merely because another model produced them.
+
+### LO-001 Local-first private context
+Private, confidential, personal or organization-internal source material remains Local by default. Local JARVIS may use the full authorized private context required for the Job. Privacy minimization intended for external transfer MUST NOT unnecessarily remove information from authorized Local-only work.
+
+### LO-002 Privacy Partitioning
+When external/Online capability is useful, Local JARVIS separates the research purpose/necessary conditions from protected identity/context. Direct identifiers are removed/redacted; quasi-identifiers are generalized when required; unrelated sensitive attributes are removed; only the minimum semantically necessary context is eligible for outbound use.
+Implementation: `src/orchestrator/context-engineering.ts`, `src/orchestrator/outbound-privacy-gate.ts`.
+
+### LO-003 Outbound Privacy Gate
+Every protected-context external dispatch must pass privacy classification, data minimization, re-identification-risk handling and destination policy before leaving Local control. If the research requires specific protected information that cannot safely be generalized, automatic external disclosure is blocked: use LOCAL_ONLY/approved connected source, or an explicit external-disclosure Human Gate as policy requires. Convenience is not a disclosure justification.
+Implementation: `src/orchestrator/outbound-privacy-gate.ts`, `src/orchestrator/governed-fabric-dispatch.ts`.
+
+### LO-004 Work map versus payload
+External/remote brains receive the complete Execution Context Capsule needed to understand Goal, Job, Why, workflow position, constraints, decisions, dependencies, expected output, DoD, verification and recovery context, while source payload is minimized to what that Job needs. Canonical rule: the complete work map is shared; only necessary luggage/data is shared.
+Implementation: `src/orchestrator/execution-context-capsule.ts`.
+
+### LO-005 Progressive Context Retrieval
+If a running Job needs more context, it requests context from Work OS instead of guessing. The request re-enters privacy/policy evaluation. Shareable context may be added; protected context that cannot leave Local is resolved locally and only the permitted result is returned.
+Implementation: `src/orchestrator/execution-context-capsule.ts`, `src/orchestrator/governed-fabric-dispatch.ts`.
+
+### LO-006 Online evidence is not trusted by arrival
+Online/remote output returns as research/evidence input, not automatically as truth. It must pass applicable Fact Verification before Local private-context recombination or material artifact completion.
+
+### LO-007 Local Recombination
+Only Local JARVIS recombines protected private context with externally acquired research. Unverified Online results MUST NOT be recombined as verified facts.
+Implementation: `src/orchestrator/outbound-privacy-gate.ts`, `src/orchestrator/governed-fabric-dispatch.ts`.
+
+### LO-008 Hybrid Evidence Router
+Evidence may come from LOCAL, ONLINE, CONNECTED or DEVICE channels. Routing considers availability, authority, freshness, privacy and cost. Current authoritative facts prefer fresh authoritative evidence when required; static/local facts may remain entirely Local.
+Implementation: `src/orchestrator/hybrid-evidence-router.ts`.
+
+### LO-009 Offline continuation
+Loss of network does not globally stop JARVIS. Work that can be completed with sufficient Local evidence continues. A freshness-dependent/current external Claim that cannot be verified offline remains explicitly deferred/unverified rather than guessed or silently accepted.
+
+### LO-010 Offline-to-Online Deferred Verification
+Freshness-dependent Claims blocked by connectivity enter deferred verification. On reconnect they become ready for Online verification. If verified current evidence changes a value used by an existing artifact, the artifact status becomes `REGENERATION_REQUIRED`; if the fact still cannot be verified it remains blocked/unverified. Network restoration alone is never evidence of correctness.
+Implementation: `src/orchestrator/deferred-verification.ts`.
+
+### LO-011 Canonical end-to-end flow
+For protected work requiring current external research, the canonical flow is:
+Private Context -> Local analysis -> research-purpose extraction -> Privacy Partition -> Execution Context Capsule -> Outbound Privacy Gate -> Online/Connected research -> Evidence -> Local Fact Verification -> Local Recombination -> Artifact creation/update -> Artifact Verification -> Independent Critic when required -> Complete.
+A step may be skipped only when its requirement is genuinely absent, not to shorten the workflow.
+
+### LO-012 Prohibited shortcuts
+Agents MUST NOT:
+- send raw private source material Online merely because an Online model is stronger;
+- mark current facts verified using stale Local evidence when current evidence is required;
+- convert `CONFLICTED` or `UNVERIFIED` to success by model majority vote;
+- treat generated artifact success as Fact/Artifact Verification;
+- fabricate evidence while offline;
+- bypass the Outbound Privacy Gate through a new transport/provider;
+- create a parallel fact/privacy pipeline when the canonical implementation can be extended.
