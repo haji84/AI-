@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { acquireCognitiveLease } from "./cognitive-lease.ts";
+import { validateCognitiveOperation, type CognitiveOperation } from "./cognitive-operation.ts";
 import { PersistentMemoryStore } from "./memory-store.ts";
 import { PersistentWorldModel } from "./world-model.ts";
 import { PersistentSkillLibrary } from "./skill-library.ts";
@@ -16,6 +17,7 @@ export interface CognitiveLearningPartition { tenantId: string; principalId: str
 export type CognitiveLearningSource = "deterministic" | "skill" | "memory" | "local-model" | "local-experiment" | "external-expert" | "degraded";
 export interface CognitiveLearningExperience {
   id: string; partition: CognitiveLearningPartition; goalId: string; task: string; actionId: string; strategyId: string; environment: string;
+  learningOperation?: CognitiveOperation;
   prediction: { expectedOutcome: string; confidence: number }; observation: { summary: string; success: boolean };
   verified: boolean; evidenceRefs: string[]; source: CognitiveLearningSource; durationMs: number; externalCalls: number;
   split?: "train" | "heldout"; goalCompleted?: boolean; unknownTask?: boolean; humanInterventions?: number; rollbackCount?: number;
@@ -27,6 +29,7 @@ export interface CognitiveCorrection {
   originalActionId: string; replacementActionId: string; evidenceRefs: string[]; verified: boolean; scope: "preference" | "general";
 }
 export interface CognitiveSkillCandidate {
+  operation?: CognitiveOperation;
   id: string; synthesisKey: string; status: "candidate" | "active" | "quarantined"; sourceExperiences: string[]; evidenceRefs: string[];
   purpose: string; applicability: string[]; prerequisites: string[]; inputSchema: { type: "object"; required: string[] };
   executionProcedure: string; expectedOutput: string; validation: string[]; commonFailures: string[]; recovery: string[];
@@ -69,12 +72,28 @@ function boundedNumber(value: number, field: string, max = Number.MAX_SAFE_INTEG
 }
 function ratio(numerator: number, denominator: number): number | null { return denominator ? numerator / denominator : null; }
 /** Learning stores a symbolic host binding, never an executable learned procedure. */
-function catalogBinding(procedure: string): { catalogActionId: string; environment: string } | null {
+type CatalogBinding = { environment: string } & (
+  { catalogActionId: string; catalogOperation?: never } | { catalogOperation: CognitiveOperation; catalogActionId?: never }
+);
+function catalogBinding(procedure: string): CatalogBinding | null {
   try {
     const value: unknown = JSON.parse(procedure);
-    shape(value, ["catalogActionId", "environment"], "catalog skill binding");
-    return { catalogActionId: cognitiveLearningText(value.catalogActionId, "catalog action", 200), environment: cognitiveLearningText(value.environment, "catalog environment") };
+    shape(value, ["catalogActionId", "catalogOperation", "environment"], "catalog skill binding");
+    const environment = cognitiveLearningText(value.environment, "catalog environment");
+    if (Object.hasOwn(value, "catalogOperation")) {
+      shape(value, ["catalogOperation", "environment"], "catalog operation binding");
+      return { catalogOperation: validateCognitiveOperation(value.catalogOperation), environment };
+    }
+    return { catalogActionId: cognitiveLearningText(value.catalogActionId, "catalog action", 200), environment };
   } catch { return null; }
+}
+function bindingMatches(binding: CatalogBinding, experience: CognitiveLearningExperience): boolean {
+  return binding.catalogOperation !== undefined ? experience.learningOperation === binding.catalogOperation :
+    experience.learningOperation === undefined && experience.actionId === binding.catalogActionId;
+}
+function sameLearningStrategy(left: CognitiveLearningExperience, right: CognitiveLearningExperience): boolean {
+  return right.learningOperation !== undefined ? left.learningOperation === right.learningOperation :
+    left.learningOperation === undefined && left.actionId === right.actionId && left.strategyId === right.strategyId;
 }
 function shape(value: unknown, allowed: string[], label: string): asserts value is Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).some((key) => !allowed.includes(key))) throw Error(`Invalid ${label} fields`);
@@ -121,18 +140,27 @@ export class CognitiveLearningEngine {
       for (const e of value.experiences) { this.validateExperience(e); if (hash(e.partition) !== hash(partition)) throw Error("Cognitive learning partition mismatch"); }
       for (const c of value.corrections) { validateCorrection(c); this.partitionPath(c.partition, "experience.json"); if (hash(c.partition) !== hash(partition)) throw Error("Cognitive correction partition mismatch"); }
       for (const c of value.candidates) {
-        shape(c, ["id", "synthesisKey", "status", "sourceExperiences", "evidenceRefs", "purpose", "applicability", "prerequisites", "inputSchema", "executionProcedure", "expectedOutput", "validation", "commonFailures", "recovery", "confidence", "successCount", "failureCount", "version"], "skill candidate");
+        shape(c, ["operation", "id", "synthesisKey", "status", "sourceExperiences", "evidenceRefs", "purpose", "applicability", "prerequisites", "inputSchema", "executionProcedure", "expectedOutput", "validation", "commonFailures", "recovery", "confidence", "successCount", "failureCount", "version"], "skill candidate");
         for (const field of ["id", "synthesisKey", "purpose", "executionProcedure", "expectedOutput"] as const) cognitiveLearningText(c[field], field);
         for (const field of ["sourceExperiences", "evidenceRefs", "applicability", "prerequisites", "validation", "commonFailures", "recovery"] as const) {
           if (!Array.isArray(c[field]) || c[field].length > 64) throw Error(`Invalid candidate ${field}`);
           for (const entry of c[field]) cognitiveLearningText(entry, field);
         }
         shape(c.inputSchema, ["type", "required"], "candidate input schema");
-        if (c.inputSchema.type !== "object" || JSON.stringify(c.inputSchema.required) !== JSON.stringify(["catalogActionId", "environment"])) throw Error("Invalid candidate input schema");
+        const binding = catalogBinding(c.executionProcedure);
+        if (!binding || binding.catalogOperation !== c.operation) throw Error("Invalid candidate operation binding");
+        if (c.operation !== undefined) validateCognitiveOperation(c.operation);
+        const required = binding.catalogOperation ? ["catalogOperation", "environment"] : ["catalogActionId", "environment"];
+        if (c.inputSchema.type !== "object" || JSON.stringify(c.inputSchema.required) !== JSON.stringify(required)) throw Error("Invalid candidate input schema");
         if (!["candidate", "active", "quarantined"].includes(c.status)) throw Error("Invalid candidate status");
         boundedNumber(c.confidence, "candidate confidence", 1);
         for (const field of ["successCount", "failureCount", "version"] as const) if (!Number.isInteger(c[field]) || c[field] < 0) throw Error(`Invalid candidate ${field}`);
         if (c.sourceExperiences.some((id) => !value.experiences.some((e) => e.id === id && e.verified && e.observation.success && e.split !== "heldout"))) throw Error("Invalid skill provenance");
+        if (binding.catalogOperation) {
+          const sources = c.sourceExperiences.map(id => value.experiences.find(e => e.id === id)!);
+          if (sources.length < 2 || sources.some((e, index) => !bindingMatches(binding, e) || e.environment !== binding.environment ||
+              normalizedTask(e.task) !== normalizedTask(c.purpose) || sources.slice(0, index).some(prior => prior.goalId === e.goalId || prior.evidenceRefs.some(ref => e.evidenceRefs.includes(ref))))) throw Error("Invalid operation skill provenance");
+        }
       }
       for (const records of [value.experiences, value.corrections, value.candidates]) if (new Set(records.map((record) => record.id)).size !== records.length) throw Error("Duplicate learning record ID");
       return value;
@@ -153,7 +181,7 @@ export class CognitiveLearningEngine {
   }
 
   private validateExperience(input: CognitiveLearningExperience): CognitiveLearningExperience {
-    shape(input, ["id", "partition", "goalId", "task", "actionId", "strategyId", "environment", "prediction", "observation", "verified", "evidenceRefs", "source", "durationMs", "externalCalls", "split", "goalCompleted", "unknownTask", "humanInterventions", "rollbackCount", "transferTask", "offline", "memoryAblation", "completionEvidenceRefs"], "experience");
+    shape(input, ["id", "partition", "goalId", "task", "actionId", "strategyId", "environment", "learningOperation", "prediction", "observation", "verified", "evidenceRefs", "source", "durationMs", "externalCalls", "split", "goalCompleted", "unknownTask", "humanInterventions", "rollbackCount", "transferTask", "offline", "memoryAblation", "completionEvidenceRefs"], "experience");
     shape(input.prediction, ["expectedOutcome", "confidence"], "prediction");
     shape(input.observation, ["summary", "success"], "observation");
     this.partitionPath(input.partition, "experience.json");
@@ -161,6 +189,7 @@ export class CognitiveLearningEngine {
     if (input.split !== undefined && !["train", "heldout"].includes(input.split)) throw Error("Invalid learning split");
     for (const field of ["goalCompleted", "unknownTask", "transferTask", "offline"] as const) if (input[field] !== undefined && typeof input[field] !== "boolean") throw Error(`Invalid ${field}`);
     const copy = structuredClone(input);
+    if (input.learningOperation !== undefined) copy.learningOperation = validateCognitiveOperation(input.learningOperation);
     for (const field of ["id", "goalId", "task", "actionId", "strategyId", "environment"] as const) copy[field] = cognitiveLearningText(input[field], field);
     copy.prediction.expectedOutcome = cognitiveLearningText(input.prediction.expectedOutcome, "prediction");
     copy.observation.summary = cognitiveLearningText(input.observation.summary, "observation");
@@ -209,7 +238,7 @@ export class CognitiveLearningEngine {
       if (experience.verified) {
         for (const candidate of data.candidates.filter(c => c.status !== "quarantined" && relevant(c.purpose, experience.task))) {
           const binding = catalogBinding(candidate.executionProcedure);
-          if (binding?.catalogActionId !== experience.actionId || binding.environment !== experience.environment) continue;
+          if (!binding || !bindingMatches(binding, experience) || binding.environment !== experience.environment) continue;
           const current = await skills.get(candidate.id);
           if (!current || current.procedure !== candidate.executionProcedure) throw Error("Certified skill binding is unavailable");
           // Certification can reach the library before the final ledger save.
@@ -217,7 +246,7 @@ export class CognitiveLearningEngine {
           if (candidate.status !== "active" && current.status !== "active" && current.status !== "quarantined") continue;
           // Project unique ledger experiences, including this pending observation.
           // Incrementing the library before the ledger commit would count a replay twice.
-          const outcomes = data.experiences.filter(e => e.verified && e.actionId === experience.actionId &&
+          const outcomes = data.experiences.filter(e => e.verified && bindingMatches(binding, e) &&
             e.environment === experience.environment && relevant(candidate.purpose, e.task));
           const successes = outcomes.filter(e => e.observation.success).length;
           const failures = outcomes.length - successes;
@@ -249,25 +278,28 @@ export class CognitiveLearningEngine {
 
   private async synthesize(data: LearningFile, experience: CognitiveLearningExperience, memory: PersistentMemoryStore, skills: PersistentSkillLibrary, recordedAt: string): Promise<void> {
     if (!experience.observation.success) return;
-    const group = data.experiences.filter((item) => item.verified && item.observation.success && item.split !== "heldout" && item.actionId === experience.actionId && item.strategyId === experience.strategyId && item.environment === experience.environment && normalizedTask(item.task) === normalizedTask(experience.task));
+    const group = data.experiences.filter((item) => item.verified && item.observation.success && item.split !== "heldout" && sameLearningStrategy(item, experience) && item.environment === experience.environment && normalizedTask(item.task) === normalizedTask(experience.task));
     const independent = group.filter((item, index) => !group.slice(0, index).some((prior) => prior.goalId === item.goalId || prior.evidenceRefs.some((ref) => item.evidenceRefs.includes(ref))));
     if (independent.length < 2) return;
-    const key = hash([experience.task, experience.actionId, experience.strategyId, experience.environment]).slice(0, 24);
+    const operation = experience.learningOperation;
+    const key = hash(operation ? [normalizedTask(experience.task), "catalog-operation", operation, experience.environment] : [experience.task, experience.actionId, experience.strategyId, experience.environment]).slice(0, 24);
     if (data.candidates.some((candidate) => candidate.synthesisKey === key)) return;
     const evidence = [...new Set(independent.flatMap((item) => item.evidenceRefs))];
+    const binding: CatalogBinding = operation ? { catalogOperation: operation, environment: experience.environment } : { catalogActionId: experience.actionId, environment: experience.environment };
+    const failures = data.experiences.filter(item => item.verified && bindingMatches(binding, item) && item.environment === experience.environment && relevant(item.task, experience.task) && !item.observation.success);
     const learned = await new VerifiedWorkLearningEngine(memory, skills).learn({ goalId: experience.goalId,
-      goalSummary: experience.task, capability: `cognitive.catalog-action:${key}`, applicability: [normalizedTask(experience.task), experience.environment],
-      plan: [experience.actionId], attempts: [{ id: `consolidation:${key}`, strategyId: experience.strategyId,
-        procedure: JSON.stringify({ catalogActionId: experience.actionId, environment: experience.environment }), resultOk: true, verifierPassed: true, evidenceRefs: evidence.slice(0, 60) }],
+      goalSummary: experience.task, capability: `cognitive.${operation ? "catalog-operation" : "catalog-action"}:${key}`, applicability: [normalizedTask(experience.task), experience.environment],
+      plan: [operation ?? experience.actionId], attempts: [{ id: `consolidation:${key}`, strategyId: operation ?? experience.strategyId,
+        procedure: JSON.stringify(binding), resultOk: true, verifierPassed: true, evidenceRefs: evidence.slice(0, 60) }],
       outcome: "COMPLETED", completedAt: recordedAt, constraints: { maxRisk: "low", connectivity: "either" } });
     if (!learned.skill) return;
-    data.candidates.push({ id: learned.skill.id, synthesisKey: key, status: "candidate", sourceExperiences: independent.map((item) => item.id), evidenceRefs: evidence,
-      purpose: experience.task, applicability: [experience.environment, normalizedTask(experience.task)], prerequisites: ["host catalog contains the same action ID", "existing risk and verification gates pass"],
-      inputSchema: { type: "object", required: ["catalogActionId", "environment"] }, executionProcedure: learned.skill.procedure,
+    data.candidates.push({ ...(operation ? { operation } : {}), id: learned.skill.id, synthesisKey: key, status: "candidate", sourceExperiences: independent.map((item) => item.id), evidenceRefs: evidence,
+      purpose: experience.task, applicability: [experience.environment, normalizedTask(experience.task)], prerequisites: [operation ? "host catalog supplies the same bounded operation on a currently authorized action" : "host catalog contains the same action ID", "existing risk and verification gates pass"],
+      inputSchema: { type: "object", required: [operation ? "catalogOperation" : "catalogActionId", "environment"] }, executionProcedure: learned.skill.procedure,
       expectedOutput: experience.prediction.expectedOutcome, validation: ["independent benchmark and verifier evidence"],
-      commonFailures: data.experiences.filter((item) => item.actionId === experience.actionId && !item.observation.success).map((item) => item.observation.summary).slice(-8),
+      commonFailures: failures.map(item => item.observation.summary).slice(-8),
       recovery: ["return to Goal Controller recovery; do not execute arbitrary learned text"], confidence: learned.skill.confidence,
-      successCount: independent.length, failureCount: data.experiences.filter((item) => item.actionId === experience.actionId && item.environment === experience.environment && !item.observation.success).length, version: learned.skill.version ?? 1 });
+      successCount: independent.length, failureCount: failures.length, version: learned.skill.version ?? 1 });
   }
 
   async recall(input: { partition: CognitiveLearningPartition; goalId: string; task: string; environment: string }) {
@@ -288,15 +320,15 @@ export class CognitiveLearningEngine {
       for (const e of eligible) latest.set(e.actionId, e);
       const avoidActionIds = [...new Set([...latest.values()].filter((e) => !e.observation.success).map((e) => e.actionId).concat(corrections.map((c) => c.originalActionId)))];
       const library = new PersistentSkillLibrary(this.partitionPath(input.partition, "skills.json"));
-      const skills: Array<{ id: string; actionId: string; environment: string; confidence: number; evidenceRefs: string[]; maxRisk: "low" | "medium" | "high" }> = [];
+      const skills: Array<{ id: string; actionId: string; operation?: CognitiveOperation; environment: string; confidence: number; evidenceRefs: string[]; maxRisk: "low" | "medium" | "high" }> = [];
       for (const candidate of data.candidates.filter(c => c.status === "active" && relevant(c.purpose, input.task))) {
         const binding = catalogBinding(candidate.executionProcedure);
-        if (!binding || binding.environment !== input.environment || avoidActionIds.includes(binding.catalogActionId)) continue;
+        if (!binding || binding.environment !== input.environment || (binding.catalogActionId !== undefined && avoidActionIds.includes(binding.catalogActionId))) continue;
         const certified = await library.get(candidate.id);
         if (certified?.status !== "active" || certified.procedure !== candidate.executionProcedure || !Array.isArray(certified.certificationEvidence) || !certified.certificationEvidence.length || !candidate.validation.every(ref => certified.certificationEvidence!.includes(ref))) continue;
         const maxRisk = certified.constraints?.maxRisk ?? "low";
         if (!["low", "medium", "high"].includes(maxRisk)) continue;
-        skills.push({ id: candidate.id, actionId: binding.catalogActionId, environment: binding.environment, confidence: candidate.confidence, evidenceRefs: refs(certified.certificationEvidence), maxRisk });
+        skills.push({ id: candidate.id, actionId: binding.catalogActionId ?? `operation:${binding.catalogOperation}`, ...(binding.catalogOperation ? { operation: binding.catalogOperation } : {}), environment: binding.environment, confidence: candidate.confidence, evidenceRefs: refs(certified.certificationEvidence), maxRisk });
       }
       return { memories, skills: skills.sort((a, b) => b.confidence - a.confidence).slice(0, 8), strategies, avoidActionIds, corrections };
     });

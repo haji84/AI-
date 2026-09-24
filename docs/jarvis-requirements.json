@@ -12196,7 +12196,8 @@
         "src/compass/store.ts",
         "src/app/api/jarvis/cognitive/goal/route.ts",
         "src/app/jarvis/tasks/CognitiveGoalCriteria.tsx",
-        "src/app/api/jarvis/cognitive/goal/proposal/route.ts"
+        "src/app/api/jarvis/cognitive/goal/proposal/route.ts",
+        "src/gai/cognitive-operation.ts"
       ],
       "test_refs": [
         "tests/goriq-cognitive-core.test.ts",
@@ -12225,7 +12226,10 @@
         "tests/goriq-goal-proposal-brain.test.ts",
         "tests/goriq-goal-proposal-service.test.ts",
         "tests/goriq-goal-proposal-review.test.ts",
-        "scripts/goriq-local-goal-proposal-smoke.ts"
+        "scripts/goriq-local-goal-proposal-smoke.ts",
+        "tests/cognitive-operation-learning.test.ts",
+        "tests/goriq-operation-runtime.test.ts",
+        "tests/goriq-operation-review.test.ts"
       ],
       "evidence_refs": [
         "docs/evidence/1216-cognitive-core.md",
@@ -12233,10 +12237,10 @@
         "docs/audit/goriq-cognitive-learning-audit.md"
       ],
       "status": "PARTIAL",
-      "blocker": "Normal Goal intake, bounded local unverified DoD proposals, explicit owner adoption, local material execution/download and historical/correction UI are integrated. Broad conversational semantic fidelity, unrestricted novel decomposition/executable skills, historical claim revalidation, teaching/R16 experiment/R17 promotion integration and physical/cross-device acceptance remain.",
+      "blocker": "Normal Goal intake, local unverified DoD proposals, owner adoption, verified material execution/download and historical/correction UI are integrated. Independent local Goals now generate inert host-operation skill candidates without changing exact action identities. Actual measured-gain certification, broad semantic fidelity, unrestricted decomposition/executable skills, historical revalidation, teaching/R16 experiment/R17 promotion integration and physical/cross-device acceptance remain.",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "Finish exact-commit CI and bounded local-model/browser evidence for unverified editable DoD proposals. Then expand semantic fidelity/independent outcome evaluation and verified historical/teaching/research/model-improvement integration without promoting model prose or weakening existing gates.",
+      "next_action": "Finish exact-commit CI for operation learning and recovery/correction boundaries. Then integrate an independently verified bounded experiment/certification path with real held-out outcomes and measurable gain; retain inert candidates when gain is absent. Continue semantic, historical/teaching and model-improvement integration without promoting prose or weakening gates.",
       "last_verified_commit": null,
       "source_decisions": [
         "owner-intake-cc6f2a30e8336d322129e2972d1e8f90"

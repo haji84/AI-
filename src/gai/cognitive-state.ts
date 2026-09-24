@@ -1,3 +1,4 @@
+import { validateCognitiveOperation, type CognitiveOperation } from "./cognitive-operation.ts";
 import { acquireCognitiveLease } from "./cognitive-lease.ts";
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, open, readFile, rename, stat, unlink } from "node:fs/promises";
@@ -10,6 +11,7 @@ export type CognitiveSource = "deterministic" | "skill" | "memory" | "local-mode
 export interface CognitiveAttempt {
   id: string; actionId: string; strategyId: string; environment: string; source: CognitiveSource;
   expectedOutcome: string; confidence: number; observed: string; success: boolean; verified: boolean;
+  learningOperation?: CognitiveOperation;
   evidenceRefs: string[]; predictionError: number; at: string;
 }
 export interface CognitiveState {
@@ -21,7 +23,7 @@ export interface CognitiveState {
   prediction_error: number | null; confidence: number; blockers: string[]; next_action: string | null;
   research_needed: boolean; external_expert_needed: boolean; learning_candidates: string[];
   mode: "LOCAL" | "DEGRADED" | "EXPERT"; attempts: CognitiveAttempt[]; external_ai_calls: number;
-  pending_action: { actionId: string; fingerprint: string; startedAt: string } | null;
+  pending_action: { actionId: string; fingerprint: string; startedAt: string; learningOperation?: CognitiveOperation } | null;
   learning_outbox: CognitiveExperience | null;
   updated_at: string;
 }
@@ -63,15 +65,18 @@ function validate(state: CognitiveState, partition: CognitivePartition, goalId: 
   if (![state.current_hypothesis, state.goal_digest].every(x => boundedText(x)) || ![state.selected_strategy, state.next_action, state.prediction, state.observation].every(x => x === null || boundedText(x))) throw new Error("invalid cognitive text");
   if (!Number.isSafeInteger(state.current_step) || state.current_step < 0 || !Number.isSafeInteger(state.external_ai_calls) || state.external_ai_calls < 0 || !["LOCAL", "DEGRADED", "EXPERT"].includes(state.mode)) throw new Error("invalid cognitive mode/counter");
   if (![state.research_needed, state.external_expert_needed].every(x => typeof x === "boolean") || !(state.prediction_error === null || probability(state.prediction_error))) throw new Error("invalid cognitive flags");
+  if (state.pending_action?.learningOperation !== undefined) validateCognitiveOperation(state.pending_action.learningOperation);
   if (state.pending_action !== null && (!state.pending_action || !boundedText(state.pending_action.actionId, 200) || !/^[a-f0-9]{64}$/.test(state.pending_action.fingerprint) || !Number.isFinite(Date.parse(state.pending_action.startedAt)))) throw new Error("invalid cognitive pending action");
   if (state.learning_outbox !== null) {
     const e = state.learning_outbox;
+    if (e?.learningOperation !== undefined) validateCognitiveOperation(e.learningOperation);
     if (!e || e.goalId !== goalId || cognitiveDigest(e.partition) !== cognitiveDigest(partition) ||
-        !state.attempts.some(a => a.id === e.id && a.actionId === e.actionId) || !boundedText(e.task, 4096) ||
+        !state.attempts.some(a => a.id === e.id && a.actionId === e.actionId && a.learningOperation === e.learningOperation) || !boundedText(e.task, 4096) ||
         !Number.isFinite(e.durationMs) || e.durationMs < 0 || !Number.isSafeInteger(e.externalCalls) || e.externalCalls < 0 ||
         typeof e.verified !== "boolean" || !Array.isArray(e.evidenceRefs)) throw Error("invalid cognitive learning outbox");
   }
   for (const a of state.attempts) {
+    if (a?.learningOperation !== undefined) validateCognitiveOperation(a.learningOperation);
     if (!a || ![a.id, a.actionId, a.strategyId, a.environment].every(x => boundedText(x, 200) && x.length > 0) || ![a.expectedOutcome, a.observed].every(x => boundedText(x)) || ![a.success, a.verified].every(x => typeof x === "boolean") || !probability(a.confidence) || !probability(a.predictionError) || !Number.isFinite(Date.parse(a.at))) throw new Error("invalid cognitive attempt");
     if (!["deterministic", "skill", "memory", "local-model", "local-experiment", "external-expert", "degraded"].includes(a.source) || !Array.isArray(a.evidenceRefs) || a.evidenceRefs.length > 16 || !a.evidenceRefs.every(x => boundedText(x, 1000) && x.length > 0) || (a.verified && (!a.success || !a.evidenceRefs.length))) throw new Error("invalid cognitive attempt evidence");
   }

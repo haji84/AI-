@@ -550,12 +550,12 @@
     },
     {
       "path": "docs/architecture/goriq-cognitive-core.md",
-      "sha256": "4fa00fbda923566ca23021eb97d29a7da7e1616370881a26b0189dc3e2b87cdf",
+      "sha256": "fe940560979a04c411b743ba4fc30b47299130a4c2471c4790687da7862810c6",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OWN-001"
       ],
-      "reason": "Issue #1216 reviewed Cognitive Core integration/hardening; mapped requirement does not imply full acceptance; #1216 explicit owner DoD adoption: strict bounded input, unchanged Goal identity, full Goal/state atomic CAS and receipt-only replay; independent completion verification remains required; #1216 bounded local DoD proposal: unverified non-executing data, owner-first strict input, post-inference Goal/state recheck and separate editable owner adoption; no broad semantic or physical completion claim"
+      "reason": "OWN-001 Cognitive Core contract: local-first Goal loop, bounded owner/material/proposal integration and host-operation learning; explicit candidate, measured-gain and physical limits remain."
     },
     {
       "path": "docs/architecture/jarvis-bounded-fact-research.md",
@@ -2697,12 +2697,12 @@
     },
     {
       "path": "src/gai/cognitive-core.ts",
-      "sha256": "eb317cb5556bf85133d6a59e13e2274df5ead194e130861ca60eba81ff670537",
+      "sha256": "b754c2e24cc2575e4f45bf55e52a69b124fcb0a40cef3cffa9a3bbd373b0d30c",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OWN-001"
       ],
-      "reason": "Issue #1216 reviewed Cognitive Core integration/hardening; mapped requirement does not imply full acceptance"
+      "reason": "OWN-001 decision loop preserves exact action authority while resolving certified host operations against current eligible local actions; exact corrections and durable operation recovery precede generalized reuse."
     },
     {
       "path": "src/gai/cognitive-history.ts",
@@ -2733,12 +2733,12 @@
     },
     {
       "path": "src/gai/cognitive-learning.ts",
-      "sha256": "9b5fff50ee9e6b03c84012f88c79dcc0f220fba0cbf5a6be87755040328ec0d7",
+      "sha256": "6b22526ff8fab471fedbbfe546325dea6771af4ec68c502d173cb4fc3d8121c7",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OWN-001"
       ],
-      "reason": "Issue #1216 reviewed Cognitive Core integration/hardening; mapped requirement does not imply full acceptance; reviewed same-Goal partitioned runtime experience/correction history guard preserves prior work before DoD adoption"
+      "reason": "OWN-001 partitioned verified learning integrates existing memory, world, skill and research adapters; independent Goal operation synthesis remains inert behind unchanged certification and regression gates."
     },
     {
       "path": "src/gai/cognitive-lease.ts",
@@ -2755,8 +2755,8 @@
       "requirement_ids": [
         "OWN-001"
       ],
-      "reason": "Bounded local outcome compilation and host configuration under Cognitive Core #1216",
-      "sha256": "0ca17ba5fd1b67f39196bbb1bd1d79d15a67cc22b81d115973d6e7601082b179"
+      "reason": "OWN-001 fixed local material outcome catalog derives six bounded host-operation categories while retaining exact Goal/root/source action identities and independent artifact verification.",
+      "sha256": "b7333bef2ee650b85df14ec6459f4a584f5e083a681518c742921826c29937c7"
     },
     {
       "path": "src/gai/cognitive-local-work.ts",
@@ -2777,6 +2777,15 @@
       "reason": "Opt-in host-root material receipts bind supplied content to an immutable Goal, root and success criteria; independent output verification prevents false completion"
     },
     {
+      "path": "src/gai/cognitive-operation.ts",
+      "sha256": "ce55164de10dc743d6aa7afc6de9d0d6e20c06acf2ab9923411af53a22050d7b",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OWN-001"
+      ],
+      "reason": "OWN-001 strict versioned vocabulary for six host-derived material learning operations; selection metadata only, with no path, permission, executable procedure or model authority."
+    },
+    {
       "path": "src/gai/cognitive-service.ts",
       "sha256": "2c1dc460004da9eab06213f78a0848589f74ac88a58fb54d272f78e729015e44",
       "classification": "COVERED_BY_REQUIREMENT",
@@ -2787,12 +2796,12 @@
     },
     {
       "path": "src/gai/cognitive-state.ts",
-      "sha256": "0d0d78fd52db2f34a7eb4605c726a39eaae731b46d7aa1834c930008cbf7b4fe",
+      "sha256": "bcaeb56fc124926179e04b337766ffbdc4e833b4dcb0a6722abcb5ff11e2e2a2",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OWN-001"
       ],
-      "reason": "Issue #1216 reviewed Cognitive Core integration/hardening; mapped requirement does not imply full acceptance"
+      "reason": "OWN-001 durable derived cognitive state and lease/CAS validation preserve optional pending/attempt/outbox operation provenance without changing Goal identity or inferring legacy metadata."
     },
     {
       "path": "src/gai/common-worker-runtime.ts",

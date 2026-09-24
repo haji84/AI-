@@ -1,3 +1,4 @@
+import { validateCognitiveOperation, type CognitiveOperation } from "./cognitive-operation.ts";
 import { randomUUID } from "node:crypto";
 import { GoalDrivenLoop, type ContextSource, type ContextItem, type Goal, type Planner, type ProposedAction, type InferredIntent, type ActionResult, type StateStore, type WriteBackRecord, type CapabilityExecutor, type Verifier, type ApprovalPolicy, type GoalLoopOptions, type VerificationResult } from "../orchestrator/goal-loop.ts";
 import { inferIntentFromSignals } from "../orchestrator/intent.ts";
@@ -13,11 +14,13 @@ export interface CognitiveCandidate {
   /** A host eligibility verdict, never read from model or imported experience. */
   verifiedSkill?: boolean;
   requiresExternalAI?: boolean;
+  /** Host-derived selection metadata; never replaces exact action identity or scope. */
+  learningOperation?: CognitiveOperation;
 }
 export interface CognitiveRecall {
   memories: Array<{ id: string; content: string; confidence: number }>;
   /** Certified catalog bindings only; no learned text is executable authority. */
-  skills?: Array<{ id: string; actionId: string; environment: string; confidence: number; evidenceRefs: string[]; maxRisk: "low" | "medium" | "high" }>;
+  skills?: Array<{ id: string; actionId: string; operation?: CognitiveOperation; environment: string; confidence: number; evidenceRefs: string[]; maxRisk: "low" | "medium" | "high" }>;
   strategies: Array<{ id: string; actionId: string; score: number; evidenceRefs: string[] }>;
   avoidActionIds: string[];
   corrections: Array<{ originalActionId: string; replacementActionId: string; evidenceRefs: string[] }>;
@@ -25,6 +28,7 @@ export interface CognitiveRecall {
 export interface CognitiveExperience {
   id: string; partition: CognitivePartition; goalId: string; task: string; actionId: string; strategyId: string; environment: string;
   prediction: { expectedOutcome: string; confidence: number }; observation: { summary: string; success: boolean };
+  learningOperation?: CognitiveOperation;
   verified: boolean; evidenceRefs: string[]; source: CognitiveSource; durationMs: number; externalCalls: number;
 }
 export interface CognitiveLearningBridge {
@@ -52,6 +56,7 @@ function evidenceRefs(value: unknown): string[] {
   return Array.isArray(refs) ? refs.filter((r): r is string => typeof r === "string" && r.length > 0 && r.length <= 1000).slice(0, 16) : [];
 }
 function candidateValid(c: CognitiveCandidate): boolean {
+  if (c?.learningOperation !== undefined) validateCognitiveOperation(c.learningOperation);
   return Boolean(c && typeof c.id === "string" && c.id.length > 0 && c.id.length <= 200 && c.action && c.action.capability?.trim() && ["low", "medium", "high"].includes(c.action.risk));
 }
 
@@ -60,7 +65,7 @@ export class CognitiveCore implements Planner, ContextSource {
   readonly name = "goriq-cognitive-state";
   private readonly options: CognitiveCoreOptions;
   private authorityStore?: StateStore;
-  private selection: { id: string; source: CognitiveSource; started: number; externalCalls: number } | null = null;
+  private selection: { id: string; source: CognitiveSource; started: number; externalCalls: number; learningOperation?: CognitiveOperation } | null = null;
   constructor(options: CognitiveCoreOptions) {
     if (options.partition.tenantId !== options.state.partition.tenantId || options.partition.principalId !== options.state.partition.principalId) throw new Error("cognitive partition mismatch");
     const max = options.maxActions ?? 32;
@@ -107,18 +112,25 @@ export class CognitiveCore implements Planner, ContextSource {
       if (selected) source = "deterministic";
       if (!selected) { selected = candidates.find(c => c.kind === "skill"); if (selected) source = "skill"; }
       if (!selected) {
+        // An exact verified human correction is more specific than generalized reuse.
+        const corrected = recall.corrections.find(c => c.evidenceRefs.length && candidates.some(a => a.id === c.replacementActionId));
+        selected = candidates.find(c => c.id === corrected?.replacementActionId);
+        if (selected) source = "memory";
+      }
+      if (!selected) {
         const riskRank = { low: 0, medium: 1, high: 2 };
         const certified = (recall.skills ?? []).filter(s => s.environment === this.options.environment && s.evidenceRefs.length > 0 && Number.isFinite(s.confidence) && s.confidence >= 0 && s.confidence <= 1)
           .sort((a, b) => b.confidence - a.confidence);
         for (const skill of certified) {
-          selected = candidates.find(c => c.id === skill.actionId && riskRank[c.action.risk] <= riskRank[skill.maxRisk]);
+          const operation = skill.operation === undefined ? undefined : validateCognitiveOperation(skill.operation);
+          selected = candidates.find(c => (operation ? c.learningOperation === operation && c.action.risk === "low" &&
+            !c.action.irreversible && !c.action.externalSideEffect : c.id === skill.actionId) && riskRank[c.action.risk] <= riskRank[skill.maxRisk]);
           if (selected) { source = "skill"; break; }
         }
       }
       if (!selected) {
-        const corrected = recall.corrections.find(c => c.evidenceRefs.length && candidates.some(a => a.id === c.replacementActionId));
         const strategies = [...recall.strategies].filter(s => s.evidenceRefs.length && Number.isFinite(s.score)).sort((a, b) => b.score - a.score);
-        const recalled = corrected?.replacementActionId ?? strategies.find(s => candidates.some(c => c.id === s.actionId))?.actionId;
+        const recalled = strategies.find(s => candidates.some(c => c.id === s.actionId))?.actionId;
         selected = candidates.find(c => c.id === recalled); if (selected) source = "memory";
       }
       if (!selected && candidates.length && this.options.brain) {
@@ -149,7 +161,7 @@ export class CognitiveCore implements Planner, ContextSource {
       blockers: state.pending_action ? ["action_outcome_unknown_reconciliation_required"] : !remaining ? ["cognitive_action_budget_exhausted"] : !selected ? ["no_untried_authorized_candidate"] : [],
       external_ai_calls: state.external_ai_calls + externalCalls,
     }, state.revision);
-    this.selection = { id, source, started: Date.now(), externalCalls };
+    this.selection = { id, source, started: Date.now(), externalCalls, ...(selected?.learningOperation ? { learningOperation: selected.learningOperation } : {}) };
     if (!selected) return { id, capability: "context.inspect", description: `Observe local context for ${input.goal.title}; ${state.blockers.join(", ")}`, risk: "low", irreversible: false, externalSideEffect: false };
     // Preserve host risk/scope/approval metadata; never trust model's proposed permissions or completion.
     return { ...selected.action, completesBoundedCommand: false };
@@ -178,13 +190,14 @@ export class CognitiveCore implements Planner, ContextSource {
       id: randomUUID(), partition: this.options.partition, goalId: this.options.goalId, task: record.goal.title,
       actionId: selection.id, strategyId: state.selected_strategy ?? selection.id, environment: this.options.environment,
       prediction: { expectedOutcome: state.prediction ?? "", confidence: state.confidence }, observation: { summary, success },
+      ...(selection.learningOperation ? { learningOperation: selection.learningOperation } : {}),
       verified: observationVerified, evidenceRefs: refs, source: selection.source, durationMs: Date.now() - selection.started, externalCalls: selection.externalCalls,
     };
     assertCognitiveSafe(experience);
     const predictionError = Math.abs(state.confidence - (success ? 1 : 0));
     state = await this.options.state.save({ ...state, observation: summary, prediction_error: predictionError,
       known_facts: verified ? [...state.known_facts, summary].slice(-64) : state.known_facts,
-      attempts: [...state.attempts, { id: experience.id, actionId: selection.id, strategyId: experience.strategyId, environment: this.options.environment, source: selection.source, expectedOutcome: experience.prediction.expectedOutcome, confidence: state.confidence, observed: summary, success, verified, evidenceRefs: refs, predictionError, at: new Date().toISOString() }].slice(-256),
+      attempts: [...state.attempts, { id: experience.id, actionId: selection.id, ...(selection.learningOperation ? { learningOperation: selection.learningOperation } : {}), strategyId: experience.strategyId, environment: this.options.environment, source: selection.source, expectedOutcome: experience.prediction.expectedOutcome, confidence: state.confidence, observed: summary, success, verified, evidenceRefs: refs, predictionError, at: new Date().toISOString() }].slice(-256),
       next_action: record.nextAction ?? null, learning_candidates: verified ? [...state.learning_candidates, experience.id].slice(-64) : state.learning_candidates,
       learning_outbox: this.options.learning ? experience : null,
       pending_action: state.pending_action?.actionId === selection.id ? null : state.pending_action,
@@ -214,8 +227,9 @@ export class CognitiveCore implements Planner, ContextSource {
     const pending = state?.pending_action;
     const action = { ...candidate.action, completesBoundedCommand: false };
     if (!this.authorityStore || !pending || pending.actionId !== candidate.id || pending.fingerprint !== cognitiveActionFingerprint(action) ||
+        (pending.learningOperation !== undefined && pending.learningOperation !== candidate.learningOperation) ||
         candidate.requiresExternalAI || action.risk !== "low" || !result.ok || result.actionId !== action.id || !verification.ok || !evidenceRefs(verification.evidence).length) throw Error("Pending action reconciliation contract mismatch");
-    this.selection = { id: candidate.id, source: "local-experiment", started: Date.now(), externalCalls: 0 };
+    this.selection = { id: candidate.id, source: "local-experiment", started: Date.now(), externalCalls: 0, ...(pending.learningOperation ? { learningOperation: validateCognitiveOperation(pending.learningOperation) } : {}) };
     await this.authorityStore.writeBack({ goal, intent: { summary: "Reconcile independently verified local outcome", confidence: 1, evidence: [] }, action, result, verification, stopReason: "continue", nextAction: "re-evaluate-goal-after-recovery" });
   }
   decorateExecutor(inner: CapabilityExecutor): CapabilityExecutor {
@@ -225,7 +239,7 @@ export class CognitiveCore implements Planner, ContextSource {
       if (!state) throw new Error("cognitive state missing before execution");
       if (this.selection.source !== "degraded") {
         if (state.pending_action) return { actionId: action.id, ok: false, summary: "Prior action outcome requires reconciliation", blocker: "cognitive_pending_action" };
-        await this.options.state.save({ ...state, pending_action: { actionId: this.selection.id, fingerprint: cognitiveActionFingerprint(action), startedAt: new Date().toISOString() } }, state.revision);
+        await this.options.state.save({ ...state, pending_action: { actionId: this.selection.id, ...(this.selection.learningOperation ? { learningOperation: this.selection.learningOperation } : {}), fingerprint: cognitiveActionFingerprint(action), startedAt: new Date().toISOString() } }, state.revision);
       }
       // If executor crashes, pending state remains and subsequent cycles cannot replay effects.
       return inner.execute(action, context);

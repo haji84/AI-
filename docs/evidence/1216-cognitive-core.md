@@ -215,3 +215,42 @@ All unrestricted planning/executable skill synthesis, independent semantic resul
 - Actual Chrome153.0.8010.48 positive synthetic local-model transport and model-disabled manual fallback: both **PASS** through the same authenticated UI→Broker→Core→independent output verification/download. Each completes the bounded fixture in2actions, external AI calls0, preserves Goal identity/reload, contains expanded controls at390px, and has zero page errors.
 
 Exact software commit/CI is recorded after push. Production remains inactive. Rollback removes only the additive proposal UI/API/adapter contract, preserving previously adopted criteria, receipts, checkpoints and all learning/device state.
+
+
+## Exact local-proposal CI and continuation
+
+Software commit `d26d67ff10b3cf3b69b7d255c598e77dd603132e`: [CI #1858](https://github.com/haji84/AI-/actions/runs/35938051239) **SUCCESS**. Repository guard, lint, full tests, P8 security, build and production-format health endpoint passed. PR #1217 remains draft/unmerged; Production is inactive. This is bounded software evidence, not semantic model-quality, physical acceptance or whole-Core DONE.
+
+PR description and Compass history166 were refreshed with all three increments (68fd08b,477fbdc,d26d67f), their exact CI and current limitations. Next: inspect R16/R17 experiment and teaching/skill execution integration, implement the smallest missing bounded software path with existing authority/stores and independent behavioral review.
+
+
+## Continuation: portable operation learning from actual local Goal execution
+
+Audit found a concrete integration gap: outcome action IDs deliberately include Goal/root/material hashes, but synthesis required identical action IDs across two independent Goals. Consequently normal material intake could not accumulate reusable candidates. Legacy step manifests could share action IDs and were not affected by that diagnosis.
+
+Reuse the existing Core, learning engine, skill library and certification gate. The host outcome catalog now derives exactly six versioned operation identities: three source-format inspections, text copy, XLSX creation and DOCX creation. Exact action/Goal/contract/evidence IDs remain in every attempt; the additive operation metadata is selection information, never permission or an executable script. Two same-task/environment, separately verified Goals with non-overlapping evidence can synthesize a candidate across distinct input hashes. Held-out/failed/unverified history, unknown operations and legacy/portable mixing cannot manufacture a candidate. Existing exact-action skills remain readable and usable.
+
+Certified operation recall can select only a currently eligible low-risk local catalog action; dependency/Goal/root/source/overwrite/risk/verifier checks remain in the existing path. It never copies old files, inputs, paths or criteria. A verified explicit correction is more specific than generalized recall and wins over it. Failures/corrections retain exact action exclusion; a verified matching operation regression can quarantine its certified skill without banning every new input for that operation.
+
+The real two-Goal service test completes two separately bound text outputs, reads back exact bytes, preserves different effect/Goal/contract IDs and produces two **inert** candidates (inspect/copy) after restart. It uses zero external calls and no model. No real candidate was certified: certification still requires fresh independent measured gain, and a100%-vs100% fixed transform correctly fails that gain gate. Mock certification inputs in unit tests exercise the gate contract only and are not research/model-quality evidence.
+
+Independent review first reproduced3 recovery failures: operation not saved before effect, changed operation accepted at reconciliation, and legacy pending state receiving inferred new metadata. Pending state now captures the host selection before execution; mismatch rejects before authority write; old pending state recovers under its exact effect contract without inventing operation metadata. A separate RED correction case showed broad family recall overriding an exact verified replacement; the exact correction now takes priority. All original RED assertions pass. Review also covers model-injected fields, outbox/attempt consistency, risk/uncertified/external filtering and unknown versions.
+
+Initial runtime test used the wrong Planner method name; correcting the harness to existing proposeNextAction exposed the intended3 failures before implementation. Initial build found an implicit-any test state array; explicit CognitiveState[] repaired the test without changing assertions. The production-format build then passed; pre-existing dynamic filesystem warnings remain.
+
+R16 currently produces failure hypotheses but has no actual runtime experiment runner. Teaching correction ledger/engine has only test callers and lacks an authoritative Goal/action binding. Do not instantiate TeachingStore merely to inspect live data: its constructor changes active records. The next increment requires actual sandbox snapshots and independent oracles; do not invent an improvement or copy teaching Skills into execution authority. R17 runtime promotion, arbitrary executable skill generation, semantic quality, model training and cross-device/physical acceptance remain open.
+
+Rollback preserves all exact identity/evidence and additive records. No production, device, credential, enrollment, filesystem permission or database schema change was performed. Whole Core remains PARTIAL.
+
+
+### Final portable-operation software verification
+
+- Full Windows suite: **1,647/1,647 PASS**, zero skipped, using `node --test --test-concurrency=1` and the installed Git Bash in the process PATH.
+- P8 security: **331/331 PASS**, zero skipped; lint and Next production-format build **PASS**.
+- Independent behavioral review **34/34 PASS**, including eight new recovery/authority cases; documentation checks **17/17 PASS**.
+- Requirement audit **506 surfaces /341 requirements PASS**; functional_completion_claim=false.
+- Fresh installed Chrome153.0.8010.48 isolated login/proposal/edit/adopt/material/execute/download flow **PASS**, two actions/external AI calls0, exact downloaded bytes, refresh/reload, narrow390px control containment and no page errors. Proposal response is a labelled synthetic local fixture. Desktop/mobile screenshots visually inspected at temporary artifact directory `goriq-cognitive-visual-X1neyz`; this is not physical or broad layout acceptance.
+
+The first full operation run was1,646 PASS/1 FAIL because traceability hashes were pending concurrent documentation updates. After the reviewed six surface hashes and one additive mapping were recorded, the full suite passed1,647; no runtime assertion or audit rule was relaxed. Latest build repaired only the previously recorded test-array type. Exact software commit/CI follows after push.
+
+Parallel R16 audit reproduced an existing unsafe numerical decision: NaN before/after scores yield an accepted result. No production callers of decideExperiment were found. Fix the numerical boundary before connecting a real evidence-bound experiment; do not present hypothesis generation as completed R16 execution.

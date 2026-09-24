@@ -20,22 +20,24 @@
 
 ## Task1: Local adapter proposal contract
 Files: src/gai/primary-brain.ts; tests/goriq-goal-proposal-brain.test.ts.
-- [ ] RED tests for optional goalDraft {successCriteria,assumptions,unresolvedQuestions}, intent purpose goal-draft, strict fields/bounds/privacy.
-- [ ] Extend existing plan response only for purpose goal-draft; preserve old adapter response compatibility. Reuse normalizeGoalDraft with host title/description/constraints.
-- [ ] Empty candidate catalog and action budget0; candidateId null, empty plan, no execution. No promotion from confidence.
-- [ ] Test transport/format and unavailable model, then independent review.
+- [x] RED tests for optional goalDraft {successCriteria,assumptions,unresolvedQuestions}, intent purpose goal-draft, strict fields/bounds/privacy.
+- [x] Extend existing plan response only for purpose goal-draft; preserve old adapter response compatibility. Reuse normalizeGoalDraft with host title/description/constraints.
+- [x] Empty candidate catalog and action budget0; candidateId null, empty plan, no execution. No promotion from confidence.
+- [x] Test transport/format and unavailable model, then independent review.
 
 ## Task2: Authenticated proposal/UI integration
 Files: cognitive-service.ts; cognitive-goal-input.ts; cognitive-material-proxy.ts; jarvis-broker.ts; new API cognitive/goal/proposal/route.ts; CognitiveGoalCriteria.tsx.
-- [ ] RED service test: no Goal/state/history mutation; stale state during inference rejected; no local model visible fallback.
-- [ ] Add proposeGoalCriteria({goalId,goalDigest}) and strict 1024-byte proxy. Reuse current pristine checks/lease, host-configured local adapter and validateBrainDecision.
-- [ ] Return sanitized bounded candidate only after full snapshot recheck. No automatic retries/writes/actions.
-- [ ] UI displays unverified candidate/assumptions/questions, explicit copy-to-editor clears acknowledgement; existing owner adoption remains sole write.
-- [ ] Real isolated browser fixture exercises proposal → edit/ack → adoption → material → verified download; manual fallback remains.
+- [x] RED service test: no Goal/state/history mutation; stale state during inference rejected; no local model visible fallback.
+- [x] Add proposeGoalCriteria({goalId,goalDigest}) and strict 1024-byte proxy. Reuse current pristine checks/lease, host-configured local adapter and validateBrainDecision.
+- [x] Return sanitized bounded candidate only after full snapshot recheck. No automatic retries/writes/actions.
+- [x] UI displays unverified candidate/assumptions/questions, explicit copy-to-editor clears acknowledgement; existing owner adoption remains sole write.
+- [x] Real isolated browser fixture exercises proposal → edit/ack → adoption → material → verified download; manual fallback remains.
 
 ## Task3: Verify and record
-- [ ] Unit/integration/security, lint/build, exact-commit CI and independent review.
-- [ ] Actual configured local-model proposal smoke with independent checks of no side effects and bounded nonempty draft. No claim of broad semantic correctness.
-- [ ] Spec/ledger/reverse traceability/evidence/PROJECT_STATE/GitHub/Compass writeback. OWN-001 remains PARTIAL; broader unknown plans, semantic result verification, teaching/research/model/cross-device integration remain.
+- [x] Unit/integration/security, lint/build, exact-commit CI and independent review.
+- [x] Actual configured local-model proposal smoke with independent checks of no side effects and bounded nonempty draft. No claim of broad semantic correctness.
+- [x] Spec/ledger/reverse traceability/evidence/PROJECT_STATE/GitHub/Compass writeback. OWN-001 remains PARTIAL; broader unknown plans, semantic result verification, teaching/research/model/cross-device integration remain.
 
 Rollback: revert this additive proposal helper/API/UI; retain all owner-adopted criteria/receipts and existing learning/work state. No production/device mutation.
+
+Evidence: d26d67f CI1858 SUCCESS; Windows1627/P8331/build/browser/independent31 PASS. Actual model10720ms structural-only; semantic/language quality remains open. Plan scope complete, broader issue1216 not complete.

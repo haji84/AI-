@@ -1,3 +1,4 @@
+import { validateCognitiveOperation } from "./cognitive-operation.ts";
 import { createHash } from "node:crypto";
 import { constants } from "node:fs";
 import { lstat, open, realpath } from "node:fs/promises";
@@ -177,7 +178,9 @@ export class CognitiveLocalOutcomeCatalog {
       description: outcome ? `Create ${outcome.path} from authorized material ${material.id}` : `Inspect authorized material ${material.id}`,
       risk: "low", irreversible: false, externalSideEffect: false, materialMutation: Boolean(outcome),
       satisfiesDefinitionOfDone: outcome ? [...outcome.criteria] : [], input: outcome ? { materialId: material.id, outcomeId: outcome.id } : { materialId: material.id } };
-    return { id, kind: "experiment", action, expectedOutcome: outcome ? "Persisted output exactly matches verified source material" : "Source hash and fixed data schema verified",
+    const learningOperation = validateCognitiveOperation(outcome ?
+      ({ file: "material:v1:copy:text", spreadsheet: "material:v1:create:xlsx", document: "material:v1:create:docx" } as const)[outcome.domain] : `material:v1:inspect:${material.format}`);
+    return { id, kind: "experiment", action, learningOperation, expectedOutcome: outcome ? "Persisted output exactly matches verified source material" : "Source hash and fixed data schema verified",
       evidenceRequired: ["independent-local-artifact-verifier"] };
   }
   async candidates(completedIds: string[] = []): Promise<CognitiveCandidate[]> {
