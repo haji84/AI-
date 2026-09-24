@@ -1,15 +1,19 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { homedir } from "node:os";
 import type { Verifier } from "./goal-loop.ts";
 
 function localToken(env: Record<string, string | undefined>): string | null {
   const explicit = env.CODE_BUILDER_LOCAL_TOKEN?.trim();
   if (explicit) return explicit;
-  if (process.platform !== "win32") return null;
-  const root = env.LOCALAPPDATA?.trim();
-  if (!root) return null;
-  const path = join(root, "GAIWorker", "code-builder", "token.txt");
-  if (!existsSync(path)) return null;
+  let path: string | null = null;
+  if (process.platform === "win32") {
+    const root = env.LOCALAPPDATA?.trim();
+    if (root) path = join(root, "GAIWorker", "code-builder", "token.txt");
+  } else if (process.platform === "darwin") {
+    path = join(homedir(), "Library", "Application Support", "GAIWorker", "code-builder", "token.txt");
+  }
+  if (!path || !existsSync(path)) return null;
   return readFileSync(path, "utf8").trim() || null;
 }
 

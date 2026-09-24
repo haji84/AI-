@@ -933,7 +933,7 @@
     },
     {
       "path": "scripts/jarvis-broker.ts",
-      "sha256": "135fb1aa45d7bc0cdbf91f00bffb52998b752e5ed496edaf704bfc4ce96dad26",
+      "sha256": "66ade00247d030f3a69e84ed9fd3807c60b740f1d22a764fca483db05ef245d8",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "NET-006",
@@ -951,7 +951,7 @@
         "GOV-025",
         "OWN-001"
       ],
-      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification; #1216 bounded local cognition/owner entry integration, not full capability or physical acceptance; #1216 explicit owner DoD adoption: strict bounded input, unchanged Goal identity, full Goal/state atomic CAS and receipt-only replay; independent completion verification remains required; #1216 bounded local DoD proposal: unverified non-executing data, owner-first strict input, post-inference Goal/state recheck and separate editable owner adoption; no broad semantic or physical completion claim; #1219 Direct Goal Bridge wakes bounded Goal execution and exposes shared status/events; parent requirements remain PARTIAL pending E2E."
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification; #1216 bounded local cognition/owner entry integration, not full capability or physical acceptance; #1216 explicit owner DoD adoption: strict bounded input, unchanged Goal identity, full Goal/state atomic CAS and receipt-only replay; independent completion verification remains required; #1216 bounded local DoD proposal: unverified non-executing data, owner-first strict input, post-inference Goal/state recheck and separate editable owner adoption; no broad semantic or physical completion claim; #1219 Direct Goal Bridge wakes bounded Goal execution and exposes shared status/events; parent requirements remain PARTIAL pending E2E. #1219 exposes a non-secret health marker proving the isolated Goal executor is present."
     },
     {
       "path": "scripts/jarvis-direct-commander-service.sh",
@@ -1096,7 +1096,7 @@
     },
     {
       "path": "scripts/jarvis-mac-zero-touch-install.sh",
-      "sha256": "bcad4745d9544347f8cae5767a5f0ffb3a8022f8373661bf6fe45cfb9c3987fc",
+      "sha256": "acf7a6e2aca5f7df3fc18738f9e260fe587453590064d84cd266a9734db1e970",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "HOST-002",
@@ -1105,7 +1105,7 @@
         "AUTO-004",
         "OWN-001"
       ],
-      "reason": "Mac auxiliary resident/installation compatibility scripts; no deployment performed; #1219 Mac Production recovery: fail closed before resident Broker restart unless the isolated Direct Goal Bridge executor exists."
+      "reason": "Mac auxiliary resident/installation compatibility scripts; no deployment performed; #1219 Mac Production recovery: fail closed before resident Broker restart unless the isolated Direct Goal Bridge executor exists. #1219 also provisions the loopback-only Mac Builder before the resident Broker starts, without exposing its token."
     },
     {
       "path": "scripts/jarvis-mac-zero-touch.sh",
@@ -1438,12 +1438,15 @@
     },
     {
       "path": "src/app/api/jarvis/connectivity/route.ts",
-      "sha256": "784c8322706a6e18d95c7fd75f563843538d7ba963ad9e4bb41a466c37de2762",
+      "sha256": "202e5685dd9ec6d7c8895380ad86fc40e5319e1312657a797f9d8eb8628eff17",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
-        "OPS-006"
+        "OPS-006",
+        "AUTO-001",
+        "AUTO-004",
+        "OWN-001"
       ],
-      "reason": "Connectivity API"
+      "reason": "Connectivity API #1219 Production connectivity is healthy only when the live Broker reports Direct Goal Bridge executor readiness."
     },
     {
       "path": "src/app/api/jarvis/diagnostics/route.ts",
@@ -1547,7 +1550,7 @@
     },
     {
       "path": "src/app/api/jarvis/work/route.ts",
-      "sha256": "5fbf5519cc44f744e3598475a4f98972d3214e8953d54b13d7896b889124e536",
+      "sha256": "5e3f122a6c705573b826e92628088783cab6c18d0d6858160503182d7e1a3034",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-001",
@@ -4710,12 +4713,15 @@
     },
     {
       "path": "src/orchestrator/goal-controller-runtime.ts",
-      "sha256": "c7a748ca15b8c2a2828280310c421edcfc45674c6dfb6cc25f5e44be6398f15f",
+      "sha256": "34c30c83edc3ebeea7675322d056f8eae69517b5653614421f0dc6ee22b4eb5c",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
-        "CORE-002"
+        "CORE-002",
+        "AUTO-001",
+        "AUTO-004",
+        "OWN-001"
       ],
-      "reason": "Declared goal-controller-runtime.ts responsibility implements/supports Goal Completion Engine. Parent ownership is not functional or physical acceptance evidence."
+      "reason": "Declared goal-controller-runtime.ts responsibility implements/supports Goal Completion Engine. Parent ownership is not functional or physical acceptance evidence. #1219 binds bounded owner-supplied Goal success criteria through Unified Intake; parent requirements remain PARTIAL pending real E2E."
     },
     {
       "path": "src/orchestrator/goal-decision-store.ts",
@@ -4954,13 +4960,16 @@
     },
     {
       "path": "src/orchestrator/owner-requirement-intake.ts",
-      "sha256": "3b6140d299a64254a0570981f233b67de10646d9793a8c0fc52d204254bcd4f0",
+      "sha256": "1b13f7be98714d1ba7d3ac74784524e474f54353aa59c40ea5e1bfd7fa6cbb74",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "GOV-025",
-        "CORE-015"
+        "CORE-015",
+        "AUTO-001",
+        "AUTO-004",
+        "OWN-001"
       ],
-      "reason": "Declared owner-requirement-intake.ts responsibility implements/supports 127. Requirement-to-Evidence Traceability; Software Lifecycle. Parent ownership is not functional or physical acceptance evidence."
+      "reason": "Declared owner-requirement-intake.ts responsibility implements/supports 127. Requirement-to-Evidence Traceability; Software Lifecycle. Parent ownership is not functional or physical acceptance evidence. #1219 keeps authenticated idempotent replays stable when the linked Goal lifecycle advances between retries."
     },
     {
       "path": "src/orchestrator/parallel-research.ts",
@@ -5135,32 +5144,43 @@
     },
     {
       "path": "src/orchestrator/runtime-builder-capability.ts",
-      "sha256": "566debf7203da63faedcea553258c330f001bf2ad7fade862d313d674ba3766f",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "CORE-014"
-      ],
-      "reason": "Declared runtime-builder-capability.ts responsibility implements/supports Software Development Autopilot. Parent ownership is not functional or physical acceptance evidence."
-    },
-    {
-      "path": "src/orchestrator/runtime-development-planner.ts",
-      "sha256": "f1203baa788ee48e812214468aa177f4b61b0b9cb848668f47a9e6e2b96c0f5c",
+      "sha256": "1507eaeeaee1e50d5e6a28a1eac2e8a74ecf092b5608b9d068ad6fde4816e5d4",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
-        "AUTO-015"
+        "DEV-PC-006",
+        "AUTO-001",
+        "AUTO-004",
+        "OWN-001"
       ],
-      "reason": "Declared runtime-development-planner.ts responsibility implements/supports Software Development Autopilot; Executor. Parent ownership is not functional or physical acceptance evidence."
+      "reason": "Declared runtime-builder-capability.ts responsibility implements/supports Software Development Autopilot. Parent ownership is not functional or physical acceptance evidence. #1219 allows the resident Mac Goal executor to discover its protected local Builder token and loopback endpoint."
+    },
+    {
+      "path": "src/orchestrator/runtime-development-planner.ts",
+      "sha256": "6032f5ea7e31ad4ef2c27ee851675175b095c8c4885443c8ed3167699a40106e",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-014",
+        "AUTO-015",
+        "AUTO-001",
+        "AUTO-004",
+        "OWN-001"
+      ],
+      "reason": "Declared runtime-development-planner.ts responsibility implements/supports Software Development Autopilot; Executor. Parent ownership is not functional or physical acceptance evidence. #1219 emits a fixed repository-check verification contract for general development Goals and only credits automated check DoD that those checks actually cover."
     },
     {
       "path": "src/orchestrator/runtime-development-verifier.ts",
-      "sha256": "949766ac28fbdd591ba5913a903785dc138f2622c9945c8df1e317b4f31a4761",
+      "sha256": "9d80de474378182510b42a01a9908b70d16d6f99c61986dded9d94f2bdf23c5a",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-010",
-        "CORE-011"
+        "CORE-011",
+        "DEV-PC-006",
+        "AUTO-001",
+        "AUTO-004",
+        "OWN-001"
       ],
-      "reason": "Declared runtime-development-verifier.ts responsibility implements/supports 独立Verification; World-state Verification. Parent ownership is not functional or physical acceptance evidence."
+      "reason": "Declared runtime-development-verifier.ts responsibility implements/supports 独立Verification; World-state Verification. Parent ownership is not functional or physical acceptance evidence. #1219 supports independent verification against the protected loopback Mac Builder token."
     },
     {
       "path": "src/orchestrator/safe-pr-capability.ts",

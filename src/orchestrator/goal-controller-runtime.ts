@@ -5,6 +5,11 @@ import type { WorkState, WorkStateStore } from "./work-state.ts";
 export type IntakeIntent = "QUESTION" | "INSPECTION" | "COMMAND" | "DEVELOPMENT_TASK" | "GOAL";
 export type IntakeSource = "chat" | "codex" | "jarvis" | "device" | "github" | "event" | "other";
 
+export interface GoalContractSeed {
+  successCriteria: string[];
+  constraints?: string[];
+}
+
 export interface UnifiedIntakeRequest {
   id?: string;
   source: IntakeSource;
@@ -12,6 +17,7 @@ export interface UnifiedIntakeRequest {
   sourceContext?: Record<string, unknown>;
   idempotencyKey?: string;
   goalHint?: string;
+  goalContract?: GoalContractSeed;
 }
 
 export interface NormalizedIntake {
@@ -21,6 +27,7 @@ export interface NormalizedIntake {
   sourceContext: Record<string, unknown>;
   idempotencyKey: string;
   goalHint?: string;
+  goalContract?: GoalContractSeed;
 }
 
 export interface ActiveGoal {
@@ -74,8 +81,19 @@ export function normalizeIntake(input: UnifiedIntakeRequest): NormalizedIntake {
   const text = input.text.trim();
   if (!text) throw new Error("intake text must not be empty");
   const sourceContext = input.sourceContext ?? {};
+  let goalContract: GoalContractSeed | undefined;
+  if (input.goalContract !== undefined) {
+    const criteria = input.goalContract.successCriteria;
+    const constraints = input.goalContract.constraints ?? [];
+    const bounded = (values: string[]) => Array.isArray(values)
+      && values.length <= 16
+      && values.every((value) => typeof value === "string" && value.trim().length > 0 && value.trim().length <= 500)
+      && new Set(values.map((value) => value.trim())).size === values.length;
+    if (!bounded(criteria) || criteria.length < 1 || !bounded(constraints)) throw new Error("goal contract is invalid or unbounded");
+    goalContract = { successCriteria: criteria.map((value) => value.trim()), constraints: constraints.map((value) => value.trim()) };
+  }
   const idempotencyKey = input.idempotencyKey?.trim()
-    || digest(JSON.stringify({ source: input.source, text, sourceContext, goalHint: input.goalHint ?? null }));
+    || digest(JSON.stringify({ source: input.source, text, sourceContext, goalHint: input.goalHint ?? null, goalContract: goalContract ?? null }));
   return {
     id: input.id?.trim() || `intake-${digest(idempotencyKey)}`,
     source: input.source,
@@ -83,6 +101,7 @@ export function normalizeIntake(input: UnifiedIntakeRequest): NormalizedIntake {
     sourceContext,
     idempotencyKey,
     goalHint: input.goalHint?.trim() || undefined,
+    goalContract,
   };
 }
 
@@ -93,6 +112,7 @@ const developmentPattern = /(実装|修正|直して|追加|変更|開発|implem
 const commandPattern = /(実行|削除|起動|停止|送信|run |delete|start|stop|send)/i;
 
 export function deterministicIntent(input: NormalizedIntake): IntakeIntent | null {
+  if (input.goalContract) return "GOAL";
   const text = input.text;
   if (questionPattern.test(text) && !developmentPattern.test(text) && !goalPattern.test(text)) return "QUESTION";
   if (goalPattern.test(text)) return "GOAL";
@@ -157,8 +177,8 @@ export class GoalResolver {
       const created = await this.registry.create({
         title: intake.text.slice(0, 120),
         description: intake.text,
-        successCriteria: [],
-        constraints: [],
+        successCriteria: intake.goalContract?.successCriteria ?? [],
+        constraints: intake.goalContract?.constraints ?? [],
       });
       return { kind: "NEW_GOAL", intent, intake, goal: created, reason: "new_goal_intent" };
     }

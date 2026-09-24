@@ -19,6 +19,10 @@ test("development goal routes to code.builder with scoped files", async () => {
   assert.equal(action?.capability, "code.builder");
   assert.deepEqual((action?.input as { files?: string[] }).files, ["tests/fixtures/runtime-builder-smoke.txt"]);
   assert.match(String((action?.input as { strategyId?: string }).strategyId), /^initial-/);
+  assert.deepEqual((action?.input as { verificationContract?: unknown }).verificationContract, {
+    kind: "repository_checks",
+    profile: "standard",
+  });
 });
 
 test("failed Builder result creates a different recovery strategy and carries failure signature", async () => {
@@ -46,7 +50,30 @@ test("non-development goal delegates to baseline planner", async () => {
 });
 
 
-test("development planner binds Builder success only to implementation DoD", async () => {
+test("repository check verification can satisfy automated test/build DoD without claiming review or deploy", async () => {
+  const planner = new RuntimeDevelopmentPlanner(new BaselinePlanner());
+  const action = await planner.proposeNextAction({
+    goal,
+    context: [{
+      source: "gai-work-state",
+      summary: "work state",
+      data: {
+        status: "IN_PROGRESS",
+        blockers: [],
+        remainingDefinitionOfDone: [
+          { id: "implement", description: "Implement the requested code change" },
+          { id: "tests", description: "Lint, tests, security verification and build pass" },
+          { id: "review", description: "Open a reviewed pull request" },
+          { id: "deploy", description: "Deploy to Production" },
+        ],
+      },
+    }],
+    intent,
+  });
+  assert.deepEqual((action as { satisfiesDefinitionOfDone?: string[] })?.satisfiesDefinitionOfDone, ["implement", "tests"]);
+});
+
+test("exact-file Builder verification does not claim repository-wide test DoD", async () => {
   const planner = new RuntimeDevelopmentPlanner(new BaselinePlanner());
   const action = await planner.proposeNextAction({
     goal,
@@ -61,8 +88,15 @@ test("development planner binds Builder success only to implementation DoD", asy
           { id: "tests", description: "All tests and verification pass" },
         ],
       },
+    }, {
+      source: "development.verification_contract",
+      summary: "trusted exact-file oracle",
+      data: { kind: "file_exact", path: "tests/fixtures/runtime-builder-smoke.txt", expected: "verified" },
     }],
     intent,
+  });
+  assert.deepEqual((action?.input as { verificationContract?: unknown }).verificationContract, {
+    kind: "file_exact", path: "tests/fixtures/runtime-builder-smoke.txt", expected: "verified",
   });
   assert.deepEqual((action as { satisfiesDefinitionOfDone?: string[] })?.satisfiesDefinitionOfDone, ["implement"]);
 });

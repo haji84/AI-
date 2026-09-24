@@ -125,7 +125,10 @@ export class OwnerRequirementIntake {
   const inputHash=sha256(text.trim()),contextHash=sha256(JSON.stringify({referenceId:context.referenceId??null})),requestKey=key??randomUUID();
   const prior=this.list().find(r=>r.keyDigest===sha256(requestKey.trim()));
   if(prior){
-   if(prior.goalId!==context.goalId||prior.conversation?.inputHash!==inputHash||prior.conversation.contextHash!==contextHash)throw Error("owner requirement idempotency conflict");
+   // An authenticated idempotent replay returns the original receipt even if the
+   // active Goal lifecycle moved meanwhile. Binding changes after first receipt
+   // must not turn the same request key into a conflict or duplicate.
+   if(prior.conversation?.inputHash!==inputHash||prior.conversation.contextHash!==contextHash)throw Error("owner requirement idempotency conflict");
    const initial=prior.history[0].reason;
    const decision:RequirementDecision=initial==="owner_withdrawal_pending_canonical_sync"?"withdraw":initial==="authenticated_owner_accept"?"accept":initial==="authenticated_owner_idea"?"idea":"propose";
    return {input:{decision,statement:prior.statement,canonicalIds:prior.canonicalIds,...(prior.supersedes[0]?{supersedes:prior.supersedes[0]}:{})},requestHash:prior.requestHash,keyDigest:prior.keyDigest,conversation:prior.conversation};
