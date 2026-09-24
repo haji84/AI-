@@ -422,6 +422,15 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
         if (!text) return json(response, 400, { message: "仕事の内容を入力してください" });
         const idempotencyKey = typeof payload.idempotencyKey === "string" ? payload.idempotencyKey.trim() : undefined;
         const requestedGoalHint = typeof payload.goalHint === "string" ? payload.goalHint.trim() : undefined;
+        const requestedGoalContract = payload.goalContract && typeof payload.goalContract === "object" && !Array.isArray(payload.goalContract)
+          ? payload.goalContract as { successCriteria?: unknown; constraints?: unknown }
+          : undefined;
+        const goalContract = requestedGoalContract
+          ? {
+              successCriteria: Array.isArray(requestedGoalContract.successCriteria) ? requestedGoalContract.successCriteria as string[] : [],
+              constraints: Array.isArray(requestedGoalContract.constraints) ? requestedGoalContract.constraints as string[] : [],
+            }
+          : undefined;
         const activeGoal = (await new CompassGoalRegistryAdapter(compass).listActive())[0];
         if(payload.requirementReferenceId!==undefined&&typeof payload.requirementReferenceId!=="string")return json(response,400,{message:"invalid requirement reference"});
         const prepared = payload.requirement!==undefined ? ownerRequirements.prepare(text,idempotencyKey,payload.requirement) : ownerRequirements.prepareConversation(text,idempotencyKey,{goalId:activeGoal?.goalId??null,referenceId:payload.requirementReferenceId as string|undefined});
@@ -436,6 +445,7 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
           text,
           idempotencyKey: prepared.input ? prepared.keyDigest : idempotencyKey,
           goalHint: requestedGoalHint || activeGoal?.goalId,
+          goalContract,
         });
         if (requirement) requirement = ownerRequirements.bindGoal(requirement.id, decision.goalId ?? activeGoal?.goalId ?? null);
         const executionScheduled = scheduleGoalExecution(decision, [{ source: "owner-work-intake", text }]);
