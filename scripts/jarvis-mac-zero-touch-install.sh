@@ -19,6 +19,14 @@ git fetch origin main
 git checkout main
 git reset --hard origin/main
 
+# Direct Goal Bridge requires the isolated executor to be present before the
+# resident Broker is restarted. Fail closed rather than launching a Broker that
+# can accept Goals but cannot schedule their autonomous continuation.
+if [[ ! -f "$INSTALL_ROOT/scripts/jarvis-goal-executor.ts" ]]; then
+  echo 'Missing scripts/jarvis-goal-executor.ts required by Direct Goal Bridge.' >&2
+  exit 8
+fi
+
 if ! command -v brew >/dev/null 2>&1; then
   echo 'JARVIS requires Homebrew on this Mac to provision Node 24, cloudflared, qrencode, and ADB.' >&2
   exit 4
