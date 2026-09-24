@@ -13,7 +13,8 @@ function isEnvelope(value: unknown): value is Envelope {
 }
 
 export class CompassGoalBridgeEventStore implements GoalBridgeEventStore {
-  constructor(private readonly compass: CompassStore) {}
+  private readonly compass: CompassStore;
+  constructor(compass: CompassStore) { this.compass = compass; }
   async append(event: GoalBridgeEvent) {
     const env = this.read();
     if (env.events.some((item) => item.id === event.id)) return;
