@@ -913,19 +913,6 @@
       "reason": "Organization-aware reusable memory"
     },
     {
-      "path": "scripts/install-code-builder-macos.sh",
-      "sha256": "d6a28930c98998343bf61aba477dbeb2cb06126c91ae1000154287e60183f4b3",
-      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
-      "requirement_ids": [
-        "CORE-014",
-        "DEV-PC-006",
-        "AUTO-001",
-        "AUTO-004",
-        "OWN-001"
-      ],
-      "reason": "Issue #1219 bounded Mac-local Builder provisioning for Direct Goal Bridge; loopback-only service with local token storage; parent requirements remain evidence-gated until real E2E."
-    },
-    {
       "path": "scripts/jarvis-adb-mass-enroll.sh",
       "sha256": "218d856fc06b462305ac093bea39fca09a44f768575fd1abf9719a8b12b98455",
       "classification": "COVERED_BY_REQUIREMENT",
@@ -4970,13 +4957,16 @@
     },
     {
       "path": "src/orchestrator/owner-requirement-intake.ts",
-      "sha256": "3b6140d299a64254a0570981f233b67de10646d9793a8c0fc52d204254bcd4f0",
+      "sha256": "1b13f7be98714d1ba7d3ac74784524e474f54353aa59c40ea5e1bfd7fa6cbb74",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "GOV-025",
-        "CORE-015"
+        "CORE-015",
+        "AUTO-001",
+        "AUTO-004",
+        "OWN-001"
       ],
-      "reason": "Declared owner-requirement-intake.ts responsibility implements/supports 127. Requirement-to-Evidence Traceability; Software Lifecycle. Parent ownership is not functional or physical acceptance evidence."
+      "reason": "Declared owner-requirement-intake.ts responsibility implements/supports 127. Requirement-to-Evidence Traceability; Software Lifecycle. Parent ownership is not functional or physical acceptance evidence. #1219 keeps authenticated idempotent replays stable when the linked Goal lifecycle advances between retries."
     },
     {
       "path": "src/orchestrator/parallel-research.ts",
@@ -5174,13 +5164,17 @@
     },
     {
       "path": "src/orchestrator/runtime-development-verifier.ts",
-      "sha256": "949766ac28fbdd591ba5913a903785dc138f2622c9945c8df1e317b4f31a4761",
+      "sha256": "9d80de474378182510b42a01a9908b70d16d6f99c61986dded9d94f2bdf23c5a",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-010",
-        "CORE-011"
+        "CORE-011",
+        "DEV-PC-006",
+        "AUTO-001",
+        "AUTO-004",
+        "OWN-001"
       ],
-      "reason": "Declared runtime-development-verifier.ts responsibility implements/supports 独立Verification; World-state Verification. Parent ownership is not functional or physical acceptance evidence."
+      "reason": "Declared runtime-development-verifier.ts responsibility implements/supports 独立Verification; World-state Verification. Parent ownership is not functional or physical acceptance evidence. #1219 supports independent verification against the protected loopback Mac Builder token."
     },
     {
       "path": "src/orchestrator/safe-pr-capability.ts",
