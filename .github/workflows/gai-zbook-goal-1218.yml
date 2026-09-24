@@ -9,7 +9,7 @@ permissions:
 jobs:
   owner-code-goal:
     runs-on: [self-hosted, Windows, X64]
-    timeout-minutes: 20
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v5
       - name: Prepare durable isolated coding workspace and local Builder
@@ -20,12 +20,14 @@ jobs:
             & git clone --no-hardlinks $env:GITHUB_WORKSPACE $goalWorkspace
             if ($LASTEXITCODE -ne 0) { throw 'Isolated Goal workspace clone failed' }
           }
-          .\scripts\install-code-builder-windows.ps1 -WorkerId 'zbook' -Workspace $goalWorkspace -ExecTimeoutMs 120000
+          .\scripts\install-code-builder-windows.ps1 -WorkerId 'zbook' -Workspace $goalWorkspace -ExecTimeoutMs 600000
           $tokenPath = Join-Path $env:LOCALAPPDATA 'GAIWorker\code-builder\token.txt'
           if (-not (Test-Path $tokenPath)) { throw 'Local Builder token unavailable' }
           $env:CODE_BUILDER_LOCAL_TOKEN = (Get-Content $tokenPath -Raw).Trim()
           $env:CODE_BUILDER_LOCAL_URL = 'http://127.0.0.1:8796'
           $env:GORIQ_1218_WORKSPACE = $goalWorkspace
+          & node .\scripts\zbook-recover-timeout-1218.ts
+          if ($LASTEXITCODE -ne 0) { throw 'Confirmed timeout recovery was refused' }
           try { & node .\scripts\zbook-owner-code-goal-1218.ts; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE } }
           finally { Remove-Item Env:CODE_BUILDER_LOCAL_TOKEN -ErrorAction SilentlyContinue }
       - name: Verify owner-local utility on ZBook

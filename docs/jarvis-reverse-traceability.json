@@ -5419,6 +5419,18 @@
         "MEM-001"
       ],
       "reason": "Declared world-resource-context.ts responsibility implements/supports Context Partitioning; Working Memory. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/zbook-timeout-recovery.ts",
+      "sha256": "d49949e6b2d7db6938fb093198f72a2d19daeb35c35e5b6d65d1113e2e4dfc3c",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "AUTO-001",
+        "AUTO-004",
+        "GOV-025",
+        "OWN-001"
+      ],
+      "reason": "Issue #1219 ZBook timeout-only recovery transition preserves Goal identity, completion checks, evidence, and Human Gate boundaries; parent requirements remain PARTIAL pending physical E2E."
     }
   ],
   "hash_policy": "utf8-crlf-to-lf-v1;binary-raw"
