@@ -5154,13 +5154,16 @@
     },
     {
       "path": "src/orchestrator/runtime-development-planner.ts",
-      "sha256": "f1203baa788ee48e812214468aa177f4b61b0b9cb848668f47a9e6e2b96c0f5c",
+      "sha256": "6032f5ea7e31ad4ef2c27ee851675175b095c8c4885443c8ed3167699a40106e",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
-        "AUTO-015"
+        "AUTO-015",
+        "AUTO-001",
+        "AUTO-004",
+        "OWN-001"
       ],
-      "reason": "Declared runtime-development-planner.ts responsibility implements/supports Software Development Autopilot; Executor. Parent ownership is not functional or physical acceptance evidence."
+      "reason": "Declared runtime-development-planner.ts responsibility implements/supports Software Development Autopilot; Executor. Parent ownership is not functional or physical acceptance evidence. #1219 emits a fixed repository-check verification contract for general development Goals and only credits automated check DoD that those checks actually cover."
     },
     {
       "path": "src/orchestrator/runtime-development-verifier.ts",
