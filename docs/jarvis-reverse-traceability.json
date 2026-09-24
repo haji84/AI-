@@ -933,7 +933,7 @@
     },
     {
       "path": "scripts/jarvis-broker.ts",
-      "sha256": "cae9a5bad4acfe9558a23a5ca659c54ccd5b216e0199a152eabc266127a891a4",
+      "sha256": "d960e37da628eac4577161b758320d4d3059847cd70a8fc6b2e8d9442e061764",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "NET-006",
