@@ -17,6 +17,7 @@ test("Mac resident runtime provisions a loopback-only bounded code Builder", () 
   assert.match(installer, /Preserving in-progress isolated Builder workspace/);
   assert.doesNotMatch(installer, /CODE_BUILDER_ALLOW_NON_LOOPBACK/);
   assert.match(runtime, /Library", "Application Support", "GAIWorker", "code-builder", "token\.txt"/);
+  assert.match(verifier, /Library", "Application Support", "GAIWorker", "code-builder", "token\.txt"/);
 
   const install = bootstrap.indexOf('install-code-builder-macos.sh');
   const broker = bootstrap.indexOf('cat >"$BROKER_PLIST"');
