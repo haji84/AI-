@@ -269,6 +269,22 @@ export class CompassStore {
     return this.getGoal() as GoalRecord;
   }
 
+  /** Goal Controller-only additive DoD adoption; caller must enforce owner/pristine-work checks. */
+  adoptPristineGoalCriteria(expectedGoal: GoalRecord, expectedState: StateRecord, criteria: string[], receipt: unknown): GoalRecord {
+    if (!Array.isArray(criteria) || criteria.length < 1 || criteria.length > 16 ||
+        criteria.some(c => typeof c !== "string" || !c.trim() || c.length > 500) || new Set(criteria).size !== criteria.length ||
+        !receipt || typeof receipt !== "object" || encode(receipt).length > 32_000) throw Error("Invalid Goal refinement");
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      const current = this.getGoal(), state = this.getState();
+      if (!current || current.successCriteria.length || encode(current) !== encode(expectedGoal) || encode(state) !== encode(expectedState)) throw Error("Goal or work state changed before refinement");
+      const result = this.setGoal({ title: current.title, description: current.description, constraints: current.constraints, successCriteria: criteria });
+      this.db.prepare("UPDATE state SET decisions = ?, updated_at = ? WHERE project_id = ?").run(encode([...state.decisions, receipt]), nowIso(), PROJECT_ID);
+      this.db.exec("COMMIT");
+      return result;
+    } catch (error) { this.db.exec("ROLLBACK"); throw error; }
+  }
+
   getState(): StateRecord {
     const row = this.db.prepare("SELECT * FROM state WHERE project_id = ?").get(PROJECT_ID) as Record<string, unknown>;
     return {

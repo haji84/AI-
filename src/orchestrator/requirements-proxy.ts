@@ -1,5 +1,5 @@
 type BrokerFetch=(path:string,init?:RequestInit)=>Promise<Response>;
-async function boundedText(body:ReadableStream<Uint8Array>|null,limit:number,timeout=5000):Promise<string>{
+export async function boundedText(body:ReadableStream<Uint8Array>|null,limit:number,timeout=5000):Promise<string>{
  if(!body)throw Error("empty_body");
  const reader=body.getReader();let size=0;const chunks:Uint8Array[]=[];
  let timer:ReturnType<typeof setTimeout>|undefined;

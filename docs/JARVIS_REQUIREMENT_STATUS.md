@@ -348,3 +348,7 @@ See [full ledger](JARVIS_PRODUCT_SPEC.md) and [Windows/inventory evidence](evide
 | DEV-AX-002 | Worker自動更新 | PARTIAL | MAIN_CODE_PRESENT | RUNTIME_ACCEPTANCE_REQUIRED | PENDING |
 | DEV-AX-003 | 画面OFFから自動復帰 | PARTIAL | MAIN_CODE_PRESENT | RUNTIME_ACCEPTANCE_REQUIRED | PENDING |
 | DEV-AX-004 | 登録中の更新保護 | PARTIAL | MAIN_CODE_PRESENT | RUNTIME_ACCEPTANCE_REQUIRED | PENDING |
+
+## GORIQ Cognitive Core / Primary Brain (#1216)
+
+OWN-001 adds the owner-requested Cognitive Core without removing the frozen340. Full contract: docs/architecture/goriq-cognitive-core.md. Seventeen delivery components are tracked in docs/goriq-cognitive-status.json. Source availability, integration, synthetic acceptance, actual local-model capability and physical evidence are separate; no new completion claim.

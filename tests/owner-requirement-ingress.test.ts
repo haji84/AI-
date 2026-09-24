@@ -1,3 +1,4 @@
+import { loadCanonicalBundle } from "../scripts/jarvis-owner-spec-sync.mjs";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { spawn } from "node:child_process";
@@ -46,7 +47,7 @@ test("actual authenticated Broker work ingress captures owner requirement and su
   const previewUrl=base+"/api/jarvis/admin/requirements/preview";
   assert.equal((await fetch(previewUrl,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(previewRequest)})).status,401);
   const preview=await fetch(previewUrl,{method:"POST",headers:{Authorization:"Bearer "+token,"content-type":"application/json"},body:JSON.stringify(previewRequest)});
-  assert.equal(preview.status,200);const display=await preview.json();assert.deepEqual(display.requirementIds,["OWN-001"]);assert.equal(display.bundle,undefined);assert.equal(display.files[0].content,undefined);
+  assert.equal(preview.status,200);const display=await preview.json();assert.deepEqual(display.requirementIds,[`OWN-${String(loadCanonicalBundle(process.cwd()).inventory.allocations.length+1).padStart(3,"0")}`]);assert.equal(display.bundle,undefined);assert.equal(display.files[0].content,undefined);
   const idea=await (await send({text:"たとえば通知機能を追加して",idempotencyKey:"example"})).json();assert.equal(idea.requirement.state,"IDEA");
   const chosen=await (await send({text:"それで進めて",idempotencyKey:"chosen",requirementReferenceId:idea.requirement.id})).json();
   assert.equal(chosen.requirement.statement,idea.requirement.statement);assert.deepEqual(chosen.requirement.conversation.referenceIds,[idea.requirement.id]);

@@ -13888,3 +13888,107 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   }
 }
 ```
+
+
+## GORIQ (formerly JARVIS) Cognitive Core / Primary Brain
+
+Owner instruction 2026-09-23, Issue #1216. Full normative integration contract: [Cognitive Core architecture](architecture/goriq-cognitive-core.md). The local Primary Brain proposes reasoning and plans; existing Goal/Gate/State authority remains unchanged. External AI is optional expertise, not a runtime dependency. No new paid-provider, credential or permission path is authorized. Existing R8/R14/R16/R17 research evidence is reused only within its original scope. See [delivery stages](goriq-cognitive-status.json) for SPECIFIED/IMPLEMENTED/TESTED/INTEGRATED/VERIFIED/EXPERIMENTAL distinctions. These stages do not replace canonical evidence statuses.
+
+### OWN-001
+
+```json
+{
+  "id": "OWN-001",
+  "title": "GORIQ Cognitive Core / Local Primary Brain",
+  "description": "Integrate the existing GAI execution, memory, world model, research and governed learning assets into one durable local-first cognition loop. Owner scope includes PrimaryBrainAdapter, unknown-task experiments, failure/correction/strategy recall, skill synthesis, historical import, optional verified expert learning, privacy-separated users, local training candidate pipeline, independence benchmarks, sandboxed improvement and offline recovery. Full contract: docs/architecture/goriq-cognitive-core.md; delivery stages: docs/goriq-cognitive-status.json. External AI availability is not a local-work stop condition.",
+  "phase": "P7",
+  "required_evidence": [
+    "CODE",
+    "UNIT",
+    "INTEGRATION",
+    "SECURITY",
+    "PHYSICAL",
+    "RECOVERY"
+  ],
+  "implementation_refs": [
+    "src/gai/cognitive-core.ts",
+    "src/gai/primary-brain.ts",
+    "src/gai/cognitive-state.ts",
+    "src/gai/cognitive-learning.ts",
+    "src/gai/cognitive-learning-data.ts",
+    "src/gai/cognitive-local-work.ts",
+    "src/gai/cognitive-service.ts",
+    "src/orchestrator/compass-goal-execution-adapter.ts",
+    "src/app/api/jarvis/cognitive/route.ts",
+    "src/gai/cognitive-local-outcomes.ts",
+    "src/gai/cognitive-host-config.ts",
+    "src/gai/cognitive-material-intake.ts",
+    "src/gai/cognitive-history.ts",
+    "src/app/jarvis/tasks/CognitivePanel.tsx",
+    "src/app/jarvis/tasks/CognitiveMaterials.tsx",
+    "src/app/jarvis/tasks/CognitiveLearning.tsx",
+    "src/orchestrator/cognitive-material-proxy.ts",
+    "src/app/api/jarvis/cognitive/materials/route.ts",
+    "src/app/api/jarvis/cognitive/learning/route.ts",
+    "src/orchestrator/cognitive-goal-input.ts",
+    "src/orchestrator/cognitive-goal-refinement.ts",
+    "src/compass/store.ts",
+    "src/app/api/jarvis/cognitive/goal/route.ts",
+    "src/app/jarvis/tasks/CognitiveGoalCriteria.tsx",
+    "src/app/api/jarvis/cognitive/goal/proposal/route.ts",
+    "src/gai/cognitive-operation.ts",
+    "src/gai/cognitive-research.ts",
+    "src/gai/research-loop.ts",
+    "src/gai/world-model-calibration.ts"
+  ],
+  "test_refs": [
+    "tests/goriq-cognitive-core.test.ts",
+    "tests/goriq-cognitive-runtime.test.ts",
+    "tests/goriq-cognitive-acceptance.test.ts",
+    "tests/cognitive-learning.test.ts",
+    "tests/cognitive-learning-data.test.ts",
+    "tests/goriq-cognitive-proxy.test.ts",
+    "tests/goriq-cognitive-outcomes.test.ts",
+    "tests/goriq-cognitive-outcome-runtime.test.ts",
+    "tests/goriq-cognitive-config.test.ts",
+    "tests/goriq-cognitive-broker.test.ts",
+    "tests/goriq-cognitive-recovery.test.ts",
+    "tests/cognitive-history.test.ts",
+    "tests/goriq-cognitive-history-service.test.ts",
+    "tests/goriq-cognitive-correction-boundary.test.ts",
+    "tests/goriq-cognitive-material-proxy.test.ts",
+    "tests/goriq-material-intake.test.ts",
+    "tests/goriq-material-review.test.ts",
+    "tests/goriq-cognitive-legacy-ui.test.mjs",
+    "scripts/goriq-cognitive-browser-smoke.mjs",
+    "tests/cognitive-goal-refinement.test.ts",
+    "tests/cognitive-goal-store.test.ts",
+    "tests/goriq-cognitive-goal-service.test.ts",
+    "tests/goriq-cognitive-goal-review.test.ts",
+    "tests/goriq-goal-proposal-brain.test.ts",
+    "tests/goriq-goal-proposal-service.test.ts",
+    "tests/goriq-goal-proposal-review.test.ts",
+    "scripts/goriq-local-goal-proposal-smoke.ts",
+    "tests/cognitive-operation-learning.test.ts",
+    "tests/goriq-operation-runtime.test.ts",
+    "tests/goriq-operation-review.test.ts",
+    "tests/goriq-research-calibration.test.ts",
+    "tests/goriq-research-boundary.test.ts",
+    "tests/goriq-research-review.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/evidence/1216-cognitive-core.md",
+    "docs/audit/goriq-cognitive-brain-audit.md",
+    "docs/audit/goriq-cognitive-learning-audit.md"
+  ],
+  "status": "PARTIAL",
+  "blocker": "Local Goal/material execution, inert cross-Goal operation candidates and bounded evidence-bound R16 prediction calibration are integrated. Real measured skill gain, general semantic fidelity/novel executable skills, historical revalidation, teaching integration, R16 tool experiments/R17 promotion, model training and physical/cross-device acceptance remain. Synthetic calibration comparisons are not real task-success evidence; ordinary runtime lacks independent heldout trials.",
+  "platform_limit": null,
+  "fallback": null,
+  "next_action": "Verify exact-commit research boundary/calibration CI. Preserve frozen train/heldout separation and zero comparison when evidence is absent; then implement authoritative independent evaluation collection and bounded skill/research execution with actual oracles, while completing semantic/teaching/history/model integration without weakening gates.",
+  "last_verified_commit": null,
+  "source_decisions": [
+    "owner-intake-cc6f2a30e8336d322129e2972d1e8f90"
+  ]
+}
+```
