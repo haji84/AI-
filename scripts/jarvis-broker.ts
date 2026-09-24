@@ -73,16 +73,17 @@ const goalController = new GoalControllerRuntime({
 });
 let goalExecution: GoalControllerExecutionBridge | undefined;
 const activeGoalExecutions = new Map<string, Promise<void>>();
+const scheduledGoalExecutions = new Map<string, ReturnType<typeof setImmediate>>();
 
 function scheduleGoalExecution(decision: GoalControllerDecision, context: unknown[] = []): boolean {
   if (decision.action !== "CONTINUE_GOAL" || !decision.goalId) return false;
-  if (activeGoalExecutions.has(decision.goalId)) return true;
+  if (activeGoalExecutions.has(decision.goalId) || scheduledGoalExecutions.has(decision.goalId)) return true;
   const goalId = decision.goalId;
   // Acknowledge accepted intake before autonomous work begins. This keeps the
   // ingress responsive and prevents execution/SQLite work from extending the
   // owner's HTTP request lifetime.
-  activeGoalExecutions.set(goalId, Promise.resolve());
   const immediate = setImmediate(() => {
+    scheduledGoalExecutions.delete(goalId);
     const task = (async () => {
       if (!goalExecution) {
         const [{ GoalControllerExecutionBridge: Bridge }, { CompassGoalExecutionAdapter }] = await Promise.all([
@@ -115,6 +116,7 @@ function scheduleGoalExecution(decision: GoalControllerDecision, context: unknow
       .finally(() => { activeGoalExecutions.delete(goalId); });
     activeGoalExecutions.set(goalId, task);
   });
+  scheduledGoalExecutions.set(goalId, immediate);
   immediate.unref();
   return true;
 }
