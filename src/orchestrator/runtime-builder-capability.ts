@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { homedir } from "node:os";
 import type { CapabilityHandler } from "./capabilities.ts";
 import { BuilderRouter } from "./builder-router.ts";
 import { HttpWorkerBuilderCapability, createEnvHttpWorkerBuilders } from "../gai/http-worker-builder-capability.ts";
@@ -14,11 +15,14 @@ function localBuilderConfig(env: Record<string, string | undefined>): { url: str
     return { url: explicitUrl, token: explicitToken };
   }
 
-  if (process.platform !== "win32") return null;
-  const localAppData = env.LOCALAPPDATA?.trim();
-  if (!localAppData) return null;
-  const tokenPath = join(localAppData, "GAIWorker", "code-builder", "token.txt");
-  if (!existsSync(tokenPath)) return null;
+  let tokenPath: string | null = null;
+  if (process.platform === "win32") {
+    const localAppData = env.LOCALAPPDATA?.trim();
+    if (localAppData) tokenPath = join(localAppData, "GAIWorker", "code-builder", "token.txt");
+  } else if (process.platform === "darwin") {
+    tokenPath = join(homedir(), "Library", "Application Support", "GAIWorker", "code-builder", "token.txt");
+  }
+  if (!tokenPath || !existsSync(tokenPath)) return null;
   const token = readFileSync(tokenPath, "utf8").trim();
   if (!token) return null;
   return { url: "http://127.0.0.1:8796", token };
