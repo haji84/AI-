@@ -5,6 +5,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { request as httpRequest } from "node:http";
 import { createServer } from "node:net";
 import { join, resolve } from "node:path";
+import { changedPaths } from "./zbook-goal-git-status.ts";
 
 if (process.platform !== "win32") throw new Error("Issue #1218 physical Bridge run requires ZBook Windows");
 const workspace = process.env.GORIQ_1218_WORKSPACE?.trim();
@@ -77,10 +78,10 @@ try {
     if (status.status !== 200) throw new Error("#1218 status unavailable");
     const run = status.data.run as { phase?: string; blockers?: string[]; nextAction?: string } | undefined;
     if (run?.phase && run.phase !== "QUEUED") observedExecution = true;
-    const changes = execFileSync("git", ["status", "--porcelain"], { cwd: workspace, encoding: "utf8", windowsHide: true }).trim();
+    const changes = changedPaths(execFileSync("git", ["status", "--porcelain"], { cwd: workspace, encoding: "utf8", windowsHide: true }));
     evidence.lastPhase = run?.phase ?? null;
-    if (changes || ["COMPLETED", "BLOCKED", "HUMAN_GATE", "FAILED"].includes(run?.phase ?? "")) {
-      evidence.changedFiles = changes.split(/\r?\n/).filter(Boolean).map(line => line.slice(3));
+    if (changes.length || ["COMPLETED", "BLOCKED", "HUMAN_GATE", "FAILED"].includes(run?.phase ?? "")) {
+      evidence.changedFiles = changes;
       evidence.blockers = run?.blockers ?? [];
       evidence.nextAction = run?.nextAction ?? null;
       break;

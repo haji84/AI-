@@ -34,4 +34,5 @@ jobs:
         with:
           name: goriq-zbook-goal-1218
           path: .gai-results/goal-1218-bridge*
+          include-hidden-files: true
           retention-days: 30
