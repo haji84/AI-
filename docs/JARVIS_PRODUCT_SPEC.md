@@ -13992,3 +13992,72 @@ Owner instruction 2026-09-23, Issue #1216. Full normative integration contract: 
   ]
 }
 ```
+
+
+## Canonical JARVIS UI / UX specification
+
+This section is normative for UI work. Codex/agents MUST inspect and preserve existing UI contracts before redesigning components.
+
+### UI-001 Primary information architecture
+Primary navigation is Japanese-first and keeps the main destinations: ホーム / デバイス / タスク / リサーチ / 設定. The UI is for non-technical operators; internal English implementation terms must not leak into normal task operation when a clear Japanese label exists.
+Implementation: `src/app/jarvis/JarvisPrimaryShell.tsx`.
+
+### UI-002 Home and configurable layout
+Home is the operational overview, not a decorative landing page. It surfaces current work, progress/state, priority notifications, connectivity and actions that need the operator. Existing home/layout editing and screen-layout profiles are canonical. User-configurable placement must preserve long-press/drag-style rearrangement where supported. Frequently used items are the default priority; additional destinations should be exposed as shortcuts rather than turning Home into an unbounded form.
+Implementation: `src/app/jarvis/JarvisHomeLayoutEditor.tsx`, `src/app/jarvis/screen-layout-profiles.ts`, `src/app/jarvis/widget-layout.css`.
+
+### UI-003 Command entry and circular launch core
+The primary command entry remains simple. The launch/send control is a circular core with an outer ring, not a generic rectangular submit button. Empty/idle is quiet; valid input makes the core/ring visibly ready; acceptance animates the ring once; while running the ring becomes actual progress; completed and blocked states are visually distinct. Reduced-motion preferences must disable nonessential animation without hiding state. Do not label the primary action `任せる`.
+Implementation: `src/app/jarvis/work-shell.css` (`.jarvis-launch-core`) and its command component.
+
+### UI-004 Truthful work progress
+UI progress MUST derive from Work Run / Goal state and evidence, not cosmetic timers. Show meaningful states including waiting, blocked, retrying/recovering, degraded/platform-limited, Human Gate, failed and verified complete. A running ring must represent actual progress when available; unknown progress must not be fabricated.
+Implementation: `src/orchestrator/work-run-state.ts`, `src/orchestrator/work-state-integration.ts`, UI work shell/status components.
+
+### UI-005 Mid-task steering
+A running Goal accepts additional user instructions as deltas. The UI must allow adding instructions/materials while work is in progress and must show that the existing Goal is being updated rather than silently starting an unrelated replacement task.
+Backend invariant: `src/orchestrator/mid-task-steering.ts`.
+
+### UI-006 Capability and execution-location visibility
+When useful to understanding/approval, UI exposes which execution surface is active or waiting: Local, Online, Browser/Cloud, GPU, Connected source, or Device/Owner Fleet. This is status/traceability, not an invitation for users to manually micromanage every router decision.
+
+### UI-007 Owner Fleet
+The Device view must represent verified Owner Fleet members and their availability/capabilities. ZBook/Windows, MacBook/macOS and iPhone/iOS may contribute capabilities under the same Owner while retaining separate Device Identities. Foreign/unverified devices must not visually appear as trusted shared capacity.
+Backend invariant: `src/orchestrator/owner-fleet-capability-pool.ts`.
+
+### UI-008 Human Gate / approval
+Human Gate is exceptional, explicit and actionable. Show what action is awaiting approval, why, risk/impact, evidence available and what will happen after approval/rejection. LOW/MEDIUM autonomous work must not spam approval prompts merely because a component exists.
+Implementation: `src/app/ApprovalControls.tsx`, risk/approval policy modules.
+
+### UI-009 Evidence / verification / recovery visibility
+For material work, UI can expose Fact/Artifact/Independent Critic status and recovery attempts without dumping raw internal logs by default. FAIL is not collapsed into generic error; show actionable reason and whether JARVIS is recovering, waiting for evidence, blocked or needs a person.
+
+### UI-010 Connectivity / offline
+Connectivity is always truthful. Offline-capable work can continue; freshness-dependent work may show deferred verification/waiting connectivity. Do not show current external facts as verified when Online evidence is unavailable.
+Implementation: `src/app/jarvis/JarvisConnectivityStatus.tsx`, `src/app/jarvis/connectivity-status.ts`.
+
+### UI-011 Mobile-first operation
+Core command, status, approvals, Owner Fleet/device selection and recovery visibility must remain usable on mobile. Existing Mobile Commander, voice, gesture and pointer surfaces are capabilities, not separate product identities.
+Implementation: `src/app/jarvis/mobile/`.
+
+### UI-012 Themes
+The canonical theme catalog currently contains 20 selectable themes: clean-modern, dark-cinematic, soft-anime, warm-companion, executive, hologram, natural-wood, minimal-glass, ar-spatial, cyber-city, future-cockpit, mobile-compact, mission-control, data-visual, healing-nature, natural-fusion, black-gold, white-lab, digital-twin, adaptive-persona. Theme changes must not alter authorization, workflow truth or accessibility semantics.
+Implementation: `src/app/jarvis/theme-catalog.ts`, `src/app/jarvis/themes.css`.
+
+### UI-013 Display and accessibility modes
+Existing Focus, Distance and Privacy display modes and accessibility preferences are canonical. Privacy mode hides sensitive visual content rather than merely recoloring it. Keyboard/focus visibility, skip navigation and reduced-motion support must remain.
+Implementation: `src/app/jarvis/JarvisDisplayModeControls.tsx`, `src/app/jarvis/JarvisAccessibilityControls.tsx`, display/accessibility CSS.
+
+### UI-014 Device enrollment
+Enrollment must minimize manual entry and preserve one-tap/QR/fixed-link flows where platform permits. Progress and failures are explicit. Enrollment never silently weakens Device Identity or Owner boundaries.
+Implementation: `src/app/jarvis/enroll/` and enrollment architecture docs.
+
+### UI-015 Remote/device operation
+Device screens distinguish view-only, controllable and full-management capabilities. Locked, sleeping, offline, unavailable and ready states are explicit. Remote actions must not imply success before device evidence returns.
+Implementation: `src/app/jarvis/JarvisConsole.tsx`, `src/app/jarvis/RemoteAssistMultiView.tsx`, remote policy/runtime modules.
+
+### UI-016 Anti-redesign rule
+Before UI changes, agents MUST inspect PRODUCT_SPEC plus current `src/app/jarvis` implementation and tests. Existing canonical behavior is reused unless an approved requirement explicitly replaces it. A visually different implementation is not an improvement by itself. Do not replace the circular launch core, navigation model, status semantics, theme catalog, Owner Fleet presentation contract or mobile/accessibility behavior merely because the current prompt omitted those details.
+
+### UI audit status
+At this audit, the following were IMPLEMENTED_NOT_SPECIFIED or under-specified before this section: circular launch core/progress ring, no-`任せる` wording rule, explicit theme IDs, Home layout contract, truthful mid-task steering UI requirement, Owner Fleet UI contract, execution-location visibility, verification/recovery visibility, and anti-redesign preservation. Existing PRODUCT_SPEC already contained portions of navigation, themes, accessibility/display modes, mobile, Human Gate, failure transparency and privacy behavior; this section reconciles them with current main rather than replacing them.
