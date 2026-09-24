@@ -913,6 +913,19 @@
       "reason": "Organization-aware reusable memory"
     },
     {
+      "path": "scripts/install-code-builder-macos.sh",
+      "sha256": "d6a28930c98998343bf61aba477dbeb2cb06126c91ae1000154287e60183f4b3",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "CORE-014",
+        "DEV-PC-006",
+        "AUTO-001",
+        "AUTO-004",
+        "OWN-001"
+      ],
+      "reason": "Issue #1219 bounded Mac-local Builder provisioning for Direct Goal Bridge; loopback-only service with local token storage; parent requirements remain evidence-gated until real E2E."
+    },
+    {
       "path": "scripts/jarvis-adb-mass-enroll.sh",
       "sha256": "218d856fc06b462305ac093bea39fca09a44f768575fd1abf9719a8b12b98455",
       "classification": "COVERED_BY_REQUIREMENT",
@@ -933,7 +946,7 @@
     },
     {
       "path": "scripts/jarvis-broker.ts",
-      "sha256": "135fb1aa45d7bc0cdbf91f00bffb52998b752e5ed496edaf704bfc4ce96dad26",
+      "sha256": "e236defc281c2d695e3ad7d062501222a87ea52d9e15cbac3ba37b727dd6f488",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "NET-006",
@@ -951,7 +964,7 @@
         "GOV-025",
         "OWN-001"
       ],
-      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification; #1216 bounded local cognition/owner entry integration, not full capability or physical acceptance; #1216 explicit owner DoD adoption: strict bounded input, unchanged Goal identity, full Goal/state atomic CAS and receipt-only replay; independent completion verification remains required; #1216 bounded local DoD proposal: unverified non-executing data, owner-first strict input, post-inference Goal/state recheck and separate editable owner adoption; no broad semantic or physical completion claim; #1219 Direct Goal Bridge wakes bounded Goal execution and exposes shared status/events; parent requirements remain PARTIAL pending E2E."
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification; #1216 bounded local cognition/owner entry integration, not full capability or physical acceptance; #1216 explicit owner DoD adoption: strict bounded input, unchanged Goal identity, full Goal/state atomic CAS and receipt-only replay; independent completion verification remains required; #1216 bounded local DoD proposal: unverified non-executing data, owner-first strict input, post-inference Goal/state recheck and separate editable owner adoption; no broad semantic or physical completion claim; #1219 Direct Goal Bridge wakes bounded Goal execution and exposes shared status/events; parent requirements remain PARTIAL pending E2E. #1219 exposes a non-secret health marker proving the isolated Goal executor is present."
     },
     {
       "path": "scripts/jarvis-direct-commander-service.sh",
@@ -1096,7 +1109,7 @@
     },
     {
       "path": "scripts/jarvis-mac-zero-touch-install.sh",
-      "sha256": "bcad4745d9544347f8cae5767a5f0ffb3a8022f8373661bf6fe45cfb9c3987fc",
+      "sha256": "acf7a6e2aca5f7df3fc18738f9e260fe587453590064d84cd266a9734db1e970",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "HOST-002",
@@ -1105,7 +1118,7 @@
         "AUTO-004",
         "OWN-001"
       ],
-      "reason": "Mac auxiliary resident/installation compatibility scripts; no deployment performed; #1219 Mac Production recovery: fail closed before resident Broker restart unless the isolated Direct Goal Bridge executor exists."
+      "reason": "Mac auxiliary resident/installation compatibility scripts; no deployment performed; #1219 Mac Production recovery: fail closed before resident Broker restart unless the isolated Direct Goal Bridge executor exists. #1219 also provisions the loopback-only Mac Builder before the resident Broker starts, without exposing its token."
     },
     {
       "path": "scripts/jarvis-mac-zero-touch.sh",
@@ -1438,12 +1451,15 @@
     },
     {
       "path": "src/app/api/jarvis/connectivity/route.ts",
-      "sha256": "784c8322706a6e18d95c7fd75f563843538d7ba963ad9e4bb41a466c37de2762",
+      "sha256": "202e5685dd9ec6d7c8895380ad86fc40e5319e1312657a797f9d8eb8628eff17",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
-        "OPS-006"
+        "OPS-006",
+        "AUTO-001",
+        "AUTO-004",
+        "OWN-001"
       ],
-      "reason": "Connectivity API"
+      "reason": "Connectivity API #1219 Production connectivity is healthy only when the live Broker reports Direct Goal Bridge executor readiness."
     },
     {
       "path": "src/app/api/jarvis/diagnostics/route.ts",
@@ -5135,12 +5151,16 @@
     },
     {
       "path": "src/orchestrator/runtime-builder-capability.ts",
-      "sha256": "566debf7203da63faedcea553258c330f001bf2ad7fade862d313d674ba3766f",
+      "sha256": "1507eaeeaee1e50d5e6a28a1eac2e8a74ecf092b5608b9d068ad6fde4816e5d4",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
-        "CORE-014"
+        "CORE-014",
+        "DEV-PC-006",
+        "AUTO-001",
+        "AUTO-004",
+        "OWN-001"
       ],
-      "reason": "Declared runtime-builder-capability.ts responsibility implements/supports Software Development Autopilot. Parent ownership is not functional or physical acceptance evidence."
+      "reason": "Declared runtime-builder-capability.ts responsibility implements/supports Software Development Autopilot. Parent ownership is not functional or physical acceptance evidence. #1219 allows the resident Mac Goal executor to discover its protected local Builder token and loopback endpoint."
     },
     {
       "path": "src/orchestrator/runtime-development-planner.ts",
