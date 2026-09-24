@@ -101,6 +101,16 @@ test("exact-file Builder verification does not claim repository-wide test DoD", 
   assert.deepEqual((action as { satisfiesDefinitionOfDone?: string[] })?.satisfiesDefinitionOfDone, ["implement"]);
 });
 
+test("an implementation criterion naming a file under tests is not mistaken for a test gate", async () => {
+  const planner = new RuntimeDevelopmentPlanner(new BaselinePlanner());
+  const action = await planner.proposeNextAction({
+    goal: { title: "Complete code in tests/fixtures/autonomous-builder-e2e.txt", description: "Make its complete content exactly: beta.", successCriteria: ["Implement code in tests/fixtures/autonomous-builder-e2e.txt with complete content exactly beta"], constraints: [] },
+    context: [{ source: "gai-work-state", summary: "work", data: { status: "IN_PROGRESS", blockers: [], remainingDefinitionOfDone: [{ id: "criterion-1", description: "Implement code in tests/fixtures/autonomous-builder-e2e.txt with complete content exactly beta" }] } }],
+    intent,
+  });
+  assert.deepEqual((action as { satisfiesDefinitionOfDone?: string[] })?.satisfiesDefinitionOfDone, ["criterion-1"]);
+});
+
 test("completed WorkState stops normal development planning", async () => {
   const planner = new RuntimeDevelopmentPlanner(new BaselinePlanner());
   const action = await planner.proposeNextAction({

@@ -35,6 +35,7 @@ import { CompassGoalRegistryAdapter, CompassGoalDecisionStoreAdapter } from "../
 import { CompassWorkRunStore } from "../src/orchestrator/compass-work-run-store.ts";
 import { CompassGoalBridgeEventStore } from "../src/orchestrator/compass-goal-bridge-event-store.ts";
 import { workRunProgress } from "../src/orchestrator/work-run-state.ts";
+import { createQueuedWorkRun } from "../src/orchestrator/work-run-state.ts";
 import { validateWindowsVerificationDispatch } from "../src/orchestrator/windows-verification-dispatch.ts";
 
 
@@ -448,7 +449,10 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
           goalContract,
         });
         if (requirement) requirement = ownerRequirements.bindGoal(requirement.id, decision.goalId ?? activeGoal?.goalId ?? null);
-        const executionScheduled = scheduleGoalExecution(decision, [{ source: "owner-work-intake", text }]);
+        const existingRun = decision.goalId ? await workRuns.getByGoal(decision.goalId) : null;
+        if (decision.goalId && !existingRun) await workRuns.put(createQueuedWorkRun(decision.goalId));
+        const terminal = existingRun && ["COMPLETED", "BLOCKED", "FAILED", "HUMAN_GATE"].includes(existingRun.phase);
+        const executionScheduled = !terminal && scheduleGoalExecution(decision, [{ source: "owner-work-intake", text }]);
         return json(response, 202, {
           accepted: true,
           executionScheduled,
@@ -714,6 +718,20 @@ const server = createServer((request, response) => {
 server.listen(port, host, () => {
   console.log(`[jarvis-broker] listening on http://${host}:${port}`);
   console.log(`[jarvis-broker] nodes=${plane.snapshot().stats.registered} tasks=${plane.snapshot().tasks.length} workerApk=${workerApkInfo() ? "ready" : "missing"}`);
+  // Only a previously accepted, non-terminal Work Run has execution authority.
+  // A Broker restart must resume it without another owner message.
+  void (async () => {
+    const active = (await new CompassGoalRegistryAdapter(compass).listActive())[0];
+    if (!active) return;
+    const run = await workRuns.getByGoal(active.goalId);
+    if (!run || !["QUEUED", "PLANNING", "RUNNING", "VERIFYING", "RECOVERING"].includes(run.phase)) return;
+    scheduleGoalExecution({
+      action: "CONTINUE_GOAL", goalId: active.goalId, resolution: {
+        kind: "EXISTING_GOAL", intent: "COMMAND", goal: active, reason: "resume_persisted_work_run",
+        intake: { id: `resume-${active.goalId}`, source: "event", text: "Resume accepted Goal", sourceContext: {}, idempotencyKey: `resume-${active.goalId}`, goalHint: active.goalId },
+      },
+    });
+  })().catch((error) => console.error("[goriq-goal] startup_resume_failed", error));
 });
 function shutdown(): void {
   for (const child of activeGoalExecutions.values()) {
@@ -723,4 +741,3 @@ function shutdown(): void {
 }
 process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);
-

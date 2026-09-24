@@ -33,7 +33,10 @@ function implementationDefinitionOfDoneIds(context: ContextItem[]): string[] {
     const id = typeof item.id === "string" ? item.id.trim() : "";
     const description = typeof item.description === "string" ? item.description.trim() : "";
     if (!id || !description) return [];
-    if (!IMPLEMENTATION_DOD_MARKERS.test(description) || VERIFICATION_DOD_MARKERS.test(description)) return [];
+    // A file path such as tests/fixtures/result.txt names the implementation
+    // target; its directory name is not a repository-wide test requirement.
+    const wording = description.replace(/(?:src|tests|scripts|docs)\/[A-Za-z0-9_./-]+/g, " ");
+    if (!IMPLEMENTATION_DOD_MARKERS.test(wording) || VERIFICATION_DOD_MARKERS.test(wording)) return [];
     return [id];
   });
 }

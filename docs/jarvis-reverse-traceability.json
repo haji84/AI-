@@ -933,7 +933,7 @@
     },
     {
       "path": "scripts/jarvis-broker.ts",
-      "sha256": "66ade00247d030f3a69e84ed9fd3807c60b740f1d22a764fca483db05ef245d8",
+      "sha256": "6921d8c0b8992a1cdf499b20c92a3fd68778bbfcf75280d1d3864c8f0aacaa6a",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "NET-006",
@@ -1044,7 +1044,7 @@
     },
     {
       "path": "scripts/jarvis-goal-executor.ts",
-      "sha256": "614a7f0bf3a4a1169f97c39d4757474cc2e626a009a91cd471dd51ba2ce5b8ea",
+      "sha256": "c740156bbb582b7098acb1017a8534f57e932d6aa8ebe8364e79bfb6b7c88c57",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "AUTO-001",
@@ -5157,7 +5157,7 @@
     },
     {
       "path": "src/orchestrator/runtime-development-planner.ts",
-      "sha256": "6032f5ea7e31ad4ef2c27ee851675175b095c8c4885443c8ed3167699a40106e",
+      "sha256": "c3fdb6a53b733008fd866eb485cf2e786ff71db7392135be05b885f542dbd8ad",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",

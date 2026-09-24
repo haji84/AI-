@@ -7,6 +7,7 @@ import { HttpWorkerBuilderCapability } from "../src/gai/http-worker-builder-capa
 import { evaluateRecovery } from "../src/orchestrator/recovery-policy.ts";
 import { evaluateGoalFromWorkState } from "../src/orchestrator/goal-evaluator.ts";
 import type { WorkState } from "../src/orchestrator/work-state.ts";
+import { runZbookDirectGoalBridgeE2E } from "./zbook-direct-goal-bridge-e2e.ts";
 
 const execFileAsync = promisify(execFile);
 const endpoint = process.env.CODE_BUILDER_URL?.trim() || "http://127.0.0.1:8796";
@@ -179,6 +180,10 @@ try {
   if (!secondVerified || !goalEvaluation.achieved) {
     throw new Error("Alternate real Builder strategy did not achieve verified Goal");
   }
+
+  await git(["checkout", "--", fixture]);
+  evidence.directGoalBridge = await runZbookDirectGoalBridgeE2E(testWorkspace, token);
+  assertBoundedChanges(await changedFiles());
 
   await mkdir(resolve(process.cwd(), ".gai-results"), { recursive: true });
   await writeFile(evidencePath, JSON.stringify(evidence, null, 2) + "\n", "utf8");
