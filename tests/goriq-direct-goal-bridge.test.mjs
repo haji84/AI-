@@ -29,3 +29,14 @@ test("GORIQ owner UI exposes bridged Goal status and evidence", () => {
   assert.match(status, /次の自律Action/);
   assert.match(status, /Recovery/);
 });
+
+test("GORIQ emits provider-neutral outbound events for chat clients", () => {
+  const broker = readFileSync(new URL("../scripts/jarvis-broker.ts", import.meta.url), "utf8");
+  const route = readFileSync(new URL("../src/app/api/jarvis/bridge/events/route.ts", import.meta.url), "utf8");
+  assert.match(broker, /GOAL_COMPLETED/);
+  assert.match(broker, /HUMAN_REQUIRED/);
+  assert.match(broker, /GOAL_BLOCKED/);
+  assert.match(broker, /bridge\/events\/ack/);
+  assert.match(route, /requireJarvisOwner/);
+  assert.match(route, /eventId/);
+});
