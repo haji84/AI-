@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { URL } from "node:url";
 import test from "node:test";
 
 test("owner work intake schedules durable Goal execution instead of only persisting the decision", () => {
