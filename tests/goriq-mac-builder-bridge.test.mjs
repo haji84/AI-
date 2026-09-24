@@ -7,10 +7,14 @@ test("Mac resident runtime provisions a loopback-only bounded code Builder", () 
   const installer = readFileSync(new URL("../scripts/install-code-builder-macos.sh", import.meta.url), "utf8");
   const bootstrap = readFileSync(new URL("../scripts/jarvis-mac-zero-touch-install.sh", import.meta.url), "utf8");
   const runtime = readFileSync(new URL("../src/orchestrator/runtime-builder-capability.ts", import.meta.url), "utf8");
+  const verifier = readFileSync(new URL("../src/orchestrator/runtime-development-verifier.ts", import.meta.url), "utf8");
 
   assert.match(installer, /CODE_BUILDER_HOST<\/key><string>127\.0\.0\.1<\/string>/);
   assert.match(installer, /com\.gai\.code-builder-worker/);
   assert.match(installer, /tokenStoredLocally/);
+  assert.match(installer, /WORKSPACE="\$ROOT\/workspace"/);
+  assert.match(installer, /git clone --quiet "\$origin" "\$WORKSPACE"/);
+  assert.match(installer, /Preserving in-progress isolated Builder workspace/);
   assert.doesNotMatch(installer, /CODE_BUILDER_ALLOW_NON_LOOPBACK/);
   assert.match(runtime, /Library", "Application Support", "GAIWorker", "code-builder", "token\.txt"/);
 
