@@ -35,6 +35,8 @@ import { GoalControllerExecutionBridge } from "../src/orchestrator/goal-controll
 import { CompassGoalExecutionAdapter } from "../src/orchestrator/compass-goal-execution-adapter.ts";
 import { CompassGoalRegistryAdapter, CompassGoalDecisionStoreAdapter } from "../src/orchestrator/compass-goal-controller.ts";
 import { CompassWorkRunStore } from "../src/orchestrator/compass-work-run-store.ts";
+import { CompassGoalBridgeEventStore } from "../src/orchestrator/compass-goal-bridge-event-store.ts";
+import { createGoalBridgeEvent } from "../src/orchestrator/goal-bridge-events.ts";
 import { workRunProgress } from "../src/orchestrator/work-run-state.ts";
 import { validateWindowsVerificationDispatch } from "../src/orchestrator/windows-verification-dispatch.ts";
 
@@ -62,6 +64,7 @@ const store = new JarvisSqliteStateStore(process.env.JARVIS_DB_PATH?.trim() || u
 const compassPath = process.env.JARVIS_COMPASS_DB_PATH?.trim() || (process.env.JARVIS_DB_PATH?.trim() ? `${process.env.JARVIS_DB_PATH.trim()}.compass.sqlite` : resolve(".jarvis/compass.db"));
 const compass = new CompassStore(compassPath);
 const workRuns = new CompassWorkRunStore(compass);
+const goalBridgeEvents = new CompassGoalBridgeEventStore(compass);
 const cognitive = new CognitiveService(compassPath, cognitiveHostOptions(process.env));
 const ownerRequirements = new OwnerRequirementIntake(compass);
 const specificationPublisher = createSpecificationPublisher({root:fileURLToPath(new URL("../",import.meta.url)),intake:ownerRequirements,token:process.env.GITHUB_TOKEN});
@@ -77,10 +80,22 @@ function scheduleGoalExecution(decision: GoalControllerDecision, context: unknow
   if (activeGoalExecutions.has(decision.goalId)) return true;
   const goalId = decision.goalId;
   const task = goalExecution.executeUntilGoalTerminal(decision, { maxRuns: 12, context })
-    .then((result) => {
-      if (result.reason && result.reason !== "goal_complete") {
-        console.warn("[goriq-goal]", goalId, result.reason);
-      }
+    .then(async (result) => {
+      const report = result.report;
+      const type = result.reason === "goal_complete"
+        ? "GOAL_COMPLETED"
+        : result.reason === "human_gate"
+          ? "HUMAN_REQUIRED"
+          : result.reason === "blocked" || result.reason === "retry_exhausted"
+            ? "GOAL_BLOCKED"
+            : "IMPORTANT_UPDATE";
+      await goalBridgeEvents.append(createGoalBridgeEvent({
+        goalId,
+        type,
+        summary: result.reason ?? report?.stopReason ?? "goal_execution_updated",
+        evidenceRefs: [],
+      }));
+      if (result.reason && result.reason !== "goal_complete") console.warn("[goriq-goal]", goalId, result.reason);
     })
     .catch((error) => {
       console.error("[goriq-goal]", goalId, error instanceof Error ? error.message : "execution_failed");
@@ -376,6 +391,16 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
         }
         return json(response, 405, { message: "Method not allowed" });
       } catch (error) { return json(response, 409, { message: error instanceof Error ? error.message : "Cognitive cycle unavailable" }); }
+    }
+    if (method === "GET" && path === "/api/jarvis/admin/bridge/events") {
+      const params = new URL(request.url!, "http://localhost").searchParams;
+      const goalId = params.get("goalId")?.trim() || undefined;
+      return json(response, 200, { events: await goalBridgeEvents.pending(goalId) });
+    }
+    if (method === "POST" && path === "/api/jarvis/admin/bridge/events/ack") {
+      if (typeof payload.eventId !== "string" || !payload.eventId) return json(response, 400, { message: "eventId required" });
+      await goalBridgeEvents.markDelivered(payload.eventId);
+      return json(response, 200, { ok: true });
     }
     if (method === "GET" && path.startsWith("/api/jarvis/admin/work/")) {
       const goalId = decodeURIComponent(path.slice("/api/jarvis/admin/work/".length));
