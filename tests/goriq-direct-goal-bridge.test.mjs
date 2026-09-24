@@ -10,6 +10,7 @@ test("owner work intake schedules durable Goal execution instead of only persist
   assert.match(source, /scheduleGoalExecution\(decision,/);
   assert.match(source, /executeUntilGoalTerminal\(decision,/);
   assert.match(source, /executionScheduled/);
+  assert.match(source, /scheduledGoalExecutions/);
   assert.match(source, /goalHint: requestedGoalHint \|\| activeGoal\?\.goalId/);
 });
 
