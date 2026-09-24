@@ -84,7 +84,7 @@ function scheduleGoalExecution(decision: GoalControllerDecision, context: unknow
   // Run autonomous continuation outside the Broker process. Goal execution can
   // perform many bounded cycles and synchronous local checks; keeping it in a
   // child process prevents owner/API traffic from being starved by that work.
-  const child = spawn(process.execPath, ["scripts/jarvis-goal-executor.ts"], {
+  const child = spawn(process.execPath, [fileURLToPath(new URL("./jarvis-goal-executor.ts", import.meta.url))], {
     cwd: process.cwd(),
     windowsHide: true,
     stdio: ["ignore", "ignore", "pipe"],
@@ -109,7 +109,6 @@ function scheduleGoalExecution(decision: GoalControllerDecision, context: unknow
     }
   });
   activeGoalExecutions.set(goalId, child);
-  child.unref();
   return true;
 }
 const persisted = store.load();
@@ -707,6 +706,9 @@ server.listen(port, host, () => {
   console.log(`[jarvis-broker] nodes=${plane.snapshot().stats.registered} tasks=${plane.snapshot().tasks.length} workerApk=${workerApkInfo() ? "ready" : "missing"}`);
 });
 function shutdown(): void {
+  for (const child of activeGoalExecutions.values()) {
+    if (child.exitCode === null && child.signalCode === null) child.kill();
+  }
   server.close(() => { persist(); store.close(); compass.close(); process.exit(0); });
 }
 process.on("SIGINT", shutdown);
