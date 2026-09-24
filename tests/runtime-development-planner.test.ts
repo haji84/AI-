@@ -73,7 +73,7 @@ test("repository check verification can satisfy automated test/build DoD without
   assert.deepEqual((action as { satisfiesDefinitionOfDone?: string[] })?.satisfiesDefinitionOfDone, ["implement", "tests"]);
 });
 
-test("development planner binds Builder success only to implementation DoD", async () => {
+test("exact-file Builder verification does not claim repository-wide test DoD", async () => {
   const planner = new RuntimeDevelopmentPlanner(new BaselinePlanner());
   const action = await planner.proposeNextAction({
     goal,
@@ -88,8 +88,15 @@ test("development planner binds Builder success only to implementation DoD", asy
           { id: "tests", description: "All tests and verification pass" },
         ],
       },
+    }, {
+      source: "development.verification_contract",
+      summary: "trusted exact-file oracle",
+      data: { kind: "file_exact", path: "tests/fixtures/runtime-builder-smoke.txt", expected: "verified" },
     }],
     intent,
+  });
+  assert.deepEqual((action?.input as { verificationContract?: unknown }).verificationContract, {
+    kind: "file_exact", path: "tests/fixtures/runtime-builder-smoke.txt", expected: "verified",
   });
   assert.deepEqual((action as { satisfiesDefinitionOfDone?: string[] })?.satisfiesDefinitionOfDone, ["implement"]);
 });
