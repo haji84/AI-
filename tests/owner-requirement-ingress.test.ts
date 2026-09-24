@@ -55,6 +55,6 @@ test("actual authenticated Broker work ingress captures owner requirement and su
   await send({text:"文字サイズ機能が欲しい"});const nextChosen=await (await send({text:"それで進めて"})).json();assert.match(nextChosen.requirement.statement,/文字/);
   assert.notEqual(nextChosen.requirement.id,chosen.requirement.id);
   await send({text:"仕様として追加: calendar display",idempotencyKey:"calendar"});
-  const ambiguous=await (await send({text:"この仕様を撤回して",idempotencyKey:"ambiguous"})).json();assert.equal(ambiguous.accepted,false);assert.equal(ambiguous.conversation.needsClarification,true);
+  const ambiguousResponse=await send({text:"この仕様を撤回して",idempotencyKey:"ambiguous"});const ambiguous=await ambiguousResponse.json();assert.equal(ambiguous.accepted,false,`unexpected ambiguous response status=${ambiguousResponse.status} body=${JSON.stringify(ambiguous)}`);assert.equal(ambiguous.conversation.needsClarification,true);
  }finally{await stop();assert.ok(resolve(dir).startsWith(resolve(tmpdir())+sep));rmSync(dir,{recursive:true,force:true});}
 });
