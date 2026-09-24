@@ -10,6 +10,8 @@ Core receives bounded research metadata in PrimaryBrainContext only. It does not
 
 - [x] RED/GREEN pure experiment evidence, split/privacy/bounds/zero-gain checks.
 - [x] Integrate partitioned recall/R16 history, Core context data, status; test restart/idempotence/isolation and authority unchanged.
-- [ ] Independently review; full/security/lint/build/browser; audit/spec/evidence/CI/writeback.
+- [x] Independently review; full/security/lint/build/browser; audit/spec/evidence/CI/writeback.
 
 Limits: fixed offline calibration, not arbitrary tool experiments, general R16 scientific research, executable skill synthesis, model training, physical evidence or whole-Core completion. Rollback additive consumers while retaining original experiences and research evidence.
+
+Software44750d2 / CI1860 SUCCESS. Windows1673/P8331, independent61, lint/build, audit507/341 and actual isolated Chrome flow PASS. GitHub/Compass writeback records exact software evidence; product PARTIAL and Production hold remain.

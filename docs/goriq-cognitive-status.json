@@ -42,7 +42,7 @@
       "evidence_refs": [
         "docs/evidence/1216-cognitive-core.md"
       ],
-      "last_verified_commit": null,
+      "last_verified_commit": "44750d237bb20b452d3fa4a186930743404a5141",
       "remaining": "The replaceable local adapter supports non-executing, unverified GoalDraft proposals alongside bounded registered-action planning. Broad proposal semantic/language fidelity, open-ended plan synthesis and model-quality calibration remain. Fixed offline prediction calibration is connected as evidence metadata only. Actual independent evaluation collection, task-quality gains and general tool/model experiments remain; no automatic confidence/policy promotion."
     },
     {
@@ -114,7 +114,7 @@
       "evidence_refs": [
         "docs/evidence/1216-cognitive-core.md"
       ],
-      "last_verified_commit": null,
+      "last_verified_commit": "44750d237bb20b452d3fa4a186930743404a5141",
       "remaining": "Local Primary Brain proposes unverified DoD; explicit owner adoption and fixed material transforms remain authoritative. Two independent local material Goals now generate inert host-operation candidates while preserving exact action identities. Broad conversational fidelity, arbitrary novel decomposition, executable tool synthesis and semantic outcome verification remain. Fixed offline prediction calibration is connected as evidence metadata only. Actual independent evaluation collection, task-quality gains and general tool/model experiments remain; no automatic confidence/policy promotion."
     },
     {
@@ -180,7 +180,7 @@
       "evidence_refs": [
         "docs/evidence/1216-cognitive-core.md"
       ],
-      "last_verified_commit": null,
+      "last_verified_commit": "44750d237bb20b452d3fa4a186930743404a5141",
       "remaining": "Scoped memory/world updates are on the same execution loop. Broad domain prediction quality and cross-device transfer remain. Fixed offline prediction calibration is connected as evidence metadata only. Actual independent evaluation collection, task-quality gains and general tool/model experiments remain; no automatic confidence/policy promotion."
     },
     {
@@ -212,7 +212,7 @@
       "evidence_refs": [
         "docs/evidence/1216-cognitive-core.md"
       ],
-      "last_verified_commit": null,
+      "last_verified_commit": "44750d237bb20b452d3fa4a186930743404a5141",
       "remaining": "Verified runtime experience reaches existing memory/world/ClosedLearningLoop and R16 failure hypotheses. Independent Goals can consolidate the same versioned host operation without rewriting exact action/strategy IDs or mixing legacy/held-out records. Actual R16 experiment execution, teaching replay binding and generalization-quality evaluation remain. Fixed offline prediction calibration is connected as evidence metadata only. Actual independent evaluation collection, task-quality gains and general tool/model experiments remain; no automatic confidence/policy promotion."
     },
     {
@@ -269,7 +269,7 @@
       "evidence_refs": [
         "docs/evidence/1216-cognitive-core.md"
       ],
-      "last_verified_commit": null,
+      "last_verified_commit": "44750d237bb20b452d3fa4a186930743404a5141",
       "remaining": "Failure avoidance remains exact-action scoped; verified relevant operation regression can quarantine a certified family without banning every changed-source action. Full environment-specific cost/time/quality strategy calibration remains. Fixed offline prediction calibration is connected as evidence metadata only. Actual independent evaluation collection, task-quality gains and general tool/model experiments remain; no automatic confidence/policy promotion."
     },
     {
@@ -547,10 +547,10 @@
       "evidence_refs": [
         "docs/evidence/1216-cognitive-core.md"
       ],
-      "last_verified_commit": null,
+      "last_verified_commit": "44750d237bb20b452d3fa4a186930743404a5141",
       "remaining": "Opt-in normal Goal intake, local unverified DoD proposal/manual entry, owner adoption, material execution and verified download are integrated. Two actual local material Goals produce inert host-operation candidates with zero model/external calls; no promotion or Production activation is implied. General semantic adequacy, arbitrary attachment conversion, R16/R17 runtime improvement and physical acceptance remain. Fixed offline prediction calibration is connected as evidence metadata only. Actual independent evaluation collection, task-quality gains and general tool/model experiments remain; no automatic confidence/policy promotion."
     }
   ],
-  "verified_software_commit": "20c30191e45dcd3a64b171ed455e6111ec1895e3",
-  "ci_evidence": "https://github.com/haji84/AI-/actions/runs/35940168246"
+  "verified_software_commit": "44750d237bb20b452d3fa4a186930743404a5141",
+  "ci_evidence": "https://github.com/haji84/AI-/actions/runs/35941700486"
 }

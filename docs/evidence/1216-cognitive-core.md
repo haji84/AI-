@@ -283,3 +283,8 @@ Additional independent review reproduced same-experiment replay with a different
 Next concrete software dependency: host-owned evaluation-trial allocation fixed before execution, with independent Goal/evidence receipts and no retrospective train relabeling. Current ordinary Core observations remain train, so no natural heldout comparisons are claimed. Existing certify() receives host benchmark scores; connecting actual immutable evaluation measurements is still required before automatic measured-gain promotion. Exact CI/P8 confirmation follows after final verification; PR1217 remains draft/unmerged.
 
 Final P8 security331/331 PASS, zero skipped, with staged files included. Remaining software audit is recorded in `docs/audit/goriq-cognitive-remaining-software-2026-09-24.md`; remaining work is not reduced to physical tests.
+
+
+## Exact research-integration CI
+
+Software commit `44750d237bb20b452d3fa4a186930743404a5141`: [CI1860](https://github.com/haji84/AI-/actions/runs/35941700486) **SUCCESS**. Repository guard, lint, full suite, P8, build and health all passed. Local Windows1673/P8331, independent61, browser and audit507/341 evidence above refers to this software change. Updated PR1217 remains draft/unmerged; OWN-001 remains PARTIAL. Subsequent state-only documentation records this result without changing runtime behavior.
