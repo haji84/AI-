@@ -2667,7 +2667,7 @@
     },
     {
       "path": "src/compass/store.ts",
-      "sha256": "59c3a2881391cce4411106178a683d7fc24e9b67cfa63c3b9a345fdef9abbc95",
+      "sha256": "480a4d6f421ae78afbd0493f5a22a2c7b4933fe731e0fc70ddf5da690438a755",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-002",
@@ -2679,7 +2679,7 @@
         "AUTO-008",
         "OWN-001"
       ],
-      "reason": "Declared store.ts responsibility implements/supports Goal persistence; DoD persistence; Current State persistence; Decisions persistence; Deliverables persistence; Verification persistence; Next Action persistence. Parent ownership is not functional or physical acceptance evidence.; #1216 explicit owner DoD adoption: strict bounded input, unchanged Goal identity, full Goal/state atomic CAS and receipt-only replay; independent completion verification remains required"
+      "reason": "Declared store.ts responsibility implements/supports Goal persistence; DoD persistence; Current State persistence; Decisions persistence; Deliverables persistence; Verification persistence; Next Action persistence. Parent ownership is not functional or physical acceptance evidence.; #1216 explicit owner DoD adoption: strict bounded input, unchanged Goal identity, full Goal/state atomic CAS and receipt-only replay; independent completion verification remains required; #1219 Broker/isolated executor concurrent Compass writes wait for bounded transaction rather than rejecting intake"
     },
     {
       "path": "src/compass/tools.ts",
