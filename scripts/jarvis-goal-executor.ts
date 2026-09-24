@@ -1,6 +1,7 @@
 import { CompassStore } from "../src/compass/store.ts";
 import { CompassGoalExecutionAdapter } from "../src/orchestrator/compass-goal-execution-adapter.ts";
 import { CompassGoalBridgeEventStore } from "../src/orchestrator/compass-goal-bridge-event-store.ts";
+import { CompassWorkRunStore } from "../src/orchestrator/compass-work-run-store.ts";
 import { GoalControllerExecutionBridge } from "../src/orchestrator/goal-controller-execution-bridge.ts";
 import { createGoalBridgeEvent } from "../src/orchestrator/goal-bridge-events.ts";
 import type { GoalControllerDecision } from "../src/orchestrator/goal-controller-runtime.ts";
@@ -55,12 +56,25 @@ async function appendEvent(
   }
 }
 
+async function updateWorkRun(compassPath: string, goalId: string, phase: "RUNNING" | "COMPLETED" | "BLOCKED" | "HUMAN_GATE", reason: string | null): Promise<void> {
+  const compass = new CompassStore(compassPath);
+  try {
+    const store = new CompassWorkRunStore(compass);
+    const current = await store.getByGoal(goalId);
+    if (!current) throw new Error("Accepted Goal has no durable Work Run");
+    await store.put({ ...current, phase, blockers: phase === "BLOCKED" ? [reason ?? "execution_failed"] : [], nextAction: phase === "COMPLETED" ? null : reason, updatedAt: new Date().toISOString() });
+  } finally {
+    compass.close();
+  }
+}
+
 async function main(): Promise<void> {
   const goalId = requiredEnv("JARVIS_GOAL_EXECUTION_GOAL_ID");
   const compassPath = requiredEnv("JARVIS_GOAL_EXECUTION_COMPASS_PATH");
   const context = decodeContext(process.env.JARVIS_GOAL_EXECUTION_CONTEXT_B64);
   const decision = executorDecision(goalId);
   try {
+    await updateWorkRun(compassPath, goalId, "RUNNING", "Execute accepted Goal");
     const bridge = new GoalControllerExecutionBridge(new CompassGoalExecutionAdapter(compassPath));
     const result = await bridge.executeUntilGoalTerminal(decision, { maxRuns: 12, context });
     const report = result.report;
@@ -71,6 +85,8 @@ async function main(): Promise<void> {
         : result.reason === "blocked" || result.reason === "retry_exhausted"
           ? "GOAL_BLOCKED"
           : "IMPORTANT_UPDATE";
+    const phase = result.reason === "goal_complete" ? "COMPLETED" : result.reason === "human_gate" ? "HUMAN_GATE" : "BLOCKED";
+    await updateWorkRun(compassPath, goalId, phase, result.reason ?? report?.stopReason ?? "goal_execution_incomplete");
     await appendEvent(compassPath, {
       goalId,
       type,
@@ -82,6 +98,7 @@ async function main(): Promise<void> {
     }
   } catch (error) {
     try {
+      await updateWorkRun(compassPath, goalId, "BLOCKED", error instanceof Error ? error.message : "execution_failed");
       await appendEvent(compassPath, {
         goalId,
         type: "GOAL_BLOCKED",
