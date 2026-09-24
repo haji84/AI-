@@ -7,13 +7,15 @@ export async function recoverTimedOutGoal(
   compass: CompassStore,
   goalId: string,
   proof: { timeoutConfirmed: boolean },
-): Promise<"RECOVERED" | "ALREADY_QUEUED"> {
+): Promise<"RECOVERED" | "ALREADY_QUEUED" | "RESUME_ON_STARTUP"> {
   const runs = new CompassWorkRunStore(compass);
   const work = new CompassWorkStateStoreAdapter(compass);
   const run = await runs.getByGoal(goalId);
   const state = await work.get(goalId);
   const loop = compass.getState();
   if (!run || !state || run.goalId !== state.goalId) throw new Error("Recovery requires an existing bound Goal and Work Run");
+  if (proof.timeoutConfirmed && ["PLANNING", "RUNNING", "VERIFYING", "RECOVERING"].includes(run.phase)
+    && state.status === "IN_PROGRESS" && state.blockers.length === 0 && loop.blockers.length === 0) return "RESUME_ON_STARTUP";
   if (run.phase === "QUEUED" && state.status === "IN_PROGRESS" && state.blockers.length === 0 && loop.blockers.length === 0) return "ALREADY_QUEUED";
   const originallyBlocked = state.status === "BLOCKED" && state.blockers.length === 1 && state.blockers[0] === "http_code_builder_error";
   const interruptedRecovery = state.status === "IN_PROGRESS" && state.blockers.length === 0;

@@ -61,3 +61,16 @@ test("partially recovered timeout clears only the stale Compass blocker and keep
     assert.deepEqual(db.getState().blockers, []);
   } finally { db.close(); }
 });
+
+test("orphaned RUNNING work resumes on Broker startup without creating another run", async () => {
+  const db = new CompassStore(":memory:");
+  try {
+    const runs = new CompassWorkRunStore(db);
+    const work = new CompassWorkStateStoreAdapter(db);
+    const existing = { ...createQueuedWorkRun("goal-a"), phase: "RUNNING" as const };
+    await runs.put(existing);
+    await work.put({ ...state("goal-a", []), status: "IN_PROGRESS" });
+    assert.equal(await recoverTimedOutGoal(db, "goal-a", { timeoutConfirmed: true }), "RESUME_ON_STARTUP");
+    assert.deepEqual(await runs.getByGoal("goal-a"), existing);
+  } finally { db.close(); }
+});
