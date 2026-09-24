@@ -32,6 +32,7 @@ else
     echo 'Preserving in-progress isolated Builder workspace across runtime refresh.'
   fi
 fi
+pnpm -C "$WORKSPACE" install --frozen-lockfile >/dev/null
 NODE_BIN="$(command -v node)"
 NODE_VERSION="$("$NODE_BIN" --version)"
 
