@@ -2228,13 +2228,13 @@
     },
     {
       "path": "src/app/jarvis/OwnerLogin.tsx",
-      "sha256": "1c52c76c96c935ea90ff2125e8e81b6746262d2ea71852c54489549484a0d4bd",
+      "sha256": "ee00ea9002f436ac7465ea96ea690c3578cdcd3dbf26cf2ee6ccd60ab94b04f2",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "SEC-001",
         "SEC-002"
       ],
-      "reason": "Owner trusted browser authentication UI"
+      "reason": "Owner trusted browser authentication and local production-code recovery guidance"
     },
     {
       "path": "src/app/jarvis/page.tsx",
