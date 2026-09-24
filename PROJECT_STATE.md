@@ -3,7 +3,7 @@
 PROJECT: General Autonomous AI / Unified AI Creator Studio / GAI Research OS
 AI_COMPANY_VERSION: 1.0
 PROJECT_VERSION: 0.0.0
-CURRENT_PHASE: GORIQ #1216 portable operation learning plus evidence-bound R16 prediction calibration; #681/#882 continues
+CURRENT_PHASE: GORIQ #1216 scoped Production preflight and actual local autonomy assessment; #681/#882 continues
 STATUS: JARVIS_PRODUCT_COMPLETION_IN_PROGRESS
 LAST_UPDATED: 2026-09-24
 CURRENT_EPIC: One-front-door general autonomous AI with durable offline-first device-neutral execution and verifier-driven completion
@@ -44,8 +44,8 @@ JARVIS_100_NODE_CAPACITY: PASS in deterministic CI; node 101 is rejected
 JARVIS_PHYSICAL_ANDROID_E2E: PASS for the acceptance scope through real Android 001 resident-Broker/Worker execution evidence from PR #526 and follow-up hardening. This does not imply unverified physical wake/Device Owner/live-screen/real-offline claims
 GAI_RESEARCH_OPS: SEPARATE_EVIDENCE_PROGRAM; Issue #321 and R1-R20 remain open until their real scientific evidence gates pass
 GAI_NEXT_PHASE: Complete #681 P0–P10 using docs/JARVIS_PRODUCT_SPEC.md and docs/jarvis-requirements.json; keep #321 research separate
-NEXT_PRIORITY: #1216 add host-fixed independent evaluation-trial collection before execution and measured Skill certification; 44750d2 exact CI1860 passed. Semantic fidelity, novel executable skills, teaching/history, R17/training/cross-device integrations remain. Preserve train/heldout separation, exact identity and Production hold.
-HUMAN_APPROVAL_PENDING: none for ordinary code/CI/device validation; production, secrets, permissions, billing, destructive, governance/security weakening, and external-publication gates remain in force
+NEXT_PRIORITY: #1216 owner requests deployable Production scope then actual local autonomy assessment. Preserve legacy adapter default, validate current candidate, obtain separate additive DB migration/deployment-governance approval, merge exact head then main CI, stage and switch with 38-device baseline preserved. Remaining Core software gaps are still tracked in the audit; do not claim DONE.
+HUMAN_APPROVAL_PENDING: #1216 Production intent is explicit and task-scoped; separate gates remain for old-live to current-main additive nonce/Compass DB initialization and temporary Vercel auto-assignment hold so exact main CI precedes promotion. No permission/credential/billing approval inferred.
 AUTONOMOUS_RECOVERY_POLICY: progress-aware bounded autonomy; per-strategy retry exhaustion triggers diagnose/replan/alternate capability or strategy, not automatic Goal abandonment; stop/escalate only for safety/approval gates, explicit pause/cancel, unavailable required authority, exhausted overall resource budget, or no safe actionable strategy
 MAX_ACTIVE_AGENTS: 3
 MAX_PARALLEL_CODE_AGENTS: 2

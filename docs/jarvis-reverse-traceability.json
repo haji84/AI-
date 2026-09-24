@@ -550,7 +550,7 @@
     },
     {
       "path": "docs/architecture/goriq-cognitive-core.md",
-      "sha256": "ea5bbd27a23cb4ac59d363b3d2f6bceb387f98fe54ae57021d59c532da7f33a0",
+      "sha256": "3046d473bf455f1a4e139c8b0b3a1d8cfdd4b8077585584badbc26affc99d28a",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OWN-001"
@@ -2796,7 +2796,7 @@
     },
     {
       "path": "src/gai/cognitive-service.ts",
-      "sha256": "9d9db5f536fe0990ccf34f907b00bfa68507ce1e4d49dadde91a57ff41362e63",
+      "sha256": "58462443ad65daf7f261423ce0eaea99981b675c1526c4bdc55b1e34e518f96a",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OWN-001"
@@ -4392,7 +4392,7 @@
     },
     {
       "path": "src/orchestrator/compass-goal-execution-adapter.ts",
-      "sha256": "83b771939c1a5b1c5356f3e0ef9044c251951e2603661ae9941973f67385907c",
+      "sha256": "dcf85e3d05e2e408cb051702ec33c5b1b98f058f4075537ea4aa40a1b3d7e133",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-002",

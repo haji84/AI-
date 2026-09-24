@@ -288,3 +288,11 @@ Final P8 security331/331 PASS, zero skipped, with staged files included. Remaini
 ## Exact research-integration CI
 
 Software commit `44750d237bb20b452d3fa4a186930743404a5141`: [CI1860](https://github.com/haji84/AI-/actions/runs/35941700486) **SUCCESS**. Repository guard, lint, full suite, P8, build and health all passed. Local Windows1673/P8331, independent61, browser and audit507/341 evidence above refers to this software change. Updated PR1217 remains draft/unmerged; OWN-001 remains PARTIAL. Subsequent state-only documentation records this result without changing runtime behavior.
+
+## Production preflight compatibility fix (2026-09-24)
+
+Independent deployment review found a reachable regression outside ordinary CI: the existing manually/issue-triggered runtime Builder smoke selected context.inspect instead of code.builder after unconditional Core composition. Reproduced RED using real planner/Goal Loop/WorkState and a controlled capability executor (no external model/device). Fixed with explicit host useCore opt-in and exact previous default composition. CognitiveService opts in; HTTP cannot opt in arbitrary authority. Targeted 24 tests plus 30 boundary tests passed. Full updated validation follows; first full run detected stale reverse-traceability hashes and the reviewed mappings were reconciled without changing assertions.
+
+P8 331/331, lint/build, isolated Chrome UI-to-verifier exact-download flow passed after the code fix. The UI proposal is a labelled synthetic fixture, not actual-model autonomy evidence. Production remains unchanged pending exact-head CI and migration/deployment-governance gates.
+
+Final local release-candidate checks after the explicit opt-in fix: Windows 1,676/1,676 PASS, P8 331/331 PASS, lint/build PASS, reverse audit 507 surfaces/341 requirements PASS. Installed Chrome153 isolated flow passed with exact download and 390px containment (synthetic proposal fixture). No physical or Production PASS is implied. New actual-release assessment harness is prepared but not yet run. The existing Production fleet is 38 unique identities/38 READY with no active tasks/takeovers, and the private URL is HTTP200. Additive old/new/old synthetic DB compatibility passed; live DB was opened read-only only.

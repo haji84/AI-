@@ -78,7 +78,7 @@ export class CognitiveService {
     if (typeof goalId !== "string" || !/^goal-[a-f0-9]{16}$/.test(goalId)) throw Error("Invalid Goal ID");
     this.busy = true;
     try {
-      const report = await new CompassGoalExecutionAdapter(this.dbPath, {}, { ...this.options, learning: this.learning }).run(goalId, { maxCycles: 3 });
+      const report = await new CompassGoalExecutionAdapter(this.dbPath, {}, { ...this.options, useCore: true, learning: this.learning }).run(goalId, { maxCycles: 3 });
       return { stopReason: report.stopReason, cycles: report.cycles.length, goalEvaluation: report.goalEvaluation ?? null };
     } finally { this.busy = false; }
   }

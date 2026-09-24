@@ -89,7 +89,7 @@ test("unfinished child cannot persist Goal completion or completed learning metr
   const goalId=goalWorkStateId(compassGoalToLoopGoal(record));
   await writeFile(manifestPath,JSON.stringify({version:1,goalId,steps:[{id:"save",operation:"create",path:"result.txt",text:"42",expectedSha256:createHash("sha256").update("42").digest("hex"),criteria:["criterion-1"]}]}));
   const {CompassGoalExecutionAdapter}=await import("../src/orchestrator/compass-goal-execution-adapter.ts");
-  const options={stateRoot,localWork:{manifestPath,dataRoot}};
+  const options={useCore:true,stateRoot,localWork:{manifestPath,dataRoot}};
   await new CompassGoalExecutionAdapter(dbPath,{},options).run(goalId,{maxCycles:1});
   const opened=new CompassStore(dbPath);try{
    const store=new CompassWorkStateStoreAdapter(opened);const work=await store.get(goalId);assert.ok(work);

@@ -76,7 +76,7 @@ test("learning outage commits WorkState then replays the exact outbox without re
     let unavailable = true;
     const bridge = { recall: learner.recall.bind(learner), complete: learner.complete.bind(learner),
       async observe(e: Parameters<typeof learner.observe>[0]) { if (unavailable) throw Error("temporary storage failure"); await learner.observe(e); } };
-    const options = { stateRoot, learning: bridge, localWork: { manifestPath, dataRoot } };
+    const options = { useCore: true, stateRoot, learning: bridge, localWork: { manifestPath, dataRoot } };
     const first = await new CompassGoalExecutionAdapter(dbPath, {}, options).run(goalId, { maxCycles: 1 });
     assert.equal(first.goalEvaluation?.achieved, false);
     assert.ok(first.goalEvaluation?.blockers.includes("learning_write_pending"));

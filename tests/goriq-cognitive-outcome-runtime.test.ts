@@ -33,7 +33,7 @@ async function fixture() {
   await writeFile(join(dataRoot, "numbers.json"), JSON.stringify(workbook));
   await writeFile(join(dataRoot, "report.json"), JSON.stringify(document));
   await writeFile(manifestPath, JSON.stringify(manifest));
-  const options = { localOutcomes: { manifestPath, dataRoot } } as CognitiveRuntimeOptions;
+  const options = { useCore: true, localOutcomes: { manifestPath, dataRoot } } as CognitiveRuntimeOptions;
   return { root, dbPath, dataRoot, manifestPath, goalId, workbook, document, options };
 }
 

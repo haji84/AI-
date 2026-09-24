@@ -17,12 +17,14 @@ import { evaluateGoalFromWorkState } from "./goal-evaluator.ts";
 import type { ContextItem, ContextSource, GoalLoopOptions, Goal } from "./goal-loop.ts";
 import { createRuntimeDevelopmentVerifier } from "./runtime-development-verifier.ts";
 import type { GoalExecutionAdapter } from "./goal-controller-execution-bridge.ts";
-import { goalWorkStateId, type WorkStateAction } from "./work-state-integration.ts";
+import { createWorkStateIntegratedGoalLoop, goalWorkStateId, type WorkStateAction } from "./work-state-integration.ts";
 import { CognitiveCore, createCognitiveGoalLoop, type CognitiveLearningBridge } from "../gai/cognitive-core.ts";
 import { CognitiveStateStore, cognitiveDigest, type CognitivePartition } from "../gai/cognitive-state.ts";
 import { configuredPrimaryBrain, type PrimaryBrainAdapter } from "../gai/primary-brain.ts";
 
 export interface CognitiveRuntimeOptions {
+  /** Explicit host opt-in; absent preserves the existing development execution path. */
+  useCore?: boolean;
   stateRoot?: string;
   partition?: CognitivePartition;
   environment?: string;
@@ -71,6 +73,8 @@ export class CompassGoalExecutionAdapter implements GoalExecutionAdapter {
   ) {
     this.dbPath = dbPath;
     this.goalLoopOptions = goalLoopOptions;
+    if (cognitiveOptions.useCore !== undefined && typeof cognitiveOptions.useCore !== "boolean") throw Error("Invalid Cognitive Core mode");
+    if (cognitiveOptions.useCore !== true && Object.keys(cognitiveOptions).some(key => key !== "useCore")) throw Error("Cognitive options require explicit useCore opt-in");
     this.cognitiveOptions = cognitiveOptions;
   }
 
@@ -80,7 +84,7 @@ export class CompassGoalExecutionAdapter implements GoalExecutionAdapter {
     let releaseLease: (() => Promise<void>) | undefined;
     const leasePath = `${this.dbPath}.cognitive-run.lock`;
     try {
-      releaseLease = await acquireCognitiveLease(leasePath);
+      if (this.cognitiveOptions.useCore === true) releaseLease = await acquireCognitiveLease(leasePath);
       const record = compass.getGoal();
       if (!record) throw new Error("Compass goal is not set");
       const goal = compassGoalToLoopGoal(record);
@@ -103,6 +107,24 @@ export class CompassGoalExecutionAdapter implements GoalExecutionAdapter {
       const registry = new CapabilityRegistry()
         .register(createContextInspectCapability())
         .register(createCodeBuilderCapability(createRuntimeBuilderRouter()));
+      // Preserve the pre-Cognitive runtime contract for existing callers, including
+      // the Builder recovery smoke. Only the owner Cognitive service opts in below.
+      if (this.cognitiveOptions.useCore !== true) {
+        const workStateStore = new CompassWorkStateStoreAdapter(compass);
+        const loop = createWorkStateIntegratedGoalLoop({
+          goal,
+          planner: new RuntimeDevelopmentPlanner(new BaselinePlanner()),
+          contextSources: [contextSource, new EntryContextSource(input.context ?? [])],
+          executor: registry,
+          verifier: createRuntimeDevelopmentVerifier(),
+          stateStore: new CompassStateStoreAdapter(compass),
+          workStateStore,
+          options: this.goalLoopOptions,
+        });
+        const report = await runBoundedGoalLoop(loop, goal, { maxCycles: input.maxCycles ?? 3 });
+        const workState = await workStateStore.get(authoritativeGoalId);
+        return workState ? { ...report, goalEvaluation: evaluateGoalFromWorkState(workState) } : report;
+      }
       const localWork = await loadCognitiveRuntimeWork({ ...this.cognitiveOptions, stateRoot: this.cognitiveOptions.stateRoot ?? resolve(dirname(this.dbPath), "cognitive"), partition: this.cognitiveOptions.partition ?? { tenantId: "local", principalId: "owner" } }, authoritativeGoalId, goal);
       localWork?.register(registry);
       const verifier = localWork?.verifier(createRuntimeDevelopmentVerifier()) ?? createRuntimeDevelopmentVerifier();
