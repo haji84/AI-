@@ -51,6 +51,12 @@ adb version | head -1
 qrencode --version | head -1
 pnpm install --frozen-lockfile >/dev/null
 
+if bash "$INSTALL_ROOT/scripts/install-code-builder-macos.sh" "$INSTALL_ROOT"; then
+  echo 'GORIQ local Mac code Builder: ready'
+else
+  echo 'GORIQ local Mac code Builder is unavailable; development Goals will fail closed at capability routing.' >&2
+fi
+
 RUNTIME_PATH="$NODE24_BIN:$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 
 cat >"$RECONCILER_PLIST" <<PLIST
