@@ -10,8 +10,8 @@ const ledger = fs.readFileSync(new URL('../docs/JARVIS_PRODUCT_SPEC.md', import.
 const mirror = data => data.requirements.map(row => '```json\n' + JSON.stringify(row) + '\n```').join('\n');
 const structuredClone = value => JSON.parse(JSON.stringify(value));
 
-test('all 340 owner requirements have exact canonical mapping', () => {
-  assert.equal(source.requirements.length, 340);
+test('all 351 owner requirements have exact canonical mapping', () => {
+  assert.equal(source.requirements.length, 351);
   assert.deepEqual(validateRequirements(source, ledger, root), []);
 });
 
