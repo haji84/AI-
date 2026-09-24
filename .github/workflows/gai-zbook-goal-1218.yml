@@ -1,0 +1,37 @@
+name: GORIQ ZBook Goal 1218 Bridge
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  owner-code-goal:
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - name: Prepare durable isolated coding workspace and local Builder
+        shell: powershell
+        run: |
+          $goalWorkspace = Join-Path $env:LOCALAPPDATA 'GAIWorker\goal-1218-workspace'
+          if (-not (Test-Path (Join-Path $goalWorkspace '.git'))) {
+            & git clone --no-hardlinks $env:GITHUB_WORKSPACE $goalWorkspace
+            if ($LASTEXITCODE -ne 0) { throw 'Isolated Goal workspace clone failed' }
+          }
+          .\scripts\install-code-builder-windows.ps1 -WorkerId 'zbook' -Workspace $goalWorkspace -ExecTimeoutMs 120000
+          $tokenPath = Join-Path $env:LOCALAPPDATA 'GAIWorker\code-builder\token.txt'
+          if (-not (Test-Path $tokenPath)) { throw 'Local Builder token unavailable' }
+          $env:CODE_BUILDER_LOCAL_TOKEN = (Get-Content $tokenPath -Raw).Trim()
+          $env:CODE_BUILDER_LOCAL_URL = 'http://127.0.0.1:8796'
+          $env:GORIQ_1218_WORKSPACE = $goalWorkspace
+          try { & node .\scripts\zbook-owner-code-goal-1218.ts; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE } }
+          finally { Remove-Item Env:CODE_BUILDER_LOCAL_TOKEN -ErrorAction SilentlyContinue }
+      - name: Upload bounded Bridge evidence and code patch
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: goriq-zbook-goal-1218
+          path: .gai-results/goal-1218-bridge*
+          retention-days: 30
