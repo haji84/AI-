@@ -18,3 +18,14 @@ test("public owner work route forwards an explicit goal hint without weakening o
   assert.match(source, /goalHint/);
   assert.match(source, /jarvisBrokerFetch\("\/api\/jarvis\/admin\/work"/);
 });
+
+test("GORIQ owner UI exposes bridged Goal status and evidence", () => {
+  const board = readFileSync(new URL("../src/app/jarvis/tasks/TaskBoard.tsx", import.meta.url), "utf8");
+  const status = readFileSync(new URL("../src/app/jarvis/tasks/GoalBridgeStatus.tsx", import.meta.url), "utf8");
+  assert.match(board, /GoalBridgeStatus/);
+  assert.match(status, /DIRECT GOAL BRIDGE/);
+  assert.match(status, /\/api\/jarvis\/work\//);
+  assert.match(status, /Evidence/);
+  assert.match(status, /次の自律Action/);
+  assert.match(status, /Recovery/);
+});
