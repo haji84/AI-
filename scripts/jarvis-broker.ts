@@ -31,7 +31,7 @@ import { remoteDeviceInventory } from "../src/jarvis/remote-device-inventory.ts"
 import { PendingEnrollment } from "../src/jarvis/pending-enrollment.ts";
 import { CompassStore } from "../src/compass/store.ts";
 import { GoalControllerRuntime, type GoalControllerDecision } from "../src/orchestrator/goal-controller-runtime.ts";
-import { GoalControllerExecutionBridge } from "../src/orchestrator/goal-controller-execution-bridge.ts";
+import type { GoalControllerExecutionBridge } from "../src/orchestrator/goal-controller-execution-bridge.ts";
 import { CompassGoalRegistryAdapter, CompassGoalDecisionStoreAdapter } from "../src/orchestrator/compass-goal-controller.ts";
 import { CompassWorkRunStore } from "../src/orchestrator/compass-work-run-store.ts";
 import { CompassGoalBridgeEventStore } from "../src/orchestrator/compass-goal-bridge-event-store.ts";
@@ -80,8 +80,11 @@ function scheduleGoalExecution(decision: GoalControllerDecision, context: unknow
   const goalId = decision.goalId;
   const task = (async () => {
     if (!goalExecution) {
-      const { CompassGoalExecutionAdapter } = await import("../src/orchestrator/compass-goal-execution-adapter.ts");
-      goalExecution = new GoalControllerExecutionBridge(new CompassGoalExecutionAdapter(compassPath));
+      const [{ GoalControllerExecutionBridge: Bridge }, { CompassGoalExecutionAdapter }] = await Promise.all([
+        import("../src/orchestrator/goal-controller-execution-bridge.ts"),
+        import("../src/orchestrator/compass-goal-execution-adapter.ts"),
+      ]);
+      goalExecution = new Bridge(new CompassGoalExecutionAdapter(compassPath));
     }
     return goalExecution.executeUntilGoalTerminal(decision, { maxRuns: 12, context });
   })()
