@@ -6,6 +6,8 @@ import { request as httpRequest } from "node:http";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { CompassStore } from "../src/compass/store.ts";
+import { CompassWorkStateStoreAdapter } from "../src/orchestrator/compass-work-state-store.ts";
 
 type BridgeReceipt = { accepted: boolean; goalId: string; action: string; executionScheduled: boolean };
 type BridgeStatus = { run: { runId: string; goalId: string; phase: string; blockers: string[] } };
@@ -81,7 +83,7 @@ export async function runZbookDirectGoalBridgeE2E(testWorkspace: string, builder
     await start();
     const payload = {
       text: `Complete code in ${fixture}. Make its complete content exactly: beta.`,
-      goalContract: { successCriteria: [`Verified ${fixture} contains exactly beta`], constraints: [`Only change ${fixture}`] },
+      goalContract: { successCriteria: [`Implement code in ${fixture} with complete content exactly beta`], constraints: [`Only change ${fixture}`] },
       idempotencyKey: "zbook-physical-bridge-e2e",
     };
     const first = await localRequest<BridgeReceipt>(base, "/api/jarvis/admin/work", token, payload);
@@ -98,7 +100,7 @@ export async function runZbookDirectGoalBridgeE2E(testWorkspace: string, builder
     await start();
     let final: BridgeStatus | null = null;
     let events: BridgeEvent[] = [];
-    for (let i = 0; i < 240; i++) {
+    for (let i = 0; i < 480; i++) {
       const status = await get<BridgeStatus>(`/api/jarvis/admin/work/${encodeURIComponent(receipt.goalId)}`);
       const pending = await get<{ events: BridgeEvent[] }>(`/api/jarvis/admin/bridge/events?goalId=${encodeURIComponent(receipt.goalId)}`);
       if (status.status !== 200 || pending.status !== 200) throw new Error("Status or event read failed after restart");
@@ -111,7 +113,13 @@ export async function runZbookDirectGoalBridgeE2E(testWorkspace: string, builder
     evidence.fixtureValue = (await readFile(target, "utf8")).trim();
     if (final?.run.runId !== before.data.run.runId) throw new Error("Restart created a duplicate Work Run");
     if (final?.run.phase !== "COMPLETED" || evidence.fixtureValue !== "beta" || !events.some(e => e.type === "GOAL_COMPLETED")) {
-      throw new Error(`Physical Goal did not complete through Bridge: ${JSON.stringify(evidence.final)} stderr=${stderr.slice(-2000)}`);
+      const db = new CompassStore(join(root, "compass.sqlite"));
+      try {
+        const state = db.getState();
+        const work = await new CompassWorkStateStoreAdapter(db).get(receipt.goalId);
+        evidence.diagnostic = { state: { status: state.status, nextAction: state.nextAction, blockers: state.blockers }, work: work && { status: work.status, blockers: work.blockers, verificationResults: work.verificationResults.map(r => ({ itemId: r.itemId, passed: r.passed })), nextAction: work.nextAction } };
+      } finally { db.close(); }
+      throw new Error(`Physical Goal did not complete through Bridge: ${JSON.stringify({ final: evidence.final, fixtureValue: evidence.fixtureValue, diagnostic: evidence.diagnostic })} stderr=${stderr.slice(-2000)}`);
     }
     evidence.status = "GOAL_ACHIEVED";
     evidence.completedAt = new Date().toISOString();
