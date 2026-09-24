@@ -8,5 +8,6 @@ test("diagnostics classify verifier failures without returning raw evidence", ()
   assert.equal(goalFailureCode("approval_required"), "HUMAN_REQUIRED");
   assert.equal(goalFailureCode("spec_sync_pending:req-123"), "SPEC_SYNC_REQUIRED");
   assert.equal(goalFailureCode("http_code_builder_failed"), "BUILDER_EXECUTION_FAILED");
+  assert.equal(goalFailureCode("codex timed out after 120000ms"), "CODING_ENGINE_TIMEOUT");
   assert.equal(goalFailureCode("something unexpected"), "UNCLASSIFIED_BLOCKER");
 });
