@@ -17,10 +17,16 @@ interface ProposalInput {
   taskAuthorization?: TaskCompletionAuthorization;
   taskScopeId?: string;
 }
+interface CanonicalReconciliation {
+  requirementId: string;
+  script: string;
+  issueNumber: number;
+}
 interface ParsedProposal {
   title: string;
   body: string;
   files: ProposalFile[];
+  reconciliation?: CanonicalReconciliation;
   taskAuthorization?: TaskCompletionAuthorization;
   taskScopeId?: string;
 }
@@ -30,6 +36,23 @@ const MAX_FILES = 3;
 const MAX_TOTAL_BYTES = 100_000;
 const ALLOWED_PREFIXES = ["src/", "tests/", "docs/", "scripts/"];
 const FORBIDDEN = new Set(["AGENTS.md", "PROJECT_STATE.md", "ROADMAP.md", "package.json", "pnpm-lock.yaml"]);
+const RECONCILIATION_PREFIX = "docs/.jarvis-reconcile/";
+const CANONICAL_LEDGER_FILES = ["docs/JARVIS_PRODUCT_SPEC.md", "docs/jarvis-requirements.json"] as const;
+const CANONICAL_RECONCILIATIONS: Record<string, Omit<CanonicalReconciliation, "requirementId">> = {
+  "SEC-012": { script: "scripts/reconcile-issue-952-sec012.mjs", issueNumber: 952 },
+  "SEC-013": { script: "scripts/reconcile-issue-960-sec013.mjs", issueNumber: 960 },
+  "SEC-014": { script: "scripts/reconcile-issue-964-sec014.mjs", issueNumber: 964 },
+};
+
+export function parseCanonicalReconciliationDirective(file: ProposalFile): CanonicalReconciliation | null {
+  const path = normalize(file.path).replaceAll("\\", "/");
+  if (!path.startsWith(RECONCILIATION_PREFIX)) return null;
+  if (file.content !== "") throw new Error("canonical reconciliation directive content must be empty");
+  const requirementId = path.slice(RECONCILIATION_PREFIX.length);
+  const mapped = CANONICAL_RECONCILIATIONS[requirementId];
+  if (!mapped) throw new Error(`canonical reconciliation is not allowlisted: ${requirementId || "<empty>"}`);
+  return { requirementId, ...mapped };
+}
 
 function parseInput(action: ProposedAction): ParsedProposal {
   const input = action.input as ProposalInput | undefined;
@@ -37,6 +60,28 @@ function parseInput(action: ProposedAction): ParsedProposal {
   if (!input?.title?.trim() || !Array.isArray(files) || files.length < 1 || files.length > MAX_FILES) {
     throw new Error("invalid autonomous PR proposal input");
   }
+
+  const reconciliationDirectives = files
+    .map((file) => parseCanonicalReconciliationDirective(file))
+    .filter((value): value is CanonicalReconciliation => value !== null);
+  if (reconciliationDirectives.length > 0) {
+    if (files.length !== 1 || reconciliationDirectives.length !== 1) {
+      throw new Error("canonical reconciliation directive cannot be mixed with ordinary proposal files");
+    }
+    const taskAuthorization = input.taskAuthorization === undefined
+      ? undefined
+      : normalizeTaskCompletionAuthorization(input.taskAuthorization);
+    const taskScopeId = input.taskScopeId?.trim() || undefined;
+    return {
+      title: input.title.trim(),
+      body: input.body?.trim() || "Bounded canonical reconciliation proposal. The allowlisted reconciler and canonical mirror validator must pass before a PR can be opened.",
+      files: [],
+      reconciliation: reconciliationDirectives[0],
+      taskAuthorization,
+      taskScopeId,
+    };
+  }
+
   let total = 0;
   for (const file of files) {
     const path = normalize(file.path).replaceAll("\\", "/");
@@ -66,6 +111,18 @@ function run(command: string, args: string[], cwd: string): string {
   const result = spawnSync(command, args, { cwd, encoding: "utf-8", stdio: ["ignore", "pipe", "pipe"] });
   if (result.status !== 0) throw new Error(`${command} ${args.join(" ")} failed: ${(result.stderr || result.stdout).slice(-4000)}`);
   return result.stdout.trim();
+}
+
+function changedFiles(cwd: string): string[] {
+  const output = run("git", ["diff", "--name-only"], cwd);
+  return output ? output.split(/\r?\n/).map((value) => value.trim()).filter(Boolean).sort() : [];
+}
+
+function requireCanonicalLedgerOnly(paths: string[]): void {
+  const expected = [...CANONICAL_LEDGER_FILES].sort();
+  if (paths.length !== expected.length || paths.some((path, index) => path !== expected[index])) {
+    throw new Error(`canonical reconciliation changed unexpected paths: ${paths.join(",") || "<none>"}`);
+  }
 }
 
 async function openPullRequest(input: { token: string; repository: string; head: string; title: string; body: string }): Promise<OpenedPullRequest> {
@@ -119,8 +176,11 @@ function buildTaskScopedPrBody(proposal: ParsedProposal): { body: string; produc
       ? `<!-- ai-company-task-authorization-expires-at: ${proposal.taskAuthorization.expiresAt} -->`
       : "",
   ].filter(Boolean);
+  const reconciliation = proposal.reconciliation
+    ? `\n\n<!-- jarvis-canonical-reconciliation: ${proposal.reconciliation.requirementId} issue-${proposal.reconciliation.issueNumber} -->`
+    : "";
   return {
-    body: metadata.length ? `${proposal.body}\n\n${metadata.join("\n")}` : proposal.body,
+    body: `${metadata.length ? `${proposal.body}\n\n${metadata.join("\n")}` : proposal.body}${reconciliation}`,
     productionDeployAuthorized,
   };
 }
@@ -138,21 +198,32 @@ export function createSafePrProposalCapability(options: { cwd?: string; token?: 
           return { actionId: action.id, ok: false, summary: "PR proposal capability is not connected to GitHub write authorization", blocker: "github_write_unavailable" };
         }
 
-        for (const file of proposal.files) {
-          const destination = resolve(cwd, file.path);
-          if (!destination.startsWith(resolve(cwd) + "/") && destination !== resolve(cwd)) throw new Error(`resolved path escaped repository: ${file.path}`);
-          mkdirSync(dirname(destination), { recursive: true });
-          writeFileSync(destination, file.content, "utf-8");
+        if (proposal.reconciliation) {
+          const dirty = run("git", ["status", "--porcelain"], cwd);
+          if (dirty) throw new Error("canonical reconciliation requires a clean checkout");
+          run(process.execPath, [proposal.reconciliation.script], cwd);
+          run(process.execPath, ["scripts/validate-jarvis-requirements.mjs"], cwd);
+          requireCanonicalLedgerOnly(changedFiles(cwd));
+        } else {
+          for (const file of proposal.files) {
+            const destination = resolve(cwd, file.path);
+            if (!destination.startsWith(resolve(cwd) + "/") && destination !== resolve(cwd)) throw new Error(`resolved path escaped repository: ${file.path}`);
+            mkdirSync(dirname(destination), { recursive: true });
+            writeFileSync(destination, file.content, "utf-8");
+          }
         }
 
         run("pnpm", ["lint"], cwd);
         run("pnpm", ["test"], cwd);
         run("pnpm", ["build"], cwd);
 
-        const changedFiles = proposal.files.map((file) => file.path);
+        const proposalChangedFiles = proposal.reconciliation
+          ? changedFiles(cwd)
+          : proposal.files.map((file) => file.path);
+        if (proposal.reconciliation) requireCanonicalLedgerOnly(proposalChangedFiles);
         const autoMergeDecision = evaluateTaskScopedAutoMergeEligibility({
           baseBranch: "main",
-          changedFiles,
+          changedFiles: proposalChangedFiles,
           lintPassed: true,
           testsPassed: true,
           buildPassed: true,
@@ -167,14 +238,16 @@ export function createSafePrProposalCapability(options: { cwd?: string; token?: 
         });
 
         const runId = process.env.GITHUB_RUN_ID?.replace(/[^0-9A-Za-z_-]/g, "") || Date.now().toString();
-        const branch = `autonomy/run-${runId}`;
+        const branch = proposal.reconciliation
+          ? `autonomy/reconcile-${proposal.reconciliation.requirementId.toLowerCase()}-${runId}`
+          : `autonomy/run-${runId}`;
         run("git", ["config", "user.name", "ai-company-autonomy"], cwd);
         run("git", ["config", "user.email", "actions@users.noreply.github.com"], cwd);
         run("git", ["checkout", "-b", branch], cwd);
-        run("git", ["add", "--", ...changedFiles], cwd);
+        run("git", ["add", "--", ...proposalChangedFiles], cwd);
         const status = run("git", ["status", "--porcelain"], cwd);
         if (!status) return { actionId: action.id, ok: false, summary: "Model proposal produced no repository changes", blocker: "empty_patch" };
-        run("git", ["commit", "-m", "chore: bounded autonomous proposal"], cwd);
+        run("git", ["commit", "-m", proposal.reconciliation ? `docs(jarvis): reconcile ${proposal.reconciliation.requirementId}` : "chore: bounded autonomous proposal"], cwd);
         run("git", ["push", "origin", `HEAD:${branch}`], cwd);
         const prBody = buildTaskScopedPrBody(proposal);
         const pr = await openPullRequest({ token, repository, head: branch, title: proposal.title, body: prBody.body });
@@ -193,8 +266,11 @@ export function createSafePrProposalCapability(options: { cwd?: string; token?: 
             prUrl: pr.url,
             prNumber: pr.number,
             branch,
-            changedFiles,
-            verification: ["pnpm lint", "pnpm test", "pnpm build"],
+            changedFiles: proposalChangedFiles,
+            reconciliationRequirement: proposal.reconciliation?.requirementId ?? null,
+            verification: proposal.reconciliation
+              ? ["canonical reconciler", "canonical mirror validator", "pnpm lint", "pnpm test", "pnpm build"]
+              : ["pnpm lint", "pnpm test", "pnpm build"],
             taskScopeId: proposal.taskScopeId ?? null,
             taskCompletionAuthorized: Boolean(proposal.taskAuthorization),
             productionDeployAuthorized: prBody.productionDeployAuthorized,
