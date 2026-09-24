@@ -933,7 +933,7 @@
     },
     {
       "path": "scripts/jarvis-broker.ts",
-      "sha256": "443ce1061941088b0b40f9818b06c5c00d394a9030589cd817aaaba15dfae09d",
+      "sha256": "135fb1aa45d7bc0cdbf91f00bffb52998b752e5ed496edaf704bfc4ce96dad26",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "NET-006",
@@ -951,7 +951,7 @@
         "GOV-025",
         "OWN-001"
       ],
-      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification; #1216 bounded local cognition/owner entry integration, not full capability or physical acceptance; #1216 explicit owner DoD adoption: strict bounded input, unchanged Goal identity, full Goal/state atomic CAS and receipt-only replay; independent completion verification remains required; #1216 bounded local DoD proposal: unverified non-executing data, owner-first strict input, post-inference Goal/state recheck and separate editable owner adoption; no broad semantic or physical completion claim"
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification; #1216 bounded local cognition/owner entry integration, not full capability or physical acceptance; #1216 explicit owner DoD adoption: strict bounded input, unchanged Goal identity, full Goal/state atomic CAS and receipt-only replay; independent completion verification remains required; #1216 bounded local DoD proposal: unverified non-executing data, owner-first strict input, post-inference Goal/state recheck and separate editable owner adoption; no broad semantic or physical completion claim; #1219 Direct Goal Bridge wakes bounded Goal execution and exposes shared status/events; parent requirements remain PARTIAL pending E2E."
     },
     {
       "path": "scripts/jarvis-direct-commander-service.sh",
@@ -1041,6 +1041,18 @@
         "FLEET-003"
       ],
       "reason": "Fixed enrollment portal"
+    },
+    {
+      "path": "scripts/jarvis-goal-executor.ts",
+      "sha256": "614a7f0bf3a4a1169f97c39d4757474cc2e626a009a91cd471dd51ba2ce5b8ea",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "AUTO-001",
+        "AUTO-004",
+        "GOV-025",
+        "OWN-001"
+      ],
+      "reason": "Issue #1219 Direct Goal Bridge isolated executor keeps authenticated Broker ingress responsive while bounded Goal continuation runs; parent requirements remain PARTIAL pending real E2E."
     },
     {
       "path": "scripts/jarvis-mac-broker-service.sh",
@@ -1354,6 +1366,18 @@
       "reason": "Owner action API"
     },
     {
+      "path": "src/app/api/jarvis/bridge/events/route.ts",
+      "sha256": "0a2834cdd05bca578bcda5765d6306aa3d12d099d36aa3e023f09c044387ae08",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "AUTO-001",
+        "AUTO-004",
+        "GOV-025",
+        "OWN-001"
+      ],
+      "reason": "Issue #1219 Direct Goal Bridge internal surface for authenticated provider-neutral status/event delivery; parent requirements remain PARTIAL pending real E2E."
+    },
+    {
       "path": "src/app/api/jarvis/broker.ts",
       "sha256": "22ea654aae30bf332ecb3a7aa231e3f5eb2e1f3dc1b20ca719f35a0fb3393494",
       "classification": "COVERED_BY_REQUIREMENT",
@@ -1520,14 +1544,15 @@
     },
     {
       "path": "src/app/api/jarvis/work/route.ts",
-      "sha256": "88a9dc1b19b0b2096edca344f58badfdbcf38295fba73a0fd2cfda562e7b05fa",
+      "sha256": "5fbf5519cc44f744e3598475a4f98972d3214e8953d54b13d7896b889124e536",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-001",
         "AUTO-004",
-        "GOV-025"
+        "GOV-025",
+        "OWN-001"
       ],
-      "reason": "Persisted work intake/state API"
+      "reason": "Persisted work intake/state API; #1219 Direct Goal Bridge wakes bounded Goal execution and exposes shared status/events; parent requirements remain PARTIAL pending E2E."
     },
     {
       "path": "src/app/api/owner-login/route.ts",
@@ -2433,6 +2458,18 @@
       "reason": "#1216 Cognitive Core component; implementation link only, benchmark and product acceptance tracked separately; #1216 explicit owner DoD adoption: strict bounded input, unchanged Goal identity, full Goal/state atomic CAS and receipt-only replay; independent completion verification remains required"
     },
     {
+      "path": "src/app/jarvis/tasks/GoalBridgeStatus.tsx",
+      "sha256": "11f1f65031eea425cfc7ab37f2e4ab258b72eccd5356f2d8849d37c29b8ae80d",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "AUTO-001",
+        "AUTO-004",
+        "GOV-025",
+        "OWN-001"
+      ],
+      "reason": "Issue #1219 Direct Goal Bridge internal surface for authenticated provider-neutral status/event delivery; parent requirements remain PARTIAL pending real E2E."
+    },
+    {
       "path": "src/app/jarvis/tasks/page.tsx",
       "sha256": "32639ad1a2ab93f224aec905f0c41ec0d25db457e30a17664ac0f615f5245517",
       "classification": "COVERED_BY_REQUIREMENT",
@@ -2464,14 +2501,14 @@
     },
     {
       "path": "src/app/jarvis/tasks/TaskBoard.tsx",
-      "sha256": "1f30d2d1cbc4a7f0095af09e28a5e9fe76b7b0c2fd7ef0188a5d56145e44f199",
+      "sha256": "fefd04d5be959274c7c65887b439ee6e6b0e9b5d4721b604a93ee18ed5826941",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "UI-003",
         "OPS-001",
         "OWN-001"
       ],
-      "reason": "Task board and history; #1216 bounded local cognition/owner entry integration, not full capability or physical acceptance"
+      "reason": "Task board and history; #1216 bounded local cognition/owner entry integration, not full capability or physical acceptance; #1219 Direct Goal Bridge wakes bounded Goal execution and exposes shared status/events; parent requirements remain PARTIAL pending E2E."
     },
     {
       "path": "src/app/jarvis/teach/page.tsx",
@@ -4380,6 +4417,18 @@
       "reason": "Declared command-ingress.ts responsibility implements/supports One Front Door; Goal Completion Engine. Parent ownership is not functional or physical acceptance evidence."
     },
     {
+      "path": "src/orchestrator/compass-goal-bridge-event-store.ts",
+      "sha256": "ea3faea6edf2b7aaa56d17df4b7d33383ff2d72ea819c0c67f5dc344dcf5745c",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "AUTO-001",
+        "AUTO-004",
+        "GOV-025",
+        "OWN-001"
+      ],
+      "reason": "Issue #1219 Direct Goal Bridge internal surface for authenticated provider-neutral status/event delivery; parent requirements remain PARTIAL pending real E2E."
+    },
+    {
       "path": "src/orchestrator/compass-goal-controller.ts",
       "sha256": "133ede30533ca6ee8acfc606d67e1e0f7225fd3024341ff446e64dde782a2fdf",
       "classification": "COVERED_BY_REQUIREMENT",
@@ -4633,6 +4682,18 @@
         "AUTO-015"
       ],
       "reason": "Declared github-live-client.ts responsibility implements/supports Software Development Autopilot; Executor. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/goal-bridge-events.ts",
+      "sha256": "4d4904c3edbca1907c17f3788810c77efe92b9ba6ffcb7f3c77fb756974d0f3e",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "AUTO-001",
+        "AUTO-004",
+        "GOV-025",
+        "OWN-001"
+      ],
+      "reason": "Issue #1219 Direct Goal Bridge internal surface for authenticated provider-neutral status/event delivery; parent requirements remain PARTIAL pending real E2E."
     },
     {
       "path": "src/orchestrator/goal-controller-execution-bridge.ts",

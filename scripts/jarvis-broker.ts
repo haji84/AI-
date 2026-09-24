@@ -6,7 +6,7 @@ import { createSpecificationPublisher } from "./jarvis-spec-publisher.mjs";
 import { fileURLToPath } from "node:url";
 import { loadCanonicalBundle, prepareSpecificationProposal } from "./jarvis-owner-spec-sync.mjs";
 import { OwnerRequirementIntake, matchRequirementCandidates } from "../src/orchestrator/owner-requirement-intake.ts";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { createHash, createPublicKey, randomBytes, timingSafeEqual } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -30,9 +30,10 @@ import { WorkerRemoteMailbox } from "../src/jarvis/worker-remote-mailbox.ts";
 import { remoteDeviceInventory } from "../src/jarvis/remote-device-inventory.ts";
 import { PendingEnrollment } from "../src/jarvis/pending-enrollment.ts";
 import { CompassStore } from "../src/compass/store.ts";
-import { GoalControllerRuntime } from "../src/orchestrator/goal-controller-runtime.ts";
+import { GoalControllerRuntime, type GoalControllerDecision } from "../src/orchestrator/goal-controller-runtime.ts";
 import { CompassGoalRegistryAdapter, CompassGoalDecisionStoreAdapter } from "../src/orchestrator/compass-goal-controller.ts";
 import { CompassWorkRunStore } from "../src/orchestrator/compass-work-run-store.ts";
+import { CompassGoalBridgeEventStore } from "../src/orchestrator/compass-goal-bridge-event-store.ts";
 import { workRunProgress } from "../src/orchestrator/work-run-state.ts";
 import { validateWindowsVerificationDispatch } from "../src/orchestrator/windows-verification-dispatch.ts";
 
@@ -60,6 +61,7 @@ const store = new JarvisSqliteStateStore(process.env.JARVIS_DB_PATH?.trim() || u
 const compassPath = process.env.JARVIS_COMPASS_DB_PATH?.trim() || (process.env.JARVIS_DB_PATH?.trim() ? `${process.env.JARVIS_DB_PATH.trim()}.compass.sqlite` : resolve(".jarvis/compass.db"));
 const compass = new CompassStore(compassPath);
 const workRuns = new CompassWorkRunStore(compass);
+const goalBridgeEvents = new CompassGoalBridgeEventStore(compass);
 const cognitive = new CognitiveService(compassPath, cognitiveHostOptions(process.env));
 const ownerRequirements = new OwnerRequirementIntake(compass);
 const specificationPublisher = createSpecificationPublisher({root:fileURLToPath(new URL("../",import.meta.url)),intake:ownerRequirements,token:process.env.GITHUB_TOKEN});
@@ -67,6 +69,48 @@ const goalController = new GoalControllerRuntime({
   registry: new CompassGoalRegistryAdapter(compass),
   decisionStore: new CompassGoalDecisionStoreAdapter(compass),
 });
+const activeGoalExecutions = new Map<string, ReturnType<typeof spawn>>();
+
+function encodeGoalExecutionContext(context: unknown[]): string {
+  const encoded = Buffer.from(JSON.stringify(context), "utf8").toString("base64");
+  if (encoded.length > 64_000) throw new Error("Goal execution context is too large");
+  return encoded;
+}
+
+function scheduleGoalExecution(decision: GoalControllerDecision, context: unknown[] = []): boolean {
+  if (decision.action !== "CONTINUE_GOAL" || !decision.goalId) return false;
+  if (activeGoalExecutions.has(decision.goalId)) return true;
+  const goalId = decision.goalId;
+  // Run autonomous continuation outside the Broker process. Goal execution can
+  // perform many bounded cycles and synchronous local checks; keeping it in a
+  // child process prevents owner/API traffic from being starved by that work.
+  const child = spawn(process.execPath, [fileURLToPath(new URL("./jarvis-goal-executor.ts", import.meta.url))], {
+    cwd: process.cwd(),
+    windowsHide: true,
+    stdio: ["ignore", "ignore", "pipe"],
+    env: {
+      ...process.env,
+      JARVIS_GOAL_EXECUTION_GOAL_ID: goalId,
+      JARVIS_GOAL_EXECUTION_CONTEXT_B64: encodeGoalExecutionContext(context),
+      JARVIS_GOAL_EXECUTION_COMPASS_PATH: compassPath,
+    },
+  });
+  let stderr = "";
+  child.stderr?.on("data", (chunk) => {
+    stderr = (stderr + String(chunk)).slice(-8_000);
+  });
+  child.once("error", (error) => {
+    console.error("[goriq-goal]", goalId, error instanceof Error ? error.message : "executor_spawn_failed");
+  });
+  child.once("exit", (code, signal) => {
+    activeGoalExecutions.delete(goalId);
+    if (code !== 0) {
+      console.error("[goriq-goal]", goalId, `executor_exit=${code ?? "null"} signal=${signal ?? "none"} ${stderr.trim()}`.trim());
+    }
+  });
+  activeGoalExecutions.set(goalId, child);
+  return true;
+}
 const persisted = store.load();
 if (persisted) plane.restore(persisted);
 const nonces = new JarvisNonceRegistry();
@@ -355,6 +399,16 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
         return json(response, 405, { message: "Method not allowed" });
       } catch (error) { return json(response, 409, { message: error instanceof Error ? error.message : "Cognitive cycle unavailable" }); }
     }
+    if (method === "GET" && path === "/api/jarvis/admin/bridge/events") {
+      const params = new URL(request.url!, "http://localhost").searchParams;
+      const goalId = params.get("goalId")?.trim() || undefined;
+      return json(response, 200, { events: await goalBridgeEvents.pending(goalId) });
+    }
+    if (method === "POST" && path === "/api/jarvis/admin/bridge/events/ack") {
+      if (typeof payload.eventId !== "string" || !payload.eventId) return json(response, 400, { message: "eventId required" });
+      await goalBridgeEvents.markDelivered(payload.eventId);
+      return json(response, 200, { ok: true });
+    }
     if (method === "GET" && path.startsWith("/api/jarvis/admin/work/")) {
       const goalId = decodeURIComponent(path.slice("/api/jarvis/admin/work/".length));
       const run = await workRuns.getByGoal(goalId);
@@ -367,6 +421,7 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
         const text = typeof payload.text === "string" ? payload.text.trim() : "";
         if (!text) return json(response, 400, { message: "仕事の内容を入力してください" });
         const idempotencyKey = typeof payload.idempotencyKey === "string" ? payload.idempotencyKey.trim() : undefined;
+        const requestedGoalHint = typeof payload.goalHint === "string" ? payload.goalHint.trim() : undefined;
         const activeGoal = (await new CompassGoalRegistryAdapter(compass).listActive())[0];
         if(payload.requirementReferenceId!==undefined&&typeof payload.requirementReferenceId!=="string")return json(response,400,{message:"invalid requirement reference"});
         const prepared = payload.requirement!==undefined ? ownerRequirements.prepare(text,idempotencyKey,payload.requirement) : ownerRequirements.prepareConversation(text,idempotencyKey,{goalId:activeGoal?.goalId??null,referenceId:payload.requirementReferenceId as string|undefined});
@@ -376,10 +431,17 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
         // Write the receipt before creating/changing Goal state. An interrupted bind
         // leaves a visible unassigned sync gate instead of an untracked accepted Goal.
         let requirement = ownerRequirements.capture(prepared, activeGoal?.goalId ?? null, rows);
-        const decision = await goalController.handle({ source: "jarvis", text, idempotencyKey: prepared.input ? prepared.keyDigest : idempotencyKey });
+        const decision = await goalController.handle({
+          source: "jarvis",
+          text,
+          idempotencyKey: prepared.input ? prepared.keyDigest : idempotencyKey,
+          goalHint: requestedGoalHint || activeGoal?.goalId,
+        });
         if (requirement) requirement = ownerRequirements.bindGoal(requirement.id, decision.goalId ?? activeGoal?.goalId ?? null);
+        const executionScheduled = scheduleGoalExecution(decision, [{ source: "owner-work-intake", text }]);
         return json(response, 202, {
           accepted: true,
+          executionScheduled,
           requirement,
           conversation: prepared.resolution ?? null,
           goalId: decision.goalId ?? null,
@@ -644,6 +706,9 @@ server.listen(port, host, () => {
   console.log(`[jarvis-broker] nodes=${plane.snapshot().stats.registered} tasks=${plane.snapshot().tasks.length} workerApk=${workerApkInfo() ? "ready" : "missing"}`);
 });
 function shutdown(): void {
+  for (const child of activeGoalExecutions.values()) {
+    if (child.exitCode === null && child.signalCode === null) child.kill();
+  }
   server.close(() => { persist(); store.close(); compass.close(); process.exit(0); });
 }
 process.on("SIGINT", shutdown);

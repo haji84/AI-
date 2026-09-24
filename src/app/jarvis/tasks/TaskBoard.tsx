@@ -1,6 +1,7 @@
 "use client";
 
 import CognitivePanel from "./CognitivePanel";
+import GoalBridgeStatus from "./GoalBridgeStatus";
 import RequirementsPanel from "./RequirementsPanel";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -94,6 +95,7 @@ export default function TaskBoard() {
 
       <RequirementsPanel />
       <CognitivePanel />
+      <GoalBridgeStatus />
       <section className="jarvis-stats" aria-label="タスク集計">
         <article><span>Queue</span><strong>{state?.stats.queued ?? "-"}</strong></article>
         <article><span>実行中</span><strong>{state?.stats.running ?? "-"}</strong></article>
