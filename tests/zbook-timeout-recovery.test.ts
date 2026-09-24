@@ -19,12 +19,14 @@ test("confirmed coding timeout resumes the same durable run while preserving com
     const run = { ...createQueuedWorkRun("goal-a"), phase: "BLOCKED" as const, blockers: ["blocked"] };
     await runs.put(run);
     await work.put(state("goal-a", ["http_code_builder_error"]));
+    db.updateState({ blockers: ["http_code_builder_error"], nextAction: "Builder timed out" });
     const result = await recoverTimedOutGoal(db, "goal-a", { timeoutConfirmed: true });
     assert.equal(result, "RECOVERED");
     assert.equal((await runs.getByGoal("goal-a"))?.runId, run.runId);
     assert.equal((await runs.getByGoal("goal-a"))?.phase, "QUEUED");
     assert.equal((await work.get("goal-a"))?.definitionOfDone.length, 1);
     assert.equal((await work.get("goal-a"))?.status, "IN_PROGRESS");
+    assert.deepEqual(db.getState().blockers, []);
     assert.equal(await recoverTimedOutGoal(db, "goal-a", { timeoutConfirmed: true }), "ALREADY_QUEUED");
   } finally { db.close(); }
 });
@@ -37,9 +39,25 @@ test("missing timeout proof and human/security blockers remain stopped", async (
       const work = new CompassWorkStateStoreAdapter(db);
       await runs.put({ ...createQueuedWorkRun("goal-a"), phase: "BLOCKED", blockers: ["blocked"] });
       await work.put(state("goal-a", [...blockers]));
+      db.updateState({ blockers: [...blockers] });
       await assert.rejects(recoverTimedOutGoal(db, "goal-a", { timeoutConfirmed: confirmed }));
       assert.equal((await runs.getByGoal("goal-a"))?.phase, "BLOCKED");
       assert.equal((await work.get("goal-a"))?.status, "BLOCKED");
+      assert.deepEqual(db.getState().blockers, [...blockers]);
     } finally { db.close(); }
   }
+});
+
+test("partially recovered timeout clears only the stale Compass blocker and keeps the same run", async () => {
+  const db = new CompassStore(":memory:");
+  try {
+    const runs = new CompassWorkRunStore(db);
+    const work = new CompassWorkStateStoreAdapter(db);
+    await runs.put({ ...createQueuedWorkRun("goal-a"), phase: "BLOCKED", blockers: ["blocked"] });
+    await work.put({ ...state("goal-a", []), status: "IN_PROGRESS" });
+    db.updateState({ blockers: ["http_code_builder_error"] });
+    assert.equal(await recoverTimedOutGoal(db, "goal-a", { timeoutConfirmed: true }), "RECOVERED");
+    assert.equal((await runs.getByGoal("goal-a"))?.phase, "QUEUED");
+    assert.deepEqual(db.getState().blockers, []);
+  } finally { db.close(); }
 });
