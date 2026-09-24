@@ -31,6 +31,10 @@ jobs:
       - name: Verify owner-local utility on ZBook
         shell: powershell
         run: node --test scripts/owner-code-windows.test.mjs
+      - name: Capture bounded Compass Goal failure categories
+        if: always()
+        shell: powershell
+        run: node scripts/zbook-goal-diagnostics.ts
       - name: Upload bounded Bridge evidence and code patch
         if: always()
         uses: actions/upload-artifact@v4
