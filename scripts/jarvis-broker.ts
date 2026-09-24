@@ -30,7 +30,9 @@ import { WorkerRemoteMailbox } from "../src/jarvis/worker-remote-mailbox.ts";
 import { remoteDeviceInventory } from "../src/jarvis/remote-device-inventory.ts";
 import { PendingEnrollment } from "../src/jarvis/pending-enrollment.ts";
 import { CompassStore } from "../src/compass/store.ts";
-import { GoalControllerRuntime } from "../src/orchestrator/goal-controller-runtime.ts";
+import { GoalControllerRuntime, type GoalControllerDecision } from "../src/orchestrator/goal-controller-runtime.ts";
+import { GoalControllerExecutionBridge } from "../src/orchestrator/goal-controller-execution-bridge.ts";
+import { CompassGoalExecutionAdapter } from "../src/orchestrator/compass-goal-execution-adapter.ts";
 import { CompassGoalRegistryAdapter, CompassGoalDecisionStoreAdapter } from "../src/orchestrator/compass-goal-controller.ts";
 import { CompassWorkRunStore } from "../src/orchestrator/compass-work-run-store.ts";
 import { workRunProgress } from "../src/orchestrator/work-run-state.ts";
@@ -67,6 +69,26 @@ const goalController = new GoalControllerRuntime({
   registry: new CompassGoalRegistryAdapter(compass),
   decisionStore: new CompassGoalDecisionStoreAdapter(compass),
 });
+const goalExecution = new GoalControllerExecutionBridge(new CompassGoalExecutionAdapter(compassPath));
+const activeGoalExecutions = new Map<string, Promise<void>>();
+
+function scheduleGoalExecution(decision: GoalControllerDecision, context: unknown[] = []): boolean {
+  if (decision.action !== "CONTINUE_GOAL" || !decision.goalId) return false;
+  if (activeGoalExecutions.has(decision.goalId)) return true;
+  const goalId = decision.goalId;
+  const task = goalExecution.executeUntilGoalTerminal(decision, { maxRuns: 12, context })
+    .then((result) => {
+      if (result.reason && result.reason !== "goal_complete") {
+        console.warn("[goriq-goal]", goalId, result.reason);
+      }
+    })
+    .catch((error) => {
+      console.error("[goriq-goal]", goalId, error instanceof Error ? error.message : "execution_failed");
+    })
+    .finally(() => { activeGoalExecutions.delete(goalId); });
+  activeGoalExecutions.set(goalId, task);
+  return true;
+}
 const persisted = store.load();
 if (persisted) plane.restore(persisted);
 const nonces = new JarvisNonceRegistry();
@@ -367,6 +389,7 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
         const text = typeof payload.text === "string" ? payload.text.trim() : "";
         if (!text) return json(response, 400, { message: "仕事の内容を入力してください" });
         const idempotencyKey = typeof payload.idempotencyKey === "string" ? payload.idempotencyKey.trim() : undefined;
+        const requestedGoalHint = typeof payload.goalHint === "string" ? payload.goalHint.trim() : undefined;
         const activeGoal = (await new CompassGoalRegistryAdapter(compass).listActive())[0];
         if(payload.requirementReferenceId!==undefined&&typeof payload.requirementReferenceId!=="string")return json(response,400,{message:"invalid requirement reference"});
         const prepared = payload.requirement!==undefined ? ownerRequirements.prepare(text,idempotencyKey,payload.requirement) : ownerRequirements.prepareConversation(text,idempotencyKey,{goalId:activeGoal?.goalId??null,referenceId:payload.requirementReferenceId as string|undefined});
@@ -376,10 +399,17 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
         // Write the receipt before creating/changing Goal state. An interrupted bind
         // leaves a visible unassigned sync gate instead of an untracked accepted Goal.
         let requirement = ownerRequirements.capture(prepared, activeGoal?.goalId ?? null, rows);
-        const decision = await goalController.handle({ source: "jarvis", text, idempotencyKey: prepared.input ? prepared.keyDigest : idempotencyKey });
+        const decision = await goalController.handle({
+          source: "jarvis",
+          text,
+          idempotencyKey: prepared.input ? prepared.keyDigest : idempotencyKey,
+          goalHint: requestedGoalHint || activeGoal?.goalId,
+        });
         if (requirement) requirement = ownerRequirements.bindGoal(requirement.id, decision.goalId ?? activeGoal?.goalId ?? null);
+        const executionScheduled = scheduleGoalExecution(decision, [{ source: "owner-work-intake", text }]);
         return json(response, 202, {
           accepted: true,
+          executionScheduled,
           requirement,
           conversation: prepared.resolution ?? null,
           goalId: decision.goalId ?? null,
