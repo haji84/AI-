@@ -78,38 +78,44 @@ function scheduleGoalExecution(decision: GoalControllerDecision, context: unknow
   if (decision.action !== "CONTINUE_GOAL" || !decision.goalId) return false;
   if (activeGoalExecutions.has(decision.goalId)) return true;
   const goalId = decision.goalId;
-  const task = (async () => {
-    if (!goalExecution) {
-      const [{ GoalControllerExecutionBridge: Bridge }, { CompassGoalExecutionAdapter }] = await Promise.all([
-        import("../src/orchestrator/goal-controller-execution-bridge.ts"),
-        import("../src/orchestrator/compass-goal-execution-adapter.ts"),
-      ]);
-      goalExecution = new Bridge(new CompassGoalExecutionAdapter(compassPath));
-    }
-    return goalExecution.executeUntilGoalTerminal(decision, { maxRuns: 12, context });
-  })()
-    .then(async (result) => {
-      const report = result.report;
-      const type = result.reason === "goal_complete"
-        ? "GOAL_COMPLETED"
-        : result.reason === "human_gate"
-          ? "HUMAN_REQUIRED"
-          : result.reason === "blocked" || result.reason === "retry_exhausted"
-            ? "GOAL_BLOCKED"
-            : "IMPORTANT_UPDATE";
-      await goalBridgeEvents.append(createGoalBridgeEvent({
-        goalId,
-        type,
-        summary: result.reason ?? report?.stopReason ?? "goal_execution_updated",
-        evidenceRefs: [],
-      }));
-      if (result.reason && result.reason !== "goal_complete") console.warn("[goriq-goal]", goalId, result.reason);
-    })
-    .catch((error) => {
-      console.error("[goriq-goal]", goalId, error instanceof Error ? error.message : "execution_failed");
-    })
-    .finally(() => { activeGoalExecutions.delete(goalId); });
-  activeGoalExecutions.set(goalId, task);
+  // Acknowledge accepted intake before autonomous work begins. This keeps the
+  // ingress responsive and prevents execution/SQLite work from extending the
+  // owner's HTTP request lifetime.
+  activeGoalExecutions.set(goalId, Promise.resolve());
+  const immediate = setImmediate(() => {
+    const task = (async () => {
+      if (!goalExecution) {
+        const [{ GoalControllerExecutionBridge: Bridge }, { CompassGoalExecutionAdapter }] = await Promise.all([
+          import("../src/orchestrator/goal-controller-execution-bridge.ts"),
+          import("../src/orchestrator/compass-goal-execution-adapter.ts"),
+        ]);
+        goalExecution = new Bridge(new CompassGoalExecutionAdapter(compassPath));
+      }
+      return goalExecution.executeUntilGoalTerminal(decision, { maxRuns: 12, context });
+    })()
+      .then(async (result) => {
+        const report = result.report;
+        const type = result.reason === "goal_complete"
+          ? "GOAL_COMPLETED"
+          : result.reason === "human_gate"
+            ? "HUMAN_REQUIRED"
+            : result.reason === "blocked" || result.reason === "retry_exhausted"
+              ? "GOAL_BLOCKED"
+              : "IMPORTANT_UPDATE";
+        await goalBridgeEvents.append(createGoalBridgeEvent({
+          goalId, type,
+          summary: result.reason ?? report?.stopReason ?? "goal_execution_updated",
+          evidenceRefs: [],
+        }));
+        if (result.reason && result.reason !== "goal_complete") console.warn("[goriq-goal]", goalId, result.reason);
+      })
+      .catch((error) => {
+        console.error("[goriq-goal]", goalId, error instanceof Error ? error.message : "execution_failed");
+      })
+      .finally(() => { activeGoalExecutions.delete(goalId); });
+    activeGoalExecutions.set(goalId, task);
+  });
+  immediate.unref();
   return true;
 }
 const persisted = store.load();
