@@ -933,7 +933,7 @@
     },
     {
       "path": "scripts/jarvis-broker.ts",
-      "sha256": "d960e37da628eac4577161b758320d4d3059847cd70a8fc6b2e8d9442e061764",
+      "sha256": "135fb1aa45d7bc0cdbf91f00bffb52998b752e5ed496edaf704bfc4ce96dad26",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "NET-006",
@@ -1041,6 +1041,18 @@
         "FLEET-003"
       ],
       "reason": "Fixed enrollment portal"
+    },
+    {
+      "path": "scripts/jarvis-goal-executor.ts",
+      "sha256": "614a7f0bf3a4a1169f97c39d4757474cc2e626a009a91cd471dd51ba2ce5b8ea",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "AUTO-001",
+        "AUTO-004",
+        "GOV-025",
+        "OWN-001"
+      ],
+      "reason": "Issue #1219 Direct Goal Bridge isolated executor keeps authenticated Broker ingress responsive while bounded Goal continuation runs; parent requirements remain PARTIAL pending real E2E."
     },
     {
       "path": "scripts/jarvis-mac-broker-service.sh",
