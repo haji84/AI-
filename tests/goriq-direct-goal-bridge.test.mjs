@@ -3,15 +3,18 @@ import { readFileSync } from "node:fs";
 import { URL } from "node:url";
 import test from "node:test";
 
-test("owner work intake schedules durable Goal execution instead of only persisting the decision", () => {
-  const source = readFileSync(new URL("../scripts/jarvis-broker.ts", import.meta.url), "utf8");
-  assert.match(source, /GoalControllerExecutionBridge: Bridge/);
-  assert.match(source, /new Bridge\(new CompassGoalExecutionAdapter\(compassPath\)\)/);
-  assert.match(source, /scheduleGoalExecution\(decision,/);
-  assert.match(source, /executeUntilGoalTerminal\(decision,/);
-  assert.match(source, /executionScheduled/);
-  assert.match(source, /scheduledGoalExecutions/);
-  assert.match(source, /goalHint: requestedGoalHint \|\| activeGoal\?\.goalId/);
+test("owner work intake schedules durable Goal execution outside the Broker event loop", () => {
+  const broker = readFileSync(new URL("../scripts/jarvis-broker.ts", import.meta.url), "utf8");
+  const executor = readFileSync(new URL("../scripts/jarvis-goal-executor.ts", import.meta.url), "utf8");
+  assert.match(broker, /spawn\(process\.execPath/);
+  assert.match(broker, /jarvis-goal-executor\.ts/);
+  assert.match(broker, /scheduleGoalExecution\(decision,/);
+  assert.match(broker, /executionScheduled/);
+  assert.match(broker, /activeGoalExecutions/);
+  assert.match(broker, /goalHint: requestedGoalHint \|\| activeGoal\?\.goalId/);
+  assert.match(executor, /GoalControllerExecutionBridge/);
+  assert.match(executor, /new CompassGoalExecutionAdapter\(compassPath\)/);
+  assert.match(executor, /executeUntilGoalTerminal\(decision,/);
 });
 
 test("public owner work route forwards an explicit goal hint without weakening owner auth", () => {
@@ -34,10 +37,11 @@ test("GORIQ owner UI exposes bridged Goal status and evidence", () => {
 
 test("GORIQ emits provider-neutral outbound events for chat clients", () => {
   const broker = readFileSync(new URL("../scripts/jarvis-broker.ts", import.meta.url), "utf8");
+  const executor = readFileSync(new URL("../scripts/jarvis-goal-executor.ts", import.meta.url), "utf8");
   const route = readFileSync(new URL("../src/app/api/jarvis/bridge/events/route.ts", import.meta.url), "utf8");
-  assert.match(broker, /GOAL_COMPLETED/);
-  assert.match(broker, /HUMAN_REQUIRED/);
-  assert.match(broker, /GOAL_BLOCKED/);
+  assert.match(executor, /GOAL_COMPLETED/);
+  assert.match(executor, /HUMAN_REQUIRED/);
+  assert.match(executor, /GOAL_BLOCKED/);
   assert.match(broker, /bridge\/events\/ack/);
   assert.match(route, /requireJarvisOwner/);
   assert.match(route, /eventId/);
