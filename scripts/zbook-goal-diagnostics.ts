@@ -20,6 +20,7 @@ try {
   const run = await new CompassWorkRunStore(db).getByGoal(goalId);
   const state = await new CompassWorkStateStoreAdapter(db).get(goalId);
   const failedChecks = state?.verificationResults.filter(item => item.passed !== true && item.waived !== true) ?? [];
+  const recentHistory = db.getHistory(20);
   const codes = [...new Set([
     ...(state?.blockers ?? []).map(goalFailureCode),
     ...failedChecks.map(item => goalFailureCode({ note: item.note, evidence: item.evidence })),
@@ -31,6 +32,7 @@ try {
     failedCheckIds: failedChecks.map(item => item.itemId).slice(0, 20),
     failureCodes: codes,
     knownBlockerIds: state?.blockers.filter(value => knownBlockers.has(value)) ?? [],
+    recentFailureCodes: [...new Set(recentHistory.map(entry => goalFailureCode(entry.summary)))].filter(code => code !== "UNCLASSIFIED_BLOCKER"),
     blockerCount: state?.blockers.length ?? null,
   };
   const directory = resolve(".gai-results");
