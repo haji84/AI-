@@ -3,7 +3,7 @@ set -euo pipefail
 
 WORKER_ID="${GAI_WORKER_ID:-macbook}"
 PORT="${CODE_BUILDER_PORT:-8796}"
-WORKSPACE="${1:-$(cd "$(dirname "$0")/.." && pwd)}"
+SOURCE_REPO="${1:-$(cd "$(dirname "$0")/.." && pwd)}"
 EXEC_TIMEOUT_MS="${CODE_BUILDER_EXEC_TIMEOUT_MS:-600000}"
 ROOT="$HOME/Library/Application Support/GAIWorker/code-builder"
 PLIST="$HOME/Library/LaunchAgents/com.gai.code-builder-worker.plist"
@@ -11,11 +11,27 @@ SERVICE_SOURCE="$(cd "$(dirname "$0")" && pwd)/code-builder-worker-service.ts"
 SERVICE_PATH="$ROOT/code-builder-worker-service.ts"
 TOKEN_PATH="$ROOT/token.txt"
 STATUS_PATH="$ROOT/install-status.json"
+WORKSPACE="$ROOT/workspace"
 LOG_PATH="$ROOT/worker.stdout.log"
 ERR_PATH="$ROOT/worker.stderr.log"
 
 mkdir -p "$ROOT" "$HOME/Library/LaunchAgents"
 cp "$SERVICE_SOURCE" "$SERVICE_PATH"
+
+if [[ ! -d "$WORKSPACE/.git" ]]; then
+  origin="$(git -C "$SOURCE_REPO" remote get-url origin)"
+  [[ -n "$origin" ]] || { echo 'Code Builder source repository has no origin.' >&2; exit 3; }
+  git clone --quiet "$origin" "$WORKSPACE"
+else
+  dirty="$(git -C "$WORKSPACE" status --porcelain)"
+  if [[ -z "$dirty" ]]; then
+    git -C "$WORKSPACE" fetch origin main --quiet
+    git -C "$WORKSPACE" checkout main --quiet
+    git -C "$WORKSPACE" reset --hard origin/main >/dev/null
+  else
+    echo 'Preserving in-progress isolated Builder workspace across runtime refresh.'
+  fi
+fi
 NODE_BIN="$(command -v node)"
 NODE_VERSION="$("$NODE_BIN" --version)"
 
