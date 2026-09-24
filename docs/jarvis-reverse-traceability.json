@@ -933,7 +933,7 @@
     },
     {
       "path": "scripts/jarvis-broker.ts",
-      "sha256": "e236defc281c2d695e3ad7d062501222a87ea52d9e15cbac3ba37b727dd6f488",
+      "sha256": "66ade00247d030f3a69e84ed9fd3807c60b740f1d22a764fca483db05ef245d8",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "NET-006",
@@ -1550,7 +1550,7 @@
     },
     {
       "path": "src/app/api/jarvis/work/route.ts",
-      "sha256": "5fbf5519cc44f744e3598475a4f98972d3214e8953d54b13d7896b889124e536",
+      "sha256": "5e3f122a6c705573b826e92628088783cab6c18d0d6858160503182d7e1a3034",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-001",
@@ -4713,12 +4713,15 @@
     },
     {
       "path": "src/orchestrator/goal-controller-runtime.ts",
-      "sha256": "c7a748ca15b8c2a2828280310c421edcfc45674c6dfb6cc25f5e44be6398f15f",
+      "sha256": "34c30c83edc3ebeea7675322d056f8eae69517b5653614421f0dc6ee22b4eb5c",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
-        "CORE-002"
+        "CORE-002",
+        "AUTO-001",
+        "AUTO-004",
+        "OWN-001"
       ],
-      "reason": "Declared goal-controller-runtime.ts responsibility implements/supports Goal Completion Engine. Parent ownership is not functional or physical acceptance evidence."
+      "reason": "Declared goal-controller-runtime.ts responsibility implements/supports Goal Completion Engine. Parent ownership is not functional or physical acceptance evidence. #1219 binds bounded owner-supplied Goal success criteria through Unified Intake; parent requirements remain PARTIAL pending real E2E."
     },
     {
       "path": "src/orchestrator/goal-decision-store.ts",
