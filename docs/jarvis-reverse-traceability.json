@@ -1096,13 +1096,16 @@
     },
     {
       "path": "scripts/jarvis-mac-zero-touch-install.sh",
-      "sha256": "dd5ad7d5fe4ac34190094dc6c7d651abf5d951f00e8c1c8cd25b271d1764b473",
+      "sha256": "bcad4745d9544347f8cae5767a5f0ffb3a8022f8373661bf6fe45cfb9c3987fc",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "HOST-002",
-        "DEV-PC-006"
+        "DEV-PC-006",
+        "AUTO-001",
+        "AUTO-004",
+        "OWN-001"
       ],
-      "reason": "Mac auxiliary resident/installation compatibility scripts; no deployment performed"
+      "reason": "Mac auxiliary resident/installation compatibility scripts; no deployment performed; #1219 Mac Production recovery: fail closed before resident Broker restart unless the isolated Direct Goal Bridge executor exists."
     },
     {
       "path": "scripts/jarvis-mac-zero-touch.sh",
