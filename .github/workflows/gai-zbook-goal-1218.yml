@@ -28,6 +28,9 @@ jobs:
           $env:GORIQ_1218_WORKSPACE = $goalWorkspace
           try { & node .\scripts\zbook-owner-code-goal-1218.ts; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE } }
           finally { Remove-Item Env:CODE_BUILDER_LOCAL_TOKEN -ErrorAction SilentlyContinue }
+      - name: Verify owner-local utility on ZBook
+        shell: powershell
+        run: node --test scripts/owner-code-windows.test.mjs
       - name: Upload bounded Bridge evidence and code patch
         if: always()
         uses: actions/upload-artifact@v4
