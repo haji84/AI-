@@ -123,7 +123,10 @@ export class CompassStore {
   constructor(dbPath: string) {
     this.dbPath = dbPath;
     if (dbPath !== ":memory:") mkdirSync(dirname(dbPath), { recursive: true });
-    this.db = new DatabaseSync(dbPath);
+    // The Broker and its isolated Goal executor can write the same Compass
+    // database concurrently. Wait for the other bounded transaction instead
+    // of rejecting an authenticated intake during a brief write lock.
+    this.db = new DatabaseSync(dbPath, { timeout: 5_000 });
     this.db.exec("PRAGMA foreign_keys = ON;");
     this.initialize();
   }
