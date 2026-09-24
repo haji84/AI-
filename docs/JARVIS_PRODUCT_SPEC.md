@@ -13992,3 +13992,34 @@ Owner instruction 2026-09-23, Issue #1216. Full normative integration contract: 
   ]
 }
 ```
+
+
+## Canonical architecture reconciliation guard
+
+The following existing main subsystems are canonical and MUST be searched/reused before an agent proposes a replacement. Absence from a new prompt does not retire them.
+
+- Goal persistence / Goal Controller / Goal Evaluator: `src/orchestrator/goal-controller-runtime.ts`, `src/orchestrator/goal-evaluator.ts`, `src/orchestrator/goal-loop.ts`.
+- Autonomous recovery and bounded retry: `src/orchestrator/recovery-policy.ts`, `src/orchestrator/bounded-runner.ts`, `src/gai/self-healing-runtime.ts`.
+- Persistent execution/state/history: `src/orchestrator/work-state.ts`, `src/orchestrator/work-run-state.ts`, `src/gai/production-task-history.ts`, `src/gai/production-failure-history.ts`, `src/gai/production-recovery-history.ts`, `src/gai/production-verification-history.ts`.
+- Fact / completion verification: `src/orchestrator/fact-verifier.ts`, `src/orchestrator/fact-completion-gate.ts`.
+- Artifact verification: `src/orchestrator/local-artifact-verifier.ts`, plus domain verifier contracts. A generated artifact is not accepted solely because creation returned success.
+- Configuration baseline / rollback / backup / restore: `src/jarvis/config-baseline-rollback.ts`, `src/jarvis/state-backup.ts`, `src/jarvis/state-restore.ts`, `src/jarvis/product-rollback-readiness.ts`.
+- Dynamic teams and organizational memory: `src/orchestrator/dynamic-capability-team.ts`, `src/orchestrator/adaptive-team-runner.ts`, `src/orchestrator/team-composer.ts`, `src/orchestrator/team-organizational-memory.ts`.
+- World/resource model: `src/gai/world-model.ts`, `src/gai/world-resource-model.ts`, `src/gai/world-resource-collector.ts`, `src/orchestrator/world-resource-context.ts`.
+- Continual learning / work learning / governed skills: `src/gai/continual-learning-runtime.ts`, `src/gai/work-learning.ts`, `src/gai/governed-skill-runtime.ts`.
+- Offline-first and synchronization: `src/gai/offline-first-runtime.ts`, `src/gai/sync-engine.ts`.
+- Demonstration/teaching correction intelligence: `src/orchestrator/demonstration-learning.ts`, `src/jarvis/teaching-correction-learning.ts`, `src/jarvis/teaching-runtime.ts`.
+- Human Gate / risk / capability authorization: `src/orchestrator/risk-policy.ts`, `src/orchestrator/capability-policy.ts`, `src/orchestrator/task-authorization.ts`, `src/jarvis/policy-engine.ts`.
+- Distributed fleet / device identity / enrollment / remote execution: `src/jarvis/control-plane.ts`, `src/jarvis/fleet-manager.ts`, `src/jarvis/worker-auth.ts`, `src/jarvis/enrollment.ts`, `src/gai/worker-runtime.ts`.
+- UI/work progress state is derived from actual Work Run/Goal state, never invented client-side: `src/orchestrator/work-run-state.ts`, `src/orchestrator/work-state-integration.ts`, `src/orchestrator/goal-controller-execution-bridge.ts`.
+
+### Reconciliation status vocabulary
+
+Architecture audits MUST classify discovered requirements as exactly one of:
+- `SPEC_PRESENT`: canonical spec and current implementation agree.
+- `SPEC_OUTDATED`: spec exists but no longer describes current canonical behavior.
+- `IMPLEMENTED_NOT_SPECIFIED`: main contains a meaningful capability/contract not adequately recorded in PRODUCT_SPEC.
+- `SPECIFIED_NOT_IMPLEMENTED`: PRODUCT_SPEC requirement lacks the required implementation/evidence.
+- `CONFLICT`: multiple implementations/specifications disagree and require deliberate reconciliation.
+
+Agents MUST NOT turn `IMPLEMENTED_NOT_SPECIFIED` into a replacement implementation. The first action is specification reconciliation and reuse analysis.
