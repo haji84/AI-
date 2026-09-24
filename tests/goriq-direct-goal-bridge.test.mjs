@@ -5,7 +5,7 @@ import test from "node:test";
 
 test("owner work intake schedules durable Goal execution instead of only persisting the decision", () => {
   const source = readFileSync(new URL("../scripts/jarvis-broker.ts", import.meta.url), "utf8");
-  assert.match(source, /new GoalControllerExecutionBridge\(new CompassGoalExecutionAdapter\(compassPath\)\)/);
+  assert.match(source, /GoalControllerExecutionBridge: Bridge/);\n  assert.match(source, /new Bridge\(new CompassGoalExecutionAdapter\(compassPath\)\)/);
   assert.match(source, /scheduleGoalExecution\(decision,/);
   assert.match(source, /executeUntilGoalTerminal\(decision,/);
   assert.match(source, /executionScheduled/);
