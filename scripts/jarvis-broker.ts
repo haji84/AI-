@@ -6,7 +6,7 @@ import { createSpecificationPublisher } from "./jarvis-spec-publisher.mjs";
 import { fileURLToPath } from "node:url";
 import { loadCanonicalBundle, prepareSpecificationProposal } from "./jarvis-owner-spec-sync.mjs";
 import { OwnerRequirementIntake, matchRequirementCandidates } from "../src/orchestrator/owner-requirement-intake.ts";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { createHash, createPublicKey, randomBytes, timingSafeEqual } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -31,11 +31,9 @@ import { remoteDeviceInventory } from "../src/jarvis/remote-device-inventory.ts"
 import { PendingEnrollment } from "../src/jarvis/pending-enrollment.ts";
 import { CompassStore } from "../src/compass/store.ts";
 import { GoalControllerRuntime, type GoalControllerDecision } from "../src/orchestrator/goal-controller-runtime.ts";
-import type { GoalControllerExecutionBridge } from "../src/orchestrator/goal-controller-execution-bridge.ts";
 import { CompassGoalRegistryAdapter, CompassGoalDecisionStoreAdapter } from "../src/orchestrator/compass-goal-controller.ts";
 import { CompassWorkRunStore } from "../src/orchestrator/compass-work-run-store.ts";
 import { CompassGoalBridgeEventStore } from "../src/orchestrator/compass-goal-bridge-event-store.ts";
-import { createGoalBridgeEvent } from "../src/orchestrator/goal-bridge-events.ts";
 import { workRunProgress } from "../src/orchestrator/work-run-state.ts";
 import { validateWindowsVerificationDispatch } from "../src/orchestrator/windows-verification-dispatch.ts";
 
@@ -71,53 +69,47 @@ const goalController = new GoalControllerRuntime({
   registry: new CompassGoalRegistryAdapter(compass),
   decisionStore: new CompassGoalDecisionStoreAdapter(compass),
 });
-let goalExecution: GoalControllerExecutionBridge | undefined;
-const activeGoalExecutions = new Map<string, Promise<void>>();
-const scheduledGoalExecutions = new Map<string, ReturnType<typeof setImmediate>>();
+const activeGoalExecutions = new Map<string, ReturnType<typeof spawn>>();
+
+function encodeGoalExecutionContext(context: unknown[]): string {
+  const encoded = Buffer.from(JSON.stringify(context), "utf8").toString("base64");
+  if (encoded.length > 64_000) throw new Error("Goal execution context is too large");
+  return encoded;
+}
 
 function scheduleGoalExecution(decision: GoalControllerDecision, context: unknown[] = []): boolean {
   if (decision.action !== "CONTINUE_GOAL" || !decision.goalId) return false;
-  if (activeGoalExecutions.has(decision.goalId) || scheduledGoalExecutions.has(decision.goalId)) return true;
+  if (activeGoalExecutions.has(decision.goalId)) return true;
   const goalId = decision.goalId;
-  // Acknowledge accepted intake before autonomous work begins. This keeps the
-  // ingress responsive and prevents execution/SQLite work from extending the
-  // owner's HTTP request lifetime.
-  const immediate = setImmediate(() => {
-    scheduledGoalExecutions.delete(goalId);
-    const task = (async () => {
-      if (!goalExecution) {
-        const [{ GoalControllerExecutionBridge: Bridge }, { CompassGoalExecutionAdapter }] = await Promise.all([
-          import("../src/orchestrator/goal-controller-execution-bridge.ts"),
-          import("../src/orchestrator/compass-goal-execution-adapter.ts"),
-        ]);
-        goalExecution = new Bridge(new CompassGoalExecutionAdapter(compassPath));
-      }
-      return goalExecution.executeUntilGoalTerminal(decision, { maxRuns: 12, context });
-    })()
-      .then(async (result) => {
-        const report = result.report;
-        const type = result.reason === "goal_complete"
-          ? "GOAL_COMPLETED"
-          : result.reason === "human_gate"
-            ? "HUMAN_REQUIRED"
-            : result.reason === "blocked" || result.reason === "retry_exhausted"
-              ? "GOAL_BLOCKED"
-              : "IMPORTANT_UPDATE";
-        await goalBridgeEvents.append(createGoalBridgeEvent({
-          goalId, type,
-          summary: result.reason ?? report?.stopReason ?? "goal_execution_updated",
-          evidenceRefs: [],
-        }));
-        if (result.reason && result.reason !== "goal_complete") console.warn("[goriq-goal]", goalId, result.reason);
-      })
-      .catch((error) => {
-        console.error("[goriq-goal]", goalId, error instanceof Error ? error.message : "execution_failed");
-      })
-      .finally(() => { activeGoalExecutions.delete(goalId); });
-    activeGoalExecutions.set(goalId, task);
+  // Run autonomous continuation outside the Broker process. Goal execution can
+  // perform many bounded cycles and synchronous local checks; keeping it in a
+  // child process prevents owner/API traffic from being starved by that work.
+  const child = spawn(process.execPath, ["scripts/jarvis-goal-executor.ts"], {
+    cwd: process.cwd(),
+    windowsHide: true,
+    stdio: ["ignore", "ignore", "pipe"],
+    env: {
+      ...process.env,
+      JARVIS_GOAL_EXECUTION_GOAL_ID: goalId,
+      JARVIS_GOAL_EXECUTION_CONTEXT_B64: encodeGoalExecutionContext(context),
+      JARVIS_GOAL_EXECUTION_COMPASS_PATH: compassPath,
+    },
   });
-  scheduledGoalExecutions.set(goalId, immediate);
-  immediate.unref();
+  let stderr = "";
+  child.stderr?.on("data", (chunk) => {
+    stderr = (stderr + String(chunk)).slice(-8_000);
+  });
+  child.once("error", (error) => {
+    console.error("[goriq-goal]", goalId, error instanceof Error ? error.message : "executor_spawn_failed");
+  });
+  child.once("exit", (code, signal) => {
+    activeGoalExecutions.delete(goalId);
+    if (code !== 0) {
+      console.error("[goriq-goal]", goalId, `executor_exit=${code ?? "null"} signal=${signal ?? "none"} ${stderr.trim()}`.trim());
+    }
+  });
+  activeGoalExecutions.set(goalId, child);
+  child.unref();
   return true;
 }
 const persisted = store.load();
