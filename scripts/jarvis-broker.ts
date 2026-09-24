@@ -32,7 +32,6 @@ import { PendingEnrollment } from "../src/jarvis/pending-enrollment.ts";
 import { CompassStore } from "../src/compass/store.ts";
 import { GoalControllerRuntime, type GoalControllerDecision } from "../src/orchestrator/goal-controller-runtime.ts";
 import { GoalControllerExecutionBridge } from "../src/orchestrator/goal-controller-execution-bridge.ts";
-import { CompassGoalExecutionAdapter } from "../src/orchestrator/compass-goal-execution-adapter.ts";
 import { CompassGoalRegistryAdapter, CompassGoalDecisionStoreAdapter } from "../src/orchestrator/compass-goal-controller.ts";
 import { CompassWorkRunStore } from "../src/orchestrator/compass-work-run-store.ts";
 import { CompassGoalBridgeEventStore } from "../src/orchestrator/compass-goal-bridge-event-store.ts";
@@ -72,14 +71,20 @@ const goalController = new GoalControllerRuntime({
   registry: new CompassGoalRegistryAdapter(compass),
   decisionStore: new CompassGoalDecisionStoreAdapter(compass),
 });
-const goalExecution = new GoalControllerExecutionBridge(new CompassGoalExecutionAdapter(compassPath));
+let goalExecution: GoalControllerExecutionBridge | undefined;
 const activeGoalExecutions = new Map<string, Promise<void>>();
 
 function scheduleGoalExecution(decision: GoalControllerDecision, context: unknown[] = []): boolean {
   if (decision.action !== "CONTINUE_GOAL" || !decision.goalId) return false;
   if (activeGoalExecutions.has(decision.goalId)) return true;
   const goalId = decision.goalId;
-  const task = goalExecution.executeUntilGoalTerminal(decision, { maxRuns: 12, context })
+  const task = (async () => {
+    if (!goalExecution) {
+      const { CompassGoalExecutionAdapter } = await import("../src/orchestrator/compass-goal-execution-adapter.ts");
+      goalExecution = new GoalControllerExecutionBridge(new CompassGoalExecutionAdapter(compassPath));
+    }
+    return goalExecution.executeUntilGoalTerminal(decision, { maxRuns: 12, context });
+  })()
     .then(async (result) => {
       const report = result.report;
       const type = result.reason === "goal_complete"
