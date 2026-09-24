@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createCognitiveMaterialProxy,createCognitiveLearningProxy } from "../src/orchestrator/cognitive-material-proxy.ts";
+import { createCognitiveGoalProxy, createCognitiveMaterialProxy,createCognitiveLearningProxy } from "../src/orchestrator/cognitive-material-proxy.ts";
 const request=(body:unknown)=>new Request("http://localhost",{method:"POST",body:JSON.stringify(body)});
 const input={goalId:"goal-0123456789abcdef",goalDigest:"a".repeat(64),materials:[{format:"text",content:"42",criteria:["criterion-1"]}],mappingAcknowledged:true};
 test("owner material proxy rejects authority, oversized input and unauthenticated calls before Broker",async()=>{
@@ -26,4 +26,13 @@ test("learning proxy restricts actions and never accepts caller verification or 
  const action=createCognitiveLearningProxy(async()=>true,broker);
  for(const bad of [{operation:"import-history",path:"/"},{operation:"training-candidate",verified:true},{operation:"promote"},{operation:"correct",goalId:input.goalId,originalId:"a",replacementId:"b",verified:true}])assert.equal((await action(request(bad))).status,400);
  assert.equal(calls,0);for(const operation of ["import-history","training-candidate"])assert.equal((await action(request({operation}))).status,200);
+});
+
+test("Goal refinement proxy requires owner and exact bounded criteria without scope authority",async()=>{
+ let calls=0;const broker=async(path:string,init?:RequestInit)=>{calls++;assert.equal(path,"/api/jarvis/admin/cognitive/goal");assert.ok(init?.signal);return Response.json({adopted:true});};
+ const valid={goalId:input.goalId,goalDigest:input.goalDigest,successCriteria:["Exact output"],acknowledgement:true};
+ assert.equal((await createCognitiveGoalProxy(async()=>false,broker)(request(valid))).status,401);
+ const action=createCognitiveGoalProxy(async()=>true,broker);
+ for(const bad of [{...valid,title:"replace"},{...valid,verified:true},{...valid,acknowledgement:false},{...valid,successCriteria:["x".repeat(501)]}])assert.equal((await action(request(bad))).status,400);
+ assert.equal(calls,0);assert.equal((await action(request(valid))).status,200);assert.equal(calls,1);
 });

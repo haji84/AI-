@@ -1,3 +1,4 @@
+import { validateCognitiveGoalRefinement, prepareCognitiveGoalRefinement, findCognitiveGoalRefinementReplay } from "../orchestrator/cognitive-goal-refinement.ts";
 import { lstat } from "node:fs/promises";
 import { CognitiveMaterialIntake } from "./cognitive-material-intake.ts";
 import { CognitiveHistoricalLearningStore } from "./cognitive-history.ts";
@@ -58,6 +59,7 @@ export class CognitiveService {
       return { goalId, goalDigest: goal ? cognitiveDigest(goal) : null,
         criteria: goal?.successCriteria.map((description, i) => ({ id: `criterion-${i + 1}`, description })) ?? [],
         materialIntakeEnabled: Boolean(this.options.materialIntake), materials,
+        goalRefinementAvailable: Boolean(this.options.materialIntake && goal && goalId && !configurationBlocker && !goal.successCriteria.length && !state && !(await new CompassWorkStateStoreAdapter(compass).get(goalId)) && !(await this.learning.hasGoalHistory(this.options.partition!, goalId)) && !compass.getState().decisions.some(v => v && typeof v === "object" && (v as {kind?:unknown}).kind === "goriq-cognitive-goal-refinement" && (v as {goalId?:unknown}).goalId === goalId)),
         historyImportEnabled: Boolean(this.options.historyImport), history: await this.history.summary(this.options.partition!),
         goalTitle: goal?.title ?? null, busy: this.busy, goalComplete: !configurationBlocker && (!localConfigured || Boolean(state?.execution_contract_digest)) && compass.getState().status === "goal_complete",
         mode: configurationBlocker ? "DEGRADED" : state?.mode ?? "READY", attempts: state?.attempts.length ?? 0,
@@ -99,6 +101,28 @@ export class CognitiveService {
       await this.learning.recordCorrection({ id, partition: this.options.partition!, goalId, task: goal.title, environment: replacement.environment,
         originalActionId: original.actionId, replacementActionId: replacement.actionId, evidenceRefs: replacement.evidenceRefs, verified: true, scope: "preference" });
       return { accepted: true, id };
+    } finally { compass.close(); if (release) await release(); this.busy = false; }
+  }
+  async refineGoal(value: unknown) {
+    await this.validateStateRoot();
+    if (!this.options.materialIntake) throw Error("Goal refinement requires host material intake configuration");
+    const input = validateCognitiveGoalRefinement(value);
+    if (this.busy) throw Error("Cognitive cycle already running");
+    this.busy = true;
+    const compass = new CompassStore(this.dbPath); let release: (() => Promise<void>) | undefined;
+    try {
+      release = await acquireCognitiveLease(`${this.dbPath}.cognitive-run.lock`);
+      const record = compass.getGoal(); if (!record) throw Error("Current Goal required");
+      const snapshot = compass.getState();
+      const replay = findCognitiveGoalRefinementReplay(record, snapshot.decisions, input);
+      if (replay) return { adopted: true, replayed: true, goalId: replay.goalId, goalDigest: replay.targetGoalDigest };
+      if (snapshot.decisions.some(v => v && typeof v === "object" && (v as {kind?:unknown}).kind === "goriq-cognitive-goal-refinement" && (v as {goalId?:unknown}).goalId === input.goalId)) throw Error("Existing Goal refinement requires explicit review");
+      const prepared = prepareCognitiveGoalRefinement(record, input);
+      const goal = compassGoalToLoopGoal(record), goalId = goalWorkStateId(goal);
+      const checkpoint = await new CognitiveStateStore(this.options.stateRoot!, this.options.partition!).get(goalId);
+      if (checkpoint || await new CompassWorkStateStoreAdapter(compass).get(goalId) || await this.learning.hasGoalHistory(this.options.partition!, goalId) || await loadCognitiveRuntimeWork(this.options, goalId, goal)) throw Error("Existing work requires explicit review; only pristine Goals may adopt criteria");
+      compass.adoptPristineGoalCriteria(record, snapshot, input.successCriteria, prepared.receipt);
+      return { adopted: true, replayed: false, goalId, goalDigest: prepared.receipt.targetGoalDigest };
     } finally { compass.close(); if (release) await release(); this.busy = false; }
   }
   private materialStore() {

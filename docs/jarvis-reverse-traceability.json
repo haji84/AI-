@@ -550,12 +550,12 @@
     },
     {
       "path": "docs/architecture/goriq-cognitive-core.md",
-      "sha256": "4fda7c62454dffcb3a3b73b7a3ae34a5a023ec7d3cc6ecd32e09df8b6ca58cf3",
+      "sha256": "fe64a84ff37f759ddcbc3300cda739d0648286417954e132f999e9efd35d463f",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OWN-001"
       ],
-      "reason": "Issue #1216 reviewed Cognitive Core integration/hardening; mapped requirement does not imply full acceptance"
+      "reason": "Issue #1216 reviewed Cognitive Core integration/hardening; mapped requirement does not imply full acceptance; #1216 explicit owner DoD adoption: strict bounded input, unchanged Goal identity, full Goal/state atomic CAS and receipt-only replay; independent completion verification remains required"
     },
     {
       "path": "docs/architecture/jarvis-bounded-fact-research.md",
@@ -933,7 +933,7 @@
     },
     {
       "path": "scripts/jarvis-broker.ts",
-      "sha256": "250bec86f1a56cb491ae6cbecd7a58c4a0d8d70ba708eb82fe0ef05177488a57",
+      "sha256": "60114895bc5af6f6bb8317b62b7afcc65094d79740ec5666d9974118d69666aa",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "NET-006",
@@ -951,7 +951,7 @@
         "GOV-025",
         "OWN-001"
       ],
-      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification; #1216 bounded local cognition/owner entry integration, not full capability or physical acceptance"
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification; #1216 bounded local cognition/owner entry integration, not full capability or physical acceptance; #1216 explicit owner DoD adoption: strict bounded input, unchanged Goal identity, full Goal/state atomic CAS and receipt-only replay; independent completion verification remains required"
     },
     {
       "path": "scripts/jarvis-direct-commander-service.sh",
@@ -1363,6 +1363,15 @@
         "SEC-002"
       ],
       "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/app/api/jarvis/cognitive/goal/route.ts",
+      "sha256": "2a00c4fb1153a4c4c71a6663dd90be9fbd6c72bbb8d12285dc0888bbcc45ee95",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OWN-001"
+      ],
+      "reason": "#1216 explicit owner DoD adoption: strict bounded input, unchanged Goal identity, full Goal/state atomic CAS and receipt-only replay; independent completion verification remains required"
     },
     {
       "path": "src/app/api/jarvis/cognitive/learning/route.ts",
@@ -2379,6 +2388,15 @@
       "reason": "Single owner front door and navigation shell"
     },
     {
+      "path": "src/app/jarvis/tasks/CognitiveGoalCriteria.tsx",
+      "sha256": "cf1050bd44ecb2396ed26c4de3b884a0c9e80cbbe3b4b9d531d6b47252612c74",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OWN-001"
+      ],
+      "reason": "#1216 explicit owner DoD adoption: strict bounded input, unchanged Goal identity, full Goal/state atomic CAS and receipt-only replay; independent completion verification remains required"
+    },
+    {
       "path": "src/app/jarvis/tasks/CognitiveLearning.tsx",
       "sha256": "6bc040301091ca084ec7f787eefac441a9c0ea9956cf0348fb28547cc11ccba1",
       "classification": "COVERED_BY_REQUIREMENT",
@@ -2398,12 +2416,12 @@
     },
     {
       "path": "src/app/jarvis/tasks/CognitivePanel.tsx",
-      "sha256": "cdebe99c67099f67cb60ab8d04e2c73e64d72bd7fd009da33b0a18bbcd2339f6",
+      "sha256": "e087020023411b3c2e9ec90694752665ed811b4506e191c5dbd5d66d5cee43cd",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OWN-001"
       ],
-      "reason": "#1216 Cognitive Core component; implementation link only, benchmark and product acceptance tracked separately"
+      "reason": "#1216 Cognitive Core component; implementation link only, benchmark and product acceptance tracked separately; #1216 explicit owner DoD adoption: strict bounded input, unchanged Goal identity, full Goal/state atomic CAS and receipt-only replay; independent completion verification remains required"
     },
     {
       "path": "src/app/jarvis/tasks/page.tsx",
@@ -2597,7 +2615,7 @@
     },
     {
       "path": "src/compass/store.ts",
-      "sha256": "d4f411709b300b12f4e75d8a53d29a0efc91c785343eeb2e69d7363ae44e6326",
+      "sha256": "59c3a2881391cce4411106178a683d7fc24e9b67cfa63c3b9a345fdef9abbc95",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-002",
@@ -2606,9 +2624,10 @@
         "AUTO-005",
         "AUTO-006",
         "AUTO-007",
-        "AUTO-008"
+        "AUTO-008",
+        "OWN-001"
       ],
-      "reason": "Declared store.ts responsibility implements/supports Goal persistence; DoD persistence; Current State persistence; Decisions persistence; Deliverables persistence; Verification persistence; Next Action persistence. Parent ownership is not functional or physical acceptance evidence."
+      "reason": "Declared store.ts responsibility implements/supports Goal persistence; DoD persistence; Current State persistence; Decisions persistence; Deliverables persistence; Verification persistence; Next Action persistence. Parent ownership is not functional or physical acceptance evidence.; #1216 explicit owner DoD adoption: strict bounded input, unchanged Goal identity, full Goal/state atomic CAS and receipt-only replay; independent completion verification remains required"
     },
     {
       "path": "src/compass/tools.ts",
@@ -2705,12 +2724,12 @@
     },
     {
       "path": "src/gai/cognitive-learning.ts",
-      "sha256": "7ac5cb5897cd06c07c7e696f8a2e2ceadc6a5a4dc353310dd139415b12e63fc8",
+      "sha256": "9b5fff50ee9e6b03c84012f88c79dcc0f220fba0cbf5a6be87755040328ec0d7",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OWN-001"
       ],
-      "reason": "Issue #1216 reviewed Cognitive Core integration/hardening; mapped requirement does not imply full acceptance"
+      "reason": "Issue #1216 reviewed Cognitive Core integration/hardening; mapped requirement does not imply full acceptance; reviewed same-Goal partitioned runtime experience/correction history guard preserves prior work before DoD adoption"
     },
     {
       "path": "src/gai/cognitive-lease.ts",
@@ -2750,12 +2769,12 @@
     },
     {
       "path": "src/gai/cognitive-service.ts",
-      "sha256": "6e7c31e576101a8bcf24d953f1e1a76af7246b38efef5e789f1f98c90d34cde6",
+      "sha256": "cf30f3ce6b65d65731ff6a99e733e713dabde263a614d1b4fff6b188955712d4",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OWN-001"
       ],
-      "reason": "#1216 Cognitive Core component; implementation link only, benchmark and product acceptance tracked separately"
+      "reason": "#1216 Cognitive Core component; implementation link only, benchmark and product acceptance tracked separately; #1216 explicit owner DoD adoption: strict bounded input, unchanged Goal identity, full Goal/state atomic CAS and receipt-only replay; independent completion verification remains required; reviewed same-Goal partitioned runtime experience/correction history guard preserves prior work before DoD adoption"
     },
     {
       "path": "src/gai/cognitive-state.ts",
@@ -4286,13 +4305,31 @@
       "reason": "Declared cloud-runtime.ts responsibility implements/supports Software Development Autopilot; Executor. Parent ownership is not functional or physical acceptance evidence."
     },
     {
-      "path": "src/orchestrator/cognitive-material-proxy.ts",
-      "sha256": "71ea14eea701a470485962e10449ed551da7d91d92f9ff852cf70d6f66682cdd",
+      "path": "src/orchestrator/cognitive-goal-input.ts",
+      "sha256": "6d170bed324d519beaab08bcb8004020fbe38208286eccd7aec00949cbd883a8",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OWN-001"
       ],
-      "reason": "Owner-first strict-schema bounded material/learning proxy with timeout, safe response handling and verified-download checks"
+      "reason": "#1216 explicit owner DoD adoption: strict bounded input, unchanged Goal identity, full Goal/state atomic CAS and receipt-only replay; independent completion verification remains required"
+    },
+    {
+      "path": "src/orchestrator/cognitive-goal-refinement.ts",
+      "sha256": "d12ecefeef6a229cbb121a6967d95c1582d8722e2ac79f9a35ef0b138cd84604",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OWN-001"
+      ],
+      "reason": "#1216 explicit owner DoD adoption: strict bounded input, unchanged Goal identity, full Goal/state atomic CAS and receipt-only replay; independent completion verification remains required"
+    },
+    {
+      "path": "src/orchestrator/cognitive-material-proxy.ts",
+      "sha256": "82fb407b97a2713f8695bd1a6d188dc0c4cb478a82f7c916bbb3574fd7f65e5c",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OWN-001"
+      ],
+      "reason": "Owner-first strict-schema bounded material/learning proxy with timeout, safe response handling and verified-download checks; #1216 explicit owner DoD adoption: strict bounded input, unchanged Goal identity, full Goal/state atomic CAS and receipt-only replay; independent completion verification remains required"
     },
     {
       "path": "src/orchestrator/cognitive-proxy.ts",

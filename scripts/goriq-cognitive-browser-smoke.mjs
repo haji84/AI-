@@ -8,12 +8,14 @@ import {once} from 'node:events';
 import assert from 'node:assert/strict';
 const cwd=process.cwd();
 const {CompassStore}=await import(pathToFileURL(join(cwd,'src/compass/store.ts')));
+const {GoalControllerRuntime}=await import(pathToFileURL(join(cwd,'src/orchestrator/goal-controller-runtime.ts')));
+const {CompassGoalRegistryAdapter}=await import(pathToFileURL(join(cwd,'src/orchestrator/compass-goal-controller.ts')));
 // Use an already installed test runtime/browser; never download or reuse an owner profile.
 const {chromium}=await import(process.env.GORIQ_BROWSER_PLAYWRIGHT ? pathToFileURL(process.env.GORIQ_BROWSER_PLAYWRIGHT).href : 'playwright');
 if(!process.env.GORIQ_BROWSER_EXECUTABLE)throw Error('Specify an already installed GORIQ_BROWSER_EXECUTABLE');
 const artifactRoot=await mkdtemp(join(tmpdir(),'goriq-cognitive-visual-'));
 const root=await mkdtemp(join(tmpdir(),'goriq-cognitive-browser-')),data=join(root,'data');if(!resolve(root).startsWith(resolve(tmpdir())+sep))throw Error('Unexpected temporary path');await mkdir(data);
-const db=new CompassStore(join(root,'compass.db'));db.setGoal({title:'添付材料をそのまま保存する',successCriteria:['添付したテキストが成果物にそのまま保存される']});db.close();
+const db=new CompassStore(join(root,'compass.db'));await new GoalControllerRuntime({registry:new CompassGoalRegistryAdapter(db)}).handle({source:'jarvis',text:'添付したテキストをそのまま保存して完成させて'});db.close();
 const sample=join(root,'sample.txt'),expected='GORIQ local-only material acceptance: 42';await writeFile(sample,expected);
 const port=async()=>{const s=createServer();s.listen(0,'127.0.0.1');await once(s,'listening');const p=s.address().port;await new Promise(r=>s.close(r));return p;};
 const brokerPort=await port(),webPort=await port(),base='http://127.0.0.1:'+webPort,token='isolated-cognitive-ui-owner-token-not-production';
@@ -31,6 +33,14 @@ await page.locator('input[name=passcode]').fill('isolated-cognitive-ui-password'
 await page.locator('form[action="/api/owner-login"] button[type=submit]').click();
 await page.waitForURL('**/jarvis/tasks');
 const panel=page.getByRole('region',{name:'GORIQ Cognitive Core',exact:true});
+await panel.getByLabel('完了条件（1行1条件）',{exact:true}).waitFor();
+const before=await page.evaluate(async()=>await(await fetch('/api/jarvis/cognitive')).json());assert.equal(before.criteria.length,0);assert.equal(await panel.getByRole('button',{name:'現在のGoalを続ける',exact:true}).isDisabled(),true);
+await panel.getByLabel('完了条件（1行1条件）',{exact:true}).fill('添付したテキストが成果物にそのまま保存される');
+await panel.getByLabel('この条件で、依頼した目標の完了を確認できます。',{exact:true}).check();
+const adoptionResponse=page.waitForResponse(r=>r.url().endsWith('/api/jarvis/cognitive/goal')&&r.request().method()==='POST');
+await panel.getByRole('button',{name:'完了条件を登録',exact:true}).click();const adoption=await adoptionResponse;assert.equal(adoption.status(),200,await adoption.text());
+await panel.getByLabel('完了条件（1行1条件）',{exact:true}).waitFor({state:'detached'});
+const adopted=await page.evaluate(async()=>await(await fetch('/api/jarvis/cognitive')).json());assert.equal(adopted.goalId,before.goalId);assert.notEqual(adopted.goalDigest,before.goalDigest,JSON.stringify({before,adopted}));assert.equal(adopted.goalComplete,false);assert.equal(adopted.criteria.length,1);
 await panel.getByText('材料から成果物を作る',{exact:true}).waitFor();
 await panel.locator('input[type=file]').setInputFiles(sample);
 await panel.getByLabel('添付したテキストが成果物にそのまま保存される',{exact:true}).check();
@@ -50,5 +60,5 @@ const state=await page.evaluate(async()=>await(await fetch('/api/jarvis/cognitiv
 await page.reload();await panel.getByRole('button',{name:'このGoalは完了しました',exact:true}).waitFor();
 await page.setViewportSize({width:390,height:844});await panel.locator('summary').filter({hasText:'学習・訂正'}).click();await panel.screenshot({path:join(artifactRoot,'mobile.png')});
 const layout=await panel.evaluate(el=>({left:el.getBoundingClientRect().left,right:el.getBoundingClientRect().right,width:globalThis.innerWidth,scrollWidth:el.scrollWidth,clientWidth:el.clientWidth}));assert.ok(layout.left>=0&&layout.right<=layout.width+1&&layout.scrollWidth<=layout.clientWidth+1,JSON.stringify(layout));assert.deepEqual(errors,[]);
-console.log(JSON.stringify({status:'PASS',browser:await browser.version(),checks:['real owner login','material upload','criterion acknowledgement','Core execute','verified exact download','learning candidate feedback','repeated refresh without duplicate controls','reload persistence','390px expanded learning containment','no page errors'],externalAiCallsPerGoal:state.metrics.externalAiCallsPerGoal,attempts:state.attempts,desktop:join(artifactRoot,'desktop.png'),mobile:join(artifactRoot,'mobile.png')}));
+console.log(JSON.stringify({status:'PASS',browser:await browser.version(),checks:['real owner login','normal Goal intake with empty criteria','explicit DoD adoption preserving identity','material upload','criterion acknowledgement','Core execute','verified exact download','learning candidate feedback','repeated refresh without duplicate controls','reload persistence','390px expanded learning containment','no page errors'],externalAiCallsPerGoal:state.metrics.externalAiCallsPerGoal,attempts:state.attempts,desktop:join(artifactRoot,'desktop.png'),mobile:join(artifactRoot,'mobile.png')}));
 }catch(e){console.error(e);process.exitCode=1;}finally{await browser?.close();for(const p of processes){if(p.exitCode===null&&p.signalCode===null){const done=once(p,'exit');p.kill();await done;}}await rm(root,{recursive:true,force:true});}

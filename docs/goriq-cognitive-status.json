@@ -72,20 +72,26 @@
         "src/gai/cognitive-core.ts",
         "src/gai/cognitive-local-work.ts",
         "src/gai/cognitive-local-outcomes.ts",
-        "src/gai/cognitive-material-intake.ts"
+        "src/gai/cognitive-material-intake.ts",
+        "src/orchestrator/cognitive-goal-input.ts",
+        "src/orchestrator/cognitive-goal-refinement.ts"
       ],
       "test_refs": [
         "tests/goriq-cognitive-acceptance.test.ts",
         "tests/goriq-cognitive-outcomes.test.ts",
         "tests/goriq-cognitive-outcome-runtime.test.ts",
         "tests/goriq-material-intake.test.ts",
-        "tests/goriq-material-review.test.ts"
+        "tests/goriq-material-review.test.ts",
+        "tests/cognitive-goal-refinement.test.ts",
+        "tests/cognitive-goal-store.test.ts",
+        "tests/goriq-cognitive-goal-service.test.ts",
+        "tests/goriq-cognitive-goal-review.test.ts"
       ],
       "evidence_refs": [
         "docs/evidence/1216-cognitive-core.md"
       ],
       "last_verified_commit": null,
-      "remaining": "Owner-selected text/canonical JSON with explicit existing-criterion mapping now feeds fixed local conversion plans. Arbitrary novel decomposition, executable tool synthesis, conversational DoD discovery and general semantic outcome verification remain."
+      "remaining": "Normal Goal intake can acquire owner-authored explicit DoD before fixed local material conversion, preserving its identity and constraints. Automatic conversational DoD inference, arbitrary novel decomposition, executable tool synthesis and general semantic outcome verification remain."
     },
     {
       "id": "COG-004",
@@ -100,20 +106,28 @@
         "src/gai/cognitive-state.ts",
         "src/gai/cognitive-lease.ts",
         "src/gai/cognitive-material-intake.ts",
-        "src/gai/cognitive-service.ts"
+        "src/gai/cognitive-service.ts",
+        "src/orchestrator/cognitive-goal-input.ts",
+        "src/orchestrator/cognitive-goal-refinement.ts",
+        "src/compass/store.ts",
+        "src/gai/cognitive-learning.ts"
       ],
       "test_refs": [
         "tests/goriq-cognitive-recovery.test.ts",
         "tests/goriq-cognitive-runtime.test.ts",
         "tests/goriq-cognitive-outcome-runtime.test.ts",
         "tests/goriq-material-intake.test.ts",
-        "tests/goriq-material-review.test.ts"
+        "tests/goriq-material-review.test.ts",
+        "tests/cognitive-goal-refinement.test.ts",
+        "tests/cognitive-goal-store.test.ts",
+        "tests/goriq-cognitive-goal-service.test.ts",
+        "tests/goriq-cognitive-goal-review.test.ts"
       ],
       "evidence_refs": [
         "docs/evidence/1216-cognitive-core.md"
       ],
       "last_verified_commit": null,
-      "remaining": "Same-host Goal/root/request-bound material receipts, no-replace retries, restart and verified-download checks are integrated. Arbitrary external effects, cross-device transport and physical power-loss acceptance remain."
+      "remaining": "Pristine empty-criteria Goal adoption uses a full Goal/state atomic CAS and durable receipt; exact retry is a no-op and existing checkpoint/WorkState/material effects and same-Goal runtime experience/correction history are preserved. Same-host material receipts/restart remain integrated. Arbitrary external effects, cross-device transport and physical power-loss acceptance remain."
     },
     {
       "id": "COG-005",
@@ -429,7 +443,12 @@
         "src/app/jarvis/tasks/CognitiveLearning.tsx",
         "src/orchestrator/cognitive-material-proxy.ts",
         "src/app/api/jarvis/cognitive/materials/route.ts",
-        "src/app/api/jarvis/cognitive/learning/route.ts"
+        "src/app/api/jarvis/cognitive/learning/route.ts",
+        "src/orchestrator/cognitive-goal-input.ts",
+        "src/orchestrator/cognitive-goal-refinement.ts",
+        "src/compass/store.ts",
+        "src/app/api/jarvis/cognitive/goal/route.ts",
+        "src/app/jarvis/tasks/CognitiveGoalCriteria.tsx"
       ],
       "test_refs": [
         "tests/goriq-cognitive-broker.test.ts",
@@ -442,15 +461,19 @@
         "tests/goriq-cognitive-history-service.test.ts",
         "tests/goriq-cognitive-correction-boundary.test.ts",
         "tests/goriq-cognitive-legacy-ui.test.mjs",
-        "scripts/goriq-cognitive-browser-smoke.mjs"
+        "scripts/goriq-cognitive-browser-smoke.mjs",
+        "tests/cognitive-goal-refinement.test.ts",
+        "tests/cognitive-goal-store.test.ts",
+        "tests/goriq-cognitive-goal-service.test.ts",
+        "tests/goriq-cognitive-goal-review.test.ts"
       ],
       "evidence_refs": [
         "docs/evidence/1216-cognitive-core.md"
       ],
       "last_verified_commit": null,
-      "remaining": "Owner material body → immutable Goal/root/criterion receipt → actual Compass/Broker execution → verified download is integrated under opt-in host storage. UI history/correction controls preserve old Broker status compatibility. Normal conversational Goal criteria semantics, general attachment conversion, Production activation and required physical acceptance remain."
+      "remaining": "Normal Goal Controller intake → explicit owner DoD adoption → material mapping → Compass/Broker execution → verified download is integrated in the opt-in local mode. Existing work and criteria are not replaced. Automatic conversational criteria semantics, general attachment conversion, Production activation and required physical acceptance remain."
     }
   ],
-  "verified_software_commit": "bee371198444408217cfa19fbcff97424933ef18",
-  "ci_evidence": "https://github.com/haji84/AI-/actions/runs/35930238569"
+  "verified_software_commit": "68fd08bb586fb9863763ca8a44a08bbf7ee3a659",
+  "ci_evidence": "https://github.com/haji84/AI-/actions/runs/35934446080"
 }

@@ -308,6 +308,11 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
         return json(response, 200, artifact);
       } catch (error) { return json(response, 409, { message: error instanceof Error ? error.message : "specification proposal failed" }); }
     }
+    if (path === "/api/jarvis/admin/cognitive/goal" && method === "POST") {
+      if (body.length > 32_000) return json(response, 413, { message: "Goal refinement input too large" });
+      try { return json(response, 200, await cognitive.refineGoal(payload)); }
+      catch { return json(response, 409, { message: "このGoalは既に変更または実行されています。条件と履歴を保持して再確認してください。" }); }
+    }
     if (path === "/api/jarvis/admin/cognitive/materials") {
       try {
         if (method === "POST") {

@@ -148,3 +148,36 @@ Rollback: revert this additive intake/history/UI increment and remove only its o
 Full-suite diagnostics retained: the first run had1,575PASS/3FAIL. Bash was absent from the invoking process PATH; adding the already-installed Git Bash resolved its syntax-check failure. Two unchanged enrollment/wake expiry assertions also failed; bounded diagnostic copies (not weakened original tests) measured1,799,997ms and14,997ms and passed. One diagnostic copy initially failed from a relocated relative import; pointing that copy at the original dependency corrected the probe. The cause of the intermittent cross-process wall-clock assertions is not established. The final unchanged full suite passed; no enrollment/runtime timing logic or assertion was relaxed. CI on the exact software commit remains separate evidence.
 
 Next audited integration seam: `GoalControllerRuntime → GoalResolver → CompassGoalRegistryAdapter` currently creates new Goals with empty success criteria (`src/orchestrator/goal-controller-runtime.ts`). Reuse `normalizeGoalDraft`/`assessGoalReadiness` and additive goal refinement under current Goal ID/full digest/shared execution lease. Do not expose `applyExecutionReadyGoalDraft` directly: it unconditionally sets the Goal. Initial DoD adoption must reject existing criteria, pending effects, execution contracts, verified/child work; preserve identity/constraints/history and the definition_of_done_required fail-closed check. Model-generated criteria remain proposals, not authority or evidence. This next seam is audited but not implemented by this increment.
+
+
+## Exact material/history CI
+
+Software commit `68fd08bb586fb9863763ca8a44a08bbf7ee3a659`: [CI #1856](https://github.com/haji84/AI-/actions/runs/35934446080) **SUCCESS**. Repository guard, lint, full tests, P8 security, build and health passed. This validates the preceding material/history/correction increment, not completion of all Cognitive Core requirements.
+
+## Continuation 2026-09-24: explicit completion conditions through normal intake
+
+Source baseline `68fd08bb586fb9863763ca8a44a08bbf7ee3a659`. Normal Goal Controller intake creates an empty success-criteria list; a new owner-authenticated Tasks control now adopts explicit DoD before material work. Reuses GoalDraft normalization/readiness and the existing Compass Goal, execution lease and WorkState. No second Goal registry, schema change, network grant or provider was added.
+
+The bounded request contains only the current Goal ID/full digest, 1–16 explicit criteria and acknowledgement. Adoption preserves identity/title/description/constraints. An atomic full Goal+state compare-and-swap commits criteria and its digest receipt together; transaction failure restores both. Existing criteria, checkpoints, WorkState, runtime material contracts and prior adoption receipts prevent replacement. Exact retry after restart or execution is acknowledgement only, with no new write or completion authority. These owner-authored criteria are not automatic semantic interpretation or verification of their meaning.
+
+Independent review verified stale/competing submissions, a real intervening Compass write, unchanged pending work, malformed/cross-scope input, bounded owner-first proxy and no automatic transport retry. It identified an availability mismatch after restoring empty criteria while retaining a receipt; status now rejects that path too. A subsequent orphan-learning review adds rejection when same-Goal experience/correction history remains without its checkpoint. Other-Goal and other-principal memory do not block legitimate new work.
+
+Development failures retained: the first transactional store implementation attempted a nested transaction; the RED test failed and the write was moved into one existing transaction. The first Next build pulled host Compass filesystem modules through a request validator; extracting the pure input boundary repaired that dependency. A browser probe initially read status before its actual adoption POST had completed; it now awaits the real HTTP200 and checks the changed Goal digest before continuing. No checks were removed or weakened.
+
+Actual installed qwen3:4b smoke on this candidate: **PASS**, 23,947ms, local model used, configured output read back exactly, Goal completed, external AI calls per Goal0. This is one bounded host-catalog task, not general unknown-task ability.
+
+Final suite, browser and exact pushed commit/CI results follow after verification. Production remains inactive, PR #1217 draft, OWN-001 PARTIAL. General semantic DoD inference, arbitrary novel plans/executable skills, physical teaching binding, independently verified historical promotion, real R16/R17 campaigns, model training/promotion and automatic cross-device transport remain software/acceptance work.
+
+Rollback: revert this additive criteria/proxy/UI composition while retaining the adopted Goal criteria, Compass decisions and all learning/WorkState/checkpoints. Do not erase evidence or restore empty criteria to bypass existing-work checks. Existing Goal IDs and enrolled Worker credentials/queues remain unchanged.
+
+
+### Final explicit-DoD software verification
+
+- Full Windows suite: **1,608/1,608 PASS**, zero skipped, `node --test --test-concurrency=1` with the installed Git Bash in this process PATH.
+- P8 security: **331/331 PASS**, zero skipped, including staged new files.
+- Lint and production-format Next build: **PASS**. Build retains pre-existing dynamic filesystem tracing warnings; no deployment is implied.
+- Independent DoD contract/store/service/proxy review: **33/33 PASS**; additional orphan-learning/learning-service focused suite **38/38 PASS**. New orphan tests first reproduced5 failures and then passed.
+- Requirement audit: **504 surfaces / 341 requirements PASS**; functional_completion_claim=false.
+- Fresh installed Chrome153.0.8010.48: actual owner login → normal Goal Controller empty criteria → explicit UI DoD adoption (same Goal ID) → material upload/acknowledgement →2 Core actions → independent verification → exact downloaded output. Reload, three refreshes,390px expanded controls and no-page-errors checks pass; external AI calls0. The two stored screenshots were refreshed from this isolated fixture.
+
+The initial full run had1,605 PASS /3 FAIL: all three were existing repository secret checks matching a synthetic PEM header in a new rejection-test fixture. The fixture now constructs the identical header at runtime; the rejection test and scanner rules are unchanged. The complete rerun passed1,608. A later build caught the independent review test's incomplete Request type cast; the mock now starts from an actual Request with a throwing body getter. Its12 behavioral tests and the final build pass. This test-only correction was verified directly; exact-head CI reruns the full suite. No real private key was present.

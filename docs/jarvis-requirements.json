@@ -12190,7 +12190,12 @@
         "src/app/jarvis/tasks/CognitiveLearning.tsx",
         "src/orchestrator/cognitive-material-proxy.ts",
         "src/app/api/jarvis/cognitive/materials/route.ts",
-        "src/app/api/jarvis/cognitive/learning/route.ts"
+        "src/app/api/jarvis/cognitive/learning/route.ts",
+        "src/orchestrator/cognitive-goal-input.ts",
+        "src/orchestrator/cognitive-goal-refinement.ts",
+        "src/compass/store.ts",
+        "src/app/api/jarvis/cognitive/goal/route.ts",
+        "src/app/jarvis/tasks/CognitiveGoalCriteria.tsx"
       ],
       "test_refs": [
         "tests/goriq-cognitive-core.test.ts",
@@ -12211,7 +12216,11 @@
         "tests/goriq-material-intake.test.ts",
         "tests/goriq-material-review.test.ts",
         "tests/goriq-cognitive-legacy-ui.test.mjs",
-        "scripts/goriq-cognitive-browser-smoke.mjs"
+        "scripts/goriq-cognitive-browser-smoke.mjs",
+        "tests/cognitive-goal-refinement.test.ts",
+        "tests/cognitive-goal-store.test.ts",
+        "tests/goriq-cognitive-goal-service.test.ts",
+        "tests/goriq-cognitive-goal-review.test.ts"
       ],
       "evidence_refs": [
         "docs/evidence/1216-cognitive-core.md",
@@ -12219,10 +12228,10 @@
         "docs/audit/goriq-cognitive-learning-audit.md"
       ],
       "status": "PARTIAL",
-      "blocker": "Bounded owner material intake, outcome execution/download and explicit historical/correction UI are integrated. Normal conversational DoD semantics, unrestricted novel decomposition/executable skills, historical claim revalidation, teaching/R16 experiment/R17 promotion integration and physical/cross-device acceptance remain.",
+      "blocker": "Normal Goal intake, explicit owner-authored DoD adoption, bounded local material execution/download and historical/correction UI are integrated. Automatic conversational DoD semantics, unrestricted novel decomposition/executable skills, historical claim revalidation, teaching/R16 experiment/R17 promotion integration and physical/cross-device acceptance remain.",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "Finish exact-head CI/evidence for explicit owner material intake and historical/correction controls. Then connect ordinary Goal intake to trusted nonempty success criteria and semantic outcome verification; continue verified historical/teaching/research and model-improvement integration without promoting raw claims or weakening existing gates.",
+      "next_action": "Finish exact-commit CI/evidence for explicit owner DoD adoption with existing-work preservation. Then connect conversational criterion proposals and semantic outcome verification without treating model text as authority; continue verified historical/teaching/research and model-improvement integration under existing gates.",
       "last_verified_commit": null,
       "source_decisions": [
         "owner-intake-cc6f2a30e8336d322129e2972d1e8f90"

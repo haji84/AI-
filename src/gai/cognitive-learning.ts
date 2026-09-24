@@ -319,6 +319,15 @@ export class CognitiveLearningEngine {
 
   async candidates(partition: CognitiveLearningPartition): Promise<CognitiveSkillCandidate[]> { return this.serial(partition, async () => structuredClone((await this.load(partition)).candidates)); }
 
+  /** Any prior runtime experience or correction makes the Goal non-pristine, regardless of verification. */
+  async hasGoalHistory(partition: CognitiveLearningPartition, goalId: string): Promise<boolean> {
+    const target = cognitiveLearningText(goalId, "Goal history identity");
+    return this.serial(partition, async () => {
+      const data = await this.load(partition);
+      return data.experiences.some(item => item.goalId === target) || data.corrections.some(item => item.goalId === target);
+    });
+  }
+
   async exportVerifiedData(partition: CognitiveLearningPartition): Promise<{
     experiences: CognitiveLearningExperience[]; corrections: CognitiveCorrection[];
     heldoutFamilies: Array<Pick<CognitiveLearningExperience, "task" | "environment">>;
