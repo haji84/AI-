@@ -8,6 +8,7 @@ test("Mac resident runtime provisions a loopback-only bounded code Builder", () 
   const bootstrap = readFileSync(new URL("../scripts/jarvis-mac-zero-touch-install.sh", import.meta.url), "utf8");
   const runtime = readFileSync(new URL("../src/orchestrator/runtime-builder-capability.ts", import.meta.url), "utf8");
   const verifier = readFileSync(new URL("../src/orchestrator/runtime-development-verifier.ts", import.meta.url), "utf8");
+  const worker = readFileSync(new URL("../scripts/code-builder-worker-service.ts", import.meta.url), "utf8");
 
   assert.match(installer, /CODE_BUILDER_HOST<\/key><string>127\.0\.0\.1<\/string>/);
   assert.match(installer, /com\.gai\.code-builder-worker/);
@@ -15,9 +16,13 @@ test("Mac resident runtime provisions a loopback-only bounded code Builder", () 
   assert.match(installer, /WORKSPACE="\$ROOT\/workspace"/);
   assert.match(installer, /git clone --quiet "\$origin" "\$WORKSPACE"/);
   assert.match(installer, /Preserving in-progress isolated Builder workspace/);
+  assert.match(installer, /pnpm -C "\$WORKSPACE" install --frozen-lockfile/);
   assert.doesNotMatch(installer, /CODE_BUILDER_ALLOW_NON_LOOPBACK/);
   assert.match(runtime, /Library", "Application Support", "GAIWorker", "code-builder", "token\.txt"/);
   assert.match(verifier, /Library", "Application Support", "GAIWorker", "code-builder", "token\.txt"/);
+  assert.match(worker, /value\.kind === "repository_checks"/);
+  assert.match(worker, /"test:p8-security"/);
+  assert.match(worker, /repository checks passed/);
 
   const install = bootstrap.indexOf('install-code-builder-macos.sh');
   const broker = bootstrap.indexOf('cat >"$BROKER_PLIST"');
