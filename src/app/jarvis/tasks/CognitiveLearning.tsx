@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-export type LearningSnapshot={goalId:string|null;historyImportEnabled:boolean;history:{total:number;unverified:number};recentAttempts:{id:string;actionId:string;verified:boolean;success:boolean}[]};
+export type LearningSnapshot={research?:{comparisons:number;accepted:number;rejected:number;scope:"prediction-calibration-only"};goalId:string|null;historyImportEnabled:boolean;history:{total:number;unverified:number};recentAttempts:{id:string;actionId:string;verified:boolean;success:boolean}[]};
 export default function CognitiveLearning({state,disabled,onSaved}:{state:LearningSnapshot;disabled:boolean;onSaved:()=>Promise<unknown>}){
  const [busy,setBusy]=useState(false),[message,setMessage]=useState(""),[original,setOriginal]=useState(""),[replacement,setReplacement]=useState("");
  async function act(operation:string){setBusy(true);setMessage("");try{
@@ -11,6 +11,7 @@ export default function CognitiveLearning({state,disabled,onSaved}:{state:Learni
  }catch(e){setMessage(e instanceof Error?e.message:"学習状態を確認してください");}finally{setBusy(false);}}
  if(!state.history)return <p className="muted">接続先では学習候補の画面にまだ対応していません。現在のGoal操作は引き続き利用できます。</p>;
  return <details><summary>学習・訂正</summary><p>保存した履歴候補 {state.history.total}件（未検証 {state.history.unverified}件）</p>
+  {state.research&&<p aria-label="予測の検証">{state.research.comparisons===0?"予測の比較は未実施です。独立した評価用の証拠が必要です。":`予測の比較 ${state.research.comparisons}件（改善 ${state.research.accepted}件・不採用 ${state.research.rejected}件）。タスク成功率の改善やSkill・モデルの昇格を示すものではありません。`}</p>}
   <button className="button secondary" disabled={disabled||busy||!state.historyImportEnabled} onClick={()=>void act("import-history")}>設定済みの履歴を取り込む</button>
   <button className="button secondary" disabled={disabled||busy} onClick={()=>void act("training-candidate")}>学習候補を確認</button>
   <fieldset className="jarvis-task-form" style={{gridTemplateColumns:"minmax(0,1fr)",minWidth:0}} disabled={disabled||busy}><legend>実行結果の訂正</legend><p className="muted">このGoalで実行した操作と、正しかった検証済み操作を選んでください。</p>

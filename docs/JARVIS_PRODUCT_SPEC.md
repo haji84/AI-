@@ -13936,7 +13936,10 @@ Owner instruction 2026-09-23, Issue #1216. Full normative integration contract: 
     "src/app/api/jarvis/cognitive/goal/route.ts",
     "src/app/jarvis/tasks/CognitiveGoalCriteria.tsx",
     "src/app/api/jarvis/cognitive/goal/proposal/route.ts",
-    "src/gai/cognitive-operation.ts"
+    "src/gai/cognitive-operation.ts",
+    "src/gai/cognitive-research.ts",
+    "src/gai/research-loop.ts",
+    "src/gai/world-model-calibration.ts"
   ],
   "test_refs": [
     "tests/goriq-cognitive-core.test.ts",
@@ -13968,7 +13971,10 @@ Owner instruction 2026-09-23, Issue #1216. Full normative integration contract: 
     "scripts/goriq-local-goal-proposal-smoke.ts",
     "tests/cognitive-operation-learning.test.ts",
     "tests/goriq-operation-runtime.test.ts",
-    "tests/goriq-operation-review.test.ts"
+    "tests/goriq-operation-review.test.ts",
+    "tests/goriq-research-calibration.test.ts",
+    "tests/goriq-research-boundary.test.ts",
+    "tests/goriq-research-review.test.ts"
   ],
   "evidence_refs": [
     "docs/evidence/1216-cognitive-core.md",
@@ -13976,10 +13982,10 @@ Owner instruction 2026-09-23, Issue #1216. Full normative integration contract: 
     "docs/audit/goriq-cognitive-learning-audit.md"
   ],
   "status": "PARTIAL",
-  "blocker": "Normal Goal intake, local unverified DoD proposals, owner adoption, verified material execution/download and historical/correction UI are integrated. Independent local Goals now generate inert host-operation skill candidates without changing exact action identities. Actual measured-gain certification, broad semantic fidelity, unrestricted decomposition/executable skills, historical revalidation, teaching/R16 experiment/R17 promotion integration and physical/cross-device acceptance remain.",
+  "blocker": "Local Goal/material execution, inert cross-Goal operation candidates and bounded evidence-bound R16 prediction calibration are integrated. Real measured skill gain, general semantic fidelity/novel executable skills, historical revalidation, teaching integration, R16 tool experiments/R17 promotion, model training and physical/cross-device acceptance remain. Synthetic calibration comparisons are not real task-success evidence; ordinary runtime lacks independent heldout trials.",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "Finish exact-commit CI for operation learning and recovery/correction boundaries. Then integrate an independently verified bounded experiment/certification path with real held-out outcomes and measurable gain; retain inert candidates when gain is absent. Continue semantic, historical/teaching and model-improvement integration without promoting prose or weakening gates.",
+  "next_action": "Verify exact-commit research boundary/calibration CI. Preserve frozen train/heldout separation and zero comparison when evidence is absent; then implement authoritative independent evaluation collection and bounded skill/research execution with actual oracles, while completing semantic/teaching/history/model integration without weakening gates.",
   "last_verified_commit": null,
   "source_decisions": [
     "owner-intake-cc6f2a30e8336d322129e2972d1e8f90"

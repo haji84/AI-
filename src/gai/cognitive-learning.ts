@@ -1,3 +1,4 @@
+import { evaluateCognitiveResearch, researchSummary, sameResearchMeasurement } from "./cognitive-research.ts";
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -11,7 +12,7 @@ import { ClosedLearningLoop } from "./closed-learning-loop.ts";
 import { VerifiedWorkLearningEngine } from "./work-learning.ts";
 import { ContinualLearningRuntime } from "./continual-learning-runtime.ts";
 import { SelfImprovementRuntime, type ImprovementAdapters, type ImprovementCandidate } from "./self-improvement-runtime.ts";
-import { clusterFailures, proposeResearchHypotheses, PersistentResearchHistory } from "./research-loop.ts";
+import { clusterFailures, proposeResearchHypotheses, PersistentResearchHistory, decideExperiment } from "./research-loop.ts";
 
 export interface CognitiveLearningPartition { tenantId: string; principalId: string }
 export type CognitiveLearningSource = "deterministic" | "skill" | "memory" | "local-model" | "local-experiment" | "external-expert" | "degraded";
@@ -330,7 +331,30 @@ export class CognitiveLearningEngine {
         if (!["low", "medium", "high"].includes(maxRisk)) continue;
         skills.push({ id: candidate.id, actionId: binding.catalogActionId ?? `operation:${binding.catalogOperation}`, ...(binding.catalogOperation ? { operation: binding.catalogOperation } : {}), environment: binding.environment, confidence: candidate.confidence, evidenceRefs: refs(certified.certificationEvidence), maxRisk });
       }
-      return { memories, skills: skills.sort((a, b) => b.confidence - a.confidence).slice(0, 8), strategies, avoidActionIds, corrections };
+      const researchHistory = new PersistentResearchHistory(this.partitionPath(input.partition, "research.json"));
+      const reports = evaluateCognitiveResearch(data.experiences, input);
+      const recorded = await researchHistory.listExperiments();
+      for (const report of reports) {
+        if (!report.hypothesis || !report.experimentInput) continue;
+        const previous = recorded.find(e => e.id === report.experimentInput!.id);
+        if (previous) {
+          if (!sameResearchMeasurement(previous, report.experimentInput)) throw Error("Research measurement replay conflict");
+          continue;
+        }
+        await researchHistory.saveHypothesis(report.hypothesis);
+        await researchHistory.recordExperiment(decideExperiment(report.experimentInput));
+      }
+      return { research: reports.map(researchSummary), memories, skills: skills.sort((a, b) => b.confidence - a.confidence).slice(0, 8), strategies, avoidActionIds, corrections };
+    });
+  }
+
+  /** Owner-visible counts only; reading status never launches or promotes an experiment. */
+  async researchStatus(partition: CognitiveLearningPartition) {
+    return this.serial(partition, async () => {
+      const history = new PersistentResearchHistory(this.partitionPath(partition, "research.json"));
+      const comparisons = (await history.listExperiments()).filter(e => e.id.startsWith("calibration:"));
+      return { comparisons: comparisons.length, accepted: comparisons.filter(e => e.decision === "accepted").length,
+        rejected: comparisons.filter(e => e.decision === "rejected").length, scope: "prediction-calibration-only" as const };
     });
   }
 

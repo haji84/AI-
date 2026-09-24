@@ -69,7 +69,7 @@ export class CognitiveService {
         confidence: state?.confidence ?? null, updatedAt: state?.updated_at ?? null,
         externalAIEnabled: this.options.allowExternalAI === true,
         recentAttempts: state?.attempts.slice(-16).map(a => ({ id: a.id, actionId: a.actionId, verified: a.verified, success: a.success })) ?? [],
-        localActionsConfigured: localConfigured, metrics };
+        localActionsConfigured: localConfigured, research: await this.learning.researchStatus(this.options.partition!), metrics };
     } finally { compass.close(); }
   }
   async continue(goalId: string) {

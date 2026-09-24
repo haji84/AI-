@@ -10,10 +10,12 @@ Reuse existing learning/skill libraries. Add six strict versioned host operation
 ## Tasks
 - [x] TDD learning: two independent same-task/environment/operation Goals create one inert candidate; exclude heldout/shared evidence, legacy mixing and unsupported operations. Preserve existing certification gain gate and legacy JSON bindings. Verified regression may quarantine a matching certified operation, never forbid the whole operation family.
 - [x] TDD runtime: host catalog derives operation; Core/outbox/attempt/recovery preserve it; certified recall selects only current authorized eligible action after dependencies. Real two-Goal service workflow yields candidates while preserving exact per-Goal file verification; no model/provider required.
-- [ ] Independent review, focused/full/security/lint/build/CI, ledger/spec/evidence/GitHub/Compass.
+- [x] Independent review, focused/full/security/lint/build/CI, ledger/spec/evidence/GitHub/Compass.
 
 Review focus: no model/HTTP authority, exact effect identity remains stable, pending replay retains operation, changed-root/source/contract verification still enforced, old checkpoints load without inferred migration, no automatic certification or synthetic gain. Current fixed transformations normally tie their baseline100%; no fake improvement claim.
 
 Rollback: revert additive metadata/reuse logic without deleting existing Goal/receipt/device/learning stores. New metadata cannot be assumed readable by an older candidate; preserve and inspect using matching version. Broader executable skill synthesis and R16/R17 sandbox runner remain incomplete.
 
 Local verification complete: Windows1647/P8331, lint/build, independent34, docs17, audit506/341 and actual isolated Chrome flow PASS. Exact-head CI and write-back remain pending.
+
+Exact commit20c3019 / CI1859 SUCCESS; issue parents and Compass history167 updated.

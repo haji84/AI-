@@ -1,9 +1,12 @@
+import type { CognitiveResearchSummary } from "./cognitive-research.ts";
 import type { Goal, RiskLevel } from "../orchestrator/goal-loop.ts";
 import { normalizeGoalDraft, type GoalQuestion } from "../orchestrator/goal-draft.ts";
 import { cognitiveLearningText } from "./cognitive-learning.ts";
 import { assertCognitiveSafe } from "./cognitive-state.ts";
 
 export interface PrimaryBrainContext {
+  /** Offline measured prediction error only; never permission, completion or skill promotion. */
+  research?: CognitiveResearchSummary[];
   purpose?: "goal-draft";
   goal: Goal; currentState: string; candidates: Array<{ id: string; description: string; risk: RiskLevel }>;
   memories: Array<{ id: string; content: string; confidence: number }>; world: unknown[]; previousAttempts: unknown[];

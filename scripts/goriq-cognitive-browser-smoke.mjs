@@ -63,6 +63,7 @@ await panel.getByRole('button',{name:'このGoalは完了しました',exact:tru
 assert.equal(await panel.getByRole('button',{name:'成果物を取得',exact:true}).count(),1);
 const downloadPromise=page.waitForEvent('download');downloadPromise.catch(()=>{});await panel.getByRole('button',{name:'成果物を取得',exact:true}).click();const download=await downloadPromise;assert.equal(await readFile(await download.path(),'utf8'),expected);
 await panel.locator('summary').filter({hasText:'学習・訂正'}).click();
+await panel.getByText('予測の比較は未実施です。独立した評価用の証拠が必要です。',{exact:true}).waitFor();
 await panel.getByRole('button',{name:'学習候補を確認',exact:true}).click();
 await panel.getByText(/モデル学習は実行していません/).waitFor();
 await panel.screenshot({path:join(artifactRoot,'desktop.png')});

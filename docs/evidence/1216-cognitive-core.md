@@ -254,3 +254,32 @@ Rollback preserves all exact identity/evidence and additive records. No producti
 The first full operation run was1,646 PASS/1 FAIL because traceability hashes were pending concurrent documentation updates. After the reviewed six surface hashes and one additive mapping were recorded, the full suite passed1,647; no runtime assertion or audit rule was relaxed. Latest build repaired only the previously recorded test-array type. Exact software commit/CI follows after push.
 
 Parallel R16 audit reproduced an existing unsafe numerical decision: NaN before/after scores yield an accepted result. No production callers of decideExperiment were found. Fix the numerical boundary before connecting a real evidence-bound experiment; do not present hypothesis generation as completed R16 execution.
+
+
+## Exact portable-operation CI
+
+Commit `20c30191e45dcd3a64b171ed455e6111ec1895e3`: [CI1859](https://github.com/haji84/AI-/actions/runs/35940168246) SUCCESS. Windows1647/P8331, independent34, lint/build/browser/audit506/341 PASS. GitHub parents and Compass history167 updated. Whole Core remains PARTIAL; no Production activation.
+
+## Continuation: bounded R16 numerical decisions and offline calibration
+
+Reuse R16 `decideExperiment`/`PersistentResearchHistory`, World Model `evaluateCalibration`, current partition lease/verified learning ledger and PrimaryBrainContext. Fixed training-only Laplace probability is compared on separate host-assigned heldout outcomes; actual numerical error is computed, not provided as a caller's claimed improvement. Research results are bounded model-context data and owner-visible counts. No automatic prediction replacement, task/Skill/model completion or authority elevation.
+
+RED evidence: the module was initially absent. Independent probes then reproduced two integration errors: fifth training observations outside the frozen fit could contaminate heldout identity, and partition property order changed experiment IDs. Regression tests failed2/9 before repair and passed9/9 after. All same-partition train identity/evidence reuse now invalidates evaluation; scope digest uses explicit ordered values. Unknown split rejects. R16 NaN/Infinity/malformed-history/terminal-reproposal defects are covered separately by boundary tests. The initial boundary lint failure was only its control-character-regex spelling and was repaired without changing assertions.
+
+Synthetic numerical fixture (not model/task benchmark): four training successes and four independent heldout successes, original confidence0.1, fixed train estimate5/6. Deterministic Brier error0.81→0.027777777777777766; actual calculation is accepted at fixed0.01 minimum gain. Ties, worse forecasts and later independent heldout regression reject. Production-like ordinary train-only history performs no comparison; no heldout or real performance evidence is invented. General experiment execution, model/skill promotion and independent scientific validation remain outstanding.
+
+Rollback removes additive research consumers while preserving exact experiences and research records. Do not downgrade malformed/unknown research records into accepted authority. No device, enrollment, credential, network or database schema change.
+
+Additional independent review reproduced same-experiment replay with a different valid minimum-gain policy. The exact fixed0.01 threshold is now bound in both experiment inputs and identity; the RED test passed after repair. Independent combined61/61 PASS. The first research build reported three implicit-any callback parameters after Array.isArray narrowing; explicit typed verified-experience selection repaired type inference, with unchanged runtime assertions. Final build PASS. Data contamination lookup uses bounded sets rather than quadratic evidence comparisons.
+
+
+### Final research integration software checks
+
+- Full Windows suite **1,673/1,673 PASS**, zero skipped (`node --test --test-concurrency=1`, existing Git Bash in process PATH).
+- Independent combined review **61/61 PASS**, including eight actual service/Core/ledger boundary cases; lint and Next production-format build PASS.
+- Requirement audit **507 surfaces /341 requirements PASS**. Existing CORE-011/AUTO-009 calibration links are preserved while adding OWN-001 reuse; no requirement is replaced or marked complete.
+- Fresh installed Chrome153.0.8010.48: real isolated owner login→proposal edit/adopt→material upload→Core→independent verifier→exact downloaded file PASS. New no-independent-evidence text is asserted, external0/actions2, reload/390px/no page errors checked. Temporary screenshots `goriq-cognitive-visual-YHc5II` inspected; synthetic proposal transport and synthetic local document fixture, not model/task quality or physical evidence.
+
+Next concrete software dependency: host-owned evaluation-trial allocation fixed before execution, with independent Goal/evidence receipts and no retrospective train relabeling. Current ordinary Core observations remain train, so no natural heldout comparisons are claimed. Existing certify() receives host benchmark scores; connecting actual immutable evaluation measurements is still required before automatic measured-gain promotion. Exact CI/P8 confirmation follows after final verification; PR1217 remains draft/unmerged.
+
+Final P8 security331/331 PASS, zero skipped, with staged files included. Remaining software audit is recorded in `docs/audit/goriq-cognitive-remaining-software-2026-09-24.md`; remaining work is not reduced to physical tests.

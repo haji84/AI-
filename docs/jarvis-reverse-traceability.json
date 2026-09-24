@@ -550,12 +550,12 @@
     },
     {
       "path": "docs/architecture/goriq-cognitive-core.md",
-      "sha256": "fe940560979a04c411b743ba4fc30b47299130a4c2471c4790687da7862810c6",
+      "sha256": "ea5bbd27a23cb4ac59d363b3d2f6bceb387f98fe54ae57021d59c532da7f33a0",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OWN-001"
       ],
-      "reason": "OWN-001 Cognitive Core contract: local-first Goal loop, bounded owner/material/proposal integration and host-operation learning; explicit candidate, measured-gain and physical limits remain."
+      "reason": "#1216 OWN-001 bounded local cognition and evidence-bound prediction calibration; research metadata never grants authority or implies whole-product acceptance."
     },
     {
       "path": "docs/architecture/jarvis-bounded-fact-research.md",
@@ -2407,12 +2407,12 @@
     },
     {
       "path": "src/app/jarvis/tasks/CognitiveLearning.tsx",
-      "sha256": "6bc040301091ca084ec7f787eefac441a9c0ea9956cf0348fb28547cc11ccba1",
+      "sha256": "ae411b889b6b1f1fdbb967527dbc147d701f46941f7c9d622c8cdc3e9296e968",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OWN-001"
       ],
-      "reason": "Explicit owner controls for historical candidate import and verified-attempt correction; summaries omit raw history and host paths"
+      "reason": "#1216 OWN-001 bounded local cognition and evidence-bound prediction calibration; research metadata never grants authority or implies whole-product acceptance."
     },
     {
       "path": "src/app/jarvis/tasks/CognitiveMaterials.tsx",
@@ -2697,12 +2697,12 @@
     },
     {
       "path": "src/gai/cognitive-core.ts",
-      "sha256": "b754c2e24cc2575e4f45bf55e52a69b124fcb0a40cef3cffa9a3bbd373b0d30c",
+      "sha256": "08b3f7235d82fc954dcd1220c4e343b9851346260b37284b5a4f3a5df82438a7",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OWN-001"
       ],
-      "reason": "OWN-001 decision loop preserves exact action authority while resolving certified host operations against current eligible local actions; exact corrections and durable operation recovery precede generalized reuse."
+      "reason": "#1216 OWN-001 bounded local cognition and evidence-bound prediction calibration; research metadata never grants authority or implies whole-product acceptance."
     },
     {
       "path": "src/gai/cognitive-history.ts",
@@ -2733,12 +2733,12 @@
     },
     {
       "path": "src/gai/cognitive-learning.ts",
-      "sha256": "6b22526ff8fab471fedbbfe546325dea6771af4ec68c502d173cb4fc3d8121c7",
+      "sha256": "a5cdb9e0126f02b619d53334eb2dd48023064bbb4402714b3546dd7372f5fd53",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OWN-001"
       ],
-      "reason": "OWN-001 partitioned verified learning integrates existing memory, world, skill and research adapters; independent Goal operation synthesis remains inert behind unchanged certification and regression gates."
+      "reason": "#1216 OWN-001 bounded local cognition and evidence-bound prediction calibration; research metadata never grants authority or implies whole-product acceptance."
     },
     {
       "path": "src/gai/cognitive-lease.ts",
@@ -2786,13 +2786,22 @@
       "reason": "OWN-001 strict versioned vocabulary for six host-derived material learning operations; selection metadata only, with no path, permission, executable procedure or model authority."
     },
     {
-      "path": "src/gai/cognitive-service.ts",
-      "sha256": "2c1dc460004da9eab06213f78a0848589f74ac88a58fb54d272f78e729015e44",
+      "path": "src/gai/cognitive-research.ts",
+      "sha256": "baf2c64dcf1575e9586ba1854e07f3b455c71a2e6bacc00738ba03a8dce687e9",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OWN-001"
       ],
-      "reason": "#1216 Cognitive Core component; implementation link only, benchmark and product acceptance tracked separately; #1216 explicit owner DoD adoption: strict bounded input, unchanged Goal identity, full Goal/state atomic CAS and receipt-only replay; independent completion verification remains required; reviewed same-Goal partitioned runtime experience/correction history guard preserves prior work before DoD adoption; #1216 bounded local DoD proposal: unverified non-executing data, owner-first strict input, post-inference Goal/state recheck and separate editable owner adoption; no broad semantic or physical completion claim"
+      "reason": "Fixed train/heldout prediction calibration from existing private verified experiences; exact provenance, policy identity and insufficient-evidence handling. No tool effects, grants, task-success or promotion claims."
+    },
+    {
+      "path": "src/gai/cognitive-service.ts",
+      "sha256": "9d9db5f536fe0990ccf34f907b00bfa68507ce1e4d49dadde91a57ff41362e63",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OWN-001"
+      ],
+      "reason": "#1216 OWN-001 bounded local cognition and evidence-bound prediction calibration; research metadata never grants authority or implies whole-product acceptance."
     },
     {
       "path": "src/gai/cognitive-state.ts",
@@ -3119,12 +3128,12 @@
     },
     {
       "path": "src/gai/primary-brain.ts",
-      "sha256": "bd3e447af04e53b25c3cc208851d338a0b46e7249ced5566d18bfc2bff7d1d72",
+      "sha256": "37f41b7b2f95a8d8e89cb3fefb4cc1ba41bf2ba85cca787846302f2ac4bef47d",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OWN-001"
       ],
-      "reason": "#1216 Cognitive Core component; implementation link only, benchmark and product acceptance tracked separately; #1216 bounded local DoD proposal: unverified non-executing data, owner-first strict input, post-inference Goal/state recheck and separate editable owner adoption; no broad semantic or physical completion claim"
+      "reason": "#1216 OWN-001 bounded local cognition and evidence-bound prediction calibration; research metadata never grants authority or implies whole-product acceptance."
     },
     {
       "path": "src/gai/production-autonomy-runtime.ts",
@@ -3251,11 +3260,12 @@
     },
     {
       "path": "src/gai/research-loop.ts",
-      "sha256": "d410b36a9edbc51e632be928881a13c1b1229ad1233eef4adad605ed3941763b",
-      "classification": "EXCLUDED",
-      "requirement_ids": [],
-      "reason": "Separate Research Ops and AGI evidence track; no JARVIS product completion inference",
-      "exclusion_ref": "https://github.com/haji84/AI-/issues/321"
+      "sha256": "eb1cd0a794c1746ea691318447d67e6f3711a327869c319b45108cf305d5643b",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OWN-001"
+      ],
+      "reason": "Reused by OWN-001 bounded cognitive prediction calibration. Numerical/history policy and Brier calculation are not proof of #321 research-program, model-quality or product completion."
     },
     {
       "path": "src/gai/research-ops-program.ts",
@@ -3442,9 +3452,10 @@
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-011",
-        "AUTO-009"
+        "AUTO-009",
+        "OWN-001"
       ],
-      "reason": "Planner world-state prediction/calibration; prediction is not verified completion"
+      "reason": "Reused by OWN-001 bounded cognitive prediction calibration. Numerical/history policy and Brier calculation are not proof of #321 research-program, model-quality or product completion."
     },
     {
       "path": "src/gai/world-model.ts",

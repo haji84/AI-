@@ -1,3 +1,4 @@
+import type { CognitiveResearchSummary } from "./cognitive-research.ts";
 import { validateCognitiveOperation, type CognitiveOperation } from "./cognitive-operation.ts";
 import { randomUUID } from "node:crypto";
 import { GoalDrivenLoop, type ContextSource, type ContextItem, type Goal, type Planner, type ProposedAction, type InferredIntent, type ActionResult, type StateStore, type WriteBackRecord, type CapabilityExecutor, type Verifier, type ApprovalPolicy, type GoalLoopOptions, type VerificationResult } from "../orchestrator/goal-loop.ts";
@@ -18,6 +19,7 @@ export interface CognitiveCandidate {
   learningOperation?: CognitiveOperation;
 }
 export interface CognitiveRecall {
+  research?: CognitiveResearchSummary[];
   memories: Array<{ id: string; content: string; confidence: number }>;
   /** Certified catalog bindings only; no learned text is executable authority. */
   skills?: Array<{ id: string; actionId: string; operation?: CognitiveOperation; environment: string; confidence: number; evidenceRefs: string[]; maxRisk: "low" | "medium" | "high" }>;
@@ -99,6 +101,7 @@ export class CognitiveCore implements Planner, ContextSource {
       goal: input.goal, currentState: state.observation ?? input.context.map(c => c.summary).join("\n").slice(0, 4000),
       candidates: candidates.map(c => ({ id: c.id, description: c.action.description, risk: c.action.risk })),
       memories: recall.memories.slice(0, 8), world: this.options.world ? (await this.options.world.retrieve(input.goal.title, 4)).map(e => ({ action: e.prediction.action, actual: e.observation.actualOutcome, success: e.observation.success, error: e.predictionError })) : [],
+      research: recall.research?.slice(0, 6),
       previousAttempts: state.attempts.slice(-8), environment: this.options.environment,
       connectivity: this.options.connectivity ?? "unknown", budget: { remainingActions: remaining }, constraints: input.goal.constraints,
     };
