@@ -933,7 +933,7 @@
     },
     {
       "path": "scripts/jarvis-broker.ts",
-      "sha256": "84f20fcba847c039344aaa9c084b849f762693fdef7c9c656f5a2530612f0243",
+      "sha256": "cae9a5bad4acfe9558a23a5ca659c54ccd5b216e0199a152eabc266127a891a4",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "NET-006",
@@ -1355,7 +1355,7 @@
     },
     {
       "path": "src/app/api/jarvis/bridge/events/route.ts",
-      "sha256": "ba4ebd3f2a9a8cef144ec977c755e9922ad069ef9717642af9f3a3991d4f10e0",
+      "sha256": "0a2834cdd05bca578bcda5765d6306aa3d12d099d36aa3e023f09c044387ae08",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "AUTO-001",
@@ -1532,7 +1532,7 @@
     },
     {
       "path": "src/app/api/jarvis/work/route.ts",
-      "sha256": "66723a1f43d21ac2e9bbbb5bc4023f08fda6dc2b2de9ddfca6f85916b4787445",
+      "sha256": "5fbf5519cc44f744e3598475a4f98972d3214e8953d54b13d7896b889124e536",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-001",
@@ -2447,7 +2447,7 @@
     },
     {
       "path": "src/app/jarvis/tasks/GoalBridgeStatus.tsx",
-      "sha256": "3629be47d5aac9fe85ba084e66a57ab520dd0514994c504cdef76f6791238f87",
+      "sha256": "11f1f65031eea425cfc7ab37f2e4ab258b72eccd5356f2d8849d37c29b8ae80d",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "AUTO-001",
@@ -2489,7 +2489,7 @@
     },
     {
       "path": "src/app/jarvis/tasks/TaskBoard.tsx",
-      "sha256": "f2760ea4ba1625ff75eccc2668af87b71f466662ba0adf0b08be1e1ab4708a41",
+      "sha256": "fefd04d5be959274c7c65887b439ee6e6b0e9b5d4721b604a93ee18ed5826941",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "UI-003",
@@ -4406,7 +4406,7 @@
     },
     {
       "path": "src/orchestrator/compass-goal-bridge-event-store.ts",
-      "sha256": "1cf673fe3ed73e5300cad2f4778b9eaad182cc505e3daeeb589727f01c43e464",
+      "sha256": "ea3faea6edf2b7aaa56d17df4b7d33383ff2d72ea819c0c67f5dc344dcf5745c",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "AUTO-001",
