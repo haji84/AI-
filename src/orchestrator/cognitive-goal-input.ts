@@ -18,3 +18,10 @@ export function validateCognitiveGoalRefinement(value: unknown): CognitiveGoalRe
   if (new Set(successCriteria).size !== successCriteria.length) throw Error("Goal criteria must be distinct");
   return { goalId: input.goalId, goalDigest: input.goalDigest, successCriteria, acknowledgement: true };
 }
+
+export function validateCognitiveGoalProposalInput(value: unknown): { goalId: string; goalDigest: string } {
+  if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).length !== 2 || Object.keys(value).some(k => !["goalId", "goalDigest"].includes(k))) throw Error("Invalid Goal proposal fields");
+  const input = value as Record<string, unknown>;
+  if (typeof input.goalId !== "string" || !/^goal-[a-f0-9]{16}$/.test(input.goalId) || typeof input.goalDigest !== "string" || !/^[a-f0-9]{64}$/.test(input.goalDigest)) throw Error("Invalid Goal proposal identity");
+  return { goalId: input.goalId, goalDigest: input.goalDigest };
+}

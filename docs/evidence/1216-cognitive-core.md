@@ -181,3 +181,37 @@ Rollback: revert this additive criteria/proxy/UI composition while retaining the
 - Fresh installed Chrome153.0.8010.48: actual owner login → normal Goal Controller empty criteria → explicit UI DoD adoption (same Goal ID) → material upload/acknowledgement →2 Core actions → independent verification → exact downloaded output. Reload, three refreshes,390px expanded controls and no-page-errors checks pass; external AI calls0. The two stored screenshots were refreshed from this isolated fixture.
 
 The initial full run had1,605 PASS /3 FAIL: all three were existing repository secret checks matching a synthetic PEM header in a new rejection-test fixture. The fixture now constructs the identical header at runtime; the rejection test and scanner rules are unchanged. The complete rerun passed1,608. A later build caught the independent review test's incomplete Request type cast; the mock now starts from an actual Request with a throwing body getter. Its12 behavioral tests and the final build pass. This test-only correction was verified directly; exact-head CI reruns the full suite. No real private key was present.
+
+
+## Exact explicit-DoD CI
+
+Software commit `477fbdc61fd32f09612ca905d38568a2bc8baa46`: [CI #1857](https://github.com/haji84/AI-/actions/runs/35936514485) **SUCCESS**. Repository guard, lint, full tests, P8 security, build and health passed. This is the preceding explicit owner-DoD increment; subsequent local proposal changes need their own evidence.
+
+## Continuation 2026-09-24: local Primary Brain completion-condition proposals
+
+The previous explicit DoD control required all conditions to be typed by the owner. The additive path now reuses `PrimaryBrainAdapter.plan()` and GoalDraft normalization to propose missing desired outcomes. It does not reinterpret `requiredEvidence` as DoD: proof descriptions and desired world state are separate. Context supplies the authoritative current Goal/constraints, known local material/download capability, no executable candidates and action budget0. The output is bounded/privacy-screened `PROPOSED / UNVERIFIED` data, including assumptions and questions. Existing responses without a proposal remain compatible.
+
+`CognitiveService.proposeGoalCriteria` uses the same execution lease, rejects any previous same-Goal work/history, and checks exact Compass Goal/state again after all awaited checks and inference. It saves no Goal, cognitive checkpoint, learning record or completion status. Only the existing explicit owner adoption can write criteria. The owner-first1024-byte request accepts Goal ID/digest only; model/provider/endpoint/scope arguments are rejected. Production-configured inference is one bounded loopback call, no automatic retry/external fallback. Proxy response is32KiB and deadline45s; the existing model adapter defaults30s and validates its configured bound. This is not a watchdog guarantee for arbitrary host-injected adapters.
+
+UI shows the unverified proposal, assumptions/questions and an explicit copy-to-editor button. Copying clears acknowledgement; editing and adopting remain separate from generation. When local inference is unavailable, typed criteria remain usable. Actual browser checks run through the real owner/Next/Broker/local adapter chain; the positive browser case uses a clearly labelled synthetic loopback model fixture and does not measure model quality.
+
+Independent review reproduced2 stale-output cases: Goal and state changes during the second asynchronous pristine scan escaped the earlier snapshot comparison. Final snapshot reads now occur after that await. The original RED cases pass. The first build also caught an incomplete Request cast in the new review test; using a real Request preserves the same owner-before-body assertion. Browser testing then caught an exact accessible-label lookup failure after copying a controlled textarea value. Captured DOM showed the value had become part of the nested label text; separate label/htmlFor/useId now keeps the label stable. The same browser assertions passed without relaxing their expected names or values.
+
+Actual local-model measurements (existing qwen3:4b, no downloads):
+- First structural proposal PASS in16,695ms, Goal unchanged, actions0/external0. Output was English and omitted the requested download outcome; semantic adequacy was not accepted.
+- After supplying known host capability and strengthening language/outcome-preservation instructions: structural PASS in10,720ms, Goal unchanged, actions0/external0. The candidate included download/content preservation, but still used English and was not proven to cover all meaning. This limitation remains visible; no general semantic accuracy or automatic adoption claim is made.
+
+The actual-model probe is `scripts/goriq-local-goal-proposal-smoke.ts`; it prints the bounded draft for inspection and asserts no Goal/state mutation. This is a proposal test, not task-completion evidence. `scripts/goriq-cognitive-browser-smoke.mjs` supports `GORIQ_BROWSER_PROPOSAL_FIXTURE=1` for the synthetic positive path; default disabled-model mode verifies manual fallback. Both use temporary isolated databases and an already installed browser, preserve failures as synthetic screenshots/DOM, and clean up their test servers.
+
+All unrestricted planning/executable skill synthesis, independent semantic result validation, physical teaching binding, historical promotion, actual R16/R17 experiment/model promotion and cross-device acceptance remain tracked. This increment cannot change OWN-001 to VERIFIED or justify Production activation.
+
+
+### Final local-proposal verification
+
+- Full Windows suite: **1,627/1,627 PASS**, zero skipped (`node --test --test-concurrency=1`, existing Git Bash in process PATH).
+- P8 security: **331/331 PASS**, zero skipped; lint and Next production build **PASS**.
+- Independent combined proposal/previous-Goal checks: **31/31 PASS**; specification/traceability and proposal checks **29/29 PASS**.
+- Requirement audit: **505 surfaces /341 requirements PASS**, functional_completion_claim=false.
+- Actual Chrome153.0.8010.48 positive synthetic local-model transport and model-disabled manual fallback: both **PASS** through the same authenticated UI→Broker→Core→independent output verification/download. Each completes the bounded fixture in2actions, external AI calls0, preserves Goal identity/reload, contains expanded controls at390px, and has zero page errors.
+
+Exact software commit/CI is recorded after push. Production remains inactive. Rollback removes only the additive proposal UI/API/adapter contract, preserving previously adopted criteria, receipts, checkpoints and all learning/device state.

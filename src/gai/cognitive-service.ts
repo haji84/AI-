@@ -1,3 +1,5 @@
+import { validateCognitiveGoalProposalInput } from "../orchestrator/cognitive-goal-input.ts";
+import { configuredPrimaryBrain, validateBrainDecision, type PrimaryBrainContext } from "./primary-brain.ts";
 import { validateCognitiveGoalRefinement, prepareCognitiveGoalRefinement, findCognitiveGoalRefinementReplay } from "../orchestrator/cognitive-goal-refinement.ts";
 import { lstat } from "node:fs/promises";
 import { CognitiveMaterialIntake } from "./cognitive-material-intake.ts";
@@ -123,6 +125,33 @@ export class CognitiveService {
       if (checkpoint || await new CompassWorkStateStoreAdapter(compass).get(goalId) || await this.learning.hasGoalHistory(this.options.partition!, goalId) || await loadCognitiveRuntimeWork(this.options, goalId, goal)) throw Error("Existing work requires explicit review; only pristine Goals may adopt criteria");
       compass.adoptPristineGoalCriteria(record, snapshot, input.successCriteria, prepared.receipt);
       return { adopted: true, replayed: false, goalId, goalDigest: prepared.receipt.targetGoalDigest };
+    } finally { compass.close(); if (release) await release(); this.busy = false; }
+  }
+  /** Local draft only; explicit owner adoption remains the sole Goal mutation path. */
+  async proposeGoalCriteria(value: unknown) {
+    await this.validateStateRoot();
+    const input = validateCognitiveGoalProposalInput(value);
+    if (!this.options.materialIntake || this.busy) throw Error("Goal proposal requires configured idle local intake");
+    const brain = this.options.brain ?? configuredPrimaryBrain();
+    if (!brain) throw Error("Local Primary Brain unavailable; explicit criteria input remains available");
+    this.busy = true;
+    const compass = new CompassStore(this.dbPath); let release: (() => Promise<void>) | undefined;
+    try {
+      release = await acquireCognitiveLease(`${this.dbPath}.cognitive-run.lock`);
+      const record = compass.getGoal(); if (!record) throw Error("Current Goal required");
+      const snapshot = compass.getState(), goal = compassGoalToLoopGoal(record), goalId = goalWorkStateId(goal);
+      if (goalId !== input.goalId || cognitiveDigest(goal) !== input.goalDigest || goal.successCriteria.length) throw Error("Current Goal changed or already has criteria");
+      const existing = async () => Boolean(await new CognitiveStateStore(this.options.stateRoot!, this.options.partition!).get(goalId) ||
+        await new CompassWorkStateStoreAdapter(compass).get(goalId) || await this.learning.hasGoalHistory(this.options.partition!, goalId) ||
+        await loadCognitiveRuntimeWork(this.options, goalId, goal) || compass.getState().decisions.some(v => v && typeof v === "object" && (v as {kind?:unknown}).kind === "goriq-cognitive-goal-refinement" && (v as {goalId?:unknown}).goalId === goalId));
+      if (await existing()) throw Error("Existing work requires explicit review before a new Goal proposal");
+      const context: PrimaryBrainContext = { purpose: "goal-draft", goal, currentState: "Propose missing Goal-level desired completion outcomes only. Known host capability: bounded local material intake, unchanged text-file creation, and verified output download are configured; material content has not been supplied yet. No action is authorized by this proposal.",
+        candidates: [], memories: [], world: [], previousAttempts: [], environment: this.options.environment ?? "owner-local", connectivity: "unknown", budget: { remainingActions: 0 }, constraints: goal.constraints ?? [] };
+      const decision = validateBrainDecision(await brain.plan(context), context);
+      if (await existing() || JSON.stringify(compass.getGoal()) !== JSON.stringify(record) || JSON.stringify(compass.getState()) !== JSON.stringify(snapshot)) throw Error("Goal or work state changed during proposal");
+      if (!decision.goalDraft) throw Error("Local model supplied no completion-condition draft; use explicit input");
+      return { status: "PROPOSED" as const, verification: "UNVERIFIED" as const, source: "local-primary-brain" as const,
+        goalId, goalDigest: input.goalDigest, draft: decision.goalDraft, confidence: decision.confidence };
     } finally { compass.close(); if (release) await release(); this.busy = false; }
   }
   private materialStore() {

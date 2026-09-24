@@ -13934,7 +13934,8 @@ Owner instruction 2026-09-23, Issue #1216. Full normative integration contract: 
     "src/orchestrator/cognitive-goal-refinement.ts",
     "src/compass/store.ts",
     "src/app/api/jarvis/cognitive/goal/route.ts",
-    "src/app/jarvis/tasks/CognitiveGoalCriteria.tsx"
+    "src/app/jarvis/tasks/CognitiveGoalCriteria.tsx",
+    "src/app/api/jarvis/cognitive/goal/proposal/route.ts"
   ],
   "test_refs": [
     "tests/goriq-cognitive-core.test.ts",
@@ -13959,7 +13960,11 @@ Owner instruction 2026-09-23, Issue #1216. Full normative integration contract: 
     "tests/cognitive-goal-refinement.test.ts",
     "tests/cognitive-goal-store.test.ts",
     "tests/goriq-cognitive-goal-service.test.ts",
-    "tests/goriq-cognitive-goal-review.test.ts"
+    "tests/goriq-cognitive-goal-review.test.ts",
+    "tests/goriq-goal-proposal-brain.test.ts",
+    "tests/goriq-goal-proposal-service.test.ts",
+    "tests/goriq-goal-proposal-review.test.ts",
+    "scripts/goriq-local-goal-proposal-smoke.ts"
   ],
   "evidence_refs": [
     "docs/evidence/1216-cognitive-core.md",
@@ -13967,10 +13972,10 @@ Owner instruction 2026-09-23, Issue #1216. Full normative integration contract: 
     "docs/audit/goriq-cognitive-learning-audit.md"
   ],
   "status": "PARTIAL",
-  "blocker": "Normal Goal intake, explicit owner-authored DoD adoption, bounded local material execution/download and historical/correction UI are integrated. Automatic conversational DoD semantics, unrestricted novel decomposition/executable skills, historical claim revalidation, teaching/R16 experiment/R17 promotion integration and physical/cross-device acceptance remain.",
+  "blocker": "Normal Goal intake, bounded local unverified DoD proposals, explicit owner adoption, local material execution/download and historical/correction UI are integrated. Broad conversational semantic fidelity, unrestricted novel decomposition/executable skills, historical claim revalidation, teaching/R16 experiment/R17 promotion integration and physical/cross-device acceptance remain.",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "Finish exact-commit CI/evidence for explicit owner DoD adoption with existing-work preservation. Then connect conversational criterion proposals and semantic outcome verification without treating model text as authority; continue verified historical/teaching/research and model-improvement integration under existing gates.",
+  "next_action": "Finish exact-commit CI and bounded local-model/browser evidence for unverified editable DoD proposals. Then expand semantic fidelity/independent outcome evaluation and verified historical/teaching/research/model-improvement integration without promoting model prose or weakening existing gates.",
   "last_verified_commit": null,
   "source_decisions": [
     "owner-intake-cc6f2a30e8336d322129e2972d1e8f90"

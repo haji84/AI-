@@ -28,13 +28,17 @@
       ],
       "test_refs": [
         "tests/goriq-cognitive-core.test.ts",
-        "tests/goriq-cognitive-runtime.test.ts"
+        "tests/goriq-cognitive-runtime.test.ts",
+        "tests/goriq-goal-proposal-brain.test.ts",
+        "tests/goriq-goal-proposal-service.test.ts",
+        "tests/goriq-goal-proposal-review.test.ts",
+        "scripts/goriq-local-goal-proposal-smoke.ts"
       ],
       "evidence_refs": [
         "docs/evidence/1216-cognitive-core.md"
       ],
       "last_verified_commit": null,
-      "remaining": "Bounded registered action plans work with actual local model. Open-ended plan synthesis and broad model-quality calibration remain."
+      "remaining": "The replaceable local adapter supports non-executing, unverified GoalDraft proposals alongside bounded registered-action planning. Broad proposal semantic/language fidelity, open-ended plan synthesis and model-quality calibration remain."
     },
     {
       "id": "COG-002",
@@ -74,7 +78,9 @@
         "src/gai/cognitive-local-outcomes.ts",
         "src/gai/cognitive-material-intake.ts",
         "src/orchestrator/cognitive-goal-input.ts",
-        "src/orchestrator/cognitive-goal-refinement.ts"
+        "src/orchestrator/cognitive-goal-refinement.ts",
+        "src/gai/primary-brain.ts",
+        "src/gai/cognitive-service.ts"
       ],
       "test_refs": [
         "tests/goriq-cognitive-acceptance.test.ts",
@@ -85,13 +91,17 @@
         "tests/cognitive-goal-refinement.test.ts",
         "tests/cognitive-goal-store.test.ts",
         "tests/goriq-cognitive-goal-service.test.ts",
-        "tests/goriq-cognitive-goal-review.test.ts"
+        "tests/goriq-cognitive-goal-review.test.ts",
+        "tests/goriq-goal-proposal-brain.test.ts",
+        "tests/goriq-goal-proposal-service.test.ts",
+        "tests/goriq-goal-proposal-review.test.ts",
+        "scripts/goriq-local-goal-proposal-smoke.ts"
       ],
       "evidence_refs": [
         "docs/evidence/1216-cognitive-core.md"
       ],
       "last_verified_commit": null,
-      "remaining": "Normal Goal intake can acquire owner-authored explicit DoD before fixed local material conversion, preserving its identity and constraints. Automatic conversational DoD inference, arbitrary novel decomposition, executable tool synthesis and general semantic outcome verification remain."
+      "remaining": "Local Primary Brain can propose editable unverified DoD for an unstarted current Goal; only explicit owner adoption supplies criteria for fixed local material conversion. Broad conversational fidelity, arbitrary novel decomposition, executable tool synthesis and semantic outcome verification remain."
     },
     {
       "id": "COG-004",
@@ -448,7 +458,9 @@
         "src/orchestrator/cognitive-goal-refinement.ts",
         "src/compass/store.ts",
         "src/app/api/jarvis/cognitive/goal/route.ts",
-        "src/app/jarvis/tasks/CognitiveGoalCriteria.tsx"
+        "src/app/jarvis/tasks/CognitiveGoalCriteria.tsx",
+        "src/gai/primary-brain.ts",
+        "src/app/api/jarvis/cognitive/goal/proposal/route.ts"
       ],
       "test_refs": [
         "tests/goriq-cognitive-broker.test.ts",
@@ -465,15 +477,19 @@
         "tests/cognitive-goal-refinement.test.ts",
         "tests/cognitive-goal-store.test.ts",
         "tests/goriq-cognitive-goal-service.test.ts",
-        "tests/goriq-cognitive-goal-review.test.ts"
+        "tests/goriq-cognitive-goal-review.test.ts",
+        "tests/goriq-goal-proposal-brain.test.ts",
+        "tests/goriq-goal-proposal-service.test.ts",
+        "tests/goriq-goal-proposal-review.test.ts",
+        "scripts/goriq-local-goal-proposal-smoke.ts"
       ],
       "evidence_refs": [
         "docs/evidence/1216-cognitive-core.md"
       ],
       "last_verified_commit": null,
-      "remaining": "Normal Goal Controller intake → explicit owner DoD adoption → material mapping → Compass/Broker execution → verified download is integrated in the opt-in local mode. Existing work and criteria are not replaced. Automatic conversational criteria semantics, general attachment conversion, Production activation and required physical acceptance remain."
+      "remaining": "Normal Goal intake → optional local unverified DoD proposal or manual entry → explicit owner adoption → material mapping/execution → verified download is integrated in opt-in local mode. Proposal never mutates Goal or runtime learning; stale state and failures preserve manual fallback. General semantic adequacy, attachment conversion, Production activation and physical acceptance remain."
     }
   ],
-  "verified_software_commit": "68fd08bb586fb9863763ca8a44a08bbf7ee3a659",
-  "ci_evidence": "https://github.com/haji84/AI-/actions/runs/35934446080"
+  "verified_software_commit": "477fbdc61fd32f09612ca905d38568a2bc8baa46",
+  "ci_evidence": "https://github.com/haji84/AI-/actions/runs/35936514485"
 }

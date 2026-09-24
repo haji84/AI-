@@ -1,4 +1,4 @@
-import { validateCognitiveGoalRefinement } from "./cognitive-goal-input.ts";
+import { validateCognitiveGoalRefinement, validateCognitiveGoalProposalInput } from "./cognitive-goal-input.ts";
 import { boundedText } from "./requirements-proxy.ts";
 import { validateMaterialIntake, MATERIAL_REQUEST_BYTES } from "../gai/cognitive-material-intake.ts";
 type BrokerFetch = (path: string, init?: RequestInit) => Promise<Response>;
@@ -48,5 +48,15 @@ export function createCognitiveGoalProxy(owner:()=>Promise<boolean>,broker:Broke
   catch{return Response.json({message:"完了条件・現在のGoal・確認欄を確認してください"},{status:400});}
   try{const r=await broker("/api/jarvis/admin/cognitive/goal",{method:"POST",body:JSON.stringify(payload),signal:AbortSignal.timeout(30_000)});return Response.json(JSON.parse(await boundedText(r.body,16_000)),{status:r.status});}
   catch{return Response.json({message:"完了条件の保存状態を確認してください。自動では再送しません。"},{status:503});}
+ };
+}
+
+export function createCognitiveGoalProposalProxy(owner:()=>Promise<boolean>,broker:BrokerFetch){
+ return async(request:Request)=>{
+  if(!await owner())return Response.json({message:"オーナー認証が必要です"},{status:401});
+  let payload;try{payload=validateCognitiveGoalProposalInput(JSON.parse(await boundedText(request.body,1024)));}
+  catch{return Response.json({message:"現在のGoalを再確認してください"},{status:400});}
+  try{const r=await broker("/api/jarvis/admin/cognitive/goal/proposal",{method:"POST",body:JSON.stringify(payload),signal:AbortSignal.timeout(45_000)});return Response.json(JSON.parse(await boundedText(r.body,32_000)),{status:r.status});}
+  catch{return Response.json({message:"ローカルAIの候補を取得できません。完了条件は手入力できます。"},{status:503});}
  };
 }
