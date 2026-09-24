@@ -4,6 +4,7 @@ import { goalWorkStateId } from "./work-state-integration.ts";
 const DEVELOPMENT_MARKERS = /(code|coding|implement|implementation|fix|repair|refactor|test|build|source|repository|script|patch|develop|development|コード|実装|修正|改修|開発|テスト)/i;
 const IMPLEMENTATION_DOD_MARKERS = /(code|implement|implementation|fix|repair|refactor|source|script|patch|develop|development|コード|実装|修正|改修|開発)/i;
 const VERIFICATION_DOD_MARKERS = /(^|[^a-z])(test|tests|verify|verification|lint|build|security|review|deploy)([^a-z]|$)|テスト|検証|確認|ビルド|セキュリティ|レビュー|デプロイ/i;
+const AUTOMATED_CHECK_DOD_MARKERS = /(^|[^a-z])(test|tests|verify|verification|lint|build|security)([^a-z]|$)|テスト|検証|確認|ビルド|セキュリティ/i;
 
 interface WorkStateSnapshotData {
   status?: unknown;
@@ -34,6 +35,17 @@ function implementationDefinitionOfDoneIds(context: ContextItem[]): string[] {
     if (!id || !description) return [];
     if (!IMPLEMENTATION_DOD_MARKERS.test(description) || VERIFICATION_DOD_MARKERS.test(description)) return [];
     return [id];
+  });
+}
+function automatedCheckDefinitionOfDoneIds(context: ContextItem[]): string[] {
+  const snapshot = workStateSnapshot(context);
+  if (!snapshot || !Array.isArray(snapshot.remainingDefinitionOfDone)) return [];
+  return snapshot.remainingDefinitionOfDone.flatMap((raw) => {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return [];
+    const item = raw as RemainingDefinitionOfDoneItem;
+    const id = typeof item.id === "string" ? item.id.trim() : "";
+    const description = typeof item.description === "string" ? item.description.trim() : "";
+    return id && description && AUTOMATED_CHECK_DOD_MARKERS.test(description) ? [id] : [];
   });
 }
 function nextAction(context: ContextItem[]): string | null {
@@ -105,8 +117,13 @@ export class RuntimeDevelopmentPlanner implements Planner {
     const now = Date.now();
     const objective = next || input.goal.description?.trim() || input.goal.title;
     const files = extractFiles(scope);
-    const verificationContract = trustedVerificationContract(input.context, files) ?? exactFileVerification(scope, files);
-    const satisfiesDefinitionOfDone = implementationDefinitionOfDoneIds(input.context);
+    const verificationContract = trustedVerificationContract(input.context, files)
+      ?? exactFileVerification(scope, files)
+      ?? { kind: "repository_checks" as const, profile: "standard" as const };
+    const satisfiesDefinitionOfDone = [
+      ...implementationDefinitionOfDoneIds(input.context),
+      ...(verificationContract.kind === "repository_checks" ? automatedCheckDefinitionOfDoneIds(input.context) : []),
+    ];
     return {
       id: `runtime-builder:${goalWorkStateId(input.goal)}`,
       description: objective,
