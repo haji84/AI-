@@ -131,6 +131,55 @@ async function runVerify(body: Record<string, unknown>) {
       },
     };
   }
+  if (value.kind === "repository_checks") {
+    if (value.profile !== "standard") {
+      return { status: 400, body: { ok: false, summary: "invalid repository_checks profile", blocker: "VERIFICATION_CONTRACT_INVALID" } };
+    }
+    const pnpm = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
+    const checks = [
+      { id: "lint", args: ["lint"] },
+      { id: "test", args: ["test"] },
+      { id: "p8-security", args: ["test:p8-security"] },
+      { id: "build", args: ["build"] },
+    ];
+    const evidence: Array<{ id: string; ok: boolean; exitCode: number | null; timedOut: boolean; stdoutTail: string; stderrTail: string }> = [];
+    for (const check of checks) {
+      const result = await run(pnpm, check.args);
+      const ok = result.code === 0 && !result.timedOut;
+      evidence.push({
+        id: check.id,
+        ok,
+        exitCode: result.code,
+        timedOut: result.timedOut,
+        stdoutTail: result.stdout.slice(-2000),
+        stderrTail: result.stderr.slice(-2000),
+      });
+      if (!ok) {
+        return {
+          status: 200,
+          body: {
+            ok: false,
+            summary: `repository check failed: ${check.id}`,
+            evidence: { kind: "repository_checks", profile: "standard", checks: evidence },
+          },
+        };
+      }
+    }
+    const diff = await run("git", ["diff", "--stat"]);
+    return {
+      status: 200,
+      body: {
+        ok: true,
+        summary: "repository checks passed",
+        evidence: {
+          kind: "repository_checks",
+          profile: "standard",
+          checks: evidence,
+          diffStat: diff.stdout.trim(),
+        },
+      },
+    };
+  }
   return { status: 400, body: { ok: false, summary: "unsupported verification contract", blocker: "VERIFICATION_CONTRACT_UNSUPPORTED" } };
 }
 
