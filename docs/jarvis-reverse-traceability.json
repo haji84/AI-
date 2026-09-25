@@ -348,6 +348,16 @@
       "reason": "Issue #1218 iPhone Owner enrollment and device-bound trusted proof; non-destructive Face ID challenge/signature action compiles, physical proof remains pending."
     },
     {
+      "path": "apps/ios-owner/Tests/test_signing_access.py",
+      "sha256": "b3f257b1e33138d82ab86bbba1a76b8701a9eb5cac5f3f9dc4db5d022cba6a68",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-I-006",
+        "SEC-001"
+      ],
+      "reason": "iPhone Secure Enclave signing access and Google repair order regression contract; physical acceptance remains pending."
+    },
+    {
       "path": "apps/ios-worker/Info.plist",
       "sha256": "48c652fbdc079351211a88fade57667f0af1df63d780dfba541e40a81ab3f111",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
