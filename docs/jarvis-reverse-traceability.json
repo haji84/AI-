@@ -1748,7 +1748,7 @@
     },
     {
       "path": "src/app/google-owner-service.ts",
-      "sha256": "95f6a40168696460c1bde433e1c8d60674577857fa985ef82935196e1c31233f",
+      "sha256": "a13c13439eee80e069bb68868777ec449eb5b1231852d939131c5369160a7584",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "SEC-001",
@@ -3843,7 +3843,7 @@
     },
     {
       "path": "src/jarvis/google-owner-state-registry.ts",
-      "sha256": "d72940aa17c77f15bfb3299c233b8d0c63ade281a18a2a0bb30360b030f88d64",
+      "sha256": "a338121b946148bfa928162348a0c15a718dd7e3ea6245703c3c08198766d28b",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "SEC-001",
