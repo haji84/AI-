@@ -18,7 +18,9 @@ export async function POST(request: Request) {
       pkceChallenge: String(payload?.pkceChallenge ?? ""),
     }, { enabled, clientId, issueContext: issueGoogleOwnerContext });
     return NextResponse.json({ ...result, redirectUri: "com.haji84.jarvis.iosowner:/oauth2redirect" }, { headers: { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" } });
-  } catch {
+  } catch (error) {
+    const category = error instanceof Error && error.message === "invalid enrollment request" ? "request" : error instanceof Error && error.message === "invalid device key" ? "device-key" : "broker";
+    console.error("GOOGLE_OWNER_BEGIN_FAILURE_CLASS", category);
     return NextResponse.json({ message: "Google Owner登録を開始できません" }, { status: 400, headers: { "Cache-Control": "no-store" } });
   }
 }
