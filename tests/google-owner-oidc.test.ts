@@ -27,7 +27,10 @@ for (const [name, patch] of [["issuer", { iss: "https://evil.example" }], ["audi
 
 test("rejects unknown kid and bad signature", async () => {
   await assert.rejects(() => verifyGoogleIdToken(token(base, "unknown"), { clientId: "client-id", nonce: "nonce-1", nowSeconds: now, fetchJwks: async () => ({ keys: [jwk] }) }));
-  const bad = token(base).replace(/.$/, "x");
+  const signed = token(base);
+  const parts = signed.split(".");
+  parts[2] = `${parts[2][0] === "A" ? "B" : "A"}${parts[2].slice(1)}`;
+  const bad = parts.join(".");
   await assert.rejects(() => verifyGoogleIdToken(bad, { clientId: "client-id", nonce: "nonce-1", nowSeconds: now, fetchJwks: async () => ({ keys: [jwk] }) }));
 });
 
