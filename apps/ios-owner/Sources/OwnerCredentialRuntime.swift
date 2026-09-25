@@ -42,7 +42,7 @@ final class OwnerCredentialRuntime: ObservableObject {
 
         // Secure Enclave private material never leaves this iPhone. Its opaque
         // data representation is backed up only into this device's Keychain.
-        let access = SecAccessControlCreateWithFlags(nil, kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly, .userPresence, nil)!
+        let access = SecAccessControlCreateWithFlags(nil, kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly, [.userPresence, .privateKeyUsage], nil)!
         let key = try SecureEnclave.P256.Signing.PrivateKey(compactRepresentable: false, accessControl: access)
         let bytes = key.publicKey.x963Representation
         guard bytes.count == 65, bytes.first == 4 else { throw OwnerError.keyUnavailable }
@@ -66,7 +66,7 @@ final class OwnerCredentialRuntime: ObservableObject {
 
     func enrollWithGoogle() async throws {
         let base = try baseURL()
-        let access = SecAccessControlCreateWithFlags(nil, kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly, .userPresence, nil)!
+        let access = SecAccessControlCreateWithFlags(nil, kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly, [.userPresence, .privateKeyUsage], nil)!
         let key = try SecureEnclave.P256.Signing.PrivateKey(compactRepresentable: false, accessControl: access)
         let bytes = key.publicKey.x963Representation
         guard bytes.count == 65, bytes.first == 4 else { throw OwnerError.keyUnavailable }
