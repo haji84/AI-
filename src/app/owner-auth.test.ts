@@ -7,6 +7,7 @@ import {
   OWNER_SESSION_MAX_AGE_SECONDS,
   verifyOwnerSessionToken,
   ownerSessionDeviceId,
+  verifyOwnerSessionBinding,
 } from "./owner-auth.ts";
 
 const SECRET = "owner-secret";
@@ -29,6 +30,16 @@ test("trusted Owner session binds its device ID to the signature", () => {
   assert.equal(ownerSessionDeviceId(SECRET, token, { nowSeconds: ISSUED_AT }), "device_1234567890abcdef");
   assert.equal(verifyOwnerSessionToken(SECRET, token.replace("device_1234567890abcdef", "device_abcdef1234567890"), { nowSeconds: ISSUED_AT }), false);
   assert.equal(ownerSessionDeviceId(SECRET, createOwnerSessionToken(SECRET, { issuedAtSeconds: ISSUED_AT }), { nowSeconds: ISSUED_AT }), null);
+});
+
+test("trusted Owner session is denied after revocation or registry failure", async () => {
+  const token = createOwnerSessionToken(SECRET, { deviceId: "device_1234567890abcdef" });
+  assert.equal(await verifyOwnerSessionBinding(SECRET, token, async () => false), true);
+  assert.equal(await verifyOwnerSessionBinding(SECRET, token, async () => true), false);
+  assert.equal(await verifyOwnerSessionBinding(SECRET, token, async () => { throw new Error("offline"); }), false);
+  assert.equal(await verifyOwnerSessionBinding(SECRET, token, async () => undefined), false);
+  const legacy = createOwnerSessionToken(SECRET);
+  assert.equal(await verifyOwnerSessionBinding(SECRET, legacy, async () => { throw new Error("offline"); }), true);
 });
 
 test("owner session expires after the bounded lifetime", () => {
