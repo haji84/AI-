@@ -9,6 +9,7 @@ function sourceAt(path) {
 }
 const source = sourceAt('../apps/ios-owner/Sources/OwnerCredentialRuntime.swift');
 const ui = sourceAt('../apps/ios-owner/Sources/JarvisIOSOwnerApp.swift');
+const projectDefinition = sourceAt('../apps/ios-owner/project.yml');
 const physicalInstallWorkflow = sourceAt('../.github/workflows/iphone-owner-build-1218.yml');
 
 test('Owner credential access is bound to server proof and local user presence', () => {
@@ -37,4 +38,16 @@ test('physical install selects the signing team from the app provisioning profil
   assert.doesNotMatch(physicalInstallWorkflow, /CODE_SIGN_IDENTITY="\$IDENTITY_HASH"/);
   assert.match(physicalInstallWorkflow, /CODE_SIGN_IDENTITY='Apple Development'/);
   assert.match(physicalInstallWorkflow, /CODE_SIGN_STYLE=Automatic/);
+});
+
+test('generated Xcode project keeps the approved Personal Team for local device runs', () => {
+  assert.match(projectDefinition, /DEVELOPMENT_TEAM: SDTV253RXA/);
+  assert.match(projectDefinition, /CODE_SIGN_STYLE: Automatic/);
+});
+
+test('physical install failure reports only a redacted diagnostic', () => {
+  assert.match(physicalInstallWorkflow, /INSTALL_DIAGNOSTIC/);
+  assert.match(physicalInstallWorkflow, /DEVICE_ID_REDACTED/);
+  assert.match(physicalInstallWorkflow, /EMAIL_REDACTED/);
+  assert.doesNotMatch(physicalInstallWorkflow, /cat .*install\.log/);
 });
