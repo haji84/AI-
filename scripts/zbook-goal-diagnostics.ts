@@ -36,7 +36,7 @@ try {
     blockerCount: state?.blockers.length ?? null,
     workRun: run ? { currentWork: run.currentWork, completedJobs: run.completedJobs, totalJobs: run.totalJobs, recoveryCount: run.recoveryCount, updatedAt: run.updatedAt, nextAction: run.nextAction } : null,
     workState: state ? { currentState: state.currentState, updatedAt: state.updatedAt, nextAction: state.nextAction, childWorkItems: state.childWorkItems.map(item => ({ id: item.id, status: item.status })), verificationItemIds: state.verificationResults.map(item => item.itemId) } : null,
-    recentHistory: recentHistory.slice(-10).map(entry => ({ at: entry.timestamp, failureCode: goalFailureCode(entry.summary) })),
+    recentHistory: recentHistory.slice(-10).map(entry => ({ at: entry.createdAt, failureCode: goalFailureCode(entry.summary) })),
   };
   const directory = resolve(".gai-results");
   await mkdir(directory, { recursive: true });
