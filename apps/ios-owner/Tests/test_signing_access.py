@@ -38,5 +38,13 @@ class SecureEnclaveSigningAccessTests(unittest.TestCase):
         self.assertIn("verifyRevokedChallengeIsDenied()", body)
         self.assertLess(body.index("verifyRevokedChallengeIsDenied()"), body.index("forgetLocal()"))
 
+    def test_google_local_delete_requires_device_auth_without_stored_code(self):
+        source = SOURCE.read_text()
+        start = source.index("func forgetLocalAfterAuthentication()")
+        end = source.index("func forgetLocal()", start + 5)
+        body = source[start:end]
+        self.assertIn(".deviceOwnerAuthentication", body)
+        self.assertNotIn("readProtected(account: Self.codeAccount)", body)
+
 if __name__ == "__main__":
     unittest.main()
