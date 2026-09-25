@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { OWNER_SESSION_COOKIE, verifyOwnerSessionToken } from "../../owner-auth.ts";
+import { OWNER_SESSION_COOKIE, ownerSessionDeviceId, verifyOwnerSessionToken } from "../../owner-auth.ts";
 
 export function jarvisOwnerSecret(): string {
   return process.env.JARVIS_OWNER_SECRET?.trim() || process.env.AI_COMPANY_OWNER_SECRET?.trim() || "";
@@ -9,7 +9,19 @@ export async function requireJarvisOwner(): Promise<boolean> {
   const ownerSecret = jarvisOwnerSecret();
   if (!ownerSecret) return false;
   const cookieStore = await cookies();
-  return verifyOwnerSessionToken(ownerSecret, cookieStore.get(OWNER_SESSION_COOKIE)?.value);
+  return verifyOwnerSessionAccess(ownerSecret, cookieStore.get(OWNER_SESSION_COOKIE)?.value);
+}
+
+export async function verifyOwnerSessionAccess(secret: string, token: string | undefined): Promise<boolean> {
+  if (!verifyOwnerSessionToken(secret, token)) return false;
+  const deviceId = ownerSessionDeviceId(secret, token);
+  if (!deviceId) return true;
+  try {
+    const response = await jarvisBrokerFetch(`/api/jarvis/admin/trusted-devices?deviceId=${encodeURIComponent(deviceId)}`, { signal: AbortSignal.timeout(3_000) });
+    if (!response.ok) return false;
+    const status = await response.json() as { revoked?: unknown };
+    return status.revoked === false;
+  } catch { return false; }
 }
 
 function validateJarvisEndpoint(base: string, name: string): void {
