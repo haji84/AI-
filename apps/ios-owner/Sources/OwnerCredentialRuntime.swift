@@ -177,8 +177,11 @@ final class OwnerCredentialRuntime: ObservableObject {
         guard response.statusCode == 401 else { throw OwnerError.revocationUnverified }
     }
 
-    func forgetLocalAfterAuthentication() throws {
-        guard try Keychain.readProtected(account: Self.codeAccount) != nil else { throw OwnerError.keyUnavailable }
+    func forgetLocalAfterAuthentication() async throws {
+        let context = LAContext()
+        guard try await context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: "このiPhoneの保存情報を削除します") else {
+            throw OwnerError.keyUnavailable
+        }
         forgetLocal()
         status = "このiPhoneの保存情報を削除しました。サーバー側の失効はGORIQ端末管理で確認してください"
     }
