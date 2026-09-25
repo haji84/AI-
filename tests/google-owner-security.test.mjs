@@ -12,7 +12,7 @@ const files = [
 ].map(path => readFileSync(new URL(path, import.meta.url), "utf8")).join("\n");
 
 test("Google Owner flow does not write authentication material to diagnostics", () => {
-  assert.doesNotMatch(files, /console\.log|print\(|NSLog|Logger\./);
+  assert.doesNotMatch(files, /console\.log|\bprint\(|NSLog|Logger\./);
   assert.doesNotMatch(files, /refresh_token/);
 });
 
