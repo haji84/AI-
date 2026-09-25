@@ -286,6 +286,56 @@
       "reason": "Android build and minimum OS contract"
     },
     {
+      "path": "apps/ios-owner/Info.plist",
+      "sha256": "5e7095539e5f166e9ff02a135b8ecb2081e71e315574411450c74f071f76ca32",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-I-006",
+        "SEC-001"
+      ],
+      "reason": "Issue #1218 iPhone Owner credential UI and device-bound Keychain authorization; physical acceptance remains pending"
+    },
+    {
+      "path": "apps/ios-owner/project.yml",
+      "sha256": "6d6e1560e7916f3677943fa79905b2f88de048a37bdfa0249d2bd6bd8ece8380",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-I-006",
+        "SEC-001"
+      ],
+      "reason": "Issue #1218 iPhone Owner credential UI and device-bound Keychain authorization; physical acceptance remains pending"
+    },
+    {
+      "path": "apps/ios-owner/README.md",
+      "sha256": "1a0fadbe7b91e2b15af164f94b148da9a1210fa669db68e66a1a42eb5d4a9b71",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-I-006",
+        "SEC-001"
+      ],
+      "reason": "Issue #1218 iPhone Owner credential UI and device-bound Keychain authorization; physical acceptance remains pending"
+    },
+    {
+      "path": "apps/ios-owner/Sources/JarvisIOSOwnerApp.swift",
+      "sha256": "2b3d2fbe02bf1242716387bee0f886534375874edb30e81dbbbb247f9e18b500",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-I-006",
+        "SEC-001"
+      ],
+      "reason": "Issue #1218 iPhone Owner credential UI and device-bound Keychain authorization; physical acceptance remains pending"
+    },
+    {
+      "path": "apps/ios-owner/Sources/OwnerCredentialRuntime.swift",
+      "sha256": "adeb27c5036ae8c11f06ae1219fb8295b417258738ce5ebc6651aa6de24ea916",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-I-006",
+        "SEC-001"
+      ],
+      "reason": "Issue #1218 iPhone Owner credential UI and device-bound Keychain authorization; physical acceptance remains pending"
+    },
+    {
       "path": "apps/ios-worker/Info.plist",
       "sha256": "48c652fbdc079351211a88fade57667f0af1df63d780dfba541e40a81ab3f111",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
@@ -1281,7 +1331,7 @@
     },
     {
       "path": "scripts/jarvis-requirement-audit.mjs",
-      "sha256": "42d8c02f83c499d453468d25c4c8303567a420c73053c3f006b92530c801d302",
+      "sha256": "788c0243c30ed9e045286bb9a598fbca905f0b1ef1ef768637105abf678ea6fd",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "GOV-025",

@@ -1,0 +1,19 @@
+name: JarvisIOSOwner
+options:
+  bundleIdPrefix: com.haji84.jarvis
+settings:
+  base:
+    SWIFT_VERSION: 6.0
+targets:
+  JarvisIOSOwner:
+    type: application
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - Sources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.haji84.jarvis.iosowner
+        INFOPLIST_FILE: Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        CODE_SIGN_STYLE: Automatic
