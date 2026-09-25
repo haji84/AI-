@@ -2401,7 +2401,7 @@
     },
     {
       "path": "src/app/jarvis/settings/TrustedDeviceSettings.tsx",
-      "sha256": "e332d85306fe838fe3431891bd896fb8782b694bb212aec0239572d9d7803ff9",
+      "sha256": "aa9daa19a2be3791a406be7ea3e91abc646ab5f20e89d90a517fdab7e7283b3e",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "SEC-001",
