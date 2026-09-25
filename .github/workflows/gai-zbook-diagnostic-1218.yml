@@ -21,6 +21,9 @@ jobs:
       - name: Verify Owner credential reader and utility on ZBook
         shell: powershell
         run: node --test scripts/owner-code-windows.test.mjs scripts/jarvis-production-config.test.mjs
+      - name: Verify Owner trusted-device revocation on ZBook
+        shell: powershell
+        run: node --test tests/trusted-device-registry.test.ts src/app/owner-auth.test.ts
       - name: Verify Owner rotation preflight and DPAPI callback on ZBook
         shell: powershell
         run: node --test scripts/owner-code-rotation.test.mjs

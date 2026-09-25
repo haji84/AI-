@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { OWNER_SESSION_COOKIE, verifyOwnerSessionToken } from "../../../owner-auth.ts";
+import { OWNER_SESSION_COOKIE } from "../../../owner-auth.ts";
+import { verifyOwnerSessionAccess } from "../../jarvis/broker.ts";
 import {
   SECRET_OP_APPROVAL_COOKIE,
   SECRET_OP_TTL_SECONDS,
@@ -12,7 +13,7 @@ export async function POST(request: Request) {
   if (!ownerSecret) return NextResponse.json({ message: "操作機能の設定が不足しています" }, { status: 503 });
 
   const cookieStore = await cookies();
-  if (!verifyOwnerSessionToken(ownerSecret, cookieStore.get(OWNER_SESSION_COOKIE)?.value)) {
+  if (!await verifyOwnerSessionAccess(ownerSecret, cookieStore.get(OWNER_SESSION_COOKIE)?.value)) {
     return NextResponse.json({ message: "オーナー認証が必要です" }, { status: 401 });
   }
 

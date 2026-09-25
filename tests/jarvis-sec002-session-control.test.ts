@@ -73,6 +73,6 @@ test("SEC-002 broker session gate remains fail-closed", () => {
   assert.match(broker, /if \(!ownerSecret\) return false;/);
   assert.match(
     broker,
-    /verifyOwnerSessionToken\(ownerSecret, cookieStore\.get\(OWNER_SESSION_COOKIE\)\?\.value\)/,
+    /verifyOwnerSessionAccess\(ownerSecret, cookieStore\.get\(OWNER_SESSION_COOKIE\)\?\.value\)/,
   );
 });
