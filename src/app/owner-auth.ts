@@ -77,6 +77,14 @@ export function ownerSessionDeviceId(secret: string, token: string | undefined, 
   return token?.startsWith(`${TRUSTED_SESSION_VERSION}.`) ? token.split(".")[3] : null;
 }
 
+export async function verifyOwnerSessionBinding(secret: string, token: string | undefined, isRevoked: (deviceId: string) => Promise<unknown>): Promise<boolean> {
+  if (!verifyOwnerSessionToken(secret, token)) return false;
+  const deviceId = ownerSessionDeviceId(secret, token);
+  if (!deviceId) return true;
+  try { return (await isRevoked(deviceId)) === false; }
+  catch { return false; }
+}
+
 export function verifyOwnerPasscode(secret: string, candidate: string): boolean {
   if (!secret.trim() || !candidate) return false;
   const expected = Buffer.from(secret, "utf8");
