@@ -11,9 +11,9 @@ final class OwnerCredentialRuntime: ObservableObject {
     @Published var serverURL = UserDefaults.standard.string(forKey: "ownerServerURL") ?? ""
     @Published private(set) var status = "未登録"
     @Published private(set) var revealedCode: String?
-    @Published private(set) var isEnrolled = false
+    @Published private(set) var isEnrolled = false\n    @Published private(set) var hasStoredCode = false
 
-    private let session: URLSession
+    private let session: URLSession\n    private let googleEnrollment = GoogleOwnerEnrollment()
     private static let codeAccount = "owner-production-code"
     private static let keyAccount = "owner-signing-key"
     private static let credentialAccount = "owner-trusted-credential"
@@ -67,6 +67,30 @@ final class OwnerCredentialRuntime: ObservableObject {
         UserDefaults.standard.set(serverURL, forKey: "ownerServerURL")
         isEnrolled = true
         status = "登録済み・表示前に本人とサーバーを確認"
+    }
+
+    func enrollWithGoogle() async throws {
+        let base = try baseURL()
+        let access = SecAccessControlCreateWithFlags(nil, kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly, .userPresence, nil)!
+        let key = try SecureEnclave.P256.Signing.PrivateKey(compactRepresentable: false, accessControl: access)
+        let bytes = key.publicKey.x963Representation
+        guard bytes.count == 65, bytes.first == 4 else { throw OwnerError.keyUnavailable }
+        let id = UUID().uuidString.replacingOccurrences(of: "-", with: "_")
+        let publicJWK = ["kty": "EC", "crv": "P-256", "x": Data(bytes[1..<33]).base64URL, "y": Data(bytes[33..<65]).base64URL]
+        let credential = try await googleEnrollment.enroll(baseURL: base, deviceId: id, publicKeyJwk: publicJWK)
+        try Keychain.save(key.dataRepresentation, account: Self.keyAccount)
+        do {
+            try Keychain.save(Data(credential.utf8), account: Self.credentialAccount)
+            try Keychain.save(Data(id.utf8), account: Self.deviceIdAccount)
+        } catch {
+            forgetLocal()
+            throw error
+        }
+        Keychain.delete(account: Self.codeAccount)
+        UserDefaults.standard.set(serverURL, forKey: "ownerServerURL")
+        isEnrolled = true
+        hasStoredCode = false
+        status = "GoogleでOwner登録済み"
     }
 
     func reveal() async throws {
