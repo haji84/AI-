@@ -17,7 +17,7 @@ export async function POST(request: Request) {
       nonce: String(payload?.nonce ?? ""),
       pkceChallenge: String(payload?.pkceChallenge ?? ""),
     }, { enabled, clientId, issueContext: issueGoogleOwnerContext });
-    return NextResponse.json(result, { headers: { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" } });
+    return NextResponse.json({ ...result, redirectUri: "com.haji84.jarvis.iosowner:/oauth2redirect" }, { headers: { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" } });
   } catch {
     return NextResponse.json({ message: "Google Owner登録を開始できません" }, { status: 400, headers: { "Cache-Control": "no-store" } });
   }
