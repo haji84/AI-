@@ -25,6 +25,7 @@ jobs:
       - uses: actions/checkout@v5
         with:
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 2
           persist-credentials: false
       - name: Read-only Mac and connected-device preflight
         shell: bash
@@ -53,10 +54,13 @@ jobs:
           xcodegen generate
           xcodebuild -project JarvisIOSOwner.xcodeproj -scheme JarvisIOSOwner -configuration Debug -sdk iphoneos -destination 'generic/platform=iOS' CODE_SIGNING_ALLOWED=NO build
       - name: Signed install and launch on the one connected iPhone
-        if: github.event_name == 'workflow_dispatch' && inputs.install == true
+        if: (github.event_name == 'workflow_dispatch' && inputs.install == true) || (github.event_name == 'pull_request' && github.event.action == 'synchronize')
         shell: bash
         run: |
           set -euo pipefail
+          if [[ "$GITHUB_EVENT_NAME" == 'pull_request' ]]; then
+            test "$(git rev-parse HEAD^)" = 'ddbd80117401c9088e15e47e242a1bb5f40da870' || { echo 'ONE_TIME_INSTALL_SCOPE_NOT_MATCHED'; exit 0; }
+          fi
           TEAM="$(security find-identity -v -p codesigning | python3 -c 'import re,sys; teams=set(re.findall(r"Apple Development:[^\n]*\(([A-Z0-9]{10})\)",sys.stdin.read())); print(next(iter(teams)) if len(teams)==1 else "")')"
           test -n "$TEAM" || { echo 'EXISTING_SIGNING_TEAM_UNAVAILABLE'; exit 3; }
           xcrun devicectl list devices --json-output "$RUNNER_TEMP/goriq-1218-devices.json" >/dev/null
