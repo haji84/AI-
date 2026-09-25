@@ -12,6 +12,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { OwnerInvitationStore, INVITATION_PREFIX } from "../src/jarvis/owner-invitation.ts";
 import { TrustedDeviceRegistry } from "../src/jarvis/trusted-device-registry.ts";
+import { GoogleOwnerStateRegistry } from "../src/jarvis/google-owner-state-registry.ts";
 import { invitationUrl } from "../src/jarvis/invitation-link.ts";
 import { FixedEnrollmentRateLimiter } from "../src/jarvis/fixed-enrollment.ts";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
@@ -121,6 +122,7 @@ const pendingEnrollment = new PendingEnrollment();
 const pairingWindow = new JarvisEnrollmentPairingWindow();
 const invitations = new OwnerInvitationStore((process.env.JARVIS_DB_PATH?.trim() || resolve(".jarvis/jarvis.db")) + ".invitation.json");
 const trustedDevices = new TrustedDeviceRegistry((process.env.JARVIS_DB_PATH?.trim() || resolve(".jarvis/jarvis.db")) + ".trusted-devices.json");
+const googleOwnerState = new GoogleOwnerStateRegistry((process.env.JARVIS_DB_PATH?.trim() || resolve(".jarvis/jarvis.db")) + ".google-owner.json");
 const invitationLimiter = new FixedEnrollmentRateLimiter(60_000, 100, 200);
 const replacementTransport = new JarvisDeviceReplacementTransport({ identityForNode: (nodeId) => store.getWorkerIdentity(nodeId) });
 let lastHeartbeatPersist = 0;
@@ -327,6 +329,28 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
   if (path.startsWith("/api/jarvis/admin/")) {
     if (!requireOwner(request)) return json(response, 401, { message: "owner authorization required" });
     const payload = parseJson(body);
+    if (path === "/api/jarvis/admin/google-owner") {
+      try {
+        if (method !== "POST" || body.length > 4096) return json(response, 400, { message: "invalid google owner state request" });
+        if (payload.action === "issueContext") return json(response, 200, googleOwnerState.issueContext({
+          deviceId: String(payload.deviceId ?? ""), publicKeyThumbprint: String(payload.publicKeyThumbprint ?? ""),
+          state: String(payload.state ?? ""), nonce: String(payload.nonce ?? ""), pkceChallenge: String(payload.pkceChallenge ?? ""),
+        }));
+        if (payload.action === "consumeContext") return json(response, 200, googleOwnerState.consumeContext({
+          contextId: String(payload.contextId ?? ""), deviceId: String(payload.deviceId ?? ""), publicKeyThumbprint: String(payload.publicKeyThumbprint ?? ""),
+          state: String(payload.state ?? ""), nonce: String(payload.nonce ?? ""),
+        }));
+        if (payload.action === "bindIdentity") return json(response, 200, googleOwnerState.bindIdentity({
+          sub: String(payload.sub ?? ""), email: typeof payload.email === "string" ? payload.email : undefined,
+          emailVerified: payload.emailVerified === true, bootstrapEmail: String(payload.bootstrapEmail ?? ""),
+        }));
+        if (payload.action === "identity") {
+          const identity = googleOwnerState.identity();
+          return json(response, 200, identity ? { bound: true, sub: identity.sub, boundAt: identity.boundAt } : { bound: false });
+        }
+        return json(response, 400, { message: "invalid google owner state request" });
+      } catch { return json(response, 409, { message: "google owner state rejected" }); }
+    }
     if (path === "/api/jarvis/admin/trusted-devices") {
       try {
         if (method === "GET" && url.searchParams.has("deviceId")) return json(response, 200, { revoked: trustedDevices.isRevoked(url.searchParams.get("deviceId") || "") });
