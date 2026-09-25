@@ -339,7 +339,7 @@
     },
     {
       "path": "apps/ios-owner/Sources/OwnerCredentialRuntime.swift",
-      "sha256": "ca4bf548643bfbd082fcf40991395ca0d8bb79bdf12d6775d79a0b550fd8aeb9",
+      "sha256": "559b3abb9ff0971bf3e25040ae9a3f94385137607ee469489e823103010624dc",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "DEV-I-006",
@@ -349,13 +349,13 @@
     },
     {
       "path": "apps/ios-owner/Tests/test_signing_access.py",
-      "sha256": "b3f257b1e33138d82ab86bbba1a76b8701a9eb5cac5f3f9dc4db5d022cba6a68",
+      "sha256": "a55c159223c02de1357f3ee24f37f672336395619ed0829b7e2cfacac7d0c045",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "DEV-I-006",
         "SEC-001"
       ],
-      "reason": "iPhone Secure Enclave signing access and Google repair order regression contract; physical acceptance remains pending."
+      "reason": "iPhone Secure Enclave signing access, repair order and denial after revocation regression contract; physical acceptance remains pending."
     },
     {
       "path": "apps/ios-worker/Info.plist",
