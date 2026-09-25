@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { URL } from "node:url";
 import test from "node:test";
 
 const begin = readFileSync(new URL("../src/app/api/owner-login/google/begin/route.ts", import.meta.url), "utf8");
