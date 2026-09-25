@@ -29,7 +29,7 @@ export async function POST(request: Request) {
       publicKeyJwk: payload?.publicKeyJwk as JsonWebKey, state: String(payload?.state ?? ""), nonce: String(payload?.nonce ?? ""),
       code: String(payload?.code ?? ""), codeVerifier: String(payload?.codeVerifier ?? ""), redirectUri: String(payload?.redirectUri ?? ""),
     }, {
-      clientId, bootstrapEmail, redirectUri: configuredRedirectUri(clientId),
+      clientId, bootstrapEmail, redirectUri: OWNER_REDIRECT_URI,
       consumeContext: consumeGoogleOwnerContext,
       exchangeCode: exchangeGoogleAuthorizationCode,
       verifyIdToken: (token, input) => verifyGoogleIdToken(token, input),
