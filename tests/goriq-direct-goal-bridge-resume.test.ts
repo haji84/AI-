@@ -25,7 +25,7 @@ test("Broker startup resumes accepted Work Run and publishes machine-readable bl
   const socket = createServer(); socket.listen(0, "127.0.0.1"); await once(socket, "listening");
   const port = (socket.address() as { port: number }).port; await new Promise<void>(r => socket.close(() => r()));
   const child = spawn(process.execPath, ["scripts/jarvis-broker.ts"], {
-    env: { ...process.env, GITHUB_TOKEN: "", CODE_BUILDER_LOCAL_URL: "", CODE_BUILDER_LOCAL_TOKEN: "", JARVIS_BROKER_PORT: String(port), JARVIS_OWNER_TOKEN: "resume-test-owner", JARVIS_DB_PATH: join(dir, "state.sqlite"), JARVIS_COMPASS_DB_PATH: compassPath, JARVIS_PUBLIC_BROKER_URL: "", JARVIS_WORKER_INSTALL_URL: "", JARVIS_WORKER_APK_PATH: "" },
+    env: { ...process.env, LOCALAPPDATA: dir, GITHUB_TOKEN: "", CODE_BUILDER_LOCAL_URL: "", CODE_BUILDER_LOCAL_TOKEN: "", JARVIS_BROKER_PORT: String(port), JARVIS_OWNER_TOKEN: "resume-test-owner", JARVIS_DB_PATH: join(dir, "state.sqlite"), JARVIS_COMPASS_DB_PATH: compassPath, JARVIS_PUBLIC_BROKER_URL: "", JARVIS_WORKER_INSTALL_URL: "", JARVIS_WORKER_APK_PATH: "" },
     stdio: ["ignore", "ignore", "pipe"], windowsHide: true,
   });
   let stderr = ""; child.stderr?.on("data", chunk => { stderr += String(chunk); });
