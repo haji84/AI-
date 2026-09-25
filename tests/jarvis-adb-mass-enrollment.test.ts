@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
+import { join } from "node:path";
 import test from "node:test";
 
 const enrollScript = "scripts/jarvis-adb-mass-enroll.sh";
@@ -8,7 +9,10 @@ const installScript = "scripts/jarvis-mac-zero-touch-install.sh";
 
 test("ADB mass enrollment shell is syntactically valid", () => {
   for (const script of [enrollScript, installScript]) {
-    const result = spawnSync("bash", ["-n", script], { encoding: "utf8" });
+    const first = spawnSync("bash", ["-n", script], { encoding: "utf8" });
+    const result = process.platform === "win32" && first.error && "code" in first.error && first.error.code === "ENOENT"
+      ? spawnSync(join(process.env.ProgramFiles ?? "C:\\Program Files", "Git", "bin", "bash.exe"), ["-n", script], { encoding: "utf8" })
+      : first;
     assert.equal(result.status, 0, `${script}: ${result.stderr}`);
   }
 });
