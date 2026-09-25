@@ -59,7 +59,7 @@ jobs:
         run: |
           set -euo pipefail
           if [[ "$GITHUB_EVENT_NAME" == 'pull_request' ]]; then
-            test "$(git rev-parse HEAD^)" = '2897f4787e0976e7a70932b25603217c935baa17' || { echo 'ONE_TIME_INSTALL_SCOPE_NOT_MATCHED'; exit 0; }
+            test "$(git rev-parse HEAD^)" = 'c968be7394d198aab126aa96f56bd70bd8dc07ca' || { echo 'ONE_TIME_INSTALL_SCOPE_NOT_MATCHED'; exit 0; }
           fi
           PROFILE_SELECTION="$(python3 - <<'PY'
           import hashlib, pathlib, plistlib, re, subprocess, time
