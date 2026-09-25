@@ -3,6 +3,7 @@ import re
 import unittest
 
 SOURCE = Path(__file__).resolve().parents[1] / "Sources" / "OwnerCredentialRuntime.swift"
+VIEW = SOURCE.parent / "JarvisIOSOwnerApp.swift"
 
 class SecureEnclaveSigningAccessTests(unittest.TestCase):
     def test_enrollment_keys_allow_private_signing_with_user_presence(self):
@@ -27,6 +28,7 @@ class SecureEnclaveSigningAccessTests(unittest.TestCase):
         self.assertLess(body.index("enrollWithGoogle()"), body.index("verifyTrustedDeviceProof()"))
         self.assertLess(body.index("verifyTrustedDeviceProof()"), body.index("revokeTrustedDeviceId("))
         self.assertIn("oldDeviceId", body)
+        self.assertIn("Button(\"Googleで端末鍵を再登録\")", VIEW.read_text())
 
 if __name__ == "__main__":
     unittest.main()
