@@ -10,6 +10,7 @@ function sourceAt(path) {
 const source = sourceAt('../apps/ios-owner/Sources/OwnerCredentialRuntime.swift');
 const ui = sourceAt('../apps/ios-owner/Sources/JarvisIOSOwnerApp.swift');
 const projectDefinition = sourceAt('../apps/ios-owner/project.yml');
+const infoPlist = sourceAt('../apps/ios-owner/Info.plist');
 const physicalInstallWorkflow = sourceAt('../.github/workflows/iphone-owner-build-1218.yml');
 
 test('Owner credential access is bound to server proof and local user presence', () => {
@@ -43,6 +44,10 @@ test('physical install selects the signing team from the app provisioning profil
 test('generated Xcode project keeps the approved Personal Team for local device runs', () => {
   assert.match(projectDefinition, /DEVELOPMENT_TEAM: SDTV253RXA/);
   assert.match(projectDefinition, /CODE_SIGN_STYLE: Automatic/);
+});
+
+test('iPhone bundle declares its executable for physical installation', () => {
+  assert.match(infoPlist, /<key>CFBundleExecutable<\/key>\s*<string>\$\(EXECUTABLE_NAME\)<\/string>/);
 });
 
 test('physical install failure reports only a redacted diagnostic', () => {
