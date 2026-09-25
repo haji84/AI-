@@ -28,7 +28,11 @@ test('Owner secret is masked and does not enter browser storage, URL or diagnost
 
 test('physical install selects the signing team from the app provisioning profile', () => {
   assert.doesNotMatch(physicalInstallWorkflow, /TEAM=.*security find-identity/);
+  assert.doesNotMatch(physicalInstallWorkflow, /TEAM_ID="\$TEAM"/);
   assert.match(physicalInstallWorkflow, /Entitlements[\s\S]*application-identifier/);
+  assert.match(physicalInstallWorkflow, /DeveloperCertificates/);
+  assert.match(physicalInstallWorkflow, /hashlib\.sha1/);
   assert.match(physicalInstallWorkflow, /PROVISIONING_PROFILE_SPECIFIER="\$PROFILE_UUID"/);
+  assert.match(physicalInstallWorkflow, /CODE_SIGN_IDENTITY="\$IDENTITY_HASH"/);
   assert.match(physicalInstallWorkflow, /CODE_SIGN_STYLE=Manual/);
 });
