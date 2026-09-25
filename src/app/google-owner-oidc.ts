@@ -58,3 +58,23 @@ async function fetchGoogleJwks(): Promise<{ keys: JsonWebKey[] }> {
   if (!response.ok) throw new Error("google identity unavailable");
   return await response.json() as { keys: JsonWebKey[] };
 }
+
+export async function exchangeGoogleAuthorizationCode(input: { code: string; codeVerifier: string; redirectUri: string; clientId: string }): Promise<{ id_token?: string }> {
+  const body = new URLSearchParams({
+    code: input.code,
+    client_id: input.clientId,
+    code_verifier: input.codeVerifier,
+    redirect_uri: input.redirectUri,
+    grant_type: "authorization_code",
+  });
+  const response = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded", "Cache-Control": "no-store" },
+    body,
+    cache: "no-store",
+    signal: AbortSignal.timeout(5_000),
+  });
+  if (!response.ok) throw new Error("google identity unavailable");
+  const payload = await response.json() as { id_token?: unknown };
+  return typeof payload.id_token === "string" ? { id_token: payload.id_token } : {};
+}
