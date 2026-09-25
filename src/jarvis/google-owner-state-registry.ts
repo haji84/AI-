@@ -51,6 +51,7 @@ export class GoogleOwnerStateRegistry {
   }
 
   issueContext(input: { deviceId: string; publicKeyThumbprint: string; state: string; nonce: string; pkceChallenge: string }, now = Math.floor(Date.now() / 1000)) {
+    if (!DEVICE_ID.test(input.deviceId) || !input.publicKeyThumbprint || !input.state || !input.nonce || !input.pkceChallenge) throw new Error("invalid google owner context");
     const state = this.read();
     state.contexts = state.contexts.filter(item => item.expiresAt >= now && !item.consumed).slice(-99);
     const contextId = randomBytes(24).toString("base64url");
