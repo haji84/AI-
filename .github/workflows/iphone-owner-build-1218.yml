@@ -8,6 +8,11 @@ on:
         required: true
         default: false
         type: boolean
+  workflow_call:
+    inputs:
+      install:
+        required: true
+        type: boolean
   pull_request:
     paths:
       - 'apps/ios-owner/**'
@@ -18,7 +23,7 @@ permissions:
 
 jobs:
   compile:
-    if: (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == 'haji84/AI-' && github.event.pull_request.head.ref == 'goriq/1218-iphone-owner') || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/goriq/1218-iphone-owner')
+    if: (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == 'haji84/AI-' && github.event.pull_request.head.ref == 'goriq/1218-iphone-owner') || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/goriq/1218-iphone-owner') || (github.event_name == 'workflow_call' && github.ref == 'refs/heads/goriq/1218-iphone-owner')
     runs-on: [self-hosted, macOS, ARM64]
     timeout-minutes: 15
     steps:
@@ -54,7 +59,7 @@ jobs:
           xcodegen generate
           xcodebuild -project JarvisIOSOwner.xcodeproj -scheme JarvisIOSOwner -configuration Debug -sdk iphoneos -destination 'generic/platform=iOS' CODE_SIGNING_ALLOWED=NO build
       - name: Signed install and launch on the one connected iPhone
-        if: (github.event_name == 'workflow_dispatch' && inputs.install == true) || (github.event_name == 'pull_request' && github.event.action == 'synchronize')
+        if: ((github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.install == true) || (github.event_name == 'pull_request' && github.event.action == 'synchronize')
         shell: bash
         run: |
           set -euo pipefail
