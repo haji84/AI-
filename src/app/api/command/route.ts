@@ -15,7 +15,8 @@ import {
 } from "../../../orchestrator/task-authorization.ts";
 import { validateUploadedAttachmentRef, type UploadedAttachmentRef } from "../../attachment-storage.ts";
 import { readDashboardState } from "../../dashboard-state.ts";
-import { OWNER_SESSION_COOKIE, verifyOwnerSessionToken } from "../../owner-auth.ts";
+import { OWNER_SESSION_COOKIE } from "../../owner-auth.ts";
+import { verifyOwnerSessionAccess } from "../jarvis/broker.ts";
 import { normalizeIntake, deterministicIntent } from "../../../orchestrator/goal-controller-runtime.ts";
 
 const MAX_COMMAND_LENGTH = 500;
@@ -29,7 +30,7 @@ async function ownerContext() {
   if (!ownerSecret || !githubToken) return { error: NextResponse.json({ message: "操作機能の設定が不足しています" }, { status: 503 }) };
 
   const cookieStore = await cookies();
-  if (!verifyOwnerSessionToken(ownerSecret, cookieStore.get(OWNER_SESSION_COOKIE)?.value)) {
+  if (!await verifyOwnerSessionAccess(ownerSecret, cookieStore.get(OWNER_SESSION_COOKIE)?.value)) {
     return { error: NextResponse.json({ message: "オーナー認証が必要です" }, { status: 401 }) };
   }
 
