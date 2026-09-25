@@ -49,3 +49,22 @@ test('Windows DPAPI configuration consumer handles a fixture without stdout disc
     assert.equal(existsSync(marker), true);
   } finally { rmSync(directory, { recursive: true, force: true }); }
 });
+
+test('Windows atomic replacement preserves and restores an encrypted fixture backup', { skip: process.platform !== 'win32' }, () => {
+  const directory = mkdtempSync(join(tmpdir(), 'owner-rotation-rollback-'));
+  const config = join(directory, 'config.dpapi');
+  const candidate = join(directory, 'candidate.dpapi');
+  const backup = join(directory, 'backup.dpapi');
+  const failed = join(directory, 'failed.dpapi');
+  const powershell = `${process.env.SystemRoot}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe`;
+  const quote = value => `'${value.replaceAll("'", "''")}'`;
+  try {
+    writeFileSync(config, 'encrypted-old-fixture');
+    writeFileSync(candidate, 'encrypted-new-fixture');
+    const command = `[IO.File]::Replace(${quote(candidate)},${quote(config)},${quote(backup)},$true); [IO.File]::Replace(${quote(backup)},${quote(config)},${quote(failed)},$true)`;
+    const result = spawnSync(powershell, ['-NoProfile', '-NonInteractive', '-Command', command], { encoding: 'utf8', windowsHide: true });
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(readFileSync(config, 'utf8'), 'encrypted-old-fixture');
+    assert.equal(readFileSync(failed, 'utf8'), 'encrypted-new-fixture');
+  } finally { rmSync(directory, { recursive: true, force: true }); }
+});
