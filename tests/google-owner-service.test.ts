@@ -15,7 +15,7 @@ test("begin is disabled by default and returns only public OAuth context when en
 test("complete consumes context verifies PKCE identity registers device and returns td credential only", async () => {
   let registered = false; let bound = false;
   const result = await completeGoogleOwnerEnrollment({ contextId: "ctx", deviceId: "device_1234567890abcdef", publicKeyJwk: jwk, state: "s", nonce: "n", code: "auth-code", codeVerifier: "verifier", redirectUri: "com.example:/oauth2redirect" }, {
-    clientId: "c", bootstrapEmail: "owner@example.com",
+    clientId: "c", bootstrapEmail: "owner@example.com", redirectUri: "com.example:/oauth2redirect",
     consumeContext: async () => ({ pkceChallenge: "iMnq5o6zALKXGivsnlom_0F5_WYda32GHkxlV7mq7hQ" }),
     exchangeCode: async () => ({ id_token: "id-token" }),
     verifyIdToken: async () => ({ iss: "https://accounts.google.com", aud: "c", sub: "sub", email: "owner@example.com", email_verified: true, iat: 1, exp: 2, nonce: "n" }),
