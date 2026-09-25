@@ -142,7 +142,7 @@ async function runVerify(body: Record<string, unknown>) {
       { id: "p8-security", args: ["test:p8-security"] },
       { id: "build", args: ["build"] },
     ];
-    const evidence: Array<{ id: string; ok: boolean; exitCode: number | null; timedOut: boolean; stdoutTail: string; stderrTail: string }> = [];
+    const evidence: Array<{ id: string; ok: boolean; exitCode: number | null; timedOut: boolean; failureNames: string[]; stdoutTail: string; stderrTail: string }> = [];
     for (const check of checks) {
       const result = await run(pnpm, check.args);
       const ok = result.code === 0 && !result.timedOut;
@@ -151,6 +151,7 @@ async function runVerify(body: Record<string, unknown>) {
         ok,
         exitCode: result.code,
         timedOut: result.timedOut,
+        failureNames: check.id === "test" && !ok ? [...new Set([...result.stdout.matchAll(/^\\s*not ok\\s+\\d+\\s+-\\s+([^\\r\\n]+)/gm), ...result.stdout.matchAll(/^✖\\s+([^\\r\\n]+)/gm)].map(match => match[1]?.trim().slice(0, 160)).filter((name): name is string => Boolean(name)))].slice(0, 20) : [],
         stdoutTail: result.stdout.slice(-2000),
         stderrTail: result.stderr.slice(-2000),
       });
