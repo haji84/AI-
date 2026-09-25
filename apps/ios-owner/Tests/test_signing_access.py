@@ -20,6 +20,7 @@ class SecureEnclaveSigningAccessTests(unittest.TestCase):
 
     def test_repair_reenrolls_and_proves_new_key_before_revoking_old_device(self):
         source = SOURCE.read_text()
+        self.assertIn("func repairWithGoogle()", source)
         start = source.index("func repairWithGoogle()")
         end = source.index("func ", start + 5)
         body = source[start:end]
