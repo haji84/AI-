@@ -7,14 +7,7 @@ import { createTrustedDeviceCredential } from "../../../../trusted-device-auth.t
 import { registerTrustedDevice } from "../../../../trusted-device-registry-client.ts";
 
 export const dynamic = "force-dynamic";
-
-function configuredRedirectUri(clientId: string): string {
-  const suffix = ".apps.googleusercontent.com";
-  if (!clientId.endsWith(suffix)) throw new Error("invalid Google client id");
-  const prefix = clientId.slice(0, -suffix.length);
-  if (!/^[A-Za-z0-9-]+$/.test(prefix)) throw new Error("invalid Google client id");
-  return `com.googleusercontent.apps.${prefix}:/oauth2redirect`;
-}
+const OWNER_REDIRECT_URI = "com.haji84.jarvis.iosowner:/oauth2redirect";
 
 export async function POST(request: Request) {
   const enabled = process.env.GORIQ_GOOGLE_OWNER_ENROLLMENT_ENABLED === "1";
