@@ -52,6 +52,7 @@ test('iPhone bundle declares its executable for physical installation', () => {
 
 test('physical install failure reports only a redacted diagnostic', () => {
   assert.match(physicalInstallWorkflow, /INSTALL_DIAGNOSTIC/);
+  assert.match(physicalInstallWorkflow, /LAUNCH_DIAGNOSTIC/);
   assert.match(physicalInstallWorkflow, /DEVICE_ID_REDACTED/);
   assert.match(physicalInstallWorkflow, /EMAIL_REDACTED/);
   assert.doesNotMatch(physicalInstallWorkflow, /cat .*install\.log/);
