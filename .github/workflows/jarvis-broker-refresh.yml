@@ -8,6 +8,11 @@ on:
         required: true
         default: false
         type: boolean
+      install_ios_owner:
+        description: 'Compile, sign, install and launch the current branch on the connected iPhone'
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -17,7 +22,14 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  install-ios-owner:
+    if: inputs.install_ios_owner == true && github.ref == 'refs/heads/goriq/1218-iphone-owner'
+    uses: ./.github/workflows/iphone-owner-build-1218.yml
+    with:
+      install: true
+
   refresh:
+    if: inputs.install_ios_owner != true
     runs-on: [self-hosted, macOS, ARM64]
     timeout-minutes: 10
     steps:
