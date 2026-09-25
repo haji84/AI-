@@ -17,6 +17,8 @@ export class GoogleOwnerStateRegistry {
     if (raw.length > 131_072) throw new Error("google owner state too large");
     const state = JSON.parse(raw) as State;
     if (state?.version !== 1 || !Array.isArray(state.contexts) || state.contexts.length > 1000) throw new Error("invalid google owner state");
+    if (state.identity && (state.identity.provider !== "google" || state.identity.version !== 1 || !state.identity.sub || !Number.isSafeInteger(state.identity.boundAt))) throw new Error("invalid google owner state");
+    if (state.contexts.some(item => !item || !item.contextId || !DEVICE_ID.test(item.deviceId) || !item.publicKeyThumbprint || !item.state || !item.nonce || !item.pkceChallenge || !Number.isSafeInteger(item.expiresAt) || typeof item.consumed !== "boolean")) throw new Error("invalid google owner state");
     return state;
   }
 
