@@ -159,7 +159,22 @@ final class OwnerCredentialRuntime: ObservableObject {
         let body = try JSONSerialization.data(withJSONObject: ["deviceId": id])
         let result = try await send(base: try baseURL(), path: "/api/owner-login/trusted/devices", body: body, contentType: "application/json")
         guard result.statusCode == 200 else { throw OwnerError.trustUnavailable }
+        do {
+            try await verifyRevokedChallengeIsDenied()
+        } catch {
+            status = "失効後の遮断を確認できません。端末管理で状態を確認してください"
+            throw OwnerError.revocationUnverified
+        }
         forgetLocal()
+        status = "端末の失効と遮断を確認し、保存情報を削除しました"
+    }
+
+    private func verifyRevokedChallengeIsDenied() async throws {
+        guard let credentialData = Keychain.read(account: Self.credentialAccount),
+              let credential = String(data: credentialData, encoding: .utf8) else { throw OwnerError.keyUnavailable }
+        let body = try JSONSerialization.data(withJSONObject: ["credential": credential])
+        let response = try await send(base: try baseURL(), path: "/api/owner-login/trusted/challenge", body: body, contentType: "application/json")
+        guard response.statusCode == 401 else { throw OwnerError.revocationUnverified }
     }
 
     func forgetLocalAfterAuthentication() throws {
@@ -281,7 +296,7 @@ private enum Keychain {
 }
 
 enum OwnerError: LocalizedError {
-    case invalidCode, invalidServer, ownerAuthentication, ownerAuthenticationUnavailable, ownerServerResponse, enrollment, trustUnavailable, keyUnavailable
+    case invalidCode, invalidServer, ownerAuthentication, ownerAuthenticationUnavailable, ownerServerResponse, enrollment, trustUnavailable, keyUnavailable, revocationUnverified
     var errorDescription: String? {
         switch self {
         case .invalidCode: "コード形式を確認してください"
@@ -292,6 +307,7 @@ enum OwnerError: LocalizedError {
         case .enrollment: "端末登録に失敗しました"
         case .trustUnavailable: "端末の信頼状態を確認できません"
         case .keyUnavailable: "この端末の保護鍵を使用できません"
+        case .revocationUnverified: "失効後に端末が拒否されることを確認できませんでした"
         }
     }
 }
