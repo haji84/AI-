@@ -73,6 +73,9 @@ struct OwnerCredentialView: View {
                     }
                 } else {
                     Section {
+                        Button("Face IDと端末鍵を確認") {
+                            run { try await owner.verifyTrustedDevice() }
+                        }.disabled(working)
                         Button("この端末の信頼登録を失効して削除", role: .destructive) {
                             run { try await owner.revokeAndForget() }
                         }.disabled(working)
