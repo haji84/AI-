@@ -5,6 +5,7 @@ import { dirname } from "node:path";
 type Identity = { provider: "google"; sub: string; boundAt: number; version: 1 };
 type Context = { contextId: string; deviceId: string; publicKeyThumbprint: string; state: string; nonce: string; pkceChallenge: string; expiresAt: number; consumed: boolean };
 type State = { version: 1; identity?: Identity; contexts: Context[] };
+const DEVICE_ID = /^[A-Za-z0-9_-]{16,96}$/;
 
 export class GoogleOwnerStateRegistry {
   private readonly path: string;
