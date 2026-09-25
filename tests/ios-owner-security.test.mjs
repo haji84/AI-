@@ -28,6 +28,13 @@ test('Owner secret is masked and does not enter browser storage, URL or diagnost
   assert.doesNotMatch(source + ui, /localStorage|sessionStorage|indexedDB|print\(|Logger\.|NSLog|URLQueryItem.*[Cc]ode/);
 });
 
+test('enrollment distinguishes a wrong code from missing server authentication', () => {
+  assert.match(source, /login\.statusCode == 401/);
+  assert.match(source, /login\.statusCode == 503/);
+  assert.match(source, /ownerAuthenticationUnavailable/);
+  assert.match(source, /本番Owner認証がサーバーに設定されていません/);
+});
+
 test('physical install selects the signing team from the app provisioning profile', () => {
   assert.doesNotMatch(physicalInstallWorkflow, /TEAM=.*security find-identity/);
   assert.doesNotMatch(physicalInstallWorkflow, /TEAM_ID="\$TEAM"/);

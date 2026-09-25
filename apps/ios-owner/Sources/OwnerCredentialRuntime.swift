@@ -33,7 +33,9 @@ final class OwnerCredentialRuntime: ObservableObject {
         let base = try baseURL()
         let loginBody = "passcode=\(formEncode(code))"
         let login = try await send(base: base, path: "/api/owner-login", body: loginBody.data(using: .utf8)!, contentType: "application/x-www-form-urlencoded")
-        guard login.statusCode == 200 else { throw OwnerError.ownerAuthentication }
+        if login.statusCode == 401 { throw OwnerError.ownerAuthentication }
+        if login.statusCode == 503 { throw OwnerError.ownerAuthenticationUnavailable }
+        guard login.statusCode == 200 else { throw OwnerError.ownerServerResponse }
 
         // Secure Enclave private material never leaves this iPhone. Its opaque
         // data representation is backed up only into this device's Keychain.
@@ -222,12 +224,14 @@ private enum Keychain {
 }
 
 enum OwnerError: LocalizedError {
-    case invalidCode, invalidServer, ownerAuthentication, enrollment, trustUnavailable, keyUnavailable
+    case invalidCode, invalidServer, ownerAuthentication, ownerAuthenticationUnavailable, ownerServerResponse, enrollment, trustUnavailable, keyUnavailable
     var errorDescription: String? {
         switch self {
         case .invalidCode: "コード形式を確認してください"
         case .invalidServer: "HTTPSのGORIQ URLを確認してください"
-        case .ownerAuthentication: "Owner認証に失敗しました"
+        case .ownerAuthentication: "Owner認証に失敗しました。入力したコードが本番サーバーと一致しません"
+        case .ownerAuthenticationUnavailable: "本番Owner認証がサーバーに設定されていません"
+        case .ownerServerResponse: "本番サーバーから想定外の応答が返りました"
         case .enrollment: "端末登録に失敗しました"
         case .trustUnavailable: "端末の信頼状態を確認できません"
         case .keyUnavailable: "この端末の保護鍵を使用できません"

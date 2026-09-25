@@ -327,13 +327,13 @@
     },
     {
       "path": "apps/ios-owner/Sources/OwnerCredentialRuntime.swift",
-      "sha256": "adeb27c5036ae8c11f06ae1219fb8295b417258738ce5ebc6651aa6de24ea916",
+      "sha256": "6ba15fb5142302ffdae6c77939b184e0b32e723fe41290bb7bc5f91b0f7fb99c",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "DEV-I-006",
         "SEC-001"
       ],
-      "reason": "Issue #1218 iPhone Owner credential UI and device-bound Keychain authorization; physical acceptance remains pending"
+      "reason": "Issue #1218 iPhone Owner credential UI and device-bound Keychain authorization; enrollment errors safely distinguish code mismatch, missing server authentication, and unexpected responses"
     },
     {
       "path": "apps/ios-worker/Info.plist",
