@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -40,5 +40,30 @@ test("corrupt persisted Google Owner state fails closed", () => {
     const path = join(dir, "state.json");
     writeFileSync(path, JSON.stringify({ version: 1, identity: { provider: "google", sub: "", boundAt: 0, version: 1 }, contexts: [] }));
     assert.throws(() => new GoogleOwnerStateRegistry(path).identity());
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("oversized context is rejected and capacity never evicts a live context", () => {
+  const dir = mkdtempSync(join(tmpdir(), "google-owner-"));
+  try {
+    const store = new GoogleOwnerStateRegistry(join(dir, "state.json"));
+    const input = { deviceId: device, publicKeyThumbprint: "thumb", state: "state", nonce: "nonce", pkceChallenge: "pkce" };
+    assert.throws(() => store.issueContext({ ...input, state: "x".repeat(3000) }, 1000));
+    const first = store.issueContext(input, 1000);
+    for (let i = 1; i < 100; i++) store.issueContext(input, 1000);
+    assert.throws(() => store.issueContext(input, 1000), /capacity/);
+    assert.equal(store.consumeContext({ ...input, contextId: first.contextId }, 1001).contextId, first.contextId);
+    assert.doesNotThrow(() => store.issueContext(input, 1001));
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("binding fails closed if another process holds the state lock", () => {
+  const dir = mkdtempSync(join(tmpdir(), "google-owner-"));
+  try {
+    const path = join(dir, "state.json");
+    mkdirSync(path + ".lock");
+    const store = new GoogleOwnerStateRegistry(path);
+    assert.throws(() => store.bindIdentity({ sub: "s1", email: "owner@example.com", emailVerified: true, bootstrapEmail: "owner@example.com" }, 1000));
+    assert.equal(store.identity(), undefined);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
