@@ -30,7 +30,7 @@ export async function POST(request: Request) {
   try { await registerTrustedDevice(credential.deviceId, credential.label); }
   catch { return NextResponse.json({ message: "端末の登録状態を確認できません" }, { status: 503 }); }
   const response = NextResponse.json({ ok: true, deviceId: credential.deviceId }, { headers: { "Cache-Control": "no-store" } });
-  response.cookies.set(OWNER_SESSION_COOKIE, createOwnerSessionToken(secret), {
+  response.cookies.set(OWNER_SESSION_COOKIE, createOwnerSessionToken(secret, { deviceId: credential.deviceId }), {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "strict",
