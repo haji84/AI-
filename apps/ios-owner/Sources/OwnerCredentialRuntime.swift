@@ -80,6 +80,27 @@ final class OwnerCredentialRuntime: ObservableObject {
         status = "GoogleでOwner登録済み"
     }
 
+    func repairWithGoogle() async throws {
+        let oldDeviceId = Keychain.read(account: Self.deviceIdAccount).flatMap { String(data: $0, encoding: .utf8) }
+        try await enrollWithGoogle()
+        do {
+            try await verifyTrustedDeviceProof()
+            if let oldDeviceId {
+                try await revokeTrustedDeviceId(oldDeviceId)
+            }
+            status = "新しい端末鍵を確認し、以前の登録を失効しました"
+        } catch {
+            status = "新しい登録を確認できません。旧登録の失効状態も端末管理で確認してください"
+            throw error
+        }
+    }
+
+    private func revokeTrustedDeviceId(_ deviceId: String) async throws {
+        let body = try JSONSerialization.data(withJSONObject: ["deviceId": deviceId])
+        let result = try await send(base: try baseURL(), path: "/api/owner-login/trusted/devices", body: body, contentType: "application/json")
+        guard result.statusCode == 200 else { throw OwnerError.trustUnavailable }
+    }
+
     private func storeTrustedDevice(keyData: Data, credential: String, deviceId: String, recoveryCode: String?) throws {
         try Keychain.save(keyData, account: Self.keyAccount)
         do {
