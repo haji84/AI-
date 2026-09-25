@@ -59,7 +59,7 @@ jobs:
         run: |
           set -euo pipefail
           if [[ "$GITHUB_EVENT_NAME" == 'pull_request' ]]; then
-            test "$(git rev-parse HEAD^)" = 'e1de20f73b42b0bc140f6096a3bb7f7e4c0b2121' || { echo 'ONE_TIME_INSTALL_SCOPE_NOT_MATCHED'; exit 0; }
+            test "$(git rev-parse HEAD^)" = '244566ea0fcc04193d6451973e1edf331ea84307' || { echo 'ONE_TIME_INSTALL_SCOPE_NOT_MATCHED'; exit 0; }
           fi
           PROFILE_SELECTION="$(python3 - <<'PY'
           import hashlib, pathlib, plistlib, re, subprocess, time
@@ -131,7 +131,7 @@ jobs:
           rm -f "$RUNNER_TEMP/goriq-1218-devices.json"
           test -n "$DEVICE_ID" || { echo 'EXACTLY_ONE_CONNECTED_IPHONE_REQUIRED'; exit 4; }
           cd apps/ios-owner
-          xcodebuild -quiet -project JarvisIOSOwner.xcodeproj -scheme JarvisIOSOwner -configuration Debug -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath "$RUNNER_TEMP/goriq-1218-derived" DEVELOPMENT_TEAM="$TEAM" CODE_SIGN_STYLE=Manual PROVISIONING_PROFILE_SPECIFIER="$PROFILE_UUID" CODE_SIGN_IDENTITY="$IDENTITY_HASH" CODE_SIGNING_ALLOWED=YES build
+          xcodebuild -quiet -project JarvisIOSOwner.xcodeproj -scheme JarvisIOSOwner -configuration Debug -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath "$RUNNER_TEMP/goriq-1218-derived" DEVELOPMENT_TEAM="$TEAM" CODE_SIGN_STYLE=Automatic CODE_SIGN_IDENTITY="$IDENTITY_HASH" CODE_SIGNING_ALLOWED=YES build
           APP="$RUNNER_TEMP/goriq-1218-derived/Build/Products/Debug-iphoneos/JarvisIOSOwner.app"
           test -d "$APP"
           xcrun devicectl device install app --device "$DEVICE_ID" "$APP" >"$RUNNER_TEMP/goriq-1218-install.log" 2>&1 || { echo 'DEVICE_INSTALL_FAILED'; exit 5; }
