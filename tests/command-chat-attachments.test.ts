@@ -21,7 +21,7 @@ test("AI Chat supports multiple private direct uploads before command dispatch",
 test("attachment presign endpoint is owner-only and fails closed without Blob storage", async () => {
   const source = await readFile(presignRouteSource, "utf8");
   assert.match(source, /BLOB_READ_WRITE_TOKEN/);
-  assert.match(source, /verifyOwnerSessionToken/);
+  assert.match(source, /await verifyOwnerSessionAccess\(ownerSecret, cookieStore\.get\(OWNER_SESSION_COOKIE\)\?\.value\)/);
   assert.match(source, /status: 503/);
   assert.doesNotMatch(source, /access:\s*["']public["']/);
 });

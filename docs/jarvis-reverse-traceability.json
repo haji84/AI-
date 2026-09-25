@@ -933,7 +933,7 @@
     },
     {
       "path": "scripts/jarvis-broker.ts",
-      "sha256": "6921d8c0b8992a1cdf499b20c92a3fd68778bbfcf75280d1d3864c8f0aacaa6a",
+      "sha256": "af1c9fd3057100675a4d30f629aab6dac52c344416f1839560af81be7d2c1afb",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "NET-006",
@@ -1351,7 +1351,7 @@
     },
     {
       "path": "src/app/api/command/route.ts",
-      "sha256": "582f1c23119bb405fca49359a449d5d1c80269f8e74939284538369e44c4da1b",
+      "sha256": "08f69fa8144384fc5d9e5f18567fd45478f5de3dbc4f6a62b3e6becb954a0a24",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-005"
@@ -1382,7 +1382,7 @@
     },
     {
       "path": "src/app/api/jarvis/broker.ts",
-      "sha256": "22ea654aae30bf332ecb3a7aa231e3f5eb2e1f3dc1b20ca719f35a0fb3393494",
+      "sha256": "e012287b6ad3de49b2ed0ebb80f7670508528ebb7c62dd703ade84c2150c8c31",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "NET-005",
@@ -1573,7 +1573,7 @@
     },
     {
       "path": "src/app/api/owner-login/trusted/challenge/route.ts",
-      "sha256": "9d47424b11ffb26f57a87f3cf2b2f295327a3b344e742225ec96e1db11dd739f",
+      "sha256": "0aedfa24cbbefd74c3c9b9385021cdb0f168784e6d8307f8dea662d3ce5e195c",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "SEC-001",
@@ -1583,8 +1583,18 @@
       "reason": "Declared route.ts responsibility implements/supports Owner Authentication; Session Control; One Front Door. Parent ownership is not functional or physical acceptance evidence."
     },
     {
+      "path": "src/app/api/owner-login/trusted/devices/route.ts",
+      "sha256": "031a94aa252b0cc37d64c1876513b3fd82d77f67dc02f59d614d835186f8f7fb",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "SEC-001",
+        "SEC-002"
+      ],
+      "reason": "Issue #1218 Owner trusted-device revocation support; requirement remains partial until native iPhone and physical acceptance"
+    },
+    {
       "path": "src/app/api/owner-login/trusted/enroll/route.ts",
-      "sha256": "8f6cf397b5db8917de0f7c1208df5c232179ab498e05acf6fbe2f3d9bab60081",
+      "sha256": "05a61386018be0927ccae35cf83d45dee5e01245c5707307bd7d58c715a17ee0",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "SEC-001",
@@ -1595,7 +1605,7 @@
     },
     {
       "path": "src/app/api/owner-login/trusted/verify/route.ts",
-      "sha256": "2187ed10c0e18b9cc518de8de93e9e9cd0c9ced2e5fcce3b09c5dc8841b67150",
+      "sha256": "a26b1fde03d604930eacb0764b335d9e9eeb76dfff20cf9bfe9565be1c967f95",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "SEC-001",
@@ -1617,7 +1627,7 @@
     },
     {
       "path": "src/app/api/vercel-owner/route.ts",
-      "sha256": "29034ec1a801531f383c2d9c18e73f818b68a149f25405dc9a91c68104ecfe77",
+      "sha256": "32229426b27182ad8e128ff0c51f2f5347cebe2caf64b59f363d43da0a272a6f",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "SEC-001",
@@ -2391,7 +2401,7 @@
     },
     {
       "path": "src/app/jarvis/settings/TrustedDeviceSettings.tsx",
-      "sha256": "5b9147a4c98a30cfe740c91dbca8ee7a4422dad70c64ab5aef5de284c59b0d4d",
+      "sha256": "e332d85306fe838fe3431891bd896fb8782b694bb212aec0239572d9d7803ff9",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "SEC-001",
@@ -2631,7 +2641,7 @@
     },
     {
       "path": "src/app/owner-auth.ts",
-      "sha256": "2b4cc20a626bb61078e53c12259de1779990cf71be2d4bd5bb73757b0ed31a1a",
+      "sha256": "4d9ab5956902dd1213a333f4fe4390172ff7a24b2795532b4921ac5ee764c54b",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "NET-005",
@@ -4118,6 +4128,16 @@
         "TEACH-006"
       ],
       "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/jarvis/trusted-device-registry.ts",
+      "sha256": "cf4bf2e3fd650d7a2b4adaed6e748a6c5175e840d6245546a3481949c6bd0e99",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "SEC-001",
+        "SEC-002"
+      ],
+      "reason": "Issue #1218 Owner trusted-device revocation support; requirement remains partial until native iPhone and physical acceptance"
     },
     {
       "path": "src/jarvis/types.ts",

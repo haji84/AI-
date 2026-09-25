@@ -11,6 +11,7 @@ import { createHash, createPublicKey, randomBytes, timingSafeEqual } from "node:
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { OwnerInvitationStore, INVITATION_PREFIX } from "../src/jarvis/owner-invitation.ts";
+import { TrustedDeviceRegistry } from "../src/jarvis/trusted-device-registry.ts";
 import { invitationUrl } from "../src/jarvis/invitation-link.ts";
 import { FixedEnrollmentRateLimiter } from "../src/jarvis/fixed-enrollment.ts";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
@@ -119,6 +120,7 @@ const remoteMailbox = new WorkerRemoteMailbox();
 const pendingEnrollment = new PendingEnrollment();
 const pairingWindow = new JarvisEnrollmentPairingWindow();
 const invitations = new OwnerInvitationStore((process.env.JARVIS_DB_PATH?.trim() || resolve(".jarvis/jarvis.db")) + ".invitation.json");
+const trustedDevices = new TrustedDeviceRegistry((process.env.JARVIS_DB_PATH?.trim() || resolve(".jarvis/jarvis.db")) + ".trusted-devices.json");
 const invitationLimiter = new FixedEnrollmentRateLimiter(60_000, 100, 200);
 const replacementTransport = new JarvisDeviceReplacementTransport({ identityForNode: (nodeId) => store.getWorkerIdentity(nodeId) });
 let lastHeartbeatPersist = 0;
@@ -325,6 +327,15 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
   if (path.startsWith("/api/jarvis/admin/")) {
     if (!requireOwner(request)) return json(response, 401, { message: "owner authorization required" });
     const payload = parseJson(body);
+    if (path === "/api/jarvis/admin/trusted-devices") {
+      try {
+        if (method === "GET" && url.searchParams.has("deviceId")) return json(response, 200, { revoked: trustedDevices.isRevoked(url.searchParams.get("deviceId") || "") });
+        if (method === "GET") return json(response, 200, { devices: trustedDevices.list() });
+        if (method === "POST" && body.length <= 1024 && payload.action === "register" && typeof payload.deviceId === "string" && typeof payload.label === "string") return json(response, 200, { device: trustedDevices.register(payload.deviceId, payload.label) });
+        if (method === "POST" && body.length <= 1024 && payload.action === "revoke" && typeof payload.deviceId === "string") return json(response, 200, { device: trustedDevices.revoke(payload.deviceId) });
+        return json(response, 400, { message: "invalid trusted device request" });
+      } catch { return json(response, 503, { message: "trusted device registry unavailable" }); }
+    }
     if (method === "GET" && path === "/api/jarvis/admin/state") return json(response, 200, plane.snapshot());
     if (method === "GET" && path === "/api/jarvis/admin/requirements") return json(response, 200, requirementWorkflow(ownerRequirements.list(),loadCanonicalBundle(fileURLToPath(new URL("../",import.meta.url))),fileURLToPath(new URL("../",import.meta.url)),!!process.env.GITHUB_TOKEN));
     if (method === "POST" && path === "/api/jarvis/admin/requirements/publish") {
