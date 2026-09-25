@@ -134,26 +134,3 @@ jobs:
           }
           NODE
 
-      - name: Transit current public Broker endpoint for production repair
-        if: always() && inputs.owner_1218_head == true
-        shell: bash
-        run: |
-          set -euo pipefail
-          ENV_FILE="$HOME/Library/Application Support/JARVIS/jarvis.env"
-          set -a; source "$ENV_FILE"; set +a
-          : "${JARVIS_PUBLIC_BROKER_URL:?missing public Broker URL}"
-          echo "::add-mask::$JARVIS_PUBLIC_BROKER_URL"
-          cat > "$RUNNER_TEMP/owner-broker-transit.pem" <<'PUBKEY'
-          -----BEGIN PUBLIC KEY-----
-          MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuZ/owf/oNfw32sZ7PfW+
-          STNGrHrnzQ0eL7c3PMhpiVeBWU6TaLub+0amIQuEgp2NcrUbzYlG9foH3pq8xc0a
-          EHw4gvnS2SMP19MvOVK7Y3i9svbPWIqfKLRCKDfTaOXrxK2Ml3bp/JwCadYmN/JG
-          hsIOojZm2uwdSJpXkf45McZrY919UM+8ZMD1lIRXy+tgN1jBf4c4et/9MiaKveVI
-          qBf9oZNs2y/+n5oY5Y3jfWvPLRL+SL6acSYEIUUft28+KlSQ6Ir3xoD7jtmddhlQ
-          bt78Bv2vs0z/DyjKDUOjWzlA/wIbrKWvgZmX/DWk65y2xwdYfHadJoeGzbfTTFEY
-          wwIDAQAB
-          -----END PUBLIC KEY-----
-          PUBKEY
-          CIPHERTEXT="$(printf '%s' "$JARVIS_PUBLIC_BROKER_URL" | openssl pkeyutl -encrypt -pubin -inkey "$RUNNER_TEMP/owner-broker-transit.pem" -pkeyopt rsa_padding_mode:oaep | base64 | tr -d '\n')"
-          rm -f "$RUNNER_TEMP/owner-broker-transit.pem"
-          echo "BROKER_URL_CIPHERTEXT=$CIPHERTEXT"
