@@ -34,6 +34,7 @@ test('physical install selects the signing team from the app provisioning profil
   assert.match(physicalInstallWorkflow, /hashlib\.sha1/);
   assert.doesNotMatch(physicalInstallWorkflow, /PROVISIONING_PROFILE_SPECIFIER=/);
   assert.doesNotMatch(physicalInstallWorkflow, /-allowProvisioningUpdates/);
-  assert.match(physicalInstallWorkflow, /CODE_SIGN_IDENTITY="\$IDENTITY_HASH"/);
+  assert.doesNotMatch(physicalInstallWorkflow, /CODE_SIGN_IDENTITY="\$IDENTITY_HASH"/);
+  assert.match(physicalInstallWorkflow, /CODE_SIGN_IDENTITY='Apple Development'/);
   assert.match(physicalInstallWorkflow, /CODE_SIGN_STYLE=Automatic/);
 });
