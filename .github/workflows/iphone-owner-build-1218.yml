@@ -1,0 +1,47 @@
+name: iPhone Owner 1218 Mac preflight
+
+on:
+  pull_request:
+    paths:
+      - 'apps/ios-owner/**'
+      - '.github/workflows/iphone-owner-build-1218.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  compile:
+    if: github.event.pull_request.head.repo.full_name == 'haji84/AI-' && github.event.pull_request.head.ref == 'goriq/1218-iphone-owner'
+    runs-on: [self-hosted, macOS, ARM64]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Read-only Mac and connected-device preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcodebuild -version
+          xcrun --version
+          command -v xcodegen || { echo 'XCODEGEN_UNAVAILABLE'; exit 2; }
+          if xcrun devicectl list devices --json-output /tmp/goriq-1218-devices.json >/dev/null 2>&1; then
+            python3 - <<'PY'
+          import json
+          with open('/tmp/goriq-1218-devices.json') as handle:
+              devices=json.load(handle).get('result',{}).get('devices',[])
+          print('DEVICE_RECORD_COUNT='+str(len(devices)))
+          print('CONNECTED_IPHONE_COUNT='+str(sum('iphone' in str(item.get('deviceProperties',{}).get('name','')).lower() and item.get('connectionProperties',{}).get('transportType') in ('wired','localNetwork') for item in devices)))
+          PY
+            rm -f /tmp/goriq-1218-devices.json
+          else
+            echo 'DEVICE_LIST_UNAVAILABLE'
+          fi
+      - name: Compile iPhone Owner without signing or installation
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd apps/ios-owner
+          xcodegen generate
+          xcodebuild -project JarvisIOSOwner.xcodeproj -scheme JarvisIOSOwner -configuration Debug -sdk iphoneos -destination 'generic/platform=iOS' CODE_SIGNING_ALLOWED=NO build
