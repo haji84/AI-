@@ -30,5 +30,13 @@ class SecureEnclaveSigningAccessTests(unittest.TestCase):
         self.assertIn("oldDeviceId", body)
         self.assertIn("Button(\"Googleで端末鍵を再登録\")", VIEW.read_text())
 
+    def test_revocation_requires_server_denial_before_local_deletion(self):
+        source = SOURCE.read_text()
+        start = source.index("func revokeAndForget()")
+        end = source.index("func ", start + 5)
+        body = source[start:end]
+        self.assertIn("verifyRevokedChallengeIsDenied()", body)
+        self.assertLess(body.index("verifyRevokedChallengeIsDenied()"), body.index("forgetLocal()"))
+
 if __name__ == "__main__":
     unittest.main()
