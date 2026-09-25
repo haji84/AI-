@@ -1624,7 +1624,7 @@
     },
     {
       "path": "src/app/api/owner-login/google/begin/route.ts",
-      "sha256": "150b5c282b7c36a3a39654a0b3d2e1b554ce6d4a9db357cc882d78ee5dd60996",
+      "sha256": "64874d8578ae451327428dd8f277df8dbc3bcd5fa8c2d3b9336e9c7375b505f7",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "SEC-001",
@@ -1760,7 +1760,7 @@
     },
     {
       "path": "src/app/google-owner-state-client.ts",
-      "sha256": "a84c30f53140fc5313d0ef4e49eeb154d3c94deed9a8ef81377a42f220621fd9",
+      "sha256": "2fe5df0646129bc58e4b6ebe0d31cb253b9ca91c44584c8a0180649f3500b89f",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "SEC-001",
