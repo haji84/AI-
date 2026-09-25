@@ -24,7 +24,7 @@ export async function beginGoogleOwnerEnrollment(input: BeginInput, deps: {
 type CompleteInput = { contextId: string; deviceId: string; publicKeyJwk: JsonWebKey; state: string; nonce: string; code: string; codeVerifier: string; redirectUri: string };
 type CompleteDeps = {
   clientId: string;
-  bootstrapEmail: string;
+  bootstrapEmail: string;\n  redirectUri: string;
   consumeContext: (input: { contextId: string; deviceId: string; publicKeyThumbprint: string; state: string; nonce: string }) => Promise<{ pkceChallenge: string }>;
   exchangeCode: (input: { code: string; codeVerifier: string; redirectUri: string; clientId: string }) => Promise<{ id_token?: string }>;
   verifyIdToken: (token: string, input: { clientId: string; nonce: string }) => Promise<GoogleIdClaims>;
@@ -34,7 +34,7 @@ type CompleteDeps = {
 };
 
 export async function completeGoogleOwnerEnrollment(input: CompleteInput, deps: CompleteDeps) {
-  if (!DEVICE.test(input.deviceId) || !input.code || !input.codeVerifier || !input.redirectUri.startsWith("com.")) throw new Error("google owner enrollment rejected");
+  if (!DEVICE.test(input.deviceId) || !input.code || !input.codeVerifier || input.redirectUri !== deps.redirectUri) throw new Error("google owner enrollment rejected");
   const context = await deps.consumeContext({
     contextId: input.contextId,
     deviceId: input.deviceId,
