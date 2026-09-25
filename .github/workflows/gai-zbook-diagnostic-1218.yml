@@ -15,6 +15,9 @@ jobs:
       - name: Inspect persisted Goal state
         shell: powershell
         run: node scripts/zbook-goal-diagnostics.ts
+      - name: Verify shell syntax checks on ZBook checkout
+        shell: powershell
+        run: node --test tests/jarvis-adb-mass-enrollment.test.ts
       - name: Inspect isolated workspace test names
         shell: powershell
         run: node scripts/zbook-isolated-test-diagnostic.ts
