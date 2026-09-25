@@ -21,6 +21,9 @@ jobs:
       - name: Verify Owner credential reader and utility on ZBook
         shell: powershell
         run: node --test scripts/owner-code-windows.test.mjs scripts/jarvis-production-config.test.mjs
+      - name: Verify Owner rotation preflight and DPAPI callback on ZBook
+        shell: powershell
+        run: node --test scripts/owner-code-rotation.test.mjs
       - name: Inspect isolated workspace test names
         shell: powershell
         run: node scripts/zbook-isolated-test-diagnostic.ts
