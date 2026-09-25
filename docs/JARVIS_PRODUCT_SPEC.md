@@ -13992,3 +13992,74 @@ Owner instruction 2026-09-23, Issue #1216. Full normative integration contract: 
   ]
 }
 ```
+
+
+## Capability Fabric / Hybrid JARVIS canonical specification
+
+This section is normative. Future Codex/agent work MUST preserve these decisions and MUST inspect/reuse the listed main implementations before proposing replacements.
+
+### CF-001 One JARVIS, dynamic capability fabric
+JARVIS is the upper Work OS, not a specific model. Local, online, frontier/specialist models, GPU, browser, cloud and physical devices are capabilities selected per Job. New models are added through the Brain Provider contract rather than rewriting JARVIS.
+Implementation: `src/orchestrator/capability-fabric-router.ts`, `src/orchestrator/brain-provider.ts`.
+
+### CF-002 Adaptive routing and parallel work
+Route using capability, privacy, freshness, cost, latency, reliability, evidence requirement, network/device availability and risk. Independent Jobs may fan out in parallel; dependent Jobs wait for parents and are blocked when a required parent fails.
+Implementation: `src/orchestrator/adaptive-intelligence-router.ts`, `src/orchestrator/parallel-work-dag.ts`.
+
+### CF-003 Mid-task steering
+New user instructions are Goal deltas. Preserve already verified results/artifacts and replan only materially added work. Do not restart a Goal merely because a new requirement was added.
+Implementation: `src/orchestrator/mid-task-steering.ts`.
+
+### CF-004 Independent verification
+Maker MUST NOT satisfy its own independent verification requirement. Evidence-backed independent Critic errors block completion.
+Implementation: `src/orchestrator/independent-critic-gate.ts`.
+
+### CF-005 Execution Context Capsule
+Every dispatched Job receives the work map: Goal, Current Job, Why, Workflow Position, Inputs, Constraints, Decisions, Dependencies, Expected Output, Definition of Done, Verification Contract and Recovery Context. Missing required context blocks execution. The principle is: give the complete work map, but only the minimum necessary data payload.
+Implementation: `src/orchestrator/execution-context-capsule.ts`, `src/orchestrator/governed-fabric-dispatch.ts`.
+
+### CF-006 Privacy partitioning and progressive context
+Protected data remains local by default. External work receives minimized/generalized context. Direct identifiers are redacted, quasi-identifiers generalized when required, and raw private results are not exported merely for convenience. If a Job needs more context it requests it through Work OS; privacy policy is re-evaluated. Specific protected disclosure that cannot be safely generalized is LOCAL_ONLY or requires explicit external-disclosure approval. Online results MUST pass Fact Verification before private local recombination.
+Implementation: `src/orchestrator/context-engineering.ts`, `src/orchestrator/outbound-privacy-gate.ts`, `src/orchestrator/governed-fabric-dispatch.ts`.
+
+### CF-007 Hybrid evidence and offline continuation
+Evidence sources may be LOCAL, ONLINE, CONNECTED or DEVICE and are selected by authority, freshness, privacy, availability and cost. Offline work may continue when local evidence is sufficient. Freshness-dependent facts remain explicitly deferred; reconnect triggers verification and changed verified facts require artifact regeneration.
+Implementation: `src/orchestrator/hybrid-evidence-router.ts`, `src/orchestrator/deferred-verification.ts`.
+
+### CF-008 Parallel research and capability racing
+Research may separate PRIMARY_SOURCE, CONTRADICTION, FRESHNESS and DISCOVERY roles. Conflicting values remain CONFLICTED. Capability Racing is reserved for justified risk/uncertainty and cost policy; evidence-free agreement is not consensus.
+Implementation: `src/orchestrator/parallel-research.ts`, `src/orchestrator/capability-racing.ts`.
+
+### CF-009 Learning
+Verified successful work may synthesize a Skill candidate. Independent certification is required before active use; observed failures reduce confidence and may demote the Skill. Demonstration Learning must associate mistake/correction events and MUST NOT learn an observed mistake as the canonical procedure. Unverified demonstrations do not become executable workflows.
+Implementation: `src/gai/skill-library.ts`, `src/orchestrator/verified-skill-writeback.ts`, `src/orchestrator/demonstration-learning.ts`.
+
+### CF-010 Self-development
+JARVIS self-development follows INSPECT -> RESEARCH -> IMPLEMENT -> TEST -> INDEPENDENT_VERIFY -> DONE, with evidence at each transition and bounded RECOVER loops. No evidence-free DONE.
+Implementation: `src/orchestrator/self-development-loop.ts`.
+
+### CF-011 Safe autonomy
+LOW may auto-run. MEDIUM may auto-run only after required CI/QA/reviewer/destructive/privilege checks. HIGH requires Human Gate. CRITICAL protection/audit weakening or unrecoverable production destruction is blocked. Do not reduce Human Gates by weakening safety boundaries.
+Implementation: `src/orchestrator/risk-policy.ts`.
+
+### CF-012 Production research/browser
+Production Research records retrieval time, source class and content evidence and feeds Fact Verification. Production Browser uses a real-driver contract, HTTPS navigation, independent read-back, origin containment and observation evidence. Deterministic tests do not substitute for required live/physical evidence.
+Implementation: `src/orchestrator/production-research.ts`, `src/orchestrator/production-browser-capability.ts`.
+
+### CF-013 Owner Fleet shared capability pool
+Verified devices belonging to the same Owner MAY share capabilities as one pool. ZBook/Windows, MacBook/macOS and iPhone/iOS are intended Owner devices. Each device keeps an independent Device Identity/credential; DO NOT copy one private device credential across the fleet. Sharing requires matching Owner identity, verified Device Identity, capability authorization and sharing enabled. Foreign/unverified/sharing-disabled devices are excluded. Privacy/Risk/Human Gate policy still applies per Job.
+Implementation: `src/orchestrator/owner-fleet-capability-pool.ts`.
+
+### CF-014 Windows/ZBook real-machine verification
+Windows physical verification uses `windows-tooling`, a target-pinned bounded dispatch and machine evidence. Broker exposes a dedicated owner-authenticated Windows verification path; Android admin task routing remains separate. Physical PASS must be based on actual ZBook/Windows Worker evidence, not unit tests.
+Implementation: `src/orchestrator/windows-real-machine-verifier.ts`, `src/orchestrator/windows-verification-dispatch.ts`, `scripts/jarvis-broker.ts`.
+
+### CF-015 Physical iPhone
+Physical iPhone work uses its enrolled Device Identity/credential, signed task/result binding, nonce/replay protection, authorized capabilities and physical-device evidence. It participates in Owner Fleet only after Owner binding is verified.
+Implementation: `src/gai/iphone-worker-bridge.ts`, `scripts/iphone-bridge-server.ts`.
+
+### CF-016 Completion rule
+Capability Fabric software integration is covered by `tests/capability-fabric-e2e.test.ts`. A capability requiring live browser, live network or physical device evidence is not COMPLETE merely because deterministic CI passed. Requirement-to-Evidence truth remains authoritative.
+
+### CF-017 Anti-duplication rule for autonomous development
+Before Codex/agents create or replace architecture, they MUST read this PRODUCT_SPEC, inspect current main, search for existing implementations/tests, and extend/reuse them when they satisfy the contract. A missing mention in the current prompt is NOT permission to replace an established canonical design. If code and this spec conflict, stop, report the conflict, and reconcile deliberately rather than silently creating a parallel architecture.
