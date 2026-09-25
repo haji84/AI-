@@ -287,7 +287,7 @@
     },
     {
       "path": "apps/ios-owner/Info.plist",
-      "sha256": "04c4874428893ab8e212165ed1ad1c6b0beb89c3f32e048245cccb93dcd10a0f",
+      "sha256": "8f178dc52b7bb42970a69ce1ce73f350890c3480e85e69fe024c25dd551ea187",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "DEV-I-006",
@@ -316,8 +316,20 @@
       "reason": "Issue #1218 iPhone Owner credential UI and device-bound Keychain authorization; physical acceptance remains pending"
     },
     {
+      "path": "apps/ios-owner/Sources/GoogleOwnerEnrollment.swift",
+      "sha256": "c1179ea14820bcfdf3dc69f49bbed94dae6992a1d57815cf925da5a14ad24ef5",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "SEC-001",
+        "SEC-002",
+        "DEV-I-006",
+        "AUTO-001"
+      ],
+      "reason": "Issue #1218 Google Owner auto-enrollment security and Owner Fleet enrollment; live provider configuration remains gated."
+    },
+    {
       "path": "apps/ios-owner/Sources/JarvisIOSOwnerApp.swift",
-      "sha256": "2b3d2fbe02bf1242716387bee0f886534375874edb30e81dbbbb247f9e18b500",
+      "sha256": "0a834b4fa6a42f40aa52bc6ba584125616202134f864cfa600cbcb07e04e8502",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "DEV-I-006",
@@ -327,7 +339,7 @@
     },
     {
       "path": "apps/ios-owner/Sources/OwnerCredentialRuntime.swift",
-      "sha256": "6ba15fb5142302ffdae6c77939b184e0b32e723fe41290bb7bc5f91b0f7fb99c",
+      "sha256": "d05f036e91bc364a3d24a7b1bc933d924ab74c2511daaee10473dfc9c36bb195",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "DEV-I-006",
@@ -983,7 +995,7 @@
     },
     {
       "path": "scripts/jarvis-broker.ts",
-      "sha256": "af1c9fd3057100675a4d30f629aab6dac52c344416f1839560af81be7d2c1afb",
+      "sha256": "8ba526cad0a04bf5f4e79b8993a952236ee0b642a054a00b3f2deaeb0f8a3f2c",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "NET-006",
@@ -1331,7 +1343,7 @@
     },
     {
       "path": "scripts/jarvis-requirement-audit.mjs",
-      "sha256": "788c0243c30ed9e045286bb9a598fbca905f0b1ef1ef768637105abf678ea6fd",
+      "sha256": "ce9e8e3787f49752ba5e62afa2d50bc4a09acbe4b3e7b67bed87dd7eea16022b",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "GOV-025",
@@ -1611,6 +1623,30 @@
       "reason": "Persisted work intake/state API; #1219 Direct Goal Bridge wakes bounded Goal execution and exposes shared status/events; parent requirements remain PARTIAL pending E2E."
     },
     {
+      "path": "src/app/api/owner-login/google/begin/route.ts",
+      "sha256": "150b5c282b7c36a3a39654a0b3d2e1b554ce6d4a9db357cc882d78ee5dd60996",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "SEC-001",
+        "SEC-002",
+        "DEV-I-006",
+        "AUTO-001"
+      ],
+      "reason": "Issue #1218 Google Owner auto-enrollment security and Owner Fleet enrollment; live provider configuration remains gated."
+    },
+    {
+      "path": "src/app/api/owner-login/google/complete/route.ts",
+      "sha256": "6332f3124b75938fed424bebb2f9a2d1a2f16e02033bc8214c125f020c28ff20",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "SEC-001",
+        "SEC-002",
+        "DEV-I-006",
+        "AUTO-001"
+      ],
+      "reason": "Issue #1218 Google Owner auto-enrollment security and Owner Fleet enrollment; live provider configuration remains gated."
+    },
+    {
       "path": "src/app/api/owner-login/route.ts",
       "sha256": "96ed1ba593273ed6b777596e8503921df5594381ac157799a96931a7dd75cfca",
       "classification": "COVERED_BY_REQUIREMENT",
@@ -1685,6 +1721,54 @@
         "AUTO-001"
       ],
       "reason": "Declared route.ts responsibility implements/supports Owner Authentication; Session Control; One Front Door. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/app/google-owner-enrollment.ts",
+      "sha256": "5685171ba0a4b13fe061bafafc5c60a9205ae7982642fbaf0de63f94bb8f1e0f",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "SEC-001",
+        "SEC-002",
+        "DEV-I-006",
+        "AUTO-001"
+      ],
+      "reason": "Issue #1218 Google Owner auto-enrollment security and Owner Fleet enrollment; live provider configuration remains gated."
+    },
+    {
+      "path": "src/app/google-owner-oidc.ts",
+      "sha256": "8a9f478be0cd5f51083d576761fba10030dba67366cb908a6effca782d4029fe",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "SEC-001",
+        "SEC-002",
+        "DEV-I-006",
+        "AUTO-001"
+      ],
+      "reason": "Issue #1218 Google Owner auto-enrollment security and Owner Fleet enrollment; live provider configuration remains gated."
+    },
+    {
+      "path": "src/app/google-owner-service.ts",
+      "sha256": "95f6a40168696460c1bde433e1c8d60674577857fa985ef82935196e1c31233f",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "SEC-001",
+        "SEC-002",
+        "DEV-I-006",
+        "AUTO-001"
+      ],
+      "reason": "Issue #1218 Google Owner auto-enrollment security and Owner Fleet enrollment; live provider configuration remains gated."
+    },
+    {
+      "path": "src/app/google-owner-state-client.ts",
+      "sha256": "a84c30f53140fc5313d0ef4e49eeb154d3c94deed9a8ef81377a42f220621fd9",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "SEC-001",
+        "SEC-002",
+        "DEV-I-006",
+        "AUTO-001"
+      ],
+      "reason": "Issue #1218 Google Owner auto-enrollment security and Owner Fleet enrollment; live provider configuration remains gated."
     },
     {
       "path": "src/app/jarvis/accessibility-preferences.ts",
@@ -3756,6 +3840,18 @@
         "FLEET-011"
       ],
       "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/jarvis/google-owner-state-registry.ts",
+      "sha256": "d72940aa17c77f15bfb3299c233b8d0c63ade281a18a2a0bb30360b030f88d64",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "SEC-001",
+        "SEC-002",
+        "DEV-I-006",
+        "AUTO-001"
+      ],
+      "reason": "Issue #1218 Google Owner auto-enrollment security and Owner Fleet enrollment; live provider configuration remains gated."
     },
     {
       "path": "src/jarvis/home-widget-history.ts",
