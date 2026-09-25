@@ -20,19 +20,21 @@ jobs:
             & git clone --no-hardlinks $env:GITHUB_WORKSPACE $goalWorkspace
             if ($LASTEXITCODE -ne 0) { throw 'Isolated Goal workspace clone failed' }
           }
-          $verifierTest = 'tests/jarvis-adb-mass-enrollment.test.ts'
-          $sourceTest = Join-Path $env:GITHUB_WORKSPACE $verifierTest
-          $targetTest = Join-Path $goalWorkspace $verifierTest
-          if (-not (Test-Path $targetTest)) { throw 'Isolated verifier test is missing' }
-          if ((Get-FileHash $sourceTest -Algorithm SHA256).Hash -ne (Get-FileHash $targetTest -Algorithm SHA256).Hash) {
-            $testChanges = & git -C $goalWorkspace status --porcelain -- $verifierTest
-            if ($LASTEXITCODE -ne 0 -or $testChanges) { throw 'Isolated verifier test has local changes; refusing refresh' }
-            Copy-Item -LiteralPath $sourceTest -Destination $targetTest
+          $verifierTests = @('tests/jarvis-adb-mass-enrollment.test.ts', 'tests/goriq-direct-goal-bridge-resume.test.ts')
+          foreach ($verifierTest in $verifierTests) {
+            $sourceTest = Join-Path $env:GITHUB_WORKSPACE $verifierTest
+            $targetTest = Join-Path $goalWorkspace $verifierTest
+            if (-not (Test-Path $targetTest)) { throw "Isolated verifier test is missing: $verifierTest" }
+            if ((Get-FileHash $sourceTest -Algorithm SHA256).Hash -ne (Get-FileHash $targetTest -Algorithm SHA256).Hash) {
+              $testChanges = & git -C $goalWorkspace status --porcelain -- $verifierTest
+              if ($LASTEXITCODE -ne 0 -or $testChanges) { throw "Isolated verifier test has local changes; refusing refresh: $verifierTest" }
+              Copy-Item -LiteralPath $sourceTest -Destination $targetTest
+            }
           }
           Push-Location $goalWorkspace
           try {
-            & node --test $verifierTest
-            if ($LASTEXITCODE -ne 0) { throw 'Refreshed isolated verifier test failed' }
+            & node --test $verifierTests
+            if ($LASTEXITCODE -ne 0) { throw 'Refreshed isolated verifier tests failed' }
           } finally { Pop-Location }
           .\scripts\install-code-builder-windows.ps1 -WorkerId 'zbook' -Workspace $goalWorkspace -ExecTimeoutMs 600000
           $tokenPath = Join-Path $env:LOCALAPPDATA 'GAIWorker\code-builder\token.txt'
