@@ -329,23 +329,23 @@
     },
     {
       "path": "apps/ios-owner/Sources/JarvisIOSOwnerApp.swift",
-      "sha256": "0a834b4fa6a42f40aa52bc6ba584125616202134f864cfa600cbcb07e04e8502",
+      "sha256": "6f1ecb96364d4a190239afdc150bbe8f2174733786871dc864ddf22e6df27fbb",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "DEV-I-006",
         "SEC-001"
       ],
-      "reason": "Issue #1218 iPhone Owner credential UI and device-bound Keychain authorization; physical acceptance remains pending"
+      "reason": "Issue #1218 iPhone Owner enrollment and device-bound trusted proof; non-destructive Face ID challenge/signature action compiles, physical proof remains pending."
     },
     {
       "path": "apps/ios-owner/Sources/OwnerCredentialRuntime.swift",
-      "sha256": "d05f036e91bc364a3d24a7b1bc933d924ab74c2511daaee10473dfc9c36bb195",
+      "sha256": "a26a198c15ba94e9f372afb60dc4314636bb8a58e7756fa9298cb05bc2ca6898",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "DEV-I-006",
         "SEC-001"
       ],
-      "reason": "Issue #1218 iPhone Owner credential UI and device-bound Keychain authorization; enrollment errors safely distinguish code mismatch, missing server authentication, and unexpected responses"
+      "reason": "Issue #1218 iPhone Owner enrollment and device-bound trusted proof; non-destructive Face ID challenge/signature action compiles, physical proof remains pending."
     },
     {
       "path": "apps/ios-worker/Info.plist",
