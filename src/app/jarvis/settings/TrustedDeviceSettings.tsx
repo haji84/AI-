@@ -16,12 +16,23 @@ export default function TrustedDeviceSettings() {
   const [nextPin, setNextPin] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [deviceId, setDeviceId] = useState("");
+  const [devices, setDevices] = useState<Array<{ deviceId: string; label: string; revoked: boolean }>>([]);
+
+  async function refreshDevices() {
+    const response = await fetch("/api/owner-login/trusted/devices", { cache: "no-store" });
+    if (!response.ok) throw new Error("端末一覧を確認できません");
+    const result = await response.json();
+    setDevices(result.devices);
+  }
 
   async function refresh() {
     const exists = await hasTrustedDevice();
     setTrusted(exists);
     const info = exists ? await trustedDeviceInfo() : null;
+    setDeviceId(info?.id || "");
     setLabel(info?.label || (typeof navigator === "undefined" ? "操作端末" : navigator.platform || "操作端末"));
+    await refreshDevices();
   }
 
   useEffect(() => { refresh().catch(() => undefined); }, []);
@@ -50,13 +61,29 @@ export default function TrustedDeviceSettings() {
   }
 
   async function remove() {
-    if (!window.confirm("このブラウザの信頼済み端末情報を削除しますか？本番ログインコードでは引き続きログインできます。")) return;
+    if (!window.confirm("この端末のPINログイン資格をサーバーで失効させ、ブラウザ内の登録も削除しますか？")) return;
     setBusy(true); setMessage("");
     try {
+      const response = await fetch("/api/owner-login/trusted/devices", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ deviceId }) });
+      if (!response.ok) throw new Error("サーバーで失効できなかったため端末内の登録を残しました");
       await removeTrustedDevice();
       setTrusted(false);
-      setMessage("このブラウザの信頼済み端末情報を削除しました。");
-    } finally { setBusy(false); }
+      setMessage("この端末のPINログイン資格を失効しました。");
+      await refresh();
+    } catch (error) { setMessage(error instanceof Error ? error.message : "失効できませんでした"); }
+    finally { setBusy(false); }
+  }
+
+  async function revokeOther(target: { deviceId: string; label: string }) {
+    if (!window.confirm(`${target.label} のPINログイン資格を失効させますか？`)) return;
+    setBusy(true); setMessage("");
+    try {
+      const response = await fetch("/api/owner-login/trusted/devices", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ deviceId: target.deviceId }) });
+      if (!response.ok) throw new Error("端末を失効できませんでした");
+      await refreshDevices();
+      setMessage(`${target.label} のPINログイン資格を失効しました。`);
+    } catch (error) { setMessage(error instanceof Error ? error.message : "失効できませんでした"); }
+    finally { setBusy(false); }
   }
 
   return <section className="panel jarvis-settings-card">
@@ -79,10 +106,19 @@ export default function TrustedDeviceSettings() {
       <label>新しい4桁PIN</label>
       <input inputMode="numeric" pattern="[0-9]{4}" maxLength={4} value={nextPin} onChange={(event) => setNextPin(event.target.value.replace(/\D/g, "").slice(0, 4))} required disabled={busy} />
       <button className="button" type="submit" disabled={busy || currentPin.length !== 4 || nextPin.length !== 4}>PINを変更</button>
-      <button className="button secondary" type="button" disabled={busy} onClick={remove}>このブラウザの信頼登録を削除</button>
+      <button className="button secondary" type="button" disabled={busy} onClick={remove}>この端末のPIN資格を失効</button>
     </form>}
 
+    <div>
+      <h3>登録端末</h3>
+      {devices.filter(device => !device.revoked).map(device => <p key={device.deviceId}>
+        {device.label} ({device.deviceId === deviceId ? "この端末" : device.deviceId}){" "}
+        {device.deviceId !== deviceId && <button className="button secondary" type="button" disabled={busy} onClick={() => revokeOther(device)}>失効</button>}
+      </p>)}
+    </div>
+
     {message && <p className="jarvis-alert" role="status">{message}</p>}
-    <p className="muted">5回連続でPINを間違えると、このブラウザでは5分間ロックします。サーバー側では端末ID単位の失効リストを使えます。</p>
+    <p className="muted">失効すると次回のPINログインはできません。既にログイン済みのセッションは有効期限まで続くため、端末を紛失した場合は本番ログインコードの変更も必要です。</p>
+    <p className="muted">5回連続でPINを間違えると、このブラウザでは5分間ロックします。</p>
   </section>;
 }
