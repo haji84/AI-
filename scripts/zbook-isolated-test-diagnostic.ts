@@ -15,6 +15,8 @@ const result = spawnSync(process.execPath, ["--test"], {
 const output = `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
 const failureNames = [...new Set([...output.matchAll(/^\s*not ok\s+\d+\s+-\s+([^\r\n]+)/gm)]
   .map(match => match[1]?.trim().slice(0, 160)).filter((value): value is string => Boolean(value)))].slice(0, 30);
+const specFailures = [...output.matchAll(/^✖\\s+([^\\r\\n]+)/gm)].map(match => match[1]?.trim().slice(0, 160)).filter((value): value is string => Boolean(value));
+failureNames.push(...specFailures.filter(name => !failureNames.includes(name)).slice(0, 30 - failureNames.length));
 const failCount = Number(output.match(/^# fail\s+(\d+)/m)?.[1] ?? -1);
 const report = {
   source: "isolated ZBook workspace",
