@@ -47,7 +47,8 @@ export async function completeGoogleOwnerEnrollment(input: CompleteInput, deps: 
   const exchanged = await deps.exchangeCode({ code: input.code, codeVerifier: input.codeVerifier, redirectUri: input.redirectUri, clientId: deps.clientId });
   if (!exchanged.id_token) throw new Error("google owner enrollment rejected");
   const claims = await deps.verifyIdToken(exchanged.id_token, { clientId: deps.clientId, nonce: input.nonce });
-  await deps.bindIdentity({ sub: claims.sub, email: claims.email, emailVerified: claims.email_verified === true, bootstrapEmail: deps.bootstrapEmail });
+  const credential = deps.createCredential({ deviceId: input.deviceId, label: "iPhone Owner", publicKeyJwk: input.publicKeyJwk });
   await deps.registerDevice(input.deviceId, "iPhone Owner");
-  return { ok: true, credential: deps.createCredential({ deviceId: input.deviceId, label: "iPhone Owner", publicKeyJwk: input.publicKeyJwk }) };
+  await deps.bindIdentity({ sub: claims.sub, email: claims.email, emailVerified: claims.email_verified === true, bootstrapEmail: deps.bootstrapEmail });
+  return { ok: true, credential };
 }
