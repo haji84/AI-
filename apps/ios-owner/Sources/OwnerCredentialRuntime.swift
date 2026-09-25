@@ -27,6 +27,7 @@ final class OwnerCredentialRuntime: ObservableObject {
         configuration.timeoutIntervalForRequest = 8
         session = URLSession(configuration: configuration, delegate: NoRedirects(), delegateQueue: nil)
         isEnrolled = Keychain.read(account: Self.credentialAccount) != nil
+        hasStoredCode = Keychain.read(account: Self.codeAccount) != nil
         status = isEnrolled ? "登録済み・サーバー確認待ち" : "未登録"
     }
 
@@ -68,6 +69,7 @@ final class OwnerCredentialRuntime: ObservableObject {
         }
         UserDefaults.standard.set(serverURL, forKey: "ownerServerURL")
         isEnrolled = true
+        hasStoredCode = true
         status = "登録済み・表示前に本人とサーバーを確認"
     }
 
@@ -144,6 +146,7 @@ final class OwnerCredentialRuntime: ObservableObject {
             Keychain.delete(account: account)
         }
         isEnrolled = false
+        hasStoredCode = false
         status = "未登録"
     }
 
