@@ -329,7 +329,7 @@
     },
     {
       "path": "apps/ios-owner/Sources/JarvisIOSOwnerApp.swift",
-      "sha256": "16ab6555792e45d86d0a56ae54410c897b9b1cf47335d8b4177abcc7deb0fe21",
+      "sha256": "d8fa030035c5a5ac398545086963a860cd2181a3268e218686bcb943ccb3e4e3",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "DEV-I-006",
@@ -339,7 +339,7 @@
     },
     {
       "path": "apps/ios-owner/Sources/OwnerCredentialRuntime.swift",
-      "sha256": "559b3abb9ff0971bf3e25040ae9a3f94385137607ee469489e823103010624dc",
+      "sha256": "160eda946b3827ae6f4ec813d4cd32e508d79a77ba247f883df998fa25799df9",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "DEV-I-006",
@@ -349,7 +349,7 @@
     },
     {
       "path": "apps/ios-owner/Tests/test_signing_access.py",
-      "sha256": "a55c159223c02de1357f3ee24f37f672336395619ed0829b7e2cfacac7d0c045",
+      "sha256": "336f37c7d8c86663a11e1d624656241c92c958fa7eba98193afb1034f1d7f3ad",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "DEV-I-006",
