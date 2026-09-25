@@ -34,7 +34,7 @@ struct OwnerCredentialView: View {
                             .privacySensitive()
                         Spacer()
                     }
-                    if owner.isEnrolled {
+                    if owner.isEnrolled && owner.hasStoredCode {
                         Button(owner.revealedCode == nil ? "表示" : "隠す") {
                             if owner.revealedCode != nil { owner.hide() }
                             else { run { try await owner.reveal() } }
@@ -43,6 +43,9 @@ struct OwnerCredentialView: View {
                         Button("変更") {
                             message = "本番コードの変更はZBook側で別途承認し、バックアップと復旧確認を伴って行います。変更後はこのiPhoneを再登録してください。"
                         }
+                    } else if owner.isEnrolled {
+                        Text("Google登録では長い本番コードをiPhoneへ保存しません。Face IDと端末鍵でOwner確認します。")
+                            .font(.footnote)
                     }
                 }
 
@@ -52,16 +55,21 @@ struct OwnerCredentialView: View {
                             .textInputAutocapitalization(.never)
                             .keyboardType(.URL)
                             .autocorrectionDisabled()
-                        SecureField("ZBookで確認した本番コード", text: $code)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
-                        Button("本人確認して登録") {
-                            let entered = code
-                            code = ""
-                            run { try await owner.enroll(code: entered) }
-                        }.disabled(working || code.isEmpty)
-                        Text("登録時に一度だけコードを入力します。以後、表示前に端末の本人確認とサーバーの信頼状態を確認します。")
+                        Button("GoogleでOwner登録") {
+                            run { try await owner.enrollWithGoogle() }
+                        }.disabled(working || owner.serverURL.isEmpty)
+                        Text("Google本人確認後、このiPhoneのSecure Enclave端末鍵をOwnerとして登録します。本番コードの入力は不要です。")
                             .font(.footnote)
+                        DisclosureGroup("復旧用：本番コードで登録") {
+                            SecureField("ZBookで確認した本番コード", text: $code)
+                                .textInputAutocapitalization(.never)
+                                .autocorrectionDisabled()
+                            Button("復旧用コードで登録") {
+                                let entered = code
+                                code = ""
+                                run { try await owner.enroll(code: entered) }
+                            }.disabled(working || code.isEmpty)
+                        }
                     }
                 } else {
                     Section {
