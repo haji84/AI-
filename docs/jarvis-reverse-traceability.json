@@ -1736,7 +1736,7 @@
     },
     {
       "path": "src/app/google-owner-oidc.ts",
-      "sha256": "8a9f478be0cd5f51083d576761fba10030dba67366cb908a6effca782d4029fe",
+      "sha256": "ef1226e557090de04574b52c8f465a88129b560ee7e015fb7474647472c19478",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "SEC-001",
