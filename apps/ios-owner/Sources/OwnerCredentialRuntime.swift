@@ -120,6 +120,17 @@ final class OwnerCredentialRuntime: ObservableObject {
 
     func hide() { revealedCode = nil }
 
+    func verifyTrustedDevice() async throws {
+        status = "Face IDと端末鍵を確認中"
+        do {
+            try await verifyTrustedDeviceProof()
+            status = "Face IDと端末鍵を確認済み"
+        } catch {
+            status = "端末鍵を確認できません"
+            throw error
+        }
+    }
+
     func revokeAndForget() async throws {
         try await verifyTrustedDeviceProof()
         guard let idData = Keychain.read(account: Self.deviceIdAccount),
