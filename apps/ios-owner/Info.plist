@@ -12,4 +12,10 @@
   <key>CFBundleVersion</key><string>1</string>
   <key>NSFaceIDUsageDescription</key><string>Owner認証情報の表示と端末鍵の使用を本人確認で保護します。</string>
   <key>UILaunchScreen</key><dict/>
+  <key>GORIQServerURL</key><string>https://jarvis-fawn-iota.vercel.app</string>
+  <key>CFBundleURLTypes</key>
+  <array><dict>
+    <key>CFBundleURLName</key><string>GORIQ Owner Google OAuth</string>
+    <key>CFBundleURLSchemes</key><array><string>com.haji84.jarvis.iosowner</string></array>
+  </dict></array>
 </dict></plist>
