@@ -16,6 +16,6 @@ test("Google Owner endpoints are disabled by default and no-store", () => {
 test("Google completion never returns the long-lived Owner secret", () => {
   assert.match(complete, /createTrustedDeviceCredential/);
   assert.doesNotMatch(complete, /credential:\s*secret|secret\s*[,}]/);
-  assert.match(complete, /configuredRedirectUri/);
+  assert.match(complete, /OWNER_REDIRECT_URI/);
   assert.match(complete, /verifyGoogleIdToken/);
 });
