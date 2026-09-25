@@ -17,7 +17,7 @@ export async function POST(request: Request) {
     const credential = createTrustedDeviceCredential(secret, input);
     await registerTrustedDevice(input.deviceId, input.label);
     return NextResponse.json({ ok: true, credential }, { headers: { "Cache-Control": "no-store" } });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ message: "信頼済み端末を登録できませんでした" }, { status: 503 });
   }
 }
