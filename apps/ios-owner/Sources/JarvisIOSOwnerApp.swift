@@ -83,7 +83,7 @@ struct OwnerCredentialView: View {
                             run { try await owner.revokeAndForget() }
                         }.disabled(working)
                         Button("このiPhoneの保存情報だけ削除", role: .destructive) {
-                            run { try owner.forgetLocalAfterAuthentication() }
+                            run { try await owner.forgetLocalAfterAuthentication() }
                         }.disabled(working)
                         Text("通信できない場合の端末内削除です。サーバー側の失効は別のOwner端末の端末管理で確認してください。")
                             .font(.footnote)
