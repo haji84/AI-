@@ -71,7 +71,9 @@ final class GoogleOwnerEnrollment: NSObject, ASWebAuthenticationPresentationCont
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("no-store", forHTTPHeaderField: "Cache-Control")
         let (data, response) = try await session.data(for: request)
-        guard let http = response as? HTTPURLResponse, http.statusCode == 200 else { throw GoogleOwnerError.enrollmentRejected }
+        guard let http = response as? HTTPURLResponse else { throw GoogleOwnerError.enrollmentRejected }
+        if http.statusCode == 503 && path == "/api/owner-login/google/begin" { throw GoogleOwnerError.serverNotConfigured }
+        guard http.statusCode == 200 else { throw GoogleOwnerError.enrollmentRejected }
         return data
     }
 
@@ -85,12 +87,13 @@ final class GoogleOwnerEnrollment: NSObject, ASWebAuthenticationPresentationCont
 private struct BeginResponse: Decodable { let contextId: String; let expiresAt: Int; let clientId: String; let authorizationEndpoint: String; let redirectUri: String }
 private struct CompleteResponse: Decodable { let ok: Bool; let credential: String }
 private enum GoogleOwnerError: LocalizedError {
-    case invalidConfiguration, authenticationRejected, enrollmentRejected, randomUnavailable
+    case invalidConfiguration, authenticationRejected, enrollmentRejected, serverNotConfigured, randomUnavailable
     var errorDescription: String? {
         switch self {
         case .invalidConfiguration: return "Google Owner登録の設定を確認できません"
         case .authenticationRejected: return "Google本人確認を完了できませんでした"
         case .enrollmentRejected: return "Google Owner登録を完了できませんでした"
+        case .serverNotConfigured: return "Google Owner登録はまだ有効ではありません（サーバー設定待ち）"
         case .randomUnavailable: return "端末の安全な乱数を作成できません"
         }
     }
