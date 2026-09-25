@@ -6,6 +6,7 @@ import {
   OWNER_SESSION_FUTURE_TOLERANCE_SECONDS,
   OWNER_SESSION_MAX_AGE_SECONDS,
   verifyOwnerSessionToken,
+  ownerSessionDeviceId,
 } from "./owner-auth.ts";
 
 const SECRET = "owner-secret";
@@ -20,6 +21,14 @@ test("owner sessions are versioned, signed, and rotate per login", () => {
   assert.notEqual(first, second);
   assert.equal(verifyOwnerSessionToken(SECRET, first), true);
   assert.equal(verifyOwnerSessionToken(SECRET, second), true);
+});
+
+test("trusted Owner session binds its device ID to the signature", () => {
+  const token = createOwnerSessionToken(SECRET, { issuedAtSeconds: ISSUED_AT, deviceId: "device_1234567890abcdef" });
+  assert.equal(verifyOwnerSessionToken(SECRET, token, { nowSeconds: ISSUED_AT }), true);
+  assert.equal(ownerSessionDeviceId(SECRET, token, { nowSeconds: ISSUED_AT }), "device_1234567890abcdef");
+  assert.equal(verifyOwnerSessionToken(SECRET, token.replace("device_1234567890abcdef", "device_abcdef1234567890"), { nowSeconds: ISSUED_AT }), false);
+  assert.equal(ownerSessionDeviceId(SECRET, createOwnerSessionToken(SECRET, { issuedAtSeconds: ISSUED_AT }), { nowSeconds: ISSUED_AT }), null);
 });
 
 test("owner session expires after the bounded lifetime", () => {
