@@ -51,6 +51,8 @@ jobs:
           else
             echo 'DEVICE_LIST_UNAVAILABLE'
           fi
+      - name: Check Secure Enclave signing access contract
+        run: python3 apps/ios-owner/Tests/test_signing_access.py
       - name: Compile iPhone Owner without signing or installation
         shell: bash
         run: |
