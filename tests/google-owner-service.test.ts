@@ -27,3 +27,17 @@ test("complete consumes context verifies PKCE identity registers device and retu
   assert.equal(registered, true); assert.equal(bound, true);
   assert.deepEqual(Object.keys(result).sort(), ["credential", "ok"]);
 });
+
+test("device registration failure leaves first Google identity unbound", async () => {
+  let bound = false;
+  await assert.rejects(() => completeGoogleOwnerEnrollment({ contextId: "ctx", deviceId: "device_1234567890abcdef", publicKeyJwk: jwk, state: "s", nonce: "n", code: "auth-code", codeVerifier: "verifier", redirectUri: "com.example:/oauth2redirect" }, {
+    clientId: "c", bootstrapEmail: "owner@example.com", redirectUri: "com.example:/oauth2redirect",
+    consumeContext: async () => ({ pkceChallenge: "iMnq5o6zALKXGivsnlom_0F5_WYda32GHkxlV7mq7hQ" }),
+    exchangeCode: async () => ({ id_token: "id-token" }),
+    verifyIdToken: async () => ({ iss: "https://accounts.google.com", aud: "c", sub: "sub", email: "owner@example.com", email_verified: true, iat: 1, exp: 2, nonce: "n" }),
+    bindIdentity: async () => { bound = true; },
+    registerDevice: async () => { throw new Error("registry unavailable"); },
+    createCredential: () => "td1.fixture.signature",
+  }));
+  assert.equal(bound, false);
+});
