@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { URL } from "node:url";
 import test from "node:test";
 
 const google = readFileSync(new URL("../apps/ios-owner/Sources/GoogleOwnerEnrollment.swift", import.meta.url), "utf8");
