@@ -135,7 +135,7 @@ jobs:
           NODE
 
       - name: Transit current public Broker endpoint for production repair
-        if: inputs.owner_1218_head == true
+        if: always() && inputs.owner_1218_head == true
         shell: bash
         run: |
           set -euo pipefail
