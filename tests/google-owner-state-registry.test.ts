@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -31,5 +31,14 @@ test("durable context consumption survives restart and rejects replay", () => {
     const reopened = new GoogleOwnerStateRegistry(path);
     assert.equal(reopened.consumeContext({ ...context, deviceId: device, publicKeyThumbprint: "thumb", state: "state", nonce: "nonce" }, 1001).pkceChallenge, "pkce");
     assert.throws(() => new GoogleOwnerStateRegistry(path).consumeContext({ ...context, deviceId: device, publicKeyThumbprint: "thumb", state: "state", nonce: "nonce" }, 1002));
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("corrupt persisted Google Owner state fails closed", () => {
+  const dir = mkdtempSync(join(tmpdir(), "google-owner-"));
+  try {
+    const path = join(dir, "state.json");
+    writeFileSync(path, JSON.stringify({ version: 1, identity: { provider: "google", sub: "", boundAt: 0, version: 1 }, contexts: [] }));
+    assert.throws(() => new GoogleOwnerStateRegistry(path).identity());
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
