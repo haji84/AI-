@@ -57,16 +57,7 @@ final class OwnerCredentialRuntime: ObservableObject {
               let payload = try JSONSerialization.jsonObject(with: enrollment.data) as? [String: Any],
               let credential = payload["credential"] as? String else { throw OwnerError.enrollment }
 
-        // Store the code last; failures cannot leave a usable unverified vault.
-        try Keychain.save(key.dataRepresentation, account: Self.keyAccount)
-        do {
-            try Keychain.save(Data(credential.utf8), account: Self.credentialAccount)
-            try Keychain.save(Data(id.utf8), account: Self.deviceIdAccount)
-            try Keychain.saveProtected(Data(code.utf8), account: Self.codeAccount)
-        } catch {
-            forgetLocal()
-            throw error
-        }
+        try storeTrustedDevice(keyData: key.dataRepresentation, credential: credential, deviceId: id, recoveryCode: code)
         UserDefaults.standard.set(serverURL, forKey: "ownerServerURL")
         isEnrolled = true
         hasStoredCode = true
@@ -82,19 +73,24 @@ final class OwnerCredentialRuntime: ObservableObject {
         let id = UUID().uuidString.replacingOccurrences(of: "-", with: "_")
         let publicJWK = ["kty": "EC", "crv": "P-256", "x": Data(bytes[1..<33]).base64URL, "y": Data(bytes[33..<65]).base64URL]
         let credential = try await googleEnrollment.enroll(baseURL: base, deviceId: id, publicKeyJwk: publicJWK)
-        try Keychain.save(key.dataRepresentation, account: Self.keyAccount)
-        do {
-            try Keychain.save(Data(credential.utf8), account: Self.credentialAccount)
-            try Keychain.save(Data(id.utf8), account: Self.deviceIdAccount)
-        } catch {
-            forgetLocal()
-            throw error
-        }
-        Keychain.delete(account: Self.codeAccount)
+        try storeTrustedDevice(keyData: key.dataRepresentation, credential: credential, deviceId: id, recoveryCode: nil)
         UserDefaults.standard.set(serverURL, forKey: "ownerServerURL")
         isEnrolled = true
         hasStoredCode = false
         status = "GoogleでOwner登録済み"
+    }
+
+    private func storeTrustedDevice(keyData: Data, credential: String, deviceId: String, recoveryCode: String?) throws {
+        try Keychain.save(keyData, account: Self.keyAccount)
+        do {
+            try Keychain.save(Data(credential.utf8), account: Self.credentialAccount)
+            try Keychain.save(Data(deviceId.utf8), account: Self.deviceIdAccount)
+            if let recoveryCode { try Keychain.saveProtected(Data(recoveryCode.utf8), account: Self.codeAccount) }
+            else { Keychain.delete(account: Self.codeAccount) }
+        } catch {
+            forgetLocal()
+            throw error
+        }
     }
 
     func reveal() async throws {
