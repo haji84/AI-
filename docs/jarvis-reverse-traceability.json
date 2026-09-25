@@ -701,7 +701,7 @@
     },
     {
       "path": "docs/architecture/jarvis-windows-production.md",
-      "sha256": "ca29c5357d2b339a5623b4899b95d48c292a67d7e5cf779d126d7b26f15f5b9a",
+      "sha256": "27fa75acf0e073319720bb6db3f6e6c4fdc6eb2eb2e0c85b414442d847728fe7",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "HOST-003"
