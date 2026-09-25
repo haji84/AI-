@@ -11,9 +11,11 @@ final class OwnerCredentialRuntime: ObservableObject {
     @Published var serverURL = UserDefaults.standard.string(forKey: "ownerServerURL") ?? (Bundle.main.object(forInfoDictionaryKey: "GORIQServerURL") as? String ?? "")
     @Published private(set) var status = "未登録"
     @Published private(set) var revealedCode: String?
-    @Published private(set) var isEnrolled = false\n    @Published private(set) var hasStoredCode = false
+    @Published private(set) var isEnrolled = false
+    @Published private(set) var hasStoredCode = false
 
-    private let session: URLSession\n    private let googleEnrollment = GoogleOwnerEnrollment()
+    private let session: URLSession
+    private let googleEnrollment = GoogleOwnerEnrollment()
     private static let codeAccount = "owner-production-code"
     private static let keyAccount = "owner-signing-key"
     private static let credentialAccount = "owner-trusted-credential"
