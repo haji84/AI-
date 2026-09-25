@@ -73,6 +73,9 @@ struct OwnerCredentialView: View {
                     }
                 } else {
                     Section {
+                        Button("Googleで端末鍵を再登録") {
+                            run { try await owner.repairWithGoogle() }
+                        }.disabled(working)
                         Button("Face IDと端末鍵を確認") {
                             run { try await owner.verifyTrustedDevice() }
                         }.disabled(working)
