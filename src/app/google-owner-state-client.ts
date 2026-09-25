@@ -6,7 +6,10 @@ async function request(body: Record<string, unknown>): Promise<Record<string, un
     body: JSON.stringify(body),
     signal: AbortSignal.timeout(3_000),
   });
-  if (!response.ok) throw new Error("google owner state unavailable");
+  if (!response.ok) {
+    console.error("GOOGLE_OWNER_STATE_HTTP_STATUS", response.status);
+    throw new Error("google owner state unavailable");
+  }
   return await response.json() as Record<string, unknown>;
 }
 
