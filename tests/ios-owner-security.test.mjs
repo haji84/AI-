@@ -9,6 +9,7 @@ function sourceAt(path) {
 }
 const source = sourceAt('../apps/ios-owner/Sources/OwnerCredentialRuntime.swift');
 const ui = sourceAt('../apps/ios-owner/Sources/JarvisIOSOwnerApp.swift');
+const physicalInstallWorkflow = sourceAt('../.github/workflows/iphone-owner-build-1218.yml');
 
 test('Owner credential access is bound to server proof and local user presence', () => {
   assert.match(source, /verifyTrustedDeviceProof\(/);
@@ -23,4 +24,11 @@ test('Owner secret is masked and does not enter browser storage, URL or diagnost
   assert.match(ui, /表示/);
   assert.match(ui, /コピー/);
   assert.doesNotMatch(source + ui, /localStorage|sessionStorage|indexedDB|print\(|Logger\.|NSLog|URLQueryItem.*[Cc]ode/);
+});
+
+test('physical install selects the signing team from the app provisioning profile', () => {
+  assert.doesNotMatch(physicalInstallWorkflow, /TEAM=.*security find-identity/);
+  assert.match(physicalInstallWorkflow, /Entitlements[\s\S]*application-identifier/);
+  assert.match(physicalInstallWorkflow, /PROVISIONING_PROFILE_SPECIFIER="\$PROFILE_UUID"/);
+  assert.match(physicalInstallWorkflow, /CODE_SIGN_STYLE=Manual/);
 });

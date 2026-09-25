@@ -59,10 +59,56 @@ jobs:
         run: |
           set -euo pipefail
           if [[ "$GITHUB_EVENT_NAME" == 'pull_request' ]]; then
-            test "$(git rev-parse HEAD^)" = '18f3fdf1430d17fdd2624a8ff233a40952a44517' || { echo 'ONE_TIME_INSTALL_SCOPE_NOT_MATCHED'; exit 0; }
+            test "$(git rev-parse HEAD^)" = 'd1f2dfdb57b7fbe8a82fecf69c45e3d2f8e60f5c' || { echo 'ONE_TIME_INSTALL_SCOPE_NOT_MATCHED'; exit 0; }
           fi
-          TEAM="$(security find-identity -v -p codesigning | python3 -c 'import re,sys; teams=set(re.findall(r"Apple Development:[^\n]*\(([A-Z0-9]{10})\)",sys.stdin.read())); print(next(iter(teams)) if len(teams)==1 else "")')"
-          test -n "$TEAM" || { echo 'EXISTING_SIGNING_TEAM_UNAVAILABLE'; exit 3; }
+          PROFILE_SELECTION="$(python3 - <<'PY'
+          import os, pathlib, plistlib, re, subprocess, time
+          bundle = 'com.haji84.jarvis.iosowner'
+          roots = [
+              pathlib.Path.home() / 'Library/Developer/Xcode/UserData/Provisioning Profiles',
+              pathlib.Path.home() / 'Library/MobileDevice/Provisioning Profiles',
+          ]
+          matches = []
+          for root in roots:
+              if not root.is_dir():
+                  continue
+              for path in root.iterdir():
+                  if not path.is_file():
+                      continue
+                  decoded = subprocess.run(
+                      ['security', 'cms', '-D', '-i', str(path)],
+                      capture_output=True,
+                  )
+                  if decoded.returncode:
+                      continue
+                  try:
+                      profile = plistlib.loads(decoded.stdout)
+                  except Exception:
+                      continue
+                  entitlements = profile.get('Entitlements', {})
+                  app_identifier = str(entitlements.get('application-identifier', ''))
+                  teams = profile.get('TeamIdentifier', [])
+                  team = teams[0] if len(teams) == 1 else ''
+                  if entitlements.get('com.apple.developer.team-identifier') != team:
+                      continue
+                  if not app_identifier.endswith('.' + bundle):
+                      continue
+                  expires = profile.get('ExpirationDate')
+                  if not expires or expires.timestamp() <= time.time():
+                      continue
+                  uuid = str(profile.get('UUID', ''))
+                  if re.fullmatch(r'[A-Z0-9]{10}', team) and re.fullmatch(r'[A-F0-9-]{36}', uuid, re.I):
+                      matches.append((expires.timestamp(), team, uuid))
+          matching_teams = {team for _, team, _ in matches}
+          if len(matching_teams) != 1:
+              raise SystemExit(3)
+          _, team, uuid = max(matches)
+          print(f'{team}\t{uuid}')
+          PY
+          )" || { echo 'APP_PROVISIONING_PROFILE_UNAVAILABLE'; exit 3; }
+          IFS=$'\t' read -r TEAM PROFILE_UUID <<< "$PROFILE_SELECTION"
+          test -n "$TEAM" && test -n "$PROFILE_UUID" || { echo 'APP_PROVISIONING_PROFILE_UNAVAILABLE'; exit 3; }
+          security find-identity -v -p codesigning | TEAM_ID="$TEAM" python3 -c 'import os,sys; raise SystemExit(0 if "("+os.environ["TEAM_ID"]+")" in sys.stdin.read() else 1)' || { echo 'MATCHING_SIGNING_IDENTITY_UNAVAILABLE'; exit 3; }
           xcrun devicectl list devices --json-output "$RUNNER_TEMP/goriq-1218-devices.json" >/dev/null
           DEVICE_ID="$(python3 - "$RUNNER_TEMP/goriq-1218-devices.json" <<'PY'
           import json,sys
@@ -75,7 +121,7 @@ jobs:
           rm -f "$RUNNER_TEMP/goriq-1218-devices.json"
           test -n "$DEVICE_ID" || { echo 'EXACTLY_ONE_CONNECTED_IPHONE_REQUIRED'; exit 4; }
           cd apps/ios-owner
-          xcodebuild -quiet -allowProvisioningUpdates -project JarvisIOSOwner.xcodeproj -scheme JarvisIOSOwner -configuration Debug -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath "$RUNNER_TEMP/goriq-1218-derived" DEVELOPMENT_TEAM="$TEAM" CODE_SIGNING_ALLOWED=YES build
+          xcodebuild -quiet -project JarvisIOSOwner.xcodeproj -scheme JarvisIOSOwner -configuration Debug -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath "$RUNNER_TEMP/goriq-1218-derived" DEVELOPMENT_TEAM="$TEAM" CODE_SIGN_STYLE=Manual PROVISIONING_PROFILE_SPECIFIER="$PROFILE_UUID" CODE_SIGN_IDENTITY='Apple Development' CODE_SIGNING_ALLOWED=YES build
           APP="$RUNNER_TEMP/goriq-1218-derived/Build/Products/Debug-iphoneos/JarvisIOSOwner.app"
           test -d "$APP"
           xcrun devicectl device install app --device "$DEVICE_ID" "$APP" >"$RUNNER_TEMP/goriq-1218-install.log" 2>&1 || { echo 'DEVICE_INSTALL_FAILED'; exit 5; }
