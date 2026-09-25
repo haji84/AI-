@@ -1382,7 +1382,7 @@
     },
     {
       "path": "src/app/api/jarvis/broker.ts",
-      "sha256": "5376f15c7dc3de0e19eb286ca7ffd69fecf3a7579eb5be8fdf27bd2bec45b095",
+      "sha256": "e012287b6ad3de49b2ed0ebb80f7670508528ebb7c62dd703ade84c2150c8c31",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "NET-005",
@@ -2401,7 +2401,7 @@
     },
     {
       "path": "src/app/jarvis/settings/TrustedDeviceSettings.tsx",
-      "sha256": "e89fc503e704e78615e5cc87c3c238f569da9f53a887a945523e33a4c59f1824",
+      "sha256": "e332d85306fe838fe3431891bd896fb8782b694bb212aec0239572d9d7803ff9",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "SEC-001",
@@ -2641,7 +2641,7 @@
     },
     {
       "path": "src/app/owner-auth.ts",
-      "sha256": "3397bea6f898687334e0d20fe87f1082a57fb3094fe40ec024295c9e07bafc50",
+      "sha256": "4d9ab5956902dd1213a333f4fe4390172ff7a24b2795532b4921ac5ee764c54b",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "NET-005",
