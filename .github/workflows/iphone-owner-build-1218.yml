@@ -1,6 +1,13 @@
 name: iPhone Owner 1218 Mac preflight
 
 on:
+  workflow_dispatch:
+    inputs:
+      install:
+        description: 'Install and launch on the one connected iPhone using an existing local signing identity'
+        required: true
+        default: false
+        type: boolean
   pull_request:
     paths:
       - 'apps/ios-owner/**'
@@ -11,13 +18,13 @@ permissions:
 
 jobs:
   compile:
-    if: github.event.pull_request.head.repo.full_name == 'haji84/AI-' && github.event.pull_request.head.ref == 'goriq/1218-iphone-owner'
+    if: (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == 'haji84/AI-' && github.event.pull_request.head.ref == 'goriq/1218-iphone-owner') || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/goriq/1218-iphone-owner')
     runs-on: [self-hosted, macOS, ARM64]
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - name: Read-only Mac and connected-device preflight
         shell: bash
@@ -45,3 +52,29 @@ jobs:
           cd apps/ios-owner
           xcodegen generate
           xcodebuild -project JarvisIOSOwner.xcodeproj -scheme JarvisIOSOwner -configuration Debug -sdk iphoneos -destination 'generic/platform=iOS' CODE_SIGNING_ALLOWED=NO build
+      - name: Signed install and launch on the one connected iPhone
+        if: github.event_name == 'workflow_dispatch' && inputs.install == true
+        shell: bash
+        run: |
+          set -euo pipefail
+          TEAM="$(security find-identity -v -p codesigning | python3 -c 'import re,sys; teams=set(re.findall(r"Apple Development:[^\n]*\(([A-Z0-9]{10})\)",sys.stdin.read())); print(next(iter(teams)) if len(teams)==1 else "")')"
+          test -n "$TEAM" || { echo 'EXISTING_SIGNING_TEAM_UNAVAILABLE'; exit 3; }
+          xcrun devicectl list devices --json-output "$RUNNER_TEMP/goriq-1218-devices.json" >/dev/null
+          DEVICE_ID="$(python3 - "$RUNNER_TEMP/goriq-1218-devices.json" <<'PY'
+          import json,sys
+          with open(sys.argv[1]) as handle:
+              records=json.load(handle).get('result',{}).get('devices',[])
+          phones=[d for d in records if 'iphone' in str(d.get('deviceProperties',{}).get('name','')).lower() and d.get('connectionProperties',{}).get('transportType') in ('wired','localNetwork')]
+          print(phones[0].get('identifier','') if len(phones)==1 else '')
+          PY
+          )"
+          rm -f "$RUNNER_TEMP/goriq-1218-devices.json"
+          test -n "$DEVICE_ID" || { echo 'EXACTLY_ONE_CONNECTED_IPHONE_REQUIRED'; exit 4; }
+          cd apps/ios-owner
+          xcodebuild -quiet -project JarvisIOSOwner.xcodeproj -scheme JarvisIOSOwner -configuration Debug -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath "$RUNNER_TEMP/goriq-1218-derived" DEVELOPMENT_TEAM="$TEAM" CODE_SIGNING_ALLOWED=YES build
+          APP="$RUNNER_TEMP/goriq-1218-derived/Build/Products/Debug-iphoneos/JarvisIOSOwner.app"
+          test -d "$APP"
+          xcrun devicectl device install app --device "$DEVICE_ID" "$APP" >"$RUNNER_TEMP/goriq-1218-install.log" 2>&1 || { echo 'DEVICE_INSTALL_FAILED'; exit 5; }
+          rm -f "$RUNNER_TEMP/goriq-1218-install.log"
+          xcrun devicectl device process launch --device "$DEVICE_ID" com.haji84.jarvis.iosowner >/dev/null 2>&1 || { echo 'DEVICE_LAUNCH_FAILED'; exit 6; }
+          echo 'IPHONE_OWNER_APP_LAUNCHED_NO_SECRET_TRANSFER'
