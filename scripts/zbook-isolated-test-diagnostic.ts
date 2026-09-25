@@ -5,7 +5,7 @@ import { join, resolve } from "node:path";
 
 if (process.platform !== "win32" || !process.env.LOCALAPPDATA) throw Error("ZBook owner-local diagnosis only");
 const workspace = join(process.env.LOCALAPPDATA, "GAIWorker", "goal-1218-workspace");
-const result = spawnSync(process.execPath, ["--test"], {
+const result = spawnSync("pnpm.cmd", ["test"], {
   cwd: workspace,
   encoding: "utf8",
   windowsHide: true,
@@ -24,6 +24,7 @@ const gitBashPath = join(process.env.ProgramFiles ?? "C:\\Program Files", "Git",
 const gitBash = existsSync(gitBashPath) ? spawnSync(gitBashPath, ["-n", "scripts/jarvis-adb-mass-enroll.sh"], { cwd: workspace, encoding: "utf8", windowsHide: true }) : null;
 const report = {
   source: "isolated ZBook workspace",
+  command: "pnpm.cmd test",
   exitCode: result.status,
   timedOut: result.error?.message.includes("ETIMEDOUT") ?? false,
   failureNames,
