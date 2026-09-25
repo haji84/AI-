@@ -26,16 +26,16 @@ try {
     ...failedChecks.map(item => goalFailureCode({ note: item.note, evidence: item.evidence })),
     ...(state?.nextAction ? [goalFailureCode(state.nextAction)] : []),
   ])];
-  const envelope = db.getState().active.find(value => value && typeof value === "object" && "kind" in value && value.kind === "gai-work-state" && "goalId" in value && value.goalId === goalId) as { events?: Array<{ at?: string; type?: string; evidence?: { stopReason?: string; verification?: { ok?: boolean; summary?: string; evidence?: { checks?: Array<{ id?: string; ok?: boolean; exitCode?: number | null; timedOut?: boolean }> } } } }> } | undefined;
+  const envelope = db.getState().active.find(value => value && typeof value === "object" && "kind" in value && value.kind === "gai-work-state" && "goalId" in value && value.goalId === goalId) as { events?: Array<{ at?: string; type?: string; evidence?: { stopReason?: string; verification?: { ok?: boolean; summary?: string; evidence?: { checks?: Array<{ id?: string; ok?: boolean; exitCode?: number | null; timedOut?: boolean; failureNames?: string[] }> } } } }> } | undefined;
   const cycles = (envelope?.events ?? []).filter(event => event.type === "goal_loop_cycle").slice(-12).map(event => ({
     at: event.at ?? null,
     stopReason: event.evidence?.stopReason ?? null,
     verificationOk: event.evidence?.verification?.ok ?? null,
     failedCheck: event.evidence?.verification?.summary?.match(/^repository check failed: ([a-z0-9-]+)/)?.[1] ?? null,
-    checks: event.evidence?.verification?.evidence?.checks?.map(check => ({ id: check.id, ok: check.ok, exitCode: check.exitCode, timedOut: check.timedOut })) ?? [],
+    checks: event.evidence?.verification?.evidence?.checks?.map(check => ({ id: check.id, ok: check.ok, exitCode: check.exitCode, timedOut: check.timedOut, failureNames: check.failureNames ?? [] })) ?? [],
   }));
   const testTails = (envelope?.events ?? []).flatMap(event => event.evidence?.verification?.evidence?.checks ?? []).filter(check => check.id === "test" && check.ok === false).map(check => check as { stdoutTail?: string; stderrTail?: string });
-  const testFailureNames = [...new Set(testTails.flatMap(check => [...(check.stdoutTail ?? "").matchAll(/^not ok\\s+\\d+\\s+-\\s+([^\\r\\n]+)/gm), ...(check.stderrTail ?? "").matchAll(/^not ok\\s+\\d+\\s+-\\s+([^\\r\\n]+)/gm)].map(match => match[1]?.slice(0, 160)).filter((name): name is string => Boolean(name))))].slice(-20);
+  const testFailureNames = [...new Set(testTails.flatMap(check => (check as { failureNames?: string[] }).failureNames ?? []))].slice(-20);
   const report = {
     goalId, workRunPhase: run?.phase ?? null, workStateStatus: state?.status ?? null,
     remainingChecks: state?.definitionOfDone.filter(item => !state.verificationResults.some(result => result.itemId === item.id && (result.passed || result.waived))).length ?? null,
