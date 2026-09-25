@@ -151,7 +151,7 @@ async function runVerify(body: Record<string, unknown>) {
         ok,
         exitCode: result.code,
         timedOut: result.timedOut,
-        failureNames: check.id === "test" && !ok ? [...new Set([...result.stdout.matchAll(/^\\s*not ok\\s+\\d+\\s+-\\s+([^\\r\\n]+)/gm), ...result.stdout.matchAll(/^✖\\s+([^\\r\\n]+)/gm)].map(match => match[1]?.trim().slice(0, 160)).filter((name): name is string => Boolean(name)))].slice(0, 20) : [],
+        failureNames: check.id === "test" && !ok ? [...new Set([...result.stdout.matchAll(/^\s*not ok\s+\d+\s+-\s+([^\r\n]+)/gm), ...result.stdout.matchAll(/^✖\s+([^\r\n]+)/gm)].map(match => match[1]?.trim().slice(0, 160)).filter((name): name is string => Boolean(name)))].slice(0, 20) : [],
         stdoutTail: result.stdout.slice(-2000),
         stderrTail: result.stderr.slice(-2000),
       });
