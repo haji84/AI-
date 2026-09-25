@@ -134,3 +134,37 @@ jobs:
           }
           NODE
 
+
+      - name: Verify durable Google Owner binding and active trusted device without identifiers
+        if: inputs.owner_1218_head == true
+        shell: bash
+        run: |
+          set -euo pipefail
+          ENV_FILE="$HOME/Library/Application Support/JARVIS/jarvis.env"
+          set -a; source "$ENV_FILE"; set +a
+          node <<'NODE'
+          const base = process.env.JARVIS_PUBLIC_BROKER_URL;
+          const token = process.env.JARVIS_OWNER_TOKEN;
+          if (!base || !token) process.exit(2);
+          const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
+          try {
+            const identityResponse = await fetch(new URL('/api/jarvis/admin/google-owner', base), {
+              method: 'POST', headers, body: JSON.stringify({ action: 'identity' }),
+              signal: AbortSignal.timeout(5000),
+            });
+            const identity = identityResponse.ok ? await identityResponse.json() : {};
+            const devicesResponse = await fetch(new URL('/api/jarvis/admin/trusted-devices', base), {
+              headers, signal: AbortSignal.timeout(5000),
+            });
+            const devices = devicesResponse.ok ? await devicesResponse.json() : {};
+            const bound = identityResponse.status === 200 && identity.bound === true;
+            const active = devicesResponse.status === 200 && Array.isArray(devices.devices)
+              && devices.devices.some(item => item.label === 'iPhone Owner' && item.revoked === false);
+            console.log('GOOGLE_OWNER_BINDING_PERSISTED=' + bound);
+            console.log('GOOGLE_OWNER_TRUSTED_DEVICE_ACTIVE=' + active);
+            if (!bound || !active) process.exit(3);
+          } catch {
+            console.log('GOOGLE_OWNER_DURABLE_CHECK_UNAVAILABLE');
+            process.exit(4);
+          }
+          NODE
