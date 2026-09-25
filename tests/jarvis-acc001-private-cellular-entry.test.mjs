@@ -62,5 +62,5 @@ test("ACC-001 keeps the dashboard loopback-bound and gates the JARVIS UI on owne
   assert.match(page, /if \(!await requireJarvisOwner\(\)\) return <main[^>]*><OwnerLogin \/><\/main>;/);
   assert.match(page, /<JarvisConsole \/>/);
   assert.match(broker, /if \(!ownerSecret\) return false;/);
-  assert.match(broker, /verifyOwnerSessionToken\(ownerSecret, cookieStore\.get\(OWNER_SESSION_COOKIE\)\?\.value\)/);
+  assert.match(broker, /verifyOwnerSessionAccess\(ownerSecret, cookieStore\.get\(OWNER_SESSION_COOKIE\)\?\.value\)/);
 });
