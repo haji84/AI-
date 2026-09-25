@@ -15,10 +15,10 @@ jobs:
       - name: Inspect persisted Goal state
         shell: powershell
         run: node scripts/zbook-goal-diagnostics.ts
-      - name: Upload bounded diagnosis
+      - name: Inspect isolated workspace test names\n        shell: powershell\n        run: node scripts/zbook-isolated-test-diagnostic.ts\n      - name: Upload bounded diagnosis
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: goriq-zbook-goal-1218-diagnosis
-          path: .gai-results/goal-1218-bridge-diagnostics.json
+          path: |\n            .gai-results/goal-1218-bridge-diagnostics.json\n            .gai-results/goal-1218-isolated-test-diagnosis.json
           retention-days: 30
