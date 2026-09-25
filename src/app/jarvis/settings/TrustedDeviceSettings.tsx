@@ -118,7 +118,7 @@ export default function TrustedDeviceSettings() {
     </div>
 
     {message && <p className="jarvis-alert" role="status">{message}</p>}
-    <p className="muted">失効すると次回のPINログインはできません。既にログイン済みのセッションは有効期限まで続くため、端末を紛失した場合は本番ログインコードの変更も必要です。</p>
+    <p className="muted">失効するとPINログインと、この更新後にPINから発行されたセッションは使えません。更新前のセッションや本番ログインコードで入ったセッションは有効期限まで続くため、端末を紛失した場合は本番ログインコードの変更も必要です。</p>
     <p className="muted">5回連続でPINを間違えると、このブラウザでは5分間ロックします。</p>
   </section>;
 }
