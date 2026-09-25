@@ -96,3 +96,40 @@ jobs:
           echo "::add-mask::$JARVIS_PUBLIC_BROKER_URL"
           curl -fsS --max-time 10 "$JARVIS_PUBLIC_BROKER_URL/health" | grep -Fq 'jarvis-broker'
           echo 'BROKER_REFRESH_PRESERVED_TUNNEL_URL'
+
+      - name: Check Google Owner state boundary without binding an identity
+        if: inputs.owner_1218_head == true
+        shell: bash
+        run: |
+          set -euo pipefail
+          ENV_FILE="$HOME/Library/Application Support/JARVIS/jarvis.env"
+          set -a; source "$ENV_FILE"; set +a
+          node <<'NODE'
+          const base = process.env.JARVIS_PUBLIC_BROKER_URL;
+          const token = process.env.JARVIS_OWNER_TOKEN;
+          if (!base || !token) { console.log('GOOGLE_OWNER_SMOKE_AUTH_UNAVAILABLE'); process.exit(2); }
+          async function request(body) {
+            const response = await fetch(new URL('/api/jarvis/admin/google-owner', base), {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify(body),
+              signal: AbortSignal.timeout(5000),
+            });
+            const payload = response.ok ? await response.json() : {};
+            return { status: response.status, payload };
+          }
+          try {
+            const common = { deviceId: 'diagnostic_1234567890123456', publicKeyThumbprint: 'thumb', state: 'state', nonce: 'nonce' };
+            const issued = await request({ action: 'issueContext', ...common, pkceChallenge: 'pkce' });
+            console.log('GOOGLE_OWNER_ISSUE_STATUS=' + issued.status);
+            if (issued.status !== 200 || !issued.payload.contextId) process.exit(3);
+            const consumed = await request({ action: 'consumeContext', ...common, contextId: issued.payload.contextId });
+            console.log('GOOGLE_OWNER_CONSUME_STATUS=' + consumed.status);
+            const replay = await request({ action: 'consumeContext', ...common, contextId: issued.payload.contextId });
+            console.log('GOOGLE_OWNER_REPLAY_STATUS=' + replay.status);
+            if (consumed.status !== 200 || replay.status !== 409) process.exit(4);
+          } catch {
+            console.log('GOOGLE_OWNER_SMOKE_TRANSPORT_FAILED');
+            process.exit(5);
+          }
+          NODE
