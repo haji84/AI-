@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { jarvisOwnerSecret } from "../../../jarvis/broker.ts";
 import { completeGoogleOwnerEnrollment } from "../../../../google-owner-service.ts";
 import { exchangeGoogleAuthorizationCode, verifyGoogleIdToken } from "../../../../google-owner-oidc.ts";
-import { bindGoogleOwnerIdentity, consumeGoogleOwnerContext } from "../../../../google-owner-state-client.ts";
+import { bindGoogleOwnerIdentity, consumeGoogleOwnerContext, googleOwnerIdentity } from "../../../../google-owner-state-client.ts";
 import { createTrustedDeviceCredential } from "../../../../trusted-device-auth.ts";
 import { registerTrustedDevice } from "../../../../trusted-device-registry-client.ts";
 
@@ -26,6 +26,7 @@ export async function POST(request: Request) {
       consumeContext: consumeGoogleOwnerContext,
       exchangeCode: exchangeGoogleAuthorizationCode,
       verifyIdToken: (token, input) => verifyGoogleIdToken(token, input),
+      lookupIdentity: googleOwnerIdentity,
       bindIdentity: bindGoogleOwnerIdentity,
       registerDevice: registerTrustedDevice,
       createCredential: input => createTrustedDeviceCredential(secret, input),
