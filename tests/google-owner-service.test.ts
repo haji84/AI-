@@ -19,6 +19,7 @@ test("complete consumes context verifies PKCE identity registers device and retu
     consumeContext: async () => ({ pkceChallenge: "iMnq5o6zALKXGivsnlom_0F5_WYda32GHkxlV7mq7hQ" }),
     exchangeCode: async () => ({ id_token: "id-token" }),
     verifyIdToken: async () => ({ iss: "https://accounts.google.com", aud: "c", sub: "sub", email: "owner@example.com", email_verified: true, iat: 1, exp: 2, nonce: "n" }),
+    lookupIdentity: async () => ({ bound: false }),
     bindIdentity: async () => { bound = true; },
     registerDevice: async () => { registered = true; },
     createCredential: () => "td1.fixture.signature",
@@ -35,9 +36,25 @@ test("device registration failure leaves first Google identity unbound", async (
     consumeContext: async () => ({ pkceChallenge: "iMnq5o6zALKXGivsnlom_0F5_WYda32GHkxlV7mq7hQ" }),
     exchangeCode: async () => ({ id_token: "id-token" }),
     verifyIdToken: async () => ({ iss: "https://accounts.google.com", aud: "c", sub: "sub", email: "owner@example.com", email_verified: true, iat: 1, exp: 2, nonce: "n" }),
+    lookupIdentity: async () => ({ bound: false }),
     bindIdentity: async () => { bound = true; },
     registerDevice: async () => { throw new Error("registry unavailable"); },
     createCredential: () => "td1.fixture.signature",
   }));
   assert.equal(bound, false);
+});
+
+test("wrong Google bootstrap identity never registers a trusted device", async () => {
+  let registered = false;
+  await assert.rejects(() => completeGoogleOwnerEnrollment({ contextId: "ctx", deviceId: "device_1234567890abcdef", publicKeyJwk: jwk, state: "s", nonce: "n", code: "auth-code", codeVerifier: "verifier", redirectUri: "com.example:/oauth2redirect" }, {
+    clientId: "c", bootstrapEmail: "owner@example.com", redirectUri: "com.example:/oauth2redirect",
+    consumeContext: async () => ({ pkceChallenge: "iMnq5o6zALKXGivsnlom_0F5_WYda32GHkxlV7mq7hQ" }),
+    exchangeCode: async () => ({ id_token: "id-token" }),
+    verifyIdToken: async () => ({ iss: "https://accounts.google.com", aud: "c", sub: "wrong", email: "other@example.com", email_verified: true, iat: 1, exp: 2, nonce: "n" }),
+    lookupIdentity: async () => ({ bound: false }),
+    bindIdentity: async () => { throw new Error("should not bind"); },
+    registerDevice: async () => { registered = true; },
+    createCredential: () => "td1.fixture.signature",
+  }));
+  assert.equal(registered, false);
 });
