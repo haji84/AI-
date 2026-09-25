@@ -28,3 +28,9 @@ test("manual code enrollment remains recovery-only", () => {
   assert.match(ui, /復旧用/);
   assert.match(ui, /GoogleでOwner登録/);
 });
+
+test("disabled Google enrollment shows a specific safe server-configuration error", () => {
+  assert.match(google, /http\.statusCode == 503 && path == "\/api\/owner-login\/google\/begin"/);
+  assert.match(google, /case \.serverNotConfigured: return "Google Owner登録はまだ有効ではありません（サーバー設定待ち）"/);
+  assert.doesNotMatch(google, /String\(data: data|localizedDescription.*data/);
+});
