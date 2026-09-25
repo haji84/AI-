@@ -40,7 +40,7 @@ export async function verifyGoogleIdToken(token: string, options: VerifyOptions)
   const valid = verify(
     "RSA-SHA256",
     Buffer.from(`${headerPart}.${payloadPart}`),
-    createPublicKey({ key: jwk, format: "jwk" }),
+    createPublicKey({ key: jwk as unknown as import("node:crypto").JsonWebKey, format: "jwk" }),
     Buffer.from(signaturePart, "base64url"),
   );
   if (!valid) throw new Error("google identity rejected");
