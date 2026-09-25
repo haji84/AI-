@@ -29,6 +29,7 @@ type CompleteDeps = {
   consumeContext: (input: { contextId: string; deviceId: string; publicKeyThumbprint: string; state: string; nonce: string }) => Promise<{ pkceChallenge: string }>;
   exchangeCode: (input: { code: string; codeVerifier: string; redirectUri: string; clientId: string }) => Promise<{ id_token?: string }>;
   verifyIdToken: (token: string, input: { clientId: string; nonce: string }) => Promise<GoogleIdClaims>;
+  lookupIdentity: () => Promise<{ bound: boolean; sub?: string }>;
   bindIdentity: (input: { sub: string; email?: string; emailVerified: boolean; bootstrapEmail: string }) => Promise<unknown>;
   registerDevice: (deviceId: string, label: string) => Promise<unknown>;
   createCredential: (input: { deviceId: string; label: string; publicKeyJwk: JsonWebKey }) => string;
@@ -47,6 +48,10 @@ export async function completeGoogleOwnerEnrollment(input: CompleteInput, deps: 
   const exchanged = await deps.exchangeCode({ code: input.code, codeVerifier: input.codeVerifier, redirectUri: input.redirectUri, clientId: deps.clientId });
   if (!exchanged.id_token) throw new Error("google owner enrollment rejected");
   const claims = await deps.verifyIdToken(exchanged.id_token, { clientId: deps.clientId, nonce: input.nonce });
+  const identity = await deps.lookupIdentity();
+  if (!claims.sub || (identity.bound
+    ? identity.sub !== claims.sub
+    : !claims.email_verified || !claims.email || claims.email.toLowerCase() !== deps.bootstrapEmail.trim().toLowerCase())) throw new Error("owner identity rejected");
   const credential = deps.createCredential({ deviceId: input.deviceId, label: "iPhone Owner", publicKeyJwk: input.publicKeyJwk });
   await deps.registerDevice(input.deviceId, "iPhone Owner");
   await deps.bindIdentity({ sub: claims.sub, email: claims.email, emailVerified: claims.email_verified === true, bootstrapEmail: deps.bootstrapEmail });
