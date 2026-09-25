@@ -59,7 +59,7 @@ jobs:
         run: |
           set -euo pipefail
           if [[ "$GITHUB_EVENT_NAME" == 'pull_request' ]]; then
-            test "$(git rev-parse HEAD^)" = 'ddbd80117401c9088e15e47e242a1bb5f40da870' || { echo 'ONE_TIME_INSTALL_SCOPE_NOT_MATCHED'; exit 0; }
+            test "$(git rev-parse HEAD^)" = '18f3fdf1430d17fdd2624a8ff233a40952a44517' || { echo 'ONE_TIME_INSTALL_SCOPE_NOT_MATCHED'; exit 0; }
           fi
           TEAM="$(security find-identity -v -p codesigning | python3 -c 'import re,sys; teams=set(re.findall(r"Apple Development:[^\n]*\(([A-Z0-9]{10})\)",sys.stdin.read())); print(next(iter(teams)) if len(teams)==1 else "")')"
           test -n "$TEAM" || { echo 'EXISTING_SIGNING_TEAM_UNAVAILABLE'; exit 3; }
@@ -75,7 +75,7 @@ jobs:
           rm -f "$RUNNER_TEMP/goriq-1218-devices.json"
           test -n "$DEVICE_ID" || { echo 'EXACTLY_ONE_CONNECTED_IPHONE_REQUIRED'; exit 4; }
           cd apps/ios-owner
-          xcodebuild -quiet -project JarvisIOSOwner.xcodeproj -scheme JarvisIOSOwner -configuration Debug -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath "$RUNNER_TEMP/goriq-1218-derived" DEVELOPMENT_TEAM="$TEAM" CODE_SIGNING_ALLOWED=YES build
+          xcodebuild -quiet -allowProvisioningUpdates -project JarvisIOSOwner.xcodeproj -scheme JarvisIOSOwner -configuration Debug -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath "$RUNNER_TEMP/goriq-1218-derived" DEVELOPMENT_TEAM="$TEAM" CODE_SIGNING_ALLOWED=YES build
           APP="$RUNNER_TEMP/goriq-1218-derived/Build/Products/Debug-iphoneos/JarvisIOSOwner.app"
           test -d "$APP"
           xcrun devicectl device install app --device "$DEVICE_ID" "$APP" >"$RUNNER_TEMP/goriq-1218-install.log" 2>&1 || { echo 'DEVICE_INSTALL_FAILED'; exit 5; }
