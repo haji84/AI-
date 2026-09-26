@@ -98,7 +98,15 @@ jobs:
           [[ "$PAIRING_APPROVED" == "true" ]]
           command -v xcodegen >/dev/null
           DEVICE_JSON="$RUNNER_TEMP/goriq-681-devices.json"
-          xcrun devicectl list devices --json-output "$DEVICE_JSON" >/dev/null
+          DEVICECTL_OUTPUT="$RUNNER_TEMP/goriq-681-devicectl-output.log"
+          set +e
+          xcrun devicectl list devices --verbose --timeout 30 --json-output "$DEVICE_JSON" >"$DEVICECTL_OUTPUT" 2>&1
+          DEVICECTL_EXIT=$?
+          set -e
+          if (( DEVICECTL_EXIT != 0 )); then
+            node scripts/goriq-format-devicectl-failure.mjs "$DEVICECTL_EXIT" "$DEVICECTL_OUTPUT"
+            exit "$DEVICECTL_EXIT"
+          fi
           DEVICE_ID="$(node scripts/goriq-select-physical-iphone.mjs "$DEVICE_JSON")"
           test -n "$DEVICE_ID"
           DEVICE_HASH="$(printf '%s' "$DEVICE_ID" | shasum -a 256 | cut -c1-16)"
