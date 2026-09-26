@@ -44,7 +44,15 @@ function expectedDeviceSecret(deviceId: string) { return createHmac("sha256", ma
 function deviceAuthorized(req: IncomingMessage, deviceId: string) { return bearerValue(req) === expectedDeviceSecret(deviceId); }
 async function body(req: IncomingMessage): Promise<Envelope> { const chunks: Buffer[] = []; for await (const c of req) chunks.push(Buffer.isBuffer(c) ? c : Buffer.from(c)); return JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}") as Envelope; }
 function json(res: ServerResponse, status: number, value?: unknown) { res.statusCode = status; if (value === undefined) return res.end(); res.setHeader("content-type", "application/json"); res.end(JSON.stringify(value)); }
-function lanAddress() { for (const entries of Object.values(networkInterfaces())) for (const e of entries ?? []) if (e.family === "IPv4" && !e.internal) return e.address; return "127.0.0.1"; }
+function lanAddress() {
+  if (host === "127.0.0.1" || host === "::1" || host === "localhost") return host;
+  try {
+    for (const entries of Object.values(networkInterfaces())) for (const e of entries ?? []) if (e.family === "IPv4" && !e.internal) return e.address;
+  } catch (error) {
+    console.warn(`LAN address discovery unavailable: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  return "127.0.0.1";
+}
 function pairingOpen() { return Date.now() <= pairingEndsAt; }
 function validDeviceId(value: unknown): value is string { return typeof value === "string" && value.length >= 8 && value.length <= 128 && /^[a-zA-Z0-9._:-]+$/.test(value); }
 function allowedCapabilities(input: unknown) {
