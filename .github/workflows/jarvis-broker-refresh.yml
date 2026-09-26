@@ -52,7 +52,7 @@ jobs:
           fi
           if [[ "${{ inputs.owner_1218_head }}" == 'true' ]]; then
             [[ "$GITHUB_REF" == 'refs/heads/goriq/1218-iphone-owner' ]] || exit 2
-            TARGET='7118ddae0e0d814d3e9bff5e39aacb0296e4b096'
+            TARGET='fb0c55362cacff09431e6d9ed32f4c3656bec667'
             git -C "$REPO_ROOT" fetch origin goriq/1218-iphone-owner
             git -C "$REPO_ROOT" merge-base --is-ancestor "$TARGET" FETCH_HEAD || exit 3
             git -C "$REPO_ROOT" merge --ff-only "$TARGET"
