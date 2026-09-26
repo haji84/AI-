@@ -1,8 +1,8 @@
 # #681 GORIQ self-development acceptance evidence
 
-Recorded: 2026-09-26T08:10:00.000Z
+Recorded: 2026-09-26T12:00:00.000Z
 
-Deterministic source revision: `1619311e9b7536209b6d74dce9267cb660c9f569`
+Deterministic source revision: `25d42c41d814c04b6583ea64f7156666ed1c80ae`
 
 Requirements: `CORE-014`, `AUTO-001` through `AUTO-031`
 
@@ -18,7 +18,7 @@ The deterministic runner passed five bounded component-contract fixtures. These 
 | Reconnect semantic integration | PASS | `d1e49ac43dac0c4c5934aa14771777a1a0394b6d7b9942818fafaabe2179b955` |
 | Restart, failed canary, known-good rollback | PASS | `0d566fa0b2ca61372f3c9226a37dbaf4a62fe4c257bb34b98ef00f9679e64e61` |
 
-The run also reconstructs the device inbox from disk, confirms that the deterministic topology contains exactly one simulated iPhone identity, rejects a second iPhone, keeps simulated evidence separate from physical evidence, and emits no secret-pattern finding.
+The run also reconstructs the device inbox from disk, confirms that the deterministic topology contains exactly one simulated iPhone identity, rejects a second iPhone, keeps simulated evidence separate from physical evidence, and emits no secret-pattern finding. Focused contract tests additionally verify the durable trusted-device intake-to-Goal scheduling connection and publication of an already-saved offline result without a second Builder execution.
 
 ## Evidence classes and remaining gates
 
@@ -34,4 +34,4 @@ This evidence does not mark `CORE-014` or any `AUTO-*` requirement complete. The
 
 ## Task 12 external execution attempt
 
-On 2026-09-26, `origin/main` was fetched successfully and the verified branch was confirmed 16 commits ahead with no missing main commits. Push to `origin/goriq/681-offline-self-development` stopped before publication because this execution environment has no GitHub HTTPS credential or credential helper (`could not read Username for 'https://github.com'`). The remote branch was confirmed absent. GitHub PR/CI, Production, configured device-local Builder, Release connector, and signed physical-iPhone execution therefore remain `NOT RUN`; no alternate upload, credential creation, or protection bypass was attempted.
+On 2026-09-26, `origin/main` was fetched successfully and the verified branch was confirmed 18 commits ahead with no missing main commits. Push to `origin/goriq/681-offline-self-development` stopped before publication because this execution environment has no GitHub HTTPS credential or credential helper (`could not read Username for 'https://github.com'`). The remote branch was confirmed absent. GitHub PR/CI, Production, configured device-local Builder, Release connector, and signed physical-iPhone execution therefore remain `NOT RUN`; no alternate upload, credential creation, or protection bypass was attempted.
