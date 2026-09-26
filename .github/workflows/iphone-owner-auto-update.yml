@@ -1,0 +1,163 @@
+name: GORIQ Native iPhone Auto Update
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      target_sha:
+        description: 'Verified main commit to evaluate; defaults to current main'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: goriq-native-ios-auto-update
+  cancel-in-progress: false
+
+jobs:
+  classify:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    outputs:
+      target_sha: ${{ steps.classify.outputs.target_sha }}
+      eligible: ${{ steps.classify.outputs.eligible }}
+      reason: ${{ steps.classify.outputs.reason }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - id: classify
+        shell: bash
+        env:
+          REQUESTED_SHA: ${{ inputs.target_sha }}
+          WORKFLOW_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          TARGET="${REQUESTED_SHA:-${WORKFLOW_SHA:-$(git rev-parse HEAD)}}"
+          git fetch --no-tags origin main
+          git merge-base --is-ancestor "$TARGET" origin/main || { echo "target is not on main" >&2; exit 2; }
+          PARENT="$(git rev-parse "$TARGET^" 2>/dev/null || true)"
+          if [[ -z "$PARENT" ]]; then
+            echo "eligible=false" >> "$GITHUB_OUTPUT"
+            echo "reason=no-parent" >> "$GITHUB_OUTPUT"
+            echo "target_sha=$TARGET" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          mapfile -t FILES < <(git diff --name-only "$PARENT" "$TARGET")
+          eligible=false
+          reason=no-ios-owner-change
+          ios_change=false
+          blocked=false
+          for file in "${FILES[@]}"; do
+            case "$file" in
+              apps/ios-owner/Sources/JarvisIOSOwnerApp.swift|apps/ios-owner/Sources/DailyDriverRuntime.swift|apps/ios-owner/Assets.xcassets/*)
+                ios_change=true ;;
+              apps/ios-owner/*|apps/ios-owner/**/*|.github/workflows/iphone-owner-build-1218.yml|.github/workflows/iphone-owner-auto-update.yml)
+                blocked=true
+                reason=sensitive-or-unclassified-ios-change ;;
+            esac
+          done
+          if [[ "$ios_change" == true && "$blocked" == false ]]; then
+            eligible=true
+            reason=eligible-minor-ios-change
+          fi
+          echo "target_sha=$TARGET" >> "$GITHUB_OUTPUT"
+          echo "eligible=$eligible" >> "$GITHUB_OUTPUT"
+          echo "reason=$reason" >> "$GITHUB_OUTPUT"
+          printf 'AUTO_UPDATE_CLASSIFICATION sha=%s eligible=%s reason=%s\n' "$TARGET" "$eligible" "$reason"
+
+  install:
+    needs: classify
+    if: needs.classify.outputs.eligible == 'true'
+    runs-on: [self-hosted, macOS, ARM64]
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.classify.outputs.target_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Verify exact target and previous install state
+        id: state
+        shell: bash
+        run: |
+          set -euo pipefail
+          TARGET="${{ needs.classify.outputs.target_sha }}"
+          test "$(git rev-parse HEAD)" = "$TARGET"
+          STATE_DIR="$HOME/Library/Application Support/GORIQ"
+          STATE_FILE="$STATE_DIR/native-ios-installed-main-sha"
+          mkdir -p "$STATE_DIR"
+          if [[ -f "$STATE_FILE" && "$(cat "$STATE_FILE")" = "$TARGET" ]]; then
+            echo "already=true" >> "$GITHUB_OUTPUT"
+            echo "ALREADY_INSTALLED_TARGET"
+          else
+            echo "already=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Compile security contract
+        if: steps.state.outputs.already != 'true'
+        run: python3 apps/ios-owner/Tests/test_signing_access.py
+      - name: Build, sign, install and launch exactly one iPhone
+        if: steps.state.outputs.already != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v xcodegen >/dev/null
+          TARGET="${{ needs.classify.outputs.target_sha }}"
+          PROFILE_SELECTION="$(python3 - <<'PY'
+          import hashlib, pathlib, plistlib, re, subprocess, time
+          bundle='com.haji84.jarvis.iosowner'
+          roots=[pathlib.Path.home()/'Library/Developer/Xcode/UserData/Provisioning Profiles',pathlib.Path.home()/'Library/MobileDevice/Provisioning Profiles']
+          identities=subprocess.run(['security','find-identity','-v','-p','codesigning'],capture_output=True,text=True).stdout
+          identity_hashes=set(re.findall(r'\b[0-9A-F]{40}\b',identities,re.I))
+          matches=[]
+          for root in roots:
+            if not root.is_dir(): continue
+            for path in root.iterdir():
+              if not path.is_file(): continue
+              decoded=subprocess.run(['security','cms','-D','-i',str(path)],capture_output=True)
+              if decoded.returncode: continue
+              try: profile=plistlib.loads(decoded.stdout)
+              except Exception: continue
+              ent=profile.get('Entitlements',{})
+              appid=str(ent.get('application-identifier',''))
+              teams=profile.get('TeamIdentifier',[])
+              team=teams[0] if len(teams)==1 else ''
+              expires=profile.get('ExpirationDate')
+              certs={hashlib.sha1(bytes(c)).hexdigest().upper() for c in profile.get('DeveloperCertificates',[])}
+              common=certs & identity_hashes
+              if ent.get('com.apple.developer.team-identifier')==team and appid.endswith('.'+bundle) and expires and expires.timestamp()>time.time() and re.fullmatch(r'[A-Z0-9]{10}',team) and len(common)==1:
+                matches.append((expires.timestamp(),team,next(iter(common))))
+          teams={x[1] for x in matches}
+          if len(teams)!=1: raise SystemExit(3)
+          _,team,identity=max(matches)
+          print(f'{team}\t{identity}')
+          PY
+          )" || { echo 'SIGNING_AMBIGUOUS_OR_UNAVAILABLE'; exit 3; }
+          IFS=$'\t' read -r TEAM IDENTITY_HASH <<< "$PROFILE_SELECTION"
+          xcrun devicectl list devices --json-output "$RUNNER_TEMP/goriq-auto-devices.json" >/dev/null
+          DEVICE_ID="$(python3 - "$RUNNER_TEMP/goriq-auto-devices.json" <<'PY'
+          import json,sys
+          records=json.load(open(sys.argv[1])).get('result',{}).get('devices',[])
+          phones=[d for d in records if 'iphone' in str(d.get('deviceProperties',{}).get('name','')).lower() and d.get('connectionProperties',{}).get('transportType') in ('wired','localNetwork')]
+          print(phones[0].get('identifier','') if len(phones)==1 else '')
+          PY
+          )"
+          rm -f "$RUNNER_TEMP/goriq-auto-devices.json"
+          test -n "$DEVICE_ID" || { echo 'WAITING_EXACTLY_ONE_REACHABLE_IPHONE'; exit 75; }
+          cd apps/ios-owner
+          xcodegen generate
+          xcodebuild -quiet -project JarvisIOSOwner.xcodeproj -scheme JarvisIOSOwner -configuration Debug -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath "$RUNNER_TEMP/goriq-auto-derived" DEVELOPMENT_TEAM="$TEAM" CODE_SIGN_STYLE=Automatic CODE_SIGN_IDENTITY='Apple Development' CODE_SIGNING_ALLOWED=YES build
+          APP="$RUNNER_TEMP/goriq-auto-derived/Build/Products/Debug-iphoneos/JarvisIOSOwner.app"
+          test -d "$APP"
+          xcrun devicectl device install app --device "$DEVICE_ID" "$APP" >/dev/null
+          xcrun devicectl device process launch --device "$DEVICE_ID" com.haji84.jarvis.iosowner >/dev/null
+          STATE_DIR="$HOME/Library/Application Support/GORIQ"
+          printf '%s\n' "$TARGET" > "$STATE_DIR/native-ios-installed-main-sha.tmp"
+          mv "$STATE_DIR/native-ios-installed-main-sha.tmp" "$STATE_DIR/native-ios-installed-main-sha"
+          echo "IPHONE_AUTO_UPDATE_VERIFIED sha=$TARGET bundle=com.haji84.jarvis.iosowner"
