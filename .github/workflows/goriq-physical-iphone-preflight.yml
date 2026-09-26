@@ -1,0 +1,110 @@
+name: GORIQ Physical iPhone Preflight
+
+on:
+  workflow_dispatch:
+    inputs:
+      approve_ephemeral_pairing:
+        description: Approve a bounded Xcode/CoreDevice pairing attempt
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  physical-iphone-preflight:
+    name: Detect and prepare one USB iPhone
+    runs-on: [self-hosted, macOS, ARM64]
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Require exact current main
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_REF" == "refs/heads/main" ]]
+          git fetch --no-tags origin main
+          [[ "$(git rev-parse HEAD)" == "$(git rev-parse origin/main)" ]]
+          [[ "$(git rev-parse HEAD)" == "$GITHUB_SHA" ]]
+      - name: Detect, pair, and prepare the USB iPhone
+        id: preflight
+        shell: bash
+        env:
+          PAIRING_APPROVED: ${{ inputs.approve_ephemeral_pairing }}
+        run: |
+          set -u -o pipefail
+          [[ "$PAIRING_APPROVED" == "true" ]]
+          ROOT="$RUNNER_TEMP/goriq-681-iphone-preflight"
+          EVIDENCE="$GITHUB_WORKSPACE/.gai-results/physical-iphone-preflight"
+          mkdir -p "$ROOT" "$EVIDENCE"
+
+          run_capture() {
+            local stdout_file="$1"
+            local stderr_file="$2"
+            shift 2
+            "$@" >"$stdout_file" 2>"$stderr_file"
+            return $?
+          }
+
+          echo "stage=toolchain"
+          node --version
+          xcodebuild -version
+
+          run_capture "$ROOT/usb.json" "$ROOT/usb.log" system_profiler SPUSBDataType -json
+          USB_EXIT=$?
+          echo "stage=usb exit=$USB_EXIT"
+
+          run_capture "$ROOT/xcdevice.json" "$ROOT/xcdevice.log" xcrun xcdevice list --timeout 30
+          XCDEVICE_EXIT=$?
+          echo "stage=xcdevice-before exit=$XCDEVICE_EXIT"
+
+          run_capture "$ROOT/devicectl.stdout" "$ROOT/devicectl.log" xcrun devicectl list devices --verbose --timeout 30 --json-output "$ROOT/devicectl.json"
+          DEVICECTL_EXIT=$?
+          echo "stage=devicectl-before exit=$DEVICECTL_EXIT"
+
+          PAIRING_EXIT=2
+          DEVICE_ID=""
+          if DEVICE_ID="$(node scripts/goriq-physical-iphone-preflight.mjs select-xcdevice "$ROOT/xcdevice.json" 2>"$ROOT/selection.log")"; then
+            echo "::add-mask::$DEVICE_ID"
+            if node -e 'const fs=require("node:fs"); const p=JSON.parse(fs.readFileSync(process.argv[1],"utf8")); const d=p?.result?.devices ?? []; process.exit(d.some(x => x?.identifier === process.argv[2] && ["connected","available"].includes(String(x?.properties?.tunnelState ?? x?.connectionProperties?.tunnelState ?? "").toLowerCase())) ? 0 : 1)' "$ROOT/devicectl.json" "$DEVICE_ID" 2>/dev/null; then
+              PAIRING_EXIT=0
+              : > "$ROOT/pairing.log"
+              echo "stage=pairing state=already-available"
+            else
+              run_capture "$ROOT/pairing.stdout" "$ROOT/pairing.log" xcrun devicectl manage pair --device "$DEVICE_ID" --timeout 120
+              PAIRING_EXIT=$?
+              echo "stage=pairing exit=$PAIRING_EXIT"
+            fi
+          else
+            cat "$ROOT/selection.log" > "$ROOT/pairing.log"
+            echo "stage=pairing state=no-single-xcdevice-candidate"
+          fi
+
+          run_capture "$ROOT/xcdevice-after.json" "$ROOT/xcdevice-after.log" xcrun xcdevice list --timeout 30
+          XCDEVICE_EXIT=$?
+          echo "stage=xcdevice-after exit=$XCDEVICE_EXIT"
+
+          run_capture "$ROOT/devicectl-after.stdout" "$ROOT/devicectl-after.log" xcrun devicectl list devices --verbose --timeout 30 --json-output "$ROOT/devicectl-after.json"
+          DEVICECTL_EXIT=$?
+          echo "stage=devicectl-after exit=$DEVICECTL_EXIT"
+
+          node scripts/goriq-physical-iphone-preflight.mjs summarize \
+            "$EVIDENCE/preflight.json" \
+            "$USB_EXIT" "$ROOT/usb.json" \
+            "$XCDEVICE_EXIT" "$ROOT/xcdevice-after.json" \
+            "$DEVICECTL_EXIT" "$ROOT/devicectl-after.json" "$ROOT/devicectl-after.log" \
+            "$PAIRING_EXIT" "$ROOT/pairing.log"
+
+          node -e 'const fs=require("node:fs"); const s=JSON.parse(fs.readFileSync(process.argv[1],"utf8")); if (s.devicectl.availablePhysicalIPhoneCount !== 1) process.exit(1)' "$EVIDENCE/preflight.json"
+      - name: Upload redacted physical iPhone preflight evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: goriq-681-physical-iphone-preflight
+          path: .gai-results/physical-iphone-preflight/preflight.json
+          if-no-files-found: error
+          retention-days: 7
