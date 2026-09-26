@@ -1,4 +1,4 @@
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { mkdir, open, readFile, rename, stat, unlink, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { assertDevelopmentJob, type DevelopmentJob } from "./development-job.ts";
 
@@ -40,6 +40,7 @@ abstract class BaseDevelopmentJobStore implements DevelopmentJobStore {
 
   protected abstract loadSnapshot(): Promise<DevelopmentJobSnapshot | null>;
   protected abstract saveSnapshot(snapshot: DevelopmentJobSnapshot): Promise<void>;
+  protected async withWriteLease<T>(operation: () => Promise<T>): Promise<T> { return operation(); }
 
   protected async initialize(): Promise<void> {
     if (this.loaded) return;
@@ -68,13 +69,19 @@ abstract class BaseDevelopmentJobStore implements DevelopmentJobStore {
   async put(job: DevelopmentJob, now = new Date()): Promise<void> {
     await this.initialize();
     assertDevelopmentJob(job);
-    const existing = this.jobs.get(job.jobId);
-    if (existing && existing.goalId !== job.goalId) throw new Error(`development job identity conflict: ${job.jobId}`);
-    this.jobs.set(job.jobId, clone(job));
-    await this.saveSnapshot({
-      version: 1,
-      jobs: [...this.jobs.values()].map(clone),
-      savedAt: now.toISOString(),
+    await this.withWriteLease(async () => {
+      const latest = await this.loadSnapshot();
+      this.jobs.clear();
+      for (const current of latest?.jobs ?? []) this.jobs.set(current.jobId, clone(current));
+      const existing = this.jobs.get(job.jobId);
+      if (existing && existing.goalId !== job.goalId) throw new Error(`development job identity conflict: ${job.jobId}`);
+      if (existing && existing.updatedAt > job.updatedAt) throw new Error(`stale development job write: ${job.jobId}`);
+      this.jobs.set(job.jobId, clone(job));
+      await this.saveSnapshot({
+        version: 1,
+        jobs: [...this.jobs.values()].map(clone),
+        savedAt: now.toISOString(),
+      });
     });
   }
 }
@@ -97,6 +104,25 @@ export class JsonFileDevelopmentJobStore extends BaseDevelopmentJobStore {
   constructor(filePath: string) {
     super();
     this.filePath = filePath;
+  }
+
+  protected async withWriteLease<T>(operation: () => Promise<T>): Promise<T> {
+    const lockPath = `${this.filePath}.lock`;
+    await mkdir(dirname(lockPath), { recursive: true });
+    const deadline = Date.now() + 5_000;
+    for (;;) {
+      try {
+        const handle = await open(lockPath, "wx");
+        try { await handle.writeFile(`${process.pid}\n`, "utf8"); return await operation(); }
+        finally { await handle.close(); await unlink(lockPath).catch(() => undefined); }
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+        const age = Date.now() - (await stat(lockPath)).mtimeMs;
+        if (age > 30_000) { await unlink(lockPath).catch(() => undefined); continue; }
+        if (Date.now() >= deadline) throw new Error(`development job store lease timeout: ${this.filePath}`);
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+    }
   }
 
   protected async loadSnapshot(): Promise<DevelopmentJobSnapshot | null> {

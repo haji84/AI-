@@ -27,8 +27,14 @@ export class HttpWorkerBuilderCapability implements BuilderCapability {
         headers: { Authorization: `Bearer ${this.endpoint.token}` },
       });
       if (!response.ok) return false;
-      const payload = await response.json().catch(() => null) as { capabilities?: unknown } | null;
-      return Array.isArray(payload?.capabilities) && payload.capabilities.includes("code-builder");
+      const payload = await response.json().catch(() => null) as { capabilities?: unknown; engine?: unknown; inference?: { locality?: unknown; networkAccess?: unknown } } | null;
+      const capable = Array.isArray(payload?.capabilities) && payload.capabilities.includes("code-builder");
+      if (!capable) return false;
+      if (this.kind !== "local") return true;
+      return payload?.inference?.locality === "device"
+        && payload.inference.networkAccess === false
+        && typeof payload.engine === "string"
+        && !["codex", "aider", "unknown"].includes(payload.engine.toLowerCase());
     } catch {
       return false;
     }
@@ -46,7 +52,7 @@ export class HttpWorkerBuilderCapability implements BuilderCapability {
       });
       const payload = await response.json().catch(() => null) as {
         ok?: boolean; summary?: string; blocker?: string; evidence?: unknown;
-        changedPaths?: unknown; patchDigest?: unknown; requestedAuthority?: unknown;
+        changedPaths?: unknown; patchDigest?: unknown; candidateRevision?: unknown; artifactDigest?: unknown; artifactRef?: unknown; tddPhase?: unknown; tddEvidenceDigest?: unknown; requestedAuthority?: unknown;
       } | null;
       if (!payload) {
         return {
@@ -84,6 +90,11 @@ export class HttpWorkerBuilderCapability implements BuilderCapability {
               ? payload.changedPaths.filter((path): path is string => typeof path === "string")
               : undefined,
             patchDigest: typeof payload.patchDigest === "string" ? payload.patchDigest : undefined,
+            candidateRevision: typeof payload.candidateRevision === "string" ? payload.candidateRevision : undefined,
+            artifactDigest: typeof payload.artifactDigest === "string" ? payload.artifactDigest : undefined,
+            artifactRef: typeof payload.artifactRef === "string" ? payload.artifactRef : undefined,
+            tddPhase: payload.tddPhase === "red" || payload.tddPhase === "green" ? payload.tddPhase : undefined,
+            tddEvidenceDigest: typeof payload.tddEvidenceDigest === "string" ? payload.tddEvidenceDigest : undefined,
             requestedAuthority: Array.isArray(payload.requestedAuthority)
               ? payload.requestedAuthority.filter((value): value is ForbiddenBuilderAuthority => typeof value === "string")
               : undefined,

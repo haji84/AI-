@@ -29,6 +29,7 @@ export function createRuntimeDevelopmentVerifier(
       }
       const input = action.input as {
         verificationContract?: unknown;
+        candidate?: { artifactRef?: string; changedPaths?: string[] };
         releaseBinding?: { builderId?: string; sourceRevision?: string; artifactDigest?: string };
       } | undefined;
       if (!input?.verificationContract) {
@@ -55,7 +56,7 @@ export function createRuntimeDevelopmentVerifier(
         const response = await fetchImpl(`${url.replace(/\/$/, "")}/verify`, {
           method: "POST",
           headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ contract: input.verificationContract }),
+          body: JSON.stringify({ contract: input.verificationContract, candidate: input.candidate, binding: input.releaseBinding }),
         });
         const payload = await response.json().catch(() => null) as { ok?: boolean; summary?: string; evidence?: unknown } | null;
         let ok = response.ok && payload?.ok === true;
@@ -65,6 +66,7 @@ export function createRuntimeDevelopmentVerifier(
           verifierId?: unknown;
           sourceRevision?: unknown;
           artifactDigest?: unknown;
+          verificationEvidence?: Array<{ check?: unknown; verifierId?: unknown; sourceRevision?: unknown; artifactDigest?: unknown; status?: unknown; recordedAt?: unknown }>;
         } | undefined;
         if (ok && input.releaseBinding) {
           const binding = input.releaseBinding;
@@ -72,6 +74,19 @@ export function createRuntimeDevelopmentVerifier(
             && evidence.verifierId !== binding.builderId
             && evidence.sourceRevision === binding.sourceRevision
             && evidence.artifactDigest === binding.artifactDigest;
+          const requiredChecks = (input.verificationContract as { requiredChecks?: unknown }).requiredChecks;
+          if (ok && Array.isArray(requiredChecks)) {
+            ok = requiredChecks.every((check) => evidence?.verificationEvidence?.some((item) =>
+              item.check === check
+              && item.verifierId === evidence.verifierId
+              && item.verifierId !== binding.builderId
+              && item.sourceRevision === binding.sourceRevision
+              && item.artifactDigest === binding.artifactDigest
+              && item.status === "passed"
+              && typeof item.recordedAt === "string"
+              && Number.isFinite(Date.parse(item.recordedAt)),
+            ));
+          }
           if (!ok) {
             return {
               ok: false,

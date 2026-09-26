@@ -1,7 +1,8 @@
 import { CompassStore } from "../src/compass/store.ts";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
-import { dirname, join } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { CompassGoalExecutionAdapter, type DevelopmentRuntimeOptions } from "../src/orchestrator/compass-goal-execution-adapter.ts";
 import { CompassGoalBridgeEventStore } from "../src/orchestrator/compass-goal-bridge-event-store.ts";
 import { CompassWorkRunStore } from "../src/orchestrator/compass-work-run-store.ts";
@@ -14,7 +15,9 @@ import { JsonFileDevelopmentJobStore } from "../src/orchestrator/development-job
 import { ResidentDevelopmentGoalHost } from "../src/orchestrator/resident-development-goal-host.ts";
 import { createRuntimeBuilderRouter } from "../src/orchestrator/runtime-builder-capability.ts";
 import { createRuntimeDevelopmentVerifier } from "../src/orchestrator/runtime-development-verifier.ts";
+import { HttpDevelopmentReleaseCapability } from "../src/orchestrator/http-development-release-capability.ts";
 import { normalizeTaskCompletionAuthorization } from "../src/orchestrator/task-authorization.ts";
+import { buildRepositoryDevelopmentContext } from "../src/orchestrator/repository-development-context.ts";
 
 function requiredEnv(name: string): string {
   const value = process.env[name]?.trim();
@@ -67,8 +70,24 @@ function configuredDevelopmentRuntime(compassPath: string, context: unknown[]): 
     ? normalizeTaskCompletionAuthorization(JSON.parse(process.env.GORIQ_SELF_DEVELOPMENT_TASK_AUTHORIZATION_JSON))
     : undefined;
   const baseRevision = execFileSync("git", ["rev-parse", "HEAD"], { cwd: process.cwd(), encoding: "utf8" }).trim();
+  const repositoryRoot = resolve(process.cwd());
+  const tracked = execFileSync("git", ["ls-files"], { cwd: repositoryRoot, encoding: "utf8" }).split(/\r?\n/).filter(Boolean);
+  const relatedTests = tracked.filter((path) => path.startsWith("tests/") && targetFiles.some((target) => path.includes(target.split("/").at(-1)?.split(".")[0] ?? "\0")));
+  const candidatePaths = [...new Set([...targetFiles, ...relatedTests])].slice(0, 200);
+  const entries = candidatePaths.flatMap((path) => {
+    const absolute = resolve(repositoryRoot, path);
+    const rel = relative(repositoryRoot, absolute);
+    if (isAbsolute(rel) || rel === ".." || rel.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`) || !existsSync(absolute)) return [];
+    const content = readFileSync(absolute, "utf8");
+    return [{ path: rel.replaceAll("\\", "/"), content: content.slice(0, 100_000) }];
+  });
+  const repositoryContext = buildRepositoryDevelopmentContext({ objective: "resident self-development", preferredFiles: targetFiles, entries, maxChars: 40_000 });
   const router = createRuntimeBuilderRouter();
   const verifier = createRuntimeDevelopmentVerifier();
+  const releaseUrl = process.env.GORIQ_SELF_DEVELOPMENT_RELEASE_URL?.trim();
+  const releaseToken = process.env.GORIQ_SELF_DEVELOPMENT_RELEASE_TOKEN?.trim();
+  if (Boolean(releaseUrl) !== Boolean(releaseToken)) throw new Error("GORIQ release URL and token must be configured together");
+  const release = releaseUrl && releaseToken ? new HttpDevelopmentReleaseCapability({ url: releaseUrl, token: releaseToken }) : undefined;
   const stateRoot = join(dirname(compassPath), "self-development");
   const host = new ResidentDevelopmentGoalHost({
     jobs: new JsonFileDevelopmentJobStore(join(stateRoot, "jobs.json")),
@@ -83,28 +102,35 @@ function configuredDevelopmentRuntime(compassPath: string, context: unknown[]): 
     },
     stages: {
       builderId: "builder:resident",
-      async build({ job, goal, context: runtimeContext, workItemId }) {
+      async build({ job, context: runtimeContext, workItemId }) {
+        const workItem = job.workItems.find((item) => item.id === workItemId);
+        if (!workItem) throw new Error("resident Builder Work Item is not in the durable Job");
+        const tddPhase = workItem.id.endsWith(":test") ? "red" as const : "green" as const;
         const action = {
           id: `${job.jobId}:build`,
-          description: goal.description?.trim() || goal.title,
+          description: workItem.objective,
           capability: "code.builder",
           risk: "low" as const,
           input: {
             goalId: job.goalId,
-            attemptId: `${job.jobId}:attempt`,
-            strategyId: `${job.jobId}:strategy`,
-            objective: goal.description?.trim() || goal.title,
+            attemptId: `${job.jobId}:attempt:${job.attempts.length + 1}`,
+            strategyId: `${job.jobId}:strategy:${job.attempts.length + 1}`,
+            objective: workItem.objective,
             files: targetFiles,
             baseRevision: job.baseRevision,
+            previousFailureSignatures: job.failureSignatures,
+            previousStrategyFingerprints: job.rejectedStrategyIds,
+            hypothesis: job.attempts.at(-1)?.hypothesis,
             localOnly: process.env.GORIQ_SELF_DEVELOPMENT_LOCAL_ONLY === "1",
+            tddPhase,
           },
         };
-        const result = await router.execute(action, runtimeContext);
+        const result = await router.execute(action, [...runtimeContext, { source: "repository.development-context", summary: `Selected ${repositoryContext.selectedPaths.length} repository files`, data: repositoryContext }]);
         if (!result.ok) throw new Error(result.blocker ?? result.summary);
-        const envelope = (result.evidence as { changeSet?: { baseRevision?: string | null; changedPaths?: string[]; patchDigest?: string; builderId?: string } } | undefined)?.changeSet;
+        const envelope = (result.evidence as { changeSet?: { baseRevision?: string | null; changedPaths?: string[]; patchDigest?: string; candidateRevision?: string; artifactDigest?: string; artifactRef?: string; tddPhase?: "red" | "green"; tddEvidenceDigest?: string; builderId?: string } } | undefined)?.changeSet;
         if (!envelope || envelope.baseRevision !== job.baseRevision || !envelope.patchDigest) throw new Error("resident Builder returned incomplete Change Set evidence");
         return createDevelopmentChangeSet({
-          changeSetId: `${job.jobId}:change-set`,
+          changeSetId: `${job.jobId}:change-set:${tddPhase}`,
           jobId: job.jobId,
           workItemId,
           deviceId: envelope.builderId ?? "builder:resident",
@@ -112,18 +138,24 @@ function configuredDevelopmentRuntime(compassPath: string, context: unknown[]): 
           changedPaths: envelope.changedPaths ?? [],
           affectedSymbols: [],
           patchDigest: envelope.patchDigest,
+          candidateRevision: envelope.candidateRevision,
+          artifactDigest: envelope.artifactDigest,
+          artifactRef: envelope.artifactRef,
+          tddPhase: envelope.tddPhase,
+          tddEvidenceDigest: envelope.tddEvidenceDigest,
           evidenceDigest: createHash("sha256").update(JSON.stringify(result.evidence ?? null)).digest("hex"),
           rollback: { kind: "git-base", reference: job.baseRevision },
         });
       },
-      async verify({ job, plan, goal, context: runtimeContext }) {
+      async verify({ job, changeSet, plan, goal, context: runtimeContext }) {
         const action = {
           id: `${job.jobId}:verify`,
           description: `Independently verify ${goal.title}`,
           capability: "code.builder",
           risk: "low" as const,
           input: {
-            verificationContract: { kind: "repository_checks", profile: "standard" },
+            verificationContract: { kind: "repository_checks", profile: "standard", requiredChecks: plan.requiredChecks },
+            candidate: { artifactRef: changeSet.artifactRef, changedPaths: changeSet.changedPaths },
             releaseBinding: { builderId: plan.builderId, sourceRevision: plan.sourceRevision, artifactDigest: plan.artifactDigest },
           },
         };
@@ -132,18 +164,12 @@ function configuredDevelopmentRuntime(compassPath: string, context: unknown[]): 
         const evidence = result.evidence as { verificationEvidence?: unknown } | undefined;
         return Array.isArray(evidence?.verificationEvidence) ? evidence.verificationEvidence as never : [];
       },
-      async releaseState() {
-        return {
-          connected: process.env.GORIQ_SELF_DEVELOPMENT_CONNECTED === "1",
-          taskScopeId,
-          taskAuthorization: authorization,
-          protectedConditions: [],
-          pullRequest: null,
-          mainCi: null,
-          deployment: null,
-          postDeploymentEvidence: null,
-        };
+      async releaseState(input) {
+        if (!release) return { connected: false, taskScopeId, taskAuthorization: authorization, protectedConditions: [], classifications: null, pullRequest: null, mainCi: null, deployment: null, postDeploymentEvidence: null };
+        const state = await release.state(input);
+        return { ...state, taskScopeId, taskAuthorization: authorization };
       },
+      ...(release ? { async executeRelease(action: string, input: Parameters<HttpDevelopmentReleaseCapability["execute"]>[1]) { await release.execute(action, input); } } : {}),
     },
   });
   return { runtime: host };

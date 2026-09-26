@@ -13,6 +13,7 @@ export interface BuilderRequest {
   hypothesis?: string;
   baseRevision?: string;
   localOnly?: boolean;
+  tddPhase?: "red" | "green";
 }
 
 export interface BuilderCapability {
@@ -49,6 +50,7 @@ export class BuilderRouter {
       hypothesis: input.hypothesis,
       baseRevision: input.baseRevision,
       localOnly: input.localOnly,
+      tddPhase: input.tddPhase,
     };
     const fingerprint = developmentStrategyFingerprint(request);
     if (request.previousStrategyFingerprints?.includes(fingerprint)) {

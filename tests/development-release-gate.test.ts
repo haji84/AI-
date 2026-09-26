@@ -37,6 +37,10 @@ function input(overrides: Partial<DevelopmentReleaseGateInput> = {}): Developmen
       recordedAt: NOW.toISOString(),
     })),
     protectedConditions: [],
+    classifications: {
+      destructiveChangeAbsent: true,
+      privilegedChangeAbsent: true,
+    },
     pullRequest: null,
     mainCi: null,
     deployment: null,
@@ -83,20 +87,24 @@ test("protected publication advances through PR, merge, and exact main CI in ord
 
   const pr = {
     url: "https://github.example/pr/1",
-    headRevision: REVISION,
+      headRevision: REVISION,
+      candidateRevision: REVISION,
     baseBranch: "main",
     draft: false,
     autoMergeEnabled: false,
     mergedRevision: null,
-    reviewerPassed: true,
-    unresolvedReviewThreads: 0,
+      reviewerPassed: true,
+      unresolvedReviewThreads: 0,
+      requiredChecksPassed: true,
+      mergeable: true,
+      baseRevisionCurrent: true,
   };
   assert.equal(evaluateDevelopmentReleaseGate(input({ pullRequest: pr })).action, "ENABLE_AUTO_MERGE");
   assert.equal(evaluateDevelopmentReleaseGate(input({ pullRequest: { ...pr, autoMergeEnabled: true } })).action, "WAIT_FOR_MERGE");
   assert.equal(evaluateDevelopmentReleaseGate(input({ pullRequest: { ...pr, autoMergeEnabled: true, mergedRevision: REVISION } })).action, "WAIT_MAIN_CI");
   assert.equal(evaluateDevelopmentReleaseGate(input({
     pullRequest: { ...pr, autoMergeEnabled: true, mergedRevision: REVISION },
-    mainCi: { revision: "c".repeat(40), passed: true },
+    mainCi: { revision: "c".repeat(40), artifactDigest: ARTIFACT, passed: true },
   })).action, "BLOCKED");
 });
 
@@ -104,29 +112,33 @@ test("Production completion requires exact deployed artifact and post-deployment
   const pullRequest = {
     url: "https://github.example/pr/1",
     headRevision: REVISION,
+    candidateRevision: REVISION,
     baseBranch: "main",
     draft: false,
     autoMergeEnabled: true,
     mergedRevision: REVISION,
     reviewerPassed: true,
     unresolvedReviewThreads: 0,
+    requiredChecksPassed: true,
+    mergeable: true,
+    baseRevisionCurrent: true,
   };
-  const mainCi = { revision: REVISION, passed: true };
+  const mainCi = { revision: REVISION, artifactDigest: ARTIFACT, passed: true };
   assert.equal(evaluateDevelopmentReleaseGate(input({ pullRequest, mainCi })).action, "DEPLOY_PRODUCTION");
   assert.equal(evaluateDevelopmentReleaseGate(input({
     pullRequest,
     mainCi,
-    deployment: { revision: REVISION, artifactDigest: "c".repeat(64), environment: "production" },
+    deployment: { revision: REVISION, sourceCandidateRevision: REVISION, sourceArtifactDigest: ARTIFACT, artifactDigest: "c".repeat(64), environment: "production" },
   })).action, "BLOCKED");
   assert.equal(evaluateDevelopmentReleaseGate(input({
     pullRequest,
     mainCi,
-    deployment: { revision: REVISION, artifactDigest: ARTIFACT, environment: "production" },
+    deployment: { revision: REVISION, sourceCandidateRevision: REVISION, sourceArtifactDigest: ARTIFACT, artifactDigest: ARTIFACT, environment: "production" },
   })).action, "VERIFY_PRODUCTION");
   assert.equal(evaluateDevelopmentReleaseGate(input({
     pullRequest,
     mainCi,
-    deployment: { revision: REVISION, artifactDigest: ARTIFACT, environment: "production" },
+    deployment: { revision: REVISION, sourceCandidateRevision: REVISION, sourceArtifactDigest: ARTIFACT, artifactDigest: ARTIFACT, environment: "production" },
     postDeploymentEvidence: {
       verifierId: "verifier:iphone-1",
       revision: REVISION,
@@ -135,4 +147,16 @@ test("Production completion requires exact deployed artifact and post-deployment
       recordedAt: NOW.toISOString(),
     },
   })).action, "COMPLETE");
+});
+
+test("release gate fails closed when trusted classifications or PR freshness evidence are absent", () => {
+  assert.equal(evaluateDevelopmentReleaseGate(input({ classifications: null })).action, "BLOCKED");
+  const pr = {
+    url: "https://github.example/pr/1", headRevision: REVISION, candidateRevision: REVISION, baseBranch: "main", draft: false,
+    autoMergeEnabled: false, mergedRevision: null, reviewerPassed: true, unresolvedReviewThreads: 0,
+    requiredChecksPassed: true, mergeable: true, baseRevisionCurrent: true,
+  };
+  assert.equal(evaluateDevelopmentReleaseGate(input({ pullRequest: { ...pr, requiredChecksPassed: false } })).action, "BLOCKED");
+  assert.equal(evaluateDevelopmentReleaseGate(input({ pullRequest: { ...pr, mergeable: false } })).action, "BLOCKED");
+  assert.equal(evaluateDevelopmentReleaseGate(input({ pullRequest: { ...pr, baseRevisionCurrent: false } })).action, "BLOCKED");
 });

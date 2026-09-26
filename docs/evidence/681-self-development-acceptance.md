@@ -8,7 +8,7 @@ Requirements: `CORE-014`, `AUTO-001` through `AUTO-031`
 
 ## Current evidence
 
-The deterministic acceptance runner passed five isolated scenarios:
+The deterministic runner passed five bounded component-contract fixtures. These results do not claim a composed resident-runtime, real model, real merge, real deployment, semantic source merge, or physical-device acceptance:
 
 | Scenario | Result | Artifact digest |
 |---|---:|---|
@@ -18,7 +18,7 @@ The deterministic acceptance runner passed five isolated scenarios:
 | Reconnect semantic integration | PASS | `d1e49ac43dac0c4c5934aa14771777a1a0394b6d7b9942818fafaabe2179b955` |
 | Restart, failed canary, known-good rollback | PASS | `0d566fa0b2ca61372f3c9226a37dbaf4a62fe4c257bb34b98ef00f9679e64e61` |
 
-The run also proved that the deterministic topology contains exactly one simulated iPhone identity, rejects a second iPhone, keeps simulated evidence separate from physical evidence, and emits no secret-pattern finding.
+The run also reconstructs the device inbox from disk, confirms that the deterministic topology contains exactly one simulated iPhone identity, rejects a second iPhone, keeps simulated evidence separate from physical evidence, and emits no secret-pattern finding.
 
 ## Evidence classes and remaining gates
 

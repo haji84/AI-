@@ -10,6 +10,11 @@ export interface RawDevelopmentBuilderResult {
   summary: string;
   changedPaths?: string[];
   patchDigest?: string;
+  candidateRevision?: string;
+  artifactDigest?: string;
+  artifactRef?: string;
+  tddPhase?: "red" | "green";
+  tddEvidenceDigest?: string;
   requestedAuthority?: ForbiddenBuilderAuthority[];
   blocker?: string;
   evidence?: Record<string, unknown>;
@@ -23,6 +28,11 @@ export interface DevelopmentChangeSetEnvelope {
   builderKind: DevelopmentBuilderKind;
   changedPaths: string[];
   patchDigest: string;
+  candidateRevision: string;
+  artifactDigest: string;
+  artifactRef: string;
+  tddPhase?: "red" | "green";
+  tddEvidenceDigest?: string;
   releaseAuthority: false;
 }
 
@@ -63,6 +73,11 @@ export function normalizeDevelopmentBuilderResult(
     throw new Error("Builder changed path outside declared scope");
   }
   if (!/^[a-f0-9]{64}$/.test(result.patchDigest ?? "")) throw new Error("Builder patch digest is required");
+  const candidateRevision = result.candidateRevision ?? createHash("sha256").update(`candidate\0${request.baseRevision ?? "unbound"}\0${result.patchDigest}`).digest("hex");
+  const artifactDigest = result.artifactDigest ?? createHash("sha256").update(`artifact\0${result.patchDigest}`).digest("hex");
+  const artifactRef = result.artifactRef ?? `sha256:${artifactDigest}`;
+  if (!/^[a-f0-9]{40,64}$/.test(candidateRevision)) throw new Error("Builder candidate revision is invalid");
+  if (!/^[a-f0-9]{64}$/.test(artifactDigest) || artifactRef !== `sha256:${artifactDigest}`) throw new Error("Builder artifact reference is invalid");
   return {
     ok: true,
     summary: result.summary,
@@ -76,6 +91,11 @@ export function normalizeDevelopmentBuilderResult(
       builderKind: builder.kind,
       changedPaths,
       patchDigest: result.patchDigest!,
+      candidateRevision,
+      artifactDigest,
+      artifactRef,
+      tddPhase: result.tddPhase,
+      tddEvidenceDigest: result.tddEvidenceDigest,
       releaseAuthority: false,
     },
   };

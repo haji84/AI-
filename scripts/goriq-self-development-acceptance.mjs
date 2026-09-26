@@ -11,7 +11,7 @@ import { createDevelopmentChangeSet } from "../src/orchestrator/development-chan
 import { DevelopmentConflictIntegrator } from "../src/orchestrator/development-conflict-integrator.ts";
 import { evaluateDevelopmentReleaseGate } from "../src/orchestrator/development-release-gate.ts";
 import { createDevelopmentVerificationPlan } from "../src/orchestrator/development-verification-plan.ts";
-import { DeviceDevelopmentIntake, MemoryDeviceDevelopmentInbox } from "../src/orchestrator/device-development-intake.ts";
+import { DeviceDevelopmentIntake, JsonFileDeviceDevelopmentInbox } from "../src/orchestrator/device-development-intake.ts";
 import { createTaskCompletionAuthorization } from "../src/orchestrator/task-authorization.ts";
 
 const sha256 = (value) => createHash("sha256").update(typeof value === "string" ? value : JSON.stringify(value)).digest("hex");
@@ -67,7 +67,9 @@ function change(id, deviceId, patchDigest) {
 }
 
 async function deviceTopology(recordedAt) {
-  const inbox = new MemoryDeviceDevelopmentInbox();
+  const root = await mkdtemp(join(tmpdir(), "goriq-device-intake-"));
+  const inboxPath = join(root, "inbox.json");
+  const inbox = new JsonFileDeviceDevelopmentInbox(inboxPath);
   const intake = new DeviceDevelopmentIntake({ inbox, async submit() { return { goalId: "goal-681", action: "CONTINUE_GOAL" }; } });
   await intake.receive({
     deviceId: "iphone-1",
@@ -90,7 +92,10 @@ async function deviceTopology(recordedAt) {
   } catch (error) {
     secondIphoneRejected = /second iPhone/i.test(error instanceof Error ? error.message : String(error));
   }
-  return { iphoneCount: (await inbox.list()).filter((item) => item.platform === "ios").length, secondIphoneRejected, physicalEvidence: null };
+  const restored = new JsonFileDeviceDevelopmentInbox(inboxPath);
+  const result = { iphoneCount: (await restored.list()).filter((item) => item.platform === "ios").length, secondIphoneRejected, physicalEvidence: null };
+  await rm(root, { recursive: true, force: true });
+  return result;
 }
 
 async function rollbackAcceptance(root) {
@@ -157,7 +162,7 @@ export async function runSelfDevelopmentAcceptance({ mode, sourceRevision, recor
     changedFiles: plan.changedPaths,
     verificationPlan: plan,
     verificationEvidence: plan.requiredChecks.map((check) => ({ check, verifierId: "verifier:macbook", sourceRevision, artifactDigest: plan.artifactDigest, status: "passed", recordedAt })),
-    protectedConditions: [], pullRequest: null, mainCi: null, deployment: null, postDeploymentEvidence: null,
+    protectedConditions: [], classifications: { destructiveChangeAbsent: true, privilegedChangeAbsent: true }, pullRequest: null, mainCi: null, deployment: null, postDeploymentEvidence: null,
     now: new Date(recordedAt),
   });
   const integration = await new DevelopmentConflictIntegrator({
@@ -175,11 +180,11 @@ export async function runSelfDevelopmentAcceptance({ mode, sourceRevision, recor
   try { rollbackPassed = await rollbackAcceptance(root); } finally { await rm(root, { recursive: true, force: true }); }
   const topology = await deviceTopology(recordedAt);
   const scenarios = [
-    { id: "online-external-assisted", status: external.ok && external.evidence?.builderKind === "external" ? "PASS" : "FAIL", artifactDigest: sha256(external.evidence ?? null), environment: "deterministic-simulation", deviceIdentityClass: "external-builder-fixture", checks: ["shared-builder-contract", "independent-verifier-boundary"] },
+    { id: "online-external-assisted", status: external.ok && external.evidence?.builderKind === "external" ? "PASS" : "FAIL", artifactDigest: sha256(external.evidence ?? null), environment: "deterministic-simulation", deviceIdentityClass: "external-builder-fixture", checks: ["builder-route-selection", "builder-kind-envelope"] },
     { id: "online-local-only", status: local.ok && local.evidence?.builderKind === "local" ? "PASS" : "FAIL", artifactDigest: sha256(local.evidence ?? null), environment: "deterministic-simulation", deviceIdentityClass: "local-builder-fixture", checks: ["local-only-routing", "external-builder-excluded"] },
-    { id: "offline-ready-to-publish", status: offline.action === "READY_TO_PUBLISH" ? "PASS" : "FAIL", artifactDigest: plan.artifactDigest, environment: "deterministic-simulation", deviceIdentityClass: "offline-local-worker-fixture", checks: ["durable-change-set", "publication-wait"] },
-    { id: "reconnect-semantic-integration", status: integration.ok && integration.provenance?.sourceChangeSetIds.length === 2 ? "PASS" : "FAIL", artifactDigest: integration.changeSet?.patchDigest ?? sha256("missing"), environment: "deterministic-simulation", deviceIdentityClass: "zbook-macbook-fixture", checks: ["semantic-conflict", "both-source-provenance", "independent-verification"] },
-    { id: "restart-canary-rollback", status: rollbackPassed ? "PASS" : "FAIL", artifactDigest: sha256("known-good:v1"), environment: "deterministic-simulation", deviceIdentityClass: "resident-runtime-fixture", checks: ["restart-recovery", "failed-canary", "known-good-restore", "restored-runtime-verification"] },
+    { id: "offline-ready-to-publish", status: offline.action === "READY_TO_PUBLISH" ? "PASS" : "FAIL", artifactDigest: plan.artifactDigest, environment: "deterministic-simulation", deviceIdentityClass: "offline-local-worker-fixture", checks: ["release-gate-offline-decision", "verification-binding"] },
+    { id: "reconnect-semantic-integration", status: integration.ok && integration.provenance?.sourceChangeSetIds.length === 2 ? "PASS" : "FAIL", artifactDigest: integration.changeSet?.patchDigest ?? sha256("missing"), environment: "deterministic-simulation", deviceIdentityClass: "zbook-macbook-fixture", checks: ["candidate-contract", "both-source-metadata-provenance", "injected-verifier-result"] },
+    { id: "restart-canary-rollback", status: rollbackPassed ? "PASS" : "FAIL", artifactDigest: sha256("known-good:v1"), environment: "deterministic-simulation", deviceIdentityClass: "resident-runtime-fixture", checks: ["persisted-state-reload", "adapter-canary-failure", "adapter-rollback-receipt"] },
   ];
   const result = {
     schemaVersion: 1,

@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto";
+import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { dirname } from "node:path";
 
 export type DevelopmentIntakePlatform = "ios" | "windows" | "macos";
 export type DevelopmentIntakeConnectivity = "online" | "degraded" | "offline" | "recovering";
@@ -29,6 +31,31 @@ export class MemoryDeviceDevelopmentInbox implements DeviceDevelopmentInbox {
   private readonly records = new Map<string, DeviceDevelopmentRecord>();
   async list() { return [...this.records.values()].map((value) => structuredClone(value)); }
   async put(record: DeviceDevelopmentRecord) { this.records.set(record.recordId, structuredClone(record)); }
+}
+
+export class JsonFileDeviceDevelopmentInbox implements DeviceDevelopmentInbox {
+  private readonly filePath: string;
+  constructor(filePath: string) { this.filePath = filePath; }
+  private async read(): Promise<DeviceDevelopmentRecord[]> {
+    try {
+      const parsed = JSON.parse(await readFile(this.filePath, "utf8")) as { version?: unknown; records?: unknown };
+      if (parsed.version !== 1 || !Array.isArray(parsed.records)) throw new Error("unsupported device development inbox");
+      return structuredClone(parsed.records as DeviceDevelopmentRecord[]);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+      throw error;
+    }
+  }
+  async list() { return this.read(); }
+  async put(record: DeviceDevelopmentRecord) {
+    const records = await this.read();
+    const index = records.findIndex((value) => value.recordId === record.recordId);
+    if (index >= 0) records[index] = structuredClone(record); else records.push(structuredClone(record));
+    await mkdir(dirname(this.filePath), { recursive: true });
+    const temporary = `${this.filePath}.tmp-${process.pid}-${Date.now()}`;
+    await writeFile(temporary, `${JSON.stringify({ version: 1, records }, null, 2)}\n`, "utf8");
+    await rename(temporary, this.filePath);
+  }
 }
 
 export interface DeviceDevelopmentSubmitRequest {

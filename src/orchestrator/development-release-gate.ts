@@ -33,12 +33,21 @@ export type DevelopmentReleaseAction =
 export interface DevelopmentPullRequestState {
   url: string;
   headRevision: string;
+  candidateRevision: string;
   baseBranch: string;
   draft: boolean;
   autoMergeEnabled: boolean;
   mergedRevision: string | null;
   reviewerPassed: boolean;
   unresolvedReviewThreads: number;
+  requiredChecksPassed: boolean;
+  mergeable: boolean;
+  baseRevisionCurrent: boolean;
+}
+
+export interface DevelopmentChangeClassifications {
+  destructiveChangeAbsent: boolean;
+  privilegedChangeAbsent: boolean;
 }
 
 export interface DevelopmentReleaseGateInput {
@@ -51,9 +60,10 @@ export interface DevelopmentReleaseGateInput {
   verificationPlan: DevelopmentVerificationPlan;
   verificationEvidence: DevelopmentVerificationEvidence[];
   protectedConditions: NonBypassableDevelopmentGate[];
+  classifications: DevelopmentChangeClassifications | null;
   pullRequest: DevelopmentPullRequestState | null;
-  mainCi: { revision: string; passed: boolean } | null;
-  deployment: { revision: string; artifactDigest: string; environment: "production" } | null;
+  mainCi: { revision: string; artifactDigest: string; passed: boolean } | null;
+  deployment: { revision: string; sourceCandidateRevision: string; sourceArtifactDigest: string; artifactDigest: string; environment: "production" } | null;
   postDeploymentEvidence: {
     verifierId: string;
     revision: string;
@@ -88,8 +98,13 @@ export function evaluateDevelopmentReleaseGate(input: DevelopmentReleaseGateInpu
   if (input.phase !== "READY_TO_PUBLISH" && input.phase !== "PUBLISHING" && input.phase !== "VERIFYING") {
     return decision("BLOCKED", `invalid_release_phase:${input.phase}`);
   }
+  if (!input.classifications) return decision("BLOCKED", "trusted_change_classification_missing");
   if (!input.pullRequest) return decision("OPEN_PR");
-  if (input.pullRequest.headRevision !== input.verificationPlan.sourceRevision) return decision("BLOCKED", "pull_request_revision_mismatch");
+  if (!/^[a-f0-9]{40,64}$/.test(input.pullRequest.headRevision)) return decision("BLOCKED", "pull_request_head_invalid");
+  if (input.pullRequest.candidateRevision !== input.verificationPlan.sourceRevision) return decision("BLOCKED", "pull_request_candidate_mismatch");
+  if (!input.pullRequest.requiredChecksPassed) return decision("BLOCKED", "pull_request_required_checks_incomplete");
+  if (!input.pullRequest.mergeable) return decision("BLOCKED", "pull_request_not_mergeable");
+  if (!input.pullRequest.baseRevisionCurrent) return decision("BLOCKED", "pull_request_base_not_current");
 
   const autoMerge = evaluateTaskScopedAutoMergeEligibility({
     baseBranch: input.pullRequest.baseBranch,
@@ -100,8 +115,8 @@ export function evaluateDevelopmentReleaseGate(input: DevelopmentReleaseGateInpu
     qaPassed: true,
     reviewerPassed: input.pullRequest.reviewerPassed,
     unresolvedReviewThreads: input.pullRequest.unresolvedReviewThreads,
-    destructiveChangeAbsent: true,
-    privilegedChangeAbsent: true,
+    destructiveChangeAbsent: input.classifications.destructiveChangeAbsent,
+    privilegedChangeAbsent: input.classifications.privilegedChangeAbsent,
     draft: input.pullRequest.draft,
     taskAuthorization: input.taskAuthorization,
     taskScopeId: input.taskScopeId,
@@ -111,13 +126,15 @@ export function evaluateDevelopmentReleaseGate(input: DevelopmentReleaseGateInpu
   if (!input.pullRequest.mergedRevision) return decision("WAIT_FOR_MERGE");
   if (!input.mainCi) return decision("WAIT_MAIN_CI", "main_ci_pending");
   if (input.mainCi.revision !== input.pullRequest.mergedRevision) return decision("BLOCKED", "main_ci_revision_mismatch");
+  if (!/^[a-f0-9]{64}$/.test(input.mainCi.artifactDigest)) return decision("BLOCKED", "main_ci_artifact_missing");
   if (!input.mainCi.passed) return decision("BLOCKED", "main_ci_failed");
   if (!isTaskProductionDeployAuthorizationActive(input.taskAuthorization, input.taskScopeId, now)) {
     return decision("HUMAN_GATE", "production_deploy_authorization_missing_or_invalid");
   }
   if (!input.deployment) return decision("DEPLOY_PRODUCTION");
   if (input.deployment.revision !== input.pullRequest.mergedRevision) return decision("BLOCKED", "deployment_revision_mismatch");
-  if (input.deployment.artifactDigest !== input.verificationPlan.artifactDigest) return decision("BLOCKED", "deployment_artifact_mismatch");
+  if (input.deployment.sourceCandidateRevision !== input.verificationPlan.sourceRevision || input.deployment.sourceArtifactDigest !== input.verificationPlan.artifactDigest) return decision("BLOCKED", "deployment_source_provenance_mismatch");
+  if (input.deployment.artifactDigest !== input.mainCi.artifactDigest) return decision("BLOCKED", "deployment_artifact_mismatch");
   if (!input.postDeploymentEvidence) return decision("VERIFY_PRODUCTION");
   const post = input.postDeploymentEvidence;
   if (!post.passed) return decision("BLOCKED", "post_deployment_verification_failed");

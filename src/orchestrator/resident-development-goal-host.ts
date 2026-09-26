@@ -9,6 +9,7 @@ import {
   type NonBypassableDevelopmentGate,
 } from "./development-release-gate.ts";
 import { DevelopmentJobStateController, type DevelopmentJob, type DevelopmentRisk } from "./development-job.ts";
+import type { DevelopmentEvidence } from "./development-job.ts";
 import type { DevelopmentJobStore } from "./development-job-store.ts";
 import { DevelopmentOrchestrator } from "./development-orchestrator.ts";
 import {
@@ -25,9 +26,10 @@ export interface ResidentDevelopmentReleaseState {
   taskScopeId: string;
   taskAuthorization?: TaskCompletionAuthorization;
   protectedConditions: NonBypassableDevelopmentGate[];
+  classifications: { destructiveChangeAbsent: boolean; privilegedChangeAbsent: boolean } | null;
   pullRequest: DevelopmentPullRequestState | null;
-  mainCi: { revision: string; passed: boolean } | null;
-  deployment: { revision: string; artifactDigest: string; environment: "production" } | null;
+  mainCi: { revision: string; artifactDigest: string; passed: boolean } | null;
+  deployment: { revision: string; sourceCandidateRevision: string; sourceArtifactDigest: string; artifactDigest: string; environment: "production" } | null;
   postDeploymentEvidence: {
     verifierId: string;
     revision: string;
@@ -42,8 +44,9 @@ export interface ResidentDevelopmentStages {
   builderId?: string;
   build(input: { job: DevelopmentJob; goal: Goal; context: ContextItem[]; workItemId: string }): Promise<DevelopmentChangeSet>;
   verify(input: { job: DevelopmentJob; changeSet: DevelopmentChangeSet; plan: DevelopmentVerificationPlan; goal: Goal; context: ContextItem[] }): Promise<DevelopmentVerificationEvidence[]>;
+  acceptanceEvidence?(input: { job: DevelopmentJob; changeSet: DevelopmentChangeSet; plan: DevelopmentVerificationPlan; goal: Goal; context: ContextItem[] }): Promise<DevelopmentEvidence[]>;
   releaseState(input: { job: DevelopmentJob; changeSet: DevelopmentChangeSet; goal: Goal; context: ContextItem[] }): Promise<ResidentDevelopmentReleaseState>;
-  executeRelease?(action: string, input: { job: DevelopmentJob; changeSet: DevelopmentChangeSet; goal: Goal; context: ContextItem[] }): Promise<void>;
+  executeRelease?(action: string, input: { operationId: string; job: DevelopmentJob; changeSet: DevelopmentChangeSet; goal: Goal; context: ContextItem[] }): Promise<void>;
 }
 
 export interface ResidentDevelopmentPlanning {
@@ -72,6 +75,10 @@ function report(achieved: boolean, reason: string, blockers: string[] = []): Bou
 
 function jobId(goalId: string): string {
   return `development-${createHash("sha256").update(goalId).digest("hex").slice(0, 24)}`;
+}
+
+function nextTimestamp(previous: string): string {
+  return new Date(Math.max(Date.now(), Date.parse(previous) + 1)).toISOString();
 }
 
 export class ResidentDevelopmentGoalHost {
@@ -121,7 +128,10 @@ export class ResidentDevelopmentGoalHost {
     if (job.phase === "HUMAN_GATE") return report(false, "development release requires Human Gate", ["human_gate"]);
     if (job.phase === "BLOCKED") return report(false, "development release is blocked", job.blockers);
 
-    let changeSet = (await this.changeSets.list()).find((candidate) => candidate.jobId === job!.jobId && candidate.status !== "REJECTED") ?? null;
+    const implementationItem = job.workItems.find((item) => item.id.endsWith(":implement")) ?? job.workItems[1] ?? job.workItems[0]!;
+    const testItem = job.workItems.find((item) => item.id.endsWith(":test"));
+    const storedChangeSets = (await this.changeSets.list()).filter((candidate) => candidate.jobId === job!.jobId && candidate.status !== "REJECTED");
+    let changeSet = storedChangeSets.find((candidate) => candidate.workItemId === implementationItem.id) ?? null;
     if (!changeSet) {
       if (job.phase === "QUEUED") {
         job = this.controller.apply(job, { transitionId: `${job.jobId}:planning`, actor: "state-controller", to: "PLANNING", reason: "resident development planning complete" });
@@ -131,24 +141,65 @@ export class ResidentDevelopmentGoalHost {
         job = this.controller.apply(job, { transitionId: `${job.jobId}:implementing`, actor: "state-controller", to: "IMPLEMENTING", reason: "resident Builder selected" });
         await this.jobs.put(job);
       }
-      changeSet = await this.stages.build({ job, goal: input.goal, context: input.context, workItemId: job.workItems[1]?.id ?? job.workItems[0]!.id });
+      const existingTest = testItem ? storedChangeSets.find((candidate) => candidate.workItemId === testItem.id) : undefined;
+      if (testItem && !existingTest) {
+        let testChangeSet = await this.stages.build({ job, goal: input.goal, context: input.context, workItemId: testItem.id });
+        if (testChangeSet.jobId !== job.jobId || testChangeSet.baseRevision !== job.baseRevision || testChangeSet.workItemId !== testItem.id) throw new Error("resident Builder returned an unbound TDD test Change Set");
+        if (testChangeSet.tddPhase !== "red" || !testChangeSet.tddEvidenceDigest) throw new Error("resident Builder did not prove the new test fails before implementation");
+        testChangeSet = { ...testChangeSet, status: "VERIFIED", updatedAt: nextTimestamp(testChangeSet.updatedAt) };
+        await this.changeSets.put(testChangeSet);
+        job = this.controller.apply(job, { transitionId: `${job.jobId}:tdd-red`, actor: "state-controller", to: "IMPLEMENTING", reason: "failing test Work Item persisted before implementation", evidence: [{ id: `${job.jobId}:tdd-red`, criterionId: "repository-tdd", kind: "development-tdd-red", issuer: testChangeSet.deviceId, verified: true, sourceRevision: testChangeSet.candidateRevision, artifactDigest: testChangeSet.tddEvidenceDigest, recordedAt: testChangeSet.updatedAt }] });
+        await this.jobs.put(job);
+      }
+      changeSet = await this.stages.build({ job, goal: input.goal, context: input.context, workItemId: implementationItem.id });
       if (changeSet.jobId !== job.jobId || changeSet.baseRevision !== job.baseRevision) throw new Error("resident Builder returned an unbound Change Set");
       await this.changeSets.put(changeSet);
       job = this.controller.apply(job, { transitionId: `${job.jobId}:verify`, actor: "state-controller", to: "VERIFYING", reason: "isolated Change Set persisted" });
       await this.jobs.put(job);
     }
 
+    if (changeSet.status === "LOCAL" && job.phase !== "VERIFYING" && job.phase !== "RECOVERING") {
+      job = this.controller.apply(job, { transitionId: `${job.jobId}:reconcile-verifying:${changeSet.changeSetId}`, actor: "state-controller", to: "VERIFYING", reason: "reconciled persisted Change Set after interrupted checkpoint" });
+      await this.jobs.put(job);
+    }
+    if (changeSet.status === "READY_TO_PUBLISH" && job.phase === "VERIFYING") {
+      const hasPersistedVerification = job.evidence.some((item) => item.kind.startsWith("development-check:") && item.sourceRevision === changeSet!.candidateRevision && item.artifactDigest === changeSet!.artifactDigest);
+      if (!hasPersistedVerification) {
+        changeSet = { ...changeSet, status: "LOCAL", updatedAt: nextTimestamp(changeSet.updatedAt) };
+        await this.changeSets.put(changeSet);
+      }
+    }
+
     const verificationPlan = createDevelopmentVerificationPlan({
-      builderId: this.stages.builderId ?? "builder:resident",
-      sourceRevision: changeSet.baseRevision,
-      artifactDigest: changeSet.patchDigest,
+      builderId: changeSet.deviceId,
+      sourceRevision: changeSet.candidateRevision,
+      artifactDigest: changeSet.artifactDigest,
       changedPaths: changeSet.changedPaths,
     });
     if (changeSet.status === "LOCAL") {
       const evidence = await this.stages.verify({ job, changeSet, plan: verificationPlan, goal: input.goal, context: input.context });
       const verification = evaluateDevelopmentVerification(verificationPlan, evidence);
-      if (!verification.passed) return report(false, "independent verification failed", verification.reasons);
-      changeSet = { ...changeSet, status: "READY_TO_PUBLISH", updatedAt: new Date().toISOString() };
+      if (!verification.passed) {
+        const signature = createHash("sha256").update(verification.reasons.slice().sort().join("\n")).digest("hex");
+        const strategyId = `verify-recovery-${job.attempts.length + 1}`;
+        changeSet = { ...changeSet, status: "REJECTED", updatedAt: nextTimestamp(changeSet.updatedAt) };
+        await this.changeSets.put(changeSet);
+        job = this.controller.apply(job, { transitionId: `${job.jobId}:verification-failed:${signature}`, actor: "state-controller", to: "RECOVERING", reason: "independent verification failed; a materially different Builder attempt is required", evidence: evidence.map((item) => ({ id: `${job!.jobId}:failed-check:${item.check}:${signature}`, criterionId: "repository-verification", kind: `development-check:${item.check}`, issuer: item.verifierId, verified: false, sourceRevision: item.sourceRevision, artifactDigest: item.artifactDigest, recordedAt: item.recordedAt })), failure: { signature, strategyId, hypothesis: verification.reasons.join(",") } });
+        await this.jobs.put(job);
+        return report(false, "independent verification failed; recovery persisted", verification.reasons);
+      }
+      const acceptanceEvidence = await this.stages.acceptanceEvidence?.({ job, changeSet, plan: verificationPlan, goal: input.goal, context: input.context }) ?? [];
+      const invalidAcceptance = acceptanceEvidence.filter((item) =>
+        !job!.definitionOfDone.some((criterion) => criterion.id === item.criterionId)
+        || !item.verified
+        || item.sourceRevision !== verificationPlan.sourceRevision
+        || item.artifactDigest !== verificationPlan.artifactDigest
+        || item.issuer === verificationPlan.builderId
+        || !item.recordedAt
+        || !Number.isFinite(Date.parse(item.recordedAt)),
+      );
+      if (invalidAcceptance.length) return report(false, "criterion-specific acceptance evidence is invalid", ["acceptance_evidence_invalid"]);
+      changeSet = { ...changeSet, status: "READY_TO_PUBLISH", updatedAt: nextTimestamp(changeSet.updatedAt) };
       await this.changeSets.put(changeSet);
       job = this.controller.apply(job, {
         transitionId: `${job.jobId}:ready-to-publish`,
@@ -158,7 +209,7 @@ export class ResidentDevelopmentGoalHost {
         evidence: [
           ...evidence.map((item) => ({
             id: `${job!.jobId}:check:${item.check}`,
-            criterionId: job!.definitionOfDone[0]!.id,
+            criterionId: "repository-verification",
             kind: `development-check:${item.check}`,
             issuer: item.verifierId,
             verified: item.status === "passed",
@@ -166,22 +217,18 @@ export class ResidentDevelopmentGoalHost {
             artifactDigest: item.artifactDigest,
             recordedAt: item.recordedAt,
           })),
-          ...job.definitionOfDone.slice(1).map((criterion) => ({
-            id: `${job!.jobId}:criterion:${criterion.id}`,
-            criterionId: criterion.id,
-            kind: "development-acceptance",
-            issuer: evidence[0]!.verifierId,
-            verified: true,
-            sourceRevision: verificationPlan.sourceRevision,
-            artifactDigest: verificationPlan.artifactDigest,
-            recordedAt: evidence[0]!.recordedAt,
-          })),
+          ...acceptanceEvidence,
         ],
       });
       await this.jobs.put(job);
     }
 
     const releaseState = await this.stages.releaseState({ job, changeSet, goal: input.goal, context: input.context });
+    if (releaseState.taskScopeId !== job.approvalScope.taskScopeId) {
+      job = this.controller.apply(job, { transitionId: `${job.jobId}:scope-mismatch`, actor: "state-controller", to: "HUMAN_GATE", reason: "release authorization scope does not match durable Job", blockers: ["release_authorization_scope_mismatch"] });
+      await this.jobs.put(job);
+      return report(false, "release authorization scope mismatch", ["human_gate"]);
+    }
     const persistedEvidence: DevelopmentVerificationEvidence[] = verificationPlan.requiredChecks.flatMap((check) => {
       const item = job!.evidence.find((candidate) => candidate.kind === `development-check:${check}`);
       return item?.sourceRevision && item.artifactDigest && item.recordedAt ? [{
@@ -197,12 +244,13 @@ export class ResidentDevelopmentGoalHost {
       phase: job.phase,
       connected: releaseState.connected,
       risk: job.approvalScope.maxRisk,
-      taskScopeId: releaseState.taskScopeId,
+      taskScopeId: job.approvalScope.taskScopeId,
       taskAuthorization: releaseState.taskAuthorization,
       changedFiles: changeSet.changedPaths,
       verificationPlan,
       verificationEvidence: persistedEvidence,
       protectedConditions: releaseState.protectedConditions,
+      classifications: releaseState.classifications,
       pullRequest: releaseState.pullRequest,
       mainCi: releaseState.mainCi,
       deployment: releaseState.deployment,
@@ -211,7 +259,7 @@ export class ResidentDevelopmentGoalHost {
     });
 
     if (gate.action === "READY_TO_PUBLISH" || gate.action === "WAIT_FOR_MERGE" || gate.action === "WAIT_MAIN_CI") {
-      return report(false, gate.reasons[0] ?? gate.action.toLowerCase());
+      return report(false, `publication_wait:${gate.action}:${gate.reasons[0] ?? "external_state_pending"}`);
     }
     if (gate.action === "HUMAN_GATE") {
       job = this.controller.apply(job, { transitionId: `${job.jobId}:human-gate`, actor: "state-controller", to: "HUMAN_GATE", reason: gate.reasons.join(","), blockers: gate.reasons });
@@ -224,6 +272,14 @@ export class ResidentDevelopmentGoalHost {
       return report(false, "development release is blocked", gate.reasons);
     }
     if (gate.action === "COMPLETE") {
+      const missingCriteria = job.definitionOfDone
+        .filter((criterion) => criterion.required)
+        .filter((criterion) => !job!.evidence.some((item) => item.criterionId === criterion.id
+          && item.verified
+          && item.sourceRevision === verificationPlan.sourceRevision
+          && item.artifactDigest === verificationPlan.artifactDigest
+          && item.issuer !== verificationPlan.builderId));
+      if (missingCriteria.length) return report(false, "criterion-specific acceptance evidence is missing", missingCriteria.map((item) => `missing_acceptance_evidence:${item.id}`));
       if (job.phase === "READY_TO_PUBLISH") {
         job = this.controller.apply(job, { transitionId: `${job.jobId}:publishing`, actor: "state-controller", to: "PUBLISHING", reason: "verified release evidence present" });
       }
@@ -236,7 +292,10 @@ export class ResidentDevelopmentGoalHost {
       job = this.controller.apply(job, { transitionId: `${job.jobId}:publishing`, actor: "state-controller", to: "PUBLISHING", reason: `release gate requested ${gate.action}` });
       await this.jobs.put(job);
     }
-    await this.stages.executeRelease(gate.action, { job, changeSet, goal: input.goal, context: input.context });
+    const operationId = `${job.jobId}:${gate.action}:${changeSet.changeSetId}:${changeSet.candidateRevision}`;
+    job = this.controller.apply(job, { transitionId: operationId, actor: "state-controller", to: "PUBLISHING", reason: `durable idempotent release operation requested:${gate.action}`, evidence: [{ id: operationId, criterionId: "repository-release", kind: `release-operation:${gate.action}`, issuer: "resident-release-gate", verified: false, sourceRevision: changeSet.candidateRevision, artifactDigest: changeSet.artifactDigest, recordedAt: new Date().toISOString() }] });
+    await this.jobs.put(job);
+    await this.stages.executeRelease(gate.action, { operationId, job, changeSet, goal: input.goal, context: input.context });
     return report(false, `release action executed:${gate.action}`);
   }
 }
