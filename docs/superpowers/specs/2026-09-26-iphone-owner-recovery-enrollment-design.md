@@ -1,7 +1,7 @@
 # iPhone Owner Recovery Enrollment Design
 
-Date: 2026-09-26  
-Issue: #1218  
+Date: 2026-09-26
+Issue: #1218
 PR branch: `goriq/1218-iphone-owner`
 
 ## Purpose
