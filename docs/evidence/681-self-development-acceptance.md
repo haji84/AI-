@@ -1,6 +1,6 @@
 # #681 GORIQ self-development acceptance evidence
 
-Recorded: 2026-09-26T08:42:58.000Z
+Recorded: 2026-09-26T15:29:01.000Z
 
 Deterministic source revision: `fe1a11c81ccf4f1b290a9b0143dbc3fae72f6ba4`
 
@@ -25,12 +25,12 @@ The run also reconstructs the device inbox from disk, confirms that the determin
 | Evidence class | State |
 |---|---|
 | Deterministic simulation | PASS |
-| Real local model | NOT RUN |
+| Real local model | PASS |
 | Real GitHub PR / protected merge / main CI | PASS |
 | Production exact-artifact deployment | PASS |
-| One physical iPhone | NOT RUN |
+| One physical iPhone | BLOCKED: no available device detected by the self-hosted Mac runner |
 
-This evidence does not mark `CORE-014` or any `AUTO-*` requirement complete. Their canonical status remains `PARTIAL` until a configured real local model passes its bounded acceptance and one physical iPhone returns signed evidence. No secrets, credentials, recovery codes, permission changes, workflow-permission changes, billing changes, destructive migrations, or Human Gate weakening are covered or authorized by this record.
+This evidence does not mark `CORE-014` or any `AUTO-*` requirement complete. Their canonical status remains `PARTIAL` until one physical iPhone returns current signed evidence. No secrets, credentials, recovery codes, permission changes, workflow-permission changes, billing changes, destructive migrations, or Human Gate weakening are covered or authorized by this record.
 
 ## Task 12 external execution attempt
 
@@ -42,4 +42,14 @@ On 2026-09-26, `origin/main` was fetched successfully and the verified branch ha
 - Exact main merge commit: `fb9fdbd4a75802b0115340181ecd65d27536fb2e`.
 - Main CI run `36230761702` passed lint, tests, P8 security, build, repository guard, and the Production health endpoint check.
 - Vercel deployment `EHGncCFVjrPRkcFe9uaxJJ2qjXu5` reported `Ready`, environment `Production`, source commit `fb9fdbd4a75802b0115340181ecd65d27536fb2e`, and current domain `jarvis-fawn-iota.vercel.app`.
-- The physical-iPhone gate remains `NOT RUN`: this executor has no attached iPhone toolchain or reachable configured iPhone Bridge. No simulated or historical device record is promoted to current physical evidence.
+- The physical-iPhone gate was attempted twice on the self-hosted MacBook runner. Run `36233844537` reached `devicectl` and reported zero available physical iPhones; run `36251840188` again stopped at device listing/selection before build or installation. No simulated or historical device record is promoted to current physical evidence.
+
+## Current-main live acceptance evidence
+
+- PR [#1258](https://github.com/haji84/AI-/pull/1258) added fail-closed live acceptance and passed CI run `36233534719`; merge commit `00dc1518ff15b3d811a4132803bdf7306a987315` was exercised by workflow run `36233844537`.
+- The first ZBook run proved the configured `qwen3:4b` model and loopback Ollama process were reachable, then failed because the unbounded generation exceeded the independent 16 KiB response limit. No evidence artifact was admitted from that failed run.
+- PR [#1259](https://github.com/haji84/AI-/pull/1259) bounded generation with `think: false`, an exact two-field JSON Schema, and `num_predict: 128`; CI run `36251661192` passed before merge commit `29fdf100c6a127e29390f42c1e2b1f33f64bfddf`.
+- Workflow run `36251840188` passed the ZBook real local-model job on that exact current-main revision. Artifact `goriq-681-real-local-model` (`10909301632`, digest `sha256:ecf79a9431a8111cb354aa7a97f028e2cfcb9c83260ee4bbf77421c75b36d180`) records `evidenceType: real-local-model-self-development` and `admissibleLiveEvidence: true`.
+- The installed model was `qwen3:4b`, artifact digest `sha256:359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7`, size `2497293931` bytes, served by Ollama `0.34.2` from a verified `ollama.exe` listener on loopback port `11434`.
+- The real model was called exactly once. The actual RED test ran first, the exact fixture edit and patch identity passed independent verification, and lint, TypeScript, focused unit, runtime integration, P8 security, and build all executed successfully in the exact candidate workspace.
+- Durable Job and Change Set state both reached `READY_TO_PUBLISH`; a fresh child process resumed without another Builder call. Publication remained disabled. Authorization was bound to `issue:681`, GitHub actor `haji84`, and workflow run `36251840188`.
