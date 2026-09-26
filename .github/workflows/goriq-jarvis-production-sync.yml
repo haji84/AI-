@@ -3,24 +3,6 @@ name: GORIQ JARVIS Production Sync
 on:
   schedule:
     - cron: '*/5 * * * *'
-  push:
-    branches: [main]
-    paths:
-      - 'scripts/jarvis-mac-zero-touch.sh'
-      - 'scripts/jarvis-broker.ts'
-      - 'src/app/jarvis/**'
-      - 'src/app/api/jarvis/**'
-      - 'src/app/api/owner-login/**'
-      - 'src/app/owner-auth.ts'
-      - 'src/app/trusted-device-auth.ts'
-      - 'src/app/fresh-trusted-owner-session.ts'
-      - 'src/app/google-owner-*.ts'
-      - 'src/app/owner-recovery-*.ts'
-      - 'src/jarvis/trusted-device-registry.ts'
-      - 'src/jarvis/google-owner-state-registry.ts'
-      - 'apps/ios-owner/**'
-      - 'src/app/downloads/jarvis-worker.apk/**'
-      - '.github/workflows/goriq-jarvis-production-sync.yml'
   workflow_run:
     workflows: ["CI"]
     types: [completed]
@@ -30,13 +12,12 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: jarvis-vercel-sync
-  cancel-in-progress: false
-
 jobs:
   deploy-code:
     if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main'
+    concurrency:
+      group: jarvis-vercel-code-deploy
+      cancel-in-progress: true
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment: production
@@ -117,6 +98,9 @@ jobs:
 
   sync:
     if: github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
+    concurrency:
+      group: jarvis-vercel-runtime-sync
+      cancel-in-progress: true
     runs-on: [self-hosted, macOS, ARM64]
     timeout-minutes: 20
     environment: production
