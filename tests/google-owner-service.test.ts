@@ -6,7 +6,7 @@ const jwk = { kty: "EC", crv: "P-256", x: "abc", y: "def" } as JsonWebKey;
 
 test("begin is disabled by default and returns only public OAuth context when enabled", async () => {
   await assert.rejects(() => beginGoogleOwnerEnrollment({ deviceId: "device_1234567890abcdef", publicKeyJwk: jwk, state: "s", nonce: "n", pkceChallenge: "p" }, { enabled: false, clientId: "c", issueContext: async () => ({ contextId: "x", expiresAt: 1 }) }));
-  const result = await beginGoogleOwnerEnrollment({ deviceId: "device_1234567890abcdef", publicKeyJwk: jwk, state: "s", nonce: "n", pkceChallenge: "p" }, { enabled: true, clientId: "c", issueContext: async () => ({ contextId: "ctx", expiresAt: 1060 }) });
+  const result = await beginGoogleOwnerEnrollment({ deviceId: "device_1234567890abcdef", publicKeyJwk: jwk, state: "s", nonce: "n", pkceChallenge: "p" }, { enabled: true, clientId: "c", issueContext: async () => ({ contextId: "ctx", expiresAt: 1300 }) });
   assert.equal(result.clientId, "c");
   assert.equal(result.contextId, "ctx");
   assert.ok(!("secret" in result));

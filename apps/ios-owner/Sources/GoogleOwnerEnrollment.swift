@@ -12,7 +12,8 @@ final class GoogleOwnerEnrollment: NSObject, ASWebAuthenticationPresentationCont
     override init() {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.httpShouldSetCookies = false
-        configuration.timeoutIntervalForRequest = 10
+        configuration.timeoutIntervalForRequest = 45
+        configuration.timeoutIntervalForResource = 45
         session = URLSession(configuration: configuration)
         super.init()
     }

@@ -4,7 +4,7 @@ async function request(body: Record<string, unknown>): Promise<Record<string, un
   const response = await jarvisBrokerFetch("/api/jarvis/admin/google-owner", {
     method: "POST",
     body: JSON.stringify(body),
-    signal: AbortSignal.timeout(3_000),
+    signal: AbortSignal.timeout(5_000),
   });
   if (!response.ok) {
     console.error("GOOGLE_OWNER_STATE_HTTP_STATUS", response.status);

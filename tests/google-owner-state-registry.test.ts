@@ -29,8 +29,19 @@ test("durable context consumption survives restart and rejects replay", () => {
     const store = new GoogleOwnerStateRegistry(path);
     const context = store.issueContext({ deviceId: device, publicKeyThumbprint: "thumb", state: "state", nonce: "nonce", pkceChallenge: "pkce" }, 1000);
     const reopened = new GoogleOwnerStateRegistry(path);
-    assert.equal(reopened.consumeContext({ ...context, deviceId: device, publicKeyThumbprint: "thumb", state: "state", nonce: "nonce" }, 1001).pkceChallenge, "pkce");
-    assert.throws(() => new GoogleOwnerStateRegistry(path).consumeContext({ ...context, deviceId: device, publicKeyThumbprint: "thumb", state: "state", nonce: "nonce" }, 1002));
+    assert.equal(context.expiresAt, 1300);
+    assert.equal(reopened.consumeContext({ ...context, deviceId: device, publicKeyThumbprint: "thumb", state: "state", nonce: "nonce" }, 1120).pkceChallenge, "pkce");
+    assert.throws(() => new GoogleOwnerStateRegistry(path).consumeContext({ ...context, deviceId: device, publicKeyThumbprint: "thumb", state: "state", nonce: "nonce" }, 1121));
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("durable context rejects use after the five-minute boundary", () => {
+  const dir = mkdtempSync(join(tmpdir(), "google-owner-"));
+  try {
+    const store = new GoogleOwnerStateRegistry(join(dir, "state.json"));
+    const input = { deviceId: device, publicKeyThumbprint: "thumb", state: "state", nonce: "nonce", pkceChallenge: "pkce" };
+    const context = store.issueContext(input, 1000);
+    assert.throws(() => store.consumeContext({ ...input, contextId: context.contextId }, 1301));
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 

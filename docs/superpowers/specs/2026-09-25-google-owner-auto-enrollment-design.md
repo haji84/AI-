@@ -79,7 +79,7 @@ The Production Owner code is deliberately absent from this flow.
 
 ## Replay and one-time semantics
 
-The enrollment context is short-lived (60 seconds), single-use, and bound to:
+The enrollment context is short-lived (five minutes), single-use, and bound to:
 - OAuth state,
 - nonce,
 - PKCE challenge,
@@ -139,7 +139,7 @@ Production OAuth configuration creation/change and first live Owner identity bin
 - first-bind exact bootstrap email + `email_verified`
 - subsequent-bind `sub` match independent of mutable email
 - wrong account rejection
-- 60-second expiry and second-use replay rejection
+- five-minute expiry and second-use replay rejection
 - cross-device public-key substitution rejection
 - no Owner secret/token in logs, URLs, artifacts, UserDefaults
 - idempotent retry and registry-failure compensation

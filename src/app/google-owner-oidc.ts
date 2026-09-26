@@ -53,7 +53,7 @@ export async function verifyGoogleIdToken(token: string, options: VerifyOptions)
 async function fetchGoogleJwks(): Promise<{ keys: JsonWebKey[] }> {
   const response = await fetch("https://www.googleapis.com/oauth2/v3/certs", {
     cache: "no-store",
-    signal: AbortSignal.timeout(3_000),
+    signal: AbortSignal.timeout(5_000),
   });
   if (!response.ok) throw new Error("google identity unavailable");
   return await response.json() as { keys: JsonWebKey[] };

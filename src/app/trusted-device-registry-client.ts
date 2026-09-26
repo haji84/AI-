@@ -3,7 +3,7 @@ import { jarvisBrokerFetch } from "./api/jarvis/broker.ts";
 async function request(path: string, body?: Record<string, string>): Promise<Record<string, unknown>> {
   const response = await jarvisBrokerFetch(`/api/jarvis/admin/trusted-devices${path}`, {
     ...(body ? { method: "POST", body: JSON.stringify(body) } : {}),
-    signal: AbortSignal.timeout(3_000),
+    signal: AbortSignal.timeout(5_000),
   });
   if (!response.ok) throw new Error("trusted device registry unavailable");
   return await response.json() as Record<string, unknown>;

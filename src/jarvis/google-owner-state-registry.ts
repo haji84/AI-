@@ -70,7 +70,7 @@ export class GoogleOwnerStateRegistry {
     state.contexts = state.contexts.filter(item => item.expiresAt >= now && !item.consumed);
     if (state.contexts.length >= 100) throw new Error("google owner context capacity reached");
     const contextId = randomBytes(24).toString("base64url");
-    const context = { ...input, contextId, expiresAt: now + 60, consumed: false };
+    const context = { ...input, contextId, expiresAt: now + 300, consumed: false };
     state.contexts.push(context);
     this.save(state);
     return { contextId, expiresAt: context.expiresAt };

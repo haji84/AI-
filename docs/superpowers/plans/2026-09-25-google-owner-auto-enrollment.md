@@ -32,7 +32,7 @@ This plan replaces the manual bootstrap with Google OIDC + PKCE while preserving
   - No application routing or registry writes.
 
 - `src/app/google-owner-enrollment.ts`
-  - 60-second enrollment-context issue/consume contract.
+  - Five-minute enrollment-context issue/consume contract.
   - Binds state, nonce, PKCE challenge, device ID and public-key thumbprint.
   - Enforces single-use/replay rejection through the Broker-owned durable state adapter.
 
@@ -104,7 +104,7 @@ Write tests for:
 - unknown `kid` and invalid signature rejection
 - `email_verified=false` rejection for bootstrap
 - PKCE S256 verifier/challenge match and mismatch
-- context expires at 60 seconds
+- context expires at five minutes
 - state/nonce/device/public-key thumbprint mismatch
 - second consumption rejected
 - cross-device replay rejected
@@ -166,7 +166,7 @@ Focused persistence tests plus existing trusted-device registry tests.
 Route tests:
 - feature disabled by default
 - malformed device/JWK rejected
-- begin returns only public client config + opaque 60-second context
+- begin returns only public client config + opaque five-minute context
 - complete rejects expired/replayed/mismatched context
 - Google exchange failure is generic and retry-safe
 - wrong Google identity rejected

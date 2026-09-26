@@ -25,7 +25,7 @@ export class GoogleOwnerEnrollmentStore {
   issue(input: { deviceId: string; publicKeyJwk: JsonWebKey; state: string; nonce: string; pkceChallenge: string }, now = Math.floor(Date.now() / 1000)) {
     if (!DEVICE.test(input.deviceId) || !input.state || !input.nonce || !input.pkceChallenge) throw new Error("invalid enrollment context");
     const contextId = randomBytes(24).toString("base64url");
-    const record: Record = { ...input, contextId, publicKeyThumbprint: publicKeyThumbprint(input.publicKeyJwk), expiresAt: now + 60, consumed: false };
+    const record: Record = { ...input, contextId, publicKeyThumbprint: publicKeyThumbprint(input.publicKeyJwk), expiresAt: now + 300, consumed: false };
     this.records.set(contextId, record);
     return { contextId, expiresAt: record.expiresAt };
   }
