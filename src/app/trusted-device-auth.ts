@@ -6,6 +6,19 @@ const MAX_CREDENTIAL_AGE_SECONDS = 60 * 60 * 24 * 365;
 const CHALLENGE_TTL_SECONDS = 120;
 const DEVICE_ID = /^[A-Za-z0-9_-]{16,96}$/;
 
+export function canonicalTrustedDevicePublicKey(jwk: JsonWebKey): JsonWebKey {
+  if (jwk?.kty !== "EC" || jwk.crv !== "P-256" || typeof jwk.x !== "string" || typeof jwk.y !== "string" || jwk.d !== undefined) {
+    throw new Error("trusted device must use an ECDSA P-256 public key");
+  }
+  try {
+    const canonical = createPublicKey({ key: JSON.parse(JSON.stringify(jwk)), format: "jwk" }).export({ format: "jwk" }) as JsonWebKey;
+    if (canonical.kty !== "EC" || canonical.crv !== "P-256" || !canonical.x || !canonical.y || canonical.x !== jwk.x || canonical.y !== jwk.y) {
+      throw new Error("invalid key");
+    }
+    return { kty: "EC", crv: "P-256", x: canonical.x, y: canonical.y };
+  } catch { throw new Error("trusted device must use an ECDSA P-256 public key"); }
+}
+
 export type TrustedDeviceCredential = {
   v: 1;
   deviceId: string;
@@ -49,14 +62,12 @@ export function createTrustedDeviceCredential(secret: string, input: {
   if (!DEVICE_ID.test(input.deviceId)) throw new Error("trusted device id is invalid");
   const label = input.label.trim().slice(0, 80);
   if (!label) throw new Error("trusted device label is required");
-  if (input.publicKeyJwk.kty !== "EC" || input.publicKeyJwk.crv !== "P-256" || !input.publicKeyJwk.x || !input.publicKeyJwk.y) {
-    throw new Error("trusted device must use ECDSA P-256");
-  }
+  const publicKeyJwk = canonicalTrustedDevicePublicKey(input.publicKeyJwk);
   const payload: TrustedDeviceCredential = {
     v: 1,
     deviceId: input.deviceId,
     label,
-    publicKeyJwk: input.publicKeyJwk,
+    publicKeyJwk,
     issuedAt: input.issuedAt ?? Math.floor(Date.now() / 1000),
   };
   const body = encode(payload);
@@ -69,7 +80,8 @@ export function parseTrustedDeviceCredential(secret: string, token: string, nowS
   if (!safeSignature(secret, `${version}.${body}`, signature)) return null;
   const payload = decode<TrustedDeviceCredential>(body);
   if (!payload || payload.v !== 1 || !DEVICE_ID.test(payload.deviceId) || !payload.label || !Number.isSafeInteger(payload.issuedAt)) return null;
-  if (payload.publicKeyJwk?.kty !== "EC" || payload.publicKeyJwk?.crv !== "P-256" || !payload.publicKeyJwk.x || !payload.publicKeyJwk.y) return null;
+  try { payload.publicKeyJwk = canonicalTrustedDevicePublicKey(payload.publicKeyJwk); }
+  catch { return null; }
   if (payload.issuedAt > nowSeconds + 60 || nowSeconds - payload.issuedAt > MAX_CREDENTIAL_AGE_SECONDS) return null;
   return payload;
 }
