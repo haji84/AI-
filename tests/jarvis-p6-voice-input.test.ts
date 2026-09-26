@@ -173,22 +173,21 @@ test("push-to-talk requires explicit activation, cancels local speech first and 
   assert.doesNotMatch(voiceSurface, /useEffect\(\(\) => \{\s*startListening\(\)/);
 });
 
-test("voice and text surfaces share target, history and explicit safe context selection", () => {
-  for (const surface of [voiceSurface, mobileSurface]) {
-    assert.match(surface, /parseSafeMobileCommand/);
-    assert.match(surface, /resolveSafeContextReference/);
-    assert.match(surface, /saveSharedTargetNode/);
-    assert.match(surface, /selectSharedHistoryEntry/);
-    assert.match(surface, /recordSharedCommand/);
-    assert.match(surface, /まだ端末操作は送信していません/);
-    assert.match(surface, /fetch\("\/api\/jarvis\/action"/);
-    assert.match(surface, /action: "device-task"/);
+test("voice keeps bounded direct-device parsing while Mobile Commander is demoted to advanced device tools", () => {
+  for (const pattern of [/parseSafeMobileCommand/, /resolveSafeContextReference/, /saveSharedTargetNode/, /selectSharedHistoryEntry/, /recordSharedCommand/, /まだ端末操作は送信していません/, /fetch\("\/api\/jarvis\/action"/, /action: "device-task"/]) {
+    assert.match(voiceSurface, pattern);
   }
+
+  assert.match(mobileSurface, /普段の指示はGORIQホームから/);
+  assert.match(mobileSurface, /href="\/jarvis"/);
+  assert.match(mobileSurface, /fetch\("\/api\/jarvis\/action"/);
+  assert.match(mobileSurface, /action: "device-task"/);
+  assert.doesNotMatch(mobileSurface, /parseSafeMobileCommand|resolveSafeContextReference|recordSharedCommand/);
+
   assert.match(voiceSurface, /認識字幕/);
   assert.match(voiceSurface, /aria-live="polite"/);
   assert.match(voiceSurface, /オーナー認証/);
   assert.doesNotMatch(voiceSurface, /lock-device|reboot|factory-reset|approve|permission-change/);
-  assert.match(mobileSurface, /履歴を選ぶだけでは端末操作しません/);
   assert.match(voiceSurface, /必ず「この指示を実行」で確定します/);
   assert.match(mobilePage, /href="\/jarvis\/mobile\/voice"/);
 });
