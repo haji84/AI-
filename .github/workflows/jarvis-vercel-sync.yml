@@ -103,7 +103,7 @@ jobs:
             "$JARVIS_OWNER_TOKEN" \
             "${JARVIS_REMOTE_PUBLIC_URL:-}" \
             "${JARVIS_REMOTE_GATEWAY_TOKEN:-}" \
-            "$GITHUB_SHA" | shasum -a 256 | awk '{print $1}')"
+            "$SYNC_COMMIT_SHA" | shasum -a 256 | awk '{print $1}')"
           previous_hash="$(cat "$SYNC_FILE" 2>/dev/null || true)"
           echo "desired_hash=$desired_hash" >> "$GITHUB_OUTPUT"
 
