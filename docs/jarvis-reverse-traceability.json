@@ -1933,7 +1933,7 @@
     },
     {
       "path": "src/app/jarvis/JarvisWorkShell.tsx",
-      "sha256": "e5209be0911cadf0fab907f5806c6b28f26e2c59f61dd4e87ee42f04590a9c22",
+      "sha256": "7dd8e48364c25118473c38de1514844ec2d36b43e77e2f8d7333bca302b308b8",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "UI-001",
@@ -1941,7 +1941,7 @@
         "OPS-018",
         "UI-020"
       ],
-      "reason": "GORIQ Daily Driver single owner front door; advanced routes remain reachable without being primary navigation"
+      "reason": "GORIQ Daily Driver single owner front door with durable Goal resume on reopen; advanced routes remain reachable without being primary navigation"
     },
     {
       "path": "src/app/jarvis/layout-modes.css",
