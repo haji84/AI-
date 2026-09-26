@@ -3,6 +3,7 @@ import "./work-shell.css";
 import RequirementsPanel from "./tasks/RequirementsPanel";
 import { useEffect, useRef, useState } from "react";
 import { JARVIS_THEMES, jarvisTheme, type JarvisThemeId } from "./theme-catalog";
+import { GORIQ_THEME_CHANGED_EVENT } from "./settings/GoriqThemeSettings";
 
 const STORAGE_KEY = "jarvis-ui-theme";
 const LAST_GOAL_KEY = "goriq-last-goal-id";
