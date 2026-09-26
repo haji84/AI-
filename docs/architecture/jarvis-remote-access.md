@@ -37,6 +37,12 @@ Only the home host and the owner's remote-control device need Tailscale for this
 - signed Android worker requests and replay/nonce checks remain unchanged
 - secrets stay in local environment / OS secret facilities and are never committed
 
+### Native iPhone Owner recovery enrollment
+
+The native Owner app can register another iPhone through a short-lived, single-use code displayed by an already trusted iPhone. This flow is separate from Tailscale transport and browser PIN login; it does not expose the Production Owner secret or weaken the private-ingress boundary. See [iPhone Owner recovery enrollment](./iphone-owner-recovery-enrollment.md).
+
+The public issue, redeem, and cancel routes remain unavailable unless an operator explicitly sets `GORIQ_OWNER_RECOVERY_ENROLLMENT_ENABLED=1`. Disabling the flag is the rollback switch: active recovery records are rejected while existing trusted devices remain registered.
+
 ## One-time operator setup
 1. Install Tailscale on the selected always-on home host and the owner's remote phone; sign both into the same tailnet.
 2. On the home host, keep the existing JARVIS secrets in `.env.local` or the OS environment. Never paste them into GitHub.

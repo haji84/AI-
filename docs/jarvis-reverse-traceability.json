@@ -286,6 +286,82 @@
       "reason": "Android build and minimum OS contract"
     },
     {
+      "path": "apps/ios-owner/Info.plist",
+      "sha256": "8f178dc52b7bb42970a69ce1ce73f350890c3480e85e69fe024c25dd551ea187",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-I-006",
+        "SEC-001"
+      ],
+      "reason": "Issue #1218 iPhone Owner credential UI and device-bound Keychain authorization; the app bundle now declares its executable for physical installation"
+    },
+    {
+      "path": "apps/ios-owner/project.yml",
+      "sha256": "400dbbfd1cd666242ad4d38974cbf4aa2c0a0e70ffe1cbffede89800da6809e2",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-I-006",
+        "SEC-001"
+      ],
+      "reason": "Issue #1218 iPhone Owner credential UI and device-bound Keychain authorization; the approved Personal Team is retained in regenerated Xcode projects"
+    },
+    {
+      "path": "apps/ios-owner/README.md",
+      "sha256": "a5e0cf5ee8107909200a32e4c371d0fd50fa1cc46ce33916c75695fb75b4de89",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-I-006",
+        "SEC-001",
+        "SEC-002"
+      ],
+      "reason": "Issue #1218 native iPhone Owner Google and short-lived recovery enrollment operator contract; Production enablement and physical acceptance remain pending."
+    },
+    {
+      "path": "apps/ios-owner/Sources/GoogleOwnerEnrollment.swift",
+      "sha256": "04e35764dc5d76c01ac4de2b1b3cdd74bdce8b461402702e33b46386c56122b5",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "SEC-001",
+        "SEC-002",
+        "DEV-I-006",
+        "AUTO-001"
+      ],
+      "reason": "Issue #1218 Google Owner auto-enrollment security and Owner Fleet enrollment; live provider configuration remains gated."
+    },
+    {
+      "path": "apps/ios-owner/Sources/JarvisIOSOwnerApp.swift",
+      "sha256": "2dc6c8f905d9292e8a5504e54a0aeb330e6b4e448277ad555eaa3fd4acfd80e8",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-I-006",
+        "SEC-001",
+        "SEC-002"
+      ],
+      "reason": "Issue #1218 native UI displays a volatile five-minute recovery code on a trusted iPhone and accepts it on a new iPhone; physical recovery proof remains pending."
+    },
+    {
+      "path": "apps/ios-owner/Sources/OwnerCredentialRuntime.swift",
+      "sha256": "279a7e060547c3bccf7204f56d3a93e659c8e6473b177feb35343065b6318f7f",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-I-006",
+        "SEC-001",
+        "SEC-002"
+      ],
+      "reason": "Issue #1218 volatile recovery issuance and Secure Enclave target redemption with post-enrollment challenge/signature proof; Production enablement and physical acceptance remain pending."
+    },
+    {
+      "path": "apps/ios-owner/Tests/test_signing_access.py",
+      "sha256": "57526e0762d50f0b949834c6ce45f3352fb87200d8af04c304ed0e4335c6bbf7",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-I-006",
+        "SEC-001",
+        "SEC-002"
+      ],
+      "reason": "Issue #1218 Secure Enclave signing access, recovery proof ordering, repair order, and revocation-denial regression contract; physical acceptance remains pending."
+    },
+    {
       "path": "apps/ios-worker/Info.plist",
       "sha256": "48c652fbdc079351211a88fade57667f0af1df63d780dfba541e40a81ab3f111",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
@@ -558,6 +634,17 @@
       "reason": "#1216 OWN-001 bounded local cognition and evidence-bound prediction calibration; research metadata never grants authority or implies whole-product acceptance."
     },
     {
+      "path": "docs/architecture/iphone-owner-recovery-enrollment.md",
+      "sha256": "644bf25154a19fd4c2a1a8b356f463171bdafaa7778dfeb11d621522c34935f3",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-I-006",
+        "SEC-001",
+        "SEC-002"
+      ],
+      "reason": "Issue #1218 native iPhone Owner recovery state, security, rollout, rollback, and evidence boundary; implementation documentation does not claim Production enablement or physical acceptance."
+    },
+    {
       "path": "docs/architecture/jarvis-bounded-fact-research.md",
       "sha256": "9d7d1dc90a7e71bcd7c9bd121fe2c4d595ebac1e282deb78a90c16e13e48ac2d",
       "classification": "COVERED_BY_REQUIREMENT",
@@ -638,7 +725,7 @@
     },
     {
       "path": "docs/architecture/jarvis-remote-access.md",
-      "sha256": "a537b86720d9d84fa681a77361ea858ff42b4c6dc2525a902e0fa3be21c25ec0",
+      "sha256": "7445014f190966b2337b6ce85e803e9bbf159bf90f7fa7e779718fbb7314e141",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "NET-001",
@@ -646,9 +733,12 @@
         "NET-003",
         "NET-004",
         "HOST-002",
-        "OPS-017"
+        "OPS-017",
+        "DEV-I-006",
+        "SEC-001",
+        "SEC-002"
       ],
-      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+      "reason": "Existing private remote-access contract plus Issue #1218 disabled-by-default native iPhone recovery boundary; linked parents do not imply Production enablement or physical verification."
     },
     {
       "path": "docs/architecture/jarvis-remote-assist-human-gates.md",
@@ -933,7 +1023,7 @@
     },
     {
       "path": "scripts/jarvis-broker.ts",
-      "sha256": "af1c9fd3057100675a4d30f629aab6dac52c344416f1839560af81be7d2c1afb",
+      "sha256": "4287d1b5734b2557ed03fc2d41807baf4afa5a144a7ad69c17e9202f9aa8861b",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "NET-006",
@@ -949,9 +1039,12 @@
         "SEC-007",
         "SEC-010",
         "GOV-025",
-        "OWN-001"
+        "OWN-001",
+        "SEC-001",
+        "SEC-002",
+        "DEV-I-006"
       ],
-      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification; #1216 bounded local cognition/owner entry integration, not full capability or physical acceptance; #1216 explicit owner DoD adoption: strict bounded input, unchanged Goal identity, full Goal/state atomic CAS and receipt-only replay; independent completion verification remains required; #1216 bounded local DoD proposal: unverified non-executing data, owner-first strict input, post-inference Goal/state recheck and separate editable owner adoption; no broad semantic or physical completion claim; #1219 Direct Goal Bridge wakes bounded Goal execution and exposes shared status/events; parent requirements remain PARTIAL pending E2E. #1219 exposes a non-secret health marker proving the isolated Goal executor is present."
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification; #1216 bounded local cognition/owner entry integration, not full capability or physical acceptance; #1216 explicit owner DoD adoption: strict bounded input, unchanged Goal identity, full Goal/state atomic CAS and receipt-only replay; independent completion verification remains required; #1216 bounded local DoD proposal: unverified non-executing data, owner-first strict input, post-inference Goal/state recheck and separate editable owner adoption; no broad semantic or physical completion claim; #1219 Direct Goal Bridge wakes bounded Goal execution and exposes shared status/events; parent requirements remain PARTIAL pending E2E. #1219 exposes a non-secret health marker proving the isolated Goal executor is present. #1218 adds an authenticated, bounded, generic-error Broker boundary for atomic one-time Owner recovery enrollment and distinguishes domain rejection from registry unavailability; Production and physical acceptance remain pending."
     },
     {
       "path": "scripts/jarvis-direct-commander-service.sh",
@@ -1281,7 +1374,7 @@
     },
     {
       "path": "scripts/jarvis-requirement-audit.mjs",
-      "sha256": "42d8c02f83c499d453468d25c4c8303567a420c73053c3f006b92530c801d302",
+      "sha256": "ce9e8e3787f49752ba5e62afa2d50bc4a09acbe4b3e7b67bed87dd7eea16022b",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "GOV-025",
@@ -1382,14 +1475,14 @@
     },
     {
       "path": "src/app/api/jarvis/broker.ts",
-      "sha256": "e012287b6ad3de49b2ed0ebb80f7670508528ebb7c62dd703ade84c2150c8c31",
+      "sha256": "25ccb2dcd4e027b027b2058942f7332a968169768b14755b1d6227290673191a",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "NET-005",
         "SEC-001",
         "SEC-002"
       ],
-      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+      "reason": "Existing authenticated Broker client plus Issue #1218 fresh trusted-device revocation lookup used by recovery issuance/cancellation; no Production or physical acceptance claim."
     },
     {
       "path": "src/app/api/jarvis/cognitive/goal/proposal/route.ts",
@@ -1561,6 +1654,30 @@
       "reason": "Persisted work intake/state API; #1219 Direct Goal Bridge wakes bounded Goal execution and exposes shared status/events; parent requirements remain PARTIAL pending E2E."
     },
     {
+      "path": "src/app/api/owner-login/google/begin/route.ts",
+      "sha256": "64874d8578ae451327428dd8f277df8dbc3bcd5fa8c2d3b9336e9c7375b505f7",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "SEC-001",
+        "SEC-002",
+        "DEV-I-006",
+        "AUTO-001"
+      ],
+      "reason": "Issue #1218 Google Owner auto-enrollment security and Owner Fleet enrollment; live provider configuration remains gated."
+    },
+    {
+      "path": "src/app/api/owner-login/google/complete/route.ts",
+      "sha256": "139def447479676d68edb261121e188a1f5cbcb157ef5de94d1b2600e4306839",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "SEC-001",
+        "SEC-002",
+        "DEV-I-006",
+        "AUTO-001"
+      ],
+      "reason": "Issue #1218 Google Owner auto-enrollment security and Owner Fleet enrollment; live provider configuration remains gated."
+    },
+    {
       "path": "src/app/api/owner-login/route.ts",
       "sha256": "96ed1ba593273ed6b777596e8503921df5594381ac157799a96931a7dd75cfca",
       "classification": "COVERED_BY_REQUIREMENT",
@@ -1604,6 +1721,39 @@
       "reason": "Declared route.ts responsibility implements/supports Owner Authentication; Session Control; One Front Door. Parent ownership is not functional or physical acceptance evidence."
     },
     {
+      "path": "src/app/api/owner-login/trusted/recovery/cancel/route.ts",
+      "sha256": "908444641c2d0a5dc3242590afe8d99fd2ed59f452a102ce7c7567ee00a15244",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-I-006",
+        "SEC-001",
+        "SEC-002"
+      ],
+      "reason": "Issue #1218 disabled-by-default recovery cancellation requires a fresh non-revoked device-bound Owner session and returns non-cacheable generic responses; physical acceptance remains pending."
+    },
+    {
+      "path": "src/app/api/owner-login/trusted/recovery/issue/route.ts",
+      "sha256": "5d3b2984bcf226e2a7d158316ddf54f2efe0a5dfa9e71c87315cd623cbc742af",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-I-006",
+        "SEC-001",
+        "SEC-002"
+      ],
+      "reason": "Issue #1218 disabled-by-default recovery issuance requires a fresh non-revoked device-bound Owner session and returns non-cacheable generic responses; physical acceptance remains pending."
+    },
+    {
+      "path": "src/app/api/owner-login/trusted/recovery/redeem/route.ts",
+      "sha256": "966cdf5c71dc02381b64788d987513d3db4587b3915cd397c12c2f5f02527cf2",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-I-006",
+        "SEC-001",
+        "SEC-002"
+      ],
+      "reason": "Issue #1218 disabled-by-default sessionless recovery redemption accepts bounded POST JSON, HMAC-buckets its source, and returns non-cacheable generic responses; physical acceptance remains pending."
+    },
+    {
       "path": "src/app/api/owner-login/trusted/verify/route.ts",
       "sha256": "a26b1fde03d604930eacb0764b335d9e9eeb76dfff20cf9bfe9565be1c967f95",
       "classification": "COVERED_BY_REQUIREMENT",
@@ -1635,6 +1785,54 @@
         "AUTO-001"
       ],
       "reason": "Declared route.ts responsibility implements/supports Owner Authentication; Session Control; One Front Door. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/app/google-owner-enrollment.ts",
+      "sha256": "b0ef5f0ece229375c4f26d41d7b35ac029773c4bf97e443f49fce1389d0a8e0b",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "SEC-001",
+        "SEC-002",
+        "DEV-I-006",
+        "AUTO-001"
+      ],
+      "reason": "Issue #1218 Google Owner and recovery enrollment require a canonically importable on-curve ECDSA P-256 public key; live provider configuration and physical acceptance remain gated."
+    },
+    {
+      "path": "src/app/google-owner-oidc.ts",
+      "sha256": "d14c631b840e2894f3e7008a62267f714b4232320c0e9cd79cffc6fa4b7b06e8",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "SEC-001",
+        "SEC-002",
+        "DEV-I-006",
+        "AUTO-001"
+      ],
+      "reason": "Issue #1218 Google Owner auto-enrollment security and Owner Fleet enrollment; live provider configuration remains gated."
+    },
+    {
+      "path": "src/app/google-owner-service.ts",
+      "sha256": "b2aaaa24ef7d282090bab2758aeaaeb7840c2645ba95d013cdb7ad0ac6a3494e",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "SEC-001",
+        "SEC-002",
+        "DEV-I-006",
+        "AUTO-001"
+      ],
+      "reason": "Issue #1218 Google Owner auto-enrollment security and Owner Fleet enrollment; live provider configuration remains gated."
+    },
+    {
+      "path": "src/app/google-owner-state-client.ts",
+      "sha256": "77223dc9bd8a6378322f4ac8b0f5ae3184a5f8ce42d6d3fef4dd78ab38f1d4c5",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "SEC-001",
+        "SEC-002",
+        "DEV-I-006",
+        "AUTO-001"
+      ],
+      "reason": "Issue #1218 Google Owner auto-enrollment security and Owner Fleet enrollment; live provider configuration remains gated."
     },
     {
       "path": "src/app/jarvis/accessibility-preferences.ts",
@@ -2641,7 +2839,7 @@
     },
     {
       "path": "src/app/owner-auth.ts",
-      "sha256": "4d9ab5956902dd1213a333f4fe4390172ff7a24b2795532b4921ac5ee764c54b",
+      "sha256": "bdd93eb3a15bffa89afd449e068311489f042def2a714aa1b770d20d76c11fa8",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "NET-005",
@@ -2651,7 +2849,7 @@
         "SEC-002",
         "SEC-019"
       ],
-      "reason": "Declared owner-auth.ts responsibility implements/supports Owner authenticationを維持; Session auth; Encryption; Owner Authentication; Session Control; Negative Security Tests. Parent ownership is not functional or physical acceptance evidence."
+      "reason": "Declared Owner authentication/session responsibility plus Issue #1218 claims extraction for bounded fresh device-session verification. Parent ownership is not functional, Production, or physical acceptance evidence."
     },
     {
       "path": "src/app/owner-login-redirect.ts",
@@ -3708,6 +3906,18 @@
       "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
     },
     {
+      "path": "src/jarvis/google-owner-state-registry.ts",
+      "sha256": "08a6b85d1522e1b10f4f87c57290cd22a05c3c7498bb37ab129552a55049fd08",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "SEC-001",
+        "SEC-002",
+        "DEV-I-006",
+        "AUTO-001"
+      ],
+      "reason": "Issue #1218 Google Owner auto-enrollment security and Owner Fleet enrollment; live provider configuration remains gated."
+    },
+    {
       "path": "src/jarvis/home-widget-history.ts",
       "sha256": "257ded9beabbc949c0f2b704221be4d2c364270316c359b6b68fc9bb0afa0b2c",
       "classification": "COVERED_BY_REQUIREMENT",
@@ -4131,13 +4341,14 @@
     },
     {
       "path": "src/jarvis/trusted-device-registry.ts",
-      "sha256": "cf4bf2e3fd650d7a2b4adaed6e748a6c5175e840d6245546a3481949c6bd0e99",
+      "sha256": "e0fa16c10b3b2305bded13932e0dc812bc1251b6b6e8f319ffa333c4d2bf7b3d",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "SEC-001",
-        "SEC-002"
+        "SEC-002",
+        "DEV-I-006"
       ],
-      "reason": "Issue #1218 Owner trusted-device revocation support; requirement remains partial until native iPhone and physical acceptance"
+      "reason": "Issue #1218 trusted-device revocation plus HMAC-digested, five-minute, one-use recovery records with atomic target registration/consumption and non-evictable live per-issuer rate metadata; physical acceptance remains pending."
     },
     {
       "path": "src/jarvis/types.ts",

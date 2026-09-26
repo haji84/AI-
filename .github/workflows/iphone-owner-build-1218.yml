@@ -1,0 +1,179 @@
+name: iPhone Owner 1218 Mac preflight
+
+on:
+  workflow_dispatch:
+    inputs:
+      install:
+        description: 'Install and launch on the one connected iPhone using an existing local signing identity'
+        required: true
+        default: false
+        type: boolean
+  workflow_call:
+    inputs:
+      install:
+        required: true
+        type: boolean
+  pull_request:
+    paths:
+      - 'apps/ios-owner/**'
+      - '.github/workflows/iphone-owner-build-1218.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  compile:
+    if: (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == 'haji84/AI-' && github.event.pull_request.head.ref == 'goriq/1218-iphone-owner') || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/goriq/1218-iphone-owner') || (github.event_name == 'workflow_call' && github.ref == 'refs/heads/goriq/1218-iphone-owner')
+    runs-on: [self-hosted, macOS, ARM64]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Read-only Mac and connected-device preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcodebuild -version
+          xcrun --version
+          command -v xcodegen || { echo 'XCODEGEN_UNAVAILABLE'; exit 2; }
+          if xcrun devicectl list devices --json-output /tmp/goriq-1218-devices.json >/dev/null 2>&1; then
+            python3 - <<'PY'
+          import json
+          with open('/tmp/goriq-1218-devices.json') as handle:
+              devices=json.load(handle).get('result',{}).get('devices',[])
+          print('DEVICE_RECORD_COUNT='+str(len(devices)))
+          print('CONNECTED_IPHONE_COUNT='+str(sum('iphone' in str(item.get('deviceProperties',{}).get('name','')).lower() and item.get('connectionProperties',{}).get('transportType') in ('wired','localNetwork') for item in devices)))
+          PY
+            rm -f /tmp/goriq-1218-devices.json
+          else
+            echo 'DEVICE_LIST_UNAVAILABLE'
+          fi
+      - name: Check Secure Enclave signing access contract
+        run: python3 apps/ios-owner/Tests/test_signing_access.py
+      - name: Compile iPhone Owner without signing or installation
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd apps/ios-owner
+          xcodegen generate
+          xcodebuild -project JarvisIOSOwner.xcodeproj -scheme JarvisIOSOwner -configuration Debug -sdk iphoneos -destination 'generic/platform=iOS' CODE_SIGNING_ALLOWED=NO build
+      - name: Signed install and launch on the one connected iPhone
+        if: ((github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.install == true) || (github.event_name == 'pull_request' && github.event.action == 'synchronize')
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_EVENT_NAME" == 'pull_request' ]]; then
+            test "$(git rev-parse HEAD^)" = 'ffb3c90efd1b1f789a341017902a387365824e0c' || { echo 'ONE_TIME_INSTALL_SCOPE_NOT_MATCHED'; exit 0; }
+          fi
+          PROFILE_SELECTION="$(python3 - <<'PY'
+          import hashlib, pathlib, plistlib, re, subprocess, time
+          bundle = 'com.haji84.jarvis.iosowner'
+          roots = [
+              pathlib.Path.home() / 'Library/Developer/Xcode/UserData/Provisioning Profiles',
+              pathlib.Path.home() / 'Library/MobileDevice/Provisioning Profiles',
+          ]
+          identity_output = subprocess.run(
+              ['security', 'find-identity', '-v', '-p', 'codesigning'],
+              capture_output=True,
+              text=True,
+          ).stdout
+          identity_hashes = set(re.findall(r'\b[0-9A-F]{40}\b', identity_output, re.I))
+          matches = []
+          for root in roots:
+              if not root.is_dir():
+                  continue
+              for path in root.iterdir():
+                  if not path.is_file():
+                      continue
+                  decoded = subprocess.run(
+                      ['security', 'cms', '-D', '-i', str(path)],
+                      capture_output=True,
+                  )
+                  if decoded.returncode:
+                      continue
+                  try:
+                      profile = plistlib.loads(decoded.stdout)
+                  except Exception:
+                      continue
+                  entitlements = profile.get('Entitlements', {})
+                  app_identifier = str(entitlements.get('application-identifier', ''))
+                  teams = profile.get('TeamIdentifier', [])
+                  team = teams[0] if len(teams) == 1 else ''
+                  if entitlements.get('com.apple.developer.team-identifier') != team:
+                      continue
+                  if not app_identifier.endswith('.' + bundle):
+                      continue
+                  expires = profile.get('ExpirationDate')
+                  if not expires or expires.timestamp() <= time.time():
+                      continue
+                  uuid = str(profile.get('UUID', ''))
+                  certificate_hashes = {
+                      hashlib.sha1(bytes(certificate)).hexdigest().upper()
+                      for certificate in profile.get('DeveloperCertificates', [])
+                  }
+                  matching_hashes = certificate_hashes & identity_hashes
+                  if re.fullmatch(r'[A-Z0-9]{10}', team) and re.fullmatch(r'[A-F0-9-]{36}', uuid, re.I) and len(matching_hashes) == 1:
+                      matches.append((expires.timestamp(), team, uuid, next(iter(matching_hashes))))
+          matching_teams = {team for _, team, _, _ in matches}
+          if len(matching_teams) != 1:
+              raise SystemExit(3)
+          _, team, uuid, identity_hash = max(matches)
+          print(f'{team}\t{uuid}\t{identity_hash}')
+          PY
+          )" || { echo 'APP_PROVISIONING_PROFILE_UNAVAILABLE'; exit 3; }
+          IFS=$'\t' read -r TEAM PROFILE_UUID IDENTITY_HASH <<< "$PROFILE_SELECTION"
+          test -n "$TEAM" && test -n "$PROFILE_UUID" && test -n "$IDENTITY_HASH" || { echo 'APP_PROVISIONING_PROFILE_UNAVAILABLE'; exit 3; }
+          xcrun devicectl list devices --json-output "$RUNNER_TEMP/goriq-1218-devices.json" >/dev/null
+          DEVICE_ID="$(python3 - "$RUNNER_TEMP/goriq-1218-devices.json" <<'PY'
+          import json,sys
+          with open(sys.argv[1]) as handle:
+              records=json.load(handle).get('result',{}).get('devices',[])
+          phones=[d for d in records if 'iphone' in str(d.get('deviceProperties',{}).get('name','')).lower() and d.get('connectionProperties',{}).get('transportType') in ('wired','localNetwork')]
+          print(phones[0].get('identifier','') if len(phones)==1 else '')
+          PY
+          )"
+          rm -f "$RUNNER_TEMP/goriq-1218-devices.json"
+          test -n "$DEVICE_ID" || { echo 'EXACTLY_ONE_CONNECTED_IPHONE_REQUIRED'; exit 4; }
+          cd apps/ios-owner
+          xcodebuild -quiet -project JarvisIOSOwner.xcodeproj -scheme JarvisIOSOwner -configuration Debug -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath "$RUNNER_TEMP/goriq-1218-derived" DEVELOPMENT_TEAM="$TEAM" CODE_SIGN_STYLE=Automatic CODE_SIGN_IDENTITY='Apple Development' CODE_SIGNING_ALLOWED=YES build
+          APP="$RUNNER_TEMP/goriq-1218-derived/Build/Products/Debug-iphoneos/JarvisIOSOwner.app"
+          test -d "$APP"
+          if ! xcrun devicectl device install app --device "$DEVICE_ID" "$APP" >"$RUNNER_TEMP/goriq-1218-install.log" 2>&1; then
+            python3 - "$RUNNER_TEMP/goriq-1218-install.log" "$DEVICE_ID" <<'PY'
+          import pathlib, re, sys
+          text = pathlib.Path(sys.argv[1]).read_text(errors='replace')[:50000]
+          text = text.replace(sys.argv[2], 'DEVICE_ID_REDACTED')
+          text = re.sub(r'[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}', 'EMAIL_REDACTED', text)
+          text = re.sub(r'(?i)\b[0-9a-f]{8}-[0-9a-f-]{27,}\b', 'UUID_REDACTED', text)
+          text = re.sub(r'(?i)\b[0-9a-f]{40}\b', 'CERTIFICATE_REDACTED', text)
+          text = re.sub(r'/Users/[^\s:]+', '/Users/USER_REDACTED', text)
+          lines = [line.strip() for line in text.splitlines() if re.search(r'error|fail|reason|locked|trust|developer|passcode|profile|install', line, re.I)]
+          diagnostic = ' | '.join(lines[:12])[:1800] or 'No classified install detail was returned.'
+          print('INSTALL_DIAGNOSTIC=' + diagnostic)
+          PY
+            rm -f "$RUNNER_TEMP/goriq-1218-install.log"
+            echo 'DEVICE_INSTALL_FAILED'
+            exit 5
+          fi
+          rm -f "$RUNNER_TEMP/goriq-1218-install.log"
+          if ! xcrun devicectl device process launch --device "$DEVICE_ID" com.haji84.jarvis.iosowner >"$RUNNER_TEMP/goriq-1218-launch.log" 2>&1; then
+            python3 - "$RUNNER_TEMP/goriq-1218-launch.log" "$DEVICE_ID" <<'PY'
+          import pathlib, re, sys
+          text = pathlib.Path(sys.argv[1]).read_text(errors='replace')[:50000]
+          text = text.replace(sys.argv[2], 'DEVICE_ID_REDACTED')
+          text = re.sub(r'[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}', 'EMAIL_REDACTED', text)
+          text = re.sub(r'(?i)\b[0-9a-f]{8}-[0-9a-f-]{27,}\b', 'UUID_REDACTED', text)
+          text = re.sub(r'/Users/[^\s:]+', '/Users/USER_REDACTED', text)
+          lines = [line.strip() for line in text.splitlines() if re.search(r'error|fail|reason|locked|trust|developer|passcode|launch|denied', line, re.I)]
+          diagnostic = ' | '.join(lines[:12])[:1800] or 'No classified launch detail was returned.'
+          print('LAUNCH_DIAGNOSTIC=' + diagnostic)
+          PY
+            rm -f "$RUNNER_TEMP/goriq-1218-launch.log"
+            echo 'DEVICE_LAUNCH_FAILED'
+            exit 6
+          fi
+          rm -f "$RUNNER_TEMP/goriq-1218-launch.log"
+          echo 'IPHONE_OWNER_APP_LAUNCHED_NO_SECRET_TRANSFER'

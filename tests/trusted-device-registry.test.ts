@@ -38,3 +38,16 @@ test("unregistered legacy device can be revoked and corrupt state fails closed",
     assert.throws(() => registry.list());
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
+
+test("version-one device files remain readable without a recovery-state rewrite", () => {
+  const dir = mkdtempSync(join(tmpdir(), "trusted-device-registry-"));
+  const path = join(dir, "registry.json");
+  const original = JSON.stringify({ version: 1, devices: [{ deviceId: first, label: "Existing iPhone", revoked: false }] });
+  try {
+    writeFileSync(path, original);
+    const registry = new TrustedDeviceRegistry(path);
+    assert.deepEqual(registry.list(), [{ deviceId: first, label: "Existing iPhone", revoked: false }]);
+    assert.equal(registry.isRevoked(first), false);
+    assert.equal(readFileSync(path, "utf8"), original);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});

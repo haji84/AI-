@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   createOwnerSessionToken,
+  ownerSessionClaims,
   OWNER_SESSION_FUTURE_TOLERANCE_SECONDS,
   OWNER_SESSION_MAX_AGE_SECONDS,
   verifyOwnerPasscode,
@@ -60,4 +61,20 @@ test("owner sessions include a fresh nonce when one is not supplied", () => {
 test("owner passcode comparison rejects mismatches", () => {
   assert.equal(verifyOwnerPasscode("secret-a", "secret-a"), true);
   assert.equal(verifyOwnerPasscode("secret-a", "secret-b"), false);
+});
+
+test("trusted owner session claims expose only a valid bound device and issued-at", () => {
+  const deviceId = "device_1234567890abcdef";
+  const token = createOwnerSessionToken(secret, { issuedAtSeconds, nonce, deviceId });
+
+  assert.deepEqual(ownerSessionClaims(secret, token, { nowSeconds: issuedAtSeconds }), {
+    deviceId,
+    issuedAtSeconds,
+  });
+  assert.equal(ownerSessionClaims(secret, createOwnerSessionToken(secret, { issuedAtSeconds, nonce }), { nowSeconds: issuedAtSeconds }), null);
+  assert.equal(ownerSessionClaims(secret, token, { nowSeconds: issuedAtSeconds + OWNER_SESSION_MAX_AGE_SECONDS + 1 }), null);
+  assert.equal(ownerSessionClaims(secret, token, { nowSeconds: issuedAtSeconds - OWNER_SESSION_FUTURE_TOLERANCE_SECONDS - 1 }), null);
+  const tampered = token.slice(0, -1) + (token.endsWith("A") ? "B" : "A");
+  assert.equal(ownerSessionClaims(secret, tampered, { nowSeconds: issuedAtSeconds }), null);
+  assert.equal(ownerSessionClaims(secret, "not-a-session", { nowSeconds: issuedAtSeconds }), null);
 });

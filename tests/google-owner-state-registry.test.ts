@@ -1,0 +1,80 @@
+import assert from "node:assert/strict";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import test from "node:test";
+import { GoogleOwnerStateRegistry } from "../src/jarvis/google-owner-state-registry.ts";
+
+const device = "device_1234567890abcdef";
+
+test("first bind requires verified bootstrap email and persists immutable sub", () => {
+  const dir = mkdtempSync(join(tmpdir(), "google-owner-"));
+  try {
+    const path = join(dir, "state.json");
+    const store = new GoogleOwnerStateRegistry(path);
+    assert.throws(() => store.bindIdentity({ sub: "s1", email: "owner@example.com", emailVerified: false, bootstrapEmail: "owner@example.com" }, 1000));
+    assert.throws(() => store.bindIdentity({ sub: "s1", email: "other@example.com", emailVerified: true, bootstrapEmail: "owner@example.com" }, 1000));
+    store.bindIdentity({ sub: "s1", email: "owner@example.com", emailVerified: true, bootstrapEmail: "owner@example.com" }, 1000);
+    const reopened = new GoogleOwnerStateRegistry(path);
+    assert.equal(reopened.identity()?.sub, "s1");
+    assert.doesNotThrow(() => reopened.bindIdentity({ sub: "s1", email: "changed@example.com", emailVerified: true, bootstrapEmail: "owner@example.com" }, 1001));
+    assert.throws(() => reopened.bindIdentity({ sub: "s2", email: "owner@example.com", emailVerified: true, bootstrapEmail: "owner@example.com" }, 1002));
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("durable context consumption survives restart and rejects replay", () => {
+  const dir = mkdtempSync(join(tmpdir(), "google-owner-"));
+  try {
+    const path = join(dir, "state.json");
+    const store = new GoogleOwnerStateRegistry(path);
+    const context = store.issueContext({ deviceId: device, publicKeyThumbprint: "thumb", state: "state", nonce: "nonce", pkceChallenge: "pkce" }, 1000);
+    const reopened = new GoogleOwnerStateRegistry(path);
+    assert.equal(context.expiresAt, 1300);
+    assert.equal(reopened.consumeContext({ ...context, deviceId: device, publicKeyThumbprint: "thumb", state: "state", nonce: "nonce" }, 1120).pkceChallenge, "pkce");
+    assert.throws(() => new GoogleOwnerStateRegistry(path).consumeContext({ ...context, deviceId: device, publicKeyThumbprint: "thumb", state: "state", nonce: "nonce" }, 1121));
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("durable context rejects use after the five-minute boundary", () => {
+  const dir = mkdtempSync(join(tmpdir(), "google-owner-"));
+  try {
+    const store = new GoogleOwnerStateRegistry(join(dir, "state.json"));
+    const input = { deviceId: device, publicKeyThumbprint: "thumb", state: "state", nonce: "nonce", pkceChallenge: "pkce" };
+    const context = store.issueContext(input, 1000);
+    assert.throws(() => store.consumeContext({ ...input, contextId: context.contextId }, 1301));
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("corrupt persisted Google Owner state fails closed", () => {
+  const dir = mkdtempSync(join(tmpdir(), "google-owner-"));
+  try {
+    const path = join(dir, "state.json");
+    writeFileSync(path, JSON.stringify({ version: 1, identity: { provider: "google", sub: "", boundAt: 0, version: 1 }, contexts: [] }));
+    assert.throws(() => new GoogleOwnerStateRegistry(path).identity());
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("oversized context is rejected and capacity never evicts a live context", () => {
+  const dir = mkdtempSync(join(tmpdir(), "google-owner-"));
+  try {
+    const store = new GoogleOwnerStateRegistry(join(dir, "state.json"));
+    const input = { deviceId: device, publicKeyThumbprint: "thumb", state: "state", nonce: "nonce", pkceChallenge: "pkce" };
+    assert.throws(() => store.issueContext({ ...input, state: "x".repeat(3000) }, 1000));
+    const first = store.issueContext(input, 1000);
+    for (let i = 1; i < 100; i++) store.issueContext(input, 1000);
+    assert.throws(() => store.issueContext(input, 1000), /capacity/);
+    assert.equal(store.consumeContext({ ...input, contextId: first.contextId }, 1001).contextId, first.contextId);
+    assert.doesNotThrow(() => store.issueContext(input, 1001));
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("binding fails closed if another process holds the state lock", () => {
+  const dir = mkdtempSync(join(tmpdir(), "google-owner-"));
+  try {
+    const path = join(dir, "state.json");
+    mkdirSync(path + ".lock");
+    const store = new GoogleOwnerStateRegistry(path);
+    assert.throws(() => store.bindIdentity({ sub: "s1", email: "owner@example.com", emailVerified: true, bootstrapEmail: "owner@example.com" }, 1000));
+    assert.equal(store.identity(), undefined);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
