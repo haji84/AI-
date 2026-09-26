@@ -24,6 +24,7 @@ test("native Daily Driver uses one composer and durable Goal polling", async () 
   assert.match(runtime, /goriq-native-last-goal-id/);
   assert.match(runtime, /HUMAN_GATE/);
   assert.match(runtime, /DEVICE_ACTION_PROTECTED/);
+  assert.match(runtime, /if \(result\.statusCode == 401\)[\s\S]*ensureOwnerSession[\s\S]*ownerAPIRequest/);
 });
 
 test("native Daily Driver reuses trusted-device proof instead of embedding owner secrets", async () => {
