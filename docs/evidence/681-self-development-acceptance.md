@@ -26,12 +26,20 @@ The run also reconstructs the device inbox from disk, confirms that the determin
 |---|---|
 | Deterministic simulation | PASS |
 | Real local model | NOT RUN |
-| Real GitHub PR / protected merge / main CI | NOT RUN |
-| Production exact-artifact deployment | NOT RUN |
+| Real GitHub PR / protected merge / main CI | PASS |
+| Production exact-artifact deployment | PASS |
 | One physical iPhone | NOT RUN |
 
-This evidence does not mark `CORE-014` or any `AUTO-*` requirement complete. Their canonical status remains `PARTIAL` until the exact branch is merged, main CI passes, the exact Production artifact is verified, and one physical iPhone returns signed evidence. No secrets, credentials, recovery codes, permission changes, workflow-permission changes, billing changes, destructive migrations, or Human Gate weakening are covered or authorized by this record.
+This evidence does not mark `CORE-014` or any `AUTO-*` requirement complete. Their canonical status remains `PARTIAL` until a configured real local model passes its bounded acceptance and one physical iPhone returns signed evidence. No secrets, credentials, recovery codes, permission changes, workflow-permission changes, billing changes, destructive migrations, or Human Gate weakening are covered or authorized by this record.
 
 ## Task 12 external execution attempt
 
-On 2026-09-26, `origin/main` was fetched successfully and the verified branch had no missing main commits. HTTPS CLI push could not authenticate, so the approved connected GitHub App created the same ordered commit trees and published only `goriq/681-offline-self-development`; every reconstructed tree SHA was checked against the corresponding local tree before the branch ref was created. Remote code commit `fe1a11c81ccf4f1b290a9b0143dbc3fae72f6ba4` is the exact tree accepted above. Protected PR merge/main CI, Production, configured device-local Builder, Release connector, and signed physical-iPhone execution remain pending; no credential creation or protection bypass was attempted.
+On 2026-09-26, `origin/main` was fetched successfully and the verified branch had no missing main commits. HTTPS CLI push could not authenticate, so the approved connected GitHub App created the same ordered commit trees and published only `goriq/681-offline-self-development`; every reconstructed tree SHA was checked against the corresponding local tree before the branch ref was created. Remote code commit `fe1a11c81ccf4f1b290a9b0143dbc3fae72f6ba4` is the exact tree accepted above. No credential creation or protection bypass was attempted.
+
+## Release execution evidence
+
+- PR [#1256](https://github.com/haji84/AI-/pull/1256) passed CI run `36230652231` and merged without force or protection bypass.
+- Exact main merge commit: `fb9fdbd4a75802b0115340181ecd65d27536fb2e`.
+- Main CI run `36230761702` passed lint, tests, P8 security, build, repository guard, and the Production health endpoint check.
+- Vercel deployment `EHGncCFVjrPRkcFe9uaxJJ2qjXu5` reported `Ready`, environment `Production`, source commit `fb9fdbd4a75802b0115340181ecd65d27536fb2e`, and current domain `jarvis-fawn-iota.vercel.app`.
+- The physical-iPhone gate remains `NOT RUN`: this executor has no attached iPhone toolchain or reachable configured iPhone Bridge. No simulated or historical device record is promoted to current physical evidence.
