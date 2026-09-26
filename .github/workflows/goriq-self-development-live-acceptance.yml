@@ -107,23 +107,25 @@ jobs:
           fi
           test -x "$XCODEGEN_BIN"
           "$XCODEGEN_BIN" --version
-          DEVICE_JSON="$RUNNER_TEMP/goriq-681-devices.json"
-          DEVICECTL_OUTPUT="$RUNNER_TEMP/goriq-681-devicectl-output.log"
+          XCDEVICE_JSON="$RUNNER_TEMP/goriq-681-xcdevice.json"
+          XCDEVICE_OUTPUT="$RUNNER_TEMP/goriq-681-xcdevice-output.log"
           set +e
-          xcrun devicectl list devices --verbose --timeout 30 --json-output "$DEVICE_JSON" >"$DEVICECTL_OUTPUT" 2>&1
-          DEVICECTL_EXIT=$?
+          xcrun xcdevice list --timeout 30 >"$XCDEVICE_JSON" 2>"$XCDEVICE_OUTPUT"
+          XCDEVICE_EXIT=$?
           set -e
-          if (( DEVICECTL_EXIT != 0 )); then
-            node scripts/goriq-format-devicectl-failure.mjs "$DEVICECTL_EXIT" "$DEVICECTL_OUTPUT" "devicectl list devices"
-            exit "$DEVICECTL_EXIT"
+          echo "physical-iPhone stage=xcdevice-list exit=$XCDEVICE_EXIT"
+          if (( XCDEVICE_EXIT != 0 )); then
+            echo "xcdevice list failed; run the physical iPhone preflight workflow" >&2
+            exit "$XCDEVICE_EXIT"
           fi
           SELECTOR_OUTPUT="$RUNNER_TEMP/goriq-681-device-selector.log"
           set +e
-          DEVICE_ID="$(node scripts/goriq-select-physical-iphone.mjs "$DEVICE_JSON" 2>"$SELECTOR_OUTPUT")"
+          DEVICE_ID="$(node scripts/goriq-physical-iphone-preflight.mjs select-available-xcdevice "$XCDEVICE_JSON" 2>"$SELECTOR_OUTPUT")"
           SELECTOR_EXIT=$?
           set -e
+          echo "physical-iPhone stage=xcdevice-selection exit=$SELECTOR_EXIT"
           if (( SELECTOR_EXIT != 0 )); then
-            node scripts/goriq-format-devicectl-failure.mjs "$SELECTOR_EXIT" "$SELECTOR_OUTPUT" "physical iPhone selection"
+            cat "$SELECTOR_OUTPUT" >&2
             exit "$SELECTOR_EXIT"
           fi
           test -n "$DEVICE_ID"

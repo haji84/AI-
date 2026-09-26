@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  selectSingleAvailablePhysicalIPhoneFromXCDevice,
   selectSinglePhysicalIPhoneFromXCDevice,
   summarizePhysicalIPhonePreflight,
 } from "../scripts/goriq-physical-iphone-preflight.mjs";
@@ -18,6 +19,13 @@ test("selects one physical iPhone from xcdevice without selecting simulators", (
   assert.equal(selectSinglePhysicalIPhoneFromXCDevice([phone, { ...phone, simulator: true, identifier: "simulator-id" }]), phone.identifier);
   assert.throws(() => selectSinglePhysicalIPhoneFromXCDevice([]), /exactly one physical iPhone/);
   assert.throws(() => selectSinglePhysicalIPhoneFromXCDevice([phone, { ...phone, identifier: "second-phone" }]), /exactly one physical iPhone/);
+});
+
+test("selects the one available physical iPhone after pairing", () => {
+  const unavailable = { ...phone, identifier: "stale-phone" };
+  const available = { ...phone, identifier: "prepared-phone", available: true, error: undefined };
+  assert.equal(selectSingleAvailablePhysicalIPhoneFromXCDevice([unavailable, available]), "prepared-phone");
+  assert.throws(() => selectSingleAvailablePhysicalIPhoneFromXCDevice([unavailable]), /exactly one available physical iPhone/);
 });
 
 test("summarizes USB and Xcode device state without leaking identifiers or user paths", () => {
