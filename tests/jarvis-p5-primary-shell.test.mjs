@@ -7,22 +7,22 @@ async function source(path) {
   return readFile(new URL(`../${path}`, import.meta.url), "utf8");
 }
 
-test("P5 primary shell exposes the five frozen top-level operating screens", async () => {
+test("P5 primary shell keeps one Daily Driver front door while all operating screens remain reachable", async () => {
   const shell = await source("src/app/jarvis/JarvisPrimaryShell.tsx");
   const layout = await source("src/app/jarvis/layout.tsx");
 
   for (const [href, label] of [
     ["/jarvis", "ホーム"],
-    ["/jarvis/devices", "デバイス"],
-    ["/jarvis/tasks", "タスク"],
-    ["/jarvis/research", "リサーチ"],
+    ["/jarvis/tasks", "作業"],
+    ["/jarvis/devices", "端末"],
     ["/jarvis/settings", "設定"],
   ]) {
-    assert.ok(shell.includes(`href: "${href}"`), `missing ${href}`);
-    assert.ok(shell.includes(`label: "${label}"`), `missing ${label}`);
+    assert.ok(shell.includes(`href: "${href}"`), `missing primary route ${href}`);
+    assert.ok(shell.includes(`label: "${label}"`), `missing primary label ${label}`);
   }
 
-  assert.match(shell, /aria-label="JARVIS メインナビゲーション"/);
+  assert.match(shell, /href="\/jarvis\/research"/);
+  assert.match(shell, /aria-label="GORIQ メインナビゲーション"/);
   assert.match(shell, /pathname\.startsWith\("\/jarvis\/login"\)/);
   assert.match(layout, /<JarvisPrimaryShell>\{children\}<\/JarvisPrimaryShell>/);
 });
