@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { URL } from "node:url";
 
 function source(path) {
   try { return readFileSync(new URL(path, import.meta.url), "utf8"); }

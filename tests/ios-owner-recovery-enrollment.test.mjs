@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { URL } from "node:url";
 
 const runtime = readFileSync(new URL("../apps/ios-owner/Sources/OwnerCredentialRuntime.swift", import.meta.url), "utf8");
 const ui = readFileSync(new URL("../apps/ios-owner/Sources/JarvisIOSOwnerApp.swift", import.meta.url), "utf8");
