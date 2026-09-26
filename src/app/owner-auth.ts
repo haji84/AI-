@@ -21,6 +21,11 @@ type VerifyOwnerSessionOptions = {
   nowSeconds?: number;
 };
 
+export type TrustedOwnerSessionClaims = {
+  deviceId: string;
+  issuedAtSeconds: number;
+};
+
 function currentUnixSeconds(): number {
   return Math.floor(Date.now() / 1000);
 }
@@ -48,33 +53,42 @@ export function createOwnerSessionToken(secret: string, options: CreateOwnerSess
   return `${payload}.${signature}`;
 }
 
-export function verifyOwnerSessionToken(secret: string, token: string | undefined, options: VerifyOwnerSessionOptions = {}): boolean {
-  if (!secret.trim() || !token) return false;
+function parseOwnerSessionToken(secret: string, token: string | undefined, options: VerifyOwnerSessionOptions = {}): { issuedAtSeconds: number; deviceId?: string } | null {
+  if (!secret.trim() || !token) return null;
 
   const parts = token.split(".");
   const [version, issuedAtRaw, nonce] = parts;
   const trusted = version === TRUSTED_SESSION_VERSION;
-  if (trusted ? parts.length !== 5 || !TRUSTED_DEVICE_ID.test(parts[3]) : parts.length !== 4 || version !== OWNER_SESSION_VERSION) return false;
+  if (trusted ? parts.length !== 5 || !TRUSTED_DEVICE_ID.test(parts[3]) : parts.length !== 4 || version !== OWNER_SESSION_VERSION) return null;
   const deviceId = trusted ? parts[3] : undefined;
   const signature = parts[trusted ? 4 : 3];
-  if (!issuedAtRaw || !nonce || !signature) return false;
-  if (!/^\d+$/.test(issuedAtRaw) || !NONCE_PATTERN.test(nonce) || !SIGNATURE_PATTERN.test(signature)) return false;
+  if (!issuedAtRaw || !nonce || !signature) return null;
+  if (!/^\d+$/.test(issuedAtRaw) || !NONCE_PATTERN.test(nonce) || !SIGNATURE_PATTERN.test(signature)) return null;
 
   const issuedAtSeconds = Number(issuedAtRaw);
   const nowSeconds = options.nowSeconds ?? currentUnixSeconds();
-  if (!Number.isSafeInteger(issuedAtSeconds) || issuedAtSeconds <= 0 || !Number.isSafeInteger(nowSeconds) || nowSeconds <= 0) return false;
-  if (issuedAtSeconds > nowSeconds + OWNER_SESSION_FUTURE_TOLERANCE_SECONDS) return false;
-  if (nowSeconds - issuedAtSeconds > OWNER_SESSION_MAX_AGE_SECONDS) return false;
+  if (!Number.isSafeInteger(issuedAtSeconds) || issuedAtSeconds <= 0 || !Number.isSafeInteger(nowSeconds) || nowSeconds <= 0) return null;
+  if (issuedAtSeconds > nowSeconds + OWNER_SESSION_FUTURE_TOLERANCE_SECONDS) return null;
+  if (nowSeconds - issuedAtSeconds > OWNER_SESSION_MAX_AGE_SECONDS) return null;
 
   const payload = sessionPayload(issuedAtSeconds, nonce, deviceId);
   const expected = signSessionPayload(secret, payload);
   const actual = Buffer.from(signature, "base64url");
-  return expected.length === actual.length && timingSafeEqual(expected, actual);
+  if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) return null;
+  return { issuedAtSeconds, ...(deviceId ? { deviceId } : {}) };
+}
+
+export function verifyOwnerSessionToken(secret: string, token: string | undefined, options: VerifyOwnerSessionOptions = {}): boolean {
+  return parseOwnerSessionToken(secret, token, options) !== null;
+}
+
+export function ownerSessionClaims(secret: string, token: string | undefined, options: VerifyOwnerSessionOptions = {}): TrustedOwnerSessionClaims | null {
+  const claims = parseOwnerSessionToken(secret, token, options);
+  return claims?.deviceId ? { deviceId: claims.deviceId, issuedAtSeconds: claims.issuedAtSeconds } : null;
 }
 
 export function ownerSessionDeviceId(secret: string, token: string | undefined, options: VerifyOwnerSessionOptions = {}): string | null {
-  if (!verifyOwnerSessionToken(secret, token, options)) return null;
-  return token?.startsWith(`${TRUSTED_SESSION_VERSION}.`) ? token.split(".")[3] : null;
+  return ownerSessionClaims(secret, token, options)?.deviceId ?? null;
 }
 
 export async function verifyOwnerSessionBinding(secret: string, token: string | undefined, isRevoked: (deviceId: string) => Promise<unknown>): Promise<boolean> {
