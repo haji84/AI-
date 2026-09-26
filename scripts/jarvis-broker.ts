@@ -11,7 +11,7 @@ import { createHash, createPublicKey, randomBytes, timingSafeEqual } from "node:
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { OwnerInvitationStore, INVITATION_PREFIX } from "../src/jarvis/owner-invitation.ts";
-import { TrustedDeviceRegistry } from "../src/jarvis/trusted-device-registry.ts";
+import { generateOwnerRecoveryCode, TrustedDeviceRegistry } from "../src/jarvis/trusted-device-registry.ts";
 import { GoogleOwnerStateRegistry } from "../src/jarvis/google-owner-state-registry.ts";
 import { invitationUrl } from "../src/jarvis/invitation-link.ts";
 import { FixedEnrollmentRateLimiter } from "../src/jarvis/fixed-enrollment.ts";
@@ -121,7 +121,7 @@ const remoteMailbox = new WorkerRemoteMailbox();
 const pendingEnrollment = new PendingEnrollment();
 const pairingWindow = new JarvisEnrollmentPairingWindow();
 const invitations = new OwnerInvitationStore((process.env.JARVIS_DB_PATH?.trim() || resolve(".jarvis/jarvis.db")) + ".invitation.json");
-const trustedDevices = new TrustedDeviceRegistry((process.env.JARVIS_DB_PATH?.trim() || resolve(".jarvis/jarvis.db")) + ".trusted-devices.json");
+const trustedDevices = new TrustedDeviceRegistry((process.env.JARVIS_DB_PATH?.trim() || resolve(".jarvis/jarvis.db")) + ".trusted-devices.json", ownerToken);
 const googleOwnerState = new GoogleOwnerStateRegistry((process.env.JARVIS_DB_PATH?.trim() || resolve(".jarvis/jarvis.db")) + ".google-owner.json");
 const invitationLimiter = new FixedEnrollmentRateLimiter(60_000, 100, 200);
 const replacementTransport = new JarvisDeviceReplacementTransport({ identityForNode: (nodeId) => store.getWorkerIdentity(nodeId) });
@@ -350,6 +350,29 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
         }
         return json(response, 400, { message: "invalid google owner state request" });
       } catch { return json(response, 409, { message: "google owner state rejected" }); }
+    }
+    if (path === "/api/jarvis/admin/owner-recovery") {
+      response.setHeader("Referrer-Policy", "no-referrer");
+      if (method !== "POST" || body.length > 4096) return json(response, 400, { message: "invalid owner recovery request" });
+      try {
+        if (payload.action === "issue" && typeof payload.issuerDeviceId === "string") {
+          const code = generateOwnerRecoveryCode();
+          const issued = trustedDevices.issueRecovery({ issuerDeviceId: payload.issuerDeviceId, code });
+          return json(response, 201, { code, expiresAt: issued.expiresAt });
+        }
+        if (payload.action === "cancel" && typeof payload.issuerDeviceId === "string") {
+          return json(response, 200, trustedDevices.cancelRecovery(payload.issuerDeviceId));
+        }
+        if (payload.action === "redeem" && typeof payload.code === "string" && typeof payload.deviceId === "string" &&
+          typeof payload.label === "string" && typeof payload.publicKeyThumbprint === "string" && typeof payload.sourceBucket === "string") {
+          const device = trustedDevices.redeemRecovery({
+            code: payload.code, deviceId: payload.deviceId, label: payload.label,
+            publicKeyThumbprint: payload.publicKeyThumbprint, sourceBucket: payload.sourceBucket,
+          });
+          return json(response, 200, { device });
+        }
+        return json(response, 400, { message: "invalid owner recovery request" });
+      } catch { return json(response, 409, { message: "owner recovery rejected" }); }
     }
     if (path === "/api/jarvis/admin/trusted-devices") {
       try {
