@@ -22,7 +22,6 @@ test("orchestrator decomposes development into TDD, implementation, and independ
   assert.match(plan.strategy.reason, /TDD/i);
   assert.match(plan.rollbackPlan, /base revision/i);
 });
-
 test("orchestrator selects a different strategy after a recorded failure", () => {
   const orchestrator = new DevelopmentOrchestrator();
   const initial = orchestrator.plan({
@@ -70,4 +69,3 @@ test("repository text cannot grant risk or release authority", () => {
   assert.equal(plan.job.approvalScope.maxRisk, "low");
   assert.equal(plan.releaseAuthority, false);
 });
-

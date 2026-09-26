@@ -29,7 +29,6 @@ test("development Change Set binds immutable base, device, digests, and rollback
   assert.deepEqual(value.changedPaths, ["src/example.ts"]);
   assert.equal(value.rollback.reference, value.baseRevision);
 });
-
 test("development Change Set rejects traversal and secret-bearing metadata", () => {
   assert.throws(() => createDevelopmentChangeSet({
     ...changeSet(),
@@ -54,4 +53,3 @@ test("Change Set store survives restart and refuses identity mutation", async ()
     await rm(directory, { recursive: true, force: true });
   }
 });
-

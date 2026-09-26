@@ -16,7 +16,6 @@ test("legacy self-development stages expose the durable job state", () => {
   state = nextDevelopmentState(state, { stage: "IMPLEMENT", ok: true, evidenceRefs: ["implementation:evidence"] });
   assert.equal(state.job.phase, "VERIFYING");
 });
-
 test("progress-aware recovery does not abandon a goal after a fixed failure count", () => {
   let state = createDevelopmentState();
   state = nextDevelopmentState(state, { stage: "INSPECT", ok: true, evidenceRefs: ["inspect"] });
@@ -78,4 +77,3 @@ test("legacy state survives JSON reconstruction with durable failure history", (
   assert.equal(recovered.stage, "IMPLEMENT");
   assert.deepEqual(recovered.job.failureSignatures, ["sig"]);
 });
-

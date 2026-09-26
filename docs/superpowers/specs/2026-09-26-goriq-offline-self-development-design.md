@@ -1,8 +1,11 @@
 # GORIQ Online/Offline Self-Development Design
 
-Date: 2026-09-26 JST  
-Parent Goal: Issue #681  
-Implementation master: Issue #882  
+Date: 2026-09-26 JST
+
+Parent Goal: Issue #681
+
+Implementation master: Issue #882
+
 Requirements: CORE-014 and AUTO-001 through AUTO-031
 
 ## Goal

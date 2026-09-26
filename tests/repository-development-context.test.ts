@@ -21,7 +21,6 @@ test("repository context maps symbols, imports, tests, and requirement reference
   assert.deepEqual(context.relatedTests, ["tests/goal-runner.test.ts"]);
   assert.equal(context.truncated, false);
 });
-
 test("repository context is bounded and does not ingest unrelated files", () => {
   const context = buildRepositoryDevelopmentContext({
     objective: "Change src/a.ts",
@@ -37,4 +36,3 @@ test("repository context is bounded and does not ingest unrelated files", () => 
   assert.equal(context.truncated, true);
   assert.ok(context.items.reduce((total, item) => total + item.summary.length, 0) <= 120);
 });
-

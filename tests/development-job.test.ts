@@ -40,7 +40,6 @@ test("development job requires authoritative goal, DoD, base revision, approval 
     assert.throws(() => createDevelopmentJob(invalid), /required|invalid/i);
   }
 });
-
 test("state controller commits legal append-only idempotent transitions", () => {
   const controller = new DevelopmentJobStateController();
   const created = createDevelopmentJob(input(), new Date("2026-09-26T00:00:00.000Z"));
@@ -131,4 +130,3 @@ test("failure signatures and rejected strategies survive state transitions", () 
   assert.deepEqual(job.rejectedStrategyIds, ["strategy-a"]);
   assert.equal(job.attempts.at(-1)?.hypothesis, "fixture is stale");
 });
-

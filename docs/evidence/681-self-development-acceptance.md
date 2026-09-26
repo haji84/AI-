@@ -1,7 +1,9 @@
 # #681 GORIQ self-development acceptance evidence
 
-Recorded: 2026-09-26T12:00:00.000Z  
-Deterministic source revision: `f7bc13ab7a989eaf9c2f448a6161fb50b2a9b8f8`  
+Recorded: 2026-09-26T12:00:00.000Z
+
+Deterministic source revision: `f7bc13ab7a989eaf9c2f448a6161fb50b2a9b8f8`
+
 Requirements: `CORE-014`, `AUTO-001` through `AUTO-031`
 
 ## Current evidence

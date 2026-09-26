@@ -7,7 +7,6 @@ export interface DevelopmentJobSnapshot {
   jobs: DevelopmentJob[];
   savedAt: string;
 }
-
 export interface DevelopmentJobStore {
   get(jobId: string): Promise<DevelopmentJob | null>;
   getByGoal(goalId: string): Promise<DevelopmentJob[]>;
@@ -117,4 +116,3 @@ export class JsonFileDevelopmentJobStore extends BaseDevelopmentJobStore {
     await rename(temporary, this.filePath);
   }
 }
-

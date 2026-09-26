@@ -32,7 +32,6 @@ test("memory store returns clones and deduplicates job identity", async () => {
   assert.deepEqual((await store.get(value.jobId))?.blockers, []);
   await assert.rejects(() => store.put({ ...value, goalId: "other-goal" }), /identity conflict/i);
 });
-
 test("JSON store survives reconstruction and uses a versioned snapshot", async () => {
   const directory = await mkdtemp(join(tmpdir(), "goriq-development-job-"));
   const path = join(directory, "jobs.json");
@@ -60,4 +59,3 @@ test("JSON store rejects a corrupt or unsupported snapshot", async () => {
     await rm(directory, { recursive: true, force: true });
   }
 });
-

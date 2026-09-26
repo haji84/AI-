@@ -18,7 +18,6 @@ function validate(value: unknown): Snapshot {
   }
   return clone(snapshot as Snapshot);
 }
-
 export class JsonFileDevelopmentChangeSetStore {
   private readonly filePath: string;
   private loaded = false;
@@ -63,4 +62,3 @@ export class JsonFileDevelopmentChangeSetStore {
     await rename(temporary, this.filePath);
   }
 }
-

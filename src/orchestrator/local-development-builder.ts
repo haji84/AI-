@@ -8,7 +8,6 @@ import {
 export interface LocalDevelopmentBuilderInput extends BuilderRequest {
   workspaceRoot: string;
 }
-
 export interface LocalDevelopmentBuilderOptions {
   id: string;
   workspaceRoot: string;
@@ -74,4 +73,3 @@ export class LocalDevelopmentBuilder implements BuilderCapability {
     }
   }
 }
-

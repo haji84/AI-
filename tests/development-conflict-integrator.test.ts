@@ -29,7 +29,6 @@ test("independent development changes integrate deterministically", async () => 
   assert.deepEqual(result.changeSet?.changedPaths, ["src/a.ts", "src/b.ts"]);
   assert.deepEqual(result.provenance?.sourceChangeSetIds, ["local", "remote"]);
 });
-
 test("semantic candidates are rejected until all criteria and verifier pass", async () => {
   const attempted: string[] = [];
   const result = await new DevelopmentConflictIntegrator({
@@ -69,4 +68,3 @@ test("no verified integration candidate preserves both source changes", async ()
   assert.equal(result.blocker, "no_verified_integration_candidate");
   assert.deepEqual(result.preserved, [local, remote]);
 });
-

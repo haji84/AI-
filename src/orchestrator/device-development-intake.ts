@@ -12,7 +12,6 @@ export interface DeviceDevelopmentRequest {
   goalSnapshotDigest: string;
   causalParentId?: string;
 }
-
 export interface DeviceDevelopmentRecord extends DeviceDevelopmentRequest {
   recordId: string;
   status: "QUEUED_OFFLINE" | "SUBMITTED";
@@ -102,4 +101,3 @@ export class DeviceDevelopmentIntake {
     });
   }
 }
-

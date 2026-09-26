@@ -17,11 +17,9 @@ test("offline device intake persists and flushes with stable cross-device idempo
   assert.equal(duplicate.recordId, queued.recordId);
   assert.equal(calls.length, 1);
 });
-
 test("unsupported devices and multiple iPhone identities fail closed", async () => {
   const intake = new DeviceDevelopmentIntake({ inbox: new MemoryDeviceDevelopmentInbox(), async submit() { return { goalId: "g", action: "CONTINUE_GOAL" }; } });
   await intake.receive({ deviceId: "iphone-1", platform: "ios", ownerCommandId: "one", text: "one", connectivity: "offline", goalSnapshotDigest: "a".repeat(64) });
   await assert.rejects(() => intake.receive({ deviceId: "iphone-2", platform: "ios", ownerCommandId: "two", text: "two", connectivity: "offline", goalSnapshotDigest: "a".repeat(64) }), /one iPhone/i);
   await assert.rejects(() => intake.receive({ deviceId: "android", platform: "android" as "ios", ownerCommandId: "three", text: "three", connectivity: "offline", goalSnapshotDigest: "a".repeat(64) }), /unsupported device/i);
 });
-

@@ -31,7 +31,6 @@ test("normalized Builder result is a bounded Change Set without release authorit
   assert.deepEqual(result.changeSet?.changedPaths, ["src/example.ts"]);
   assert.equal(result.changeSet?.releaseAuthority, false);
 });
-
 test("Builder output cannot request commit, push, merge, deploy, credential, or permission authority", () => {
   for (const authority of ["commit", "push", "merge", "deploy", "credential", "permission"] as const) {
     assert.throws(() => normalizeDevelopmentBuilderResult(request(), {
@@ -132,4 +131,3 @@ test("materially equivalent failed strategy is rejected before Builder execution
   assert.equal(result.blocker, "equivalent_failed_strategy");
   assert.equal(called, false);
 });
-

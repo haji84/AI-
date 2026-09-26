@@ -6,7 +6,6 @@ export interface DevelopmentRollbackReference {
   kind: "git-base" | "reverse-patch" | "known-good-artifact";
   reference: string;
 }
-
 export interface DevelopmentChangeSet {
   version: 1;
   changeSetId: string;
@@ -72,4 +71,3 @@ export function createDevelopmentChangeSet(input: DevelopmentChangeSetCreateInpu
   assertDevelopmentChangeSet(value);
   return value;
 }
-

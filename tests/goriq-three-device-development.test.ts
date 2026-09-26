@@ -12,4 +12,3 @@ test("one iPhone plus ZBook and MacBook form the development topology", () => {
   assert.ok(iphoneWorkerProfile.capabilities.includes("offline-cache"));
   assert.ok(iphoneWorkerProfile.capabilities.includes("background-task"));
 });
-

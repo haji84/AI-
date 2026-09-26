@@ -34,7 +34,6 @@ test("local Builder returns the shared bounded Change Set envelope", async () =>
   assert.equal(evidence.changeSet?.builderId, "zbook-local");
   assert.equal(evidence.changeSet?.builderKind, "local");
 });
-
 test("local Builder fails closed when its engine is unavailable", async () => {
   const builder = new LocalDevelopmentBuilder({
     id: "mac-local",
@@ -55,4 +54,3 @@ test("local Builder fails closed when its engine is unavailable", async () => {
   assert.equal(result.ok, false);
   assert.equal(result.blocker, "local_builder_unavailable");
 });
-

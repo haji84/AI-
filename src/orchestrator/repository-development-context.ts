@@ -4,7 +4,6 @@ export interface RepositoryDevelopmentEntry {
   path: string;
   content: string;
 }
-
 export interface RepositoryDevelopmentContextItem {
   path: string;
   summary: string;
@@ -72,4 +71,3 @@ export function buildRepositoryDevelopmentContext(input: RepositoryDevelopmentCo
 
   return { objective: input.objective, selectedPaths, items, symbols, imports, requirementIds, relatedTests, truncated };
 }
-

@@ -20,7 +20,6 @@ export interface DevelopmentPlanningInput {
   contextDigest: string;
   priorFailures?: DevelopmentFailure[];
 }
-
 export interface DevelopmentPlan {
   job: DevelopmentJob;
   strategy: { id: string; hypothesis: string; reason: string };
@@ -109,4 +108,3 @@ export class DevelopmentOrchestrator {
     };
   }
 }
-

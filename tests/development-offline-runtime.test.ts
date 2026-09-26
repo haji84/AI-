@@ -47,7 +47,6 @@ test("offline development persists verified work as ready to publish", async () 
   }());
   assert.equal((await restored.get("development-1"))?.status, "ready-to-publish");
 });
-
 test("online publication-required work completes normally", async () => {
   const tasks = new DurableTaskRuntime(new MemoryDurableTaskStore());
   await tasks.enqueue({ id: "development-online", idempotencyKey: "development-online", type: "development-change" });
@@ -72,4 +71,3 @@ test("online publication-required work completes normally", async () => {
   }).runNext();
   assert.equal(outcome?.task.status, "completed");
 });
-

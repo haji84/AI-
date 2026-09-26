@@ -7,7 +7,6 @@ export interface DevelopmentIntegrationCandidate {
   patchDigest: string;
   satisfiedCriteria: string[];
 }
-
 export interface DevelopmentIntegrationStrategy {
   candidates(input: DevelopmentIntegrationInput): Promise<DevelopmentIntegrationCandidate[]>;
 }
@@ -119,4 +118,3 @@ export class DevelopmentConflictIntegrator {
     };
   }
 }
-

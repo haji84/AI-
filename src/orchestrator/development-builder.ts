@@ -14,7 +14,6 @@ export interface RawDevelopmentBuilderResult {
   blocker?: string;
   evidence?: Record<string, unknown>;
 }
-
 export interface DevelopmentChangeSetEnvelope {
   goalId: string;
   attemptId: string;
@@ -81,4 +80,3 @@ export function normalizeDevelopmentBuilderResult(
     },
   };
 }
-
