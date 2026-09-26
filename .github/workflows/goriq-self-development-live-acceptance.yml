@@ -139,11 +139,13 @@ jobs:
 
           EVIDENCE_DIR="$GITHUB_WORKSPACE/.gai-results/self-development-iphone"
           mkdir -p "$EVIDENCE_DIR"
-          test -s "$HOME/.jarvis/iphone-bridge-master.key"
+          EPHEMERAL_BRIDGE_KEY="$(python3 -c 'import secrets; print(secrets.token_hex(32))')"
+          echo "::add-mask::$EPHEMERAL_BRIDGE_KEY"
+          export IPHONE_BRIDGE_MASTER_KEY="$EPHEMERAL_BRIDGE_KEY"
+          echo "physical-iPhone stage=ephemeral-bridge-key ready"
           ADMIN_TOKEN="$(python3 -c 'import secrets; print(secrets.token_hex(32))')"
           export IPHONE_BRIDGE_HOST=0.0.0.0 IPHONE_BRIDGE_PORT=8797 IPHONE_PAIRING_WINDOW_MS=600000
           export IPHONE_ADMIN_TOKEN="$ADMIN_TOKEN" GIT_SHA="$GITHUB_SHA"
-          export IPHONE_BRIDGE_MASTER_KEY_PATH="$HOME/.jarvis/iphone-bridge-master.key"
           export IPHONE_EXPECTED_DEVICE_ID="$EXPECTED_WORKER_ID"
           export IPHONE_EXPECTED_BUILD_CHALLENGE="$BUILD_CHALLENGE"
           export IPHONE_EXPECTED_BUNDLE_ID="$ACCEPTANCE_BUNDLE_ID"
