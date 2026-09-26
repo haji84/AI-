@@ -9,7 +9,7 @@ struct JarvisIOSOwnerApp: App {
         WindowGroup {
             OwnerCredentialView().environmentObject(owner)
                 .onChange(of: scenePhase) { _, phase in
-                    if phase != .active { owner.hide() }
+                    if phase != .active { owner.hideRecoveryCode() }
                 }
                 .privacySensitive()
         }
@@ -25,28 +25,8 @@ struct OwnerCredentialView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("本番ログインコード") {
+                Section("Owner認証情報") {
                     LabeledContent("状態", value: owner.status)
-                    HStack {
-                        Text(owner.revealedCode ?? "••••••••••••")
-                            .font(.system(.body, design: .monospaced))
-                            .textSelection(.disabled)
-                            .privacySensitive()
-                        Spacer()
-                    }
-                    if owner.isEnrolled && owner.hasStoredCode {
-                        Button(owner.revealedCode == nil ? "表示" : "隠す") {
-                            if owner.revealedCode != nil { owner.hide() }
-                            else { run { try await owner.reveal() } }
-                        }.disabled(working)
-                        Button("コピー") { run { try await owner.copy() } }.disabled(working)
-                        Button("変更") {
-                            message = "本番コードの変更はZBook側で別途承認し、バックアップと復旧確認を伴って行います。変更後はこのiPhoneを再登録してください。"
-                        }
-                    } else if owner.isEnrolled {
-                        Text("Google登録では長い本番コードをiPhoneへ保存しません。Face IDと端末鍵でOwner確認します。")
-                            .font(.footnote)
-                    }
                 }
 
                 if !owner.isEnrolled {
@@ -72,11 +52,40 @@ struct OwnerCredentialView: View {
                         }
                     }
                 } else {
+                    Section("別端末のOwner登録") {
+                        if let recoveryCode = owner.recoveryCode, let expiry = owner.recoveryExpiresAt {
+                            TimelineView(.periodic(from: .now, by: 1)) { context in
+                                let remaining = max(0, Int(expiry.timeIntervalSince(context.date).rounded(.up)))
+                                if remaining > 0 {
+                                    Text(recoveryCode)
+                                        .font(.system(.title3, design: .monospaced).weight(.semibold))
+                                        .textSelection(.disabled)
+                                        .privacySensitive()
+                                    Text("有効期限まで \(remaining / 60)分\(remaining % 60)秒")
+                                        .font(.footnote)
+                                } else {
+                                    Text("復旧コードは期限切れです")
+                                        .font(.footnote)
+                                }
+                            }
+                            Button("復旧コードを隠す") { owner.hideRecoveryCode() }
+                                .disabled(working)
+                            Button("復旧コードを取り消す", role: .destructive) {
+                                run { try await owner.cancelRecoveryCode() }
+                            }.disabled(working)
+                        } else {
+                            Button("別端末の復旧コードを表示") {
+                                run { try await owner.issueRecoveryCode() }
+                            }.disabled(working)
+                        }
+                        Text("Face IDとこのiPhoneの端末鍵を確認後、5分間・1回限りの登録コードを表示します。")
+                            .font(.footnote)
+                    }
                     Section {
                         Button("Googleで端末鍵を再登録") {
                             run { try await owner.repairWithGoogle() }
                         }.disabled(working)
-                        Button("Face IDと端末鍵を確認") {
+                        Button("Face IDと端末鍵でログイン") {
                             run { try await owner.verifyTrustedDevice() }
                         }.disabled(working)
                         Button("この端末の信頼登録を失効して削除", role: .destructive) {

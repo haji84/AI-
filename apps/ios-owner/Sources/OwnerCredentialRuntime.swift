@@ -11,11 +11,14 @@ final class OwnerCredentialRuntime: ObservableObject {
     @Published var serverURL = UserDefaults.standard.string(forKey: "ownerServerURL") ?? (Bundle.main.object(forInfoDictionaryKey: "GORIQServerURL") as? String ?? "")
     @Published private(set) var status = "未登録"
     @Published private(set) var revealedCode: String?
+    @Published private(set) var recoveryCode: String?
+    @Published private(set) var recoveryExpiresAt: Date?
     @Published private(set) var isEnrolled = false
     @Published private(set) var hasStoredCode = false
 
     private let session: URLSession
     private let googleEnrollment = GoogleOwnerEnrollment()
+    private var recoveryExpiryTask: Task<Void, Never>?
     private static let codeAccount = "owner-production-code"
     private static let keyAccount = "owner-signing-key"
     private static let credentialAccount = "owner-trusted-credential"
@@ -141,6 +144,46 @@ final class OwnerCredentialRuntime: ObservableObject {
 
     func hide() { revealedCode = nil }
 
+    func issueRecoveryCode() async throws {
+        hideRecoveryCode()
+        status = "Face IDと端末鍵を確認中"
+        try await verifyTrustedDeviceProof()
+        let body = try JSONSerialization.data(withJSONObject: [:])
+        let result = try await send(base: try baseURL(), path: "/api/owner-login/trusted/recovery/issue", body: body, contentType: "application/json")
+        guard result.statusCode == 200,
+              let payload = try JSONSerialization.jsonObject(with: result.data) as? [String: Any],
+              let code = payload["code"] as? String,
+              code.range(of: #"^OR-[A-HJ-NP-Z2-9]{4}(?:-[A-HJ-NP-Z2-9]{4}){3}$"#, options: .regularExpression) != nil,
+              let expiresAt = payload["expiresAt"] as? NSNumber else { throw OwnerError.recoveryUnavailable }
+        let expiry = Date(timeIntervalSince1970: expiresAt.doubleValue)
+        guard expiry > Date(), expiry.timeIntervalSinceNow <= 300 else { throw OwnerError.recoveryUnavailable }
+        recoveryCode = code
+        recoveryExpiresAt = expiry
+        status = "別端末の復旧コードを表示中"
+        let delay = UInt64(max(0, expiry.timeIntervalSinceNow) * 1_000_000_000)
+        recoveryExpiryTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: delay)
+            guard !Task.isCancelled, self?.recoveryExpiresAt == expiry else { return }
+            self?.hideRecoveryCode()
+        }
+    }
+
+    func cancelRecoveryCode() async throws {
+        try await verifyTrustedDeviceProof()
+        let body = try JSONSerialization.data(withJSONObject: [:])
+        let result = try await send(base: try baseURL(), path: "/api/owner-login/trusted/recovery/cancel", body: body, contentType: "application/json")
+        guard result.statusCode == 200 else { throw OwnerError.recoveryUnavailable }
+        hideRecoveryCode()
+        status = "復旧コードを取り消しました"
+    }
+
+    func hideRecoveryCode() {
+        recoveryExpiryTask?.cancel()
+        recoveryExpiryTask = nil
+        recoveryCode = nil
+        recoveryExpiresAt = nil
+    }
+
     func verifyTrustedDevice() async throws {
         status = "Face IDと端末鍵を確認中"
         do {
@@ -187,6 +230,7 @@ final class OwnerCredentialRuntime: ObservableObject {
     }
 
     func forgetLocal() {
+        hideRecoveryCode()
         hide()
         for account in [Self.codeAccount, Self.keyAccount, Self.credentialAccount, Self.deviceIdAccount] {
             Keychain.delete(account: account)
@@ -299,7 +343,7 @@ private enum Keychain {
 }
 
 enum OwnerError: LocalizedError {
-    case invalidCode, invalidServer, ownerAuthentication, ownerAuthenticationUnavailable, ownerServerResponse, enrollment, trustUnavailable, keyUnavailable, revocationUnverified
+    case invalidCode, invalidServer, ownerAuthentication, ownerAuthenticationUnavailable, ownerServerResponse, enrollment, recoveryUnavailable, trustUnavailable, keyUnavailable, revocationUnverified
     var errorDescription: String? {
         switch self {
         case .invalidCode: "コード形式を確認してください"
@@ -308,6 +352,7 @@ enum OwnerError: LocalizedError {
         case .ownerAuthenticationUnavailable: "本番Owner認証がサーバーに設定されていません"
         case .ownerServerResponse: "本番サーバーから想定外の応答が返りました"
         case .enrollment: "端末登録に失敗しました"
+        case .recoveryUnavailable: "復旧コードを発行または取り消しできません"
         case .trustUnavailable: "端末の信頼状態を確認できません"
         case .keyUnavailable: "この端末の保護鍵を使用できません"
         case .revocationUnverified: "失効後に端末が拒否されることを確認できませんでした"

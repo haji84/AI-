@@ -21,10 +21,10 @@ test('Owner credential access is bound to server proof and local user presence',
   assert.match(source, /SecureEnclave\.P256\.Signing\.PrivateKey/);
 });
 
-test('Owner secret is masked and does not enter browser storage, URL or diagnostics', () => {
-  assert.match(ui, /本番ログインコード/);
-  assert.match(ui, /表示/);
-  assert.match(ui, /コピー/);
+test('Owner recovery display is private and does not enter browser storage, URL or diagnostics', () => {
+  assert.match(ui, /別端末の復旧コードを表示/);
+  assert.match(ui, /privacySensitive/);
+  assert.doesNotMatch(ui, /コピー/);
   assert.doesNotMatch(source + ui, /localStorage|sessionStorage|indexedDB|print\(|Logger\.|NSLog|URLQueryItem.*[Cc]ode/);
 });
 

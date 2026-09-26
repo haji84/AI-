@@ -46,5 +46,21 @@ class SecureEnclaveSigningAccessTests(unittest.TestCase):
         self.assertIn(".deviceOwnerAuthentication", body)
         self.assertNotIn("readProtected(account: Self.codeAccount)", body)
 
+    def test_recovery_issue_proves_the_trusted_key_before_requesting_a_code(self):
+        source = SOURCE.read_text()
+        start = source.index("func issueRecoveryCode()")
+        end = source.index("func ", start + 5)
+        body = source[start:end]
+        self.assertLess(body.index("verifyTrustedDeviceProof()"), body.index('path: "/api/owner-login/trusted/recovery/issue"'))
+
+    def test_background_clear_removes_both_volatile_recovery_fields(self):
+        source = SOURCE.read_text()
+        start = source.index("func hideRecoveryCode()")
+        end = source.index("func ", start + 5)
+        body = source[start:end]
+        self.assertIn("recoveryCode = nil", body)
+        self.assertIn("recoveryExpiresAt = nil", body)
+        self.assertIn("owner.hideRecoveryCode()", VIEW.read_text())
+
 if __name__ == "__main__":
     unittest.main()

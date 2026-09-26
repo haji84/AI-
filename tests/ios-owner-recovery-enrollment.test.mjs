@@ -1,0 +1,58 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import test from "node:test";
+
+const runtime = readFileSync(new URL("../apps/ios-owner/Sources/OwnerCredentialRuntime.swift", import.meta.url), "utf8");
+const ui = readFileSync(new URL("../apps/ios-owner/Sources/JarvisIOSOwnerApp.swift", import.meta.url), "utf8");
+
+function method(name) {
+  const start = runtime.indexOf(`func ${name}`);
+  assert.ok(start >= 0, `${name} must exist`);
+  const next = runtime.indexOf("\n    func ", start + 6);
+  return runtime.slice(start, next < 0 ? runtime.length : next);
+}
+
+test("issued recovery code and expiry exist only as volatile runtime state", () => {
+  assert.match(runtime, /@Published private\(set\) var recoveryCode: String\?/);
+  assert.match(runtime, /@Published private\(set\) var recoveryExpiresAt: Date\?/);
+  const issue = method("issueRecoveryCode()");
+  assert.doesNotMatch(issue, /Keychain|UserDefaults|FileManager|UIPasteboard/);
+  assert.doesNotMatch(runtime, /recoveryCodeAccount|owner-recovery-code/);
+});
+
+test("recovery issuance performs trusted proof before the issue request", () => {
+  const issue = method("issueRecoveryCode()");
+  assert.ok(issue.indexOf("verifyTrustedDeviceProof()") < issue.indexOf('path: "/api/owner-login/trusted/recovery/issue"'));
+  assert.match(issue, /statusCode == 200/);
+  assert.match(issue, /expiry\.timeIntervalSinceNow <= 300/);
+  assert.match(issue, /recoveryCode = code/);
+  assert.match(issue, /recoveryExpiresAt =/);
+});
+
+test("registered Owner actions and protected recovery presentation are explicit", () => {
+  for (const label of ["Face IDと端末鍵でログイン", "別端末の復旧コードを表示", "Googleで端末鍵を再登録", "この端末の信頼登録を失効して削除", "このiPhoneの保存情報だけ削除"]) {
+    assert.match(ui, new RegExp(label));
+  }
+  assert.match(ui, /owner\.recoveryCode/);
+  assert.match(ui, /TimelineView/);
+  assert.match(ui, /privacySensitive\(\)/);
+  assert.match(ui, /textSelection\(\.disabled\)/);
+  assert.match(ui, /復旧コードを隠す/);
+  assert.match(ui, /復旧コードを取り消す/);
+  assert.doesNotMatch(ui, /Button\("コピー"/);
+});
+
+test("backgrounding and hiding clear both recovery value and countdown with no relaunch restoration", () => {
+  const hide = method("hideRecoveryCode()");
+  assert.match(hide, /recoveryCode = nil/);
+  assert.match(hide, /recoveryExpiresAt = nil/);
+  assert.match(ui, /phase != \.active \{ owner\.hideRecoveryCode\(\) \}/);
+  const initializer = runtime.slice(runtime.indexOf("init()"), runtime.indexOf("func enroll", runtime.indexOf("init()")));
+  assert.doesNotMatch(initializer, /recoveryCode|recoveryExpiresAt/);
+});
+
+test("cancellation clears volatile state only after a successful server response", () => {
+  const cancel = method("cancelRecoveryCode()");
+  assert.match(cancel, /trusted\/recovery\/cancel/);
+  assert.ok(cancel.indexOf("statusCode == 200") < cancel.indexOf("hideRecoveryCode()"));
+});
