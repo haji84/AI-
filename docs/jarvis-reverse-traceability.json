@@ -1946,7 +1946,7 @@
     },
     {
       "path": "src/app/jarvis/JarvisWorkShell.tsx",
-      "sha256": "98678cee5163f7f0210771aff2590f6474c366c2a3687e622422c457e288f2bc",
+      "sha256": "ca07135065114065be5fb81d3a55098312a1dcaac9f140b1a038cea2f3cef728",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "UI-001",
@@ -3629,7 +3629,7 @@
     },
     {
       "path": "src/jarvis/daily-driver-device-command.ts",
-      "sha256": "59a20d5d2048b3f85ae1c3a605d8edb92c4055c8f0b2d78b587ab278fcf21819",
+      "sha256": "f6325c33880fce87a40983395043638794c0d63693d4394e0416778b232ea665",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-001",
