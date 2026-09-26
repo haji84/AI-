@@ -1,16 +1,40 @@
 # GORIQ Owner for iPhone (Issue #1218)
 
-This is a separate iOS Owner application. It does not reuse the iPhone Worker credential or the browser's IndexedDB PIN key. It never calls a server endpoint that returns `JARVIS_OWNER_SECRET`.
+This is a separate native iOS Owner application. It does not reuse the iPhone Worker credential or the browser PIN key, and it never receives `JARVIS_OWNER_SECRET`.
 
-## Build and enroll on a physical iPhone
+## Build and primary enrollment
 
 1. On a Mac with Xcode and XcodeGen, run `cd apps/ios-owner && xcodegen generate && open JarvisIOSOwner.xcodeproj`.
-2. Select the `JarvisIOSOwner` target, your development team and the physical iPhone; Build & Run. The iPhone must have a device passcode and Secure Enclave.
-3. Enter the HTTPS GORIQ origin and, once, the Production Owner code read directly from the ZBook's owner-local utility. Use an owner-controlled transfer. Do not put the code in a GitHub issue, chat, screenshot, URL, or shared log.
-4. Tap **本人確認して登録**. The app authenticates the code to the existing Owner login, registers a Secure Enclave P-256 signing key as a trusted device, and saves the code in a `WhenPasscodeSetThisDeviceOnly` Keychain item with `userPresence` access control.
-5. Close and reopen the app. Tap **表示** and confirm the device authentication prompt. Tap **コピー** and confirm the clipboard expires after 60 seconds. Background the app and confirm the value is hidden.
-6. Revoke this device in GORIQ's trusted device management; confirm further **表示** and **コピー** fail. If the app still has a valid proof, **この端末の信頼登録を失効して削除** revokes server first, then removes local keys and code. If the server is unavailable, this operation retains local data and fails closed. The separate local-only deletion requires iPhone authentication and explicitly directs the owner to confirm server revocation from another Owner terminal.
+2. Select the `JarvisIOSOwner` target, development team, and a physical iPhone. The phone must have a device passcode and Secure Enclave.
+3. Enter the HTTPS GORIQ origin and tap **GoogleでOwner登録**.
+4. Complete Google authentication. The app creates a Secure Enclave P-256 signing key and stores only the device-bound key representation, trusted credential, and device ID in `WhenPasscodeSetThisDeviceOnly` Keychain items.
+5. Tap **Face IDと端末鍵でログイン** and confirm that challenge/signature verification succeeds.
 
-The existing browser PIN login remains separate. This implementation requires manual first provisioning from the authoritative ZBook code; the planned one-time encrypted Owner Fleet transfer and iPhone initiated gated rotation are not implemented. A code rotation on ZBook invalidates the HMAC-backed trusted credential, so the iPhone must be re-enrolled. An offline iPhone cannot reveal or copy, even if the local Keychain item exists. The iOS screen can still be captured by a person using the phone; avoid screenshots in acceptance evidence.
+The browser PIN remains a separate browser-only capability. Google enrollment does not store OAuth tokens, a recovery code, or the Production Owner secret on the iPhone.
 
-Do not count source review, CI or simulator results as physical iPhone verification. Record the build SHA, device model/iOS version, successful server proof, revoke denial, background hide and clipboard expiry without capturing the code.
+## Add or recover another iPhone
+
+On a registered iPhone:
+
+1. Tap **別端末の復旧コードを表示** and complete Face ID plus device-key proof.
+2. Read the displayed `OR-…` code and its countdown. Do not screenshot, copy, paste, or record it.
+
+On the new or locally reset iPhone:
+
+1. Enter the same HTTPS GORIQ origin.
+2. Enter the short code under **iPhoneに表示された復旧コード** and tap **復旧コードでOwner登録**.
+3. The new phone creates its own Secure Enclave key, redeems the code once, stores the returned trusted credential, and immediately proves the new key before showing enrollment success.
+
+The code is valid for five minutes and one use. The issuing iPhone keeps it only in volatile memory and clears it when hidden, expired, cancelled, or backgrounded. Neither iPhone reads, displays, copies, transmits, or newly stores the long-lived Production Owner secret.
+
+## Revocation, deletion, and legacy cleanup
+
+- **この端末の信頼登録を失効して削除** revokes the server registration, confirms that the old credential is denied, and then deletes local trusted-device material. If denial cannot be confirmed, it fails closed and retains local data.
+- **このiPhoneの保存情報だけ削除** requires iPhone authentication and removes local data only. Confirm server revocation from another Owner terminal.
+- An `owner-production-code` Keychain item left by an older app is never read, revealed, copied, or removed at startup/background. It is removed only by explicit local deletion or a successful explicit Google registration/re-registration cleanup path.
+
+## Rollout and acceptance
+
+The server feature flag `GORIQ_OWNER_RECOVERY_ENROLLMENT_ENABLED` is disabled by default. Enabling it, changing Production configuration, installing a new build, and collecting physical acceptance evidence are separate operator actions.
+
+Do not count source review, CI, simulator results, or this documentation as physical iPhone acceptance. Physical evidence must omit the recovery code, email, device ID, credential, secret, and tunnel URL.
