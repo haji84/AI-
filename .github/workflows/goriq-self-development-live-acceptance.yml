@@ -1,0 +1,182 @@
+name: GORIQ Self-Development Live Acceptance
+
+on:
+  workflow_dispatch:
+    inputs:
+      task_authorization:
+        description: Exact owner-approved task authorization for Issue #681
+        required: true
+        type: string
+      approve_ephemeral_pairing:
+        description: Approve one ephemeral iPhone pairing credential for this run
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  real-local-model:
+    name: ZBook real local-model self-development
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 20
+    env:
+      GAI_LOCAL_MODEL_NAME: qwen3:4b
+      GAI_LOCAL_MODEL_ENDPOINT: http://127.0.0.1:11434
+      GAI_WORKER_ID: zbook
+      GORIQ_REQUIRE_ADMISSIBLE_REAL_MODEL: "1"
+      GORIQ_TASK_AUTHORIZATION_TEXT: ${{ inputs.task_authorization }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Require the exact current main revision
+        shell: powershell
+        run: |
+          if ($env:GITHUB_REF -ne 'refs/heads/main') { throw "live acceptance must be dispatched from refs/heads/main" }
+          & git fetch --no-tags origin main
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $head = (& git rev-parse HEAD).Trim()
+          $remoteMain = (& git rev-parse origin/main).Trim()
+          if ($head -ne $remoteMain -or $head -ne $env:GITHUB_SHA) { throw "checkout is not the exact current origin/main revision" }
+      - name: Run bounded local-model edit in an isolated repository
+        shell: powershell
+        run: |
+          $workspace = Join-Path $env:RUNNER_TEMP ("goriq-681-local-model-" + $env:GITHUB_RUN_ID + "-" + $env:GITHUB_RUN_ATTEMPT)
+          $evidence = Join-Path $env:GITHUB_WORKSPACE '.gai-results\self-development-local-model'
+          & git clone --no-hardlinks $env:GITHUB_WORKSPACE $workspace
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & git -C $workspace switch --detach $env:GITHUB_SHA
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          New-Item -ItemType Directory -Force -Path (Join-Path $workspace 'tests\fixtures') | Out-Null
+          Set-Content -NoNewline -Encoding utf8 (Join-Path $workspace 'tests\fixtures\local-model-self-development.txt') 'initial'
+          & git -C $workspace config user.name 'GORIQ Local Acceptance'
+          & git -C $workspace config user.email 'goriq-local@local.invalid'
+          & git -C $workspace add tests/fixtures/local-model-self-development.txt
+          & git -C $workspace commit -m baseline
+          & corepack pnpm --dir $workspace install --frozen-lockfile
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $env:GORIQ_LOCAL_MODEL_WORKSPACE = $workspace
+          $env:GORIQ_ACCEPTANCE_REPOSITORY_ROOT = $workspace
+          $env:GORIQ_LOCAL_MODEL_EVIDENCE_DIR = $evidence
+          & node .\scripts\goriq-self-development-local-model-e2e.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Upload real local-model evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: goriq-681-real-local-model
+          path: .gai-results/self-development-local-model/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
+
+  physical-iphone:
+    name: Current-main physical iPhone signed round trip
+    runs-on: [self-hosted, macOS, ARM64]
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Require the exact current main revision
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_REF" == "refs/heads/main" ]]
+          git fetch --no-tags origin main
+          [[ "$(git rev-parse HEAD)" == "$(git rev-parse origin/main)" ]]
+          [[ "$(git rev-parse HEAD)" == "$GITHUB_SHA" ]]
+      - name: Build, install, launch, and verify one physical iPhone
+        shell: bash
+        env:
+          PAIRING_APPROVED: ${{ inputs.approve_ephemeral_pairing }}
+        run: |
+          set -euo pipefail
+          [[ "$PAIRING_APPROVED" == "true" ]]
+          command -v xcodegen >/dev/null
+          DEVICE_JSON="$RUNNER_TEMP/goriq-681-devices.json"
+          xcrun devicectl list devices --json-output "$DEVICE_JSON" >/dev/null
+          DEVICE_ID="$(node scripts/goriq-select-physical-iphone.mjs "$DEVICE_JSON")"
+          test -n "$DEVICE_ID"
+          DEVICE_HASH="$(printf '%s' "$DEVICE_ID" | shasum -a 256 | cut -c1-16)"
+          RUN_NONCE="$(python3 -c 'import secrets; print(secrets.token_hex(32))')"
+          EXPECTED_WORKER_ID="goriq-681-${DEVICE_HASH}-${RUN_NONCE:0:16}"
+          BUILD_CHALLENGE="goriq-681-${RUN_NONCE}"
+          echo "::add-mask::$EXPECTED_WORKER_ID"
+          echo "::add-mask::$BUILD_CHALLENGE"
+          ACCEPTANCE_BUNDLE_ID="com.haji84.jarvis.iosworker.acceptance"
+
+          EVIDENCE_DIR="$GITHUB_WORKSPACE/.gai-results/self-development-iphone"
+          mkdir -p "$EVIDENCE_DIR"
+          test -s "$HOME/.jarvis/iphone-bridge-master.key"
+          ADMIN_TOKEN="$(python3 -c 'import secrets; print(secrets.token_hex(32))')"
+          export IPHONE_BRIDGE_HOST=0.0.0.0 IPHONE_BRIDGE_PORT=8797 IPHONE_PAIRING_WINDOW_MS=600000
+          export IPHONE_ADMIN_TOKEN="$ADMIN_TOKEN" GIT_SHA="$GITHUB_SHA"
+          export IPHONE_BRIDGE_MASTER_KEY_PATH="$HOME/.jarvis/iphone-bridge-master.key"
+          export IPHONE_EXPECTED_DEVICE_ID="$EXPECTED_WORKER_ID"
+          export IPHONE_EXPECTED_BUILD_CHALLENGE="$BUILD_CHALLENGE"
+          export IPHONE_EXPECTED_BUNDLE_ID="$ACCEPTANCE_BUNDLE_ID"
+          node scripts/iphone-bridge-server-entry.ts >"$RUNNER_TEMP/goriq-681-iphone-bridge.log" 2>&1 &
+          BRIDGE_PID=$!
+          cleanup() {
+            kill "$BRIDGE_PID" 2>/dev/null || true
+            xcrun devicectl device uninstall app --device "$DEVICE_ID" "$ACCEPTANCE_BUNDLE_ID" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+          for _ in $(seq 1 30); do curl -fsS http://127.0.0.1:8797/health >/dev/null 2>&1 && break; sleep 1; done
+          curl -fsS http://127.0.0.1:8797/health >/dev/null
+
+          pushd apps/ios-worker >/dev/null
+          xcodegen generate
+          xcodebuild -project JarvisIOSWorker.xcodeproj -scheme JarvisIOSWorker -configuration Debug \
+            -destination 'generic/platform=iOS' -derivedDataPath "$RUNNER_TEMP/goriq-681-ios-derived" \
+            DEVELOPMENT_TEAM=SDTV253RXA PRODUCT_BUNDLE_IDENTIFIER="$ACCEPTANCE_BUNDLE_ID" \
+            JARVIS_ACCEPTANCE_DEVICE_ID="$EXPECTED_WORKER_ID" JARVIS_BUILD_CHALLENGE="$BUILD_CHALLENGE" \
+            CODE_SIGN_STYLE=Automatic build
+          popd >/dev/null
+          APP_PATH="$RUNNER_TEMP/goriq-681-ios-derived/Build/Products/Debug-iphoneos/JarvisIOSWorker.app"
+          test -d "$APP_PATH"
+          xcrun devicectl device install app --device "$DEVICE_ID" "$APP_PATH"
+          xcrun devicectl device process launch --terminate-existing --device "$DEVICE_ID" "$ACCEPTANCE_BUNDLE_ID"
+
+          IPHONE_ID=""
+          for _ in $(seq 1 90); do
+            HEALTH="$(curl -fsS http://127.0.0.1:8797/health)"
+            COUNT="$(printf '%s' "$HEALTH" | jq '.enrolled | length')"
+            if [[ "$COUNT" == 1 ]]; then IPHONE_ID="$(printf '%s' "$HEALTH" | jq -r '.enrolled[0]')"; break; fi
+            if (( COUNT > 1 )); then echo 'more than one iPhone enrolled' >&2; exit 1; fi
+            sleep 1
+          done
+          [[ "$IPHONE_ID" == "$EXPECTED_WORKER_ID" ]]
+          TASK_ID="goriq-681-physical-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          jq -nc --arg device "$IPHONE_ID" --arg task "$TASK_ID" --arg challenge "$BUILD_CHALLENGE" '{deviceId:$device,taskId:$task,capability:"ios-tooling",mode:"foreground",input:$challenge}' \
+            | curl -fsS -H "Authorization: Bearer $ADMIN_TOKEN" -H 'Content-Type: application/json' -d @- http://127.0.0.1:8797/tasks >/dev/null
+          RESULT=""
+          for _ in $(seq 1 90); do
+            RESULT="$(curl -fsS -H "Authorization: Bearer $ADMIN_TOKEN" "http://127.0.0.1:8797/results/$TASK_ID" 2>/dev/null || true)"
+            [[ -n "$RESULT" ]] && break
+            sleep 1
+          done
+          test -n "$RESULT"
+          EVIDENCE_FILE="evidence/iphone/$TASK_ID.json"
+          test -s "$EVIDENCE_FILE"
+          TOOLCHAIN_RESULT="$RUNNER_TEMP/goriq-681-device-result.json"
+          xcrun devicectl device copy from --device "$DEVICE_ID" --domain-type appDataContainer --domain-identifier "$ACCEPTANCE_BUNDLE_ID" \
+            --source "Documents/goriq-result-$TASK_ID.json" --destination "$TOOLCHAIN_RESULT"
+          test -s "$TOOLCHAIN_RESULT"
+          node scripts/goriq-verify-physical-iphone-evidence.mjs "$EVIDENCE_FILE" "$TOOLCHAIN_RESULT" "$GITHUB_SHA" "$TASK_ID" "$EXPECTED_WORKER_ID" "$BUILD_CHALLENGE" "$ACCEPTANCE_BUNDLE_ID"
+          cp "$EVIDENCE_FILE" "$EVIDENCE_DIR/physical-iphone-e2e.json"
+          cp "$TOOLCHAIN_RESULT" "$EVIDENCE_DIR/physical-iphone-toolchain-result.json"
+          jq -n --arg actor "$GITHUB_ACTOR" --arg run "$GITHUB_RUN_ID" '{ephemeralPairingApproved:true,approvedBy:$actor,workflowRunId:$run}' > "$EVIDENCE_DIR/pairing-approval.json"
+          sed -E 's/^Admin task token:.*/Admin task token: [REDACTED]/' "$RUNNER_TEMP/goriq-681-iphone-bridge.log" > "$EVIDENCE_DIR/bridge.log"
+      - name: Upload physical iPhone evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: goriq-681-physical-iphone
+          path: .gai-results/self-development-iphone/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30

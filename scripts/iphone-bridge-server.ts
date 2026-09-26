@@ -11,6 +11,9 @@ const adminToken = process.env.IPHONE_ADMIN_TOKEN ?? randomBytes(32).toString("h
 const mainSha = process.env.GIT_SHA ?? process.env.GITHUB_SHA ?? "local-working-tree";
 const pairingWindowMs = Number(process.env.IPHONE_PAIRING_WINDOW_MS ?? 120_000);
 const bootstrapTtlMs = Number(process.env.IPHONE_BOOTSTRAP_TTL_MS ?? 30_000);
+const expectedDeviceId = process.env.IPHONE_EXPECTED_DEVICE_ID?.trim() || null;
+const expectedBuildChallenge = process.env.IPHONE_EXPECTED_BUILD_CHALLENGE?.trim() || null;
+const expectedBundleIdentifier = process.env.IPHONE_EXPECTED_BUNDLE_ID?.trim() || null;
 const pairingStartedAt = Date.now();
 const pairingEndsAt = pairingStartedAt + pairingWindowMs;
 const bridgeId = randomBytes(8).toString("hex");
@@ -55,6 +58,11 @@ function lanAddress() {
 }
 function pairingOpen() { return Date.now() <= pairingEndsAt; }
 function validDeviceId(value: unknown): value is string { return typeof value === "string" && value.length >= 8 && value.length <= 128 && /^[a-zA-Z0-9._:-]+$/.test(value); }
+function matchesExpectedClient(input: Envelope) {
+  return (!expectedDeviceId || input.deviceId === expectedDeviceId)
+    && (!expectedBuildChallenge || input.buildChallenge === expectedBuildChallenge)
+    && (!expectedBundleIdentifier || input.bundleIdentifier === expectedBundleIdentifier);
+}
 function allowedCapabilities(input: unknown) {
   const allowed = ["ios-tooling", "local-storage"];
   return Array.isArray(input) ? input.filter((c): c is string => typeof c === "string" && allowed.includes(c)) : [];
@@ -118,6 +126,7 @@ const server = createServer(async (req, res) => {
       if (!pairingOpen()) return json(res, 403, { error: "pairing window closed" });
       const input = await body(req);
       if (!validDeviceId(input.deviceId) || typeof input.clientNonce !== "string" || input.clientNonce.length < 16) return json(res, 400, { error: "invalid bootstrap request" });
+      if (!matchesExpectedClient(input)) return json(res, 403, { error: "client is outside the live-acceptance build binding" });
       if (pairingClaimedBy && pairingClaimedBy !== input.deviceId) return json(res, 409, { error: "pairing window already claimed" });
       pairingClaimedBy = input.deviceId;
       const bootstrapToken = randomBytes(32).toString("hex");
@@ -133,6 +142,7 @@ const server = createServer(async (req, res) => {
       const grant = bootstrapToken ? bootstrapGrants.get(bootstrapToken) : undefined;
       if (!bootstrapToken || !grant || grant.used || grant.expiresAt < Date.now()) return json(res, 401, { error: "invalid or expired bootstrap" });
       if (!validDeviceId(input.deviceId) || input.deviceId !== grant.deviceId || input.platform !== "ios" || input.physicalDevice !== true) return json(res, 400, { error: "invalid enrollment" });
+      if (!matchesExpectedClient(input)) return json(res, 403, { error: "client is outside the live-acceptance build binding" });
       grant.used = true;
       const capabilities = allowedCapabilities(input.capabilities);
       enrolled.set(input.deviceId, { capabilities, enrolledAt: new Date().toISOString() });
@@ -145,6 +155,7 @@ const server = createServer(async (req, res) => {
     if (req.method === "POST" && url.pathname === "/reconnect") {
       const input = await body(req);
       if (!validDeviceId(input.deviceId) || !deviceAuthorized(req, input.deviceId)) return json(res, 401, { error: "invalid device credential" });
+      if (!matchesExpectedClient(input)) return json(res, 403, { error: "client is outside the live-acceptance build binding" });
       const capabilities = allowedCapabilities(input.capabilities);
       enrolled.set(input.deviceId, { capabilities, enrolledAt: new Date().toISOString() });
       queues.set(input.deviceId, queues.get(input.deviceId) ?? []);
@@ -183,6 +194,8 @@ const server = createServer(async (req, res) => {
       const result = await body(req); const { signature, ...unsigned } = result;
       const deviceId = typeof result.deviceId === "string" ? result.deviceId : "";
       if (!enrolled.has(deviceId) || !deviceAuthorized(req, deviceId) || typeof signature !== "string" || signature !== hmac(expectedDeviceSecret(deviceId), unsigned)) return json(res, 400, { error: "invalid result signature or enrollment" });
+      const resultEvidence = result.evidence && typeof result.evidence === "object" ? result.evidence as Envelope : {};
+      if (!matchesExpectedClient({ ...resultEvidence, deviceId })) return json(res, 403, { error: "result is outside the live-acceptance build binding" });
       if (typeof result.taskId !== "string" || typeof result.nonce !== "string") return json(res, 400, { error: "invalid result binding" });
 
       const existing = results.get(result.taskId);

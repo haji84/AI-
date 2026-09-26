@@ -287,13 +287,13 @@
     },
     {
       "path": "apps/ios-worker/Info.plist",
-      "sha256": "48c652fbdc079351211a88fade57667f0af1df63d780dfba541e40a81ab3f111",
+      "sha256": "1e19a7aa7285c84d061f1812e08e39e105ea89396c94549b90df2ec5fdc179ca",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "DEV-I-001",
         "DEV-I-007"
       ],
-      "reason": "iOS Worker lifecycle, app packaging and documented platform limits"
+      "reason": "iOS Worker lifecycle and packaging, including run-specific live-acceptance build identity injection."
     },
     {
       "path": "apps/ios-worker/project.yml",
@@ -337,7 +337,7 @@
     },
     {
       "path": "apps/ios-worker/Sources/WorkerRuntime.swift",
-      "sha256": "d1ba996270c7f1e8460b9aa7b89f21a2ee6525182e5e8c0db6f42c064f6f32c4",
+      "sha256": "d7dc21055ca81875df7d64e8fbe37dea521034fb75714052195f9d17f9dd8e0a",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "DEV-I-001",
@@ -350,7 +350,7 @@
         "DEV-I-008",
         "RA-022"
       ],
-      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+      "reason": "iOS Worker lifecycle and signed result evidence, including run-specific live-acceptance device, build-challenge, and bundle binding."
     },
     {
       "path": "docs/architecture/0001-ai-company-operating-model.md",
@@ -5528,6 +5528,20 @@
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": ["CORE-008", "CORE-014", "AUTO-010", "AUTO-015"],
       "reason": "#681 local Builder adapter uses the common bounded Change Set contract. Real local-model acceptance remains pending."
+    },
+    {
+      "path": "src/orchestrator/local-model-development-acceptance.ts",
+      "sha256": "f7b4d8c80dab904fb5f256fe66469c38c6e6a2f41dd91177f32695b26fcba81e",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": ["CORE-008", "CORE-014", "AUTO-010", "AUTO-016", "AUTO-023"],
+      "reason": "#681 live acceptance rejects non-loopback inference and undeclared edits, and separates simulated contract runs from admissible self-hosted Ollama evidence."
+    },
+    {
+      "path": "src/orchestrator/physical-iphone-live-acceptance.ts",
+      "sha256": "5a962f9cf0a55565c7c9847c64c7fef4f49d415a52822524c210e260baadf40c",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": ["CORE-014", "AUTO-016", "AUTO-023", "DEV-I-001", "DEV-I-008"],
+      "reason": "#681 parses supported devicectl device rows and admits exactly one paired, connected, booted physical iPhone without nested-identifier double counting."
     },
     {
       "path": "src/orchestrator/repository-development-context.ts",
