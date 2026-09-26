@@ -7,10 +7,24 @@ on:
     branches: [main]
     paths:
       - 'scripts/jarvis-mac-zero-touch.sh'
+      - 'scripts/jarvis-broker.ts'
       - 'src/app/jarvis/**'
       - 'src/app/api/jarvis/**'
+      - 'src/app/api/owner-login/**'
+      - 'src/app/owner-auth.ts'
+      - 'src/app/trusted-device-auth.ts'
+      - 'src/app/fresh-trusted-owner-session.ts'
+      - 'src/app/google-owner-*.ts'
+      - 'src/app/owner-recovery-*.ts'
+      - 'src/jarvis/trusted-device-registry.ts'
+      - 'src/jarvis/google-owner-state-registry.ts'
+      - 'apps/ios-owner/**'
       - 'src/app/downloads/jarvis-worker.apk/**'
       - '.github/workflows/jarvis-vercel-sync.yml'
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -22,6 +36,7 @@ concurrency:
 
 jobs:
   sync:
+    if: github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
     runs-on: [self-hosted, macOS, ARM64]
     timeout-minutes: 20
     environment: production
@@ -30,8 +45,11 @@ jobs:
       VERCEL_TEAM_ID: team_YGrZkBR7MyYxkq3K9XkTBhqu
       VERCEL_PROJECT_NAME: jarvis
       JARVIS_PRODUCTION_URL: https://jarvis-fawn-iota.vercel.app
+      SYNC_COMMIT_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SYNC_COMMIT_SHA }}
 
       - name: Sync live JARVIS endpoints into Vercel
         id: sync
