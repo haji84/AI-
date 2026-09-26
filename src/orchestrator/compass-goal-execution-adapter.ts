@@ -120,7 +120,7 @@ export class CompassGoalExecutionAdapter implements GoalExecutionAdapter {
       if (this.developmentOptions?.runtime.matches(goal, input.context ?? [])) {
         const context = await Promise.all([
           contextSource.collect({ goal }),
-          new EntryContextSource(input.context ?? []).collect({ goal }),
+          new EntryContextSource(input.context ?? []).collect(),
         ]);
         return this.developmentOptions.runtime.run({ goalId: authoritativeGoalId, goal, context: context.flat() });
       }

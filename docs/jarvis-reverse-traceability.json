@@ -4467,7 +4467,7 @@
     },
     {
       "path": "src/orchestrator/compass-goal-execution-adapter.ts",
-      "sha256": "f702958b7b2ace54c5d402c1262a3340526ab1d9be832676b2ba8378c2ae9efc",
+      "sha256": "7593ea5db470b9e47a88e1baac37d9d16a9659151e9a4721357dc5efafbf86bf",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-002",
@@ -5538,7 +5538,7 @@
     },
     {
       "path": "src/orchestrator/resident-development-goal-host.ts",
-      "sha256": "68cee82974da9ac621c54da630f4760c859f550f8433cffd945bb29862899c4a",
+      "sha256": "c23800aaf89ae74ac871042282a447b358d8393a8896c8cad1f6d322bbc811b9",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": ["CORE-014", "AUTO-002", "AUTO-015", "AUTO-016", "AUTO-023", "AUTO-024", "AUTO-025", "AUTO-026"],
       "reason": "#681 explicit host-opted resident development runtime resumes durable Job and Change Set stages without duplicate Builder, verifier, or release effects."

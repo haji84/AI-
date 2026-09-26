@@ -61,7 +61,6 @@ function report(achieved: boolean, reason: string, blockers: string[] = []): Bou
     stopReason: achieved ? "goal_complete" : blockers.includes("human_gate") ? "approval_required" : blockers.length ? "blocked" : "cycle_budget_exhausted",
     goalEvaluation: {
       achieved,
-      reason,
       verifiedRequired: achieved ? ["development_release"] : [],
       failedRequired: [],
       unverifiedRequired: achieved ? [] : ["development_release"],

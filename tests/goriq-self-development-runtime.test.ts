@@ -12,6 +12,7 @@ import { JsonFileDevelopmentChangeSetStore } from "../src/orchestrator/developme
 import { JsonFileDevelopmentJobStore } from "../src/orchestrator/development-job-store.ts";
 import {
   ResidentDevelopmentGoalHost,
+  type ResidentDevelopmentStages,
   type ResidentDevelopmentReleaseState,
 } from "../src/orchestrator/resident-development-goal-host.ts";
 import { createTaskCompletionAuthorization } from "../src/orchestrator/task-authorization.ts";
@@ -51,7 +52,7 @@ test("resident Goal path resumes one durable Change Set without duplicate build,
       now: NOW,
     };
 
-    const stages = {
+    const stages: ResidentDevelopmentStages = {
       async build(input: { job: { jobId: string; goalId: string }; workItemId: string }) {
         builds += 1;
         return createDevelopmentChangeSet({
@@ -67,7 +68,7 @@ test("resident Goal path resumes one durable Change Set without duplicate build,
           rollback: { kind: "git-base" as const, reference: REVISION },
         }, NOW);
       },
-      async verify(input: { plan: { requiredChecks: string[]; sourceRevision: string; artifactDigest: string } }) {
+      async verify(input) {
         verifications += 1;
         return input.plan.requiredChecks.map((check) => ({
           check,
