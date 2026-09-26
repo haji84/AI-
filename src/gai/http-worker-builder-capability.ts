@@ -1,5 +1,7 @@
 import type { BuilderCapability, BuilderRequest } from "../orchestrator/builder-router.ts";
 import type { ActionResult } from "../orchestrator/goal-loop.ts";
+import type { DevelopmentBuilderKind } from "../orchestrator/development-builder.ts";
+import { normalizeDevelopmentBuilderResult, type ForbiddenBuilderAuthority } from "../orchestrator/development-builder.ts";
 
 export interface HttpCodeBuilderEndpoint {
   url: string;
@@ -8,13 +10,15 @@ export interface HttpCodeBuilderEndpoint {
 
 export class HttpWorkerBuilderCapability implements BuilderCapability {
   readonly id: string;
+  readonly kind: DevelopmentBuilderKind;
   private readonly endpoint: HttpCodeBuilderEndpoint;
   private readonly fetchImpl: typeof fetch;
 
-  constructor(id: string, endpoint: HttpCodeBuilderEndpoint, fetchImpl: typeof fetch = fetch) {
+  constructor(id: string, endpoint: HttpCodeBuilderEndpoint, fetchImpl: typeof fetch = fetch, kind: DevelopmentBuilderKind = "external") {
     this.id = id;
     this.endpoint = { url: endpoint.url.replace(/\/$/, ""), token: endpoint.token };
     this.fetchImpl = fetchImpl;
+    this.kind = kind;
   }
 
   async available(): Promise<boolean> {
@@ -42,6 +46,7 @@ export class HttpWorkerBuilderCapability implements BuilderCapability {
       });
       const payload = await response.json().catch(() => null) as {
         ok?: boolean; summary?: string; blocker?: string; evidence?: unknown;
+        changedPaths?: unknown; patchDigest?: unknown; requestedAuthority?: unknown;
       } | null;
       if (!payload) {
         return {
@@ -65,6 +70,46 @@ export class HttpWorkerBuilderCapability implements BuilderCapability {
             remoteEvidence: payload.evidence ?? null,
           },
         };
+      }
+      if (request.baseRevision || payload.changedPaths !== undefined || payload.patchDigest !== undefined) {
+        try {
+          const normalized = normalizeDevelopmentBuilderResult(request, {
+            ok: payload.ok === true,
+            summary: payload.summary ?? "Builder returned no summary",
+            blocker: payload.blocker,
+            evidence: payload.evidence && typeof payload.evidence === "object" && !Array.isArray(payload.evidence)
+              ? payload.evidence as Record<string, unknown>
+              : undefined,
+            changedPaths: Array.isArray(payload.changedPaths)
+              ? payload.changedPaths.filter((path): path is string => typeof path === "string")
+              : undefined,
+            patchDigest: typeof payload.patchDigest === "string" ? payload.patchDigest : undefined,
+            requestedAuthority: Array.isArray(payload.requestedAuthority)
+              ? payload.requestedAuthority.filter((value): value is ForbiddenBuilderAuthority => typeof value === "string")
+              : undefined,
+          }, { builderId: this.id, kind: this.kind });
+          return {
+            actionId: request.attemptId,
+            ok: normalized.ok,
+            summary: normalized.summary,
+            blocker: normalized.blocker,
+            evidence: {
+              builderId: this.id,
+              builderKind: this.kind,
+              strategyId: request.strategyId,
+              changeSet: normalized.changeSet ?? null,
+              remoteEvidence: normalized.evidence ?? null,
+            },
+          };
+        } catch (error) {
+          return {
+            actionId: request.attemptId,
+            ok: false,
+            summary: error instanceof Error ? error.message : String(error),
+            blocker: "http_code_builder_contract_rejected",
+            evidence: { builderId: this.id, builderKind: this.kind, strategyId: request.strategyId },
+          };
+        }
       }
       return {
         actionId: request.attemptId,

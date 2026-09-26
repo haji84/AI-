@@ -43,7 +43,7 @@ export function createRuntimeBuilderRouter(
   const local = localBuilderConfig(env);
   if (local) {
     assertLocalLoopback(local.url);
-    builders.unshift(new HttpWorkerBuilderCapability("local-code-builder", local, fetchImpl));
+    builders.unshift(new HttpWorkerBuilderCapability("local-code-builder", local, fetchImpl, "local"));
   }
   return new BuilderRouter(builders);
 }

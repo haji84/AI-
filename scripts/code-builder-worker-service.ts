@@ -1,5 +1,6 @@
 import { createServer } from "node:http";
 import { existsSync, readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
 import { hostname } from "node:os";
 import { basename, extname, resolve, relative, isAbsolute } from "node:path";
@@ -226,6 +227,15 @@ async function runBuild(body: Record<string, unknown>) {
     ? await run(engine.command, args, executionTimeoutMs, prompt)
     : await run(engine.command, args);
   const diff = await run("git", ["diff", "--stat"]);
+  const changed = await run("git", ["diff", "--name-only", "--"]);
+  const untracked = await run("git", ["ls-files", "--others", "--exclude-standard"]);
+  const patch = await run("git", ["diff", "--binary", "--"]);
+  const changedPaths = [...new Set(`${changed.stdout}\n${untracked.stdout}`.split(/\r?\n/).map((value) => value.trim()).filter(Boolean))].sort();
+  const patchHash = createHash("sha256").update(patch.stdout, "utf8");
+  for (const path of changedPaths.filter((value) => untracked.stdout.split(/\r?\n/).includes(value))) {
+    if (!safeWorkspacePath(path)) throw new Error("Builder produced an unsafe untracked path");
+    patchHash.update(path, "utf8").update("\0").update(readFileSync(resolve(workspace, path))).update("\0");
+  }
   const combinedOutput = `${result.stdout}\n${result.stderr}`.toLowerCase();
   const transientEngineFailure = result.timedOut
     || /at capacity|rate limit|429|502|503|504|temporar|try again|overloaded|service unavailable/.test(combinedOutput);
@@ -254,6 +264,9 @@ async function runBuild(body: Record<string, unknown>) {
         stdoutTail: result.stdout.slice(-4000),
         stderrTail: result.stderr.slice(-4000),
       },
+      changedPaths,
+      patchDigest: patchHash.digest("hex"),
+      requestedAuthority: [],
     },
   };
 }
