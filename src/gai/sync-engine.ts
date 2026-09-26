@@ -1,7 +1,7 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 
-export type SyncEntityType = "goal" | "task" | "result" | "memory" | "skill" | "evidence" | "log";
+export type SyncEntityType = "goal" | "task" | "result" | "change-set" | "memory" | "skill" | "evidence" | "log";
 export type SyncState = "local-only" | "pending-push" | "synced" | "conflicted";
 export type VerificationStatus = "pass" | "fail" | "unverified";
 export type CausalClock = Record<string, number>;
@@ -102,7 +102,11 @@ export interface SyncReport {
   conflicts: SyncConflict[];
 }
 
-const CRITICAL_ENTITIES = new Set<SyncEntityType>(["goal", "task", "result", "evidence"]);
+const CRITICAL_ENTITIES = new Set<SyncEntityType>(["goal", "task", "result", "change-set", "evidence"]);
+
+export interface SyncConflictResolver {
+  resolve(conflict: SyncConflict): Promise<SyncRecord | null>;
+}
 
 function assertRecord(record: SyncRecord): void {
   if (!record.recordId.trim() || !record.deviceId.trim()) throw new Error("recordId and deviceId are required");
@@ -303,10 +307,12 @@ export class SyncRepository {
 export class SyncEngine {
   private readonly local: SyncRepository;
   private readonly remote: SyncRepository;
+  private readonly conflictResolver?: SyncConflictResolver;
 
-  constructor(local: SyncRepository, remote: SyncRepository) {
+  constructor(local: SyncRepository, remote: SyncRepository, conflictResolver?: SyncConflictResolver) {
     this.local = local;
     this.remote = remote;
+    this.conflictResolver = conflictResolver;
   }
 
   async synchronize(now = new Date()): Promise<SyncReport> {
@@ -338,6 +344,23 @@ export class SyncEngine {
 
       const decision = resolveSyncRecords(local, remote);
       if (decision.kind === "conflict" && decision.conflict) {
+        if (decision.conflict.entityType === "change-set" && this.conflictResolver) {
+          const resolved = await this.conflictResolver.resolve(decision.conflict);
+          if (resolved) {
+            const merged: SyncRecord = {
+              ...cloneRecord(resolved),
+              recordId: id,
+              entityType: "change-set",
+              clock: incrementClock(combineClocks(local.clock, remote.clock), resolved.deviceId),
+              version: Math.max(local.version, remote.version) + 1,
+              syncState: "synced",
+            };
+            await this.local.put(merged, now);
+            await this.remote.put(merged, now);
+            report.converged.push(id);
+            continue;
+          }
+        }
         await this.local.put(decision.conflict.local, now);
         await this.remote.put(decision.conflict.remote, now);
         report.conflicts.push(decision.conflict);
