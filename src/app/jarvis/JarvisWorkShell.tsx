@@ -18,10 +18,12 @@ export default function JarvisWorkShell() {
   const [runStatus, setRunStatus] = useState<{ phase?: string; currentWork?: string | null; completedJobs?: number; totalJobs?: number | null; recoveryCount?: number; blockers?: string[]; progress?: { determinate: boolean; value: number | null } } | null>(null);
 
   useEffect(() => {
-    const saved = window.localStorage.getItem(STORAGE_KEY);
-    setThemeId(jarvisTheme(saved).id);
+    const applyTheme = () => setThemeId(jarvisTheme(window.localStorage.getItem(STORAGE_KEY)).id);
+    applyTheme();
     const lastGoalId = window.localStorage.getItem(LAST_GOAL_KEY)?.trim();
     if (lastGoalId) setWorkStatus({ goalId: lastGoalId });
+    window.addEventListener(GORIQ_THEME_CHANGED_EVENT, applyTheme);
+    return () => window.removeEventListener(GORIQ_THEME_CHANGED_EVENT, applyTheme);
   }, []);
   const theme = jarvisTheme(themeId);
 
