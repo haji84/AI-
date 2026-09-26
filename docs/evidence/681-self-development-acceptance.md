@@ -1,8 +1,8 @@
 # #681 GORIQ self-development acceptance evidence
 
-Recorded: 2026-09-26T12:00:00.000Z
+Recorded: 2026-09-26T08:42:58.000Z
 
-Deterministic source revision: `25d42c41d814c04b6583ea64f7156666ed1c80ae`
+Deterministic source revision: `fe1a11c81ccf4f1b290a9b0143dbc3fae72f6ba4`
 
 Requirements: `CORE-014`, `AUTO-001` through `AUTO-031`
 
@@ -34,4 +34,4 @@ This evidence does not mark `CORE-014` or any `AUTO-*` requirement complete. The
 
 ## Task 12 external execution attempt
 
-On 2026-09-26, `origin/main` was fetched successfully and the verified branch was confirmed 18 commits ahead with no missing main commits. Push to `origin/goriq/681-offline-self-development` stopped before publication because this execution environment has no GitHub HTTPS credential or credential helper (`could not read Username for 'https://github.com'`). The remote branch was confirmed absent. GitHub PR/CI, Production, configured device-local Builder, Release connector, and signed physical-iPhone execution therefore remain `NOT RUN`; no alternate upload, credential creation, or protection bypass was attempted.
+On 2026-09-26, `origin/main` was fetched successfully and the verified branch had no missing main commits. HTTPS CLI push could not authenticate, so the approved connected GitHub App created the same ordered commit trees and published only `goriq/681-offline-self-development`; every reconstructed tree SHA was checked against the corresponding local tree before the branch ref was created. Remote code commit `fe1a11c81ccf4f1b290a9b0143dbc3fae72f6ba4` is the exact tree accepted above. Protected PR merge/main CI, Production, configured device-local Builder, Release connector, and signed physical-iPhone execution remain pending; no credential creation or protection bypass was attempted.
