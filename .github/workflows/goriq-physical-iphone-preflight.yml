@@ -54,7 +54,7 @@ jobs:
           node --version
           xcodebuild -version
 
-          EXPECTED_TEAM_ID="SDTV253RXA"
+          EXPECTED_TEAM_ID="58XW75C4ZG"
           ACCEPTANCE_BUNDLE_ID="com.haji84.jarvis.iosworker.acceptance"
           security find-identity -v -p codesigning >"$ROOT/signing-identities.log" 2>&1
           SIGNING_IDENTITY_EXIT=$?

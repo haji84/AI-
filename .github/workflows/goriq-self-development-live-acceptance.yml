@@ -164,7 +164,7 @@ jobs:
           xcodebuild -project JarvisIOSWorker.xcodeproj -scheme JarvisIOSWorker -configuration Debug \
             -allowProvisioningUpdates \
             -destination 'generic/platform=iOS' -derivedDataPath "$RUNNER_TEMP/goriq-681-ios-derived" \
-            DEVELOPMENT_TEAM=SDTV253RXA PRODUCT_BUNDLE_IDENTIFIER="$ACCEPTANCE_BUNDLE_ID" \
+            DEVELOPMENT_TEAM=58XW75C4ZG PRODUCT_BUNDLE_IDENTIFIER="$ACCEPTANCE_BUNDLE_ID" \
             JARVIS_ACCEPTANCE_DEVICE_ID="$EXPECTED_WORKER_ID" JARVIS_BUILD_CHALLENGE="$BUILD_CHALLENGE" \
             CODE_SIGN_STYLE=Automatic build
           popd >/dev/null
