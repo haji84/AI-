@@ -11,6 +11,7 @@ import {
   selectSingleAvailablePhysicalIPhone,
   verifyPhysicalIPhoneToolchainEvidence,
 } from "../src/orchestrator/physical-iphone-live-acceptance.ts";
+import { formatDevicectlFailure } from "../scripts/goriq-format-devicectl-failure.ts";
 
 test("real local-model acceptance only permits a bounded declared edit", () => {
   assert.equal(assertLoopbackModelEndpoint("http://127.0.0.1:11434/api/generate"), "http://127.0.0.1:11434");
@@ -136,4 +137,14 @@ test("physical iPhone selection counts device rows rather than nested identifier
   assert.throws(() => selectSingleAvailablePhysicalIPhone({ result: { devices: [iphone("phone-1"), iphone("phone-2")] } }), /exactly one/);
   assert.throws(() => selectSingleAvailablePhysicalIPhone({ result: { devices: [iphone("phone-1", { deviceProperties: { name: "iPhone", bootState: "shutdown" } })] } }), /exactly one/);
   assert.throws(() => selectSingleAvailablePhysicalIPhone({ result: { devices: [{ ...iphone("ipad-1"), hardwareProperties: { productType: "iPad14,1", platform: "iOS" } }] } }), /exactly one/);
+});
+
+test("devicectl failure diagnostics preserve the recovery action without leaking device identifiers", () => {
+  const diagnostic = formatDevicectlFailure(
+    1,
+    "Error at /Users/alice/Library/Developer: CoreDeviceError 12045 for 00008110-001A2B3C4D5E601E. Unlock the device and reconnect it. UUID 123e4567-e89b-12d3-a456-426614174000",
+  );
+  assert.match(diagnostic, /devicectl list devices failed \(exit 1\)/);
+  assert.match(diagnostic, /Unlock the device and reconnect it/);
+  assert.doesNotMatch(diagnostic, /alice|00008110|123e4567/i);
 });
