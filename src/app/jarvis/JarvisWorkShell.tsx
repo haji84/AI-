@@ -84,7 +84,12 @@ export default function JarvisWorkShell() {
     }
   }
 
-  const phase = runStatus?.phase ?? (workStatus?.goalId ? "受付済み" : "待機中");
+  const phase = runStatus?.phase
+    ?? (workStatus?.action === "DEVICE_ACTION"
+      ? "端末操作受付済み"
+      : workStatus?.goalId
+        ? "受付済み"
+        : "待機中");
 
   return <section className="jarvis-work-shell" data-theme={theme.id} data-mode={admin ? "admin" : "owner"} data-density={theme.density}>
     <header className="jarvis-work-header">
@@ -109,7 +114,12 @@ export default function JarvisWorkShell() {
       </div>}
 
       <div className="jarvis-summary-grid">
-        <article><span>現在の作業</span><strong>{phase}</strong><small>{runStatus?.currentWork ?? (workStatus?.goalId ? "GORIQが処理を引き継ぎました" : "入力待ち")}</small></article>
+        <article><span>現在の作業</span><strong>{phase}</strong><small>{runStatus?.currentWork
+          ?? (workStatus?.action === "DEVICE_ACTION"
+            ? workStatus.nextAction ?? "端末へ安全な操作を送信しました"
+            : workStatus?.goalId
+              ? "GORIQが処理を引き継ぎました"
+              : "入力待ち")}</small></article>
         <article><span>進捗</span><strong>{runStatus?.progress?.determinate && runStatus.progress.value !== null ? `${Math.round(runStatus.progress.value * 100)}%` : "自動"}</strong><small>閉じてもGoalは継続</small></article>
         <article><span>確認が必要</span><strong>{runStatus?.phase === "HUMAN_GATE" ? "あり" : "なし"}</strong><small>必要なときだけ表示</small></article>
         <article><span>復旧</span><strong>{runStatus?.recoveryCount ?? 0}</strong><small>自動再試行・再計画</small></article>
