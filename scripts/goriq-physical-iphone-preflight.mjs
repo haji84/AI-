@@ -28,6 +28,14 @@ export function selectSinglePhysicalIPhoneFromXCDevice(input) {
   return identifier;
 }
 
+export function selectSingleAvailablePhysicalIPhoneFromXCDevice(input) {
+  const phones = physicalIPhonesFromXCDevice(input).filter((value) => record(value).available === true);
+  if (phones.length !== 1) throw new Error(`expected exactly one available physical iPhone in xcdevice, found ${phones.length}`);
+  const identifier = text(record(phones[0]).identifier);
+  if (!identifier) throw new Error("available physical iPhone identifier is missing");
+  return identifier;
+}
+
 function physicalIPhonesFromDevicectl(input) {
   const devices = record(record(input).result).devices;
   if (!Array.isArray(devices)) return [];
@@ -126,6 +134,10 @@ async function main() {
     process.stdout.write(`${selectSinglePhysicalIPhoneFromXCDevice(await readJsonOrNull(args[0]))}\n`);
     return;
   }
+  if (command === "select-available-xcdevice" && args.length === 1) {
+    process.stdout.write(`${selectSingleAvailablePhysicalIPhoneFromXCDevice(await readJsonOrNull(args[0]))}\n`);
+    return;
+  }
   if (command === "summarize" && args.length === 10) {
     const [output, systemProfilerExit, usbFile, xcdeviceExit, xcdeviceFile, devicectlExit, devicectlFile, devicectlLog, pairingExit, pairingLog] = args;
     const summary = summarizePhysicalIPhonePreflight({
@@ -139,7 +151,7 @@ async function main() {
     process.stdout.write(`${JSON.stringify(summary)}\n`);
     return;
   }
-  throw new Error("usage: goriq-physical-iphone-preflight.mjs select-xcdevice <xcdevice-json> | summarize <output> <system-profiler-exit> <usb-json> <xcdevice-exit> <xcdevice-json> <devicectl-exit> <devicectl-json> <devicectl-log> <pairing-exit> <pairing-log>");
+  throw new Error("usage: goriq-physical-iphone-preflight.mjs select-xcdevice|select-available-xcdevice <xcdevice-json> | summarize <output> <system-profiler-exit> <usb-json> <xcdevice-exit> <xcdevice-json> <devicectl-exit> <devicectl-json> <devicectl-log> <pairing-exit> <pairing-log>");
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
