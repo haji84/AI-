@@ -701,7 +701,7 @@
     },
     {
       "path": "docs/architecture/jarvis-windows-production.md",
-      "sha256": "ca29c5357d2b339a5623b4899b95d48c292a67d7e5cf779d126d7b26f15f5b9a",
+      "sha256": "27fa75acf0e073319720bb6db3f6e6c4fdc6eb2eb2e0c85b414442d847728fe7",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "HOST-003"
@@ -2401,7 +2401,7 @@
     },
     {
       "path": "src/app/jarvis/settings/TrustedDeviceSettings.tsx",
-      "sha256": "e332d85306fe838fe3431891bd896fb8782b694bb212aec0239572d9d7803ff9",
+      "sha256": "aa9daa19a2be3791a406be7ea3e91abc646ab5f20e89d90a517fdab7e7283b3e",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "SEC-001",
