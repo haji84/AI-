@@ -16,6 +16,7 @@ final class OwnerCredentialRuntime: ObservableObject {
     private let googleEnrollment = GoogleOwnerEnrollment()
     private var recoveryExpiryTask: Task<Void, Never>?
     private var recoveryIssueGeneration = 0
+    private var ownerSessionEstablished = false
     private static let codeAccount = "owner-production-code"
     private static let keyAccount = "owner-signing-key"
     private static let credentialAccount = "owner-trusted-credential"
@@ -232,6 +233,7 @@ final class OwnerCredentialRuntime: ObservableObject {
     }
 
     func forgetLocal() {
+        ownerSessionEstablished = false
         deleteTrustedDeviceMaterialPreservingLegacyCode()
         Keychain.delete(account: Self.codeAccount)
         status = "未登録"
@@ -258,14 +260,21 @@ final class OwnerCredentialRuntime: ObservableObject {
         ])
         let verification = try await send(base: base, path: "/api/owner-login/trusted/verify", body: verificationBody, contentType: "application/json")
         guard verification.statusCode == 200 else {
+            ownerSessionEstablished = false
             status = "信頼登録を確認できません。表示を停止しました"
             throw OwnerError.trustUnavailable
         }
+        ownerSessionEstablished = true
     }
 
     func ensureOwnerSession() async throws {
         guard isEnrolled else { throw OwnerError.keyUnavailable }
+        if ownerSessionEstablished { return }
         try await verifyTrustedDeviceProof()
+    }
+
+    func invalidateOwnerSession() {
+        ownerSessionEstablished = false
     }
 
     func ownerAPIRequest(path: String, method: String = "GET", jsonBody: [String: Any]? = nil) async throws -> (statusCode: Int, data: Data) {
