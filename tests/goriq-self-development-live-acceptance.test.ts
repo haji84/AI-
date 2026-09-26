@@ -11,7 +11,7 @@ import {
   selectSingleAvailablePhysicalIPhone,
   verifyPhysicalIPhoneToolchainEvidence,
 } from "../src/orchestrator/physical-iphone-live-acceptance.ts";
-import { formatDevicectlFailure } from "../scripts/goriq-format-devicectl-failure.mjs";
+import { formatDevicectlFailure } from "../scripts/goriq-format-devicectl-failure.ts";
 
 test("real local-model acceptance only permits a bounded declared edit", () => {
   assert.equal(assertLoopbackModelEndpoint("http://127.0.0.1:11434/api/generate"), "http://127.0.0.1:11434");

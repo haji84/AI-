@@ -104,7 +104,7 @@ jobs:
           DEVICECTL_EXIT=$?
           set -e
           if (( DEVICECTL_EXIT != 0 )); then
-            node scripts/goriq-format-devicectl-failure.mjs "$DEVICECTL_EXIT" "$DEVICECTL_OUTPUT"
+            node scripts/goriq-format-devicectl-failure.ts "$DEVICECTL_EXIT" "$DEVICECTL_OUTPUT"
             exit "$DEVICECTL_EXIT"
           fi
           DEVICE_ID="$(node scripts/goriq-select-physical-iphone.mjs "$DEVICE_JSON")"

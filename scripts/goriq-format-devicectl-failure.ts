@@ -2,7 +2,7 @@
 import { readFile } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 
-export function formatDevicectlFailure(exitCode, output) {
+export function formatDevicectlFailure(exitCode: number, output: string): string {
   const printable = [...output].filter((character) => {
     const code = character.codePointAt(0) ?? 0;
     return code === 9 || code === 10 || code === 13 || (code >= 32 && code !== 127);
