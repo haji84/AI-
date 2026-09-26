@@ -1,4 +1,4 @@
-name: iPhone Owner 1218 Mac preflight
+name: GORIQ Native iPhone Daily Driver
 
 on:
   workflow_dispatch:
