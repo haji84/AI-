@@ -79,6 +79,30 @@ test("public recovery handlers enforce disabled, bounded, non-cacheable response
   assert.equal((await handleOwnerRecoveryCancel(request("/cancel", "x".repeat(4_097)), cancelDependencies())).status, 400);
 });
 
+test("public recovery handlers stop reading request streams at the byte limit", async () => {
+  let pulls = 0;
+  let cancelled = false;
+  const body = new ReadableStream<Uint8Array>({
+    pull(controller) {
+      pulls += 1;
+      if (pulls > 128) return controller.close();
+      controller.enqueue(new Uint8Array(1_024));
+    },
+    cancel() { cancelled = true; },
+  });
+  const streamed = new Request("https://owner.example/redeem", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body,
+    duplex: "half",
+  } as RequestInit & { duplex: "half" });
+
+  const response = await handleOwnerRecoveryRedeem(streamed, redeemDependencies());
+  assert.equal(response.status, 400);
+  assert.equal(cancelled, true);
+  assert.ok(pulls < 20, `expected early stream cancellation, observed ${pulls} pulls`);
+});
+
 test("issue and cancel behavior denies stale or revoked sessions before Broker mutation", async () => {
   let calls = 0;
   const issueResponse = await handleOwnerRecoveryIssue(request("/issue", {}), issueDependencies({

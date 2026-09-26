@@ -7,10 +7,32 @@ import {
 } from "./owner-recovery-service.ts";
 
 export const ownerRecoveryHeaders = { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" };
+const MAX_REQUEST_BYTES = 4_096;
+
+async function boundedText(request: Request): Promise<string> {
+  if (!request.body) return "";
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > MAX_REQUEST_BYTES) {
+        try { await reader.cancel(); } catch { /* the request is rejected regardless */ }
+        throw new Error("invalid request");
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  return new TextDecoder("utf-8", { fatal: true }).decode(Buffer.concat(chunks, size));
+}
 
 async function boundedJson(request: Request): Promise<Record<string, unknown>> {
-  const text = await request.text();
-  if (Buffer.byteLength(text) > 4_096) throw new Error("invalid request");
+  const text = await boundedText(request);
   const value = JSON.parse(text || "{}");
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("invalid request");
   return value as Record<string, unknown>;
