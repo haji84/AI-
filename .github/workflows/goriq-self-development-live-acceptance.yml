@@ -96,7 +96,17 @@ jobs:
         run: |
           set -euo pipefail
           [[ "$PAIRING_APPROVED" == "true" ]]
-          command -v xcodegen >/dev/null
+          XCODEGEN_BIN="$(command -v xcodegen || true)"
+          if [[ -z "$XCODEGEN_BIN" ]]; then
+            BREW_BIN="$(command -v brew || true)"
+            test -n "$BREW_BIN"
+            if ! "$BREW_BIN" list --versions xcodegen >/dev/null 2>&1; then
+              "$BREW_BIN" install xcodegen
+            fi
+            XCODEGEN_BIN="$("$BREW_BIN" --prefix xcodegen)/bin/xcodegen"
+          fi
+          test -x "$XCODEGEN_BIN"
+          "$XCODEGEN_BIN" --version
           DEVICE_JSON="$RUNNER_TEMP/goriq-681-devices.json"
           DEVICECTL_OUTPUT="$RUNNER_TEMP/goriq-681-devicectl-output.log"
           set +e
@@ -138,7 +148,7 @@ jobs:
           curl -fsS http://127.0.0.1:8797/health >/dev/null
 
           pushd apps/ios-worker >/dev/null
-          xcodegen generate
+          "$XCODEGEN_BIN" generate
           xcodebuild -project JarvisIOSWorker.xcodeproj -scheme JarvisIOSWorker -configuration Debug \
             -destination 'generic/platform=iOS' -derivedDataPath "$RUNNER_TEMP/goriq-681-ios-derived" \
             DEVELOPMENT_TEAM=SDTV253RXA PRODUCT_BUNDLE_IDENTIFIER="$ACCEPTANCE_BUNDLE_ID" \
