@@ -80,25 +80,32 @@ final class WorkerRuntime: ObservableObject {
     private let bundleIdentifier: String
 
     init() {
-        bridgeURL = UserDefaults.standard.string(forKey: "bridgeURL") ?? ""
+        let resolvedBridgeURL = UserDefaults.standard.string(forKey: "bridgeURL") ?? ""
         let acceptanceDeviceId = Bundle.main.object(forInfoDictionaryKey: "JARVISAcceptanceDeviceID") as? String
         let configuredChallenge = Bundle.main.object(forInfoDictionaryKey: "JARVISBuildChallenge") as? String
-        buildChallenge = configuredChallenge?.hasPrefix("goriq-681-") == true ? configuredChallenge! : ""
-        bundleIdentifier = Bundle.main.bundleIdentifier ?? ""
+        let resolvedBuildChallenge: String = configuredChallenge?.hasPrefix("goriq-681-") == true ? configuredChallenge! : ""
+        let resolvedBundleIdentifier = Bundle.main.bundleIdentifier ?? ""
+        let resolvedDeviceId: String
         if let acceptanceDeviceId, acceptanceDeviceId.hasPrefix("goriq-681-") {
-            deviceId = acceptanceDeviceId
+            resolvedDeviceId = acceptanceDeviceId
         } else if let persisted = UserDefaults.standard.string(forKey: "deviceId"), !persisted.isEmpty {
-            deviceId = persisted
+            resolvedDeviceId = persisted
         } else {
             let generated = UUID().uuidString.lowercased()
-            deviceId = generated
+            resolvedDeviceId = generated
             UserDefaults.standard.set(generated, forKey: "deviceId")
         }
-        credentialAccount = buildChallenge.isEmpty ? "physical-iphone-device-secret" : "physical-iphone-device-secret:\(deviceId)"
-        token = KeychainStore.load(account: credentialAccount) ?? ""
+        let resolvedCredentialAccount = resolvedBuildChallenge.isEmpty ? "physical-iphone-device-secret" : "physical-iphone-device-secret:\(resolvedDeviceId)"
         let configuration = URLSessionConfiguration.default
         configuration.timeoutIntervalForRequest = 5
         configuration.timeoutIntervalForResource = 10
+
+        bridgeURL = resolvedBridgeURL
+        deviceId = resolvedDeviceId
+        buildChallenge = resolvedBuildChallenge
+        bundleIdentifier = resolvedBundleIdentifier
+        credentialAccount = resolvedCredentialAccount
+        token = KeychainStore.load(account: resolvedCredentialAccount) ?? ""
         session = URLSession(configuration: configuration)
     }
 
