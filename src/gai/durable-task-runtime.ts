@@ -9,6 +9,7 @@ export type DurableTaskStatus =
   | "running"
   | "waiting-connectivity"
   | "waiting-resource"
+  | "ready-to-publish"
   | "retrying"
   | "completed"
   | "failed"
@@ -265,6 +266,21 @@ export class DurableTaskRuntime {
     task.leaseUntil = undefined;
     this.transition(task, "completed", "execution verified complete", now, owner);
     await this.refreshDependencyState(now);
+    await this.persist(now);
+    return cloneTask(task);
+  }
+
+  async readyToPublish(taskId: string, owner: string, result?: unknown, now = new Date()): Promise<DurableTask> {
+    await this.initialize();
+    const task = this.mustGet(taskId);
+    if ((task.status !== "running" && task.status !== "leased") || task.leaseOwner !== owner) {
+      throw new Error(`Task ${taskId} is not executable by ${owner}`);
+    }
+    task.result = structuredClone(result);
+    task.error = undefined;
+    task.leaseOwner = undefined;
+    task.leaseUntil = undefined;
+    this.transition(task, "ready-to-publish", "offline execution verified; publication requires connectivity", now, owner);
     await this.persist(now);
     return cloneTask(task);
   }

@@ -66,6 +66,7 @@ export interface OfflineExecutionPlan {
   preferredPlatform?: WorkerPlatform;
   requiredExecutionMode?: WorkerExecutionMode;
   allowOffline?: boolean;
+  publicationRequired?: boolean;
 }
 
 export type OfflineExecutionResolver = (task: DurableTask) => OfflineExecutionPlan;
@@ -74,7 +75,7 @@ export interface OfflineExecutionEvidence {
   taskId: string;
   connectivity: ConnectivityState;
   networkRequirement: WorkerNetworkRequirement;
-  decision: "execute" | "wait-connectivity" | "wait-resource";
+  decision: "execute" | "ready-to-publish" | "wait-connectivity" | "wait-resource";
   selectedWorkerId?: string;
   selectedPlatform?: WorkerPlatform;
   reason: string;
@@ -192,8 +193,14 @@ export class OfflineFirstExecutionCoordinator {
       await this.tasks.markRunning(task.id, selection.worker.descriptor.id, now);
       const result = await selection.worker.execute(request);
 
+      const readyToPublish = result.ok && plan.publicationRequired === true && !networkUsable(state);
       const finalTask = result.ok
-        ? await this.tasks.complete(task.id, selection.worker.descriptor.id, {
+        ? readyToPublish
+          ? await this.tasks.readyToPublish(task.id, selection.worker.descriptor.id, {
+              output: result.output,
+              evidence: result.evidence ?? null,
+            }, now)
+          : await this.tasks.complete(task.id, selection.worker.descriptor.id, {
             output: result.output,
             evidence: result.evidence ?? null,
           }, now)
@@ -205,10 +212,12 @@ export class OfflineFirstExecutionCoordinator {
           taskId: task.id,
           connectivity: state,
           networkRequirement: plan.networkRequirement,
-          decision: "execute",
+          decision: readyToPublish ? "ready-to-publish" : "execute",
           selectedWorkerId: selection.worker.descriptor.id,
           selectedPlatform: selection.worker.descriptor.platform,
-          reason: result.ok ? "offline-first execution completed" : "worker execution failed and entered retry policy",
+          reason: readyToPublish
+            ? "offline development verified and persisted for publication after reconnect"
+            : result.ok ? "offline-first execution completed" : "worker execution failed and entered retry policy",
           at: now.toISOString(),
         },
       };
