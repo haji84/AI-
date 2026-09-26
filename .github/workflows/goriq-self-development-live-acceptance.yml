@@ -114,10 +114,18 @@ jobs:
           DEVICECTL_EXIT=$?
           set -e
           if (( DEVICECTL_EXIT != 0 )); then
-            node scripts/goriq-format-devicectl-failure.ts "$DEVICECTL_EXIT" "$DEVICECTL_OUTPUT"
+            node scripts/goriq-format-devicectl-failure.mjs "$DEVICECTL_EXIT" "$DEVICECTL_OUTPUT" "devicectl list devices"
             exit "$DEVICECTL_EXIT"
           fi
-          DEVICE_ID="$(node scripts/goriq-select-physical-iphone.mjs "$DEVICE_JSON")"
+          SELECTOR_OUTPUT="$RUNNER_TEMP/goriq-681-device-selector.log"
+          set +e
+          DEVICE_ID="$(node scripts/goriq-select-physical-iphone.mjs "$DEVICE_JSON" 2>"$SELECTOR_OUTPUT")"
+          SELECTOR_EXIT=$?
+          set -e
+          if (( SELECTOR_EXIT != 0 )); then
+            node scripts/goriq-format-devicectl-failure.mjs "$SELECTOR_EXIT" "$SELECTOR_OUTPUT" "physical iPhone selection"
+            exit "$SELECTOR_EXIT"
+          fi
           test -n "$DEVICE_ID"
           DEVICE_HASH="$(printf '%s' "$DEVICE_ID" | shasum -a 256 | cut -c1-16)"
           RUN_NONCE="$(python3 -c 'import secrets; print(secrets.token_hex(32))')"
