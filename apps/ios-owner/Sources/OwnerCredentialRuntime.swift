@@ -263,6 +263,28 @@ final class OwnerCredentialRuntime: ObservableObject {
         }
     }
 
+    func ensureOwnerSession() async throws {
+        guard isEnrolled else { throw OwnerError.keyUnavailable }
+        try await verifyTrustedDeviceProof()
+    }
+
+    func ownerAPIRequest(path: String, method: String = "GET", jsonBody: [String: Any]? = nil) async throws -> (statusCode: Int, data: Data) {
+        let base = try baseURL()
+        guard let url = URL(string: path, relativeTo: base)?.absoluteURL,
+              url.scheme == "https", url.host == base.host else { throw OwnerError.invalidServer }
+        var request = URLRequest(url: url)
+        request.httpMethod = method
+        if let jsonBody {
+            request.httpBody = try JSONSerialization.data(withJSONObject: jsonBody)
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        }
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("no-store", forHTTPHeaderField: "Cache-Control")
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse, http.url?.host == base.host else { throw OwnerError.invalidServer }
+        return (http.statusCode, data)
+    }
+
     private func baseURL() throws -> URL {
         guard let url = URL(string: serverURL), url.scheme == "https", url.user == nil,
               url.password == nil, url.query == nil, url.fragment == nil, url.host != nil else { throw OwnerError.invalidServer }
