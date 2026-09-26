@@ -287,7 +287,7 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
   const path = url.pathname; const method = request.method || "GET";
   const body = method === "GET" || method === "HEAD" ? Buffer.alloc(0) : await readBody(request);
 
-  if (method === "GET" && path === "/health") return json(response, 200, { ok: true, service: "jarvis-broker", stats: plane.snapshot().stats, workerApkReady: Boolean(workerApkInfo()), pairingWindow: pairingWindow.status(), directGoalBridge: { version: 1, executorReady: existsSync(fileURLToPath(new URL("./jarvis-goal-executor.ts", import.meta.url))) } });
+  if (method === "GET" && path === "/health") return json(response, 200, { ok: true, service: "jarvis-broker", stats: plane.snapshot().stats, workerApkReady: Boolean(workerApkInfo()), pairingWindow: pairingWindow.status(), directGoalBridge: { version: 1, executorReady: existsSync(fileURLToPath(new URL("./jarvis-goal-executor.ts", import.meta.url))), selfDevelopmentRuntime: process.env.GORIQ_SELF_DEVELOPMENT_RUNTIME === "1" } });
   if (method === "POST" && path === "/api/jarvis/enrollment-grant") {
     // Same owner-opened, bounded window as /enroll; never opens itself on worker demand.
     let origin: URL;

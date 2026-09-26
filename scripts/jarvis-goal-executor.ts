@@ -1,10 +1,20 @@
 import { CompassStore } from "../src/compass/store.ts";
-import { CompassGoalExecutionAdapter } from "../src/orchestrator/compass-goal-execution-adapter.ts";
+import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
+import { dirname, join } from "node:path";
+import { CompassGoalExecutionAdapter, type DevelopmentRuntimeOptions } from "../src/orchestrator/compass-goal-execution-adapter.ts";
 import { CompassGoalBridgeEventStore } from "../src/orchestrator/compass-goal-bridge-event-store.ts";
 import { CompassWorkRunStore } from "../src/orchestrator/compass-work-run-store.ts";
 import { GoalControllerExecutionBridge } from "../src/orchestrator/goal-controller-execution-bridge.ts";
 import { createGoalBridgeEvent } from "../src/orchestrator/goal-bridge-events.ts";
 import type { GoalControllerDecision } from "../src/orchestrator/goal-controller-runtime.ts";
+import { createDevelopmentChangeSet } from "../src/orchestrator/development-change-set.ts";
+import { JsonFileDevelopmentChangeSetStore } from "../src/orchestrator/development-change-set-store.ts";
+import { JsonFileDevelopmentJobStore } from "../src/orchestrator/development-job-store.ts";
+import { ResidentDevelopmentGoalHost } from "../src/orchestrator/resident-development-goal-host.ts";
+import { createRuntimeBuilderRouter } from "../src/orchestrator/runtime-builder-capability.ts";
+import { createRuntimeDevelopmentVerifier } from "../src/orchestrator/runtime-development-verifier.ts";
+import { normalizeTaskCompletionAuthorization } from "../src/orchestrator/task-authorization.ts";
 
 function requiredEnv(name: string): string {
   const value = process.env[name]?.trim();
@@ -44,6 +54,101 @@ function executorDecision(goalId: string): GoalControllerDecision {
   };
 }
 
+function configuredDevelopmentRuntime(compassPath: string, context: unknown[]): DevelopmentRuntimeOptions | undefined {
+  if (process.env.GORIQ_SELF_DEVELOPMENT_RUNTIME !== "1") return undefined;
+  const contextText = JSON.stringify(context);
+  const configuredFiles = (process.env.GORIQ_SELF_DEVELOPMENT_TARGET_FILES ?? "").split(",").map((item) => item.trim()).filter(Boolean);
+  const inferredFiles = contextText.match(/(?:src|tests|scripts|docs)\/[A-Za-z0-9_./-]+/g) ?? [];
+  const targetFiles = [...new Set([...configuredFiles, ...inferredFiles])];
+  if (!targetFiles.length) throw new Error("GORIQ self-development target files are required");
+  const taskScopeId = process.env.GORIQ_SELF_DEVELOPMENT_TASK_SCOPE_ID?.trim();
+  if (!taskScopeId) throw new Error("GORIQ self-development task scope is required");
+  const authorization = process.env.GORIQ_SELF_DEVELOPMENT_TASK_AUTHORIZATION_JSON
+    ? normalizeTaskCompletionAuthorization(JSON.parse(process.env.GORIQ_SELF_DEVELOPMENT_TASK_AUTHORIZATION_JSON))
+    : undefined;
+  const baseRevision = execFileSync("git", ["rev-parse", "HEAD"], { cwd: process.cwd(), encoding: "utf8" }).trim();
+  const router = createRuntimeBuilderRouter();
+  const verifier = createRuntimeDevelopmentVerifier();
+  const stateRoot = join(dirname(compassPath), "self-development");
+  const host = new ResidentDevelopmentGoalHost({
+    jobs: new JsonFileDevelopmentJobStore(join(stateRoot, "jobs.json")),
+    changeSets: new JsonFileDevelopmentChangeSetStore(join(stateRoot, "change-sets.json")),
+    planning: {
+      requirementIds: ["CORE-014"],
+      baseRevision,
+      taskScopeId,
+      maxRisk: "medium",
+      targetFiles,
+      contextDigest: createHash("sha256").update(contextText).digest("hex"),
+    },
+    stages: {
+      builderId: "builder:resident",
+      async build({ job, goal, context: runtimeContext, workItemId }) {
+        const action = {
+          id: `${job.jobId}:build`,
+          description: goal.description?.trim() || goal.title,
+          capability: "code.builder",
+          risk: "low" as const,
+          input: {
+            goalId: job.goalId,
+            attemptId: `${job.jobId}:attempt`,
+            strategyId: `${job.jobId}:strategy`,
+            objective: goal.description?.trim() || goal.title,
+            files: targetFiles,
+            baseRevision: job.baseRevision,
+            localOnly: process.env.GORIQ_SELF_DEVELOPMENT_LOCAL_ONLY === "1",
+          },
+        };
+        const result = await router.execute(action, runtimeContext);
+        if (!result.ok) throw new Error(result.blocker ?? result.summary);
+        const envelope = (result.evidence as { changeSet?: { baseRevision?: string | null; changedPaths?: string[]; patchDigest?: string; builderId?: string } } | undefined)?.changeSet;
+        if (!envelope || envelope.baseRevision !== job.baseRevision || !envelope.patchDigest) throw new Error("resident Builder returned incomplete Change Set evidence");
+        return createDevelopmentChangeSet({
+          changeSetId: `${job.jobId}:change-set`,
+          jobId: job.jobId,
+          workItemId,
+          deviceId: envelope.builderId ?? "builder:resident",
+          baseRevision: job.baseRevision,
+          changedPaths: envelope.changedPaths ?? [],
+          affectedSymbols: [],
+          patchDigest: envelope.patchDigest,
+          evidenceDigest: createHash("sha256").update(JSON.stringify(result.evidence ?? null)).digest("hex"),
+          rollback: { kind: "git-base", reference: job.baseRevision },
+        });
+      },
+      async verify({ job, plan, goal, context: runtimeContext }) {
+        const action = {
+          id: `${job.jobId}:verify`,
+          description: `Independently verify ${goal.title}`,
+          capability: "code.builder",
+          risk: "low" as const,
+          input: {
+            verificationContract: { kind: "repository_checks", profile: "standard" },
+            releaseBinding: { builderId: plan.builderId, sourceRevision: plan.sourceRevision, artifactDigest: plan.artifactDigest },
+          },
+        };
+        const result = await verifier.verify({ goal, action, result: { actionId: action.id, ok: true, summary: "Change Set ready for verification" }, context: runtimeContext });
+        if (!result.ok) return [];
+        const evidence = result.evidence as { verificationEvidence?: unknown } | undefined;
+        return Array.isArray(evidence?.verificationEvidence) ? evidence.verificationEvidence as never : [];
+      },
+      async releaseState() {
+        return {
+          connected: process.env.GORIQ_SELF_DEVELOPMENT_CONNECTED === "1",
+          taskScopeId,
+          taskAuthorization: authorization,
+          protectedConditions: [],
+          pullRequest: null,
+          mainCi: null,
+          deployment: null,
+          postDeploymentEvidence: null,
+        };
+      },
+    },
+  });
+  return { runtime: host };
+}
+
 async function appendEvent(
   compassPath: string,
   input: Parameters<typeof createGoalBridgeEvent>[0],
@@ -75,7 +180,11 @@ async function main(): Promise<void> {
   const decision = executorDecision(goalId);
   try {
     await updateWorkRun(compassPath, goalId, "RUNNING", "Execute accepted Goal");
-    const bridge = new GoalControllerExecutionBridge(new CompassGoalExecutionAdapter(compassPath));
+    const developmentRuntime = configuredDevelopmentRuntime(compassPath, context);
+    const adapter = developmentRuntime
+      ? new CompassGoalExecutionAdapter(compassPath, {}, {}, developmentRuntime)
+      : new CompassGoalExecutionAdapter(compassPath);
+    const bridge = new GoalControllerExecutionBridge(adapter);
     const result = await bridge.executeUntilGoalTerminal(decision, { maxRuns: 12, context });
     const report = result.report;
     const type = result.reason === "goal_complete"
@@ -85,7 +194,7 @@ async function main(): Promise<void> {
         : result.reason === "blocked" || result.reason === "retry_exhausted"
           ? "GOAL_BLOCKED"
           : "IMPORTANT_UPDATE";
-    const phase = result.reason === "goal_complete" ? "COMPLETED" : result.reason === "human_gate" ? "HUMAN_GATE" : "BLOCKED";
+    const phase = result.reason === "goal_complete" ? "COMPLETED" : result.reason === "human_gate" ? "HUMAN_GATE" : result.reason === "publication_wait" ? "RUNNING" : "BLOCKED";
     await updateWorkRun(compassPath, goalId, phase, result.reason ?? report?.stopReason ?? "goal_execution_incomplete");
     await appendEvent(compassPath, {
       goalId,

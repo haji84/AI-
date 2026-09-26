@@ -37,6 +37,16 @@ export interface CognitiveRuntimeOptions {
   historyImport?: { manifestPath: string; dataRoot: string };
 }
 
+export interface DevelopmentGoalRuntime {
+  matches(goal: Goal, context: unknown[]): boolean;
+  run(input: { goalId: string; goal: Goal; context: ContextItem[] }): Promise<BoundedRunReport>;
+}
+
+export interface DevelopmentRuntimeOptions {
+  /** Explicit host opt-in; absent preserves the existing Builder path. */
+  runtime: DevelopmentGoalRuntime;
+}
+
 /** Host-selected catalog shared by execution and read-only status validation. */
 export async function loadCognitiveRuntimeWork(options: CognitiveRuntimeOptions, goalId: string, goal: Goal) {
   if ([options.localWork, options.localOutcomes, options.materialIntake].filter(Boolean).length > 1) throw Error("Choose one local work contract");
@@ -66,16 +76,19 @@ export class CompassGoalExecutionAdapter implements GoalExecutionAdapter {
   private readonly dbPath: string;
   private readonly goalLoopOptions: GoalLoopOptions;
   private readonly cognitiveOptions: CognitiveRuntimeOptions;
+  private readonly developmentOptions?: DevelopmentRuntimeOptions;
   constructor(
     dbPath = process.env.COMPASS_DB_PATH?.trim() || resolve(process.cwd(), ".compass", "compass.db"),
     goalLoopOptions: GoalLoopOptions = {},
     cognitiveOptions: CognitiveRuntimeOptions = {},
+    developmentOptions?: DevelopmentRuntimeOptions,
   ) {
     this.dbPath = dbPath;
     this.goalLoopOptions = goalLoopOptions;
     if (cognitiveOptions.useCore !== undefined && typeof cognitiveOptions.useCore !== "boolean") throw Error("Invalid Cognitive Core mode");
     if (cognitiveOptions.useCore !== true && Object.keys(cognitiveOptions).some(key => key !== "useCore")) throw Error("Cognitive options require explicit useCore opt-in");
     this.cognitiveOptions = cognitiveOptions;
+    this.developmentOptions = developmentOptions;
   }
 
   async run(goalId: string, input: { maxCycles?: number; context?: unknown[] } = {}): Promise<BoundedRunReport> {
@@ -104,6 +117,13 @@ export class CompassGoalExecutionAdapter implements GoalExecutionAdapter {
           ];
         },
       };
+      if (this.developmentOptions?.runtime.matches(goal, input.context ?? [])) {
+        const context = await Promise.all([
+          contextSource.collect({ goal }),
+          new EntryContextSource(input.context ?? []).collect({ goal }),
+        ]);
+        return this.developmentOptions.runtime.run({ goalId: authoritativeGoalId, goal, context: context.flat() });
+      }
       const registry = new CapabilityRegistry()
         .register(createContextInspectCapability())
         .register(createCodeBuilderCapability(createRuntimeBuilderRouter()));
