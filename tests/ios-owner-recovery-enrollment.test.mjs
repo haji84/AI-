@@ -56,3 +56,47 @@ test("cancellation clears volatile state only after a successful server response
   assert.match(cancel, /trusted\/recovery\/cancel/);
   assert.ok(cancel.indexOf("statusCode == 200") < cancel.indexOf("hideRecoveryCode()"));
 });
+
+test("an unregistered iPhone accepts only the short recovery enrollment code", () => {
+  assert.match(ui, /SecureField\("iPhoneに表示された復旧コード"/);
+  assert.match(ui, /owner\.enrollWithRecoveryCode\(entered\)/);
+  assert.doesNotMatch(ui, /ZBookで確認した本番コード|本番ログインコード|復旧用：本番コードで登録/);
+  assert.doesNotMatch(runtime, /func enroll\(code:|revealedCode|hasStoredCode|UIPasteboard|UniformTypeIdentifiers|saveProtected|readProtected/);
+});
+
+test("recovery redemption creates a protected local key and sends only public enrollment material", () => {
+  const enroll = method("enrollWithRecoveryCode(_ code: String)");
+  assert.match(enroll, /SecAccessControlCreateWithFlags[^\n]+\.userPresence[^\n]+\.privateKeyUsage/);
+  assert.match(enroll, /SecureEnclave\.P256\.Signing\.PrivateKey/);
+  assert.match(enroll, /"code": normalizedCode/);
+  assert.match(enroll, /"deviceId": id/);
+  assert.match(enroll, /"label": "iPhone Owner"/);
+  assert.match(enroll, /"publicKeyJwk": publicJWK/);
+  assert.doesNotMatch(enroll, /"privateKey"|key\.dataRepresentation[^\n]*JSONSerialization/);
+  assert.match(enroll, /storeTrustedDevice\(\s*keyData: key\.dataRepresentation/);
+});
+
+test("recovery redemption proves possession before publishing enrollment success", () => {
+  const enroll = method("enrollWithRecoveryCode(_ code: String)");
+  assert.ok(enroll.indexOf('path: "/api/owner-login/trusted/recovery/redeem"') < enroll.indexOf("verifyTrustedDeviceProof()"));
+  assert.ok(enroll.indexOf("verifyTrustedDeviceProof()") < enroll.indexOf("isEnrolled = true"));
+  assert.match(enroll, /catch[\s\S]*deleteTrustedDeviceMaterialPreservingLegacyCode\(\)[\s\S]*throw error/);
+});
+
+test("entered recovery code is validated but never persisted", () => {
+  const enroll = method("enrollWithRecoveryCode(_ code: String)");
+  assert.match(enroll, /normalizedCode/);
+  assert.match(enroll, /\^OR-/);
+  assert.doesNotMatch(enroll, /Keychain\.save[^\n]*code|UserDefaults[^\n]*code/);
+  assert.ok(enroll.indexOf("isEnrolled = true") > enroll.indexOf("verifyTrustedDeviceProof()"));
+});
+
+test("legacy Production code is referenced only by explicit cleanup paths", () => {
+  assert.match(runtime, /codeAccount = "owner-production-code"/);
+  const initializer = runtime.slice(runtime.indexOf("init()"), runtime.indexOf("func ", runtime.indexOf("init()")));
+  assert.doesNotMatch(initializer, /codeAccount/);
+  assert.doesNotMatch(method("hideRecoveryCode()"), /codeAccount/);
+  assert.match(method("enrollWithGoogle()"), /removeLegacyCode: true/);
+  assert.match(method("forgetLocal()"), /Self\.codeAccount/);
+  assert.doesNotMatch(method("enrollWithRecoveryCode(_ code: String)"), /removeLegacyCode: true/);
+});

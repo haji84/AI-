@@ -3,18 +3,14 @@ import CryptoKit
 import Foundation
 import LocalAuthentication
 import Security
-import UIKit
-import UniformTypeIdentifiers
 
 @MainActor
 final class OwnerCredentialRuntime: ObservableObject {
     @Published var serverURL = UserDefaults.standard.string(forKey: "ownerServerURL") ?? (Bundle.main.object(forInfoDictionaryKey: "GORIQServerURL") as? String ?? "")
     @Published private(set) var status = "未登録"
-    @Published private(set) var revealedCode: String?
     @Published private(set) var recoveryCode: String?
     @Published private(set) var recoveryExpiresAt: Date?
     @Published private(set) var isEnrolled = false
-    @Published private(set) var hasStoredCode = false
 
     private let session: URLSession
     private let googleEnrollment = GoogleOwnerEnrollment()
@@ -30,41 +26,58 @@ final class OwnerCredentialRuntime: ObservableObject {
         configuration.timeoutIntervalForRequest = 8
         session = URLSession(configuration: configuration, delegate: NoRedirects(), delegateQueue: nil)
         isEnrolled = Keychain.read(account: Self.credentialAccount) != nil
-        hasStoredCode = Keychain.read(account: Self.codeAccount) != nil
         status = isEnrolled ? "登録済み・サーバー確認待ち" : "未登録"
     }
 
-    func enroll(code: String) async throws {
-        guard code.count >= 24, !code.contains(where: { $0.isNewline }) else { throw OwnerError.invalidCode }
-        let base = try baseURL()
-        let loginBody = "passcode=\(formEncode(code))"
-        let login = try await send(base: base, path: "/api/owner-login", body: loginBody.data(using: .utf8)!, contentType: "application/x-www-form-urlencoded")
-        if login.statusCode == 401 { throw OwnerError.ownerAuthentication }
-        if login.statusCode == 503 { throw OwnerError.ownerAuthenticationUnavailable }
-        guard login.statusCode == 200 else { throw OwnerError.ownerServerResponse }
+    func enrollWithRecoveryCode(_ code: String) async throws {
+        let normalizedCode = code.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        guard normalizedCode.range(
+            of: #"^OR-[A-HJ-NP-Z2-9]{4}(?:-[A-HJ-NP-Z2-9]{4}){3}$"#,
+            options: .regularExpression
+        ) != nil else { throw OwnerError.invalidCode }
 
-        // Secure Enclave private material never leaves this iPhone. Its opaque
-        // data representation is backed up only into this device's Keychain.
+        let base = try baseURL()
         let access = SecAccessControlCreateWithFlags(nil, kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly, [.userPresence, .privateKeyUsage], nil)!
         let key = try SecureEnclave.P256.Signing.PrivateKey(compactRepresentable: false, accessControl: access)
         let bytes = key.publicKey.x963Representation
         guard bytes.count == 65, bytes.first == 4 else { throw OwnerError.keyUnavailable }
         let id = UUID().uuidString.replacingOccurrences(of: "-", with: "_")
-        let publicJWK: [String: String] = [
+        let publicJWK = [
             "kty": "EC", "crv": "P-256", "x": Data(bytes[1..<33]).base64URL,
             "y": Data(bytes[33..<65]).base64URL
         ]
-        let body = try JSONSerialization.data(withJSONObject: ["deviceId": id, "label": "iPhone Owner", "publicKeyJwk": publicJWK])
-        let enrollment = try await send(base: base, path: "/api/owner-login/trusted/enroll", body: body, contentType: "application/json")
+        let body = try JSONSerialization.data(withJSONObject: [
+            "code": normalizedCode,
+            "deviceId": id,
+            "label": "iPhone Owner",
+            "publicKeyJwk": publicJWK
+        ])
+        let enrollment = try await send(
+            base: base,
+            path: "/api/owner-login/trusted/recovery/redeem",
+            body: body,
+            contentType: "application/json"
+        )
         guard enrollment.statusCode == 200,
               let payload = try JSONSerialization.jsonObject(with: enrollment.data) as? [String: Any],
               let credential = payload["credential"] as? String else { throw OwnerError.enrollment }
 
-        try storeTrustedDevice(keyData: key.dataRepresentation, credential: credential, deviceId: id, recoveryCode: code)
-        UserDefaults.standard.set(serverURL, forKey: "ownerServerURL")
-        isEnrolled = true
-        hasStoredCode = true
-        status = "登録済み・表示前に本人とサーバーを確認"
+        do {
+            try storeTrustedDevice(
+                keyData: key.dataRepresentation,
+                credential: credential,
+                deviceId: id,
+                removeLegacyCode: false
+            )
+            UserDefaults.standard.set(serverURL, forKey: "ownerServerURL")
+            try await verifyTrustedDeviceProof()
+            isEnrolled = true
+            status = "復旧コードで登録し、Face IDと端末鍵を確認済み"
+        } catch {
+            deleteTrustedDeviceMaterialPreservingLegacyCode()
+            status = "新しい端末鍵を確認できないため、登録を保存しませんでした"
+            throw error
+        }
     }
 
     func enrollWithGoogle() async throws {
@@ -76,10 +89,9 @@ final class OwnerCredentialRuntime: ObservableObject {
         let id = UUID().uuidString.replacingOccurrences(of: "-", with: "_")
         let publicJWK = ["kty": "EC", "crv": "P-256", "x": Data(bytes[1..<33]).base64URL, "y": Data(bytes[33..<65]).base64URL]
         let credential = try await googleEnrollment.enroll(baseURL: base, deviceId: id, publicKeyJwk: publicJWK)
-        try storeTrustedDevice(keyData: key.dataRepresentation, credential: credential, deviceId: id, recoveryCode: nil)
+        try storeTrustedDevice(keyData: key.dataRepresentation, credential: credential, deviceId: id, removeLegacyCode: true)
         UserDefaults.standard.set(serverURL, forKey: "ownerServerURL")
         isEnrolled = true
-        hasStoredCode = false
         status = "GoogleでOwner登録済み"
     }
 
@@ -104,45 +116,25 @@ final class OwnerCredentialRuntime: ObservableObject {
         guard result.statusCode == 200 else { throw OwnerError.trustUnavailable }
     }
 
-    private func storeTrustedDevice(keyData: Data, credential: String, deviceId: String, recoveryCode: String?) throws {
+    private func storeTrustedDevice(keyData: Data, credential: String, deviceId: String, removeLegacyCode: Bool) throws {
         try Keychain.save(keyData, account: Self.keyAccount)
         do {
             try Keychain.save(Data(credential.utf8), account: Self.credentialAccount)
             try Keychain.save(Data(deviceId.utf8), account: Self.deviceIdAccount)
-            if let recoveryCode { try Keychain.saveProtected(Data(recoveryCode.utf8), account: Self.codeAccount) }
-            else { Keychain.delete(account: Self.codeAccount) }
+            if removeLegacyCode { Keychain.delete(account: Self.codeAccount) }
         } catch {
-            forgetLocal()
+            deleteTrustedDeviceMaterialPreservingLegacyCode()
             throw error
         }
     }
 
-    func reveal() async throws {
-        revealedCode = nil
-        status = "信頼登録と本人を確認中"
-        defer {
-            if revealedCode == nil && status == "信頼登録と本人を確認中" {
-                status = "確認できません。表示を停止しました"
-            }
+    private func deleteTrustedDeviceMaterialPreservingLegacyCode() {
+        hideRecoveryCode()
+        for account in [Self.keyAccount, Self.credentialAccount, Self.deviceIdAccount] {
+            Keychain.delete(account: account)
         }
-        try await verifyTrustedDeviceProof()
-        guard let data = try Keychain.readProtected(account: Self.codeAccount),
-              let code = String(data: data, encoding: .utf8) else { throw OwnerError.keyUnavailable }
-        revealedCode = code
-        status = "本人と信頼登録を確認済み"
+        isEnrolled = false
     }
-
-    func copy() async throws {
-        try await reveal()
-        guard let code = revealedCode else { throw OwnerError.keyUnavailable }
-        UIPasteboard.general.setItems([[UTType.plainText.identifier: code]], options: [
-            .localOnly: true, .expirationDate: Date().addingTimeInterval(60)
-        ])
-        revealedCode = nil
-        status = "コピーしました（60秒で期限切れ）"
-    }
-
-    func hide() { revealedCode = nil }
 
     func issueRecoveryCode() async throws {
         hideRecoveryCode()
@@ -230,13 +222,8 @@ final class OwnerCredentialRuntime: ObservableObject {
     }
 
     func forgetLocal() {
-        hideRecoveryCode()
-        hide()
-        for account in [Self.codeAccount, Self.keyAccount, Self.credentialAccount, Self.deviceIdAccount] {
-            Keychain.delete(account: account)
-        }
-        isEnrolled = false
-        hasStoredCode = false
+        deleteTrustedDeviceMaterialPreservingLegacyCode()
+        Keychain.delete(account: Self.codeAccount)
         status = "未登録"
     }
 
@@ -286,11 +273,6 @@ final class OwnerCredentialRuntime: ObservableObject {
         return (http.statusCode, data)
     }
 
-    private func formEncode(_ value: String) -> String {
-        var allowed = CharacterSet.alphanumerics
-        allowed.insert(charactersIn: "-._~")
-        return value.addingPercentEncoding(withAllowedCharacters: allowed) ?? ""
-    }
 }
 
 private extension Data {
@@ -314,13 +296,6 @@ private enum Keychain {
             kSecAttrAccount: account, kSecValueData: value, kSecAttrAccessible: kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly]
         guard SecItemAdd(query as CFDictionary, nil) == errSecSuccess else { throw OwnerError.keyUnavailable }
     }
-    static func saveProtected(_ value: Data, account: String) throws {
-        delete(account: account)
-        guard let control = SecAccessControlCreateWithFlags(nil, kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly, .userPresence, nil) else { throw OwnerError.keyUnavailable }
-        let query: [CFString: Any] = [kSecClass: kSecClassGenericPassword, kSecAttrService: service,
-            kSecAttrAccount: account, kSecValueData: value, kSecAttrAccessControl: control]
-        guard SecItemAdd(query as CFDictionary, nil) == errSecSuccess else { throw OwnerError.keyUnavailable }
-    }
     static func read(account: String) -> Data? {
         let query: [CFString: Any] = [kSecClass: kSecClassGenericPassword, kSecAttrService: service,
             kSecAttrAccount: account, kSecReturnData: true, kSecMatchLimit: kSecMatchLimitOne]
@@ -328,31 +303,16 @@ private enum Keychain {
         guard SecItemCopyMatching(query as CFDictionary, &item) == errSecSuccess else { return nil }
         return item as? Data
     }
-    static func readProtected(account: String) throws -> Data? {
-        let context = LAContext()
-        context.localizedReason = "本番ログインコードを表示します"
-        let query: [CFString: Any] = [kSecClass: kSecClassGenericPassword, kSecAttrService: service,
-            kSecAttrAccount: account, kSecReturnData: true, kSecMatchLimit: kSecMatchLimitOne,
-            kSecUseAuthenticationContext: context]
-        var item: CFTypeRef?
-        let status = SecItemCopyMatching(query as CFDictionary, &item)
-        if status == errSecItemNotFound { return nil }
-        guard status == errSecSuccess else { throw OwnerError.keyUnavailable }
-        return item as? Data
-    }
 }
 
 enum OwnerError: LocalizedError {
-    case invalidCode, invalidServer, ownerAuthentication, ownerAuthenticationUnavailable, ownerServerResponse, enrollment, recoveryUnavailable, trustUnavailable, keyUnavailable, revocationUnverified
+    case invalidCode, invalidServer, enrollment, recoveryUnavailable, trustUnavailable, keyUnavailable, revocationUnverified
     var errorDescription: String? {
         switch self {
         case .invalidCode: "コード形式を確認してください"
         case .invalidServer: "HTTPSのGORIQ URLを確認してください"
-        case .ownerAuthentication: "Owner認証に失敗しました。入力したコードが本番サーバーと一致しません"
-        case .ownerAuthenticationUnavailable: "本番Owner認証がサーバーに設定されていません"
-        case .ownerServerResponse: "本番サーバーから想定外の応答が返りました"
         case .enrollment: "端末登録に失敗しました"
-        case .recoveryUnavailable: "復旧コードを発行または取り消しできません"
+        case .recoveryUnavailable: "復旧コードを発行、登録、または取り消しできません"
         case .trustUnavailable: "端末の信頼状態を確認できません"
         case .keyUnavailable: "この端末の保護鍵を使用できません"
         case .revocationUnverified: "失効後に端末が拒否されることを確認できませんでした"

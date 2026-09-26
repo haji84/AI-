@@ -40,16 +40,16 @@ struct OwnerCredentialView: View {
                         }.disabled(working || owner.serverURL.isEmpty)
                         Text("Google本人確認後、このiPhoneのSecure Enclave端末鍵をOwnerとして登録します。本番コードの入力は不要です。")
                             .font(.footnote)
-                        DisclosureGroup("復旧用：本番コードで登録") {
-                            SecureField("ZBookで確認した本番コード", text: $code)
-                                .textInputAutocapitalization(.never)
-                                .autocorrectionDisabled()
-                            Button("復旧用コードで登録") {
-                                let entered = code
-                                code = ""
-                                run { try await owner.enroll(code: entered) }
-                            }.disabled(working || code.isEmpty)
-                        }
+                        SecureField("iPhoneに表示された復旧コード", text: $code)
+                            .textInputAutocapitalization(.characters)
+                            .autocorrectionDisabled()
+                        Button("復旧コードでOwner登録") {
+                            let entered = code
+                            code = ""
+                            run { try await owner.enrollWithRecoveryCode(entered) }
+                        }.disabled(working || owner.serverURL.isEmpty || code.isEmpty)
+                        Text("登録済みのiPhoneで発行した、5分間・1回限りの復旧コードを入力します。")
+                            .font(.footnote)
                     }
                 } else {
                     Section("別端末のOwner登録") {

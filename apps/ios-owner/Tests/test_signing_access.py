@@ -8,7 +8,7 @@ VIEW = SOURCE.parent / "JarvisIOSOwnerApp.swift"
 class SecureEnclaveSigningAccessTests(unittest.TestCase):
     def test_enrollment_keys_allow_private_signing_with_user_presence(self):
         source = SOURCE.read_text()
-        for method in ("enroll(code:", "enrollWithGoogle()"):
+        for method in ("enrollWithRecoveryCode(_ code:", "enrollWithGoogle()"):
             with self.subTest(method=method):
                 start = source.index("func " + method)
                 end = source.index("func ", start + 5)
@@ -61,6 +61,15 @@ class SecureEnclaveSigningAccessTests(unittest.TestCase):
         self.assertIn("recoveryCode = nil", body)
         self.assertIn("recoveryExpiresAt = nil", body)
         self.assertIn("owner.hideRecoveryCode()", VIEW.read_text())
+
+    def test_recovery_redemption_proves_new_key_before_publishing_enrolled_state(self):
+        source = SOURCE.read_text()
+        start = source.index("func enrollWithRecoveryCode(_ code:")
+        end = source.index("func ", start + 5)
+        body = source[start:end]
+        self.assertLess(body.index('path: "/api/owner-login/trusted/recovery/redeem"'), body.index("verifyTrustedDeviceProof()"))
+        self.assertLess(body.index("verifyTrustedDeviceProof()"), body.index("isEnrolled = true"))
+        self.assertIn("deleteTrustedDeviceMaterialPreservingLegacyCode()", body)
 
 if __name__ == "__main__":
     unittest.main()

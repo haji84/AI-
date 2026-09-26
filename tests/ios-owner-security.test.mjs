@@ -28,11 +28,10 @@ test('Owner recovery display is private and does not enter browser storage, URL 
   assert.doesNotMatch(source + ui, /localStorage|sessionStorage|indexedDB|print\(|Logger\.|NSLog|URLQueryItem.*[Cc]ode/);
 });
 
-test('enrollment distinguishes a wrong code from missing server authentication', () => {
-  assert.match(source, /login\.statusCode == 401/);
-  assert.match(source, /login\.statusCode == 503/);
-  assert.match(source, /ownerAuthenticationUnavailable/);
-  assert.match(source, /本番Owner認証がサーバーに設定されていません/);
+test('long-lived Production Owner code cannot be entered, revealed, copied, or newly stored', () => {
+  assert.doesNotMatch(source, /func enroll\(code:|func reveal\(|func copy\(|UIPasteboard|UniformTypeIdentifiers|saveProtected|readProtected/);
+  assert.doesNotMatch(ui, /本番ログインコード|ZBookで確認した本番コード|Button\("コピー"|Button\("変更"/);
+  assert.match(source, /codeAccount = "owner-production-code"/);
 });
 
 test('physical install selects the signing team from the app provisioning profile', () => {

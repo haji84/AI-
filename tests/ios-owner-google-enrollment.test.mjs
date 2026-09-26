@@ -24,9 +24,11 @@ test("Google enrollment never persists OAuth tokens or requires Production Owner
   assert.match(plist, /com\.haji84\.jarvis\.iosowner/);
 });
 
-test("manual code enrollment remains recovery-only", () => {
-  assert.match(ui, /復旧用/);
+test("short recovery enrollment replaces manual Production Owner code entry", () => {
+  assert.match(ui, /iPhoneに表示された復旧コード/);
   assert.match(ui, /GoogleでOwner登録/);
+  assert.doesNotMatch(ui, /ZBookで確認した本番コード|復旧用：本番コードで登録/);
+  assert.doesNotMatch(runtime, /func enroll\(code:/);
 });
 
 test("disabled Google enrollment shows a specific safe server-configuration error", () => {
