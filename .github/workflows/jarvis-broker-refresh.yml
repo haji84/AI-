@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       owner_1218_head:
-        description: 'Deploy reviewed Google Owner Broker head for Issue 1218'
+        description: 'Deploy reviewed Owner recovery Broker head for Issue 1218'
         required: true
         default: false
         type: boolean
@@ -52,7 +52,7 @@ jobs:
           fi
           if [[ "${{ inputs.owner_1218_head }}" == 'true' ]]; then
             [[ "$GITHUB_REF" == 'refs/heads/goriq/1218-iphone-owner' ]] || exit 2
-            TARGET='fb0c55362cacff09431e6d9ed32f4c3656bec667'
+            TARGET='09f72336e746f647cdc4d7a77f544c2d012900e2'
             git -C "$REPO_ROOT" fetch origin goriq/1218-iphone-owner
             git -C "$REPO_ROOT" merge-base --is-ancestor "$TARGET" FETCH_HEAD || exit 3
             git -C "$REPO_ROOT" merge --ff-only "$TARGET"
@@ -87,7 +87,7 @@ jobs:
             curl -fsS --max-time 2 http://127.0.0.1:8787/health >/dev/null 2>&1 && break
             sleep 1
           done
-          curl -fsS --max-time 3 http://127.0.0.1:8787/health | grep -Fq 'jarvis-broker'
+          curl -fsS --max-time 3 http://127.0.1:8787/health | grep -Fq 'jarvis-broker'
           AFTER_TUNNEL_PID="$(launchctl print "$TUNNEL" 2>/dev/null | awk '$1=="pid" && $2=="=" {print $3; exit}')"
           [[ "$AFTER_TUNNEL_PID" == "$BEFORE_TUNNEL_PID" ]] || {
             echo 'Broker tunnel process changed during Broker-only refresh.' >&2
@@ -125,7 +125,7 @@ jobs:
               method: 'POST',
               headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
               body: JSON.stringify(body),
-              signal: AbortSignal.timeout(5000),
+              signal: AbortSignal.timeout(500),
             });
             const payload = response.ok ? await response.json() : {};
             return { status: response.status, payload };
@@ -136,47 +136,4 @@ jobs:
             console.log('GOOGLE_OWNER_ISSUE_STATUS=' + issued.status);
             if (issued.status !== 200 || !issued.payload.contextId) process.exit(3);
             const consumed = await request({ action: 'consumeContext', ...common, contextId: issued.payload.contextId });
-            console.log('GOOGLE_OWNER_CONSUME_STATUS=' + consumed.status);
-            const replay = await request({ action: 'consumeContext', ...common, contextId: issued.payload.contextId });
-            console.log('GOOGLE_OWNER_REPLAY_STATUS=' + replay.status);
-            if (consumed.status !== 200 || replay.status !== 409) process.exit(4);
-          } catch {
-            console.log('GOOGLE_OWNER_SMOKE_TRANSPORT_FAILED');
-            process.exit(5);
-          }
-          NODE
-
-
-      - name: Verify durable Google Owner binding and active trusted device without identifiers
-        if: inputs.owner_1218_head == true
-        shell: bash
-        run: |
-          set -euo pipefail
-          ENV_FILE="$HOME/Library/Application Support/JARVIS/jarvis.env"
-          set -a; source "$ENV_FILE"; set +a
-          node <<'NODE'
-          const base = process.env.JARVIS_PUBLIC_BROKER_URL;
-          const token = process.env.JARVIS_OWNER_TOKEN;
-          if (!base || !token) process.exit(2);
-          const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
-          try {
-            const identityResponse = await fetch(new URL('/api/jarvis/admin/google-owner', base), {
-              method: 'POST', headers, body: JSON.stringify({ action: 'identity' }),
-              signal: AbortSignal.timeout(5000),
-            });
-            const identity = identityResponse.ok ? await identityResponse.json() : {};
-            const devicesResponse = await fetch(new URL('/api/jarvis/admin/trusted-devices', base), {
-              headers, signal: AbortSignal.timeout(5000),
-            });
-            const devices = devicesResponse.ok ? await devicesResponse.json() : {};
-            const bound = identityResponse.status === 200 && identity.bound === true;
-            const active = devicesResponse.status === 200 && Array.isArray(devices.devices)
-              && devices.devices.some(item => item.label === 'iPhone Owner' && item.revoked === false);
-            console.log('GOOGLE_OWNER_BINDING_PERSISTED=' + bound);
-            console.log('GOOGLE_OWNER_TRUSTED_DEVICE_ACTIVE=' + active);
-            if (!bound || !active) process.exit(3);
-          } catch {
-            console.log('GOOGLE_OWNER_DURABLE_CHECK_UNAVAILABLE');
-            process.exit(4);
-          }
-          NODE
+            console.log('GOOGLE_OWNER_CONSUME_STATULôœ€¬¥ÍÍÕ•¹ÍÑ…ÑÕÌ¤ì(€€€€€€€€€€€½¹ÍÐÉ•Á±…ä€ô…Ý…¥ÐÉ•ÅÕ•ÍÐ¡ì…Ñ¥½¸è€½¹ÍÕµ•½¹Ñ•áÐœ°€¸¸¹½µµ½¸°½¹Ñ•áÑ%è¥ÍÍÕ•¹Á…å±½…¹½¹Ñ•áÑ%ô¤ì(€€€€€€€€€€€½¹Í½±”¹±½œ ==1}=]9I}IA1e}MQQULôœ€¬É•Á±…ä¹ÍÑ…ÑÕÌ¤ì(€€€€€€€€€€€¥˜€¡½¹ÍÕµ•¹ÍÑ…ÑÕÌ€„ôô€ÈÀÀñðÉ•Á±…ä¹ÍÑ…ÑÕÌ€„ôô€ÐÀä¤ÁÉ½•ÍÌ¹•á¥Ð Ð¤ì(€€€€€€€€€ô…Ñ ì(€€€€€€€€€€€½¹Í½±”¹±½œ ==1}=]9I}M5=-}QI9MA=IQ}%1œ¤ì(€€€€€€€€€€€ÁÉ½•ÍÌ¹•á¥Ð Ô¤ì(€€€€€€€€€ô(€€€€€€€€€9=(((€€€€€€´¹…µ”èY•É¥™ä‘ÕÉ…‰±”½½±”=Ý¹•È‰¥¹‘¥¹œ…¹…Ñ¥Ù”ÑÉÕÍÑ•‘•Ù¥”Ý¥Ñ¡½ÕÐ¥‘•¹Ñ¥™¥•ÉÌ(€€€€€€€¥˜è¥¹ÁÕÑÌ¹½Ý¹•É|ÄÈÄá}¡•…€ôôÑÉÕ”(€€€€€€€Í¡•±°è‰…Í (€€€€€€€ÉÕ¸èð(€€€€€€€€€Í•Ð€µ•Õ¼Á¥Á•™…¥°(€€€€€€€€€9Y}%1ôˆ‘!=5½1¥‰É…Éä½ÁÁ±¥…Ñ¥½¸MÕÁÁ½ÉÐ½)IY%L½©…ÉÙ¥Ì¹•¹Øˆ(€€€€€€€€€Í•Ð€µ„ìÍ½ÕÉ”€ˆ‘9Y}%1ˆìÍ•Ð€­„(€€€€€€€€€¹½‘”€ðð9=œ(€€€€€€€€€½¹ÍÐ‰…Í”€ôÁÉ½•ÍÌ¹•¹Ø¹)IY%M}AU	1%}	I=-I}UI0ì(€€€€€€€€€½¹ÍÐÑ½­•¸€ôÁÉ½•ÍÌ¹•¹Ø¹)IY%M}=]9I}Q=-8ì(€€€€€€€€€¥˜€ …‰…Í”ñð€…Ñ½­•¸¤ÁÉ½•ÍÌ¹•á¥Ð È¤ì(€€€€€€€€€½¹ÍÐ¡•…‘•ÉÌ€ôìÕÑ¡½É¥é…Ñ¥½¸è	•…É•È€‘íÑ½­•¹õ€°€½¹Ñ•¹ÐµQåÁ”œè€…ÁÁ±¥…Ñ¥½¸½©Í½¸œôì(€€€€€€€€€ÑÉäì(€€€€€€€€€€€½¹ÍÐ¥‘•¹Ñ¥ÑåI•ÍÁ½¹Í”€ô…Ý…¥Ð™•Ñ ¡¹•ÜUI0 œ½…Á¤½©…ÉÙ¥Ì½…‘µ¥¸½½½±”µ½Ý¹•Èœ°‰…Í”¤°ì(€€€€€€€€€€€€€µ•Ñ¡½è€A=MPœ°¡•…‘•ÉÌ°‰½‘äè)M=8¹ÍÑÉ¥¹¥™ä¡ì…Ñ¥½¸è€¥‘•¹Ñ¥Ñäœô¤°(€€€€€€€€€€€€€Í¥¹…°è‰½ÉÑM¥¹…°¹Ñ¥µ•½ÕÐ ÔÀÀÀ¤°(€€€€€€€€€€€ô¤ì(€€€€€€€€€€€½¹ÍÐ¥‘•¹Ñ¥Ñä€ô¥‘•¹Ñ¥ÑåI•ÍÁ½¹Í”¹½¬€ü…Ý…¥Ð¥‘•¹Ñ¥ÑåI•ÍÁ½¹Í”¹©Í½¸ ¤€èíôì(€€€€€€€€€€€½¹ÍÐ‘•Ù¥•ÍI•ÍÁ½¹Í”€ô…Ý…¥Ð™•Ñ ¡¹•ÜUI0 œ½…Á¤½©…ÉÙ¥Ì½…‘µ¥¸½ÑÉÕÍÑ•µ‘•Ù¥•Ìœ°‰…Í”¤°ì(€€€€€€€€€€€€€¡•…‘•ÉÌ°Í¥¹…°è‰½ÉÑM¥¹…°¹Ñ¥µ•½ÕÐ ÔÀÀÀ¤°(€€€€€€€€€€€ô¤ì(€€€€€€€€€€€½¹ÍÐ‘•Ù¥•Ì€ô‘•Ù¥•ÍI•ÍÁ½¹Í”¹½¬€ü…Ý…¥Ð‘•Ù¥•ÍI•ÍÁ½¹Í”¹©Í½¸ ¤€èíôì(€€€€€€€€€€€½¹ÍÐ‰½Õ¹€ô¥‘•¹Ñ¥ÑåI•ÍÁ½¹Í”¹ÍÑ…ÑÕÌ€ôôô€ÈÀÀ€˜˜¥‘•¹Ñ¥Ñä¹‰½Õ¹€ôôôÑÉÕ”ì(€€€€€€€€€€€½¹ÍÐ…Ñ¥Ù”€ô‘•Ù¥•ÍI•ÍÁ½¹Í”¹ÍÑ…ÑÕÌ€ôôô€ÈÀÀ€˜˜ÉÉ…ä¹¥ÍÉÉ…ä¡‘•Ù¥•Ì¹‘•Ù¥•Ì¤(€€€€€€€€€€€€€€˜˜‘•Ù¥•Ì¹‘•Ù¥•Ì¹Í½µ”¡¥Ñ•´€ôø¥Ñ•´¹±…‰•°€ôôô€¥A¡½¹”=Ý¹•Èœ€˜˜¥Ñ•´¹É•Ù½­•€ôôô™…±Í”¤ì(€€€€€€€€€€€½¹Í½±”¹±½œ ==1}=]9I}	%9%9}AIM%MQôœ€¬‰½Õ¹¤ì(€€€€€€€€€€€½¹Í½±”¹±½œ ==1}=]9I}QIUMQ}Y%}Q%Yôœ€¬…Ñ¥Ù”¤ì(€€€€€€€€€€€¥˜€ …‰½Õ¹ñð€……Ñ¥Ù”¤ÁÉ½•ÍÌ¹•á¥Ð Ì¤ì(€€€€€€€€€ô…Ñ ì(€€€€€€€€€€€½¹Í½±”¹±½œ ==1}=]9I}UI	1}!-}U9Y%1	1œ¤ì(€€€€€€€€€€€ÁÉ½•ÍÌ¹•á¥Ð Ð¤ì(€€€€€€€€€ô(€€€€€€€€€9=(
