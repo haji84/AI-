@@ -36,7 +36,7 @@ export function parseDailyDriverDeviceCommand(input: string): DailyDriverDeviceI
     };
   }
 
-  if (/(画面.*(起こ|オン)|wake)/i.test(text)) {
+  if (/(画面.*(起こ|オン)|wake(?:\\s|$))/i.test(text)) {
     return { kind: "device", task: { type: "wake-device", payload: {} } };
   }
 
@@ -48,7 +48,7 @@ export function parseDailyDriverDeviceCommand(input: string): DailyDriverDeviceI
     return { kind: "device", task: { type: "launch-settings", payload: { screen: "bluetooth" } } };
   }
 
-  if (/^(?:端末|スマホ|android)?s*設定(?:を)?(?:開いて|開く|表示して)$/i.test(text)) {
+  if (/^(?:端末|スマホ|android)?\\s*設定(?:を)?(?:開いて|開く|表示して)$/i.test(text)) {
     return { kind: "device", task: { type: "launch-settings", payload: { screen: "settings" } } };
   }
 
