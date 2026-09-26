@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { JARVIS_THEMES, jarvisTheme, type JarvisThemeId } from "./theme-catalog";
 
 const STORAGE_KEY = "jarvis-ui-theme";
+const LAST_GOAL_KEY = "goriq-last-goal-id";
 
 export default function JarvisWorkShell() {
   const pendingCommand = useRef<{text:string;key:string}|null>(null);
@@ -18,6 +19,8 @@ export default function JarvisWorkShell() {
   useEffect(() => {
     const saved = window.localStorage.getItem(STORAGE_KEY);
     setThemeId(jarvisTheme(saved).id);
+    const lastGoalId = window.localStorage.getItem(LAST_GOAL_KEY)?.trim();
+    if (lastGoalId) setWorkStatus({ goalId: lastGoalId });
   }, []);
   const theme = jarvisTheme(themeId);
 
@@ -28,7 +31,13 @@ export default function JarvisWorkShell() {
     const poll = async () => {
       try {
         const response = await fetch(`/api/jarvis/work/${encodeURIComponent(goalId)}`, { cache: "no-store" });
-        if (!response.ok) return;
+        if (!response.ok) {
+          if (response.status === 404) {
+            window.localStorage.removeItem(LAST_GOAL_KEY);
+            if (!cancelled) setWorkStatus(null);
+          }
+          return;
+        }
         const body = await response.json() as { run?: Record<string, unknown>; progress?: { determinate: boolean; value: number | null } };
         if (!cancelled && body.run) setRunStatus({ ...(body.run as object), progress: body.progress });
       } catch { /* polling is best effort; durable Goal remains authoritative */ }
@@ -63,6 +72,7 @@ export default function JarvisWorkShell() {
         return;
       }
       setWorkStatus({ goalId: body.goalId, action: body.action, nextAction: body.nextAction });
+      if (body.goalId) window.localStorage.setItem(LAST_GOAL_KEY, body.goalId);
       setCommand("");
     } catch (error) {
       setWorkStatus({ error: error instanceof Error ? error.message : "Goal受付に失敗しました" });
