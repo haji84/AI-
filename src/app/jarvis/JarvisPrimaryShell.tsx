@@ -6,7 +6,6 @@ import { useEffect } from "react";
 import JarvisCommandSearch from "./JarvisCommandSearch";
 import JarvisConnectivityStatus from "./JarvisConnectivityStatus";
 import JarvisDisplayModeControls from "./JarvisDisplayModeControls";
-import JarvisHomeLayoutEditor from "./JarvisHomeLayoutEditor";
 import JarvisOperationModeControls from "./JarvisOperationModeControls";
 import JarvisPriorityNotifications from "./JarvisPriorityNotifications";
 import JarvisReadOnlyBoundary from "./JarvisReadOnlyBoundary";
@@ -18,9 +17,8 @@ import { applyJarvisPreferences, readJarvisPreferences } from "./ui-preferences"
 
 const NAV_ITEMS = [
   { href: "/jarvis", label: "ホーム", key: "home" },
-  { href: "/jarvis/devices", label: "デバイス", key: "devices" },
-  { href: "/jarvis/tasks", label: "タスク", key: "tasks" },
-  { href: "/jarvis/research", label: "リサーチ", key: "research" },
+  { href: "/jarvis/tasks", label: "作業", key: "tasks" },
+  { href: "/jarvis/devices", label: "端末", key: "devices" },
   { href: "/jarvis/settings", label: "設定", key: "settings" },
 ] as const;
 
@@ -58,11 +56,11 @@ export default function JarvisPrimaryShell({ children }: { children: ReactNode }
     <div className="jarvis-primary-shell">
       <a className="jarvis-skip-link" href="#jarvis-main-content">メインコンテンツへ移動</a>
       <header className="jarvis-primary-header">
-        <a className="jarvis-brand" href="/jarvis" aria-label="JARVIS ホーム">
-          <span className="jarvis-brand-mark" aria-hidden="true">J</span>
-          <span><strong>JARVIS</strong><small>COMMAND CENTER</small></span>
+        <a className="jarvis-brand" href="/jarvis" aria-label="GORIQ ホーム">
+          <span className="jarvis-brand-mark" aria-hidden="true">G</span>
+          <span><strong>GORIQ</strong><small>DAILY DRIVER</small></span>
         </a>
-        <nav className="jarvis-primary-nav" aria-label="JARVIS メインナビゲーション">
+        <nav className="jarvis-primary-nav" aria-label="GORIQ メインナビゲーション">
           {NAV_ITEMS.map((item) => {
             const active = item.href === "/jarvis"
               ? pathname === "/jarvis"
@@ -74,16 +72,21 @@ export default function JarvisPrimaryShell({ children }: { children: ReactNode }
             );
           })}
         </nav>
-        <a className="button secondary jarvis-owner-link" href={`/jarvis/login?next=${encodeURIComponent(pathname)}`}>オーナー認証</a>
+        <details className="jarvis-owner-link">
+          <summary className="button secondary">詳細</summary>
+          <div>
+            <a className="button secondary" href="/jarvis/research">リサーチ</a>
+            <a className="button secondary" href={`/jarvis/login?next=${encodeURIComponent(pathname)}`}>オーナー認証</a>
+            <JarvisOperationModeControls />
+            <JarvisDisplayModeControls />
+            <JarvisCommandSearch pathname={pathname} />
+          </div>
+        </details>
       </header>
       <JarvisConnectivityStatus />
-      <JarvisOperationModeControls />
-      <JarvisDisplayModeControls />
-      <JarvisCommandSearch pathname={pathname} />
       <JarvisPriorityNotifications />
       <JarvisReadOnlyBoundary>
         <main id="jarvis-main-content" className="jarvis-primary-content" tabIndex={-1}>
-          {pathname === "/jarvis" ? <JarvisHomeLayoutEditor /> : null}
           {children}
         </main>
       </JarvisReadOnlyBoundary>
