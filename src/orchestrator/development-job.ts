@@ -111,6 +111,7 @@ export interface DevelopmentTransitionRequest {
   at?: string;
   evidence?: DevelopmentEvidence[];
   failure?: DevelopmentFailure;
+  blockers?: string[];
 }
 
 const ALLOWED: Readonly<Record<DevelopmentJobPhase, ReadonlySet<DevelopmentJobPhase>>> = {
@@ -119,7 +120,7 @@ const ALLOWED: Readonly<Record<DevelopmentJobPhase, ReadonlySet<DevelopmentJobPh
   IMPLEMENTING: new Set(["VERIFYING", "WAITING_FOR_CONNECTIVITY", "WAITING_FOR_RESOURCE", "RECOVERING", "HUMAN_GATE", "BLOCKED", "CANCELLED"]),
   WAITING_FOR_CONNECTIVITY: new Set(["PLANNING", "IMPLEMENTING", "RECOVERING", "HUMAN_GATE", "BLOCKED", "CANCELLED"]),
   WAITING_FOR_RESOURCE: new Set(["PLANNING", "IMPLEMENTING", "RECOVERING", "WAITING_FOR_CONNECTIVITY", "HUMAN_GATE", "BLOCKED", "CANCELLED"]),
-  VERIFYING: new Set(["READY_TO_PUBLISH", "COMPLETED", "RECOVERING", "WAITING_FOR_CONNECTIVITY", "WAITING_FOR_RESOURCE", "HUMAN_GATE", "BLOCKED", "CANCELLED"]),
+  VERIFYING: new Set(["VERIFYING", "READY_TO_PUBLISH", "COMPLETED", "RECOVERING", "WAITING_FOR_CONNECTIVITY", "WAITING_FOR_RESOURCE", "HUMAN_GATE", "BLOCKED", "CANCELLED"]),
   RECOVERING: new Set(["PLANNING", "IMPLEMENTING", "VERIFYING", "WAITING_FOR_CONNECTIVITY", "WAITING_FOR_RESOURCE", "HUMAN_GATE", "BLOCKED", "CANCELLED"]),
   READY_TO_PUBLISH: new Set(["PUBLISHING", "RECOVERING", "WAITING_FOR_CONNECTIVITY", "HUMAN_GATE", "BLOCKED", "CANCELLED"]),
   PUBLISHING: new Set(["VERIFYING", "COMPLETED", "RECOVERING", "WAITING_FOR_CONNECTIVITY", "HUMAN_GATE", "BLOCKED", "CANCELLED"]),
@@ -264,7 +265,9 @@ export class DevelopmentJobStateController {
       next.attempts.push({ ...clone(request.failure), recordedAt: at });
     }
     next.phase = target;
-    next.blockers = blockers;
+    next.blockers = target === "BLOCKED"
+      ? [...new Set([...blockers, ...(request.blockers ?? []).filter((item) => item.trim())])]
+      : [];
     next.updatedAt = at;
     next.history.push({
       transitionId: request.transitionId,
@@ -281,4 +284,3 @@ export class DevelopmentJobStateController {
     return next;
   }
 }
-
