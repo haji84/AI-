@@ -27,7 +27,10 @@ export function createRuntimeDevelopmentVerifier(
       if (action.capability !== "code.builder") {
         return { ok: true, summary: "Capability execution verified", evidence: result.evidence };
       }
-      const input = action.input as { verificationContract?: unknown } | undefined;
+      const input = action.input as {
+        verificationContract?: unknown;
+        releaseBinding?: { builderId?: string; sourceRevision?: string; artifactDigest?: string };
+      } | undefined;
       if (!input?.verificationContract) {
         return {
           ok: false,
@@ -55,8 +58,28 @@ export function createRuntimeDevelopmentVerifier(
           body: JSON.stringify({ contract: input.verificationContract }),
         });
         const payload = await response.json().catch(() => null) as { ok?: boolean; summary?: string; evidence?: unknown } | null;
-        const ok = response.ok && payload?.ok === true;
-        const evidence = payload?.evidence as { expected?: unknown; actual?: unknown } | undefined;
+        let ok = response.ok && payload?.ok === true;
+        const evidence = payload?.evidence as {
+          expected?: unknown;
+          actual?: unknown;
+          verifierId?: unknown;
+          sourceRevision?: unknown;
+          artifactDigest?: unknown;
+        } | undefined;
+        if (ok && input.releaseBinding) {
+          const binding = input.releaseBinding;
+          ok = typeof evidence?.verifierId === "string"
+            && evidence.verifierId !== binding.builderId
+            && evidence.sourceRevision === binding.sourceRevision
+            && evidence.artifactDigest === binding.artifactDigest;
+          if (!ok) {
+            return {
+              ok: false,
+              summary: "Development verification evidence is not independently bound to the requested release artifact",
+              evidence: { blocker: "development_verification_evidence_invalid" },
+            };
+          }
+        }
         const detail = !ok && evidence && typeof evidence.expected === "string" && typeof evidence.actual === "string"
           ? ` expected=${JSON.stringify(evidence.expected)} actual=${JSON.stringify(evidence.actual)}`
           : "";
