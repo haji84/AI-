@@ -54,6 +54,46 @@ jobs:
           node --version
           xcodebuild -version
 
+          EXPECTED_TEAM_ID="SDTV253RXA"
+          ACCEPTANCE_BUNDLE_ID="com.haji84.jarvis.iosworker.acceptance"
+          security find-identity -v -p codesigning >"$ROOT/signing-identities.log" 2>&1
+          SIGNING_IDENTITY_EXIT=$?
+          VALID_IDENTITY_COUNT="$(sed -nE 's/^ *([0-9]+) valid identities found$/\1/p' "$ROOT/signing-identities.log" | tail -1)"
+          VALID_IDENTITY_COUNT="${VALID_IDENTITY_COUNT:-0}"
+          EXPECTED_TEAM_IDENTITY_COUNT="$(grep -F -c "($EXPECTED_TEAM_ID)" "$ROOT/signing-identities.log" || true)"
+          if defaults read com.apple.dt.Xcode 2>/dev/null | grep -Fq "$EXPECTED_TEAM_ID"; then
+            XCODE_ACCOUNT_TEAM_CONFIGURED=true
+          else
+            XCODE_ACCOUNT_TEAM_CONFIGURED=false
+          fi
+          PROFILE_COUNT=0
+          EXPECTED_TEAM_PROFILE_COUNT=0
+          ACCEPTANCE_BUNDLE_PROFILE_COUNT=0
+          for PROFILE_DIR in "$HOME/Library/MobileDevice/Provisioning Profiles" "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"; do
+            [[ -d "$PROFILE_DIR" ]] || continue
+            while IFS= read -r -d '' PROFILE; do
+              PROFILE_COUNT=$((PROFILE_COUNT + 1))
+              PROFILE_PLIST="$ROOT/profile-$PROFILE_COUNT.plist"
+              security cms -D -i "$PROFILE" >"$PROFILE_PLIST" 2>/dev/null || continue
+              PROFILE_TEAM="$(/usr/libexec/PlistBuddy -c 'Print :TeamIdentifier:0' "$PROFILE_PLIST" 2>/dev/null || true)"
+              PROFILE_APP="$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' "$PROFILE_PLIST" 2>/dev/null || true)"
+              [[ "$PROFILE_TEAM" == "$EXPECTED_TEAM_ID" ]] && EXPECTED_TEAM_PROFILE_COUNT=$((EXPECTED_TEAM_PROFILE_COUNT + 1))
+              [[ "$PROFILE_APP" == "$EXPECTED_TEAM_ID.$ACCEPTANCE_BUNDLE_ID" ]] && ACCEPTANCE_BUNDLE_PROFILE_COUNT=$((ACCEPTANCE_BUNDLE_PROFILE_COUNT + 1))
+            done < <(find "$PROFILE_DIR" -type f -name '*.mobileprovision' -print0)
+          done
+          jq -n \
+            --argjson signingIdentityCommandExit "$SIGNING_IDENTITY_EXIT" \
+            --argjson validSigningIdentityCount "$VALID_IDENTITY_COUNT" \
+            --argjson expectedTeamSigningIdentityCount "$EXPECTED_TEAM_IDENTITY_COUNT" \
+            --argjson xcodeAccountTeamConfigured "$XCODE_ACCOUNT_TEAM_CONFIGURED" \
+            --argjson provisioningProfileCount "$PROFILE_COUNT" \
+            --argjson expectedTeamProfileCount "$EXPECTED_TEAM_PROFILE_COUNT" \
+            --argjson acceptanceBundleProfileCount "$ACCEPTANCE_BUNDLE_PROFILE_COUNT" \
+            '{schemaVersion:1,signing:{signingIdentityCommandExit:$signingIdentityCommandExit,validSigningIdentityCount:$validSigningIdentityCount,expectedTeamSigningIdentityCount:$expectedTeamSigningIdentityCount,xcodeAccountTeamConfigured:$xcodeAccountTeamConfigured,provisioningProfileCount:$provisioningProfileCount,expectedTeamProfileCount:$expectedTeamProfileCount,acceptanceBundleProfileCount:$acceptanceBundleProfileCount}}' \
+            >"$EVIDENCE/signing.json"
+          echo "stage=signing-preflight"
+          cat "$EVIDENCE/signing.json"
+
           run_capture "$ROOT/usb.json" "$ROOT/usb.log" system_profiler SPUSBDataType -json
           USB_EXIT=$?
           echo "stage=usb exit=$USB_EXIT"
@@ -105,6 +145,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: goriq-681-physical-iphone-preflight
-          path: .gai-results/physical-iphone-preflight/preflight.json
+          path: .gai-results/physical-iphone-preflight/
           if-no-files-found: error
           retention-days: 7

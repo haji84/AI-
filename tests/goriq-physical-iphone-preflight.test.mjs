@@ -1,10 +1,20 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
   selectSingleAvailablePhysicalIPhoneFromXCDevice,
   selectSinglePhysicalIPhoneFromXCDevice,
   summarizePhysicalIPhonePreflight,
 } from "../scripts/goriq-physical-iphone-preflight.mjs";
+
+test("preflight reports signing visibility without printing account or certificate details", () => {
+  const workflow = readFileSync(".github/workflows/goriq-physical-iphone-preflight.yml", "utf8");
+  assert.match(workflow, /security find-identity -v -p codesigning/);
+  assert.match(workflow, /EXPECTED_TEAM_ID="SDTV253RXA"/);
+  assert.match(workflow, /xcodeAccountTeamConfigured/);
+  assert.match(workflow, /acceptanceBundleProfileCount/);
+  assert.doesNotMatch(workflow, /cat "\$ROOT\/signing-identities\.log"/);
+});
 
 const phone = {
   simulator: false,
