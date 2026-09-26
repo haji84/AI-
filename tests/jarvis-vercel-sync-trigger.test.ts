@@ -16,7 +16,7 @@ test("JARVIS Vercel Sync follows successful main CI and binds exact commit", asy
 
 test("JARVIS production sync no longer depends on push path filters", async () => {
   const source = await workflow();
-  assert.doesNotMatch(source, /\n  push:\s*\n/);
+  assert.doesNotMatch(source, /\n\s{2}push:\s*\n/);
   assert.match(source, /workflow_run:\s*\n\s*workflows: \["CI"\]/);
   assert.match(source, /schedule:\s*\n\s*- cron: '\*\/5 \* \* \* \*'/);
   assert.match(source, /workflow_dispatch:/);
