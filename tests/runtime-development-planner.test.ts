@@ -231,3 +231,34 @@ test("recovery objective uses verifier evidence only after failure", async () =>
   assert.match(objective, /runtime-wrong/);
   assert.match(objective, /available only after failure/);
 });
+
+test("trusted repository context binds Builder base revision and local-only mode", async () => {
+  const planner = new RuntimeDevelopmentPlanner(new BaselinePlanner());
+  const action = await planner.proposeNextAction({
+    goal,
+    context: [{
+      source: "development.repository_context",
+      summary: "bounded repository context",
+      data: {
+        baseRevision: "a".repeat(40),
+        contextDigest: "b".repeat(64),
+        targetFiles: ["tests/fixtures/runtime-builder-smoke.txt"],
+        localOnly: true,
+        previousStrategyFingerprints: ["c".repeat(64)],
+      },
+    }],
+    intent,
+  });
+  const input = action?.input as {
+    baseRevision?: string;
+    files?: string[];
+    localOnly?: boolean;
+    hypothesis?: string;
+    previousStrategyFingerprints?: string[];
+  };
+  assert.equal(input.baseRevision, "a".repeat(40));
+  assert.deepEqual(input.files, ["tests/fixtures/runtime-builder-smoke.txt"]);
+  assert.equal(input.localOnly, true);
+  assert.match(input.hypothesis ?? "", /focused failing test/i);
+  assert.deepEqual(input.previousStrategyFingerprints, ["c".repeat(64)]);
+});

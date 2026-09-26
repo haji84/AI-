@@ -180,6 +180,7 @@ See [full ledger](JARVIS_PRODUCT_SPEC.md) and [Windows/inventory evidence](evide
 | AUTO-029 | Sandbox before promotion | PARTIAL | MAIN_CODE_PRESENT | RUNTIME_ACCEPTANCE_REQUIRED | PENDING |
 | AUTO-030 | Regression test | PARTIAL | MAIN_CODE_PRESENT | RUNTIME_ACCEPTANCE_REQUIRED | PENDING |
 | AUTO-031 | Known-good rollback | PARTIAL | MAIN_CODE_PRESENT | RUNTIME_ACCEPTANCE_REQUIRED | PENDING |
+
 | MEM-001 | Working Memory | PARTIAL | MAIN_CODE_PRESENT | RUNTIME_ACCEPTANCE_REQUIRED | PENDING |
 | MEM-002 | Episodic Memory | PARTIAL | MAIN_CODE_PRESENT | RUNTIME_ACCEPTANCE_REQUIRED | PENDING |
 | MEM-003 | Semantic Memory | PARTIAL | MAIN_CODE_PRESENT | RUNTIME_ACCEPTANCE_REQUIRED | PENDING |
@@ -348,6 +349,8 @@ See [full ledger](JARVIS_PRODUCT_SPEC.md) and [Windows/inventory evidence](evide
 | DEV-AX-002 | Worker自動更新 | PARTIAL | MAIN_CODE_PRESENT | RUNTIME_ACCEPTANCE_REQUIRED | PENDING |
 | DEV-AX-003 | 画面OFFから自動復帰 | PARTIAL | MAIN_CODE_PRESENT | RUNTIME_ACCEPTANCE_REQUIRED | PENDING |
 | DEV-AX-004 | 登録中の更新保護 | PARTIAL | MAIN_CODE_PRESENT | RUNTIME_ACCEPTANCE_REQUIRED | PENDING |
+
+> #681 evidence sync (2026-09-26): bounded component-contract fixtures cover Builder routing, local-only exclusion, offline Release Gate decision, integration metadata provenance, persisted rollback state, and durable one-iPhone intake. Canonical statuses remain `PARTIAL`; composed resident-runtime, real local model, protected GitHub/main-CI, exact Production artifact, and one physical iPhone evidence are still required. See `docs/evidence/681-self-development-acceptance.md`.
 
 ## GORIQ Cognitive Core / Primary Brain (#1216)
 

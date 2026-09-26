@@ -2,6 +2,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, normalize, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { evaluateTaskScopedAutoMergeEligibility } from "./auto-merge-policy.ts";
+import type { DevelopmentReleaseGateDecision } from "./development-release-gate.ts";
 import type { ActionResult, ProposedAction } from "./goal-loop.ts";
 import {
   isTaskProductionDeployAuthorizationActive,
@@ -25,6 +26,10 @@ interface ParsedProposal {
   taskScopeId?: string;
 }
 interface OpenedPullRequest { url: string; nodeId: string; number: number; }
+
+export function canEnableSafePrAutoMerge(decision: DevelopmentReleaseGateDecision | undefined): boolean {
+  return decision?.action === "ENABLE_AUTO_MERGE" && decision.reasons.length === 0;
+}
 
 const MAX_FILES = 3;
 const MAX_TOTAL_BYTES = 100_000;
@@ -125,7 +130,12 @@ function buildTaskScopedPrBody(proposal: ParsedProposal): { body: string; produc
   };
 }
 
-export function createSafePrProposalCapability(options: { cwd?: string; token?: string | null; repository?: string } = {}) {
+export function createSafePrProposalCapability(options: {
+  cwd?: string;
+  token?: string | null;
+  repository?: string;
+  releaseGateDecision?: DevelopmentReleaseGateDecision;
+} = {}) {
   return {
     name: "repository.propose_pr",
     async execute(action: ProposedAction): Promise<ActionResult> {
@@ -150,14 +160,15 @@ export function createSafePrProposalCapability(options: { cwd?: string; token?: 
         run("pnpm", ["build"], cwd);
 
         const changedFiles = proposal.files.map((file) => file.path);
+        const releaseAllowsAutoMerge = canEnableSafePrAutoMerge(options.releaseGateDecision);
         const autoMergeDecision = evaluateTaskScopedAutoMergeEligibility({
           baseBranch: "main",
           changedFiles,
           lintPassed: true,
           testsPassed: true,
           buildPassed: true,
-          qaPassed: true,
-          reviewerPassed: true,
+          qaPassed: releaseAllowsAutoMerge,
+          reviewerPassed: releaseAllowsAutoMerge,
           unresolvedReviewThreads: 0,
           destructiveChangeAbsent: true,
           privilegedChangeAbsent: true,
@@ -179,7 +190,7 @@ export function createSafePrProposalCapability(options: { cwd?: string; token?: 
         const prBody = buildTaskScopedPrBody(proposal);
         const pr = await openPullRequest({ token, repository, head: branch, title: proposal.title, body: prBody.body });
 
-        const autoMerge = autoMergeDecision.eligible
+        const autoMerge = releaseAllowsAutoMerge && autoMergeDecision.eligible
           ? await enablePullRequestAutoMerge({ token, nodeId: pr.nodeId })
           : { enabled: false, reason: autoMergeDecision.reasons.join(",") };
 

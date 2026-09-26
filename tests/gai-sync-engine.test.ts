@@ -213,3 +213,36 @@ test("sync repository survives JSON store restart", async () => {
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+test("sync engine delegates concurrent development Change Sets to a verified resolver", async () => {
+  const local = new SyncRepository(new MemorySyncStore());
+  const remote = new SyncRepository(new MemorySyncStore());
+  await local.put(record({ recordId: "change-conflict", entityType: "change-set", deviceId: "zbook", clock: { zbook: 1 }, value: { patch: "left" } }));
+  await remote.put(record({ recordId: "change-conflict", entityType: "change-set", deviceId: "macbook", clock: { macbook: 1 }, value: { patch: "right" } }));
+  const engine = new SyncEngine(local, remote, {
+    async resolve(conflict) {
+      assert.equal(conflict.entityType, "change-set");
+      return {
+        ...conflict.local,
+        deviceId: "goriq-integrator",
+        value: { patch: "verified-merge", provenance: ["left", "right"] },
+        verification: { status: "pass", verifierId: "independent" },
+      };
+    },
+  });
+  const report = await engine.synchronize();
+  assert.deepEqual(report.conflicts, []);
+  assert.deepEqual(report.converged, ["change-conflict"]);
+  assert.deepEqual((await local.get("change-conflict"))?.value, { patch: "verified-merge", provenance: ["left", "right"] });
+});
+
+test("goal authority conflicts are never delegated to automatic code integration", async () => {
+  const local = new SyncRepository(new MemorySyncStore());
+  const remote = new SyncRepository(new MemorySyncStore());
+  await local.put(record({ recordId: "goal-authority", entityType: "goal", deviceId: "zbook", clock: { zbook: 1 }, value: { goal: "A" } }));
+  await remote.put(record({ recordId: "goal-authority", entityType: "goal", deviceId: "macbook", clock: { macbook: 1 }, value: { goal: "B" } }));
+  let called = false;
+  const report = await new SyncEngine(local, remote, { async resolve() { called = true; return null; } }).synchronize();
+  assert.equal(called, false);
+  assert.equal(report.conflicts.length, 1);
+});

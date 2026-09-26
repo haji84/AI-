@@ -9,6 +9,7 @@ export type DurableTaskStatus =
   | "running"
   | "waiting-connectivity"
   | "waiting-resource"
+  | "ready-to-publish"
   | "retrying"
   | "completed"
   | "failed"
@@ -207,6 +208,26 @@ export class DurableTaskRuntime {
       .map(cloneTask)[0];
   }
 
+  async nextPublication(): Promise<DurableTask | undefined> {
+    await this.initialize();
+    return [...this.tasks.values()]
+      .filter((task) => task.status === "ready-to-publish")
+      .sort((a, b) => PRIORITY_WEIGHT[b.priority] - PRIORITY_WEIGHT[a.priority] || a.createdAt.localeCompare(b.createdAt))
+      .map(cloneTask)[0];
+  }
+
+  async completePublication(taskId: string, publisher: string, receipt: unknown, now = new Date()): Promise<DurableTask> {
+    await this.initialize();
+    if (!publisher.trim()) throw new Error("publisher identity is required");
+    const task = this.mustGet(taskId);
+    if (task.status !== "ready-to-publish") throw new Error(`Task ${taskId} is not ready to publish`);
+    task.result = { execution: structuredClone(task.result), publication: structuredClone(receipt) };
+    this.transition(task, "completed", "saved execution result published", now, publisher);
+    await this.refreshDependencyState(now);
+    await this.persist(now);
+    return cloneTask(task);
+  }
+
   async lease(taskId: string, owner: string, leaseMs = 120_000, now = new Date()): Promise<DurableTask> {
     await this.initialize();
     if (!owner.trim()) throw new Error("lease owner is required");
@@ -265,6 +286,21 @@ export class DurableTaskRuntime {
     task.leaseUntil = undefined;
     this.transition(task, "completed", "execution verified complete", now, owner);
     await this.refreshDependencyState(now);
+    await this.persist(now);
+    return cloneTask(task);
+  }
+
+  async readyToPublish(taskId: string, owner: string, result?: unknown, now = new Date()): Promise<DurableTask> {
+    await this.initialize();
+    const task = this.mustGet(taskId);
+    if ((task.status !== "running" && task.status !== "leased") || task.leaseOwner !== owner) {
+      throw new Error(`Task ${taskId} is not executable by ${owner}`);
+    }
+    task.result = structuredClone(result);
+    task.error = undefined;
+    task.leaseOwner = undefined;
+    task.leaseUntil = undefined;
+    this.transition(task, "ready-to-publish", "offline execution verified; publication requires connectivity", now, owner);
     await this.persist(now);
     return cloneTask(task);
   }

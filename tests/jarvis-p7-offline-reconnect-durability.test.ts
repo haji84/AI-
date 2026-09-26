@@ -67,3 +67,21 @@ test("durable task survives offline wait, restart, reconnect, execution, and sec
   assert.equal(await third.next(new Date(t0.getTime() + 9_000)), undefined);
   assert.equal(afterCompletionRestart?.history.at(-1)?.reason, "execution verified complete");
 });
+
+test("ready-to-publish resumes as a publication continuation without rebuilding", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "jarvis-p7-publication-"));
+  const file = join(dir, "durable-tasks.json");
+  const runtime = new DurableTaskRuntime(new JsonFileDurableTaskStore(file));
+  await runtime.enqueue({ id: "publish-1", idempotencyKey: "publish-1", type: "bounded.build" });
+  await runtime.lease("publish-1", "builder", 1_000);
+  await runtime.markRunning("publish-1", "builder");
+  await runtime.readyToPublish("publish-1", "builder", { artifact: "sha256:abc" });
+
+  const restarted = new DurableTaskRuntime(new JsonFileDurableTaskStore(file));
+  assert.equal(await restarted.next(), undefined);
+  assert.equal((await restarted.nextPublication())?.result && ((await restarted.nextPublication())!.result as { artifact: string }).artifact, "sha256:abc");
+  const completed = await restarted.completePublication("publish-1", "publisher", { receipt: "pr:1" });
+  assert.equal(completed.status, "completed");
+  assert.deepEqual(completed.result, { execution: { artifact: "sha256:abc" }, publication: { receipt: "pr:1" } });
+  assert.equal(completed.attempts, 1);
+});

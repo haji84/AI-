@@ -40,3 +40,41 @@ test("HTTP code builder preserves remote 502 failure evidence", async () => {
     remoteEvidence: { exitCode: -1, stderrTail: "timed out" },
   });
 });
+
+test("HTTP Builder returns the shared Change Set contract for development jobs", async () => {
+  const fetchImpl: typeof fetch = async (input) => new Response(JSON.stringify(String(input).endsWith("/health") ? {
+    ok: true, capabilities: ["code-builder"], inference: { locality: "device", networkAccess: false }, engine: "llama.cpp",
+  } : {
+    ok: true,
+    summary: "changed",
+    changedPaths: ["src/example.ts"],
+    patchDigest: "a".repeat(64),
+    requestedAuthority: [],
+    evidence: { engine: "codex" },
+  }), { status: 200 });
+  const builder = new HttpWorkerBuilderCapability("mac-local", { url: "http://127.0.0.1:8796", token: "secret" }, fetchImpl, "local");
+  const result = await builder.build({
+    goalId: "goal-681",
+    attemptId: "attempt-http",
+    strategyId: "strategy-http",
+    objective: "change",
+    files: ["src/example.ts"],
+    context: [],
+    baseRevision: "b".repeat(40),
+  });
+  assert.equal(result.ok, true);
+  const evidence = result.evidence as { changeSet?: { builderKind?: string; patchDigest?: string } };
+  assert.equal(evidence.changeSet?.builderKind, "local");
+  assert.equal(evidence.changeSet?.patchDigest, "a".repeat(64));
+});
+
+test("local HTTP Builder rejects loopback cloud or unknown inference engines", async () => {
+  for (const health of [
+    { ok: true, capabilities: ["code-builder"], engine: "codex" },
+    { ok: true, capabilities: ["code-builder"], engine: "unknown", inference: { locality: "unknown", networkAccess: false } },
+    { ok: true, capabilities: ["code-builder"], engine: "llama.cpp", inference: { locality: "device", networkAccess: true } },
+  ]) {
+    const builder = new HttpWorkerBuilderCapability("local", { url: "http://127.0.0.1:8796", token: "secret" }, async () => new Response(JSON.stringify(health)), "local");
+    assert.equal(await builder.available(), false);
+  }
+});

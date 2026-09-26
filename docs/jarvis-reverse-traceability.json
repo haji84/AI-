@@ -933,7 +933,7 @@
     },
     {
       "path": "scripts/jarvis-broker.ts",
-      "sha256": "af1c9fd3057100675a4d30f629aab6dac52c344416f1839560af81be7d2c1afb",
+      "sha256": "b1d25423da871337d2404c04a9abccc8f975ad1e1ec6aef765a3c54e76bd909d",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "NET-006",
@@ -1044,7 +1044,7 @@
     },
     {
       "path": "scripts/jarvis-goal-executor.ts",
-      "sha256": "c740156bbb582b7098acb1017a8534f57e932d6aa8ebe8364e79bfb6b7c88c57",
+      "sha256": "75b3b604d80454b29383075e87a94aa4f18233d29c523eb6da4637e6ba4a3e01",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "AUTO-001",
@@ -2943,7 +2943,7 @@
     },
     {
       "path": "src/gai/durable-task-runtime.ts",
-      "sha256": "911d39769d72cfe3a4288db60e285c214731d2cd7c9a74f9b622f0d88edc5104",
+      "sha256": "02339eac52a5eba275df4f9e33059f1041205236d1c6719ba0e6cb72ee74bd9c",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OFF-001",
@@ -2994,7 +2994,7 @@
     },
     {
       "path": "src/gai/http-worker-builder-capability.ts",
-      "sha256": "2a59b86fbb9d516e48145af57fdcaae80864b13d22e97a15aebdfc36557be87b",
+      "sha256": "ea0b0f33ec03daa681388a568d2d71e6167d21b335fa80f0eaff2aaed983371a",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014"
@@ -3018,7 +3018,7 @@
     },
     {
       "path": "src/gai/initial-worker-profiles.ts",
-      "sha256": "9c793c18eae792d7e30f686e1ed1c6110d8e6238e4b1e4ed6091c32fc065b2a2",
+      "sha256": "351456c865158497571b49ed8cb792d4f9ee1388a606b641308f86d21b41d2ac",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-011",
@@ -3151,7 +3151,7 @@
     },
     {
       "path": "src/gai/offline-first-runtime.ts",
-      "sha256": "9032596547068b54c82005c33729e4758d7054c6ed0de4b2cc91bec1005db96c",
+      "sha256": "ad3d8bc2f002b788950b9095d67d9ef8726f6c587e7f4b9672428f50f69eeb63",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OFF-001",
@@ -3415,7 +3415,7 @@
     },
     {
       "path": "src/gai/sync-engine.ts",
-      "sha256": "0714f461a44493242d94ae366e219f3c06c0020bd0acce4dff22939ef29b874e",
+      "sha256": "553a25b2f683daa1a7b310f4a304e27e1e065dd92aa2edaf97b55a9bf7d24683",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OFF-001",
@@ -3473,7 +3473,7 @@
     },
     {
       "path": "src/gai/worker-builder-capability.ts",
-      "sha256": "5798ead586a8dd27c05b43bbaae52f48c43686f4009ef019c84324bef899898b",
+      "sha256": "27b06143625a741c75a6d0a7d983ec25acb1621cd22092f1f17f96195306c74a",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014"
@@ -4339,7 +4339,7 @@
     },
     {
       "path": "src/orchestrator/builder-router.ts",
-      "sha256": "3bf13ca74a9b7739df993e832f6241b10e3c2a8f94de41c9bf7b30fbf084d523",
+      "sha256": "16913abfd7bbf0c47e1a6c9719cb212cba37c0c3cba4fc9149241559fa5ce084",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-007",
@@ -4467,7 +4467,7 @@
     },
     {
       "path": "src/orchestrator/compass-goal-execution-adapter.ts",
-      "sha256": "dcf85e3d05e2e408cb051702ec33c5b1b98f058f4075537ea4aa40a1b3d7e133",
+      "sha256": "7593ea5db470b9e47a88e1baac37d9d16a9659151e9a4721357dc5efafbf86bf",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-002",
@@ -4723,7 +4723,7 @@
     },
     {
       "path": "src/orchestrator/goal-controller-execution-bridge.ts",
-      "sha256": "3b7ecb88ec56dfb5d3a0641bcd83a5afbc1d2ac73b746252dd26869191677543",
+      "sha256": "890716e0c80a9f10521ef7e5360c52f28f882a17932375394a80d081ead37a6f",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-001",
@@ -5164,7 +5164,7 @@
     },
     {
       "path": "src/orchestrator/runtime-builder-capability.ts",
-      "sha256": "1507eaeeaee1e50d5e6a28a1eac2e8a74ecf092b5608b9d068ad6fde4816e5d4",
+      "sha256": "c975965ddc4ad580eab79f481c8bae9c4f903455cb156e859d5ab384fa592e97",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -5177,7 +5177,7 @@
     },
     {
       "path": "src/orchestrator/runtime-development-planner.ts",
-      "sha256": "c3fdb6a53b733008fd866eb485cf2e786ff71db7392135be05b885f542dbd8ad",
+      "sha256": "7772a55843a986d7919fb4a2f52b43dc8c0f9be01ac2a0b324fe96c9f37adb37",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -5190,7 +5190,7 @@
     },
     {
       "path": "src/orchestrator/runtime-development-verifier.ts",
-      "sha256": "9d80de474378182510b42a01a9908b70d16d6f99c61986dded9d94f2bdf23c5a",
+      "sha256": "1376b76ca8ce1ffc8421a0bb91d0a8b7a5b8a070aaef848094c67170c8558c6a",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-010",
@@ -5204,7 +5204,7 @@
     },
     {
       "path": "src/orchestrator/safe-pr-capability.ts",
-      "sha256": "b6b4d0c702546fc9dc7fbc2c0f5651ff99432f8159ac55ec8b620144b78f69e4",
+      "sha256": "b19c046e62a1ba9d45614f4319afb51b10262ae5981f972a40fe19853be02863",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-007",
@@ -5214,7 +5214,7 @@
     },
     {
       "path": "src/orchestrator/self-development-loop.ts",
-      "sha256": "133a28546e11d4a587847886cb1e73a76e0118f729aa32757afe506a26b93d6d",
+      "sha256": "edce0d7231139eed999e1b2f62ca61b7651862b1ee4558c84a866fb8ffb18b3c",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014"
@@ -5451,6 +5451,104 @@
         "OWN-001"
       ],
       "reason": "Issue #1219 ZBook timeout-only recovery transition preserves Goal identity, completion checks, evidence, and Human Gate boundaries; parent requirements remain PARTIAL pending physical E2E."
+    },
+    {
+      "path": "src/orchestrator/development-builder.ts",
+      "sha256": "a97b1046f2f6cf4752a17b2c395de67abf338ec47481f6c8af2428644a124230",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": ["CORE-014", "AUTO-010", "AUTO-015"],
+      "reason": "#681 common bounded local/external Builder contract; Builder output has no release authority. Deterministic evidence only; real runtime acceptance remains pending."
+    },
+    {
+      "path": "src/orchestrator/development-change-set-store.ts",
+      "sha256": "71b1496a1361857d9c0f5b6992dd294d1ba1630bb3b928455175e4a68bcb47e4",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": ["CORE-014", "AUTO-006", "AUTO-007", "AUTO-023", "AUTO-024"],
+      "reason": "#681 atomic device-local Change Set persistence and restart recovery. Deterministic evidence only; real runtime acceptance remains pending."
+    },
+    {
+      "path": "src/orchestrator/development-change-set.ts",
+      "sha256": "fe6f1ca73d233b5a053ebcc1335cc57ca765b135596658d37d3986e898855901",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": ["CORE-014", "AUTO-006", "AUTO-007", "AUTO-024", "AUTO-025"],
+      "reason": "#681 immutable offline Change Set contract, digests, rollback reference, and secret-bearing metadata rejection."
+    },
+    {
+      "path": "src/orchestrator/development-conflict-integrator.ts",
+      "sha256": "38f47e5a4be78d19cf7fda0367bfa6f0d9459e7c46048d097d226bae614f02bf",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": ["CORE-014", "AUTO-017", "AUTO-018", "AUTO-025", "AUTO-026"],
+      "reason": "#681 verified semantic conflict integration preserves both source Change Sets and rejects lost acceptance criteria."
+    },
+    {
+      "path": "src/orchestrator/development-job-store.ts",
+      "sha256": "63edb21201d942cae5417ebc456d8ffadf115f08c5c65c458f55dcd662bd47b5",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": ["CORE-014", "AUTO-002", "AUTO-004", "AUTO-005", "AUTO-007", "AUTO-008", "AUTO-023"],
+      "reason": "#681 atomic durable Development Job storage and reconstruction."
+    },
+    {
+      "path": "src/orchestrator/development-job.ts",
+      "sha256": "cb3e3afa2763eac549c35d8b9e5be9e3a0b59b4af301687987cdbfbfd2f0a64b",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": ["CORE-014", "AUTO-002", "AUTO-003", "AUTO-004", "AUTO-005", "AUTO-006", "AUTO-007", "AUTO-008", "AUTO-026"],
+      "reason": "#681 State Controller-owned append-only Development Job contract and verified-completion invariant."
+    },
+    {
+      "path": "src/orchestrator/development-orchestrator.ts",
+      "sha256": "0b1e1564e2f073875e7e931dcd3d469a6d8d00214daf04f29fda6048de29ac54",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": ["CORE-014", "AUTO-009", "AUTO-015", "AUTO-017", "AUTO-018"],
+      "reason": "#681 TDD-first development planning, dependency decomposition, recovery strategy variation, and no release authority."
+    },
+    {
+      "path": "src/orchestrator/development-release-gate.ts",
+      "sha256": "6836905ffa01afaa84b1dac69c80e0a735c17fd6685c86b3d3ecc8d48eb3f6f0",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": ["CORE-014", "CORE-015", "AUTO-021", "AUTO-022", "AUTO-026", "AUTO-031"],
+      "reason": "#681 exact-scope release sequencing across PR, protected merge, main CI, Production artifact, post-deploy verification, and non-bypassable Human Gates."
+    },
+    {
+      "path": "src/orchestrator/development-verification-plan.ts",
+      "sha256": "653c63475718122fe987fd13c7812e56a9d884bd875b4baecd9afeafa8e2a154",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": ["CORE-010", "CORE-014", "AUTO-016", "AUTO-026"],
+      "reason": "#681 affected-surface verification selection and independent exact revision/artifact evidence binding."
+    },
+    {
+      "path": "src/orchestrator/device-development-intake.ts",
+      "sha256": "1b37f51ef242684748a02473e9531ec539a52d1863066970451e4a66dfaca017",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": ["CORE-014", "AUTO-001", "AUTO-023", "AUTO-024", "AUTO-025"],
+      "reason": "#681 unified Windows, macOS, and exactly-one-iPhone development intake with offline retention and idempotency. Physical iPhone evidence remains pending."
+    },
+    {
+      "path": "src/orchestrator/local-development-builder.ts",
+      "sha256": "93b98833cdc34a3f386ad19119506033172312cda93b2db4a838cbb9a21e2b83",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": ["CORE-008", "CORE-014", "AUTO-010", "AUTO-015"],
+      "reason": "#681 local Builder adapter uses the common bounded Change Set contract. Real local-model acceptance remains pending."
+    },
+    {
+      "path": "src/orchestrator/repository-development-context.ts",
+      "sha256": "0c907abb6e98437e23dc8db7b949d7f13a3c67290a8a071384f69c1a5dc1bee3",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": ["CORE-014", "AUTO-009", "AUTO-014"],
+      "reason": "#681 bounded local repository context for development planning and requirement/test linkage."
+    },
+    {
+      "path": "src/orchestrator/http-development-release-capability.ts",
+      "sha256": "7cd0f4fd355977df077b54b9481b805ccd6a9fcb0017a67327e082dedc6eb897",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": ["CORE-014", "AUTO-002", "AUTO-016", "AUTO-026"],
+      "reason": "#681 task-scoped HTTPS or loopback Release Gate connector reads persisted PR/CI/deployment state and sends idempotent release effects without granting Builder release authority."
+    },
+    {
+      "path": "src/orchestrator/resident-development-goal-host.ts",
+      "sha256": "444e5e9ec9c5323842aaae6192f8477772e9fa53cc98a63e40c1fb0d141b3304",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": ["CORE-014", "AUTO-002", "AUTO-015", "AUTO-016", "AUTO-023", "AUTO-024", "AUTO-025", "AUTO-026"],
+      "reason": "#681 explicit host-opted resident development runtime resumes durable Job and Change Set stages without duplicate Builder, verifier, or release effects."
     }
   ],
   "hash_policy": "utf8-crlf-to-lf-v1;binary-raw"
