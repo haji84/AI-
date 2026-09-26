@@ -18,6 +18,10 @@
     <string>1.0</string>
     <key>CFBundleVersion</key>
     <string>1</string>
+    <key>JARVISAcceptanceDeviceID</key>
+    <string>$(JARVIS_ACCEPTANCE_DEVICE_ID)</string>
+    <key>JARVISBuildChallenge</key>
+    <string>$(JARVIS_BUILD_CHALLENGE)</string>
     <key>LSRequiresIPhoneOS</key>
     <true/>
     <key>NSAppTransportSecurity</key>
