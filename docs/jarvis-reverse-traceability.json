@@ -933,7 +933,7 @@
     },
     {
       "path": "scripts/jarvis-broker.ts",
-      "sha256": "cff1500195ae1d391fdbb975246df456d04d2ce0886ef18959eac0f53599d7ee",
+      "sha256": "b1d25423da871337d2404c04a9abccc8f975ad1e1ec6aef765a3c54e76bd909d",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "NET-006",
@@ -3151,7 +3151,7 @@
     },
     {
       "path": "src/gai/offline-first-runtime.ts",
-      "sha256": "6c5bf0a1da11d19dfbf4619c31a06f2d776b9011caf3e0c51d926612054f5940",
+      "sha256": "ad3d8bc2f002b788950b9095d67d9ef8726f6c587e7f4b9672428f50f69eeb63",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OFF-001",
@@ -5517,7 +5517,7 @@
     },
     {
       "path": "src/orchestrator/device-development-intake.ts",
-      "sha256": "e592c5cb3c27363e18dbfa397f955cc2b35be2261ee4bafb298001f1a5dc531c",
+      "sha256": "1b37f51ef242684748a02473e9531ec539a52d1863066970451e4a66dfaca017",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": ["CORE-014", "AUTO-001", "AUTO-023", "AUTO-024", "AUTO-025"],
       "reason": "#681 unified Windows, macOS, and exactly-one-iPhone development intake with offline retention and idempotency. Physical iPhone evidence remains pending."

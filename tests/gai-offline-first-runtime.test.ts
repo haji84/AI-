@@ -170,3 +170,23 @@ test("connectivity transitions emit bounded evidence and ignore duplicate state"
   assert.deepEqual(events, ["online->degraded:packet loss", "degraded->offline:no route"]);
   assert.equal(manager.lastEvidence?.current, "offline");
 });
+
+test("reconnect publishes a saved offline result without executing the worker again", async () => {
+  const tasks = new DurableTaskRuntime(new MemoryDurableTaskStore());
+  await tasks.enqueue({ id: "local-publish", idempotencyKey: "local-publish", type: "local-analysis" });
+  const connectivity = new ConnectivityManager("offline");
+  let workerRuns = 0;
+  const worker = createFunctionWorker({ descriptor: offlineWorkerDescriptor, health: () => ({ connectivity: "offline" }), run: async () => { workerRuns += 1; return "artifact"; } });
+  const coordinator = new OfflineFirstExecutionCoordinator({
+    tasks, workers: new MultiWorkerRuntime([worker]), connectivity,
+    resolve: () => ({ networkRequirement: "offline-capable", requestedCapability: "local-model", publicationRequired: true }),
+    publisher: async (task) => ({ publisherId: "publisher", receipt: { artifact: (task.result as { output: string }).output } }),
+  });
+  assert.equal((await coordinator.runNext())?.task.status, "ready-to-publish");
+  assert.equal(workerRuns, 1);
+  await connectivity.transition("online", "network verified");
+  const published = await coordinator.runNext();
+  assert.equal(published?.evidence.decision, "publish");
+  assert.equal(published?.task.status, "completed");
+  assert.equal(workerRuns, 1);
+});

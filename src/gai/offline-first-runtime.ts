@@ -75,7 +75,7 @@ export interface OfflineExecutionEvidence {
   taskId: string;
   connectivity: ConnectivityState;
   networkRequirement: WorkerNetworkRequirement;
-  decision: "execute" | "ready-to-publish" | "wait-connectivity" | "wait-resource";
+  decision: "execute" | "publish" | "ready-to-publish" | "wait-connectivity" | "wait-resource";
   selectedWorkerId?: string;
   selectedPlatform?: WorkerPlatform;
   reason: string;
@@ -119,6 +119,7 @@ export class OfflineFirstExecutionCoordinator {
   private readonly connectivity: ConnectivityManager;
   private readonly resolve: OfflineExecutionResolver;
   private readonly leaseMs: number;
+  private readonly publisher?: (task: DurableTask) => Promise<{ publisherId: string; receipt: unknown }>;
 
   constructor(options: {
     tasks: DurableTaskRuntime;
@@ -126,12 +127,14 @@ export class OfflineFirstExecutionCoordinator {
     connectivity: ConnectivityManager;
     resolve: OfflineExecutionResolver;
     leaseMs?: number;
+    publisher?: (task: DurableTask) => Promise<{ publisherId: string; receipt: unknown }>;
   }) {
     this.tasks = options.tasks;
     this.workers = options.workers;
     this.connectivity = options.connectivity;
     this.resolve = options.resolve;
     this.leaseMs = options.leaseMs ?? 120_000;
+    this.publisher = options.publisher;
 
     this.connectivity.subscribe(async (event) => {
       if (event.current === "online") {
@@ -141,6 +144,14 @@ export class OfflineFirstExecutionCoordinator {
   }
 
   async runNext(now = new Date()): Promise<OfflineExecutionOutcome | null> {
+    if (networkUsable(this.connectivity.state)) {
+      const publication = await this.tasks.nextPublication();
+      if (publication && this.publisher) {
+        const result = await this.publisher(publication);
+        const completed = await this.tasks.completePublication(publication.id, result.publisherId, result.receipt, now);
+        return { task: completed, evidence: { taskId: publication.id, connectivity: this.connectivity.state, networkRequirement: this.resolve(publication).networkRequirement, decision: "publish", reason: "saved offline execution result published without rebuilding", at: now.toISOString() } };
+      }
+    }
     for (;;) {
       const task = await this.tasks.next(now);
       if (!task) return null;

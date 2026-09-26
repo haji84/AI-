@@ -9,7 +9,7 @@ import { OwnerRequirementIntake, matchRequirementCandidates } from "../src/orche
 import { execFileSync, spawn } from "node:child_process";
 import { createHash, createPublicKey, randomBytes, timingSafeEqual } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { OwnerInvitationStore, INVITATION_PREFIX } from "../src/jarvis/owner-invitation.ts";
 import { TrustedDeviceRegistry } from "../src/jarvis/trusted-device-registry.ts";
 import { invitationUrl } from "../src/jarvis/invitation-link.ts";
@@ -38,6 +38,7 @@ import { CompassGoalBridgeEventStore } from "../src/orchestrator/compass-goal-br
 import { workRunProgress } from "../src/orchestrator/work-run-state.ts";
 import { createQueuedWorkRun } from "../src/orchestrator/work-run-state.ts";
 import { validateWindowsVerificationDispatch } from "../src/orchestrator/windows-verification-dispatch.ts";
+import { DeviceDevelopmentIntake, JsonFileDeviceDevelopmentInbox } from "../src/orchestrator/device-development-intake.ts";
 
 
 const host = process.env.JARVIS_BROKER_HOST?.trim() || "127.0.0.1";
@@ -70,6 +71,17 @@ const specificationPublisher = createSpecificationPublisher({root:fileURLToPath(
 const goalController = new GoalControllerRuntime({
   registry: new CompassGoalRegistryAdapter(compass),
   decisionStore: new CompassGoalDecisionStoreAdapter(compass),
+});
+const deviceDevelopmentIntake = new DeviceDevelopmentIntake({
+  inbox: new JsonFileDeviceDevelopmentInbox(join(dirname(compassPath), "self-development", "device-intake.json")),
+  async submit(request) {
+    const decision = await goalController.handle(request);
+    const existingRun = decision.goalId ? await workRuns.getByGoal(decision.goalId) : null;
+    if (decision.goalId && !existingRun) await workRuns.put(createQueuedWorkRun(decision.goalId));
+    const terminal = existingRun && ["COMPLETED", "BLOCKED", "FAILED", "HUMAN_GATE"].includes(existingRun.phase);
+    if (!terminal) scheduleGoalExecution(decision, [{ source: "trusted-device-development-intake", ...request.sourceContext }]);
+    return { goalId: decision.goalId, action: decision.action };
+  },
 });
 const activeGoalExecutions = new Map<string, ReturnType<typeof spawn>>();
 
@@ -477,6 +489,25 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
         });
       } catch (error) {
         return json(response, 409, { message: error instanceof Error ? error.message : "Goal受付に失敗しました" });
+      }
+    }
+    if (method === "POST" && path === "/api/jarvis/admin/development-intake") {
+      if (body.length > 64_000) return json(response, 413, { message: "development intake too large" });
+      const deviceId = typeof payload.deviceId === "string" ? payload.deviceId.trim() : "";
+      if (!deviceId || !store.getWorkerIdentity(deviceId)) return json(response, 403, { message: "trusted device identity required" });
+      try {
+        const record = await deviceDevelopmentIntake.receive({
+          deviceId,
+          platform: payload.platform as "ios" | "windows" | "macos",
+          ownerCommandId: typeof payload.ownerCommandId === "string" ? payload.ownerCommandId : "",
+          text: typeof payload.text === "string" ? payload.text : "",
+          connectivity: payload.connectivity as "online" | "degraded" | "offline" | "recovering",
+          goalSnapshotDigest: typeof payload.goalSnapshotDigest === "string" ? payload.goalSnapshotDigest : "",
+          causalParentId: typeof payload.causalParentId === "string" ? payload.causalParentId : undefined,
+        });
+        return json(response, record.status === "SUBMITTED" ? 202 : 201, { accepted: true, record });
+      } catch (error) {
+        return json(response, 409, { message: error instanceof Error ? error.message : "development intake failed" });
       }
     }
     if (path === "/api/jarvis/admin/enrollment-pending") {

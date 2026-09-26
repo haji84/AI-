@@ -28,4 +28,5 @@ test("unsupported devices and multiple iPhone identities fail closed", async () 
   await intake.receive({ deviceId: "iphone-1", platform: "ios", ownerCommandId: "one", text: "one", connectivity: "offline", goalSnapshotDigest: "a".repeat(64) });
   await assert.rejects(() => intake.receive({ deviceId: "iphone-2", platform: "ios", ownerCommandId: "two", text: "two", connectivity: "offline", goalSnapshotDigest: "a".repeat(64) }), /one iPhone/i);
   await assert.rejects(() => intake.receive({ deviceId: "android", platform: "android" as "ios", ownerCommandId: "three", text: "three", connectivity: "offline", goalSnapshotDigest: "a".repeat(64) }), /unsupported device/i);
+  await assert.rejects(() => intake.receive({ deviceId: "iphone-1", platform: "ios", ownerCommandId: "four", text: "four", connectivity: "unknown" as "online", goalSnapshotDigest: "a".repeat(64) }), /unsupported connectivity/i);
 });

@@ -80,6 +80,7 @@ export class DeviceDevelopmentIntake {
 
   async receive(request: DeviceDevelopmentRequest, now = new Date()): Promise<DeviceDevelopmentRecord> {
     if (!["ios", "windows", "macos"].includes(request.platform)) throw new Error("unsupported device platform");
+    if (!["online", "degraded", "offline", "recovering"].includes(request.connectivity)) throw new Error("unsupported connectivity state");
     if (!request.deviceId.trim() || !request.ownerCommandId.trim() || !request.text.trim()) throw new Error("bounded device development intake is required");
     if (!/^[a-f0-9]{64}$/.test(request.goalSnapshotDigest)) throw new Error("goal snapshot digest is invalid");
     const records = await this.inbox.list();
