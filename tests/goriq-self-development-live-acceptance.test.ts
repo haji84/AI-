@@ -103,6 +103,7 @@ test("manual live acceptance keeps ZBook and physical iPhone evidence separate a
   assert.match(workflow, /approve_ephemeral_pairing/);
   assert.match(workflow, /devicectl device copy from/);
   assert.match(workflow, /goriq-verify-physical-iphone-evidence\.mjs/);
+  assert.match(workflow, /xcodebuild[\s\S]*-allowProvisioningUpdates[\s\S]*CODE_SIGN_STYLE=Automatic build/);
   assert.match(workflow, /export IPHONE_BRIDGE_MASTER_KEY="\$EPHEMERAL_BRIDGE_KEY"/);
   assert.match(workflow, /::add-mask::\$EPHEMERAL_BRIDGE_KEY/);
   assert.doesNotMatch(workflow, /iphone-bridge-master\.key/);
