@@ -11,6 +11,30 @@ export interface LocalModelLiveEvidenceInput {
   processProof: { pid: number; executable: string; listenerPort: number } | null;
 }
 
+export function createBoundedOllamaGenerateRequest(
+  model: string,
+  prompt: string,
+  declaredPath: string,
+  expectedContent: string,
+): Record<string, unknown> {
+  return {
+    model,
+    prompt,
+    stream: false,
+    think: false,
+    format: {
+      type: "object",
+      properties: {
+        path: { const: declaredPath },
+        content: { const: expectedContent },
+      },
+      required: ["path", "content"],
+      additionalProperties: false,
+    },
+    options: { temperature: 0, num_predict: 128 },
+  };
+}
+
 export function classifyLocalModelLiveEvidence(input: LocalModelLiveEvidenceInput): { admissible: boolean; reasons: string[] } {
   const reasons: string[] = [];
   if (input.platform !== "win32") reasons.push("not_windows_runner");

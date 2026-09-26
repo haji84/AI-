@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   assertLoopbackModelEndpoint,
   classifyLocalModelLiveEvidence,
+  createBoundedOllamaGenerateRequest,
   parseBoundedLocalModelEdit,
 } from "../src/orchestrator/local-model-development-acceptance.ts";
 import {
@@ -29,6 +30,33 @@ test("real local-model acceptance only permits a bounded declared edit", () => {
   assert.throws(
     () => parseBoundedLocalModelEdit('{"path":"tests/fixtures/local-model-self-development.txt","content":"pretend-pass"}', "tests/fixtures/local-model-self-development.txt", "goriq-local-model-pass"),
     /verified target/,
+  );
+});
+
+test("real local-model request disables reasoning and bounds the exact edit response", () => {
+  assert.deepEqual(
+    createBoundedOllamaGenerateRequest(
+      "qwen3:4b",
+      "Return the edit.",
+      "tests/fixtures/local-model-self-development.txt",
+      "goriq-local-model-pass",
+    ),
+    {
+      model: "qwen3:4b",
+      prompt: "Return the edit.",
+      stream: false,
+      think: false,
+      format: {
+        type: "object",
+        properties: {
+          path: { const: "tests/fixtures/local-model-self-development.txt" },
+          content: { const: "goriq-local-model-pass" },
+        },
+        required: ["path", "content"],
+        additionalProperties: false,
+      },
+      options: { temperature: 0, num_predict: 128 },
+    },
   );
 });
 
