@@ -18,7 +18,7 @@ test("auto-update fails closed for sensitive or unclassified iOS changes", async
   const yml = await workflow();
   assert.match(yml, /eligible-minor-ios-change/);
   assert.match(yml, /sensitive-or-unclassified-ios-change/);
-  assert.match(yml, /OwnerCredentialRuntime/);
+  assert.match(yml, /apps\/ios-owner\/Sources\/JarvisIOSOwnerApp\\.swift\|apps\/ios-owner\/Sources\/DailyDriverRuntime\\.swift/);
   assert.doesNotMatch(yml, /JARVIS_OWNER_SECRET|AI_COMPANY_OWNER_SECRET/);
 });
 
