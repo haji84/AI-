@@ -73,7 +73,16 @@ jobs:
                 break
               fi
             done
-            [[ "$refreshed" == true ]] || { echo "Unable to obtain a healthy replacement Quick Tunnel URL." >&2; exit 2; }
+            if [[ "$refreshed" != true ]]; then
+              echo "Unable to obtain a healthy replacement Quick Tunnel URL." >&2
+              echo "--- Sanitized Broker tunnel diagnostics ---" >&2
+              launchctl print "gui/$(id -u)/com.aicompany.jarvis-broker-tunnel" 2>&1 \
+                | sed -E 's#https://[a-zA-Z0-9-]+\.trycloudflare\.com#QUICK_TUNNEL_URL_REDACTED#g' \
+                | tail -80 >&2 || true
+              tail -120 "$STATE_ROOT/broker-tunnel.log" 2>/dev/null \
+                | sed -E 's#https://[a-zA-Z0-9-]+\.trycloudflare\.com#QUICK_TUNNEL_URL_REDACTED#g' >&2 || true
+              exit 2
+            fi
           fi
 
           load_runtime
