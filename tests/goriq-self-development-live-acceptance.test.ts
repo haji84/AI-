@@ -145,8 +145,9 @@ test("devicectl failure diagnostics preserve the recovery action without leaking
   const diagnostic = formatDevicectlFailure(
     1,
     "Error at /Users/alice/Library/Developer: CoreDeviceError 12045 for 00008110-001A2B3C4D5E601E. Unlock the device and reconnect it. UUID 123e4567-e89b-12d3-a456-426614174000",
+    "physical iPhone selection",
   );
-  assert.match(diagnostic, /devicectl list devices failed \(exit 1\)/);
+  assert.match(diagnostic, /physical iPhone selection failed \(exit 1\)/);
   assert.match(diagnostic, /Unlock the device and reconnect it/);
   assert.doesNotMatch(diagnostic, /alice|00008110|123e4567/i);
 });
