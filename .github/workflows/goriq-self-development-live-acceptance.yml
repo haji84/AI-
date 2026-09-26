@@ -162,6 +162,7 @@ jobs:
           pushd apps/ios-worker >/dev/null
           "$XCODEGEN_BIN" generate
           xcodebuild -project JarvisIOSWorker.xcodeproj -scheme JarvisIOSWorker -configuration Debug \
+            -allowProvisioningUpdates \
             -destination 'generic/platform=iOS' -derivedDataPath "$RUNNER_TEMP/goriq-681-ios-derived" \
             DEVELOPMENT_TEAM=SDTV253RXA PRODUCT_BUNDLE_IDENTIFIER="$ACCEPTANCE_BUNDLE_ID" \
             JARVIS_ACCEPTANCE_DEVICE_ID="$EXPECTED_WORKER_ID" JARVIS_BUILD_CHALLENGE="$BUILD_CHALLENGE" \
