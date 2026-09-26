@@ -32,7 +32,7 @@ export function parseDailyDriverDeviceCommand(input: string): DailyDriverDeviceI
   if (PROTECTED_TERMS.some((term) => lower.includes(term.toLowerCase()))) {
     return {
       kind: "protected",
-      message: "保護対象の端末操作は自動実行しません。既存のHuman Gateまたは端末詳細画面を使用してください。",
+      message: "保護対象の端末操作は自動実行も承認もしません。既存のHuman Gateまたは端末詳細画面を使用してください。",
     };
   }
 
@@ -40,11 +40,11 @@ export function parseDailyDriverDeviceCommand(input: string): DailyDriverDeviceI
     return { kind: "device", task: { type: "wake-device", payload: {} } };
   }
 
-  if ((/wi-?fi|wifi|ワイファイ/i.test(text)) && OPEN_TERMS.test(text)) {
+  if ((/wi-?fi|wifi|ワイファイ/i.test(text)) && (OPEN_TERMS.test(text) || /(?:wi-?fi|wifi|ワイファイ)\s*設定/i.test(text))) {
     return { kind: "device", task: { type: "launch-settings", payload: { screen: "wifi" } } };
   }
 
-  if ((/bluetooth|ブルートゥース/i.test(text)) && OPEN_TERMS.test(text)) {
+  if ((/bluetooth|ブルートゥース/i.test(text)) && (OPEN_TERMS.test(text) || /(?:bluetooth|ブルートゥース)\s*設定/i.test(text))) {
     return { kind: "device", task: { type: "launch-settings", payload: { screen: "bluetooth" } } };
   }
 
