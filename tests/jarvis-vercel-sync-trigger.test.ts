@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { URL } from "node:url";
 
-const workflow = () => readFile(new URL("../.github/workflows/jarvis-vercel-sync.yml", import.meta.url), "utf8");
+const workflow = () => readFile(new URL("../.github/workflows/goriq-jarvis-production-sync.yml", import.meta.url), "utf8");
 
 test("JARVIS Vercel Sync follows successful main CI and binds exact commit", async () => {
   const source = await workflow();

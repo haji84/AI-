@@ -1,4 +1,4 @@
-name: JARVIS Vercel Sync
+name: GORIQ JARVIS Production Sync
 
 on:
   schedule:
@@ -20,7 +20,7 @@ on:
       - 'src/jarvis/google-owner-state-registry.ts'
       - 'apps/ios-owner/**'
       - 'src/app/downloads/jarvis-worker.apk/**'
-      - '.github/workflows/jarvis-vercel-sync.yml'
+      - '.github/workflows/goriq-jarvis-production-sync.yml'
   workflow_run:
     workflows: ["CI"]
     types: [completed]
