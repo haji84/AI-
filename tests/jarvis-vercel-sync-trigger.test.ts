@@ -31,3 +31,13 @@ test("JARVIS Vercel Sync includes native owner and trusted-device surfaces", asy
     assert.ok(source.includes(path), `missing sync trigger path: ${path}`);
   }
 });
+
+
+test("JARVIS production code deploy is hosted and waits for successful main CI", async () => {
+  const source = await workflow();
+  assert.match(source, /deploy-code:\s*\n\s*if: github\.event_name == 'workflow_run'/);
+  assert.match(source, /runs-on: ubuntu-latest/);
+  assert.match(source, /Deploy exact verified main commit to JARVIS Production/);
+  assert.match(source, /JARVIS_PRODUCTION_URL: https:\/\/jarvis-fawn-iota\.vercel\.app/);
+  assert.match(source, /github\.event\.workflow_run\.head_sha/);
+});
