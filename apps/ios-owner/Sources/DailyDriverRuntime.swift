@@ -39,17 +39,23 @@ final class DailyDriverRuntime: ObservableObject {
             defer { isSubmitting = false }
             do {
                 try await owner.ensureOwnerSession()
-                let result = try await owner.ownerAPIRequest(
+                let idempotencyKey = UUID().uuidString
+                let body: [String: Any] = [
+                    "text": text,
+                    "idempotencyKey": idempotencyKey
+                ]
+                var result = try await owner.ownerAPIRequest(
                     path: "/api/jarvis/work",
                     method: "POST",
-                    jsonBody: [
-                        "text": text,
-                        "idempotencyKey": UUID().uuidString
-                    ]
+                    jsonBody: body
                 )
                 if result.statusCode == 401 {
                     try await owner.ensureOwnerSession()
-                    throw DailyDriverError.authentication
+                    result = try await owner.ownerAPIRequest(
+                        path: "/api/jarvis/work",
+                        method: "POST",
+                        jsonBody: body
+                    )
                 }
                 guard result.statusCode == 202 || result.statusCode == 200 else {
                     throw DailyDriverError.server(result.statusCode)
