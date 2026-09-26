@@ -91,6 +91,8 @@ test("manual live acceptance keeps ZBook and physical iPhone evidence separate a
   assert.match(workflow, /GORIQ_REQUIRE_ADMISSIBLE_REAL_MODEL:\s*"1"/);
   assert.match(workflow, /GAI_LOCAL_MODEL_NAME:\s*qwen3:4b/);
   assert.match(workflow, /runs-on:\s*\[self-hosted, macOS, ARM64\]/);
+  assert.match(workflow, /"\$BREW_BIN" install xcodegen/);
+  assert.match(workflow, /XCODEGEN_BIN/);
   assert.match(workflow, /xcrun devicectl list devices/);
   assert.match(workflow, /com\.haji84\.jarvis\.iosworker/);
   assert.match(workflow, /physical-iphone-e2e/);
