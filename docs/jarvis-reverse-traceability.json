@@ -337,7 +337,7 @@
     },
     {
       "path": "apps/ios-worker/Sources/WorkerRuntime.swift",
-      "sha256": "d7dc21055ca81875df7d64e8fbe37dea521034fb75714052195f9d17f9dd8e0a",
+      "sha256": "2cd818d2c30f02c6b9140b184ccb23b6510eef1a82467c3a0fdaf15fc2867077",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "DEV-I-001",
