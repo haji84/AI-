@@ -20,7 +20,7 @@ test("native Daily Driver uses one composer and durable Goal polling", async () 
   const runtime = await source("apps/ios-owner/Sources/DailyDriverRuntime.swift");
   assert.match(app, /GORIQに何をしてほしい？/);
   assert.match(runtime, /path: "\/api\/jarvis\/work"/);
-  assert.match(runtime, /\/api\/jarvis\/work\/\\\(goalId\\\)/);
+  assert.ok(runtime.includes('path: "/api/jarvis/work/\\\\(goalId)"'));
   assert.match(runtime, /goriq-native-last-goal-id/);
   assert.match(runtime, /HUMAN_GATE/);
   assert.match(runtime, /DEVICE_ACTION_PROTECTED/);
