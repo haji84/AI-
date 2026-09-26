@@ -38,7 +38,8 @@ import { CompassGoalBridgeEventStore } from "../src/orchestrator/compass-goal-br
 import { workRunProgress } from "../src/orchestrator/work-run-state.ts";
 import { createQueuedWorkRun } from "../src/orchestrator/work-run-state.ts";
 import { validateWindowsVerificationDispatch } from "../src/orchestrator/windows-verification-dispatch.ts";
-import { DeviceDevelopmentIntake, JsonFileDeviceDevelopmentInbox } from "../src/orchestrator/device-development-intake.ts";\nimport { parseDailyDriverDeviceCommand } from "../src/jarvis/daily-driver-device-command.ts";
+import { DeviceDevelopmentIntake, JsonFileDeviceDevelopmentInbox } from "../src/orchestrator/device-development-intake.ts";
+import { parseDailyDriverDeviceCommand } from "../src/jarvis/daily-driver-device-command.ts";
 
 
 const host = process.env.JARVIS_BROKER_HOST?.trim() || "127.0.0.1";
