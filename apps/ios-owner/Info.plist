@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>CFBundleDevelopmentRegion</key><string>ja</string>
+  <key>CFBundleDisplayName</key><string>GORIQ Owner</string>
+  <key>CFBundleExecutable</key><string>$(EXECUTABLE_NAME)</string>
+  <key>CFBundleIdentifier</key><string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+  <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
+  <key>CFBundleName</key><string>JarvisIOSOwner</string>
+  <key>CFBundlePackageType</key><string>APPL</string>
+  <key>CFBundleShortVersionString</key><string>0.1.0</string>
+  <key>CFBundleVersion</key><string>1</string>
+  <key>NSFaceIDUsageDescription</key><string>Owner認証情報の表示と端末鍵の使用を本人確認で保護します。</string>
+  <key>UILaunchScreen</key><dict/>
+  <key>GORIQServerURL</key><string>https://jarvis-fawn-iota.vercel.app</string>
+  <key>CFBundleURLTypes</key>
+  <array><dict>
+    <key>CFBundleURLName</key><string>GORIQ Owner Google OAuth</string>
+    <key>CFBundleURLSchemes</key><array><string>com.haji84.jarvis.iosowner</string></array>
+  </dict></array>
+</dict></plist>
