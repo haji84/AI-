@@ -1564,6 +1564,30 @@
       "reason": "Persisted work intake/state API; #1219 Direct Goal Bridge wakes bounded Goal execution and exposes shared status/events; parent requirements remain PARTIAL pending E2E."
     },
     {
+      "path": "src/app/api/owner-login/google/begin/route.ts",
+      "sha256": "64874d8578ae451327428dd8f277df8dbc3bcd5fa8c2d3b9336e9c7375b505f7",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "SEC-001",
+        "SEC-002",
+        "DEV-I-006",
+        "AUTO-001"
+      ],
+      "reason": "Issue #1218 Google Owner auto-enrollment security and Owner Fleet enrollment; live provider configuration remains gated."
+    },
+    {
+      "path": "src/app/api/owner-login/google/complete/route.ts",
+      "sha256": "139def447479676d68edb261121e188a1f5cbcb157ef5de94d1b2600e4306839",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "SEC-001",
+        "SEC-002",
+        "DEV-I-006",
+        "AUTO-001"
+      ],
+      "reason": "Issue #1218 Google Owner auto-enrollment security and Owner Fleet enrollment; live provider configuration remains gated."
+    },
+    {
       "path": "src/app/api/owner-login/route.ts",
       "sha256": "96ed1ba593273ed6b777596e8503921df5594381ac157799a96931a7dd75cfca",
       "classification": "COVERED_BY_REQUIREMENT",
@@ -1605,6 +1629,39 @@
         "AUTO-001"
       ],
       "reason": "Declared route.ts responsibility implements/supports Owner Authentication; Session Control; One Front Door. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/app/api/owner-login/trusted/recovery/cancel/route.ts",
+      "sha256": "908444641c2d0a5dc3242590afe8d99fd2ed59f452a102ce7c7567ee00a15244",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-I-006",
+        "SEC-001",
+        "SEC-002"
+      ],
+      "reason": "Issue #1218 disabled-by-default recovery cancellation requires a fresh non-revoked device-bound Owner session and returns non-cacheable generic responses; physical acceptance remains pending."
+    },
+    {
+      "path": "src/app/api/owner-login/trusted/recovery/issue/route.ts",
+      "sha256": "5d3b2984bcf226e2a7d158316ddf54f2efe0a5dfa9e71c87315cd623cbc742af",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-I-006",
+        "SEC-001",
+        "SEC-002"
+      ],
+      "reason": "Issue #1218 disabled-by-default recovery issuance requires a fresh non-revoked device-bound Owner session and returns non-cacheable generic responses; physical acceptance remains pending."
+    },
+    {
+      "path": "src/app/api/owner-login/trusted/recovery/redeem/route.ts",
+      "sha256": "966cdf5c71dc02381b64788d987513d3db4587b3915cd397c12c2f5f02527cf2",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-I-006",
+        "SEC-001",
+        "SEC-002"
+      ],
+      "reason": "Issue #1218 disabled-by-default sessionless recovery redemption accepts bounded POST JSON, HMAC-buckets its source, and returns non-cacheable generic responses; physical acceptance remains pending."
     },
     {
       "path": "src/app/api/owner-login/trusted/verify/route.ts",
@@ -3755,6 +3812,18 @@
         "FLEET-011"
       ],
       "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/jarvis/google-owner-state-registry.ts",
+      "sha256": "08a6b85d1522e1b10f4f87c57290cd22a05c3c7498bb37ab129552a55049fd08",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "SEC-001",
+        "SEC-002",
+        "DEV-I-006",
+        "AUTO-001"
+      ],
+      "reason": "Issue #1218 Google Owner auto-enrollment security and Owner Fleet enrollment; live provider configuration remains gated."
     },
     {
       "path": "src/jarvis/home-widget-history.ts",
