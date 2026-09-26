@@ -47,9 +47,17 @@ test("backgrounding and hiding clear both recovery value and countdown with no r
   const hide = method("hideRecoveryCode()");
   assert.match(hide, /recoveryCode = nil/);
   assert.match(hide, /recoveryExpiresAt = nil/);
+  assert.match(hide, /recoveryIssueGeneration \+= 1/);
   assert.match(ui, /phase != \.active \{ owner\.hideRecoveryCode\(\) \}/);
   const initializer = runtime.slice(runtime.indexOf("init()"), runtime.indexOf("func enroll", runtime.indexOf("init()")));
   assert.doesNotMatch(initializer, /recoveryCode|recoveryExpiresAt/);
+});
+
+test("a late issue response cannot restore a code after background clearing", () => {
+  const issue = method("issueRecoveryCode()");
+  assert.match(issue, /let issueGeneration = recoveryIssueGeneration/);
+  assert.match(issue, /guard issueGeneration == recoveryIssueGeneration else \{ throw OwnerError\.recoveryUnavailable \}/);
+  assert.ok(issue.indexOf("guard issueGeneration == recoveryIssueGeneration") < issue.indexOf("recoveryCode = code"));
 });
 
 test("cancellation clears volatile state only after a successful server response", () => {
@@ -81,7 +89,17 @@ test("recovery redemption proves possession before publishing enrollment success
   const enroll = method("enrollWithRecoveryCode(_ code: String)");
   assert.ok(enroll.indexOf('path: "/api/owner-login/trusted/recovery/redeem"') < enroll.indexOf("verifyTrustedDeviceProof()"));
   assert.ok(enroll.indexOf("verifyTrustedDeviceProof()") < enroll.indexOf("isEnrolled = true"));
+  assert.ok(enroll.indexOf("pendingEnrollmentAccount") < enroll.indexOf("storeTrustedDevice("));
+  assert.ok(enroll.indexOf("verifyTrustedDeviceProof()") < enroll.lastIndexOf("Keychain.delete(account: Self.pendingEnrollmentAccount)"));
   assert.match(enroll, /catch[\s\S]*deleteTrustedDeviceMaterialPreservingLegacyCode\(\)[\s\S]*throw error/);
+});
+
+test("an interrupted recovery enrollment is discarded instead of trusted on relaunch", () => {
+  assert.match(runtime, /pendingEnrollmentAccount = "owner-pending-enrollment"/);
+  const initializer = runtime.slice(runtime.indexOf("init()"), runtime.indexOf("func enroll", runtime.indexOf("init()")));
+  assert.match(initializer, /Keychain\.read\(account: Self\.pendingEnrollmentAccount\)/);
+  assert.match(initializer, /deleteTrustedDeviceMaterialPreservingLegacyCode\(\)/);
+  assert.ok(initializer.indexOf("pendingEnrollmentAccount") < initializer.indexOf("isEnrolled = Keychain.read"));
 });
 
 test("entered recovery code is validated but never persisted", () => {

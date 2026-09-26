@@ -15,16 +15,21 @@ final class OwnerCredentialRuntime: ObservableObject {
     private let session: URLSession
     private let googleEnrollment = GoogleOwnerEnrollment()
     private var recoveryExpiryTask: Task<Void, Never>?
+    private var recoveryIssueGeneration = 0
     private static let codeAccount = "owner-production-code"
     private static let keyAccount = "owner-signing-key"
     private static let credentialAccount = "owner-trusted-credential"
     private static let deviceIdAccount = "owner-device-id"
+    private static let pendingEnrollmentAccount = "owner-pending-enrollment"
 
     init() {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.httpShouldSetCookies = true
         configuration.timeoutIntervalForRequest = 8
         session = URLSession(configuration: configuration, delegate: NoRedirects(), delegateQueue: nil)
+        if Keychain.read(account: Self.pendingEnrollmentAccount) != nil {
+            deleteTrustedDeviceMaterialPreservingLegacyCode()
+        }
         isEnrolled = Keychain.read(account: Self.credentialAccount) != nil
         status = isEnrolled ? "登録済み・サーバー確認待ち" : "未登録"
     }
@@ -63,6 +68,7 @@ final class OwnerCredentialRuntime: ObservableObject {
               let credential = payload["credential"] as? String else { throw OwnerError.enrollment }
 
         do {
+            try Keychain.save(Data("pending".utf8), account: Self.pendingEnrollmentAccount)
             try storeTrustedDevice(
                 keyData: key.dataRepresentation,
                 credential: credential,
@@ -71,6 +77,7 @@ final class OwnerCredentialRuntime: ObservableObject {
             )
             UserDefaults.standard.set(serverURL, forKey: "ownerServerURL")
             try await verifyTrustedDeviceProof()
+            Keychain.delete(account: Self.pendingEnrollmentAccount)
             isEnrolled = true
             status = "復旧コードで登録し、Face IDと端末鍵を確認済み"
         } catch {
@@ -130,7 +137,7 @@ final class OwnerCredentialRuntime: ObservableObject {
 
     private func deleteTrustedDeviceMaterialPreservingLegacyCode() {
         hideRecoveryCode()
-        for account in [Self.keyAccount, Self.credentialAccount, Self.deviceIdAccount] {
+        for account in [Self.keyAccount, Self.credentialAccount, Self.deviceIdAccount, Self.pendingEnrollmentAccount] {
             Keychain.delete(account: account)
         }
         isEnrolled = false
@@ -140,6 +147,7 @@ final class OwnerCredentialRuntime: ObservableObject {
         hideRecoveryCode()
         status = "Face IDと端末鍵を確認中"
         try await verifyTrustedDeviceProof()
+        let issueGeneration = recoveryIssueGeneration
         let body = try JSONSerialization.data(withJSONObject: [:])
         let result = try await send(base: try baseURL(), path: "/api/owner-login/trusted/recovery/issue", body: body, contentType: "application/json")
         guard result.statusCode == 200,
@@ -149,6 +157,7 @@ final class OwnerCredentialRuntime: ObservableObject {
               let expiresAt = payload["expiresAt"] as? NSNumber else { throw OwnerError.recoveryUnavailable }
         let expiry = Date(timeIntervalSince1970: expiresAt.doubleValue)
         guard expiry > Date(), expiry.timeIntervalSinceNow <= 300 else { throw OwnerError.recoveryUnavailable }
+        guard issueGeneration == recoveryIssueGeneration else { throw OwnerError.recoveryUnavailable }
         recoveryCode = code
         recoveryExpiresAt = expiry
         status = "別端末の復旧コードを表示中"
@@ -170,6 +179,7 @@ final class OwnerCredentialRuntime: ObservableObject {
     }
 
     func hideRecoveryCode() {
+        recoveryIssueGeneration += 1
         recoveryExpiryTask?.cancel()
         recoveryExpiryTask = nil
         recoveryCode = nil

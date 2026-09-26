@@ -341,7 +341,7 @@
     },
     {
       "path": "apps/ios-owner/Sources/OwnerCredentialRuntime.swift",
-      "sha256": "af4b9700adf034b5c17287c17e0922bfaf8ed1f4d962a0c3dc2b2c21505d4589",
+      "sha256": "279a7e060547c3bccf7204f56d3a93e659c8e6473b177feb35343065b6318f7f",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "DEV-I-006",
@@ -1023,7 +1023,7 @@
     },
     {
       "path": "scripts/jarvis-broker.ts",
-      "sha256": "2e746c8bde16d16a9b8115ec2ca44cdcf5a059eaa9ba2049512e9ffabd1b8d96",
+      "sha256": "4287d1b5734b2557ed03fc2d41807baf4afa5a144a7ad69c17e9202f9aa8861b",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "NET-006",

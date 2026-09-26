@@ -24,10 +24,15 @@ test("Broker recovery admin contract is authenticated, one-use, cancellable, and
   const port = await unusedPort();
   const base = `http://127.0.0.1:${port}`;
   let child: ChildProcess | undefined;
-  const start = () => spawn(process.execPath, ["scripts/jarvis-broker.ts"], {
-    env: { ...process.env, JARVIS_BROKER_HOST: "127.0.0.1", JARVIS_BROKER_PORT: String(port), JARVIS_OWNER_TOKEN: owner, JARVIS_DB_PATH: databasePath },
-    stdio: "ignore",
-  });
+  let stderr = "";
+  const start = () => {
+    const process = spawn(globalThis.process.execPath, ["scripts/jarvis-broker.ts"], {
+      env: { ...globalThis.process.env, JARVIS_BROKER_HOST: "127.0.0.1", JARVIS_BROKER_PORT: String(port), JARVIS_OWNER_TOKEN: owner, JARVIS_DB_PATH: databasePath },
+      stdio: ["ignore", "ignore", "pipe"],
+    });
+    process.stderr?.on("data", chunk => { stderr += String(chunk); });
+    return process;
+  };
   const waitReady = async () => {
     for (let attempt = 0; attempt < 80; attempt += 1) {
       try { if ((await fetch(base + "/health")).ok) return; } catch { /* bounded startup */ }
@@ -50,6 +55,12 @@ test("Broker recovery admin contract is authenticated, one-use, cancellable, and
     child = start();
     await waitReady();
     assert.equal((await recovery({ action: "issue", issuerDeviceId: issuer }, false)).status, 401);
+    const malformedMarker = "OR-ABCD-EFGH-JKMN-PQRS";
+    const malformed = await recovery(`{"action":"redeem","code":"${malformedMarker}"`);
+    assert.equal(malformed.status, 400);
+    assert.deepEqual(await malformed.json(), { message: "invalid owner recovery request" });
+    await new Promise(resolve => setTimeout(resolve, 25));
+    assert.equal(stderr.includes(malformedMarker), false);
     assert.equal((await register(issuer)).status, 200);
     assert.equal((await register(secondIssuer)).status, 200);
 
