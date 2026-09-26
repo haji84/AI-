@@ -5531,7 +5531,7 @@
     },
     {
       "path": "src/orchestrator/local-model-development-acceptance.ts",
-      "sha256": "f7b4d8c80dab904fb5f256fe66469c38c6e6a2f41dd91177f32695b26fcba81e",
+      "sha256": "c0b87c180ead4463b792b7219f31d165a406244c4cf1da33530df05ec36b7b11",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": ["CORE-008", "CORE-014", "AUTO-010", "AUTO-016", "AUTO-023"],
       "reason": "#681 live acceptance rejects non-loopback inference and undeclared edits, and separates simulated contract runs from admissible self-hosted Ollama evidence."

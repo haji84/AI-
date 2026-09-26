@@ -12,6 +12,7 @@ import { LocalDevelopmentBuilder } from "../src/orchestrator/local-development-b
 import {
   assertLoopbackModelEndpoint,
   classifyLocalModelLiveEvidence,
+  createBoundedOllamaGenerateRequest,
   parseBoundedLocalModelEdit,
 } from "../src/orchestrator/local-model-development-acceptance.ts";
 import { ResidentDevelopmentGoalHost } from "../src/orchestrator/resident-development-goal-host.ts";
@@ -200,6 +201,7 @@ const localBuilder = new LocalDevelopmentBuilder({
     }
     if (modelCalls !== 0) throw new Error("local model Builder was invoked more than once");
     const prompt = [
+      "/no_think",
       "Return one JSON object only, with exactly the keys path and content.",
       `Set path exactly to ${fixture}.`,
       `Set content exactly to ${expected}.`,
@@ -208,7 +210,7 @@ const localBuilder = new LocalDevelopmentBuilder({
     const generated = await boundedJson(`${origin}/api/generate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ model, prompt, stream: false, format: "json", options: { temperature: 0 } }),
+      body: JSON.stringify(createBoundedOllamaGenerateRequest(model, prompt, fixture, expected)),
     });
     modelCalls += 1;
     await writeFile(counterFile, `${JSON.stringify({ modelCalls })}\n`, { flag: "wx", mode: 0o600 });
