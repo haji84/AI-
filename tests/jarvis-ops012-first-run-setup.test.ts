@@ -92,7 +92,7 @@ test("OPS-012 page is owner-gated and the wizard only reads the authenticated di
   assert.match(client, /fetch\("\/api\/jarvis\/diagnostics", \{ cache: "no-store" \}\)/);
   assert.match(client, /ホスト、接続、権限を順番に確認/);
   assert.match(client, /設定を自動変更しません/);
-  assert.match(jarvisPage, /href="\/jarvis\/setup">初回セットアップ/);
+  assert.match(jarvisPage, /href:\s*"\/jarvis\/setup"[\s\S]*label:\s*"初回セットアップ"/);
 
   assert.doesNotMatch(client, /method:\s*["'](?:POST|PUT|PATCH|DELETE)["']/i);
   assert.doesNotMatch(client, /\/api\/jarvis\/(?:enroll|takeover|resume|task|command)/i);

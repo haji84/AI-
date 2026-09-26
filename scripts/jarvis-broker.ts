@@ -39,6 +39,7 @@ import { workRunProgress } from "../src/orchestrator/work-run-state.ts";
 import { createQueuedWorkRun } from "../src/orchestrator/work-run-state.ts";
 import { validateWindowsVerificationDispatch } from "../src/orchestrator/windows-verification-dispatch.ts";
 import { DeviceDevelopmentIntake, JsonFileDeviceDevelopmentInbox } from "../src/orchestrator/device-development-intake.ts";
+import { parseDailyDriverDeviceCommand } from "../src/jarvis/daily-driver-device-command.ts";
 
 
 const host = process.env.JARVIS_BROKER_HOST?.trim() || "127.0.0.1";
@@ -445,6 +446,43 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
         const text = typeof payload.text === "string" ? payload.text.trim() : "";
         if (!text) return json(response, 400, { message: "仕事の内容を入力してください" });
         const idempotencyKey = typeof payload.idempotencyKey === "string" ? payload.idempotencyKey.trim() : undefined;
+        const deviceIntent = parseDailyDriverDeviceCommand(text);
+        if (deviceIntent.kind === "protected") {
+          return json(response, 409, {
+            accepted: false,
+            action: "DEVICE_ACTION_PROTECTED",
+            message: deviceIntent.message,
+            nextAction: "端末の詳細操作または既存Human Gateを使用してください",
+          });
+        }
+        if (deviceIntent.kind === "device") {
+          const type = deviceIntent.task.type;
+          let cleanPayload: Record<string, unknown>;
+          try { cleanPayload = validatedAndroidTask(type, deviceIntent.task.payload); }
+          catch (error) { return json(response, 400, { message: error instanceof Error ? error.message : "invalid device task" }); }
+          const capability = androidTaskCapabilities[type];
+          const fingerprint = JSON.stringify({ type, cleanPayload, source: "daily-driver" });
+          const task = plane.enqueueTask({
+            idempotencyKey: idempotencyKey || `daily-driver:${createHash("sha256").update(fingerprint).digest("hex")}`,
+            type,
+            payload: cleanPayload,
+            requiredCapabilities: [capability],
+            preferredKinds: ["android"],
+            priority: "normal",
+            requiresOnline: true,
+            maxAttempts: 3,
+          });
+          persist();
+          return json(response, 202, {
+            accepted: true,
+            executionScheduled: true,
+            goalId: null,
+            action: "DEVICE_ACTION",
+            resolution: "STANDALONE_ACTION",
+            nextAction: "端末タスクを実行中",
+            task,
+          });
+        }
         const requestedGoalHint = typeof payload.goalHint === "string" ? payload.goalHint.trim() : undefined;
         const requestedGoalContract = payload.goalContract && typeof payload.goalContract === "object" && !Array.isArray(payload.goalContract)
           ? payload.goalContract as { successCriteria?: unknown; constraints?: unknown }
