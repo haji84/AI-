@@ -69,7 +69,7 @@ export function parseDailyDriverDeviceCommand(input: string): DailyDriverDeviceI
 
   if (/^通知[:：\s]/.test(text)) {
     const message = text.replace(/^通知[:：]?\s*/, "").trim();
-    if (message) return { kind: "device", task: { type: "show-notification", payload: { title: "JARVIS", message } } };
+    if (message) return { kind: "device", task: { type: "show-notification", payload: { title: "GORIQ", message } } };
   }
 
   return { kind: "not-device" };
