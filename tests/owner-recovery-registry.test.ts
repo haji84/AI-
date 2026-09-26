@@ -56,6 +56,23 @@ test("only a live registered issuer may issue and the fourth hourly issue is rej
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
+test("other issuers cannot evict a live per-issuer issue window", () => {
+  const { dir, registry } = fixture();
+  try {
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      registry.issueRecovery({ issuerDeviceId: issuer, code }, 1000 + attempt);
+    }
+    for (let index = 0; index < 34; index += 1) {
+      const otherIssuer = `issuer_churn_${String(index).padStart(16, "0")}`;
+      registry.register(otherIssuer, `Other issuer ${index}`);
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        registry.issueRecovery({ issuerDeviceId: otherIssuer, code }, 1010 + index * 3 + attempt);
+      }
+    }
+    assert.throws(() => registry.issueRecovery({ issuerDeviceId: issuer, code }, 1200), /rate limit/);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
 test("durable state stores only a digest and replacement invalidates the earlier code", () => {
   const { dir, path, registry } = fixture();
   try {

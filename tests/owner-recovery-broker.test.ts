@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { spawn, type ChildProcess } from "node:child_process";
 import { once } from "node:events";
 import { randomBytes } from "node:crypto";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -88,6 +88,15 @@ test("Broker recovery admin contract is authenticated, one-use, cancellable, and
     assert.equal(persisted.includes(first.code), false);
     assert.equal(persisted.includes(next.code), false);
     assert.equal(persisted.includes(racing.code), false);
+
+    const exited = once(child, "exit");
+    child.kill("SIGTERM");
+    await exited;
+    child = undefined;
+    await writeFile(databasePath + ".trusted-devices.json", "{corrupt", "utf8");
+    child = start();
+    await waitReady();
+    assert.equal((await recovery({ action: "issue", issuerDeviceId: secondIssuer })).status, 503);
   } finally {
     if (child && child.exitCode === null) {
       const exited = once(child, "exit");

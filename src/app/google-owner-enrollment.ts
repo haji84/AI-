@@ -1,10 +1,11 @@
 import { createHash, randomBytes } from "node:crypto";
+import { canonicalTrustedDevicePublicKey } from "./trusted-device-auth.ts";
 
 const DEVICE = /^[A-Za-z0-9_-]{16,96}$/;
 
 export function publicKeyThumbprint(jwk: JsonWebKey): string {
-  if (jwk.kty !== "EC" || jwk.crv !== "P-256" || !jwk.x || !jwk.y) throw new Error("invalid device key");
-  return createHash("sha256").update(JSON.stringify({ crv: "P-256", kty: "EC", x: jwk.x, y: jwk.y })).digest("base64url");
+  const canonical = canonicalTrustedDevicePublicKey(jwk);
+  return createHash("sha256").update(JSON.stringify({ crv: "P-256", kty: "EC", x: canonical.x, y: canonical.y })).digest("base64url");
 }
 
 type Record = {

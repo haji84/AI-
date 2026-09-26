@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
+import { generateKeyPairSync } from "node:crypto";
 import test from "node:test";
 import { beginGoogleOwnerEnrollment, completeGoogleOwnerEnrollment } from "../src/app/google-owner-service.ts";
 
-const jwk = { kty: "EC", crv: "P-256", x: "abc", y: "def" } as JsonWebKey;
+const jwk = generateKeyPairSync("ec", { namedCurve: "prime256v1" }).publicKey.export({ format: "jwk" });
 
 test("begin is disabled by default and returns only public OAuth context when enabled", async () => {
   await assert.rejects(() => beginGoogleOwnerEnrollment({ deviceId: "device_1234567890abcdef", publicKeyJwk: jwk, state: "s", nonce: "n", pkceChallenge: "p" }, { enabled: false, clientId: "c", issueContext: async () => ({ contextId: "x", expiresAt: 1 }) }));

@@ -11,7 +11,7 @@ import { createHash, createPublicKey, randomBytes, timingSafeEqual } from "node:
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { OwnerInvitationStore, INVITATION_PREFIX } from "../src/jarvis/owner-invitation.ts";
-import { generateOwnerRecoveryCode, TrustedDeviceRegistry } from "../src/jarvis/trusted-device-registry.ts";
+import { generateOwnerRecoveryCode, OwnerRecoveryRejectedError, TrustedDeviceRegistry } from "../src/jarvis/trusted-device-registry.ts";
 import { GoogleOwnerStateRegistry } from "../src/jarvis/google-owner-state-registry.ts";
 import { invitationUrl } from "../src/jarvis/invitation-link.ts";
 import { FixedEnrollmentRateLimiter } from "../src/jarvis/fixed-enrollment.ts";
@@ -372,7 +372,9 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
           return json(response, 200, { device });
         }
         return json(response, 400, { message: "invalid owner recovery request" });
-      } catch { return json(response, 409, { message: "owner recovery rejected" }); }
+      } catch (error) {
+        return json(response, error instanceof OwnerRecoveryRejectedError ? 409 : 503, { message: "owner recovery rejected" });
+      }
     }
     if (path === "/api/jarvis/admin/trusted-devices") {
       try {

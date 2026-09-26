@@ -13,6 +13,7 @@ const routePaths = [
   "../src/app/api/owner-login/trusted/recovery/cancel/route.ts",
 ];
 const routes = routePaths.map(source);
+const routeHandlers = source("../src/app/owner-recovery-http.ts");
 const registry = source("../src/jarvis/trusted-device-registry.ts");
 const broker = source("../scripts/jarvis-broker.ts");
 const service = source("../src/app/owner-recovery-service.ts");
@@ -21,7 +22,7 @@ const runtime = source("../apps/ios-owner/Sources/OwnerCredentialRuntime.swift")
 const view = source("../apps/ios-owner/Sources/JarvisIOSOwnerApp.swift");
 
 test("recovery transport never places the code in URLs, cookies, browser storage, logs, or pasteboard", () => {
-  for (const route of routes) {
+  for (const route of [...routes, routeHandlers]) {
     assert.doesNotMatch(route, /URLSearchParams|searchParams|response\.cookies\.set|Set-Cookie|localStorage|sessionStorage|console\.|logger\./);
   }
   const recoveryBrokerBlock = broker.slice(
@@ -44,8 +45,8 @@ test("durable recovery state stores a keyed digest and never a raw code field", 
 test("all public routes require an explicit disabled-by-default feature gate", () => {
   for (const route of routes) {
     assert.match(route, /process\.env\.GORIQ_OWNER_RECOVERY_ENROLLMENT_ENABLED === "1"/);
-    assert.match(route, /if \(!enabled\).*status: 503/);
   }
+  assert.match(routeHandlers, /if \(!dependencies\.enabled\).*503/);
   for (const path of ["../next.config.ts", "../scripts/jarvis-production-config.mjs", "../vercel.json", "../.env", "../.env.local"]) {
     const url = new URL(path, import.meta.url);
     if (!existsSync(url)) continue;

@@ -1023,7 +1023,7 @@
     },
     {
       "path": "scripts/jarvis-broker.ts",
-      "sha256": "7724395ed3900853b9951f9f52e1d1f1e24f871475354c397d0c0bb5ca529e67",
+      "sha256": "2e746c8bde16d16a9b8115ec2ca44cdcf5a059eaa9ba2049512e9ffabd1b8d96",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "NET-006",
@@ -1044,7 +1044,7 @@
         "SEC-002",
         "DEV-I-006"
       ],
-      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification; #1216 bounded local cognition/owner entry integration, not full capability or physical acceptance; #1216 explicit owner DoD adoption: strict bounded input, unchanged Goal identity, full Goal/state atomic CAS and receipt-only replay; independent completion verification remains required; #1216 bounded local DoD proposal: unverified non-executing data, owner-first strict input, post-inference Goal/state recheck and separate editable owner adoption; no broad semantic or physical completion claim; #1219 Direct Goal Bridge wakes bounded Goal execution and exposes shared status/events; parent requirements remain PARTIAL pending E2E. #1219 exposes a non-secret health marker proving the isolated Goal executor is present. #1218 adds an authenticated, bounded, generic-error Broker boundary for atomic one-time Owner recovery enrollment; Production and physical acceptance remain pending."
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification; #1216 bounded local cognition/owner entry integration, not full capability or physical acceptance; #1216 explicit owner DoD adoption: strict bounded input, unchanged Goal identity, full Goal/state atomic CAS and receipt-only replay; independent completion verification remains required; #1216 bounded local DoD proposal: unverified non-executing data, owner-first strict input, post-inference Goal/state recheck and separate editable owner adoption; no broad semantic or physical completion claim; #1219 Direct Goal Bridge wakes bounded Goal execution and exposes shared status/events; parent requirements remain PARTIAL pending E2E. #1219 exposes a non-secret health marker proving the isolated Goal executor is present. #1218 adds an authenticated, bounded, generic-error Broker boundary for atomic one-time Owner recovery enrollment and distinguishes domain rejection from registry unavailability; Production and physical acceptance remain pending."
     },
     {
       "path": "scripts/jarvis-direct-commander-service.sh",
@@ -1475,7 +1475,7 @@
     },
     {
       "path": "src/app/api/jarvis/broker.ts",
-      "sha256": "642be4e29e6cf494cd410cf0e49679dfdf90bb2b463addd39157b6816830deae",
+      "sha256": "25ccb2dcd4e027b027b2058942f7332a968169768b14755b1d6227290673191a",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "NET-005",
@@ -1722,7 +1722,7 @@
     },
     {
       "path": "src/app/api/owner-login/trusted/recovery/cancel/route.ts",
-      "sha256": "168be288f7888c5385af9c35ffd9eb0a8a2525f6c7ec9f5eeacfb49d1683bd1e",
+      "sha256": "908444641c2d0a5dc3242590afe8d99fd2ed59f452a102ce7c7567ee00a15244",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "DEV-I-006",
@@ -1733,7 +1733,7 @@
     },
     {
       "path": "src/app/api/owner-login/trusted/recovery/issue/route.ts",
-      "sha256": "92e5a32c446e948c76bfa3e65b0cdaf452b028a12467e747d8f31b28f48db645",
+      "sha256": "5d3b2984bcf226e2a7d158316ddf54f2efe0a5dfa9e71c87315cd623cbc742af",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "DEV-I-006",
@@ -1744,7 +1744,7 @@
     },
     {
       "path": "src/app/api/owner-login/trusted/recovery/redeem/route.ts",
-      "sha256": "7520fbef84149833aa833b1d4cac207dffb41b16ff915bb448472a6fe5bf1cff",
+      "sha256": "966cdf5c71dc02381b64788d987513d3db4587b3915cd397c12c2f5f02527cf2",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "DEV-I-006",
@@ -1788,7 +1788,7 @@
     },
     {
       "path": "src/app/google-owner-enrollment.ts",
-      "sha256": "1b03940d983f20475c8880925c4e9660d0dcc5e2e22fca5ad91702923541bcbc",
+      "sha256": "b0ef5f0ece229375c4f26d41d7b35ac029773c4bf97e443f49fce1389d0a8e0b",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "SEC-001",
@@ -1796,7 +1796,7 @@
         "DEV-I-006",
         "AUTO-001"
       ],
-      "reason": "Issue #1218 Google Owner auto-enrollment security and Owner Fleet enrollment; live provider configuration remains gated."
+      "reason": "Issue #1218 Google Owner and recovery enrollment require a canonically importable on-curve ECDSA P-256 public key; live provider configuration and physical acceptance remain gated."
     },
     {
       "path": "src/app/google-owner-oidc.ts",
@@ -4341,14 +4341,14 @@
     },
     {
       "path": "src/jarvis/trusted-device-registry.ts",
-      "sha256": "77ceafa8ceb5884a17cd6deaabcd935093dd2574d36a26041fb342cfab448ae4",
+      "sha256": "e0fa16c10b3b2305bded13932e0dc812bc1251b6b6e8f319ffa333c4d2bf7b3d",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "SEC-001",
         "SEC-002",
         "DEV-I-006"
       ],
-      "reason": "Issue #1218 trusted-device revocation plus HMAC-digested, five-minute, one-use recovery records with atomic target registration/consumption and bounded rate metadata; physical acceptance remains pending."
+      "reason": "Issue #1218 trusted-device revocation plus HMAC-digested, five-minute, one-use recovery records with atomic target registration/consumption and non-evictable live per-issuer rate metadata; physical acceptance remains pending."
     },
     {
       "path": "src/jarvis/types.ts",

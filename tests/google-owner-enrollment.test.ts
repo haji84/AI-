@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
+import { generateKeyPairSync } from "node:crypto";
 import test from "node:test";
 import { GoogleOwnerEnrollmentStore, publicKeyThumbprint } from "../src/app/google-owner-enrollment.ts";
 
-const key = { kty: "EC", crv: "P-256", x: "abc", y: "def" } as JsonWebKey;
+const { publicKey } = generateKeyPairSync("ec", { namedCurve: "prime256v1" });
+const key = publicKey.export({ format: "jwk" });
 
 test("context allows a two-minute physical Google login and remains single-use", () => {
   const store = new GoogleOwnerEnrollmentStore();

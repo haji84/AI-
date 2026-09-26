@@ -1,4 +1,4 @@
-import { jarvisBrokerFetch } from "./api/jarvis/broker.ts";
+import { jarvisBrokerFetch } from "./jarvis-broker-client.ts";
 
 type RecoveryDevice = { deviceId: string; label: string; revoked: boolean };
 
@@ -11,13 +11,17 @@ export class OwnerRecoveryBrokerError extends Error {
 }
 
 async function request(body: Record<string, unknown>): Promise<Record<string, unknown>> {
-  const response = await jarvisBrokerFetch("/api/jarvis/admin/owner-recovery", {
-    method: "POST",
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(5_000),
-  });
+  let response: Response;
+  try {
+    response = await jarvisBrokerFetch("/api/jarvis/admin/owner-recovery", {
+      method: "POST",
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(5_000),
+    });
+  } catch { throw new OwnerRecoveryBrokerError(503); }
   if (!response.ok) throw new OwnerRecoveryBrokerError(response.status);
-  return await response.json() as Record<string, unknown>;
+  try { return await response.json() as Record<string, unknown>; }
+  catch { throw new OwnerRecoveryBrokerError(502); }
 }
 
 export async function issueOwnerRecovery(issuerDeviceId: string): Promise<{ code: string; expiresAt: number }> {

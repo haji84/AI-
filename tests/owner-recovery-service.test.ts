@@ -83,6 +83,9 @@ test("redeem rejects malformed codes, targets, labels, and non-P-256 keys", asyn
     { code, deviceId: "bad/id", label: "New iPhone", publicKeyJwk, sourceBucket },
     { code, deviceId: targetDeviceId, label: "   ", publicKeyJwk, sourceBucket },
     { code, deviceId: targetDeviceId, label: "New iPhone", publicKeyJwk: { ...publicKeyJwk, crv: "P-384" }, sourceBucket },
+    { code, deviceId: targetDeviceId, label: "New iPhone", publicKeyJwk: { kty: "EC", crv: "P-256", x: "x", y: "y" }, sourceBucket },
+    { code, deviceId: targetDeviceId, label: "New iPhone", publicKeyJwk: { kty: "EC", crv: "P-256", x: Buffer.alloc(31).toString("base64url"), y: Buffer.alloc(32).toString("base64url") }, sourceBucket },
+    { code, deviceId: targetDeviceId, label: "New iPhone", publicKeyJwk: { kty: "EC", crv: "P-256", x: Buffer.alloc(32).toString("base64url"), y: Buffer.alloc(32).toString("base64url") }, sourceBucket },
   ];
   for (const input of invalid) await assert.rejects(redeemOwnerRecoveryEnrollment(input, dependencies), /invalid recovery enrollment/);
 });

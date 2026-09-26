@@ -13,6 +13,12 @@ const SOURCE_REDEEM_LIMIT = 10;
 const GLOBAL_REDEEM_LIMIT = 100;
 const MAX_DEVICES = 1000;
 const MAX_HISTORY = 100;
+const MAX_ISSUE_EVENTS = MAX_DEVICES * ISSUE_LIMIT;
+const MAX_REGISTRY_BYTES = 512 * 1024;
+
+export class OwnerRecoveryRejectedError extends Error {
+  constructor(message = "owner recovery rejected") { super(message); }
+}
 
 type Device = { deviceId: string; label: string; revoked: boolean };
 type RecoveryStatus = "active" | "consumed" | "cancelled" | "replaced" | "expired" | "issuer-revoked";
@@ -111,7 +117,7 @@ export class TrustedDeviceRegistry {
   private read(): Registry {
     if (!existsSync(this.path)) return { version: 1, devices: [] };
     const raw = readFileSync(this.path, "utf8");
-    if (raw.length > 131_072) throw new Error("trusted device registry is too large");
+    if (Buffer.byteLength(raw) > MAX_REGISTRY_BYTES) throw new Error("trusted device registry is too large");
     const registry = JSON.parse(raw) as Registry;
     if (registry?.version !== 1 || !Array.isArray(registry.devices) || registry.devices.length > MAX_DEVICES) throw new Error("invalid trusted device registry");
     const seen = new Set<string>();
@@ -122,7 +128,7 @@ export class TrustedDeviceRegistry {
     }
     if (registry.recovery !== undefined) {
       const state = registry.recovery;
-      if (!state || !Array.isArray(state.history) || state.history.length > MAX_HISTORY || !Array.isArray(state.issues) || state.issues.length > MAX_HISTORY ||
+      if (!state || !Array.isArray(state.history) || state.history.length > MAX_HISTORY || !Array.isArray(state.issues) || state.issues.length > MAX_ISSUE_EVENTS ||
         !Array.isArray(state.attempts) || state.attempts.length > GLOBAL_REDEEM_LIMIT) throw new Error("invalid trusted device registry");
       if (state.active) validateRecord(state.active, true);
       for (const record of state.history) validateRecord(record, false);
@@ -144,7 +150,11 @@ export class TrustedDeviceRegistry {
 
   private digest(code: string): string {
     if (!this.recoverySecret) throw new Error("owner recovery unavailable");
-    return createHmac("sha256", this.recoverySecret).update(normalizeOwnerRecoveryCode(code)).digest("base64url");
+    try { return createHmac("sha256", this.recoverySecret).update(normalizeOwnerRecoveryCode(code)).digest("base64url"); }
+    catch (error) {
+      if (error instanceof OwnerRecoveryRejectedError) throw error;
+      throw new OwnerRecoveryRejectedError();
+    }
   }
 
   private digestMatches(expected: string, code: string): boolean {
@@ -195,13 +205,13 @@ export class TrustedDeviceRegistry {
 
   issueRecovery(input: { issuerDeviceId: string; code: string }, now = Math.floor(Date.now() / 1000)): { recoveryId: string; expiresAt: number } {
     const codeDigest = this.digest(input.code);
-    if (!DEVICE_ID.test(input.issuerDeviceId) || !validInteger(now)) throw new Error("owner recovery rejected");
+    if (!DEVICE_ID.test(input.issuerDeviceId) || !validInteger(now)) throw new OwnerRecoveryRejectedError();
     return this.locked(registry => {
       const issuer = registry.devices.find(device => device.deviceId === input.issuerDeviceId);
-      if (!issuer || issuer.revoked) throw new Error("owner recovery rejected");
+      if (!issuer || issuer.revoked) throw new OwnerRecoveryRejectedError();
       const state = recoveryState(registry);
       state.issues = state.issues.filter(event => event.issuedAt >= now - ISSUE_WINDOW_SECONDS);
-      if (state.issues.filter(event => event.issuerDeviceId === input.issuerDeviceId).length >= ISSUE_LIMIT) throw new Error("owner recovery rate limit");
+      if (state.issues.filter(event => event.issuerDeviceId === input.issuerDeviceId).length >= ISSUE_LIMIT) throw new OwnerRecoveryRejectedError("owner recovery rate limit");
       if (state.active) {
         state.history.push({ ...state.active, status: state.active.expiresAt < now ? "expired" : "replaced", endedAt: now });
         state.history = state.history.slice(-MAX_HISTORY);
@@ -210,18 +220,18 @@ export class TrustedDeviceRegistry {
       const expiresAt = now + RECOVERY_TTL_SECONDS;
       state.active = { version: 1, recoveryId, codeDigest, issuerDeviceId: input.issuerDeviceId, issuedAt: now, expiresAt, status: "active" };
       state.issues.push({ issuerDeviceId: input.issuerDeviceId, issuedAt: now });
-      state.issues = state.issues.slice(-MAX_HISTORY);
+      state.issues = state.issues.slice(-MAX_ISSUE_EVENTS);
       this.save(registry);
       return { recoveryId, expiresAt };
     });
   }
 
   cancelRecovery(issuerDeviceId: string, now = Math.floor(Date.now() / 1000)): { cancelled: boolean } {
-    if (!DEVICE_ID.test(issuerDeviceId) || !validInteger(now)) throw new Error("owner recovery rejected");
+    if (!DEVICE_ID.test(issuerDeviceId) || !validInteger(now)) throw new OwnerRecoveryRejectedError();
     return this.locked(registry => {
       const state = registry.recovery;
       if (!state?.active) return { cancelled: false };
-      if (state.active.issuerDeviceId !== issuerDeviceId) throw new Error("owner recovery rejected");
+      if (state.active.issuerDeviceId !== issuerDeviceId) throw new OwnerRecoveryRejectedError();
       state.history.push({ ...state.active, status: "cancelled", endedAt: now });
       state.history = state.history.slice(-MAX_HISTORY);
       delete state.active;
@@ -232,12 +242,12 @@ export class TrustedDeviceRegistry {
 
   redeemRecovery(input: { code: string; deviceId: string; label: string; publicKeyThumbprint: string; sourceBucket: string }, now = Math.floor(Date.now() / 1000)): Device {
     if (!DEVICE_ID.test(input.deviceId) || !input.label.trim() || input.label.length > 80 || !BOUNDED_DIGEST.test(input.publicKeyThumbprint) ||
-      !BOUNDED_DIGEST.test(input.sourceBucket) || !validInteger(now)) throw new Error("owner recovery rejected");
+      !BOUNDED_DIGEST.test(input.sourceBucket) || !validInteger(now)) throw new OwnerRecoveryRejectedError();
     return this.locked(registry => {
       const state = recoveryState(registry);
       state.attempts = state.attempts.filter(event => event.attemptedAt >= now - REDEEM_WINDOW_SECONDS);
       if (state.attempts.length >= GLOBAL_REDEEM_LIMIT || state.attempts.filter(event => event.sourceBucket === input.sourceBucket).length >= SOURCE_REDEEM_LIMIT) {
-        throw new Error("owner recovery rate limit");
+        throw new OwnerRecoveryRejectedError("owner recovery rate limit");
       }
       state.attempts.push({ sourceBucket: input.sourceBucket, attemptedAt: now });
 
@@ -247,19 +257,18 @@ export class TrustedDeviceRegistry {
         state.history = state.history.slice(-MAX_HISTORY);
         delete state.active;
         this.save(registry);
-        throw new Error("owner recovery rejected");
+        throw new OwnerRecoveryRejectedError();
       }
       const issuer = active && registry.devices.find(device => device.deviceId === active.issuerDeviceId);
       const existing = registry.devices.find(device => device.deviceId === input.deviceId);
       const priorTarget = existing && state.history.find(record => record.status === "consumed" && record.targetDeviceId === input.deviceId && record.publicKeyThumbprint === input.publicKeyThumbprint);
       let accepted = Boolean(active && issuer && !issuer.revoked && active.expiresAt >= now && !existing?.revoked && (!existing || priorTarget));
       if (accepted) {
-        try { accepted = this.digestMatches(active!.codeDigest, input.code); }
-        catch { accepted = false; }
+        accepted = this.digestMatches(active!.codeDigest, input.code);
       }
       if (!accepted) {
         this.save(registry);
-        throw new Error("owner recovery rejected");
+        throw new OwnerRecoveryRejectedError();
       }
 
       const device = existing ?? { deviceId: input.deviceId, label: input.label.trim(), revoked: false };
