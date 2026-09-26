@@ -35,6 +35,86 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  deploy-code:
+    if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_TEAM_ID: team_YGrZkBR7MyYxkq3K9XkTBhqu
+      VERCEL_PROJECT_NAME: jarvis
+      JARVIS_PRODUCTION_URL: https://jarvis-fawn-iota.vercel.app
+      SYNC_COMMIT_SHA: ${{ github.event.workflow_run.head_sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SYNC_COMMIT_SHA }}
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.19.0
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+
+      - name: Bind exact JARVIS Vercel project
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${VERCEL_TOKEN:?missing VERCEL_TOKEN}"
+          node <<'NODE'
+          const fs = await import("node:fs/promises");
+          const token = process.env.VERCEL_TOKEN;
+          const teamId = process.env.VERCEL_TEAM_ID;
+          const projectName = process.env.VERCEL_PROJECT_NAME;
+          const response = await fetch(
+            `https://api.vercel.com/v9/projects/${encodeURIComponent(projectName)}?teamId=${encodeURIComponent(teamId)}`,
+            { headers: { Authorization: `Bearer ${token}` } },
+          );
+          const body = await response.json().catch(() => null);
+          if (!response.ok || !body?.id || !body?.accountId) {
+            throw new Error(`Unable to resolve JARVIS Vercel project (HTTP ${response.status})`);
+          }
+          await fs.mkdir(".vercel", { recursive: true });
+          await fs.writeFile(
+            ".vercel/project.json",
+            JSON.stringify({ projectId: body.id, orgId: body.accountId }) + "\n",
+            { mode: 0o600 },
+          );
+          console.log("Bound hosted deploy to JARVIS Vercel project.");
+          NODE
+
+      - name: Deploy exact verified main commit to JARVIS Production
+        id: deploy
+        shell: bash
+        run: |
+          set -euo pipefail
+          output="$RUNNER_TEMP/jarvis-hosted-deploy.txt"
+          set +e
+          pnpm dlx vercel@latest deploy --prod --yes --token="$VERCEL_TOKEN" >"$output" 2>&1
+          status=$?
+          set -e
+          cat "$output"
+          if (( status != 0 )); then
+            if grep -q 'api-deployments-free-per-day' "$output"; then
+              echo "Vercel deployment quota blocked hosted JARVIS code deploy." >&2
+            fi
+            exit "$status"
+          fi
+          url="$(grep -Eo 'https://[^[:space:]]+\.vercel\.app' "$output" | tail -n 1)"
+          test -n "$url"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
+      - name: Verify JARVIS Production code endpoint responds
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location --retry 3 --retry-delay 2 "$JARVIS_PRODUCTION_URL" >/dev/null
+          echo "JARVIS Production code deploy responded successfully."
+
   sync:
     if: github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
     runs-on: [self-hosted, macOS, ARM64]
