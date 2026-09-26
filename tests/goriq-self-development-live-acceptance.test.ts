@@ -113,6 +113,15 @@ test("manual live acceptance keeps ZBook and physical iPhone evidence separate a
   assert.doesNotMatch(workflow, /continue-on-error:\s*true/);
 });
 
+test("iOS worker initializes the credential account from local values before using stored properties", () => {
+  const source = readFileSync("apps/ios-worker/Sources/WorkerRuntime.swift", "utf8");
+  assert.match(source, /let resolvedBuildChallenge: String/);
+  assert.match(source, /let resolvedDeviceId: String/);
+  assert.match(source, /let resolvedCredentialAccount = resolvedBuildChallenge\.isEmpty[^\n]*resolvedDeviceId/);
+  assert.match(source, /credentialAccount = resolvedCredentialAccount/);
+  assert.doesNotMatch(source, /credentialAccount = buildChallenge\.isEmpty[\s\S]*\\\(deviceId\)/);
+});
+
 test("bridge-only simulated result cannot satisfy physical iPhone acceptance", () => {
   const result = {
     protocolVersion: 1,
