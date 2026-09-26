@@ -9,6 +9,7 @@ import JarvisDisplayModeControls from "./JarvisDisplayModeControls";
 import JarvisOperationModeControls from "./JarvisOperationModeControls";
 import JarvisPriorityNotifications from "./JarvisPriorityNotifications";
 import JarvisReadOnlyBoundary from "./JarvisReadOnlyBoundary";
+import GoriqIcon from "./GoriqIcon";
 import { applyJarvisAccessibilityPreferences, readJarvisAccessibilityPreferences } from "./accessibility-preferences";
 import { applyJarvisDisplayMode, readJarvisDisplayMode } from "./display-modes";
 import { applyJarvisOperationMode, readJarvisOperationMode } from "./operation-mode";
@@ -67,7 +68,7 @@ export default function JarvisPrimaryShell({ children }: { children: ReactNode }
               : pathname === item.href || pathname.startsWith(`${item.href}/`);
             return (
               <a key={item.key} className={active ? "active" : ""} href={item.href} aria-current={active ? "page" : undefined}>
-                {item.label}
+                <GoriqIcon name={item.key} /><span>{item.label}</span>
               </a>
             );
           })}
