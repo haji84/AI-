@@ -33,12 +33,13 @@ async function routineSources() {
 test("OPS-018 keeps routine owner navigation entirely inside the JARVIS UI", async () => {
   const { shell, home, settings, operatorGuide } = await routineSources();
 
-  for (const route of ["/jarvis", "/jarvis/devices", "/jarvis/tasks", "/jarvis/research", "/jarvis/settings"]) {
+  for (const route of ["/jarvis", "/jarvis/devices", "/jarvis/tasks", "/jarvis/settings"]) {
     assert.match(shell, new RegExp(`href: ["']${route.replaceAll("/", "\\/")}["']`));
   }
+  assert.match(shell, /href=["']\/jarvis\/research["']/);
 
   for (const route of ["/jarvis/setup", "/jarvis/diagnostics", "/jarvis/recovery"]) {
-    assert.match(home, new RegExp(`href=["']${route.replaceAll("/", "\\/")}["']`));
+    assert.match(home, new RegExp(`href: ["']${route.replaceAll("/", "\\/")}["']|href=["']${route.replaceAll("/", "\\/")}["']`));
   }
 
   assert.match(settings, /<JarvisOperatorGuide \/>/);
