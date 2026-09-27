@@ -76,9 +76,35 @@ PLIST
 chmod 600 "$PLIST"
 
 UID_VALUE="$(id -u)"
-launchctl bootout "gui/$UID_VALUE/com.gai.code-builder-worker" >/dev/null 2>&1 || true
-launchctl bootstrap "gui/$UID_VALUE" "$PLIST"
-launchctl kickstart -k "gui/$UID_VALUE/com.gai.code-builder-worker"
+SERVICE_TARGET="gui/$UID_VALUE/com.gai.code-builder-worker"
+
+plutil -lint "$PLIST" >/dev/null
+
+retire_builder_service() {
+  launchctl bootout "$SERVICE_TARGET" >/dev/null 2>&1 || true
+  launchctl bootout "gui/$UID_VALUE" "$PLIST" >/dev/null 2>&1 || true
+  pkill -f "$SERVICE_PATH" >/dev/null 2>&1 || true
+}
+
+bootstrap_builder_service() {
+  retire_builder_service
+  sleep 1
+  if launchctl bootstrap "gui/$UID_VALUE" "$PLIST"; then
+    launchctl kickstart -k "$SERVICE_TARGET"
+    return 0
+  fi
+
+  echo "CODE_BUILDER_RECOVERY bootstrap_failed; retrying after full launchd cleanup" >&2
+  launchctl print "$SERVICE_TARGET" 2>&1 | tail -n 80 || true
+  plutil -lint "$PLIST" || true
+  retire_builder_service
+  sleep 2
+
+  launchctl bootstrap "gui/$UID_VALUE" "$PLIST"
+  launchctl kickstart -k "$SERVICE_TARGET"
+}
+
+bootstrap_builder_service
 
 healthy=false
 health_json='{}'
