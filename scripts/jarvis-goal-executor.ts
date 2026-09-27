@@ -1,4 +1,5 @@
 import { CompassStore } from "../src/compass/store.ts";
+import { compassGoalToLoopGoal } from "../src/orchestrator/compass-state-store.ts";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
@@ -59,9 +60,23 @@ function executorDecision(goalId: string): GoalControllerDecision {
 
 function configuredDevelopmentRuntime(compassPath: string, context: unknown[]): DevelopmentRuntimeOptions | undefined {
   const contextText = JSON.stringify(context);
+  const goalStore = new CompassStore(compassPath);
+  let persistedGoalText = "";
+  let persistedOwnerCommand: string | undefined;
+  try {
+    const record = goalStore.getGoal();
+    if (record) {
+      const goal = compassGoalToLoopGoal(record);
+      persistedGoalText = [goal.title, goal.description ?? "", ...goal.successCriteria].join("\n");
+      persistedOwnerCommand = goal.description?.trim() || goal.title;
+    }
+  } finally {
+    goalStore.close();
+  }
+  const developmentSignalText = `${contextText}\n${persistedGoalText}`;
   const explicitDevelopment = process.env.GORIQ_SELF_DEVELOPMENT_RUNTIME === "1";
   const declaredDevelopment = context.some((item) => item && typeof item === "object" && (item as { intent?: unknown }).intent === "DEVELOPMENT_TASK");
-  const inferredDevelopment = /(?:GitHub|issue|PR|pull request|実装|修正|コード|開発|CI|test|テスト|src\/|tests\/|scripts\/|docs\/)/i.test(contextText);
+  const inferredDevelopment = /(?:GitHub|issue|PR|pull request|実装|修正|コード|開発|CI|test|テスト|src\/|tests\/|scripts\/|docs\/)/i.test(developmentSignalText);
   if (!explicitDevelopment && !declaredDevelopment && !inferredDevelopment) return undefined;
   const configuredFiles = (process.env.GORIQ_SELF_DEVELOPMENT_TARGET_FILES ?? "").split(",").map((item) => item.trim()).filter(Boolean);
   const inferredFiles = contextText.match(/(?:src|tests|scripts|docs|apps)\/[A-Za-z0-9_./-]+/g) ?? [];
@@ -74,7 +89,7 @@ function configuredDevelopmentRuntime(compassPath: string, context: unknown[]): 
     return typeof value.text === "string" && (value.source === "trusted-device-development-intake" || value.source === "owner-work-intake")
       ? [value.text]
       : [];
-  })[0];
+  })[0] ?? persistedOwnerCommand;
   const authorization = process.env.GORIQ_SELF_DEVELOPMENT_TASK_AUTHORIZATION_JSON
     ? normalizeTaskCompletionAuthorization(JSON.parse(process.env.GORIQ_SELF_DEVELOPMENT_TASK_AUTHORIZATION_JSON))
     : ownerCommand
@@ -101,7 +116,7 @@ function configuredDevelopmentRuntime(compassPath: string, context: unknown[]): 
   const releaseUrl = process.env.GORIQ_SELF_DEVELOPMENT_RELEASE_URL?.trim();
   const releaseToken = process.env.GORIQ_SELF_DEVELOPMENT_RELEASE_TOKEN?.trim();
   if (Boolean(releaseUrl) !== Boolean(releaseToken)) throw new Error("GORIQ release URL and token must be configured together");
-  const releaseRequired = /(?:PR|pull request|merge|マージ|本番反映|反映まで)/i.test(contextText);
+  const releaseRequired = /(?:PR|pull request|merge|マージ|本番反映|反映まで)/i.test(developmentSignalText);
   if (releaseRequired && (!releaseUrl || !releaseToken)) throw new Error("SELF_DEVELOPMENT_RELEASE_CAPABILITY_MISSING: accepted Goal requires PR/merge/release but canonical Runtime did not inherit release configuration");
   const release = releaseUrl && releaseToken ? new HttpDevelopmentReleaseCapability({ url: releaseUrl, token: releaseToken }) : undefined;
   const stateRoot = join(dirname(compassPath), "self-development");
@@ -114,7 +129,7 @@ function configuredDevelopmentRuntime(compassPath: string, context: unknown[]): 
       taskScopeId,
       maxRisk: "medium",
       targetFiles: resolvedTargets,
-      contextDigest: createHash("sha256").update(contextText).digest("hex"),
+      contextDigest: createHash("sha256").update(developmentSignalText).digest("hex"),
     },
     stages: {
       builderId: "builder:resident",
