@@ -38,7 +38,7 @@ final class DailyDriverRuntime: ObservableObject {
         Task {
             defer { isSubmitting = false }
             do {
-                try await owner.ensureOwnerSession()
+                try await owner.ensureOwnerSession(extendIdle: true)
                 let idempotencyKey = UUID().uuidString
                 let body: [String: Any] = [
                     "text": text,
