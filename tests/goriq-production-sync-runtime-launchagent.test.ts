@@ -1,0 +1,2 @@
+import assert from"node:assert/strict";import{readFile}from"node:fs/promises";import test from"node:test";import{URL}from"node:url";
+test("production sync restarts canonical resident runtime and bootstraps it when absent",async()=>{const s=await readFile(new URL("../.github/workflows/goriq-jarvis-production-sync.yml",import.meta.url),"utf8");assert.match(s,/RUNTIME_LABEL="com\.aicompany\.jarvis-runtime"/);assert.match(s,/jarvis-mac-install-launchagent\.sh/);assert.doesNotMatch(s,/kickstart -k "gui\/\$\(id -u\)\/com\.aicompany\.jarvis-broker"/);});
