@@ -1,0 +1,3 @@
+import assert from"node:assert/strict";import{readFile}from"node:fs/promises";import test from"node:test";import{URL}from"node:url";
+const r=(p:string)=>readFile(new URL(`../${p}`,import.meta.url),"utf8");
+test("fresh Face ID proof exists only for protected operation confirmation",async()=>{const o=await r("apps/ios-owner/Sources/OwnerCredentialRuntime.swift");const d=await r("apps/ios-owner/Sources/DailyDriverRuntime.swift");assert.match(o,/func confirmProtectedOperation\(reason: String\)/);assert.match(o,/deviceOwnerAuthenticationWithBiometrics/);assert.match(o,/GORIQ-PROTECTED-OPERATION/);assert.doesNotMatch(d,/confirmProtectedOperation/);assert.match(d,/DEVICE_ACTION_PROTECTED/);});
