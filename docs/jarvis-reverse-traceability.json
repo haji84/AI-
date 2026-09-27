@@ -1664,8 +1664,19 @@
       "reason": "Issue #1218 disabled-by-default sessionless recovery redemption accepts bounded POST JSON, HMAC-buckets its source, and returns non-cacheable generic responses; physical acceptance remains pending."
     },
     {
+      "path": "src/app/api/owner-login/trusted/session/route.ts",
+      "sha256": "327e31707c34e9082d58c0485580b7af1e6f0efbca51f5b752e096dba60fd0e8",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "SEC-001",
+        "SEC-002",
+        "AUTO-001"
+      ],
+      "reason": "Issue #1282 durable trusted Owner session refresh preserves Owner Authentication and Session Control while avoiding routine Face ID; revocation and expiry fail closed."
+    },
+    {
       "path": "src/app/api/owner-login/trusted/verify/route.ts",
-      "sha256": "a26b1fde03d604930eacb0764b335d9e9eeb76dfff20cf9bfe9565be1c967f95",
+      "sha256": "bb60153fe00062427fcbd0a7214f526b62e7794e8c600245353aa085e824c158",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "SEC-001",
@@ -2735,7 +2746,7 @@
     },
     {
       "path": "src/app/owner-auth.ts",
-      "sha256": "bdd93eb3a15bffa89afd449e068311489f042def2a714aa1b770d20d76c11fa8",
+      "sha256": "bd781e423ecdb94e891f42e9601672cc3e1fad2201f4f11a2b7a12a7de17ac29",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "NET-005",

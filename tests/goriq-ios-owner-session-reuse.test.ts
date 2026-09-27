@@ -5,11 +5,13 @@ import { URL } from "node:url";
 
 const source = (path: string) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 
-test("native owner session is reused between normal commands", async () => {
+test("native owner session restores durable routine auth without routine Face ID", async () => {
   const owner = await source("apps/ios-owner/Sources/OwnerCredentialRuntime.swift");
-  assert.match(owner, /private var ownerSessionEstablished = false/);
-  assert.match(owner, /if ownerSessionEstablished \{ return \}/);
+  assert.match(owner, /owner-durable-session/);
+  assert.match(owner, /restoreDurableSession/);
   assert.match(owner, /ownerSessionEstablished = true/);
+  assert.match(owner, /\.userPresence, \.privateKeyUsage/);
+  assert.match(owner, /\/api\/owner-login\/trusted\/session/);
 });
 
 test("native Daily Driver invalidates cached owner session only after 401", async () => {

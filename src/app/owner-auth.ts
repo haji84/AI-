@@ -1,7 +1,7 @@
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
 export const OWNER_SESSION_COOKIE = "ai_company_owner_session";
-export const OWNER_SESSION_MAX_AGE_SECONDS = 60 * 60 * 12;
+export const OWNER_SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 3;
 export const OWNER_SESSION_FUTURE_TOLERANCE_SECONDS = 60;
 
 const OWNER_SESSION_VERSION = "v2";
