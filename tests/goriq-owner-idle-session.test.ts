@@ -1,0 +1,3 @@
+import assert from"node:assert/strict";import{readFile}from"node:fs/promises";import test from"node:test";import{URL}from"node:url";
+const r=(p:string)=>readFile(new URL(`../${p}`,import.meta.url),"utf8");
+test("background polling cannot extend Owner idle deadline",async()=>{const d=await r("apps/ios-owner/Sources/DailyDriverRuntime.swift");const o=await r("apps/ios-owner/Sources/OwnerCredentialRuntime.swift");const s=await r("src/app/api/owner-login/trusted/session/route.ts");assert.match(d,/ensureOwnerSession\(extendIdle: true\)/);assert.match(d,/ensureOwnerSession\(extendIdle: false\)/);assert.match(o,/extendIdle: Bool/);assert.match(s,/payload\?\.extendIdle===true/);assert.match(s,/extendIdle\?createOwnerSessionToken/);});
