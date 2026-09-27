@@ -215,6 +215,13 @@ export function createSafePrProposalCapability(options: {
           taskScopeId: proposal.taskScopeId,
         });
 
+        run("git", ["fetch", "origin", "main"], cwd);
+        const currentHead = run("git", ["rev-parse", "HEAD"], cwd);
+        const mainHead = run("git", ["rev-parse", "origin/main"], cwd);
+        const mergeBase = run("git", ["merge-base", currentHead, mainHead], cwd);
+        if (mergeBase !== mainHead) {
+          throw new Error("autonomous proposal base is behind origin/main; refresh to current main before opening PR");
+        }
         const runId = process.env.GITHUB_RUN_ID?.replace(/[^0-9A-Za-z_-]/g, "") || Date.now().toString();
         const branch = `autonomy/run-${runId}`;
         run("git", ["config", "user.name", "ai-company-autonomy"], cwd);
