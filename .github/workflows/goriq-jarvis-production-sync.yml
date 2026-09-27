@@ -135,7 +135,11 @@ jobs:
             printf '\nGORIQ_RUNTIME_REVISION=%s\n' "$SYNC_COMMIT_SHA" >> "$ENV_FILE"
           fi
           chmod 600 "$ENV_FILE"
-          launchctl kickstart -k "gui/$(id -u)/com.aicompany.jarvis-broker"
+          RUNTIME_LABEL="com.aicompany.jarvis-runtime"
+          if ! launchctl print "gui/$(id -u)/$RUNTIME_LABEL" >/dev/null 2>&1; then
+            JARVIS_REPO_ROOT="$GITHUB_WORKSPACE" bash scripts/jarvis-mac-install-launchagent.sh
+          fi
+          launchctl kickstart -k "gui/$(id -u)/$RUNTIME_LABEL"
           for _ in $(seq 1 30); do
             sleep 2
             body="$(curl --fail --silent --show-error --max-time 5 "http://127.0.0.1:${JARVIS_PORT:-8787}/health" 2>/dev/null || true)"
