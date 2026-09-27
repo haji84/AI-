@@ -153,7 +153,10 @@ jobs:
               label="$(runtime_label || true)"
             fi
             [[ -n "$label" ]] || return 1
-            if ! launchctl kickstart -k "gui/$(id -u)/$label"; then\n              echo "RUNTIME_RECOVERY kickstart_failed label=$label"\n              return 1\n            fi
+            if ! launchctl kickstart -k "gui/$(id -u)/$label"; then
+              echo "RUNTIME_RECOVERY kickstart_failed label=$label"
+              return 1
+            fi
           }
           runtime_healthy() {
             local body

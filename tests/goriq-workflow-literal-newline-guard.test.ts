@@ -1,0 +1,2 @@
+import assert from"node:assert/strict";import{readFile}from"node:fs/promises";import test from"node:test";import{URL}from"node:url";
+test("production sync shell never contains escaped newline text in control-flow lines",async()=>{const s=await readFile(new URL("../.github/workflows/goriq-jarvis-production-sync.yml",import.meta.url),"utf8");for(const line of s.split("\n")){if(/\b(if|then|fi|return|launchctl|echo)\b/.test(line))assert.equal(line.includes("\\n"),false,`literal escaped newline in shell control flow: ${line}`);}});
