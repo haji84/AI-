@@ -101,6 +101,7 @@ cat >"$BROKER_PLIST" <<PLIST
 <key>EnvironmentVariables</key><dict><key>PATH</key><string>$RUNTIME_PATH</string></dict>
 </dict></plist>
 PLIST
+fi
 
 cat >"$TUNNEL_PLIST" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
