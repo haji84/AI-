@@ -21,7 +21,7 @@ test("Mac Builder resolver finds an existing Codex CLI outside the noninteractiv
   await executable(codex);
 
   const { stdout } = await execFileAsync("/bin/bash", [resolver.pathname], {
-    env: { HOME: home, PATH: "/usr/bin:/bin" },
+    env: { HOME: home, PATH: "/usr/bin:/bin", NODE_ENV: "test" },
   });
   assert.equal(stdout.trim(), codex);
 });
@@ -42,7 +42,7 @@ exit 1
   await executable(codex);
 
   const { stdout } = await execFileAsync("/bin/bash", [resolver.pathname], {
-    env: { HOME: home, PATH: `${tools}:/usr/bin:/bin` },
+    env: { HOME: home, PATH: `${tools}:/usr/bin:/bin`, NODE_ENV: "test" },
   });
   assert.equal(stdout.trim(), codex);
 });
@@ -53,7 +53,7 @@ test("Mac Builder resolver honors an explicit executable engine", async () => {
   await executable(codex);
 
   const { stdout } = await execFileAsync("/bin/bash", [resolver.pathname], {
-    env: { HOME: home, PATH: "/usr/bin:/bin", CODE_BUILDER_ENGINE: codex },
+    env: { HOME: home, PATH: "/usr/bin:/bin", NODE_ENV: "test", CODE_BUILDER_ENGINE: codex },
   });
   assert.equal(stdout.trim(), codex);
 });
@@ -62,7 +62,7 @@ test("Mac Builder resolver fails closed when no supported engine exists", async 
   const home = await mkdtemp(join(tmpdir(), "goriq-engine-none-"));
   await assert.rejects(
     execFileAsync("/bin/bash", [resolver.pathname], {
-      env: { HOME: home, PATH: "/usr/bin:/bin" },
+      env: { HOME: home, PATH: "/usr/bin:/bin", NODE_ENV: "test" },
     }),
     (error: unknown) => {
       if (!error || typeof error !== "object" || !("code" in error)) return false;
