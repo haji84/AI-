@@ -280,6 +280,17 @@ jobs:
           broker_is_live() {
             [[ -n "${JARVIS_PUBLIC_BROKER_URL:-}" ]] && curl --fail --silent --show-error --max-time 8 "$JARVIS_PUBLIC_BROKER_URL/health" >/dev/null 2>&1
           }
+          dump_tunnel_diagnostics() {
+            echo "TUNNEL_RECOVERY_DIAGNOSTICS"
+            echo "--- launchd broker tunnel ---"
+            launchctl print "gui/$(id -u)/com.aicompany.jarvis-broker-tunnel" 2>&1 | tail -n 120 || true
+            echo "--- cloudflared processes ---"
+            pgrep -alf cloudflared 2>/dev/null | tail -n 40 || true
+            for file in "$STATE_ROOT/broker-tunnel.log" "$STATE_ROOT/broker-tunnel-service.err.log" "$STATE_ROOT/broker-tunnel-service.out.log" "$STATE_ROOT/zero-touch-launch.err.log" "$STATE_ROOT/zero-touch-launch.out.log"; do
+              echo "--- $(basename "$file") ---"
+              tail -n 120 "$file" 2>/dev/null || true
+            done
+          }
 
           load_runtime
           : "${JARVIS_OWNER_TOKEN:?missing JARVIS_OWNER_TOKEN}"
@@ -301,7 +312,11 @@ jobs:
                 break
               fi
             done
-            [[ "$refreshed" == true ]] || { echo "Unable to obtain a healthy replacement Quick Tunnel URL." >&2; exit 2; }
+            if [[ "$refreshed" != true ]]; then
+              dump_tunnel_diagnostics
+              echo "Unable to obtain a healthy replacement Quick Tunnel URL." >&2
+              exit 2
+            fi
           fi
 
           load_runtime
