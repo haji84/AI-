@@ -14,8 +14,15 @@ test("native owner session restores durable routine auth without routine Face ID
   assert.match(owner, /\/api\/owner-login\/trusted\/session/);
 });
 
-test("native Daily Driver invalidates cached owner session only after 401", async () => {
+test("explicit Owner submit reauth extends idle deadline", async () => {
   const runtime = await source("apps/ios-owner/Sources/DailyDriverRuntime.swift");
-  assert.match(runtime, /if result\.statusCode == 401 \{[\s\S]*invalidateOwnerSession\(\)[\s\S]*ensureOwnerSession\(\)/);
-  assert.match(runtime, /if result\.statusCode == 401 && retryAuth \{[\s\S]*invalidateOwnerSession\(\)[\s\S]*ensureOwnerSession\(\)/);
+  const submit = runtime.slice(runtime.indexOf("func submit"), runtime.indexOf("func refresh"));
+  assert.match(submit, /if result\.statusCode == 401 \{[\s\S]*invalidateOwnerSession\(\)[\s\S]*ensureOwnerSession\(extendIdle: true\)/);
+});
+
+test("background polling reauth never extends idle deadline", async () => {
+  const runtime = await source("apps/ios-owner/Sources/DailyDriverRuntime.swift");
+  const poll = runtime.slice(runtime.indexOf("private func pollOnce"));
+  assert.match(poll, /if result\.statusCode == 401 && retryAuth \{[\s\S]*invalidateOwnerSession\(\)[\s\S]*ensureOwnerSession\(extendIdle: false\)/);
+  assert.doesNotMatch(poll, /ensureOwnerSession\(extendIdle: true\)/);
 });

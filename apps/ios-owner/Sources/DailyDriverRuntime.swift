@@ -38,7 +38,7 @@ final class DailyDriverRuntime: ObservableObject {
         Task {
             defer { isSubmitting = false }
             do {
-                try await owner.ensureOwnerSession()
+                try await owner.ensureOwnerSession(extendIdle: true)
                 let idempotencyKey = UUID().uuidString
                 let body: [String: Any] = [
                     "text": text,
@@ -51,7 +51,7 @@ final class DailyDriverRuntime: ObservableObject {
                 )
                 if result.statusCode == 401 {
                     owner.invalidateOwnerSession()
-                    try await owner.ensureOwnerSession()
+                    try await owner.ensureOwnerSession(extendIdle: true)
                     result = try await owner.ownerAPIRequest(
                         path: "/api/jarvis/work",
                         method: "POST",
@@ -141,7 +141,7 @@ final class DailyDriverRuntime: ObservableObject {
             var result = try await owner.ownerAPIRequest(path: "/api/jarvis/work/\(goalId)")
             if result.statusCode == 401 && retryAuth {
                 owner.invalidateOwnerSession()
-                try await owner.ensureOwnerSession()
+                try await owner.ensureOwnerSession(extendIdle: false)
                 result = try await owner.ownerAPIRequest(path: "/api/jarvis/work/\(goalId)")
             }
             if result.statusCode == 404 {
