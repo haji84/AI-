@@ -1,2 +1,16 @@
-import assert from"node:assert/strict";import{readFile}from"node:fs/promises";import test from"node:test";import{URL}from"node:url";
-test("production runtime recovery escalates distinct strategies until convergence or real Human Gate",async()=>{const s=await readFile(new URL("../.github/workflows/goriq-jarvis-production-sync.yml",import.meta.url),"utf8");assert.match(s,/for strategy in restart canonical-reinstall retire-legacy-owner zero-touch stale-process-reset/);assert.match(s,/RUNTIME_RECOVERY completed strategy=/);assert.match(s,/RUNTIME_RECOVERY strategy_failed=/);assert.match(s,/exhausted_safe_strategies HUMAN_GATE_REQUIRED/);assert.match(s,/runtimeRevision===process\.argv\[2\]/);assert.match(s,/retiring legacy broker owner/);assert.match(s,/pkill -f 'scripts\\/jarvis-broker\\.ts'/);assert.doesNotMatch(s,/second_kickstart_failed/);});
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import test from "node:test";
+import { URL } from "node:url";
+
+test("production runtime recovery escalates distinct strategies until convergence or real Human Gate", async () => {
+  const source = await readFile(new URL("../.github/workflows/goriq-jarvis-production-sync.yml", import.meta.url), "utf8");
+  assert.equal(source.includes("for strategy in restart canonical-reinstall retire-legacy-owner zero-touch stale-process-reset"), true);
+  assert.equal(source.includes("RUNTIME_RECOVERY completed strategy="), true);
+  assert.equal(source.includes("RUNTIME_RECOVERY strategy_failed="), true);
+  assert.equal(source.includes("exhausted_safe_strategies HUMAN_GATE_REQUIRED"), true);
+  assert.equal(source.includes("runtimeRevision===process.argv[2]"), true);
+  assert.equal(source.includes("retiring legacy broker owner"), true);
+  assert.equal(source.includes("pkill -f 'scripts/jarvis-broker.ts'"), true);
+  assert.equal(source.includes("second_kickstart_failed"), false);
+});
