@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { chmod, mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { execFile } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -48,4 +48,11 @@ test("Mac Builder resolver fails closed when no supported engine exists", async 
       return (error as { code?: unknown }).code === 1;
     },
   );
+});
+
+
+test("Mac Builder installer consumes the durable engine resolver", async () => {
+  const installer = await readFile(new URL("../scripts/install-code-builder-macos.sh", import.meta.url), "utf8");
+  assert.match(installer, /resolve-code-builder-engine\.sh/);
+  assert.match(installer, /ENGINE=.*resolve-code-builder-engine/);
 });
