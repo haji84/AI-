@@ -36,6 +36,7 @@ import { GoalControllerRuntime, type GoalControllerDecision } from "../src/orche
 import { CompassGoalRegistryAdapter, CompassGoalDecisionStoreAdapter } from "../src/orchestrator/compass-goal-controller.ts";
 import { CompassWorkRunStore } from "../src/orchestrator/compass-work-run-store.ts";
 import { CompassGoalBridgeEventStore } from "../src/orchestrator/compass-goal-bridge-event-store.ts";
+import { CompassGoalExecutionContextStore } from "../src/orchestrator/compass-goal-execution-context-store.ts";
 import { workRunProgress } from "../src/orchestrator/work-run-state.ts";
 import { createQueuedWorkRun } from "../src/orchestrator/work-run-state.ts";
 import { validateWindowsVerificationDispatch } from "../src/orchestrator/windows-verification-dispatch.ts";
@@ -67,6 +68,7 @@ const compassPath = process.env.JARVIS_COMPASS_DB_PATH?.trim() || (process.env.J
 const compass = new CompassStore(compassPath);
 const workRuns = new CompassWorkRunStore(compass);
 const goalBridgeEvents = new CompassGoalBridgeEventStore(compass);
+const goalExecutionContexts = new CompassGoalExecutionContextStore(compass);
 const cognitive = new CognitiveService(compassPath, cognitiveHostOptions(process.env));
 const ownerRequirements = new OwnerRequirementIntake(compass);
 const specificationPublisher = createSpecificationPublisher({root:fileURLToPath(new URL("../",import.meta.url)),intake:ownerRequirements,token:process.env.GITHUB_TOKEN});
@@ -94,6 +96,7 @@ function encodeGoalExecutionContext(context: unknown[]): string {
 }
 
 function scheduleGoalExecution(decision: GoalControllerDecision, context: unknown[] = []): boolean {
+  if (decision.goalId && context.length) goalExecutionContexts.put(decision.goalId, context);
   if (decision.action !== "CONTINUE_GOAL" || !decision.goalId) return false;
   if (activeGoalExecutions.has(decision.goalId)) return true;
   const goalId = decision.goalId;
@@ -864,7 +867,7 @@ server.listen(port, host, () => {
         kind: "EXISTING_GOAL", intent: "COMMAND", goal: active, reason: "resume_persisted_work_run",
         intake: { id: `resume-${active.goalId}`, source: "event", text: "Resume accepted Goal", sourceContext: {}, idempotencyKey: `resume-${active.goalId}`, goalHint: active.goalId },
       },
-    });
+    }, goalExecutionContexts.get(active.goalId));
   })().catch((error) => console.error("[goriq-goal] startup_resume_failed", error));
 });
 function shutdown(): void {
