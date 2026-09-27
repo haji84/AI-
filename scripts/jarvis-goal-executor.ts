@@ -16,7 +16,7 @@ import { ResidentDevelopmentGoalHost } from "../src/orchestrator/resident-develo
 import { createRuntimeBuilderRouter } from "../src/orchestrator/runtime-builder-capability.ts";
 import { createRuntimeDevelopmentVerifier } from "../src/orchestrator/runtime-development-verifier.ts";
 import { HttpDevelopmentReleaseCapability } from "../src/orchestrator/http-development-release-capability.ts";
-import { normalizeTaskCompletionAuthorization } from "../src/orchestrator/task-authorization.ts";
+import { createTaskCompletionAuthorization, normalizeTaskCompletionAuthorization } from "../src/orchestrator/task-authorization.ts";
 import { buildRepositoryDevelopmentContext } from "../src/orchestrator/repository-development-context.ts";
 
 function requiredEnv(name: string): string {
@@ -68,9 +68,18 @@ function configuredDevelopmentRuntime(compassPath: string, context: unknown[]): 
   const targetFiles = [...new Set([...configuredFiles, ...inferredFiles])];
   const taskScopeId = process.env.GORIQ_SELF_DEVELOPMENT_TASK_SCOPE_ID?.trim()
     || `goal:${createHash("sha256").update(requiredEnv("JARVIS_GOAL_EXECUTION_GOAL_ID")).digest("hex").slice(0, 24)}`;
+  const ownerCommand = [...context].reverse().flatMap((item) => {
+    if (!item || typeof item !== "object") return [];
+    const value = item as { source?: unknown; text?: unknown };
+    return typeof value.text === "string" && (value.source === "trusted-device-development-intake" || value.source === "owner-work-intake")
+      ? [value.text]
+      : [];
+  })[0];
   const authorization = process.env.GORIQ_SELF_DEVELOPMENT_TASK_AUTHORIZATION_JSON
     ? normalizeTaskCompletionAuthorization(JSON.parse(process.env.GORIQ_SELF_DEVELOPMENT_TASK_AUTHORIZATION_JSON))
-    : undefined;
+    : ownerCommand
+      ? createTaskCompletionAuthorization(ownerCommand, { scopeId: taskScopeId })
+      : undefined;
   const baseRevision = execFileSync("git", ["rev-parse", "HEAD"], { cwd: process.cwd(), encoding: "utf8" }).trim();
   const repositoryRoot = resolve(process.cwd());
   const tracked = execFileSync("git", ["ls-files"], { cwd: repositoryRoot, encoding: "utf8" }).split(/\r?\n/).filter(Boolean);
