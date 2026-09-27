@@ -115,13 +115,13 @@ function run(command: string, args: string[], timeoutMs = executionTimeoutMs, st
 }
 
 function isExistingTestPath(path: string): boolean {
-  return path.startsWith("tests/") || /\\.(?:test|spec)\\.[cm]?[jt]sx?$/.test(path);
+  return path.startsWith("tests/") || /\.(?:test|spec)\.[cm]?[jt]sx?$/.test(path);
 }
 
 async function modifiedExistingTestPatch(): Promise<{ paths: string[]; patch: string; oversized: boolean }> {
   const changed = await run("git", ["diff", "--name-only", "--diff-filter=M", "--"]);
   if (changed.code !== 0 || changed.timedOut) throw new Error("Unable to inspect modified existing tests");
-  const paths = [...new Set(changed.stdout.split(/\\r?\\n/).map((value) => value.trim()).filter((value) => value && isExistingTestPath(value) && safeWorkspacePath(value)))].sort();
+  const paths = [...new Set(changed.stdout.split(/\r?\n/).map((value) => value.trim()).filter((value) => value && isExistingTestPath(value) && safeWorkspacePath(value)))].sort();
   if (!paths.length) return { paths: [], patch: "", oversized: false };
   const diff = await run("git", ["diff", "--unified=0", "--", ...paths]);
   if (diff.code !== 0 || diff.timedOut) throw new Error("Unable to inspect existing-test patch");
