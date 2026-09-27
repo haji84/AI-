@@ -38,7 +38,7 @@ final class DailyDriverRuntime: ObservableObject {
         Task {
             defer { isSubmitting = false }
             do {
-                try await owner.ensureOwnerSession()
+                try await owner.ensureOwnerSession(extendIdle: true)
                 let idempotencyKey = UUID().uuidString
                 let body: [String: Any] = [
                     "text": text,
@@ -51,7 +51,7 @@ final class DailyDriverRuntime: ObservableObject {
                 )
                 if result.statusCode == 401 {
                     owner.invalidateOwnerSession()
-                    try await owner.ensureOwnerSession()
+                    try await owner.ensureOwnerSession(extendIdle: true)
                     result = try await owner.ownerAPIRequest(
                         path: "/api/jarvis/work",
                         method: "POST",
@@ -108,17 +108,6 @@ final class DailyDriverRuntime: ObservableObject {
         }
     }
 
-    func markProtectedIdentityConfirmed() {
-        phase = "本人確認済み"
-        currentWork = "Rollback準備完了後に実行できます"
-        message = "本人確認は完了しました。操作はまだ実行されていません。"
-    }
-
-    func markProtectedIdentityConfirmationFailed(_ detail: String) {
-        phase = "確認が必要"
-        message = detail
-    }
-
     func refresh(owner: OwnerCredentialRuntime) {
         guard let goalId else { return }
         Task { await pollOnce(owner: owner, goalId: goalId, retryAuth: true) }
@@ -141,7 +130,7 @@ final class DailyDriverRuntime: ObservableObject {
             var result = try await owner.ownerAPIRequest(path: "/api/jarvis/work/\(goalId)")
             if result.statusCode == 401 && retryAuth {
                 owner.invalidateOwnerSession()
-                try await owner.ensureOwnerSession()
+                try await owner.ensureOwnerSession(extendIdle: false)
                 result = try await owner.ownerAPIRequest(path: "/api/jarvis/work/\(goalId)")
             }
             if result.statusCode == 404 {
