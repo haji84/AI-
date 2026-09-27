@@ -1,3 +1,5 @@
 import assert from"node:assert/strict";import{readFile}from"node:fs/promises";import test from"node:test";import{URL}from"node:url";
 const r=(p:string)=>readFile(new URL(`../${p}`,import.meta.url),"utf8");
 test("fresh Face ID proof exists only for protected operation confirmation",async()=>{const o=await r("apps/ios-owner/Sources/OwnerCredentialRuntime.swift");const d=await r("apps/ios-owner/Sources/DailyDriverRuntime.swift");assert.match(o,/func confirmProtectedOperation\(reason: String\)/);assert.match(o,/deviceOwnerAuthenticationWithBiometrics/);assert.match(o,/GORIQ-PROTECTED-OPERATION/);assert.doesNotMatch(d,/confirmProtectedOperation/);assert.match(d,/DEVICE_ACTION_PROTECTED/);});
+
+test("Face ID UI is rendered only inside the protected Human Gate and does not execute mutation",async()=>{const a=await r("apps/ios-owner/Sources/JarvisIOSOwnerApp.swift");const d=await r("apps/ios-owner/Sources/DailyDriverRuntime.swift");assert.match(a,/if daily\.humanGate \{[\s\S]*Face IDで本人確認[\s\S]*confirmProtectedOperation/);assert.match(d,/本人確認は完了しました。操作はまだ実行されていません。/);assert.match(d,/Rollback準備完了後に実行できます/);});
