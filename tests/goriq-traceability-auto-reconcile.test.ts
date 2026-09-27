@@ -8,7 +8,8 @@ import { autoReconcileTraceability } from "../src/orchestrator/safe-pr-capabilit
 function fixture() {
  const root=mkdtempSync(join(tmpdir(),"goriq-reconcile-")); mkdirSync(join(root,"src"),{recursive:true}); mkdirSync(join(root,"docs"),{recursive:true});
  writeFileSync(join(root,"src/example.ts"),"export const value = 2;\n");
- writeFileSync(join(root,"docs/jarvis-reverse-traceability.json"),JSON.stringify({surfaces:[{path:"src/example.ts",sha256:"0".repeat(64),classification:"COVERED_BY_REQUIREMENT",requirement_ids:["AUTO-001"],reason:"existing mapping"}]},null,2)+"\n");\n writeFileSync(join(root,"docs/jarvis-requirements.json"),JSON.stringify({requirements:[{id:"AUTO-001"}]},null,2)+"\n");
+ writeFileSync(join(root,"docs/jarvis-reverse-traceability.json"),JSON.stringify({surfaces:[{path:"src/example.ts",sha256:"0".repeat(64),classification:"COVERED_BY_REQUIREMENT",requirement_ids:["AUTO-001"],reason:"existing mapping"}]},null,2)+"\n");
+ writeFileSync(join(root,"docs/jarvis-requirements.json"),JSON.stringify({requirements:[{id:"AUTO-001"}]},null,2)+"\n");
  return root;
 }
 test("LOW existing mapped surface reconciles fingerprint in same Change Set",()=>{const root=fixture();assert.deepEqual(autoReconcileTraceability(root,["src/example.ts"],"low"),["docs/jarvis-reverse-traceability.json"]);const r=JSON.parse(readFileSync(join(root,"docs/jarvis-reverse-traceability.json"),"utf8"));assert.notEqual(r.surfaces[0].sha256,"0".repeat(64));assert.deepEqual(r.surfaces[0].requirement_ids,["AUTO-001"]);});
