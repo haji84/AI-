@@ -3664,7 +3664,7 @@
     },
     {
       "path": "src/jarvis/config-baseline-rollback.ts",
-      "sha256": "4d6205912319bd18b08a1c0954047eca8dbc5829b64c0c054ec27a5dfaaf2731",
+      "sha256": "0c1e58a8013128c4d2e2d0453f241f7d7908351eeb59496872877b114d92b2ba",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OPS-014"
