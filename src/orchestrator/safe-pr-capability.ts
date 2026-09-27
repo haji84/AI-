@@ -1,4 +1,5 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { dirname, normalize, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { evaluateTaskScopedAutoMergeEligibility } from "./auto-merge-policy.ts";
@@ -35,6 +36,41 @@ const MAX_FILES = 3;
 const MAX_TOTAL_BYTES = 100_000;
 const ALLOWED_PREFIXES = ["src/", "tests/", "docs/", "scripts/"];
 const FORBIDDEN = new Set(["AGENTS.md", "PROJECT_STATE.md", "ROADMAP.md", "package.json", "pnpm-lock.yaml"]);
+const TRACEABILITY_PATH = "docs/jarvis-reverse-traceability.json";
+const AUDIT_IMPLEMENTATION_PATH = "scripts/jarvis-requirement-audit.mjs";
+const AUTO_RECONCILE_BLOCKED_PREFIXES = [".github/", "src/app/api/owner-login/", "src/app/api/owner-logout/"];
+const AUTO_RECONCILE_BLOCKED_PATHS = new Set([TRACEABILITY_PATH, AUDIT_IMPLEMENTATION_PATH, "docs/jarvis-requirements.json", "docs/JARVIS_PRODUCT_SPEC.md", "docs/jarvis-owner-decisions.json"]);
+
+function surfaceFingerprint(bytes: Buffer): string {
+  if (bytes.includes(0)) return createHash("sha256").update(bytes).digest("hex");
+  try {
+    const normalized = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes).replace(/\r\n/g, "\n");
+    return createHash("sha256").update(normalized).digest("hex");
+  } catch {
+    return createHash("sha256").update(bytes).digest("hex");
+  }
+}
+
+export function autoReconcileTraceability(cwd: string, changedPaths: string[], risk: ProposedAction["risk"]): string[] {
+  if (!["low", "medium"].includes(risk)) return [];
+  if (changedPaths.some((path) => AUTO_RECONCILE_BLOCKED_PATHS.has(path) || AUTO_RECONCILE_BLOCKED_PREFIXES.some((prefix) => path.startsWith(prefix)))) return [];
+  const reportPath = resolve(cwd, TRACEABILITY_PATH);
+  const report = JSON.parse(readFileSync(reportPath, "utf-8")) as { surfaces?: Array<{ path?: string; sha256?: string; classification?: string; requirement_ids?: string[]; reason?: string }> };
+  if (!Array.isArray(report.surfaces)) throw new Error("invalid reverse traceability report");
+  let changed = false;
+  for (const path of changedPaths) {
+    const row = report.surfaces.find((item) => item.path === path);
+    if (!row) continue;
+    if (!["COVERED_BY_REQUIREMENT", "INTERNAL_IMPLEMENTATION_DETAIL"].includes(row.classification ?? "") || !Array.isArray(row.requirement_ids) || row.requirement_ids.length === 0 || !row.reason?.trim()) {
+      throw new Error(`traceability auto-reconciliation requires an existing canonical mapping: ${path}`);
+    }
+    const digest = surfaceFingerprint(readFileSync(resolve(cwd, path)));
+    if (row.sha256 !== digest) { row.sha256 = digest; changed = true; }
+  }
+  if (!changed) return [];
+  writeFileSync(reportPath, JSON.stringify(report, null, 2) + "\n", "utf-8");
+  return [TRACEABILITY_PATH];
+}
 
 function parseInput(action: ProposedAction): ParsedProposal {
   const input = action.input as ProposalInput | undefined;
@@ -155,11 +191,13 @@ export function createSafePrProposalCapability(options: {
           writeFileSync(destination, file.content, "utf-8");
         }
 
+        const proposalChangedFiles = proposal.files.map((file) => file.path);
+        const reconciledFiles = autoReconcileTraceability(cwd, proposalChangedFiles, action.risk);
         run("pnpm", ["lint"], cwd);
         run("pnpm", ["test"], cwd);
         run("pnpm", ["build"], cwd);
 
-        const changedFiles = proposal.files.map((file) => file.path);
+        const changedFiles = [...new Set([...proposalChangedFiles, ...reconciledFiles])];
         const releaseAllowsAutoMerge = canEnableSafePrAutoMerge(options.releaseGateDecision);
         const autoMergeDecision = evaluateTaskScopedAutoMergeEligibility({
           baseBranch: "main",
@@ -177,6 +215,13 @@ export function createSafePrProposalCapability(options: {
           taskScopeId: proposal.taskScopeId,
         });
 
+        run("git", ["fetch", "origin", "main"], cwd);
+        const currentHead = run("git", ["rev-parse", "HEAD"], cwd);
+        const mainHead = run("git", ["rev-parse", "origin/main"], cwd);
+        const mergeBase = run("git", ["merge-base", currentHead, mainHead], cwd);
+        if (mergeBase !== mainHead) {
+          throw new Error("autonomous proposal base is behind origin/main; refresh to current main before opening PR");
+        }
         const runId = process.env.GITHUB_RUN_ID?.replace(/[^0-9A-Za-z_-]/g, "") || Date.now().toString();
         const branch = `autonomy/run-${runId}`;
         run("git", ["config", "user.name", "ai-company-autonomy"], cwd);
