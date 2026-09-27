@@ -1112,13 +1112,13 @@
     },
     {
       "path": "scripts/jarvis-mac-zero-touch.sh",
-      "sha256": "ca75c4466385d3cb112161b9e655f8cf217d760ddd94df2b730980be313ae0f0",
+      "sha256": "b898436b9ee54a0ea04d25ee8bb3962951b87e734dda2226e8c584ced65d7ec9",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "HOST-002",
         "DEV-PC-006"
       ],
-      "reason": "Mac zero-touch reconciliation preserves canonical launchd runtime ownership and uses a macOS Bash 3.2-compatible process PID for atomic env-file temp paths; runtime/tunnel recovery remains fail-closed."
+      "reason": "Mac zero-touch reconciliation is compatible with macOS Bash 3.2 nounset semantics for atomic env writes and dependent tunnel-local variables, while preserving canonical launchd runtime ownership and fail-closed recovery."
     },
     {
       "path": "scripts/jarvis-managed-process.mjs",

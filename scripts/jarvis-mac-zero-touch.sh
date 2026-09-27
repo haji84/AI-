@@ -91,7 +91,8 @@ read_tunnel_url() {
   grep -Eo 'https://[a-zA-Z0-9-]+\.trycloudflare\.com' "$STATE_ROOT/${name}-tunnel.log" 2>/dev/null | tail -1 || true
 }
 start_tunnel_fallback() {
-  local name="$1" local_url="$2" log="$STATE_ROOT/${name}-tunnel.log"
+  local name="$1" local_url="$2"
+  local log="$STATE_ROOT/${name}-tunnel.log"
   if ! pgrep -f "cloudflared tunnel --.*url $local_url" >/dev/null 2>&1; then
     : >"$log"
     nohup cloudflared tunnel --no-autoupdate --url "$local_url" >"$log" 2>&1 &
