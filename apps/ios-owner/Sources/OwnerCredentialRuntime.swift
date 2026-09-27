@@ -270,10 +270,10 @@ final class OwnerCredentialRuntime: ObservableObject {
         ownerSessionEstablished = true
     }
 
-    func ensureOwnerSession() async throws {
+    func ensureOwnerSession(extendIdle: Bool = true) async throws {
         guard isEnrolled else { throw OwnerError.keyUnavailable }
         if ownerSessionEstablished {
-            if let tokenData = Keychain.read(account: Self.durableSessionAccount), let token = String(data: tokenData, encoding: .utf8), try await restoreDurableSession(token) { return }
+            if let tokenData = Keychain.read(account: Self.durableSessionAccount), let token = String(data: tokenData, encoding: .utf8), try await restoreDurableSession(token, extendIdle: extendIdle) { return }
             ownerSessionEstablished = false
             Keychain.delete(account: Self.durableSessionAccount)
         }
@@ -285,8 +285,8 @@ final class OwnerCredentialRuntime: ObservableObject {
         Keychain.delete(account: Self.durableSessionAccount)
     }
 
-    private func restoreDurableSession(_ token: String) async throws -> Bool {
-        let result = try await ownerAPIRequest(path: "/api/owner-login/trusted/session", method: "POST", jsonBody: ["sessionToken": token])
+    private func restoreDurableSession(_ token: String, extendIdle: Bool) async throws -> Bool {
+        let result = try await ownerAPIRequest(path: "/api/owner-login/trusted/session", method: "POST", jsonBody: ["sessionToken": token, "extendIdle": extendIdle])
         if result.statusCode == 200, let payload = try? JSONSerialization.jsonObject(with: result.data) as? [String: Any], let refreshed = payload["sessionToken"] as? String { try? Keychain.save(Data(refreshed.utf8), account: Self.durableSessionAccount); return true }
         return false
     }
