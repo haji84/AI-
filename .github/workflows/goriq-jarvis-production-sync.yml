@@ -204,6 +204,31 @@ jobs:
                 ;;
               retire-legacy-owner)
                 echo "RUNTIME_RECOVERY retiring legacy broker owner"
+                LEGACY_ROOT="$HOME/JARVIS-AI-"
+                MIGRATION_EVIDENCE="$STATE_ROOT/legacy-runtime-migration.txt"
+                if [[ -d "$LEGACY_ROOT/.git" ]]; then
+                  {
+                    echo "checkedAt=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+                    echo "legacyRoot=$LEGACY_ROOT"
+                    echo "legacyHead=$(git -C "$LEGACY_ROOT" rev-parse HEAD 2>/dev/null || true)"
+                    echo "canonicalHead=$SYNC_COMMIT_SHA"
+                    echo "legacyTrackedChangesBegin"
+                    git -C "$LEGACY_ROOT" status --porcelain --untracked-files=no || true
+                    echo "legacyTrackedChangesEnd"
+                    echo "legacyUntrackedBegin"
+                    git -C "$LEGACY_ROOT" ls-files --others --exclude-standard || true
+                    echo "legacyUntrackedEnd"
+                  } > "$MIGRATION_EVIDENCE"
+                  if [[ -n "$(git -C "$LEGACY_ROOT" status --porcelain --untracked-files=no)" ]]; then
+                    echo "RUNTIME_MIGRATION legacy_tracked_changes HUMAN_GATE_REQUIRED evidence=$MIGRATION_EVIDENCE"
+                    continue
+                  fi
+                  legacy_untracked="$(git -C "$LEGACY_ROOT" ls-files --others --exclude-standard || true)"
+                  if [[ -n "$legacy_untracked" ]]; then
+                    echo "RUNTIME_MIGRATION legacy_untracked_files HUMAN_GATE_REQUIRED evidence=$MIGRATION_EVIDENCE"
+                    continue
+                  fi
+                fi
                 LEGACY_PLIST="$HOME/Library/LaunchAgents/com.aicompany.jarvis-broker.plist"
                 launchctl bootout "gui/$(id -u)" "$LEGACY_PLIST" >/dev/null 2>&1 || true
                 launchctl bootout "gui/$(id -u)/com.aicompany.jarvis-broker" >/dev/null 2>&1 || true
