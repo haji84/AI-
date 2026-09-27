@@ -34,6 +34,6 @@ test("native Daily Driver reuses trusted-device proof instead of embedding owner
   assert.match(owner, /verifyTrustedDeviceProof/);
   assert.match(owner, /SecureEnclave\.P256\.Signing\.PrivateKey/);
   assert.match(owner, /ownerAPIRequest/);
-  assert.match(runtime, /try await owner\\.ensureOwnerSession\\(extendIdle: true\\)/);
+  assert.match(runtime, /try await owner\.ensureOwnerSession\(extendIdle: true\)/);
   assert.doesNotMatch(runtime, /JARVIS_OWNER_SECRET|AI_COMPANY_OWNER_SECRET|Authorization:\s*Bearer/);
 });
