@@ -50,6 +50,7 @@ final class DailyDriverRuntime: ObservableObject {
                     jsonBody: body
                 )
                 if result.statusCode == 401 {
+                    owner.invalidateOwnerSession()
                     try await owner.ensureOwnerSession()
                     result = try await owner.ownerAPIRequest(
                         path: "/api/jarvis/work",
@@ -128,6 +129,7 @@ final class DailyDriverRuntime: ObservableObject {
         do {
             var result = try await owner.ownerAPIRequest(path: "/api/jarvis/work/\(goalId)")
             if result.statusCode == 401 && retryAuth {
+                owner.invalidateOwnerSession()
                 try await owner.ensureOwnerSession()
                 result = try await owner.ownerAPIRequest(path: "/api/jarvis/work/\(goalId)")
             }
