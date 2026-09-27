@@ -60,8 +60,9 @@ function executorDecision(goalId: string): GoalControllerDecision {
 function configuredDevelopmentRuntime(compassPath: string, context: unknown[]): DevelopmentRuntimeOptions | undefined {
   const contextText = JSON.stringify(context);
   const explicitDevelopment = process.env.GORIQ_SELF_DEVELOPMENT_RUNTIME === "1";
+  const declaredDevelopment = context.some((item) => item && typeof item === "object" && (item as { intent?: unknown }).intent === "DEVELOPMENT_TASK");
   const inferredDevelopment = /(?:GitHub|issue|PR|pull request|実装|修正|コード|開発|CI|test|テスト|src\/|tests\/|scripts\/|docs\/)/i.test(contextText);
-  if (!explicitDevelopment && !inferredDevelopment) return undefined;
+  if (!explicitDevelopment && !declaredDevelopment && !inferredDevelopment) return undefined;
   const configuredFiles = (process.env.GORIQ_SELF_DEVELOPMENT_TARGET_FILES ?? "").split(",").map((item) => item.trim()).filter(Boolean);
   const inferredFiles = contextText.match(/(?:src|tests|scripts|docs|apps)\/[A-Za-z0-9_./-]+/g) ?? [];
   const targetFiles = [...new Set([...configuredFiles, ...inferredFiles])];
