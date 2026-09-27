@@ -23,7 +23,7 @@ test("JARVIS production sync follows every main merge without path filters", asy
   assert.match(source, /workflow_dispatch:/);
   assert.match(source, /runs-on: \[self-hosted, macOS, ARM64\]/);
   assert.match(source, /Update local JARVIS Broker to exact verified main/);
-  assert.match(source, /ACTUAL_SHA="\\$\\(git rev-parse HEAD\\)"/);
+  assert.equal(source.includes('ACTUAL_SHA="$(git rev-parse HEAD)"'), true);
   assert.match(source, /RUNTIME_PREFLIGHT sha_mismatch/);
   assert.match(source, /git merge-base --is-ancestor/);
   assert.match(source, /RUNTIME_PREFLIGHT refreshing_origin_main/);
