@@ -23,7 +23,6 @@ final class OwnerCredentialRuntime: ObservableObject {
     private static let deviceIdAccount = "owner-device-id"
     private static let pendingEnrollmentAccount = "owner-pending-enrollment"
     private static let durableSessionAccount = "owner-durable-session"
-    private static let bootEpochAccount = "owner-session-boot-epoch"
 
     init() {
         let configuration = URLSessionConfiguration.ephemeral
@@ -34,7 +33,6 @@ final class OwnerCredentialRuntime: ObservableObject {
             deleteTrustedDeviceMaterialPreservingLegacyCode()
         }
         isEnrolled = Keychain.read(account: Self.credentialAccount) != nil
-        invalidateDurableSessionAfterDeviceRebootIfNeeded()
         ownerSessionEstablished = Keychain.read(account: Self.durableSessionAccount) != nil
         status = isEnrolled ? (ownerSessionEstablished ? "登録済み・ログイン維持中" : "登録済み・再認証待ち") : "未登録"
     }
@@ -272,44 +270,14 @@ final class OwnerCredentialRuntime: ObservableObject {
         ownerSessionEstablished = true
     }
 
-    func ensureOwnerSession() async throws {
+    func ensureOwnerSession(extendIdle: Bool = true) async throws {
         guard isEnrolled else { throw OwnerError.keyUnavailable }
         if ownerSessionEstablished {
-            if let tokenData = Keychain.read(account: Self.durableSessionAccount), let token = String(data: tokenData, encoding: .utf8), try await restoreDurableSession(token) { return }
+            if let tokenData = Keychain.read(account: Self.durableSessionAccount), let token = String(data: tokenData, encoding: .utf8), try await restoreDurableSession(token, extendIdle: extendIdle) { return }
             ownerSessionEstablished = false
             Keychain.delete(account: Self.durableSessionAccount)
         }
         try await verifyTrustedDeviceProof()
-    }
-
-    private func invalidateDurableSessionAfterDeviceRebootIfNeeded() {
-        let bootEpochMinutes = Int((Date().timeIntervalSince1970 - ProcessInfo.processInfo.systemUptime) / 60)
-        let current = Data(String(bootEpochMinutes).utf8)
-        defer { try? Keychain.save(current, account: Self.bootEpochAccount) }
-        guard let stored = Keychain.read(account: Self.bootEpochAccount),
-              let text = String(data: stored, encoding: .utf8),
-              let previous = Int(text) else { return }
-        if abs(previous - bootEpochMinutes) > 1 {
-            Keychain.delete(account: Self.durableSessionAccount)
-            ownerSessionEstablished = false
-        }
-    }
-
-    func confirmProtectedOperation(reason: String) async throws {
-        guard let keyData = Keychain.read(account: Self.keyAccount) else { throw OwnerError.keyUnavailable }
-        let context = LAContext()
-        context.localizedReason = reason
-        var authError: NSError?
-        guard context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &authError) else {
-            throw OwnerError.keyUnavailable
-        }
-        guard try await context.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: reason) else {
-            throw OwnerError.trustUnavailable
-        }
-        // Fresh user-presence proof is intentionally scoped to protected operations only.
-        // Execution remains behind the existing Human Gate until rollback preparation is available.
-        let key = try SecureEnclave.P256.Signing.PrivateKey(dataRepresentation: keyData)
-        _ = try key.signature(for: Data("GORIQ-PROTECTED-OPERATION".utf8))
     }
 
     func invalidateOwnerSession() {
@@ -317,8 +285,8 @@ final class OwnerCredentialRuntime: ObservableObject {
         Keychain.delete(account: Self.durableSessionAccount)
     }
 
-    private func restoreDurableSession(_ token: String) async throws -> Bool {
-        let result = try await ownerAPIRequest(path: "/api/owner-login/trusted/session", method: "POST", jsonBody: ["sessionToken": token])
+    private func restoreDurableSession(_ token: String, extendIdle: Bool) async throws -> Bool {
+        let result = try await ownerAPIRequest(path: "/api/owner-login/trusted/session", method: "POST", jsonBody: ["sessionToken": token, "extendIdle": extendIdle])
         if result.statusCode == 200, let payload = try? JSONSerialization.jsonObject(with: result.data) as? [String: Any], let refreshed = payload["sessionToken"] as? String { try? Keychain.save(Data(refreshed.utf8), account: Self.durableSessionAccount); return true }
         return false
     }
