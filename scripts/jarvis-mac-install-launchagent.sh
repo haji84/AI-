@@ -11,10 +11,11 @@ cat >"$PLIST" <<PLIST
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
 <key>Label</key><string>com.aicompany.jarvis-runtime</string>
-<key>ProgramArguments</key><array><string>/bin/zsh</string><string>$REPO_ROOT/scripts/jarvis-mac-resident.sh</string></array>
+<key>ProgramArguments</key><array><string>/bin/bash</string><string>$REPO_ROOT/scripts/jarvis-mac-runtime-entry.sh</string></array>
 <key>WorkingDirectory</key><string>$REPO_ROOT</string>
 <key>RunAtLoad</key><true/>
-<key>StartInterval</key><integer>30</integer>
+<key>KeepAlive</key><true/>
+<key>ThrottleInterval</key><integer>5</integer>
 <key>StandardOutPath</key><string>$STATE_ROOT/launchagent.out.log</string>
 <key>StandardErrorPath</key><string>$STATE_ROOT/launchagent.err.log</string>
 </dict></plist>
