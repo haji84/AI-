@@ -11,6 +11,11 @@ on:
         description: 'Verified main commit to evaluate; defaults to current main'
         required: false
         type: string
+      approve_sensitive_owner_update:
+        description: 'Owner explicitly approves installing security/auth-sensitive iOS Owner changes'
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -37,6 +42,7 @@ jobs:
         env:
           REQUESTED_SHA: ${{ inputs.target_sha }}
           WORKFLOW_SHA: ${{ github.event.workflow_run.head_sha }}
+          SENSITIVE_APPROVED: ${{ inputs.approve_sensitive_owner_update }}
         run: |
           set -euo pipefail
           TARGET="${REQUESTED_SHA:-${WORKFLOW_SHA:-$(git rev-parse HEAD)}}"
@@ -66,6 +72,10 @@ jobs:
           if [[ "$ios_change" == true && "$blocked" == false ]]; then
             eligible=true
             reason=eligible-minor-ios-change
+          elif [[ "$blocked" == true && "${{ github.event_name }}" == "workflow_dispatch" && "$SENSITIVE_APPROVED" == "true" ]]; then
+            test "$TARGET" = "$(git rev-parse origin/main)" || { echo "sensitive update must target exact current main" >&2; exit 4; }
+            eligible=true
+            reason=owner-approved-sensitive-current-main
           fi
           echo "target_sha=$TARGET" >> "$GITHUB_OUTPUT"
           echo "eligible=$eligible" >> "$GITHUB_OUTPUT"
