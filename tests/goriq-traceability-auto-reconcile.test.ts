@@ -1,0 +1,16 @@
+import assert from "node:assert/strict";
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import test from "node:test";
+import { autoReconcileTraceability } from "../src/orchestrator/safe-pr-capability.ts";
+
+function fixture() {
+ const root=mkdtempSync(join(tmpdir(),"goriq-reconcile-")); mkdirSync(join(root,"src"),{recursive:true}); mkdirSync(join(root,"docs"),{recursive:true});
+ writeFileSync(join(root,"src/example.ts"),"export const value = 2;\n");
+ writeFileSync(join(root,"docs/jarvis-reverse-traceability.json"),JSON.stringify({surfaces:[{path:"src/example.ts",sha256:"0".repeat(64),classification:"COVERED_BY_REQUIREMENT",requirement_ids:["AUTO-001"],reason:"existing mapping"}]},null,2)+"\n");
+ return root;
+}
+test("LOW existing mapped surface reconciles fingerprint in same Change Set",()=>{const root=fixture();assert.deepEqual(autoReconcileTraceability(root,["src/example.ts"],"low"),["docs/jarvis-reverse-traceability.json"]);const r=JSON.parse(readFileSync(join(root,"docs/jarvis-reverse-traceability.json"),"utf8"));assert.notEqual(r.surfaces[0].sha256,"0".repeat(64));assert.deepEqual(r.surfaces[0].requirement_ids,["AUTO-001"]);});
+test("HIGH and audit/canonical changes never auto-reconcile",()=>{const root=fixture();assert.deepEqual(autoReconcileTraceability(root,["src/example.ts"],"high"),[]);assert.deepEqual(autoReconcileTraceability(root,["scripts/jarvis-requirement-audit.mjs"],"low"),[]);});
+test("missing canonical mapping is not invented",()=>{const root=fixture();writeFileSync(join(root,"src/new.ts"),"x\n");assert.deepEqual(autoReconcileTraceability(root,["src/new.ts"],"low"),[]);});
