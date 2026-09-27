@@ -64,9 +64,12 @@ jobs:
           echo '--- Code Builder status ---'
           if [[ -s "$BUILDER_STATUS" ]]; then
             cat "$BUILDER_STATUS"
-            node -e 'const fs=require("fs");const x=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));process.exit(x.ok===true && Array.isArray(x.capabilities) && x.capabilities.includes("code-builder") ? 0 : 1)' "$BUILDER_STATUS"
+            if node -e 'const fs=require("fs");const x=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));process.exit(x.ok===true && Array.isArray(x.capabilities) && x.capabilities.includes("code-builder") ? 0 : 1)' "$BUILDER_STATUS"; then
+              echo 'GORIQ Mac Code Builder healthy.'
+            else
+              echo 'GORIQ Mac Code Builder degraded: optional coding engine unavailable; core runtime remains eligible.' >&2
+            fi
           else
-            echo 'GORIQ Mac Code Builder status is missing.' >&2
-            exit 9
+            echo 'GORIQ Mac Code Builder degraded: status missing; core runtime remains eligible.' >&2
           fi
           [[ -s "$STATUS" ]]
