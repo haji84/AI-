@@ -1098,6 +1098,16 @@
       "reason": "Mac auxiliary resident/installation compatibility scripts; no deployment performed"
     },
     {
+      "path": "scripts/jarvis-mac-runtime-entry.sh",
+      "sha256": "1629964d842e02ad4628997c800db3b307514e92d6473bffbd2ec2866a1b2300",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "HOST-002",
+        "DEV-PC-006"
+      ],
+      "reason": "Canonical Mac runtime entrypoint split from the existing LaunchAgent installer so launchd directly owns the long-lived Broker process."
+    },
+    {
       "path": "scripts/jarvis-mac-zero-touch-install.sh",
       "sha256": "55ab606bcf2f491b7c1e0488626e21c4cdcf8d2d84cdd929bfe49ca4c1cb65f3",
       "classification": "COVERED_BY_REQUIREMENT",
@@ -4607,6 +4617,17 @@
       "reason": "Issue #1216 reviewed Cognitive Core integration/hardening; mapped requirement does not imply full acceptance"
     },
     {
+      "path": "src/orchestrator/compass-goal-execution-context-store.ts",
+      "sha256": "219d820abba835a7bd3821cca0ee2c27d6265ab511cff8a69585d999d412c4bf",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-002",
+        "AUTO-004",
+        "AUTO-026"
+      ],
+      "reason": "Persists accepted Goal execution context in Compass so restart recovery preserves development intent and continuation context instead of silently degrading the Goal."
+    },
+    {
       "path": "src/orchestrator/compass-state-store.ts",
       "sha256": "dd5bbd882b40a12c645662aa9975f38bf6e401df92dec3aad2c68cf09b295374",
       "classification": "COVERED_BY_REQUIREMENT",
@@ -5652,6 +5673,20 @@
       "reason": "Declared team-planning-context.ts responsibility implements/supports Dynamic Orchestration; Parallel / Adaptive / Multi-plan. Parent ownership is not functional or physical acceptance evidence."
     },
     {
+      "path": "src/orchestrator/test-contract-evolution.ts",
+      "sha256": "f4009eab33f2cedbe77e377a0f13537f0b6b11808340494dff15806b0acd0886",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-014",
+        "CORE-015",
+        "AUTO-016",
+        "AUTO-017",
+        "AUTO-018",
+        "AUTO-030"
+      ],
+      "reason": "#681 fail-closed autonomous test-contract evolution permits assertion-contract repair only after canonical requirement/spec change evidence and independent implementation verification; it rejects test bypass/weakening. Parent mapping is implementation ownership, not completion evidence."
+    },
+    {
       "path": "src/orchestrator/trigger-runtime.ts",
       "sha256": "4914e8db0ae2371ed89c3ed95af2bfaec6c72e12ce08c8d78ee1931d33f474df",
       "classification": "COVERED_BY_REQUIREMENT",
@@ -5791,27 +5826,6 @@
         "OWN-001"
       ],
       "reason": "Issue #1219 ZBook timeout-only recovery transition preserves Goal identity, completion checks, evidence, and Human Gate boundaries; parent requirements remain PARTIAL pending physical E2E."
-    },
-    {
-      "path": "scripts/jarvis-mac-runtime-entry.sh",
-      "sha256": "1629964d842e02ad4628997c800db3b307514e92d6473bffbd2ec2866a1b2300",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "HOST-002",
-        "DEV-PC-006"
-      ],
-      "reason": "Canonical Mac runtime entrypoint split from the existing LaunchAgent installer so launchd directly owns the long-lived Broker process."
-    },
-    {
-      "path": "src/orchestrator/compass-goal-execution-context-store.ts",
-      "sha256": "219d820abba835a7bd3821cca0ee2c27d6265ab511cff8a69585d999d412c4bf",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "AUTO-002",
-        "AUTO-004",
-        "AUTO-026"
-      ],
-      "reason": "Persists accepted Goal execution context in Compass so restart recovery preserves development intent and continuation context instead of silently degrading the Goal."
     }
   ],
   "hash_policy": "utf8-crlf-to-lf-v1;binary-raw"
