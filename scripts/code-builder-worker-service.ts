@@ -3,7 +3,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
 import { hostname } from "node:os";
-import { basename, extname, resolve, relative, isAbsolute } from "node:path";\nimport { evaluateBuilderTestContractEvolution, extractBuilderTestContractEvolutionEvidence } from "../src/orchestrator/test-contract-evolution.ts";
+import { basename, extname, resolve, relative, isAbsolute } from "node:path";
+import { evaluateBuilderTestContractEvolution, extractBuilderTestContractEvolutionEvidence } from "../src/orchestrator/test-contract-evolution.ts";
 
 const host = process.env.CODE_BUILDER_HOST?.trim() || "127.0.0.1";
 const port = Number(process.env.CODE_BUILDER_PORT || 8796);
