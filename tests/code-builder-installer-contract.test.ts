@@ -23,3 +23,17 @@ test("ZBook code-builder installer is structurally singular and prefers cmd wrap
   assert.equal((source.match(/installedAt =/g) ?? []).length, 1);
   assert.equal((source.match(/param\(/g) ?? []).length >= 2, true);
 });
+
+
+test("persistent code-builder installers copy runtime policy dependency beside service import root", async () => {
+  const [windows, mac, service] = await Promise.all([
+    readFile(new URL("../scripts/install-code-builder-windows.ps1", import.meta.url), "utf8"),
+    readFile(new URL("../scripts/install-code-builder-macos.sh", import.meta.url), "utf8"),
+    readFile(new URL("../scripts/code-builder-worker-service.ts", import.meta.url), "utf8"),
+  ]);
+  assert.match(service, /\.\.\/src\/orchestrator\/test-contract-evolution\.ts/);
+  assert.match(windows, /test-contract-evolution\.ts/);
+  assert.match(windows, /src\\orchestrator/);
+  assert.match(mac, /test-contract-evolution\.ts/);
+  assert.match(mac, /src\/orchestrator/);
+});
