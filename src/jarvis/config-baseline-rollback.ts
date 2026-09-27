@@ -144,3 +144,51 @@ export function restorationComplete(input: {
   if (input.decision.status !== "READY") return false;
   return input.decision.requiredVerification.every((key) => input.evidence[key] === true);
 }
+
+export interface ProtectedOperationUndoTicket {
+  changeSetId: string;
+  baselineId: string;
+  issuedAt: string;
+  expiresAt: string;
+  affectedScope: string[];
+  rollbackReady: boolean;
+}
+
+export const PROTECTED_OPERATION_UNDO_WINDOW_MS = 60 * 60 * 1000;
+
+export function authorizeImmediateProtectedExecution(input: {
+  baseline: BaselineSnapshot;
+  changeSet: ChangeSet;
+  rollbackDecision: RollbackDecision;
+  freshUserPresence: boolean;
+}): { authorized: boolean; reason?: string } {
+  if (!input.freshUserPresence) return { authorized: false, reason: "FRESH_USER_PRESENCE_REQUIRED" };
+  if (!verifyBaseline(input.baseline) || input.changeSet.baselineId !== input.baseline.id) return { authorized: false, reason: "BASELINE_INVALID" };
+  if (input.changeSet.reversibility !== "REVERSIBLE") return { authorized: false, reason: "NON_REVERSIBLE_REQUIRES_HUMAN_GATE" };
+  if (input.rollbackDecision.status !== "READY") return { authorized: false, reason: "ROLLBACK_NOT_READY" };
+  return { authorized: true };
+}
+
+export function issueProtectedOperationUndoTicket(input: {
+  baseline: BaselineSnapshot;
+  changeSet: ChangeSet;
+  verifiedAfterMutation: boolean;
+  now?: Date;
+}): ProtectedOperationUndoTicket {
+  if (!input.verifiedAfterMutation) throw new Error("POST_MUTATION_VERIFICATION_REQUIRED");
+  if (input.changeSet.reversibility !== "REVERSIBLE") throw new Error("UNDO_NOT_SAFE");
+  if (input.changeSet.baselineId !== input.baseline.id || !verifyBaseline(input.baseline)) throw new Error("BASELINE_INVALID");
+  const now = input.now ?? new Date();
+  return {
+    changeSetId: input.changeSet.id,
+    baselineId: input.baseline.id,
+    issuedAt: now.toISOString(),
+    expiresAt: new Date(now.getTime() + PROTECTED_OPERATION_UNDO_WINDOW_MS).toISOString(),
+    affectedScope: [...input.changeSet.targets].sort(),
+    rollbackReady: true,
+  };
+}
+
+export function canUseProtectedOperationUndo(ticket: ProtectedOperationUndoTicket, now = new Date()): boolean {
+  return ticket.rollbackReady && now.getTime() <= Date.parse(ticket.expiresAt);
+}
