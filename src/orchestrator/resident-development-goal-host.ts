@@ -114,7 +114,7 @@ export class ResidentDevelopmentGoalHost {
         goalId: input.goalId,
         objective: input.goal.description?.trim() || input.goal.title,
         requirementIds: this.planning.requirementIds,
-        acceptanceCriteria: input.goal.successCriteria,
+        acceptanceCriteria: input.goal.successCriteria.length ? input.goal.successCriteria : [input.goal.description?.trim() || input.goal.title],
         baseRevision: this.planning.baseRevision,
         taskScopeId: this.planning.taskScopeId,
         maxRisk: this.planning.maxRisk,
