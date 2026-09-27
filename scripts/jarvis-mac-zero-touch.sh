@@ -77,7 +77,9 @@ start_bg() {
   if pgrep -f "$pattern" >/dev/null 2>&1; then return 0; fi
   nohup /bin/bash -c "$cmd" >>"$STATE_ROOT/$name.out.log" 2>>"$STATE_ROOT/$name.err.log" &
 }
-if launch_job_exists com.aicompany.jarvis-broker; then
+if launch_job_exists com.aicompany.jarvis-runtime; then
+  launchctl kickstart "gui/$(id -u)/com.aicompany.jarvis-runtime" >/dev/null 2>&1 || true
+elif launch_job_exists com.aicompany.jarvis-broker; then
   launchctl kickstart "gui/$(id -u)/com.aicompany.jarvis-broker" >/dev/null 2>&1 || true
 else
   start_bg broker 'scripts/jarvis-broker.ts' "cd '$REPO_ROOT' && pnpm jarvis:broker"
@@ -110,7 +112,9 @@ done
 if [[ -n "$new_broker_url" && "$new_broker_url" != "$broker_url" ]]; then
   broker_url="$new_broker_url"
   write_env "$owner_token" "$remote_token" "$serials" "$broker_url" "$remote_url"
-  if launch_job_exists com.aicompany.jarvis-broker; then
+  if launch_job_exists com.aicompany.jarvis-runtime; then
+    launchctl kickstart -k "gui/$(id -u)/com.aicompany.jarvis-runtime"
+  elif launch_job_exists com.aicompany.jarvis-broker; then
     launchctl kickstart -k "gui/$(id -u)/com.aicompany.jarvis-broker"
   else
     pkill -f 'scripts/jarvis-broker.ts' >/dev/null 2>&1 || true

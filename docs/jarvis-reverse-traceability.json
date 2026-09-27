@@ -1112,13 +1112,13 @@
     },
     {
       "path": "scripts/jarvis-mac-zero-touch.sh",
-      "sha256": "851b3566f3d83d1480ec65472e82f5de4da1703f4ca2141420685d9892011cf6",
+      "sha256": "c2517a13bdfac8e594e34f0cf13617811cb78faae53a7ca62af4092fd5a1b93e",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "HOST-002",
         "DEV-PC-006"
       ],
-      "reason": "Mac auxiliary resident/installation compatibility scripts; no deployment performed"
+      "reason": "Mac zero-touch reconciliation preserves canonical launchd runtime ownership across ordinary health reconciliation and Quick Tunnel URL rotation; background Broker fallback is only used when no launchd owner exists."
     },
     {
       "path": "scripts/jarvis-managed-process.mjs",
