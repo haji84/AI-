@@ -5812,6 +5812,20 @@
         "AUTO-026"
       ],
       "reason": "Persists accepted Goal execution context in Compass so restart recovery preserves development intent and continuation context instead of silently degrading the Goal."
+    },
+    {
+      "path": "src/orchestrator/test-contract-evolution.ts",
+      "sha256": "f4009eab33f2cedbe77e377a0f13537f0b6b11808340494dff15806b0acd0886",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-014",
+        "CORE-015",
+        "AUTO-016",
+        "AUTO-017",
+        "AUTO-018",
+        "AUTO-030"
+      ],
+      "reason": "#681 fail-closed autonomous test-contract evolution permits assertion-contract repair only after canonical requirement/spec change evidence and independent implementation verification; it rejects test bypass/weakening. Parent mapping is implementation ownership, not completion evidence."
     }
   ],
   "hash_policy": "utf8-crlf-to-lf-v1;binary-raw"
