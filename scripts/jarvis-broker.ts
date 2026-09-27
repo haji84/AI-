@@ -81,7 +81,7 @@ const deviceDevelopmentIntake = new DeviceDevelopmentIntake({
     const existingRun = decision.goalId ? await workRuns.getByGoal(decision.goalId) : null;
     if (decision.goalId && !existingRun) await workRuns.put(createQueuedWorkRun(decision.goalId));
     const terminal = existingRun && ["COMPLETED", "BLOCKED", "FAILED", "HUMAN_GATE"].includes(existingRun.phase);
-    if (!terminal) scheduleGoalExecution(decision, [{ source: "trusted-device-development-intake", ...request.sourceContext }]);
+    if (!terminal) scheduleGoalExecution(decision, [{ source: "trusted-device-development-intake", text: request.text, intent: decision.resolution.intent, ...request.sourceContext }]);
     return { goalId: decision.goalId, action: decision.action };
   },
 });
@@ -567,7 +567,7 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
         const existingRun = decision.goalId ? await workRuns.getByGoal(decision.goalId) : null;
         if (decision.goalId && !existingRun) await workRuns.put(createQueuedWorkRun(decision.goalId));
         const terminal = existingRun && ["COMPLETED", "BLOCKED", "FAILED", "HUMAN_GATE"].includes(existingRun.phase);
-        const executionScheduled = !terminal && scheduleGoalExecution(decision, [{ source: "owner-work-intake", text }]);
+        const executionScheduled = !terminal && scheduleGoalExecution(decision, [{ source: "owner-work-intake", text, intent: decision.resolution.intent }]);
         return json(response, 202, {
           accepted: true,
           executionScheduled,
