@@ -14,3 +14,10 @@ function fixture() {
 test("LOW existing mapped surface reconciles fingerprint in same Change Set",()=>{const root=fixture();assert.deepEqual(autoReconcileTraceability(root,["src/example.ts"],"low"),["docs/jarvis-reverse-traceability.json"]);const r=JSON.parse(readFileSync(join(root,"docs/jarvis-reverse-traceability.json"),"utf8"));assert.notEqual(r.surfaces[0].sha256,"0".repeat(64));assert.deepEqual(r.surfaces[0].requirement_ids,["AUTO-001"]);});
 test("HIGH and audit/canonical changes never auto-reconcile",()=>{const root=fixture();assert.deepEqual(autoReconcileTraceability(root,["src/example.ts"],"high"),[]);assert.deepEqual(autoReconcileTraceability(root,["scripts/jarvis-requirement-audit.mjs"],"low"),[]);});
 test("missing canonical mapping is not invented",()=>{const root=fixture();writeFileSync(join(root,"src/new.ts"),"x\n");assert.deepEqual(autoReconcileTraceability(root,["src/new.ts"],"low"),[]);});
+
+test("safe PR creation fails closed when its repository base is behind main", async () => {
+ const s=readFileSync(new URL("../src/orchestrator/safe-pr-capability.ts",import.meta.url),"utf8");
+ assert.match(s,/git", \["fetch", "origin", "main"/);
+ assert.match(s,/merge-base/);
+ assert.match(s,/base is behind origin\/main/);
+});
