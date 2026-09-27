@@ -84,7 +84,9 @@ for _ in $(seq 1 20); do
 done
 [[ -s "$STATE_ROOT/jarvis.env" ]] || { echo 'JARVIS reconciler did not create jarvis.env' >&2; exit 6; }
 
-CANONICAL_RUNTIME_PLIST="$HOME/Library/LaunchAgents/com.aicompany.jarvis-runtime.plist"\nif [[ ! -f "$CANONICAL_RUNTIME_PLIST" ]]; then\ncat >"$BROKER_PLIST" <<PLIST
+CANONICAL_RUNTIME_PLIST="$HOME/Library/LaunchAgents/com.aicompany.jarvis-runtime.plist"
+if [[ ! -f "$CANONICAL_RUNTIME_PLIST" ]]; then
+cat >"$BROKER_PLIST" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
