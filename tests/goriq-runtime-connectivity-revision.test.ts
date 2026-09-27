@@ -1,0 +1,2 @@
+import assert from "node:assert/strict";import{readFile}from"node:fs/promises";import test from"node:test";import{URL}from"node:url";
+test("connectivity exposes only non-secret Broker runtime revision evidence",async()=>{const s=await readFile(new URL("../src/app/api/jarvis/connectivity/route.ts",import.meta.url),"utf8");assert.match(s,/runtimeRevision/);assert.match(s,/typeof health\?\.runtimeRevision === "string"/);assert.doesNotMatch(s,/JARVIS_OWNER_TOKEN.*runtimeRevision/s);});
