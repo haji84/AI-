@@ -1047,7 +1047,7 @@
     },
     {
       "path": "scripts/jarvis-goal-executor.ts",
-      "sha256": "75b3b604d80454b29383075e87a94aa4f18233d29c523eb6da4637e6ba4a3e01",
+      "sha256": "fbf93fc347131e987cbddee7204e2ab0651f46ee",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "AUTO-001",
@@ -1055,7 +1055,7 @@
         "GOV-025",
         "OWN-001"
       ],
-      "reason": "Issue #1219 Direct Goal Bridge isolated executor keeps authenticated Broker ingress responsive while bounded Goal continuation runs; parent requirements remain PARTIAL pending real E2E."
+      "reason": "Issues #1219/#1284 Direct Goal Bridge executor auto-routes accepted development intent from Daily Driver into the bounded Builder runtime when explicit self-development environment configuration is absent; existing capability, verifier, risk, Human Gate, and release controls remain authoritative. Physical iPhone E2E remains required before completion."
     },
     {
       "path": "scripts/jarvis-mac-broker-service.sh",
