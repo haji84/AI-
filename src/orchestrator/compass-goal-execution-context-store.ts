@@ -5,7 +5,8 @@ type RecordItem={goalId:string;context:unknown[];updatedAt:string};
 type Envelope={kind:typeof KIND;version:typeof VERSION;records:RecordItem[]};
 function isEnvelope(v:unknown):v is Envelope{return !!v&&typeof v==="object"&&(v as {kind?:unknown}).kind===KIND&&(v as {version?:unknown}).version===VERSION&&Array.isArray((v as {records?:unknown}).records);}
 export class CompassGoalExecutionContextStore {
- constructor(private readonly compass:CompassStore){}
+ private readonly compass: CompassStore;
+ constructor(compass: CompassStore){ this.compass = compass; }
  put(goalId:string,context:unknown[]):void{const e=this.read();const records=[...e.records.filter(r=>r.goalId!==goalId),{goalId,context:structuredClone(context),updatedAt:new Date().toISOString()}].slice(-MAX);this.write({...e,records});}
  get(goalId:string):unknown[]{const r=this.read().records.find(x=>x.goalId===goalId);return r?structuredClone(r.context):[];}
  private read():Envelope{return this.compass.getState().active.find(isEnvelope)??{kind:KIND,version:VERSION,records:[]};}
