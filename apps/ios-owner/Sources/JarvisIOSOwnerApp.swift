@@ -82,12 +82,25 @@ struct DailyDriverView: View {
                         statusGrid
 
                         if daily.humanGate {
-                            Label("確認が必要な操作があります", systemImage: "hand.raised.fill")
-                                .font(.headline)
-                                .foregroundStyle(.orange)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding()
-                                .background(.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 16))
+                            VStack(alignment: .leading, spacing: 10) {
+                                Label("確認が必要な操作があります", systemImage: "hand.raised.fill")
+                                    .font(.headline)
+                                    .foregroundStyle(.orange)
+                                Button("Face IDで本人確認") {
+                                    Task {
+                                        do {
+                                            try await owner.confirmProtectedOperation(reason: "保護された操作を確認します")
+                                            daily.markProtectedIdentityConfirmed()
+                                        } catch {
+                                            daily.markProtectedIdentityConfirmationFailed(error.localizedDescription)
+                                        }
+                                    }
+                                }
+                                .buttonStyle(.borderedProminent)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding()
+                            .background(.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 16))
                         }
 
                         if let message = daily.message {
