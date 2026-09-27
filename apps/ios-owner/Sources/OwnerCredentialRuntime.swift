@@ -23,6 +23,7 @@ final class OwnerCredentialRuntime: ObservableObject {
     private static let deviceIdAccount = "owner-device-id"
     private static let pendingEnrollmentAccount = "owner-pending-enrollment"
     private static let durableSessionAccount = "owner-durable-session"
+    private static let bootEpochAccount = "owner-session-boot-epoch"
 
     init() {
         let configuration = URLSessionConfiguration.ephemeral
@@ -33,6 +34,7 @@ final class OwnerCredentialRuntime: ObservableObject {
             deleteTrustedDeviceMaterialPreservingLegacyCode()
         }
         isEnrolled = Keychain.read(account: Self.credentialAccount) != nil
+        invalidateDurableSessionAfterDeviceRebootIfNeeded()
         ownerSessionEstablished = Keychain.read(account: Self.durableSessionAccount) != nil
         status = isEnrolled ? (ownerSessionEstablished ? "登録済み・ログイン維持中" : "登録済み・再認証待ち") : "未登録"
     }
@@ -278,6 +280,19 @@ final class OwnerCredentialRuntime: ObservableObject {
             Keychain.delete(account: Self.durableSessionAccount)
         }
         try await verifyTrustedDeviceProof()
+    }
+
+    private func invalidateDurableSessionAfterDeviceRebootIfNeeded() {
+        let bootEpochMinutes = Int((Date().timeIntervalSince1970 - ProcessInfo.processInfo.systemUptime) / 60)
+        let current = Data(String(bootEpochMinutes).utf8)
+        defer { try? Keychain.save(current, account: Self.bootEpochAccount) }
+        guard let stored = Keychain.read(account: Self.bootEpochAccount),
+              let text = String(data: stored, encoding: .utf8),
+              let previous = Int(text) else { return }
+        if abs(previous - bootEpochMinutes) > 1 {
+            Keychain.delete(account: Self.durableSessionAccount)
+            ownerSessionEstablished = false
+        }
     }
 
     func invalidateOwnerSession() {
