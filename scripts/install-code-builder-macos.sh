@@ -46,13 +46,14 @@ if [[ ! -s "$TOKEN_PATH" ]]; then
 fi
 TOKEN="$(cat "$TOKEN_PATH")"
 
-ENGINE=""
-for candidate in codex aider; do
-  if command -v "$candidate" >/dev/null 2>&1; then
-    ENGINE="$(command -v "$candidate")"
-    break
-  fi
-done
+ENGINE_DISCOVERY="resolved"
+if ENGINE="$(bash "$SOURCE_REPO/scripts/resolve-code-builder-engine.sh")"; then
+  :
+else
+  ENGINE=""
+  ENGINE_DISCOVERY="not-found"
+  echo "CODE_BUILDER_ENGINE_NOT_FOUND: Mac Builder will remain fail-closed until an existing supported engine is available." >&2
+fi
 
 cat > "$PLIST" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -135,6 +136,7 @@ cat > "$STATUS_PATH" <<JSON
   "nodePath": "$(printf '%s' "$NODE_BIN" | sed 's/"/\\\"/g')",
   "nodeVersion": "$NODE_VERSION",
   "configuredEngine": "$(printf '%s' "$ENGINE" | sed 's/"/\\\"/g')",
+  "engineDiscovery": "$ENGINE_DISCOVERY",
   "activeEngine": "$(printf '%s' "$active_engine" | sed 's/"/\\\"/g')",
   "capabilities": $capabilities,
   "persistence": "launch-agent",
