@@ -933,7 +933,7 @@
     },
     {
       "path": "scripts/jarvis-broker.ts",
-      "sha256": "61ffd7df34051918b54e22627acf00f202593663a4697bc37b7d414bd6173535",
+      "sha256": "a43d907f13a610ffbeeb6a39baea7acd18ff2a77e2e8636f2026307eed477a7d",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "NET-006",
@@ -1047,7 +1047,7 @@
     },
     {
       "path": "scripts/jarvis-goal-executor.ts",
-      "sha256": "603fb6ae33b19ad3fc7d3ce19f3edb723a4024ed9d181ee0058158b159f15fcc",
+      "sha256": "44289c4b8bed9355e1cd9701874e52eed7328a624a56eff674e88aa1ebd07aac",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "AUTO-001",
