@@ -6,6 +6,8 @@ on:
     paths:
       - 'scripts/jarvis-mac-zero-touch.sh'
       - 'scripts/jarvis-mac-zero-touch-install.sh'
+      - 'scripts/install-code-builder-macos.sh'
+      - 'scripts/code-builder-worker-service.ts'
       - '.github/workflows/jarvis-mac-bootstrap.yml'
   workflow_dispatch:
 
