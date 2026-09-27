@@ -187,7 +187,7 @@ jobs:
           }
 
           recovery_complete=false
-          for strategy in restart canonical-reinstall zero-touch legacy-restart stale-process-reset; do
+          for strategy in restart canonical-reinstall retire-legacy-owner zero-touch stale-process-reset; do
             echo "RUNTIME_RECOVERY strategy=$strategy"
             case "$strategy" in
               restart)
@@ -202,8 +202,14 @@ jobs:
                 sleep 3
                 ensure_runtime || true
                 ;;
-              legacy-restart)
-                launchctl kickstart -k "gui/$(id -u)/com.aicompany.jarvis-broker" >/dev/null 2>&1 || true
+              retire-legacy-owner)
+                echo "RUNTIME_RECOVERY retiring legacy broker owner"
+                LEGACY_PLIST="$HOME/Library/LaunchAgents/com.aicompany.jarvis-broker.plist"
+                launchctl bootout "gui/$(id -u)" "$LEGACY_PLIST" >/dev/null 2>&1 || true
+                launchctl bootout "gui/$(id -u)/com.aicompany.jarvis-broker" >/dev/null 2>&1 || true
+                pkill -f '/Users/haji/JARVIS-AI-/.*jarvis-broker' >/dev/null 2>&1 || true
+                JARVIS_REPO_ROOT="$GITHUB_WORKSPACE" bash scripts/jarvis-mac-install-launchagent.sh || true
+                ensure_runtime || true
                 ;;
               stale-process-reset)
                 pkill -f 'scripts/jarvis-broker.ts' >/dev/null 2>&1 || true
