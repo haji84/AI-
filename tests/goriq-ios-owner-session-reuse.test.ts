@@ -16,6 +16,6 @@ test("native owner session restores durable routine auth without routine Face ID
 
 test("native Daily Driver invalidates cached owner session only after 401", async () => {
   const runtime = await source("apps/ios-owner/Sources/DailyDriverRuntime.swift");
-  assert.match(runtime, /if result\.statusCode == 401 \{[\s\S]*invalidateOwnerSession\(\)[\s\S]*ensureOwnerSession\(\)/);
-  assert.match(runtime, /if result\.statusCode == 401 && retryAuth \{[\s\S]*invalidateOwnerSession\(\)[\s\S]*ensureOwnerSession\(\)/);
+  assert.match(runtime, /if result\.statusCode == 401 \{[\s\S]*invalidateOwnerSession\(\)[\s\S]*ensureOwnerSession\\(extendIdle: false\\)/);
+  assert.match(runtime, /if result\.statusCode == 401 && retryAuth \{[\s\S]*invalidateOwnerSession\(\)[\s\S]*ensureOwnerSession\\(extendIdle: false\\)/);
 });
