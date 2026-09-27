@@ -5544,7 +5544,7 @@
     },
     {
       "path": "src/orchestrator/safe-pr-capability.ts",
-      "sha256": "16504da402f56b2b7dca46120f723da55e83752010cb4da0f2f07a372175b6e4",
+      "sha256": "dd1ce95558ed75227169fa10115083d9d2af1f19ce67887f6990d2961d3e3736",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-007",
