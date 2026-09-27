@@ -14,7 +14,8 @@ cat >"$PLIST" <<PLIST
 <key>ProgramArguments</key><array><string>/bin/bash</string><string>$REPO_ROOT/scripts/jarvis-mac-runtime-entry.sh</string></array>
 <key>WorkingDirectory</key><string>$REPO_ROOT</string>
 <key>RunAtLoad</key><true/>
-<key>KeepAlive</key><true/>\n<key>ThrottleInterval</key><integer>5</integer>
+<key>KeepAlive</key><true/>
+<key>ThrottleInterval</key><integer>5</integer>
 <key>StandardOutPath</key><string>$STATE_ROOT/launchagent.out.log</string>
 <key>StandardErrorPath</key><string>$STATE_ROOT/launchagent.err.log</string>
 </dict></plist>
