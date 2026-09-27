@@ -1112,7 +1112,7 @@
     },
     {
       "path": "scripts/jarvis-mac-zero-touch.sh",
-      "sha256": "9d5e45a33894aef729fe88790036af42dcbf0946ca1b46b3f78245530a4d406a",
+      "sha256": "851b3566f3d83d1480ec65472e82f5de4da1703f4ca2141420685d9892011cf6",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "HOST-002",
