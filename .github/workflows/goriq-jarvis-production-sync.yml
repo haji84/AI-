@@ -122,13 +122,28 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$SYNC_COMMIT_SHA" = "$(git rev-parse HEAD)"
-          git merge-base --is-ancestor "$SYNC_COMMIT_SHA" origin/main
+          ACTUAL_SHA="$(git rev-parse HEAD)"
+          if [[ "$SYNC_COMMIT_SHA" != "$ACTUAL_SHA" ]]; then
+            echo "RUNTIME_PREFLIGHT sha_mismatch expected=$SYNC_COMMIT_SHA actual=$ACTUAL_SHA" >&2
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "$SYNC_COMMIT_SHA" origin/main 2>/dev/null; then
+            echo "RUNTIME_PREFLIGHT refreshing_origin_main"
+            git fetch --no-tags origin main
+            git merge-base --is-ancestor "$SYNC_COMMIT_SHA" origin/main || { echo "RUNTIME_PREFLIGHT verified_sha_not_on_main" >&2; exit 1; }
+          fi
           STATE_ROOT="$HOME/Library/Application Support/JARVIS"
           mkdir -p "$STATE_ROOT"
           printf '%s\n' "$SYNC_COMMIT_SHA" > "$STATE_ROOT/runtime-target-main-sha"
           ENV_FILE="$STATE_ROOT/jarvis.env"
-          test -s "$ENV_FILE"
+          if [[ ! -s "$ENV_FILE" ]]; then
+            echo "RUNTIME_PREFLIGHT env_missing recovery=zero-touch"
+            JARVIS_REPO_ROOT="$GITHUB_WORKSPACE" bash scripts/jarvis-mac-zero-touch.sh || true
+          fi
+          if [[ ! -s "$ENV_FILE" ]]; then
+            echo "RUNTIME_PREFLIGHT env_unrecoverable HUMAN_GATE_REQUIRED" >&2
+            exit 1
+          fi
           if grep -q '^GORIQ_RUNTIME_REVISION=' "$ENV_FILE"; then
             sed -i '' "s/^GORIQ_RUNTIME_REVISION=.*/GORIQ_RUNTIME_REVISION=$SYNC_COMMIT_SHA/" "$ENV_FILE"
           else
