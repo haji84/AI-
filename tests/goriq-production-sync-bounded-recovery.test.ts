@@ -14,3 +14,13 @@ test("production runtime recovery escalates distinct strategies until convergenc
   assert.equal(source.includes("pkill -f 'scripts/jarvis-broker.ts'"), true);
   assert.equal(source.includes("second_kickstart_failed"), false);
 });
+
+
+test("production tunnel recovery emits bounded non-secret diagnostics before failing", async () => {
+  const source = await readFile(new URL("../.github/workflows/goriq-jarvis-production-sync.yml", import.meta.url), "utf8");
+  assert.equal(source.includes("TUNNEL_RECOVERY_DIAGNOSTICS"), true);
+  assert.equal(source.includes('com.aicompany.jarvis-broker-tunnel'), true);
+  assert.equal(source.includes('broker-tunnel.log'), true);
+  assert.equal(source.includes('broker-tunnel-service.err.log'), true);
+  assert.equal(source.includes('zero-touch-launch.err.log'), true);
+});
