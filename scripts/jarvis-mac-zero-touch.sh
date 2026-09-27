@@ -22,14 +22,27 @@ read_env_value() {
 }
 write_env() {
   local owner="$1" remote="$2" serials="$3" broker_url="$4" remote_url="$5"
-  cat >"$ENV_FILE" <<EOF
+  local tmp="$ENV_FILE.tmp.$"
+  if [[ -f "$ENV_FILE" ]]; then
+    awk -F= '
+      $1 != "JARVIS_OWNER_TOKEN" &&
+      $1 != "JARVIS_REMOTE_GATEWAY_TOKEN" &&
+      $1 != "JARVIS_REMOTE_ALLOWED_SERIALS" &&
+      $1 != "JARVIS_PUBLIC_BROKER_URL" &&
+      $1 != "JARVIS_REMOTE_PUBLIC_URL" { print }
+    ' "$ENV_FILE" >"$tmp"
+  else
+    : >"$tmp"
+  fi
+  cat >>"$tmp" <<EOF
 JARVIS_OWNER_TOKEN=$owner
 JARVIS_REMOTE_GATEWAY_TOKEN=$remote
 JARVIS_REMOTE_ALLOWED_SERIALS=$serials
 JARVIS_PUBLIC_BROKER_URL=$broker_url
 JARVIS_REMOTE_PUBLIC_URL=$remote_url
 EOF
-  chmod 600 "$ENV_FILE"
+  chmod 600 "$tmp"
+  mv "$tmp" "$ENV_FILE"
 }
 launch_job_exists() {
   launchctl print "gui/$(id -u)/$1" >/dev/null 2>&1
