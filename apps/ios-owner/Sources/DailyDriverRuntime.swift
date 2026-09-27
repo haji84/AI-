@@ -108,6 +108,17 @@ final class DailyDriverRuntime: ObservableObject {
         }
     }
 
+    func markProtectedIdentityConfirmed() {
+        phase = "本人確認済み"
+        currentWork = "Rollback準備完了後に実行できます"
+        message = "本人確認は完了しました。操作はまだ実行されていません。"
+    }
+
+    func markProtectedIdentityConfirmationFailed(_ detail: String) {
+        phase = "確認が必要"
+        message = detail
+    }
+
     func refresh(owner: OwnerCredentialRuntime) {
         guard let goalId else { return }
         Task { await pollOnce(owner: owner, goalId: goalId, retryAuth: true) }
