@@ -22,7 +22,7 @@ read_env_value() {
 }
 write_env() {
   local owner="$1" remote="$2" serials="$3" broker_url="$4" remote_url="$5"
-  local tmp="${ENV_FILE}.tmp.${BASHPID}"
+  local tmp="${ENV_FILE}.tmp.$"
   if [[ -f "$ENV_FILE" ]]; then
     awk -F= '
       $1 != "JARVIS_OWNER_TOKEN" &&
