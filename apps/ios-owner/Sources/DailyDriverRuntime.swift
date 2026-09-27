@@ -51,7 +51,7 @@ final class DailyDriverRuntime: ObservableObject {
                 )
                 if result.statusCode == 401 {
                     owner.invalidateOwnerSession()
-                    try await owner.ensureOwnerSession()
+                    try await owner.ensureOwnerSession(extendIdle: true)
                     result = try await owner.ownerAPIRequest(
                         path: "/api/jarvis/work",
                         method: "POST",
