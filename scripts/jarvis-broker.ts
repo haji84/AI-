@@ -860,8 +860,43 @@ server.listen(port, host, () => {
   void (async () => {
     const active = (await new CompassGoalRegistryAdapter(compass).listActive())[0];
     if (!active) return;
-    const run = await workRuns.getByGoal(active.goalId);
-    if (!run || !["QUEUED", "PLANNING", "RUNNING", "VERIFYING", "RECOVERING"].includes(run.phase)) return;
+    let run = await workRuns.getByGoal(active.goalId);
+    if (!run) return;
+
+    const goalText = [active.goal.title, active.goal.description ?? "", ...active.goal.successCriteria].join("\n");
+    const developmentGoal = /(?:GitHub|issue|PR|pull request|実装|修正|コード|開発|CI|test|テスト|src\/|tests\/|scripts\/|docs\/)/i.test(goalText);
+    const repairedBlocker = run.phase === "BLOCKED" && run.blockers.some((blocker) => [
+      /development objective, acceptance criteria, and target files are required/i,
+      /SELF_DEVELOPMENT_RELEASE_CAPABILITY_MISSING/i,
+      /development_verifier_unavailable/i,
+      /release_capability_unavailable/i,
+    ].some((pattern) => pattern.test(blocker)));
+    const legacyFalseCompletion = run.phase === "COMPLETED"
+      && developmentGoal
+      && active.goal.successCriteria.length === 0
+      && run.evidenceRefs.length === 0;
+
+    if (repairedBlocker || legacyFalseCompletion) {
+      const revision = process.env.GORIQ_RUNTIME_REVISION?.trim() || "unknown";
+      const signature = createHash("sha256").update(JSON.stringify({ phase: run.phase, blockers: run.blockers, legacyFalseCompletion })).digest("hex").slice(0, 16);
+      const repairMarker = `runtime-repair:${revision}:${signature}`;
+      if (!run.evidenceRefs.includes(repairMarker)) {
+        const reason = legacyFalseCompletion ? "repair legacy empty-DoD false completion" : "retry repaired development blocker";
+        run = {
+          ...run,
+          phase: "RECOVERING",
+          blockers: [],
+          nextAction: reason,
+          recoveryCount: run.recoveryCount + 1,
+          evidenceRefs: [...run.evidenceRefs, repairMarker],
+          updatedAt: new Date().toISOString(),
+        };
+        await workRuns.put(run);
+        console.log("[goriq-goal]", active.goalId, `startup_repair=${reason} marker=${repairMarker}`);
+      }
+    }
+
+    if (!["QUEUED", "PLANNING", "RUNNING", "VERIFYING", "RECOVERING"].includes(run.phase)) return;
     scheduleGoalExecution({
       action: "CONTINUE_GOAL", goalId: active.goalId, resolution: {
         kind: "EXISTING_GOAL", intent: "COMMAND", goal: active, reason: "resume_persisted_work_run",
