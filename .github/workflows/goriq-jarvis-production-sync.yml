@@ -168,20 +168,46 @@ jobs:
             return 1
           }
 
-          ensure_runtime || true
-          if ! wait_runtime; then
-            echo "Primary runtime restart did not converge; running bounded self-recovery."
-            launchctl kickstart -k "gui/$(id -u)/com.aicompany.jarvis-zero-touch" >/dev/null 2>&1 || true
-            if ! JARVIS_REPO_ROOT="$GITHUB_WORKSPACE" bash scripts/jarvis-mac-install-launchagent.sh; then
-              echo "RUNTIME_RECOVERY canonical_reinstall_failed"
+          recovery_complete=false
+          for strategy in restart canonical-reinstall zero-touch legacy-restart stale-process-reset; do
+            echo "RUNTIME_RECOVERY strategy=$strategy"
+            case "$strategy" in
+              restart)
+                ensure_runtime || true
+                ;;
+              canonical-reinstall)
+                JARVIS_REPO_ROOT="$GITHUB_WORKSPACE" bash scripts/jarvis-mac-install-launchagent.sh || true
+                ensure_runtime || true
+                ;;
+              zero-touch)
+                launchctl kickstart -k "gui/$(id -u)/com.aicompany.jarvis-zero-touch" >/dev/null 2>&1 || true
+                sleep 3
+                ensure_runtime || true
+                ;;
+              legacy-restart)
+                launchctl kickstart -k "gui/$(id -u)/com.aicompany.jarvis-broker" >/dev/null 2>&1 || true
+                ;;
+              stale-process-reset)
+                pkill -f 'scripts/jarvis-broker.ts' >/dev/null 2>&1 || true
+                sleep 2
+                JARVIS_REPO_ROOT="$GITHUB_WORKSPACE" bash scripts/jarvis-mac-install-launchagent.sh || true
+                ensure_runtime || true
+                ;;
+            esac
+            if wait_runtime; then
+              recovery_complete=true
+              echo "RUNTIME_RECOVERY completed strategy=$strategy"
+              break
             fi
-            ensure_runtime || echo "RUNTIME_RECOVERY second_kickstart_failed"
-            wait_runtime || {
-              echo "Runtime self-recovery failed." >&2
-              tail -n 80 "$STATE_ROOT/launchagent.err.log" 2>/dev/null || true
-              tail -n 80 "$STATE_ROOT/broker-service.err.log" 2>/dev/null || true
-              exit 1
-            }
+            echo "RUNTIME_RECOVERY strategy_failed=$strategy"
+          done
+          if [[ "$recovery_complete" != true ]]; then
+            echo "RUNTIME_RECOVERY exhausted_safe_strategies HUMAN_GATE_REQUIRED" >&2
+            launchctl print "gui/$(id -u)/com.aicompany.jarvis-runtime" 2>&1 | tail -n 80 || true
+            launchctl print "gui/$(id -u)/com.aicompany.jarvis-broker" 2>&1 | tail -n 80 || true
+            tail -n 80 "$STATE_ROOT/launchagent.err.log" 2>/dev/null || true
+            tail -n 80 "$STATE_ROOT/broker-service.err.log" 2>/dev/null || true
+            exit 1
           fi
           printf '%s\n' "$SYNC_COMMIT_SHA" > "$STATE_ROOT/runtime-active-main-sha"
           echo "GORIQ_RUNTIME_UPDATED sha=$SYNC_COMMIT_SHA"
