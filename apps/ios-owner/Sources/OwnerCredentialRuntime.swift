@@ -295,6 +295,23 @@ final class OwnerCredentialRuntime: ObservableObject {
         }
     }
 
+    func confirmProtectedOperation(reason: String) async throws {
+        guard let keyData = Keychain.read(account: Self.keyAccount) else { throw OwnerError.keyUnavailable }
+        let context = LAContext()
+        context.localizedReason = reason
+        var authError: NSError?
+        guard context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &authError) else {
+            throw OwnerError.keyUnavailable
+        }
+        guard try await context.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: reason) else {
+            throw OwnerError.trustUnavailable
+        }
+        // Fresh user-presence proof is intentionally scoped to protected operations only.
+        // Execution remains behind the existing Human Gate until rollback preparation is available.
+        let key = try SecureEnclave.P256.Signing.PrivateKey(dataRepresentation: keyData)
+        _ = try key.signature(for: Data("GORIQ-PROTECTED-OPERATION".utf8))
+    }
+
     func invalidateOwnerSession() {
         ownerSessionEstablished = false
         Keychain.delete(account: Self.durableSessionAccount)
