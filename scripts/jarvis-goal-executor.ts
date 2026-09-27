@@ -58,22 +58,26 @@ function executorDecision(goalId: string): GoalControllerDecision {
 }
 
 function configuredDevelopmentRuntime(compassPath: string, context: unknown[]): DevelopmentRuntimeOptions | undefined {
-  if (process.env.GORIQ_SELF_DEVELOPMENT_RUNTIME !== "1") return undefined;
   const contextText = JSON.stringify(context);
+  const explicitDevelopment = process.env.GORIQ_SELF_DEVELOPMENT_RUNTIME === "1";
+  const inferredDevelopment = /(?:GitHub|issue|PR|pull request|実装|修正|コード|開発|CI|test|テスト|src\/|tests\/|scripts\/|docs\/)/i.test(contextText);
+  if (!explicitDevelopment && !inferredDevelopment) return undefined;
   const configuredFiles = (process.env.GORIQ_SELF_DEVELOPMENT_TARGET_FILES ?? "").split(",").map((item) => item.trim()).filter(Boolean);
-  const inferredFiles = contextText.match(/(?:src|tests|scripts|docs)\/[A-Za-z0-9_./-]+/g) ?? [];
+  const inferredFiles = contextText.match(/(?:src|tests|scripts|docs|apps)\/[A-Za-z0-9_./-]+/g) ?? [];
   const targetFiles = [...new Set([...configuredFiles, ...inferredFiles])];
-  if (!targetFiles.length) throw new Error("GORIQ self-development target files are required");
-  const taskScopeId = process.env.GORIQ_SELF_DEVELOPMENT_TASK_SCOPE_ID?.trim();
-  if (!taskScopeId) throw new Error("GORIQ self-development task scope is required");
+  const taskScopeId = process.env.GORIQ_SELF_DEVELOPMENT_TASK_SCOPE_ID?.trim()
+    || `goal:${createHash("sha256").update(requiredEnv("JARVIS_GOAL_EXECUTION_GOAL_ID")).digest("hex").slice(0, 24)}`;
   const authorization = process.env.GORIQ_SELF_DEVELOPMENT_TASK_AUTHORIZATION_JSON
     ? normalizeTaskCompletionAuthorization(JSON.parse(process.env.GORIQ_SELF_DEVELOPMENT_TASK_AUTHORIZATION_JSON))
     : undefined;
   const baseRevision = execFileSync("git", ["rev-parse", "HEAD"], { cwd: process.cwd(), encoding: "utf8" }).trim();
   const repositoryRoot = resolve(process.cwd());
   const tracked = execFileSync("git", ["ls-files"], { cwd: repositoryRoot, encoding: "utf8" }).split(/\r?\n/).filter(Boolean);
-  const relatedTests = tracked.filter((path) => path.startsWith("tests/") && targetFiles.some((target) => path.includes(target.split("/").at(-1)?.split(".")[0] ?? "\0")));
-  const candidatePaths = [...new Set([...targetFiles, ...relatedTests])].slice(0, 200);
+  const resolvedTargets = targetFiles.length
+    ? targetFiles
+    : tracked.filter((path) => /^(?:src|scripts|apps)\//.test(path)).slice(0, 80);
+  const relatedTests = tracked.filter((path) => path.startsWith("tests/") && resolvedTargets.some((target) => path.includes(target.split("/").at(-1)?.split(".")[0] ?? "\0")));
+  const candidatePaths = [...new Set([...resolvedTargets, ...relatedTests])].slice(0, 200);
   const entries = candidatePaths.flatMap((path) => {
     const absolute = resolve(repositoryRoot, path);
     const rel = relative(repositoryRoot, absolute);
@@ -81,7 +85,7 @@ function configuredDevelopmentRuntime(compassPath: string, context: unknown[]): 
     const content = readFileSync(absolute, "utf8");
     return [{ path: rel.replaceAll("\\", "/"), content: content.slice(0, 100_000) }];
   });
-  const repositoryContext = buildRepositoryDevelopmentContext({ objective: "resident self-development", preferredFiles: targetFiles, entries, maxChars: 40_000 });
+  const repositoryContext = buildRepositoryDevelopmentContext({ objective: "resident self-development", preferredFiles: resolvedTargets, entries, maxChars: 40_000 });
   const router = createRuntimeBuilderRouter();
   const verifier = createRuntimeDevelopmentVerifier();
   const releaseUrl = process.env.GORIQ_SELF_DEVELOPMENT_RELEASE_URL?.trim();
@@ -97,7 +101,7 @@ function configuredDevelopmentRuntime(compassPath: string, context: unknown[]): 
       baseRevision,
       taskScopeId,
       maxRisk: "medium",
-      targetFiles,
+      targetFiles: resolvedTargets,
       contextDigest: createHash("sha256").update(contextText).digest("hex"),
     },
     stages: {
@@ -116,7 +120,7 @@ function configuredDevelopmentRuntime(compassPath: string, context: unknown[]): 
             attemptId: `${job.jobId}:attempt:${job.attempts.length + 1}`,
             strategyId: `${job.jobId}:strategy:${job.attempts.length + 1}`,
             objective: workItem.objective,
-            files: targetFiles,
+            files: resolvedTargets,
             baseRevision: job.baseRevision,
             previousFailureSignatures: job.failureSignatures,
             previousStrategyFingerprints: job.rejectedStrategyIds,
