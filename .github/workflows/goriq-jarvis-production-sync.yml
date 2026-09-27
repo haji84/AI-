@@ -146,8 +146,11 @@ jobs:
             local label
             label="$(runtime_label)"
             if [[ -z "$label" ]]; then
-              JARVIS_REPO_ROOT="$GITHUB_WORKSPACE" bash scripts/jarvis-mac-install-launchagent.sh
-              label="$(runtime_label)"
+              echo "RUNTIME_RECOVERY stage=bootstrap reason=no-loaded-runtime"
+              if ! JARVIS_REPO_ROOT="$GITHUB_WORKSPACE" bash scripts/jarvis-mac-install-launchagent.sh; then
+                echo "RUNTIME_RECOVERY bootstrap_failed"
+              fi
+              label="$(runtime_label || true)"
             fi
             [[ -n "$label" ]] || return 1
             if ! launchctl kickstart -k "gui/$(id -u)/$label"; then\n              echo "RUNTIME_RECOVERY kickstart_failed label=$label"\n              return 1\n            fi
@@ -169,8 +172,10 @@ jobs:
           if ! wait_runtime; then
             echo "Primary runtime restart did not converge; running bounded self-recovery."
             launchctl kickstart -k "gui/$(id -u)/com.aicompany.jarvis-zero-touch" >/dev/null 2>&1 || true
-            JARVIS_REPO_ROOT="$GITHUB_WORKSPACE" bash scripts/jarvis-mac-install-launchagent.sh
-            ensure_runtime
+            if ! JARVIS_REPO_ROOT="$GITHUB_WORKSPACE" bash scripts/jarvis-mac-install-launchagent.sh; then
+              echo "RUNTIME_RECOVERY canonical_reinstall_failed"
+            fi
+            ensure_runtime || echo "RUNTIME_RECOVERY second_kickstart_failed"
             wait_runtime || {
               echo "Runtime self-recovery failed." >&2
               tail -n 80 "$STATE_ROOT/launchagent.err.log" 2>/dev/null || true
