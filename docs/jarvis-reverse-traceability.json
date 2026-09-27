@@ -1441,7 +1441,7 @@
     },
     {
       "path": "src/app/api/jarvis/connectivity/route.ts",
-      "sha256": "202e5685dd9ec6d7c8895380ad86fc40e5319e1312657a797f9d8eb8628eff17",
+      "sha256": "e22b45e151ccc3901f78bc7433d9f36c12f5123454b7a2731f71dd43da14b986",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OPS-006",
