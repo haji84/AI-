@@ -43,5 +43,5 @@ test("SEC-001 authentication primitives reject a wrong passcode and wrong sessio
   const token = createOwnerSessionToken(secret);
   assert.equal(verifyOwnerSessionToken(secret, token), true);
   assert.equal(verifyOwnerSessionToken("different-owner-secret", token), false);
-  assert.equal(OWNER_SESSION_MAX_AGE_SECONDS, 60 * 60 * 12);
+  assert.equal(OWNER_SESSION_MAX_AGE_SECONDS, 60 * 60 * 24 * 3);
 });
