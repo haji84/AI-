@@ -1079,7 +1079,7 @@
     },
     {
       "path": "scripts/jarvis-mac-install-launchagent.sh",
-      "sha256": "a5e54c04162ebcabfc348355983d8d08065b23bee1a44826c09e9ab4f6415360",
+      "sha256": "17b671e206cb30e6939e0be039ee697b4479f83a6f5f7adb6967bbe06ad72fc5",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "HOST-002",
@@ -5791,6 +5791,16 @@
         "OWN-001"
       ],
       "reason": "Issue #1219 ZBook timeout-only recovery transition preserves Goal identity, completion checks, evidence, and Human Gate boundaries; parent requirements remain PARTIAL pending physical E2E."
+    },
+    {
+      "path": "scripts/jarvis-mac-runtime-entry.sh",
+      "sha256": "64dde1e8f945bddb79929db2d9233d0681e70f88f0cdb5d1d212a8804efc6f24",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "HOST-002",
+        "DEV-PC-006"
+      ],
+      "reason": "Canonical Mac runtime entrypoint split from the existing LaunchAgent installer so launchd directly owns the long-lived Broker process."
     }
   ],
   "hash_policy": "utf8-crlf-to-lf-v1;binary-raw"
