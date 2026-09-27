@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
 import { hostname } from "node:os";
 import { basename, extname, resolve, relative, isAbsolute } from "node:path";
+import { evaluateBuilderTestContractEvolution, extractBuilderTestContractEvolutionEvidence } from "../src/orchestrator/test-contract-evolution.ts";
 
 const host = process.env.CODE_BUILDER_HOST?.trim() || "127.0.0.1";
 const port = Number(process.env.CODE_BUILDER_PORT || 8796);
@@ -111,6 +112,26 @@ function run(command: string, args: string[], timeoutMs = executionTimeoutMs, st
     child.once("error", (error) => { clearTimeout(timer); done({ code: -1, stdout, stderr: String(error), timedOut }); });
     child.once("exit", (code) => { clearTimeout(timer); done({ code, stdout, stderr, timedOut }); });
   });
+}
+
+function isExistingTestPath(path: string): boolean {
+  return path.startsWith("tests/") || /\.(?:test|spec)\.[cm]?[jt]sx?$/.test(path);
+}
+
+async function modifiedExistingTestPatch(): Promise<{ paths: string[]; patch: string; oversized: boolean }> {
+  const changed = await run("git", ["diff", "--name-only", "--diff-filter=M", "--"]);
+  if (changed.code !== 0 || changed.timedOut) throw new Error("Unable to inspect modified existing tests");
+  const paths = [...new Set(changed.stdout.split(/\r?\n/).map((value) => value.trim()).filter((value) => value && isExistingTestPath(value) && safeWorkspacePath(value)))].sort();
+  if (!paths.length) return { paths: [], patch: "", oversized: false };
+  const diff = await run("git", ["diff", "--unified=0", "--", ...paths]);
+  if (diff.code !== 0 || diff.timedOut) throw new Error("Unable to inspect existing-test patch");
+  return { paths, patch: diff.stdout.slice(0, 100_000), oversized: diff.stdout.length > 100_000 };
+}
+
+async function restoreModifiedExistingTests(paths: string[]): Promise<void> {
+  if (!paths.length) return;
+  const restored = await run("git", ["restore", "--source=HEAD", "--worktree", "--", ...paths]);
+  if (restored.code !== 0 || restored.timedOut) throw new Error("git restore failed for rejected existing-test edits");
 }
 
 async function candidateSnapshot(baseRevision: string): Promise<{ patchDigest: string; candidateRevision: string; artifactDigest: string; artifactRef: string; changedPaths: string[] }> {
@@ -264,9 +285,40 @@ async function runBuild(body: Record<string, unknown>) {
   const result = engine.id === "codex"
     ? await run(engine.command, args, executionTimeoutMs, prompt)
     : await run(engine.command, args);
+
+  const modifiedTests = await modifiedExistingTestPatch();
+  let testContractEvolution: { allowed: boolean; reason: string; strippedPaths: string[] } | null = null;
+  if (modifiedTests.paths.length) {
+    const evidence = extractBuilderTestContractEvolutionEvidence(body.context);
+    const decision = modifiedTests.oversized
+      ? { allowed: false, reason: "Existing-test patch exceeds bounded contract-evolution inspection size" }
+      : evaluateBuilderTestContractEvolution({
+          builderId: `builder:${workerId}`,
+          proposedTestPatch: modifiedTests.patch,
+          evidence,
+        });
+    if (!decision.allowed) {
+      await restoreModifiedExistingTests(modifiedTests.paths);
+      testContractEvolution = { allowed: false, reason: decision.reason, strippedPaths: modifiedTests.paths };
+    } else {
+      testContractEvolution = { allowed: true, reason: decision.reason, strippedPaths: [] };
+    }
+  }
+
   const diff = await run("git", ["diff", "--stat"]);
   const baseRevision = typeof body.baseRevision === "string" ? body.baseRevision : (await run("git", ["rev-parse", "HEAD"])).stdout.trim();
   const snapshot = await candidateSnapshot(baseRevision);
+  if (result.code === 0 && testContractEvolution?.allowed === false && snapshot.changedPaths.length === 0) {
+    return {
+      status: 422,
+      body: {
+        ok: false,
+        summary: "Unverified existing-test edits were stripped and no implementation change remained",
+        blocker: "TEST_CONTRACT_EVOLUTION_STRIPPED",
+        evidence: { workerId, engine: engine.id, testContractEvolution },
+      },
+    };
+  }
   let tddEvidenceDigest: string | undefined;
   if (result.code === 0 && tddPhase === "red") {
     const red = await run(process.platform === "win32" ? "pnpm.cmd" : "pnpm", ["test"]);
@@ -302,6 +354,7 @@ async function runBuild(body: Record<string, unknown>) {
         diffStat: diff.stdout.trim(),
         stdoutTail: result.stdout.slice(-4000),
         stderrTail: result.stderr.slice(-4000),
+        testContractEvolution,
       },
       changedPaths: snapshot.changedPaths,
       patchDigest: snapshot.patchDigest,

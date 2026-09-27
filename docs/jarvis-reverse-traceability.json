@@ -5815,7 +5815,7 @@
     },
     {
       "path": "src/orchestrator/test-contract-evolution.ts",
-      "sha256": "f4009eab33f2cedbe77e377a0f13537f0b6b11808340494dff15806b0acd0886",
+      "sha256": "e43de67c67cfbd754b99914b682eaed5ae29532f50c47fbd3b5f7917eab87abc",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
