@@ -4,7 +4,7 @@ import { dirname, normalize, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { evaluateTaskScopedAutoMergeEligibility } from "./auto-merge-policy.ts";
 import type { DevelopmentReleaseGateDecision } from "./development-release-gate.ts";
-import type { ActionResult, ProposedAction } from "./goal-loop.ts";
+import type { ActionResult, ContextItem, ProposedAction } from "./goal-loop.ts";
 import {
   isTaskProductionDeployAuthorizationActive,
   normalizeTaskCompletionAuthorization,
@@ -27,6 +27,38 @@ interface ParsedProposal {
   taskScopeId?: string;
 }
 interface OpenedPullRequest { url: string; nodeId: string; number: number; }
+export interface RequirementSurfaceBinding {
+  path: string;
+  requirementIds: string[];
+  classification: "COVERED_BY_REQUIREMENT" | "INTERNAL_IMPLEMENTATION_DETAIL";
+  reason: string;
+  verified: true;
+  verifierId: string;
+}
+
+function extractVerifiedRequirementBindings(context: ContextItem[]): RequirementSurfaceBinding[] {
+  const bindings: RequirementSurfaceBinding[] = [];
+  for (const item of context) {
+    if (item.source !== "development.requirement_binding" || !item.data || typeof item.data !== "object" || Array.isArray(item.data)) continue;
+    const data = item.data as Partial<RequirementSurfaceBinding>;
+    if (data.verified !== true || typeof data.path !== "string" || !data.path.trim()
+      || !Array.isArray(data.requirementIds) || data.requirementIds.length === 0
+      || data.requirementIds.some((id) => typeof id !== "string" || !/^[-A-Z]+-\d{3}$/.test(id))
+      || new Set(data.requirementIds).size !== data.requirementIds.length
+      || !["COVERED_BY_REQUIREMENT", "INTERNAL_IMPLEMENTATION_DETAIL"].includes(data.classification ?? "")
+      || typeof data.reason !== "string" || !data.reason.trim()
+      || typeof data.verifierId !== "string" || !data.verifierId.trim()) continue;
+    bindings.push({
+      path: normalize(data.path).replaceAll("\\", "/"),
+      requirementIds: [...data.requirementIds],
+      classification: data.classification as RequirementSurfaceBinding["classification"],
+      reason: data.reason.trim(),
+      verified: true,
+      verifierId: data.verifierId.trim(),
+    });
+  }
+  return bindings;
+}
 
 export function canEnableSafePrAutoMerge(decision: DevelopmentReleaseGateDecision | undefined): boolean {
   return decision?.action === "ENABLE_AUTO_MERGE" && decision.reasons.length === 0;
@@ -51,16 +83,47 @@ function surfaceFingerprint(bytes: Buffer): string {
   }
 }
 
-export function autoReconcileTraceability(cwd: string, changedPaths: string[], risk: ProposedAction["risk"]): string[] {
+export function autoReconcileTraceability(
+  cwd: string,
+  changedPaths: string[],
+  risk: ProposedAction["risk"],
+  verifiedBindings: RequirementSurfaceBinding[] = [],
+): string[] {
   if (!["low", "medium"].includes(risk)) return [];
   if (changedPaths.some((path) => AUTO_RECONCILE_BLOCKED_PATHS.has(path) || AUTO_RECONCILE_BLOCKED_PREFIXES.some((prefix) => path.startsWith(prefix)))) return [];
   const reportPath = resolve(cwd, TRACEABILITY_PATH);
   const report = JSON.parse(readFileSync(reportPath, "utf-8")) as { surfaces?: Array<{ path?: string; sha256?: string; classification?: string; requirement_ids?: string[]; reason?: string }> };
   if (!Array.isArray(report.surfaces)) throw new Error("invalid reverse traceability report");
+  const requirements = JSON.parse(readFileSync(resolve(cwd, "docs/jarvis-requirements.json"), "utf-8")) as { requirements?: Array<{ id?: string }> };
+  if (!Array.isArray(requirements.requirements)) throw new Error("invalid canonical requirement registry");
+  const knownRequirementIds = new Set(requirements.requirements.flatMap((row) => typeof row.id === "string" ? [row.id] : []));
   let changed = false;
-  for (const path of changedPaths) {
-    const row = report.surfaces.find((item) => item.path === path);
-    if (!row) continue;
+  for (const rawPath of changedPaths) {
+    const path = normalize(rawPath).replaceAll("\\", "/");
+    let row = report.surfaces.find((item) => item.path === path);
+    if (!row) {
+      const matches = verifiedBindings.filter((binding) => binding.verified === true && binding.path === path);
+      if (matches.length === 0) continue;
+      if (matches.length !== 1) throw new Error(`traceability auto-reconciliation requires one verified binding: ${path}`);
+      const binding = matches[0]!;
+      if (binding.requirementIds.some((id) => !knownRequirementIds.has(id))) {
+        throw new Error(`unknown canonical requirement in verified binding: ${path}`);
+      }
+      if (!["COVERED_BY_REQUIREMENT", "INTERNAL_IMPLEMENTATION_DETAIL"].includes(binding.classification) || !binding.reason.trim() || !binding.verifierId.trim()) {
+        throw new Error(`invalid verified requirement binding: ${path}`);
+      }
+      if (/\.(?:test|spec)\.[cm]?[jt]sx?$/.test(path) || path.startsWith("tests/")) continue;
+      row = {
+        path,
+        sha256: surfaceFingerprint(readFileSync(resolve(cwd, path))),
+        classification: binding.classification,
+        requirement_ids: [...binding.requirementIds],
+        reason: binding.reason,
+      };
+      report.surfaces.push(row);
+      changed = true;
+      continue;
+    }
     if (!["COVERED_BY_REQUIREMENT", "INTERNAL_IMPLEMENTATION_DETAIL"].includes(row.classification ?? "") || !Array.isArray(row.requirement_ids) || row.requirement_ids.length === 0 || !row.reason?.trim()) {
       throw new Error(`traceability auto-reconciliation requires an existing canonical mapping: ${path}`);
     }
@@ -174,7 +237,7 @@ export function createSafePrProposalCapability(options: {
 } = {}) {
   return {
     name: "repository.propose_pr",
-    async execute(action: ProposedAction): Promise<ActionResult> {
+    async execute(action: ProposedAction, context: ContextItem[] = []): Promise<ActionResult> {
       try {
         const proposal = parseInput(action);
         const cwd = options.cwd ?? process.cwd();
@@ -192,7 +255,7 @@ export function createSafePrProposalCapability(options: {
         }
 
         const proposalChangedFiles = proposal.files.map((file) => file.path);
-        const reconciledFiles = autoReconcileTraceability(cwd, proposalChangedFiles, action.risk);
+        const reconciledFiles = autoReconcileTraceability(cwd, proposalChangedFiles, action.risk, extractVerifiedRequirementBindings(context));
         run("pnpm", ["lint"], cwd);
         run("pnpm", ["test"], cwd);
         run("pnpm", ["build"], cwd);
