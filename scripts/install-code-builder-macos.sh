@@ -38,6 +38,7 @@ else
 fi
 pnpm -C "$WORKSPACE" install --frozen-lockfile >/dev/null
 NODE_BIN="$(command -v node)"
+NODE_DIR="$(dirname "$NODE_BIN")"
 NODE_VERSION="$("$NODE_BIN" --version)"
 
 if [[ ! -s "$TOKEN_PATH" ]]; then
@@ -55,6 +56,10 @@ else
   echo "CODE_BUILDER_ENGINE_NOT_FOUND: Mac Builder will remain fail-closed until an existing supported engine is available." >&2
 fi
 
+ENGINE_DIR=""
+[[ -z "$ENGINE" ]] || ENGINE_DIR="$(dirname "$ENGINE")"
+BUILDER_RUNTIME_PATH="$NODE_DIR${ENGINE_DIR:+:$ENGINE_DIR}:$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+
 cat > "$PLIST" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -66,6 +71,7 @@ cat > "$PLIST" <<PLIST
 <key>KeepAlive</key><true/>
 <key>ThrottleInterval</key><integer>10</integer>
 <key>EnvironmentVariables</key><dict>
+<key>PATH</key><string>$BUILDER_RUNTIME_PATH</string>
 <key>GAI_WORKER_ID</key><string>$WORKER_ID</string>
 <key>CODE_BUILDER_HOST</key><string>127.0.0.1</string>
 <key>CODE_BUILDER_PORT</key><string>$PORT</string>
