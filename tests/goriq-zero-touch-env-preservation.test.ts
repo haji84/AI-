@@ -9,7 +9,7 @@ test("zero-touch updates managed connection keys without deleting self-developme
   const end = source.indexOf("launch_job_exists()", start);
   const block = source.slice(start, end);
   assert.equal(block.includes('cat >"$ENV_FILE"'), false);
-  assert.equal(block.includes('local tmp="${ENV_FILE}.tmp.$"'), true);
+  assert.equal(block.includes('local tmp="${ENV_FILE}.tmp.$$"'), true);
   assert.equal(block.includes('awk -F='), true);
   assert.equal(block.includes('mv "$tmp" "$ENV_FILE"'), true);
   assert.equal(block.includes('"JARVIS_OWNER_TOKEN"'), true);
