@@ -177,7 +177,7 @@ export class GoalResolver {
       const created = await this.registry.create({
         title: intake.text.slice(0, 120),
         description: intake.text,
-        successCriteria: intake.goalContract?.successCriteria ?? [],
+        successCriteria: intake.goalContract?.successCriteria ?? [intake.text],
         constraints: intake.goalContract?.constraints ?? [],
       });
       return { kind: "NEW_GOAL", intent, intake, goal: created, reason: "new_goal_intent" };
