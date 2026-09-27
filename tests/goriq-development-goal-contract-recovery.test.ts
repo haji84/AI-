@@ -6,7 +6,7 @@ const r=(p:string)=>readFile(new URL(`../${p}`,import.meta.url),"utf8");
 
 test("owner completion Goal without explicit contract uses the original command as acceptance criterion",async()=>{
   const s=await r("src/orchestrator/goal-controller-runtime.ts");
-  assert.equal(s.includes("successCriteria: intake.goalContract?.successCriteria ?? [intake.text]"),true);
+  assert.equal(s.includes("successCriteria: intake.goalContract?.successCriteria ?? (developmentPattern.test(intake.text) ? [intake.text] : [])"),true);
 });
 
 test("persisted legacy development Goal with empty criteria recovers from the owner objective",async()=>{
