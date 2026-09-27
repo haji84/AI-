@@ -26,6 +26,27 @@ test("Mac Builder resolver finds an existing Codex CLI outside the noninteractiv
   assert.equal(stdout.trim(), codex);
 });
 
+test("Mac Builder resolver finds Codex from the active npm global prefix", async () => {
+  const home = await mkdtemp(join(tmpdir(), "goriq-engine-npm-"));
+  const tools = join(home, "tools");
+  const prefix = join(home, "npm-prefix");
+  const npm = join(tools, "npm");
+  const codex = join(prefix, "bin", "codex");
+  await executable(npm, `#!/bin/sh
+if [ "$1" = "prefix" ] && [ "$2" = "-g" ]; then
+  printf '%s\\n' "$HOME/npm-prefix"
+  exit 0
+fi
+exit 1
+`);
+  await executable(codex);
+
+  const { stdout } = await execFileAsync("/bin/bash", [resolver.pathname], {
+    env: { HOME: home, PATH: `${tools}:/usr/bin:/bin` },
+  });
+  assert.equal(stdout.trim(), codex);
+});
+
 test("Mac Builder resolver honors an explicit executable engine", async () => {
   const home = await mkdtemp(join(tmpdir(), "goriq-engine-explicit-"));
   const codex = join(home, "trusted-codex");
