@@ -933,7 +933,7 @@
     },
     {
       "path": "scripts/jarvis-broker.ts",
-      "sha256": "a43d907f13a610ffbeeb6a39baea7acd18ff2a77e2e8636f2026307eed477a7d",
+      "sha256": "67050af17ed792567fe6f76fce7e97395711b0b8d214d125cef9cc54c24b6503",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "NET-006",
@@ -1047,7 +1047,7 @@
     },
     {
       "path": "scripts/jarvis-goal-executor.ts",
-      "sha256": "44289c4b8bed9355e1cd9701874e52eed7328a624a56eff674e88aa1ebd07aac",
+      "sha256": "09b0b0e73c5e97bbe73a8db29d8d55edc9129a842a96e8c6b2a1d4840a705941",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "AUTO-001",
@@ -5794,13 +5794,24 @@
     },
     {
       "path": "scripts/jarvis-mac-runtime-entry.sh",
-      "sha256": "64dde1e8f945bddb79929db2d9233d0681e70f88f0cdb5d1d212a8804efc6f24",
+      "sha256": "1629964d842e02ad4628997c800db3b307514e92d6473bffbd2ec2866a1b2300",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "HOST-002",
         "DEV-PC-006"
       ],
       "reason": "Canonical Mac runtime entrypoint split from the existing LaunchAgent installer so launchd directly owns the long-lived Broker process."
+    },
+    {
+      "path": "src/orchestrator/compass-goal-execution-context-store.ts",
+      "sha256": "219d820abba835a7bd3821cca0ee2c27d6265ab511cff8a69585d999d412c4bf",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-002",
+        "AUTO-004",
+        "AUTO-026"
+      ],
+      "reason": "Persists accepted Goal execution context in Compass so restart recovery preserves development intent and continuation context instead of silently degrading the Goal."
     }
   ],
   "hash_policy": "utf8-crlf-to-lf-v1;binary-raw"

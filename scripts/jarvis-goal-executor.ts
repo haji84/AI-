@@ -92,6 +92,8 @@ function configuredDevelopmentRuntime(compassPath: string, context: unknown[]): 
   const releaseUrl = process.env.GORIQ_SELF_DEVELOPMENT_RELEASE_URL?.trim();
   const releaseToken = process.env.GORIQ_SELF_DEVELOPMENT_RELEASE_TOKEN?.trim();
   if (Boolean(releaseUrl) !== Boolean(releaseToken)) throw new Error("GORIQ release URL and token must be configured together");
+  const releaseRequired = /(?:PR|pull request|merge|マージ|本番反映|反映まで)/i.test(contextText);
+  if (releaseRequired && (!releaseUrl || !releaseToken)) throw new Error("SELF_DEVELOPMENT_RELEASE_CAPABILITY_MISSING: accepted Goal requires PR/merge/release but canonical Runtime did not inherit release configuration");
   const release = releaseUrl && releaseToken ? new HttpDevelopmentReleaseCapability({ url: releaseUrl, token: releaseToken }) : undefined;
   const stateRoot = join(dirname(compassPath), "self-development");
   const host = new ResidentDevelopmentGoalHost({
