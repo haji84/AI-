@@ -1047,7 +1047,7 @@
     },
     {
       "path": "scripts/jarvis-goal-executor.ts",
-      "sha256": "fbf93fc347131e987cbddee7204e2ab0651f46ee",
+      "sha256": "603fb6ae33b19ad3fc7d3ce19f3edb723a4024ed9d181ee0058158b159f15fcc",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "AUTO-001",
