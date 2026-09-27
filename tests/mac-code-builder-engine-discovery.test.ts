@@ -43,6 +43,9 @@ test("Mac Builder resolver fails closed when no supported engine exists", async 
     execFileAsync("/bin/bash", [resolver.pathname], {
       env: { HOME: home, PATH: "/usr/bin:/bin" },
     }),
-    (error: any) => error?.code === 1,
+    (error: unknown) => {
+      if (!error || typeof error !== "object" || !("code" in error)) return false;
+      return (error as { code?: unknown }).code === 1;
+    },
   );
 });
