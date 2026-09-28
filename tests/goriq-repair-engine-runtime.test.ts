@@ -41,7 +41,7 @@ test("learned repair persists verified patches and can replay them before model 
 
 test("Chat Work diff extraction preserves the terminal newline required by git apply", async () => {
   const source = await readFile(chatClientUrl, "utf8");
-  assert.match(source, /return normalized \? `\\\$\{normalized\}\\n` : ""/);
+  assert.match(source, /return normalized \? `\$\{normalized\}\\n` : ""/);
   assert.doesNotMatch(source, /return diffMatch\?\.\[1\]\) return diffMatch\[1\]\.trim/);
 });
 
