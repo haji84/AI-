@@ -528,6 +528,8 @@ function runGroqFreeRepair(workspace: string, prompt: string, apiKey: string): v
 }
 
 function repairMemoryRoot(): string | null {
+  const explicit = process.env.GORIQ_REPAIR_MEMORY_ROOT?.trim();
+  if (explicit) return resolve(explicit);
   const base = process.env.LOCALAPPDATA?.trim() || process.env.HOME?.trim() || "";
   if (!base) return null;
   return join(base, "GORIQ", "repair-memory");
@@ -538,7 +540,7 @@ function learnedMemoryPath(fingerprint: string): string | null {
   return root ? join(root, `${fingerprint}.json`) : null;
 }
 
-function applyLearnedMemory(workspace: string, fingerprint: string, allowedPaths: string[]): boolean {
+export function applyLearnedMemory(workspace: string, fingerprint: string, allowedPaths: string[]): boolean {
   const path = learnedMemoryPath(fingerprint);
   if (!path || !existsSync(path)) return false;
   try {
@@ -559,7 +561,7 @@ function applyLearnedMemory(workspace: string, fingerprint: string, allowedPaths
   }
 }
 
-function persistLearnedMemory(
+export function persistLearnedMemory(
   workspace: string,
   fingerprint: string,
   changedPaths: string[],
