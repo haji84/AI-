@@ -33,9 +33,11 @@ function stripFence(text) {
 export function extractUnifiedDiff(text) {
   const unfenced = stripFence(text);
   const diffMatch = unfenced.match(/(?:^|\n)(diff --git [\s\S]*)$/m);
-  if (diffMatch?.[1]) return diffMatch[1].trim();
-  const traditional = unfenced.match(/(?:^|\n)(--- [^\n]+\n\+\+\+ [^\n]+[\s\S]*)$/m);
-  return traditional?.[1]?.trim() || unfenced;
+  const raw = diffMatch?.[1]
+    ?? unfenced.match(/(?:^|\n)(--- [^\n]+\n\+\+\+ [^\n]+[\s\S]*)$/m)?.[1]
+    ?? unfenced;
+  const normalized = raw.replace(/\s+$/u, "");
+  return normalized ? `${normalized}\n` : "";
 }
 function decodeAiComment(body = "") {
   const start = body.indexOf("<!-- ai-chat-entry:v1\n");
