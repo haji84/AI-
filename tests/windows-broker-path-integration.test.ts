@@ -54,12 +54,15 @@ test("real Broker HTTP path dispatches a pinned Windows job, verifies signed res
   const other=await fetch(base+next,signed("android-fixture",next,{}));assert.equal((await other.json()).task,null);
   const delivered=await fetch(base+next,signed("win-fixture",next,{}));const task=(await delivered.json()).task;
   assert.equal(task.id,queuedTask.id);assert.equal(task.targetNodeId,"win-fixture");assert.equal(task.maxAttempts,1);
+  assert.equal(task.executionEpoch,1);assert.ok(typeof task.fencingToken==="string"&&task.fencingToken.length>=16);
   // Real local read-only process, test-only worker adapter. No production Worker transport is claimed.
   const output=execFileSync(process.execPath,["-p","JSON.stringify({platform:process.platform,node:process.version})"],{encoding:"utf8",timeout:5000,windowsHide:true});
   assert.equal(JSON.parse(output).platform,process.platform);
   const outputSha256=createHash("sha256").update(output).digest("hex");
   const resultPath="/api/jarvis/worker/result";
-  const result=signed("win-fixture",resultPath,{taskId:task.id,ok:true,detail:{outputSha256,platform:process.platform,simulatedWorker:true}});
+  const stale=signed("win-fixture",resultPath,{taskId:task.id,executionEpoch:task.executionEpoch,fencingToken:"stale-fencing-token-000000",ok:true,detail:{outputSha256,platform:process.platform,simulatedWorker:true}});
+  assert.equal((await fetch(base+resultPath,stale)).status,409);
+  const result=signed("win-fixture",resultPath,{taskId:task.id,executionEpoch:task.executionEpoch,fencingToken:task.fencingToken,ok:true,detail:{outputSha256,platform:process.platform,simulatedWorker:true}});
   assert.equal((await post(resultPath,{taskId:task.id,ok:true},false)).status,401);
   const complete=await fetch(base+resultPath,result);assert.equal(complete.status,200);assert.equal((await complete.json()).task.status,"completed");
   assert.equal((await fetch(base+resultPath,result)).status,401);

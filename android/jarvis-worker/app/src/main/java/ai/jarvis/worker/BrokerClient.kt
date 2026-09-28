@@ -123,9 +123,11 @@ class BrokerClient(private val context: Context) {
         request("POST", "/api/jarvis/worker/remote/result", result.toString().toByteArray(Charsets.UTF_8), signed = true)
     }
 
-    fun taskResult(taskId: String, ok: Boolean, detail: JSONObject): JSONObject {
+    fun taskResult(taskId: String, executionEpoch: Long, fencingToken: String, ok: Boolean, detail: JSONObject): JSONObject {
         val body = JSONObject()
             .put("taskId", taskId)
+            .put("executionEpoch", executionEpoch)
+            .put("fencingToken", fencingToken)
             .put("ok", ok)
             .put("detail", detail)
             .toString()
