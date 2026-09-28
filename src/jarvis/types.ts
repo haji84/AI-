@@ -1,3 +1,5 @@
+import type { WorkerResourceRequirements, WorkerThermalState } from "../gai/worker-runtime.ts";
+
 export const JARVIS_MAX_NODES = 100;
 
 export type JarvisNodeKind = "android" | "ios" | "windows" | "macos" | "linux" | "cloud";
@@ -57,6 +59,12 @@ export interface JarvisNodeTelemetry {
   freeStorageMb?: number;
   cpuLoadPercent?: number;
   gpuLoadPercent?: number;
+  memoryAvailableMb?: number;
+  cpuAvailable?: boolean;
+  gpuAvailable?: boolean;
+  onExternalPower?: boolean;
+  thermalState?: WorkerThermalState;
+  dataLocalityKeys?: string[];
   network?: "wifi" | "cellular" | "lan" | "offline";
   deviceOwner?: boolean;
   adminActive?: boolean;
@@ -88,6 +96,7 @@ export interface JarvisTask {
   status: JarvisTaskStatus;
   requiredCapabilities: JarvisCapability[];
   preferredKinds?: JarvisNodeKind[];
+  resourceRequirements?: WorkerResourceRequirements;
   priority: "urgent" | "high" | "normal" | "low" | "background";
   requiresOnline: boolean;
   targetNodeId?: string;
