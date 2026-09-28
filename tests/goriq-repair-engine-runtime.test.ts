@@ -54,7 +54,10 @@ test("runtime workflow installs ZBook local engines and refreshes the Mac Chat W
   assert.match(source, /goriq-chatgpt-bridge-health-check\.mjs/);
   assert.match(source, /learned-repair-smoke/);
   assert.match(source, /goriq-learned-repair-smoke\.mjs/);
-  assert.match(source, /chat-work-repair-smoke:\s+needs: \[mac-chat-work-bridge\]\s+runs-on: ubuntu-latest/);
+  assert.match(source, /mac-bridge-post-cleanup-proof/);
+  assert.match(source, /pgrep -alf "\$HOME\/\.ai-company\/runtime\/chatgpt-resident-bridge-v2\.mjs"/);
+  assert.match(source, /launchctl print/);
+  assert.match(source, /chat-work-repair-smoke:\s+needs: \[mac-bridge-post-cleanup-proof\]\s+runs-on: ubuntu-latest/);
   assert.doesNotMatch(source, /chat-work-repair-smoke:\s+needs: \[[^\]]*zbook-local-repair/);
   assert.match(source, /AFTER_CHAT/);
   assert.match(source, /AFTER_WORK/);

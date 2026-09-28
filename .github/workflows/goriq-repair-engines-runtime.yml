@@ -98,8 +98,38 @@ jobs:
         shell: bash
         run: node ./scripts/goriq-learned-repair-smoke.mjs
 
-  chat-work-repair-smoke:
+  mac-bridge-post-cleanup-proof:
     needs: [mac-chat-work-bridge]
+    runs-on: [self-hosted, macOS, ARM64]
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+      - name: Verify resident bridge survived previous runner cleanup
+        shell: bash
+        run: |
+          HEALTH="$HOME/.ai-company/chatgpt-bridge-health.json"
+          MIN_UPDATED_AT="$(node -e 'process.stdout.write(String(Date.now()-15000))')"
+          sleep 6
+          node scripts/goriq-chatgpt-bridge-health-check.mjs "$HEALTH" "$MIN_UPDATED_AT"
+          pgrep -alf "$HOME/.ai-company/runtime/chatgpt-resident-bridge-v2.mjs"
+          launchctl print "gui/$(id -u)/com.ai-company.chatgpt-bridge" >/dev/null
+      - name: Show bridge diagnostics
+        if: always()
+        shell: bash
+        run: |
+          echo '--- health ---'
+          cat "$HOME/.ai-company/chatgpt-bridge-health.json" 2>/dev/null || true
+          echo '--- process ---'
+          pgrep -alf 'chatgpt-resident-bridge|run-chatgpt-bridge' || true
+          echo '--- stdout ---'
+          tail -120 "$HOME/Library/Logs/AICompanyChatGPTBridge.log" 2>/dev/null || true
+          echo '--- stderr ---'
+          tail -120 "$HOME/Library/Logs/AICompanyChatGPTBridge.error.log" 2>/dev/null || true
+
+  chat-work-repair-smoke:
+    needs: [mac-bridge-post-cleanup-proof]
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
