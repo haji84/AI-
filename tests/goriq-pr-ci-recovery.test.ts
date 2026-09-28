@@ -42,6 +42,7 @@ test("repair scope excludes tests, workflow, canonical and dependency files", ()
     ".github/workflows/ci.yml",
     "docs/JARVIS_PRODUCT_SPEC.md",
     "docs/jarvis-requirements.json",
+    "docs/jarvis-reverse-traceability.json",
     "package.json",
     "pnpm-lock.yaml",
   ]), ["src/gai/worker-runtime.ts"]);
