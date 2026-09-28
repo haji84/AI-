@@ -9,6 +9,7 @@ import {
   JarvisTaskQueue,
   evaluateJarvisPolicy,
   resolveJarvisRoute,
+  sanitizeJarvisNodeTelemetry,
   type JarvisNode,
   type JarvisTask,
 } from "../src/jarvis/index.ts";
@@ -233,4 +234,53 @@ test("Production FleetManager excludes critical thermal nodes and respects requi
   assert.equal(fleet.select(task({
     resourceRequirements: { requiredDataLocalityKeys: ["missing-dataset"] },
   })), undefined);
+});
+
+
+test("signed worker resource telemetry is bounded and path-like locality is discarded", () => {
+  const telemetry = sanitizeJarvisNodeTelemetry({
+    batteryPercent: 81,
+    charging: true,
+    cpuLoadPercent: 23,
+    gpuLoadPercent: 15,
+    memoryAvailableMb: 24_000,
+    cpuAvailable: true,
+    gpuAvailable: true,
+    onExternalPower: true,
+    thermalState: "nominal",
+    dataLocalityKeys: [
+      "dataset-A",
+      "dataset-A",
+      "model:v1",
+      "../private/path",
+      "a/b",
+      "",
+      ...Array.from({ length: 40 }, (_, index) => `key-${index}`),
+    ],
+    unknownSecretLikeField: "must-not-pass-through",
+  }, new Date("2026-09-28T05:10:00.000Z"));
+
+  assert.equal(telemetry?.checkedAt, "2026-09-28T05:10:00.000Z");
+  assert.equal(telemetry?.memoryAvailableMb, 24_000);
+  assert.equal(telemetry?.thermalState, "nominal");
+  assert.ok((telemetry?.dataLocalityKeys?.length ?? 0) <= 32);
+  assert.ok(telemetry?.dataLocalityKeys?.includes("dataset-A"));
+  assert.ok(telemetry?.dataLocalityKeys?.includes("model:v1"));
+  assert.ok(!telemetry?.dataLocalityKeys?.some((key) => key.includes("/") || key.includes("..")));
+  assert.equal("unknownSecretLikeField" in (telemetry ?? {}), false);
+
+  const invalid = sanitizeJarvisNodeTelemetry({
+    batteryPercent: 200,
+    cpuLoadPercent: -1,
+    gpuLoadPercent: 101,
+    memoryAvailableMb: -5,
+    thermalState: "melting",
+    network: "satellite",
+  }, new Date("2026-09-28T05:11:00.000Z"));
+  assert.equal(invalid?.batteryPercent, undefined);
+  assert.equal(invalid?.cpuLoadPercent, undefined);
+  assert.equal(invalid?.gpuLoadPercent, undefined);
+  assert.equal(invalid?.memoryAvailableMb, undefined);
+  assert.equal(invalid?.thermalState, undefined);
+  assert.equal(invalid?.network, undefined);
 });
