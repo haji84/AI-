@@ -9,6 +9,7 @@ export const MAX_AUTOMATIC_ATTEMPTS_PER_STRATEGY = 3;
 export const MAX_AUTOMATIC_STRATEGIES = 3;
 export const MAX_AUTOMATIC_ATTEMPTS = MAX_AUTOMATIC_ATTEMPTS_PER_STRATEGY * MAX_AUTOMATIC_STRATEGIES;
 export const SAME_FAILURE_SWITCH_THRESHOLD = 2;
+export const MAX_LOCAL_VERIFICATION_ATTEMPTS = 3;
 
 export type RecoveryStrategy = 1 | 2 | 3;
 
@@ -260,10 +261,40 @@ function runRaw(command: string, args: string[], cwd: string, input?: string): s
     throw new Error(`${command} ${args.join(" ")} failed to launch: ${result.error.message}`);
   }
   if (result.status !== 0) {
-    const output = String(result.stderr || result.stdout || "no command output").slice(-4000);
+    const output = commandFailureOutput(result.stdout, result.stderr);
     throw new Error(`${command} ${args.join(" ")} failed with exit ${String(result.status)}: ${output}`);
   }
   return String(result.stdout ?? "");
+}
+
+export function commandFailureOutput(stdout: string | Buffer | null | undefined, stderr: string | Buffer | null | undefined): string {
+  const chunks = [String(stdout ?? "").trim(), String(stderr ?? "").trim()].filter(Boolean);
+  return sanitizeFailureLog(chunks.join("\n")).slice(-12_000) || "no command output";
+}
+
+type VerificationResult =
+  | { ok: true; checks: string[] }
+  | { ok: false; checks: string[]; failedCheck: string; failure: string };
+
+const RECOVERY_VERIFICATION_STEPS: Array<{ label: string; command: string; args: string[] }> = [
+  { label: "pnpm lint", command: "pnpm", args: ["lint"] },
+  { label: "pnpm test", command: "pnpm", args: ["test"] },
+  { label: "pnpm test:p8-security", command: "pnpm", args: ["test:p8-security"] },
+  { label: "pnpm build", command: "pnpm", args: ["build"] },
+];
+
+function verifyRecoveryCandidate(workspace: string): VerificationResult {
+  const checks: string[] = [];
+  for (const step of RECOVERY_VERIFICATION_STEPS) {
+    try {
+      run(step.command, step.args, workspace);
+      checks.push(step.label);
+    } catch (error) {
+      const failure = sanitizeFailureLog(error instanceof Error ? error.message : String(error));
+      return { ok: false, checks, failedCheck: step.label, failure };
+    }
+  }
+  return { ok: true, checks };
 }
 
 function run(command: string, args: string[], cwd: string, input?: string): string {
@@ -430,6 +461,31 @@ export function buildRecoveryPrompt(input: {
     "If the failure requires work outside AllowedPaths, make no changes.",
     "FailureEvidence:",
     input.failureLog,
+  ].join("\n");
+}
+
+export function buildVerificationRepairPrompt(input: {
+  prNumber: number;
+  strategy: RecoveryStrategy;
+  localAttempt: number;
+  allowedPaths: string[];
+  originalFailureFingerprint: string;
+  verificationCheck: string;
+  verificationFailure: string;
+}): string {
+  return [
+    "You are correcting an uncommitted GORIQ recovery candidate that failed local verification.",
+    "Read AGENTS.md and PROJECT_STATE.md before editing.",
+    `PR #${input.prNumber}; strategy ${input.strategy}; local candidate attempt ${input.localAttempt} of ${MAX_LOCAL_VERIFICATION_ATTEMPTS}.`,
+    `OriginalFailureFingerprint=${input.originalFailureFingerprint}`,
+    `FailedVerificationCheck=${input.verificationCheck}`,
+    "Keep the original CI objective. Inspect the current uncommitted diff and repair the candidate rather than starting unrelated work.",
+    "Use the verification failure below as new evidence. Do not repeat a materially equivalent failed correction.",
+    "Do not commit, push, merge, deploy, change workflows, permissions, credentials, secrets, dependencies, requirements, governance, or existing tests.",
+    "Do not weaken or delete tests. Do not edit files outside AllowedPaths.",
+    `AllowedPaths=${input.allowedPaths.join(",")}`,
+    "VerificationFailureEvidence:",
+    sanitizeFailureLog(input.verificationFailure),
   ].join("\n");
 }
 
@@ -604,10 +660,71 @@ async function main() {
     throw new Error(`RECOVERY_POST_RECONCILE_SCOPE_VIOLATION: ${unsafeFinal.join(",")}`);
   }
 
-  run("pnpm", ["lint"], workspace);
-  run("pnpm", ["test"], workspace);
-  run("pnpm", ["test:p8-security"], workspace);
-  run("pnpm", ["build"], workspace);
+  let localVerificationAttempt = 1;
+  const localVerificationFailures: Array<{ attempt: number; check: string; failure: string }> = [];
+  let verification = verifyRecoveryCandidate(workspace);
+
+  while (!verification.ok) {
+    localVerificationFailures.push({
+      attempt: localVerificationAttempt,
+      check: verification.failedCheck,
+      failure: verification.failure,
+    });
+    if (localVerificationAttempt >= MAX_LOCAL_VERIFICATION_ATTEMPTS) {
+      throw new Error(
+        `LOCAL_VERIFICATION_ATTEMPTS_EXHAUSTED: ${verification.failedCheck}: ${verification.failure}`,
+      );
+    }
+
+    localVerificationAttempt += 1;
+    const retryPrompt = buildVerificationRepairPrompt({
+      prNumber,
+      strategy: decision.strategy,
+      localAttempt: localVerificationAttempt,
+      allowedPaths: allowed,
+      originalFailureFingerprint: fingerprint,
+      verificationCheck: verification.failedCheck,
+      verificationFailure: verification.failure,
+    });
+    runCodex(engine, workspace, retryPrompt);
+
+    const retryStatus = runRaw("git", ["status", "--porcelain"], workspace);
+    discardedUntracked.push(...discardOutOfScopeUntracked(workspace, retryStatus, allowedFinal));
+    let retryChanged = porcelainPaths(runRaw("git", ["status", "--porcelain"], workspace));
+    restoreGeneratedWorkspaceNoise(workspace, retryChanged, allowedFinal);
+    retryChanged = porcelainPaths(runRaw("git", ["status", "--porcelain"], workspace));
+
+    const retryNameStatus = run("git", ["diff", "--name-status", "--"], workspace);
+    if (retryNameStatus.split(/\r?\n/).some((line) => /^(?:D|R\d*|C\d*)\t/.test(line))) {
+      restoreWorkspace(workspace);
+      throw new Error("RECOVERY_DESTRUCTIVE_CHANGE_REJECTED");
+    }
+
+    const retryUnsafe = retryChanged.filter((path) => !allowedFinal.has(path) || isTestPath(path));
+    if (retryUnsafe.length) {
+      restoreWorkspace(workspace);
+      throw new Error(`RECOVERY_LOCAL_RETRY_SCOPE_VIOLATION: ${retryUnsafe.join(",")}`);
+    }
+
+    const repairInputs = retryChanged.filter((path) => allowedSet.has(path));
+    if (repairInputs.length) {
+      const retryReconciled = autoReconcileTraceability(workspace, repairInputs, "low");
+      for (const path of retryReconciled) allowedFinal.add(path);
+    }
+
+    const postRetryStatus = runRaw("git", ["status", "--porcelain"], workspace);
+    discardedUntracked.push(...discardOutOfScopeUntracked(workspace, postRetryStatus, allowedFinal));
+    let postRetryChanged = porcelainPaths(runRaw("git", ["status", "--porcelain"], workspace));
+    restoreGeneratedWorkspaceNoise(workspace, postRetryChanged, allowedFinal);
+    postRetryChanged = porcelainPaths(runRaw("git", ["status", "--porcelain"], workspace));
+    const postRetryUnsafe = postRetryChanged.filter((path) => !allowedFinal.has(path) || isTestPath(path));
+    if (postRetryUnsafe.length) {
+      restoreWorkspace(workspace);
+      throw new Error(`RECOVERY_LOCAL_RETRY_POST_RECONCILE_SCOPE_VIOLATION: ${postRetryUnsafe.join(",")}`);
+    }
+
+    verification = verifyRecoveryCandidate(workspace);
+  }
 
   const statusAfterVerification = runRaw("git", ["status", "--porcelain"], workspace);
   discardedUntracked.push(...discardOutOfScopeUntracked(workspace, statusAfterVerification, allowedFinal));
@@ -661,7 +778,9 @@ async function main() {
     previousHead: expectedHead,
     commit,
     changed,
-    checks: ["pnpm lint", "pnpm test", "pnpm test:p8-security", "pnpm build"],
+    checks: verification.checks,
+    localVerificationAttempts: localVerificationAttempt,
+    localVerificationFailures,
   }, null, 2) + "\n");
 }
 

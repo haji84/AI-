@@ -4,10 +4,13 @@ import {
   MAX_AUTOMATIC_ATTEMPTS,
   MAX_AUTOMATIC_ATTEMPTS_PER_STRATEGY,
   MAX_AUTOMATIC_STRATEGIES,
+  MAX_LOCAL_VERIFICATION_ATTEMPTS,
   SAME_FAILURE_SWITCH_THRESHOLD,
   allowedRepairPaths,
   buildRecoveryPrompt,
+  buildVerificationRepairPrompt,
   chooseRecoveryStrategy,
+  commandFailureOutput,
   commandInvocation,
   failureFingerprint,
   generatedWorkspaceNoisePaths,
@@ -40,6 +43,7 @@ test("automatic recovery uses three attempts per strategy across three strategie
   assert.equal(MAX_AUTOMATIC_ATTEMPTS_PER_STRATEGY, 3);
   assert.equal(MAX_AUTOMATIC_STRATEGIES, 3);
   assert.equal(MAX_AUTOMATIC_ATTEMPTS, 9);
+  assert.equal(MAX_LOCAL_VERIFICATION_ATTEMPTS, 3);
   assert.equal(SAME_FAILURE_SWITCH_THRESHOLD, 2);
   assert.equal(recoveryAttemptCount([
     "feat: one",
@@ -179,6 +183,32 @@ test("recovery prompt preserves bounded authority while changing strategy", () =
   assert.match(prompt, /src\/gai\/worker-runtime\.ts/);
   assert.match(prompt, /Do not commit, push, merge, deploy/);
   assert.match(prompt, /Do not weaken or delete tests/);
+});
+
+test("command failure output preserves stdout and stderr evidence", () => {
+  const output = commandFailureOutput(
+    "stdout says: test 41 failed",
+    "stderr says: assertion mismatch",
+  );
+  assert.match(output, /stdout says: test 41 failed/);
+  assert.match(output, /stderr says: assertion mismatch/);
+});
+
+test("local verification repair prompt feeds failed check back without broadening authority", () => {
+  const prompt = buildVerificationRepairPrompt({
+    prNumber: 1377,
+    strategy: 1,
+    localAttempt: 2,
+    allowedPaths: ["scripts/goriq-pr-ci-recovery.ts"],
+    originalFailureFingerprint: "0123456789abcdef",
+    verificationCheck: "pnpm test",
+    verificationFailure: "AssertionError: expected 3 got 4",
+  });
+  assert.match(prompt, /local candidate attempt 2 of 3/);
+  assert.match(prompt, /FailedVerificationCheck=pnpm test/);
+  assert.match(prompt, /AssertionError: expected 3 got 4/);
+  assert.match(prompt, /Do not weaken or delete tests/);
+  assert.match(prompt, /scripts\/goriq-pr-ci-recovery\.ts/);
 });
 
 test("Windows command shims run through cmd.exe while native executables stay direct", () => {
