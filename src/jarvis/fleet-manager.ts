@@ -1,3 +1,4 @@
+import { evaluateWorkerResourcePlacement, type WorkerResourceSnapshot } from "../gai/worker-runtime.ts";
 import {
   JARVIS_MAX_NODES,
   type JarvisCapability,
@@ -10,14 +11,95 @@ function hasCapabilities(node: JarvisNode, required: JarvisCapability[]): boolea
   return required.every((capability) => node.capabilities.includes(capability));
 }
 
+function finiteNumber(value: unknown, min: number, max: number): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) && value >= min && value <= max ? value : undefined;
+}
+
+function integer(value: unknown, min: number, max: number): number | undefined {
+  return Number.isInteger(value) && (value as number) >= min && (value as number) <= max ? value as number : undefined;
+}
+
+function boolean(value: unknown): boolean | undefined {
+  return typeof value === "boolean" ? value : undefined;
+}
+
+export function sanitizeJarvisNodeTelemetry(value: unknown, now = new Date()): JarvisNode["telemetry"] | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const input = value as Record<string, unknown>;
+  const network = input.network === "wifi" || input.network === "cellular" || input.network === "lan" || input.network === "offline"
+    ? input.network
+    : undefined;
+  const thermalState = input.thermalState === "nominal"
+    || input.thermalState === "fair"
+    || input.thermalState === "serious"
+    || input.thermalState === "critical"
+    ? input.thermalState
+    : undefined;
+  const locality = Array.isArray(input.dataLocalityKeys)
+    ? [...new Set(input.dataLocalityKeys
+      .filter((item): item is string => typeof item === "string")
+      .map((item) => item.trim())
+      .filter((item) => /^[A-Za-z0-9._:-]{1,128}$/.test(item))
+      .slice(0, 32))]
+    : undefined;
+
+  return {
+    checkedAt: now.toISOString(),
+    remoteProtocol: integer(input.remoteProtocol, 1, 100),
+    androidApi: integer(input.androidApi, 1, 1_000),
+    batteryPercent: finiteNumber(input.batteryPercent, 0, 100),
+    charging: boolean(input.charging),
+    temperatureC: finiteNumber(input.temperatureC, -100, 200),
+    freeStorageMb: finiteNumber(input.freeStorageMb, 0, 1_000_000_000),
+    cpuLoadPercent: finiteNumber(input.cpuLoadPercent, 0, 100),
+    gpuLoadPercent: finiteNumber(input.gpuLoadPercent, 0, 100),
+    memoryAvailableMb: finiteNumber(input.memoryAvailableMb, 0, 1_000_000_000),
+    cpuAvailable: boolean(input.cpuAvailable),
+    gpuAvailable: boolean(input.gpuAvailable),
+    onExternalPower: boolean(input.onExternalPower),
+    thermalState,
+    dataLocalityKeys: locality,
+    network,
+    deviceOwner: boolean(input.deviceOwner),
+    adminActive: boolean(input.adminActive),
+    accessibilityEnabled: boolean(input.accessibilityEnabled),
+    locked: boolean(input.locked),
+    screenInteractive: boolean(input.screenInteractive),
+  };
+}
+
+function resourceSnapshot(node: JarvisNode): WorkerResourceSnapshot {
+  return {
+    cpuAvailable: node.telemetry.cpuAvailable,
+    gpuAvailable: node.telemetry.gpuAvailable,
+    cpuLoadPercent: node.telemetry.cpuLoadPercent,
+    gpuLoadPercent: node.telemetry.gpuLoadPercent,
+    memoryAvailableMb: node.telemetry.memoryAvailableMb,
+    diskAvailableMb: node.telemetry.freeStorageMb,
+    batteryPercent: node.telemetry.batteryPercent,
+    onExternalPower: node.telemetry.onExternalPower ?? node.telemetry.charging,
+    thermalState: node.telemetry.thermalState,
+    dataLocalityKeys: node.telemetry.dataLocalityKeys ? [...node.telemetry.dataLocalityKeys] : undefined,
+  };
+}
+
+function resourceEvaluation(node: JarvisNode, task: JarvisTask) {
+  return evaluateWorkerResourcePlacement({
+    resources: resourceSnapshot(node),
+    requirements: task.resourceRequirements,
+    gpuCapable: node.capabilities.includes("gpu"),
+    gpuRequested: task.requiredCapabilities.includes("gpu"),
+    longRunning: task.requiredCapabilities.includes("long-running"),
+  });
+}
+
 function nodeScore(node: JarvisNode, task: JarvisTask): number {
-  let score = 0;
+  const resource = resourceEvaluation(node, task);
+  let score = resource.score;
   if (node.status === "ready") score += 20;
   if (node.status === "busy") score -= 10;
   if (node.telemetry.charging) score += 3;
   if ((node.telemetry.batteryPercent ?? 100) >= 50) score += 2;
-  if ((node.telemetry.cpuLoadPercent ?? 0) < 70) score += 2;
-  if ((node.telemetry.gpuLoadPercent ?? 0) < 70 && node.capabilities.includes("gpu")) score += 1;
   if (task.preferredKinds?.includes(node.kind)) score += 5;
   if (node.enrollment === "full") score += 1;
   return score;
@@ -134,6 +216,7 @@ export class JarvisFleetManager {
       const target = this.nodes.get(task.targetNodeId);
       if (!target || target.status === "offline" || target.status === "disabled") return undefined;
       if (!hasCapabilities(target, task.requiredCapabilities)) return undefined;
+      if (!resourceEvaluation(target, task).eligible) return undefined;
       return structuredClone(target);
     }
 
@@ -141,6 +224,7 @@ export class JarvisFleetManager {
       .filter((node) => node.status === "ready" || node.status === "busy")
       .filter((node) => hasCapabilities(node, task.requiredCapabilities))
       .filter((node) => (node.telemetry.batteryPercent ?? 100) > 15 || node.telemetry.charging)
+      .filter((node) => resourceEvaluation(node, task).eligible)
       .sort((a, b) => nodeScore(b, task) - nodeScore(a, task) || a.id.localeCompare(b.id));
 
     return candidates[0] ? structuredClone(candidates[0]) : undefined;
