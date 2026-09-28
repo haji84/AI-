@@ -33,7 +33,10 @@ test("controller bounds each strategy, escalates stagnation and forbids merge de
   const controller = await readFile(controllerUrl, "utf8");
   assert.match(controller, /MAX_AUTOMATIC_ATTEMPTS_PER_STRATEGY = 3/);
   assert.match(controller, /MAX_AUTOMATIC_STRATEGIES = 3/);
+  assert.match(controller, /MAX_LOCAL_VERIFICATION_ATTEMPTS = 3/);
   assert.match(controller, /SAME_FAILURE_SWITCH_THRESHOLD = 2/);
+  assert.match(controller, /buildVerificationRepairPrompt/);
+  assert.match(controller, /LOCAL_VERIFICATION_ATTEMPTS_EXHAUSTED/);
   assert.match(controller, /chooseRecoveryStrategy/);
   assert.match(controller, /failureFingerprint/);
   assert.match(controller, /PR_NOT_ELIGIBLE_FOR_AUTONOMOUS_RECOVERY/);
