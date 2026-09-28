@@ -946,7 +946,7 @@
     },
     {
       "path": "scripts/jarvis-broker.ts",
-      "sha256": "67050af17ed792567fe6f76fce7e97395711b0b8d214d125cef9cc54c24b6503",
+      "sha256": "a1eb60bfcdea397744378807757b98f8f374dd469af6716eeb0e39abb93171c0",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "NET-006",
@@ -967,7 +967,7 @@
         "UI-020",
         "OPS-018"
       ],
-      "reason": "Owner-authenticated Daily Driver work intake routes bounded safe device commands through the existing task plane and leaves protected actions fail-closed"
+      "reason": "Production Broker sanitizes signed worker resource telemetry before updating FleetManager state; existing auth, nonce/replay and worker routes remain authoritative."
     },
     {
       "path": "scripts/jarvis-direct-commander-service.sh",
@@ -3619,13 +3619,13 @@
     },
     {
       "path": "src/gai/worker-runtime.ts",
-      "sha256": "65591eec9b6bd61e4e7b2de007fa623f01683227fcd9781e1f4cb17fac97c783",
+      "sha256": "e02c6614481d1847d7463a9124ed2b26d44708f4cb50e761f1afa485febf646d",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-010",
         "AUTO-011"
       ],
-      "reason": "MultiWorkerRuntime performs live resource-aware placement using capacity, CPU/GPU load, RAM/disk, thermal/power state and opaque data-locality keys while preserving deterministic capability routing."
+      "reason": "Shared pure node resource fitness policy reused by MultiWorkerRuntime and Production Jarvis FleetManager; evaluates bounded capability/resource/load/locality/power/thermal constraints without a third scheduler."
     },
     {
       "path": "src/gai/world-model-calibration.ts",
@@ -3831,7 +3831,7 @@
     },
     {
       "path": "src/jarvis/fleet-manager.ts",
-      "sha256": "b33f8640ca7280d85bdc32af1784bbe4bd1b83f20beadea259177208740453d1",
+      "sha256": "d0e57717aec03ee793b503e3f0810557c6246220e1fe890a1250163f1a5d02d5",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "FLEET-001",
@@ -3845,7 +3845,7 @@
         "FLEET-010",
         "FLEET-011"
       ],
-      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+      "reason": "Production Broker FleetManager reuses the shared resource fitness policy for actual node selection and bounds signed worker telemetry including opaque data-locality keys."
     },
     {
       "path": "src/jarvis/google-owner-state-registry.ts",
@@ -4293,12 +4293,12 @@
     },
     {
       "path": "src/jarvis/types.ts",
-      "sha256": "5a1091def61c958907fa2b0f0cae805f731292c9b6fed272a8e9647fa3e7edf4",
+      "sha256": "9798126d5a8c49ddb9864c587e5d2c39da8f81e09f4a64e25bffbd9e1b36c24a",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "FLEET-001"
       ],
-      "reason": "Internal exported fleet contracts"
+      "reason": "Production Jarvis node/task contract additively exposes optional resource telemetry and the shared resource-requirement policy while preserving legacy worker/task payload compatibility."
     },
     {
       "path": "src/jarvis/video-action-plan.ts",
