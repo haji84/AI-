@@ -11,8 +11,10 @@ export function scoreResourceFit(
   health: WorkerHealth,
   request: WorkerExecutionRequest,
 ): ResourceScore {
-  void descriptor;
-  void health;
+  const activeTasks = health.runtimeState?.activeTasks;
+  if (activeTasks !== undefined && activeTasks >= descriptor.maxParallelTasks) {
+    return { eligible: false, score: -1000, reasons: ["capacity"] };
+  }
   void request;
   return { eligible: true, score: 0, reasons: [] };
 }
