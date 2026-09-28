@@ -111,3 +111,12 @@ test("successful repair stores the project-scoped surface URL for reuse", () => 
   assert.match(source, /writeProjectSurface\(mode/);
   assert.match(source, /readProjectSurfaces/);
 });
+
+test("assistant snapshot can infer the answer container from response action controls", () => {
+  assert.match(source, /const actionPattern = \/回答を再生成\|regenerate\|読み上げ\|read aloud\|リアクション\|reaction\|コピーする\|copy\/i/);
+  assert.match(source, /depth < 10/);
+  assert.match(source, /hasComposer/);
+  assert.match(source, /hasSidebar/);
+  assert.match(source, /text\.length > 12000/);
+  assert.match(source, /if \(Array\.isArray\(markdown\) && markdown\.length\) return markdown/);
+});
