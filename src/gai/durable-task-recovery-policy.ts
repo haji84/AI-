@@ -83,6 +83,7 @@ export function decideRecovery(input: RecoveryInput): RecoveryDecision {
   return {
     mode: "restart",
     retry: true,
+    wait: false,
     fail: false,
     preserveCheckpoint: false,
   };
