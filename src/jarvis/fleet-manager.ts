@@ -11,6 +11,63 @@ function hasCapabilities(node: JarvisNode, required: JarvisCapability[]): boolea
   return required.every((capability) => node.capabilities.includes(capability));
 }
 
+function finiteNumber(value: unknown, min: number, max: number): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) && value >= min && value <= max ? value : undefined;
+}
+
+function integer(value: unknown, min: number, max: number): number | undefined {
+  return Number.isInteger(value) && (value as number) >= min && (value as number) <= max ? value as number : undefined;
+}
+
+function boolean(value: unknown): boolean | undefined {
+  return typeof value === "boolean" ? value : undefined;
+}
+
+export function sanitizeJarvisNodeTelemetry(value: unknown, now = new Date()): JarvisNode["telemetry"] | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const input = value as Record<string, unknown>;
+  const network = input.network === "wifi" || input.network === "cellular" || input.network === "lan" || input.network === "offline"
+    ? input.network
+    : undefined;
+  const thermalState = input.thermalState === "nominal"
+    || input.thermalState === "fair"
+    || input.thermalState === "serious"
+    || input.thermalState === "critical"
+    ? input.thermalState
+    : undefined;
+  const locality = Array.isArray(input.dataLocalityKeys)
+    ? [...new Set(input.dataLocalityKeys
+      .filter((item): item is string => typeof item === "string")
+      .map((item) => item.trim())
+      .filter((item) => /^[A-Za-z0-9._:-]{1,128}$/.test(item))
+      .slice(0, 32))]
+    : undefined;
+
+  return {
+    checkedAt: now.toISOString(),
+    remoteProtocol: integer(input.remoteProtocol, 1, 100),
+    androidApi: integer(input.androidApi, 1, 1_000),
+    batteryPercent: finiteNumber(input.batteryPercent, 0, 100),
+    charging: boolean(input.charging),
+    temperatureC: finiteNumber(input.temperatureC, -100, 200),
+    freeStorageMb: finiteNumber(input.freeStorageMb, 0, 1_000_000_000),
+    cpuLoadPercent: finiteNumber(input.cpuLoadPercent, 0, 100),
+    gpuLoadPercent: finiteNumber(input.gpuLoadPercent, 0, 100),
+    memoryAvailableMb: finiteNumber(input.memoryAvailableMb, 0, 1_000_000_000),
+    cpuAvailable: boolean(input.cpuAvailable),
+    gpuAvailable: boolean(input.gpuAvailable),
+    onExternalPower: boolean(input.onExternalPower),
+    thermalState,
+    dataLocalityKeys: locality,
+    network,
+    deviceOwner: boolean(input.deviceOwner),
+    adminActive: boolean(input.adminActive),
+    accessibilityEnabled: boolean(input.accessibilityEnabled),
+    locked: boolean(input.locked),
+    screenInteractive: boolean(input.screenInteractive),
+  };
+}
+
 function resourceSnapshot(node: JarvisNode): WorkerResourceSnapshot {
   return {
     cpuAvailable: node.telemetry.cpuAvailable,
