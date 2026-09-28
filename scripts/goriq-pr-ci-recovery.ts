@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { autoReconcileTraceability } from "../src/orchestrator/safe-pr-capability.ts";
 
 export const MAX_AUTOMATIC_ATTEMPTS_PER_STRATEGY = 3;
-export const MAX_AUTOMATIC_STRATEGIES = 3;
+export const MAX_AUTOMATIC_STRATEGIES = 4;
 export const MAX_AUTOMATIC_ATTEMPTS = MAX_AUTOMATIC_ATTEMPTS_PER_STRATEGY * MAX_AUTOMATIC_STRATEGIES;
 export const SAME_FAILURE_SWITCH_THRESHOLD = 2;
 
