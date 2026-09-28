@@ -45,5 +45,17 @@ export function scoreResourceFit(
       (!resources.thermalState || resources.thermalState === "serious" || resources.thermalState === "critical")) {
     return { eligible: false, score: -1000, reasons: ["thermal"] };
   }
-  return { eligible: true, score: 0, reasons: [] };
+  const reasons: string[] = [];
+  let score = 0;
+  if (activeTasks !== undefined) {
+    const slots = Math.max(0, descriptor.maxParallelTasks - activeTasks);
+    score += Math.min(4, slots) * 1.5;
+    reasons.push(`slots:${slots}`);
+  }
+  const cpuLoad = percent(resources.cpuLoadPercent);
+  if (cpuLoad !== undefined) {
+    score += (100 - cpuLoad) / 25;
+    reasons.push(`cpu:${cpuLoad}`);
+  }
+  return { eligible: true, score, reasons };
 }
