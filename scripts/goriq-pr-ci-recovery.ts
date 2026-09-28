@@ -221,7 +221,7 @@ export function allowedRepairPaths(prPaths: string[]): string[] {
     .sort();
 }
 
-function run(command: string, args: string[], cwd: string, input?: string): string {
+function runRaw(command: string, args: string[], cwd: string, input?: string): string {
   const result = spawnSync(command, args, {
     cwd,
     encoding: "utf8",
@@ -233,7 +233,11 @@ function run(command: string, args: string[], cwd: string, input?: string): stri
   if (result.status !== 0) {
     throw new Error(`${command} ${args.join(" ")} failed: ${String(result.stderr || result.stdout).slice(-4000)}`);
   }
-  return String(result.stdout ?? "").trim();
+  return String(result.stdout ?? "");
+}
+
+function run(command: string, args: string[], cwd: string, input?: string): string {
+  return runRaw(command, args, cwd, input).trim();
 }
 
 function parseRepository(repository: string): { owner: string; repo: string } {
@@ -399,13 +403,25 @@ export function buildRecoveryPrompt(input: {
   ].join("\n");
 }
 
-function porcelainPaths(output: string): string[] {
+export function porcelainPaths(output: string): string[] {
   return [...new Set(output.split(/\r?\n/)
     .map((line) => line.trimEnd())
     .filter(Boolean)
-    .map((line) => line.slice(3).trim())
+    .map((line) => line.length >= 3 ? line.slice(3).trim() : "")
     .filter(Boolean))]
     .sort();
+}
+
+const GENERATED_WORKSPACE_NOISE = new Set(["next-env.d.ts"]);
+
+export function generatedWorkspaceNoisePaths(paths: string[], allowedPaths: Iterable<string>): string[] {
+  const allowed = new Set(allowedPaths);
+  return paths.filter((path) => GENERATED_WORKSPACE_NOISE.has(path) && !allowed.has(path));
+}
+
+function restoreGeneratedWorkspaceNoise(workspace: string, paths: string[], allowedPaths: Iterable<string>): void {
+  const generated = generatedWorkspaceNoisePaths(paths, allowedPaths);
+  if (generated.length) run("git", ["restore", "--", ...generated], workspace);
 }
 
 function restoreWorkspace(workspace: string): void {
@@ -470,8 +486,8 @@ async function main() {
   if (!isSameRepositoryOpenPullRequest(pr, repository)) throw new Error("PR_NOT_ELIGIBLE_FOR_AUTONOMOUS_RECOVERY");
   if (pr.head.sha !== expectedHead) throw new Error("PR_HEAD_MOVED_BEFORE_RECOVERY");
 
-  const initialStatus = run("git", ["status", "--porcelain"], workspace);
-  if (initialStatus) throw new Error("RECOVERY_WORKSPACE_NOT_CLEAN");
+  const initialStatus = runRaw("git", ["status", "--porcelain"], workspace);
+  if (initialStatus.trim()) throw new Error("RECOVERY_WORKSPACE_NOT_CLEAN");
 
   run("git", ["fetch", "origin", "main", pr.base.ref, pr.head.ref], workspace);
   const localHead = run("git", ["rev-parse", "HEAD"], workspace);
@@ -509,7 +525,10 @@ async function main() {
   const engine = resolveConfiguredEngine();
   runCodex(engine, workspace, prompt);
 
-  const changedBeforeTrace = porcelainPaths(run("git", ["status", "--porcelain"], workspace));
+  const allowedSet = new Set(allowed);
+  let changedBeforeTrace = porcelainPaths(runRaw("git", ["status", "--porcelain"], workspace));
+  restoreGeneratedWorkspaceNoise(workspace, changedBeforeTrace, allowedSet);
+  changedBeforeTrace = porcelainPaths(runRaw("git", ["status", "--porcelain"], workspace));
   if (!changedBeforeTrace.length) throw new Error("RECOVERY_ENGINE_PRODUCED_NO_CHANGES");
 
   const nameStatus = run("git", ["diff", "--name-status", "--"], workspace);
@@ -518,7 +537,6 @@ async function main() {
     throw new Error("RECOVERY_DESTRUCTIVE_CHANGE_REJECTED");
   }
 
-  const allowedSet = new Set(allowed);
   const unsafe = changedBeforeTrace.filter((path) => !allowedSet.has(path) || isTestPath(path));
   if (unsafe.length) {
     restoreWorkspace(workspace);
@@ -526,8 +544,10 @@ async function main() {
   }
 
   const reconciled = autoReconcileTraceability(workspace, changedBeforeTrace, "low");
-  const changed = porcelainPaths(run("git", ["status", "--porcelain"], workspace));
+  let changed = porcelainPaths(runRaw("git", ["status", "--porcelain"], workspace));
   const allowedFinal = new Set([...allowed, ...reconciled]);
+  restoreGeneratedWorkspaceNoise(workspace, changed, allowedFinal);
+  changed = porcelainPaths(runRaw("git", ["status", "--porcelain"], workspace));
   const unsafeFinal = changed.filter((path) => !allowedFinal.has(path) || isTestPath(path));
   if (unsafeFinal.length) {
     restoreWorkspace(workspace);
@@ -538,6 +558,17 @@ async function main() {
   run("pnpm", ["test"], workspace);
   run("pnpm", ["test:p8-security"], workspace);
   run("pnpm", ["build"], workspace);
+
+  let postVerificationChanged = porcelainPaths(runRaw("git", ["status", "--porcelain"], workspace));
+  restoreGeneratedWorkspaceNoise(workspace, postVerificationChanged, allowedFinal);
+  postVerificationChanged = porcelainPaths(runRaw("git", ["status", "--porcelain"], workspace));
+  const unsafeAfterVerification = postVerificationChanged.filter((path) => !allowedFinal.has(path) || isTestPath(path));
+  if (unsafeAfterVerification.length) {
+    restoreWorkspace(workspace);
+    throw new Error(`RECOVERY_POST_VERIFY_SCOPE_VIOLATION: ${unsafeAfterVerification.join(",")}`);
+  }
+  changed = postVerificationChanged;
+  if (!changed.length) throw new Error("RECOVERY_PATCH_EMPTY_AFTER_VERIFICATION");
 
   run("git", ["fetch", "origin", pr.head.ref], workspace);
   const remoteHead = run("git", ["rev-parse", `origin/${pr.head.ref}`], workspace);
