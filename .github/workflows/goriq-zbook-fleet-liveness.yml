@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'scripts/goriq-zbook-fleet-liveness.ps1'
+      - 'scripts/goriq-zbook-fleet-sqlite-liveness.mjs'
       - '.github/workflows/goriq-zbook-fleet-liveness.yml'
   workflow_dispatch:
 
@@ -26,9 +27,12 @@ jobs:
           git fetch --no-tags origin main
           if ((git rev-parse HEAD) -ne (git rev-parse origin/main)) { throw 'checkout is not current main' }
           if ($env:GITHUB_EVENT_NAME -ne 'workflow_dispatch' -and (git rev-parse HEAD) -ne $env:GITHUB_SHA) { throw 'checkout does not match triggering main commit' }
-      - name: Inspect ZBook fleet liveness without device identifiers
+      - name: Inspect preserved ZBook SQLite fleet freshness without secrets
         shell: powershell
-        run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/goriq-zbook-fleet-liveness.ps1
+        run: |
+          New-Item -ItemType Directory -Force -Path .gai-results | Out-Null
+          node scripts/goriq-zbook-fleet-sqlite-liveness.mjs | Tee-Object -FilePath .gai-results/zbook-fleet-liveness.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Upload sanitized diagnosis
         if: always()
         uses: actions/upload-artifact@v4
