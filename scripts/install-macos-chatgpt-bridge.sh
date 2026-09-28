@@ -9,6 +9,10 @@ GH_BIN="$(command -v gh || true)"
 PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
 LOG_DIR="$HOME/Library/Logs"
 STATE_DIR="$HOME/.ai-company"
+RUNTIME_DIR="$STATE_DIR/runtime"
+BRIDGE_SCRIPT="$RUNTIME_DIR/chatgpt-resident-bridge-v2.mjs"
+BRIDGE_LIB="$RUNTIME_DIR/chatgpt-resident-bridge-lib.mjs"
+LAUNCHER="$RUNTIME_DIR/run-chatgpt-bridge.sh"
 
 if [[ -z "$NODE_BIN" ]]; then
   echo "ERROR: node が見つかりません。Node 24 をインストールしてください。" >&2
@@ -26,14 +30,25 @@ if [[ ! -d "/Applications/Google Chrome.app" ]]; then
 fi
 
 "$GH_BIN" auth status >/dev/null
-mkdir -p "$HOME/Library/LaunchAgents" "$LOG_DIR" "$STATE_DIR"
+mkdir -p "$HOME/Library/LaunchAgents" "$LOG_DIR" "$STATE_DIR" "$RUNTIME_DIR"
+
+cp "$REPO_DIR/scripts/chatgpt-resident-bridge-v2.mjs" "$BRIDGE_SCRIPT"
+cp "$REPO_DIR/scripts/chatgpt-resident-bridge-lib.mjs" "$BRIDGE_LIB"
+chmod 600 "$BRIDGE_SCRIPT" "$BRIDGE_LIB"
+
+cat > "$LAUNCHER" <<LAUNCHER
+#!/bin/zsh
+set -euo pipefail
+unset RUNNER_TRACKING_ID
+exec /usr/bin/caffeinate -dimsu "$NODE_BIN" "$BRIDGE_SCRIPT"
+LAUNCHER
+chmod 700 "$LAUNCHER"
 
 xml_escape() {
   printf '%s' "$1" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g; s/"/\&quot;/g; s/'"'"'/\&apos;/g'
 }
 
-NODE_XML="$(xml_escape "$NODE_BIN")"
-SCRIPT_XML="$(xml_escape "$REPO_DIR/scripts/chatgpt-resident-bridge-v2.mjs")"
+LAUNCHER_XML="$(xml_escape "$LAUNCHER")"
 PATH_XML="$(xml_escape "$(dirname "$NODE_BIN"):$(dirname "$GH_BIN"):/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin")"
 
 cat > "$PLIST" <<EOF
@@ -45,10 +60,7 @@ cat > "$PLIST" <<EOF
   <string>$LABEL</string>
   <key>ProgramArguments</key>
   <array>
-    <string>/usr/bin/caffeinate</string>
-    <string>-dimsu</string>
-    <string>$NODE_XML</string>
-    <string>$SCRIPT_XML</string>
+    <string>$LAUNCHER_XML</string>
   </array>
   <key>EnvironmentVariables</key>
   <dict>
@@ -58,6 +70,8 @@ cat > "$PLIST" <<EOF
     <string>haji84/AI-</string>
     <key>AI_COMPANY_BRIDGE_POLL_MS</key>
     <string>5000</string>
+    <key>RUNNER_TRACKING_ID</key>
+    <string></string>
   </dict>
   <key>RunAtLoad</key>
   <true/>
@@ -79,7 +93,7 @@ launchctl bootout "gui/$(id -u)" "$PLIST" 2>/dev/null || true
 launchctl bootstrap "gui/$(id -u)" "$PLIST"
 launchctl kickstart -k "gui/$(id -u)/$LABEL"
 
-echo "MacBook常駐ブリッジ v2 を登録しました。"
+echo "MacBook常駐ブリッジ v2 を永続ランタイムへ登録しました。"
 echo "専用Chromeの既存ログインセッションをそのまま利用します。"
 echo "health: $STATE_DIR/chatgpt-bridge-health.json"
 echo "log:    $LOG_DIR/AICompanyChatGPTBridge.log"
