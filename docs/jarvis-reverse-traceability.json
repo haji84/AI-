@@ -5459,6 +5459,19 @@
       "reason": "Declared recovery-policy.ts responsibility implements/supports Repair; Replan; Bounded retry. Parent ownership is not functional or physical acceptance evidence."
     },
     {
+      "path": "src/orchestrator/repair-engine-router.ts",
+      "sha256": "2ebef81172dc596cf7321956c32b8fe3943498f43d4cd3988acf101a458a4b53",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-007",
+        "AUTO-010",
+        "AUTO-017",
+        "AUTO-018",
+        "AUTO-019"
+      ],
+      "reason": "Repair engine routing implements/supports Capability Router, Repair, Replan, and bounded recovery escalation. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
       "path": "src/orchestrator/repository-development-context.ts",
       "sha256": "0c907abb6e98437e23dc8db7b949d7f13a3c67290a8a071384f69c1a5dc1bee3",
       "classification": "COVERED_BY_REQUIREMENT",
