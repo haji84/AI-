@@ -9,10 +9,12 @@ import {
   buildRecoveryPrompt,
   chooseRecoveryStrategy,
   failureFingerprint,
+  generatedWorkspaceNoisePaths,
   isSameRepositoryOpenPullRequest,
   normalizeConfiguredEnginePath,
   outOfScopeUntrackedPaths,
   parseRecoveryHistory,
+  porcelainPaths,
   recoveryAttemptCount,
   sanitizeFailureLog,
   sanitizedBuilderEnvironment,
@@ -194,6 +196,24 @@ test("Windows coding engine path resolves npm command shims", () => {
   );
 });
 
+
+test("git porcelain parser preserves the first filename character", () => {
+  assert.deepEqual(
+    porcelainPaths(" M next-env.d.ts\r\nM  scripts/goriq-pr-ci-recovery.ts\r\n?? scratch.txt\r\n"),
+    ["next-env.d.ts", "scratch.txt", "scripts/goriq-pr-ci-recovery.ts"],
+  );
+});
+
+test("known tracked generator noise is restored only outside authorized repair scope", () => {
+  assert.deepEqual(
+    generatedWorkspaceNoisePaths(
+      ["next-env.d.ts", "scripts/goriq-pr-ci-recovery.ts"],
+      ["scripts/goriq-pr-ci-recovery.ts"],
+    ),
+    ["next-env.d.ts"],
+  );
+  assert.deepEqual(generatedWorkspaceNoisePaths(["next-env.d.ts"], ["next-env.d.ts"]), []);
+});
 
 test("out-of-scope untracked artifacts are identified for discard without touching tracked changes", () => {
   const status = [
