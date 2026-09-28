@@ -455,7 +455,7 @@ function runNodeRepairAdapter(
   args: string[],
   workspace: string,
   prompt: string,
-  extraEnv: NodeJS.ProcessEnv = {},
+  extraEnv: Record<string, string | undefined> = {},
   timeoutMs = 12 * 60_000,
 ): void {
   const scriptPath = join(REPAIR_SCRIPT_DIR, scriptName);
