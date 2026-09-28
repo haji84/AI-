@@ -200,6 +200,7 @@ export interface WorkerResourcePlacementInput {
   maxParallelTasks?: number;
   activeTasks?: number;
   gpuCapable?: boolean;
+  gpuRequested?: boolean;
   longRunning?: boolean;
   inputSize?: number;
 }
@@ -233,10 +234,15 @@ export function evaluateWorkerResourcePlacement(input: WorkerResourcePlacementIn
     reasons.push(`capacity ${capacity}/${input.maxParallelTasks}`);
   }
 
+  if (input.gpuRequested === true && input.gpuCapable !== true) {
+    return { eligible: false, score: 0, reasons: ["requested gpu capability unavailable"] };
+  }
   if (requirements?.requireGpu === true) {
     if (input.gpuCapable !== true || resources.gpuAvailable !== true) {
       return { eligible: false, score: 0, reasons: ["required gpu unavailable or unknown"] };
     }
+  } else if (input.gpuRequested === true && resources.gpuAvailable === false) {
+    return { eligible: false, score: 0, reasons: ["requested gpu reported unavailable"] };
   } else if (input.gpuCapable === false && resources.gpuAvailable === true) {
     return { eligible: false, score: 0, reasons: ["gpu telemetry contradicts node capability"] };
   }
@@ -272,7 +278,7 @@ export function evaluateWorkerResourcePlacement(input: WorkerResourcePlacementIn
     score += (100 - resources.cpuLoadPercent) / 25;
     reasons.push(`cpu load ${resources.cpuLoadPercent}%`);
   }
-  const gpuRelevant = requirements?.requireGpu === true || input.gpuCapable === true;
+  const gpuRelevant = requirements?.requireGpu === true || input.gpuRequested === true;
   if (gpuRelevant && validPercent(resources.gpuLoadPercent)) {
     score += (100 - resources.gpuLoadPercent) / 25;
     reasons.push(`gpu load ${resources.gpuLoadPercent}%`);
@@ -322,6 +328,7 @@ function supportsResources(descriptor: WorkerDescriptor, health: WorkerHealth, r
     maxParallelTasks: descriptor.maxParallelTasks,
     activeTasks: health.runtimeState?.activeTasks,
     gpuCapable: descriptor.capabilities.includes("gpu"),
+    gpuRequested: request.requestedCapability === "gpu" || (request.requiredCapabilities ?? []).includes("gpu"),
     longRunning: request.task.requiresFrontierReasoning || descriptor.capabilities.includes("long-running"),
     inputSize: request.input.length,
   });
@@ -339,6 +346,7 @@ function resourceScore(
     maxParallelTasks: descriptor.maxParallelTasks,
     activeTasks: health.runtimeState?.activeTasks,
     gpuCapable: descriptor.capabilities.includes("gpu"),
+    gpuRequested: request.requestedCapability === "gpu" || (request.requiredCapabilities ?? []).includes("gpu"),
     longRunning: request.task.requiresFrontierReasoning || descriptor.capabilities.includes("long-running"),
     inputSize: request.input.length,
   });
