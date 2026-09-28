@@ -108,3 +108,179 @@ test("cross-device evaluation separates outcome agreement from speed", () => {
   assert.deepEqual(summary.divergentTasks, ["b"]);
   assert.equal(comparisons.find((item) => item.taskId === "a")?.fastestWorkerId, "macbook");
 });
+
+
+function resourceWorker(input: {
+  id: string;
+  platform?: "windows" | "macos" | "linux";
+  capabilities?: Array<"local-model" | "gpu" | "filesystem" | "long-running">;
+  maxParallelTasks?: number;
+  resources?: {
+    cpuAvailable?: boolean;
+    gpuAvailable?: boolean;
+    cpuLoadPercent?: number;
+    gpuLoadPercent?: number;
+    memoryAvailableMb?: number;
+    diskAvailableMb?: number;
+    batteryPercent?: number;
+    onExternalPower?: boolean;
+    thermalState?: "nominal" | "fair" | "serious" | "critical";
+    dataLocalityKeys?: string[];
+  };
+  activeTasks?: number;
+}) {
+  return createFunctionWorker({
+    descriptor: {
+      id: input.id,
+      label: input.id,
+      platform: input.platform ?? "windows",
+      capabilities: input.capabilities ?? ["local-model"],
+      maxParallelTasks: input.maxParallelTasks ?? 2,
+      enabled: true,
+    },
+    health: () => ({
+      available: true,
+      connectivity: "online",
+      resources: input.resources,
+      runtimeState: {
+        activeTasks: input.activeTasks ?? 0,
+        completedTasks: 0,
+        failedTasks: 0,
+      },
+    }),
+    run: async () => input.id,
+  });
+}
+
+test("resource-aware selection excludes saturated workers and prefers spare capacity", async () => {
+  const runtime = new MultiWorkerRuntime([
+    resourceWorker({ id: "a-zbook", maxParallelTasks: 1, activeTasks: 1, resources: { cpuAvailable: true } }),
+    resourceWorker({ id: "b-mac", platform: "macos", maxParallelTasks: 2, activeTasks: 0, resources: { cpuAvailable: true } }),
+  ]);
+  const selected = await runtime.select({ task, input: "run", requestedCapability: "local-model" });
+  assert.equal(selected.worker.descriptor.id, "b-mac");
+  assert.ok(selected.reasons.some((reason) => reason.startsWith("capacity ")));
+});
+
+test("explicit GPU and memory requirements fail closed on unavailable or unknown resources", async () => {
+  const runtime = new MultiWorkerRuntime([
+    resourceWorker({
+      id: "zbook",
+      capabilities: ["local-model", "gpu"],
+      resources: { cpuAvailable: true, gpuAvailable: true, gpuLoadPercent: 20, memoryAvailableMb: 16_000 },
+    }),
+    resourceWorker({
+      id: "macbook",
+      platform: "macos",
+      capabilities: ["local-model", "gpu"],
+      resources: { cpuAvailable: true, gpuAvailable: false, memoryAvailableMb: 32_000 },
+    }),
+  ]);
+
+  const selected = await runtime.select({
+    task,
+    input: "gpu work",
+    requestedCapability: "local-model",
+    resourceRequirements: { requireGpu: true, minMemoryAvailableMb: 12_000 },
+  });
+  assert.equal(selected.worker.descriptor.id, "zbook");
+
+  await assert.rejects(
+    runtime.select({
+      task,
+      input: "too large",
+      requestedCapability: "local-model",
+      resourceRequirements: { requireGpu: true, minMemoryAvailableMb: 20_000 },
+    }),
+    /No healthy worker/,
+  );
+
+  await assert.rejects(
+    new MultiWorkerRuntime([
+      resourceWorker({ id: "unknown-load", resources: { cpuAvailable: true, memoryAvailableMb: 32_000 } }),
+    ]).select({
+      task,
+      input: "bounded load",
+      requestedCapability: "local-model",
+      resourceRequirements: { maxCpuLoadPercent: 50 },
+    }),
+    /No healthy worker/,
+  );
+});
+
+test("lower live load wins when capabilities are otherwise equal", async () => {
+  const runtime = new MultiWorkerRuntime([
+    resourceWorker({ id: "busy", resources: { cpuAvailable: true, cpuLoadPercent: 85, memoryAvailableMb: 16_000 } }),
+    resourceWorker({ id: "idle", resources: { cpuAvailable: true, cpuLoadPercent: 10, memoryAvailableMb: 16_000 } }),
+  ]);
+  const selected = await runtime.select({ task, input: "run", requestedCapability: "local-model" });
+  assert.equal(selected.worker.descriptor.id, "idle");
+  assert.ok(selected.reasons.some((reason) => reason === "cpu load 10%"));
+});
+
+test("opaque data locality can outweigh a modest load difference", async () => {
+  const runtime = new MultiWorkerRuntime([
+    resourceWorker({
+      id: "lower-load-remote-data",
+      resources: { cpuAvailable: true, cpuLoadPercent: 10, memoryAvailableMb: 16_000, dataLocalityKeys: ["dataset-B"] },
+    }),
+    resourceWorker({
+      id: "local-data",
+      resources: { cpuAvailable: true, cpuLoadPercent: 40, memoryAvailableMb: 16_000, dataLocalityKeys: ["dataset-A"] },
+    }),
+  ]);
+  const selected = await runtime.select({
+    task,
+    input: "process dataset",
+    requestedCapability: "local-model",
+    resourceRequirements: { preferredDataLocalityKeys: ["dataset-A"] },
+  });
+  assert.equal(selected.worker.descriptor.id, "local-data");
+  assert.ok(selected.reasons.includes("data locality 1/1"));
+});
+
+test("critical thermal node is excluded and long work prefers external power", async () => {
+  const longTask = { ...task, requiresFrontierReasoning: true };
+  const runtime = new MultiWorkerRuntime([
+    resourceWorker({
+      id: "critical",
+      resources: { cpuAvailable: true, cpuLoadPercent: 0, memoryAvailableMb: 64_000, thermalState: "critical", onExternalPower: true },
+    }),
+    resourceWorker({
+      id: "battery",
+      resources: { cpuAvailable: true, cpuLoadPercent: 15, memoryAvailableMb: 16_000, batteryPercent: 15, onExternalPower: false },
+    }),
+    resourceWorker({
+      id: "plugged",
+      resources: { cpuAvailable: true, cpuLoadPercent: 25, memoryAvailableMb: 16_000, thermalState: "nominal", onExternalPower: true },
+    }),
+  ]);
+  const selected = await runtime.select({
+    task: longTask,
+    input: "long work",
+    requestedCapability: "local-model",
+    resourceRequirements: { preferExternalPower: true },
+  });
+  assert.equal(selected.worker.descriptor.id, "plugged");
+  assert.ok(selected.reasons.includes("external power"));
+});
+
+test("invalid resource policy fails before worker selection", async () => {
+  const runtime = new MultiWorkerRuntime([resourceWorker({ id: "node" })]);
+  await assert.rejects(
+    runtime.select({
+      task,
+      input: "run",
+      resourceRequirements: { maxCpuLoadPercent: 101 },
+    }),
+    /maxCpuLoadPercent/,
+  );
+  await assert.rejects(
+    runtime.select({
+      task,
+      input: "run",
+      resourceRequirements: { preferredDataLocalityKeys: [""] },
+    }),
+    /preferredDataLocalityKeys/,
+  );
+});
