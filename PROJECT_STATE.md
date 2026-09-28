@@ -3,18 +3,20 @@
 PROJECT: General Autonomous AI / Unified AI Creator Studio / GAI Research OS
 AI_COMPANY_VERSION: 1.0
 PROJECT_VERSION: 0.0.0
-CURRENT_PHASE: GORIQ #1216 scoped Production preflight and actual local autonomy assessment; #681/#882 continues
+CURRENT_PHASE: Complete current Mac stabilization/verification, then implement #1350 distributed self-complementing node fabric; #1219 Daily Driver continues
 STATUS: JARVIS_PRODUCT_COMPLETION_IN_PROGRESS
-LAST_UPDATED: 2026-09-24
-CURRENT_EPIC: One-front-door general autonomous AI with durable offline-first device-neutral execution and verifier-driven completion
+LAST_UPDATED: 2026-09-28
+CURRENT_EPIC: One-front-door general autonomous AI with no permanent main PC, durable offline-first distributed execution, self-complementing nodes and verifier-driven completion
 ACTIVE_ISSUES: #1216 local Primary Brain and unified learning; #681/#882 product completion; #1207/#1192 physical acceptance; #321 separate
 OPEN_PRS: #1217 draft/unmerged; 44750d2 CI1860 SUCCESS; Windows1673/P8331/lint/build/browser/independent61 PASS. #1214/#1215 UI provisionally accepted; #1208/#1195/#883/#884 physical-facing holds unchanged
 BLOCKERS: #786 MSIX AppData startup root cause repaired operationally with native owner-profile release90a111b; Limited Windows task and four services running in session0, existing two Workers READY. Tailscale Running and private URL HTTP200 after explicitly approved unattended mode; routine Tailscale recovery standing approval recorded. Physical Windows reboot/AC-loss and #734 video replay remain unverified. See docs/evidence/786-native-startup.md. Owner requires firewall unchanged.
-PRIORITY_OVERRIDE: Owner 2026-09-16 instruction resumes expanded JARVIS product completion #681 with ZBook main-host priority; preserve Human Gates and separate research evidence
-NORTH_STAR_GOAL: Human gives one goal; the system persists that locked Goal, determines required work, dynamically recruits available capabilities, executes, verifies, diagnoses failures, changes strategy, repairs/replans, records evidence, and continues toward verified Goal achievement with the fewest necessary human returns, including continued local work during connectivity loss where capability permits
+PRIORITY_OVERRIDE: Owner 2026-09-28 supersedes permanent-main-host assumptions: finish Mac stabilization first, then MacBook+ZBook distributed failover, Nubia Android canary, iPhone integration, future-PC auto expansion, and later Android38 Fleet; preserve Human Gates and separate research evidence
+NORTH_STAR_GOAL: Human gives one goal; the system persists that locked Goal and executes across the currently available trusted node set. No permanent physical main PC is required. GORIQ dynamically assigns Coordinator/Executor/Storage/Verifier roles, distributes and parallelizes work by capability/resources/load/data locality, survives node/network loss, migrates or safely restarts eligible tasks, syncs partitions, rejects stale ownership, and automatically reintegrates returning/new nodes until verified Goal achievement.
 HUMAN_GATE_INVARIANT: payment/purchase, destructive deletion, permission/credential changes, production deployment/publication, security/governance weakening, and all existing approval-required actions remain human-gated; autonomy, Goal persistence, strategy escalation, skill reuse, learning, team expansion, recovery, and self-improvement never grant permission
 GAI_MODEL_POLICY: replaceable capability/model router; verified zero-monetary-cost APIs/models/services may be used autonomously within already-authorized credential scope and documented free quotas; new account/token/OAuth/scope grants remain Human Gate; paid or potentially billable fallback prohibited by default
 GAI_OFFLINE_FIRST_POLICY: network is an optional capability enhancer, not a survival condition; offline-capable local work continues, online-required work waits durably, and recovery triggers sync/conflict resolution/resume/re-verification
+GORIQ_DISTRIBUTED_NODE_POLICY: no permanent physical main PC; active trusted nodes collectively form GORIQ, Coordinator is transferable, Task ownership uses lease/idempotency/execution epoch/fencing, and Node loss degrades capacity instead of globally stopping unrelated work
+GORIQ_INITIAL_DISTRIBUTED_NODES: MacBook + ZBook first; Nubia is the first full Android/mobile-edge canary; iPhone participates as Owner/input/sensor capability within iOS limits; future PCs auto-expand capacity; preserved Android38 Fleet is deferred until Nubia canary passes
 GAI_EVAL_POLICY: verifier/eval is cross-cutting; code/CI evidence and physical-device evidence are separate evidence classes and must never be conflated
 GAI_AGI_CLAIM_POLICY: project-defined implementation or product acceptance never authorizes an AGI claim; independent external evaluation is required
 GAI_COMMON_WORKER_RUNTIME: COMPLETE via Issue #559 / PR #560
@@ -43,9 +45,9 @@ JARVIS_V1_ACCEPTANCE: COMPLETE; Issue #401 stages 1-8 are backed by merged imple
 JARVIS_100_NODE_CAPACITY: PASS in deterministic CI; node 101 is rejected
 JARVIS_PHYSICAL_ANDROID_E2E: PASS for the acceptance scope through real Android 001 resident-Broker/Worker execution evidence from PR #526 and follow-up hardening. This does not imply unverified physical wake/Device Owner/live-screen/real-offline claims
 GAI_RESEARCH_OPS: SEPARATE_EVIDENCE_PROGRAM; Issue #321 and R1-R20 remain open until their real scientific evidence gates pass
-GAI_NEXT_PHASE: Complete #681 P0–P10 using docs/JARVIS_PRODUCT_SPEC.md and docs/jarvis-requirements.json; keep #321 research separate
-NEXT_PRIORITY: #1216 owner requests deployable Production scope then actual local autonomy assessment. Preserve legacy adapter default, validate current candidate, obtain separate additive DB migration/deployment-governance approval, merge exact head then main CI, stage and switch with 38-device baseline preserved. Remaining Core software gaps are still tracked in the audit; do not claim DONE.
-HUMAN_APPROVAL_PENDING: #1216 Production intent is explicit and task-scoped; separate gates remain for old-live to current-main additive nonce/Compass DB initialization and temporary Vercel auto-assignment hold so exact main CI precedes promotion. No permission/credential/billing approval inferred.
+GAI_NEXT_PHASE: Complete current Mac stabilization, then implement #1350 distributed-node acceptance using docs/architecture/goriq-distributed-node-fabric.md; continue #681 P0–P10 and keep #321 research separate
+NEXT_PRIORITY: Finish and verify current Mac stability. Then prove MacBook+ZBook two-node failover/resource-aware scheduling/lease+epoch+fencing/checkpoint migration/offline sync; add Nubia as first full Android/mobile-edge canary; integrate iPhone within iOS limits; prove new-PC auto capacity expansion. Preserve Android38 identities/state and defer physical Fleet connection until Nubia Node Contract passes.
+HUMAN_APPROVAL_PENDING: #1350 is specification-only and authorizes no Production, credential, permission, enrollment, firewall/network, destructive data/schema or Human-Gate changes. Runtime implementation/deployment remains separately gated by the applicable task scope.
 AUTONOMOUS_RECOVERY_POLICY: progress-aware bounded autonomy; per-strategy retry exhaustion triggers diagnose/replan/alternate capability or strategy, not automatic Goal abandonment; stop/escalate only for safety/approval gates, explicit pause/cancel, unavailable required authority, exhausted overall resource budget, or no safe actionable strategy
 MAX_ACTIVE_AGENTS: 3
 MAX_PARALLEL_CODE_AGENTS: 2
