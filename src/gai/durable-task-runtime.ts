@@ -136,6 +136,7 @@ const PRIORITY_WEIGHT: Record<DurableTaskPriority, number> = {
 };
 
 const TERMINAL = new Set<DurableTaskStatus>(["completed", "failed", "cancelled"]);
+const MIGRATION_CLASSES = new Set<DurableTaskMigrationClass>(["MIGRATABLE", "RESTARTABLE", "PINNED", "SIDE_EFFECTING"]);
 
 function cloneTask(task: DurableTask): DurableTask {
   return structuredClone(task);
@@ -186,6 +187,8 @@ export class DurableTaskRuntime {
     }
     const maxAttempts = input.maxAttempts ?? 3;
     if (!Number.isInteger(maxAttempts) || maxAttempts < 1) throw new Error("maxAttempts must be a positive integer");
+    const migrationClass = input.migrationClass ?? "RESTARTABLE";
+    if (!MIGRATION_CLASSES.has(migrationClass)) throw new Error("invalid migrationClass");
     const createdAt = iso(now);
     const task: DurableTask = {
       id: input.id,
@@ -198,7 +201,7 @@ export class DurableTaskRuntime {
       dependsOn: [...new Set(input.dependsOn ?? [])],
       attempts: 0,
       maxAttempts,
-      migrationClass: input.migrationClass ?? "RESTARTABLE",
+      migrationClass,
       executionEpoch: 0,
       checkpointRef: input.checkpointRef,
       createdAt,
@@ -289,7 +292,7 @@ export class DurableTaskRuntime {
   async heartbeatClaimed(claim: DurableTaskExecutionClaim, leaseMs = 120_000, now = new Date()): Promise<DurableTaskExecutionClaim> {
     await this.initialize();
     const task = this.mustGet(claim.taskId);
-    this.assertClaim(task, claim);
+    this.assertClaim(task, claim, now);
     task.leaseUntil = new Date(now.getTime() + leaseMs).toISOString();
     task.updatedAt = iso(now);
     await this.persist(now);
@@ -299,7 +302,7 @@ export class DurableTaskRuntime {
   async markRunningClaimed(claim: DurableTaskExecutionClaim, now = new Date()): Promise<DurableTask> {
     await this.initialize();
     const task = this.mustGet(claim.taskId);
-    this.assertClaim(task, claim);
+    this.assertClaim(task, claim, now);
     if (task.status !== "leased") throw new Error(`Task ${task.id} must be leased before running`);
     this.transition(task, "running", "execution started", now, claim.owner, { executionEpoch: claim.epoch });
     await this.persist(now);
@@ -349,7 +352,7 @@ export class DurableTaskRuntime {
   async completeClaimed(claim: DurableTaskExecutionClaim, result?: unknown, now = new Date()): Promise<DurableTask> {
     await this.initialize();
     const task = this.mustGet(claim.taskId);
-    this.assertClaim(task, claim);
+    this.assertClaim(task, claim, now);
     task.result = structuredClone(result);
     task.error = undefined;
     task.leaseOwner = undefined;
@@ -380,7 +383,7 @@ export class DurableTaskRuntime {
   async readyToPublishClaimed(claim: DurableTaskExecutionClaim, result?: unknown, now = new Date()): Promise<DurableTask> {
     await this.initialize();
     const task = this.mustGet(claim.taskId);
-    this.assertClaim(task, claim);
+    this.assertClaim(task, claim, now);
     task.result = structuredClone(result);
     task.error = undefined;
     task.leaseOwner = undefined;
@@ -399,7 +402,7 @@ export class DurableTaskRuntime {
   ): Promise<DurableTask> {
     await this.initialize();
     const task = this.mustGet(claim.taskId);
-    this.assertClaim(task, claim);
+    this.assertClaim(task, claim, now);
     task.error = error;
     task.leaseOwner = undefined;
     task.leaseUntil = undefined;
@@ -502,7 +505,7 @@ export class DurableTaskRuntime {
   ): Promise<DurableTask> {
     await this.initialize();
     const task = this.mustGet(claim.taskId);
-    this.assertClaim(task, claim);
+    this.assertClaim(task, claim, now);
     task.checkpointRef = checkpointRef?.trim() || undefined;
     task.updatedAt = iso(now);
     await this.persist(now);
@@ -617,10 +620,12 @@ export class DurableTaskRuntime {
     };
   }
 
-  private assertClaim(task: DurableTask, claim: DurableTaskExecutionClaim): void {
+  private assertClaim(task: DurableTask, claim: DurableTaskExecutionClaim, now: Date): void {
     const active = task.status === "leased" || task.status === "running";
+    const leaseLive = Boolean(task.leaseUntil) && new Date(task.leaseUntil!).getTime() > now.getTime();
     if (
       !active ||
+      !leaseLive ||
       task.leaseOwner !== claim.owner ||
       task.executionEpoch !== claim.epoch ||
       !task.fencingToken ||
