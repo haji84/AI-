@@ -9,6 +9,8 @@ const runtimeWorkflowUrl = new URL("../.github/workflows/goriq-repair-engines-ru
 const recoveryWorkflowUrl = new URL("../.github/workflows/goriq-pr-ci-recovery.yml", import.meta.url);
 const groqAdapterUrl = new URL("../scripts/goriq-groq-repair.mjs", import.meta.url);
 const chatWorkWorkerUrl = new URL("../.github/workflows/goriq-chat-work-repair-worker.yml", import.meta.url);
+const groqMacSetupUrl = new URL("../scripts/configure-groq-free-secret.sh", import.meta.url);
+const groqWindowsSetupUrl = new URL("../scripts/configure-groq-free-secret-windows.ps1", import.meta.url);
 
 test("local repair adapter is bounded to AllowedPaths and local Ollama API", async () => {
   const source = await readFile(ollamaAdapterUrl, "utf8");
@@ -106,6 +108,20 @@ test("CI recovery grants only the extra Issue write authority needed by Chat Wor
   assert.match(source, /issues: write/);
   assert.match(source, /pull-requests: read/);
   assert.doesNotMatch(source, /deployments:\s*write|id-token:\s*write|secrets:\s*write/);
+});
+
+test("Groq setup helpers store the key only in GitHub Actions secrets", async () => {
+  const mac = await readFile(groqMacSetupUrl, "utf8");
+  const windows = await readFile(groqWindowsSetupUrl, "utf8");
+  for (const source of [mac, windows]) {
+    assert.match(source, /GROQ_API_KEY/);
+    assert.match(source, /gh secret set/);
+    assert.match(source, /haji84\/AI-/);
+    assert.doesNotMatch(source, /git add|git commit|writeFile|Set-Content.*GROQ_API_KEY/i);
+  }
+  assert.match(mac, /stty -echo/);
+  assert.match(windows, /Read-Host 'Groq API key' -AsSecureString/);
+  assert.match(windows, /ZeroFreeBSTR/);
 });
 
 test("free external repair uses Groq Free Plan API and fails closed on rate limit", async () => {
