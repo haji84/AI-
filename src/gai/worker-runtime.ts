@@ -29,13 +29,30 @@ export type WorkerCapability =
   | "offline-cache"
   | "background-task";
 
+export type WorkerThermalState = "nominal" | "fair" | "serious" | "critical";
+
 export interface WorkerResourceSnapshot {
   cpuAvailable?: boolean;
   gpuAvailable?: boolean;
+  cpuLoadPercent?: number;
+  gpuLoadPercent?: number;
   memoryAvailableMb?: number;
   diskAvailableMb?: number;
   batteryPercent?: number;
   onExternalPower?: boolean;
+  thermalState?: WorkerThermalState;
+  dataLocalityKeys?: string[];
+}
+
+export interface WorkerResourceRequirements {
+  requireGpu?: boolean;
+  minMemoryAvailableMb?: number;
+  minDiskAvailableMb?: number;
+  maxCpuLoadPercent?: number;
+  maxGpuLoadPercent?: number;
+  requiredDataLocalityKeys?: string[];
+  preferredDataLocalityKeys?: string[];
+  preferExternalPower?: boolean;
 }
 
 export interface WorkerPersistenceProfile {
@@ -105,6 +122,7 @@ export interface WorkerExecutionRequest {
   connectivity?: WorkerConnectivity;
   allowOffline?: boolean;
   excludedWorkerIds?: string[];
+  resourceRequirements?: WorkerResourceRequirements;
 }
 
 export interface WorkerExecutionResult {
@@ -146,6 +164,139 @@ function supportsExecutionMode(descriptor: WorkerDescriptor, request: WorkerExec
   return (descriptor.executionModes ?? ["resident"]).includes(request.requiredExecutionMode);
 }
 
+function validPercent(value: number | undefined): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 100;
+}
+
+function validateResourceRequirements(requirements: WorkerResourceRequirements | undefined): void {
+  if (!requirements) return;
+  for (const [name, value] of [
+    ["minMemoryAvailableMb", requirements.minMemoryAvailableMb],
+    ["minDiskAvailableMb", requirements.minDiskAvailableMb],
+  ] as const) {
+    if (value !== undefined && (!Number.isFinite(value) || value < 0)) {
+      throw new Error(`${name} must be a non-negative finite number`);
+    }
+  }
+  for (const [name, value] of [
+    ["maxCpuLoadPercent", requirements.maxCpuLoadPercent],
+    ["maxGpuLoadPercent", requirements.maxGpuLoadPercent],
+  ] as const) {
+    if (value !== undefined && !validPercent(value)) throw new Error(`${name} must be between 0 and 100`);
+  }
+  for (const [name, values] of [
+    ["requiredDataLocalityKeys", requirements.requiredDataLocalityKeys],
+    ["preferredDataLocalityKeys", requirements.preferredDataLocalityKeys],
+  ] as const) {
+    if (values !== undefined && (!Array.isArray(values) || values.some((value) => typeof value !== "string" || !value.trim()))) {
+      throw new Error(`${name} must contain non-empty opaque keys`);
+    }
+  }
+}
+
+function hasExecutionCapacity(descriptor: WorkerDescriptor, health: WorkerHealth): boolean {
+  if (!Number.isInteger(descriptor.maxParallelTasks) || descriptor.maxParallelTasks < 1) return false;
+  const active = health.runtimeState?.activeTasks;
+  if (active === undefined) return true;
+  return Number.isInteger(active) && active >= 0 && active < descriptor.maxParallelTasks;
+}
+
+function supportsResources(descriptor: WorkerDescriptor, health: WorkerHealth, request: WorkerExecutionRequest): boolean {
+  const resources = health.resources ?? {};
+  const requirements = request.resourceRequirements;
+  if (resources.cpuAvailable === false || resources.thermalState === "critical") return false;
+
+  const gpuRequested = requirements?.requireGpu === true
+    || request.requestedCapability === "gpu"
+    || (request.requiredCapabilities ?? []).includes("gpu");
+  if (gpuRequested) {
+    if (!descriptor.capabilities.includes("gpu")) return false;
+    if (requirements?.requireGpu === true && resources.gpuAvailable !== true) return false;
+    if (resources.gpuAvailable === false) return false;
+  }
+
+  if (requirements?.minMemoryAvailableMb !== undefined) {
+    if (resources.memoryAvailableMb === undefined || resources.memoryAvailableMb < requirements.minMemoryAvailableMb) return false;
+  }
+  if (requirements?.minDiskAvailableMb !== undefined) {
+    if (resources.diskAvailableMb === undefined || resources.diskAvailableMb < requirements.minDiskAvailableMb) return false;
+  }
+  if (requirements?.maxCpuLoadPercent !== undefined) {
+    if (!validPercent(resources.cpuLoadPercent) || resources.cpuLoadPercent > requirements.maxCpuLoadPercent) return false;
+  }
+  if (requirements?.maxGpuLoadPercent !== undefined) {
+    if (!validPercent(resources.gpuLoadPercent) || resources.gpuLoadPercent > requirements.maxGpuLoadPercent) return false;
+  }
+
+  const requiredLocality = requirements?.requiredDataLocalityKeys ?? [];
+  if (requiredLocality.length) {
+    const local = new Set(resources.dataLocalityKeys ?? []);
+    if (!requiredLocality.every((key) => local.has(key))) return false;
+  }
+  return true;
+}
+
+function resourceScore(
+  descriptor: WorkerDescriptor,
+  health: WorkerHealth,
+  request: WorkerExecutionRequest,
+): { score: number; reasons: string[] } {
+  const resources = health.resources ?? {};
+  const active = health.runtimeState?.activeTasks ?? 0;
+  const capacity = Math.max(0, descriptor.maxParallelTasks - active);
+  let score = Math.min(6, capacity * 2);
+  const reasons = [`capacity ${capacity}/${descriptor.maxParallelTasks}`];
+
+  if (validPercent(resources.cpuLoadPercent)) {
+    const bonus = (100 - resources.cpuLoadPercent) / 25;
+    score += bonus;
+    reasons.push(`cpu load ${resources.cpuLoadPercent}%`);
+  }
+  const gpuRelevant = request.resourceRequirements?.requireGpu === true
+    || request.requestedCapability === "gpu"
+    || (request.requiredCapabilities ?? []).includes("gpu");
+  if (gpuRelevant && validPercent(resources.gpuLoadPercent)) {
+    score += (100 - resources.gpuLoadPercent) / 25;
+    reasons.push(`gpu load ${resources.gpuLoadPercent}%`);
+  }
+
+  if (resources.memoryAvailableMb !== undefined && Number.isFinite(resources.memoryAvailableMb)) {
+    const floor = request.resourceRequirements?.minMemoryAvailableMb ?? 0;
+    score += Math.min(3, Math.max(0, resources.memoryAvailableMb - floor) / 8192);
+    reasons.push(`memory ${Math.round(resources.memoryAvailableMb)}MB available`);
+  }
+
+  const preferredLocality = request.resourceRequirements?.preferredDataLocalityKeys ?? [];
+  if (preferredLocality.length) {
+    const local = new Set(resources.dataLocalityKeys ?? []);
+    const matches = preferredLocality.filter((key) => local.has(key)).length;
+    if (matches) {
+      score += Math.min(12, matches * 6);
+      reasons.push(`data locality ${matches}/${preferredLocality.length}`);
+    }
+  }
+
+  const powerPreferred = request.resourceRequirements?.preferExternalPower === true
+    || request.task.requiresFrontierReasoning
+    || request.input.length > 20_000;
+  if (powerPreferred && resources.onExternalPower === true) {
+    score += 2;
+    reasons.push("external power");
+  }
+  if (resources.thermalState === "nominal") {
+    score += 1;
+    reasons.push("thermal nominal");
+  } else if (resources.thermalState === "serious") {
+    score -= 2;
+    reasons.push("thermal serious");
+  }
+  if (resources.batteryPercent !== undefined && resources.onExternalPower !== true && resources.batteryPercent < 20) {
+    score -= 2;
+    reasons.push("low battery");
+  }
+  return { score, reasons };
+}
+
 export class MultiWorkerRuntime {
   private readonly workers: GaiWorker[];
 
@@ -158,6 +309,7 @@ export class MultiWorkerRuntime {
   }
 
   async select(request: WorkerExecutionRequest): Promise<WorkerSelection> {
+    validateResourceRequirements(request.resourceRequirements);
     const healthy = new Map((await this.preflight()).map((item) => [item.workerId, item]));
     const required = request.requiredCapabilities ?? [];
     const excluded = new Set(request.excludedWorkerIds ?? []);
@@ -167,13 +319,17 @@ export class MultiWorkerRuntime {
       .filter((worker) => !request.requiredWorkerId || worker.descriptor.id === request.requiredWorkerId)
       .filter((worker) => !excluded.has(worker.descriptor.id))
       .filter((worker) => healthy.get(worker.descriptor.id)?.available)
+      .filter((worker) => hasExecutionCapacity(worker.descriptor, healthy.get(worker.descriptor.id)!))
       .filter((worker) => required.every((capability) => worker.descriptor.capabilities.includes(capability)))
       .filter((worker) => !request.requestedCapability || worker.descriptor.capabilities.includes(request.requestedCapability))
       .filter((worker) => supportsExecutionMode(worker.descriptor, request))
       .filter((worker) => supportsConnectivity(worker.descriptor, healthy.get(worker.descriptor.id)!, request))
+      .filter((worker) => supportsResources(worker.descriptor, healthy.get(worker.descriptor.id)!, request))
       .map((worker) => {
-        let score = 1;
-        const reasons: string[] = ["healthy"];
+        const health = healthy.get(worker.descriptor.id)!;
+        const resource = resourceScore(worker.descriptor, health, request);
+        let score = 1 + resource.score;
+        const reasons: string[] = ["healthy", ...resource.reasons];
         if (request.preferredPlatform && worker.descriptor.platform === request.preferredPlatform) {
           score += 4;
           reasons.push(`preferred platform ${request.preferredPlatform}`);
@@ -193,9 +349,14 @@ export class MultiWorkerRuntime {
           score += 2;
           reasons.push("long context capable");
         }
-        if (worker.descriptor.capabilities.includes("gpu")) {
-          score += 1;
-          reasons.push("gpu available");
+        if (
+          (request.resourceRequirements?.requireGpu === true
+            || request.requestedCapability === "gpu"
+            || (request.requiredCapabilities ?? []).includes("gpu"))
+          && worker.descriptor.capabilities.includes("gpu")
+        ) {
+          score += 2;
+          reasons.push("requested gpu available");
         }
         if (
           (request.connectivity === "offline" || request.connectivity === "degraded") &&
