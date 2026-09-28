@@ -146,6 +146,13 @@ const PRIORITY_WEIGHT: Record<DurableTaskPriority, number> = {
 
 const TERMINAL = new Set<DurableTaskStatus>(["completed", "failed", "cancelled"]);
 const MIGRATION_CLASSES = new Set<DurableTaskMigrationClass>(["MIGRATABLE", "RESTARTABLE", "PINNED", "SIDE_EFFECTING"]);
+const WAIT_REASONS = new Set<DurableTaskWaitReason>([
+  "connectivity",
+  "resource",
+  "pinned-node",
+  "migration-checkpoint",
+  "side-effect-reconciliation",
+]);
 
 function cloneTask(task: DurableTask): DurableTask {
   return structuredClone(task);
@@ -153,7 +160,11 @@ function cloneTask(task: DurableTask): DurableTask {
 
 function normalizeTask(task: DurableTask): DurableTask {
   const clone = cloneTask(task);
-  clone.migrationClass = clone.migrationClass ?? "RESTARTABLE";
+  const migrationClass = clone.migrationClass ?? "RESTARTABLE";
+  if (!MIGRATION_CLASSES.has(migrationClass)) {
+    throw new Error(`Invalid persisted migrationClass for task ${clone.id}`);
+  }
+  clone.migrationClass = migrationClass;
   clone.executionEpoch = Number.isInteger(clone.executionEpoch) && clone.executionEpoch >= 0
     ? clone.executionEpoch
     : 0;
@@ -163,7 +174,15 @@ function normalizeTask(task: DurableTask): DurableTask {
   clone.pinnedNodeId = typeof clone.pinnedNodeId === "string" && clone.pinnedNodeId.trim()
     ? clone.pinnedNodeId.trim()
     : undefined;
-  clone.waitReason = typeof clone.waitReason === "string" ? clone.waitReason as DurableTaskWaitReason : undefined;
+  if (clone.migrationClass === "PINNED" && !clone.pinnedNodeId) {
+    throw new Error(`Persisted PINNED task ${clone.id} is missing pinnedNodeId`);
+  }
+  if (clone.migrationClass !== "PINNED" && clone.pinnedNodeId) {
+    throw new Error(`Persisted non-PINNED task ${clone.id} has pinnedNodeId`);
+  }
+  if (clone.waitReason !== undefined && !WAIT_REASONS.has(clone.waitReason)) {
+    throw new Error(`Invalid persisted waitReason for task ${clone.id}`);
+  }
   return clone;
 }
 
