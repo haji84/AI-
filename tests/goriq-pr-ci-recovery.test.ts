@@ -45,6 +45,8 @@ test("repair scope excludes tests, workflow, canonical and dependency files", ()
     "docs/jarvis-reverse-traceability.json",
     "package.json",
     "pnpm-lock.yaml",
+    "src/jarvis/worker-auth.ts",
+    "src/app/api/jarvis/enrollment/route.ts",
   ]), ["src/gai/worker-runtime.ts"]);
 });
 
