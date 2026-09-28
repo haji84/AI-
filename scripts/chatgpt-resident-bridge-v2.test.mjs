@@ -62,13 +62,17 @@ test("fresh reply detection does not require ChatGPT URL transition", () => {
   assert.match(source, /if \(candidate\?\.text\)/);
 });
 
-test("prompt submission uses real CDP mouse input, verifies submission, then falls back to Enter", () => {
+test("prompt submission brings the tab forward and cascades mouse form and raw Enter submission", () => {
+  assert.match(source, /Page\.bringToFront/);
   assert.match(source, /button\[data-testid="send-button"\]/);
   assert.match(source, /Input\.dispatchMouseEvent/);
   assert.match(source, /mousePressed/);
   assert.match(source, /mouseReleased/);
+  assert.match(source, /requestSubmit/);
+  assert.match(source, /rawKeyDown/);
+  assert.match(source, /windowsVirtualKeyCode: 13/);
   assert.match(source, /const submissionState = async/);
-  assert.match(source, /userCount > beforeUserCount/);
+  assert.match(source, /const isSubmitted/);
   assert.match(source, /CHATGPT_SUBMIT_FAILED/);
 });
 
