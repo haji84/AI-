@@ -259,11 +259,52 @@ async function waitForComposer(client, timeoutMs = 30000) {
 }
 
 async function snapshotAssistantMessages(client) {
-  return evaluate(client, `(() => [...document.querySelectorAll('[data-message-author-role="assistant"]')].map((node, index) => ({
-    id: node.getAttribute('data-message-id') || node.id || null,
-    index,
-    text: (node.innerText || '').trim(),
-  })))()`);
+  return evaluate(client, `(() => {
+    const direct = [...document.querySelectorAll('[data-message-author-role="assistant"]')];
+    const turnCandidates = [...document.querySelectorAll('[data-testid^="conversation-turn-"]')].filter((node) => {
+      const own = node.getAttribute('data-message-author-role');
+      const nested = node.querySelector('[data-message-author-role]')?.getAttribute('data-message-author-role');
+      const testId = node.getAttribute('data-testid') || '';
+      return own === 'assistant' || nested === 'assistant' || /assistant/i.test(testId);
+    });
+    const nodes = [...new Set([...direct, ...turnCandidates])];
+    return nodes.map((node, index) => ({
+      id: node.getAttribute('data-message-id') || node.id || node.getAttribute('data-testid') || null,
+      index,
+      text: (node.innerText || '').trim(),
+    }));
+  })()`);
+}
+
+async function interactionState(client) {
+  return evaluate(client, `(() => {
+    const composer = document.querySelector('textarea') || document.querySelector('[contenteditable="true"]');
+    const buttons = [...document.querySelectorAll('button')];
+    const send = document.querySelector('button[data-testid="send-button"]')
+      || buttons.find((el) => /^(send|send prompt|send message|送信)$/i.test((el.getAttribute('aria-label') || el.textContent || '').trim()));
+    const stop = document.querySelector('button[data-testid="stop-button"]')
+      || buttons.find((el) => /stop generating|停止/i.test((el.getAttribute('aria-label') || el.textContent || '').trim()));
+    return {
+      url: location.href,
+      assistantCount: document.querySelectorAll('[data-message-author-role="assistant"]').length,
+      turnCount: document.querySelectorAll('[data-testid^="conversation-turn-"]').length,
+      generating: !!stop,
+      composerTextLength: composer ? String(composer.value ?? composer.innerText ?? composer.textContent ?? '').length : -1,
+      sendButtonPresent: !!send,
+      sendButtonDisabled: !!send?.disabled,
+    };
+  })()`);
+}
+
+async function clickSendButton(client) {
+  return evaluate(client, `(() => {
+    const buttons = [...document.querySelectorAll('button')];
+    const send = document.querySelector('button[data-testid="send-button"]')
+      || buttons.find((el) => /^(send|send prompt|send message|送信)$/i.test((el.getAttribute('aria-label') || el.textContent || '').trim()));
+    if (!send || send.disabled) return false;
+    send.click();
+    return true;
+  })()`);
 }
 
 function fingerprintMessage(message) {
@@ -323,7 +364,6 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat") {
 
     const beforeMessages = await snapshotAssistantMessages(client);
     const baselineFingerprints = new Set((beforeMessages ?? []).map(fingerprintMessage));
-    const initialUrl = selectedExperience.url;
 
     const focused = await evaluate(client, `(() => {
       const el = document.querySelector('textarea') || document.querySelector('[contenteditable="true"]');
@@ -338,32 +378,46 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat") {
     await client.call("Input.dispatchKeyEvent", { type: "keyDown", key: "Backspace", code: "Backspace" });
     await client.call("Input.dispatchKeyEvent", { type: "keyUp", key: "Backspace", code: "Backspace" });
     await client.call("Input.insertText", { text: prompt });
-    await client.call("Input.dispatchKeyEvent", { type: "keyDown", key: "Enter", code: "Enter" });
-    await client.call("Input.dispatchKeyEvent", { type: "keyUp", key: "Enter", code: "Enter" });
+
+    let clickedSend = await clickSendButton(client);
+    if (!clickedSend) {
+      await client.call("Input.dispatchKeyEvent", { type: "keyDown", key: "Enter", code: "Enter" });
+      await client.call("Input.dispatchKeyEvent", { type: "keyUp", key: "Enter", code: "Enter" });
+    }
+
+    const submitDeadline = Date.now() + 8000;
+    let submitted = false;
+    let submitState = await interactionState(client);
+    while (Date.now() < submitDeadline) {
+      const messages = await snapshotAssistantMessages(client);
+      const hasNewAssistant = (messages ?? []).some((message) => !baselineFingerprints.has(fingerprintMessage(message)));
+      submitState = await interactionState(client);
+      if (submitState?.generating || submitState?.composerTextLength === 0 || hasNewAssistant) {
+        submitted = true;
+        break;
+      }
+      if (!clickedSend && submitState?.sendButtonPresent && !submitState?.sendButtonDisabled) {
+        clickedSend = await clickSendButton(client);
+      }
+      await sleep(350);
+    }
+    if (!submitted) {
+      throw new Error(`CHATGPT_PROMPT_SUBMISSION_NOT_CONFIRMED: ${JSON.stringify(submitState)}`);
+    }
 
     const deadline = Date.now() + 240000;
     let candidateFingerprint = "";
     let lastText = "";
     let stableSince = 0;
+    let lastObserved = submitState;
     while (Date.now() < deadline) {
-      const state = await evaluate(client, `(() => {
-        const nodes = [...document.querySelectorAll('[data-message-author-role="assistant"]')];
-        const messages = nodes.map((node, index) => ({
-          id: node.getAttribute('data-message-id') || node.id || null,
-          index,
-          text: (node.innerText || '').trim(),
-        }));
-        const generating = !!document.querySelector('button[data-testid="stop-button"]') || [...document.querySelectorAll('button')].some((el) => /stop generating|停止/i.test(el.textContent || ''));
-        return { url: location.href, messages, generating };
-      })()`);
-
-      const messages = Array.isArray(state?.messages) ? state.messages : [];
-      const newMessages = messages.filter((message) => !baselineFingerprints.has(fingerprintMessage(message)));
+      const messages = await snapshotAssistantMessages(client);
+      lastObserved = await interactionState(client);
+      const newMessages = (messages ?? []).filter((message) => !baselineFingerprints.has(fingerprintMessage(message)));
       const candidate = newMessages.at(-1);
       const currentFingerprint = fingerprintMessage(candidate);
-      const conversationAdvanced = state?.url && (state.url !== initialUrl || /\/c\//.test(state.url));
 
-      if (candidate?.text && conversationAdvanced) {
+      if (candidate?.text) {
         if (candidateFingerprint !== currentFingerprint) {
           candidateFingerprint = currentFingerprint;
           lastText = candidate.text;
@@ -371,13 +425,13 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat") {
         } else if (candidate.text !== lastText) {
           lastText = candidate.text;
           stableSince = Date.now();
-        } else if (!state.generating && Date.now() - stableSince >= 1800) {
+        } else if (!lastObserved?.generating && Date.now() - stableSince >= 1800) {
           return lastText.slice(0, 8000);
         }
       }
       await sleep(700);
     }
-    throw new Error("ChatGPT fresh-turn response timeout; pending was preserved");
+    throw new Error(`ChatGPT fresh-turn response timeout; observed=${JSON.stringify(lastObserved)}; pending was preserved`);
   } finally {
     client.close();
     await closeTarget(target.id);
