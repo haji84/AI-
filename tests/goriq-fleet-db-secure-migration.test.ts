@@ -11,7 +11,7 @@ const execFileAsync = promisify(execFile);
 const script = new URL("../scripts/goriq-fleet-db-migration.mjs", import.meta.url);
 
 function env(extra: Record<string,string>) {
-  return { ...process.env, NODE_ENV: "test", ...extra };
+  return { ...process.env, NODE_ENV: "test" as const, ...extra };
 }
 
 test("fleet DB migration seals a consistent snapshot and only the Mac private key can restore it", async () => {
