@@ -54,16 +54,6 @@ foreach ($model in @($LocalFastModel, $LocalStrongModel)) {
   if (-not $ok) { throw "Failed to pull required local repair model: $model" }
 }
 
-$cloudReady = $false
-$cloudProbe = ''
-try {
-  Write-Host "Probing optional free/starter cloud repair model: $CloudFreeModel"
-  $cloudProbe = (& $ollama pull $CloudFreeModel 2>&1 | Out-String)
-  $cloudReady = $LASTEXITCODE -eq 0
-} catch {
-  $cloudProbe = $_.Exception.Message
-}
-
 $version = (& $ollama --version 2>&1 | Out-String).Trim()
 $tags = Invoke-RestMethod -Uri 'http://127.0.0.1:11434/api/tags' -Method Get -TimeoutSec 5
 $models = @($tags.models | ForEach-Object { $_.name })
@@ -77,9 +67,6 @@ $status = [ordered]@{
   localFastModel = $LocalFastModel
   localStrongModel = $LocalStrongModel
   requiredLocalModelsPresent = (($LocalFastModel -in $models) -and ($LocalStrongModel -in $models))
-  cloudFreeModel = $CloudFreeModel
-  cloudFreeReady = $cloudReady
-  cloudProbeTail = $cloudProbe.Substring([Math]::Max(0, $cloudProbe.Length - 1200))
   models = $models
   installedAt = (Get-Date).ToUniversalTime().ToString('o')
 }
