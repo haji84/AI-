@@ -140,6 +140,20 @@ function resolveConfiguredEngine(): string {
   throw new Error("CODING_ENGINE_UNAVAILABLE");
 }
 
+export function sanitizedBuilderEnvironment(
+  env: NodeJS.ProcessEnv = process.env,
+): NodeJS.ProcessEnv {
+  const next = { ...env };
+  for (const key of [
+    "GITHUB_TOKEN",
+    "GH_TOKEN",
+    "ACTIONS_RUNTIME_TOKEN",
+    "ACTIONS_ID_TOKEN_REQUEST_TOKEN",
+    "CODE_BUILDER_TOKEN",
+  ]) delete next[key];
+  return next;
+}
+
 function runCodex(engine: string, workspace: string, prompt: string): void {
   const extension = extname(engine).toLowerCase();
   const args = [
@@ -162,6 +176,7 @@ function runCodex(engine: string, workspace: string, prompt: string): void {
     windowsHide: true,
     maxBuffer: 8 * 1024 * 1024,
     timeout: 12 * 60_000,
+    env: sanitizedBuilderEnvironment(),
   });
   if (result.error) throw result.error;
   if (result.status !== 0) {
