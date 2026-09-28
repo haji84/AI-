@@ -28,6 +28,7 @@ const HEALTH_FILE = join(STATE_DIR, "chatgpt-bridge-health.json");
 const LOCK_FILE = join(STATE_DIR, "chatgpt-bridge.lock");
 const CHROME_PROFILE = process.env.AI_COMPANY_CHATGPT_PROFILE ?? join(HOME, "Library", "Application Support", "AICompanyChatGPTBridge");
 const CHATGPT_URL = "https://chatgpt.com/";
+const ONE_SHOT_REPAIR_ISSUE = Number(process.env.AI_COMPANY_REPAIR_ONCE_ISSUE || "");
 
 let shuttingDown = false;
 let lockHandle = null;
@@ -89,9 +90,15 @@ async function ghJsonPages(path) {
   return Array.isArray(parsed) ? parsed.flat() : [];
 }
 
+function isRepairIssue(issue) {
+  const meta = decodeConversationBody(issue?.body ?? "");
+  const pendingMeta = String(meta?.githubBridge?.pendingOwnerPayload?.meta ?? "");
+  return /(?:^|\\s)repair-surface:(chat|work)(?:\\s|$)/i.test(pendingMeta);
+}
+
 async function listPendingIssues() {
   const issues = await ghJson(`repos/${REPO}/issues?state=open&sort=updated&direction=desc&per_page=50`);
-  return issues.filter(isPendingConversationIssue);
+  return issues.filter(isPendingConversationIssue).filter((issue) => !isRepairIssue(issue));
 }
 
 async function loadConversation(issue) {
@@ -400,6 +407,18 @@ async function processIssue(issue) {
   await setHealth("synced", `Issue #${issue.number} synced`, { issueNumber: issue.number, lastAiMessageId: aiMessage.id });
 }
 
+async function runOneShotRepair(issueNumber) {
+  if (!Number.isInteger(issueNumber) || issueNumber < 1) throw new Error("INVALID_REPAIR_ISSUE_NUMBER");
+  await setHealth("starting", `one-shot repair issue #${issueNumber}`, { issueNumber });
+  await ensureGitHubReady();
+  await ensureChromeRunning();
+  const issue = await ghJson(`repos/${REPO}/issues/${issueNumber}`);
+  if (!isPendingConversationIssue(issue) || !isRepairIssue(issue)) {
+    throw new Error(`REPAIR_ISSUE_NOT_PENDING: #${issueNumber}`);
+  }
+  await processIssue(issue);
+}
+
 async function runLoop() {
   await acquireLock();
   await setHealth("starting", "resident bridge v2 starting");
@@ -442,9 +461,13 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
   });
 }
 
-runLoop().catch(async (error) => {
+const main = Number.isInteger(ONE_SHOT_REPAIR_ISSUE) && ONE_SHOT_REPAIR_ISSUE > 0
+  ? () => runOneShotRepair(ONE_SHOT_REPAIR_ISSUE)
+  : runLoop;
+
+main().catch(async (error) => {
   const message = error instanceof Error ? error.message : String(error);
-  try { await setHealth("fatal", message); } catch {}
+  try { await setHealth("fatal", message, Number.isInteger(ONE_SHOT_REPAIR_ISSUE) && ONE_SHOT_REPAIR_ISSUE > 0 ? { issueNumber: ONE_SHOT_REPAIR_ISSUE } : {}); } catch {}
   await releaseLock();
   console.error(error);
   process.exit(1);
