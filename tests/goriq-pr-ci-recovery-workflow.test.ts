@@ -13,10 +13,19 @@ test("CI recovery triggers only from failed pull-request CI", async () => {
   assert.match(workflow, /workflow_run\.event == 'pull_request'/);
 });
 
+test("stale pull requests are rejected on GitHub-hosted preflight before ZBook allocation", async () => {
+  const workflow = await readFile(workflowUrl, "utf8");
+  assert.match(workflow, /preflight:/);
+  assert.match(workflow, /runs-on: ubuntu-latest/);
+  assert.match(workflow, /pr\.head\.sha === context\.payload\.workflow_run\.head_sha/);
+  assert.match(workflow, /Skipping stale or ineligible PR/);
+  assert.match(workflow, /recover:\s+needs: \[preflight\]\s+if: needs\.preflight\.outputs\.eligible == 'true'\s+runs-on: \[self-hosted, Windows, X64\]/);
+});
+
 test("trusted control checkout is separated from target PR checkout", async () => {
   const workflow = await readFile(workflowUrl, "utf8");
   assert.match(workflow, /ref: main\s+path: control\s+persist-credentials: false/);
-  assert.match(workflow, /ref: \$\{\{ steps\.pr\.outputs\.branch \}\}\s+path: target\s+fetch-depth: 0\s+persist-credentials: false/);
+  assert.match(workflow, /ref: \$\{\{ needs\.preflight\.outputs\.branch \}\}\s+path: target\s+fetch-depth: 0\s+persist-credentials: false/);
   assert.match(workflow, /node \.\\control\\scripts\\goriq-pr-ci-recovery\.ts/);
   assert.match(workflow, /GORIQ_RECOVERY_CONTROL_WORKSPACE/);
 });
