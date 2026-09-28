@@ -30,7 +30,7 @@ function safePath(workspace, p) {
 
 function stripFence(text) {
   const trimmed = String(text ?? "").trim();
-  const match = trimmed.match(/^\`\`\`(?:json)?\s*([\s\S]*?)\s*\`\`\`$/i);
+  const match = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
   return match ? match[1].trim() : trimmed;
 }
 
