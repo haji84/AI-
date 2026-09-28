@@ -57,5 +57,20 @@ export function scoreResourceFit(
     score += (100 - cpuLoad) / 25;
     reasons.push(`cpu:${cpuLoad}`);
   }
+
+  const gpuUsable = descriptor.capabilities.includes("gpu") && resources.gpuAvailable !== false;
+  if (gpuUsable) {
+    score += request.requireGpu ? 4 : 1;
+    const gpuLoad = percent(resources.gpuLoadPercent);
+    if (gpuLoad !== undefined) {
+      score += (100 - gpuLoad) / 50;
+      reasons.push(`gpu:${gpuLoad}`);
+    }
+  }
+
+  if (resources.memoryAvailableMb !== undefined && Number.isFinite(resources.memoryAvailableMb)) {
+    score += Math.max(0, Math.min(2, resources.memoryAvailableMb / 16_384));
+    reasons.push(`mem:${Math.round(resources.memoryAvailableMb)}`);
+  }
   return { eligible: true, score, reasons };
 }
