@@ -28,6 +28,14 @@ export interface DurableTaskExecutionClaim {
   leaseUntil: string;
 }
 
+export interface DurableTaskRecoveryResumeInput {
+  owner?: string;
+  checkpointRef?: string;
+  externalEffectReviewed?: boolean;
+  verifierId?: string;
+  evidenceRef?: string;
+}
+
 export interface DurableTaskTransition {
   from: DurableTaskStatus | null;
   to: DurableTaskStatus;
@@ -481,6 +489,50 @@ export class DurableTaskRuntime {
       await this.persist(now);
     }
     return count;
+  }
+
+  async resumeRecovery(
+    taskId: string,
+    input: DurableTaskRecoveryResumeInput,
+    now = new Date(),
+  ): Promise<DurableTask> {
+    await this.initialize();
+    const task = this.mustGet(taskId);
+    if (task.status !== "waiting-resource" || !task.recoveryBlocker) {
+      throw new Error(`Task ${taskId} has no protected recovery blocker`);
+    }
+
+    const evidence: Record<string, unknown> = { recoveryBlocker: task.recoveryBlocker };
+
+    if (task.recoveryBlocker === "CHECKPOINT_REQUIRED") {
+      const checkpointRef = input.checkpointRef?.trim() || task.checkpointRef;
+      if (!checkpointRef) throw new Error("CHECKPOINT_REQUIRED");
+      if (task.attempts >= task.maxAttempts) throw new Error("retry budget exhausted");
+      task.checkpointRef = checkpointRef;
+      evidence.checkpointRef = checkpointRef;
+    } else if (task.recoveryBlocker === "PINNED_OWNER_UNAVAILABLE") {
+      const owner = input.owner?.trim();
+      if (!owner || !task.pinnedOwner || owner !== task.pinnedOwner) {
+        throw new Error("PINNED_OWNER_REQUIRED");
+      }
+      evidence.owner = owner;
+    } else if (task.recoveryBlocker === "EXTERNAL_EFFECT_REVIEW_REQUIRED") {
+      const verifierId = input.verifierId?.trim();
+      const evidenceRef = input.evidenceRef?.trim();
+      if (input.externalEffectReviewed !== true || !verifierId || !evidenceRef) {
+        throw new Error("EXTERNAL_EFFECT_REVIEW_REQUIRED");
+      }
+      if (task.attempts >= task.maxAttempts) throw new Error("retry budget exhausted");
+      evidence.verifierId = verifierId;
+      evidence.evidenceRef = evidenceRef;
+    }
+
+    task.recoveryBlocker = undefined;
+    task.error = undefined;
+    task.nextAttemptAt = iso(now);
+    this.transition(task, "retrying", "protected recovery explicitly resumed", now, input.owner, evidence);
+    await this.persist(now);
+    return cloneTask(task);
   }
 
   async cancel(taskId: string, reason = "cancelled", now = new Date()): Promise<DurableTask> {
