@@ -47,6 +47,8 @@ const PROTECTED_FILES = new Set([
   "docs/JARVIS_PRODUCT_SPEC.md",
   "docs/jarvis-requirements.json",
   "docs/jarvis-owner-decisions.json",
+  "docs/jarvis-reverse-traceability.json",
+  "docs/jarvis-additional-requirements.json",
   "package.json",
   "pnpm-lock.yaml",
 ]);
@@ -279,11 +281,11 @@ async function main() {
   const initialStatus = run("git", ["status", "--porcelain"], workspace);
   if (initialStatus) throw new Error("RECOVERY_WORKSPACE_NOT_CLEAN");
 
-  run("git", ["fetch", "origin", "main", pr.head.ref], workspace);
+  run("git", ["fetch", "origin", "main", pr.base.ref, pr.head.ref], workspace);
   const localHead = run("git", ["rev-parse", "HEAD"], workspace);
   if (localHead !== expectedHead) throw new Error("CHECKED_OUT_HEAD_MISMATCH");
 
-  const subjects = run("git", ["log", "--format=%s", "origin/main..HEAD"], workspace)
+  const subjects = run("git", ["log", "--format=%s", `origin/${pr.base.ref}..HEAD`], workspace)
     .split(/\r?\n/)
     .filter(Boolean);
   const priorAttempts = recoveryAttemptCount(subjects);
@@ -330,6 +332,7 @@ async function main() {
 
   run("pnpm", ["lint"], workspace);
   run("pnpm", ["test"], workspace);
+  run("pnpm", ["test:p8-security"], workspace);
   run("pnpm", ["build"], workspace);
 
   run("git", ["fetch", "origin", pr.head.ref], workspace);
@@ -356,7 +359,7 @@ async function main() {
     previousHead: expectedHead,
     commit,
     changed,
-    checks: ["pnpm lint", "pnpm test", "pnpm build"],
+    checks: ["pnpm lint", "pnpm test", "pnpm test:p8-security", "pnpm build"],
   }, null, 2) + "\n");
 }
 
