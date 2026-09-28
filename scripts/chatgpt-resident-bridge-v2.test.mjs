@@ -32,3 +32,15 @@ test("resident bridge v2 closes its disposable target", () => {
 test("macOS installer points launchd at bridge v2", () => {
   assert.match(installer, /chatgpt-resident-bridge-v2\.mjs/);
 });
+
+test("resident bridge routes repair metadata to Chat or Work", () => {
+  assert.match(source, /repairSurfaceFromPending/);
+  assert.match(source, /repair-surface:\(chat\|work\)/);
+  assert.match(source, /submitPromptAndReadAnswer\(prompt, surface\)/);
+});
+
+test("Work repair fails closed when the Work selector cannot be found", () => {
+  assert.match(source, /async function selectExperience/);
+  assert.match(source, /CHATGPT_WORK_SELECTOR_NOT_FOUND/);
+  assert.match(source, /CHATGPT_WORK_OPTION_NOT_FOUND/);
+});

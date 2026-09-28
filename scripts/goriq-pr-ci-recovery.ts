@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
-import { extname, join, resolve } from "node:path";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { autoReconcileTraceability } from "../src/orchestrator/safe-pr-capability.ts";
 import {
@@ -391,6 +391,8 @@ export function sanitizedBuilderEnvironment(
     "ACTIONS_RUNTIME_TOKEN",
     "ACTIONS_ID_TOKEN_REQUEST_TOKEN",
     "CODE_BUILDER_TOKEN",
+    "GROQ_API_KEY",
+    "GORIQ_REPAIR_GITHUB_TOKEN",
   ]) delete next[key];
   return next;
 }
@@ -400,42 +402,207 @@ type RepairEngineRunner = {
   run(prompt: string): void;
 };
 
-export const REPAIR_ENGINE_COMMAND_ENV: Readonly<Partial<Record<Exclude<RepairEngineId, "human-gate" | "goriq-deterministic" | "codex">, string>>> = Object.freeze({
-  "goriq-learned": "GORIQ_LEARNED_REPAIR_COMMAND",
-  "goriq-local-code": "GORIQ_LOCAL_CODE_REPAIR_COMMAND",
-  "goriq-local-capability": "GORIQ_LOCAL_CAPABILITY_REPAIR_COMMAND",
-  chat: "GORIQ_CHAT_REPAIR_COMMAND",
-  work: "GORIQ_WORK_REPAIR_COMMAND",
-  "free-external": "GORIQ_FREE_EXTERNAL_REPAIR_COMMAND",
-});
+const REPAIR_SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
+const LOCAL_FAST_MODEL = "qwen2.5-coder:1.5b";
+const LOCAL_STRONG_MODEL = "qwen2.5-coder:3b";
+const FREE_EXTERNAL_MODEL = "qwen/qwen3.8-27b";
 
-function runConfiguredRepairCommand(command: string, workspace: string, prompt: string): void {
-  const resolved = normalizeConfiguredEnginePath(command.trim());
-  if (!resolved) throw new Error("REPAIR_ENGINE_COMMAND_UNAVAILABLE");
-  const invocation = commandInvocation(resolved, []);
+export const REPAIR_ENGINE_COMMAND_ENV: Readonly<Partial<Record<Exclude<RepairEngineId, "human-gate" | "goriq-deterministic" | "goriq-learned" | "goriq-local-code" | "goriq-local-capability" | "chat" | "work" | "free-external" | "codex">, string>>> = Object.freeze({});
+
+function resolveOptionalCommand(command: string): string | null {
+  if (process.platform === "win32") {
+    const direct = normalizeConfiguredEnginePath(command);
+    if (existsSync(direct)) return direct;
+    const where = spawnSync("where.exe", [command], { encoding: "utf8", windowsHide: true });
+    if (where.status !== 0) return null;
+    const first = String(where.stdout ?? "").split(/\r?\n/).map((value) => value.trim()).find(Boolean);
+    return first ? normalizeConfiguredEnginePath(first) : null;
+  }
+  const which = spawnSync("which", [command], { encoding: "utf8", windowsHide: true });
+  if (which.status !== 0) return null;
+  const first = String(which.stdout ?? "").split(/\r?\n/).map((value) => value.trim()).find(Boolean);
+  return first || null;
+}
+
+function repairRuntimeStatus(): {
+  localFastReady: boolean;
+  localStrongReady: boolean;
+} {
+  const defaults = { localFastReady: false, localStrongReady: false };
+  const localAppData = process.env.LOCALAPPDATA?.trim();
+  if (!localAppData) return defaults;
+  const statusPath = join(localAppData, "GORIQ", "repair-engines", "status.json");
+  if (!existsSync(statusPath)) return defaults;
+  try {
+    const parsed = JSON.parse(readFileSync(statusPath, "utf8")) as {
+      models?: unknown;
+      localFastModel?: unknown;
+      localStrongModel?: unknown;
+    };
+    const models = Array.isArray(parsed.models) ? parsed.models.filter((value): value is string => typeof value === "string") : [];
+    const hasModel = (model: string) => models.some((value) => value === model || value.startsWith(`${model}:`));
+    return {
+      localFastReady: hasModel(typeof parsed.localFastModel === "string" ? parsed.localFastModel : LOCAL_FAST_MODEL),
+      localStrongReady: hasModel(typeof parsed.localStrongModel === "string" ? parsed.localStrongModel : LOCAL_STRONG_MODEL),
+    };
+  } catch {
+    return defaults;
+  }
+}
+
+function runNodeRepairAdapter(
+  scriptName: string,
+  args: string[],
+  workspace: string,
+  prompt: string,
+  extraEnv: Record<string, string | undefined> = {},
+  timeoutMs = 12 * 60_000,
+): void {
+  const scriptPath = join(REPAIR_SCRIPT_DIR, scriptName);
+  if (!existsSync(scriptPath)) throw new Error(`REPAIR_ADAPTER_MISSING: ${scriptName}`);
   const env = sanitizedBuilderEnvironment();
+  Object.assign(env, extraEnv);
   env.GIT_TERMINAL_PROMPT = "0";
   env.GCM_INTERACTIVE = "never";
-  env.GH_CONFIG_DIR = join(workspace, ".goriq-gh-disabled");
-  env.GIT_CONFIG_COUNT = "2";
-  env.GIT_CONFIG_KEY_0 = "credential.helper";
-  env.GIT_CONFIG_VALUE_0 = "";
-  env.GIT_CONFIG_KEY_1 = "remote.origin.pushurl";
-  env.GIT_CONFIG_VALUE_1 = "https://127.0.0.1/goriq-push-disabled";
-  const result = spawnSync(invocation.command, invocation.args, {
+  const result = spawnSync(process.execPath, [scriptPath, "--workspace", workspace, ...args], {
     cwd: workspace,
     encoding: "utf8",
     input: prompt,
     stdio: ["pipe", "pipe", "pipe"],
     windowsHide: true,
     maxBuffer: 8 * 1024 * 1024,
-    timeout: 12 * 60_000,
+    timeout: timeoutMs,
     env,
   });
   if (result.error) throw result.error;
   if (result.status !== 0) {
-    throw new Error(`repair engine command failed: ${commandFailureOutput(result.stdout, result.stderr)}`);
+    throw new Error(`${scriptName} failed: ${commandFailureOutput(result.stdout, result.stderr)}`);
   }
+}
+
+function runLearnedRepair(workspace: string, prompt: string, allowedPaths: string[]): void {
+  const fingerprint = prompt.match(/FailureFingerprint=([a-f0-9]{8,64})/i)?.[1]?.toLowerCase();
+  if (!fingerprint) throw new Error("LEARNED_REPAIR_FINGERPRINT_MISSING");
+  if (applyLearnedMemory(workspace, fingerprint, allowedPaths)) return;
+
+  const log = runRaw("git", ["log", "origin/main", "--format=%H%x00%B%x1e", "-n", "600"], workspace);
+  const records = log.split("\x1e").map((record) => record.trim()).filter(Boolean);
+  for (const record of records) {
+    const separator = record.indexOf("\x00");
+    if (separator < 0) continue;
+    const sha = record.slice(0, separator).trim();
+    const body = record.slice(separator + 1);
+    if (!new RegExp(`^GORIQ-Recovery-Failure-Fingerprint:\\s*${fingerprint}$`, "mi").test(body)) continue;
+    if (!/^GORIQ-Repair-Engine:\s*/mi.test(body)) continue;
+    const patch = runRaw("git", ["show", "--format=", "--binary", sha, "--", ...allowedPaths], workspace);
+    if (!patch.trim()) continue;
+    runRaw("git", ["apply", "--whitespace=nowarn", "-"], workspace, patch);
+    return;
+  }
+  throw new Error("LEARNED_REPAIR_MEMORY_MISS");
+}
+
+function runOllamaRepair(workspace: string, prompt: string, model: string): void {
+  const ollama = resolveOptionalCommand("ollama");
+  if (!ollama) throw new Error("OLLAMA_UNAVAILABLE");
+  runNodeRepairAdapter(
+    "goriq-ollama-repair.mjs",
+    ["--model", model],
+    workspace,
+    prompt,
+    { GORIQ_OLLAMA_COMMAND: ollama },
+    7 * 60_000,
+  );
+}
+
+function runGroqFreeRepair(workspace: string, prompt: string, apiKey: string): void {
+  if (!apiKey.trim()) throw new Error("GROQ_FREE_REPAIR_API_KEY_MISSING");
+  runNodeRepairAdapter(
+    "goriq-groq-repair.mjs",
+    ["--model", FREE_EXTERNAL_MODEL],
+    workspace,
+    prompt,
+    { GROQ_API_KEY: apiKey },
+    4 * 60_000,
+  );
+}
+
+function repairMemoryRoot(): string | null {
+  const base = process.env.LOCALAPPDATA?.trim() || process.env.HOME?.trim() || "";
+  if (!base) return null;
+  return join(base, "GORIQ", "repair-memory");
+}
+
+function learnedMemoryPath(fingerprint: string): string | null {
+  const root = repairMemoryRoot();
+  return root ? join(root, `${fingerprint}.json`) : null;
+}
+
+function applyLearnedMemory(workspace: string, fingerprint: string, allowedPaths: string[]): boolean {
+  const path = learnedMemoryPath(fingerprint);
+  if (!path || !existsSync(path)) return false;
+  try {
+    const parsed = JSON.parse(readFileSync(path, "utf8")) as {
+      patch?: unknown;
+      changedPaths?: unknown;
+    };
+    if (typeof parsed.patch !== "string" || !parsed.patch.trim()) return false;
+    const changedPaths = Array.isArray(parsed.changedPaths)
+      ? parsed.changedPaths.filter((value): value is string => typeof value === "string")
+      : [];
+    const allowed = new Set(allowedPaths);
+    if (!changedPaths.length || changedPaths.some((value) => !allowed.has(value))) return false;
+    runRaw("git", ["apply", "--whitespace=nowarn", "-"], workspace, parsed.patch);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function persistLearnedMemory(
+  workspace: string,
+  fingerprint: string,
+  changedPaths: string[],
+  engineId: string,
+): void {
+  const path = learnedMemoryPath(fingerprint);
+  if (!path) return;
+  try {
+    const patch = runRaw("git", ["diff", "--binary", "--", ...changedPaths], workspace);
+    if (!patch.trim()) return;
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, JSON.stringify({
+      version: 1,
+      failureFingerprint: fingerprint,
+      engineId,
+      changedPaths,
+      patch,
+      verifiedAt: new Date().toISOString(),
+    }, null, 2) + "\n", "utf8");
+  } catch {
+    // Repair memory is an optimization. A verified repair must not fail because cache persistence failed.
+  }
+}
+
+function runChatGptRepair(
+  workspace: string,
+  prompt: string,
+  mode: "chat" | "work",
+  repository: string,
+  token: string,
+): void {
+  if (!repository || !token) throw new Error(`${mode.toUpperCase()}_REPAIR_BRIDGE_UNAVAILABLE`);
+  runNodeRepairAdapter(
+    "goriq-chatgpt-repair-client.mjs",
+    ["--mode", mode],
+    workspace,
+    prompt,
+    {
+      GORIQ_REPAIR_REPOSITORY: repository,
+      GORIQ_REPAIR_GITHUB_TOKEN: token,
+    },
+    mode === "work" ? 13 * 60_000 : 6 * 60_000,
+  );
 }
 
 function runDeterministicRepair(workspace: string, prompt: string, allowedPaths: string[]): void {
@@ -445,7 +612,7 @@ function runDeterministicRepair(workspace: string, prompt: string, allowedPaths:
   try {
     run("pnpm", ["exec", "eslint", "--fix", "--", ...sourcePaths], workspace);
   } catch {
-    // A deterministic fixer may still leave a useful bounded edit. Scope and verification decide whether it survives.
+    // Scope and verification decide whether a deterministic partial fix survives.
   }
 }
 
@@ -460,14 +627,19 @@ function resolveCodexEngineOrNull(): string | null {
 export function configuredRepairEngineIds(
   env: Record<string, string | undefined> = process.env,
   codexAvailable = resolveCodexEngineOrNull() !== null,
+  runtime = repairRuntimeStatus(),
 ): Array<Exclude<RepairEngineId, "human-gate">> {
-  const available = new Set<Exclude<RepairEngineId, "human-gate">>(["goriq-deterministic"]);
-  for (const [id, key] of Object.entries(REPAIR_ENGINE_COMMAND_ENV) as Array<[
-    Exclude<RepairEngineId, "human-gate" | "goriq-deterministic" | "codex">,
-    string,
-  ]>) {
-    if (env[key]?.trim()) available.add(id);
+  const available = new Set<Exclude<RepairEngineId, "human-gate">>([
+    "goriq-deterministic",
+    "goriq-learned",
+  ]);
+  if (runtime.localFastReady) available.add("goriq-local-code");
+  if (runtime.localStrongReady) available.add("goriq-local-capability");
+  if (env.GORIQ_REPAIR_REPOSITORY?.trim() && env.GORIQ_REPAIR_GITHUB_TOKEN?.trim()) {
+    available.add("chat");
+    available.add("work");
   }
+  if (env.GROQ_API_KEY?.trim()) available.add("free-external");
   if (codexAvailable) available.add("codex");
   return REPAIR_ENGINE_ESCALATION_ORDER
     .map((stage) => stage.id)
@@ -477,38 +649,55 @@ export function configuredRepairEngineIds(
 function createRepairEngineRunners(
   workspace: string,
   allowedPaths: string[],
-  env: Record<string, string | undefined> = process.env,
+  context: { repository: string; token: string },
 ): RepairEngineRunner[] {
   const codexEngine = resolveCodexEngineOrNull();
+  const runtime = repairRuntimeStatus();
   const runners = new Map<Exclude<RepairEngineId, "human-gate">, RepairEngineRunner>();
 
   runners.set("goriq-deterministic", {
     id: "goriq-deterministic",
-    run(prompt) {
-      runDeterministicRepair(workspace, prompt, allowedPaths);
-    },
+    run(prompt) { runDeterministicRepair(workspace, prompt, allowedPaths); },
+  });
+  runners.set("goriq-learned", {
+    id: "goriq-learned",
+    run(prompt) { runLearnedRepair(workspace, prompt, allowedPaths); },
   });
 
-  for (const [id, key] of Object.entries(REPAIR_ENGINE_COMMAND_ENV) as Array<[
-    Exclude<RepairEngineId, "human-gate" | "goriq-deterministic" | "codex">,
-    string,
-  ]>) {
-    const command = env[key]?.trim();
-    if (!command) continue;
-    runners.set(id, {
-      id,
-      run(prompt) {
-        runConfiguredRepairCommand(command, workspace, prompt);
-      },
+  if (runtime.localFastReady) {
+    runners.set("goriq-local-code", {
+      id: "goriq-local-code",
+      run(prompt) { runOllamaRepair(workspace, prompt, LOCAL_FAST_MODEL); },
+    });
+  }
+  if (runtime.localStrongReady) {
+    runners.set("goriq-local-capability", {
+      id: "goriq-local-capability",
+      run(prompt) { runOllamaRepair(workspace, prompt, LOCAL_STRONG_MODEL); },
+    });
+  }
+
+  runners.set("chat", {
+    id: "chat",
+    run(prompt) { runChatGptRepair(workspace, prompt, "chat", context.repository, context.token); },
+  });
+  runners.set("work", {
+    id: "work",
+    run(prompt) { runChatGptRepair(workspace, prompt, "work", context.repository, context.token); },
+  });
+
+  const groqApiKey = process.env.GROQ_API_KEY?.trim() || "";
+  if (groqApiKey) {
+    runners.set("free-external", {
+      id: "free-external",
+      run(prompt) { runGroqFreeRepair(workspace, prompt, groqApiKey); },
     });
   }
 
   if (codexEngine) {
     runners.set("codex", {
       id: "codex",
-      run(prompt) {
-        runCodex(codexEngine, workspace, prompt);
-      },
+      run(prompt) { runCodex(codexEngine, workspace, prompt); },
     });
   }
 
@@ -890,7 +1079,7 @@ async function main() {
     failureLog,
   });
 
-  const repairRunners = createRepairEngineRunners(workspace, allowed);
+  const repairRunners = createRepairEngineRunners(workspace, allowed, { repository, token });
   const repairEngineFailures: Array<{ engine: string; reason: string }> = [];
   let repaired: RepairEngineCandidateSuccess | null = null;
 
@@ -918,6 +1107,7 @@ async function main() {
 
   const repairEngine = repaired.engineId;
   const changed = repaired.changed;
+  persistLearnedMemory(workspace, fingerprint, changed, repairEngine);
   const verification = { checks: repaired.checks };
   const localVerificationAttempt = repaired.localVerificationAttempts;
   const localVerificationFailures = repaired.localVerificationFailures;

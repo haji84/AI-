@@ -212,16 +212,20 @@ test("local verification repair prompt feeds failed check back without broadenin
   assert.match(prompt, /scripts\/goriq-pr-ci-recovery\.ts/);
 });
 
-test("recovery engine availability keeps Chat before Work before free external before Codex", () => {
+test("recovery engine availability activates stages 2 through 7 before Codex", () => {
   const ids = configuredRepairEngineIds({
-    GORIQ_LOCAL_CODE_REPAIR_COMMAND: "local-code-wrapper",
-    GORIQ_CHAT_REPAIR_COMMAND: "chat-wrapper",
-    GORIQ_WORK_REPAIR_COMMAND: "work-wrapper",
-    GORIQ_FREE_EXTERNAL_REPAIR_COMMAND: "free-wrapper",
-  }, true);
+    GORIQ_REPAIR_REPOSITORY: "haji84/AI-",
+    GORIQ_REPAIR_GITHUB_TOKEN: "scoped-issue-token",
+    GROQ_API_KEY: "free-plan-key",
+  }, true, {
+    localFastReady: true,
+    localStrongReady: true,
+  });
   assert.deepEqual(ids, [
     "goriq-deterministic",
+    "goriq-learned",
     "goriq-local-code",
+    "goriq-local-capability",
     "chat",
     "work",
     "free-external",
@@ -229,10 +233,13 @@ test("recovery engine availability keeps Chat before Work before free external b
   ]);
 });
 
-test("Codex is not selected when an earlier configured repair engine exists alone", () => {
+test("learned repair remains available even when every model and external bridge is offline", () => {
   assert.deepEqual(
-    configuredRepairEngineIds({ GORIQ_CHAT_REPAIR_COMMAND: "chat-wrapper" }, false),
-    ["goriq-deterministic", "chat"],
+    configuredRepairEngineIds({}, false, {
+      localFastReady: false,
+      localStrongReady: false,
+    }),
+    ["goriq-deterministic", "goriq-learned"],
   );
 });
 

@@ -1,0 +1,70 @@
+name: GORIQ Repair Engines Runtime
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/goriq-pr-ci-recovery.ts'
+      - 'scripts/goriq-ollama-repair.mjs'
+      - 'scripts/goriq-chatgpt-repair-client.mjs'
+      - 'scripts/install-goriq-local-repair-windows.ps1'
+      - 'scripts/chatgpt-resident-bridge-v2.mjs'
+      - 'scripts/chatgpt-resident-bridge-lib.mjs'
+      - 'scripts/install-macos-chatgpt-bridge.sh'
+      - 'src/orchestrator/repair-engine-router.ts'
+      - '.github/workflows/goriq-repair-engines-runtime.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  zbook-local-repair:
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+      - name: Install and verify GORIQ local repair engines
+        shell: powershell
+        run: |
+          .\scripts\install-goriq-local-repair-windows.ps1
+      - name: Capture local repair status
+        if: always()
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path .goriq-repair-results | Out-Null
+          $status = Join-Path $env:LOCALAPPDATA 'GORIQ\repair-engines\status.json'
+          if (Test-Path $status) {
+            Copy-Item $status .goriq-repair-results\status.json -Force
+            Get-Content $status
+          }
+      - name: Upload local repair status
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: goriq-zbook-repair-engines
+          path: .goriq-repair-results/
+          include-hidden-files: true
+          retention-days: 30
+
+  mac-chat-work-bridge:
+    runs-on: [self-hosted, macOS, ARM64]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+      - name: Refresh Chat and Work resident bridge
+        shell: bash
+        run: bash scripts/install-macos-chatgpt-bridge.sh
+      - name: Report bridge health
+        shell: bash
+        run: |
+          HEALTH="$HOME/.ai-company/chatgpt-bridge-health.json"
+          for _ in $(seq 1 20); do
+            [[ -s "$HEALTH" ]] && break
+            sleep 2
+          done
+          [[ -s "$HEALTH" ]] && cat "$HEALTH" || true
