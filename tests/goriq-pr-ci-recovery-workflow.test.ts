@@ -46,5 +46,7 @@ test("coding engine receives no persisted checkout credential", async () => {
   assert.doesNotMatch(workflow, /path: target[\s\S]{0,160}persist-credentials: true/);
   assert.match(controller, /sanitizedBuilderEnvironment/);
   assert.match(controller, /GITHUB_TOKEN/);
+  assert.match(controller, /credential\.helper/);
+  assert.match(controller, /goriq-push-disabled/);
   assert.match(controller, /pushWithGithubToken/);
 });
