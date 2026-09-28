@@ -3,6 +3,13 @@ import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve, relative, isAbsolute } from "node:path";
 import { randomUUID } from "node:crypto";
+import {
+  decodeChatComment,
+  decodeConversationBody,
+  defaultBridgeState,
+  encodeChatComment,
+  encodeConversationBody,
+} from "./chatgpt-resident-bridge-lib.mjs";
 
 function arg(name, fallback = "") {
   const i = process.argv.indexOf(name);
@@ -30,17 +37,6 @@ function stripFence(text) {
   const match = trimmed.match(/^```(?:diff|patch)?\s*([\s\S]*?)\s*```$/i);
   return match ? match[1].trim() : trimmed;
 }
-function decodeAiComment(body = "") {
-  const start = body.indexOf("<!-- ai-chat-entry:v1\n");
-  if (start < 0) return null;
-  const from = start + "<!-- ai-chat-entry:v1\n".length;
-  const end = body.indexOf("\n-->", from);
-  if (end < 0) return null;
-  try {
-    const value = JSON.parse(body.slice(from, end));
-    return value?.role === "ai" && typeof value?.text === "string" ? value : null;
-  } catch { return null; }
-}
 async function api(url, token, init = {}) {
   const response = await fetch(url, {
     ...init,
@@ -55,6 +51,97 @@ async function api(url, token, init = {}) {
   return response.status === 204 ? null : response.json();
 }
 function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
+
+const AUTOMATION_PROJECT = process.env.GORIQ_AUTOMATION_PROJECT?.trim() || "自動化";
+const REPAIR_CONVERSATION_TITLE = process.env.GORIQ_AUTOMATION_REPAIR_TITLE?.trim() || "自動化 GORIQ Repair";
+
+function newProjectMeta() {
+  return {
+    version: 1,
+    project: AUTOMATION_PROJECT,
+    memory: {
+      decisions: [],
+      constraints: ["bounded repair only", "Chat→Work→free external→Codex escalation order"],
+      unfinished: [],
+      references: [],
+    },
+    githubBridge: defaultBridgeState(),
+  };
+}
+
+async function findOrCreateAutomationConversation(owner, repo, token) {
+  const issues = await api(`https://api.github.com/repos/${owner}/${repo}/issues?state=open&sort=updated&direction=desc&per_page=100`, token);
+  for (const issue of issues) {
+    if (issue?.pull_request || issue?.title !== `[AI Chat] ${REPAIR_CONVERSATION_TITLE}`) continue;
+    const meta = decodeConversationBody(issue.body ?? "");
+    if (meta?.project !== AUTOMATION_PROJECT) continue;
+    if (meta.githubBridge?.pendingOwnerMessageId) {
+      const pendingAt = Date.parse(String(meta.githubBridge.pendingAt || ""));
+      if (!Number.isFinite(pendingAt) || Date.now() - pendingAt < 30 * 60_000) {
+        throw new Error(`AUTOMATION_PROJECT_REPAIR_BUSY: issue=${issue.number}`);
+      }
+      const cleared = {
+        ...meta,
+        githubBridge: defaultBridgeState(),
+      };
+      await api(`https://api.github.com/repos/${owner}/${repo}/issues/${issue.number}`, token, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ body: encodeConversationBody(cleared) }),
+      });
+      return { issueNumber: issue.number, meta: cleared, reused: true };
+    }
+    return { issueNumber: issue.number, meta, reused: true };
+  }
+
+  const meta = newProjectMeta();
+  const issue = await api(`https://api.github.com/repos/${owner}/${repo}/issues`, token, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      title: `[AI Chat] ${REPAIR_CONVERSATION_TITLE}`,
+      body: encodeConversationBody(meta),
+    }),
+  });
+  return { issueNumber: issue.number, meta, reused: false };
+}
+
+async function enqueueProjectRepair(owner, repo, token, mode, requestId, createdAt, ownerText) {
+  const conversation = await findOrCreateAutomationConversation(owner, repo, token);
+  const message = {
+    id: requestId,
+    role: "owner",
+    text: ownerText,
+    meta: `repair-surface:${mode}`,
+    createdAt,
+  };
+
+  await api(`https://api.github.com/repos/${owner}/${repo}/issues/${conversation.issueNumber}/comments`, token, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ body: encodeChatComment(message) }),
+  });
+
+  const nextMeta = {
+    ...conversation.meta,
+    project: AUTOMATION_PROJECT,
+    githubBridge: {
+      ...defaultBridgeState(),
+      ...(conversation.meta.githubBridge ?? {}),
+      pendingOwnerMessageId: requestId,
+      pendingAt: createdAt,
+      pendingOwnerPayload: message,
+    },
+  };
+
+  await api(`https://api.github.com/repos/${owner}/${repo}/issues/${conversation.issueNumber}`, token, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ body: encodeConversationBody(nextMeta) }),
+  });
+
+  return { ...conversation, meta: nextMeta };
+}
 
 const workspace = resolve(arg("--workspace", process.cwd()));
 const mode = arg("--mode", "chat").toLowerCase();
@@ -90,42 +177,8 @@ const ownerText = [
   JSON.stringify(context),
 ].join("\n\n").slice(0, 17000);
 
-const meta = {
-  version: 1,
-  project: `GORIQ Repair ${mode}`,
-  memory: { decisions: [], constraints: ["bounded repair only"], unfinished: [], references: [] },
-  githubBridge: {
-    pendingOwnerMessageId: requestId,
-    pendingAt: createdAt,
-    lastAiMessageId: null,
-    lastSyncedAt: null,
-    pendingOwnerPayload: {
-      id: requestId,
-      role: "owner",
-      text: ownerText,
-      meta: `repair-surface:${mode}`,
-      createdAt,
-    },
-  },
-};
-const body = [
-  "<!-- ai-chat-conversation:v1",
-  JSON.stringify(meta),
-  "-->",
-  "",
-  "GORIQ bounded repair bridge request.",
-  "",
-  "CHATGPT-GITHUB-BRIDGE: pending",
-  `pending-owner-message-id: ${requestId}`,
-].join("\n");
-
-const issue = await api(`https://api.github.com/repos/${owner}/${repo}/issues`, token, {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ title: `[AI Chat] GORIQ Repair ${mode} ${requestId.slice(-8)}`, body }),
-});
-
-const issueNumber = issue.number;
+const conversation = await enqueueProjectRepair(owner, repo, token, mode, requestId, createdAt, ownerText);
+const issueNumber = conversation.issueNumber;
 await api(`https://api.github.com/repos/${owner}/${repo}/dispatches`, token, {
   method: "POST",
   headers: { "Content-Type": "application/json" },
@@ -135,6 +188,7 @@ await api(`https://api.github.com/repos/${owner}/${repo}/dispatches`, token, {
       issue_number: issueNumber,
       request_id: requestId,
       mode,
+      project: AUTOMATION_PROJECT,
     },
   }),
 });
@@ -144,8 +198,10 @@ try {
   while (Date.now() < deadline) {
     const comments = await api(`https://api.github.com/repos/${owner}/${repo}/issues/${issueNumber}/comments?per_page=100`, token);
     for (const comment of comments) {
-      const decoded = decodeAiComment(comment.body ?? "");
-      if (decoded?.text) answer = decoded.text;
+      const decoded = decodeChatComment(comment.body ?? "");
+      if (decoded?.role === "ai" && decoded?.text && Date.parse(String(decoded.createdAt || "")) >= Date.parse(createdAt)) {
+        answer = decoded.text;
+      }
     }
     if (answer) break;
     await sleep(5000);
@@ -168,12 +224,4 @@ try {
     throw new Error(`${mode.toUpperCase()}_REPAIR_GIT_APPLY_FAILED: ${String(applied.stderr || applied.stdout).slice(-2000)}`);
   }
   console.log(JSON.stringify({ ok: true, mode, issueNumber }, null, 2));
-} finally {
-  try {
-    await api(`https://api.github.com/repos/${owner}/${repo}/issues/${issueNumber}`, token, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ state: "closed" }),
-    });
-  } catch {}
 }
