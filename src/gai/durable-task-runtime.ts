@@ -18,6 +18,12 @@ export type DurableTaskStatus =
 
 export type DurableTaskPriority = "urgent" | "high" | "normal" | "low" | "background";
 export type DurableTaskMigrationClass = "MIGRATABLE" | "RESTARTABLE" | "PINNED" | "SIDE_EFFECTING";
+export type DurableTaskWaitReason =
+  | "connectivity"
+  | "resource"
+  | "pinned-node"
+  | "migration-checkpoint"
+  | "side-effect-reconciliation";
 
 export interface DurableTaskExecutionClaim {
   taskId: string;
@@ -48,6 +54,8 @@ export interface DurableTask {
   attempts: number;
   maxAttempts: number;
   migrationClass: DurableTaskMigrationClass;
+  pinnedNodeId?: string;
+  waitReason?: DurableTaskWaitReason;
   executionEpoch: number;
   leaseOwner?: string;
   leaseUntil?: string;
@@ -71,6 +79,7 @@ export interface DurableTaskCreateInput {
   dependsOn?: string[];
   maxAttempts?: number;
   migrationClass?: DurableTaskMigrationClass;
+  pinnedNodeId?: string;
   checkpointRef?: string;
 }
 
@@ -151,6 +160,10 @@ function normalizeTask(task: DurableTask): DurableTask {
   clone.fencingToken = typeof clone.fencingToken === "string" && clone.fencingToken.trim()
     ? clone.fencingToken
     : undefined;
+  clone.pinnedNodeId = typeof clone.pinnedNodeId === "string" && clone.pinnedNodeId.trim()
+    ? clone.pinnedNodeId.trim()
+    : undefined;
+  clone.waitReason = typeof clone.waitReason === "string" ? clone.waitReason as DurableTaskWaitReason : undefined;
   return clone;
 }
 
@@ -189,6 +202,9 @@ export class DurableTaskRuntime {
     if (!Number.isInteger(maxAttempts) || maxAttempts < 1) throw new Error("maxAttempts must be a positive integer");
     const migrationClass = input.migrationClass ?? "RESTARTABLE";
     if (!MIGRATION_CLASSES.has(migrationClass)) throw new Error("invalid migrationClass");
+    const pinnedNodeId = input.pinnedNodeId?.trim() || undefined;
+    if (migrationClass === "PINNED" && !pinnedNodeId) throw new Error("PINNED task requires pinnedNodeId");
+    if (migrationClass !== "PINNED" && pinnedNodeId) throw new Error("pinnedNodeId is only valid for PINNED tasks");
     const createdAt = iso(now);
     const task: DurableTask = {
       id: input.id,
@@ -202,6 +218,7 @@ export class DurableTaskRuntime {
       attempts: 0,
       maxAttempts,
       migrationClass,
+      pinnedNodeId,
       executionEpoch: 0,
       checkpointRef: input.checkpointRef,
       createdAt,
@@ -268,6 +285,9 @@ export class DurableTaskRuntime {
     if (task.status !== "queued" && task.status !== "retrying") {
       throw new Error(`Task ${taskId} cannot be leased from status ${task.status}`);
     }
+    if (task.migrationClass === "PINNED" && task.pinnedNodeId !== owner) {
+      throw new Error(`PINNED_TASK_WRONG_NODE: task ${taskId} requires ${task.pinnedNodeId}`);
+    }
     if (task.nextAttemptAt && new Date(task.nextAttemptAt).getTime() > now.getTime()) {
       throw new Error(`Task ${taskId} retry delay has not elapsed`);
     }
@@ -279,6 +299,7 @@ export class DurableTaskRuntime {
     task.leaseUntil = new Date(now.getTime() + leaseMs).toISOString();
     task.fencingToken = randomUUID();
     task.nextAttemptAt = undefined;
+    task.waitReason = undefined;
     task.attempts += 1;
     await this.persist(now);
     return cloneTask(task);
@@ -343,6 +364,7 @@ export class DurableTaskRuntime {
     task.leaseOwner = undefined;
     task.leaseUntil = undefined;
     task.fencingToken = undefined;
+    task.waitReason = undefined;
     this.transition(task, "completed", "execution verified complete", now, owner);
     await this.refreshDependencyState(now);
     await this.persist(now);
@@ -358,6 +380,7 @@ export class DurableTaskRuntime {
     task.leaseOwner = undefined;
     task.leaseUntil = undefined;
     task.fencingToken = undefined;
+    task.waitReason = undefined;
     this.transition(task, "completed", "execution verified complete", now, claim.owner, { executionEpoch: claim.epoch });
     await this.refreshDependencyState(now);
     await this.persist(now);
@@ -375,6 +398,7 @@ export class DurableTaskRuntime {
     task.leaseOwner = undefined;
     task.leaseUntil = undefined;
     task.fencingToken = undefined;
+    task.waitReason = undefined;
     this.transition(task, "ready-to-publish", "offline execution verified; publication requires connectivity", now, owner);
     await this.persist(now);
     return cloneTask(task);
@@ -389,6 +413,7 @@ export class DurableTaskRuntime {
     task.leaseOwner = undefined;
     task.leaseUntil = undefined;
     task.fencingToken = undefined;
+    task.waitReason = undefined;
     this.transition(task, "ready-to-publish", "offline execution verified; publication requires connectivity", now, claim.owner, { executionEpoch: claim.epoch });
     await this.persist(now);
     return cloneTask(task);
@@ -407,6 +432,7 @@ export class DurableTaskRuntime {
     task.leaseOwner = undefined;
     task.leaseUntil = undefined;
     task.fencingToken = undefined;
+    task.waitReason = undefined;
     const retry = task.attempts < task.maxAttempts;
     if (retry) {
       task.nextAttemptAt = new Date(now.getTime() + Math.max(0, retryDelayMs)).toISOString();
@@ -436,6 +462,7 @@ export class DurableTaskRuntime {
     task.leaseOwner = undefined;
     task.leaseUntil = undefined;
     task.fencingToken = undefined;
+    task.waitReason = undefined;
     const retry = task.attempts < task.maxAttempts;
     if (retry) {
       task.nextAttemptAt = new Date(now.getTime() + Math.max(0, retryDelayMs)).toISOString();
@@ -450,11 +477,15 @@ export class DurableTaskRuntime {
   }
 
   async waitForConnectivity(taskId: string, reason: string, now = new Date()): Promise<DurableTask> {
-    return this.wait(taskId, "waiting-connectivity", reason, now);
+    return this.wait(taskId, "waiting-connectivity", "connectivity", reason, now);
   }
 
   async waitForResource(taskId: string, reason: string, now = new Date()): Promise<DurableTask> {
-    return this.wait(taskId, "waiting-resource", reason, now);
+    return this.wait(taskId, "waiting-resource", "resource", reason, now);
+  }
+
+  async waitForPinnedNode(taskId: string, reason: string, now = new Date()): Promise<DurableTask> {
+    return this.wait(taskId, "waiting-resource", "pinned-node", reason, now);
   }
 
   async resumeWaiting(kind: "connectivity" | "resource", now = new Date()): Promise<number> {
@@ -463,6 +494,9 @@ export class DurableTaskRuntime {
     let count = 0;
     for (const task of this.tasks.values()) {
       if (task.status !== status) continue;
+      const expected = kind === "connectivity" ? "connectivity" : "resource";
+      if (task.waitReason && task.waitReason !== expected) continue;
+      task.waitReason = undefined;
       this.transition(task, "queued", `${kind} available`, now);
       count += 1;
     }
@@ -473,6 +507,75 @@ export class DurableTaskRuntime {
     return count;
   }
 
+  async resumePinnedNode(nodeId: string, now = new Date()): Promise<number> {
+    await this.initialize();
+    const normalized = nodeId.trim();
+    if (!normalized) throw new Error("nodeId is required");
+    let count = 0;
+    for (const task of this.tasks.values()) {
+      if (
+        task.status !== "waiting-resource" ||
+        task.waitReason !== "pinned-node" ||
+        task.migrationClass !== "PINNED" ||
+        task.pinnedNodeId !== normalized
+      ) continue;
+      task.waitReason = undefined;
+      this.transition(task, "queued", "pinned node available", now, normalized);
+      count += 1;
+    }
+    if (count > 0) await this.persist(now);
+    return count;
+  }
+
+  async provideMigrationCheckpoint(taskId: string, checkpointRef: string, now = new Date()): Promise<DurableTask> {
+    await this.initialize();
+    const task = this.mustGet(taskId);
+    const checkpoint = checkpointRef.trim();
+    if (!checkpoint) throw new Error("checkpointRef is required");
+    if (task.migrationClass !== "MIGRATABLE") throw new Error(`Task ${taskId} is not MIGRATABLE`);
+    task.checkpointRef = checkpoint;
+    if (task.status === "waiting-resource" && task.waitReason === "migration-checkpoint") {
+      task.waitReason = undefined;
+      task.nextAttemptAt = iso(now);
+      this.transition(task, "retrying", "migration checkpoint available", now);
+    } else {
+      task.updatedAt = iso(now);
+    }
+    await this.persist(now);
+    return cloneTask(task);
+  }
+
+  async reconcileSideEffect(
+    taskId: string,
+    actor: string,
+    outcome: "retry" | "completed",
+    evidence: Record<string, unknown>,
+    result?: unknown,
+    now = new Date(),
+  ): Promise<DurableTask> {
+    await this.initialize();
+    const task = this.mustGet(taskId);
+    if (!actor.trim()) throw new Error("reconciliation actor is required");
+    if (task.migrationClass !== "SIDE_EFFECTING") throw new Error(`Task ${taskId} is not SIDE_EFFECTING`);
+    if (task.status !== "waiting-resource" || task.waitReason !== "side-effect-reconciliation") {
+      throw new Error(`Task ${taskId} is not waiting for side-effect reconciliation`);
+    }
+    if (!evidence || Object.keys(evidence).length === 0) throw new Error("side-effect reconciliation evidence is required");
+    task.waitReason = undefined;
+    task.error = undefined;
+    if (outcome === "completed") {
+      task.result = structuredClone(result);
+      task.nextAttemptAt = undefined;
+      this.transition(task, "completed", "side effect reconciled as completed", now, actor, { reconciliation: structuredClone(evidence) });
+      await this.refreshDependencyState(now);
+    } else {
+      task.nextAttemptAt = iso(now);
+      this.transition(task, "retrying", "side effect reconciled safe to retry", now, actor, { reconciliation: structuredClone(evidence) });
+    }
+    await this.persist(now);
+    return cloneTask(task);
+  }
+
   async cancel(taskId: string, reason = "cancelled", now = new Date()): Promise<DurableTask> {
     await this.initialize();
     const task = this.mustGet(taskId);
@@ -481,6 +584,7 @@ export class DurableTaskRuntime {
     task.leaseOwner = undefined;
     task.leaseUntil = undefined;
     task.fencingToken = undefined;
+    task.waitReason = undefined;
     task.nextAttemptAt = undefined;
     this.transition(task, "cancelled", reason, now);
     await this.refreshDependencyState(now);
@@ -541,6 +645,7 @@ export class DurableTaskRuntime {
   private async wait(
     taskId: string,
     status: "waiting-connectivity" | "waiting-resource",
+    waitReason: DurableTaskWaitReason,
     reason: string,
     now: Date,
   ): Promise<DurableTask> {
@@ -551,23 +656,63 @@ export class DurableTaskRuntime {
     task.leaseUntil = undefined;
     task.fencingToken = undefined;
     task.nextAttemptAt = undefined;
-    this.transition(task, status, reason, now);
+    task.waitReason = waitReason;
+    this.transition(task, status, reason, now, undefined, { waitReason });
     await this.persist(now);
     return cloneTask(task);
   }
 
   private recoverTask(task: DurableTask, reason: string, now: Date): void {
+    const lostOwner = task.leaseOwner;
     task.leaseOwner = undefined;
     task.leaseUntil = undefined;
     task.fencingToken = undefined;
-    const retry = task.attempts < task.maxAttempts;
-    if (retry) {
-      task.nextAttemptAt = iso(now);
-      this.transition(task, "retrying", reason, now);
-    } else {
-      task.nextAttemptAt = undefined;
-      task.error = reason;
-      this.transition(task, "failed", `${reason}; retry budget exhausted`, now);
+    task.nextAttemptAt = undefined;
+
+    switch (task.migrationClass) {
+      case "MIGRATABLE":
+        if (task.checkpointRef) {
+          task.waitReason = undefined;
+          task.nextAttemptAt = iso(now);
+          this.transition(task, "retrying", `${reason}; resume from checkpoint`, now, undefined, {
+            migrationClass: task.migrationClass,
+            checkpointRef: task.checkpointRef,
+            lostOwner,
+          });
+        } else {
+          task.waitReason = "migration-checkpoint";
+          this.transition(task, "waiting-resource", `${reason}; migration checkpoint required`, now, undefined, {
+            migrationClass: task.migrationClass,
+            waitReason: task.waitReason,
+            lostOwner,
+          });
+        }
+        return;
+      case "RESTARTABLE":
+        task.waitReason = undefined;
+        task.nextAttemptAt = iso(now);
+        this.transition(task, "retrying", `${reason}; restart on eligible node`, now, undefined, {
+          migrationClass: task.migrationClass,
+          lostOwner,
+        });
+        return;
+      case "PINNED":
+        task.waitReason = "pinned-node";
+        this.transition(task, "waiting-resource", `${reason}; waiting for pinned node ${task.pinnedNodeId}`, now, undefined, {
+          migrationClass: task.migrationClass,
+          pinnedNodeId: task.pinnedNodeId,
+          waitReason: task.waitReason,
+          lostOwner,
+        });
+        return;
+      case "SIDE_EFFECTING":
+        task.waitReason = "side-effect-reconciliation";
+        this.transition(task, "waiting-resource", `${reason}; side effect reconciliation required`, now, undefined, {
+          migrationClass: task.migrationClass,
+          waitReason: task.waitReason,
+          lostOwner,
+        });
+        return;
     }
   }
 
