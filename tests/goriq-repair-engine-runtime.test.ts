@@ -130,3 +130,10 @@ test("free external repair uses Groq Free Plan API and fails closed on rate limi
   assert.match(source, /GORIQ_GROQ_FREE_LIMIT_EXHAUSTED/);
   assert.doesNotMatch(source, /billing|credit card|purchase/i);
 });
+
+test("repair runtimes prefer the newest execution and do not let stale runs block fixes", async () => {
+  const runtime = await readFile(runtimeWorkflowUrl, "utf8");
+  const autonomy = await readFile(new URL("../.github/workflows/autonomy-mobile.yml", import.meta.url), "utf8");
+  assert.match(runtime, /concurrency:\s+group: goriq-repair-engines-runtime\s+cancel-in-progress: true/);
+  assert.match(autonomy, /project-chat-work-repair:[\s\S]*?group: goriq-project-repair-\$\{\{ github\.event\.client_payload\.issue_number \|\| github\.run_id \}\}[\s\S]*?cancel-in-progress: true/);
+});
