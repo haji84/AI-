@@ -30,3 +30,18 @@ test("ZBook liveness workflow is read-only, exact-main and Windows scoped", () =
   assert.match(workflow, /goriq-zbook-fleet-liveness\.ps1/);
   assert.match(workflow, /Upload sanitized diagnosis/);
 });
+
+
+test("ZBook liveness diagnosis reports only a bounded sanitized failure stage", () => {
+  for (const stage of [
+    "config-discovery",
+    "config-decrypt",
+    "local-broker",
+    "fleet-aggregation",
+    "task-state",
+  ]) {
+    assert.match(script, new RegExp(`\\$stage = "${stage}"`));
+  }
+  assert.match(script, /reason=\("diagnostic_failed:" \+ \$stage\)/);
+  assert.doesNotMatch(script, /\.Exception\.Message|\.ScriptStackTrace|Write-Error|Write-Warning\s+\$_/);
+});
