@@ -182,6 +182,7 @@ export class OfflineFirstExecutionCoordinator {
         requiredCapabilities: plan.requiredCapabilities ?? [plan.requestedCapability],
         preferredPlatform: plan.preferredPlatform,
         requiredExecutionMode: plan.requiredExecutionMode,
+        requiredWorkerId: task.migrationClass === "PINNED" ? task.pinnedNodeId : undefined,
         connectivity: state,
         allowOffline: plan.allowOffline ?? plan.networkRequirement !== "online-required",
       };
@@ -190,11 +191,10 @@ export class OfflineFirstExecutionCoordinator {
       try {
         selection = await this.workers.select(request);
       } catch (error) {
-        const waiting = await this.tasks.waitForResource(
-          task.id,
-          error instanceof Error ? error.message : String(error),
-          now,
-        );
+        const reason = error instanceof Error ? error.message : String(error);
+        const waiting = task.migrationClass === "PINNED"
+          ? await this.tasks.waitForPinnedNode(task.id, reason, now)
+          : await this.tasks.waitForResource(task.id, reason, now);
         return {
           task: waiting,
           evidence: {
