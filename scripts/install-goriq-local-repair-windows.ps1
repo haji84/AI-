@@ -48,10 +48,17 @@ if (-not (Test-OllamaApi)) { throw 'Ollama API did not become ready on 127.0.0.1
 $pullResults = @()
 foreach ($model in @($LocalFastModel, $LocalStrongModel)) {
   Write-Host "Pulling local repair model: $model"
-  $output = & $ollama pull $model 2>&1 | Out-String
-  $ok = $LASTEXITCODE -eq 0
-  $pullResults += [ordered]@{ model = $model; ok = $ok; outputTail = $output.Substring([Math]::Max(0, $output.Length - 1200)) }
-  if (-not $ok) { throw "Failed to pull required local repair model: $model" }
+  $previousErrorPreference = $ErrorActionPreference
+  try {
+    $ErrorActionPreference = 'Continue'
+    $output = & $ollama pull $model 2>&1 | Out-String
+    $exitCode = $LASTEXITCODE
+  } finally {
+    $ErrorActionPreference = $previousErrorPreference
+  }
+  $ok = $exitCode -eq 0
+  $pullResults += [ordered]@{ model = $model; ok = $ok; exitCode = $exitCode; outputTail = $output.Substring([Math]::Max(0, $output.Length - 1200)) }
+  if (-not $ok) { throw "Failed to pull required local repair model: $model (exit $exitCode)" }
 }
 
 $version = (& $ollama --version 2>&1 | Out-String).Trim()
