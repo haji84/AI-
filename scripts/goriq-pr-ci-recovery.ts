@@ -10,14 +10,15 @@ export interface PullRequestInfo {
   number: number;
   state: string;
   head: { ref: string; sha: string; repo?: { full_name?: string } | null };
-  base: { ref: string };
+  base: { ref: string; repo?: { full_name?: string } | null };
 }
 
 export function isSameRepositoryOpenPullRequest(pr: PullRequestInfo, repository: string): boolean {
   return pr.state === "open"
     && pr.head.repo?.full_name === repository
+    && pr.base.repo?.full_name === repository
     && pr.head.ref !== "main"
-    && pr.base.ref === "main";
+    && pr.head.ref !== pr.base.ref;
 }
 
 export function recoveryAttemptCount(subjects: string[]): number {
@@ -178,6 +179,7 @@ export function buildRecoveryPrompt(input: {
     "You are the bounded GORIQ CI recovery worker.",
     "Read AGENTS.md and PROJECT_STATE.md before editing.",
     `Fix the concrete CI failure for PR #${input.prNumber}. This is automatic recovery attempt ${input.attempt} of ${MAX_AUTOMATIC_ATTEMPTS}.`,
+    input.attempt > 1 ? "Inspect prior recovery commits and do not repeat a materially equivalent failed correction." : "Use the first evidence-backed minimal correction.",
     "Make the smallest implementation correction supported by the failure evidence.",
     "Do not commit, push, merge, deploy, change workflows, permissions, credentials, secrets, dependencies, requirements, governance, or existing tests.",
     "Do not weaken or delete tests. Do not edit files outside AllowedPaths.",
