@@ -375,7 +375,6 @@ export class MultiWorkerRuntime {
       .filter((worker) => !request.requiredWorkerId || worker.descriptor.id === request.requiredWorkerId)
       .filter((worker) => !excluded.has(worker.descriptor.id))
       .filter((worker) => healthy.get(worker.descriptor.id)?.available)
-      .filter((worker) => hasExecutionCapacity(worker.descriptor, healthy.get(worker.descriptor.id)!))
       .filter((worker) => required.every((capability) => worker.descriptor.capabilities.includes(capability)))
       .filter((worker) => !request.requestedCapability || worker.descriptor.capabilities.includes(request.requestedCapability))
       .filter((worker) => supportsExecutionMode(worker.descriptor, request))
