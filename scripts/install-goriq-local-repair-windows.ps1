@@ -1,7 +1,7 @@
 param(
   [string]$LocalFastModel = 'qwen2.5-coder:1.5b',
   [string]$LocalStrongModel = 'qwen2.5-coder:3b',
-  [string]$CloudFreeModel = 'glm-4.7:cloud'
+  [string]$CloudFreeModel = 'gpt-oss:20b-cloud'
 )
 
 $ErrorActionPreference = 'Stop'
