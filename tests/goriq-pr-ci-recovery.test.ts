@@ -8,6 +8,7 @@ import {
   allowedRepairPaths,
   buildRecoveryPrompt,
   chooseRecoveryStrategy,
+  commandInvocation,
   failureFingerprint,
   generatedWorkspaceNoisePaths,
   isSameRepositoryOpenPullRequest,
@@ -178,6 +179,27 @@ test("recovery prompt preserves bounded authority while changing strategy", () =
   assert.match(prompt, /src\/gai\/worker-runtime\.ts/);
   assert.match(prompt, /Do not commit, push, merge, deploy/);
   assert.match(prompt, /Do not weaken or delete tests/);
+});
+
+test("Windows command shims run through cmd.exe while native executables stay direct", () => {
+  assert.deepEqual(
+    commandInvocation("C:\\Users\\qq113\\AppData\\Roaming\\npm\\pnpm.cmd", ["lint"], "win32", "C:\\Windows\\System32\\cmd.exe"),
+    {
+      command: "C:\\Windows\\System32\\cmd.exe",
+      args: ["/d", "/s", "/c", "C:\\Users\\qq113\\AppData\\Roaming\\npm\\pnpm.cmd", "lint"],
+    },
+  );
+  assert.deepEqual(
+    commandInvocation("C:\\Program Files\\Git\\cmd\\git.exe", ["status"], "win32", "cmd.exe"),
+    {
+      command: "C:\\Program Files\\Git\\cmd\\git.exe",
+      args: ["status"],
+    },
+  );
+  assert.deepEqual(
+    commandInvocation("pnpm", ["lint"], "linux", "cmd.exe"),
+    { command: "pnpm", args: ["lint"] },
+  );
 });
 
 test("Windows coding engine path resolves npm command shims", () => {
