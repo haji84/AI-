@@ -692,12 +692,21 @@ export class DurableTaskRuntime {
       case "MIGRATABLE":
         if (task.checkpointRef) {
           task.waitReason = undefined;
-          task.nextAttemptAt = iso(now);
-          this.transition(task, "retrying", `${reason}; resume from checkpoint`, now, undefined, {
-            migrationClass: task.migrationClass,
-            checkpointRef: task.checkpointRef,
-            lostOwner,
-          });
+          if (task.attempts < task.maxAttempts) {
+            task.nextAttemptAt = iso(now);
+            this.transition(task, "retrying", `${reason}; resume from checkpoint`, now, undefined, {
+              migrationClass: task.migrationClass,
+              checkpointRef: task.checkpointRef,
+              lostOwner,
+            });
+          } else {
+            task.error = reason;
+            this.transition(task, "failed", `${reason}; retry budget exhausted`, now, undefined, {
+              migrationClass: task.migrationClass,
+              checkpointRef: task.checkpointRef,
+              lostOwner,
+            });
+          }
         } else {
           task.waitReason = "migration-checkpoint";
           this.transition(task, "waiting-resource", `${reason}; migration checkpoint required`, now, undefined, {
@@ -709,11 +718,19 @@ export class DurableTaskRuntime {
         return;
       case "RESTARTABLE":
         task.waitReason = undefined;
-        task.nextAttemptAt = iso(now);
-        this.transition(task, "retrying", `${reason}; restart on eligible node`, now, undefined, {
-          migrationClass: task.migrationClass,
-          lostOwner,
-        });
+        if (task.attempts < task.maxAttempts) {
+          task.nextAttemptAt = iso(now);
+          this.transition(task, "retrying", `${reason}; restart on eligible node`, now, undefined, {
+            migrationClass: task.migrationClass,
+            lostOwner,
+          });
+        } else {
+          task.error = reason;
+          this.transition(task, "failed", `${reason}; retry budget exhausted`, now, undefined, {
+            migrationClass: task.migrationClass,
+            lostOwner,
+          });
+        }
         return;
       case "PINNED":
         task.waitReason = "pinned-node";
