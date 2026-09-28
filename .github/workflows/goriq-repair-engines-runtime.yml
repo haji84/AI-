@@ -13,6 +13,7 @@ on:
       - 'scripts/install-macos-chatgpt-bridge.sh'
       - 'scripts/goriq-chatgpt-bridge-health-check.mjs'
       - 'scripts/goriq-groq-repair.mjs'
+      - 'scripts/goriq-learned-repair-smoke.mjs'
       - 'src/orchestrator/repair-engine-router.ts'
       - '.github/workflows/goriq-repair-engines-runtime.yml'
   workflow_dispatch:
@@ -83,9 +84,23 @@ jobs:
             exit 1
           fi
 
+  learned-repair-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+      - name: Verify learned repair memory round trip
+        shell: bash
+        run: node ./scripts/goriq-learned-repair-smoke.mjs
+
   chat-work-repair-smoke:
-    needs: [zbook-local-repair, mac-chat-work-bridge]
-    runs-on: [self-hosted, Windows, X64]
+    needs: [mac-chat-work-bridge]
+    runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v5
@@ -95,46 +110,45 @@ jobs:
         with:
           node-version: 24.19.0
       - name: Verify Chat repair round trip
-        shell: powershell
+        shell: bash
         env:
           GORIQ_REPAIR_REPOSITORY: ${{ github.repository }}
           GORIQ_REPAIR_GITHUB_TOKEN: ${{ github.token }}
         run: |
-          $root = Join-Path $env:RUNNER_TEMP 'goriq-chat-repair-smoke'
-          Remove-Item $root -Recurse -Force -ErrorAction SilentlyContinue
-          New-Item -ItemType Directory -Force -Path $root | Out-Null
-          Set-Content -Path (Join-Path $root 'probe.txt') -Value 'BEFORE_CHAT' -NoNewline
-          git -C $root init | Out-Null
-          git -C $root config user.name goriq-smoke
-          git -C $root config user.email smoke@localhost
-          git -C $root add probe.txt
-          git -C $root commit -m baseline | Out-Null
-          "AllowedPaths=probe.txt`nReplace the complete content of probe.txt with exactly AFTER_CHAT." |
-            node .\scripts\goriq-chatgpt-repair-client.mjs --workspace $root --mode chat
-          $actual = (Get-Content (Join-Path $root 'probe.txt') -Raw).Trim()
-          if ($actual -ne 'AFTER_CHAT') { throw "Chat repair smoke mismatch: $actual" }
+          ROOT="$RUNNER_TEMP/goriq-chat-repair-smoke"
+          rm -rf "$ROOT"
+          mkdir -p "$ROOT"
+          printf 'BEFORE_CHAT' > "$ROOT/probe.txt"
+          git -C "$ROOT" init >/dev/null
+          git -C "$ROOT" config user.name goriq-smoke
+          git -C "$ROOT" config user.email smoke@localhost
+          git -C "$ROOT" add probe.txt
+          git -C "$ROOT" commit -m baseline >/dev/null
+          printf 'AllowedPaths=probe.txt\nReplace the complete content of probe.txt with exactly AFTER_CHAT.\n' |
+            node ./scripts/goriq-chatgpt-repair-client.mjs --workspace "$ROOT" --mode chat
+          ACTUAL="$(tr -d '\r\n' < "$ROOT/probe.txt")"
+          [[ "$ACTUAL" == "AFTER_CHAT" ]]
       - name: Verify Work repair round trip
-        shell: powershell
+        shell: bash
         env:
           GORIQ_REPAIR_REPOSITORY: ${{ github.repository }}
           GORIQ_REPAIR_GITHUB_TOKEN: ${{ github.token }}
         run: |
-          $root = Join-Path $env:RUNNER_TEMP 'goriq-work-repair-smoke'
-          Remove-Item $root -Recurse -Force -ErrorAction SilentlyContinue
-          New-Item -ItemType Directory -Force -Path $root | Out-Null
-          Set-Content -Path (Join-Path $root 'probe.txt') -Value 'BEFORE_WORK' -NoNewline
-          git -C $root init | Out-Null
-          git -C $root config user.name goriq-smoke
-          git -C $root config user.email smoke@localhost
-          git -C $root add probe.txt
-          git -C $root commit -m baseline | Out-Null
-          "AllowedPaths=probe.txt`nReplace the complete content of probe.txt with exactly AFTER_WORK." |
-            node .\scripts\goriq-chatgpt-repair-client.mjs --workspace $root --mode work
-          $actual = (Get-Content (Join-Path $root 'probe.txt') -Raw).Trim()
-          if ($actual -ne 'AFTER_WORK') { throw "Work repair smoke mismatch: $actual" }
+          ROOT="$RUNNER_TEMP/goriq-work-repair-smoke"
+          rm -rf "$ROOT"
+          mkdir -p "$ROOT"
+          printf 'BEFORE_WORK' > "$ROOT/probe.txt"
+          git -C "$ROOT" init >/dev/null
+          git -C "$ROOT" config user.name goriq-smoke
+          git -C "$ROOT" config user.email smoke@localhost
+          git -C "$ROOT" add probe.txt
+          git -C "$ROOT" commit -m baseline >/dev/null
+          printf 'AllowedPaths=probe.txt\nReplace the complete content of probe.txt with exactly AFTER_WORK.\n' |
+            node ./scripts/goriq-chatgpt-repair-client.mjs --workspace "$ROOT" --mode work
+          ACTUAL="$(tr -d '\r\n' < "$ROOT/probe.txt")"
+          [[ "$ACTUAL" == "AFTER_WORK" ]]
 
   free-external-repair-smoke:
-    needs: [zbook-local-repair]
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
