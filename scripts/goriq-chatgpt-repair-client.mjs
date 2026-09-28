@@ -153,7 +153,7 @@ try {
   }
   if (!answer) throw new Error(`${mode.toUpperCase()}_REPAIR_BRIDGE_TIMEOUT`);
 
-  const patch = stripFence(answer);
+  const patch = extractUnifiedDiff(answer);
   if (!patch.startsWith("diff --git ") && !patch.startsWith("--- ")) {
     throw new Error(`${mode.toUpperCase()}_REPAIR_INVALID_DIFF: ${patch.slice(0, 500)}`);
   }
