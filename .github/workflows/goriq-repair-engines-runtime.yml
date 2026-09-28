@@ -13,6 +13,9 @@ on:
       - 'scripts/install-macos-chatgpt-bridge.sh'
       - 'scripts/goriq-chatgpt-bridge-health-check.mjs'
       - 'scripts/goriq-groq-repair.mjs'
+      - 'scripts/configure-groq-free-secret-windows.ps1'
+      - 'scripts/invoke-node-with-groq-secret-windows.ps1'
+      - 'scripts/install-groq-one-click-windows.ps1'
       - 'scripts/goriq-learned-repair-smoke.mjs'
       - 'src/orchestrator/repair-engine-router.ts'
       - '.github/workflows/goriq-repair-engines-runtime.yml'
@@ -39,6 +42,10 @@ jobs:
         shell: powershell
         run: |
           .\scripts\install-goriq-local-repair-windows.ps1
+      - name: Install one-click Groq setup launcher
+        shell: powershell
+        run: |
+          powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-groq-one-click-windows.ps1
       - name: Capture local repair status
         if: always()
         shell: powershell
@@ -189,7 +196,8 @@ jobs:
           [[ "$ACTUAL" == "AFTER_WORK" ]]
 
   free-external-repair-smoke:
-    runs-on: ubuntu-latest
+    needs: [zbook-local-repair]
+    runs-on: [self-hosted, Windows, X64]
     timeout-minutes: 8
     steps:
       - uses: actions/checkout@v5
@@ -198,21 +206,16 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24.19.0
-      - name: Verify Groq free external repair
-        shell: bash
+      - name: Verify Groq free external repair using local DPAPI secret
+        shell: powershell
         env:
-          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           GORIQ_GROQ_MODEL: qwen/qwen3.8-27b
         run: |
-          if [[ -z "$GROQ_API_KEY" ]]; then
-            echo "GROQ_API_KEY_NOT_CONFIGURED" >&2
-            exit 1
-          fi
-          ROOT="$RUNNER_TEMP/goriq-groq-repair-smoke"
-          rm -rf "$ROOT"
-          mkdir -p "$ROOT"
-          printf 'BEFORE_GROQ' > "$ROOT/probe.txt"
-          printf 'AllowedPaths=probe.txt\nReplace the complete content of probe.txt with exactly AFTER_GROQ.\n' |
-            node ./scripts/goriq-groq-repair.mjs --workspace "$ROOT"
-          ACTUAL="$(tr -d '\r\n' < "$ROOT/probe.txt")"
-          [[ "$ACTUAL" == "AFTER_GROQ" ]]
+          $root = Join-Path $env:RUNNER_TEMP 'goriq-groq-repair-smoke'
+          Remove-Item $root -Recurse -Force -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force -Path $root | Out-Null
+          Set-Content -Path (Join-Path $root 'probe.txt') -Value 'BEFORE_GROQ' -NoNewline
+          "AllowedPaths=probe.txt`nReplace the complete content of probe.txt with exactly AFTER_GROQ." |
+            powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\invoke-node-with-groq-secret-windows.ps1 -RequireSecret -NodeScript .\scripts\goriq-groq-repair.mjs -NodeArguments @('--workspace', $root)
+          $actual = (Get-Content (Join-Path $root 'probe.txt') -Raw).Trim()
+          if ($actual -ne 'AFTER_GROQ') { throw "Groq repair smoke mismatch: $actual" }
