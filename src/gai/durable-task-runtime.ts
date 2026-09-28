@@ -619,18 +619,54 @@ export class DurableTaskRuntime {
   }
 
   private recoverTask(task: DurableTask, reason: string, now: Date): void {
+    const lostOwner = task.leaseOwner;
     task.leaseOwner = undefined;
     task.leaseUntil = undefined;
     task.fencingToken = undefined;
-    const retry = task.attempts < task.maxAttempts;
-    if (retry) {
-      task.nextAttemptAt = iso(now);
-      this.transition(task, "retrying", reason, now);
-    } else {
-      task.nextAttemptAt = undefined;
-      task.error = reason;
-      this.transition(task, "failed", `${reason}; retry budget exhausted`, now);
+    task.nextAttemptAt = undefined;
+
+    const decision = decideRecovery({
+      migrationClass: task.migrationClass,
+      checkpointRef: task.checkpointRef,
+      attempts: task.attempts,
+      maxAttempts: task.maxAttempts,
+      lostOwner,
+    });
+
+    if (decision.pinnedOwner) task.pinnedOwner = task.pinnedOwner ?? decision.pinnedOwner;
+
+    if (decision.wait) {
+      task.recoveryBlocker = decision.blocker;
+      task.error = decision.blocker;
+      this.transition(task, "waiting-resource", `${reason}; protected recovery waiting`, now, undefined, {
+        recoveryMode: decision.mode,
+        recoveryBlocker: decision.blocker,
+        previousOwner: lostOwner,
+        executionEpoch: task.executionEpoch,
+      });
+      return;
     }
+
+    if (decision.fail) {
+      task.recoveryBlocker = undefined;
+      task.error = reason;
+      this.transition(task, "failed", `${reason}; retry budget exhausted`, now, undefined, {
+        recoveryMode: decision.mode,
+        previousOwner: lostOwner,
+      });
+      return;
+    }
+
+    if (!decision.preserveCheckpoint) task.checkpointRef = undefined;
+    task.recoveryBlocker = undefined;
+    task.error = undefined;
+    task.nextAttemptAt = iso(now);
+    this.transition(task, "retrying", reason, now, undefined, {
+      recoveryMode: decision.mode,
+      previousOwner: lostOwner,
+      checkpointRef: task.checkpointRef,
+      executionEpoch: task.executionEpoch,
+    });
   }
 
   private async refreshDependencyState(now: Date): Promise<void> {
