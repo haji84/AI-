@@ -57,11 +57,18 @@ function isTestPath(path: string): boolean {
   return path.startsWith("tests/") || /\.(?:test|spec)\.[cm]?[jt]sx?$/.test(path);
 }
 
+const PROTECTED_PATH_PATTERN = /(?:^|\/)(?:auth|security|secret|credential|permission|billing|payment|enroll(?:ment)?|migration|token)(?:[-_.\/]|$)/i;
+
+function isProtectedRepairPath(path: string): boolean {
+  return PROTECTED_PATH_PATTERN.test(path);
+}
+
 export function allowedRepairPaths(prPaths: string[]): string[] {
   return [...new Set(prPaths)]
     .filter((path) => !PROTECTED_FILES.has(path))
     .filter((path) => !PROTECTED_PREFIXES.some((prefix) => path.startsWith(prefix)))
     .filter((path) => !isTestPath(path))
+    .filter((path) => !isProtectedRepairPath(path))
     .sort();
 }
 
@@ -322,6 +329,12 @@ async function main() {
 
   const changedBeforeTrace = porcelainPaths(run("git", ["status", "--porcelain"], workspace));
   if (!changedBeforeTrace.length) throw new Error("RECOVERY_ENGINE_PRODUCED_NO_CHANGES");
+
+  const nameStatus = run("git", ["diff", "--name-status", "--"], workspace);
+  if (nameStatus.split(/\r?\n/).some((line) => /^(?:D|R\d*|C\d*)\t/.test(line))) {
+    restoreWorkspace(workspace);
+    throw new Error("RECOVERY_DESTRUCTIVE_CHANGE_REJECTED");
+  }
 
   const allowedSet = new Set(allowed);
   const unsafe = changedBeforeTrace.filter((path) => !allowedSet.has(path) || isTestPath(path));
