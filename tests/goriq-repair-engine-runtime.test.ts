@@ -26,6 +26,16 @@ test("ZBook installer provisions two local models without any cloud billing fall
   assert.doesNotMatch(source, /cloud|CloudFreeModel|pay-as-you-go/i);
 });
 
+test("learned repair persists verified patches and can replay them before model fallbacks", async () => {
+  const recoveryUrl = new URL("../scripts/goriq-pr-ci-recovery.ts", import.meta.url);
+  const source = await readFile(recoveryUrl, "utf8");
+  assert.match(source, /repair-memory/);
+  assert.match(source, /applyLearnedMemory/);
+  assert.match(source, /persistLearnedMemory/);
+  assert.match(source, /GORIQ-Recovery-Failure-Fingerprint/);
+  assert.match(source, /runLearnedRepair/);
+});
+
 test("Chat and Work repair client requests a diff and cannot directly push", async () => {
   const source = await readFile(chatClientUrl, "utf8");
   assert.match(source, /mode must be chat or work/);
