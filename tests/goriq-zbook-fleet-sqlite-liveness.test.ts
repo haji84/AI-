@@ -7,7 +7,7 @@ import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import { scanZBookFleetDatabases } from "../scripts/goriq-zbook-fleet-sqlite-liveness.mjs";
 
-function makeDb(path, input) {
+function makeDb(path: string, input: { fleetCount: number; identityCount: number; lastSeenAt: string; updatedAt: string }) {
   mkdirSync(join(path, ".."), { recursive: true });
   const db = new DatabaseSync(path);
   try {
