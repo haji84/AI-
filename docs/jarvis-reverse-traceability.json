@@ -3071,7 +3071,7 @@
     },
     {
       "path": "src/gai/durable-task-runtime.ts",
-      "sha256": "02339eac52a5eba275df4f9e33059f1041205236d1c6719ba0e6cb72ee74bd9c",
+      "sha256": "983bd2191c8492614ba4e34d861c5ffdab04fb1632c3a94253a2319751411b89",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OFF-001",
@@ -3089,7 +3089,7 @@
         "CORE-019",
         "GOV-021"
       ],
-      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+      "reason": "Distributed durable execution ownership extends existing OFF-005/OFF-008 contracts with migration class, execution epoch and fencing while preserving the existing runtime."
     },
     {
       "path": "src/gai/external-benchmark-evidence.ts",
