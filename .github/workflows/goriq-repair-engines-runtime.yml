@@ -27,19 +27,30 @@ jobs:
         with:
           ref: main
       - name: Install and verify GORIQ local repair engines
+        id: local-install
         shell: powershell
         run: |
           .\scripts\install-goriq-local-repair-windows.ps1
       - name: Capture local repair status
         if: always()
         shell: powershell
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          LOCAL_INSTALL_OUTCOME: ${{ steps.local-install.outcome }}
         run: |
           New-Item -ItemType Directory -Force -Path .goriq-repair-results | Out-Null
-          $status = Join-Path $env:LOCALAPPDATA 'GORIQ\repair-engines\status.json'
-          if (Test-Path $status) {
-            Copy-Item $status .goriq-repair-results\status.json -Force
-            Get-Content $status
+          $statusPath = Join-Path $env:LOCALAPPDATA 'GORIQ\repair-engines\status.json'
+          $runtime = [ordered]@{
+            localInstallOutcome = $env:LOCAL_INSTALL_OUTCOME
+            groqConfigured = -not [string]::IsNullOrWhiteSpace($env:GROQ_API_KEY)
           }
+          if (Test-Path $statusPath) {
+            $status = Get-Content $statusPath -Raw | ConvertFrom-Json
+            $runtime.localStatus = $status
+            Copy-Item $statusPath .goriq-repair-results\status.json -Force
+          }
+          $runtime | ConvertTo-Json -Depth 10 | Set-Content -Encoding UTF8 .goriq-repair-results\runtime-status.json
+          Get-Content .goriq-repair-results\runtime-status.json
       - name: Upload local repair status
         if: always()
         uses: actions/upload-artifact@v4
@@ -57,14 +68,41 @@ jobs:
         with:
           ref: main
       - name: Refresh Chat and Work resident bridge
+        id: bridge-refresh
         shell: bash
-        run: bash scripts/install-macos-chatgpt-bridge.sh
-      - name: Report bridge health
+        run: |
+          date -u +"%Y-%m-%dT%H:%M:%SZ" > "$RUNNER_TEMP/goriq-bridge-restart-started-at.txt"
+          bash scripts/install-macos-chatgpt-bridge.sh
+      - name: Verify fresh Chat and Work bridge health
         shell: bash
         run: |
           HEALTH="$HOME/.ai-company/chatgpt-bridge-health.json"
-          for _ in $(seq 1 20); do
-            [[ -s "$HEALTH" ]] && break
+          STARTED_AT="$(cat "$RUNNER_TEMP/goriq-bridge-restart-started-at.txt")"
+          READY=0
+          for _ in $(seq 1 45); do
+            if [[ -s "$HEALTH" ]]; then
+              if node - "$HEALTH" "$STARTED_AT" <<'NODE'
+          const fs = require('node:fs');
+          const [path, startedAt] = process.argv.slice(2);
+          let health;
+          try { health = JSON.parse(fs.readFileSync(path, 'utf8')); } catch { process.exit(1); }
+          const updated = Date.parse(String(health.updatedAt || ''));
+          const started = Date.parse(startedAt);
+          const acceptable = new Set(['idle', 'processing', 'synced', 'reconciling']);
+          if (!Number.isFinite(updated) || !Number.isFinite(started) || updated < started || !acceptable.has(String(health.status || ''))) {
+            process.exit(1);
+          }
+          process.stdout.write(JSON.stringify(health, null, 2) + '\n');
+          NODE
+              then
+                READY=1
+                break
+              fi
+            fi
             sleep 2
           done
-          [[ -s "$HEALTH" ]] && cat "$HEALTH" || true
+          if [[ "$READY" -ne 1 ]]; then
+            echo "Fresh Chat/Work bridge health was not observed after restart." >&2
+            [[ -s "$HEALTH" ]] && cat "$HEALTH" >&2 || true
+            exit 1
+          fi
