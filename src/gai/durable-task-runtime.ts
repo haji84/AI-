@@ -282,6 +282,9 @@ export class DurableTaskRuntime {
     if (task.nextAttemptAt && new Date(task.nextAttemptAt).getTime() > now.getTime()) {
       throw new Error(`Task ${taskId} retry delay has not elapsed`);
     }
+    if (task.migrationClass === "PINNED" && task.pinnedOwner && task.pinnedOwner !== owner) {
+      throw new Error(`PINNED_TASK_OWNER_MISMATCH: task ${task.id} is pinned to ${task.pinnedOwner}`);
+    }
     this.transition(task, "leased", "lease acquired", now, owner, {
       leaseUntil: new Date(now.getTime() + leaseMs).toISOString(),
     });
@@ -289,12 +292,7 @@ export class DurableTaskRuntime {
     task.leaseOwner = owner;
     task.leaseUntil = new Date(now.getTime() + leaseMs).toISOString();
     task.fencingToken = randomUUID();
-    if (task.migrationClass === "PINNED") {
-      if (task.pinnedOwner && task.pinnedOwner !== owner) {
-        throw new Error(`PINNED_TASK_OWNER_MISMATCH: task ${task.id} is pinned to ${task.pinnedOwner}`);
-      }
-      task.pinnedOwner = task.pinnedOwner ?? owner;
-    }
+    if (task.migrationClass === "PINNED") task.pinnedOwner = task.pinnedOwner ?? owner;
     task.nextAttemptAt = undefined;
     task.attempts += 1;
     await this.persist(now);
