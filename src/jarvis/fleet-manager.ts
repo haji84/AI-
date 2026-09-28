@@ -1,3 +1,4 @@
+import { evaluateWorkerResourcePlacement, type WorkerResourceSnapshot } from "../gai/worker-runtime.ts";
 import {
   JARVIS_MAX_NODES,
   type JarvisCapability,
@@ -10,14 +11,38 @@ function hasCapabilities(node: JarvisNode, required: JarvisCapability[]): boolea
   return required.every((capability) => node.capabilities.includes(capability));
 }
 
+function resourceSnapshot(node: JarvisNode): WorkerResourceSnapshot {
+  return {
+    cpuAvailable: node.telemetry.cpuAvailable,
+    gpuAvailable: node.telemetry.gpuAvailable,
+    cpuLoadPercent: node.telemetry.cpuLoadPercent,
+    gpuLoadPercent: node.telemetry.gpuLoadPercent,
+    memoryAvailableMb: node.telemetry.memoryAvailableMb,
+    diskAvailableMb: node.telemetry.freeStorageMb,
+    batteryPercent: node.telemetry.batteryPercent,
+    onExternalPower: node.telemetry.onExternalPower ?? node.telemetry.charging,
+    thermalState: node.telemetry.thermalState,
+    dataLocalityKeys: node.telemetry.dataLocalityKeys ? [...node.telemetry.dataLocalityKeys] : undefined,
+  };
+}
+
+function resourceEvaluation(node: JarvisNode, task: JarvisTask) {
+  return evaluateWorkerResourcePlacement({
+    resources: resourceSnapshot(node),
+    requirements: task.resourceRequirements,
+    gpuCapable: node.capabilities.includes("gpu"),
+    gpuRequested: task.requiredCapabilities.includes("gpu"),
+    longRunning: task.requiredCapabilities.includes("long-running"),
+  });
+}
+
 function nodeScore(node: JarvisNode, task: JarvisTask): number {
-  let score = 0;
+  const resource = resourceEvaluation(node, task);
+  let score = resource.score;
   if (node.status === "ready") score += 20;
   if (node.status === "busy") score -= 10;
   if (node.telemetry.charging) score += 3;
   if ((node.telemetry.batteryPercent ?? 100) >= 50) score += 2;
-  if ((node.telemetry.cpuLoadPercent ?? 0) < 70) score += 2;
-  if ((node.telemetry.gpuLoadPercent ?? 0) < 70 && node.capabilities.includes("gpu")) score += 1;
   if (task.preferredKinds?.includes(node.kind)) score += 5;
   if (node.enrollment === "full") score += 1;
   return score;
@@ -134,6 +159,7 @@ export class JarvisFleetManager {
       const target = this.nodes.get(task.targetNodeId);
       if (!target || target.status === "offline" || target.status === "disabled") return undefined;
       if (!hasCapabilities(target, task.requiredCapabilities)) return undefined;
+      if (!resourceEvaluation(target, task).eligible) return undefined;
       return structuredClone(target);
     }
 
@@ -141,6 +167,7 @@ export class JarvisFleetManager {
       .filter((node) => node.status === "ready" || node.status === "busy")
       .filter((node) => hasCapabilities(node, task.requiredCapabilities))
       .filter((node) => (node.telemetry.batteryPercent ?? 100) > 15 || node.telemetry.charging)
+      .filter((node) => resourceEvaluation(node, task).eligible)
       .sort((a, b) => nodeScore(b, task) - nodeScore(a, task) || a.id.localeCompare(b.id));
 
     return candidates[0] ? structuredClone(candidates[0]) : undefined;
