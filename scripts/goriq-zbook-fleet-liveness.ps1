@@ -2,6 +2,7 @@ param(
   [string]$OutputPath = ".gai-results/zbook-fleet-liveness.json"
 )
 $ErrorActionPreference = "Stop"
+$env:PSModulePath = Join-Path $PSHOME "Modules"
 $ProgressPreference = "SilentlyContinue"
 $stage = "startup"
 
