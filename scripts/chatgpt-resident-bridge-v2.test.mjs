@@ -8,10 +8,15 @@ const here = dirname(fileURLToPath(import.meta.url));
 const source = await readFile(join(here, "chatgpt-resident-bridge-v2.mjs"), "utf8");
 const installer = await readFile(join(here, "install-macos-chatgpt-bridge.sh"), "utf8");
 
-test("resident bridge v2 always creates a fresh ChatGPT target", () => {
-  assert.match(source, /async function createFreshChatGptTarget\(\)/);
-  assert.match(source, /\/json\/new\?/);
-  assert.doesNotMatch(source, /targets\.find\(/);
+test("resident bridge v2 opens ChatGPT only through the Automation project surface", () => {
+  assert.match(source, /async function createChatGptTarget\(url = CHATGPT_URL\)/);
+  assert.match(source, /PROJECT_NAME/);
+  assert.match(source, /chatgpt-project-surfaces\.json/);
+  assert.match(source, /openAutomationProject/);
+  assert.match(source, /prepareProjectSurface/);
+  assert.match(source, /CHATGPT_AUTOMATION_PROJECT_NOT_FOUND/);
+  assert.match(source, /CHATGPT_PROJECT_SURFACE_ESCAPED/);
+  assert.doesNotMatch(source, /createFreshChatGptTarget/);
 });
 
 test("resident bridge v2 excludes pre-existing assistant messages", () => {
@@ -81,4 +86,16 @@ test("fresh-turn timeout records bounded browser diagnostics", () => {
   assert.match(source, /lastAssistant/);
   assert.match(source, /composerText/);
   assert.match(source, /diagnostic=/);
+});
+
+test("current ChatGPT DOM fallback detects assistant and user turns by action controls", () => {
+  assert.match(source, /snapshotConversationMessages/);
+  assert.match(source, /回答を再生成\|regenerate/);
+  assert.match(source, /メッセージを編集\|edit message/);
+  assert.match(source, /data-testid\^="conversation-turn"/);
+});
+
+test("successful repair stores the project-scoped surface URL for reuse", () => {
+  assert.match(source, /writeProjectSurface\(mode/);
+  assert.match(source, /readProjectSurfaces/);
 });
