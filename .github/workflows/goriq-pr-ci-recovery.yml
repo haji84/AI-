@@ -9,6 +9,7 @@ permissions:
   contents: write
   actions: read
   pull-requests: read
+  issues: write
 
 concurrency:
   group: goriq-pr-ci-recovery-${{ github.event.workflow_run.pull_requests[0].number || github.event.workflow_run.id }}
@@ -21,7 +22,7 @@ jobs:
       github.event.workflow_run.event == 'pull_request' &&
       github.event.workflow_run.pull_requests[0].number != null
     runs-on: [self-hosted, Windows, X64]
-    timeout-minutes: 35
+    timeout-minutes: 75
 
     steps:
       - name: Resolve same-repository pull request
