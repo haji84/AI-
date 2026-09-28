@@ -12,6 +12,7 @@ import {
   chooseRecoveryStrategy,
   commandFailureOutput,
   commandInvocation,
+  configuredRepairEngineIds,
   failureFingerprint,
   generatedWorkspaceNoisePaths,
   isSameRepositoryOpenPullRequest,
@@ -209,6 +210,30 @@ test("local verification repair prompt feeds failed check back without broadenin
   assert.match(prompt, /AssertionError: expected 3 got 4/);
   assert.match(prompt, /Do not weaken or delete tests/);
   assert.match(prompt, /scripts\/goriq-pr-ci-recovery\.ts/);
+});
+
+test("recovery engine availability keeps Chat before Work before free external before Codex", () => {
+  const ids = configuredRepairEngineIds({
+    GORIQ_LOCAL_CODE_REPAIR_COMMAND: "local-code-wrapper",
+    GORIQ_CHAT_REPAIR_COMMAND: "chat-wrapper",
+    GORIQ_WORK_REPAIR_COMMAND: "work-wrapper",
+    GORIQ_FREE_EXTERNAL_REPAIR_COMMAND: "free-wrapper",
+  }, true);
+  assert.deepEqual(ids, [
+    "goriq-deterministic",
+    "goriq-local-code",
+    "chat",
+    "work",
+    "free-external",
+    "codex",
+  ]);
+});
+
+test("Codex is not selected when an earlier configured repair engine exists alone", () => {
+  assert.deepEqual(
+    configuredRepairEngineIds({ GORIQ_CHAT_REPAIR_COMMAND: "chat-wrapper" }, false),
+    ["goriq-deterministic", "chat"],
+  );
 });
 
 test("Windows command shims run through cmd.exe while native executables stay direct", () => {
