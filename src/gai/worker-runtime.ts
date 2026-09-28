@@ -10,6 +10,8 @@ export type WorkerExecutionMode =
   | "deferred";
 export type WorkerConnectivity = "online" | "degraded" | "offline" | "recovering";
 export type WorkerNetworkRequirement = "online-required" | "offline-capable" | "offline-preferred";
+export type WorkerThermalState = "nominal" | "fair" | "serious" | "critical";
+export type WorkerNetworkCostClass = "lan" | "private" | "internet" | "metered" | "unknown";
 export type WorkerCapability =
   | "local-model"
   | "gpu"
@@ -31,11 +33,16 @@ export type WorkerCapability =
 
 export interface WorkerResourceSnapshot {
   cpuAvailable?: boolean;
+  cpuLoadPercent?: number;
   gpuAvailable?: boolean;
+  gpuLoadPercent?: number;
   memoryAvailableMb?: number;
   diskAvailableMb?: number;
   batteryPercent?: number;
   onExternalPower?: boolean;
+  thermalState?: WorkerThermalState;
+  dataLocalityKeys?: string[];
+  networkCostClass?: WorkerNetworkCostClass;
 }
 
 export interface WorkerPersistenceProfile {
@@ -105,6 +112,15 @@ export interface WorkerExecutionRequest {
   connectivity?: WorkerConnectivity;
   allowOffline?: boolean;
   excludedWorkerIds?: string[];
+  requireGpu?: boolean;
+  allowCpuFallbackForGpu?: boolean;
+  minMemoryAvailableMb?: number;
+  minDiskAvailableMb?: number;
+  maxCpuLoadPercent?: number;
+  maxGpuLoadPercent?: number;
+  requireThermalSafe?: boolean;
+  dataLocalityKeys?: string[];
+  preferLowNetworkCost?: boolean;
 }
 
 export interface WorkerExecutionResult {
