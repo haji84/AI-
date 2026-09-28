@@ -56,3 +56,36 @@ test("daily driver live e2e rejects non-loopback broker", async () => {
     /loopback/
   );
 });
+
+
+test("daily driver live e2e fails before enqueue when no fresh eligible Android exists", async () => {
+  let posts = 0;
+  const server = createServer((req, res) => {
+    res.setHeader("content-type", "application/json");
+    if (req.method === "GET" && req.url === "/api/jarvis/admin/state") {
+      res.end(JSON.stringify({
+        stats:{registered:2},
+        fleet:[
+          {id:"android-old",kind:"android",status:"ready",capabilities:["device-status"],lastSeenAt:"2020-01-01T00:00:00.000Z"},
+          {id:"mac",kind:"macos",status:"ready",capabilities:["filesystem"],lastSeenAt:new Date().toISOString()}
+        ],
+        tasks:[]
+      }));
+      return;
+    }
+    if (req.method === "POST") { posts++; res.statusCode=500; res.end("{}"); return; }
+    res.statusCode=404; res.end("{}");
+  });
+  server.listen(0,"127.0.0.1"); await once(server,"listening");
+  const address=server.address(); if(!address||typeof address==="string") throw Error("bad server");
+  try {
+    await assert.rejects(
+      runDailyDriverLiveE2E({
+        baseUrl:`http://127.0.0.1:${address.port}`,
+        token:"test-token",runId:"124",runAttempt:"1",pollMs:10,timeoutMs:1000,freshnessMs:60_000
+      }),
+      /no fresh eligible Android/
+    );
+    assert.equal(posts,0);
+  } finally { server.close(); }
+});
