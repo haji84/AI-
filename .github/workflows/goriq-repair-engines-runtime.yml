@@ -59,12 +59,19 @@ jobs:
       - name: Refresh Chat and Work resident bridge
         shell: bash
         run: bash scripts/install-macos-chatgpt-bridge.sh
-      - name: Report bridge health
+      - name: Verify bridge health after restart
         shell: bash
         run: |
           HEALTH="$HOME/.ai-company/chatgpt-bridge-health.json"
-          for _ in $(seq 1 20); do
-            [[ -s "$HEALTH" ]] && break
+          healthy=false
+          for _ in $(seq 1 30); do
+            if [[ -s "$HEALTH" ]]; then
+              cat "$HEALTH"
+              if node -e 'const fs=require("fs");const h=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));const good=["starting","idle","processing","synced","reconciling","waiting_for_chatgpt_login"];process.exit(good.includes(h.status)?0:1)' "$HEALTH"; then
+                healthy=true
+                break
+              fi
+            fi
             sleep 2
           done
-          [[ -s "$HEALTH" ]] && cat "$HEALTH" || true
+          [[ "$healthy" == "true" ]]
