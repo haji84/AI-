@@ -391,6 +391,8 @@ export function sanitizedBuilderEnvironment(
     "ACTIONS_RUNTIME_TOKEN",
     "ACTIONS_ID_TOKEN_REQUEST_TOKEN",
     "CODE_BUILDER_TOKEN",
+    "GROQ_API_KEY",
+    "GORIQ_REPAIR_GITHUB_TOKEN",
   ]) delete next[key];
   return next;
 }
