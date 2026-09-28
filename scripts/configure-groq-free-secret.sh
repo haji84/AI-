@@ -13,6 +13,9 @@ done
 
 gh auth status >/dev/null
 
+echo "Opening Groq API Keys page..."
+open "https://console.groq.com/keys" >/dev/null 2>&1 || true
+echo "Create/copy a Free Plan API key in the browser, then return here."
 printf "Groq API key (hidden): "
 stty -echo
 IFS= read -r GROQ_KEY
