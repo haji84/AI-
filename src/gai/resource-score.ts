@@ -41,5 +41,9 @@ export function scoreResourceFit(
       return { eligible: false, score: -1000, reasons: ["gpu-load"] };
     }
   }
+  if (request.requireThermalSafe === true &&
+      (!resources.thermalState || resources.thermalState === "serious" || resources.thermalState === "critical")) {
+    return { eligible: false, score: -1000, reasons: ["thermal"] };
+  }
   return { eligible: true, score: 0, reasons: [] };
 }
