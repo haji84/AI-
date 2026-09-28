@@ -521,6 +521,140 @@ function createRepairEngineRunners(
     });
 }
 
+type RepairEngineCandidateSuccess = {
+  ok: true;
+  engineId: Exclude<RepairEngineId, "human-gate">;
+  changed: string[];
+  checks: string[];
+  localVerificationAttempts: number;
+  localVerificationFailures: Array<{ attempt: number; check: string; failure: string }>;
+  discardedUntracked: string[];
+};
+
+type RepairEngineCandidateFailure = {
+  ok: false;
+  engineId: Exclude<RepairEngineId, "human-gate">;
+  reason: string;
+};
+
+function attemptRepairEngineCandidate(input: {
+  runner: RepairEngineRunner;
+  workspace: string;
+  initialPrompt: string;
+  prNumber: number;
+  strategy: RecoveryStrategy;
+  allowedPaths: string[];
+  originalFailureFingerprint: string;
+}): RepairEngineCandidateSuccess | RepairEngineCandidateFailure {
+  const fail = (reason: string): RepairEngineCandidateFailure => {
+    try { restoreWorkspace(input.workspace); } catch { /* best-effort cleanup */ }
+    return { ok: false, engineId: input.runner.id, reason: sanitizeFailureLog(reason).slice(-4000) };
+  };
+
+  const allowedSet = new Set(input.allowedPaths);
+  const discardedUntracked: string[] = [];
+  let allowedFinal = new Set(input.allowedPaths);
+
+  try {
+    restoreWorkspace(input.workspace);
+    input.runner.run(input.initialPrompt);
+
+    const statusAfterEngine = runRaw("git", ["status", "--porcelain"], input.workspace);
+    discardedUntracked.push(...discardOutOfScopeUntracked(input.workspace, statusAfterEngine, allowedSet));
+    let changedBeforeTrace = porcelainPaths(runRaw("git", ["status", "--porcelain"], input.workspace));
+    restoreGeneratedWorkspaceNoise(input.workspace, changedBeforeTrace, allowedSet);
+    changedBeforeTrace = porcelainPaths(runRaw("git", ["status", "--porcelain"], input.workspace));
+    if (!changedBeforeTrace.length) return fail("RECOVERY_ENGINE_PRODUCED_NO_CHANGES");
+
+    const nameStatus = run("git", ["diff", "--name-status", "--"], input.workspace);
+    if (nameStatus.split(/\r?\n/).some((line) => /^(?:D|R\d*|C\d*)\t/.test(line))) {
+      return fail("RECOVERY_DESTRUCTIVE_CHANGE_REJECTED");
+    }
+
+    const unsafe = changedBeforeTrace.filter((path) => !allowedSet.has(path) || isTestPath(path));
+    if (unsafe.length) return fail(`RECOVERY_SCOPE_VIOLATION: ${unsafe.join(",")}`);
+
+    const reconciled = autoReconcileTraceability(input.workspace, changedBeforeTrace, "low");
+    allowedFinal = new Set([...input.allowedPaths, ...reconciled]);
+
+    let changed = porcelainPaths(runRaw("git", ["status", "--porcelain"], input.workspace));
+    restoreGeneratedWorkspaceNoise(input.workspace, changed, allowedFinal);
+    changed = porcelainPaths(runRaw("git", ["status", "--porcelain"], input.workspace));
+    const unsafeFinal = changed.filter((path) => !allowedFinal.has(path) || isTestPath(path));
+    if (unsafeFinal.length) return fail(`RECOVERY_POST_RECONCILE_SCOPE_VIOLATION: ${unsafeFinal.join(",")}`);
+
+    let localVerificationAttempt = 1;
+    const localVerificationFailures: Array<{ attempt: number; check: string; failure: string }> = [];
+    let verification = verifyRecoveryCandidate(input.workspace);
+
+    while (!verification.ok) {
+      localVerificationFailures.push({
+        attempt: localVerificationAttempt,
+        check: verification.failedCheck,
+        failure: verification.failure,
+      });
+      if (localVerificationAttempt >= MAX_LOCAL_VERIFICATION_ATTEMPTS) {
+        return fail(`LOCAL_VERIFICATION_ATTEMPTS_EXHAUSTED: ${verification.failedCheck}: ${verification.failure}`);
+      }
+
+      localVerificationAttempt += 1;
+      input.runner.run(buildVerificationRepairPrompt({
+        prNumber: input.prNumber,
+        strategy: input.strategy,
+        localAttempt: localVerificationAttempt,
+        allowedPaths: input.allowedPaths,
+        originalFailureFingerprint: input.originalFailureFingerprint,
+        verificationCheck: verification.failedCheck,
+        verificationFailure: verification.failure,
+      }));
+
+      const retryStatus = runRaw("git", ["status", "--porcelain"], input.workspace);
+      discardedUntracked.push(...discardOutOfScopeUntracked(input.workspace, retryStatus, allowedFinal));
+      let retryChanged = porcelainPaths(runRaw("git", ["status", "--porcelain"], input.workspace));
+      restoreGeneratedWorkspaceNoise(input.workspace, retryChanged, allowedFinal);
+      retryChanged = porcelainPaths(runRaw("git", ["status", "--porcelain"], input.workspace));
+
+      const retryNameStatus = run("git", ["diff", "--name-status", "--"], input.workspace);
+      if (retryNameStatus.split(/\r?\n/).some((line) => /^(?:D|R\d*|C\d*)\t/.test(line))) {
+        return fail("RECOVERY_DESTRUCTIVE_CHANGE_REJECTED");
+      }
+      const retryUnsafe = retryChanged.filter((path) => !allowedFinal.has(path) || isTestPath(path));
+      if (retryUnsafe.length) return fail(`RECOVERY_LOCAL_RETRY_SCOPE_VIOLATION: ${retryUnsafe.join(",")}`);
+
+      const repairInputs = retryChanged.filter((path) => allowedSet.has(path));
+      if (repairInputs.length) {
+        const retryReconciled = autoReconcileTraceability(input.workspace, repairInputs, "low");
+        for (const path of retryReconciled) allowedFinal.add(path);
+      }
+
+      verification = verifyRecoveryCandidate(input.workspace);
+    }
+
+    const statusAfterVerification = runRaw("git", ["status", "--porcelain"], input.workspace);
+    discardedUntracked.push(...discardOutOfScopeUntracked(input.workspace, statusAfterVerification, allowedFinal));
+    let postVerificationChanged = porcelainPaths(runRaw("git", ["status", "--porcelain"], input.workspace));
+    restoreGeneratedWorkspaceNoise(input.workspace, postVerificationChanged, allowedFinal);
+    postVerificationChanged = porcelainPaths(runRaw("git", ["status", "--porcelain"], input.workspace));
+    const unsafeAfterVerification = postVerificationChanged.filter((path) => !allowedFinal.has(path) || isTestPath(path));
+    if (unsafeAfterVerification.length) {
+      return fail(`RECOVERY_POST_VERIFY_SCOPE_VIOLATION: ${unsafeAfterVerification.join(",")}`);
+    }
+    if (!postVerificationChanged.length) return fail("RECOVERY_PATCH_EMPTY_AFTER_VERIFICATION");
+
+    return {
+      ok: true,
+      engineId: input.runner.id,
+      changed: postVerificationChanged,
+      checks: verification.checks,
+      localVerificationAttempts: localVerificationAttempt,
+      localVerificationFailures,
+      discardedUntracked: [...new Set(discardedUntracked)].sort(),
+    };
+  } catch (error) {
+    return fail(error instanceof Error ? error.message : String(error));
+  }
+}
+
 function runCodex(engine: string, workspace: string, prompt: string): void {
   const extension = extname(engine).toLowerCase();
   const args = [
