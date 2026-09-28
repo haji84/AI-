@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { basename, extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { autoReconcileTraceability } from "../src/orchestrator/safe-pr-capability.ts";
 
 export const MAX_AUTOMATIC_ATTEMPTS = 3;
 
