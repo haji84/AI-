@@ -135,3 +135,102 @@ test("invalid terminal transitions fail visibly", async () => {
   await assert.rejects(() => runtime.markRunning("terminal", "worker", plus(4)), /must be leased/);
   await assert.rejects(() => runtime.setCheckpointRef("terminal", "new", plus(5)), /terminal task/);
 });
+
+
+test("distributed execution claim advances epoch and rejects stale fenced owner", async () => {
+  const runtime = new DurableTaskRuntime(new MemoryDurableTaskStore());
+  await runtime.enqueue({
+    id: "fenced",
+    idempotencyKey: "fenced",
+    type: "work",
+    migrationClass: "MIGRATABLE",
+    maxAttempts: 3,
+  }, t0);
+
+  const first = await runtime.leaseClaim("fenced", "macbook", 100, plus(1));
+  assert.equal(first.epoch, 1);
+  assert.ok(first.fencingToken);
+  await runtime.markRunningClaimed(first, plus(2));
+  await runtime.setCheckpointRefClaimed(first, "checkpoint://fenced/mac/1", plus(3));
+
+  await assert.rejects(
+    () => runtime.completeClaimed(first, { late: true }, plus(102)),
+    /STALE_EXECUTION_CLAIM/,
+  );
+
+  assert.equal(await runtime.reclaimExpiredLeases(plus(102)), 1);
+  const second = await runtime.leaseClaim("fenced", "zbook", 100, plus(103));
+  assert.equal(second.epoch, 2);
+  assert.notEqual(second.fencingToken, first.fencingToken);
+
+  for (const operation of [
+    () => runtime.heartbeatClaimed(first, 100, plus(104)),
+    () => runtime.markRunningClaimed(first, plus(104)),
+    () => runtime.setCheckpointRefClaimed(first, "checkpoint://stale", plus(104)),
+    () => runtime.completeClaimed(first, { stale: true }, plus(104)),
+    () => runtime.readyToPublishClaimed(first, { stale: true }, plus(104)),
+    () => runtime.failClaimed(first, "stale failure", 0, plus(104)),
+  ]) {
+    await assert.rejects(operation, /STALE_EXECUTION_CLAIM/);
+  }
+
+  await runtime.markRunningClaimed(second, plus(105));
+  await runtime.setCheckpointRefClaimed(second, "checkpoint://fenced/zbook/2", plus(106));
+  const completed = await runtime.completeClaimed(second, { owner: "zbook" }, plus(107));
+  assert.equal(completed.status, "completed");
+  assert.equal(completed.executionEpoch, 2);
+  assert.equal(completed.fencingToken, undefined);
+  assert.equal(completed.checkpointRef, "checkpoint://fenced/zbook/2");
+  assert.deepEqual(completed.result, { owner: "zbook" });
+});
+
+test("legacy durable snapshot defaults to restartable epoch zero without inventing a fence", async () => {
+  const legacyTask = {
+    id: "legacy",
+    idempotencyKey: "legacy",
+    type: "work",
+    payload: {},
+    status: "queued",
+    priority: "normal",
+    requiredCapabilities: [],
+    dependsOn: [],
+    attempts: 0,
+    maxAttempts: 3,
+    createdAt: t0.toISOString(),
+    updatedAt: t0.toISOString(),
+    history: [],
+  };
+  const store = {
+    async load() {
+      return { version: 1 as const, tasks: [legacyTask] as never, savedAt: t0.toISOString() };
+    },
+    async save() {},
+  };
+  const runtime = new DurableTaskRuntime(store);
+  await runtime.initialize();
+  const restored = await runtime.get("legacy");
+  assert.equal(restored?.migrationClass, "RESTARTABLE");
+  assert.equal(restored?.executionEpoch, 0);
+  assert.equal(restored?.fencingToken, undefined);
+});
+
+test("task migration class is explicit and invalid runtime values fail closed", async () => {
+  const runtime = new DurableTaskRuntime(new MemoryDurableTaskStore());
+  const pinned = await runtime.enqueue({
+    id: "pinned",
+    idempotencyKey: "pinned",
+    type: "sensor",
+    migrationClass: "PINNED",
+  }, t0);
+  assert.equal(pinned.migrationClass, "PINNED");
+
+  await assert.rejects(
+    () => runtime.enqueue({
+      id: "bad-class",
+      idempotencyKey: "bad-class",
+      type: "work",
+      migrationClass: "UNKNOWN" as never,
+    }, plus(1)),
+    /invalid migrationClass/,
+  );
+});
