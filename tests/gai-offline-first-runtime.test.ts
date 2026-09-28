@@ -190,3 +190,83 @@ test("reconnect publishes a saved offline result without executing the worker ag
   assert.equal(published?.task.status, "completed");
   assert.equal(workerRuns, 1);
 });
+
+
+test("claim heartbeat keeps long worker execution valid beyond the initial lease", async () => {
+  const tasks = new DurableTaskRuntime(new MemoryDurableTaskStore());
+  await tasks.enqueue({
+    id: "long-fenced",
+    idempotencyKey: "long-fenced",
+    type: "local-analysis",
+    migrationClass: "MIGRATABLE",
+  });
+
+  const worker = createFunctionWorker({
+    descriptor: offlineWorkerDescriptor,
+    health: () => ({ connectivity: "offline" }),
+    run: async () => {
+      await new Promise((resolve) => setTimeout(resolve, 90));
+      return "long-result";
+    },
+  });
+  const coordinator = new OfflineFirstExecutionCoordinator({
+    tasks,
+    workers: new MultiWorkerRuntime([worker]),
+    connectivity: new ConnectivityManager("offline"),
+    resolve: resolver,
+    leaseMs: 30,
+    heartbeatIntervalMs: 5,
+  });
+
+  const outcome = await coordinator.runNext();
+  assert.equal(outcome?.task.status, "completed");
+  assert.equal(outcome?.task.executionEpoch, 1);
+  assert.equal(outcome?.task.fencingToken, undefined);
+  assert.equal((outcome?.task.result as { output?: string })?.output, "long-result");
+});
+
+test("lost execution claim prevents a late worker result from committing", async () => {
+  const tasks = new DurableTaskRuntime(new MemoryDurableTaskStore());
+  await tasks.enqueue({
+    id: "claim-loss",
+    idempotencyKey: "claim-loss",
+    type: "local-analysis",
+    migrationClass: "MIGRATABLE",
+  });
+
+  const worker = createFunctionWorker({
+    descriptor: offlineWorkerDescriptor,
+    health: () => ({ connectivity: "offline" }),
+    run: async () => {
+      await tasks.waitForResource("claim-loss", "ownership moved while old worker was executing");
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      return "must-not-commit";
+    },
+  });
+  const coordinator = new OfflineFirstExecutionCoordinator({
+    tasks,
+    workers: new MultiWorkerRuntime([worker]),
+    connectivity: new ConnectivityManager("offline"),
+    resolve: resolver,
+    leaseMs: 40,
+    heartbeatIntervalMs: 5,
+  });
+
+  await assert.rejects(() => coordinator.runNext(), /EXECUTION_LEASE_LOST/);
+  const task = await tasks.get("claim-loss");
+  assert.equal(task?.status, "waiting-resource");
+  assert.equal(task?.result, undefined);
+  assert.equal(task?.fencingToken, undefined);
+});
+
+test("heartbeat interval must remain inside the lease window", () => {
+  const tasks = new DurableTaskRuntime(new MemoryDurableTaskStore());
+  assert.throws(() => new OfflineFirstExecutionCoordinator({
+    tasks,
+    workers: new MultiWorkerRuntime([localWorker()]),
+    connectivity: new ConnectivityManager("offline"),
+    resolve: resolver,
+    leaseMs: 100,
+    heartbeatIntervalMs: 100,
+  }), /heartbeatIntervalMs/);
+});

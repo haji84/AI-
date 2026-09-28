@@ -3279,7 +3279,7 @@
     },
     {
       "path": "src/gai/offline-first-runtime.ts",
-      "sha256": "ad3d8bc2f002b788950b9095d67d9ef8726f6c587e7f4b9672428f50f69eeb63",
+      "sha256": "7995782599add79e2e6200de6cf0a389f4afa3674d7249e888ddebdac0d7b11b",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OFF-001",
@@ -3296,7 +3296,7 @@
         "OFF-012",
         "GOV-026"
       ],
-      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+      "reason": "Existing Offline-First execution path now uses fenced execution claims with bounded lease heartbeat renewal; linked to canonical OFF requirements."
     },
     {
       "path": "src/gai/platform-capability-manifest.ts",
