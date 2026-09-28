@@ -7,6 +7,7 @@ import {
   isSameRepositoryOpenPullRequest,
   recoveryAttemptCount,
   sanitizeFailureLog,
+  sanitizedBuilderEnvironment,
 } from "../scripts/goriq-pr-ci-recovery.ts";
 
 test("same-repository open PR only is eligible", () => {
@@ -64,4 +65,24 @@ test("recovery prompt preserves bounded authority", () => {
   assert.match(prompt, /src\/gai\/worker-runtime\.ts/);
   assert.match(prompt, /Do not commit, push, merge, deploy/);
   assert.match(prompt, /Do not weaken or delete tests/);
+});
+
+
+test("coding engine environment cannot see GitHub write credentials", () => {
+  const env = sanitizedBuilderEnvironment({
+    PATH: "x",
+    GITHUB_TOKEN: "ghs_secret",
+    GH_TOKEN: "gh_secret",
+    ACTIONS_RUNTIME_TOKEN: "actions_secret",
+    ACTIONS_ID_TOKEN_REQUEST_TOKEN: "oidc_secret",
+    CODE_BUILDER_TOKEN: "builder_secret",
+    OPENAI_API_KEY: "model_auth_preserved",
+  });
+  assert.equal(env.PATH, "x");
+  assert.equal(env.GITHUB_TOKEN, undefined);
+  assert.equal(env.GH_TOKEN, undefined);
+  assert.equal(env.ACTIONS_RUNTIME_TOKEN, undefined);
+  assert.equal(env.ACTIONS_ID_TOKEN_REQUEST_TOKEN, undefined);
+  assert.equal(env.CODE_BUILDER_TOKEN, undefined);
+  assert.equal(env.OPENAI_API_KEY, "model_auth_preserved");
 });
