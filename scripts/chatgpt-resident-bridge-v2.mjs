@@ -415,7 +415,7 @@ async function snapshotConversationMessages(client) {
         || roleNode?.getAttribute('data-message-id')
         || node.id
         || null;
-      const key = `${role}:${id || text.slice(0, 500)}`;
+      const key = role + ':' + (id || text.slice(0, 500));
       if (seen.has(key)) continue;
       seen.add(key);
       out.push({ role, id, index: out.length, text: text.slice(0, 8000) });
