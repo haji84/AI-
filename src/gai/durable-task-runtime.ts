@@ -1,5 +1,6 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
+import { randomUUID } from "node:crypto";
 import type { WorkerCapability } from "./worker-runtime.ts";
 
 export type DurableTaskStatus =
@@ -16,6 +17,15 @@ export type DurableTaskStatus =
   | "cancelled";
 
 export type DurableTaskPriority = "urgent" | "high" | "normal" | "low" | "background";
+export type DurableTaskMigrationClass = "MIGRATABLE" | "RESTARTABLE" | "PINNED" | "SIDE_EFFECTING";
+
+export interface DurableTaskExecutionClaim {
+  taskId: string;
+  owner: string;
+  epoch: number;
+  fencingToken: string;
+  leaseUntil: string;
+}
 
 export interface DurableTaskTransition {
   from: DurableTaskStatus | null;
@@ -37,8 +47,11 @@ export interface DurableTask {
   dependsOn: string[];
   attempts: number;
   maxAttempts: number;
+  migrationClass: DurableTaskMigrationClass;
+  executionEpoch: number;
   leaseOwner?: string;
   leaseUntil?: string;
+  fencingToken?: string;
   nextAttemptAt?: string;
   checkpointRef?: string;
   result?: unknown;
@@ -57,6 +70,7 @@ export interface DurableTaskCreateInput {
   requiredCapabilities?: WorkerCapability[];
   dependsOn?: string[];
   maxAttempts?: number;
+  migrationClass?: DurableTaskMigrationClass;
   checkpointRef?: string;
 }
 
@@ -122,9 +136,22 @@ const PRIORITY_WEIGHT: Record<DurableTaskPriority, number> = {
 };
 
 const TERMINAL = new Set<DurableTaskStatus>(["completed", "failed", "cancelled"]);
+const MIGRATION_CLASSES = new Set<DurableTaskMigrationClass>(["MIGRATABLE", "RESTARTABLE", "PINNED", "SIDE_EFFECTING"]);
 
 function cloneTask(task: DurableTask): DurableTask {
   return structuredClone(task);
+}
+
+function normalizeTask(task: DurableTask): DurableTask {
+  const clone = cloneTask(task);
+  clone.migrationClass = clone.migrationClass ?? "RESTARTABLE";
+  clone.executionEpoch = Number.isInteger(clone.executionEpoch) && clone.executionEpoch >= 0
+    ? clone.executionEpoch
+    : 0;
+  clone.fencingToken = typeof clone.fencingToken === "string" && clone.fencingToken.trim()
+    ? clone.fencingToken
+    : undefined;
+  return clone;
 }
 
 function iso(now: Date): string {
@@ -144,7 +171,7 @@ export class DurableTaskRuntime {
     if (this.loaded) return;
     const snapshot = await this.store.load();
     this.tasks.clear();
-    for (const task of snapshot?.tasks ?? []) this.tasks.set(task.id, cloneTask(task));
+    for (const task of snapshot?.tasks ?? []) this.tasks.set(task.id, normalizeTask(task));
     this.loaded = true;
   }
 
@@ -160,6 +187,8 @@ export class DurableTaskRuntime {
     }
     const maxAttempts = input.maxAttempts ?? 3;
     if (!Number.isInteger(maxAttempts) || maxAttempts < 1) throw new Error("maxAttempts must be a positive integer");
+    const migrationClass = input.migrationClass ?? "RESTARTABLE";
+    if (!MIGRATION_CLASSES.has(migrationClass)) throw new Error("invalid migrationClass");
     const createdAt = iso(now);
     const task: DurableTask = {
       id: input.id,
@@ -172,6 +201,8 @@ export class DurableTaskRuntime {
       dependsOn: [...new Set(input.dependsOn ?? [])],
       attempts: 0,
       maxAttempts,
+      migrationClass,
+      executionEpoch: 0,
       checkpointRef: input.checkpointRef,
       createdAt,
       updatedAt: createdAt,
@@ -243,10 +274,37 @@ export class DurableTaskRuntime {
     this.transition(task, "leased", "lease acquired", now, owner, {
       leaseUntil: new Date(now.getTime() + leaseMs).toISOString(),
     });
+    task.executionEpoch += 1;
     task.leaseOwner = owner;
     task.leaseUntil = new Date(now.getTime() + leaseMs).toISOString();
+    task.fencingToken = randomUUID();
     task.nextAttemptAt = undefined;
     task.attempts += 1;
+    await this.persist(now);
+    return cloneTask(task);
+  }
+
+  async leaseClaim(taskId: string, owner: string, leaseMs = 120_000, now = new Date()): Promise<DurableTaskExecutionClaim> {
+    const task = await this.lease(taskId, owner, leaseMs, now);
+    return this.claimFromTask(task);
+  }
+
+  async heartbeatClaimed(claim: DurableTaskExecutionClaim, leaseMs = 120_000, now = new Date()): Promise<DurableTaskExecutionClaim> {
+    await this.initialize();
+    const task = this.mustGet(claim.taskId);
+    this.assertClaim(task, claim, now);
+    task.leaseUntil = new Date(now.getTime() + leaseMs).toISOString();
+    task.updatedAt = iso(now);
+    await this.persist(now);
+    return this.claimFromTask(task);
+  }
+
+  async markRunningClaimed(claim: DurableTaskExecutionClaim, now = new Date()): Promise<DurableTask> {
+    await this.initialize();
+    const task = this.mustGet(claim.taskId);
+    this.assertClaim(task, claim, now);
+    if (task.status !== "leased") throw new Error(`Task ${task.id} must be leased before running`);
+    this.transition(task, "running", "execution started", now, claim.owner, { executionEpoch: claim.epoch });
     await this.persist(now);
     return cloneTask(task);
   }
@@ -284,7 +342,23 @@ export class DurableTaskRuntime {
     task.error = undefined;
     task.leaseOwner = undefined;
     task.leaseUntil = undefined;
+    task.fencingToken = undefined;
     this.transition(task, "completed", "execution verified complete", now, owner);
+    await this.refreshDependencyState(now);
+    await this.persist(now);
+    return cloneTask(task);
+  }
+
+  async completeClaimed(claim: DurableTaskExecutionClaim, result?: unknown, now = new Date()): Promise<DurableTask> {
+    await this.initialize();
+    const task = this.mustGet(claim.taskId);
+    this.assertClaim(task, claim, now);
+    task.result = structuredClone(result);
+    task.error = undefined;
+    task.leaseOwner = undefined;
+    task.leaseUntil = undefined;
+    task.fencingToken = undefined;
+    this.transition(task, "completed", "execution verified complete", now, claim.owner, { executionEpoch: claim.epoch });
     await this.refreshDependencyState(now);
     await this.persist(now);
     return cloneTask(task);
@@ -300,7 +374,48 @@ export class DurableTaskRuntime {
     task.error = undefined;
     task.leaseOwner = undefined;
     task.leaseUntil = undefined;
+    task.fencingToken = undefined;
     this.transition(task, "ready-to-publish", "offline execution verified; publication requires connectivity", now, owner);
+    await this.persist(now);
+    return cloneTask(task);
+  }
+
+  async readyToPublishClaimed(claim: DurableTaskExecutionClaim, result?: unknown, now = new Date()): Promise<DurableTask> {
+    await this.initialize();
+    const task = this.mustGet(claim.taskId);
+    this.assertClaim(task, claim, now);
+    task.result = structuredClone(result);
+    task.error = undefined;
+    task.leaseOwner = undefined;
+    task.leaseUntil = undefined;
+    task.fencingToken = undefined;
+    this.transition(task, "ready-to-publish", "offline execution verified; publication requires connectivity", now, claim.owner, { executionEpoch: claim.epoch });
+    await this.persist(now);
+    return cloneTask(task);
+  }
+
+  async failClaimed(
+    claim: DurableTaskExecutionClaim,
+    error: string,
+    retryDelayMs = 0,
+    now = new Date(),
+  ): Promise<DurableTask> {
+    await this.initialize();
+    const task = this.mustGet(claim.taskId);
+    this.assertClaim(task, claim, now);
+    task.error = error;
+    task.leaseOwner = undefined;
+    task.leaseUntil = undefined;
+    task.fencingToken = undefined;
+    const retry = task.attempts < task.maxAttempts;
+    if (retry) {
+      task.nextAttemptAt = new Date(now.getTime() + Math.max(0, retryDelayMs)).toISOString();
+      this.transition(task, "retrying", "execution failed; retry scheduled", now, claim.owner, { error, executionEpoch: claim.epoch });
+    } else {
+      task.nextAttemptAt = undefined;
+      this.transition(task, "failed", "retry budget exhausted", now, claim.owner, { error, executionEpoch: claim.epoch });
+    }
+    await this.refreshDependencyState(now);
     await this.persist(now);
     return cloneTask(task);
   }
@@ -320,6 +435,7 @@ export class DurableTaskRuntime {
     task.error = error;
     task.leaseOwner = undefined;
     task.leaseUntil = undefined;
+    task.fencingToken = undefined;
     const retry = task.attempts < task.maxAttempts;
     if (retry) {
       task.nextAttemptAt = new Date(now.getTime() + Math.max(0, retryDelayMs)).toISOString();
@@ -364,6 +480,7 @@ export class DurableTaskRuntime {
     if (task.status === "cancelled") return cloneTask(task);
     task.leaseOwner = undefined;
     task.leaseUntil = undefined;
+    task.fencingToken = undefined;
     task.nextAttemptAt = undefined;
     this.transition(task, "cancelled", reason, now);
     await this.refreshDependencyState(now);
@@ -375,6 +492,20 @@ export class DurableTaskRuntime {
     await this.initialize();
     const task = this.mustGet(taskId);
     if (TERMINAL.has(task.status)) throw new Error(`Cannot update checkpoint for terminal task ${taskId}`);
+    task.checkpointRef = checkpointRef?.trim() || undefined;
+    task.updatedAt = iso(now);
+    await this.persist(now);
+    return cloneTask(task);
+  }
+
+  async setCheckpointRefClaimed(
+    claim: DurableTaskExecutionClaim,
+    checkpointRef: string | undefined,
+    now = new Date(),
+  ): Promise<DurableTask> {
+    await this.initialize();
+    const task = this.mustGet(claim.taskId);
+    this.assertClaim(task, claim, now);
     task.checkpointRef = checkpointRef?.trim() || undefined;
     task.updatedAt = iso(now);
     await this.persist(now);
@@ -418,6 +549,7 @@ export class DurableTaskRuntime {
     if (TERMINAL.has(task.status)) throw new Error(`Terminal task ${taskId} cannot wait`);
     task.leaseOwner = undefined;
     task.leaseUntil = undefined;
+    task.fencingToken = undefined;
     task.nextAttemptAt = undefined;
     this.transition(task, status, reason, now);
     await this.persist(now);
@@ -427,6 +559,7 @@ export class DurableTaskRuntime {
   private recoverTask(task: DurableTask, reason: string, now: Date): void {
     task.leaseOwner = undefined;
     task.leaseUntil = undefined;
+    task.fencingToken = undefined;
     const retry = task.attempts < task.maxAttempts;
     if (retry) {
       task.nextAttemptAt = iso(now);
@@ -472,6 +605,34 @@ export class DurableTaskRuntime {
     task.status = to;
     task.updatedAt = iso(now);
     task.history.push({ from, to, at: task.updatedAt, reason, actor, evidence });
+  }
+
+  private claimFromTask(task: DurableTask): DurableTaskExecutionClaim {
+    if (!task.leaseOwner || !task.leaseUntil || !task.fencingToken || task.executionEpoch < 1) {
+      throw new Error(`Task ${task.id} has no active execution claim`);
+    }
+    return {
+      taskId: task.id,
+      owner: task.leaseOwner,
+      epoch: task.executionEpoch,
+      fencingToken: task.fencingToken,
+      leaseUntil: task.leaseUntil,
+    };
+  }
+
+  private assertClaim(task: DurableTask, claim: DurableTaskExecutionClaim, now: Date): void {
+    const active = task.status === "leased" || task.status === "running";
+    const leaseLive = Boolean(task.leaseUntil) && new Date(task.leaseUntil!).getTime() > now.getTime();
+    if (
+      !active ||
+      !leaseLive ||
+      task.leaseOwner !== claim.owner ||
+      task.executionEpoch !== claim.epoch ||
+      !task.fencingToken ||
+      task.fencingToken !== claim.fencingToken
+    ) {
+      throw new Error(`STALE_EXECUTION_CLAIM: task ${task.id} execution ownership has changed`);
+    }
   }
 
   private mustGet(taskId: string): DurableTask {
