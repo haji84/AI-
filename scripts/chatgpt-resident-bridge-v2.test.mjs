@@ -62,10 +62,14 @@ test("fresh reply detection does not require ChatGPT URL transition", () => {
   assert.match(source, /if \(candidate\?\.text\)/);
 });
 
-test("prompt submission prefers the visible send button with Enter fallback", () => {
+test("prompt submission uses real CDP mouse input, verifies submission, then falls back to Enter", () => {
   assert.match(source, /button\[data-testid="send-button"\]/);
-  assert.match(source, /const sentByButton = await evaluate/);
-  assert.match(source, /if \(!sentByButton\)/);
+  assert.match(source, /Input\.dispatchMouseEvent/);
+  assert.match(source, /mousePressed/);
+  assert.match(source, /mouseReleased/);
+  assert.match(source, /const submissionState = async/);
+  assert.match(source, /userCount > beforeUserCount/);
+  assert.match(source, /CHATGPT_SUBMIT_FAILED/);
 });
 
 test("fresh-turn timeout records bounded browser diagnostics", () => {
