@@ -4,6 +4,10 @@ import { existsSync, readFileSync } from "node:fs";
 import { extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { autoReconcileTraceability } from "../src/orchestrator/safe-pr-capability.ts";
+import {
+  REPAIR_ENGINE_ESCALATION_ORDER,
+  type RepairEngineId,
+} from "../src/orchestrator/repair-engine-router.ts";
 
 export const MAX_AUTOMATIC_ATTEMPTS_PER_STRATEGY = 3;
 export const MAX_AUTOMATIC_STRATEGIES = 3;
@@ -389,6 +393,132 @@ export function sanitizedBuilderEnvironment(
     "CODE_BUILDER_TOKEN",
   ]) delete next[key];
   return next;
+}
+
+type RepairEngineRunner = {
+  id: Exclude<RepairEngineId, "human-gate">;
+  run(prompt: string): void;
+};
+
+export const REPAIR_ENGINE_COMMAND_ENV: Readonly<Partial<Record<Exclude<RepairEngineId, "human-gate" | "goriq-deterministic" | "codex">, string>>> = Object.freeze({
+  "goriq-learned": "GORIQ_LEARNED_REPAIR_COMMAND",
+  "goriq-local-code": "GORIQ_LOCAL_CODE_REPAIR_COMMAND",
+  "goriq-local-capability": "GORIQ_LOCAL_CAPABILITY_REPAIR_COMMAND",
+  chat: "GORIQ_CHAT_REPAIR_COMMAND",
+  work: "GORIQ_WORK_REPAIR_COMMAND",
+  "free-external": "GORIQ_FREE_EXTERNAL_REPAIR_COMMAND",
+});
+
+function runConfiguredRepairCommand(command: string, workspace: string, prompt: string): void {
+  const resolved = normalizeConfiguredEnginePath(command.trim());
+  if (!resolved) throw new Error("REPAIR_ENGINE_COMMAND_UNAVAILABLE");
+  const invocation = commandInvocation(resolved, []);
+  const env = sanitizedBuilderEnvironment();
+  env.GIT_TERMINAL_PROMPT = "0";
+  env.GCM_INTERACTIVE = "never";
+  env.GH_CONFIG_DIR = join(workspace, ".goriq-gh-disabled");
+  env.GIT_CONFIG_COUNT = "2";
+  env.GIT_CONFIG_KEY_0 = "credential.helper";
+  env.GIT_CONFIG_VALUE_0 = "";
+  env.GIT_CONFIG_KEY_1 = "remote.origin.pushurl";
+  env.GIT_CONFIG_VALUE_1 = "https://127.0.0.1/goriq-push-disabled";
+  const result = spawnSync(invocation.command, invocation.args, {
+    cwd: workspace,
+    encoding: "utf8",
+    input: prompt,
+    stdio: ["pipe", "pipe", "pipe"],
+    windowsHide: true,
+    maxBuffer: 8 * 1024 * 1024,
+    timeout: 12 * 60_000,
+    env,
+  });
+  if (result.error) throw result.error;
+  if (result.status !== 0) {
+    throw new Error(`repair engine command failed: ${commandFailureOutput(result.stdout, result.stderr)}`);
+  }
+}
+
+function runDeterministicRepair(workspace: string, prompt: string, allowedPaths: string[]): void {
+  if (!/(?:eslint|prettier|lint|format(?:ting)?)/i.test(prompt)) return;
+  const sourcePaths = allowedPaths.filter((path) => /\.[cm]?[jt]sx?$/.test(path));
+  if (!sourcePaths.length) return;
+  try {
+    run("pnpm", ["exec", "eslint", "--fix", "--", ...sourcePaths], workspace);
+  } catch {
+    // A deterministic fixer may still leave a useful bounded edit. Scope and verification decide whether it survives.
+  }
+}
+
+function resolveCodexEngineOrNull(): string | null {
+  try {
+    return resolveConfiguredEngine();
+  } catch {
+    return null;
+  }
+}
+
+export function configuredRepairEngineIds(
+  env: Record<string, string | undefined> = process.env,
+  codexAvailable = resolveCodexEngineOrNull() !== null,
+): Array<Exclude<RepairEngineId, "human-gate">> {
+  const available = new Set<Exclude<RepairEngineId, "human-gate">>(["goriq-deterministic"]);
+  for (const [id, key] of Object.entries(REPAIR_ENGINE_COMMAND_ENV) as Array<[
+    Exclude<RepairEngineId, "human-gate" | "goriq-deterministic" | "codex">,
+    string,
+  ]>) {
+    if (env[key]?.trim()) available.add(id);
+  }
+  if (codexAvailable) available.add("codex");
+  return REPAIR_ENGINE_ESCALATION_ORDER
+    .map((stage) => stage.id)
+    .filter((id): id is Exclude<RepairEngineId, "human-gate"> => id !== "human-gate" && available.has(id));
+}
+
+function createRepairEngineRunners(
+  workspace: string,
+  allowedPaths: string[],
+  env: Record<string, string | undefined> = process.env,
+): RepairEngineRunner[] {
+  const codexEngine = resolveCodexEngineOrNull();
+  const runners = new Map<Exclude<RepairEngineId, "human-gate">, RepairEngineRunner>();
+
+  runners.set("goriq-deterministic", {
+    id: "goriq-deterministic",
+    run(prompt) {
+      runDeterministicRepair(workspace, prompt, allowedPaths);
+    },
+  });
+
+  for (const [id, key] of Object.entries(REPAIR_ENGINE_COMMAND_ENV) as Array<[
+    Exclude<RepairEngineId, "human-gate" | "goriq-deterministic" | "codex">,
+    string,
+  ]>) {
+    const command = env[key]?.trim();
+    if (!command) continue;
+    runners.set(id, {
+      id,
+      run(prompt) {
+        runConfiguredRepairCommand(command, workspace, prompt);
+      },
+    });
+  }
+
+  if (codexEngine) {
+    runners.set("codex", {
+      id: "codex",
+      run(prompt) {
+        runCodex(codexEngine, workspace, prompt);
+      },
+    });
+  }
+
+  return REPAIR_ENGINE_ESCALATION_ORDER
+    .map((stage) => stage.id)
+    .filter((id): id is Exclude<RepairEngineId, "human-gate"> => id !== "human-gate")
+    .flatMap((id) => {
+      const runner = runners.get(id);
+      return runner ? [runner] : [];
+    });
 }
 
 function runCodex(engine: string, workspace: string, prompt: string): void {
