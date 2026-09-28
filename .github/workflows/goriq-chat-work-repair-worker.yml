@@ -1,0 +1,28 @@
+name: GORIQ Chat Work Repair Worker
+
+on:
+  repository_dispatch:
+    types:
+      - goriq-repair-chat
+      - goriq-repair-work
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  process:
+    runs-on: [self-hosted, macOS, ARM64]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+      - name: Process one repair issue on Mac
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AI_COMPANY_REPO: ${{ github.repository }}
+          AI_COMPANY_REPAIR_ONCE_ISSUE: ${{ github.event.client_payload.issue_number }}
+        run: |
+          node ./scripts/chatgpt-resident-bridge-v2.mjs
