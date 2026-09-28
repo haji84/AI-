@@ -237,15 +237,15 @@ class CdpClient {
   }
 }
 
-async function createFreshChatGptTarget() {
+async function createChatGptTarget(url = CHATGPT_URL) {
   await ensureChromeRunning();
-  const response = await fetch(`http://127.0.0.1:${CDP_PORT}/json/new?${encodeURIComponent(CHATGPT_URL)}`, {
+  const response = await fetch(`http://127.0.0.1:${CDP_PORT}/json/new?${encodeURIComponent(url)}`, {
     method: "PUT",
     signal: AbortSignal.timeout(5000),
   });
-  if (!response.ok) throw new Error("failed to create fresh ChatGPT browser tab");
+  if (!response.ok) throw new Error("failed to create ChatGPT browser tab");
   const target = await response.json();
-  if (!target?.id || !target?.webSocketDebuggerUrl) throw new Error("fresh ChatGPT CDP target is incomplete");
+  if (!target?.id || !target?.webSocketDebuggerUrl) throw new Error("ChatGPT CDP target is incomplete");
   return target;
 }
 
@@ -281,6 +281,109 @@ async function waitForComposer(client, timeoutMs = 30000) {
     await sleep(750);
   }
   throw new Error("ChatGPT composer was not found");
+}
+
+async function navigateClient(client, url) {
+  await client.call("Page.navigate", { url });
+  const deadline = Date.now() + 30000;
+  while (Date.now() < deadline) {
+    const state = await evaluate(client, `(() => ({
+      ready: document.readyState,
+      url: location.href,
+      login: [...document.querySelectorAll('a,button')].some((el) => /log in|sign in|ログイン/i.test(el.textContent || '')),
+    }))()`);
+    if (state?.login) throw new Error("CHATGPT_LOGIN_REQUIRED");
+    if (state?.ready === "complete" || state?.ready === "interactive") return state;
+    await sleep(400);
+  }
+  throw new Error(`CHATGPT_NAVIGATION_TIMEOUT: ${url}`);
+}
+
+async function showSidebarIfNeeded(client) {
+  await evaluate(client, `(() => {
+    const buttons = [...document.querySelectorAll('button,[role="button"]')];
+    const button = buttons.find((el) => /サイドバーを表示する|show sidebar/i.test((el.getAttribute('aria-label') || el.textContent || '').trim()));
+    if (button) button.click();
+    return !!button;
+  })()`);
+  await sleep(300);
+}
+
+async function openAutomationProject(client) {
+  await showSidebarIfNeeded(client);
+  const name = ${JSON.stringify(PROJECT_NAME)};
+  const target = await evaluate(client, `(() => {
+    const normalize = (value) => String(value || '').replace(/\\s+/g, ' ').trim();
+    const visible = (el) => {
+      const rect = el.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    };
+    const candidates = [...document.querySelectorAll('a,button,[role="button"]')].filter(visible);
+    const exact = candidates.find((el) => normalize(el.innerText || el.textContent || el.getAttribute('aria-label')) === ${JSON.stringify(PROJECT_NAME)});
+    if (!exact) {
+      return {
+        found: false,
+        nearby: candidates.map((el) => normalize(el.innerText || el.textContent || el.getAttribute('aria-label'))).filter(Boolean).filter((value) => value.includes(${JSON.stringify(PROJECT_NAME)})).slice(0, 20),
+      };
+    }
+    const href = exact.tagName === 'A' ? exact.href : null;
+    if (!href) exact.click();
+    return { found: true, href };
+  })()`);
+
+  if (!target?.found) {
+    throw new Error(`CHATGPT_AUTOMATION_PROJECT_NOT_FOUND: ${PROJECT_NAME}; nearby=${JSON.stringify(target?.nearby ?? [])}`);
+  }
+  if (target.href) await navigateClient(client, target.href);
+  else await sleep(900);
+
+  const deadline = Date.now() + 15000;
+  while (Date.now() < deadline) {
+    const state = await evaluate(client, `(() => {
+      const normalize = (value) => String(value || '').replace(/\\s+/g, ' ').trim();
+      const visible = (el) => {
+        const rect = el.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0;
+      };
+      const projectVisible = [...document.querySelectorAll('a,button,[role="button"]')]
+        .filter(visible)
+        .some((el) => normalize(el.innerText || el.textContent || el.getAttribute('aria-label')) === ${JSON.stringify(PROJECT_NAME)});
+      const composer = document.querySelector('textarea') || document.querySelector('[contenteditable="true"]');
+      return { projectVisible, hasComposer: !!composer, url: location.href, title: document.title };
+    })()`);
+    if (state?.projectVisible) return state;
+    await sleep(500);
+  }
+  throw new Error(`CHATGPT_AUTOMATION_PROJECT_CONTEXT_NOT_CONFIRMED: ${PROJECT_NAME}`);
+}
+
+async function prepareProjectSurface(client, mode) {
+  const surfaces = await readProjectSurfaces();
+  const savedUrl = mode === "work" ? surfaces.work : surfaces.chat;
+  if (savedUrl) {
+    try {
+      await navigateClient(client, savedUrl);
+      await waitForComposer(client, 12000);
+      if (mode === "work") await selectExperience(client, "work");
+      return { reused: true, url: savedUrl };
+    } catch {
+      // Re-discover the project below. Never fall back to a root standalone chat.
+    }
+  }
+
+  await navigateClient(client, CHATGPT_URL);
+  await openAutomationProject(client);
+  if (mode === "work") await selectExperience(client, "work");
+  const ready = await waitForComposer(client, 15000);
+  const projectVisible = await evaluate(client, `(() => {
+    const normalize = (value) => String(value || '').replace(/\\s+/g, ' ').trim();
+    return [...document.querySelectorAll('a,button,[role="button"]')]
+      .some((el) => normalize(el.innerText || el.textContent || el.getAttribute('aria-label')) === ${JSON.stringify(PROJECT_NAME)});
+  })()`);
+  if (!projectVisible) {
+    throw new Error(`CHATGPT_PROJECT_SURFACE_ESCAPED: ${PROJECT_NAME}/${mode}`);
+  }
+  return { reused: false, url: ready.url };
 }
 
 async function snapshotAssistantMessages(client) {
