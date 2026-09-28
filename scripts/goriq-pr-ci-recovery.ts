@@ -408,6 +408,23 @@ function porcelainPaths(output: string): string[] {
     .sort();
 }
 
+export function outOfScopeUntrackedPaths(output: string, allowedPaths: Iterable<string>): string[] {
+  const allowed = new Set(allowedPaths);
+  return [...new Set(output.split(/\r?\n/)
+    .filter((line) => line.startsWith("?? "))
+    .map((line) => line.slice(3).trim())
+    .filter((path) => path && !allowed.has(path)))]
+    .sort();
+}
+
+function discardOutOfScopeUntracked(workspace: string, statusOutput: string, allowedPaths: Iterable<string>): string[] {
+  const discarded = outOfScopeUntrackedPaths(statusOutput, allowedPaths);
+  for (const path of discarded) {
+    run("git", ["clean", "-fd", "--", path], workspace);
+  }
+  return discarded;
+}
+
 function restoreWorkspace(workspace: string): void {
   run("git", ["reset", "--hard", "HEAD"], workspace);
   run("git", ["clean", "-fd"], workspace);
@@ -509,6 +526,9 @@ async function main() {
   const engine = resolveConfiguredEngine();
   runCodex(engine, workspace, prompt);
 
+  const allowedSet = new Set(allowed);
+  const statusAfterEngine = run("git", ["status", "--porcelain"], workspace);
+  const discardedUntracked = discardOutOfScopeUntracked(workspace, statusAfterEngine, allowedSet);
   const changedBeforeTrace = porcelainPaths(run("git", ["status", "--porcelain"], workspace));
   if (!changedBeforeTrace.length) throw new Error("RECOVERY_ENGINE_PRODUCED_NO_CHANGES");
 
@@ -518,7 +538,6 @@ async function main() {
     throw new Error("RECOVERY_DESTRUCTIVE_CHANGE_REJECTED");
   }
 
-  const allowedSet = new Set(allowed);
   const unsafe = changedBeforeTrace.filter((path) => !allowedSet.has(path) || isTestPath(path));
   if (unsafe.length) {
     restoreWorkspace(workspace);
@@ -573,6 +592,7 @@ async function main() {
     recoveryDecision: decision.reason,
     failureFingerprint: fingerprint,
     sameFailureOccurrences: decision.sameFailureOccurrences,
+    discardedUntracked,
     failedRunId,
     previousHead: expectedHead,
     commit,
