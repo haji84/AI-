@@ -8,6 +8,7 @@ const chatClientUrl = new URL("../scripts/goriq-chatgpt-repair-client.mjs", impo
 const runtimeWorkflowUrl = new URL("../.github/workflows/goriq-repair-engines-runtime.yml", import.meta.url);
 const recoveryWorkflowUrl = new URL("../.github/workflows/goriq-pr-ci-recovery.yml", import.meta.url);
 const groqAdapterUrl = new URL("../scripts/goriq-groq-repair.mjs", import.meta.url);
+const chatWorkWorkerUrl = new URL("../.github/workflows/goriq-chat-work-repair-worker.yml", import.meta.url);
 
 test("local repair adapter is bounded to AllowedPaths and local Ollama API", async () => {
   const source = await readFile(ollamaAdapterUrl, "utf8");
@@ -43,6 +44,8 @@ test("Chat and Work repair client requests a diff and cannot directly push", asy
   assert.match(source, /git", \["apply"/);
   assert.doesNotMatch(source, /git", \["push"/);
   assert.doesNotMatch(source, /git", \["commit"/);
+  assert.match(source, /repos\/\$\{owner\}\/\$\{repo\}\/dispatches/);
+  assert.match(source, /goriq-repair-\$\{mode\}/);
 });
 
 test("runtime workflow installs ZBook local engines and refreshes the Mac Chat Work bridge", async () => {
@@ -54,7 +57,7 @@ test("runtime workflow installs ZBook local engines and refreshes the Mac Chat W
   assert.match(source, /goriq-chatgpt-bridge-health-check\.mjs/);
   assert.match(source, /learned-repair-smoke/);
   assert.match(source, /goriq-learned-repair-smoke\.mjs/);
-  assert.match(source, /chat-work-repair-smoke:\s+needs: \[mac-chat-work-bridge\]\s+runs-on: ubuntu-latest/);
+  assert.match(source, /chat-work-repair-smoke:\s+needs: \[mac-chat-work-bridge\][\s\S]*?permissions:[\s\S]*?contents: write[\s\S]*?issues: write[\s\S]*?runs-on: ubuntu-latest/);
   assert.doesNotMatch(source, /chat-work-repair-smoke:\s+needs: \[[^\]]*zbook-local-repair/);
   assert.match(source, /AFTER_CHAT/);
   assert.match(source, /AFTER_WORK/);
@@ -63,10 +66,22 @@ test("runtime workflow installs ZBook local engines and refreshes the Mac Chat W
   assert.match(source, /GROQ_API_KEY_NOT_CONFIGURED/);
 });
 
-test("runtime smoke has only read content plus Issue write authority", async () => {
+test("runtime smoke keeps top-level read-only and scopes dispatch write to Chat Work job", async () => {
   const source = await readFile(runtimeWorkflowUrl, "utf8");
   assert.match(source, /permissions:\s+contents: read\s+issues: write/);
-  assert.doesNotMatch(source, /contents:\s*write|deployments:\s*write|id-token:\s*write/);
+  assert.match(source, /chat-work-repair-smoke:[\s\S]*?permissions:[\s\S]*?contents: write[\s\S]*?issues: write/);
+  assert.doesNotMatch(source, /deployments:\s*write|id-token:\s*write/);
+});
+
+test("repository dispatch worker runs one bounded repair issue on Mac", async () => {
+  const source = await readFile(chatWorkWorkerUrl, "utf8");
+  assert.match(source, /repository_dispatch/);
+  assert.match(source, /goriq-repair-chat/);
+  assert.match(source, /goriq-repair-work/);
+  assert.match(source, /runs-on: \[self-hosted, macOS, ARM64\]/);
+  assert.match(source, /AI_COMPANY_REPAIR_ONCE_ISSUE/);
+  assert.match(source, /issues: write/);
+  assert.doesNotMatch(source, /contents:\s*write/);
 });
 
 test("CI recovery grants only the extra Issue write authority needed by Chat Work queue", async () => {
