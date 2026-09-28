@@ -126,6 +126,18 @@ const issue = await api(`https://api.github.com/repos/${owner}/${repo}/issues`, 
 });
 
 const issueNumber = issue.number;
+await api(`https://api.github.com/repos/${owner}/${repo}/dispatches`, token, {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    event_type: `goriq-repair-${mode}`,
+    client_payload: {
+      issue_number: issueNumber,
+      request_id: requestId,
+      mode,
+    },
+  }),
+});
 const deadline = Date.now() + (mode === "work" ? 12 * 60_000 : 5 * 60_000);
 let answer = null;
 try {
