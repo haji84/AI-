@@ -558,6 +558,19 @@
       "reason": "#1216 OWN-001 bounded local cognition and evidence-bound prediction calibration; research metadata never grants authority or implies whole-product acceptance."
     },
     {
+      "path": "docs/architecture/goriq-distributed-node-fabric.md",
+      "sha256": "2da8e946e9462c9f2575af8d970e4eedb06d4776619543f1bc18d85eff301284",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "HOST-001",
+        "AUTO-010",
+        "OFF-008",
+        "MIG-008",
+        "MIG-016"
+      ],
+      "reason": "Normative no-single-host distributed node fabric, failover, execution ownership and staged Nubia/Fleet rollout"
+    },
+    {
       "path": "docs/architecture/jarvis-bounded-fact-research.md",
       "sha256": "9d7d1dc90a7e71bcd7c9bd121fe2c4d595ebac1e282deb78a90c16e13e48ac2d",
       "classification": "COVERED_BY_REQUIREMENT",
@@ -1096,6 +1109,16 @@
         "DEV-PC-006"
       ],
       "reason": "Mac auxiliary resident/installation compatibility scripts; no deployment performed"
+    },
+    {
+      "path": "scripts/jarvis-mac-runtime-entry.sh",
+      "sha256": "e04ff0804815537b595633de12e3933a50b7a44eba6ff47cdb35fba4d58c3d64",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "HOST-002",
+        "DEV-PC-006"
+      ],
+      "reason": "Canonical Mac launchd-owned Broker entrypoint now pins persistent Broker and Compass state under an owner-local path outside checkout-cleanable repositories, while retaining existing runtime capability evidence and fail-closed owner token loading."
     },
     {
       "path": "scripts/jarvis-mac-zero-touch-install.sh",
@@ -4607,6 +4630,17 @@
       "reason": "Issue #1216 reviewed Cognitive Core integration/hardening; mapped requirement does not imply full acceptance"
     },
     {
+      "path": "src/orchestrator/compass-goal-execution-context-store.ts",
+      "sha256": "219d820abba835a7bd3821cca0ee2c27d6265ab511cff8a69585d999d412c4bf",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-002",
+        "AUTO-004",
+        "AUTO-026"
+      ],
+      "reason": "Persists accepted Goal execution context in Compass so restart recovery preserves development intent and continuation context instead of silently degrading the Goal."
+    },
+    {
       "path": "src/orchestrator/compass-state-store.ts",
       "sha256": "dd5bbd882b40a12c645662aa9975f38bf6e401df92dec3aad2c68cf09b295374",
       "classification": "COVERED_BY_REQUIREMENT",
@@ -5652,6 +5686,20 @@
       "reason": "Declared team-planning-context.ts responsibility implements/supports Dynamic Orchestration; Parallel / Adaptive / Multi-plan. Parent ownership is not functional or physical acceptance evidence."
     },
     {
+      "path": "src/orchestrator/test-contract-evolution.ts",
+      "sha256": "e43de67c67cfbd754b99914b682eaed5ae29532f50c47fbd3b5f7917eab87abc",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-014",
+        "CORE-015",
+        "AUTO-016",
+        "AUTO-017",
+        "AUTO-018",
+        "AUTO-030"
+      ],
+      "reason": "#681 fail-closed autonomous test-contract evolution permits assertion-contract repair only after canonical requirement/spec change evidence and independent implementation verification; it rejects test bypass/weakening. Parent mapping is implementation ownership, not completion evidence."
+    },
+    {
       "path": "src/orchestrator/trigger-runtime.ts",
       "sha256": "4914e8db0ae2371ed89c3ed95af2bfaec6c72e12ce08c8d78ee1931d33f474df",
       "classification": "COVERED_BY_REQUIREMENT",
@@ -5791,41 +5839,6 @@
         "OWN-001"
       ],
       "reason": "Issue #1219 ZBook timeout-only recovery transition preserves Goal identity, completion checks, evidence, and Human Gate boundaries; parent requirements remain PARTIAL pending physical E2E."
-    },
-    {
-      "path": "scripts/jarvis-mac-runtime-entry.sh",
-      "sha256": "e04ff0804815537b595633de12e3933a50b7a44eba6ff47cdb35fba4d58c3d64",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "HOST-002",
-        "DEV-PC-006"
-      ],
-      "reason": "Canonical Mac launchd-owned Broker entrypoint now pins persistent Broker and Compass state under an owner-local path outside checkout-cleanable repositories, while retaining existing runtime capability evidence and fail-closed owner token loading."
-    },
-    {
-      "path": "src/orchestrator/compass-goal-execution-context-store.ts",
-      "sha256": "219d820abba835a7bd3821cca0ee2c27d6265ab511cff8a69585d999d412c4bf",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "AUTO-002",
-        "AUTO-004",
-        "AUTO-026"
-      ],
-      "reason": "Persists accepted Goal execution context in Compass so restart recovery preserves development intent and continuation context instead of silently degrading the Goal."
-    },
-    {
-      "path": "src/orchestrator/test-contract-evolution.ts",
-      "sha256": "e43de67c67cfbd754b99914b682eaed5ae29532f50c47fbd3b5f7917eab87abc",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "CORE-014",
-        "CORE-015",
-        "AUTO-016",
-        "AUTO-017",
-        "AUTO-018",
-        "AUTO-030"
-      ],
-      "reason": "#681 fail-closed autonomous test-contract evolution permits assertion-contract repair only after canonical requirement/spec change evidence and independent implementation verification; it rejects test bypass/weakening. Parent mapping is implementation ownership, not completion evidence."
     }
   ],
   "hash_policy": "utf8-crlf-to-lf-v1;binary-raw"
