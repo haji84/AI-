@@ -219,6 +219,27 @@ function restoreWorkspace(workspace: string): void {
   run("git", ["clean", "-fd"], workspace);
 }
 
+function pushWithGithubToken(workspace: string, branch: string, token: string): void {
+  const basic = Buffer.from(`x-access-token:${token}`).toString("base64");
+  const env: NodeJS.ProcessEnv = {
+    ...process.env,
+    GIT_CONFIG_COUNT: "1",
+    GIT_CONFIG_KEY_0: "http.https://github.com/.extraheader",
+    GIT_CONFIG_VALUE_0: `AUTHORIZATION: basic ${basic}`,
+  };
+  const result = spawnSync("git", ["push", "origin", `HEAD:${branch}`], {
+    cwd: workspace,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+    windowsHide: true,
+    env,
+    maxBuffer: 4 * 1024 * 1024,
+  });
+  if (result.status !== 0) {
+    throw new Error(`authenticated git push failed: ${String(result.stderr || result.stdout).slice(-3000)}`);
+  }
+}
+
 async function pullRequestFiles(repository: string, prNumber: number, token: string): Promise<string[]> {
   const { owner, repo } = parseRepository(repository);
   const files: string[] = [];
@@ -324,7 +345,7 @@ async function main() {
   const staged = run("git", ["diff", "--cached", "--name-only"], workspace);
   if (!staged.trim()) throw new Error("RECOVERY_PATCH_EMPTY_AFTER_VERIFICATION");
   run("git", ["commit", "-m", `fix(ci): goriq recovery attempt ${attempt}`], workspace);
-  run("git", ["push", "origin", `HEAD:${pr.head.ref}`], workspace);
+  pushWithGithubToken(workspace, pr.head.ref, token);
 
   const commit = run("git", ["rev-parse", "HEAD"], workspace);
   process.stdout.write(JSON.stringify({
