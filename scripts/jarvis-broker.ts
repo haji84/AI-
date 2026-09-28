@@ -20,6 +20,7 @@ import {
   JarvisControlPlane,
   JarvisNonceRegistry,
   JarvisSqliteStateStore,
+  sanitizeJarvisNodeTelemetry,
   verifyWorkerRequest,
   type JarvisCapability,
   type JarvisNode,
@@ -814,7 +815,7 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
     const identity = authenticateWorker(request, path, body); if (!identity) return json(response, 401, { message: "valid signed worker request required" });
     const payload = parseJson(body);
     if (method === "POST" && path === "/api/jarvis/worker/heartbeat") {
-      const telemetry = payload.telemetry && typeof payload.telemetry === "object" && !Array.isArray(payload.telemetry) ? payload.telemetry as JarvisNode["telemetry"] : undefined;
+      const telemetry = sanitizeJarvisNodeTelemetry(payload.telemetry, new Date());
       const status = payload.status === "busy" || payload.status === "locked" || payload.status === "needs-human" ? payload.status : "ready";
       const capabilities = Array.isArray(payload.capabilities) ? payload.capabilities.filter((item): item is JarvisCapability => typeof item === "string") : undefined;
       const current = plane.fleet.get(identity.nodeId);
