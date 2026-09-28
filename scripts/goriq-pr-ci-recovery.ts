@@ -215,3 +215,116 @@ async function pullRequestFiles(repository: string, prNumber: number, token: str
   }
   return [...new Set(files)];
 }
+
+async function main() {
+  const repository = process.env.GITHUB_REPOSITORY?.trim() || "";
+  const token = process.env.GITHUB_TOKEN?.trim() || "";
+  const prNumber = Number(process.env.GORIQ_RECOVERY_PR_NUMBER || "");
+  const failedRunId = process.env.GORIQ_RECOVERY_RUN_ID?.trim() || "";
+  const expectedHead = process.env.GORIQ_RECOVERY_HEAD_SHA?.trim() || "";
+  const workspace = resolve(process.env.GORIQ_RECOVERY_WORKSPACE?.trim() || process.cwd());
+
+  if (!repository || !token || !Number.isInteger(prNumber) || prNumber < 1 || !failedRunId || !expectedHead) {
+    throw new Error("GORIQ recovery environment is incomplete");
+  }
+  if (existsSync(resolve(workspace, "AI_COMPANY_PAUSED"))) throw new Error("PAUSED");
+
+  const { owner, repo } = parseRepository(repository);
+  const pr = await githubJson<PullRequestInfo>(
+    `https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}`,
+    token,
+  );
+  if (!isSameRepositoryOpenPullRequest(pr, repository)) throw new Error("PR_NOT_ELIGIBLE_FOR_AUTONOMOUS_RECOVERY");
+  if (pr.head.sha !== expectedHead) throw new Error("PR_HEAD_MOVED_BEFORE_RECOVERY");
+
+  const initialStatus = run("git", ["status", "--porcelain"], workspace);
+  if (initialStatus) throw new Error("RECOVERY_WORKSPACE_NOT_CLEAN");
+
+  run("git", ["fetch", "origin", "main", pr.head.ref], workspace);
+  const localHead = run("git", ["rev-parse", "HEAD"], workspace);
+  if (localHead !== expectedHead) throw new Error("CHECKED_OUT_HEAD_MISMATCH");
+
+  const subjects = run("git", ["log", "--format=%s", "origin/main..HEAD"], workspace)
+    .split(/\r?\n/)
+    .filter(Boolean);
+  const priorAttempts = recoveryAttemptCount(subjects);
+  if (priorAttempts >= MAX_AUTOMATIC_ATTEMPTS) {
+    throw new Error("AUTOMATIC_RECOVERY_ATTEMPT_BUDGET_EXHAUSTED");
+  }
+  const attempt = priorAttempts + 1;
+
+  const prPaths = await pullRequestFiles(repository, prNumber, token);
+  const allowed = allowedRepairPaths(prPaths);
+  if (!allowed.length) throw new Error("NO_AUTONOMOUS_REPAIR_PATHS");
+
+  const failureLog = await failedRunLog(repository, failedRunId, token);
+  if (!failureLog.trim()) throw new Error("FAILED_RUN_LOG_UNAVAILABLE");
+
+  const prompt = buildRecoveryPrompt({
+    prNumber,
+    attempt,
+    allowedPaths: allowed,
+    failureLog,
+  });
+
+  const engine = resolveConfiguredEngine();
+  runCodex(engine, workspace, prompt);
+
+  const changedBeforeTrace = porcelainPaths(run("git", ["status", "--porcelain"], workspace));
+  if (!changedBeforeTrace.length) throw new Error("RECOVERY_ENGINE_PRODUCED_NO_CHANGES");
+
+  const allowedSet = new Set(allowed);
+  const unsafe = changedBeforeTrace.filter((path) => !allowedSet.has(path) || isTestPath(path));
+  if (unsafe.length) {
+    restoreWorkspace(workspace);
+    throw new Error(`RECOVERY_SCOPE_VIOLATION: ${unsafe.join(",")}`);
+  }
+
+  const reconciled = autoReconcileTraceability(workspace, changedBeforeTrace, "low");
+  const changed = porcelainPaths(run("git", ["status", "--porcelain"], workspace));
+  const allowedFinal = new Set([...allowed, ...reconciled]);
+  const unsafeFinal = changed.filter((path) => !allowedFinal.has(path) || isTestPath(path));
+  if (unsafeFinal.length) {
+    restoreWorkspace(workspace);
+    throw new Error(`RECOVERY_POST_RECONCILE_SCOPE_VIOLATION: ${unsafeFinal.join(",")}`);
+  }
+
+  run("pnpm", ["lint"], workspace);
+  run("pnpm", ["test"], workspace);
+  run("pnpm", ["build"], workspace);
+
+  run("git", ["fetch", "origin", pr.head.ref], workspace);
+  const remoteHead = run("git", ["rev-parse", `origin/${pr.head.ref}`], workspace);
+  if (remoteHead !== expectedHead) {
+    restoreWorkspace(workspace);
+    throw new Error("PR_HEAD_MOVED_DURING_RECOVERY");
+  }
+
+  run("git", ["config", "user.name", "goriq-ci-recovery"], workspace);
+  run("git", ["config", "user.email", "actions@users.noreply.github.com"], workspace);
+  run("git", ["add", "--", ...changed], workspace);
+  const staged = run("git", ["diff", "--cached", "--name-only"], workspace);
+  if (!staged.trim()) throw new Error("RECOVERY_PATCH_EMPTY_AFTER_VERIFICATION");
+  run("git", ["commit", "-m", `fix(ci): goriq recovery attempt ${attempt}`], workspace);
+  run("git", ["push", "origin", `HEAD:${pr.head.ref}`], workspace);
+
+  const commit = run("git", ["rev-parse", "HEAD"], workspace);
+  process.stdout.write(JSON.stringify({
+    status: "FIXED",
+    prNumber,
+    attempt,
+    failedRunId,
+    previousHead: expectedHead,
+    commit,
+    changed,
+    checks: ["pnpm lint", "pnpm test", "pnpm build"],
+  }, null, 2) + "\n");
+}
+
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch((error) => {
+    const message = error instanceof Error ? error.message : String(error);
+    process.stderr.write(`GORIQ_CI_RECOVERY_FAILED: ${message}\n`);
+    process.exitCode = 1;
+  });
+}
