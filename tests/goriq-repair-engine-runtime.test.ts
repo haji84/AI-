@@ -43,6 +43,9 @@ test("Chat and Work repair client requests a diff and cannot directly push", asy
   const source = await readFile(chatClientUrl, "utf8");
   assert.match(source, /mode must be chat or work/);
   assert.match(source, /Return ONLY a valid unified git diff/);
+  assert.match(source, /export function extractUnifiedDiff/);
+  assert.match(source, /diff --git \[\\s\\S\]\*/);
+  assert.match(source, /const patch = extractUnifiedDiff\(answer\)/);
   assert.match(source, /git", \["apply"/);
   assert.doesNotMatch(source, /git", \["push"/);
   assert.doesNotMatch(source, /git", \["commit"/);

@@ -30,6 +30,13 @@ function stripFence(text) {
   const match = trimmed.match(/^```(?:diff|patch)?\s*([\s\S]*?)\s*```$/i);
   return match ? match[1].trim() : trimmed;
 }
+export function extractUnifiedDiff(text) {
+  const unfenced = stripFence(text);
+  const diffMatch = unfenced.match(/(?:^|\n)(diff --git [\s\S]*)$/m);
+  if (diffMatch?.[1]) return diffMatch[1].trim();
+  const traditional = unfenced.match(/(?:^|\n)(--- [^\n]+\n\+\+\+ [^\n]+[\s\S]*)$/m);
+  return traditional?.[1]?.trim() || unfenced;
+}
 function decodeAiComment(body = "") {
   const start = body.indexOf("<!-- ai-chat-entry:v1\n");
   if (start < 0) return null;
@@ -153,7 +160,7 @@ try {
   }
   if (!answer) throw new Error(`${mode.toUpperCase()}_REPAIR_BRIDGE_TIMEOUT`);
 
-  const patch = stripFence(answer);
+  const patch = extractUnifiedDiff(answer);
   if (!patch.startsWith("diff --git ") && !patch.startsWith("--- ")) {
     throw new Error(`${mode.toUpperCase()}_REPAIR_INVALID_DIFF: ${patch.slice(0, 500)}`);
   }
