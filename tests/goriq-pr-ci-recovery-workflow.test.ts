@@ -16,7 +16,7 @@ test("CI recovery triggers only from failed pull-request CI", async () => {
 test("trusted control checkout is separated from target PR checkout", async () => {
   const workflow = await readFile(workflowUrl, "utf8");
   assert.match(workflow, /ref: main\s+path: control\s+persist-credentials: false/);
-  assert.match(workflow, /ref: \$\{\{ steps\.pr\.outputs\.branch \}\}\s+path: target/);
+  assert.match(workflow, /ref: \$\{\{ steps\.pr\.outputs\.branch \}\}\s+path: target\s+fetch-depth: 0\s+persist-credentials: false/);
   assert.match(workflow, /node \.\\control\\scripts\\goriq-pr-ci-recovery\.ts/);
   assert.match(workflow, /GORIQ_RECOVERY_CONTROL_WORKSPACE/);
 });
@@ -37,4 +37,14 @@ test("controller bounds attempts and forbids merge deployment and test edits", a
   assert.match(controller, /Do not commit, push, merge, deploy/);
   assert.match(controller, /Do not weaken or delete tests/);
   assert.match(controller, /AUTOMATIC_RECOVERY_ATTEMPT_BUDGET_EXHAUSTED/);
+});
+
+
+test("coding engine receives no persisted checkout credential", async () => {
+  const workflow = await readFile(workflowUrl, "utf8");
+  const controller = await readFile(controllerUrl, "utf8");
+  assert.doesNotMatch(workflow, /path: target[\s\S]{0,160}persist-credentials: true/);
+  assert.match(controller, /sanitizedBuilderEnvironment/);
+  assert.match(controller, /GITHUB_TOKEN/);
+  assert.match(controller, /pushWithGithubToken/);
 });
