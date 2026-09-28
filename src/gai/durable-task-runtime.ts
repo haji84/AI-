@@ -2,6 +2,7 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { randomUUID } from "node:crypto";
 import type { WorkerCapability } from "./worker-runtime.ts";
+import { decideRecovery, type RecoveryBlocker } from "./durable-task-recovery-policy.ts";
 
 export type DurableTaskStatus =
   | "queued"
@@ -25,6 +26,14 @@ export interface DurableTaskExecutionClaim {
   epoch: number;
   fencingToken: string;
   leaseUntil: string;
+}
+
+export interface DurableTaskRecoveryResumeInput {
+  owner?: string;
+  checkpointRef?: string;
+  externalEffectReviewed?: boolean;
+  verifierId?: string;
+  evidenceRef?: string;
 }
 
 export interface DurableTaskTransition {
@@ -52,6 +61,8 @@ export interface DurableTask {
   leaseOwner?: string;
   leaseUntil?: string;
   fencingToken?: string;
+  pinnedOwner?: string;
+  recoveryBlocker?: RecoveryBlocker;
   nextAttemptAt?: string;
   checkpointRef?: string;
   result?: unknown;
@@ -271,6 +282,9 @@ export class DurableTaskRuntime {
     if (task.nextAttemptAt && new Date(task.nextAttemptAt).getTime() > now.getTime()) {
       throw new Error(`Task ${taskId} retry delay has not elapsed`);
     }
+    if (task.migrationClass === "PINNED" && task.pinnedOwner && task.pinnedOwner !== owner) {
+      throw new Error(`PINNED_TASK_OWNER_MISMATCH: task ${task.id} is pinned to ${task.pinnedOwner}`);
+    }
     this.transition(task, "leased", "lease acquired", now, owner, {
       leaseUntil: new Date(now.getTime() + leaseMs).toISOString(),
     });
@@ -278,6 +292,7 @@ export class DurableTaskRuntime {
     task.leaseOwner = owner;
     task.leaseUntil = new Date(now.getTime() + leaseMs).toISOString();
     task.fencingToken = randomUUID();
+    if (task.migrationClass === "PINNED") task.pinnedOwner = task.pinnedOwner ?? owner;
     task.nextAttemptAt = undefined;
     task.attempts += 1;
     await this.persist(now);
@@ -463,6 +478,7 @@ export class DurableTaskRuntime {
     let count = 0;
     for (const task of this.tasks.values()) {
       if (task.status !== status) continue;
+      if (task.recoveryBlocker) continue;
       this.transition(task, "queued", `${kind} available`, now);
       count += 1;
     }
@@ -473,6 +489,50 @@ export class DurableTaskRuntime {
     return count;
   }
 
+  async resumeRecovery(
+    taskId: string,
+    input: DurableTaskRecoveryResumeInput,
+    now = new Date(),
+  ): Promise<DurableTask> {
+    await this.initialize();
+    const task = this.mustGet(taskId);
+    if (task.status !== "waiting-resource" || !task.recoveryBlocker) {
+      throw new Error(`Task ${taskId} has no protected recovery blocker`);
+    }
+
+    const evidence: Record<string, unknown> = { recoveryBlocker: task.recoveryBlocker };
+
+    if (task.recoveryBlocker === "CHECKPOINT_REQUIRED") {
+      const checkpointRef = input.checkpointRef?.trim() || task.checkpointRef;
+      if (!checkpointRef) throw new Error("CHECKPOINT_REQUIRED");
+      if (task.attempts >= task.maxAttempts) throw new Error("retry budget exhausted");
+      task.checkpointRef = checkpointRef;
+      evidence.checkpointRef = checkpointRef;
+    } else if (task.recoveryBlocker === "PINNED_OWNER_UNAVAILABLE") {
+      const owner = input.owner?.trim();
+      if (!owner || !task.pinnedOwner || owner !== task.pinnedOwner) {
+        throw new Error("PINNED_OWNER_REQUIRED");
+      }
+      evidence.owner = owner;
+    } else if (task.recoveryBlocker === "EXTERNAL_EFFECT_REVIEW_REQUIRED") {
+      const verifierId = input.verifierId?.trim();
+      const evidenceRef = input.evidenceRef?.trim();
+      if (input.externalEffectReviewed !== true || !verifierId || !evidenceRef) {
+        throw new Error("EXTERNAL_EFFECT_REVIEW_REQUIRED");
+      }
+      if (task.attempts >= task.maxAttempts) throw new Error("retry budget exhausted");
+      evidence.verifierId = verifierId;
+      evidence.evidenceRef = evidenceRef;
+    }
+
+    task.recoveryBlocker = undefined;
+    task.error = undefined;
+    task.nextAttemptAt = iso(now);
+    this.transition(task, "retrying", "protected recovery explicitly resumed", now, input.owner, evidence);
+    await this.persist(now);
+    return cloneTask(task);
+  }
+
   async cancel(taskId: string, reason = "cancelled", now = new Date()): Promise<DurableTask> {
     await this.initialize();
     const task = this.mustGet(taskId);
@@ -481,6 +541,7 @@ export class DurableTaskRuntime {
     task.leaseOwner = undefined;
     task.leaseUntil = undefined;
     task.fencingToken = undefined;
+    task.recoveryBlocker = undefined;
     task.nextAttemptAt = undefined;
     this.transition(task, "cancelled", reason, now);
     await this.refreshDependencyState(now);
@@ -557,18 +618,54 @@ export class DurableTaskRuntime {
   }
 
   private recoverTask(task: DurableTask, reason: string, now: Date): void {
+    const lostOwner = task.leaseOwner;
     task.leaseOwner = undefined;
     task.leaseUntil = undefined;
     task.fencingToken = undefined;
-    const retry = task.attempts < task.maxAttempts;
-    if (retry) {
-      task.nextAttemptAt = iso(now);
-      this.transition(task, "retrying", reason, now);
-    } else {
-      task.nextAttemptAt = undefined;
-      task.error = reason;
-      this.transition(task, "failed", `${reason}; retry budget exhausted`, now);
+    task.nextAttemptAt = undefined;
+
+    const decision = decideRecovery({
+      migrationClass: task.migrationClass,
+      checkpointRef: task.checkpointRef,
+      attempts: task.attempts,
+      maxAttempts: task.maxAttempts,
+      lostOwner,
+    });
+
+    if (decision.pinnedOwner) task.pinnedOwner = task.pinnedOwner ?? decision.pinnedOwner;
+
+    if (decision.wait) {
+      task.recoveryBlocker = decision.blocker;
+      task.error = decision.blocker;
+      this.transition(task, "waiting-resource", `${reason}; protected recovery waiting`, now, undefined, {
+        recoveryMode: decision.mode,
+        recoveryBlocker: decision.blocker,
+        previousOwner: lostOwner,
+        executionEpoch: task.executionEpoch,
+      });
+      return;
     }
+
+    if (decision.fail) {
+      task.recoveryBlocker = undefined;
+      task.error = reason;
+      this.transition(task, "failed", `${reason}; retry budget exhausted`, now, undefined, {
+        recoveryMode: decision.mode,
+        previousOwner: lostOwner,
+      });
+      return;
+    }
+
+    if (!decision.preserveCheckpoint) task.checkpointRef = undefined;
+    task.recoveryBlocker = undefined;
+    task.error = undefined;
+    task.nextAttemptAt = iso(now);
+    this.transition(task, "retrying", reason, now, undefined, {
+      recoveryMode: decision.mode,
+      previousOwner: lostOwner,
+      checkpointRef: task.checkpointRef,
+      executionEpoch: task.executionEpoch,
+    });
   }
 
   private async refreshDependencyState(now: Date): Promise<void> {
