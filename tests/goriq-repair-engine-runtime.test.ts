@@ -52,10 +52,14 @@ test("runtime workflow installs ZBook local engines and refreshes the Mac Chat W
   assert.match(source, /runs-on: \[self-hosted, macOS, ARM64\]/);
   assert.match(source, /install-macos-chatgpt-bridge\.sh/);
   assert.match(source, /goriq-chatgpt-bridge-health-check\.mjs/);
-  assert.match(source, /chat-work-repair-smoke/);
+  assert.match(source, /learned-repair-smoke/);
+  assert.match(source, /goriq-learned-repair-smoke\.mjs/);
+  assert.match(source, /chat-work-repair-smoke:\s+needs: \[mac-chat-work-bridge\]\s+runs-on: ubuntu-latest/);
+  assert.doesNotMatch(source, /chat-work-repair-smoke:\s+needs: \[[^\]]*zbook-local-repair/);
   assert.match(source, /AFTER_CHAT/);
   assert.match(source, /AFTER_WORK/);
-  assert.match(source, /free-external-repair-smoke/);
+  assert.match(source, /free-external-repair-smoke:\s+runs-on: ubuntu-latest/);
+  assert.doesNotMatch(source, /free-external-repair-smoke:\s+needs: \[zbook-local-repair\]/);
   assert.match(source, /GROQ_API_KEY_NOT_CONFIGURED/);
 });
 
