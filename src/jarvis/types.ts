@@ -102,6 +102,10 @@ export interface JarvisTask {
   targetNodeId?: string;
   assignedNodeId?: string;
   leaseUntil?: string;
+  /** Monotonic ownership generation. Incremented whenever a task receives a new lease. */
+  executionEpoch?: number;
+  /** Opaque per-lease claim echoed by the Worker. Rotates on ownership change. */
+  fencingToken?: string;
   /** Latest server dispatch time for bounded preparation; never retries input. */
   dispatchBefore?: string;
   attempts: number;
