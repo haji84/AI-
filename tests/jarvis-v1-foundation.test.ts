@@ -125,3 +125,112 @@ test("Human Takeover lifecycle supports request, activation and resolution", () 
   assert.equal(takeover.resolve(requested.id).status, "resolved");
   assert.equal(takeover.activeForNode("android-017"), undefined);
 });
+
+
+test("Production FleetManager applies the shared resource placement policy", () => {
+  const fleet = new JarvisFleetManager();
+  fleet.register(node({
+    id: "zbook",
+    label: "ZBook",
+    kind: "windows",
+    capabilities: ["open-url", "gpu", "long-running"],
+    telemetry: {
+      checkedAt: "2026-09-28T05:00:00.000Z",
+      cpuLoadPercent: 75,
+      gpuLoadPercent: 20,
+      gpuAvailable: true,
+      memoryAvailableMb: 32_000,
+      freeStorageMb: 100_000,
+      charging: true,
+      onExternalPower: true,
+      thermalState: "nominal",
+      dataLocalityKeys: ["dataset-A"],
+    },
+  }));
+  fleet.register(node({
+    id: "macbook",
+    label: "MacBook",
+    kind: "macos",
+    capabilities: ["open-url", "long-running"],
+    telemetry: {
+      checkedAt: "2026-09-28T05:00:00.000Z",
+      cpuLoadPercent: 10,
+      memoryAvailableMb: 16_000,
+      freeStorageMb: 100_000,
+      charging: true,
+      onExternalPower: true,
+      thermalState: "nominal",
+      dataLocalityKeys: ["dataset-B"],
+    },
+  }));
+
+  const gpu = fleet.select(task({
+    requiredCapabilities: ["open-url", "gpu"],
+    resourceRequirements: { requireGpu: true, minMemoryAvailableMb: 24_000 },
+  }));
+  assert.equal(gpu?.id, "zbook");
+
+  const localData = fleet.select(task({
+    resourceRequirements: { preferredDataLocalityKeys: ["dataset-A"] },
+  }));
+  assert.equal(localData?.id, "zbook");
+});
+
+test("Production FleetManager fails closed on hard unknown resources while legacy tasks remain compatible", () => {
+  const fleet = new JarvisFleetManager();
+  fleet.register(node({
+    id: "legacy",
+    label: "Legacy",
+    telemetry: {
+      checkedAt: "2026-09-28T05:00:00.000Z",
+      batteryPercent: 80,
+      charging: true,
+      cpuLoadPercent: 10,
+    },
+  }));
+
+  assert.equal(fleet.select(task())?.id, "legacy");
+  assert.equal(fleet.select(task({
+    resourceRequirements: { minMemoryAvailableMb: 8_000 },
+  })), undefined);
+  assert.equal(fleet.select(task({
+    resourceRequirements: { maxGpuLoadPercent: 50 },
+  })), undefined);
+});
+
+test("Production FleetManager excludes critical thermal nodes and respects required data locality", () => {
+  const fleet = new JarvisFleetManager();
+  fleet.register(node({
+    id: "critical",
+    label: "Critical",
+    telemetry: {
+      checkedAt: "2026-09-28T05:00:00.000Z",
+      cpuLoadPercent: 0,
+      memoryAvailableMb: 64_000,
+      charging: true,
+      thermalState: "critical",
+      dataLocalityKeys: ["dataset-A"],
+    },
+  }));
+  fleet.register(node({
+    id: "healthy",
+    label: "Healthy",
+    telemetry: {
+      checkedAt: "2026-09-28T05:00:00.000Z",
+      cpuLoadPercent: 30,
+      memoryAvailableMb: 16_000,
+      charging: true,
+      thermalState: "nominal",
+      dataLocalityKeys: ["dataset-A"],
+    },
+  }));
+
+  const selected = fleet.select(task({
+    resourceRequirements: { requiredDataLocalityKeys: ["dataset-A"] },
+  }));
+  assert.equal(selected?.id, "healthy");
+
+  assert.equal(fleet.select(task({
+    resourceRequirements: { requiredDataLocalityKeys: ["missing-dataset"] },
+  })), undefined);
+});
