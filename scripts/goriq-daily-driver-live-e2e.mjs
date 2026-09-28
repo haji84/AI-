@@ -87,7 +87,8 @@ export async function runDailyDriverLiveE2E({
       lastStatus = status;
     }
     if (status === "completed") {
-      const targetNodeId = current?.targetNodeId ?? "";
+      const targetNodeId = String(current?.targetNodeId ?? "").trim();
+      if (!targetNodeId) throw new Error("Completed physical Daily Driver task has no assigned Android node");
       return {
         schemaVersion: 1,
         status: "PHYSICAL_DEVICE_ACTION_COMPLETED",
@@ -100,7 +101,7 @@ export async function runDailyDriverLiveE2E({
           id: String(task.id),
           type: String(current.type ?? task.type),
           status,
-          targetNodeHash: targetNodeId ? hashNodeId(targetNodeId) : null,
+          targetNodeHash: hashNodeId(targetNodeId),
           detailKeys: current?.detail && typeof current.detail === "object" && !Array.isArray(current.detail)
             ? Object.keys(current.detail).sort()
             : [],
