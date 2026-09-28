@@ -129,12 +129,21 @@ export class JarvisControlPlane {
     return decision;
   }
 
+  ensureExecutionClaim(taskId: string, nodeId: string, now = new Date()): JarvisTask {
+    return this.queue.ensureExecutionClaim(taskId, nodeId, now);
+  }
+
   markRunning(taskId: string, nodeId: string, now = new Date()): JarvisTask {
     const task = this.queue.get(taskId);
     if (!task || task.assignedNodeId !== nodeId) throw new Error("Task lease is not owned by this node");
     const running = this.queue.markRunning(taskId, now);
     this.audit(nodeId, "task.running", taskId, undefined, now);
     return running;
+  }
+
+  markRunningClaimed(taskId: string, nodeId: string, executionEpoch: number, fencingToken: string, now = new Date()): JarvisTask {
+    this.queue.assertExecutionClaim(taskId, nodeId, executionEpoch, fencingToken);
+    return this.markRunning(taskId, nodeId, now);
   }
 
   completeTask(taskId: string, nodeId: string, result?: Record<string, unknown>, now = new Date()): JarvisTask {
@@ -145,12 +154,36 @@ export class JarvisControlPlane {
     return completed;
   }
 
+  completeTaskClaimed(
+    taskId: string,
+    nodeId: string,
+    executionEpoch: number,
+    fencingToken: string,
+    result?: Record<string, unknown>,
+    now = new Date(),
+  ): JarvisTask {
+    this.queue.assertExecutionClaim(taskId, nodeId, executionEpoch, fencingToken);
+    return this.completeTask(taskId, nodeId, result, now);
+  }
+
   failTask(taskId: string, nodeId: string, reason: string, now = new Date()): JarvisTask {
     const task = this.queue.get(taskId);
     if (!task || task.assignedNodeId !== nodeId) throw new Error("Task lease is not owned by this node");
     const failed = this.queue.fail(taskId, now);
     this.audit(nodeId, failed.status === "queued" ? "task.retry" : "task.failed", taskId, { reason }, now);
     return failed;
+  }
+
+  failTaskClaimed(
+    taskId: string,
+    nodeId: string,
+    executionEpoch: number,
+    fencingToken: string,
+    reason: string,
+    now = new Date(),
+  ): JarvisTask {
+    this.queue.assertExecutionClaim(taskId, nodeId, executionEpoch, fencingToken);
+    return this.failTask(taskId, nodeId, reason, now);
   }
 
   requestTakeover(input: Omit<JarvisTakeoverSession, "id" | "status" | "createdAt" | "updatedAt">, now = new Date()): JarvisTakeoverSession {
