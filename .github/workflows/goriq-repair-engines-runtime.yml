@@ -168,6 +168,7 @@ jobs:
         env:
           GORIQ_REPAIR_REPOSITORY: ${{ github.repository }}
           GORIQ_REPAIR_GITHUB_TOKEN: ${{ github.token }}
+          AI_COMPANY_CHATGPT_PROJECT_NAME: 自動化
         run: |
           ROOT="$RUNNER_TEMP/goriq-work-repair-smoke"
           rm -rf "$ROOT"
