@@ -24,7 +24,11 @@ test("daily driver live e2e accepts safe device-status and waits for physical co
     if (req.method === "GET" && req.url === "/api/jarvis/admin/state") {
       stateReads++;
       const status = stateReads < 2 ? "running" : "completed";
-      res.end(JSON.stringify({stats:{registered:1},tasks:[{id:"task-1",type:"device-status",status,targetNodeId:"android-1",detail:{ok:true}}]}));
+      res.end(JSON.stringify({
+        stats:{registered:1},
+        fleet:[{id:"android-1",kind:"android",status:"ready",capabilities:["device-status"],lastSeenAt:new Date().toISOString()}],
+        tasks:[{id:"task-1",type:"device-status",status,targetNodeId:"android-1",detail:{ok:true}}]
+      }));
       return;
     }
     res.statusCode = 404; res.end("{}");
