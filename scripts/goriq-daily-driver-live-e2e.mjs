@@ -195,7 +195,10 @@ async function cli() {
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   cli().catch(error => {
-    console.error("[goriq-daily-driver-live-e2e]", error instanceof Error ? error.message : error);
+    const diagnostic = error && typeof error === "object" && "diagnostics" in error
+      ? ` diagnostics=${JSON.stringify(error.diagnostics)}`
+      : "";
+    console.error("[goriq-daily-driver-live-e2e]", error instanceof Error ? error.message + diagnostic : error);
     process.exit(1);
   });
 }
