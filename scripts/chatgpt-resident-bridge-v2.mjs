@@ -429,7 +429,7 @@ async function snapshotAssistantMessages(client) {
   const assistants = Array.isArray(messages) ? messages.filter((message) => message.role === "assistant") : [];
   if (assistants.length) return assistants;
 
-  return evaluate(client, `(() => {
+  const markdown = await evaluate(client, `(() => {
     const nodes = [...document.querySelectorAll('main .markdown, main [class*="markdown"]')];
     const seen = new Set();
     const out = [];
@@ -447,6 +447,53 @@ async function snapshotAssistantMessages(client) {
       });
     }
     return out;
+  })()`);
+  if (Array.isArray(markdown) && markdown.length) return markdown;
+
+  return evaluate(client, `(() => {
+    const normalize = (value) => String(value || '').replace(/\\s+/g, ' ').trim();
+    const actionPattern = /回答を再生成|regenerate|読み上げ|read aloud|リアクション|reaction|コピーする|copy/i;
+    const buttons = [...document.querySelectorAll('main button')].filter((button) => {
+      const label = normalize([button.getAttribute('aria-label'), button.getAttribute('data-testid'), button.textContent].filter(Boolean).join(' '));
+      return actionPattern.test(label);
+    });
+    const candidates = [];
+    const seen = new Set();
+
+    for (const button of buttons) {
+      let node = button.parentElement;
+      let best = null;
+      for (let depth = 0; node && depth < 10; depth += 1, node = node.parentElement) {
+        if (!(node instanceof HTMLElement)) continue;
+        const text = (node.innerText || node.textContent || '').trim();
+        if (!text || text.length > 12000) continue;
+        const hasComposer = !!node.querySelector('textarea,[contenteditable="true"]');
+        const hasSidebar = [...node.querySelectorAll('button,a')].some((el) =>
+          /サイドバーを表示する|show sidebar|新しいチャット|new chat/i.test(
+            normalize(el.getAttribute('aria-label') || el.textContent || '')
+          )
+        );
+        if (hasComposer || hasSidebar) continue;
+        if (!best || text.length < best.text.length) {
+          best = {
+            node,
+            text,
+            id: node.getAttribute('data-message-id') || node.id || null,
+          };
+        }
+      }
+      if (!best) continue;
+      const key = best.id || best.text;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      candidates.push({
+        role: 'assistant',
+        id: best.id,
+        index: candidates.length,
+        text: best.text.slice(0, 8000),
+      });
+    }
+    return candidates;
   })()`);
 }
 
