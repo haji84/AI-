@@ -71,7 +71,7 @@ export function failureFingerprint(value: string): string {
     .replace(/\b[0-9a-f]{40}\b/gi, "<sha>")
     .replace(/\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z\b/g, "<timestamp>")
     .replace(/:\d+(?::\d+)?\b/g, ":<line>")
-    .replace(/\b(?:run|job|attempt)[-_ ]?\d+\b/gi, "$1-<n>")
+    .replace(/\b(run|job|attempt)[-_ ]?\d+\b/gi, "$1-<n>")
     .replace(/\b\d+(?:\.\d+)?(?:ms|s|sec|seconds|minutes|min)\b/gi, "<duration>")
     .replace(/\s+/g, " ")
     .trim()
@@ -356,7 +356,7 @@ export function buildRecoveryPrompt(input: {
   strategy: RecoveryStrategy;
   strategyAttempt: number;
   totalAttempt: number;
-  decisionReason: RecoveryDecision extends { action: "attempt"; reason: infer R } ? R : never;
+  decisionReason: "initial" | "progress-continue" | "same-failure-escalation" | "strategy-budget-escalation";
   failureFingerprint: string;
   allowedPaths: string[];
   failureLog: string;
