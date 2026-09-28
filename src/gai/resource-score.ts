@@ -72,5 +72,15 @@ export function scoreResourceFit(
     score += Math.max(0, Math.min(2, resources.memoryAvailableMb / 16_384));
     reasons.push(`mem:${Math.round(resources.memoryAvailableMb)}`);
   }
+
+  if (resources.onExternalPower === true) score += 0.5;
+  const battery = percent(resources.batteryPercent);
+  if (battery !== undefined && battery < 20 && resources.onExternalPower !== true) score -= 1.5;
+
+  if (resources.thermalState === "nominal") score += 1;
+  else if (resources.thermalState === "fair") score += 0.25;
+  else if (resources.thermalState === "serious") score -= 2;
+  else if (resources.thermalState === "critical") score -= 6;
+
   return { eligible: true, score, reasons };
 }
