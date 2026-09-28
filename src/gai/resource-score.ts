@@ -15,6 +15,14 @@ export function scoreResourceFit(
   if (activeTasks !== undefined && activeTasks >= descriptor.maxParallelTasks) {
     return { eligible: false, score: -1000, reasons: ["capacity"] };
   }
-  void request;
+  const resources = health.resources ?? {};
+  if (request.minMemoryAvailableMb !== undefined &&
+      (resources.memoryAvailableMb === undefined || resources.memoryAvailableMb < request.minMemoryAvailableMb)) {
+    return { eligible: false, score: -1000, reasons: ["memory"] };
+  }
+  if (request.minDiskAvailableMb !== undefined &&
+      (resources.diskAvailableMb === undefined || resources.diskAvailableMb < request.minDiskAvailableMb)) {
+    return { eligible: false, score: -1000, reasons: ["disk"] };
+  }
   return { eligible: true, score: 0, reasons: [] };
 }
