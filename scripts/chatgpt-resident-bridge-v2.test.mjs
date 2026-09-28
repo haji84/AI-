@@ -17,7 +17,7 @@ test("resident bridge v2 always creates a fresh ChatGPT target", () => {
 test("resident bridge v2 excludes pre-existing assistant messages", () => {
   assert.match(source, /snapshotAssistantMessages/);
   assert.match(source, /baselineFingerprints/);
-  assert.match(source, /newMessages = messages\.filter/);
+  assert.match(source, /newMessages = \(messages \?\? \[\]\)\.filter/);
 });
 
 test("resident bridge v2 confirms prompt submission and accepts only fresh assistant turns", () => {
