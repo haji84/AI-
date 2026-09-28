@@ -323,6 +323,7 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat") {
 
     const beforeMessages = await snapshotAssistantMessages(client);
     const baselineFingerprints = new Set((beforeMessages ?? []).map(fingerprintMessage));
+    const beforeUserCount = await evaluate(client, `(() => document.querySelectorAll('[data-message-author-role="user"]').length)()`);
 
     const focused = await evaluate(client, `(() => {
       const el = document.querySelector('textarea') || document.querySelector('[contenteditable="true"]');
@@ -337,23 +338,52 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat") {
     await client.call("Input.dispatchKeyEvent", { type: "keyDown", key: "Backspace", code: "Backspace" });
     await client.call("Input.dispatchKeyEvent", { type: "keyUp", key: "Backspace", code: "Backspace" });
     await client.call("Input.insertText", { text: prompt });
-    const sentByButton = await evaluate(client, `(() => {
+
+    const sendTarget = await evaluate(client, `(() => {
       const visible = (el) => {
         const rect = el.getBoundingClientRect();
         return rect.width > 0 && rect.height > 0;
       };
+      const buttons = [...document.querySelectorAll('button')];
       const button = document.querySelector('button[data-testid="send-button"]')
-        || [...document.querySelectorAll('button')].find((el) => {
-          const label = [el.getAttribute('aria-label'), el.getAttribute('data-testid'), el.textContent].filter(Boolean).join(' ');
-          return visible(el) && /send|送信|submit/i.test(label);
+        || buttons.find((el) => {
+          const aria = (el.getAttribute('aria-label') || '').trim();
+          const testid = (el.getAttribute('data-testid') || '').trim();
+          const text = (el.textContent || '').trim();
+          return visible(el)
+            && !el.disabled
+            && (/^(send|送信)$/i.test(aria) || /send-button/i.test(testid) || /^(send|送信)$/i.test(text));
         });
-      if (!button || button.disabled) return false;
-      button.click();
-      return true;
+      if (!button || button.disabled || !visible(button)) return null;
+      const rect = button.getBoundingClientRect();
+      return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
     })()`);
-    if (!sentByButton) {
+
+    if (sendTarget?.x && sendTarget?.y) {
+      await client.call("Input.dispatchMouseEvent", { type: "mouseMoved", x: sendTarget.x, y: sendTarget.y });
+      await client.call("Input.dispatchMouseEvent", { type: "mousePressed", x: sendTarget.x, y: sendTarget.y, button: "left", clickCount: 1 });
+      await client.call("Input.dispatchMouseEvent", { type: "mouseReleased", x: sendTarget.x, y: sendTarget.y, button: "left", clickCount: 1 });
+    }
+
+    const submissionState = async () => evaluate(client, `(() => {
+      const composer = document.querySelector('textarea') || document.querySelector('[contenteditable="true"]');
+      return {
+        userCount: document.querySelectorAll('[data-message-author-role="user"]').length,
+        composerText: composer ? (composer.value || composer.innerText || composer.textContent || '').trim() : '',
+      };
+    })()`);
+
+    await sleep(900);
+    let submitted = await submissionState();
+    if (!(submitted?.userCount > beforeUserCount || !submitted?.composerText)) {
       await client.call("Input.dispatchKeyEvent", { type: "keyDown", key: "Enter", code: "Enter" });
       await client.call("Input.dispatchKeyEvent", { type: "keyUp", key: "Enter", code: "Enter" });
+      await sleep(900);
+      submitted = await submissionState();
+    }
+
+    if (!(submitted?.userCount > beforeUserCount || !submitted?.composerText)) {
+      throw new Error(`CHATGPT_SUBMIT_FAILED: userCount=${submitted?.userCount ?? "unknown"}; composerText=${String(submitted?.composerText ?? "").slice(0, 500)}`);
     }
 
     const deadline = Date.now() + 240000;
