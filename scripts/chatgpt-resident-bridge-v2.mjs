@@ -426,7 +426,28 @@ async function snapshotConversationMessages(client) {
 
 async function snapshotAssistantMessages(client) {
   const messages = await snapshotConversationMessages(client);
-  return Array.isArray(messages) ? messages.filter((message) => message.role === "assistant") : [];
+  const assistants = Array.isArray(messages) ? messages.filter((message) => message.role === "assistant") : [];
+  if (assistants.length) return assistants;
+
+  return evaluate(client, `(() => {
+    const nodes = [...document.querySelectorAll('main .markdown, main [class*="markdown"]')];
+    const seen = new Set();
+    const out = [];
+    for (const node of nodes) {
+      if (!(node instanceof HTMLElement)) continue;
+      const text = (node.innerText || node.textContent || '').trim();
+      if (!text || seen.has(text)) continue;
+      seen.add(text);
+      const host = node.closest('[data-message-id],[data-testid^="conversation-turn"],article');
+      out.push({
+        role: 'assistant',
+        id: host?.getAttribute('data-message-id') || host?.id || null,
+        index: out.length,
+        text: text.slice(0, 8000),
+      });
+    }
+    return out;
+  })()`);
 }
 
 function fingerprintMessage(message) {
