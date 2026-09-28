@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { once } from "node:events";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import { runDailyDriverLiveE2E } from "../scripts/goriq-daily-driver-live-e2e.mjs";
 
@@ -92,4 +93,17 @@ test("daily driver live e2e fails before enqueue when no fresh eligible Android 
     );
     assert.equal(posts,0);
   } finally { server.close(); }
+});
+
+
+test("daily driver live workflow continues after successful secure fleet migration on main", () => {
+  const workflow = readFileSync(
+    new URL("../.github/workflows/goriq-daily-driver-live-e2e.yml", import.meta.url),
+    "utf8",
+  );
+  assert.match(workflow, /workflow_run:/);
+  assert.match(workflow, /workflows:\s*\['GORIQ Secure Fleet DB Migration'\]/);
+  assert.match(workflow, /types:\s*\[completed\]/);
+  assert.match(workflow, /github\.event\.workflow_run\.conclusion == 'success'/);
+  assert.match(workflow, /github\.event\.workflow_run\.head_branch == 'main'/);
 });
