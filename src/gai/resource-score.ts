@@ -82,5 +82,26 @@ export function scoreResourceFit(
   else if (resources.thermalState === "serious") score -= 2;
   else if (resources.thermalState === "critical") score -= 6;
 
+  const requestedData = new Set(request.dataLocalityKeys ?? []);
+  if (requestedData.size) {
+    const localData = new Set(resources.dataLocalityKeys ?? []);
+    let matches = 0;
+    for (const key of requestedData) if (localData.has(key)) matches += 1;
+    if (matches) {
+      score += Math.min(8, matches * 4);
+      reasons.push(`local:${matches}`);
+    }
+  }
+
+  if (request.preferLowNetworkCost) {
+    const weight = resources.networkCostClass === "lan" ? 3
+      : resources.networkCostClass === "private" ? 2
+        : resources.networkCostClass === "internet" ? 1
+          : resources.networkCostClass === "metered" ? -2
+            : 0;
+    score += weight;
+    if (resources.networkCostClass) reasons.push(`net:${resources.networkCostClass}`);
+  }
+
   return { eligible: true, score, reasons };
 }
