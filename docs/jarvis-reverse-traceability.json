@@ -3279,7 +3279,7 @@
     },
     {
       "path": "src/gai/offline-first-runtime.ts",
-      "sha256": "3e45ed9971bcc50321e1267f161ab64eb0292006051fa216da451924a917859f",
+      "sha256": "11d824ea39aead46d41d54231a9cb5bb7fbb3ffaebf06dade23f6f8e52c3d991",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OFF-001",
@@ -3296,7 +3296,7 @@
         "OFF-012",
         "GOV-026"
       ],
-      "reason": "Offline-First execution honors PINNED node affinity while preserving fenced claim heartbeat, connectivity fallback and resource waiting."
+      "reason": "Offline-First execution passes bounded resource requirements into MultiWorkerRuntime while preserving PINNED affinity and fenced claim heartbeat."
     },
     {
       "path": "src/gai/platform-capability-manifest.ts",
@@ -3619,13 +3619,13 @@
     },
     {
       "path": "src/gai/worker-runtime.ts",
-      "sha256": "ebccd1a262f5c926cab86ae659c4b2f9b882c20291a70e773c11f0074cabd717",
+      "sha256": "65591eec9b6bd61e4e7b2de007fa623f01683227fcd9781e1f4cb17fac97c783",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-010",
         "AUTO-011"
       ],
-      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+      "reason": "MultiWorkerRuntime performs live resource-aware placement using capacity, CPU/GPU load, RAM/disk, thermal/power state and opaque data-locality keys while preserving deterministic capability routing."
     },
     {
       "path": "src/gai/world-model-calibration.ts",
