@@ -36,6 +36,29 @@ function Test-OllamaApi {
   } catch { return $false }
 }
 
+function Invoke-NativeCapture {
+  param(
+    [Parameter(Mandatory=$true)][string]$FilePath,
+    [Parameter(Mandatory=$true)][string[]]$Arguments
+  )
+
+  $stdoutPath = Join-Path $env:TEMP ("goriq-native-stdout-" + [guid]::NewGuid().ToString('N') + ".log")
+  $stderrPath = Join-Path $env:TEMP ("goriq-native-stderr-" + [guid]::NewGuid().ToString('N') + ".log")
+  try {
+    $process = Start-Process -FilePath $FilePath -ArgumentList $Arguments -Wait -PassThru -NoNewWindow -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath
+    $stdout = if (Test-Path $stdoutPath) { Get-Content $stdoutPath -Raw -ErrorAction SilentlyContinue } else { '' }
+    $stderr = if (Test-Path $stderrPath) { Get-Content $stderrPath -Raw -ErrorAction SilentlyContinue } else { '' }
+    return [pscustomobject]@{
+      ExitCode = $process.ExitCode
+      Stdout = [string]$stdout
+      Stderr = [string]$stderr
+      Combined = (([string]$stdout) + [Environment]::NewLine + ([string]$stderr)).Trim()
+    }
+  } finally {
+    Remove-Item $stdoutPath,$stderrPath -Force -ErrorAction SilentlyContinue
+  }
+}
+
 if (-not (Test-OllamaApi)) {
   Start-Process -FilePath $ollama -ArgumentList @('serve') -WindowStyle Hidden | Out-Null
   for ($i=0; $i -lt 30; $i++) {
@@ -48,13 +71,17 @@ if (-not (Test-OllamaApi)) { throw 'Ollama API did not become ready on 127.0.0.1
 $pullResults = @()
 foreach ($model in @($LocalFastModel, $LocalStrongModel)) {
   Write-Host "Pulling local repair model: $model"
-  $output = & $ollama pull $model 2>&1 | Out-String
-  $ok = $LASTEXITCODE -eq 0
-  $pullResults += [ordered]@{ model = $model; ok = $ok; outputTail = $output.Substring([Math]::Max(0, $output.Length - 1200)) }
-  if (-not $ok) { throw "Failed to pull required local repair model: $model" }
+  $pull = Invoke-NativeCapture -FilePath $ollama -Arguments @('pull', $model)
+  $ok = $pull.ExitCode -eq 0
+  $tail = $pull.Combined
+  if ($tail.Length -gt 1200) { $tail = $tail.Substring($tail.Length - 1200) }
+  $pullResults += [ordered]@{ model = $model; ok = $ok; exitCode = $pull.ExitCode; outputTail = $tail }
+  if (-not $ok) { throw "Failed to pull required local repair model: $model (exit $($pull.ExitCode)): $tail" }
 }
 
-$version = (& $ollama --version 2>&1 | Out-String).Trim()
+$versionResult = Invoke-NativeCapture -FilePath $ollama -Arguments @('--version')
+if ($versionResult.ExitCode -ne 0) { throw "ollama --version failed with exit $($versionResult.ExitCode)" }
+$version = $versionResult.Combined.Trim()
 $tags = Invoke-RestMethod -Uri 'http://127.0.0.1:11434/api/tags' -Method Get -TimeoutSec 5
 $models = @($tags.models | ForEach-Object { $_.name })
 
