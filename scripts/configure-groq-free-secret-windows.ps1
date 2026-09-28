@@ -1,62 +1,68 @@
 param(
-  [string]$Repository = 'haji84/AI-'
+  [switch]$SkipOpen
 )
 
 $ErrorActionPreference = 'Stop'
-$Workflow = 'goriq-repair-engines-runtime.yml'
+$SecretRoot = Join-Path $env:LOCALAPPDATA 'GORIQ\secrets'
+$SecretPath = Join-Path $SecretRoot 'groq.dpapi'
+$StatusPath = Join-Path $SecretRoot 'groq-status.json'
+$Model = 'qwen/qwen3.8-27b'
 
-foreach ($command in @('gh','node')) {
-  if (-not (Get-Command $command -ErrorAction SilentlyContinue)) {
-    throw "$command is required."
-  }
+New-Item -ItemType Directory -Force -Path $SecretRoot | Out-Null
+
+if (-not $SkipOpen) {
+  Write-Host 'Groq API Keys pageを開きます...'
+  Start-Process 'https://console.groq.com/keys'
 }
 
-& gh auth status | Out-Null
-if ($LASTEXITCODE -ne 0) { throw 'GitHub CLI is not authenticated.' }
-
-Write-Host 'Opening Groq API Keys page...'
-Start-Process 'https://console.groq.com/keys'
-Write-Host 'Create/copy a Free Plan API key in the browser, then return here.'
+Write-Host ''
+Write-Host '作成済みのGroq APIキーを貼り付けて Enter を押してください。'
+Write-Host '入力内容は画面・GitHub・ログには表示されません。'
 $secure = Read-Host 'Groq API key' -AsSecureString
 $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
 $plain = ''
+
 try {
   $plain = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
   if ([string]::IsNullOrWhiteSpace($plain)) { throw 'Groq API key is empty.' }
 
-  $env:GROQ_API_KEY = $plain
-  $validate = @'
-const key = process.env.GROQ_API_KEY || "";
-const response = await fetch("https://api.groq.com/openai/v1/models", {
-  headers: { Authorization: `Bearer ${key}` },
-  signal: AbortSignal.timeout(15000),
-});
-if (!response.ok) {
-  process.stderr.write(`ERROR: Groq API key validation failed (HTTP ${response.status}).\n`);
-  process.exit(1);
-}
-const payload = await response.json();
-const models = Array.isArray(payload?.data) ? payload.data.map((item) => item?.id).filter(Boolean) : [];
-if (!models.includes("qwen/qwen3.8-27b")) {
-  process.stderr.write("ERROR: Groq key is valid but qwen/qwen3.8-27b is not available to this account.\n");
-  process.exit(1);
-}
-process.stdout.write("Groq Free Plan API key validated; qwen/qwen3.8-27b is available.\n");
-'@
-  $validate | & node
-  if ($LASTEXITCODE -ne 0) { throw 'Groq API key validation failed.' }
+  $headers = @{ Authorization = "Bearer $plain" }
+  try {
+    $modelsResponse = Invoke-RestMethod -Uri 'https://api.groq.com/openai/v1/models' -Headers $headers -Method Get -TimeoutSec 20
+  } catch {
+    throw "Groq API key validation failed: $($_.Exception.Message)"
+  }
 
-  $plain | & gh secret set GROQ_API_KEY --repo $Repository
-  if ($LASTEXITCODE -ne 0) { throw 'Failed to store GROQ_API_KEY in GitHub Actions secrets.' }
+  $models = @($modelsResponse.data | ForEach-Object { [string]$_.id })
+  if ($Model -notin $models) {
+    throw "Groq key is valid, but required model '$Model' is not available."
+  }
 
-  Write-Host "GROQ_API_KEY stored as a GitHub Actions repository secret for $Repository."
-  Write-Host 'The key was not written to the repository.'
+  $encrypted = $secure | ConvertFrom-SecureString
+  $tempPath = "$SecretPath.tmp.$PID"
+  Set-Content -LiteralPath $tempPath -Value $encrypted -Encoding UTF8 -NoNewline
+  Move-Item -LiteralPath $tempPath -Destination $SecretPath -Force
+  attrib +H $SecretPath 2>$null
 
-  & gh workflow run $Workflow --repo $Repository --ref main
-  if ($LASTEXITCODE -ne 0) { throw 'Failed to dispatch GORIQ Repair Engines Runtime verification.' }
-  Write-Host 'GORIQ Repair Engines Runtime verification dispatched.'
+  $status = [ordered]@{
+    configured = $true
+    provider = 'groq'
+    plan = 'free'
+    model = $Model
+    validatedAt = (Get-Date).ToUniversalTime().ToString('o')
+    secretPath = $SecretPath
+  }
+  $status | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $StatusPath -Encoding UTF8
+
+  Write-Host ''
+  Write-Host '✓ Groq Free Plan API key validated.'
+  Write-Host '✓ Windows DPAPIで暗号化してZBook内へ保存しました。'
+  Write-Host '✓ GitHub CLIは不要です。'
+  Write-Host "✓ Stage 7 model: $Model"
 } finally {
-  Remove-Item Env:GROQ_API_KEY -ErrorAction SilentlyContinue
   if ($bstr -ne [IntPtr]::Zero) { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr) }
   $plain = $null
+  $secure = $null
+  $headers = $null
+  Remove-Variable encrypted -ErrorAction SilentlyContinue
 }
