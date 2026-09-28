@@ -27,7 +27,7 @@ export function recoveryAttemptCount(subjects: string[]): number {
 export function sanitizeFailureLog(value: string): string {
   return value
     .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/gi, "Bearer [REDACTED]")
-    .replace(/(?:token|secret|password)=([^\s&]+)/gi, "$1=[REDACTED]")
+    .replace(/(token|secret|password)=([^\s&]+)/gi, "$1=[REDACTED]")
     .replace(/\r\n/g, "\n")
     .slice(-60_000);
 }
