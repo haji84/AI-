@@ -44,3 +44,12 @@ test("Work repair fails closed when the Work selector cannot be found", () => {
   assert.match(source, /CHATGPT_WORK_SELECTOR_NOT_FOUND/);
   assert.match(source, /CHATGPT_WORK_OPTION_NOT_FOUND/);
 });
+
+test("macOS installer detaches resident bridge from the GitHub Actions runner workspace", () => {
+  assert.match(installer, /RUNTIME_DIR="\$STATE_DIR\/runtime"/);
+  assert.match(installer, /cp "\$REPO_DIR\/scripts\/chatgpt-resident-bridge-v2\.mjs" "\$BRIDGE_SCRIPT"/);
+  assert.match(installer, /cp "\$REPO_DIR\/scripts\/chatgpt-resident-bridge-lib\.mjs" "\$BRIDGE_LIB"/);
+  assert.match(installer, /unset RUNNER_TRACKING_ID/);
+  assert.match(installer, /RUNNER_TRACKING_ID<\/key>[\s\S]*?<string><\/string>/);
+  assert.match(installer, /ProgramArguments[\s\S]*?LAUNCHER_XML/);
+});
