@@ -171,6 +171,15 @@ function runCodex(engine: string, workspace: string, prompt: string): void {
     ? (process.env.ComSpec || "cmd.exe")
     : engine;
   const commandArgs = command === engine ? args : ["/d", "/s", "/c", engine, ...args];
+  const builderEnv = sanitizedBuilderEnvironment();
+  builderEnv.GIT_TERMINAL_PROMPT = "0";
+  builderEnv.GCM_INTERACTIVE = "never";
+  builderEnv.GH_CONFIG_DIR = join(workspace, ".goriq-gh-disabled");
+  builderEnv.GIT_CONFIG_COUNT = "2";
+  builderEnv.GIT_CONFIG_KEY_0 = "credential.helper";
+  builderEnv.GIT_CONFIG_VALUE_0 = "";
+  builderEnv.GIT_CONFIG_KEY_1 = "remote.origin.pushurl";
+  builderEnv.GIT_CONFIG_VALUE_1 = "https://127.0.0.1/goriq-push-disabled";
   const result = spawnSync(command, commandArgs, {
     cwd: workspace,
     encoding: "utf8",
@@ -178,7 +187,7 @@ function runCodex(engine: string, workspace: string, prompt: string): void {
     windowsHide: true,
     maxBuffer: 8 * 1024 * 1024,
     timeout: 12 * 60_000,
-    env: sanitizedBuilderEnvironment(),
+    env: builderEnv,
   });
   if (result.error) throw result.error;
   if (result.status !== 0) {
