@@ -315,6 +315,7 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat") {
   try {
     await client.call("Page.enable");
     await client.call("Runtime.enable");
+    await client.call("Page.bringToFront");
     const initial = await waitForComposer(client);
     if (!String(initial?.url ?? "").startsWith(CHATGPT_URL)) throw new Error("fresh target is not on ChatGPT");
     await selectExperience(client, mode);
@@ -373,16 +374,67 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat") {
       };
     })()`);
 
-    await sleep(900);
+    const isSubmitted = (state) => state?.userCount > beforeUserCount || !state?.composerText;
+
+    await sleep(700);
     let submitted = await submissionState();
-    if (!(submitted?.userCount > beforeUserCount || !submitted?.composerText)) {
-      await client.call("Input.dispatchKeyEvent", { type: "keyDown", key: "Enter", code: "Enter" });
-      await client.call("Input.dispatchKeyEvent", { type: "keyUp", key: "Enter", code: "Enter" });
-      await sleep(900);
+
+    if (!isSubmitted(submitted)) {
+      await evaluate(client, `(() => {
+        const visible = (el) => {
+          const rect = el.getBoundingClientRect();
+          return rect.width > 0 && rect.height > 0;
+        };
+        const buttons = [...document.querySelectorAll('button')];
+        const button = document.querySelector('button[data-testid="send-button"]')
+          || buttons.find((el) => {
+            const aria = (el.getAttribute('aria-label') || '').trim();
+            const testid = (el.getAttribute('data-testid') || '').trim();
+            const text = (el.textContent || '').trim();
+            return visible(el)
+              && !el.disabled
+              && (/^(send|送信)$/i.test(aria) || /send-button/i.test(testid) || /^(send|送信)$/i.test(text));
+          });
+        const form = button?.closest('form') || (document.querySelector('textarea') || document.querySelector('[contenteditable="true"]'))?.closest('form');
+        if (!form) return false;
+        if (typeof form.requestSubmit === 'function') {
+          form.requestSubmit(button || undefined);
+          return true;
+        }
+        form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+        return true;
+      })()`);
+      await sleep(700);
       submitted = await submissionState();
     }
 
-    if (!(submitted?.userCount > beforeUserCount || !submitted?.composerText)) {
+    if (!isSubmitted(submitted)) {
+      await client.call("Input.dispatchKeyEvent", {
+        type: "rawKeyDown",
+        key: "Enter",
+        code: "Enter",
+        windowsVirtualKeyCode: 13,
+        nativeVirtualKeyCode: 13,
+      });
+      await client.call("Input.dispatchKeyEvent", {
+        type: "char",
+        key: "Enter",
+        code: "Enter",
+        text: "\r",
+        unmodifiedText: "\r",
+      });
+      await client.call("Input.dispatchKeyEvent", {
+        type: "keyUp",
+        key: "Enter",
+        code: "Enter",
+        windowsVirtualKeyCode: 13,
+        nativeVirtualKeyCode: 13,
+      });
+      await sleep(700);
+      submitted = await submissionState();
+    }
+
+    if (!isSubmitted(submitted)) {
       throw new Error(`CHATGPT_SUBMIT_FAILED: userCount=${submitted?.userCount ?? "unknown"}; composerText=${String(submitted?.composerText ?? "").slice(0, 500)}`);
     }
 
