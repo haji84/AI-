@@ -5794,13 +5794,13 @@
     },
     {
       "path": "scripts/jarvis-mac-runtime-entry.sh",
-      "sha256": "1629964d842e02ad4628997c800db3b307514e92d6473bffbd2ec2866a1b2300",
+      "sha256": "e04ff0804815537b595633de12e3933a50b7a44eba6ff47cdb35fba4d58c3d64",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "HOST-002",
         "DEV-PC-006"
       ],
-      "reason": "Canonical Mac runtime entrypoint split from the existing LaunchAgent installer so launchd directly owns the long-lived Broker process."
+      "reason": "Canonical Mac launchd-owned Broker entrypoint now pins persistent Broker and Compass state under an owner-local path outside checkout-cleanable repositories, while retaining existing runtime capability evidence and fail-closed owner token loading."
     },
     {
       "path": "src/orchestrator/compass-goal-execution-context-store.ts",

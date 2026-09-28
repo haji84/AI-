@@ -8,6 +8,11 @@ set -a
 source "$ENV_FILE"
 set +a
 : "${JARVIS_OWNER_TOKEN:?Set JARVIS_OWNER_TOKEN in $ENV_FILE}"
+PERSISTENT_STATE_ROOT="${GORIQ_STATE_ROOT:-$HOME/.goriq/state}"
+mkdir -p "$PERSISTENT_STATE_ROOT"
+chmod 700 "$PERSISTENT_STATE_ROOT"
+export JARVIS_DB_PATH="${JARVIS_DB_PATH:-$PERSISTENT_STATE_ROOT/jarvis.db}"
+export JARVIS_COMPASS_DB_PATH="${JARVIS_COMPASS_DB_PATH:-$PERSISTENT_STATE_ROOT/compass.db}"
 NODE24_BIN="/opt/homebrew/opt/node@24/bin"
 export PATH="$NODE24_BIN:$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 CAPABILITY_EVIDENCE="$STATE_ROOT/runtime-capabilities.json"
