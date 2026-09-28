@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { JarvisTask } from "./types.ts";
 
 const PRIORITY_WEIGHT: Record<JarvisTask["priority"], number> = {
@@ -62,11 +63,46 @@ export class JarvisTaskQueue {
       status: "leased",
       assignedNodeId: nodeId,
       leaseUntil: new Date(now.getTime() + leaseMs).toISOString(),
+      executionEpoch: (Number.isSafeInteger(task.executionEpoch) ? task.executionEpoch! : 0) + 1,
+      fencingToken: randomUUID(),
       attempts: task.attempts + 1,
       updatedAt: now.toISOString(),
     };
     this.tasks.set(taskId, leased);
     return structuredClone(leased);
+  }
+
+  ensureExecutionClaim(taskId: string, nodeId: string, now = new Date()): JarvisTask {
+    const task = this.mustGet(taskId);
+    if (task.assignedNodeId !== nodeId || (task.status !== "leased" && task.status !== "running")) {
+      throw new Error("STALE_OR_INVALID_TASK_FENCE");
+    }
+    if (Number.isSafeInteger(task.executionEpoch) && task.executionEpoch! >= 1 && typeof task.fencingToken === "string" && task.fencingToken.length >= 16) {
+      return structuredClone(task);
+    }
+    const claimed: JarvisTask = {
+      ...task,
+      executionEpoch: Math.max(1, Number.isSafeInteger(task.executionEpoch) ? task.executionEpoch! : 0),
+      fencingToken: randomUUID(),
+      updatedAt: now.toISOString(),
+    };
+    this.tasks.set(taskId, claimed);
+    return structuredClone(claimed);
+  }
+
+  assertExecutionClaim(taskId: string, nodeId: string, executionEpoch: number, fencingToken: string): JarvisTask {
+    const task = this.mustGet(taskId);
+    if (
+      task.assignedNodeId !== nodeId
+      || (task.status !== "leased" && task.status !== "running")
+      || !Number.isSafeInteger(executionEpoch)
+      || executionEpoch < 1
+      || executionEpoch !== task.executionEpoch
+      || typeof fencingToken !== "string"
+      || fencingToken.length < 16
+      || fencingToken !== task.fencingToken
+    ) throw new Error("STALE_OR_INVALID_TASK_FENCE");
+    return structuredClone(task);
   }
 
   markRunning(taskId: string, now = new Date()): JarvisTask {
@@ -87,30 +123,31 @@ export class JarvisTaskQueue {
       status: retry ? "queued" : "failed",
       assignedNodeId: retry ? undefined : task.assignedNodeId,
       leaseUntil: undefined,
+      fencingToken: undefined,
       updatedAt: now.toISOString(),
     });
   }
 
   waitForConnectivity(taskId: string, now = new Date()): JarvisTask {
-    return this.patch(taskId, { status: "waiting-connectivity", leaseUntil: undefined, updatedAt: now.toISOString() });
+    return this.patch(taskId, { status: "waiting-connectivity", assignedNodeId: undefined, leaseUntil: undefined, fencingToken: undefined, updatedAt: now.toISOString() });
   }
 
   resumeConnectivity(now = new Date()): number {
     let resumed = 0;
     for (const task of this.tasks.values()) {
       if (task.status !== "waiting-connectivity") continue;
-      this.tasks.set(task.id, { ...task, status: "queued", updatedAt: now.toISOString() });
+      this.tasks.set(task.id, { ...task, status: "queued", assignedNodeId: undefined, fencingToken: undefined, updatedAt: now.toISOString() });
       resumed += 1;
     }
     return resumed;
   }
 
   waitForHuman(taskId: string, now = new Date()): JarvisTask {
-    return this.patch(taskId, { status: "waiting-human", leaseUntil: undefined, updatedAt: now.toISOString() });
+    return this.patch(taskId, { status: "waiting-human", assignedNodeId: undefined, leaseUntil: undefined, fencingToken: undefined, updatedAt: now.toISOString() });
   }
 
   resumeFromHuman(taskId: string, now = new Date()): JarvisTask {
-    return this.patch(taskId, { status: "queued", updatedAt: now.toISOString() });
+    return this.patch(taskId, { status: "queued", assignedNodeId: undefined, fencingToken: undefined, updatedAt: now.toISOString() });
   }
 
   reclaimExpiredLeases(now = new Date()): number {
@@ -124,6 +161,7 @@ export class JarvisTaskQueue {
         status: retry ? "queued" : "failed",
         assignedNodeId: retry ? undefined : task.assignedNodeId,
         leaseUntil: undefined,
+        fencingToken: undefined,
         updatedAt: now.toISOString(),
       });
       reclaimed += 1;
@@ -136,7 +174,7 @@ export class JarvisTaskQueue {
       if (!task.dispatchBefore || !["queued", "leased", "waiting-connectivity"].includes(task.status)) continue;
       const deadline = Date.parse(task.dispatchBefore);
       if (Number.isFinite(deadline) && deadline > now.getTime()) continue;
-      this.tasks.set(task.id, { ...task, status: "cancelled", leaseUntil: undefined, updatedAt: now.toISOString() });
+      this.tasks.set(task.id, { ...task, status: "cancelled", assignedNodeId: undefined, leaseUntil: undefined, fencingToken: undefined, updatedAt: now.toISOString() });
     }
   }
 
