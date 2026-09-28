@@ -113,6 +113,12 @@ test("Groq setup stores the Free Plan key only in GitHub Actions secrets", async
   assert.match(mac, /stty -echo/);
   assert.match(windows, /Read-Host 'Groq API key' -AsSecureString/);
   assert.match(windows, /ZeroFreeBSTR/);
+  for (const source of [mac, windows]) {
+    assert.match(source, /https:\/\/api\.groq\.com\/openai\/v1\/models/);
+    assert.match(source, /qwen\/qwen3\.8-27b/);
+    assert.match(source, /goriq-repair-engines-runtime\.yml/);
+    assert.match(source, /gh workflow run/);
+  }
 });
 
 test("free external repair uses Groq Free Plan API and fails closed on rate limit", async () => {
