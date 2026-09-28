@@ -30,7 +30,10 @@ on:
   issues:
     types: [labeled]
   repository_dispatch:
-    types: [ai-autonomy-run]
+    types:
+      - ai-autonomy-run
+      - goriq-repair-chat
+      - goriq-repair-work
   schedule:
     - cron: "17 */6 * * *"
 
@@ -84,8 +87,34 @@ jobs:
           }
           NODE
 
+  project-chat-work-repair:
+    if: >-
+      github.event_name == 'repository_dispatch' &&
+      (github.event.action == 'goriq-repair-chat' || github.event.action == 'goriq-repair-work')
+    permissions:
+      contents: read
+      issues: write
+    runs-on: [self-hosted, macOS, ARM64]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+      - name: Process one repair request inside Automation project Chat/Work
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AI_COMPANY_REPO: ${{ github.repository }}
+          AI_COMPANY_REPAIR_ONCE_ISSUE: ${{ github.event.client_payload.issue_number }}
+          AI_COMPANY_CHATGPT_PROJECT_NAME: 自動化
+          AI_COMPANY_REPAIR_SURFACE: ${{ github.event.client_payload.mode }}
+        run: |
+          node ./scripts/chatgpt-resident-bridge-v2.mjs
+
   autonomy:
-    if: github.event_name != 'issues'
+    if: >-
+      github.event_name != 'issues' &&
+      (github.event_name != 'repository_dispatch' || github.event.action == 'ai-autonomy-run')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     concurrency:
