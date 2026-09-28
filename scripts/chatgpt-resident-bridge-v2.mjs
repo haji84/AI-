@@ -429,7 +429,7 @@ async function snapshotAssistantMessages(client) {
   const assistants = Array.isArray(messages) ? messages.filter((message) => message.role === "assistant") : [];
   if (assistants.length) return assistants;
 
-  return evaluate(client, `(() => {
+  const markdown = await evaluate(client, `(() => {
     const nodes = [...document.querySelectorAll('main .markdown, main [class*="markdown"]')];
     const seen = new Set();
     const out = [];
@@ -446,6 +446,91 @@ async function snapshotAssistantMessages(client) {
         text: text.slice(0, 8000),
       });
     }
+    return out;
+  })()`);
+  if (Array.isArray(markdown) && markdown.length) return markdown;
+
+  return evaluate(client, `(() => {
+    const normalize = (value) => String(value || '').replace(/\\s+/g, ' ').trim();
+    const assistantControl = /回答を再生成|regenerate|読み上げ|read aloud|リアクション|reaction|コピーする|copy/i;
+    const controls = [...document.querySelectorAll('main button')].filter((button) => {
+      const label = normalize([
+        button.getAttribute('aria-label'),
+        button.getAttribute('data-testid'),
+        button.textContent,
+      ].filter(Boolean).join(' '));
+      return assistantControl.test(label);
+    });
+
+    const seenHosts = new Set();
+    const seenText = new Set();
+    const out = [];
+
+    const meaningfulText = (element) => {
+      if (!(element instanceof HTMLElement)) return '';
+      const preferred = element.querySelector(
+        '.markdown,[class*="markdown"],[data-message-content],[class*="prose"],.whitespace-pre-wrap'
+      );
+      const raw = preferred instanceof HTMLElement
+        ? (preferred.innerText || preferred.textContent || '')
+        : (element.innerText || element.textContent || '');
+      return String(raw || '').trim();
+    };
+
+    for (const control of controls) {
+      let current = control.parentElement;
+      let chosen = null;
+      let chosenText = '';
+
+      for (let depth = 0; current && depth < 12; depth += 1, current = current.parentElement) {
+        if (!(current instanceof HTMLElement) || current.tagName === 'MAIN') break;
+
+        const text = meaningfulText(current);
+        if (!text || text.length < 3) continue;
+
+        const descendantButtons = [...current.querySelectorAll('button')];
+        const hasAssistantControl = descendantButtons.some((button) => {
+          const label = normalize([
+            button.getAttribute('aria-label'),
+            button.getAttribute('data-testid'),
+            button.textContent,
+          ].filter(Boolean).join(' '));
+          return assistantControl.test(label);
+        });
+        if (!hasAssistantControl) continue;
+
+        const userControl = descendantButtons.some((button) => {
+          const label = normalize([
+            button.getAttribute('aria-label'),
+            button.getAttribute('data-testid'),
+            button.textContent,
+          ].filter(Boolean).join(' '));
+          return /メッセージを編集|edit message/i.test(label);
+        });
+        if (userControl) continue;
+
+        chosen = current;
+        chosenText = text;
+        if (text.length >= 8) break;
+      }
+
+      if (!chosen || !chosenText || seenText.has(chosenText)) continue;
+      const host = chosen.closest('[data-message-id],[data-testid^="conversation-turn"],article') || chosen;
+      const hostKey = host.getAttribute?.('data-message-id')
+        || host.getAttribute?.('data-testid')
+        || host.id
+        || chosenText.slice(0, 500);
+      if (seenHosts.has(hostKey)) continue;
+      seenHosts.add(hostKey);
+      seenText.add(chosenText);
+      out.push({
+        role: 'assistant',
+        id: host.getAttribute?.('data-message-id') || host.id || null,
+        index: out.length,
+        text: chosenText.slice(0, 8000),
+      });
+    }
+
     return out;
   })()`);
 }
