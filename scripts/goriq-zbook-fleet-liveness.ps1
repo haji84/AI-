@@ -3,6 +3,7 @@ param(
 )
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
+$stage = "startup"
 
 function Write-SafeResult([hashtable]$result) {
   $directory = Split-Path -Parent $OutputPath
@@ -13,6 +14,7 @@ function Write-SafeResult([hashtable]$result) {
 }
 
 try {
+  $stage = "config-discovery"
   $configCandidates = @(
     (Join-Path $env:USERPROFILE "JARVIS\production\config.dpapi"),
     (Join-Path $env:LOCALAPPDATA "JARVIS\production\config.dpapi")
@@ -23,6 +25,7 @@ try {
     exit 1
   }
 
+  $stage = "config-decrypt"
   $encrypted = Get-Content -LiteralPath $configCandidates[0] -Raw
   $secure = ConvertTo-SecureString $encrypted.Trim()
   $credential = New-Object System.Management.Automation.PSCredential("config", $secure)
@@ -34,6 +37,7 @@ try {
   }
 
   $token = [string]$configuration.environment.JARVIS_OWNER_TOKEN
+  $stage = "local-broker"
   $headers = @{ Authorization = "Bearer $token" }
   $brokerHealthy = $false
   $state = $null
@@ -53,6 +57,7 @@ try {
     exit 1
   }
 
+  $stage = "fleet-aggregation"
   $fleet = @($state.fleet)
   $android = @($fleet | Where-Object { $_.kind -eq "android" })
   $now = [DateTimeOffset]::UtcNow
@@ -70,6 +75,7 @@ try {
   }
   $newestAge = if ($ages.Count -gt 0) { [int64](($ages | Measure-Object -Minimum).Minimum) } else { $null }
 
+  $stage = "task-state"
   $task = Get-ScheduledTask -TaskName "JARVIS Remote Host" -ErrorAction SilentlyContinue
   Write-SafeResult @{
     ok=$true
@@ -85,7 +91,7 @@ try {
     checkedAt=$now.ToString("o")
   }
 } catch {
-  Write-SafeResult @{ ok=$false; reason="diagnostic_failed" }
+  Write-SafeResult @{ ok=$false; reason=("diagnostic_failed:" + $stage) }
   exit 1
 } finally {
   $token=$null; $headers=$null; $plaintext=$null; $configuration=$null; $credential=$null; $secure=$null; $encrypted=$null
