@@ -34,6 +34,7 @@ test("controller bounds attempts and forbids merge deployment and test edits", a
   assert.match(controller, /MAX_AUTOMATIC_ATTEMPTS = 3/);
   assert.match(controller, /PR_NOT_ELIGIBLE_FOR_AUTONOMOUS_RECOVERY/);
   assert.match(controller, /RECOVERY_SCOPE_VIOLATION/);
+  assert.match(controller, /RECOVERY_DESTRUCTIVE_CHANGE_REJECTED/);
   assert.match(controller, /Do not commit, push, merge, deploy/);
   assert.match(controller, /Do not weaken or delete tests/);
   assert.match(controller, /AUTOMATIC_RECOVERY_ATTEMPT_BUDGET_EXHAUSTED/);
