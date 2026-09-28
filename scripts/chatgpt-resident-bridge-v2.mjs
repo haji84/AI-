@@ -28,6 +28,8 @@ const HEALTH_FILE = join(STATE_DIR, "chatgpt-bridge-health.json");
 const LOCK_FILE = join(STATE_DIR, "chatgpt-bridge.lock");
 const CHROME_PROFILE = process.env.AI_COMPANY_CHATGPT_PROFILE ?? join(HOME, "Library", "Application Support", "AICompanyChatGPTBridge");
 const CHATGPT_URL = "https://chatgpt.com/";
+const PROJECT_NAME = process.env.AI_COMPANY_CHATGPT_PROJECT_NAME?.trim() || "自動化";
+const PROJECT_SURFACES_FILE = join(STATE_DIR, "chatgpt-project-surfaces.json");
 const ONE_SHOT_REPAIR_ISSUE = Number(process.env.AI_COMPANY_REPAIR_ONCE_ISSUE || "");
 
 let shuttingDown = false;
@@ -40,6 +42,29 @@ function clamp(value, min, max) {
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function readProjectSurfaces() {
+  try {
+    const parsed = JSON.parse(await readFile(PROJECT_SURFACES_FILE, "utf8"));
+    if (!parsed || typeof parsed !== "object") return { version: 1, project: PROJECT_NAME, chat: null, work: null };
+    return {
+      version: 1,
+      project: typeof parsed.project === "string" ? parsed.project : PROJECT_NAME,
+      chat: typeof parsed.chat === "string" && parsed.chat.startsWith(CHATGPT_URL) ? parsed.chat : null,
+      work: typeof parsed.work === "string" && parsed.work.startsWith(CHATGPT_URL) ? parsed.work : null,
+    };
+  } catch {
+    return { version: 1, project: PROJECT_NAME, chat: null, work: null };
+  }
+}
+
+async function writeProjectSurface(mode, url) {
+  if (!["chat", "work"].includes(mode) || typeof url !== "string" || !url.startsWith(CHATGPT_URL)) return;
+  const current = await readProjectSurfaces();
+  const next = { ...current, project: PROJECT_NAME, [mode]: url, updatedAt: new Date().toISOString() };
+  await mkdir(STATE_DIR, { recursive: true });
+  await writeFile(PROJECT_SURFACES_FILE, JSON.stringify(next, null, 2) + "\n", "utf8");
 }
 
 async function setHealth(status, detail = null, extra = {}) {
@@ -212,15 +237,15 @@ class CdpClient {
   }
 }
 
-async function createFreshChatGptTarget() {
+async function createChatGptTarget(url = CHATGPT_URL) {
   await ensureChromeRunning();
-  const response = await fetch(`http://127.0.0.1:${CDP_PORT}/json/new?${encodeURIComponent(CHATGPT_URL)}`, {
+  const response = await fetch(`http://127.0.0.1:${CDP_PORT}/json/new?${encodeURIComponent(url)}`, {
     method: "PUT",
     signal: AbortSignal.timeout(5000),
   });
-  if (!response.ok) throw new Error("failed to create fresh ChatGPT browser tab");
+  if (!response.ok) throw new Error("failed to create ChatGPT browser tab");
   const target = await response.json();
-  if (!target?.id || !target?.webSocketDebuggerUrl) throw new Error("fresh ChatGPT CDP target is incomplete");
+  if (!target?.id || !target?.webSocketDebuggerUrl) throw new Error("ChatGPT CDP target is incomplete");
   return target;
 }
 
@@ -258,12 +283,150 @@ async function waitForComposer(client, timeoutMs = 30000) {
   throw new Error("ChatGPT composer was not found");
 }
 
+async function navigateClient(client, url) {
+  await client.call("Page.navigate", { url });
+  const deadline = Date.now() + 30000;
+  while (Date.now() < deadline) {
+    const state = await evaluate(client, `(() => ({
+      ready: document.readyState,
+      url: location.href,
+      login: [...document.querySelectorAll('a,button')].some((el) => /log in|sign in|ログイン/i.test(el.textContent || '')),
+    }))()`);
+    if (state?.login) throw new Error("CHATGPT_LOGIN_REQUIRED");
+    if (state?.ready === "complete" || state?.ready === "interactive") return state;
+    await sleep(400);
+  }
+  throw new Error(`CHATGPT_NAVIGATION_TIMEOUT: ${url}`);
+}
+
+async function showSidebarIfNeeded(client) {
+  await evaluate(client, `(() => {
+    const buttons = [...document.querySelectorAll('button,[role="button"]')];
+    const button = buttons.find((el) => /サイドバーを表示する|show sidebar/i.test((el.getAttribute('aria-label') || el.textContent || '').trim()));
+    if (button) button.click();
+    return !!button;
+  })()`);
+  await sleep(300);
+}
+
+async function openAutomationProject(client) {
+  await showSidebarIfNeeded(client);
+  const target = await evaluate(client, `(() => {
+    const normalize = (value) => String(value || '').replace(/\\s+/g, ' ').trim();
+    const visible = (el) => {
+      const rect = el.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    };
+    const candidates = [...document.querySelectorAll('a,button,[role="button"]')].filter(visible);
+    const exact = candidates.find((el) => normalize(el.innerText || el.textContent || el.getAttribute('aria-label')) === ${JSON.stringify(PROJECT_NAME)});
+    if (!exact) {
+      return {
+        found: false,
+        nearby: candidates.map((el) => normalize(el.innerText || el.textContent || el.getAttribute('aria-label'))).filter(Boolean).filter((value) => value.includes(${JSON.stringify(PROJECT_NAME)})).slice(0, 20),
+      };
+    }
+    const href = exact.tagName === 'A' ? exact.href : null;
+    if (!href) exact.click();
+    return { found: true, href };
+  })()`);
+
+  if (!target?.found) {
+    throw new Error(`CHATGPT_AUTOMATION_PROJECT_NOT_FOUND: ${PROJECT_NAME}; nearby=${JSON.stringify(target?.nearby ?? [])}`);
+  }
+  if (target.href) await navigateClient(client, target.href);
+  else await sleep(900);
+
+  const deadline = Date.now() + 15000;
+  while (Date.now() < deadline) {
+    const state = await evaluate(client, `(() => {
+      const normalize = (value) => String(value || '').replace(/\\s+/g, ' ').trim();
+      const visible = (el) => {
+        const rect = el.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0;
+      };
+      const projectVisible = [...document.querySelectorAll('a,button,[role="button"]')]
+        .filter(visible)
+        .some((el) => normalize(el.innerText || el.textContent || el.getAttribute('aria-label')) === ${JSON.stringify(PROJECT_NAME)});
+      const composer = document.querySelector('textarea') || document.querySelector('[contenteditable="true"]');
+      return { projectVisible, hasComposer: !!composer, url: location.href, title: document.title };
+    })()`);
+    if (state?.projectVisible) return state;
+    await sleep(500);
+  }
+  throw new Error(`CHATGPT_AUTOMATION_PROJECT_CONTEXT_NOT_CONFIRMED: ${PROJECT_NAME}`);
+}
+
+async function prepareProjectSurface(client, mode) {
+  const surfaces = await readProjectSurfaces();
+  const savedUrl = mode === "work" ? surfaces.work : surfaces.chat;
+  if (savedUrl) {
+    try {
+      await navigateClient(client, savedUrl);
+      await waitForComposer(client, 12000);
+      if (mode === "work") await selectExperience(client, "work");
+      return { reused: true, url: savedUrl };
+    } catch {
+      // Re-discover the project below. Never fall back to a root standalone chat.
+    }
+  }
+
+  await navigateClient(client, CHATGPT_URL);
+  await openAutomationProject(client);
+  if (mode === "work") await selectExperience(client, "work");
+  const ready = await waitForComposer(client, 15000);
+  const projectVisible = await evaluate(client, `(() => {
+    const normalize = (value) => String(value || '').replace(/\\s+/g, ' ').trim();
+    return [...document.querySelectorAll('a,button,[role="button"]')]
+      .some((el) => normalize(el.innerText || el.textContent || el.getAttribute('aria-label')) === ${JSON.stringify(PROJECT_NAME)});
+  })()`);
+  if (!projectVisible) {
+    throw new Error(`CHATGPT_PROJECT_SURFACE_ESCAPED: ${PROJECT_NAME}/${mode}`);
+  }
+  return { reused: false, url: ready.url };
+}
+
+async function snapshotConversationMessages(client) {
+  return evaluate(client, `(() => {
+    const candidates = [...document.querySelectorAll(
+      'main [data-message-author-role], main [data-testid^="conversation-turn"], main article, main [data-message-id]'
+    )];
+    const out = [];
+    const seen = new Set();
+    const normalize = (value) => String(value || '').replace(/\\s+/g, ' ').trim();
+
+    for (const node of candidates) {
+      if (!(node instanceof HTMLElement)) continue;
+      const roleNode = node.matches('[data-message-author-role]') ? node : node.closest('[data-message-author-role]');
+      let role = roleNode?.getAttribute('data-message-author-role') || null;
+      const controls = [...node.querySelectorAll('button')].map((button) =>
+        normalize([button.getAttribute('aria-label'), button.getAttribute('data-testid'), button.textContent].filter(Boolean).join(' '))
+      ).filter(Boolean);
+      const controlText = controls.join(' | ');
+
+      if (!role && /メッセージを編集|edit message/i.test(controlText)) role = 'user';
+      if (!role && /回答を再生成|regenerate|読み上げ|read aloud|リアクション|reaction/i.test(controlText)) role = 'assistant';
+      if (role !== 'user' && role !== 'assistant') continue;
+
+      const contentNode = node.querySelector('.markdown,[data-message-content],.whitespace-pre-wrap') || node;
+      const text = (contentNode.innerText || contentNode.textContent || '').trim();
+      if (!text) continue;
+
+      const id = node.getAttribute('data-message-id')
+        || roleNode?.getAttribute('data-message-id')
+        || node.id
+        || null;
+      const key = role + ':' + (id || text.slice(0, 500));
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({ role, id, index: out.length, text: text.slice(0, 8000) });
+    }
+    return out;
+  })()`);
+}
+
 async function snapshotAssistantMessages(client) {
-  return evaluate(client, `(() => [...document.querySelectorAll('[data-message-author-role="assistant"]')].map((node, index) => ({
-    id: node.getAttribute('data-message-id') || node.id || null,
-    index,
-    text: (node.innerText || '').trim(),
-  })))()`);
+  const messages = await snapshotConversationMessages(client);
+  return Array.isArray(messages) ? messages.filter((message) => message.role === "assistant") : [];
 }
 
 function fingerprintMessage(message) {
@@ -309,18 +472,16 @@ async function selectExperience(client, mode) {
 }
 
 async function submitPromptAndReadAnswer(prompt, mode = "chat") {
-  const target = await createFreshChatGptTarget();
+  const target = await createChatGptTarget(CHATGPT_URL);
   const client = new CdpClient(target.webSocketDebuggerUrl);
   await client.connect();
   try {
     await client.call("Page.enable");
     await client.call("Runtime.enable");
     await client.call("Page.bringToFront");
-    const initial = await waitForComposer(client);
-    if (!String(initial?.url ?? "").startsWith(CHATGPT_URL)) throw new Error("fresh target is not on ChatGPT");
-    await selectExperience(client, mode);
+    await prepareProjectSurface(client, mode);
     const selectedExperience = await waitForComposer(client);
-    if (!String(selectedExperience?.url ?? "").startsWith(CHATGPT_URL)) throw new Error("selected experience left ChatGPT");
+    if (!String(selectedExperience?.url ?? "").startsWith(CHATGPT_URL)) throw new Error("project surface left ChatGPT");
 
     const beforeMessages = await snapshotAssistantMessages(client);
     const baselineFingerprints = new Set((beforeMessages ?? []).map(fingerprintMessage));
@@ -443,18 +604,13 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat") {
     let lastText = "";
     let stableSince = 0;
     while (Date.now() < deadline) {
-      const state = await evaluate(client, `(() => {
-        const nodes = [...document.querySelectorAll('[data-message-author-role="assistant"]')];
-        const messages = nodes.map((node, index) => ({
-          id: node.getAttribute('data-message-id') || node.id || null,
-          index,
-          text: (node.innerText || '').trim(),
-        }));
-        const generating = !!document.querySelector('button[data-testid="stop-button"]') || [...document.querySelectorAll('button')].some((el) => /stop generating|停止/i.test(el.textContent || ''));
-        return { url: location.href, messages, generating };
-      })()`);
+      const messages = await snapshotAssistantMessages(client);
+      const state = await evaluate(client, `(() => ({
+        url: location.href,
+        generating: !!document.querySelector('button[data-testid="stop-button"]')
+          || [...document.querySelectorAll('button')].some((el) => /stop generating|停止/i.test((el.getAttribute('aria-label') || el.textContent || ''))),
+      }))()`);
 
-      const messages = Array.isArray(state?.messages) ? state.messages : [];
       const newMessages = messages.filter((message) => !baselineFingerprints.has(fingerprintMessage(message)));
       const candidate = newMessages.at(-1);
       const currentFingerprint = fingerprintMessage(candidate);
@@ -468,14 +624,17 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat") {
           lastText = candidate.text;
           stableSince = Date.now();
         } else if (!state.generating && Date.now() - stableSince >= 1800) {
+          const surfaceUrl = await evaluate(client, "location.href");
+          await writeProjectSurface(mode, String(surfaceUrl || ""));
           return lastText.slice(0, 8000);
         }
       }
       await sleep(700);
     }
     const diagnostic = await evaluate(client, `(() => {
-      const assistant = [...document.querySelectorAll('[data-message-author-role="assistant"]')].map((node) => (node.innerText || '').trim()).filter(Boolean);
-      const user = [...document.querySelectorAll('[data-message-author-role="user"]')].map((node) => (node.innerText || '').trim()).filter(Boolean);
+      const turns = [...document.querySelectorAll('main [data-message-author-role], main [data-testid^="conversation-turn"], main article, main [data-message-id]')];
+      const assistant = turns.filter((node) => node.getAttribute?.('data-message-author-role') === 'assistant' || [...node.querySelectorAll?.('button') || []].some((button) => /回答を再生成|regenerate|読み上げ|read aloud|リアクション|reaction/i.test((button.getAttribute('aria-label') || button.textContent || '')))).map((node) => (node.innerText || '').trim()).filter(Boolean);
+      const user = turns.filter((node) => node.getAttribute?.('data-message-author-role') === 'user' || [...node.querySelectorAll?.('button') || []].some((button) => /メッセージを編集|edit message/i.test((button.getAttribute('aria-label') || button.textContent || '')))).map((node) => (node.innerText || '').trim()).filter(Boolean);
       const composer = document.querySelector('textarea') || document.querySelector('[contenteditable="true"]');
       const buttons = [...document.querySelectorAll('button')].slice(-40).map((el) => ({
         text: (el.innerText || el.textContent || '').trim().slice(0, 120),

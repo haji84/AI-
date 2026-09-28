@@ -8,7 +8,7 @@ const chatClientUrl = new URL("../scripts/goriq-chatgpt-repair-client.mjs", impo
 const runtimeWorkflowUrl = new URL("../.github/workflows/goriq-repair-engines-runtime.yml", import.meta.url);
 const recoveryWorkflowUrl = new URL("../.github/workflows/goriq-pr-ci-recovery.yml", import.meta.url);
 const groqAdapterUrl = new URL("../scripts/goriq-groq-repair.mjs", import.meta.url);
-const chatWorkWorkerUrl = new URL("../.github/workflows/goriq-chat-work-repair-worker.yml", import.meta.url);
+const autonomyWorkflowUrl = new URL("../.github/workflows/autonomy-mobile.yml", import.meta.url);
 
 test("local repair adapter is bounded to AllowedPaths and local Ollama API", async () => {
   const source = await readFile(ollamaAdapterUrl, "utf8");
@@ -46,6 +46,8 @@ test("Chat and Work repair client requests a diff and cannot directly push", asy
   assert.doesNotMatch(source, /git", \["commit"/);
   assert.match(source, /repos\/\$\{owner\}\/\$\{repo\}\/dispatches/);
   assert.match(source, /goriq-repair-\$\{mode\}/);
+  assert.match(source, /project: projectName/);
+  assert.match(source, /AI_COMPANY_CHATGPT_PROJECT_NAME/);
 });
 
 test("runtime workflow installs ZBook local engines and refreshes the Mac Chat Work bridge", async () => {
@@ -67,6 +69,8 @@ test("runtime workflow installs ZBook local engines and refreshes the Mac Chat W
   assert.match(source, /free-external-repair-smoke:\s+runs-on: ubuntu-latest/);
   assert.doesNotMatch(source, /free-external-repair-smoke:\s+needs: \[zbook-local-repair\]/);
   assert.match(source, /GROQ_API_KEY_NOT_CONFIGURED/);
+  assert.match(source, /AI_COMPANY_CHATGPT_PROJECT_NAME: 自動化/);
+  assert.doesNotMatch(source, /goriq-chat-work-repair-worker\.yml/);
 });
 
 test("runtime smoke keeps top-level read-only and scopes dispatch write to Chat Work job", async () => {
@@ -76,15 +80,15 @@ test("runtime smoke keeps top-level read-only and scopes dispatch write to Chat 
   assert.doesNotMatch(source, /deployments:\s*write|id-token:\s*write/);
 });
 
-test("repository dispatch worker runs one bounded repair issue on Mac", async () => {
-  const source = await readFile(chatWorkWorkerUrl, "utf8");
-  assert.match(source, /repository_dispatch/);
+test("existing Mobile Autonomy workflow owns bounded project Chat Work repair dispatch", async () => {
+  const source = await readFile(autonomyWorkflowUrl, "utf8");
   assert.match(source, /goriq-repair-chat/);
   assert.match(source, /goriq-repair-work/);
+  assert.match(source, /project-chat-work-repair/);
   assert.match(source, /runs-on: \[self-hosted, macOS, ARM64\]/);
   assert.match(source, /AI_COMPANY_REPAIR_ONCE_ISSUE/);
-  assert.match(source, /issues: write/);
-  assert.doesNotMatch(source, /contents:\s*write/);
+  assert.match(source, /AI_COMPANY_CHATGPT_PROJECT_NAME: 自動化/);
+  assert.match(source, /github\.event\.action == 'ai-autonomy-run'/);
 });
 
 test("CI recovery grants only the extra Issue write authority needed by Chat Work queue", async () => {
@@ -99,6 +103,7 @@ test("free external repair uses Groq Free Plan API and fails closed on rate limi
   const source = await readFile(groqAdapterUrl, "utf8");
   assert.match(source, /https:\/\/api\.groq\.com\/openai\/v1\/chat\/completions/);
   assert.match(source, /qwen\/qwen3\.8-27b/);
+  assert.match(source, /https:\/\/api\.groq\.com\/openai\/v1\/chat\/completions/);
   assert.match(source, /GROQ_API_KEY/);
   assert.match(source, /GORIQ_GROQ_FREE_LIMIT_EXHAUSTED/);
   assert.doesNotMatch(source, /billing|credit card|purchase/i);

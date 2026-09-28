@@ -16,7 +16,7 @@ on:
       - 'scripts/goriq-learned-repair-smoke.mjs'
       - 'src/orchestrator/repair-engine-router.ts'
       - '.github/workflows/goriq-repair-engines-runtime.yml'
-      - '.github/workflows/goriq-chat-work-repair-worker.yml'
+      - '.github/workflows/autonomy-mobile.yml'
   workflow_dispatch:
 
 permissions:
@@ -148,6 +148,7 @@ jobs:
         env:
           GORIQ_REPAIR_REPOSITORY: ${{ github.repository }}
           GORIQ_REPAIR_GITHUB_TOKEN: ${{ github.token }}
+          AI_COMPANY_CHATGPT_PROJECT_NAME: 自動化
         run: |
           ROOT="$RUNNER_TEMP/goriq-chat-repair-smoke"
           rm -rf "$ROOT"
@@ -167,6 +168,7 @@ jobs:
         env:
           GORIQ_REPAIR_REPOSITORY: ${{ github.repository }}
           GORIQ_REPAIR_GITHUB_TOKEN: ${{ github.token }}
+          AI_COMPANY_CHATGPT_PROJECT_NAME: 自動化
         run: |
           ROOT="$RUNNER_TEMP/goriq-work-repair-smoke"
           rm -rf "$ROOT"
@@ -196,6 +198,7 @@ jobs:
         shell: bash
         env:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          GORIQ_GROQ_MODEL: qwen/qwen3.8-27b
         run: |
           if [[ -z "$GROQ_API_KEY" ]]; then
             echo "GROQ_API_KEY_NOT_CONFIGURED" >&2

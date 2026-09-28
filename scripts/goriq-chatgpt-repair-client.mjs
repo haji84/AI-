@@ -61,6 +61,7 @@ const mode = arg("--mode", "chat").toLowerCase();
 if (!["chat", "work"].includes(mode)) throw new Error("mode must be chat or work");
 const repository = process.env.GORIQ_REPAIR_REPOSITORY || process.env.GITHUB_REPOSITORY || "";
 const token = process.env.GORIQ_REPAIR_GITHUB_TOKEN || process.env.GITHUB_TOKEN || "";
+const projectName = process.env.AI_COMPANY_CHATGPT_PROJECT_NAME?.trim() || "自動化";
 if (!repository || !token) throw new Error("GORIQ repair bridge requires repository and GitHub token");
 const [owner, repo] = repository.split("/");
 if (!owner || !repo) throw new Error("repository must be owner/name");
@@ -92,7 +93,7 @@ const ownerText = [
 
 const meta = {
   version: 1,
-  project: `GORIQ Repair ${mode}`,
+  project: projectName,
   memory: { decisions: [], constraints: ["bounded repair only"], unfinished: [], references: [] },
   githubBridge: {
     pendingOwnerMessageId: requestId,
@@ -103,7 +104,7 @@ const meta = {
       id: requestId,
       role: "owner",
       text: ownerText,
-      meta: `repair-surface:${mode}`,
+      meta: `repair-surface:${mode} project:${projectName}`,
       createdAt,
     },
   },
@@ -122,7 +123,7 @@ const body = [
 const issue = await api(`https://api.github.com/repos/${owner}/${repo}/issues`, token, {
   method: "POST",
   headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ title: `[AI Chat] GORIQ Repair ${mode} ${requestId.slice(-8)}`, body }),
+  body: JSON.stringify({ title: `[AI Chat] ${projectName} GORIQ Repair ${mode} ${requestId.slice(-8)}`, body }),
 });
 
 const issueNumber = issue.number;
