@@ -323,7 +323,6 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat") {
 
     const beforeMessages = await snapshotAssistantMessages(client);
     const baselineFingerprints = new Set((beforeMessages ?? []).map(fingerprintMessage));
-    const initialUrl = selectedExperience.url;
 
     const focused = await evaluate(client, `(() => {
       const el = document.querySelector('textarea') || document.querySelector('[contenteditable="true"]');
@@ -338,8 +337,24 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat") {
     await client.call("Input.dispatchKeyEvent", { type: "keyDown", key: "Backspace", code: "Backspace" });
     await client.call("Input.dispatchKeyEvent", { type: "keyUp", key: "Backspace", code: "Backspace" });
     await client.call("Input.insertText", { text: prompt });
-    await client.call("Input.dispatchKeyEvent", { type: "keyDown", key: "Enter", code: "Enter" });
-    await client.call("Input.dispatchKeyEvent", { type: "keyUp", key: "Enter", code: "Enter" });
+    const sentByButton = await evaluate(client, `(() => {
+      const visible = (el) => {
+        const rect = el.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0;
+      };
+      const button = document.querySelector('button[data-testid="send-button"]')
+        || [...document.querySelectorAll('button')].find((el) => {
+          const label = [el.getAttribute('aria-label'), el.getAttribute('data-testid'), el.textContent].filter(Boolean).join(' ');
+          return visible(el) && /send|送信|submit/i.test(label);
+        });
+      if (!button || button.disabled) return false;
+      button.click();
+      return true;
+    })()`);
+    if (!sentByButton) {
+      await client.call("Input.dispatchKeyEvent", { type: "keyDown", key: "Enter", code: "Enter" });
+      await client.call("Input.dispatchKeyEvent", { type: "keyUp", key: "Enter", code: "Enter" });
+    }
 
     const deadline = Date.now() + 240000;
     let candidateFingerprint = "";
@@ -361,9 +376,8 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat") {
       const newMessages = messages.filter((message) => !baselineFingerprints.has(fingerprintMessage(message)));
       const candidate = newMessages.at(-1);
       const currentFingerprint = fingerprintMessage(candidate);
-      const conversationAdvanced = state?.url && (state.url !== initialUrl || /\/c\//.test(state.url));
 
-      if (candidate?.text && conversationAdvanced) {
+      if (candidate?.text) {
         if (candidateFingerprint !== currentFingerprint) {
           candidateFingerprint = currentFingerprint;
           lastText = candidate.text;
@@ -377,7 +391,28 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat") {
       }
       await sleep(700);
     }
-    throw new Error("ChatGPT fresh-turn response timeout; pending was preserved");
+    const diagnostic = await evaluate(client, `(() => {
+      const assistant = [...document.querySelectorAll('[data-message-author-role="assistant"]')].map((node) => (node.innerText || '').trim()).filter(Boolean);
+      const user = [...document.querySelectorAll('[data-message-author-role="user"]')].map((node) => (node.innerText || '').trim()).filter(Boolean);
+      const composer = document.querySelector('textarea') || document.querySelector('[contenteditable="true"]');
+      const buttons = [...document.querySelectorAll('button')].slice(-40).map((el) => ({
+        text: (el.innerText || el.textContent || '').trim().slice(0, 120),
+        aria: el.getAttribute('aria-label'),
+        testid: el.getAttribute('data-testid'),
+        disabled: !!el.disabled,
+      }));
+      return {
+        url: location.href,
+        title: document.title,
+        assistantCount: assistant.length,
+        lastAssistant: assistant.at(-1)?.slice(0, 500) || '',
+        userCount: user.length,
+        lastUser: user.at(-1)?.slice(0, 500) || '',
+        composerText: composer ? (composer.value || composer.innerText || composer.textContent || '').slice(0, 500) : '',
+        buttons,
+      };
+    })()`);
+    throw new Error(`ChatGPT fresh-turn response timeout; pending was preserved; diagnostic=${JSON.stringify(diagnostic).slice(0, 4000)}`);
   } finally {
     client.close();
     await closeTarget(target.id);

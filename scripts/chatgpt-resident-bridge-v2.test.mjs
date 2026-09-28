@@ -20,11 +20,6 @@ test("resident bridge v2 excludes pre-existing assistant messages", () => {
   assert.match(source, /newMessages = messages\.filter/);
 });
 
-test("resident bridge v2 requires a conversation advance before accepting answer", () => {
-  assert.match(source, /conversationAdvanced/);
-  assert.match(source, /candidate\?\.text && conversationAdvanced/);
-});
-
 test("resident bridge v2 closes its disposable target", () => {
   assert.match(source, /await closeTarget\(target\.id\)/);
 });
@@ -60,4 +55,22 @@ test("repair issues are excluded from resident polling and supported by one-shot
   assert.match(source, /AI_COMPANY_REPAIR_ONCE_ISSUE/);
   assert.match(source, /async function runOneShotRepair/);
   assert.match(source, /REPAIR_ISSUE_NOT_PENDING/);
+});
+
+test("fresh reply detection does not require ChatGPT URL transition", () => {
+  assert.doesNotMatch(source, /conversationAdvanced/);
+  assert.match(source, /if \(candidate\?\.text\)/);
+});
+
+test("prompt submission prefers the visible send button with Enter fallback", () => {
+  assert.match(source, /button\[data-testid="send-button"\]/);
+  assert.match(source, /const sentByButton = await evaluate/);
+  assert.match(source, /if \(!sentByButton\)/);
+});
+
+test("fresh-turn timeout records bounded browser diagnostics", () => {
+  assert.match(source, /assistantCount/);
+  assert.match(source, /lastAssistant/);
+  assert.match(source, /composerText/);
+  assert.match(source, /diagnostic=/);
 });
