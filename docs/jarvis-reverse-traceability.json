@@ -3630,13 +3630,13 @@
     },
     {
       "path": "src/gai/worker-runtime.ts",
-      "sha256": "ebccd1a262f5c926cab86ae659c4b2f9b882c20291a70e773c11f0074cabd717",
+      "sha256": "cc3a1cf4880964c85303e6ad9812cfe95834248fb1e16258210340fa36e5cb92",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-010",
         "AUTO-011"
       ],
-      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+      "reason": "Issue #1366 implementation."
     },
     {
       "path": "src/gai/world-model-calibration.ts",
