@@ -276,6 +276,20 @@ async function failedRunLog(repository: string, runId: string, token: string): P
   return sanitizeFailureLog(chunks.join("\n\n"));
 }
 
+export function normalizeConfiguredEnginePath(
+  engine: string,
+  platform: NodeJS.Platform = process.platform,
+  fileExists: (path: string) => boolean = existsSync,
+): string {
+  const trimmed = engine.trim();
+  if (!trimmed || platform !== "win32" || extname(trimmed)) return trimmed;
+  for (const suffix of [".cmd", ".bat", ".exe"]) {
+    const candidate = `${trimmed}${suffix}`;
+    if (fileExists(candidate)) return candidate;
+  }
+  return trimmed;
+}
+
 function resolveConfiguredEngine(): string {
   const localAppData = process.env.LOCALAPPDATA?.trim();
   if (localAppData) {
@@ -284,7 +298,7 @@ function resolveConfiguredEngine(): string {
       try {
         const parsed = JSON.parse(readFileSync(statusPath, "utf8")) as { configuredEngine?: unknown };
         if (typeof parsed.configuredEngine === "string" && parsed.configuredEngine.trim()) {
-          return parsed.configuredEngine.trim();
+          return normalizeConfiguredEnginePath(parsed.configuredEngine);
         }
       } catch (error) { void error; }
     }
@@ -293,7 +307,7 @@ function resolveConfiguredEngine(): string {
   const result = spawnSync(probe, ["codex"], { encoding: "utf8", windowsHide: true });
   if (result.status === 0) {
     const first = String(result.stdout ?? "").split(/\r?\n/).map((value) => value.trim()).find(Boolean);
-    if (first) return first;
+    if (first) return normalizeConfiguredEnginePath(first);
   }
   throw new Error("CODING_ENGINE_UNAVAILABLE");
 }
