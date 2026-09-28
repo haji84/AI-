@@ -3071,7 +3071,7 @@
     },
     {
       "path": "src/gai/durable-task-recovery-policy.ts",
-      "sha256": "8524fe936397572f39a071ba53b5232a90c076acb9ff0b285173145925188797",
+      "sha256": "81180c366078f03b569a74fd147d33f98e67bacd13de6650c4a768d15461d3b0",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "OFF-005",
