@@ -8,6 +8,7 @@ export type ZBookFleetScanOptions = {
 export type ZBookFleetScanResult = {
   ok: boolean;
   reason: "preserved_fleet_db_found" | "preserved_fleet_db_not_found";
+  scanRootsAvailable: number;
   scannedDatabaseFiles: number;
   matchingDatabases: number;
   fleetCount: number | null;
@@ -20,6 +21,6 @@ export type ZBookFleetScanResult = {
 };
 
 export function scanZBookFleetDatabases(
-  root: string,
+  root: string | string[],
   options?: ZBookFleetScanOptions,
 ): ZBookFleetScanResult;

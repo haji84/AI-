@@ -31,6 +31,10 @@ jobs:
         shell: powershell
         run: |
           New-Item -ItemType Directory -Force -Path .gai-results | Out-Null
+          $task = Get-ScheduledTask -TaskName "JARVIS Remote Host" -ErrorAction SilentlyContinue
+          if ($task -and $task.Actions -and $task.Actions[0].WorkingDirectory) {
+            $env:GORIQ_ZBOOK_EXTRA_SCAN_ROOT = [string]$task.Actions[0].WorkingDirectory
+          }
           node scripts/goriq-zbook-fleet-sqlite-liveness.mjs | Tee-Object -FilePath .gai-results/zbook-fleet-liveness.json
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Upload sanitized diagnosis

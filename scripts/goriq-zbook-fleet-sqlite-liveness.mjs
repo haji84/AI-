@@ -1,6 +1,5 @@
 import { readdirSync } from "node:fs";
-import { homedir } from "node:os";
-import { extname, join } from "node:path";
+import { extname, join, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
 const DB_EXTENSIONS = new Set([".db", ".sqlite", ".sqlite3"]);
@@ -14,9 +13,10 @@ function safeDateMs(value) {
   return Number.isFinite(ms) ? ms : null;
 }
 
-function discoverDatabases(root) {
+function discoverDatabases(roots) {
   const results = [];
-  const stack = [{ path: root, depth: 0 }];
+  const uniqueRoots = [...new Set(roots.filter(Boolean).map((root) => resolve(root)))];
+  const stack = uniqueRoots.map((root) => ({ path: root, depth: 0 }));
   let visitedFiles = 0;
   while (stack.length && visitedFiles < MAX_FILES) {
     const current = stack.pop();
@@ -41,7 +41,7 @@ function discoverDatabases(root) {
       if (DB_EXTENSIONS.has(extname(entry.name).toLowerCase())) results.push(full);
     }
   }
-  return { paths: results, visitedFiles };
+  return { paths: [...new Set(results.map((path) => resolve(path)))], visitedFiles, rootCount: uniqueRoots.length };
 }
 
 function inspectCandidate(path, nowMs, freshnessMs) {
@@ -92,7 +92,8 @@ export function scanZBookFleetDatabases(root, options = {}) {
   const freshnessMs = options.freshnessMs ?? 60_000;
   const expectedFleet = options.expectedFleet ?? 38;
   const expectedIdentities = options.expectedIdentities ?? 38;
-  const discovered = discoverDatabases(root);
+  const roots = Array.isArray(root) ? root : [root];
+  const discovered = discoverDatabases(roots);
   const matches = [];
   for (const path of discovered.paths) {
     const candidate = inspectCandidate(path, nowMs, freshnessMs);
@@ -106,6 +107,7 @@ export function scanZBookFleetDatabases(root, options = {}) {
   return {
     ok: Boolean(chosen),
     reason: chosen ? "preserved_fleet_db_found" : "preserved_fleet_db_not_found",
+    scanRootsAvailable: discovered.rootCount,
     scannedDatabaseFiles: discovered.paths.length,
     matchingDatabases: matches.length,
     fleetCount: chosen?.fleetCount ?? null,
@@ -119,8 +121,15 @@ export function scanZBookFleetDatabases(root, options = {}) {
 }
 
 if (import.meta.url === new URL(`file://${process.argv[1]}`).href) {
-  const root = join(homedir(), "JARVIS");
-  const result = scanZBookFleetDatabases(root);
+  const roots = [];
+  const userProfile = process.env.USERPROFILE?.trim();
+  if (userProfile) roots.push(join(userProfile, "JARVIS"));
+  const extra = process.env.GORIQ_ZBOOK_EXTRA_SCAN_ROOT?.trim();
+  if (extra) {
+    roots.push(extra);
+    roots.push(join(extra, ".."));
+  }
+  const result = scanZBookFleetDatabases(roots);
   process.stdout.write(JSON.stringify(result) + "\n");
   process.exit(result.ok ? 0 : 1);
 }
