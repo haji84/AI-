@@ -836,14 +836,35 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
       if (remoteMailbox.pending(identity.nodeId)) return json(response, 200, { task: null });
       let assigned = plane.queue.assignedTo(identity.nodeId)[0];
       if (!assigned) { plane.dispatch({ mobileOnline: true, pcOnline: true, sameLanAvailable: false }); assigned = plane.queue.assignedTo(identity.nodeId)[0]; }
-      if (assigned?.status === "leased") assigned = plane.markRunning(assigned.id, identity.nodeId);
+      if (assigned && (!Number.isSafeInteger(assigned.executionEpoch) || !assigned.fencingToken)) {
+        assigned = plane.ensureExecutionClaim(assigned.id, identity.nodeId);
+      }
+      if (assigned?.status === "leased") {
+        assigned = plane.markRunningClaimed(assigned.id, identity.nodeId, assigned.executionEpoch!, assigned.fencingToken!);
+      }
       if (assigned) persist(); return json(response, 200, { task: assigned ?? null });
     }
     if (method === "POST" && path === "/api/jarvis/worker/result") {
-      if (typeof payload.taskId !== "string" || typeof payload.ok !== "boolean") return json(response, 400, { message: "taskId and ok required" });
+      if (
+        typeof payload.taskId !== "string"
+        || typeof payload.ok !== "boolean"
+        || !Number.isSafeInteger(payload.executionEpoch)
+        || (payload.executionEpoch as number) < 1
+        || typeof payload.fencingToken !== "string"
+        || payload.fencingToken.length < 16
+      ) return json(response, 409, { message: "current task ownership claim required" });
       const detail = payload.detail && typeof payload.detail === "object" && !Array.isArray(payload.detail) ? payload.detail as Record<string, unknown> : {};
-      const task = payload.ok ? plane.completeTask(payload.taskId, identity.nodeId, detail) : plane.failTask(payload.taskId, identity.nodeId, typeof detail.error === "string" ? detail.error : "worker reported failure");
-      persist(); return json(response, 200, { task });
+      try {
+        const task = payload.ok
+          ? plane.completeTaskClaimed(payload.taskId, identity.nodeId, payload.executionEpoch as number, payload.fencingToken, detail)
+          : plane.failTaskClaimed(payload.taskId, identity.nodeId, payload.executionEpoch as number, payload.fencingToken, typeof detail.error === "string" ? detail.error : "worker reported failure");
+        persist(); return json(response, 200, { task });
+      } catch (error) {
+        if (error instanceof Error && error.message === "STALE_OR_INVALID_TASK_FENCE") {
+          return json(response, 409, { message: "stale or invalid task ownership claim" });
+        }
+        throw error;
+      }
     }
     return json(response, 404, { message: "unknown worker route" });
   }
