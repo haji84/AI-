@@ -7,6 +7,7 @@ const windowsInstallerUrl = new URL("../scripts/install-goriq-local-repair-windo
 const chatClientUrl = new URL("../scripts/goriq-chatgpt-repair-client.mjs", import.meta.url);
 const runtimeWorkflowUrl = new URL("../.github/workflows/goriq-repair-engines-runtime.yml", import.meta.url);
 const recoveryWorkflowUrl = new URL("../.github/workflows/goriq-pr-ci-recovery.yml", import.meta.url);
+const groqAdapterUrl = new URL("../scripts/goriq-groq-repair.mjs", import.meta.url);
 
 test("local repair adapter is bounded to AllowedPaths and local Ollama API", async () => {
   const source = await readFile(ollamaAdapterUrl, "utf8");
@@ -17,14 +18,12 @@ test("local repair adapter is bounded to AllowedPaths and local Ollama API", asy
   assert.match(source, /allowedSet\.has\(path\)/);
 });
 
-test("ZBook installer provisions two local models and probes cloud fallback without making it mandatory", async () => {
+test("ZBook installer provisions two local models without any cloud billing fallback", async () => {
   const source = await readFile(windowsInstallerUrl, "utf8");
   assert.match(source, /https:\/\/ollama\.com\/install\.ps1/);
   assert.match(source, /qwen2\.5-coder:1\.5b/);
   assert.match(source, /qwen2\.5-coder:3b/);
-  assert.match(source, /gpt-oss:20b-cloud/);
-  assert.match(source, /cloudFreeReady/);
-  assert.doesNotMatch(source, /throw "Failed to pull required local repair model: \$CloudFreeModel"/);
+  assert.doesNotMatch(source, /cloud|CloudFreeModel|pay-as-you-go/i);
 });
 
 test("Chat and Work repair client requests a diff and cannot directly push", async () => {
@@ -50,4 +49,13 @@ test("CI recovery grants only the extra Issue write authority needed by Chat Wor
   assert.match(source, /issues: write/);
   assert.match(source, /pull-requests: read/);
   assert.doesNotMatch(source, /deployments:\s*write|id-token:\s*write|secrets:\s*write/);
+});
+
+test("free external repair uses Groq Free Plan API and fails closed on rate limit", async () => {
+  const source = await readFile(groqAdapterUrl, "utf8");
+  assert.match(source, /https:\/\/api\.groq\.com\/openai\/v1\/chat\/completions/);
+  assert.match(source, /qwen\/qwen3\.8-27b/);
+  assert.match(source, /GROQ_API_KEY/);
+  assert.match(source, /GORIQ_GROQ_FREE_LIMIT_EXHAUSTED/);
+  assert.doesNotMatch(source, /billing|credit card|purchase/i);
 });
