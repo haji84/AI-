@@ -20,9 +20,12 @@ test("resident bridge v2 excludes pre-existing assistant messages", () => {
   assert.match(source, /newMessages = messages\.filter/);
 });
 
-test("resident bridge v2 requires a conversation advance before accepting answer", () => {
-  assert.match(source, /conversationAdvanced/);
-  assert.match(source, /candidate\?\.text && conversationAdvanced/);
+test("resident bridge v2 confirms prompt submission and accepts only fresh assistant turns", () => {
+  assert.match(source, /clickSendButton/);
+  assert.match(source, /CHATGPT_PROMPT_SUBMISSION_NOT_CONFIRMED/);
+  assert.match(source, /baselineFingerprints/);
+  assert.match(source, /newMessages = \(messages \?\? \[\]\)\.filter/);
+  assert.doesNotMatch(source, /conversationAdvanced/);
 });
 
 test("resident bridge v2 closes its disposable target", () => {
@@ -60,4 +63,12 @@ test("repair issues are excluded from resident polling and supported by one-shot
   assert.match(source, /AI_COMPANY_REPAIR_ONCE_ISSUE/);
   assert.match(source, /async function runOneShotRepair/);
   assert.match(source, /REPAIR_ISSUE_NOT_PENDING/);
+});
+
+test("resident bridge reports bounded interaction diagnostics on response timeout", () => {
+  assert.match(source, /interactionState/);
+  assert.match(source, /assistantCount/);
+  assert.match(source, /turnCount/);
+  assert.match(source, /composerTextLength/);
+  assert.match(source, /observed=\$\{JSON\.stringify\(lastObserved\)\}/);
 });
