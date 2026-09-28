@@ -115,3 +115,102 @@ async function failedRunLog(repository: string, runId: string, token: string): P
   }
   return sanitizeFailureLog(chunks.join("\n\n"));
 }
+
+function resolveConfiguredEngine(): string {
+  const localAppData = process.env.LOCALAPPDATA?.trim();
+  if (localAppData) {
+    const statusPath = join(localAppData, "GAIWorker", "code-builder", "install-status.json");
+    if (existsSync(statusPath)) {
+      try {
+        const parsed = JSON.parse(readFileSync(statusPath, "utf8")) as { configuredEngine?: unknown };
+        if (typeof parsed.configuredEngine === "string" && parsed.configuredEngine.trim()) {
+          return parsed.configuredEngine.trim();
+        }
+      } catch {}
+    }
+  }
+  const probe = process.platform === "win32" ? "where.exe" : "which";
+  const result = spawnSync(probe, ["codex"], { encoding: "utf8", windowsHide: true });
+  if (result.status === 0) {
+    const first = String(result.stdout ?? "").split(/\r?\n/).map((value) => value.trim()).find(Boolean);
+    if (first) return first;
+  }
+  throw new Error("CODING_ENGINE_UNAVAILABLE");
+}
+
+function runCodex(engine: string, workspace: string, prompt: string): void {
+  const extension = extname(engine).toLowerCase();
+  const args = [
+    ...(process.platform === "win32" ? ["-c", 'windows.sandbox="unelevated"'] : []),
+    "exec",
+    "--sandbox", "workspace-write",
+    "--ephemeral",
+    "--ignore-user-config",
+    "--ignore-rules",
+    "-",
+  ];
+  const command = process.platform === "win32" && (extension === ".cmd" || extension === ".bat")
+    ? (process.env.ComSpec || "cmd.exe")
+    : engine;
+  const commandArgs = command === engine ? args : ["/d", "/s", "/c", engine, ...args];
+  const result = spawnSync(command, commandArgs, {
+    cwd: workspace,
+    encoding: "utf8",
+    input: prompt,
+    windowsHide: true,
+    maxBuffer: 8 * 1024 * 1024,
+    timeout: 12 * 60_000,
+  });
+  if (result.error) throw result.error;
+  if (result.status !== 0) {
+    throw new Error(`Codex recovery failed: ${String(result.stderr || result.stdout).slice(-5000)}`);
+  }
+}
+
+export function buildRecoveryPrompt(input: {
+  prNumber: number;
+  attempt: number;
+  allowedPaths: string[];
+  failureLog: string;
+}): string {
+  return [
+    "You are the bounded GORIQ CI recovery worker.",
+    "Read AGENTS.md and PROJECT_STATE.md before editing.",
+    `Fix the concrete CI failure for PR #${input.prNumber}. This is automatic recovery attempt ${input.attempt} of ${MAX_AUTOMATIC_ATTEMPTS}.`,
+    "Make the smallest implementation correction supported by the failure evidence.",
+    "Do not commit, push, merge, deploy, change workflows, permissions, credentials, secrets, dependencies, requirements, governance, or existing tests.",
+    "Do not weaken or delete tests. Do not edit files outside AllowedPaths.",
+    `AllowedPaths=${input.allowedPaths.join(",")}`,
+    "If the failure requires work outside AllowedPaths, make no changes.",
+    "FailureEvidence:",
+    input.failureLog,
+  ].join("\n");
+}
+
+function porcelainPaths(output: string): string[] {
+  return [...new Set(output.split(/\r?\n/)
+    .map((line) => line.trimEnd())
+    .filter(Boolean)
+    .map((line) => line.slice(3).trim())
+    .filter(Boolean))]
+    .sort();
+}
+
+function restoreWorkspace(workspace: string): void {
+  run("git", ["reset", "--hard", "HEAD"], workspace);
+  run("git", ["clean", "-fd"], workspace);
+}
+
+async function pullRequestFiles(repository: string, prNumber: number, token: string): Promise<string[]> {
+  const { owner, repo } = parseRepository(repository);
+  const files: string[] = [];
+  for (let page = 1; page <= 3; page += 1) {
+    const batch = await githubJson<Array<{ filename: string }>>(
+      `https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/files?per_page=100&page=${page}`,
+      token,
+    );
+    files.push(...batch.map((item) => item.filename));
+    if (batch.length < 100) break;
+  }
+  return [...new Set(files)];
+}
