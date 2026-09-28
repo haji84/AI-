@@ -18,6 +18,7 @@ export interface RecoveryInput {
 export interface RecoveryDecision {
   mode: RecoveryMode;
   retry: boolean;
+  wait: boolean;
   fail: boolean;
   blocker?: RecoveryBlocker;
   preserveCheckpoint: boolean;
@@ -29,6 +30,7 @@ export function decideRecovery(input: RecoveryInput): RecoveryDecision {
     return {
       mode: "wait",
       retry: false,
+      wait: true,
       fail: false,
       blocker: "PINNED_OWNER_UNAVAILABLE",
       preserveCheckpoint: true,
@@ -40,6 +42,7 @@ export function decideRecovery(input: RecoveryInput): RecoveryDecision {
     return {
       mode: "verify",
       retry: false,
+      wait: true,
       fail: false,
       blocker: "EXTERNAL_EFFECT_REVIEW_REQUIRED",
       preserveCheckpoint: true,
@@ -50,6 +53,7 @@ export function decideRecovery(input: RecoveryInput): RecoveryDecision {
     return {
       mode: "wait",
       retry: false,
+      wait: true,
       fail: false,
       blocker: "CHECKPOINT_REQUIRED",
       preserveCheckpoint: true,
@@ -60,6 +64,7 @@ export function decideRecovery(input: RecoveryInput): RecoveryDecision {
     return {
       mode: "wait",
       retry: false,
+      wait: false,
       fail: true,
       preserveCheckpoint: input.migrationClass === "MIGRATABLE",
     };
@@ -69,6 +74,7 @@ export function decideRecovery(input: RecoveryInput): RecoveryDecision {
     return {
       mode: "resume",
       retry: true,
+      wait: false,
       fail: false,
       preserveCheckpoint: true,
     };
