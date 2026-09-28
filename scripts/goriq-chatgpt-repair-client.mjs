@@ -30,6 +30,13 @@ function stripFence(text) {
   const match = trimmed.match(/^```(?:diff|patch)?\s*([\s\S]*?)\s*```$/i);
   return match ? match[1].trim() : trimmed;
 }
+export function extractUnifiedDiff(text) {
+  const unfenced = stripFence(text);
+  const diffMatch = unfenced.match(/(?:^|\n)(diff --git [\s\S]*)$/m);
+  if (diffMatch?.[1]) return diffMatch[1].trim();
+  const traditional = unfenced.match(/(?:^|\n)(--- [^\n]+\n\+\+\+ [^\n]+[\s\S]*)$/m);
+  return traditional?.[1]?.trim() || unfenced;
+}
 function decodeAiComment(body = "") {
   const start = body.indexOf("<!-- ai-chat-entry:v1\n");
   if (start < 0) return null;
