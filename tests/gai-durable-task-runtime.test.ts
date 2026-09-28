@@ -221,6 +221,7 @@ test("task migration class is explicit and invalid runtime values fail closed", 
     idempotencyKey: "pinned",
     type: "sensor",
     migrationClass: "PINNED",
+    pinnedNodeId: "pinned-node",
   }, t0);
   assert.equal(pinned.migrationClass, "PINNED");
 
@@ -253,7 +254,7 @@ test("MIGRATABLE recovery resumes only from a durable checkpoint", async () => {
   assert.equal(recovered?.checkpointRef, "checkpoint://migratable/1");
   assert.equal(recovered?.waitReason, undefined);
 
-  const second = await runtime.leaseClaim("migratable-checkpoint", "zbook", 100, plus(201));
+  const second = await runtime.leaseClaim("migratable-checkpoint", "zbook", 1_000, plus(201));
   assert.equal(second.epoch, 2);
   assert.equal(second.owner, "zbook");
 
