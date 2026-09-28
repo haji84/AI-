@@ -3071,7 +3071,7 @@
     },
     {
       "path": "src/gai/durable-task-runtime.ts",
-      "sha256": "983bd2191c8492614ba4e34d861c5ffdab04fb1632c3a94253a2319751411b89",
+      "sha256": "5be5dd82fa05fc661bb167b415f73e3248950a0975668760c2447cc4daa9f1f4",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OFF-001",
@@ -3089,7 +3089,7 @@
         "CORE-019",
         "GOV-021"
       ],
-      "reason": "Distributed durable execution ownership extends existing OFF-005/OFF-008 contracts with migration class, execution epoch and fencing while preserving the existing runtime."
+      "reason": "Distributed durable execution now performs migration-class-aware recovery: checkpoint resume, safe restart, pinned-node wait and side-effect reconciliation with persisted fencing."
     },
     {
       "path": "src/gai/external-benchmark-evidence.ts",
@@ -3279,7 +3279,7 @@
     },
     {
       "path": "src/gai/offline-first-runtime.ts",
-      "sha256": "7995782599add79e2e6200de6cf0a389f4afa3674d7249e888ddebdac0d7b11b",
+      "sha256": "3e45ed9971bcc50321e1267f161ab64eb0292006051fa216da451924a917859f",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OFF-001",
@@ -3296,7 +3296,7 @@
         "OFF-012",
         "GOV-026"
       ],
-      "reason": "Existing Offline-First execution path now uses fenced execution claims with bounded lease heartbeat renewal; linked to canonical OFF requirements."
+      "reason": "Offline-First execution honors PINNED node affinity while preserving fenced claim heartbeat, connectivity fallback and resource waiting."
     },
     {
       "path": "src/gai/platform-capability-manifest.ts",
