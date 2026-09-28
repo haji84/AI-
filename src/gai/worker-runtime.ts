@@ -188,6 +188,7 @@ export class MultiWorkerRuntime {
       .filter((worker) => !request.requestedCapability || worker.descriptor.capabilities.includes(request.requestedCapability))
       .filter((worker) => supportsExecutionMode(worker.descriptor, request))
       .filter((worker) => supportsConnectivity(worker.descriptor, healthy.get(worker.descriptor.id)!, request))
+      .filter((worker) => scoreResourceFit(worker.descriptor, healthy.get(worker.descriptor.id)!, request).eligible)
       .map((worker) => {
         let score = 1;
         const reasons: string[] = ["healthy"];
