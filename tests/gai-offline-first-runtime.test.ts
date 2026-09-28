@@ -314,3 +314,54 @@ test("PINNED task waits for its exact node and resumes only when that node retur
   assert.equal(completed?.evidence.selectedWorkerId, "pinned-worker");
   assert.equal((completed?.task.result as { output?: string })?.output, "pinned-result");
 });
+
+
+test("OfflineFirstExecutionCoordinator forwards resource requirements into placement", async () => {
+  const tasks = new DurableTaskRuntime(new MemoryDurableTaskStore());
+  await tasks.enqueue({
+    id: "memory-heavy",
+    idempotencyKey: "memory-heavy",
+    type: "memory-heavy",
+    migrationClass: "RESTARTABLE",
+  });
+
+  const small = createFunctionWorker({
+    descriptor: { ...offlineWorkerDescriptor, id: "small-node", label: "Small", maxParallelTasks: 2 },
+    health: () => ({
+      connectivity: "offline",
+      resources: { cpuAvailable: true, cpuLoadPercent: 10, memoryAvailableMb: 8_000 },
+      runtimeState: { activeTasks: 0, completedTasks: 0, failedTasks: 0 },
+    }),
+    run: async () => "small",
+  });
+  const large = createFunctionWorker({
+    descriptor: { ...offlineWorkerDescriptor, id: "large-node", label: "Large", maxParallelTasks: 2 },
+    health: () => ({
+      connectivity: "offline",
+      resources: { cpuAvailable: true, cpuLoadPercent: 40, memoryAvailableMb: 32_000, dataLocalityKeys: ["payload-A"] },
+      runtimeState: { activeTasks: 0, completedTasks: 0, failedTasks: 0 },
+    }),
+    run: async () => "large",
+  });
+
+  const coordinator = new OfflineFirstExecutionCoordinator({
+    tasks,
+    workers: new MultiWorkerRuntime([small, large]),
+    connectivity: new ConnectivityManager("offline"),
+    resolve: () => ({
+      networkRequirement: "offline-capable",
+      requestedCapability: "local-model",
+      requiredCapabilities: ["local-model"],
+      allowOffline: true,
+      resourceRequirements: {
+        minMemoryAvailableMb: 16_000,
+        preferredDataLocalityKeys: ["payload-A"],
+      },
+    }),
+  });
+
+  const outcome = await coordinator.runNext();
+  assert.equal(outcome?.task.status, "completed");
+  assert.equal(outcome?.evidence.selectedWorkerId, "large-node");
+  assert.equal((outcome?.task.result as { output?: string })?.output, "large");
+});
