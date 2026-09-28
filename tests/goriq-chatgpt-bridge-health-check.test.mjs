@@ -4,15 +4,17 @@ import { spawnSync } from "node:child_process";
 import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import process from "node:process";
+import { URL, fileURLToPath } from "node:url";
 
-const script = new URL("../scripts/goriq-chatgpt-bridge-health-check.mjs", import.meta.url);
+const script = fileURLToPath(new URL("../scripts/goriq-chatgpt-bridge-health-check.mjs", import.meta.url));
 
 function runHealth(health, minimumUpdatedAt) {
   const root = mkdtempSync(join(tmpdir(), "goriq-bridge-health-"));
   const path = join(root, "health.json");
   try {
     writeFileSync(path, JSON.stringify(health), "utf8");
-    return spawnSync(process.execPath, [script.pathname, path, String(minimumUpdatedAt)], {
+    return spawnSync(process.execPath, [script, path, String(minimumUpdatedAt)], {
       encoding: "utf8",
     });
   } finally {
