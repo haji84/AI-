@@ -10,6 +10,7 @@ import {
   type WorkerNetworkRequirement,
   type WorkerPlatform,
   type WorkerExecutionMode,
+  type WorkerResourceRequirements,
 } from "./worker-runtime.ts";
 
 export type ConnectivityState = WorkerConnectivity;
@@ -68,6 +69,7 @@ export interface OfflineExecutionPlan {
   requiredExecutionMode?: WorkerExecutionMode;
   allowOffline?: boolean;
   publicationRequired?: boolean;
+  resourceRequirements?: WorkerResourceRequirements;
 }
 
 export type OfflineExecutionResolver = (task: DurableTask) => OfflineExecutionPlan;
@@ -183,6 +185,7 @@ export class OfflineFirstExecutionCoordinator {
         preferredPlatform: plan.preferredPlatform,
         requiredExecutionMode: plan.requiredExecutionMode,
         requiredWorkerId: task.migrationClass === "PINNED" ? task.pinnedNodeId : undefined,
+        resourceRequirements: plan.resourceRequirements,
         connectivity: state,
         allowOffline: plan.allowOffline ?? plan.networkRequirement !== "online-required",
       };
