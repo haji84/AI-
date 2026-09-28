@@ -101,6 +101,12 @@ test("current ChatGPT DOM fallback detects assistant and user turns by action co
   assert.match(source, /data-testid\^="conversation-turn"/);
 });
 
+test("assistant snapshot falls back to rendered markdown when role attributes disappear", () => {
+  assert.match(source, /main \.markdown, main \[class\*="markdown"\]/);
+  assert.match(source, /if \(assistants\.length\) return assistants/);
+  assert.match(source, /role: 'assistant'/);
+});
+
 test("successful repair stores the project-scoped surface URL for reuse", () => {
   assert.match(source, /writeProjectSurface\(mode/);
   assert.match(source, /readProjectSurfaces/);
