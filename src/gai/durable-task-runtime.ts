@@ -2,6 +2,7 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { randomUUID } from "node:crypto";
 import type { WorkerCapability } from "./worker-runtime.ts";
+import { decideRecovery, type RecoveryBlocker } from "./durable-task-recovery-policy.ts";
 
 export type DurableTaskStatus =
   | "queued"
@@ -52,6 +53,8 @@ export interface DurableTask {
   leaseOwner?: string;
   leaseUntil?: string;
   fencingToken?: string;
+  pinnedOwner?: string;
+  recoveryBlocker?: RecoveryBlocker;
   nextAttemptAt?: string;
   checkpointRef?: string;
   result?: unknown;
@@ -278,6 +281,12 @@ export class DurableTaskRuntime {
     task.leaseOwner = owner;
     task.leaseUntil = new Date(now.getTime() + leaseMs).toISOString();
     task.fencingToken = randomUUID();
+    if (task.migrationClass === "PINNED") {
+      if (task.pinnedOwner && task.pinnedOwner !== owner) {
+        throw new Error(`PINNED_TASK_OWNER_MISMATCH: task ${task.id} is pinned to ${task.pinnedOwner}`);
+      }
+      task.pinnedOwner = task.pinnedOwner ?? owner;
+    }
     task.nextAttemptAt = undefined;
     task.attempts += 1;
     await this.persist(now);
@@ -463,6 +472,7 @@ export class DurableTaskRuntime {
     let count = 0;
     for (const task of this.tasks.values()) {
       if (task.status !== status) continue;
+      if (task.recoveryBlocker) continue;
       this.transition(task, "queued", `${kind} available`, now);
       count += 1;
     }
