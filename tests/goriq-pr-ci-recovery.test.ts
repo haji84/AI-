@@ -71,6 +71,7 @@ test("recovery prompt preserves bounded authority", () => {
 
 test("coding engine environment cannot see GitHub write credentials", () => {
   const env = sanitizedBuilderEnvironment({
+    NODE_ENV: "test",
     PATH: "x",
     GITHUB_TOKEN: "ghs_secret",
     GH_TOKEN: "gh_secret",
