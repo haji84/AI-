@@ -386,3 +386,38 @@ test("SIDE_EFFECTING recovery requires reconciliation evidence before retry or c
   assert.equal(completed.status, "completed");
   assert.deepEqual(completed.result, { receiptId: "verified-existing-effect" });
 });
+
+
+test("invalid persisted migration recovery metadata fails closed", async () => {
+  const base = {
+    id: "persisted-invalid",
+    idempotencyKey: "persisted-invalid",
+    type: "work",
+    payload: {},
+    status: "queued",
+    priority: "normal",
+    requiredCapabilities: [],
+    dependsOn: [],
+    attempts: 0,
+    maxAttempts: 3,
+    executionEpoch: 0,
+    createdAt: t0.toISOString(),
+    updatedAt: t0.toISOString(),
+    history: [],
+  };
+  for (const invalid of [
+    { ...base, migrationClass: "UNKNOWN" },
+    { ...base, migrationClass: "PINNED" },
+    { ...base, migrationClass: "RESTARTABLE", pinnedNodeId: "zbook" },
+    { ...base, migrationClass: "RESTARTABLE", waitReason: "invented-wait" },
+  ]) {
+    const store = {
+      async load() {
+        return { version: 1 as const, tasks: [invalid] as never, savedAt: t0.toISOString() };
+      },
+      async save() {},
+    };
+    const runtime = new DurableTaskRuntime(store);
+    await assert.rejects(() => runtime.initialize(), /persisted|PINNED|pinnedNodeId|waitReason/i);
+  }
+});
