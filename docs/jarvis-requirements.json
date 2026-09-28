@@ -279,8 +279,8 @@
     },
     {
       "id": "HOST-001",
-      "title": "ZBook/Windowsを家側常時稼働Main Hostとする",
-      "description": "ZBook/Windowsを家側常時稼働Main Hostとする。",
+      "title": "恒久Main Hostを置かず利用可能なtrusted node全体をGORIQ本体とする",
+      "description": "GORIQはZBook、MacBookその他の単一物理PCを恒久Main Hostとしない。現在利用可能なtrusted node群とdurable Goal/Task/State/Memory/EvidenceがGORIQ本体として振る舞い、Coordinatorは移動可能な論理roleとする。",
       "phase": "P1",
       "required_evidence": [
         "CODE",
@@ -293,7 +293,8 @@
         "scripts/jarvis-remote-host.mjs",
         "scripts/jarvis-power-recovery-lib.mjs",
         "scripts/install-jarvis-remote-autostart-windows.ps1",
-        "scripts/jarvis-managed-process.mjs"
+        "scripts/jarvis-managed-process.mjs",
+        "docs/architecture/goriq-distributed-node-fabric.md"
       ],
       "test_refs": [
         "scripts/jarvis-power-recovery.test.mjs",
@@ -304,10 +305,10 @@
         "docs/audit/jarvis-zbook-readiness.md"
       ],
       "status": "PARTIAL",
-      "blocker": "子Issue #683でWindows spawn/backoffとprivate-ingress判定を修正。Tailscale/OS startup・cellular/実機復旧Evidenceは未取得。",
+      "blocker": "個別Host自動起動・復旧部品は存在するが、恒久Main HostなしのCoordinator failover、Task ownership移管、Mac/ZBook実機停止・復旧Evidenceは未完了。",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "P1/P2: Windows非対話起動・battery policy診断を完成し、OS/account gate準備と実機接続・復旧Evidenceを取得する。独立するP3以降のソフトウェア作業を継続。",
+      "next_action": "現在のMac安定化を完了・検証後、MacBook+ZBookの2-node構成でCoordinator failover、Task再配置、再同期、再統合を実装・実機検証する。",
       "last_verified_commit": null,
       "delivery_audit": {
         "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -321,8 +322,8 @@
     },
     {
       "id": "HOST-002",
-      "title": "MacBookは補助Host/development/failover候補",
-      "description": "MacBookは補助Host/development/failover候補。",
+      "title": "MacBookは固定本体ではなく独立Node・Coordinator候補として参加",
+      "description": "MacBookは補助Hostに固定せず、ZBook等と同じtrusted Node Contractに参加する。能力・負荷・データ所在・接続状態に応じてCoordinator/Executor/Storage/Verifier等の論理roleを保持または解放し、停止・復旧時は自動再構成する。",
       "phase": "P2",
       "required_evidence": [
         "CODE",
@@ -333,7 +334,8 @@
       ],
       "implementation_refs": [
         "docs/architecture/jarvis-remote-access.md",
-        "scripts/install-jarvis-remote-launchdaemon-macos.sh"
+        "scripts/install-jarvis-remote-launchdaemon-macos.sh",
+        "docs/architecture/goriq-distributed-node-fabric.md"
       ],
       "test_refs": [
         "scripts/jarvis-power-recovery.test.mjs",
@@ -341,10 +343,10 @@
       ],
       "evidence_refs": [],
       "status": "PARTIAL",
-      "blocker": "Mac補助ホストとしての実機failoverは未検証。",
+      "blocker": "Mac resident runtimeは安定化進行中。固定本体を前提としないNode role移動と実機failoverは未検証。",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "P2: MacBookは補助Host/development/failover候補。 について実装の不足を埋め、required_evidenceを取得する。",
+      "next_action": "Mac安定化完了後、Mac停止/復旧を含む2-node failoverと自動role再割当を実機検証する。",
       "last_verified_commit": null,
       "delivery_audit": {
         "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -5372,8 +5374,8 @@
     },
     {
       "id": "AUTO-010",
-      "title": "Capability Router",
-      "description": "Capability Router。 ADR 0013のpriority engine、scheduler、event engine、dependency graph、resource manager、power policy、network policyを用いて選択する。",
+      "title": "Resource-aware Capability Router",
+      "description": "Capability Routerはrequired capabilityに加えCPU/GPU/RAM、OS固有能力、現在負荷、data locality、network/power/thermal、risk/privacyを評価し、利用可能NodeへTaskを配置する。高速経路喪失時は正しさを維持できる低速経路へ自動fallbackし、独立Taskは可能な範囲で並列化する。",
       "phase": "P7",
       "required_evidence": [
         "CODE",
@@ -5383,17 +5385,18 @@
       ],
       "implementation_refs": [
         "src/gai/worker-runtime.ts",
-        "src/gai/goal-loop-worker-executor.ts"
+        "src/gai/goal-loop-worker-executor.ts",
+        "docs/architecture/goriq-distributed-node-fabric.md"
       ],
       "test_refs": [
         "tests/gai-goal-loop-worker-integration.test.ts"
       ],
       "evidence_refs": [],
       "status": "PARTIAL",
-      "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+      "blocker": "Capability routingとresource modelは存在するが、複数物理Nodeでのresource-aware配置、低速fallback、再配分の統合Evidenceは未完了。",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "P7: Capability Router。 について実装の不足を埋め、required_evidenceを取得する。",
+      "next_action": "MacBook+ZBookで負荷/能力差を使う配置とfallbackを実証し、その後Nubiaを追加して3-node再配分を検証する。",
       "last_verified_commit": null,
       "delivery_audit": {
         "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -5407,8 +5410,8 @@
     },
     {
       "id": "AUTO-011",
-      "title": "Dynamic worker selection",
-      "description": "Dynamic worker selection。",
+      "title": "Dynamic worker selection and automatic rebalancing",
+      "description": "Node参加・離脱・復旧・負荷変化のたびに利用可能能力を再評価し、待機Taskと安全に移行可能な実行中Taskを自動再配置する。新規高性能PC追加時は手動topology再構成なしで処理能力を拡張する。",
       "phase": "P7",
       "required_evidence": [
         "CODE",
@@ -5418,17 +5421,18 @@
       ],
       "implementation_refs": [
         "src/gai/worker-runtime.ts",
-        "src/gai/goal-loop-worker-executor.ts"
+        "src/gai/goal-loop-worker-executor.ts",
+        "docs/architecture/goriq-distributed-node-fabric.md"
       ],
       "test_refs": [
         "tests/gai-goal-loop-worker-integration.test.ts"
       ],
       "evidence_refs": [],
       "status": "PARTIAL",
-      "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+      "blocker": "動的worker選択は部分実装。Node join/leave/returnでの自動rebalancingと新規PC容量拡張の物理Evidenceが不足。",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "P7: Dynamic worker selection。 について実装の不足を埋め、required_evidenceを取得する。",
+      "next_action": "Mac/ZBook loss-returnでrebalancingを検証し、Nubia参加、将来PC自動追加の順で受入する。",
       "last_verified_commit": null,
       "delivery_audit": {
         "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -6600,8 +6604,8 @@
     },
     {
       "id": "OFF-005",
-      "title": "Checkpoint",
-      "description": "Checkpoint。",
+      "title": "Checkpoint + Task Migration Class",
+      "description": "Durable checkpointを保持し、各TaskをMIGRATABLE / RESTARTABLE / PINNED / SIDE_EFFECTINGに分類する。移行不能Taskを移行可能と偽らず、migration classに応じてcheckpoint継続、再実行、待機、side-effect保護を選ぶ。",
       "phase": "P7",
       "required_evidence": [
         "CODE",
@@ -6613,7 +6617,8 @@
       "implementation_refs": [
         "src/gai/offline-first-runtime.ts",
         "src/gai/durable-task-runtime.ts",
-        "src/gai/sync-engine.ts"
+        "src/gai/sync-engine.ts",
+        "docs/architecture/goriq-distributed-node-fabric.md"
       ],
       "test_refs": [
         "tests/gai-offline-first-runtime.test.ts",
@@ -6622,10 +6627,10 @@
       ],
       "evidence_refs": [],
       "status": "PARTIAL",
-      "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+      "blocker": "Checkpoint基盤は存在するが、4種migration classとNode failover時の運用統合は未完了。",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "P7: Checkpoint。 について実装の不足を埋め、required_evidenceを取得する。",
+      "next_action": "Task migration class contractを既存durable runtimeへ統合し、各classの停止/復旧テストを追加する。",
       "last_verified_commit": null,
       "delivery_audit": {
         "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -6639,8 +6644,8 @@
     },
     {
       "id": "OFF-006",
-      "title": "Resume",
-      "description": "Resume。",
+      "title": "Resume / migrate / restart according to durable ownership",
+      "description": "Node停止時にdurable checkpointとmigration classを読み、別Nodeで安全ならresume/migrate/restartする。復旧後の旧Nodeは現所有権を再確認し、古い実行を継続しない。",
       "phase": "P7",
       "required_evidence": [
         "CODE",
@@ -6652,7 +6657,8 @@
       "implementation_refs": [
         "src/gai/offline-first-runtime.ts",
         "src/gai/durable-task-runtime.ts",
-        "src/gai/sync-engine.ts"
+        "src/gai/sync-engine.ts",
+        "docs/architecture/goriq-distributed-node-fabric.md"
       ],
       "test_refs": [
         "tests/gai-offline-first-runtime.test.ts",
@@ -6661,10 +6667,10 @@
       ],
       "evidence_refs": [],
       "status": "PARTIAL",
-      "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+      "blocker": "Resumeは部分実装。cross-node migration/restart、復旧Nodeのstale ownership拒否が未検証。",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "P7: Resume。 について実装の不足を埋め、required_evidenceを取得する。",
+      "next_action": "MacBook↔ZBookでMIGRATABLE/RESTARTABLE Taskの引継ぎと復旧後stale execution拒否を実機検証する。",
       "last_verified_commit": null,
       "delivery_audit": {
         "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -6717,8 +6723,8 @@
     },
     {
       "id": "OFF-008",
-      "title": "Leases/duplicate prevention",
-      "description": "Leases/duplicate prevention。",
+      "title": "Lease / execution ownership / epoch / fencing token / duplicate prevention",
+      "description": "各TaskはTask ID、idempotency key、current execution owner、lease expiry、execution epoch、fencing token、checkpoint/result versionを保持する。Ownership移動時はepoch/tokenを進め、旧Nodeの遅延結果・二重反映・二重side effectを拒否する。",
       "phase": "P7",
       "required_evidence": [
         "CODE",
@@ -6730,7 +6736,8 @@
       "implementation_refs": [
         "src/gai/offline-first-runtime.ts",
         "src/gai/durable-task-runtime.ts",
-        "src/gai/sync-engine.ts"
+        "src/gai/sync-engine.ts",
+        "docs/architecture/goriq-distributed-node-fabric.md"
       ],
       "test_refs": [
         "tests/gai-offline-first-runtime.test.ts",
@@ -6739,10 +6746,10 @@
       ],
       "evidence_refs": [],
       "status": "PARTIAL",
-      "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+      "blocker": "Lease/idempotencyは部分実装。execution epoch/fencing tokenを含むsplit-brain防止とside-effect ownershipの実機Evidenceは未完了。",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "P7: Leases/duplicate prevention。 について実装の不足を埋め、required_evidenceを取得する。",
+      "next_action": "通信断中の二重所有を注入し、古いepoch/token結果が拒否される自動/実機テストを追加する。",
       "last_verified_commit": null,
       "delivery_audit": {
         "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -9008,8 +9015,8 @@
     },
     {
       "id": "MIG-008",
-      "title": "Coordinator役割分離",
-      "description": "durable Broker・registry・enrollment・routingを物理PCと独立した論理roleにする",
+      "title": "Coordinator role separation and failover",
+      "description": "durable Broker/registry/enrollment/routing/schedulingのCoordinatorを物理PCから分離した論理roleとし、現在のCoordinator Node停止時に別trusted Nodeへ安全にfailoverできるようにする。Coordinator消失をGORIQ全停止条件にしない。",
       "phase": "P1",
       "migration_phase": "M1",
       "required_evidence": [
@@ -9020,14 +9027,16 @@
         "PHYSICAL",
         "RECOVERY"
       ],
-      "implementation_refs": [],
+      "implementation_refs": [
+        "docs/architecture/goriq-distributed-node-fabric.md"
+      ],
       "test_refs": [],
       "evidence_refs": [],
       "status": "MISSING",
-      "blocker": "Expanded requirement reconciled from staged ledger; main runtime integration and required evidence remain to be verified. Component software exists in unmerged #884; actual execution-path integration and requirement-wide evidence remain incomplete.",
+      "blocker": "論理role分離の構想/部品は存在するが、current mainでのCoordinator election/failoverと物理受入は未完了。",
       "platform_limit": null,
       "fallback": "現在のZBook Coordinator pathを保持する。",
-      "next_action": "Review/reuse staged implementation with current main; wire and verify required execution path. Wire the component into the applicable authenticated execution path, add integration/security acceptance, then obtain all required evidence classes. See docs/audit/887-completion-integration.md.",
+      "next_action": "Mac安定化後、MacBook+ZBookでCoordinator ownership/leaseを実装し、一方停止時の自動failoverを検証する。",
       "last_verified_commit": null,
       "delivery_audit": {
         "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
