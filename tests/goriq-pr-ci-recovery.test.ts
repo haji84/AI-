@@ -9,9 +9,11 @@ import {
   buildRecoveryPrompt,
   chooseRecoveryStrategy,
   failureFingerprint,
+  generatedWorkspaceNoisePaths,
   isSameRepositoryOpenPullRequest,
   normalizeConfiguredEnginePath,
   parseRecoveryHistory,
+  porcelainPaths,
   recoveryAttemptCount,
   sanitizeFailureLog,
   sanitizedBuilderEnvironment,
@@ -175,6 +177,27 @@ test("recovery prompt preserves bounded authority while changing strategy", () =
   assert.match(prompt, /src\/gai\/worker-runtime\.ts/);
   assert.match(prompt, /Do not commit, push, merge, deploy/);
   assert.match(prompt, /Do not weaken or delete tests/);
+});
+
+test("git porcelain parser preserves first path character", () => {
+  assert.deepEqual(
+    porcelainPaths(" M next-env.d.ts\r\nM  scripts/goriq-pr-ci-recovery.ts\r\n?? scratch.txt\r\n"),
+    ["next-env.d.ts", "scratch.txt", "scripts/goriq-pr-ci-recovery.ts"],
+  );
+});
+
+test("only known generated noise outside repair scope is restorable", () => {
+  assert.deepEqual(
+    generatedWorkspaceNoisePaths(
+      ["next-env.d.ts", "scripts/goriq-pr-ci-recovery.ts", "AGENTS.md"],
+      ["scripts/goriq-pr-ci-recovery.ts"],
+    ),
+    ["next-env.d.ts"],
+  );
+  assert.deepEqual(
+    generatedWorkspaceNoisePaths(["next-env.d.ts"], ["next-env.d.ts"]),
+    [],
+  );
 });
 
 test("Windows coding engine path resolves npm command shims", () => {
