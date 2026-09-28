@@ -311,7 +311,6 @@ async function showSidebarIfNeeded(client) {
 
 async function openAutomationProject(client) {
   await showSidebarIfNeeded(client);
-  const name = ${JSON.stringify(PROJECT_NAME)};
   const target = await evaluate(client, `(() => {
     const normalize = (value) => String(value || '').replace(/\\s+/g, ' ').trim();
     const visible = (el) => {
