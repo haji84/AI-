@@ -24,5 +24,10 @@ export function scoreResourceFit(
       (resources.diskAvailableMb === undefined || resources.diskAvailableMb < request.minDiskAvailableMb)) {
     return { eligible: false, score: -1000, reasons: ["disk"] };
   }
+  if (request.requireGpu === true &&
+      resources.gpuAvailable !== true &&
+      request.allowCpuFallbackForGpu !== true) {
+    return { eligible: false, score: -1000, reasons: ["gpu"] };
+  }
   return { eligible: true, score: 0, reasons: [] };
 }
