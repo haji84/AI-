@@ -85,8 +85,8 @@
     },
     {
       "id": "NET-003",
-      "title": "100台のAndroid全台へTailscaleを入れずZBookがprivate ingressとLAN Worker群を橋渡しする",
-      "description": "100台のAndroid全台へTailscaleを入れずZBookがprivate ingressとLAN Worker群を橋渡しする。",
+      "title": "Android Fleetは特定PCを恒久Gatewayとせずtrusted LAN/private routeから接続",
+      "description": "Android各端末へPrivate Overlay導入を必須にせず、利用可能なtrusted Gateway/Coordinator NodeがLAN Worker群を橋渡しする。ZBook固定依存を禁止し、NubiaでNode Contractを先行実証後、保存済みAndroid 38台を同一Fleet Contractへ後日追加する。",
       "phase": "P1",
       "required_evidence": [
         "CODE",
@@ -97,17 +97,18 @@
       "implementation_refs": [
         "scripts/jarvis-remote-access-lib.mjs",
         "scripts/jarvis-remote-preflight.mjs",
-        "docs/architecture/jarvis-remote-access.md"
+        "docs/architecture/jarvis-remote-access.md",
+        "docs/architecture/goriq-distributed-node-fabric.md"
       ],
       "test_refs": [
         "scripts/jarvis-remote-access.test.mjs"
       ],
       "evidence_refs": [],
       "status": "PARTIAL",
-      "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+      "blocker": "現行private-ingressはZBook中心の経路を持つ。Gateway/Coordinatorの複数Node failover、Nubia canary、38台後続Fleetの実機Evidenceは未完了。",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "P1: 100台のAndroid全台へTailscaleを入れずZBookがprivate ingressとLAN Worker群を橋渡しする。 について実装の不足を埋め、required_evidenceを取得する。",
+      "next_action": "Mac安定化完了後、MacBook+ZBookのGateway/Coordinator failoverを実証し、Nubiaを最初のAndroid distributed nodeとして追加する。38台Androidはその後のFleet拡張で接続する。",
       "last_verified_commit": null,
       "delivery_audit": {
         "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -872,8 +873,8 @@
     },
     {
       "id": "FLEET-007",
-      "title": "各Deviceにidentity/signing/capability/platform/connectivity/healthを保持",
-      "description": "各Deviceにidentity/signing/capability/platform/connectivity/healthを保持。",
+      "title": "各Nodeにidentity/signing/capability/resource/platform/connectivity/healthを保持",
+      "description": "各Nodeはstable identity/signingに加え、CPU/GPU/accelerator、RAM、OS/architecture、現在負荷、storage/data locality、network route、power/battery、thermal、sensor/camera/location、background制約、tool capability、health/lastSeenを可能な範囲でmanifest化する。不明値は推測しない。",
       "phase": "P4",
       "required_evidence": [
         "CODE",
@@ -884,18 +885,25 @@
       "implementation_refs": [
         "src/jarvis/fleet-manager.ts",
         "src/jarvis/enrollment.ts",
-        "src/app/jarvis/enroll/page.tsx"
+        "src/app/jarvis/enroll/page.tsx",
+        "docs/architecture/goriq-distributed-node-fabric.md",
+        "src/gai/device-capability-runtime.ts",
+        "src/gai/world-resource-model.ts",
+        "src/orchestrator/owner-fleet-capability-pool.ts"
       ],
       "test_refs": [
         "tests/jarvis-final-fleet-acceptance.test.ts",
-        "tests/jarvis-enrollment-security.test.ts"
+        "tests/jarvis-enrollment-security.test.ts",
+        "tests/gai-device-capability-runtime.test.ts",
+        "tests/gai-world-resource-model.test.ts",
+        "tests/owner-fleet-capability-pool.test.ts"
       ],
       "evidence_refs": [],
       "status": "PARTIAL",
-      "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+      "blocker": "identity/capability基盤は存在するが、全Node共通resource manifestとreturn/rebalance用更新契約の統合・実機Evidenceは未完了。",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "P4: 各Deviceにidentity/signing/capability/platform/connectivity/healthを保持。 について実装の不足を埋め、required_evidenceを取得する。",
+      "next_action": "MacBook+ZBookでresource manifestを統一し、Nubiaでmobile-edge manifestを実証する。",
       "last_verified_commit": null,
       "delivery_audit": {
         "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -2132,8 +2140,8 @@
     },
     {
       "id": "DEV-PC-007",
-      "title": "Platform-specific capability manifest",
-      "description": "Platform-specific capability manifest。",
+      "title": "Platform-specific capability/resource manifest",
+      "description": "PC/Mobile NodeはOS固有能力だけでなくCPU/GPU/RAM/load/data locality/network/power/thermal等のresource情報を共通Node Manifestへ公開し、Capability Routerが配置・fallback・rebalancingに利用する。",
       "phase": "P4",
       "required_evidence": [
         "CODE",
@@ -2143,18 +2151,23 @@
       ],
       "implementation_refs": [
         "src/gai/initial-worker-adapters.ts",
-        "src/gai/device-capability-runtime.ts"
+        "src/gai/device-capability-runtime.ts",
+        "docs/architecture/goriq-distributed-node-fabric.md",
+        "src/gai/world-resource-model.ts",
+        "src/orchestrator/owner-fleet-capability-pool.ts"
       ],
       "test_refs": [
         "tests/gai-initial-worker-adapters.test.ts",
-        "tests/gai-device-capability-runtime.test.ts"
+        "tests/gai-device-capability-runtime.test.ts",
+        "tests/gai-world-resource-model.test.ts",
+        "tests/owner-fleet-capability-pool.test.ts"
       ],
       "evidence_refs": [],
       "status": "PARTIAL",
-      "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+      "blocker": "platform capability manifestは部分実装。resource-aware schedulingに必要な統一manifestと物理Node検証が不足。",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "P4: Platform-specific capability manifest。 について実装の不足を埋め、required_evidenceを取得する。",
+      "next_action": "MacBook/ZBook/Nubiaの実機manifestを同一Contractで取得し、unknown値をfail-visibleにした上でRouterへ接続する。",
       "last_verified_commit": null,
       "delivery_audit": {
         "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -5446,8 +5459,8 @@
     },
     {
       "id": "AUTO-012",
-      "title": "Dynamic role composition",
-      "description": "Dynamic role composition。",
+      "title": "Dynamic logical role composition across nodes",
+      "description": "Coordinator/Executor/Storage/Verifier/Gateway/Owner-Input/Sensor-Edge等のroleを物理端末へ固定せず、verified capability・health・riskに応じて動的構成する。一Nodeが複数roleを持てるがCoordinator消失をGORIQ全停止条件にしない。",
       "phase": "P7",
       "required_evidence": [
         "CODE",
@@ -5457,7 +5470,8 @@
       ],
       "implementation_refs": [
         "src/orchestrator/dynamic-capability-team.ts",
-        "src/orchestrator/team-composer.ts"
+        "src/orchestrator/team-composer.ts",
+        "docs/architecture/goriq-distributed-node-fabric.md"
       ],
       "test_refs": [
         "tests/dynamic-multi-agent-runtime.test.ts",
@@ -5465,10 +5479,10 @@
       ],
       "evidence_refs": [],
       "status": "PARTIAL",
-      "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+      "blocker": "Agent/role compositionは存在するが、物理Node間でCoordinator等のruntime roleを移動する統合・復旧Evidenceは未完了。",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "P7: Dynamic role composition。 について実装の不足を埋め、required_evidenceを取得する。",
+      "next_action": "Coordinator/Executor/VerifierをMacBook+ZBook間で移動させ、停止・復旧時のrole再構成を検証する。",
       "last_verified_commit": null,
       "delivery_audit": {
         "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -8466,8 +8480,8 @@
     },
     {
       "id": "ACC-008",
-      "title": "Offline→local work or waiting→reconnect→sync→resume→verify",
-      "description": "Offline→local work or waiting→reconnect→sync→resume→verify。",
+      "title": "Offline/partition→local work or waiting→reconnect→sync→rebalance→verify",
+      "description": "通信断中は各Node/partitionが安全なlocal workを継続し、代替不能Taskだけ待機する。再接続後は差分同期、競合解決、stale ownership拒否、Task再配分、Verifier再確認まで実機で通す。",
       "phase": "P9",
       "required_evidence": [
         "CODE",
@@ -8476,14 +8490,25 @@
         "PHYSICAL",
         "RECOVERY"
       ],
-      "implementation_refs": [],
-      "test_refs": [],
+      "implementation_refs": [
+        "docs/architecture/goriq-distributed-node-fabric.md",
+        "src/gai/offline-first-runtime.ts",
+        "src/gai/durable-task-runtime.ts",
+        "src/gai/sync-engine.ts",
+        "src/gai/local-device-mesh.ts"
+      ],
+      "test_refs": [
+        "tests/gai-offline-first-runtime.test.ts",
+        "tests/gai-durable-task-runtime.test.ts",
+        "tests/gai-sync-engine.test.ts",
+        "tests/local-device-mesh.test.ts"
+      ],
       "evidence_refs": [],
       "status": "MISSING",
-      "blocker": "当該製品機能の実装・テスト・Evidenceを未発見。",
+      "blocker": "software primitivesは存在するが、Mac/ZBook/Nubiaを用いたend-to-end physical partition/recovery acceptanceは未完了。",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "P9: Offline→local work or waiting→reconnect→sync→resume→verify。 について実装の不足を埋め、required_evidenceを取得する。",
+      "next_action": "Stage B/Cの物理受入でpartition→independent work→sync→rebalance→verifyを証明する。",
       "last_verified_commit": null,
       "delivery_audit": {
         "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -10101,7 +10126,7 @@
     {
       "id": "CORE-009",
       "title": "Parallel / Adaptive / Multi-plan",
-      "description": "独立Task並列化、Fast/Deep、High Riskの独立検証。重要案件は複数Planの成功確率・品質・時間・費用・Riskを比較し実測Verifierで評価。",
+      "description": "独立Taskを複数trusted Nodeへ並列化し、Fast/Deep、High Riskの独立検証を行う。配置はcapabilityだけでなくCPU/GPU/RAM、負荷、data locality、network/power制約を考慮する。重要案件は複数Planの成功確率・品質・時間・費用・Riskを比較し実測Verifierで評価。",
       "phase": "P7",
       "required_evidence": [
         "CODE",
@@ -10109,7 +10134,8 @@
         "INTEGRATION"
       ],
       "implementation_refs": [
-        "src/orchestrator/dynamic-multi-agent-runtime.ts"
+        "src/orchestrator/dynamic-multi-agent-runtime.ts",
+        "docs/architecture/goriq-distributed-node-fabric.md"
       ],
       "test_refs": [],
       "evidence_refs": [],
@@ -11744,7 +11770,7 @@
     {
       "id": "GOV-021",
       "title": "123. Resource Governance",
-      "description": "Prevent unbounded agent loops and resource exhaustion.\r\n\r\nControl:\r\n- maximum task runtime\r\n- token/model budget where applicable\r\n- CPU/GPU/RAM\r\n- disk\r\n- network\r\n- child-agent count\r\n- retry count\r\n- parallelism\r\n- recursive planning depth\r\n\r\nBudget exhaustion must produce a resumable, explicit state rather than silent truncation.",
+      "description": "Prevent unbounded agent loops and resource exhaustion across the distributed node fabric.\n\nControl:\n- maximum task runtime\n- token/model budget where applicable\n- per-node and fleet CPU/GPU/RAM\n- disk and data locality\n- network\n- power/thermal constraints where available\n- child-agent count\n- retry count\n- parallelism\n- recursive planning depth\n- migration/rebalance budgets\n\nBudget exhaustion or node loss must produce a resumable, explicit state or safe fallback rather than silent truncation. Resource governance must not turn one node failure into a global stop when another authorized path remains.",
       "phase": "P8",
       "required_evidence": [
         "CODE",
@@ -11753,7 +11779,8 @@
         "SECURITY"
       ],
       "implementation_refs": [
-        "src/gai/durable-task-runtime.ts"
+        "src/gai/durable-task-runtime.ts",
+        "docs/architecture/goriq-distributed-node-fabric.md"
       ],
       "test_refs": [],
       "evidence_refs": [],
