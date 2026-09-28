@@ -221,8 +221,34 @@ export function allowedRepairPaths(prPaths: string[]): string[] {
     .sort();
 }
 
+export function commandInvocation(
+  command: string,
+  args: string[],
+  platform: NodeJS.Platform = process.platform,
+  comSpec: string = process.env.ComSpec || "cmd.exe",
+): { command: string; args: string[] } {
+  const extension = extname(command).toLowerCase();
+  if (platform === "win32" && (extension === ".cmd" || extension === ".bat")) {
+    return { command: comSpec, args: ["/d", "/s", "/c", command, ...args] };
+  }
+  return { command, args };
+}
+
+function resolveCommandForPlatform(command: string): string {
+  if (process.platform !== "win32" || extname(command)) return command;
+  const probe = spawnSync("where.exe", [command], { encoding: "utf8", windowsHide: true });
+  if (probe.status !== 0) return command;
+  const first = String(probe.stdout ?? "")
+    .split(/\r?\n/)
+    .map((value) => value.trim())
+    .find(Boolean);
+  return first ? normalizeConfiguredEnginePath(first) : command;
+}
+
 function runRaw(command: string, args: string[], cwd: string, input?: string): string {
-  const result = spawnSync(command, args, {
+  const resolvedCommand = resolveCommandForPlatform(command);
+  const invocation = commandInvocation(resolvedCommand, args);
+  const result = spawnSync(invocation.command, invocation.args, {
     cwd,
     encoding: "utf8",
     input,
@@ -230,8 +256,12 @@ function runRaw(command: string, args: string[], cwd: string, input?: string): s
     windowsHide: true,
     maxBuffer: 8 * 1024 * 1024,
   });
+  if (result.error) {
+    throw new Error(`${command} ${args.join(" ")} failed to launch: ${result.error.message}`);
+  }
   if (result.status !== 0) {
-    throw new Error(`${command} ${args.join(" ")} failed: ${String(result.stderr || result.stdout).slice(-4000)}`);
+    const output = String(result.stderr || result.stdout || "no command output").slice(-4000);
+    throw new Error(`${command} ${args.join(" ")} failed with exit ${String(result.status)}: ${output}`);
   }
   return String(result.stdout ?? "");
 }
