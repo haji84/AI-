@@ -19,7 +19,7 @@ export interface DailyDriverLiveE2EEvidence {
     id: string;
     type: string;
     status: string;
-    targetNodeHash: string | null;
+    targetNodeHash: string;
     detailKeys: string[];
   };
   transitions: Array<{ status: string; observedAt: string }>;
