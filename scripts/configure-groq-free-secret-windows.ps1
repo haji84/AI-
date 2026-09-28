@@ -5,18 +5,21 @@ param(
 $ErrorActionPreference = 'Stop'
 $Workflow = 'goriq-repair-engines-runtime.yml'
 
-foreach ($command in @('gh','node')) {
-  if (-not (Get-Command $command -ErrorAction SilentlyContinue)) {
-    throw "$command is required."
-  }
-}
+$node = Get-Command node -ErrorAction SilentlyContinue
+if (-not $node) { throw 'node is required.' }
 
-& gh auth status | Out-Null
-if ($LASTEXITCODE -ne 0) { throw 'GitHub CLI is not authenticated.' }
+$gh = Get-Command gh -ErrorAction SilentlyContinue
+$secretsUrl = 'https://github.com/haji84/AI-/settings/secrets/actions'
 
 Write-Host 'Opening Groq API Keys page...'
 Start-Process 'https://console.groq.com/keys'
 Write-Host 'Create/copy a Free Plan API key in the browser, then return here.'
+
+if (-not $gh) {
+  Write-Host ''
+  Write-Host 'GitHub CLI (gh) is not installed on this PC.'
+  Write-Host 'That is OK. After the key is validated, GitHub Secrets will be opened in your browser.'
+}
 $secure = Read-Host 'Groq API key' -AsSecureString
 $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
 $plain = ''
@@ -46,15 +49,30 @@ process.stdout.write("Groq Free Plan API key validated; qwen/qwen3.8-27b is avai
   $validate | & node
   if ($LASTEXITCODE -ne 0) { throw 'Groq API key validation failed.' }
 
-  $plain | & gh secret set GROQ_API_KEY --repo $Repository
-  if ($LASTEXITCODE -ne 0) { throw 'Failed to store GROQ_API_KEY in GitHub Actions secrets.' }
+  if ($gh) {
+    & gh auth status | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw 'GitHub CLI is installed but not authenticated.' }
 
-  Write-Host "GROQ_API_KEY stored as a GitHub Actions repository secret for $Repository."
-  Write-Host 'The key was not written to the repository.'
+    $plain | & gh secret set GROQ_API_KEY --repo $Repository
+    if ($LASTEXITCODE -ne 0) { throw 'Failed to store GROQ_API_KEY in GitHub Actions secrets.' }
 
-  & gh workflow run $Workflow --repo $Repository --ref main
-  if ($LASTEXITCODE -ne 0) { throw 'Failed to dispatch GORIQ Repair Engines Runtime verification.' }
-  Write-Host 'GORIQ Repair Engines Runtime verification dispatched.'
+    Write-Host "GROQ_API_KEY stored as a GitHub Actions repository secret for $Repository."
+    Write-Host 'The key was not written to the repository.'
+
+    & gh workflow run $Workflow --repo $Repository --ref main
+    if ($LASTEXITCODE -ne 0) { throw 'Failed to dispatch GORIQ Repair Engines Runtime verification.' }
+    Write-Host 'GORIQ Repair Engines Runtime verification dispatched.'
+  } else {
+    Start-Process $secretsUrl
+    Write-Host ''
+    Write-Host 'Groq key validation passed.'
+    Write-Host 'GitHub Secrets has been opened in your browser.'
+    Write-Host 'Create a new repository secret with:'
+    Write-Host '  Name: GROQ_API_KEY'
+    Write-Host '  Secret: paste the Groq API key you just validated'
+    Write-Host ''
+    Write-Host 'After saving it, tell ChatGPT "Groq入れた".'
+  }
 } finally {
   Remove-Item Env:GROQ_API_KEY -ErrorAction SilentlyContinue
   if ($bstr -ne [IntPtr]::Zero) { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr) }
