@@ -1,10 +1,41 @@
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { autoReconcileTraceability } from "../src/orchestrator/safe-pr-capability.ts";
 
-export const MAX_AUTOMATIC_ATTEMPTS = 3;
+export const MAX_AUTOMATIC_ATTEMPTS_PER_STRATEGY = 3;
+export const MAX_AUTOMATIC_STRATEGIES = 3;
+export const MAX_AUTOMATIC_ATTEMPTS = MAX_AUTOMATIC_ATTEMPTS_PER_STRATEGY * MAX_AUTOMATIC_STRATEGIES;
+export const SAME_FAILURE_SWITCH_THRESHOLD = 2;
+
+export type RecoveryStrategy = 1 | 2 | 3;
+
+export interface RecoveryHistoryEntry {
+  strategy: RecoveryStrategy;
+  strategyAttempt: number;
+  totalAttempt: number;
+  failureFingerprint: string;
+}
+
+export type RecoveryDecision =
+  | {
+      action: "attempt";
+      strategy: RecoveryStrategy;
+      strategyAttempt: number;
+      totalAttempt: number;
+      failureFingerprint: string;
+      sameFailureOccurrences: number;
+      reason: "initial" | "progress-continue" | "same-failure-escalation" | "strategy-budget-escalation";
+    }
+  | {
+      action: "human-gate";
+      totalAttempt: number;
+      failureFingerprint: string;
+      sameFailureOccurrences: number;
+      reason: "strategies-exhausted";
+    };
 
 export interface PullRequestInfo {
   number: number;
@@ -22,7 +53,125 @@ export function isSameRepositoryOpenPullRequest(pr: PullRequestInfo, repository:
 }
 
 export function recoveryAttemptCount(subjects: string[]): number {
-  return subjects.filter((subject) => subject.startsWith("fix(ci): goriq recovery attempt ")).length;
+  return subjects.filter((subject) =>
+    subject.startsWith("fix(ci): goriq recovery attempt ")
+      || subject.startsWith("fix(ci): goriq recovery strategy ")
+  ).length;
+}
+
+export function failureFingerprint(value: string): string {
+  const sanitized = sanitizeFailureLog(value);
+  const signalLines = sanitized
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .filter((line) => /(?:error|failed|failure|exception|assert|typeerror|referenceerror|cannot|not found|expected|actual|elifecycle|err_)/i.test(line));
+
+  const source = (signalLines.length ? signalLines.slice(-80).join("\n") : sanitized.slice(-12_000))
+    .replace(/\b[0-9a-f]{40}\b/gi, "<sha>")
+    .replace(/\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z\b/g, "<timestamp>")
+    .replace(/:\d+(?::\d+)?\b/g, ":<line>")
+    .replace(/\b(?:run|job|attempt)[-_ ]?\d+\b/gi, "$1-<n>")
+    .replace(/\b\d+(?:\.\d+)?(?:ms|s|sec|seconds|minutes|min)\b/gi, "<duration>")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+
+  return createHash("sha256").update(source).digest("hex").slice(0, 16);
+}
+
+export function parseRecoveryHistory(messages: string[]): RecoveryHistoryEntry[] {
+  const entries: RecoveryHistoryEntry[] = [];
+  for (const message of messages) {
+    const strategyMatch = message.match(/^GORIQ-Recovery-Strategy:\s*([1-3])$/mi);
+    const strategyAttemptMatch = message.match(/^GORIQ-Recovery-Strategy-Attempt:\s*(\d+)$/mi);
+    const totalAttemptMatch = message.match(/^GORIQ-Recovery-Total-Attempt:\s*(\d+)$/mi);
+    const fingerprintMatch = message.match(/^GORIQ-Recovery-Failure-Fingerprint:\s*([a-f0-9]{8,64})$/mi);
+    if (strategyMatch && strategyAttemptMatch && totalAttemptMatch && fingerprintMatch) {
+      entries.push({
+        strategy: Number(strategyMatch[1]) as RecoveryStrategy,
+        strategyAttempt: Number(strategyAttemptMatch[1]),
+        totalAttempt: Number(totalAttemptMatch[1]),
+        failureFingerprint: fingerprintMatch[1].toLowerCase(),
+      });
+      continue;
+    }
+
+    const legacy = message.match(/^fix\(ci\): goriq recovery attempt (\d+)/mi);
+    if (legacy) {
+      const attempt = Number(legacy[1]);
+      entries.push({
+        strategy: 1,
+        strategyAttempt: Math.min(attempt, MAX_AUTOMATIC_ATTEMPTS_PER_STRATEGY),
+        totalAttempt: attempt,
+        failureFingerprint: "legacy-unknown",
+      });
+    }
+  }
+  return entries;
+}
+
+export function chooseRecoveryStrategy(
+  history: RecoveryHistoryEntry[],
+  currentFingerprint: string,
+): RecoveryDecision {
+  if (!history.length) {
+    return {
+      action: "attempt",
+      strategy: 1,
+      strategyAttempt: 1,
+      totalAttempt: 1,
+      failureFingerprint: currentFingerprint,
+      sameFailureOccurrences: 1,
+      reason: "initial",
+    };
+  }
+
+  const latest = history[0];
+  let strategyAttempts = 0;
+  for (const entry of history) {
+    if (entry.strategy !== latest.strategy) break;
+    strategyAttempts += 1;
+  }
+
+  let sameFailureOccurrences = 1;
+  for (const entry of history) {
+    if (entry.strategy !== latest.strategy || entry.failureFingerprint !== currentFingerprint) break;
+    sameFailureOccurrences += 1;
+  }
+
+  const repeatedSameFailure = sameFailureOccurrences >= SAME_FAILURE_SWITCH_THRESHOLD;
+  const strategyBudgetExhausted = strategyAttempts >= MAX_AUTOMATIC_ATTEMPTS_PER_STRATEGY;
+  if (repeatedSameFailure || strategyBudgetExhausted) {
+    if (latest.strategy >= MAX_AUTOMATIC_STRATEGIES) {
+      return {
+        action: "human-gate",
+        totalAttempt: latest.totalAttempt,
+        failureFingerprint: currentFingerprint,
+        sameFailureOccurrences,
+        reason: "strategies-exhausted",
+      };
+    }
+    return {
+      action: "attempt",
+      strategy: (latest.strategy + 1) as RecoveryStrategy,
+      strategyAttempt: 1,
+      totalAttempt: latest.totalAttempt + 1,
+      failureFingerprint: currentFingerprint,
+      sameFailureOccurrences,
+      reason: repeatedSameFailure ? "same-failure-escalation" : "strategy-budget-escalation",
+    };
+  }
+
+  return {
+    action: "attempt",
+    strategy: latest.strategy,
+    strategyAttempt: strategyAttempts + 1,
+    totalAttempt: latest.totalAttempt + 1,
+    failureFingerprint: currentFingerprint,
+    sameFailureOccurrences,
+    reason: "progress-continue",
+  };
 }
 
 export function sanitizeFailureLog(value: string): string {
@@ -204,16 +353,29 @@ function runCodex(engine: string, workspace: string, prompt: string): void {
 
 export function buildRecoveryPrompt(input: {
   prNumber: number;
-  attempt: number;
+  strategy: RecoveryStrategy;
+  strategyAttempt: number;
+  totalAttempt: number;
+  decisionReason: RecoveryDecision extends { action: "attempt"; reason: infer R } ? R : never;
+  failureFingerprint: string;
   allowedPaths: string[];
   failureLog: string;
 }): string {
+  const strategyInstruction = input.strategy === 1
+    ? "Strategy 1: use the smallest evidence-backed localized implementation correction."
+    : input.strategy === 2
+      ? "Strategy 2: use a materially different implementation path. Re-check call sites, data flow, invariants and assumptions; do not repeat the prior correction pattern."
+      : "Strategy 3: use a bounded structural or architectural correction inside AllowedPaths only. Refactor the implementation shape if needed, but do not expand authority or modify tests, dependencies, workflows or governance.";
+
   return [
     "You are the bounded GORIQ CI recovery worker.",
     "Read AGENTS.md and PROJECT_STATE.md before editing.",
-    `Fix the concrete CI failure for PR #${input.prNumber}. This is automatic recovery attempt ${input.attempt} of ${MAX_AUTOMATIC_ATTEMPTS}.`,
-    input.attempt > 1 ? "Inspect prior recovery commits and do not repeat a materially equivalent failed correction." : "Use the first evidence-backed minimal correction.",
-    "Make the smallest implementation correction supported by the failure evidence.",
+    `Fix the concrete CI failure for PR #${input.prNumber}.`,
+    `Recovery strategy ${input.strategy} of ${MAX_AUTOMATIC_STRATEGIES}; strategy attempt ${input.strategyAttempt} of ${MAX_AUTOMATIC_ATTEMPTS_PER_STRATEGY}; total attempt ${input.totalAttempt} of at most ${MAX_AUTOMATIC_ATTEMPTS}.`,
+    `RecoveryDecision=${input.decisionReason}; FailureFingerprint=${input.failureFingerprint}`,
+    strategyInstruction,
+    input.totalAttempt > 1 ? "Inspect prior recovery commits and do not repeat a materially equivalent failed correction." : "Use the first evidence-backed correction.",
+    "Treat a changed failure mode as progress evidence, not permission to broaden scope.",
     "Do not commit, push, merge, deploy, change workflows, permissions, credentials, secrets, dependencies, requirements, governance, or existing tests.",
     "Do not weaken or delete tests. Do not edit files outside AllowedPaths.",
     `AllowedPaths=${input.allowedPaths.join(",")}`,
@@ -301,14 +463,11 @@ async function main() {
   const localHead = run("git", ["rev-parse", "HEAD"], workspace);
   if (localHead !== expectedHead) throw new Error("CHECKED_OUT_HEAD_MISMATCH");
 
-  const subjects = run("git", ["log", "--format=%s", `origin/${pr.base.ref}..HEAD`], workspace)
-    .split(/\r?\n/)
+  const recoveryMessages = run("git", ["log", "--format=%B%x1e", `origin/${pr.base.ref}..HEAD`], workspace)
+    .split("\x1e")
+    .map((message) => message.trim())
     .filter(Boolean);
-  const priorAttempts = recoveryAttemptCount(subjects);
-  if (priorAttempts >= MAX_AUTOMATIC_ATTEMPTS) {
-    throw new Error("AUTOMATIC_RECOVERY_ATTEMPT_BUDGET_EXHAUSTED");
-  }
-  const attempt = priorAttempts + 1;
+  const history = parseRecoveryHistory(recoveryMessages);
 
   const prPaths = await pullRequestFiles(repository, prNumber, token);
   const allowed = allowedRepairPaths(prPaths);
@@ -316,10 +475,19 @@ async function main() {
 
   const failureLog = await failedRunLog(repository, failedRunId, token);
   if (!failureLog.trim()) throw new Error("FAILED_RUN_LOG_UNAVAILABLE");
+  const fingerprint = failureFingerprint(failureLog);
+  const decision = chooseRecoveryStrategy(history, fingerprint);
+  if (decision.action === "human-gate") {
+    throw new Error(`AUTOMATIC_RECOVERY_STRATEGIES_EXHAUSTED: fingerprint=${fingerprint}; sameFailureOccurrences=${decision.sameFailureOccurrences}`);
+  }
 
   const prompt = buildRecoveryPrompt({
     prNumber,
-    attempt,
+    strategy: decision.strategy,
+    strategyAttempt: decision.strategyAttempt,
+    totalAttempt: decision.totalAttempt,
+    decisionReason: decision.reason,
+    failureFingerprint: fingerprint,
     allowedPaths: allowed,
     failureLog,
   });
@@ -369,14 +537,28 @@ async function main() {
   run("git", ["add", "--", ...changed], workspace);
   const staged = run("git", ["diff", "--cached", "--name-only"], workspace);
   if (!staged.trim()) throw new Error("RECOVERY_PATCH_EMPTY_AFTER_VERIFICATION");
-  run("git", ["commit", "-m", `fix(ci): goriq recovery attempt ${attempt}`], workspace);
+  const recoveryCommitMessage = [
+    `fix(ci): goriq recovery strategy ${decision.strategy} attempt ${decision.strategyAttempt}`,
+    "",
+    `GORIQ-Recovery-Strategy: ${decision.strategy}`,
+    `GORIQ-Recovery-Strategy-Attempt: ${decision.strategyAttempt}`,
+    `GORIQ-Recovery-Total-Attempt: ${decision.totalAttempt}`,
+    `GORIQ-Recovery-Failure-Fingerprint: ${fingerprint}`,
+    `GORIQ-Recovery-Decision: ${decision.reason}`,
+  ].join("\n");
+  run("git", ["commit", "-m", recoveryCommitMessage], workspace);
   pushWithGithubToken(workspace, pr.head.ref, token);
 
   const commit = run("git", ["rev-parse", "HEAD"], workspace);
   process.stdout.write(JSON.stringify({
     status: "FIXED",
     prNumber,
-    attempt,
+    strategy: decision.strategy,
+    strategyAttempt: decision.strategyAttempt,
+    totalAttempt: decision.totalAttempt,
+    recoveryDecision: decision.reason,
+    failureFingerprint: fingerprint,
+    sameFailureOccurrences: decision.sameFailureOccurrences,
     failedRunId,
     previousHead: expectedHead,
     commit,
