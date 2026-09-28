@@ -48,6 +48,19 @@ test("Chat and Work repair client requests a diff and cannot directly push", asy
   assert.match(source, /goriq-repair-\$\{mode\}/);
 });
 
+test("Chat and Work reuse one canonical 自動化 project conversation", async () => {
+  const source = await readFile(chatClientUrl, "utf8");
+  assert.match(source, /GORIQ_AUTOMATION_PROJECT/);
+  assert.match(source, /"自動化"/);
+  assert.match(source, /REPAIR_CONVERSATION_TITLE/);
+  assert.match(source, /findOrCreateAutomationConversation/);
+  assert.match(source, /enqueueProjectRepair/);
+  assert.match(source, /project: AUTOMATION_PROJECT/);
+  assert.match(source, /encodeChatComment/);
+  assert.match(source, /pendingOwnerMessageId: requestId/);
+  assert.doesNotMatch(source, /state:\s*"closed"/);
+});
+
 test("runtime workflow installs ZBook local engines and refreshes the Mac Chat Work bridge", async () => {
   const source = await readFile(runtimeWorkflowUrl, "utf8");
   assert.match(source, /runs-on: \[self-hosted, Windows, X64\]/);
