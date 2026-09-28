@@ -129,6 +129,9 @@ test("Groq setup stores the Free Plan key only in GitHub Actions secrets", async
   assert.match(mac, /https:\/\/console\.groq\.com\/keys/);
   assert.match(windows, /Read-Host 'Groq API key' -AsSecureString/);
   assert.match(windows, /https:\/\/console\.groq\.com\/keys/);
+  assert.match(windows, /settings\/secrets\/actions/);
+  assert.match(windows, /GitHub CLI \(gh\) is not installed on this PC/);
+  assert.match(windows, /Name: GROQ_API_KEY/);
   assert.match(windows, /ZeroFreeBSTR/);
   for (const source of [mac, windows]) {
     assert.match(source, /https:\/\/api\.groq\.com\/openai\/v1\/models/);
