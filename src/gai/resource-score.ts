@@ -29,5 +29,17 @@ export function scoreResourceFit(
       request.allowCpuFallbackForGpu !== true) {
     return { eligible: false, score: -1000, reasons: ["gpu"] };
   }
+  if (request.maxCpuLoadPercent !== undefined) {
+    const load = percent(resources.cpuLoadPercent);
+    if (load === undefined || load > request.maxCpuLoadPercent) {
+      return { eligible: false, score: -1000, reasons: ["cpu-load"] };
+    }
+  }
+  if (request.maxGpuLoadPercent !== undefined) {
+    const load = percent(resources.gpuLoadPercent);
+    if (load === undefined || load > request.maxGpuLoadPercent) {
+      return { eligible: false, score: -1000, reasons: ["gpu-load"] };
+    }
+  }
   return { eligible: true, score: 0, reasons: [] };
 }
