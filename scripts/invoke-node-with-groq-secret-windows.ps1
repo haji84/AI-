@@ -1,6 +1,7 @@
 param(
   [Parameter(Mandatory = $true)][string]$NodeScript,
   [string[]]$NodeArguments = @(),
+  [string]$InputText = '',
   [switch]$RequireSecret
 )
 
@@ -9,6 +10,7 @@ $SecretPath = Join-Path $env:LOCALAPPDATA 'GORIQ\secrets\groq.dpapi'
 $plain = ''
 $secure = $null
 $credential = $null
+$encrypted = $null
 
 try {
   if (Test-Path -LiteralPath $SecretPath) {
@@ -23,15 +25,18 @@ try {
   if ([string]::IsNullOrWhiteSpace($plain)) {
     if ($RequireSecret) { throw 'GORIQ_GROQ_LOCAL_SECRET_NOT_CONFIGURED' }
     Write-Host 'Groq local secret is not configured; Stage 7 will be skipped.'
-    & node $NodeScript @NodeArguments
-    exit $LASTEXITCODE
+  } else {
+    if ($env:GITHUB_ACTIONS -eq 'true') {
+      Write-Output "::add-mask::$plain"
+    }
+    $env:GROQ_API_KEY = $plain
   }
 
-  if ($env:GITHUB_ACTIONS -eq 'true') {
-    Write-Output "::add-mask::$plain"
+  if ([string]::IsNullOrEmpty($InputText)) {
+    & node $NodeScript @NodeArguments
+  } else {
+    $InputText | & node $NodeScript @NodeArguments
   }
-  $env:GROQ_API_KEY = $plain
-  & node $NodeScript @NodeArguments
   $code = $LASTEXITCODE
   exit $code
 } finally {
