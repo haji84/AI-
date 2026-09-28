@@ -403,7 +403,7 @@ type RepairEngineRunner = {
 const REPAIR_SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const LOCAL_FAST_MODEL = "qwen2.5-coder:1.5b";
 const LOCAL_STRONG_MODEL = "qwen2.5-coder:3b";
-const FREE_EXTERNAL_MODEL = "glm-4.7:cloud";
+const FREE_EXTERNAL_MODEL = "gpt-oss:20b-cloud";
 
 export const REPAIR_ENGINE_COMMAND_ENV: Readonly<Partial<Record<Exclude<RepairEngineId, "human-gate" | "goriq-deterministic" | "goriq-learned" | "goriq-local-code" | "goriq-local-capability" | "chat" | "work" | "free-external" | "codex">, string>>> = Object.freeze({});
 
