@@ -53,3 +53,11 @@ test("macOS installer detaches resident bridge from the GitHub Actions runner wo
   assert.match(installer, /RUNNER_TRACKING_ID<\/key>[\s\S]*?<string><\/string>/);
   assert.match(installer, /ProgramArguments[\s\S]*?LAUNCHER_XML/);
 });
+
+test("repair issues are excluded from resident polling and supported by one-shot mode", () => {
+  assert.match(source, /function isRepairIssue/);
+  assert.match(source, /filter\(\(issue\) => !isRepairIssue\(issue\)\)/);
+  assert.match(source, /AI_COMPANY_REPAIR_ONCE_ISSUE/);
+  assert.match(source, /async function runOneShotRepair/);
+  assert.match(source, /REPAIR_ISSUE_NOT_PENDING/);
+});
