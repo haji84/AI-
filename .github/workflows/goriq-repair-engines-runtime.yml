@@ -16,6 +16,7 @@ on:
       - 'scripts/goriq-learned-repair-smoke.mjs'
       - 'src/orchestrator/repair-engine-router.ts'
       - '.github/workflows/goriq-repair-engines-runtime.yml'
+      - '.github/workflows/goriq-chat-work-repair-worker.yml'
   workflow_dispatch:
 
 permissions:
@@ -130,6 +131,9 @@ jobs:
 
   chat-work-repair-smoke:
     needs: [mac-bridge-post-cleanup-proof]
+    permissions:
+      contents: write
+      issues: write
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
