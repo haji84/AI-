@@ -34,7 +34,7 @@ test("broker DB inventory reports counts without exposing fleet identities", asy
   assert.equal(result.fleetCount, 2);
   assert.equal(result.workerIdentityCount, 2);
   assert.equal(result.snapshotUpdatedAt, snapshot.generatedAt);
-  assert.match(result.sha256, /^[a-f0-9]{64}$/);
+  assert.match(result.sha256 ?? "", /^[a-f0-9]{64}$/);
   const serialized = JSON.stringify(result);
   assert.equal(serialized.includes("secret-node-a"), false);
   assert.equal(serialized.includes(dbPath), false);
