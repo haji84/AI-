@@ -1,0 +1,39 @@
+name: GORIQ ZBook Fleet Liveness Diagnosis
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/goriq-zbook-fleet-liveness.ps1'
+      - '.github/workflows/goriq-zbook-fleet-liveness.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 1
+      - name: Require exact current main
+        shell: powershell
+        run: |
+          git fetch --no-tags origin main
+          if ((git rev-parse HEAD) -ne (git rev-parse origin/main)) { throw 'checkout is not current main' }
+          if ($env:GITHUB_EVENT_NAME -ne 'workflow_dispatch' -and (git rev-parse HEAD) -ne $env:GITHUB_SHA) { throw 'checkout does not match triggering main commit' }
+      - name: Inspect ZBook fleet liveness without device identifiers
+        shell: powershell
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/goriq-zbook-fleet-liveness.ps1
+      - name: Upload sanitized diagnosis
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: goriq-zbook-fleet-liveness
+          path: .gai-results/zbook-fleet-liveness.json
+          if-no-files-found: error
+          retention-days: 14
