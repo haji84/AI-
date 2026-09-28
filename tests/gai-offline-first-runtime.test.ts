@@ -270,3 +270,47 @@ test("heartbeat interval must remain inside the lease window", () => {
     heartbeatIntervalMs: 100,
   }), /heartbeatIntervalMs/);
 });
+
+
+test("PINNED task waits for its exact node and resumes only when that node returns", async () => {
+  const tasks = new DurableTaskRuntime(new MemoryDurableTaskStore());
+  await tasks.enqueue({
+    id: "pinned-offline",
+    idempotencyKey: "pinned-offline",
+    type: "local-analysis",
+    migrationClass: "PINNED",
+    pinnedNodeId: "pinned-worker",
+  });
+
+  let pinnedAvailable = false;
+  const alternate = createFunctionWorker({
+    descriptor: { ...offlineWorkerDescriptor, id: "a-alternate", label: "Alternate" },
+    health: () => ({ connectivity: "offline" }),
+    run: async () => "alternate-must-not-run",
+  });
+  const pinned = createFunctionWorker({
+    descriptor: { ...offlineWorkerDescriptor, id: "pinned-worker", label: "Pinned" },
+    available: () => pinnedAvailable,
+    health: () => ({ connectivity: "offline" }),
+    run: async () => "pinned-result",
+  });
+  const coordinator = new OfflineFirstExecutionCoordinator({
+    tasks,
+    workers: new MultiWorkerRuntime([alternate, pinned]),
+    connectivity: new ConnectivityManager("offline"),
+    resolve: resolver,
+  });
+
+  const waiting = await coordinator.runNext();
+  assert.equal(waiting?.task.status, "waiting-resource");
+  assert.equal(waiting?.task.waitReason, "pinned-node");
+  assert.equal(waiting?.evidence.decision, "wait-resource");
+  assert.equal(await tasks.resumeWaiting("resource"), 0);
+
+  pinnedAvailable = true;
+  assert.equal(await tasks.resumePinnedNode("pinned-worker"), 1);
+  const completed = await coordinator.runNext();
+  assert.equal(completed?.task.status, "completed");
+  assert.equal(completed?.evidence.selectedWorkerId, "pinned-worker");
+  assert.equal((completed?.task.result as { output?: string })?.output, "pinned-result");
+});
