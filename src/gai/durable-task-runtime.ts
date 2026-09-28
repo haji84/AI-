@@ -543,6 +543,7 @@ export class DurableTaskRuntime {
     task.leaseOwner = undefined;
     task.leaseUntil = undefined;
     task.fencingToken = undefined;
+    task.recoveryBlocker = undefined;
     task.nextAttemptAt = undefined;
     this.transition(task, "cancelled", reason, now);
     await this.refreshDependencyState(now);
