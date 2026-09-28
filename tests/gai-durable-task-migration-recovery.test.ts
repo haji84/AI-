@@ -44,3 +44,21 @@ test("RESTARTABLE discards stale checkpoint before another node retries", async 
   assert.equal(recovered?.history.at(-1)?.evidence?.recoveryMode, "restart");
   assert.equal((await runtime.leaseClaim("r1", "zbook", 60_000, plus(4))).epoch, 2);
 });
+
+test("PINNED waits for the original node and cannot migrate", async () => {
+  const runtime = new DurableTaskRuntime(new MemoryDurableTaskStore());
+  await runtime.enqueue({ id: "p1", idempotencyKey: "p1", type: "sensor", migrationClass: "PINNED" }, t0);
+  const first = await runtime.leaseClaim("p1", "macbook", 60_000, plus(1));
+  await runtime.markRunningClaimed(first, plus(2));
+  await runtime.recoverOrphans(new Set(), plus(3));
+  const waiting = await runtime.get("p1");
+  assert.equal(waiting?.status, "waiting-resource");
+  assert.equal(waiting?.pinnedOwner, "macbook");
+  assert.equal(waiting?.recoveryBlocker, "PINNED_OWNER_UNAVAILABLE");
+  assert.equal(await runtime.resumeWaiting("resource", plus(4)), 0);
+  await assert.rejects(() => runtime.resumeRecovery("p1", { owner: "zbook" }, plus(5)), /PINNED_OWNER_REQUIRED/);
+  await runtime.resumeRecovery("p1", { owner: "macbook" }, plus(6));
+  await assert.rejects(() => runtime.leaseClaim("p1", "zbook", 60_000, plus(7)), /PINNED_TASK_OWNER_MISMATCH/);
+  assert.equal((await runtime.get("p1"))?.status, "retrying");
+  assert.equal((await runtime.leaseClaim("p1", "macbook", 60_000, plus(8))).epoch, 2);
+});
