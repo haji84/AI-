@@ -118,7 +118,7 @@ async function ghJsonPages(path) {
 function isRepairIssue(issue) {
   const meta = decodeConversationBody(issue?.body ?? "");
   const pendingMeta = String(meta?.githubBridge?.pendingOwnerPayload?.meta ?? "");
-  return /(?:^|\\s)repair-surface:(chat|work)(?:\\s|$)/i.test(pendingMeta);
+  return /(?:^|\s)repair-surface:(chat|work)(?:\s|$)/i.test(pendingMeta);
 }
 
 async function listPendingIssues() {
@@ -437,7 +437,7 @@ function fingerprintMessage(message) {
 
 function repairSurfaceFromPending(pending) {
   const meta = String(pending?.meta ?? "");
-  const match = meta.match(/(?:^|\\s)repair-surface:(chat|work)(?:\\s|$)/i);
+  const match = meta.match(/(?:^|\s)repair-surface:(chat|work)(?:\s|$)/i);
   return match?.[1]?.toLowerCase() === "work" ? "work" : "chat";
 }
 

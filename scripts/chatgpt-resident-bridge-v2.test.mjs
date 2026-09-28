@@ -62,6 +62,12 @@ test("repair issues are excluded from resident polling and supported by one-shot
   assert.match(source, /REPAIR_ISSUE_NOT_PENDING/);
 });
 
+test("project-scoped repair metadata accepts normal whitespace separators", () => {
+  assert.match(source, /return \/\(\?:\^\|\\s\)repair-surface:\(chat\|work\)\(\?:\\s\|\$\)\/i\.test\(pendingMeta\)/);
+  assert.match(source, /meta\.match\(\/\(\?:\^\|\\s\)repair-surface:\(chat\|work\)\(\?:\\s\|\$\)\/i\)/);
+  assert.doesNotMatch(source, /\(\?:\^\|\\\\s\)repair-surface/);
+});
+
 test("fresh reply detection does not require ChatGPT URL transition", () => {
   assert.doesNotMatch(source, /conversationAdvanced/);
   assert.match(source, /if \(candidate\?\.text\)/);
