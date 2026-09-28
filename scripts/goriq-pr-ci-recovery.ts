@@ -57,7 +57,7 @@ function isTestPath(path: string): boolean {
   return path.startsWith("tests/") || /\.(?:test|spec)\.[cm]?[jt]sx?$/.test(path);
 }
 
-const PROTECTED_PATH_PATTERN = /(?:^|\/)(?:auth|security|secret|credential|permission|billing|payment|enroll(?:ment)?|migration|token)(?:[-_./]|$)/i;
+const PROTECTED_PATH_PATTERN = /(?:^|[-_./])(?:auth|security|secret|credential|permission|billing|payment|enroll(?:ment)?|migration|token)(?:[-_./]|$)/i;
 
 function isProtectedRepairPath(path: string): boolean {
   return PROTECTED_PATH_PATTERN.test(path);
