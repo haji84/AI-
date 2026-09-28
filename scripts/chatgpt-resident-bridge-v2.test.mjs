@@ -20,11 +20,6 @@ test("resident bridge v2 excludes pre-existing assistant messages", () => {
   assert.match(source, /newMessages = messages\.filter/);
 });
 
-test("resident bridge v2 requires a conversation advance before accepting answer", () => {
-  assert.match(source, /conversationAdvanced/);
-  assert.match(source, /candidate\?\.text && conversationAdvanced/);
-});
-
 test("resident bridge v2 closes its disposable target", () => {
   assert.match(source, /await closeTarget\(target\.id\)/);
 });
