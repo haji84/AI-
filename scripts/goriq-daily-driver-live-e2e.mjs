@@ -36,6 +36,42 @@ function hashNodeId(value) {
   return createHash("sha256").update(String(value)).digest("hex").slice(0, 16);
 }
 
+function summarizeFleet(state, freshnessMs, nowMs = Date.now()) {
+  const fleet = Array.isArray(state?.fleet) ? state.fleet : [];
+  const android = fleet.filter(node => node?.kind === "android");
+  const capable = android.filter(node => Array.isArray(node?.capabilities) && node.capabilities.includes("device-status"));
+  const eligibleStatus = android.filter(node => node?.status === "ready" || node?.status === "busy");
+  const heartbeatAge = node => {
+    const parsed = Date.parse(String(node?.lastSeenAt ?? ""));
+    if (!Number.isFinite(parsed)) return Number.POSITIVE_INFINITY;
+    return Math.max(0, nowMs - parsed);
+  };
+  const fresh = android.filter(node => heartbeatAge(node) <= freshnessMs);
+  const freshEligible = android.filter(node =>
+    (node?.status === "ready" || node?.status === "busy") &&
+    Array.isArray(node?.capabilities) &&
+    node.capabilities.includes("device-status") &&
+    heartbeatAge(node) <= freshnessMs
+  );
+  const ages = android.map(heartbeatAge).filter(Number.isFinite);
+  return {
+    registeredTotal: Number(state?.stats?.registered ?? fleet.length ?? 0),
+    androidRegistered: android.length,
+    androidDeviceStatusCapable: capable.length,
+    androidReadyOrBusy: eligibleStatus.length,
+    androidFresh: fresh.length,
+    androidFreshEligible: freshEligible.length,
+    newestAndroidHeartbeatAgeMs: ages.length ? Math.min(...ages) : null,
+    freshnessMs,
+  };
+}
+
+function diagnosticError(message, diagnostics) {
+  const error = new Error(message);
+  error.diagnostics = diagnostics;
+  return error;
+}
+
 export async function runDailyDriverLiveE2E({
   baseUrl,
   token,
@@ -43,11 +79,19 @@ export async function runDailyDriverLiveE2E({
   runAttempt,
   pollMs = 1_000,
   timeoutMs = 180_000,
+  freshnessMs = 60_000,
 }) {
   if (!token?.trim()) throw new Error("JARVIS_OWNER_TOKEN is required");
   const base = checkedLoopbackBase(baseUrl);
   const idempotencyKey = `daily-driver-live-${runId}-${runAttempt}`;
   const acceptedAt = new Date().toISOString();
+
+  const preflight = await jsonRequest(base, token, "/api/jarvis/admin/state");
+  if (preflight.status !== 200) throw new Error(`Control-plane preflight failed with HTTP ${preflight.status}`);
+  const fleetSummary = summarizeFleet(preflight.body, freshnessMs);
+  if (fleetSummary.androidFreshEligible < 1) {
+    throw diagnosticError("no fresh eligible Android worker for device-status", { fleetSummary });
+  }
 
   const receipt = await jsonRequest(base, token, "/api/jarvis/admin/work", {
     method: "POST",
@@ -97,6 +141,7 @@ export async function runDailyDriverLiveE2E({
         completedAt: new Date().toISOString(),
         executionScheduled: true,
         registeredFleetCount: Number(lastState?.stats?.registered ?? 0),
+        fleetSummary,
         task: {
           id: String(task.id),
           type: String(current.type ?? task.type),
@@ -140,6 +185,7 @@ async function cli() {
       acceptance: "daily-driver-safe-device-status",
       completedAt: new Date().toISOString(),
       error: error instanceof Error ? error.message.slice(0, 1000) : "unknown error",
+      ...(error && typeof error === "object" && "diagnostics" in error ? error.diagnostics : {}),
       secretsPersisted: false,
     };
     await writeFile(output, JSON.stringify(failure, null, 2) + "\n", { mode: 0o600 });
