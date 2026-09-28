@@ -265,7 +265,43 @@ function fingerprintMessage(message) {
   return `fallback:${message.index}:${message.text}`;
 }
 
-async function submitPromptAndReadAnswer(prompt) {
+function repairSurfaceFromPending(pending) {
+  const meta = String(pending?.meta ?? "");
+  const match = meta.match(/(?:^|\\s)repair-surface:(chat|work)(?:\\s|$)/i);
+  return match?.[1]?.toLowerCase() === "work" ? "work" : "chat";
+}
+
+async function selectExperience(client, mode) {
+  if (mode !== "work") return;
+
+  const direct = await evaluate(client, `(() => {
+    const text = (el) => (el.innerText || el.textContent || '').replace(/\\s+/g, ' ').trim();
+    const candidates = [...document.querySelectorAll('button,[role="button"],[role="menuitem"],[role="option"]')];
+    const work = candidates.find((el) => /^Work$/i.test(text(el)) && el.getBoundingClientRect().width > 0 && el.getBoundingClientRect().height > 0);
+    if (work) { work.click(); return { clicked: true, phase: 'direct' }; }
+    const toggle = candidates.find((el) => /^(Chat|Work)$/i.test(text(el)) && el.getBoundingClientRect().width > 0 && el.getBoundingClientRect().height > 0);
+    if (toggle) { toggle.click(); return { clicked: true, phase: 'toggle' }; }
+    return { clicked: false, phase: 'none' };
+  })()`);
+  if (!direct?.clicked) throw new Error("CHATGPT_WORK_SELECTOR_NOT_FOUND");
+
+  if (direct.phase === "toggle") {
+    await sleep(450);
+    const selected = await evaluate(client, `(() => {
+      const text = (el) => (el.innerText || el.textContent || '').replace(/\\s+/g, ' ').trim();
+      const candidates = [...document.querySelectorAll('[role="menuitem"],[role="option"],button,[role="button"]')];
+      const work = candidates.find((el) => /^Work$/i.test(text(el)) && el.getBoundingClientRect().width > 0 && el.getBoundingClientRect().height > 0);
+      if (!work) return false;
+      work.click();
+      return true;
+    })()`);
+    if (!selected) throw new Error("CHATGPT_WORK_OPTION_NOT_FOUND");
+  }
+
+  await sleep(700);
+}
+
+async function submitPromptAndReadAnswer(prompt, mode = "chat") {
   const target = await createFreshChatGptTarget();
   const client = new CdpClient(target.webSocketDebuggerUrl);
   await client.connect();
@@ -274,10 +310,13 @@ async function submitPromptAndReadAnswer(prompt) {
     await client.call("Runtime.enable");
     const initial = await waitForComposer(client);
     if (!String(initial?.url ?? "").startsWith(CHATGPT_URL)) throw new Error("fresh target is not on ChatGPT");
+    await selectExperience(client, mode);
+    const selectedExperience = await waitForComposer(client);
+    if (!String(selectedExperience?.url ?? "").startsWith(CHATGPT_URL)) throw new Error("selected experience left ChatGPT");
 
     const beforeMessages = await snapshotAssistantMessages(client);
     const baselineFingerprints = new Set((beforeMessages ?? []).map(fingerprintMessage));
-    const initialUrl = initial.url;
+    const initialUrl = selectedExperience.url;
 
     const focused = await evaluate(client, `(() => {
       const el = document.querySelector('textarea') || document.querySelector('[contenteditable="true"]');
@@ -354,7 +393,8 @@ async function processIssue(issue) {
 
   await setHealth("processing", `Issue #${issue.number}: ${pending.id}`, { issueNumber: issue.number, pendingOwnerMessageId: pending.id });
   const prompt = buildBridgePrompt({ issueNumber: issue.number, meta, messages, pending });
-  const answer = await submitPromptAndReadAnswer(prompt);
+  const surface = repairSurfaceFromPending(pending);
+  const answer = await submitPromptAndReadAnswer(prompt, surface);
   if (!answer.trim()) throw new Error("ChatGPT returned an empty answer; pending was preserved");
   const aiMessage = await postAiReply(issue.number, meta, answer);
   await setHealth("synced", `Issue #${issue.number} synced`, { issueNumber: issue.number, lastAiMessageId: aiMessage.id });
