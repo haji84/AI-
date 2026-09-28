@@ -489,7 +489,7 @@ export function buildVerificationRepairPrompt(input: {
   ].join("\n");
 }
 
-function porcelainPaths(output: string): string[] {
+export function porcelainPaths(output: string): string[] {
   return [...new Set(output.split(/\r?\n/)
     .map((line) => line.trimEnd())
     .filter(Boolean)
