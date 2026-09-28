@@ -464,7 +464,7 @@ export function buildRecoveryPrompt(input: {
   ].join("\n");
 }
 
-export export function buildVerificationRepairPrompt(input: {
+export function buildVerificationRepairPrompt(input: {
   prNumber: number;
   strategy: RecoveryStrategy;
   localAttempt: number;
