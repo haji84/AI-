@@ -386,12 +386,48 @@ async function prepareProjectSurface(client, mode) {
   return { reused: false, url: ready.url };
 }
 
+async function snapshotConversationMessages(client) {
+  return evaluate(client, `(() => {
+    const candidates = [...document.querySelectorAll(
+      'main [data-message-author-role], main [data-testid^="conversation-turn"], main article, main [data-message-id]'
+    )];
+    const out = [];
+    const seen = new Set();
+    const normalize = (value) => String(value || '').replace(/\\s+/g, ' ').trim();
+
+    for (const node of candidates) {
+      if (!(node instanceof HTMLElement)) continue;
+      const roleNode = node.matches('[data-message-author-role]') ? node : node.closest('[data-message-author-role]');
+      let role = roleNode?.getAttribute('data-message-author-role') || null;
+      const controls = [...node.querySelectorAll('button')].map((button) =>
+        normalize([button.getAttribute('aria-label'), button.getAttribute('data-testid'), button.textContent].filter(Boolean).join(' '))
+      ).filter(Boolean);
+      const controlText = controls.join(' | ');
+
+      if (!role && /メッセージを編集|edit message/i.test(controlText)) role = 'user';
+      if (!role && /回答を再生成|regenerate|読み上げ|read aloud|リアクション|reaction/i.test(controlText)) role = 'assistant';
+      if (role !== 'user' && role !== 'assistant') continue;
+
+      const contentNode = node.querySelector('.markdown,[data-message-content],.whitespace-pre-wrap') || node;
+      const text = (contentNode.innerText || contentNode.textContent || '').trim();
+      if (!text) continue;
+
+      const id = node.getAttribute('data-message-id')
+        || roleNode?.getAttribute('data-message-id')
+        || node.id
+        || null;
+      const key = `${role}:${id || text.slice(0, 500)}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({ role, id, index: out.length, text: text.slice(0, 8000) });
+    }
+    return out;
+  })()`);
+}
+
 async function snapshotAssistantMessages(client) {
-  return evaluate(client, `(() => [...document.querySelectorAll('[data-message-author-role="assistant"]')].map((node, index) => ({
-    id: node.getAttribute('data-message-id') || node.id || null,
-    index,
-    text: (node.innerText || '').trim(),
-  })))()`);
+  const messages = await snapshotConversationMessages(client);
+  return Array.isArray(messages) ? messages.filter((message) => message.role === "assistant") : [];
 }
 
 function fingerprintMessage(message) {
@@ -437,18 +473,16 @@ async function selectExperience(client, mode) {
 }
 
 async function submitPromptAndReadAnswer(prompt, mode = "chat") {
-  const target = await createFreshChatGptTarget();
+  const target = await createChatGptTarget(CHATGPT_URL);
   const client = new CdpClient(target.webSocketDebuggerUrl);
   await client.connect();
   try {
     await client.call("Page.enable");
     await client.call("Runtime.enable");
     await client.call("Page.bringToFront");
-    const initial = await waitForComposer(client);
-    if (!String(initial?.url ?? "").startsWith(CHATGPT_URL)) throw new Error("fresh target is not on ChatGPT");
-    await selectExperience(client, mode);
+    await prepareProjectSurface(client, mode);
     const selectedExperience = await waitForComposer(client);
-    if (!String(selectedExperience?.url ?? "").startsWith(CHATGPT_URL)) throw new Error("selected experience left ChatGPT");
+    if (!String(selectedExperience?.url ?? "").startsWith(CHATGPT_URL)) throw new Error("project surface left ChatGPT");
 
     const beforeMessages = await snapshotAssistantMessages(client);
     const baselineFingerprints = new Set((beforeMessages ?? []).map(fingerprintMessage));
@@ -571,18 +605,13 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat") {
     let lastText = "";
     let stableSince = 0;
     while (Date.now() < deadline) {
-      const state = await evaluate(client, `(() => {
-        const nodes = [...document.querySelectorAll('[data-message-author-role="assistant"]')];
-        const messages = nodes.map((node, index) => ({
-          id: node.getAttribute('data-message-id') || node.id || null,
-          index,
-          text: (node.innerText || '').trim(),
-        }));
-        const generating = !!document.querySelector('button[data-testid="stop-button"]') || [...document.querySelectorAll('button')].some((el) => /stop generating|停止/i.test(el.textContent || ''));
-        return { url: location.href, messages, generating };
-      })()`);
+      const messages = await snapshotAssistantMessages(client);
+      const state = await evaluate(client, `(() => ({
+        url: location.href,
+        generating: !!document.querySelector('button[data-testid="stop-button"]')
+          || [...document.querySelectorAll('button')].some((el) => /stop generating|停止/i.test((el.getAttribute('aria-label') || el.textContent || ''))),
+      }))()`);
 
-      const messages = Array.isArray(state?.messages) ? state.messages : [];
       const newMessages = messages.filter((message) => !baselineFingerprints.has(fingerprintMessage(message)));
       const candidate = newMessages.at(-1);
       const currentFingerprint = fingerprintMessage(candidate);
@@ -596,14 +625,17 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat") {
           lastText = candidate.text;
           stableSince = Date.now();
         } else if (!state.generating && Date.now() - stableSince >= 1800) {
+          const surfaceUrl = await evaluate(client, "location.href");
+          await writeProjectSurface(mode, String(surfaceUrl || ""));
           return lastText.slice(0, 8000);
         }
       }
       await sleep(700);
     }
     const diagnostic = await evaluate(client, `(() => {
-      const assistant = [...document.querySelectorAll('[data-message-author-role="assistant"]')].map((node) => (node.innerText || '').trim()).filter(Boolean);
-      const user = [...document.querySelectorAll('[data-message-author-role="user"]')].map((node) => (node.innerText || '').trim()).filter(Boolean);
+      const turns = [...document.querySelectorAll('main [data-message-author-role], main [data-testid^="conversation-turn"], main article, main [data-message-id]')];
+      const assistant = turns.filter((node) => node.getAttribute?.('data-message-author-role') === 'assistant' || [...node.querySelectorAll?.('button') || []].some((button) => /回答を再生成|regenerate|読み上げ|read aloud|リアクション|reaction/i.test((button.getAttribute('aria-label') || button.textContent || '')))).map((node) => (node.innerText || '').trim()).filter(Boolean);
+      const user = turns.filter((node) => node.getAttribute?.('data-message-author-role') === 'user' || [...node.querySelectorAll?.('button') || []].some((button) => /メッセージを編集|edit message/i.test((button.getAttribute('aria-label') || button.textContent || '')))).map((node) => (node.innerText || '').trim()).filter(Boolean);
       const composer = document.querySelector('textarea') || document.querySelector('[contenteditable="true"]');
       const buttons = [...document.querySelectorAll('button')].slice(-40).map((el) => ({
         text: (el.innerText || el.textContent || '').trim().slice(0, 120),
