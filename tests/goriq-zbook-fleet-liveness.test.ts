@@ -45,3 +45,11 @@ test("ZBook liveness diagnosis reports only a bounded sanitized failure stage", 
   assert.match(script, /reason=\("diagnostic_failed:" \+ \$stage\)/);
   assert.doesNotMatch(script, /\.Exception\.Message|\.ScriptStackTrace|Write-Error|Write-Warning\s+\$_/);
 });
+
+
+test("ZBook liveness diagnosis normalizes process-local PowerShell module path before DPAPI decrypt", () => {
+  assert.match(script, /\$env:PSModulePath\s*=\s*Join-Path\s+\$PSHOME\s+["']Modules["']/);
+  const moduleIndex = script.indexOf("$env:PSModulePath");
+  const decryptIndex = script.indexOf("ConvertTo-SecureString");
+  assert.ok(moduleIndex >= 0 && decryptIndex > moduleIndex);
+});
