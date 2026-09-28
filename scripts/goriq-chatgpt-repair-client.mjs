@@ -194,7 +194,6 @@ await api(`https://api.github.com/repos/${owner}/${repo}/dispatches`, token, {
 });
 const deadline = Date.now() + (mode === "work" ? 12 * 60_000 : 5 * 60_000);
 let answer = null;
-try {
   while (Date.now() < deadline) {
     const comments = await api(`https://api.github.com/repos/${owner}/${repo}/issues/${issueNumber}/comments?per_page=100`, token);
     for (const comment of comments) {
@@ -224,4 +223,3 @@ try {
     throw new Error(`${mode.toUpperCase()}_REPAIR_GIT_APPLY_FAILED: ${String(applied.stderr || applied.stdout).slice(-2000)}`);
   }
   console.log(JSON.stringify({ ok: true, mode, issueNumber }, null, 2));
-}
