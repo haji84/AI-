@@ -61,7 +61,7 @@ jobs:
           ref: ${{ steps.pr.outputs.branch }}
           path: target
           fetch-depth: 0
-          persist-credentials: true
+          persist-credentials: false
 
       - uses: pnpm/action-setup@v4
         with:
