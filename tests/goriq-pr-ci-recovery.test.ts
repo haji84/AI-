@@ -10,6 +10,7 @@ import {
   chooseRecoveryStrategy,
   failureFingerprint,
   isSameRepositoryOpenPullRequest,
+  normalizeConfiguredEnginePath,
   parseRecoveryHistory,
   recoveryAttemptCount,
   sanitizeFailureLog,
@@ -174,6 +175,22 @@ test("recovery prompt preserves bounded authority while changing strategy", () =
   assert.match(prompt, /src\/gai\/worker-runtime\.ts/);
   assert.match(prompt, /Do not commit, push, merge, deploy/);
   assert.match(prompt, /Do not weaken or delete tests/);
+});
+
+test("Windows coding engine path resolves npm command shims", () => {
+  const raw = "C:\\Users\\qq113\\AppData\\Roaming\\npm\\codex";
+  assert.equal(
+    normalizeConfiguredEnginePath(raw, "win32", (path) => path === `${raw}.cmd`),
+    `${raw}.cmd`,
+  );
+  assert.equal(
+    normalizeConfiguredEnginePath(`${raw}.exe`, "win32", () => false),
+    `${raw}.exe`,
+  );
+  assert.equal(
+    normalizeConfiguredEnginePath(raw, "linux", () => true),
+    raw,
+  );
 });
 
 test("coding engine environment cannot see GitHub write credentials", () => {
