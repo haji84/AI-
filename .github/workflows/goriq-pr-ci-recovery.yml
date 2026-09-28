@@ -82,6 +82,7 @@ jobs:
         shell: powershell
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           GORIQ_RECOVERY_PR_NUMBER: ${{ steps.pr.outputs.number }}
           GORIQ_RECOVERY_RUN_ID: ${{ github.event.workflow_run.id }}
           GORIQ_RECOVERY_HEAD_SHA: ${{ steps.pr.outputs.head_sha }}
