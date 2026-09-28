@@ -11,6 +11,7 @@ import {
   failureFingerprint,
   isSameRepositoryOpenPullRequest,
   normalizeConfiguredEnginePath,
+  outOfScopeUntrackedPaths,
   parseRecoveryHistory,
   recoveryAttemptCount,
   sanitizeFailureLog,
@@ -190,6 +191,20 @@ test("Windows coding engine path resolves npm command shims", () => {
   assert.equal(
     normalizeConfiguredEnginePath(raw, "linux", () => true),
     raw,
+  );
+});
+
+
+test("out-of-scope untracked artifacts are identified for discard without touching tracked changes", () => {
+  const status = [
+    " M scripts/goriq-pr-ci-recovery.ts",
+    "?? ext-env.d.ts",
+    "?? scratch/generated.txt",
+    "?? src/gai/worker-runtime.ts",
+  ].join("\n");
+  assert.deepEqual(
+    outOfScopeUntrackedPaths(status, ["scripts/goriq-pr-ci-recovery.ts", "src/gai/worker-runtime.ts"]),
+    ["ext-env.d.ts", "scratch/generated.txt"],
   );
 });
 
