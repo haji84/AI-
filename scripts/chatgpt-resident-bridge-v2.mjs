@@ -28,6 +28,8 @@ const HEALTH_FILE = join(STATE_DIR, "chatgpt-bridge-health.json");
 const LOCK_FILE = join(STATE_DIR, "chatgpt-bridge.lock");
 const CHROME_PROFILE = process.env.AI_COMPANY_CHATGPT_PROFILE ?? join(HOME, "Library", "Application Support", "AICompanyChatGPTBridge");
 const CHATGPT_URL = "https://chatgpt.com/";
+const PROJECT_NAME = process.env.AI_COMPANY_CHATGPT_PROJECT_NAME?.trim() || "自動化";
+const PROJECT_SURFACES_FILE = join(STATE_DIR, "chatgpt-project-surfaces.json");
 const ONE_SHOT_REPAIR_ISSUE = Number(process.env.AI_COMPANY_REPAIR_ONCE_ISSUE || "");
 
 let shuttingDown = false;
@@ -40,6 +42,29 @@ function clamp(value, min, max) {
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function readProjectSurfaces() {
+  try {
+    const parsed = JSON.parse(await readFile(PROJECT_SURFACES_FILE, "utf8"));
+    if (!parsed || typeof parsed !== "object") return { version: 1, project: PROJECT_NAME, chat: null, work: null };
+    return {
+      version: 1,
+      project: typeof parsed.project === "string" ? parsed.project : PROJECT_NAME,
+      chat: typeof parsed.chat === "string" && parsed.chat.startsWith(CHATGPT_URL) ? parsed.chat : null,
+      work: typeof parsed.work === "string" && parsed.work.startsWith(CHATGPT_URL) ? parsed.work : null,
+    };
+  } catch {
+    return { version: 1, project: PROJECT_NAME, chat: null, work: null };
+  }
+}
+
+async function writeProjectSurface(mode, url) {
+  if (!["chat", "work"].includes(mode) || typeof url !== "string" || !url.startsWith(CHATGPT_URL)) return;
+  const current = await readProjectSurfaces();
+  const next = { ...current, project: PROJECT_NAME, [mode]: url, updatedAt: new Date().toISOString() };
+  await mkdir(STATE_DIR, { recursive: true });
+  await writeFile(PROJECT_SURFACES_FILE, JSON.stringify(next, null, 2) + "\n", "utf8");
 }
 
 async function setHealth(status, detail = null, extra = {}) {
