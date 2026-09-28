@@ -22,21 +22,25 @@ class TaskExecutor(private val context: Context) {
         val taskId = task.optString("id")
         val type = task.optString("type")
         val payload = task.optJSONObject("payload") ?: JSONObject()
-        if (taskId.isBlank() || type.isBlank()) return false
+        val executionEpoch = task.optLong("executionEpoch", 0L)
+        val fencingToken = task.optString("fencingToken")
+        if (taskId.isBlank() || type.isBlank() || executionEpoch < 1L || fencingToken.length < 16) return false
 
         if (type == "open-url") {
             val url = payload.optString("url")
             if (!url.startsWith("https://")) {
-                report(taskId, false, JSONObject().put("error", "HTTPS URL required"))
+                report(taskId, executionEpoch, fencingToken, false, JSONObject().put("error", "HTTPS URL required"))
                 return true
             }
             val intent = Intent(context, UrlTaskActivity::class.java)
                 .putExtra("task_id", taskId)
+                .putExtra("execution_epoch", executionEpoch)
+                .putExtra("fencing_token", fencingToken)
                 .putExtra("url", url)
                 .putExtra("allow_javascript", payload.optBoolean("allowJavaScript", false))
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             return runCatching { context.startActivity(intent); true }
-                .getOrElse { report(taskId, false, JSONObject().put("error", it.message)); true }
+                .getOrElse { report(taskId, executionEpoch, fencingToken, false, JSONObject().put("error", it.message)); true }
         }
 
         val startedAt = System.currentTimeMillis()
@@ -44,11 +48,11 @@ class TaskExecutor(private val context: Context) {
         val result = runCatching { executeSync(type, payload) }
         result.onSuccess {
             WorkerRuntimeState.completeTask()
-            report(taskId, true, decorateResult(it, startedAt))
+            report(taskId, executionEpoch, fencingToken, true, decorateResult(it, startedAt))
         }.onFailure {
             val message = it.message ?: it.javaClass.simpleName
             WorkerRuntimeState.fail(message)
-            report(taskId, false, decorateResult(JSONObject().put("error", message), startedAt))
+            report(taskId, executionEpoch, fencingToken, false, decorateResult(JSONObject().put("error", message), startedAt))
         }
         return true
     }
@@ -172,7 +176,7 @@ class TaskExecutor(private val context: Context) {
         return JarvisAccessibilityService.execute(payload)
     }
 
-    private fun report(taskId: String, ok: Boolean, detail: JSONObject) {
-        Thread { runCatching { client.taskResult(taskId, ok, detail) } }.start()
+    private fun report(taskId: String, executionEpoch: Long, fencingToken: String, ok: Boolean, detail: JSONObject) {
+        Thread { runCatching { client.taskResult(taskId, executionEpoch, fencingToken, ok, detail) } }.start()
     }
 }
