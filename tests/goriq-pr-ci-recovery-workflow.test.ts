@@ -29,15 +29,19 @@ test("write authority is branch-fix scoped and does not grant deploy authority",
   assert.doesNotMatch(workflow, /deployments:\s*write|id-token:\s*write|secrets:\s*write/);
 });
 
-test("controller bounds attempts and forbids merge deployment and test edits", async () => {
+test("controller bounds each strategy, escalates stagnation and forbids merge deployment and test edits", async () => {
   const controller = await readFile(controllerUrl, "utf8");
-  assert.match(controller, /MAX_AUTOMATIC_ATTEMPTS = 3/);
+  assert.match(controller, /MAX_AUTOMATIC_ATTEMPTS_PER_STRATEGY = 3/);
+  assert.match(controller, /MAX_AUTOMATIC_STRATEGIES = 3/);
+  assert.match(controller, /SAME_FAILURE_SWITCH_THRESHOLD = 2/);
+  assert.match(controller, /chooseRecoveryStrategy/);
+  assert.match(controller, /failureFingerprint/);
   assert.match(controller, /PR_NOT_ELIGIBLE_FOR_AUTONOMOUS_RECOVERY/);
   assert.match(controller, /RECOVERY_SCOPE_VIOLATION/);
   assert.match(controller, /RECOVERY_DESTRUCTIVE_CHANGE_REJECTED/);
   assert.match(controller, /Do not commit, push, merge, deploy/);
   assert.match(controller, /Do not weaken or delete tests/);
-  assert.match(controller, /AUTOMATIC_RECOVERY_ATTEMPT_BUDGET_EXHAUSTED/);
+  assert.match(controller, /AUTOMATIC_RECOVERY_STRATEGIES_EXHAUSTED/);
 });
 
 
