@@ -890,118 +890,38 @@ async function main() {
     failureLog,
   });
 
-  const engine = resolveConfiguredEngine();
-  runCodex(engine, workspace, prompt);
+  const repairRunners = createRepairEngineRunners(workspace, allowed);
+  const repairEngineFailures: Array<{ engine: string; reason: string }> = [];
+  let repaired: RepairEngineCandidateSuccess | null = null;
 
-  const allowedSet = new Set(allowed);
-  const statusAfterEngine = runRaw("git", ["status", "--porcelain"], workspace);
-  const discardedUntracked = discardOutOfScopeUntracked(workspace, statusAfterEngine, allowedSet);
-  let changedBeforeTrace = porcelainPaths(runRaw("git", ["status", "--porcelain"], workspace));
-  restoreGeneratedWorkspaceNoise(workspace, changedBeforeTrace, allowedSet);
-  changedBeforeTrace = porcelainPaths(runRaw("git", ["status", "--porcelain"], workspace));
-  if (!changedBeforeTrace.length) throw new Error("RECOVERY_ENGINE_PRODUCED_NO_CHANGES");
-
-  const nameStatus = run("git", ["diff", "--name-status", "--"], workspace);
-  if (nameStatus.split(/\r?\n/).some((line) => /^(?:D|R\d*|C\d*)\t/.test(line))) {
-    restoreWorkspace(workspace);
-    throw new Error("RECOVERY_DESTRUCTIVE_CHANGE_REJECTED");
-  }
-
-  const unsafe = changedBeforeTrace.filter((path) => !allowedSet.has(path) || isTestPath(path));
-  if (unsafe.length) {
-    restoreWorkspace(workspace);
-    throw new Error(`RECOVERY_SCOPE_VIOLATION: ${unsafe.join(",")}`);
-  }
-
-  const reconciled = autoReconcileTraceability(workspace, changedBeforeTrace, "low");
-  let changed = porcelainPaths(runRaw("git", ["status", "--porcelain"], workspace));
-  const allowedFinal = new Set([...allowed, ...reconciled]);
-  restoreGeneratedWorkspaceNoise(workspace, changed, allowedFinal);
-  changed = porcelainPaths(runRaw("git", ["status", "--porcelain"], workspace));
-  const unsafeFinal = changed.filter((path) => !allowedFinal.has(path) || isTestPath(path));
-  if (unsafeFinal.length) {
-    restoreWorkspace(workspace);
-    throw new Error(`RECOVERY_POST_RECONCILE_SCOPE_VIOLATION: ${unsafeFinal.join(",")}`);
-  }
-
-  let localVerificationAttempt = 1;
-  const localVerificationFailures: Array<{ attempt: number; check: string; failure: string }> = [];
-  let verification = verifyRecoveryCandidate(workspace);
-
-  while (!verification.ok) {
-    localVerificationFailures.push({
-      attempt: localVerificationAttempt,
-      check: verification.failedCheck,
-      failure: verification.failure,
-    });
-    if (localVerificationAttempt >= MAX_LOCAL_VERIFICATION_ATTEMPTS) {
-      throw new Error(
-        `LOCAL_VERIFICATION_ATTEMPTS_EXHAUSTED: ${verification.failedCheck}: ${verification.failure}`,
-      );
-    }
-
-    localVerificationAttempt += 1;
-    const retryPrompt = buildVerificationRepairPrompt({
+  for (const runner of repairRunners) {
+    const result = attemptRepairEngineCandidate({
+      runner,
+      workspace,
+      initialPrompt: prompt,
       prNumber,
       strategy: decision.strategy,
-      localAttempt: localVerificationAttempt,
       allowedPaths: allowed,
       originalFailureFingerprint: fingerprint,
-      verificationCheck: verification.failedCheck,
-      verificationFailure: verification.failure,
     });
-    runCodex(engine, workspace, retryPrompt);
-
-    const retryStatus = runRaw("git", ["status", "--porcelain"], workspace);
-    discardedUntracked.push(...discardOutOfScopeUntracked(workspace, retryStatus, allowedFinal));
-    let retryChanged = porcelainPaths(runRaw("git", ["status", "--porcelain"], workspace));
-    restoreGeneratedWorkspaceNoise(workspace, retryChanged, allowedFinal);
-    retryChanged = porcelainPaths(runRaw("git", ["status", "--porcelain"], workspace));
-
-    const retryNameStatus = run("git", ["diff", "--name-status", "--"], workspace);
-    if (retryNameStatus.split(/\r?\n/).some((line) => /^(?:D|R\d*|C\d*)\t/.test(line))) {
-      restoreWorkspace(workspace);
-      throw new Error("RECOVERY_DESTRUCTIVE_CHANGE_REJECTED");
+    if (result.ok) {
+      repaired = result;
+      break;
     }
-
-    const retryUnsafe = retryChanged.filter((path) => !allowedFinal.has(path) || isTestPath(path));
-    if (retryUnsafe.length) {
-      restoreWorkspace(workspace);
-      throw new Error(`RECOVERY_LOCAL_RETRY_SCOPE_VIOLATION: ${retryUnsafe.join(",")}`);
-    }
-
-    const repairInputs = retryChanged.filter((path) => allowedSet.has(path));
-    if (repairInputs.length) {
-      const retryReconciled = autoReconcileTraceability(workspace, repairInputs, "low");
-      for (const path of retryReconciled) allowedFinal.add(path);
-    }
-
-    const postRetryStatus = runRaw("git", ["status", "--porcelain"], workspace);
-    discardedUntracked.push(...discardOutOfScopeUntracked(workspace, postRetryStatus, allowedFinal));
-    let postRetryChanged = porcelainPaths(runRaw("git", ["status", "--porcelain"], workspace));
-    restoreGeneratedWorkspaceNoise(workspace, postRetryChanged, allowedFinal);
-    postRetryChanged = porcelainPaths(runRaw("git", ["status", "--porcelain"], workspace));
-    const postRetryUnsafe = postRetryChanged.filter((path) => !allowedFinal.has(path) || isTestPath(path));
-    if (postRetryUnsafe.length) {
-      restoreWorkspace(workspace);
-      throw new Error(`RECOVERY_LOCAL_RETRY_POST_RECONCILE_SCOPE_VIOLATION: ${postRetryUnsafe.join(",")}`);
-    }
-
-    verification = verifyRecoveryCandidate(workspace);
+    repairEngineFailures.push({ engine: result.engineId, reason: result.reason });
   }
 
-  const statusAfterVerification = runRaw("git", ["status", "--porcelain"], workspace);
-  discardedUntracked.push(...discardOutOfScopeUntracked(workspace, statusAfterVerification, allowedFinal));
-  let postVerificationChanged = porcelainPaths(runRaw("git", ["status", "--porcelain"], workspace));
-  restoreGeneratedWorkspaceNoise(workspace, postVerificationChanged, allowedFinal);
-  postVerificationChanged = porcelainPaths(runRaw("git", ["status", "--porcelain"], workspace));
-  const unsafeAfterVerification = postVerificationChanged.filter((path) => !allowedFinal.has(path) || isTestPath(path));
-  if (unsafeAfterVerification.length) {
-    restoreWorkspace(workspace);
-    throw new Error(`RECOVERY_POST_VERIFY_SCOPE_VIOLATION: ${unsafeAfterVerification.join(",")}`);
+  if (!repaired) {
+    const attempted = repairEngineFailures.map((entry) => entry.engine).join(",") || "none";
+    throw new Error(`HUMAN_GATE_REPAIR_ENGINES_EXHAUSTED: attempted=${attempted}`);
   }
-  changed = postVerificationChanged;
-  if (!changed.length) throw new Error("RECOVERY_PATCH_EMPTY_AFTER_VERIFICATION");
+
+  const repairEngine = repaired.engineId;
+  const changed = repaired.changed;
+  const verification = { checks: repaired.checks };
+  const localVerificationAttempt = repaired.localVerificationAttempts;
+  const localVerificationFailures = repaired.localVerificationFailures;
+  const discardedUntracked = repaired.discardedUntracked;
 
   run("git", ["fetch", "origin", pr.head.ref], workspace);
   const remoteHead = run("git", ["rev-parse", `origin/${pr.head.ref}`], workspace);
@@ -1023,6 +943,7 @@ async function main() {
     `GORIQ-Recovery-Total-Attempt: ${decision.totalAttempt}`,
     `GORIQ-Recovery-Failure-Fingerprint: ${fingerprint}`,
     `GORIQ-Recovery-Decision: ${decision.reason}`,
+    `GORIQ-Repair-Engine: ${repairEngine}`,
   ].join("\n");
   run("git", ["commit", "-m", recoveryCommitMessage], workspace);
   pushWithGithubToken(workspace, pr.head.ref, token);
@@ -1035,6 +956,8 @@ async function main() {
     strategyAttempt: decision.strategyAttempt,
     totalAttempt: decision.totalAttempt,
     recoveryDecision: decision.reason,
+    repairEngine,
+    repairEngineFailures,
     failureFingerprint: fingerprint,
     sameFailureOccurrences: decision.sameFailureOccurrences,
     discardedUntracked: [...new Set(discardedUntracked)].sort(),
