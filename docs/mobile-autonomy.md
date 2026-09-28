@@ -1,6 +1,6 @@
 # Mobile-first autonomy
 
-The phone remains a control surface. Chat, Work, and Codex are now first-class ingress sources into one goal-driven command layer. GitHub Actions is the remote execution, persistence, CI, verification, and bounded repository-operation host. It must not call a replacement model provider on its own.
+The phone remains a control surface. Chat, Work, and Codex are now first-class ingress sources into one goal-driven command layer. GitHub Actions is the remote execution, persistence, CI, verification, and bounded repository-operation host. Direct replacement-model APIs remain prohibited by default; the only adopted exception is the bounded Groq Free Plan repair fallback at stage 7 described below.
 
 ## Control-plane flow
 
