@@ -1,0 +1,58 @@
+name: GORIQ Daily Driver Live Android Acceptance
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/goriq-daily-driver-live-e2e.mjs'
+      - '.github/workflows/goriq-daily-driver-live-e2e.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: goriq-daily-driver-live-android
+  cancel-in-progress: false
+
+jobs:
+  live-device-status:
+    runs-on: [self-hosted, macOS, ARM64]
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Require exact current main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          [[ "$(git rev-parse HEAD)" == "$(git rev-parse origin/main)" ]]
+          [[ "$(git rev-parse HEAD)" == "$GITHUB_SHA" ]]
+
+      - name: Submit read-only Daily Driver command to live Broker
+        shell: bash
+        run: |
+          set -euo pipefail
+          STATE_ROOT="$HOME/Library/Application Support/JARVIS"
+          ENV_FILE="$STATE_ROOT/jarvis.env"
+          test -s "$ENV_FILE"
+          set -a
+          source "$ENV_FILE"
+          set +a
+          : "${JARVIS_OWNER_TOKEN:?missing owner token}"
+          export GORIQ_DAILY_DRIVER_BASE_URL="http://127.0.0.1:8787"
+          export GORIQ_DAILY_DRIVER_EVIDENCE="$GITHUB_WORKSPACE/.gai-results/daily-driver-live/evidence.json"
+          node scripts/goriq-daily-driver-live-e2e.mjs
+
+      - name: Upload sanitized physical evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: goriq-daily-driver-live-android
+          path: .gai-results/daily-driver-live/evidence.json
+          if-no-files-found: error
+          retention-days: 30
