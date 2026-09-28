@@ -190,8 +190,9 @@ export class MultiWorkerRuntime {
       .filter((worker) => supportsConnectivity(worker.descriptor, healthy.get(worker.descriptor.id)!, request))
       .filter((worker) => scoreResourceFit(worker.descriptor, healthy.get(worker.descriptor.id)!, request).eligible)
       .map((worker) => {
-        let score = 1;
-        const reasons: string[] = ["healthy"];
+        const placement = scoreResourceFit(worker.descriptor, healthy.get(worker.descriptor.id)!, request);
+        let score = 1 + placement.score;
+        const reasons: string[] = ["healthy", ...placement.reasons];
         if (request.preferredPlatform && worker.descriptor.platform === request.preferredPlatform) {
           score += 4;
           reasons.push(`preferred platform ${request.preferredPlatform}`);
