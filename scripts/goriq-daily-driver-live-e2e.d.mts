@@ -5,6 +5,7 @@ export interface DailyDriverLiveE2EOptions {
   runAttempt: string;
   pollMs?: number;
   timeoutMs?: number;
+  freshnessMs?: number;
 }
 
 export interface DailyDriverLiveE2EEvidence {
@@ -15,6 +16,16 @@ export interface DailyDriverLiveE2EEvidence {
   completedAt: string;
   executionScheduled: boolean;
   registeredFleetCount: number;
+  fleetSummary: {
+    registeredTotal: number;
+    androidRegistered: number;
+    androidDeviceStatusCapable: number;
+    androidReadyOrBusy: number;
+    androidFresh: number;
+    androidFreshEligible: number;
+    newestAndroidHeartbeatAgeMs: number | null;
+    freshnessMs: number;
+  };
   task: {
     id: string;
     type: string;

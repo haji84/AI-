@@ -24,7 +24,11 @@ test("daily driver live e2e accepts safe device-status and waits for physical co
     if (req.method === "GET" && req.url === "/api/jarvis/admin/state") {
       stateReads++;
       const status = stateReads < 2 ? "running" : "completed";
-      res.end(JSON.stringify({stats:{registered:1},tasks:[{id:"task-1",type:"device-status",status,targetNodeId:"android-1",detail:{ok:true}}]}));
+      res.end(JSON.stringify({
+        stats:{registered:1},
+        fleet:[{id:"android-1",kind:"android",status:"ready",capabilities:["device-status"],lastSeenAt:new Date().toISOString()}],
+        tasks:[{id:"task-1",type:"device-status",status,targetNodeId:"android-1",detail:{ok:true}}]
+      }));
       return;
     }
     res.statusCode = 404; res.end("{}");
@@ -55,4 +59,37 @@ test("daily driver live e2e rejects non-loopback broker", async () => {
     runDailyDriverLiveE2E({baseUrl:"https://example.com",token:"x",runId:"1",runAttempt:"1",pollMs:1,timeoutMs:10}),
     /loopback/
   );
+});
+
+
+test("daily driver live e2e fails before enqueue when no fresh eligible Android exists", async () => {
+  let posts = 0;
+  const server = createServer((req, res) => {
+    res.setHeader("content-type", "application/json");
+    if (req.method === "GET" && req.url === "/api/jarvis/admin/state") {
+      res.end(JSON.stringify({
+        stats:{registered:2},
+        fleet:[
+          {id:"android-old",kind:"android",status:"ready",capabilities:["device-status"],lastSeenAt:"2020-01-01T00:00:00.000Z"},
+          {id:"mac",kind:"macos",status:"ready",capabilities:["filesystem"],lastSeenAt:new Date().toISOString()}
+        ],
+        tasks:[]
+      }));
+      return;
+    }
+    if (req.method === "POST") { posts++; res.statusCode=500; res.end("{}"); return; }
+    res.statusCode=404; res.end("{}");
+  });
+  server.listen(0,"127.0.0.1"); await once(server,"listening");
+  const address=server.address(); if(!address||typeof address==="string") throw Error("bad server");
+  try {
+    await assert.rejects(
+      runDailyDriverLiveE2E({
+        baseUrl:`http://127.0.0.1:${address.port}`,
+        token:"test-token",runId:"124",runAttempt:"1",pollMs:10,timeoutMs:1000,freshnessMs:60_000
+      }),
+      /no fresh eligible Android/
+    );
+    assert.equal(posts,0);
+  } finally { server.close(); }
 });
