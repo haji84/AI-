@@ -14,12 +14,14 @@ test("same-repository open PR only is eligible", () => {
     number: 10,
     state: "open",
     head: { ref: "feat/x", sha: "a".repeat(40), repo: { full_name: "haji84/AI-" } },
-    base: { ref: "main" },
+    base: { ref: "main", repo: { full_name: "haji84/AI-" } },
   };
   assert.equal(isSameRepositoryOpenPullRequest(base, "haji84/AI-"), true);
   assert.equal(isSameRepositoryOpenPullRequest({ ...base, state: "closed" }, "haji84/AI-"), false);
   assert.equal(isSameRepositoryOpenPullRequest({ ...base, head: { ...base.head, ref: "main" } }, "haji84/AI-"), false);
   assert.equal(isSameRepositoryOpenPullRequest({ ...base, head: { ...base.head, repo: { full_name: "fork/repo" } } }, "haji84/AI-"), false);
+  assert.equal(isSameRepositoryOpenPullRequest({ ...base, base: { ref: "feat/parent", repo: { full_name: "haji84/AI-" } } }, "haji84/AI-"), true);
+  assert.equal(isSameRepositoryOpenPullRequest({ ...base, base: { ref: "feat/parent", repo: { full_name: "fork/repo" } } }, "haji84/AI-"), false);
 });
 
 test("automatic recovery is capped at three fixer commits", () => {
