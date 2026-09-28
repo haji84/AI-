@@ -101,11 +101,10 @@ jobs:
         shell: powershell
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           GORIQ_RECOVERY_PR_NUMBER: ${{ needs.preflight.outputs.number }}
           GORIQ_RECOVERY_RUN_ID: ${{ github.event.workflow_run.id }}
           GORIQ_RECOVERY_HEAD_SHA: ${{ needs.preflight.outputs.head_sha }}
           GORIQ_RECOVERY_WORKSPACE: ${{ github.workspace }}\target
           GORIQ_RECOVERY_CONTROL_WORKSPACE: ${{ github.workspace }}\control
         run: |
-          node .\control\scripts\goriq-pr-ci-recovery.ts
+          powershell -NoProfile -ExecutionPolicy Bypass -File .\control\scripts\invoke-node-with-groq-secret-windows.ps1 -NodeScript .\control\scripts\goriq-pr-ci-recovery.ts
