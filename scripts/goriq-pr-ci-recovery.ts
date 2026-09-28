@@ -223,11 +223,12 @@ async function main() {
   const failedRunId = process.env.GORIQ_RECOVERY_RUN_ID?.trim() || "";
   const expectedHead = process.env.GORIQ_RECOVERY_HEAD_SHA?.trim() || "";
   const workspace = resolve(process.env.GORIQ_RECOVERY_WORKSPACE?.trim() || process.cwd());
+  const controlWorkspace = resolve(process.env.GORIQ_RECOVERY_CONTROL_WORKSPACE?.trim() || workspace);
 
   if (!repository || !token || !Number.isInteger(prNumber) || prNumber < 1 || !failedRunId || !expectedHead) {
     throw new Error("GORIQ recovery environment is incomplete");
   }
-  if (existsSync(resolve(workspace, "AI_COMPANY_PAUSED"))) throw new Error("PAUSED");
+  if (existsSync(resolve(controlWorkspace, "AI_COMPANY_PAUSED"))) throw new Error("PAUSED");
 
   const { owner, repo } = parseRepository(repository);
   const pr = await githubJson<PullRequestInfo>(
