@@ -1,4 +1,5 @@
 import type { TaskProfile } from "./types.ts";
+import { scoreResourceFit } from "./resource-score.ts";
 
 export type WorkerPlatform = "windows" | "macos" | "ios" | "android" | "linux";
 export type WorkerDeviceType = "desktop" | "laptop" | "mobile" | "server" | "embedded";
