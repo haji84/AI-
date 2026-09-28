@@ -216,10 +216,10 @@ test("recovery engine availability activates stages 2 through 7 before Codex", (
   const ids = configuredRepairEngineIds({
     GORIQ_REPAIR_REPOSITORY: "haji84/AI-",
     GORIQ_REPAIR_GITHUB_TOKEN: "scoped-issue-token",
+    GROQ_API_KEY: "free-plan-key",
   }, true, {
     localFastReady: true,
     localStrongReady: true,
-    cloudFreeReady: true,
   });
   assert.deepEqual(ids, [
     "goriq-deterministic",
@@ -238,7 +238,6 @@ test("learned repair remains available even when every model and external bridge
     configuredRepairEngineIds({}, false, {
       localFastReady: false,
       localStrongReady: false,
-      cloudFreeReady: false,
     }),
     ["goriq-deterministic", "goriq-learned"],
   );
