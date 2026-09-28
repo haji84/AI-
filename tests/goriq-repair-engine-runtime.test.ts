@@ -23,6 +23,10 @@ test("ZBook installer provisions two local models without any cloud billing fall
   assert.match(source, /https:\/\/ollama\.com\/install\.ps1/);
   assert.match(source, /qwen2\.5-coder:1\.5b/);
   assert.match(source, /qwen2\.5-coder:3b/);
+  assert.match(source, /function Invoke-NativeCapture/);
+  assert.match(source, /RedirectStandardError/);
+  assert.match(source, /ExitCode/);
+  assert.doesNotMatch(source, /\$output = & \$ollama pull/);
   assert.doesNotMatch(source, /cloud|CloudFreeModel|pay-as-you-go/i);
 });
 
@@ -51,6 +55,11 @@ test("runtime workflow installs ZBook local engines and refreshes the Mac Chat W
   assert.match(source, /install-goriq-local-repair-windows\.ps1/);
   assert.match(source, /runs-on: \[self-hosted, macOS, ARM64\]/);
   assert.match(source, /install-macos-chatgpt-bridge\.sh/);
+  assert.match(source, /goriq-bridge-restart-started-at/);
+  assert.match(source, /updated < started/);
+  assert.match(source, /idle.*processing.*synced.*reconciling/);
+  assert.match(source, /Fresh Chat\/Work bridge health was not observed/);
+  assert.match(source, /groqConfigured/);
 });
 
 test("CI recovery grants only the extra Issue write authority needed by Chat Work queue", async () => {
