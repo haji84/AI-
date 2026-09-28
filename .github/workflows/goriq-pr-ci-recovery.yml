@@ -40,7 +40,7 @@ jobs:
               pull_number: number,
             });
             const expected = `${context.repo.owner}/${context.repo.repo}`;
-            if (pr.state !== 'open' || pr.head.repo?.full_name !== expected || pr.head.ref === 'main') {
+            if (pr.state !== 'open' || pr.head.repo?.full_name !== expected || pr.base.repo?.full_name !== expected || pr.head.ref === 'main' || pr.head.ref === pr.base.ref) {
               core.setFailed('PR is not eligible for autonomous recovery');
               return;
             }
