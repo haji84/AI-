@@ -14,6 +14,9 @@ foreach ($command in @('gh','node')) {
 & gh auth status | Out-Null
 if ($LASTEXITCODE -ne 0) { throw 'GitHub CLI is not authenticated.' }
 
+Write-Host 'Opening Groq API Keys page...'
+Start-Process 'https://console.groq.com/keys'
+Write-Host 'Create/copy a Free Plan API key in the browser, then return here.'
 $secure = Read-Host 'Groq API key' -AsSecureString
 $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
 $plain = ''
