@@ -3619,7 +3619,7 @@
     },
     {
       "path": "src/gai/worker-runtime.ts",
-      "sha256": "498d025b746dcd57669b2f1e6c26b33601ae6553b1521421d29d1cd81e061104",
+      "sha256": "e02c6614481d1847d7463a9124ed2b26d44708f4cb50e761f1afa485febf646d",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-010",
