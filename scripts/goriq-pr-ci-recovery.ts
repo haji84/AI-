@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { autoReconcileTraceability } from "../src/orchestrator/safe-pr-capability.ts";
@@ -425,9 +425,8 @@ function resolveOptionalCommand(command: string): string | null {
 function repairRuntimeStatus(): {
   localFastReady: boolean;
   localStrongReady: boolean;
-  cloudFreeReady: boolean;
 } {
-  const defaults = { localFastReady: false, localStrongReady: false, cloudFreeReady: false };
+  const defaults = { localFastReady: false, localStrongReady: false };
   const localAppData = process.env.LOCALAPPDATA?.trim();
   if (!localAppData) return defaults;
   const statusPath = join(localAppData, "GORIQ", "repair-engines", "status.json");
@@ -435,7 +434,6 @@ function repairRuntimeStatus(): {
   try {
     const parsed = JSON.parse(readFileSync(statusPath, "utf8")) as {
       models?: unknown;
-      cloudFreeReady?: unknown;
       localFastModel?: unknown;
       localStrongModel?: unknown;
     };
@@ -444,7 +442,6 @@ function repairRuntimeStatus(): {
     return {
       localFastReady: hasModel(typeof parsed.localFastModel === "string" ? parsed.localFastModel : LOCAL_FAST_MODEL),
       localStrongReady: hasModel(typeof parsed.localStrongModel === "string" ? parsed.localStrongModel : LOCAL_STRONG_MODEL),
-      cloudFreeReady: parsed.cloudFreeReady === true,
     };
   } catch {
     return defaults;
@@ -484,6 +481,7 @@ function runNodeRepairAdapter(
 function runLearnedRepair(workspace: string, prompt: string, allowedPaths: string[]): void {
   const fingerprint = prompt.match(/FailureFingerprint=([a-f0-9]{8,64})/i)?.[1]?.toLowerCase();
   if (!fingerprint) throw new Error("LEARNED_REPAIR_FINGERPRINT_MISSING");
+  if (applyLearnedMemory(workspace, fingerprint, allowedPaths)) return;
 
   const log = runRaw("git", ["log", "origin/main", "--format=%H%x00%B%x1e", "-n", "600"], workspace);
   const records = log.split("\x1e").map((record) => record.trim()).filter(Boolean);
@@ -513,6 +511,75 @@ function runOllamaRepair(workspace: string, prompt: string, model: string): void
     { GORIQ_OLLAMA_COMMAND: ollama },
     7 * 60_000,
   );
+}
+
+function runGroqFreeRepair(workspace: string, prompt: string, apiKey: string): void {
+  if (!apiKey.trim()) throw new Error("GROQ_FREE_REPAIR_API_KEY_MISSING");
+  runNodeRepairAdapter(
+    "goriq-groq-repair.mjs",
+    ["--model", FREE_EXTERNAL_MODEL],
+    workspace,
+    prompt,
+    { GROQ_API_KEY: apiKey },
+    4 * 60_000,
+  );
+}
+
+function repairMemoryRoot(): string | null {
+  const base = process.env.LOCALAPPDATA?.trim() || process.env.HOME?.trim() || "";
+  if (!base) return null;
+  return join(base, "GORIQ", "repair-memory");
+}
+
+function learnedMemoryPath(fingerprint: string): string | null {
+  const root = repairMemoryRoot();
+  return root ? join(root, `${fingerprint}.json`) : null;
+}
+
+function applyLearnedMemory(workspace: string, fingerprint: string, allowedPaths: string[]): boolean {
+  const path = learnedMemoryPath(fingerprint);
+  if (!path || !existsSync(path)) return false;
+  try {
+    const parsed = JSON.parse(readFileSync(path, "utf8")) as {
+      patch?: unknown;
+      changedPaths?: unknown;
+    };
+    if (typeof parsed.patch !== "string" || !parsed.patch.trim()) return false;
+    const changedPaths = Array.isArray(parsed.changedPaths)
+      ? parsed.changedPaths.filter((value): value is string => typeof value === "string")
+      : [];
+    const allowed = new Set(allowedPaths);
+    if (!changedPaths.length || changedPaths.some((value) => !allowed.has(value))) return false;
+    runRaw("git", ["apply", "--whitespace=nowarn", "-"], workspace, parsed.patch);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function persistLearnedMemory(
+  workspace: string,
+  fingerprint: string,
+  changedPaths: string[],
+  engineId: string,
+): void {
+  const path = learnedMemoryPath(fingerprint);
+  if (!path) return;
+  try {
+    const patch = runRaw("git", ["diff", "--binary", "--", ...changedPaths], workspace);
+    if (!patch.trim()) return;
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, JSON.stringify({
+      version: 1,
+      failureFingerprint: fingerprint,
+      engineId,
+      changedPaths,
+      patch,
+      verifiedAt: new Date().toISOString(),
+    }, null, 2) + "\n", "utf8");
+  } catch {
+    // Repair memory is an optimization. A verified repair must not fail because cache persistence failed.
+  }
 }
 
 function runChatGptRepair(
@@ -570,7 +637,7 @@ export function configuredRepairEngineIds(
     available.add("chat");
     available.add("work");
   }
-  if (runtime.cloudFreeReady) available.add("free-external");
+  if (env.GROQ_API_KEY?.trim()) available.add("free-external");
   if (codexAvailable) available.add("codex");
   return REPAIR_ENGINE_ESCALATION_ORDER
     .map((stage) => stage.id)
@@ -617,10 +684,11 @@ function createRepairEngineRunners(
     run(prompt) { runChatGptRepair(workspace, prompt, "work", context.repository, context.token); },
   });
 
-  if (runtime.cloudFreeReady) {
+  const groqApiKey = process.env.GROQ_API_KEY?.trim() || "";
+  if (groqApiKey) {
     runners.set("free-external", {
       id: "free-external",
-      run(prompt) { runOllamaRepair(workspace, prompt, FREE_EXTERNAL_MODEL); },
+      run(prompt) { runGroqFreeRepair(workspace, prompt, groqApiKey); },
     });
   }
 
@@ -1037,6 +1105,7 @@ async function main() {
 
   const repairEngine = repaired.engineId;
   const changed = repaired.changed;
+  persistLearnedMemory(workspace, fingerprint, changed, repairEngine);
   const verification = { checks: repaired.checks };
   const localVerificationAttempt = repaired.localVerificationAttempts;
   const localVerificationFailures = repaired.localVerificationFailures;
