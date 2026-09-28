@@ -234,3 +234,155 @@ test("task migration class is explicit and invalid runtime values fail closed", 
     /invalid migrationClass/,
   );
 });
+
+
+test("MIGRATABLE recovery resumes only from a durable checkpoint", async () => {
+  const runtime = new DurableTaskRuntime(new MemoryDurableTaskStore());
+  await runtime.enqueue({
+    id: "migratable-checkpoint",
+    idempotencyKey: "migratable-checkpoint",
+    type: "work",
+    migrationClass: "MIGRATABLE",
+    checkpointRef: "checkpoint://migratable/1",
+  }, t0);
+  const first = await runtime.leaseClaim("migratable-checkpoint", "macbook", 100, plus(1));
+  await runtime.markRunningClaimed(first, plus(2));
+  assert.equal(await runtime.reclaimExpiredLeases(plus(200)), 1);
+  const recovered = await runtime.get("migratable-checkpoint");
+  assert.equal(recovered?.status, "retrying");
+  assert.equal(recovered?.checkpointRef, "checkpoint://migratable/1");
+  assert.equal(recovered?.waitReason, undefined);
+
+  const second = await runtime.leaseClaim("migratable-checkpoint", "zbook", 100, plus(201));
+  assert.equal(second.epoch, 2);
+  assert.equal(second.owner, "zbook");
+
+  await runtime.enqueue({
+    id: "migratable-no-checkpoint",
+    idempotencyKey: "migratable-no-checkpoint",
+    type: "work",
+    migrationClass: "MIGRATABLE",
+  }, plus(300));
+  const noCheckpoint = await runtime.leaseClaim("migratable-no-checkpoint", "macbook", 100, plus(301));
+  await runtime.markRunningClaimed(noCheckpoint, plus(302));
+  assert.equal(await runtime.reclaimExpiredLeases(plus(500)), 1);
+  const waiting = await runtime.get("migratable-no-checkpoint");
+  assert.equal(waiting?.status, "waiting-resource");
+  assert.equal(waiting?.waitReason, "migration-checkpoint");
+  assert.equal(await runtime.resumeWaiting("resource", plus(501)), 0);
+
+  const resumed = await runtime.provideMigrationCheckpoint(
+    "migratable-no-checkpoint",
+    "checkpoint://recovered/2",
+    plus(502),
+  );
+  assert.equal(resumed.status, "retrying");
+  assert.equal(resumed.waitReason, undefined);
+  assert.equal(resumed.checkpointRef, "checkpoint://recovered/2");
+});
+
+test("RESTARTABLE recovery can move to another eligible node", async () => {
+  const runtime = new DurableTaskRuntime(new MemoryDurableTaskStore());
+  await runtime.enqueue({
+    id: "restartable-node-loss",
+    idempotencyKey: "restartable-node-loss",
+    type: "work",
+    migrationClass: "RESTARTABLE",
+  }, t0);
+  const mac = await runtime.leaseClaim("restartable-node-loss", "macbook", 100, plus(1));
+  await runtime.markRunningClaimed(mac, plus(2));
+  assert.equal(await runtime.recoverOrphans(new Set(), plus(3)), 1);
+  const recovered = await runtime.get("restartable-node-loss");
+  assert.equal(recovered?.status, "retrying");
+  assert.equal(recovered?.waitReason, undefined);
+  const zbook = await runtime.leaseClaim("restartable-node-loss", "zbook", 100, plus(4));
+  assert.equal(zbook.owner, "zbook");
+  assert.equal(zbook.epoch, 2);
+});
+
+test("PINNED recovery waits for the same node and rejects another node", async () => {
+  const runtime = new DurableTaskRuntime(new MemoryDurableTaskStore());
+  await assert.rejects(
+    () => runtime.enqueue({
+      id: "bad-pinned",
+      idempotencyKey: "bad-pinned",
+      type: "sensor",
+      migrationClass: "PINNED",
+    }, t0),
+    /pinnedNodeId/,
+  );
+  await runtime.enqueue({
+    id: "pinned-node-loss",
+    idempotencyKey: "pinned-node-loss",
+    type: "sensor",
+    migrationClass: "PINNED",
+    pinnedNodeId: "zbook",
+  }, plus(1));
+  await assert.rejects(
+    () => runtime.leaseClaim("pinned-node-loss", "macbook", 100, plus(2)),
+    /PINNED_TASK_WRONG_NODE/,
+  );
+  const zbook = await runtime.leaseClaim("pinned-node-loss", "zbook", 100, plus(3));
+  await runtime.markRunningClaimed(zbook, plus(4));
+  assert.equal(await runtime.recoverOrphans(new Set(), plus(5)), 1);
+  const waiting = await runtime.get("pinned-node-loss");
+  assert.equal(waiting?.status, "waiting-resource");
+  assert.equal(waiting?.waitReason, "pinned-node");
+  assert.equal(waiting?.pinnedNodeId, "zbook");
+  assert.equal(await runtime.resumeWaiting("resource", plus(6)), 0);
+  assert.equal(await runtime.resumePinnedNode("macbook", plus(7)), 0);
+  assert.equal(await runtime.resumePinnedNode("zbook", plus(8)), 1);
+  await assert.rejects(
+    () => runtime.leaseClaim("pinned-node-loss", "macbook", 100, plus(9)),
+    /PINNED_TASK_WRONG_NODE/,
+  );
+  const returned = await runtime.leaseClaim("pinned-node-loss", "zbook", 100, plus(10));
+  assert.equal(returned.owner, "zbook");
+  assert.equal(returned.epoch, 2);
+});
+
+test("SIDE_EFFECTING recovery requires reconciliation evidence before retry or completion", async () => {
+  const runtime = new DurableTaskRuntime(new MemoryDurableTaskStore());
+  await runtime.enqueue({
+    id: "side-effect-node-loss",
+    idempotencyKey: "side-effect-node-loss",
+    type: "publish",
+    migrationClass: "SIDE_EFFECTING",
+  }, t0);
+  const claim = await runtime.leaseClaim("side-effect-node-loss", "macbook", 100, plus(1));
+  await runtime.markRunningClaimed(claim, plus(2));
+  assert.equal(await runtime.reclaimExpiredLeases(plus(200)), 1);
+  const waiting = await runtime.get("side-effect-node-loss");
+  assert.equal(waiting?.status, "waiting-resource");
+  assert.equal(waiting?.waitReason, "side-effect-reconciliation");
+  assert.equal(await runtime.resumeWaiting("resource", plus(201)), 0);
+
+  await assert.rejects(
+    () => runtime.reconcileSideEffect("side-effect-node-loss", "verifier", "retry", {}, undefined, plus(202)),
+    /evidence is required/,
+  );
+  const retry = await runtime.reconcileSideEffect(
+    "side-effect-node-loss",
+    "verifier",
+    "retry",
+    { externalEffectObserved: false, verifier: "receipt-probe" },
+    undefined,
+    plus(203),
+  );
+  assert.equal(retry.status, "retrying");
+  assert.equal(retry.waitReason, undefined);
+
+  const retryClaim = await runtime.leaseClaim("side-effect-node-loss", "zbook", 100, plus(204));
+  await runtime.markRunningClaimed(retryClaim, plus(205));
+  assert.equal(await runtime.recoverOrphans(new Set(), plus(206)), 1);
+  const completed = await runtime.reconcileSideEffect(
+    "side-effect-node-loss",
+    "verifier",
+    "completed",
+    { externalEffectObserved: true, receiptVerified: true },
+    { receiptId: "verified-existing-effect" },
+    plus(207),
+  );
+  assert.equal(completed.status, "completed");
+  assert.deepEqual(completed.result, { receiptId: "verified-existing-effect" });
+});
