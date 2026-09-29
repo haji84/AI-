@@ -136,11 +136,12 @@ test("fresh repair may correlate by verified empty baseline when user turn DOM i
 });
 
 
-test("fresh Chat repair accepts action-container output only on the isolated fresh path", () => {
+test("fresh Chat repair accepts only a newly completed phase response", () => {
   assert.match(source, /if \(!fresh && savedUrl\)/);
   assert.match(source, /startFreshProjectConversation/);
-  assert.match(source, /!candidate\?\.text && \(fresh \|\| mode === "work"\)/);
-  assert.match(source, /snapshotAssistantActionFallback\(client, requestMarker\)/);
+  assert.match(source, /state\.copyCount > phaseBaselineCopyCount/);
+  assert.match(source, /completionReady/);
+  assert.match(source, /copyAssistantAnswerFromUi\(client, phaseMarker\)/);
 });
 
 
