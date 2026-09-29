@@ -148,7 +148,7 @@ await api(`https://api.github.com/repos/${owner}/${repo}/dispatches`, token, {
     },
   }),
 });
-const deadline = Date.now() + (mode === "work" ? 12 * 60_000 : 5 * 60_000);
+const deadline = Date.now() + (mode === "work" ? 12 * 60_000 : 7 * 60_000);
 let answer = null;
 try {
   while (Date.now() < deadline) {
