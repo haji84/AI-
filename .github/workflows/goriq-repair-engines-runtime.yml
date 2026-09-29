@@ -12,10 +12,6 @@ on:
       - 'scripts/chatgpt-resident-bridge-lib.mjs'
       - 'scripts/install-macos-chatgpt-bridge.sh'
       - 'scripts/goriq-chatgpt-bridge-health-check.mjs'
-      - 'scripts/goriq-groq-repair.mjs'
-      - 'scripts/configure-groq-free-secret-windows.ps1'
-      - 'scripts/invoke-node-with-groq-secret-windows.ps1'
-      - 'scripts/install-groq-one-click-windows.ps1'
       - 'scripts/goriq-learned-repair-smoke.mjs'
       - 'src/orchestrator/repair-engine-router.ts'
       - '.github/workflows/goriq-repair-engines-runtime.yml'
@@ -42,10 +38,6 @@ jobs:
         shell: powershell
         run: |
           .\scripts\install-goriq-local-repair-windows.ps1
-      - name: Install one-click Groq setup launcher
-        shell: powershell
-        run: |
-          powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-groq-one-click-windows.ps1
       - name: Capture local repair status
         if: always()
         shell: powershell
