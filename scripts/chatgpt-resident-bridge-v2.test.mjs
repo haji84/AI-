@@ -19,10 +19,10 @@ test("resident bridge v2 opens ChatGPT only through the Automation project surfa
   assert.doesNotMatch(source, /createFreshChatGptTarget/);
 });
 
-test("resident bridge v2 excludes pre-existing assistant messages by exact turn ordering", () => {
-  assert.match(source, /snapshotConversationMessages/);
-  assert.match(source, /markerUserIndex/);
-  assert.match(source, /message\.role === "assistant" && message\.index > markerUserIndex/);
+test("resident bridge v2 excludes pre-existing assistant output by exact phase boundary", () => {
+  assert.match(source, /phaseBaselineCopyCount/);
+  assert.match(source, /state\.copyCount > phaseBaselineCopyCount/);
+  assert.match(source, /phaseBaselineCopyCount = state\.copyCount/);
   assert.doesNotMatch(source, /baselineFingerprints/);
 });
 
@@ -119,12 +119,13 @@ test("isolated repair completion uses final-state controls and one native Copy e
   assert.doesNotMatch(source, /snapshotAssistantActionFallback/);
 });
 
-test("resident bridge binds a reply to the exact submitted user turn", () => {
+test("resident bridge binds initial submission and later outputs to bounded phase identities", () => {
   assert.match(source, /GORIQ_BRIDGE_REQUEST_ID=/);
   assert.match(source, /submittedPrompt/);
   assert.match(source, /CHATGPT_SUBMITTED_TURN_NOT_FOUND/);
   assert.match(source, /message\.role === "user" && message\.text\.includes\(requestMarker\)/);
-  assert.match(source, /message\.role === "assistant" && message\.index > markerUserIndex/);
+  assert.match(source, /GORIQ_BRIDGE_PHASE_ID=/);
+  assert.match(source, /phaseBaselineCopyCount/);
   assert.doesNotMatch(source, /newMessages = messages\.filter\(\(message\) => !baselineFingerprints\.has/);
 });
 
