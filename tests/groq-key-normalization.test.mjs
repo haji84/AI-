@@ -4,11 +4,14 @@ import test from "node:test";
 
 const scriptPath = "scripts/configure-groq-free-secret-windows.ps1";
 
-test("Groq configurator uses clipboard-first input", async () => {
+test("Groq configurator uses Windows clipboard API with PowerShell fallback", async () => {
   const source = await readFile(scriptPath, "utf8");
 
+  assert.match(source, /System\.Windows\.Forms\.Clipboard/);
+  assert.match(source, /ContainsText\(\)/);
+  assert.match(source, /GetText\(/);
+  assert.match(source, /Clipboard\]::Clear\(\)/);
   assert.match(source, /Get-Clipboard -Raw/);
-  assert.match(source, /Set-Clipboard -Value ''/);
   assert.match(source, /コピーできたら Enter/);
   assert.match(source, /右クリック貼り付け/);
 });
