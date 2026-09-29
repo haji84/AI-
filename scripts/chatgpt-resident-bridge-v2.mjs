@@ -454,12 +454,6 @@ async function snapshotConversationMessages(client) {
   })()`);
 }
 
-function fingerprintMessage(message) {
-  if (!message) return "";
-  if (message.id) return `id:${message.id}`;
-  return `fallback:${message.index}:${message.text}`;
-}
-
 async function readMacClipboardText() {
   const { stdout } = await execFileAsync("pbpaste", [], { maxBuffer: 2 * 1024 * 1024 });
   return String(stdout ?? "");
@@ -473,21 +467,6 @@ function writeMacClipboardText(text) {
     });
     child.stdin.end(String(text ?? ""));
   });
-}
-
-async function hasAssistantCopyControl(client) {
-  return evaluate(client, `(() => {
-    const normalize = (value) => String(value || '').replace(/\\s+/g, ' ').trim();
-    const visible = (el) => {
-      const rect = el.getBoundingClientRect();
-      return rect.width > 0 && rect.height > 0;
-    };
-    return [...document.querySelectorAll('main button')].some((button) => {
-      if (!visible(button) || button.disabled) return false;
-      const label = normalize(button.getAttribute('aria-label') || button.textContent || '');
-      return /^(コピーする|copy)$/i.test(label);
-    });
-  })()`);
 }
 
 async function copyAssistantAnswerFromUi(client, requestMarker) {
@@ -525,38 +504,6 @@ async function copyAssistantAnswerFromUi(client, requestMarker) {
   } finally {
     try { await writeMacClipboardText(previousClipboard); } catch {}
   }
-}
-
-async function snapshotAssistantActionFallback(client, requestMarker) {
-  return evaluate(client, `(() => {
-    const normalize = (value) => String(value || '').replace(/\\s+/g, ' ').trim();
-    const visible = (el) => {
-      const rect = el.getBoundingClientRect();
-      return rect.width > 0 && rect.height > 0;
-    };
-    const controls = [...document.querySelectorAll('main button')].filter((button) => {
-      if (!visible(button)) return false;
-      const label = normalize([button.getAttribute('aria-label'), button.getAttribute('data-testid'), button.textContent].filter(Boolean).join(' '));
-      return /コピーする|copy|読み上げ|read aloud|回答を再生成|regenerate/i.test(label);
-    });
-    const candidates = [];
-    for (const control of controls) {
-      let node = control.closest('article,[data-testid^="conversation-turn"],[data-message-id]');
-      let depth = 0;
-      if (!node) node = control.parentElement;
-      while (node && depth < 7) {
-        const text = (node.innerText || node.textContent || '').trim();
-        if (text && text.length >= 20 && text.length <= 12000 && !text.includes(${JSON.stringify(requestMarker)})) {
-          candidates.push(text);
-          break;
-        }
-        node = node.parentElement;
-        depth += 1;
-      }
-    }
-    candidates.sort((a, b) => b.length - a.length);
-    return candidates[0]?.slice(0, 8000) || '';
-  })()`);
 }
 
 function repairSurfaceFromPending(pending) {
