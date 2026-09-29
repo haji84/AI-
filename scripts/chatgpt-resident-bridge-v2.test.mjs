@@ -150,7 +150,7 @@ test("fresh repair can recover the final assistant answer through the native Cop
   assert.match(source, /GORIQ_CLIPBOARD_SENTINEL_/);
   assert.match(source, /\^\(コピーする\|copy\)\$/);
   assert.match(source, /nextClipboardAttemptAt/);
-  assert.match(source, /fresh && !state\.generating && !clipboardFallbackAttempted/);
+  assert.match(source, /fresh && !state\.generating && Date\.now\(\) >= nextClipboardAttemptAt/);
 });
 
 test("clipboard fallback restores the prior clipboard and never logs copied answer text", () => {
