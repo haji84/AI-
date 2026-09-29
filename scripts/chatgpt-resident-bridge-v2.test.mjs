@@ -270,8 +270,8 @@ test("bridge v2 uses project session registry and does not default every request
   assert.match(source, /decision\.session\?\.url/);
   assert.match(source, /decision\.createNew/);
   assert.match(source, /recordProjectSession/);
-  assert.match(source, /if \\(isRepairIssue\\(issue\\)\\)/);
-  assert.match(source, /const decision = selectBridgeSession\\(taskContext, registry\\)/);
+  assert.match(source, /if \(isRepairIssue\(issue\)\)/);
+  assert.match(source, /const decision = selectBridgeSession\(taskContext, registry\)/);
 });
 
 test("bridge prompt includes project goal and selected session policy", () => {
