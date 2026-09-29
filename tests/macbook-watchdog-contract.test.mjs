@@ -19,6 +19,8 @@ test("Mac watchdog protects active jobs and requires repeated idle failures", ()
   assert.match(watchdog, /RUNNER_FAILURE_THRESHOLD=3/);
   assert.match(watchdog, /Runner\.Worker is active; refusing to recycle/);
   assert.match(watchdog, /runnerProtectedByActiveJob/);
+  assert.match(watchdog, /runner_listener_pids/);
+  assert.match(watchdog, /run-helper\\\.sh/);
   assert.match(watchdog, /active-job-or-established-tcp-or-recent-diag/);
   assert.match(watchdog, /Deferring recycle until the failure threshold is reached/);
   assert.match(watchdog, /Watchdog invocation skipped because another watchdog instance is still active/);
