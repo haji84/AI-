@@ -8,7 +8,7 @@ mkdir -p "$STATE_ROOT"
 LOG_FILE="$STATE_ROOT/macbook-watchdog.log"
 RUNNER_HEALTH_STATE="$STATE_ROOT/macbook-runner-health.json"
 LOCK_DIR="$STATE_ROOT/macbook-watchdog.lock"
-RUNNER_FAILURE_THRESHOLD=3
+RUNNER_FAILURE_THRESHOLD="${GAI_RUNNER_FAILURE_THRESHOLD:-2}"
 
 log() {
   printf '%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*" | tee -a "$LOG_FILE"
