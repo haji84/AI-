@@ -16,7 +16,12 @@ import {
   findExistingAiReplyAfterPending,
   isPendingConversationIssue,
   selectPendingOwnerMessage,
+  inferBridgeTaskContext,
 } from "./chatgpt-resident-bridge-lib.mjs";
+import {
+  selectBridgeSession,
+  upsertBridgeSession,
+} from "../src/orchestrator/chat-work-session-router.ts";
 
 const execFileAsync = promisify(execFile);
 const REPO = process.env.AI_COMPANY_REPO ?? "haji84/AI-";
@@ -30,6 +35,7 @@ const CHROME_PROFILE = process.env.AI_COMPANY_CHATGPT_PROFILE ?? join(HOME, "Lib
 const CHATGPT_URL = "https://chatgpt.com/";
 const PROJECT_NAME = process.env.AI_COMPANY_CHATGPT_PROJECT_NAME?.trim() || "自動化";
 const PROJECT_SURFACES_FILE = join(STATE_DIR, "chatgpt-project-surfaces.json");
+const PROJECT_SESSIONS_FILE = join(STATE_DIR, "chatgpt-project-sessions.json");
 const ONE_SHOT_REPAIR_ISSUE = Number(process.env.AI_COMPANY_REPAIR_ONCE_ISSUE || "");
 const CHAT_MAX_PHASES = 4;
 const CHAT_PHASE_BUDGET_MS = 60_000;
@@ -70,6 +76,35 @@ async function writeProjectSurface(mode, url) {
   const next = { ...current, project: PROJECT_NAME, [mode]: url, updatedAt: new Date().toISOString() };
   await mkdir(STATE_DIR, { recursive: true });
   await writeFile(PROJECT_SURFACES_FILE, JSON.stringify(next, null, 2) + "\n", "utf8");
+}
+
+async function readProjectSessions() {
+  try {
+    const parsed = JSON.parse(await readFile(PROJECT_SESSIONS_FILE, "utf8"));
+    if (!parsed || parsed.version !== 1 || !Array.isArray(parsed.sessions)) throw new Error("invalid session registry");
+    return { version: 1, project: PROJECT_NAME, sessions: parsed.sessions };
+  } catch {
+    const legacy = await readProjectSurfaces();
+    const now = new Date().toISOString();
+    const sessions = [];
+    if (legacy.chat) sessions.push({ project: PROJECT_NAME, surface: "chat", url: legacy.chat, goalId: null, lastUsedAt: now });
+    if (legacy.work) sessions.push({ project: PROJECT_NAME, surface: "work", url: legacy.work, goalId: null, lastUsedAt: now });
+    return { version: 1, project: PROJECT_NAME, sessions };
+  }
+}
+
+async function recordProjectSession(surface, url, goalId = null) {
+  if (!["chat", "work"].includes(surface) || typeof url !== "string" || !url.startsWith(CHATGPT_URL)) return;
+  const current = await readProjectSessions();
+  const next = upsertBridgeSession(current, {
+    project: PROJECT_NAME,
+    surface,
+    url,
+    goalId: typeof goalId === "string" && goalId.trim() ? goalId.trim() : null,
+    lastUsedAt: new Date().toISOString(),
+  });
+  await mkdir(STATE_DIR, { recursive: true });
+  await writeFile(PROJECT_SESSIONS_FILE, JSON.stringify(next, null, 2) + "\n", "utf8");
 }
 
 async function setHealth(status, detail = null, extra = {}) {
@@ -386,8 +421,9 @@ async function startFreshProjectConversation(client) {
 }
 
 async function prepareProjectSurface(client, mode, fresh = false) {
+  const preferredUrl = arguments[3] ?? null;
   const surfaces = await readProjectSurfaces();
-  const savedUrl = mode === "work" ? surfaces.work : surfaces.chat;
+  const savedUrl = preferredUrl || (mode === "work" ? surfaces.work : surfaces.chat);
   if (!fresh && savedUrl) {
     try {
       await navigateClient(client, savedUrl);
@@ -843,7 +879,7 @@ function looksLikeUnifiedDiff(text) {
     || /(?:^|\n)---\s+[^\n]+\n\+\+\+\s+/m.test(value);
 }
 
-async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false) {
+async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false, preferredUrl = null, goalId = null) {
   const requestMarker = `GORIQ_BRIDGE_REQUEST_ID=${randomUUID()}`;
   const preSplit = mode === "chat" && shouldPreSplitChatRepair(prompt);
   const submittedPrompt = mode === "chat"
@@ -861,7 +897,7 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false) {
     await client.call("Page.enable");
     await client.call("Runtime.enable");
     await client.call("Page.bringToFront");
-    await prepareProjectSurface(client, mode, fresh);
+    await prepareProjectSurface(client, mode, fresh, preferredUrl);
     const selectedExperience = await waitForComposer(client);
     if (!String(selectedExperience?.url ?? "").startsWith(CHATGPT_URL)) throw new Error("project surface left ChatGPT");
 
@@ -1021,6 +1057,7 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false) {
             if (mode !== "chat") {
               if (!fresh) {
                 const surfaceUrl = await evaluate(client, "location.href");
+                await recordProjectSession(mode, String(surfaceUrl || ""), goalId);
                 await writeProjectSurface(mode, String(surfaceUrl || ""));
               }
               return copied.slice(0, 8000);
@@ -1033,7 +1070,8 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false) {
               if (looksLikeUnifiedDiff(copied)) {
                 if (!fresh) {
                   const surfaceUrl = await evaluate(client, "location.href");
-                  await writeProjectSurface(mode, String(surfaceUrl || ""));
+                  await recordProjectSession(mode, String(surfaceUrl || ""), goalId);
+                await writeProjectSurface(mode, String(surfaceUrl || ""));
                 }
                 return copied.slice(0, 8000);
               }
@@ -1043,6 +1081,7 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false) {
             if (!preSplit && phase === 1 && looksLikeUnifiedDiff(copied)) {
               if (!fresh) {
                 const surfaceUrl = await evaluate(client, "location.href");
+                await recordProjectSession(mode, String(surfaceUrl || ""), goalId);
                 await writeProjectSurface(mode, String(surfaceUrl || ""));
               }
               return copied.slice(0, 8000);
@@ -1146,10 +1185,40 @@ async function processIssue(issue) {
     return;
   }
 
-  await setHealth("processing", `Issue #${issue.number}: ${pending.id}`, { issueNumber: issue.number, pendingOwnerMessageId: pending.id });
-  const prompt = buildBridgePrompt({ issueNumber: issue.number, meta, messages, pending });
-  const surface = repairSurfaceFromPending(pending);
-  const answer = await submitPromptAndReadAnswer(prompt, surface, isRepairIssue(issue));
+  if (isRepairIssue(issue)) {
+    const prompt = buildBridgePrompt({ issueNumber: issue.number, meta, messages, pending });
+    const surface = repairSurfaceFromPending(pending);
+    const answer = await submitPromptAndReadAnswer(prompt, surface, isRepairIssue(issue));
+    if (!answer.trim()) throw new Error("ChatGPT returned an empty answer; pending was preserved");
+    const aiMessage = await postAiReply(issue.number, meta, answer);
+    await setHealth("synced", `Issue #${issue.number} synced`, { issueNumber: issue.number, lastAiMessageId: aiMessage.id });
+    return;
+  }
+
+  const taskContext = inferBridgeTaskContext(meta, messages, pending);
+  const registry = await readProjectSessions();
+  const decision = selectBridgeSession(taskContext, registry);
+  await setHealth("processing", `Issue #${issue.number}: ${pending.id}`, {
+    issueNumber: issue.number,
+    pendingOwnerMessageId: pending.id,
+    selectedSurface: decision.surface,
+    sessionReuse: decision.reuse,
+    goalId: taskContext.goalId,
+  });
+  const prompt = buildBridgePrompt({
+    issueNumber: issue.number,
+    meta,
+    messages,
+    pending,
+    routing: { ...decision, goalId: taskContext.goalId },
+  });
+  const answer = await submitPromptAndReadAnswer(
+    prompt,
+    decision.surface,
+    decision.createNew,
+    decision.session?.url ?? null,
+    taskContext.goalId,
+  );
   if (!answer.trim()) throw new Error("ChatGPT returned an empty answer; pending was preserved");
   const aiMessage = await postAiReply(issue.number, meta, answer);
   await setHealth("synced", `Issue #${issue.number} synced`, { issueNumber: issue.number, lastAiMessageId: aiMessage.id });

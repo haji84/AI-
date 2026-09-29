@@ -4551,6 +4551,15 @@
       "reason": "Declared capability-racing.ts responsibility implements/supports Model Router; Capability Router. Parent ownership is not functional or physical acceptance evidence."
     },
     {
+      "path": "src/orchestrator/chat-work-session-router.ts",
+      "sha256": "a12100b486113f41b9e81e767ea61aef636a44c5b09166d4ded2fbc3dd96c100",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "OPS-008"
+      ],
+      "reason": "Project-scoped Chat/Work routing and bounded session reuse; preserves existing reasoning authority and Human Gate boundaries"
+    },
+    {
       "path": "src/orchestrator/cloud-runtime.ts",
       "sha256": "5cb619b14aa3ab2feaf47b17082e1ab0be14f4670d0ad924d3f4b01dd17491d5",
       "classification": "COVERED_BY_REQUIREMENT",
