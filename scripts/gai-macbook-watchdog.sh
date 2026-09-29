@@ -44,6 +44,25 @@ if ! acquire_lock; then
 fi
 trap release_lock EXIT
 
+runner_listener_pids() {
+  local pids=''
+  pids="$(pgrep -f 'Runner\.Listener|bin/Runner\.Listener|run-helper\.sh' 2>/dev/null || true)"
+  if [[ -n "$pids" ]]; then
+    printf '%s\n' "$pids" | awk '!seen[$0]++'
+    return 0
+  fi
+
+  local pid=''
+  while IFS= read -r pid; do
+    [[ -n "$pid" ]] || continue
+    local command=''
+    command="$(ps -p "$pid" -o command= 2>/dev/null || true)"
+    if [[ "$command" == *"$RUNNER_ROOT"* && "$command" == *"Listener"* ]]; then
+      printf '%s\n' "$pid"
+    fi
+  done < <(pgrep -f "$RUNNER_ROOT" 2>/dev/null || true)
+}
+
 count_processes() {
   local pattern="$1"
   local pids=''
@@ -82,7 +101,7 @@ JSON
 
 runner_connection_healthy() {
   local listeners=''
-  listeners="$(pgrep -f 'Runner.Listener' 2>/dev/null || true)"
+  listeners="$(runner_listener_pids)"
   [[ -n "$listeners" ]] || return 1
 
   if [[ -x /usr/sbin/lsof ]]; then
@@ -148,7 +167,7 @@ stop_stale_runner() {
   fi
 
   local listeners=''
-  listeners="$(pgrep -f 'Runner.Listener' 2>/dev/null || true)"
+  listeners="$(runner_listener_pids)"
   if [[ -z "$listeners" ]]; then
     return 0
   fi
@@ -161,7 +180,7 @@ stop_stale_runner() {
   done <<<"$listeners"
 
   sleep 2
-  listeners="$(pgrep -f 'Runner.Listener' 2>/dev/null || true)"
+  listeners="$(runner_listener_pids)"
   if [[ -n "$listeners" ]]; then
     while IFS= read -r pid; do
       [[ -n "$pid" ]] || continue
