@@ -43,13 +43,59 @@ function Clear-WindowsClipboard {
   }
 }
 
+function Test-VSCodeTerminal {
+  return (
+    [string]$env:TERM_PROGRAM -eq 'vscode' -or
+    -not [string]::IsNullOrWhiteSpace([string]$env:VSCODE_PID) -or
+    -not [string]::IsNullOrWhiteSpace([string]$env:VSCODE_CWD)
+  )
+}
+
+function Wait-ForGroqClipboardKey {
+  param([int]$TimeoutSeconds = 120)
+
+  $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+  $lastFingerprint = ''
+
+  while ((Get-Date) -lt $deadline) {
+    try {
+      $candidate = Get-WindowsClipboardText
+      if (-not [string]::IsNullOrWhiteSpace($candidate)) {
+        $candidate = $candidate.Trim()
+        $candidate = [Text.RegularExpressions.Regex]::Replace($candidate, '[\p{Cc}\p{Cf}\p{Z}\s]+', '')
+
+        if ($candidate.StartsWith('gsk_', [StringComparison]::Ordinal)) {
+          return $candidate
+        }
+
+        $fingerprint = '{0}:{1}' -f $candidate.Length, $(if ($candidate.Length -ge 4) { $candidate.Substring(0, 4) } else { $candidate })
+        if ($fingerprint -ne $lastFingerprint) {
+          Write-Host 'Clipboard changed, but it is not a Groq API key yet. Copy the full Groq key.'
+          $lastFingerprint = $fingerprint
+        }
+      }
+    } catch {}
+
+    Start-Sleep -Milliseconds 250
+  }
+
+  return ''
+}
+
 if (-not $SkipOpen) {
   Write-Host 'Opening Groq API Keys page...'
   Start-Process 'https://console.groq.com/keys'
 }
 
 Write-Host ''
-Write-Host 'Copy only the Groq API key to the Windows clipboard, then press Enter here.'
+$isVSCodeTerminal = Test-VSCodeTerminal
+if ($isVSCodeTerminal) {
+  Write-Host 'VSCode terminal detected.'
+  Write-Host 'Open the Groq API Keys page and copy the full key. This terminal will detect it automatically.'
+  Write-Host 'Do not paste the key into the terminal.'
+} else {
+  Write-Host 'Copy only the Groq API key to the Windows clipboard, then press Enter here.'
+}
 Write-Host 'The key will not be printed or logged. The clipboard will be cleared after capture.'
 
 $secure = $null
@@ -59,30 +105,43 @@ $normalizedSecure = $null
 $clipboardCaptured = $false
 
 try {
-  [void](Read-Host 'Press Enter after copying the key')
-  try {
-    $plain = Get-WindowsClipboardText
+  if ($isVSCodeTerminal) {
+    $plain = Wait-ForGroqClipboardKey -TimeoutSeconds 120
     if (-not [string]::IsNullOrWhiteSpace($plain)) {
       $clipboardCaptured = $true
       Clear-WindowsClipboard
+      Write-Host 'Groq key detected from Windows clipboard.'
     }
-  } catch {
-    Write-Host 'Windows clipboard direct read failed; falling back to PowerShell clipboard access.'
-    $getClipboard = Get-Command -Name 'Get-Clipboard' -ErrorAction SilentlyContinue
-    if ($null -ne $getClipboard) {
-      try {
-        $plain = [string](Get-Clipboard -Raw -ErrorAction Stop)
-        if (-not [string]::IsNullOrWhiteSpace($plain)) {
-          $clipboardCaptured = $true
-          Clear-WindowsClipboard
+  } else {
+    [void](Read-Host 'Press Enter after copying the key')
+    try {
+      $plain = Get-WindowsClipboardText
+      if (-not [string]::IsNullOrWhiteSpace($plain)) {
+        $clipboardCaptured = $true
+        Clear-WindowsClipboard
+      }
+    } catch {
+      Write-Host 'Windows clipboard direct read failed; falling back to PowerShell clipboard access.'
+      $getClipboard = Get-Command -Name 'Get-Clipboard' -ErrorAction SilentlyContinue
+      if ($null -ne $getClipboard) {
+        try {
+          $plain = [string](Get-Clipboard -Raw -ErrorAction Stop)
+          if (-not [string]::IsNullOrWhiteSpace($plain)) {
+            $clipboardCaptured = $true
+            Clear-WindowsClipboard
+          }
+        } catch {
+          $plain = ''
         }
-      } catch {
-        $plain = ''
       }
     }
   }
 
   if (-not $clipboardCaptured) {
+    if ($isVSCodeTerminal) {
+      throw 'No Groq API key was detected within 120 seconds. Copy a full gsk_ key in the Groq Console and run the command again.'
+    }
+
     Write-Host 'Clipboard capture was unavailable. Falling back to secure console input.'
     Write-Host 'For the fallback prompt, use right-click paste instead of Ctrl+V.'
     $secure = Read-Host 'Groq API key' -AsSecureString
