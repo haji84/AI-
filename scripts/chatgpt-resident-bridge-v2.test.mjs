@@ -253,3 +253,11 @@ test("assistant Copy uses trusted CDP mouse input instead of DOM click", () => {
   const copySource = source.slice(copyStart, copyEnd);
   assert.doesNotMatch(copySource, /button\.click\(\)/);
 });
+
+test("trusted Copy scrolls the newest phase control into the viewport before clicking", () => {
+  assert.match(source, /scrollIntoView\(\{ block: 'center', inline: 'nearest' \}\)/);
+  assert.match(source, /requestAnimationFrame\(\(\) => requestAnimationFrame/);
+  assert.match(source, /x > window\.innerWidth/);
+  assert.match(source, /y > window\.innerHeight/);
+  assert.match(source, /Input\.dispatchMouseEvent/);
+});
