@@ -26,8 +26,12 @@ GORIQ must not treat Codex as its primary repair brain. Automatic repair starts 
 - Chat and Work are not standalone repair silos. They reuse the existing `自動化` Project surfaces and their shared project context.
 - If a dedicated repair Chat/Work surface is needed, it must be created from inside Project `自動化`; Project-external session creation is forbidden.
 - Work is escalation-only and is not invoked for every repair.
-- Stage 5 Chat uses bounded one-minute execution phases. If the requested repair is not complete within one minute, Chat continues in the same isolated Project conversation through smaller micro-phases rather than repeating the whole task.
-- Chat phase 2 performs exact failure diagnosis, phase 3 constructs the smallest change, and phase 4 emits the final bounded diff. A phase may finish early and advance immediately.
+- Stage 5 Chat uses bounded one-minute execution phases.
+- If a repair looks likely to exceed one minute before execution (large failure evidence, multiple repair paths, or structurally multi-step input), Chat is phase-split before the first send rather than waiting for a timeout.
+- Planned phases remain one repair Goal: phase 1 diagnoses, phase 2 refines the exact correction, phase 3 constructs the smallest change, and phase 4 consolidates every phase result into one final bounded unified diff.
+- Each completed phase is copied once, preserved as a bounded phase artifact, and explicitly reflected into the next phase prompt. Phase splitting never creates an independent task or authority scope.
+- Intermediate phase output is never applied to the workspace. Only the final consolidated unified diff is returned to GORIQ for normal scope/verification checks.
+- If a task was not predicted to be long but exceeds one minute, the same micro-phase path is entered at that point instead of repeating the whole task.
 - If Chat shows Retry, the current Chat phase is abandoned immediately and the next smaller phase begins.
 - Only a newly completed assistant response after the current phase boundary may be accepted; late output from an older phase is stale.
 - After all bounded Chat phases fail, Stage 5 fails closed and canonical routing advances to Work.
