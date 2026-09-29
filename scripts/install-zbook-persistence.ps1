@@ -36,6 +36,20 @@ $launcherContent = @(
 Set-Content -Path $launcherVbs -Value $launcherContent -Encoding Unicode
 $taskCommand = "`"$wscript`" //B //NoLogo `"$launcherVbs`""
 
+function Get-LegacyWatchdogPath {
+  try {
+    $task = Get-ScheduledTask -TaskName 'GAI-ZBook-Watchdog' -ErrorAction SilentlyContinue
+    if (-not $task -or -not $task.Actions) { return $null }
+    $arguments = [string](($task.Actions | Select-Object -First 1).Arguments)
+    if ($arguments -match '(?i)-File\s+"?([^"]+?gai-zbook-watchdog\.ps1)"?(?:\s|$)') {
+      return $matches[1].Trim()
+    }
+  } catch {
+    Write-Warning "Unable to inspect the legacy watchdog path: $($_.Exception.Message)"
+  }
+  return $null
+}
+
 function Test-HiddenTaskHost([string]$TaskName) {
   try {
     $task = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
@@ -69,6 +83,19 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 if ($taskRegistrationFailed) {
+  $legacyWatchdogPath = Get-LegacyWatchdogPath
+  if ($legacyWatchdogPath -and ($legacyWatchdogPath -ine $persistedWatchdog)) {
+    try {
+      $legacyWatchdogDirectory = Split-Path -Parent $legacyWatchdogPath
+      if (Test-Path $legacyWatchdogDirectory) {
+        Copy-Item -Force $sourceWatchdog $legacyWatchdogPath
+        Write-Host "Synchronized the current watchdog to the existing task path: $legacyWatchdogPath"
+      }
+    } catch {
+      Write-Warning "Unable to synchronize the existing task watchdog path: $($_.Exception.Message)"
+    }
+  }
+
   & schtasks.exe /Run /TN 'GAI-ZBook-Watchdog' | Out-Host
   for ($i = 0; $i -lt 30; $i++) {
     if ((Test-HiddenTaskHost 'GAI-ZBook-Runner-OnLogon') -and (Test-HiddenTaskHost 'GAI-ZBook-Watchdog')) {
@@ -80,6 +107,30 @@ if ($taskRegistrationFailed) {
 }
 
 if ($taskRegistrationFailed) {
+  Write-Host "Runner identity: $([Security.Principal.WindowsIdentity]::GetCurrent().Name)"
+  Write-Host "Runner LOCALAPPDATA: $env:LOCALAPPDATA"
+  foreach ($taskName in @('GAI-ZBook-Runner-OnLogon', 'GAI-ZBook-Watchdog')) {
+    try {
+      $task = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+      if ($task) {
+        $action = $task.Actions | Select-Object -First 1
+        Write-Host ("Task {0}: execute={1}; arguments={2}; user={3}; runLevel={4}; logonType={5}; multipleInstances={6}" -f
+          $taskName, $action.Execute, $action.Arguments, $task.Principal.UserId,
+          $task.Principal.RunLevel, $task.Principal.LogonType, $task.Settings.MultipleInstances)
+      }
+    } catch {
+      Write-Warning "Unable to inspect $taskName after migration failure: $($_.Exception.Message)"
+    }
+  }
+
+  $legacyWatchdogPath = Get-LegacyWatchdogPath
+  if ($legacyWatchdogPath) {
+    $legacyLogPath = Join-Path (Split-Path -Parent $legacyWatchdogPath) 'zbook-watchdog.log'
+    if (Test-Path $legacyLogPath) {
+      Write-Host 'Recent watchdog log:'
+      Get-Content -Path $legacyLogPath -Tail 40 | Out-Host
+    }
+  }
   throw 'Failed to migrate the existing ZBook scheduled tasks to the hidden WScript launcher.'
 }
 
