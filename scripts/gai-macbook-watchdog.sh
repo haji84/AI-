@@ -117,6 +117,28 @@ runner_connection_healthy() {
   return 1
 }
 
+resolve_ollama_exe() {
+  local cmd=''
+  cmd="$(command -v ollama 2>/dev/null || true)"
+  if [[ -n "$cmd" && -x "$cmd" ]]; then
+    printf '%s\n' "$cmd"
+    return 0
+  fi
+
+  local candidate=''
+  for candidate in \
+    "/opt/homebrew/bin/ollama" \
+    "/usr/local/bin/ollama" \
+    "$HOME/.local/bin/ollama" \
+    "$HOME/bin/ollama"; do
+    if [[ -x "$candidate" ]]; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+  return 1
+}
+
 stop_stale_runner() {
   local active_workers=0
   active_workers="$(count_processes 'Runner.Worker')"
@@ -246,9 +268,10 @@ else
   fi
 
   if [[ "$ollama_healthy" != true && "$ollama_process_present" != true ]]; then
-    if command -v ollama >/dev/null 2>&1; then
-      log 'Ollama API unavailable and no Ollama process exists. Starting ollama serve.'
-      nohup ollama serve >>"$STATE_ROOT/ollama.out.log" 2>>"$STATE_ROOT/ollama.err.log" &
+    ollama_exe="$(resolve_ollama_exe || true)"
+    if [[ -n "$ollama_exe" ]]; then
+      log "Ollama API unavailable and no Ollama process exists. Starting $ollama_exe serve."
+      nohup "$ollama_exe" serve >>"$STATE_ROOT/ollama.out.log" 2>>"$STATE_ROOT/ollama.err.log" &
       ollama_process_present=true
       for _ in $(seq 1 15); do
         sleep 2
@@ -258,7 +281,7 @@ else
         fi
       done
     else
-      log 'Ollama executable is not installed yet.'
+      log 'Ollama executable is not installed or discoverable in trusted local paths.'
     fi
   fi
 fi
