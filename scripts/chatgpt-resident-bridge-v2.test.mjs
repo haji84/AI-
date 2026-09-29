@@ -110,10 +110,11 @@ test("normal conversations may reuse surfaces but repair turns are isolated", ()
   assert.match(source, /if \(!fresh\)[\s\S]*?writeProjectSurface\(mode/);
 });
 
-test("Work output has a fallback extractor outside standard chat-turn DOM", () => {
-  assert.match(source, /snapshotWorkAssistantFallback/);
+test("Chat and Work output can fall back to assistant action containers outside standard turn DOM", () => {
+  assert.match(source, /snapshotAssistantActionFallback/);
   assert.match(source, /コピーする\|copy\|読み上げ\|read aloud\|回答を再生成\|regenerate/);
-  assert.match(source, /workFallbackText/);
+  assert.match(source, /fresh \|\| mode === "work"/);
+  assert.match(source, /actionFallbackText/);
   assert.match(source, /effectiveCandidate/);
 });
 
@@ -131,4 +132,12 @@ test("fresh repair may correlate by verified empty baseline when user turn DOM i
   assert.match(source, /const freshBaselineEmpty = fresh && Array\.isArray\(preSubmissionTurns\) && preSubmissionTurns\.length === 0/);
   assert.match(source, /if \(!freshBaselineEmpty\)[\s\S]*CHATGPT_SUBMITTED_TURN_NOT_FOUND/);
   assert.match(source, /markerUserIndex = -1/);
+});
+
+
+test("fresh Chat repair accepts action-container output only on the isolated fresh path", () => {
+  assert.match(source, /if \(!fresh && savedUrl\)/);
+  assert.match(source, /startFreshProjectConversation/);
+  assert.match(source, /!candidate\?\.text && \(fresh \|\| mode === "work"\)/);
+  assert.match(source, /snapshotAssistantActionFallback\(client, requestMarker\)/);
 });
