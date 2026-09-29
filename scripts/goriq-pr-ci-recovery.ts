@@ -9,6 +9,9 @@ import {
   type RepairEngineId,
 } from "../src/orchestrator/repair-engine-router.ts";
 
+// Intentional type error for autonomous recovery E2E. This PR must never merge.
+export const GORIQ_CI_RECOVERY_E2E_PROBE: string = 42;
+
 export const MAX_AUTOMATIC_ATTEMPTS_PER_STRATEGY = 3;
 export const MAX_AUTOMATIC_STRATEGIES = 3;
 export const MAX_AUTOMATIC_ATTEMPTS = MAX_AUTOMATIC_ATTEMPTS_PER_STRATEGY * MAX_AUTOMATIC_STRATEGIES;
