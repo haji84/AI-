@@ -469,7 +469,7 @@ function writeMacClipboardText(text) {
   });
 }
 
-async function copyAssistantAnswerFromUi(client, requestMarker) {
+async function copyAssistantAnswerFromUi(client, requestMarker, phaseToken = "") {
   const previousClipboard = await readMacClipboardText();
   const sentinel = `GORIQ_CLIPBOARD_SENTINEL_${randomUUID()}`;
   try {
@@ -485,7 +485,10 @@ async function copyAssistantAnswerFromUi(client, requestMarker) {
         const label = normalize(button.getAttribute('aria-label') || button.textContent || '');
         return /^(コピーする|copy)$/i.test(label);
       });
-      const button = buttons.at(-1);
+      const eligible = phaseToken
+        ? buttons.filter((button) => button.getAttribute('data-goriq-phase-baseline') !== phaseToken)
+        : buttons;
+      const button = eligible.at(-1);
       if (!button) return false;
       button.click();
       return true;
@@ -542,7 +545,24 @@ async function selectExperience(client, mode) {
   await sleep(700);
 }
 
-async function snapshotExecutionUiState(client) {
+async function markPhaseCopyBaseline(client, phaseToken) {
+  return evaluate(client, `(() => {
+    const normalize = (value) => String(value || '').replace(/\\s+/g, ' ').trim();
+    const visible = (el) => {
+      const rect = el.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    };
+    const copies = [...document.querySelectorAll('button')].filter((button) => {
+      if (!visible(button)) return false;
+      const label = normalize(button.getAttribute('aria-label') || button.textContent || '');
+      return /^(コピーする|copy)$/i.test(label);
+    });
+    for (const button of copies) button.setAttribute('data-goriq-phase-baseline', __PHASE_TOKEN__);
+    return copies.length;
+  })()`.replace("__PHASE_TOKEN__", JSON.stringify(phaseToken)));
+}
+
+async function snapshotExecutionUiState(client, phaseToken = "") {
   return evaluate(client, `(() => {
     const normalize = (value) => String(value || '').replace(/\\s+/g, ' ').trim();
     const visible = (el) => {
@@ -568,16 +588,24 @@ async function snapshotExecutionUiState(client) {
     const progressLabel = mainLabels.findLast((value) => /作業しました|working|thinking|reasoning/i.test(value)) || '';
     const mainText = document.querySelector('main')?.innerText || '';
     const tail = mainText.slice(-240);
-    const copyCount = assistantLabels.filter((value) => /^(コピーする|copy)$/i.test(value)).length;
+    const copyButtons = allButtons.filter((button) => {
+      const label = normalize(button.getAttribute('aria-label') || button.textContent || '');
+      return /^(コピーする|copy)$/i.test(label);
+    });
+    const copyCount = copyButtons.length;
+    const newCopyCount = phaseToken
+      ? copyButtons.filter((button) => button.getAttribute('data-goriq-phase-baseline') !== phaseToken).length
+      : copyCount;
     return {
       generating,
       retryVisible,
       copyReady,
       copyCount,
+      newCopyCount,
       readAloudReady,
       regenerateReady,
       completionReady: !generating && copyReady && (readAloudReady || regenerateReady) && !retryVisible,
-      completionSignature: JSON.stringify([copyCount, copyReady, readAloudReady, regenerateReady, retryVisible]),
+      completionSignature: JSON.stringify([newCopyCount, copyReady, readAloudReady, regenerateReady, retryVisible]),
       activitySignature: JSON.stringify([generating, retryVisible, copyReady, readAloudReady, regenerateReady, progressLabel, mainText.length, tail]),
     };
   })()`);
@@ -950,19 +978,20 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false) {
     let phaseStartedAt = Date.now();
     const phaseOutputs = [];
     let phaseMarker = requestMarker;
-    let phaseBaselineCopyCount = 0;
+    let phaseToken = `goriq-phase-${randomUUID()}`;
+    await markPhaseCopyBaseline(client, phaseToken);
     let completionSignature = "";
     let completionStableSince = 0;
 
     while (Date.now() < absoluteDeadline) {
-      const state = await snapshotExecutionUiState(client);
+      const state = await snapshotExecutionUiState(client, phaseToken);
 
-      if (state.completionReady && state.copyCount > phaseBaselineCopyCount) {
+      if (state.completionReady && state.newCopyCount > 0) {
         if (state.completionSignature !== completionSignature) {
           completionSignature = state.completionSignature;
           completionStableSince = Date.now();
         } else if (Date.now() - completionStableSince >= COMPLETION_STABLE_MS) {
-          const copied = await copyAssistantAnswerFromUi(client, phaseMarker);
+          const copied = await copyAssistantAnswerFromUi(client, phaseMarker, phaseToken);
           if (copied) {
             if (mode !== "chat") {
               if (!fresh) {
@@ -998,9 +1027,10 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false) {
               throw new Error(`CHAT_REPAIR_PHASES_EXHAUSTED: phase=${phase}; reason=explicit-exhaustion`);
             }
 
-            phaseBaselineCopyCount = state.copyCount;
             phase += 1;
             phaseMarker = `GORIQ_BRIDGE_PHASE_ID=${randomUUID()}`;
+            phaseToken = `goriq-phase-${randomUUID()}`;
+            await markPhaseCopyBaseline(client, phaseToken);
             await submitFollowupPrompt(
               client,
               buildChatRecoveryPhasePrompt(phase, preSplit ? "planned-phase-complete" : "intermediate-phase-complete", phaseMarker, phaseOutputs),
@@ -1031,9 +1061,10 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false) {
             await sleep(500);
           }
 
-          phaseBaselineCopyCount = state.copyCount;
           phase += 1;
           phaseMarker = `GORIQ_BRIDGE_PHASE_ID=${randomUUID()}`;
+          phaseToken = `goriq-phase-${randomUUID()}`;
+          await markPhaseCopyBaseline(client, phaseToken);
           const reason = state.retryVisible ? "retry-visible" : "one-minute-budget";
           await submitFollowupPrompt(client, buildChatRecoveryPhasePrompt(phase, reason, phaseMarker, phaseOutputs));
           phaseStartedAt = Date.now();
