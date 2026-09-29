@@ -2,81 +2,8 @@ import assert from "node:assert/strict";
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
-type NodeId = "macbook" | "zbook";
-
-interface LossMarker {
-  version: 1;
-  runId: string;
-  node: NodeId;
-  oldPid: number;
-  lossObservedAt: string;
-}
-
-interface RecoveryMarker {
-  version: 1;
-  runId: string;
-  node: NodeId;
-  newPid: number;
-  recoveredAt: string;
-}
-
-interface WatchdogStatus {
-  workerId: string;
-  runnerHealthy: boolean;
-  runnerConnectionHealthy?: boolean;
-  consecutiveRunnerFailures?: number;
-  runnerRecoveryDeferred?: boolean;
-  checkedAt: string;
-}
-
-interface SurvivorEvidence {
-  sourceSha: string;
-  direction: string;
-  origin: NodeId;
-  target: NodeId;
-  targetPlatform: string;
-  targetRunnerName: string | null;
-  reclaimedTasks: number;
-  tasks: Array<{
-    migrationClass: string;
-    oldEpoch: number;
-    newEpoch: number;
-    staleClaimRejected: boolean;
-    checkpointPreserved: boolean;
-    completedBy: NodeId;
-  }>;
-  verifiedAt: string;
-}
-
-interface RejoinEvidence {
-  version: 1;
-  verdict: "PASS";
-  sourceSha: string;
-  lostNode: NodeId;
-  survivingNode: NodeId;
-  lostPlatform: string;
-  lossObservedAt: string;
-  survivorCompletedAt: string;
-  recoveredAt: string;
-  oldListenerPid: number;
-  newListenerPid: number;
-  survivingNodeExecutedBeforeRecovery: boolean;
-  watchdogRecovered: boolean;
-  runnerHealthyAfterRecovery: boolean;
-  runnerConnectionHealthyAfterRecovery: boolean;
-  consecutiveRunnerFailuresAfterRecovery: number;
-  returningNodeEligibleAgain: boolean;
-  survivorEvidence: {
-    reclaimedTasks: number;
-    migrationClasses: string[];
-    staleClaimsRejected: boolean;
-    checkpointsPreserved: boolean;
-  };
-  verifiedAt: string;
-}
-
-function parseArgs(): Map<string, string> {
-  const out = new Map<string, string>();
+function parseArgs() {
+  const out = new Map();
   for (let i = 2; i < process.argv.length; i += 1) {
     const key = process.argv[i];
     if (!key?.startsWith("--")) continue;
@@ -91,43 +18,43 @@ function parseArgs(): Map<string, string> {
   return out;
 }
 
-function required(args: Map<string, string>, key: string): string {
+function required(args, key) {
   const value = args.get(key)?.trim();
   if (!value) throw new Error(`Missing --${key}`);
   return value;
 }
 
-function nodeId(value: string): NodeId {
+function nodeId(value) {
   if (value !== "macbook" && value !== "zbook") throw new Error(`Invalid node id: ${value}`);
   return value;
 }
 
-async function readJson<T>(path: string): Promise<T> {
-  return JSON.parse(await readFile(resolve(path), "utf8")) as T;
+async function readJson(path) {
+  return JSON.parse(await readFile(resolve(path), "utf8"));
 }
 
-async function writeJson(path: string, value: unknown): Promise<void> {
+async function writeJson(path, value) {
   await writeFile(resolve(path), `${JSON.stringify(value, null, 2)}\n`, "utf8");
 }
 
-function timestamp(value: string): number {
+function timestamp(value) {
   const parsed = Date.parse(value);
   assert.ok(Number.isFinite(parsed), `Invalid timestamp: ${value}`);
   return parsed;
 }
 
-function opposite(node: NodeId): NodeId {
+function opposite(node) {
   return node === "macbook" ? "zbook" : "macbook";
 }
 
-async function rejoin(args: Map<string, string>): Promise<void> {
+async function rejoin(args) {
   const node = nodeId(required(args, "node"));
   const platform = required(args, "platform");
   const sha = required(args, "sha");
-  const loss = await readJson<LossMarker>(required(args, "loss"));
-  const recovery = await readJson<RecoveryMarker>(required(args, "recovery"));
-  const status = await readJson<WatchdogStatus>(required(args, "status"));
-  const survivor = await readJson<SurvivorEvidence>(required(args, "survivor"));
+  const loss = await readJson(required(args, "loss"));
+  const recovery = await readJson(required(args, "recovery"));
+  const status = await readJson(required(args, "status"));
+  const survivor = await readJson(required(args, "survivor"));
   const output = required(args, "output");
 
   assert.equal(loss.version, 1);
@@ -160,7 +87,7 @@ async function rejoin(args: Map<string, string>): Promise<void> {
   assert.equal(status.runnerRecoveryDeferred ?? false, false);
   assert.equal(status.consecutiveRunnerFailures ?? 0, 0);
 
-  const evidence: RejoinEvidence = {
+  const evidence = {
     version: 1,
     verdict: "PASS",
     sourceSha: sha,
@@ -191,9 +118,9 @@ async function rejoin(args: Map<string, string>): Promise<void> {
   process.stdout.write(`${JSON.stringify(evidence)}\n`);
 }
 
-async function verify(args: Map<string, string>): Promise<void> {
-  const mac = await readJson<RejoinEvidence>(required(args, "mac"));
-  const zbook = await readJson<RejoinEvidence>(required(args, "zbook"));
+async function verify(args) {
+  const mac = await readJson(required(args, "mac"));
+  const zbook = await readJson(required(args, "zbook"));
   const sha = required(args, "sha");
   const output = required(args, "output");
 
