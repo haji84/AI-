@@ -434,7 +434,7 @@ function repairRuntimeStatus(): {
   const statusPath = join(localAppData, "GORIQ", "repair-engines", "status.json");
   if (!existsSync(statusPath)) return defaults;
   try {
-    const parsed = JSON.parse(readFileSync(statusPath, "utf8")) as {
+    const parsed = JSON.parse(readFileSync(statusPath, "utf8").replace(/^\uFEFF/, "")) as {
       models?: unknown;
       localFastModel?: unknown;
       localStrongModel?: unknown;
