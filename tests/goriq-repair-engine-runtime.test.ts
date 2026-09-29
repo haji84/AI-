@@ -12,6 +12,7 @@ const autonomyWorkflowUrl = new URL("../.github/workflows/autonomy-mobile.yml", 
 const groqWindowsSetupUrl = new URL("../scripts/configure-groq-free-secret-windows.ps1", import.meta.url);
 const groqWindowsWrapperUrl = new URL("../scripts/invoke-node-with-groq-secret-windows.ps1", import.meta.url);
 const groqWindowsLauncherUrl = new URL("../scripts/install-groq-one-click-windows.ps1", import.meta.url);
+const groqBootstrapWorkflowUrl = new URL("../.github/workflows/goriq-groq-one-click-bootstrap.yml", import.meta.url);
 
 test("local repair adapter is bounded to AllowedPaths and local Ollama API", async () => {
   const source = await readFile(ollamaAdapterUrl, "utf8");
@@ -22,11 +23,15 @@ test("local repair adapter is bounded to AllowedPaths and local Ollama API", asy
   assert.match(source, /allowedSet\.has\(path\)/);
 });
 
-test("ZBook installer provisions two local models without any cloud billing fallback", async () => {
+test("ZBook installer provisions missing local models and skips models already installed", async () => {
   const source = await readFile(windowsInstallerUrl, "utf8");
   assert.match(source, /https:\/\/ollama\.com\/install\.ps1/);
   assert.match(source, /qwen2\.5-coder:1\.5b/);
   assert.match(source, /qwen2\.5-coder:3b/);
+  assert.match(source, /function Get-InstalledModelNames/);
+  assert.match(source, /if \(\$model -in \$models\)/);
+  assert.match(source, /skipping pull/);
+  assert.match(source, /Pulling missing local repair model/);
   assert.doesNotMatch(source, /cloud|CloudFreeModel|pay-as-you-go/i);
 });
 
@@ -142,14 +147,18 @@ test("Groq local secret wrapper decrypts only for the bounded Node child process
   assert.match(source, /Workspace/);
 });
 
-test("ZBook runtime installs a one-click Groq launcher so PowerShell typing is unnecessary", async () => {
+test("dedicated Groq workflow owns launcher install and Groq repair smoke", async () => {
   const launcher = await readFile(groqWindowsLauncherUrl, "utf8");
   const runtime = await readFile(runtimeWorkflowUrl, "utf8");
+  const groqWorkflow = await readFile(groqBootstrapWorkflowUrl, "utf8");
   assert.match(launcher, /GORIQ Groq設定\.cmd/);
   assert.match(launcher, /ExecutionPolicy Bypass/);
   assert.match(launcher, /configure-groq-free-secret-windows\.ps1/);
-  assert.match(runtime, /Install one-click Groq setup launcher/);
-  assert.match(runtime, /install-groq-one-click-windows\.ps1/);
+  assert.doesNotMatch(runtime, /Install one-click Groq setup launcher/);
+  assert.match(groqWorkflow, /Install Groq one-click launcher/);
+  assert.match(groqWorkflow, /groq-repair-smoke:/);
+  assert.match(groqWorkflow, /goriq-groq-repair\.mjs/);
+  assert.match(groqWorkflow, /invoke-node-with-groq-secret-windows\.ps1/);
 });
 
 test("free external repair uses Groq Free Plan API and fails closed on rate limit", async () => {
@@ -167,4 +176,13 @@ test("repair runtimes prefer the newest execution and do not let stale runs bloc
   const autonomy = await readFile(new URL("../.github/workflows/autonomy-mobile.yml", import.meta.url), "utf8");
   assert.match(runtime, /concurrency:\s+group: goriq-repair-engines-runtime\s+cancel-in-progress: true/);
   assert.match(autonomy, /project-chat-work-repair:[\s\S]*?group: goriq-project-repair-\$\{\{ github\.event\.client_payload\.issue_number \|\| github\.run_id \}\}[\s\S]*?cancel-in-progress: true/);
+});
+
+test("Groq setup-only paths do not trigger the heavy repair-runtime workflow", async () => {
+  const runtime = await readFile(runtimeWorkflowUrl, "utf8");
+  const trigger = runtime.match(/on:\s*\n\s*push:[\s\S]*?\n\s*workflow_dispatch:/)?.[0] ?? "";
+  assert.doesNotMatch(trigger, /configure-groq-free-secret-windows\.ps1/);
+  assert.doesNotMatch(trigger, /install-groq-one-click-windows\.ps1/);
+  assert.doesNotMatch(trigger, /goriq-groq-repair\.mjs/);
+  assert.doesNotMatch(trigger, /invoke-node-with-groq-secret-windows\.ps1/);
 });
