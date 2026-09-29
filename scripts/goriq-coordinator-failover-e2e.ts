@@ -159,12 +159,13 @@ async function zbookFailover(args: Map<string, string>): Promise<void> {
     metadata.clusterId,
   );
 
+  const failoverLeaseMs = Math.max(metadata.leaseMs, 45_000);
   const claim = await runtime.elect(
     [
       candidate("macbook", 100, false),
       candidate("zbook", 50, true),
     ],
-    metadata.leaseMs,
+    failoverLeaseMs,
     new Date(),
   );
   assert.equal(claim.coordinatorId, "zbook");
