@@ -26,7 +26,9 @@ test("trusted control checkout is separated from target PR checkout", async () =
   const workflow = await readFile(workflowUrl, "utf8");
   assert.match(workflow, /ref: main\s+path: control\s+persist-credentials: false/);
   assert.match(workflow, /ref: \$\{\{ needs\.preflight\.outputs\.branch \}\}\s+path: target\s+fetch-depth: 0\s+persist-credentials: false/);
-  assert.match(workflow, /node \.\\control\\scripts\\goriq-pr-ci-recovery\.ts/);
+  assert.match(workflow, /invoke-node-with-groq-secret-windows\.ps1/);
+  assert.match(workflow, /-NodeScript \.\\control\\scripts\\goriq-pr-ci-recovery\.ts/);
+  assert.doesNotMatch(workflow, /secrets\.GROQ_API_KEY/);
   assert.match(workflow, /GORIQ_RECOVERY_CONTROL_WORKSPACE/);
 });
 
