@@ -51,18 +51,30 @@ jobs:
           LOSS_FILE="$STATE_ROOT/stage-b-node-loss-${RUN_ID}-macbook-loss.json"
           HELPER="$STATE_ROOT/stage-b-node-loss-${RUN_ID}-macbook-recover.sh"
           WATCHDOG="$STATE_ROOT/gai-macbook-watchdog.sh"
-          worker_pid="$(pgrep -f 'Runner.Worker' | head -n 1 || true)"
-          test -n "$worker_pid"
-          old_pid="$(ps -o ppid= -p "$worker_pid" | tr -d ' ')"
-          test -n "$old_pid"
-          parent_command="$(ps -o command= -p "$old_pid" || true)"
-          if [[ "$parent_command" != *"Runner.Listener"* ]]; then
-            fallback="$(pgrep -f 'Runner.Listener' | head -n 1 || true)"
-            test -n "$fallback"
-            old_pid="$fallback"
-          fi
           test -f "$WATCHDOG"
-          echo "Mac runner process discovery: workerPid=$worker_pid listenerPid=$old_pid"
+          current_pid="$"
+          worker_pid=""
+          old_pid=""
+          for _ in $(seq 1 12); do
+            parent_pid="$(ps -o ppid= -p "$current_pid" | tr -d ' ')"
+            [[ -n "$parent_pid" && "$parent_pid" != "0" ]] || break
+            parent_comm="$(ps -o comm= -p "$parent_pid" | tr -d ' ' || true)"
+            echo "Mac runner ancestry: pid=$parent_pid comm=$(basename "$parent_comm")"
+            if [[ "$parent_comm" == *"Runner.Worker"* ]]; then
+              worker_pid="$parent_pid"
+              old_pid="$(ps -o ppid= -p "$worker_pid" | tr -d ' ')"
+              break
+            fi
+            current_pid="$parent_pid"
+          done
+          test -n "$worker_pid"
+          test -n "$old_pid"
+          listener_comm="$(ps -o comm= -p "$old_pid" | tr -d ' ' || true)"
+          echo "Mac runner process discovery: workerPid=$worker_pid listenerPid=$old_pid listenerComm=$(basename "$listener_comm")"
+          if [[ "$old_pid" == "1" || "$old_pid" == "$" ]]; then
+            echo "Refusing unsafe listener PID: $old_pid" >&2
+            exit 3
+          fi
 
           cat >"$HELPER" <<EOF
           #!/usr/bin/env bash
