@@ -1,0 +1,324 @@
+name: GORIQ Stage B Node Loss Rejoin
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/goriq-stage-b-node-loss-rejoin.yml'
+      - 'scripts/goriq-node-loss-rejoin-e2e.mjs'
+      - 'tests/goriq-node-loss-rejoin-e2e.test.mjs'
+      - 'scripts/goriq-two-node-failover-e2e.ts'
+      - 'scripts/gai-macbook-watchdog.sh'
+      - 'scripts/gai-zbook-watchdog.ps1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: goriq-stage-b-node-loss-rejoin
+  cancel-in-progress: false
+
+jobs:
+  mac-loss:
+    name: MacBook loses runner listener
+    runs-on: [self-hosted, macOS, ARM64]
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+      - name: Prepare MacBook-owned handoff tasks
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .goriq-stage-b/node-loss/mac-to-zbook
+          node scripts/goriq-two-node-failover-e2e.ts --phase prepare --dir .goriq-stage-b/node-loss/mac-to-zbook --origin macbook --target zbook --sha "$GITHUB_SHA" --lease-ms 5000
+      - uses: actions/upload-artifact@v4
+        with:
+          name: goriq-stage-b-node-loss-mac-handoff
+          path: .goriq-stage-b/node-loss/mac-to-zbook/
+          include-hidden-files: true
+          retention-days: 7
+          if-no-files-found: error
+      - name: Drop MacBook listener and arm watchdog recovery
+        shell: bash
+        run: |
+          set -euo pipefail
+          STATE_ROOT="$HOME/Library/Application Support/GAIWorker"
+          mkdir -p "$STATE_ROOT"
+          RUN_ID="$GITHUB_RUN_ID"
+          LOSS_FILE="$STATE_ROOT/stage-b-node-loss-${RUN_ID}-macbook-loss.json"
+          RECOVERY_FILE="$STATE_ROOT/stage-b-node-loss-${RUN_ID}-macbook-recovery.json"
+          HELPER="$STATE_ROOT/stage-b-node-loss-${RUN_ID}-macbook-recover.sh"
+          WATCHDOG="$STATE_ROOT/gai-macbook-watchdog.sh"
+          old_pid="$(pgrep -f 'Runner.Listener' | head -n 1 || true)"
+          test -n "$old_pid"
+          test -x "$WATCHDOG"
+          cat >"$HELPER" <<EOF
+          #!/usr/bin/env bash
+          set -u
+          WATCHDOG="$WATCHDOG"
+          RECOVERY_FILE="$RECOVERY_FILE"
+          RUN_ID="$RUN_ID"
+          for _ in $(seq 1 90); do
+            if ! pgrep -f 'Runner.Worker' >/dev/null 2>&1; then break; fi
+            sleep 1
+          done
+          for _ in $(seq 1 60); do
+            current="$(pgrep -f 'Runner.Listener' | head -n 1 || true)"
+            if [[ -n "$current" ]]; then
+              printf '{"version":1,"runId":"%s","node":"macbook","newPid":%s,"recoveredAt":"%s"}\n' "$RUN_ID" "$current" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >"$RECOVERY_FILE"
+              exit 0
+            fi
+            sleep 1
+          done
+          for _ in $(seq 1 5); do
+            /bin/bash "$WATCHDOG" >/dev/null 2>&1 || true
+            sleep 2
+            current="$(pgrep -f 'Runner.Listener' | head -n 1 || true)"
+            if [[ -n "$current" ]]; then
+              printf '{"version":1,"runId":"%s","node":"macbook","newPid":%s,"recoveredAt":"%s"}\n' "$RUN_ID" "$current" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >"$RECOVERY_FILE"
+              exit 0
+            fi
+          done
+          exit 1
+          EOF
+          chmod +x "$HELPER"
+          (
+            unset RUNNER_TRACKING_ID
+            nohup /bin/bash "$HELPER" >>"$STATE_ROOT/stage-b-node-loss-${RUN_ID}-macbook-helper.log" 2>&1 </dev/null &
+          )
+          pids="$(pgrep -f 'Runner.Listener' || true)"
+          test -n "$pids"
+          while IFS= read -r pid; do
+            [[ -n "$pid" ]] && kill -9 "$pid" 2>/dev/null || true
+          done <<<"$pids"
+          sleep 2
+          if pgrep -f 'Runner.Listener' >/dev/null 2>&1; then
+            echo "MacBook Runner.Listener did not stop" >&2
+            exit 2
+          fi
+          printf '{"version":1,"runId":"%s","node":"macbook","oldPid":%s,"lossObservedAt":"%s"}\n' "$RUN_ID" "$old_pid" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >"$LOSS_FILE"
+          echo "MacBook Runner.Listener loss observed."
+
+  zbook-survives-mac:
+    name: ZBook continues while MacBook listener is down
+    needs: mac-loss
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: goriq-stage-b-node-loss-mac-handoff
+          path: .goriq-stage-b/node-loss/mac-to-zbook
+      - name: Reclaim MacBook work on ZBook
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path .goriq-stage-b\node-loss\evidence | Out-Null
+          node scripts/goriq-two-node-failover-e2e.ts --phase resume --dir .goriq-stage-b/node-loss/mac-to-zbook --node zbook --sha "$env:GITHUB_SHA" --evidence .goriq-stage-b/node-loss/evidence/mac-to-zbook-survivor.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: goriq-stage-b-node-loss-mac-survivor
+          path: .goriq-stage-b/node-loss/evidence/mac-to-zbook-survivor.json
+          retention-days: 30
+          if-no-files-found: error
+
+  mac-rejoin:
+    name: MacBook watchdog recovers and rejoins
+    needs: zbook-survives-mac
+    runs-on: [self-hosted, macOS, ARM64]
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: goriq-stage-b-node-loss-mac-survivor
+          path: .goriq-stage-b/node-loss/survivor
+      - name: Verify MacBook recovery ordering
+        shell: bash
+        run: |
+          set -euo pipefail
+          STATE_ROOT="$HOME/Library/Application Support/GAIWorker"
+          RUN_ID="$GITHUB_RUN_ID"
+          mkdir -p .goriq-stage-b/node-loss/evidence
+          node scripts/goriq-node-loss-rejoin-e2e.mjs --phase rejoin --node macbook --platform darwin --sha "$GITHUB_SHA" --loss "$STATE_ROOT/stage-b-node-loss-${RUN_ID}-macbook-loss.json" --recovery "$STATE_ROOT/stage-b-node-loss-${RUN_ID}-macbook-recovery.json" --status "$STATE_ROOT/macbook-watchdog-status.json" --survivor .goriq-stage-b/node-loss/survivor/mac-to-zbook-survivor.json --output .goriq-stage-b/node-loss/evidence/macbook-rejoin.json
+          rm -f "$STATE_ROOT/stage-b-node-loss-${RUN_ID}-macbook-loss.json" "$STATE_ROOT/stage-b-node-loss-${RUN_ID}-macbook-recovery.json" "$STATE_ROOT/stage-b-node-loss-${RUN_ID}-macbook-recover.sh"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: goriq-stage-b-node-loss-mac-rejoin
+          path: .goriq-stage-b/node-loss/evidence/macbook-rejoin.json
+          retention-days: 30
+          if-no-files-found: error
+
+  zbook-loss:
+    name: ZBook loses runner listener
+    needs: mac-rejoin
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+      - name: Prepare ZBook-owned handoff tasks
+        shell: powershell
+        run: |
+          Remove-Item -Recurse -Force .goriq-stage-b\node-loss\zbook-to-macbook -ErrorAction SilentlyContinue
+          node scripts/goriq-two-node-failover-e2e.ts --phase prepare --dir .goriq-stage-b/node-loss/zbook-to-macbook --origin zbook --target macbook --sha "$env:GITHUB_SHA" --lease-ms 5000
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: goriq-stage-b-node-loss-zbook-handoff
+          path: .goriq-stage-b/node-loss/zbook-to-macbook/
+          include-hidden-files: true
+          retention-days: 7
+          if-no-files-found: error
+      - name: Drop ZBook listener and arm watchdog recovery
+        shell: powershell
+        run: |
+          $stateRoot = Join-Path $env:LOCALAPPDATA 'GAIWorker'
+          $runId = $env:GITHUB_RUN_ID
+          $lossFile = Join-Path $stateRoot "stage-b-node-loss-$runId-zbook-loss.json"
+          $recoveryFile = Join-Path $stateRoot "stage-b-node-loss-$runId-zbook-recovery.json"
+          $helper = Join-Path $stateRoot "stage-b-node-loss-$runId-zbook-recover.ps1"
+          $watchdog = Join-Path $stateRoot 'gai-zbook-watchdog.ps1'
+          $old = Get-Process -Name 'Runner.Listener' -ErrorAction Stop | Select-Object -First 1
+          if (-not (Test-Path $watchdog)) { throw "Missing watchdog: $watchdog" }
+
+          $helperContent = @'
+          $ErrorActionPreference = 'SilentlyContinue'
+          $stateRoot = $env:GORIQ_STAGE_B_STATE_ROOT
+          $watchdog = Join-Path $stateRoot 'gai-zbook-watchdog.ps1'
+          $recoveryFile = $env:GORIQ_STAGE_B_RECOVERY_FILE
+          $runId = $env:GORIQ_STAGE_B_RUN_ID
+          for ($i = 0; $i -lt 90; $i++) {
+            if (-not (Get-Process -Name 'Runner.Worker' -ErrorAction SilentlyContinue)) { break }
+            Start-Sleep -Seconds 1
+          }
+          for ($i = 0; $i -lt 60; $i++) {
+            $listener = Get-Process -Name 'Runner.Listener' -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($listener) {
+              [ordered]@{ version = 1; runId = $runId; node = 'zbook'; newPid = $listener.Id; recoveredAt = (Get-Date).ToUniversalTime().ToString('o') } | ConvertTo-Json | Set-Content -Encoding UTF8 $recoveryFile
+              exit 0
+            }
+            Start-Sleep -Seconds 1
+          }
+          for ($i = 0; $i -lt 5; $i++) {
+            & $watchdog -RunnerRoot 'C:\actions-runner' -OllamaEndpoint 'http://127.0.0.1:11434'
+            Start-Sleep -Seconds 2
+            $listener = Get-Process -Name 'Runner.Listener' -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($listener) {
+              [ordered]@{ version = 1; runId = $runId; node = 'zbook'; newPid = $listener.Id; recoveredAt = (Get-Date).ToUniversalTime().ToString('o') } | ConvertTo-Json | Set-Content -Encoding UTF8 $recoveryFile
+              exit 0
+            }
+          }
+          exit 1
+          '@
+          Set-Content -Encoding UTF8 -Path $helper -Value $helperContent
+
+          $env:GORIQ_STAGE_B_STATE_ROOT = $stateRoot
+          $env:GORIQ_STAGE_B_RECOVERY_FILE = $recoveryFile
+          $env:GORIQ_STAGE_B_RUN_ID = $runId
+          $tracking = $env:RUNNER_TRACKING_ID
+          Remove-Item Env:\RUNNER_TRACKING_ID -ErrorAction SilentlyContinue
+          Start-Process -FilePath 'powershell.exe' -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File',$helper) -WindowStyle Hidden
+          if ($null -ne $tracking) { $env:RUNNER_TRACKING_ID = $tracking }
+
+          Get-Process -Name 'Runner.Listener' -ErrorAction SilentlyContinue | Stop-Process -Force
+          Start-Sleep -Seconds 2
+          if (Get-Process -Name 'Runner.Listener' -ErrorAction SilentlyContinue) { throw 'ZBook Runner.Listener did not stop' }
+          [ordered]@{ version = 1; runId = $runId; node = 'zbook'; oldPid = $old.Id; lossObservedAt = (Get-Date).ToUniversalTime().ToString('o') } | ConvertTo-Json | Set-Content -Encoding UTF8 $lossFile
+          Write-Host 'ZBook Runner.Listener loss observed.'
+
+  mac-survives-zbook:
+    name: MacBook continues while ZBook listener is down
+    needs: zbook-loss
+    runs-on: [self-hosted, macOS, ARM64]
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: goriq-stage-b-node-loss-zbook-handoff
+          path: .goriq-stage-b/node-loss/zbook-to-macbook
+      - name: Reclaim ZBook work on MacBook
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .goriq-stage-b/node-loss/evidence
+          node scripts/goriq-two-node-failover-e2e.ts --phase resume --dir .goriq-stage-b/node-loss/zbook-to-macbook --node macbook --sha "$GITHUB_SHA" --evidence .goriq-stage-b/node-loss/evidence/zbook-to-macbook-survivor.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: goriq-stage-b-node-loss-zbook-survivor
+          path: .goriq-stage-b/node-loss/evidence/zbook-to-macbook-survivor.json
+          retention-days: 30
+          if-no-files-found: error
+
+  zbook-rejoin:
+    name: ZBook watchdog recovers and rejoins
+    needs: mac-survives-zbook
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: goriq-stage-b-node-loss-zbook-survivor
+          path: .goriq-stage-b/node-loss/survivor
+      - name: Verify ZBook recovery ordering
+        shell: powershell
+        run: |
+          $stateRoot = Join-Path $env:LOCALAPPDATA 'GAIWorker'
+          $runId = $env:GITHUB_RUN_ID
+          New-Item -ItemType Directory -Force -Path .goriq-stage-b\node-loss\evidence | Out-Null
+          node scripts/goriq-node-loss-rejoin-e2e.mjs --phase rejoin --node zbook --platform win32 --sha "$env:GITHUB_SHA" --loss (Join-Path $stateRoot "stage-b-node-loss-$runId-zbook-loss.json") --recovery (Join-Path $stateRoot "stage-b-node-loss-$runId-zbook-recovery.json") --status (Join-Path $stateRoot 'zbook-watchdog-status.json') --survivor .goriq-stage-b/node-loss/survivor/zbook-to-macbook-survivor.json --output .goriq-stage-b/node-loss/evidence/zbook-rejoin.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Remove-Item -Force (Join-Path $stateRoot "stage-b-node-loss-$runId-zbook-loss.json") -ErrorAction SilentlyContinue
+          Remove-Item -Force (Join-Path $stateRoot "stage-b-node-loss-$runId-zbook-recovery.json") -ErrorAction SilentlyContinue
+          Remove-Item -Force (Join-Path $stateRoot "stage-b-node-loss-$runId-zbook-recover.ps1") -ErrorAction SilentlyContinue
+      - uses: actions/upload-artifact@v4
+        with:
+          name: goriq-stage-b-node-loss-zbook-rejoin
+          path: .goriq-stage-b/node-loss/evidence/zbook-rejoin.json
+          retention-days: 30
+          if-no-files-found: error
+
+  verify:
+    name: Verify physical node loss and rejoin evidence
+    needs: zbook-rejoin
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: goriq-stage-b-node-loss-mac-rejoin
+          path: .goriq-stage-b/node-loss/mac-rejoin
+      - uses: actions/download-artifact@v4
+        with:
+          name: goriq-stage-b-node-loss-zbook-rejoin
+          path: .goriq-stage-b/node-loss/zbook-rejoin
+      - name: Verify bidirectional physical runner loss and recovery
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .goriq-stage-b/node-loss/final
+          node scripts/goriq-node-loss-rejoin-e2e.mjs --phase verify --mac .goriq-stage-b/node-loss/mac-rejoin/macbook-rejoin.json --zbook .goriq-stage-b/node-loss/zbook-rejoin/zbook-rejoin.json --sha "$GITHUB_SHA" --output .goriq-stage-b/node-loss/final/node-loss-rejoin-evidence.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: goriq-stage-b-node-loss-rejoin-evidence
+          path: .goriq-stage-b/node-loss/final/node-loss-rejoin-evidence.json
+          retention-days: 30
+          if-no-files-found: error
