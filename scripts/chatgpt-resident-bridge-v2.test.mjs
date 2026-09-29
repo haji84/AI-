@@ -218,7 +218,7 @@ test("assistant completion controls may live outside main while Retry stays conv
   assert.match(source, /const mainButtons = \[\.\.\.document\.querySelectorAll\('main button'\)\]\.filter\(visible\)/);
   assert.match(source, /const assistantLabels = allLabels\.filter/);
   assert.match(source, /const retryVisible = mainLabels\.some/);
-  assert.match(source, /const copyCount = assistantLabels\.filter/);
+  assert.match(source, /const copyCount = copyButtons\.length/);
   assert.match(source, /const buttons = \[\.\.\.document\.querySelectorAll\('button'\)\]\.filter\(\(button\) =>/);
 });
 
