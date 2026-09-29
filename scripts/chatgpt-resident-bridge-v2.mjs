@@ -455,7 +455,7 @@ function fingerprintMessage(message) {
   return `fallback:${message.index}:${message.text}`;
 }
 
-async function snapshotWorkAssistantFallback(client, requestMarker) {
+async function snapshotAssistantActionFallback(client, requestMarker) {
   return evaluate(client, `(() => {
     const normalize = (value) => String(value || '').replace(/\\s+/g, ' ').trim();
     const visible = (el) => {
@@ -690,13 +690,13 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false) {
       const candidate = Array.isArray(turns)
         ? turns.filter((message) => message.role === "assistant" && message.index > markerUserIndex).at(-1)
         : undefined;
-      const workFallbackText = mode === "work" && !candidate?.text
-        ? await snapshotWorkAssistantFallback(client, requestMarker)
+      const actionFallbackText = !candidate?.text && (fresh || mode === "work")
+        ? await snapshotAssistantActionFallback(client, requestMarker)
         : "";
       const effectiveCandidate = candidate?.text
         ? candidate
-        : workFallbackText
-          ? { role: "assistant", id: null, index: markerUserIndex + 1, text: workFallbackText }
+        : actionFallbackText
+          ? { role: "assistant", id: null, index: markerUserIndex + 1, text: actionFallbackText }
           : undefined;
       const currentFingerprint = fingerprintMessage(effectiveCandidate);
 
