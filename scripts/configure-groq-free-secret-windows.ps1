@@ -21,11 +21,25 @@ Write-Host '入力内容は画面・GitHub・ログには表示されません�
 $secure = Read-Host 'Groq API key' -AsSecureString
 $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
 $plain = ''
+$normalizedSecure = $null
 
 try {
   $plain = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
   if ([string]::IsNullOrWhiteSpace($plain)) { throw 'Groq API key is empty.' }
 
+  $originalLength = $plain.Length
+  $plain = $plain.Trim()
+  if ([string]::IsNullOrWhiteSpace($plain)) { throw 'Groq API key is empty after trimming surrounding whitespace.' }
+
+  if ($plain -match '[^\x21-\x7E]') {
+    throw 'Groq API key contains hidden, control, whitespace, or non-ASCII characters inside the key. Copy only the key value and try again.'
+  }
+
+  if ($plain.Length -ne $originalLength) {
+    Write-Host 'Surrounding whitespace/newline characters were removed from the pasted key.'
+  }
+
+  $normalizedSecure = ConvertTo-SecureString -String $plain -AsPlainText -Force
   $headers = @{ Authorization = "Bearer $plain" }
   try {
     $modelsResponse = Invoke-RestMethod -Uri 'https://api.groq.com/openai/v1/models' -Headers $headers -Method Get -TimeoutSec 20
@@ -38,7 +52,7 @@ try {
     throw "Groq key is valid, but required model '$Model' is not available."
   }
 
-  $encrypted = $secure | ConvertFrom-SecureString
+  $encrypted = $normalizedSecure | ConvertFrom-SecureString
   $tempPath = "$SecretPath.tmp.$PID"
   Set-Content -LiteralPath $tempPath -Value $encrypted -Encoding UTF8 -NoNewline
   Move-Item -LiteralPath $tempPath -Destination $SecretPath -Force
@@ -62,6 +76,7 @@ try {
 } finally {
   if ($bstr -ne [IntPtr]::Zero) { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr) }
   $plain = $null
+  $normalizedSecure = $null
   $secure = $null
   $headers = $null
   Remove-Variable encrypted -ErrorAction SilentlyContinue
