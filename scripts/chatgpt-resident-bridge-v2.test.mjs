@@ -176,7 +176,7 @@ test("Chat repair uses one-minute bounded micro-phases before Work escalation", 
 
 test("Retry immediately advances Chat to the next bounded phase", () => {
   assert.match(source, /\(!state\.completionReady && state\.retryVisible\) \|\| phaseExpired/);
-  assert.match(source, /const reason = state\.retryVisible \? "retry-visible" : "one-minute-budget"/);
+  assert.match(source, /const reason = !state\.completionReady && state\.retryVisible \? "retry-visible" : "one-minute-budget"/);
   assert.match(source, /stopActiveGeneration/);
   assert.match(source, /submitFollowupPrompt/);
 });
