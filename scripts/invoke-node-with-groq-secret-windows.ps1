@@ -1,6 +1,7 @@
 param(
   [Parameter(Mandatory = $true)][string]$NodeScript,
   [string[]]$NodeArguments = @(),
+  [string]$Workspace = '',
   [string]$InputText = '',
   [switch]$RequireSecret
 )
@@ -32,10 +33,15 @@ try {
     $env:GROQ_API_KEY = $plain
   }
 
+  $effectiveArgs = @($NodeArguments)
+  if (-not [string]::IsNullOrWhiteSpace($Workspace)) {
+    $effectiveArgs += @('--workspace', $Workspace)
+  }
+
   if ([string]::IsNullOrEmpty($InputText)) {
-    & node $NodeScript @NodeArguments
+    & node $NodeScript @effectiveArgs
   } else {
-    $InputText | & node $NodeScript @NodeArguments
+    $InputText | & node $NodeScript @effectiveArgs
   }
   $code = $LASTEXITCODE
   exit $code
@@ -45,4 +51,5 @@ try {
   $credential = $null
   $secure = $null
   $encrypted = $null
+  $effectiveArgs = $null
 }
