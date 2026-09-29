@@ -10,6 +10,39 @@ $Model = 'qwen/qwen3.8-27b'
 
 New-Item -ItemType Directory -Force -Path $SecretRoot | Out-Null
 
+function Get-WindowsClipboardText {
+  Add-Type -AssemblyName System.Windows.Forms -ErrorAction Stop
+
+  for ($attempt = 1; $attempt -le 10; $attempt++) {
+    try {
+      if ([System.Windows.Forms.Clipboard]::ContainsText()) {
+        $text = [System.Windows.Forms.Clipboard]::GetText([System.Windows.Forms.TextDataFormat]::UnicodeText)
+        if (-not [string]::IsNullOrWhiteSpace($text)) {
+          return [string]$text
+        }
+      }
+    } catch {
+      if ($attempt -eq 10) { throw }
+    }
+
+    Start-Sleep -Milliseconds 100
+  }
+
+  return ''
+}
+
+function Clear-WindowsClipboard {
+  try {
+    Add-Type -AssemblyName System.Windows.Forms -ErrorAction Stop
+    [System.Windows.Forms.Clipboard]::Clear()
+  } catch {
+    $setClipboard = Get-Command -Name 'Set-Clipboard' -ErrorAction SilentlyContinue
+    if ($null -ne $setClipboard) {
+      Set-Clipboard -Value '' -ErrorAction SilentlyContinue
+    }
+  }
+}
+
 if (-not $SkipOpen) {
   Write-Host 'Groq API Keys pageを開きます...'
   Start-Process 'https://console.groq.com/keys'
@@ -26,20 +59,26 @@ $normalizedSecure = $null
 $clipboardCaptured = $false
 
 try {
-  $getClipboard = Get-Command -Name 'Get-Clipboard' -ErrorAction SilentlyContinue
-  if ($null -ne $getClipboard) {
-    [void](Read-Host 'コピーできたら Enter')
-    try {
-      $plain = [string](Get-Clipboard -Raw -ErrorAction Stop)
-      if (-not [string]::IsNullOrWhiteSpace($plain)) {
-        $clipboardCaptured = $true
-        $setClipboard = Get-Command -Name 'Set-Clipboard' -ErrorAction SilentlyContinue
-        if ($null -ne $setClipboard) {
-          Set-Clipboard -Value '' -ErrorAction SilentlyContinue
+  [void](Read-Host 'コピーできたら Enter')
+  try {
+    $plain = Get-WindowsClipboardText
+    if (-not [string]::IsNullOrWhiteSpace($plain)) {
+      $clipboardCaptured = $true
+      Clear-WindowsClipboard
+    }
+  } catch {
+    Write-Host 'Windows clipboard direct read failed; falling back to PowerShell clipboard access.'
+    $getClipboard = Get-Command -Name 'Get-Clipboard' -ErrorAction SilentlyContinue
+    if ($null -ne $getClipboard) {
+      try {
+        $plain = [string](Get-Clipboard -Raw -ErrorAction Stop)
+        if (-not [string]::IsNullOrWhiteSpace($plain)) {
+          $clipboardCaptured = $true
+          Clear-WindowsClipboard
         }
+      } catch {
+        $plain = ''
       }
-    } catch {
-      $plain = ''
     }
   }
 
