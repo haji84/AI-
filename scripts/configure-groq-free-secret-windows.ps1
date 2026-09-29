@@ -44,13 +44,13 @@ function Clear-WindowsClipboard {
 }
 
 if (-not $SkipOpen) {
-  Write-Host 'Groq API Keys pageを開きます...'
+  Write-Host 'Opening Groq API Keys page...'
   Start-Process 'https://console.groq.com/keys'
 }
 
 Write-Host ''
-Write-Host 'Groq APIキーだけをクリップボードへコピーしてから Enter を押してください。'
-Write-Host 'キーは画面・GitHub・ログには表示しません。読み取り後はクリップボードを空にします。'
+Write-Host 'Copy only the Groq API key to the Windows clipboard, then press Enter here.'
+Write-Host 'The key will not be printed or logged. The clipboard will be cleared after capture.'
 
 $secure = $null
 $bstr = [IntPtr]::Zero
@@ -59,7 +59,7 @@ $normalizedSecure = $null
 $clipboardCaptured = $false
 
 try {
-  [void](Read-Host 'コピーできたら Enter')
+  [void](Read-Host 'Press Enter after copying the key')
   try {
     $plain = Get-WindowsClipboardText
     if (-not [string]::IsNullOrWhiteSpace($plain)) {
@@ -83,8 +83,8 @@ try {
   }
 
   if (-not $clipboardCaptured) {
-    Write-Host 'クリップボードを読み取れなかったため、安全入力へ切り替えます。'
-    Write-Host 'この入力欄では Ctrl+V ではなく、右クリック貼り付けを使用してください。'
+    Write-Host 'Clipboard capture was unavailable. Falling back to secure console input.'
+    Write-Host 'For the fallback prompt, use right-click paste instead of Ctrl+V.'
     $secure = Read-Host 'Groq API key' -AsSecureString
     $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
     $plain = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
@@ -109,11 +109,20 @@ try {
     Write-Host 'Invisible whitespace/control characters were removed from the pasted key.'
   }
 
+  if (-not $plain.StartsWith('gsk_', [StringComparison]::Ordinal)) {
+    throw 'Captured text is not a Groq secret key: expected a value beginning with gsk_. Create/copy a Groq API key and try again.'
+  }
+
   $normalizedSecure = ConvertTo-SecureString -String $plain -AsPlainText -Force
   $headers = @{ Authorization = "Bearer $plain" }
   try {
     $modelsResponse = Invoke-RestMethod -Uri 'https://api.groq.com/openai/v1/models' -Headers $headers -Method Get -TimeoutSec 20
   } catch {
+    $statusCode = $null
+    try { $statusCode = [int]$_.Exception.Response.StatusCode } catch {}
+    if ($statusCode -eq 401) {
+      throw 'Groq rejected this API key with HTTP 401. Create a new Groq API key in the Groq Console, copy the full secret value, and try again.'
+    }
     throw "Groq API key validation failed: $($_.Exception.Message)"
   }
 
@@ -140,8 +149,8 @@ try {
 
   Write-Host ''
   Write-Host '✓ Groq Free Plan API key validated.'
-  Write-Host '✓ Windows DPAPIで暗号化してZBook内へ保存しました。'
-  Write-Host '✓ GitHub CLIは不要です。'
+  Write-Host '✓ Stored locally with Windows DPAPI encryption.'
+  Write-Host '✓ GitHub CLI is not required.'
   Write-Host "✓ Stage 7 model: $Model"
 } finally {
   if ($bstr -ne [IntPtr]::Zero) { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr) }
