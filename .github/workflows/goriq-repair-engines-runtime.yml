@@ -215,7 +215,7 @@ jobs:
           Remove-Item $root -Recurse -Force -ErrorAction SilentlyContinue
           New-Item -ItemType Directory -Force -Path $root | Out-Null
           Set-Content -Path (Join-Path $root 'probe.txt') -Value 'BEFORE_GROQ' -NoNewline
-          "AllowedPaths=probe.txt`nReplace the complete content of probe.txt with exactly AFTER_GROQ." |
-            powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\invoke-node-with-groq-secret-windows.ps1 -RequireSecret -NodeScript .\scripts\goriq-groq-repair.mjs -NodeArguments @('--workspace', $root)
+          $prompt = "AllowedPaths=probe.txt`nReplace the complete content of probe.txt with exactly AFTER_GROQ."
+          powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\invoke-node-with-groq-secret-windows.ps1 -RequireSecret -NodeScript .\scripts\goriq-groq-repair.mjs -NodeArguments @('--workspace', $root) -InputText $prompt
           $actual = (Get-Content (Join-Path $root 'probe.txt') -Raw).Trim()
           if ($actual -ne 'AFTER_GROQ') { throw "Groq repair smoke mismatch: $actual" }
