@@ -5,9 +5,10 @@ import test from "node:test";
 
 const watchdogPath = "scripts/gai-macbook-watchdog.sh";
 const installerPath = "scripts/install-macbook-persistence.sh";
+const supervisorPath = "scripts/gai-macbook-runner-supervisor.sh";
 
 test("Mac watchdog and installer remain valid bash", () => {
-  for (const path of [watchdogPath, installerPath]) {
+  for (const path of [watchdogPath, installerPath, supervisorPath]) {
     const result = spawnSync("/bin/bash", ["-n", path], { encoding: "utf8" });
     assert.equal(result.status, 0, `${path}: ${result.stderr}`);
   }
@@ -16,7 +17,7 @@ test("Mac watchdog and installer remain valid bash", () => {
 test("Mac watchdog protects active jobs and requires repeated idle failures", () => {
   const watchdog = readFileSync(watchdogPath, "utf8");
 
-  assert.match(watchdog, /RUNNER_FAILURE_THRESHOLD=3/);
+  assert.match(watchdog, /RUNNER_FAILURE_THRESHOLD="\$\{GAI_RUNNER_FAILURE_THRESHOLD:-2\}"/);
   assert.match(watchdog, /Runner\.Worker is active; refusing to recycle/);
   assert.match(watchdog, /runnerProtectedByActiveJob/);
   assert.match(watchdog, /active-job-or-established-tcp-or-recent-diag/);
@@ -34,4 +35,16 @@ test("Mac installer waits for launchd watchdog instead of launching a second cop
   assert.match(installer, /Mac watchdog did not publish fresh status after launchd restart/);
   assert.doesNotMatch(installer, /\/bin\/bash "\$PERSISTED_WATCHDOG"/);
   assert.match(installer, /\/opt\/homebrew\/bin:\/usr\/local\/bin/);
+});
+
+test("Mac persistence has a runner-independent KeepAlive supervisor", () => {
+  const installer = readFileSync(installerPath, "utf8");
+  const supervisor = readFileSync(supervisorPath, "utf8");
+
+  assert.match(installer, /com\.gai\.runner-supervisor/);
+  assert.match(installer, /<key>KeepAlive<\/key>/);
+  assert.match(installer, /GAI_SUPERVISOR_INTERVAL_SECONDS/);
+  assert.match(supervisor, /while true/);
+  assert.match(supervisor, /GAI_RUNNER_FAILURE_THRESHOLD=2/);
+  assert.match(supervisor, /sleep "\$INTERVAL"/);
 });

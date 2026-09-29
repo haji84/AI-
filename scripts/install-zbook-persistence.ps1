@@ -69,6 +69,7 @@ function Test-HiddenTaskHost([string]$TaskName) {
 # watchdog first and, on access denial, start the existing watchdog once. The
 # elevated task then migrates only its own action to the hidden WScript launcher.
 $taskRegistrationFailed = $false
+$supervisorTaskName = 'GAI-ZBook-Runner-Supervisor'
 
 if (-not (Test-HiddenTaskHost 'GAI-ZBook-Runner-OnLogon')) {
   & schtasks.exe /Create /TN 'GAI-ZBook-Runner-OnLogon' /TR $taskCommand /SC ONLOGON /F | Out-Host
@@ -83,6 +84,23 @@ if (-not (Test-HiddenTaskHost 'GAI-ZBook-Watchdog')) {
   if ($LASTEXITCODE -ne 0) {
     $taskRegistrationFailed = $true
     Write-Warning 'Direct update of GAI-ZBook-Watchdog failed; attempting in-place self-migration.'
+  }
+}
+
+# Independent local recovery plane. This task is intentionally not triggered by
+# GitHub Actions and therefore still runs when Runner.Listener is unavailable.
+$supervisorTask = Get-ScheduledTask -TaskName $supervisorTaskName -ErrorAction SilentlyContinue
+$supervisorCorrect = $false
+if ($supervisorTask -and $supervisorTask.Actions) {
+  $supervisorAction = $supervisorTask.Actions | Select-Object -First 1
+  $supervisorCorrect = ([string]$supervisorAction.Execute -ieq $wscript) -and
+    ([string]$supervisorAction.Arguments -match '//B') -and
+    ([string]$supervisorAction.Arguments -match '//NoLogo')
+}
+if (-not $supervisorCorrect) {
+  & schtasks.exe /Create /TN $supervisorTaskName /TR $taskCommand /SC MINUTE /MO 1 /F | Out-Host
+  if ($LASTEXITCODE -ne 0) {
+    Write-Warning 'Unable to create the one-minute ZBook runner supervisor task; the existing five-minute watchdog remains available.'
   }
 }
 
@@ -151,7 +169,7 @@ Remove-Item -Path $legacyStartupCmd -Force -ErrorAction SilentlyContinue
 & $ps -NoProfile -ExecutionPolicy Bypass -File $persistedWatchdog -RunnerRoot $RunnerRoot -OllamaEndpoint $OllamaEndpoint
 if ($LASTEXITCODE -ne 0) { throw 'Initial ZBook watchdog execution failed.' }
 
-$taskList = @('GAI-ZBook-Runner-OnLogon', 'GAI-ZBook-Watchdog') | ForEach-Object {
+$taskList = @('GAI-ZBook-Runner-OnLogon', 'GAI-ZBook-Watchdog', $supervisorTaskName) | ForEach-Object {
   $name = $_
   $raw = & schtasks.exe /Query /TN $name /FO LIST 2>&1
   [ordered]@{ name = $name; query = ($raw -join "`n") }
@@ -170,6 +188,8 @@ $taskList = @('GAI-ZBook-Runner-OnLogon', 'GAI-ZBook-Watchdog') | ForEach-Object
   requiresAdmin = $false
   requiresRunnerReregistrationToken = $false
   startsBeforeWindowsLogon = $false
+  localSupervisorTask = $supervisorTaskName
+  localSupervisorIntervalSeconds = 60
 } | ConvertTo-Json -Depth 6 | Set-Content -Encoding UTF8 (Join-Path $stateRoot 'zbook-persistence.json')
 
 Get-Content (Join-Path $stateRoot 'zbook-persistence.json')
