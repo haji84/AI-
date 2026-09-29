@@ -48,10 +48,10 @@ function Ensure-HiddenScheduledTaskHost {
       if ($LASTEXITCODE -eq 0) {
         Write-GaiLog "Migrated scheduled task $taskName to the hidden WScript launcher."
       } else {
-        Write-GaiLog "Unable to migrate scheduled task $taskName: $($changeOutput -join ' ')"
+        Write-GaiLog "Unable to migrate scheduled task ${taskName}: $($changeOutput -join ' ')"
       }
     } catch {
-      Write-GaiLog "Scheduled task migration check failed for $taskName: $($_.Exception.Message)"
+      Write-GaiLog "Scheduled task migration check failed for ${taskName}: $($_.Exception.Message)"
     }
   }
 }
