@@ -149,7 +149,7 @@ test("fresh repair can recover the final assistant answer through the native Cop
   assert.match(source, /pbcopy/);
   assert.match(source, /GORIQ_CLIPBOARD_SENTINEL_/);
   assert.match(source, /\^\(コピーする\|copy\)\$/);
-  assert.match(source, /clipboardFallbackAttempted/);
+  assert.match(source, /nextClipboardAttemptAt/);
   assert.match(source, /fresh && !state\.generating && !clipboardFallbackAttempted/);
 });
 
