@@ -45,9 +45,21 @@ if (-not (Test-OllamaApi)) {
 }
 if (-not (Test-OllamaApi)) { throw 'Ollama API did not become ready on 127.0.0.1:11434.' }
 
+function Get-InstalledModelNames {
+  $inventory = Invoke-RestMethod -Uri 'http://127.0.0.1:11434/api/tags' -Method Get -TimeoutSec 5
+  return @($inventory.models | ForEach-Object { [string]$_.name })
+}
+
 $pullResults = @()
+$models = @(Get-InstalledModelNames)
 foreach ($model in @($LocalFastModel, $LocalStrongModel)) {
-  Write-Host "Pulling local repair model: $model"
+  if ($model -in $models) {
+    Write-Host "Local repair model already present; skipping pull: $model"
+    $pullResults += [ordered]@{ model = $model; ok = $true; skipped = $true; exitCode = 0; outputTail = 'already installed' }
+    continue
+  }
+
+  Write-Host "Pulling missing local repair model: $model"
   $previousErrorPreference = $ErrorActionPreference
   try {
     $ErrorActionPreference = 'Continue'
@@ -57,13 +69,13 @@ foreach ($model in @($LocalFastModel, $LocalStrongModel)) {
     $ErrorActionPreference = $previousErrorPreference
   }
   $ok = $exitCode -eq 0
-  $pullResults += [ordered]@{ model = $model; ok = $ok; exitCode = $exitCode; outputTail = $output.Substring([Math]::Max(0, $output.Length - 1200)) }
+  $pullResults += [ordered]@{ model = $model; ok = $ok; skipped = $false; exitCode = $exitCode; outputTail = $output.Substring([Math]::Max(0, $output.Length - 1200)) }
   if (-not $ok) { throw "Failed to pull required local repair model: $model (exit $exitCode)" }
+  $models = @(Get-InstalledModelNames)
 }
 
 $version = (& $ollama --version 2>&1 | Out-String).Trim()
-$tags = Invoke-RestMethod -Uri 'http://127.0.0.1:11434/api/tags' -Method Get -TimeoutSec 5
-$models = @($tags.models | ForEach-Object { $_.name })
+$models = @(Get-InstalledModelNames)
 
 $status = [ordered]@{
   ok = $true
