@@ -470,6 +470,21 @@ function writeMacClipboardText(text) {
   });
 }
 
+async function hasAssistantCopyControl(client) {
+  return evaluate(client, `(() => {
+    const normalize = (value) => String(value || '').replace(/\\s+/g, ' ').trim();
+    const visible = (el) => {
+      const rect = el.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    };
+    return [...document.querySelectorAll('main button')].some((button) => {
+      if (!visible(button) || button.disabled) return false;
+      const label = normalize(button.getAttribute('aria-label') || button.textContent || '');
+      return /^(コピーする|copy)$/i.test(label);
+    });
+  })()`);
+}
+
 async function copyAssistantAnswerFromUi(client, requestMarker) {
   const previousClipboard = await readMacClipboardText();
   const sentinel = `GORIQ_CLIPBOARD_SENTINEL_${randomUUID()}`;
@@ -731,7 +746,7 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false) {
     let candidateFingerprint = "";
     let lastText = "";
     let stableSince = 0;
-    let clipboardFallbackAttempted = false;
+    let nextClipboardAttemptAt = 0;
     while (Date.now() < deadline) {
       const turns = await snapshotConversationMessages(client);
       const state = await evaluate(client, `(() => ({
@@ -752,11 +767,17 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false) {
           ? { role: "assistant", id: null, index: markerUserIndex + 1, text: actionFallbackText }
           : undefined;
 
-      if (!effectiveCandidate?.text && fresh && !state.generating && !clipboardFallbackAttempted) {
-        clipboardFallbackAttempted = true;
-        const clipboardText = await copyAssistantAnswerFromUi(client, requestMarker);
-        if (clipboardText) {
-          effectiveCandidate = { role: "assistant", id: null, index: markerUserIndex + 1, text: clipboardText };
+      if (!effectiveCandidate?.text && fresh && !state.generating && Date.now() >= nextClipboardAttemptAt) {
+        const copyReady = await hasAssistantCopyControl(client);
+        if (copyReady) {
+          const clipboardText = await copyAssistantAnswerFromUi(client, requestMarker);
+          if (clipboardText) {
+            effectiveCandidate = { role: "assistant", id: null, index: markerUserIndex + 1, text: clipboardText };
+          } else {
+            nextClipboardAttemptAt = Date.now() + 1500;
+          }
+        } else {
+          nextClipboardAttemptAt = Date.now() + 700;
         }
       }
 

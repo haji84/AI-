@@ -149,8 +149,8 @@ test("fresh repair can recover the final assistant answer through the native Cop
   assert.match(source, /pbcopy/);
   assert.match(source, /GORIQ_CLIPBOARD_SENTINEL_/);
   assert.match(source, /\^\(コピーする\|copy\)\$/);
-  assert.match(source, /clipboardFallbackAttempted/);
-  assert.match(source, /fresh && !state\.generating && !clipboardFallbackAttempted/);
+  assert.match(source, /nextClipboardAttemptAt/);
+  assert.match(source, /fresh && !state\.generating && Date\.now\(\) >= nextClipboardAttemptAt/);
 });
 
 test("clipboard fallback restores the prior clipboard and never logs copied answer text", () => {
@@ -158,4 +158,13 @@ test("clipboard fallback restores the prior clipboard and never logs copied answ
   assert.match(source, /finally \{[\s\S]*writeMacClipboardText\(previousClipboard\)/);
   assert.doesNotMatch(source, /console\.(?:log|error).*clipboardText/);
   assert.doesNotMatch(source, /setHealth\([^\n]*clipboardText/);
+});
+
+test("fresh repair retries clipboard Copy only when the assistant Copy control is ready", () => {
+  assert.match(source, /async function hasAssistantCopyControl/);
+  assert.match(source, /nextClipboardAttemptAt/);
+  assert.match(source, /const copyReady = await hasAssistantCopyControl\(client\)/);
+  assert.match(source, /nextClipboardAttemptAt = Date\.now\(\) \+ 1500/);
+  assert.match(source, /nextClipboardAttemptAt = Date\.now\(\) \+ 700/);
+  assert.doesNotMatch(source, /clipboardFallbackAttempted/);
 });
