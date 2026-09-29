@@ -9,7 +9,6 @@ const runtimeWorkflowUrl = new URL("../.github/workflows/goriq-repair-engines-ru
 const recoveryWorkflowUrl = new URL("../.github/workflows/goriq-pr-ci-recovery.yml", import.meta.url);
 const groqAdapterUrl = new URL("../scripts/goriq-groq-repair.mjs", import.meta.url);
 const autonomyWorkflowUrl = new URL("../.github/workflows/autonomy-mobile.yml", import.meta.url);
-const groqMacSetupUrl = new URL("../scripts/configure-groq-free-secret.sh", import.meta.url);
 const groqWindowsSetupUrl = new URL("../scripts/configure-groq-free-secret-windows.ps1", import.meta.url);
 const groqWindowsWrapperUrl = new URL("../scripts/invoke-node-with-groq-secret-windows.ps1", import.meta.url);
 const groqWindowsLauncherUrl = new URL("../scripts/install-groq-one-click-windows.ps1", import.meta.url);
@@ -115,6 +114,8 @@ test("CI recovery grants only the extra Issue write authority needed by Chat Wor
   assert.match(source, /contents: write/);
   assert.match(source, /issues: write/);
   assert.match(source, /pull-requests: read/);
+  assert.match(source, /invoke-node-with-groq-secret-windows\.ps1/);
+  assert.doesNotMatch(source, /secrets\.GROQ_API_KEY/);
   assert.doesNotMatch(source, /deployments:\s*write|id-token:\s*write|secrets:\s*write/);
 });
 
@@ -138,6 +139,7 @@ test("Groq local secret wrapper decrypts only for the bounded Node child process
   assert.match(source, /Remove-Item Env:GROQ_API_KEY/);
   assert.match(source, /GORIQ_GROQ_LOCAL_SECRET_NOT_CONFIGURED/);
   assert.match(source, /InputText/);
+  assert.match(source, /Workspace/);
 });
 
 test("ZBook runtime installs a one-click Groq launcher so PowerShell typing is unnecessary", async () => {
