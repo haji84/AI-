@@ -31,6 +31,14 @@ const CHATGPT_URL = "https://chatgpt.com/";
 const PROJECT_NAME = process.env.AI_COMPANY_CHATGPT_PROJECT_NAME?.trim() || "自動化";
 const PROJECT_SURFACES_FILE = join(STATE_DIR, "chatgpt-project-surfaces.json");
 const ONE_SHOT_REPAIR_ISSUE = Number(process.env.AI_COMPANY_REPAIR_ONCE_ISSUE || "");
+const CHAT_MAX_PHASES = 3;
+const CHAT_INACTIVITY_MS = 45_000;
+const CHAT_STALLED_GENERATION_MS = 120_000;
+const CHAT_ABSOLUTE_CEILING_MS = 30 * 60_000;
+const WORK_INACTIVITY_MS = 180_000;
+const WORK_STALLED_GENERATION_MS = 300_000;
+const WORK_ABSOLUTE_CEILING_MS = 45 * 60_000;
+const COMPLETION_STABLE_MS = 1_500;
 
 let shuttingDown = false;
 let lockHandle = null;
@@ -588,6 +596,130 @@ async function selectExperience(client, mode) {
   }
 
   await sleep(700);
+}
+
+async function snapshotExecutionUiState(client) {
+  return evaluate(client, `(() => {
+    const normalize = (value) => String(value || '').replace(/\\s+/g, ' ').trim();
+    const visible = (el) => {
+      const rect = el.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    };
+    const buttons = [...document.querySelectorAll('main button')].filter(visible);
+    const labels = buttons.map((button) =>
+      normalize([button.getAttribute('aria-label'), button.getAttribute('data-testid'), button.textContent].filter(Boolean).join(' '))
+    ).filter(Boolean);
+    const generating = !!document.querySelector('button[data-testid="stop-button"]')
+      || labels.some((value) => /stop generating|停止/i.test(value));
+    const retryVisible = labels.some((value) => /^(再試行|retry)$/i.test(value));
+    const copyReady = labels.some((value) => /^(コピーする|copy)$/i.test(value));
+    const readAloudReady = labels.some((value) => /読み上げ|read aloud/i.test(value));
+    const regenerateReady = labels.some((value) => /回答を再生成|regenerate/i.test(value));
+    const progressLabel = labels.findLast((value) => /作業しました|working|thinking|reasoning/i.test(value)) || '';
+    const mainText = document.querySelector('main')?.innerText || '';
+    const tail = mainText.slice(-240);
+    return {
+      generating,
+      retryVisible,
+      copyReady,
+      readAloudReady,
+      regenerateReady,
+      completionReady: !generating && copyReady && (readAloudReady || regenerateReady) && !retryVisible,
+      activitySignature: JSON.stringify([generating, retryVisible, copyReady, readAloudReady, regenerateReady, progressLabel, mainText.length, tail]),
+    };
+  })()`);
+}
+
+async function stopActiveGeneration(client) {
+  return evaluate(client, `(() => {
+    const visible = (el) => {
+      const rect = el.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    };
+    const buttons = [...document.querySelectorAll('main button')].filter(visible);
+    const stop = document.querySelector('button[data-testid="stop-button"]')
+      || buttons.find((button) => /stop generating|停止/i.test((button.getAttribute('aria-label') || button.textContent || '').trim()));
+    if (!stop) return false;
+    stop.click();
+    return true;
+  })()`);
+}
+
+async function submitFollowupPrompt(client, text) {
+  await waitForComposer(client, 15000);
+  const focused = await evaluate(client, `(() => {
+    const el = document.querySelector('textarea') || document.querySelector('[contenteditable="true"]');
+    if (!el) return false;
+    el.focus();
+    return true;
+  })()`);
+  if (!focused) throw new Error("CHATGPT_PHASE_COMPOSER_NOT_FOUND");
+
+  await client.call("Input.dispatchKeyEvent", { type: "keyDown", key: "a", code: "KeyA", modifiers: 4 });
+  await client.call("Input.dispatchKeyEvent", { type: "keyUp", key: "a", code: "KeyA", modifiers: 4 });
+  await client.call("Input.dispatchKeyEvent", { type: "keyDown", key: "Backspace", code: "Backspace" });
+  await client.call("Input.dispatchKeyEvent", { type: "keyUp", key: "Backspace", code: "Backspace" });
+  await client.call("Input.insertText", { text });
+
+  const submitted = await evaluate(client, `(() => {
+    const visible = (el) => {
+      const rect = el.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    };
+    const buttons = [...document.querySelectorAll('button')];
+    const button = document.querySelector('button[data-testid="send-button"]')
+      || buttons.find((el) => {
+        const aria = (el.getAttribute('aria-label') || '').trim();
+        const testid = (el.getAttribute('data-testid') || '').trim();
+        const label = (el.textContent || '').trim();
+        return visible(el) && !el.disabled
+          && (/^(send|送信)$/i.test(aria) || /send-button/i.test(testid) || /^(send|送信)$/i.test(label));
+      });
+    if (button && !button.disabled && visible(button)) {
+      button.click();
+      return true;
+    }
+    const composer = document.querySelector('textarea') || document.querySelector('[contenteditable="true"]');
+    const form = composer?.closest('form');
+    if (form && typeof form.requestSubmit === 'function') {
+      form.requestSubmit();
+      return true;
+    }
+    return false;
+  })()`);
+
+  if (!submitted) {
+    await client.call("Input.dispatchKeyEvent", {
+      type: "rawKeyDown",
+      key: "Enter",
+      code: "Enter",
+      windowsVirtualKeyCode: 13,
+      nativeVirtualKeyCode: 13,
+    });
+    await client.call("Input.dispatchKeyEvent", {
+      type: "keyUp",
+      key: "Enter",
+      code: "Enter",
+      windowsVirtualKeyCode: 13,
+      nativeVirtualKeyCode: 13,
+    });
+  }
+  await sleep(700);
+}
+
+function buildChatRecoveryPhasePrompt(phase, reason, marker) {
+  const phaseInstruction = phase === 2
+    ? "Phase 2: preserve the same bounded task, separate exact failure diagnosis from patch construction, then produce the smallest evidence-backed diff."
+    : "Phase 3: final Chat recovery phase. Use prior phase findings, minimize the patch, and return only the valid unified diff. If a safe bounded diff is impossible, return exactly GORIQ_CHAT_PHASE_EXHAUSTED.";
+  return [
+    marker,
+    `GORIQ_CHAT_RECOVERY_PHASE=${phase}/${CHAT_MAX_PHASES}`,
+    `RecoveryReason=${reason}`,
+    "Continue the SAME repair request using the existing conversation context.",
+    "Do not broaden AllowedPaths, authority, permissions, dependencies, tests, workflows, governance, or requirements.",
+    "Do not restart unrelated analysis. Preserve useful findings from prior phases.",
+    phaseInstruction,
+  ].join("\n");
 }
 
 async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false) {
