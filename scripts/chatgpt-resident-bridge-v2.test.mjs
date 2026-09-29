@@ -221,3 +221,13 @@ test("assistant completion controls may live outside main while Retry stays conv
   assert.match(source, /const copyCount = assistantLabels\.filter/);
   assert.match(source, /const buttons = \[\.\.\.document\.querySelectorAll\('button'\)\]\.filter\(\(button\) =>/);
 });
+
+test("phase exhaustion diagnostics expose only bounded control metadata", () => {
+  assert.match(source, /snapshotSafeControlDiagnostics/);
+  assert.match(source, /visibleControlCount/);
+  assert.match(source, /aria:/);
+  assert.match(source, /testid:/);
+  assert.match(source, /inMain:/);
+  assert.match(source, /phase-exhausted-ui/);
+  assert.doesNotMatch(source, /clipboardText.*phase-exhausted-ui/);
+});
