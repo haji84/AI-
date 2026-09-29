@@ -20,9 +20,9 @@ test("resident bridge v2 opens ChatGPT only through the Automation project surfa
 });
 
 test("resident bridge v2 excludes pre-existing assistant output by exact phase boundary", () => {
-  assert.match(source, /phaseBaselineCopyCount/);
-  assert.match(source, /state\.copyCount > phaseBaselineCopyCount/);
-  assert.match(source, /phaseBaselineCopyCount = state\.copyCount/);
+  assert.match(source, /markPhaseCopyBaseline/);
+  assert.match(source, /newPhaseCopyReady/);
+  assert.match(source, /markPhaseCopyBaseline\(client\)/);
   assert.doesNotMatch(source, /baselineFingerprints/);
 });
 
@@ -125,7 +125,7 @@ test("resident bridge binds initial submission and later outputs to bounded phas
   assert.match(source, /CHATGPT_SUBMITTED_TURN_NOT_FOUND/);
   assert.match(source, /message\.role === "user" && message\.text\.includes\(requestMarker\)/);
   assert.match(source, /GORIQ_BRIDGE_PHASE_ID=/);
-  assert.match(source, /phaseBaselineCopyCount/);
+  assert.match(source, /markPhaseCopyBaseline/);
   assert.doesNotMatch(source, /newMessages = messages\.filter\(\(message\) => !baselineFingerprints\.has/);
 });
 
@@ -140,7 +140,7 @@ test("fresh repair may correlate by verified empty baseline when user turn DOM i
 test("fresh Chat repair accepts only a newly completed phase response", () => {
   assert.match(source, /if \(!fresh && savedUrl\)/);
   assert.match(source, /startFreshProjectConversation/);
-  assert.match(source, /state\.copyCount > phaseBaselineCopyCount/);
+  assert.match(source, /newPhaseCopyReady/);
   assert.match(source, /completionReady/);
   assert.match(source, /copyAssistantAnswerFromUi\(client, phaseMarker\)/);
 });
@@ -153,7 +153,7 @@ test("fresh repair can recover the final assistant answer through one stable nat
   assert.match(source, /GORIQ_CLIPBOARD_SENTINEL_/);
   assert.match(source, /completionReady/);
   assert.match(source, /COMPLETION_STABLE_MS = 1_500/);
-  assert.match(source, /state\.copyCount > phaseBaselineCopyCount/);
+  assert.match(source, /newPhaseCopyReady/);
 });
 
 test("clipboard fallback restores the prior clipboard and never logs copied answer text", () => {
@@ -182,9 +182,9 @@ test("Retry immediately advances Chat to the next bounded phase", () => {
 });
 
 test("late phase output is rejected by assistant Copy generation count", () => {
-  assert.match(source, /phaseBaselineCopyCount/);
-  assert.match(source, /state\.copyCount > phaseBaselineCopyCount/);
-  assert.match(source, /phaseBaselineCopyCount = state\.copyCount/);
+  assert.match(source, /markPhaseCopyBaseline/);
+  assert.match(source, /newPhaseCopyReady/);
+  assert.match(source, /markPhaseCopyBaseline\(client\)/);
   assert.match(source, /GORIQ_BRIDGE_PHASE_ID=/);
 });
 
@@ -230,4 +230,18 @@ test("phase exhaustion diagnostics expose only bounded control metadata", () => 
   assert.match(source, /inMain:/);
   assert.match(source, /phase-exhausted-ui/);
   assert.doesNotMatch(source, /clipboardText.*phase-exhausted-ui/);
+});
+
+test("phase completion is correlated by exact assistant Copy action identity", () => {
+  assert.match(source, /async function markPhaseCopyBaseline/);
+  assert.match(source, /data-goriq-phase-baseline/);
+  assert.match(source, /async function hasNewPhaseCopyAction/);
+  assert.match(source, /const newPhaseCopyReady = state\.completionReady && await hasNewPhaseCopyAction\(client\)/);
+  assert.match(source, /await markPhaseCopyBaseline\(client\)/);
+  assert.doesNotMatch(source, /phaseBaselineCopyCount/);
+});
+
+test("temporary safe diagnostics are removed after physical DOM evidence is captured", () => {
+  assert.doesNotMatch(source, /snapshotSafeControlDiagnostics/);
+  assert.doesNotMatch(source, /phase-exhausted-ui/);
 });
