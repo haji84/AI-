@@ -70,16 +70,20 @@ function Test-HiddenTaskHost([string]$TaskName) {
 # elevated task then migrates only its own action to the hidden WScript launcher.
 $taskRegistrationFailed = $false
 
-& schtasks.exe /Create /TN 'GAI-ZBook-Runner-OnLogon' /TR $taskCommand /SC ONLOGON /F | Out-Host
-if ($LASTEXITCODE -ne 0) {
-  $taskRegistrationFailed = $true
-  Write-Warning 'Direct update of GAI-ZBook-Runner-OnLogon failed; attempting in-place self-migration.'
+if (-not (Test-HiddenTaskHost 'GAI-ZBook-Runner-OnLogon')) {
+  & schtasks.exe /Create /TN 'GAI-ZBook-Runner-OnLogon' /TR $taskCommand /SC ONLOGON /F | Out-Host
+  if ($LASTEXITCODE -ne 0) {
+    $taskRegistrationFailed = $true
+    Write-Warning 'Direct update of GAI-ZBook-Runner-OnLogon failed; attempting in-place self-migration.'
+  }
 }
 
-& schtasks.exe /Create /TN 'GAI-ZBook-Watchdog' /TR $taskCommand /SC MINUTE /MO 5 /F | Out-Host
-if ($LASTEXITCODE -ne 0) {
-  $taskRegistrationFailed = $true
-  Write-Warning 'Direct update of GAI-ZBook-Watchdog failed; attempting in-place self-migration.'
+if (-not (Test-HiddenTaskHost 'GAI-ZBook-Watchdog')) {
+  & schtasks.exe /Create /TN 'GAI-ZBook-Watchdog' /TR $taskCommand /SC MINUTE /MO 5 /F | Out-Host
+  if ($LASTEXITCODE -ne 0) {
+    $taskRegistrationFailed = $true
+    Write-Warning 'Direct update of GAI-ZBook-Watchdog failed; attempting in-place self-migration.'
+  }
 }
 
 if ($taskRegistrationFailed) {
