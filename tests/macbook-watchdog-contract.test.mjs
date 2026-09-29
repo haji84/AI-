@@ -22,6 +22,9 @@ test("Mac watchdog protects active jobs and requires repeated idle failures", ()
   assert.match(watchdog, /active-job-or-established-tcp-or-recent-diag/);
   assert.match(watchdog, /Deferring recycle until the failure threshold is reached/);
   assert.match(watchdog, /Watchdog invocation skipped because another watchdog instance is still active/);
+  assert.match(watchdog, /\/opt\/homebrew\/bin\/ollama/);
+  assert.match(watchdog, /\/usr\/local\/bin\/ollama/);
+  assert.match(watchdog, /resolve_ollama_exe/);
 });
 
 test("Mac installer waits for launchd watchdog instead of launching a second copy", () => {
@@ -30,4 +33,5 @@ test("Mac installer waits for launchd watchdog instead of launching a second cop
   assert.match(installer, /launchctl kickstart -k "gui\/\$\(id -u\)\/com\.gai\.worker-watchdog"/);
   assert.match(installer, /Mac watchdog did not publish fresh status after launchd restart/);
   assert.doesNotMatch(installer, /\/bin\/bash "\$PERSISTED_WATCHDOG"/);
+  assert.match(installer, /\/opt\/homebrew\/bin:\/usr\/local\/bin/);
 });
