@@ -36,7 +36,7 @@ if (!apiKey) {
   console.error("GORIQ_GROQ_REPAIR_API_KEY_MISSING");
   process.exit(2);
 }
-const prompt = await stdinText();
+const prompt = process.env.GORIQ_NODE_INPUT_TEXT ?? await stdinText();
 const allowed = parseAllowed(prompt).filter((path) => safePath(workspace, path) && existsSync(resolve(workspace, path)));
 if (!allowed.length) {
   console.error("GORIQ_GROQ_REPAIR_NO_ALLOWED_FILES");

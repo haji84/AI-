@@ -187,27 +187,3 @@ jobs:
           ACTUAL="$(tr -d '\r\n' < "$ROOT/probe.txt")"
           [[ "$ACTUAL" == "AFTER_WORK" ]]
 
-  free-external-repair-smoke:
-    needs: [zbook-local-repair]
-    runs-on: [self-hosted, Windows, X64]
-    timeout-minutes: 8
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          ref: main
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24.19.0
-      - name: Verify Groq free external repair using local DPAPI secret
-        shell: powershell
-        env:
-          GORIQ_GROQ_MODEL: qwen/qwen3.8-27b
-        run: |
-          $root = Join-Path $env:RUNNER_TEMP 'goriq-groq-repair-smoke'
-          Remove-Item $root -Recurse -Force -ErrorAction SilentlyContinue
-          New-Item -ItemType Directory -Force -Path $root | Out-Null
-          Set-Content -Path (Join-Path $root 'probe.txt') -Value 'BEFORE_GROQ' -NoNewline
-          $prompt = "AllowedPaths=probe.txt`nReplace the complete content of probe.txt with exactly AFTER_GROQ."
-          powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\invoke-node-with-groq-secret-windows.ps1 -RequireSecret -NodeScript .\scripts\goriq-groq-repair.mjs -Workspace $root -InputText $prompt
-          $actual = (Get-Content (Join-Path $root 'probe.txt') -Raw).Trim()
-          if ($actual -ne 'AFTER_GROQ') { throw "Groq repair smoke mismatch: $actual" }

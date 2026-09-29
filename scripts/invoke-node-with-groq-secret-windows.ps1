@@ -41,12 +41,14 @@ try {
   if ([string]::IsNullOrEmpty($InputText)) {
     & node $NodeScript @effectiveArgs
   } else {
-    $InputText | & node $NodeScript @effectiveArgs
+    $env:GORIQ_NODE_INPUT_TEXT = $InputText
+    & node $NodeScript @effectiveArgs
   }
   $code = $LASTEXITCODE
   exit $code
 } finally {
   Remove-Item Env:GROQ_API_KEY -ErrorAction SilentlyContinue
+  Remove-Item Env:GORIQ_NODE_INPUT_TEXT -ErrorAction SilentlyContinue
   $plain = $null
   $credential = $null
   $secure = $null

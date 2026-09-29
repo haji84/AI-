@@ -89,9 +89,7 @@ test("runtime workflow installs ZBook local engines and refreshes the Mac Chat W
   assert.doesNotMatch(source, /chat-work-repair-smoke:\s+needs: \[[^\]]*zbook-local-repair/);
   assert.match(source, /AFTER_CHAT/);
   assert.match(source, /AFTER_WORK/);
-  assert.match(source, /free-external-repair-smoke:[\s\S]*?needs: \[zbook-local-repair\][\s\S]*?runs-on: \[self-hosted, Windows, X64\]/);
-  assert.match(source, /invoke-node-with-groq-secret-windows\.ps1/);
-  assert.match(source, /GORIQ_GROQ_MODEL: qwen\/qwen3\.8-27b/);
+  assert.doesNotMatch(source, /free-external-repair-smoke:/);
   assert.match(source, /AI_COMPANY_CHATGPT_PROJECT_NAME: 自動化/);
   assert.doesNotMatch(source, /goriq-chat-work-repair-worker\.yml/);
 });
@@ -145,6 +143,9 @@ test("Groq local secret wrapper decrypts only for the bounded Node child process
   assert.match(source, /GORIQ_GROQ_LOCAL_SECRET_NOT_CONFIGURED/);
   assert.match(source, /InputText/);
   assert.match(source, /Workspace/);
+  assert.match(source, /GORIQ_NODE_INPUT_TEXT/);
+  assert.match(source, /Remove-Item Env:GORIQ_NODE_INPUT_TEXT/);
+  assert.doesNotMatch(source, /\$InputText \| & node/);
 });
 
 test("dedicated Groq workflow owns launcher install and Groq repair smoke", async () => {
@@ -167,6 +168,7 @@ test("free external repair uses Groq Free Plan API and fails closed on rate limi
   assert.match(source, /qwen\/qwen3\.8-27b/);
   assert.match(source, /https:\/\/api\.groq\.com\/openai\/v1\/chat\/completions/);
   assert.match(source, /GROQ_API_KEY/);
+  assert.match(source, /GORIQ_NODE_INPUT_TEXT/);
   assert.match(source, /GORIQ_GROQ_FREE_LIMIT_EXHAUSTED/);
   assert.doesNotMatch(source, /billing|credit card|purchase/i);
 });
