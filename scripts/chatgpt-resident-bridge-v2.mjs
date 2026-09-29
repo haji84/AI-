@@ -583,6 +583,38 @@ async function snapshotExecutionUiState(client) {
   })()`);
 }
 
+async function snapshotSafeControlDiagnostics(client) {
+  return evaluate(client, `(() => {
+    const visible = (el) => {
+      const rect = el.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    };
+    const clean = (value) => String(value || '').replace(/\\s+/g, ' ').trim().slice(0, 120);
+    const nodes = [...document.querySelectorAll('button,[role="button"]')].filter(visible).slice(-80);
+    const controls = nodes.map((el) => ({
+      tag: el.tagName.toLowerCase(),
+      role: clean(el.getAttribute('role')),
+      aria: clean(el.getAttribute('aria-label')),
+      testid: clean(el.getAttribute('data-testid')),
+      title: clean(el.getAttribute('title')),
+      text: clean(el.textContent),
+      inMain: !!el.closest('main'),
+    }));
+    const labels = controls.map((item) => [item.aria, item.testid, item.title, item.text].filter(Boolean).join(' '));
+    return {
+      visibleControlCount: nodes.length,
+      candidates: {
+        stop: labels.filter((value) => /stop generating|停止/i.test(value)).length,
+        retry: labels.filter((value) => /retry|再試行/i.test(value)).length,
+        copy: labels.filter((value) => /copy|コピー/i.test(value)).length,
+        readAloud: labels.filter((value) => /read aloud|読み上げ/i.test(value)).length,
+        regenerate: labels.filter((value) => /regenerate|再生成/i.test(value)).length,
+      },
+      controls,
+    };
+  })()`);
+}
+
 async function stopActiveGeneration(client) {
   return evaluate(client, `(() => {
     const visible = (el) => {
@@ -989,6 +1021,8 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false) {
         if (state.retryVisible || phaseExpired) {
           if (phase >= CHAT_MAX_PHASES) {
             if (state.generating) await stopActiveGeneration(client);
+            const diagnostics = await snapshotSafeControlDiagnostics(client);
+            log(`phase-exhausted-ui: ${JSON.stringify(diagnostics)}`);
             throw new Error(`CHAT_REPAIR_PHASES_EXHAUSTED: phase=${phase}; reason=${state.retryVisible ? "retry-visible" : "one-minute-budget"}`);
           }
 
