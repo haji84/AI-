@@ -11,6 +11,8 @@ const groqAdapterUrl = new URL("../scripts/goriq-groq-repair.mjs", import.meta.u
 const autonomyWorkflowUrl = new URL("../.github/workflows/autonomy-mobile.yml", import.meta.url);
 const groqMacSetupUrl = new URL("../scripts/configure-groq-free-secret.sh", import.meta.url);
 const groqWindowsSetupUrl = new URL("../scripts/configure-groq-free-secret-windows.ps1", import.meta.url);
+const groqWindowsWrapperUrl = new URL("../scripts/invoke-node-with-groq-secret-windows.ps1", import.meta.url);
+const groqWindowsLauncherUrl = new URL("../scripts/install-groq-one-click-windows.ps1", import.meta.url);
 
 test("local repair adapter is bounded to AllowedPaths and local Ollama API", async () => {
   const source = await readFile(ollamaAdapterUrl, "utf8");
@@ -83,9 +85,9 @@ test("runtime workflow installs ZBook local engines and refreshes the Mac Chat W
   assert.doesNotMatch(source, /chat-work-repair-smoke:\s+needs: \[[^\]]*zbook-local-repair/);
   assert.match(source, /AFTER_CHAT/);
   assert.match(source, /AFTER_WORK/);
-  assert.match(source, /free-external-repair-smoke:\s+runs-on: ubuntu-latest/);
-  assert.doesNotMatch(source, /free-external-repair-smoke:\s+needs: \[zbook-local-repair\]/);
-  assert.match(source, /GROQ_API_KEY_NOT_CONFIGURED/);
+  assert.match(source, /free-external-repair-smoke:[\s\S]*?needs: \[zbook-local-repair\][\s\S]*?runs-on: \[self-hosted, Windows, X64\]/);
+  assert.match(source, /invoke-node-with-groq-secret-windows\.ps1/);
+  assert.match(source, /GORIQ_GROQ_MODEL: qwen\/qwen3\.8-27b/);
   assert.match(source, /AI_COMPANY_CHATGPT_PROJECT_NAME: 自動化/);
   assert.doesNotMatch(source, /goriq-chat-work-repair-worker\.yml/);
 });
@@ -116,26 +118,36 @@ test("CI recovery grants only the extra Issue write authority needed by Chat Wor
   assert.doesNotMatch(source, /deployments:\s*write|id-token:\s*write|secrets:\s*write/);
 });
 
-test("Groq setup stores the Free Plan key only in GitHub Actions secrets", async () => {
-  const mac = await readFile(groqMacSetupUrl, "utf8");
+test("Windows Groq setup validates and stores the Free Plan key only as local DPAPI ciphertext", async () => {
   const windows = await readFile(groqWindowsSetupUrl, "utf8");
-  for (const source of [mac, windows]) {
-    assert.match(source, /GROQ_API_KEY/);
-    assert.match(source, /gh secret set/);
-    assert.match(source, /haji84\/AI-/);
-    assert.doesNotMatch(source, /git add|git commit|Set-Content.*GROQ_API_KEY|writeFile.*GROQ_API_KEY/i);
-  }
-  assert.match(mac, /stty -echo/);
-  assert.match(mac, /https:\/\/console\.groq\.com\/keys/);
   assert.match(windows, /Read-Host 'Groq API key' -AsSecureString/);
-  assert.match(windows, /https:\/\/console\.groq\.com\/keys/);
-  assert.match(windows, /ZeroFreeBSTR/);
-  for (const source of [mac, windows]) {
-    assert.match(source, /https:\/\/api\.groq\.com\/openai\/v1\/models/);
-    assert.match(source, /qwen\/qwen3\.8-27b/);
-    assert.match(source, /goriq-repair-engines-runtime\.yml/);
-    assert.match(source, /gh workflow run/);
-  }
+  assert.match(windows, /https:\/\/api\.groq\.com\/openai\/v1\/models/);
+  assert.match(windows, /qwen\/qwen3\.8-27b/);
+  assert.match(windows, /ConvertFrom-SecureString/);
+  assert.match(windows, /GORIQ\\secrets/);
+  assert.match(windows, /groq\.dpapi/);
+  assert.doesNotMatch(windows, /gh secret set|GROQ_API_KEY stored as a GitHub Actions repository secret/);
+  assert.doesNotMatch(windows, /git add|git commit|Set-Content.*plain|Write-Host.*\$plain/i);
+});
+
+test("Groq local secret wrapper decrypts only for the bounded Node child process", async () => {
+  const source = await readFile(groqWindowsWrapperUrl, "utf8");
+  assert.match(source, /ConvertTo-SecureString/);
+  assert.match(source, /GetNetworkCredential\(\)\.Password/);
+  assert.match(source, /::add-mask::/);
+  assert.match(source, /Remove-Item Env:GROQ_API_KEY/);
+  assert.match(source, /GORIQ_GROQ_LOCAL_SECRET_NOT_CONFIGURED/);
+  assert.match(source, /InputText/);
+});
+
+test("ZBook runtime installs a one-click Groq launcher so PowerShell typing is unnecessary", async () => {
+  const launcher = await readFile(groqWindowsLauncherUrl, "utf8");
+  const runtime = await readFile(runtimeWorkflowUrl, "utf8");
+  assert.match(launcher, /GORIQ Groq設定\.cmd/);
+  assert.match(launcher, /ExecutionPolicy Bypass/);
+  assert.match(launcher, /configure-groq-free-secret-windows\.ps1/);
+  assert.match(runtime, /Install one-click Groq setup launcher/);
+  assert.match(runtime, /install-groq-one-click-windows\.ps1/);
 });
 
 test("free external repair uses Groq Free Plan API and fails closed on rate limit", async () => {
