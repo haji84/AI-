@@ -51,10 +51,28 @@ PLIST
 
 launchctl bootout "gui/$(id -u)" "$PLIST" >/dev/null 2>&1 || true
 launchctl bootstrap "gui/$(id -u)" "$PLIST"
+install_started_epoch="$(date +%s)"
 launchctl kickstart -k "gui/$(id -u)/com.gai.worker-watchdog"
 
-sleep 2
-/bin/bash "$PERSISTED_WATCHDOG"
+STATUS_FILE="$STATE_ROOT/macbook-watchdog-status.json"
+status_fresh=false
+for _ in $(seq 1 30); do
+  if [[ -s "$STATUS_FILE" ]]; then
+    status_mtime="$(stat -f '%m' "$STATUS_FILE" 2>/dev/null || printf '0')"
+    if [[ "$status_mtime" =~ ^[0-9]+$ ]] && (( status_mtime >= install_started_epoch )); then
+      status_fresh=true
+      break
+    fi
+  fi
+  sleep 1
+done
+
+if [[ "$status_fresh" != true ]]; then
+  echo "Mac watchdog did not publish fresh status after launchd restart." >&2
+  tail -n 80 "$STATE_ROOT/macbook-watchdog.log" 2>/dev/null || true
+  tail -n 80 "$STATE_ROOT/launchd.err.log" 2>/dev/null || true
+  exit 3
+fi
 
 cat >"$STATE_ROOT/macbook-persistence.json" <<JSON
 {
