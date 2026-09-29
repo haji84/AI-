@@ -542,6 +542,8 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false) {
     const selectedExperience = await waitForComposer(client);
     if (!String(selectedExperience?.url ?? "").startsWith(CHATGPT_URL)) throw new Error("project surface left ChatGPT");
 
+    const preSubmissionTurns = await snapshotConversationMessages(client);
+    const freshBaselineEmpty = fresh && Array.isArray(preSubmissionTurns) && preSubmissionTurns.length === 0;
     const beforeUserCount = await evaluate(client, `(() => document.querySelectorAll('[data-message-author-role="user"]').length)()`);
 
     const focused = await evaluate(client, `(() => {
@@ -667,7 +669,10 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false) {
       await sleep(300);
     }
     if (markerUserIndex < 0) {
-      throw new Error("CHATGPT_SUBMITTED_TURN_NOT_FOUND");
+      if (!freshBaselineEmpty) {
+        throw new Error("CHATGPT_SUBMITTED_TURN_NOT_FOUND");
+      }
+      markerUserIndex = -1;
     }
 
     const deadline = Date.now() + 240000;
