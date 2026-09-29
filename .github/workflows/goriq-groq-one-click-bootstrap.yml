@@ -1,0 +1,40 @@
+name: GORIQ Groq One Click Bootstrap
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/configure-groq-free-secret-windows.ps1'
+      - 'scripts/invoke-node-with-groq-secret-windows.ps1'
+      - 'scripts/install-groq-one-click-windows.ps1'
+      - '.github/workflows/goriq-groq-one-click-bootstrap.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: goriq-groq-one-click-bootstrap-zbook
+  cancel-in-progress: false
+
+jobs:
+  install-launcher:
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+      - name: Install Groq one-click launcher
+        shell: powershell
+        run: |
+          powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-groq-one-click-windows.ps1
+      - name: Verify launcher exists
+        shell: powershell
+        run: |
+          $desktop = [Environment]::GetFolderPath('Desktop')
+          $launcher = Join-Path $desktop 'GORIQ Groq設定.cmd'
+          if (-not (Test-Path -LiteralPath $launcher)) {
+            throw "GORIQ Groq setup launcher was not installed: $launcher"
+          }
+          Write-Host "GORIQ_GROQ_LAUNCHER_READY=$launcher"
