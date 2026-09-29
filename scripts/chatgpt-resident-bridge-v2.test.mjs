@@ -159,3 +159,12 @@ test("clipboard fallback restores the prior clipboard and never logs copied answ
   assert.doesNotMatch(source, /console\.(?:log|error).*clipboardText/);
   assert.doesNotMatch(source, /setHealth\([^\n]*clipboardText/);
 });
+
+test("fresh repair retries clipboard Copy only when the assistant Copy control is ready", () => {
+  assert.match(source, /async function hasAssistantCopyControl/);
+  assert.match(source, /nextClipboardAttemptAt/);
+  assert.match(source, /const copyReady = await hasAssistantCopyControl\(client\)/);
+  assert.match(source, /nextClipboardAttemptAt = Date\.now\(\) \+ 1500/);
+  assert.match(source, /nextClipboardAttemptAt = Date\.now\(\) \+ 700/);
+  assert.doesNotMatch(source, /clipboardFallbackAttempted/);
+});
