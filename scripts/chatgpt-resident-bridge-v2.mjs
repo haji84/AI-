@@ -421,7 +421,8 @@ async function startFreshProjectConversation(client) {
   if (!projectVisible) throw new Error(`CHATGPT_FRESH_PROJECT_SURFACE_ESCAPED: ${PROJECT_NAME}`);
 }
 
-async function prepareProjectSurface(client, mode, fresh = false, preferredUrl = null) {
+async function prepareProjectSurface(client, mode, fresh = false) {
+  const preferredUrl = arguments[3] ?? null;
   const surfaces = await readProjectSurfaces();
   const savedUrl = preferredUrl || (mode === "work" ? surfaces.work : surfaces.chat);
   if (!fresh && savedUrl) {
