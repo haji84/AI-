@@ -120,3 +120,12 @@ test("assistant snapshot can infer the answer container from response action con
   assert.match(source, /text\.length > 12000/);
   assert.match(source, /if \(Array\.isArray\(markdown\) && markdown\.length\) return markdown/);
 });
+
+test("resident bridge binds a reply to the exact submitted user turn", () => {
+  assert.match(source, /GORIQ_BRIDGE_REQUEST_ID=/);
+  assert.match(source, /submittedPrompt/);
+  assert.match(source, /CHATGPT_SUBMITTED_TURN_NOT_FOUND/);
+  assert.match(source, /message\.role === "user" && message\.text\.includes\(requestMarker\)/);
+  assert.match(source, /message\.role === "assistant" && message\.index > markerUserIndex/);
+  assert.doesNotMatch(source, /newMessages = messages\.filter\(\(message\) => !baselineFingerprints\.has/);
+});
