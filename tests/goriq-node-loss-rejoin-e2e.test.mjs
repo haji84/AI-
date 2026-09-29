@@ -3,6 +3,7 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
+import process from "node:process";
 import test from "node:test";
 
 const script = "scripts/goriq-node-loss-rejoin-e2e.mjs";
