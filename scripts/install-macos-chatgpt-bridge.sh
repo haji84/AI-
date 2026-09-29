@@ -12,6 +12,8 @@ STATE_DIR="$HOME/.ai-company"
 RUNTIME_DIR="$STATE_DIR/runtime"
 BRIDGE_SCRIPT="$RUNTIME_DIR/chatgpt-resident-bridge-v2.mjs"
 BRIDGE_LIB="$RUNTIME_DIR/chatgpt-resident-bridge-lib.mjs"
+ROUTER_DIR="$STATE_DIR/src/orchestrator"
+ROUTER_SCRIPT="$ROUTER_DIR/chat-work-session-router.ts"
 LAUNCHER="$RUNTIME_DIR/run-chatgpt-bridge.sh"
 
 if [[ -z "$NODE_BIN" ]]; then
@@ -30,11 +32,12 @@ if [[ ! -d "/Applications/Google Chrome.app" ]]; then
 fi
 
 "$GH_BIN" auth status >/dev/null
-mkdir -p "$HOME/Library/LaunchAgents" "$LOG_DIR" "$STATE_DIR" "$RUNTIME_DIR"
+mkdir -p "$HOME/Library/LaunchAgents" "$LOG_DIR" "$STATE_DIR" "$RUNTIME_DIR" "$ROUTER_DIR"
 
 cp "$REPO_DIR/scripts/chatgpt-resident-bridge-v2.mjs" "$BRIDGE_SCRIPT"
 cp "$REPO_DIR/scripts/chatgpt-resident-bridge-lib.mjs" "$BRIDGE_LIB"
-chmod 600 "$BRIDGE_SCRIPT" "$BRIDGE_LIB"
+cp "$REPO_DIR/src/orchestrator/chat-work-session-router.ts" "$ROUTER_SCRIPT"
+chmod 600 "$BRIDGE_SCRIPT" "$BRIDGE_LIB" "$ROUTER_SCRIPT"
 
 cat > "$LAUNCHER" <<LAUNCHER
 #!/bin/zsh
