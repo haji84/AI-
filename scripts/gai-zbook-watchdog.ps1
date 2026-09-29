@@ -9,12 +9,54 @@ New-Item -ItemType Directory -Force -Path $stateRoot | Out-Null
 $logPath = Join-Path $stateRoot 'zbook-watchdog.log'
 $runnerHealthStatePath = Join-Path $stateRoot 'zbook-runner-health.json'
 $runnerFailureThreshold = 3
+$watchdogScriptPath = $PSCommandPath
 
 function Write-GaiLog([string]$Message) {
   $line = "$(Get-Date -Format o) $Message"
   Add-Content -Path $logPath -Value $line
   Write-Host $line
 }
+
+function Ensure-HiddenScheduledTaskHost {
+  $ps = (Get-Command powershell.exe).Source
+  $wscript = Join-Path $env:SystemRoot 'System32\wscript.exe'
+  if (-not $watchdogScriptPath -or -not (Test-Path $wscript)) { return }
+
+  $watchdogCommand = "`"$ps`" -NoProfile -ExecutionPolicy Bypass -File `"$watchdogScriptPath`" -RunnerRoot `"$RunnerRoot`" -OllamaEndpoint `"$OllamaEndpoint`""
+  $escapedWatchdogCommand = $watchdogCommand.Replace('"', '""')
+  $launcherVbs = Join-Path $stateRoot 'gai-zbook-watchdog-launcher.vbs'
+  $launcherContent = @(
+    'Option Explicit',
+    'Dim shell',
+    'Set shell = CreateObject("WScript.Shell")',
+    ('shell.Run "{0}", 0, False' -f $escapedWatchdogCommand)
+  ) -join "`r`n"
+  Set-Content -Path $launcherVbs -Value $launcherContent -Encoding Unicode
+  $taskCommand = "`"$wscript`" //B //NoLogo `"$launcherVbs`""
+
+  foreach ($taskName in @('GAI-ZBook-Runner-OnLogon', 'GAI-ZBook-Watchdog')) {
+    try {
+      $task = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+      if (-not $task -or -not $task.Actions) { continue }
+      $action = $task.Actions | Select-Object -First 1
+      $alreadyHidden = ([string]$action.Execute -ieq $wscript) -and
+        ([string]$action.Arguments -match '//B') -and
+        ([string]$action.Arguments -match '//NoLogo')
+      if ($alreadyHidden) { continue }
+
+      $changeOutput = & schtasks.exe /Change /TN $taskName /TR $taskCommand 2>&1
+      if ($LASTEXITCODE -eq 0) {
+        Write-GaiLog "Migrated scheduled task $taskName to the hidden WScript launcher."
+      } else {
+        Write-GaiLog "Unable to migrate scheduled task $taskName: $($changeOutput -join ' ')"
+      }
+    } catch {
+      Write-GaiLog "Scheduled task migration check failed for $taskName: $($_.Exception.Message)"
+    }
+  }
+}
+
+Ensure-HiddenScheduledTaskHost
 
 function Get-ConsecutiveRunnerFailures {
   if (-not (Test-Path $runnerHealthStatePath)) { return 0 }
