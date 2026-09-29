@@ -95,7 +95,61 @@ function Find-GoriqRepoRoot {
   )
 
   $startingPoints = New-Object System.Collections.Generic.List[string]
-  foreach ($path in @($Hint, $PSScriptRoot, (Get-Location).Path, $HOME)) {
+  $knownCandidates = New-Object System.Collections.Generic.List[string]
+
+  foreach ($path in @(
+    $Hint,
+    $env:GORIQ_REPO_ROOT,
+    $env:GITHUB_WORKSPACE,
+    $PSScriptRoot,
+    (Get-Location).Path,
+    $HOME,
+    'C:\actions-runner\_work\AI-\AI-',
+    'C:\actions-runner\_work\AI-',
+    'C:\actions-runner'
+  )) {
+    if (-not [string]::IsNullOrWhiteSpace($path) -and -not $knownCandidates.Contains($path)) {
+      $knownCandidates.Add($path)
+    }
+  }
+
+  $builderStatus = Join-Path $localRoot 'GAIWorker\code-builder\install-status.json'
+  if (Test-Path -LiteralPath $builderStatus -PathType Leaf) {
+    try {
+      $builder = Get-Content -LiteralPath $builderStatus -Raw -Encoding UTF8 | ConvertFrom-Json
+      if (-not [string]::IsNullOrWhiteSpace([string]$builder.workspace)) {
+        $knownCandidates.Add([string]$builder.workspace)
+      }
+    } catch {
+      Write-BootstrapLog -Level WARN -Message "Code-builder workspace status could not be read: $($_.Exception.Message)"
+    }
+  }
+
+  foreach ($listener in @(Get-Process -Name 'Runner.Listener' -ErrorAction SilentlyContinue)) {
+    try {
+      if (-not [string]::IsNullOrWhiteSpace([string]$listener.Path)) {
+        $runnerRoot = Split-Path -Parent $listener.Path
+        foreach ($path in @($runnerRoot, (Join-Path $runnerRoot '_work'))) {
+          if (-not $knownCandidates.Contains($path)) {
+            $knownCandidates.Add($path)
+          }
+        }
+      }
+    } catch {}
+  }
+
+  foreach ($drive in @(Get-PSDrive -PSProvider FileSystem -ErrorAction SilentlyContinue)) {
+    foreach ($relative in @('actions-runner', 'github-runner', 'AI-', 'GORIQ')) {
+      try {
+        $path = Join-Path $drive.Root $relative
+        if ((Test-Path -LiteralPath $path -PathType Container) -and -not $knownCandidates.Contains($path)) {
+          $knownCandidates.Add($path)
+        }
+      } catch {}
+    }
+  }
+
+  foreach ($path in $knownCandidates) {
     if (-not [string]::IsNullOrWhiteSpace($path) -and -not $startingPoints.Contains($path)) {
       $startingPoints.Add($path)
     }
@@ -111,6 +165,7 @@ function Find-GoriqRepoRoot {
 
   $searchRoots = New-Object System.Collections.Generic.List[string]
   foreach ($root in @(
+    $knownCandidates,
     $HOME,
     (Join-Path $HOME 'source'),
     (Join-Path $HOME 'repos'),
@@ -199,7 +254,7 @@ try {
 
   $repoRoot = Find-GoriqRepoRoot -Hint $RepoHint -MaxDepth $SearchDepth
   if ([string]::IsNullOrWhiteSpace($repoRoot)) {
-    throw "GORIQ repository was not found under the current user profile. Retry with -RepoHint 'C:\path\to\AI-'."
+    throw "GORIQ repository was not found in the known Windows user, runner, or fixed-drive locations. Retry with -RepoHint only if this PC keeps the repository in a custom location."
   }
 
   Write-BootstrapLog -Level OK -Message "Repository: $repoRoot"
