@@ -20,9 +20,9 @@ test("resident bridge v2 opens ChatGPT only through the Automation project surfa
 });
 
 test("resident bridge v2 excludes pre-existing assistant output by exact phase boundary", () => {
-  assert.match(source, /phaseBaselineCopyCount/);
-  assert.match(source, /state\.copyCount > phaseBaselineCopyCount/);
-  assert.match(source, /phaseBaselineCopyCount = state\.copyCount/);
+  assert.match(source, /phaseToken/);
+  assert.match(source, /state\.newCopyCount > 0/);
+  assert.match(source, /markPhaseCopyBaseline/);
   assert.doesNotMatch(source, /baselineFingerprints/);
 });
 
@@ -125,7 +125,7 @@ test("resident bridge binds initial submission and later outputs to bounded phas
   assert.match(source, /CHATGPT_SUBMITTED_TURN_NOT_FOUND/);
   assert.match(source, /message\.role === "user" && message\.text\.includes\(requestMarker\)/);
   assert.match(source, /GORIQ_BRIDGE_PHASE_ID=/);
-  assert.match(source, /phaseBaselineCopyCount/);
+  assert.match(source, /phaseToken/);
   assert.doesNotMatch(source, /newMessages = messages\.filter\(\(message\) => !baselineFingerprints\.has/);
 });
 
@@ -140,9 +140,9 @@ test("fresh repair may correlate by verified empty baseline when user turn DOM i
 test("fresh Chat repair accepts only a newly completed phase response", () => {
   assert.match(source, /if \(!fresh && savedUrl\)/);
   assert.match(source, /startFreshProjectConversation/);
-  assert.match(source, /state\.copyCount > phaseBaselineCopyCount/);
+  assert.match(source, /state\.newCopyCount > 0/);
   assert.match(source, /completionReady/);
-  assert.match(source, /copyAssistantAnswerFromUi\(client, phaseMarker\)/);
+  assert.match(source, /copyAssistantAnswerFromUi\(client, phaseMarker, phaseToken\)/);
 });
 
 
@@ -153,7 +153,7 @@ test("fresh repair can recover the final assistant answer through one stable nat
   assert.match(source, /GORIQ_CLIPBOARD_SENTINEL_/);
   assert.match(source, /completionReady/);
   assert.match(source, /COMPLETION_STABLE_MS = 1_500/);
-  assert.match(source, /state\.copyCount > phaseBaselineCopyCount/);
+  assert.match(source, /state\.newCopyCount > 0/);
 });
 
 test("clipboard fallback restores the prior clipboard and never logs copied answer text", () => {
@@ -182,9 +182,9 @@ test("Retry immediately advances Chat to the next bounded phase", () => {
 });
 
 test("late phase output is rejected by assistant Copy generation count", () => {
-  assert.match(source, /phaseBaselineCopyCount/);
-  assert.match(source, /state\.copyCount > phaseBaselineCopyCount/);
-  assert.match(source, /phaseBaselineCopyCount = state\.copyCount/);
+  assert.match(source, /phaseToken/);
+  assert.match(source, /state\.newCopyCount > 0/);
+  assert.match(source, /markPhaseCopyBaseline/);
   assert.match(source, /GORIQ_BRIDGE_PHASE_ID=/);
 });
 
@@ -218,7 +218,7 @@ test("assistant completion controls may live outside main while Retry stays conv
   assert.match(source, /const mainButtons = \[\.\.\.document\.querySelectorAll\('main button'\)\]\.filter\(visible\)/);
   assert.match(source, /const assistantLabels = allLabels\.filter/);
   assert.match(source, /const retryVisible = mainLabels\.some/);
-  assert.match(source, /const copyCount = assistantLabels\.filter/);
+  assert.match(source, /const copyCount = copyButtons\.length/);
   assert.match(source, /const buttons = \[\.\.\.document\.querySelectorAll\('button'\)\]\.filter\(\(button\) =>/);
 });
 
@@ -230,4 +230,13 @@ test("phase exhaustion diagnostics expose only bounded control metadata", () => 
   assert.match(source, /inMain:/);
   assert.match(source, /phase-exhausted-ui/);
   assert.doesNotMatch(source, /clipboardText.*phase-exhausted-ui/);
+});
+
+test("phase completion uses new Copy control identity rather than total Copy count", () => {
+  assert.match(source, /markPhaseCopyBaseline/);
+  assert.match(source, /data-goriq-phase-baseline/);
+  assert.match(source, /newCopyCount/);
+  assert.match(source, /state\.newCopyCount > 0/);
+  assert.match(source, /copyAssistantAnswerFromUi\(client, phaseMarker, phaseToken\)/);
+  assert.doesNotMatch(source, /phaseBaselineCopyCount/);
 });
