@@ -19,10 +19,10 @@ test("resident bridge v2 opens ChatGPT only through the Automation project surfa
   assert.doesNotMatch(source, /createFreshChatGptTarget/);
 });
 
-test("resident bridge v2 excludes pre-existing assistant messages by exact turn ordering", () => {
-  assert.match(source, /snapshotConversationMessages/);
-  assert.match(source, /markerUserIndex/);
-  assert.match(source, /message\.role === "assistant" && message\.index > markerUserIndex/);
+test("resident bridge v2 excludes pre-existing assistant output by exact phase boundary", () => {
+  assert.match(source, /phaseBaselineCopyCount/);
+  assert.match(source, /state\.copyCount > phaseBaselineCopyCount/);
+  assert.match(source, /phaseBaselineCopyCount = state\.copyCount/);
   assert.doesNotMatch(source, /baselineFingerprints/);
 });
 
@@ -71,7 +71,7 @@ test("project-scoped repair metadata accepts normal whitespace separators", () =
 
 test("fresh reply detection does not require ChatGPT URL transition", () => {
   assert.doesNotMatch(source, /conversationAdvanced/);
-  assert.match(source, /effectiveCandidate\?\.text/);
+  assert.match(source, /completionReady/);
 });
 
 test("prompt submission brings the tab forward and cascades mouse form and raw Enter submission", () => {
@@ -110,20 +110,22 @@ test("normal conversations may reuse surfaces but repair turns are isolated", ()
   assert.match(source, /if \(!fresh\)[\s\S]*?writeProjectSurface\(mode/);
 });
 
-test("Chat and Work output can fall back to assistant action containers outside standard turn DOM", () => {
-  assert.match(source, /snapshotAssistantActionFallback/);
-  assert.match(source, /コピーする\|copy\|読み上げ\|read aloud\|回答を再生成\|regenerate/);
-  assert.match(source, /fresh \|\| mode === "work"/);
-  assert.match(source, /actionFallbackText/);
-  assert.match(source, /effectiveCandidate/);
+test("isolated repair completion uses final-state controls and one native Copy extraction", () => {
+  assert.match(source, /snapshotExecutionUiState/);
+  assert.match(source, /completionReady/);
+  assert.match(source, /readAloudReady/);
+  assert.match(source, /regenerateReady/);
+  assert.match(source, /copyAssistantAnswerFromUi/);
+  assert.doesNotMatch(source, /snapshotAssistantActionFallback/);
 });
 
-test("resident bridge binds a reply to the exact submitted user turn", () => {
+test("resident bridge binds initial submission and later outputs to bounded phase identities", () => {
   assert.match(source, /GORIQ_BRIDGE_REQUEST_ID=/);
   assert.match(source, /submittedPrompt/);
   assert.match(source, /CHATGPT_SUBMITTED_TURN_NOT_FOUND/);
   assert.match(source, /message\.role === "user" && message\.text\.includes\(requestMarker\)/);
-  assert.match(source, /message\.role === "assistant" && message\.index > markerUserIndex/);
+  assert.match(source, /GORIQ_BRIDGE_PHASE_ID=/);
+  assert.match(source, /phaseBaselineCopyCount/);
   assert.doesNotMatch(source, /newMessages = messages\.filter\(\(message\) => !baselineFingerprints\.has/);
 });
 
@@ -135,22 +137,23 @@ test("fresh repair may correlate by verified empty baseline when user turn DOM i
 });
 
 
-test("fresh Chat repair accepts action-container output only on the isolated fresh path", () => {
+test("fresh Chat repair accepts only a newly completed phase response", () => {
   assert.match(source, /if \(!fresh && savedUrl\)/);
   assert.match(source, /startFreshProjectConversation/);
-  assert.match(source, /!candidate\?\.text && \(fresh \|\| mode === "work"\)/);
-  assert.match(source, /snapshotAssistantActionFallback\(client, requestMarker\)/);
+  assert.match(source, /state\.copyCount > phaseBaselineCopyCount/);
+  assert.match(source, /completionReady/);
+  assert.match(source, /copyAssistantAnswerFromUi\(client, phaseMarker\)/);
 });
 
 
-test("fresh repair can recover the final assistant answer through the native Copy control", () => {
+test("fresh repair can recover the final assistant answer through one stable native Copy", () => {
   assert.match(source, /async function copyAssistantAnswerFromUi/);
   assert.match(source, /pbpaste/);
   assert.match(source, /pbcopy/);
   assert.match(source, /GORIQ_CLIPBOARD_SENTINEL_/);
-  assert.match(source, /\^\(コピーする\|copy\)\$/);
-  assert.match(source, /nextClipboardAttemptAt/);
-  assert.match(source, /fresh && !state\.generating && Date\.now\(\) >= nextClipboardAttemptAt/);
+  assert.match(source, /completionReady/);
+  assert.match(source, /COMPLETION_STABLE_MS = 1_500/);
+  assert.match(source, /state\.copyCount > phaseBaselineCopyCount/);
 });
 
 test("clipboard fallback restores the prior clipboard and never logs copied answer text", () => {
@@ -160,11 +163,52 @@ test("clipboard fallback restores the prior clipboard and never logs copied answ
   assert.doesNotMatch(source, /setHealth\([^\n]*clipboardText/);
 });
 
-test("fresh repair retries clipboard Copy only when the assistant Copy control is ready", () => {
-  assert.match(source, /async function hasAssistantCopyControl/);
-  assert.match(source, /nextClipboardAttemptAt/);
-  assert.match(source, /const copyReady = await hasAssistantCopyControl\(client\)/);
-  assert.match(source, /nextClipboardAttemptAt = Date\.now\(\) \+ 1500/);
-  assert.match(source, /nextClipboardAttemptAt = Date\.now\(\) \+ 700/);
-  assert.doesNotMatch(source, /clipboardFallbackAttempted/);
+test("Chat repair uses one-minute bounded micro-phases before Work escalation", () => {
+  assert.match(source, /CHAT_PHASE_BUDGET_MS = 60_000/);
+  assert.match(source, /CHAT_MAX_PHASES = 4/);
+  assert.match(source, /buildChatRecoveryPhasePrompt/);
+  assert.match(source, /Micro-Phase 2: DIAGNOSIS ONLY/);
+  assert.match(source, /Micro-Phase 3: MINIMAL CHANGE CONSTRUCTION/);
+  assert.match(source, /Micro-Phase 4: FINAL DIFF ONLY/);
+  assert.match(source, /one-minute-budget/);
+  assert.match(source, /CHAT_REPAIR_PHASES_EXHAUSTED/);
+});
+
+test("Retry immediately advances Chat to the next bounded phase", () => {
+  assert.match(source, /state\.retryVisible \|\| phaseExpired/);
+  assert.match(source, /const reason = state\.retryVisible \? "retry-visible" : "one-minute-budget"/);
+  assert.match(source, /stopActiveGeneration/);
+  assert.match(source, /submitFollowupPrompt/);
+});
+
+test("late phase output is rejected by assistant Copy generation count", () => {
+  assert.match(source, /phaseBaselineCopyCount/);
+  assert.match(source, /state\.copyCount > phaseBaselineCopyCount/);
+  assert.match(source, /phaseBaselineCopyCount = state\.copyCount/);
+  assert.match(source, /GORIQ_BRIDGE_PHASE_ID=/);
+});
+
+test("long Chat repairs are pre-split before the first send", () => {
+  assert.match(source, /function shouldPreSplitChatRepair/);
+  assert.match(source, /value\.length >= 6000/);
+  assert.match(source, /failureEvidenceLength >= 3500/);
+  assert.match(source, /allowedCount >= 3/);
+  assert.match(source, /GORIQ_CHAT_PRE_SPLIT=true/);
+  assert.match(source, /Phase 1: DIAGNOSIS ONLY/);
+});
+
+test("every completed planned phase is copied and explicitly reflected into the next phase", () => {
+  assert.match(source, /const phaseOutputs = \[\]/);
+  assert.match(source, /phaseOutputs\.push\(copied\)/);
+  assert.match(source, /boundedPhaseContext\(priorOutputs\)/);
+  assert.match(source, /PriorPhase/);
+  assert.match(source, /planned-phase-complete/);
+});
+
+test("pre-split repair returns only after final phase consolidates one unified diff", () => {
+  assert.match(source, /FINALIZATION: consolidate the original goal plus every prior phase result into ONE smallest valid unified diff/);
+  assert.match(source, /const finalPhase = phase >= CHAT_MAX_PHASES/);
+  assert.match(source, /if \(looksLikeUnifiedDiff\(copied\)\)/);
+  assert.match(source, /final-output-not-diff/);
+  assert.match(source, /!preSplit && phase === 1 && looksLikeUnifiedDiff\(copied\)/);
 });
