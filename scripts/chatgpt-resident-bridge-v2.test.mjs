@@ -71,7 +71,7 @@ test("project-scoped repair metadata accepts normal whitespace separators", () =
 
 test("fresh reply detection does not require ChatGPT URL transition", () => {
   assert.doesNotMatch(source, /conversationAdvanced/);
-  assert.match(source, /effectiveCandidate\?\.text/);
+  assert.match(source, /completionReady/);
 });
 
 test("prompt submission brings the tab forward and cascades mouse form and raw Enter submission", () => {
@@ -110,12 +110,13 @@ test("normal conversations may reuse surfaces but repair turns are isolated", ()
   assert.match(source, /if \(!fresh\)[\s\S]*?writeProjectSurface\(mode/);
 });
 
-test("Chat and Work output can fall back to assistant action containers outside standard turn DOM", () => {
-  assert.match(source, /snapshotAssistantActionFallback/);
-  assert.match(source, /コピーする\|copy\|読み上げ\|read aloud\|回答を再生成\|regenerate/);
-  assert.match(source, /fresh \|\| mode === "work"/);
-  assert.match(source, /actionFallbackText/);
-  assert.match(source, /effectiveCandidate/);
+test("isolated repair completion uses final-state controls and one native Copy extraction", () => {
+  assert.match(source, /snapshotExecutionUiState/);
+  assert.match(source, /completionReady/);
+  assert.match(source, /readAloudReady/);
+  assert.match(source, /regenerateReady/);
+  assert.match(source, /copyAssistantAnswerFromUi/);
+  assert.doesNotMatch(source, /snapshotAssistantActionFallback/);
 });
 
 test("resident bridge binds a reply to the exact submitted user turn", () => {
