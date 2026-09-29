@@ -868,6 +868,8 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false) {
     const preSubmissionTurns = await snapshotConversationMessages(client);
     const freshBaselineEmpty = fresh && Array.isArray(preSubmissionTurns) && preSubmissionTurns.length === 0;
     const beforeUserCount = await evaluate(client, `(() => document.querySelectorAll('[data-message-author-role="user"]').length)()`);
+    let phaseToken = `goriq-phase-${randomUUID()}`;
+    await markPhaseCopyBaseline(client, phaseToken);
 
     const focused = await evaluate(client, `(() => {
       const el = document.querySelector('textarea') || document.querySelector('[contenteditable="true"]');
@@ -1003,8 +1005,6 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false) {
     let phaseStartedAt = Date.now();
     const phaseOutputs = [];
     let phaseMarker = requestMarker;
-    let phaseToken = `goriq-phase-${randomUUID()}`;
-    await markPhaseCopyBaseline(client, phaseToken);
     let completionSignature = "";
     let completionStableSince = 0;
 
