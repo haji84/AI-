@@ -540,6 +540,13 @@ async function selectExperience(client, mode) {
 }
 
 async function submitPromptAndReadAnswer(prompt, mode = "chat") {
+  const requestMarker = `GORIQ_BRIDGE_REQUEST_ID=${randomUUID()}`;
+  const submittedPrompt = [
+    requestMarker,
+    "Transport marker only. Do not include it in the answer.",
+    "",
+    prompt,
+  ].join("\n");
   const target = await createChatGptTarget(CHATGPT_URL);
   const client = new CdpClient(target.webSocketDebuggerUrl);
   await client.connect();
@@ -551,8 +558,6 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat") {
     const selectedExperience = await waitForComposer(client);
     if (!String(selectedExperience?.url ?? "").startsWith(CHATGPT_URL)) throw new Error("project surface left ChatGPT");
 
-    const beforeMessages = await snapshotAssistantMessages(client);
-    const baselineFingerprints = new Set((beforeMessages ?? []).map(fingerprintMessage));
     const beforeUserCount = await evaluate(client, `(() => document.querySelectorAll('[data-message-author-role="user"]').length)()`);
 
     const focused = await evaluate(client, `(() => {
@@ -567,7 +572,7 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat") {
     await client.call("Input.dispatchKeyEvent", { type: "keyUp", key: "a", code: "KeyA", modifiers: 4 });
     await client.call("Input.dispatchKeyEvent", { type: "keyDown", key: "Backspace", code: "Backspace" });
     await client.call("Input.dispatchKeyEvent", { type: "keyUp", key: "Backspace", code: "Backspace" });
-    await client.call("Input.insertText", { text: prompt });
+    await client.call("Input.insertText", { text: submittedPrompt });
 
     const sendTarget = await evaluate(client, `(() => {
       const visible = (el) => {
@@ -667,20 +672,35 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat") {
       throw new Error(`CHATGPT_SUBMIT_FAILED: userCount=${submitted?.userCount ?? "unknown"}; composerText=${String(submitted?.composerText ?? "").slice(0, 500)}`);
     }
 
+    const markerDeadline = Date.now() + 15000;
+    let markerUserIndex = -1;
+    while (Date.now() < markerDeadline) {
+      const turns = await snapshotConversationMessages(client);
+      markerUserIndex = Array.isArray(turns)
+        ? turns.findLastIndex((message) => message.role === "user" && message.text.includes(requestMarker))
+        : -1;
+      if (markerUserIndex >= 0) break;
+      await sleep(300);
+    }
+    if (markerUserIndex < 0) {
+      throw new Error("CHATGPT_SUBMITTED_TURN_NOT_FOUND");
+    }
+
     const deadline = Date.now() + 240000;
     let candidateFingerprint = "";
     let lastText = "";
     let stableSince = 0;
     while (Date.now() < deadline) {
-      const messages = await snapshotAssistantMessages(client);
+      const turns = await snapshotConversationMessages(client);
       const state = await evaluate(client, `(() => ({
         url: location.href,
         generating: !!document.querySelector('button[data-testid="stop-button"]')
           || [...document.querySelectorAll('button')].some((el) => /stop generating|停止/i.test((el.getAttribute('aria-label') || el.textContent || ''))),
       }))()`);
 
-      const newMessages = messages.filter((message) => !baselineFingerprints.has(fingerprintMessage(message)));
-      const candidate = newMessages.at(-1);
+      const candidate = Array.isArray(turns)
+        ? turns.filter((message) => message.role === "assistant" && message.index > markerUserIndex).at(-1)
+        : undefined;
       const currentFingerprint = fingerprintMessage(candidate);
 
       if (candidate?.text) {
