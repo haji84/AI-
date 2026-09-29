@@ -19,10 +19,11 @@ test("resident bridge v2 opens ChatGPT only through the Automation project surfa
   assert.doesNotMatch(source, /createFreshChatGptTarget/);
 });
 
-test("resident bridge v2 excludes pre-existing assistant messages", () => {
-  assert.match(source, /snapshotAssistantMessages/);
-  assert.match(source, /baselineFingerprints/);
-  assert.match(source, /newMessages = messages\.filter/);
+test("resident bridge v2 excludes pre-existing assistant messages by exact turn ordering", () => {
+  assert.match(source, /snapshotConversationMessages/);
+  assert.match(source, /markerUserIndex/);
+  assert.match(source, /message\.role === "assistant" && message\.index > markerUserIndex/);
+  assert.doesNotMatch(source, /baselineFingerprints/);
 });
 
 test("resident bridge v2 closes its disposable target", () => {
@@ -101,22 +102,16 @@ test("current ChatGPT DOM fallback detects assistant and user turns by action co
   assert.match(source, /data-testid\^="conversation-turn"/);
 });
 
-test("assistant snapshot falls back to rendered markdown when role attributes disappear", () => {
-  assert.match(source, /main \.markdown, main \[class\*="markdown"\]/);
-  assert.match(source, /if \(assistants\.length\) return assistants/);
-  assert.match(source, /role: 'assistant'/);
-});
-
 test("successful repair stores the project-scoped surface URL for reuse", () => {
   assert.match(source, /writeProjectSurface\(mode/);
   assert.match(source, /readProjectSurfaces/);
 });
 
-test("assistant snapshot can infer the answer container from response action controls", () => {
-  assert.match(source, /const actionPattern = \/回答を再生成\|regenerate\|読み上げ\|read aloud\|リアクション\|reaction\|コピーする\|copy\/i/);
-  assert.match(source, /depth < 10/);
-  assert.match(source, /hasComposer/);
-  assert.match(source, /hasSidebar/);
-  assert.match(source, /text\.length > 12000/);
-  assert.match(source, /if \(Array\.isArray\(markdown\) && markdown\.length\) return markdown/);
+test("resident bridge binds a reply to the exact submitted user turn", () => {
+  assert.match(source, /GORIQ_BRIDGE_REQUEST_ID=/);
+  assert.match(source, /submittedPrompt/);
+  assert.match(source, /CHATGPT_SUBMITTED_TURN_NOT_FOUND/);
+  assert.match(source, /message\.role === "user" && message\.text\.includes\(requestMarker\)/);
+  assert.match(source, /message\.role === "assistant" && message\.index > markerUserIndex/);
+  assert.doesNotMatch(source, /newMessages = messages\.filter\(\(message\) => !baselineFingerprints\.has/);
 });

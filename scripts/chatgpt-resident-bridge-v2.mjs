@@ -424,79 +424,6 @@ async function snapshotConversationMessages(client) {
   })()`);
 }
 
-async function snapshotAssistantMessages(client) {
-  const messages = await snapshotConversationMessages(client);
-  const assistants = Array.isArray(messages) ? messages.filter((message) => message.role === "assistant") : [];
-  if (assistants.length) return assistants;
-
-  const markdown = await evaluate(client, `(() => {
-    const nodes = [...document.querySelectorAll('main .markdown, main [class*="markdown"]')];
-    const seen = new Set();
-    const out = [];
-    for (const node of nodes) {
-      if (!(node instanceof HTMLElement)) continue;
-      const text = (node.innerText || node.textContent || '').trim();
-      if (!text || seen.has(text)) continue;
-      seen.add(text);
-      const host = node.closest('[data-message-id],[data-testid^="conversation-turn"],article');
-      out.push({
-        role: 'assistant',
-        id: host?.getAttribute('data-message-id') || host?.id || null,
-        index: out.length,
-        text: text.slice(0, 8000),
-      });
-    }
-    return out;
-  })()`);
-  if (Array.isArray(markdown) && markdown.length) return markdown;
-
-  return evaluate(client, `(() => {
-    const normalize = (value) => String(value || '').replace(/\\s+/g, ' ').trim();
-    const actionPattern = /回答を再生成|regenerate|読み上げ|read aloud|リアクション|reaction|コピーする|copy/i;
-    const buttons = [...document.querySelectorAll('main button')].filter((button) => {
-      const label = normalize([button.getAttribute('aria-label'), button.getAttribute('data-testid'), button.textContent].filter(Boolean).join(' '));
-      return actionPattern.test(label);
-    });
-    const candidates = [];
-    const seen = new Set();
-
-    for (const button of buttons) {
-      let node = button.parentElement;
-      let best = null;
-      for (let depth = 0; node && depth < 10; depth += 1, node = node.parentElement) {
-        if (!(node instanceof HTMLElement)) continue;
-        const text = (node.innerText || node.textContent || '').trim();
-        if (!text || text.length > 12000) continue;
-        const hasComposer = !!node.querySelector('textarea,[contenteditable="true"]');
-        const hasSidebar = [...node.querySelectorAll('button,a')].some((el) =>
-          /サイドバーを表示する|show sidebar|新しいチャット|new chat/i.test(
-            normalize(el.getAttribute('aria-label') || el.textContent || '')
-          )
-        );
-        if (hasComposer || hasSidebar) continue;
-        if (!best || text.length < best.text.length) {
-          best = {
-            node,
-            text,
-            id: node.getAttribute('data-message-id') || node.id || null,
-          };
-        }
-      }
-      if (!best) continue;
-      const key = best.id || best.text;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      candidates.push({
-        role: 'assistant',
-        id: best.id,
-        index: candidates.length,
-        text: best.text.slice(0, 8000),
-      });
-    }
-    return candidates;
-  })()`);
-}
-
 function fingerprintMessage(message) {
   if (!message) return "";
   if (message.id) return `id:${message.id}`;
@@ -540,6 +467,13 @@ async function selectExperience(client, mode) {
 }
 
 async function submitPromptAndReadAnswer(prompt, mode = "chat") {
+  const requestMarker = `GORIQ_BRIDGE_REQUEST_ID=${randomUUID()}`;
+  const submittedPrompt = [
+    requestMarker,
+    "Transport marker only. Do not include it in the answer.",
+    "",
+    prompt,
+  ].join("\n");
   const target = await createChatGptTarget(CHATGPT_URL);
   const client = new CdpClient(target.webSocketDebuggerUrl);
   await client.connect();
@@ -551,8 +485,6 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat") {
     const selectedExperience = await waitForComposer(client);
     if (!String(selectedExperience?.url ?? "").startsWith(CHATGPT_URL)) throw new Error("project surface left ChatGPT");
 
-    const beforeMessages = await snapshotAssistantMessages(client);
-    const baselineFingerprints = new Set((beforeMessages ?? []).map(fingerprintMessage));
     const beforeUserCount = await evaluate(client, `(() => document.querySelectorAll('[data-message-author-role="user"]').length)()`);
 
     const focused = await evaluate(client, `(() => {
@@ -567,7 +499,7 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat") {
     await client.call("Input.dispatchKeyEvent", { type: "keyUp", key: "a", code: "KeyA", modifiers: 4 });
     await client.call("Input.dispatchKeyEvent", { type: "keyDown", key: "Backspace", code: "Backspace" });
     await client.call("Input.dispatchKeyEvent", { type: "keyUp", key: "Backspace", code: "Backspace" });
-    await client.call("Input.insertText", { text: prompt });
+    await client.call("Input.insertText", { text: submittedPrompt });
 
     const sendTarget = await evaluate(client, `(() => {
       const visible = (el) => {
@@ -667,20 +599,35 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat") {
       throw new Error(`CHATGPT_SUBMIT_FAILED: userCount=${submitted?.userCount ?? "unknown"}; composerText=${String(submitted?.composerText ?? "").slice(0, 500)}`);
     }
 
+    const markerDeadline = Date.now() + 15000;
+    let markerUserIndex = -1;
+    while (Date.now() < markerDeadline) {
+      const turns = await snapshotConversationMessages(client);
+      markerUserIndex = Array.isArray(turns)
+        ? turns.findLastIndex((message) => message.role === "user" && message.text.includes(requestMarker))
+        : -1;
+      if (markerUserIndex >= 0) break;
+      await sleep(300);
+    }
+    if (markerUserIndex < 0) {
+      throw new Error("CHATGPT_SUBMITTED_TURN_NOT_FOUND");
+    }
+
     const deadline = Date.now() + 240000;
     let candidateFingerprint = "";
     let lastText = "";
     let stableSince = 0;
     while (Date.now() < deadline) {
-      const messages = await snapshotAssistantMessages(client);
+      const turns = await snapshotConversationMessages(client);
       const state = await evaluate(client, `(() => ({
         url: location.href,
         generating: !!document.querySelector('button[data-testid="stop-button"]')
           || [...document.querySelectorAll('button')].some((el) => /stop generating|停止/i.test((el.getAttribute('aria-label') || el.textContent || ''))),
       }))()`);
 
-      const newMessages = messages.filter((message) => !baselineFingerprints.has(fingerprintMessage(message)));
-      const candidate = newMessages.at(-1);
+      const candidate = Array.isArray(turns)
+        ? turns.filter((message) => message.role === "assistant" && message.index > markerUserIndex).at(-1)
+        : undefined;
       const currentFingerprint = fingerprintMessage(candidate);
 
       if (candidate?.text) {
