@@ -7,11 +7,33 @@ $ErrorActionPreference = 'Stop'
 $stateRoot = Join-Path $env:LOCALAPPDATA 'GAIWorker'
 New-Item -ItemType Directory -Force -Path $stateRoot | Out-Null
 $logPath = Join-Path $stateRoot 'zbook-watchdog.log'
+$runnerHealthStatePath = Join-Path $stateRoot 'zbook-runner-health.json'
+$runnerFailureThreshold = 3
 
 function Write-GaiLog([string]$Message) {
   $line = "$(Get-Date -Format o) $Message"
   Add-Content -Path $logPath -Value $line
   Write-Host $line
+}
+
+function Get-ConsecutiveRunnerFailures {
+  if (-not (Test-Path $runnerHealthStatePath)) { return 0 }
+  try {
+    $state = Get-Content -Raw -Path $runnerHealthStatePath | ConvertFrom-Json
+    if ($null -ne $state.consecutiveFailures) {
+      return [int]$state.consecutiveFailures
+    }
+  } catch {
+    Write-GaiLog "Runner health state unreadable; resetting failure count: $($_.Exception.Message)"
+  }
+  return 0
+}
+
+function Set-ConsecutiveRunnerFailures([int]$Count) {
+  [ordered]@{
+    consecutiveFailures = $Count
+    updatedAt = (Get-Date).ToUniversalTime().ToString('o')
+  } | ConvertTo-Json -Depth 3 | Set-Content -Encoding UTF8 $runnerHealthStatePath
 }
 
 function Test-OllamaApi {
@@ -64,17 +86,21 @@ function Test-RunnerConnection {
 }
 
 function Stop-StaleRunner {
-  $names = @('Runner.Listener', 'Runner.Worker')
-  foreach ($name in $names) {
-    Get-Process -Name $name -ErrorAction SilentlyContinue | ForEach-Object {
-      try {
-        Write-GaiLog "Stopping stale $name process pid=$($_.Id)."
-        Stop-Process -Id $_.Id -Force -ErrorAction Stop
-      } catch {
-        Write-GaiLog "Unable to stop stale $name pid=$($_.Id): $($_.Exception.Message)"
-      }
+  $workers = @(Get-Process -Name 'Runner.Worker' -ErrorAction SilentlyContinue)
+  if ($workers.Count -gt 0) {
+    Write-GaiLog 'Runner.Worker is active; refusing to recycle the GitHub runner.'
+    return $false
+  }
+
+  Get-Process -Name 'Runner.Listener' -ErrorAction SilentlyContinue | ForEach-Object {
+    try {
+      Write-GaiLog "Stopping stale Runner.Listener process pid=$($_.Id)."
+      Stop-Process -Id $_.Id -Force -ErrorAction Stop
+    } catch {
+      Write-GaiLog "Unable to stop stale Runner.Listener pid=$($_.Id): $($_.Exception.Message)"
     }
   }
+  return $true
 }
 
 function Start-GitHubRunner {
@@ -93,12 +119,50 @@ function Start-GitHubRunner {
   return $false
 }
 
-$runnerHealthy = Test-RunnerConnection
-if (-not $runnerHealthy) {
-  Write-GaiLog 'GitHub runner connection is unhealthy. Recycling listener.'
-  Stop-StaleRunner
-  Start-Sleep -Seconds 2
-  $runnerHealthy = Start-GitHubRunner
+$activeRunnerWorkers = @(Get-Process -Name 'Runner.Worker' -ErrorAction SilentlyContinue)
+$runnerProtectedByActiveJob = $activeRunnerWorkers.Count -gt 0
+$runnerConnectionHealthy = Test-RunnerConnection
+$runnerHealthy = $runnerConnectionHealthy -or $runnerProtectedByActiveJob
+$runnerRecoveryDeferred = $false
+$consecutiveRunnerFailures = Get-ConsecutiveRunnerFailures
+
+if ($runnerProtectedByActiveJob) {
+  if (-not $runnerConnectionHealthy) {
+    Write-GaiLog 'GitHub runner connection probe is unhealthy, but Runner.Worker is active. Skipping recycle.'
+  }
+  if ($consecutiveRunnerFailures -ne 0) {
+    Set-ConsecutiveRunnerFailures 0
+    $consecutiveRunnerFailures = 0
+  }
+} elseif ($runnerConnectionHealthy) {
+  if ($consecutiveRunnerFailures -ne 0) {
+    Set-ConsecutiveRunnerFailures 0
+    $consecutiveRunnerFailures = 0
+  }
+} else {
+  $consecutiveRunnerFailures++
+  Set-ConsecutiveRunnerFailures $consecutiveRunnerFailures
+
+  if ($consecutiveRunnerFailures -lt $runnerFailureThreshold) {
+    $runnerRecoveryDeferred = $true
+    Write-GaiLog "GitHub runner connection is unhealthy ($consecutiveRunnerFailures/$runnerFailureThreshold). Deferring recycle until the failure threshold is reached."
+  } else {
+    Write-GaiLog "GitHub runner connection is unhealthy for $consecutiveRunnerFailures consecutive checks. Recycling idle listener."
+    if (Stop-StaleRunner) {
+      Start-Sleep -Seconds 2
+      $runnerConnectionHealthy = Start-GitHubRunner
+      $runnerHealthy = $runnerConnectionHealthy
+      if ($runnerHealthy) {
+        Set-ConsecutiveRunnerFailures 0
+        $consecutiveRunnerFailures = 0
+      }
+    } else {
+      $activeRunnerWorkers = @(Get-Process -Name 'Runner.Worker' -ErrorAction SilentlyContinue)
+      $runnerProtectedByActiveJob = $activeRunnerWorkers.Count -gt 0
+      $runnerHealthy = $runnerProtectedByActiveJob
+      $runnerRecoveryDeferred = $runnerProtectedByActiveJob
+    }
+  }
 }
 
 $ollamaHealthy = Test-OllamaApi
@@ -120,13 +184,19 @@ $status = [ordered]@{
   workerId = 'zbook'
   runnerRoot = $RunnerRoot
   runnerHealthy = $runnerHealthy
-  runnerHealthMode = 'established-tcp-or-recent-diag'
+  runnerConnectionHealthy = $runnerConnectionHealthy
+  runnerHealthMode = 'active-job-or-established-tcp-or-recent-diag'
+  activeRunnerWorkers = $activeRunnerWorkers.Count
+  runnerProtectedByActiveJob = $runnerProtectedByActiveJob
+  consecutiveRunnerFailures = $consecutiveRunnerFailures
+  runnerRecoveryDeferred = $runnerRecoveryDeferred
   ollamaEndpoint = $OllamaEndpoint
   ollamaHealthy = $ollamaHealthy
   checkedAt = (Get-Date).ToUniversalTime().ToString('o')
 }
 $status | ConvertTo-Json -Depth 4 | Set-Content -Encoding UTF8 (Join-Path $stateRoot 'zbook-watchdog-status.json')
-if (-not $runnerHealthy) { Write-GaiLog 'WARNING: GitHub runner is still unavailable after recovery attempt.' }
+if (-not $runnerHealthy -and $runnerRecoveryDeferred) { Write-GaiLog 'WARNING: GitHub runner health check failed; recovery is deferred to avoid interrupting active work or reacting to a transient failure.' }
+if (-not $runnerHealthy -and -not $runnerRecoveryDeferred) { Write-GaiLog 'WARNING: GitHub runner is still unavailable after recovery attempt.' }
 if (-not $ollamaHealthy) { Write-GaiLog 'WARNING: Ollama is still unavailable after recovery attempt.' }
 
-if (-not $runnerHealthy) { exit 2 }
+if (-not $runnerHealthy -and -not $runnerRecoveryDeferred) { exit 2 }
