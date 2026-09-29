@@ -4,6 +4,15 @@ import test from "node:test";
 
 const scriptPath = "scripts/configure-groq-free-secret-windows.ps1";
 
+test("Groq configurator uses clipboard-first input", async () => {
+  const source = await readFile(scriptPath, "utf8");
+
+  assert.match(source, /Get-Clipboard -Raw/);
+  assert.match(source, /Set-Clipboard -Value ''/);
+  assert.match(source, /コピーできたら Enter/);
+  assert.match(source, /右クリック貼り付け/);
+});
+
 test("Groq configurator normalizes clipboard whitespace before HTTP validation", async () => {
   const source = await readFile(scriptPath, "utf8");
 
