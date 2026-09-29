@@ -141,3 +141,21 @@ test("fresh Chat repair accepts action-container output only on the isolated fre
   assert.match(source, /!candidate\?\.text && \(fresh \|\| mode === "work"\)/);
   assert.match(source, /snapshotAssistantActionFallback\(client, requestMarker\)/);
 });
+
+
+test("fresh repair can recover the final assistant answer through the native Copy control", () => {
+  assert.match(source, /async function copyAssistantAnswerFromUi/);
+  assert.match(source, /pbpaste/);
+  assert.match(source, /pbcopy/);
+  assert.match(source, /GORIQ_CLIPBOARD_SENTINEL_/);
+  assert.match(source, /\^\(コピーする\|copy\)\$/);
+  assert.match(source, /clipboardFallbackAttempted/);
+  assert.match(source, /fresh && !state\.generating && !clipboardFallbackAttempted/);
+});
+
+test("clipboard fallback restores the prior clipboard and never logs copied answer text", () => {
+  assert.match(source, /const previousClipboard = await readMacClipboardText\(\)/);
+  assert.match(source, /finally \{[\s\S]*writeMacClipboardText\(previousClipboard\)/);
+  assert.doesNotMatch(source, /console\.(?:log|error).*clipboardText/);
+  assert.doesNotMatch(source, /setHealth\([^\n]*clipboardText/);
+});

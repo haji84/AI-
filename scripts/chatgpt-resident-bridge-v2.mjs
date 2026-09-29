@@ -455,6 +455,58 @@ function fingerprintMessage(message) {
   return `fallback:${message.index}:${message.text}`;
 }
 
+async function readMacClipboardText() {
+  const { stdout } = await execFileAsync("pbpaste", [], { maxBuffer: 2 * 1024 * 1024 });
+  return String(stdout ?? "");
+}
+
+function writeMacClipboardText(text) {
+  return new Promise((resolve, reject) => {
+    const child = execFile("pbcopy", [], (error) => {
+      if (error) reject(error);
+      else resolve();
+    });
+    child.stdin.end(String(text ?? ""));
+  });
+}
+
+async function copyAssistantAnswerFromUi(client, requestMarker) {
+  const previousClipboard = await readMacClipboardText();
+  const sentinel = `GORIQ_CLIPBOARD_SENTINEL_${randomUUID()}`;
+  try {
+    await writeMacClipboardText(sentinel);
+    const clicked = await evaluate(client, `(() => {
+      const normalize = (value) => String(value || '').replace(/\\s+/g, ' ').trim();
+      const visible = (el) => {
+        const rect = el.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0;
+      };
+      const buttons = [...document.querySelectorAll('main button')].filter((button) => {
+        if (!visible(button) || button.disabled) return false;
+        const label = normalize(button.getAttribute('aria-label') || button.textContent || '');
+        return /^(コピーする|copy)$/i.test(label);
+      });
+      const button = buttons.at(-1);
+      if (!button) return false;
+      button.click();
+      return true;
+    })()`);
+    if (!clicked) return "";
+
+    const deadline = Date.now() + 2500;
+    while (Date.now() < deadline) {
+      await sleep(150);
+      const copied = await readMacClipboardText();
+      if (copied && copied !== sentinel && !copied.includes(requestMarker)) {
+        return copied.trim().slice(0, 8000);
+      }
+    }
+    return "";
+  } finally {
+    try { await writeMacClipboardText(previousClipboard); } catch {}
+  }
+}
+
 async function snapshotAssistantActionFallback(client, requestMarker) {
   return evaluate(client, `(() => {
     const normalize = (value) => String(value || '').replace(/\\s+/g, ' ').trim();
@@ -679,6 +731,7 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false) {
     let candidateFingerprint = "";
     let lastText = "";
     let stableSince = 0;
+    let clipboardFallbackAttempted = false;
     while (Date.now() < deadline) {
       const turns = await snapshotConversationMessages(client);
       const state = await evaluate(client, `(() => ({
@@ -693,11 +746,20 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false) {
       const actionFallbackText = !candidate?.text && (fresh || mode === "work")
         ? await snapshotAssistantActionFallback(client, requestMarker)
         : "";
-      const effectiveCandidate = candidate?.text
+      let effectiveCandidate = candidate?.text
         ? candidate
         : actionFallbackText
           ? { role: "assistant", id: null, index: markerUserIndex + 1, text: actionFallbackText }
           : undefined;
+
+      if (!effectiveCandidate?.text && fresh && !state.generating && !clipboardFallbackAttempted) {
+        clipboardFallbackAttempted = true;
+        const clipboardText = await copyAssistantAnswerFromUi(client, requestMarker);
+        if (clipboardText) {
+          effectiveCandidate = { role: "assistant", id: null, index: markerUserIndex + 1, text: clipboardText };
+        }
+      }
+
       const currentFingerprint = fingerprintMessage(effectiveCandidate);
 
       if (effectiveCandidate?.text) {
