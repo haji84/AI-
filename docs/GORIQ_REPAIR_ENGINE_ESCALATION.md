@@ -26,6 +26,11 @@ GORIQ must not treat Codex as its primary repair brain. Automatic repair starts 
 - Chat and Work are not standalone repair silos. They reuse the existing `自動化` Project surfaces and their shared project context.
 - If a dedicated repair Chat/Work surface is needed, it must be created from inside Project `自動化`; Project-external session creation is forbidden.
 - Work is escalation-only and is not invoked for every repair.
+- Stage 5 Chat uses bounded one-minute execution phases. If the requested repair is not complete within one minute, Chat continues in the same isolated Project conversation through smaller micro-phases rather than repeating the whole task.
+- Chat phase 2 performs exact failure diagnosis, phase 3 constructs the smallest change, and phase 4 emits the final bounded diff. A phase may finish early and advance immediately.
+- If Chat shows Retry, the current Chat phase is abandoned immediately and the next smaller phase begins.
+- Only a newly completed assistant response after the current phase boundary may be accepted; late output from an older phase is stale.
+- After all bounded Chat phases fail, Stage 5 fails closed and canonical routing advances to Work.
 - Stage 7 uses only the Groq Free Plan. Missing credentials, rate limits, provider failures, malformed output, or failed local verification advance to Codex.
 - Codex is an external fallback/teacher engine, not the default repair engine.
 - HUMAN GATE is terminal and is reached only after all available automatic stages fail or a protected action/authority is required.
