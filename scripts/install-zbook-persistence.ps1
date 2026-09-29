@@ -16,7 +16,7 @@ if (-not (Test-Path (Join-Path $RunnerRoot 'run.cmd'))) {
 }
 
 $ps = (Get-Command powershell.exe).Source
-$taskCommand = "`"$ps`" -NoProfile -ExecutionPolicy Bypass -File `"$persistedWatchdog`" -RunnerRoot `"$RunnerRoot`" -OllamaEndpoint `"$OllamaEndpoint`""
+$taskCommand = "`"$ps`" -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$persistedWatchdog`" -RunnerRoot `"$RunnerRoot`" -OllamaEndpoint `"$OllamaEndpoint`""
 
 # User-scoped scheduled tasks recover the runner every five minutes after logon.
 & schtasks.exe /Create /TN 'GAI-ZBook-Runner-OnLogon' /TR $taskCommand /SC ONLOGON /F | Out-Host
@@ -32,7 +32,7 @@ $startupDir = [Environment]::GetFolderPath('Startup')
 $startupCmd = Join-Path $startupDir 'GAI-ZBook-Runner.cmd'
 $startupContent = @(
   '@echo off',
-  'start "GAI ZBook Watchdog" /min powershell.exe -NoProfile -ExecutionPolicy Bypass -File ' + ('"{0}"' -f $persistedWatchdog) + ' -RunnerRoot ' + ('"{0}"' -f $RunnerRoot) + ' -OllamaEndpoint ' + ('"{0}"' -f $OllamaEndpoint)
+  'start "" /b powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File ' + ('"{0}"' -f $persistedWatchdog) + ' -RunnerRoot ' + ('"{0}"' -f $RunnerRoot) + ' -OllamaEndpoint ' + ('"{0}"' -f $OllamaEndpoint)
 ) -join "`r`n"
 Set-Content -Path $startupCmd -Value $startupContent -Encoding ASCII
 
