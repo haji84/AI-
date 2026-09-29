@@ -485,6 +485,7 @@ async function copyAssistantAnswerFromUi(client, requestMarker, phaseToken = "")
         const label = normalize(button.getAttribute('aria-label') || button.textContent || '');
         return /^(コピーする|copy)$/i.test(label);
       });
+      const phaseToken = __PHASE_TOKEN__;
       const eligible = phaseToken
         ? buttons.filter((button) => button.getAttribute('data-goriq-phase-baseline') !== phaseToken)
         : buttons;
@@ -492,7 +493,7 @@ async function copyAssistantAnswerFromUi(client, requestMarker, phaseToken = "")
       if (!button) return false;
       button.click();
       return true;
-    })()`);
+    })()`.replace("__PHASE_TOKEN__", JSON.stringify(phaseToken)));
     if (!clicked) return "";
 
     const deadline = Date.now() + 2500;
@@ -593,6 +594,7 @@ async function snapshotExecutionUiState(client, phaseToken = "") {
       return /^(コピーする|copy)$/i.test(label);
     });
     const copyCount = copyButtons.length;
+    const phaseToken = __PHASE_TOKEN__;
     const newCopyCount = phaseToken
       ? copyButtons.filter((button) => button.getAttribute('data-goriq-phase-baseline') !== phaseToken).length
       : copyCount;
@@ -608,7 +610,7 @@ async function snapshotExecutionUiState(client, phaseToken = "") {
       completionSignature: JSON.stringify([newCopyCount, copyReady, readAloudReady, regenerateReady, retryVisible]),
       activitySignature: JSON.stringify([generating, retryVisible, copyReady, readAloudReady, regenerateReady, progressLabel, mainText.length, tail]),
     };
-  })()`);
+  })()`.replace("__PHASE_TOKEN__", JSON.stringify(phaseToken)));
 }
 
 async function snapshotSafeControlDiagnostics(client) {
