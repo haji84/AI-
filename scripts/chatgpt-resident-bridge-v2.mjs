@@ -576,11 +576,25 @@ async function snapshotExecutionUiState(client) {
       copyCount,
       readAloudReady,
       regenerateReady,
-      completionReady: !generating && copyReady && (readAloudReady || regenerateReady) && !retryVisible,
+      completionReady: !generating && copyReady && (readAloudReady || regenerateReady),
       completionSignature: JSON.stringify([copyCount, copyReady, readAloudReady, regenerateReady, retryVisible]),
       activitySignature: JSON.stringify([generating, retryVisible, copyReady, readAloudReady, regenerateReady, progressLabel, mainText.length, tail]),
     };
   })()`);
+}
+
+function boundedUiStateForLog(state, phase, reason) {
+  return {
+    phase,
+    reason,
+    generating: !!state?.generating,
+    retryVisible: !!state?.retryVisible,
+    copyReady: !!state?.copyReady,
+    copyCount: Number(state?.copyCount || 0),
+    readAloudReady: !!state?.readAloudReady,
+    regenerateReady: !!state?.regenerateReady,
+    completionReady: !!state?.completionReady,
+  };
 }
 
 async function stopActiveGeneration(client) {
@@ -986,10 +1000,12 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false) {
 
       if (mode === "chat") {
         const phaseExpired = Date.now() - phaseStartedAt >= CHAT_PHASE_BUDGET_MS;
-        if (state.retryVisible || phaseExpired) {
+        if ((!state.completionReady && state.retryVisible) || phaseExpired) {
           if (phase >= CHAT_MAX_PHASES) {
+            const reason = !state.completionReady && state.retryVisible ? "retry-visible" : "one-minute-budget";
+            console.log(`[bridge] phase-ui ${JSON.stringify(boundedUiStateForLog(state, phase, reason))}`);
             if (state.generating) await stopActiveGeneration(client);
-            throw new Error(`CHAT_REPAIR_PHASES_EXHAUSTED: phase=${phase}; reason=${state.retryVisible ? "retry-visible" : "one-minute-budget"}`);
+            throw new Error(`CHAT_REPAIR_PHASES_EXHAUSTED: phase=${phase}; reason=${reason}`);
           }
 
           if (state.generating) {
@@ -997,10 +1013,11 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false) {
             await sleep(500);
           }
 
+          const reason = !state.completionReady && state.retryVisible ? "retry-visible" : "one-minute-budget";
+          console.log(`[bridge] phase-ui ${JSON.stringify(boundedUiStateForLog(state, phase, reason))}`);
           phaseBaselineCopyCount = state.copyCount;
           phase += 1;
           phaseMarker = `GORIQ_BRIDGE_PHASE_ID=${randomUUID()}`;
-          const reason = state.retryVisible ? "retry-visible" : "one-minute-budget";
           await submitFollowupPrompt(client, buildChatRecoveryPhasePrompt(phase, reason, phaseMarker, phaseOutputs));
           phaseStartedAt = Date.now();
           completionSignature = "";
