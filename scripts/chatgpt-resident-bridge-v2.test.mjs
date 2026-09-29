@@ -221,3 +221,12 @@ test("assistant completion controls may live outside main while Retry stays conv
   assert.match(source, /const copyCount = assistantLabels\.filter/);
   assert.match(source, /const buttons = \[\.\.\.document\.querySelectorAll\('button'\)\]\.filter\(\(button\) =>/);
 });
+
+test("completion controls win over stale Retry and phase logs stay content-free", () => {
+  assert.match(source, /completionReady: !generating && copyReady && \(readAloudReady \|\| regenerateReady\)/);
+  assert.match(source, /\(!state\.completionReady && state\.retryVisible\) \|\| phaseExpired/);
+  assert.match(source, /function boundedUiStateForLog/);
+  assert.match(source, /copyCount: Number\(state\?\.copyCount \|\| 0\)/);
+  assert.match(source, /\[bridge\] phase-ui/);
+  assert.doesNotMatch(source, /console\.log\([^\n]*(?:lastText|answer|clipboardText|copied)/);
+});
