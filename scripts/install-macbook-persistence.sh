@@ -36,6 +36,8 @@ cat >"$PLIST" <<PLIST
     <string>$RUNNER_ROOT</string>
     <key>GAI_LOCAL_MODEL_ENDPOINT</key>
     <string>$OLLAMA_ENDPOINT</string>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:$HOME/.local/bin:$HOME/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
   </dict>
   <key>RunAtLoad</key>
   <true/>
