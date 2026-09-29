@@ -1,7 +1,7 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 
-export type SyncEntityType = "goal" | "task" | "result" | "change-set" | "memory" | "skill" | "evidence" | "log";
+export type SyncEntityType = "goal" | "task" | "result" | "change-set" | "memory" | "skill" | "evidence" | "coordinator" | "log";
 export type SyncState = "local-only" | "pending-push" | "synced" | "conflicted";
 export type VerificationStatus = "pass" | "fail" | "unverified";
 export type CausalClock = Record<string, number>;
@@ -102,7 +102,7 @@ export interface SyncReport {
   conflicts: SyncConflict[];
 }
 
-const CRITICAL_ENTITIES = new Set<SyncEntityType>(["goal", "task", "result", "change-set", "evidence"]);
+const CRITICAL_ENTITIES = new Set<SyncEntityType>(["goal", "task", "result", "change-set", "evidence", "coordinator"]);
 
 export interface SyncConflictResolver {
   resolve(conflict: SyncConflict): Promise<SyncRecord | null>;
@@ -158,12 +158,94 @@ function combineClocks(a: CausalClock, b: CausalClock): CausalClock {
   return out;
 }
 
+interface CoordinatorSyncValue {
+  clusterId: string;
+  coordinatorId: string;
+  epoch: number;
+  fencingToken: string;
+  leaseUntil: string;
+}
+
+function parseCoordinatorSyncValue(value: unknown): CoordinatorSyncValue | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const candidate = value as Partial<CoordinatorSyncValue>;
+  if (
+    typeof candidate.clusterId !== "string" || !candidate.clusterId.trim()
+    || typeof candidate.coordinatorId !== "string" || !candidate.coordinatorId.trim()
+    || !Number.isInteger(candidate.epoch) || (candidate.epoch ?? 0) < 1
+    || typeof candidate.fencingToken !== "string" || !candidate.fencingToken.trim()
+    || typeof candidate.leaseUntil !== "string" || !Number.isFinite(Date.parse(candidate.leaseUntil))
+  ) return null;
+  return candidate as CoordinatorSyncValue;
+}
+
+function coordinatorConflict(local: SyncRecord, remote: SyncRecord, reason: string): MergeDecision {
+  const conflict: SyncConflict = {
+    recordId: local.recordId,
+    entityType: local.entityType,
+    reason,
+    local: { ...cloneRecord(local), syncState: "conflicted" },
+    remote: { ...cloneRecord(remote), syncState: "conflicted" },
+  };
+  return { kind: "conflict", conflict, reason };
+}
+
+function resolveCoordinatorRecords(local: SyncRecord, remote: SyncRecord): MergeDecision | null {
+  if (local.entityType !== "coordinator") return null;
+  const left = parseCoordinatorSyncValue(local.value);
+  const right = parseCoordinatorSyncValue(remote.value);
+  if (!left || !right) return coordinatorConflict(local, remote, "invalid coordinator lease state");
+  if (left.clusterId !== right.clusterId) {
+    return coordinatorConflict(local, remote, "coordinator replicas belong to different clusters");
+  }
+
+  if (left.epoch !== right.epoch) {
+    const winner = left.epoch > right.epoch ? local : remote;
+    return {
+      kind: winner === local ? "local" : "remote",
+      record: cloneRecord(winner),
+      reason: "higher coordinator execution epoch fences stale replica",
+    };
+  }
+
+  const sameClaim = left.coordinatorId === right.coordinatorId
+    && left.fencingToken === right.fencingToken;
+  if (!sameClaim) {
+    return coordinatorConflict(local, remote, "same coordinator epoch has conflicting owner or fencing token");
+  }
+
+  const leftLease = Date.parse(left.leaseUntil);
+  const rightLease = Date.parse(right.leaseUntil);
+  if (leftLease !== rightLease) {
+    const winner = leftLease > rightLease ? local : remote;
+    return {
+      kind: winner === local ? "local" : "remote",
+      record: cloneRecord(winner),
+      reason: "same coordinator claim converged on later lease renewal",
+    };
+  }
+
+  if (JSON.stringify(local.value) === JSON.stringify(remote.value)) {
+    const winner = local.version >= remote.version ? local : remote;
+    return {
+      kind: winner === local ? "local" : "remote",
+      record: cloneRecord(winner),
+      reason: "same coordinator claim and lease",
+    };
+  }
+
+  return coordinatorConflict(local, remote, "same coordinator claim has incompatible replica state");
+}
+
 export function resolveSyncRecords(local: SyncRecord, remote: SyncRecord): MergeDecision {
   assertRecord(local);
   assertRecord(remote);
   if (local.recordId !== remote.recordId || local.entityType !== remote.entityType) {
     throw new Error("Cannot merge records with different identity or entity type");
   }
+
+  const coordinatorDecision = resolveCoordinatorRecords(local, remote);
+  if (coordinatorDecision) return coordinatorDecision;
 
   const relation = compareClocks(local.clock, remote.clock);
   if (relation === "local-dominates") {

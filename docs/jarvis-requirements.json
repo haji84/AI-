@@ -9057,15 +9057,20 @@
         "RECOVERY"
       ],
       "implementation_refs": [
-        "docs/architecture/goriq-distributed-node-fabric.md"
+        "docs/architecture/goriq-distributed-node-fabric.md",
+        "src/gai/distributed-coordinator.ts",
+        "src/gai/sync-engine.ts"
       ],
-      "test_refs": [],
+      "test_refs": [
+        "tests/gai-distributed-coordinator.test.ts",
+        "tests/gai-sync-engine.test.ts"
+      ],
       "evidence_refs": [],
-      "status": "MISSING",
-      "blocker": "論理role分離の構想/部品は存在するが、current mainでのCoordinator election/failoverと物理受入は未完了。",
+      "status": "PARTIAL",
+      "blocker": "Transferable Coordinator lease/epoch/fencing and replica convergence are implemented in current main candidate, but authenticated production-role integration and physical MacBook↔ZBook Coordinator failover/recovery evidence are not yet complete.",
       "platform_limit": null,
       "fallback": "現在のZBook Coordinator pathを保持する。",
-      "next_action": "Mac安定化後、MacBook+ZBookでCoordinator ownership/leaseを実装し、一方停止時の自動failoverを検証する。",
+      "next_action": "Run controlled MacBook↔ZBook Coordinator ownership transfer/rejoin/rebalance E2E, then wire the verified role into the authenticated production Coordinator path.",
       "last_verified_commit": null,
       "delivery_audit": {
         "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -9166,15 +9171,20 @@
         "RECOVERY"
       ],
       "implementation_refs": [
-        "docs/architecture/goriq-distributed-node-fabric.md"
+        "docs/architecture/goriq-distributed-node-fabric.md",
+        "src/gai/distributed-coordinator.ts",
+        "src/gai/sync-engine.ts"
       ],
-      "test_refs": [],
+      "test_refs": [
+        "tests/gai-distributed-coordinator.test.ts",
+        "tests/gai-sync-engine.test.ts"
+      ],
       "evidence_refs": [],
-      "status": "MISSING",
-      "blocker": "Logical Coordinator IDは未完成。transferable lease/epoch/fencingと復旧時stale authority拒否が未実証。",
+      "status": "PARTIAL",
+      "blocker": "Logical cluster identity plus transferable Coordinator lease/epoch/fencing and stale-claim rejection are implemented in the core, but physical-node recovery and production authority integration remain unverified.",
       "platform_limit": null,
       "fallback": "現在のZBook Coordinator pathを保持する。",
-      "next_action": "Coordinator identityとownership epoch/fencingを既存State/Task authorityへ統合し、split-brain recoveryを検証する。",
+      "next_action": "Prove MacBook↔ZBook Coordinator epoch transfer, stale authority rejection, return without premature preemption, and post-lease rebalance on physical nodes.",
       "last_verified_commit": null,
       "delivery_audit": {
         "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -9791,14 +9801,21 @@
         "PHYSICAL",
         "RECOVERY"
       ],
-      "implementation_refs": [],
-      "test_refs": [],
+      "implementation_refs": [
+        "src/gai/distributed-coordinator.ts",
+        "src/gai/sync-engine.ts",
+        "docs/architecture/goriq-distributed-node-fabric.md"
+      ],
+      "test_refs": [
+        "tests/gai-distributed-coordinator.test.ts",
+        "tests/gai-sync-engine.test.ts"
+      ],
       "evidence_refs": [],
-      "status": "MISSING",
-      "blocker": "Expanded requirement reconciled from staged ledger; main runtime integration and required evidence remain to be verified. Component software exists in unmerged #884; actual execution-path integration and requirement-wide evidence remain incomplete.",
+      "status": "PARTIAL",
+      "blocker": "Coordinator single-writer lease/epoch/fencing and same-epoch split-brain detection are implemented, but registry/dispatch replay-window integration and required physical/recovery evidence remain incomplete.",
       "platform_limit": null,
       "fallback": "現在のZBook Coordinator pathを保持する。",
-      "next_action": "Review/reuse staged implementation with current main; wire and verify required execution path. Wire the component into the applicable authenticated execution path, add integration/security acceptance, then obtain all required evidence classes. See docs/audit/887-completion-integration.md.",
+      "next_action": "Bind Coordinator fencing to the authenticated dispatch/registry write path and verify no stale Coordinator can commit after physical-node ownership transfer.",
       "last_verified_commit": null,
       "delivery_audit": {
         "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",

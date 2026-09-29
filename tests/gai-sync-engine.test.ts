@@ -246,3 +246,102 @@ test("goal authority conflicts are never delegated to automatic code integration
   assert.equal(called, false);
   assert.equal(report.conflicts.length, 1);
 });
+
+
+test("higher coordinator epoch fences concurrent stale replica", () => {
+  const local = record({
+    recordId: "coordinator:goriq",
+    entityType: "coordinator",
+    deviceId: "macbook",
+    clock: { macbook: 4 },
+    value: {
+      clusterId: "goriq",
+      coordinatorId: "macbook",
+      epoch: 1,
+      fencingToken: "mac-epoch-1",
+      leaseUntil: "2026-09-29T00:01:00.000Z",
+    },
+  });
+  const remote = record({
+    recordId: "coordinator:goriq",
+    entityType: "coordinator",
+    deviceId: "zbook",
+    clock: { zbook: 1 },
+    value: {
+      clusterId: "goriq",
+      coordinatorId: "zbook",
+      epoch: 2,
+      fencingToken: "zbook-epoch-2",
+      leaseUntil: "2026-09-29T00:02:00.000Z",
+    },
+  });
+  const decision = resolveSyncRecords(local, remote);
+  assert.equal(decision.kind, "remote");
+  assert.match(decision.reason, /higher coordinator execution epoch/);
+});
+
+test("same coordinator epoch with different owners fails visible as split brain", () => {
+  const local = record({
+    recordId: "coordinator:goriq",
+    entityType: "coordinator",
+    deviceId: "macbook",
+    clock: { macbook: 1 },
+    value: {
+      clusterId: "goriq",
+      coordinatorId: "macbook",
+      epoch: 3,
+      fencingToken: "mac-epoch-3",
+      leaseUntil: "2026-09-29T00:03:00.000Z",
+    },
+  });
+  const remote = record({
+    recordId: "coordinator:goriq",
+    entityType: "coordinator",
+    deviceId: "zbook",
+    clock: { zbook: 1 },
+    value: {
+      clusterId: "goriq",
+      coordinatorId: "zbook",
+      epoch: 3,
+      fencingToken: "zbook-epoch-3",
+      leaseUntil: "2026-09-29T00:03:00.000Z",
+    },
+  });
+  const decision = resolveSyncRecords(local, remote);
+  assert.equal(decision.kind, "conflict");
+  assert.match(decision.reason, /conflicting owner or fencing token/);
+});
+
+test("same coordinator claim converges on later lease renewal", () => {
+  const local = record({
+    recordId: "coordinator:goriq",
+    entityType: "coordinator",
+    deviceId: "macbook",
+    version: 2,
+    clock: { macbook: 2 },
+    value: {
+      clusterId: "goriq",
+      coordinatorId: "macbook",
+      epoch: 4,
+      fencingToken: "shared-fence",
+      leaseUntil: "2026-09-29T00:04:00.000Z",
+    },
+  });
+  const remote = record({
+    recordId: "coordinator:goriq",
+    entityType: "coordinator",
+    deviceId: "zbook",
+    version: 2,
+    clock: { zbook: 2 },
+    value: {
+      clusterId: "goriq",
+      coordinatorId: "macbook",
+      epoch: 4,
+      fencingToken: "shared-fence",
+      leaseUntil: "2026-09-29T00:05:00.000Z",
+    },
+  });
+  const decision = resolveSyncRecords(local, remote);
+  assert.equal(decision.kind, "remote");
+  assert.match(decision.reason, /later lease renewal/);
+});
