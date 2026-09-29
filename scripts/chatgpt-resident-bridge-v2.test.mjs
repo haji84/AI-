@@ -142,7 +142,7 @@ test("fresh Chat repair accepts only a newly completed phase response", () => {
   assert.match(source, /startFreshProjectConversation/);
   assert.match(source, /state\.newCopyCount > 0/);
   assert.match(source, /completionReady/);
-  assert.match(source, /copyAssistantAnswerFromUi\(client, phaseMarker\)/);
+  assert.match(source, /copyAssistantAnswerFromUi\(client, phaseMarker, phaseToken\)/);
 });
 
 
