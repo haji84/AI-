@@ -16,7 +16,25 @@ if (-not (Test-Path (Join-Path $RunnerRoot 'run.cmd'))) {
 }
 
 $ps = (Get-Command powershell.exe).Source
-$taskCommand = "`"$ps`" -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$persistedWatchdog`" -RunnerRoot `"$RunnerRoot`" -OllamaEndpoint `"$OllamaEndpoint`""
+$wscript = Join-Path $env:SystemRoot 'System32\wscript.exe'
+if (-not (Test-Path $wscript)) {
+  throw "Windows Script Host was not found at $wscript."
+}
+
+# PowerShell is a console application, so -WindowStyle Hidden can still produce
+# a brief console flash while the process is being created. Launch it through
+# WScript instead so the watchdog runs without creating a console window.
+$watchdogCommand = "`"$ps`" -NoProfile -ExecutionPolicy Bypass -File `"$persistedWatchdog`" -RunnerRoot `"$RunnerRoot`" -OllamaEndpoint `"$OllamaEndpoint`""
+$escapedWatchdogCommand = $watchdogCommand.Replace('"', '""')
+$launcherVbs = Join-Path $stateRoot 'gai-zbook-watchdog-launcher.vbs'
+$launcherContent = @(
+  'Option Explicit',
+  'Dim shell',
+  'Set shell = CreateObject("WScript.Shell")',
+  ('shell.Run "{0}", 0, False' -f $escapedWatchdogCommand)
+) -join "`r`n"
+Set-Content -Path $launcherVbs -Value $launcherContent -Encoding Unicode
+$taskCommand = "`"$wscript`" `"$launcherVbs`""
 
 # User-scoped scheduled tasks recover the runner every five minutes after logon.
 & schtasks.exe /Create /TN 'GAI-ZBook-Runner-OnLogon' /TR $taskCommand /SC ONLOGON /F | Out-Host
@@ -26,15 +44,13 @@ if ($LASTEXITCODE -ne 0) { throw 'Failed to create the ZBook logon task.' }
 if ($LASTEXITCODE -ne 0) { throw 'Failed to create the ZBook watchdog task.' }
 
 # Add a Startup-folder fallback because user-scoped scheduled tasks can be
-# disabled or delayed by local Windows policy. This is intentionally user
-# scoped and does not require an administrator token or runner re-registration.
+# disabled or delayed by local Windows policy. Use VBS here as well so logon
+# recovery does not flash a console window.
 $startupDir = [Environment]::GetFolderPath('Startup')
-$startupCmd = Join-Path $startupDir 'GAI-ZBook-Runner.cmd'
-$startupContent = @(
-  '@echo off',
-  'start "" /b powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File ' + ('"{0}"' -f $persistedWatchdog) + ' -RunnerRoot ' + ('"{0}"' -f $RunnerRoot) + ' -OllamaEndpoint ' + ('"{0}"' -f $OllamaEndpoint)
-) -join "`r`n"
-Set-Content -Path $startupCmd -Value $startupContent -Encoding ASCII
+$startupVbs = Join-Path $startupDir 'GAI-ZBook-Runner.vbs'
+Set-Content -Path $startupVbs -Value $launcherContent -Encoding Unicode
+$legacyStartupCmd = Join-Path $startupDir 'GAI-ZBook-Runner.cmd'
+Remove-Item -Path $legacyStartupCmd -Force -ErrorAction SilentlyContinue
 
 # Run the watchdog immediately so installation is also a live health test.
 & $ps -NoProfile -ExecutionPolicy Bypass -File $persistedWatchdog -RunnerRoot $RunnerRoot -OllamaEndpoint $OllamaEndpoint
@@ -50,7 +66,9 @@ $taskList = @('GAI-ZBook-Runner-OnLogon', 'GAI-ZBook-Watchdog') | ForEach-Object
   mode = 'user-scheduled-task-plus-startup-fallback'
   runnerRoot = $RunnerRoot
   watchdog = $persistedWatchdog
-  startupFallback = $startupCmd
+  launcher = $launcherVbs
+  taskHost = $wscript
+  startupFallback = $startupVbs
   ollamaEndpoint = $OllamaEndpoint
   tasks = $taskList
   installedAt = (Get-Date).ToUniversalTime().ToString('o')
