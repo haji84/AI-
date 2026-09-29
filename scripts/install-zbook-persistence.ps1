@@ -34,7 +34,7 @@ $launcherContent = @(
   ('shell.Run "{0}", 0, False' -f $escapedWatchdogCommand)
 ) -join "`r`n"
 Set-Content -Path $launcherVbs -Value $launcherContent -Encoding Unicode
-$taskCommand = "`"$wscript`" `"$launcherVbs`""
+$taskCommand = "`"$wscript`" //B //NoLogo `"$launcherVbs`""
 
 # User-scoped scheduled tasks recover the runner every five minutes after logon.
 & schtasks.exe /Create /TN 'GAI-ZBook-Runner-OnLogon' /TR $taskCommand /SC ONLOGON /F | Out-Host
