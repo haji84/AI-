@@ -51,18 +51,27 @@ jobs:
           LOSS_FILE="$STATE_ROOT/stage-b-node-loss-${RUN_ID}-macbook-loss.json"
           HELPER="$STATE_ROOT/stage-b-node-loss-${RUN_ID}-macbook-recover.sh"
           WATCHDOG="$STATE_ROOT/gai-macbook-watchdog.sh"
-          worker_pid="$(pgrep -f 'Runner.Worker' | head -n 1 || true)"
-          test -n "$worker_pid"
-          old_pid="$(ps -o ppid= -p "$worker_pid" | tr -d ' ')"
-          test -n "$old_pid"
-          parent_command="$(ps -o command= -p "$old_pid" || true)"
-          if [[ "$parent_command" != *"Runner.Listener"* ]]; then
-            fallback="$(pgrep -f 'Runner.Listener' | head -n 1 || true)"
-            test -n "$fallback"
-            old_pid="$fallback"
-          fi
           test -f "$WATCHDOG"
-          echo "Mac runner process discovery: workerPid=$worker_pid listenerPid=$old_pid"
+          runner_root="$HOME/actions-runner"
+          current_pid="$PPID"
+          old_pid=''
+          process_trace=''
+          for _ in $(seq 1 12); do
+            [[ "$current_pid" =~ ^[0-9]+$ ]] || break
+            command="$(ps -o command= -p "$current_pid" 2>/dev/null || true)"
+            process_trace="$process_trace pid=$current_pid command=$command;"
+            if [[ "$command" == *"$runner_root"* && "$command" != *"_work/"* ]]; then
+              old_pid="$current_pid"
+            fi
+            parent_pid="$(ps -o ppid= -p "$current_pid" 2>/dev/null | tr -d ' ' || true)"
+            [[ -n "$parent_pid" && "$parent_pid" != "$current_pid" && "$parent_pid" != "0" ]] || break
+            current_pid="$parent_pid"
+          done
+          if [[ -z "$old_pid" ]]; then
+            echo "Unable to identify Mac runner parent from process tree:$process_trace" >&2
+            exit 3
+          fi
+          echo "Mac runner process discovery: listenerPid=$old_pid trace=$process_trace"
 
           cat >"$HELPER" <<EOF
           #!/usr/bin/env bash
