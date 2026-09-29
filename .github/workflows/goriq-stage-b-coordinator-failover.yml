@@ -1,0 +1,167 @@
+name: GORIQ Stage B Coordinator Failover
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/goriq-stage-b-coordinator-failover.yml'
+      - 'scripts/goriq-coordinator-failover-e2e.ts'
+      - 'src/gai/distributed-coordinator.ts'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: goriq-stage-b-coordinator-failover
+  cancel-in-progress: false
+
+jobs:
+  mac-origin:
+    name: MacBook becomes initial Coordinator
+    runs-on: [self-hosted, macOS, ARM64]
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Create epoch-1 MacBook Coordinator lease
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .goriq-stage-b/coordinator
+          node scripts/goriq-coordinator-failover-e2e.ts \
+            --phase prepare \
+            --dir .goriq-stage-b/coordinator \
+            --cluster goriq-stage-b \
+            --sha "$GITHUB_SHA" \
+            --lease-ms 5000
+
+      - name: Upload initial Coordinator state
+        uses: actions/upload-artifact@v4
+        with:
+          name: goriq-stage-b-coordinator-mac-origin
+          path: .goriq-stage-b/coordinator/
+          include-hidden-files: true
+          retention-days: 7
+          if-no-files-found: error
+
+  zbook-failover:
+    name: ZBook takes Coordinator after Mac loss
+    needs: mac-origin
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: goriq-stage-b-coordinator-mac-origin
+          path: .goriq-stage-b/coordinator
+
+      - name: Elect ZBook epoch-2 and fence old Mac claim
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path .goriq-stage-b\evidence | Out-Null
+          node scripts/goriq-coordinator-failover-e2e.ts `
+            --phase zbook-failover `
+            --dir .goriq-stage-b/coordinator `
+            --node zbook `
+            --sha "$env:GITHUB_SHA" `
+            --evidence .goriq-stage-b/evidence/zbook-failover.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Upload epoch-2 Coordinator state
+        uses: actions/upload-artifact@v4
+        with:
+          name: goriq-stage-b-coordinator-zbook-state
+          path: .goriq-stage-b/coordinator/
+          include-hidden-files: true
+          retention-days: 7
+          if-no-files-found: error
+
+      - name: Upload ZBook failover evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: goriq-stage-b-coordinator-zbook-evidence
+          path: .goriq-stage-b/evidence/zbook-failover.json
+          retention-days: 30
+          if-no-files-found: error
+
+  mac-return:
+    name: MacBook rejoins then rebalances after lease boundary
+    needs: zbook-failover
+    runs-on: [self-hosted, macOS, ARM64]
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: goriq-stage-b-coordinator-zbook-state
+          path: .goriq-stage-b/coordinator
+
+      - name: Verify no premature preemption then elect Mac epoch-3
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .goriq-stage-b/evidence
+          node scripts/goriq-coordinator-failover-e2e.ts \
+            --phase mac-return \
+            --dir .goriq-stage-b/coordinator \
+            --node macbook \
+            --sha "$GITHUB_SHA" \
+            --evidence .goriq-stage-b/evidence/mac-return.json
+
+      - name: Upload Mac return evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: goriq-stage-b-coordinator-mac-return-evidence
+          path: .goriq-stage-b/evidence/mac-return.json
+          retention-days: 30
+          if-no-files-found: error
+
+  verify:
+    name: Verify Coordinator physical evidence
+    needs: mac-return
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: goriq-stage-b-coordinator-zbook-evidence
+          path: .goriq-stage-b/zbook-evidence
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: goriq-stage-b-coordinator-mac-return-evidence
+          path: .goriq-stage-b/mac-evidence
+
+      - name: Verify exact-SHA Coordinator loss, return and rebalance
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .goriq-stage-b/final
+          node scripts/goriq-coordinator-failover-e2e.ts \
+            --phase verify \
+            --failover .goriq-stage-b/zbook-evidence/zbook-failover.json \
+            --return .goriq-stage-b/mac-evidence/mac-return.json \
+            --sha "$GITHUB_SHA" \
+            --output .goriq-stage-b/final/coordinator-failover-evidence.json
+
+      - name: Upload combined Coordinator evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: goriq-stage-b-coordinator-failover-evidence
+          path: .goriq-stage-b/final/coordinator-failover-evidence.json
+          retention-days: 30
+          if-no-files-found: error
