@@ -280,3 +280,11 @@ test("bridge prompt includes project goal and selected session policy", () => {
   assert.match(source, /Selected surface:/);
   assert.match(source, /inferBridgeTaskContext/);
 });
+
+test("macOS bridge installer packages the project session router dependency", () => {
+  const installer = readFileSync("scripts/install-macos-chatgpt-bridge.sh", "utf8");
+  assert.match(installer, /ROUTER_DIR=.*src\/orchestrator/);
+  assert.match(installer, /chat-work-session-router\.ts/);
+  assert.match(installer, /cp "\$REPO_DIR\/src\/orchestrator\/chat-work-session-router\.ts" "\$ROUTER_SCRIPT"/);
+  assert.match(installer, /chmod 600 "\$BRIDGE_SCRIPT" "\$BRIDGE_LIB" "\$ROUTER_SCRIPT"/);
+});
