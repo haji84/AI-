@@ -14,6 +14,9 @@ test("Windows bootstrap keeps gh optional and does not install it", async () => 
   assert.match(source, /not required for this bootstrap/i);
   assert.doesNotMatch(source, /winget\s+install/i);
   assert.doesNotMatch(source, /gh\s+auth\s+login/i);
+  assert.match(source, /C:\\\\actions-runner\\\\_work\\\\AI-\\\\AI-/);
+  assert.match(source, /Runner\.Listener/);
+  assert.match(source, /install-status\.json/);
 });
 
 test("Windows bootstrap parses and can diagnose a repo hint on Windows", async (t) => {
