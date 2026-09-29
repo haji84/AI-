@@ -56,8 +56,11 @@ External surfaces return only a bounded repair proposal/diff. GORIQ retains scop
 
 ### Groq Free Plan invariant
 
-- `GROQ_API_KEY` is read only from the execution environment / GitHub Actions secret.
-- Never store or echo the API key.
+- On the ZBook, the Groq Free Plan key is configured once through the one-click `GORIQ Groq設定` launcher.
+- The plaintext key is validated against Groq and then stored only as Windows CurrentUser DPAPI ciphertext under `%LOCALAPPDATA%\GORIQ\secrets\groq.dpapi`.
+- Recovery decrypts the key only into the bounded Stage-7 Node child environment and clears it immediately afterward.
+- GitHub CLI and a GitHub Actions repository secret are not required for Stage 7.
+- Never store or echo the plaintext API key.
 - No automatic billing or paid-plan transition.
 - HTTP 429 or any provider/validation failure advances to stage 8.
 - Groq is repair-only and is not a general planner replacement.

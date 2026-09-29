@@ -77,7 +77,9 @@ One narrow exception is adopted for autonomous repair stage 7:
 - Plan: Free Plan only.
 - Endpoint: `POST https://api.groq.com/openai/v1/chat/completions`.
 - Default repair model: `qwen/qwen3.8-27b`.
-- Credential: repository Actions secret `GROQ_API_KEY`; the key must never be written to prompts, logs, issues, commits, artifacts, or repository files.
+- Credential on ZBook: one-time local entry through `GORIQ Groq設定`, validated against Groq, then protected with Windows CurrentUser DPAPI at `%LOCALAPPDATA%\GORIQ\secrets\groq.dpapi`.
+- The key is decrypted only for the bounded Stage-7 child process and cleared immediately afterward; GitHub CLI and repository Actions secrets are not required.
+- The plaintext key must never be written to prompts, logs, issues, commits, artifacts, or repository files.
 - No automatic paid upgrade, billing activation, credit purchase, or plan change is permitted.
 - Missing credential, Free Plan exhaustion/rate limiting, provider error, invalid response, or verification failure must fail closed and advance to repair stage 8 (Codex).
 - Stage 7 may edit only the already-authorized repair paths and remains subject to the same lint, test, security, build, and scope verification as every other repair engine.
