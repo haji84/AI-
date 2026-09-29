@@ -36,12 +36,52 @@ $launcherContent = @(
 Set-Content -Path $launcherVbs -Value $launcherContent -Encoding Unicode
 $taskCommand = "`"$wscript`" //B //NoLogo `"$launcherVbs`""
 
+function Test-HiddenTaskHost([string]$TaskName) {
+  try {
+    $task = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
+    if (-not $task -or -not $task.Actions) { return $false }
+    $action = $task.Actions | Select-Object -First 1
+    return ([string]$action.Execute -ieq $wscript) -and
+      ([string]$action.Arguments -match '//B') -and
+      ([string]$action.Arguments -match '//NoLogo')
+  } catch {
+    return $false
+  }
+}
+
 # User-scoped scheduled tasks recover the runner every five minutes after logon.
+# An older task may have been created from an elevated interactive shell. A
+# non-elevated runner cannot overwrite that task directly, so copy the new
+# watchdog first and, on access denial, start the existing watchdog once. The
+# elevated task then migrates only its own action to the hidden WScript launcher.
+$taskRegistrationFailed = $false
+
 & schtasks.exe /Create /TN 'GAI-ZBook-Runner-OnLogon' /TR $taskCommand /SC ONLOGON /F | Out-Host
-if ($LASTEXITCODE -ne 0) { throw 'Failed to create the ZBook logon task.' }
+if ($LASTEXITCODE -ne 0) {
+  $taskRegistrationFailed = $true
+  Write-Warning 'Direct update of GAI-ZBook-Runner-OnLogon failed; attempting in-place self-migration.'
+}
 
 & schtasks.exe /Create /TN 'GAI-ZBook-Watchdog' /TR $taskCommand /SC MINUTE /MO 5 /F | Out-Host
-if ($LASTEXITCODE -ne 0) { throw 'Failed to create the ZBook watchdog task.' }
+if ($LASTEXITCODE -ne 0) {
+  $taskRegistrationFailed = $true
+  Write-Warning 'Direct update of GAI-ZBook-Watchdog failed; attempting in-place self-migration.'
+}
+
+if ($taskRegistrationFailed) {
+  & schtasks.exe /Run /TN 'GAI-ZBook-Watchdog' | Out-Host
+  for ($i = 0; $i -lt 30; $i++) {
+    if ((Test-HiddenTaskHost 'GAI-ZBook-Runner-OnLogon') -and (Test-HiddenTaskHost 'GAI-ZBook-Watchdog')) {
+      $taskRegistrationFailed = $false
+      break
+    }
+    Start-Sleep -Seconds 2
+  }
+}
+
+if ($taskRegistrationFailed) {
+  throw 'Failed to migrate the existing ZBook scheduled tasks to the hidden WScript launcher.'
+}
 
 # Add a Startup-folder fallback because user-scoped scheduled tasks can be
 # disabled or delayed by local Windows policy. Use VBS here as well so logon
