@@ -491,11 +491,26 @@ async function copyAssistantAnswerFromUi(client, requestMarker, phaseToken = "")
         : buttons;
       const button = eligible.at(-1);
       if (!button) return null;
-      const rect = button.getBoundingClientRect();
-      return {
-        x: rect.left + rect.width / 2,
-        y: rect.top + rect.height / 2,
-      };
+      button.scrollIntoView({ block: 'center', inline: 'nearest' });
+      return new Promise((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          const rect = button.getBoundingClientRect();
+          const x = rect.left + rect.width / 2;
+          const y = rect.top + rect.height / 2;
+          if (
+            rect.width <= 0
+            || rect.height <= 0
+            || x < 0
+            || x > window.innerWidth
+            || y < 0
+            || y > window.innerHeight
+          ) {
+            resolve(null);
+            return;
+          }
+          resolve({ x, y });
+        }));
+      });
     })()`.replace("__PHASE_TOKEN__", JSON.stringify(phaseToken)));
     if (!target?.x || !target?.y) return "";
 
