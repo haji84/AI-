@@ -17,7 +17,7 @@ test("Mac watchdog and installer remain valid bash", () => {
 test("Mac watchdog protects active jobs and requires repeated idle failures", () => {
   const watchdog = readFileSync(watchdogPath, "utf8");
 
-  assert.match(watchdog, /RUNNER_FAILURE_THRESHOLD=3/);
+  assert.match(watchdog, /RUNNER_FAILURE_THRESHOLD="\$\{GAI_RUNNER_FAILURE_THRESHOLD:-2\}"/);
   assert.match(watchdog, /Runner\.Worker is active; refusing to recycle/);
   assert.match(watchdog, /runnerProtectedByActiveJob/);
   assert.match(watchdog, /active-job-or-established-tcp-or-recent-diag/);
