@@ -365,7 +365,7 @@ function resolveConfiguredEngine(): string {
     const statusPath = join(localAppData, "GAIWorker", "code-builder", "install-status.json");
     if (existsSync(statusPath)) {
       try {
-        const parsed = JSON.parse(readFileSync(statusPath, "utf8")) as { configuredEngine?: unknown };
+        const parsed = JSON.parse(readFileSync(statusPath, "utf8").replace(/^\uFEFF/, "")) as { configuredEngine?: unknown };
         if (typeof parsed.configuredEngine === "string" && parsed.configuredEngine.trim()) {
           return normalizeConfiguredEnginePath(parsed.configuredEngine);
         }
@@ -434,7 +434,7 @@ function repairRuntimeStatus(): {
   const statusPath = join(localAppData, "GORIQ", "repair-engines", "status.json");
   if (!existsSync(statusPath)) return defaults;
   try {
-    const parsed = JSON.parse(readFileSync(statusPath, "utf8")) as {
+    const parsed = JSON.parse(readFileSync(statusPath, "utf8").replace(/^\uFEFF/, "")) as {
       models?: unknown;
       localFastModel?: unknown;
       localStrongModel?: unknown;

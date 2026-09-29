@@ -71,7 +71,7 @@ try {
     body: JSON.stringify({
       model,
       temperature: 0.1,
-      max_completion_tokens: 4096,
+      max_completion_tokens: 800,
       messages: [
         { role: "system", content: system },
         {

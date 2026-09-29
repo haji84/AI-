@@ -356,10 +356,34 @@ async function openAutomationProject(client) {
   throw new Error(`CHATGPT_AUTOMATION_PROJECT_CONTEXT_NOT_CONFIRMED: ${PROJECT_NAME}`);
 }
 
-async function prepareProjectSurface(client, mode) {
+async function startFreshProjectConversation(client) {
+  const clicked = await evaluate(client, `(() => {
+    const visible = (el) => {
+      const rect = el.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    };
+    const normalize = (value) => String(value || '').replace(/\\s+/g, ' ').trim();
+    const buttons = [...document.querySelectorAll('button,[role="button"],a')].filter(visible);
+    const fresh = buttons.find((el) => /^(新しいチャット|new chat)$/i.test(normalize(el.getAttribute('aria-label') || el.textContent || '')));
+    if (!fresh) return false;
+    fresh.click();
+    return true;
+  })()`);
+  if (!clicked) throw new Error("CHATGPT_PROJECT_NEW_CHAT_NOT_FOUND");
+  await sleep(700);
+  await waitForComposer(client, 15000);
+  const projectVisible = await evaluate(client, `(() => {
+    const normalize = (value) => String(value || '').replace(/\\s+/g, ' ').trim();
+    return [...document.querySelectorAll('a,button,[role="button"]')]
+      .some((el) => normalize(el.innerText || el.textContent || el.getAttribute('aria-label')) === ${JSON.stringify(PROJECT_NAME)});
+  })()`);
+  if (!projectVisible) throw new Error(`CHATGPT_FRESH_PROJECT_SURFACE_ESCAPED: ${PROJECT_NAME}`);
+}
+
+async function prepareProjectSurface(client, mode, fresh = false) {
   const surfaces = await readProjectSurfaces();
   const savedUrl = mode === "work" ? surfaces.work : surfaces.chat;
-  if (savedUrl) {
+  if (!fresh && savedUrl) {
     try {
       await navigateClient(client, savedUrl);
       await waitForComposer(client, 12000);
@@ -372,6 +396,7 @@ async function prepareProjectSurface(client, mode) {
 
   await navigateClient(client, CHATGPT_URL);
   await openAutomationProject(client);
+  if (fresh) await startFreshProjectConversation(client);
   if (mode === "work") await selectExperience(client, "work");
   const ready = await waitForComposer(client, 15000);
   const projectVisible = await evaluate(client, `(() => {
@@ -430,6 +455,38 @@ function fingerprintMessage(message) {
   return `fallback:${message.index}:${message.text}`;
 }
 
+async function snapshotWorkAssistantFallback(client, requestMarker) {
+  return evaluate(client, `(() => {
+    const normalize = (value) => String(value || '').replace(/\\s+/g, ' ').trim();
+    const visible = (el) => {
+      const rect = el.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    };
+    const controls = [...document.querySelectorAll('main button')].filter((button) => {
+      if (!visible(button)) return false;
+      const label = normalize([button.getAttribute('aria-label'), button.getAttribute('data-testid'), button.textContent].filter(Boolean).join(' '));
+      return /コピーする|copy|読み上げ|read aloud|回答を再生成|regenerate/i.test(label);
+    });
+    const candidates = [];
+    for (const control of controls) {
+      let node = control.closest('article,[data-testid^="conversation-turn"],[data-message-id]');
+      let depth = 0;
+      if (!node) node = control.parentElement;
+      while (node && depth < 7) {
+        const text = (node.innerText || node.textContent || '').trim();
+        if (text && text.length >= 20 && text.length <= 12000 && !text.includes(${JSON.stringify(requestMarker)})) {
+          candidates.push(text);
+          break;
+        }
+        node = node.parentElement;
+        depth += 1;
+      }
+    }
+    candidates.sort((a, b) => b.length - a.length);
+    return candidates[0]?.slice(0, 8000) || '';
+  })()`);
+}
+
 function repairSurfaceFromPending(pending) {
   const meta = String(pending?.meta ?? "");
   const match = meta.match(/(?:^|\s)repair-surface:(chat|work)(?:\s|$)/i);
@@ -466,7 +523,7 @@ async function selectExperience(client, mode) {
   await sleep(700);
 }
 
-async function submitPromptAndReadAnswer(prompt, mode = "chat") {
+async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false) {
   const requestMarker = `GORIQ_BRIDGE_REQUEST_ID=${randomUUID()}`;
   const submittedPrompt = [
     requestMarker,
@@ -481,7 +538,7 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat") {
     await client.call("Page.enable");
     await client.call("Runtime.enable");
     await client.call("Page.bringToFront");
-    await prepareProjectSurface(client, mode);
+    await prepareProjectSurface(client, mode, fresh);
     const selectedExperience = await waitForComposer(client);
     if (!String(selectedExperience?.url ?? "").startsWith(CHATGPT_URL)) throw new Error("project surface left ChatGPT");
 
@@ -628,19 +685,29 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat") {
       const candidate = Array.isArray(turns)
         ? turns.filter((message) => message.role === "assistant" && message.index > markerUserIndex).at(-1)
         : undefined;
-      const currentFingerprint = fingerprintMessage(candidate);
+      const workFallbackText = mode === "work" && !candidate?.text
+        ? await snapshotWorkAssistantFallback(client, requestMarker)
+        : "";
+      const effectiveCandidate = candidate?.text
+        ? candidate
+        : workFallbackText
+          ? { role: "assistant", id: null, index: markerUserIndex + 1, text: workFallbackText }
+          : undefined;
+      const currentFingerprint = fingerprintMessage(effectiveCandidate);
 
-      if (candidate?.text) {
+      if (effectiveCandidate?.text) {
         if (candidateFingerprint !== currentFingerprint) {
           candidateFingerprint = currentFingerprint;
-          lastText = candidate.text;
+          lastText = effectiveCandidate.text;
           stableSince = Date.now();
-        } else if (candidate.text !== lastText) {
-          lastText = candidate.text;
+        } else if (effectiveCandidate.text !== lastText) {
+          lastText = effectiveCandidate.text;
           stableSince = Date.now();
         } else if (!state.generating && Date.now() - stableSince >= 1800) {
-          const surfaceUrl = await evaluate(client, "location.href");
-          await writeProjectSurface(mode, String(surfaceUrl || ""));
+          if (!fresh) {
+            const surfaceUrl = await evaluate(client, "location.href");
+            await writeProjectSurface(mode, String(surfaceUrl || ""));
+          }
           return lastText.slice(0, 8000);
         }
       }
@@ -692,7 +759,7 @@ async function processIssue(issue) {
   await setHealth("processing", `Issue #${issue.number}: ${pending.id}`, { issueNumber: issue.number, pendingOwnerMessageId: pending.id });
   const prompt = buildBridgePrompt({ issueNumber: issue.number, meta, messages, pending });
   const surface = repairSurfaceFromPending(pending);
-  const answer = await submitPromptAndReadAnswer(prompt, surface);
+  const answer = await submitPromptAndReadAnswer(prompt, surface, isRepairIssue(issue));
   if (!answer.trim()) throw new Error("ChatGPT returned an empty answer; pending was preserved");
   const aiMessage = await postAiReply(issue.number, meta, answer);
   await setHealth("synced", `Issue #${issue.number} synced`, { issueNumber: issue.number, lastAiMessageId: aiMessage.id });

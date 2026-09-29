@@ -7,6 +7,7 @@ const windowsInstallerUrl = new URL("../scripts/install-goriq-local-repair-windo
 const chatClientUrl = new URL("../scripts/goriq-chatgpt-repair-client.mjs", import.meta.url);
 const runtimeWorkflowUrl = new URL("../.github/workflows/goriq-repair-engines-runtime.yml", import.meta.url);
 const recoveryWorkflowUrl = new URL("../.github/workflows/goriq-pr-ci-recovery.yml", import.meta.url);
+const recoveryControllerUrl = new URL("../scripts/goriq-pr-ci-recovery.ts", import.meta.url);
 const groqAdapterUrl = new URL("../scripts/goriq-groq-repair.mjs", import.meta.url);
 const autonomyWorkflowUrl = new URL("../.github/workflows/autonomy-mobile.yml", import.meta.url);
 const groqWindowsSetupUrl = new URL("../scripts/configure-groq-free-secret-windows.ps1", import.meta.url);
@@ -162,7 +163,7 @@ test("dedicated Groq workflow owns launcher install and Groq repair smoke", asyn
   assert.match(groqWorkflow, /invoke-node-with-groq-secret-windows\.ps1/);
 });
 
-test("free external repair uses Groq Free Plan API and fails closed on rate limit", async () => {
+test("free external repair uses Groq Free Plan API and stays below observed free output quota", async () => {
   const source = await readFile(groqAdapterUrl, "utf8");
   assert.match(source, /https:\/\/api\.groq\.com\/openai\/v1\/chat\/completions/);
   assert.match(source, /qwen\/qwen3\.8-27b/);
@@ -170,7 +171,13 @@ test("free external repair uses Groq Free Plan API and fails closed on rate limi
   assert.match(source, /GROQ_API_KEY/);
   assert.match(source, /GORIQ_NODE_INPUT_TEXT/);
   assert.match(source, /GORIQ_GROQ_FREE_LIMIT_EXHAUSTED/);
+  assert.match(source, /max_completion_tokens:\s*800/);
   assert.doesNotMatch(source, /billing|credit card|purchase/i);
+});
+
+test("Windows local repair status tolerates PowerShell UTF-8 BOM", async () => {
+  const source = await readFile(recoveryControllerUrl, "utf8");
+  assert.match(source, /readFileSync\(statusPath, "utf8"\)\.replace\(\/\^\\uFEFF\//);
 });
 
 test("repair runtimes prefer the newest execution and do not let stale runs block fixes", async () => {
