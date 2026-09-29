@@ -105,7 +105,6 @@ async function recordProjectSession(surface, url, goalId = null) {
   });
   await mkdir(STATE_DIR, { recursive: true });
   await writeFile(PROJECT_SESSIONS_FILE, JSON.stringify(next, null, 2) + "\n", "utf8");
-  await writeProjectSurface(surface, url);
 }
 
 async function setHealth(status, detail = null, extra = {}) {
@@ -1059,6 +1058,7 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false, p
               if (!fresh) {
                 const surfaceUrl = await evaluate(client, "location.href");
                 await recordProjectSession(mode, String(surfaceUrl || ""), goalId);
+                await writeProjectSurface(mode, String(surfaceUrl || ""));
               }
               return copied.slice(0, 8000);
             }
@@ -1071,6 +1071,7 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false, p
                 if (!fresh) {
                   const surfaceUrl = await evaluate(client, "location.href");
                   await recordProjectSession(mode, String(surfaceUrl || ""), goalId);
+                await writeProjectSurface(mode, String(surfaceUrl || ""));
                 }
                 return copied.slice(0, 8000);
               }
@@ -1081,6 +1082,7 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false, p
               if (!fresh) {
                 const surfaceUrl = await evaluate(client, "location.href");
                 await recordProjectSession(mode, String(surfaceUrl || ""), goalId);
+                await writeProjectSurface(mode, String(surfaceUrl || ""));
               }
               return copied.slice(0, 8000);
             }
