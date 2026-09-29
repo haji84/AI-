@@ -1185,13 +1185,19 @@ async function processIssue(issue) {
     return;
   }
 
+  if (isRepairIssue(issue)) {
+    const prompt = buildBridgePrompt({ issueNumber: issue.number, meta, messages, pending });
+    const surface = repairSurfaceFromPending(pending);
+    const answer = await submitPromptAndReadAnswer(prompt, surface, isRepairIssue(issue));
+    if (!answer.trim()) throw new Error("ChatGPT returned an empty answer; pending was preserved");
+    const aiMessage = await postAiReply(issue.number, meta, answer);
+    await setHealth("synced", `Issue #${issue.number} synced`, { issueNumber: issue.number, lastAiMessageId: aiMessage.id });
+    return;
+  }
+
   const taskContext = inferBridgeTaskContext(meta, messages, pending);
   const registry = await readProjectSessions();
-  const repairSurface = isRepairIssue(issue) ? repairSurfaceFromPending(pending) : null;
-  const decision = selectBridgeSession(
-    repairSurface ? { ...taskContext, explicitSurface: repairSurface, forceNew: true } : taskContext,
-    registry,
-  );
+  const decision = selectBridgeSession(taskContext, registry);
   await setHealth("processing", `Issue #${issue.number}: ${pending.id}`, {
     issueNumber: issue.number,
     pendingOwnerMessageId: pending.id,
