@@ -49,9 +49,10 @@ jobs:
           mkdir -p "$STATE_ROOT"
           RUN_ID="$GITHUB_RUN_ID"
           LOSS_FILE="$STATE_ROOT/stage-b-node-loss-${RUN_ID}-macbook-loss.json"
-          HELPER="$STATE_ROOT/stage-b-node-loss-${RUN_ID}-macbook-recover.sh"
           WATCHDOG="$STATE_ROOT/gai-macbook-watchdog.sh"
+          HEALTH_STATE="$STATE_ROOT/macbook-runner-health.json"
           test -f "$WATCHDOG"
+          printf '{"consecutiveFailures":2,"updatedAt":"%s"}\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >"$HEALTH_STATE"
           current_pid="$PPID"
           worker_pid=""
           old_pid=""
@@ -74,26 +75,6 @@ jobs:
             echo "Refusing unsafe listener target: pid=$old_pid comm=$(basename "$listener_comm")" >&2
             exit 3
           fi
-
-          cat >"$HELPER" <<EOF
-          #!/usr/bin/env bash
-          set -u
-          WATCHDOG="$WATCHDOG"
-          for _ in $(seq 1 90); do
-            if ! pgrep -f 'Runner.Worker' >/dev/null 2>&1; then break; fi
-            sleep 1
-          done
-          sleep 60
-          for _ in $(seq 1 5); do
-            /bin/bash "$WATCHDOG" >/dev/null 2>&1 || true
-            sleep 2
-          done
-          EOF
-          chmod +x "$HELPER"
-          (
-            unset RUNNER_TRACKING_ID
-            nohup /bin/bash "$HELPER" >>"$STATE_ROOT/stage-b-node-loss-${RUN_ID}-macbook-helper.log" 2>&1 </dev/null &
-          )
 
           kill -9 "$old_pid"
           sleep 2
@@ -159,7 +140,7 @@ jobs:
           test -n "$new_pid"
           printf '{"version":1,"runId":"%s","node":"macbook","newPid":%s,"recoveredAt":"%s"}\n' "$RUN_ID" "$new_pid" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >"$RECOVERY_FILE"
           node scripts/goriq-node-loss-rejoin-e2e.mjs --phase rejoin --node macbook --platform darwin --sha "$GITHUB_SHA" --loss "$STATE_ROOT/stage-b-node-loss-${RUN_ID}-macbook-loss.json" --recovery "$RECOVERY_FILE" --status "$STATE_ROOT/macbook-watchdog-status.json" --survivor .goriq-stage-b/node-loss/survivor/mac-to-zbook-survivor.json --output .goriq-stage-b/node-loss/evidence/macbook-rejoin.json
-          rm -f "$STATE_ROOT/stage-b-node-loss-${RUN_ID}-macbook-loss.json" "$RECOVERY_FILE" "$STATE_ROOT/stage-b-node-loss-${RUN_ID}-macbook-recover.sh"
+          rm -f "$STATE_ROOT/stage-b-node-loss-${RUN_ID}-macbook-loss.json" "$RECOVERY_FILE"
       - uses: actions/upload-artifact@v4
         with:
           name: goriq-stage-b-node-loss-mac-rejoin
@@ -195,34 +176,14 @@ jobs:
           $stateRoot = Join-Path $env:LOCALAPPDATA 'GAIWorker'
           $runId = $env:GITHUB_RUN_ID
           $lossFile = Join-Path $stateRoot "stage-b-node-loss-$runId-zbook-loss.json"
-          $helper = Join-Path $stateRoot "stage-b-node-loss-$runId-zbook-recover.ps1"
           $watchdog = Join-Path $stateRoot 'gai-zbook-watchdog.ps1'
+          $healthState = Join-Path $stateRoot 'zbook-runner-health.json'
           $old = Get-Process -Name 'Runner.Listener' -ErrorAction Stop | Select-Object -First 1
           if (-not (Test-Path $watchdog)) { throw "Missing watchdog: $watchdog" }
-
-          $helperContent = @'
-          $ErrorActionPreference = 'SilentlyContinue'
-          $stateRoot = $env:GORIQ_STAGE_B_STATE_ROOT
-          $watchdog = Join-Path $stateRoot 'gai-zbook-watchdog.ps1'
-          for ($i = 0; $i -lt 90; $i++) {
-            if (-not (Get-Process -Name 'Runner.Worker' -ErrorAction SilentlyContinue)) { break }
-            Start-Sleep -Seconds 1
-          }
-          Start-Sleep -Seconds 60
-          for ($i = 0; $i -lt 5; $i++) {
-            & $watchdog -RunnerRoot 'C:\actions-runner' -OllamaEndpoint 'http://127.0.0.1:11434'
-            Start-Sleep -Seconds 2
-          }
-          exit 0
-          '@
-          Set-Content -Encoding UTF8 -Path $helper -Value $helperContent
-
-          $env:GORIQ_STAGE_B_STATE_ROOT = $stateRoot
-          $env:GORIQ_STAGE_B_RUN_ID = $runId
-          $tracking = $env:RUNNER_TRACKING_ID
-          Remove-Item Env:\RUNNER_TRACKING_ID -ErrorAction SilentlyContinue
-          Start-Process -FilePath 'powershell.exe' -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File',$helper) -WindowStyle Hidden
-          if ($null -ne $tracking) { $env:RUNNER_TRACKING_ID = $tracking }
+          [ordered]@{
+            consecutiveFailures = 2
+            updatedAt = (Get-Date).ToUniversalTime().ToString('o')
+          } | ConvertTo-Json | Set-Content -Encoding UTF8 $healthState
 
           Get-Process -Name 'Runner.Listener' -ErrorAction SilentlyContinue | Stop-Process -Force
           Start-Sleep -Seconds 2
@@ -284,7 +245,6 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Remove-Item -Force (Join-Path $stateRoot "stage-b-node-loss-$runId-zbook-loss.json") -ErrorAction SilentlyContinue
           Remove-Item -Force $recoveryFile -ErrorAction SilentlyContinue
-          Remove-Item -Force (Join-Path $stateRoot "stage-b-node-loss-$runId-zbook-recover.ps1") -ErrorAction SilentlyContinue
       - uses: actions/upload-artifact@v4
         with:
           name: goriq-stage-b-node-loss-zbook-rejoin
