@@ -143,14 +143,14 @@ test("fresh Chat repair accepts action-container output only on the isolated fre
 });
 
 
-test("fresh repair can recover the final assistant answer through the native Copy control", () => {
+test("fresh repair can recover the final assistant answer through one stable native Copy", () => {
   assert.match(source, /async function copyAssistantAnswerFromUi/);
   assert.match(source, /pbpaste/);
   assert.match(source, /pbcopy/);
   assert.match(source, /GORIQ_CLIPBOARD_SENTINEL_/);
-  assert.match(source, /\^\(コピーする\|copy\)\$/);
-  assert.match(source, /nextClipboardAttemptAt/);
-  assert.match(source, /fresh && !state\.generating && Date\.now\(\) >= nextClipboardAttemptAt/);
+  assert.match(source, /completionReady/);
+  assert.match(source, /COMPLETION_STABLE_MS = 1_500/);
+  assert.match(source, /state\.copyCount > phaseBaselineCopyCount/);
 });
 
 test("clipboard fallback restores the prior clipboard and never logs copied answer text", () => {
@@ -160,11 +160,27 @@ test("clipboard fallback restores the prior clipboard and never logs copied answ
   assert.doesNotMatch(source, /setHealth\([^\n]*clipboardText/);
 });
 
-test("fresh repair retries clipboard Copy only when the assistant Copy control is ready", () => {
-  assert.match(source, /async function hasAssistantCopyControl/);
-  assert.match(source, /nextClipboardAttemptAt/);
-  assert.match(source, /const copyReady = await hasAssistantCopyControl\(client\)/);
-  assert.match(source, /nextClipboardAttemptAt = Date\.now\(\) \+ 1500/);
-  assert.match(source, /nextClipboardAttemptAt = Date\.now\(\) \+ 700/);
-  assert.doesNotMatch(source, /clipboardFallbackAttempted/);
+test("Chat repair uses one-minute bounded micro-phases before Work escalation", () => {
+  assert.match(source, /CHAT_PHASE_BUDGET_MS = 60_000/);
+  assert.match(source, /CHAT_MAX_PHASES = 4/);
+  assert.match(source, /buildChatRecoveryPhasePrompt/);
+  assert.match(source, /Micro-Phase 2: DIAGNOSIS ONLY/);
+  assert.match(source, /Micro-Phase 3: MINIMAL CHANGE CONSTRUCTION/);
+  assert.match(source, /Micro-Phase 4: FINAL DIFF ONLY/);
+  assert.match(source, /one-minute-budget/);
+  assert.match(source, /CHAT_REPAIR_PHASES_EXHAUSTED/);
+});
+
+test("Retry immediately advances Chat to the next bounded phase", () => {
+  assert.match(source, /state\.retryVisible \|\| phaseExpired/);
+  assert.match(source, /const reason = state\.retryVisible \? "retry-visible" : "one-minute-budget"/);
+  assert.match(source, /stopActiveGeneration/);
+  assert.match(source, /submitFollowupPrompt/);
+});
+
+test("late phase output is rejected by assistant Copy generation count", () => {
+  assert.match(source, /phaseBaselineCopyCount/);
+  assert.match(source, /state\.copyCount > phaseBaselineCopyCount/);
+  assert.match(source, /phaseBaselineCopyCount = state\.copyCount/);
+  assert.match(source, /GORIQ_BRIDGE_PHASE_ID=/);
 });
