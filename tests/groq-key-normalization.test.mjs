@@ -12,8 +12,8 @@ test("Groq configurator uses Windows clipboard API with PowerShell fallback", as
   assert.match(source, /GetText\(/);
   assert.match(source, /Clipboard\]::Clear\(\)/);
   assert.match(source, /Get-Clipboard -Raw/);
-  assert.match(source, /コピーできたら Enter/);
-  assert.match(source, /右クリック貼り付け/);
+  assert.match(source, /Press Enter after copying the key/);
+  assert.match(source, /right-click paste instead of Ctrl\+V/);
 });
 
 test("Groq configurator normalizes clipboard whitespace before HTTP validation", async () => {
@@ -25,6 +25,8 @@ test("Groq configurator normalizes clipboard whitespace before HTTP validation",
   assert.match(source, /Invisible whitespace\/control characters were removed/);
   assert.match(source, /ConvertTo-SecureString -String \$plain -AsPlainText -Force/);
   assert.match(source, /\$encrypted = \$normalizedSecure \| ConvertFrom-SecureString/);
+  assert.match(source, /StartsWith\('gsk_'/);
+  assert.match(source, /HTTP 401/);
   assert.doesNotMatch(source, /\$encrypted = \$secure \| ConvertFrom-SecureString/);
 });
 
