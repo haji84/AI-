@@ -125,3 +125,10 @@ test("resident bridge binds a reply to the exact submitted user turn", () => {
   assert.match(source, /message\.role === "assistant" && message\.index > markerUserIndex/);
   assert.doesNotMatch(source, /newMessages = messages\.filter\(\(message\) => !baselineFingerprints\.has/);
 });
+
+test("fresh repair may correlate by verified empty baseline when user turn DOM is absent", () => {
+  assert.match(source, /const preSubmissionTurns = await snapshotConversationMessages\(client\)/);
+  assert.match(source, /const freshBaselineEmpty = fresh && Array\.isArray\(preSubmissionTurns\) && preSubmissionTurns\.length === 0/);
+  assert.match(source, /if \(!freshBaselineEmpty\)[\s\S]*CHATGPT_SUBMITTED_TURN_NOT_FOUND/);
+  assert.match(source, /markerUserIndex = -1/);
+});
