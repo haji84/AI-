@@ -187,3 +187,28 @@ test("late phase output is rejected by assistant Copy generation count", () => {
   assert.match(source, /phaseBaselineCopyCount = state\.copyCount/);
   assert.match(source, /GORIQ_BRIDGE_PHASE_ID=/);
 });
+
+test("long Chat repairs are pre-split before the first send", () => {
+  assert.match(source, /function shouldPreSplitChatRepair/);
+  assert.match(source, /value\.length >= 6000/);
+  assert.match(source, /failureEvidenceLength >= 3500/);
+  assert.match(source, /allowedCount >= 3/);
+  assert.match(source, /GORIQ_CHAT_PRE_SPLIT=true/);
+  assert.match(source, /Phase 1: DIAGNOSIS ONLY/);
+});
+
+test("every completed planned phase is copied and explicitly reflected into the next phase", () => {
+  assert.match(source, /const phaseOutputs = \[\]/);
+  assert.match(source, /phaseOutputs\.push\(copied\)/);
+  assert.match(source, /boundedPhaseContext\(priorOutputs\)/);
+  assert.match(source, /PriorPhase/);
+  assert.match(source, /planned-phase-complete/);
+});
+
+test("pre-split repair returns only after final phase consolidates one unified diff", () => {
+  assert.match(source, /FINALIZATION: consolidate the original goal plus every prior phase result into ONE smallest valid unified diff/);
+  assert.match(source, /const finalPhase = phase >= CHAT_MAX_PHASES/);
+  assert.match(source, /if \(looksLikeUnifiedDiff\(copied\)\)/);
+  assert.match(source, /final-output-not-diff/);
+  assert.match(source, /!preSplit && phase === 1 && looksLikeUnifiedDiff\(copied\)/);
+});
