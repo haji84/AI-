@@ -3070,6 +3070,18 @@
       "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
     },
     {
+      "path": "src/gai/distributed-coordinator.ts",
+      "sha256": "27e6cae1c29154f1b043765ec9bdee68441d422f036d755ab73100c3a24960f2",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-012",
+        "MIG-008",
+        "MIG-011",
+        "MIG-029"
+      ],
+      "reason": "Transferable logical Coordinator lease, epoch/fencing, failover retention/rebalance and stale-authority rejection; physical/production acceptance remains separate."
+    },
+    {
       "path": "src/gai/durable-task-runtime.ts",
       "sha256": "8beeab2a9449e9f96232e24454b03eb610bfc5ca361dd250b9d42f74eec094fb",
       "classification": "COVERED_BY_REQUIREMENT",
@@ -3543,7 +3555,7 @@
     },
     {
       "path": "src/gai/sync-engine.ts",
-      "sha256": "553a25b2f683daa1a7b310f4a304e27e1e065dd92aa2edaf97b55a9bf7d24683",
+      "sha256": "7e3f43f8084544e7a72c27632e629a9d2a8e2ab2ca3318b4ced1d40d0625236e",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OFF-001",
