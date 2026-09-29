@@ -55,7 +55,7 @@ function Wait-ForGroqClipboardKey {
   param([int]$TimeoutSeconds = 120)
 
   $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
-  $lastFingerprint = ''
+  $warnedNonGroq = $false
 
   while ((Get-Date) -lt $deadline) {
     try {
@@ -68,10 +68,9 @@ function Wait-ForGroqClipboardKey {
           return $candidate
         }
 
-        $fingerprint = '{0}:{1}' -f $candidate.Length, $(if ($candidate.Length -ge 4) { $candidate.Substring(0, 4) } else { $candidate })
-        if ($fingerprint -ne $lastFingerprint) {
-          Write-Host 'Clipboard changed, but it is not a Groq API key yet. Copy the full Groq key.'
-          $lastFingerprint = $fingerprint
+        if (-not $warnedNonGroq) {
+          Write-Host 'Clipboard does not contain a Groq API key yet. Copy the full key in the Groq Console.'
+          $warnedNonGroq = $true
         }
       }
     } catch {}
