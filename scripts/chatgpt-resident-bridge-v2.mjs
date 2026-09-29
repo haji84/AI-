@@ -1022,7 +1022,7 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false) {
           if (phase >= CHAT_MAX_PHASES) {
             if (state.generating) await stopActiveGeneration(client);
             const diagnostics = await snapshotSafeControlDiagnostics(client);
-            log(`phase-exhausted-ui: ${JSON.stringify(diagnostics)}`);
+            console.log(`[bridge] ${new Date().toISOString()} phase-exhausted-ui: ${JSON.stringify(diagnostics)}`);
             throw new Error(`CHAT_REPAIR_PHASES_EXHAUSTED: phase=${phase}; reason=${state.retryVisible ? "retry-visible" : "one-minute-budget"}`);
           }
 
