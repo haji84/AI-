@@ -31,12 +31,16 @@ try {
   $plain = $plain.Trim()
   if ([string]::IsNullOrWhiteSpace($plain)) { throw 'Groq API key is empty after trimming surrounding whitespace.' }
 
+  $beforeInvisibleCleanupLength = $plain.Length
+  $plain = [Text.RegularExpressions.Regex]::Replace($plain, '[\p{Cc}\p{Cf}\p{Z}\s]+', '')
+  if ([string]::IsNullOrWhiteSpace($plain)) { throw 'Groq API key is empty after removing invisible characters.' }
+
   if ($plain -match '[^\x21-\x7E]') {
-    throw 'Groq API key contains hidden, control, whitespace, or non-ASCII characters inside the key. Copy only the key value and try again.'
+    throw 'Groq API key still contains unsupported visible non-ASCII characters. Copy only the raw key value and try again.'
   }
 
-  if ($plain.Length -ne $originalLength) {
-    Write-Host 'Surrounding whitespace/newline characters were removed from the pasted key.'
+  if ($plain.Length -ne $originalLength -or $plain.Length -ne $beforeInvisibleCleanupLength) {
+    Write-Host 'Invisible whitespace/control characters were removed from the pasted key.'
   }
 
   $normalizedSecure = ConvertTo-SecureString -String $plain -AsPlainText -Force
