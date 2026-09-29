@@ -240,3 +240,16 @@ test("phase completion uses new Copy control identity rather than total Copy cou
   assert.match(source, /copyAssistantAnswerFromUi\(client, phaseMarker, phaseToken\)/);
   assert.doesNotMatch(source, /phaseBaselineCopyCount/);
 });
+
+test("assistant Copy uses trusted CDP mouse input instead of DOM click", () => {
+  assert.match(source, /const target = await evaluate\(client/);
+  assert.match(source, /getBoundingClientRect\(\)/);
+  assert.match(source, /await client\.call\("Page\.bringToFront"\)/);
+  assert.match(source, /Input\.dispatchMouseEvent/);
+  assert.match(source, /mousePressed/);
+  assert.match(source, /mouseReleased/);
+  const copyStart = source.indexOf("async function copyAssistantAnswerFromUi");
+  const copyEnd = source.indexOf("function repairSurfaceFromPending", copyStart);
+  const copySource = source.slice(copyStart, copyEnd);
+  assert.doesNotMatch(copySource, /button\.click\(\)/);
+});

@@ -474,7 +474,7 @@ async function copyAssistantAnswerFromUi(client, requestMarker, phaseToken = "")
   const sentinel = `GORIQ_CLIPBOARD_SENTINEL_${randomUUID()}`;
   try {
     await writeMacClipboardText(sentinel);
-    const clicked = await evaluate(client, `(() => {
+    const target = await evaluate(client, `(() => {
       const normalize = (value) => String(value || '').replace(/\\s+/g, ' ').trim();
       const visible = (el) => {
         const rect = el.getBoundingClientRect();
@@ -490,11 +490,19 @@ async function copyAssistantAnswerFromUi(client, requestMarker, phaseToken = "")
         ? buttons.filter((button) => button.getAttribute('data-goriq-phase-baseline') !== phaseToken)
         : buttons;
       const button = eligible.at(-1);
-      if (!button) return false;
-      button.click();
-      return true;
+      if (!button) return null;
+      const rect = button.getBoundingClientRect();
+      return {
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2,
+      };
     })()`.replace("__PHASE_TOKEN__", JSON.stringify(phaseToken)));
-    if (!clicked) return "";
+    if (!target?.x || !target?.y) return "";
+
+    await client.call("Page.bringToFront");
+    await client.call("Input.dispatchMouseEvent", { type: "mouseMoved", x: target.x, y: target.y });
+    await client.call("Input.dispatchMouseEvent", { type: "mousePressed", x: target.x, y: target.y, button: "left", clickCount: 1 });
+    await client.call("Input.dispatchMouseEvent", { type: "mouseReleased", x: target.x, y: target.y, button: "left", clickCount: 1 });
 
     const deadline = Date.now() + 2500;
     while (Date.now() < deadline) {
