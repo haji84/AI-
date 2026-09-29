@@ -654,7 +654,64 @@ async function submitFollowupPrompt(client, text) {
   await sleep(700);
 }
 
-function buildChatRecoveryPhasePrompt(phase, reason, marker) {
+function shouldPreSplitChatRepair(prompt) {
+  const value = String(prompt ?? "");
+  const allowedMatch = value.match(/^AllowedPaths=(.+)$/m);
+  const allowedCount = allowedMatch
+    ? allowedMatch[1].split(",").map((item) => item.trim()).filter(Boolean).length
+    : 0;
+  const failureEvidenceLength = value.includes("FailureEvidence:")
+    ? value.slice(value.indexOf("FailureEvidence:")).length
+    : 0;
+  const structuralSignals = [
+    /Recovery strategy/i,
+    /Current file excerpts/i,
+    /FailureEvidence:/i,
+    /Strategy \d/i,
+    /AllowedPaths=/i,
+    /Read AGENTS\.md/i,
+  ].filter((pattern) => pattern.test(value)).length;
+
+  return value.length >= 6000
+    || failureEvidenceLength >= 3500
+    || allowedCount >= 3
+    || structuralSignals >= 4;
+}
+
+function boundedPhaseContext(outputs) {
+  return outputs
+    .slice(-3)
+    .map((value, index) => `PriorPhase${outputs.length - Math.min(outputs.length, 3) + index + 1}:\n${String(value).slice(0, 2200)}`)
+    .join("\n\n");
+}
+
+function buildInitialChatPrompt(prompt, requestMarker, preSplit) {
+  if (!preSplit) {
+    return [
+      requestMarker,
+      "Transport marker only. Do not include it in the answer.",
+      "",
+      prompt,
+    ].join("\n");
+  }
+
+  return [
+    requestMarker,
+    "Transport marker only. Do not include it in the answer.",
+    "GORIQ_CHAT_PRE_SPLIT=true",
+    `GORIQ_CHAT_RECOVERY_PHASE=1/${CHAT_MAX_PHASES}`,
+    "The repair is being phase-split before execution because it is likely to exceed one minute.",
+    "Phase 1: DIAGNOSIS ONLY.",
+    "Identify the exact failing condition, the exact AllowedPath location involved, and the smallest correction target.",
+    "Do not broaden scope. Do not produce unrelated implementation.",
+    "Your Phase 1 result will be copied and explicitly reflected into Phase 2.",
+    "",
+    "Original bounded repair goal:",
+    prompt,
+  ].join("\n");
+}
+
+function buildChatRecoveryPhasePrompt(phase, reason, marker, priorOutputs = []) {
   const instructions = {
     2: [
       "Micro-Phase 2: DIAGNOSIS ONLY.",
@@ -680,8 +737,13 @@ function buildChatRecoveryPhasePrompt(phase, reason, marker) {
     "This is a smaller continuation step, not a new task.",
     "Do not broaden AllowedPaths, authority, permissions, dependencies, tests, workflows, governance, or requirements.",
     "Keep this micro-phase small enough to finish within one minute.",
+    "Treat all prior phase results as parts of ONE repair, never as separate tasks.",
+    boundedPhaseContext(priorOutputs),
     ...(instructions[phase] ?? instructions[4]),
-  ].join("\n");
+    phase === CHAT_MAX_PHASES
+      ? "FINALIZATION: consolidate the original goal plus every prior phase result into ONE smallest valid unified diff. Return only that single unified diff."
+      : "Your result will be copied and explicitly reflected into the next phase.",
+  ].filter(Boolean).join("\n");
 }
 
 function looksLikeUnifiedDiff(text) {
@@ -692,12 +754,15 @@ function looksLikeUnifiedDiff(text) {
 
 async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false) {
   const requestMarker = `GORIQ_BRIDGE_REQUEST_ID=${randomUUID()}`;
-  const submittedPrompt = [
-    requestMarker,
-    "Transport marker only. Do not include it in the answer.",
-    "",
-    prompt,
-  ].join("\n");
+  const preSplit = mode === "chat" && shouldPreSplitChatRepair(prompt);
+  const submittedPrompt = mode === "chat"
+    ? buildInitialChatPrompt(prompt, requestMarker, preSplit)
+    : [
+        requestMarker,
+        "Transport marker only. Do not include it in the answer.",
+        "",
+        prompt,
+      ].join("\n");
   const target = await createChatGptTarget(CHATGPT_URL);
   const client = new CdpClient(target.webSocketDebuggerUrl);
   await client.connect();
@@ -845,6 +910,7 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false) {
     const absoluteDeadline = Date.now() + (mode === "chat" ? CHAT_ABSOLUTE_CEILING_MS : WORK_ABSOLUTE_CEILING_MS);
     let phase = 1;
     let phaseStartedAt = Date.now();
+    const phaseOutputs = [];
     let phaseMarker = requestMarker;
     let phaseBaselineCopyCount = 0;
     let completionSignature = "";
@@ -860,7 +926,7 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false) {
         } else if (Date.now() - completionStableSince >= COMPLETION_STABLE_MS) {
           const copied = await copyAssistantAnswerFromUi(client, phaseMarker);
           if (copied) {
-            if (mode !== "chat" || looksLikeUnifiedDiff(copied)) {
+            if (mode !== "chat") {
               if (!fresh) {
                 const surfaceUrl = await evaluate(client, "location.href");
                 await writeProjectSurface(mode, String(surfaceUrl || ""));
@@ -868,14 +934,39 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false) {
               return copied.slice(0, 8000);
             }
 
-            if (phase >= CHAT_MAX_PHASES || copied.trim() === "GORIQ_CHAT_PHASE_EXHAUSTED") {
-              throw new Error(`CHAT_REPAIR_PHASES_EXHAUSTED: phase=${phase}`);
+            phaseOutputs.push(copied);
+
+            const finalPhase = phase >= CHAT_MAX_PHASES;
+            if (finalPhase) {
+              if (looksLikeUnifiedDiff(copied)) {
+                if (!fresh) {
+                  const surfaceUrl = await evaluate(client, "location.href");
+                  await writeProjectSurface(mode, String(surfaceUrl || ""));
+                }
+                return copied.slice(0, 8000);
+              }
+              throw new Error(`CHAT_REPAIR_PHASES_EXHAUSTED: phase=${phase}; reason=final-output-not-diff`);
+            }
+
+            if (!preSplit && phase === 1 && looksLikeUnifiedDiff(copied)) {
+              if (!fresh) {
+                const surfaceUrl = await evaluate(client, "location.href");
+                await writeProjectSurface(mode, String(surfaceUrl || ""));
+              }
+              return copied.slice(0, 8000);
+            }
+
+            if (copied.trim() === "GORIQ_CHAT_PHASE_EXHAUSTED") {
+              throw new Error(`CHAT_REPAIR_PHASES_EXHAUSTED: phase=${phase}; reason=explicit-exhaustion`);
             }
 
             phaseBaselineCopyCount = state.copyCount;
             phase += 1;
             phaseMarker = `GORIQ_BRIDGE_PHASE_ID=${randomUUID()}`;
-            await submitFollowupPrompt(client, buildChatRecoveryPhasePrompt(phase, "intermediate_phase_complete", phaseMarker));
+            await submitFollowupPrompt(
+              client,
+              buildChatRecoveryPhasePrompt(phase, preSplit ? "planned-phase-complete" : "intermediate-phase-complete", phaseMarker, phaseOutputs),
+            );
             phaseStartedAt = Date.now();
             completionSignature = "";
             completionStableSince = 0;
@@ -904,7 +995,7 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false) {
           phase += 1;
           phaseMarker = `GORIQ_BRIDGE_PHASE_ID=${randomUUID()}`;
           const reason = state.retryVisible ? "retry-visible" : "one-minute-budget";
-          await submitFollowupPrompt(client, buildChatRecoveryPhasePrompt(phase, reason, phaseMarker));
+          await submitFollowupPrompt(client, buildChatRecoveryPhasePrompt(phase, reason, phaseMarker, phaseOutputs));
           phaseStartedAt = Date.now();
           completionSignature = "";
           completionStableSince = 0;
