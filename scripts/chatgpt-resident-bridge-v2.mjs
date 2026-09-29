@@ -356,6 +356,30 @@ async function openAutomationProject(client) {
   throw new Error(`CHATGPT_AUTOMATION_PROJECT_CONTEXT_NOT_CONFIRMED: ${PROJECT_NAME}`);
 }
 
+async function startFreshProjectConversation(client) {
+  const clicked = await evaluate(client, `(() => {
+    const visible = (el) => {
+      const rect = el.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    };
+    const normalize = (value) => String(value || '').replace(/\\s+/g, ' ').trim();
+    const buttons = [...document.querySelectorAll('button,[role="button"],a')].filter(visible);
+    const fresh = buttons.find((el) => /^(新しいチャット|new chat)$/i.test(normalize(el.getAttribute('aria-label') || el.textContent || '')));
+    if (!fresh) return false;
+    fresh.click();
+    return true;
+  })()`);
+  if (!clicked) throw new Error("CHATGPT_PROJECT_NEW_CHAT_NOT_FOUND");
+  await sleep(700);
+  await waitForComposer(client, 15000);
+  const projectVisible = await evaluate(client, `(() => {
+    const normalize = (value) => String(value || '').replace(/\\s+/g, ' ').trim();
+    return [...document.querySelectorAll('a,button,[role="button"]')]
+      .some((el) => normalize(el.innerText || el.textContent || el.getAttribute('aria-label')) === ${JSON.stringify(PROJECT_NAME)});
+  })()`);
+  if (!projectVisible) throw new Error(`CHATGPT_FRESH_PROJECT_SURFACE_ESCAPED: ${PROJECT_NAME}`);
+}
+
 async function prepareProjectSurface(client, mode, fresh = false) {
   const surfaces = await readProjectSurfaces();
   const savedUrl = mode === "work" ? surfaces.work : surfaces.chat;
@@ -372,6 +396,7 @@ async function prepareProjectSurface(client, mode, fresh = false) {
 
   await navigateClient(client, CHATGPT_URL);
   await openAutomationProject(client);
+  if (fresh) await startFreshProjectConversation(client);
   if (mode === "work") await selectExperience(client, "work");
   const ready = await waitForComposer(client, 15000);
   const projectVisible = await evaluate(client, `(() => {
