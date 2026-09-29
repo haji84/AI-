@@ -37,7 +37,7 @@ test("macOS installer points launchd at bridge v2", () => {
 test("resident bridge routes repair metadata to Chat or Work", () => {
   assert.match(source, /repairSurfaceFromPending/);
   assert.match(source, /repair-surface:\(chat\|work\)/);
-  assert.match(source, /submitPromptAndReadAnswer\(prompt, surface\)/);
+  assert.match(source, /submitPromptAndReadAnswer\(prompt, surface, isRepairIssue\(issue\)\)/);
 });
 
 test("Work repair fails closed when the Work selector cannot be found", () => {
@@ -71,7 +71,7 @@ test("project-scoped repair metadata accepts normal whitespace separators", () =
 
 test("fresh reply detection does not require ChatGPT URL transition", () => {
   assert.doesNotMatch(source, /conversationAdvanced/);
-  assert.match(source, /if \(candidate\?\.text\)/);
+  assert.match(source, /effectiveCandidate\?\.text/);
 });
 
 test("prompt submission brings the tab forward and cascades mouse form and raw Enter submission", () => {
@@ -102,9 +102,19 @@ test("current ChatGPT DOM fallback detects assistant and user turns by action co
   assert.match(source, /data-testid\^="conversation-turn"/);
 });
 
-test("successful repair stores the project-scoped surface URL for reuse", () => {
-  assert.match(source, /writeProjectSurface\(mode/);
-  assert.match(source, /readProjectSurfaces/);
+test("normal conversations may reuse surfaces but repair turns are isolated", () => {
+  assert.match(source, /async function prepareProjectSurface\(client, mode, fresh = false\)/);
+  assert.match(source, /if \(!fresh && savedUrl\)/);
+  assert.match(source, /startFreshProjectConversation/);
+  assert.match(source, /CHATGPT_FRESH_PROJECT_SURFACE_ESCAPED/);
+  assert.match(source, /if \(!fresh\)[\s\S]*?writeProjectSurface\(mode/);
+});
+
+test("Work output has a fallback extractor outside standard chat-turn DOM", () => {
+  assert.match(source, /snapshotWorkAssistantFallback/);
+  assert.match(source, /コピーする\|copy\|読み上げ\|read aloud\|回答を再生成\|regenerate/);
+  assert.match(source, /workFallbackText/);
+  assert.match(source, /effectiveCandidate/);
 });
 
 test("resident bridge binds a reply to the exact submitted user turn", () => {
