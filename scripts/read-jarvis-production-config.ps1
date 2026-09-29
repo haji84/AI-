@@ -1,7 +1,8 @@
 param(
   [Parameter(Mandatory=$true)][string]$Path,
   [switch]$OwnerLoginCode,
-  [scriptblock]$OwnerLoginCodeConsumer
+  [scriptblock]$OwnerLoginCodeConsumer,
+  [scriptblock]$ConfigurationConsumer
 )
 $ErrorActionPreference = 'Stop'
 $env:PSModulePath = Join-Path $PSHOME 'Modules'
@@ -10,6 +11,7 @@ try {
   $secure = ConvertTo-SecureString $encrypted.Trim()
   $credential = New-Object System.Management.Automation.PSCredential('config', $secure)
   $plaintext = $credential.GetNetworkCredential().Password
+  if ($OwnerLoginCode -and $null -ne $ConfigurationConsumer) { throw 'unavailable' }
   if ($OwnerLoginCode) {
     if ($null -eq $OwnerLoginCodeConsumer) { throw 'unavailable' }
     $configuration = $plaintext | ConvertFrom-Json
@@ -25,12 +27,16 @@ try {
     # Keep the selected secret inside this PowerShell process. The caller must
     # consume it locally; owner-code mode never writes it to stdout.
     & $OwnerLoginCodeConsumer $ownerCode | Out-Null
+  } elseif ($null -ne $ConfigurationConsumer) {
+    $configuration = $plaintext | ConvertFrom-Json
+    if ($configuration -isnot [pscustomobject] -or $configuration.environment -isnot [pscustomobject]) { throw 'unavailable' }
+    & $ConfigurationConsumer $configuration | Out-Null
   } else {
     [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
     [Console]::Write($plaintext)
   }
 } catch {
-  if ($OwnerLoginCode) { throw 'Protected configuration unavailable for this Windows identity.' }
+  if ($OwnerLoginCode -or $null -ne $ConfigurationConsumer) { throw 'Protected configuration unavailable for this Windows identity.' }
   [Console]::Error.WriteLine('Protected configuration unavailable for this Windows identity.')
   exit 1
 } finally {
