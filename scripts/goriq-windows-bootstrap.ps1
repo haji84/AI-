@@ -164,8 +164,7 @@ function Find-GoriqRepoRoot {
   }
 
   $searchRoots = New-Object System.Collections.Generic.List[string]
-  foreach ($root in @(
-    $knownCandidates,
+  $searchRootCandidates = @($knownCandidates.ToArray()) + @(
     $HOME,
     (Join-Path $HOME 'source'),
     (Join-Path $HOME 'repos'),
@@ -174,7 +173,8 @@ function Find-GoriqRepoRoot {
     (Join-Path $HOME 'Documents'),
     (Join-Path $HOME 'Desktop'),
     (Join-Path $HOME 'OneDrive')
-  )) {
+  )
+  foreach ($root in $searchRootCandidates) {
     if (-not [string]::IsNullOrWhiteSpace($root) -and
         (Test-Path -LiteralPath $root -PathType Container) -and
         -not $searchRoots.Contains($root)) {
