@@ -16,16 +16,43 @@ if (-not $SkipOpen) {
 }
 
 Write-Host ''
-Write-Host '作成済みのGroq APIキーを貼り付けて Enter を押してください。'
-Write-Host '入力内容は画面・GitHub・ログには表示されません。'
-$secure = Read-Host 'Groq API key' -AsSecureString
-$bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
+Write-Host 'Groq APIキーだけをクリップボードへコピーしてから Enter を押してください。'
+Write-Host 'キーは画面・GitHub・ログには表示しません。読み取り後はクリップボードを空にします。'
+
+$secure = $null
+$bstr = [IntPtr]::Zero
 $plain = ''
 $normalizedSecure = $null
+$clipboardCaptured = $false
 
 try {
-  $plain = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
-  if ([string]::IsNullOrWhiteSpace($plain)) { throw 'Groq API key is empty.' }
+  $getClipboard = Get-Command -Name 'Get-Clipboard' -ErrorAction SilentlyContinue
+  if ($null -ne $getClipboard) {
+    [void](Read-Host 'コピーできたら Enter')
+    try {
+      $plain = [string](Get-Clipboard -Raw -ErrorAction Stop)
+      if (-not [string]::IsNullOrWhiteSpace($plain)) {
+        $clipboardCaptured = $true
+        $setClipboard = Get-Command -Name 'Set-Clipboard' -ErrorAction SilentlyContinue
+        if ($null -ne $setClipboard) {
+          Set-Clipboard -Value '' -ErrorAction SilentlyContinue
+        }
+      }
+    } catch {
+      $plain = ''
+    }
+  }
+
+  if (-not $clipboardCaptured) {
+    Write-Host 'クリップボードを読み取れなかったため、安全入力へ切り替えます。'
+    Write-Host 'この入力欄では Ctrl+V ではなく、右クリック貼り付けを使用してください。'
+    $secure = Read-Host 'Groq API key' -AsSecureString
+    $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
+    $plain = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
+  }
+
+  if ([string]::IsNullOrWhiteSpace($plain)) { throw 'Groq API key input is empty.' }
+  if ($plain.Length -gt 4096) { throw 'Clipboard content is too large to be a Groq API key. Copy only the raw key value and try again.' }
 
   $originalLength = $plain.Length
   $plain = $plain.Trim()
@@ -82,6 +109,7 @@ try {
   $plain = $null
   $normalizedSecure = $null
   $secure = $null
+  $clipboardCaptured = $false
   $headers = $null
   Remove-Variable encrypted -ErrorAction SilentlyContinue
 }
