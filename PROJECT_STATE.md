@@ -3,9 +3,9 @@
 PROJECT: General Autonomous AI / Unified AI Creator Studio / GAI Research OS
 AI_COMPANY_VERSION: 1.0
 PROJECT_VERSION: 0.0.0
-CURRENT_PHASE: Complete current Mac stabilization/verification, then implement #1350 distributed self-complementing node fabric; #1219 Daily Driver continues
+CURRENT_PHASE: Stage B MacBook+ZBook distributed-node acceptance in progress; controlled bidirectional lease-loss failover is verified, abrupt-loss/coordinator/partition/rejoin evidence remains; #1219 Daily Driver continues
 STATUS: JARVIS_PRODUCT_COMPLETION_IN_PROGRESS
-LAST_UPDATED: 2026-09-28
+LAST_UPDATED: 2026-09-29
 CURRENT_EPIC: One-front-door general autonomous AI with no permanent main PC, durable offline-first distributed execution, self-complementing nodes and verifier-driven completion
 ACTIVE_ISSUES: #1216 local Primary Brain and unified learning; #681/#882 product completion; #1207/#1192 physical acceptance; #321 separate
 OPEN_PRS: #1217 draft/unmerged; 44750d2 CI1860 SUCCESS; Windows1673/P8331/lint/build/browser/independent61 PASS. #1214/#1215 UI provisionally accepted; #1208/#1195/#883/#884 physical-facing holds unchanged
@@ -17,6 +17,7 @@ GAI_MODEL_POLICY: replaceable capability/model router; verified zero-monetary-co
 GAI_OFFLINE_FIRST_POLICY: network is an optional capability enhancer, not a survival condition; offline-capable local work continues, online-required work waits durably, and recovery triggers sync/conflict resolution/resume/re-verification
 GORIQ_DISTRIBUTED_NODE_POLICY: no permanent physical main PC; active trusted nodes collectively form GORIQ, Coordinator is transferable, Task ownership uses lease/idempotency/execution epoch/fencing, and Node loss degrades capacity instead of globally stopping unrelated work
 GORIQ_INITIAL_DISTRIBUTED_NODES: MacBook + ZBook first; Nubia is the first full Android/mobile-edge canary; iPhone participates as Owner/input/sensor capability within iOS limits; future PCs auto-expand capacity; preserved Android38 Fleet is deferred until Nubia canary passes
+GORIQ_STAGE_B_CONTROLLED_FAILOVER: PASS on exact main dd4fe81683a201c7d72c36d3841d03a0b7f67b92 via workflow run 36585886942; physical MacBook→ZBook and ZBook→MacBook MIGRATABLE/RESTARTABLE handoff advanced epoch 1→2, preserved checkpoint, and rejected stale claims. This is controlled lease-loss evidence only; abrupt power loss, coordinator loss, network partition, resync and rebalancing remain unverified.
 GAI_EVAL_POLICY: verifier/eval is cross-cutting; code/CI evidence and physical-device evidence are separate evidence classes and must never be conflated
 GAI_AGI_CLAIM_POLICY: project-defined implementation or product acceptance never authorizes an AGI claim; independent external evaluation is required
 GAI_COMMON_WORKER_RUNTIME: COMPLETE via Issue #559 / PR #560
@@ -45,8 +46,8 @@ JARVIS_V1_ACCEPTANCE: COMPLETE; Issue #401 stages 1-8 are backed by merged imple
 JARVIS_100_NODE_CAPACITY: PASS in deterministic CI; node 101 is rejected
 JARVIS_PHYSICAL_ANDROID_E2E: PASS for the acceptance scope through real Android 001 resident-Broker/Worker execution evidence from PR #526 and follow-up hardening. This does not imply unverified physical wake/Device Owner/live-screen/real-offline claims
 GAI_RESEARCH_OPS: SEPARATE_EVIDENCE_PROGRAM; Issue #321 and R1-R20 remain open until their real scientific evidence gates pass
-GAI_NEXT_PHASE: Complete current Mac stabilization, then implement #1350 distributed-node acceptance using docs/architecture/goriq-distributed-node-fabric.md; continue #681 P0–P10 and keep #321 research separate
-NEXT_PRIORITY: Finish and verify current Mac stability. Then prove MacBook+ZBook two-node failover/resource-aware scheduling/lease+epoch+fencing/checkpoint migration/offline sync; add Nubia as first full Android/mobile-edge canary; integrate iPhone within iOS limits; prove new-PC auto capacity expansion. Preserve Android38 identities/state and defer physical Fleet connection until Nubia Node Contract passes.
+GAI_NEXT_PHASE: Continue Stage B distributed-node acceptance using docs/architecture/goriq-distributed-node-fabric.md; controlled MacBook↔ZBook migration/restart is PASS, next prove abrupt node loss, coordinator failover, reconnect/resync and rebalancing; keep #321 research separate
+NEXT_PRIORITY: Extend the verified MacBook↔ZBook controlled failover to abrupt Mac loss, abrupt ZBook loss, coordinator loss, reconnect/resync and rebalancing; then add Nubia as the first full Android/mobile-edge canary, integrate iPhone within iOS limits, and prove new-PC auto capacity expansion. Preserve Android38 identities/state and defer physical Fleet connection until Nubia Node Contract passes.
 HUMAN_APPROVAL_PENDING: #1350 is specification-only and authorizes no Production, credential, permission, enrollment, firewall/network, destructive data/schema or Human-Gate changes. Runtime implementation/deployment remains separately gated by the applicable task scope.
 AUTONOMOUS_RECOVERY_POLICY: progress-aware bounded autonomy; per-strategy retry exhaustion triggers diagnose/replan/alternate capability or strategy, not automatic Goal abandonment; stop/escalate only for safety/approval gates, explicit pause/cancel, unavailable required authority, exhausted overall resource budget, or no safe actionable strategy
 MAX_ACTIVE_AGENTS: 3

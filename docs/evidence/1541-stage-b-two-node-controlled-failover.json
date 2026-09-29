@@ -1,0 +1,45 @@
+{
+  "issue": 1541,
+  "workflow_run": 36585886942,
+  "workflow": "GORIQ Stage B Two Node Failover",
+  "source_sha": "dd4fe81683a201c7d72c36d3841d03a0b7f67b92",
+  "evidence_class": "MACHINE_VERIFIED",
+  "scenario": "controlled-lease-loss-two-node-failover",
+  "verdict": "PASS",
+  "artifact": {
+    "name": "goriq-stage-b-two-node-failover-evidence",
+    "id": 11041532079,
+    "digest": "sha256:0f16046ddf0d8143ccefa7f64761114b5c5cdd8dd0d6231b80a97a1340b0553e"
+  },
+  "directions": [
+    {
+      "direction": "macbook-to-zbook",
+      "target_platform": "win32",
+      "target_runner_name": "ZBook",
+      "reclaimed_tasks": 2,
+      "migration_classes": ["MIGRATABLE", "RESTARTABLE"],
+      "epoch_transition": "1->2",
+      "checkpoint_preserved": true,
+      "stale_claim_rejected": true
+    },
+    {
+      "direction": "zbook-to-macbook",
+      "target_platform": "darwin",
+      "target_runner_name": "MacBook",
+      "reclaimed_tasks": 2,
+      "migration_classes": ["MIGRATABLE", "RESTARTABLE"],
+      "epoch_transition": "1->2",
+      "checkpoint_preserved": true,
+      "stale_claim_rejected": true
+    }
+  ],
+  "boundaries": {
+    "physical_nodes_executed": true,
+    "migration_and_restart_across_physical_nodes_proven": true,
+    "stale_claim_fencing_proven": true,
+    "abrupt_power_loss_proven": false,
+    "network_partition_proven": false,
+    "coordinator_loss_proven": false
+  },
+  "verified_at": "2026-09-29T14:54:28.008Z"
+}
