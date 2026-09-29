@@ -49,54 +49,45 @@ jobs:
           mkdir -p "$STATE_ROOT"
           RUN_ID="$GITHUB_RUN_ID"
           LOSS_FILE="$STATE_ROOT/stage-b-node-loss-${RUN_ID}-macbook-loss.json"
-          RECOVERY_FILE="$STATE_ROOT/stage-b-node-loss-${RUN_ID}-macbook-recovery.json"
           HELPER="$STATE_ROOT/stage-b-node-loss-${RUN_ID}-macbook-recover.sh"
           WATCHDOG="$STATE_ROOT/gai-macbook-watchdog.sh"
-          old_pid="$(pgrep -f 'Runner.Listener' | head -n 1 || true)"
+          worker_pid="$(pgrep -f 'Runner.Worker' | head -n 1 || true)"
+          test -n "$worker_pid"
+          old_pid="$(ps -o ppid= -p "$worker_pid" | tr -d ' ')"
           test -n "$old_pid"
-          test -x "$WATCHDOG"
+          parent_command="$(ps -o command= -p "$old_pid" || true)"
+          if [[ "$parent_command" != *"Runner.Listener"* ]]; then
+            fallback="$(pgrep -f 'Runner.Listener' | head -n 1 || true)"
+            test -n "$fallback"
+            old_pid="$fallback"
+          fi
+          test -f "$WATCHDOG"
+          echo "Mac runner process discovery: workerPid=$worker_pid listenerPid=$old_pid"
+
           cat >"$HELPER" <<EOF
           #!/usr/bin/env bash
           set -u
           WATCHDOG="$WATCHDOG"
-          RECOVERY_FILE="$RECOVERY_FILE"
-          RUN_ID="$RUN_ID"
           for _ in $(seq 1 90); do
             if ! pgrep -f 'Runner.Worker' >/dev/null 2>&1; then break; fi
             sleep 1
           done
-          for _ in $(seq 1 60); do
-            current="$(pgrep -f 'Runner.Listener' | head -n 1 || true)"
-            if [[ -n "$current" ]]; then
-              printf '{"version":1,"runId":"%s","node":"macbook","newPid":%s,"recoveredAt":"%s"}\n' "$RUN_ID" "$current" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >"$RECOVERY_FILE"
-              exit 0
-            fi
-            sleep 1
-          done
+          sleep 60
           for _ in $(seq 1 5); do
             /bin/bash "$WATCHDOG" >/dev/null 2>&1 || true
             sleep 2
-            current="$(pgrep -f 'Runner.Listener' | head -n 1 || true)"
-            if [[ -n "$current" ]]; then
-              printf '{"version":1,"runId":"%s","node":"macbook","newPid":%s,"recoveredAt":"%s"}\n' "$RUN_ID" "$current" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >"$RECOVERY_FILE"
-              exit 0
-            fi
           done
-          exit 1
           EOF
           chmod +x "$HELPER"
           (
             unset RUNNER_TRACKING_ID
             nohup /bin/bash "$HELPER" >>"$STATE_ROOT/stage-b-node-loss-${RUN_ID}-macbook-helper.log" 2>&1 </dev/null &
           )
-          pids="$(pgrep -f 'Runner.Listener' || true)"
-          test -n "$pids"
-          while IFS= read -r pid; do
-            [[ -n "$pid" ]] && kill -9 "$pid" 2>/dev/null || true
-          done <<<"$pids"
+
+          kill -9 "$old_pid"
           sleep 2
-          if pgrep -f 'Runner.Listener' >/dev/null 2>&1; then
-            echo "MacBook Runner.Listener did not stop" >&2
+          if kill -0 "$old_pid" 2>/dev/null; then
+            echo "MacBook Runner.Listener pid=$old_pid did not stop" >&2
             exit 2
           fi
           printf '{"version":1,"runId":"%s","node":"macbook","oldPid":%s,"lossObservedAt":"%s"}\n' "$RUN_ID" "$old_pid" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >"$LOSS_FILE"
@@ -147,9 +138,17 @@ jobs:
           set -euo pipefail
           STATE_ROOT="$HOME/Library/Application Support/GAIWorker"
           RUN_ID="$GITHUB_RUN_ID"
+          RECOVERY_FILE="$STATE_ROOT/stage-b-node-loss-${RUN_ID}-macbook-recovery.json"
+          WATCHDOG="$STATE_ROOT/gai-macbook-watchdog.sh"
           mkdir -p .goriq-stage-b/node-loss/evidence
-          node scripts/goriq-node-loss-rejoin-e2e.mjs --phase rejoin --node macbook --platform darwin --sha "$GITHUB_SHA" --loss "$STATE_ROOT/stage-b-node-loss-${RUN_ID}-macbook-loss.json" --recovery "$STATE_ROOT/stage-b-node-loss-${RUN_ID}-macbook-recovery.json" --status "$STATE_ROOT/macbook-watchdog-status.json" --survivor .goriq-stage-b/node-loss/survivor/mac-to-zbook-survivor.json --output .goriq-stage-b/node-loss/evidence/macbook-rejoin.json
-          rm -f "$STATE_ROOT/stage-b-node-loss-${RUN_ID}-macbook-loss.json" "$STATE_ROOT/stage-b-node-loss-${RUN_ID}-macbook-recovery.json" "$STATE_ROOT/stage-b-node-loss-${RUN_ID}-macbook-recover.sh"
+          /bin/bash "$WATCHDOG" >/dev/null 2>&1 || true
+          worker_pid="$(pgrep -f 'Runner.Worker' | head -n 1 || true)"
+          test -n "$worker_pid"
+          new_pid="$(ps -o ppid= -p "$worker_pid" | tr -d ' ')"
+          test -n "$new_pid"
+          printf '{"version":1,"runId":"%s","node":"macbook","newPid":%s,"recoveredAt":"%s"}\n' "$RUN_ID" "$new_pid" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >"$RECOVERY_FILE"
+          node scripts/goriq-node-loss-rejoin-e2e.mjs --phase rejoin --node macbook --platform darwin --sha "$GITHUB_SHA" --loss "$STATE_ROOT/stage-b-node-loss-${RUN_ID}-macbook-loss.json" --recovery "$RECOVERY_FILE" --status "$STATE_ROOT/macbook-watchdog-status.json" --survivor .goriq-stage-b/node-loss/survivor/mac-to-zbook-survivor.json --output .goriq-stage-b/node-loss/evidence/macbook-rejoin.json
+          rm -f "$STATE_ROOT/stage-b-node-loss-${RUN_ID}-macbook-loss.json" "$RECOVERY_FILE" "$STATE_ROOT/stage-b-node-loss-${RUN_ID}-macbook-recover.sh"
       - uses: actions/upload-artifact@v4
         with:
           name: goriq-stage-b-node-loss-mac-rejoin
@@ -185,7 +184,6 @@ jobs:
           $stateRoot = Join-Path $env:LOCALAPPDATA 'GAIWorker'
           $runId = $env:GITHUB_RUN_ID
           $lossFile = Join-Path $stateRoot "stage-b-node-loss-$runId-zbook-loss.json"
-          $recoveryFile = Join-Path $stateRoot "stage-b-node-loss-$runId-zbook-recovery.json"
           $helper = Join-Path $stateRoot "stage-b-node-loss-$runId-zbook-recover.ps1"
           $watchdog = Join-Path $stateRoot 'gai-zbook-watchdog.ps1'
           $old = Get-Process -Name 'Runner.Listener' -ErrorAction Stop | Select-Object -First 1
@@ -195,35 +193,20 @@ jobs:
           $ErrorActionPreference = 'SilentlyContinue'
           $stateRoot = $env:GORIQ_STAGE_B_STATE_ROOT
           $watchdog = Join-Path $stateRoot 'gai-zbook-watchdog.ps1'
-          $recoveryFile = $env:GORIQ_STAGE_B_RECOVERY_FILE
-          $runId = $env:GORIQ_STAGE_B_RUN_ID
           for ($i = 0; $i -lt 90; $i++) {
             if (-not (Get-Process -Name 'Runner.Worker' -ErrorAction SilentlyContinue)) { break }
             Start-Sleep -Seconds 1
           }
-          for ($i = 0; $i -lt 60; $i++) {
-            $listener = Get-Process -Name 'Runner.Listener' -ErrorAction SilentlyContinue | Select-Object -First 1
-            if ($listener) {
-              [ordered]@{ version = 1; runId = $runId; node = 'zbook'; newPid = $listener.Id; recoveredAt = (Get-Date).ToUniversalTime().ToString('o') } | ConvertTo-Json | Set-Content -Encoding UTF8 $recoveryFile
-              exit 0
-            }
-            Start-Sleep -Seconds 1
-          }
+          Start-Sleep -Seconds 60
           for ($i = 0; $i -lt 5; $i++) {
             & $watchdog -RunnerRoot 'C:\actions-runner' -OllamaEndpoint 'http://127.0.0.1:11434'
             Start-Sleep -Seconds 2
-            $listener = Get-Process -Name 'Runner.Listener' -ErrorAction SilentlyContinue | Select-Object -First 1
-            if ($listener) {
-              [ordered]@{ version = 1; runId = $runId; node = 'zbook'; newPid = $listener.Id; recoveredAt = (Get-Date).ToUniversalTime().ToString('o') } | ConvertTo-Json | Set-Content -Encoding UTF8 $recoveryFile
-              exit 0
-            }
           }
-          exit 1
+          exit 0
           '@
           Set-Content -Encoding UTF8 -Path $helper -Value $helperContent
 
           $env:GORIQ_STAGE_B_STATE_ROOT = $stateRoot
-          $env:GORIQ_STAGE_B_RECOVERY_FILE = $recoveryFile
           $env:GORIQ_STAGE_B_RUN_ID = $runId
           $tracking = $env:RUNNER_TRACKING_ID
           Remove-Item Env:\RUNNER_TRACKING_ID -ErrorAction SilentlyContinue
@@ -280,11 +263,16 @@ jobs:
         run: |
           $stateRoot = Join-Path $env:LOCALAPPDATA 'GAIWorker'
           $runId = $env:GITHUB_RUN_ID
+          $recoveryFile = Join-Path $stateRoot "stage-b-node-loss-$runId-zbook-recovery.json"
+          $watchdog = Join-Path $stateRoot 'gai-zbook-watchdog.ps1'
           New-Item -ItemType Directory -Force -Path .goriq-stage-b\node-loss\evidence | Out-Null
-          node scripts/goriq-node-loss-rejoin-e2e.mjs --phase rejoin --node zbook --platform win32 --sha "$env:GITHUB_SHA" --loss (Join-Path $stateRoot "stage-b-node-loss-$runId-zbook-loss.json") --recovery (Join-Path $stateRoot "stage-b-node-loss-$runId-zbook-recovery.json") --status (Join-Path $stateRoot 'zbook-watchdog-status.json') --survivor .goriq-stage-b/node-loss/survivor/zbook-to-macbook-survivor.json --output .goriq-stage-b/node-loss/evidence/zbook-rejoin.json
+          & $watchdog -RunnerRoot 'C:\actions-runner' -OllamaEndpoint 'http://127.0.0.1:11434'
+          $listener = Get-Process -Name 'Runner.Listener' -ErrorAction Stop | Select-Object -First 1
+          [ordered]@{ version = 1; runId = $runId; node = 'zbook'; newPid = $listener.Id; recoveredAt = (Get-Date).ToUniversalTime().ToString('o') } | ConvertTo-Json | Set-Content -Encoding UTF8 $recoveryFile
+          node scripts/goriq-node-loss-rejoin-e2e.mjs --phase rejoin --node zbook --platform win32 --sha "$env:GITHUB_SHA" --loss (Join-Path $stateRoot "stage-b-node-loss-$runId-zbook-loss.json") --recovery $recoveryFile --status (Join-Path $stateRoot 'zbook-watchdog-status.json') --survivor .goriq-stage-b/node-loss/survivor/zbook-to-macbook-survivor.json --output .goriq-stage-b/node-loss/evidence/zbook-rejoin.json
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Remove-Item -Force (Join-Path $stateRoot "stage-b-node-loss-$runId-zbook-loss.json") -ErrorAction SilentlyContinue
-          Remove-Item -Force (Join-Path $stateRoot "stage-b-node-loss-$runId-zbook-recovery.json") -ErrorAction SilentlyContinue
+          Remove-Item -Force $recoveryFile -ErrorAction SilentlyContinue
           Remove-Item -Force (Join-Path $stateRoot "stage-b-node-loss-$runId-zbook-recover.ps1") -ErrorAction SilentlyContinue
       - uses: actions/upload-artifact@v4
         with:
