@@ -31,6 +31,11 @@ const CHATGPT_URL = "https://chatgpt.com/";
 const PROJECT_NAME = process.env.AI_COMPANY_CHATGPT_PROJECT_NAME?.trim() || "自動化";
 const PROJECT_SURFACES_FILE = join(STATE_DIR, "chatgpt-project-surfaces.json");
 const ONE_SHOT_REPAIR_ISSUE = Number(process.env.AI_COMPANY_REPAIR_ONCE_ISSUE || "");
+const CHAT_MAX_PHASES = 4;
+const CHAT_PHASE_BUDGET_MS = 60_000;
+const CHAT_ABSOLUTE_CEILING_MS = 5 * 60_000;
+const WORK_ABSOLUTE_CEILING_MS = 10 * 60_000;
+const COMPLETION_STABLE_MS = 1_500;
 
 let shuttingDown = false;
 let lockHandle = null;
@@ -449,12 +454,6 @@ async function snapshotConversationMessages(client) {
   })()`);
 }
 
-function fingerprintMessage(message) {
-  if (!message) return "";
-  if (message.id) return `id:${message.id}`;
-  return `fallback:${message.index}:${message.text}`;
-}
-
 async function readMacClipboardText() {
   const { stdout } = await execFileAsync("pbpaste", [], { maxBuffer: 2 * 1024 * 1024 });
   return String(stdout ?? "");
@@ -468,21 +467,6 @@ function writeMacClipboardText(text) {
     });
     child.stdin.end(String(text ?? ""));
   });
-}
-
-async function hasAssistantCopyControl(client) {
-  return evaluate(client, `(() => {
-    const normalize = (value) => String(value || '').replace(/\\s+/g, ' ').trim();
-    const visible = (el) => {
-      const rect = el.getBoundingClientRect();
-      return rect.width > 0 && rect.height > 0;
-    };
-    return [...document.querySelectorAll('main button')].some((button) => {
-      if (!visible(button) || button.disabled) return false;
-      const label = normalize(button.getAttribute('aria-label') || button.textContent || '');
-      return /^(コピーする|copy)$/i.test(label);
-    });
-  })()`);
 }
 
 async function copyAssistantAnswerFromUi(client, requestMarker) {
@@ -522,38 +506,6 @@ async function copyAssistantAnswerFromUi(client, requestMarker) {
   }
 }
 
-async function snapshotAssistantActionFallback(client, requestMarker) {
-  return evaluate(client, `(() => {
-    const normalize = (value) => String(value || '').replace(/\\s+/g, ' ').trim();
-    const visible = (el) => {
-      const rect = el.getBoundingClientRect();
-      return rect.width > 0 && rect.height > 0;
-    };
-    const controls = [...document.querySelectorAll('main button')].filter((button) => {
-      if (!visible(button)) return false;
-      const label = normalize([button.getAttribute('aria-label'), button.getAttribute('data-testid'), button.textContent].filter(Boolean).join(' '));
-      return /コピーする|copy|読み上げ|read aloud|回答を再生成|regenerate/i.test(label);
-    });
-    const candidates = [];
-    for (const control of controls) {
-      let node = control.closest('article,[data-testid^="conversation-turn"],[data-message-id]');
-      let depth = 0;
-      if (!node) node = control.parentElement;
-      while (node && depth < 7) {
-        const text = (node.innerText || node.textContent || '').trim();
-        if (text && text.length >= 20 && text.length <= 12000 && !text.includes(${JSON.stringify(requestMarker)})) {
-          candidates.push(text);
-          break;
-        }
-        node = node.parentElement;
-        depth += 1;
-      }
-    }
-    candidates.sort((a, b) => b.length - a.length);
-    return candidates[0]?.slice(0, 8000) || '';
-  })()`);
-}
-
 function repairSurfaceFromPending(pending) {
   const meta = String(pending?.meta ?? "");
   const match = meta.match(/(?:^|\s)repair-surface:(chat|work)(?:\s|$)/i);
@@ -590,14 +542,227 @@ async function selectExperience(client, mode) {
   await sleep(700);
 }
 
-async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false) {
-  const requestMarker = `GORIQ_BRIDGE_REQUEST_ID=${randomUUID()}`;
-  const submittedPrompt = [
+async function snapshotExecutionUiState(client) {
+  return evaluate(client, `(() => {
+    const normalize = (value) => String(value || '').replace(/\\s+/g, ' ').trim();
+    const visible = (el) => {
+      const rect = el.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    };
+    const buttons = [...document.querySelectorAll('main button')].filter(visible);
+    const labels = buttons.map((button) =>
+      normalize([button.getAttribute('aria-label'), button.getAttribute('data-testid'), button.textContent].filter(Boolean).join(' '))
+    ).filter(Boolean);
+    const generating = !!document.querySelector('button[data-testid="stop-button"]')
+      || labels.some((value) => /stop generating|停止/i.test(value));
+    const retryVisible = labels.some((value) => /^(再試行|retry)$/i.test(value));
+    const copyReady = labels.some((value) => /^(コピーする|copy)$/i.test(value));
+    const readAloudReady = labels.some((value) => /読み上げ|read aloud/i.test(value));
+    const regenerateReady = labels.some((value) => /回答を再生成|regenerate/i.test(value));
+    const progressLabel = labels.findLast((value) => /作業しました|working|thinking|reasoning/i.test(value)) || '';
+    const mainText = document.querySelector('main')?.innerText || '';
+    const tail = mainText.slice(-240);
+    const copyCount = labels.filter((value) => /^(コピーする|copy)$/i.test(value)).length;
+    return {
+      generating,
+      retryVisible,
+      copyReady,
+      copyCount,
+      readAloudReady,
+      regenerateReady,
+      completionReady: !generating && copyReady && (readAloudReady || regenerateReady) && !retryVisible,
+      completionSignature: JSON.stringify([copyCount, copyReady, readAloudReady, regenerateReady, retryVisible]),
+      activitySignature: JSON.stringify([generating, retryVisible, copyReady, readAloudReady, regenerateReady, progressLabel, mainText.length, tail]),
+    };
+  })()`);
+}
+
+async function stopActiveGeneration(client) {
+  return evaluate(client, `(() => {
+    const visible = (el) => {
+      const rect = el.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    };
+    const buttons = [...document.querySelectorAll('main button')].filter(visible);
+    const stop = document.querySelector('button[data-testid="stop-button"]')
+      || buttons.find((button) => /stop generating|停止/i.test((button.getAttribute('aria-label') || button.textContent || '').trim()));
+    if (!stop) return false;
+    stop.click();
+    return true;
+  })()`);
+}
+
+async function submitFollowupPrompt(client, text) {
+  await waitForComposer(client, 15000);
+  const focused = await evaluate(client, `(() => {
+    const el = document.querySelector('textarea') || document.querySelector('[contenteditable="true"]');
+    if (!el) return false;
+    el.focus();
+    return true;
+  })()`);
+  if (!focused) throw new Error("CHATGPT_PHASE_COMPOSER_NOT_FOUND");
+
+  await client.call("Input.dispatchKeyEvent", { type: "keyDown", key: "a", code: "KeyA", modifiers: 4 });
+  await client.call("Input.dispatchKeyEvent", { type: "keyUp", key: "a", code: "KeyA", modifiers: 4 });
+  await client.call("Input.dispatchKeyEvent", { type: "keyDown", key: "Backspace", code: "Backspace" });
+  await client.call("Input.dispatchKeyEvent", { type: "keyUp", key: "Backspace", code: "Backspace" });
+  await client.call("Input.insertText", { text });
+
+  const submitted = await evaluate(client, `(() => {
+    const visible = (el) => {
+      const rect = el.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    };
+    const buttons = [...document.querySelectorAll('button')];
+    const button = document.querySelector('button[data-testid="send-button"]')
+      || buttons.find((el) => {
+        const aria = (el.getAttribute('aria-label') || '').trim();
+        const testid = (el.getAttribute('data-testid') || '').trim();
+        const label = (el.textContent || '').trim();
+        return visible(el) && !el.disabled
+          && (/^(send|送信)$/i.test(aria) || /send-button/i.test(testid) || /^(send|送信)$/i.test(label));
+      });
+    if (button && !button.disabled && visible(button)) {
+      button.click();
+      return true;
+    }
+    const composer = document.querySelector('textarea') || document.querySelector('[contenteditable="true"]');
+    const form = composer?.closest('form');
+    if (form && typeof form.requestSubmit === 'function') {
+      form.requestSubmit();
+      return true;
+    }
+    return false;
+  })()`);
+
+  if (!submitted) {
+    await client.call("Input.dispatchKeyEvent", {
+      type: "rawKeyDown",
+      key: "Enter",
+      code: "Enter",
+      windowsVirtualKeyCode: 13,
+      nativeVirtualKeyCode: 13,
+    });
+    await client.call("Input.dispatchKeyEvent", {
+      type: "keyUp",
+      key: "Enter",
+      code: "Enter",
+      windowsVirtualKeyCode: 13,
+      nativeVirtualKeyCode: 13,
+    });
+  }
+  await sleep(700);
+}
+
+function shouldPreSplitChatRepair(prompt) {
+  const value = String(prompt ?? "");
+  const allowedMatch = value.match(/^AllowedPaths=(.+)$/m);
+  const allowedCount = allowedMatch
+    ? allowedMatch[1].split(",").map((item) => item.trim()).filter(Boolean).length
+    : 0;
+  const failureEvidenceLength = value.includes("FailureEvidence:")
+    ? value.slice(value.indexOf("FailureEvidence:")).length
+    : 0;
+  const structuralSignals = [
+    /Recovery strategy/i,
+    /Current file excerpts/i,
+    /FailureEvidence:/i,
+    /Strategy \d/i,
+    /AllowedPaths=/i,
+    /Read AGENTS\.md/i,
+  ].filter((pattern) => pattern.test(value)).length;
+
+  return value.length >= 6000
+    || failureEvidenceLength >= 3500
+    || allowedCount >= 3
+    || structuralSignals >= 4;
+}
+
+function boundedPhaseContext(outputs) {
+  return outputs
+    .slice(-3)
+    .map((value, index) => `PriorPhase${outputs.length - Math.min(outputs.length, 3) + index + 1}:\n${String(value).slice(0, 2200)}`)
+    .join("\n\n");
+}
+
+function buildInitialChatPrompt(prompt, requestMarker, preSplit) {
+  if (!preSplit) {
+    return [
+      requestMarker,
+      "Transport marker only. Do not include it in the answer.",
+      "",
+      prompt,
+    ].join("\n");
+  }
+
+  return [
     requestMarker,
     "Transport marker only. Do not include it in the answer.",
+    "GORIQ_CHAT_PRE_SPLIT=true",
+    `GORIQ_CHAT_RECOVERY_PHASE=1/${CHAT_MAX_PHASES}`,
+    "The repair is being phase-split before execution because it is likely to exceed one minute.",
+    "Phase 1: DIAGNOSIS ONLY.",
+    "Identify the exact failing condition, the exact AllowedPath location involved, and the smallest correction target.",
+    "Do not broaden scope. Do not produce unrelated implementation.",
+    "Your Phase 1 result will be copied and explicitly reflected into Phase 2.",
     "",
+    "Original bounded repair goal:",
     prompt,
   ].join("\n");
+}
+
+function buildChatRecoveryPhasePrompt(phase, reason, marker, priorOutputs = []) {
+  const instructions = {
+    2: [
+      "Micro-Phase 2: DIAGNOSIS ONLY.",
+      "Identify the single concrete failing condition, the exact AllowedPath location that must change, and the smallest intended correction.",
+      "Do not perform broad research or redesign. If the correction is already certain and tiny, you may return the final unified diff now.",
+    ],
+    3: [
+      "Micro-Phase 3: MINIMAL CHANGE CONSTRUCTION.",
+      "Using the diagnosis already in this conversation, reduce the work to one smallest safe code change.",
+      "Do not revisit unrelated possibilities. If ready, return the final unified diff; otherwise state only the exact edit needed for the final phase.",
+    ],
+    4: [
+      "Micro-Phase 4: FINAL DIFF ONLY.",
+      "Use the prior micro-phase findings and return only the smallest valid unified diff.",
+      "If a safe bounded diff is still impossible, return exactly GORIQ_CHAT_PHASE_EXHAUSTED.",
+    ],
+  };
+  return [
+    marker,
+    `GORIQ_CHAT_RECOVERY_PHASE=${phase}/${CHAT_MAX_PHASES}`,
+    `RecoveryReason=${reason}`,
+    "Continue the SAME repair request using the existing conversation context.",
+    "This is a smaller continuation step, not a new task.",
+    "Do not broaden AllowedPaths, authority, permissions, dependencies, tests, workflows, governance, or requirements.",
+    "Keep this micro-phase small enough to finish within one minute.",
+    "Treat all prior phase results as parts of ONE repair, never as separate tasks.",
+    boundedPhaseContext(priorOutputs),
+    ...(instructions[phase] ?? instructions[4]),
+    phase === CHAT_MAX_PHASES
+      ? "FINALIZATION: consolidate the original goal plus every prior phase result into ONE smallest valid unified diff. Return only that single unified diff."
+      : "Your result will be copied and explicitly reflected into the next phase.",
+  ].filter(Boolean).join("\n");
+}
+
+function looksLikeUnifiedDiff(text) {
+  const value = String(text ?? "").trim();
+  return /(?:^|\n)diff --git\s/m.test(value)
+    || /(?:^|\n)---\s+[^\n]+\n\+\+\+\s+/m.test(value);
+}
+
+async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false) {
+  const requestMarker = `GORIQ_BRIDGE_REQUEST_ID=${randomUUID()}`;
+  const preSplit = mode === "chat" && shouldPreSplitChatRepair(prompt);
+  const submittedPrompt = mode === "chat"
+    ? buildInitialChatPrompt(prompt, requestMarker, preSplit)
+    : [
+        requestMarker,
+        "Transport marker only. Do not include it in the answer.",
+        "",
+        prompt,
+      ].join("\n");
   const target = await createChatGptTarget(CHATGPT_URL);
   const client = new CdpClient(target.webSocketDebuggerUrl);
   await client.connect();
@@ -742,63 +907,104 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false) {
       markerUserIndex = -1;
     }
 
-    const deadline = Date.now() + 240000;
-    let candidateFingerprint = "";
-    let lastText = "";
-    let stableSince = 0;
-    let nextClipboardAttemptAt = 0;
-    while (Date.now() < deadline) {
-      const turns = await snapshotConversationMessages(client);
-      const state = await evaluate(client, `(() => ({
-        url: location.href,
-        generating: !!document.querySelector('button[data-testid="stop-button"]')
-          || [...document.querySelectorAll('button')].some((el) => /stop generating|停止/i.test((el.getAttribute('aria-label') || el.textContent || ''))),
-      }))()`);
+    const absoluteDeadline = Date.now() + (mode === "chat" ? CHAT_ABSOLUTE_CEILING_MS : WORK_ABSOLUTE_CEILING_MS);
+    let phase = 1;
+    let phaseStartedAt = Date.now();
+    const phaseOutputs = [];
+    let phaseMarker = requestMarker;
+    let phaseBaselineCopyCount = 0;
+    let completionSignature = "";
+    let completionStableSince = 0;
 
-      const candidate = Array.isArray(turns)
-        ? turns.filter((message) => message.role === "assistant" && message.index > markerUserIndex).at(-1)
-        : undefined;
-      const actionFallbackText = !candidate?.text && (fresh || mode === "work")
-        ? await snapshotAssistantActionFallback(client, requestMarker)
-        : "";
-      let effectiveCandidate = candidate?.text
-        ? candidate
-        : actionFallbackText
-          ? { role: "assistant", id: null, index: markerUserIndex + 1, text: actionFallbackText }
-          : undefined;
+    while (Date.now() < absoluteDeadline) {
+      const state = await snapshotExecutionUiState(client);
 
-      if (!effectiveCandidate?.text && fresh && !state.generating && Date.now() >= nextClipboardAttemptAt) {
-        const copyReady = await hasAssistantCopyControl(client);
-        if (copyReady) {
-          const clipboardText = await copyAssistantAnswerFromUi(client, requestMarker);
-          if (clipboardText) {
-            effectiveCandidate = { role: "assistant", id: null, index: markerUserIndex + 1, text: clipboardText };
-          } else {
-            nextClipboardAttemptAt = Date.now() + 1500;
+      if (state.completionReady && state.copyCount > phaseBaselineCopyCount) {
+        if (state.completionSignature !== completionSignature) {
+          completionSignature = state.completionSignature;
+          completionStableSince = Date.now();
+        } else if (Date.now() - completionStableSince >= COMPLETION_STABLE_MS) {
+          const copied = await copyAssistantAnswerFromUi(client, phaseMarker);
+          if (copied) {
+            if (mode !== "chat") {
+              if (!fresh) {
+                const surfaceUrl = await evaluate(client, "location.href");
+                await writeProjectSurface(mode, String(surfaceUrl || ""));
+              }
+              return copied.slice(0, 8000);
+            }
+
+            phaseOutputs.push(copied);
+
+            const finalPhase = phase >= CHAT_MAX_PHASES;
+            if (finalPhase) {
+              if (looksLikeUnifiedDiff(copied)) {
+                if (!fresh) {
+                  const surfaceUrl = await evaluate(client, "location.href");
+                  await writeProjectSurface(mode, String(surfaceUrl || ""));
+                }
+                return copied.slice(0, 8000);
+              }
+              throw new Error(`CHAT_REPAIR_PHASES_EXHAUSTED: phase=${phase}; reason=final-output-not-diff`);
+            }
+
+            if (!preSplit && phase === 1 && looksLikeUnifiedDiff(copied)) {
+              if (!fresh) {
+                const surfaceUrl = await evaluate(client, "location.href");
+                await writeProjectSurface(mode, String(surfaceUrl || ""));
+              }
+              return copied.slice(0, 8000);
+            }
+
+            if (copied.trim() === "GORIQ_CHAT_PHASE_EXHAUSTED") {
+              throw new Error(`CHAT_REPAIR_PHASES_EXHAUSTED: phase=${phase}; reason=explicit-exhaustion`);
+            }
+
+            phaseBaselineCopyCount = state.copyCount;
+            phase += 1;
+            phaseMarker = `GORIQ_BRIDGE_PHASE_ID=${randomUUID()}`;
+            await submitFollowupPrompt(
+              client,
+              buildChatRecoveryPhasePrompt(phase, preSplit ? "planned-phase-complete" : "intermediate-phase-complete", phaseMarker, phaseOutputs),
+            );
+            phaseStartedAt = Date.now();
+            completionSignature = "";
+            completionStableSince = 0;
+            continue;
           }
-        } else {
-          nextClipboardAttemptAt = Date.now() + 700;
         }
+      } else {
+        completionSignature = "";
+        completionStableSince = 0;
       }
 
-      const currentFingerprint = fingerprintMessage(effectiveCandidate);
-
-      if (effectiveCandidate?.text) {
-        if (candidateFingerprint !== currentFingerprint) {
-          candidateFingerprint = currentFingerprint;
-          lastText = effectiveCandidate.text;
-          stableSince = Date.now();
-        } else if (effectiveCandidate.text !== lastText) {
-          lastText = effectiveCandidate.text;
-          stableSince = Date.now();
-        } else if (!state.generating && Date.now() - stableSince >= 1800) {
-          if (!fresh) {
-            const surfaceUrl = await evaluate(client, "location.href");
-            await writeProjectSurface(mode, String(surfaceUrl || ""));
+      if (mode === "chat") {
+        const phaseExpired = Date.now() - phaseStartedAt >= CHAT_PHASE_BUDGET_MS;
+        if (state.retryVisible || phaseExpired) {
+          if (phase >= CHAT_MAX_PHASES) {
+            if (state.generating) await stopActiveGeneration(client);
+            throw new Error(`CHAT_REPAIR_PHASES_EXHAUSTED: phase=${phase}; reason=${state.retryVisible ? "retry-visible" : "one-minute-budget"}`);
           }
-          return lastText.slice(0, 8000);
+
+          if (state.generating) {
+            await stopActiveGeneration(client);
+            await sleep(500);
+          }
+
+          phaseBaselineCopyCount = state.copyCount;
+          phase += 1;
+          phaseMarker = `GORIQ_BRIDGE_PHASE_ID=${randomUUID()}`;
+          const reason = state.retryVisible ? "retry-visible" : "one-minute-budget";
+          await submitFollowupPrompt(client, buildChatRecoveryPhasePrompt(phase, reason, phaseMarker, phaseOutputs));
+          phaseStartedAt = Date.now();
+          completionSignature = "";
+          completionStableSince = 0;
+          continue;
         }
+      } else if (state.retryVisible) {
+        throw new Error("WORK_REPAIR_RETRY_REQUIRED");
       }
+
       await sleep(700);
     }
     const diagnostic = await evaluate(client, `(() => {
