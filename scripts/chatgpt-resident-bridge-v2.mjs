@@ -480,7 +480,7 @@ async function copyAssistantAnswerFromUi(client, requestMarker) {
         const rect = el.getBoundingClientRect();
         return rect.width > 0 && rect.height > 0;
       };
-      const buttons = [...document.querySelectorAll('main button')].filter((button) => {
+      const buttons = [...document.querySelectorAll('button')].filter((button) => {
         if (!visible(button) || button.disabled) return false;
         const label = normalize(button.getAttribute('aria-label') || button.textContent || '');
         return /^(コピーする|copy)$/i.test(label);
@@ -549,20 +549,26 @@ async function snapshotExecutionUiState(client) {
       const rect = el.getBoundingClientRect();
       return rect.width > 0 && rect.height > 0;
     };
-    const buttons = [...document.querySelectorAll('main button')].filter(visible);
-    const labels = buttons.map((button) =>
+    const allButtons = [...document.querySelectorAll('button')].filter(visible);
+    const mainButtons = [...document.querySelectorAll('main button')].filter(visible);
+    const labels = (buttons) => buttons.map((button) =>
       normalize([button.getAttribute('aria-label'), button.getAttribute('data-testid'), button.textContent].filter(Boolean).join(' '))
     ).filter(Boolean);
+    const allLabels = labels(allButtons);
+    const mainLabels = labels(mainButtons);
     const generating = !!document.querySelector('button[data-testid="stop-button"]')
-      || labels.some((value) => /stop generating|停止/i.test(value));
-    const retryVisible = labels.some((value) => /^(再試行|retry)$/i.test(value));
-    const copyReady = labels.some((value) => /^(コピーする|copy)$/i.test(value));
-    const readAloudReady = labels.some((value) => /読み上げ|read aloud/i.test(value));
-    const regenerateReady = labels.some((value) => /回答を再生成|regenerate/i.test(value));
-    const progressLabel = labels.findLast((value) => /作業しました|working|thinking|reasoning/i.test(value)) || '';
+      || mainLabels.some((value) => /stop generating|停止/i.test(value));
+    const retryVisible = mainLabels.some((value) => /^(再試行|retry)$/i.test(value));
+    const assistantLabels = allLabels.filter((value) =>
+      /^(コピーする|copy)$|読み上げ|read aloud|回答を再生成|regenerate/i.test(value)
+    );
+    const copyReady = assistantLabels.some((value) => /^(コピーする|copy)$/i.test(value));
+    const readAloudReady = assistantLabels.some((value) => /読み上げ|read aloud/i.test(value));
+    const regenerateReady = assistantLabels.some((value) => /回答を再生成|regenerate/i.test(value));
+    const progressLabel = mainLabels.findLast((value) => /作業しました|working|thinking|reasoning/i.test(value)) || '';
     const mainText = document.querySelector('main')?.innerText || '';
     const tail = mainText.slice(-240);
-    const copyCount = labels.filter((value) => /^(コピーする|copy)$/i.test(value)).length;
+    const copyCount = assistantLabels.filter((value) => /^(コピーする|copy)$/i.test(value)).length;
     return {
       generating,
       retryVisible,
