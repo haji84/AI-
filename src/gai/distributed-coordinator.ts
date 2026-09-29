@@ -47,7 +47,11 @@ export class MemoryCoordinatorStore implements CoordinatorStore {
 }
 
 export class JsonFileCoordinatorStore implements CoordinatorStore {
-  constructor(private readonly filePath: string) {}
+  private readonly filePath: string;
+
+  constructor(filePath: string) {
+    this.filePath = filePath;
+  }
 
   async load(): Promise<CoordinatorLease | null> {
     try {
@@ -149,12 +153,16 @@ export function coordinatorCandidateScore(input: {
 export class DistributedCoordinatorRuntime {
   private loaded = false;
   private lease: CoordinatorLease | null = null;
+  private readonly store: CoordinatorStore;
+  private readonly clusterId: string;
 
   constructor(
-    private readonly store: CoordinatorStore,
-    private readonly clusterId: string,
+    store: CoordinatorStore,
+    clusterId: string,
   ) {
     if (!clusterId.trim()) throw new Error("clusterId is required");
+    this.store = store;
+    this.clusterId = clusterId;
   }
 
   async initialize(): Promise<void> {
