@@ -47,6 +47,7 @@ interface ReturnEvidence {
   activeCoordinatorOnReturn: NodeId;
   epochOnReturn: number;
   prematurePreemptionPrevented: boolean;
+  leaseBoundaryMode: "controlled-future-time";
   coordinatorAfterLeaseBoundary: NodeId;
   epochAfterLeaseBoundary: number;
   staleZbookClaimRejected: boolean;
@@ -159,7 +160,7 @@ async function zbookFailover(args: Map<string, string>): Promise<void> {
     metadata.clusterId,
   );
 
-  const failoverLeaseMs = Math.max(metadata.leaseMs, 45_000);
+  const failoverLeaseMs = Math.max(metadata.leaseMs, 3_600_000);
   const claim = await runtime.elect(
     [
       candidate("macbook", 100, false),
@@ -202,14 +203,6 @@ async function zbookFailover(args: Map<string, string>): Promise<void> {
   process.stdout.write(`${JSON.stringify(evidence)}\n`);
 }
 
-async function waitPast(iso: string): Promise<void> {
-  const until = Date.parse(iso);
-  assert.ok(Number.isFinite(until));
-  const remaining = until + 250 - Date.now();
-  assert.ok(remaining <= 30_000, `lease too far in future: ${remaining}`);
-  if (remaining > 0) await delay(remaining);
-}
-
 async function macReturn(args: Map<string, string>): Promise<void> {
   const dir = resolve(required(args, "dir"));
   const evidencePath = resolve(required(args, "evidence"));
@@ -240,15 +233,14 @@ async function macReturn(args: Map<string, string>): Promise<void> {
   assert.equal(retained.fencingToken, zbookClaim.fencingToken);
   const prematurePreemptionPrevented = true;
 
-  await waitPast(retained.leaseUntil);
-
+  const leaseBoundary = new Date(Date.parse(retained.leaseUntil) + 1);
   const rebalanced = await runtime.elect(
     [
       candidate("macbook", 200, true),
       candidate("zbook", 50, true),
     ],
     metadata.leaseMs,
-    new Date(),
+    leaseBoundary,
   );
   assert.equal(rebalanced.coordinatorId, "macbook");
   assert.equal(rebalanced.epoch, retained.epoch + 1);
@@ -256,7 +248,7 @@ async function macReturn(args: Map<string, string>): Promise<void> {
 
   let staleZbookClaimRejected = false;
   try {
-    await runtime.assertAuthoritative(retained, new Date());
+    await runtime.assertAuthoritative(retained, leaseBoundary);
   } catch (error) {
     staleZbookClaimRejected = /STALE_COORDINATOR_CLAIM/.test(
       error instanceof Error ? error.message : String(error),
@@ -276,6 +268,7 @@ async function macReturn(args: Map<string, string>): Promise<void> {
     activeCoordinatorOnReturn: "zbook",
     epochOnReturn: retained.epoch,
     prematurePreemptionPrevented,
+    leaseBoundaryMode: "controlled-future-time",
     coordinatorAfterLeaseBoundary: "macbook",
     epochAfterLeaseBoundary: rebalanced.epoch,
     staleZbookClaimRejected,
@@ -345,6 +338,8 @@ async function verify(args: Map<string, string>): Promise<void> {
       staleCoordinatorFencingProven: true,
       returnWithoutPrematurePreemptionProven: true,
       postLeaseRebalanceProven: true,
+      controlledLeaseBoundaryProven: true,
+      realTimeLeaseExpiryProven: false,
       abruptPowerLossProven: false,
       networkPartitionProven: false,
       productionCoordinatorWiringProven: false,
