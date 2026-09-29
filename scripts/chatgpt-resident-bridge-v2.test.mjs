@@ -261,3 +261,20 @@ test("trusted Copy scrolls the newest phase control into the viewport before cli
   assert.match(source, /y > window\.innerHeight/);
   assert.match(source, /Input\.dispatchMouseEvent/);
 });
+
+test("bridge v2 uses project session registry and does not default every request to fresh Chat", () => {
+  const source = readFileSync("scripts/chatgpt-resident-bridge-v2.mjs", "utf8");
+  assert.match(source, /chatgpt-project-sessions\.json/);
+  assert.match(source, /selectBridgeSession/);
+  assert.match(source, /decision\.session\?\.url/);
+  assert.match(source, /decision\.createNew/);
+  assert.match(source, /recordProjectSession/);
+  assert.doesNotMatch(source, /const surface = repairSurfaceFromPending\(pending\);\s*const answer = await submitPromptAndReadAnswer\(prompt, surface/);
+});
+
+test("bridge prompt includes project goal and selected session policy", () => {
+  const source = readFileSync("scripts/chatgpt-resident-bridge-lib.mjs", "utf8");
+  assert.match(source, /GORIQ Goal:/);
+  assert.match(source, /Selected surface:/);
+  assert.match(source, /inferBridgeTaskContext/);
+});
