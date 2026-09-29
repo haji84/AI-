@@ -19,10 +19,11 @@ test("resident bridge v2 opens ChatGPT only through the Automation project surfa
   assert.doesNotMatch(source, /createFreshChatGptTarget/);
 });
 
-test("resident bridge v2 excludes pre-existing assistant messages", () => {
-  assert.match(source, /snapshotAssistantMessages/);
-  assert.match(source, /baselineFingerprints/);
-  assert.match(source, /newMessages = messages\.filter/);
+test("resident bridge v2 excludes pre-existing assistant messages by exact turn ordering", () => {
+  assert.match(source, /snapshotConversationMessages/);
+  assert.match(source, /markerUserIndex/);
+  assert.match(source, /message\.role === "assistant" && message\.index > markerUserIndex/);
+  assert.doesNotMatch(source, /baselineFingerprints/);
 });
 
 test("resident bridge v2 closes its disposable target", () => {
