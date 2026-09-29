@@ -4,6 +4,17 @@ import test from "node:test";
 
 const scriptPath = "scripts/configure-groq-free-secret-windows.ps1";
 
+test("Groq configurator auto-watches clipboard in VSCode terminal", async () => {
+  const source = await readFile(scriptPath, "utf8");
+
+  assert.match(source, /TERM_PROGRAM.*vscode/);
+  assert.match(source, /VSCODE_PID/);
+  assert.match(source, /Wait-ForGroqClipboardKey -TimeoutSeconds 120/);
+  assert.match(source, /Do not paste the key into the terminal/);
+  assert.match(source, /Groq key detected from Windows clipboard/);
+  assert.doesNotMatch(source, /Substring\(0, 4\)/);
+});
+
 test("Groq configurator uses Windows clipboard API with PowerShell fallback", async () => {
   const source = await readFile(scriptPath, "utf8");
 
