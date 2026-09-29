@@ -469,6 +469,41 @@ function writeMacClipboardText(text) {
   });
 }
 
+async function markPhaseCopyBaseline(client) {
+  return evaluate(client, `(() => {
+    document.querySelectorAll('[data-goriq-phase-baseline]').forEach((el) => el.removeAttribute('data-goriq-phase-baseline'));
+    const visible = (el) => {
+      const rect = el.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    };
+    const exactCopies = [...document.querySelectorAll('button')].filter((button) => {
+      if (!visible(button) || button.disabled) return false;
+      const label = String(button.getAttribute('aria-label') || button.textContent || '').replace(/\\s+/g, ' ').trim();
+      return /^(コピーする|copy)$/i.test(label);
+    });
+    const last = exactCopies.at(-1);
+    if (!last) return false;
+    last.setAttribute('data-goriq-phase-baseline', 'true');
+    return true;
+  })()`);
+}
+
+async function hasNewPhaseCopyAction(client) {
+  return evaluate(client, `(() => {
+    const visible = (el) => {
+      const rect = el.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    };
+    const exactCopies = [...document.querySelectorAll('button')].filter((button) => {
+      if (!visible(button) || button.disabled) return false;
+      const label = String(button.getAttribute('aria-label') || button.textContent || '').replace(/\\s+/g, ' ').trim();
+      return /^(コピーする|copy)$/i.test(label);
+    });
+    const last = exactCopies.at(-1);
+    return !!last && last.getAttribute('data-goriq-phase-baseline') !== 'true';
+  })()`);
+}
+
 async function copyAssistantAnswerFromUi(client, requestMarker) {
   const previousClipboard = await readMacClipboardText();
   const sentinel = `GORIQ_CLIPBOARD_SENTINEL_${randomUUID()}`;
@@ -579,38 +614,6 @@ async function snapshotExecutionUiState(client) {
       completionReady: !generating && copyReady && (readAloudReady || regenerateReady) && !retryVisible,
       completionSignature: JSON.stringify([copyCount, copyReady, readAloudReady, regenerateReady, retryVisible]),
       activitySignature: JSON.stringify([generating, retryVisible, copyReady, readAloudReady, regenerateReady, progressLabel, mainText.length, tail]),
-    };
-  })()`);
-}
-
-async function snapshotSafeControlDiagnostics(client) {
-  return evaluate(client, `(() => {
-    const visible = (el) => {
-      const rect = el.getBoundingClientRect();
-      return rect.width > 0 && rect.height > 0;
-    };
-    const clean = (value) => String(value || '').replace(/\\s+/g, ' ').trim().slice(0, 120);
-    const nodes = [...document.querySelectorAll('button,[role="button"]')].filter(visible).slice(-80);
-    const controls = nodes.map((el) => ({
-      tag: el.tagName.toLowerCase(),
-      role: clean(el.getAttribute('role')),
-      aria: clean(el.getAttribute('aria-label')),
-      testid: clean(el.getAttribute('data-testid')),
-      title: clean(el.getAttribute('title')),
-      text: clean(el.textContent),
-      inMain: !!el.closest('main'),
-    }));
-    const labels = controls.map((item) => [item.aria, item.testid, item.title, item.text].filter(Boolean).join(' '));
-    return {
-      visibleControlCount: nodes.length,
-      candidates: {
-        stop: labels.filter((value) => /stop generating|停止/i.test(value)).length,
-        retry: labels.filter((value) => /retry|再試行/i.test(value)).length,
-        copy: labels.filter((value) => /copy|コピー/i.test(value)).length,
-        readAloud: labels.filter((value) => /read aloud|読み上げ/i.test(value)).length,
-        regenerate: labels.filter((value) => /regenerate|再生成/i.test(value)).length,
-      },
-      controls,
     };
   })()`);
 }
@@ -950,14 +953,15 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false) {
     let phaseStartedAt = Date.now();
     const phaseOutputs = [];
     let phaseMarker = requestMarker;
-    let phaseBaselineCopyCount = 0;
+    await markPhaseCopyBaseline(client);
     let completionSignature = "";
     let completionStableSince = 0;
 
     while (Date.now() < absoluteDeadline) {
       const state = await snapshotExecutionUiState(client);
 
-      if (state.completionReady && state.copyCount > phaseBaselineCopyCount) {
+      const newPhaseCopyReady = state.completionReady && await hasNewPhaseCopyAction(client);
+      if (newPhaseCopyReady) {
         if (state.completionSignature !== completionSignature) {
           completionSignature = state.completionSignature;
           completionStableSince = Date.now();
@@ -998,7 +1002,7 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false) {
               throw new Error(`CHAT_REPAIR_PHASES_EXHAUSTED: phase=${phase}; reason=explicit-exhaustion`);
             }
 
-            phaseBaselineCopyCount = state.copyCount;
+            await markPhaseCopyBaseline(client);
             phase += 1;
             phaseMarker = `GORIQ_BRIDGE_PHASE_ID=${randomUUID()}`;
             await submitFollowupPrompt(
@@ -1021,8 +1025,6 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false) {
         if (state.retryVisible || phaseExpired) {
           if (phase >= CHAT_MAX_PHASES) {
             if (state.generating) await stopActiveGeneration(client);
-            const diagnostics = await snapshotSafeControlDiagnostics(client);
-            console.log(`[bridge] ${new Date().toISOString()} phase-exhausted-ui: ${JSON.stringify(diagnostics)}`);
             throw new Error(`CHAT_REPAIR_PHASES_EXHAUSTED: phase=${phase}; reason=${state.retryVisible ? "retry-visible" : "one-minute-budget"}`);
           }
 
@@ -1031,7 +1033,7 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false) {
             await sleep(500);
           }
 
-          phaseBaselineCopyCount = state.copyCount;
+          await markPhaseCopyBaseline(client);
           phase += 1;
           phaseMarker = `GORIQ_BRIDGE_PHASE_ID=${randomUUID()}`;
           const reason = state.retryVisible ? "retry-visible" : "one-minute-budget";
