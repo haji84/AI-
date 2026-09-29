@@ -26,7 +26,7 @@ while true; do
     # The watchdog already protects active Runner.Worker jobs and serializes
     # itself with a lock. The supervisor is intentionally independent of the
     # GitHub runner and only asks that watchdog to evaluate local health.
-    if ! GAI_RUNNER_ROOT="$RUNNER_ROOT" /bin/bash "$WATCHDOG" >>"$LOG" 2>&1; then
+    if ! GAI_RUNNER_ROOT="$RUNNER_ROOT" GAI_RUNNER_FAILURE_THRESHOLD=2 /bin/bash "$WATCHDOG" >>"$LOG" 2>&1; then
       log "Watchdog iteration returned non-zero; supervisor remains alive."
     fi
   fi
