@@ -94,3 +94,21 @@ test("Mac persistence does not restart launchd while a Runner.Worker is active",
   assert.match(installer, /launchdReconcileDeferred/);
   assert.match(installer, /activeRunnerWorkerDuringInstall/);
 });
+
+
+test("Mac broker conflict cooldown survives Listener exit and outranks TCP health", () => {
+  const watchdog = readFileSync(watchdogPath, "utf8");
+  assert.match(watchdog, /RUNNER_SESSION_CONFLICT_STATE=.*macbook-runner-session-conflict\.epoch/);
+  assert.match(watchdog, /recent_conflict=false/);
+  assert.match(watchdog, /now - since < RUNNER_SESSION_CONFLICT_GRACE_SECONDS/);
+  assert.doesNotMatch(watchdog, /\[\[ -n "\$listeners" \]\] \|\| \{\s*rm -f "\$RUNNER_SESSION_CONFLICT_STATE"/);
+
+  const connectionStart = watchdog.indexOf("runner_connection_healthy()");
+  const conflictCheck = watchdog.indexOf("runner_log_has_active_session_conflict", connectionStart);
+  const tcpProbe = watchdog.indexOf("/usr/sbin/lsof", connectionStart);
+  assert.ok(connectionStart >= 0 && conflictCheck > connectionStart && tcpProbe > conflictCheck);
+
+  const activeBranch = watchdog.indexOf('elif [[ "$runner_protected_by_active_job" == true ]]');
+  const clearState = watchdog.indexOf('rm -f "$RUNNER_SESSION_CONFLICT_STATE"', activeBranch);
+  assert.ok(activeBranch >= 0 && clearState > activeBranch);
+});

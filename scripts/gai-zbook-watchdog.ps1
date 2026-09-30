@@ -10,6 +10,7 @@ $logPath = Join-Path $stateRoot 'zbook-watchdog.log'
 $runnerHealthStatePath = Join-Path $stateRoot 'zbook-runner-health.json'
 $runnerFailureThreshold = if ($env:GAI_RUNNER_FAILURE_THRESHOLD -match '^\d+$') { [int]$env:GAI_RUNNER_FAILURE_THRESHOLD } else { 2 }
 $runnerSessionConflictGraceMinutes = if ($env:GAI_RUNNER_SESSION_CONFLICT_GRACE_MINUTES -match '^\d+$') { [Math]::Min([Math]::Max([int]$env:GAI_RUNNER_SESSION_CONFLICT_GRACE_MINUTES, 2), 30) } else { 10 }
+$runnerSessionConflictStatePath = Join-Path $stateRoot 'zbook-runner-session-conflict.epoch'
 $watchdogScriptPath = $PSCommandPath
 
 function Write-GaiLog([string]$Message) {
@@ -106,15 +107,7 @@ function Get-LatestRunnerLog {
     Select-Object -First 1
 }
 
-function Test-RunnerSessionConflictGrace {
-  $listeners = @(Get-Process -Name 'Runner.Listener' -ErrorAction SilentlyContinue)
-  if ($listeners.Count -eq 0) { return $false }
-
-  $oldestStart = ($listeners | Sort-Object StartTime | Select-Object -First 1).StartTime.ToUniversalTime()
-  if ($oldestStart -lt (Get-Date).ToUniversalTime().AddMinutes(-$runnerSessionConflictGraceMinutes)) {
-    return $false
-  }
-
+function Test-LatestRunnerSessionConflict {
   $latestLog = Get-LatestRunnerLog
   if (-not $latestLog) { return $false }
 
@@ -137,9 +130,42 @@ function Test-RunnerSessionConflictGrace {
   }
 }
 
+function Test-RunnerSessionConflictGrace {
+  $now = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+  $since = 0
+  if (Test-Path $runnerSessionConflictStatePath) {
+    try {
+      $rawSince = (Get-Content -Raw -Path $runnerSessionConflictStatePath).Trim()
+      if ($rawSince -match '^\d+$') { $since = [long]$rawSince }
+    } catch {
+      $since = 0
+    }
+  }
+
+  $latestLog = Get-LatestRunnerLog
+  $recentConflict = $false
+  if ($latestLog -and (Test-LatestRunnerSessionConflict)) {
+    $recentConflict = $latestLog.LastWriteTimeUtc -gt (Get-Date).ToUniversalTime().AddMinutes(-2)
+  }
+
+  if ($recentConflict -and $since -le 0) {
+    $since = $now
+    Set-Content -Path $runnerSessionConflictStatePath -Value ([string]$since) -Encoding ASCII
+  }
+
+  if ($since -gt 0 -and ($now - $since) -lt ($runnerSessionConflictGraceMinutes * 60)) {
+    return $true
+  }
+
+  Remove-Item -Path $runnerSessionConflictStatePath -Force -ErrorAction SilentlyContinue
+  return $false
+}
+
 function Test-RunnerConnection {
   $listeners = @(Get-Process -Name 'Runner.Listener' -ErrorAction SilentlyContinue)
   if ($listeners.Count -eq 0) { return $false }
+
+  if (Test-LatestRunnerSessionConflict) { return $false }
 
   # A healthy self-hosted listener maintains at least one established outbound
   # connection to GitHub's runner service. Merely seeing Runner.Listener is not
@@ -206,6 +232,7 @@ $runnerRecoveryDeferred = $false
 $consecutiveRunnerFailures = Get-ConsecutiveRunnerFailures
 
 if ($runnerProtectedByActiveJob) {
+  Remove-Item -Path $runnerSessionConflictStatePath -Force -ErrorAction SilentlyContinue
   if (-not $runnerConnectionHealthy) {
     Write-GaiLog 'GitHub runner connection probe is unhealthy, but Runner.Worker is active. Skipping recycle.'
   }
@@ -214,6 +241,7 @@ if ($runnerProtectedByActiveJob) {
     $consecutiveRunnerFailures = 0
   }
 } elseif ($runnerConnectionHealthy) {
+  Remove-Item -Path $runnerSessionConflictStatePath -Force -ErrorAction SilentlyContinue
   if ($consecutiveRunnerFailures -ne 0) {
     Set-ConsecutiveRunnerFailures 0
     $consecutiveRunnerFailures = 0

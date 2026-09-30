@@ -123,30 +123,29 @@ runner_log_has_active_session_conflict() {
 }
 
 runner_session_conflict_grace_active() {
-  local listeners=''
-  listeners="$(pgrep -f 'Runner.Listener' 2>/dev/null || true)"
-  [[ -n "$listeners" ]] || {
-    rm -f "$RUNNER_SESSION_CONFLICT_STATE"
-    return 1
-  }
+  local now=0
+  now="$(date +%s)"
+
+  local since=''
+  since="$(cat "$RUNNER_SESSION_CONFLICT_STATE" 2>/dev/null || true)"
 
   local file=''
   file="$(latest_runner_log || true)"
-  if [[ -z "$file" ]] || ! runner_log_has_active_session_conflict "$file"; then
-    rm -f "$RUNNER_SESSION_CONFLICT_STATE"
-    return 1
+  local recent_conflict=false
+  if [[ -n "$file" ]] && runner_log_has_active_session_conflict "$file"; then
+    local conflict_log_mtime=0
+    conflict_log_mtime="$(stat -f '%m' "$file" 2>/dev/null || printf '0')"
+    if [[ "$conflict_log_mtime" =~ ^[0-9]+$ ]] && (( conflict_log_mtime > 0 && now - conflict_log_mtime < RUNNER_DIAG_GRACE_SECONDS )); then
+      recent_conflict=true
+    fi
   fi
 
-  local now=0
-  now="$(date +%s)"
-  local since=''
-  since="$(cat "$RUNNER_SESSION_CONFLICT_STATE" 2>/dev/null || true)"
-  if [[ ! "$since" =~ ^[0-9]+$ ]]; then
+  if [[ "$recent_conflict" == true && ! "$since" =~ ^[0-9]+$ ]]; then
     since="$now"
     printf '%s\n' "$since" >"$RUNNER_SESSION_CONFLICT_STATE"
   fi
 
-  if (( now - since < RUNNER_SESSION_CONFLICT_GRACE_SECONDS )); then
+  if [[ "$since" =~ ^[0-9]+$ ]] && (( now - since < RUNNER_SESSION_CONFLICT_GRACE_SECONDS )); then
     return 0
   fi
 
@@ -158,6 +157,12 @@ runner_connection_healthy() {
   local listeners=''
   listeners="$(pgrep -f 'Runner.Listener' 2>/dev/null || true)"
   [[ -n "$listeners" ]] || return 1
+
+  local conflict_log=''
+  conflict_log="$(latest_runner_log || true)"
+  if [[ -n "$conflict_log" ]] && runner_log_has_active_session_conflict "$conflict_log"; then
+    return 1
+  fi
 
   if [[ -x /usr/sbin/lsof ]]; then
     local pid=''
@@ -299,6 +304,7 @@ if [[ "$maintenance_hold_active" == true ]]; then
   log "Maintenance hold active until epoch $maintenance_hold_until; skipping runner recycle."
 elif [[ "$runner_protected_by_active_job" == true ]]; then
   runner_healthy=true
+  rm -f "$RUNNER_SESSION_CONFLICT_STATE"
   if [[ "$runner_connection_ok" != true ]]; then
     log 'GitHub runner connection probe is unhealthy, but Runner.Worker is active. Skipping recycle.'
   fi
