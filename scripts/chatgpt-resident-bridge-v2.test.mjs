@@ -356,3 +356,17 @@ test("submit failure records bounded UI diagnostics without logging prompt text"
   assert.match(source, /controls,/);
   assert.doesNotMatch(source, /CHATGPT_SUBMIT_FAILED:[^\n]*composerText=/);
 });
+
+test("ordinary reused Chat correlates new answers against baseline assistant identity or text", () => {
+  assert.match(source, /baselineLastAssistant/);
+  assert.match(source, /baselineAssistantMessages\.at\(-1\)/);
+  assert.match(source, /assistantId !== baselineId/);
+  assert.match(source, /state\.text !== baselineText/);
+  assert.match(source, /hasNewAssistant/);
+});
+
+test("ordinary Chat progress diagnostics are bounded and omit assistant text content", () => {
+  assert.match(source, /ordinary-chat-wait:/);
+  assert.match(source, /textLength=/);
+  assert.doesNotMatch(source, /ordinary-chat-wait:[^\n]*\$\{state\?\.text\}/);
+});
