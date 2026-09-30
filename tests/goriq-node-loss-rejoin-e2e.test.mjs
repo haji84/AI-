@@ -91,3 +91,15 @@ test("destructive Stage B node-loss workflow is manual-only", async () => {
   assert.match(workflow, /on:\s*\n\s*workflow_dispatch:/);
   assert.doesNotMatch(workflow, /\n\s*push:\s*\n/);
 });
+
+
+test("Stage B rejoin proof uses fresh live runner process status on both nodes", async () => {
+  const workflow = await readFile(".github/workflows/goriq-stage-b-node-loss-rejoin.yml", "utf8");
+  assert.match(workflow, /macbook-live-status\.json/);
+  assert.match(workflow, /zbook-live-status\.json/);
+  assert.match(workflow, /runnerProtectedByActiveJob/);
+  assert.match(workflow, /activeRunnerWorkers/);
+  assert.match(workflow, /Runner\.Worker parent is not Runner\.Listener/);
+  assert.doesNotMatch(workflow, /--status "\$STATE_ROOT\/macbook-watchdog-status\.json"/);
+  assert.doesNotMatch(workflow, /--status \(Join-Path \$stateRoot 'zbook-watchdog-status\.json'\)/);
+});
