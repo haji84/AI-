@@ -25,17 +25,16 @@ test("Mac Production Sync emits sanitized resident Bridge diagnostics",async()=>
   assert.doesNotMatch(s,/pendingOwnerPayload/);
 });
 
-test("Bridge diagnostic waits for execution to advance beyond routing",async()=>{
-  const s=await wf();
-  assert.match(s,/seq 1 30/);
-  assert.match(s,/stage!="routing"|\$stage" != "routing"/);
-  assert.match(s,/composer-focused/);
-});
-
 test("Bridge diagnostic capture rejects stale pre-reconcile state",async()=>{
   const s=await wf();
   assert.match(s,/MIN_UPDATED_AT="\$\(date -u \+%s\)"/);
   assert.match(s,/Date\.parse\(String\(x\.updatedAt\|\|""\)\)/);
   assert.match(s,/updated_epoch/);
   assert.match(s,/-ge "\$MIN_UPDATED_AT"/);
+});
+
+test("Bridge diagnostic capture waits for late or terminal execution stages",async()=>{
+  const s=await wf();
+  assert.match(s,/submission-check\|session-persisted-on-submit\|ordinary-chat-wait\|ordinary-chat-answer-detected\|synced\|error/);
+  assert.match(s,/errorCode/);
 });

@@ -287,15 +287,19 @@ jobs:
           for _ in $(seq 1 30); do
             if [[ -s "$FILE" ]]; then
               read -r stage updated_epoch <<<"$(node -e 'const fs=require("fs");const x=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));const t=Date.parse(String(x.updatedAt||""));process.stdout.write(String(x.stage||"")+" "+(Number.isFinite(t)?String(Math.floor(t/1000)):"0"));' "$FILE" 2>/dev/null || printf " 0")"
-              if [[ -n "$stage" && "$stage" != "routing" && "$stage" != "composer-focused" && "$updated_epoch" =~ ^[0-9]+$ && "$updated_epoch" -ge "$MIN_UPDATED_AT" ]]; then
-                break
+              if [[ "$updated_epoch" =~ ^[0-9]+$ && "$updated_epoch" -ge "$MIN_UPDATED_AT" ]]; then
+                case "$stage" in
+                  submission-check|session-persisted-on-submit|ordinary-chat-wait|ordinary-chat-answer-detected|synced|error)
+                    break
+                    ;;
+                esac
               fi
             fi
             sleep 2
           done
           echo "BRIDGE_DIAGNOSTIC_BEGIN"
           if [[ -s "$FILE" ]]; then
-            node -e 'const fs=require("fs");const x=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));const allowed=["stage","updatedAt","pid","issueNumber","selectedSurface","sessionReuse","createNew","hasGoalId","mode","fresh","repairMode","found","testid","aria","type","submitted","userCount","composerRemaining","composerInForm","composerInMain","assistantCount","baselineCount","assistantIdChanged","textChanged","generating","textLength","answerLength"];const y={};for(const k of allowed)if(k in x)y[k]=x[k];console.log(JSON.stringify(y));' "$FILE"
+            node -e 'const fs=require("fs");const x=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));const allowed=["stage","updatedAt","pid","issueNumber","selectedSurface","sessionReuse","createNew","hasGoalId","mode","fresh","repairMode","found","testid","aria","type","submitted","userCount","composerRemaining","composerInForm","composerInMain","assistantCount","baselineCount","assistantIdChanged","textChanged","generating","textLength","answerLength","errorCode"];const y={};for(const k of allowed)if(k in x)y[k]=x[k];console.log(JSON.stringify(y));' "$FILE"
           else
             echo '{"stage":"missing"}'
           fi

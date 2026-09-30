@@ -1563,6 +1563,10 @@ async function runLoop() {
           } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
             const status = message === "CHATGPT_LOGIN_REQUIRED" ? "waiting_for_chatgpt_login" : "error";
+            await setExecutionDiagnostic("error", {
+              issueNumber: issue.number,
+              errorCode: String(message).split(/[;:]/, 1)[0].slice(0, 160),
+            });
             await setHealth(status, `${message}; GitHub pending preserved`, { issueNumber: issue.number });
           }
         }
