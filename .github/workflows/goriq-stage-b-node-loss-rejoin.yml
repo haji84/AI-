@@ -64,8 +64,9 @@ jobs:
           test -n "$worker_pid"
           test -n "$old_pid"
           listener_comm="$(ps -o comm= -p "$old_pid" | tr -d ' ' || true)"
-          echo "Mac runner process discovery: workerPid=$worker_pid listenerPid=$old_pid listenerComm=$(basename "$listener_comm")"
-          if [[ "$old_pid" == "1" || "$old_pid" == "$worker_pid" || "$listener_comm" != *"Runner.Listener"* ]]; then
+          old_started_at="$(ps -o lstart= -p "$old_pid" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' || true)"
+          echo "Mac runner process discovery: workerPid=$worker_pid listenerPid=$old_pid listenerStartedAt=$old_started_at listenerComm=$(basename "$listener_comm")"
+          if [[ "$old_pid" == "1" || "$old_pid" == "$worker_pid" || "$listener_comm" != *"Runner.Listener"* || -z "$old_started_at" ]]; then
             echo "Refusing unsafe listener target: pid=$old_pid comm=$(basename "$listener_comm")" >&2
             exit 3
           fi
@@ -76,7 +77,7 @@ jobs:
             echo "MacBook Runner.Listener pid=$old_pid did not stop" >&2
             exit 2
           fi
-          printf '{"version":1,"runId":"%s","node":"macbook","oldPid":%s,"lossObservedAt":"%s"}\n' "$RUN_ID" "$old_pid" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >"$LOSS_FILE"
+          printf '{"version":1,"runId":"%s","node":"macbook","oldPid":%s,"oldStartedAt":"%s","lossObservedAt":"%s"}\n' "$RUN_ID" "$old_pid" "$old_started_at" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >"$LOSS_FILE"
           echo "MacBook Runner.Listener loss observed."
 
   zbook-survives-mac:
@@ -133,12 +134,15 @@ jobs:
           new_pid="$(ps -o ppid= -p "$worker_pid" | tr -d ' ')"
           test -n "$new_pid"
           listener_comm="$(ps -o comm= -p "$new_pid" | tr -d ' ' || true)"
+          new_started_at="$(ps -o lstart= -p "$new_pid" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' || true)"
           [[ "$listener_comm" == *"Runner.Listener"* ]]
+          [[ -n "$new_started_at" ]]
+          echo "Mac rejoin process identity: listenerPid=$new_pid listenerStartedAt=$new_started_at"
           active_workers="$(pgrep -f 'Runner.Worker' | wc -l | tr -d ' ')"
           [[ "$active_workers" =~ ^[0-9]+$ ]] && (( active_workers > 0 ))
           LIVE_STATUS="$STATE_ROOT/stage-b-node-loss-${RUN_ID}-macbook-live-status.json"
           printf '{"workerId":"macbook","runnerHealthy":true,"runnerConnectionHealthy":false,"runnerProtectedByActiveJob":true,"activeRunnerWorkers":%s,"checkedAt":"%s"}\n' "$active_workers" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >"$LIVE_STATUS"
-          printf '{"version":1,"runId":"%s","node":"macbook","newPid":%s,"recoveredAt":"%s"}\n' "$RUN_ID" "$new_pid" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >"$RECOVERY_FILE"
+          printf '{"version":1,"runId":"%s","node":"macbook","newPid":%s,"newStartedAt":"%s","recoveredAt":"%s"}\n' "$RUN_ID" "$new_pid" "$new_started_at" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >"$RECOVERY_FILE"
           node scripts/goriq-node-loss-rejoin-e2e.mjs --phase rejoin --node macbook --platform darwin --sha "$GITHUB_SHA" --loss "$STATE_ROOT/stage-b-node-loss-${RUN_ID}-macbook-loss.json" --recovery "$RECOVERY_FILE" --status "$LIVE_STATUS" --survivor .goriq-stage-b/node-loss/survivor/mac-to-zbook-survivor.json --output .goriq-stage-b/node-loss/evidence/macbook-rejoin.json
           rm -f "$STATE_ROOT/stage-b-node-loss-${RUN_ID}-macbook-loss.json" "$RECOVERY_FILE" "$LIVE_STATUS"
       - uses: actions/upload-artifact@v4
@@ -179,6 +183,7 @@ jobs:
           $watchdog = Join-Path $stateRoot 'gai-zbook-watchdog.ps1'
           $healthState = Join-Path $stateRoot 'zbook-runner-health.json'
           $old = Get-Process -Name 'Runner.Listener' -ErrorAction Stop | Select-Object -First 1
+          $oldStartedAt = $old.StartTime.ToUniversalTime().ToString('o')
           if (-not (Test-Path $watchdog)) { throw "Missing watchdog: $watchdog" }
           [ordered]@{
             consecutiveFailures = 2
@@ -188,7 +193,7 @@ jobs:
           Get-Process -Name 'Runner.Listener' -ErrorAction SilentlyContinue | Stop-Process -Force
           Start-Sleep -Seconds 2
           if (Get-Process -Name 'Runner.Listener' -ErrorAction SilentlyContinue) { throw 'ZBook Runner.Listener did not stop' }
-          [ordered]@{ version = 1; runId = $runId; node = 'zbook'; oldPid = $old.Id; lossObservedAt = (Get-Date).ToUniversalTime().ToString('o') } | ConvertTo-Json | Set-Content -Encoding UTF8 $lossFile
+          [ordered]@{ version = 1; runId = $runId; node = 'zbook'; oldPid = $old.Id; oldStartedAt = $oldStartedAt; lossObservedAt = (Get-Date).ToUniversalTime().ToString('o') } | ConvertTo-Json | Set-Content -Encoding UTF8 $lossFile
           Write-Host 'ZBook Runner.Listener loss observed.'
 
   mac-survives-zbook:
@@ -254,7 +259,9 @@ jobs:
             activeRunnerWorkers = $workers.Count
             checkedAt = (Get-Date).ToUniversalTime().ToString('o')
           } | ConvertTo-Json | Set-Content -Encoding UTF8 $liveStatus
-          [ordered]@{ version = 1; runId = $runId; node = 'zbook'; newPid = $listener.Id; recoveredAt = (Get-Date).ToUniversalTime().ToString('o') } | ConvertTo-Json | Set-Content -Encoding UTF8 $recoveryFile
+          $newStartedAt = $listener.StartTime.ToUniversalTime().ToString('o')
+          Write-Host "ZBook rejoin process identity: listenerPid=$($listener.Id) listenerStartedAt=$newStartedAt"
+          [ordered]@{ version = 1; runId = $runId; node = 'zbook'; newPid = $listener.Id; newStartedAt = $newStartedAt; recoveredAt = (Get-Date).ToUniversalTime().ToString('o') } | ConvertTo-Json | Set-Content -Encoding UTF8 $recoveryFile
           node scripts/goriq-node-loss-rejoin-e2e.mjs --phase rejoin --node zbook --platform win32 --sha "$env:GITHUB_SHA" --loss (Join-Path $stateRoot "stage-b-node-loss-$runId-zbook-loss.json") --recovery $recoveryFile --status $liveStatus --survivor .goriq-stage-b/node-loss/survivor/zbook-to-macbook-survivor.json --output .goriq-stage-b/node-loss/evidence/zbook-rejoin.json
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Remove-Item -Force (Join-Path $stateRoot "stage-b-node-loss-$runId-zbook-loss.json") -ErrorAction SilentlyContinue
