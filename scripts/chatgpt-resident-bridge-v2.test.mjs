@@ -133,7 +133,8 @@ test("resident bridge binds initial submission and later outputs to bounded phas
 test("fresh repair may correlate by verified empty baseline when user turn DOM is absent", () => {
   assert.match(source, /const preSubmissionTurns = await snapshotConversationMessages\(client\)/);
   assert.match(source, /const freshBaselineEmpty = fresh && Array\.isArray\(preSubmissionTurns\) && preSubmissionTurns\.length === 0/);
-  assert.match(source, /if \(!freshBaselineEmpty\)[\s\S]*CHATGPT_SUBMITTED_TURN_NOT_FOUND/);
+  assert.match(source, /const reusedSessionSubmissionConfirmed = !fresh && isSubmitted\(submitted\)/);
+  assert.match(source, /if \(!freshBaselineEmpty && !reusedSessionSubmissionConfirmed\)[\s\S]*CHATGPT_SUBMITTED_TURN_NOT_FOUND/);
   assert.match(source, /markerUserIndex = -1/);
 });
 
@@ -287,4 +288,17 @@ test("macOS bridge installer packages the project session router dependency", ()
   assert.match(installer, /chat-work-session-router\.ts/);
   assert.match(installer, /cp "\$REPO_DIR\/src\/orchestrator\/chat-work-session-router\.ts" "\$ROUTER_SCRIPT"/);
   assert.match(installer, /chmod 600 "\$BRIDGE_SCRIPT" "\$BRIDGE_LIB" "\$ROUTER_SCRIPT"/);
+});
+
+test("reused project Chat accepts existing submission evidence when marker DOM is absent", () => {
+  const source = readFileSync("scripts/chatgpt-resident-bridge-v2.mjs", "utf8");
+  assert.match(source, /const reusedSessionSubmissionConfirmed = !fresh && isSubmitted\(submitted\)/);
+  assert.match(source, /!freshBaselineEmpty && !reusedSessionSubmissionConfirmed/);
+  assert.match(source, /CHATGPT_SUBMITTED_TURN_NOT_FOUND/);
+});
+
+test("fresh and repair conversations keep strict submitted-turn detection", () => {
+  const source = readFileSync("scripts/chatgpt-resident-bridge-v2.mjs", "utf8");
+  assert.match(source, /reusedSessionSubmissionConfirmed = !fresh/);
+  assert.match(source, /if \(!freshBaselineEmpty && !reusedSessionSubmissionConfirmed\)/);
 });
