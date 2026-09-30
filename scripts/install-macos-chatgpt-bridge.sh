@@ -92,9 +92,41 @@ cat > "$PLIST" <<EOF
 EOF
 
 plutil -lint "$PLIST"
-launchctl bootout "gui/$(id -u)" "$PLIST" 2>/dev/null || true
-launchctl bootstrap "gui/$(id -u)" "$PLIST"
-launchctl kickstart -k "gui/$(id -u)/$LABEL"
+DOMAIN="gui/$(id -u)"
+SERVICE="$DOMAIN/$LABEL"
+
+launchctl bootout "$DOMAIN" "$PLIST" 2>/dev/null || true
+launchctl bootstrap "$DOMAIN" "$PLIST"
+
+registered=false
+for _ in $(seq 1 20); do
+  if launchctl print "$SERVICE" >/dev/null 2>&1; then
+    registered=true
+    break
+  fi
+  sleep 0.25
+done
+
+if [[ "$registered" != true ]]; then
+  echo "ERROR: launchd service did not become visible after bootstrap: $SERVICE" >&2
+  launchctl print "$DOMAIN" 2>&1 | tail -n 80 >&2 || true
+  exit 3
+fi
+
+started=false
+for _ in $(seq 1 8); do
+  if launchctl kickstart -k "$SERVICE" >/dev/null 2>&1; then
+    started=true
+    break
+  fi
+  sleep 0.25
+done
+
+if [[ "$started" != true ]]; then
+  echo "ERROR: launchd service was registered but kickstart failed: $SERVICE" >&2
+  launchctl print "$SERVICE" 2>&1 | tail -n 80 >&2 || true
+  exit 4
+fi
 
 echo "MacBook常駐ブリッジ v2 を永続ランタイムへ登録しました。"
 echo "専用Chromeの既存ログインセッションをそのまま利用します。"
