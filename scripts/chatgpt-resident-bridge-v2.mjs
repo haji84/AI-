@@ -37,12 +37,14 @@ const PROJECT_NAME = process.env.AI_COMPANY_CHATGPT_PROJECT_NAME?.trim() || "自
 const PROJECT_SURFACES_FILE = join(STATE_DIR, "chatgpt-project-surfaces.json");
 const PROJECT_SESSIONS_FILE = join(STATE_DIR, "chatgpt-project-sessions.json");
 const EXECUTION_DIAGNOSTIC_FILE = join(STATE_DIR, "chatgpt-bridge-execution.json");
+const SUBMISSION_RECEIPTS_FILE = join(STATE_DIR, "chatgpt-bridge-submissions.json");
 const ONE_SHOT_REPAIR_ISSUE = Number(process.env.AI_COMPANY_REPAIR_ONCE_ISSUE || "");
 const CHAT_MAX_PHASES = 4;
 const CHAT_PHASE_BUDGET_MS = 60_000;
 const CHAT_ABSOLUTE_CEILING_MS = 5 * 60_000;
 const WORK_ABSOLUTE_CEILING_MS = 10 * 60_000;
 const COMPLETION_STABLE_MS = 1_500;
+const SUBMISSION_RECOVERY_TIMEOUT_MS = 90_000;
 
 let shuttingDown = false;
 let lockHandle = null;
@@ -133,6 +135,96 @@ async function setHealth(status, detail = null, extra = {}) {
   };
   await writeFile(HEALTH_FILE, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
   console.log(`[bridge] ${payload.updatedAt} ${status}${detail ? `: ${detail}` : ""}`);
+}
+
+function submissionReceiptKey(issueNumber, pendingOwnerMessageId) {
+  return `${Number(issueNumber)}:${String(pendingOwnerMessageId ?? "").trim()}`;
+}
+
+async function readSubmissionReceipts() {
+  try {
+    const parsed = JSON.parse(await readFile(SUBMISSION_RECEIPTS_FILE, "utf8"));
+    if (parsed?.version === 1 && parsed.receipts && typeof parsed.receipts === "object") {
+      return { version: 1, receipts: parsed.receipts };
+    }
+  } catch {}
+  return { version: 1, receipts: {} };
+}
+
+async function writeSubmissionReceipts(state) {
+  await mkdir(STATE_DIR, { recursive: true });
+  const receipts = Object.fromEntries(
+    Object.entries(state?.receipts ?? {})
+      .sort(([, a], [, b]) => String(b?.submittedAt ?? "").localeCompare(String(a?.submittedAt ?? "")))
+      .slice(0, 200),
+  );
+  await writeFile(
+    SUBMISSION_RECEIPTS_FILE,
+    `${JSON.stringify({ version: 1, receipts }, null, 2)}\n`,
+    "utf8",
+  );
+}
+
+async function getSubmissionReceipt(issueNumber, pendingOwnerMessageId) {
+  const state = await readSubmissionReceipts();
+  const receipt = state.receipts[submissionReceiptKey(issueNumber, pendingOwnerMessageId)] ?? null;
+  if (!receipt || receipt.pendingOwnerMessageId !== String(pendingOwnerMessageId)) return null;
+  if (!receipt.requestMarker || !["chat", "work"].includes(receipt.surface)) return null;
+  return receipt;
+}
+
+async function recordSubmissionReceipt({
+  issueNumber,
+  pendingOwnerMessageId,
+  requestMarker,
+  surface,
+  url,
+  goalId = null,
+}) {
+  if (!Number.isInteger(Number(issueNumber)) || !String(pendingOwnerMessageId ?? "").trim() || !String(requestMarker ?? "").trim()) {
+    throw new Error("INVALID_SUBMISSION_RECEIPT_IDENTITY");
+  }
+  if (!["chat", "work"].includes(surface)) throw new Error("INVALID_SUBMISSION_RECEIPT_SURFACE");
+
+  const state = await readSubmissionReceipts();
+  const key = submissionReceiptKey(issueNumber, pendingOwnerMessageId);
+  const previous = state.receipts[key] ?? null;
+  state.receipts[key] = {
+    issueNumber: Number(issueNumber),
+    pendingOwnerMessageId: String(pendingOwnerMessageId),
+    requestMarker: String(requestMarker),
+    surface,
+    url: typeof url === "string" && url.startsWith(CHATGPT_URL) ? url : previous?.url ?? null,
+    goalId: typeof goalId === "string" && goalId.trim() ? goalId.trim() : previous?.goalId ?? null,
+    submittedAt: previous?.submittedAt ?? new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  await writeSubmissionReceipts(state);
+  return state.receipts[key];
+}
+
+async function clearSubmissionReceipt(issueNumber, pendingOwnerMessageId) {
+  const state = await readSubmissionReceipts();
+  const key = submissionReceiptKey(issueNumber, pendingOwnerMessageId);
+  if (!(key in state.receipts)) return false;
+  delete state.receipts[key];
+  await writeSubmissionReceipts(state);
+  return true;
+}
+
+async function discardStaleSubmissionReceipts(issueNumber, activePendingOwnerMessageId) {
+  const state = await readSubmissionReceipts();
+  let changed = false;
+  for (const [key, receipt] of Object.entries(state.receipts)) {
+    if (
+      Number(receipt?.issueNumber) === Number(issueNumber)
+      && String(receipt?.pendingOwnerMessageId ?? "") !== String(activePendingOwnerMessageId ?? "")
+    ) {
+      delete state.receipts[key];
+      changed = true;
+    }
+  }
+  if (changed) await writeSubmissionReceipts(state);
 }
 
 async function acquireLock() {
@@ -795,6 +887,102 @@ async function waitForOrdinaryChatAnswer(client, baselineAssistantCount, baselin
   throw new Error("CHATGPT_ORDINARY_RESPONSE_TIMEOUT");
 }
 
+async function recoverSubmittedAnswer(receipt, timeoutMs = SUBMISSION_RECOVERY_TIMEOUT_MS) {
+  if (!receipt?.requestMarker || !["chat", "work"].includes(receipt?.surface)) {
+    throw new Error("CHATGPT_SUBMISSION_RECOVERY_RECEIPT_INVALID");
+  }
+
+  let recoveryUrl = typeof receipt.url === "string" && receipt.url.startsWith(CHATGPT_URL)
+    ? receipt.url
+    : null;
+  if (!recoveryUrl) {
+    const registry = await readProjectSessions();
+    const matching = registry.sessions
+      .filter((session) =>
+        session?.surface === receipt.surface
+        && (!receipt.goalId || session?.goalId === receipt.goalId)
+        && typeof session?.url === "string"
+        && session.url.startsWith(CHATGPT_URL)
+      )
+      .sort((a, b) => String(b?.lastUsedAt ?? "").localeCompare(String(a?.lastUsedAt ?? "")));
+    recoveryUrl = matching[0]?.url ?? null;
+  }
+  if (!recoveryUrl) throw new Error("CHATGPT_SUBMISSION_RECOVERY_URL_MISSING");
+
+  const target = await createChatGptTarget(CHATGPT_URL);
+  const client = new CdpClient(target.webSocketDebuggerUrl);
+  await client.connect();
+  try {
+    await client.call("Page.enable");
+    await client.call("Runtime.enable");
+    await client.call("Page.bringToFront");
+    await navigateClient(client, recoveryUrl);
+    await waitForComposer(client, 15000);
+    if (receipt.surface === "work") await selectExperience(client, "work");
+
+    const inspected = await inspectProjectConversationSurface(client);
+    if (!inspected?.projectVisible || Number(inspected?.messageCount ?? 0) <= 0) {
+      throw new Error("CHATGPT_SUBMISSION_RECOVERY_SURFACE_INVALID");
+    }
+
+    const deadline = Date.now() + timeoutMs;
+    let markerSeen = false;
+    let lastText = "";
+    let stableSince = 0;
+
+    while (Date.now() < deadline) {
+      const turns = await snapshotConversationMessages(client);
+      const markerIndex = Array.isArray(turns)
+        ? turns.findLastIndex((message) =>
+            message.role === "user" && String(message.text ?? "").includes(receipt.requestMarker)
+          )
+        : -1;
+
+      if (markerIndex >= 0) {
+        markerSeen = true;
+        const nextTurn = turns[markerIndex + 1] ?? null;
+        if (nextTurn?.role === "user") {
+          throw new Error("CHATGPT_SUBMISSION_RECOVERY_AMBIGUOUS_NEXT_TURN");
+        }
+        if (nextTurn?.role === "assistant" && nextTurn.text) {
+          const generating = await evaluate(client, `(() => {
+            const buttons = [...document.querySelectorAll('main button')];
+            return !!document.querySelector('button[data-testid="stop-button"]')
+              || buttons.some((button) =>
+                /stop generating|停止/i.test((button.getAttribute('aria-label') || button.textContent || '').trim())
+              );
+          })()`);
+
+          const candidate = String(nextTurn.text).trim();
+          if (candidate === lastText) {
+            if (!stableSince) stableSince = Date.now();
+          } else {
+            lastText = candidate;
+            stableSince = Date.now();
+          }
+          if (!generating && Date.now() - stableSince >= COMPLETION_STABLE_MS) {
+            await setExecutionDiagnostic("submission-recovered", {
+              surface: receipt.surface,
+              answerLength: lastText.length,
+              markerSeen: true,
+            });
+            return lastText.slice(0, 8000);
+          }
+        }
+      }
+
+      await sleep(700);
+    }
+
+    throw new Error(markerSeen
+      ? "CHATGPT_SUBMISSION_RECOVERY_TIMEOUT"
+      : "CHATGPT_SUBMISSION_MARKER_NOT_FOUND");
+  } finally {
+    client.close();
+    await closeTarget(target.id);
+  }
+}
+
 async function snapshotExecutionUiState(client, phaseToken = "") {
   return evaluate(client, `(() => {
     const normalize = (value) => String(value || '').replace(/\\s+/g, ' ').trim();
@@ -1052,7 +1240,7 @@ function looksLikeUnifiedDiff(text) {
     || /(?:^|\n)---\s+[^\n]+\n\+\+\+\s+/m.test(value);
 }
 
-async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false, preferredUrl = null, goalId = null, repairMode = false) {
+async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false, preferredUrl = null, goalId = null, repairMode = false, submissionIdentity = null) {
   const requestMarker = `GORIQ_BRIDGE_REQUEST_ID=${randomUUID()}`;
   const preSplit = mode === "chat" && shouldPreSplitChatRepair(prompt);
   const submittedPrompt = mode === "chat"
@@ -1281,6 +1469,23 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false, p
     });
 
     if (isSubmitted(submitted) && !repairMode) {
+      const immediateUrl = String(await evaluate(client, "location.href") || preparedSurface?.url || selectedExperience?.url || "");
+      if (submissionIdentity?.issueNumber && submissionIdentity?.pendingOwnerMessageId) {
+        await recordSubmissionReceipt({
+          issueNumber: submissionIdentity.issueNumber,
+          pendingOwnerMessageId: submissionIdentity.pendingOwnerMessageId,
+          requestMarker,
+          surface: mode,
+          url: immediateUrl,
+          goalId,
+        });
+        await setExecutionDiagnostic("submission-receipt-recorded", {
+          issueNumber: Number(submissionIdentity.issueNumber),
+          surface: mode,
+          hasConversationUrl: immediateUrl.startsWith(CHATGPT_URL),
+        });
+      }
+
       let persistableUrl = preparedSurface?.reused ? String(preparedSurface?.url || "") : "";
       if (!preparedSurface?.reused) {
         persistableUrl = await waitForPersistableProjectConversationUrl(
@@ -1292,6 +1497,16 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false, p
       if (persistableUrl) {
         await recordProjectSession(mode, persistableUrl, goalId);
         await writeProjectSurface(mode, persistableUrl);
+        if (submissionIdentity?.issueNumber && submissionIdentity?.pendingOwnerMessageId) {
+          await recordSubmissionReceipt({
+            issueNumber: submissionIdentity.issueNumber,
+            pendingOwnerMessageId: submissionIdentity.pendingOwnerMessageId,
+            requestMarker,
+            surface: mode,
+            url: persistableUrl,
+            goalId,
+          });
+        }
         await setExecutionDiagnostic("session-persisted-on-submit", {
           mode,
           fresh,
@@ -1513,6 +1728,7 @@ async function processIssue(issue) {
   if (existing) {
     await setHealth("reconciling", `Issue #${issue.number} already has an AI reply; clearing stale pending`, { issueNumber: issue.number });
     await reconcileExistingAiReply(issue.number, meta, existing);
+    await clearSubmissionReceipt(issue.number, pending.id);
     return;
   }
 
@@ -1523,6 +1739,37 @@ async function processIssue(issue) {
     if (!answer.trim()) throw new Error("ChatGPT returned an empty answer; pending was preserved");
     const aiMessage = await postAiReply(issue.number, meta, answer);
     await setHealth("synced", `Issue #${issue.number} synced`, { issueNumber: issue.number, lastAiMessageId: aiMessage.id });
+    return;
+  }
+
+  await discardStaleSubmissionReceipts(issue.number, pending.id);
+  const receipt = await getSubmissionReceipt(issue.number, pending.id);
+  if (receipt) {
+    await setHealth("recovering", `Issue #${issue.number}: recovering already-submitted request without resending`, {
+      issueNumber: issue.number,
+      pendingOwnerMessageId: pending.id,
+      selectedSurface: receipt.surface,
+      duplicateSubmissionBlocked: true,
+    });
+    await setExecutionDiagnostic("submission-recovery", {
+      issueNumber: issue.number,
+      selectedSurface: receipt.surface,
+      duplicateSubmissionBlocked: true,
+    });
+    const answer = await recoverSubmittedAnswer(receipt);
+    if (!answer.trim()) throw new Error("ChatGPT recovered an empty answer; pending was preserved");
+    const aiMessage = await postAiReply(issue.number, meta, answer);
+    await clearSubmissionReceipt(issue.number, pending.id);
+    await setExecutionDiagnostic("synced", {
+      issueNumber: issue.number,
+      answerLength: String(answer).length,
+      recoveredSubmission: true,
+    });
+    await setHealth("synced", `Issue #${issue.number} synced from existing submission`, {
+      issueNumber: issue.number,
+      lastAiMessageId: aiMessage.id,
+      duplicateSubmissionBlocked: true,
+    });
     return;
   }
 
@@ -1556,9 +1803,12 @@ async function processIssue(issue) {
     decision.createNew,
     decision.session?.url ?? null,
     taskContext.goalId,
+    false,
+    { issueNumber: issue.number, pendingOwnerMessageId: pending.id },
   );
   if (!answer.trim()) throw new Error("ChatGPT returned an empty answer; pending was preserved");
   const aiMessage = await postAiReply(issue.number, meta, answer);
+  await clearSubmissionReceipt(issue.number, pending.id);
   await setExecutionDiagnostic("synced", { issueNumber: issue.number, answerLength: String(answer).length });
   await setHealth("synced", `Issue #${issue.number} synced`, { issueNumber: issue.number, lastAiMessageId: aiMessage.id });
 }

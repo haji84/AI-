@@ -396,3 +396,37 @@ test("new project Chat session is persisted only after a real conversation URL t
   assert.match(source, /session-url-not-ready/);
   assert.match(source, /conversationUrlTransitioned/);
 });
+
+
+test("confirmed pending owner messages are persisted as submission receipts before answer waiting", () => {
+  assert.match(source, /chatgpt-bridge-submissions\.json/);
+  assert.match(source, /async function recordSubmissionReceipt/);
+  assert.match(source, /submissionIdentity\?\.issueNumber/);
+  assert.match(source, /requestMarker,/);
+  assert.match(source, /submission-receipt-recorded/);
+});
+
+test("same pending owner message recovers the existing ChatGPT turn instead of resubmitting", () => {
+  assert.match(source, /async function recoverSubmittedAnswer/);
+  assert.match(source, /const receipt = await getSubmissionReceipt\(issue\.number, pending\.id\)/);
+  assert.match(source, /if \(receipt\) \{/);
+  assert.match(source, /recovering already-submitted request without resending/);
+  assert.match(source, /duplicateSubmissionBlocked: true/);
+  assert.match(source, /message\.role === "user" && String\(message\.text \?\? ""\)\.includes\(receipt\.requestMarker\)/);
+});
+
+test("submission receipts survive process restarts and are cleared only after sync or reconciliation", () => {
+  assert.match(source, /async function readSubmissionReceipts/);
+  assert.match(source, /async function writeSubmissionReceipts/);
+  assert.match(source, /await clearSubmissionReceipt\(issue\.number, pending\.id\)/);
+  assert.match(source, /await discardStaleSubmissionReceipts\(issue\.number, pending\.id\)/);
+});
+
+test("recovery never falls through to a duplicate ChatGPT submission", () => {
+  const receiptCheck = source.indexOf("const receipt = await getSubmissionReceipt(issue.number, pending.id)");
+  const routeDecision = source.indexOf("const taskContext = inferBridgeTaskContext(meta, messages, pending)", receiptCheck);
+  const recoveryReturn = source.indexOf("return;", receiptCheck);
+  assert.ok(receiptCheck >= 0);
+  assert.ok(recoveryReturn > receiptCheck);
+  assert.ok(routeDecision > recoveryReturn);
+});
