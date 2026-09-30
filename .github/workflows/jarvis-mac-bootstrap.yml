@@ -8,6 +8,10 @@ on:
       - 'scripts/jarvis-mac-zero-touch-install.sh'
       - 'scripts/install-code-builder-macos.sh'
       - 'scripts/code-builder-worker-service.ts'
+      - 'scripts/install-macos-chatgpt-bridge.sh'
+      - 'scripts/chatgpt-resident-bridge-v2.mjs'
+      - 'scripts/chatgpt-resident-bridge-lib.mjs'
+      - 'src/orchestrator/chat-work-session-router.ts'
       - '.github/workflows/jarvis-mac-bootstrap.yml'
   workflow_dispatch:
 
