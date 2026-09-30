@@ -20,6 +20,7 @@ import {
   JarvisControlPlane,
   JarvisNonceRegistry,
   JarvisSqliteStateStore,
+  sanitizeJarvisAndroidNodeContract,
   sanitizeJarvisNodeTelemetry,
   verifyWorkerRequest,
   type JarvisCapability,
@@ -263,7 +264,10 @@ function validatedNode(value: unknown): JarvisNode {
   const node = value as JarvisNode;
   if (!node.id || node.kind !== "android" || !Array.isArray(node.capabilities)) throw new Error("invalid Android node descriptor");
   if (node.policy?.allowPaidServices !== false) throw new Error("worker must disable paid services");
-  return node;
+  const rawContract = (value as Record<string, unknown>).nodeContract;
+  const nodeContract = rawContract === undefined ? undefined : sanitizeJarvisAndroidNodeContract(rawContract, new Date());
+  if (rawContract !== undefined && !nodeContract) throw new Error("invalid Android distributed node contract");
+  return { ...node, nodeContract };
 }
 function assignFleetNumber(node: JarvisNode): JarvisNode {
   const existing = plane.fleet.get(node.id);
@@ -807,7 +811,7 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
       const signed = signedWorkerRequest(request, path, body);
       if (!signed || !verifyWorkerRequest({ identity, request: signed, seenNonce: (id, nonce) => nonces.has(id, nonce) }).ok) return json(response, 401, { message: "Device key proof required" });
       nonces.record(signed.nodeId, signed.nonce);
-      const safeNode: JarvisNode = { id: node.id, label: node.label, kind: "android", capabilities: node.capabilities, status: "offline", enrollment: "quick", lastSeenAt: new Date().toISOString(), telemetry: { checkedAt: new Date().toISOString() }, policy: { allowPaidServices: false, allowDestructiveActions: false, allowExternalPublication: false, allowRemoteControl: false, requireHumanForLockedDevice: true } };
+      const safeNode: JarvisNode = { id: node.id, label: node.label, kind: "android", capabilities: node.capabilities, status: "offline", enrollment: "quick", lastSeenAt: new Date().toISOString(), telemetry: { checkedAt: new Date().toISOString() }, nodeContract: node.nodeContract, policy: { allowPaidServices: false, allowDestructiveActions: false, allowExternalPublication: false, allowRemoteControl: false, requireHumanForLockedDevice: true } };
       return json(response, 202, { pending: true, ...pendingEnrollment.offer(safeNode, identity) });
     } catch { return json(response, 400, { message: "Invalid registration request" }); }
   }
@@ -815,12 +819,16 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
     const identity = authenticateWorker(request, path, body); if (!identity) return json(response, 401, { message: "valid signed worker request required" });
     const payload = parseJson(body);
     if (method === "POST" && path === "/api/jarvis/worker/heartbeat") {
-      const telemetry = sanitizeJarvisNodeTelemetry(payload.telemetry, new Date());
+      const now = new Date();
+      const telemetry = sanitizeJarvisNodeTelemetry(payload.telemetry, now);
       const status = payload.status === "busy" || payload.status === "locked" || payload.status === "needs-human" ? payload.status : "ready";
       const capabilities = Array.isArray(payload.capabilities) ? payload.capabilities.filter((item): item is JarvisCapability => typeof item === "string") : undefined;
+      const rawContract = payload.nodeContract;
+      const nodeContract = rawContract === undefined ? undefined : sanitizeJarvisAndroidNodeContract(rawContract, now);
+      if (rawContract !== undefined && !nodeContract) return json(response, 400, { message: "invalid Android distributed node contract" });
       const current = plane.fleet.get(identity.nodeId);
       const policy = current ? { ...current.policy, allowPaidServices: false as const, allowRemoteControl: capabilities?.includes("ui-automation") === true, requireHumanForLockedDevice: true } : undefined;
-      const node = plane.heartbeat(identity.nodeId, { status, telemetry, capabilities, policy }); persist(false); return json(response, 200, { node });
+      const node = plane.heartbeat(identity.nodeId, { status, telemetry, nodeContract, capabilities, policy }, now); persist(false); return json(response, 200, { node });
     }
     if (method === "POST" && path === "/api/jarvis/worker/remote/next") {
       const node = plane.fleet.get(identity.nodeId);

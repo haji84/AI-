@@ -1,6 +1,7 @@
 import { evaluateWorkerResourcePlacement, type WorkerResourceSnapshot } from "../gai/worker-runtime.ts";
 import {
   JARVIS_MAX_NODES,
+  type JarvisAndroidNodeContractV1,
   type JarvisCapability,
   type JarvisNode,
   type JarvisNodeKind,
@@ -21,6 +22,97 @@ function integer(value: unknown, min: number, max: number): number | undefined {
 
 function boolean(value: unknown): boolean | undefined {
   return typeof value === "boolean" ? value : undefined;
+}
+
+export function sanitizeJarvisAndroidNodeContract(
+  value: unknown,
+  now = new Date(),
+): JarvisAndroidNodeContractV1 | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const input = value as Record<string, unknown>;
+  if (input.schemaVersion !== 1 || input.platform !== "android") return undefined;
+  if (input.networkRequirement !== "offline-capable") return undefined;
+
+  const executionModes = Array.isArray(input.executionModes)
+    ? [...new Set(input.executionModes.filter(
+      (mode): mode is JarvisAndroidNodeContractV1["executionModes"][number] =>
+        mode === "foreground" || mode === "background-scheduled" || mode === "deferred",
+    ))]
+    : [];
+  if (executionModes.length === 0) return undefined;
+
+  const persistenceInput = input.persistence;
+  const migrationInput = input.migration;
+  const securityInput = input.security;
+  const constraintsInput = input.constraints;
+  const resourcesInput = input.resources;
+  if (!persistenceInput || typeof persistenceInput !== "object" || Array.isArray(persistenceInput)) return undefined;
+  if (!migrationInput || typeof migrationInput !== "object" || Array.isArray(migrationInput)) return undefined;
+  if (!securityInput || typeof securityInput !== "object" || Array.isArray(securityInput)) return undefined;
+  if (!constraintsInput || typeof constraintsInput !== "object" || Array.isArray(constraintsInput)) return undefined;
+  if (!resourcesInput || typeof resourcesInput !== "object" || Array.isArray(resourcesInput)) return undefined;
+
+  const persistence = persistenceInput as Record<string, unknown>;
+  const migration = migrationInput as Record<string, unknown>;
+  const security = securityInput as Record<string, unknown>;
+  const constraints = constraintsInput as Record<string, unknown>;
+  const resources = resourcesInput as Record<string, unknown>;
+
+  const supported = Array.isArray(migration.supported)
+    ? [...new Set(migration.supported.filter(
+      (item): item is "RESTARTABLE" | "PINNED" => item === "RESTARTABLE" || item === "PINNED",
+    ))]
+    : [];
+  if (supported.length === 0) return undefined;
+
+  // Stage C canary must report current limitations truthfully. These claims are
+  // intentionally fail-closed until physical Nubia evidence proves stronger semantics.
+  if (persistence.checkpointResume !== false || persistence.offlineQueue !== false) return undefined;
+  if (migration.checkpointResume !== false || migration.sideEffectingFencing !== false) return undefined;
+  if (constraints.residentExecution !== false || constraints.lockedUiRequiresHuman !== true) return undefined;
+  if (security.credentialIsolation !== true || security.taskScopedAuthorization !== true) return undefined;
+
+  const network = resources.network === "wifi" || resources.network === "cellular" || resources.network === "lan" || resources.network === "offline"
+    ? resources.network
+    : undefined;
+  const architecture = typeof input.architecture === "string" && /^[A-Za-z0-9._-]{1,64}$/.test(input.architecture.trim())
+    ? input.architecture.trim()
+    : null;
+
+  return {
+    schemaVersion: 1,
+    platform: "android",
+    architecture,
+    executionModes,
+    networkRequirement: "offline-capable",
+    persistence: {
+      localState: persistence.localState === true,
+      checkpointResume: false,
+      offlineQueue: false,
+    },
+    migration: {
+      supported,
+      checkpointResume: false,
+      sideEffectingFencing: false,
+    },
+    security: {
+      credentialIsolation: true,
+      taskScopedAuthorization: true,
+    },
+    constraints: {
+      residentExecution: false,
+      lockedUiRequiresHuman: true,
+    },
+    resources: {
+      cpuCores: integer(resources.cpuCores, 1, 1_024),
+      memoryAvailableMb: finiteNumber(resources.memoryAvailableMb, 0, 1_000_000_000),
+      freeStorageMb: finiteNumber(resources.freeStorageMb, 0, 1_000_000_000),
+      batteryPercent: finiteNumber(resources.batteryPercent, 0, 100),
+      charging: boolean(resources.charging),
+      network,
+    },
+    checkedAt: now.toISOString(),
+  };
 }
 
 export function sanitizeJarvisNodeTelemetry(value: unknown, now = new Date()): JarvisNode["telemetry"] | undefined {
@@ -196,7 +288,7 @@ export class JarvisFleetManager {
 
   updateHeartbeat(
     nodeId: string,
-    patch: Partial<Pick<JarvisNode, "status" | "telemetry" | "lastSeenAt" | "capabilities" | "policy" | "enrollment">>,
+    patch: Partial<Pick<JarvisNode, "status" | "telemetry" | "nodeContract" | "lastSeenAt" | "capabilities" | "policy" | "enrollment">>,
   ): JarvisNode {
     const current = this.nodes.get(nodeId);
     if (!current) throw new Error(`Unknown JARVIS node: ${nodeId}`);
@@ -206,6 +298,7 @@ export class JarvisFleetManager {
       telemetry: patch.telemetry ? { ...current.telemetry, ...patch.telemetry } : current.telemetry,
       policy: patch.policy ? { ...current.policy, ...patch.policy } : current.policy,
       capabilities: patch.capabilities ? [...patch.capabilities] : current.capabilities,
+      nodeContract: patch.nodeContract ? structuredClone(patch.nodeContract) : current.nodeContract,
     };
     this.nodes.set(nodeId, updated);
     return structuredClone(updated);

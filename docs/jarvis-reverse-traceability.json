@@ -32,18 +32,18 @@
     },
     {
       "path": "android/jarvis-worker/app/src/main/java/ai/jarvis/worker/BrokerClient.kt",
-      "sha256": "a9c5dd7e29fb02ad4316fcc82ea6e3d4c795394d468e67679dc3b202883fcbfc",
+      "sha256": "bed8c98da2763b3c91c348e099a0d9df5912ab1ae1d217b777d3c5f59d8bf5f2",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
+        "FLEET-007",
         "DEV-A-001",
         "DEV-A-002",
-        "DEV-A-004",
         "DEV-A-012",
         "DEV-A-013",
         "DEV-A-014",
         "DEV-A-015"
       ],
-      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+      "reason": "Stage C Nubia canary distributed Node Contract surface; implementation linkage only, physical acceptance remains pending."
     },
     {
       "path": "android/jarvis-worker/app/src/main/java/ai/jarvis/worker/DeviceIdentity.kt",
@@ -54,6 +54,19 @@
         "SEC-003"
       ],
       "reason": "Android stable credential and signed identity storage"
+    },
+    {
+      "path": "android/jarvis-worker/app/src/main/java/ai/jarvis/worker/DistributedNodeContract.kt",
+      "sha256": "ae27e0c36b2213659c4b66e7ebcb34b5dae4d044c9df1c141b25493a0925b7ac",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "NET-003",
+        "FLEET-007",
+        "DEV-A-013",
+        "DEV-A-014",
+        "DEV-A-015"
+      ],
+      "reason": "Stage C Nubia canary distributed Node Contract surface; implementation linkage only, physical acceptance remains pending."
     },
     {
       "path": "android/jarvis-worker/app/src/main/java/ai/jarvis/worker/EnrollmentBootstrap.kt",
@@ -946,28 +959,26 @@
     },
     {
       "path": "scripts/jarvis-broker.ts",
-      "sha256": "a1eb60bfcdea397744378807757b98f8f374dd469af6716eeb0e39abb93171c0",
+      "sha256": "15e2df1244291ac68c87bc7959fc5908e03ace6c3be50d29132bbdd7c5545bc0",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
+        "NET-003",
         "NET-006",
         "NET-007",
         "FLEET-003",
         "FLEET-004",
         "FLEET-006",
-        "DEV-PC-001",
+        "FLEET-007",
+        "DEV-A-013",
+        "DEV-A-014",
         "SEC-003",
         "SEC-004",
         "SEC-005",
         "SEC-006",
         "SEC-007",
-        "SEC-010",
-        "GOV-025",
-        "OWN-001",
-        "AUTO-001",
-        "UI-020",
-        "OPS-018"
+        "SEC-010"
       ],
-      "reason": "Production Broker sanitizes signed worker resource telemetry before updating FleetManager state; existing auth, nonce/replay and worker routes remain authoritative."
+      "reason": "Stage C Nubia canary distributed Node Contract surface; implementation linkage only, physical acceptance remains pending."
     },
     {
       "path": "scripts/jarvis-direct-commander-service.sh",
@@ -3718,9 +3729,13 @@
     },
     {
       "path": "src/jarvis/control-plane.ts",
-      "sha256": "e94fe332d48aa869eb1b8bd31fb759e88d16b6f8576aca7786bc5eb0edec0c45",
+      "sha256": "afa8b54f2777ae4d70c29cc9801c816bd78ef0f3027972789fbba12cc128847f",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
+        "NET-003",
+        "FLEET-007",
+        "DEV-A-013",
+        "DEV-A-014",
         "RA-014",
         "RA-017",
         "RA-018",
@@ -3728,7 +3743,7 @@
         "RA-020",
         "SEC-015"
       ],
-      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+      "reason": "Stage C Nubia canary distributed Node Contract surface; implementation linkage only, physical acceptance remains pending."
     },
     {
       "path": "src/jarvis/daily-driver-device-command.ts",
@@ -3843,9 +3858,10 @@
     },
     {
       "path": "src/jarvis/fleet-manager.ts",
-      "sha256": "d0e57717aec03ee793b503e3f0810557c6246220e1fe890a1250163f1a5d02d5",
+      "sha256": "eeacb3f00837be4c46ce3e8181b448359cc5820e8b2eff684c8ade5d7583cdce",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
+        "NET-003",
         "FLEET-001",
         "FLEET-002",
         "FLEET-003",
@@ -3855,9 +3871,11 @@
         "FLEET-007",
         "FLEET-008",
         "FLEET-010",
-        "FLEET-011"
+        "FLEET-011",
+        "DEV-A-013",
+        "DEV-A-014"
       ],
-      "reason": "Production Broker FleetManager reuses the shared resource fitness policy for actual node selection and bounds signed worker telemetry including opaque data-locality keys."
+      "reason": "Stage C Nubia canary distributed Node Contract surface; implementation linkage only, physical acceptance remains pending."
     },
     {
       "path": "src/jarvis/google-owner-state-registry.ts",
@@ -4305,12 +4323,17 @@
     },
     {
       "path": "src/jarvis/types.ts",
-      "sha256": "9798126d5a8c49ddb9864c587e5d2c39da8f81e09f4a64e25bffbd9e1b36c24a",
-      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "sha256": "6d56391add66971f8cc01497341c6717ecb8759a8bf9369cc2d4508769844da0",
+      "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
-        "FLEET-001"
+        "NET-003",
+        "FLEET-001",
+        "FLEET-007",
+        "DEV-A-013",
+        "DEV-A-014",
+        "DEV-A-015"
       ],
-      "reason": "Production Jarvis node/task contract additively exposes optional resource telemetry and the shared resource-requirement policy while preserving legacy worker/task payload compatibility."
+      "reason": "Stage C Nubia canary distributed Node Contract surface; implementation linkage only, physical acceptance remains pending."
     },
     {
       "path": "src/jarvis/video-action-plan.ts",
