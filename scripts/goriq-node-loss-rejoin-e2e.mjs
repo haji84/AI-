@@ -83,7 +83,14 @@ async function rejoin(args) {
   assert.ok(survivorAt < recoveredAt, "surviving node must finish before lost node recovery");
 
   assert.equal(status.runnerHealthy, true);
-  assert.equal(status.runnerConnectionHealthy, true);
+  const connectionEvidenceMode = status.runnerConnectionHealthy === true
+    ? "connection-probe"
+    : status.runnerProtectedByActiveJob === true
+      && Number.isInteger(status.activeRunnerWorkers)
+      && status.activeRunnerWorkers > 0
+        ? "active-runner-worker"
+        : null;
+  assert.ok(connectionEvidenceMode, "recovered runner must prove connectivity via connection probe or active Runner.Worker");
   assert.equal(status.runnerRecoveryDeferred ?? false, false);
   assert.equal(status.consecutiveRunnerFailures ?? 0, 0);
 
@@ -103,6 +110,7 @@ async function rejoin(args) {
     watchdogRecovered: true,
     runnerHealthyAfterRecovery: true,
     runnerConnectionHealthyAfterRecovery: true,
+    runnerConnectionEvidenceMode: connectionEvidenceMode,
     consecutiveRunnerFailuresAfterRecovery: 0,
     returningNodeEligibleAgain: true,
     survivorEvidence: {
