@@ -87,7 +87,7 @@ export class JarvisControlPlane {
 
   heartbeat(
     nodeId: string,
-    input: Partial<Pick<JarvisNode, "status" | "telemetry" | "capabilities" | "policy" | "enrollment">>,
+    input: Partial<Pick<JarvisNode, "status" | "telemetry" | "nodeContract" | "capabilities" | "policy" | "enrollment">>,
     now = new Date(),
   ): JarvisNode {
     const before = this.fleet.get(nodeId);
