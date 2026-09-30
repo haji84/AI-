@@ -460,6 +460,21 @@ async function inspectProjectConversationSurface(client) {
   })()`);
 }
 
+async function waitForPersistableProjectConversationUrl(client, initialUrl, timeoutMs = 15000) {
+  const deadline = Date.now() + timeoutMs;
+  const baseline = String(initialUrl || "");
+  while (Date.now() < deadline) {
+    const inspected = await inspectProjectConversationSurface(client);
+    const currentUrl = String(inspected?.url || "");
+    const transitioned = currentUrl.startsWith(CHATGPT_URL) && currentUrl !== baseline;
+    if (inspected?.projectVisible && Number(inspected?.messageCount ?? 0) > 0 && transitioned) {
+      return currentUrl;
+    }
+    await sleep(300);
+  }
+  return null;
+}
+
 async function prepareProjectSurface(client, mode, fresh = false) {
   const preferredUrl = arguments[3] ?? null;
   const surfaces = await readProjectSurfaces();
@@ -1266,15 +1281,32 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false, p
     });
 
     if (isSubmitted(submitted) && !repairMode) {
-      const submittedUrl = await evaluate(client, "location.href");
-      await recordProjectSession(mode, String(submittedUrl || ""), goalId);
-      await writeProjectSurface(mode, String(submittedUrl || ""));
-      await setExecutionDiagnostic("session-persisted-on-submit", {
-        mode,
-        fresh,
-        sessionReuse: Boolean(preparedSurface?.reused),
-        invalidSavedSession: Boolean(preparedSurface?.invalidSavedSession),
-      });
+      let persistableUrl = preparedSurface?.reused ? String(preparedSurface?.url || "") : "";
+      if (!preparedSurface?.reused) {
+        persistableUrl = await waitForPersistableProjectConversationUrl(
+          client,
+          String(preparedSurface?.url || selectedExperience?.url || ""),
+        ) || "";
+      }
+
+      if (persistableUrl) {
+        await recordProjectSession(mode, persistableUrl, goalId);
+        await writeProjectSurface(mode, persistableUrl);
+        await setExecutionDiagnostic("session-persisted-on-submit", {
+          mode,
+          fresh,
+          sessionReuse: Boolean(preparedSurface?.reused),
+          invalidSavedSession: Boolean(preparedSurface?.invalidSavedSession),
+          conversationUrlTransitioned: !preparedSurface?.reused,
+        });
+      } else {
+        await setExecutionDiagnostic("session-url-not-ready", {
+          mode,
+          fresh,
+          sessionReuse: Boolean(preparedSurface?.reused),
+          invalidSavedSession: Boolean(preparedSurface?.invalidSavedSession),
+        });
+      }
     }
 
     if (!isSubmitted(submitted)) {
