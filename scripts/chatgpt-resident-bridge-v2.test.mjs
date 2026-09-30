@@ -133,7 +133,8 @@ test("resident bridge binds initial submission and later outputs to bounded phas
 test("fresh repair may correlate by verified empty baseline when user turn DOM is absent", () => {
   assert.match(source, /const preSubmissionTurns = await snapshotConversationMessages\(client\)/);
   assert.match(source, /const freshBaselineEmpty = fresh && Array\.isArray\(preSubmissionTurns\) && preSubmissionTurns\.length === 0/);
-  assert.match(source, /if \(!freshBaselineEmpty\)[\s\S]*CHATGPT_SUBMITTED_TURN_NOT_FOUND/);
+  assert.match(source, /const reusedSessionSubmissionConfirmed = !fresh && isSubmitted\(submitted\)/);
+  assert.match(source, /if \(!freshBaselineEmpty && !reusedSessionSubmissionConfirmed\)[\s\S]*CHATGPT_SUBMITTED_TURN_NOT_FOUND/);
   assert.match(source, /markerUserIndex = -1/);
 });
 
