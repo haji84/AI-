@@ -288,3 +288,16 @@ test("macOS bridge installer packages the project session router dependency", ()
   assert.match(installer, /cp "\$REPO_DIR\/src\/orchestrator\/chat-work-session-router\.ts" "\$ROUTER_SCRIPT"/);
   assert.match(installer, /chmod 600 "\$BRIDGE_SCRIPT" "\$BRIDGE_LIB" "\$ROUTER_SCRIPT"/);
 });
+
+test("reused project Chat accepts existing submission evidence when marker DOM is absent", () => {
+  const source = readFileSync("scripts/chatgpt-resident-bridge-v2.mjs", "utf8");
+  assert.match(source, /const reusedSessionSubmissionConfirmed = !fresh && isSubmitted\(submitted\)/);
+  assert.match(source, /!freshBaselineEmpty && !reusedSessionSubmissionConfirmed/);
+  assert.match(source, /CHATGPT_SUBMITTED_TURN_NOT_FOUND/);
+});
+
+test("fresh and repair conversations keep strict submitted-turn detection", () => {
+  const source = readFileSync("scripts/chatgpt-resident-bridge-v2.mjs", "utf8");
+  assert.match(source, /reusedSessionSubmissionConfirmed = !fresh/);
+  assert.match(source, /if \(!freshBaselineEmpty && !reusedSessionSubmissionConfirmed\)/);
+});
