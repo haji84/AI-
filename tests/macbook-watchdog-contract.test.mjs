@@ -119,3 +119,14 @@ test("Mac persistence treats GitHub Actions execution as an active runner job", 
   assert.match(installer, /\[\[ "\$\{GITHUB_ACTIONS:-\}" == "true" \]\] \|\| pgrep -f 'Runner\.Worker'/);
   assert.match(installer, /launchd_reconcile_deferred=true/);
 });
+
+
+test("Mac broker conflict cooldown cannot re-arm after expiry in the same episode", () => {
+  const watchdog = readFileSync(watchdogPath, "utf8");
+  const start = watchdog.indexOf("runner_session_conflict_grace_active()");
+  const end = watchdog.indexOf("\n}\n\nrunner_connection_healthy()", start);
+  assert.ok(start >= 0 && end > start);
+  const graceBody = watchdog.slice(start, end);
+  assert.doesNotMatch(graceBody, /rm -f "\$RUNNER_SESSION_CONFLICT_STATE"/);
+  assert.match(graceBody, /Keep the expired marker until a real healthy session clears it/);
+});
