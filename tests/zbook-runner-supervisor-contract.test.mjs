@@ -13,4 +13,9 @@ test("ZBook persistence includes a runner-independent one-minute supervisor", ()
   assert.equal((watchdog.match(/function Write-GaiLog/g) ?? []).length, 1);
   assert.equal((watchdog.match(/function Start-GitHubRunner/g) ?? []).length, 1);
   assert.doesNotMatch(watchdog, /^\) \{ \[int\]\$env:GAI_RUNNER_FAILURE_THRESHOLD \} else \{ 2 \}$/m);
+  assert.match(watchdog, /GAI_RUNNER_SESSION_CONFLICT_GRACE_MINUTES/);
+  assert.match(watchdog, /function Test-RunnerSessionConflictGrace/);
+  assert.match(watchdog, /TaskAgentSessionConflictException/);
+  assert.match(watchdog, /runnerSessionConflictGrace/);
+  assert.match(watchdog, /deferring recycle for up to/);
 });
