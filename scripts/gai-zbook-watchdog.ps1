@@ -9,6 +9,7 @@ New-Item -ItemType Directory -Force -Path $stateRoot | Out-Null
 $logPath = Join-Path $stateRoot 'zbook-watchdog.log'
 $runnerHealthStatePath = Join-Path $stateRoot 'zbook-runner-health.json'
 $runnerFailureThreshold = if ($env:GAI_RUNNER_FAILURE_THRESHOLD -match '^\d+$') { [int]$env:GAI_RUNNER_FAILURE_THRESHOLD } else { 2 }
+$runnerSessionConflictGraceMinutes = if ($env:GAI_RUNNER_SESSION_CONFLICT_GRACE_MINUTES -match '^\d+$') { [Math]::Min([Math]::Max([int]$env:GAI_RUNNER_SESSION_CONFLICT_GRACE_MINUTES, 2), 30) } else { 10 }
 $watchdogScriptPath = $PSCommandPath
 
 function Write-GaiLog([string]$Message) {
@@ -98,6 +99,44 @@ function Resolve-OllamaExe {
   return ($candidates | Where-Object { Test-Path $_ } | Select-Object -First 1)
 }
 
+function Get-LatestRunnerLog {
+  $diagRoot = Join-Path $RunnerRoot '_diag'
+  return Get-ChildItem -Path $diagRoot -Filter 'Runner_*.log' -File -ErrorAction SilentlyContinue |
+    Sort-Object LastWriteTimeUtc -Descending |
+    Select-Object -First 1
+}
+
+function Test-RunnerSessionConflictGrace {
+  $listeners = @(Get-Process -Name 'Runner.Listener' -ErrorAction SilentlyContinue)
+  if ($listeners.Count -eq 0) { return $false }
+
+  $oldestStart = ($listeners | Sort-Object StartTime | Select-Object -First 1).StartTime.ToUniversalTime()
+  if ($oldestStart -lt (Get-Date).ToUniversalTime().AddMinutes(-$runnerSessionConflictGraceMinutes)) {
+    return $false
+  }
+
+  $latestLog = Get-LatestRunnerLog
+  if (-not $latestLog) { return $false }
+
+  try {
+    $tail = @(Get-Content -Path $latestLog.FullName -Tail 160 -ErrorAction Stop)
+    $lastConflict = -1
+    $lastReady = -1
+    for ($i = 0; $i -lt $tail.Count; $i++) {
+      if ($tail[$i] -match 'TaskAgentSessionConflictException|A session for this runner already exists|HTTP Status:\s*Conflict') {
+        $lastConflict = $i
+      }
+      if ($tail[$i] -match 'Listening for Jobs|Session created') {
+        $lastReady = $i
+      }
+    }
+    return $lastConflict -gt $lastReady
+  } catch {
+    Write-GaiLog "Runner session-conflict probe unavailable: $($_.Exception.Message)"
+    return $false
+  }
+}
+
 function Test-RunnerConnection {
   $listeners = @(Get-Process -Name 'Runner.Listener' -ErrorAction SilentlyContinue)
   if ($listeners.Count -eq 0) { return $false }
@@ -117,10 +156,7 @@ function Test-RunnerConnection {
   # Fallback: accept a listener only when its diagnostic log has been updated
   # recently. This avoids killing a working runner on hosts where
   # Get-NetTCPConnection is unavailable while still recovering stale sessions.
-  $diagRoot = Join-Path $RunnerRoot '_diag'
-  $latestLog = Get-ChildItem -Path $diagRoot -Filter 'Runner_*.log' -File -ErrorAction SilentlyContinue |
-    Sort-Object LastWriteTimeUtc -Descending |
-    Select-Object -First 1
+  $latestLog = Get-LatestRunnerLog
   if ($latestLog -and $latestLog.LastWriteTimeUtc -gt (Get-Date).ToUniversalTime().AddMinutes(-10)) {
     return $true
   }
@@ -164,6 +200,7 @@ function Start-GitHubRunner {
 $activeRunnerWorkers = @(Get-Process -Name 'Runner.Worker' -ErrorAction SilentlyContinue)
 $runnerProtectedByActiveJob = $activeRunnerWorkers.Count -gt 0
 $runnerConnectionHealthy = Test-RunnerConnection
+$runnerSessionConflictGrace = (-not $runnerProtectedByActiveJob) -and (-not $runnerConnectionHealthy) -and (Test-RunnerSessionConflictGrace)
 $runnerHealthy = $runnerConnectionHealthy -or $runnerProtectedByActiveJob
 $runnerRecoveryDeferred = $false
 $consecutiveRunnerFailures = Get-ConsecutiveRunnerFailures
@@ -181,6 +218,13 @@ if ($runnerProtectedByActiveJob) {
     Set-ConsecutiveRunnerFailures 0
     $consecutiveRunnerFailures = 0
   }
+} elseif ($runnerSessionConflictGrace) {
+  $runnerRecoveryDeferred = $true
+  if ($consecutiveRunnerFailures -ne 0) {
+    Set-ConsecutiveRunnerFailures 0
+    $consecutiveRunnerFailures = 0
+  }
+  Write-GaiLog "GitHub runner broker session conflict is retrying; deferring recycle for up to $runnerSessionConflictGraceMinutes minutes."
 } else {
   $consecutiveRunnerFailures++
   Set-ConsecutiveRunnerFailures $consecutiveRunnerFailures
@@ -227,7 +271,9 @@ $status = [ordered]@{
   runnerRoot = $RunnerRoot
   runnerHealthy = $runnerHealthy
   runnerConnectionHealthy = $runnerConnectionHealthy
-  runnerHealthMode = 'active-job-or-established-tcp-or-recent-diag'
+  runnerSessionConflictGrace = $runnerSessionConflictGrace
+  runnerSessionConflictGraceMinutes = $runnerSessionConflictGraceMinutes
+  runnerHealthMode = 'active-job-or-established-tcp-or-recent-diag-or-session-conflict-grace'
   activeRunnerWorkers = $activeRunnerWorkers.Count
   runnerProtectedByActiveJob = $runnerProtectedByActiveJob
   consecutiveRunnerFailures = $consecutiveRunnerFailures
