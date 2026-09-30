@@ -30,7 +30,8 @@ function nodeId(value) {
 }
 
 async function readJson(path) {
-  return JSON.parse(await readFile(resolve(path), "utf8"));
+  const text = await readFile(resolve(path), "utf8");
+  return JSON.parse(text.replace(/^\uFEFF/, ""));
 }
 
 async function writeJson(path, value) {
