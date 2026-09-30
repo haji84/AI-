@@ -34,3 +34,14 @@ test("ZBook broker conflict cooldown survives Listener exit and outranks TCP hea
 
   assert.match(watchdog, /Remove-Item -Path \$runnerSessionConflictStatePath -Force -ErrorAction SilentlyContinue/);
 });
+
+
+test("ZBook broker conflict cooldown cannot re-arm after expiry in the same episode", () => {
+  const watchdog = readFileSync("scripts/gai-zbook-watchdog.ps1", "utf8");
+  const start = watchdog.indexOf("function Test-RunnerSessionConflictGrace");
+  const end = watchdog.indexOf("\nfunction Test-RunnerConnection", start);
+  assert.ok(start >= 0 && end > start);
+  const graceBody = watchdog.slice(start, end);
+  assert.doesNotMatch(graceBody, /Remove-Item -Path \$runnerSessionConflictStatePath/);
+  assert.match(graceBody, /Keep the expired marker until a real healthy session clears it/);
+});
