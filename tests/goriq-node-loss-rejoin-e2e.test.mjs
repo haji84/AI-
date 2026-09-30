@@ -52,7 +52,9 @@ test("rejoin evidence requires survivor execution between loss and recovery", as
     await json(status, {
       workerId: "macbook",
       runnerHealthy: true,
-      runnerConnectionHealthy: true,
+      runnerConnectionHealthy: false,
+      runnerProtectedByActiveJob: true,
+      activeRunnerWorkers: 1,
       consecutiveRunnerFailures: 0,
       runnerRecoveryDeferred: false,
       checkedAt: "2026-09-30T00:00:19.000Z",
@@ -78,6 +80,7 @@ test("rejoin evidence requires survivor execution between loss and recovery", as
     assert.equal(parsed.watchdogRecovered, true);
     assert.equal(parsed.oldListenerPid, 100);
     assert.equal(parsed.newListenerPid, 200);
+    assert.equal(parsed.runnerConnectionEvidenceMode, "active-runner-worker");
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
