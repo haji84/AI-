@@ -111,3 +111,21 @@ test("Stage B rejoin proof uses fresh live runner process status on both nodes",
   assert.doesNotMatch(workflow, /--status "\$STATE_ROOT\/macbook-watchdog-status\.json"/);
   assert.doesNotMatch(workflow, /--status \(Join-Path \$stateRoot 'zbook-watchdog-status\.json'\)/);
 });
+
+
+test("Stage B rejoin proof binds to the current job ancestry instead of arbitrary workers", async () => {
+  const workflow = await readFile(".github/workflows/goriq-stage-b-node-loss-rejoin.yml", "utf8");
+
+  assert.match(workflow, /Mac rejoin ancestry:/);
+  assert.match(workflow, /current_pid="\$PPID"/);
+  assert.match(workflow, /current_comm=.*ps -o comm=/);
+  assert.doesNotMatch(workflow, /worker_pid="\$\(pgrep -f 'Runner\.Worker' \| head -n 1/);
+
+  assert.match(workflow, /ZBook rejoin ancestry:/);
+  assert.match(workflow, /\$currentPid = \$PID/);
+  assert.match(workflow, /Current ZBook job ancestry does not contain Runner\.Worker\.exe/);
+  assert.doesNotMatch(workflow, /\$worker = \$workers \| Select-Object -First 1/);
+
+  assert.doesNotMatch(workflow, /& \$watchdog -RunnerRoot/);
+  assert.doesNotMatch(workflow, /\/bin\/bash "\$WATCHDOG" >\/dev\/null 2>&1 \|\| true/);
+});
