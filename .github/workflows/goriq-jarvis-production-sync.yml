@@ -283,10 +283,11 @@ jobs:
           set -euo pipefail
           FILE="$HOME/.ai-company/chatgpt-bridge-execution.json"
           HEALTH="$HOME/.ai-company/chatgpt-bridge-health.json"
+          MIN_UPDATED_AT="$(date -u +%s)"
           for _ in $(seq 1 30); do
             if [[ -s "$FILE" ]]; then
-              stage="$(node -e 'const fs=require("fs");const x=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));process.stdout.write(String(x.stage||""));' "$FILE" 2>/dev/null || true)"
-              if [[ -n "$stage" && "$stage" != "routing" && "$stage" != "composer-focused" ]]; then
+              read -r stage updated_epoch <<<"$(node -e 'const fs=require("fs");const x=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));const t=Date.parse(String(x.updatedAt||""));process.stdout.write(String(x.stage||"")+" "+(Number.isFinite(t)?String(Math.floor(t/1000)):"0"));' "$FILE" 2>/dev/null || printf " 0")"
+              if [[ -n "$stage" && "$stage" != "routing" && "$stage" != "composer-focused" && "$updated_epoch" =~ ^[0-9]+$ && "$updated_epoch" -ge "$MIN_UPDATED_AT" ]]; then
                 break
               fi
             fi
