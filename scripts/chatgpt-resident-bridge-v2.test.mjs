@@ -8,7 +8,6 @@ import { dirname, join } from "node:path";
 const here = dirname(fileURLToPath(import.meta.url));
 const source = await readFile(join(here, "chatgpt-resident-bridge-v2.mjs"), "utf8");
 const installer = await readFile(join(here, "install-macos-chatgpt-bridge.sh"), "utf8");
-const zeroTouchInstaller = await readFile(join(here, "jarvis-mac-zero-touch-install.sh"), "utf8");
 const macBootstrapWorkflow = await readFile(join(here, "../.github/workflows/jarvis-mac-bootstrap.yml"), "utf8");
 
 test("resident bridge v2 opens ChatGPT only through the Automation project surface", () => {
@@ -434,15 +433,11 @@ test("recovery never falls through to a duplicate ChatGPT submission", () => {
 });
 
 
-test("Mac zero-touch refreshes the ChatGPT resident bridge", () => {
-  assert.match(zeroTouchInstaller, /install-macos-chatgpt-bridge\.sh/);
-  assert.match(zeroTouchInstaller, /GORIQ ChatGPT resident bridge: refreshed/);
-  assert.match(zeroTouchInstaller, /exit 9/);
-});
-
-test("Mac bootstrap reruns when ChatGPT bridge implementation changes", () => {
+test("Mac bootstrap reruns and refreshes when ChatGPT bridge implementation changes", () => {
   assert.match(macBootstrapWorkflow, /scripts\/install-macos-chatgpt-bridge\.sh/);
   assert.match(macBootstrapWorkflow, /scripts\/chatgpt-resident-bridge-v2\.mjs/);
   assert.match(macBootstrapWorkflow, /scripts\/chatgpt-resident-bridge-lib\.mjs/);
   assert.match(macBootstrapWorkflow, /src\/orchestrator\/chat-work-session-router\.ts/);
+  assert.match(macBootstrapWorkflow, /Install or refresh ChatGPT resident bridge/);
+  assert.match(macBootstrapWorkflow, /run: bash scripts\/install-macos-chatgpt-bridge\.sh/);
 });
