@@ -70,3 +70,15 @@ test("Mac watchdog limits stale diagnostic fallback for disconnected idle listen
   assert.match(watchdog, /now - newest_mtime < RUNNER_DIAG_GRACE_SECONDS/);
   assert.doesNotMatch(watchdog, /now - newest_mtime < 600/);
 });
+
+
+test("Mac watchdog preserves one Listener during bounded broker session conflict", () => {
+  const watchdog = readFileSync(watchdogPath, "utf8");
+  assert.match(watchdog, /GAI_RUNNER_SESSION_CONFLICT_GRACE_SECONDS:-600/);
+  assert.match(watchdog, /runner_log_has_active_session_conflict/);
+  assert.match(watchdog, /TaskAgentSessionConflictException/);
+  assert.match(watchdog, /runner_session_conflict_grace_active/);
+  assert.match(watchdog, /deferring recycle for up to/);
+  assert.match(watchdog, /runnerSessionConflictGrace/);
+  assert.match(watchdog, /session-conflict-grace/);
+});

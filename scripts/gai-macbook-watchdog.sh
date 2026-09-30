@@ -11,6 +11,8 @@ LOCK_DIR="$STATE_ROOT/macbook-watchdog.lock"
 MAINTENANCE_HOLD_FILE="$STATE_ROOT/macbook-maintenance-hold.epoch"
 RUNNER_FAILURE_THRESHOLD="${GAI_RUNNER_FAILURE_THRESHOLD:-2}"
 RUNNER_DIAG_GRACE_SECONDS="${GAI_RUNNER_DIAG_GRACE_SECONDS:-120}"
+RUNNER_SESSION_CONFLICT_GRACE_SECONDS="${GAI_RUNNER_SESSION_CONFLICT_GRACE_SECONDS:-600}"
+RUNNER_SESSION_CONFLICT_STATE="$STATE_ROOT/macbook-runner-session-conflict.epoch"
 
 log() {
   printf '%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*" | tee -a "$LOG_FILE"
@@ -82,6 +84,76 @@ set_consecutive_runner_failures() {
 JSON
 }
 
+latest_runner_log() {
+  local diag_root="$RUNNER_ROOT/_diag"
+  local newest_file=''
+  local newest_mtime=0
+  local file=''
+  if [[ -d "$diag_root" ]]; then
+    for file in "$diag_root"/Runner_*.log; do
+      [[ -f "$file" ]] || continue
+      local mtime=0
+      mtime="$(stat -f '%m' "$file" 2>/dev/null || printf '0')"
+      if [[ "$mtime" =~ ^[0-9]+$ ]] && (( mtime > newest_mtime )); then
+        newest_mtime="$mtime"
+        newest_file="$file"
+      fi
+    done
+  fi
+  [[ -n "$newest_file" ]] || return 1
+  printf '%s\n' "$newest_file"
+}
+
+runner_log_has_active_session_conflict() {
+  local file="$1"
+  [[ -f "$file" ]] || return 1
+
+  local tail_data=''
+  tail_data="$(tail -n 220 "$file" 2>/dev/null || true)"
+  local conflict_line=''
+  local ready_line=''
+  conflict_line="$(printf '%s\n' "$tail_data" | grep -nE 'TaskAgentSessionConflictException|A session for this runner already exists|HTTP Status:[[:space:]]*Conflict' | tail -n 1 | cut -d: -f1 || true)"
+  ready_line="$(printf '%s\n' "$tail_data" | grep -nE 'Listening for Jobs|Session created' | tail -n 1 | cut -d: -f1 || true)"
+
+  [[ "$conflict_line" =~ ^[0-9]+$ ]] || return 1
+  if [[ ! "$ready_line" =~ ^[0-9]+$ ]] || (( conflict_line > ready_line )); then
+    return 0
+  fi
+  return 1
+}
+
+runner_session_conflict_grace_active() {
+  local listeners=''
+  listeners="$(pgrep -f 'Runner.Listener' 2>/dev/null || true)"
+  [[ -n "$listeners" ]] || {
+    rm -f "$RUNNER_SESSION_CONFLICT_STATE"
+    return 1
+  }
+
+  local file=''
+  file="$(latest_runner_log || true)"
+  if [[ -z "$file" ]] || ! runner_log_has_active_session_conflict "$file"; then
+    rm -f "$RUNNER_SESSION_CONFLICT_STATE"
+    return 1
+  fi
+
+  local now=0
+  now="$(date +%s)"
+  local since=''
+  since="$(cat "$RUNNER_SESSION_CONFLICT_STATE" 2>/dev/null || true)"
+  if [[ ! "$since" =~ ^[0-9]+$ ]]; then
+    since="$now"
+    printf '%s\n' "$since" >"$RUNNER_SESSION_CONFLICT_STATE"
+  fi
+
+  if (( now - since < RUNNER_SESSION_CONFLICT_GRACE_SECONDS )); then
+    return 0
+  fi
+
+  rm -f "$RUNNER_SESSION_CONFLICT_STATE"
+  return 1
+}
+
 runner_connection_healthy() {
   local listeners=''
   listeners="$(pgrep -f 'Runner.Listener' 2>/dev/null || true)"
@@ -97,23 +169,19 @@ runner_connection_healthy() {
     done <<<"$listeners"
   fi
 
-  local diag_root="$RUNNER_ROOT/_diag"
+  local latest_log=''
+  latest_log="$(latest_runner_log || true)"
   local newest_mtime=0
-  local file=''
-  if [[ -d "$diag_root" ]]; then
-    for file in "$diag_root"/Runner_*.log; do
-      [[ -f "$file" ]] || continue
-      local mtime=0
-      mtime="$(stat -f '%m' "$file" 2>/dev/null || printf '0')"
-      if [[ "$mtime" =~ ^[0-9]+$ ]] && (( mtime > newest_mtime )); then
-        newest_mtime="$mtime"
-      fi
-    done
+  if [[ -n "$latest_log" ]]; then
+    newest_mtime="$(stat -f '%m' "$latest_log" 2>/dev/null || printf '0')"
   fi
 
   local now=0
   now="$(date +%s)"
   if (( newest_mtime > 0 && now - newest_mtime < RUNNER_DIAG_GRACE_SECONDS )); then
+    if [[ -n "$latest_log" ]] && runner_log_has_active_session_conflict "$latest_log"; then
+      return 1
+    fi
     return 0
   fi
   return 1
@@ -205,6 +273,10 @@ fi
 
 runner_healthy=false
 runner_recovery_deferred=false
+runner_session_conflict_grace=false
+if [[ "$runner_protected_by_active_job" != true && "$runner_connection_ok" != true ]] && runner_session_conflict_grace_active; then
+  runner_session_conflict_grace=true
+fi
 consecutive_runner_failures="$(get_consecutive_runner_failures)"
 maintenance_hold_active=false
 maintenance_hold_until=0
@@ -236,10 +308,16 @@ elif [[ "$runner_protected_by_active_job" == true ]]; then
   fi
 elif [[ "$runner_connection_ok" == true ]]; then
   runner_healthy=true
+  rm -f "$RUNNER_SESSION_CONFLICT_STATE"
   if (( consecutive_runner_failures != 0 )); then
     set_consecutive_runner_failures 0
     consecutive_runner_failures=0
   fi
+elif [[ "$runner_session_conflict_grace" == true ]]; then
+  runner_recovery_deferred=true
+  consecutive_runner_failures=0
+  set_consecutive_runner_failures 0
+  log "GitHub runner broker session conflict is retrying; deferring recycle for up to $RUNNER_SESSION_CONFLICT_GRACE_SECONDS seconds."
 else
   consecutive_runner_failures=$((consecutive_runner_failures + 1))
   set_consecutive_runner_failures "$consecutive_runner_failures"
@@ -312,7 +390,9 @@ cat >"$STATE_ROOT/macbook-watchdog-status.json" <<JSON
   "runnerRoot": "${RUNNER_ROOT//\"/\\\"}",
   "runnerHealthy": $runner_healthy,
   "runnerConnectionHealthy": $runner_connection_ok,
-  "runnerHealthMode": "active-job-or-established-tcp-or-recent-diag",
+  "runnerSessionConflictGrace": $runner_session_conflict_grace,
+  "runnerSessionConflictGraceSeconds": $RUNNER_SESSION_CONFLICT_GRACE_SECONDS,
+  "runnerHealthMode": "active-job-or-established-tcp-or-recent-diag-or-session-conflict-grace",
   "activeRunnerWorkers": $active_runner_workers,
   "runnerProtectedByActiveJob": $runner_protected_by_active_job,
   "consecutiveRunnerFailures": $consecutive_runner_failures,
