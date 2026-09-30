@@ -14,3 +14,13 @@ test("Mac Production Sync automatically reconciles Supervisor and ChatGPT Bridge
   assert.match(s,/chat-work-session-router\.ts/);
   assert.match(s,/MAC_RUNTIME_RECONCILE completed/);
 });
+
+test("Mac Production Sync emits sanitized resident Bridge diagnostics",async()=>{
+  const s=await wf();
+  assert.match(s,/Emit sanitized resident Bridge diagnostic/);
+  assert.match(s,/chatgpt-bridge-execution\.json/);
+  assert.match(s,/BRIDGE_DIAGNOSTIC_BEGIN/);
+  assert.match(s,/assistantIdChanged/);
+  assert.match(s,/composerRemaining/);
+  assert.doesNotMatch(s,/pendingOwnerPayload/);
+});
