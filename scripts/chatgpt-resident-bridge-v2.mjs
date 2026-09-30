@@ -36,6 +36,7 @@ const CHATGPT_URL = "https://chatgpt.com/";
 const PROJECT_NAME = process.env.AI_COMPANY_CHATGPT_PROJECT_NAME?.trim() || "自動化";
 const PROJECT_SURFACES_FILE = join(STATE_DIR, "chatgpt-project-surfaces.json");
 const PROJECT_SESSIONS_FILE = join(STATE_DIR, "chatgpt-project-sessions.json");
+const EXECUTION_DIAGNOSTIC_FILE = join(STATE_DIR, "chatgpt-bridge-execution.json");
 const ONE_SHOT_REPAIR_ISSUE = Number(process.env.AI_COMPANY_REPAIR_ONCE_ISSUE || "");
 const CHAT_MAX_PHASES = 4;
 const CHAT_PHASE_BUDGET_MS = 60_000;
@@ -105,6 +106,17 @@ async function recordProjectSession(surface, url, goalId = null) {
   });
   await mkdir(STATE_DIR, { recursive: true });
   await writeFile(PROJECT_SESSIONS_FILE, JSON.stringify(next, null, 2) + "\n", "utf8");
+}
+
+async function setExecutionDiagnostic(stage, extra = {}) {
+  await mkdir(STATE_DIR, { recursive: true });
+  const payload = {
+    stage,
+    updatedAt: new Date().toISOString(),
+    pid: process.pid,
+    ...extra,
+  };
+  await writeFile(EXECUTION_DIAGNOSTIC_FILE, JSON.stringify(payload, null, 2) + "\n", "utf8");
 }
 
 async function setHealth(status, detail = null, extra = {}) {
@@ -695,7 +707,17 @@ async function waitForOrdinaryChatAnswer(client, baselineAssistantCount, baselin
     );
 
     if (Date.now() - lastProgressLogAt >= 15_000) {
-      console.log(`[bridge] ${new Date().toISOString()} ordinary-chat-wait: assistantCount=${state?.assistantCount ?? 0} baselineCount=${baselineAssistantCount} assistantIdChanged=${Boolean(baselineId && state?.assistantId && state.assistantId !== baselineId)} textChanged=${Boolean(baselineText && state?.text && state.text !== baselineText)} generating=${Boolean(state?.generating)} textLength=${String(state?.text ?? "").length}`);
+      const assistantIdChanged = Boolean(baselineId && state?.assistantId && state.assistantId !== baselineId);
+      const textChanged = Boolean(baselineText && state?.text && state.text !== baselineText);
+      console.log(`[bridge] ${new Date().toISOString()} ordinary-chat-wait: assistantCount=${state?.assistantCount ?? 0} baselineCount=${baselineAssistantCount} assistantIdChanged=${assistantIdChanged} textChanged=${textChanged} generating=${Boolean(state?.generating)} textLength=${String(state?.text ?? "").length}`);
+      await setExecutionDiagnostic("ordinary-chat-wait", {
+        assistantCount: Number(state?.assistantCount ?? 0),
+        baselineCount: Number(baselineAssistantCount),
+        assistantIdChanged,
+        textChanged,
+        generating: Boolean(state?.generating),
+        textLength: String(state?.text ?? "").length,
+      });
       lastProgressLogAt = Date.now();
     }
 
@@ -707,6 +729,10 @@ async function waitForOrdinaryChatAnswer(client, baselineAssistantCount, baselin
         stableSince = Date.now();
       }
       if (!state.generating && Date.now() - stableSince >= COMPLETION_STABLE_MS) {
+        await setExecutionDiagnostic("ordinary-chat-answer-detected", {
+          textLength: String(lastText).length,
+          assistantCount: Number(state?.assistantCount ?? 0),
+        });
         return String(lastText).slice(0, 8000);
       }
     }
@@ -1023,6 +1049,12 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false, p
       return document.activeElement === el || el.contains(document.activeElement);
     })()`);
     if (!focused) throw new Error("could not focus ChatGPT composer");
+    await setExecutionDiagnostic("composer-focused", {
+      mode,
+      fresh,
+      repairMode,
+      sessionReuse: Boolean(preferredUrl && !fresh),
+    });
 
     await client.call("Input.dispatchKeyEvent", { type: "keyDown", key: "a", code: "KeyA", modifiers: 4 });
     await client.call("Input.dispatchKeyEvent", { type: "keyUp", key: "a", code: "KeyA", modifiers: 4 });
@@ -1073,6 +1105,16 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false, p
         type: button.getAttribute('type') || '',
       };
     })()`);
+
+    await setExecutionDiagnostic("send-target", {
+      mode,
+      fresh,
+      repairMode,
+      found: Boolean(sendTarget?.x && sendTarget?.y),
+      testid: sendTarget?.testid || "",
+      aria: sendTarget?.aria || "",
+      type: sendTarget?.type || "",
+    });
 
     if (sendTarget?.x && sendTarget?.y) {
       await client.call("Input.dispatchMouseEvent", { type: "mouseMoved", x: sendTarget.x, y: sendTarget.y });
@@ -1171,6 +1213,17 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false, p
       await sleep(700);
       submitted = await submissionState();
     }
+
+    await setExecutionDiagnostic("submission-check", {
+      mode,
+      fresh,
+      repairMode,
+      submitted: isSubmitted(submitted),
+      userCount: Number(submitted?.userCount ?? -1),
+      composerRemaining: String(submitted?.composerText ?? "").length,
+      composerInForm: Boolean(submitted?.composerInForm),
+      composerInMain: Boolean(submitted?.composerInMain),
+    });
 
     if (!isSubmitted(submitted)) {
       const diagnostics = await evaluate(client, `(() => {
@@ -1399,6 +1452,13 @@ async function processIssue(issue) {
     sessionReuse: decision.reuse,
     goalId: taskContext.goalId,
   });
+  await setExecutionDiagnostic("routing", {
+    issueNumber: issue.number,
+    selectedSurface: decision.surface,
+    sessionReuse: decision.reuse,
+    createNew: decision.createNew,
+    hasGoalId: Boolean(taskContext.goalId),
+  });
   const prompt = buildBridgePrompt({
     issueNumber: issue.number,
     meta,
@@ -1415,6 +1475,7 @@ async function processIssue(issue) {
   );
   if (!answer.trim()) throw new Error("ChatGPT returned an empty answer; pending was preserved");
   const aiMessage = await postAiReply(issue.number, meta, answer);
+  await setExecutionDiagnostic("synced", { issueNumber: issue.number, answerLength: String(answer).length });
   await setHealth("synced", `Issue #${issue.number} synced`, { issueNumber: issue.number, lastAiMessageId: aiMessage.id });
 }
 
