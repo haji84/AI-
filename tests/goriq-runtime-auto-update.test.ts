@@ -24,3 +24,10 @@ test("Mac Production Sync emits sanitized resident Bridge diagnostics",async()=>
   assert.match(s,/composerRemaining/);
   assert.doesNotMatch(s,/pendingOwnerPayload/);
 });
+
+test("Bridge diagnostic waits for execution to advance beyond routing",async()=>{
+  const s=await wf();
+  assert.match(s,/seq 1 30/);
+  assert.match(s,/stage!="routing"|\$stage" != "routing"/);
+  assert.match(s,/composer-focused/);
+});
