@@ -153,11 +153,15 @@ function Test-RunnerSessionConflictGrace {
     Set-Content -Path $runnerSessionConflictStatePath -Value ([string]$since) -Encoding ASCII
   }
 
-  if ($since -gt 0 -and ($now - $since) -lt ($runnerSessionConflictGraceMinutes * 60)) {
-    return $true
+  if ($since -gt 0) {
+    if (($now - $since) -lt ($runnerSessionConflictGraceMinutes * 60)) {
+      return $true
+    }
+    # Keep the expired marker until a real healthy session clears it so fresh
+    # 409 log writes cannot re-arm another full cooldown.
+    return $false
   }
 
-  Remove-Item -Path $runnerSessionConflictStatePath -Force -ErrorAction SilentlyContinue
   return $false
 }
 

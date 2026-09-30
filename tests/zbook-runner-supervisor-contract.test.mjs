@@ -25,7 +25,8 @@ test("ZBook broker conflict cooldown survives Listener exit and outranks TCP hea
   const watchdog = readFileSync("scripts/gai-zbook-watchdog.ps1", "utf8");
   assert.match(watchdog, /zbook-runner-session-conflict\.epoch/);
   assert.match(watchdog, /function Test-LatestRunnerSessionConflict/);
-  assert.match(watchdog, /\$since -gt 0 -and \(\$now - \$since\) -lt \(\$runnerSessionConflictGraceMinutes \* 60\)/);
+  assert.match(watchdog, /if \(\$since -gt 0\)/);
+  assert.match(watchdog, /\(\$now - \$since\) -lt \(\$runnerSessionConflictGraceMinutes \* 60\)/);
 
   const connectionStart = watchdog.indexOf("function Test-RunnerConnection");
   const conflictCheck = watchdog.indexOf("Test-LatestRunnerSessionConflict", connectionStart);
@@ -33,4 +34,15 @@ test("ZBook broker conflict cooldown survives Listener exit and outranks TCP hea
   assert.ok(connectionStart >= 0 && conflictCheck > connectionStart && tcpProbe > conflictCheck);
 
   assert.match(watchdog, /Remove-Item -Path \$runnerSessionConflictStatePath -Force -ErrorAction SilentlyContinue/);
+});
+
+
+test("ZBook broker conflict cooldown cannot re-arm after expiry in the same episode", () => {
+  const watchdog = readFileSync("scripts/gai-zbook-watchdog.ps1", "utf8");
+  const start = watchdog.indexOf("function Test-RunnerSessionConflictGrace");
+  const end = watchdog.indexOf("\nfunction Test-RunnerConnection", start);
+  assert.ok(start >= 0 && end > start);
+  const graceBody = watchdog.slice(start, end);
+  assert.doesNotMatch(graceBody, /Remove-Item -Path \$runnerSessionConflictStatePath/);
+  assert.match(graceBody, /Keep the expired marker until a real healthy session clears it/);
 });

@@ -145,11 +145,15 @@ runner_session_conflict_grace_active() {
     printf '%s\n' "$since" >"$RUNNER_SESSION_CONFLICT_STATE"
   fi
 
-  if [[ "$since" =~ ^[0-9]+$ ]] && (( now - since < RUNNER_SESSION_CONFLICT_GRACE_SECONDS )); then
-    return 0
+  if [[ "$since" =~ ^[0-9]+$ ]]; then
+    if (( now - since < RUNNER_SESSION_CONFLICT_GRACE_SECONDS )); then
+      return 0
+    fi
+    # Keep the expired marker until a real healthy session clears it. This
+    # prevents fresh 409 log writes from re-arming another full cooldown.
+    return 1
   fi
 
-  rm -f "$RUNNER_SESSION_CONFLICT_STATE"
   return 1
 }
 
