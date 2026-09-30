@@ -990,10 +990,21 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false, p
     await markPhaseCopyBaseline(client, phaseToken);
 
     const focused = await evaluate(client, `(() => {
-      const el = document.querySelector('textarea') || document.querySelector('[contenteditable="true"]');
+      const visible = (el) => {
+        const rect = el.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0
+          && getComputedStyle(el).visibility !== 'hidden'
+          && getComputedStyle(el).display !== 'none';
+      };
+      const candidates = [...document.querySelectorAll('textarea,[contenteditable="true"]')]
+        .filter((el) => visible(el) && !el.matches('[aria-hidden="true"]') && !el.disabled);
+      const el = candidates.find((item) => item.closest('form'))
+        || candidates.find((item) => item.closest('main'))
+        || candidates.at(-1)
+        || null;
       if (!el) return false;
       el.focus();
-      return true;
+      return document.activeElement === el || el.contains(document.activeElement);
     })()`);
     if (!focused) throw new Error("could not focus ChatGPT composer");
 
@@ -1006,21 +1017,45 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false, p
     const sendTarget = await evaluate(client, `(() => {
       const visible = (el) => {
         const rect = el.getBoundingClientRect();
-        return rect.width > 0 && rect.height > 0;
+        return rect.width > 0 && rect.height > 0
+          && getComputedStyle(el).visibility !== 'hidden'
+          && getComputedStyle(el).display !== 'none';
       };
-      const buttons = [...document.querySelectorAll('button')];
-      const button = document.querySelector('button[data-testid="send-button"]')
-        || buttons.find((el) => {
-          const aria = (el.getAttribute('aria-label') || '').trim();
-          const testid = (el.getAttribute('data-testid') || '').trim();
-          const text = (el.textContent || '').trim();
-          return visible(el)
-            && !el.disabled
-            && (/^(send|送信)$/i.test(aria) || /send-button/i.test(testid) || /^(send|送信)$/i.test(text));
-        });
-      if (!button || button.disabled || !visible(button)) return null;
+      const composers = [...document.querySelectorAll('textarea,[contenteditable="true"]')]
+        .filter((el) => visible(el) && !el.matches('[aria-hidden="true"]') && !el.disabled);
+      const composer = composers.find((item) => item.closest('form'))
+        || composers.find((item) => item.closest('main'))
+        || composers.at(-1)
+        || null;
+      const form = composer?.closest('form') || null;
+      const buttons = [...(form ? form.querySelectorAll('button') : document.querySelectorAll('button'))];
+      const isSend = (el) => {
+        const aria = (el.getAttribute('aria-label') || '').trim();
+        const testid = (el.getAttribute('data-testid') || '').trim();
+        const text = (el.textContent || '').trim();
+        const type = (el.getAttribute('type') || '').trim();
+        return visible(el)
+          && !el.disabled
+          && !el.matches('[aria-hidden="true"]')
+          && (
+            /send/i.test(testid)
+            || /^(send|send prompt|送信|送信する)$/i.test(aria)
+            || /^(send|送信)$/i.test(text)
+            || type === 'submit'
+          );
+      };
+      const button = buttons.find(isSend)
+        || [...document.querySelectorAll('button')].find(isSend)
+        || null;
+      if (!button) return null;
       const rect = button.getBoundingClientRect();
-      return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+      return {
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2,
+        testid: button.getAttribute('data-testid') || '',
+        aria: button.getAttribute('aria-label') || '',
+        type: button.getAttribute('type') || '',
+      };
     })()`);
 
     if (sendTarget?.x && sendTarget?.y) {
@@ -1030,10 +1065,34 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false, p
     }
 
     const submissionState = async () => evaluate(client, `(() => {
-      const composer = document.querySelector('textarea') || document.querySelector('[contenteditable="true"]');
+      const visible = (el) => {
+        const rect = el.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0
+          && getComputedStyle(el).visibility !== 'hidden'
+          && getComputedStyle(el).display !== 'none';
+      };
+      const composers = [...document.querySelectorAll('textarea,[contenteditable="true"]')]
+        .filter((el) => visible(el) && !el.matches('[aria-hidden="true"]') && !el.disabled);
+      const composer = composers.find((item) => item.closest('form'))
+        || composers.find((item) => item.closest('main'))
+        || composers.at(-1)
+        || null;
+      const userTurns = [...document.querySelectorAll(
+        'main [data-message-author-role="user"], main [data-testid^="conversation-turn"], main article, main [data-message-id]'
+      )].filter((node) => {
+        const roleNode = node.matches?.('[data-message-author-role]') ? node : node.closest?.('[data-message-author-role]');
+        if (roleNode?.getAttribute?.('data-message-author-role') === 'user') return true;
+        const controls = [...node.querySelectorAll?.('button') || []].map((button) =>
+          [button.getAttribute('aria-label'), button.getAttribute('data-testid'), button.textContent].filter(Boolean).join(' ')
+        ).join(' | ');
+        return /メッセージを編集|edit message/i.test(controls);
+      });
       return {
-        userCount: document.querySelectorAll('[data-message-author-role="user"]').length,
+        userCount: userTurns.length,
         composerText: composer ? (composer.value || composer.innerText || composer.textContent || '').trim() : '',
+        composerTag: composer?.tagName || null,
+        composerInForm: !!composer?.closest('form'),
+        composerInMain: !!composer?.closest('main'),
       };
     })()`);
 
@@ -1098,7 +1157,33 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false, p
     }
 
     if (!isSubmitted(submitted)) {
-      throw new Error(`CHATGPT_SUBMIT_FAILED: userCount=${submitted?.userCount ?? "unknown"}; composerText=${String(submitted?.composerText ?? "").slice(0, 500)}`);
+      const diagnostics = await evaluate(client, `(() => {
+        const visible = (el) => {
+          const rect = el.getBoundingClientRect();
+          return rect.width > 0 && rect.height > 0;
+        };
+        const controls = [...document.querySelectorAll('button')]
+          .filter(visible)
+          .slice(-40)
+          .map((el) => ({
+            aria: (el.getAttribute('aria-label') || '').slice(0, 120),
+            testid: (el.getAttribute('data-testid') || '').slice(0, 120),
+            type: (el.getAttribute('type') || '').slice(0, 40),
+            disabled: !!el.disabled,
+          }));
+        return {
+          composerTag: __COMPOSER_TAG__,
+          composerInForm: __COMPOSER_IN_FORM__,
+          composerInMain: __COMPOSER_IN_MAIN__,
+          sendTarget: __SEND_TARGET__,
+          controls,
+        };
+      })()`
+        .replace("__COMPOSER_TAG__", JSON.stringify(submitted?.composerTag ?? null))
+        .replace("__COMPOSER_IN_FORM__", JSON.stringify(Boolean(submitted?.composerInForm)))
+        .replace("__COMPOSER_IN_MAIN__", JSON.stringify(Boolean(submitted?.composerInMain)))
+        .replace("__SEND_TARGET__", JSON.stringify(sendTarget ?? null)));
+      throw new Error(`CHATGPT_SUBMIT_FAILED: userCount=${submitted?.userCount ?? "unknown"}; composerRemaining=${String(submitted?.composerText ?? "").length}; diagnostic=${JSON.stringify(diagnostics).slice(0, 3000)}`);
     }
 
     const markerDeadline = Date.now() + 15000;
