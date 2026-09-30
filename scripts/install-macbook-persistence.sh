@@ -33,6 +33,13 @@ PERSISTED_SUPERVISOR="$STATE_ROOT/gai-macbook-runner-supervisor.sh"
 cp "$SOURCE_SUPERVISOR" "$PERSISTED_SUPERVISOR"
 chmod +x "$PERSISTED_SUPERVISOR"
 
+active_runner_worker=false
+if pgrep -f 'Runner.Worker' >/dev/null 2>&1; then
+  active_runner_worker=true
+fi
+install_started_epoch="$(date +%s)"
+launchd_reconcile_deferred=false
+
 cat >"$PLIST" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -66,10 +73,14 @@ cat >"$PLIST" <<PLIST
 </plist>
 PLIST
 
-launchctl bootout "gui/$(id -u)" "$PLIST" >/dev/null 2>&1 || true
-launchctl bootstrap "gui/$(id -u)" "$PLIST"
-install_started_epoch="$(date +%s)"
-launchctl kickstart -k "gui/$(id -u)/com.gai.worker-watchdog"
+if [[ "$active_runner_worker" != true ]]; then
+  launchctl bootout "gui/$(id -u)" "$PLIST" >/dev/null 2>&1 || true
+  launchctl bootstrap "gui/$(id -u)" "$PLIST"
+  launchctl kickstart -k "gui/$(id -u)/com.gai.worker-watchdog"
+else
+  launchd_reconcile_deferred=true
+  echo "Runner.Worker is active; updated watchdog files without restarting launchd."
+fi
 
 cat >"$SUPERVISOR_PLIST" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -108,28 +119,35 @@ cat >"$SUPERVISOR_PLIST" <<PLIST
 </plist>
 PLIST
 
-launchctl bootout "gui/$(id -u)" "$SUPERVISOR_PLIST" >/dev/null 2>&1 || true
-launchctl bootstrap "gui/$(id -u)" "$SUPERVISOR_PLIST"
-launchctl kickstart -k "gui/$(id -u)/com.gai.runner-supervisor"
+if [[ "$active_runner_worker" != true ]]; then
+  launchctl bootout "gui/$(id -u)" "$SUPERVISOR_PLIST" >/dev/null 2>&1 || true
+  launchctl bootstrap "gui/$(id -u)" "$SUPERVISOR_PLIST"
+  launchctl kickstart -k "gui/$(id -u)/com.gai.runner-supervisor"
+else
+  launchd_reconcile_deferred=true
+  echo "Runner.Worker is active; updated supervisor files without restarting launchd."
+fi
 
 STATUS_FILE="$STATE_ROOT/macbook-watchdog-status.json"
 status_fresh=false
-for _ in $(seq 1 30); do
-  if [[ -s "$STATUS_FILE" ]]; then
-    status_mtime="$(stat -f '%m' "$STATUS_FILE" 2>/dev/null || printf '0')"
-    if [[ "$status_mtime" =~ ^[0-9]+$ ]] && (( status_mtime >= install_started_epoch )); then
-      status_fresh=true
-      break
+if [[ "$active_runner_worker" != true ]]; then
+  for _ in $(seq 1 30); do
+    if [[ -s "$STATUS_FILE" ]]; then
+      status_mtime="$(stat -f '%m' "$STATUS_FILE" 2>/dev/null || printf '0')"
+      if [[ "$status_mtime" =~ ^[0-9]+$ ]] && (( status_mtime >= install_started_epoch )); then
+        status_fresh=true
+        break
+      fi
     fi
-  fi
-  sleep 1
-done
+    sleep 1
+  done
 
-if [[ "$status_fresh" != true ]]; then
-  echo "Mac watchdog did not publish fresh status after launchd restart." >&2
-  tail -n 80 "$STATE_ROOT/macbook-watchdog.log" 2>/dev/null || true
-  tail -n 80 "$STATE_ROOT/launchd.err.log" 2>/dev/null || true
-  exit 3
+  if [[ "$status_fresh" != true ]]; then
+    echo "Mac watchdog did not publish fresh status after launchd restart." >&2
+    tail -n 80 "$STATE_ROOT/macbook-watchdog.log" 2>/dev/null || true
+    tail -n 80 "$STATE_ROOT/launchd.err.log" 2>/dev/null || true
+    exit 3
+  fi
 fi
 
 cat >"$STATE_ROOT/macbook-persistence.json" <<JSON
@@ -141,6 +159,8 @@ cat >"$STATE_ROOT/macbook-persistence.json" <<JSON
   "supervisor": "${PERSISTED_SUPERVISOR//\"/\\\"}",
   "supervisorPlist": "${SUPERVISOR_PLIST//\"/\\\"}",
   "supervisorIntervalSeconds": 15,
+  "launchdReconcileDeferred": $launchd_reconcile_deferred,
+  "activeRunnerWorkerDuringInstall": $active_runner_worker,
   "maintenanceHoldUntil": $maintenance_hold_until,
   "ollamaEndpoint": "${OLLAMA_ENDPOINT//\"/\\\"}",
   "installedAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",

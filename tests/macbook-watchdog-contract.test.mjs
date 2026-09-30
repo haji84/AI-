@@ -82,3 +82,15 @@ test("Mac watchdog preserves one Listener during bounded broker session conflict
   assert.match(watchdog, /runnerSessionConflictGrace/);
   assert.match(watchdog, /session-conflict-grace/);
 });
+
+
+test("Mac persistence does not restart launchd while a Runner.Worker is active", () => {
+  const installer = readFileSync(installerPath, "utf8");
+  assert.match(installer, /active_runner_worker=false/);
+  assert.match(installer, /pgrep -f 'Runner\.Worker'/);
+  assert.match(installer, /if \[\[ "\$active_runner_worker" != true \]\]; then/);
+  assert.match(installer, /updated watchdog files without restarting launchd/);
+  assert.match(installer, /updated supervisor files without restarting launchd/);
+  assert.match(installer, /launchdReconcileDeferred/);
+  assert.match(installer, /activeRunnerWorkerDuringInstall/);
+});
