@@ -1,15 +1,6 @@
 name: GORIQ Stage B Node Loss Rejoin
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/goriq-stage-b-node-loss-rejoin.yml'
-      - 'scripts/goriq-node-loss-rejoin-e2e.mjs'
-      - 'tests/goriq-node-loss-rejoin-e2e.test.mjs'
-      - 'scripts/goriq-two-node-failover-e2e.ts'
-      - 'scripts/gai-macbook-watchdog.sh'
-      - 'scripts/gai-zbook-watchdog.ps1'
   workflow_dispatch:
 
 permissions:

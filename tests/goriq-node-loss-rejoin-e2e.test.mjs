@@ -82,3 +82,9 @@ test("rejoin evidence requires survivor execution between loss and recovery", as
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+test("destructive Stage B node-loss workflow is manual-only", async () => {
+  const workflow = await readFile(".github/workflows/goriq-stage-b-node-loss-rejoin.yml", "utf8");
+  assert.match(workflow, /on:\s*\n\s*workflow_dispatch:/);
+  assert.doesNotMatch(workflow, /\n\s*push:\s*\n/);
+});
