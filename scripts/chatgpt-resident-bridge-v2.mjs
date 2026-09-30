@@ -1030,7 +1030,8 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false, p
       await sleep(300);
     }
     if (markerUserIndex < 0) {
-      if (!freshBaselineEmpty) {
+      const reusedSessionSubmissionConfirmed = !fresh && isSubmitted(submitted);
+      if (!freshBaselineEmpty && !reusedSessionSubmissionConfirmed) {
         throw new Error("CHATGPT_SUBMITTED_TURN_NOT_FOUND");
       }
       markerUserIndex = -1;
