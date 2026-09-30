@@ -622,11 +622,12 @@ async function markPhaseCopyBaseline(client, phaseToken) {
   })()`.replace("__PHASE_TOKEN__", JSON.stringify(phaseToken)));
 }
 
-async function waitForOrdinaryChatAnswer(client, baselineAssistantCount, timeoutMs = CHAT_ABSOLUTE_CEILING_MS) {
+async function waitForOrdinaryChatAnswer(client, baselineAssistantCount, baselineLastAssistant = null, timeoutMs = CHAT_ABSOLUTE_CEILING_MS) {
   const deadline = Date.now() + timeoutMs;
   let lastText = "";
   let stableSince = 0;
   let transientEvaluateFailures = 0;
+  let lastProgressLogAt = 0;
 
   while (Date.now() < deadline) {
     let state;
@@ -685,7 +686,20 @@ async function waitForOrdinaryChatAnswer(client, baselineAssistantCount, timeout
       throw error;
     }
 
-    if ((state?.assistantCount ?? 0) > baselineAssistantCount && state?.text) {
+    const baselineId = baselineLastAssistant?.id || null;
+    const baselineText = baselineLastAssistant?.text || "";
+    const hasNewAssistant = Boolean(state?.text) && (
+      (state?.assistantCount ?? 0) > baselineAssistantCount
+      || (baselineId && state?.assistantId && state.assistantId !== baselineId)
+      || (!baselineId && baselineText && state.text !== baselineText)
+    );
+
+    if (Date.now() - lastProgressLogAt >= 15_000) {
+      console.log(`[bridge] ${new Date().toISOString()} ordinary-chat-wait: assistantCount=${state?.assistantCount ?? 0} baselineCount=${baselineAssistantCount} assistantIdChanged=${Boolean(baselineId && state?.assistantId && state.assistantId !== baselineId)} textChanged=${Boolean(baselineText && state?.text && state.text !== baselineText)} generating=${Boolean(state?.generating)} textLength=${String(state?.text ?? "").length}`);
+      lastProgressLogAt = Date.now();
+    }
+
+    if (hasNewAssistant) {
       if (state.text === lastText) {
         if (!stableSince) stableSince = Date.now();
       } else {
@@ -981,9 +995,11 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false, p
     if (!String(selectedExperience?.url ?? "").startsWith(CHATGPT_URL)) throw new Error("project surface left ChatGPT");
 
     const preSubmissionTurns = await snapshotConversationMessages(client);
-    const baselineAssistantCount = Array.isArray(preSubmissionTurns)
-      ? preSubmissionTurns.filter((message) => message.role === "assistant").length
-      : 0;
+    const baselineAssistantMessages = Array.isArray(preSubmissionTurns)
+      ? preSubmissionTurns.filter((message) => message.role === "assistant")
+      : [];
+    const baselineAssistantCount = baselineAssistantMessages.length;
+    const baselineLastAssistant = baselineAssistantMessages.at(-1) ?? null;
     const freshBaselineEmpty = fresh && Array.isArray(preSubmissionTurns) && preSubmissionTurns.length === 0;
     const beforeUserCount = await evaluate(client, `(() => document.querySelectorAll('[data-message-author-role="user"]').length)()`);
     let phaseToken = `goriq-phase-${randomUUID()}`;
@@ -1205,7 +1221,7 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false, p
     }
 
     if (mode === "chat" && !repairMode) {
-      const answer = await waitForOrdinaryChatAnswer(client, baselineAssistantCount);
+      const answer = await waitForOrdinaryChatAnswer(client, baselineAssistantCount, baselineLastAssistant);
       if (!fresh) {
         const surfaceUrl = await evaluate(client, "location.href");
         await recordProjectSession(mode, String(surfaceUrl || ""), goalId);
