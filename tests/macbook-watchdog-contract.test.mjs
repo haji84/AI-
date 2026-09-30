@@ -63,3 +63,10 @@ test("Mac persistence self-update uses a bounded maintenance hold", () => {
   assert.match(watchdog, /maintenanceHoldUntil/);
   assert.match(watchdog, /rm -f "\$MAINTENANCE_HOLD_FILE"/);
 });
+
+test("Mac watchdog limits stale diagnostic fallback for disconnected idle listeners", () => {
+  const watchdog = readFileSync(watchdogPath, "utf8");
+  assert.match(watchdog, /RUNNER_DIAG_GRACE_SECONDS="\$\{GAI_RUNNER_DIAG_GRACE_SECONDS:-120\}"/);
+  assert.match(watchdog, /now - newest_mtime < RUNNER_DIAG_GRACE_SECONDS/);
+  assert.doesNotMatch(watchdog, /now - newest_mtime < 600/);
+});
