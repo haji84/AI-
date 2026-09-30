@@ -316,3 +316,10 @@ test("ordinary Chat retries transient Runtime.evaluate timeouts without weakenin
   assert.match(source, /repairMode = false/);
   assert.match(source, /null, null, true/);
 });
+
+test("ordinary Chat uses the same robust assistant DOM fallbacks as conversation snapshots", () => {
+  assert.match(source, /main \[data-message-author-role\], main \[data-testid\^="conversation-turn"\], main article, main \[data-message-id\]/);
+  assert.match(source, /回答を再生成\|regenerate\|読み上げ\|read aloud\|リアクション\|reaction/);
+  assert.match(source, /contentNode = node\.querySelector\('\.markdown,\[data-message-content\],\.whitespace-pre-wrap'\) \|\| node/);
+  assert.match(source, /assistantId/);
+});
