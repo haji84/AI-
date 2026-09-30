@@ -10,6 +10,7 @@ RUNNER_HEALTH_STATE="$STATE_ROOT/macbook-runner-health.json"
 LOCK_DIR="$STATE_ROOT/macbook-watchdog.lock"
 MAINTENANCE_HOLD_FILE="$STATE_ROOT/macbook-maintenance-hold.epoch"
 RUNNER_FAILURE_THRESHOLD="${GAI_RUNNER_FAILURE_THRESHOLD:-2}"
+RUNNER_DIAG_GRACE_SECONDS="${GAI_RUNNER_DIAG_GRACE_SECONDS:-120}"
 
 log() {
   printf '%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*" | tee -a "$LOG_FILE"
@@ -112,7 +113,7 @@ runner_connection_healthy() {
 
   local now=0
   now="$(date +%s)"
-  if (( newest_mtime > 0 && now - newest_mtime < 600 )); then
+  if (( newest_mtime > 0 && now - newest_mtime < RUNNER_DIAG_GRACE_SECONDS )); then
     return 0
   fi
   return 1
