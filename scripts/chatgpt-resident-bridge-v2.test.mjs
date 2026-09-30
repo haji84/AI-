@@ -379,9 +379,20 @@ test("saved project session is reused only when it is a real project conversatio
   assert.match(source, /saved-session-invalid/);
 });
 
-test("ordinary project session is persisted immediately after confirmed submission", () => {
+test("ordinary project session is persisted only with a validated conversation URL", () => {
   assert.match(source, /if \(isSubmitted\(submitted\) && !repairMode\)/);
-  assert.match(source, /recordProjectSession\(mode, String\(submittedUrl \|\| ""\), goalId\)/);
-  assert.match(source, /writeProjectSurface\(mode, String\(submittedUrl \|\| ""\)\)/);
+  assert.match(source, /waitForPersistableProjectConversationUrl/);
+  assert.match(source, /if \(persistableUrl\)/);
+  assert.match(source, /recordProjectSession\(mode, persistableUrl, goalId\)/);
+  assert.match(source, /writeProjectSurface\(mode, persistableUrl\)/);
   assert.match(source, /session-persisted-on-submit/);
+  assert.match(source, /session-url-not-ready/);
+});
+
+test("new project Chat session is persisted only after a real conversation URL transition", () => {
+  assert.match(source, /async function waitForPersistableProjectConversationUrl/);
+  assert.match(source, /currentUrl !== baseline/);
+  assert.match(source, /messageCount \?\? 0\) > 0/);
+  assert.match(source, /session-url-not-ready/);
+  assert.match(source, /conversationUrlTransitioned/);
 });

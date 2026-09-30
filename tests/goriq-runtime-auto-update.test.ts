@@ -38,3 +38,9 @@ test("Bridge diagnostic capture waits for late or terminal execution stages",asy
   assert.match(s,/submission-check\|session-persisted-on-submit\|ordinary-chat-wait\|ordinary-chat-answer-detected\|synced\|error/);
   assert.match(s,/errorCode/);
 });
+
+test("Mac Bridge reconcile runs once after CI success instead of on direct push",async()=>{
+  const s=await wf();
+  assert.match(s,/Reconcile Mac persistence and ChatGPT bridge from exact main\n\s*if: github\.event_name == 'workflow_run' \|\| github\.event_name == 'workflow_dispatch'/);
+  assert.match(s,/Emit sanitized resident Bridge diagnostic\n\s*if: github\.event_name == 'workflow_run' \|\| github\.event_name == 'workflow_dispatch'/);
+});
