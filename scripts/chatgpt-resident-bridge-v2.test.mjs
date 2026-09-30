@@ -323,3 +323,13 @@ test("ordinary Chat uses the same robust assistant DOM fallbacks as conversation
   assert.match(source, /contentNode = node\.querySelector\('\.markdown,\[data-message-content\],\.whitespace-pre-wrap'\) \|\| node/);
   assert.match(source, /assistantId/);
 });
+
+test("macOS bridge installer waits for launchd registration before kickstart", () => {
+  assert.match(installer, /DOMAIN="gui\/\$\(id -u\)"/);
+  assert.match(installer, /SERVICE="\$DOMAIN\/\$LABEL"/);
+  assert.match(installer, /launchctl print "\$SERVICE"/);
+  assert.match(installer, /for _ in \$\(seq 1 20\)/);
+  assert.match(installer, /for _ in \$\(seq 1 8\)/);
+  assert.match(installer, /launchd service did not become visible after bootstrap/);
+  assert.match(installer, /launchd service was registered but kickstart failed/);
+});
