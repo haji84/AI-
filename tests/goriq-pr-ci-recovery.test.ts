@@ -212,16 +212,31 @@ test("local verification repair prompt feeds failed check back without broadenin
   assert.match(prompt, /scripts\/goriq-pr-ci-recovery\.ts/);
 });
 
-test("recovery engine availability activates stages 2 through 7 before Codex", () => {
-  const ids = configuredRepairEngineIds({
+test("automatic recovery excludes Work unless explicitly enabled", () => {
+  const baseEnv = {
     GORIQ_REPAIR_REPOSITORY: "haji84/AI-",
     GORIQ_REPAIR_GITHUB_TOKEN: "scoped-issue-token",
     GROQ_API_KEY: "free-plan-key",
-  }, true, {
+  };
+  const runtime = {
     localFastReady: true,
     localStrongReady: true,
-  });
-  assert.deepEqual(ids, [
+  };
+
+  assert.deepEqual(configuredRepairEngineIds(baseEnv, true, runtime), [
+    "goriq-deterministic",
+    "goriq-learned",
+    "goriq-local-code",
+    "goriq-local-capability",
+    "chat",
+    "free-external",
+    "codex",
+  ]);
+
+  assert.deepEqual(configuredRepairEngineIds({
+    ...baseEnv,
+    GORIQ_ENABLE_AUTOMATIC_WORK_REPAIR: "1",
+  }, true, runtime), [
     "goriq-deterministic",
     "goriq-learned",
     "goriq-local-code",
