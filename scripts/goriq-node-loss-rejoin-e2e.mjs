@@ -62,9 +62,13 @@ async function rejoin(args) {
   assert.equal(loss.node, node);
   assert.equal(recovery.node, node);
   assert.equal(loss.runId, recovery.runId);
-  assert.ok(Number.isInteger(loss.oldPid) && loss.oldPid > 0);
-  assert.ok(Number.isInteger(recovery.newPid) && recovery.newPid > 0);
-  assert.notEqual(recovery.newPid, loss.oldPid);
+  assert.ok(Number.isInteger(loss.oldPid) && loss.oldPid > 0, "loss evidence must include a valid old listener PID");
+  assert.ok(Number.isInteger(recovery.newPid) && recovery.newPid > 0, "recovery evidence must include a valid new listener PID");
+  const oldStartedAt = typeof loss.oldStartedAt === "string" && loss.oldStartedAt.trim() ? loss.oldStartedAt.trim() : null;
+  const newStartedAt = typeof recovery.newStartedAt === "string" && recovery.newStartedAt.trim() ? recovery.newStartedAt.trim() : null;
+  const processIdentityChanged = recovery.newPid !== loss.oldPid
+    || (oldStartedAt !== null && newStartedAt !== null && oldStartedAt !== newStartedAt);
+  assert.ok(processIdentityChanged, "recovered Runner.Listener must have a new process identity (PID or start time)");
 
   const survivingNode = opposite(node);
   assert.equal(survivor.sourceSha, sha);
@@ -106,6 +110,9 @@ async function rejoin(args) {
     recoveredAt: recovery.recoveredAt,
     oldListenerPid: loss.oldPid,
     newListenerPid: recovery.newPid,
+    oldListenerStartedAt: oldStartedAt,
+    newListenerStartedAt: newStartedAt,
+    listenerProcessIdentityChanged: true,
     survivingNodeExecutedBeforeRecovery: true,
     watchdogRecovered: true,
     runnerHealthyAfterRecovery: true,
@@ -150,6 +157,7 @@ async function verify(args) {
     assert.equal(evidence.runnerConnectionHealthyAfterRecovery, true);
     assert.equal(evidence.consecutiveRunnerFailuresAfterRecovery, 0);
     assert.equal(evidence.returningNodeEligibleAgain, true);
+    assert.equal(evidence.listenerProcessIdentityChanged, true);
     assert.equal(evidence.survivorEvidence.reclaimedTasks, 2);
     assert.deepEqual(evidence.survivorEvidence.migrationClasses, ["MIGRATABLE", "RESTARTABLE"]);
     assert.equal(evidence.survivorEvidence.staleClaimsRejected, true);
