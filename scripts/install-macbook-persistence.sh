@@ -7,12 +7,21 @@ STATE_ROOT="$HOME/Library/Application Support/GAIWorker"
 AGENT_DIR="$HOME/Library/LaunchAgents"
 PLIST="$AGENT_DIR/com.gai.worker-watchdog.plist"
 SUPERVISOR_PLIST="$AGENT_DIR/com.gai.runner-supervisor.plist"
+MAINTENANCE_HOLD_FILE="$STATE_ROOT/macbook-maintenance-hold.epoch"
+MAINTENANCE_HOLD_SECONDS="${GAI_MAINTENANCE_HOLD_SECONDS:-180}"
 mkdir -p "$STATE_ROOT" "$AGENT_DIR"
 
 if [[ ! -x "$RUNNER_ROOT/run.sh" ]]; then
   echo "GitHub runner was not found at $RUNNER_ROOT" >&2
   exit 2
 fi
+if ! [[ "$MAINTENANCE_HOLD_SECONDS" =~ ^[0-9]+$ ]] || (( MAINTENANCE_HOLD_SECONDS < 30 || MAINTENANCE_HOLD_SECONDS > 900 )); then
+  echo "GAI_MAINTENANCE_HOLD_SECONDS must be between 30 and 900." >&2
+  exit 2
+fi
+maintenance_hold_until="$(( $(date +%s) + MAINTENANCE_HOLD_SECONDS ))"
+printf '%s\n' "$maintenance_hold_until" > "$MAINTENANCE_HOLD_FILE"
+chmod 600 "$MAINTENANCE_HOLD_FILE"
 
 SOURCE_WATCHDOG="$(cd "$(dirname "$0")" && pwd)/gai-macbook-watchdog.sh"
 PERSISTED_WATCHDOG="$STATE_ROOT/gai-macbook-watchdog.sh"
@@ -132,6 +141,7 @@ cat >"$STATE_ROOT/macbook-persistence.json" <<JSON
   "supervisor": "${PERSISTED_SUPERVISOR//\"/\\\"}",
   "supervisorPlist": "${SUPERVISOR_PLIST//\"/\\\"}",
   "supervisorIntervalSeconds": 15,
+  "maintenanceHoldUntil": $maintenance_hold_until,
   "ollamaEndpoint": "${OLLAMA_ENDPOINT//\"/\\\"}",
   "installedAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
   "requiresAdmin": false
