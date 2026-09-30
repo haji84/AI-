@@ -370,3 +370,18 @@ test("ordinary Chat progress diagnostics are bounded and omit assistant text con
   assert.match(source, /textLength=/);
   assert.doesNotMatch(source, /ordinary-chat-wait:[^\n]*\$\{state\?\.text\}/);
 });
+
+test("saved project session is reused only when it is a real project conversation", () => {
+  assert.match(source, /async function inspectProjectConversationSurface/);
+  assert.match(source, /projectVisible/);
+  assert.match(source, /messageCount/);
+  assert.match(source, /Number\(inspected\?\.messageCount \?\? 0\) > 0/);
+  assert.match(source, /saved-session-invalid/);
+});
+
+test("ordinary project session is persisted immediately after confirmed submission", () => {
+  assert.match(source, /if \(isSubmitted\(submitted\) && !repairMode\)/);
+  assert.match(source, /recordProjectSession\(mode, String\(submittedUrl \|\| ""\), goalId\)/);
+  assert.match(source, /writeProjectSurface\(mode, String\(submittedUrl \|\| ""\)\)/);
+  assert.match(source, /session-persisted-on-submit/);
+});
