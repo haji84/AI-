@@ -17,6 +17,12 @@ on:
       - '.github/workflows/goriq-repair-engines-runtime.yml'
       - '.github/workflows/autonomy-mobile.yml'
   workflow_dispatch:
+    inputs:
+      run_chat_work_smoke:
+        description: "Run real Chat/Work repair round-trip smoke (consumes ChatGPT tokens)"
+        required: false
+        type: boolean
+        default: false
 
 concurrency:
   group: goriq-repair-engines-runtime
@@ -133,6 +139,7 @@ jobs:
           tail -120 "$HOME/Library/Logs/AICompanyChatGPTBridge.error.log" 2>/dev/null || true
 
   chat-work-repair-smoke:
+    if: github.event_name == 'workflow_dispatch' && inputs.run_chat_work_smoke == true
     needs: [mac-bridge-post-cleanup-proof]
     permissions:
       contents: write

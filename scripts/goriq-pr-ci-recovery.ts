@@ -639,7 +639,7 @@ export function configuredRepairEngineIds(
   if (runtime.localStrongReady) available.add("goriq-local-capability");
   if (env.GORIQ_REPAIR_REPOSITORY?.trim() && env.GORIQ_REPAIR_GITHUB_TOKEN?.trim()) {
     available.add("chat");
-    available.add("work");
+    if (env.GORIQ_ENABLE_AUTOMATIC_WORK_REPAIR?.trim() === "1") available.add("work");
   }
   if (env.GROQ_API_KEY?.trim()) available.add("free-external");
   if (codexAvailable) available.add("codex");
@@ -683,10 +683,12 @@ function createRepairEngineRunners(
     id: "chat",
     run(prompt) { runChatGptRepair(workspace, prompt, "chat", context.repository, context.token); },
   });
-  runners.set("work", {
-    id: "work",
-    run(prompt) { runChatGptRepair(workspace, prompt, "work", context.repository, context.token); },
-  });
+  if (process.env.GORIQ_ENABLE_AUTOMATIC_WORK_REPAIR?.trim() === "1") {
+    runners.set("work", {
+      id: "work",
+      run(prompt) { runChatGptRepair(workspace, prompt, "work", context.repository, context.token); },
+    });
+  }
 
   const groqApiKey = process.env.GROQ_API_KEY?.trim() || "";
   if (groqApiKey) {
