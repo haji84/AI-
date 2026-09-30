@@ -261,6 +261,21 @@ jobs:
           printf '%s\n' "$SYNC_COMMIT_SHA" > "$STATE_ROOT/runtime-active-main-sha"
           echo "GORIQ_RUNTIME_UPDATED sha=$SYNC_COMMIT_SHA"
 
+      - name: Reconcile Mac persistence and ChatGPT bridge from exact main
+        if: github.event_name == 'push' || github.event_name == 'workflow_run'
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "MAC_RUNTIME_RECONCILE sha=$(git rev-parse HEAD)"
+          chmod +x             scripts/gai-macbook-watchdog.sh             scripts/gai-macbook-runner-supervisor.sh             scripts/install-macbook-persistence.sh             scripts/install-macos-chatgpt-bridge.sh
+          GAI_RUNNER_ROOT="$HOME/actions-runner" ./scripts/install-macbook-persistence.sh
+          bash scripts/install-macos-chatgpt-bridge.sh
+          launchctl print "gui/$(id -u)/com.gai.runner-supervisor" >/dev/null
+          launchctl print "gui/$(id -u)/com.ai-company.chatgpt-bridge" >/dev/null
+          test -s "$HOME/.ai-company/runtime/chatgpt-resident-bridge-v2.mjs"
+          test -s "$HOME/.ai-company/src/orchestrator/chat-work-session-router.ts"
+          echo "MAC_RUNTIME_RECONCILE completed"
+
       - name: Sync live JARVIS endpoints into Vercel
         id: sync
         shell: bash
