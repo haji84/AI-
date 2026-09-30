@@ -33,6 +33,9 @@ jobs:
       - name: Install or refresh resident JARVIS runtime
         shell: bash
         run: bash scripts/jarvis-mac-zero-touch-install.sh
+      - name: Install or refresh ChatGPT resident bridge
+        shell: bash
+        run: bash scripts/install-macos-chatgpt-bridge.sh
       - name: Wait for and report JARVIS local status
         shell: bash
         run: |
