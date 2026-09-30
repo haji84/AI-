@@ -57,6 +57,13 @@ else
   echo 'GORIQ local Mac code Builder is unavailable; development Goals will fail closed at capability routing.' >&2
 fi
 
+if bash "$INSTALL_ROOT/scripts/install-macos-chatgpt-bridge.sh"; then
+  echo 'GORIQ ChatGPT resident bridge: refreshed'
+else
+  echo 'GORIQ ChatGPT resident bridge refresh failed.' >&2
+  exit 9
+fi
+
 RUNTIME_PATH="$NODE24_BIN:$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 
 cat >"$RECONCILER_PLIST" <<PLIST
