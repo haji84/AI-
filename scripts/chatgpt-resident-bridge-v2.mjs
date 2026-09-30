@@ -622,6 +622,52 @@ async function markPhaseCopyBaseline(client, phaseToken) {
   })()`.replace("__PHASE_TOKEN__", JSON.stringify(phaseToken)));
 }
 
+async function waitForOrdinaryChatAnswer(client, baselineAssistantCount, timeoutMs = CHAT_ABSOLUTE_CEILING_MS) {
+  const deadline = Date.now() + timeoutMs;
+  let lastText = "";
+  let stableSince = 0;
+  let transientEvaluateFailures = 0;
+
+  while (Date.now() < deadline) {
+    let state;
+    try {
+      state = await evaluate(client, `(() => {
+        const assistants = [...document.querySelectorAll('main [data-message-author-role="assistant"]')];
+        const last = assistants.at(-1) || null;
+        const text = last ? (last.innerText || last.textContent || '').trim() : '';
+        const generating = !!document.querySelector('button[data-testid="stop-button"]')
+          || [...document.querySelectorAll('main button')].some((button) =>
+            /stop generating|停止/i.test((button.getAttribute('aria-label') || button.textContent || '').trim())
+          );
+        return { assistantCount: assistants.length, text, generating, url: location.href };
+      })()`);
+      transientEvaluateFailures = 0;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (/CDP command timeout: Runtime\.evaluate/.test(message) && transientEvaluateFailures < 5) {
+        transientEvaluateFailures += 1;
+        await sleep(1200);
+        continue;
+      }
+      throw error;
+    }
+
+    if ((state?.assistantCount ?? 0) > baselineAssistantCount && state?.text) {
+      if (state.text === lastText) {
+        if (!stableSince) stableSince = Date.now();
+      } else {
+        lastText = state.text;
+        stableSince = Date.now();
+      }
+      if (!state.generating && Date.now() - stableSince >= COMPLETION_STABLE_MS) {
+        return String(lastText).slice(0, 8000);
+      }
+    }
+    await sleep(700);
+  }
+  throw new Error("CHATGPT_ORDINARY_RESPONSE_TIMEOUT");
+}
+
 async function snapshotExecutionUiState(client, phaseToken = "") {
   return evaluate(client, `(() => {
     const normalize = (value) => String(value || '').replace(/\\s+/g, ' ').trim();
@@ -879,7 +925,7 @@ function looksLikeUnifiedDiff(text) {
     || /(?:^|\n)---\s+[^\n]+\n\+\+\+\s+/m.test(value);
 }
 
-async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false, preferredUrl = null, goalId = null) {
+async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false, preferredUrl = null, goalId = null, repairMode = false) {
   const requestMarker = `GORIQ_BRIDGE_REQUEST_ID=${randomUUID()}`;
   const preSplit = mode === "chat" && shouldPreSplitChatRepair(prompt);
   const submittedPrompt = mode === "chat"
@@ -902,6 +948,9 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false, p
     if (!String(selectedExperience?.url ?? "").startsWith(CHATGPT_URL)) throw new Error("project surface left ChatGPT");
 
     const preSubmissionTurns = await snapshotConversationMessages(client);
+    const baselineAssistantCount = Array.isArray(preSubmissionTurns)
+      ? preSubmissionTurns.filter((message) => message.role === "assistant").length
+      : 0;
     const freshBaselineEmpty = fresh && Array.isArray(preSubmissionTurns) && preSubmissionTurns.length === 0;
     const beforeUserCount = await evaluate(client, `(() => document.querySelectorAll('[data-message-author-role="user"]').length)()`);
     let phaseToken = `goriq-phase-${randomUUID()}`;
@@ -1035,6 +1084,16 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false, p
         throw new Error("CHATGPT_SUBMITTED_TURN_NOT_FOUND");
       }
       markerUserIndex = -1;
+    }
+
+    if (mode === "chat" && !repairMode) {
+      const answer = await waitForOrdinaryChatAnswer(client, baselineAssistantCount);
+      if (!fresh) {
+        const surfaceUrl = await evaluate(client, "location.href");
+        await recordProjectSession(mode, String(surfaceUrl || ""), goalId);
+        await writeProjectSurface(mode, String(surfaceUrl || ""));
+      }
+      return answer;
     }
 
     const absoluteDeadline = Date.now() + (mode === "chat" ? CHAT_ABSOLUTE_CEILING_MS : WORK_ABSOLUTE_CEILING_MS);
@@ -1189,7 +1248,7 @@ async function processIssue(issue) {
   if (isRepairIssue(issue)) {
     const prompt = buildBridgePrompt({ issueNumber: issue.number, meta, messages, pending });
     const surface = repairSurfaceFromPending(pending);
-    const answer = await submitPromptAndReadAnswer(prompt, surface, isRepairIssue(issue));
+    const answer = await submitPromptAndReadAnswer(prompt, surface, isRepairIssue(issue), null, null, true);
     if (!answer.trim()) throw new Error("ChatGPT returned an empty answer; pending was preserved");
     const aiMessage = await postAiReply(issue.number, meta, answer);
     await setHealth("synced", `Issue #${issue.number} synced`, { issueNumber: issue.number, lastAiMessageId: aiMessage.id });
