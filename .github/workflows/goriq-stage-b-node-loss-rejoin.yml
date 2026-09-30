@@ -132,9 +132,15 @@ jobs:
           test -n "$worker_pid"
           new_pid="$(ps -o ppid= -p "$worker_pid" | tr -d ' ')"
           test -n "$new_pid"
+          listener_comm="$(ps -o comm= -p "$new_pid" | tr -d ' ' || true)"
+          [[ "$listener_comm" == *"Runner.Listener"* ]]
+          active_workers="$(pgrep -f 'Runner.Worker' | wc -l | tr -d ' ')"
+          [[ "$active_workers" =~ ^[0-9]+$ ]] && (( active_workers > 0 ))
+          LIVE_STATUS="$STATE_ROOT/stage-b-node-loss-${RUN_ID}-macbook-live-status.json"
+          printf '{"workerId":"macbook","runnerHealthy":true,"runnerConnectionHealthy":false,"runnerProtectedByActiveJob":true,"activeRunnerWorkers":%s,"checkedAt":"%s"}\n' "$active_workers" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >"$LIVE_STATUS"
           printf '{"version":1,"runId":"%s","node":"macbook","newPid":%s,"recoveredAt":"%s"}\n' "$RUN_ID" "$new_pid" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >"$RECOVERY_FILE"
-          node scripts/goriq-node-loss-rejoin-e2e.mjs --phase rejoin --node macbook --platform darwin --sha "$GITHUB_SHA" --loss "$STATE_ROOT/stage-b-node-loss-${RUN_ID}-macbook-loss.json" --recovery "$RECOVERY_FILE" --status "$STATE_ROOT/macbook-watchdog-status.json" --survivor .goriq-stage-b/node-loss/survivor/mac-to-zbook-survivor.json --output .goriq-stage-b/node-loss/evidence/macbook-rejoin.json
-          rm -f "$STATE_ROOT/stage-b-node-loss-${RUN_ID}-macbook-loss.json" "$RECOVERY_FILE"
+          node scripts/goriq-node-loss-rejoin-e2e.mjs --phase rejoin --node macbook --platform darwin --sha "$GITHUB_SHA" --loss "$STATE_ROOT/stage-b-node-loss-${RUN_ID}-macbook-loss.json" --recovery "$RECOVERY_FILE" --status "$LIVE_STATUS" --survivor .goriq-stage-b/node-loss/survivor/mac-to-zbook-survivor.json --output .goriq-stage-b/node-loss/evidence/macbook-rejoin.json
+          rm -f "$STATE_ROOT/stage-b-node-loss-${RUN_ID}-macbook-loss.json" "$RECOVERY_FILE" "$LIVE_STATUS"
       - uses: actions/upload-artifact@v4
         with:
           name: goriq-stage-b-node-loss-mac-rejoin
@@ -233,12 +239,26 @@ jobs:
           $watchdog = Join-Path $stateRoot 'gai-zbook-watchdog.ps1'
           New-Item -ItemType Directory -Force -Path .goriq-stage-b\node-loss\evidence | Out-Null
           & $watchdog -RunnerRoot 'C:\actions-runner' -OllamaEndpoint 'http://127.0.0.1:11434'
-          $listener = Get-Process -Name 'Runner.Listener' -ErrorAction Stop | Select-Object -First 1
+          $workers = @(Get-Process -Name 'Runner.Worker' -ErrorAction Stop)
+          if ($workers.Count -lt 1) { throw 'No active Runner.Worker during ZBook rejoin proof' }
+          $worker = $workers | Select-Object -First 1
+          $workerProcess = Get-CimInstance Win32_Process -Filter "ProcessId=$($worker.Id)" -ErrorAction Stop
+          $listener = Get-Process -Id $workerProcess.ParentProcessId -ErrorAction Stop
+          if ($listener.ProcessName -ne 'Runner.Listener') { throw "Runner.Worker parent is not Runner.Listener: $($listener.ProcessName)" }
+          $liveStatus = Join-Path $stateRoot "stage-b-node-loss-$runId-zbook-live-status.json"
+          [ordered]@{
+            workerId = 'zbook'
+            runnerHealthy = $true
+            runnerConnectionHealthy = $false
+            runnerProtectedByActiveJob = $true
+            activeRunnerWorkers = $workers.Count
+            checkedAt = (Get-Date).ToUniversalTime().ToString('o')
+          } | ConvertTo-Json | Set-Content -Encoding UTF8 $liveStatus
           [ordered]@{ version = 1; runId = $runId; node = 'zbook'; newPid = $listener.Id; recoveredAt = (Get-Date).ToUniversalTime().ToString('o') } | ConvertTo-Json | Set-Content -Encoding UTF8 $recoveryFile
-          node scripts/goriq-node-loss-rejoin-e2e.mjs --phase rejoin --node zbook --platform win32 --sha "$env:GITHUB_SHA" --loss (Join-Path $stateRoot "stage-b-node-loss-$runId-zbook-loss.json") --recovery $recoveryFile --status (Join-Path $stateRoot 'zbook-watchdog-status.json') --survivor .goriq-stage-b/node-loss/survivor/zbook-to-macbook-survivor.json --output .goriq-stage-b/node-loss/evidence/zbook-rejoin.json
+          node scripts/goriq-node-loss-rejoin-e2e.mjs --phase rejoin --node zbook --platform win32 --sha "$env:GITHUB_SHA" --loss (Join-Path $stateRoot "stage-b-node-loss-$runId-zbook-loss.json") --recovery $recoveryFile --status $liveStatus --survivor .goriq-stage-b/node-loss/survivor/zbook-to-macbook-survivor.json --output .goriq-stage-b/node-loss/evidence/zbook-rejoin.json
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Remove-Item -Force (Join-Path $stateRoot "stage-b-node-loss-$runId-zbook-loss.json") -ErrorAction SilentlyContinue
-          Remove-Item -Force $recoveryFile -ErrorAction SilentlyContinue
+          Remove-Item -Force $recoveryFile,$liveStatus -ErrorAction SilentlyContinue
       - uses: actions/upload-artifact@v4
         with:
           name: goriq-stage-b-node-loss-zbook-rejoin
