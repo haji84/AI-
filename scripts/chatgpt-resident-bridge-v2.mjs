@@ -632,14 +632,47 @@ async function waitForOrdinaryChatAnswer(client, baselineAssistantCount, timeout
     let state;
     try {
       state = await evaluate(client, `(() => {
-        const assistants = [...document.querySelectorAll('main [data-message-author-role="assistant"]')];
-        const last = assistants.at(-1) || null;
-        const text = last ? (last.innerText || last.textContent || '').trim() : '';
+        const candidates = [...document.querySelectorAll(
+          'main [data-message-author-role], main [data-testid^="conversation-turn"], main article, main [data-message-id]'
+        )];
+        const seen = new Set();
+        const assistants = [];
+        for (const node of candidates) {
+          if (!(node instanceof HTMLElement)) continue;
+          const roleNode = node.matches('[data-message-author-role]') ? node : node.closest('[data-message-author-role]');
+          let role = roleNode?.getAttribute('data-message-author-role') || null;
+          const controls = [...node.querySelectorAll('button')].map((button) =>
+            [button.getAttribute('aria-label'), button.getAttribute('data-testid'), button.textContent]
+              .filter(Boolean)
+              .join(' ')
+          ).join(' | ');
+          if (!role && /回答を再生成|regenerate|読み上げ|read aloud|リアクション|reaction/i.test(controls)) role = 'assistant';
+          if (role !== 'assistant') continue;
+
+          const contentNode = node.querySelector('.markdown,[data-message-content],.whitespace-pre-wrap') || node;
+          const text = (contentNode.innerText || contentNode.textContent || '').trim();
+          if (!text) continue;
+          const id = node.getAttribute('data-message-id')
+            || roleNode?.getAttribute('data-message-id')
+            || node.id
+            || text.slice(0, 500);
+          if (seen.has(id)) continue;
+          seen.add(id);
+          assistants.push({ id, text });
+        }
+
         const generating = !!document.querySelector('button[data-testid="stop-button"]')
           || [...document.querySelectorAll('main button')].some((button) =>
             /stop generating|停止/i.test((button.getAttribute('aria-label') || button.textContent || '').trim())
           );
-        return { assistantCount: assistants.length, text, generating, url: location.href };
+        const last = assistants.at(-1) || null;
+        return {
+          assistantCount: assistants.length,
+          text: last?.text || '',
+          assistantId: last?.id || null,
+          generating,
+          url: location.href,
+        };
       })()`);
       transientEvaluateFailures = 0;
     } catch (error) {
