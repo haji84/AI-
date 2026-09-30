@@ -32,7 +32,7 @@
     },
     {
       "path": "android/jarvis-worker/app/src/main/java/ai/jarvis/worker/BrokerClient.kt",
-      "sha256": "05bbf9a8e6ae4feb67b594d8d09696a00f733db0fd28aa0281a71b21be040e8f",
+      "sha256": "bed8c98da2763b3c91c348e099a0d9df5912ab1ae1d217b777d3c5f59d8bf5f2",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "FLEET-007",
@@ -57,7 +57,7 @@
     },
     {
       "path": "android/jarvis-worker/app/src/main/java/ai/jarvis/worker/DistributedNodeContract.kt",
-      "sha256": "00bd2b519a5403761b5b4863843c4a2b319810f79936ff201db5703f5a1263ad",
+      "sha256": "ae27e0c36b2213659c4b66e7ebcb34b5dae4d044c9df1c141b25493a0925b7ac",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "NET-003",
@@ -959,7 +959,7 @@
     },
     {
       "path": "scripts/jarvis-broker.ts",
-      "sha256": "be51a1ad69bd3f3eeac4842b53a585f3e2e2c0d0fce89a3381670b52bdc3fec0",
+      "sha256": "15e2df1244291ac68c87bc7959fc5908e03ace6c3be50d29132bbdd7c5545bc0",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "NET-003",
@@ -3729,7 +3729,7 @@
     },
     {
       "path": "src/jarvis/control-plane.ts",
-      "sha256": "4b463f8ed7583bf7585f80e4c14082acd11a5be02dda943cb259055beeb5f8c9",
+      "sha256": "afa8b54f2777ae4d70c29cc9801c816bd78ef0f3027972789fbba12cc128847f",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "NET-003",
@@ -3858,7 +3858,7 @@
     },
     {
       "path": "src/jarvis/fleet-manager.ts",
-      "sha256": "992d34a8a45e35d625657ac38e467c8b441485b0ead6b76b6f55288aabb21bf8",
+      "sha256": "eeacb3f00837be4c46ce3e8181b448359cc5820e8b2eff684c8ade5d7583cdce",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "NET-003",
@@ -4323,7 +4323,7 @@
     },
     {
       "path": "src/jarvis/types.ts",
-      "sha256": "cb5893bf53dea687d4e5eb743dc6ed3cf3cb8df472c3a97bf7421a9a339f0e08",
+      "sha256": "6d56391add66971f8cc01497341c6717ecb8759a8bf9369cc2d4508769844da0",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "NET-003",
