@@ -276,6 +276,28 @@ jobs:
           test -s "$HOME/.ai-company/src/orchestrator/chat-work-session-router.ts"
           echo "MAC_RUNTIME_RECONCILE completed"
 
+      - name: Emit sanitized resident Bridge diagnostic
+        if: github.event_name == 'push' || github.event_name == 'workflow_run'
+        shell: bash
+        run: |
+          set -euo pipefail
+          FILE="$HOME/.ai-company/chatgpt-bridge-execution.json"
+          HEALTH="$HOME/.ai-company/chatgpt-bridge-health.json"
+          for _ in $(seq 1 12); do
+            [[ -s "$FILE" ]] && break
+            sleep 2
+          done
+          echo "BRIDGE_DIAGNOSTIC_BEGIN"
+          if [[ -s "$FILE" ]]; then
+            node -e 'const fs=require("fs");const x=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));const allowed=["stage","updatedAt","pid","issueNumber","selectedSurface","sessionReuse","createNew","hasGoalId","mode","fresh","repairMode","found","testid","aria","type","submitted","userCount","composerRemaining","composerInForm","composerInMain","assistantCount","baselineCount","assistantIdChanged","textChanged","generating","textLength","answerLength"];const y={};for(const k of allowed)if(k in x)y[k]=x[k];console.log(JSON.stringify(y));' "$FILE"
+          else
+            echo '{"stage":"missing"}'
+          fi
+          if [[ -s "$HEALTH" ]]; then
+            node -e 'const fs=require("fs");const x=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));console.log(JSON.stringify({healthStatus:x.status,healthIssueNumber:x.issueNumber??null,healthSelectedSurface:x.selectedSurface??null,healthSessionReuse:x.sessionReuse??null}));' "$HEALTH"
+          fi
+          echo "BRIDGE_DIAGNOSTIC_END"
+
       - name: Sync live JARVIS endpoints into Vercel
         id: sync
         shell: bash
