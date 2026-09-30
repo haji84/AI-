@@ -1,5 +1,6 @@
 package ai.jarvis.worker
 
+import android.app.ActivityManager
 import android.app.KeyguardManager
 import android.app.admin.DevicePolicyManager
 import android.content.Context
@@ -10,6 +11,7 @@ import android.net.NetworkCapabilities
 import android.os.BatteryManager
 import android.os.Build
 import android.os.PowerManager
+import android.os.StatFs
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
@@ -61,13 +63,28 @@ class BrokerClient(private val context: Context) {
         val admin = JarvisDeviceAdminReceiver.component(context)
         val runtime = WorkerRuntimeState.snapshot()
         val pkg = context.packageManager.getPackageInfo(context.packageName, 0)
+        val batteryPercent = battery?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
+        val isCharging = charging()
+        val network = networkState()
+        val resources = resourceTelemetry()
         val body = JSONObject()
             .put("status", if (runtime.optBoolean("working")) "busy" else "ready")
             .put("capabilities", capabilities())
+            .put("nodeContract", DistributedNodeContract.snapshot(
+                context = context,
+                batteryPercent = batteryPercent,
+                charging = isCharging,
+                network = nodeNetwork(network)
+            ))
             .put("telemetry", JSONObject()
-                .put("batteryPercent", battery?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY) ?: JSONObject.NULL)
-                .put("charging", charging())
-                .put("network", networkState())
+                .put("batteryPercent", batteryPercent ?: JSONObject.NULL)
+                .put("charging", isCharging)
+                .put("network", nodeNetwork(network))
+                .put("memoryAvailableMb", resources.opt("memoryAvailableMb"))
+                .put("freeStorageMb", resources.opt("freeStorageMb"))
+                .put("cpuAvailable", true)
+                .put("gpuAvailable", false)
+                .put("onExternalPower", isCharging)
                 .put("screenInteractive", power?.isInteractive == true)
                 .put("currentPackage", JarvisAccessibilityService.currentPackageName())
                 .put("workerVersion", pkg.versionName ?: "unknown")
@@ -112,6 +129,26 @@ class BrokerClient(private val context: Context) {
             .put("transport", transport)
     }
 
+    private fun nodeNetwork(network: JSONObject): String {
+        if (!network.optBoolean("connected", false)) return "offline"
+        return when (network.optString("transport")) {
+            "wifi" -> "wifi"
+            "cellular" -> "cellular"
+            "ethernet" -> "lan"
+            else -> "offline"
+        }
+    }
+
+    private fun resourceTelemetry(): JSONObject {
+        val activity = context.getSystemService(ActivityManager::class.java)
+        val memoryInfo = ActivityManager.MemoryInfo()
+        activity?.getMemoryInfo(memoryInfo)
+        val stat = StatFs(context.filesDir.absolutePath)
+        return JSONObject()
+            .put("memoryAvailableMb", if (activity != null) memoryInfo.availMem / (1024L * 1024L) else JSONObject.NULL)
+            .put("freeStorageMb", stat.availableBytes / (1024L * 1024L))
+    }
+
     fun nextTask(): JSONObject = request("POST", "/api/jarvis/worker/next", "{}".toByteArray(), signed = true)
 
     fun pollRemote() {
@@ -152,12 +189,22 @@ class BrokerClient(private val context: Context) {
     private fun deviceDescriptor(): JSONObject {
         val dpm = context.getSystemService(DevicePolicyManager::class.java)
         val enrollment = if (dpm?.isDeviceOwnerApp(context.packageName) == true) "full" else "quick"
+        val battery = context.getSystemService(BatteryManager::class.java)
+        val batteryPercent = battery?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
+        val isCharging = charging()
+        val network = networkState()
         return JSONObject()
             .put("id", identity.nodeId)
             .put("label", "${Build.MANUFACTURER} ${Build.MODEL}")
             .put("kind", "android")
             .put("status", "ready")
             .put("capabilities", capabilities())
+            .put("nodeContract", DistributedNodeContract.snapshot(
+                context = context,
+                batteryPercent = batteryPercent,
+                charging = isCharging,
+                network = nodeNetwork(network)
+            ))
             .put("policy", JSONObject()
                 .put("allowPaidServices", false)
                 .put("allowDestructiveActions", false)
