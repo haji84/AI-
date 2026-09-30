@@ -2,6 +2,8 @@ name: GORIQ Stage B Node Loss Rejoin
 
 on:
   workflow_dispatch:
+  issues:
+    types: [opened, reopened]
 
 permissions:
   contents: read
@@ -12,6 +14,7 @@ concurrency:
 
 jobs:
   mac-loss:
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.event.issue.title, '[GORIQ STAGE B NODE LOSS]')
     name: MacBook loses runner listener
     runs-on: [self-hosted, macOS, ARM64]
     timeout-minutes: 10

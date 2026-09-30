@@ -21,3 +21,11 @@ test("push-triggered workflows never intentionally kill self-hosted runner liste
     }
   }
 });
+
+
+test("Stage B node-loss Issue trigger requires explicit operator title", () => {
+  const source = readFileSync(".github/workflows/goriq-stage-b-node-loss-rejoin.yml", "utf8");
+  assert.match(source, /issues:\s*\n\s+types: \[opened, reopened\]/);
+  assert.match(source, /startsWith\(github\.event\.issue\.title, '\[GORIQ STAGE B NODE LOSS\]'\)/);
+  assert.doesNotMatch(source, /\n\s{2}push:\s*(?:\n|$)/m);
+});
