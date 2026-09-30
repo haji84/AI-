@@ -129,3 +129,80 @@ test("Stage B rejoin proof binds to the current job ancestry instead of arbitrar
   assert.doesNotMatch(workflow, /& \$watchdog -RunnerRoot/);
   assert.doesNotMatch(workflow, /\/bin\/bash "\$WATCHDOG" >\/dev\/null 2>&1 \|\| true/);
 });
+
+
+test("rejoin evidence accepts UTF-8 BOM-prefixed Windows JSON", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "goriq-node-loss-bom-"));
+  try {
+    const loss = join(dir, "loss.json");
+    const recovery = join(dir, "recovery.json");
+    const status = join(dir, "status.json");
+    const survivor = join(dir, "survivor.json");
+    const output = join(dir, "out.json");
+
+    const writeBomJson = async (path, value) => {
+      await writeFile(path, "\uFEFF" + JSON.stringify(value, null, 2) + "\n", "utf8");
+    };
+
+    await writeBomJson(loss, {
+      version: 1,
+      runId: "run-bom",
+      node: "zbook",
+      oldPid: 10,
+      oldStartedAt: "2026-09-30T00:00:00.000Z",
+      lossObservedAt: "2026-09-30T00:00:00.000Z",
+    });
+    await writeBomJson(recovery, {
+      version: 1,
+      runId: "run-bom",
+      node: "zbook",
+      newPid: 20,
+      newStartedAt: "2026-09-30T00:00:20.000Z",
+      recoveredAt: "2026-09-30T00:00:20.000Z",
+    });
+    await writeBomJson(status, {
+      workerId: "zbook",
+      runnerHealthy: true,
+      runnerConnectionHealthy: false,
+      runnerProtectedByActiveJob: true,
+      activeRunnerWorkers: 1,
+      consecutiveRunnerFailures: 0,
+      runnerRecoveryDeferred: false,
+      checkedAt: "2026-09-30T00:00:19.000Z",
+    });
+    await json(survivor, {
+      sourceSha: "sha",
+      direction: "zbook-to-macbook",
+      origin: "zbook",
+      target: "macbook",
+      targetPlatform: "darwin",
+      targetRunnerName: "MacBook",
+      reclaimedTasks: 2,
+      tasks: [
+        { migrationClass: "MIGRATABLE", oldEpoch: 1, newEpoch: 2, staleClaimRejected: true, checkpointPreserved: true, completedBy: "macbook" },
+        { migrationClass: "RESTARTABLE", oldEpoch: 1, newEpoch: 2, staleClaimRejected: true, checkpointPreserved: true, completedBy: "macbook" },
+      ],
+      verifiedAt: "2026-09-30T00:00:10.000Z",
+    });
+
+    const result = spawnSync(process.execPath, [
+      script,
+      "--phase", "rejoin",
+      "--node", "zbook",
+      "--platform", "win32",
+      "--sha", "sha",
+      "--loss", loss,
+      "--recovery", recovery,
+      "--status", status,
+      "--survivor", survivor,
+      "--output", output,
+    ], { encoding: "utf8" });
+
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    const parsed = JSON.parse(await readFile(output, "utf8"));
+    assert.equal(parsed.verdict, "PASS");
+    assert.equal(parsed.lostNode, "zbook");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
