@@ -349,6 +349,7 @@ async function verify(args: Map<string, string>): Promise<void> {
   process.stdout.write(`${JSON.stringify(finalEvidence)}\n`);
 }
 
+// Stage B current-main physical rerun trigger. No runtime behavior change.
 const args = parseArgs();
 const phase = required(args, "phase");
 if (phase === "prepare") {
