@@ -112,3 +112,10 @@ test("Mac broker conflict cooldown survives Listener exit and outranks TCP healt
   const clearState = watchdog.indexOf('rm -f "$RUNNER_SESSION_CONFLICT_STATE"', activeBranch);
   assert.ok(activeBranch >= 0 && clearState > activeBranch);
 });
+
+
+test("Mac persistence treats GitHub Actions execution as an active runner job", () => {
+  const installer = readFileSync(installerPath, "utf8");
+  assert.match(installer, /\[\[ "\$\{GITHUB_ACTIONS:-\}" == "true" \]\] \|\| pgrep -f 'Runner\.Worker'/);
+  assert.match(installer, /launchd_reconcile_deferred=true/);
+});

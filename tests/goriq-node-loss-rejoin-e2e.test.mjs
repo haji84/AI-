@@ -26,6 +26,7 @@ test("rejoin evidence requires survivor execution between loss and recovery", as
       runId: "run-1",
       node: "macbook",
       oldPid: 100,
+      oldStartedAt: "Tue Sep 30 00:00:00 2026",
       lossObservedAt: "2026-09-30T00:00:00.000Z",
     });
     await json(survivor, {
@@ -46,7 +47,8 @@ test("rejoin evidence requires survivor execution between loss and recovery", as
       version: 1,
       runId: "run-1",
       node: "macbook",
-      newPid: 200,
+      newPid: 100,
+      newStartedAt: "Tue Sep 30 00:00:15 2026",
       recoveredAt: "2026-09-30T00:00:20.000Z",
     });
     await json(status, {
@@ -79,7 +81,10 @@ test("rejoin evidence requires survivor execution between loss and recovery", as
     assert.equal(parsed.survivingNodeExecutedBeforeRecovery, true);
     assert.equal(parsed.watchdogRecovered, true);
     assert.equal(parsed.oldListenerPid, 100);
-    assert.equal(parsed.newListenerPid, 200);
+    assert.equal(parsed.newListenerPid, 100);
+    assert.equal(parsed.listenerProcessIdentityChanged, true);
+    assert.equal(parsed.oldListenerStartedAt, "Tue Sep 30 00:00:00 2026");
+    assert.equal(parsed.newListenerStartedAt, "Tue Sep 30 00:00:15 2026");
     assert.equal(parsed.runnerConnectionEvidenceMode, "active-runner-worker");
   } finally {
     await rm(dir, { recursive: true, force: true });
@@ -100,6 +105,9 @@ test("Stage B rejoin proof uses fresh live runner process status on both nodes",
   assert.match(workflow, /runnerProtectedByActiveJob/);
   assert.match(workflow, /activeRunnerWorkers/);
   assert.match(workflow, /Runner\.Worker parent is not Runner\.Listener/);
+  assert.match(workflow, /oldStartedAt/);
+  assert.match(workflow, /newStartedAt/);
+  assert.match(workflow, /listenerStartedAt/);
   assert.doesNotMatch(workflow, /--status "\$STATE_ROOT\/macbook-watchdog-status\.json"/);
   assert.doesNotMatch(workflow, /--status \(Join-Path \$stateRoot 'zbook-watchdog-status\.json'\)/);
 });

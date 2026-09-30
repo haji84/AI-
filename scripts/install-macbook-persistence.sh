@@ -34,7 +34,7 @@ cp "$SOURCE_SUPERVISOR" "$PERSISTED_SUPERVISOR"
 chmod +x "$PERSISTED_SUPERVISOR"
 
 active_runner_worker=false
-if pgrep -f 'Runner.Worker' >/dev/null 2>&1; then
+if [[ "${GITHUB_ACTIONS:-}" == "true" ]] || pgrep -f 'Runner.Worker' >/dev/null 2>&1; then
   active_runner_worker=true
 fi
 install_started_epoch="$(date +%s)"
