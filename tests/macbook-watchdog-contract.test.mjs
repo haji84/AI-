@@ -48,3 +48,18 @@ test("Mac persistence has a runner-independent KeepAlive supervisor", () => {
   assert.match(supervisor, /GAI_RUNNER_FAILURE_THRESHOLD=2/);
   assert.match(supervisor, /sleep "\$INTERVAL"/);
 });
+
+test("Mac persistence self-update uses a bounded maintenance hold", () => {
+  const watchdog = readFileSync(watchdogPath, "utf8");
+  const installer = readFileSync(installerPath, "utf8");
+
+  assert.match(installer, /MAINTENANCE_HOLD_FILE=.*macbook-maintenance-hold\.epoch/);
+  assert.match(installer, /GAI_MAINTENANCE_HOLD_SECONDS:-180/);
+  assert.match(installer, /MAINTENANCE_HOLD_SECONDS < 30 \|\| MAINTENANCE_HOLD_SECONDS > 900/);
+  assert.match(installer, /maintenance_hold_until=.*date \+%s/);
+  assert.match(watchdog, /maintenance_hold_active=true/);
+  assert.match(watchdog, /skipping runner recycle/);
+  assert.match(watchdog, /maintenanceHoldActive/);
+  assert.match(watchdog, /maintenanceHoldUntil/);
+  assert.match(watchdog, /rm -f "\$MAINTENANCE_HOLD_FILE"/);
+});

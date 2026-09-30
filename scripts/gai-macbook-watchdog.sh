@@ -8,6 +8,7 @@ mkdir -p "$STATE_ROOT"
 LOG_FILE="$STATE_ROOT/macbook-watchdog.log"
 RUNNER_HEALTH_STATE="$STATE_ROOT/macbook-runner-health.json"
 LOCK_DIR="$STATE_ROOT/macbook-watchdog.lock"
+MAINTENANCE_HOLD_FILE="$STATE_ROOT/macbook-maintenance-hold.epoch"
 RUNNER_FAILURE_THRESHOLD="${GAI_RUNNER_FAILURE_THRESHOLD:-2}"
 
 log() {
@@ -204,8 +205,26 @@ fi
 runner_healthy=false
 runner_recovery_deferred=false
 consecutive_runner_failures="$(get_consecutive_runner_failures)"
+maintenance_hold_active=false
+maintenance_hold_until=0
+if [[ -f "$MAINTENANCE_HOLD_FILE" ]]; then
+  maintenance_hold_until="$(cat "$MAINTENANCE_HOLD_FILE" 2>/dev/null || printf '0')"
+  now_epoch="$(date +%s)"
+  if [[ "$maintenance_hold_until" =~ ^[0-9]+$ ]] && (( now_epoch < maintenance_hold_until )); then
+    maintenance_hold_active=true
+  else
+    rm -f "$MAINTENANCE_HOLD_FILE"
+    maintenance_hold_until=0
+  fi
+fi
 
-if [[ "$runner_protected_by_active_job" == true ]]; then
+if [[ "$maintenance_hold_active" == true ]]; then
+  runner_healthy=true
+  runner_recovery_deferred=true
+  consecutive_runner_failures=0
+  set_consecutive_runner_failures 0
+  log "Maintenance hold active until epoch $maintenance_hold_until; skipping runner recycle."
+elif [[ "$runner_protected_by_active_job" == true ]]; then
   runner_healthy=true
   if [[ "$runner_connection_ok" != true ]]; then
     log 'GitHub runner connection probe is unhealthy, but Runner.Worker is active. Skipping recycle.'
@@ -297,6 +316,8 @@ cat >"$STATE_ROOT/macbook-watchdog-status.json" <<JSON
   "runnerProtectedByActiveJob": $runner_protected_by_active_job,
   "consecutiveRunnerFailures": $consecutive_runner_failures,
   "runnerRecoveryDeferred": $runner_recovery_deferred,
+  "maintenanceHoldActive": $maintenance_hold_active,
+  "maintenanceHoldUntil": $maintenance_hold_until,
   "ollamaEndpoint": "${OLLAMA_ENDPOINT//\"/\\\"}",
   "ollamaHealthy": $ollama_healthy,
   "ollamaProcessPresent": $ollama_process_present,
