@@ -1123,7 +1123,7 @@
     },
     {
       "path": "scripts/jarvis-mac-runtime-entry.sh",
-      "sha256": "e04ff0804815537b595633de12e3933a50b7a44eba6ff47cdb35fba4d58c3d64",
+      "sha256": "345e22ca97b30517a56beabe2827a5819bd0da03a27a906fde5f5fff22301a5f",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "HOST-002",
