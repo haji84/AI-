@@ -38,7 +38,7 @@ test("macOS installer points launchd at bridge v2", () => {
 test("resident bridge routes repair metadata to Chat or Work", () => {
   assert.match(source, /repairSurfaceFromPending/);
   assert.match(source, /repair-surface:\(chat\|work\)/);
-  assert.match(source, /submitPromptAndReadAnswer\(prompt, surface, isRepairIssue\(issue\)\)/);
+  assert.match(source, /submitPromptAndReadAnswer\(prompt, surface, isRepairIssue\(issue\), null, null, true\)/);
 });
 
 test("Work repair fails closed when the Work selector cannot be found", () => {
@@ -301,4 +301,18 @@ test("fresh and repair conversations keep strict submitted-turn detection", () =
   const source = readFileSync("scripts/chatgpt-resident-bridge-v2.mjs", "utf8");
   assert.match(source, /reusedSessionSubmissionConfirmed = !fresh/);
   assert.match(source, /if \(!freshBaselineEmpty && !reusedSessionSubmissionConfirmed\)/);
+});
+
+test("ordinary Chat returns the first stable assistant response without entering repair phases", () => {
+  assert.match(source, /async function waitForOrdinaryChatAnswer/);
+  assert.match(source, /if \(mode === "chat" && !repairMode\)/);
+  assert.match(source, /return answer/);
+  assert.match(source, /baselineAssistantCount/);
+});
+
+test("ordinary Chat retries transient Runtime.evaluate timeouts without weakening repair flow", () => {
+  assert.match(source, /CDP command timeout: Runtime\\\.evaluate/);
+  assert.match(source, /transientEvaluateFailures < 5/);
+  assert.match(source, /repairMode = false/);
+  assert.match(source, /null, null, true/);
 });
