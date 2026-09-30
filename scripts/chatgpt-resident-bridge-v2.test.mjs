@@ -333,3 +333,26 @@ test("macOS bridge installer waits for launchd registration before kickstart", (
   assert.match(installer, /launchd service did not become visible after bootstrap/);
   assert.match(installer, /launchd service was registered but kickstart failed/);
 });
+
+test("resident bridge chooses visible active composer before sending", () => {
+  assert.match(source, /querySelectorAll\('textarea,\[contenteditable="true"\]'\)/);
+  assert.match(source, /getComputedStyle\(el\)\.visibility !== 'hidden'/);
+  assert.match(source, /candidates\.find\(\(item\) => item\.closest\('form'\)\)/);
+  assert.match(source, /document\.activeElement === el/);
+});
+
+test("resident bridge ignores hidden or disabled send buttons and prefers composer form controls", () => {
+  assert.match(source, /const form = composer\?\.closest\('form'\) \|\| null/);
+  assert.match(source, /form \? form\.querySelectorAll\('button'\) : document\.querySelectorAll\('button'\)/);
+  assert.match(source, /!el\.disabled/);
+  assert.match(source, /!el\.matches\('\[aria-hidden="true"\]'\)/);
+  assert.match(source, /\^\(send\|send prompt\|送信\|送信する\)\$/i);
+  assert.match(source, /type === 'submit'/);
+});
+
+test("submit failure records bounded UI diagnostics without logging prompt text", () => {
+  assert.match(source, /composerRemaining=/);
+  assert.match(source, /sendTarget:/);
+  assert.match(source, /controls,/);
+  assert.doesNotMatch(source, /CHATGPT_SUBMIT_FAILED:[^\n]*composerText=/);
+});
