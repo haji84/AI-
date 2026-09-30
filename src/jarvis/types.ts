@@ -50,6 +50,41 @@ export interface JarvisNodePolicy {
   requireHumanForLockedDevice: boolean;
 }
 
+export interface JarvisAndroidNodeContractV1 {
+  schemaVersion: 1;
+  platform: "android";
+  architecture: string | null;
+  executionModes: Array<"foreground" | "background-scheduled" | "deferred">;
+  networkRequirement: "offline-capable";
+  persistence: {
+    localState: boolean;
+    checkpointResume: boolean;
+    offlineQueue: boolean;
+  };
+  migration: {
+    supported: Array<"RESTARTABLE" | "PINNED">;
+    checkpointResume: boolean;
+    sideEffectingFencing: boolean;
+  };
+  security: {
+    credentialIsolation: boolean;
+    taskScopedAuthorization: boolean;
+  };
+  constraints: {
+    residentExecution: false;
+    lockedUiRequiresHuman: true;
+  };
+  resources: {
+    cpuCores?: number;
+    memoryAvailableMb?: number;
+    freeStorageMb?: number;
+    batteryPercent?: number;
+    charging?: boolean;
+    network?: "wifi" | "cellular" | "lan" | "offline";
+  };
+  checkedAt: string;
+}
+
 export interface JarvisNodeTelemetry {
   remoteProtocol?: number;
   androidApi?: number;
@@ -82,6 +117,7 @@ export interface JarvisNode {
   capabilities: JarvisCapability[];
   policy: JarvisNodePolicy;
   telemetry: JarvisNodeTelemetry;
+  nodeContract?: JarvisAndroidNodeContractV1;
   enrollment: "quick" | "full";
   fleetNumber?: number;
   group?: string;
