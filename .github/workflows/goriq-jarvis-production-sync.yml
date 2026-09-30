@@ -283,8 +283,13 @@ jobs:
           set -euo pipefail
           FILE="$HOME/.ai-company/chatgpt-bridge-execution.json"
           HEALTH="$HOME/.ai-company/chatgpt-bridge-health.json"
-          for _ in $(seq 1 12); do
-            [[ -s "$FILE" ]] && break
+          for _ in $(seq 1 30); do
+            if [[ -s "$FILE" ]]; then
+              stage="$(node -e 'const fs=require("fs");const x=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));process.stdout.write(String(x.stage||""));' "$FILE" 2>/dev/null || true)"
+              if [[ -n "$stage" && "$stage" != "routing" && "$stage" != "composer-focused" ]]; then
+                break
+              fi
+            fi
             sleep 2
           done
           echo "BRIDGE_DIAGNOSTIC_BEGIN"
