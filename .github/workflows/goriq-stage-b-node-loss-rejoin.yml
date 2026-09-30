@@ -126,20 +126,29 @@ jobs:
           STATE_ROOT="$HOME/Library/Application Support/GAIWorker"
           RUN_ID="$GITHUB_RUN_ID"
           RECOVERY_FILE="$STATE_ROOT/stage-b-node-loss-${RUN_ID}-macbook-recovery.json"
-          WATCHDOG="$STATE_ROOT/gai-macbook-watchdog.sh"
           mkdir -p .goriq-stage-b/node-loss/evidence
-          /bin/bash "$WATCHDOG" >/dev/null 2>&1 || true
-          worker_pid="$(pgrep -f 'Runner.Worker' | head -n 1 || true)"
+          current_pid="$PPID"
+          worker_pid=""
+          new_pid=""
+          for _ in $(seq 1 12); do
+            [[ -n "$current_pid" && "$current_pid" != "0" ]] || break
+            current_comm="$(ps -o comm= -p "$current_pid" | tr -d ' ' || true)"
+            echo "Mac rejoin ancestry: pid=$current_pid comm=$(basename "$current_comm")"
+            if [[ "$current_comm" == *"Runner.Worker"* ]]; then
+              worker_pid="$current_pid"
+              new_pid="$(ps -o ppid= -p "$worker_pid" | tr -d ' ')"
+              break
+            fi
+            current_pid="$(ps -o ppid= -p "$current_pid" | tr -d ' ')"
+          done
           test -n "$worker_pid"
-          new_pid="$(ps -o ppid= -p "$worker_pid" | tr -d ' ')"
           test -n "$new_pid"
           listener_comm="$(ps -o comm= -p "$new_pid" | tr -d ' ' || true)"
           new_started_at="$(ps -o lstart= -p "$new_pid" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' || true)"
           [[ "$listener_comm" == *"Runner.Listener"* ]]
           [[ -n "$new_started_at" ]]
-          echo "Mac rejoin process identity: listenerPid=$new_pid listenerStartedAt=$new_started_at"
-          active_workers="$(pgrep -f 'Runner.Worker' | wc -l | tr -d ' ')"
-          [[ "$active_workers" =~ ^[0-9]+$ ]] && (( active_workers > 0 ))
+          echo "Mac rejoin process identity: workerPid=$worker_pid listenerPid=$new_pid listenerStartedAt=$new_started_at"
+          active_workers=1
           LIVE_STATUS="$STATE_ROOT/stage-b-node-loss-${RUN_ID}-macbook-live-status.json"
           printf '{"workerId":"macbook","runnerHealthy":true,"runnerConnectionHealthy":false,"runnerProtectedByActiveJob":true,"activeRunnerWorkers":%s,"checkedAt":"%s"}\n' "$active_workers" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >"$LIVE_STATUS"
           printf '{"version":1,"runId":"%s","node":"macbook","newPid":%s,"newStartedAt":"%s","recoveredAt":"%s"}\n' "$RUN_ID" "$new_pid" "$new_started_at" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >"$RECOVERY_FILE"
@@ -241,22 +250,31 @@ jobs:
           $stateRoot = Join-Path $env:LOCALAPPDATA 'GAIWorker'
           $runId = $env:GITHUB_RUN_ID
           $recoveryFile = Join-Path $stateRoot "stage-b-node-loss-$runId-zbook-recovery.json"
-          $watchdog = Join-Path $stateRoot 'gai-zbook-watchdog.ps1'
           New-Item -ItemType Directory -Force -Path .goriq-stage-b\node-loss\evidence | Out-Null
-          & $watchdog -RunnerRoot 'C:\actions-runner' -OllamaEndpoint 'http://127.0.0.1:11434'
-          $workers = @(Get-Process -Name 'Runner.Worker' -ErrorAction Stop)
-          if ($workers.Count -lt 1) { throw 'No active Runner.Worker during ZBook rejoin proof' }
-          $worker = $workers | Select-Object -First 1
-          $workerProcess = Get-CimInstance Win32_Process -Filter "ProcessId=$($worker.Id)" -ErrorAction Stop
-          $listener = Get-Process -Id $workerProcess.ParentProcessId -ErrorAction Stop
-          if ($listener.ProcessName -ne 'Runner.Listener') { throw "Runner.Worker parent is not Runner.Listener: $($listener.ProcessName)" }
+          $currentPid = $PID
+          $workerProcess = $null
+          for ($i = 0; $i -lt 12; $i++) {
+            if ($currentPid -le 0) { break }
+            $currentProcess = Get-CimInstance Win32_Process -Filter "ProcessId=$currentPid" -ErrorAction SilentlyContinue
+            if (-not $currentProcess) { break }
+            Write-Host "ZBook rejoin ancestry: pid=$currentPid name=$($currentProcess.Name)"
+            if ($currentProcess.Name -eq 'Runner.Worker.exe') {
+              $workerProcess = $currentProcess
+              break
+            }
+            $currentPid = [int]$currentProcess.ParentProcessId
+          }
+          if (-not $workerProcess) { throw 'Current ZBook job ancestry does not contain Runner.Worker.exe' }
+          $listenerProcess = Get-CimInstance Win32_Process -Filter "ProcessId=$($workerProcess.ParentProcessId)" -ErrorAction Stop
+          if ($listenerProcess.Name -ne 'Runner.Listener.exe') { throw "Runner.Worker parent is not Runner.Listener.exe: $($listenerProcess.Name)" }
+          $listener = Get-Process -Id $listenerProcess.ProcessId -ErrorAction Stop
           $liveStatus = Join-Path $stateRoot "stage-b-node-loss-$runId-zbook-live-status.json"
           [ordered]@{
             workerId = 'zbook'
             runnerHealthy = $true
             runnerConnectionHealthy = $false
             runnerProtectedByActiveJob = $true
-            activeRunnerWorkers = $workers.Count
+            activeRunnerWorkers = 1
             checkedAt = (Get-Date).ToUniversalTime().ToString('o')
           } | ConvertTo-Json | Set-Content -Encoding UTF8 $liveStatus
           $newStartedAt = $listener.StartTime.ToUniversalTime().ToString('o')
