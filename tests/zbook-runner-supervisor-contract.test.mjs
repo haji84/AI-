@@ -9,5 +9,9 @@ test("ZBook persistence includes a runner-independent one-minute supervisor", ()
   assert.match(installer, /GAI-ZBook-Runner-Supervisor/);
   assert.match(installer, /\/SC MINUTE \/MO 1/);
   assert.match(installer, /localSupervisorIntervalSeconds = 60/);
-  assert.match(watchdog, /GAI_RUNNER_FAILURE_THRESHOLD/);
+  assert.match(watchdog, /\$runnerFailureThreshold = if \(\$env:GAI_RUNNER_FAILURE_THRESHOLD -match '\^\\d\+\});
+\) \{ \[int\]\$env:GAI_RUNNER_FAILURE_THRESHOLD \} else \{ 2 \}/);
+  assert.equal((watchdog.match(/function Write-GaiLog/g) ?? []).length, 1);
+  assert.equal((watchdog.match(/function Start-GitHubRunner/g) ?? []).length, 1);
+  assert.doesNotMatch(watchdog, /^\) \{ \[int\]\$env:GAI_RUNNER_FAILURE_THRESHOLD \} else \{ 2 \}$/m);
 });
