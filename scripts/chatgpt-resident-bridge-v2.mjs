@@ -432,35 +432,74 @@ async function startFreshProjectConversation(client) {
   if (!projectVisible) throw new Error(`CHATGPT_FRESH_PROJECT_SURFACE_ESCAPED: ${PROJECT_NAME}`);
 }
 
+async function inspectProjectConversationSurface(client) {
+  return evaluate(client, `(() => {
+    const normalize = (value) => String(value || '').replace(/\\s+/g, ' ').trim();
+    const visible = (el) => {
+      const rect = el.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    };
+    const projectVisible = [...document.querySelectorAll('a,button,[role="button"]')]
+      .filter(visible)
+      .some((el) => normalize(el.innerText || el.textContent || el.getAttribute('aria-label')) === ${JSON.stringify(PROJECT_NAME)});
+    const turns = [...document.querySelectorAll(
+      'main [data-message-author-role], main [data-testid^="conversation-turn"], main article, main [data-message-id]'
+    )];
+    const seen = new Set();
+    let messageCount = 0;
+    for (const node of turns) {
+      if (!(node instanceof HTMLElement)) continue;
+      const text = normalize(node.innerText || node.textContent || '');
+      if (!text) continue;
+      const id = node.getAttribute('data-message-id') || node.id || text.slice(0, 300);
+      if (seen.has(id)) continue;
+      seen.add(id);
+      messageCount += 1;
+    }
+    return { projectVisible, messageCount, url: location.href };
+  })()`);
+}
+
 async function prepareProjectSurface(client, mode, fresh = false) {
   const preferredUrl = arguments[3] ?? null;
   const surfaces = await readProjectSurfaces();
   const savedUrl = preferredUrl || (mode === "work" ? surfaces.work : surfaces.chat);
+  let invalidSavedSession = false;
+
   if (!fresh && savedUrl) {
     try {
       await navigateClient(client, savedUrl);
       await waitForComposer(client, 12000);
       if (mode === "work") await selectExperience(client, "work");
-      return { reused: true, url: savedUrl };
+      const inspected = await inspectProjectConversationSurface(client);
+      if (inspected?.projectVisible && Number(inspected?.messageCount ?? 0) > 0) {
+        return { reused: true, url: inspected.url || savedUrl, invalidSavedSession: false };
+      }
+      invalidSavedSession = true;
+      await setExecutionDiagnostic("saved-session-invalid", {
+        mode,
+        messageCount: Number(inspected?.messageCount ?? 0),
+        projectVisible: Boolean(inspected?.projectVisible),
+      });
     } catch {
-      // Re-discover the project below. Never fall back to a root standalone chat.
+      invalidSavedSession = true;
     }
   }
 
   await navigateClient(client, CHATGPT_URL);
   await openAutomationProject(client);
-  if (fresh) await startFreshProjectConversation(client);
+  if (fresh || invalidSavedSession) await startFreshProjectConversation(client);
   if (mode === "work") await selectExperience(client, "work");
   const ready = await waitForComposer(client, 15000);
-  const projectVisible = await evaluate(client, `(() => {
-    const normalize = (value) => String(value || '').replace(/\\s+/g, ' ').trim();
-    return [...document.querySelectorAll('a,button,[role="button"]')]
-      .some((el) => normalize(el.innerText || el.textContent || el.getAttribute('aria-label')) === ${JSON.stringify(PROJECT_NAME)});
-  })()`);
-  if (!projectVisible) {
+  const inspected = await inspectProjectConversationSurface(client);
+  if (!inspected?.projectVisible) {
     throw new Error(`CHATGPT_PROJECT_SURFACE_ESCAPED: ${PROJECT_NAME}/${mode}`);
   }
-  return { reused: false, url: ready.url };
+  return {
+    reused: false,
+    url: ready.url,
+    invalidSavedSession,
+  };
 }
 
 async function snapshotConversationMessages(client) {
@@ -1016,7 +1055,7 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false, p
     await client.call("Page.enable");
     await client.call("Runtime.enable");
     await client.call("Page.bringToFront");
-    await prepareProjectSurface(client, mode, fresh, preferredUrl);
+    const preparedSurface = await prepareProjectSurface(client, mode, fresh, preferredUrl);
     const selectedExperience = await waitForComposer(client);
     if (!String(selectedExperience?.url ?? "").startsWith(CHATGPT_URL)) throw new Error("project surface left ChatGPT");
 
@@ -1053,7 +1092,8 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false, p
       mode,
       fresh,
       repairMode,
-      sessionReuse: Boolean(preferredUrl && !fresh),
+      sessionReuse: Boolean(preparedSurface?.reused),
+      invalidSavedSession: Boolean(preparedSurface?.invalidSavedSession),
     });
 
     await client.call("Input.dispatchKeyEvent", { type: "keyDown", key: "a", code: "KeyA", modifiers: 4 });
@@ -1224,6 +1264,18 @@ async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false, p
       composerInForm: Boolean(submitted?.composerInForm),
       composerInMain: Boolean(submitted?.composerInMain),
     });
+
+    if (isSubmitted(submitted) && !repairMode) {
+      const submittedUrl = await evaluate(client, "location.href");
+      await recordProjectSession(mode, String(submittedUrl || ""), goalId);
+      await writeProjectSurface(mode, String(submittedUrl || ""));
+      await setExecutionDiagnostic("session-persisted-on-submit", {
+        mode,
+        fresh,
+        sessionReuse: Boolean(preparedSurface?.reused),
+        invalidSavedSession: Boolean(preparedSurface?.invalidSavedSession),
+      });
+    }
 
     if (!isSubmitted(submitted)) {
       const diagnostics = await evaluate(client, `(() => {
