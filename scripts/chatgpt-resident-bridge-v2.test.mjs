@@ -385,3 +385,11 @@ test("ordinary project session is persisted immediately after confirmed submissi
   assert.match(source, /writeProjectSurface\(mode, String\(submittedUrl \|\| ""\)\)/);
   assert.match(source, /session-persisted-on-submit/);
 });
+
+test("new project Chat session is persisted only after a real conversation URL transition", () => {
+  assert.match(source, /async function waitForPersistableProjectConversationUrl/);
+  assert.match(source, /currentUrl !== baseline/);
+  assert.match(source, /messageCount \?\? 0\) > 0/);
+  assert.match(source, /session-url-not-ready/);
+  assert.match(source, /conversationUrlTransitioned/);
+});
