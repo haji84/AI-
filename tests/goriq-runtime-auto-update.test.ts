@@ -39,3 +39,9 @@ test("Bridge diagnostic capture rejects stale pre-reconcile state",async()=>{
   assert.match(s,/updated_epoch/);
   assert.match(s,/-ge "\$MIN_UPDATED_AT"/);
 });
+
+test("Bridge diagnostic capture waits for late or terminal execution stages",async()=>{
+  const s=await wf();
+  assert.match(s,/submission-check\|session-persisted-on-submit\|ordinary-chat-wait\|ordinary-chat-answer-detected\|synced\|error/);
+  assert.match(s,/errorCode/);
+});
