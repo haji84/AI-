@@ -25,7 +25,8 @@ test("ZBook broker conflict cooldown survives Listener exit and outranks TCP hea
   const watchdog = readFileSync("scripts/gai-zbook-watchdog.ps1", "utf8");
   assert.match(watchdog, /zbook-runner-session-conflict\.epoch/);
   assert.match(watchdog, /function Test-LatestRunnerSessionConflict/);
-  assert.match(watchdog, /\$since -gt 0 -and \(\$now - \$since\) -lt \(\$runnerSessionConflictGraceMinutes \* 60\)/);
+  assert.match(watchdog, /if \(\$since -gt 0\)/);
+  assert.match(watchdog, /\(\$now - \$since\) -lt \(\$runnerSessionConflictGraceMinutes \* 60\)/);
 
   const connectionStart = watchdog.indexOf("function Test-RunnerConnection");
   const conflictCheck = watchdog.indexOf("Test-LatestRunnerSessionConflict", connectionStart);
