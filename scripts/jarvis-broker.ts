@@ -8,7 +8,7 @@ import { loadCanonicalBundle, prepareSpecificationProposal } from "./jarvis-owne
 import { OwnerRequirementIntake, matchRequirementCandidates } from "../src/orchestrator/owner-requirement-intake.ts";
 import { execFileSync, spawn } from "node:child_process";
 import { createHash, createPublicKey, randomBytes, timingSafeEqual } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, lstatSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { OwnerInvitationStore, INVITATION_PREFIX } from "../src/jarvis/owner-invitation.ts";
 import { generateOwnerRecoveryCode, OwnerRecoveryRejectedError, TrustedDeviceRegistry } from "../src/jarvis/trusted-device-registry.ts";
@@ -44,6 +44,7 @@ import { createQueuedWorkRun } from "../src/orchestrator/work-run-state.ts";
 import { validateWindowsVerificationDispatch } from "../src/orchestrator/windows-verification-dispatch.ts";
 import { DeviceDevelopmentIntake, JsonFileDeviceDevelopmentInbox } from "../src/orchestrator/device-development-intake.ts";
 import { parseDailyDriverDeviceCommand } from "../src/jarvis/daily-driver-device-command.ts";
+import { PcEnrollmentService, validatePcEnrollmentApproval } from "../src/jarvis/pc-enrollment.ts";
 
 
 const host = process.env.JARVIS_BROKER_HOST?.trim() || "127.0.0.1";
@@ -66,6 +67,19 @@ if (host !== "127.0.0.1" && host !== "::1" && process.env.JARVIS_ALLOW_NON_LOOPB
 
 const plane = new JarvisControlPlane();
 const store = new JarvisSqliteStateStore(process.env.JARVIS_DB_PATH?.trim() || undefined);
+const pcApprovalPath = (process.env.JARVIS_DB_PATH?.trim() || resolve(".jarvis", "jarvis.db")) + ".pc-enrollment-approval.json";
+let pcEnrollment: PcEnrollmentService | undefined;
+let pcApprovalDigest = "";
+function approvedPcEnrollment(): PcEnrollmentService {
+  const stat = lstatSync(pcApprovalPath);
+  if (!stat.isFile() || stat.size > 8192 || (process.platform !== "win32" &&
+    ((stat.mode & 0o077) !== 0 || stat.uid !== process.getuid?.()))) throw new Error("PC approval storage rejected");
+  const raw = readFileSync(pcApprovalPath, "utf8");
+  const approval = validatePcEnrollmentApproval(JSON.parse(raw));
+  const digest = createHash("sha256").update(raw).digest("hex");
+  if (!pcEnrollment || digest !== pcApprovalDigest) { pcEnrollment = new PcEnrollmentService(approval); pcApprovalDigest = digest; }
+  return pcEnrollment;
+}
 const compassPath = process.env.JARVIS_COMPASS_DB_PATH?.trim() || (process.env.JARVIS_DB_PATH?.trim() ? `${process.env.JARVIS_DB_PATH.trim()}.compass.sqlite` : resolve(".jarvis/compass.db"));
 const compass = new CompassStore(compassPath);
 const workRuns = new CompassWorkRunStore(compass);
@@ -262,6 +276,7 @@ function asNumber(value: unknown, fallback: number): number { return typeof valu
 function validatedNode(value: unknown): JarvisNode {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("node object required");
   const node = value as JarvisNode;
+  if (node.pcAuthority !== undefined) throw new Error("Android cannot self-assign PC authority");
   if (!node.id || node.kind !== "android" || !Array.isArray(node.capabilities)) throw new Error("invalid Android node descriptor");
   if (node.policy?.allowPaidServices !== false) throw new Error("worker must disable paid services");
   const rawContract = (value as Record<string, unknown>).nodeContract;
@@ -380,6 +395,29 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
     }
 
     const payload = parseJson(body);
+    if (path === "/api/jarvis/admin/pc-enrollment/challenge" || path === "/api/jarvis/admin/pc-enrollment/prove") {
+      if (method !== "POST" || body.length > 4096) return json(response, 400, { message: "bounded PC enrollment request required" });
+      try {
+        const service = approvedPcEnrollment();
+        if (path.endsWith("/challenge")) {
+          if (typeof payload.nodeId === "string" && (plane.fleet.get(payload.nodeId) || store.getWorkerIdentity(payload.nodeId))) {
+            return json(response, 409, { message: "Existing identity must reconnect, not re-enroll" });
+          }
+          return json(response, 201, service.offer(payload));
+        }
+        if (Object.keys(payload).some(k => !["challengeId", "signatureBase64"].includes(k)) ||
+          typeof payload.challengeId !== "string" || typeof payload.signatureBase64 !== "string") throw new Error("Invalid proof");
+        const candidate = service.prove(payload.challengeId, payload.signatureBase64);
+        if (plane.fleet.get(candidate.node.id) || store.getWorkerIdentity(candidate.node.id)) throw new Error("Existing identity");
+        const before = plane.snapshot(), expected = store.load();
+        try {
+          const token = plane.createEnrollment({ mode: "full", ttlMs: 30_000, maxDevices: 1 });
+          const node = plane.enroll(token.token, candidate.node);
+          store.saveNewEnrollment(expected, plane.snapshot(), candidate.identity);
+          return json(response, 201, { node });
+        } catch (error) { plane.restore(before); throw error; }
+      } catch { return json(response, 409, { message: "PC enrollment approval, identity or proof rejected" }); }
+    }
     if (path === "/api/jarvis/admin/google-owner") {
       try {
         if (method !== "POST" || body.length > 4096) return json(response, 400, { message: "invalid google owner state request" });
@@ -771,6 +809,7 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
 
   if (method === "POST" && path === "/api/jarvis/enroll") {
     const payload = parseJson(body); let tokenValue = "";
+    if (payload.node && typeof payload.node === "object" && "pcAuthority" in payload.node) return json(response, 400, { message: "Android cannot self-assign PC authority" });
     if (typeof payload.grant === "string" && payload.grant) {
       const grant = resolveEnrollmentGrant(payload.grant); if (!grant) return json(response, 410, { message: "expired or invalid enrollment link" }); tokenValue = grant.token;
     } else if (typeof payload.token === "string" && payload.token) {
@@ -823,6 +862,13 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
       const telemetry = sanitizeJarvisNodeTelemetry(payload.telemetry, now);
       const status = payload.status === "busy" || payload.status === "locked" || payload.status === "needs-human" ? payload.status : "ready";
       const capabilities = Array.isArray(payload.capabilities) ? payload.capabilities.filter((item): item is JarvisCapability => typeof item === "string") : undefined;
+      const pc = plane.fleet.get(identity.nodeId);
+      if (pc?.pcAuthority) {
+        if (payload.nodeContract !== undefined || payload.pcAuthority !== undefined ||
+          capabilities?.some(c => !pc.pcAuthority!.capabilityCeiling.includes(c))) return json(response, 403, { message: "PC capability or authority escalation rejected" });
+        const node = plane.heartbeat(identity.nodeId, { status, telemetry, capabilities, policy: pc.policy }, now);
+        persist(false); return json(response, 200, { node });
+      }
       const rawContract = payload.nodeContract;
       const nodeContract = rawContract === undefined ? undefined : sanitizeJarvisAndroidNodeContract(rawContract, now);
       if (rawContract !== undefined && !nodeContract) return json(response, 400, { message: "invalid Android distributed node contract" });

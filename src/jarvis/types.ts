@@ -118,6 +118,13 @@ export interface JarvisNode {
   policy: JarvisNodePolicy;
   telemetry: JarvisNodeTelemetry;
   nodeContract?: JarvisAndroidNodeContractV1;
+  pcAuthority?: {
+    version: 1;
+    approvalIssue: number;
+    goalIssue: number;
+    roles: Array<"Executor" | "Storage" | "Verifier" | "Coordinator">;
+    capabilityCeiling: JarvisCapability[];
+  };
   enrollment: "quick" | "full";
   fleetNumber?: number;
   group?: string;
