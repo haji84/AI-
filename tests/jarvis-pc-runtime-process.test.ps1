@@ -41,3 +41,4 @@ $fixtureProcesses=@(1..40 | ForEach-Object {[pscustomobject]@{Name='node.exe';Pr
 $bounded=Runtime-Process-Facts 'C:\Fixture'
 if($bounded.candidates.Count -ne 32 -or -not $bounded.candidatesTruncated -or $bounded.nodeProcessCount -ne 40){throw 'bounded-candidates'}
 Write-Output 'Process visibility fixtures PASS'
+& (Join-Path $PSScriptRoot 'jarvis-owner-readonly-probe.test.ps1')
