@@ -27,13 +27,29 @@ function Assert-NativeFile([string]$path) {
   $item=Get-Item -LiteralPath $path -ErrorAction Stop
   if($item.Attributes -band [IO.FileAttributes]::ReparsePoint){throw 'path'}
   $owner=(Get-Acl -LiteralPath $path).Owner
-  $sid=$owner
-  if($sid -ne $identity.User.Value){$sid=(New-Object Security.Principal.NTAccount($owner)).Translate([Security.Principal.SecurityIdentifier]).Value}
+  if($owner -match '^S-1-'){$sid=([Security.Principal.SecurityIdentifier]$owner).Value}
+  else{$sid=([Security.Principal.NTAccount]$owner).Translate([Security.Principal.SecurityIdentifier]).Value}
   if($sid -ne $identity.User.Value){throw 'owner'}
   foreach($rule in (Get-Acl -LiteralPath $path).Access){
     $ruleSid=$rule.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value
     if($rule.AccessControlType -eq 'Allow' -and $ruleSid -notin @($identity.User.Value,'S-1-5-18')){throw 'private-acl'}
   }
+}
+function Native-File-Facts([string]$label,[string]$path) {
+  try{
+    $item=Get-Item -LiteralPath $path -ErrorAction Stop
+    $acl=Get-Acl -LiteralPath $path
+    if($acl.Owner -match '^S-1-'){$ownerSid=([Security.Principal.SecurityIdentifier]$acl.Owner).Value}
+    else{$ownerSid=([Security.Principal.NTAccount]$acl.Owner).Translate([Security.Principal.SecurityIdentifier]).Value}
+    $ownerClass=if($ownerSid -eq $identity.User.Value){'current-user'}elseif($ownerSid -eq 'S-1-5-32-544'){'administrators'}elseif($ownerSid -eq 'S-1-5-18'){'system'}else{'other'}
+    $onlyApproved=$true
+    foreach($rule in $acl.Access){
+      $ruleSid=$rule.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value
+      if($rule.AccessControlType -eq 'Allow' -and $ruleSid -notin @($identity.User.Value,'S-1-5-18')){$onlyApproved=$false}
+    }
+    return @{surface=$label;exists=$true;reparsePoint=[bool]($item.Attributes -band [IO.FileAttributes]::ReparsePoint);
+      ownerClass=$ownerClass;onlyCurrentUserAndSystemAllowed=$onlyApproved}
+  }catch{return @{surface=$label;unavailable=$true}}
 }
 function Inspect-State([string]$operation) {
   $inputValue=@{current=$current; previousRevision=$current.commit; releaseRoot=$releaseRoot; operation=$operation} | ConvertTo-Json -Depth 20 -Compress
@@ -112,33 +128,47 @@ try {
   Assert-Approval
   $stage='installation'
   $identity=[Security.Principal.WindowsIdentity]::GetCurrent()
-  foreach($path in @($production,$configPath,$launcherPath)){Assert-NativeFile $path}
+  if($Phase -eq 'plan'){
+    @{version=1;nodeId='zbook';phase='plan';readOnly=$true;nativePrerequisites=@(
+      (Native-File-Facts 'production-directory' $production),(Native-File-Facts 'protected-config' $configPath),
+      (Native-File-Facts 'native-launcher' $launcherPath))} | ConvertTo-Json -Depth 5 -Compress
+  }
+  $stage='production-directory'; Assert-NativeFile $production
+  $stage='protected-config'; Assert-NativeFile $configPath
+  $stage='native-launcher'; Assert-NativeFile $launcherPath
+  $stage='existing-task'
   $task=Get-ScheduledTask -TaskName $taskName
   $taskXml=Export-ScheduledTask -TaskName $taskName
   $principal=[string]$task.Principal.UserId
   if($principal -ne $identity.User.Value){$principal=([Security.Principal.NTAccount]$principal).Translate([Security.Principal.SecurityIdentifier]).Value}
   if($principal -ne $identity.User.Value -or $task.Principal.RunLevel -ne 'Limited' -or
     $task.Principal.LogonType -ne 'Password' -or $task.Actions.Count -ne 1 -or $task.State -ne 'Running'){throw 'task'}
+  $stage='compatibility-launcher'
   $compat=Join-Path $env:LOCALAPPDATA 'JARVIS\production\launch-current.ps1'
   if($task.Actions[0].Execute -notmatch '(?i)\\WindowsPowerShell\\v1\.0\\powershell\.exe$' -or
     -not $task.Actions[0].Arguments.Contains($compat) -or $task.Actions[0].Arguments -notmatch '(?i)RemoteSigned' -or
     -not ([IO.File]::ReadAllText($compat)).Contains($launcherPath)){throw 'compatibility-launcher'}
+  $stage='existing-dpapi'
   $configBytes=[IO.File]::ReadAllBytes($configPath)
   $secure=ConvertTo-SecureString ([IO.File]::ReadAllText($configPath).Trim())
   $plain=(New-Object Management.Automation.PSCredential('config',$secure)).GetNetworkCredential().Password
   $current=$plain | ConvertFrom-Json
+  $stage='existing-release'
   $oldRoot=[IO.Path]::GetFullPath($current.releaseRoot)
   if($current.version -ne 1 -or $current.commit -notmatch '^[a-f0-9]{40}$' -or
     $oldRoot -ine (Join-Path $env:USERPROFILE ('JARVIS\releases\'+$current.commit)) -or $oldRoot -ieq $releaseRoot){throw 'release'}
   Assert-NativeFile $oldRoot
+  $stage='existing-manifest'
   $oldManifest=Get-Content -LiteralPath (Join-Path $oldRoot 'jarvis-release.json') -Raw | ConvertFrom-Json
   if($oldManifest.commit -ne $current.commit){throw 'manifest'}
+  $stage='native-launcher-shape'
   $launcherBytes=[IO.File]::ReadAllBytes($launcherPath)
   $launcher=[IO.File]::ReadAllText($launcherPath)
   # Preserve the entire established launcher including its existing local environment.
   # Only exact native release-root literals are replaced; unfamiliar launchers fail closed.
   if(-not $launcher.Contains($oldRoot)){throw 'launcher-shape'}
   $nextLauncher=$launcher.Replace($oldRoot,$releaseRoot)
+  $stage='existing-process-tree'
   $tree=Get-OwnedTree $oldRoot
   $stage='readonly-state'
   $before=Inspect-State 'inspect'
@@ -207,6 +237,11 @@ try {
   $receipt.observedAt=[datetimeoffset]::UtcNow.ToString('o')
   $receipt | ConvertTo-Json -Compress
 }catch {
+  $safeReasons=@('approval','path','owner','private-acl','task','compatibility-launcher','release','manifest','launcher-shape',
+    'host','process-owner','listeners','process-replaced','process-permission','ports-busy','source','main-ci','state',
+    'immutable-release-exists','archive','archive-extract','toolchain','install','build','baseline-changed','candidate','state-changed',
+    'health','verification','rollback-listeners')
+  $failureReason=if($safeReasons -contains $_.Exception.Message){$_.Exception.Message}else{'unexpected-prerequisite-error'}
   if($stopped){
     try {
       if($switched){
@@ -237,7 +272,7 @@ try {
     }catch{}
   }
   # Never print exception/config/process/task command lines. Retain current DB and all protected backups.
-  @{version=1;issue=1662;nodeId='zbook';phase=$Phase;failedStage=$stage;restored=$restored;pointersRestored=$pointersRestored;
+  @{version=1;issue=1662;nodeId='zbook';phase=$Phase;failedStage=$stage;failureReason=$failureReason;restored=$restored;pointersRestored=$pointersRestored;
     databaseRestored=$false;knownFailure='PC_RUNTIME_REFRESH_FAILED';observedAt=[datetimeoffset]::UtcNow.ToString('o')} | ConvertTo-Json -Compress
   exit 1
 }finally{$plain=$null;$candidate=$null;$encoded=$null;$secure=$null;$current=$null;$next=$null}

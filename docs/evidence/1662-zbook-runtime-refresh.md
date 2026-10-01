@@ -22,4 +22,6 @@ Full Node suite2120 total,2116 PASS,4 existing SKIP,0FAIL. ESLint, TypeScript an
 
 ## Remaining acceptance
 
+Recovery PR1665 merged exact maine80f2497e44986071c65b7fc558ed25eb26802c9; main push CI36865864194 SUCCESS and Mac push sync36865863687 SUCCESS. Physical read-only plan36866232040 source110382313011 SUCCESS, ZBook110382397571 FAIL at2026-10-01T13:06:13.7063225Z, stage `installation`. No apply/key/enrollment/state mutation occurred. The coarse failure receipt cannot identify which existing prerequisite failed; next minimal recovery adds non-secret owner/ACL classifications and granular failure stages before changing any prerequisite rule. No repeated apply or authority weakening on an inferred cause.
+
 Protected merge/exact-main CI, Windows read-only physical plan, actual code refresh/recovery and both-host preflight still pending at this checkpoint. PC enrollment, signed production mesh task/offline/reconnect/failover/rebalance remain unverified. Nubia is explicitly deferred by owner until GORIQ body completion; APK/device/Node Contract Stage C criteria are not PASS. No Goal/Stage C completion claim. Compass MCP unavailable; repository issue/PR handoff is used without fabricating State Controller transitions.
