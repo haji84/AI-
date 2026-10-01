@@ -3082,7 +3082,7 @@
     },
     {
       "path": "src/gai/distributed-coordinator.ts",
-      "sha256": "ae7f902bb12c30c3a60d8d1934ad9919b61d9feeb90126ba2e41b1ff89ad2199",
+      "sha256": "1e7c07c987449bde7c044d34e1aa44d7c2e2318cc52ed7e93656d0443b115a87",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-012",

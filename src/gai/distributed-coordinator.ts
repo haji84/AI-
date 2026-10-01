@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
+import { isDeepStrictEqual } from "node:util";
+import { acquireCognitiveLease } from "./cognitive-lease.ts";
 
 export interface CoordinatorCandidate {
   nodeId: string;
@@ -32,6 +34,7 @@ export interface CoordinatorClaim {
 export interface CoordinatorStore {
   load(): Promise<CoordinatorLease | null>;
   save(lease: CoordinatorLease): Promise<void>;
+  compareAndSwap?(expected: CoordinatorLease | null, next: CoordinatorLease): Promise<boolean>;
 }
 
 export class MemoryCoordinatorStore implements CoordinatorStore {
@@ -43,6 +46,13 @@ export class MemoryCoordinatorStore implements CoordinatorStore {
 
   async save(lease: CoordinatorLease): Promise<void> {
     this.lease = structuredClone(lease);
+  }
+
+  async compareAndSwap(expected: CoordinatorLease | null, next: CoordinatorLease): Promise<boolean> {
+    assertLease(next);
+    if (!isDeepStrictEqual(this.lease, expected)) return false;
+    this.lease = structuredClone(next);
+    return true;
   }
 }
 
@@ -67,6 +77,23 @@ export class JsonFileCoordinatorStore implements CoordinatorStore {
   async save(lease: CoordinatorLease): Promise<void> {
     assertLease(lease);
     await mkdir(dirname(this.filePath), { recursive: true });
+    const release = await acquireCognitiveLease(`${this.filePath}.writer.lock`, 2000);
+    try { await this.writeLease(lease); } finally { await release(); }
+  }
+
+  // Local-filesystem arbitration only; this is not cross-host consensus.
+  async compareAndSwap(expected: CoordinatorLease | null, next: CoordinatorLease): Promise<boolean> {
+    assertLease(next);
+    await mkdir(dirname(this.filePath), { recursive: true });
+    const release = await acquireCognitiveLease(`${this.filePath}.writer.lock`, 2000);
+    try {
+      if (!isDeepStrictEqual(await this.load(), expected)) return false;
+      await this.writeLease(next);
+      return true;
+    } finally { await release(); }
+  }
+
+  private async writeLease(lease: CoordinatorLease): Promise<void> {
     const temp = `${this.filePath}.tmp-${process.pid}-${Date.now()}`;
     await writeFile(temp, `${JSON.stringify(lease, null, 2)}\n`, "utf8");
     await rename(temp, this.filePath);
@@ -210,7 +237,7 @@ export class DistributedCoordinatorRuntime {
       issuedAt: at,
       updatedAt: at,
     };
-    await this.store.save(next);
+    await this.persist(current, next);
     this.lease = next;
     return claimOf(next);
   }
@@ -229,12 +256,13 @@ export class DistributedCoordinatorRuntime {
       .find((candidate) => candidate.nodeId === claim.coordinatorId);
     if (!incumbent) throw new Error("COORDINATOR_NO_LONGER_ELIGIBLE");
 
+    const current = this.lease!;
     const next: CoordinatorLease = {
-      ...this.lease!,
+      ...current,
       leaseUntil: new Date(now.getTime() + leaseMs).toISOString(),
       updatedAt: now.toISOString(),
     };
-    await this.store.save(next);
+    await this.persist(current, next);
     this.lease = next;
     return claimOf(next);
   }
@@ -242,6 +270,11 @@ export class DistributedCoordinatorRuntime {
   async assertAuthoritative(claim: CoordinatorClaim, now = new Date()): Promise<void> {
     await this.initialize();
     this.assertClaim(claim, now);
+  }
+
+  private async persist(expected: CoordinatorLease | null, next: CoordinatorLease): Promise<void> {
+    if (!this.store.compareAndSwap) throw new Error("COORDINATOR_ATOMIC_STORE_REQUIRED");
+    if (!await this.store.compareAndSwap(expected, next)) throw new Error("COORDINATOR_WRITE_CONFLICT");
   }
 
   private assertClaim(claim: CoordinatorClaim, now: Date): void {
