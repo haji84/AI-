@@ -23,6 +23,12 @@ function Assert-Approval {
     $now -ge [datetimeoffset]::Parse($approval.expiresAt) -or
     @($approval.targets | Where-Object {$_.nodeId -eq 'zbook' -and $_.platform -eq 'windows'}).Count -ne 1){throw 'approval'}
 }
+function Test-NativeAllowSid([string]$ruleSid) {
+  if($ruleSid -in @($identity.User.Value,'S-1-5-18')){return $true}
+  # Read-only existing-installation diagnostics may inspect an unchanged OS
+  # administrator ACE. Apply retains its strict boundary until physical proof.
+  return ($Phase -eq 'plan' -and $ruleSid -eq 'S-1-5-32-544')
+}
 function Assert-NativeFile([string]$path) {
   $item=Get-Item -LiteralPath $path -ErrorAction Stop
   if($item.Attributes -band [IO.FileAttributes]::ReparsePoint){throw 'path'}
@@ -32,7 +38,7 @@ function Assert-NativeFile([string]$path) {
   if($sid -ne $identity.User.Value){throw 'owner'}
   foreach($rule in (Get-Acl -LiteralPath $path).Access){
     $ruleSid=$rule.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value
-    if($rule.AccessControlType -eq 'Allow' -and $ruleSid -notin @($identity.User.Value,'S-1-5-18')){throw 'private-acl'}
+    if($rule.AccessControlType -eq 'Allow' -and -not (Test-NativeAllowSid $ruleSid)){throw 'private-acl'}
   }
 }
 function Native-File-Facts([string]$label,[string]$path) {
@@ -42,13 +48,18 @@ function Native-File-Facts([string]$label,[string]$path) {
     if($acl.Owner -match '^S-1-'){$ownerSid=([Security.Principal.SecurityIdentifier]$acl.Owner).Value}
     else{$ownerSid=([Security.Principal.NTAccount]$acl.Owner).Translate([Security.Principal.SecurityIdentifier]).Value}
     $ownerClass=if($ownerSid -eq $identity.User.Value){'current-user'}elseif($ownerSid -eq 'S-1-5-32-544'){'administrators'}elseif($ownerSid -eq 'S-1-5-18'){'system'}else{'other'}
-    $onlyApproved=$true
+    $onlyApproved=$true; $additionalClasses=@()
     foreach($rule in $acl.Access){
       $ruleSid=$rule.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value
-      if($rule.AccessControlType -eq 'Allow' -and $ruleSid -notin @($identity.User.Value,'S-1-5-18')){$onlyApproved=$false}
+      if($rule.AccessControlType -eq 'Allow' -and $ruleSid -notin @($identity.User.Value,'S-1-5-18')){
+        $onlyApproved=$false
+        $additionalClasses+=if($ruleSid -eq 'S-1-5-32-544'){'builtin-administrators'}else{'other'}
+      }
     }
     return @{surface=$label;exists=$true;reparsePoint=[bool]($item.Attributes -band [IO.FileAttributes]::ReparsePoint);
-      ownerClass=$ownerClass;onlyCurrentUserAndSystemAllowed=$onlyApproved}
+      ownerClass=$ownerClass;onlyCurrentUserAndSystemAllowed=$onlyApproved;
+      additionalAllowClasses=@($additionalClasses | Sort-Object -Unique);
+      nonOsAdditionalAllowPresent=($additionalClasses -contains 'other')}
   }catch{return @{surface=$label;unavailable=$true}}
 }
 function Inspect-State([string]$operation) {
