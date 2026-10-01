@@ -1229,7 +1229,7 @@
     },
     {
       "path": "scripts/jarvis-production-config.mjs",
-      "sha256": "0dbb0cd252230ea109db300ceb9ee979f3fafa59449b60c5e3ba4d69f1cb339b",
+      "sha256": "4a8d55473cdbab4578d4c7ad84b339adce9e5423fea9cbfd9deb2d1d6a8f1fdb",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "HOST-003",
@@ -4004,6 +4004,18 @@
         "SEC-006"
       ],
       "reason": "Owner-scoped PC host-local identity and loopback proof enrollment; physical activation and execution remain separate Evidence gates"
+    },
+    {
+      "path": "src/jarvis/pc-runtime-refresh.ts",
+      "sha256": "e1baab099c95d3223835aeeda79fabce511a4fbf79778bcb7bffd04c1acf500f",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "HOST-003",
+        "OPS-013",
+        "OPS-014",
+        "SEC-011"
+      ],
+      "reason": "Issue1662 approved existing ZBook code refresh; strict read-only schema/fleet/quiescence guard, unchanged credentials/task/network, protected recovery and exact-main runtime receipt. Physical PASS requires host Evidence."
     },
     {
       "path": "src/jarvis/pending-enrollment.ts",
