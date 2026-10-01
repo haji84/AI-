@@ -33,6 +33,10 @@ test("broker DB inventory reports counts without exposing fleet identities", asy
   assert.equal(result.exists, true);
   assert.equal(result.fleetCount, 2);
   assert.equal(result.workerIdentityCount, 2);
+  assert.equal(result.fleetKinds?.android, 2);
+  assert.equal(result.registeredPcCount, 0);
+  assert.equal(result.pcWithActiveIdentityCount, 0);
+  assert.equal(result.pcIdentityCoverage, "available");
   assert.equal(result.snapshotUpdatedAt, snapshot.generatedAt);
   assert.match(result.sha256 ?? "", /^[a-f0-9]{64}$/);
   const serialized = JSON.stringify(result);
@@ -49,6 +53,10 @@ test("broker DB inventory reports a missing candidate without leaking its path",
     bytes:0,
     fleetCount:null,
     workerIdentityCount:null,
+    fleetKinds:null,
+    registeredPcCount:null,
+    pcWithActiveIdentityCount:null,
+    pcIdentityCoverage:"unavailable",
     snapshotUpdatedAt:null,
     sha256:null,
     error:null,
