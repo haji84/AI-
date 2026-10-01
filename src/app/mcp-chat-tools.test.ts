@@ -70,7 +70,7 @@ test("create_private_repository requires exact owner approval before any GitHub 
     () => invokeRemoteMcpTool(
       { repository: "owner/repo", githubToken: "token", fetchImpl: fakeFetch },
       "create_private_repository",
-      { name: "fire-ai-os-private", owner_approved: false, approval_text: "CREATE PRIVATE REPOSITORY fire-ai-os-private" },
+      { name: "fire-ai-os-private", owner_approved: false, approval_text: "承認: fire-ai-os-private" },
     ),
     /Human Gate approval required/,
   );
@@ -102,7 +102,7 @@ test("create_private_repository creates only a private initialized personal repo
       name: "fire-ai-os-private",
       description: "消防AI OS",
       owner_approved: true,
-      approval_text: "CREATE PRIVATE REPOSITORY fire-ai-os-private",
+      approval_text: "承認: fire-ai-os-private",
     },
   ) as { created: boolean; repository: string; private: boolean; defaultBranch: string };
 
