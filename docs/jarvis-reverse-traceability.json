@@ -959,7 +959,7 @@
     },
     {
       "path": "scripts/jarvis-broker.ts",
-      "sha256": "15e2df1244291ac68c87bc7959fc5908e03ace6c3be50d29132bbdd7c5545bc0",
+      "sha256": "dbcaf140baf9a4551897dc2540d5ab158c7036341af3855fa683a182da7d9df1",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "NET-003",
@@ -3964,6 +3964,48 @@
       "reason": "Bounded enrollment and owner invitation lifecycle"
     },
     {
+      "path": "src/jarvis/pc-bootstrap.ts",
+      "sha256": "539f51e49bc6233e175b2b2f0e78f58297d8678f634afd652f6a86753e55810f",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "FLEET-001",
+        "FLEET-002",
+        "FLEET-007",
+        "SEC-003",
+        "SEC-005",
+        "SEC-006"
+      ],
+      "reason": "Owner-scoped PC host-local identity and loopback proof enrollment; physical activation and execution remain separate Evidence gates"
+    },
+    {
+      "path": "src/jarvis/pc-enrollment.ts",
+      "sha256": "018cd5f995de28249f961e276c943e8eb5fa12fdd89cf19a271e93190d4180d0",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "FLEET-001",
+        "FLEET-002",
+        "FLEET-007",
+        "SEC-003",
+        "SEC-005",
+        "SEC-006"
+      ],
+      "reason": "Owner-scoped PC identity enrollment with bounded proof-of-possession and immutable capability ceiling; physical activation and distributed execution Evidence remain separate."
+    },
+    {
+      "path": "src/jarvis/pc-local-identity.ts",
+      "sha256": "06bf83607a53e9fda7fa008ba71e6b523fa056859c0f50e532d97bd7291d3375",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "FLEET-001",
+        "FLEET-002",
+        "FLEET-007",
+        "SEC-003",
+        "SEC-005",
+        "SEC-006"
+      ],
+      "reason": "Owner-scoped PC host-local identity and loopback proof enrollment; physical activation and execution remain separate Evidence gates"
+    },
+    {
       "path": "src/jarvis/pending-enrollment.ts",
       "sha256": "5117da66f54d6bb58024a459515ec5eab519586dc7c9eec59e7e42c4630b9d0c",
       "classification": "COVERED_BY_REQUIREMENT",
@@ -4195,7 +4237,7 @@
     },
     {
       "path": "src/jarvis/sqlite-state-store.ts",
-      "sha256": "fa3c63a6160f8a70ac17f5674b6b4e0cb0f650dbb3e4b6ca8826659c43ee8598",
+      "sha256": "c91d5460f0741bca6768cb8a91d029cc35d10253df95ffbfe41aca97b8d97af7",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OPS-001",
@@ -4323,7 +4365,7 @@
     },
     {
       "path": "src/jarvis/types.ts",
-      "sha256": "6d56391add66971f8cc01497341c6717ecb8759a8bf9369cc2d4508769844da0",
+      "sha256": "5a82ccad3a68010d51423bb61a2ae6bdf2171e0c3e4cbc15aa5701c39400ab86",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "NET-003",

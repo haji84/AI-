@@ -1,0 +1,98 @@
+name: GORIQ Approved PC Enrollment
+
+on:
+  workflow_dispatch:
+    inputs:
+      revision:
+        description: Exact successful current main SHA
+        required: true
+        type: string
+      phase:
+        description: Preflight or approved bounded enrollment
+        required: true
+        default: preflight
+        type: choice
+        options: [preflight, enroll]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: goriq-approved-pc-enrollment
+  cancel-in-progress: false
+
+env:
+  GORIQ_PC_APPROVED_REVISION: ${{ inputs.revision }}
+
+jobs:
+  source:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+      - name: Verify public exact main CI
+        run: node scripts/goriq-pc-approved-source.mjs
+
+  preflight:
+    needs: source
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: '["self-hosted","macOS","ARM64"]'
+            shell: bash
+            command: bash scripts/goriq-pc-enroll-macos.sh
+          - runner: '["self-hosted","Windows","X64"]'
+            shell: powershell
+            command: node scripts/goriq-pc-enroll.ts
+    runs-on: ${{ fromJSON(matrix.runner) }}
+    timeout-minutes: 5
+    env:
+      GORIQ_PC_PHASE: preflight
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.revision }}
+      - name: Check existing exact runtime without enrollment
+        shell: ${{ matrix.shell }}
+        run: ${{ matrix.command }}
+
+  mac-enroll:
+    if: inputs.phase == 'enroll'
+    needs: preflight
+    runs-on: [self-hosted, macOS, ARM64]
+    timeout-minutes: 5
+    env:
+      GORIQ_PC_PHASE: enroll
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.revision }}
+      - name: Recheck exact main before local authority mutation
+        run: node scripts/goriq-pc-approved-source.mjs
+      - name: Enroll approved Mac identity locally
+        run: bash scripts/goriq-pc-enroll-macos.sh
+
+  zbook-enroll:
+    if: inputs.phase == 'enroll'
+    needs: mac-enroll
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 5
+    env:
+      GORIQ_PC_PHASE: enroll
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.revision }}
+      - name: Recheck exact main before local authority mutation
+        shell: powershell
+        run: node scripts/goriq-pc-approved-source.mjs
+      - name: Enroll approved ZBook identity locally
+        shell: powershell
+        run: node scripts/goriq-pc-enroll.ts
