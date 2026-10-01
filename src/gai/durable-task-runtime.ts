@@ -1,6 +1,8 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { randomUUID } from "node:crypto";
+import { isDeepStrictEqual } from "node:util";
+import { acquireCognitiveLease } from "./cognitive-lease.ts";
 import type { WorkerCapability } from "./worker-runtime.ts";
 
 export type DurableTaskStatus =
@@ -92,6 +94,7 @@ export interface DurableTaskSnapshot {
 export interface DurableTaskStore {
   load(): Promise<DurableTaskSnapshot | null>;
   save(snapshot: DurableTaskSnapshot): Promise<void>;
+  compareAndSwap?(expected: DurableTaskSnapshot | null, next: DurableTaskSnapshot): Promise<boolean>;
 }
 
 export class MemoryDurableTaskStore implements DurableTaskStore {
@@ -103,6 +106,12 @@ export class MemoryDurableTaskStore implements DurableTaskStore {
 
   async save(snapshot: DurableTaskSnapshot): Promise<void> {
     this.snapshot = structuredClone(snapshot);
+  }
+
+  async compareAndSwap(expected: DurableTaskSnapshot | null, next: DurableTaskSnapshot): Promise<boolean> {
+    if (!isDeepStrictEqual(this.snapshot, expected)) return false;
+    this.snapshot = structuredClone(next);
+    return true;
   }
 }
 
@@ -130,7 +139,23 @@ export class JsonFileDurableTaskStore implements DurableTaskStore {
 
   async save(snapshot: DurableTaskSnapshot): Promise<void> {
     await mkdir(dirname(this.filePath), { recursive: true });
-    const temp = `${this.filePath}.tmp-${process.pid}-${Date.now()}`;
+    const release = await acquireCognitiveLease(`${this.filePath}.writer.lock`, 2000);
+    try { await this.writeSnapshot(snapshot); } finally { await release(); }
+  }
+
+  // Arbitration on one local filesystem; not distributed consensus across hosts.
+  async compareAndSwap(expected: DurableTaskSnapshot | null, next: DurableTaskSnapshot): Promise<boolean> {
+    await mkdir(dirname(this.filePath), { recursive: true });
+    const release = await acquireCognitiveLease(`${this.filePath}.writer.lock`, 2000);
+    try {
+      if (!isDeepStrictEqual(await this.load(), expected)) return false;
+      await this.writeSnapshot(next);
+      return true;
+    } finally { await release(); }
+  }
+
+  private async writeSnapshot(snapshot: DurableTaskSnapshot): Promise<void> {
+    const temp = `${this.filePath}.tmp-${process.pid}-${randomUUID()}`;
     await writeFile(temp, `${JSON.stringify(snapshot, null, 2)}\n`, "utf8");
     await rename(temp, this.filePath);
   }
@@ -190,7 +215,8 @@ function iso(now: Date): string {
   return now.toISOString();
 }
 
-export class DurableTaskRuntime {
+// One private session per public operation, including its nested transitions.
+class DurableTaskSession {
   private readonly tasks = new Map<string, DurableTask>();
   private readonly store: DurableTaskStore;
   private loaded = false;
@@ -265,7 +291,7 @@ export class DurableTaskRuntime {
   async next(now = new Date()): Promise<DurableTask | undefined> {
     await this.initialize();
     await this.reclaimExpiredLeases(now);
-    await this.refreshDependencyState(now);
+    if (await this.refreshDependencyState(now)) await this.persist(now);
     return [...this.tasks.values()]
       .filter((task) => task.status === "queued" || task.status === "retrying")
       .filter((task) => !task.nextAttemptAt || new Date(task.nextAttemptAt).getTime() <= now.getTime())
@@ -752,12 +778,14 @@ export class DurableTaskRuntime {
     }
   }
 
-  private async refreshDependencyState(now: Date): Promise<void> {
+  private async refreshDependencyState(now: Date): Promise<boolean> {
+    let changed = false;
     for (const task of this.tasks.values()) {
       if (TERMINAL.has(task.status) || task.dependsOn.length === 0) continue;
       const dependencies = task.dependsOn.map((id) => this.tasks.get(id));
       const terminalFailure = dependencies.find((dep) => dep?.status === "failed" || dep?.status === "cancelled");
       if (terminalFailure) {
+        changed = true;
         task.error = `Dependency ${terminalFailure.id} ended as ${terminalFailure.status}`;
         this.transition(task, "failed", "dependency ended unsuccessfully", now, undefined, {
           dependencyId: terminalFailure.id,
@@ -767,11 +795,14 @@ export class DurableTaskRuntime {
       }
       const complete = dependencies.length === task.dependsOn.length && dependencies.every((dep) => dep?.status === "completed");
       if (complete && task.status === "waiting-dependency") {
+        changed = true;
         this.transition(task, "queued", "all dependencies completed", now);
       } else if (!complete && (task.status === "queued" || task.status === "retrying")) {
+        changed = true;
         this.transition(task, "waiting-dependency", "waiting for dependencies", now);
       }
     }
+    return changed;
   }
 
   private transition(
@@ -828,5 +859,153 @@ export class DurableTaskRuntime {
       tasks: [...this.tasks.values()].map(cloneTask),
       savedAt: iso(now),
     });
+  }
+}
+
+/** Fresh operation snapshots and atomic commits prevent stale owners and lost writes. */
+export class DurableTaskRuntime {
+  private readonly store: DurableTaskStore;
+
+  constructor(store: DurableTaskStore) { this.store = store; }
+
+  private async operate<T>(operation: (session: DurableTaskSession) => Promise<T>): Promise<T> {
+    const expected = await this.store.load();
+    let pending: DurableTaskSnapshot | null = null;
+    const session = new DurableTaskSession({
+      load: async () => expected ? structuredClone(expected) : null,
+      save: async snapshot => { pending = structuredClone(snapshot); },
+    });
+    const result = await operation(session);
+    if (pending) {
+      if (!this.store.compareAndSwap) throw new Error("DURABLE_TASK_ATOMIC_STORE_REQUIRED");
+      if (!await this.store.compareAndSwap(expected, pending)) {
+        throw new Error("DURABLE_TASK_STORE_CONFLICT: persisted ownership or task state changed; reevaluate before retry");
+      }
+    }
+    return result;
+  }
+
+  initialize(...args: Parameters<DurableTaskSession["initialize"]>): ReturnType<DurableTaskSession["initialize"]> {
+    return this.operate(session => session.initialize(...args));
+  }
+
+  enqueue(...args: Parameters<DurableTaskSession["enqueue"]>): ReturnType<DurableTaskSession["enqueue"]> {
+    return this.operate(session => session.enqueue(...args));
+  }
+
+  get(...args: Parameters<DurableTaskSession["get"]>): ReturnType<DurableTaskSession["get"]> {
+    return this.operate(session => session.get(...args));
+  }
+
+  list(...args: Parameters<DurableTaskSession["list"]>): ReturnType<DurableTaskSession["list"]> {
+    return this.operate(session => session.list(...args));
+  }
+
+  next(...args: Parameters<DurableTaskSession["next"]>): ReturnType<DurableTaskSession["next"]> {
+    return this.operate(session => session.next(...args));
+  }
+
+  nextPublication(...args: Parameters<DurableTaskSession["nextPublication"]>): ReturnType<DurableTaskSession["nextPublication"]> {
+    return this.operate(session => session.nextPublication(...args));
+  }
+
+  completePublication(...args: Parameters<DurableTaskSession["completePublication"]>): ReturnType<DurableTaskSession["completePublication"]> {
+    return this.operate(session => session.completePublication(...args));
+  }
+
+  lease(...args: Parameters<DurableTaskSession["lease"]>): ReturnType<DurableTaskSession["lease"]> {
+    return this.operate(session => session.lease(...args));
+  }
+
+  leaseClaim(...args: Parameters<DurableTaskSession["leaseClaim"]>): ReturnType<DurableTaskSession["leaseClaim"]> {
+    return this.operate(session => session.leaseClaim(...args));
+  }
+
+  heartbeatClaimed(...args: Parameters<DurableTaskSession["heartbeatClaimed"]>): ReturnType<DurableTaskSession["heartbeatClaimed"]> {
+    return this.operate(session => session.heartbeatClaimed(...args));
+  }
+
+  markRunningClaimed(...args: Parameters<DurableTaskSession["markRunningClaimed"]>): ReturnType<DurableTaskSession["markRunningClaimed"]> {
+    return this.operate(session => session.markRunningClaimed(...args));
+  }
+
+  heartbeat(...args: Parameters<DurableTaskSession["heartbeat"]>): ReturnType<DurableTaskSession["heartbeat"]> {
+    return this.operate(session => session.heartbeat(...args));
+  }
+
+  markRunning(...args: Parameters<DurableTaskSession["markRunning"]>): ReturnType<DurableTaskSession["markRunning"]> {
+    return this.operate(session => session.markRunning(...args));
+  }
+
+  complete(...args: Parameters<DurableTaskSession["complete"]>): ReturnType<DurableTaskSession["complete"]> {
+    return this.operate(session => session.complete(...args));
+  }
+
+  completeClaimed(...args: Parameters<DurableTaskSession["completeClaimed"]>): ReturnType<DurableTaskSession["completeClaimed"]> {
+    return this.operate(session => session.completeClaimed(...args));
+  }
+
+  readyToPublish(...args: Parameters<DurableTaskSession["readyToPublish"]>): ReturnType<DurableTaskSession["readyToPublish"]> {
+    return this.operate(session => session.readyToPublish(...args));
+  }
+
+  readyToPublishClaimed(...args: Parameters<DurableTaskSession["readyToPublishClaimed"]>): ReturnType<DurableTaskSession["readyToPublishClaimed"]> {
+    return this.operate(session => session.readyToPublishClaimed(...args));
+  }
+
+  failClaimed(...args: Parameters<DurableTaskSession["failClaimed"]>): ReturnType<DurableTaskSession["failClaimed"]> {
+    return this.operate(session => session.failClaimed(...args));
+  }
+
+  fail(...args: Parameters<DurableTaskSession["fail"]>): ReturnType<DurableTaskSession["fail"]> {
+    return this.operate(session => session.fail(...args));
+  }
+
+  waitForConnectivity(...args: Parameters<DurableTaskSession["waitForConnectivity"]>): ReturnType<DurableTaskSession["waitForConnectivity"]> {
+    return this.operate(session => session.waitForConnectivity(...args));
+  }
+
+  waitForResource(...args: Parameters<DurableTaskSession["waitForResource"]>): ReturnType<DurableTaskSession["waitForResource"]> {
+    return this.operate(session => session.waitForResource(...args));
+  }
+
+  waitForPinnedNode(...args: Parameters<DurableTaskSession["waitForPinnedNode"]>): ReturnType<DurableTaskSession["waitForPinnedNode"]> {
+    return this.operate(session => session.waitForPinnedNode(...args));
+  }
+
+  resumeWaiting(...args: Parameters<DurableTaskSession["resumeWaiting"]>): ReturnType<DurableTaskSession["resumeWaiting"]> {
+    return this.operate(session => session.resumeWaiting(...args));
+  }
+
+  resumePinnedNode(...args: Parameters<DurableTaskSession["resumePinnedNode"]>): ReturnType<DurableTaskSession["resumePinnedNode"]> {
+    return this.operate(session => session.resumePinnedNode(...args));
+  }
+
+  provideMigrationCheckpoint(...args: Parameters<DurableTaskSession["provideMigrationCheckpoint"]>): ReturnType<DurableTaskSession["provideMigrationCheckpoint"]> {
+    return this.operate(session => session.provideMigrationCheckpoint(...args));
+  }
+
+  reconcileSideEffect(...args: Parameters<DurableTaskSession["reconcileSideEffect"]>): ReturnType<DurableTaskSession["reconcileSideEffect"]> {
+    return this.operate(session => session.reconcileSideEffect(...args));
+  }
+
+  cancel(...args: Parameters<DurableTaskSession["cancel"]>): ReturnType<DurableTaskSession["cancel"]> {
+    return this.operate(session => session.cancel(...args));
+  }
+
+  setCheckpointRef(...args: Parameters<DurableTaskSession["setCheckpointRef"]>): ReturnType<DurableTaskSession["setCheckpointRef"]> {
+    return this.operate(session => session.setCheckpointRef(...args));
+  }
+
+  setCheckpointRefClaimed(...args: Parameters<DurableTaskSession["setCheckpointRefClaimed"]>): ReturnType<DurableTaskSession["setCheckpointRefClaimed"]> {
+    return this.operate(session => session.setCheckpointRefClaimed(...args));
+  }
+
+  reclaimExpiredLeases(...args: Parameters<DurableTaskSession["reclaimExpiredLeases"]>): ReturnType<DurableTaskSession["reclaimExpiredLeases"]> {
+    return this.operate(session => session.reclaimExpiredLeases(...args));
+  }
+
+  recoverOrphans(...args: Parameters<DurableTaskSession["recoverOrphans"]>): ReturnType<DurableTaskSession["recoverOrphans"]> {
+    return this.operate(session => session.recoverOrphans(...args));
   }
 }

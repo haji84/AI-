@@ -3094,7 +3094,7 @@
     },
     {
       "path": "src/gai/durable-task-runtime.ts",
-      "sha256": "8beeab2a9449e9f96232e24454b03eb610bfc5ca361dd250b9d42f74eec094fb",
+      "sha256": "b3446ae4a823e073e215c17d62215982272996782d8d8098cb8448ecbadaaed2",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OFF-001",
