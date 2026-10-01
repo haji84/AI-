@@ -180,8 +180,8 @@ function requiredPrivateRepositoryName(value: unknown): string {
   return name;
 }
 
-function repositoryCreationApprovalText(name: string): string {
-  return `CREATE PRIVATE REPOSITORY ${name}`;
+function repositoryCreationApprovalTexts(name: string): string[] {
+  return [`承認: ${name}`, `CREATE PRIVATE REPOSITORY ${name}`];
 }
 
 function parseAttachments(value: unknown): UploadedAttachmentRef[] {
@@ -367,9 +367,9 @@ export async function invokeRemoteMcpTool(context: RemoteMcpContext, name: strin
     }
     case "create_private_repository": {
       const repositoryName = requiredPrivateRepositoryName(args.name);
-      const expectedApprovalText = repositoryCreationApprovalText(repositoryName);
-      if (args.owner_approved !== true || args.approval_text !== expectedApprovalText) {
-        throw new Error(`Human Gate approval required. The owner must explicitly approve exactly: ${expectedApprovalText}`);
+      const expectedApprovalTexts = repositoryCreationApprovalTexts(repositoryName);
+      if (args.owner_approved !== true || typeof args.approval_text !== "string" || !expectedApprovalTexts.includes(args.approval_text)) {
+        throw new Error(`Human Gate approval required. The owner must explicitly approve the exact repository name, for example: ${expectedApprovalTexts[0]}`);
       }
       const description = typeof args.description === "string" ? args.description.trim().slice(0, 350) : "";
       const created = await githubJson<{
