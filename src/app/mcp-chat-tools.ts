@@ -20,6 +20,8 @@ import { createTaskCompletionAuthorization, requestsProductionDeploy } from "../
 const CHAT_PREFIX = "[AI Chat] ";
 const MAX_COMMAND_LENGTH = 500;
 const MAX_ATTACHMENTS = 20;
+const MAX_REPOSITORY_NAME_LENGTH = 100;
+const REPOSITORY_NAME_PATTERN = /^[A-Za-z0-9._-]+$/;
 
 export type RemoteMcpContext = {
   repository: string;
@@ -123,6 +125,25 @@ export const REMOTE_MCP_TOOLS = [
       ["conversation_id", "command"],
     ),
   },
+  {
+    name: "create_private_repository",
+    description: "Create a new PRIVATE repository under the GitHub user authenticated by AI_COMPANY_GITHUB_TOKEN. This is an external side effect. Call it only after the owner explicitly approves the exact repository name in the current chat. Public or organization repository creation is not supported by this tool.",
+    inputSchema: objectSchema(
+      {
+        name: { type: "string", minLength: 1, maxLength: MAX_REPOSITORY_NAME_LENGTH },
+        description: { type: "string", maxLength: 350 },
+        owner_approved: { type: "boolean", const: true },
+        approval_text: { type: "string", minLength: 1, maxLength: 160 },
+      },
+      ["name", "owner_approved", "approval_text"],
+    ),
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: true,
+    },
+  },
 ] as const;
 
 function githubHeaders(token: string) {
@@ -149,6 +170,18 @@ function requiredText(value: unknown, field: string, max: number): string {
   if (typeof value !== "string" || !value.trim()) throw new Error(`${field} must be a non-empty string`);
   if (value.trim().length > max) throw new Error(`${field} exceeds ${max} characters`);
   return value.trim();
+}
+
+function requiredPrivateRepositoryName(value: unknown): string {
+  const name = requiredText(value, "name", MAX_REPOSITORY_NAME_LENGTH);
+  if (!REPOSITORY_NAME_PATTERN.test(name) || name === "." || name === "..") {
+    throw new Error("repository name may contain only letters, numbers, '.', '_' and '-'");
+  }
+  return name;
+}
+
+function repositoryCreationApprovalText(name: string): string {
+  return `CREATE PRIVATE REPOSITORY ${name}`;
 }
 
 function parseAttachments(value: unknown): UploadedAttachmentRef[] {
@@ -331,6 +364,47 @@ export async function invokeRemoteMcpTool(context: RemoteMcpContext, name: strin
     case "get_memory_context": {
       const conversation = await readConversation(context, requiredInteger(args.conversation_id, "conversation_id"));
       return { conversationId: conversation.id, project: conversation.project, memory: conversation.memory, memoryContext: conversation.memoryContext };
+    }
+    case "create_private_repository": {
+      const repositoryName = requiredPrivateRepositoryName(args.name);
+      const expectedApprovalText = repositoryCreationApprovalText(repositoryName);
+      if (args.owner_approved !== true || args.approval_text !== expectedApprovalText) {
+        throw new Error(`Human Gate approval required. The owner must explicitly approve exactly: ${expectedApprovalText}`);
+      }
+      const description = typeof args.description === "string" ? args.description.trim().slice(0, 350) : "";
+      const created = await githubJson<{
+        id: number;
+        name: string;
+        full_name: string;
+        html_url: string;
+        private: boolean;
+        visibility?: string;
+        default_branch?: string;
+        owner?: { login?: string };
+      }>(fetchImpl, "https://api.github.com/user/repos", context.githubToken, {
+        method: "POST",
+        body: JSON.stringify({
+          name: repositoryName,
+          description,
+          private: true,
+          auto_init: true,
+          has_issues: true,
+          has_projects: false,
+          has_wiki: false,
+        }),
+      });
+      if (created.private !== true) {
+        throw new Error("GitHub returned a non-private repository; refusing to report success");
+      }
+      return {
+        created: true,
+        repository: created.full_name,
+        url: created.html_url,
+        private: true,
+        visibility: created.visibility ?? "private",
+        defaultBranch: created.default_branch ?? "main",
+        owner: created.owner?.login ?? null,
+      };
     }
     case "submit_task": {
       const id = requiredInteger(args.conversation_id, "conversation_id");
