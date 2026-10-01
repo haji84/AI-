@@ -47,10 +47,8 @@ jobs:
         include:
           - runner: '["self-hosted","macOS","ARM64"]'
             shell: bash
-            command: bash scripts/goriq-pc-enroll-macos.sh
           - runner: '["self-hosted","Windows","X64"]'
             shell: powershell
-            command: node scripts/goriq-pc-enroll.ts
     runs-on: ${{ fromJSON(matrix.runner) }}
     timeout-minutes: 5
     env:
@@ -59,9 +57,14 @@ jobs:
       - uses: actions/checkout@v5
         with:
           ref: ${{ inputs.revision }}
-      - name: Check existing exact runtime without enrollment
-        shell: ${{ matrix.shell }}
-        run: ${{ matrix.command }}
+      - name: Check existing Mac runtime without enrollment
+        if: matrix.shell == 'bash'
+        shell: bash
+        run: bash scripts/goriq-pc-enroll-macos.sh
+      - name: Check existing ZBook runtime without enrollment
+        if: matrix.shell == 'powershell'
+        shell: powershell
+        run: node scripts/goriq-pc-enroll.ts
 
   mac-enroll:
     if: inputs.phase == 'enroll'

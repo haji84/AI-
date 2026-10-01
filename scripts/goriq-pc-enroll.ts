@@ -16,12 +16,14 @@ async function main() {
   const platform = process.platform === "darwin" ? "macos" : process.platform === "win32" ? "windows" : undefined;
   if (!platform) throw new Error("PC_PLATFORM_REJECTED");
   const nodeId = platform === "macos" ? "macbook" : "zbook";
+  let configuredRevision: string | undefined;
   if (!approval.targets.some(t => t.nodeId === nodeId && t.platform === platform)) throw new Error("PC_SCOPE_REJECTED");
   if (platform === "windows") {
     // Capture locally decrypted existing configuration; never publish it or change it.
     const configPath = join(process.env.USERPROFILE ?? homedir(), "JARVIS", "production", "config.dpapi");
     const raw = execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "RemoteSigned", "-File", "scripts/read-jarvis-production-config.ps1", "-Path", configPath], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 131072, timeout: 15000 });
     const configuration = JSON.parse(raw.replace(/^\uFEFF/, ""));
+    if (/^[a-f0-9]{40}$/.test(configuration.commit ?? "")) configuredRevision = configuration.commit;
     for (const name of ["JARVIS_OWNER_TOKEN", "JARVIS_DB_PATH"]) {
       const value = configuration.environment?.[name];
       if (typeof value !== "string" || !value || /[\r\n\0]/.test(value)) throw new Error("PC_OWNER_CONFIGURATION_UNAVAILABLE");
@@ -29,6 +31,19 @@ async function main() {
     }
   }
   const base = "http://127.0.0.1:8787";
+  if (process.env.GORIQ_PC_PHASE === "preflight") {
+    const health = await (await fetch(base + "/health", { signal: AbortSignal.timeout(5000) })).json();
+    const dbPath = process.env.JARVIS_DB_PATH;
+    if (!dbPath) throw new Error("PC_FLEET_UNAVAILABLE");
+    const db = new DatabaseSync(resolve(dbPath), { readOnly: true });
+    let durableNonceTablePresent = false;
+    try { durableNonceTablePresent = Boolean(db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='jarvis_worker_nonce'").get()); }
+    finally { db.close(); }
+    console.log(JSON.stringify({ version: 1, nodeId, expectedRevision: revision,
+      configuredRevision: configuredRevision ?? null,
+      observedRuntimeRevision: /^[a-f0-9]{40}$/.test(health.runtimeRevision ?? "") ? health.runtimeRevision : null,
+      brokerHealthy: health.ok === true, durableNonceTablePresent, readOnly: true, observedAt: new Date().toISOString() }));
+  }
   await assertPcRuntime(base, revision);
   if (process.env.GORIQ_PC_PHASE === "preflight") {
     console.log(JSON.stringify({ version: 1, nodeId, sourceRevision: revision, runtimeExact: true, observedAt: new Date().toISOString() })); return;
