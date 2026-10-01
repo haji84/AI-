@@ -48,17 +48,34 @@ function Native-File-Facts([string]$label,[string]$path) {
     if($acl.Owner -match '^S-1-'){$ownerSid=([Security.Principal.SecurityIdentifier]$acl.Owner).Value}
     else{$ownerSid=([Security.Principal.NTAccount]$acl.Owner).Translate([Security.Principal.SecurityIdentifier]).Value}
     $ownerClass=if($ownerSid -eq $identity.User.Value){'current-user'}elseif($ownerSid -eq 'S-1-5-32-544'){'administrators'}elseif($ownerSid -eq 'S-1-5-18'){'system'}else{'other'}
-    $onlyApproved=$true; $additionalClasses=@()
+    $onlyApproved=$true; $additionalClasses=@(); $additionalEntries=@()
     foreach($rule in $acl.Access){
       $ruleSid=$rule.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value
       if($rule.AccessControlType -eq 'Allow' -and $ruleSid -notin @($identity.User.Value,'S-1-5-18')){
         $onlyApproved=$false
         $additionalClasses+=if($ruleSid -eq 'S-1-5-32-544'){'builtin-administrators'}else{'other'}
+        $principalClass=switch($ruleSid){
+          'S-1-5-32-544' {'builtin-administrators'}
+          'S-1-3-0' {'creator-owner'}
+          'S-1-3-4' {'owner-rights'}
+          'S-1-5-32-545' {'builtin-users'}
+          'S-1-5-11' {'authenticated-users'}
+          'S-1-1-0' {'everyone'}
+          'S-1-15-2-1' {'all-application-packages'}
+          'S-1-15-2-2' {'all-restricted-application-packages'}
+          default {'other'}
+        }
+        # Public permission categories only; never emit account names or unknown SIDs.
+        # 0xD0156 covers write/append/attributes/delete/change-permissions/take-ownership.
+        $additionalEntries+=@{principalClass=$principalClass;inherited=[bool]$rule.IsInherited;
+          inheritanceOnly=[bool]($rule.PropagationFlags -band [Security.AccessControl.PropagationFlags]::InheritOnly);
+          canModifyOrDelete=[bool]([long]$rule.FileSystemRights -band 0xD0156)}
       }
     }
     return @{surface=$label;exists=$true;reparsePoint=[bool]($item.Attributes -band [IO.FileAttributes]::ReparsePoint);
       ownerClass=$ownerClass;onlyCurrentUserAndSystemAllowed=$onlyApproved;
       additionalAllowClasses=@($additionalClasses | Sort-Object -Unique);
+      additionalAllowEntries=$additionalEntries;
       nonOsAdditionalAllowPresent=($additionalClasses -contains 'other')}
   }catch{return @{surface=$label;unavailable=$true}}
 }
@@ -142,7 +159,7 @@ try {
   if($Phase -eq 'plan'){
     @{version=1;nodeId='zbook';phase='plan';readOnly=$true;nativePrerequisites=@(
       (Native-File-Facts 'production-directory' $production),(Native-File-Facts 'protected-config' $configPath),
-      (Native-File-Facts 'native-launcher' $launcherPath))} | ConvertTo-Json -Depth 5 -Compress
+      (Native-File-Facts 'native-launcher' $launcherPath))} | ConvertTo-Json -Depth 7 -Compress
   }
   $stage='production-directory'; Assert-NativeFile $production
   $stage='protected-config'; Assert-NativeFile $configPath
