@@ -3,11 +3,17 @@ import test from "node:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { spawnSync } from "node:child_process";
 import { DatabaseSync } from "node:sqlite";
 import { JarvisSqliteStateStore } from "../src/jarvis/sqlite-state-store.ts";
 import { CompassStore } from "../src/compass/store.ts";
 import { inspectPcRuntimeState, preparePcRuntimeConfiguration } from "../src/jarvis/pc-runtime-refresh.ts";
 const now = new Date("2026-10-01T12:00:00Z");
+test("Windows read-only diagnostics accept only known read rights while apply rejects unidentified readers", { skip: process.platform !== "win32" }, () => {
+  const result = spawnSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-File", join(process.cwd(), "tests/jarvis-pc-runtime-acl.test.ps1")], { encoding: "utf8" });
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /ACL predicate fixtures PASS: 14/);
+});
 const approval = { version: 1 as const, issue: 1662, goalIssue: 1219, approvedAt: "2026-10-01T11:18:17Z", expiresAt: "2026-10-02T11:18:17Z",
   targets: [{ nodeId: "zbook", platform: "windows" as const }], roles: ["Executor" as const] };
 test("runtime pointer change preserves all existing credentials and rejects stale or expired scope", () => {

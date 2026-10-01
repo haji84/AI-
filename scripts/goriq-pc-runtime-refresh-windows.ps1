@@ -23,11 +23,16 @@ function Assert-Approval {
     $now -ge [datetimeoffset]::Parse($approval.expiresAt) -or
     @($approval.targets | Where-Object {$_.nodeId -eq 'zbook' -and $_.platform -eq 'windows'}).Count -ne 1){throw 'approval'}
 }
-function Test-NativeAllowSid([string]$ruleSid) {
+function Test-KnownReadOnlyRights([long]$rights) {
+  # ReadAndExecute plus Synchronize only. Reject generic and unknown bits.
+  return ($rights -gt 0 -and ($rights -band (-bnot [long]0x1200A9)) -eq 0)
+}
+function Test-NativeAllowSid([string]$ruleSid,[long]$rights) {
   if($ruleSid -in @($identity.User.Value,'S-1-5-18')){return $true}
   # Read-only existing-installation diagnostics may inspect an unchanged OS
-  # administrator ACE. Apply retains its strict boundary until physical proof.
-  return ($Phase -eq 'plan' -and $ruleSid -eq 'S-1-5-32-544')
+  # administrator ACE or known read-only rights to finish diagnosis. Apply
+  # retains its strict owner/SYSTEM boundary for every additional principal.
+  return ($Phase -eq 'plan' -and ($ruleSid -eq 'S-1-5-32-544' -or (Test-KnownReadOnlyRights $rights)))
 }
 function Assert-NativeFile([string]$path) {
   $item=Get-Item -LiteralPath $path -ErrorAction Stop
@@ -38,7 +43,7 @@ function Assert-NativeFile([string]$path) {
   if($sid -ne $identity.User.Value){throw 'owner'}
   foreach($rule in (Get-Acl -LiteralPath $path).Access){
     $ruleSid=$rule.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value
-    if($rule.AccessControlType -eq 'Allow' -and -not (Test-NativeAllowSid $ruleSid)){throw 'private-acl'}
+    if($rule.AccessControlType -eq 'Allow' -and -not (Test-NativeAllowSid $ruleSid ([long]$rule.FileSystemRights))){throw 'private-acl'}
   }
 }
 function Native-File-Facts([string]$label,[string]$path) {
@@ -69,7 +74,8 @@ function Native-File-Facts([string]$label,[string]$path) {
         # 0xD0156 covers write/append/attributes/delete/change-permissions/take-ownership.
         $additionalEntries+=@{principalClass=$principalClass;inherited=[bool]$rule.IsInherited;
           inheritanceOnly=[bool]($rule.PropagationFlags -band [Security.AccessControl.PropagationFlags]::InheritOnly);
-          canModifyOrDelete=[bool]([long]$rule.FileSystemRights -band 0xD0156)}
+          canModifyOrDelete=[bool]([long]$rule.FileSystemRights -band 0xD0156);
+          knownReadOnlyRights=(Test-KnownReadOnlyRights ([long]$rule.FileSystemRights))}
       }
     }
     return @{surface=$label;exists=$true;reparsePoint=[bool]($item.Attributes -band [IO.FileAttributes]::ReparsePoint);

@@ -50,4 +50,6 @@ jobs:
         shell: powershell
         env:
           GORIQ_PC_REFRESH_PHASE: ${{ inputs.phase }}
-        run: ./scripts/goriq-pc-runtime-refresh-windows.ps1 -Phase $env:GORIQ_PC_REFRESH_PHASE
+        run: |
+          ./tests/jarvis-pc-runtime-acl.test.ps1
+          ./scripts/goriq-pc-runtime-refresh-windows.ps1 -Phase $env:GORIQ_PC_REFRESH_PHASE
