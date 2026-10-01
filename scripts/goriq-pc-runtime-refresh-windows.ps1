@@ -91,6 +91,44 @@ function Inspect-State([string]$operation) {
   if($LASTEXITCODE -ne 0){throw 'state'}
   return ($receipt | ConvertFrom-Json)
 }
+function Runtime-Process-Facts([string]$root) {
+  try {
+    $all=@(Get-CimInstance Win32_Process)
+    $nodes=@($all | Where-Object {$_.Name -ieq 'node.exe'})
+    $roles=@($nodes | Where-Object {$_.CommandLine -and $_.CommandLine.IndexOf('jarvis-remote-host.mjs',[StringComparison]::OrdinalIgnoreCase) -ge 0})
+    $listeners=@(Get-NetTCPConnection -State Listen -LocalPort $ports -ErrorAction SilentlyContinue)
+    $candidates=@()
+    foreach($p in $roles){
+      $ownerClass='unavailable'
+      try {
+        $owner=Invoke-CimMethod -InputObject $p -MethodName GetOwnerSid -ErrorAction Stop
+        if($owner.ReturnValue -eq 0){$ownerClass=if($owner.Sid -eq $identity.User.Value){'current-user'}elseif($owner.Sid -eq 'S-1-5-18'){'system'}else{'other'}}
+      }catch{}
+      $ancestor=$p; $seen=@(); $launcherAncestor=$false
+      for($i=0;$i -lt 16;$i++){
+        if($seen -contains [int]$ancestor.ProcessId){break}
+        $seen+=([int]$ancestor.ProcessId)
+        if($ancestor.CommandLine -and ($ancestor.CommandLine.IndexOf($launcherPath,[StringComparison]::OrdinalIgnoreCase) -ge 0 -or
+          $ancestor.CommandLine.IndexOf($compat,[StringComparison]::OrdinalIgnoreCase) -ge 0)){$launcherAncestor=$true;break}
+        $parent=@($all | Where-Object {[int]$_.ProcessId -eq [int]$ancestor.ParentProcessId})
+        if($parent.Count -ne 1){break}
+        $ancestor=$parent[0]
+      }
+      $ids=@([int]$p.ProcessId)
+      do {
+        $added=@($all | Where-Object {$ids -contains [int]$_.ParentProcessId -and $ids -notcontains [int]$_.ProcessId})
+        $ids+=@($added | ForEach-Object {[int]$_.ProcessId})
+      }while($added.Count -gt 0)
+      $candidatePorts=@($listeners | Where-Object {$ids -contains [int]$_.OwningProcess} | Select-Object -ExpandProperty LocalPort -Unique)
+      $candidates+=@{ownerClass=$ownerClass;configuredRootExact=$p.CommandLine.Contains($root);
+        configuredRootIgnoreCase=($p.CommandLine.IndexOf($root,[StringComparison]::OrdinalIgnoreCase) -ge 0);
+        launcherAncestorObserved=$launcherAncestor;ownedTreeListenerPortCount=$candidatePorts.Count}
+    }
+    return @{nodeProcessCount=$nodes.Count;nodeMissingCommandLineCount=@($nodes | Where-Object {-not $_.CommandLine}).Count;
+      hostRoleCandidateCount=$roles.Count;listenerPortCount=@($listeners | Select-Object -ExpandProperty LocalPort -Unique).Count;
+      candidates=$candidates}
+  }catch{return @{unavailable=$true}}
+}
 function Get-OwnedTree([string]$root,[bool]$requireHealthy=$true) {
   $all=@(Get-CimInstance Win32_Process)
   $hosts=@($all | Where-Object {$_.Name -eq 'node.exe' -and $_.CommandLine -and
@@ -202,10 +240,14 @@ try {
   # Only exact native release-root literals are replaced; unfamiliar launchers fail closed.
   if(-not $launcher.Contains($oldRoot)){throw 'launcher-shape'}
   $nextLauncher=$launcher.Replace($oldRoot,$releaseRoot)
+  if($Phase -eq 'plan'){
+    # Read-only facts are diagnostic, never authority to stop/select a process.
+    @{version=1;nodeId='zbook';phase='plan';readOnly=$true;runtimeProcessFacts=(Runtime-Process-Facts $oldRoot)} | ConvertTo-Json -Depth 7 -Compress
+    $stage='readonly-state'; $before=Inspect-State 'inspect'
+  }
   $stage='existing-process-tree'
   $tree=Get-OwnedTree $oldRoot
-  $stage='readonly-state'
-  $before=Inspect-State 'inspect'
+  if($Phase -eq 'apply'){$stage='readonly-state'; $before=Inspect-State 'inspect'}
   $receipt=@{version=1;issue=1662;goalIssue=1219;nodeId='zbook';phase=$Phase;revision=$revision;
     previousRevision=$current.commit;schemaCompatible=$before.schemaCompatible;quiescent=$before.quiescent;
     androidCount=$before.androidCount;identityCount=$before.identityCount;identityDigest=$before.identityDigest;
