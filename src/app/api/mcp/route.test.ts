@@ -37,6 +37,7 @@ test("Remote MCP initialize and tools/list work without touching GitHub", async 
     const listed = await list.json() as { result?: { tools?: Array<{ name: string }> } };
     assert.ok(listed.result?.tools?.some((tool) => tool.name === "submit_task"));
     assert.ok(listed.result?.tools?.some((tool) => tool.name === "append_message"));
+    assert.ok(listed.result?.tools?.some((tool) => tool.name === "create_private_repository"));
   } finally {
     if (oldOwner === undefined) delete process.env.AI_COMPANY_OWNER_SECRET; else process.env.AI_COMPANY_OWNER_SECRET = oldOwner;
     if (oldGithub === undefined) delete process.env.AI_COMPANY_GITHUB_TOKEN; else process.env.AI_COMPANY_GITHUB_TOKEN = oldGithub;
