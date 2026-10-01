@@ -16,6 +16,7 @@ test("Remote MCP exposes durable chat, memory, and task tools", () => {
     "update_conversation",
     "get_memory_context",
     "submit_task",
+    "create_private_repository",
   ]);
 });
 
@@ -56,6 +57,88 @@ test("list_conversations filters projects and keeps pinned conversations first",
   assert.equal(result.conversations.length, 1);
   assert.equal(result.conversations[0].id, 3);
   assert.equal(result.conversations[0].pinned, true);
+});
+
+test("create_private_repository requires exact owner approval before any GitHub write", async () => {
+  let calls = 0;
+  const fakeFetch: typeof fetch = async () => {
+    calls += 1;
+    return json({ message: "unexpected call" }, 500);
+  };
+
+  await assert.rejects(
+    () => invokeRemoteMcpTool(
+      { repository: "owner/repo", githubToken: "token", fetchImpl: fakeFetch },
+      "create_private_repository",
+      { name: "fire-ai-os-private", owner_approved: false, approval_text: "承認: fire-ai-os-private" },
+    ),
+    /Human Gate approval required/,
+  );
+  assert.equal(calls, 0);
+});
+
+test("create_private_repository creates only a private initialized personal repository", async () => {
+  let seenUrl = "";
+  let seenInit: RequestInit | undefined;
+  const fakeFetch: typeof fetch = async (input, init) => {
+    seenUrl = String(input);
+    seenInit = init;
+    return json({
+      id: 123,
+      name: "fire-ai-os-private",
+      full_name: "owner/fire-ai-os-private",
+      html_url: "https://github.com/owner/fire-ai-os-private",
+      private: true,
+      visibility: "private",
+      default_branch: "main",
+      owner: { login: "owner" },
+    });
+  };
+
+  const result = await invokeRemoteMcpTool(
+    { repository: "owner/repo", githubToken: "token", fetchImpl: fakeFetch },
+    "create_private_repository",
+    {
+      name: "fire-ai-os-private",
+      description: "消防AI OS",
+      owner_approved: true,
+      approval_text: "承認: fire-ai-os-private",
+    },
+  ) as { created: boolean; repository: string; private: boolean; defaultBranch: string };
+
+  assert.equal(seenUrl, "https://api.github.com/user/repos");
+  assert.equal(seenInit?.method, "POST");
+  const body = JSON.parse(String(seenInit?.body));
+  assert.deepEqual(body, {
+    name: "fire-ai-os-private",
+    description: "消防AI OS",
+    private: true,
+    auto_init: true,
+    has_issues: true,
+    has_projects: false,
+    has_wiki: false,
+  });
+  assert.equal(result.created, true);
+  assert.equal(result.repository, "owner/fire-ai-os-private");
+  assert.equal(result.private, true);
+  assert.equal(result.defaultBranch, "main");
+});
+
+test("create_private_repository rejects invalid names before calling GitHub", async () => {
+  let calls = 0;
+  const fakeFetch: typeof fetch = async () => {
+    calls += 1;
+    return json({});
+  };
+  await assert.rejects(
+    () => invokeRemoteMcpTool(
+      { repository: "owner/repo", githubToken: "token", fetchImpl: fakeFetch },
+      "create_private_repository",
+      { name: "bad/name", owner_approved: true, approval_text: "CREATE PRIVATE REPOSITORY bad/name" },
+    ),
+    /repository name/,
+  );
+  assert.equal(calls, 0);
 });
 
 test("unknown Remote MCP tools fail closed", async () => {
