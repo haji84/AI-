@@ -97,11 +97,14 @@ function Runtime-Process-Facts([string]$root) {
     $nodes=@($all | Where-Object {$_.Name -ieq 'node.exe'})
     $roles=@($nodes | Where-Object {$_.CommandLine -and $_.CommandLine.IndexOf('jarvis-remote-host.mjs',[StringComparison]::OrdinalIgnoreCase) -ge 0})
     $listeners=@(Get-NetTCPConnection -State Listen -LocalPort $ports -ErrorAction SilentlyContinue)
+    $administratorRoleActive=$null
+    try {$principal=New-Object Security.Principal.WindowsPrincipal($identity);$administratorRoleActive=$principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)}catch{}
     $candidates=@()
-    foreach($p in $roles){
-      $ownerClass='unavailable'
+    foreach($p in @($nodes | Select-Object -First 32)){
+      $ownerClass='unavailable'; $ownerQueryClass='unavailable'
       try {
         $owner=Invoke-CimMethod -InputObject $p -MethodName GetOwnerSid -ErrorAction Stop
+        $ownerQueryClass=switch([int]$owner.ReturnValue){0 {'success'} 2 {'access-denied'} 3 {'insufficient-privilege'} default {'unavailable'}}
         if($owner.ReturnValue -eq 0){$ownerClass=if($owner.Sid -eq $identity.User.Value){'current-user'}elseif($owner.Sid -eq 'S-1-5-18'){'system'}else{'other'}}
       }catch{}
       $ancestor=$p; $seen=@(); $launcherAncestor=$false
@@ -120,13 +123,16 @@ function Runtime-Process-Facts([string]$root) {
         $ids+=@($added | ForEach-Object {[int]$_.ProcessId})
       }while($added.Count -gt 0)
       $candidatePorts=@($listeners | Where-Object {$ids -contains [int]$_.OwningProcess} | Select-Object -ExpandProperty LocalPort -Unique)
-      $candidates+=@{ownerClass=$ownerClass;configuredRootExact=$p.CommandLine.Contains($root);
-        configuredRootIgnoreCase=($p.CommandLine.IndexOf($root,[StringComparison]::OrdinalIgnoreCase) -ge 0);
-        launcherAncestorObserved=$launcherAncestor;ownedTreeListenerPortCount=$candidatePorts.Count}
+      $directPorts=@($listeners | Where-Object {[int]$_.OwningProcess -eq [int]$p.ProcessId} | Select-Object -ExpandProperty LocalPort -Unique)
+      $candidates+=@{ownerClass=$ownerClass;ownerQueryClass=$ownerQueryClass;commandLineAvailable=[bool]$p.CommandLine;
+        hostEntrypointObserved=[bool]($p.CommandLine -and $p.CommandLine.IndexOf('jarvis-remote-host.mjs',[StringComparison]::OrdinalIgnoreCase) -ge 0);
+        configuredRootExact=[bool]($p.CommandLine -and $p.CommandLine.Contains($root));
+        configuredRootIgnoreCase=[bool]($p.CommandLine -and $p.CommandLine.IndexOf($root,[StringComparison]::OrdinalIgnoreCase) -ge 0);
+        launcherAncestorObserved=$launcherAncestor;directListenerPortCount=$directPorts.Count;ownedTreeListenerPortCount=$candidatePorts.Count}
     }
     return @{nodeProcessCount=$nodes.Count;nodeMissingCommandLineCount=@($nodes | Where-Object {-not $_.CommandLine}).Count;
       hostRoleCandidateCount=$roles.Count;listenerPortCount=@($listeners | Select-Object -ExpandProperty LocalPort -Unique).Count;
-      candidates=$candidates}
+      candidatesTruncated=($nodes.Count -gt 32);administratorRoleActive=$administratorRoleActive;candidates=$candidates}
   }catch{return @{unavailable=$true}}
 }
 function Get-OwnedTree([string]$root,[bool]$requireHealthy=$true) {
@@ -244,6 +250,12 @@ try {
     # Read-only facts are diagnostic, never authority to stop/select a process.
     @{version=1;nodeId='zbook';phase='plan';readOnly=$true;runtimeProcessFacts=(Runtime-Process-Facts $oldRoot)} | ConvertTo-Json -Depth 7 -Compress
     $stage='readonly-state'; $before=Inspect-State 'inspect'
+    # Public metadata was already sanitized by the state helper; use a fixed
+    # field allowlist so later process failures cannot hide this prerequisite.
+    @{version=1;nodeId='zbook';phase='plan';readOnly=$true;runtimeStateFacts=@{
+      schemaCompatible=$before.schemaCompatible;quiescent=$before.quiescent;androidCount=$before.androidCount;
+      identityCount=$before.identityCount;identityDigest=$before.identityDigest;previousRevision=$before.previousRevision;
+      revision=$before.revision;observedAt=$before.observedAt}} | ConvertTo-Json -Depth 4 -Compress
   }
   $stage='existing-process-tree'
   $tree=Get-OwnedTree $oldRoot
