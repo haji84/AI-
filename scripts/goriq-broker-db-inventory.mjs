@@ -78,6 +78,7 @@ function defaultCandidates() {
   }
   if (process.platform === "darwin") {
     candidates.push(
+      { label: "mac-persistent-state", path: join(process.env.GORIQ_STATE_ROOT || join(home, ".goriq", "state"), "jarvis.db") },
       { label: "mac-current-repo-default", path: join(process.cwd(), ".jarvis", "jarvis.db") },
       { label: "mac-canonical-repo-default", path: join(home, "JARVIS-AI-", ".jarvis", "jarvis.db") },
       { label: "mac-application-support", path: join(home, "Library", "Application Support", "JARVIS", "jarvis.db") },
