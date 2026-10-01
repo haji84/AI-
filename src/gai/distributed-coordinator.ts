@@ -151,7 +151,6 @@ export function coordinatorCandidateScore(input: {
 }
 
 export class DistributedCoordinatorRuntime {
-  private loaded = false;
   private lease: CoordinatorLease | null = null;
   private readonly store: CoordinatorStore;
   private readonly clusterId: string;
@@ -166,16 +165,16 @@ export class DistributedCoordinatorRuntime {
   }
 
   async initialize(): Promise<void> {
-    if (this.loaded) return;
+    // Another Runtime may have advanced ownership since our last operation.
+    // The persisted lease, not this instance's cache, is authority.
     const loaded = await this.store.load();
     if (loaded) {
       assertLease(loaded);
       if (loaded.clusterId !== this.clusterId) {
         throw new Error(`Coordinator lease belongs to cluster ${loaded.clusterId}, expected ${this.clusterId}`);
       }
-      this.lease = structuredClone(loaded);
     }
-    this.loaded = true;
+    this.lease = loaded ? structuredClone(loaded) : null;
   }
 
   async current(): Promise<CoordinatorLease | null> {
