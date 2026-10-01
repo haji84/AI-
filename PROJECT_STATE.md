@@ -3,11 +3,11 @@
 PROJECT: General Autonomous AI / Unified AI Creator Studio / GAI Research OS
 AI_COMPANY_VERSION: 1.0
 PROJECT_VERSION: 0.0.0
-CURRENT_PHASE: Stage B MacBook+ZBook distributed-node acceptance in progress; controlled bidirectional lease-loss failover is verified, abrupt-loss/coordinator/partition/rejoin evidence remains; #1219 Daily Driver continues
+CURRENT_PHASE: #1219/#1662 GORIQ body completion continues; owner deferred Nubia until body completion. PC prerequisites merged through #1664; actual preflight36861334218 Mac exact6e72a03 PASS, ZBook healthy oldff761733 FAIL. Approved existing ZBook runtime refresh is the next recovery target; production mesh acceptance remains unverified.
 STATUS: JARVIS_PRODUCT_COMPLETION_IN_PROGRESS
-LAST_UPDATED: 2026-09-29
+LAST_UPDATED: 2026-10-01
 CURRENT_EPIC: One-front-door general autonomous AI with no permanent main PC, durable offline-first distributed execution, self-complementing nodes and verifier-driven completion
-ACTIVE_ISSUES: #1216 local Primary Brain and unified learning; #681/#882 product completion; #1207/#1192 physical acceptance; #321 separate
+ACTIVE_ISSUES: #1219/#1662 approved PC enrollment and existing ZBook runtime prerequisite recovery; #1216 local Primary Brain and unified learning; #681/#882 product completion; #1207/#1192 physical acceptance; #321 separate
 OPEN_PRS: #1217 draft/unmerged; 44750d2 CI1860 SUCCESS; Windows1673/P8331/lint/build/browser/independent61 PASS. #1214/#1215 UI provisionally accepted; #1208/#1195/#883/#884 physical-facing holds unchanged
 BLOCKERS: #786 MSIX AppData startup root cause repaired operationally with native owner-profile release90a111b; Limited Windows task and four services running in session0, existing two Workers READY. Tailscale Running and private URL HTTP200 after explicitly approved unattended mode; routine Tailscale recovery standing approval recorded. Physical Windows reboot/AC-loss and #734 video replay remain unverified. See docs/evidence/786-native-startup.md. Owner requires firewall unchanged.
 PRIORITY_OVERRIDE: Owner 2026-09-28 supersedes permanent-main-host assumptions: finish Mac stabilization first, then MacBook+ZBook distributed failover, Nubia Android canary, iPhone integration, future-PC auto expansion, and later Android38 Fleet; preserve Human Gates and separate research evidence

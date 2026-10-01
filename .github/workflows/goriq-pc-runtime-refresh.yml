@@ -1,0 +1,53 @@
+name: GORIQ Approved PC Runtime Refresh
+
+on:
+  workflow_dispatch:
+    inputs:
+      revision:
+        description: Exact successful current main SHA
+        required: true
+        type: string
+      phase:
+        description: Read-only plan or approved existing ZBook code refresh
+        required: true
+        default: plan
+        type: choice
+        options: [plan, apply]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: goriq-approved-pc-enrollment
+  cancel-in-progress: false
+
+env:
+  GORIQ_PC_APPROVED_REVISION: ${{ inputs.revision }}
+
+jobs:
+  source:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+      - run: node scripts/goriq-pc-approved-source.mjs
+
+  zbook:
+    needs: source
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.revision }}
+      - name: Inspect or refresh existing owner runtime
+        shell: powershell
+        env:
+          GORIQ_PC_REFRESH_PHASE: ${{ inputs.phase }}
+        run: ./scripts/goriq-pc-runtime-refresh-windows.ps1 -Phase $env:GORIQ_PC_REFRESH_PHASE
