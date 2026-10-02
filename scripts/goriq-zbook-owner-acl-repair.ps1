@@ -1,7 +1,7 @@
 param([switch]$OwnerApproved,[switch]$BackupOwnerApproved,
   [Parameter(Mandatory=$true)][string]$SourceRevision,
   [Parameter(Mandatory=$true)][string]$ExpectedRepairSha256)
-# One-time same-Owner ACL narrowing. Never grants access or changes ownership.
+# One-time same-Owner ACL narrowing. Never grants access; backup ownership needs a separate gate.
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $env:PSModulePath=Join-Path $PSHOME 'Modules'
