@@ -5,7 +5,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $env:PSModulePath=Join-Path $PSHOME 'Modules'
 $stage='approval';$changed=$false;$restored=$false
-$expires=[datetimeoffset]::Parse('2026-10-02T11:18:17Z')
+$expires=[datetimeoffset]::Parse('2026-10-03T18:58:12Z')
 function Test-KnownReadOnlyRights([long]$rights) {
   return ($rights -gt 0 -and ($rights -band (-bnot [long]0x1200A9)) -eq 0)
 }
