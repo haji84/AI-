@@ -19,6 +19,15 @@ function Select-RepairCandidate([object[]]$facts) {
     -not $candidate.objectInherit -or $candidate.inheritanceOnly){throw 'ACL_CANDIDATE_REJECTED'}
   return $candidate
 }
+function Assert-InheritedCandidate([object[]]$facts,$candidate) {
+  $extra=@($facts | Where-Object {$_.accessType -eq 'Allow' -and -not $_.approvedPrincipal})
+  if($extra.Count -ne 1){throw 'ACL_CANDIDATE_REJECTED'}
+  $child=$extra[0]
+  if(-not $child.inherited -or $child.sidValue -ne $candidate.sidValue -or
+    -not $child.translatable -or $child.wellKnown -or -not $child.accountSid -or
+    -not $child.sameAccountDomain -or $child.tokenMember -or -not $child.knownReadOnlyRights -or
+    $child.inheritanceOnly){throw 'ACL_CANDIDATE_REJECTED'}
+}
 function Assert-OwnedNative([string]$path,$identity) {
   $item=Get-Item -LiteralPath $path -ErrorAction Stop
   if($item.Attributes -band [IO.FileAttributes]::ReparsePoint){throw 'OWNER_BOUNDARY_REJECTED'}
@@ -45,7 +54,7 @@ function Get-RuleFacts($acl,$identity) {
     $translatable=$true
     try{$null=$sid.Translate([Security.Principal.NTAccount])}catch{$translatable=$false}
     $facts+=@{rule=$rule;accessType=[string]$rule.AccessControlType;
-      approvedPrincipal=($sid.Value -in @($identity.User.Value,'S-1-5-18'));
+      approvedPrincipal=($sid.Value -in @($identity.User.Value,'S-1-5-18'));sidValue=$sid.Value;
       inherited=[bool]$rule.IsInherited;translatable=$translatable;wellKnown=$wellKnown;
       accountSid=[bool]$sid.IsAccountSid();sameAccountDomain=$sameDomain;
       tokenMember=($tokenSids -contains $sid.Value);
@@ -96,6 +105,11 @@ try {
   $rootAcl=Get-Acl -LiteralPath $root
   $originalSddl=$rootAcl.GetSecurityDescriptorSddlForm([Security.AccessControl.AccessControlSections]::All)
   $candidate=Select-RepairCandidate @(Get-RuleFacts $rootAcl $identity)
+  foreach($path in @($production,$releases,$oldRoot,$config,$launcher)){
+    Assert-InheritedCandidate @(Get-RuleFacts (Get-Acl -LiteralPath $path) $identity) $candidate
+  }
+  $configHash=(Get-FileHash -LiteralPath $config -Algorithm SHA256).Hash
+  $launcherHash=(Get-FileHash -LiteralPath $launcher -Algorithm SHA256).Hash
   $stage='backup'
   $backupParent=Join-Path $production 'runtime-refresh'
   $backupRoot=Join-Path $backupParent $SourceRevision
@@ -106,10 +120,14 @@ try {
   if(Test-Path -LiteralPath $backupPath){throw 'BACKUP_ALREADY_EXISTS'}
   $encrypted=$originalSddl | ConvertTo-SecureString -AsPlainText -Force | ConvertFrom-SecureString
   [IO.File]::WriteAllText($backupPath,$encrypted,(New-Object Text.UTF8Encoding($false)))
+  $backupSecure=ConvertTo-SecureString ([IO.File]::ReadAllText($backupPath))
+  $backupPlain=(New-Object Management.Automation.PSCredential('acl-backup',$backupSecure)).GetNetworkCredential().Password
+  if($backupPlain -cne $originalSddl){throw 'BACKUP_VERIFICATION_FAILED'}
+  $backupPlain=$null;$backupSecure=$null
   $stage='repair'
   $rootAcl.RemoveAccessRuleSpecific($candidate.rule)
-  Set-Acl -LiteralPath $root -AclObject $rootAcl
   $changed=$true
+  Set-Acl -LiteralPath $root -AclObject $rootAcl
   $stage='verify'
   $strict=$false
   for($attempt=0;$attempt -lt 20;$attempt++){
@@ -121,18 +139,22 @@ try {
     }catch{Start-Sleep -Milliseconds 250}
   }
   if(-not $strict){throw 'ACL_VERIFICATION_FAILED'}
-  if((Get-ScheduledTask -TaskName 'JARVIS Remote Host').State -ne 'Running' -or
+  $health=Invoke-RestMethod -Uri 'http://127.0.0.1:8787/health' -TimeoutSec 2
+  if($health.ok -ne $true -or
+    (Get-FileHash -LiteralPath $config -Algorithm SHA256).Hash -cne $configHash -or
+    (Get-FileHash -LiteralPath $launcher -Algorithm SHA256).Hash -cne $launcherHash -or
+    (Get-ScheduledTask -TaskName 'JARVIS Remote Host').State -ne 'Running' -or
     @((Get-NetTCPConnection -State Listen -LocalPort @(3000,8787,8790,8792) -ErrorAction SilentlyContinue).LocalPort |
       Select-Object -Unique).Count -ne 4){throw 'RUNTIME_BOUNDARY_REJECTED'}
   @{version=1;issue=1662;goalIssue=1219;nodeId='zbook';
     permissionChange='remove-one-inherited-source-readonly-account-ace';sourceRevision=$SourceRevision;
     backupProtected=$true;removedPrincipalClass='same-domain-account-not-in-owner-token';
-    affectedRootOnly=$true;strictSurfaces=7;runtimeUnchanged=$true;
+    aclTargetRootOnly=$true;backupCreated=$true;strictSurfaces=7;runtimeUnchanged=$true;
     observedAt=[datetimeoffset]::UtcNow.ToString('o')} | ConvertTo-Json -Compress
 }catch{
   $known=@('OWNER_APPROVAL_REQUIRED','SCOPE_EXPIRED','REPAIR_ARTIFACT_REJECTED','SOURCE_REJECTED',
     'OWNER_ADMIN_CONTEXT_REQUIRED','EXACT_MAIN_CI_REQUIRED','OWNER_BOUNDARY_REJECTED',
-    'RUNTIME_BOUNDARY_REJECTED','ACL_CANDIDATE_REJECTED','BACKUP_ALREADY_EXISTS','ACL_VERIFICATION_FAILED')
+    'RUNTIME_BOUNDARY_REJECTED','ACL_CANDIDATE_REJECTED','BACKUP_ALREADY_EXISTS','BACKUP_VERIFICATION_FAILED','ACL_VERIFICATION_FAILED')
   $reason=if($_.Exception.Message -in $known){$_.Exception.Message}else{'ACL_REPAIR_FAILED'}
   if($changed){
     try{
@@ -141,10 +163,16 @@ try {
       Set-Acl -LiteralPath $root -AclObject $restore
       $restored=((Get-Acl -LiteralPath $root).GetSecurityDescriptorSddlForm(
         [Security.AccessControl.AccessControlSections]::All) -ceq $originalSddl)
+      if($restored){
+        $restoredCandidate=Select-RepairCandidate @(Get-RuleFacts (Get-Acl -LiteralPath $root) $identity)
+        foreach($path in @($production,$releases,$oldRoot,$config,$launcher)){
+          Assert-InheritedCandidate @(Get-RuleFacts (Get-Acl -LiteralPath $path) $identity) $restoredCandidate
+        }
+      }
     }catch{$restored=$false}
   }
   @{version=1;issue=1662;nodeId='zbook';failedStage=$stage;failureReason=$reason;
     permissionChanged=$changed;restored=$restored;observedAt=[datetimeoffset]::UtcNow.ToString('o')} |
     ConvertTo-Json -Compress
   exit 1
-}finally{$originalSddl=$null;$encrypted=$null;$candidate=$null}
+}finally{$originalSddl=$null;$encrypted=$null;$candidate=$null;$backupPlain=$null;$backupSecure=$null}
