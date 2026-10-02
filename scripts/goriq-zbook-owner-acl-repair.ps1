@@ -4,10 +4,13 @@ param([switch]$OwnerApproved,[Parameter(Mandatory=$true)][string]$SourceRevision
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $env:PSModulePath=Join-Path $PSHOME 'Modules'
-$stage='approval';$changed=$false;$restored=$false
+$stage='approval';$changed=$false;$restored=$false;$backupCreated=$false;$backupReused=$false
 $expires=[datetimeoffset]::Parse('2026-10-03T18:58:12Z')
 function Test-KnownReadOnlyRights([long]$rights) {
   return ($rights -gt 0 -and ($rights -band (-bnot [long]0x1200A9)) -eq 0)
+}
+function Assert-ExactBackup([string]$backupPlain,[string]$originalSddl) {
+  if($backupPlain -cne $originalSddl){throw 'BACKUP_CONFLICT'}
 }
 function Select-RepairCandidate([object[]]$facts) {
   $extra=@($facts | Where-Object {$_.accessType -eq 'Allow' -and -not $_.approvedPrincipal})
@@ -117,12 +120,21 @@ try {
     if(-not (Test-Path -LiteralPath $directory)){New-Item -ItemType Directory -Path $directory | Out-Null}
   }
   $backupPath=Join-Path $backupRoot 'jarvis-root-acl-before.dpapi'
-  if(Test-Path -LiteralPath $backupPath){throw 'BACKUP_ALREADY_EXISTS'}
-  $encrypted=$originalSddl | ConvertTo-SecureString -AsPlainText -Force | ConvertFrom-SecureString
-  [IO.File]::WriteAllText($backupPath,$encrypted,(New-Object Text.UTF8Encoding($false)))
-  $backupSecure=ConvertTo-SecureString ([IO.File]::ReadAllText($backupPath))
-  $backupPlain=(New-Object Management.Automation.PSCredential('acl-backup',$backupSecure)).GetNetworkCredential().Password
-  if($backupPlain -cne $originalSddl){throw 'BACKUP_VERIFICATION_FAILED'}
+  if(Test-Path -LiteralPath $backupPath){
+    try{
+      $backupSecure=ConvertTo-SecureString ([IO.File]::ReadAllText($backupPath))
+      $backupPlain=(New-Object Management.Automation.PSCredential('acl-backup',$backupSecure)).GetNetworkCredential().Password
+    }catch{throw 'BACKUP_REUSE_REJECTED'}
+    Assert-ExactBackup $backupPlain $originalSddl
+    $backupReused=$true
+  }else{
+    $encrypted=$originalSddl | ConvertTo-SecureString -AsPlainText -Force | ConvertFrom-SecureString
+    [IO.File]::WriteAllText($backupPath,$encrypted,(New-Object Text.UTF8Encoding($false)))
+    $backupSecure=ConvertTo-SecureString ([IO.File]::ReadAllText($backupPath))
+    $backupPlain=(New-Object Management.Automation.PSCredential('acl-backup',$backupSecure)).GetNetworkCredential().Password
+    try{Assert-ExactBackup $backupPlain $originalSddl}catch{throw 'BACKUP_VERIFICATION_FAILED'}
+    $backupCreated=$true
+  }
   $backupPlain=$null;$backupSecure=$null
   $stage='repair'
   $rootAcl.RemoveAccessRuleSpecific($candidate.rule)
@@ -149,12 +161,13 @@ try {
   @{version=1;issue=1662;goalIssue=1219;nodeId='zbook';
     permissionChange='remove-one-inherited-source-readonly-account-ace';sourceRevision=$SourceRevision;
     backupProtected=$true;removedPrincipalClass='same-domain-account-not-in-owner-token';
-    aclTargetRootOnly=$true;backupCreated=$true;strictSurfaces=7;runtimeUnchanged=$true;
+    aclTargetRootOnly=$true;backupCreated=$backupCreated;backupReused=$backupReused;strictSurfaces=7;runtimeUnchanged=$true;
     observedAt=[datetimeoffset]::UtcNow.ToString('o')} | ConvertTo-Json -Compress
 }catch{
   $known=@('OWNER_APPROVAL_REQUIRED','SCOPE_EXPIRED','REPAIR_ARTIFACT_REJECTED','SOURCE_REJECTED',
     'OWNER_ADMIN_CONTEXT_REQUIRED','EXACT_MAIN_CI_REQUIRED','OWNER_BOUNDARY_REJECTED',
-    'RUNTIME_BOUNDARY_REJECTED','ACL_CANDIDATE_REJECTED','BACKUP_ALREADY_EXISTS','BACKUP_VERIFICATION_FAILED','ACL_VERIFICATION_FAILED')
+    'RUNTIME_BOUNDARY_REJECTED','ACL_CANDIDATE_REJECTED','BACKUP_REUSE_REJECTED','BACKUP_CONFLICT',
+    'BACKUP_VERIFICATION_FAILED','ACL_VERIFICATION_FAILED')
   $reason=if($_.Exception.Message -in $known){$_.Exception.Message}else{'ACL_REPAIR_FAILED'}
   if($changed){
     try{
