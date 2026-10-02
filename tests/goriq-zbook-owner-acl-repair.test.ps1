@@ -11,8 +11,12 @@ if($null -eq $downstream){throw 'downstream-selector-missing'}
 $definition=$ast.Find({param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and
   $node.Name -eq 'Select-RepairCandidate'},$true)
 if($null -eq $definition){throw 'candidate-selector-missing'}
+$backupGuard=$ast.Find({param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and
+  $node.Name -eq 'Assert-ExactBackup'},$true)
+if($null -eq $backupGuard){throw 'backup-guard-missing'}
 Invoke-Expression $definition.Extent.Text
 Invoke-Expression $downstream.Extent.Text
+Invoke-Expression $backupGuard.Extent.Text
 function Fact([hashtable]$change){
   $base=@{accessType='Allow';approvedPrincipal=$false;inherited=$false;translatable=$true;
     wellKnown=$false;accountSid=$true;sameAccountDomain=$true;tokenMember=$false;knownReadOnlyRights=$true;
@@ -40,6 +44,12 @@ foreach($badChild in @((Fact @{inherited=$false}),(Fact @{inherited=$true;sidVal
     if($_.Exception.Message -ne 'ACL_CANDIDATE_REJECTED'){throw};$rejected=$true}
   if(-not $rejected){throw 'unsafe-downstream-candidate-accepted'}
 }
+Assert-ExactBackup 'exact-sddl' 'exact-sddl'
+$rejected=$false
+try{Assert-ExactBackup 'stale-or-foreign-sddl' 'current-sddl'}catch{
+  if($_.Exception.Message -ne 'BACKUP_CONFLICT'){throw};$rejected=$true
+}
+if(-not $rejected){throw 'conflicting-backup-accepted'}
 foreach($set in @(@($owner),@($owner,$valid,(Fact @{})))){
   $rejected=$false
   try{$null=Select-RepairCandidate $set}catch{if($_.Exception.Message -ne 'ACL_CANDIDATE_REJECTED'){throw};$rejected=$true}
