@@ -45,6 +45,9 @@ jobs:
         run: pnpm test
       - name: P8 Security Regression Suite
         run: pnpm test:p8-security
+      - name: Windows ACL repair decision fixtures
+        shell: pwsh
+        run: ./tests/goriq-zbook-owner-acl-repair.test.ps1
       - name: Build
         run: pnpm build
       - name: Verify production health endpoint
