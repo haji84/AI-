@@ -1,16 +1,23 @@
-param([switch]$OwnerApproved,[Parameter(Mandatory=$true)][string]$SourceRevision,
+param([switch]$OwnerApproved,[switch]$BackupOwnerApproved,
+  [Parameter(Mandatory=$true)][string]$SourceRevision,
   [Parameter(Mandatory=$true)][string]$ExpectedRepairSha256)
-# One-time same-Owner ACL narrowing. Never grants access or changes ownership.
+# One-time same-Owner ACL narrowing. Never grants access; backup ownership needs a separate gate.
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $env:PSModulePath=Join-Path $PSHOME 'Modules'
 $stage='approval';$changed=$false;$restored=$false;$backupCreated=$false;$backupReused=$false
+$backupOwnerChanged=$false
 $expires=[datetimeoffset]::Parse('2026-10-03T18:58:12Z')
 function Test-KnownReadOnlyRights([long]$rights) {
   return ($rights -gt 0 -and ($rights -band (-bnot [long]0x1200A9)) -eq 0)
 }
 function Assert-ExactBackup([string]$backupPlain,[string]$originalSddl) {
   if($backupPlain -cne $originalSddl){throw 'BACKUP_CONFLICT'}
+}
+function Select-BackupOwnerAction([string]$ownerSid,[string]$currentUserSid) {
+  if($ownerSid -ceq $currentUserSid){return 'none'}
+  if($ownerSid -ceq 'S-1-5-32-544'){return 'normalize'}
+  throw 'BACKUP_OWNER_REJECTED'
 }
 function Select-RepairCandidate([object[]]$facts) {
   $extra=@($facts | Where-Object {$_.accessType -eq 'Allow' -and -not $_.approvedPrincipal})
@@ -136,6 +143,30 @@ try {
     $backupCreated=$true
   }
   $backupPlain=$null;$backupSecure=$null
+  $backupAcl=Get-Acl -LiteralPath $backupPath
+  $backupOwner=$backupAcl.Owner
+  $backupOwnerSid=if($backupOwner -match '^S-1-'){([Security.Principal.SecurityIdentifier]$backupOwner).Value}else{
+    ([Security.Principal.NTAccount]$backupOwner).Translate([Security.Principal.SecurityIdentifier]).Value}
+  $backupOwnerAction=Select-BackupOwnerAction $backupOwnerSid $identity.User.Value
+  if($backupOwnerAction -eq 'normalize'){
+    if(-not $BackupOwnerApproved){throw 'BACKUP_OWNER_APPROVAL_REQUIRED'}
+    $backupDaclBefore=$backupAcl.GetSecurityDescriptorSddlForm(
+      [Security.AccessControl.AccessControlSections]::Access)
+    $backupAcl.SetOwner($identity.User)
+    Set-Acl -LiteralPath $backupPath -AclObject $backupAcl
+    $backupAclAfter=Get-Acl -LiteralPath $backupPath
+    $backupOwnerAfter=$backupAclAfter.Owner
+    $backupOwnerSidAfter=if($backupOwnerAfter -match '^S-1-'){
+      ([Security.Principal.SecurityIdentifier]$backupOwnerAfter).Value
+    }else{([Security.Principal.NTAccount]$backupOwnerAfter).Translate(
+      [Security.Principal.SecurityIdentifier]).Value}
+    $backupDaclAfter=$backupAclAfter.GetSecurityDescriptorSddlForm(
+      [Security.AccessControl.AccessControlSections]::Access)
+    if($backupOwnerSidAfter -cne $identity.User.Value -or $backupDaclAfter -cne $backupDaclBefore){
+      throw 'BACKUP_OWNER_VERIFICATION_FAILED'
+    }
+    $backupOwnerChanged=$true
+  }
   $stage='repair'
   $rootAcl.RemoveAccessRuleSpecific($candidate.rule)
   $changed=$true
@@ -161,13 +192,15 @@ try {
   @{version=1;issue=1662;goalIssue=1219;nodeId='zbook';
     permissionChange='remove-one-inherited-source-readonly-account-ace';sourceRevision=$SourceRevision;
     backupProtected=$true;removedPrincipalClass='same-domain-account-not-in-owner-token';
-    aclTargetRootOnly=$true;backupCreated=$backupCreated;backupReused=$backupReused;strictSurfaces=7;runtimeUnchanged=$true;
+    aclTargetRootOnly=$true;backupCreated=$backupCreated;backupReused=$backupReused;
+    backupOwnerNormalized=$backupOwnerChanged;strictSurfaces=7;runtimeUnchanged=$true;
     observedAt=[datetimeoffset]::UtcNow.ToString('o')} | ConvertTo-Json -Compress
 }catch{
   $known=@('OWNER_APPROVAL_REQUIRED','SCOPE_EXPIRED','REPAIR_ARTIFACT_REJECTED','SOURCE_REJECTED',
     'OWNER_ADMIN_CONTEXT_REQUIRED','EXACT_MAIN_CI_REQUIRED','OWNER_BOUNDARY_REJECTED',
     'RUNTIME_BOUNDARY_REJECTED','ACL_CANDIDATE_REJECTED','BACKUP_REUSE_REJECTED','BACKUP_CONFLICT',
-    'BACKUP_VERIFICATION_FAILED','ACL_VERIFICATION_FAILED')
+    'BACKUP_VERIFICATION_FAILED','BACKUP_OWNER_APPROVAL_REQUIRED','BACKUP_OWNER_REJECTED',
+    'BACKUP_OWNER_VERIFICATION_FAILED','ACL_VERIFICATION_FAILED')
   $reason=if($_.Exception.Message -in $known){$_.Exception.Message}else{'ACL_REPAIR_FAILED'}
   if($changed){
     try{
@@ -185,7 +218,9 @@ try {
     }catch{$restored=$false}
   }
   @{version=1;issue=1662;nodeId='zbook';failedStage=$stage;failureReason=$reason;
-    permissionChanged=$changed;restored=$restored;observedAt=[datetimeoffset]::UtcNow.ToString('o')} |
+    permissionChanged=$changed;backupOwnerChanged=$backupOwnerChanged;restored=$restored;
+    observedAt=[datetimeoffset]::UtcNow.ToString('o')} |
     ConvertTo-Json -Compress
   exit 1
-}finally{$originalSddl=$null;$encrypted=$null;$candidate=$null;$backupPlain=$null;$backupSecure=$null}
+}finally{$originalSddl=$null;$encrypted=$null;$candidate=$null;$backupPlain=$null;$backupSecure=$null
+  $backupDaclBefore=$null;$backupDaclAfter=$null}
