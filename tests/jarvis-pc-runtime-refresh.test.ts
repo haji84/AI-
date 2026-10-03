@@ -7,15 +7,15 @@ import { spawnSync } from "node:child_process";
 import { DatabaseSync } from "node:sqlite";
 import { JarvisSqliteStateStore } from "../src/jarvis/sqlite-state-store.ts";
 import { CompassStore } from "../src/compass/store.ts";
-import { inspectPcRuntimeState, preparePcRuntimeConfiguration } from "../src/jarvis/pc-runtime-refresh.ts";
+import { inspectPcRuntimeState, preparePcRuntimeConfiguration, validatePcRuntimeRefreshApproval } from "../src/jarvis/pc-runtime-refresh.ts";
 const now = new Date("2026-10-01T12:00:00Z");
 test("Windows read-only diagnostics accept only known read rights while apply rejects unidentified readers", { skip: process.platform !== "win32" }, () => {
   const result = spawnSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-File", join(process.cwd(), "tests/jarvis-pc-runtime-acl.test.ps1")], { encoding: "utf8" });
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /ACL predicate fixtures PASS: 14/);
 });
-const approval = { version: 1 as const, issue: 1662, goalIssue: 1219, approvedAt: "2026-10-01T11:18:17Z", expiresAt: "2026-10-02T11:18:17Z",
-  targets: [{ nodeId: "zbook", platform: "windows" as const }], roles: ["Executor" as const] };
+const approval = { version: 1 as const, issue: 1662, goalIssue: 1219, operation: "zbook-runtime-refresh" as const, approvedAt: "2026-10-01T11:18:17Z", expiresAt: "2026-10-02T11:18:17Z",
+  targets: [{ nodeId: "zbook" as const, platform: "windows" as const }],  };
 test("runtime pointer change preserves all existing credentials and rejects stale or expired scope", () => {
   const current = { version: 1 as const, commit: "a".repeat(40), releaseRoot: "C:\\Users\\fixture\\JARVIS\\releases\\" + "a".repeat(40), environment: { JARVIS_OWNER_TOKEN: "private-fixture", JARVIS_DB_PATH: "old-private-path" } };
   const input = { current, previousRevision: current.commit, revision: "b".repeat(40), releaseRoot: "C:\\Users\\fixture\\JARVIS\\releases\\" + "b".repeat(40), approval, now };
@@ -55,4 +55,17 @@ test("inspection preserves fleet, identity and work records and rejects active e
     Object.assign(running, { tasks: [{ id: "pending", status: "queued" }] }); queued.save(running); queued.close();
     assert.throws(() => inspectPcRuntimeState({ brokerPath, compassPath, expectedAndroidCount: 0 }), /QUIESCENCE/);
   } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test("runtime approval rejects enrollment authority, another host and expired or oversized scopes", () => {
+  assert.deepEqual(validatePcRuntimeRefreshApproval(approval, now), approval);
+  for (const invalid of [
+    { ...approval, operation: "pc-enrollment" },
+    { ...approval, roles: ["Executor"] },
+    { ...approval, targets: [{ nodeId: "macbook", platform: "macos" }] },
+    { ...approval, targets: [...approval.targets, ...approval.targets] },
+    { ...approval, expiresAt: "2026-10-04T11:18:17Z" },
+    { ...approval, approvedAt: "2026-10-01T13:00:00Z" },
+  ]) assert.throws(() => validatePcRuntimeRefreshApproval(invalid, now), /PC_RUNTIME_APPROVAL_REQUIRED/);
+  assert.throws(() => validatePcRuntimeRefreshApproval(approval, new Date(approval.expiresAt)), /PC_RUNTIME_APPROVAL_REQUIRED/);
 });
