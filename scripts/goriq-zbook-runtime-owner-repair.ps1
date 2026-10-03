@@ -73,58 +73,10 @@ try{
       hash=(Get-FileHash -LiteralPath $paths[$i] -Algorithm SHA256).Hash;
       dacl=$acl.GetSecurityDescriptorSddlForm([Security.AccessControl.AccessControlSections]::Access)}
   }
-  # Inspect the unchanged current release too: do not infer that a prior byte
-  # update preserved directory ownership. This is diagnostic, never repair authority.
+  # Inspect the unchanged current release too: diagnostic, not repair authority.
   $secure=ConvertTo-SecureString ([IO.File]::ReadAllText($paths[0]).Trim())
   $configuration=((New-Object Management.Automation.PSCredential('config',$secure)).GetNetworkCredential().Password) | ConvertFrom-Json
-  if($configuration.commit -notmatch '^[a-f0-9]{40} -TaskName 'JARVIS Remote Host'
-  if($Phase -eq 'apply'){
-    $stage='backup';Write-Host ('OWNER_REPAIR_STAGE='+$stage)
-    # Unique host-local DPAPI baseline, no existing backup overwritten.
-    $backupPath=Join-Path $production ('runtime-owner-before-'+[guid]::NewGuid().ToString('N')+'.dpapi')
-    $encrypted=($baseline | ConvertTo-Json -Depth 5 -Compress) | ConvertTo-SecureString -AsPlainText -Force | ConvertFrom-SecureString
-    $stream=New-Object IO.FileStream($backupPath,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
-    $stream.Dispose()
-    Restore-RuntimeFileOwner $backupPath $identity.User
-    $null=Assert-NativeBoundary $backupPath $true
-    [IO.File]::WriteAllText($backupPath,$encrypted,(New-Object Text.UTF8Encoding($false)))
-    $secure=ConvertTo-SecureString ([IO.File]::ReadAllText($backupPath))
-    $plain=(New-Object Management.Automation.PSCredential('baseline',$secure)).GetNetworkCredential().Password
-    if($plain -cne ($baseline | ConvertTo-Json -Depth 5 -Compress)){throw 'BACKUP_REJECTED'}
-    $plain=$null;$secure=$null;$encrypted=$null
-    $stage='restore';Write-Host ('OWNER_REPAIR_STAGE='+$stage)
-    foreach($entry in $baseline){
-      $acl=Assert-NativeBoundary $entry.path $false
-      if($acl.GetOwner([Security.Principal.SecurityIdentifier]).Value -cne $entry.owner -or
-        $acl.GetSecurityDescriptorSddlForm([Security.AccessControl.AccessControlSections]::Access) -cne $entry.dacl -or
-        (Get-FileHash -LiteralPath $entry.path -Algorithm SHA256).Hash -cne $entry.hash){throw 'BASELINE_CHANGED'}
-      if($entry.action -eq 'restore'){
-        Restore-RuntimeFileOwner $entry.path $identity.User
-        $changed+=($entry.surface)
-      }
-    }
-    $stage='verify';Write-Host ('OWNER_REPAIR_STAGE='+$stage)
-    foreach($entry in $baseline){
-      $acl=Assert-NativeBoundary $entry.path $true
-      if($acl.GetSecurityDescriptorSddlForm([Security.AccessControl.AccessControlSections]::Access) -cne $entry.dacl -or
-        (Get-FileHash -LiteralPath $entry.path -Algorithm SHA256).Hash -cne $entry.hash){throw 'VERIFICATION_FAILED'}
-    }
-    Assert-Runtime
-    if((Export-ScheduledTask -TaskName 'JARVIS Remote Host') -cne $taskXml){throw 'VERIFICATION_FAILED'}
-  }
-  Write-Host 'OWNER_REPAIR_STAGE=complete'
-  @{version=1;issue=1662;goalIssue=1219;nodeId='zbook';phase=$Phase;sourceRevision=$SourceRevision;readOnly=($Phase -eq 'plan');
-    verified=$true;ownersRestored=($Phase -eq 'apply');contentsPreserved=$true;daclPreserved=$true;taskUnchanged=$true;
-    currentReleaseOwnerClass=$releaseOwnerClass;changedSurfaces=$changed;observedAt=[datetimeoffset]::UtcNow.ToString('o')} | ConvertTo-Json -Depth 4 -Compress
-}catch{
-  $known=@('OWNER_REJECTED','PATH_REJECTED','DACL_REJECTED','TASK_REJECTED','HEALTH_REJECTED','APPROVAL_REJECTED',
-    'ARTIFACT_REJECTED','ADMIN_REQUIRED','MAIN_CI_REJECTED','BACKUP_REJECTED','BASELINE_CHANGED','VERIFICATION_FAILED')
-  $reason=if($_.Exception.Message -in $known){$_.Exception.Message}else{'OWNER_REPAIR_FAILED'}
-  @{version=1;issue=1662;nodeId='zbook';phase=$Phase;failedStage=$stage;failureReason=$reason;verified=$false;
-    changedSurfaces=$changed;backupRetained=($null -ne $backupPath);observedAt=[datetimeoffset]::UtcNow.ToString('o')} | ConvertTo-Json -Depth 4 -Compress
-  exit 1
-}finally{$baseline=$null;$encrypted=$null;$plain=$null;$secure=$null}
- -or
+  if($configuration.commit -notmatch '^[a-f0-9]{40}$' -or
     [IO.Path]::GetFullPath($configuration.releaseRoot) -ine (Join-Path $root ('releases\'+$configuration.commit))){throw 'PATH_REJECTED'}
   $releaseAcl=Assert-NativeBoundary $configuration.releaseRoot $false
   $releaseOwner=$releaseAcl.GetOwner([Security.Principal.SecurityIdentifier]).Value
@@ -169,7 +121,7 @@ try{
   Write-Host 'OWNER_REPAIR_STAGE=complete'
   @{version=1;issue=1662;goalIssue=1219;nodeId='zbook';phase=$Phase;sourceRevision=$SourceRevision;readOnly=($Phase -eq 'plan');
     verified=$true;ownersRestored=($Phase -eq 'apply');contentsPreserved=$true;daclPreserved=$true;taskUnchanged=$true;
-    changedSurfaces=$changed;observedAt=[datetimeoffset]::UtcNow.ToString('o')} | ConvertTo-Json -Depth 4 -Compress
+    currentReleaseOwnerClass=$releaseOwnerClass;changedSurfaces=$changed;observedAt=[datetimeoffset]::UtcNow.ToString('o')} | ConvertTo-Json -Depth 4 -Compress
 }catch{
   $known=@('OWNER_REJECTED','PATH_REJECTED','DACL_REJECTED','TASK_REJECTED','HEALTH_REJECTED','APPROVAL_REJECTED',
     'ARTIFACT_REJECTED','ADMIN_REQUIRED','MAIN_CI_REJECTED','BACKUP_REJECTED','BASELINE_CHANGED','VERIFICATION_FAILED')
