@@ -89,7 +89,7 @@ async function main() {
       reusedExistingExecution: true, executionObservedAt: task.result.observedAt };
   } else {
     stage = "execute"; console.log("PC_TASK_STAGE=" + stage);
-    execution = await executeLocalPcWork({ base, revision, identity });
+    execution = await executeLocalPcWork({ base, revision, identity, taskId: task.id });
     if (execution.taskId !== task.id || execution.status !== "completed" || execution.sha256 !== expected.sha256) throw new Error();
   }
   stage = "verify"; console.log("PC_TASK_STAGE=" + stage);
