@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { mkdtemp, open, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -125,4 +126,19 @@ export async function executeLocalPcWork(input: { base: string; revision: string
     returned.task.result.sha256 !== expected.sha256 || returned.task.result.bytes !== expected.bytes) throw new Error("PC_WORK_RESULT_REJECTED");
   return { ...evidence, status: "completed", taskId: task.id, executionEpoch: claim.epoch, ...expected,
     filesystemExecuted: true, signedResultAccepted: true, observedAt: new Date().toISOString() };
+}
+
+/** Owner-side checkout validation, before configuration or private key access. */
+export function readCommittedPcWorkInput(revision: string, root = process.cwd()): string {
+  if (!/^[a-f0-9]{40}$/.test(revision)) throw new Error("PC_TASK_SOURCE_REJECTED");
+  const git = (...args: string[]) => execFileSync("git", ["-C", root, ...args], {
+    encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: 5000, maxBuffer: 131072 });
+  try {
+    if (git("rev-parse", "HEAD").trim() !== revision || git("status", "--porcelain", "--untracked-files=no").trim()) {
+      throw new Error();
+    }
+    const content = git("show", revision + ":docs/architecture/goriq-distributed-node-fabric.md").replace(/\r\n/g, "\n");
+    if (Buffer.byteLength(content) > 32768) throw new Error();
+    return content;
+  } catch { throw new Error("PC_TASK_SOURCE_REJECTED"); }
 }
