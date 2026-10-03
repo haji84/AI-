@@ -1,3 +1,5 @@
+import { PcDurableWork, PcWorkConflict, assertPcExecutor } from "../src/jarvis/pc-durable-work.ts";
+import { DurableTaskRuntime, JsonFileDurableTaskStore } from "../src/gai/durable-task-runtime.ts";
 import { MATERIAL_REQUEST_BYTES } from "../src/gai/cognitive-material-intake.ts";
 import { cognitiveHostOptions } from "../src/gai/cognitive-host-config.ts";
 import { CognitiveService } from "../src/gai/cognitive-service.ts";
@@ -67,6 +69,7 @@ if (host !== "127.0.0.1" && host !== "::1" && process.env.JARVIS_ALLOW_NON_LOOPB
 
 const plane = new JarvisControlPlane();
 const store = new JarvisSqliteStateStore(process.env.JARVIS_DB_PATH?.trim() || undefined);
+const pcWork = new PcDurableWork(new DurableTaskRuntime(new JsonFileDurableTaskStore((process.env.JARVIS_DB_PATH?.trim() || resolve(".jarvis", "jarvis.db")) + ".pc-tasks.json")), () => plane.snapshot().fleet);
 const pcApprovalPath = (process.env.JARVIS_DB_PATH?.trim() || resolve(".jarvis", "jarvis.db")) + ".pc-enrollment-approval.json";
 let pcEnrollment: PcEnrollmentService | undefined;
 let pcApprovalDigest = "";
@@ -770,6 +773,10 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
         persist(); return json(response, 201, { task });
       } catch (error) { return json(response, 400, { message: error instanceof Error ? error.message : "invalid Windows verification task" }); }
     }
+    if (method === "POST" && path === "/api/jarvis/admin/pc-tasks") {
+      try { return json(response, 201, { task: await pcWork.enqueue(payload) }); }
+      catch (error) { return json(response, error instanceof PcWorkConflict ? 409 : 400, { message: error instanceof PcWorkConflict ? "PC task conflict" : "PC task scope or input rejected" }); }
+    }
     if (method === "POST" && path === "/api/jarvis/admin/tasks") {
       const type = typeof payload.type === "string" ? payload.type : "";
       const taskPayload = payload.payload && typeof payload.payload === "object" && !Array.isArray(payload.payload) ? payload.payload as Record<string, unknown> : {};
@@ -885,6 +892,14 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
       if (typeof payload.id !== "string" || typeof payload.ok !== "boolean") return json(response, 400, { message: "Invalid remote result" });
       try { remoteMailbox.finish(identity.nodeId, payload.id, payload); return json(response, 200, { ok: true }); }
       catch { return json(response, 409, { message: "Unknown or expired remote result" }); }
+    }
+    if (method === "POST" && (path === "/api/jarvis/worker/pc/next" || path === "/api/jarvis/worker/pc/result")) {
+      try { assertPcExecutor(plane.fleet.get(identity.nodeId)); }
+      catch { return json(response, 403, { message: "registered PC Executor required" }); }
+      try {
+        const result = path.endsWith("/next") ? await pcWork.next(identity.nodeId, new Date(), payload.taskId as string | undefined) : { task: await pcWork.complete(identity.nodeId, payload) };
+        return json(response, 200, result);
+      } catch { return json(response, 409, { message: "PC execution claim, input or result rejected" }); }
     }
     if (method === "POST" && path === "/api/jarvis/worker/next") {
       if (remoteMailbox.pending(identity.nodeId)) return json(response, 200, { task: null });

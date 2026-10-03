@@ -959,7 +959,7 @@
     },
     {
       "path": "scripts/jarvis-broker.ts",
-      "sha256": "dbcaf140baf9a4551897dc2540d5ab158c7036341af3855fa683a182da7d9df1",
+      "sha256": "a81a021ddf3580da18603f3580faad6cff3dc385844c0d8a15b80ceb49b95984",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "NET-003",
@@ -3094,7 +3094,7 @@
     },
     {
       "path": "src/gai/durable-task-runtime.ts",
-      "sha256": "b3446ae4a823e073e215c17d62215982272996782d8d8098cb8448ecbadaaed2",
+      "sha256": "d8d3f85485b0deb819a334d5456973bfc95c661512bf5115c8e15cd2e1264283",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OFF-001",
@@ -3965,7 +3965,7 @@
     },
     {
       "path": "src/jarvis/pc-bootstrap.ts",
-      "sha256": "539f51e49bc6233e175b2b2f0e78f58297d8678f634afd652f6a86753e55810f",
+      "sha256": "dc616f03636e9ff1d7cfaee452f8cf88485c75c19b953b648af480d45717b072",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "FLEET-001",
@@ -3975,7 +3975,7 @@
         "SEC-005",
         "SEC-006"
       ],
-      "reason": "Owner-scoped PC host-local identity and loopback proof enrollment; physical activation and execution remain separate Evidence gates"
+      "reason": "Host-local PC proof enrollment and signed bounded public filesystem execution; no physical completion inference from source or CI."
     },
     {
       "path": "src/jarvis/pc-enrollment.ts",
@@ -4007,7 +4007,7 @@
     },
     {
       "path": "src/jarvis/pc-runtime-refresh.ts",
-      "sha256": "f31318a2e43779bfd1951b5e95dadc9e42cd9807c48f85c24d44024897b438e6",
+      "sha256": "f39097707a17fe856b53448ea324d3d7dba855ccc48f8fe93f1cd75c9d31f4d1",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "HOST-003",
@@ -5950,6 +5950,19 @@
         "OWN-001"
       ],
       "reason": "Issue #1219 ZBook timeout-only recovery transition preserves Goal identity, completion checks, evidence, and Human Gate boundaries; parent requirements remain PARTIAL pending physical E2E."
+    },
+    {
+      "path": "src/jarvis/pc-durable-work.ts",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "FLEET-007",
+        "SEC-003",
+        "SEC-004",
+        "OFF-006",
+        "CORE-019"
+      ],
+      "reason": "Registered PC filesystem work reuses signed Broker transport and fenced DurableTaskRuntime; physical assignment and distributed recovery remain unverified.",
+      "sha256": "660f9d1fd297fbdb23c71e97a5f89b32141798016f668f195646812b422536f5"
     }
   ],
   "hash_policy": "utf8-crlf-to-lf-v1;binary-raw"

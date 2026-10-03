@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -48,6 +48,10 @@ test("inspection preserves fleet, identity and work records and rejects active e
     const before = inspectPcRuntimeState({ brokerPath, compassPath, expectedAndroidCount: 0 });
     assert.equal(before.metadata.androidCount, 0);
     assert.equal(before.metadata.schemaCompatible, true);
+    writeFileSync(brokerPath + ".pc-tasks.json", JSON.stringify({ version: 1, tasks: [{ id: "pc-active", status: "running" }] }));
+    assert.throws(() => inspectPcRuntimeState({ brokerPath, compassPath, expectedAndroidCount: 0 }), /QUIESCENCE/);
+    writeFileSync(brokerPath + ".pc-tasks.json", JSON.stringify({ version: 1, tasks: [{ id: "pc-done", status: "completed" }] }));
+    assert.equal(inspectPcRuntimeState({ brokerPath, compassPath, expectedAndroidCount: 0 }).metadata.quiescent, true);
     const reopened = new JarvisSqliteStateStore(brokerPath); assert.deepEqual(reopened.load(), snapshot);
     const running = structuredClone(snapshot); Object.assign(running, { tasks: [{ id: "active", status: "running" }] }); reopened.save(running); reopened.close();
     assert.throws(() => inspectPcRuntimeState({ brokerPath, compassPath, expectedAndroidCount: 0 }), /QUIESCENCE/);

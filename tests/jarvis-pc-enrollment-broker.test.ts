@@ -1,3 +1,4 @@
+import * as pcBootstrap from "../src/jarvis/pc-bootstrap.ts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { spawn } from "node:child_process";
@@ -28,7 +29,7 @@ test("Owner PC proof enrollment preserves signed identity across restart and rej
   seed.save(plane.snapshot()); seed.close();
   const owner = randomUUID(), base = `http://127.0.0.1:${port}`;
   const start = () => spawn(process.execPath, ["scripts/jarvis-broker.ts"], { stdio: "ignore", env: { ...process.env,
-    GITHUB_TOKEN: "", JARVIS_BROKER_HOST: "127.0.0.1", JARVIS_BROKER_PORT: String(port), JARVIS_OWNER_TOKEN: owner,
+    GORIQ_RUNTIME_REVISION: "a".repeat(40), GITHUB_TOKEN: "", JARVIS_BROKER_HOST: "127.0.0.1", JARVIS_BROKER_PORT: String(port), JARVIS_OWNER_TOKEN: owner,
     JARVIS_DB_PATH: db, JARVIS_COMPASS_DB_PATH: join(dir, "compass.sqlite"), JARVIS_PUBLIC_BROKER_URL: "", JARVIS_WORKER_INSTALL_URL: "", JARVIS_WORKER_APK_PATH: "" } });
   let child = start();
   const ready = async () => { for (let i = 0; i < 100; i++) { try { if ((await fetch(base + "/health")).ok) return; } catch { /* bounded startup */ }
@@ -38,8 +39,8 @@ test("Owner PC proof enrollment preserves signed identity across restart and rej
     "Content-Type": "application/json", ...(auth ? { Authorization: `Bearer ${owner}` } : {}) }, body: JSON.stringify(input) });
   const keys = generateKeyPairSync("ed25519");
   const input = { nodeId: "macbook", platform: "macos", algorithm: "ed25519", publicKeyPem: keys.publicKey.export({ format: "pem", type: "spki" }).toString() };
-  const signed = (payload: unknown) => {
-    const body = JSON.stringify(payload), path = "/api/jarvis/worker/heartbeat";
+  const signed = (payload: unknown, path = "/api/jarvis/worker/heartbeat") => {
+    const body = JSON.stringify(payload);
     const unsigned = { nodeId: "macbook", path, method: "POST", timestamp: new Date().toISOString(), nonce: randomUUID(), bodySha256: createHash("sha256").update(body).digest("hex") };
     return { method: "POST", body, headers: { "Content-Type": "application/json", "X-Jarvis-Node-Id": unsigned.nodeId,
       "X-Jarvis-Timestamp": unsigned.timestamp, "X-Jarvis-Nonce": unsigned.nonce, "X-Jarvis-Body-Sha256": unsigned.bodySha256,
@@ -75,6 +76,51 @@ test("Owner PC proof enrollment preserves signed identity across restart and rej
     assert.equal((await fetch(base + "/api/jarvis/worker/heartbeat", heartbeat)).status, 200);
     assert.equal((await fetch(base + "/api/jarvis/worker/heartbeat", heartbeat)).status, 401);
     assert.equal((await fetch(base + "/api/jarvis/worker/heartbeat", signed({ capabilities: ["remote-control"] }))).status, 403);
+
+    const capsule = { goal: "#1219", currentJob: "#1662 registered PC execution", why: "Verify signed filesystem work",
+      workflowPosition: "PC registration -> task execution", inputs: ["public text"], constraints: ["filesystem only", "no secret inputs"],
+      decisions: ["restartable digest"], dependencies: ["registered PC identity"], expectedOutput: ["SHA256 and byte count"],
+      definitionOfDone: ["signed result verified"], verificationContract: "Broker recomputes expected digest", recoveryContext: ["reject stale claim"] };
+    const work = { idempotencyKey: "public-digest-1", goalIssue: 1219, targetNodeId: "macbook", privacyClass: "PUBLIC",
+      content: "GORIQ public filesystem execution\\n", capsule };
+    assert.equal((await post("/api/jarvis/admin/pc-tasks", work, false)).status, 401);
+    assert.equal((await post("/api/jarvis/admin/pc-tasks", { ...work, capsule: undefined })).status, 400);
+    const dispatched = await post("/api/jarvis/admin/pc-tasks", work);
+    assert.equal(dispatched.status, 201, "registered filesystem PC must accept scoped durable work");
+    const durable = (await dispatched.json()).task;
+    const duplicate = await post("/api/jarvis/admin/pc-tasks", work);
+    assert.equal((await duplicate.json()).task.id, durable.id);
+    assert.equal((await post("/api/jarvis/admin/pc-tasks", { ...work, content: "changed input" })).status, 409);
+    const unrelated = await fetch(base + "/api/jarvis/worker/pc/next", signed({ taskId: "pc-unrelated" }, "/api/jarvis/worker/pc/next"));
+    assert.equal((await unrelated.json()).task, null, "bounded client must not claim an unrelated task");
+    const next = await fetch(base + "/api/jarvis/worker/pc/next", signed({ taskId: durable.id }, "/api/jarvis/worker/pc/next"));
+    assert.equal(next.status, 200);
+    const assignment = await next.json();
+    assert.equal(assignment.task.id, durable.id);
+    assert.equal(assignment.claim.owner, "macbook");
+    const result = { taskId: durable.id, claim: assignment.claim, detail: {
+      sha256: createHash("sha256").update(work.content).digest("hex"), bytes: Buffer.byteLength(work.content) } };
+    assert.equal((await fetch(base + "/api/jarvis/worker/pc/result",
+      signed({ ...result, claim: { ...assignment.claim, epoch: assignment.claim.epoch + 1 } }, "/api/jarvis/worker/pc/result"))).status, 409);
+    const returned = await fetch(base + "/api/jarvis/worker/pc/result", signed(result, "/api/jarvis/worker/pc/result"));
+    assert.equal(returned.status, 200);
+    assert.equal((await returned.json()).task.status, "completed");
+    assert.equal((await fetch(base + "/api/jarvis/worker/pc/result", signed(result, "/api/jarvis/worker/pc/result"))).status, 409);
+
+    assert.equal(typeof pcBootstrap.executeLocalPcWork, "function", "registered PC requires a signed filesystem execution client");
+    const clientWork = { ...work, idempotencyKey: "public-digest-client", content: "Actual file-backed public work" };
+    const clientSubmitted = await post("/api/jarvis/admin/pc-tasks", clientWork);
+    assert.equal(clientSubmitted.status, 201);
+    const clientTaskId = (await clientSubmitted.json()).task.id;
+    const local = { version: 1 as const, nodeId: "macbook", platform: "macos" as const, algorithm: "ed25519" as const,
+      hostBinding: "fixture", createdAt: new Date().toISOString(), publicKeyPem: input.publicKeyPem,
+      privateKeyPem: keys.privateKey.export({ format: "pem", type: "pkcs8" }).toString() };
+    const execution = await pcBootstrap.executeLocalPcWork({ base, revision: "a".repeat(40), identity: local, taskId: clientTaskId });
+    assert.equal(execution.status, "completed");
+    assert.equal(execution.signedResultAccepted, true);
+    assert.equal(execution.filesystemExecuted, true);
+    assert.equal(execution.sha256, createHash("sha256").update(clientWork.content).digest("hex"));
+    assert.equal((await pcBootstrap.executeLocalPcWork({ base, revision: "a".repeat(40), identity: local })).status, "idle");
     await stop(); child = start(); await ready();
     const resumed = await fetch(base + "/api/jarvis/worker/heartbeat", signed({ status: "ready" }));
     assert.equal(resumed.status, 200);
