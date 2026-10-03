@@ -38,6 +38,8 @@ try {
   },$true)
   if($null -eq $creation){throw 'release-creation-statement-missing'}
   $creator=$ast.Find({param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq 'New-OwnedReleaseDirectory'},$true)
+  $nativeCreator=$ast.Find({param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq 'Restore-ReleaseDirectoryOwner'},$true)
+  if($null -ne $nativeCreator){Invoke-Expression $nativeCreator.Extent.Text}
   if($null -ne $creator){Invoke-Expression $creator.Extent.Text}
   Invoke-Expression $creation.Extent.Text
   if((Get-Acl -LiteralPath $releaseRoot).GetOwner([Security.Principal.SecurityIdentifier]).Value -cne $identity.User.Value){throw 'new-release-owner-mismatch'}
