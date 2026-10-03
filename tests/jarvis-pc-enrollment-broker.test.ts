@@ -91,7 +91,9 @@ test("Owner PC proof enrollment preserves signed identity across restart and rej
     const duplicate = await post("/api/jarvis/admin/pc-tasks", work);
     assert.equal((await duplicate.json()).task.id, durable.id);
     assert.equal((await post("/api/jarvis/admin/pc-tasks", { ...work, content: "changed input" })).status, 409);
-    const next = await fetch(base + "/api/jarvis/worker/pc/next", signed({}, "/api/jarvis/worker/pc/next"));
+    const unrelated = await fetch(base + "/api/jarvis/worker/pc/next", signed({ taskId: "pc-unrelated" }, "/api/jarvis/worker/pc/next"));
+    assert.equal((await unrelated.json()).task, null, "bounded client must not claim an unrelated task");
+    const next = await fetch(base + "/api/jarvis/worker/pc/next", signed({ taskId: durable.id }, "/api/jarvis/worker/pc/next"));
     assert.equal(next.status, 200);
     const assignment = await next.json();
     assert.equal(assignment.task.id, durable.id);
@@ -107,11 +109,13 @@ test("Owner PC proof enrollment preserves signed identity across restart and rej
 
     assert.equal(typeof pcBootstrap.executeLocalPcWork, "function", "registered PC requires a signed filesystem execution client");
     const clientWork = { ...work, idempotencyKey: "public-digest-client", content: "Actual file-backed public work" };
-    assert.equal((await post("/api/jarvis/admin/pc-tasks", clientWork)).status, 201);
+    const clientSubmitted = await post("/api/jarvis/admin/pc-tasks", clientWork);
+    assert.equal(clientSubmitted.status, 201);
+    const clientTaskId = (await clientSubmitted.json()).task.id;
     const local = { version: 1 as const, nodeId: "macbook", platform: "macos" as const, algorithm: "ed25519" as const,
       hostBinding: "fixture", createdAt: new Date().toISOString(), publicKeyPem: input.publicKeyPem,
       privateKeyPem: keys.privateKey.export({ format: "pem", type: "pkcs8" }).toString() };
-    const execution = await pcBootstrap.executeLocalPcWork({ base, revision: "a".repeat(40), identity: local });
+    const execution = await pcBootstrap.executeLocalPcWork({ base, revision: "a".repeat(40), identity: local, taskId: clientTaskId });
     assert.equal(execution.status, "completed");
     assert.equal(execution.signedResultAccepted, true);
     assert.equal(execution.filesystemExecuted, true);
