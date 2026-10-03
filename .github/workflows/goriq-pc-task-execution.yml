@@ -49,9 +49,16 @@ jobs:
       - uses: actions/checkout@v5
         with:
           ref: ${{ inputs.revision }}
-      - name: Recheck exact main before bounded task execution
-        shell: ${{ matrix.shell }}
+      - name: Recheck exact main on Mac before bounded task execution
+        if: matrix.shell == 'bash'
+        shell: bash
         run: node scripts/goriq-pc-approved-source.mjs
+      - name: Recheck exact main on ZBook before bounded task execution
+        if: matrix.shell == 'powershell'
+        shell: powershell
+        run: |
+          node scripts/goriq-pc-approved-source.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'PC_SOURCE_REJECTED' }
       - name: Execute signed public filesystem task on registered Mac
         if: matrix.shell == 'bash'
         shell: bash
