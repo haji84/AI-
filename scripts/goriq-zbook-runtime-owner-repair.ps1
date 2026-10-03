@@ -12,10 +12,11 @@ function Select-RuntimeOwnerAction([string]$ownerSid,[string]$currentUserSid){
   throw 'OWNER_REJECTED'
 }
 function Restore-RuntimeFileOwner([string]$path,[Security.Principal.SecurityIdentifier]$owner){
-  # Only the Owner section is marked modified; never rewrite or add access rules.
-  $ownerOnly=New-Object Security.AccessControl.FileSecurity
-  $ownerOnly.SetOwner($owner)
-  Set-Acl -LiteralPath $path -AclObject $ownerOnly
+  # Set-Acl with an empty descriptor drops explicit ACEs. Retain the actual
+  # target descriptor before changing Owner, including its existing DACL.
+  $acl=Get-Acl -LiteralPath $path
+  $acl.SetOwner($owner)
+  Set-Acl -LiteralPath $path -AclObject $acl
 }
 function Assert-NativeBoundary([string]$path,[bool]$requireOwner){
   $item=Get-Item -LiteralPath $path
