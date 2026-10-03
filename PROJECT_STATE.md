@@ -3,7 +3,7 @@
 PROJECT: General Autonomous AI / Unified AI Creator Studio / GAI Research OS
 AI_COMPANY_VERSION: 1.0
 PROJECT_VERSION: 0.0.0
-CURRENT_PHASE: #1219/#1662 GORIQ body completion; Nubia deferred. Owner/content/health of2files PASS but original DACL physical recovery FAIL/pending; latest plan original-baseline rejected before mutation. PR1690 reproduces PS5.1 JSON array nesting in actual baseline decode; minimum parsing correction retains exact2records/all source-owner-hash-DACL gates and adds granular rejection reasons. Original2file approval5968751360 expires2026-10-04T11:31:58Z; release Administrators-owner repair separately unapproved. Runtime/enrollment/signed task/offline/reconnect/failover/rebalance pending; GORIQ/Stage C incomplete.
+CURRENT_PHASE: #1219/#1662 GORIQ body completion; Nubia deferred. Physical2file originalDACL recovery5f64a737 PASS at2026-10-03T13:27:08Z, exit0; Owner/content/DACL/task preserved. Current release0eca8f7 Administrators-owner remains physical blocker. Owner separately approved directory-only recovery/new-release prevention5969709096 through2026-10-04T13:38:22Z. PR1691 Windows reproduces elevated creation Owner mismatch and Set-Acl inherited DACL change; owner-only native correction/recovery prepared, fullCI/physical repair pending. Android38/Identity38 prior evidence retained; exact latest runtime/enrollment/signed task/offline/reconnect/failover/rebalance pending; GORIQ/Stage C incomplete.
 STATUS: JARVIS_PRODUCT_COMPLETION_IN_PROGRESS
 LAST_UPDATED: 2026-10-03
 CURRENT_EPIC: One-front-door general autonomous AI with no permanent main PC, durable offline-first distributed execution, self-complementing nodes and verifier-driven completion
