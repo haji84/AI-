@@ -4007,7 +4007,7 @@
     },
     {
       "path": "src/jarvis/pc-runtime-refresh.ts",
-      "sha256": "f31318a2e43779bfd1951b5e95dadc9e42cd9807c48f85c24d44024897b438e6",
+      "sha256": "f39097707a17fe856b53448ea324d3d7dba855ccc48f8fe93f1cd75c9d31f4d1",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "HOST-003",
@@ -5962,7 +5962,7 @@
         "CORE-019"
       ],
       "reason": "Registered PC filesystem work reuses signed Broker transport and fenced DurableTaskRuntime; physical assignment and distributed recovery remain unverified.",
-      "sha256": "2743991114f409b44116f6e5415b6da00df9742c1f1e8892fb4967462e7f25b8"
+      "sha256": "43ad991f5402cd7d3ee20526d415ab14d34b483fbafd42780f07c21158512ce1"
     }
   ],
   "hash_policy": "utf8-crlf-to-lf-v1;binary-raw"
