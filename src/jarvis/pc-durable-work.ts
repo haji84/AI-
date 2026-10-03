@@ -17,10 +17,11 @@ export function validatePcPublicWork(value: unknown): PcPublicWorkInput {
     typeof input.idempotencyKey !== "string" || !/^[A-Za-z0-9._:-]{1,150}$/.test(input.idempotencyKey) ||
     !Number.isSafeInteger(input.goalIssue) || input.goalIssue < 1 || input.privacyClass !== "PUBLIC" ||
     typeof input.content !== "string" || Buffer.byteLength(input.content) > 32768 ||
-    (input.targetNodeId !== undefined && !/^[A-Za-z0-9._-]{1,100}$/.test(input.targetNodeId))) throw new Error("PC_WORK_INPUT_REJECTED");
+    (input.targetNodeId !== undefined && (typeof input.targetNodeId !== "string" || !/^[A-Za-z0-9._-]{1,100}$/.test(input.targetNodeId)))) throw new Error("PC_WORK_INPUT_REJECTED");
   const c = input.capsule;
   if (!c || typeof c !== "object" || Array.isArray(c) || !verifyContextCapsule(c).ok ||
-    c.goal !== `#${input.goalIssue}` || Buffer.byteLength(JSON.stringify(c)) > 16384 ||
+    c.goal !== `#${input.goalIssue}` || [c.currentJob, c.why, c.workflowPosition, c.verificationContract].some(v => typeof v !== "string" || !v.trim()) ||
+    Buffer.byteLength(JSON.stringify(c)) > 16384 ||
     [c.inputs, c.constraints, c.decisions, c.dependencies, c.expectedOutput, c.definitionOfDone, c.recoveryContext]
       .some(items => items.some(item => typeof item !== "string"))) throw new Error("PC_WORK_CONTEXT_REQUIRED");
   return structuredClone(input);
