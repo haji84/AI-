@@ -1,11 +1,11 @@
 import { execFileSync } from "node:child_process";
-import { createPublicKey, sign, verify } from "node:crypto";
+import { createHash, createPublicKey } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { isDeepStrictEqual } from "node:util";
-import { FilePcIdentityStorage, type PcLocalIdentity } from "../src/jarvis/pc-local-identity.ts";
+import { FilePcIdentityStorage, ensurePcLocalIdentity } from "../src/jarvis/pc-local-identity.ts";
 import { validatePcEnrollmentApproval } from "../src/jarvis/pc-enrollment.ts";
 import { assertPcRuntime, executeLocalPcWork } from "../src/jarvis/pc-bootstrap.ts";
 import { assertPcExecutor, pcDigest } from "../src/jarvis/pc-durable-work.ts";
@@ -41,10 +41,14 @@ async function main() {
     join(homedir(), ".goriq", "state", "pc-node", nodeId);
   const raw = await new FilePcIdentityStorage(join(root, platform === "windows" ? "identity.dpapi" : "identity.json")).read();
   if (!raw) throw new Error();
-  const identity = JSON.parse(raw) as PcLocalIdentity;
-  const proof = Buffer.from("GORIQ existing PC task key proof");
-  if (identity.version !== 1 || identity.nodeId !== nodeId || identity.platform !== platform || identity.algorithm !== "ed25519" ||
-    !verify(null, proof, identity.publicKeyPem, sign(null, proof, identity.privateKeyPem))) throw new Error();
+  const hardware = platform === "macos" ? execFileSync("ioreg", ["-rd1", "-c", "IOPlatformExpertDevice"], {
+    encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: 10000 }).match(/"IOPlatformUUID"\\s*=\\s*"([A-Fa-f0-9-]{36})"/)?.[1] :
+    execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", "[Console]::Write((Get-CimInstance Win32_ComputerSystemProduct).UUID)"], {
+      encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: 15000 }).trim();
+  if (!hardware || !/^[A-Fa-f0-9-]{36}$/.test(hardware) || /^0+-0+-0+-0+-0+$/.test(hardware)) throw new Error("PC_TASK_HOST_BINDING_UNAVAILABLE");
+  const identity = await ensurePcLocalIdentity({ nodeId, platform, approval,
+    hostBinding: createHash("sha256").update(hardware.toLowerCase()).digest("hex"),
+    storage: { read: async () => raw, writeExclusive: async () => { throw new Error("PC_TASK_KEY_CREATION_PROHIBITED"); } } });
   const snapshot = () => {
     const db = new DatabaseSync(resolve(dbPath), { readOnly: true });
     try {
@@ -97,7 +101,7 @@ async function main() {
   if (!isDeepStrictEqual(after.identities, before.identities) ||
     !isDeepStrictEqual(after.state.fleet.filter((n: { kind: string }) => n.kind === "android"),
       before.state.fleet.filter((n: { kind: string }) => n.kind === "android"))) throw new Error();
-  const receipt = { version: 1, issue: 1662, goalIssue: 1219, ...execution,
+  const receipt = { version: 1, issue: 1662, goalIssue: 1219, ...execution, fingerprint: identity.fingerprint,
     androidCount: 38, androidRecordsPreserved: true, identitiesPreserved: true,
     observedAt: new Date().toISOString(), evidenceClass: "MACHINE_VERIFIED" };
   await new FilePcIdentityStorage(join(root, `task-evidence-${revision}.${platform === "windows" ? "dpapi" : "json"}`))
