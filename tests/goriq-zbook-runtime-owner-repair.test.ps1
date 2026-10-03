@@ -25,7 +25,7 @@ if($originalEntries -isnot [array] -or $originalEntries.Count -ne 2 -or
   $originalEntries[0].surface -cne 'protected-config' -or $originalEntries[1].surface -cne 'native-launcher'){
   throw 'original-baseline-json-array-shape'
 }
-$countGuard=$ast.Find({param($n) $n -is [Management.Automation.Language.IfStatementAst] -and $n.Extent.Text.Contains('$originalEntries.Count')},$true)
+$countGuard=$ast.Find({param($n) $n -is [Management.Automation.Language.IfStatementAst] -and $n.Clauses[0].Item1.Extent.Text.Contains('$originalEntries.Count')},$true)
 if($null -eq $countGuard){throw 'original-baseline-count-guard-missing'}
 foreach($json in @('null','[]','{"surface":"protected-config"}','[{"surface":"protected-config"}]','[{},{},{}]')){
   $originalSecure=ConvertTo-SecureString $json -AsPlainText -Force
