@@ -88,7 +88,7 @@ export class PcDurableWork {
     const task = tasks.filter(t => ["queued", "retrying"].includes(t.status) && eligible(t) &&
       (!t.nextAttemptAt || Date.parse(t.nextAttemptAt) <= now.getTime())).sort((a, b) => a.createdAt.localeCompare(b.createdAt))[0];
     if (!task) return { task: null };
-    const claim = await this.runtime.leaseClaim(task.id, node.id, 120000, now);
+    const claim = await this.runtime.leaseClaimWithCapacity(task.id, node.id, 1, 120000, now);
     const running = await this.runtime.markRunningClaimed(claim, now);
     return { task: running, claim };
   }
