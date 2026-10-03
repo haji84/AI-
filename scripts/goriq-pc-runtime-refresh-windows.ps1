@@ -1,5 +1,5 @@
 param([ValidateSet('plan','apply')][string]$Phase='plan')
-# Existing installation refresh only. No task registration, permissions, schema or network changes.
+# Existing installation refresh. Approved new-release Owner normalization only; no task, DACL, schema or network changes.
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $env:PSModulePath=Join-Path $PSHOME 'Modules'
@@ -197,6 +197,17 @@ function Replace-Bytes([string]$path,[byte[]]$bytes) {
   [IO.File]::Replace($temporary,$path,[NullString]::Value)
   if((Get-Acl -LiteralPath $path).GetSecurityDescriptorSddlForm($sections) -cne $securityBefore){throw 'replacement-security'}
 }
+function New-OwnedReleaseDirectory([string]$path,[Security.Principal.SecurityIdentifier]$owner) {
+  if(Test-Path -LiteralPath $path){throw 'immutable-release-exists'}
+  $null=New-Item -ItemType Directory -Path $path
+  $acl=Get-Acl -LiteralPath $path
+  $dacl=$acl.GetSecurityDescriptorSddlForm([Security.AccessControl.AccessControlSections]::Access)
+  $acl.SetOwner($owner)
+  Set-Acl -LiteralPath $path -AclObject $acl
+  $after=Get-Acl -LiteralPath $path
+  if($after.GetOwner([Security.Principal.SecurityIdentifier]).Value -cne $owner.Value -or
+    $after.GetSecurityDescriptorSddlForm([Security.AccessControl.AccessControlSections]::Access) -cne $dacl){throw 'release-security'}
+}
 function Wait-Health([string]$sha) {
   for($i=0;$i -lt 45;$i++){
     try {
@@ -250,6 +261,7 @@ try {
   $oldRoot=[IO.Path]::GetFullPath($current.releaseRoot)
   if($current.version -ne 1 -or $current.commit -notmatch '^[a-f0-9]{40}$' -or
     $oldRoot -ine (Join-Path $env:USERPROFILE ('JARVIS\releases\'+$current.commit)) -or $oldRoot -ieq $releaseRoot){throw 'release'}
+  Assert-NativeFile (Join-Path $env:USERPROFILE 'JARVIS\releases')
   Assert-NativeFile $oldRoot
   $stage='existing-manifest'; Write-Host ('REFRESH_STAGE='+$stage)
   $oldManifest=Get-Content -LiteralPath (Join-Path $oldRoot 'jarvis-release.json') -Raw | ConvertFrom-Json
@@ -284,7 +296,8 @@ try {
   if((& node --version).Trim() -ne 'v24.19.0' -or (& pnpm --version).Trim() -ne '11.19.0'){throw 'toolchain'}
   $stage='build'; Write-Host ('REFRESH_STAGE='+$stage)
   if(Test-Path -LiteralPath $releaseRoot){throw 'immutable-release-exists'}
-  New-Item -ItemType Directory -Path $releaseRoot | Out-Null
+  New-OwnedReleaseDirectory $releaseRoot $identity.User
+  Assert-NativeFile $releaseRoot
   $archive=Join-Path $releaseRoot 'source.tar'
   & git archive --format=tar ('--output='+$archive) $revision
   if($LASTEXITCODE -ne 0){throw 'archive'}
@@ -346,7 +359,7 @@ try {
   $safeReasons=@('approval','path','owner','private-acl','task','compatibility-launcher','release','manifest','launcher-shape',
     'host','process-owner','listeners','process-replaced','process-permission','ports-busy','source','main-ci','state',
     'immutable-release-exists','archive','archive-extract','toolchain','install','build','baseline-changed','candidate','state-changed',
-    'health','verification','rollback-listeners','owner-admin-context','replacement-security')
+    'health','verification','rollback-listeners','owner-admin-context','replacement-security','release-security')
   $failureReason=if($safeReasons -contains $_.Exception.Message){$_.Exception.Message}else{'unexpected-prerequisite-error'}
   if($stopped){
     Write-Host 'REFRESH_STAGE=rollback'
