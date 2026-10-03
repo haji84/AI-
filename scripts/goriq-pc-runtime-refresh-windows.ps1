@@ -197,13 +197,34 @@ function Replace-Bytes([string]$path,[byte[]]$bytes) {
   [IO.File]::Replace($temporary,$path,[NullString]::Value)
   if((Get-Acl -LiteralPath $path).GetSecurityDescriptorSddlForm($sections) -cne $securityBefore){throw 'replacement-security'}
 }
+function Restore-ReleaseDirectoryOwner([string]$path,[Security.Principal.SecurityIdentifier]$owner){
+  if(-not ('GoriqDirectoryOwnerNative' -as [type])){
+    Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+public static class GoriqDirectoryOwnerNative {
+  [DllImport("advapi32.dll", CharSet=CharSet.Unicode, ExactSpelling=true)]
+  public static extern uint SetNamedSecurityInfoW(string path, uint objectType,
+    uint securityInfo, IntPtr owner, IntPtr group, IntPtr dacl, IntPtr sacl);
+}
+'@
+  }
+  $bytes=New-Object byte[] $owner.BinaryLength
+  $owner.GetBinaryForm($bytes,0)
+  $pointer=[Runtime.InteropServices.Marshal]::AllocHGlobal($bytes.Length)
+  try{
+    [Runtime.InteropServices.Marshal]::Copy($bytes,0,$pointer,$bytes.Length)
+    # SE_FILE_OBJECT=1; OWNER_SECURITY_INFORMATION=1 ONLY. No ACL propagation.
+    $result=[GoriqDirectoryOwnerNative]::SetNamedSecurityInfoW($path,1,1,$pointer,[IntPtr]::Zero,[IntPtr]::Zero,[IntPtr]::Zero)
+    if($result -ne 0){throw 'OWNER_WRITE_FAILED'}
+  }finally{[Runtime.InteropServices.Marshal]::FreeHGlobal($pointer)}
+}
 function New-OwnedReleaseDirectory([string]$path,[Security.Principal.SecurityIdentifier]$owner) {
   if(Test-Path -LiteralPath $path){throw 'immutable-release-exists'}
   $null=New-Item -ItemType Directory -Path $path
   $acl=Get-Acl -LiteralPath $path
   $dacl=$acl.GetSecurityDescriptorSddlForm([Security.AccessControl.AccessControlSections]::Access)
-  $acl.SetOwner($owner)
-  Set-Acl -LiteralPath $path -AclObject $acl
+  Restore-ReleaseDirectoryOwner $path $owner
   $after=Get-Acl -LiteralPath $path
   if($after.GetOwner([Security.Principal.SecurityIdentifier]).Value -cne $owner.Value -or
     $after.GetSecurityDescriptorSddlForm([Security.AccessControl.AccessControlSections]::Access) -cne $dacl){throw 'release-security'}
