@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, lstatSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, win32 } from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -91,15 +91,28 @@ export function inspectPcRuntimeState(input: { brokerPath: string; compassPath: 
     if (snapshot.tasks.some((task: { status: string }) => !["completed", "failed", "cancelled"].includes(task.status)) || snapshot.activeTakeovers.length) {
       throw new Error("PC_RUNTIME_QUIESCENCE_REQUIRED");
     }
+    let pcTasks: unknown = null;
+    try {
+      const path = input.brokerPath + ".pc-tasks.json", stat = lstatSync(path);
+      if (!stat.isFile() || stat.isSymbolicLink() || stat.size > 8 * 1024 * 1024) throw new Error("PC_RUNTIME_QUIESCENCE_UNPROVEN");
+      const persisted = JSON.parse(readFileSync(path, "utf8"));
+      if (persisted?.version !== 1 || !Array.isArray(persisted.tasks) ||
+        persisted.tasks.some((task: { status?: string }) => !task || !["completed", "failed", "cancelled"].includes(task.status ?? ""))) {
+        throw new Error("PC_RUNTIME_QUIESCENCE_REQUIRED");
+      }
+      pcTasks = persisted;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    }
     // Private snapshot is host-local recovery/comparison input, never console output.
     const compassRecords = ["goal", "state", "verification", "history"].map(table =>
       ({ table, rows: compass!.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all() }));
-    const privateSnapshot = { snapshot, identities, compassRecords };
+    const privateSnapshot = { snapshot, identities, compassRecords, pcTasks };
     return { privateSnapshot, metadata: { version: 1, androidCount: android.length, identityCount: identities.length,
       schemaCompatible: true, quiescent: true, fleetDigest: digest(android.map((node: Record<string, unknown>) =>
         Object.fromEntries(Object.entries(node).filter(([key]) => !["status", "lastSeenAt", "telemetry"].includes(key))))
         .sort((a: Record<string, unknown>, b: Record<string, unknown>) => String(a.id).localeCompare(String(b.id)))),
-      identityDigest: digest(identities), tasksDigest: digest(snapshot.tasks),
+      identityDigest: digest(identities), tasksDigest: digest(snapshot.tasks), pcTasksDigest: digest(pcTasks),
       schemaDigest: digest(fixtureSchemas), compassDigest: digest(compassRecords), readOnly: true } };
   } finally { broker?.close(); compass?.close(); rmSync(fixture, { recursive: true, force: true }); }
 }
