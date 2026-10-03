@@ -56,7 +56,7 @@ async function main() {
       const row = db.prepare("SELECT payload FROM jarvis_state WHERE id=1").get() as { payload: string } | undefined;
       if (!row) throw new Error();
       return { state: JSON.parse(row.payload),
-        identities: db.prepare("SELECT node_id,payload FROM jarvis_worker_identity ORDER BY node_id").all() };
+        identities: db.prepare("SELECT node_id,payload FROM jarvis_worker_identity ORDER BY node_id").all() as Array<{ node_id: string; payload: string }> };
     } finally { db.close(); }
   };
   const before = snapshot(), node = before.state.fleet.find((n: { id: string }) => n.id === nodeId);
