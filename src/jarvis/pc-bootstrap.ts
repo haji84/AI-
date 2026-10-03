@@ -59,7 +59,7 @@ export interface PcExecutionEvidence {
 }
 /** Bounded public input only. Never accepts a command, an existing file path or Owner credentials. */
 export async function executeLocalPcWork(input: { base: string; revision: string; identity: PcLocalIdentity;
-  request?: typeof fetch }): Promise<PcExecutionEvidence> {
+  request?: typeof fetch; taskId?: string }): Promise<PcExecutionEvidence> {
   const request = input.request ?? fetch, base = localBrokerOrigin(input.base), identity = input.identity;
   await assertPcRuntime(base, input.revision, request);
   const post = async (path: string, payload: unknown) => {
@@ -78,12 +78,12 @@ export async function executeLocalPcWork(input: { base: string; revision: string
   if (heartbeat.node?.id !== identity.nodeId || heartbeat.node?.kind !== identity.platform ||
     !heartbeat.node.pcAuthority?.roles?.includes("Executor") ||
     !heartbeat.node.pcAuthority?.capabilityCeiling?.includes("filesystem")) throw new Error("PC_WORK_AUTHORITY_REQUIRED");
-  const assignment = await post("/api/jarvis/worker/pc/next", {});
+  const assignment = await post("/api/jarvis/worker/pc/next", input.taskId ? { taskId: input.taskId } : {});
   const evidence = { nodeId: identity.nodeId, sourceRevision: input.revision, observedAt: new Date().toISOString() };
   if (assignment.task === null) return { ...evidence, status: "idle" };
   const task = assignment.task as DurableTask, claim = assignment.claim as DurableTaskExecutionClaim;
   const work = validatePcPublicWork(task?.payload);
-  if (task.type !== PC_PUBLIC_DIGEST || task.migrationClass !== "RESTARTABLE" ||
+  if ((input.taskId && task.id !== input.taskId) || task.type !== PC_PUBLIC_DIGEST || task.migrationClass !== "RESTARTABLE" ||
     task.requiredCapabilities?.length !== 1 || task.requiredCapabilities[0] !== "filesystem" ||
     !claim || claim.taskId !== task.id || claim.owner !== identity.nodeId || task.leaseOwner !== identity.nodeId ||
     claim.epoch !== task.executionEpoch || !Number.isSafeInteger(claim.epoch) || claim.epoch < 1 ||
