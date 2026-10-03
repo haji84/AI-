@@ -59,3 +59,48 @@ test("offline or stale nodes never claim work; wrong digest does not complete a 
   await assert.rejects(() => service.complete(n.id, { taskId: task.id, claim: assigned.claim, detail: pcDigest("tampered") }, now), /DIGEST/);
   assert.equal((await runtime.get(task.id))?.status, "running");
 });
+test("Fabric placement is independent of poll order and redistributes queued work around occupied capacity", async () => {
+  const a = node("pc-a"), b = node("pc-b");
+  const runtime = new DurableTaskRuntime(new MemoryDurableTaskStore());
+  const service = new PcDurableWork(runtime, () => [b, a]);
+  const first = await service.enqueue(work, now);
+  assert.equal((await service.next(b.id, now)).task, null, "lower ranked polling node must not steal placement");
+  assert.equal((await service.next(a.id, now)).task?.id, first.id);
+  const second = await service.enqueue({ ...work, idempotencyKey: "second" }, now);
+  assert.equal((await service.next(b.id, now)).task?.id, second.id, "free eligible capacity gets independent work");
+});
+test("Fabric excludes stale or unavailable resources while offline local-capable work remains eligible", async () => {
+  const a = node("pc-a"), b = node("pc-b");
+  const runtime = new DurableTaskRuntime(new MemoryDurableTaskStore());
+  const service = new PcDurableWork(runtime, () => [a, b]);
+  a.telemetry.cpuAvailable = false;
+  b.telemetry.network = "offline"; // no Internet is not loss of local Broker reachability
+  const task = await service.enqueue(work, now);
+  assert.equal((await service.next(a.id, now)).task, null);
+  assert.equal((await service.next(b.id, now)).task?.id, task.id);
+});
+test("explicit target waits rather than migrates, without blocking unrelated eligible work", async () => {
+  const a = node("pc-a"), b = node("pc-b");
+  const service = new PcDurableWork(new DurableTaskRuntime(new MemoryDurableTaskStore()), () => [a, b]);
+  const pinned = await service.enqueue({ ...work, targetNodeId: a.id }, now);
+  a.status = "offline";
+  const free = await service.enqueue({ ...work, idempotencyKey: "unrelated" }, now);
+  assert.equal((await service.next(b.id, now)).task?.id, free.id);
+  assert.notEqual(free.id, pinned.id);
+});
+test("Fabric allocates multiple pending tasks before either PC polls, reserving targeted capacity", async () => {
+  const a = node("pc-a"), b = node("pc-b");
+  const service = new PcDurableWork(new DurableTaskRuntime(new MemoryDurableTaskStore()), () => [a, b]);
+  const free = await service.enqueue(work, now);
+  const targeted = await service.enqueue({ ...work, idempotencyKey: "targeted", targetNodeId: a.id }, now);
+  assert.equal((await service.next(b.id, now)).task?.id, free.id);
+  assert.equal((await service.next(a.id, now)).task?.id, targeted.id);
+});
+test("Fabric ignores stale and critical-thermal candidates without waiting for their poll", async () => {
+  const a = node("pc-a"), b = node("pc-b"), c = node("pc-c");
+  a.lastSeenAt = new Date(now.getTime() - 300001).toISOString();
+  b.telemetry.thermalState = "critical";
+  const service = new PcDurableWork(new DurableTaskRuntime(new MemoryDurableTaskStore()), () => [a, b, c]);
+  const task = await service.enqueue(work, now);
+  assert.equal((await service.next(c.id, now)).task?.id, task.id);
+});
