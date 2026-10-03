@@ -15,10 +15,18 @@ $before=[byte[]]@(0,1,128,255,13,10)
 $after=[byte[]]@(255,0,2,3)
 try {
   [IO.File]::WriteAllBytes($path,$before)
+  $identity=[Security.Principal.WindowsIdentity]::GetCurrent()
+  $acl=Get-Acl -LiteralPath $path
+  $acl.SetOwner($identity.User)
+  Set-Acl -LiteralPath $path -AclObject $acl
+  $sections=[Security.AccessControl.AccessControlSections]::Owner -bor [Security.AccessControl.AccessControlSections]::Access
+  $securityBefore=(Get-Acl -LiteralPath $path).GetSecurityDescriptorSddlForm($sections)
   Replace-Bytes $path $after
+  if((Get-Acl -LiteralPath $path).GetSecurityDescriptorSddlForm($sections) -cne $securityBefore){throw 'activate-owner-or-dacl-mismatch'}
   if([Convert]::ToBase64String([IO.File]::ReadAllBytes($path)) -cne [Convert]::ToBase64String($after)){throw 'activate-bytes-mismatch'}
   Replace-Bytes $path $before
   if([Convert]::ToBase64String([IO.File]::ReadAllBytes($path)) -cne [Convert]::ToBase64String($before)){throw 'rollback-bytes-mismatch'}
+  if((Get-Acl -LiteralPath $path).GetSecurityDescriptorSddlForm($sections) -cne $securityBefore){throw 'rollback-owner-or-dacl-mismatch'}
   Write-Output 'Atomic activation and rollback byte fixtures PASS'
 } finally {
   # Remove only this uniquely created disposable fixture.

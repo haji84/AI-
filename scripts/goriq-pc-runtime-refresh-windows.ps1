@@ -181,11 +181,21 @@ function Stop-OwnedTree($tree) {
   throw 'ports-busy'
 }
 function Replace-Bytes([string]$path,[byte[]]$bytes) {
+  $targetAcl=Get-Acl -LiteralPath $path
+  $sections=[Security.AccessControl.AccessControlSections]::Owner -bor [Security.AccessControl.AccessControlSections]::Access
+  $securityBefore=$targetAcl.GetSecurityDescriptorSddlForm($sections)
   $temporary=$path+'.'+[guid]::NewGuid().ToString('N')+'.tmp'
+  # Elevated creation may default to Administrators ownership. Preserve the
+  # original boundary before writing any protected content or replacing it.
   $stream=New-Object IO.FileStream($temporary,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
+  $stream.Dispose()
+  Set-Acl -LiteralPath $temporary -AclObject $targetAcl
+  if((Get-Acl -LiteralPath $temporary).GetSecurityDescriptorSddlForm($sections) -cne $securityBefore){throw 'replacement-security'}
+  $stream=New-Object IO.FileStream($temporary,[IO.FileMode]::Open,[IO.FileAccess]::Write,[IO.FileShare]::None)
   try{$stream.Write($bytes,0,$bytes.Length);$stream.Flush($true)}finally{$stream.Dispose()}
   # PS5.1 casts $null to an empty string for this .NET string parameter.
   [IO.File]::Replace($temporary,$path,[NullString]::Value)
+  if((Get-Acl -LiteralPath $path).GetSecurityDescriptorSddlForm($sections) -cne $securityBefore){throw 'replacement-security'}
 }
 function Wait-Health([string]$sha) {
   for($i=0;$i -lt 45;$i++){
@@ -336,7 +346,7 @@ try {
   $safeReasons=@('approval','path','owner','private-acl','task','compatibility-launcher','release','manifest','launcher-shape',
     'host','process-owner','listeners','process-replaced','process-permission','ports-busy','source','main-ci','state',
     'immutable-release-exists','archive','archive-extract','toolchain','install','build','baseline-changed','candidate','state-changed',
-    'health','verification','rollback-listeners','owner-admin-context')
+    'health','verification','rollback-listeners','owner-admin-context','replacement-security')
   $failureReason=if($safeReasons -contains $_.Exception.Message){$_.Exception.Message}else{'unexpected-prerequisite-error'}
   if($stopped){
     Write-Host 'REFRESH_STAGE=rollback'
