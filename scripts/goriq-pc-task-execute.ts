@@ -7,7 +7,7 @@ import { DatabaseSync } from "node:sqlite";
 import { isDeepStrictEqual } from "node:util";
 import { FilePcIdentityStorage, ensurePcLocalIdentity } from "../src/jarvis/pc-local-identity.ts";
 import { validatePcEnrollmentApproval } from "../src/jarvis/pc-enrollment.ts";
-import { assertPcRuntime, executeLocalPcWork } from "../src/jarvis/pc-bootstrap.ts";
+import { assertPcRuntime, executeLocalPcWork, readCommittedPcWorkInput } from "../src/jarvis/pc-bootstrap.ts";
 import { assertPcExecutor, pcDigest } from "../src/jarvis/pc-durable-work.ts";
 
 let stage = "source";
@@ -16,6 +16,7 @@ async function main() {
   const revision = process.env.GORIQ_PC_APPROVED_REVISION ?? "";
   if (!/^[a-f0-9]{40}$/.test(revision) ||
     execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8", timeout: 5000 }).trim() !== revision) throw new Error();
+  const content = readCommittedPcWorkInput(revision);
   const approval = validatePcEnrollmentApproval(JSON.parse(await readFile("docs/authorizations/1662-pc-enrollment.json", "utf8")));
   const platform = process.platform === "win32" ? "windows" : process.platform === "darwin" ? "macos" : undefined;
   if (!platform) throw new Error();
@@ -64,7 +65,6 @@ async function main() {
   if (!registered || JSON.parse(String(registered.payload)).revokedAt ||
     createPublicKey(JSON.parse(String(registered.payload)).publicKeyPem).export({ type: "spki", format: "pem" }).toString() !== identity.publicKeyPem ||
     before.state.fleet.filter((n: { kind: string }) => n.kind === "android").length !== 38) throw new Error();
-  const content = (await readFile("docs/architecture/goriq-distributed-node-fabric.md", "utf8")).replace(/\r\n/g, "\n");
   const expected = pcDigest(content);
   const work = { idempotencyKey: `1662:${revision}:${nodeId}:public-spec-sha256-v1`, goalIssue: approval.goalIssue,
     targetNodeId: nodeId, privacyClass: "PUBLIC", content, capsule: {
