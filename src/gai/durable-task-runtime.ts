@@ -355,6 +355,16 @@ class DurableTaskSession {
     return this.claimFromTask(task);
   }
 
+  async leaseClaimWithCapacity(taskId: string, owner: string, maxParallelTasks = 1, leaseMs = 120_000, now = new Date()): Promise<DurableTaskExecutionClaim> {
+    await this.initialize();
+    if (!Number.isSafeInteger(maxParallelTasks) || maxParallelTasks < 1) throw new Error("DURABLE_OWNER_CAPACITY_INVALID");
+    await this.reclaimExpiredLeases(now);
+    const active = [...this.tasks.values()].filter(task =>
+      (task.status === "leased" || task.status === "running") && task.leaseOwner === owner);
+    if (active.length >= maxParallelTasks) throw new Error("DURABLE_OWNER_CAPACITY_EXHAUSTED");
+    return this.leaseClaim(taskId, owner, leaseMs, now);
+  }
+
   async heartbeatClaimed(claim: DurableTaskExecutionClaim, leaseMs = 120_000, now = new Date()): Promise<DurableTaskExecutionClaim> {
     await this.initialize();
     const task = this.mustGet(claim.taskId);
@@ -919,6 +929,10 @@ export class DurableTaskRuntime {
 
   leaseClaim(...args: Parameters<DurableTaskSession["leaseClaim"]>): ReturnType<DurableTaskSession["leaseClaim"]> {
     return this.operate(session => session.leaseClaim(...args));
+  }
+
+  leaseClaimWithCapacity(...args: Parameters<DurableTaskSession["leaseClaimWithCapacity"]>): ReturnType<DurableTaskSession["leaseClaimWithCapacity"]> {
+    return this.operate(session => session.leaseClaimWithCapacity(...args));
   }
 
   heartbeatClaimed(...args: Parameters<DurableTaskSession["heartbeatClaimed"]>): ReturnType<DurableTaskSession["heartbeatClaimed"]> {
