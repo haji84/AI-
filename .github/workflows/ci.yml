@@ -64,3 +64,12 @@ jobs:
             cat next-server.log
             exit 1
           fi
+
+  windows-runtime-byte-fixtures:
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Windows PowerShell 5.1 atomic pointer fixtures
+        shell: powershell
+        run: ./tests/goriq-pc-runtime-replace.test.ps1

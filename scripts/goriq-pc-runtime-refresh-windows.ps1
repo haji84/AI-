@@ -184,7 +184,8 @@ function Replace-Bytes([string]$path,[byte[]]$bytes) {
   $temporary=$path+'.'+[guid]::NewGuid().ToString('N')+'.tmp'
   $stream=New-Object IO.FileStream($temporary,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
   try{$stream.Write($bytes,0,$bytes.Length);$stream.Flush($true)}finally{$stream.Dispose()}
-  [IO.File]::Replace($temporary,$path,$null)
+  # PS5.1 casts $null to an empty string for this .NET string parameter.
+  [IO.File]::Replace($temporary,$path,[NullString]::Value)
 }
 function Wait-Health([string]$sha) {
   for($i=0;$i -lt 45;$i++){
