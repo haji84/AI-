@@ -42,7 +42,7 @@ async function main() {
   const raw = await new FilePcIdentityStorage(join(root, platform === "windows" ? "identity.dpapi" : "identity.json")).read();
   if (!raw) throw new Error();
   const hardware = platform === "macos" ? execFileSync("ioreg", ["-rd1", "-c", "IOPlatformExpertDevice"], {
-    encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: 10000 }).match(/"IOPlatformUUID"\\s*=\\s*"([A-Fa-f0-9-]{36})"/)?.[1] :
+    encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: 10000 }).match(/"IOPlatformUUID"\s*=\s*"([A-Fa-f0-9-]{36})"/)?.[1] :
     execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", "[Console]::Write((Get-CimInstance Win32_ComputerSystemProduct).UUID)"], {
       encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: 15000 }).trim();
   if (!hardware || !/^[A-Fa-f0-9-]{36}$/.test(hardware) || /^0+-0+-0+-0+-0+$/.test(hardware)) throw new Error("PC_TASK_HOST_BINDING_UNAVAILABLE");
