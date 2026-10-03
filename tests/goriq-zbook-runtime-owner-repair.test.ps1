@@ -10,6 +10,36 @@ foreach($name in @('Select-RuntimeOwnerAction','Restore-RuntimeFileOwner','Asser
   if($null -eq $definition){throw 'owner-repair-function-missing'}
   Invoke-Expression $definition.Extent.Text
 }
+# Exercise the actual production DPAPI-to-JSON assignment on PowerShell5.1.
+# ConvertFrom-Json emits a JSON array as one pipeline object on this version.
+$assignment=$ast.Find({param($n)
+  $n -is [Management.Automation.Language.AssignmentStatementAst] -and
+  $n.Left -is [Management.Automation.Language.VariableExpressionAst] -and
+  $n.Left.VariablePath.UserPath -eq 'originalEntries' -and
+  $n.Extent.Text.Contains('ConvertFrom-Json')
+},$true)
+if($null -eq $assignment){throw 'original-baseline-parser-missing'}
+$originalSecure=ConvertTo-SecureString '[{"surface":"protected-config"},{"surface":"native-launcher"}]' -AsPlainText -Force
+Invoke-Expression $assignment.Extent.Text
+if($originalEntries -isnot [array] -or $originalEntries.Count -ne 2 -or
+  $originalEntries[0].surface -cne 'protected-config' -or $originalEntries[1].surface -cne 'native-launcher'){
+  throw 'original-baseline-json-array-shape'
+}
+$countGuard=$ast.Find({param($n) $n -is [Management.Automation.Language.IfStatementAst] -and $n.Clauses[0].Item1.Extent.Text.Contains('$originalEntries.Count')},$true)
+if($null -eq $countGuard){throw 'original-baseline-count-guard-missing'}
+foreach($json in @('null','[]','{"surface":"protected-config"}','[{"surface":"protected-config"}]','[{},{},{}]')){
+  $originalSecure=ConvertTo-SecureString $json -AsPlainText -Force
+  $rejected=$false
+  try{
+    Invoke-Expression $assignment.Extent.Text
+    Invoke-Expression $countGuard.Extent.Text
+  }catch{$rejected=$true}
+  if(-not $rejected){throw 'invalid-baseline-record-count-accepted'}
+}
+$originalSecure=ConvertTo-SecureString '[{"surface":"protected-config"},{"surface":"native-launcher"}]' -AsPlainText -Force
+Invoke-Expression $assignment.Extent.Text
+Invoke-Expression $countGuard.Extent.Text
+$originalSecure=$null;$originalEntries=$null
 $identity=[Security.Principal.WindowsIdentity]::GetCurrent()
 if((Select-RuntimeOwnerAction $identity.User.Value $identity.User.Value) -ne 'none'){throw 'current-owner-not-idempotent'}
 if((Select-RuntimeOwnerAction 'S-1-5-32-544' $identity.User.Value) -ne 'restore'){throw 'admin-owner-rejected'}

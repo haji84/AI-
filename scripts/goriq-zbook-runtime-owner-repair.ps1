@@ -109,18 +109,19 @@ try{
     }
     $null=Assert-NativeBoundary $originalPath $true
     $originalSecure=ConvertTo-SecureString ([IO.File]::ReadAllText($originalPath))
-    $originalEntries=@(((New-Object Management.Automation.PSCredential('original',$originalSecure)).GetNetworkCredential().Password) | ConvertFrom-Json)
-    if($originalEntries.Count -ne 2){throw 'ORIGINAL_BASELINE_REJECTED'}
+    $originalEntries=((New-Object Management.Automation.PSCredential('original',$originalSecure)).GetNetworkCredential().Password) | ConvertFrom-Json
+    if($originalEntries -isnot [array] -or $originalEntries.Count -ne 2){throw 'ORIGINAL_BASELINE_COUNT_REJECTED'}
     foreach($entry in $baseline){
       $matches=@($originalEntries | Where-Object {$_.surface -ceq $entry.surface -and $_.path -ieq $entry.path})
-      if($matches.Count -ne 1 -or $matches[0].owner -cne 'S-1-5-32-544' -or
-        $matches[0].action -cne 'restore' -or $matches[0].hash -cne $entry.hash -or
-        $entry.owner -cne $identity.User.Value){throw 'ORIGINAL_BASELINE_REJECTED'}
+      if($matches.Count -ne 1){throw 'ORIGINAL_BASELINE_MAPPING_REJECTED'}
+      if($matches[0].owner -cne 'S-1-5-32-544' -or $matches[0].action -cne 'restore'){throw 'ORIGINAL_BASELINE_PROVENANCE_REJECTED'}
+      if($matches[0].hash -cne $entry.hash){throw 'ORIGINAL_BASELINE_CONTENT_REJECTED'}
+      if($entry.owner -cne $identity.User.Value){throw 'ORIGINAL_BASELINE_CURRENT_OWNER_REJECTED'}
       Assert-ApprovedRuntimeDacl $matches[0].dacl $identity.User
       $originalRaw=New-Object Security.AccessControl.RawSecurityDescriptor($matches[0].dacl)
       $liveAcl=Get-Acl -LiteralPath $entry.path
       if($liveAcl.AreAccessRulesProtected -ne [bool]($originalRaw.ControlFlags -band [Security.AccessControl.ControlFlags]::DiscretionaryAclProtected)){
-        throw 'ORIGINAL_BASELINE_REJECTED'
+        throw 'ORIGINAL_BASELINE_PROTECTION_REJECTED'
       }
       $entry.dacl=$matches[0].dacl
       $entry.action=if($entry.currentDacl -ceq $entry.dacl){'none'}else{'restore-dacl'}
@@ -181,7 +182,9 @@ try{
     currentReleaseOwnerClass=$releaseOwnerClass;changedSurfaces=$changed;observedAt=[datetimeoffset]::UtcNow.ToString('o')} | ConvertTo-Json -Depth 4 -Compress
 }catch{
   $known=@('OWNER_REJECTED','PATH_REJECTED','DACL_REJECTED','TASK_REJECTED','HEALTH_REJECTED','APPROVAL_REJECTED',
-    'ORIGINAL_DACL_REJECTED','ORIGINAL_BASELINE_REJECTED','ARTIFACT_REJECTED','ADMIN_REQUIRED','MAIN_CI_REJECTED','BACKUP_REJECTED','BASELINE_CHANGED','VERIFICATION_FAILED')
+    'ORIGINAL_DACL_REJECTED','ORIGINAL_BASELINE_REJECTED','ORIGINAL_BASELINE_COUNT_REJECTED',
+    'ORIGINAL_BASELINE_MAPPING_REJECTED','ORIGINAL_BASELINE_PROVENANCE_REJECTED','ORIGINAL_BASELINE_CONTENT_REJECTED',
+    'ORIGINAL_BASELINE_CURRENT_OWNER_REJECTED','ORIGINAL_BASELINE_PROTECTION_REJECTED','ARTIFACT_REJECTED','ADMIN_REQUIRED','MAIN_CI_REJECTED','BACKUP_REJECTED','BASELINE_CHANGED','VERIFICATION_FAILED')
   $reason=if($_.Exception.Message -in $known){$_.Exception.Message}else{'OWNER_REPAIR_FAILED'}
   @{version=1;issue=1662;nodeId='zbook';phase=$Phase;failedStage=$stage;failureReason=$reason;verified=$false;
     changedSurfaces=$changed;backupRetained=($null -ne $backupPath);observedAt=[datetimeoffset]::UtcNow.ToString('o')} | ConvertTo-Json -Depth 4 -Compress
