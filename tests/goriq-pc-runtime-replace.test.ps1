@@ -82,6 +82,38 @@ try {
   if(-not $refused){throw 'existing-release-mutated'}
   Write-Output 'Release directory Owner recovery, exact DACL, child preservation and refusal PASS'
 
+
+  # Production-shaped parent: protected Owner/SYSTEM only; live release inherits.
+  $strictParent=Join-Path $fixture 'strict-parent'
+  $null=New-Item -ItemType Directory -Path $strictParent
+  $parentAcl=New-Object Security.AccessControl.DirectorySecurity
+  $parentAcl.SetOwner($identity.User)
+  $parentAcl.SetAccessRuleProtection($true,$false)
+  foreach($sid in @($identity.User,(New-Object Security.Principal.SecurityIdentifier('S-1-5-18')))){
+    $parentAcl.AddAccessRule((New-Object Security.AccessControl.FileSystemAccessRule($sid,'FullControl','ContainerInherit,ObjectInherit','None','Allow')))
+  }
+  Set-Acl -LiteralPath $strictParent -AclObject $parentAcl
+  $releaseRoot=Join-Path $strictParent 'release'
+  Invoke-Expression $creation.Extent.Text
+  $liveAcl=Get-Acl -LiteralPath $releaseRoot
+  if($liveAcl.AreAccessRulesProtected -or @($liveAcl.GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier]) | Where-Object {$_.AccessControlType -eq 'Allow' -and $_.IdentityReference.Value -notin @($identity.User.Value,'S-1-5-18')}).Count){throw 'new-release-native-boundary'}
+  $liveAcl.AddAccessRule((New-Object Security.AccessControl.FileSystemAccessRule($identity.User,'ReadAndExecute','Allow')))
+  $liveAcl.SetOwner((New-Object Security.Principal.SecurityIdentifier('S-1-5-32-544')))
+  Set-Acl -LiteralPath $releaseRoot -AclObject $liveAcl
+  $child=Join-Path $releaseRoot 'child.bin'
+  [IO.File]::WriteAllBytes($child,$before)
+  $childSecurity=(Get-Acl -LiteralPath $child).GetSecurityDescriptorSddlForm($sections)
+  $liveAcl=Get-Acl -LiteralPath $releaseRoot
+  if($liveAcl.AreAccessRulesProtected -or -not @($liveAcl.Access | Where-Object {$_.IsInherited}).Count -or -not @($liveAcl.Access | Where-Object {-not $_.IsInherited}).Count){throw 'inherited-explicit-fixture-invalid'}
+  $rootDacl=$liveAcl.GetSecurityDescriptorSddlForm([Security.AccessControl.AccessControlSections]::Access)
+  Restore-ReleaseDirectoryOwner $releaseRoot $identity.User
+  $liveAcl=Get-Acl -LiteralPath $releaseRoot
+  if($liveAcl.GetOwner([Security.Principal.SecurityIdentifier]).Value -cne $identity.User.Value -or
+    $liveAcl.GetSecurityDescriptorSddlForm([Security.AccessControl.AccessControlSections]::Access) -cne $rootDacl -or
+    (Get-Acl -LiteralPath $child).GetSecurityDescriptorSddlForm($sections) -cne $childSecurity -or
+    [Convert]::ToBase64String([IO.File]::ReadAllBytes($child)) -cne [Convert]::ToBase64String($before)){throw 'inherited-release-recovery-mismatch'}
+  Write-Output 'Production-shaped inherited/explicit release DACL and child preservation PASS'
+
   Write-Output 'Atomic activation and rollback byte fixtures PASS'
 } finally {
   # Remove only this uniquely created disposable fixture.
