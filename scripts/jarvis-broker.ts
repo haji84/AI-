@@ -897,7 +897,7 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
       try { assertPcExecutor(plane.fleet.get(identity.nodeId)); }
       catch { return json(response, 403, { message: "registered PC Executor required" }); }
       try {
-        const result = path.endsWith("/next") ? await pcWork.next(identity.nodeId) : { task: await pcWork.complete(identity.nodeId, payload) };
+        const result = path.endsWith("/next") ? await pcWork.next(identity.nodeId, new Date(), payload.taskId as string | undefined) : { task: await pcWork.complete(identity.nodeId, payload) };
         return json(response, 200, result);
       } catch { return json(response, 409, { message: "PC execution claim, input or result rejected" }); }
     }
