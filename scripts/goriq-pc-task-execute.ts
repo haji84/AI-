@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { createHash, createPublicKey, sign, verify } from "node:crypto";
+import { createPublicKey, sign, verify } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
