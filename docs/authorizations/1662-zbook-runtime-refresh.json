@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "issue": 1662,
+  "goalIssue": 1219,
+  "operation": "zbook-runtime-refresh",
+  "approvedAt": "2026-10-03T04:55:57Z",
+  "expiresAt": "2026-10-04T04:55:57Z",
+  "targets": [
+    {
+      "nodeId": "zbook",
+      "platform": "windows"
+    }
+  ]
+}
