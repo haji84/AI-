@@ -6,13 +6,29 @@ import { DatabaseSync } from "node:sqlite";
 import { isDeepStrictEqual } from "node:util";
 import { CompassStore } from "../compass/store.ts";
 import { JarvisSqliteStateStore } from "./sqlite-state-store.ts";
-import { validatePcEnrollmentApproval, type PcEnrollmentApproval } from "./pc-enrollment.ts";
+export interface PcRuntimeRefreshApproval {
+  version: 1; issue: number; goalIssue: number; operation: "zbook-runtime-refresh";
+  approvedAt: string; expiresAt: string; targets: { nodeId: "zbook"; platform: "windows" }[];
+}
+export function validatePcRuntimeRefreshApproval(value: unknown, now = new Date()): PcRuntimeRefreshApproval {
+  const approval = value as PcRuntimeRefreshApproval;
+  const start = Date.parse(approval?.approvedAt), end = Date.parse(approval?.expiresAt);
+  if (approval?.version !== 1 || approval.issue !== 1662 || approval.goalIssue !== 1219 ||
+    approval.operation !== "zbook-runtime-refresh" || !Number.isFinite(start) || !Number.isFinite(end) ||
+    start > now.getTime() || end <= now.getTime() || end <= start || end - start > 86_400_000 ||
+    !Array.isArray(approval.targets) || approval.targets.length !== 1 ||
+    approval.targets[0]?.nodeId !== "zbook" || approval.targets[0]?.platform !== "windows" ||
+    Object.keys(approval).some(key => !["version", "issue", "goalIssue", "operation", "approvedAt", "expiresAt", "targets"].includes(key))) {
+    throw new Error("PC_RUNTIME_APPROVAL_REQUIRED");
+  }
+  return structuredClone(approval);
+}
 
 export function preparePcRuntimeConfiguration<T extends { version: number; commit: string; releaseRoot: string; environment: Record<string, unknown> }>(input: {
   current: T; previousRevision: string; revision: string; releaseRoot: string;
-  approval: PcEnrollmentApproval; now?: Date;
+  approval: PcRuntimeRefreshApproval; now?: Date;
 }): T {
-  const approval = validatePcEnrollmentApproval(input.approval, input.now);
+  const approval = validatePcRuntimeRefreshApproval(input.approval, input.now);
   const { current, previousRevision, revision, releaseRoot } = input;
   const native = (root: string, sha: string) => win32.isAbsolute(root) &&
     /^[A-Za-z]:\\Users\\[^\\]+\\JARVIS\\releases\\[a-f0-9]{40}$/i.test(root) &&

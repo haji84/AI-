@@ -4007,7 +4007,7 @@
     },
     {
       "path": "src/jarvis/pc-runtime-refresh.ts",
-      "sha256": "e1baab099c95d3223835aeeda79fabce511a4fbf79778bcb7bffd04c1acf500f",
+      "sha256": "f31318a2e43779bfd1951b5e95dadc9e42cd9807c48f85c24d44024897b438e6",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "HOST-003",
@@ -4015,7 +4015,7 @@
         "OPS-014",
         "SEC-011"
       ],
-      "reason": "Issue1662 approved existing ZBook code refresh; strict read-only schema/fleet/quiescence guard, unchanged credentials/task/network, protected recovery and exact-main runtime receipt. Physical PASS requires host Evidence."
+      "reason": "Issue1662 approved existing ZBook code refresh; strict read-only schema/fleet/quiescence guard, unchanged credentials/task/network, protected recovery and exact-main runtime receipt. Physical PASS requires host Evidence. Runtime activation is bound to a ZBook-only operation gate; expired enrollment authority is not renewed."
     },
     {
       "path": "src/jarvis/pending-enrollment.ts",

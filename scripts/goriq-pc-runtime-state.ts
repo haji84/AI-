@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import { join } from "node:path";
 import { inspectPcRuntimeState, preparePcRuntimeConfiguration } from "../src/jarvis/pc-runtime-refresh.ts";
 import { FilePcIdentityStorage } from "../src/jarvis/pc-local-identity.ts";
-import { validatePcEnrollmentApproval } from "../src/jarvis/pc-enrollment.ts";
+import { validatePcRuntimeRefreshApproval } from "../src/jarvis/pc-runtime-refresh.ts";
 
 // Input/output is captured by the same-owner PowerShell caller. No raw configuration is emitted.
 async function main() {
@@ -11,7 +11,7 @@ async function main() {
   const revision = process.env.GORIQ_PC_APPROVED_REVISION ?? "";
   if (process.platform !== "win32" || !/^[a-f0-9]{40}$/.test(revision) ||
     execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim() !== revision) throw new Error("PC_RUNTIME_SOURCE_REJECTED");
-  const approval = validatePcEnrollmentApproval(JSON.parse(readFileSync("docs/authorizations/1662-pc-enrollment.json", "utf8")));
+  const approval = validatePcRuntimeRefreshApproval(JSON.parse(readFileSync("docs/authorizations/1662-zbook-runtime-refresh.json", "utf8")));
   const current = input.current;
   const next = preparePcRuntimeConfiguration({ current, previousRevision: input.previousRevision, revision,
     releaseRoot: input.releaseRoot, approval });

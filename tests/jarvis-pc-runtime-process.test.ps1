@@ -17,7 +17,8 @@ $fixtureProcesses=@(
   [pscustomobject]@{Name='node.exe';ProcessId=14;ParentProcessId=0;CommandLine=$null})
 function Get-CimInstance {return $fixtureProcesses}
 function Invoke-CimMethod {
-  [CmdletBinding()]param($InputObject,$MethodName)
+  [CmdletBinding()]param($InputObject,$MethodName,$OperationTimeoutSec)
+  if($OperationTimeoutSec -ne 15){throw 'cim-timeout-not-enforced'}
   if($InputObject.ProcessId -eq 14){return @{ReturnValue=2}}
   return @{ReturnValue=0;Sid='fixture-owner'}
 }
