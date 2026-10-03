@@ -1,3 +1,9 @@
+import { mkdtemp, open, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { CommonWorkerRuntime } from "../gai/common-worker-runtime.ts";
+import { PC_PUBLIC_DIGEST, pcDigest, validatePcPublicWork } from "./pc-durable-work.ts";
+import type { DurableTask, DurableTaskExecutionClaim } from "../gai/durable-task-runtime.ts";
 import { createHash, randomUUID, sign } from "node:crypto";
 import type { PcLocalIdentity } from "./pc-local-identity.ts";
 import { canonicalWorkerRequest } from "./worker-auth.ts";
@@ -44,4 +50,79 @@ export async function registerLocalPc(input: { base: string; revision: string; o
     "X-Jarvis-Body-Sha256": unsigned.bodySha256, "X-Jarvis-Signature": sign(null, Buffer.from(canonicalWorkerRequest(unsigned)), identity.privateKeyPem).toString("base64") }, signal: AbortSignal.timeout(5000) });
   const result = await response.json();
   if (!response.ok || result.node?.id !== identity.nodeId || result.node?.kind !== identity.platform) throw new Error("PC_BOOTSTRAP_HEARTBEAT_REJECTED");
+}
+
+export interface PcExecutionEvidence {
+  status: "idle" | "completed"; nodeId: string; sourceRevision: string;
+  taskId?: string; executionEpoch?: number; sha256?: string; bytes?: number;
+  filesystemExecuted?: boolean; signedResultAccepted?: boolean; observedAt: string;
+}
+/** Bounded public input only. Never accepts a command, an existing file path or Owner credentials. */
+export async function executeLocalPcWork(input: { base: string; revision: string; identity: PcLocalIdentity;
+  request?: typeof fetch }): Promise<PcExecutionEvidence> {
+  const request = input.request ?? fetch, base = localBrokerOrigin(input.base), identity = input.identity;
+  await assertPcRuntime(base, input.revision, request);
+  const post = async (path: string, payload: unknown) => {
+    const body = JSON.stringify(payload);
+    const unsigned = { nodeId: identity.nodeId, path, method: "POST", timestamp: new Date().toISOString(),
+      nonce: randomUUID(), bodySha256: createHash("sha256").update(body).digest("hex") };
+    const response = await request(base + path, { method: "POST", body, redirect: "error",
+      headers: { "Content-Type": "application/json", "X-Jarvis-Node-Id": unsigned.nodeId,
+        "X-Jarvis-Timestamp": unsigned.timestamp, "X-Jarvis-Nonce": unsigned.nonce, "X-Jarvis-Body-Sha256": unsigned.bodySha256,
+        "X-Jarvis-Signature": sign(null, Buffer.from(canonicalWorkerRequest(unsigned)), identity.privateKeyPem).toString("base64") },
+      signal: AbortSignal.timeout(5000) });
+    if (!response.ok) throw new Error("PC_WORK_SIGNED_REQUEST_REJECTED");
+    return response.json();
+  };
+  const heartbeat = await post("/api/jarvis/worker/heartbeat", { status: "ready", capabilities: ["filesystem"] });
+  if (heartbeat.node?.id !== identity.nodeId || heartbeat.node?.kind !== identity.platform ||
+    !heartbeat.node.pcAuthority?.roles?.includes("Executor") ||
+    !heartbeat.node.pcAuthority?.capabilityCeiling?.includes("filesystem")) throw new Error("PC_WORK_AUTHORITY_REQUIRED");
+  const assignment = await post("/api/jarvis/worker/pc/next", {});
+  const evidence = { nodeId: identity.nodeId, sourceRevision: input.revision, observedAt: new Date().toISOString() };
+  if (assignment.task === null) return { ...evidence, status: "idle" };
+  const task = assignment.task as DurableTask, claim = assignment.claim as DurableTaskExecutionClaim;
+  const work = validatePcPublicWork(task?.payload);
+  if (task.type !== PC_PUBLIC_DIGEST || task.migrationClass !== "RESTARTABLE" ||
+    task.requiredCapabilities?.length !== 1 || task.requiredCapabilities[0] !== "filesystem" ||
+    !claim || claim.taskId !== task.id || claim.owner !== identity.nodeId || task.leaseOwner !== identity.nodeId ||
+    claim.epoch !== task.executionEpoch || !Number.isSafeInteger(claim.epoch) || claim.epoch < 1 ||
+    claim.fencingToken !== task.fencingToken || typeof claim.fencingToken !== "string" || !claim.fencingToken ||
+    claim.leaseUntil !== task.leaseUntil || Date.parse(claim.leaseUntil) <= Date.now() ||
+    !Number.isFinite(Date.parse(claim.leaseUntil)) ||
+    work.goalIssue !== heartbeat.node.pcAuthority.goalIssue ||
+    (work.targetNodeId && work.targetNodeId !== identity.nodeId)) throw new Error("PC_WORK_ASSIGNMENT_REJECTED");
+  const runtime = new CommonWorkerRuntime({ descriptor: { id: identity.nodeId, label: identity.nodeId,
+    platform: identity.platform, capabilities: ["filesystem"], maxParallelTasks: 1, enabled: true,
+    securityContext: { credentialIsolation: true, taskScopedAuthorization: true, acceptsRemoteSecrets: false } } });
+  runtime.registerCapability("filesystem", async () => {
+    const folder = await mkdtemp(join(tmpdir(), "goriq-public-work-"));
+    try {
+      const handle = await open(join(folder, "input.txt"), "wx+", 0o600);
+      try {
+        await handle.writeFile(work.content, "utf8"); await handle.sync();
+        const bytes = (await handle.stat()).size, buffer = Buffer.alloc(bytes);
+        let offset = 0;
+        while (offset < bytes) {
+          const read = await handle.read(buffer, offset, bytes - offset, offset);
+          if (read.bytesRead === 0) throw new Error("PC_WORK_FILE_READ_FAILED");
+          offset += read.bytesRead;
+        }
+        return { output: JSON.stringify({ sha256: createHash("sha256").update(buffer).digest("hex"), bytes }),
+          evidence: { filesystemExecuted: true, taskId: task.id } };
+      } finally { await handle.close(); }
+    } finally { await rm(folder, { recursive: true }); }
+  });
+  const executed = await runtime.execute({ task: { id: task.id, description: work.capsule.currentJob,
+    difficulty: 1, risk: "LOW" }, input: work.content, requestedCapability: "filesystem" });
+  if (!executed.ok) throw new Error("PC_WORK_EXECUTION_FAILED");
+  const detail = JSON.parse(executed.output);
+  const expected = pcDigest(work.content);
+  if (detail.sha256 !== expected.sha256 || detail.bytes !== expected.bytes) throw new Error("PC_WORK_ARTIFACT_REJECTED");
+  const returned = await post("/api/jarvis/worker/pc/result", { taskId: task.id, claim, detail });
+  if (returned.task?.id !== task.id || returned.task?.status !== "completed" || returned.task.result?.verified !== true ||
+    returned.task.result.nodeId !== identity.nodeId || returned.task.result.executionEpoch !== claim.epoch ||
+    returned.task.result.sha256 !== expected.sha256 || returned.task.result.bytes !== expected.bytes) throw new Error("PC_WORK_RESULT_REJECTED");
+  return { ...evidence, status: "completed", taskId: task.id, executionEpoch: claim.epoch, ...expected,
+    filesystemExecuted: true, signedResultAccepted: true, observedAt: new Date().toISOString() };
 }
