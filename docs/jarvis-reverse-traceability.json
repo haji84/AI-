@@ -3094,7 +3094,7 @@
     },
     {
       "path": "src/gai/durable-task-runtime.ts",
-      "sha256": "b3446ae4a823e073e215c17d62215982272996782d8d8098cb8448ecbadaaed2",
+      "sha256": "d8d3f85485b0deb819a334d5456973bfc95c661512bf5115c8e15cd2e1264283",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OFF-001",
@@ -3965,7 +3965,7 @@
     },
     {
       "path": "src/jarvis/pc-bootstrap.ts",
-      "sha256": "4dccdb1eedfd710e2aeb5bdf7818744bceeb2924b65a6044843102e10b483f45",
+      "sha256": "dc616f03636e9ff1d7cfaee452f8cf88485c75c19b953b648af480d45717b072",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "FLEET-001",
@@ -5962,7 +5962,7 @@
         "CORE-019"
       ],
       "reason": "Registered PC filesystem work reuses signed Broker transport and fenced DurableTaskRuntime; physical assignment and distributed recovery remain unverified.",
-      "sha256": "dea452317e2899b7556657a65f13217f01825acb478cf62ac05997defd601642"
+      "sha256": "660f9d1fd297fbdb23c71e97a5f89b32141798016f668f195646812b422536f5"
     }
   ],
   "hash_policy": "utf8-crlf-to-lf-v1;binary-raw"
