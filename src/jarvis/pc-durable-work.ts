@@ -42,7 +42,9 @@ function inputOf(task: DurableTask): PcPublicWorkInput {
 }
 /** Adapter to existing durable claims; registered identity/authority remain Broker-owned. */
 export class PcDurableWork {
-  constructor(private readonly runtime: DurableTaskRuntime, private readonly nodes: () => JarvisNode[]) {}
+  private readonly runtime: DurableTaskRuntime;
+  private readonly nodes: () => JarvisNode[];
+  constructor(runtime: DurableTaskRuntime, nodes: () => JarvisNode[]) { this.runtime = runtime; this.nodes = nodes; }
   async enqueue(value: unknown, now = new Date()): Promise<DurableTask> {
     const input = validatePcPublicWork(value);
     const eligible = this.nodes().filter(n => {
