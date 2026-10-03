@@ -1,6 +1,7 @@
 param([ValidateSet('plan','apply')][string]$Phase='plan',[switch]$OwnerApproved,
   [Parameter(Mandatory=$true)][string]$SourceRevision,
-  [Parameter(Mandatory=$true)][string]$ExpectedRepairSha256)
+  [Parameter(Mandatory=$true)][string]$ExpectedRepairSha256,
+  [switch]$RecoverOriginalDacl,[string]$OriginalBaselinePath)
 # #1662 approval5968751360: exactly two native production files, owner restoration only.
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
@@ -12,10 +13,33 @@ function Select-RuntimeOwnerAction([string]$ownerSid,[string]$currentUserSid){
   throw 'OWNER_REJECTED'
 }
 function Restore-RuntimeFileOwner([string]$path,[Security.Principal.SecurityIdentifier]$owner){
-  # Only the Owner section is marked modified; never rewrite or add access rules.
-  $ownerOnly=New-Object Security.AccessControl.FileSecurity
-  $ownerOnly.SetOwner($owner)
-  Set-Acl -LiteralPath $path -AclObject $ownerOnly
+  # Set-Acl with an empty descriptor drops explicit ACEs. Retain the actual
+  # target descriptor before changing Owner, including its existing DACL.
+  $acl=Get-Acl -LiteralPath $path
+  $acl.SetOwner($owner)
+  Set-Acl -LiteralPath $path -AclObject $acl
+}
+function Assert-ApprovedRuntimeDacl([string]$dacl,[Security.Principal.SecurityIdentifier]$owner){
+  $raw=New-Object Security.AccessControl.RawSecurityDescriptor($dacl)
+  if($null -eq $raw.DiscretionaryAcl -or $raw.DiscretionaryAcl.Count -lt 1){throw 'ORIGINAL_DACL_REJECTED'}
+  foreach($ace in $raw.DiscretionaryAcl){
+    if($ace -isnot [Security.AccessControl.CommonAce] -or
+      $ace.SecurityIdentifier.Value -notin @($owner.Value,'S-1-5-18') -or
+      $ace.AceQualifier -notin @([Security.AccessControl.AceQualifier]::AccessAllowed,[Security.AccessControl.AceQualifier]::AccessDenied)){
+      throw 'ORIGINAL_DACL_REJECTED'
+    }
+  }
+}
+function Restore-OriginalRuntimeDacl([string]$path,[Security.Principal.SecurityIdentifier]$owner,[string]$dacl){
+  Assert-ApprovedRuntimeDacl $dacl $owner
+  $acl=Get-Acl -LiteralPath $path
+  $raw=New-Object Security.AccessControl.RawSecurityDescriptor($dacl)
+  if($acl.GetOwner([Security.Principal.SecurityIdentifier]).Value -cne $owner.Value -or
+    $acl.AreAccessRulesProtected -ne [bool]($raw.ControlFlags -band [Security.AccessControl.ControlFlags]::DiscretionaryAclProtected)){
+    throw 'ORIGINAL_DACL_REJECTED'
+  }
+  $acl.SetSecurityDescriptorSddlForm($dacl,[Security.AccessControl.AccessControlSections]::Access)
+  Set-Acl -LiteralPath $path -AclObject $acl
 }
 function Assert-NativeBoundary([string]$path,[bool]$requireOwner){
   $item=Get-Item -LiteralPath $path
@@ -73,6 +97,36 @@ try{
       hash=(Get-FileHash -LiteralPath $paths[$i] -Algorithm SHA256).Hash;
       dacl=$acl.GetSecurityDescriptorSddlForm([Security.AccessControl.AccessControlSections]::Access)}
   }
+  $backupSnapshot=$baseline | ConvertTo-Json -Depth 5 -Compress
+  foreach($entry in $baseline){$entry.currentDacl=$entry.dacl}
+  if($RecoverOriginalDacl){
+    $stage='original-baseline';Write-Host ('OWNER_REPAIR_STAGE='+$stage)
+    if(-not $OriginalBaselinePath){throw 'ORIGINAL_BASELINE_REJECTED'}
+    $originalPath=[IO.Path]::GetFullPath($OriginalBaselinePath)
+    if([IO.Path]::GetDirectoryName($originalPath) -ine $production -or
+      [IO.Path]::GetFileName($originalPath) -notmatch '^runtime-owner-before-[a-f0-9]{32}\.dpapi$'){
+      throw 'ORIGINAL_BASELINE_REJECTED'
+    }
+    $null=Assert-NativeBoundary $originalPath $true
+    $originalSecure=ConvertTo-SecureString ([IO.File]::ReadAllText($originalPath))
+    $originalEntries=@(((New-Object Management.Automation.PSCredential('original',$originalSecure)).GetNetworkCredential().Password) | ConvertFrom-Json)
+    if($originalEntries.Count -ne 2){throw 'ORIGINAL_BASELINE_REJECTED'}
+    foreach($entry in $baseline){
+      $matches=@($originalEntries | Where-Object {$_.surface -ceq $entry.surface -and $_.path -ieq $entry.path})
+      if($matches.Count -ne 1 -or $matches[0].owner -cne 'S-1-5-32-544' -or
+        $matches[0].action -cne 'restore' -or $matches[0].hash -cne $entry.hash -or
+        $entry.owner -cne $identity.User.Value){throw 'ORIGINAL_BASELINE_REJECTED'}
+      Assert-ApprovedRuntimeDacl $matches[0].dacl $identity.User
+      $originalRaw=New-Object Security.AccessControl.RawSecurityDescriptor($matches[0].dacl)
+      $liveAcl=Get-Acl -LiteralPath $entry.path
+      if($liveAcl.AreAccessRulesProtected -ne [bool]($originalRaw.ControlFlags -band [Security.AccessControl.ControlFlags]::DiscretionaryAclProtected)){
+        throw 'ORIGINAL_BASELINE_REJECTED'
+      }
+      $entry.dacl=$matches[0].dacl
+      $entry.action=if($entry.currentDacl -ceq $entry.dacl){'none'}else{'restore-dacl'}
+    }
+    $originalSecure=$null;$originalEntries=$null
+  }
   # Inspect the unchanged current release too: diagnostic, not repair authority.
   $secure=ConvertTo-SecureString ([IO.File]::ReadAllText($paths[0]).Trim())
   $configuration=((New-Object Management.Automation.PSCredential('config',$secure)).GetNetworkCredential().Password) | ConvertFrom-Json
@@ -88,7 +142,7 @@ try{
     $stage='backup';Write-Host ('OWNER_REPAIR_STAGE='+$stage)
     # Unique host-local DPAPI baseline, no existing backup overwritten.
     $backupPath=Join-Path $production ('runtime-owner-before-'+[guid]::NewGuid().ToString('N')+'.dpapi')
-    $encrypted=($baseline | ConvertTo-Json -Depth 5 -Compress) | ConvertTo-SecureString -AsPlainText -Force | ConvertFrom-SecureString
+    $encrypted=$backupSnapshot | ConvertTo-SecureString -AsPlainText -Force | ConvertFrom-SecureString
     $stream=New-Object IO.FileStream($backupPath,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
     $stream.Dispose()
     Restore-RuntimeFileOwner $backupPath $identity.User
@@ -96,16 +150,19 @@ try{
     [IO.File]::WriteAllText($backupPath,$encrypted,(New-Object Text.UTF8Encoding($false)))
     $secure=ConvertTo-SecureString ([IO.File]::ReadAllText($backupPath))
     $plain=(New-Object Management.Automation.PSCredential('baseline',$secure)).GetNetworkCredential().Password
-    if($plain -cne ($baseline | ConvertTo-Json -Depth 5 -Compress)){throw 'BACKUP_REJECTED'}
+    if($plain -cne $backupSnapshot){throw 'BACKUP_REJECTED'}
     $plain=$null;$secure=$null;$encrypted=$null
     $stage='restore';Write-Host ('OWNER_REPAIR_STAGE='+$stage)
     foreach($entry in $baseline){
       $acl=Assert-NativeBoundary $entry.path $false
       if($acl.GetOwner([Security.Principal.SecurityIdentifier]).Value -cne $entry.owner -or
-        $acl.GetSecurityDescriptorSddlForm([Security.AccessControl.AccessControlSections]::Access) -cne $entry.dacl -or
+        $acl.GetSecurityDescriptorSddlForm([Security.AccessControl.AccessControlSections]::Access) -cne $entry.currentDacl -or
         (Get-FileHash -LiteralPath $entry.path -Algorithm SHA256).Hash -cne $entry.hash){throw 'BASELINE_CHANGED'}
       if($entry.action -eq 'restore'){
         Restore-RuntimeFileOwner $entry.path $identity.User
+        $changed+=($entry.surface)
+      }elseif($entry.action -eq 'restore-dacl'){
+        Restore-OriginalRuntimeDacl $entry.path $identity.User $entry.dacl
         $changed+=($entry.surface)
       }
     }
@@ -120,11 +177,11 @@ try{
   }
   Write-Host 'OWNER_REPAIR_STAGE=complete'
   @{version=1;issue=1662;goalIssue=1219;nodeId='zbook';phase=$Phase;sourceRevision=$SourceRevision;readOnly=($Phase -eq 'plan');
-    verified=$true;ownersRestored=($Phase -eq 'apply');contentsPreserved=$true;daclPreserved=$true;taskUnchanged=$true;
+    verified=$true;ownersRestored=($Phase -eq 'apply');originalDaclRecovery=[bool]$RecoverOriginalDacl;contentsPreserved=$true;daclPreserved=$true;taskUnchanged=$true;
     currentReleaseOwnerClass=$releaseOwnerClass;changedSurfaces=$changed;observedAt=[datetimeoffset]::UtcNow.ToString('o')} | ConvertTo-Json -Depth 4 -Compress
 }catch{
   $known=@('OWNER_REJECTED','PATH_REJECTED','DACL_REJECTED','TASK_REJECTED','HEALTH_REJECTED','APPROVAL_REJECTED',
-    'ARTIFACT_REJECTED','ADMIN_REQUIRED','MAIN_CI_REJECTED','BACKUP_REJECTED','BASELINE_CHANGED','VERIFICATION_FAILED')
+    'ORIGINAL_DACL_REJECTED','ORIGINAL_BASELINE_REJECTED','ARTIFACT_REJECTED','ADMIN_REQUIRED','MAIN_CI_REJECTED','BACKUP_REJECTED','BASELINE_CHANGED','VERIFICATION_FAILED')
   $reason=if($_.Exception.Message -in $known){$_.Exception.Message}else{'OWNER_REPAIR_FAILED'}
   @{version=1;issue=1662;nodeId='zbook';phase=$Phase;failedStage=$stage;failureReason=$reason;verified=$false;
     changedSurfaces=$changed;backupRetained=($null -ne $backupPath);observedAt=[datetimeoffset]::UtcNow.ToString('o')} | ConvertTo-Json -Depth 4 -Compress
