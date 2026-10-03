@@ -22,8 +22,20 @@ $fixture=Join-Path ([IO.Path]::GetTempPath()) ('goriq-owner-fixture-'+[guid]::Ne
 $null=New-Item -ItemType Directory -Path $fixture
 $path=Join-Path $fixture 'pointer.bin'
 try{
+  # Reproduce production: protected Owner/SYSTEM parent, inherited entries
+  # plus a file-specific explicit Owner entry. Inherited-only fixtures miss loss.
+  $parentAcl=New-Object Security.AccessControl.DirectorySecurity
+  $parentAcl.SetOwner($identity.User)
+  $parentAcl.SetAccessRuleProtection($true,$false)
+  foreach($sid in @($identity.User,(New-Object Security.Principal.SecurityIdentifier('S-1-5-18')))){
+    $rule=New-Object Security.AccessControl.FileSystemAccessRule($sid,'FullControl','ContainerInherit,ObjectInherit','None','Allow')
+    $parentAcl.AddAccessRule($rule)
+  }
+  Set-Acl -LiteralPath $fixture -AclObject $parentAcl
   [IO.File]::WriteAllBytes($path,[byte[]]@(0,1,128,255,13,10))
   $acl=Get-Acl -LiteralPath $path
+  $explicit=New-Object Security.AccessControl.FileSystemAccessRule($identity.User,'ReadAndExecute','Allow')
+  $acl.AddAccessRule($explicit)
   $acl.SetOwner((New-Object Security.Principal.SecurityIdentifier('S-1-5-32-544')))
   Set-Acl -LiteralPath $path -AclObject $acl
   $beforeHash=(Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash
