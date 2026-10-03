@@ -1,3 +1,4 @@
+import * as pcBootstrap from "../src/jarvis/pc-bootstrap.ts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { spawn } from "node:child_process";
@@ -28,7 +29,7 @@ test("Owner PC proof enrollment preserves signed identity across restart and rej
   seed.save(plane.snapshot()); seed.close();
   const owner = randomUUID(), base = `http://127.0.0.1:${port}`;
   const start = () => spawn(process.execPath, ["scripts/jarvis-broker.ts"], { stdio: "ignore", env: { ...process.env,
-    GITHUB_TOKEN: "", JARVIS_BROKER_HOST: "127.0.0.1", JARVIS_BROKER_PORT: String(port), JARVIS_OWNER_TOKEN: owner,
+    GORIQ_RUNTIME_REVISION: "a".repeat(40), GITHUB_TOKEN: "", JARVIS_BROKER_HOST: "127.0.0.1", JARVIS_BROKER_PORT: String(port), JARVIS_OWNER_TOKEN: owner,
     JARVIS_DB_PATH: db, JARVIS_COMPASS_DB_PATH: join(dir, "compass.sqlite"), JARVIS_PUBLIC_BROKER_URL: "", JARVIS_WORKER_INSTALL_URL: "", JARVIS_WORKER_APK_PATH: "" } });
   let child = start();
   const ready = async () => { for (let i = 0; i < 100; i++) { try { if ((await fetch(base + "/health")).ok) return; } catch { /* bounded startup */ }
@@ -103,6 +104,19 @@ test("Owner PC proof enrollment preserves signed identity across restart and rej
     assert.equal(returned.status, 200);
     assert.equal((await returned.json()).task.status, "completed");
     assert.equal((await fetch(base + "/api/jarvis/worker/pc/result", signed(result, "/api/jarvis/worker/pc/result"))).status, 409);
+
+    assert.equal(typeof pcBootstrap.executeLocalPcWork, "function", "registered PC requires a signed filesystem execution client");
+    const clientWork = { ...work, idempotencyKey: "public-digest-client", content: "Actual file-backed public work" };
+    assert.equal((await post("/api/jarvis/admin/pc-tasks", clientWork)).status, 201);
+    const local = { version: 1 as const, nodeId: "macbook", platform: "macos" as const, algorithm: "ed25519" as const,
+      hostBinding: "fixture", createdAt: new Date().toISOString(), publicKeyPem: input.publicKeyPem,
+      privateKeyPem: keys.privateKey.export({ format: "pem", type: "pkcs8" }).toString() };
+    const execution = await pcBootstrap.executeLocalPcWork({ base, revision: "a".repeat(40), identity: local });
+    assert.equal(execution.status, "completed");
+    assert.equal(execution.signedResultAccepted, true);
+    assert.equal(execution.filesystemExecuted, true);
+    assert.equal(execution.sha256, createHash("sha256").update(clientWork.content).digest("hex"));
+    assert.equal((await pcBootstrap.executeLocalPcWork({ base, revision: "a".repeat(40), identity: local })).status, "idle");
     await stop(); child = start(); await ready();
     const resumed = await fetch(base + "/api/jarvis/worker/heartbeat", signed({ status: "ready" }));
     assert.equal(resumed.status, 200);
