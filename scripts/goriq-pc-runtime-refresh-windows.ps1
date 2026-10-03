@@ -4,7 +4,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $env:PSModulePath=Join-Path $PSHOME 'Modules'
 $OutputEncoding=New-Object System.Text.UTF8Encoding($false)
-$stage='source'; $stopped=$false; $switched=$false; $restored=$false; $pointersRestored=$false
+$stage='source'; Write-Host ('REFRESH_STAGE='+$stage); $stopped=$false; $switched=$false; $restored=$false; $pointersRestored=$false
 $taskName='JARVIS Remote Host'
 $ports=@(3000,8787,8790,8792)
 $revision=$env:GORIQ_PC_APPROVED_REVISION
@@ -17,10 +17,11 @@ $backupRoot=Join-Path $production ('runtime-refresh\'+$revision)
 $node=(Get-Command node.exe -ErrorAction Stop).Source
 
 function Assert-Approval {
-  $approval=Get-Content -LiteralPath (Join-Path $source 'docs\authorizations\1662-pc-enrollment.json') -Raw | ConvertFrom-Json
+  $approval=Get-Content -LiteralPath (Join-Path $source 'docs\authorizations\1662-zbook-runtime-refresh.json') -Raw | ConvertFrom-Json
   $now=[datetimeoffset]::UtcNow
-  if($approval.issue -ne 1662 -or $approval.goalIssue -ne 1219 -or $now -lt [datetimeoffset]::Parse($approval.approvedAt) -or
+  if($approval.version -ne 1 -or $approval.operation -ne 'zbook-runtime-refresh' -or $approval.targets.Count -ne 1 -or $approval.issue -ne 1662 -or $approval.goalIssue -ne 1219 -or $now -lt [datetimeoffset]::Parse($approval.approvedAt) -or
     $now -ge [datetimeoffset]::Parse($approval.expiresAt) -or
+    ([datetimeoffset]::Parse($approval.expiresAt)-[datetimeoffset]::Parse($approval.approvedAt)).TotalHours -gt 24 -or
     @($approval.targets | Where-Object {$_.nodeId -eq 'zbook' -and $_.platform -eq 'windows'}).Count -ne 1){throw 'approval'}
 }
 function Test-KnownReadOnlyRights([long]$rights) {
@@ -93,7 +94,7 @@ function Inspect-State([string]$operation) {
 }
 function Runtime-Process-Facts([string]$root) {
   try {
-    $all=@(Get-CimInstance Win32_Process)
+    $all=@(Get-CimInstance Win32_Process -OperationTimeoutSec 15)
     $nodes=@($all | Where-Object {$_.Name -ieq 'node.exe'})
     $roles=@($nodes | Where-Object {$_.CommandLine -and $_.CommandLine.IndexOf('jarvis-remote-host.mjs',[StringComparison]::OrdinalIgnoreCase) -ge 0})
     $listeners=@(Get-NetTCPConnection -State Listen -LocalPort $ports -ErrorAction SilentlyContinue)
@@ -103,7 +104,7 @@ function Runtime-Process-Facts([string]$root) {
     foreach($p in @($nodes | Select-Object -First 32)){
       $ownerClass='unavailable'; $ownerQueryClass='unavailable'
       try {
-        $owner=Invoke-CimMethod -InputObject $p -MethodName GetOwnerSid -ErrorAction Stop
+        $owner=Invoke-CimMethod -OperationTimeoutSec 15 -InputObject $p -MethodName GetOwnerSid -ErrorAction Stop
         $ownerQueryClass=switch([int]$owner.ReturnValue){0 {'success'} 2 {'access-denied'} 3 {'insufficient-privilege'} default {'unavailable'}}
         if($owner.ReturnValue -eq 0){$ownerClass=if($owner.Sid -eq $identity.User.Value){'current-user'}elseif($owner.Sid -eq 'S-1-5-18'){'system'}else{'other'}}
       }catch{}
@@ -136,7 +137,7 @@ function Runtime-Process-Facts([string]$root) {
   }catch{return @{unavailable=$true}}
 }
 function Get-OwnedTree([string]$root,[bool]$requireHealthy=$true) {
-  $all=@(Get-CimInstance Win32_Process)
+  $all=@(Get-CimInstance Win32_Process -OperationTimeoutSec 15)
   $hosts=@($all | Where-Object {$_.Name -eq 'node.exe' -and $_.CommandLine -and
     $_.CommandLine.Contains($root) -and $_.CommandLine.Contains('jarvis-remote-host.mjs')})
   $listeners=@(Get-NetTCPConnection -State Listen -LocalPort $ports -ErrorAction SilentlyContinue)
@@ -149,7 +150,7 @@ function Get-OwnedTree([string]$root,[bool]$requireHealthy=$true) {
   } while($added.Count -gt 0)
   $tree=@($all | Where-Object {$ids -contains [int]$_.ProcessId})
   foreach($p in $tree){
-    $owner=Invoke-CimMethod -InputObject $p -MethodName GetOwnerSid
+    $owner=Invoke-CimMethod -OperationTimeoutSec 15 -InputObject $p -MethodName GetOwnerSid
     if($owner.ReturnValue -ne 0 -or $owner.Sid -ne $identity.User.Value){throw 'process-owner'}
   }
   if(($requireHealthy -and @($listeners.LocalPort | Select-Object -Unique).Count -ne 4) -or
@@ -165,12 +166,12 @@ function Stop-OwnedTree($tree) {
   Stop-ScheduledTask -TaskName $taskName -ErrorAction Stop
   # Stop only preidentified descendants still carrying the same PID AND creation timestamp.
   foreach($p in @($tree | Sort-Object ProcessId -Descending)){
-    $live=Get-CimInstance Win32_Process -Filter ('ProcessId='+$p.ProcessId) -ErrorAction SilentlyContinue
+    $live=Get-CimInstance Win32_Process -OperationTimeoutSec 15 -Filter ('ProcessId='+$p.ProcessId) -ErrorAction SilentlyContinue
     if($null -eq $live){continue}
     if($live.CreationDate -ne $p.CreationDate -or $live.CommandLine -cne $p.CommandLine){throw 'process-replaced'}
-    $owner=Invoke-CimMethod -InputObject $live -MethodName GetOwnerSid
+    $owner=Invoke-CimMethod -OperationTimeoutSec 15 -InputObject $live -MethodName GetOwnerSid
     if($owner.ReturnValue -ne 0 -or $owner.Sid -ne $identity.User.Value){throw 'process-owner'}
-    $result=Invoke-CimMethod -InputObject $live -MethodName Terminate
+    $result=Invoke-CimMethod -OperationTimeoutSec 15 -InputObject $live -MethodName Terminate
     if($result.ReturnValue -ne 0){throw 'process-permission'}
   }
   for($i=0;$i -lt 10;$i++){
@@ -204,42 +205,45 @@ try {
   & $node (Join-Path $source 'scripts\goriq-pc-approved-source.mjs')
   if($LASTEXITCODE -ne 0){throw 'main-ci'}
   Assert-Approval
-  $stage='installation'
+  $stage='installation'; Write-Host ('REFRESH_STAGE='+$stage)
   $identity=[Security.Principal.WindowsIdentity]::GetCurrent()
+  $principalContext=New-Object Security.Principal.WindowsPrincipal($identity)
+  if($Phase -eq 'apply' -and -not $principalContext.IsInRole(
+    [Security.Principal.WindowsBuiltInRole]::Administrator)){throw 'owner-admin-context'}
   if($Phase -eq 'plan'){
     @{version=1;nodeId='zbook';phase='plan';readOnly=$true;nativePrerequisites=@(
       (Native-File-Facts 'production-directory' $production),(Native-File-Facts 'protected-config' $configPath),
       (Native-File-Facts 'native-launcher' $launcherPath))} | ConvertTo-Json -Depth 7 -Compress
   }
-  $stage='production-directory'; Assert-NativeFile $production
-  $stage='protected-config'; Assert-NativeFile $configPath
-  $stage='native-launcher'; Assert-NativeFile $launcherPath
-  $stage='existing-task'
+  $stage='production-directory'; Write-Host ('REFRESH_STAGE='+$stage); Assert-NativeFile $production
+  $stage='protected-config'; Write-Host ('REFRESH_STAGE='+$stage); Assert-NativeFile $configPath
+  $stage='native-launcher'; Write-Host ('REFRESH_STAGE='+$stage); Assert-NativeFile $launcherPath
+  $stage='existing-task'; Write-Host ('REFRESH_STAGE='+$stage)
   $task=Get-ScheduledTask -TaskName $taskName
   $taskXml=Export-ScheduledTask -TaskName $taskName
   $principal=[string]$task.Principal.UserId
   if($principal -ne $identity.User.Value){$principal=([Security.Principal.NTAccount]$principal).Translate([Security.Principal.SecurityIdentifier]).Value}
   if($principal -ne $identity.User.Value -or $task.Principal.RunLevel -ne 'Limited' -or
     $task.Principal.LogonType -ne 'Password' -or $task.Actions.Count -ne 1 -or $task.State -ne 'Running'){throw 'task'}
-  $stage='compatibility-launcher'
+  $stage='compatibility-launcher'; Write-Host ('REFRESH_STAGE='+$stage)
   $compat=Join-Path $env:LOCALAPPDATA 'JARVIS\production\launch-current.ps1'
   if($task.Actions[0].Execute -notmatch '(?i)\\WindowsPowerShell\\v1\.0\\powershell\.exe$' -or
     -not $task.Actions[0].Arguments.Contains($compat) -or $task.Actions[0].Arguments -notmatch '(?i)RemoteSigned' -or
     -not ([IO.File]::ReadAllText($compat)).Contains($launcherPath)){throw 'compatibility-launcher'}
-  $stage='existing-dpapi'
+  $stage='existing-dpapi'; Write-Host ('REFRESH_STAGE='+$stage)
   $configBytes=[IO.File]::ReadAllBytes($configPath)
   $secure=ConvertTo-SecureString ([IO.File]::ReadAllText($configPath).Trim())
   $plain=(New-Object Management.Automation.PSCredential('config',$secure)).GetNetworkCredential().Password
   $current=$plain | ConvertFrom-Json
-  $stage='existing-release'
+  $stage='existing-release'; Write-Host ('REFRESH_STAGE='+$stage)
   $oldRoot=[IO.Path]::GetFullPath($current.releaseRoot)
   if($current.version -ne 1 -or $current.commit -notmatch '^[a-f0-9]{40}$' -or
     $oldRoot -ine (Join-Path $env:USERPROFILE ('JARVIS\releases\'+$current.commit)) -or $oldRoot -ieq $releaseRoot){throw 'release'}
   Assert-NativeFile $oldRoot
-  $stage='existing-manifest'
+  $stage='existing-manifest'; Write-Host ('REFRESH_STAGE='+$stage)
   $oldManifest=Get-Content -LiteralPath (Join-Path $oldRoot 'jarvis-release.json') -Raw | ConvertFrom-Json
   if($oldManifest.commit -ne $current.commit){throw 'manifest'}
-  $stage='native-launcher-shape'
+  $stage='native-launcher-shape'; Write-Host ('REFRESH_STAGE='+$stage)
   $launcherBytes=[IO.File]::ReadAllBytes($launcherPath)
   $launcher=[IO.File]::ReadAllText($launcherPath)
   # Preserve the entire established launcher including its existing local environment.
@@ -249,7 +253,7 @@ try {
   if($Phase -eq 'plan'){
     # Read-only facts are diagnostic, never authority to stop/select a process.
     @{version=1;nodeId='zbook';phase='plan';readOnly=$true;runtimeProcessFacts=(Runtime-Process-Facts $oldRoot)} | ConvertTo-Json -Depth 7 -Compress
-    $stage='readonly-state'; $before=Inspect-State 'inspect'
+    $stage='readonly-state'; Write-Host ('REFRESH_STAGE='+$stage); $before=Inspect-State 'inspect'
     # Public metadata was already sanitized by the state helper; use a fixed
     # field allowlist so later process failures cannot hide this prerequisite.
     @{version=1;nodeId='zbook';phase='plan';readOnly=$true;runtimeStateFacts=@{
@@ -257,15 +261,17 @@ try {
       identityCount=$before.identityCount;identityDigest=$before.identityDigest;previousRevision=$before.previousRevision;
       revision=$before.revision;observedAt=$before.observedAt}} | ConvertTo-Json -Depth 4 -Compress
   }
-  $stage='existing-process-tree'
+  $stage='existing-process-tree'; Write-Host ('REFRESH_STAGE='+$stage)
   $tree=Get-OwnedTree $oldRoot
-  if($Phase -eq 'apply'){$stage='readonly-state'; $before=Inspect-State 'inspect'}
+  if($Phase -eq 'apply'){$stage='readonly-state'; Write-Host ('REFRESH_STAGE='+$stage); $before=Inspect-State 'inspect'}
   $receipt=@{version=1;issue=1662;goalIssue=1219;nodeId='zbook';phase=$Phase;revision=$revision;
     previousRevision=$current.commit;schemaCompatible=$before.schemaCompatible;quiescent=$before.quiescent;
     androidCount=$before.androidCount;identityCount=$before.identityCount;identityDigest=$before.identityDigest;
     taskUnchanged=$true;nativeLauncherSupported=$true;readOnly=($Phase -eq 'plan');observedAt=[datetimeoffset]::UtcNow.ToString('o')}
   if($Phase -eq 'plan'){$receipt | ConvertTo-Json -Compress;exit 0}
-  $stage='build'
+  $stage='toolchain'; Write-Host ('REFRESH_STAGE='+$stage)
+  if((& node --version).Trim() -ne 'v24.19.0' -or (& pnpm --version).Trim() -ne '11.19.0'){throw 'toolchain'}
+  $stage='build'; Write-Host ('REFRESH_STAGE='+$stage)
   if(Test-Path -LiteralPath $releaseRoot){throw 'immutable-release-exists'}
   New-Item -ItemType Directory -Path $releaseRoot | Out-Null
   $archive=Join-Path $releaseRoot 'source.tar'
@@ -283,7 +289,7 @@ try {
     $manifestJson=@{version=1;commit=$revision;issue=1662;builtAt=[datetimeoffset]::UtcNow.ToString('o')} | ConvertTo-Json -Compress
     [IO.File]::WriteAllText((Join-Path $releaseRoot 'jarvis-release.json'),$manifestJson,(New-Object Text.UTF8Encoding($false)))
   }finally{Pop-Location}
-  $stage='prepare'
+  $stage='prepare'; Write-Host ('REFRESH_STAGE='+$stage)
   Assert-Approval
   & $node (Join-Path $source 'scripts\goriq-pc-approved-source.mjs')
   if($LASTEXITCODE -ne 0){throw 'main-ci'}
@@ -301,7 +307,7 @@ try {
   $launcher | ConvertTo-SecureString -AsPlainText -Force | ConvertFrom-SecureString |
     Set-Content -LiteralPath (Join-Path $backupRoot 'launcher-before.dpapi')
   $encoded=$candidate | ConvertTo-SecureString -AsPlainText -Force | ConvertFrom-SecureString
-  $stage='quiesce'
+  $stage='quiesce'; Write-Host ('REFRESH_STAGE='+$stage)
   $tree=Get-OwnedTree $oldRoot
   $stopped=$true
   Stop-OwnedTree $tree
@@ -309,12 +315,12 @@ try {
   if($quiescent.identityDigest -ne $prepared.identityDigest -or $quiescent.fleetDigest -ne $prepared.fleetDigest -or $quiescent.tasksDigest -ne $prepared.tasksDigest -or
     $quiescent.compassDigest -ne $prepared.compassDigest){throw 'state-changed'}
   Assert-Approval
-  $stage='activate';$switched=$true
+  $stage='activate'; Write-Host ('REFRESH_STAGE='+$stage);$switched=$true
   Replace-Bytes $configPath ([Text.Encoding]::UTF8.GetBytes($encoded))
   # PowerShell 5.1 requires UTF8 BOM to preserve existing Unicode path/environment literals.
   Replace-Bytes $launcherPath ([byte[]]([Text.Encoding]::UTF8.GetPreamble()+[Text.Encoding]::UTF8.GetBytes($nextLauncher)))
   Start-ScheduledTask -TaskName $taskName
-  $stage='verify'
+  $stage='verify'; Write-Host ('REFRESH_STAGE='+$stage)
   Wait-Health $revision
   $candidateTree=Get-OwnedTree $releaseRoot
   $after=Inspect-State 'inspect'
@@ -323,14 +329,16 @@ try {
     (Export-ScheduledTask -TaskName $taskName) -cne $taskXml){throw 'verification'}
   $receipt.runtimeExact=$true;$receipt.identityPreserved=$true;$receipt.schemaPreserved=$true
   $receipt.observedAt=[datetimeoffset]::UtcNow.ToString('o')
+  Write-Host 'REFRESH_STAGE=complete'
   $receipt | ConvertTo-Json -Compress
 }catch {
   $safeReasons=@('approval','path','owner','private-acl','task','compatibility-launcher','release','manifest','launcher-shape',
     'host','process-owner','listeners','process-replaced','process-permission','ports-busy','source','main-ci','state',
     'immutable-release-exists','archive','archive-extract','toolchain','install','build','baseline-changed','candidate','state-changed',
-    'health','verification','rollback-listeners')
+    'health','verification','rollback-listeners','owner-admin-context')
   $failureReason=if($safeReasons -contains $_.Exception.Message){$_.Exception.Message}else{'unexpected-prerequisite-error'}
   if($stopped){
+    Write-Host 'REFRESH_STAGE=rollback'
     try {
       if($switched){
         try {
