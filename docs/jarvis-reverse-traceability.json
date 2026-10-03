@@ -959,7 +959,7 @@
     },
     {
       "path": "scripts/jarvis-broker.ts",
-      "sha256": "6543b582111b62268bb452370a834dbe2bc5be4677ef6fd4a95b928285024005",
+      "sha256": "a81a021ddf3580da18603f3580faad6cff3dc385844c0d8a15b80ceb49b95984",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "NET-003",
@@ -3965,7 +3965,7 @@
     },
     {
       "path": "src/jarvis/pc-bootstrap.ts",
-      "sha256": "b40352f275299888ec9efe32c5cefef2ab89175dcb9466e59f4f5af810166878",
+      "sha256": "4dccdb1eedfd710e2aeb5bdf7818744bceeb2924b65a6044843102e10b483f45",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "FLEET-001",
@@ -5962,7 +5962,7 @@
         "CORE-019"
       ],
       "reason": "Registered PC filesystem work reuses signed Broker transport and fenced DurableTaskRuntime; physical assignment and distributed recovery remain unverified.",
-      "sha256": "43ad991f5402cd7d3ee20526d415ab14d34b483fbafd42780f07c21158512ce1"
+      "sha256": "dea452317e2899b7556657a65f13217f01825acb478cf62ac05997defd601642"
     }
   ],
   "hash_policy": "utf8-crlf-to-lf-v1;binary-raw"
