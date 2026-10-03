@@ -3,9 +3,9 @@
 PROJECT: General Autonomous AI / Unified AI Creator Studio / GAI Research OS
 AI_COMPANY_VERSION: 1.0
 PROJECT_VERSION: 0.0.0
-CURRENT_PHASE: #1219/#1662 GORIQ body completion; Nubia deferred. main23bd37f exact CI and physical ZBook runtime refresh PASS; release/config/launcher Owner and DACL recovery PASS. PC enrollment37129146005 attempt2 Mac+ZBook signed heartbeat PASS, existing keys reused and Android38 retained. PR1692 connects filesystem-only registered PCs to signed Broker transport and existing fenced DurableTaskRuntime; regression RED reproduced missing route and missing client. Implementation/CI in progress, no physical task or offline/reconnect/failover/rebalance PASS yet; GORIQ and Stage C incomplete.
+CURRENT_PHASE: #1219/#1662 GORIQ body completion; Nubia owner-deferred. main390f6f6 exact CI and both PC runtime activation PASS; registered MacBook/ZBook signed public filesystem task workflow37146761396 PASS, original Android38 and identities preserved. Next bounded fix connects pending PC placement to existing Capability Fabric with capacity reservations; implementation tests pass, independent review and full checks pending. Cross-host production sync/coordinator loss/offline/reconnect/failover/rebalance remain unverified; GORIQ and Stage C incomplete.
 STATUS: JARVIS_PRODUCT_COMPLETION_IN_PROGRESS
-LAST_UPDATED: 2026-10-03
+LAST_UPDATED: 2026-10-04
 CURRENT_EPIC: One-front-door general autonomous AI with no permanent main PC, durable offline-first distributed execution, self-complementing nodes and verifier-driven completion
 ACTIVE_ISSUES: #1219/#1662 approved PC enrollment and existing ZBook runtime prerequisite recovery; #1216 local Primary Brain and unified learning; #681/#882 product completion; #1207/#1192 physical acceptance; #321 separate
 OPEN_PRS: #1217 draft/unmerged; 44750d2 CI1860 SUCCESS; Windows1673/P8331/lint/build/browser/independent61 PASS. #1214/#1215 UI provisionally accepted; #1208/#1195/#883/#884 physical-facing holds unchanged

@@ -5962,7 +5962,7 @@
         "CORE-019"
       ],
       "reason": "Registered PC filesystem work reuses signed Broker transport and fenced DurableTaskRuntime; physical assignment and distributed recovery remain unverified.",
-      "sha256": "660f9d1fd297fbdb23c71e97a5f89b32141798016f668f195646812b422536f5"
+      "sha256": "daa24009dc8bb181b4d8e115b7869a4c2a06b6c9da358a41ff8d4f66fc971778"
     }
   ],
   "hash_policy": "utf8-crlf-to-lf-v1;binary-raw"

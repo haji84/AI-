@@ -3,6 +3,8 @@ import { isDeepStrictEqual } from "node:util";
 import { DurableTaskRuntime, type DurableTask, type DurableTaskExecutionClaim } from "../gai/durable-task-runtime.ts";
 import { verifyContextCapsule, type ExecutionContextCapsule } from "../orchestrator/execution-context-capsule.ts";
 import type { JarvisNode } from "./types.ts";
+import { governedFabricDispatch } from "../orchestrator/governed-fabric-dispatch.ts";
+import type { FabricNode } from "../orchestrator/capability-fabric-router.ts";
 
 export const PC_PUBLIC_DIGEST = "pc-public-file-sha256";
 export class PcWorkConflict extends Error {}
@@ -85,12 +87,49 @@ export class PcDurableWork {
       if (active.status === "leased") await this.runtime.markRunningClaimed(claim, now);
       return { task: (await this.runtime.get(active.id))!, claim };
     }
+    const placements = this.pendingPlacements(tasks, now);
     const task = tasks.filter(t => ["queued", "retrying"].includes(t.status) && eligible(t) &&
-      (!t.nextAttemptAt || Date.parse(t.nextAttemptAt) <= now.getTime())).sort((a, b) => a.createdAt.localeCompare(b.createdAt))[0];
+      (!t.nextAttemptAt || Date.parse(t.nextAttemptAt) <= now.getTime()))
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id))
+      .find(t => placements.get(t.id) === node.id);
     if (!task) return { task: null };
     const claim = await this.runtime.leaseClaimWithCapacity(task.id, node.id, 1, 120000, now);
     const running = await this.runtime.markRunningClaimed(claim, now);
     return { task: running, claim };
+  }
+  private pendingPlacements(tasks: DurableTask[], now: Date): Map<string, string> {
+    const placements = new Map<string, string>();
+    const occupied = new Set(tasks.filter(t => ["leased", "running"].includes(t.status) &&
+      Date.parse(t.leaseUntil ?? "") > now.getTime()).map(t => t.leaseOwner));
+    const pending = tasks.filter(t => ["queued", "retrying"].includes(t.status) &&
+      (!t.nextAttemptAt || Date.parse(t.nextAttemptAt) <= now.getTime()))
+      .sort((a, b) => Number(Boolean(inputOf(b).targetNodeId)) - Number(Boolean(inputOf(a).targetNodeId)) ||
+        a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
+    for (const task of pending) {
+      const selected = this.selectExecutor(task, occupied, now);
+      if (selected) { placements.set(task.id, selected); occupied.add(selected); }
+    }
+    return placements;
+  }
+  private selectExecutor(task: DurableTask, occupied: Set<string | undefined>, now: Date): string | undefined {
+    const work = inputOf(task);
+    const candidates: FabricNode[] = this.nodes().flatMap(node => {
+      try { assertPcExecutor(node, work.goalIssue); } catch { return []; }
+      if (work.targetNodeId && node.id !== work.targetNodeId) return [];
+      const lastSeen = Date.parse(node.lastSeenAt);
+      const available = ["ready", "busy"].includes(node.status) && !occupied.has(node.id) &&
+        Number.isFinite(lastSeen) && lastSeen <= now.getTime() + 5000 && now.getTime() - lastSeen <= 300000;
+      // Fabric online means this execution route is reachable. Public Internet
+      // availability is not required for an authenticated local filesystem job.
+      // Fixed ranking defaults below are policy weights, not fabricated metrics.
+      return [{ id: node.id, kind: "device", capabilities: node.capabilities.filter(c => node.pcAuthority!.capabilityCeiling.includes(c)),
+        online: available, healthy: node.telemetry.cpuAvailable !== false && node.telemetry.thermalState !== "critical",
+        privacy: "local-only", incrementalCost: 0, latencyMs: 0, reliability: 1, evidenceModes: ["DEVICE"] }];
+    });
+    const result = governedFabricDispatch({ capsule: work.capsule,
+      job: { id: task.id, requiredCapabilities: ["filesystem"], privacy: "public", freshness: "static",
+        risk: "low", evidenceMode: "DEVICE", maxIncrementalCost: 0 }, nodes: candidates });
+    return result.gate === "PASS" ? result.route.node?.id : undefined;
   }
   async complete(nodeId: string, value: unknown, now = new Date()): Promise<DurableTask> {
     const input = value as { taskId: string; claim: DurableTaskExecutionClaim; detail: { sha256: string; bytes: number } };
