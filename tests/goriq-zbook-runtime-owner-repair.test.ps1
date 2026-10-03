@@ -5,7 +5,7 @@ if(-not (Test-Path -LiteralPath $source)){throw 'owner-repair-helper-missing'}
 $tokens=$null;$errors=$null
 $ast=[Management.Automation.Language.Parser]::ParseFile($source,[ref]$tokens,[ref]$errors)
 if($errors.Count){throw 'owner-repair-parse'}
-foreach($name in @('Select-RuntimeOwnerAction','Restore-RuntimeFileOwner')){
+foreach($name in @('Select-RuntimeOwnerAction','Restore-RuntimeFileOwner','Assert-ApprovedRuntimeDacl','Restore-OriginalRuntimeDacl')){
   $definition=$ast.Find({param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq $name},$true)
   if($null -eq $definition){throw 'owner-repair-function-missing'}
   Invoke-Expression $definition.Extent.Text
@@ -46,5 +46,19 @@ try{
   if($after.GetSecurityDescriptorSddlForm([Security.AccessControl.AccessControlSections]::Access) -cne $beforeDacl){throw 'dacl-changed'}
   if((Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash -cne $beforeHash){throw 'bytes-changed'}
   Restore-RuntimeFileOwner $path $identity.User
+  # Recover the exact approved pre-repair DACL after a simulated lost explicit ACE.
+  $acl=Get-Acl -LiteralPath $path
+  $acl.RemoveAccessRuleSpecific($explicit)
+  Set-Acl -LiteralPath $path -AclObject $acl
+  if((Get-Acl -LiteralPath $path).GetSecurityDescriptorSddlForm([Security.AccessControl.AccessControlSections]::Access) -ceq $beforeDacl){throw 'lost-ace-fixture-not-reproduced'}
+  Restore-OriginalRuntimeDacl $path $identity.User $beforeDacl
+  $after=Get-Acl -LiteralPath $path
+  if($after.GetSecurityDescriptorSddlForm([Security.AccessControl.AccessControlSections]::Access) -cne $beforeDacl){throw 'original-dacl-not-restored'}
+  if($after.GetOwner([Security.Principal.SecurityIdentifier]).Value -cne $identity.User.Value){throw 'owner-changed-during-dacl-recovery'}
+  if((Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash -cne $beforeHash){throw 'bytes-changed-during-dacl-recovery'}
+  $rejected=$false
+  try{Restore-OriginalRuntimeDacl $path $identity.User 'D:(A;;FA;;;WD)'}catch{$rejected=$true}
+  if(-not $rejected){throw 'unapproved-dacl-accepted'}
+  if((Get-Acl -LiteralPath $path).GetSecurityDescriptorSddlForm([Security.AccessControl.AccessControlSections]::Access) -cne $beforeDacl){throw 'rejected-dacl-mutated-target'}
   Write-Output 'Runtime owner restoration/rejection/idempotency/content/DACL fixtures PASS'
 }finally{Remove-Item -LiteralPath $fixture -Recurse -Force}
