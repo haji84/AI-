@@ -63,7 +63,8 @@ export class PcDurableWork {
     if (!isDeepStrictEqual(task.payload, input)) throw new PcWorkConflict("PC_IDEMPOTENCY_CONFLICT");
     return task;
   }
-  async next(nodeId: string, now = new Date()): Promise<{ task: DurableTask | null; claim?: DurableTaskExecutionClaim }> {
+  async next(nodeId: string, now = new Date(), taskId?: string): Promise<{ task: DurableTask | null; claim?: DurableTaskExecutionClaim }> {
+    if (taskId !== undefined && (typeof taskId !== "string" || !/^[A-Za-z0-9._-]{1,100}$/.test(taskId))) throw new PcWorkConflict("PC_TASK_ID_REJECTED");
     const node = assertPcExecutor(this.nodes().find(n => n.id === nodeId));
     if (!["ready", "busy"].includes(node.status) || !Number.isFinite(Date.parse(node.lastSeenAt)) ||
       now.getTime() - Date.parse(node.lastSeenAt) > 300000 || Date.parse(node.lastSeenAt) > now.getTime() + 5000) {
@@ -72,11 +73,12 @@ export class PcDurableWork {
     await this.runtime.reclaimExpiredLeases(now);
     const eligible = (task: DurableTask) => {
       const input = inputOf(task);
-      return input.goalIssue === node.pcAuthority!.goalIssue && (!input.targetNodeId || input.targetNodeId === node.id);
+      return (!taskId || task.id === taskId) && input.goalIssue === node.pcAuthority!.goalIssue && (!input.targetNodeId || input.targetNodeId === node.id);
     };
     const tasks = (await this.runtime.list()).filter(t => t.type === PC_PUBLIC_DIGEST);
     const active = tasks.find(t => ["leased", "running"].includes(t.status) && t.leaseOwner === node.id);
     if (active) {
+      if (taskId && active.id !== taskId) return { task: null };
       if (!eligible(active)) throw new PcWorkConflict("PC_TASK_AUTHORITY_CHANGED");
       const claim = { taskId: active.id, owner: node.id, epoch: active.executionEpoch,
         fencingToken: active.fencingToken!, leaseUntil: active.leaseUntil! };
