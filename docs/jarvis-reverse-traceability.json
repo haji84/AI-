@@ -4060,7 +4060,7 @@
     },
     {
       "path": "src/jarvis/private-worker-ingress.ts",
-      "sha256": "2ce7eb8626845db94b204bce4f8e4b252da7b691df8e7fe267fe94bcf95e3f0d",
+      "sha256": "01ed01d159ffcdaaf139380ba9b7c16d7f0bf735fbd2fef7e6d6f632431cdd28",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "FLEET-003",

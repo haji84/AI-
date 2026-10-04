@@ -4,6 +4,8 @@ import test from "node:test";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { createServer } from "node:net";
+import { createServer as httpServer } from "node:http";
+import { privateWorkerHandler } from "../src/jarvis/private-worker-ingress.ts";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { JarvisSqliteStateStore } from "../src/jarvis/sqlite-state-store.ts";
 import { JarvisControlPlane } from "../src/jarvis/control-plane.ts";
@@ -32,6 +34,12 @@ test("Owner PC proof enrollment preserves signed identity across restart and rej
     GORIQ_RUNTIME_REVISION: "a".repeat(40), GITHUB_TOKEN: "", JARVIS_BROKER_HOST: "127.0.0.1", JARVIS_BROKER_PORT: String(port), JARVIS_OWNER_TOKEN: owner,
     JARVIS_DB_PATH: db, JARVIS_COMPASS_DB_PATH: join(dir, "compass.sqlite"), JARVIS_PUBLIC_BROKER_URL: "", JARVIS_WORKER_INSTALL_URL: "", JARVIS_WORKER_APK_PATH: "" } });
   let child = start();
+  // Loopback transport fixture exercises the real allowlist/header relay and Broker auth.
+  // Certificate/hostname verification is covered separately by the TLS ingress fixture.
+  const ingress = httpServer(privateWorkerHandler(port));
+  ingress.listen(0, "127.0.0.1");
+  await once(ingress, "listening");
+  const workerBase = `http://127.0.0.1:${(ingress.address() as { port: number }).port}`;
   const ready = async () => { for (let i = 0; i < 100; i++) { try { if ((await fetch(base + "/health")).ok) return; } catch { /* bounded startup */ }
     await new Promise(r => setTimeout(r, 50)); } assert.fail("Broker startup unavailable"); };
   const stop = async () => { const done = once(child, "exit"); child.kill(); await done; };
@@ -91,21 +99,36 @@ test("Owner PC proof enrollment preserves signed identity across restart and rej
     const duplicate = await post("/api/jarvis/admin/pc-tasks", work);
     assert.equal((await duplicate.json()).task.id, durable.id);
     assert.equal((await post("/api/jarvis/admin/pc-tasks", { ...work, content: "changed input" })).status, 409);
-    const unrelated = await fetch(base + "/api/jarvis/worker/pc/next", signed({ taskId: "pc-unrelated" }, "/api/jarvis/worker/pc/next"));
+    const nextPath = "/api/jarvis/worker/pc/next";
+    assert.equal((await fetch(workerBase + nextPath, { method: "POST", body: "{}",
+      headers: { Authorization: `Bearer ${owner}`, Cookie: "owner-session" } })).status, 401,
+      "private ingress must not turn Owner credentials into worker authority");
+    const unknown = signed({}, nextPath);
+    unknown.headers["X-Jarvis-Node-Id"] = "unregistered-pc";
+    assert.equal((await fetch(workerBase + nextPath, unknown)).status, 401);
+    const tampered = signed({}, nextPath);
+    tampered.body = '{"taskId":"tampered"}';
+    assert.equal((await fetch(workerBase + nextPath, tampered)).status, 401);
+    assert.equal((await fetch(workerBase + "/api/jarvis/admin/pc-tasks", { method: "POST", body: "{}",
+      headers: { Authorization: `Bearer ${owner}` } })).status, 404);
+    const unrelated = await fetch(workerBase + "/api/jarvis/worker/pc/next", signed({ taskId: "pc-unrelated" }, "/api/jarvis/worker/pc/next"));
     assert.equal((await unrelated.json()).task, null, "bounded client must not claim an unrelated task");
-    const next = await fetch(base + "/api/jarvis/worker/pc/next", signed({ taskId: durable.id }, "/api/jarvis/worker/pc/next"));
+    const next = await fetch(workerBase + "/api/jarvis/worker/pc/next", signed({ taskId: durable.id }, "/api/jarvis/worker/pc/next"));
     assert.equal(next.status, 200);
     const assignment = await next.json();
     assert.equal(assignment.task.id, durable.id);
     assert.equal(assignment.claim.owner, "macbook");
     const result = { taskId: durable.id, claim: assignment.claim, detail: {
       sha256: createHash("sha256").update(work.content).digest("hex"), bytes: Buffer.byteLength(work.content) } };
-    assert.equal((await fetch(base + "/api/jarvis/worker/pc/result",
+    assert.equal((await fetch(workerBase + "/api/jarvis/worker/pc/result",
       signed({ ...result, claim: { ...assignment.claim, epoch: assignment.claim.epoch + 1 } }, "/api/jarvis/worker/pc/result"))).status, 409);
-    const returned = await fetch(base + "/api/jarvis/worker/pc/result", signed(result, "/api/jarvis/worker/pc/result"));
+    const resultRequest = signed(result, "/api/jarvis/worker/pc/result");
+    const returned = await fetch(workerBase + "/api/jarvis/worker/pc/result", resultRequest);
     assert.equal(returned.status, 200);
     assert.equal((await returned.json()).task.status, "completed");
-    assert.equal((await fetch(base + "/api/jarvis/worker/pc/result", signed(result, "/api/jarvis/worker/pc/result"))).status, 409);
+    assert.equal((await fetch(workerBase + "/api/jarvis/worker/pc/result", resultRequest)).status, 401,
+      "identical signed result replay must fail through ingress");
+    assert.equal((await fetch(workerBase + "/api/jarvis/worker/pc/result", signed(result, "/api/jarvis/worker/pc/result"))).status, 409);
 
     assert.equal(typeof pcBootstrap.executeLocalPcWork, "function", "registered PC requires a signed filesystem execution client");
     const clientWork = { ...work, idempotencyKey: "public-digest-client", content: "Actual file-backed public work" };
@@ -132,5 +155,10 @@ test("Owner PC proof enrollment preserves signed identity across restart and rej
       assert.equal(persisted.listWorkerIdentities().length, 39);
       for (let n = 0; n < 38; n++) assert.equal(persisted.getWorkerIdentity(`android-fixture-${n}`)?.publicKeyPem, "original-public-fixture");
     } finally { persisted.close(); }
-  } finally { if (child.exitCode === null) await stop(); await rm(dir, { recursive: true, force: true }); }
+  } finally {
+    ingress.closeAllConnections();
+    await new Promise<void>(resolve => ingress.close(() => resolve()));
+    if (child.exitCode === null) await stop();
+    await rm(dir, { recursive: true, force: true });
+  }
 });

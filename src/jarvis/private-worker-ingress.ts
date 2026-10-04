@@ -15,6 +15,7 @@ const workerPaths = new Set([
   "/api/jarvis/enrollment-request",
   "/api/jarvis/worker/heartbeat", "/api/jarvis/worker/next", "/api/jarvis/worker/result",
   "/api/jarvis/worker/remote/next", "/api/jarvis/worker/remote/result",
+  "/api/jarvis/worker/pc/next", "/api/jarvis/worker/pc/result",
 ]);
 
 export function allowedPrivateWorkerRequest(method: string, path: string): boolean {
