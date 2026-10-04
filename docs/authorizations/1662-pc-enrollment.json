@@ -2,8 +2,8 @@
   "version": 1,
   "issue": 1662,
   "goalIssue": 1219,
-  "approvedAt": "2026-10-03T08:53:04Z",
-  "expiresAt": "2026-10-04T08:53:04Z",
+  "approvedAt": "2026-10-04T14:49:15Z",
+  "expiresAt": "2026-10-05T14:49:15Z",
   "targets": [{ "nodeId": "macbook", "platform": "macos" }, { "nodeId": "zbook", "platform": "windows" }],
   "roles": ["Executor", "Storage", "Verifier", "Coordinator"]
 }
