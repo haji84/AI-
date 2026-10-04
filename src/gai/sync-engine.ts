@@ -1,5 +1,6 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
+import { isDeepStrictEqual } from "node:util";
 
 export type SyncEntityType = "goal" | "task" | "result" | "change-set" | "memory" | "skill" | "evidence" | "coordinator" | "log";
 export type SyncState = "local-only" | "pending-push" | "synced" | "conflicted";
@@ -237,6 +238,57 @@ function resolveCoordinatorRecords(local: SyncRecord, remote: SyncRecord): Merge
   return coordinatorConflict(local, remote, "same coordinator claim has incompatible replica state");
 }
 
+
+/** Execution metadata is authoritative over causal clocks and verifier ranking.
+ * These are replica reconciliation rules, not a lease/consensus authority.
+ */
+function resolveDurableTaskRecords(local: SyncRecord, remote: SyncRecord): MergeDecision | null {
+  if (local.entityType !== "task") return null;
+  const object = (value: unknown): Record<string, unknown> | null =>
+    value !== null && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
+  const left = object(local.value), right = object(remote.value);
+  if (!(left && "executionEpoch" in left) && !(right && "executionEpoch" in right)) return null;
+  const conflict = (reason: string) => coordinatorConflict(local, remote, reason);
+  if (!left || !right) return conflict("invalid durable task execution metadata");
+  const valid = (value: Record<string, unknown>) => typeof value.id === "string" && !!value.id.trim()
+    && typeof value.idempotencyKey === "string" && !!value.idempotencyKey.trim()
+    && Number.isSafeInteger(value.executionEpoch) && (value.executionEpoch as number) >= 0
+    && (!(value.status === "completed" || value.status === "ready-to-publish") || (value.executionEpoch as number) > 0)
+    && typeof value.status === "string"
+    && ["queued", "waiting-dependency", "leased", "running", "waiting-connectivity", "waiting-resource",
+      "ready-to-publish", "retrying", "completed", "failed", "cancelled"].includes(value.status);
+  if (!valid(left) || !valid(right)) return conflict("invalid durable task execution metadata");
+  for (const field of ["id", "idempotencyKey", "type", "payload", "migrationClass", "pinnedNodeId", "requiredCapabilities", "dependsOn", "maxAttempts"]) {
+    if (!isDeepStrictEqual(left[field], right[field])) return conflict("durable task identity or immutable input mismatch");
+  }
+  const active = (value: Record<string, unknown>) => value.status === "leased" || value.status === "running";
+  const validClaim = (value: Record<string, unknown>) => !active(value) || (
+    (value.executionEpoch as number) > 0 && typeof value.leaseOwner === "string" && !!value.leaseOwner.trim()
+    && typeof value.fencingToken === "string" && !!value.fencingToken.trim()
+    && typeof value.leaseUntil === "string" && Number.isFinite(Date.parse(value.leaseUntil)));
+  if (!validClaim(left) || !validClaim(right)) return conflict("invalid durable task execution claim");
+  if (left.executionEpoch !== right.executionEpoch) {
+    const winner = (left.executionEpoch as number) > (right.executionEpoch as number) ? local : remote;
+    return { kind: winner === local ? "local" : "remote", record: cloneRecord(winner),
+      reason: "higher durable task execution epoch fences stale replica" };
+  }
+  if (active(left) && active(right) &&
+    (left.leaseOwner !== right.leaseOwner || left.fencingToken !== right.fencingToken)) {
+    return conflict("same durable task epoch has conflicting owner or fencing token");
+  }
+  const terminal = (value: Record<string, unknown>) => ["completed", "failed", "cancelled"].includes(value.status as string);
+  if (terminal(left) && terminal(right) &&
+    (left.status !== right.status || !isDeepStrictEqual(left.result, right.result) || !isDeepStrictEqual(left.error, right.error))) {
+    return conflict("same durable task epoch has incompatible terminal outcomes");
+  }
+  if (terminal(left) !== terminal(right)) {
+    const relation = compareClocks(local.clock, remote.clock);
+    const terminalDominates = terminal(left) ? relation === "local-dominates" : relation === "remote-dominates";
+    if (!terminalDominates) return conflict("same durable task epoch terminal state requires causal reconciliation");
+  }
+  return null;
+}
+
 export function resolveSyncRecords(local: SyncRecord, remote: SyncRecord): MergeDecision {
   assertRecord(local);
   assertRecord(remote);
@@ -246,6 +298,9 @@ export function resolveSyncRecords(local: SyncRecord, remote: SyncRecord): Merge
 
   const coordinatorDecision = resolveCoordinatorRecords(local, remote);
   if (coordinatorDecision) return coordinatorDecision;
+
+  const taskDecision = resolveDurableTaskRecords(local, remote);
+  if (taskDecision) return taskDecision;
 
   const relation = compareClocks(local.clock, remote.clock);
   if (relation === "local-dominates") {
