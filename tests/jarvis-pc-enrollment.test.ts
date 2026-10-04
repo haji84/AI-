@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { generateKeyPairSync, sign } from "node:crypto";
+import * as pcApproval from "../src/jarvis/pc-enrollment.ts";
 import { PcEnrollmentService, type PcEnrollmentApproval } from "../src/jarvis/pc-enrollment.ts";
 
 const now = new Date("2026-10-01T11:18:17Z");
@@ -50,4 +51,31 @@ test("missing, expired, overlong or privileged approval cannot authorize enrollm
     { ...scope, approvedAt: "2026-10-02T11:18:17Z" }]) {
     assert.throws(() => new PcEnrollmentService(approval as PcEnrollmentApproval).offer(input, now));
   }
+});
+
+test("explicit same-scope renewal accepts expired local approval and remains idempotent", () => {
+  assert.equal(typeof pcApproval.validatePcApprovalRenewal, "function");
+  const currentTime = new Date("2026-10-04T15:00:00Z");
+  const renewed = { ...scope, approvedAt: "2026-10-04T14:49:15Z", expiresAt: "2026-10-05T14:49:15Z" };
+  assert.deepEqual(pcApproval.validatePcApprovalRenewal(scope, renewed, currentTime), renewed);
+  assert.deepEqual(pcApproval.validatePcApprovalRenewal(renewed, renewed, currentTime), renewed);
+});
+
+test("local approval renewal rejects changed scope invalid baselines and expired or regressive grants", () => {
+  assert.equal(typeof pcApproval.validatePcApprovalRenewal, "function");
+  const currentTime = new Date("2026-10-04T15:00:00Z");
+  const renewed = { ...scope, approvedAt: "2026-10-04T14:49:15Z", expiresAt: "2026-10-05T14:49:15Z" };
+  for (const changed of [
+    { ...renewed, issue: 1663 }, { ...renewed, goalIssue: 681 },
+    { ...renewed, targets: [...renewed.targets, { nodeId: "other", platform: "linux" }] },
+    { ...renewed, roles: ["Executor"] }, { ...renewed, roles: ["Owner"] },
+    { ...renewed, expiresAt: "2026-10-06T14:49:15Z" }, { ...renewed, approvedAt: "2026-10-05T14:49:15Z" },
+    scope,
+  ]) assert.throws(() => pcApproval.validatePcApprovalRenewal(scope, changed, currentTime));
+  for (const old of [undefined, { ...scope, expiresAt: scope.approvedAt }, { ...scope, roles: ["Owner"] },
+    { ...scope, extraAuthority: true }]) {
+    assert.throws(() => pcApproval.validatePcApprovalRenewal(old, renewed, currentTime));
+  }
+  const laterLocal = { ...renewed, approvedAt: "2026-10-04T14:55:15Z", expiresAt: "2026-10-05T14:55:15Z" };
+  assert.throws(() => pcApproval.validatePcApprovalRenewal(laterLocal, renewed, currentTime));
 });
