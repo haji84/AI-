@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
-import test from "node:test";
-import { chmod, link, mkdtemp, readFile, rm, stat, symlink, writeFile } from "node:fs/promises";
+import test, { mock } from "node:test";
+import { chmod, link, mkdtemp, open, readFile, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { generateKeyPairSync, sign } from "node:crypto";
@@ -166,5 +166,31 @@ test("overlapping approval renewals cannot overwrite or roll back another succes
     assert.deepEqual(JSON.parse(await readFile(path, "utf8")), renewedScope);
     assert.equal(await pcApproval.renewPcApprovalFile({ path, approval: renewedScope, now: renewalTime,
       backup: async () => { throw new Error("UNEXPECTED_BACKUP"); } }), false);
+  });
+});
+
+test("partial write failure restores original approval bytes while holding the renewal lock", async () => {
+  await approvalFixture(async (path, _directory, original) => {
+    const probe = await open(path, "r+");
+    const prototype = Object.getPrototypeOf(probe) as { write: (...args: unknown[]) => Promise<unknown> };
+    const write = prototype.write;
+    await probe.close();
+    let inject = true, backedUp = false;
+    const mocked = mock.method(prototype, "write", async function(this: unknown, ...args: unknown[]) {
+      if (inject) {
+        inject = false;
+        await Reflect.apply(write, this, [Buffer.from("partial"), 0, 7, 0]);
+        throw new Error("INJECTED_WRITE_FAILURE");
+      }
+      return Reflect.apply(write, this, args);
+    });
+    try {
+      await assert.rejects(pcApproval.renewPcApprovalFile({ path, approval: renewedScope, now: renewalTime,
+        backup: async text => { assert.equal(text, original); backedUp = true; } }), /INJECTED_WRITE_FAILURE/);
+      assert.equal(backedUp, true);
+      assert.equal(await readFile(path, "utf8"), original);
+    } finally { mocked.mock.restore(); }
+    assert.equal(await pcApproval.renewPcApprovalFile({ path, approval: renewedScope, now: renewalTime,
+      backup: async () => {} }), true);
   });
 });
