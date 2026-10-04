@@ -1,5 +1,5 @@
 import { createHash, createPublicKey, randomUUID, verify } from "node:crypto";
-import { lstat, open } from "node:fs/promises";
+import { lstat, mkdir, open, rmdir } from "node:fs/promises";
 import { dirname } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import type { JarvisNode } from "./types.ts";
@@ -61,55 +61,64 @@ export async function renewPcApprovalFile(input: {
   if (!before.isFile() || before.isSymbolicLink() || before.nlink !== 1 || !parent.isDirectory() || parent.isSymbolicLink()
     || (process.platform !== "win32" && (before.uid !== process.getuid?.() || (before.mode & 0o077) !== 0
       || parent.uid !== process.getuid?.() || (parent.mode & 0o022) !== 0))) throw new Error("PC_LOCAL_APPROVAL_CONFLICT");
-  const handle = await open(input.path, "r+");
-  let original: string | undefined, changed = false;
-  const read = async () => {
-    const size = (await handle.stat()).size;
-    if (size > 32768) throw new Error("PC_LOCAL_APPROVAL_CONFLICT");
-    const bytes = Buffer.alloc(size);
-    let offset = 0;
-    while (offset < size) {
-      const result = await handle.read(bytes, offset, size - offset, offset);
-      if (!result.bytesRead) throw new Error("PC_LOCAL_APPROVAL_CONFLICT");
-      offset += result.bytesRead;
-    }
-    return bytes.toString("utf8");
-  };
-  const replace = async (text: string) => {
-    const bytes = Buffer.from(text);
-    let offset = 0;
-    while (offset < bytes.length) {
-      const result = await handle.write(bytes, offset, bytes.length - offset, offset);
-      if (!result.bytesWritten) throw new Error("PC_LOCAL_APPROVAL_RENEWAL_FAILED");
-      offset += result.bytesWritten;
-    }
-    await handle.truncate(bytes.length); await handle.sync();
-  };
-  try {
-    const opened = await handle.stat();
-    if (opened.dev !== before.dev || opened.ino !== before.ino || opened.nlink !== 1) throw new Error("PC_LOCAL_APPROVAL_CONFLICT");
-    original = await read();
-    const prior = JSON.parse(original);
-    const renewed = validatePcApprovalRenewal(prior, input.approval, input.now);
-    if (isDeepStrictEqual(prior, renewed)) return false;
-    await input.backup(original);
-    const current = await lstat(input.path);
-    if (current.dev !== before.dev || current.ino !== before.ino || current.isSymbolicLink() || await read() !== original) {
-      throw new Error("PC_LOCAL_APPROVAL_CONFLICT");
-    }
-    changed = true;
-    await replace(JSON.stringify(renewed));
-    const after = await handle.stat();
-    if (after.mode !== before.mode || after.uid !== before.uid || after.dev !== before.dev || after.ino !== before.ino ||
-      !isDeepStrictEqual(JSON.parse(await read()), renewed)) throw new Error("PC_LOCAL_APPROVAL_RENEWAL_FAILED");
-    return true;
-  } catch (error) {
-    if (changed && original !== undefined) {
-      await replace(original);
-      if (await read() !== original) throw new Error("PC_LOCAL_APPROVAL_RESTORE_FAILED");
-    }
+  const lockPath = input.path + ".renewal-lock";
+  try { await mkdir(lockPath, { mode: 0o700 }); }
+  catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "EEXIST") throw new Error("PC_LOCAL_APPROVAL_BUSY");
     throw error;
-  } finally { await handle.close(); }
+  }
+  // Never steal a lock after a crash. Recovery must investigate the existing lock first.
+  try {
+    const handle = await open(input.path, "r+");
+    let original: string | undefined, changed = false;
+    const read = async () => {
+      const size = (await handle.stat()).size;
+      if (size > 32768) throw new Error("PC_LOCAL_APPROVAL_CONFLICT");
+      const bytes = Buffer.alloc(size);
+      let offset = 0;
+      while (offset < size) {
+        const result = await handle.read(bytes, offset, size - offset, offset);
+        if (!result.bytesRead) throw new Error("PC_LOCAL_APPROVAL_CONFLICT");
+        offset += result.bytesRead;
+      }
+      return bytes.toString("utf8");
+    };
+    const replace = async (text: string) => {
+      const bytes = Buffer.from(text);
+      let offset = 0;
+      while (offset < bytes.length) {
+        const result = await handle.write(bytes, offset, bytes.length - offset, offset);
+        if (!result.bytesWritten) throw new Error("PC_LOCAL_APPROVAL_RENEWAL_FAILED");
+        offset += result.bytesWritten;
+      }
+      await handle.truncate(bytes.length); await handle.sync();
+    };
+    try {
+      const opened = await handle.stat();
+      if (opened.dev !== before.dev || opened.ino !== before.ino || opened.nlink !== 1) throw new Error("PC_LOCAL_APPROVAL_CONFLICT");
+      original = await read();
+      const prior = JSON.parse(original);
+      const renewed = validatePcApprovalRenewal(prior, input.approval, input.now);
+      if (isDeepStrictEqual(prior, renewed)) return false;
+      await input.backup(original);
+      const current = await lstat(input.path);
+      if (current.dev !== before.dev || current.ino !== before.ino || current.isSymbolicLink() || await read() !== original) {
+        throw new Error("PC_LOCAL_APPROVAL_CONFLICT");
+      }
+      changed = true;
+      await replace(JSON.stringify(renewed));
+      const after = await handle.stat();
+      if (after.mode !== before.mode || after.uid !== before.uid || after.dev !== before.dev || after.ino !== before.ino ||
+        !isDeepStrictEqual(JSON.parse(await read()), renewed)) throw new Error("PC_LOCAL_APPROVAL_RENEWAL_FAILED");
+      return true;
+    } catch (error) {
+      if (changed && original !== undefined) {
+        await replace(original);
+        if (await read() !== original) throw new Error("PC_LOCAL_APPROVAL_RESTORE_FAILED");
+      }
+      throw error;
+    } finally { await handle.close(); }
+  } finally { await rmdir(lockPath); }
 }
 
 export class PcEnrollmentService {

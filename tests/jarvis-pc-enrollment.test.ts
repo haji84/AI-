@@ -149,3 +149,22 @@ test("approval renewal rejects linked and permissive files", { skip: process.pla
     assert.equal(await readFile(path, "utf8"), original);
   });
 });
+
+test("overlapping approval renewals cannot overwrite or roll back another successful update", async () => {
+  await approvalFixture(async (path, _directory, original) => {
+    let release!: () => void, entered!: () => void;
+    const blocked = new Promise<void>(resolve => { release = resolve; });
+    const backedUp = new Promise<void>(resolve => { entered = resolve; });
+    const first = pcApproval.renewPcApprovalFile({ path, approval: renewedScope, now: renewalTime,
+      backup: async text => { assert.equal(text, original); entered(); await blocked; } });
+    try {
+      await backedUp;
+      await assert.rejects(pcApproval.renewPcApprovalFile({ path, approval: renewedScope, now: renewalTime,
+        backup: async () => { throw new Error("UNEXPECTED_BACKUP"); } }), /PC_LOCAL_APPROVAL_BUSY/);
+    } finally { release(); }
+    assert.equal(await first, true);
+    assert.deepEqual(JSON.parse(await readFile(path, "utf8")), renewedScope);
+    assert.equal(await pcApproval.renewPcApprovalFile({ path, approval: renewedScope, now: renewalTime,
+      backup: async () => { throw new Error("UNEXPECTED_BACKUP"); } }), false);
+  });
+});
