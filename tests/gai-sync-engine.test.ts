@@ -345,3 +345,72 @@ test("same coordinator claim converges on later lease renewal", () => {
   assert.equal(decision.kind, "remote");
   assert.match(decision.reason, /later lease renewal/);
 });
+
+function durableRecord(deviceId: string, executionEpoch: number, status = "running"): SyncRecord {
+  return record({ recordId: "task:public", entityType: "task", deviceId, clock: { [deviceId]: 1 },
+    value: { id: "public", idempotencyKey: "goal1219-public", executionEpoch, status,
+      ...(status === "running" ? { leaseOwner: deviceId, fencingToken: deviceId + "-fence-" + executionEpoch,
+        leaseUntil: "2026-10-06T00:00:00Z" } : {}) } });
+}
+
+test("durable task sync fences old verified completion even when its causal clock dominates", () => {
+  const stale = durableRecord("macbook", 1, "completed");
+  stale.verification = { status: "pass", verifierId: "old-verifier" };
+  const current = durableRecord("zbook", 2);
+  for (const clocks of [
+    [{ macbook: 2 }, { zbook: 1 }],
+    [{ macbook: 9, zbook: 9 }, { zbook: 1 }],
+    [{ macbook: 1 }, { macbook: 2, zbook: 1 }],
+  ]) {
+    stale.clock = clocks[0]; current.clock = clocks[1];
+    const forward = resolveSyncRecords(stale, current);
+    const reverse = resolveSyncRecords(current, stale);
+    assert.equal(forward.kind, "remote");
+    assert.equal(reverse.kind, "local");
+    assert.equal((forward.record?.value as { executionEpoch: number }).executionEpoch, 2);
+  }
+});
+
+test("same durable task epoch with conflicting live owners or tokens fails visible", () => {
+  const left = durableRecord("macbook", 3);
+  const right = durableRecord("zbook", 3);
+  right.clock = { macbook: 2, zbook: 2 };
+  assert.equal(resolveSyncRecords(left, right).kind, "conflict");
+  right.value = { ...(left.value as object), fencingToken: "different-fence" };
+  assert.equal(resolveSyncRecords(left, right).kind, "conflict");
+});
+
+test("durable task sync rejects missing malformed epochs and conflicting task identity", () => {
+  const left = durableRecord("macbook", 2);
+  for (const patch of [{ executionEpoch: undefined }, { executionEpoch: -1 },
+    { executionEpoch: 1.5 }, { executionEpoch: Number.MAX_SAFE_INTEGER + 1 },
+    { id: "another-task" }, { idempotencyKey: "another-goal" }]) {
+    const right = durableRecord("zbook", 3);
+    right.value = { ...(right.value as object), ...patch };
+    assert.equal(resolveSyncRecords(left, right).kind, "conflict");
+  }
+});
+
+test("same durable claim still converges with causal updates", () => {
+  const left = durableRecord("macbook", 2);
+  const right = durableRecord("zbook", 2);
+  right.clock = { macbook: 1, zbook: 2 };
+  right.value = { ...(left.value as object), checkpointRef: "public-checkpoint-v2" };
+  assert.equal(resolveSyncRecords(left, right).kind, "remote");
+});
+
+test("higher durable task epoch converges in both stores without stale terminal revival", async () => {
+  const local = new SyncRepository(new MemorySyncStore());
+  const remote = new SyncRepository(new MemorySyncStore());
+  const stale = durableRecord("macbook", 1, "completed");
+  stale.verification = { status: "pass", verifierId: "old-verifier" };
+  await local.put(stale); await remote.put(durableRecord("zbook", 2));
+  const report = await new SyncEngine(local, remote).synchronize();
+  assert.deepEqual(report.conflicts, []);
+  assert.deepEqual(report.converged, ["task:public"]);
+  for (const store of [local, remote]) {
+    const value = (await store.get("task:public"))?.value as { executionEpoch: number; status: string };
+    assert.equal(value.executionEpoch, 2);
+    assert.equal(value.status, "running");
+  }
+});
