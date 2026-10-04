@@ -357,11 +357,12 @@ test("durable task sync fences old verified completion even when its causal cloc
   const stale = durableRecord("macbook", 1, "completed");
   stale.verification = { status: "pass", verifierId: "old-verifier" };
   const current = durableRecord("zbook", 2);
-  for (const clocks of [
+  const clockPairs: Array<[Record<string, number>, Record<string, number>]> = [
     [{ macbook: 2 }, { zbook: 1 }],
     [{ macbook: 9, zbook: 9 }, { zbook: 1 }],
     [{ macbook: 1 }, { macbook: 2, zbook: 1 }],
-  ]) {
+  ];
+  for (const clocks of clockPairs) {
     stale.clock = clocks[0]; current.clock = clocks[1];
     const forward = resolveSyncRecords(stale, current);
     const reverse = resolveSyncRecords(current, stale);
