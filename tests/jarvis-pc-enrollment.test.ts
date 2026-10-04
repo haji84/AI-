@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { chmod, link, mkdtemp, readFile, rm, stat, symlink, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { generateKeyPairSync, sign } from "node:crypto";
 import * as pcApproval from "../src/jarvis/pc-enrollment.ts";
 import { PcEnrollmentService, type PcEnrollmentApproval } from "../src/jarvis/pc-enrollment.ts";
@@ -78,4 +81,71 @@ test("local approval renewal rejects changed scope invalid baselines and expired
   }
   const laterLocal = { ...renewed, approvedAt: "2026-10-04T14:55:15Z", expiresAt: "2026-10-05T14:55:15Z" };
   assert.throws(() => pcApproval.validatePcApprovalRenewal(laterLocal, renewed, currentTime));
+});
+
+const renewalTime = new Date("2026-10-04T15:00:00Z");
+const renewedScope = { ...scope, approvedAt: "2026-10-04T14:49:15Z", expiresAt: "2026-10-05T14:49:15Z" };
+
+async function approvalFixture(run: (path: string, directory: string, original: string) => Promise<void>) {
+  const directory = await mkdtemp(join(tmpdir(), "pc-approval-test-"));
+  const path = join(directory, "approval.json"), original = JSON.stringify(scope, null, 2);
+  try {
+    await chmod(directory, 0o700);
+    await writeFile(path, original, { mode: 0o600 });
+    await run(path, directory, original);
+  } finally { await rm(directory, { recursive: true, force: true }); }
+}
+
+test("protected approval renewal backs up before writing and preserves file identity permissions and keys", async () => {
+  await approvalFixture(async (path, directory, original) => {
+    const keyPath = join(directory, "identity.json");
+    await writeFile(keyPath, "host-held-key-fixture", { mode: 0o600 });
+    const before = await stat(path); let backups = 0;
+    const backup = async (text: string) => {
+      assert.equal(await readFile(path, "utf8"), original);
+      assert.equal(text, original); backups++;
+    };
+    assert.equal(await pcApproval.renewPcApprovalFile({ path, approval: renewedScope, now: renewalTime, backup }), true);
+    const after = await stat(path);
+    assert.deepEqual([after.ino, after.dev, after.mode, after.uid], [before.ino, before.dev, before.mode, before.uid]);
+    assert.deepEqual(JSON.parse(await readFile(path, "utf8")), renewedScope);
+    assert.equal(await readFile(keyPath, "utf8"), "host-held-key-fixture");
+    assert.equal(await pcApproval.renewPcApprovalFile({ path, approval: renewedScope, now: renewalTime, backup }), false);
+    assert.equal(backups, 1);
+  });
+});
+
+test("approval renewal rejects changed authority and failed backup without changing the existing file", async () => {
+  await approvalFixture(async (path, _directory, original) => {
+    let backups = 0;
+    await assert.rejects(pcApproval.renewPcApprovalFile({ path, approval: { ...renewedScope, goalIssue: 681 },
+      now: renewalTime, backup: async () => { backups++; } }), /CONFLICT/);
+    assert.equal(backups, 0);
+    await assert.rejects(pcApproval.renewPcApprovalFile({ path, approval: renewedScope, now: renewalTime,
+      backup: async () => { throw new Error("BACKUP_FAILED"); } }), /BACKUP_FAILED/);
+    assert.equal(await readFile(path, "utf8"), original);
+  });
+});
+
+test("approval renewal rejects a file changed while its backup is taken", async () => {
+  await approvalFixture(async (path) => {
+    await assert.rejects(pcApproval.renewPcApprovalFile({ path, approval: renewedScope, now: renewalTime,
+      backup: async () => { await writeFile(path, "external-change"); } }), /CONFLICT/);
+    assert.equal(await readFile(path, "utf8"), "external-change");
+  });
+});
+
+test("approval renewal rejects linked and permissive files", { skip: process.platform === "win32" }, async () => {
+  await approvalFixture(async (path, directory, original) => {
+    const alias = join(directory, "alias.json");
+    await symlink(path, alias);
+    const renew = (target: string) => pcApproval.renewPcApprovalFile({ path: target, approval: renewedScope,
+      now: renewalTime, backup: async () => { throw new Error("UNEXPECTED_BACKUP"); } });
+    await assert.rejects(renew(alias), /CONFLICT/); await rm(alias);
+    await link(path, alias);
+    await assert.rejects(renew(path), /CONFLICT/); await rm(alias);
+    await chmod(path, 0o640); await assert.rejects(renew(path), /CONFLICT/); await chmod(path, 0o600);
+    await chmod(directory, 0o770); await assert.rejects(renew(path), /CONFLICT/); await chmod(directory, 0o700);
+    assert.equal(await readFile(path, "utf8"), original);
+  });
 });

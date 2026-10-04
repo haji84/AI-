@@ -5,7 +5,7 @@ import { homedir } from "node:os";
 import { join, resolve, dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { isDeepStrictEqual } from "node:util";
-import { validatePcEnrollmentApproval } from "../src/jarvis/pc-enrollment.ts";
+import { validatePcEnrollmentApproval, renewPcApprovalFile } from "../src/jarvis/pc-enrollment.ts";
 import { ensurePcLocalIdentity, FilePcIdentityStorage } from "../src/jarvis/pc-local-identity.ts";
 import { assertPcRuntime, registerLocalPc } from "../src/jarvis/pc-bootstrap.ts";
 
@@ -79,13 +79,26 @@ async function main() {
       createPublicKey(saved.publicKeyPem).export({ type: "spki", format: "pem" }).toString() !== identity.publicKeyPem) throw new Error("PC_EXISTING_ENROLLMENT_CONFLICT");
   }
   const approvalPath = resolve(dbPath) + ".pc-enrollment-approval.json";
-  try {
+  let approvalExists = true;
+  try { await lstat(approvalPath); }
+  catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    approvalExists = false;
+  }
+  if (approvalExists) {
     const metadata = await lstat(approvalPath), parent = await lstat(dirname(approvalPath));
     if (!metadata.isFile() || metadata.isSymbolicLink() || !parent.isDirectory() || parent.isSymbolicLink() ||
-      (platform === "macos" && ((metadata.mode & 0o077) !== 0 || metadata.uid !== process.getuid?.())) ||
-      !isDeepStrictEqual(JSON.parse(await readFile(approvalPath, "utf8")), approval)) throw new Error("PC_LOCAL_APPROVAL_CONFLICT");
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+      (platform === "macos" && ((metadata.mode & 0o077) !== 0 || metadata.uid !== process.getuid?.()))) {
+      throw new Error("PC_LOCAL_APPROVAL_CONFLICT");
+    }
+    const localApproval = JSON.parse(await readFile(approvalPath, "utf8"));
+    if (!isDeepStrictEqual(localApproval, approval)) {
+      if (!existing || !node) throw new Error("PC_LOCAL_APPROVAL_CONFLICT");
+      await renewPcApprovalFile({ path: approvalPath, approval,
+        backup: async original => new FilePcIdentityStorage(join(root,
+          `approval-before-${Date.now()}.${platform === "windows" ? "dpapi" : "json"}`)).writeExclusive(original) });
+    }
+  } else {
     await writeFile(approvalPath, JSON.stringify(approval), { flag: "wx", mode: 0o600 });
   }
   await registerLocalPc({ base, revision, ownerToken: process.env.JARVIS_OWNER_TOKEN!, identity, alreadyEnrolled: Boolean(existing) });
