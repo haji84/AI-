@@ -446,3 +446,38 @@ test("same-epoch terminal result disagreement and malformed active claims remain
     assert.equal(resolveSyncRecords(complete, right).kind, "conflict");
   }
 });
+
+test("same-epoch failure and cancellation cannot be revived or overwritten by another terminal outcome", () => {
+  for (const status of ["failed", "cancelled"]) {
+    const terminal = durableRecord("macbook", 3, status);
+    terminal.verification = { status: "pass", verifierId: "verifier" };
+    const running = durableRecord("zbook", 3);
+    running.clock = { macbook: 2, zbook: 2 };
+    assert.equal(resolveSyncRecords(terminal, running).kind, "conflict");
+    assert.equal(resolveSyncRecords(running, terminal).kind, "conflict");
+    const completed = durableRecord("zbook", 3, "completed");
+    completed.clock = { macbook: 2, zbook: 2 };
+    assert.equal(resolveSyncRecords(terminal, completed).kind, "conflict");
+    terminal.clock = { macbook: 4, zbook: 4 };
+    assert.equal(resolveSyncRecords(running, terminal).kind, "remote",
+      "causally subsequent terminal transition must still converge");
+  }
+});
+
+test("epoch-zero completed or publication-ready states and mismatched retry policy fail visible", () => {
+  const queued = durableRecord("macbook", 0, "queued");
+  for (const status of ["completed", "ready-to-publish"]) {
+    const impossible = durableRecord("zbook", 0, status);
+    impossible.clock = { macbook: 2, zbook: 2 };
+    assert.equal(resolveSyncRecords(queued, impossible).kind, "conflict");
+  }
+  const left = durableRecord("macbook", 2), right = durableRecord("zbook", 3);
+  left.value = { ...(left.value as object), maxAttempts: 3 };
+  right.value = { ...(right.value as object), maxAttempts: 8 };
+  assert.equal(resolveSyncRecords(left, right).kind, "conflict");
+  for (const value of [null, [], "malformed"]) {
+    right.value = value;
+    right.clock = { macbook: 2, zbook: 2 };
+    assert.equal(resolveSyncRecords(left, right).kind, "conflict");
+  }
+});
