@@ -414,3 +414,35 @@ test("higher durable task epoch converges in both stores without stale terminal 
     assert.equal(value.status, "running");
   }
 });
+
+test("concurrent same-epoch completion cannot silently replace a live task claim", () => {
+  const live = durableRecord("zbook", 3);
+  const complete = durableRecord("macbook", 3, "completed");
+  complete.verification = { status: "pass", verifierId: "verifier" };
+  assert.equal(resolveSyncRecords(live, complete).kind, "conflict");
+  assert.equal(resolveSyncRecords(complete, live).kind, "conflict");
+});
+
+test("causally newer completion still converges but completed execution cannot be revived at the same epoch", () => {
+  const live = durableRecord("zbook", 3);
+  const complete = durableRecord("macbook", 3, "completed");
+  complete.clock = { zbook: 1, macbook: 2 };
+  complete.verification = { status: "pass", verifierId: "verifier" };
+  assert.equal(resolveSyncRecords(live, complete).kind, "remote");
+  live.clock = { zbook: 3, macbook: 3 };
+  assert.equal(resolveSyncRecords(complete, live).kind, "conflict");
+});
+
+test("same-epoch terminal result disagreement and malformed active claims remain conflicts", () => {
+  const complete = durableRecord("macbook", 3, "completed");
+  complete.value = { ...(complete.value as object), result: { digest: "one" } };
+  for (const patch of [
+    { status: "completed", result: { digest: "two" }, leaseOwner: undefined, leaseUntil: undefined, fencingToken: undefined },
+    { fencingToken: "" }, { leaseOwner: undefined }, { leaseUntil: "invalid" },
+  ]) {
+    const right = durableRecord("zbook", 3);
+    right.clock = { macbook: 2, zbook: 2 };
+    right.value = { ...(right.value as object), ...patch };
+    assert.equal(resolveSyncRecords(complete, right).kind, "conflict");
+  }
+});
