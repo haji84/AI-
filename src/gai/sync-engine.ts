@@ -253,11 +253,12 @@ function resolveDurableTaskRecords(local: SyncRecord, remote: SyncRecord): Merge
   const valid = (value: Record<string, unknown>) => typeof value.id === "string" && !!value.id.trim()
     && typeof value.idempotencyKey === "string" && !!value.idempotencyKey.trim()
     && Number.isSafeInteger(value.executionEpoch) && (value.executionEpoch as number) >= 0
+    && (!(value.status === "completed" || value.status === "ready-to-publish") || (value.executionEpoch as number) > 0)
     && typeof value.status === "string"
     && ["queued", "waiting-dependency", "leased", "running", "waiting-connectivity", "waiting-resource",
       "ready-to-publish", "retrying", "completed", "failed", "cancelled"].includes(value.status);
   if (!valid(left) || !valid(right)) return conflict("invalid durable task execution metadata");
-  for (const field of ["id", "idempotencyKey", "type", "payload", "migrationClass", "pinnedNodeId", "requiredCapabilities", "dependsOn"]) {
+  for (const field of ["id", "idempotencyKey", "type", "payload", "migrationClass", "pinnedNodeId", "requiredCapabilities", "dependsOn", "maxAttempts"]) {
     if (!isDeepStrictEqual(left[field], right[field])) return conflict("durable task identity or immutable input mismatch");
   }
   const active = (value: Record<string, unknown>) => value.status === "leased" || value.status === "running";
@@ -275,13 +276,15 @@ function resolveDurableTaskRecords(local: SyncRecord, remote: SyncRecord): Merge
     (left.leaseOwner !== right.leaseOwner || left.fencingToken !== right.fencingToken)) {
     return conflict("same durable task epoch has conflicting owner or fencing token");
   }
-  if (left.status === "completed" && right.status === "completed" && !isDeepStrictEqual(left.result, right.result)) {
-    return conflict("same durable task epoch has incompatible terminal results");
+  const terminal = (value: Record<string, unknown>) => ["completed", "failed", "cancelled"].includes(value.status as string);
+  if (terminal(left) && terminal(right) &&
+    (left.status !== right.status || !isDeepStrictEqual(left.result, right.result) || !isDeepStrictEqual(left.error, right.error))) {
+    return conflict("same durable task epoch has incompatible terminal outcomes");
   }
-  if ((left.status === "completed") !== (right.status === "completed")) {
+  if (terminal(left) !== terminal(right)) {
     const relation = compareClocks(local.clock, remote.clock);
-    const completedDominates = left.status === "completed" ? relation === "local-dominates" : relation === "remote-dominates";
-    if (!completedDominates) return conflict("same durable task epoch completion requires causal reconciliation");
+    const terminalDominates = terminal(left) ? relation === "local-dominates" : relation === "remote-dominates";
+    if (!terminalDominates) return conflict("same durable task epoch terminal state requires causal reconciliation");
   }
   return null;
 }
