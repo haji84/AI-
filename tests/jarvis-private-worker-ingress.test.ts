@@ -26,6 +26,19 @@ test("private Worker route surface excludes dashboard, admin, queries and encode
   }
 });
 
+test("private ingress admits exact signed PC routes and rejects aliases or PC admin access", () => {
+  for (const path of ["/api/jarvis/worker/pc/next", "/api/jarvis/worker/pc/result"]) {
+    assert.equal(allowedPrivateWorkerRequest("POST", path), true);
+    for (const method of ["GET", "PUT", "DELETE", "OPTIONS"]) assert.equal(allowedPrivateWorkerRequest(method, path), false);
+    for (const suffix of ["?x=1", "/", "#fragment", "/../next"]) assert.equal(allowedPrivateWorkerRequest("POST", path + suffix), false);
+  }
+  for (const path of ["/api/jarvis/admin/pc-tasks", "/api/jarvis/admin/pc-enrollment/challenge",
+    "/api/jarvis/admin/pc-enrollment/prove", "/api/jarvis/worker/pc/%6eext",
+    "/api/jarvis/worker/pc/../next", "/api/jarvis/worker/pc/%2e%2e/next"]) {
+    assert.equal(allowedPrivateWorkerRequest("POST", path), false);
+  }
+});
+
 test("Worker ingress forwards signed headers but never cookies, owner auth or proxy authority", () => {
   assert.deepEqual(privateWorkerHeaders({ authorization: "Bearer owner", cookie: "session=owner", host: "attacker.invalid", "x-forwarded-host": "attacker.invalid", "x-jarvis-node-id": "node-1", "x-jarvis-nonce": "nonce" }), {
     "content-type": "application/json", "x-jarvis-node-id": "node-1", "x-jarvis-nonce": "nonce",
@@ -69,11 +82,15 @@ test("TLS ingress verifies certificate and hostname, relays bytes, rejects admin
   });
   try {
     assert.deepEqual(await send("/api/jarvis/worker/heartbeat", '{"status":"ready"}'), { code: 200, body: '{"status":"ready"}' });
+    for (const path of ["/api/jarvis/worker/pc/next", "/api/jarvis/worker/pc/result"]) {
+      const body = '{"taskId":"public-task","claim":{"epoch":2},"detail":{"bytes":10380}}';
+      assert.deepEqual(await send(path, body), { code: 200, body });
+    }
     await assert.rejects(send("/api/jarvis/enroll", "{}", false));
     await assert.rejects(send("/api/jarvis/enroll", "{}", true, "wrong-host.invalid"));
     assert.equal((await send("/api/jarvis/admin/enrollment-window")).code, 404);
     assert.equal((await send("/api/jarvis/enroll", "x".repeat(1_000_001))).code, 413);
-    assert.equal(forwarded, 1);
+    assert.equal(forwarded, 3);
   } finally {
     await new Promise<void>((resolve) => ingress.close(() => resolve()));
     broker.closeAllConnections();
