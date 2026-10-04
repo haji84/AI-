@@ -1,4 +1,7 @@
 import { createHash, createPublicKey, randomUUID, verify } from "node:crypto";
+import { lstat, mkdir, open, rmdir } from "node:fs/promises";
+import { dirname } from "node:path";
+import { isDeepStrictEqual } from "node:util";
 import type { JarvisNode } from "./types.ts";
 import type { JarvisWorkerIdentity } from "./worker-auth.ts";
 
@@ -28,6 +31,94 @@ export function validatePcEnrollmentApproval(value: unknown, now = new Date()): 
     throw new Error("PC_ENROLLMENT_APPROVAL_REQUIRED");
   }
   return structuredClone(approval);
+}
+
+
+/** Only the caller's independently approved, current grant may renew an identical scope. */
+export function validatePcApprovalRenewal(previous: unknown, next: unknown, now = new Date()): PcEnrollmentApproval {
+  const renewed = validatePcEnrollmentApproval(next, now);
+  const prior = validatePcEnrollmentApproval(previous, new Date(Date.parse((previous as PcEnrollmentApproval)?.approvedAt)));
+  const keys = ["version", "issue", "goalIssue", "approvedAt", "expiresAt", "targets", "roles"];
+  if (Object.keys(prior).some(key => !keys.includes(key)) || Object.keys(renewed).some(key => !keys.includes(key))) {
+    throw new Error("PC_LOCAL_APPROVAL_CONFLICT");
+  }
+  const scope = (approval: PcEnrollmentApproval) => {
+    const { approvedAt: _start, expiresAt: _end, ...rest } = approval;
+    void _start; void _end;
+    return rest;
+  };
+  if (!isDeepStrictEqual(scope(prior), scope(renewed)) ||
+    Date.parse(renewed.approvedAt) < Date.parse(prior.approvedAt) ||
+    Date.parse(renewed.expiresAt) < Date.parse(prior.expiresAt)) throw new Error("PC_LOCAL_APPROVAL_CONFLICT");
+  return renewed;
+}
+
+/** Content-only update of an existing protected file; never creates files or changes ACL/owner. */
+export async function renewPcApprovalFile(input: {
+  path: string; approval: unknown; backup: (original: string) => Promise<void>; now?: Date;
+}): Promise<boolean> {
+  const before = await lstat(input.path), parent = await lstat(dirname(input.path));
+  if (!before.isFile() || before.isSymbolicLink() || before.nlink !== 1 || !parent.isDirectory() || parent.isSymbolicLink()
+    || (process.platform !== "win32" && (before.uid !== process.getuid?.() || (before.mode & 0o077) !== 0
+      || parent.uid !== process.getuid?.() || (parent.mode & 0o022) !== 0))) throw new Error("PC_LOCAL_APPROVAL_CONFLICT");
+  const lockPath = input.path + ".renewal-lock";
+  try { await mkdir(lockPath, { mode: 0o700 }); }
+  catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "EEXIST") throw new Error("PC_LOCAL_APPROVAL_BUSY");
+    throw error;
+  }
+  // Never steal a lock after a crash. Recovery must investigate the existing lock first.
+  try {
+    const handle = await open(input.path, "r+");
+    let original: string | undefined, changed = false;
+    const read = async () => {
+      const size = (await handle.stat()).size;
+      if (size > 32768) throw new Error("PC_LOCAL_APPROVAL_CONFLICT");
+      const bytes = Buffer.alloc(size);
+      let offset = 0;
+      while (offset < size) {
+        const result = await handle.read(bytes, offset, size - offset, offset);
+        if (!result.bytesRead) throw new Error("PC_LOCAL_APPROVAL_CONFLICT");
+        offset += result.bytesRead;
+      }
+      return bytes.toString("utf8");
+    };
+    const replace = async (text: string) => {
+      const bytes = Buffer.from(text);
+      let offset = 0;
+      while (offset < bytes.length) {
+        const result = await handle.write(bytes, offset, bytes.length - offset, offset);
+        if (!result.bytesWritten) throw new Error("PC_LOCAL_APPROVAL_RENEWAL_FAILED");
+        offset += result.bytesWritten;
+      }
+      await handle.truncate(bytes.length); await handle.sync();
+    };
+    try {
+      const opened = await handle.stat();
+      if (opened.dev !== before.dev || opened.ino !== before.ino || opened.nlink !== 1) throw new Error("PC_LOCAL_APPROVAL_CONFLICT");
+      original = await read();
+      const prior = JSON.parse(original);
+      const renewed = validatePcApprovalRenewal(prior, input.approval, input.now);
+      if (isDeepStrictEqual(prior, renewed)) return false;
+      await input.backup(original);
+      const current = await lstat(input.path);
+      if (current.dev !== before.dev || current.ino !== before.ino || current.isSymbolicLink() || await read() !== original) {
+        throw new Error("PC_LOCAL_APPROVAL_CONFLICT");
+      }
+      changed = true;
+      await replace(JSON.stringify(renewed));
+      const after = await handle.stat();
+      if (after.mode !== before.mode || after.uid !== before.uid || after.dev !== before.dev || after.ino !== before.ino ||
+        !isDeepStrictEqual(JSON.parse(await read()), renewed)) throw new Error("PC_LOCAL_APPROVAL_RENEWAL_FAILED");
+      return true;
+    } catch (error) {
+      if (changed && original !== undefined) {
+        await replace(original);
+        if (await read() !== original) throw new Error("PC_LOCAL_APPROVAL_RESTORE_FAILED");
+      }
+      throw error;
+    } finally { await handle.close(); }
+  } finally { await rmdir(lockPath); }
 }
 
 export class PcEnrollmentService {
