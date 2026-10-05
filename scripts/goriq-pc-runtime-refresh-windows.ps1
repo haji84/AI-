@@ -4,12 +4,13 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $env:PSModulePath=Join-Path $PSHOME 'Modules'
 $OutputEncoding=New-Object System.Text.UTF8Encoding($false)
-$stage='source'; Write-Host ('REFRESH_STAGE='+$stage); $stopped=$false; $switched=$false; $restored=$false; $pointersRestored=$false
+$stage='source'; Write-Host ('REFRESH_STAGE='+$stage); $stopped=$false; $switched=$false; $restored=$false; $pointersRestored=$false; $baselineRestored=$false; $baselineStopped=$false
 $taskName='JARVIS Remote Host'
 $ports=@(3000,8787,8790,8792)
 $revision=$env:GORIQ_PC_APPROVED_REVISION
 $source=(Get-Location).Path
-$production=Join-Path $env:USERPROFILE 'JARVIS\production'
+$installationRoot=Join-Path $env:USERPROFILE 'JARVIS'
+$production=Join-Path $installationRoot 'production'
 $configPath=Join-Path $production 'config.dpapi'
 $launcherPath=Join-Path $production 'launch-current.ps1'
 $releaseRoot=Join-Path $env:USERPROFILE ('JARVIS\releases\'+$revision)
@@ -136,12 +137,48 @@ function Runtime-Process-Facts([string]$root) {
       candidatesTruncated=($nodes.Count -gt 32);administratorRoleActive=$administratorRoleActive;candidates=$candidates}
   }catch{return @{unavailable=$true}}
 }
-function Get-OwnedTree([string]$root,[bool]$requireHealthy=$true) {
-  $all=@(Get-CimInstance Win32_Process -OperationTimeoutSec 15)
+function Get-LiveListeners {
+  # A failed query is not evidence of an empty installation. Query all Listen
+  # entries before filtering so an absent service port is not a cmdlet error.
+  try {
+    return @(Get-NetTCPConnection -State Listen -ErrorAction Stop | Where-Object {$ports -contains [int]$_.LocalPort})
+  }catch{throw 'listener-query'}
+}
+function Assert-StoppedInstallation {
+  if((Get-ScheduledTask -TaskName $taskName).State -ne 'Ready' -or
+    (Export-ScheduledTask -TaskName $taskName) -cne $taskXml){throw 'stopped-installation'}
+  if(@(Get-LiveListeners).Count){throw 'stopped-installation'}
+  try{$all=@(Get-CimInstance Win32_Process -OperationTimeoutSec 15 -ErrorAction Stop)}catch{throw 'process-query'}
+  foreach($p in $all){
+    # Unavailable Node command lines cannot prove that an orphan is unrelated.
+    if($p.Name -ieq 'node.exe' -and -not $p.CommandLine){throw 'stopped-installation'}
+    if($p.CommandLine -and
+      ($p.CommandLine.IndexOf($installationRoot,[StringComparison]::OrdinalIgnoreCase) -ge 0 -or
+       $p.CommandLine -match '(?i)jarvis-(remote-host|broker|remote-gateway|private-worker-ingress)\.(mjs|ts)')){
+      throw 'stopped-installation'
+    }
+  }
+  # Fence changes occurring during inventory enumeration.
+  if(@(Get-LiveListeners).Count -or (Get-ScheduledTask -TaskName $taskName).State -ne 'Ready' -or
+    (Export-ScheduledTask -TaskName $taskName) -cne $taskXml){throw 'stopped-installation'}
+}
+function Assert-State-Preserved($left,$right) {
+  foreach($field in @('schemaDigest','identityDigest','fleetDigest','tasksDigest','pcTasksDigest','compassDigest')){
+    if(-not $left.$field -or -not $right.$field -or $left.$field -cne $right.$field){throw 'state-changed'}
+  }
+}
+function Assert-StoppedRollback {
+  Assert-StoppedInstallation
+  if(-not (Same-Bytes $configBytes ([IO.File]::ReadAllBytes($configPath))) -or
+    -not (Same-Bytes $launcherBytes ([IO.File]::ReadAllBytes($launcherPath)))){throw 'baseline-changed'}
+  Assert-State-Preserved $before (Inspect-State 'inspect')
+}
+function Get-OwnedTree([string]$root,[bool]$requireHealthy=$true,[int[]]$requiredPorts=$ports) {
+  try{$all=@(Get-CimInstance Win32_Process -OperationTimeoutSec 15 -ErrorAction Stop)}catch{throw 'process-query'}
   $hosts=@($all | Where-Object {$_.Name -eq 'node.exe' -and $_.CommandLine -and
     $_.CommandLine.Contains($root) -and $_.CommandLine.Contains('jarvis-remote-host.mjs')})
-  $listeners=@(Get-NetTCPConnection -State Listen -LocalPort $ports -ErrorAction SilentlyContinue)
-  if(-not $requireHealthy -and $hosts.Count -eq 0 -and $listeners.Count -eq 0){return @()}
+  $listeners=@(Get-LiveListeners)
+  if(-not $requireHealthy -and $hosts.Count -eq 0 -and $listeners.Count -eq 0){Assert-StoppedInstallation;return @()}
   if($hosts.Count -ne 1){throw 'host'}
   $ids=@([int]$hosts[0].ProcessId)
   do {
@@ -153,7 +190,9 @@ function Get-OwnedTree([string]$root,[bool]$requireHealthy=$true) {
     $owner=Invoke-CimMethod -OperationTimeoutSec 15 -InputObject $p -MethodName GetOwnerSid
     if($owner.ReturnValue -ne 0 -or $owner.Sid -ne $identity.User.Value){throw 'process-owner'}
   }
-  if(($requireHealthy -and @($listeners.LocalPort | Select-Object -Unique).Count -ne 4) -or
+  $observedPorts=@($listeners | Select-Object -ExpandProperty LocalPort -Unique)
+  if(($requireHealthy -and ($observedPorts.Count -ne $requiredPorts.Count -or
+      @($requiredPorts | Where-Object {$observedPorts -notcontains $_}).Count)) -or
     @($listeners | Where-Object {$ids -notcontains [int]$_.OwningProcess}).Count){throw 'listeners'}
   return $tree
 }
@@ -175,7 +214,7 @@ function Stop-OwnedTree($tree) {
     if($result.ReturnValue -ne 0){throw 'process-permission'}
   }
   for($i=0;$i -lt 10;$i++){
-    if(-not (Get-NetTCPConnection -State Listen -LocalPort $ports -ErrorAction SilentlyContinue)){return}
+    if(@(Get-LiveListeners).Count -eq 0){Assert-StoppedInstallation;return}
     Start-Sleep -Seconds 1
   }
   throw 'ports-busy'
@@ -232,11 +271,23 @@ function New-OwnedReleaseDirectory([string]$path,[Security.Principal.SecurityIde
 function Wait-Health([string]$sha) {
   for($i=0;$i -lt 45;$i++){
     try {
+      $state=Inspect-State 'inspect'
+      if($state.privateAddressAssigned -isnot [bool]){throw 'private-address-query'}
+      $assigned=[bool]$state.privateAddressAssigned
+      $required=if($assigned){$ports}else{@(3000,8787,8790)}
+      $listeners=@(Get-LiveListeners)
+      $observed=@($listeners | Select-Object -ExpandProperty LocalPort -Unique)
       $health=Invoke-RestMethod -Uri 'http://127.0.0.1:8787/health' -TimeoutSec 2
-      $listeners=@(Get-NetTCPConnection -State Listen -LocalPort $ports -ErrorAction SilentlyContinue)
-      if($health.ok -eq $true -and $health.runtimeRevision -eq $sha -and
-        (Get-ScheduledTask -TaskName $taskName).State -eq 'Running' -and
-        @($listeners.LocalPort | Select-Object -Unique).Count -eq 4){return}
+      $gateway=Invoke-RestMethod -Uri 'http://127.0.0.1:8790/health' -TimeoutSec 2
+      $dashboard=Invoke-RestMethod -Uri 'http://127.0.0.1:3000/api/health' -TimeoutSec 2
+      if($health.ok -ne $true -or $health.runtimeRevision -ne $sha -or $gateway.ok -ne $true -or
+        $dashboard.status -ne 'ok' -or (Get-ScheduledTask -TaskName $taskName).State -ne 'Running' -or
+        $observed.Count -ne $required.Count -or @($required | Where-Object {$observed -notcontains $_}).Count){throw 'health'}
+      $null=Get-OwnedTree $releaseRoot $true $required
+      $confirmation=Inspect-State 'inspect'
+      if($confirmation.privateAddressAssigned -isnot [bool] -or $confirmation.privateAddressAssigned -ne $assigned){throw 'private-address-query'}
+      return @{coreServicesReady=$true;privateIngressReady=$assigned;
+        serviceRecoveryVerified=$assigned;activationState=$(if($assigned){'ready'}else{'network-waiting'})}
     }catch{}
     Start-Sleep -Seconds 1
   }
@@ -267,7 +318,7 @@ try {
   $principal=[string]$task.Principal.UserId
   if($principal -ne $identity.User.Value){$principal=([Security.Principal.NTAccount]$principal).Translate([Security.Principal.SecurityIdentifier]).Value}
   if($principal -ne $identity.User.Value -or $task.Principal.RunLevel -ne 'Limited' -or
-    $task.Principal.LogonType -ne 'Password' -or $task.Actions.Count -ne 1 -or $task.State -ne 'Running'){throw 'task'}
+    $task.Principal.LogonType -ne 'Password' -or $task.Actions.Count -ne 1 -or $task.State -notin @('Running','Ready')){throw 'task'}
   $stage='compatibility-launcher'; Write-Host ('REFRESH_STAGE='+$stage)
   $compat=Join-Path $env:LOCALAPPDATA 'JARVIS\production\launch-current.ps1'
   if($task.Actions[0].Execute -notmatch '(?i)\\WindowsPowerShell\\v1\.0\\powershell\.exe$' -or
@@ -306,12 +357,13 @@ try {
       revision=$before.revision;observedAt=$before.observedAt}} | ConvertTo-Json -Depth 4 -Compress
   }
   $stage='existing-process-tree'; Write-Host ('REFRESH_STAGE='+$stage)
-  $tree=Get-OwnedTree $oldRoot
+  $baselineStopped=($task.State -eq 'Ready')
+  if($baselineStopped){Assert-StoppedInstallation;$tree=@()}else{$tree=Get-OwnedTree $oldRoot}
   if($Phase -eq 'apply'){$stage='readonly-state'; Write-Host ('REFRESH_STAGE='+$stage); $before=Inspect-State 'inspect'}
   $receipt=@{version=1;issue=1662;goalIssue=1219;nodeId='zbook';phase=$Phase;revision=$revision;
     previousRevision=$current.commit;schemaCompatible=$before.schemaCompatible;quiescent=$before.quiescent;
     androidCount=$before.androidCount;identityCount=$before.identityCount;identityDigest=$before.identityDigest;
-    taskUnchanged=$true;nativeLauncherSupported=$true;readOnly=($Phase -eq 'plan');observedAt=[datetimeoffset]::UtcNow.ToString('o')}
+    taskUnchanged=$true;nativeLauncherSupported=$true;baselineStopped=$baselineStopped;readOnly=($Phase -eq 'plan');observedAt=[datetimeoffset]::UtcNow.ToString('o')}
   if($Phase -eq 'plan'){$receipt | ConvertTo-Json -Compress;exit 0}
   $stage='toolchain'; Write-Host ('REFRESH_STAGE='+$stage)
   if((& node --version).Trim() -ne 'v24.19.0' -or (& pnpm --version).Trim() -ne '11.19.0'){throw 'toolchain'}
@@ -341,7 +393,9 @@ try {
   if(-not (Same-Bytes $configBytes ([IO.File]::ReadAllBytes($configPath))) -or
     -not (Same-Bytes $launcherBytes ([IO.File]::ReadAllBytes($launcherPath))) -or
     (Export-ScheduledTask -TaskName $taskName) -cne $taskXml){throw 'baseline-changed'}
+  if($baselineStopped){Assert-StoppedInstallation}else{$null=Get-OwnedTree $oldRoot}
   $prepared=Inspect-State 'prepare'
+  Assert-State-Preserved $before $prepared
   $next=$plain | ConvertFrom-Json
   $next.commit=$revision;$next.releaseRoot=$releaseRoot
   $candidate=$next | ConvertTo-Json -Depth 20 -Compress
@@ -353,12 +407,14 @@ try {
     Set-Content -LiteralPath (Join-Path $backupRoot 'launcher-before.dpapi')
   $encoded=$candidate | ConvertTo-SecureString -AsPlainText -Force | ConvertFrom-SecureString
   $stage='quiesce'; Write-Host ('REFRESH_STAGE='+$stage)
-  $tree=Get-OwnedTree $oldRoot
-  $stopped=$true
-  Stop-OwnedTree $tree
+  if($baselineStopped){Assert-StoppedInstallation;$stopped=$true}else{
+    $tree=Get-OwnedTree $oldRoot
+    $stopped=$true
+    Stop-OwnedTree $tree
+  }
   $quiescent=Inspect-State 'inspect'
-  if($quiescent.identityDigest -ne $prepared.identityDigest -or $quiescent.fleetDigest -ne $prepared.fleetDigest -or $quiescent.tasksDigest -ne $prepared.tasksDigest -or
-    $quiescent.compassDigest -ne $prepared.compassDigest){throw 'state-changed'}
+  Assert-State-Preserved $prepared $quiescent
+  Assert-StoppedInstallation
   Assert-Approval
   $stage='activate'; Write-Host ('REFRESH_STAGE='+$stage);$switched=$true
   Replace-Bytes $configPath ([Text.Encoding]::UTF8.GetBytes($encoded))
@@ -366,12 +422,11 @@ try {
   Replace-Bytes $launcherPath ([byte[]]([Text.Encoding]::UTF8.GetPreamble()+[Text.Encoding]::UTF8.GetBytes($nextLauncher)))
   Start-ScheduledTask -TaskName $taskName
   $stage='verify'; Write-Host ('REFRESH_STAGE='+$stage)
-  Wait-Health $revision
-  $candidateTree=Get-OwnedTree $releaseRoot
+  $readiness=Wait-Health $revision
   $after=Inspect-State 'inspect'
-  if($after.identityDigest -ne $quiescent.identityDigest -or $after.fleetDigest -ne $quiescent.fleetDigest -or $after.tasksDigest -ne $quiescent.tasksDigest -or
-    $after.schemaDigest -ne $quiescent.schemaDigest -or $after.compassDigest -ne $quiescent.compassDigest -or
-    (Export-ScheduledTask -TaskName $taskName) -cne $taskXml){throw 'verification'}
+  Assert-State-Preserved $quiescent $after
+  if((Export-ScheduledTask -TaskName $taskName) -cne $taskXml){throw 'verification'}
+  foreach($key in $readiness.Keys){$receipt[$key]=$readiness[$key]}
   $receipt.runtimeExact=$true;$receipt.identityPreserved=$true;$receipt.schemaPreserved=$true
   $receipt.observedAt=[datetimeoffset]::UtcNow.ToString('o')
   Write-Host 'REFRESH_STAGE=complete'
@@ -380,7 +435,8 @@ try {
   $safeReasons=@('approval','path','owner','private-acl','task','compatibility-launcher','release','manifest','launcher-shape',
     'host','process-owner','listeners','process-replaced','process-permission','ports-busy','source','main-ci','state',
     'immutable-release-exists','archive','archive-extract','toolchain','install','build','baseline-changed','candidate','state-changed',
-    'health','verification','rollback-listeners','owner-admin-context','replacement-security','release-security')
+    'health','verification','rollback-listeners','owner-admin-context','replacement-security','release-security',
+    'listener-query','process-query','stopped-installation','private-address-query')
   $failureReason=if($safeReasons -contains $_.Exception.Message){$_.Exception.Message}else{'unexpected-prerequisite-error'}
   if($stopped){
     Write-Host 'REFRESH_STAGE=rollback'
@@ -397,7 +453,11 @@ try {
           $pointersRestored=$true
         }
       }
-      if(Get-NetTCPConnection -State Listen -LocalPort $ports -ErrorAction SilentlyContinue){throw 'rollback-listeners'}
+      Assert-StoppedInstallation
+      if($baselineStopped){
+        Assert-StoppedRollback
+        $baselineRestored=$true
+      }else{
       Start-ScheduledTask -TaskName $taskName
       # Old code lacks runtimeRevision. Require old owned service tree, healthy Broker, unchanged config and task.
       for($i=0;$i -lt 30;$i++){
@@ -406,14 +466,17 @@ try {
           $null=Get-OwnedTree $oldRoot
           if($oldHealth.ok -eq $true -and (Export-ScheduledTask -TaskName $taskName) -ceq $taskXml -and
             (Same-Bytes $configBytes ([IO.File]::ReadAllBytes($configPath))) -and
-            (Same-Bytes $launcherBytes ([IO.File]::ReadAllBytes($launcherPath)))){$restored=$true;break}
+            (Same-Bytes $launcherBytes ([IO.File]::ReadAllBytes($launcherPath)))){
+            Assert-State-Preserved $before (Inspect-State 'inspect')
+            $restored=$true;$baselineRestored=$true;break}
         }catch{}
         Start-Sleep -Seconds 1
+      }
       }
     }catch{}
   }
   # Never print exception/config/process/task command lines. Retain current DB and all protected backups.
   @{version=1;issue=1662;nodeId='zbook';phase=$Phase;failedStage=$stage;failureReason=$failureReason;restored=$restored;pointersRestored=$pointersRestored;
-    databaseRestored=$false;knownFailure='PC_RUNTIME_REFRESH_FAILED';observedAt=[datetimeoffset]::UtcNow.ToString('o')} | ConvertTo-Json -Compress
+    databaseRestored=$false;baselineRestored=$baselineRestored;serviceRecoveryVerified=$restored;knownFailure='PC_RUNTIME_REFRESH_FAILED';observedAt=[datetimeoffset]::UtcNow.ToString('o')} | ConvertTo-Json -Compress
   exit 1
 }finally{$plain=$null;$candidate=$null;$encoded=$null;$secure=$null;$current=$null;$next=$null}

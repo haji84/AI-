@@ -119,3 +119,6 @@ try {
   # Remove only this uniquely created disposable fixture.
   Remove-Item -LiteralPath $fixture -Recurse -Force
 }
+
+# Exercise stopped/offline readiness with the same Windows PowerShell runtime.
+& (Join-Path $PSScriptRoot 'jarvis-pc-runtime-stopped.test.ps1')
