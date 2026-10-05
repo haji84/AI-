@@ -194,3 +194,13 @@ test("partial write failure restores original approval bytes while holding the r
       backup: async () => {} }), true);
   });
 });
+
+test("PC enrollment exposes the public candidate bound by its proof digest so the remote key holder can inspect authority", () => {
+  const offer = new PcEnrollmentService(scope).offer(input, now);
+  const candidate = Reflect.get(offer, "candidateContext");
+  assert.ok(candidate && typeof candidate === "object", "PC_CANDIDATE_CONTEXT_UNAVAILABLE");
+  assert.equal(candidate.node.id, input.nodeId);
+  assert.equal(candidate.identity.publicKeyPem, input.publicKeyPem);
+  assert.deepEqual(candidate.node.pcAuthority.roles, scope.roles);
+  assert.equal(JSON.stringify(candidate).includes("PRIVATE KEY"), false);
+});
