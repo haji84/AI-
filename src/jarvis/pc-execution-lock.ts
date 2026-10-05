@@ -20,12 +20,19 @@ export async function withPcExecutionLock<T>(identity: PcLocalIdentity, run: () 
   try { await mkdir(lock, { mode: 0o700 }); }
   catch { throw new Error("PC_EXECUTION_BUSY"); }
   const owned = await lstat(lock);
-  try { return await run(); }
-  finally {
+  let outcome: { ok: true; value: T } | { ok: false; error: unknown };
+  try { outcome = { ok: true, value: await run() }; }
+  catch (error) { outcome = { ok: false, error }; }
+  try {
     const current = await lstat(lock);
     if (!current.isDirectory() || current.isSymbolicLink() || current.dev !== owned.dev || current.ino !== owned.ino) {
       throw new Error("PC_EXECUTION_LOCK_REPLACED");
     }
     await rmdir(lock);
+  } catch (error) {
+    // Retain the original execution failure if both work and cleanup failed.
+    if (outcome.ok) throw error;
   }
+  if (!outcome.ok) throw outcome.error;
+  return outcome.value;
 }
