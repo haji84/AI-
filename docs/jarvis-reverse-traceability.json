@@ -939,6 +939,18 @@
       "reason": "Organization-aware reusable memory"
     },
     {
+      "path": "scripts/goriq-pc-mobile-task.ts",
+      "sha256": "924e374e27acff9d1ed62bd33f3576e7b7f54565183c3e7a67fdb42df161e747",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "NET-004",
+        "SEC-010",
+        "FLEET-007",
+        "DEV-PC-003"
+      ],
+      "reason": "Approved #1662 moving-PC private transport adapter; linkage only, native Wi-Fi acceptance remains required"
+    },
+    {
       "path": "scripts/jarvis-adb-mass-enroll.sh",
       "sha256": "218d856fc06b462305ac093bea39fca09a44f768575fd1abf9719a8b12b98455",
       "classification": "COVERED_BY_REQUIREMENT",
@@ -1596,6 +1608,18 @@
         "OWN-001"
       ],
       "reason": "Persisted work intake/state API; #1219 Direct Goal Bridge wakes bounded Goal execution and exposes shared status/events; parent requirements remain PARTIAL pending E2E."
+    },
+    {
+      "path": "src/app/api/jarvis/worker/[...action]/route.ts",
+      "sha256": "8480e7b3a6148fe9a8425159cf328604e318763bf180032cdaf6a39e1abcc3c6",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "NET-004",
+        "SEC-010",
+        "FLEET-007",
+        "DEV-PC-003"
+      ],
+      "reason": "Approved #1662 moving-PC private transport adapter; linkage only, native Wi-Fi acceptance remains required"
     },
     {
       "path": "src/app/api/owner-login/google/begin/route.ts",
@@ -3965,7 +3989,7 @@
     },
     {
       "path": "src/jarvis/pc-bootstrap.ts",
-      "sha256": "dc616f03636e9ff1d7cfaee452f8cf88485c75c19b953b648af480d45717b072",
+      "sha256": "87a4b89d80d7dea69e257509d0dbafd841b3f9a9003908a3bda3ffeaa9519754",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "FLEET-001",
@@ -3976,6 +4000,19 @@
         "SEC-006"
       ],
       "reason": "Host-local PC proof enrollment and signed bounded public filesystem execution; no physical completion inference from source or CI."
+    },
+    {
+      "path": "src/jarvis/pc-durable-work.ts",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "FLEET-007",
+        "SEC-003",
+        "SEC-004",
+        "OFF-006",
+        "CORE-019"
+      ],
+      "reason": "Registered PC filesystem work reuses signed Broker transport and fenced DurableTaskRuntime; physical assignment and distributed recovery remain unverified.",
+      "sha256": "daa24009dc8bb181b4d8e115b7869a4c2a06b6c9da358a41ff8d4f66fc971778"
     },
     {
       "path": "src/jarvis/pc-enrollment.ts",
@@ -3990,6 +4027,18 @@
         "SEC-006"
       ],
       "reason": "Owner-scoped PC identity enrollment with bounded proof-of-possession and immutable capability ceiling; physical activation and distributed execution Evidence remain separate."
+    },
+    {
+      "path": "src/jarvis/pc-execution-lock.ts",
+      "sha256": "383bec982d59169b92e57053315fcf1c13931962bad03902fd98ae2c52bfc7e0",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "NET-004",
+        "SEC-010",
+        "FLEET-007",
+        "DEV-PC-003"
+      ],
+      "reason": "Approved #1662 moving-PC private transport adapter; linkage only, native Wi-Fi acceptance remains required"
     },
     {
       "path": "src/jarvis/pc-local-identity.ts",
@@ -4057,6 +4106,30 @@
         "DEV-AX-003"
       ],
       "reason": "Remote worker readiness/wake checks"
+    },
+    {
+      "path": "src/jarvis/private-pc-native.ts",
+      "sha256": "8f93373cd1831757d0b9deab6eac27a80e0f2f25fb2b32559b062b5acaa7b263",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "NET-004",
+        "SEC-010",
+        "FLEET-007",
+        "DEV-PC-003"
+      ],
+      "reason": "Approved #1662 moving-PC private transport adapter; linkage only, native Wi-Fi acceptance remains required"
+    },
+    {
+      "path": "src/jarvis/private-pc-transport.ts",
+      "sha256": "d1b27fa2e3ee2f538c926bf965b907466b3c0f9c5671a0b1ee31adc61466efb8",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "NET-004",
+        "SEC-010",
+        "FLEET-007",
+        "DEV-PC-003"
+      ],
+      "reason": "Approved #1662 moving-PC private transport adapter; linkage only, native Wi-Fi acceptance remains required"
     },
     {
       "path": "src/jarvis/private-worker-ingress.ts",
@@ -5950,19 +6023,6 @@
         "OWN-001"
       ],
       "reason": "Issue #1219 ZBook timeout-only recovery transition preserves Goal identity, completion checks, evidence, and Human Gate boundaries; parent requirements remain PARTIAL pending physical E2E."
-    },
-    {
-      "path": "src/jarvis/pc-durable-work.ts",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "FLEET-007",
-        "SEC-003",
-        "SEC-004",
-        "OFF-006",
-        "CORE-019"
-      ],
-      "reason": "Registered PC filesystem work reuses signed Broker transport and fenced DurableTaskRuntime; physical assignment and distributed recovery remain unverified.",
-      "sha256": "daa24009dc8bb181b4d8e115b7869a4c2a06b6c9da358a41ff8d4f66fc971778"
     }
   ],
   "hash_policy": "utf8-crlf-to-lf-v1;binary-raw"

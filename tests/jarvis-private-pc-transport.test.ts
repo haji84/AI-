@@ -73,3 +73,20 @@ test("private origin never falls back to HTTP, raw IP, another tailnet, credenti
     assert.throws(() => api.privatePcOrigin(bad, "tailfixture.ts.net"));
   }
 });
+
+test("unavailable signing key and oversized or aborted bodies never touch the lease-changing backend", async () => {
+  assert.ok(api, "PRIVATE_PC_TRANSPORT_UNAVAILABLE");
+  let touched = 0;
+  const signer = async () => ({ identity: { ...peer, privateKeyPem: keys.privateKey.export({ type: "pkcs8", format: "pem" }).toString() }, revision });
+  const upstream = async () => { touched++; return Response.json({ task: null }); };
+  assert.equal((await api.privatePcRelay({ ingress: async () => true, signer: async () => { throw Error("KEY_SENTINEL"); }, upstream })(request())).status, 502);
+  const relay = api.privatePcRelay({ ingress: async () => true, signer, upstream });
+  const oversized = new Request(request(), { body: "x".repeat(1_000_001) });
+  assert.equal((await relay(oversized)).status, 502);
+  const controller = new AbortController();
+  const stream = new ReadableStream<Uint8Array>({ start() {} });
+  const slow = new Request(request(), { body: stream, signal: controller.signal, duplex: "half" } as RequestInit);
+  const pending = relay(slow); controller.abort();
+  assert.equal((await pending).status, 502);
+  assert.equal(touched, 0);
+});

@@ -7,7 +7,9 @@ import { PC_PUBLIC_DIGEST, pcDigest, validatePcPublicWork } from "./pc-durable-w
 import type { DurableTask, DurableTaskExecutionClaim } from "../gai/durable-task-runtime.ts";
 import { createHash, randomUUID, sign } from "node:crypto";
 import type { PcLocalIdentity } from "./pc-local-identity.ts";
-import { canonicalWorkerRequest } from "./worker-auth.ts";
+import { canonicalWorkerRequest, type JarvisWorkerIdentity } from "./worker-auth.ts";
+import { privatePcOrigin, verifyPrivatePcResponse } from "./private-pc-transport.ts";
+import { withPcExecutionLock } from "./pc-execution-lock.ts";
 
 export function localBrokerOrigin(base: string): string {
   const url = new URL(base);
@@ -61,8 +63,32 @@ export interface PcExecutionEvidence {
 /** Bounded public input only. Never accepts a command, an existing file path or Owner credentials. */
 export async function executeLocalPcWork(input: { base: string; revision: string; identity: PcLocalIdentity;
   request?: typeof fetch; taskId?: string }): Promise<PcExecutionEvidence> {
-  const request = input.request ?? fetch, base = localBrokerOrigin(input.base), identity = input.identity;
+  const request = input.request ?? fetch, base = localBrokerOrigin(input.base);
   await assertPcRuntime(base, input.revision, request);
+  return withPcExecutionLock(input.identity, () => executeClaimedPcWork({ ...input, base, request }));
+}
+
+/** Only an explicitly enrolled peer on the existing private Tailnet may issue bounded PUBLIC work. */
+export async function executeRemotePcWork(input: { base: string; tailnetDomain: string; revision: string;
+  identity: PcLocalIdentity; peer: JarvisWorkerIdentity; request?: typeof fetch; taskId?: string }): Promise<PcExecutionEvidence> {
+  const base = privatePcOrigin(input.base, input.tailnetDomain), transport = input.request ?? fetch;
+  if (input.peer.revokedAt || !["macbook", "zbook"].includes(input.peer.nodeId) ||
+    input.peer.nodeId === input.identity.nodeId || input.peer.algorithm !== "ed25519" ||
+    !/^[a-f0-9]{40}$/.test(input.revision)) throw new Error("PC_PRIVATE_PEER_REJECTED");
+  const request: typeof fetch = async (url, options) => {
+    const outbound = new Request(url, options);
+    if (new URL(outbound.url).origin !== base || outbound.method !== "POST" ||
+      new Headers(outbound.headers).has("authorization") || new Headers(outbound.headers).has("cookie")) {
+      throw new Error("PC_PRIVATE_REQUEST_REJECTED");
+    }
+    const response = await transport(outbound.url, options);
+    return verifyPrivatePcResponse(response, { request: outbound, peer: input.peer, revision: input.revision });
+  };
+  return withPcExecutionLock(input.identity, () => executeClaimedPcWork({ ...input, base, request }));
+}
+async function executeClaimedPcWork(input: { base: string; revision: string; identity: PcLocalIdentity;
+  request: typeof fetch; taskId?: string }): Promise<PcExecutionEvidence> {
+  const { request, base, identity } = input;
   const post = async (path: string, payload: unknown) => {
     const body = JSON.stringify(payload);
     const unsigned = { nodeId: identity.nodeId, path, method: "POST", timestamp: new Date().toISOString(),
@@ -71,7 +97,7 @@ export async function executeLocalPcWork(input: { base: string; revision: string
       headers: { "Content-Type": "application/json", "X-Jarvis-Node-Id": unsigned.nodeId,
         "X-Jarvis-Timestamp": unsigned.timestamp, "X-Jarvis-Nonce": unsigned.nonce, "X-Jarvis-Body-Sha256": unsigned.bodySha256,
         "X-Jarvis-Signature": sign(null, Buffer.from(canonicalWorkerRequest(unsigned)), identity.privateKeyPem).toString("base64") },
-      signal: AbortSignal.timeout(5000) });
+      signal: AbortSignal.timeout(30_000) });
     if (!response.ok) throw new Error("PC_WORK_SIGNED_REQUEST_REJECTED");
     return response.json();
   };
