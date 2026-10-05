@@ -323,16 +323,16 @@ async function main(phase) {
         now:Date.now,guard:path=>pathGuard(path,{secret:true}),readConfig,
         metadata:async path=>{
           const s=await lstat(path),acl=(await run('/bin/ls',['-lde',path])).split('\n').filter(line=>/^\s*\d+:/.test(line));
-          return {uid:s.uid,gid:s.gid,mode:s.mode&0o777,acl,flags:Number((await run('/usr/bin/stat',['-f','%f',path])).trim())};
+          return {uid:s.uid,gid:s.gid,mode:s.mode&0o7777,acl,flags:Number((await run('/usr/bin/stat',['-f','%f',path])).trim())};
         },
         recheck:async()=>{await verifySource();await verifyProtectedState();validateDashboardApproval(approval,artifacts);
           if((JSON.parse(await run(cli,['status','--json']))).BackendState!=='Running' || !await emptyBoundary())throw Error('STATE_REJECTED');},
-        verifyUnrelated,canRestore:emptyBoundary
+        verifyUnrelated,canRestore:emptyBoundary,
+        acceptVerified:({configuration,bytes})=>{config=configuration;initialEnvDigest=hash(bytes);}
       });
       console.log('MAC_OWNER_SECRET_RECEIPT='+JSON.stringify(result));
       if(!result.complete)throw Error('OWNER_SECRET_INITIALIZATION_FAILED');
       await assertNoOwnerSecretTransaction(envPath);
-      config=await readConfig(envPath);initialEnvDigest=hash(await readFile(envPath));
       if(!(config.JARVIS_OWNER_SECRET?.trim() || config.AI_COMPANY_OWNER_SECRET?.trim()))throw Error('OWNER_SESSION_SECRET_MISSING');
     }
     mark('staging');validateDashboardApproval(approval,artifacts);await ownerDirectory(base);await ownerDirectory(join(base,'releases'));

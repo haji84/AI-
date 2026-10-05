@@ -44,7 +44,7 @@ export async function initializeOwnerSecret(input,ops) {
   await assertNoOwnerSecretTransaction(input.path);
   const snapshot=async(path)=>{
     await ops.guard(path);const metadata=await ops.metadata(path);
-    if(metadata.uid!==process.getuid() || metadata.gid!==process.getgid() || metadata.mode&0o022 ||
+    if(metadata.uid!==process.getuid() || metadata.gid!==process.getgid() || metadata.mode&0o7022 ||
       !Array.isArray(metadata.acl) || metadata.acl.length || metadata.flags!==0)throw Error('OWNER_SECRET_METADATA_REJECTED');
     const f=await open(path,constants.O_RDONLY|constants.O_NOFOLLOW);
     try {
@@ -97,6 +97,8 @@ export async function initializeOwnerSecret(input,ops) {
     stage='verify';
     if(!equalFile(afterImage,await snapshot(input.path)) || !isDeepStrictEqual(await ops.readConfig(input.path),expected))throw Error('OWNER_SECRET_VERIFICATION_FAILED');
     await ops.verifyUnrelated();
+    if(!equalFile(afterImage,await snapshot(input.path)))throw Error('OWNER_SECRET_CONCURRENT_CHANGE');
+    await ops.acceptVerified?.({configuration:expected,bytes:afterImage.bytes});
     if(!equalFile(afterImage,await snapshot(input.path)))throw Error('OWNER_SECRET_CONCURRENT_CHANGE');
     const result={...receipt,complete:true,credentialChanged:true,metadataPreserved:true,otherConfigurationPreserved:true,backupRetained:true};
     await privateWrite(join(backup,'receipt.json'),JSON.stringify(result));await syncDirectory(backup);releaseLock=true;return result;

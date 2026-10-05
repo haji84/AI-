@@ -1,7 +1,8 @@
 import test from 'node:test';
 import process from 'node:process';
 import assert from 'node:assert/strict';
-import { mkdtemp, writeFile, readFile, readdir, lstat, rm, symlink, mkdir } from 'node:fs/promises';
+import { mkdtemp, writeFile, readFile, readdir, lstat, rm, symlink, mkdir, chmod } from 'node:fs/promises';
+import { Buffer } from 'node:buffer';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execFile } from 'node:child_process';
@@ -22,7 +23,7 @@ async function fixture(t,text=original) {
     'goriq',path,process.execPath,'console.log(JSON.stringify(Object.fromEntries(["JARVIS_OWNER_TOKEN","JARVIS_REMOTE_GATEWAY_TOKEN","JARVIS_DB_PATH","JARVIS_OWNER_SECRET","AI_COMPANY_OWNER_SECRET"].map(k=>[k,process.env[k]||""]))))'],
     {env:{PATH:'/usr/bin:/bin'},timeout:3000})).stdout);
   const guard=async(path)=>{const s=await lstat(path);if(s.isSymbolicLink()||s.uid!==process.getuid()||s.mode&0o022)throw Error('NATIVE_PATH_REJECTED');};
-  const ops={guard,readConfig,metadata:async(path)=>{const s=await lstat(path);return {uid:s.uid,gid:s.gid,mode:s.mode&0o777,acl:[],flags:0};},
+  const ops={guard,readConfig,metadata:async(path)=>{const s=await lstat(path);return {uid:s.uid,gid:s.gid,mode:s.mode&0o7777,acl:[],flags:0};},
     recheck:async()=>{},verifyUnrelated:async()=>{},now:()=>now};
   const input={path,phase:'apply',revision:'a'.repeat(40),approval,artifacts};return {dir,path,input,ops,readConfig};
 }
@@ -126,4 +127,20 @@ ownerTest('race inside reverse syscall puts unknown owner edit back and remains 
   f.ops.exchange=async(a,b)=>{if(++calls===2)await writeFile(a,changed);await realExchange(a,b);};
   const r=await initializeOwnerSecret(f.input,f.ops);assert.equal(r.complete,false);assert.equal(r.restored,false);assert.equal(r.recoveryBlocked,true);
   assert.equal(await readFile(f.path,'utf8'),changed);await assert.rejects(assertNoOwnerSecretTransaction(f.path));
+});
+ownerTest('caller receives only the privately verified baseline, never a fresh unverified after-image',async t=>{
+  const f=await fixture(t);let accepted;
+  f.ops.acceptVerified=value=>{accepted={configuration:{...value.configuration},bytes:Buffer.from(value.bytes)};};
+  const r=await initializeOwnerSecret(f.input,f.ops);assert.equal(r.complete,true);
+  assert.equal(accepted.bytes.toString(),await readFile(f.path,'utf8'));
+  assert.equal(accepted.configuration.JARVIS_OWNER_SECRET,(await f.readConfig(f.path)).JARVIS_OWNER_SECRET);
+  await writeFile(f.path,'# concurrent edit after verified initialization\n');
+  assert.notEqual(accepted.bytes.toString(),await readFile(f.path,'utf8'));
+  assert.equal(JSON.stringify(r).includes(accepted.configuration.JARVIS_OWNER_SECRET),false);
+});
+
+ownerTest('special permission bits are rejected without modifying source metadata',async t=>{
+  const f=await fixture(t);await chmod(f.path,0o4600);
+  await assert.rejects(initializeOwnerSecret(f.input,f.ops),/OWNER_SECRET_METADATA_REJECTED/);
+  assert.equal((await lstat(f.path)).mode&0o7777,0o4600);assert.equal(await readFile(f.path,'utf8'),original);
 });
