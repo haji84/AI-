@@ -167,7 +167,7 @@ export async function requestPeerPcEnrollment(input: { base: string; revision: s
     challengeId: challenge.challengeId, proofText: challenge.proofText, expiresAt: challenge.expiresAt,
     candidateContext: challenge.candidateContext, signatureBase64: "" };
   envelope.signatureBase64 = sign(null, Buffer.from(envelopeText(envelope)), input.identity.privateKeyPem).toString("base64");
-  return validateEnvelope(envelope, input.revision, coordinator.fingerprint, target.fingerprint, now);
+  return validateEnvelope(envelope, input.revision, coordinator.fingerprint, target.fingerprint, input.now ?? new Date());
 }
 export function signPeerPcEnrollment(input: { envelope: unknown; identity: PcLocalIdentity; revision: string;
   expectedCoordinatorFingerprint: string; now?: Date }): PeerPcProof {
