@@ -105,3 +105,13 @@ export async function recoverDashboardSurfaces({dashboardAttempted,routeAttempte
   await ops.verifyState();
   return {restored:true,recoveryBlocked:false};
 }
+
+export function validateDashboardAutomaticTrigger({revision,actor,run,pullRequest}) {
+  if(actor!=='haji84' || !/^[a-f0-9]{40}$/.test(revision || '') ||
+    run?.name!=='GORIQ JARVIS Production Sync' || run.status!=='completed' || run.conclusion!=='success' ||
+    run.head_branch!=='main' || run.head_sha!==revision || run.actor?.login!=='haji84' ||
+    run.head_repository?.full_name!=='haji84/AI-' ||
+    pullRequest?.number!==1712 || pullRequest.merged!==true || pullRequest.merge_commit_sha!==revision ||
+    pullRequest.base?.ref!=='main' || pullRequest.base?.repo?.full_name!=='haji84/AI-' ||
+    pullRequest.user?.login!=='haji84')throw Error('MAC_DASHBOARD_AUTOMATIC_TRIGGER_REJECTED');
+}

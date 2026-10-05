@@ -9,7 +9,7 @@ import { pathToFileURL } from 'node:url';
 let stage='context';
 const mark=value=>{stage=value;console.log('MAC_DASHBOARD_STAGE='+stage);};
 import { emptyServeConfig, emptyServicesConfig, onlyDashboardRoute, validateDashboardApproval,
-  executeDashboardRepair, stableFleetEnrollment, recoverDashboardSurfaces } from './goriq-mac-private-dashboard.mjs';
+  executeDashboardRepair, stableFleetEnrollment, recoverDashboardSurfaces, validateDashboardAutomaticTrigger } from './goriq-mac-private-dashboard.mjs';
 
 const execute=promisify(execFile);
 const label='com.aicompany.jarvis-private-dashboard';
@@ -164,6 +164,12 @@ async function main(phase) {
     await run(process.execPath,['scripts/goriq-pc-approved-source.mjs'],{env:{...process.env,GORIQ_PC_APPROVED_REVISION:revision},timeout:45000});
   };
   await verifySource();
+  if(process.env.GITHUB_EVENT_NAME==='workflow_run') {
+    const event=JSON.parse(await readFile(process.env.GITHUB_EVENT_PATH,'utf8'));
+    const response=await fetch('https://api.github.com/repos/haji84/AI-/pulls/1712',{signal:AbortSignal.timeout(15000)});
+    if(!response.ok)throw Error('MAC_DASHBOARD_TRIGGER_PROOF_UNAVAILABLE');
+    validateDashboardAutomaticTrigger({revision,actor:process.env.GITHUB_ACTOR,run:event.workflow_run,pullRequest:await response.json()});
+  } else if(process.env.GITHUB_EVENT_NAME!=='workflow_dispatch')throw Error('MAC_DASHBOARD_EVENT_REJECTED');
   await verifyNodeExecutable(process.execPath);
   mark('approval');const artifacts=Object.fromEntries(await Promise.all(artifactPaths.map(async path=>[path,blob(await readFile(path,'utf8'))])));
   const approval=JSON.parse(await readFile('docs/authorizations/1662-mac-private-dashboard.json','utf8'));

@@ -3,7 +3,7 @@ import process from 'node:process';
 import { Buffer } from 'node:buffer';
 import assert from 'node:assert/strict';
 import { validateDashboardApproval, emptyServeConfig, emptyServicesConfig, onlyDashboardRoute,
-  executeDashboardRepair, stableFleetEnrollment, recoverDashboardSurfaces } from '../scripts/goriq-mac-private-dashboard.mjs';
+  executeDashboardRepair, stableFleetEnrollment, recoverDashboardSurfaces, validateDashboardAutomaticTrigger } from '../scripts/goriq-mac-private-dashboard.mjs';
 
 const revision='a'.repeat(40), now=Date.parse('2026-10-05T12:31:33Z');
 const artifacts={'scripts/goriq-mac-private-dashboard.mjs':'b'.repeat(40)};
@@ -234,5 +234,19 @@ test('expiry during awaited source/inventory checks blocks the subsequent dashbo
     const result=await executeDashboardRepair(input(),ops);
     assert.equal(result.complete,false);assert.equal(calls.includes('create-route'),false);
     if(expiresOnCheck===1)assert.equal(calls.includes('start-dashboard'),false);
+  }
+});
+
+test('automatic activation binds owner Production Sync to exact merged PR1712; unrelated runs fail closed',()=>{
+  const proof={revision,actor:'haji84',run:{name:'GORIQ JARVIS Production Sync',status:'completed',conclusion:'success',
+    head_branch:'main',head_sha:revision,actor:{login:'haji84'},head_repository:{full_name:'haji84/AI-'}},
+    pullRequest:{number:1712,merged:true,merge_commit_sha:revision,base:{ref:'main',repo:{full_name:'haji84/AI-'}},user:{login:'haji84'}}};
+  validateDashboardAutomaticTrigger(proof);
+  for(const mutate of [p=>{p.actor='other';},p=>{p.run.actor.login='other';},p=>{p.run.conclusion='failure';},
+    p=>{p.run.head_sha='f'.repeat(40);},p=>{p.pullRequest.merge_commit_sha='f'.repeat(40);},
+    p=>{p.pullRequest.number=1713;},p=>{p.pullRequest.merged=false;},p=>{p.run.head_branch='feature';},
+    p=>{p.run.head_repository.full_name='other/AI-';},p=>{p.run.name='CI';},p=>{p.pullRequest.base.ref='feature';}]) {
+    const changed=JSON.parse(JSON.stringify(proof));mutate(changed);
+    assert.throws(()=>validateDashboardAutomaticTrigger(changed));
   }
 });
