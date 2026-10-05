@@ -331,7 +331,8 @@ async function main(phase) {
       if(await loaded() || await lstat(plist).catch(()=>null) || (await listeners()).length)throw Error('DASHBOARD_CONFLICT');
       managedText=dashboardPlist({release,node:process.execPath,revision,dbPath,home});
       validateDashboardApproval(approval,artifacts);
-      await writeFile(plist,managedText,{flag:'wx',mode:0o600});dashboardWritten=true;
+      dashboardWritten=true;
+      await writeFile(plist,managedText,{flag:'wx',mode:0o600});
       for(const name of ['dashboard.out.log','dashboard.err.log']) {
         const path=join(release,name);await pathGuard(path,{secret:true,allowAbsent:true});
         try{await writeFile(path,'',{flag:'wx',mode:0o600});}catch(error){if(error.code!=='EEXIST')throw error;}

@@ -250,3 +250,10 @@ test('automatic activation binds owner Production Sync to exact merged PR1712; u
     assert.throws(()=>validateDashboardAutomaticTrigger(changed));
   }
 });
+
+test('ambiguous partial plist write never claims restored or removes a file without ownership proof',async()=>{
+  const {calls,ops}=recoveryFixture(null,{ownedPlist:async()=>false});
+  const result=await recoverDashboardSurfaces({dashboardAttempted:true,routeAttempted:false,host},ops);
+  assert.equal(result.restored,false);assert.equal(result.recoveryBlocked,true);
+  assert.equal(calls.includes('unload-dashboard'),false);assert.equal(calls.includes('retain-plist'),false);
+});
