@@ -94,3 +94,32 @@ test('concurrent route between checks does not get overwritten and blocked recov
   assert.equal(calls.includes('create-route'),false);
   assert.equal(result.recoveryBlocked,true);assert.equal(result.restored,false);
 });
+
+import { mkdtemp, writeFile, symlink, chmod, rm } from 'node:fs/promises';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
+import { parseDashboardListeners, dashboardPlist, pathGuard } from '../scripts/goriq-mac-private-dashboard-native.mjs';
+test('native listener parsing proves exact launchd PID and IPv4 loopback boundary',()=>{
+  assert.deepEqual(parseDashboardListeners(''),[]);
+  assert.deepEqual(parseDashboardListeners('p123\nn127.0.0.1:3000\n'),[{pid:123,loopback:true}]);
+  assert.deepEqual(parseDashboardListeners('p123\nn*:3000\n'),[{pid:123,loopback:false}]);
+  assert.throws(()=>parseDashboardListeners('n127.0.0.1:3000\n'));
+  assert.throws(()=>parseDashboardListeners('permission denied'));
+});
+test('new plist starts dashboard only, XML escapes paths and never embeds credentials',()=>{
+  const text=dashboardPlist({release:'/owner/a&b',node:'/node/bin/node',revision,dbPath:'/owner/state/db',home:'/owner'});
+  assert.match(text,/a&amp;b/);assert.match(text,/private-dashboard/);
+  assert.doesNotMatch(text,/jarvis-broker|remote-host|OWNER_TOKEN|OWNER_SECRET|privateKey/);
+  assert.throws(()=>dashboardPlist({release:'relative',node:'/node',revision,dbPath:'/db',home:'/owner'}));
+});
+test('real owner filesystem boundaries reject symlinks and writable files without altering them',async()=>{
+  if(typeof process.getuid!=='function')return;
+  const root=await mkdtemp(join(homedir(),'.goriq-dashboard-fixture-'));
+  try {
+    await chmod(root,0o700);const file=join(root,'protected'),link=join(root,'link');
+    await writeFile(file,'existing-state',{mode:0o600});
+    await pathGuard(file,{secret:true});
+    await symlink(file,link);await assert.rejects(()=>pathGuard(link,{secret:true}));
+    await chmod(file,0o666);await assert.rejects(()=>pathGuard(file,{secret:true}));
+  }finally{await rm(root,{recursive:true,force:true});}
+});
