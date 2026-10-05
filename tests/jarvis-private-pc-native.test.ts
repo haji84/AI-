@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { generateKeyPairSync } from "node:crypto";
+import { spawn } from "node:child_process";
+import { once } from "node:events";
 import { privatePcDiscovery, privatePcIngressReady, registeredPrivatePcSigner, registeredPrivatePcPeer } from "../src/jarvis/private-pc-native.ts";
 import { withPcExecutionLock } from "../src/jarvis/pc-execution-lock.ts";
 import type { JarvisNode } from "../src/jarvis/types.ts";
@@ -70,4 +72,24 @@ test("network membership cannot replace existing counterpart enrollment and Goal
   }
   assert.throws(() => registeredPrivatePcPeer("zbook", node, registered), /MUTUAL_ENROLLMENT_REQUIRED/);
   assert.throws(() => registeredPrivatePcPeer("macbook", { ...node, pcAuthority: { ...node.pcAuthority!, roles: ["Executor"] } }, registered), /MUTUAL_ENROLLMENT_REQUIRED/);
+});
+
+test("process death releases the host slot without stealing a live lock or deleting state", { timeout: 10_000 }, async () => {
+  const moduleUrl = new URL("../src/jarvis/pc-execution-lock.ts", import.meta.url).href;
+  const code = `const {withPcExecutionLock}=await import(process.env.PC_LOCK_MODULE);
+    await withPcExecutionLock(JSON.parse(process.env.PC_LOCK_IDENTITY), async () => {
+      console.log("HOST_SLOT_HELD"); await new Promise(resolve => setInterval(resolve, 60000));
+    });`;
+  const child = spawn(process.execPath, ["--input-type=module", "-e", code], { stdio: ["ignore", "pipe", "pipe"],
+    env: { ...process.env, PC_LOCK_MODULE: moduleUrl, PC_LOCK_IDENTITY: JSON.stringify(identity) } });
+  try {
+    await new Promise<void>((resolve, reject) => {
+      let output = "";
+      child.stdout.on("data", chunk => { output += chunk; if (output.includes("HOST_SLOT_HELD")) resolve(); });
+      child.once("error", reject); child.once("exit", () => reject(Error("holder exited before acquiring lock")));
+    });
+    await assert.rejects(() => withPcExecutionLock(identity, async () => assert.fail("duplicate live holder")), /EXECUTION_BUSY/);
+    const exit = once(child, "exit"); child.kill("SIGKILL"); await exit;
+    assert.equal(await withPcExecutionLock(identity, async () => "recovered"), "recovered");
+  } finally { if (child.exitCode === null && child.signalCode === null) { const exit = once(child, "exit"); child.kill("SIGKILL"); await exit; } }
 });
