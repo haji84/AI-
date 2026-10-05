@@ -108,7 +108,7 @@ export async function recoverDashboardSurfaces({dashboardAttempted,routeAttempte
 
 export function validateDashboardAutomaticTrigger({revision,actor,run,pullRequest}) {
   if(actor!=='haji84' || !/^[a-f0-9]{40}$/.test(revision || '') ||
-    run?.name!=='GORIQ JARVIS Production Sync' || run.status!=='completed' || run.conclusion!=='success' ||
+    run?.name!=='GORIQ JARVIS Production Sync' || run.event!=='workflow_run' || run.status!=='completed' || run.conclusion!=='success' ||
     run.head_branch!=='main' || run.head_sha!==revision || run.actor?.login!=='haji84' ||
     run.head_repository?.full_name!=='haji84/AI-' ||
     pullRequest?.number!==1712 || pullRequest.merged!==true || pullRequest.merge_commit_sha!==revision ||

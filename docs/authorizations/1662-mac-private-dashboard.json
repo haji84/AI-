@@ -13,9 +13,9 @@
   "httpsPort": 443,
   "sourceBinding": "current-main-successful-ci",
   "artifacts": {
-    "scripts/goriq-mac-private-dashboard.mjs": "a4f532651ee9fcba7ea53f6845b245d3f38abd20",
+    "scripts/goriq-mac-private-dashboard.mjs": "7955b75e80349db43de1aafc83c937d1a29dc4fb",
     "scripts/goriq-mac-private-dashboard-native.mjs": "41d3523783f6208f5a0cada7a235a4ebf7b34d2e",
     "scripts/goriq-mac-private-dashboard-entry.sh": "75bc8237079103c0de9e53922f213829d9e58e1c",
-    ".github/workflows/goriq-mac-private-dashboard.yml": "41b1f6c64b8e2bb914b6575281ab7f34d75befd7"
+    ".github/workflows/goriq-mac-private-dashboard.yml": "ff7cb3f8193d63befcb828f06e58f27ce85cf613"
   }
 }

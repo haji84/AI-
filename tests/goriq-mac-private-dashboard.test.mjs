@@ -238,14 +238,14 @@ test('expiry during awaited source/inventory checks blocks the subsequent dashbo
 });
 
 test('automatic activation binds owner Production Sync to exact merged PR1712; unrelated runs fail closed',()=>{
-  const proof={revision,actor:'haji84',run:{name:'GORIQ JARVIS Production Sync',status:'completed',conclusion:'success',
+  const proof={revision,actor:'haji84',run:{name:'GORIQ JARVIS Production Sync',event:'workflow_run',status:'completed',conclusion:'success',
     head_branch:'main',head_sha:revision,actor:{login:'haji84'},head_repository:{full_name:'haji84/AI-'}},
     pullRequest:{number:1712,merged:true,merge_commit_sha:revision,base:{ref:'main',repo:{full_name:'haji84/AI-'}},user:{login:'haji84'}}};
   validateDashboardAutomaticTrigger(proof);
   for(const mutate of [p=>{p.actor='other';},p=>{p.run.actor.login='other';},p=>{p.run.conclusion='failure';},
     p=>{p.run.head_sha='f'.repeat(40);},p=>{p.pullRequest.merge_commit_sha='f'.repeat(40);},
     p=>{p.pullRequest.number=1713;},p=>{p.pullRequest.merged=false;},p=>{p.run.head_branch='feature';},
-    p=>{p.run.head_repository.full_name='other/AI-';},p=>{p.run.name='CI';},p=>{p.pullRequest.base.ref='feature';}]) {
+    p=>{p.run.head_repository.full_name='other/AI-';},p=>{p.run.name='CI';},p=>{p.pullRequest.base.ref='feature';},p=>{p.run.event='schedule';},p=>{p.run.event='push';}]) {
     const changed=JSON.parse(JSON.stringify(proof));mutate(changed);
     assert.throws(()=>validateDashboardAutomaticTrigger(changed));
   }
