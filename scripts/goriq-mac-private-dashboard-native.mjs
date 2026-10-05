@@ -268,7 +268,7 @@ async function main(phase) {
     const status=JSON.parse(await run(cli,['status','--json']));
     if(status.BackendState!=='Running' || !emptyServeConfig(await serve()) || !emptyServicesConfig(await services()) ||
       await loaded() || (await listeners()).length || await lstat(plist).catch(()=>null))throw Error('PREPARE_BOUNDARY_REJECTED');
-    mark('staging');await ownerDirectory(base);await ownerDirectory(join(base,'releases'));
+    mark('staging');validateDashboardApproval(approval,artifacts);await ownerDirectory(base);await ownerDirectory(join(base,'releases'));
     await verifySource();await verifyProtectedState();validateDashboardApproval(approval,artifacts);
     if(await reuseStagedRelease(releaseOptions)) {
       console.log(JSON.stringify({version:1,issue:1662,nodeId:'macbook',phase:'prepare',sourceRevision:revision,
@@ -280,11 +280,11 @@ async function main(phase) {
     for(const path of interrupted) {
       const existing=await lstat(path).catch(error=>{if(error.code==='ENOENT')return null;throw error;});
       if(!existing)continue;
-      await pathGuard(path,{secret:true});
+      await pathGuard(path,{secret:true});validateDashboardApproval(approval,artifacts);
       if(!quarantine){quarantine=join(base,'interrupted-'+revision+'-'+Date.now());await ownerDirectory(quarantine);}
       await rename(path,join(quarantine,path===release?'release':path===archive?'source.tar':'release.seal.json'));
     }
-    await ownerDirectory(release);
+    validateDashboardApproval(approval,artifacts);await ownerDirectory(release);
     await run('git',['archive','--format=tar','--output='+archive,revision]);
     await run('/usr/bin/tar',['-xf',archive,'-C',release]);
     const buildEnv={PATH:process.env.PATH,HOME:home,CI:'true',NEXT_TELEMETRY_DISABLED:'1',NO_COLOR:'1'};
@@ -295,6 +295,7 @@ async function main(phase) {
     const buildId=hash(await readFile(join(release,'.next','BUILD_ID')));
     const encoded=JSON.stringify({version:1,revision,buildId,artifacts,inventory:await releaseInventory(release),
       node:{path:process.execPath,sha256:await fileDigest(process.execPath)}});
+    validateDashboardApproval(approval,artifacts);
     await writeFile(join(release,'release-manifest.json'),encoded,{flag:'wx',mode:0o600});
     await writeFile(seal,JSON.stringify({version:1,revision,artifacts,manifestSha256:hash(encoded)}),{flag:'wx',mode:0o600});
     await verifyDashboardRelease(releaseOptions);
@@ -319,9 +320,11 @@ async function main(phase) {
     },
     startDashboard:async()=>{
       await verifySource();await verifyProtectedState();await verifyDashboardRelease(releaseOptions);
+      validateDashboardApproval(approval,artifacts);
       await pathGuard(plist,{allowAbsent:true});
       if(await loaded() || await lstat(plist).catch(()=>null) || (await listeners()).length)throw Error('DASHBOARD_CONFLICT');
       managedText=dashboardPlist({release,node:process.execPath,revision,dbPath,home});
+      validateDashboardApproval(approval,artifacts);
       await writeFile(plist,managedText,{flag:'wx',mode:0o600});dashboardWritten=true;
       for(const name of ['dashboard.out.log','dashboard.err.log']) {
         const path=join(release,name);await pathGuard(path,{secret:true,allowAbsent:true});
@@ -341,7 +344,7 @@ async function main(phase) {
       }
       if(!ready)throw Error('DASHBOARD_HEALTH_REJECTED');await verifyState();
     },
-    createRoute:async()=>{await run(cli,['serve','--bg','--yes','--https=443','http://127.0.0.1:3000'],{timeout:30000});},
+    createRoute:async()=>{validateDashboardApproval(approval,artifacts);await run(cli,['serve','--bg','--yes','--https=443','http://127.0.0.1:3000'],{timeout:30000});},
     verifyRoute:async()=>{
       if(!onlyDashboardRoute(await serve(),initial.host) || !emptyServicesConfig(await services()) ||
         (await health('https://'+initial.host+'/api/health')).status!=='ok')throw Error('PRIVATE_ROUTE_REJECTED');

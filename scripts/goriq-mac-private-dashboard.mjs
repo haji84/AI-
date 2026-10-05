@@ -53,6 +53,7 @@ export async function executeDashboardRepair(input,ops) {
     stage='boundary';
     validateDashboardApproval(input.approval,input.artifacts,ops.now?.() ?? input.now);
     const fresh=await ops.recheck();validateSnapshot(fresh);
+    validateDashboardApproval(input.approval,input.artifacts,ops.now?.() ?? input.now);
     if (fresh.revision!==input.snapshot.revision || fresh.host!==input.snapshot.host) throw Error();
     stage='dashboard';dashboardAttempted=true;
     await ops.startDashboard();
@@ -60,6 +61,7 @@ export async function executeDashboardRepair(input,ops) {
     stage='route-boundary';
     validateDashboardApproval(input.approval,input.artifacts,ops.now?.() ?? input.now);
     const beforeRoute=await ops.recheck();validateSnapshot(beforeRoute,{requireAbsence:false});
+    validateDashboardApproval(input.approval,input.artifacts,ops.now?.() ?? input.now);
     if (beforeRoute.revision!==input.snapshot.revision || beforeRoute.host!==input.snapshot.host) throw Error();
     stage='serve';routeAttempted=true;await ops.createRoute();
     stage='private-health';await ops.verifyRoute();

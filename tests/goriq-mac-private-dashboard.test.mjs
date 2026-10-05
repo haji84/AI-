@@ -1,5 +1,6 @@
 import test from 'node:test';
 import process from 'node:process';
+import { Buffer } from 'node:buffer';
 import assert from 'node:assert/strict';
 import { validateDashboardApproval, emptyServeConfig, emptyServicesConfig, onlyDashboardRoute,
   executeDashboardRepair, stableFleetEnrollment, recoverDashboardSurfaces } from '../scripts/goriq-mac-private-dashboard.mjs';
@@ -131,13 +132,13 @@ test('state preservation permits liveness updates but detects enrollment, member
   const fleet=[{id:'android-1',kind:'android',enrollment:'full',fleetNumber:1,group:'owner',
     status:'online',lastSeenAt:'before',telemetry:{batteryPercent:50},nodeContract:{checkedAt:'before'}},
     {id:'macbook',kind:'macos',enrollment:'full',pcAuthority:{roles:['Coordinator']}}];
-  const changed=structuredClone(fleet);
+  const changed=JSON.parse(JSON.stringify(fleet));
   changed[0].lastSeenAt='after';changed[0].status='offline';changed[0].telemetry.batteryPercent=40;
   changed[0].nodeContract.checkedAt='after';
   assert.deepEqual(stableFleetEnrollment(fleet),stableFleetEnrollment(changed.reverse()));
   for(const mutation of [rows=>{rows[0].enrollment='quick';},rows=>{rows.pop();},
     rows=>{rows[1].pcAuthority.roles=['Executor'];}]) {
-    const drift=structuredClone(fleet);mutation(drift);
+    const drift=JSON.parse(JSON.stringify(fleet));mutation(drift);
     assert.notDeepEqual(stableFleetEnrollment(fleet),stableFleetEnrollment(drift));
   }
 });
@@ -221,4 +222,17 @@ test('release provenance catches staged code/dependency tampering, escaping link
     await symlink(process.execPath,join(release,'escaping-link'));
     await assert.rejects(()=>releaseInventory(release));
   }finally{await rm(root,{recursive:true,force:true});}
+});
+
+test('expiry during awaited source/inventory checks blocks the subsequent dashboard or route mutation',async()=>{
+  for(const expiresOnCheck of [1,2]) {
+    let clock=now,checks=0;
+    const {calls,ops}=harness({now:()=>clock,recheck:async()=>{
+      if(++checks===expiresOnCheck)clock=Date.parse(approval().expiresAt);
+      return baseline();
+    }});
+    const result=await executeDashboardRepair(input(),ops);
+    assert.equal(result.complete,false);assert.equal(calls.includes('create-route'),false);
+    if(expiresOnCheck===1)assert.equal(calls.includes('start-dashboard'),false);
+  }
 });
