@@ -4014,7 +4014,7 @@
     },
     {
       "path": "src/jarvis/pc-enrollment.ts",
-      "sha256": "d41705433a7b0b6b8533e3b8639b051dfa637a54a757df81277d4f9653504bf4",
+      "sha256": "bdedda7e2cb35509511f4749ee864ec3e49e9d05c759945a5e3891a6aa24ee47",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "FLEET-001",
@@ -4051,6 +4051,18 @@
         "SEC-006"
       ],
       "reason": "Owner-scoped PC host-local identity and loopback proof enrollment; physical activation and execution remain separate Evidence gates"
+    },
+    {
+      "path": "src/jarvis/pc-peer-bootstrap.ts",
+      "sha256": "9100c17d1cd72a0b2faa2ffad6fa55c862f4ea2fd4553b93e9746d279e019148",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "FLEET-007",
+        "SEC-003",
+        "SEC-005",
+        "SEC-006"
+      ],
+      "reason": "Existing #1662 two-PC proof exchange over approved native runner public outputs; same local enrollment authority and no physical acceptance inference."
     },
     {
       "path": "src/jarvis/pc-runtime-refresh.ts",

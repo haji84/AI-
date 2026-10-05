@@ -12,7 +12,7 @@ on:
         required: true
         default: preflight
         type: choice
-        options: [preflight, enroll]
+        options: [preflight, enroll, peer-enroll]
 
 permissions:
   contents: read
@@ -99,3 +99,117 @@ jobs:
       - name: Enroll approved ZBook identity locally
         shell: powershell
         run: node scripts/goriq-pc-enroll.ts
+
+  # Existing #1662 authority only. Public proofs pass as job outputs; no artifacts,
+  # key/token copies, new token permissions or network configuration changes.
+  mac-public-proof:
+    if: inputs.phase == 'peer-enroll'
+    needs: preflight
+    runs-on: [self-hosted, macOS, ARM64]
+    timeout-minutes: 5
+    outputs:
+      descriptor: ${{ steps.public.outputs.descriptor }}
+      fingerprint: ${{ steps.public.outputs.fingerprint }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.revision }}
+      - name: Export existing hardware-bound Mac public proof
+        id: public
+        shell: bash
+        env:
+          GORIQ_PC_PEER_PHASE: export
+        run: bash scripts/goriq-pc-peer-enroll-macos.sh
+
+  zbook-peer-challenge:
+    needs: mac-public-proof
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 5
+    env:
+      GORIQ_PC_PEER_DESCRIPTOR: ${{ needs.mac-public-proof.outputs.descriptor }}
+      GORIQ_PC_PEER_FINGERPRINT: ${{ needs.mac-public-proof.outputs.fingerprint }}
+    outputs:
+      descriptor: ${{ steps.public.outputs.descriptor }}
+      fingerprint: ${{ steps.public.outputs.fingerprint }}
+      envelope: ${{ steps.public.outputs.envelope }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.revision }}
+      - name: Offer Mac challenge on existing local ZBook Broker
+        id: public
+        shell: powershell
+        env:
+          GORIQ_PC_PEER_PHASE: challenge
+        run: |
+          $env:PSModulePath=Join-Path $PSHOME 'Modules'
+          node scripts/goriq-pc-peer-enroll.ts
+          if($LASTEXITCODE -ne 0){exit $LASTEXITCODE}
+
+  mac-peer-sign:
+    needs: zbook-peer-challenge
+    runs-on: [self-hosted, macOS, ARM64]
+    timeout-minutes: 5
+    env:
+      GORIQ_PC_PEER_DESCRIPTOR: ${{ needs.zbook-peer-challenge.outputs.descriptor }}
+      GORIQ_PC_PEER_FINGERPRINT: ${{ needs.zbook-peer-challenge.outputs.fingerprint }}
+      GORIQ_PC_SIGN_ENVELOPE: ${{ needs.zbook-peer-challenge.outputs.envelope }}
+    outputs:
+      envelope: ${{ steps.public.outputs.envelope }}
+      proof: ${{ steps.public.outputs.proof }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.revision }}
+      - name: Sign ZBook challenge and offer reciprocal local Mac challenge
+        id: public
+        shell: bash
+        env:
+          GORIQ_PC_PEER_PHASE: sign-and-challenge
+        run: bash scripts/goriq-pc-peer-enroll-macos.sh
+
+  zbook-peer-prove:
+    needs: [mac-public-proof, zbook-peer-challenge, mac-peer-sign]
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 5
+    env:
+      GORIQ_PC_PEER_DESCRIPTOR: ${{ needs.mac-public-proof.outputs.descriptor }}
+      GORIQ_PC_PEER_FINGERPRINT: ${{ needs.mac-public-proof.outputs.fingerprint }}
+      GORIQ_PC_OWN_ENVELOPE: ${{ needs.zbook-peer-challenge.outputs.envelope }}
+      GORIQ_PC_PEER_PROOF: ${{ needs.mac-peer-sign.outputs.proof }}
+      GORIQ_PC_SIGN_ENVELOPE: ${{ needs.mac-peer-sign.outputs.envelope }}
+    outputs:
+      proof: ${{ steps.public.outputs.proof }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.revision }}
+      - name: Prove Mac key locally and sign reciprocal Mac challenge
+        id: public
+        shell: powershell
+        env:
+          GORIQ_PC_PEER_PHASE: complete-and-sign
+        run: |
+          $env:PSModulePath=Join-Path $PSHOME 'Modules'
+          node scripts/goriq-pc-peer-enroll.ts
+          if($LASTEXITCODE -ne 0){exit $LASTEXITCODE}
+
+  mac-peer-prove:
+    needs: [zbook-peer-challenge, mac-peer-sign, zbook-peer-prove]
+    runs-on: [self-hosted, macOS, ARM64]
+    timeout-minutes: 5
+    env:
+      GORIQ_PC_PEER_DESCRIPTOR: ${{ needs.zbook-peer-challenge.outputs.descriptor }}
+      GORIQ_PC_PEER_FINGERPRINT: ${{ needs.zbook-peer-challenge.outputs.fingerprint }}
+      GORIQ_PC_OWN_ENVELOPE: ${{ needs.mac-peer-sign.outputs.envelope }}
+      GORIQ_PC_PEER_PROOF: ${{ needs.zbook-peer-prove.outputs.proof }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.revision }}
+      - name: Prove existing ZBook key on local Mac Broker and retain native receipt
+        shell: bash
+        env:
+          GORIQ_PC_PEER_PHASE: complete
+        run: bash scripts/goriq-pc-peer-enroll-macos.sh
+

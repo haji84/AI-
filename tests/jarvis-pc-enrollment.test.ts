@@ -3,7 +3,7 @@ import test, { mock } from "node:test";
 import { chmod, link, mkdtemp, open, readFile, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { generateKeyPairSync, sign } from "node:crypto";
+import { createHash, generateKeyPairSync, sign } from "node:crypto";
 import * as pcApproval from "../src/jarvis/pc-enrollment.ts";
 import { PcEnrollmentService, type PcEnrollmentApproval } from "../src/jarvis/pc-enrollment.ts";
 
@@ -193,4 +193,19 @@ test("partial write failure restores original approval bytes while holding the r
     assert.equal(await pcApproval.renewPcApprovalFile({ path, approval: renewedScope, now: renewalTime,
       backup: async () => {} }), true);
   });
+});
+
+test("PC enrollment exposes the public candidate bound by its proof digest so the remote key holder can inspect authority", () => {
+  const service = new PcEnrollmentService(scope), offer = service.offer(input, now);
+  const candidate = Reflect.get(offer, "candidateContext");
+  assert.ok(candidate && typeof candidate === "object", "PC_CANDIDATE_CONTEXT_UNAVAILABLE");
+  assert.equal(candidate.node.id, input.nodeId);
+  assert.equal(candidate.identity.publicKeyPem, input.publicKeyPem);
+  assert.ok(candidate.node.pcAuthority);
+  assert.deepEqual(candidate.node.pcAuthority.roles, scope.roles);
+  assert.equal(createHash("sha256").update(JSON.stringify(candidate)).digest("hex"), offer.proofText.split("\n")[2]);
+  assert.equal(JSON.stringify(candidate).includes("PRIVATE KEY"), false);
+  candidate.node.policy.allowDestructiveActions = true;
+  const result = service.prove(offer.challengeId, sign(null, Buffer.from(offer.proofText), keys.privateKey).toString("base64"), now);
+  assert.equal(result.node.policy.allowDestructiveActions,false);
 });

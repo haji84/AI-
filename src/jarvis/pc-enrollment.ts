@@ -127,7 +127,8 @@ export class PcEnrollmentService {
 
   constructor(approval: PcEnrollmentApproval) { this.approval = structuredClone(approval); }
 
-  offer(value: unknown, now = new Date()): { challengeId: string; proofText: string; expiresAt: string } {
+  offer(value: unknown, now = new Date()): { challengeId: string; proofText: string; expiresAt: string;
+    candidateContext: { node: JarvisNode; identity: JarvisWorkerIdentity } } {
     const approval = validatePcEnrollmentApproval(this.approval, now);
     const input = value as Record<string, unknown>;
     if (!input || typeof input !== "object" || Array.isArray(input) ||
@@ -158,7 +159,8 @@ export class PcEnrollmentService {
     const proofText = `GORIQ-PC-ENROLL-v1\n${challengeId}\n${digest}`;
     const expiresAt = Math.min(now.getTime() + 300_000, Date.parse(approval.expiresAt));
     this.candidates.set(challengeId, { node, identity, proofText, expiresAt });
-    return { challengeId, proofText, expiresAt: new Date(expiresAt).toISOString() };
+    return { challengeId, proofText, expiresAt: new Date(expiresAt).toISOString(),
+      candidateContext: structuredClone({ node, identity }) };
   }
 
   prove(id: string, signature: string, now = new Date()): { node: JarvisNode; identity: JarvisWorkerIdentity } {
