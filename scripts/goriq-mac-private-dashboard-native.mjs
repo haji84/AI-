@@ -44,6 +44,7 @@ export async function pathGuard(path,{secret=false,allowAbsent=false}={}) {
 }
 
 export async function protectedOwnerPathFacts(path) {
+  if(!isAbsolute(path))throw Error('NATIVE_PATH_REJECTED');
   const facts=[];let current=path,index=0;
   for(;;) {
     try {
@@ -183,7 +184,7 @@ async function main(phase) {
   await verifySource();
   if(process.env.GITHUB_EVENT_NAME==='workflow_run') {
     const event=JSON.parse(await readFile(process.env.GITHUB_EVENT_PATH,'utf8'));
-    const response=await fetch('https://api.github.com/repos/haji84/AI-/pulls/1712',{signal:AbortSignal.timeout(15000)});
+    const response=await fetch('https://api.github.com/repos/haji84/AI-/pulls/1715',{signal:AbortSignal.timeout(15000)});
     if(!response.ok)throw Error('MAC_DASHBOARD_TRIGGER_PROOF_UNAVAILABLE');
     validateDashboardAutomaticTrigger({revision,actor:process.env.GITHUB_ACTOR,run:event.workflow_run,pullRequest:await response.json()});
   } else if(process.env.GITHUB_EVENT_NAME!=='workflow_dispatch')throw Error('MAC_DASHBOARD_EVENT_REJECTED');
@@ -198,13 +199,16 @@ async function main(phase) {
     console.log('MAC_ENVIRONMENT_BOUNDARY='+JSON.stringify({version:1,issue:1662,readOnly:true,
       surfaces:await protectedOwnerPathFacts(envPath)}));throw error;
   }
+  mark('owner-environment-read');
   const fields=['JARVIS_OWNER_TOKEN','JARVIS_OWNER_SECRET','AI_COMPANY_OWNER_SECRET','JARVIS_REMOTE_GATEWAY_TOKEN',
     'JARVIS_REMOTE_ALLOWED_SERIALS','JARVIS_DB_PATH','GORIQ_STATE_ROOT','JARVIS_COMPASS_DB_PATH','JARVIS_WORKER_APK_PATH'];
   // Existing trusted owner file is sourced only inside an owner-local child. Output is captured, never logged.
   const command='set -e; readonly _goriqNode="$2"; set -a; source "$1" >/dev/null; set +a; unset NODE_OPTIONS; exec "$_goriqNode" -e "$3"';
   const config=JSON.parse(await run('/bin/bash',['-c',command,'goriq',envPath,process.execPath,
     'console.log(JSON.stringify(Object.fromEntries('+JSON.stringify(fields)+'.map(k=>[k,process.env[k]||""]))))']));
-  if(!config.JARVIS_OWNER_TOKEN?.trim() || !(config.JARVIS_OWNER_SECRET?.trim() || config.AI_COMPANY_OWNER_SECRET?.trim()))throw Error('OWNER_AUTH_REJECTED');
+  mark('owner-auth');
+  if(!config.JARVIS_OWNER_TOKEN?.trim())throw Error('OWNER_TOKEN_MISSING');
+  if(!(config.JARVIS_OWNER_SECRET?.trim() || config.AI_COMPANY_OWNER_SECRET?.trim()))throw Error('OWNER_SESSION_SECRET_MISSING');
   const dbPath=config.JARVIS_DB_PATH || join(config.GORIQ_STATE_ROOT || join(home,'.goriq','state'),'jarvis.db');
   await pathGuard(dbPath,{secret:true});
   const compassPath=config.JARVIS_COMPASS_DB_PATH || join(config.GORIQ_STATE_ROOT || join(home,'.goriq','state'),'compass.db');

@@ -237,10 +237,10 @@ test('expiry during awaited source/inventory checks blocks the subsequent dashbo
   }
 });
 
-test('automatic activation binds owner Production Sync to exact merged PR1712; unrelated runs fail closed',()=>{
+test('automatic activation binds owner Production Sync to exact merged PR1715; unrelated runs fail closed',()=>{
   const proof={revision,actor:'haji84',run:{name:'GORIQ JARVIS Production Sync',event:'workflow_run',status:'completed',conclusion:'success',
     head_branch:'main',head_sha:revision,actor:{login:'haji84'},head_repository:{full_name:'haji84/AI-'}},
-    pullRequest:{number:1712,merged:true,merge_commit_sha:revision,base:{ref:'main',repo:{full_name:'haji84/AI-'}},user:{login:'haji84'}}};
+    pullRequest:{number:1715,merged:true,merge_commit_sha:revision,base:{ref:'main',repo:{full_name:'haji84/AI-'}},user:{login:'haji84'}}};
   validateDashboardAutomaticTrigger(proof);
   for(const mutate of [p=>{p.actor='other';},p=>{p.run.actor.login='other';},p=>{p.run.conclusion='failure';},
     p=>{p.run.head_sha='f'.repeat(40);},p=>{p.pullRequest.merge_commit_sha='f'.repeat(40);},
@@ -274,7 +274,7 @@ test('read-only environment boundary metadata uses anonymous surface references'
     const facts=await protectedOwnerPathFacts(file);
     assert.equal(facts[0].surface,'environment');assert.equal(facts[0].ownerClass,'current-user');
     assert.equal(facts[0].privateMode,true);assert.equal(facts[1].directory,true);
-    assert.doesNotMatch(JSON.stringify(facts),new RegExp(root.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
+    assert.equal(JSON.stringify(facts).includes(root),false);
     assert.doesNotMatch(JSON.stringify(facts),/SECRET_VALUE|owner-environment/);
   }finally{await rm(root,{recursive:true,force:true});}
 });
