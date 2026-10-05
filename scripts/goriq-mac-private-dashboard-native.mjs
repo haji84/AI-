@@ -186,7 +186,7 @@ async function main(phase) {
   await verifySource();
   if(process.env.GITHUB_EVENT_NAME==='workflow_run') {
     const event=JSON.parse(await readFile(process.env.GITHUB_EVENT_PATH,'utf8'));
-    const response=await fetch('https://api.github.com/repos/haji84/AI-/pulls/1717',{signal:AbortSignal.timeout(15000)});
+    const response=await fetch('https://api.github.com/repos/haji84/AI-/pulls/1718',{signal:AbortSignal.timeout(15000)});
     if(!response.ok)throw Error('MAC_DASHBOARD_TRIGGER_PROOF_UNAVAILABLE');
     validateDashboardAutomaticTrigger({revision,actor:process.env.GITHUB_ACTOR,run:event.workflow_run,pullRequest:await response.json()});
   } else if(process.env.GITHUB_EVENT_NAME!=='workflow_dispatch')throw Error('MAC_DASHBOARD_EVENT_REJECTED');

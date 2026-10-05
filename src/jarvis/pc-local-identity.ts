@@ -28,6 +28,7 @@ export async function ensurePcLocalIdentity(input: { nodeId: string; platform: P
         !verify(null, proof, publicKey, sign(null, proof, privateKey))) throw new Error();
     } catch { throw new Error("PC_LOCAL_IDENTITY_CONFLICT"); }
   } else {
+    if (approval.existingNodesOnly) throw new Error("PC_EXISTING_IDENTITY_REQUIRED");
     const keys = generateKeyPairSync("ed25519");
     identity = { version: 1, nodeId: input.nodeId, platform: input.platform, hostBinding: input.hostBinding,
       algorithm: "ed25519", publicKeyPem: keys.publicKey.export({ type: "spki", format: "pem" }).toString(),

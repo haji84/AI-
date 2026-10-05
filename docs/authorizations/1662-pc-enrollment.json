@@ -19,5 +19,6 @@
     "Storage",
     "Verifier",
     "Coordinator"
-  ]
+  ],
+  "existingNodesOnly": true
 }

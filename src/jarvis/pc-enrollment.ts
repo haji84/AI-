@@ -13,6 +13,8 @@ export interface PcEnrollmentApproval {
   expiresAt: string;
   targets: Array<{ nodeId: string; platform: "macos" | "windows" | "linux" }>;
   roles: NonNullable<JarvisNode["pcAuthority"]>["roles"];
+  /** A verification renewal can reuse registered PCs but cannot create keys or enrollment challenges. */
+  existingNodesOnly?: true;
 }
 type Candidate = { node: JarvisNode; identity: JarvisWorkerIdentity; proofText: string; expiresAt: number };
 
@@ -22,6 +24,7 @@ export function validatePcEnrollmentApproval(value: unknown, now = new Date()): 
   if (approval?.version !== 1 || !Number.isSafeInteger(approval.issue) || approval.issue < 1 ||
     !Number.isSafeInteger(approval.goalIssue) || approval.goalIssue < 1 || !Number.isFinite(start) || !Number.isFinite(end) ||
     start > now.getTime() || end <= now.getTime() || end <= start || end - start > 86_400_000 ||
+    (approval.existingNodesOnly !== undefined && approval.existingNodesOnly !== true) ||
     !Array.isArray(approval.targets) || approval.targets.length < 1 || approval.targets.length > 100 ||
     approval.targets.some(t => !t || typeof t.nodeId !== "string" || !/^[A-Za-z0-9._-]{1,100}$/.test(t.nodeId) ||
       !["macos", "windows", "linux"].includes(t.platform)) ||
@@ -38,16 +41,17 @@ export function validatePcEnrollmentApproval(value: unknown, now = new Date()): 
 export function validatePcApprovalRenewal(previous: unknown, next: unknown, now = new Date()): PcEnrollmentApproval {
   const renewed = validatePcEnrollmentApproval(next, now);
   const prior = validatePcEnrollmentApproval(previous, new Date(Date.parse((previous as PcEnrollmentApproval)?.approvedAt)));
-  const keys = ["version", "issue", "goalIssue", "approvedAt", "expiresAt", "targets", "roles"];
+  const keys = ["version", "issue", "goalIssue", "approvedAt", "expiresAt", "targets", "roles", "existingNodesOnly"];
   if (Object.keys(prior).some(key => !keys.includes(key)) || Object.keys(renewed).some(key => !keys.includes(key))) {
     throw new Error("PC_LOCAL_APPROVAL_CONFLICT");
   }
   const scope = (approval: PcEnrollmentApproval) => {
-    const { approvedAt: _start, expiresAt: _end, ...rest } = approval;
-    void _start; void _end;
+    const { approvedAt: _start, expiresAt: _end, existingNodesOnly: _reuseOnly, ...rest } = approval;
+    void _start; void _end; void _reuseOnly;
     return rest;
   };
-  if (!isDeepStrictEqual(scope(prior), scope(renewed)) ||
+  if ((prior.existingNodesOnly === true && renewed.existingNodesOnly !== true) ||
+    !isDeepStrictEqual(scope(prior), scope(renewed)) ||
     Date.parse(renewed.approvedAt) < Date.parse(prior.approvedAt) ||
     Date.parse(renewed.expiresAt) < Date.parse(prior.expiresAt)) throw new Error("PC_LOCAL_APPROVAL_CONFLICT");
   return renewed;
@@ -130,6 +134,7 @@ export class PcEnrollmentService {
   offer(value: unknown, now = new Date()): { challengeId: string; proofText: string; expiresAt: string;
     candidateContext: { node: JarvisNode; identity: JarvisWorkerIdentity } } {
     const approval = validatePcEnrollmentApproval(this.approval, now);
+    if (approval.existingNodesOnly) throw new Error("PC_EXISTING_NODE_VERIFICATION_ONLY");
     const input = value as Record<string, unknown>;
     if (!input || typeof input !== "object" || Array.isArray(input) ||
       Object.keys(input).some(k => !["nodeId", "platform", "publicKeyPem", "algorithm"].includes(k)) ||
