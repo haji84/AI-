@@ -330,6 +330,7 @@ async function main(phase) {
         const path=join(release,name);await pathGuard(path,{secret:true,allowAbsent:true});
         try{await writeFile(path,'',{flag:'wx',mode:0o600});}catch(error){if(error.code!=='EEXIST')throw error;}
       }
+      validateDashboardApproval(approval,artifacts);
       await run('/bin/launchctl',['bootstrap','gui/'+process.getuid(),plist]);
     },
     verifyDashboard:async()=>{

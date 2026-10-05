@@ -14,7 +14,7 @@
   "sourceBinding": "current-main-successful-ci",
   "artifacts": {
     "scripts/goriq-mac-private-dashboard.mjs": "bb50d35417c8c373c6aace1db8fe8317f72008d0",
-    "scripts/goriq-mac-private-dashboard-native.mjs": "c582becab9dc25e90c4be2842ce85c10a33a40ba",
+    "scripts/goriq-mac-private-dashboard-native.mjs": "4b6e3db8ea94bb9632ad894aec18223778a8e42f",
     "scripts/goriq-mac-private-dashboard-entry.sh": "75bc8237079103c0de9e53922f213829d9e58e1c",
     ".github/workflows/goriq-mac-private-dashboard.yml": "675c88814ff335cb8377bb4204a65391a4910fb6"
   }
