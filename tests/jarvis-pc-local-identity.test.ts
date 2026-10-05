@@ -67,3 +67,26 @@ test("host file storage publishes one identity atomically and refuses weak permi
     assert.equal(await readFile(path, "utf8"), stored);
   } finally { await rm(root, { recursive: true, force: true }); }
 });
+
+test("existing-node-only approval rejects missing identity without creating any protected files", { skip: process.platform === "win32" }, async () => {
+  const { mkdtemp, readdir, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const { FilePcIdentityStorage } = await import("../src/jarvis/pc-local-identity.ts");
+  const root = await mkdtemp(join(tmpdir(), "pc-reuse-only-"));
+  try {
+    const storage = new FilePcIdentityStorage(join(root, "absent", "identity.json"));
+    await assert.rejects(() => ensurePcLocalIdentity({ nodeId: "macbook", platform: "macos", hostBinding: "host-a",
+      approval: { ...approval, existingNodesOnly: true } as PcEnrollmentApproval, storage, now }), /PC_EXISTING_IDENTITY_REQUIRED/);
+    assert.deepEqual(await readdir(root), []);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+test("existing-node-only approval reuses the proven key and rejects conflicts without rewriting", async () => {
+  const m = memory(), input = { nodeId: "macbook", platform: "macos" as const, hostBinding: "host-a", approval, storage: m.storage, now };
+  const first = await ensurePcLocalIdentity(input);
+  const second = await ensurePcLocalIdentity({ ...input, approval: { ...approval, existingNodesOnly: true } as PcEnrollmentApproval });
+  assert.equal(second.fingerprint, first.fingerprint);assert.equal(second.created, false);assert.equal(m.writes(), 1);
+  await assert.rejects(() => ensurePcLocalIdentity({ ...input, hostBinding: "host-b",
+    approval: { ...approval, existingNodesOnly: true } as PcEnrollmentApproval }), /IDENTITY_CONFLICT/);
+  assert.equal(m.writes(), 1);
+});
