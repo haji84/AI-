@@ -4014,7 +4014,7 @@
     },
     {
       "path": "src/jarvis/pc-enrollment.ts",
-      "sha256": "bdedda7e2cb35509511f4749ee864ec3e49e9d05c759945a5e3891a6aa24ee47",
+      "sha256": "003bc7521b2bd031e1c408337a90d4ebc73a477180d2a4fee957fb987fc79559",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "FLEET-001",
@@ -4024,7 +4024,7 @@
         "SEC-005",
         "SEC-006"
       ],
-      "reason": "Owner-scoped PC identity enrollment with bounded proof-of-possession and immutable capability ceiling; physical activation and distributed execution Evidence remain separate."
+      "reason": "Owner-scoped PC identity enrollment with bounded proof-of-possession and immutable capability ceiling; physical activation and distributed execution Evidence remain separate. Approved existing-node-only verification renewal cannot create a missing key or issue fresh enrollment authority; narrowing is preserved across local approval renewal. #1662 receipt6004052721 / PR1718. Physical E2E remains unverified."
     },
     {
       "path": "src/jarvis/pc-execution-lock.ts",
@@ -4040,7 +4040,7 @@
     },
     {
       "path": "src/jarvis/pc-local-identity.ts",
-      "sha256": "06bf83607a53e9fda7fa008ba71e6b523fa056859c0f50e532d97bd7291d3375",
+      "sha256": "522d8c5e54537565a22c922ea97b642fdbe95c15af9199022f344a14ed5a4deb",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "FLEET-001",
@@ -4050,7 +4050,7 @@
         "SEC-005",
         "SEC-006"
       ],
-      "reason": "Owner-scoped PC host-local identity and loopback proof enrollment; physical activation and execution remain separate Evidence gates"
+      "reason": "Owner-scoped PC host-local identity and loopback proof enrollment; physical activation and execution remain separate Evidence gates Approved existing-node-only verification renewal cannot create a missing key or issue fresh enrollment authority; narrowing is preserved across local approval renewal. #1662 receipt6004052721 / PR1718. Physical E2E remains unverified."
     },
     {
       "path": "src/jarvis/pc-peer-bootstrap.ts",
