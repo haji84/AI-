@@ -111,7 +111,7 @@ export function validateDashboardAutomaticTrigger({revision,actor,run,pullReques
     run?.name!=='GORIQ JARVIS Production Sync' || run.event!=='workflow_run' || run.status!=='completed' || run.conclusion!=='success' ||
     run.head_branch!=='main' || run.head_sha!==revision || run.actor?.login!=='haji84' ||
     run.head_repository?.full_name!=='haji84/AI-' ||
-    pullRequest?.number!==1716 || pullRequest.merged!==true || pullRequest.merge_commit_sha!==revision ||
+    pullRequest?.number!==1717 || pullRequest.merged!==true || pullRequest.merge_commit_sha!==revision ||
     pullRequest.base?.ref!=='main' || pullRequest.base?.repo?.full_name!=='haji84/AI-' ||
     pullRequest.user?.login!=='haji84')throw Error('MAC_DASHBOARD_AUTOMATIC_TRIGGER_REJECTED');
 }
@@ -122,6 +122,9 @@ export function dashboardFailureClass(error) {
     'OWNER_AUTH_REJECTED','OWNER_TOKEN_MISSING','OWNER_SESSION_SECRET_MISSING','COMPASS_STATE_REJECTED','SOURCE_REJECTED','BROKER_SOURCE_REJECTED',
     'STATE_REJECTED','IDENTITY_REJECTED','CONFIG_OR_STATE_CHANGED','RELEASE_PROVENANCE_REJECTED',
     'DASHBOARD_APPROVAL_REJECTED','MAC_DASHBOARD_AUTOMATIC_TRIGGER_REJECTED','OWNER_SECRET_APPROVAL_REJECTED',
-    'OWNER_SECRET_INITIALIZATION_FAILED','OWNER_SECRET_METADATA_REJECTED','OWNER_SECRET_PENDING_TRANSACTION']);
+    'OWNER_SECRET_INITIALIZATION_FAILED','OWNER_SECRET_METADATA_REJECTED','OWNER_SECRET_PENDING_TRANSACTION',
+    'BUILD_TOOLCHAIN_REJECTED','RELEASE_ACL_REJECTED','RELEASE_ARTIFACT_REJECTED','RELEASE_ITEM_REJECTED',
+    'RELEASE_LINK_REJECTED','RELEASE_MUTABLE_LINK_REJECTED','RELEASE_NODE_ACL_REJECTED',
+    'RELEASE_NODE_PARENT_REJECTED','RELEASE_NODE_REJECTED','RELEASE_OWNER_REJECTED']);
   return error instanceof Error && allowed.has(error.message)?error.message:'MAC_PRIVATE_DASHBOARD_PREREQUISITE_REJECTED';
 }

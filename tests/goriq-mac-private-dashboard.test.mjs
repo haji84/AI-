@@ -238,10 +238,10 @@ test('expiry during awaited source/inventory checks blocks the subsequent dashbo
   }
 });
 
-test('automatic activation binds owner Production Sync to exact merged PR1716; unrelated runs fail closed',()=>{
+test('automatic activation binds owner Production Sync to exact merged PR1717; unrelated runs fail closed',()=>{
   const proof={revision,actor:'haji84',run:{name:'GORIQ JARVIS Production Sync',event:'workflow_run',status:'completed',conclusion:'success',
     head_branch:'main',head_sha:revision,actor:{login:'haji84'},head_repository:{full_name:'haji84/AI-'}},
-    pullRequest:{number:1716,merged:true,merge_commit_sha:revision,base:{ref:'main',repo:{full_name:'haji84/AI-'}},user:{login:'haji84'}}};
+    pullRequest:{number:1717,merged:true,merge_commit_sha:revision,base:{ref:'main',repo:{full_name:'haji84/AI-'}},user:{login:'haji84'}}};
   validateDashboardAutomaticTrigger(proof);
   for(const mutate of [p=>{p.actor='other';},p=>{p.run.actor.login='other';},p=>{p.run.conclusion='failure';},
     p=>{p.run.head_sha='f'.repeat(40);},p=>{p.pullRequest.merge_commit_sha='f'.repeat(40);},
@@ -278,4 +278,16 @@ test('read-only environment boundary metadata uses anonymous surface references'
     assert.equal(JSON.stringify(facts).includes(root),false);
     assert.doesNotMatch(JSON.stringify(facts),/SECRET_VALUE|owner-environment/);
   }finally{await rm(root,{recursive:true,force:true});}
+});
+
+test('preparation failures distinguish sealing and runtime provenance without revealing captured details',()=>{
+  const codes=['BUILD_TOOLCHAIN_REJECTED','RELEASE_ACL_REJECTED','RELEASE_ARTIFACT_REJECTED',
+    'RELEASE_ITEM_REJECTED','RELEASE_LINK_REJECTED','RELEASE_MUTABLE_LINK_REJECTED',
+    'RELEASE_NODE_ACL_REJECTED','RELEASE_NODE_PARENT_REJECTED','RELEASE_NODE_REJECTED','RELEASE_OWNER_REJECTED'];
+  for(const code of codes) {
+    const error=Object.assign(Error(code),{stdout:'SECRET_VALUE /private/owner/path',stderr:'PRIVATE_DNS example.ts.net'});
+    assert.equal(dashboardFailureClass(error),code);
+    assert.doesNotMatch(dashboardFailureClass(error),/SECRET_VALUE|private\/owner|PRIVATE_DNS|example/);
+    assert.equal(dashboardFailureClass(Error(code+' /private/owner/path')),'MAC_PRIVATE_DASHBOARD_PREREQUISITE_REJECTED');
+  }
 });
