@@ -279,3 +279,15 @@ test('read-only environment boundary metadata uses anonymous surface references'
     assert.doesNotMatch(JSON.stringify(facts),/SECRET_VALUE|owner-environment/);
   }finally{await rm(root,{recursive:true,force:true});}
 });
+
+test('preparation failures distinguish sealing and runtime provenance without revealing captured details',()=>{
+  const codes=['BUILD_TOOLCHAIN_REJECTED','RELEASE_ACL_REJECTED','RELEASE_ARTIFACT_REJECTED',
+    'RELEASE_ITEM_REJECTED','RELEASE_LINK_REJECTED','RELEASE_MUTABLE_LINK_REJECTED',
+    'RELEASE_NODE_ACL_REJECTED','RELEASE_NODE_PARENT_REJECTED','RELEASE_NODE_REJECTED','RELEASE_OWNER_REJECTED'];
+  for(const code of codes) {
+    const error=Object.assign(Error(code),{stdout:'SECRET_VALUE /private/owner/path',stderr:'PRIVATE_DNS example.ts.net'});
+    assert.equal(dashboardFailureClass(error),code);
+    assert.doesNotMatch(dashboardFailureClass(error),/SECRET_VALUE|private\/owner|PRIVATE_DNS|example/);
+    assert.equal(dashboardFailureClass(Error(code+' /private/owner/path')),'MAC_PRIVATE_DASHBOARD_PREREQUISITE_REJECTED');
+  }
+});
