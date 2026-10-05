@@ -1156,7 +1156,7 @@
     },
     {
       "path": "scripts/jarvis-managed-process.mjs",
-      "sha256": "ff387097abf53cdd0c89f64baa31f4955bd4e9869aaaef9b83f32cf59f3798c5",
+      "sha256": "4ac80f4f258460970bb7bfcf8442c2fa9f610dadf629ff8bba566111ed97c333",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "HOST-001",
@@ -1164,7 +1164,7 @@
         "HOST-004",
         "HOST-005"
       ],
-      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+      "reason": "Existing HOST/OPS parent scope; #1662/#1219 bounded private ingress isolation and configured-address recovery. CI behavior evidence is separate from pending native cross-subnet mobility/offline/failover acceptance."
     },
     {
       "path": "scripts/jarvis-owner-spec-sync.d.mts",
@@ -1287,7 +1287,7 @@
     },
     {
       "path": "scripts/jarvis-remote-host.mjs",
-      "sha256": "d1f8a3dc6059351b970764d9a15a70a14c58e8743b5690e740d53f69c19e0b8c",
+      "sha256": "adeff38e18b779d850acf0e5e84b721ff48c373690cabbbeabbe6ce4dde342ef",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "HOST-001",
@@ -1297,7 +1297,7 @@
         "HOST-007",
         "OPS-010"
       ],
-      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+      "reason": "Existing HOST/OPS parent scope; #1662/#1219 bounded private ingress isolation and configured-address recovery. CI behavior evidence is separate from pending native cross-subnet mobility/offline/failover acceptance."
     },
     {
       "path": "scripts/jarvis-remote-preflight.mjs",

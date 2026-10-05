@@ -30,6 +30,7 @@ export function manageProcess(spec, options = {}) {
   let stopped = false;
   let failures = 0;
   let state = 'starting';
+  let terminationRequested = false;
 
   function start() {
     if (stopped) return;
@@ -38,8 +39,11 @@ export function manageProcess(spec, options = {}) {
     const startedAt = now();
     let handled = false;
     let spawned = false;
-    function ended(reason) {
-      if (handled || stopped) return;
+    let launchedChild = null;
+    function ended(reason, exited = false) {
+      if (exited && child === launchedChild) child = null;
+      if (stopped) { if (child === null) state = 'stopped'; return; }
+      if (handled) return;
       handled = true;
       child = null;
       failures = spawned && now() - startedAt >= 60_000 ? 1 : failures + 1;
@@ -57,21 +61,26 @@ export function manageProcess(spec, options = {}) {
       timer = schedule(start, delay);
     }
     try {
-      child = launch(spec.command, spec.args, { cwd: options.cwd, env: options.env, stdio: options.stdio ?? 'inherit', windowsHide: true });
+      child = launchedChild = launch(spec.command, spec.args, { cwd: options.cwd, env: options.env, stdio: options.stdio ?? 'inherit', windowsHide: true });
       child.once('spawn', () => { spawned = true; state = 'running'; report({ service: spec.name, state }); });
-      child.once('error', error => ended(`spawn:${error.code ?? 'unknown'}`));
-      child.once('exit', (code, signal) => ended(`exit:${code ?? signal ?? 'unknown'}`));
+      // Keep an error handler during pending termination: kill(false) can emit
+      // an error rather than throw, and must not release a still-live child.
+      child.on('error', error => ended(`spawn:${error.code ?? 'unknown'}`));
+      child.once('exit', (code, signal) => ended(`exit:${code ?? signal ?? 'unknown'}`, true));
+      child.once('close', () => ended('close', true));
     } catch (error) { ended(`spawn:${error.code ?? 'unknown'}`); }
   }
 
   start();
   return {
     snapshot: () => ({ state, failures, retryPending: timer !== null }),
+    isStopped: () => stopped && child === null,
     stop() {
       stopped = true;
-      state = 'stopped';
+      state = child ? 'stopping' : 'stopped';
       if (timer !== null) { cancel(timer); timer = null; }
-      if (child) { child.kill('SIGTERM'); child = null; }
+      // Signal delivery is not exit evidence. Retain ownership until exit/close.
+      if (child && !terminationRequested) terminationRequested = child.kill('SIGTERM') === true;
     },
   };
 }
@@ -104,6 +113,14 @@ export function manageNetworkProcess(spec, options = {}) {
       stoppingChild = true;
       try {
         active.stop();
+        if (!active.isStopped()) {
+          if (!stopFailureReported) {
+            report({ service: spec.name, state: 'waiting-for-network', reason: 'child-exit-pending' });
+            stopFailureReported = true;
+          }
+          timer = schedule(check, interval);
+          return;
+        }
         active = null;
         stoppingChild = false;
         stopFailureReported = false;
