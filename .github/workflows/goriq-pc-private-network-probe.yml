@@ -1,0 +1,35 @@
+name: GORIQ PC Private Network Read-only Probe
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: goriq-pc-private-network-readonly
+  cancel-in-progress: false
+
+jobs:
+  observe:
+    if: github.repository == 'haji84/AI-' && github.ref == 'refs/heads/main' && github.actor == 'haji84'
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [[self-hosted, macOS, ARM64], [self-hosted, Windows, X64]]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+      - name: Require exact current main with successful CI
+        env:
+          GORIQ_PC_APPROVED_REVISION: ${{ github.sha }}
+        run: node scripts/goriq-pc-approved-source.mjs
+      - name: Observe native private route and local health without changing state
+        run: node scripts/goriq-pc-private-network-probe.mjs
