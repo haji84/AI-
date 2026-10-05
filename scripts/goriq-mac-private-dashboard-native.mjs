@@ -6,6 +6,7 @@ import { createReadStream } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, isAbsolute, relative, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { initializeOwnerSecret, validateOwnerSecretApproval, assertNoOwnerSecretTransaction } from './goriq-mac-owner-secret.mjs';
 let stage='context';
 const mark=value=>{stage=value;console.log('MAC_DASHBOARD_STAGE='+stage);};
 import { emptyServeConfig, emptyServicesConfig, onlyDashboardRoute, validateDashboardApproval,
@@ -14,7 +15,8 @@ import { emptyServeConfig, emptyServicesConfig, onlyDashboardRoute, validateDash
 const execute=promisify(execFile);
 const label='com.aicompany.jarvis-private-dashboard';
 const artifactPaths=['scripts/goriq-mac-private-dashboard.mjs','scripts/goriq-mac-private-dashboard-native.mjs',
-  'scripts/goriq-mac-private-dashboard-entry.sh','.github/workflows/goriq-mac-private-dashboard.yml'];
+  'scripts/goriq-mac-private-dashboard-entry.sh','.github/workflows/goriq-mac-private-dashboard.yml',
+  'scripts/goriq-mac-owner-secret.mjs','scripts/goriq-owner-file-swap.py'];
 const hash=value=>createHash('sha256').update(value).digest('hex');
 const blob=value=>createHash('sha1').update('blob '+Buffer.byteLength(value)+'\0').update(value).digest('hex');
 async function run(command,args,{timeout=10000,env=process.env,cwd=process.cwd(),allowAbsent=false}={}) {
@@ -184,7 +186,7 @@ async function main(phase) {
   await verifySource();
   if(process.env.GITHUB_EVENT_NAME==='workflow_run') {
     const event=JSON.parse(await readFile(process.env.GITHUB_EVENT_PATH,'utf8'));
-    const response=await fetch('https://api.github.com/repos/haji84/AI-/pulls/1715',{signal:AbortSignal.timeout(15000)});
+    const response=await fetch('https://api.github.com/repos/haji84/AI-/pulls/1716',{signal:AbortSignal.timeout(15000)});
     if(!response.ok)throw Error('MAC_DASHBOARD_TRIGGER_PROOF_UNAVAILABLE');
     validateDashboardAutomaticTrigger({revision,actor:process.env.GITHUB_ACTOR,run:event.workflow_run,pullRequest:await response.json()});
   } else if(process.env.GITHUB_EVENT_NAME!=='workflow_dispatch')throw Error('MAC_DASHBOARD_EVENT_REJECTED');
@@ -199,16 +201,20 @@ async function main(phase) {
     console.log('MAC_ENVIRONMENT_BOUNDARY='+JSON.stringify({version:1,issue:1662,readOnly:true,
       surfaces:await protectedOwnerPathFacts(envPath)}));throw error;
   }
+  await assertNoOwnerSecretTransaction(envPath);
   mark('owner-environment-read');
   const fields=['JARVIS_OWNER_TOKEN','JARVIS_OWNER_SECRET','AI_COMPANY_OWNER_SECRET','JARVIS_REMOTE_GATEWAY_TOKEN',
     'JARVIS_REMOTE_ALLOWED_SERIALS','JARVIS_DB_PATH','GORIQ_STATE_ROOT','JARVIS_COMPASS_DB_PATH','JARVIS_WORKER_APK_PATH'];
   // Existing trusted owner file is sourced only inside an owner-local child. Output is captured, never logged.
   const command='set -e; readonly _goriqNode="$2"; set -a; source "$1" >/dev/null; set +a; unset NODE_OPTIONS; exec "$_goriqNode" -e "$3"';
-  const config=JSON.parse(await run('/bin/bash',['-c',command,'goriq',envPath,process.execPath,
-    'console.log(JSON.stringify(Object.fromEntries('+JSON.stringify(fields)+'.map(k=>[k,process.env[k]||""]))))']));
+  const readConfig=async path=>JSON.parse(await run('/bin/bash',['-c',command,'goriq',path,process.execPath,
+    'console.log(JSON.stringify(Object.fromEntries('+JSON.stringify(fields)+'.map(k=>[k,process.env[k]||""]))))'],
+    {env:{PATH:process.env.PATH,HOME:home}}));
+  let config=await readConfig(envPath);
   mark('owner-auth');
   if(!config.JARVIS_OWNER_TOKEN?.trim())throw Error('OWNER_TOKEN_MISSING');
-  if(!(config.JARVIS_OWNER_SECRET?.trim() || config.AI_COMPANY_OWNER_SECRET?.trim()))throw Error('OWNER_SESSION_SECRET_MISSING');
+  const secretMissing=!(config.JARVIS_OWNER_SECRET?.trim() || config.AI_COMPANY_OWNER_SECRET?.trim());
+  if(secretMissing && phase!=='prepare')throw Error('OWNER_SESSION_SECRET_MISSING');
   const dbPath=config.JARVIS_DB_PATH || join(config.GORIQ_STATE_ROOT || join(home,'.goriq','state'),'jarvis.db');
   await pathGuard(dbPath,{secret:true});
   const compassPath=config.JARVIS_COMPASS_DB_PATH || join(config.GORIQ_STATE_ROOT || join(home,'.goriq','state'),'compass.db');
@@ -236,7 +242,8 @@ async function main(phase) {
       return {android:stableFleetEnrollment(android),fleet:stableFleetEnrollment(fleet),identities,schema:db.prepare("SELECT type,name,tbl_name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type,name").all()};
     } finally{db.close();}
   };
-  mark('state');const beforeState=stateSnapshot(),initialEnvDigest=hash(await readFile(envPath)),initialIdentityDigest=hash(await readFile(identityPath));
+  mark('state');const beforeState=stateSnapshot(),initialIdentityDigest=hash(await readFile(identityPath));
+  let initialEnvDigest=hash(await readFile(envPath));
   const broker=await health('http://127.0.0.1:8787/health');
   if(broker.ok!==true || broker.service!=='jarvis-broker' || broker.runtimeRevision!==revision)throw Error('BROKER_SOURCE_REJECTED');
   mark('private-network');const tailscale=(await run('/usr/bin/which',['tailscale'])).trim();
@@ -290,7 +297,7 @@ async function main(phase) {
     if(current.ok!==true || current.runtimeRevision!==revision)throw Error('BROKER_SOURCE_REJECTED');
     return true;
   };
-  if(await verifyExistingActivation()) {
+  if(!secretMissing && await verifyExistingActivation()) {
     console.log(JSON.stringify({version:1,issue:1662,nodeId:'macbook',phase,sourceRevision:revision,
       readOnly:true,complete:true,alreadyActive:true,activationVerified:true,statePreserved:true,
       transportAcceptanceVerified:false,observedAt:new Date().toISOString()}));return;
@@ -299,6 +306,35 @@ async function main(phase) {
     const status=JSON.parse(await run(cli,['status','--json']));
     if(status.BackendState!=='Running' || !emptyServeConfig(await serve()) || !emptyServicesConfig(await services()) ||
       await loaded() || (await listeners()).length || await lstat(plist).catch(()=>null))throw Error('PREPARE_BOUNDARY_REJECTED');
+    if(secretMissing) {
+      mark('owner-secret-initialization');
+      const credentialApproval=JSON.parse(await readFile('docs/authorizations/1662-mac-owner-secret.json','utf8'));
+      validateOwnerSecretApproval(credentialApproval,artifacts);
+      const emptyBoundary=async()=>!await loaded() && !await lstat(plist).catch(()=>null) &&
+        !(await listeners()).length && emptyServeConfig(await serve()) && emptyServicesConfig(await services());
+      const verifyUnrelated=async()=>{
+        await verifySource();
+        for(const path of [envPath,dbPath,identityPath,compassPath])await pathGuard(path,{secret:true});
+        if(hash(await readFile(identityPath))!==initialIdentityDigest || !isDeepStrictEqual(beforeState,stateSnapshot()))throw Error('CONFIG_OR_STATE_CHANGED');
+        const current=await health('http://127.0.0.1:8787/health');
+        if(current.ok!==true || current.runtimeRevision!==revision || !await emptyBoundary())throw Error('STATE_REJECTED');
+      };
+      const result=await initializeOwnerSecret({path:envPath,phase:'apply',revision,approval:credentialApproval,artifacts},{
+        now:Date.now,guard:path=>pathGuard(path,{secret:true}),readConfig,
+        metadata:async path=>{
+          const s=await lstat(path),acl=(await run('/bin/ls',['-lde',path])).split('\n').filter(line=>/^\s*\d+:/.test(line));
+          return {uid:s.uid,gid:s.gid,mode:s.mode&0o777,acl,flags:Number((await run('/usr/bin/stat',['-f','%f',path])).trim())};
+        },
+        recheck:async()=>{await verifySource();await verifyProtectedState();validateDashboardApproval(approval,artifacts);
+          if((JSON.parse(await run(cli,['status','--json']))).BackendState!=='Running' || !await emptyBoundary())throw Error('STATE_REJECTED');},
+        verifyUnrelated,canRestore:emptyBoundary
+      });
+      console.log('MAC_OWNER_SECRET_RECEIPT='+JSON.stringify(result));
+      if(!result.complete)throw Error('OWNER_SECRET_INITIALIZATION_FAILED');
+      await assertNoOwnerSecretTransaction(envPath);
+      config=await readConfig(envPath);initialEnvDigest=hash(await readFile(envPath));
+      if(!(config.JARVIS_OWNER_SECRET?.trim() || config.AI_COMPANY_OWNER_SECRET?.trim()))throw Error('OWNER_SESSION_SECRET_MISSING');
+    }
     mark('staging');validateDashboardApproval(approval,artifacts);await ownerDirectory(base);await ownerDirectory(join(base,'releases'));
     await verifySource();await verifyProtectedState();validateDashboardApproval(approval,artifacts);
     if(await reuseStagedRelease(releaseOptions)) {

@@ -194,7 +194,8 @@ test('release provenance catches staged code/dependency tampering, escaping link
     await chmod(root,0o700);
     const release=join(root,'release');await mkdir(release,{mode:0o700});
     const paths=['scripts/goriq-mac-private-dashboard.mjs','scripts/goriq-mac-private-dashboard-native.mjs',
-      'scripts/goriq-mac-private-dashboard-entry.sh','.github/workflows/goriq-mac-private-dashboard.yml'];
+      'scripts/goriq-mac-private-dashboard-entry.sh','.github/workflows/goriq-mac-private-dashboard.yml',
+      'scripts/goriq-mac-owner-secret.mjs','scripts/goriq-owner-file-swap.py'];
     const bound={};
     for(const path of paths) {
       await mkdir(join(release,path.substring(0,path.lastIndexOf('/'))),{recursive:true,mode:0o700});
@@ -237,10 +238,10 @@ test('expiry during awaited source/inventory checks blocks the subsequent dashbo
   }
 });
 
-test('automatic activation binds owner Production Sync to exact merged PR1715; unrelated runs fail closed',()=>{
+test('automatic activation binds owner Production Sync to exact merged PR1716; unrelated runs fail closed',()=>{
   const proof={revision,actor:'haji84',run:{name:'GORIQ JARVIS Production Sync',event:'workflow_run',status:'completed',conclusion:'success',
     head_branch:'main',head_sha:revision,actor:{login:'haji84'},head_repository:{full_name:'haji84/AI-'}},
-    pullRequest:{number:1715,merged:true,merge_commit_sha:revision,base:{ref:'main',repo:{full_name:'haji84/AI-'}},user:{login:'haji84'}}};
+    pullRequest:{number:1716,merged:true,merge_commit_sha:revision,base:{ref:'main',repo:{full_name:'haji84/AI-'}},user:{login:'haji84'}}};
   validateDashboardAutomaticTrigger(proof);
   for(const mutate of [p=>{p.actor='other';},p=>{p.run.actor.login='other';},p=>{p.run.conclusion='failure';},
     p=>{p.run.head_sha='f'.repeat(40);},p=>{p.pullRequest.merge_commit_sha='f'.repeat(40);},
