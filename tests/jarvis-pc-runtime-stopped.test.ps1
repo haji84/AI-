@@ -107,4 +107,38 @@ try{
   $fixtureState.pcTasksDigest='changed'
   Assert-Refused {Assert-StoppedRollback} 'rollback-pc-task-change'
 }finally{Remove-Item -LiteralPath $temporary -Recurse -Force}
+# Use the actual active-tree verifier; stopped-baseline mocks must not hide
+# listener-free orphan/old-supervisor races during candidate health verification.
+Remove-Item Function:\Get-OwnedTree
+$definition=$ast.Find({param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq 'Get-OwnedTree'},$true)
+Invoke-Expression $definition.Extent.Text
+$identity=@{User=@{Value='fixture-owner'}}
+$launcherPath='C:\fixture\JARVIS\production\launch-current.ps1'; $compat='C:\fixture\compat.ps1'
+$fixtureOwner='fixture-owner'
+function Invoke-CimMethod {
+  [CmdletBinding()]param($InputObject,$MethodName,$OperationTimeoutSec)
+  if($MethodName -ne 'GetOwnerSid' -or $OperationTimeoutSec -ne 15){throw 'owner-query-shape'}
+  return @{ReturnValue=0;Sid=$fixtureOwner}
+}
+$fixtureTaskState='Running'; $fixturePorts=@(3000,8787,8790)
+$active=@(
+  [pscustomobject]@{ProcessId=1;ParentProcessId=3;Name='node.exe';CommandLine='node '+$releaseRoot+'\scripts\jarvis-remote-host.mjs'},
+  [pscustomobject]@{ProcessId=2;ParentProcessId=1;Name='node.exe';CommandLine='node '+$releaseRoot+'\scripts\jarvis-broker.ts'},
+  [pscustomobject]@{ProcessId=3;ParentProcessId=0;Name='powershell.exe';CommandLine='powershell '+$launcherPath})
+$fixtureProcesses=$active
+if(@(Get-OwnedTree $releaseRoot $true @(3000,8787,8790)).Count -ne 2){throw 'owned-tree-or-launcher-rejected'}
+foreach($command in @('node C:\fixture\JARVIS\releases\old\scripts\jarvis-remote-host.mjs','node C:\elsewhere\jarvis-broker.ts','powershell C:\fixture\JARVIS\production\launch-current.ps1')){
+  $fixtureProcesses=@($active)+@([pscustomobject]@{ProcessId=99;ParentProcessId=0;Name='node.exe';CommandLine=$command})
+  Assert-Refused {Get-OwnedTree $releaseRoot $true @(3000,8787,8790)} 'candidate-unowned-installation'
+}
+$fixtureProcesses=@($active)+@([pscustomobject]@{ProcessId=99;ParentProcessId=0;Name='node.exe';CommandLine=$null})
+Assert-Refused {Get-OwnedTree $releaseRoot $true @(3000,8787,8790)} 'candidate-hidden-node'
+$fixtureProcesses=$active; $fixtureOwner='other-owner'
+Assert-Refused {Get-OwnedTree $releaseRoot $true @(3000,8787,8790)} 'candidate-owner'
+$fixtureOwner='fixture-owner'; $fixtureQueryFails=$true
+Assert-Refused {Get-OwnedTree $releaseRoot $true @(3000,8787,8790)} 'candidate-listener-query'
+$fixtureQueryFails=$false; $fixtureProcessFails=$true
+Assert-Refused {Get-OwnedTree $releaseRoot $true @(3000,8787,8790)} 'candidate-process-query'
+$fixtureProcessFails=$false
+
 Write-Output 'Stopped baseline and degraded activation fixtures PASS'

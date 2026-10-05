@@ -185,6 +185,30 @@ function Get-OwnedTree([string]$root,[bool]$requireHealthy=$true,[int[]]$require
     $added=@($all | Where-Object {$ids -contains [int]$_.ParentProcessId -and $ids -notcontains [int]$_.ProcessId})
     $ids+=@($added | ForEach-Object {[int]$_.ProcessId})
   } while($added.Count -gt 0)
+  # The native/compat PowerShell launcher is a parent, not a host descendant.
+  # Permit only proven same-owner launcher ancestors; reject every other
+  # installation process outside this tree, including listener-free orphans.
+  $launcherAncestors=@(); $ancestor=$hosts[0]; $seen=@($ids)
+  for($i=0;$i -lt 16;$i++){
+    $parent=@($all | Where-Object {[int]$_.ProcessId -eq [int]$ancestor.ParentProcessId})
+    if($parent.Count -ne 1 -or $seen -contains [int]$parent[0].ProcessId){break}
+    $ancestor=$parent[0]; $seen+=([int]$ancestor.ProcessId)
+    if($ancestor.Name -ieq 'powershell.exe' -and $ancestor.CommandLine -and
+      ($ancestor.CommandLine.IndexOf($launcherPath,[StringComparison]::OrdinalIgnoreCase) -ge 0 -or
+       $ancestor.CommandLine.IndexOf($compat,[StringComparison]::OrdinalIgnoreCase) -ge 0)){
+      $owner=Invoke-CimMethod -OperationTimeoutSec 15 -InputObject $ancestor -MethodName GetOwnerSid
+      if($owner.ReturnValue -ne 0 -or $owner.Sid -ne $identity.User.Value){throw 'process-owner'}
+      $launcherAncestors+=([int]$ancestor.ProcessId)
+    }
+  }
+  foreach($p in $all){
+    if($p.Name -ieq 'node.exe' -and -not $p.CommandLine){throw 'stopped-installation'}
+    if($ids -notcontains [int]$p.ProcessId -and $launcherAncestors -notcontains [int]$p.ProcessId -and
+      $p.CommandLine -and ($p.CommandLine.IndexOf($installationRoot,[StringComparison]::OrdinalIgnoreCase) -ge 0 -or
+       $p.CommandLine -match '(?i)jarvis-(remote-host|broker|remote-gateway|private-worker-ingress)\.(mjs|ts)')){
+      throw 'stopped-installation'
+    }
+  }
   $tree=@($all | Where-Object {$ids -contains [int]$_.ProcessId})
   foreach($p in $tree){
     $owner=Invoke-CimMethod -OperationTimeoutSec 15 -InputObject $p -MethodName GetOwnerSid
@@ -425,6 +449,10 @@ try {
   $readiness=Wait-Health $revision
   $after=Inspect-State 'inspect'
   Assert-State-Preserved $quiescent $after
+  if($after.privateAddressAssigned -isnot [bool] -or
+    $after.privateAddressAssigned -ne $readiness.privateIngressReady){throw 'verification'}
+  $required=if($readiness.privateIngressReady){$ports}else{@(3000,8787,8790)}
+  $null=Get-OwnedTree $releaseRoot $true $required
   if((Export-ScheduledTask -TaskName $taskName) -cne $taskXml){throw 'verification'}
   foreach($key in $readiness.Keys){$receipt[$key]=$readiness[$key]}
   $receipt.runtimeExact=$true;$receipt.identityPreserved=$true;$receipt.schemaPreserved=$true
