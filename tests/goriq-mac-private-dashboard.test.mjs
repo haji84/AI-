@@ -1,4 +1,5 @@
 import test from 'node:test';
+import process from 'node:process';
 import assert from 'node:assert/strict';
 import { validateDashboardApproval, emptyServeConfig, emptyServicesConfig, onlyDashboardRoute,
   executeDashboardRepair } from '../scripts/goriq-mac-private-dashboard.mjs';
