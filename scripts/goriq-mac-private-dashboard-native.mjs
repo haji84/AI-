@@ -186,7 +186,7 @@ async function main(phase) {
   await verifySource();
   if(process.env.GITHUB_EVENT_NAME==='workflow_run') {
     const event=JSON.parse(await readFile(process.env.GITHUB_EVENT_PATH,'utf8'));
-    const response=await fetch('https://api.github.com/repos/haji84/AI-/pulls/1716',{signal:AbortSignal.timeout(15000)});
+    const response=await fetch('https://api.github.com/repos/haji84/AI-/pulls/1717',{signal:AbortSignal.timeout(15000)});
     if(!response.ok)throw Error('MAC_DASHBOARD_TRIGGER_PROOF_UNAVAILABLE');
     validateDashboardAutomaticTrigger({revision,actor:process.env.GITHUB_ACTOR,run:event.workflow_run,pullRequest:await response.json()});
   } else if(process.env.GITHUB_EVENT_NAME!=='workflow_dispatch')throw Error('MAC_DASHBOARD_EVENT_REJECTED');
@@ -358,14 +358,17 @@ async function main(phase) {
     if((await run('pnpm',['--version'],{env:buildEnv})).trim()!=='11.19.0' || process.version!=='v24.19.0')throw Error('BUILD_TOOLCHAIN_REJECTED');
     mark('dependencies');await run('pnpm',['install','--frozen-lockfile'],{cwd:release,env:buildEnv,timeout:300000});
     mark('build');await run('pnpm',['build'],{cwd:release,env:buildEnv,timeout:600000});
-    await verifySource();await verifyProtectedState();validateDashboardApproval(approval,artifacts);
-    const buildId=hash(await readFile(join(release,'.next','BUILD_ID')));
-    const encoded=JSON.stringify({version:1,revision,buildId,artifacts,inventory:await releaseInventory(release),
+    mark('post-build-source');await verifySource();
+    mark('post-build-state');await verifyProtectedState();validateDashboardApproval(approval,artifacts);
+    mark('release-build-id');const buildId=hash(await readFile(join(release,'.next','BUILD_ID')));
+    mark('release-inventory');const inventory=await releaseInventory(release);
+    mark('release-sealing');
+    const encoded=JSON.stringify({version:1,revision,buildId,artifacts,inventory,
       node:{path:process.execPath,sha256:await fileDigest(process.execPath)}});
     validateDashboardApproval(approval,artifacts);
     await writeFile(join(release,'release-manifest.json'),encoded,{flag:'wx',mode:0o600});
     await writeFile(seal,JSON.stringify({version:1,revision,artifacts,manifestSha256:hash(encoded)}),{flag:'wx',mode:0o600});
-    await verifyDashboardRelease(releaseOptions);
+    mark('release-verification');await verifyDashboardRelease(releaseOptions);
     console.log(JSON.stringify({version:1,issue:1662,nodeId:'macbook',phase:'prepare',sourceRevision:revision,
       stagingOnly:true,activeServicesUnchanged:true,buildVerified:true,observedAt:new Date().toISOString()}));return;
   }
