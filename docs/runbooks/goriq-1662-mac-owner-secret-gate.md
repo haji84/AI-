@@ -2,7 +2,7 @@
 
 ## Proven failure
 
-Exact main `62ea23618448291d116ccf096a68cd180e8296d9` passed [main CI37322375961](https://github.com/haji84/AI-/actions/runs/37322375961) and [CI-triggered native Production Sync37322603080](https://github.com/haji84/AI-/actions/runs/37322603080). [Mac native repair37322842987](https://github.com/haji84/AI-/actions/runs/37322842987), job111806003047, reached owner-environment-read and owner-auth at 2026-10-05T14:12:47Z and failed with `OWNER_SESSION_SECRET_MISSING`. The protected file/path checks and existing owner-token predicate passed. Neither existing `JARVIS_OWNER_SECRET` nor `AI_COMPANY_OWNER_SECRET` was available from the existing owner environment. This is a confirmed missing prerequisite, not an ACL/network/key-enrollment diagnosis.
+Exact main `62ea23618448291d116ccf096a68cd180e8296d9` passed [main CI37322375961](https://github.com/haji84/AI-/actions/runs/37322375961) and [CI-triggered native Production Sync37322603080](https://github.com/haji84/AI-/actions/runs/37322603080). [Mac native repair37322842987](https://github.com/haji84/AI-/actions/runs/37322842987), job111806003047, reached owner-environment-read and owner-auth at 2026-10-05T14:12:47Z and failed with `OWNER_SESSION_SECRET_MISSING`. The protected file/path checks and nonempty owner-token presence predicate passed. Neither existing `JARVIS_OWNER_SECRET` nor `AI_COMPANY_OWNER_SECRET` was available from the existing owner environment. This is a confirmed missing prerequisite, not an ACL/network/key-enrollment diagnosis.
 
 The run stopped before staging or dashboard/LaunchAgent/Serve mutation. It retained existing keys and state. Do not rerun an equivalent apply or weaken the authentication guard.
 
