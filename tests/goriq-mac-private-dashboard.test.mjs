@@ -3,7 +3,7 @@ import process from 'node:process';
 import { Buffer } from 'node:buffer';
 import assert from 'node:assert/strict';
 import { validateDashboardApproval, emptyServeConfig, emptyServicesConfig, onlyDashboardRoute,
-  executeDashboardRepair, stableFleetEnrollment, recoverDashboardSurfaces, validateDashboardAutomaticTrigger } from '../scripts/goriq-mac-private-dashboard.mjs';
+  executeDashboardRepair, stableFleetEnrollment, recoverDashboardSurfaces, validateDashboardAutomaticTrigger, dashboardFailureClass } from '../scripts/goriq-mac-private-dashboard.mjs';
 
 const revision='a'.repeat(40), now=Date.parse('2026-10-05T12:31:33Z');
 const artifacts={'scripts/goriq-mac-private-dashboard.mjs':'b'.repeat(40)};
@@ -100,7 +100,7 @@ test('concurrent route between checks does not get overwritten and blocked recov
 import { mkdtemp, writeFile, symlink, chmod, rm, readFile, mkdir } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { parseDashboardListeners, dashboardPlist, pathGuard, releaseInventory, verifyDashboardRelease, reuseStagedRelease } from '../scripts/goriq-mac-private-dashboard-native.mjs';
+import { parseDashboardListeners, dashboardPlist, pathGuard, releaseInventory, verifyDashboardRelease, reuseStagedRelease, protectedOwnerPathFacts } from '../scripts/goriq-mac-private-dashboard-native.mjs';
 test('native listener parsing proves exact launchd PID and IPv4 loopback boundary',()=>{
   assert.deepEqual(parseDashboardListeners(''),[]);
   assert.deepEqual(parseDashboardListeners('p123\nf20\nn127.0.0.1:3000\n'),[{pid:123,loopback:true}]);
@@ -237,10 +237,10 @@ test('expiry during awaited source/inventory checks blocks the subsequent dashbo
   }
 });
 
-test('automatic activation binds owner Production Sync to exact merged PR1712; unrelated runs fail closed',()=>{
+test('automatic activation binds owner Production Sync to exact merged PR1715; unrelated runs fail closed',()=>{
   const proof={revision,actor:'haji84',run:{name:'GORIQ JARVIS Production Sync',event:'workflow_run',status:'completed',conclusion:'success',
     head_branch:'main',head_sha:revision,actor:{login:'haji84'},head_repository:{full_name:'haji84/AI-'}},
-    pullRequest:{number:1712,merged:true,merge_commit_sha:revision,base:{ref:'main',repo:{full_name:'haji84/AI-'}},user:{login:'haji84'}}};
+    pullRequest:{number:1715,merged:true,merge_commit_sha:revision,base:{ref:'main',repo:{full_name:'haji84/AI-'}},user:{login:'haji84'}}};
   validateDashboardAutomaticTrigger(proof);
   for(const mutate of [p=>{p.actor='other';},p=>{p.run.actor.login='other';},p=>{p.run.conclusion='failure';},
     p=>{p.run.head_sha='f'.repeat(40);},p=>{p.pullRequest.merge_commit_sha='f'.repeat(40);},
@@ -256,4 +256,25 @@ test('ambiguous partial plist write never claims restored or removes a file with
   const result=await recoverDashboardSurfaces({dashboardAttempted:true,routeAttempted:false,host},ops);
   assert.equal(result.restored,false);assert.equal(result.recoveryBlocked,true);
   assert.equal(calls.includes('unload-dashboard'),false);assert.equal(calls.includes('retain-plist'),false);
+});
+
+test('native prerequisite classification exposes only fixed failure codes and never exception text',()=>{
+  assert.equal(dashboardFailureClass(Error('OWNER_AUTH_REJECTED')),'OWNER_AUTH_REJECTED');
+  assert.equal(dashboardFailureClass(Error('NATIVE_PARENT_ACL_REJECTED')),'NATIVE_PARENT_ACL_REJECTED');
+  for(const value of [Error('private-token SECRET_VALUE'),Error('/private/owner/path'),{message:'OWNER_AUTH_REJECTED'}]) {
+    assert.equal(dashboardFailureClass(value),'MAC_PRIVATE_DASHBOARD_PREREQUISITE_REJECTED');
+    assert.doesNotMatch(dashboardFailureClass(value),/SECRET_VALUE|private\/owner/);
+  }
+});
+test('read-only environment boundary metadata uses anonymous surface references',async()=>{
+  if(typeof process.getuid!=='function')return;
+  const root=await mkdtemp(join(homedir(),'.goriq-boundary-fixture-'));
+  try {
+    await chmod(root,0o700);const file=join(root,'owner-environment');await writeFile(file,'SECRET_VALUE',{mode:0o600});
+    const facts=await protectedOwnerPathFacts(file);
+    assert.equal(facts[0].surface,'environment');assert.equal(facts[0].ownerClass,'current-user');
+    assert.equal(facts[0].privateMode,true);assert.equal(facts[1].directory,true);
+    assert.equal(JSON.stringify(facts).includes(root),false);
+    assert.doesNotMatch(JSON.stringify(facts),/SECRET_VALUE|owner-environment/);
+  }finally{await rm(root,{recursive:true,force:true});}
 });
