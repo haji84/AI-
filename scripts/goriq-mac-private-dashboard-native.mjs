@@ -9,7 +9,7 @@ import { pathToFileURL } from 'node:url';
 let stage='context';
 const mark=value=>{stage=value;console.log('MAC_DASHBOARD_STAGE='+stage);};
 import { emptyServeConfig, emptyServicesConfig, onlyDashboardRoute, validateDashboardApproval,
-  executeDashboardRepair, stableFleetEnrollment, recoverDashboardSurfaces, validateDashboardAutomaticTrigger } from './goriq-mac-private-dashboard.mjs';
+  executeDashboardRepair, stableFleetEnrollment, recoverDashboardSurfaces, validateDashboardAutomaticTrigger, dashboardFailureClass } from './goriq-mac-private-dashboard.mjs';
 
 const execute=promisify(execFile);
 const label='com.aicompany.jarvis-private-dashboard';
@@ -42,6 +42,23 @@ export async function pathGuard(path,{secret=false,allowAbsent=false}={}) {
   if(secret && item && (item.mode&0o077) && !privateAncestor)throw Error('NATIVE_SECRET_PATH_REJECTED');
   return item;
 }
+
+export async function protectedOwnerPathFacts(path) {
+  const facts=[];let current=path,index=0;
+  for(;;) {
+    try {
+      const item=await lstat(current);
+      const acl=process.platform==='darwin'?await run('/bin/ls',['-lde',current]):'';
+      facts.push({surface:index===0?'environment':'parent-'+index,exists:true,symlink:item.isSymbolicLink(),
+        ownerClass:item.uid===process.getuid()?'current-user':item.uid===0?'system':'other',
+        directory:item.isDirectory(),groupWritable:!!(item.mode&0o020),worldWritable:!!(item.mode&0o002),
+        privateMode:!(item.mode&0o077),additionalAllowPresent:/^\s*\d+: .+\ballow\b/m.test(acl)});
+    }catch{facts.push({surface:index===0?'environment':'parent-'+index,queryAvailable:false});}
+    if(current==='/')break;current=dirname(current);index++;
+  }
+  return facts;
+}
+
 async function ownerDirectory(path) {
   const parent=dirname(path);
   try {await lstat(parent);} catch(error) {if(error.code!=='ENOENT')throw error;await ownerDirectory(parent);}
@@ -176,7 +193,11 @@ async function main(phase) {
   validateDashboardApproval(approval,artifacts);
   const home=homedir(),base=join(home,'.goriq','private-dashboard'),release=join(base,'releases',revision);
   const envPath=join(home,'Library','Application Support','JARVIS','jarvis.env');
-  mark('owner-environment');await pathGuard(envPath,{secret:true});
+  mark('owner-environment');
+  try{await pathGuard(envPath,{secret:true});}catch(error){
+    console.log('MAC_ENVIRONMENT_BOUNDARY='+JSON.stringify({version:1,issue:1662,readOnly:true,
+      surfaces:await protectedOwnerPathFacts(envPath)}));throw error;
+  }
   const fields=['JARVIS_OWNER_TOKEN','JARVIS_OWNER_SECRET','AI_COMPANY_OWNER_SECRET','JARVIS_REMOTE_GATEWAY_TOKEN',
     'JARVIS_REMOTE_ALLOWED_SERIALS','JARVIS_DB_PATH','GORIQ_STATE_ROOT','JARVIS_COMPASS_DB_PATH','JARVIS_WORKER_APK_PATH'];
   // Existing trusted owner file is sourced only inside an owner-local child. Output is captured, never logged.
@@ -374,7 +395,7 @@ if(process.argv[1] && import.meta.url===pathToFileURL(process.argv[1]).href) {
   const operation=process.argv[2]==='verify-release'?
     verifyDashboardRelease({release:process.argv[3],revision:process.argv[4],seal:process.argv[5],node:process.execPath}):
     main(process.argv[2]);
-  operation.catch(()=>{console.error(JSON.stringify({version:1,issue:1662,nodeId:'macbook',
-    phase:process.argv[2],failedStage:stage,complete:false,failureReason:'MAC_PRIVATE_DASHBOARD_PREREQUISITE_REJECTED',
+  operation.catch(error=>{console.error(JSON.stringify({version:1,issue:1662,nodeId:'macbook',
+    phase:process.argv[2],failedStage:stage,complete:false,failureReason:dashboardFailureClass(error),
     retainedExistingKeysAndState:true}));process.exitCode=1;});
 }

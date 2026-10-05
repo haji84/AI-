@@ -115,3 +115,12 @@ export function validateDashboardAutomaticTrigger({revision,actor,run,pullReques
     pullRequest.base?.ref!=='main' || pullRequest.base?.repo?.full_name!=='haji84/AI-' ||
     pullRequest.user?.login!=='haji84')throw Error('MAC_DASHBOARD_AUTOMATIC_TRIGGER_REJECTED');
 }
+
+export function dashboardFailureClass(error) {
+  const allowed=new Set(['NATIVE_PATH_REJECTED','NATIVE_PARENT_REJECTED','NATIVE_ACL_REJECTED',
+    'NATIVE_PARENT_ACL_REJECTED','NATIVE_SECRET_PATH_REJECTED','NATIVE_COMMAND_REJECTED',
+    'OWNER_AUTH_REJECTED','COMPASS_STATE_REJECTED','SOURCE_REJECTED','BROKER_SOURCE_REJECTED',
+    'STATE_REJECTED','IDENTITY_REJECTED','CONFIG_OR_STATE_CHANGED','RELEASE_PROVENANCE_REJECTED',
+    'DASHBOARD_APPROVAL_REJECTED','MAC_DASHBOARD_AUTOMATIC_TRIGGER_REJECTED']);
+  return error instanceof Error && allowed.has(error.message)?error.message:'MAC_PRIVATE_DASHBOARD_PREREQUISITE_REJECTED';
+}
