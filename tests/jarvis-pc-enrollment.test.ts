@@ -209,3 +209,17 @@ test("PC enrollment exposes the public candidate bound by its proof digest so th
   const result = service.prove(offer.challengeId, sign(null, Buffer.from(offer.proofText), keys.privateKey).toString("base64"), now);
   assert.equal(result.node.policy.allowDestructiveActions,false);
 });
+
+test("explicit renewal may narrow to existing nodes but never remove that restriction", () => {
+  const currentTime = new Date("2026-10-04T15:00:00Z");
+  const next = { ...scope, approvedAt: "2026-10-04T14:49:15Z", expiresAt: "2026-10-05T14:49:15Z", existingNodesOnly: true } as PcEnrollmentApproval;
+  assert.deepEqual(pcApproval.validatePcApprovalRenewal(scope, next, currentTime), next);
+  assert.deepEqual(pcApproval.validatePcApprovalRenewal(next, next, currentTime), next);
+  const wider = { ...next };delete (wider as { existingNodesOnly?: boolean }).existingNodesOnly;
+  assert.throws(() => pcApproval.validatePcApprovalRenewal(next, wider, currentTime), /CONFLICT/);
+  for(const bad of [false,null,"true",1])assert.throws(() => pcApproval.validatePcEnrollmentApproval({ ...next,existingNodesOnly:bad },currentTime), /APPROVAL/);
+});
+test("existing-node verification grant cannot issue a new enrollment challenge or authority", () => {
+  const service = new PcEnrollmentService({ ...scope, existingNodesOnly:true } as PcEnrollmentApproval);
+  assert.throws(() => service.offer(input,now), /PC_EXISTING_NODE_VERIFICATION_ONLY/);
+});
