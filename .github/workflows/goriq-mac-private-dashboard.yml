@@ -1,0 +1,54 @@
+name: GORIQ Approved Mac Private Dashboard Repair
+
+on:
+  workflow_run:
+    workflows: ["GORIQ JARVIS Production Sync"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      phase:
+        description: Guarded plan or scoped owner-approved activation
+        type: choice
+        options: [plan, apply]
+        default: plan
+
+permissions:
+  contents: read
+
+concurrency:
+  group: goriq-mac-private-dashboard-repair
+  cancel-in-progress: false
+
+jobs:
+  mac-dashboard:
+    if: github.repository == 'haji84/AI-' && github.ref == 'refs/heads/main' && github.actor == 'haji84' && (github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'workflow_run' && github.event.workflow_run.actor.login == 'haji84'))
+    runs-on: [self-hosted, macOS, ARM64]
+    timeout-minutes: 20
+    environment: production
+    env:
+      GORIQ_MAC_REPAIR_PHASE: ${{ github.event_name == 'workflow_run' && 'apply' || inputs.phase }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.19.0
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+      - name: Require exact current main with successful CI
+        env:
+          GORIQ_PC_APPROVED_REVISION: ${{ github.sha }}
+        run: node scripts/goriq-pc-approved-source.mjs
+      - name: Stage immutable public release without native secrets or service changes
+        if: env.GORIQ_MAC_REPAIR_PHASE == 'apply'
+        run: node scripts/goriq-mac-private-dashboard-native.mjs prepare
+      - name: Validate native source, existing state and empty private route
+        run: node scripts/goriq-mac-private-dashboard-native.mjs plan
+      - name: Activate only the scoped dashboard and tailnet-private route
+        if: env.GORIQ_MAC_REPAIR_PHASE == 'apply'
+        run: node scripts/goriq-mac-private-dashboard-native.mjs apply
