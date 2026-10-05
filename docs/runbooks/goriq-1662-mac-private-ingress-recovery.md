@@ -1,6 +1,6 @@
 # #1662 Mac private ingress recovery
 
-This is a continuation of #1219 through #1662. It is an activation plan, not an approval receipt or acceptance evidence. Nubia remains deferred. No production setting is changed by this document.
+This is a continuation of #1219 through #1662. It records the activation plan and owner-approved implementation, not physical acceptance evidence. Nubia remains deferred. No production setting is changed by this document.
 
 ## Verified failure and baseline
 
@@ -58,11 +58,11 @@ The current Mac Broker revision and ZBook revision differ because the read-only 
 7. Run the existing bounded cross-device task client once. Verify assignment, native filesystem execution, signed result acceptance, epoch fencing, existing records, and evidence persistence. Preserve pending leases and keys on failure.
 8. Continue actual offline/reconnect/failover/rebalance acceptance with the previous receipts carried forward. Neither this plan nor an own-endpoint health result completes Stage C.
 
-Retry budgets and deadlines must be explicit in the executable implementation before apply; this document does not claim that an executable repair already exists. Unexpected data is a failed prerequisite. Public output must exclude private DNS/IP addresses, owner identifiers, subprocess error bodies, environment values, Serve configuration, and identity secrets.
+The executable repair bounds subprocesses and health polling, verifies sealed release inventories and artifact identity before activation and resident startup, and rechecks current-main CI and stable enrollment at mutation boundaries. Interrupted staging is retained in an owner-protected quarantine; verified releases are reused. A same-revision healthy owned activation is verified without reapplying it. Android heartbeat timestamps, status and telemetry are permitted to change; membership, enrollment, identity, authority and schema are preserved. Unexpected data is a failed prerequisite. Public output must exclude private DNS/IP addresses, owner identifiers, subprocess error bodies, environment values, Serve configuration, and identity secrets.
 
 ## Scoped recovery
 
-- Before route creation, a dashboard failure only unloads the new label and restores its new managed files to their baseline. Do not restart healthy Broker/Gateway or delete native state.
+- Before every dashboard unload, inspect all live Serve and Services configuration, including when this operation never attempted route creation. If another route appeared, retain the dependency-consistent service and report recovery blocked. Otherwise a dashboard failure unloads only the new label and retains its managed files in the protected recovery directory. Do not restart healthy Broker/Gateway or delete native state.
 - After route creation, first compare current Serve configuration with the exact configuration produced by this operation. If it still matches, disable only this operation's HTTPS 443 route with the original flags (`tailscale serve --bg --yes --https=443 http://127.0.0.1:3000 off`) and verify the previously empty baseline is restored. Never use `tailscale serve reset` or overwrite a concurrent/unrelated route.
 - After verified route removal, also unload only the new dashboard label, verify its process exited and the originally absent 3000 listener is absent, and restore its managed files to the saved absent/present baseline. If route recovery is blocked by a concurrent change, do not leave a dependent route/service half-restored or claim success; retain the dependency-consistent state and report the exact recovery blocker for scoped intervention.
 - If an unexpected concurrent route or service change is found, retain evidence and report recovery blocked instead of claiming restoration.
@@ -75,6 +75,8 @@ The prior #1662 scope excludes **"port/firewall/TLS exposure changes"**. `AGENTS
 
 Requested approval: the Mac-only dashboard LaunchAgent and **private Tailscale HTTPS 443 to owner loopback 3000**, within the scope and recovery boundaries above, plus the existing guarded same-main native verification. The approval must be recorded with issuer, exact scope, source/artifact binding, and expiry before apply. No approval is fabricated from a workflow checkbox or this document.
 
-Status: diagnosis **PASS**; Mac activation **BLOCKED pending this scope**; cross-device task and offline/reconnect/failover/rebalance **BLOCKED pending transport recovery and fresh native evidence**. GORIQ and Stage C remain incomplete.
+The owner approved this exact Mac-only scope in [#1662 comment 5994510905](https://github.com/haji84/AI-/issues/1662#issuecomment-5994510905), from 2026-10-05 12:31:33.880 UTC through 2026-10-06 12:31:33.880 UTC. The machine-readable authorization binds the executable artifacts to that receipt and exact current main with successful CI. Approval expiry blocks new activation; it does not revoke an already verified resident service.
+
+Status: diagnosis **PASS**; executable repair **under independent review and CI in PR #1712**; Mac activation and cross-device task/offline/reconnect/failover/rebalance **BLOCKED pending reviewed implementation, transport recovery and fresh native evidence**. GORIQ and Stage C remain incomplete.
 
 CLI semantics were checked against the [official Tailscale Serve reference](https://tailscale.com/docs/reference/tailscale-cli/serve), including background persistence, the full-service inspection limitation, and disabling a route with its original flags. The native plan still checks the actually installed CLI version and supported flags before mutation.

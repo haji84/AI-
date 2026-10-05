@@ -74,3 +74,32 @@ export async function executeDashboardRepair(input,ops) {
       recoveryBlocked:recovery.recoveryBlocked!==false,retainedExistingKeysAndState:true};
   }
 }
+
+export function stableFleetEnrollment(fleet) {
+  if(!Array.isArray(fleet))throw Error('STATE_REJECTED');
+  const keys=['id','kind','enrollment','fleetNumber','group','pcAuthority'];
+  return fleet.map(node=>Object.fromEntries(keys.filter(key=>node[key]!==undefined).map(key=>[key,node[key]])))
+    .sort((a,b)=>a.id.localeCompare(b.id));
+}
+// Used by the native recovery path too: inspect every ingress surface before removing its dependency.
+export async function recoverDashboardSurfaces({dashboardAttempted,routeAttempted,host},ops) {
+  const blocked=()=>({restored:false,recoveryBlocked:true});
+  let current=await ops.serve();
+  if(!emptyServicesConfig(await ops.services()))return blocked();
+  if(!emptyServeConfig(current)) {
+    if(!routeAttempted || !onlyDashboardRoute(current,host))return blocked();
+    await ops.removeRoute();
+  }
+  current=await ops.serve();
+  if(!emptyServeConfig(current) || !emptyServicesConfig(await ops.services()))return blocked();
+  if(dashboardAttempted && await ops.dashboardWritten()) {
+    if(!await ops.ownedPlist())return blocked();
+    // Inspect again immediately before unloading: never break an uncertain dependent route.
+    if(!emptyServeConfig(await ops.serve()) || !emptyServicesConfig(await ops.services()))return blocked();
+    await ops.removeDashboard();
+    if(!await ops.dashboardAbsent())return blocked();
+    await ops.retainPlist();
+  }
+  await ops.verifyState();
+  return {restored:true,recoveryBlocked:false};
+}

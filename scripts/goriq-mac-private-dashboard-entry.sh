@@ -4,6 +4,7 @@ umask 077
 [[ "$#" == 5 && "$(uname -s)" == Darwin && "$(id -u)" != 0 ]] || exit 70
 readonly _goriqNode="$1" _goriqRelease="$2" _goriqRevision="$3" _goriqDb="$4" _goriqHome="$5"
 [[ "$_goriqRevision" =~ ^[a-f0-9]{40}$ && -x "$_goriqNode" && -s "$_goriqDb" ]] || exit 70
+"$_goriqNode" "$_goriqRelease/scripts/goriq-mac-private-dashboard-native.mjs" verify-release "$_goriqRelease" "$_goriqRevision" "$_goriqHome/.goriq/private-dashboard/release-$_goriqRevision.seal.json"
 readonly _goriqEnv="$_goriqHome/Library/Application Support/JARVIS/jarvis.env"
 [[ -s "$_goriqEnv" && ! -L "$_goriqEnv" && "$(stat -f '%u' "$_goriqEnv")" == "$(id -u)" ]] || exit 70
 set -a

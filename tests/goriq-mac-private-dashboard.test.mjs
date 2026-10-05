@@ -2,7 +2,7 @@ import test from 'node:test';
 import process from 'node:process';
 import assert from 'node:assert/strict';
 import { validateDashboardApproval, emptyServeConfig, emptyServicesConfig, onlyDashboardRoute,
-  executeDashboardRepair } from '../scripts/goriq-mac-private-dashboard.mjs';
+  executeDashboardRepair, stableFleetEnrollment, recoverDashboardSurfaces } from '../scripts/goriq-mac-private-dashboard.mjs';
 
 const revision='a'.repeat(40), now=Date.parse('2026-10-05T12:31:33Z');
 const artifacts={'scripts/goriq-mac-private-dashboard.mjs':'b'.repeat(40)};
@@ -96,13 +96,13 @@ test('concurrent route between checks does not get overwritten and blocked recov
   assert.equal(result.recoveryBlocked,true);assert.equal(result.restored,false);
 });
 
-import { mkdtemp, writeFile, symlink, chmod, rm } from 'node:fs/promises';
+import { mkdtemp, writeFile, symlink, chmod, rm, readFile, mkdir } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { parseDashboardListeners, dashboardPlist, pathGuard } from '../scripts/goriq-mac-private-dashboard-native.mjs';
+import { parseDashboardListeners, dashboardPlist, pathGuard, releaseInventory, verifyDashboardRelease, reuseStagedRelease } from '../scripts/goriq-mac-private-dashboard-native.mjs';
 test('native listener parsing proves exact launchd PID and IPv4 loopback boundary',()=>{
   assert.deepEqual(parseDashboardListeners(''),[]);
-  assert.deepEqual(parseDashboardListeners('p123\nn127.0.0.1:3000\n'),[{pid:123,loopback:true}]);
+  assert.deepEqual(parseDashboardListeners('p123\nf20\nn127.0.0.1:3000\n'),[{pid:123,loopback:true}]);
   assert.deepEqual(parseDashboardListeners('p123\nn*:3000\n'),[{pid:123,loopback:false}]);
   assert.throws(()=>parseDashboardListeners('n127.0.0.1:3000\n'));
   assert.throws(()=>parseDashboardListeners('permission denied'));
@@ -122,5 +122,103 @@ test('real owner filesystem boundaries reject symlinks and writable files withou
     await pathGuard(file,{secret:true});
     await symlink(file,link);await assert.rejects(()=>pathGuard(link,{secret:true}));
     await chmod(file,0o666);await assert.rejects(()=>pathGuard(file,{secret:true}));
+  }finally{await rm(root,{recursive:true,force:true});}
+});
+
+import { createHash } from 'node:crypto';
+const sha256=value=>createHash('sha256').update(value).digest('hex');
+test('state preservation permits liveness updates but detects enrollment, membership and authority drift',()=>{
+  const fleet=[{id:'android-1',kind:'android',enrollment:'full',fleetNumber:1,group:'owner',
+    status:'online',lastSeenAt:'before',telemetry:{batteryPercent:50},nodeContract:{checkedAt:'before'}},
+    {id:'macbook',kind:'macos',enrollment:'full',pcAuthority:{roles:['Coordinator']}}];
+  const changed=structuredClone(fleet);
+  changed[0].lastSeenAt='after';changed[0].status='offline';changed[0].telemetry.batteryPercent=40;
+  changed[0].nodeContract.checkedAt='after';
+  assert.deepEqual(stableFleetEnrollment(fleet),stableFleetEnrollment(changed.reverse()));
+  for(const mutation of [rows=>{rows[0].enrollment='quick';},rows=>{rows.pop();},
+    rows=>{rows[1].pcAuthority.roles=['Executor'];}]) {
+    const drift=structuredClone(fleet);mutation(drift);
+    assert.notDeepEqual(stableFleetEnrollment(fleet),stableFleetEnrollment(drift));
+  }
+});
+function recoveryFixture(config=route(),changes={}) {
+  const calls=[];let ingress=config,absent=false;
+  const ops={serve:async()=>{calls.push('inspect-serve');return ingress;},
+    services:async()=>({version:'0.0.1'}),dashboardWritten:async()=>true,ownedPlist:async()=>true,
+    removeRoute:async()=>{calls.push('remove-route');ingress=null;},
+    removeDashboard:async()=>{calls.push('unload-dashboard');absent=true;},
+    dashboardAbsent:async()=>absent,retainPlist:async()=>{calls.push('retain-plist');},
+    verifyState:async()=>{calls.push('verify-state');},...changes};
+  return {calls,ops};
+}
+test('production recovery logic retains dashboard when ingress appeared before own Serve attempt',async()=>{
+  for(const ingress of [route(),{Web:{other:{}}}]) {
+    const {calls,ops}=recoveryFixture(ingress);
+    const result=await recoverDashboardSurfaces({dashboardAttempted:true,routeAttempted:false,host},ops);
+    assert.equal(result.recoveryBlocked,true);assert.equal(calls.includes('unload-dashboard'),false);
+    assert.equal(calls.includes('remove-route'),false);
+  }
+});
+test('production recovery removes only owned route before its dependent dashboard, then verifies state',async()=>{
+  const {calls,ops}=recoveryFixture();
+  const result=await recoverDashboardSurfaces({dashboardAttempted:true,routeAttempted:true,host},ops);
+  assert.equal(result.restored,true);
+  assert.ok(calls.indexOf('remove-route')<calls.indexOf('unload-dashboard'));
+  assert.equal(calls.at(-1),'verify-state');
+});
+test('late concurrent ingress and Services prevent unloading even after owned route removal',async()=>{
+  let reads=0;
+  const {calls,ops}=recoveryFixture(null,{serve:async()=>reads++<2?null:route()});
+  assert.equal((await recoverDashboardSurfaces({dashboardAttempted:true,routeAttempted:false,host},ops)).recoveryBlocked,true);
+  assert.equal(calls.includes('unload-dashboard'),false);
+  const second=recoveryFixture(null,{services:async()=>({version:'0.0.1',services:{other:{}}})});
+  assert.equal((await recoverDashboardSurfaces({dashboardAttempted:true,routeAttempted:false,host},second.ops)).recoveryBlocked,true);
+  assert.equal(second.calls.includes('unload-dashboard'),false);
+});
+test('fresh source or protected-state rejection before route creation enters actual safe recovery',async()=>{
+  for(const failure of [{exactMainCi:false},{sourceClean:false},{existingStateReady:false},{androidCount:37}]) {
+    let count=0;
+    const recovery=recoveryFixture(null);
+    const {calls,ops}=harness({recheck:async()=>count++?{...baseline(),...failure}:baseline(),
+      recover:state=>recoverDashboardSurfaces({...state,host},recovery.ops)});
+    const result=await executeDashboardRepair(input(),ops);
+    assert.equal(result.complete,false);assert.equal(calls.includes('create-route'),false);
+    assert.equal(result.restored,true);
+  }
+});
+test('release provenance catches staged code/dependency tampering, escaping links and supports verified reuse',async()=>{
+  if(typeof process.getuid!=='function')return;
+  const root=await mkdtemp(join(homedir(),'.goriq-release-fixture-'));
+  try {
+    await chmod(root,0o700);
+    const release=join(root,'release');await mkdir(release,{mode:0o700});
+    const paths=['scripts/goriq-mac-private-dashboard.mjs','scripts/goriq-mac-private-dashboard-native.mjs',
+      'scripts/goriq-mac-private-dashboard-entry.sh','.github/workflows/goriq-mac-private-dashboard.yml'];
+    const bound={};
+    for(const path of paths) {
+      await mkdir(join(release,path.substring(0,path.lastIndexOf('/'))),{recursive:true,mode:0o700});
+      const content='approved '+path;
+      await writeFile(join(release,path),content,{mode:0o600});
+      bound[path]=createHash('sha1').update('blob '+Buffer.byteLength(content)+'\0').update(content).digest('hex');
+    }
+    const asset=join(release,'dependency.js');await writeFile(asset,'original dependency',{mode:0o600});
+    const seal=join(root,'seal.json'),node=join(root,'node');
+    await writeFile(node,'pinned node fixture',{mode:0o700});
+    const manifest=JSON.stringify({version:1,revision,artifacts:bound,
+      node:{path:node,sha256:sha256(await readFile(node))},inventory:await releaseInventory(release)});
+    await writeFile(join(release,'release-manifest.json'),manifest,{mode:0o600});
+    await writeFile(seal,JSON.stringify({version:1,revision,artifacts:bound,manifestSha256:sha256(manifest)}),{mode:0o600});
+    const options={release,revision,seal,node,artifacts:bound};
+    assert.equal(await reuseStagedRelease(options),true);
+    await verifyDashboardRelease(options);
+    await assert.rejects(()=>verifyDashboardRelease({...options,artifacts:{...bound,[paths[0]]:'f'.repeat(40)}}));
+    await writeFile(asset,'modified dependency');
+    await assert.rejects(()=>verifyDashboardRelease(options));assert.equal(await reuseStagedRelease(options),false);
+    await writeFile(asset,'original dependency');
+    await writeFile(join(release,paths[2]),'modified entry');
+    await assert.rejects(()=>verifyDashboardRelease(options));
+    await writeFile(join(release,paths[2]),'approved '+paths[2]);
+    await symlink(process.execPath,join(release,'escaping-link'));
+    await assert.rejects(()=>releaseInventory(release));
   }finally{await rm(root,{recursive:true,force:true});}
 });

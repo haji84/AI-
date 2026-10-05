@@ -1,14 +1,15 @@
 import { execFile } from 'node:child_process';
 import { promisify, isDeepStrictEqual } from 'node:util';
 import { createHash, createPublicKey } from 'node:crypto';
-import { lstat, readFile, writeFile, mkdir, rename, realpath } from 'node:fs/promises';
+import { lstat, readFile, writeFile, mkdir, rename, realpath, readdir } from 'node:fs/promises';
+import { createReadStream } from 'node:fs';
 import { homedir } from 'node:os';
-import { dirname, join, isAbsolute } from 'node:path';
+import { dirname, join, isAbsolute, relative, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 let stage='context';
 const mark=value=>{stage=value;console.log('MAC_DASHBOARD_STAGE='+stage);};
 import { emptyServeConfig, emptyServicesConfig, onlyDashboardRoute, validateDashboardApproval,
-  executeDashboardRepair } from './goriq-mac-private-dashboard.mjs';
+  executeDashboardRepair, stableFleetEnrollment, recoverDashboardSurfaces } from './goriq-mac-private-dashboard.mjs';
 
 const execute=promisify(execFile);
 const label='com.aicompany.jarvis-private-dashboard';
@@ -34,6 +35,7 @@ export async function pathGuard(path,{secret=false,allowAbsent=false}={}) {
     const entry=await lstat(parent);
     if (!entry.isDirectory() || entry.isSymbolicLink() || ![0,process.getuid()].includes(entry.uid) || (entry.mode&0o022)) throw Error('NATIVE_PARENT_REJECTED');
     if(entry.uid===process.getuid() && !(entry.mode&0o077))privateAncestor=true;
+    if(process.platform==='darwin' && /^\s*\d+: .+\ballow\b/m.test(await run('/bin/ls',['-lde',parent])))throw Error('NATIVE_PARENT_ACL_REJECTED');
     if (parent==='/') break;
   }
   if(process.platform==='darwin' && item && /^\s*\d+: .+\ballow\b/m.test(await run('/bin/ls',['-lde',path])))throw Error('NATIVE_ACL_REJECTED');
@@ -52,6 +54,7 @@ export function parseDashboardListeners(output) {
   let pid;
   for(const line of lines) {
     if (/^p\d+$/.test(line)) pid=Number(line.slice(1));
+    else if(/^f\d+[a-z]*$/.test(line)) {if(!pid)throw Error('LISTENER_QUERY_REJECTED');}
     else if(line.startsWith('n')) {
       if (!pid) throw Error('LISTENER_QUERY_REJECTED');
       rows.push({pid,loopback:line.slice(1)==='127.0.0.1:3000'});
@@ -89,15 +92,79 @@ async function health(url) {
   } catch(error){cancel();throw error;}
   finally{signal.removeEventListener('abort',cancel);reader.releaseLock();}
 }
+
+async function fileDigest(path) {
+  const digest=createHash('sha256');
+  for await(const chunk of createReadStream(path))digest.update(chunk);
+  return digest.digest('hex');
+}
+const mutableReleasePath=path=>path==='.next/cache' || path.startsWith('.next/cache/') ||
+  ['release-manifest.json','dashboard.out.log','dashboard.err.log'].includes(path);
+export async function releaseInventory(root) {
+  await pathGuard(root,{secret:true});
+  if(process.platform==='darwin' && await run('/usr/bin/find',['-P',root,'-acl','-print0'],{timeout:60000}))throw Error('RELEASE_ACL_REJECTED');
+  const result=[];
+  const walk=async(directory)=>{
+    for(const name of (await readdir(directory)).sort()) {
+      const path=join(directory,name),key=relative(root,path),item=await lstat(path);
+      if(item.uid!==process.getuid() || (!item.isSymbolicLink() && (item.mode&0o022)))throw Error('RELEASE_OWNER_REJECTED');
+      if(item.isSymbolicLink()) {
+        const target=await realpath(path),inside=relative(root,target);
+        if(!inside || inside.startsWith('..'+sep) || inside==='..' || isAbsolute(inside))throw Error('RELEASE_LINK_REJECTED');
+        if(mutableReleasePath(key))throw Error('RELEASE_MUTABLE_LINK_REJECTED');
+        result.push({path:key,type:'link',target:inside});continue;
+      }
+      if(!item.isFile() && !item.isDirectory())throw Error('RELEASE_ITEM_REJECTED');
+      if(mutableReleasePath(key))continue;
+      result.push({path:key,type:item.isDirectory()?'directory':'file',mode:item.mode&0o777,
+        ...(item.isFile()?{sha256:await fileDigest(path)}:{})});
+      if(item.isDirectory())await walk(path);
+    }
+  };
+  await walk(root);return result;
+}
+export async function verifyNodeExecutable(node) {
+  if(!isAbsolute(node) || await realpath(node)!==node)throw Error('RELEASE_NODE_REJECTED');
+  const item=await lstat(node);
+  if(!item.isFile() || ![0,process.getuid()].includes(item.uid) || item.mode&0o022)throw Error('RELEASE_NODE_REJECTED');
+  for(let path=dirname(node);;path=dirname(path)) {
+    const parent=await lstat(path);
+    if(!parent.isDirectory() || parent.isSymbolicLink() || ![0,process.getuid()].includes(parent.uid) || parent.mode&0o022)throw Error('RELEASE_NODE_PARENT_REJECTED');
+    if(process.platform==='darwin' && /^\s*\d+: .+\ballow\b/m.test(await run('/bin/ls',['-lde',path])))throw Error('RELEASE_NODE_ACL_REJECTED');
+    if(path==='/')break;
+  }
+}
+export async function verifyDashboardRelease({release,revision,seal,node,artifacts}) {
+  await verifyNodeExecutable(node);
+  await pathGuard(release,{secret:true});await pathGuard(seal,{secret:true});
+  const manifestPath=join(release,'release-manifest.json');await pathGuard(manifestPath,{secret:true});
+  const encoded=await readFile(manifestPath,'utf8'),stamp=JSON.parse(await readFile(seal,'utf8')),built=JSON.parse(encoded);
+  if(stamp.version!==1 || stamp.revision!==revision || stamp.manifestSha256!==hash(encoded) ||
+    built.version!==1 || built.revision!==revision || !isDeepStrictEqual(built.artifacts,artifacts || stamp.artifacts) ||
+    built.node?.path!==node || built.node.sha256!==await fileDigest(node) ||
+    !isDeepStrictEqual(built.inventory,await releaseInventory(release)))throw Error('RELEASE_PROVENANCE_REJECTED');
+  for(const path of artifactPaths) {
+    if(blob(await readFile(join(release,path),'utf8'))!==built.artifacts[path])throw Error('RELEASE_ARTIFACT_REJECTED');
+  }
+  return built;
+}
+export async function reuseStagedRelease(options) {
+  try {await verifyDashboardRelease(options);return true;}catch{return false;}
+}
+
 async function main(phase) {
   process.umask(0o077);
   if(process.platform!=='darwin' || !process.getuid() || !['prepare','plan','apply'].includes(phase))throw Error('NATIVE_CONTEXT_REJECTED');
   mark('source');const revision=process.env.GITHUB_SHA;
-  if(process.env.GITHUB_REPOSITORY!=='haji84/AI-' || process.env.GITHUB_REF!=='refs/heads/main' ||
-    process.env.GITHUB_ACTOR!=='haji84' || !/^[a-f0-9]{40}$/.test(revision || '') ||
-    (await run('git',['rev-parse','HEAD'])).trim()!==revision ||
-    (await run('git',['status','--porcelain','--untracked-files=no'])).trim())throw Error('SOURCE_REJECTED');
-  await run(process.execPath,['scripts/goriq-pc-approved-source.mjs'],{env:{...process.env,GORIQ_PC_APPROVED_REVISION:revision}});
+  const verifySource=async()=>{
+    if(process.env.GITHUB_REPOSITORY!=='haji84/AI-' || process.env.GITHUB_REF!=='refs/heads/main' ||
+      process.env.GITHUB_ACTOR!=='haji84' || !/^[a-f0-9]{40}$/.test(revision || '') ||
+      (await run('git',['rev-parse','HEAD'])).trim()!==revision ||
+      (await run('git',['status','--porcelain','--untracked-files=no'])).trim())throw Error('SOURCE_REJECTED');
+    await run(process.execPath,['scripts/goriq-pc-approved-source.mjs'],{env:{...process.env,GORIQ_PC_APPROVED_REVISION:revision},timeout:45000});
+  };
+  await verifySource();
+  await verifyNodeExecutable(process.execPath);
   mark('approval');const artifacts=Object.fromEntries(await Promise.all(artifactPaths.map(async path=>[path,blob(await readFile(path,'utf8'))])));
   const approval=JSON.parse(await readFile('docs/authorizations/1662-mac-private-dashboard.json','utf8'));
   validateDashboardApproval(approval,artifacts);
@@ -105,7 +172,7 @@ async function main(phase) {
   const envPath=join(home,'Library','Application Support','JARVIS','jarvis.env');
   mark('owner-environment');await pathGuard(envPath,{secret:true});
   const fields=['JARVIS_OWNER_TOKEN','JARVIS_OWNER_SECRET','AI_COMPANY_OWNER_SECRET','JARVIS_REMOTE_GATEWAY_TOKEN',
-    'JARVIS_REMOTE_ALLOWED_SERIALS','JARVIS_DB_PATH','GORIQ_STATE_ROOT'];
+    'JARVIS_REMOTE_ALLOWED_SERIALS','JARVIS_DB_PATH','GORIQ_STATE_ROOT','JARVIS_COMPASS_DB_PATH','JARVIS_WORKER_APK_PATH'];
   // Existing trusted owner file is sourced only inside an owner-local child. Output is captured, never logged.
   const command='set -e; readonly _goriqNode="$2"; set -a; source "$1" >/dev/null; set +a; unset NODE_OPTIONS; exec "$_goriqNode" -e "$3"';
   const config=JSON.parse(await run('/bin/bash',['-c',command,'goriq',envPath,process.execPath,
@@ -113,6 +180,9 @@ async function main(phase) {
   if(!config.JARVIS_OWNER_TOKEN?.trim() || !(config.JARVIS_OWNER_SECRET?.trim() || config.AI_COMPANY_OWNER_SECRET?.trim()))throw Error('OWNER_AUTH_REJECTED');
   const dbPath=config.JARVIS_DB_PATH || join(config.GORIQ_STATE_ROOT || join(home,'.goriq','state'),'jarvis.db');
   await pathGuard(dbPath,{secret:true});
+  const compassPath=config.JARVIS_COMPASS_DB_PATH || join(config.GORIQ_STATE_ROOT || join(home,'.goriq','state'),'compass.db');
+  await pathGuard(compassPath,{secret:true});
+  if(!(await lstat(compassPath)).isFile())throw Error('COMPASS_STATE_REJECTED');
   const identityPath=join(home,'.goriq','state','pc-node','macbook','identity.json');
   await pathGuard(identityPath,{secret:true});
   const identity=JSON.parse(await readFile(identityPath,'utf8'));
@@ -132,7 +202,7 @@ async function main(phase) {
       const own=fleet.find(node=>node.id==='macbook');
       if(android.length!==38 || registered.revokedAt || registered.publicKeyPem!==identity.publicKeyPem ||
         own?.kind!=='macos' || !own?.pcAuthority?.roles?.includes('Coordinator') || own.pcAuthority.approvalIssue!==1662 || own.pcAuthority.goalIssue!==1219)throw Error('STATE_REJECTED');
-      return {android,identities,schema:db.prepare("SELECT type,name,tbl_name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type,name").all()};
+      return {android:stableFleetEnrollment(android),fleet:stableFleetEnrollment(fleet),identities,schema:db.prepare("SELECT type,name,tbl_name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type,name").all()};
     } finally{db.close();}
   };
   mark('state');const beforeState=stateSnapshot(),initialEnvDigest=hash(await readFile(envPath)),initialIdentityDigest=hash(await readFile(identityPath));
@@ -151,36 +221,83 @@ async function main(phase) {
     try{await execute('/bin/launchctl',['print',target],{encoding:'utf8',timeout:10000,maxBuffer:262144});return true;}
     catch(error){if(error.code===113 && /Could not find service/.test(String(error.stderr || '')))return false;throw Error('LAUNCHD_QUERY_REJECTED');}
   };
+  const seal=join(base,'release-'+revision+'.seal.json');
+  const releaseOptions={release,revision,seal,node:process.execPath,artifacts};
+  const verifyProtectedState=async()=>{
+    await pathGuard(envPath,{secret:true});await pathGuard(dbPath,{secret:true});await pathGuard(identityPath,{secret:true});
+    await pathGuard(compassPath,{secret:true});
+    if(hash(await readFile(envPath))!==initialEnvDigest || hash(await readFile(identityPath))!==initialIdentityDigest ||
+      !isDeepStrictEqual(beforeState,stateSnapshot()))throw Error('CONFIG_OR_STATE_CHANGED');
+  };
   const snapshot=async()=>{
+    await verifySource();await verifyProtectedState();await verifyDashboardRelease(releaseOptions);
     await pathGuard(envPath,{secret:true});await pathGuard(dbPath,{secret:true});await pathGuard(identityPath,{secret:true});await pathGuard(release,{secret:true});
     if(hash(await readFile(envPath))!==initialEnvDigest || hash(await readFile(identityPath))!==initialIdentityDigest)throw Error('CONFIG_CHANGED');
     const status=JSON.parse(await run(cli,['status','--json'])),dns=status.Self?.DNSName?.replace(/\.$/,'');
     const current=await health('http://127.0.0.1:8787/health');
-    const built=await readFile(join(release,'release-manifest.json'),'utf8').then(JSON.parse).catch(()=>null);
     return {platform:process.platform,uid:process.getuid(),revision,exactMainCi:true,sourceClean:true,
-      protectedSurfaces:true,existingCredentialsReady:true,existingStateReady:true,androidCount:beforeState.android.length,
-      releaseBuilt:built?.revision===revision && built?.buildId===hash(await readFile(join(release,'.next','BUILD_ID')).catch(()=>'')),
+      protectedSurfaces:true,existingCredentialsReady:true,existingStateReady:true,androidCount:stateSnapshot().android.length,
+      releaseBuilt:true,
       brokerHealthy:current.ok===true && current.service==='jarvis-broker',brokerRevision:current.runtimeRevision,
       dashboardAbsent:(await listeners()).length===0,labelAbsent:!await loaded() && !await lstat(plist).catch(()=>null),
       host:dns,backendState:status.BackendState,serve:await serve(),services:await services()};
   };
+  const verifyExistingActivation=async()=>{
+    if(!await loaded() || !await lstat(plist).catch(()=>null))return false;
+    await pathGuard(plist,{secret:true});await verifySource();await verifyProtectedState();
+    await verifyDashboardRelease(releaseOptions);
+    const expected=dashboardPlist({release,node:process.execPath,revision,dbPath,home});
+    if(await readFile(plist,'utf8')!==expected)throw Error('EXISTING_LABEL_REJECTED');
+    const status=JSON.parse(await run(cli,['status','--json'])),host=status.Self?.DNSName?.replace(/\.$/,'');
+    const output=await run('/bin/launchctl',['print',target]),pid=Number(output.match(/\bpid = (\d+)/)?.[1]);
+    const rows=await listeners();
+    if(status.BackendState!=='Running' || !pid || !rows.length || !rows.every(row=>row.pid===pid && row.loopback) ||
+      !onlyDashboardRoute(await serve(),host) || !emptyServicesConfig(await services()) ||
+      (await health('http://127.0.0.1:3000/api/health')).status!=='ok' ||
+      (await health('https://'+host+'/api/health')).status!=='ok')throw Error('EXISTING_ACTIVATION_REJECTED');
+    const current=await health('http://127.0.0.1:8787/health');
+    if(current.ok!==true || current.runtimeRevision!==revision)throw Error('BROKER_SOURCE_REJECTED');
+    return true;
+  };
+  if(await verifyExistingActivation()) {
+    console.log(JSON.stringify({version:1,issue:1662,nodeId:'macbook',phase,sourceRevision:revision,
+      readOnly:true,complete:true,alreadyActive:true,activationVerified:true,statePreserved:true,
+      transportAcceptanceVerified:false,observedAt:new Date().toISOString()}));return;
+  }
   if(phase==='prepare') {
     const status=JSON.parse(await run(cli,['status','--json']));
     if(status.BackendState!=='Running' || !emptyServeConfig(await serve()) || !emptyServicesConfig(await services()) ||
       await loaded() || (await listeners()).length || await lstat(plist).catch(()=>null))throw Error('PREPARE_BOUNDARY_REJECTED');
     mark('staging');await ownerDirectory(base);await ownerDirectory(join(base,'releases'));
-    if(await lstat(release).catch(()=>null))throw Error('RELEASE_ALREADY_EXISTS');
-    await ownerDirectory(release);
+    await verifySource();await verifyProtectedState();validateDashboardApproval(approval,artifacts);
+    if(await reuseStagedRelease(releaseOptions)) {
+      console.log(JSON.stringify({version:1,issue:1662,nodeId:'macbook',phase:'prepare',sourceRevision:revision,
+        stagingOnly:true,reusedVerifiedRelease:true,buildVerified:true,activeServicesUnchanged:true}));return;
+    }
     const archive=join(base,'source-'+revision+'.tar');
-    if(await lstat(archive).catch(()=>null))throw Error('ARCHIVE_ALREADY_EXISTS');
+    const interrupted=[release,archive,seal].filter(Boolean);
+    let quarantine;
+    for(const path of interrupted) {
+      const existing=await lstat(path).catch(error=>{if(error.code==='ENOENT')return null;throw error;});
+      if(!existing)continue;
+      await pathGuard(path,{secret:true});
+      if(!quarantine){quarantine=join(base,'interrupted-'+revision+'-'+Date.now());await ownerDirectory(quarantine);}
+      await rename(path,join(quarantine,path===release?'release':path===archive?'source.tar':'release.seal.json'));
+    }
+    await ownerDirectory(release);
     await run('git',['archive','--format=tar','--output='+archive,revision]);
     await run('/usr/bin/tar',['-xf',archive,'-C',release]);
     const buildEnv={PATH:process.env.PATH,HOME:home,CI:'true',NEXT_TELEMETRY_DISABLED:'1',NO_COLOR:'1'};
     if((await run('pnpm',['--version'],{env:buildEnv})).trim()!=='11.19.0' || process.version!=='v24.19.0')throw Error('BUILD_TOOLCHAIN_REJECTED');
     mark('dependencies');await run('pnpm',['install','--frozen-lockfile'],{cwd:release,env:buildEnv,timeout:300000});
     mark('build');await run('pnpm',['build'],{cwd:release,env:buildEnv,timeout:600000});
+    await verifySource();await verifyProtectedState();validateDashboardApproval(approval,artifacts);
     const buildId=hash(await readFile(join(release,'.next','BUILD_ID')));
-    await writeFile(join(release,'release-manifest.json'),JSON.stringify({version:1,revision,buildId,artifacts}),{flag:'wx',mode:0o600});
+    const encoded=JSON.stringify({version:1,revision,buildId,artifacts,inventory:await releaseInventory(release),
+      node:{path:process.execPath,sha256:await fileDigest(process.execPath)}});
+    await writeFile(join(release,'release-manifest.json'),encoded,{flag:'wx',mode:0o600});
+    await writeFile(seal,JSON.stringify({version:1,revision,artifacts,manifestSha256:hash(encoded)}),{flag:'wx',mode:0o600});
+    await verifyDashboardRelease(releaseOptions);
     console.log(JSON.stringify({version:1,issue:1662,nodeId:'macbook',phase:'prepare',sourceRevision:revision,
       stagingOnly:true,activeServicesUnchanged:true,buildVerified:true,observedAt:new Date().toISOString()}));return;
   }
@@ -189,8 +306,9 @@ async function main(phase) {
   let backupDir,managedText,dashboardWritten=false;
   const ownedPlist=async()=>dashboardWritten && await readFile(plist,'utf8').catch(()=>null)===managedText;
   const verifyState=async()=>{
+    await verifyProtectedState();
     const current=await health('http://127.0.0.1:8787/health');
-    if(current.ok!==true || current.runtimeRevision!==revision || !isDeepStrictEqual(beforeState,stateSnapshot()))throw Error('PRESERVATION_REJECTED');
+    if(current.ok!==true || current.runtimeRevision!==revision)throw Error('PRESERVATION_REJECTED');
   };
   const result=await executeDashboardRepair({phase,snapshot:initial,approval,artifacts,now:Date.now()},{
     now:Date.now,recheck:snapshot,
@@ -200,11 +318,15 @@ async function main(phase) {
         identityDigest:hash(await readFile(identityPath)),plistAbsent:true}),{flag:'wx',mode:0o600});
     },
     startDashboard:async()=>{
+      await verifySource();await verifyProtectedState();await verifyDashboardRelease(releaseOptions);
       await pathGuard(plist,{allowAbsent:true});
       if(await loaded() || await lstat(plist).catch(()=>null) || (await listeners()).length)throw Error('DASHBOARD_CONFLICT');
       managedText=dashboardPlist({release,node:process.execPath,revision,dbPath,home});
       await writeFile(plist,managedText,{flag:'wx',mode:0o600});dashboardWritten=true;
-      for(const name of ['dashboard.out.log','dashboard.err.log'])await writeFile(join(release,name),'',{flag:'wx',mode:0o600});
+      for(const name of ['dashboard.out.log','dashboard.err.log']) {
+        const path=join(release,name);await pathGuard(path,{secret:true,allowAbsent:true});
+        try{await writeFile(path,'',{flag:'wx',mode:0o600});}catch(error){if(error.code!=='EEXIST')throw error;}
+      }
       await run('/bin/launchctl',['bootstrap','gui/'+process.getuid(),plist]);
     },
     verifyDashboard:async()=>{
@@ -225,28 +347,23 @@ async function main(phase) {
         (await health('https://'+initial.host+'/api/health')).status!=='ok')throw Error('PRIVATE_ROUTE_REJECTED');
     },
     verifyPreservation:verifyState,
-    recover:async({dashboardAttempted,routeAttempted})=>{
-      if(routeAttempted) {
-        const current=await serve();
-        if(!emptyServicesConfig(await services()))return {restored:false,recoveryBlocked:true};
-        if(onlyDashboardRoute(current,initial.host))await run(cli,['serve','--bg','--yes','--https=443','http://127.0.0.1:3000','off'],{timeout:30000});
-        else if(!emptyServeConfig(current))return {restored:false,recoveryBlocked:true};
-        if(!emptyServeConfig(await serve()))return {restored:false,recoveryBlocked:true};
-      }
-      if(dashboardAttempted && dashboardWritten) {
-        if(!await ownedPlist())return {restored:false,recoveryBlocked:true};
-        if(await loaded())await run('/bin/launchctl',['bootout','gui/'+process.getuid(),plist]);
-        if(await loaded() || (await listeners()).length)return {restored:false,recoveryBlocked:true};
-        await rename(plist,join(backupDir,'failed-dashboard.plist'));
-      }
-      await verifyState();return {restored:true,recoveryBlocked:false};
-    }
+    recover:async(state)=>recoverDashboardSurfaces({...state,host:initial.host},{
+      serve,services,dashboardWritten:async()=>dashboardWritten,ownedPlist,
+      removeRoute:async()=>{await run(cli,['serve','--bg','--yes','--https=443','http://127.0.0.1:3000','off'],{timeout:30000});},
+      removeDashboard:async()=>{if(await loaded())await run('/bin/launchctl',['bootout','gui/'+process.getuid(),plist]);},
+      dashboardAbsent:async()=>!await loaded() && (await listeners()).length===0,
+      retainPlist:async()=>{await rename(plist,join(backupDir,'failed-dashboard.plist'));},
+      verifyState
+    })
   });
   if(backupDir)await writeFile(join(backupDir,'receipt.json'),JSON.stringify(result),{flag:'wx',mode:0o600});
   console.log(JSON.stringify(result));if(result.complete===false)process.exitCode=1;
 }
 if(process.argv[1] && import.meta.url===pathToFileURL(process.argv[1]).href) {
-  main(process.argv[2]).catch(()=>{console.error(JSON.stringify({version:1,issue:1662,nodeId:'macbook',
+  const operation=process.argv[2]==='verify-release'?
+    verifyDashboardRelease({release:process.argv[3],revision:process.argv[4],seal:process.argv[5],node:process.execPath}):
+    main(process.argv[2]);
+  operation.catch(()=>{console.error(JSON.stringify({version:1,issue:1662,nodeId:'macbook',
     phase:process.argv[2],failedStage:stage,complete:false,failureReason:'MAC_PRIVATE_DASHBOARD_PREREQUISITE_REJECTED',
     retainedExistingKeysAndState:true}));process.exitCode=1;});
 }
