@@ -939,18 +939,6 @@
       "reason": "Organization-aware reusable memory"
     },
     {
-      "path": "scripts/goriq-pc-mobile-task.ts",
-      "sha256": "924e374e27acff9d1ed62bd33f3576e7b7f54565183c3e7a67fdb42df161e747",
-      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
-      "requirement_ids": [
-        "NET-004",
-        "SEC-010",
-        "FLEET-007",
-        "DEV-PC-003"
-      ],
-      "reason": "Approved #1662 moving-PC private transport adapter; linkage only, native Wi-Fi acceptance remains required"
-    },
-    {
       "path": "scripts/jarvis-adb-mass-enroll.sh",
       "sha256": "218d856fc06b462305ac093bea39fca09a44f768575fd1abf9719a8b12b98455",
       "classification": "COVERED_BY_REQUIREMENT",
