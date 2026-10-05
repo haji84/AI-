@@ -12,7 +12,7 @@ const status = { BackendState: "Running", Self: { DNSName: host + "." }, Peer: {
   valid: { Online: true, DNSName: "macbook.tailfixture.ts.net." }, wrong: { Online: true, DNSName: "other.another.ts.net." },
   down: { Online: false, DNSName: "down.tailfixture.ts.net." } } };
 const serve = { TCP: { "443": { HTTPS: true } }, Web: { [host + ":443"]: { Handlers: { "/": { Proxy: "http://127.0.0.1:3000" } } } } };
-const env = { JARVIS_PRIVATE_WORKER_INGRESS_ENABLED: "1", JARVIS_BROKER_HOST: "127.0.0.1",
+const env: NodeJS.ProcessEnv = { NODE_ENV: "production", JARVIS_PRIVATE_WORKER_INGRESS_ENABLED: "1", JARVIS_BROKER_HOST: "127.0.0.1",
   JARVIS_REMOTE_GATEWAY_HOST: "127.0.0.1", JARVIS_DASHBOARD_PORT: "3000" };
 function req(url = origin) { return new Request(url + "/api/jarvis/worker/pc/next", { headers: {
   host, "x-forwarded-host": host, "x-forwarded-proto": "https", "tailscale-user-login": "owner-fixture" } }); }

@@ -1247,6 +1247,16 @@
       "reason": "Android provisioning payload"
     },
     {
+      "path": "scripts/jarvis-remote-access-lib.d.mts",
+      "sha256": "f399f8e8e59ccdb2fe6e71c0c3ae00daef05fc61e01d1e1281e89abe019742cc",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "NET-004",
+        "SEC-010"
+      ],
+      "reason": "Type declarations for unchanged existing private Serve status helpers; no runtime or physical completion inference"
+    },
+    {
       "path": "scripts/jarvis-remote-access-lib.mjs",
       "sha256": "f17d1d217563e4df89b395f9877c0690ba61023f77f6fb5b440f074014b0eab4",
       "classification": "COVERED_BY_REQUIREMENT",

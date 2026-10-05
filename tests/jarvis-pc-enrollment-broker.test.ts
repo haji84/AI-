@@ -152,7 +152,7 @@ test("Owner PC proof enrollment preserves signed identity across restart and rej
     const remote = Reflect.get(pcBootstrap, "executeRemotePcWork");
     assert.equal(typeof remote, "function", "PRIVATE_PC_EXECUTOR_UNAVAILABLE");
     const serverKeys = generateKeyPairSync("ed25519");
-    const serverPeer = { nodeId: "zbook", algorithm: "ed25519", enrolledAt: new Date().toISOString(),
+    const serverPeer = { nodeId: "zbook", algorithm: "ed25519" as const, enrolledAt: new Date().toISOString(),
       publicKeyPem: serverKeys.publicKey.export({ type: "spki", format: "pem" }).toString() };
     const origin = "https://zbook.tailfixture.ts.net";
     let reachable = true;
