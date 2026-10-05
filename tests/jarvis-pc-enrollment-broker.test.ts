@@ -144,6 +144,37 @@ test("Owner PC proof enrollment preserves signed identity across restart and rej
     assert.equal(execution.filesystemExecuted, true);
     assert.equal(execution.sha256, createHash("sha256").update(clientWork.content).digest("hex"));
     assert.equal((await pcBootstrap.executeLocalPcWork({ base, revision: "a".repeat(40), identity: local })).status, "idle");
+    // Same real Broker/worker signature/claim pipeline, through the new private
+    // adapter. Native TLS/Serve provenance is covered separately, never inferred
+    // from this controlled transport that intentionally uses loopback fixtures.
+    const transportModule = "../src/jarvis/private-pc-transport.ts";
+    const transport = await import(transportModule);
+    const remote = Reflect.get(pcBootstrap, "executeRemotePcWork");
+    assert.equal(typeof remote, "function", "PRIVATE_PC_EXECUTOR_UNAVAILABLE");
+    const serverKeys = generateKeyPairSync("ed25519");
+    const serverPeer = { nodeId: "zbook", algorithm: "ed25519" as const, enrolledAt: new Date().toISOString(),
+      publicKeyPem: serverKeys.publicKey.export({ type: "spki", format: "pem" }).toString() };
+    const origin = "https://zbook.tailfixture.ts.net";
+    let reachable = true;
+    const relay = transport.privatePcRelay({ ingress: async () => reachable,
+      signer: async () => ({ identity: { ...serverPeer, privateKeyPem: serverKeys.privateKey.export({ type: "pkcs8", format: "pem" }).toString() }, revision: "a".repeat(40) }),
+      upstream: async (url: string, options: RequestInit) => fetch(base + new URL(url).pathname, options) });
+    const privateRequest: typeof fetch = async (url, options) => relay(new Request(url, options));
+    const remoteInput = { base: origin, tailnetDomain: "tailfixture.ts.net", revision: "a".repeat(40), identity: local,
+      peer: serverPeer, request: privateRequest };
+    const remoteWork = { ...clientWork, idempotencyKey: "public-mobile-client", content: "Wi-Fi independent real file execution" };
+    const submittedRemote = await post("/api/jarvis/admin/pc-tasks", remoteWork);
+    assert.equal(submittedRemote.status, 201);
+    const remoteTaskId = (await submittedRemote.json()).task.id;
+    reachable = false;
+    await assert.rejects(() => remote({ ...remoteInput, taskId: remoteTaskId }), /PEER_PROOF/);
+    reachable = true;
+    const moved = await remote({ ...remoteInput, taskId: remoteTaskId });
+    assert.equal(moved.status, "completed"); assert.equal(moved.signedResultAccepted, true); assert.equal(moved.filesystemExecuted, true);
+    assert.equal(moved.sha256, createHash("sha256").update(remoteWork.content).digest("hex"));
+    const untrusted = generateKeyPairSync("ed25519");
+    await assert.rejects(() => remote({ ...remoteInput, peer: { ...serverPeer,
+      publicKeyPem: untrusted.publicKey.export({ type: "spki", format: "pem" }).toString() } }), /PEER_PROOF/);
     await stop(); child = start(); await ready();
     const resumed = await fetch(base + "/api/jarvis/worker/heartbeat", signed({ status: "ready" }));
     assert.equal(resumed.status, 200);
