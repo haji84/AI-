@@ -11,7 +11,7 @@ function harness(available = false) {
     const [key, value] = queue.entries().next().value;
     queue.delete(key); value.fn();
   };
-  let queryFails = false, killFails = false;
+  let queryFails = false, killFails = false, killReturnsFalse = false, delayedExit = false;
   const controller = manageNetworkProcess({ name: 'private-worker-ingress', command: 'node', args: ['same-private-ingress'] }, {
     canStart: () => { if (queryFails) throw Error('private-detail'); return available; },
     maxFailures: 2,
@@ -22,7 +22,14 @@ function harness(available = false) {
     spawn: (_command, args) => {
       const child = new EventEmitter();
       child.args = args; child.signals = [];
-      child.kill = signal => { if (killFails) throw Error('private-detail'); child.signals.push(signal); };
+      child.pid = children.length + 1;
+      child.kill = signal => {
+        if (killFails) throw Error('private-detail');
+        child.signals.push(signal);
+        if (killReturnsFalse) { child.emit('error', Object.assign(Error('private-detail'), {code:'EPERM'})); return false; }
+        if (!delayedExit) child.emit('exit', null, signal);
+        return true;
+      };
       children.push(child); return child;
     },
   });
@@ -30,7 +37,9 @@ function harness(available = false) {
     probe: () => run(probes), retry: () => run(retries),
     availability: value => { available = value; },
     queryFailure: value => { queryFails = value; },
-    killFailure: value => { killFails = value; } };
+    killFailure: value => { killFails = value; },
+    falseKill: value => { killReturnsFalse = value; },
+    deferExit: value => { delayedExit = value; } };
 }
 
 test('network absence waits without spawning or spending a process retry budget', () => {
@@ -114,4 +123,32 @@ test('failed child stop prevents duplicate launch until stop succeeds, with sani
   h.killFailure(false); h.probe();
   assert.equal(h.children.length, 2);
   h.controller.stop();
+});
+
+test('false/error kill retains ownership and cannot launch a duplicate on network return', () => {
+  const h = harness(true);
+  h.children[0].emit('spawn');
+  h.falseKill(true); h.availability(false); h.probe();
+  h.availability(true);
+  for (let i = 0; i < 5; i++) h.probe();
+  assert.equal(h.children.length, 1);
+  assert.equal(h.controller.snapshot().state, 'waiting-for-network');
+  h.falseKill(false); h.probe();
+  assert.equal(h.children.length, 2);
+  assert.doesNotMatch(JSON.stringify(h.events), /private-detail/);
+  h.controller.stop();
+});
+
+test('successful signal waits for confirmed exit before relaunch and is not resent while pending', () => {
+  const h = harness(true);
+  h.children[0].emit('spawn');
+  h.deferExit(true); h.availability(false); h.probe();
+  h.availability(true);
+  for (let i = 0; i < 5; i++) h.probe();
+  assert.equal(h.children.length, 1);
+  assert.deepEqual(h.children[0].signals, ['SIGTERM']);
+  h.children[0].emit('exit', null, 'SIGTERM');
+  h.probe();
+  assert.equal(h.children.length, 2);
+  h.deferExit(false); h.controller.stop();
 });
