@@ -2560,7 +2560,7 @@
     },
     {
       "path": "src/app/jarvis/settings/JarvisLocalSettings.tsx",
-      "sha256": "028b289406926adc8e3e886ed6296f3a58dbe1306f00a7d0bb9d98de98821373",
+      "sha256": "09b120ce3d6d17d87115a863f610a45efa7769011abd8b7ed2b8562eed1b863a",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "UI-005",
