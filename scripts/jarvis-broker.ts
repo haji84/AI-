@@ -453,6 +453,28 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
         return json(response, 400, { message: "invalid trusted device request" });
       } catch { return json(response, 503, { message: "trusted device registry unavailable" }); }
     }
+    if (path === "/api/jarvis/admin/voice") {
+      if (method === "GET") {
+        try { return json(response, 200, await discoverLocalTts()); }
+        catch (error) { return json(response, 503, { available: false, message: error instanceof Error ? error.message : "local TTS unavailable" }); }
+      }
+      if (method === "POST") {
+        if (body.length > 8192) return json(response, 413, { message: "local TTS request too large" });
+        try {
+          const result = await synthesizeLocalTts({
+            text: typeof payload.text === "string" ? payload.text : "",
+            voiceId: typeof payload.voiceId === "string" ? payload.voiceId : undefined,
+            rate: typeof payload.rate === "number" ? payload.rate : undefined,
+            pitch: typeof payload.pitch === "number" ? payload.pitch : undefined,
+            volume: typeof payload.volume === "number" ? payload.volume : undefined,
+          });
+          return json(response, 200, result);
+        } catch (error) {
+          return json(response, 503, { message: error instanceof Error ? error.message : "local TTS unavailable" });
+        }
+      }
+      return json(response, 405, { message: "Method not allowed" });
+    }
     if (method === "GET" && path === "/api/jarvis/admin/state") return json(response, 200, plane.snapshot());
     if (method === "GET" && path === "/api/jarvis/admin/requirements") return json(response, 200, requirementWorkflow(ownerRequirements.list(),loadCanonicalBundle(fileURLToPath(new URL("../",import.meta.url))),fileURLToPath(new URL("../",import.meta.url)),!!process.env.GITHUB_TOKEN));
     if (method === "POST" && path === "/api/jarvis/admin/requirements/publish") {
