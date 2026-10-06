@@ -2050,7 +2050,7 @@
     },
     {
       "path": "src/app/jarvis/JarvisPrimaryShell.tsx",
-      "sha256": "51eccf33b9078e7961b4426f790ce0f34afd688a808f98bf7623486ee3db2218",
+      "sha256": "c3646242e845aced74baddf8143f2015a6f34f95965dd073437ab2285e048466",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "UI-001",
@@ -2560,7 +2560,7 @@
     },
     {
       "path": "src/app/jarvis/settings/JarvisLocalSettings.tsx",
-      "sha256": "167043cf8b8b0ca3629ba2645fe0aefb8320bfc26582c00d73e34139196982bc",
+      "sha256": "028b289406926adc8e3e886ed6296f3a58dbe1306f00a7d0bb9d98de98821373",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "UI-005",
