@@ -19,8 +19,15 @@ const observation = (id: string, changes: Partial<CognitiveLearningExperience> =
 });
 async function engine() { return new CognitiveLearningEngine(await mkdtemp(join(tmpdir(), "cognitive-operation-"))); }
 async function pair(learner: CognitiveLearningEngine) { await learner.observe(observation("one")); await learner.observe(observation("two")); return (await learner.candidates(partition))[0]; }
-async function certify(learner: CognitiveLearningEngine, skillId: string) {
-  return learner.certify({ partition, skillId, evidenceRefs: ["independent:test-fixture"], baselinePassRate: 0.5, candidatePassRate: 0.8, safetyPassed: true, independent: true });
+async function previouslyCertifiedFixture(learner: CognitiveLearningEngine, skillId: string) {
+  // Arrange a historical active library/ledger for recall and quarantine tests.
+  // This is not evidence that current inert material bindings improve on baseline.
+  const evidence = ["independent:historical-fixture"];
+  await new PersistentSkillLibrary(learner.partitionPath(partition, "skills.json")).certify(skillId, evidence);
+  const path = learner.partitionPath(partition, "experience.json"), saved = JSON.parse(await readFile(path, "utf8"));
+  const candidate = saved.candidates.find((c: { id: string }) => c.id === skillId);
+  candidate.status = "active"; candidate.validation = evidence;
+  await writeFile(path, JSON.stringify(saved));
 }
 
 test("independent Goal successes with different exact actions synthesize one operation candidate only", async () => {
@@ -70,12 +77,13 @@ test("legacy exact-action candidates remain compatible and do not mix with opera
   assert.deepEqual(candidates.find(c => c.operation)?.sourceExperiences, ["operation-one", "operation-two"]);
 });
 
-test("operation recall retains existing independent gain gate and partition boundaries", async () => {
+test("operation certification refuses unmeasured rates; historical active recall retains partition boundaries", async () => {
   const learner = await engine(); const candidate = await pair(learner);
   await assert.rejects(learner.certify({ partition, skillId: candidate.id, evidenceRefs: ["verifier:one"], baselinePassRate: 0, candidatePassRate: 1, safetyPassed: true, independent: true }), /independent/);
   assert.equal((await learner.certify({ partition, skillId: candidate.id, evidenceRefs: ["independent:equal"], baselinePassRate: 1, candidatePassRate: 1, safetyPassed: true, independent: true })).accepted, false);
   assert.equal((await learner.recall(query)).skills.length, 0);
-  assert.equal((await certify(learner, candidate.id)).accepted, true);
+  assert.equal((await learner.certify({ partition, skillId: candidate.id, evidenceRefs: ["independent:claimed-gain"], baselinePassRate: 0, candidatePassRate: 1, safetyPassed: true, independent: true })).accepted, false);
+  await previouslyCertifiedFixture(learner, candidate.id);
   const [skill] = (await new CognitiveLearningEngine(learner.directory).recall(query)).skills;
   assert.equal(skill.operation, operation); assert.equal(skill.environment, query.environment); assert.equal(skill.maxRisk, "low");
   assert.equal(skill.actionId.includes("outcome:one"), false);
@@ -84,7 +92,7 @@ test("operation recall retains existing independent gain gate and partition boun
 });
 
 test("verified operation regression quarantines across new action IDs but keeps failure avoidance exact", async () => {
-  const learner = await engine(); const candidate = await pair(learner); await certify(learner, candidate.id);
+  const learner = await engine(); const candidate = await pair(learner); await previouslyCertifiedFixture(learner, candidate.id);
   await learner.observe(observation("regression", { split: "heldout", observation: { summary: "Independent artifact check failed", success: false } }));
   assert.equal((await learner.candidates(partition))[0].status, "quarantined");
   assert.equal((await new PersistentSkillLibrary(learner.partitionPath(partition, "skills.json")).get(candidate.id))?.status, "quarantined");
@@ -95,7 +103,7 @@ test("verified operation regression quarantines across new action IDs but keeps 
 });
 
 test("unverified or unrelated failure does not quarantine operation skills", async () => {
-  const learner = await engine(); const candidate = await pair(learner); await certify(learner, candidate.id);
+  const learner = await engine(); const candidate = await pair(learner); await previouslyCertifiedFixture(learner, candidate.id);
   for (const [index, changes] of [
     { verified: false }, { learningOperation: "material:v1:inspect:text" as const },
     { environment: "linux:other" }, { task: "Unrelated aquarium" }, { learningOperation: undefined },
@@ -107,7 +115,7 @@ test("unverified or unrelated failure does not quarantine operation skills", asy
 });
 
 test("correction keeps exact action scope without suppressing a changed-source operation", async () => {
-  const learner = await engine(); const candidate = await pair(learner); await certify(learner, candidate.id);
+  const learner = await engine(); const candidate = await pair(learner); await previouslyCertifiedFixture(learner, candidate.id);
   await learner.recordCorrection({ id: "correction", ...query, originalActionId: "outcome:one", replacementActionId: "outcome:two", evidenceRefs: ["verifier:two"], verified: true, scope: "preference" });
   const recalled = await learner.recall(query);
   assert.deepEqual(recalled.avoidActionIds, ["outcome:one"]);

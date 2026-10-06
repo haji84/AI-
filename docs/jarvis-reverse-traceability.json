@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "source_main": "ee75aad5507c4b4232f7014dfd6e85b9394d20dd",
+  "source_main": "b064fda706eacfe2805d8f03065a8be4329d89aa",
   "scope": "Declared audit roots; no functional or physical completion inference",
   "surfaces": [
     {
@@ -3031,7 +3031,7 @@
         "OWN-001"
       ],
       "reason": "#1729 host-fixed evaluation collection under existing Core authority; no model-quality or whole-product completion claim",
-      "sha256": "a72e978fa8e0adbdbf36ab9cc4c71f04f34c9703030b5a0d291662a3035551bf"
+      "sha256": "43e6a0dae88a3b7ed34cf2badf4b8850362b2b44542e9a04547650d9658809b1"
     },
     {
       "path": "src/gai/cognitive-history.ts",
@@ -3062,7 +3062,7 @@
     },
     {
       "path": "src/gai/cognitive-learning.ts",
-      "sha256": "5463dfe98b407686b304122be9bd3b6998a8f57e8a74aecd41332bbbae22d256",
+      "sha256": "6b377fb754af3a8262bf91af39f341674a21360d102013d3786b36ad6ede38d3",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OWN-001"
@@ -3085,7 +3085,7 @@
         "OWN-001"
       ],
       "reason": "OWN-001 fixed local material outcome catalog derives six bounded host-operation categories while retaining exact Goal/root/source action identities and independent artifact verification.",
-      "sha256": "355196df1c7c85e17296c0d237f9e9e87af942cf3cc541662ed5256db477b8f1"
+      "sha256": "aee7fb38142c1aa73214b18ce7d2b40d06f60cba718262a5cbb3df9454d41912"
     },
     {
       "path": "src/gai/cognitive-local-work.ts",
@@ -3131,6 +3131,15 @@
         "OWN-001"
       ],
       "reason": "#1216 OWN-001 bounded local cognition and evidence-bound prediction calibration; research metadata never grants authority or implies whole-product acceptance."
+    },
+    {
+      "path": "src/gai/cognitive-skill-evaluation.ts",
+      "sha256": "8c75a690ad89fc466504c1e67b9400e7d02d6cd373144ef5f86f989384a6d931",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "OWN-001"
+      ],
+      "reason": "Host-only matched local Skill evaluation preparation under existing Core/WorkState and private heldout oracle; inert bindings cannot establish algorithmic gain. COG-007 and whole-product acceptance remain incomplete."
     },
     {
       "path": "src/gai/cognitive-state.ts",
@@ -4925,7 +4934,7 @@
     },
     {
       "path": "src/orchestrator/compass-goal-execution-adapter.ts",
-      "sha256": "e90859e896a5a84d20aa77ace5e19ec087e609a3b53c0098100f4f6cc1a4128f",
+      "sha256": "22614eaab2575158d9fc32b990488f9864d1c1e075f1a36503652019f7f96df1",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-002",
