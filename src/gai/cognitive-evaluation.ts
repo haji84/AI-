@@ -6,6 +6,7 @@ export interface CognitiveEvaluationPlan {
   environment: string; contractDigest: string; materialSha256: string[];
   actions: Array<{ actionId: string; fingerprint: string }>;
   oracle: "local-source-derived-exact-v1";
+  comparison?: { id: string; arm: "baseline" | "candidate"; skillId: string; skillVersion: number; skillDigest: string; scenarioDigest: string };
 }
 export interface EvaluationArtifactCheck {
   domain: "file" | "spreadsheet" | "document"; status: "PASS" | "FAIL";
@@ -27,14 +28,27 @@ export function validateMaterialHashes(value: unknown): asserts value is string[
 }
 export function validateEvaluationPlan(value: CognitiveEvaluationPlan): CognitiveEvaluationPlan {
   assertCognitiveSafe(value);
-  shape(value, ["version", "id", "partition", "goalId", "goalDigest", "environment", "contractDigest", "materialSha256", "actions", "oracle"]);
+  shape(value, ["version", "id", "partition", "goalId", "goalDigest", "environment", "contractDigest", "materialSha256", "actions", "oracle"], ["comparison"]);
   shape(value.partition, ["tenantId", "principalId"]);
   [value.id, value.goalId, value.environment, value.partition.tenantId, value.partition.principalId].forEach(text);
   [value.goalDigest, value.contractDigest].forEach(evaluationDigest); validateMaterialHashes(value.materialSha256);
   if (value.version !== 1 || value.oracle !== "local-source-derived-exact-v1" || !Array.isArray(value.actions) || !value.actions.length || value.actions.length > 32) throw Error("Invalid evaluation oracle/actions");
   for (const action of value.actions) { shape(action, ["actionId", "fingerprint"]); text(action.actionId); evaluationDigest(action.fingerprint); }
   if (new Set(value.actions.map(a => a.actionId)).size !== value.actions.length) throw Error("Duplicate evaluation action");
+  if (value.comparison) {
+    shape(value.comparison, ["id", "arm", "skillId", "skillVersion", "skillDigest", "scenarioDigest"]);
+    [value.comparison.id, value.comparison.skillId].forEach(text);
+    [value.comparison.skillDigest, value.comparison.scenarioDigest].forEach(evaluationDigest);
+    if (!["baseline", "candidate"].includes(value.comparison.arm) || !Number.isSafeInteger(value.comparison.skillVersion) || value.comparison.skillVersion < 1) throw Error("Invalid evaluation comparison subject");
+  }
   return structuredClone(value);
+}
+/** The only source-sharing exception is the exact opposite preallocated matched arm. */
+export function matchedEvaluationArms(a: CognitiveEvaluationPlan, b: CognitiveEvaluationPlan): boolean {
+  return Boolean(a.comparison && b.comparison && a.id !== b.id && a.comparison.arm !== b.comparison.arm &&
+    cognitiveDigest({ ...a.comparison, arm: undefined }) === cognitiveDigest({ ...b.comparison, arm: undefined }) &&
+    a.goalDigest === b.goalDigest && a.environment === b.environment && a.oracle === b.oracle &&
+    cognitiveDigest(a.partition) === cognitiveDigest(b.partition) && cognitiveDigest(a.materialSha256) === cognitiveDigest(b.materialSha256) && a.actions.length === b.actions.length);
 }
 function measurementDigest(value: Pick<CognitiveEvaluationMeasurement, "resultOk" | "verifierOk" | "artifacts">) {
   return cognitiveDigest({ resultOk: value.resultOk, verifierOk: value.verifierOk, artifacts: value.artifacts });

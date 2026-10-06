@@ -1,0 +1,15 @@
+# #1731 matched local Skill measurements
+
+Parent #1216 / #681 / #1219. Baseline b064fda706eacfe2805d8f03065a8be4329d89aa; collector #1729 / #1730. Owner requires autonomous continuation; routine design/plan pauses are overridden. Compass unavailable: repository/Issue handoff only.
+
+The current material:v1 Skill is an inert binding to the same bounded local catalog operation as baseline, not a learned executable algorithm. It cannot demonstrate algorithmic gain. Reject supplied aggregate scores for these candidates. Legacy exact-action certification remains compatible and explicitly unmeasured; broad COG-007 is still incomplete.
+
+Add optional matched-comparison metadata to the private evaluation plan. A host helper prepares two existing catalogs, requires equal complete Goal and normalized manifest (including relative paths, formats, source hashes, criteria), checks actual safe source bytes and absent targets, and reserves both plans atomically under the learning lease before either arm runs. Both arms use separate data/State/Compass roots, the same partition and semantic Goal. Bind candidate ID, library version and a digest of stable candidate/procedure/library constraints and provenance; no model/HTTP allocation authority. Only material:v1 output bindings are eligible; every output must use the candidate operation. Replay is exact and does not require pristine targets after execution.
+
+Allow overlap only between the exact two preallocated arms, never training or another comparison. Shared Goal identity requires reservation lookup by host evaluation ID; receipts identify the exact plan digest. Both plans survive restart/failure; changing/removing options, incomplete pairs, conflicting reservations and late allocation fail closed.
+
+Certification consumes only comparison ID and candidate ID, derives rates from exactly one independently measured receipt per allocated action, checks current subject, complete source/output measurements, no external calls and no unverified/duplicate/missing actions. Equal results remain candidates. Losses are rejected. Even an apparent gain is inconclusive because current candidate and baseline procedures are identical: filesystem/intervention differences are not Skill improvement. Store no paths/raw material in measurements; retain fixed plan/action/artifact hashes. No retrospective conversion of train data.
+
+No changes to normative requirements, Node Contract, fleet, ECC, privacy, fencing, database schema, workflows, credentials, permissions or default Production activation. Preserve existing regression/quarantine and recall tests using explicit test fixtures for previously certified library state; fixture seeding is not evidence of new certification.
+
+Rollback all dependent code together; never delete or relabel retained private plans/receipts. Old readers fail closed on additive metadata, so opt-in users need a compatible reader or separately reviewed migration. Full tests, security, lint/TS, traceability, independent review, protected PR and exact main CI precede completion of this bounded child. Product and Stage C remain incomplete.
