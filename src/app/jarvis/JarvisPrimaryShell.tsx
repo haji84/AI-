@@ -27,7 +27,6 @@ const NAV_ITEMS = [
 const SECONDARY_NAV_ITEMS = [
   { href: "/jarvis/devices", label: "端末" },
   { href: "/jarvis/settings", label: "設定" },
-  { href: "/jarvis/research", label: "リサーチ" },
 ] as const;
 
 function applyStoredPreferences() {
@@ -87,6 +86,7 @@ export default function JarvisPrimaryShell({ children }: { children: ReactNode }
           <summary className="button secondary">詳細</summary>
           <div>
             {SECONDARY_NAV_ITEMS.map((item) => <a key={item.href} className="button secondary" href={item.href}>{item.label}</a>)}
+            <a className="button secondary" href="/jarvis/research">リサーチ</a>
             <a className="button secondary" href={`/jarvis/login?next=${encodeURIComponent(pathname)}`}>オーナー認証</a>
             <JarvisOperationModeControls />
             <JarvisDisplayModeControls />
