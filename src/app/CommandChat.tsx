@@ -129,8 +129,10 @@ export default function CommandChat({ enabled, contextPath, compact = false }: {
       const body = await response.json().catch(() => ({})) as Partial<ConversationDetail> & { message?: string };
       if (!response.ok || !body.id) throw new Error(body.message || "会話の取得に失敗しました");
       setConversationId(body.id);
-      setHistory(body.messages ?? []);
+      const messages = body.messages ?? [];
+      setHistory(messages);
       setMemoryContext(body.memoryContext ?? "");
+      lastSeenAiId.current = [...messages].reverse().find((entry) => entry.role === "ai")?.id ?? null;
       lastFingerprint.current = null;
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "会話の取得に失敗しました");
@@ -144,8 +146,22 @@ export default function CommandChat({ enabled, contextPath, compact = false }: {
     void refreshConversations().catch((error) => setMessage(error instanceof Error ? error.message : "会話一覧の取得に失敗しました"));
     return () => {
       if (pollTimer.current !== null) window.clearInterval(pollTimer.current);
+      if (conversationPollTimer.current !== null) window.clearInterval(conversationPollTimer.current);
+      recognitionRef.current?.abort();
+      recognitionRef.current = null;
     };
   }, [enabled]);
+
+  useEffect(() => {
+    const listener = (event: Event) => {
+      const detail = (event as CustomEvent<{ text?: string; source?: "text" | "voice" }>).detail;
+      const text = typeof detail?.text === "string" ? detail.text.trim() : "";
+      if (!text) return;
+      void send(text, detail?.source === "voice" ? "voice" : "text");
+    };
+    window.addEventListener("goriq-command-submit", listener);
+    return () => window.removeEventListener("goriq-command-submit", listener);
+  });
 
   async function createConversation(title: string): Promise<number> {
     const response = await fetch("/api/conversations", {
