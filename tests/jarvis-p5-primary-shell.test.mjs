@@ -67,5 +67,6 @@ test("P5 settings are local display preferences only and do not mutate protected
   assert.match(settings, /端末権限、認証、秘密情報、課金設定には触れません/);
   assert.match(page, /認証情報、端末権限、ネットワーク公開範囲、課金、破壊的操作、Human Gateルール/);
   assert.match(page, /Widget編集[\s\S]*アクセシビリティ表示設定は実装済み/);
-  assert.match(page, /音声runtimeの字幕や実機操作性は別途検証する/);
+  assert.match(page, /AivisSpeech Engine優先・VOICEVOX Engine予備/);
+  assert.match(page, /未検出時は文字応答へ明示的に退避する/);
 });
