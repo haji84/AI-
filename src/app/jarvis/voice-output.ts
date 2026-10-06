@@ -46,7 +46,7 @@ export function readGoriqVoiceOutput(): GoriqVoiceOutputSettings {
 export function writeGoriqVoiceOutput(settings: GoriqVoiceOutputSettings): GoriqVoiceOutputSettings {
   const normalized = normalizeGoriqVoiceOutput(settings);
   if (typeof window !== "undefined") {
-    try { window.localStorage.setItem(GORIQ_VOICE_OUTPUT_KEY, JSON.stringify(normalized)); } catch {}
+    try { window.localStorage.setItem(GORIQ_VOICE_OUTPUT_KEY, JSON.stringify(normalized)); } catch { /* Browser-local persistence may be unavailable in restricted/private mode. */ }
   }
   return normalized;
 }
