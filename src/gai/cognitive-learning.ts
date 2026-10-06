@@ -1,3 +1,4 @@
+import { evaluationPlanDigest, validateEvaluationPlan, validateEvaluationMeasurement, validateMaterialHashes, type CognitiveEvaluationPlan, type CognitiveEvaluationMeasurement } from "./cognitive-evaluation.ts";
 import { evaluateCognitiveResearch, researchSummary, sameResearchMeasurement } from "./cognitive-research.ts";
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
@@ -24,6 +25,8 @@ export interface CognitiveLearningExperience {
   split?: "train" | "heldout"; goalCompleted?: boolean; unknownTask?: boolean; humanInterventions?: number; rollbackCount?: number;
   transferTask?: boolean; offline?: boolean; memoryAblation?: { pairId: string; condition: "with-memory" | "without-memory" };
   completionEvidenceRefs?: string[];
+  materialSha256?: string[];
+  evaluation?: CognitiveEvaluationMeasurement;
 }
 export interface CognitiveCorrection {
   id: string; partition: CognitiveLearningPartition; goalId: string; task: string; environment: string;
@@ -36,7 +39,7 @@ export interface CognitiveSkillCandidate {
   executionProcedure: string; expectedOutput: string; validation: string[]; commonFailures: string[]; recovery: string[];
   confidence: number; successCount: number; failureCount: number; version: number;
 }
-interface LearningFile { version: 1; experiences: CognitiveLearningExperience[]; corrections: CognitiveCorrection[]; candidates: CognitiveSkillCandidate[] }
+interface LearningFile { version: 1; experiences: CognitiveLearningExperience[]; corrections: CognitiveCorrection[]; candidates: CognitiveSkillCandidate[]; evaluations?: CognitiveEvaluationPlan[] }
 const SOURCE = new Set<CognitiveLearningSource>(["deterministic", "skill", "memory", "local-model", "local-experiment", "external-expert", "degraded"]);
 const pending = new Map<string, Promise<unknown>>();
 const MAX_ITEMS = 2_000;
@@ -136,7 +139,7 @@ export class CognitiveLearningEngine {
       const raw = await readFile(this.partitionPath(partition, "experience.json"), "utf8");
       if (Buffer.byteLength(raw) > MAX_BYTES) throw Error("Cognitive learning storage bound exceeded");
       const value = JSON.parse(raw) as LearningFile;
-      shape(value, ["version", "experiences", "corrections", "candidates"], "learning storage");
+      shape(value, ["version", "experiences", "corrections", "candidates", "evaluations"], "learning storage");
       if (value.version !== 1 || !Array.isArray(value.experiences) || !Array.isArray(value.corrections) || !Array.isArray(value.candidates) || value.experiences.length > MAX_ITEMS || value.corrections.length > MAX_ITEMS || value.candidates.length > MAX_ITEMS) throw Error("Invalid cognitive learning storage");
       for (const e of value.experiences) { this.validateExperience(e); if (hash(e.partition) !== hash(partition)) throw Error("Cognitive learning partition mismatch"); }
       for (const c of value.corrections) { validateCorrection(c); this.partitionPath(c.partition, "experience.json"); if (hash(c.partition) !== hash(partition)) throw Error("Cognitive correction partition mismatch"); }
@@ -164,6 +167,16 @@ export class CognitiveLearningEngine {
         }
       }
       for (const records of [value.experiences, value.corrections, value.candidates]) if (new Set(records.map((record) => record.id)).size !== records.length) throw Error("Duplicate learning record ID");
+      if (value.evaluations !== undefined) {
+        if (!Array.isArray(value.evaluations) || value.evaluations.length > MAX_ITEMS) throw Error("Invalid evaluation reservations");
+        const ids = new Set<string>(), goals = new Set<string>(), materials = new Set<string>();
+        for (const plan of value.evaluations) {
+          validateEvaluationPlan(plan);
+          if (hash(plan.partition) !== hash(partition) || ids.has(plan.id) || goals.has(plan.goalId) || plan.materialSha256.some(h => materials.has(h))) throw Error("Evaluation reservation overlap");
+          ids.add(plan.id); goals.add(plan.goalId); plan.materialSha256.forEach(h => materials.add(h));
+        }
+      }
+      for (const e of value.experiences) this.validateEvaluationBinding(e, value);
       return value;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
@@ -182,7 +195,7 @@ export class CognitiveLearningEngine {
   }
 
   private validateExperience(input: CognitiveLearningExperience): CognitiveLearningExperience {
-    shape(input, ["id", "partition", "goalId", "task", "actionId", "strategyId", "environment", "learningOperation", "prediction", "observation", "verified", "evidenceRefs", "source", "durationMs", "externalCalls", "split", "goalCompleted", "unknownTask", "humanInterventions", "rollbackCount", "transferTask", "offline", "memoryAblation", "completionEvidenceRefs"], "experience");
+    shape(input, ["id", "partition", "goalId", "task", "actionId", "strategyId", "environment", "learningOperation", "prediction", "observation", "verified", "evidenceRefs", "source", "durationMs", "externalCalls", "split", "goalCompleted", "unknownTask", "humanInterventions", "rollbackCount", "transferTask", "offline", "memoryAblation", "completionEvidenceRefs", "materialSha256", "evaluation"], "experience");
     shape(input.prediction, ["expectedOutcome", "confidence"], "prediction");
     shape(input.observation, ["summary", "success"], "observation");
     this.partitionPath(input.partition, "experience.json");
@@ -190,6 +203,8 @@ export class CognitiveLearningEngine {
     if (input.split !== undefined && !["train", "heldout"].includes(input.split)) throw Error("Invalid learning split");
     for (const field of ["goalCompleted", "unknownTask", "transferTask", "offline"] as const) if (input[field] !== undefined && typeof input[field] !== "boolean") throw Error(`Invalid ${field}`);
     const copy = structuredClone(input);
+    if (input.materialSha256 !== undefined) validateMaterialHashes(input.materialSha256);
+    if (input.evaluation !== undefined) validateEvaluationMeasurement(input.evaluation);
     if (input.learningOperation !== undefined) copy.learningOperation = validateCognitiveOperation(input.learningOperation);
     for (const field of ["id", "goalId", "task", "actionId", "strategyId", "environment"] as const) copy[field] = cognitiveLearningText(input[field], field);
     copy.prediction.expectedOutcome = cognitiveLearningText(input.prediction.expectedOutcome, "prediction");
@@ -210,6 +225,36 @@ export class CognitiveLearningEngine {
     return copy;
   }
 
+  private validateEvaluationBinding(e: CognitiveLearningExperience, data: LearningFile) {
+    const plans = data.evaluations ?? [], plan = plans.find(p => p.goalId === e.goalId);
+    if (plan) {
+      if (e.split !== "heldout" || e.environment !== plan.environment || hash(e.materialSha256) !== hash(plan.materialSha256)) throw Error("Evaluation observation binding changed");
+      const action = plan.actions.find(a => a.actionId === e.actionId);
+      if (!action || (e.verified && !e.evaluation) || (e.evaluation && (!e.verified || e.evaluation.planDigest !== evaluationPlanDigest(plan) || e.evaluation.actionFingerprint !== action.fingerprint ||
+          e.observation.success !== (e.evaluation.resultOk && e.evaluation.verifierOk) || !plan.materialSha256.includes(e.evaluation.artifacts[0].expectedSha256)))) throw Error("Evaluation receipt binding invalid");
+    } else if (e.evaluation) throw Error("Evaluation receipt requires preallocated plan");
+    if (plans.some(p => p.goalId !== e.goalId && e.materialSha256?.some(h => p.materialSha256.includes(h)))) throw Error("Heldout material evaluation overlap");
+    if (data.experiences.some(prior => prior.id !== e.id && (e.evaluation || prior.evaluation) && prior.evidenceRefs.some(r => e.evidenceRefs.includes(r)))) throw Error("Evaluation evidence overlap");
+  }
+
+  async evaluationReservation(partition: CognitiveLearningPartition, goalId: string): Promise<CognitiveEvaluationPlan | null> {
+    return this.serial(partition, async () => structuredClone((await this.load(partition)).evaluations?.find(p => p.goalId === goalId) ?? null));
+  }
+
+  /** Reserve before effects under the same lease as ordinary learning. */
+  async allocateEvaluation(input: CognitiveEvaluationPlan): Promise<CognitiveEvaluationPlan> {
+    const plan = validateEvaluationPlan(input);
+    return this.serial(plan.partition, async () => {
+      const data = await this.load(plan.partition), plans = data.evaluations ?? [];
+      const existing = plans.find(p => p.id === plan.id || p.goalId === plan.goalId);
+      if (existing) { if (evaluationPlanDigest(existing) !== evaluationPlanDigest(plan)) throw Error("Evaluation plan conflict"); return structuredClone(existing); }
+      if (plans.length >= MAX_ITEMS) throw Error("Evaluation reservation capacity reached");
+      if (plans.some(p => p.materialSha256.some(h => plan.materialSha256.includes(h))) || data.experiences.some(e => e.goalId === plan.goalId ||
+          e.materialSha256?.some(h => plan.materialSha256.includes(h)) || (!e.materialSha256 && e.learningOperation?.startsWith("material:v1:"))) || data.corrections.some(c => c.goalId === plan.goalId)) throw Error("Evaluation history/material overlap or inconclusive legacy provenance");
+      data.evaluations = [...plans, plan]; await this.save(plan.partition, data); return structuredClone(plan);
+    });
+  }
+
   async observe(input: CognitiveLearningExperience): Promise<void> {
     const experience = this.validateExperience(input);
     await this.serial(input.partition, async () => {
@@ -221,6 +266,7 @@ export class CognitiveLearningEngine {
         if (hash(comparable) !== hash(experience)) throw Error("Cognitive experience replay conflict"); return;
       }
       if (data.experiences.length >= MAX_ITEMS) throw Error("Cognitive experience capacity reached");
+      this.validateEvaluationBinding(experience, data);
       data.experiences.push(experience);
       const memory = new PersistentMemoryStore(this.partitionPath(input.partition, "memory.json"));
       const skills = new PersistentSkillLibrary(this.partitionPath(input.partition, "skills.json"));
