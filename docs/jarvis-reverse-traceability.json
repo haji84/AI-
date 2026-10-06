@@ -1400,12 +1400,14 @@
     },
     {
       "path": "src/app/api/command/route.ts",
-      "sha256": "08f69fa8144384fc5d9e5f18567fd45478f5de3dbc4f6a62b3e6becb954a0a24",
+      "sha256": "1ba659e6f7b5f05d61ddd88a5efc5acd954e0543fe817a42b167f4e017a9874a",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
-        "CORE-005"
+        "CORE-005",
+        "UI-020",
+        "INT-001"
       ],
-      "reason": "Declared route.ts responsibility implements/supports Input Recovery. Parent ownership is not functional or physical acceptance evidence."
+      "reason": "Unified command ingress now carries current-screen priority context and text/voice input mode without widening authorization or replacing existing Goal/task authority."
     },
     {
       "path": "src/app/api/jarvis/action/route.ts",
