@@ -1,4 +1,4 @@
-import CommandChat from "../../CommandChat";
+import DevelopmentDesignRoom from "./DevelopmentDesignRoom";
 import { requireJarvisOwner } from "../../api/jarvis/broker.ts";
 
 export const dynamic = "force-dynamic";
@@ -15,9 +15,7 @@ export default async function GoriqNewDevelopmentPage() {
         </div>
       </div>
       {!enabled && <div className="jarvis-alert"><strong>オーナー認証が必要です</strong><a className="button secondary" href="/jarvis/login?next=/jarvis/new-development">認証する</a></div>}
-      <section className="panel jarvis-section">
-        <CommandChat enabled={enabled} />
-      </section>
+      <DevelopmentDesignRoom enabled={enabled} />
       <p className="jarvis-boundary-note">会話からの実行も既存のGoal/Gate/State権限に従います。秘密情報、課金、権限拡張、破壊的操作、Human Gateは会話だけで迂回できません。</p>
     </div>
   );
