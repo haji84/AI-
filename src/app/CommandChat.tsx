@@ -421,7 +421,7 @@ export default function CommandChat({ enabled, contextPath, compact = false }: {
   }
 
   return (
-    <div className="command-chat chat-memory-shell">
+    <div className={`command-chat chat-memory-shell${compact ? " compact" : ""}`}>
       <aside className={`chat-history-sidebar ${sidebarOpen ? "open" : "closed"}`}>
         <div className="chat-history-header">
           <strong>会話</strong>
@@ -481,7 +481,7 @@ export default function CommandChat({ enabled, contextPath, compact = false }: {
               ))}
             </div>
           )}
-          <textarea aria-label="AI社員への指示" disabled={!enabled || busy} maxLength={500} onChange={(event) => setCommand(event.target.value)} placeholder="例：前の設計を引き継いで、この資料も見て完成させて" rows={3} value={command} />
+          <textarea aria-label="AI社員への指示" disabled={!enabled || busy} maxLength={500} onChange={(event) => { setCommand(event.target.value); lastVoiceInput.current = false; }} placeholder="例：前の設計を引き継いで、この資料も見て完成させて" rows={3} value={command} />
           <input accept="image/*,video/*,text/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.rtf" className="attachment-input" disabled={!enabled || busy} multiple onChange={(event) => addFiles(Array.from(event.target.files ?? []))} ref={fileInput} type="file" />
           <div className="command-footer">
             <div className="command-tools">
