@@ -47,6 +47,7 @@ import { validateWindowsVerificationDispatch } from "../src/orchestrator/windows
 import { DeviceDevelopmentIntake, JsonFileDeviceDevelopmentInbox } from "../src/orchestrator/device-development-intake.ts";
 import { parseDailyDriverDeviceCommand } from "../src/jarvis/daily-driver-device-command.ts";
 import { PcEnrollmentService, validatePcEnrollmentApproval } from "../src/jarvis/pc-enrollment.ts";
+import { discoverLocalTts, synthesizeLocalTts } from "../src/jarvis/local-tts.ts";
 
 
 const host = process.env.JARVIS_BROKER_HOST?.trim() || "127.0.0.1";
