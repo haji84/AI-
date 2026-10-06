@@ -339,7 +339,7 @@ export default function CommandChat({ enabled, contextPath, compact = false }: {
     return uploaded;
   }
 
-  async function send(value?: string) {
+  async function send(value?: string, source: "text" | "voice" = "text") {
     const text = (value ?? command).trim();
     if (!text || busy || !enabled) return;
     setBusy(true);
@@ -347,15 +347,27 @@ export default function CommandChat({ enabled, contextPath, compact = false }: {
     try {
       const id = conversationId ?? await createConversation(text);
       const attachments = files.length ? await uploadAttachments() : [];
-      const attachmentMeta = attachments.length ? `添付: ${attachments.map((file) => file.name).join(", ")}` : undefined;
-      const ownerEntry = makeEntry("owner", text, attachmentMeta, attachments.map((item) => ({ name: item.name, type: item.type, size: item.size, pathname: item.pathname })));
+      const ownerMeta = [
+        source === "voice" ? "入力: 音声" : "入力: 文字",
+        contextPath ? `現在画面: ${contextPath}` : "",
+        attachments.length ? `添付: ${attachments.map((file) => file.name).join(", ")}` : "",
+      ].filter(Boolean).join(" / ");
+      const ownerEntry = makeEntry("owner", text, ownerMeta || undefined, attachments.map((item) => ({ name: item.name, type: item.type, size: item.size, pathname: item.pathname })));
+      lastVoiceInput.current = source === "voice";
       append(ownerEntry);
       await persistEntry(id, ownerEntry, attachments);
 
       const response = await fetch("/api/command", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ command: text, conversationId: id, memoryContext, ...(attachments.length ? { attachments } : {}) }),
+        body: JSON.stringify({
+          command: text,
+          conversationId: id,
+          memoryContext,
+          inputMode: source,
+          screenContext: contextPath ?? null,
+          ...(attachments.length ? { attachments } : {}),
+        }),
       });
       const body = await response.json().catch(() => ({})) as { message?: string; acceptedAt?: string };
       if (!response.ok) throw new Error(body.message || "指示の送信に失敗しました");
@@ -370,12 +382,14 @@ export default function CommandChat({ enabled, contextPath, compact = false }: {
       await refreshConversations();
       window.setTimeout(() => void fetchStatus(false), 1800);
       startPolling();
+      startConversationPolling(id);
     } catch (error) {
       const textError = error instanceof Error ? error.message : "指示の送信に失敗しました";
       const systemEntry = makeEntry("system", textError, "送信失敗");
       append(systemEntry);
       if (conversationId) void persistEntry(conversationId, systemEntry).catch(() => undefined);
       setMessage(textError);
+      lastVoiceInput.current = false;
     } finally {
       setBusy(false);
     }
@@ -403,7 +417,7 @@ export default function CommandChat({ enabled, contextPath, compact = false }: {
 
   function submit(event: FormEvent) {
     event.preventDefault();
-    void send();
+    void send(undefined, lastVoiceInput.current ? "voice" : "text");
   }
 
   return (
