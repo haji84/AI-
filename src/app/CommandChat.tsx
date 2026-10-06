@@ -485,6 +485,7 @@ export default function CommandChat({ enabled, contextPath, compact = false }: {
           <input accept="image/*,video/*,text/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.rtf" className="attachment-input" disabled={!enabled || busy} multiple onChange={(event) => addFiles(Array.from(event.target.files ?? []))} ref={fileInput} type="file" />
           <div className="command-footer">
             <div className="command-tools">
+              <button className="button secondary" disabled={!enabled || busy} aria-pressed={listening} onClick={() => listening ? stopVoiceInput() : startVoiceInput()} type="button">{listening ? "音声入力を終了" : "音声入力"}</button>
               <button className="button secondary attachment-button" disabled={!enabled || busy || files.length >= MAX_ATTACHMENTS} onClick={() => fileInput.current?.click()} type="button">＋ 添付</button>
               <small>{command.length}/500{files.length ? ` / 添付${files.length}件` : ""}</small>
             </div>
