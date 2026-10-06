@@ -959,7 +959,7 @@
     },
     {
       "path": "scripts/jarvis-broker.ts",
-      "sha256": "a81a021ddf3580da18603f3580faad6cff3dc385844c0d8a15b80ceb49b95984",
+      "sha256": "818009a91e2641e4078ea701d2bd6e230c918150bf8a7ff66bb12db74d17b4f1",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "NET-003",
@@ -976,9 +976,11 @@
         "SEC-005",
         "SEC-006",
         "SEC-007",
-        "SEC-010"
+        "SEC-010",
+        "UI-009",
+        "INT-001"
       ],
-      "reason": "Stage C Nubia canary distributed Node Contract surface; implementation linkage only, physical acceptance remains pending."
+      "reason": "Protected Broker now exposes bounded local-first voice discovery and synthesis while preserving existing owner authority and all prior Broker responsibilities."
     },
     {
       "path": "scripts/jarvis-direct-commander-service.sh",
@@ -1398,12 +1400,14 @@
     },
     {
       "path": "src/app/api/command/route.ts",
-      "sha256": "08f69fa8144384fc5d9e5f18567fd45478f5de3dbc4f6a62b3e6becb954a0a24",
+      "sha256": "1ba659e6f7b5f05d61ddd88a5efc5acd954e0543fe817a42b167f4e017a9874a",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
-        "CORE-005"
+        "CORE-005",
+        "UI-020",
+        "INT-001"
       ],
-      "reason": "Declared route.ts responsibility implements/supports Input Recovery. Parent ownership is not functional or physical acceptance evidence."
+      "reason": "Unified command ingress now carries current-screen priority context and text/voice input mode without widening authorization or replacing existing Goal/task authority."
     },
     {
       "path": "src/app/api/jarvis/action/route.ts",
@@ -1584,6 +1588,16 @@
         "TEACH-003"
       ],
       "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/app/api/jarvis/voice/route.ts",
+      "sha256": "babf16095e37f6ac4d520009f3eabdc24ff63a1f4160263ea6dc52cf51aa67a8",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-009",
+        "INT-001"
+      ],
+      "reason": "Owner-authenticated Next proxy exposes local voice discovery and synthesis through the existing protected Broker only."
     },
     {
       "path": "src/app/api/jarvis/work/[goalId]/route.ts",
@@ -1907,6 +1921,17 @@
       "reason": "Owner enrollment progress/invitation/pending pages"
     },
     {
+      "path": "src/app/jarvis/GlobalConversationLauncher.tsx",
+      "sha256": "c6641807bd282803cdbf77e939ce61bbc11a36846302632525c8a10aab076fe6",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-020",
+        "UI-026",
+        "INT-001"
+      ],
+      "reason": "System-wide conversation drawer is reachable from every primary GORIQ screen and passes current-screen context without narrowing authorized GORIQ-wide conversation scope."
+    },
+    {
       "path": "src/app/jarvis/GoriqIcon.tsx",
       "sha256": "c22a4dc2fcc3af93249464abc962286544e5566147d84fa154819bffe67461a7",
       "classification": "COVERED_BY_REQUIREMENT",
@@ -2050,15 +2075,16 @@
     },
     {
       "path": "src/app/jarvis/JarvisPrimaryShell.tsx",
-      "sha256": "c3646242e845aced74baddf8143f2015a6f34f95965dd073437ab2285e048466",
+      "sha256": "643607bcbf03375b1842e9070e17b59f45000f13f5ee881b90e3aabf03ca00e6",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "UI-001",
         "UI-020",
         "UI-026",
-        "OPS-018"
+        "OPS-018",
+        "INT-001"
       ],
-      "reason": "Usability-first primary shell exposes Home, Projects, New Development, Decision Queue and More while preserving owner authentication and the existing GORIQ control plane."
+      "reason": "Primary shell mounts the system-wide conversation entry in addition to the usability-first five-item navigation."
     },
     {
       "path": "src/app/jarvis/JarvisPriorityNotifications.tsx",
@@ -2297,15 +2323,16 @@
     },
     {
       "path": "src/app/jarvis/mobile/voice/MobileVoiceCommander.tsx",
-      "sha256": "fc76108fd6e901292b6aef291799b027554cb42f6e268fd98b60841bf3fdfd33",
+      "sha256": "e6287dcafcc7d433590fc07c3b7482eb0b2c7e243d780d9c86e1912229e65503",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "INT-001",
         "INT-008",
         "INT-009",
-        "INT-017"
+        "INT-017",
+        "UI-009"
       ],
-      "reason": "Voice input/persona/policy UI"
+      "reason": "Mobile voice input keeps visible transcript and protected device-command semantics while local speech output uses the selected AivisSpeech/VOICEVOX path when available."
     },
     {
       "path": "src/app/jarvis/mobile/voice/page.tsx",
@@ -2333,15 +2360,16 @@
     },
     {
       "path": "src/app/jarvis/mobile/voice/SpeechPersonaStylePanel.tsx",
-      "sha256": "0de1d4de22700c4ad77aeefacb22738e7db26ba9a2801222efa349ee6897b2f1",
+      "sha256": "463ae0b55ffbad8757310bd7cbf26d0a7398c0f039765eced3398a64a62bdde0",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "INT-001",
         "INT-008",
         "INT-009",
-        "INT-017"
+        "INT-017",
+        "UI-009"
       ],
-      "reason": "Voice input/persona/policy UI"
+      "reason": "Mobile voice/persona/style surface uses the owner-facing voice label while keeping voice, persona and speech style independent."
     },
     {
       "path": "src/app/jarvis/mobile/voice/voice.css",
@@ -2377,15 +2405,25 @@
       "reason": "Connectivity and degraded state labels"
     },
     {
+      "path": "src/app/jarvis/new-development/DevelopmentDesignRoom.tsx",
+      "sha256": "2a228197efff0430de6b919ea032a3e693b96d9b33714cf1f05cce35b1e3a966",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-014",
+        "UI-020"
+      ],
+      "reason": "Conversation-first new-development room shows Goal/spec/design/technology/DoD states and sends one final confirmed summary through the existing command/Goal path."
+    },
+    {
       "path": "src/app/jarvis/new-development/page.tsx",
-      "sha256": "d66d5f600f742c4aec5de3b12fd0fec5217a3187d35c8aa36fc2dd44d6551619",
+      "sha256": "7153898e14057eceb265df26abf47284f374c041146a04717b62f124548fb17e",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
         "UI-020",
         "UI-026"
       ],
-      "reason": "Conversation-first New Development entry reuses existing owner-authenticated command and Goal authority instead of introducing an independent development controller."
+      "reason": "New Development route hosts the conversation-first design room under existing owner authentication."
     },
     {
       "path": "src/app/jarvis/notification-priority.ts",
@@ -2559,6 +2597,16 @@
       "reason": "Screen Design settings expose all 35 owner-distinct presets with immediate preview/apply and browser-local favorites."
     },
     {
+      "path": "src/app/jarvis/settings/GoriqVoiceSettings.tsx",
+      "sha256": "bdb86e699cd9d4ba347083ddbefe84389f9765308e9c9377c19d004d4a29d00d",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-005",
+        "UI-009"
+      ],
+      "reason": "Dedicated 「声」 settings discover local engines, show bounded voice choices, gate selection on visible usage terms, preview voices and persist rate/pitch/volume."
+    },
+    {
       "path": "src/app/jarvis/settings/JarvisLocalSettings.tsx",
       "sha256": "09b120ce3d6d17d87115a863f610a45efa7769011abd8b7ed2b8562eed1b863a",
       "classification": "COVERED_BY_REQUIREMENT",
@@ -2594,13 +2642,14 @@
     },
     {
       "path": "src/app/jarvis/settings/page.tsx",
-      "sha256": "9420a867e9a4106cccc4dcf9b083f4570304e3f48f4809e444c8408a82cdf4c4",
+      "sha256": "ee8cd6bd5b932e22247e404cd3965bf8accc3d95af5e3b7eaaeb775f37695736",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "UI-005",
-        "UI-007"
+        "UI-007",
+        "UI-009"
       ],
-      "reason": "Settings keeps advanced controls and exposes the existing 20-theme catalog away from the routine command surface"
+      "reason": "Owner settings now includes dedicated local voice configuration while retaining existing protected-setting boundaries."
     },
     {
       "path": "src/app/jarvis/settings/TrustedDeviceSettings.tsx",
@@ -2632,7 +2681,7 @@
     },
     {
       "path": "src/app/jarvis/shell.css",
-      "sha256": "9816cd638d081fd712ef07665ab8abb61d2a3318a7ce132590ead434055a6f35",
+      "sha256": "10b16822783e48c6ef7a43cb2bc119b2b87f066a83fc9a1d768b88c0dc500f08",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "UI-001",
@@ -2641,7 +2690,7 @@
         "UI-026",
         "UI-027"
       ],
-      "reason": "Primary-shell styling implements the five-item mobile bottom navigation and readable daily-driver presentation."
+      "reason": "Responsive styles support the global conversation drawer, conversation-first design room and voice settings across desktop and smartphone layouts."
     },
     {
       "path": "src/app/jarvis/tasks/CognitiveGoalCriteria.tsx",
@@ -2824,6 +2873,16 @@
         "UI-010"
       ],
       "reason": "Theme/persona and display preference storage"
+    },
+    {
+      "path": "src/app/jarvis/voice-output.ts",
+      "sha256": "c90c24d879b724258b22c3f313f2daebdd648eeef529d2cb459b394e9bd02806",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-009",
+        "INT-001"
+      ],
+      "reason": "Browser-local voice output preferences and playback connect visible AI replies to the owner-selected local TTS voice."
     },
     {
       "path": "src/app/jarvis/widget-layout.css",
@@ -4012,6 +4071,16 @@
         "FLEET-006"
       ],
       "reason": "Bounded enrollment and owner invitation lifecycle"
+    },
+    {
+      "path": "src/jarvis/local-tts.ts",
+      "sha256": "cf359937bc36941bce456d1b2ff990c37b2e5eb9377b89c4394df9bc10ccbb63",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-009",
+        "INT-001"
+      ],
+      "reason": "Local-only TTS adapter prefers AivisSpeech Engine, falls back to VOICEVOX, bounds discovery/synthesis and never introduces a paid-provider fallback."
     },
     {
       "path": "src/jarvis/local-video-reasoner.ts",

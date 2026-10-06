@@ -3387,14 +3387,23 @@
         "INTEGRATION",
         "PHYSICAL"
       ],
-      "implementation_refs": [],
-      "test_refs": [],
+      "implementation_refs": [
+        "src/jarvis/local-tts.ts",
+        "scripts/jarvis-broker.ts",
+        "src/app/api/jarvis/voice/route.ts",
+        "src/app/jarvis/settings/GoriqVoiceSettings.tsx",
+        "src/app/jarvis/voice-output.ts"
+      ],
+      "test_refs": [
+        "tests/goriq-local-tts.test.ts",
+        "tests/goriq-daily-driver-conversation.test.mjs"
+      ],
       "evidence_refs": [],
-      "status": "MISSING",
-      "blocker": "Preference metadata exists, but the required engine-backed selectable/previewable 8–12 voice catalog and tuning controls are not verified end-to-end.",
+      "status": "IMPLEMENTED_UNVERIFIED",
+      "blocker": "AivisSpeech Engine primary / VOICEVOX fallback, engine discovery, usage-terms presence gate, 8–12 bounded voice catalog, preview and rate/pitch/volume controls are implemented. Real attached voice-model/audio quality and physical-device evidence are still required before VERIFIED.",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "Local TTS engine contractと接続し、8〜12のlicense確認済みvoice、試聴、rate/pitch/volume保存と実機Evidenceを追加する。",
+      "next_action": "Run the merged build against an actual local AivisSpeech/VOICEVOX installation and record physical playback/model-license evidence; keep text-only fallback visible when no engine is present.",
       "last_verified_commit": null,
       "delivery_audit": {
         "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -3450,14 +3459,21 @@
         "INTEGRATION",
         "PHYSICAL"
       ],
-      "implementation_refs": [],
-      "test_refs": [],
+      "implementation_refs": [
+        "src/app/jarvis/screen-layout-profiles.ts",
+        "src/app/jarvis/settings/JarvisScreenLayoutProfiles.tsx",
+        "src/app/jarvis/settings/GoriqThemeSettings.tsx"
+      ],
+      "test_refs": [
+        "tests/jarvis-screen-layout-profiles.test.ts",
+        "tests/goriq-owner-ui.test.ts"
+      ],
       "evidence_refs": [],
-      "status": "MISSING",
-      "blocker": "現行JARVIS UIに当該製品機能を未発見。P5で実装と操作検証が必要。",
+      "status": "IMPLEMENTED_UNVERIFIED",
+      "blocker": "Per-design + per-screen layout persistence, legacy migration, restore and reset are implemented in browser-local state. Physical/touch acceptance is still required before VERIFIED.",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "Per-design + per-screen layout persistence、復元、権限/data不変を実装・検証する。",
+      "next_action": "Physically verify switching among representative screen designs restores each saved layout and does not mutate Goal/Task/authority state.",
       "last_verified_commit": null,
       "delivery_audit": {
         "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -3733,16 +3749,22 @@
         "PHYSICAL"
       ],
       "implementation_refs": [
-        "src/app/jarvis/JarvisConsole.tsx",
-        "src/app/jarvis/jarvis.css"
+        "src/app/jarvis/GlobalConversationLauncher.tsx",
+        "src/app/CommandChat.tsx",
+        "src/app/jarvis/JarvisPrimaryShell.tsx",
+        "src/app/api/command/route.ts",
+        "scripts/chatgpt-resident-bridge-lib.mjs"
       ],
-      "test_refs": [],
+      "test_refs": [
+        "tests/goriq-daily-driver-conversation.test.mjs",
+        "tests/jarvis-p5-primary-shell.test.mjs"
+      ],
       "evidence_refs": [],
-      "status": "PARTIAL",
-      "blocker": "A command/search foundation exists, but the owner-approved global conversation entry plus explicit 新規開発/decision/node navigation invariants are not fully implemented and physically accepted.",
+      "status": "IMPLEMENTED_UNVERIFIED",
+      "blocker": "System-wide one-action conversation entry, shared GitHub-backed history, current-screen priority context and GORIQ-wide bridge scope are implemented. Physical multi-device acceptance remains pending.",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "既存command/searchをglobal conversation入口へ拡張し、新規開発と主要capabilityを全design/PC/mobileから1 actionで到達可能にして受入検証する。",
+      "next_action": "Run PC and smartphone physical acceptance for global conversation entry, visible history, screen-context priority and cross-project/GORIQ-wide questions.",
       "last_verified_commit": null,
       "delivery_audit": {
         "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -3919,16 +3941,23 @@
         "PHYSICAL"
       ],
       "implementation_refs": [
-        "src/app/jarvis/JarvisConsole.tsx",
-        "src/app/jarvis/jarvis.css"
+        "src/app/jarvis/JarvisPrimaryShell.tsx",
+        "src/app/jarvis/shell.css",
+        "src/app/jarvis/GlobalConversationLauncher.tsx",
+        "src/app/jarvis/decisions/page.tsx",
+        "src/app/jarvis/more/page.tsx"
       ],
-      "test_refs": [],
+      "test_refs": [
+        "tests/goriq-owner-ui.test.ts",
+        "tests/goriq-daily-driver-conversation.test.mjs",
+        "tests/jarvis-p5-primary-shell.test.mjs"
+      ],
       "evidence_refs": [],
-      "status": "PARTIAL",
-      "blocker": "Mobile foundations exist, but the dedicated owner-approved bottom navigation, one-hand project/decision flows and physical acceptance are incomplete.",
+      "status": "IMPLEMENTED_UNVERIFIED",
+      "blocker": "Five-item smartphone bottom navigation, one-hand global conversation entry and dedicated decision/more routes are implemented. Real-device visual/touch acceptance remains pending.",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "既存Mobile Modeへ専用bottom navigation、one-hand/vertical Project・判断待ち導線、global conversation入口を統合し実機Evidenceを取得する。",
+      "next_action": "Run smartphone physical acceptance at representative widths for bottom navigation, decision cards, conversation drawer and no-overflow behavior.",
       "last_verified_commit": null,
       "delivery_audit": {
         "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -4342,14 +4371,24 @@
         "INTEGRATION",
         "PHYSICAL"
       ],
-      "implementation_refs": [],
-      "test_refs": [],
+      "implementation_refs": [
+        "src/app/CommandChat.tsx",
+        "src/app/jarvis/GlobalConversationLauncher.tsx",
+        "src/app/jarvis/mobile/voice/MobileVoiceCommander.tsx",
+        "src/app/api/command/route.ts",
+        "src/app/api/jarvis/voice/route.ts"
+      ],
+      "test_refs": [
+        "tests/goriq-daily-driver-conversation.test.mjs",
+        "tests/jarvis-p6-voice-input.test.ts",
+        "tests/goriq-local-tts.test.ts"
+      ],
       "evidence_refs": [],
-      "status": "MISSING",
-      "blocker": "当該製品機能の実装・テスト・Evidenceを未発見。",
+      "status": "IMPLEMENTED_UNVERIFIED",
+      "blocker": "All primary screens can open the same visible conversation; browser speech recognition writes into the normal visible transcript and voice-originated AI replies use the selected local TTS path when available. Physical microphone/TTS acceptance is pending.",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "全主要画面から共通voice conversationへ入る経路、可視transcript、authority保持を実装・実機検証する。",
+      "next_action": "Verify microphone recognition, editable visible transcript, shared history and local voice reply on a physical phone and PC without bypassing Human Gate.",
       "last_verified_commit": null,
       "delivery_audit": {
         "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",

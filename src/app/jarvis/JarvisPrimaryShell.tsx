@@ -10,6 +10,7 @@ import JarvisOperationModeControls from "./JarvisOperationModeControls";
 import JarvisPriorityNotifications from "./JarvisPriorityNotifications";
 import JarvisReadOnlyBoundary from "./JarvisReadOnlyBoundary";
 import GoriqIcon from "./GoriqIcon";
+import GlobalConversationLauncher from "./GlobalConversationLauncher";
 import { applyJarvisAccessibilityPreferences, readJarvisAccessibilityPreferences } from "./accessibility-preferences";
 import { applyJarvisDisplayMode, readJarvisDisplayMode } from "./display-modes";
 import { applyJarvisOperationMode, readJarvisOperationMode } from "./operation-mode";
@@ -96,6 +97,7 @@ export default function JarvisPrimaryShell({ children }: { children: ReactNode }
       </header>
       <JarvisConnectivityStatus />
       <JarvisPriorityNotifications />
+      <GlobalConversationLauncher />
       <JarvisReadOnlyBoundary>
         <main id="jarvis-main-content" className="jarvis-primary-content" tabIndex={-1}>
           {children}
