@@ -3113,8 +3113,8 @@
     },
     {
       "id": "UI-002",
-      "title": "Devices",
-      "description": "Devices。",
+      "title": "Devices / ノード管理",
+      "description": "Devices / ノード管理。各Nodeをカードで表示し、オンライン/オフライン、現在のTask、負荷の要約、役割・Capability、詳細への導線を一目で確認できる。通常のTask配置は自動のまま、新しいNode追加と必要時の詳細操作だけを明示する。画面デザイン変更でNodeの実体・権限・状態は変えない。",
       "phase": "P5",
       "required_evidence": [
         "CODE",
@@ -3132,7 +3132,7 @@
       "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "P5: Devices。 について実装の不足を埋め、required_evidenceを取得する。",
+      "next_action": "既存Devices/Node surfacesを再利用し、カード表示・負荷/Task要約・Node追加導線・自動配置との整合を実装して実機Evidenceを取得する。",
       "last_verified_commit": null,
       "delivery_audit": {
         "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -3142,12 +3142,15 @@
         "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
         "staged_implementation_refs": [],
         "audit_ref": "docs/evidence/1188-requirements-windows.md"
-      }
+      },
+      "source_decisions": [
+        "owner-2026-10-06-goriq-design-session"
+      ]
     },
     {
       "id": "UI-003",
-      "title": "Tasks",
-      "description": "Tasks。",
+      "title": "Projects / Tasks / 判断待ち",
+      "description": "Projects / Tasks / 判断待ち。Project詳細はGoal、現在のphase/state、進捗、次のcheckpoint/action、Task状態、参加Node、最近のactivityを優先表示する。判断待ちは問題・選択肢・影響・推奨理由を短く表示し、完全なTask/Decision/Failure/Recovery履歴は保持したまま通常画面では最近/関連分だけを見せ、詳細履歴は必要時に開ける。",
       "phase": "P5",
       "required_evidence": [
         "CODE",
@@ -3175,7 +3178,7 @@
       "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "Mac manual-only hook gate approved/applied; complete exact-head CI/review and main CI. Production activation must preserve credentials and physical holds. Broader audit/semantic routes remain.",
+      "next_action": "既存Task/Work surfacesをProject詳細と判断待ちのOwner向け導線へ統合し、最近表示と完全履歴の分離、実機操作Evidenceを取得する。",
       "last_verified_commit": null,
       "delivery_audit": {
         "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -3194,7 +3197,10 @@
         "evidence_ref": "docs/evidence/1205-owner-spec-completion.md",
         "production_activation": "MAC_HOOK_APPROVED_CANDIDATE_PENDING_CI_PRODUCTION_NOT_APPLIED",
         "scope": "Requested software paths tested; arbitrary language/all-route audit and applicable physical acceptance not claimed."
-      }
+      },
+      "source_decisions": [
+        "owner-2026-10-06-goriq-design-session"
+      ]
     },
     {
       "id": "UI-004",
@@ -3231,7 +3237,7 @@
     {
       "id": "UI-005",
       "title": "Settings",
-      "description": "Settings。",
+      "description": "Settings。Owner向け表記を分かりやすい日本語にし、少なくとも「画面デザイン」「画面の配置を変更」「声」を独立して設定できる。画面デザインはサムネイル、試し適用/プレビュー、お気に入り、再選択を提供し、声は試し聞きから選択できる。設定変更はGoal/Task/権限/Human Gateを変えない。",
       "phase": "P5",
       "required_evidence": [
         "CODE",
@@ -3248,7 +3254,7 @@
       "blocker": "Settings画面のコードはmainに存在。全設定項目の永続化・権限制御・画面からの操作受入証拠が未整理。",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "既存Settings画面を再利用し、必要設定ごとに保存・再読込・Owner認証の受入証拠を対応付ける。",
+      "next_action": "既存Settings画面を再利用し、「画面デザイン」「画面の配置を変更」「声」のOwner向け設定と保存/再読込/Preview受入Evidenceを対応付ける。",
       "last_verified_commit": null,
       "delivery_audit": {
         "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -3258,12 +3264,15 @@
         "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
         "staged_implementation_refs": [],
         "audit_ref": "docs/evidence/1188-requirements-windows.md"
-      }
+      },
+      "source_decisions": [
+        "owner-2026-10-06-goriq-design-session"
+      ]
     },
     {
       "id": "UI-006",
-      "title": "未来的JARVIS表示と可読性の両立",
-      "description": "未来的JARVIS表示と可読性の両立。",
+      "title": "未来的GORIQ表示・可読性・共通操作の両立",
+      "description": "未来的GORIQ表示と可読性を両立し、毎日長時間使っても情報過多や配色で疲れにくい構成にする。画面デザインごとに見た目や配置は変えてよいが、open/select/back/close/save/cancel/pause/resumeの意味、主要機能への到達性、状態ラベルの意味は一貫させる。状態を色だけで表現せず文字/アイコンも併用し、デザイン変更でGoal data、履歴、進捗、権限、実行状態を変えない。",
       "phase": "P5",
       "required_evidence": [
         "CODE",
@@ -3281,7 +3290,7 @@
       "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "P5: 未来的JARVIS表示と可読性の両立。 について実装の不足を埋め、required_evidenceを取得する。",
+      "next_action": "既存theme shellへ共通操作invariantと色以外の状態表現を追加し、複数デザインで同じ主要フローを実機確認する。",
       "last_verified_commit": null,
       "delivery_audit": {
         "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -3291,12 +3300,15 @@
         "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
         "staged_implementation_refs": [],
         "audit_ref": "docs/evidence/1188-requirements-windows.md"
-      }
+      },
+      "source_decisions": [
+        "owner-2026-10-06-goriq-design-session"
+      ]
     },
     {
       "id": "UI-007",
-      "title": "20以上のtheme/persona preset",
-      "description": "20以上のtheme/persona preset。",
+      "title": "35 selectable 画面デザイン + persona presets",
+      "description": "Owner提供の2つのvisual reference setを統合せず個別プリセットとして保持し、合計35枠の「画面デザイン」を選択可能にする。Set A 15: クリーンモダン / ダークシネマティック / アニメ調 美人秘書 / リアル 美人秘書 / イケメン秘書 / ホログラム空間 / ナチュラルウッド / ミニマルGlass / AR空間UI / サイバーシティ / コックピット / モバイル特化 / デュアルモニター / データビジュアル / 癒し空間。Set B 20: クリーンモダン / ダークシネマティック / アニメ美人秘書 / リアル美人秘書 / リアルイケメン秘書 / アニメイケメン秘書 / ホログラム人型 / AIコア型 / 執事型JARVIS / 秘書チーム型 / 未来研究室型 / 宇宙船ブリッジ型 / 高級車コックピット型 / AR空間型 / サイバーシティ型 / 自然融合型 / ブラック＆ゴールド / 白銀ラボ型 / デジタルツイン型 / 可変人格型。似た名称/世界観でもOwnerが別枠として指定したものは統合しない。画面デザインは色だけでなくlayout/density/装飾/hero/persona presentationを変えられるが、機能とdata contractは共通。Settingsでthumbnail、即時preview/apply、お気に入り、再切替を提供する。",
       "phase": "P5",
       "required_evidence": [
         "CODE",
@@ -3316,10 +3328,10 @@
         "docs/evidence/1191-ui007-presets.md"
       ],
       "status": "PARTIAL",
-      "blocker": "Software implementation and regression evidence are mapped on current main; required PHYSICAL acceptance remains pending.",
+      "blocker": "Current main has a 20-theme catalog and preference foundation, but the owner-approved two reference sets total 35 selectable screen-design slots; the additional concepts, exact per-preset presentation, favorites and physical acceptance are not complete.",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "Retain PARTIAL until UI-007 PHYSICAL acceptance is captured; continue independent non-physical JARVIS gaps without treating CI as physical proof.",
+      "next_action": "現行20-theme基盤を壊さず、Owner reference Set A 15 + Set B 20を35個の個別presetとして識別可能にし、thumbnail/preview/favoriteとmobile renditionを実装・検証する。",
       "last_verified_commit": null,
       "delivery_audit": {
         "main_revision": "f974cc39dc25697e6cf999764e9d695ee753e14d",
@@ -3329,7 +3341,10 @@
         "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
         "staged_implementation_refs": [],
         "audit_ref": "docs/evidence/1191-ui007-presets.md"
-      }
+      },
+      "source_decisions": [
+        "owner-2026-10-06-goriq-design-session"
+      ]
     },
     {
       "id": "UI-008",
@@ -3363,8 +3378,8 @@
     },
     {
       "id": "UI-009",
-      "title": "Voiceは独立設定",
-      "description": "Voiceは独立設定。",
+      "title": "Voice / 声は独立設定",
+      "description": "VoiceはTheme/Persona/Speech styleから独立したOwner設定とし、表示名は分かりやすく「声」とする。利用可能なlicense確認済み音声を一覧表示し、1タップ試聴から選択できる。初期catalogは8〜12種類を目標とし、speech rate、pitch(対応engineのみ)、volumeを別設定できる。声を変えても会話履歴、AI能力、権限、Human Gateは変わらない。",
       "phase": "P5",
       "required_evidence": [
         "CODE",
@@ -3376,10 +3391,10 @@
       "test_refs": [],
       "evidence_refs": [],
       "status": "MISSING",
-      "blocker": "現行JARVIS UIに当該製品機能を未発見。P5で実装と操作検証が必要。",
+      "blocker": "Preference metadata exists, but the required engine-backed selectable/previewable 8–12 voice catalog and tuning controls are not verified end-to-end.",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "P5: Voiceは独立設定。 について実装の不足を埋め、required_evidenceを取得する。",
+      "next_action": "Local TTS engine contractと接続し、8〜12のlicense確認済みvoice、試聴、rate/pitch/volume保存と実機Evidenceを追加する。",
       "last_verified_commit": null,
       "delivery_audit": {
         "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -3389,7 +3404,10 @@
         "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
         "staged_implementation_refs": [],
         "audit_ref": "docs/evidence/1188-requirements-windows.md"
-      }
+      },
+      "source_decisions": [
+        "owner-2026-10-06-goriq-design-session"
+      ]
     },
     {
       "id": "UI-010",
@@ -3424,7 +3442,7 @@
     {
       "id": "UI-011",
       "title": "Layoutは独立設定",
-      "description": "Layoutは独立設定。Theme/Persona/Voice/Color/Layoutを独立管理。",
+      "description": "LayoutはTheme/Persona/Voice/Colorから独立設定。さらにOwnerの画面デザインごと・screenごとに配置を保存し、そのデザインへ戻した時は前回配置を復元する。画面デザイン切替は表示/配置だけを変え、Goal/Task/data/authorityは変えない。",
       "phase": "P5",
       "required_evidence": [
         "CODE",
@@ -3439,7 +3457,7 @@
       "blocker": "現行JARVIS UIに当該製品機能を未発見。P5で実装と操作検証が必要。",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "P5: Layoutは独立設定。Theme/Persona/Voice/Color/Layoutを独立管理。 について実装の不足を埋め、required_evidenceを取得する。",
+      "next_action": "Per-design + per-screen layout persistence、復元、権限/data不変を実装・検証する。",
       "last_verified_commit": null,
       "delivery_audit": {
         "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -3449,12 +3467,15 @@
         "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
         "staged_implementation_refs": [],
         "audit_ref": "docs/evidence/1188-requirements-windows.md"
-      }
+      },
+      "source_decisions": [
+        "owner-2026-10-06-goriq-design-session"
+      ]
     },
     {
       "id": "UI-012",
       "title": "Widget drag/move",
-      "description": "Widget drag/move。",
+      "description": "Widget drag/move。通常時は誤移動させず、長押しまたはSettingsの「画面の配置を変更」から明示的にlayout edit modeへ入り、そのmode中だけdrag/moveを許可する。Touchでは誤操作防止の意図確認を挟める。",
       "phase": "P5",
       "required_evidence": [
         "CODE",
@@ -3469,7 +3490,7 @@
       "blocker": "現行JARVIS UIに当該製品機能を未発見。P5で実装と操作検証が必要。",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "P5: Widget drag/move。 について実装の不足を埋め、required_evidenceを取得する。",
+      "next_action": "明示的layout edit mode、long-press/settings入口、drag/moveと通常mode固定を実装・検証する。",
       "last_verified_commit": null,
       "delivery_audit": {
         "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -3479,7 +3500,10 @@
         "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
         "staged_implementation_refs": [],
         "audit_ref": "docs/evidence/1188-requirements-windows.md"
-      }
+      },
+      "source_decisions": [
+        "owner-2026-10-06-goriq-design-session"
+      ]
     },
     {
       "id": "UI-013",
@@ -3514,7 +3538,7 @@
     {
       "id": "UI-014",
       "title": "Widget hide/show",
-      "description": "Widget hide/show。",
+      "description": "Widget hide/show。Ownerが補助情報を非表示/再表示できる一方、新規開発・Project/Task・判断待ち・Node/Device・Settingsなど主要capabilityへの到達手段は完全には消せない。デザイン変更やhide/showで実行中Goalのstateを変えない。",
       "phase": "P5",
       "required_evidence": [
         "CODE",
@@ -3529,7 +3553,7 @@
       "blocker": "現行JARVIS UIに当該製品機能を未発見。P5で実装と操作検証が必要。",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "P5: Widget hide/show。 について実装の不足を埋め、required_evidenceを取得する。",
+      "next_action": "Hide/showとcritical navigation protection、再表示導線、state不変を実装・検証する。",
       "last_verified_commit": null,
       "delivery_audit": {
         "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -3539,7 +3563,10 @@
         "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
         "staged_implementation_refs": [],
         "audit_ref": "docs/evidence/1188-requirements-windows.md"
-      }
+      },
+      "source_decisions": [
+        "owner-2026-10-06-goriq-design-session"
+      ]
     },
     {
       "id": "UI-015",
@@ -3663,8 +3690,8 @@
     },
     {
       "id": "UI-019",
-      "title": "Reset",
-      "description": "Reset。",
+      "title": "Reset / 初期配置に戻す",
+      "description": "Reset。画面デザインごとの配置を安全に「初期配置に戻す」操作を提供する。配置変更のUndo/Redoとは別に明示し、Goal/Task/data/権限はresetしない。",
       "phase": "P5",
       "required_evidence": [
         "CODE",
@@ -3679,7 +3706,7 @@
       "blocker": "現行JARVIS UIに当該製品機能を未発見。P5で実装と操作検証が必要。",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "P5: Reset。 について実装の不足を埋め、required_evidenceを取得する。",
+      "next_action": "Per-design layout resetとdata/authority不変を実装・検証する。",
       "last_verified_commit": null,
       "delivery_audit": {
         "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -3689,12 +3716,15 @@
         "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
         "staged_implementation_refs": [],
         "audit_ref": "docs/evidence/1188-requirements-windows.md"
-      }
+      },
+      "source_decisions": [
+        "owner-2026-10-06-goriq-design-session"
+      ]
     },
     {
       "id": "UI-020",
-      "title": "Universal Command Bar",
-      "description": "Universal Command Bar。",
+      "title": "Universal Command / Conversation entry",
+      "description": "Universal Command BarをGORIQ全体のcommand/conversation入口として扱う。どの主要画面・どの画面デザインでも会話へ1 actionで入れ、PC/mobileとも「新規開発」を明示的な主要入口として到達可能にする。主要導線としてProject/Task、判断待ち、Node/Device、Settingsへの到達性もデザインで失わない。",
       "phase": "P5",
       "required_evidence": [
         "CODE",
@@ -3709,10 +3739,10 @@
       "test_refs": [],
       "evidence_refs": [],
       "status": "PARTIAL",
-      "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+      "blocker": "A command/search foundation exists, but the owner-approved global conversation entry plus explicit 新規開発/decision/node navigation invariants are not fully implemented and physically accepted.",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "P5: Universal Command Bar。 について実装の不足を埋め、required_evidenceを取得する。",
+      "next_action": "既存command/searchをglobal conversation入口へ拡張し、新規開発と主要capabilityを全design/PC/mobileから1 actionで到達可能にして受入検証する。",
       "last_verified_commit": null,
       "delivery_audit": {
         "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -3722,7 +3752,10 @@
         "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
         "staged_implementation_refs": [],
         "audit_ref": "docs/evidence/1188-requirements-windows.md"
-      }
+      },
+      "source_decisions": [
+        "owner-2026-10-06-goriq-design-session"
+      ]
     },
     {
       "id": "UI-021",
@@ -3876,8 +3909,8 @@
     },
     {
       "id": "UI-026",
-      "title": "Mobile Mode",
-      "description": "Mobile Mode。",
+      "title": "Mobile Mode / smartphone-specific UX",
+      "description": "Mobile Mode。Desktopを縮小するだけにせず、phone専用の縦scroll/片手操作layoutを使う。Bottom navigationの基本は「ホーム / プロジェクト / 新規開発 / 判断待ち / その他」とし、global conversation/voiceを1 actionで呼び出せる。Project詳細はGoal→current state→next action→running tasks→recent historyを優先し、判断待ちは短いlarge-card操作にする。",
       "phase": "P5",
       "required_evidence": [
         "CODE",
@@ -3892,10 +3925,10 @@
       "test_refs": [],
       "evidence_refs": [],
       "status": "PARTIAL",
-      "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+      "blocker": "Mobile foundations exist, but the dedicated owner-approved bottom navigation, one-hand project/decision flows and physical acceptance are incomplete.",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "P5: Mobile Mode。 について実装の不足を埋め、required_evidenceを取得する。",
+      "next_action": "既存Mobile Modeへ専用bottom navigation、one-hand/vertical Project・判断待ち導線、global conversation入口を統合し実機Evidenceを取得する。",
       "last_verified_commit": null,
       "delivery_audit": {
         "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -3905,12 +3938,15 @@
         "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
         "staged_implementation_refs": [],
         "audit_ref": "docs/evidence/1188-requirements-windows.md"
-      }
+      },
+      "source_decisions": [
+        "owner-2026-10-06-goriq-design-session"
+      ]
     },
     {
       "id": "UI-027",
-      "title": "Adaptive Layout",
-      "description": "Adaptive Layout。",
+      "title": "Adaptive Layout / 35-design mobile rendition",
+      "description": "Adaptive Layout。各画面デザインはdesktop gridを単純縮小せず、同じ世界観をphone/tablet用layoutへ変換する。35個すべての画面デザインで機能同等性を保ち、touchのlayout編集は意図的なedit modeに限定する。",
       "phase": "P5",
       "required_evidence": [
         "CODE",
@@ -3925,10 +3961,10 @@
       "test_refs": [],
       "evidence_refs": [],
       "status": "PARTIAL",
-      "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+      "blocker": "Responsive/adaptive foundations exist, but all 35 owner-approved design slots do not yet have verified mobile-appropriate renditions.",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "P5: Adaptive Layout。 について実装の不足を埋め、required_evidenceを取得する。",
+      "next_action": "35 designそれぞれにmobile rendition rulesを定義し、主要フロー・no-overflow・touch誤操作防止を実機検証する。",
       "last_verified_commit": null,
       "delivery_audit": {
         "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -3938,7 +3974,10 @@
         "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
         "staged_implementation_refs": [],
         "audit_ref": "docs/evidence/1188-requirements-windows.md"
-      }
+      },
+      "source_decisions": [
+        "owner-2026-10-06-goriq-design-session"
+      ]
     },
     {
       "id": "UI-028",
@@ -4294,8 +4333,8 @@
     },
     {
       "id": "INT-001",
-      "title": "Voice command",
-      "description": "Voice command。",
+      "title": "Voice command / system-wide voice conversation",
+      "description": "Voice command。音声は新規開発専用ではなく、GORIQの全主要画面から呼べるsystem-wide conversation inputとする。認識した発話は送信前/送信後にvisible textとして扱い、Voice Human Gate等の既存authorityを一切迂回しない。",
       "phase": "P6",
       "required_evidence": [
         "CODE",
@@ -4310,7 +4349,7 @@
       "blocker": "当該製品機能の実装・テスト・Evidenceを未発見。",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "P6: Voice command。 について実装の不足を埋め、required_evidenceを取得する。",
+      "next_action": "全主要画面から共通voice conversationへ入る経路、可視transcript、authority保持を実装・実機検証する。",
       "last_verified_commit": null,
       "delivery_audit": {
         "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -4320,7 +4359,10 @@
         "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
         "staged_implementation_refs": [],
         "audit_ref": "docs/evidence/1188-requirements-windows.md"
-      }
+      },
+      "source_decisions": [
+        "owner-2026-10-06-goriq-design-session"
+      ]
     },
     {
       "id": "INT-002",
@@ -4389,8 +4431,8 @@
     },
     {
       "id": "INT-004",
-      "title": "Voice/text同一conversation context",
-      "description": "Voice/text同一conversation context。",
+      "title": "Voice/text同一conversation context + visible transcript",
+      "description": "Voice/textは同一conversation contextと履歴を共有する。Voice inputはdefaultでvoice response、text inputはdefaultでtext responseとし、Owner設定でoverride可能。Owner発話の文字起こしとAI返答はhidden storageだけでなく通常の会話履歴に見える形で残し、modeを切り替えてもcontextを失わない。",
       "phase": "P6",
       "required_evidence": [
         "CODE",
@@ -4402,10 +4444,10 @@
       "test_refs": [],
       "evidence_refs": [],
       "status": "MISSING",
-      "blocker": "当該製品機能の実装・テスト・Evidenceを未発見。",
+      "blocker": "Unified visible voice/text conversation with modality-matched response and persistent transcript is not yet verified end-to-end.",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "P6: Voice/text同一conversation context。 について実装の不足を埋め、required_evidenceを取得する。",
+      "next_action": "Voice/textの同一thread、visible transcript、input modalityに応じたdefault response modeとoverride設定を実装・実機検証する。",
       "last_verified_commit": null,
       "delivery_audit": {
         "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -4415,12 +4457,15 @@
         "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
         "staged_implementation_refs": [],
         "audit_ref": "docs/evidence/1188-requirements-windows.md"
-      }
+      },
+      "source_decisions": [
+        "owner-2026-10-06-goriq-design-session"
+      ]
     },
     {
       "id": "INT-005",
-      "title": "Screen-context reference「これ」",
-      "description": "Screen-context reference「これ」。",
+      "title": "Screen-context + GORIQ-wide context「これ」",
+      "description": "「これ」等のscreen-context referenceでは現在画面/Projectを高優先contextとして使うが、それを検索境界にはしない。Owner権限内のGORIQ-wide Goal/Project/Task/Decision/Node/Log/History/Settings stateへ質問でき、command対象が一意ならそのauthority内で操作する。曖昧な変更指示だけ最小限のclarificationを求める。",
       "phase": "P6",
       "required_evidence": [
         "CODE",
@@ -4435,7 +4480,7 @@
       "blocker": "当該製品機能の実装・テスト・Evidenceを未発見。",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "P6: Screen-context reference「これ」。 について実装の不足を埋め、required_evidenceを取得する。",
+      "next_action": "Current-screen priority + GORIQ-wide retrieval/action scopeとambiguous-target clarificationを実装・統合検証する。",
       "last_verified_commit": null,
       "delivery_audit": {
         "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -4445,7 +4490,10 @@
         "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
         "staged_implementation_refs": [],
         "audit_ref": "docs/evidence/1188-requirements-windows.md"
-      }
+      },
+      "source_decisions": [
+        "owner-2026-10-06-goriq-design-session"
+      ]
     },
     {
       "id": "INT-006",
@@ -4509,8 +4557,8 @@
     },
     {
       "id": "INT-008",
-      "title": "Voice Persona",
-      "description": "Voice Persona。",
+      "title": "Local-first TTS engine / Voice Persona",
+      "description": "Voice Personaと音声engine authorityを分離する。標準TTS engineはAivisSpeech Engine、fallbackはVOICEVOX Engineとし、local-firstで動作するreplaceable engine abstractionを持つ。利用不能時に有料providerや外部data egressへ黙ってfallbackしない。各voice modelのlicenseを確認し、engine/model unavailableはfail-visibleにする。Voice selection、Persona、Speech styleは独立設定。",
       "phase": "P6",
       "required_evidence": [
         "CODE",
@@ -4522,10 +4570,10 @@
       "test_refs": [],
       "evidence_refs": [],
       "status": "MISSING",
-      "blocker": "当該製品機能の実装・テスト・Evidenceを未発見。",
+      "blocker": "No verified AivisSpeech primary / VOICEVOX fallback adapter, license-checked model catalog, or fail-visible local-first fallback contract is mapped in the current requirement evidence.",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "P6: Voice Persona。 について実装の不足を埋め、required_evidenceを取得する。",
+      "next_action": "AivisSpeech primary + VOICEVOX fallback adapter contract、license check、local-only default、fail-visible behaviorを実装・検証する。",
       "last_verified_commit": null,
       "delivery_audit": {
         "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -4535,12 +4583,15 @@
         "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
         "staged_implementation_refs": [],
         "audit_ref": "docs/evidence/1188-requirements-windows.md"
-      }
+      },
+      "source_decisions": [
+        "owner-2026-10-06-goriq-design-session"
+      ]
     },
     {
       "id": "INT-009",
       "title": "Speech style",
-      "description": "Speech style。",
+      "description": "Speech style。Voice engine/voice selection/personaとは独立し、少なくともstandard/brief/formal等の返答styleを保存できる。Speech rate/pitch/volumeはVoice settingsとして別管理し、style変更でcommand parsing、priority、permission、Human Gateを変えない。",
       "phase": "P6",
       "required_evidence": [
         "CODE",
@@ -4555,7 +4606,7 @@
       "blocker": "当該製品機能の実装・テスト・Evidenceを未発見。",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "P6: Speech style。 について実装の不足を埋め、required_evidenceを取得する。",
+      "next_action": "Speech styleとvoice acoustic settingsを分離し、保存/再読込とauthority不変を検証する。",
       "last_verified_commit": null,
       "delivery_audit": {
         "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -4565,7 +4616,10 @@
         "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
         "staged_implementation_refs": [],
         "audit_ref": "docs/evidence/1188-requirements-windows.md"
-      }
+      },
+      "source_decisions": [
+        "owner-2026-10-06-goriq-design-session"
+      ]
     },
     {
       "id": "INT-010",
@@ -5199,8 +5253,8 @@
     },
     {
       "id": "AUTO-005",
-      "title": "Decisions persistence",
-      "description": "Decisions persistence。",
+      "title": "Decisions persistence / rationale history",
+      "description": "Decisions persistence。Owner/AIが確定した仕様判断、選択肢、採用/不採用、理由、影響、関連Goal/Task、必要な差分をdurableに保持し、後から「なぜこれにしたか」を追跡できる。判断確定後は仕様/Goalへ反映し、待っていた依存Taskだけを正確にresumeする。",
       "phase": "P7",
       "required_evidence": [
         "CODE",
@@ -5223,7 +5277,7 @@
       "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "P7: Decisions persistence。 について実装の不足を埋め、required_evidenceを取得する。",
+      "next_action": "Decision rationale/impact/Goal linkageと依存Task resume evidenceを既存durable stateへ統合・検証する。",
       "last_verified_commit": null,
       "delivery_audit": {
         "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -5233,7 +5287,10 @@
         "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
         "staged_implementation_refs": [],
         "audit_ref": "docs/evidence/1188-requirements-windows.md"
-      }
+      },
+      "source_decisions": [
+        "owner-2026-10-06-goriq-design-session"
+      ]
     },
     {
       "id": "AUTO-006",
@@ -5820,8 +5877,8 @@
     },
     {
       "id": "AUTO-022",
-      "title": "Only genuine Human Gate interrupts",
-      "description": "Only genuine Human Gate interrupts。",
+      "title": "Only genuine Human Gate interrupts; dependency-only pause",
+      "description": "Only genuine Human Gate interrupts。判断待ち/Human Gateが発生してもProject全体を一律停止せず、その判断に依存するTask/closureだけをPAUSED/WAITINGにし、無関係なsafe workは自動継続する。判断が全体architecture等へ波及する時だけ必要範囲を広く止め、解決後は影響Taskのみresumeする。",
       "phase": "P7",
       "required_evidence": [
         "CODE",
@@ -5842,7 +5899,7 @@
       "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "P7: Only genuine Human Gate interrupts。 について実装の不足を埋め、required_evidenceを取得する。",
+      "next_action": "Dependency-aware pause/resume、unrelated safe work continuation、wide-impact判定を統合/physical scenarioで検証する。",
       "last_verified_commit": null,
       "delivery_audit": {
         "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -5852,7 +5909,10 @@
         "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
         "staged_implementation_refs": [],
         "audit_ref": "docs/evidence/1188-requirements-windows.md"
-      }
+      },
+      "source_decisions": [
+        "owner-2026-10-06-goriq-design-session"
+      ]
     },
     {
       "id": "AUTO-023",
@@ -10340,8 +10400,8 @@
     },
     {
       "id": "CORE-014",
-      "title": "Software Development Autopilot",
-      "description": "Frontend/Backend/DB/API/Auth/Web/iOS/Android/Windows/macOS/AI/Infrastructure/Deployを要件発見→研究→設計→実装→統合→Unit/Integration/E2E/Security→必須Visual QA→Deploy→Production Verificationまで扱う。",
+      "title": "Software Development Autopilot + conversational 新規開発",
+      "description": "Frontend/Backend/DB/API/Auth/Web/iOS/Android/Windows/macOS/AI/Infrastructure/Deployを要件発見→研究→設計→実装→統合→Unit/Integration/E2E/Security→必須Visual QA→Deploy→Production Verificationまで扱う。新規開発はform-firstではなくconversation-firstの設計室とし、Goal/spec/architecture/technology/DoDを対話で提案・修正・確定する。確定済み内容と後続要求が矛盾する場合はsilent overwriteせず差分と必要判断を示す。開始前にGoal/spec/design/technology/DoDの最終summaryを1回確認し、承認後は既存Goal Controllerで自律実行する。技術選定は要件に基づき候補・tradeoff・推奨を説明し、採用stackを黙って変更しない。真正な新規ProjectではGitHub repositoryをprivate defaultで自動作成し、README/.gitignore/GORIQ Goal linkage等の最小bootstrapを行える。完了後のautomation levelは「開発完了で停止 / 配布成果物まで / 許可済み本番・運用まで」をProjectごとに選択し、本番cutover等の既存Human Gateを維持する。外部serviceはpurpose/data flow/read-write/cost/authorityを明示し、zero-additional-cost policyと既存secret/permission/billing gateを守る。",
       "phase": "P7",
       "required_evidence": [
         "CODE",
@@ -10359,10 +10419,10 @@
       ],
       "evidence_refs": [],
       "status": "PARTIAL",
-      "blocker": "Expanded requirement reconciled from staged ledger; main runtime integration and required evidence remain to be verified. 関連する基盤は存在するが、この拡張要求の全範囲・統合・必要Evidenceを満たしていない。",
+      "blocker": "Existing software-autopilot components do not yet prove the owner-approved conversational design-room flow, final confirmation, stack-lock behavior, private-default repository provisioning and per-project completion automation modes end-to-end.",
       "platform_limit": null,
       "fallback": null,
-      "next_action": "関連する既存基盤を再利用し、要求の各条件・DoDを細分化して不足実装と検証Evidenceを追加する。",
+      "next_action": "既存Autopilot/Unified Intake/Goal Controllerを再利用し、conversation-first 新規開発、stack提案/lock、private repo bootstrap、completion modeを実装・統合検証する。",
       "last_verified_commit": null,
       "delivery_audit": {
         "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -10372,7 +10432,10 @@
         "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
         "staged_implementation_refs": [],
         "audit_ref": "docs/evidence/1188-requirements-windows.md"
-      }
+      },
+      "source_decisions": [
+        "owner-2026-10-06-goriq-design-session"
+      ]
     },
     {
       "id": "CORE-015",
