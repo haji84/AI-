@@ -240,6 +240,92 @@ export default function CommandChat({ enabled, contextPath, compact = false }: {
     }, 5000);
   }
 
+  function startConversationPolling(id: number) {
+    if (conversationPollTimer.current !== null) window.clearInterval(conversationPollTimer.current);
+    let count = 0;
+    conversationPollTimer.current = window.setInterval(() => {
+      count += 1;
+      void (async () => {
+        try {
+          const response = await fetch(`/api/conversations?id=${id}`, { cache: "no-store" });
+          const body = await response.json().catch(() => ({})) as Partial<ConversationDetail> & { message?: string };
+          if (!response.ok || !body.id) return;
+          const messages = body.messages ?? [];
+          const latestAi = [...messages].reverse().find((entry) => entry.role === "ai") ?? null;
+          setHistory(messages);
+          setMemoryContext(body.memoryContext ?? "");
+          if (latestAi && latestAi.id !== lastSeenAiId.current) {
+            lastSeenAiId.current = latestAi.id;
+            if (lastVoiceInput.current) {
+              const spoken = await playGoriqLocalVoice(latestAi.text);
+              setVoiceMessage(spoken.ok ? `${spoken.engine}で音声回答を再生しました` : `音声回答は再生できません: ${spoken.reason}`);
+              lastVoiceInput.current = false;
+            }
+            if (conversationPollTimer.current !== null) {
+              window.clearInterval(conversationPollTimer.current);
+              conversationPollTimer.current = null;
+            }
+          }
+        } catch {
+          // Conversation polling is best-effort. Durable GitHub conversation history remains authoritative.
+        }
+      })();
+      if (count >= 30 && conversationPollTimer.current !== null) {
+        window.clearInterval(conversationPollTimer.current);
+        conversationPollTimer.current = null;
+      }
+    }, 4000);
+  }
+
+  function stopVoiceInput() {
+    recognitionRef.current?.stop();
+  }
+
+  function startVoiceInput() {
+    if (busy || listening || !enabled) return;
+    const Recognition = recognitionConstructor();
+    if (!Recognition) {
+      setVoiceMessage("このブラウザは音声入力に対応していません。文字入力はそのまま使えます。");
+      return;
+    }
+    const recognition = new Recognition();
+    recognition.lang = "ja-JP";
+    recognition.interimResults = true;
+    recognition.continuous = false;
+    recognition.onstart = () => {
+      setListening(true);
+      setVoiceMessage("話してください。認識した文字は送信前に表示します。");
+    };
+    recognition.onend = () => {
+      setListening(false);
+      if (recognitionRef.current === recognition) recognitionRef.current = null;
+    };
+    recognition.onerror = (event) => {
+      setListening(false);
+      setVoiceMessage(event.error ? `音声入力に失敗しました: ${event.error}` : "音声入力に失敗しました");
+    };
+    recognition.onresult = (event) => {
+      let finalText = "";
+      let interimText = "";
+      for (let index = event.resultIndex; index < event.results.length; index += 1) {
+        const result = event.results[index];
+        const text = result?.[0]?.transcript?.trim() ?? "";
+        if (!text) continue;
+        if (result.isFinal) finalText += `${finalText ? " " : ""}${text}`;
+        else interimText += `${interimText ? " " : ""}${text}`;
+      }
+      const next = [command, finalText || interimText].filter(Boolean).join(command && (finalText || interimText) ? " " : "").trim();
+      setCommand(next.slice(0, 500));
+    };
+    recognitionRef.current = recognition;
+    try { recognition.start(); }
+    catch (error) {
+      recognitionRef.current = null;
+      setListening(false);
+      setVoiceMessage(error instanceof Error ? error.message : "音声入力を開始できませんでした");
+    }
+  }
+
   async function uploadAttachments(): Promise<UploadedAttachment[]> {
     const uploaded: UploadedAttachment[] = [];
     for (const file of files) {
