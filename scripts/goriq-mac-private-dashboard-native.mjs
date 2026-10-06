@@ -120,6 +120,17 @@ async function fileDigest(path) {
 }
 const mutableReleasePath=path=>path==='.next/cache' || path.startsWith('.next/cache/') ||
   ['release-manifest.json','dashboard.out.log','dashboard.err.log'].includes(path);
+export function releaseOwnerDiagnostic(error) {
+  const facts=error?.releaseBoundary;
+  if(error?.message!=='RELEASE_OWNER_REJECTED' || !facts ||
+    !isDeepStrictEqual(Object.keys(facts).sort(),['groupWritable','itemClass','ownerClass','surface','worldWritable']) ||
+    !['source','dependencies','build'].includes(facts.surface) ||
+    !['file','directory','link','other'].includes(facts.itemClass) ||
+    !['current-user','system','other'].includes(facts.ownerClass) ||
+    typeof facts.groupWritable!=='boolean' || typeof facts.worldWritable!=='boolean')return undefined;
+  return {surface:facts.surface,itemClass:facts.itemClass,ownerClass:facts.ownerClass,
+    groupWritable:facts.groupWritable,worldWritable:facts.worldWritable};
+}
 export async function releaseInventory(root) {
   await pathGuard(root,{secret:true});
   if(process.platform==='darwin' && await run('/usr/bin/find',['-P',root,'-acl','-print0'],{timeout:60000}))throw Error('RELEASE_ACL_REJECTED');
@@ -127,7 +138,15 @@ export async function releaseInventory(root) {
   const walk=async(directory)=>{
     for(const name of (await readdir(directory)).sort()) {
       const path=join(directory,name),key=relative(root,path),item=await lstat(path);
-      if(item.uid!==process.getuid() || (!item.isSymbolicLink() && (item.mode&0o022)))throw Error('RELEASE_OWNER_REJECTED');
+      if(item.uid!==process.getuid() || (!item.isSymbolicLink() && (item.mode&0o022))) {
+        throw Object.assign(Error('RELEASE_OWNER_REJECTED'),{releaseBoundary:{
+          surface:key==='node_modules' || key.startsWith('node_modules/')?'dependencies':
+            key==='.next' || key.startsWith('.next/')?'build':'source',
+          itemClass:item.isSymbolicLink()?'link':item.isDirectory()?'directory':item.isFile()?'file':'other',
+          ownerClass:item.uid===process.getuid()?'current-user':item.uid===0?'system':'other',
+          groupWritable:!item.isSymbolicLink() && !!(item.mode&0o020),
+          worldWritable:!item.isSymbolicLink() && !!(item.mode&0o002)}});
+      }
       if(item.isSymbolicLink()) {
         const target=await realpath(path),inside=relative(root,target);
         if(!inside || inside.startsWith('..'+sep) || inside==='..' || isAbsolute(inside))throw Error('RELEASE_LINK_REJECTED');
@@ -440,5 +459,6 @@ if(process.argv[1] && import.meta.url===pathToFileURL(process.argv[1]).href) {
     main(process.argv[2]);
   operation.catch(error=>{console.error(JSON.stringify({version:1,issue:1662,nodeId:'macbook',
     phase:process.argv[2],failedStage:stage,complete:false,failureReason:dashboardFailureClass(error),
+    releaseBoundary:releaseOwnerDiagnostic(error),
     retainedExistingKeysAndState:true}));process.exitCode=1;});
 }
