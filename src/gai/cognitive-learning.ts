@@ -177,6 +177,7 @@ export class CognitiveLearningEngine {
         }
       }
       for (const e of value.experiences) this.validateEvaluationBinding(e, value);
+      for (const c of value.corrections) this.validateCorrectionEvaluation(c, value);
       return value;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
@@ -235,6 +236,10 @@ export class CognitiveLearningEngine {
     } else if (e.evaluation) throw Error("Evaluation receipt requires preallocated plan");
     if (plans.some(p => p.goalId !== e.goalId && e.materialSha256?.some(h => p.materialSha256.includes(h)))) throw Error("Heldout material evaluation overlap");
     if (data.experiences.some(prior => prior.id !== e.id && (e.evaluation || prior.evaluation) && prior.evidenceRefs.some(r => e.evidenceRefs.includes(r)))) throw Error("Evaluation evidence overlap");
+  }
+
+  private validateCorrectionEvaluation(c: CognitiveCorrection, data: LearningFile) {
+    if (data.evaluations?.some(p => p.goalId === c.goalId) || data.experiences.some(e => e.evaluation && [...e.evidenceRefs, ...(e.completionEvidenceRefs ?? [])].some(r => c.evidenceRefs.includes(r)))) throw Error("Heldout evaluation cannot become a recalled correction");
   }
 
   async evaluationReservation(partition: CognitiveLearningPartition, goalId: string): Promise<CognitiveEvaluationPlan | null> {
@@ -411,6 +416,7 @@ export class CognitiveLearningEngine {
       const existing = data.corrections.find((item) => item.id === copy.id);
       if (existing) { if (hash(existing) !== hash(copy)) throw Error("Correction replay conflict"); return; }
       if (data.corrections.length >= MAX_ITEMS) throw Error("Correction capacity reached");
+      this.validateCorrectionEvaluation(copy, data);
       data.corrections.push(copy);
       const affected = data.candidates.filter((c) => c.applicability.includes(copy.environment) && c.executionProcedure.includes(JSON.stringify(copy.originalActionId)));
       const skills = new PersistentSkillLibrary(this.partitionPath(input.partition, "skills.json"));

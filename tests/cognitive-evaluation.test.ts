@@ -147,3 +147,12 @@ test("unmeasurable source drift and exhausted catalog cannot fabricate samples o
     assert.equal((await f.state.get(f.goalId))?.learning_outbox, null);
   } finally { await rm(f.root, { recursive: true, force: true }); }
 });
+test("heldout evaluation receipts cannot enter recalled corrections", async () => {
+  const f = await fixture(); try {
+    await f.run(); const e = (await f.ledger()).experiences[1];
+    await assert.rejects(f.learning.recordCorrection({ id: "eval-correction", partition, goalId: f.goalId, task: f.goal.title, environment: "evaluation-local",
+      originalActionId: "other-action", replacementActionId: e.actionId, evidenceRefs: e.evidenceRefs, verified: true, scope: "preference" }), /heldout.*correction/i);
+    await assert.rejects(f.learning.recordCorrection({ id: "eval-correction", partition, goalId: "other-goal", task: f.goal.title, environment: "evaluation-local",
+      originalActionId: "other-action", replacementActionId: e.actionId, evidenceRefs: e.evidenceRefs, verified: true, scope: "preference" }), /heldout.*correction/i);
+  } finally { await rm(f.root, { recursive: true, force: true }); }
+});

@@ -11,6 +11,7 @@ import { CompassGoalExecutionAdapter, type CognitiveRuntimeOptions } from "../sr
 import { CognitiveService } from "../src/gai/cognitive-service.ts";
 import { decodeXlsx } from "../src/orchestrator/local-spreadsheet-capability.ts";
 import { decodeDocx } from "../src/orchestrator/local-document-capability.ts";
+import { CognitiveLearningEngine } from "../src/gai/cognitive-learning.ts";
 const digest = (s: string) => createHash("sha256").update(s).digest("hex");
 async function fixture() {
   const root = await mkdtemp(join(tmpdir(), "goriq-outcome-runtime-"));
@@ -36,6 +37,23 @@ async function fixture() {
   const options = { useCore: true, localOutcomes: { manifestPath, dataRoot } } as CognitiveRuntimeOptions;
   return { root, dbPath, dataRoot, manifestPath, goalId, workbook, document, options };
 }
+
+test("host allocation records actual spreadsheet and document oracle measurements as heldout", async () => {
+  const f = await fixture(); try {
+    const stateRoot = join(f.root, "state"), partition = { tenantId: "local", principalId: "owner" };
+    const learning = new CognitiveLearningEngine(join(stateRoot, "learning"));
+    const service = new CognitiveService(f.dbPath, { ...f.options, stateRoot, partition, learning, evaluation: { id: "office-trial" } });
+    await service.continue(f.goalId);
+    assert.equal((await service.continue(f.goalId)).goalEvaluation?.achieved, true);
+    assert.deepEqual(decodeXlsx(await readFile(join(f.dataRoot, "result.xlsx"))), f.workbook);
+    assert.deepEqual(decodeDocx(await readFile(join(f.dataRoot, "result.docx"))), f.document);
+    const data = JSON.parse(await readFile(learning.partitionPath(partition, "experience.json"), "utf8"));
+    assert.equal(data.experiences.length, 4); assert.equal(data.evaluations[0].actions.length, 4);
+    assert.deepEqual(data.experiences.map((e: { split: string }) => e.split), Array(4).fill("heldout"));
+    const outputs = data.experiences.filter((e: { evaluation: { artifacts: unknown[] } }) => e.evaluation.artifacts.length === 2);
+    assert.deepEqual(outputs.map((e: { evaluation: { artifacts: Array<{domain:string}> } }) => e.evaluation.artifacts[1].domain), ["spreadsheet", "document"]);
+  } finally { await rm(f.root, { recursive: true, force: true }); }
+});
 
 test("desired artifacts generate steps, verify material lineage and resume through the real Core without a prewritten plan", async () => {
   const f = await fixture();

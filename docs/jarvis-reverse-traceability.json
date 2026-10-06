@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "source_main": "54b5df2a41eaef75e7c40a83474aceb8fc15b3be",
+  "source_main": "ee75aad5507c4b4232f7014dfd6e85b9394d20dd",
   "scope": "Declared audit roots; no functional or physical completion inference",
   "surfaces": [
     {
@@ -309,16 +309,6 @@
       "reason": "iOS Worker lifecycle and packaging, including run-specific live-acceptance build identity injection."
     },
     {
-      "path": "apps/ios-worker/project.yml",
-      "sha256": "dc7b823f90021417fe9fa9e29a632f5712bbb1b13984027e850bd19014fc387f",
-      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
-      "requirement_ids": [
-        "DEV-I-001",
-        "DEV-I-007"
-      ],
-      "reason": "iOS Worker lifecycle, app packaging and documented platform limits"
-    },
-    {
       "path": "apps/ios-worker/README.md",
       "sha256": "1e8bea2297893986653bc03326794f1fa5b5e4897397c59bfef4c8495b7af293",
       "classification": "COVERED_BY_REQUIREMENT",
@@ -364,6 +354,16 @@
         "RA-022"
       ],
       "reason": "iOS Worker lifecycle and signed result evidence, including run-specific live-acceptance device, build-challenge, and bundle binding."
+    },
+    {
+      "path": "apps/ios-worker/project.yml",
+      "sha256": "dc7b823f90021417fe9fa9e29a632f5712bbb1b13984027e850bd19014fc387f",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "DEV-I-001",
+        "DEV-I-007"
+      ],
+      "reason": "iOS Worker lifecycle, app packaging and documented platform limits"
     },
     {
       "path": "docs/architecture/0001-ai-company-operating-model.md",
@@ -1778,149 +1778,6 @@
       "reason": "Declared route.ts responsibility implements/supports Owner Authentication; Session Control; One Front Door. Parent ownership is not functional or physical acceptance evidence."
     },
     {
-      "path": "src/app/jarvis/accessibility-preferences.ts",
-      "sha256": "03c2d24603cdfd7fc6c07f507244373c8ecb5f7da855d094c62bcf0ce7d97700",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "GOV-028"
-      ],
-      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
-    },
-    {
-      "path": "src/app/jarvis/accessibility-status.css",
-      "sha256": "fe235cacad2461fbd652ad5f7af0651a819ebc44cdb1f2a8c3092b1939a3fcd5",
-      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
-      "requirement_ids": [
-        "UI-031"
-      ],
-      "reason": "Accessibility display preferences"
-    },
-    {
-      "path": "src/app/jarvis/apple-icon.tsx",
-      "sha256": "d2fb532ad8216c8179c739614e4a8c03898ae1202940e77e05a403ab6f01d536",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "UI-006"
-      ],
-      "reason": "App branding and manifest assets"
-    },
-    {
-      "path": "src/app/jarvis/command-search.css",
-      "sha256": "ed9777db8b48b6f6238bf9e2d06a3fe84f8dc3f40b33c95606f827db59f77ec0",
-      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
-      "requirement_ids": [
-        "UI-021"
-      ],
-      "reason": "Universal command search UI"
-    },
-    {
-      "path": "src/app/jarvis/connectivity-status.ts",
-      "sha256": "034abf592db0b6b256057415edac703ccb4fce2fbd5e281aa76394199fa140a8",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "GOV-028"
-      ],
-      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
-    },
-    {
-      "path": "src/app/jarvis/decisions/page.tsx",
-      "sha256": "9a05a62dae191da93219a26bb047efcc158d55782e83f5904644b2ed27c963c8",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "UI-003",
-        "UI-020",
-        "UI-026",
-        "AUTO-022"
-      ],
-      "reason": "First-class Decision Queue route reuses the protected Task state and limits the view to owner decisions without creating a second task authority."
-    },
-    {
-      "path": "src/app/jarvis/devices/page.tsx",
-      "sha256": "985aa9c049c6eda01f429a820da312ef66b28a8d0cc2e05482950a1e2b3e7f47",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "DEV-I-008",
-        "RA-006",
-        "RA-022"
-      ],
-      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
-    },
-    {
-      "path": "src/app/jarvis/devices/PlatformRemoteAssistFleet.tsx",
-      "sha256": "7ff7b178c79c9f3a513442ed909f82e4f44b5e0b76f46c47d46e76c716618eeb",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "UI-002",
-        "RA-006"
-      ],
-      "reason": "Fleet page and capability display"
-    },
-    {
-      "path": "src/app/jarvis/diagnostics/page.tsx",
-      "sha256": "230afc816899892dd00e7ab3f1c03d2c2eeb8f8343ff7980eb114e1cabc6206e",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "OPS-008"
-      ],
-      "reason": "Owner diagnostics page"
-    },
-    {
-      "path": "src/app/jarvis/display-modes.ts",
-      "sha256": "f00bc9fdea794adea1188f2999c066ee81f47fa3c83971ea3f603b9e2ad77977",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "UI-024",
-        "UI-026"
-      ],
-      "reason": "Distance/mobile display profiles"
-    },
-    {
-      "path": "src/app/jarvis/enroll/EnrollmentProgress.tsx",
-      "sha256": "e6138a25d2806a27cc29c43843eac23d605dc4bac904862ba853a2f2364011a0",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "FLEET-003",
-        "FLEET-006"
-      ],
-      "reason": "Owner enrollment progress/invitation/pending pages"
-    },
-    {
-      "path": "src/app/jarvis/enroll/OwnerInvitationPanel.tsx",
-      "sha256": "8ab754db12d9ce247229449f2d1a173cee0f2c77289102677947d8bd4cfee535",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "FLEET-003",
-        "FLEET-006"
-      ],
-      "reason": "Owner enrollment progress/invitation/pending pages"
-    },
-    {
-      "path": "src/app/jarvis/enroll/page.tsx",
-      "sha256": "53eefdcc604922a8522260518593a1efd89d569773133a0118d55a16345357a4",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "FLEET-001",
-        "FLEET-002",
-        "FLEET-003",
-        "FLEET-004",
-        "FLEET-005",
-        "FLEET-006",
-        "FLEET-007",
-        "FLEET-008"
-      ],
-      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
-    },
-    {
-      "path": "src/app/jarvis/enroll/PendingRegistration.tsx",
-      "sha256": "671715958180754b4b53e8e039afee8adbb9e472bb85c77291f8fa5b53db4fac",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "FLEET-003",
-        "FLEET-006"
-      ],
-      "reason": "Owner enrollment progress/invitation/pending pages"
-    },
-    {
       "path": "src/app/jarvis/GlobalConversationLauncher.tsx",
       "sha256": "c6641807bd282803cdbf77e939ce61bbc11a36846302632525c8a10aab076fe6",
       "classification": "COVERED_BY_REQUIREMENT",
@@ -1940,35 +1797,6 @@
         "OPS-018"
       ],
       "reason": "Icon set supports the simplified GORIQ routine navigation without removing any destination"
-    },
-    {
-      "path": "src/app/jarvis/icon.tsx",
-      "sha256": "60701017daeeeae58ced9ff0031ffb693b6b7694dad414d668d5d4c83fa0c1c9",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "UI-006"
-      ],
-      "reason": "App branding and manifest assets"
-    },
-    {
-      "path": "src/app/jarvis/jarvis.css",
-      "sha256": "edfe5d563e9b899ddb8cae2f6c7263f7a84622d3ad6c3072d755e8e2487a422f",
-      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
-      "requirement_ids": [
-        "UI-001",
-        "UI-002",
-        "UI-003",
-        "UI-006",
-        "UI-020",
-        "UI-026",
-        "UI-027",
-        "UI-031",
-        "UI-032",
-        "UI-034",
-        "UI-037",
-        "UI-038"
-      ],
-      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
     },
     {
       "path": "src/app/jarvis/JarvisAccessibilityControls.tsx",
@@ -2120,6 +1948,233 @@
       "reason": "GORIQ Daily Driver command composer is the primary owner entry, resumes the last durable Goal, and preserves existing theme selection"
     },
     {
+      "path": "src/app/jarvis/OwnerLogin.tsx",
+      "sha256": "ee00ea9002f436ac7465ea96ea690c3578cdcd3dbf26cf2ee6ccd60ab94b04f2",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "SEC-001",
+        "SEC-002"
+      ],
+      "reason": "Owner trusted browser authentication and local production-code recovery guidance"
+    },
+    {
+      "path": "src/app/jarvis/RemoteAssistMultiView.tsx",
+      "sha256": "11a822414eeb041b1ee7f5cdcca1145c909e606212bd9ad67f38b2b70ce3a122",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "RA-003",
+        "RA-004",
+        "RA-005"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/app/jarvis/RemoteScreenControl.tsx",
+      "sha256": "9d7958f9494c31d4d7fa1aba7cb25f50255ef4b4f1ec7192faa90e3355d22cc3",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "RA-007",
+        "RA-009"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/app/jarvis/RemoteVideo.tsx",
+      "sha256": "20b5fa5981f99c1702ee3b4543ba0a814514c999ece8285a184750b9000a743a",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "RA-013",
+        "RA-014"
+      ],
+      "reason": "Remote video presentation"
+    },
+    {
+      "path": "src/app/jarvis/TeachingControls.tsx",
+      "sha256": "f6ea5fe271c8cd070222b819f67c943451964ba169a04de19c787cfea81cc793",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "TEACH-001",
+        "TEACH-002",
+        "TEACH-003",
+        "TEACH-004",
+        "TEACH-005",
+        "TEACH-006"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/app/jarvis/accessibility-preferences.ts",
+      "sha256": "03c2d24603cdfd7fc6c07f507244373c8ecb5f7da855d094c62bcf0ce7d97700",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "GOV-028"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/app/jarvis/accessibility-status.css",
+      "sha256": "fe235cacad2461fbd652ad5f7af0651a819ebc44cdb1f2a8c3092b1939a3fcd5",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "UI-031"
+      ],
+      "reason": "Accessibility display preferences"
+    },
+    {
+      "path": "src/app/jarvis/apple-icon.tsx",
+      "sha256": "d2fb532ad8216c8179c739614e4a8c03898ae1202940e77e05a403ab6f01d536",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-006"
+      ],
+      "reason": "App branding and manifest assets"
+    },
+    {
+      "path": "src/app/jarvis/command-search.css",
+      "sha256": "ed9777db8b48b6f6238bf9e2d06a3fe84f8dc3f40b33c95606f827db59f77ec0",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "UI-021"
+      ],
+      "reason": "Universal command search UI"
+    },
+    {
+      "path": "src/app/jarvis/connectivity-status.ts",
+      "sha256": "034abf592db0b6b256057415edac703ccb4fce2fbd5e281aa76394199fa140a8",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "GOV-028"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/app/jarvis/decisions/page.tsx",
+      "sha256": "9a05a62dae191da93219a26bb047efcc158d55782e83f5904644b2ed27c963c8",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-003",
+        "UI-020",
+        "UI-026",
+        "AUTO-022"
+      ],
+      "reason": "First-class Decision Queue route reuses the protected Task state and limits the view to owner decisions without creating a second task authority."
+    },
+    {
+      "path": "src/app/jarvis/devices/PlatformRemoteAssistFleet.tsx",
+      "sha256": "7ff7b178c79c9f3a513442ed909f82e4f44b5e0b76f46c47d46e76c716618eeb",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-002",
+        "RA-006"
+      ],
+      "reason": "Fleet page and capability display"
+    },
+    {
+      "path": "src/app/jarvis/devices/page.tsx",
+      "sha256": "985aa9c049c6eda01f429a820da312ef66b28a8d0cc2e05482950a1e2b3e7f47",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-I-008",
+        "RA-006",
+        "RA-022"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/app/jarvis/diagnostics/page.tsx",
+      "sha256": "230afc816899892dd00e7ab3f1c03d2c2eeb8f8343ff7980eb114e1cabc6206e",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OPS-008"
+      ],
+      "reason": "Owner diagnostics page"
+    },
+    {
+      "path": "src/app/jarvis/display-modes.ts",
+      "sha256": "f00bc9fdea794adea1188f2999c066ee81f47fa3c83971ea3f603b9e2ad77977",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-024",
+        "UI-026"
+      ],
+      "reason": "Distance/mobile display profiles"
+    },
+    {
+      "path": "src/app/jarvis/enroll/EnrollmentProgress.tsx",
+      "sha256": "e6138a25d2806a27cc29c43843eac23d605dc4bac904862ba853a2f2364011a0",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "FLEET-003",
+        "FLEET-006"
+      ],
+      "reason": "Owner enrollment progress/invitation/pending pages"
+    },
+    {
+      "path": "src/app/jarvis/enroll/OwnerInvitationPanel.tsx",
+      "sha256": "8ab754db12d9ce247229449f2d1a173cee0f2c77289102677947d8bd4cfee535",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "FLEET-003",
+        "FLEET-006"
+      ],
+      "reason": "Owner enrollment progress/invitation/pending pages"
+    },
+    {
+      "path": "src/app/jarvis/enroll/PendingRegistration.tsx",
+      "sha256": "671715958180754b4b53e8e039afee8adbb9e472bb85c77291f8fa5b53db4fac",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "FLEET-003",
+        "FLEET-006"
+      ],
+      "reason": "Owner enrollment progress/invitation/pending pages"
+    },
+    {
+      "path": "src/app/jarvis/enroll/page.tsx",
+      "sha256": "53eefdcc604922a8522260518593a1efd89d569773133a0118d55a16345357a4",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "FLEET-001",
+        "FLEET-002",
+        "FLEET-003",
+        "FLEET-004",
+        "FLEET-005",
+        "FLEET-006",
+        "FLEET-007",
+        "FLEET-008"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/app/jarvis/icon.tsx",
+      "sha256": "60701017daeeeae58ced9ff0031ffb693b6b7694dad414d668d5d4c83fa0c1c9",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-006"
+      ],
+      "reason": "App branding and manifest assets"
+    },
+    {
+      "path": "src/app/jarvis/jarvis.css",
+      "sha256": "edfe5d563e9b899ddb8cae2f6c7263f7a84622d3ad6c3072d755e8e2487a422f",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "UI-001",
+        "UI-002",
+        "UI-003",
+        "UI-006",
+        "UI-020",
+        "UI-026",
+        "UI-027",
+        "UI-031",
+        "UI-032",
+        "UI-034",
+        "UI-037",
+        "UI-038"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
       "path": "src/app/jarvis/layout-modes.css",
       "sha256": "69eb0f8f33c810f16d329244c01e8af70ce07f8eabe203bf0f36246a7f3a966f",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
@@ -2159,6 +2214,17 @@
         "UI-006"
       ],
       "reason": "App branding and manifest assets"
+    },
+    {
+      "path": "src/app/jarvis/mobile/MobileCommander.tsx",
+      "sha256": "05efa89ef73e9201e1b7e0f9e51b1f7c8558e3bbcdbb43dfbfc570e29c0d6ac3",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "INT-003",
+        "UI-020",
+        "OPS-018"
+      ],
+      "reason": "Device-specific advanced controls remain available while routine owner commands use the single GORIQ Daily Driver front door"
     },
     {
       "path": "src/app/jarvis/mobile/command-context.ts",
@@ -2235,17 +2301,6 @@
       "reason": "Mobile owner command surface"
     },
     {
-      "path": "src/app/jarvis/mobile/MobileCommander.tsx",
-      "sha256": "05efa89ef73e9201e1b7e0f9e51b1f7c8558e3bbcdbb43dfbfc570e29c0d6ac3",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "INT-003",
-        "UI-020",
-        "OPS-018"
-      ],
-      "reason": "Device-specific advanced controls remain available while routine owner commands use the single GORIQ Daily Driver front door"
-    },
-    {
       "path": "src/app/jarvis/mobile/page.tsx",
       "sha256": "6d94fe5259ce8f3a4ab3f252e930044797c1c93a86f79f043bec8a944f394f19",
       "classification": "COVERED_BY_REQUIREMENT",
@@ -2256,8 +2311,8 @@
       "reason": "Mobile owner command surface"
     },
     {
-      "path": "src/app/jarvis/mobile/pointer/imu-pointer.ts",
-      "sha256": "a4ab9ea2b772c946a1db4fdfaafac7d4c973bf4654f80e48da23dff805d16a46",
+      "path": "src/app/jarvis/mobile/pointer/ImuPointerCommander.tsx",
+      "sha256": "e8728b510435ded9bb3879d1866d7771474a32b6b94b2a2eb2a9a25309dbb3ea",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "GEST-006",
@@ -2266,8 +2321,8 @@
       "reason": "Smartphone inertial pointer"
     },
     {
-      "path": "src/app/jarvis/mobile/pointer/ImuPointerCommander.tsx",
-      "sha256": "e8728b510435ded9bb3879d1866d7771474a32b6b94b2a2eb2a9a25309dbb3ea",
+      "path": "src/app/jarvis/mobile/pointer/imu-pointer.ts",
+      "sha256": "a4ab9ea2b772c946a1db4fdfaafac7d4c973bf4654f80e48da23dff805d16a46",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "GEST-006",
@@ -2335,6 +2390,19 @@
       "reason": "Mobile voice input keeps visible transcript and protected device-command semantics while local speech output uses the selected AivisSpeech/VOICEVOX path when available."
     },
     {
+      "path": "src/app/jarvis/mobile/voice/SpeechPersonaStylePanel.tsx",
+      "sha256": "463ae0b55ffbad8757310bd7cbf26d0a7398c0f039765eced3398a64a62bdde0",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "INT-001",
+        "INT-008",
+        "INT-009",
+        "INT-017",
+        "UI-009"
+      ],
+      "reason": "Mobile voice/persona/style surface uses the owner-facing voice label while keeping voice, persona and speech style independent."
+    },
+    {
       "path": "src/app/jarvis/mobile/voice/page.tsx",
       "sha256": "4c24ae25115829edad996c7476b15a95c4ba9c4aa6992367e1dc4f649171a84d",
       "classification": "COVERED_BY_REQUIREMENT",
@@ -2357,19 +2425,6 @@
         "INT-017"
       ],
       "reason": "Voice input/persona/policy UI"
-    },
-    {
-      "path": "src/app/jarvis/mobile/voice/SpeechPersonaStylePanel.tsx",
-      "sha256": "463ae0b55ffbad8757310bd7cbf26d0a7398c0f039765eced3398a64a62bdde0",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "INT-001",
-        "INT-008",
-        "INT-009",
-        "INT-017",
-        "UI-009"
-      ],
-      "reason": "Mobile voice/persona/style surface uses the owner-facing voice label while keeping voice, persona and speech style independent."
     },
     {
       "path": "src/app/jarvis/mobile/voice/voice.css",
@@ -2457,16 +2512,6 @@
       "reason": "Focus/privacy/read-only operating modes"
     },
     {
-      "path": "src/app/jarvis/OwnerLogin.tsx",
-      "sha256": "ee00ea9002f436ac7465ea96ea690c3578cdcd3dbf26cf2ee6ccd60ab94b04f2",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "SEC-001",
-        "SEC-002"
-      ],
-      "reason": "Owner trusted browser authentication and local production-code recovery guidance"
-    },
-    {
       "path": "src/app/jarvis/page.tsx",
       "sha256": "45da1da4f2aa62c047788105718f92636d57e60c1781bdb1eb8b03a27832b73d",
       "classification": "COVERED_BY_REQUIREMENT",
@@ -2479,15 +2524,6 @@
       "reason": "GORIQ Daily Driver single owner front door; advanced routes remain reachable without being primary navigation"
     },
     {
-      "path": "src/app/jarvis/qa/page.tsx",
-      "sha256": "8f857c3eb351b7f8ca1a257db41be8fd975cf75075c2a468c4104415eaca45a2",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "TEACH-003"
-      ],
-      "reason": "Owner-authorized sequence observation and condition QA"
-    },
-    {
       "path": "src/app/jarvis/qa/QaSequenceConsole.tsx",
       "sha256": "f52c50aa3ccee08601e0fc8d1d7bfc9a6b2ea0f5f273f8421609f6b4c13d164a",
       "classification": "COVERED_BY_REQUIREMENT",
@@ -2497,8 +2533,17 @@
       "reason": "Owner-authorized sequence observation and condition QA"
     },
     {
-      "path": "src/app/jarvis/recordings/page.tsx",
-      "sha256": "f52bcf34b672e36388bd978b478dfbd65f9468e76a7d2844a6a0716371cbe9e5",
+      "path": "src/app/jarvis/qa/page.tsx",
+      "sha256": "8f857c3eb351b7f8ca1a257db41be8fd975cf75075c2a468c4104415eaca45a2",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "TEACH-003"
+      ],
+      "reason": "Owner-authorized sequence observation and condition QA"
+    },
+    {
+      "path": "src/app/jarvis/recordings/RecordingHistory.tsx",
+      "sha256": "cb38f6c544ec1ec9cb58841ddca89331590cd8ff6230d3c22f9c946997f8e0d8",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "RA-013"
@@ -2506,8 +2551,8 @@
       "reason": "Recording list and retention UI"
     },
     {
-      "path": "src/app/jarvis/recordings/RecordingHistory.tsx",
-      "sha256": "cb38f6c544ec1ec9cb58841ddca89331590cd8ff6230d3c22f9c946997f8e0d8",
+      "path": "src/app/jarvis/recordings/page.tsx",
+      "sha256": "f52bcf34b672e36388bd978b478dfbd65f9468e76a7d2844a6a0716371cbe9e5",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "RA-013"
@@ -2522,37 +2567,6 @@
         "OPS-009"
       ],
       "reason": "Recovery dashboard page"
-    },
-    {
-      "path": "src/app/jarvis/RemoteAssistMultiView.tsx",
-      "sha256": "11a822414eeb041b1ee7f5cdcca1145c909e606212bd9ad67f38b2b70ce3a122",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "RA-003",
-        "RA-004",
-        "RA-005"
-      ],
-      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
-    },
-    {
-      "path": "src/app/jarvis/RemoteScreenControl.tsx",
-      "sha256": "9d7958f9494c31d4d7fa1aba7cb25f50255ef4b4f1ec7192faa90e3355d22cc3",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "RA-007",
-        "RA-009"
-      ],
-      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
-    },
-    {
-      "path": "src/app/jarvis/RemoteVideo.tsx",
-      "sha256": "20b5fa5981f99c1702ee3b4543ba0a814514c999ece8285a184750b9000a743a",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "RA-013",
-        "RA-014"
-      ],
-      "reason": "Remote video presentation"
     },
     {
       "path": "src/app/jarvis/research/page.tsx",
@@ -2641,6 +2655,16 @@
       "reason": "Settings surface edits and resets layout profiles for the currently selected Screen Design using browser-local state only."
     },
     {
+      "path": "src/app/jarvis/settings/TrustedDeviceSettings.tsx",
+      "sha256": "e332d85306fe838fe3431891bd896fb8782b694bb212aec0239572d9d7803ff9",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "SEC-001",
+        "SEC-002"
+      ],
+      "reason": "Owner trusted browser authentication UI"
+    },
+    {
       "path": "src/app/jarvis/settings/page.tsx",
       "sha256": "ee8cd6bd5b932e22247e404cd3965bf8accc3d95af5e3b7eaaeb775f37695736",
       "classification": "COVERED_BY_REQUIREMENT",
@@ -2652,18 +2676,8 @@
       "reason": "Owner settings now includes dedicated local voice configuration while retaining existing protected-setting boundaries."
     },
     {
-      "path": "src/app/jarvis/settings/TrustedDeviceSettings.tsx",
-      "sha256": "e332d85306fe838fe3431891bd896fb8782b694bb212aec0239572d9d7803ff9",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "SEC-001",
-        "SEC-002"
-      ],
-      "reason": "Owner trusted browser authentication UI"
-    },
-    {
-      "path": "src/app/jarvis/setup/page.tsx",
-      "sha256": "f39c20e9ebe835ce196e39b7605466479247c8cecb69c066f76398c3310875ab",
+      "path": "src/app/jarvis/setup/SetupWizardClient.tsx",
+      "sha256": "d3cbc9c86ccb82055d9ca24826d719816e3a42145a0767d2e36ccd6205716331",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OPS-012"
@@ -2671,8 +2685,8 @@
       "reason": "First-run setup wizard"
     },
     {
-      "path": "src/app/jarvis/setup/SetupWizardClient.tsx",
-      "sha256": "d3cbc9c86ccb82055d9ca24826d719816e3a42145a0767d2e36ccd6205716331",
+      "path": "src/app/jarvis/setup/page.tsx",
+      "sha256": "f39c20e9ebe835ce196e39b7605466479247c8cecb69c066f76398c3310875ab",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OPS-012"
@@ -2741,25 +2755,6 @@
       "reason": "Issue #1219 Direct Goal Bridge internal surface for authenticated provider-neutral status/event delivery; parent requirements remain PARTIAL pending real E2E."
     },
     {
-      "path": "src/app/jarvis/tasks/page.tsx",
-      "sha256": "32639ad1a2ab93f224aec905f0c41ec0d25db457e30a17664ac0f615f5245517",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "UI-003",
-        "OPS-001"
-      ],
-      "reason": "Task board and history"
-    },
-    {
-      "path": "src/app/jarvis/tasks/requirements-panel.css",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "UI-003"
-      ],
-      "reason": "Issue1205 additive requirement inventory, saved conversation and owner-visible workflow; parent mapping does not claim functional/physical completion",
-      "sha256": "1f408ea3c6b3d5705b2a7a30351a116942abbfe2ac9d06ec92208322c9f4f489"
-    },
-    {
       "path": "src/app/jarvis/tasks/RequirementsPanel.tsx",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
@@ -2783,19 +2778,23 @@
       "reason": "Project/task surface exposes current state and a decision-only filtered view while retaining the existing owner-protected state API and Human Gate semantics."
     },
     {
-      "path": "src/app/jarvis/teach/page.tsx",
-      "sha256": "17cd9cf2bb278e2c4c03b928edd6f679585ab4035645ea46e3ce1e6c1764a991",
+      "path": "src/app/jarvis/tasks/page.tsx",
+      "sha256": "32639ad1a2ab93f224aec905f0c41ec0d25db457e30a17664ac0f615f5245517",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
-        "TEACH-001",
-        "TEACH-002",
-        "TEACH-003",
-        "TEACH-004",
-        "TEACH-005",
-        "TEACH-006",
-        "CORE-018"
+        "UI-003",
+        "OPS-001"
       ],
-      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+      "reason": "Task board and history"
+    },
+    {
+      "path": "src/app/jarvis/tasks/requirements-panel.css",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-003"
+      ],
+      "reason": "Issue1205 additive requirement inventory, saved conversation and owner-visible workflow; parent mapping does not claim functional/physical completion",
+      "sha256": "1f408ea3c6b3d5705b2a7a30351a116942abbfe2ac9d06ec92208322c9f4f489"
     },
     {
       "path": "src/app/jarvis/teach/VideoReplayControls.tsx",
@@ -2818,8 +2817,8 @@
       "reason": "Teaching/video candidate controls"
     },
     {
-      "path": "src/app/jarvis/TeachingControls.tsx",
-      "sha256": "f6ea5fe271c8cd070222b819f67c943451964ba169a04de19c787cfea81cc793",
+      "path": "src/app/jarvis/teach/page.tsx",
+      "sha256": "17cd9cf2bb278e2c4c03b928edd6f679585ab4035645ea46e3ce1e6c1764a991",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "TEACH-001",
@@ -2827,7 +2826,8 @@
         "TEACH-003",
         "TEACH-004",
         "TEACH-005",
-        "TEACH-006"
+        "TEACH-006",
+        "CORE-018"
       ],
       "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
     },
@@ -3017,12 +3017,21 @@
     },
     {
       "path": "src/gai/cognitive-core.ts",
-      "sha256": "08b3f7235d82fc954dcd1220c4e343b9851346260b37284b5a4f3a5df82438a7",
+      "sha256": "bca578725c58fb268300c9d2cff39bd979a94237866b93377bf9634753ab07be",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OWN-001"
       ],
       "reason": "#1216 OWN-001 bounded local cognition and evidence-bound prediction calibration; research metadata never grants authority or implies whole-product acceptance."
+    },
+    {
+      "path": "src/gai/cognitive-evaluation.ts",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "OWN-001"
+      ],
+      "reason": "#1729 host-fixed evaluation collection under existing Core authority; no model-quality or whole-product completion claim",
+      "sha256": "a72e978fa8e0adbdbf36ab9cc4c71f04f34c9703030b5a0d291662a3035551bf"
     },
     {
       "path": "src/gai/cognitive-history.ts",
@@ -3053,7 +3062,7 @@
     },
     {
       "path": "src/gai/cognitive-learning.ts",
-      "sha256": "a5cdb9e0126f02b619d53334eb2dd48023064bbb4402714b3546dd7372f5fd53",
+      "sha256": "5463dfe98b407686b304122be9bd3b6998a8f57e8a74aecd41332bbbae22d256",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OWN-001"
@@ -3076,7 +3085,7 @@
         "OWN-001"
       ],
       "reason": "OWN-001 fixed local material outcome catalog derives six bounded host-operation categories while retaining exact Goal/root/source action identities and independent artifact verification.",
-      "sha256": "b7333bef2ee650b85df14ec6459f4a584f5e083a681518c742921826c29937c7"
+      "sha256": "355196df1c7c85e17296c0d237f9e9e87af942cf3cc541662ed5256db477b8f1"
     },
     {
       "path": "src/gai/cognitive-local-work.ts",
@@ -3125,7 +3134,7 @@
     },
     {
       "path": "src/gai/cognitive-state.ts",
-      "sha256": "bcaeb56fc124926179e04b337766ffbdc4e833b4dcb0a6722abcb5ff11e2e2a2",
+      "sha256": "435b76201355a6435d031340a6fd64a50216045d57229e866fc523eabb8d1a1b",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OWN-001"
@@ -4916,7 +4925,7 @@
     },
     {
       "path": "src/orchestrator/compass-goal-execution-adapter.ts",
-      "sha256": "7593ea5db470b9e47a88e1baac37d9d16a9659151e9a4721357dc5efafbf86bf",
+      "sha256": "e90859e896a5a84d20aa77ace5e19ec087e609a3b53c0098100f4f6cc1a4128f",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-002",
