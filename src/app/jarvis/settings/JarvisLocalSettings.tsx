@@ -50,7 +50,7 @@ export default function JarvisLocalSettings() {
       <div>
         <p className="eyebrow">LOCAL CUSTOMIZATION</p>
         <h2>ペルソナ・色・基本配置</h2>
-        <p className="muted">画面デザインは上の「画面デザイン」で選び、ここではペルソナ / 声の基本設定 / アクセント色 / 基本レイアウトを別々に保存します。端末権限、認証、秘密情報、課金設定には触れません。</p>
+        <p className="muted">従来のテーマ / ペルソナ / 音声設定 / 色 / レイアウトのうち、テーマは上の「画面デザイン」に統合しました。ここではペルソナ / 声の基本設定 / アクセント色 / 基本レイアウトを別々に保存します。端末権限、認証、秘密情報、課金設定には触れない表示専用の設定です。</p>
       </div>
 
       <div className="jarvis-preference-grid">
