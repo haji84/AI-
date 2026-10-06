@@ -45,7 +45,7 @@ test("VOICEVOX becomes fallback when AivisSpeech is unavailable", async () => {
 });
 
 test("synthesis uses the discovered local voice and returns bounded wav bytes", async () => {
-  let synthesizedQuery: Record<string, unknown> | null = null;
+  const synthesizedQueries: Array<Record<string, unknown>> = [];
   const fakeFetch = async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
     const url = new URL(String(input));
     if (url.port === "50021") return new Response("offline", { status: 503 });
@@ -53,7 +53,7 @@ test("synthesis uses the discovered local voice and returns bounded wav bytes", 
     if (url.pathname === "/speaker_info") return Response.json({ policy: "terms" });
     if (url.pathname === "/audio_query") return Response.json({ speedScale: 1, pitchScale: 0, volumeScale: 1, accent_phrases: [] });
     if (url.pathname === "/synthesis") {
-      synthesizedQuery = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
+      synthesizedQueries.push(JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>);
       return new Response(new Uint8Array([82, 73, 70, 70, 1, 2, 3]), { headers: { "Content-Type": "audio/wav" } });
     }
     return new Response("not found", { status: 404 });
@@ -63,7 +63,8 @@ test("synthesis uses the discovered local voice and returns bounded wav bytes", 
   assert.equal(result.engine, "aivis");
   assert.equal(result.voice.id, "aivis:7");
   assert.ok(result.contentBase64.length > 0);
-  assert.equal(synthesizedQuery?.speedScale, 1.2);
-  assert.equal(synthesizedQuery?.pitchScale, 0.05);
-  assert.equal(synthesizedQuery?.volumeScale, 0.8);
+  const synthesizedQuery = synthesizedQueries[0] ?? {};
+  assert.equal(synthesizedQuery.speedScale, 1.2);
+  assert.equal(synthesizedQuery.pitchScale, 0.05);
+  assert.equal(synthesizedQuery.volumeScale, 0.8);
 });
