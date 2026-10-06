@@ -198,6 +198,12 @@ export class CognitiveLocalOutcomeCatalog {
         return completedIds.includes(this.outputId(material, outcome));
       });
   }
+  /** Scope enumeration only; it does not complete or execute prerequisites. */
+  evaluationDescriptor() {
+    const candidates = this.manifest.materials.map(m => this.candidate(m));
+    for (const outcome of this.manifest.outcomes) candidates.push(this.candidate(this.manifest.materials.find(m => m.id === outcome.materialId)!, outcome));
+    return { materialSha256: [...new Set(this.manifest.materials.map(m => m.sha256))].sort(), candidates };
+  }
   private binding(action: ProposedAction): { material: Material; outcome?: Outcome } {
     for (const material of this.manifest.materials) {
       const outcome = this.manifest.outcomes.find(o => o.materialId === material.id && this.outputId(material, o) === action.id);
@@ -250,17 +256,23 @@ export class CognitiveLocalOutcomeCatalog {
       } catch { return { actionId: action.id, ok: false, summary: "Local material or outcome failed bounded policy checks", blocker: "local_outcome_unavailable" }; }
     } });
   }
-  verifier(fallback: Verifier): Verifier {
+  verifier(fallback: Verifier, measureFailures = false): Verifier {
     return { verify: async input => {
       if (!CAPABILITIES.includes(input.action.capability)) return fallback.verify(input);
       try {
         const { material, outcome } = this.binding(input.action);
-        if (!input.result.ok || input.result.actionId !== input.action.id) throw Error("Action result mismatch");
+        if ((!input.result.ok && !measureFailures) || input.result.actionId !== input.action.id) throw Error("Action result mismatch");
         const prepared = await this.prepare(material, outcome);
-        if (outcome) await boundedRead(await containedFile(this.root, outcome.path), MAX_OUTPUT_BYTES);
+        if (outcome) {
+          const exists = await lstat(dataPath(this.root, outcome.path)).catch(error => {
+            if (measureFailures && (error as NodeJS.ErrnoException).code === "ENOENT") return null;
+            throw error;
+          });
+          if (exists) await boundedRead(await containedFile(this.root, outcome.path), MAX_OUTPUT_BYTES);
+        }
         const lineage = await new LocalArtifactVerifier(this.root).buildLineage([{ artifact: prepared.source }, ...(prepared.artifact ? [{ artifact: prepared.artifact, parentIndexes: [0] }] : [])]);
-        return { ok: lineage.ok, summary: lineage.ok ? "Source and persisted output independently verified" : "Source or persisted output failed independent verification",
-          evidence: { refs: ["local-outcome-verification:" + cognitiveDigest({ goalId: this.manifest.goalId, actionId: input.action.id, lineage: lineage.evidence })], lineage: lineage.evidence } };
+        return { ok: lineage.ok && input.result.ok, summary: lineage.ok && input.result.ok ? "Source and persisted output independently verified" : "Source or persisted output failed independent verification",
+          evidence: { refs: ["local-outcome-verification:" + cognitiveDigest({ goalId: this.manifest.goalId, actionId: input.action.id, lineage: lineage.evidence, ...(measureFailures ? { measurements: lineage.verifications } : {}) })], lineage: lineage.evidence, ...(measureFailures ? { measurements: lineage.verifications } : {}) } };
       } catch { return { ok: false, summary: "Local outcome independent verification failed", evidence: { refs: [], blocker: "local_outcome_verification_failed" } }; }
     } };
   }

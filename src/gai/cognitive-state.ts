@@ -17,6 +17,7 @@ export interface CognitiveAttempt {
 export interface CognitiveState {
   version: 1; revision: number; partition: CognitivePartition; goal_id: string;
   execution_contract_digest?: string | null;
+  evaluation_plan_digest?: string;
   goal_digest: string; current_hypothesis: string; active_plan: string[]; current_step: number;
   known_facts: string[]; uncertain_facts: string[]; assumptions: string[]; relevant_memories: string[];
   selected_strategy: string | null; alternatives: string[]; prediction: string | null; observation: string | null;
@@ -51,9 +52,10 @@ function partitionValid(p: CognitivePartition) {
 }
 function validate(state: CognitiveState, partition: CognitivePartition, goalId: string): void {
   assertCognitiveSafe(state);
-  const fields = ["version", "revision", "partition", "goal_id", "goal_digest", "execution_contract_digest", "current_hypothesis", "active_plan", "current_step", "known_facts", "uncertain_facts", "assumptions", "relevant_memories", "selected_strategy", "alternatives", "prediction", "observation", "prediction_error", "confidence", "blockers", "next_action", "research_needed", "external_expert_needed", "learning_candidates", "mode", "attempts", "external_ai_calls", "pending_action", "learning_outbox", "updated_at"];
+  const fields = ["version", "revision", "partition", "goal_id", "goal_digest", "execution_contract_digest", "evaluation_plan_digest", "current_hypothesis", "active_plan", "current_step", "known_facts", "uncertain_facts", "assumptions", "relevant_memories", "selected_strategy", "alternatives", "prediction", "observation", "prediction_error", "confidence", "blockers", "next_action", "research_needed", "external_expert_needed", "learning_candidates", "mode", "attempts", "external_ai_calls", "pending_action", "learning_outbox", "updated_at"];
   if (!state || Object.keys(state).some(k => !fields.includes(k))) throw new Error("unknown cognitive fields");
   if (state.execution_contract_digest != null && !/^[a-f0-9]{64}$/.test(state.execution_contract_digest)) throw Error("invalid execution contract digest");
+  if (state.evaluation_plan_digest !== undefined && !/^[a-f0-9]{64}$/.test(state.evaluation_plan_digest)) throw Error("Invalid evaluation plan digest");
   partitionValid(state.partition);
   if (state.version !== 1 || state.goal_id !== goalId || cognitiveDigest(state.partition) !== cognitiveDigest(partition)) throw new Error("cognitive identity mismatch");
   if (!Number.isSafeInteger(state.revision) || state.revision < 0 || !Array.isArray(state.attempts) || state.attempts.length > MAX_ATTEMPTS) throw new Error("invalid cognitive revision/history");
@@ -132,6 +134,8 @@ export class CognitiveStateStore {
     try {
       const current = await this.get(state.goal_id);
       if ((current?.revision ?? null) !== expectedRevision) throw new Error("cognitive revision conflict");
+      if (current?.evaluation_plan_digest && current.evaluation_plan_digest !== state.evaluation_plan_digest) throw Error("Evaluation plan is immutable; changed allocation rejected");
+      if (state.evaluation_plan_digest && !current?.evaluation_plan_digest && (current?.attempts.length || current?.pending_action || current?.learning_outbox || state.attempts.length || state.pending_action || state.learning_outbox)) throw Error("Evaluation allocation requires pristine history");
       const next: CognitiveState = { ...state, revision: expectedRevision === null ? 0 : expectedRevision + 1, updated_at: new Date().toISOString() };
       const output = await open(temp, "wx");
       try { await output.writeFile(`${JSON.stringify(next)}\n`, "utf8"); await output.sync(); } finally { await output.close(); }

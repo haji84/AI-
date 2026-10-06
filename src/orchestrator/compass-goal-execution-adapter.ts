@@ -2,7 +2,8 @@ import { CognitiveMaterialIntake } from "../gai/cognitive-material-intake.ts";
 import { acquireCognitiveLease } from "../gai/cognitive-lease.ts";
 import { CognitiveLearningEngine } from "../gai/cognitive-learning.ts";
 import { PersistentWorldModel } from "../gai/world-model.ts";
-import { loadCognitiveLocalOutcomes } from "../gai/cognitive-local-outcomes.ts";
+import { evaluationPlanDigest, type CognitiveEvaluationPlan } from "../gai/cognitive-evaluation.ts";
+import { loadCognitiveLocalOutcomes, CognitiveLocalOutcomeCatalog } from "../gai/cognitive-local-outcomes.ts";
 import { loadCognitiveLocalWork } from "../gai/cognitive-local-work.ts";
 import { resolve, dirname } from "node:path";
 import { CompassStore } from "../compass/store.ts";
@@ -18,7 +19,7 @@ import type { ContextItem, ContextSource, GoalLoopOptions, Goal } from "./goal-l
 import { createRuntimeDevelopmentVerifier } from "./runtime-development-verifier.ts";
 import type { GoalExecutionAdapter } from "./goal-controller-execution-bridge.ts";
 import { createWorkStateIntegratedGoalLoop, goalWorkStateId, type WorkStateAction } from "./work-state-integration.ts";
-import { CognitiveCore, createCognitiveGoalLoop, type CognitiveLearningBridge } from "../gai/cognitive-core.ts";
+import { CognitiveCore, createCognitiveGoalLoop, cognitiveActionFingerprint, type CognitiveLearningBridge } from "../gai/cognitive-core.ts";
 import { CognitiveStateStore, cognitiveDigest, type CognitivePartition } from "../gai/cognitive-state.ts";
 import { configuredPrimaryBrain, type PrimaryBrainAdapter } from "../gai/primary-brain.ts";
 
@@ -34,6 +35,8 @@ export interface CognitiveRuntimeOptions {
   localWork?: { manifestPath: string; dataRoot: string };
   localOutcomes?: { manifestPath: string; dataRoot: string };
   materialIntake?: { dataRoot: string };
+  /** Direct host option; no HTTP/model/environment split control. */
+  evaluation?: { id: string };
   historyImport?: { manifestPath: string; dataRoot: string };
 }
 
@@ -147,7 +150,7 @@ export class CompassGoalExecutionAdapter implements GoalExecutionAdapter {
       }
       const localWork = await loadCognitiveRuntimeWork({ ...this.cognitiveOptions, stateRoot: this.cognitiveOptions.stateRoot ?? resolve(dirname(this.dbPath), "cognitive"), partition: this.cognitiveOptions.partition ?? { tenantId: "local", principalId: "owner" } }, authoritativeGoalId, goal);
       localWork?.register(registry);
-      const verifier = localWork?.verifier(createRuntimeDevelopmentVerifier()) ?? createRuntimeDevelopmentVerifier();
+      const verifier = localWork instanceof CognitiveLocalOutcomeCatalog ? localWork.verifier(createRuntimeDevelopmentVerifier(), Boolean(this.cognitiveOptions.evaluation)) : localWork?.verifier(createRuntimeDevelopmentVerifier()) ?? createRuntimeDevelopmentVerifier();
       const workStateStore = new CompassWorkStateStoreAdapter(compass);
       const fallback = new RuntimeDevelopmentPlanner(new BaselinePlanner());
       const partition = this.cognitiveOptions.partition ?? { tenantId: "local", principalId: "owner" };
@@ -165,12 +168,32 @@ export class CompassGoalExecutionAdapter implements GoalExecutionAdapter {
         await state.save({ ...checkpoint, execution_contract_digest: contract }, checkpoint.revision);
       }
       const learning = this.cognitiveOptions.learning ?? new CognitiveLearningEngine(resolve(stateRoot, "learning"));
+      const descriptor = localWork instanceof CognitiveLocalOutcomeCatalog ? localWork.evaluationDescriptor() : undefined;
+      let evaluationPlan: CognitiveEvaluationPlan | undefined;
+      const current = await state.get(authoritativeGoalId);
+      const reserved = learning instanceof CognitiveLearningEngine ? await learning.evaluationReservation(partition, authoritativeGoalId) : null;
+      if ((current?.evaluation_plan_digest || reserved) && !this.cognitiveOptions.evaluation) throw Error("Evaluation allocation changed; original host plan required");
+      if (this.cognitiveOptions.evaluation) {
+        if (!descriptor || !(learning instanceof CognitiveLearningEngine) || Object.keys(this.cognitiveOptions.evaluation).some(k => k !== "id")) throw Error("Evaluation requires existing local outcome catalog and private learning ledger");
+        const prior = await workStateStore.get(authoritativeGoalId);
+        if (!current?.evaluation_plan_digest && (current?.attempts.length || current?.pending_action || current?.learning_outbox || prior?.verificationResults.length || prior?.childWorkItems.length)) throw Error("Evaluation allocation requires pristine history");
+        evaluationPlan = await learning.allocateEvaluation({ version: 1, id: this.cognitiveOptions.evaluation.id, partition,
+          goalId: authoritativeGoalId, goalDigest: cognitiveDigest(goal), environment: this.cognitiveOptions.environment ?? `${process.platform}:local`,
+          contractDigest: contract!, materialSha256: descriptor.materialSha256,
+          actions: descriptor.candidates.map(c => ({ actionId: c.id, fingerprint: cognitiveActionFingerprint({ ...c.action, completesBoundedCommand: false }) })), oracle: "local-source-derived-exact-v1" });
+        const digest = evaluationPlanDigest(evaluationPlan);
+        if (current?.evaluation_plan_digest && current.evaluation_plan_digest !== digest) throw Error("Evaluation plan changed");
+        if (current && !current.evaluation_plan_digest) await state.save({ ...current, evaluation_plan_digest: digest }, current.revision);
+      }
       const core = new CognitiveCore({
         goalId: authoritativeGoalId, partition,
         state,
         environment: this.cognitiveOptions.environment ?? `${process.platform}:local`,
         brain: this.cognitiveOptions.brain ?? configuredPrimaryBrain(),
         learning,
+        evaluationPlan,
+        evaluationVerifier: evaluationPlan ? verifier : undefined,
+        materialSha256: descriptor?.materialSha256,
         world: learning instanceof CognitiveLearningEngine ? new PersistentWorldModel(learning.partitionPath(partition, "world.json")) : undefined,
         allowExternal: this.cognitiveOptions.allowExternalAI === true,
         connectivity: this.cognitiveOptions.allowExternalAI === true ? "online" : "unknown",
