@@ -2404,7 +2404,7 @@
     },
     {
       "path": "src/app/jarvis/new-development/DevelopmentDesignRoom.tsx",
-      "sha256": "51d2322504dd4f48dc72e7258331e1ebe7fae7fe6d415cfc1a4ea563bee47e96",
+      "sha256": "2a228197efff0430de6b919ea032a3e693b96d9b33714cf1f05cce35b1e3a966",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -2874,7 +2874,7 @@
     },
     {
       "path": "src/app/jarvis/voice-output.ts",
-      "sha256": "2b903c17173b29effe582ac4f23889e18a35997271ca45c99554cf7e99cd3551",
+      "sha256": "c90c24d879b724258b22c3f313f2daebdd648eeef529d2cb459b394e9bd02806",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "UI-009",
