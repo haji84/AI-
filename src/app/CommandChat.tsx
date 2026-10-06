@@ -293,6 +293,7 @@ export default function CommandChat({ enabled, contextPath, compact = false }: {
     recognition.interimResults = true;
     recognition.continuous = false;
     recognition.onstart = () => {
+      lastVoiceInput.current = true;
       setListening(true);
       setVoiceMessage("話してください。認識した文字は送信前に表示します。");
     };
