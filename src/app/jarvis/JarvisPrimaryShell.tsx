@@ -10,6 +10,7 @@ import JarvisOperationModeControls from "./JarvisOperationModeControls";
 import JarvisPriorityNotifications from "./JarvisPriorityNotifications";
 import JarvisReadOnlyBoundary from "./JarvisReadOnlyBoundary";
 import GoriqIcon from "./GoriqIcon";
+import GlobalConversationLauncher from "./GlobalConversationLauncher";
 import { applyJarvisAccessibilityPreferences, readJarvisAccessibilityPreferences } from "./accessibility-preferences";
 import { applyJarvisDisplayMode, readJarvisDisplayMode } from "./display-modes";
 import { applyJarvisOperationMode, readJarvisOperationMode } from "./operation-mode";
