@@ -496,6 +496,7 @@ export default function CommandChat({ enabled, contextPath, compact = false }: {
           </div>
         </form>
         {!enabled && <p className="inline-note">この端末をオーナー認証するとAI社員へ指示できます。</p>}
+        {voiceMessage && <p className="control-message" role="status">{voiceMessage}</p>}
         {message && <p className="control-message" role="status">{message}</p>}
         <p className="command-safety">会話はGitHubへ長期保存し、添付本体はPrivate Blobに保持します。関連する決定・制約・未完了・Issue/PR/成果物を記憶コンテキストとして次の指示へ引き継ぎます。</p>
       </section>
