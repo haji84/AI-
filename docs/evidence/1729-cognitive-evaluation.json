@@ -1,0 +1,77 @@
+{
+  "version": 1,
+  "issue": 1729,
+  "parents": [
+    1216,
+    1219,
+    681
+  ],
+  "class": "MACHINE_VERIFIED",
+  "issuer": "node:test; TypeScript; ESLint; repository validators",
+  "observedAt": "2026-10-06T12:45:00.585668+00:00",
+  "codeCommit": "83236bd7a063a72e35b7cb0e894e699854094ea4",
+  "environment": {
+    "platform": "linux",
+    "node": "24.19.0",
+    "pnpm": "11.19.0",
+    "powershell": "7.6.6",
+    "powershell_sha256": "ddbc4a2d113bbd46d283cfedcbcd117a70caefd7673f41f2b4e0000badf103bc"
+  },
+  "logs": {
+    "full": {
+      "counts": {
+        "tests": 2271,
+        "pass": 2266,
+        "fail": 0,
+        "skipped": 5
+      },
+      "sha256": "6751402ced22d58255908f6abd150eb7cb854e29790766c736fa86ba87f1b46e"
+    },
+    "security": {
+      "counts": {
+        "tests": 332,
+        "pass": 332,
+        "fail": 0,
+        "skipped": 0
+      },
+      "sha256": "0ededa9450d1475c43541df4c607dca1d70a1405e261685f9da8ae70dfddc6d0"
+    },
+    "focused": {
+      "counts": {
+        "tests": 69,
+        "pass": 68,
+        "fail": 0,
+        "skipped": 1
+      },
+      "sha256": "76b294efb0cf0e7402a8f48e287adeaa439fff079dae9e1414b4a2913a971f30"
+    }
+  },
+  "source_sha256": {
+    "src/gai/cognitive-evaluation.ts": "a72e978fa8e0adbdbf36ab9cc4c71f04f34c9703030b5a0d291662a3035551bf",
+    "src/gai/cognitive-core.ts": "bca578725c58fb268300c9d2cff39bd979a94237866b93377bf9634753ab07be",
+    "src/gai/cognitive-learning.ts": "5463dfe98b407686b304122be9bd3b6998a8f57e8a74aecd41332bbbae22d256",
+    "src/gai/cognitive-state.ts": "435b76201355a6435d031340a6fd64a50216045d57229e866fc523eabb8d1a1b",
+    "src/gai/cognitive-local-outcomes.ts": "355196df1c7c85e17296c0d237f9e9e87af942cf3cc541662ed5256db477b8f1",
+    "src/orchestrator/compass-goal-execution-adapter.ts": "e90859e896a5a84d20aa77ace5e19ec087e609a3b53c0098100f4f6cc1a4128f",
+    "tests/cognitive-evaluation.test.ts": "9d82f67d2f859a5e49ba3e22c67b60bd622976f5d57b491aafd85a3d66275793",
+    "tests/goriq-cognitive-outcome-runtime.test.ts": "110a8647067fffc60a5e9f32652c6d2fefc960ae281bc996439b8295b12fd1c7"
+  },
+  "typecheck": "PASS",
+  "lint": "PASS",
+  "traceability": {
+    "surfaces": 570,
+    "requirements": 341,
+    "result": "PASS"
+  },
+  "initialCI": {
+    "run": 37464550847,
+    "head": "83236bd7a063a72e35b7cb0e894e699854094ea4",
+    "result": "SUCCESS"
+  },
+  "limitations": [
+    "Bounded actual local file/XLSX/DOCX collection only; no model quality, Skill promotion, physical recovery or whole-product acceptance.",
+    "Initial parallel full suite:2265 PASS/1 FAIL/5 SKIP; existing30ms lease fixture expired under load. Unchanged isolated offline11/11 PASS and serial full2266/0/5 PASS.",
+    "Earlier workspace/full-test launch disappeared and is not accepted evidence.",
+    "Source code matches published commit; final evidence/state-only additions require fresh exact-head protected CI."
+  ]
+}
