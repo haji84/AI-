@@ -177,10 +177,11 @@ export class CompassGoalExecutionAdapter implements GoalExecutionAdapter {
         if (!descriptor || !(learning instanceof CognitiveLearningEngine) || Object.keys(this.cognitiveOptions.evaluation).some(k => k !== "id")) throw Error("Evaluation requires existing local outcome catalog and private learning ledger");
         const prior = await workStateStore.get(authoritativeGoalId);
         if (!current?.evaluation_plan_digest && (current?.attempts.length || current?.pending_action || current?.learning_outbox || prior?.verificationResults.length || prior?.childWorkItems.length)) throw Error("Evaluation allocation requires pristine history");
+        const pairedDescriptor = reserved?.comparison && localWork instanceof CognitiveLocalOutcomeCatalog ? await localWork.skillEvaluationDescriptor() : undefined;
         const proposedPlan: CognitiveEvaluationPlan = { version: 1, id: this.cognitiveOptions.evaluation.id, partition,
           goalId: authoritativeGoalId, goalDigest: cognitiveDigest(goal), environment: this.cognitiveOptions.environment ?? `${process.platform}:local`,
           contractDigest: contract!, materialSha256: descriptor.materialSha256,
-          actions: descriptor.candidates.map(c => ({ actionId: c.id, fingerprint: cognitiveActionFingerprint({ ...c.action, completesBoundedCommand: false }) })), oracle: "local-source-derived-exact-v1",
+          actions: descriptor.candidates.map(c => ({ actionId: c.id, fingerprint: cognitiveActionFingerprint({ ...c.action, completesBoundedCommand: false }), ...(pairedDescriptor ? { artifacts: pairedDescriptor.artifacts[c.id] } : {}) })), oracle: "local-source-derived-exact-v1",
           ...(reserved?.comparison ? { comparison: reserved.comparison } : {}) };
         if (reserved?.comparison) {
           const subject = await learning.localSkillSubject(partition, reserved.comparison.skillId);

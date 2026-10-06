@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdtemp, mkdir, readFile, writeFile, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, writeFile, rm, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { CompassStore } from "../src/compass/store.ts";
@@ -9,7 +9,8 @@ import { compassGoalToLoopGoal } from "../src/orchestrator/compass-state-store.t
 import { goalWorkStateId } from "../src/orchestrator/work-state-integration.ts";
 import { CompassGoalExecutionAdapter, type CognitiveRuntimeOptions } from "../src/orchestrator/compass-goal-execution-adapter.ts";
 import { CognitiveLearningEngine } from "../src/gai/cognitive-learning.ts";
-import { loadCognitiveLocalOutcomes } from "../src/gai/cognitive-local-outcomes.ts";
+import { CognitiveLocalOutcomeCatalog, loadCognitiveLocalOutcomes, type CognitiveLocalOutcomeManifest } from "../src/gai/cognitive-local-outcomes.ts";
+import { cognitiveDigest } from "../src/gai/cognitive-state.ts";
 import { PersistentSkillLibrary } from "../src/gai/skill-library.ts";
 
 const partition = { tenantId: "measured-skill", principalId: "owner" }, environment = "matched-local";
@@ -25,11 +26,11 @@ async function fixture(format: "text" | "workbook-json" | "document-json" = "tex
     const db = new CompassStore(dbPath), record = db.setGoal({ title: "Preserve supplied material", description, successCriteria: ["Output equals independently verified source"], constraints: ["No external AI"] }); db.close();
     const goal = compassGoalToLoopGoal(record), goalId = goalWorkStateId(goal);
     const domain = format === "text" ? "file" : format === "workbook-json" ? "spreadsheet" : "document", target = domain === "file" ? "output.txt" : domain === "spreadsheet" ? "output.xlsx" : "output.docx";
-    const manifest = { version: 1, goalId, materials: [{ id: "input", path: "input.txt", format, sha256: sha(bytes) }], outcomes: [{ id: "copy", materialId: "input", path: target, domain, criteria: ["criterion-1"] }] };
+    const manifest: CognitiveLocalOutcomeManifest = { version: 1, goalId, materials: [{ id: "input", path: "input.txt", format, sha256: sha(bytes) }], outcomes: [{ id: "copy", materialId: "input", path: target, domain, criteria: ["criterion-1"] }] };
     await writeFile(join(dataRoot, "input.txt"), bytes); await writeFile(manifestPath, JSON.stringify(manifest));
     const catalog = await loadCognitiveLocalOutcomes(manifestPath, dataRoot, goalId, goal);
     const options: CognitiveRuntimeOptions = { useCore: true, stateRoot: join(dir, "state"), partition, learning, environment, localOutcomes: { manifestPath, dataRoot } };
-    return { catalog, goalId, dataRoot, target, options, run: (id?: string, maxCycles = 3) => new CompassGoalExecutionAdapter(dbPath, {}, { ...options, ...(id ? { evaluation: { id } } : {}) }).run(goalId, { maxCycles }) };
+    return { catalog, goalId, goal, manifest, dataRoot, target, options, run: (id?: string, maxCycles = 3) => new CompassGoalExecutionAdapter(dbPath, {}, { ...options, ...(id ? { evaluation: { id } } : {}) }).run(goalId, { maxCycles }) };
   }
   await (await arm("train-one", "Training one", "train one")).run();
   await (await arm("train-two", "Training two", "train two")).run();
@@ -142,6 +143,31 @@ test("unverified uncertain output attempt prevents comparison completeness", asy
     const uncertain = { ...receipt, id: "unverified-attempt", verified: false, evidenceRefs: [], observation: { summary: "Outcome uncertain", success: false } }; delete uncertain.evaluation;
     await f.learning.observe(uncertain);
     assert.ok((await f.certify()).reasons.includes("incomplete_measured_comparison"));
+  } finally { await rm(f.root, { recursive: true, force: true }); }
+});
+
+test("review regression: missing or substituted output artifact measurement invalidates the comparison", async () => {
+  for (const mode of ["truncate", "substitute"] as const) {
+    const f = await fixture(); try {
+      const plans = await f.prepare(); await f.baseline.run(plans[0].id); await f.candidate.run(plans[1].id);
+      const data = await f.ledger();
+      for (const e of data.experiences.filter((e: { evaluation?: unknown; actionId: string }) => e.evaluation && e.actionId.startsWith("outcome:"))) {
+        if (mode === "truncate") e.evaluation.artifacts = [e.evaluation.artifacts[0]];
+        else { e.evaluation.artifacts[1].expectedSha256 = sha("substituted output"); e.evaluation.artifacts[1].actualSha256 = sha("substituted output"); }
+        e.evaluation.verificationDigest = cognitiveDigest({ resultOk: e.evaluation.resultOk, verifierOk: e.evaluation.verifierOk, artifacts: e.evaluation.artifacts });
+      }
+      await writeFile(f.learning.partitionPath(partition, "experience.json"), JSON.stringify(data));
+      await assert.rejects(f.certify(), /planned.*artifact|artifact.*binding/i);
+    } finally { await rm(f.root, { recursive: true, force: true }); }
+  }
+});
+
+test("review regression: physically aliased data roots cannot reserve a matched comparison", async () => {
+  const f = await fixture(); try {
+    const alias = join(f.root, "alias"); await symlink(join(f.root, "baseline"), alias, "junction");
+    const candidate = { catalog: new CognitiveLocalOutcomeCatalog(join(alias, "data"), f.baseline.manifest, f.baseline.goalId, f.baseline.goal), goalId: f.baseline.goalId };
+    await assert.rejects(f.prepare({ candidate }), /matched.*root|isolated.*root/i);
+    assert.equal((await f.ledger()).evaluations?.length ?? 0, 0);
   } finally { await rm(f.root, { recursive: true, force: true }); }
 });
 

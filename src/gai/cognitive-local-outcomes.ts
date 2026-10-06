@@ -207,10 +207,17 @@ export class CognitiveLocalOutcomeCatalog {
     return { materialSha256: [...new Set(this.manifest.materials.map(m => m.sha256))].sort(), candidates };
   }
   /** Root/Goal-ID-independent comparison; relative targets and all oracle criteria remain fixed. */
-  skillEvaluationDescriptor() {
-    return { ...this.evaluationDescriptor(), scenarioDigest: cognitiveDigest({ goal: this.evaluationGoalDigest,
+  async skillEvaluationDescriptor() {
+    const descriptor = this.evaluationDescriptor();
+    const artifacts = Object.fromEntries(await Promise.all(descriptor.candidates.map(async c => {
+      const binding = this.binding(c.action), prepared = await this.prepare(binding.material, binding.outcome);
+      return [c.id, [prepared.source, ...(prepared.artifact ? [prepared.artifact] : [])].map(({ domain, expectedSha256 }) => ({ domain, expectedSha256 }))];
+    })));
+    return { ...descriptor, artifacts, scenarioDigest: cognitiveDigest({ goal: this.evaluationGoalDigest,
       materials: this.manifest.materials, outcomes: this.manifest.outcomes }) };
   }
+  /** Only used by host setup; canonical paths never enter model/learning receipts. */
+  async evaluationDataRoot(): Promise<string> { return realpath(this.root); }
   async assertEvaluationPristine(): Promise<void> {
     for (const material of this.manifest.materials) await this.prepare(material);
     for (const outcome of this.manifest.outcomes) {

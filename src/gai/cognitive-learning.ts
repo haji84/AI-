@@ -1,4 +1,4 @@
-import { evaluationPlanDigest, matchedEvaluationArms, validateEvaluationPlan, validateEvaluationMeasurement, validateMaterialHashes, type CognitiveEvaluationPlan, type CognitiveEvaluationMeasurement } from "./cognitive-evaluation.ts";
+import { evaluationPlanDigest, matchedEvaluationArms, validatePlannedEvaluationArtifacts, validateEvaluationPlan, validateEvaluationMeasurement, validateMaterialHashes, type CognitiveEvaluationPlan, type CognitiveEvaluationMeasurement } from "./cognitive-evaluation.ts";
 import { evaluateCognitiveResearch, researchSummary, sameResearchMeasurement } from "./cognitive-research.ts";
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
@@ -234,6 +234,7 @@ export class CognitiveLearningEngine {
       const action = plan.actions.find(a => a.actionId === e.actionId);
       if (!action || (e.verified && !e.evaluation) || (e.evaluation && (!e.verified || e.evaluation.planDigest !== evaluationPlanDigest(plan) || e.evaluation.actionFingerprint !== action.fingerprint ||
           e.observation.success !== (e.evaluation.resultOk && e.evaluation.verifierOk) || !plan.materialSha256.includes(e.evaluation.artifacts[0].expectedSha256)))) throw Error("Evaluation receipt binding invalid");
+      if (e.evaluation) validatePlannedEvaluationArtifacts(plan, e.evaluation.actionFingerprint, e.evaluation.artifacts);
     } else if (e.evaluation) throw Error("Evaluation receipt requires preallocated plan");
     if (plans.some(p => p !== plan && e.materialSha256?.some(h => p.materialSha256.includes(h)) && (!plan || !matchedEvaluationArms(p, plan)))) throw Error("Heldout material evaluation overlap");
     if (data.experiences.some(prior => prior.id !== e.id && (e.evaluation || prior.evaluation) && prior.evidenceRefs.some(r => e.evidenceRefs.includes(r)))) throw Error("Evaluation evidence overlap");

@@ -3031,7 +3031,7 @@
         "OWN-001"
       ],
       "reason": "#1729 host-fixed evaluation collection under existing Core authority; no model-quality or whole-product completion claim",
-      "sha256": "370dded360b528632116fba5a07559b62bc1d74499ceb56f98a92301ba96e720"
+      "sha256": "43e6a0dae88a3b7ed34cf2badf4b8850362b2b44542e9a04547650d9658809b1"
     },
     {
       "path": "src/gai/cognitive-history.ts",
@@ -3062,7 +3062,7 @@
     },
     {
       "path": "src/gai/cognitive-learning.ts",
-      "sha256": "c10c2808472a44dbab8236fe631802eb5d00597cff3f3a0b4548e9e57ecd3516",
+      "sha256": "6b377fb754af3a8262bf91af39f341674a21360d102013d3786b36ad6ede38d3",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OWN-001"
@@ -3085,7 +3085,7 @@
         "OWN-001"
       ],
       "reason": "OWN-001 fixed local material outcome catalog derives six bounded host-operation categories while retaining exact Goal/root/source action identities and independent artifact verification.",
-      "sha256": "9ee997d134e74397cfbecef38577b1392a46cd5445b1748adf7c52097411277a"
+      "sha256": "aee7fb38142c1aa73214b18ce7d2b40d06f60cba718262a5cbb3df9454d41912"
     },
     {
       "path": "src/gai/cognitive-local-work.ts",
@@ -3134,7 +3134,7 @@
     },
     {
       "path": "src/gai/cognitive-skill-evaluation.ts",
-      "sha256": "9ba7653ca04cf0c63fbbc4d694e982a4bba93e4ad80056e40982ea6587d3c0df",
+      "sha256": "8c75a690ad89fc466504c1e67b9400e7d02d6cd373144ef5f86f989384a6d931",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "OWN-001"
@@ -4934,7 +4934,7 @@
     },
     {
       "path": "src/orchestrator/compass-goal-execution-adapter.ts",
-      "sha256": "35521d91f5b17f243e8f0c8e75e08a75a89ad0adbb4e984d9e667a253684af21",
+      "sha256": "22614eaab2575158d9fc32b990488f9864d1c1e075f1a36503652019f7f96df1",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-002",
