@@ -1,5 +1,7 @@
 import { createHmac, createPublicKey, randomBytes, timingSafeEqual, verify } from "node:crypto";
 
+export const TRUSTED_DEVICE_CHALLENGE_COOKIE = "jarvis_trusted_device_challenge";
+
 const CREDENTIAL_VERSION = "td1";
 const CHALLENGE_VERSION = "tc1";
 const MAX_CREDENTIAL_AGE_SECONDS = 60 * 60 * 24 * 365;

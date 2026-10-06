@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { POST, isAuthorizedRemoteMcpRequest } from "./route.ts";
+import { POST } from "./route.ts";
+import { isAuthorizedRemoteMcpRequest } from "./auth.ts";
 
 test("Remote MCP bearer auth is exact and fail-closed", () => {
   const good = new Request("https://example.test/api/mcp", { headers: { Authorization: "Bearer owner-secret" } });

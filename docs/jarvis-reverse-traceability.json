@@ -1670,7 +1670,7 @@
     },
     {
       "path": "src/app/api/owner-login/trusted/challenge/route.ts",
-      "sha256": "0aedfa24cbbefd74c3c9b9385021cdb0f168784e6d8307f8dea662d3ce5e195c",
+      "sha256": "e23f48190614a827c6a7cb5c068323f6b0beab55f9b96dcd0fc255d28f158642",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "SEC-001",
@@ -1746,7 +1746,7 @@
     },
     {
       "path": "src/app/api/owner-login/trusted/verify/route.ts",
-      "sha256": "bb60153fe00062427fcbd0a7214f526b62e7794e8c600245353aa085e824c158",
+      "sha256": "94a73b82e33890ac0df58997ffc29b25d4f53849d55a6413d9a89464286768b2",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "SEC-001",

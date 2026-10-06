@@ -2,8 +2,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { createOwnerSessionToken, OWNER_SESSION_COOKIE, OWNER_SESSION_MAX_AGE_SECONDS } from "../../../../owner-auth.ts";
 import { jarvisOwnerSecret } from "../../../jarvis/broker.ts";
-import { parseTrustedDeviceChallenge, parseTrustedDeviceCredential, revokedTrustedDeviceIds, verifyTrustedDeviceProof } from "../../../../trusted-device-auth.ts";
-import { TRUSTED_DEVICE_CHALLENGE_COOKIE } from "../challenge/route.ts";
+import { parseTrustedDeviceChallenge, parseTrustedDeviceCredential, revokedTrustedDeviceIds, verifyTrustedDeviceProof, TRUSTED_DEVICE_CHALLENGE_COOKIE } from "../../../../trusted-device-auth.ts";
 import { registerTrustedDevice, trustedDeviceIsRevoked } from "../../../../trusted-device-registry-client.ts";
 
 export async function POST(request: Request) {

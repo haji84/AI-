@@ -1,4 +1,4 @@
-import { timingSafeEqual } from "node:crypto";
+import { isAuthorizedRemoteMcpRequest } from "./auth.ts";
 import { REMOTE_MCP_TOOLS, invokeRemoteMcpTool } from "../../mcp-chat-tools.ts";
 
 export const runtime = "nodejs";
@@ -9,19 +9,6 @@ interface JsonRpcRequest {
   id?: string | number | null;
   method?: string;
   params?: unknown;
-}
-
-function sameSecret(a: string, b: string): boolean {
-  const left = Buffer.from(a);
-  const right = Buffer.from(b);
-  return left.length === right.length && timingSafeEqual(left, right);
-}
-
-export function isAuthorizedRemoteMcpRequest(request: Request, secret: string): boolean {
-  if (!secret) return false;
-  const authorization = request.headers.get("authorization")?.trim() || "";
-  const match = authorization.match(/^Bearer\s+(.+)$/i);
-  return Boolean(match?.[1] && sameSecret(match[1], secret));
 }
 
 function jsonRpcResult(id: JsonRpcRequest["id"], result: unknown, status = 200) {

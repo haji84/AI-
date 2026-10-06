@@ -26,6 +26,11 @@ async function run(command,args,{timeout=10000,env=process.env,cwd=process.cwd()
     throw Error('NATIVE_COMMAND_REJECTED');
   }
 }
+export async function buildDashboardArtifacts({release,env}) {
+  // Turbopack v16.3.2 sets emitted files to 0664 after creation, overriding umask.
+  // Keep the existing owner/write-bit inventory gate; select Webpack for this release.
+  return run('pnpm',['build','--webpack'],{cwd:release,env,timeout:600000});
+}
 export async function pathGuard(path,{secret=false,allowAbsent=false}={}) {
   if (!isAbsolute(path)) throw Error('NATIVE_PATH_REJECTED');
   let item,privateAncestor=false;
@@ -376,7 +381,7 @@ async function main(phase) {
     const buildEnv={PATH:process.env.PATH,HOME:home,CI:'true',NEXT_TELEMETRY_DISABLED:'1',NO_COLOR:'1'};
     if((await run('pnpm',['--version'],{env:buildEnv})).trim()!=='11.19.0' || process.version!=='v24.19.0')throw Error('BUILD_TOOLCHAIN_REJECTED');
     mark('dependencies');await run('pnpm',['install','--frozen-lockfile'],{cwd:release,env:buildEnv,timeout:300000});
-    mark('build');await run('pnpm',['build'],{cwd:release,env:buildEnv,timeout:600000});
+    mark('build');await buildDashboardArtifacts({release,env:buildEnv});
     mark('post-build-source');await verifySource();
     mark('post-build-state');await verifyProtectedState();validateDashboardApproval(approval,artifacts);
     mark('release-build-id');const buildId=hash(await readFile(join(release,'.next','BUILD_ID')));
