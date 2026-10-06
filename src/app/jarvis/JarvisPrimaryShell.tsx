@@ -97,6 +97,7 @@ export default function JarvisPrimaryShell({ children }: { children: ReactNode }
       </header>
       <JarvisConnectivityStatus />
       <JarvisPriorityNotifications />
+      <GlobalConversationLauncher />
       <JarvisReadOnlyBoundary>
         <main id="jarvis-main-content" className="jarvis-primary-content" tabIndex={-1}>
           {children}
