@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
 import { jarvisOwnerSecret } from "../../../jarvis/broker.ts";
-import { createTrustedDeviceChallenge, parseTrustedDeviceCredential, revokedTrustedDeviceIds } from "../../../../trusted-device-auth.ts";
+import { createTrustedDeviceChallenge, parseTrustedDeviceCredential, revokedTrustedDeviceIds, TRUSTED_DEVICE_CHALLENGE_COOKIE } from "../../../../trusted-device-auth.ts";
 import { trustedDeviceIsRevoked } from "../../../../trusted-device-registry-client.ts";
-
-export const TRUSTED_DEVICE_CHALLENGE_COOKIE = "jarvis_trusted_device_challenge";
 
 export async function POST(request: Request) {
   const secret = jarvisOwnerSecret();
