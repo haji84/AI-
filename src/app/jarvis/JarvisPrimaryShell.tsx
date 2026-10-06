@@ -17,10 +17,11 @@ import { applyJarvisScreenLayoutProfile, readJarvisScreenLayoutProfiles } from "
 import { applyJarvisPreferences, readJarvisPreferences } from "./ui-preferences";
 
 const NAV_ITEMS = [
-  { href: "/jarvis", label: "ホーム", key: "home" },
-  { href: "/jarvis/tasks", label: "作業", key: "tasks" },
-  { href: "/jarvis/devices", label: "端末", key: "devices" },
-  { href: "/jarvis/settings", label: "設定", key: "settings" },
+  { href: "/jarvis", label: "ホーム", key: "home", icon: "home" },
+  { href: "/jarvis/tasks", label: "プロジェクト", key: "projects", icon: "tasks" },
+  { href: "/jarvis/new-development", label: "新規開発", key: "new-development", icon: "plus" },
+  { href: "/jarvis/decisions", label: "判断待ち", key: "decisions", icon: "shield" },
+  { href: "/jarvis/more", label: "その他", key: "more", icon: "settings" },
 ] as const;
 
 function applyStoredPreferences() {
@@ -28,6 +29,7 @@ function applyStoredPreferences() {
   applyJarvisAccessibilityPreferences(readJarvisAccessibilityPreferences());
   applyJarvisDisplayMode(readJarvisDisplayMode());
   applyJarvisOperationMode(readJarvisOperationMode());
+  document.documentElement.dataset.goriqScreenDesign = window.localStorage.getItem("jarvis-ui-theme") || "clean-modern";
 }
 
 export default function JarvisPrimaryShell({ children }: { children: ReactNode }) {
@@ -38,9 +40,11 @@ export default function JarvisPrimaryShell({ children }: { children: ReactNode }
     const listener = () => applyStoredPreferences();
     window.addEventListener("jarvis-preferences-changed", listener);
     window.addEventListener("jarvis-accessibility-preferences-changed", listener);
+    window.addEventListener("goriq-theme-changed", listener);
     return () => {
       window.removeEventListener("jarvis-preferences-changed", listener);
       window.removeEventListener("jarvis-accessibility-preferences-changed", listener);
+      window.removeEventListener("goriq-theme-changed", listener);
     };
   }, []);
 
@@ -68,7 +72,7 @@ export default function JarvisPrimaryShell({ children }: { children: ReactNode }
               : pathname === item.href || pathname.startsWith(`${item.href}/`);
             return (
               <a key={item.key} className={active ? "active" : ""} href={item.href} aria-current={active ? "page" : undefined}>
-                <GoriqIcon name={item.key} /><span>{item.label}</span>
+                <GoriqIcon name={item.icon} /><span>{item.label}</span>
               </a>
             );
           })}
