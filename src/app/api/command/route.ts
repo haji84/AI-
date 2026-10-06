@@ -166,7 +166,7 @@ export async function POST(request: Request) {
   if ("error" in context) return context.error;
   const { githubToken, repository } = context;
 
-  const payload = await request.json().catch(() => null) as { command?: unknown; attachments?: unknown; conversationId?: unknown; memoryContext?: unknown } | null;
+  const payload = await request.json().catch(() => null) as { command?: unknown; attachments?: unknown; conversationId?: unknown; memoryContext?: unknown; inputMode?: unknown; screenContext?: unknown } | null;
   const command = typeof payload?.command === "string" ? payload.command.trim() : "";
   if (!command) return NextResponse.json({ message: "指示を入力してください" }, { status: 400 });
   if (command.length > MAX_COMMAND_LENGTH) return NextResponse.json({ message: `指示は${MAX_COMMAND_LENGTH}文字以内で入力してください` }, { status: 400 });
@@ -218,6 +218,9 @@ export async function POST(request: Request) {
   const numericConversationId = typeof payload?.conversationId === "number" && Number.isInteger(payload.conversationId) && payload.conversationId > 0 ? payload.conversationId : null;
   const conversationId = numericConversationId ? `conversation:${numericConversationId}` : undefined;
   const memoryContext = typeof payload?.memoryContext === "string" ? payload.memoryContext.trim().slice(0, MAX_MEMORY_CONTEXT_LENGTH) : "";
+  const inputMode = payload?.inputMode === "voice" ? "voice" : "text";
+  const rawScreenContext = typeof payload?.screenContext === "string" ? payload.screenContext.trim().slice(0, 160) : "";
+  const screenContext = rawScreenContext.startsWith("/jarvis") ? rawScreenContext : undefined;
 
   const rawAttachments = payload?.attachments === undefined ? [] : payload.attachments;
   if (!Array.isArray(rawAttachments) || rawAttachments.length > MAX_ATTACHMENTS) {
@@ -232,7 +235,7 @@ export async function POST(request: Request) {
   const normalizedIntake = normalizeIntake({
     source: "chat",
     text: command,
-    sourceContext: { conversationId: conversationId ?? null, attachmentCount: validAttachments.length },
+    sourceContext: { conversationId: conversationId ?? null, attachmentCount: validAttachments.length, currentScreen: screenContext ?? null, inputMode },
     idempotencyKey: conversationId ? `${conversationId}:${command}` : undefined,
   });
   const intakeIntent = deterministicIntent(normalizedIntake);
@@ -261,6 +264,8 @@ export async function POST(request: Request) {
     ...(validAttachments.length ? { attachments: validAttachments } : {}),
     ...(conversationId ? { conversationId } : {}),
     ...(memoryContext ? { memoryContext } : {}),
+    ...(screenContext ? { screenContext } : {}),
+    inputMode,
     ...(taskIssueNumber ? { goalId: `issue:${taskIssueNumber}` } : {}),
     ...(taskAuthorization ? { taskAuthorization } : {}),
     ...(plan ? { plan } : {}),
