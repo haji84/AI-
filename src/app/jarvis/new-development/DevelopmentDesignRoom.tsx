@@ -40,14 +40,14 @@ export default function DevelopmentDesignRoom({ enabled }: { enabled: boolean })
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY);
       if (raw) setBoard(normalize(JSON.parse(raw)));
-    } catch {}
+    } catch { /* Browser-local persistence may be unavailable in restricted/private mode. */ }
     setReady(true);
   }, []);
 
   function save(next: BoardState) {
     const normalized = normalize(next);
     setBoard(normalized);
-    try { window.localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized)); } catch {}
+    try { window.localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized)); } catch { /* Browser-local persistence may be unavailable in restricted/private mode. */ }
   }
 
   function updateItem(key: ItemKey, patch: Partial<Item>) {
