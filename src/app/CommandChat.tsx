@@ -1,9 +1,35 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { playGoriqLocalVoice } from "./jarvis/voice-output";
 
 const suggestions = ["進めて", "状態確認", "問題だけ確認", "今日のまとめ"];
 const MAX_ATTACHMENTS = 20;
+
+type RecognitionAlternative = { transcript: string };
+type RecognitionResult = { isFinal: boolean; 0: RecognitionAlternative; length: number };
+type RecognitionEventLike = { resultIndex: number; results: ArrayLike<RecognitionResult> };
+type RecognitionLike = {
+  lang: string;
+  interimResults: boolean;
+  continuous: boolean;
+  onstart: (() => void) | null;
+  onend: (() => void) | null;
+  onresult: ((event: RecognitionEventLike) => void) | null;
+  onerror: ((event: { error?: string }) => void) | null;
+  start(): void;
+  stop(): void;
+  abort(): void;
+};
+type RecognitionCtor = new () => RecognitionLike;
+type SpeechWindow = Window & typeof globalThis & { SpeechRecognition?: RecognitionCtor; webkitSpeechRecognition?: RecognitionCtor };
+
+function recognitionConstructor(): RecognitionCtor | null {
+  if (typeof window === "undefined") return null;
+  const value = window as SpeechWindow;
+  return value.SpeechRecognition ?? value.webkitSpeechRecognition ?? null;
+}
+
 
 type ChatEntry = {
   id: string;
@@ -59,7 +85,7 @@ function formatBytes(size: number): string {
   return `${(size / 1024 ** 3).toFixed(1)} GB`;
 }
 
-export default function CommandChat({ enabled }: { enabled: boolean }) {
+export default function CommandChat({ enabled, contextPath, compact = false }: { enabled: boolean; contextPath?: string; compact?: boolean }) {
   const [command, setCommand] = useState("");
   const [busy, setBusy] = useState(false);
   const [checking, setChecking] = useState(false);
@@ -71,10 +97,16 @@ export default function CommandChat({ enabled }: { enabled: boolean }) {
   const [memoryContext, setMemoryContext] = useState("");
   const [search, setSearch] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [listening, setListening] = useState(false);
+  const [voiceMessage, setVoiceMessage] = useState<string | null>(null);
   const lastFingerprint = useRef<string | null>(null);
   const lastAcceptedAt = useRef<string | null>(null);
   const pollTimer = useRef<number | null>(null);
+  const conversationPollTimer = useRef<number | null>(null);
   const fileInput = useRef<HTMLInputElement | null>(null);
+  const recognitionRef = useRef<RecognitionLike | null>(null);
+  const lastSeenAiId = useRef<string | null>(null);
+  const lastVoiceInput = useRef(false);
 
   const filteredConversations = useMemo(() => {
     const query = search.trim().toLowerCase();
