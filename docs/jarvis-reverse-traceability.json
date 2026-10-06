@@ -1809,6 +1809,18 @@
       "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
     },
     {
+      "path": "src/app/jarvis/decisions/page.tsx",
+      "sha256": "9a05a62dae191da93219a26bb047efcc158d55782e83f5904644b2ed27c963c8",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-003",
+        "UI-020",
+        "UI-026",
+        "AUTO-022"
+      ],
+      "reason": "First-class Decision Queue route reuses the protected Task state and limits the view to owner decisions without creating a second task authority."
+    },
+    {
       "path": "src/app/jarvis/devices/page.tsx",
       "sha256": "985aa9c049c6eda01f429a820da312ef66b28a8d0cc2e05482950a1e2b3e7f47",
       "classification": "COVERED_BY_REQUIREMENT",
@@ -2038,15 +2050,15 @@
     },
     {
       "path": "src/app/jarvis/JarvisPrimaryShell.tsx",
-      "sha256": "b3ac23078767ff2414ce2ffb54f0d0ffd9eeb7cee39982fb693e3a49930b0494",
+      "sha256": "c3646242e845aced74baddf8143f2015a6f34f95965dd073437ab2285e048466",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "UI-001",
-        "AUTO-001",
-        "OPS-018",
-        "UI-020"
+        "UI-020",
+        "UI-026",
+        "OPS-018"
       ],
-      "reason": "GORIQ Daily Driver primary shell keeps one owner front door with icon-led routine navigation and advanced functions still reachable"
+      "reason": "Usability-first primary shell exposes Home, Projects, New Development, Decision Queue and More while preserving owner authentication and the existing GORIQ control plane."
     },
     {
       "path": "src/app/jarvis/JarvisPriorityNotifications.tsx",
@@ -2344,6 +2356,17 @@
       "reason": "Voice input/persona/policy UI"
     },
     {
+      "path": "src/app/jarvis/more/page.tsx",
+      "sha256": "4688985aa226d20e4153bb2e6c60de20558e1a2a07b6aa5abf392dc7cd6b82e0",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-001",
+        "UI-020",
+        "UI-026"
+      ],
+      "reason": "Mobile-friendly More route keeps devices, settings, research, diagnostics and recovery reachable outside the five primary daily-driver destinations."
+    },
+    {
       "path": "src/app/jarvis/network-label.ts",
       "sha256": "f41140c6c5f3b75cf6117fee4fe75824f99a5ad2b8596424bd5cf11cd95788c3",
       "classification": "COVERED_BY_REQUIREMENT",
@@ -2352,6 +2375,17 @@
         "UI-034"
       ],
       "reason": "Connectivity and degraded state labels"
+    },
+    {
+      "path": "src/app/jarvis/new-development/page.tsx",
+      "sha256": "d66d5f600f742c4aec5de3b12fd0fec5217a3187d35c8aa36fc2dd44d6551619",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-014",
+        "UI-020",
+        "UI-026"
+      ],
+      "reason": "Conversation-first New Development entry reuses existing owner-authenticated command and Goal authority instead of introducing an independent development controller."
     },
     {
       "path": "src/app/jarvis/notification-priority.ts",
@@ -2503,33 +2537,38 @@
     },
     {
       "path": "src/app/jarvis/screen-layout-profiles.ts",
-      "sha256": "806ea838fb73efd71fcbcc8a4b0aae8f4f0a1148c060c26c388ee8608ef5ed64",
+      "sha256": "e80b85cfe84d7bf3e32d05992923a5e4617fae54e99d1985c5df3ad85cca13a2",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
+        "UI-011",
         "UI-015",
-        "UI-016"
+        "UI-016",
+        "UI-019",
+        "UI-027"
       ],
-      "reason": "Per-screen layout presets"
+      "reason": "Per-screen layout profiles are persisted per selected screen design with legacy local-state migration and bounded preset values."
     },
     {
       "path": "src/app/jarvis/settings/GoriqThemeSettings.tsx",
-      "sha256": "5761768d6275c847577dfb38240d9efe358067b22286092a75f7921e1a3aad12",
+      "sha256": "e45f1dd31d2af93b46d5f71908cd30c6c0389bf3f1103fb429e90f906ed58034",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "UI-005",
         "UI-007"
       ],
-      "reason": "Settings-only presentation control exposes the existing 20 themes without changing protected runtime state"
+      "reason": "Screen Design settings expose all 35 owner-distinct presets with immediate preview/apply and browser-local favorites."
     },
     {
       "path": "src/app/jarvis/settings/JarvisLocalSettings.tsx",
-      "sha256": "ffd603ccccba66f6748089b76c51e1543ce50b6768e5e0bbdea758abf00222b2",
+      "sha256": "09b120ce3d6d17d87115a863f610a45efa7769011abd8b7ed2b8562eed1b863a",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "UI-005",
-        "UI-008"
+        "UI-008",
+        "UI-009",
+        "UI-011"
       ],
-      "reason": "Local settings entry"
+      "reason": "Local personalization keeps persona, voice preference, accent and base layout separate from Screen Design and does not mutate protected runtime authority."
     },
     {
       "path": "src/app/jarvis/settings/JarvisOperatorGuide.tsx",
@@ -2542,13 +2581,16 @@
     },
     {
       "path": "src/app/jarvis/settings/JarvisScreenLayoutProfiles.tsx",
-      "sha256": "764d5c6ced9db15d1385ebbc6a90ff6ddd41a59390cf4c4a310b9ee1ee9e2b27",
+      "sha256": "011f9d5337b51ecc3253f200c6a55a40d40c466fb244286eeac09b333eee3f13",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
+        "UI-005",
+        "UI-011",
         "UI-015",
-        "UI-016"
+        "UI-016",
+        "UI-019"
       ],
-      "reason": "Per-screen layout presets"
+      "reason": "Settings surface edits and resets layout profiles for the currently selected Screen Design using browser-local state only."
     },
     {
       "path": "src/app/jarvis/settings/page.tsx",
@@ -2590,13 +2632,16 @@
     },
     {
       "path": "src/app/jarvis/shell.css",
-      "sha256": "06d242f6c441ff64945af43d71927002349032935f035dae7601250fd84c7195",
+      "sha256": "9816cd638d081fd712ef07665ab8abb61d2a3318a7ce132590ead434055a6f35",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "UI-001",
-        "AUTO-001"
+        "UI-006",
+        "UI-020",
+        "UI-026",
+        "UI-027"
       ],
-      "reason": "Single owner front door and navigation shell"
+      "reason": "Primary-shell styling implements the five-item mobile bottom navigation and readable daily-driver presentation."
     },
     {
       "path": "src/app/jarvis/tasks/CognitiveGoalCriteria.tsx",
@@ -2678,14 +2723,15 @@
     },
     {
       "path": "src/app/jarvis/tasks/TaskBoard.tsx",
-      "sha256": "fefd04d5be959274c7c65887b439ee6e6b0e9b5d4721b604a93ee18ed5826941",
+      "sha256": "1795037cc71dc5369cbbc1a8127bbd79de681346b124be85a85afc15c0e472eb",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "UI-003",
         "OPS-001",
-        "OWN-001"
+        "OWN-001",
+        "AUTO-022"
       ],
-      "reason": "Task board and history; #1216 bounded local cognition/owner entry integration, not full capability or physical acceptance; #1219 Direct Goal Bridge wakes bounded Goal execution and exposes shared status/events; parent requirements remain PARTIAL pending E2E."
+      "reason": "Project/task surface exposes current state and a decision-only filtered view while retaining the existing owner-protected state API and Human Gate semantics."
     },
     {
       "path": "src/app/jarvis/teach/page.tsx",
@@ -2738,25 +2784,25 @@
     },
     {
       "path": "src/app/jarvis/theme-catalog.ts",
-      "sha256": "08bd542fbddf3bfe559c3fdf40427b4dc96f586a5144c60b42514b9a7fb32d4b",
+      "sha256": "558cb5f50d9fb4b4dff68b90c28efe09689b5709a5f7d131e421600d17f167a1",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "UI-007",
         "UI-008",
         "UI-010"
       ],
-      "reason": "Theme/persona and display preference storage"
+      "reason": "Presentation-only catalog now preserves the owner-approved 20+15 visual-reference slots as 35 distinct Screen Design presets."
     },
     {
       "path": "src/app/jarvis/themes.css",
-      "sha256": "a2ae82be16f6c0b8ac20235435e1576e9d394114701125bbb537d8501951a45e",
+      "sha256": "0923ccc30ceb1ab9f3ea7514b523a19c497ec191807da97b724d80ac2588a83a",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
+        "UI-006",
         "UI-007",
-        "UI-008",
-        "UI-010"
+        "UI-027"
       ],
-      "reason": "Theme/persona and display preference storage"
+      "reason": "Primary-shell design tokens apply the 35 Screen Design choices without changing Goal, task, data or authority contracts."
     },
     {
       "path": "src/app/jarvis/trusted-device-client.ts",
@@ -2792,13 +2838,14 @@
     },
     {
       "path": "src/app/jarvis/work-shell.css",
-      "sha256": "488d4b08363ec3471d41b9a6a15e84686c2bef729d511a33aae133ee6365a82d",
+      "sha256": "149a85eecbafe7519b83b30267e0da16f6c6dfd5a77e57200d40c1d41a4313c5",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
-        "UI-001",
-        "AUTO-001"
+        "UI-006",
+        "UI-007",
+        "UI-027"
       ],
-      "reason": "Single owner front door and navigation shell"
+      "reason": "Work-surface styling provides distinct visual treatment for the added reference-A Screen Design presets and responsive layouts."
     },
     {
       "path": "src/app/owner-auth.ts",
