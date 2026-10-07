@@ -38,3 +38,5 @@ The code is valid for five minutes and one use. The issuing iPhone keeps it only
 The server feature flag `GORIQ_OWNER_RECOVERY_ENROLLMENT_ENABLED` is disabled by default. Enabling it, changing Production configuration, installing a new build, and collecting physical acceptance evidence are separate operator actions.
 
 Do not count source review, CI, simulator results, or this documentation as physical iPhone acceptance. Physical evidence must omit the recovery code, email, device ID, credential, secret, and tunnel URL.
+
+<!-- approved one-time physical rollout: main 755e8a07ee469473fed9184458447cf5f222ea5e -->
