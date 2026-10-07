@@ -99,23 +99,68 @@ export function dashboardPlist({release,node,revision,dbPath,home}) {
     '<key>StandardOutPath</key><string>'+escapeXml(join(release,'dashboard.out.log'))+'</string>'+
     '<key>StandardErrorPath</key><string>'+escapeXml(join(release,'dashboard.err.log'))+'</string></dict></plist>\n';
 }
+// Keep diagnostic metadata separate from exception text, URLs and response bodies.
+const healthFailureDetails=new WeakMap();
+function healthRejected(reason,httpStatus) {
+  const error=Error('HEALTH_REJECTED');
+  healthFailureDetails.set(error,{reason,...(Number.isInteger(httpStatus) && httpStatus>=100 && httpStatus<=599?{httpStatus}:{})});
+  return error;
+}
+function privateHealthFailure(error) {
+  const detail=healthFailureDetails.get(error);
+  if(detail)return detail;
+  if(['TimeoutError','AbortError'].includes(error?.name))return {reason:'timeout'};
+  const code=error?.cause?.code || error?.code;
+  if(['ENOTFOUND','EAI_AGAIN'].includes(code))return {reason:'dns-failed'};
+  if(['CERT_HAS_EXPIRED','ERR_TLS_CERT_ALTNAME_INVALID','UNABLE_TO_VERIFY_LEAF_SIGNATURE',
+    'DEPTH_ZERO_SELF_SIGNED_CERT','SELF_SIGNED_CERT_IN_CHAIN','UNABLE_TO_GET_ISSUER_CERT_LOCALLY',
+    'ERR_TLS_CERT_SIGNATURE_ALGORITHM_UNSUPPORTED'].includes(code))return {reason:'tls-failed'};
+  if(['ECONNREFUSED','ECONNRESET','ETIMEDOUT','EHOSTUNREACH','ENETUNREACH'].includes(code))return {reason:'connection-failed'};
+  return {reason:'network-failed'};
+}
 async function health(url) {
   const signal=AbortSignal.timeout(5000),response=await fetch(url,{signal,redirect:'error'});
   const reader=response.body?.getReader(),parts=[];let size=0;
-  if(!reader)throw Error('HEALTH_REJECTED');
+  if(!reader)throw healthRejected('response-unavailable');
   const cancel=()=>{void reader.cancel().catch(()=>{});};signal.addEventListener('abort',cancel,{once:true});
   try {
     for(;;) {
-      if(signal.aborted)throw Error('HEALTH_REJECTED');
+      if(signal.aborted)throw healthRejected('timeout');
       const chunk=await reader.read();
-      if(signal.aborted)throw Error('HEALTH_REJECTED');
+      if(signal.aborted)throw healthRejected('timeout');
       if(chunk.done)break;
-      size+=chunk.value.byteLength;if(size>65536)throw Error('HEALTH_REJECTED');parts.push(chunk.value);
+      size+=chunk.value.byteLength;if(size>65536)throw healthRejected('body-too-large');parts.push(chunk.value);
     }
-    if(response.status!==200)throw Error('HEALTH_REJECTED');
-    return JSON.parse(Buffer.concat(parts).toString('utf8'));
+    if(response.status!==200)throw healthRejected('http-status',response.status);
+    try{return JSON.parse(Buffer.concat(parts).toString('utf8'));}
+    catch(error){healthFailureDetails.set(error,{reason:'invalid-json'});throw error;}
   } catch(error){cancel();throw error;}
   finally{signal.removeEventListener('abort',cancel);reader.releaseLock();}
+}
+
+// Observability only: preserve the original check order, short circuit and exceptions.
+export async function verifyDashboardPrivateRoute({host,serve,services},
+  report=record=>console.log('MAC_PRIVATE_HEALTH_DIAGNOSTIC='+JSON.stringify(record))) {
+  const check=async(stage,read,accept)=>{
+    const start=Date.now();
+    const emit=(outcome,detail)=>{
+      const duration=Date.now()-start;
+      const elapsedMs=Number.isFinite(duration)?Math.min(60000,Math.max(0,Math.floor(duration))):0;
+      try{report({version:1,issue:1662,stage,outcome,...detail,elapsedMs});}catch{}
+    };
+    const mismatch=stage==='https-health'?'status-not-ok':'configuration-mismatch';
+    let value;
+    try{value=await read();}
+    catch(error){emit('fail',stage==='https-health'?privateHealthFailure(error):{reason:'query-failed'});throw error;}
+    let accepted;
+    try{accepted=accept(value);}
+    catch(error){emit('fail',{reason:mismatch});throw error;}
+    if(!accepted){emit('fail',{reason:mismatch});throw Error('PRIVATE_ROUTE_REJECTED');}
+    emit('pass',{reason:'verified'});
+  };
+  await check('serve-config',serve,value=>onlyDashboardRoute(value,host));
+  await check('services-config',services,emptyServicesConfig);
+  await check('https-health',()=>health('https://'+host+'/api/health'),value=>value.status==='ok');
 }
 
 async function fileDigest(path) {
@@ -441,10 +486,7 @@ async function main(phase) {
       if(!ready)throw Error('DASHBOARD_HEALTH_REJECTED');await verifyState();
     },
     createRoute:async()=>{validateDashboardApproval(approval,artifacts);await run(cli,['serve','--bg','--yes','--https=443','http://127.0.0.1:3000'],{timeout:30000});},
-    verifyRoute:async()=>{
-      if(!onlyDashboardRoute(await serve(),initial.host) || !emptyServicesConfig(await services()) ||
-        (await health('https://'+initial.host+'/api/health')).status!=='ok')throw Error('PRIVATE_ROUTE_REJECTED');
-    },
+    verifyRoute:()=>verifyDashboardPrivateRoute({host:initial.host,serve,services}),
     verifyPreservation:verifyState,
     recover:async(state)=>recoverDashboardSurfaces({...state,host:initial.host},{
       serve,services,dashboardWritten:async()=>dashboardWritten,ownedPlist,
