@@ -15,6 +15,8 @@ Additionally require current main and the latest matching CI workflow main-push 
 
 The public GitHub metadata path already used by the PC source verifier is reused without tokens or additional workflow permissions. Metadata denial, network failure, timeout, malformed data or rate limiting fails closed. This trades availability for a bounded change with no token-scope expansion. Private-repository migration would require a separately reviewed capability, never a bypass.
 
+Admission also requires at least 21 minutes remaining, exceeding each job's 20-minute timeout. This covers dependency setup and subprocess execution after admission. The validated expiry is passed explicitly to mutation steps and checked again before deployment, runtime recovery strategies, persistence installation, tunnel recovery and environment API writes. A failed check exits even where a legacy recovery call otherwise ignores errors. Executable fixtures advance time from a valid admission to the expiry boundary and reject the later mutation; near-expiry admission is denied too.
+
 The small inline gate is repeated at each job boundary deliberately, avoiding checkout before authorization or a pre-runner decision that can become stale while waiting. Executable fixtures exercise both copies and the existing Scoped Production Deploy contract. CI, secret provisioning, environment protections, preview behavior, runtime recovery and deployment implementations are unchanged. This gate does not authorize those implementations' separately privileged recovery branches.
 
 ## Evidence and limits

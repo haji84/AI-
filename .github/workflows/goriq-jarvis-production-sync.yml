@@ -96,7 +96,9 @@ jobs:
           // Recheck after metadata lookup; never grant an expired or superseded source.
           if ((await get('git/ref/heads/main'))?.object?.sha !== sha) await deny('STALE_MAIN');
           if (expiresAt <= Date.now()) await deny('EXPIRED_OR_INVALID');
-          await appendFile(output, `authorized=true\nissue_number=${issueNumber}\ndeploy_sha=${sha}\n`);
+          // Reserve the entire 20-minute job lifetime, including subprocess setup.
+          if (expiresAt - Date.now() < 21 * 60 * 1000) await deny('INSUFFICIENT_AUTHORIZATION_WINDOW');
+          await appendFile(output, `authorized=true\nissue_number=${issueNumber}\ndeploy_sha=${sha}\nexpires_at=${new Date(expiresAt).toISOString()}\n`);
           if (env.GITHUB_STEP_SUMMARY) {
             await appendFile(env.GITHUB_STEP_SUMMARY, `Production authorization PASS: issue #${issueNumber}, exact main ${sha}.\n`);
           }
@@ -145,10 +147,13 @@ jobs:
 
       - name: Deploy exact verified main commit to JARVIS Production
         id: deploy
+        env:
+          PRODUCTION_AUTHORIZATION_EXPIRES_AT: ${{ steps.authorization.outputs.expires_at }}
         shell: bash
         run: |
           set -euo pipefail
           output="$RUNNER_TEMP/jarvis-hosted-deploy.txt"
+          node scripts/goriq-production-authorization-expiry.mjs || exit 1
           set +e
           pnpm dlx vercel@latest deploy --prod --yes --token="$VERCEL_TOKEN" >"$output" 2>&1
           status=$?
@@ -252,7 +257,9 @@ jobs:
           // Recheck after metadata lookup; never grant an expired or superseded source.
           if ((await get('git/ref/heads/main'))?.object?.sha !== sha) await deny('STALE_MAIN');
           if (expiresAt <= Date.now()) await deny('EXPIRED_OR_INVALID');
-          await appendFile(output, `authorized=true\nissue_number=${issueNumber}\ndeploy_sha=${sha}\n`);
+          // Reserve the entire 20-minute job lifetime, including subprocess setup.
+          if (expiresAt - Date.now() < 21 * 60 * 1000) await deny('INSUFFICIENT_AUTHORIZATION_WINDOW');
+          await appendFile(output, `authorized=true\nissue_number=${issueNumber}\ndeploy_sha=${sha}\nexpires_at=${new Date(expiresAt).toISOString()}\n`);
           if (env.GITHUB_STEP_SUMMARY) {
             await appendFile(env.GITHUB_STEP_SUMMARY, `Production authorization PASS: issue #${issueNumber}, exact main ${sha}.\n`);
           }
@@ -265,6 +272,8 @@ jobs:
 
       - name: Update local JARVIS Broker to exact verified main
         if: github.event_name == 'push' || github.event_name == 'workflow_run'
+        env:
+          PRODUCTION_AUTHORIZATION_EXPIRES_AT: ${{ steps.authorization.outputs.expires_at }}
         shell: bash
         run: |
           set -euo pipefail
@@ -279,6 +288,7 @@ jobs:
             git merge-base --is-ancestor "$SYNC_COMMIT_SHA" origin/main || { echo "RUNTIME_PREFLIGHT verified_sha_not_on_main" >&2; exit 1; }
           fi
           STATE_ROOT="$HOME/Library/Application Support/JARVIS"
+          node scripts/goriq-production-authorization-expiry.mjs || exit 1
           mkdir -p "$STATE_ROOT"
           printf '%s\n' "$SYNC_COMMIT_SHA" > "$STATE_ROOT/runtime-target-main-sha"
           ENV_FILE="$STATE_ROOT/jarvis.env"
@@ -291,8 +301,10 @@ jobs:
             exit 1
           fi
           if grep -q '^GORIQ_RUNTIME_REVISION=' "$ENV_FILE"; then
+            node scripts/goriq-production-authorization-expiry.mjs || exit 1
             sed -i '' "s/^GORIQ_RUNTIME_REVISION=.*/GORIQ_RUNTIME_REVISION=$SYNC_COMMIT_SHA/" "$ENV_FILE"
           else
+            node scripts/goriq-production-authorization-expiry.mjs || exit 1
             printf '\nGORIQ_RUNTIME_REVISION=%s\n' "$SYNC_COMMIT_SHA" >> "$ENV_FILE"
           fi
           chmod 600 "$ENV_FILE"
@@ -304,6 +316,7 @@ jobs:
             fi
           }
           ensure_runtime() {
+            node scripts/goriq-production-authorization-expiry.mjs || exit 1
             local label
             label="$(runtime_label)"
             if [[ -z "$label" ]]; then
@@ -334,6 +347,7 @@ jobs:
 
           recovery_complete=false
           for strategy in restart canonical-reinstall retire-legacy-owner zero-touch stale-process-reset; do
+            node scripts/goriq-production-authorization-expiry.mjs || exit 1
             echo "RUNTIME_RECOVERY strategy=$strategy"
             case "$strategy" in
               restart)
@@ -409,12 +423,16 @@ jobs:
 
       - name: Reconcile Mac persistence and ChatGPT bridge from exact main
         if: github.event_name == 'workflow_run' || github.event_name == 'workflow_dispatch'
+        env:
+          PRODUCTION_AUTHORIZATION_EXPIRES_AT: ${{ steps.authorization.outputs.expires_at }}
         shell: bash
         run: |
           set -euo pipefail
+          node scripts/goriq-production-authorization-expiry.mjs || exit 1
           echo "MAC_RUNTIME_RECONCILE sha=$(git rev-parse HEAD)"
           chmod +x             scripts/gai-macbook-watchdog.sh             scripts/gai-macbook-runner-supervisor.sh             scripts/install-macbook-persistence.sh             scripts/install-macos-chatgpt-bridge.sh
           GAI_RUNNER_ROOT="$HOME/actions-runner" ./scripts/install-macbook-persistence.sh
+          node scripts/goriq-production-authorization-expiry.mjs || exit 1
           bash scripts/install-macos-chatgpt-bridge.sh
           launchctl print "gui/$(id -u)/com.gai.runner-supervisor" >/dev/null
           launchctl print "gui/$(id -u)/com.ai-company.chatgpt-bridge" >/dev/null
@@ -456,6 +474,8 @@ jobs:
 
       - name: Sync live JARVIS endpoints into Vercel
         id: sync
+        env:
+          PRODUCTION_AUTHORIZATION_EXPIRES_AT: ${{ steps.authorization.outputs.expires_at }}
         shell: bash
         run: |
           set -euo pipefail
@@ -490,10 +510,12 @@ jobs:
           : "${VERCEL_TOKEN:?missing VERCEL_TOKEN}"
 
           if ! broker_is_live; then
+            node scripts/goriq-production-authorization-expiry.mjs || exit 1
             echo "Stored Quick Tunnel is stale. Rotating the Broker tunnel automatically."
             launchctl kickstart -k "gui/$(id -u)/com.aicompany.jarvis-broker" >/dev/null 2>&1 || true
             launchctl kickstart -k "gui/$(id -u)/com.aicompany.jarvis-broker-tunnel" >/dev/null 2>&1 || true
             sleep 5
+            node scripts/goriq-production-authorization-expiry.mjs || exit 1
             launchctl kickstart -k "gui/$(id -u)/com.aicompany.jarvis-zero-touch" >/dev/null 2>&1 || true
 
             refreshed=false
@@ -552,6 +574,10 @@ jobs:
 
           const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
           async function request(url, init = {}) {
+            if (init.method && init.method !== 'GET') {
+              const { assertProductionAuthorizationFresh } = await import('./scripts/goriq-production-authorization-expiry.mjs');
+              assertProductionAuthorizationFresh(process.env.PRODUCTION_AUTHORIZATION_EXPIRES_AT);
+            }
             const response = await fetch(url, { ...init, headers: { ...headers, ...(init.headers || {}) } });
             const text = await response.text();
             let body = null;
@@ -601,6 +627,8 @@ jobs:
       - name: Redeploy Production with synchronized environment
         id: deploy
         if: steps.sync.outputs.changed == 'true'
+        env:
+          PRODUCTION_AUTHORIZATION_EXPIRES_AT: ${{ steps.authorization.outputs.expires_at }}
         shell: bash
         run: |
           set -uo pipefail
@@ -608,6 +636,7 @@ jobs:
           RETRY_FILE="$STATE_ROOT/vercel-deploy-retry-after.epoch"
           OUTPUT_FILE="$RUNNER_TEMP/jarvis-vercel-deploy-output.txt"
 
+          node scripts/goriq-production-authorization-expiry.mjs || exit 1
           set +e
           pnpm dlx vercel@latest deploy --prod --yes --token="$VERCEL_TOKEN" >"$OUTPUT_FILE" 2>&1
           status=$?

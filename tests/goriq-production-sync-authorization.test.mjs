@@ -70,6 +70,7 @@ for (const job of ['deploy-code','sync']) {
     ['unmerged PR',d=>{d.pulls[0].merged_at=null;}],
     ['wrong PR base repository',d=>{d.pulls[0].base.repo.full_name='other/repo';}],
     ['expired scope',d=>{d.pulls[0].body=d.pulls[0].body.replace('2099-01-01','2000-01-01');}],
+    ['scope cannot cover bounded job lifetime',d=>{d.pulls[0].body=d.pulls[0].body.replace('2099-01-01T00:00:00Z',new Date(Date.now()+60000).toISOString());}],
     ['malformed expiry',d=>{d.pulls[0].body=d.pulls[0].body.replace('2099-01-01T00:00:00Z','invalid');}],
     ['non-owner issue',d=>{d.issue.user.login='someone-else';}],
     ['non-completion command',d=>{d.issue.body=d.issue.body.replace('最後まで進めて','進めて');}],
