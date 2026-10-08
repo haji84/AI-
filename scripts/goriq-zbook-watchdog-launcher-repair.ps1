@@ -21,6 +21,10 @@ function Write-RecoveryStream($stream,[byte[]]$bytes) {
   $stream.SetLength($bytes.Length)
   $stream.Flush($true)
 }
+function Write-RecoveryBackup([string]$path,[byte[]]$bytes) {
+  $stream=[IO.File]::Open($path,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
+  try{$stream.Write($bytes,0,$bytes.Length);$stream.Flush($true)}finally{$stream.Dispose()}
+}
 function Write-RecoveryExistingBytes([string]$path,[byte[]]$bytes) {
   # Keep the existing file identity/owner. The original durable backup is saved
   # by the caller before this bounded write; the malformed VBS is repaired last.
@@ -128,9 +132,9 @@ try {
   $backupRoot=Join-Path $stateRoot ('recovery-1745\'+$revision)
   if(Test-Path -LiteralPath $backupRoot){throw 'backup-already-exists'}
   New-Item -ItemType Directory -Path $backupRoot | Out-Null
-  [IO.File]::WriteAllBytes((Join-Path $backupRoot 'launcher-before.vbs'),$launcherBefore)
-  [IO.File]::WriteAllBytes((Join-Path $backupRoot 'watchdog-before.ps1'),$watchdogBefore)
-  $taskXml | ConvertTo-Json | Set-Content (Join-Path $backupRoot 'tasks-before.json') -Encoding UTF8
+  Write-RecoveryBackup (Join-Path $backupRoot 'launcher-before.vbs') $launcherBefore
+  Write-RecoveryBackup (Join-Path $backupRoot 'watchdog-before.ps1') $watchdogBefore
+  Write-RecoveryBackup (Join-Path $backupRoot 'tasks-before.json') ([Text.Encoding]::UTF8.GetBytes(($taskXml | ConvertTo-Json)))
   if((Get-FileHash (Join-Path $backupRoot 'launcher-before.vbs') -Algorithm SHA256).Hash -ne $expectedVbs -or
     (Get-FileHash (Join-Path $backupRoot 'watchdog-before.ps1') -Algorithm SHA256).Hash -ne $expectedWatchdog){throw 'backup-mismatch'}
   Assert-WatchdogRecoveryApproval $approval ([datetimeoffset]::UtcNow)
