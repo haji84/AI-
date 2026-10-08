@@ -20,7 +20,7 @@ All 341 IDs and 338 incomplete requirements remain. No requirement becomes VERIF
 - Source paths/line numbers refer to audited_commit, not a future runtime or deployment.
 - The global ledger audited_commit and row delivery_audit retain their historical full-inventory scope; current conclusions live in this linked report.
 - PR #1208 is staged/draft with physical acceptance pending and is excluded from audited main.
-- Smart App Control remains On; Runner/node-loss finalVerifier, #1662 ACL recurrence, Windows physical gates and 17 Cognitive final verifications remain open; Nubia/Android38 deferred.
+- This source audit makes no native recovery claim. Existing runner-loss run37607612844 completed at09:19Z and is tracked separately in Issue1745; Coordinator/network/OS recovery, Issue1662 ACL recurrence, Windows physical gates and17 Cognitive final verifications remain open. Nubia/Android38 deferred.
 
 Descriptions, required evidence, prior evidence records, verification commits and historical delivery_audit are unchanged. Historical NO_CODE_MAPPED/STAGED_CODE_ONLY values describe the old snapshot; the linked JSON report contains this newer, bounded classification. UI-015 is conservatively PARTIAL because common presets are mounted but widget presets remain disconnected.
 
