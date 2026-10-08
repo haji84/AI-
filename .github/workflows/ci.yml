@@ -75,3 +75,4 @@ jobs:
         run: |
           ./tests/goriq-pc-runtime-replace.test.ps1
           ./tests/goriq-zbook-runtime-owner-repair.test.ps1
+          ./tests/goriq-pc-runtime-launch.test.ps1
