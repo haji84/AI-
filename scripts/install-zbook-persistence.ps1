@@ -4,9 +4,11 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'gai-zbook-launcher-file.ps1')
 $stateRoot = Join-Path $env:LOCALAPPDATA 'GAIWorker'
 New-Item -ItemType Directory -Force -Path $stateRoot | Out-Null
 
+Copy-Item -Force (Join-Path $PSScriptRoot 'gai-zbook-launcher-file.ps1') (Join-Path $stateRoot 'gai-zbook-launcher-file.ps1')
 $sourceWatchdog = Join-Path $PSScriptRoot 'gai-zbook-watchdog.ps1'
 $persistedWatchdog = Join-Path $stateRoot 'gai-zbook-watchdog.ps1'
 Copy-Item -Force $sourceWatchdog $persistedWatchdog
@@ -33,7 +35,7 @@ $launcherContent = @(
   'Set shell = CreateObject("WScript.Shell")',
   ('shell.Run "{0}", 0, False' -f $escapedWatchdogCommand)
 ) -join "`r`n"
-Set-Content -Path $launcherVbs -Value $launcherContent -Encoding Unicode
+Write-GaiLauncherFile $launcherVbs ($launcherContent + "`r`n")
 $taskCommand = "`"$wscript`" //B //NoLogo `"$launcherVbs`""
 
 function Get-LegacyWatchdogPath {
@@ -110,6 +112,7 @@ if ($taskRegistrationFailed) {
     try {
       $legacyWatchdogDirectory = Split-Path -Parent $legacyWatchdogPath
       if (Test-Path $legacyWatchdogDirectory) {
+        Copy-Item -Force (Join-Path $PSScriptRoot 'gai-zbook-launcher-file.ps1') (Join-Path $legacyWatchdogDirectory 'gai-zbook-launcher-file.ps1')
         Copy-Item -Force $sourceWatchdog $legacyWatchdogPath
         Write-Host "Synchronized the current watchdog to the existing task path: $legacyWatchdogPath"
       }
