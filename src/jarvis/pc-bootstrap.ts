@@ -3,7 +3,7 @@ import { mkdtemp, open, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { CommonWorkerRuntime } from "../gai/common-worker-runtime.ts";
-import { PC_PUBLIC_DIGEST, pcDigest, validatePcPublicWork } from "./pc-durable-work.ts";
+import { PC_PUBLIC_DIGEST, pcDigest, validatePcPublicWork, verifiedPcCompletion } from "./pc-durable-work.ts";
 import type { DurableTask, DurableTaskExecutionClaim } from "../gai/durable-task-runtime.ts";
 import { createHash, randomUUID, sign } from "node:crypto";
 import type { PcLocalIdentity } from "./pc-local-identity.ts";
@@ -59,6 +59,7 @@ export interface PcExecutionEvidence {
   status: "idle" | "completed"; nodeId: string; sourceRevision: string;
   taskId?: string; executionEpoch?: number; sha256?: string; bytes?: number;
   filesystemExecuted?: boolean; signedResultAccepted?: boolean; observedAt: string;
+  reusedExistingExecution?: boolean; executionObservedAt?: string;
 }
 /** Bounded public input only. Never accepts a command, an existing file path or Owner credentials. */
 export async function executeLocalPcWork(input: { base: string; revision: string; identity: PcLocalIdentity;
@@ -107,6 +108,14 @@ async function executeClaimedPcWork(input: { base: string; revision: string; ide
     !heartbeat.node.pcAuthority?.capabilityCeiling?.includes("filesystem")) throw new Error("PC_WORK_AUTHORITY_REQUIRED");
   const assignment = await post("/api/jarvis/worker/pc/next", input.taskId ? { taskId: input.taskId } : {});
   const evidence = { nodeId: identity.nodeId, sourceRevision: input.revision, observedAt: new Date().toISOString() };
+  if (assignment.completed !== undefined) {
+    if (!input.taskId || assignment.task !== null || assignment.claim !== undefined ||
+      assignment.completed?.id !== input.taskId) throw new Error("PC_WORK_COMPLETION_REJECTED");
+    const result = verifiedPcCompletion(assignment.completed, identity.nodeId, heartbeat.node.pcAuthority.goalIssue);
+    return { ...evidence, status: "completed", taskId: input.taskId, executionEpoch: result.executionEpoch,
+      sha256: result.sha256, bytes: result.bytes, signedResultAccepted: true,
+      reusedExistingExecution: true, executionObservedAt: result.observedAt };
+  }
   if (assignment.task === null) return { ...evidence, status: "idle" };
   const task = assignment.task as DurableTask, claim = assignment.claim as DurableTaskExecutionClaim;
   const work = validatePcPublicWork(task?.payload);

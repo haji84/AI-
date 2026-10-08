@@ -104,3 +104,37 @@ test("Fabric ignores stale and critical-thermal candidates without waiting for t
   const task = await service.enqueue(work, now);
   assert.equal((await service.next(c.id, now)).task?.id, task.id);
 });
+
+test("explicit completed-task reconnect returns the original verified outcome without mutating work", async () => {
+  const store = new MemoryDurableTaskStore(), runtime = new DurableTaskRuntime(store);
+  const a = node("pc-a"), b = node("pc-b"), service = new PcDurableWork(runtime, () => [a, b]);
+  const task = await service.enqueue({ ...work, targetNodeId: a.id }, now);
+  const assignment = await service.next(a.id, now, task.id);
+  const done = await service.complete(a.id, { taskId: task.id, claim: assignment.claim, detail: pcDigest(work.content) }, now);
+  const before = await store.load();
+  const restarted = new PcDurableWork(new DurableTaskRuntime(store), () => [a, b]);
+  assert.deepEqual(await restarted.next(a.id, now, task.id), { task: null, completed: done });
+  assert.deepEqual(await store.load(), before, "reconciliation must not reclaim unrelated leases or append history");
+  assert.deepEqual(await restarted.next(a.id, now), { task: null }, "no bulk completed-task discovery");
+  assert.deepEqual(await restarted.next(b.id, now, task.id), { task: null }, "another PC cannot recover the receipt");
+  a.pcAuthority!.goalIssue = 999;
+  assert.deepEqual(await restarted.next(a.id, now, task.id), { task: null }, "current Goal authority is required");
+});
+
+test("completed receipt refuses corrupt provenance, digest, epoch and current capability", async () => {
+  const store = new MemoryDurableTaskStore(), runtime = new DurableTaskRuntime(store), a = node("pc-a");
+  const service = new PcDurableWork(runtime, () => [a]);
+  const task = await service.enqueue(work, now), assigned = await service.next(a.id, now, undefined);
+  await service.complete(a.id, { taskId: task.id, claim: assigned.claim, detail: pcDigest(work.content) }, now);
+  const good = (await store.load())!;
+  for (const change of [{ sha256: "f".repeat(64) }, { bytes: -1 }, { executionEpoch: 99 },
+    { verified: false }, { issuer: "unverified" }, { observedAt: "invalid" }]) {
+    const bad = structuredClone(good);
+    bad.tasks[0].result = { ...(bad.tasks[0].result as object), ...change };
+    await store.save(bad);
+    await assert.rejects(() => new PcDurableWork(new DurableTaskRuntime(store), () => [a]).next(a.id, now, task.id), /COMPLETION/);
+  }
+  await store.save(good);
+  a.pcAuthority!.roles = ["Storage"];
+  await assert.rejects(() => service.next(a.id, now, task.id), /AUTHORITY/);
+});
