@@ -15,6 +15,37 @@ function Assert-WatchdogRecoveryApproval($approval,[datetimeoffset]$now) {
     $now -lt [datetimeoffset]::Parse($approval.approvedAt) -or $now -ge [datetimeoffset]::Parse($approval.expiresAt) -or
     ([datetimeoffset]::Parse($approval.expiresAt)-[datetimeoffset]::Parse($approval.approvedAt)).TotalHours -gt 24){throw 'approval'}
 }
+function Write-RecoveryStream($stream,[byte[]]$bytes) {
+  $stream.Position=0
+  $stream.Write($bytes,0,$bytes.Length)
+  $stream.SetLength($bytes.Length)
+  $stream.Flush($true)
+}
+function Write-RecoveryBackup([string]$path,[byte[]]$bytes) {
+  $stream=[IO.File]::Open($path,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
+  try{$stream.Write($bytes,0,$bytes.Length);$stream.Flush($true)}finally{$stream.Dispose()}
+}
+function Write-RecoveryExistingBytes([string]$path,[byte[]]$bytes) {
+  # Keep the existing file identity/owner. The original durable backup is saved
+  # by the caller before this bounded write; the malformed VBS is repaired last.
+  $stream=[IO.File]::Open($path,[IO.FileMode]::Open,[IO.FileAccess]::ReadWrite,[IO.FileShare]::None)
+  try {
+    if($stream.Length -gt 1048576 -or $bytes.Length -gt 1048576){throw 'watchdog-size'}
+    $copy=[IO.MemoryStream]::new()
+    try{$stream.CopyTo($copy);$original=$copy.ToArray()}finally{$copy.Dispose()}
+    try { Write-RecoveryStream $stream $bytes }
+    catch {
+      # Roll back through the same exclusive handle; no replacement or ACL write.
+      try {
+        $stream.Position=0
+        $stream.Write($original,0,$original.Length)
+        $stream.SetLength($original.Length)
+        $stream.Flush($true)
+      }catch{throw 'watchdog-write-and-rollback-failed'}
+      throw
+    }
+  }finally{$stream.Dispose()}
+}
 function Replace-RecoveryBytes([string]$path,[byte[]]$bytes) {
   $temporary=Join-Path (Split-Path -Parent $path) ('.goriq-1745-'+[guid]::NewGuid().ToString('N')+'.tmp')
   $replacementStarted=$false
@@ -67,7 +98,10 @@ try {
     if((Get-Item -LiteralPath $path).Attributes -band [IO.FileAttributes]::ReparsePoint){throw 'native-path'}
     $acl=Get-Acl -LiteralPath $path
     $owner=if($acl.Owner -match '^S-1-'){$acl.Owner}else{([Security.Principal.NTAccount]$acl.Owner).Translate([Security.Principal.SecurityIdentifier]).Value}
-    if($owner -ne $identity.User.Value){throw 'native-owner'}
+    # Native inspection: directory and script belong to Administrators; only
+    # VBS belongs to the current task user. Bind to that exact mixed baseline.
+    $expectedOwner=if($path -eq $launcher){$identity.User.Value}else{'S-1-5-32-544'}
+    if($owner -ne $expectedOwner -or $acl.GetGroup([Security.Principal.SecurityIdentifier]).Value -ne $identity.User.Value){throw 'native-owner'}
     $acls[$path]=$acl.Sddl
   }
   if((Get-FileHash $launcher -Algorithm SHA256).Hash -ne $expectedVbs -or
@@ -98,9 +132,9 @@ try {
   $backupRoot=Join-Path $stateRoot ('recovery-1745\'+$revision)
   if(Test-Path -LiteralPath $backupRoot){throw 'backup-already-exists'}
   New-Item -ItemType Directory -Path $backupRoot | Out-Null
-  [IO.File]::WriteAllBytes((Join-Path $backupRoot 'launcher-before.vbs'),$launcherBefore)
-  [IO.File]::WriteAllBytes((Join-Path $backupRoot 'watchdog-before.ps1'),$watchdogBefore)
-  $taskXml | ConvertTo-Json | Set-Content (Join-Path $backupRoot 'tasks-before.json') -Encoding UTF8
+  Write-RecoveryBackup (Join-Path $backupRoot 'launcher-before.vbs') $launcherBefore
+  Write-RecoveryBackup (Join-Path $backupRoot 'watchdog-before.ps1') $watchdogBefore
+  Write-RecoveryBackup (Join-Path $backupRoot 'tasks-before.json') ([Text.Encoding]::UTF8.GetBytes(($taskXml | ConvertTo-Json)))
   if((Get-FileHash (Join-Path $backupRoot 'launcher-before.vbs') -Algorithm SHA256).Hash -ne $expectedVbs -or
     (Get-FileHash (Join-Path $backupRoot 'watchdog-before.ps1') -Algorithm SHA256).Hash -ne $expectedWatchdog){throw 'backup-mismatch'}
   Assert-WatchdogRecoveryApproval $approval ([datetimeoffset]::UtcNow)
@@ -112,7 +146,7 @@ try {
   $helperCreated=$true
   try{$file.Write($helperBytes,0,$helperBytes.Length);$file.Flush($true)}finally{$file.Dispose()}
   $changed=$true
-  Replace-RecoveryBytes $watchdog ([IO.File]::ReadAllBytes((Join-Path $PSScriptRoot 'gai-zbook-watchdog.ps1')))
+  Write-RecoveryExistingBytes $watchdog ([IO.File]::ReadAllBytes((Join-Path $PSScriptRoot 'gai-zbook-watchdog.ps1')))
   Write-GaiLauncherFile $launcher $nextLauncher
   $stage='verify-publication'
   foreach($path in $acls.Keys){if((Get-GaiComparableFileSddl (Get-Acl -LiteralPath $path).Sddl) -cne (Get-GaiComparableFileSddl $acls[$path])){throw 'acl-changed'}}
@@ -130,7 +164,7 @@ try {
   $reason=$_.Exception.Message
   if($changed){
     try{
-      Replace-RecoveryBytes $watchdog $watchdogBefore
+      Write-RecoveryExistingBytes $watchdog $watchdogBefore
       Replace-RecoveryBytes $launcher $launcherBefore
       $restored=((Get-FileHash $watchdog -Algorithm SHA256).Hash -eq $expectedWatchdog -and (Get-FileHash $launcher -Algorithm SHA256).Hash -eq $expectedVbs)
       foreach($path in $acls.Keys){if((Get-GaiComparableFileSddl (Get-Acl -LiteralPath $path).Sddl) -cne (Get-GaiComparableFileSddl $acls[$path])){$restored=$false}}
@@ -138,7 +172,7 @@ try {
       $rollbackFailed=-not $restored
     }catch{$rollbackFailed=$true}
   }
-  $known=@('source','main-ci','approval','unexpected-helper','native-path','native-view','native-owner','baseline-hash','duplicate-shape','task-baseline','runner-already-active','backup-already-exists','backup-mismatch','baseline-changed','acl-changed','task-changed','launcher-mismatch','writer-mismatch')
+  $known=@('source','main-ci','approval','unexpected-helper','native-path','native-view','native-owner','baseline-hash','duplicate-shape','task-baseline','runner-already-active','backup-already-exists','backup-mismatch','baseline-changed','acl-changed','task-changed','launcher-mismatch','writer-mismatch','watchdog-size','watchdog-write-and-rollback-failed')
   if($reason -notin $known){$reason='recovery-failed'}
   @{version=1;issue=1745;phase=$Phase;failedStage=$stage;reason=$reason;changed=$changed;helperRetained=$helperCreated;restored=$restored;rollbackFailed=$rollbackFailed;watchdogRecoveryVerified=$false;observedAt=[datetimeoffset]::UtcNow.ToString('o')} | ConvertTo-Json -Compress
   exit 1
