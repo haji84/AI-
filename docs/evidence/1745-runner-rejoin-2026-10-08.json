@@ -1,0 +1,134 @@
+{
+  "schema_version": 1,
+  "issue": 1745,
+  "observed_date": "2026-10-08",
+  "status": "RUNNER_REJOIN_CONFIRMED_PRODUCT_FAILOVER_UNVERIFIED",
+  "workflow": {
+    "run_id": 37607612844,
+    "source_sha": "b059424d4904c74d7ff0068652adcfa6380ddb90",
+    "jobs_passed": 7,
+    "jobs_total": 7,
+    "zbook_rejoin_job": 112747693411,
+    "final_verifier_job": 113239884971,
+    "final_verified_at": "2026-10-08T09:19:06.233Z",
+    "artifact_id": 11539568832,
+    "artifact_zip_sha256": "268ed6d09f50b81c02f31c22ef1b895ad4b927e4d697817a4d67d343c805a219",
+    "raw_receipt_path": "docs/evidence/1745-node-loss-final-raw.json",
+    "raw_receipt_sha256": "1a72d82b0e23ac94834a418e1ec3a76d43cb9b5605102a1c529308180e3dbe19"
+  },
+  "proven_scope": [
+    "The harness executed on physical MacBook and ZBook; listeners were deliberately terminated and replacement listener identities later ran the rejoin jobs.",
+    "Each opposite physical host reclaimed two artifact-transferred JSON task records, advanced execution epoch1 to2, rejected stale completion claims and preserved the checkpoint reference.",
+    "Native ZBook listener20268 started2026-10-08T09:10:05.2977006Z and remained present with an established443 connection at14:18Z."
+  ],
+  "not_proven": [
+    "Native Broker/Worker workload migration and signed result return",
+    "Checkpoint payload restoration, independent unrelated workload continuity or workload rebalance",
+    "PINNED-only waiting or SIDE_EFFECTING duplicate prevention",
+    "Coordinator loss, actual network partition, same-LAN-only continuation, reconnect/resync/conflict resolution",
+    "OS reboot, no-login service startup, AC/battery/UPS recovery",
+    "Pristine unattended recovery, absence of repair intervention or a bounded recovery time"
+  ],
+  "receipt_caveats": [
+    {
+      "source": "scripts/goriq-two-node-failover-e2e.ts:200",
+      "detail": "Survivor phase loads artifact-transferred JSON into DurableTaskRuntime and calls completeClaimed with a constructed result. This is a state-machine harness executed across physical hosts, not a native workload migration."
+    },
+    {
+      "source": "scripts/goriq-two-node-failover-e2e.ts:113",
+      "detail": "Checkpoint evidence is a reference string; payload restoration is not exercised."
+    },
+    {
+      "source": "scripts/goriq-node-loss-rejoin-e2e.mjs:118",
+      "detail": "watchdogRecovered is set after identity/status checks; launch causality or absence of intervention is not checked."
+    },
+    {
+      "source": "scripts/goriq-node-loss-rejoin-e2e.mjs:179",
+      "detail": "watchdogAutomaticRecoveryProven is assigned true by the v1 final verifier. Retain this raw historical field without adopting its broader meaning."
+    },
+    {
+      "source": "scripts/goriq-node-loss-rejoin-e2e.mjs:100",
+      "detail": "Missing consecutiveRunnerFailures defaults to0. The raw rejoin receipt does not establish measured clean failure history."
+    }
+  ],
+  "native_observations": {
+    "evidence_kind": "NATIVE_READ_ONLY_OBSERVATION",
+    "protection": {
+      "observed_at": "2026-10-08T14:04:57.3728783Z",
+      "policy_state": 1,
+      "smart_app_control": "On",
+      "antivirus_enabled": true,
+      "realtime_protection_enabled": true
+    },
+    "watchdog": {
+      "checked_at": "2026-10-08T14:18:03.468396Z",
+      "runner_healthy": true,
+      "runner_connection_healthy": true,
+      "consecutive_failures": 0,
+      "active_workers": 0,
+      "recovery_deferred": false
+    },
+    "listener": {
+      "pid": 20268,
+      "started_at": "2026-10-08T09:10:05.2977006Z",
+      "established443_count": 1
+    },
+    "tasks": [
+      {
+        "name": "GAI-ZBook-Runner-OnLogon",
+        "run_level": "Limited",
+        "logon_type": "Interactive",
+        "last_result": 1,
+        "last_run": "2026-10-06T08:28:45Z"
+      },
+      {
+        "name": "GAI-ZBook-Runner-Supervisor",
+        "run_level": "Limited",
+        "logon_type": "Interactive",
+        "last_result": 0,
+        "last_run": "2026-10-08T14:18:01Z"
+      },
+      {
+        "name": "GAI-ZBook-Watchdog",
+        "run_level": "Limited",
+        "logon_type": "Interactive",
+        "last_result": 0,
+        "last_run": "2026-10-08T14:14:01Z"
+      }
+    ],
+    "watchdog_log": [
+      "2026-10-08T18:10:02.8523283+09:00 GitHub runner connection is unhealthy for 143 consecutive checks. Recycling idle listener.",
+      "2026-10-08T18:10:04.8818670+09:00 Starting GitHub runner.",
+      "2026-10-08T18:10:05.2586531+09:00 WARNING: GitHub runner is still unavailable after recovery attempt."
+    ],
+    "interpretation": "Launch log correlates with the replacement listener start, after prior approved watchdog file repair. Subsequent jobs and current connection prove rejoin; they do not prove the stronger untouched/unattended/no-login recovery contract. Why App Control later allowed execution remains unknown."
+  },
+  "version_probes": {
+    "official_release": "https://github.com/actions/runner/releases/tag/v2.338.0",
+    "official_zip_sha256": "f48e0750a21812bca5f82de5f7f5aeae71abee647fab5a582f1742d07eba455f",
+    "official_digest_match": true,
+    "listener_and_worker_exe_dll_authenticode": "NotSigned",
+    "isolated_new": {
+      "version": "2.338.0",
+      "exit_code": 0,
+      "observed_at": "2026-10-08T14:04:07.181119Z"
+    },
+    "installed_existing": {
+      "version": "2.337.0",
+      "exit_code": 0,
+      "observed_at": "2026-10-08T14:09:42.058715Z"
+    },
+    "binaries_updated": false,
+    "registration_changed": false,
+    "security_policy_changed": false,
+    "limitation": "Version probes can write diagnostic logs; they are not connection/recovery acceptance. Existing listener returned hours before these probes. New release was not installed and is not the cause of recovery."
+  },
+  "verification": {
+    "artifact_digest": "PASS",
+    "source_harness_diff_b059_to_1c948": "UNCHANGED",
+    "offline_receipt_replay": "PASS; no additional physical execution",
+    "independent_source_review": "No dispute with7/7 PASS; source review identified and retained the exact scope limits above.",
+    "documentation_consistency": "PASS: original artifact bytes/hash and replay match; source SHA fixed; canonical ledger unchanged; only four permitted state fields changed"
+  },
+  "next_action": "Retain the successful runner rejoin, original recovery backups and SAC On. Before more failure injection, inspect existing Coordinator/network acceptance paths and native Broker/Worker baseline, address live identity/runtime prerequisites within their exact authority, then test actual workloads with independent result oracles. Keep #1662 no-repeat ACL boundary and #1207 physical gate; Nubia deferred."
+}
