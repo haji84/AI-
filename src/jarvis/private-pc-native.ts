@@ -79,7 +79,7 @@ export function registeredPrivatePcSigner(identity: PcLocalIdentity, node: Jarvi
     if (privateKey.asymmetricKeyType !== "ed25519" || publicKey.asymmetricKeyType !== "ed25519" ||
       createPublicKey(privateKey).export({ type: "spki", format: "pem" }) !== publicKey.export({ type: "spki", format: "pem" }) ||
       publicKey.export({ type: "spki", format: "pem" }) !== createPublicKey(registered.publicKeyPem).export({ type: "spki", format: "pem" })) throw new Error();
-    return { identity, revision };
+    return { identity, revision, roles: [...node.pcAuthority.roles] };
   } catch { throw new Error("PC_PRIVATE_SIGNER_UNAVAILABLE"); }
 }
 /** A Tailnet address never grants trust: require the already enrolled counterpart. */

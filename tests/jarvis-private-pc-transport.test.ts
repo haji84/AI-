@@ -7,6 +7,23 @@ const keys = generateKeyPairSync("ed25519");
 const peer = { nodeId: "zbook", algorithm: "ed25519" as const,
   publicKeyPem: keys.publicKey.export({ type: "spki", format: "pem" }).toString(), enrolledAt: new Date().toISOString() };
 const revision = "a".repeat(40), origin = "https://zbook.tailfixture.ts.net", path = "/api/jarvis/worker/pc/next";
+test("observation relay requires receiver Storage plus Coordinator before forwarding and bounds its body", async () => {
+  assert.ok(api);
+  let calls = 0, roles: string[] | undefined;
+  const relay = api.privatePcRelay({ ingress: async () => true, signer: async () => ({ identity: { nodeId: peer.nodeId,
+    privateKeyPem: keys.privateKey.export({ type: "pkcs8", format: "pem" }).toString() }, revision, roles }),
+    upstream: async () => { calls++; return Response.json({}); } });
+  const receive = "/api/jarvis/worker/pc/observation/receive";
+  for (const missing of [undefined, ["Coordinator"], ["Storage"]]) {
+    roles = missing; assert.equal((await relay(request(receive))).status, 502); assert.equal(calls, 0);
+  }
+  roles = ["Storage", "Coordinator"];
+  assert.equal((await relay(request(receive))).status, 200); assert.equal(calls, 1);
+  const oversized = request(receive);
+  assert.equal((await relay(new Request(oversized.url, { method: "POST", headers: oversized.headers, body: "x".repeat(65537) }))).status, 502);
+  assert.equal(calls, 1);
+  assert.equal((await relay(request("/api/jarvis/worker/pc/observation/export"))).status, 404);
+});
 function request(pathname = path, nodeId = "macbook") {
   return new Request(origin + pathname, { method: "POST", body: "{}", headers: {
     "content-type": "application/json", "x-jarvis-node-id": nodeId,

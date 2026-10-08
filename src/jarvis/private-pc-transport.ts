@@ -2,8 +2,9 @@ import { createHash, createPublicKey, sign, verify } from "node:crypto";
 import type { JarvisWorkerIdentity } from "./worker-auth.ts";
 import { canonicalWorkerRequest } from "./worker-auth.ts";
 import { privateWorkerHeaders } from "./private-worker-ingress.ts";
+import { PC_OBSERVATION_RECEIVE, PC_OBSERVATION_MAX_BYTES } from "./pc-task-observation.ts";
 
-const paths = new Set(["/api/jarvis/worker/heartbeat", "/api/jarvis/worker/pc/next", "/api/jarvis/worker/pc/result"]);
+const paths = new Set(["/api/jarvis/worker/heartbeat", "/api/jarvis/worker/pc/next", "/api/jarvis/worker/pc/result", PC_OBSERVATION_RECEIVE]);
 const nodes = new Set(["macbook", "zbook"]);
 const maxBytes = 1_000_000;
 export function privatePcOrigin(value: string, domain: string): string {
@@ -16,7 +17,7 @@ export function privatePcOrigin(value: string, domain: string): string {
   }
   return url.origin;
 }
-async function boundedBytes(body: ReadableStream<Uint8Array> | null, signal?: AbortSignal): Promise<Buffer> {
+async function boundedBytes(body: ReadableStream<Uint8Array> | null, signal?: AbortSignal, limit = maxBytes): Promise<Buffer> {
   if (!body) return Buffer.alloc(0);
   const reader = body.getReader(), parts: Uint8Array[] = [];
   let size = 0;
@@ -29,7 +30,7 @@ async function boundedBytes(body: ReadableStream<Uint8Array> | null, signal?: Ab
       if (signal?.aborted) throw new Error("PC_PRIVATE_BODY_REJECTED");
       if (chunk.done) break;
       size += chunk.value.byteLength;
-      if (size > maxBytes) throw new Error("PC_PRIVATE_BODY_REJECTED");
+      if (size > limit) throw new Error("PC_PRIVATE_BODY_REJECTED");
       parts.push(chunk.value);
     }
     return Buffer.concat(parts);
@@ -45,7 +46,7 @@ function context(request: Request): string {
 function proof(request: Request, nodeId: string, revision: string, timestamp: string, status: number, digest: string): string {
   return ["GORIQ-PRIVATE-PC-RESPONSE-v1", nodeId, revision, timestamp, context(request), status, digest].join("\n");
 }
-type Signer = { identity: { nodeId: string; privateKeyPem: string }; revision: string };
+type Signer = { identity: { nodeId: string; privateKeyPem: string }; revision: string; roles?: string[] };
 export function privatePcRelay(options: {
   ingress: (request: Request) => Promise<boolean>; signer: () => Promise<Signer>; upstream?: typeof fetch;
 }): (request: Request) => Promise<Response> {
@@ -65,7 +66,9 @@ export function privatePcRelay(options: {
       // Prove the existing local signing identity before any lease-changing request.
       const signer = await options.signer();
       if (!nodes.has(signer.identity.nodeId) || !/^[a-f0-9]{40}$/.test(signer.revision)) throw new Error();
-      const body = await boundedBytes(request.body, signal);
+      if (url.pathname === PC_OBSERVATION_RECEIVE &&
+        (!signer.roles?.includes("Storage") || !signer.roles.includes("Coordinator"))) throw new Error();
+      const body = await boundedBytes(request.body, signal, url.pathname === PC_OBSERVATION_RECEIVE ? PC_OBSERVATION_MAX_BYTES : maxBytes);
       const rawHeaders: Record<string, string> = {};
       request.headers.forEach((value, key) => { rawHeaders[key] = value; });
       const result = await upstream("http://127.0.0.1:8787" + url.pathname, { method: "POST",
