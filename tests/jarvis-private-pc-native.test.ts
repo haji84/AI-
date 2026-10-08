@@ -46,6 +46,9 @@ const node = { id: "zbook", kind: "windows", pcAuthority: { version: 1, approval
 const registered = { nodeId: "zbook", algorithm: "ed25519" as const, publicKeyPem: identity.publicKeyPem, enrolledAt: identity.createdAt };
 test("native signer requires the existing matched unrevoked host key and approved Goal authority", () => {
   assert.equal(registeredPrivatePcSigner(identity, node, registered, "a".repeat(40)).identity.nodeId, "zbook");
+  const signer = registeredPrivatePcSigner(identity, node, registered, "a".repeat(40));
+  assert.deepEqual(signer.roles, ["Coordinator"]);
+  signer.roles.push("Storage"); assert.deepEqual(node.pcAuthority!.roles, ["Coordinator"]);
   for (const changed of [undefined, { ...registered, revokedAt: identity.createdAt }, { ...registered, nodeId: "macbook" }]) {
     assert.throws(() => registeredPrivatePcSigner(identity, node, changed, "a".repeat(40)), /SIGNER_UNAVAILABLE/);
   }

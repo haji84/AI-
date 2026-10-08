@@ -959,7 +959,7 @@
     },
     {
       "path": "scripts/jarvis-broker.ts",
-      "sha256": "818009a91e2641e4078ea701d2bd6e230c918150bf8a7ff66bb12db74d17b4f1",
+      "sha256": "6d216853a21b4b5103eb30a749e5f18e421f3f2d3c476c765a9accf2b8393a2d",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "NET-003",
@@ -4187,6 +4187,16 @@
       "reason": "Owner-scoped PC host-local identity and loopback proof enrollment; physical activation and execution remain separate Evidence gates Approved existing-node-only verification renewal cannot create a missing key or issue fresh enrollment authority; narrowing is preserved across local approval renewal. #1662 receipt6004052721 / PR1718. Physical E2E remains unverified."
     },
     {
+      "path": "src/jarvis/pc-observation-client.ts",
+      "sha256": "506729cf804ff7f11be438041fc96d2aba76c02e1e7d0cd5254355b80edc7795",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "MIG-015",
+        "MIG-024"
+      ],
+      "reason": "Issue #1754 bounded signed PC observations and conflict retention; prerequisite only, no execution ownership transfer or physical completion inference"
+    },
+    {
       "path": "src/jarvis/pc-peer-bootstrap.ts",
       "sha256": "9100c17d1cd72a0b2faa2ffad6fa55c862f4ea2fd4553b93e9746d279e019148",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
@@ -4209,6 +4219,16 @@
         "SEC-011"
       ],
       "reason": "Issue1662 approved existing ZBook code refresh; strict read-only schema/fleet/quiescence guard, unchanged credentials/task/network, protected recovery and exact-main runtime receipt. Physical PASS requires host Evidence. Runtime activation is bound to a ZBook-only operation gate; expired enrollment authority is not renewed."
+    },
+    {
+      "path": "src/jarvis/pc-task-observation.ts",
+      "sha256": "04c4571fb4452459ef56f573f1c717ada6d3096832b3c80df4c3c1d675da1b51",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "MIG-015",
+        "MIG-024"
+      ],
+      "reason": "Issue #1754 bounded signed PC observations and conflict retention; prerequisite only, no execution ownership transfer or physical completion inference"
     },
     {
       "path": "src/jarvis/pending-enrollment.ts",
@@ -4253,7 +4273,7 @@
     },
     {
       "path": "src/jarvis/private-pc-native.ts",
-      "sha256": "8f93373cd1831757d0b9deab6eac27a80e0f2f25fb2b32559b062b5acaa7b263",
+      "sha256": "0078e26552c0b968fe33b7495b71ad079295ce1a031d0a71c2ff47509f6d7b0d",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "NET-004",
@@ -4265,7 +4285,7 @@
     },
     {
       "path": "src/jarvis/private-pc-transport.ts",
-      "sha256": "d1b27fa2e3ee2f538c926bf965b907466b3c0f9c5671a0b1ee31adc61466efb8",
+      "sha256": "17a441fd5419ef8242d4adb295da8f6b697a46ea6309b4ba0b5768c6293d9e84",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "NET-004",

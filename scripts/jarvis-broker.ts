@@ -1,4 +1,5 @@
 import { PcDurableWork, PcWorkConflict, assertPcExecutor } from "../src/jarvis/pc-durable-work.ts";
+import { PcTaskObservations, projectPcObservation, assertPcObserver, PC_OBSERVATION_EXPORT, PC_OBSERVATION_RECEIVE, PC_OBSERVATION_MAX_BYTES } from "../src/jarvis/pc-task-observation.ts";
 import { DurableTaskRuntime, JsonFileDurableTaskStore } from "../src/gai/durable-task-runtime.ts";
 import { MATERIAL_REQUEST_BYTES } from "../src/gai/cognitive-material-intake.ts";
 import { cognitiveHostOptions } from "../src/gai/cognitive-host-config.ts";
@@ -71,6 +72,7 @@ if (host !== "127.0.0.1" && host !== "::1" && process.env.JARVIS_ALLOW_NON_LOOPB
 const plane = new JarvisControlPlane();
 const store = new JarvisSqliteStateStore(process.env.JARVIS_DB_PATH?.trim() || undefined);
 const pcWork = new PcDurableWork(new DurableTaskRuntime(new JsonFileDurableTaskStore((process.env.JARVIS_DB_PATH?.trim() || resolve(".jarvis", "jarvis.db")) + ".pc-tasks.json")), () => plane.snapshot().fleet);
+const pcObservations = new PcTaskObservations((process.env.JARVIS_DB_PATH?.trim() || resolve(".jarvis", "jarvis.db")) + ".pc-observations.json", process.env.GORIQ_RUNTIME_REVISION || "");
 const pcApprovalPath = (process.env.JARVIS_DB_PATH?.trim() || resolve(".jarvis", "jarvis.db")) + ".pc-enrollment-approval.json";
 let pcEnrollment: PcEnrollmentService | undefined;
 let pcApprovalDigest = "";
@@ -327,7 +329,8 @@ function validatedAndroidTask(type: string, payload: Record<string, unknown>): R
 async function handler(request: IncomingMessage, response: ServerResponse): Promise<void> {
   const url = new URL(request.url || "/", "http://localhost");
   const path = url.pathname; const method = request.method || "GET";
-  const body = method === "GET" || method === "HEAD" ? Buffer.alloc(0) : await readBody(request);
+  const body = method === "GET" || method === "HEAD" ? Buffer.alloc(0) : await readBody(request,
+    [PC_OBSERVATION_EXPORT, PC_OBSERVATION_RECEIVE].includes(path) ? PC_OBSERVATION_MAX_BYTES : 1_000_000);
 
   if (method === "GET" && path === "/health") return json(response, 200, { ok: true, service: "jarvis-broker", stats: plane.snapshot().stats, workerApkReady: Boolean(workerApkInfo()), pairingWindow: pairingWindow.status(), runtimeRevision: process.env.GORIQ_RUNTIME_REVISION?.trim() || null, directGoalBridge: { version: 1, executorReady: existsSync(fileURLToPath(new URL("./jarvis-goal-executor.ts", import.meta.url))), selfDevelopmentRuntime: process.env.GORIQ_SELF_DEVELOPMENT_RUNTIME === "1" } });
   if (method === "POST" && path === "/api/jarvis/enrollment-grant") {
@@ -887,6 +890,25 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
   if (path.startsWith("/api/jarvis/worker/")) {
     const identity = authenticateWorker(request, path, body); if (!identity) return json(response, 401, { message: "valid signed worker request required" });
     const payload = parseJson(body);
+    if (method === "POST" && [PC_OBSERVATION_EXPORT, PC_OBSERVATION_RECEIVE].includes(path)) {
+      try { assertPcObserver(plane.fleet.get(identity.nodeId), identity); }
+      catch { return json(response, 403, { message: "registered PC Storage and Coordinator required" }); }
+      try {
+        if (typeof payload.taskId !== "string" || !/^pc-[a-f0-9]{64}$/.test(payload.taskId) ||
+          typeof payload.revision !== "string" || !/^[a-f0-9]{40}$/.test(payload.revision) ||
+          payload.revision !== process.env.GORIQ_RUNTIME_REVISION) throw Error("PC observation scope rejected");
+        if (path === PC_OBSERVATION_EXPORT) {
+          if (Object.keys(payload).some(key => !["taskId", "revision"].includes(key))) throw Error("PC observation scope rejected");
+          const runtime = new DurableTaskRuntime(new JsonFileDurableTaskStore((process.env.JARVIS_DB_PATH?.trim() || resolve(".jarvis", "jarvis.db")) + ".pc-tasks.json"));
+          const task = await runtime.get(payload.taskId);
+          if (!task) return json(response, 404, { message: "PC observation task unavailable" });
+          return json(response, 200, projectPcObservation(task));
+        }
+        const signed = signedWorkerRequest(request, path, body);
+        if (!signed) throw Error("PC observation proof rejected");
+        return json(response, 200, await pcObservations.receive(payload, { identity, signed, rawBody: body.toString("utf8") }));
+      } catch { return json(response, 409, { message: "PC observation rejected or storage unavailable" }); }
+    }
     if (method === "POST" && path === "/api/jarvis/worker/heartbeat") {
       const now = new Date();
       const telemetry = sanitizeJarvisNodeTelemetry(payload.telemetry, now);
