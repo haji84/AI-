@@ -1,0 +1,148 @@
+{
+  "issue": 1745,
+  "publication": {
+    "version": 1,
+    "issue": 1745,
+    "sourceRevision": "7b3e8678e55c91ab85214d9bf2533469cdf6d13e",
+    "startedAt": "2026-10-08T16:08:14.690685+09:00",
+    "planVerified": true,
+    "publicationVerified": true,
+    "watchdogRecoveryVerified": false,
+    "planExitCode": 0,
+    "applyExitCode": 0,
+    "completedAt": "2026-10-08T16:08:21.9252124+09:00"
+  },
+  "inspection": {
+    "observedAt": "2026-10-08T16:49:30.7852495+09:00",
+    "launcherBlockCount": 1,
+    "taskXmlUnchangedSinceRepair": true,
+    "originalLossReceiptPresent": true,
+    "files": [
+      {
+        "sha256": "915E66C329B806C149E05CCF4D2AE1D7C5A56811AB2119B1CAC35A5975DF8E03",
+        "name": "gai-zbook-watchdog.ps1",
+        "exists": true
+      },
+      {
+        "sha256": "646E8B2A31E7AF286A71DADDE8293DC9EB24A0960B918E656598D41692A751DD",
+        "name": "gai-zbook-watchdog-launcher.vbs",
+        "exists": true
+      },
+      {
+        "sha256": "6DC1B72561197232F594D5DE1B64156C063C2B7790C344C85E4AB3DBDB9062B2",
+        "name": "gai-zbook-launcher-file.ps1",
+        "exists": true
+      }
+    ],
+    "tasks": [
+      {
+        "name": "GAI-ZBook-Runner-OnLogon",
+        "lastRun": "2026-10-06T08:28:45Z",
+        "logonType": "Interactive",
+        "runLevel": "Limited",
+        "nextRun": null,
+        "lastResult": 1,
+        "state": "Ready"
+      },
+      {
+        "name": "GAI-ZBook-Runner-Supervisor",
+        "lastRun": "2026-10-08T07:49:01Z",
+        "logonType": "Interactive",
+        "runLevel": "Limited",
+        "nextRun": "2026-10-08T07:50:00Z",
+        "lastResult": 0,
+        "state": "Ready"
+      },
+      {
+        "name": "GAI-ZBook-Watchdog",
+        "lastRun": "2026-10-08T07:49:02Z",
+        "logonType": "Interactive",
+        "runLevel": "Limited",
+        "nextRun": "2026-10-08T07:54:00Z",
+        "lastResult": 0,
+        "state": "Ready"
+      }
+    ],
+    "health": {
+      "workerId": "zbook",
+      "runnerHealthy": false,
+      "runnerConnectionHealthy": false,
+      "runnerProtectedByActiveJob": false,
+      "activeRunnerWorkers": 0,
+      "runnerSessionConflictGrace": false,
+      "consecutiveRunnerFailures": 50,
+      "runnerRecoveryDeferred": false,
+      "checkedAt": "2026-10-08T07:49:05.8306765Z"
+    },
+    "runnerProcessCount": 0
+  },
+  "provenance": {
+    "checkedAt": "2026-10-08T08:08:05.0151753Z",
+    "release": "v2.337.0",
+    "releaseUrl": "https://github.com/actions/runner/releases/tag/v2.337.0",
+    "archiveSha256": "1150692AFA94E71F872017E254EA55B6EECE1EECE3FE7E3A6D4C93D0A1B85CFC",
+    "publishedArchiveDigestMatched": true,
+    "files": [
+      {
+        "entry": "bin/Runner.Listener.dll",
+        "length": 297984,
+        "officialSha256": "1E7CA4E92A682DB2013CA8DCFDD65378BA1D22DC0EC161F05EA0BFFFB967F264",
+        "installedSha256": "1E7CA4E92A682DB2013CA8DCFDD65378BA1D22DC0EC161F05EA0BFFFB967F264",
+        "matches": true,
+        "installedSignature": "NotSigned"
+      },
+      {
+        "entry": "bin/Runner.Listener.exe",
+        "length": 151552,
+        "officialSha256": "72C36CC15E21605DC4ADC7C280E7AD9EA524FC8F1FB7B6905D3E0AE7DF7A5DE3",
+        "installedSha256": "72C36CC15E21605DC4ADC7C280E7AD9EA524FC8F1FB7B6905D3E0AE7DF7A5DE3",
+        "matches": true,
+        "installedSignature": "NotSigned"
+      }
+    ],
+    "runnerFilesModified": false,
+    "securityPolicyChanged": false
+  },
+  "appControl": {
+    "error": "0x800711C7",
+    "policyId": "0283ac0f-fff1-49ae-ada1-8a933130cad6",
+    "sacRegistryState": 1,
+    "windowsBuild": "26200.9457",
+    "ciToolInventory": "access_denied",
+    "events": [
+      {
+        "id": 3077,
+        "recordId": 84009,
+        "createdAt": "2026-10-08T08:11:06.3060248Z",
+        "message": "Code Integrity determined that a process (\\Device\\HarddiskVolume3\\actions-runner\\bin\\Runner.Listener.exe) attempted to load \\Device\\HarddiskVolume3\\actions-runner\\bin\\Runner.Listener.dll that did not meet the Enterprise signing level requirements or violated code integrity policy (Policy ID:{0283ac0f-fff1-49ae-ada1-8a933130cad6})."
+      },
+      {
+        "id": 3033,
+        "recordId": 84007,
+        "createdAt": "2026-10-08T08:11:06.3049121Z",
+        "message": "Code Integrity determined that a process (\\Device\\HarddiskVolume3\\actions-runner\\bin\\Runner.Listener.exe) attempted to load \\Device\\HarddiskVolume3\\actions-runner\\bin\\Runner.Listener.dll that did not meet the Enterprise signing level requirements."
+      },
+      {
+        "id": 3077,
+        "recordId": 84004,
+        "createdAt": "2026-10-08T08:11:06.1133453Z",
+        "message": "Code Integrity determined that a process (\\Device\\HarddiskVolume3\\actions-runner\\bin\\Runner.Listener.exe) attempted to load \\Device\\HarddiskVolume3\\actions-runner\\bin\\Runner.Listener.dll that did not meet the Enterprise signing level requirements or violated code integrity policy (Policy ID:{0283ac0f-fff1-49ae-ada1-8a933130cad6})."
+      },
+      {
+        "id": 3033,
+        "recordId": 84002,
+        "createdAt": "2026-10-08T08:11:06.1123211Z",
+        "message": "Code Integrity determined that a process (\\Device\\HarddiskVolume3\\actions-runner\\bin\\Runner.Listener.exe) attempted to load \\Device\\HarddiskVolume3\\actions-runner\\bin\\Runner.Listener.dll that did not meet the Enterprise signing level requirements."
+      }
+    ]
+  },
+  "nodeLoss": {
+    "runId": 37607612844,
+    "completedSuccessfulJobs": 5,
+    "rejoinJobId": 112747693411,
+    "rejoinStatus": "queued",
+    "finalVerifierRun": false
+  },
+  "fullRecoveryVerified": false,
+  "securityPolicyChanged": false
+}
