@@ -43,3 +43,6 @@ $rejected=$false
 try { Assert-RuntimeReceipt @{sourceRevision=$sha;exactMainCi=$true} 'apply' $sha } catch {$rejected=$true}
 if(-not $rejected){throw 'source-only-receipt-accepted'}
 Write-Host 'Native runtime process capture fixtures PASS (no production invocation).'
+# All assertions passed. Do not leak the expected legacy failure's native exit
+# code into GitHub Actions' PowerShell LASTEXITCODE epilogue.
+exit 0
