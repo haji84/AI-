@@ -30,6 +30,73 @@ jobs:
       JARVIS_PRODUCTION_URL: https://jarvis-fawn-iota.vercel.app
       SYNC_COMMIT_SHA: ${{ github.event.workflow_run.head_sha }}
     steps:
+      - name: Authorize exact production mutation
+        id: authorization
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const { appendFile } = await import('node:fs/promises');
+          const env = process.env;
+          const repository = env.GITHUB_REPOSITORY;
+          const sha = env.SYNC_COMMIT_SHA;
+          const output = env.GITHUB_OUTPUT;
+          async function deny(reason) {
+            if (output) await appendFile(output, 'authorized=false\n');
+            if (env.GITHUB_STEP_SUMMARY) await appendFile(env.GITHUB_STEP_SUMMARY, `Production authorization denied: ${reason}. No production mutation authorized.\n`);
+            throw new Error(`PRODUCTION_AUTHORIZATION_${reason}`);
+          }
+          if (repository !== 'haji84/AI-' || env.GITHUB_REPOSITORY_OWNER !== 'haji84' ||
+              env.GITHUB_REF !== 'refs/heads/main' || !/^[a-f0-9]{40}$/.test(sha ?? '') || !output ||
+              !['push', 'schedule', 'workflow_dispatch', 'workflow_run'].includes(env.GITHUB_EVENT_NAME)) {
+            await deny('CONTEXT');
+          }
+          async function get(path) {
+            try {
+              // Existing public metadata capability; no token or permission expansion.
+              const response = await fetch(`https://api.github.com/repos/${repository}/${path}`, {
+                headers: { Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' },
+                signal: AbortSignal.timeout(15000), redirect: 'error',
+              });
+              if (!response.ok) throw new Error('unavailable');
+              return await response.json();
+            } catch { return deny('METADATA_UNAVAILABLE'); }
+          }
+          if ((await get('git/ref/heads/main'))?.object?.sha !== sha) await deny('STALE_MAIN');
+          const runs = await get(`actions/workflows/ci.yml/runs?event=push&branch=main&head_sha=${sha}&per_page=100`);
+          const ci = Array.isArray(runs?.workflow_runs) ? runs.workflow_runs[0] : null;
+          if (!ci || ci.name !== 'CI' || ci.path !== '.github/workflows/ci.yml' || ci.event !== 'push' ||
+              ci.head_branch !== 'main' || ci.head_sha !== sha || ci.status !== 'completed' || ci.conclusion !== 'success') {
+            await deny('EXACT_MAIN_CI_REQUIRED');
+          }
+          const pulls = await get(`commits/${sha}/pulls`);
+          const pr = Array.isArray(pulls) ? pulls.find(candidate => candidate?.merged_at &&
+            candidate?.base?.ref === 'main' && candidate?.base?.repo?.full_name === repository && candidate?.merge_commit_sha === sha) : null;
+          if (!pr) await deny('MERGED_PR_REQUIRED');
+          const body = typeof pr.body === 'string' ? pr.body : '';
+          const scopeMatch = body.match(/<!--\s*ai-company-task-scope:\s*issue:(\d+)\s*-->/i);
+          const approved = /<!--\s*ai-company-production-deploy:\s*approved\s*-->/i.test(body);
+          const expiryMatch = body.match(/<!--\s*ai-company-task-authorization-expires-at:\s*([^>]+?)\s*-->/i);
+          if (!scopeMatch || !approved || !expiryMatch) await deny('TASK_SCOPE_REQUIRED');
+          const issueNumber = Number(scopeMatch[1]);
+          const expiresAt = Date.parse(expiryMatch[1].trim());
+          if (!Number.isSafeInteger(issueNumber) || issueNumber < 1 || !Number.isFinite(expiresAt) || expiresAt <= Date.now()) await deny('EXPIRED_OR_INVALID');
+          const issue = await get(`issues/${issueNumber}`);
+          const issueBody = typeof issue?.body === 'string' ? issue.body : '';
+          const ownerCommandMatch = issueBody.match(/## Owner command\s*\n([\s\S]*?)(?:\n\n##|\n## Execution contract|$)/i);
+          const ownerCommand = ownerCommandMatch?.[1]?.trim() || '';
+          // Keep the existing Scoped Production Deploy completion contract unchanged.
+          const completionInstruction = /(最後まで.{0,12}(進め|やって|任せ)|完了まで.{0,12}(進め|やって|任せ)|完成.{0,12}(させ|まで|して|させて)|全部.{0,12}(進め|やって|任せ)|任せる|finish\s+(it|this|the\s+task)|take\s+it\s+to\s+completion|handle.{0,20}(through|to)\s+(the\s+)?end)/iu.test(ownerCommand);
+          const persistedApproval = /production-deploy-authorized:\s*true/i.test(issueBody);
+          if (issue?.number !== issueNumber || issue?.pull_request || issue?.user?.login !== env.GITHUB_REPOSITORY_OWNER || !persistedApproval || !completionInstruction) await deny('OWNER_COMPLETION_REQUIRED');
+          // Recheck after metadata lookup; never grant an expired or superseded source.
+          if ((await get('git/ref/heads/main'))?.object?.sha !== sha) await deny('STALE_MAIN');
+          if (expiresAt <= Date.now()) await deny('EXPIRED_OR_INVALID');
+          await appendFile(output, `authorized=true\nissue_number=${issueNumber}\ndeploy_sha=${sha}\n`);
+          if (env.GITHUB_STEP_SUMMARY) await appendFile(env.GITHUB_STEP_SUMMARY, `Production authorization PASS: issue #${issueNumber}, exact main ${sha}.\n`);
+          console.log('Exact main CI and task-scoped completion authorization verified.');
+          NODE
+
       - uses: actions/checkout@v4
         with:
           ref: ${{ env.SYNC_COMMIT_SHA }}
@@ -113,6 +180,73 @@ jobs:
       JARVIS_PRODUCTION_URL: https://jarvis-fawn-iota.vercel.app
       SYNC_COMMIT_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
     steps:
+      - name: Authorize exact production mutation
+        id: authorization
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const { appendFile } = await import('node:fs/promises');
+          const env = process.env;
+          const repository = env.GITHUB_REPOSITORY;
+          const sha = env.SYNC_COMMIT_SHA;
+          const output = env.GITHUB_OUTPUT;
+          async function deny(reason) {
+            if (output) await appendFile(output, 'authorized=false\n');
+            if (env.GITHUB_STEP_SUMMARY) await appendFile(env.GITHUB_STEP_SUMMARY, `Production authorization denied: ${reason}. No production mutation authorized.\n`);
+            throw new Error(`PRODUCTION_AUTHORIZATION_${reason}`);
+          }
+          if (repository !== 'haji84/AI-' || env.GITHUB_REPOSITORY_OWNER !== 'haji84' ||
+              env.GITHUB_REF !== 'refs/heads/main' || !/^[a-f0-9]{40}$/.test(sha ?? '') || !output ||
+              !['push', 'schedule', 'workflow_dispatch', 'workflow_run'].includes(env.GITHUB_EVENT_NAME)) {
+            await deny('CONTEXT');
+          }
+          async function get(path) {
+            try {
+              // Existing public metadata capability; no token or permission expansion.
+              const response = await fetch(`https://api.github.com/repos/${repository}/${path}`, {
+                headers: { Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' },
+                signal: AbortSignal.timeout(15000), redirect: 'error',
+              });
+              if (!response.ok) throw new Error('unavailable');
+              return await response.json();
+            } catch { return deny('METADATA_UNAVAILABLE'); }
+          }
+          if ((await get('git/ref/heads/main'))?.object?.sha !== sha) await deny('STALE_MAIN');
+          const runs = await get(`actions/workflows/ci.yml/runs?event=push&branch=main&head_sha=${sha}&per_page=100`);
+          const ci = Array.isArray(runs?.workflow_runs) ? runs.workflow_runs[0] : null;
+          if (!ci || ci.name !== 'CI' || ci.path !== '.github/workflows/ci.yml' || ci.event !== 'push' ||
+              ci.head_branch !== 'main' || ci.head_sha !== sha || ci.status !== 'completed' || ci.conclusion !== 'success') {
+            await deny('EXACT_MAIN_CI_REQUIRED');
+          }
+          const pulls = await get(`commits/${sha}/pulls`);
+          const pr = Array.isArray(pulls) ? pulls.find(candidate => candidate?.merged_at &&
+            candidate?.base?.ref === 'main' && candidate?.base?.repo?.full_name === repository && candidate?.merge_commit_sha === sha) : null;
+          if (!pr) await deny('MERGED_PR_REQUIRED');
+          const body = typeof pr.body === 'string' ? pr.body : '';
+          const scopeMatch = body.match(/<!--\s*ai-company-task-scope:\s*issue:(\d+)\s*-->/i);
+          const approved = /<!--\s*ai-company-production-deploy:\s*approved\s*-->/i.test(body);
+          const expiryMatch = body.match(/<!--\s*ai-company-task-authorization-expires-at:\s*([^>]+?)\s*-->/i);
+          if (!scopeMatch || !approved || !expiryMatch) await deny('TASK_SCOPE_REQUIRED');
+          const issueNumber = Number(scopeMatch[1]);
+          const expiresAt = Date.parse(expiryMatch[1].trim());
+          if (!Number.isSafeInteger(issueNumber) || issueNumber < 1 || !Number.isFinite(expiresAt) || expiresAt <= Date.now()) await deny('EXPIRED_OR_INVALID');
+          const issue = await get(`issues/${issueNumber}`);
+          const issueBody = typeof issue?.body === 'string' ? issue.body : '';
+          const ownerCommandMatch = issueBody.match(/## Owner command\s*\n([\s\S]*?)(?:\n\n##|\n## Execution contract|$)/i);
+          const ownerCommand = ownerCommandMatch?.[1]?.trim() || '';
+          // Keep the existing Scoped Production Deploy completion contract unchanged.
+          const completionInstruction = /(最後まで.{0,12}(進め|やって|任せ)|完了まで.{0,12}(進め|やって|任せ)|完成.{0,12}(させ|まで|して|させて)|全部.{0,12}(進め|やって|任せ)|任せる|finish\s+(it|this|the\s+task)|take\s+it\s+to\s+completion|handle.{0,20}(through|to)\s+(the\s+)?end)/iu.test(ownerCommand);
+          const persistedApproval = /production-deploy-authorized:\s*true/i.test(issueBody);
+          if (issue?.number !== issueNumber || issue?.pull_request || issue?.user?.login !== env.GITHUB_REPOSITORY_OWNER || !persistedApproval || !completionInstruction) await deny('OWNER_COMPLETION_REQUIRED');
+          // Recheck after metadata lookup; never grant an expired or superseded source.
+          if ((await get('git/ref/heads/main'))?.object?.sha !== sha) await deny('STALE_MAIN');
+          if (expiresAt <= Date.now()) await deny('EXPIRED_OR_INVALID');
+          await appendFile(output, `authorized=true\nissue_number=${issueNumber}\ndeploy_sha=${sha}\n`);
+          if (env.GITHUB_STEP_SUMMARY) await appendFile(env.GITHUB_STEP_SUMMARY, `Production authorization PASS: issue #${issueNumber}, exact main ${sha}.\n`);
+          console.log('Exact main CI and task-scoped completion authorization verified.');
+          NODE
+
       - uses: actions/checkout@v4
         with:
           ref: ${{ env.SYNC_COMMIT_SHA }}
