@@ -3,16 +3,17 @@ import { readFile, mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import test from 'node:test';
+import { URL } from 'node:url';
 
 const workflow = (await readFile(new URL('../.github/workflows/goriq-jarvis-production-sync.yml', import.meta.url), 'utf8')).replaceAll('\r\n', '\n');
 const sha = 'a'.repeat(40), other = 'b'.repeat(40), repository = 'haji84/AI-';
 const AsyncFunction = Object.getPrototypeOf(async function() {}).constructor;
 function guard(job) {
-  const block = workflow.split(`\n  ${job}:\n`)[1]?.split(/\n  [\w-]+:\n/)[0];
+  const block = workflow.split(`\n  ${job}:\n`)[1]?.split(/\n {2}[\w-]+:\n/)[0];
   assert.ok(block, `missing ${job}`);
   const steps = block.split('    steps:\n')[1];
   assert.ok(steps?.startsWith('      - name: Authorize exact production mutation\n'), `${job} must authorize before checkout or any mutation`);
-  const match = steps.match(/          node <<'NODE'\n([\s\S]*?)\n          NODE/);
+  const match = steps.match(/ {10}node <<'NODE'\n([\s\S]*?)\n {10}NODE/);
   assert.ok(match, `${job} executable guard missing`);
   return match[1].split('\n').map(line => line.slice(10)).join('\n');
 }
@@ -39,7 +40,7 @@ async function run(job, event, change = () => {}, envChange = {}) {
       if (data.apiError) return {ok:false, status:503};
       const route = url.slice(`https://api.github.com/repos/${repository}/`.length);
       assert.ok(routes.has(route), `unexpected API request: ${route}`);
-      return {ok:true, status:200, json:async () => structuredClone(routes.get(route))};
+      return {ok:true, status:200, json:async () => globalThis.structuredClone(routes.get(route))};
     }, {log(){}});
   } catch (caught) {error = caught;}
   const receipt = await readFile(output,'utf8').catch(() => '');
@@ -79,7 +80,7 @@ for (const job of ['deploy-code','sync']) {
   for(const [name,env] of [['branch',{GITHUB_REF:'refs/heads/feature'}],['event',{GITHUB_EVENT_NAME:'pull_request'}],['repository',{GITHUB_REPOSITORY:'other/repo'}],['SHA',{SYNC_COMMIT_SHA:'invalid'}]])test(`${job} rejects invalid ${name} context`,async()=>{const r=await run(job,'push',()=>{},env);assert.match(r.error?.message ?? "", /PRODUCTION_AUTHORIZATION_/);assert.doesNotMatch(r.receipt,/authorized=true/);});
 }
 const scopedWorkflow = (await readFile(new URL('../.github/workflows/vercel-scoped-production-deploy.yml', import.meta.url), 'utf8')).replaceAll('\r\n','\n');
-const scopedBody = scopedWorkflow.match(/          node <<'NODE'\n([\s\S]*?)\n          NODE/)[1].split('\n').map(line=>line.slice(10)).join('\n').replace('import { appendFile } from "node:fs/promises";', 'const { appendFile } = await import("node:fs/promises");');
+const scopedBody = scopedWorkflow.match(/ {10}node <<'NODE'\n([\s\S]*?)\n {10}NODE/)[1].split('\n').map(line=>line.slice(10)).join('\n').replace('import { appendFile } from "node:fs/promises";', 'const { appendFile } = await import("node:fs/promises");');
 async function scopedDecision(change) {
   const data=grant();change(data);
   const directory=await mkdtemp(join(tmpdir(),'scoped-auth-')), output=join(directory,'output');
@@ -88,7 +89,7 @@ async function scopedDecision(change) {
       const path=url.slice(`https://api.github.com/repos/${repository}`.length);
       assert.ok(url.startsWith(`https://api.github.com/repos/${repository}/`));
       assert.ok([`/commits/${sha}/pulls`,'/issues/1724'].includes(path));
-      return {ok:true,json:async()=>structuredClone(path.endsWith('/pulls')?data.pulls:data.issue)};
+      return {ok:true,json:async()=>globalThis.structuredClone(path.endsWith('/pulls')?data.pulls:data.issue)};
     },{log(){}});
   } catch(error) { if(error?.scopedExit!==0)throw error; }
   const receipt=await readFile(output,'utf8');await rm(directory,{recursive:true,force:true});
