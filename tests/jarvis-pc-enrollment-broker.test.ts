@@ -42,7 +42,7 @@ test("Owner PC proof enrollment preserves signed identity across restart and rej
   const workerBase = `http://127.0.0.1:${(ingress.address() as { port: number }).port}`;
   const ready = async () => { for (let i = 0; i < 100; i++) { try { if ((await fetch(base + "/health")).ok) return; } catch { /* bounded startup */ }
     await new Promise(r => setTimeout(r, 50)); } assert.fail("Broker startup unavailable"); };
-  const stop = async () => { const done = once(child, "exit"); child.kill(); await done; };
+  const stop = async () => { if (child.exitCode !== null || child.signalCode !== null) return; const done = once(child, "exit"); child.kill(); await done; };
   const post = (path: string, input: unknown, auth = true) => fetch(base + path, { method: "POST", headers: {
     "Content-Type": "application/json", ...(auth ? { Authorization: `Bearer ${owner}` } : {}) }, body: JSON.stringify(input) });
   const keys = generateKeyPairSync("ed25519");
@@ -189,7 +189,7 @@ test("Owner PC proof enrollment preserves signed identity across restart and rej
   } finally {
     ingress.closeAllConnections();
     await new Promise<void>(resolve => ingress.close(() => resolve()));
-    if (child.exitCode === null) await stop();
+    await stop();
     await rm(dir, { recursive: true, force: true });
   }
 });

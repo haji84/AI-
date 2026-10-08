@@ -45,11 +45,11 @@ export class JarvisTaskQueue {
       .map((task) => structuredClone(task));
   }
 
-  next(now = new Date()): JarvisTask | undefined {
+  next(now = new Date(), filter?: { targetNodeId: string; taskType: string }): JarvisTask | undefined {
     this.reclaimExpiredLeases(now);
     this.expireUndispatched(now);
     return [...this.tasks.values()]
-      .filter((task) => task.status === "queued")
+      .filter((task) => task.status === "queued" && (!filter || task.targetNodeId === filter.targetNodeId && task.type === filter.taskType))
       .sort((a, b) => PRIORITY_WEIGHT[b.priority] - PRIORITY_WEIGHT[a.priority] || a.createdAt.localeCompare(b.createdAt))[0];
   }
 
