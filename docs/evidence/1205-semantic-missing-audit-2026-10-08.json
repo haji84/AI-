@@ -1,0 +1,911 @@
+{
+  "schema_version": 1,
+  "issue": "https://github.com/haji84/AI-/issues/1205",
+  "audited_commit": "a7bfcbe52e8108aa567c0ef4c6b90b16c2156c00",
+  "audit_date": "2026-10-08",
+  "evidence_kind": "AI_ASSERTED_SOURCE_REVIEW",
+  "physical": false,
+  "scope": "34 canonical MISSING requirements with reverse-traceability source leads; the other 63 MISSING rows were not semantically assessed in this batch.",
+  "method": [
+    "Two scoped AI employees reviewed exact-main GitHub files: UI (16), interaction/gesture/security/operations/acceptance/migration (18). Root reconciled classifications and checked key callers locally.",
+    "Existence of code or a passing source-contract test does not establish runtime integration or physical acceptance.",
+    "11 source-complete bounded behaviors become IMPLEMENTED_UNVERIFIED; 22 implemented subsets become PARTIAL; authenticated Coordinator discovery MIG-023 remains MISSING.",
+    "Existing descriptions, evidence requirements, evidence records, last_verified_commit, and historical delivery_audit snapshots are preserved. This report supersedes earlier code-absence conclusions only for its exact 34-row scope."
+  ],
+  "before": {
+    "VERIFIED": 3,
+    "IMPLEMENTED_UNVERIFIED": 7,
+    "PARTIAL": 234,
+    "MISSING": 97,
+    "total": 341,
+    "incomplete": 338
+  },
+  "after": {
+    "VERIFIED": 3,
+    "IMPLEMENTED_UNVERIFIED": 18,
+    "PARTIAL": 256,
+    "MISSING": 64,
+    "total": 341,
+    "incomplete": 338
+  },
+  "limitations": [
+    "No new VERIFIED or PLATFORM_LIMITED rows; no product-completion claim.",
+    "Remaining 64 MISSING = 1 assessed gap plus 63 not assessed in this batch; they are not all proven genuine gaps.",
+    "Source paths/line numbers refer to audited_commit, not a future runtime or deployment.",
+    "The global ledger audited_commit and row delivery_audit retain their historical full-inventory scope; current conclusions live in this linked report.",
+    "PR #1208 is staged/draft with physical acceptance pending and is excluded from audited main.",
+    "Smart App Control remains On; Runner/node-loss finalVerifier, #1662 ACL recurrence, Windows physical gates and 17 Cognitive final verifications remain open; Nubia/Android38 deferred."
+  ],
+  "verification": {
+    "status": "PASS",
+    "checks": [
+      {
+        "command": "node --test tests/jarvis-p5-primary-shell.test.mjs tests/jarvis-theme-catalog.test.ts tests/jarvis-home-widget-layout.test.ts tests/jarvis-p5-layout-modes.test.ts tests/jarvis-home-widget-history.test.ts tests/jarvis-screen-layout-profiles.test.ts tests/jarvis-command-search.test.ts tests/jarvis-notification-priority.test.ts tests/jarvis-display-modes.test.ts tests/jarvis-operation-mode.test.ts tests/goriq-daily-driver-conversation.test.mjs tests/jarvis-p6-voice-input.test.ts tests/goriq-local-tts.test.ts tests/jarvis-p6-speech-persona-style.test.ts tests/goriq-daily-driver-device-command.test.ts tests/jarvis-p6-camera-gesture.test.ts tests/jarvis-p6-imu-pointer.test.ts tests/jarvis-control-plane.test.ts tests/jarvis-sec011-no-secrets-repo.test.mjs tests/jarvis-secret-audit.test.mjs scripts/jarvis-production-config.test.mjs tests/jarvis-ops012-first-run-setup.test.ts tests/jarvis-acc009-multi-device-goal.test.ts tests/jarvis-ops001-task-history.test.ts tests/jarvis-ops002-worker-history.test.ts tests/jarvis-ops003-verification-history.test.ts tests/jarvis-ops015-backup.test.ts tests/goriq-stage-c-nubia-node-contract.test.ts tests/goriq-stage-c-preflight.test.mjs tests/jarvis-v1-foundation.test.ts tests/gai-multi-worker-runtime.test.ts test/iphone-bonjour-contract.test.mjs scripts/iphone-bridge-auto-enrollment.test.mjs",
+        "status": "PASS",
+        "tests": 144,
+        "passed": 144,
+        "failed": 0,
+        "skipped": 0
+      },
+      {
+        "command": "node scripts/validate-jarvis-requirements.mjs",
+        "status": "PASS",
+        "requirements": 341,
+        "product_complete": false
+      },
+      {
+        "command": "node scripts/jarvis-requirement-audit.mjs --check",
+        "status": "PASS",
+        "surfaces": 571,
+        "requirements": 341
+      },
+      {
+        "command": "node scripts/goriq-completion-audit.mjs --check",
+        "status": "PASS",
+        "incomplete": 338,
+        "source_present_but_missing": 1,
+        "absent_evidence_leads": 4,
+        "cognitive_remaining": 17
+      },
+      {
+        "command": "node --test tests/jarvis-product-requirements.test.mjs tests/jarvis-requirement-traceability.test.mjs tests/goriq-completion-audit.test.mjs",
+        "status": "PASS",
+        "tests": 24,
+        "passed": 24,
+        "failed": 0,
+        "skipped": 0
+      },
+      {
+        "check": "One-off node:assert/strict comparison against audited_commit",
+        "status": "PASS",
+        "changed_rows": 34,
+        "unchanged_rows": 307,
+        "allowed_row_fields": [
+          "status",
+          "implementation_refs",
+          "test_refs",
+          "evidence_refs",
+          "blocker",
+          "next_action"
+        ],
+        "preserved": [
+          "all requirement IDs/order/other fields",
+          "global matrix metadata",
+          "prior refs"
+        ],
+        "state_only_fields": [
+          "CURRENT_PHASE",
+          "OPEN_PRS",
+          "BLOCKERS",
+          "NEXT_PRIORITY"
+        ],
+        "runtime_changes": 0
+      },
+      {
+        "command": "git diff --check",
+        "status": "PASS"
+      }
+    ],
+    "limits": "Local unit/source-contract tests and inventory integrity are separate from rendered UI, real engine/device E2E; no PHYSICAL/RECOVERY evidence was produced."
+  },
+  "rows": [
+    {
+      "id": "UI-008",
+      "classification": "STALE_MISSING_IMPLEMENTED",
+      "canonical_status_before": "MISSING",
+      "canonical_status_after": "IMPLEMENTED_UNVERIFIED",
+      "behavior": "Mounted theme and persona settings use separate persisted preference fields; shell reapplies them.",
+      "remaining": "Independent setting/reload interaction and physical acceptance remain unverified; persona reasoning is outside this setting requirement.",
+      "next_action": "Verify independent theme/persona edits and reload on actual UI.",
+      "implementation_refs": [
+        "src/app/jarvis/settings/JarvisLocalSettings.tsx",
+        "src/app/jarvis/settings/GoriqThemeSettings.tsx",
+        "src/app/jarvis/ui-preferences.ts",
+        "src/app/jarvis/settings/page.tsx",
+        "src/app/jarvis/JarvisPrimaryShell.tsx"
+      ],
+      "test_refs": [
+        "tests/jarvis-p5-primary-shell.test.mjs",
+        "tests/jarvis-theme-catalog.test.ts"
+      ],
+      "source_evidence": [
+        "src/app/jarvis/settings/JarvisLocalSettings.tsx:32",
+        "src/app/jarvis/settings/JarvisLocalSettings.tsx:59",
+        "src/app/jarvis/settings/GoriqThemeSettings.tsx:37",
+        "src/app/jarvis/ui-preferences.ts:73"
+      ]
+    },
+    {
+      "id": "UI-010",
+      "classification": "STALE_MISSING_IMPLEMENTED",
+      "canonical_status_before": "MISSING",
+      "canonical_status_after": "IMPLEMENTED_UNVERIFIED",
+      "behavior": "Mounted accent selector persists independently and applies the CSS accent variable consumed by controls.",
+      "remaining": "Tests inspect source contracts; independent change/reload behavior and physical acceptance remain unobserved.",
+      "next_action": "Verify accent edits preserve theme/persona and survive reload.",
+      "implementation_refs": [
+        "src/app/jarvis/settings/JarvisLocalSettings.tsx",
+        "src/app/jarvis/ui-preferences.ts",
+        "src/app/jarvis/themes.css",
+        "src/app/jarvis/JarvisPrimaryShell.tsx"
+      ],
+      "test_refs": [
+        "tests/jarvis-p5-primary-shell.test.mjs"
+      ],
+      "source_evidence": [
+        "src/app/jarvis/settings/JarvisLocalSettings.tsx:73",
+        "src/app/jarvis/ui-preferences.ts:79",
+        "src/app/jarvis/ui-preferences.ts:105"
+      ]
+    },
+    {
+      "id": "UI-012",
+      "classification": "PARTIAL_IMPLEMENTATION",
+      "canonical_status_before": "MISSING",
+      "canonical_status_after": "PARTIAL",
+      "behavior": "Drag/drop and move helpers plus a widget editor exist.",
+      "remaining": "Editor has no production caller in src; required deliberate edit-mode/long-press entry and normal-mode immobility are not established.",
+      "next_action": "Reconnect the existing editor and verify intentional entry plus normal-mode immobility.",
+      "implementation_refs": [
+        "src/app/jarvis/JarvisHomeLayoutEditor.tsx",
+        "src/jarvis/home-widget-layout.ts",
+        "src/app/jarvis/settings/JarvisScreenLayoutProfiles.tsx"
+      ],
+      "test_refs": [
+        "tests/jarvis-home-widget-layout.test.ts"
+      ],
+      "source_evidence": [
+        "src/app/jarvis/JarvisHomeLayoutEditor.tsx:129",
+        "src/app/jarvis/JarvisHomeLayoutEditor.tsx:162",
+        "src/jarvis/home-widget-layout.ts:103"
+      ]
+    },
+    {
+      "id": "UI-013",
+      "classification": "PARTIAL_IMPLEMENTATION",
+      "canonical_status_before": "MISSING",
+      "canonical_status_after": "PARTIAL",
+      "behavior": "Existing widget size helper/editor supports normal, wide and full with responsive CSS.",
+      "remaining": "Editor is not mounted by production code, so reachable resizing and persistence are unproven.",
+      "next_action": "Reuse and reconnect the existing size controls, then verify actual layout persistence.",
+      "implementation_refs": [
+        "src/app/jarvis/JarvisHomeLayoutEditor.tsx",
+        "src/jarvis/home-widget-layout.ts",
+        "src/app/jarvis/widget-layout.css"
+      ],
+      "test_refs": [
+        "tests/jarvis-home-widget-layout.test.ts"
+      ],
+      "source_evidence": [
+        "src/app/jarvis/JarvisHomeLayoutEditor.tsx:181",
+        "src/jarvis/home-widget-layout.ts:132",
+        "src/app/jarvis/widget-layout.css:1"
+      ]
+    },
+    {
+      "id": "UI-014",
+      "classification": "PARTIAL_IMPLEMENTATION",
+      "canonical_status_before": "MISSING",
+      "canonical_status_after": "PARTIAL",
+      "behavior": "Hide/show normalization exists and preserves Human Takeover; primary shell navigation exists separately.",
+      "remaining": "Disconnected editor prevents delivered hide/restore; expanded primary-navigation and Goal invariants need integration evidence.",
+      "next_action": "Reconnect hide/restore and verify navigation and Goal-state preservation.",
+      "implementation_refs": [
+        "src/app/jarvis/JarvisHomeLayoutEditor.tsx",
+        "src/jarvis/home-widget-layout.ts",
+        "src/app/jarvis/JarvisPrimaryShell.tsx",
+        "src/app/jarvis/more/page.tsx"
+      ],
+      "test_refs": [
+        "tests/jarvis-home-widget-layout.test.ts",
+        "tests/jarvis-p5-primary-shell.test.mjs"
+      ],
+      "source_evidence": [
+        "src/app/jarvis/JarvisHomeLayoutEditor.tsx:185",
+        "src/jarvis/home-widget-layout.ts:141",
+        "src/app/jarvis/JarvisPrimaryShell.tsx:74"
+      ]
+    },
+    {
+      "id": "UI-015",
+      "classification": "PARTIAL_IMPLEMENTATION",
+      "canonical_status_before": "MISSING",
+      "canonical_status_after": "PARTIAL",
+      "behavior": "Mounted common layout presets persist and affect CSS; separate widget-position presets also exist.",
+      "remaining": "Widget preset editor is disconnected. Generic layout preset behavior exists, but the audit conservatively retains PARTIAL until widget-layout scope and delivery are covered.",
+      "next_action": "Verify mounted common presets and reconnect existing widget presets with the editor.",
+      "implementation_refs": [
+        "src/app/jarvis/settings/JarvisLocalSettings.tsx",
+        "src/app/jarvis/ui-preferences.ts",
+        "src/app/jarvis/layout-modes.css",
+        "src/app/jarvis/layout.tsx",
+        "src/jarvis/home-widget-layout.ts"
+      ],
+      "test_refs": [
+        "tests/jarvis-p5-layout-modes.test.ts",
+        "tests/jarvis-home-widget-history.test.ts"
+      ],
+      "source_evidence": [
+        "src/app/jarvis/settings/JarvisLocalSettings.tsx:79",
+        "src/app/jarvis/ui-preferences.ts:106",
+        "src/jarvis/home-widget-layout.ts:37"
+      ]
+    },
+    {
+      "id": "UI-016",
+      "classification": "STALE_MISSING_IMPLEMENTED",
+      "canonical_status_before": "MISSING",
+      "canonical_status_after": "IMPLEMENTED_UNVERIFIED",
+      "behavior": "Mounted per-design screen profiles persist seven screen settings and are reapplied by pathname/design.",
+      "remaining": "Route/design switching, persistence interaction and physical acceptance remain unverified.",
+      "next_action": "Observe actual route/design switching and profile persistence.",
+      "implementation_refs": [
+        "src/app/jarvis/screen-layout-profiles.ts",
+        "src/app/jarvis/settings/JarvisScreenLayoutProfiles.tsx",
+        "src/app/jarvis/settings/page.tsx",
+        "src/app/jarvis/JarvisPrimaryShell.tsx",
+        "src/app/jarvis/screen-layout-profiles.css"
+      ],
+      "test_refs": [
+        "tests/jarvis-screen-layout-profiles.test.ts",
+        "tests/jarvis-p5-layout-modes.test.ts"
+      ],
+      "source_evidence": [
+        "src/app/jarvis/screen-layout-profiles.ts:67",
+        "src/app/jarvis/settings/JarvisScreenLayoutProfiles.tsx:65",
+        "src/app/jarvis/JarvisPrimaryShell.tsx:57"
+      ]
+    },
+    {
+      "id": "UI-017",
+      "classification": "PARTIAL_IMPLEMENTATION",
+      "canonical_status_before": "MISSING",
+      "canonical_status_after": "PARTIAL",
+      "behavior": "Bounded 30-entry Undo history and editor controls exist.",
+      "remaining": "Editor has no production caller; history is in-memory per editor mount, and screen-profile Settings has no Undo path.",
+      "next_action": "Reconnect existing Undo controls and verify a user-reachable restoration.",
+      "implementation_refs": [
+        "src/jarvis/home-widget-history.ts",
+        "src/app/jarvis/JarvisHomeLayoutEditor.tsx"
+      ],
+      "test_refs": [
+        "tests/jarvis-home-widget-history.test.ts"
+      ],
+      "source_evidence": [
+        "src/jarvis/home-widget-history.ts:26",
+        "src/jarvis/home-widget-history.ts:40",
+        "src/app/jarvis/JarvisHomeLayoutEditor.tsx:148"
+      ]
+    },
+    {
+      "id": "UI-018",
+      "classification": "PARTIAL_IMPLEMENTATION",
+      "canonical_status_before": "MISSING",
+      "canonical_status_after": "PARTIAL",
+      "behavior": "Redo and invalidation after a new change exist in the history helper/editor.",
+      "remaining": "Disconnected editor prevents demonstrated user-reachable Redo.",
+      "next_action": "Reconnect and verify change, Undo, Redo and new-change invalidation.",
+      "implementation_refs": [
+        "src/jarvis/home-widget-history.ts",
+        "src/app/jarvis/JarvisHomeLayoutEditor.tsx"
+      ],
+      "test_refs": [
+        "tests/jarvis-home-widget-history.test.ts"
+      ],
+      "source_evidence": [
+        "src/jarvis/home-widget-history.ts:51",
+        "src/app/jarvis/JarvisHomeLayoutEditor.tsx:149"
+      ]
+    },
+    {
+      "id": "UI-019",
+      "classification": "PARTIAL_IMPLEMENTATION",
+      "canonical_status_before": "MISSING",
+      "canonical_status_after": "PARTIAL",
+      "behavior": "Mounted Settings resets selected-design screen profiles without Goal/API mutation.",
+      "remaining": "Widget placement reset is in a disconnected editor with a global storage key; complete per-design reset and unrelated-data preservation are unproven.",
+      "next_action": "Preserve current screen-profile reset, reconnect and scope widget reset per design, then test preservation.",
+      "implementation_refs": [
+        "src/app/jarvis/settings/JarvisScreenLayoutProfiles.tsx",
+        "src/app/jarvis/screen-layout-profiles.ts",
+        "src/app/jarvis/settings/page.tsx",
+        "src/app/jarvis/JarvisHomeLayoutEditor.tsx",
+        "src/jarvis/home-widget-layout.ts"
+      ],
+      "test_refs": [
+        "tests/jarvis-screen-layout-profiles.test.ts",
+        "tests/jarvis-home-widget-history.test.ts"
+      ],
+      "source_evidence": [
+        "src/app/jarvis/settings/JarvisScreenLayoutProfiles.tsx:44",
+        "src/app/jarvis/screen-layout-profiles.ts:96",
+        "src/app/jarvis/JarvisHomeLayoutEditor.tsx:150"
+      ]
+    },
+    {
+      "id": "UI-021",
+      "classification": "PARTIAL_IMPLEMENTATION",
+      "canonical_status_before": "MISSING",
+      "canonical_status_after": "PARTIAL",
+      "behavior": "Mounted command search ranks bounded Japanese/English aliases and navigates seven fixed screens.",
+      "remaining": "Actual tasks/projects/nodes/history and newer primary routes are not in that seven-item catalogue; broader Universal Search remains incomplete.",
+      "next_action": "Extend the existing search across required live entities and current routes, then verify the accepted scope.",
+      "implementation_refs": [
+        "src/jarvis/command-search.ts",
+        "src/app/jarvis/JarvisCommandSearch.tsx",
+        "src/app/jarvis/JarvisPrimaryShell.tsx"
+      ],
+      "test_refs": [
+        "tests/jarvis-command-search.test.ts"
+      ],
+      "source_evidence": [
+        "src/jarvis/command-search.ts:9",
+        "src/jarvis/command-search.ts:61",
+        "src/app/jarvis/JarvisPrimaryShell.tsx:94"
+      ]
+    },
+    {
+      "id": "UI-022",
+      "classification": "STALE_MISSING_IMPLEMENTED",
+      "canonical_status_before": "MISSING",
+      "canonical_status_after": "IMPLEMENTED_UNVERIFIED",
+      "behavior": "Mounted owner-protected state polling ranks Human Gate, failed, running and queued statuses and displays fetch errors.",
+      "remaining": "Actual UI state/error ordering and physical acceptance are unverified; OS push/configurable delivery are outside this bounded implementation.",
+      "next_action": "Verify priority ordering and visible errors against actual protected state.",
+      "implementation_refs": [
+        "src/app/jarvis/notification-priority.ts",
+        "src/app/jarvis/JarvisPriorityNotifications.tsx",
+        "src/app/jarvis/JarvisPrimaryShell.tsx",
+        "src/app/api/jarvis/state/route.ts"
+      ],
+      "test_refs": [
+        "tests/jarvis-notification-priority.test.ts"
+      ],
+      "source_evidence": [
+        "src/app/jarvis/notification-priority.ts:24",
+        "src/app/jarvis/JarvisPriorityNotifications.tsx:33",
+        "src/app/jarvis/JarvisPrimaryShell.tsx:99"
+      ]
+    },
+    {
+      "id": "UI-023",
+      "classification": "STALE_MISSING_IMPLEMENTED",
+      "canonical_status_before": "MISSING",
+      "canonical_status_after": "IMPLEMENTED_UNVERIFIED",
+      "behavior": "Mounted persisted Focus mode reduces inactive navigation and detail presentation without targeting safety surfaces.",
+      "remaining": "Rendered screen behavior and physical safety-visibility acceptance remain unverified.",
+      "next_action": "Verify Focus mode on actual screens while keeping takeover and alerts visible.",
+      "implementation_refs": [
+        "src/app/jarvis/display-modes.ts",
+        "src/app/jarvis/JarvisDisplayModeControls.tsx",
+        "src/app/jarvis/JarvisPrimaryShell.tsx",
+        "src/app/jarvis/jarvis.css"
+      ],
+      "test_refs": [
+        "tests/jarvis-display-modes.test.ts"
+      ],
+      "source_evidence": [
+        "src/app/jarvis/display-modes.ts:5",
+        "src/app/jarvis/JarvisDisplayModeControls.tsx:38",
+        "src/app/jarvis/jarvis.css:22"
+      ]
+    },
+    {
+      "id": "UI-024",
+      "classification": "STALE_MISSING_IMPLEMENTED",
+      "canonical_status_before": "MISSING",
+      "canonical_status_after": "IMPLEMENTED_UNVERIFIED",
+      "behavior": "Mounted persisted Distance mode enlarges root type, control targets and content presentation.",
+      "remaining": "CSS existence does not establish usability at physical viewing distances or on all devices.",
+      "next_action": "Collect actual distance/device usability evidence for the existing mode.",
+      "implementation_refs": [
+        "src/app/jarvis/display-modes.ts",
+        "src/app/jarvis/JarvisDisplayModeControls.tsx",
+        "src/app/jarvis/JarvisPrimaryShell.tsx",
+        "src/app/jarvis/jarvis.css"
+      ],
+      "test_refs": [
+        "tests/jarvis-display-modes.test.ts"
+      ],
+      "source_evidence": [
+        "src/app/jarvis/display-modes.ts:6",
+        "src/app/jarvis/JarvisDisplayModeControls.tsx:38",
+        "src/app/jarvis/jarvis.css:23"
+      ]
+    },
+    {
+      "id": "UI-028",
+      "classification": "PARTIAL_IMPLEMENTATION",
+      "canonical_status_before": "MISSING",
+      "canonical_status_after": "PARTIAL",
+      "behavior": "Privacy mode masks remote screens, multiview and legacy enrollment code selectors.",
+      "remaining": "Current invitation URL input and provisioning QR are outside the examined privacy selectors; rendered sensitive-panel coverage is incomplete.",
+      "next_action": "Extend the existing masking to current enrollment displays and verify rendered coverage.",
+      "implementation_refs": [
+        "src/app/jarvis/JarvisDisplayModeControls.tsx",
+        "src/app/jarvis/display-modes.ts",
+        "src/app/jarvis/jarvis.css",
+        "src/app/jarvis/JarvisConsole.tsx",
+        "src/app/jarvis/RemoteAssistMultiView.tsx",
+        "src/app/jarvis/enroll/OwnerInvitationPanel.tsx",
+        "src/app/jarvis/enroll/page.tsx"
+      ],
+      "test_refs": [
+        "tests/jarvis-display-modes.test.ts"
+      ],
+      "source_evidence": [
+        "src/app/jarvis/jarvis.css:24",
+        "src/app/jarvis/enroll/OwnerInvitationPanel.tsx:33",
+        "src/app/jarvis/enroll/page.tsx:253"
+      ]
+    },
+    {
+      "id": "UI-030",
+      "classification": "PARTIAL_IMPLEMENTATION",
+      "canonical_status_before": "MISSING",
+      "canonical_status_after": "PARTIAL",
+      "behavior": "Mounted read-only boundary blocks child mutation interactions, and Kiosk retains local exit controls.",
+      "remaining": "GlobalConversationLauncher is outside the boundary and enables CommandChat's POST /api/command path; full read-only UI behavior is incomplete. Backend authorization is separate.",
+      "next_action": "Cover global conversation mutations and test all currently mounted action surfaces.",
+      "implementation_refs": [
+        "src/app/jarvis/operation-mode.ts",
+        "src/app/jarvis/JarvisReadOnlyBoundary.tsx",
+        "src/app/jarvis/operation-mode.css",
+        "src/app/jarvis/JarvisPrimaryShell.tsx",
+        "src/app/jarvis/GlobalConversationLauncher.tsx",
+        "src/app/CommandChat.tsx"
+      ],
+      "test_refs": [
+        "tests/jarvis-operation-mode.test.ts"
+      ],
+      "source_evidence": [
+        "src/app/jarvis/JarvisReadOnlyBoundary.tsx:33",
+        "src/app/jarvis/JarvisPrimaryShell.tsx:100",
+        "src/app/jarvis/GlobalConversationLauncher.tsx:46",
+        "src/app/CommandChat.tsx:361"
+      ]
+    },
+    {
+      "id": "INT-004",
+      "classification": "PARTIAL_IMPLEMENTATION",
+      "canonical_status_before": "MISSING",
+      "canonical_status_after": "PARTIAL",
+      "behavior": "Shared conversation persists text/transcripts and AI replies; voice input selects local TTS for a new reply.",
+      "remaining": "No response-modality override or seamless restored-session/mode continuity is established.",
+      "next_action": "Verify transcript persistence, mode switches, reply defaults and owner override on actual devices.",
+      "implementation_refs": [
+        "src/app/CommandChat.tsx",
+        "src/app/api/conversations/route.ts",
+        "src/app/jarvis/GlobalConversationLauncher.tsx"
+      ],
+      "test_refs": [
+        "tests/goriq-daily-driver-conversation.test.mjs",
+        "tests/jarvis-p6-voice-input.test.ts"
+      ],
+      "source_evidence": [
+        "src/app/CommandChat.tsx:244",
+        "src/app/CommandChat.tsx:343",
+        "src/app/api/conversations/route.ts:134",
+        "src/app/jarvis/GlobalConversationLauncher.tsx:46"
+      ]
+    },
+    {
+      "id": "INT-005",
+      "classification": "PARTIAL_IMPLEMENTATION",
+      "canonical_status_before": "MISSING",
+      "canonical_status_after": "PARTIAL",
+      "behavior": "Global conversation sends current pathname/mode as context; older selected-command resolver handles a bounded 'this' reference.",
+      "remaining": "Path metadata and prompt wording do not establish retrieval over every GORIQ entity, unique-target actions or minimal clarification.",
+      "next_action": "Verify cross-entity retrieval and safe unique-target action scenarios using existing context plumbing.",
+      "implementation_refs": [
+        "src/app/jarvis/GlobalConversationLauncher.tsx",
+        "src/app/CommandChat.tsx",
+        "src/app/api/command/route.ts",
+        "scripts/chatgpt-resident-bridge-lib.mjs",
+        "src/app/jarvis/mobile/context-reference.ts"
+      ],
+      "test_refs": [
+        "tests/goriq-daily-driver-conversation.test.mjs",
+        "tests/jarvis-p6-voice-input.test.ts"
+      ],
+      "source_evidence": [
+        "src/app/jarvis/GlobalConversationLauncher.tsx:35",
+        "src/app/api/command/route.ts:221",
+        "scripts/chatgpt-resident-bridge-lib.mjs:180",
+        "src/app/jarvis/mobile/context-reference.ts:40"
+      ]
+    },
+    {
+      "id": "INT-006",
+      "classification": "PARTIAL_IMPLEMENTATION",
+      "canonical_status_before": "MISSING",
+      "canonical_status_after": "PARTIAL",
+      "behavior": "Voice resolver reparses the newest sent, same-target, non-redacted safe command for the prior-command reference.",
+      "remaining": "General screen/global-conversation reference semantics and the former text-command history path are not established.",
+      "next_action": "Retain bounded history behavior and verify broader screen references and physical use.",
+      "implementation_refs": [
+        "src/app/jarvis/mobile/context-reference.ts",
+        "src/app/jarvis/mobile/voice/MobileVoiceCommander.tsx"
+      ],
+      "test_refs": [
+        "tests/jarvis-p6-voice-input.test.ts"
+      ],
+      "source_evidence": [
+        "src/app/jarvis/mobile/context-reference.ts:53",
+        "src/app/jarvis/mobile/voice/MobileVoiceCommander.tsx:207"
+      ]
+    },
+    {
+      "id": "INT-007",
+      "classification": "PARTIAL_IMPLEMENTATION",
+      "canonical_status_before": "MISSING",
+      "canonical_status_after": "PARTIAL",
+      "behavior": "Bounded ordinal references select filtered safe command history and reject absent/out-of-range choices.",
+      "remaining": "Command-history ordinals do not establish current-screen entity/list references across GORIQ.",
+      "next_action": "Verify actual screen-list references before broadening the implementation claim.",
+      "implementation_refs": [
+        "src/app/jarvis/mobile/context-reference.ts",
+        "src/app/jarvis/mobile/voice/MobileVoiceCommander.tsx"
+      ],
+      "test_refs": [
+        "tests/jarvis-p6-voice-input.test.ts"
+      ],
+      "source_evidence": [
+        "src/app/jarvis/mobile/context-reference.ts:60",
+        "src/app/jarvis/mobile/voice/MobileVoiceCommander.tsx:207"
+      ]
+    },
+    {
+      "id": "INT-008",
+      "classification": "PARTIAL_IMPLEMENTATION",
+      "canonical_status_before": "MISSING",
+      "canonical_status_after": "PARTIAL",
+      "behavior": "Authenticated local TTS path provides loopback Aivis/VOICEVOX discovery, voice selection, bounded synthesis, settings and playback.",
+      "remaining": "Terms availability checks only a nonempty policy value; requested missing voice can select another candidate; synthesis-failure fallback, redirect confinement and actual engine/model acceptance remain unproven.",
+      "next_action": "Verify model terms and explicit fallback behavior, constrain local egress and collect actual engine/model evidence.",
+      "implementation_refs": [
+        "src/jarvis/local-tts.ts",
+        "src/app/api/jarvis/voice/route.ts",
+        "scripts/jarvis-broker.ts",
+        "src/app/jarvis/settings/GoriqVoiceSettings.tsx",
+        "src/app/jarvis/voice-output.ts"
+      ],
+      "test_refs": [
+        "tests/goriq-local-tts.test.ts",
+        "tests/goriq-daily-driver-conversation.test.mjs"
+      ],
+      "source_evidence": [
+        "src/jarvis/local-tts.ts:43",
+        "src/jarvis/local-tts.ts:153",
+        "src/jarvis/local-tts.ts:179",
+        "src/app/jarvis/settings/GoriqVoiceSettings.tsx:109",
+        "src/app/jarvis/voice-output.ts:54"
+      ]
+    },
+    {
+      "id": "INT-009",
+      "classification": "PARTIAL_IMPLEMENTATION",
+      "canonical_status_before": "MISSING",
+      "canonical_status_after": "PARTIAL",
+      "behavior": "Persisted standard/brief/formal speech policy changes fixed status phrases; persona and acoustic controls are stored separately.",
+      "remaining": "Shared AI replies bypass the saved speech style; normalization/source tests do not prove full-reply style or reload behavior.",
+      "next_action": "Apply and verify the saved style on intended reply paths while preserving authority boundaries.",
+      "implementation_refs": [
+        "src/app/jarvis/mobile/voice/SpeechPersonaStylePanel.tsx",
+        "src/app/jarvis/mobile/voice/speech-policy.ts",
+        "src/app/jarvis/settings/GoriqVoiceSettings.tsx",
+        "src/app/jarvis/voice-output.ts",
+        "src/app/CommandChat.tsx"
+      ],
+      "test_refs": [
+        "tests/jarvis-p6-speech-persona-style.test.ts"
+      ],
+      "source_evidence": [
+        "src/app/jarvis/mobile/voice/SpeechPersonaStylePanel.tsx:67",
+        "src/app/jarvis/mobile/voice/speech-policy.ts:160",
+        "src/app/CommandChat.tsx:260"
+      ]
+    },
+    {
+      "id": "INT-017",
+      "classification": "STALE_MISSING_IMPLEMENTED",
+      "canonical_status_before": "MISSING",
+      "canonical_status_after": "IMPLEMENTED_UNVERIFIED",
+      "behavior": "Voice commands use the shared safe parser and explicit execute; unified conversation uses existing owner authentication and Human Gate handling.",
+      "remaining": "Integrated voice-origin protected requests and ambiguous approvals still need security/physical acceptance evidence.",
+      "next_action": "Verify protected requests across actual conversation and worker paths without adding voice-specific authority.",
+      "implementation_refs": [
+        "src/jarvis/daily-driver-device-command.ts",
+        "src/app/jarvis/mobile/voice-command.ts",
+        "src/app/jarvis/mobile/voice/MobileVoiceCommander.tsx",
+        "src/app/api/command/route.ts"
+      ],
+      "test_refs": [
+        "tests/jarvis-p6-voice-input.test.ts",
+        "tests/goriq-daily-driver-device-command.test.ts"
+      ],
+      "source_evidence": [
+        "src/jarvis/daily-driver-device-command.ts:14",
+        "src/app/jarvis/mobile/voice/MobileVoiceCommander.tsx:207",
+        "src/app/api/command/route.ts:190"
+      ]
+    },
+    {
+      "id": "GEST-001",
+      "classification": "PARTIAL_IMPLEMENTATION",
+      "canonical_status_before": "MISSING",
+      "canonical_status_after": "PARTIAL",
+      "behavior": "Opt-in local camera processing classifies dominant changed-pixel motion and changes safe UI selection.",
+      "remaining": "Whole-frame motion detection explicitly does not understand hand shape; full hand gesture recognition and physical false positives remain open.",
+      "next_action": "Define and verify required hand gestures using the existing local capture path.",
+      "implementation_refs": [
+        "src/app/jarvis/mobile/gesture/CameraGestureCommander.tsx",
+        "src/app/jarvis/mobile/gesture/gesture-motion.ts"
+      ],
+      "test_refs": [
+        "tests/jarvis-p6-camera-gesture.test.ts"
+      ],
+      "source_evidence": [
+        "src/app/jarvis/mobile/gesture/CameraGestureCommander.tsx:103",
+        "src/app/jarvis/mobile/gesture/CameraGestureCommander.tsx:258",
+        "src/app/jarvis/mobile/gesture/gesture-motion.ts:20"
+      ]
+    },
+    {
+      "id": "GEST-004",
+      "classification": "STALE_MISSING_IMPLEMENTED",
+      "canonical_status_before": "MISSING",
+      "canonical_status_after": "IMPLEMENTED_UNVERIFIED",
+      "behavior": "Motion safeguards bound samples, distance, dominant axis, duration, pixel change and cooldown; navigation still needs tap/Enter.",
+      "remaining": "Physical lighting/motion false-positive acceptance remains pending.",
+      "next_action": "Measure false positives and confirmation behavior on actual devices.",
+      "implementation_refs": [
+        "src/app/jarvis/mobile/gesture/gesture-motion.ts",
+        "src/app/jarvis/mobile/gesture/CameraGestureCommander.tsx"
+      ],
+      "test_refs": [
+        "tests/jarvis-p6-camera-gesture.test.ts"
+      ],
+      "source_evidence": [
+        "src/app/jarvis/mobile/gesture/gesture-motion.ts:50",
+        "src/app/jarvis/mobile/gesture/CameraGestureCommander.tsx:130",
+        "src/app/jarvis/mobile/gesture/CameraGestureCommander.tsx:209"
+      ]
+    },
+    {
+      "id": "GEST-006",
+      "classification": "STALE_MISSING_IMPLEMENTED",
+      "canonical_status_before": "MISSING",
+      "canonical_status_after": "IMPLEMENTED_UNVERIFIED",
+      "behavior": "Mounted smartphone pointer includes orientation permission, calibration, dead zone, smoothing, projection, stop and manual activation.",
+      "remaining": "Implementation selects local navigation targets, not a remote desktop cursor; physical permission/calibration/stop behavior is unverified.",
+      "next_action": "Verify the existing local pointer and its fallback on target devices.",
+      "implementation_refs": [
+        "src/app/jarvis/mobile/pointer/ImuPointerCommander.tsx",
+        "src/app/jarvis/mobile/pointer/imu-pointer.ts",
+        "src/app/jarvis/mobile/page.tsx"
+      ],
+      "test_refs": [
+        "tests/jarvis-p6-imu-pointer.test.ts"
+      ],
+      "source_evidence": [
+        "src/app/jarvis/mobile/pointer/ImuPointerCommander.tsx:87",
+        "src/app/jarvis/mobile/pointer/ImuPointerCommander.tsx:191",
+        "src/app/jarvis/mobile/pointer/imu-pointer.ts:46"
+      ]
+    },
+    {
+      "id": "GEST-007",
+      "classification": "STALE_MISSING_IMPLEMENTED",
+      "canonical_status_before": "MISSING",
+      "canonical_status_after": "IMPLEMENTED_UNVERIFIED",
+      "behavior": "Mobile controls select fleet nodes and submit bounded device actions through owner API, Broker queue and signed worker handling.",
+      "remaining": "Actual smartphone UI to selected device to observed result evidence remains required; local pointer navigation alone does not satisfy this path.",
+      "next_action": "Collect bounded mobile-to-real-device execution and result evidence.",
+      "implementation_refs": [
+        "src/app/jarvis/mobile/MobileCommander.tsx",
+        "src/app/api/jarvis/action/route.ts",
+        "scripts/jarvis-broker.ts",
+        "src/app/jarvis/mobile/page.tsx"
+      ],
+      "test_refs": [
+        "tests/jarvis-control-plane.test.ts",
+        "tests/jarvis-p6-imu-pointer.test.ts",
+        "tests/goriq-daily-driver-device-command.test.ts"
+      ],
+      "source_evidence": [
+        "src/app/jarvis/mobile/MobileCommander.tsx:180",
+        "src/app/api/jarvis/action/route.ts:121",
+        "scripts/jarvis-broker.ts:887"
+      ]
+    },
+    {
+      "id": "SEC-011",
+      "classification": "PARTIAL_IMPLEMENTATION",
+      "canonical_status_before": "MISSING",
+      "canonical_status_after": "PARTIAL",
+      "behavior": "Repository scanner detects defined credential signatures and sensitive-variable console logging without returning secret values; production configuration uses host-local DPAPI.",
+      "remaining": "Scanner covers selected extensions/directories/size bounds and excludes Git history; it cannot prove no secrets across all possible storage.",
+      "next_action": "Record current defined-scope security results and separately evaluate excluded surfaces without exposing secret values.",
+      "implementation_refs": [
+        "scripts/jarvis-secret-audit.mjs",
+        "scripts/jarvis-production-config.mjs",
+        "src/jarvis/pc-runtime-refresh.ts"
+      ],
+      "test_refs": [
+        "tests/jarvis-sec011-no-secrets-repo.test.mjs",
+        "tests/jarvis-secret-audit.test.mjs",
+        "scripts/jarvis-production-config.test.mjs"
+      ],
+      "source_evidence": [
+        "scripts/jarvis-secret-audit.mjs:36",
+        "scripts/jarvis-secret-audit.mjs:126",
+        "scripts/jarvis-production-config.mjs:43",
+        "src/jarvis/pc-runtime-refresh.ts:107"
+      ]
+    },
+    {
+      "id": "OPS-012",
+      "classification": "STALE_MISSING_IMPLEMENTED",
+      "canonical_status_before": "MISSING",
+      "canonical_status_after": "IMPLEMENTED_UNVERIFIED",
+      "behavior": "Mounted owner-gated readiness wizard groups host, connection and permission diagnostics and shows worst/missing states and actions.",
+      "remaining": "This is read-only readiness guidance, not automatic installation; actual first-run acceptance is unverified.",
+      "next_action": "Verify the existing first-run guidance on the target host/device.",
+      "implementation_refs": [
+        "src/jarvis/first-run-setup.ts",
+        "src/app/jarvis/setup/SetupWizardClient.tsx",
+        "src/app/jarvis/setup/page.tsx"
+      ],
+      "test_refs": [
+        "tests/jarvis-ops012-first-run-setup.test.ts"
+      ],
+      "source_evidence": [
+        "src/jarvis/first-run-setup.ts:30",
+        "src/app/jarvis/setup/SetupWizardClient.tsx:53",
+        "src/app/jarvis/setup/page.tsx:1"
+      ]
+    },
+    {
+      "id": "ACC-009",
+      "classification": "PARTIAL_IMPLEMENTATION",
+      "canonical_status_before": "MISSING",
+      "canonical_status_after": "PARTIAL",
+      "behavior": "ControlPlane supports concurrent tasks on distinct nodes; a helper checks expected completed tasks, explicit verifier booleans and multiple nodes.",
+      "remaining": "Acceptance helper has no production caller in src/scripts and trusts caller-provided verifier evidence; actual same-Goal parallel completion is unverified.",
+      "next_action": "Connect authoritative Goal/verifier evidence before real multi-device and recovery acceptance.",
+      "implementation_refs": [
+        "src/jarvis/control-plane.ts",
+        "src/jarvis/fleet-goal-evidence.ts"
+      ],
+      "test_refs": [
+        "tests/jarvis-acc009-multi-device-goal.test.ts"
+      ],
+      "source_evidence": [
+        "src/jarvis/control-plane.ts:121",
+        "src/jarvis/fleet-goal-evidence.ts:27",
+        "tests/jarvis-acc009-multi-device-goal.test.ts:54"
+      ]
+    },
+    {
+      "id": "MIG-006",
+      "classification": "PARTIAL_IMPLEMENTATION",
+      "canonical_status_before": "MISSING",
+      "canonical_status_after": "PARTIAL",
+      "behavior": "SQLite snapshots/identities, persisted task/verification history and hashed database backup primitives exist.",
+      "remaining": "Identity history reader has no production caller; database backup alone does not preserve external evidence artifacts or establish lossless migration.",
+      "next_action": "Require migration manifests and restore comparisons spanning task, result, verifier and external evidence history.",
+      "implementation_refs": [
+        "src/jarvis/sqlite-state-store.ts",
+        "src/jarvis/worker-identity-history.ts",
+        "src/gai/production-task-history.ts",
+        "src/gai/production-verification-history.ts",
+        "src/jarvis/state-backup.ts"
+      ],
+      "test_refs": [
+        "tests/jarvis-ops001-task-history.test.ts",
+        "tests/jarvis-ops002-worker-history.test.ts",
+        "tests/jarvis-ops003-verification-history.test.ts",
+        "tests/jarvis-ops015-backup.test.ts"
+      ],
+      "source_evidence": [
+        "src/jarvis/sqlite-state-store.ts:52",
+        "src/jarvis/worker-identity-history.ts:32",
+        "src/jarvis/state-backup.ts:81"
+      ]
+    },
+    {
+      "id": "MIG-016",
+      "classification": "PARTIAL_IMPLEMENTATION",
+      "canonical_status_before": "MISSING",
+      "canonical_status_after": "PARTIAL",
+      "behavior": "Android Node Contract resource metadata and honest capability limits are wired into enrollment/heartbeat and Broker sanitization.",
+      "remaining": "Contract declares offline queue, checkpoint resume and side-effect fencing unavailable; Nubia/iPhone/fleet physical sequence is not established.",
+      "next_action": "Preserve Nubia/Android38 deferral and resume canary acceptance after prior distributed gates.",
+      "implementation_refs": [
+        "android/jarvis-worker/app/src/main/java/ai/jarvis/worker/DistributedNodeContract.kt",
+        "android/jarvis-worker/app/src/main/java/ai/jarvis/worker/BrokerClient.kt",
+        "src/jarvis/fleet-manager.ts",
+        "scripts/jarvis-broker.ts"
+      ],
+      "test_refs": [
+        "tests/goriq-stage-c-nubia-node-contract.test.ts",
+        "tests/goriq-stage-c-preflight.test.mjs"
+      ],
+      "source_evidence": [
+        "android/jarvis-worker/app/src/main/java/ai/jarvis/worker/DistributedNodeContract.kt:25",
+        "android/jarvis-worker/app/src/main/java/ai/jarvis/worker/BrokerClient.kt:73",
+        "src/jarvis/fleet-manager.ts:30"
+      ]
+    },
+    {
+      "id": "MIG-022",
+      "classification": "PARTIAL_IMPLEMENTATION",
+      "canonical_status_before": "MISSING",
+      "canonical_status_after": "PARTIAL",
+      "behavior": "Connectivity routing distinguishes online/LAN/offline and placement considers available node resources/load/data locality.",
+      "remaining": "Normal Broker polling supplies fixed online connectivity; integrated trusted-LAN/private/offline transport choice and re-evaluation are unproven.",
+      "next_action": "Verify actual same-LAN, Internet-loss and cross-site transport/placement scenarios.",
+      "implementation_refs": [
+        "src/jarvis/connection-router.ts",
+        "src/jarvis/execution-router.ts",
+        "src/jarvis/fleet-manager.ts",
+        "src/gai/worker-runtime.ts",
+        "scripts/jarvis-broker.ts"
+      ],
+      "test_refs": [
+        "tests/jarvis-v1-foundation.test.ts",
+        "tests/gai-multi-worker-runtime.test.ts"
+      ],
+      "source_evidence": [
+        "src/jarvis/connection-router.ts:3",
+        "src/jarvis/execution-router.ts:36",
+        "src/jarvis/fleet-manager.ts:163",
+        "scripts/jarvis-broker.ts:930"
+      ]
+    },
+    {
+      "id": "MIG-023",
+      "classification": "GAP_REMAINS",
+      "canonical_status_before": "MISSING",
+      "canonical_status_after": "MISSING",
+      "behavior": "Bonjour/bootstrap/reconnect mechanics exist, but examined discovery accepts an HTTP endpoint by service name and protocol fields.",
+      "remaining": "Coordinator identity authentication was not found in discovery-to-reconnect before sending the existing credential; source review is not a runtime exploit claim.",
+      "next_action": "Add and negatively test trusted Coordinator authentication before sending credentials to a discovered endpoint.",
+      "implementation_refs": [
+        "apps/ios-worker/Sources/BonjourBridgeDiscovery.swift",
+        "apps/ios-worker/Sources/WorkerRuntime.swift"
+      ],
+      "test_refs": [
+        "test/iphone-bonjour-contract.test.mjs",
+        "scripts/iphone-bridge-auto-enrollment.test.mjs"
+      ],
+      "source_evidence": [
+        "apps/ios-worker/Sources/BonjourBridgeDiscovery.swift:36",
+        "apps/ios-worker/Sources/WorkerRuntime.swift:128",
+        "apps/ios-worker/Sources/WorkerRuntime.swift:214",
+        "apps/ios-worker/Sources/WorkerRuntime.swift:453"
+      ]
+    }
+  ]
+}

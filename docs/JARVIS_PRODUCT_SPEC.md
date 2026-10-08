@@ -3822,14 +3822,26 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "INTEGRATION",
     "PHYSICAL"
   ],
-  "implementation_refs": [],
-  "test_refs": [],
-  "evidence_refs": [],
-  "status": "MISSING",
-  "blocker": "現行JARVIS UIに当該製品機能を未発見。P5で実装と操作検証が必要。",
+  "implementation_refs": [
+    "src/app/jarvis/settings/JarvisLocalSettings.tsx",
+    "src/app/jarvis/settings/GoriqThemeSettings.tsx",
+    "src/app/jarvis/ui-preferences.ts",
+    "src/app/jarvis/settings/page.tsx",
+    "src/app/jarvis/JarvisPrimaryShell.tsx"
+  ],
+  "test_refs": [
+    "tests/jarvis-p5-primary-shell.test.mjs",
+    "tests/jarvis-theme-catalog.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.md",
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.json"
+  ],
+  "status": "IMPLEMENTED_UNVERIFIED",
+  "blocker": "Independent setting/reload interaction and physical acceptance remain unverified; persona reasoning is outside this setting requirement.",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P5: ThemeとPersonaは独立設定。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "Verify independent theme/persona edits and reload on actual UI.",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -3904,14 +3916,24 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "INTEGRATION",
     "PHYSICAL"
   ],
-  "implementation_refs": [],
-  "test_refs": [],
-  "evidence_refs": [],
-  "status": "MISSING",
-  "blocker": "現行JARVIS UIに当該製品機能を未発見。P5で実装と操作検証が必要。",
+  "implementation_refs": [
+    "src/app/jarvis/settings/JarvisLocalSettings.tsx",
+    "src/app/jarvis/ui-preferences.ts",
+    "src/app/jarvis/themes.css",
+    "src/app/jarvis/JarvisPrimaryShell.tsx"
+  ],
+  "test_refs": [
+    "tests/jarvis-p5-primary-shell.test.mjs"
+  ],
+  "evidence_refs": [
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.md",
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.json"
+  ],
+  "status": "IMPLEMENTED_UNVERIFIED",
+  "blocker": "Tests inspect source contracts; independent change/reload behavior and physical acceptance remain unobserved.",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P5: Accent Colorは独立設定。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "Verify accent edits preserve theme/persona and survive reload.",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -3984,14 +4006,23 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "INTEGRATION",
     "PHYSICAL"
   ],
-  "implementation_refs": [],
-  "test_refs": [],
-  "evidence_refs": [],
-  "status": "MISSING",
-  "blocker": "現行JARVIS UIに当該製品機能を未発見。P5で実装と操作検証が必要。",
+  "implementation_refs": [
+    "src/app/jarvis/JarvisHomeLayoutEditor.tsx",
+    "src/jarvis/home-widget-layout.ts",
+    "src/app/jarvis/settings/JarvisScreenLayoutProfiles.tsx"
+  ],
+  "test_refs": [
+    "tests/jarvis-home-widget-layout.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.md",
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.json"
+  ],
+  "status": "PARTIAL",
+  "blocker": "Editor has no production caller in src; required deliberate edit-mode/long-press entry and normal-mode immobility are not established.",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "明示的layout edit mode、long-press/settings入口、drag/moveと通常mode固定を実装・検証する。",
+  "next_action": "Reconnect the existing editor and verify intentional entry plus normal-mode immobility.",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -4022,14 +4053,23 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "INTEGRATION",
     "PHYSICAL"
   ],
-  "implementation_refs": [],
-  "test_refs": [],
-  "evidence_refs": [],
-  "status": "MISSING",
-  "blocker": "現行JARVIS UIに当該製品機能を未発見。P5で実装と操作検証が必要。",
+  "implementation_refs": [
+    "src/app/jarvis/JarvisHomeLayoutEditor.tsx",
+    "src/jarvis/home-widget-layout.ts",
+    "src/app/jarvis/widget-layout.css"
+  ],
+  "test_refs": [
+    "tests/jarvis-home-widget-layout.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.md",
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.json"
+  ],
+  "status": "PARTIAL",
+  "blocker": "Editor is not mounted by production code, so reachable resizing and persistence are unproven.",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P5: Widget resize。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "Reuse and reconnect the existing size controls, then verify actual layout persistence.",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -4057,14 +4097,25 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "INTEGRATION",
     "PHYSICAL"
   ],
-  "implementation_refs": [],
-  "test_refs": [],
-  "evidence_refs": [],
-  "status": "MISSING",
-  "blocker": "現行JARVIS UIに当該製品機能を未発見。P5で実装と操作検証が必要。",
+  "implementation_refs": [
+    "src/app/jarvis/JarvisHomeLayoutEditor.tsx",
+    "src/jarvis/home-widget-layout.ts",
+    "src/app/jarvis/JarvisPrimaryShell.tsx",
+    "src/app/jarvis/more/page.tsx"
+  ],
+  "test_refs": [
+    "tests/jarvis-home-widget-layout.test.ts",
+    "tests/jarvis-p5-primary-shell.test.mjs"
+  ],
+  "evidence_refs": [
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.md",
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.json"
+  ],
+  "status": "PARTIAL",
+  "blocker": "Disconnected editor prevents delivered hide/restore; expanded primary-navigation and Goal invariants need integration evidence.",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "Hide/showとcritical navigation protection、再表示導線、state不変を実装・検証する。",
+  "next_action": "Reconnect hide/restore and verify navigation and Goal-state preservation.",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -4095,14 +4146,26 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "INTEGRATION",
     "PHYSICAL"
   ],
-  "implementation_refs": [],
-  "test_refs": [],
-  "evidence_refs": [],
-  "status": "MISSING",
-  "blocker": "現行JARVIS UIに当該製品機能を未発見。P5で実装と操作検証が必要。",
+  "implementation_refs": [
+    "src/app/jarvis/settings/JarvisLocalSettings.tsx",
+    "src/app/jarvis/ui-preferences.ts",
+    "src/app/jarvis/layout-modes.css",
+    "src/app/jarvis/layout.tsx",
+    "src/jarvis/home-widget-layout.ts"
+  ],
+  "test_refs": [
+    "tests/jarvis-p5-layout-modes.test.ts",
+    "tests/jarvis-home-widget-history.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.md",
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.json"
+  ],
+  "status": "PARTIAL",
+  "blocker": "Widget preset editor is disconnected. Generic layout preset behavior exists, but the audit conservatively retains PARTIAL until widget-layout scope and delivery are covered.",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P5: Layout preset。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "Verify mounted common presets and reconnect existing widget presets with the editor.",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -4130,14 +4193,26 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "INTEGRATION",
     "PHYSICAL"
   ],
-  "implementation_refs": [],
-  "test_refs": [],
-  "evidence_refs": [],
-  "status": "MISSING",
-  "blocker": "現行JARVIS UIに当該製品機能を未発見。P5で実装と操作検証が必要。",
+  "implementation_refs": [
+    "src/app/jarvis/screen-layout-profiles.ts",
+    "src/app/jarvis/settings/JarvisScreenLayoutProfiles.tsx",
+    "src/app/jarvis/settings/page.tsx",
+    "src/app/jarvis/JarvisPrimaryShell.tsx",
+    "src/app/jarvis/screen-layout-profiles.css"
+  ],
+  "test_refs": [
+    "tests/jarvis-screen-layout-profiles.test.ts",
+    "tests/jarvis-p5-layout-modes.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.md",
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.json"
+  ],
+  "status": "IMPLEMENTED_UNVERIFIED",
+  "blocker": "Route/design switching, persistence interaction and physical acceptance remain unverified.",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P5: Screen別Layout profile。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "Observe actual route/design switching and profile persistence.",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -4165,14 +4240,22 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "INTEGRATION",
     "PHYSICAL"
   ],
-  "implementation_refs": [],
-  "test_refs": [],
-  "evidence_refs": [],
-  "status": "MISSING",
-  "blocker": "現行JARVIS UIに当該製品機能を未発見。P5で実装と操作検証が必要。",
+  "implementation_refs": [
+    "src/jarvis/home-widget-history.ts",
+    "src/app/jarvis/JarvisHomeLayoutEditor.tsx"
+  ],
+  "test_refs": [
+    "tests/jarvis-home-widget-history.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.md",
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.json"
+  ],
+  "status": "PARTIAL",
+  "blocker": "Editor has no production caller; history is in-memory per editor mount, and screen-profile Settings has no Undo path.",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P5: Undo。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "Reconnect existing Undo controls and verify a user-reachable restoration.",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -4200,14 +4283,22 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "INTEGRATION",
     "PHYSICAL"
   ],
-  "implementation_refs": [],
-  "test_refs": [],
-  "evidence_refs": [],
-  "status": "MISSING",
-  "blocker": "現行JARVIS UIに当該製品機能を未発見。P5で実装と操作検証が必要。",
+  "implementation_refs": [
+    "src/jarvis/home-widget-history.ts",
+    "src/app/jarvis/JarvisHomeLayoutEditor.tsx"
+  ],
+  "test_refs": [
+    "tests/jarvis-home-widget-history.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.md",
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.json"
+  ],
+  "status": "PARTIAL",
+  "blocker": "Disconnected editor prevents demonstrated user-reachable Redo.",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P5: Redo。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "Reconnect and verify change, Undo, Redo and new-change invalidation.",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -4235,14 +4326,26 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "INTEGRATION",
     "PHYSICAL"
   ],
-  "implementation_refs": [],
-  "test_refs": [],
-  "evidence_refs": [],
-  "status": "MISSING",
-  "blocker": "現行JARVIS UIに当該製品機能を未発見。P5で実装と操作検証が必要。",
+  "implementation_refs": [
+    "src/app/jarvis/settings/JarvisScreenLayoutProfiles.tsx",
+    "src/app/jarvis/screen-layout-profiles.ts",
+    "src/app/jarvis/settings/page.tsx",
+    "src/app/jarvis/JarvisHomeLayoutEditor.tsx",
+    "src/jarvis/home-widget-layout.ts"
+  ],
+  "test_refs": [
+    "tests/jarvis-screen-layout-profiles.test.ts",
+    "tests/jarvis-home-widget-history.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.md",
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.json"
+  ],
+  "status": "PARTIAL",
+  "blocker": "Widget placement reset is in a disconnected editor with a global storage key; complete per-design reset and unrelated-data preservation are unproven.",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "Per-design layout resetとdata/authority不変を実装・検証する。",
+  "next_action": "Preserve current screen-profile reset, reconnect and scope widget reset per design, then test preservation.",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -4320,14 +4423,23 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "INTEGRATION",
     "PHYSICAL"
   ],
-  "implementation_refs": [],
-  "test_refs": [],
-  "evidence_refs": [],
-  "status": "MISSING",
-  "blocker": "現行JARVIS UIに当該製品機能を未発見。P5で実装と操作検証が必要。",
+  "implementation_refs": [
+    "src/jarvis/command-search.ts",
+    "src/app/jarvis/JarvisCommandSearch.tsx",
+    "src/app/jarvis/JarvisPrimaryShell.tsx"
+  ],
+  "test_refs": [
+    "tests/jarvis-command-search.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.md",
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.json"
+  ],
+  "status": "PARTIAL",
+  "blocker": "Actual tasks/projects/nodes/history and newer primary routes are not in that seven-item catalogue; broader Universal Search remains incomplete.",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P5: Universal Search。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "Extend the existing search across required live entities and current routes, then verify the accepted scope.",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -4355,14 +4467,24 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "INTEGRATION",
     "PHYSICAL"
   ],
-  "implementation_refs": [],
-  "test_refs": [],
-  "evidence_refs": [],
-  "status": "MISSING",
-  "blocker": "現行JARVIS UIに当該製品機能を未発見。P5で実装と操作検証が必要。",
+  "implementation_refs": [
+    "src/app/jarvis/notification-priority.ts",
+    "src/app/jarvis/JarvisPriorityNotifications.tsx",
+    "src/app/jarvis/JarvisPrimaryShell.tsx",
+    "src/app/api/jarvis/state/route.ts"
+  ],
+  "test_refs": [
+    "tests/jarvis-notification-priority.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.md",
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.json"
+  ],
+  "status": "IMPLEMENTED_UNVERIFIED",
+  "blocker": "Actual UI state/error ordering and physical acceptance are unverified; OS push/configurable delivery are outside this bounded implementation.",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P5: Notification Priority。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "Verify priority ordering and visible errors against actual protected state.",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -4390,14 +4512,24 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "INTEGRATION",
     "PHYSICAL"
   ],
-  "implementation_refs": [],
-  "test_refs": [],
-  "evidence_refs": [],
-  "status": "MISSING",
-  "blocker": "現行JARVIS UIに当該製品機能を未発見。P5で実装と操作検証が必要。",
+  "implementation_refs": [
+    "src/app/jarvis/display-modes.ts",
+    "src/app/jarvis/JarvisDisplayModeControls.tsx",
+    "src/app/jarvis/JarvisPrimaryShell.tsx",
+    "src/app/jarvis/jarvis.css"
+  ],
+  "test_refs": [
+    "tests/jarvis-display-modes.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.md",
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.json"
+  ],
+  "status": "IMPLEMENTED_UNVERIFIED",
+  "blocker": "Rendered screen behavior and physical safety-visibility acceptance remain unverified.",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P5: Focus Mode。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "Verify Focus mode on actual screens while keeping takeover and alerts visible.",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -4425,14 +4557,24 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "INTEGRATION",
     "PHYSICAL"
   ],
-  "implementation_refs": [],
-  "test_refs": [],
-  "evidence_refs": [],
-  "status": "MISSING",
-  "blocker": "現行JARVIS UIに当該製品機能を未発見。P5で実装と操作検証が必要。",
+  "implementation_refs": [
+    "src/app/jarvis/display-modes.ts",
+    "src/app/jarvis/JarvisDisplayModeControls.tsx",
+    "src/app/jarvis/JarvisPrimaryShell.tsx",
+    "src/app/jarvis/jarvis.css"
+  ],
+  "test_refs": [
+    "tests/jarvis-display-modes.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.md",
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.json"
+  ],
+  "status": "IMPLEMENTED_UNVERIFIED",
+  "blocker": "CSS existence does not establish usability at physical viewing distances or on all devices.",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P5: Distance Mode。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "Collect actual distance/device usability evidence for the existing mode.",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -4584,14 +4726,27 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "INTEGRATION",
     "PHYSICAL"
   ],
-  "implementation_refs": [],
-  "test_refs": [],
-  "evidence_refs": [],
-  "status": "MISSING",
-  "blocker": "現行JARVIS UIに当該製品機能を未発見。P5で実装と操作検証が必要。",
+  "implementation_refs": [
+    "src/app/jarvis/JarvisDisplayModeControls.tsx",
+    "src/app/jarvis/display-modes.ts",
+    "src/app/jarvis/jarvis.css",
+    "src/app/jarvis/JarvisConsole.tsx",
+    "src/app/jarvis/RemoteAssistMultiView.tsx",
+    "src/app/jarvis/enroll/OwnerInvitationPanel.tsx",
+    "src/app/jarvis/enroll/page.tsx"
+  ],
+  "test_refs": [
+    "tests/jarvis-display-modes.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.md",
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.json"
+  ],
+  "status": "PARTIAL",
+  "blocker": "Current invitation URL input and provisioning QR are outside the examined privacy selectors; rendered sensitive-panel coverage is incomplete.",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P5: Privacy Mode。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "Extend the existing masking to current enrollment displays and verify rendered coverage.",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -4654,14 +4809,26 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "INTEGRATION",
     "PHYSICAL"
   ],
-  "implementation_refs": [],
-  "test_refs": [],
-  "evidence_refs": [],
-  "status": "MISSING",
-  "blocker": "現行JARVIS UIに当該製品機能を未発見。P5で実装と操作検証が必要。",
+  "implementation_refs": [
+    "src/app/jarvis/operation-mode.ts",
+    "src/app/jarvis/JarvisReadOnlyBoundary.tsx",
+    "src/app/jarvis/operation-mode.css",
+    "src/app/jarvis/JarvisPrimaryShell.tsx",
+    "src/app/jarvis/GlobalConversationLauncher.tsx",
+    "src/app/CommandChat.tsx"
+  ],
+  "test_refs": [
+    "tests/jarvis-operation-mode.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.md",
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.json"
+  ],
+  "status": "PARTIAL",
+  "blocker": "GlobalConversationLauncher is outside the boundary and enables CommandChat's POST /api/command path; full read-only UI behavior is incomplete. Backend authorization is separate.",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P5: Kiosk/Read-only Mode。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "Cover global conversation mutations and test all currently mounted action surfaces.",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -5114,14 +5281,24 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "INTEGRATION",
     "PHYSICAL"
   ],
-  "implementation_refs": [],
-  "test_refs": [],
-  "evidence_refs": [],
-  "status": "MISSING",
-  "blocker": "Unified visible voice/text conversation with modality-matched response and persistent transcript is not yet verified end-to-end.",
+  "implementation_refs": [
+    "src/app/CommandChat.tsx",
+    "src/app/api/conversations/route.ts",
+    "src/app/jarvis/GlobalConversationLauncher.tsx"
+  ],
+  "test_refs": [
+    "tests/goriq-daily-driver-conversation.test.mjs",
+    "tests/jarvis-p6-voice-input.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.md",
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.json"
+  ],
+  "status": "PARTIAL",
+  "blocker": "No response-modality override or seamless restored-session/mode continuity is established.",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "Voice/textの同一thread、visible transcript、input modalityに応じたdefault response modeとoverride設定を実装・実機検証する。",
+  "next_action": "Verify transcript persistence, mode switches, reply defaults and owner override on actual devices.",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -5152,14 +5329,26 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "INTEGRATION",
     "PHYSICAL"
   ],
-  "implementation_refs": [],
-  "test_refs": [],
-  "evidence_refs": [],
-  "status": "MISSING",
-  "blocker": "当該製品機能の実装・テスト・Evidenceを未発見。",
+  "implementation_refs": [
+    "src/app/jarvis/GlobalConversationLauncher.tsx",
+    "src/app/CommandChat.tsx",
+    "src/app/api/command/route.ts",
+    "scripts/chatgpt-resident-bridge-lib.mjs",
+    "src/app/jarvis/mobile/context-reference.ts"
+  ],
+  "test_refs": [
+    "tests/goriq-daily-driver-conversation.test.mjs",
+    "tests/jarvis-p6-voice-input.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.md",
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.json"
+  ],
+  "status": "PARTIAL",
+  "blocker": "Path metadata and prompt wording do not establish retrieval over every GORIQ entity, unique-target actions or minimal clarification.",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "Current-screen priority + GORIQ-wide retrieval/action scopeとambiguous-target clarificationを実装・統合検証する。",
+  "next_action": "Verify cross-entity retrieval and safe unique-target action scenarios using existing context plumbing.",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -5190,14 +5379,22 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "INTEGRATION",
     "PHYSICAL"
   ],
-  "implementation_refs": [],
-  "test_refs": [],
-  "evidence_refs": [],
-  "status": "MISSING",
-  "blocker": "当該製品機能の実装・テスト・Evidenceを未発見。",
+  "implementation_refs": [
+    "src/app/jarvis/mobile/context-reference.ts",
+    "src/app/jarvis/mobile/voice/MobileVoiceCommander.tsx"
+  ],
+  "test_refs": [
+    "tests/jarvis-p6-voice-input.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.md",
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.json"
+  ],
+  "status": "PARTIAL",
+  "blocker": "General screen/global-conversation reference semantics and the former text-command history path are not established.",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P6: Screen-context reference「さっきのやつ」。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "Retain bounded history behavior and verify broader screen references and physical use.",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -5225,14 +5422,22 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "INTEGRATION",
     "PHYSICAL"
   ],
-  "implementation_refs": [],
-  "test_refs": [],
-  "evidence_refs": [],
-  "status": "MISSING",
-  "blocker": "当該製品機能の実装・テスト・Evidenceを未発見。",
+  "implementation_refs": [
+    "src/app/jarvis/mobile/context-reference.ts",
+    "src/app/jarvis/mobile/voice/MobileVoiceCommander.tsx"
+  ],
+  "test_refs": [
+    "tests/jarvis-p6-voice-input.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.md",
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.json"
+  ],
+  "status": "PARTIAL",
+  "blocker": "Command-history ordinals do not establish current-screen entity/list references across GORIQ.",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P6: Screen-context reference「2番目」。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "Verify actual screen-list references before broadening the implementation claim.",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -5260,14 +5465,26 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "INTEGRATION",
     "PHYSICAL"
   ],
-  "implementation_refs": [],
-  "test_refs": [],
-  "evidence_refs": [],
-  "status": "MISSING",
-  "blocker": "No verified AivisSpeech primary / VOICEVOX fallback adapter, license-checked model catalog, or fail-visible local-first fallback contract is mapped in the current requirement evidence.",
+  "implementation_refs": [
+    "src/jarvis/local-tts.ts",
+    "src/app/api/jarvis/voice/route.ts",
+    "scripts/jarvis-broker.ts",
+    "src/app/jarvis/settings/GoriqVoiceSettings.tsx",
+    "src/app/jarvis/voice-output.ts"
+  ],
+  "test_refs": [
+    "tests/goriq-local-tts.test.ts",
+    "tests/goriq-daily-driver-conversation.test.mjs"
+  ],
+  "evidence_refs": [
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.md",
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.json"
+  ],
+  "status": "PARTIAL",
+  "blocker": "Terms availability checks only a nonempty policy value; requested missing voice can select another candidate; synthesis-failure fallback, redirect confinement and actual engine/model acceptance remain unproven.",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "AivisSpeech primary + VOICEVOX fallback adapter contract、license check、local-only default、fail-visible behaviorを実装・検証する。",
+  "next_action": "Verify model terms and explicit fallback behavior, constrain local egress and collect actual engine/model evidence.",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -5298,14 +5515,25 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "INTEGRATION",
     "PHYSICAL"
   ],
-  "implementation_refs": [],
-  "test_refs": [],
-  "evidence_refs": [],
-  "status": "MISSING",
-  "blocker": "当該製品機能の実装・テスト・Evidenceを未発見。",
+  "implementation_refs": [
+    "src/app/jarvis/mobile/voice/SpeechPersonaStylePanel.tsx",
+    "src/app/jarvis/mobile/voice/speech-policy.ts",
+    "src/app/jarvis/settings/GoriqVoiceSettings.tsx",
+    "src/app/jarvis/voice-output.ts",
+    "src/app/CommandChat.tsx"
+  ],
+  "test_refs": [
+    "tests/jarvis-p6-speech-persona-style.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.md",
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.json"
+  ],
+  "status": "PARTIAL",
+  "blocker": "Shared AI replies bypass the saved speech style; normalization/source tests do not prove full-reply style or reload behavior.",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "Speech styleとvoice acoustic settingsを分離し、保存/再読込とauthority不変を検証する。",
+  "next_action": "Apply and verify the saved style on intended reply paths while preserving authority boundaries.",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -5581,14 +5809,25 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "INTEGRATION",
     "PHYSICAL"
   ],
-  "implementation_refs": [],
-  "test_refs": [],
-  "evidence_refs": [],
-  "status": "MISSING",
-  "blocker": "当該製品機能の実装・テスト・Evidenceを未発見。",
+  "implementation_refs": [
+    "src/jarvis/daily-driver-device-command.ts",
+    "src/app/jarvis/mobile/voice-command.ts",
+    "src/app/jarvis/mobile/voice/MobileVoiceCommander.tsx",
+    "src/app/api/command/route.ts"
+  ],
+  "test_refs": [
+    "tests/jarvis-p6-voice-input.test.ts",
+    "tests/goriq-daily-driver-device-command.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.md",
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.json"
+  ],
+  "status": "IMPLEMENTED_UNVERIFIED",
+  "blocker": "Integrated voice-origin protected requests and ambiguous approvals still need security/physical acceptance evidence.",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P6: Voice Human Gate。音声でもHuman Gateを突破しない。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "Verify protected requests across actual conversation and worker paths without adding voice-specific authority.",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -5616,14 +5855,22 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "INTEGRATION",
     "PHYSICAL"
   ],
-  "implementation_refs": [],
-  "test_refs": [],
-  "evidence_refs": [],
-  "status": "MISSING",
-  "blocker": "当該製品機能の実装・テスト・Evidenceを未発見。",
+  "implementation_refs": [
+    "src/app/jarvis/mobile/gesture/CameraGestureCommander.tsx",
+    "src/app/jarvis/mobile/gesture/gesture-motion.ts"
+  ],
+  "test_refs": [
+    "tests/jarvis-p6-camera-gesture.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.md",
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.json"
+  ],
+  "status": "PARTIAL",
+  "blocker": "Whole-frame motion detection explicitly does not understand hand shape; full hand gesture recognition and physical false positives remain open.",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P6: Camera hand gesture。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "Define and verify required hand gestures using the existing local capture path.",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -5721,14 +5968,22 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "INTEGRATION",
     "PHYSICAL"
   ],
-  "implementation_refs": [],
-  "test_refs": [],
-  "evidence_refs": [],
-  "status": "MISSING",
-  "blocker": "当該製品機能の実装・テスト・Evidenceを未発見。",
+  "implementation_refs": [
+    "src/app/jarvis/mobile/gesture/gesture-motion.ts",
+    "src/app/jarvis/mobile/gesture/CameraGestureCommander.tsx"
+  ],
+  "test_refs": [
+    "tests/jarvis-p6-camera-gesture.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.md",
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.json"
+  ],
+  "status": "IMPLEMENTED_UNVERIFIED",
+  "blocker": "Physical lighting/motion false-positive acceptance remains pending.",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P6: False gesture protection。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "Measure false positives and confirmation behavior on actual devices.",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -5791,14 +6046,23 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "INTEGRATION",
     "PHYSICAL"
   ],
-  "implementation_refs": [],
-  "test_refs": [],
-  "evidence_refs": [],
-  "status": "MISSING",
-  "blocker": "当該製品機能の実装・テスト・Evidenceを未発見。",
+  "implementation_refs": [
+    "src/app/jarvis/mobile/pointer/ImuPointerCommander.tsx",
+    "src/app/jarvis/mobile/pointer/imu-pointer.ts",
+    "src/app/jarvis/mobile/page.tsx"
+  ],
+  "test_refs": [
+    "tests/jarvis-p6-imu-pointer.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.md",
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.json"
+  ],
+  "status": "IMPLEMENTED_UNVERIFIED",
+  "blocker": "Implementation selects local navigation targets, not a remote desktop cursor; physical permission/calibration/stop behavior is unverified.",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P6: Smartphone gyro/IMU pointer。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "Verify the existing local pointer and its fallback on target devices.",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -5826,14 +6090,26 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "INTEGRATION",
     "PHYSICAL"
   ],
-  "implementation_refs": [],
-  "test_refs": [],
-  "evidence_refs": [],
-  "status": "MISSING",
-  "blocker": "当該製品機能の実装・テスト・Evidenceを未発見。",
+  "implementation_refs": [
+    "src/app/jarvis/mobile/MobileCommander.tsx",
+    "src/app/api/jarvis/action/route.ts",
+    "scripts/jarvis-broker.ts",
+    "src/app/jarvis/mobile/page.tsx"
+  ],
+  "test_refs": [
+    "tests/jarvis-control-plane.test.ts",
+    "tests/jarvis-p6-imu-pointer.test.ts",
+    "tests/goriq-daily-driver-device-command.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.md",
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.json"
+  ],
+  "status": "IMPLEMENTED_UNVERIFIED",
+  "blocker": "Actual smartphone UI to selected device to observed result evidence remains required; local pointer navigation alone does not satisfy this path.",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P6: スマホをリモコン化。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "Collect bounded mobile-to-real-device execution and result evidence.",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -8458,14 +8734,25 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "INTEGRATION",
     "SECURITY"
   ],
-  "implementation_refs": [],
-  "test_refs": [],
-  "evidence_refs": [],
-  "status": "MISSING",
-  "blocker": "現在のscope全体に対する秘密情報・ログ漏洩監査証拠が未収集。秘密の値を出力せず検査する。",
+  "implementation_refs": [
+    "scripts/jarvis-secret-audit.mjs",
+    "scripts/jarvis-production-config.mjs",
+    "src/jarvis/pc-runtime-refresh.ts"
+  ],
+  "test_refs": [
+    "tests/jarvis-sec011-no-secrets-repo.test.mjs",
+    "tests/jarvis-secret-audit.test.mjs",
+    "scripts/jarvis-production-config.test.mjs"
+  ],
+  "evidence_refs": [
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.md",
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.json"
+  ],
+  "status": "PARTIAL",
+  "blocker": "Scanner covers selected extensions/directories/size bounds and excludes Git history; it cannot prove no secrets across all possible storage.",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P8: No secrets in repo。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "Record current defined-scope security results and separately evaluate excluded surfaces without exposing secret values.",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -9280,14 +9567,23 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "INTEGRATION",
     "PHYSICAL"
   ],
-  "implementation_refs": [],
-  "test_refs": [],
-  "evidence_refs": [],
-  "status": "MISSING",
-  "blocker": "既存端末enrollページとは別に、ホスト/接続/権限を扱う統合first-run wizardが必要。",
+  "implementation_refs": [
+    "src/jarvis/first-run-setup.ts",
+    "src/app/jarvis/setup/SetupWizardClient.tsx",
+    "src/app/jarvis/setup/page.tsx"
+  ],
+  "test_refs": [
+    "tests/jarvis-ops012-first-run-setup.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.md",
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.json"
+  ],
+  "status": "IMPLEMENTED_UNVERIFIED",
+  "blocker": "This is read-only readiness guidance, not automatic installation; actual first-run acceptance is unverified.",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "Review/reuse staged implementation with current main; wire and verify required execution path. P10: First-run setup wizard。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "Verify the existing first-run guidance on the target host/device.",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -9856,14 +10152,22 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "PHYSICAL",
     "RECOVERY"
   ],
-  "implementation_refs": [],
-  "test_refs": [],
-  "evidence_refs": [],
-  "status": "MISSING",
-  "blocker": "当該製品機能の実装・テスト・Evidenceを未発見。",
+  "implementation_refs": [
+    "src/jarvis/control-plane.ts",
+    "src/jarvis/fleet-goal-evidence.ts"
+  ],
+  "test_refs": [
+    "tests/jarvis-acc009-multi-device-goal.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.md",
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.json"
+  ],
+  "status": "PARTIAL",
+  "blocker": "Acceptance helper has no production caller in src/scripts and trusts caller-provided verifier evidence; actual same-Goal parallel completion is unverified.",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P9: 複数deviceを並列使用し1つのGoalを完了。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "Connect authoritative Goal/verifier evidence before real multi-device and recovery acceptance.",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -10374,14 +10678,28 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "PHYSICAL",
     "RECOVERY"
   ],
-  "implementation_refs": [],
-  "test_refs": [],
-  "evidence_refs": [],
-  "status": "MISSING",
-  "blocker": "Expanded requirement reconciled from staged ledger; main runtime integration and required evidence remain to be verified. mainには互換Coordinator移行の完成実装・実機証拠なし。#863/PR #864は監査準備として別管理。既存device/credential/queueを変更していない。",
+  "implementation_refs": [
+    "src/jarvis/sqlite-state-store.ts",
+    "src/jarvis/worker-identity-history.ts",
+    "src/gai/production-task-history.ts",
+    "src/gai/production-verification-history.ts",
+    "src/jarvis/state-backup.ts"
+  ],
+  "test_refs": [
+    "tests/jarvis-ops001-task-history.test.ts",
+    "tests/jarvis-ops002-worker-history.test.ts",
+    "tests/jarvis-ops003-verification-history.test.ts",
+    "tests/jarvis-ops015-backup.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.md",
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.json"
+  ],
+  "status": "PARTIAL",
+  "blocker": "Identity history reader has no production caller; database backup alone does not preserve external evidence artifacts or establish lossless migration.",
   "platform_limit": null,
   "fallback": "現在のZBook Coordinator pathを保持する。",
-  "next_action": "M0 baselineを現在時刻で再取得し、旧endpoint依存を確認してからM1/M2を追加。shadow/canaryの実機PASS前に切替しない。",
+  "next_action": "Require migration manifests and restore comparisons spanning task, result, verifier and external evidence history.",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -10789,15 +11107,25 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "RECOVERY"
   ],
   "implementation_refs": [
-    "docs/architecture/goriq-distributed-node-fabric.md"
+    "docs/architecture/goriq-distributed-node-fabric.md",
+    "android/jarvis-worker/app/src/main/java/ai/jarvis/worker/DistributedNodeContract.kt",
+    "android/jarvis-worker/app/src/main/java/ai/jarvis/worker/BrokerClient.kt",
+    "src/jarvis/fleet-manager.ts",
+    "scripts/jarvis-broker.ts"
   ],
-  "test_refs": [],
-  "evidence_refs": [],
-  "status": "MISSING",
-  "blocker": "Nubia distributed canaryと後続38台Fleet拡張の物理Evidenceは未取得。38台は現在の完成条件から意図的に除外。",
+  "test_refs": [
+    "tests/goriq-stage-c-nubia-node-contract.test.ts",
+    "tests/goriq-stage-c-preflight.test.mjs"
+  ],
+  "evidence_refs": [
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.md",
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.json"
+  ],
+  "status": "PARTIAL",
+  "blocker": "Contract declares offline queue, checkpoint resume and side-effect fencing unavailable; Nubia/iPhone/fleet physical sequence is not established.",
   "platform_limit": null,
   "fallback": "現在のZBook Coordinator pathを保持する。",
-  "next_action": "MacBook+ZBook分散基盤後にNubia canaryを通し、iPhone integration、新規PC、最後にAndroid38台Fleetを追加する。",
+  "next_action": "Preserve Nubia/Android38 deferral and resume canary acceptance after prior distributed gates.",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -11027,15 +11355,26 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "RECOVERY"
   ],
   "implementation_refs": [
-    "docs/architecture/goriq-distributed-node-fabric.md"
+    "docs/architecture/goriq-distributed-node-fabric.md",
+    "src/jarvis/connection-router.ts",
+    "src/jarvis/execution-router.ts",
+    "src/jarvis/fleet-manager.ts",
+    "src/gai/worker-runtime.ts",
+    "scripts/jarvis-broker.ts"
   ],
-  "test_refs": [],
-  "evidence_refs": [],
-  "status": "MISSING",
-  "blocker": "route selection部品はあるが、Network routeとcompute placementを統合した自動選択の実機Evidenceは未完了。",
+  "test_refs": [
+    "tests/jarvis-v1-foundation.test.ts",
+    "tests/gai-multi-worker-runtime.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.md",
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.json"
+  ],
+  "status": "PARTIAL",
+  "blocker": "Normal Broker polling supplies fixed online connectivity; integrated trusted-LAN/private/offline transport choice and re-evaluation are unproven.",
   "platform_limit": null,
   "fallback": "現在のZBook Coordinator pathを保持する。",
-  "next_action": "same-LAN/Internet断/別拠点を含むMac+ZBook scenarioでrouteとcompute placementの再評価を実証する。",
+  "next_action": "Verify actual same-LAN, Internet-loss and cross-site transport/placement scenarios.",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -11070,14 +11409,23 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "PHYSICAL",
     "RECOVERY"
   ],
-  "implementation_refs": [],
-  "test_refs": [],
-  "evidence_refs": [],
+  "implementation_refs": [
+    "apps/ios-worker/Sources/BonjourBridgeDiscovery.swift",
+    "apps/ios-worker/Sources/WorkerRuntime.swift"
+  ],
+  "test_refs": [
+    "test/iphone-bonjour-contract.test.mjs",
+    "scripts/iphone-bridge-auto-enrollment.test.mjs"
+  ],
+  "evidence_refs": [
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.md",
+    "docs/evidence/1205-semantic-missing-audit-2026-10-08.json"
+  ],
   "status": "MISSING",
-  "blocker": "Expanded requirement reconciled from staged ledger; main runtime integration and required evidence remain to be verified. mainには互換Coordinator移行の完成実装・実機証拠なし。#863/PR #864は監査準備として別管理。既存device/credential/queueを変更していない。",
+  "blocker": "Coordinator identity authentication was not found in discovery-to-reconnect before sending the existing credential; source review is not a runtime exploit claim.",
   "platform_limit": null,
   "fallback": "現在のZBook Coordinator pathを保持する。",
-  "next_action": "M0 baselineを現在時刻で再取得し、旧endpoint依存を確認してからM1/M2を追加。shadow/canaryの実機PASS前に切替しない。",
+  "next_action": "Add and negatively test trusted Coordinator authentication before sending credentials to a discovered endpoint.",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
