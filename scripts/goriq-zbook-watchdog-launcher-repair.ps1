@@ -131,6 +131,8 @@ try {
       Replace-RecoveryBytes $watchdog $watchdogBefore
       Replace-RecoveryBytes $launcher $launcherBefore
       $restored=((Get-FileHash $watchdog -Algorithm SHA256).Hash -eq $expectedWatchdog -and (Get-FileHash $launcher -Algorithm SHA256).Hash -eq $expectedVbs)
+      foreach($path in $acls.Keys){if((Get-Acl -LiteralPath $path).Sddl -cne $acls[$path]){$restored=$false}}
+      foreach($name in $taskXml.Keys){if((Export-ScheduledTask -TaskName $name) -cne $taskXml[$name]){$restored=$false}}
       $rollbackFailed=-not $restored
     }catch{$rollbackFailed=$true}
   }

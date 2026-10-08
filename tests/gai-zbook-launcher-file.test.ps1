@@ -29,7 +29,9 @@ if([Convert]::ToBase64String([IO.File]::ReadAllBytes($target)) -cne [Convert]::T
 $aclBefore=(Get-Acl -LiteralPath $target).Sddl
 $unicode=$program+'Rem '+[char]0x65e5+[char]0x672c+"`r`n"
 Write-GaiLauncherFile $target $unicode
-if([IO.File]::ReadAllText($target) -cne $unicode -or (Get-Acl -LiteralPath $target).Sddl -cne $aclBefore){throw 'unicode-or-acl-changed'}
+if([IO.File]::ReadAllText($target) -cne $unicode){throw 'unicode-changed'}
+$aclAfter=(Get-Acl -LiteralPath $target).Sddl
+if($aclAfter -cne $aclBefore){throw "fixture-acl-changed: before=$aclBefore after=$aclAfter"}
 $helper=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\scripts\gai-zbook-launcher-file.ps1'))
 $writer=Join-Path $root 'writer.ps1'
 @('param([string]$Helper,[string]$Target,[string]$Label)','$ErrorActionPreference=''Stop''','. $Helper','for($i=0;$i -lt 12;$i++){Write-GaiLauncherFile $Target ("Option Explicit`r`nDim shell`r`nWScript.Echo ""fixture-once""`r`nRem "+$Label+"`r`n")}','Write-Output "completed-$Label"','exit 0') | Set-Content $writer -Encoding UTF8
