@@ -42,8 +42,12 @@ jobs:
           const sha = env.SYNC_COMMIT_SHA;
           const output = env.GITHUB_OUTPUT;
           async function deny(reason) {
-            if (output) await appendFile(output, 'authorized=false\n');
-            if (env.GITHUB_STEP_SUMMARY) await appendFile(env.GITHUB_STEP_SUMMARY, `Production authorization denied: ${reason}. No production mutation authorized.\n`);
+            if (output) {
+              await appendFile(output, 'authorized=false\n');
+            }
+            if (env.GITHUB_STEP_SUMMARY) {
+              await appendFile(env.GITHUB_STEP_SUMMARY, `Production authorization denied: ${reason}. No production mutation authorized.\n`);
+            }
             throw new Error(`PRODUCTION_AUTHORIZATION_${reason}`);
           }
           if (repository !== 'haji84/AI-' || env.GITHUB_REPOSITORY_OWNER !== 'haji84' ||
@@ -93,7 +97,9 @@ jobs:
           if ((await get('git/ref/heads/main'))?.object?.sha !== sha) await deny('STALE_MAIN');
           if (expiresAt <= Date.now()) await deny('EXPIRED_OR_INVALID');
           await appendFile(output, `authorized=true\nissue_number=${issueNumber}\ndeploy_sha=${sha}\n`);
-          if (env.GITHUB_STEP_SUMMARY) await appendFile(env.GITHUB_STEP_SUMMARY, `Production authorization PASS: issue #${issueNumber}, exact main ${sha}.\n`);
+          if (env.GITHUB_STEP_SUMMARY) {
+            await appendFile(env.GITHUB_STEP_SUMMARY, `Production authorization PASS: issue #${issueNumber}, exact main ${sha}.\n`);
+          }
           console.log('Exact main CI and task-scoped completion authorization verified.');
           NODE
 
@@ -192,8 +198,12 @@ jobs:
           const sha = env.SYNC_COMMIT_SHA;
           const output = env.GITHUB_OUTPUT;
           async function deny(reason) {
-            if (output) await appendFile(output, 'authorized=false\n');
-            if (env.GITHUB_STEP_SUMMARY) await appendFile(env.GITHUB_STEP_SUMMARY, `Production authorization denied: ${reason}. No production mutation authorized.\n`);
+            if (output) {
+              await appendFile(output, 'authorized=false\n');
+            }
+            if (env.GITHUB_STEP_SUMMARY) {
+              await appendFile(env.GITHUB_STEP_SUMMARY, `Production authorization denied: ${reason}. No production mutation authorized.\n`);
+            }
             throw new Error(`PRODUCTION_AUTHORIZATION_${reason}`);
           }
           if (repository !== 'haji84/AI-' || env.GITHUB_REPOSITORY_OWNER !== 'haji84' ||
@@ -243,7 +253,9 @@ jobs:
           if ((await get('git/ref/heads/main'))?.object?.sha !== sha) await deny('STALE_MAIN');
           if (expiresAt <= Date.now()) await deny('EXPIRED_OR_INVALID');
           await appendFile(output, `authorized=true\nissue_number=${issueNumber}\ndeploy_sha=${sha}\n`);
-          if (env.GITHUB_STEP_SUMMARY) await appendFile(env.GITHUB_STEP_SUMMARY, `Production authorization PASS: issue #${issueNumber}, exact main ${sha}.\n`);
+          if (env.GITHUB_STEP_SUMMARY) {
+            await appendFile(env.GITHUB_STEP_SUMMARY, `Production authorization PASS: issue #${issueNumber}, exact main ${sha}.\n`);
+          }
           console.log('Exact main CI and task-scoped completion authorization verified.');
           NODE
 
