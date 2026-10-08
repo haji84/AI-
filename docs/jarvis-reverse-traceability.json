@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "source_main": "b064fda706eacfe2805d8f03065a8be4329d89aa",
+  "source_main": "a7bfcbe52e8108aa567c0ef4c6b90b16c2156c00",
   "scope": "Declared audit roots; no functional or physical completion inference",
   "surfaces": [
     {
@@ -735,6 +735,15 @@
       "reason": "Windows persistent host deployment design"
     },
     {
+      "path": "docs/architecture/jarvis-windows-verification-worker.md",
+      "sha256": "1bd0163c33d37c691c5649087d69cf7b88ce35a01d68e4e73af8d6e5b8a6542c",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-PC-001"
+      ],
+      "reason": "Documents the bounded DEV-PC-001 native smoke contract and unresolved existing-device identity/capability/reboot acceptance; not physical proof."
+    },
+    {
       "path": "docs/architecture/jarvis-worker-remote.md",
       "sha256": "b6f1ec5242fa8616f6f06047ede5379e43192be8f2abc316cf1a03edeaffe27b",
       "classification": "COVERED_BY_REQUIREMENT",
@@ -959,7 +968,7 @@
     },
     {
       "path": "scripts/jarvis-broker.ts",
-      "sha256": "818009a91e2641e4078ea701d2bd6e230c918150bf8a7ff66bb12db74d17b4f1",
+      "sha256": "996f14663cfba4a22f867bf2d6dfd8eab9cd317471f7fc5bf103231279145ef2",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "NET-003",
@@ -978,9 +987,10 @@
         "SEC-007",
         "SEC-010",
         "UI-009",
-        "INT-001"
+        "INT-001",
+        "DEV-PC-001"
       ],
-      "reason": "Protected Broker now exposes bounded local-first voice discovery and synthesis while preserving existing owner authority and all prior Broker responsibilities."
+      "reason": "Protected Broker now exposes bounded local-first voice discovery and synthesis while preserving existing owner authority and all prior Broker responsibilities. The bounded native Windows consumer adds signed status, exact-target polling and immutable smoke-result verification for DEV-PC-001; existing Broker authority is retained. Implementation mapping does not establish physical acceptance."
     },
     {
       "path": "scripts/jarvis-direct-commander-service.sh",
@@ -1397,6 +1407,15 @@
         "OPS-010"
       ],
       "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "scripts/jarvis-windows-worker-service.ts",
+      "sha256": "2ee36d9071f86b00413a1d7ed136cfc0297c5f6dfc1866f00af1eedda3b32dea",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-PC-001"
+      ],
+      "reason": "Candidate DEV-PC-001 service loop accepts an existing identity, excludes duplicate consumers and executes only the fixed smoke probe; no enrollment or service installation."
     },
     {
       "path": "src/app/api/command/route.ts",
@@ -3875,7 +3894,7 @@
     },
     {
       "path": "src/jarvis/control-plane.ts",
-      "sha256": "afa8b54f2777ae4d70c29cc9801c816bd78ef0f3027972789fbba12cc128847f",
+      "sha256": "a924c599a668667e314faeba8b9ad3397bd18442be7ac16ae2485c37815a5e58",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "NET-003",
@@ -3887,9 +3906,10 @@
         "RA-018",
         "RA-019",
         "RA-020",
-        "SEC-015"
+        "SEC-015",
+        "DEV-PC-001"
       ],
-      "reason": "Stage C Nubia canary distributed Node Contract surface; implementation linkage only, physical acceptance remains pending."
+      "reason": "Stage C Nubia canary distributed Node Contract surface; implementation linkage only, physical acceptance remains pending. Optional exact-target/type dispatch filtering supports the bounded DEV-PC-001 consumer without changing default dispatch. Implementation mapping does not establish physical acceptance."
     },
     {
       "path": "src/jarvis/daily-driver-device-command.ts",
@@ -3958,12 +3978,13 @@
     },
     {
       "path": "src/jarvis/execution-router.ts",
-      "sha256": "e053f3c097df5875314fe4e823be14b0ae638dde56d080ffc54a1bbbf4b4bbc8",
+      "sha256": "25cf47d25a1dbe2f8182312c207f150656711e1b0ca356a0378c866d3b989559",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
-        "AUTO-011"
+        "AUTO-011",
+        "DEV-PC-001"
       ],
-      "reason": "Capability/connection execution dispatch"
+      "reason": "Capability/connection execution dispatch. Optional target/type filtering preserves unrelated tasks while routing the DEV-PC-001 consumer through existing capability checks. Implementation mapping does not establish physical acceptance."
     },
     {
       "path": "src/jarvis/first-run-setup.ts",
@@ -4499,14 +4520,15 @@
     },
     {
       "path": "src/jarvis/task-queue.ts",
-      "sha256": "e81927f1db801707207783c2dcb44bdc0f62da191d12ca785bf35b64cd7bcdff",
+      "sha256": "c55195667f6d3837733add4102724fe4ca59f2e0ab233fbfd8dbcfe9594941ca",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OFF-004",
         "OFF-007",
-        "OFF-008"
+        "OFF-008",
+        "DEV-PC-001"
       ],
-      "reason": "Durable task scheduling/idempotency/lease semantics"
+      "reason": "Durable task scheduling/idempotency/lease semantics. Exact target/type selection supports the DEV-PC-001 consumer while retaining default priority, idempotency and lease semantics. Implementation mapping does not establish physical acceptance."
     },
     {
       "path": "src/jarvis/teaching-batch.ts",
@@ -4644,6 +4666,33 @@
         "TEACH-006"
       ],
       "reason": "Video observation and retained plan candidates"
+    },
+    {
+      "path": "src/jarvis/windows-verification-worker.ts",
+      "sha256": "edb89ea6393d8abd76db45e8bec846c2e0daa7326ed123c64c7ad8fa52341c87",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-PC-001"
+      ],
+      "reason": "Fixed read-only Windows platform probe supports DEV-PC-001 with input, process, time and output limits."
+    },
+    {
+      "path": "src/jarvis/windows-worker-client.ts",
+      "sha256": "32c00522f4a680bcfa5f0633a8c7bbfb04e933b70cddfdfbc1b7d2aaca70030c",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-PC-001"
+      ],
+      "reason": "Signed bounded polling/result delivery for DEV-PC-001 preserves the existing worker identity and refuses redirects or unrelated tasks."
+    },
+    {
+      "path": "src/jarvis/windows-worker-journal.ts",
+      "sha256": "a648ecdc898df88377eb6edb7168e7dd7bdf57072cdee5de577cf057a7e37d39",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-PC-001"
+      ],
+      "reason": "Durable DEV-PC-001 execution receipts bind identity, endpoint and task; retain uncertain outcomes and prevent repeated execution after interruption."
     },
     {
       "path": "src/jarvis/worker-auth.ts",
