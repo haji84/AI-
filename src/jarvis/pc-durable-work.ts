@@ -43,6 +43,28 @@ function inputOf(task: DurableTask): PcPublicWorkInput {
     task.migrationClass !== "RESTARTABLE") throw new PcWorkConflict("PC_TASK_CONTRACT_REJECTED");
   return validatePcPublicWork(task.payload);
 }
+export interface PcCompletedResult {
+  sha256: string; bytes: number; nodeId: string; goalIssue: number; verified: true;
+  issuer: "signed-worker-request"; executionEpoch: number; observedAt: string;
+}
+/** Validate a historical signed completion, never create or revive an execution claim. */
+export function verifiedPcCompletion(task: DurableTask, nodeId: string, goalIssue: number, now = new Date()): PcCompletedResult {
+  const work = inputOf(task), result = task.result as PcCompletedResult | undefined;
+  const expected = pcDigest(work.content), last = task.history?.at(-1);
+  if (task.status !== "completed" || task.leaseOwner !== undefined || task.leaseUntil !== undefined ||
+    task.fencingToken !== undefined || work.goalIssue !== goalIssue ||
+    (work.targetNodeId && work.targetNodeId !== nodeId) || !Number.isSafeInteger(task.executionEpoch) || task.executionEpoch < 1 ||
+    !result || result.nodeId !== nodeId || result.goalIssue !== goalIssue || result.verified !== true ||
+    result.issuer !== "signed-worker-request" || result.executionEpoch !== task.executionEpoch ||
+    result.sha256 !== expected.sha256 || result.bytes !== expected.bytes ||
+    typeof result.observedAt !== "string" || !Number.isFinite(Date.parse(result.observedAt)) ||
+    Date.parse(result.observedAt) > now.getTime() + 5000 ||
+    last?.to !== "completed" || last.actor !== nodeId || last.at !== result.observedAt ||
+    last.evidence?.executionEpoch !== task.executionEpoch) throw new PcWorkConflict("PC_WORK_COMPLETION_REJECTED");
+  return { ...expected, nodeId, goalIssue, verified: true, issuer: "signed-worker-request",
+    executionEpoch: result.executionEpoch, observedAt: result.observedAt };
+}
+
 /** Adapter to existing durable claims; registered identity/authority remain Broker-owned. */
 export class PcDurableWork {
   private readonly runtime: DurableTaskRuntime;
@@ -65,12 +87,23 @@ export class PcDurableWork {
     if (!isDeepStrictEqual(task.payload, input)) throw new PcWorkConflict("PC_IDEMPOTENCY_CONFLICT");
     return task;
   }
-  async next(nodeId: string, now = new Date(), taskId?: string): Promise<{ task: DurableTask | null; claim?: DurableTaskExecutionClaim }> {
+  async next(nodeId: string, now = new Date(), taskId?: string): Promise<{ task: DurableTask | null; claim?: DurableTaskExecutionClaim; completed?: DurableTask }> {
     if (taskId !== undefined && (typeof taskId !== "string" || !/^[A-Za-z0-9._-]{1,100}$/.test(taskId))) throw new PcWorkConflict("PC_TASK_ID_REJECTED");
     const node = assertPcExecutor(this.nodes().find(n => n.id === nodeId));
     if (!["ready", "busy"].includes(node.status) || !Number.isFinite(Date.parse(node.lastSeenAt)) ||
       now.getTime() - Date.parse(node.lastSeenAt) > 300000 || Date.parse(node.lastSeenAt) > now.getTime() + 5000) {
       throw new PcWorkConflict("PC_HEARTBEAT_REQUIRED");
+    }
+    if (taskId) {
+      const prior = await this.runtime.get(taskId);
+      if (prior?.status === "completed") {
+        if (prior.type !== PC_PUBLIC_DIGEST) return { task: null };
+        const work = inputOf(prior), result = prior.result as PcCompletedResult | undefined;
+        if (work.goalIssue !== node.pcAuthority!.goalIssue || (work.targetNodeId && work.targetNodeId !== node.id) ||
+          result?.nodeId !== node.id) return { task: null };
+        verifiedPcCompletion(prior, node.id, node.pcAuthority!.goalIssue, now);
+        return { task: null, completed: prior };
+      }
     }
     await this.runtime.reclaimExpiredLeases(now);
     const eligible = (task: DurableTask) => {
