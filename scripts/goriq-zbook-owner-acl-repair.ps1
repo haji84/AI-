@@ -7,7 +7,7 @@ $ErrorActionPreference='Stop'
 $env:PSModulePath=Join-Path $PSHOME 'Modules'
 $stage='approval';$changed=$false;$restored=$false;$backupCreated=$false;$backupReused=$false
 $backupOwnerChanged=$false
-$expires=[datetimeoffset]::Parse('2026-10-03T18:58:12Z')
+$expires=[datetimeoffset]::Parse('2026-10-08T22:33:43Z')
 function Test-KnownReadOnlyRights([long]$rights) {
   return ($rights -gt 0 -and ($rights -band (-bnot [long]0x1200A9)) -eq 0)
 }
@@ -103,7 +103,7 @@ try {
   $root=Join-Path $env:USERPROFILE 'JARVIS'
   $production=Join-Path $root 'production'
   $releases=Join-Path $root 'releases'
-  $oldRoot=Join-Path $releases 'ff761733c66f60a49e8c25c5ab0450a7a5e679c5'
+  $oldRoot=Join-Path $releases 'a49c458d69a28c0266be8fcad5b26253e5ed8d75'
   $config=Join-Path $production 'config.dpapi'
   $launcher=Join-Path $production 'launch-current.ps1'
   foreach($path in @($root,$production,$releases,$oldRoot,$config,$launcher)){
