@@ -16,7 +16,12 @@ import {
   findExistingAiReplyAfterPending,
   isPendingConversationIssue,
   selectPendingOwnerMessage,
+  inferBridgeTaskContext,
 } from "./chatgpt-resident-bridge-lib.mjs";
+import {
+  selectBridgeSession,
+  upsertBridgeSession,
+} from "../src/orchestrator/chat-work-session-router.ts";
 
 const execFileAsync = promisify(execFile);
 const REPO = process.env.AI_COMPANY_REPO ?? "haji84/AI-";
@@ -28,6 +33,18 @@ const HEALTH_FILE = join(STATE_DIR, "chatgpt-bridge-health.json");
 const LOCK_FILE = join(STATE_DIR, "chatgpt-bridge.lock");
 const CHROME_PROFILE = process.env.AI_COMPANY_CHATGPT_PROFILE ?? join(HOME, "Library", "Application Support", "AICompanyChatGPTBridge");
 const CHATGPT_URL = "https://chatgpt.com/";
+const PROJECT_NAME = process.env.AI_COMPANY_CHATGPT_PROJECT_NAME?.trim() || "自動化";
+const PROJECT_SURFACES_FILE = join(STATE_DIR, "chatgpt-project-surfaces.json");
+const PROJECT_SESSIONS_FILE = join(STATE_DIR, "chatgpt-project-sessions.json");
+const EXECUTION_DIAGNOSTIC_FILE = join(STATE_DIR, "chatgpt-bridge-execution.json");
+const SUBMISSION_RECEIPTS_FILE = join(STATE_DIR, "chatgpt-bridge-submissions.json");
+const ONE_SHOT_REPAIR_ISSUE = Number(process.env.AI_COMPANY_REPAIR_ONCE_ISSUE || "");
+const CHAT_MAX_PHASES = 4;
+const CHAT_PHASE_BUDGET_MS = 60_000;
+const CHAT_ABSOLUTE_CEILING_MS = 5 * 60_000;
+const WORK_ABSOLUTE_CEILING_MS = 10 * 60_000;
+const COMPLETION_STABLE_MS = 1_500;
+const SUBMISSION_RECOVERY_TIMEOUT_MS = 90_000;
 
 let shuttingDown = false;
 let lockHandle = null;
@@ -39,6 +56,69 @@ function clamp(value, min, max) {
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function readProjectSurfaces() {
+  try {
+    const parsed = JSON.parse(await readFile(PROJECT_SURFACES_FILE, "utf8"));
+    if (!parsed || typeof parsed !== "object") return { version: 1, project: PROJECT_NAME, chat: null, work: null };
+    return {
+      version: 1,
+      project: typeof parsed.project === "string" ? parsed.project : PROJECT_NAME,
+      chat: typeof parsed.chat === "string" && parsed.chat.startsWith(CHATGPT_URL) ? parsed.chat : null,
+      work: typeof parsed.work === "string" && parsed.work.startsWith(CHATGPT_URL) ? parsed.work : null,
+    };
+  } catch {
+    return { version: 1, project: PROJECT_NAME, chat: null, work: null };
+  }
+}
+
+async function writeProjectSurface(mode, url) {
+  if (!["chat", "work"].includes(mode) || typeof url !== "string" || !url.startsWith(CHATGPT_URL)) return;
+  const current = await readProjectSurfaces();
+  const next = { ...current, project: PROJECT_NAME, [mode]: url, updatedAt: new Date().toISOString() };
+  await mkdir(STATE_DIR, { recursive: true });
+  await writeFile(PROJECT_SURFACES_FILE, JSON.stringify(next, null, 2) + "\n", "utf8");
+}
+
+async function readProjectSessions() {
+  try {
+    const parsed = JSON.parse(await readFile(PROJECT_SESSIONS_FILE, "utf8"));
+    if (!parsed || parsed.version !== 1 || !Array.isArray(parsed.sessions)) throw new Error("invalid session registry");
+    return { version: 1, project: PROJECT_NAME, sessions: parsed.sessions };
+  } catch {
+    const legacy = await readProjectSurfaces();
+    const now = new Date().toISOString();
+    const sessions = [];
+    if (legacy.chat) sessions.push({ project: PROJECT_NAME, surface: "chat", url: legacy.chat, goalId: null, lastUsedAt: now });
+    if (legacy.work) sessions.push({ project: PROJECT_NAME, surface: "work", url: legacy.work, goalId: null, lastUsedAt: now });
+    return { version: 1, project: PROJECT_NAME, sessions };
+  }
+}
+
+async function recordProjectSession(surface, url, goalId = null) {
+  if (!["chat", "work"].includes(surface) || typeof url !== "string" || !url.startsWith(CHATGPT_URL)) return;
+  const current = await readProjectSessions();
+  const next = upsertBridgeSession(current, {
+    project: PROJECT_NAME,
+    surface,
+    url,
+    goalId: typeof goalId === "string" && goalId.trim() ? goalId.trim() : null,
+    lastUsedAt: new Date().toISOString(),
+  });
+  await mkdir(STATE_DIR, { recursive: true });
+  await writeFile(PROJECT_SESSIONS_FILE, JSON.stringify(next, null, 2) + "\n", "utf8");
+}
+
+async function setExecutionDiagnostic(stage, extra = {}) {
+  await mkdir(STATE_DIR, { recursive: true });
+  const payload = {
+    stage,
+    updatedAt: new Date().toISOString(),
+    pid: process.pid,
+    ...extra,
+  };
+  await writeFile(EXECUTION_DIAGNOSTIC_FILE, JSON.stringify(payload, null, 2) + "\n", "utf8");
 }
 
 async function setHealth(status, detail = null, extra = {}) {
@@ -55,6 +135,96 @@ async function setHealth(status, detail = null, extra = {}) {
   };
   await writeFile(HEALTH_FILE, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
   console.log(`[bridge] ${payload.updatedAt} ${status}${detail ? `: ${detail}` : ""}`);
+}
+
+function submissionReceiptKey(issueNumber, pendingOwnerMessageId) {
+  return `${Number(issueNumber)}:${String(pendingOwnerMessageId ?? "").trim()}`;
+}
+
+async function readSubmissionReceipts() {
+  try {
+    const parsed = JSON.parse(await readFile(SUBMISSION_RECEIPTS_FILE, "utf8"));
+    if (parsed?.version === 1 && parsed.receipts && typeof parsed.receipts === "object") {
+      return { version: 1, receipts: parsed.receipts };
+    }
+  } catch {}
+  return { version: 1, receipts: {} };
+}
+
+async function writeSubmissionReceipts(state) {
+  await mkdir(STATE_DIR, { recursive: true });
+  const receipts = Object.fromEntries(
+    Object.entries(state?.receipts ?? {})
+      .sort(([, a], [, b]) => String(b?.submittedAt ?? "").localeCompare(String(a?.submittedAt ?? "")))
+      .slice(0, 200),
+  );
+  await writeFile(
+    SUBMISSION_RECEIPTS_FILE,
+    `${JSON.stringify({ version: 1, receipts }, null, 2)}\n`,
+    "utf8",
+  );
+}
+
+async function getSubmissionReceipt(issueNumber, pendingOwnerMessageId) {
+  const state = await readSubmissionReceipts();
+  const receipt = state.receipts[submissionReceiptKey(issueNumber, pendingOwnerMessageId)] ?? null;
+  if (!receipt || receipt.pendingOwnerMessageId !== String(pendingOwnerMessageId)) return null;
+  if (!receipt.requestMarker || !["chat", "work"].includes(receipt.surface)) return null;
+  return receipt;
+}
+
+async function recordSubmissionReceipt({
+  issueNumber,
+  pendingOwnerMessageId,
+  requestMarker,
+  surface,
+  url,
+  goalId = null,
+}) {
+  if (!Number.isInteger(Number(issueNumber)) || !String(pendingOwnerMessageId ?? "").trim() || !String(requestMarker ?? "").trim()) {
+    throw new Error("INVALID_SUBMISSION_RECEIPT_IDENTITY");
+  }
+  if (!["chat", "work"].includes(surface)) throw new Error("INVALID_SUBMISSION_RECEIPT_SURFACE");
+
+  const state = await readSubmissionReceipts();
+  const key = submissionReceiptKey(issueNumber, pendingOwnerMessageId);
+  const previous = state.receipts[key] ?? null;
+  state.receipts[key] = {
+    issueNumber: Number(issueNumber),
+    pendingOwnerMessageId: String(pendingOwnerMessageId),
+    requestMarker: String(requestMarker),
+    surface,
+    url: typeof url === "string" && url.startsWith(CHATGPT_URL) ? url : previous?.url ?? null,
+    goalId: typeof goalId === "string" && goalId.trim() ? goalId.trim() : previous?.goalId ?? null,
+    submittedAt: previous?.submittedAt ?? new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  await writeSubmissionReceipts(state);
+  return state.receipts[key];
+}
+
+async function clearSubmissionReceipt(issueNumber, pendingOwnerMessageId) {
+  const state = await readSubmissionReceipts();
+  const key = submissionReceiptKey(issueNumber, pendingOwnerMessageId);
+  if (!(key in state.receipts)) return false;
+  delete state.receipts[key];
+  await writeSubmissionReceipts(state);
+  return true;
+}
+
+async function discardStaleSubmissionReceipts(issueNumber, activePendingOwnerMessageId) {
+  const state = await readSubmissionReceipts();
+  let changed = false;
+  for (const [key, receipt] of Object.entries(state.receipts)) {
+    if (
+      Number(receipt?.issueNumber) === Number(issueNumber)
+      && String(receipt?.pendingOwnerMessageId ?? "") !== String(activePendingOwnerMessageId ?? "")
+    ) {
+      delete state.receipts[key];
+      changed = true;
+    }
+  }
+  if (changed) await writeSubmissionReceipts(state);
 }
 
 async function acquireLock() {
@@ -89,9 +259,15 @@ async function ghJsonPages(path) {
   return Array.isArray(parsed) ? parsed.flat() : [];
 }
 
+function isRepairIssue(issue) {
+  const meta = decodeConversationBody(issue?.body ?? "");
+  const pendingMeta = String(meta?.githubBridge?.pendingOwnerPayload?.meta ?? "");
+  return /(?:^|\s)repair-surface:(chat|work)(?:\s|$)/i.test(pendingMeta);
+}
+
 async function listPendingIssues() {
   const issues = await ghJson(`repos/${REPO}/issues?state=open&sort=updated&direction=desc&per_page=50`);
-  return issues.filter(isPendingConversationIssue);
+  return issues.filter(isPendingConversationIssue).filter((issue) => !isRepairIssue(issue));
 }
 
 async function loadConversation(issue) {
@@ -205,15 +381,15 @@ class CdpClient {
   }
 }
 
-async function createFreshChatGptTarget() {
+async function createChatGptTarget(url = CHATGPT_URL) {
   await ensureChromeRunning();
-  const response = await fetch(`http://127.0.0.1:${CDP_PORT}/json/new?${encodeURIComponent(CHATGPT_URL)}`, {
+  const response = await fetch(`http://127.0.0.1:${CDP_PORT}/json/new?${encodeURIComponent(url)}`, {
     method: "PUT",
     signal: AbortSignal.timeout(5000),
   });
-  if (!response.ok) throw new Error("failed to create fresh ChatGPT browser tab");
+  if (!response.ok) throw new Error("failed to create ChatGPT browser tab");
   const target = await response.json();
-  if (!target?.id || !target?.webSocketDebuggerUrl) throw new Error("fresh ChatGPT CDP target is incomplete");
+  if (!target?.id || !target?.webSocketDebuggerUrl) throw new Error("ChatGPT CDP target is incomplete");
   return target;
 }
 
@@ -251,87 +427,1290 @@ async function waitForComposer(client, timeoutMs = 30000) {
   throw new Error("ChatGPT composer was not found");
 }
 
-async function snapshotAssistantMessages(client) {
-  return evaluate(client, `(() => [...document.querySelectorAll('[data-message-author-role="assistant"]')].map((node, index) => ({
-    id: node.getAttribute('data-message-id') || node.id || null,
-    index,
-    text: (node.innerText || '').trim(),
-  })))()`);
+async function navigateClient(client, url) {
+  await client.call("Page.navigate", { url });
+  const deadline = Date.now() + 30000;
+  while (Date.now() < deadline) {
+    const state = await evaluate(client, `(() => ({
+      ready: document.readyState,
+      url: location.href,
+      login: [...document.querySelectorAll('a,button')].some((el) => /log in|sign in|ログイン/i.test(el.textContent || '')),
+    }))()`);
+    if (state?.login) throw new Error("CHATGPT_LOGIN_REQUIRED");
+    if (state?.ready === "complete" || state?.ready === "interactive") return state;
+    await sleep(400);
+  }
+  throw new Error(`CHATGPT_NAVIGATION_TIMEOUT: ${url}`);
 }
 
-function fingerprintMessage(message) {
-  if (!message) return "";
-  if (message.id) return `id:${message.id}`;
-  return `fallback:${message.index}:${message.text}`;
+async function showSidebarIfNeeded(client) {
+  await evaluate(client, `(() => {
+    const buttons = [...document.querySelectorAll('button,[role="button"]')];
+    const button = buttons.find((el) => /サイドバーを表示する|show sidebar/i.test((el.getAttribute('aria-label') || el.textContent || '').trim()));
+    if (button) button.click();
+    return !!button;
+  })()`);
+  await sleep(300);
 }
 
-async function submitPromptAndReadAnswer(prompt) {
-  const target = await createFreshChatGptTarget();
+async function openAutomationProject(client) {
+  await showSidebarIfNeeded(client);
+  const target = await evaluate(client, `(() => {
+    const normalize = (value) => String(value || '').replace(/\\s+/g, ' ').trim();
+    const visible = (el) => {
+      const rect = el.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    };
+    const candidates = [...document.querySelectorAll('a,button,[role="button"]')].filter(visible);
+    const exact = candidates.find((el) => normalize(el.innerText || el.textContent || el.getAttribute('aria-label')) === ${JSON.stringify(PROJECT_NAME)});
+    if (!exact) {
+      return {
+        found: false,
+        nearby: candidates.map((el) => normalize(el.innerText || el.textContent || el.getAttribute('aria-label'))).filter(Boolean).filter((value) => value.includes(${JSON.stringify(PROJECT_NAME)})).slice(0, 20),
+      };
+    }
+    const href = exact.tagName === 'A' ? exact.href : null;
+    if (!href) exact.click();
+    return { found: true, href };
+  })()`);
+
+  if (!target?.found) {
+    throw new Error(`CHATGPT_AUTOMATION_PROJECT_NOT_FOUND: ${PROJECT_NAME}; nearby=${JSON.stringify(target?.nearby ?? [])}`);
+  }
+  if (target.href) await navigateClient(client, target.href);
+  else await sleep(900);
+
+  const deadline = Date.now() + 15000;
+  while (Date.now() < deadline) {
+    const state = await evaluate(client, `(() => {
+      const normalize = (value) => String(value || '').replace(/\\s+/g, ' ').trim();
+      const visible = (el) => {
+        const rect = el.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0;
+      };
+      const projectVisible = [...document.querySelectorAll('a,button,[role="button"]')]
+        .filter(visible)
+        .some((el) => normalize(el.innerText || el.textContent || el.getAttribute('aria-label')) === ${JSON.stringify(PROJECT_NAME)});
+      const composer = document.querySelector('textarea') || document.querySelector('[contenteditable="true"]');
+      return { projectVisible, hasComposer: !!composer, url: location.href, title: document.title };
+    })()`);
+    if (state?.projectVisible) return state;
+    await sleep(500);
+  }
+  throw new Error(`CHATGPT_AUTOMATION_PROJECT_CONTEXT_NOT_CONFIRMED: ${PROJECT_NAME}`);
+}
+
+async function startFreshProjectConversation(client) {
+  const clicked = await evaluate(client, `(() => {
+    const visible = (el) => {
+      const rect = el.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    };
+    const normalize = (value) => String(value || '').replace(/\\s+/g, ' ').trim();
+    const buttons = [...document.querySelectorAll('button,[role="button"],a')].filter(visible);
+    const fresh = buttons.find((el) => /^(新しいチャット|new chat)$/i.test(normalize(el.getAttribute('aria-label') || el.textContent || '')));
+    if (!fresh) return false;
+    fresh.click();
+    return true;
+  })()`);
+  if (!clicked) throw new Error("CHATGPT_PROJECT_NEW_CHAT_NOT_FOUND");
+  await sleep(700);
+  await waitForComposer(client, 15000);
+  const projectVisible = await evaluate(client, `(() => {
+    const normalize = (value) => String(value || '').replace(/\\s+/g, ' ').trim();
+    return [...document.querySelectorAll('a,button,[role="button"]')]
+      .some((el) => normalize(el.innerText || el.textContent || el.getAttribute('aria-label')) === ${JSON.stringify(PROJECT_NAME)});
+  })()`);
+  if (!projectVisible) throw new Error(`CHATGPT_FRESH_PROJECT_SURFACE_ESCAPED: ${PROJECT_NAME}`);
+}
+
+async function inspectProjectConversationSurface(client) {
+  return evaluate(client, `(() => {
+    const normalize = (value) => String(value || '').replace(/\\s+/g, ' ').trim();
+    const visible = (el) => {
+      const rect = el.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    };
+    const projectVisible = [...document.querySelectorAll('a,button,[role="button"]')]
+      .filter(visible)
+      .some((el) => normalize(el.innerText || el.textContent || el.getAttribute('aria-label')) === ${JSON.stringify(PROJECT_NAME)});
+    const turns = [...document.querySelectorAll(
+      'main [data-message-author-role], main [data-testid^="conversation-turn"], main article, main [data-message-id]'
+    )];
+    const seen = new Set();
+    let messageCount = 0;
+    for (const node of turns) {
+      if (!(node instanceof HTMLElement)) continue;
+      const text = normalize(node.innerText || node.textContent || '');
+      if (!text) continue;
+      const id = node.getAttribute('data-message-id') || node.id || text.slice(0, 300);
+      if (seen.has(id)) continue;
+      seen.add(id);
+      messageCount += 1;
+    }
+    return { projectVisible, messageCount, url: location.href };
+  })()`);
+}
+
+async function waitForPersistableProjectConversationUrl(client, initialUrl, timeoutMs = 15000) {
+  const deadline = Date.now() + timeoutMs;
+  const baseline = String(initialUrl || "");
+  while (Date.now() < deadline) {
+    const inspected = await inspectProjectConversationSurface(client);
+    const currentUrl = String(inspected?.url || "");
+    const transitioned = currentUrl.startsWith(CHATGPT_URL) && currentUrl !== baseline;
+    if (inspected?.projectVisible && Number(inspected?.messageCount ?? 0) > 0 && transitioned) {
+      return currentUrl;
+    }
+    await sleep(300);
+  }
+  return null;
+}
+
+async function prepareProjectSurface(client, mode, fresh = false) {
+  const preferredUrl = arguments[3] ?? null;
+  const surfaces = await readProjectSurfaces();
+  const savedUrl = preferredUrl || (mode === "work" ? surfaces.work : surfaces.chat);
+  let invalidSavedSession = false;
+
+  if (!fresh && savedUrl) {
+    try {
+      await navigateClient(client, savedUrl);
+      await waitForComposer(client, 12000);
+      if (mode === "work") await selectExperience(client, "work");
+      const inspected = await inspectProjectConversationSurface(client);
+      if (inspected?.projectVisible && Number(inspected?.messageCount ?? 0) > 0) {
+        return { reused: true, url: inspected.url || savedUrl, invalidSavedSession: false };
+      }
+      invalidSavedSession = true;
+      await setExecutionDiagnostic("saved-session-invalid", {
+        mode,
+        messageCount: Number(inspected?.messageCount ?? 0),
+        projectVisible: Boolean(inspected?.projectVisible),
+      });
+    } catch {
+      invalidSavedSession = true;
+    }
+  }
+
+  await navigateClient(client, CHATGPT_URL);
+  await openAutomationProject(client);
+  if (fresh || invalidSavedSession) await startFreshProjectConversation(client);
+  if (mode === "work") await selectExperience(client, "work");
+  const ready = await waitForComposer(client, 15000);
+  const inspected = await inspectProjectConversationSurface(client);
+  if (!inspected?.projectVisible) {
+    throw new Error(`CHATGPT_PROJECT_SURFACE_ESCAPED: ${PROJECT_NAME}/${mode}`);
+  }
+  return {
+    reused: false,
+    url: ready.url,
+    invalidSavedSession,
+  };
+}
+
+async function snapshotConversationMessages(client) {
+  return evaluate(client, `(() => {
+    const candidates = [...document.querySelectorAll(
+      'main [data-message-author-role], main [data-testid^="conversation-turn"], main article, main [data-message-id]'
+    )];
+    const out = [];
+    const seen = new Set();
+    const normalize = (value) => String(value || '').replace(/\\s+/g, ' ').trim();
+
+    for (const node of candidates) {
+      if (!(node instanceof HTMLElement)) continue;
+      const roleNode = node.matches('[data-message-author-role]') ? node : node.closest('[data-message-author-role]');
+      let role = roleNode?.getAttribute('data-message-author-role') || null;
+      const controls = [...node.querySelectorAll('button')].map((button) =>
+        normalize([button.getAttribute('aria-label'), button.getAttribute('data-testid'), button.textContent].filter(Boolean).join(' '))
+      ).filter(Boolean);
+      const controlText = controls.join(' | ');
+
+      if (!role && /メッセージを編集|edit message/i.test(controlText)) role = 'user';
+      if (!role && /回答を再生成|regenerate|読み上げ|read aloud|リアクション|reaction/i.test(controlText)) role = 'assistant';
+      if (role !== 'user' && role !== 'assistant') continue;
+
+      const contentNode = node.querySelector('.markdown,[data-message-content],.whitespace-pre-wrap') || node;
+      const text = (contentNode.innerText || contentNode.textContent || '').trim();
+      if (!text) continue;
+
+      const id = node.getAttribute('data-message-id')
+        || roleNode?.getAttribute('data-message-id')
+        || node.id
+        || null;
+      const key = role + ':' + (id || text.slice(0, 500));
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({ role, id, index: out.length, text: text.slice(0, 8000) });
+    }
+    return out;
+  })()`);
+}
+
+async function readMacClipboardText() {
+  const { stdout } = await execFileAsync("pbpaste", [], { maxBuffer: 2 * 1024 * 1024 });
+  return String(stdout ?? "");
+}
+
+function writeMacClipboardText(text) {
+  return new Promise((resolve, reject) => {
+    const child = execFile("pbcopy", [], (error) => {
+      if (error) reject(error);
+      else resolve();
+    });
+    child.stdin.end(String(text ?? ""));
+  });
+}
+
+async function copyAssistantAnswerFromUi(client, requestMarker, phaseToken = "") {
+  const previousClipboard = await readMacClipboardText();
+  const sentinel = `GORIQ_CLIPBOARD_SENTINEL_${randomUUID()}`;
+  try {
+    await writeMacClipboardText(sentinel);
+    const target = await evaluate(client, `(() => {
+      const normalize = (value) => String(value || '').replace(/\\s+/g, ' ').trim();
+      const visible = (el) => {
+        const rect = el.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0;
+      };
+      const buttons = [...document.querySelectorAll('button')].filter((button) => {
+        if (!visible(button) || button.disabled) return false;
+        const label = normalize(button.getAttribute('aria-label') || button.textContent || '');
+        return /^(コピーする|copy)$/i.test(label);
+      });
+      const phaseToken = __PHASE_TOKEN__;
+      const eligible = phaseToken
+        ? buttons.filter((button) => button.getAttribute('data-goriq-phase-baseline') !== phaseToken)
+        : buttons;
+      const button = eligible.at(-1);
+      if (!button) return null;
+      button.scrollIntoView({ block: 'center', inline: 'nearest' });
+      return new Promise((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          const rect = button.getBoundingClientRect();
+          const x = rect.left + rect.width / 2;
+          const y = rect.top + rect.height / 2;
+          if (
+            rect.width <= 0
+            || rect.height <= 0
+            || x < 0
+            || x > window.innerWidth
+            || y < 0
+            || y > window.innerHeight
+          ) {
+            resolve(null);
+            return;
+          }
+          resolve({ x, y });
+        }));
+      });
+    })()`.replace("__PHASE_TOKEN__", JSON.stringify(phaseToken)));
+    if (!target?.x || !target?.y) return "";
+
+    await client.call("Page.bringToFront");
+    await client.call("Input.dispatchMouseEvent", { type: "mouseMoved", x: target.x, y: target.y });
+    await client.call("Input.dispatchMouseEvent", { type: "mousePressed", x: target.x, y: target.y, button: "left", clickCount: 1 });
+    await client.call("Input.dispatchMouseEvent", { type: "mouseReleased", x: target.x, y: target.y, button: "left", clickCount: 1 });
+
+    const deadline = Date.now() + 2500;
+    while (Date.now() < deadline) {
+      await sleep(150);
+      const copied = await readMacClipboardText();
+      if (copied && copied !== sentinel && !copied.includes(requestMarker)) {
+        return copied.trim().slice(0, 8000);
+      }
+    }
+    return "";
+  } finally {
+    try { await writeMacClipboardText(previousClipboard); } catch {}
+  }
+}
+
+function repairSurfaceFromPending(pending) {
+  const meta = String(pending?.meta ?? "");
+  const match = meta.match(/(?:^|\s)repair-surface:(chat|work)(?:\s|$)/i);
+  return match?.[1]?.toLowerCase() === "work" ? "work" : "chat";
+}
+
+async function selectExperience(client, mode) {
+  if (mode !== "work") return;
+
+  const direct = await evaluate(client, `(() => {
+    const text = (el) => (el.innerText || el.textContent || '').replace(/\\s+/g, ' ').trim();
+    const candidates = [...document.querySelectorAll('button,[role="button"],[role="menuitem"],[role="option"]')];
+    const work = candidates.find((el) => /^Work$/i.test(text(el)) && el.getBoundingClientRect().width > 0 && el.getBoundingClientRect().height > 0);
+    if (work) { work.click(); return { clicked: true, phase: 'direct' }; }
+    const toggle = candidates.find((el) => /^(Chat|Work)$/i.test(text(el)) && el.getBoundingClientRect().width > 0 && el.getBoundingClientRect().height > 0);
+    if (toggle) { toggle.click(); return { clicked: true, phase: 'toggle' }; }
+    return { clicked: false, phase: 'none' };
+  })()`);
+  if (!direct?.clicked) throw new Error("CHATGPT_WORK_SELECTOR_NOT_FOUND");
+
+  if (direct.phase === "toggle") {
+    await sleep(450);
+    const selected = await evaluate(client, `(() => {
+      const text = (el) => (el.innerText || el.textContent || '').replace(/\\s+/g, ' ').trim();
+      const candidates = [...document.querySelectorAll('[role="menuitem"],[role="option"],button,[role="button"]')];
+      const work = candidates.find((el) => /^Work$/i.test(text(el)) && el.getBoundingClientRect().width > 0 && el.getBoundingClientRect().height > 0);
+      if (!work) return false;
+      work.click();
+      return true;
+    })()`);
+    if (!selected) throw new Error("CHATGPT_WORK_OPTION_NOT_FOUND");
+  }
+
+  await sleep(700);
+}
+
+async function markPhaseCopyBaseline(client, phaseToken) {
+  return evaluate(client, `(() => {
+    const normalize = (value) => String(value || '').replace(/\\s+/g, ' ').trim();
+    const visible = (el) => {
+      const rect = el.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    };
+    const copies = [...document.querySelectorAll('button')].filter((button) => {
+      if (!visible(button)) return false;
+      const label = normalize(button.getAttribute('aria-label') || button.textContent || '');
+      return /^(コピーする|copy)$/i.test(label);
+    });
+    for (const button of copies) button.setAttribute('data-goriq-phase-baseline', __PHASE_TOKEN__);
+    return copies.length;
+  })()`.replace("__PHASE_TOKEN__", JSON.stringify(phaseToken)));
+}
+
+async function waitForOrdinaryChatAnswer(client, baselineAssistantCount, baselineLastAssistant = null, timeoutMs = CHAT_ABSOLUTE_CEILING_MS) {
+  const deadline = Date.now() + timeoutMs;
+  let lastText = "";
+  let stableSince = 0;
+  let transientEvaluateFailures = 0;
+  let lastProgressLogAt = 0;
+
+  while (Date.now() < deadline) {
+    let state;
+    try {
+      state = await evaluate(client, `(() => {
+        const candidates = [...document.querySelectorAll(
+          'main [data-message-author-role], main [data-testid^="conversation-turn"], main article, main [data-message-id]'
+        )];
+        const seen = new Set();
+        const assistants = [];
+        for (const node of candidates) {
+          if (!(node instanceof HTMLElement)) continue;
+          const roleNode = node.matches('[data-message-author-role]') ? node : node.closest('[data-message-author-role]');
+          let role = roleNode?.getAttribute('data-message-author-role') || null;
+          const controls = [...node.querySelectorAll('button')].map((button) =>
+            [button.getAttribute('aria-label'), button.getAttribute('data-testid'), button.textContent]
+              .filter(Boolean)
+              .join(' ')
+          ).join(' | ');
+          if (!role && /回答を再生成|regenerate|読み上げ|read aloud|リアクション|reaction/i.test(controls)) role = 'assistant';
+          if (role !== 'assistant') continue;
+
+          const contentNode = node.querySelector('.markdown,[data-message-content],.whitespace-pre-wrap') || node;
+          const text = (contentNode.innerText || contentNode.textContent || '').trim();
+          if (!text) continue;
+          const id = node.getAttribute('data-message-id')
+            || roleNode?.getAttribute('data-message-id')
+            || node.id
+            || text.slice(0, 500);
+          if (seen.has(id)) continue;
+          seen.add(id);
+          assistants.push({ id, text });
+        }
+
+        const generating = !!document.querySelector('button[data-testid="stop-button"]')
+          || [...document.querySelectorAll('main button')].some((button) =>
+            /stop generating|停止/i.test((button.getAttribute('aria-label') || button.textContent || '').trim())
+          );
+        const last = assistants.at(-1) || null;
+        return {
+          assistantCount: assistants.length,
+          text: last?.text || '',
+          assistantId: last?.id || null,
+          generating,
+          url: location.href,
+        };
+      })()`);
+      transientEvaluateFailures = 0;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (/CDP command timeout: Runtime\.evaluate/.test(message) && transientEvaluateFailures < 5) {
+        transientEvaluateFailures += 1;
+        await sleep(1200);
+        continue;
+      }
+      throw error;
+    }
+
+    const baselineId = baselineLastAssistant?.id || null;
+    const baselineText = baselineLastAssistant?.text || "";
+    const hasNewAssistant = Boolean(state?.text) && (
+      (state?.assistantCount ?? 0) > baselineAssistantCount
+      || (baselineId && state?.assistantId && state.assistantId !== baselineId)
+      || (!baselineId && baselineText && state.text !== baselineText)
+    );
+
+    if (Date.now() - lastProgressLogAt >= 15_000) {
+      const assistantIdChanged = Boolean(baselineId && state?.assistantId && state.assistantId !== baselineId);
+      const textChanged = Boolean(baselineText && state?.text && state.text !== baselineText);
+      console.log(`[bridge] ${new Date().toISOString()} ordinary-chat-wait: assistantCount=${state?.assistantCount ?? 0} baselineCount=${baselineAssistantCount} assistantIdChanged=${assistantIdChanged} textChanged=${textChanged} generating=${Boolean(state?.generating)} textLength=${String(state?.text ?? "").length}`);
+      await setExecutionDiagnostic("ordinary-chat-wait", {
+        assistantCount: Number(state?.assistantCount ?? 0),
+        baselineCount: Number(baselineAssistantCount),
+        assistantIdChanged,
+        textChanged,
+        generating: Boolean(state?.generating),
+        textLength: String(state?.text ?? "").length,
+      });
+      lastProgressLogAt = Date.now();
+    }
+
+    if (hasNewAssistant) {
+      if (state.text === lastText) {
+        if (!stableSince) stableSince = Date.now();
+      } else {
+        lastText = state.text;
+        stableSince = Date.now();
+      }
+      if (!state.generating && Date.now() - stableSince >= COMPLETION_STABLE_MS) {
+        await setExecutionDiagnostic("ordinary-chat-answer-detected", {
+          textLength: String(lastText).length,
+          assistantCount: Number(state?.assistantCount ?? 0),
+        });
+        return String(lastText).slice(0, 8000);
+      }
+    }
+    await sleep(700);
+  }
+  throw new Error("CHATGPT_ORDINARY_RESPONSE_TIMEOUT");
+}
+
+async function recoverSubmittedAnswer(receipt, timeoutMs = SUBMISSION_RECOVERY_TIMEOUT_MS) {
+  if (!receipt?.requestMarker || !["chat", "work"].includes(receipt?.surface)) {
+    throw new Error("CHATGPT_SUBMISSION_RECOVERY_RECEIPT_INVALID");
+  }
+
+  let recoveryUrl = typeof receipt.url === "string" && receipt.url.startsWith(CHATGPT_URL)
+    ? receipt.url
+    : null;
+  if (!recoveryUrl) {
+    const registry = await readProjectSessions();
+    const matching = registry.sessions
+      .filter((session) =>
+        session?.surface === receipt.surface
+        && (!receipt.goalId || session?.goalId === receipt.goalId)
+        && typeof session?.url === "string"
+        && session.url.startsWith(CHATGPT_URL)
+      )
+      .sort((a, b) => String(b?.lastUsedAt ?? "").localeCompare(String(a?.lastUsedAt ?? "")));
+    recoveryUrl = matching[0]?.url ?? null;
+  }
+  if (!recoveryUrl) throw new Error("CHATGPT_SUBMISSION_RECOVERY_URL_MISSING");
+
+  const target = await createChatGptTarget(CHATGPT_URL);
   const client = new CdpClient(target.webSocketDebuggerUrl);
   await client.connect();
   try {
     await client.call("Page.enable");
     await client.call("Runtime.enable");
-    const initial = await waitForComposer(client);
-    if (!String(initial?.url ?? "").startsWith(CHATGPT_URL)) throw new Error("fresh target is not on ChatGPT");
+    await client.call("Page.bringToFront");
+    await navigateClient(client, recoveryUrl);
+    await waitForComposer(client, 15000);
+    if (receipt.surface === "work") await selectExperience(client, "work");
 
-    const beforeMessages = await snapshotAssistantMessages(client);
-    const baselineFingerprints = new Set((beforeMessages ?? []).map(fingerprintMessage));
-    const initialUrl = initial.url;
+    const inspected = await inspectProjectConversationSurface(client);
+    if (!inspected?.projectVisible || Number(inspected?.messageCount ?? 0) <= 0) {
+      throw new Error("CHATGPT_SUBMISSION_RECOVERY_SURFACE_INVALID");
+    }
+
+    const deadline = Date.now() + timeoutMs;
+    let markerSeen = false;
+    let lastText = "";
+    let stableSince = 0;
+
+    while (Date.now() < deadline) {
+      const turns = await snapshotConversationMessages(client);
+      const markerIndex = Array.isArray(turns)
+        ? turns.findLastIndex((message) =>
+            message.role === "user" && String(message.text ?? "").includes(receipt.requestMarker)
+          )
+        : -1;
+
+      if (markerIndex >= 0) {
+        markerSeen = true;
+        const nextTurn = turns[markerIndex + 1] ?? null;
+        if (nextTurn?.role === "user") {
+          throw new Error("CHATGPT_SUBMISSION_RECOVERY_AMBIGUOUS_NEXT_TURN");
+        }
+        if (nextTurn?.role === "assistant" && nextTurn.text) {
+          const generating = await evaluate(client, `(() => {
+            const buttons = [...document.querySelectorAll('main button')];
+            return !!document.querySelector('button[data-testid="stop-button"]')
+              || buttons.some((button) =>
+                /stop generating|停止/i.test((button.getAttribute('aria-label') || button.textContent || '').trim())
+              );
+          })()`);
+
+          const candidate = String(nextTurn.text).trim();
+          if (candidate === lastText) {
+            if (!stableSince) stableSince = Date.now();
+          } else {
+            lastText = candidate;
+            stableSince = Date.now();
+          }
+          if (!generating && Date.now() - stableSince >= COMPLETION_STABLE_MS) {
+            await setExecutionDiagnostic("submission-recovered", {
+              surface: receipt.surface,
+              answerLength: lastText.length,
+              markerSeen: true,
+            });
+            return lastText.slice(0, 8000);
+          }
+        }
+      }
+
+      await sleep(700);
+    }
+
+    throw new Error(markerSeen
+      ? "CHATGPT_SUBMISSION_RECOVERY_TIMEOUT"
+      : "CHATGPT_SUBMISSION_MARKER_NOT_FOUND");
+  } finally {
+    client.close();
+    await closeTarget(target.id);
+  }
+}
+
+async function snapshotExecutionUiState(client, phaseToken = "") {
+  return evaluate(client, `(() => {
+    const normalize = (value) => String(value || '').replace(/\\s+/g, ' ').trim();
+    const visible = (el) => {
+      const rect = el.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    };
+    const allButtons = [...document.querySelectorAll('button')].filter(visible);
+    const mainButtons = [...document.querySelectorAll('main button')].filter(visible);
+    const labels = (buttons) => buttons.map((button) =>
+      normalize([button.getAttribute('aria-label'), button.getAttribute('data-testid'), button.textContent].filter(Boolean).join(' '))
+    ).filter(Boolean);
+    const allLabels = labels(allButtons);
+    const mainLabels = labels(mainButtons);
+    const generating = !!document.querySelector('button[data-testid="stop-button"]')
+      || mainLabels.some((value) => /stop generating|停止/i.test(value));
+    const retryVisible = mainLabels.some((value) => /^(再試行|retry)$/i.test(value));
+    const assistantLabels = allLabels.filter((value) =>
+      /^(コピーする|copy)$|読み上げ|read aloud|回答を再生成|regenerate/i.test(value)
+    );
+    const copyReady = assistantLabels.some((value) => /^(コピーする|copy)$/i.test(value));
+    const readAloudReady = assistantLabels.some((value) => /読み上げ|read aloud/i.test(value));
+    const regenerateReady = assistantLabels.some((value) => /回答を再生成|regenerate/i.test(value));
+    const progressLabel = mainLabels.findLast((value) => /作業しました|working|thinking|reasoning/i.test(value)) || '';
+    const mainText = document.querySelector('main')?.innerText || '';
+    const tail = mainText.slice(-240);
+    const copyButtons = allButtons.filter((button) => {
+      const label = normalize(button.getAttribute('aria-label') || button.textContent || '');
+      return /^(コピーする|copy)$/i.test(label);
+    });
+    const copyCount = copyButtons.length;
+    const phaseToken = __PHASE_TOKEN__;
+    const newCopyCount = phaseToken
+      ? copyButtons.filter((button) => button.getAttribute('data-goriq-phase-baseline') !== phaseToken).length
+      : copyCount;
+    return {
+      generating,
+      retryVisible,
+      copyReady,
+      copyCount,
+      newCopyCount,
+      readAloudReady,
+      regenerateReady,
+      completionReady: !generating && copyReady && (readAloudReady || regenerateReady) && !retryVisible,
+      completionSignature: JSON.stringify([newCopyCount, copyReady, readAloudReady, regenerateReady, retryVisible]),
+      activitySignature: JSON.stringify([generating, retryVisible, copyReady, readAloudReady, regenerateReady, progressLabel, mainText.length, tail]),
+    };
+  })()`.replace("__PHASE_TOKEN__", JSON.stringify(phaseToken)));
+}
+
+async function snapshotSafeControlDiagnostics(client) {
+  return evaluate(client, `(() => {
+    const visible = (el) => {
+      const rect = el.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    };
+    const clean = (value) => String(value || '').replace(/\\s+/g, ' ').trim().slice(0, 120);
+    const nodes = [...document.querySelectorAll('button,[role="button"]')].filter(visible).slice(-80);
+    const controls = nodes.map((el) => ({
+      tag: el.tagName.toLowerCase(),
+      role: clean(el.getAttribute('role')),
+      aria: clean(el.getAttribute('aria-label')),
+      testid: clean(el.getAttribute('data-testid')),
+      title: clean(el.getAttribute('title')),
+      text: clean(el.textContent),
+      inMain: !!el.closest('main'),
+    }));
+    const labels = controls.map((item) => [item.aria, item.testid, item.title, item.text].filter(Boolean).join(' '));
+    return {
+      visibleControlCount: nodes.length,
+      candidates: {
+        stop: labels.filter((value) => /stop generating|停止/i.test(value)).length,
+        retry: labels.filter((value) => /retry|再試行/i.test(value)).length,
+        copy: labels.filter((value) => /copy|コピー/i.test(value)).length,
+        readAloud: labels.filter((value) => /read aloud|読み上げ/i.test(value)).length,
+        regenerate: labels.filter((value) => /regenerate|再生成/i.test(value)).length,
+      },
+      controls,
+    };
+  })()`);
+}
+
+async function stopActiveGeneration(client) {
+  return evaluate(client, `(() => {
+    const visible = (el) => {
+      const rect = el.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    };
+    const buttons = [...document.querySelectorAll('main button')].filter(visible);
+    const stop = document.querySelector('button[data-testid="stop-button"]')
+      || buttons.find((button) => /stop generating|停止/i.test((button.getAttribute('aria-label') || button.textContent || '').trim()));
+    if (!stop) return false;
+    stop.click();
+    return true;
+  })()`);
+}
+
+async function submitFollowupPrompt(client, text) {
+  await waitForComposer(client, 15000);
+  const focused = await evaluate(client, `(() => {
+    const el = document.querySelector('textarea') || document.querySelector('[contenteditable="true"]');
+    if (!el) return false;
+    el.focus();
+    return true;
+  })()`);
+  if (!focused) throw new Error("CHATGPT_PHASE_COMPOSER_NOT_FOUND");
+
+  await client.call("Input.dispatchKeyEvent", { type: "keyDown", key: "a", code: "KeyA", modifiers: 4 });
+  await client.call("Input.dispatchKeyEvent", { type: "keyUp", key: "a", code: "KeyA", modifiers: 4 });
+  await client.call("Input.dispatchKeyEvent", { type: "keyDown", key: "Backspace", code: "Backspace" });
+  await client.call("Input.dispatchKeyEvent", { type: "keyUp", key: "Backspace", code: "Backspace" });
+  await client.call("Input.insertText", { text });
+
+  const submitted = await evaluate(client, `(() => {
+    const visible = (el) => {
+      const rect = el.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    };
+    const buttons = [...document.querySelectorAll('button')];
+    const button = document.querySelector('button[data-testid="send-button"]')
+      || buttons.find((el) => {
+        const aria = (el.getAttribute('aria-label') || '').trim();
+        const testid = (el.getAttribute('data-testid') || '').trim();
+        const label = (el.textContent || '').trim();
+        return visible(el) && !el.disabled
+          && (/^(send|送信)$/i.test(aria) || /send-button/i.test(testid) || /^(send|送信)$/i.test(label));
+      });
+    if (button && !button.disabled && visible(button)) {
+      button.click();
+      return true;
+    }
+    const composer = document.querySelector('textarea') || document.querySelector('[contenteditable="true"]');
+    const form = composer?.closest('form');
+    if (form && typeof form.requestSubmit === 'function') {
+      form.requestSubmit();
+      return true;
+    }
+    return false;
+  })()`);
+
+  if (!submitted) {
+    await client.call("Input.dispatchKeyEvent", {
+      type: "rawKeyDown",
+      key: "Enter",
+      code: "Enter",
+      windowsVirtualKeyCode: 13,
+      nativeVirtualKeyCode: 13,
+    });
+    await client.call("Input.dispatchKeyEvent", {
+      type: "keyUp",
+      key: "Enter",
+      code: "Enter",
+      windowsVirtualKeyCode: 13,
+      nativeVirtualKeyCode: 13,
+    });
+  }
+  await sleep(700);
+}
+
+function shouldPreSplitChatRepair(prompt) {
+  const value = String(prompt ?? "");
+  const allowedMatch = value.match(/^AllowedPaths=(.+)$/m);
+  const allowedCount = allowedMatch
+    ? allowedMatch[1].split(",").map((item) => item.trim()).filter(Boolean).length
+    : 0;
+  const failureEvidenceLength = value.includes("FailureEvidence:")
+    ? value.slice(value.indexOf("FailureEvidence:")).length
+    : 0;
+  const structuralSignals = [
+    /Recovery strategy/i,
+    /Current file excerpts/i,
+    /FailureEvidence:/i,
+    /Strategy \d/i,
+    /AllowedPaths=/i,
+    /Read AGENTS\.md/i,
+  ].filter((pattern) => pattern.test(value)).length;
+
+  return value.length >= 6000
+    || failureEvidenceLength >= 3500
+    || allowedCount >= 3
+    || structuralSignals >= 4;
+}
+
+function boundedPhaseContext(outputs) {
+  return outputs
+    .slice(-3)
+    .map((value, index) => `PriorPhase${outputs.length - Math.min(outputs.length, 3) + index + 1}:\n${String(value).slice(0, 2200)}`)
+    .join("\n\n");
+}
+
+function buildInitialChatPrompt(prompt, requestMarker, preSplit) {
+  if (!preSplit) {
+    return [
+      requestMarker,
+      "Transport marker only. Do not include it in the answer.",
+      "",
+      prompt,
+    ].join("\n");
+  }
+
+  return [
+    requestMarker,
+    "Transport marker only. Do not include it in the answer.",
+    "GORIQ_CHAT_PRE_SPLIT=true",
+    `GORIQ_CHAT_RECOVERY_PHASE=1/${CHAT_MAX_PHASES}`,
+    "The repair is being phase-split before execution because it is likely to exceed one minute.",
+    "Phase 1: DIAGNOSIS ONLY.",
+    "Identify the exact failing condition, the exact AllowedPath location involved, and the smallest correction target.",
+    "Do not broaden scope. Do not produce unrelated implementation.",
+    "Your Phase 1 result will be copied and explicitly reflected into Phase 2.",
+    "",
+    "Original bounded repair goal:",
+    prompt,
+  ].join("\n");
+}
+
+function buildChatRecoveryPhasePrompt(phase, reason, marker, priorOutputs = []) {
+  const instructions = {
+    2: [
+      "Micro-Phase 2: DIAGNOSIS ONLY.",
+      "Identify the single concrete failing condition, the exact AllowedPath location that must change, and the smallest intended correction.",
+      "Do not perform broad research or redesign. If the correction is already certain and tiny, you may return the final unified diff now.",
+    ],
+    3: [
+      "Micro-Phase 3: MINIMAL CHANGE CONSTRUCTION.",
+      "Using the diagnosis already in this conversation, reduce the work to one smallest safe code change.",
+      "Do not revisit unrelated possibilities. If ready, return the final unified diff; otherwise state only the exact edit needed for the final phase.",
+    ],
+    4: [
+      "Micro-Phase 4: FINAL DIFF ONLY.",
+      "Use the prior micro-phase findings and return only the smallest valid unified diff.",
+      "If a safe bounded diff is still impossible, return exactly GORIQ_CHAT_PHASE_EXHAUSTED.",
+    ],
+  };
+  return [
+    marker,
+    `GORIQ_CHAT_RECOVERY_PHASE=${phase}/${CHAT_MAX_PHASES}`,
+    `RecoveryReason=${reason}`,
+    "Continue the SAME repair request using the existing conversation context.",
+    "This is a smaller continuation step, not a new task.",
+    "Do not broaden AllowedPaths, authority, permissions, dependencies, tests, workflows, governance, or requirements.",
+    "Keep this micro-phase small enough to finish within one minute.",
+    "Treat all prior phase results as parts of ONE repair, never as separate tasks.",
+    boundedPhaseContext(priorOutputs),
+    ...(instructions[phase] ?? instructions[4]),
+    phase === CHAT_MAX_PHASES
+      ? "FINALIZATION: consolidate the original goal plus every prior phase result into ONE smallest valid unified diff. Return only that single unified diff."
+      : "Your result will be copied and explicitly reflected into the next phase.",
+  ].filter(Boolean).join("\n");
+}
+
+function looksLikeUnifiedDiff(text) {
+  const value = String(text ?? "").trim();
+  return /(?:^|\n)diff --git\s/m.test(value)
+    || /(?:^|\n)---\s+[^\n]+\n\+\+\+\s+/m.test(value);
+}
+
+async function submitPromptAndReadAnswer(prompt, mode = "chat", fresh = false, preferredUrl = null, goalId = null, repairMode = false, submissionIdentity = null) {
+  const requestMarker = `GORIQ_BRIDGE_REQUEST_ID=${randomUUID()}`;
+  const preSplit = mode === "chat" && shouldPreSplitChatRepair(prompt);
+  const submittedPrompt = mode === "chat"
+    ? buildInitialChatPrompt(prompt, requestMarker, preSplit)
+    : [
+        requestMarker,
+        "Transport marker only. Do not include it in the answer.",
+        "",
+        prompt,
+      ].join("\n");
+  const target = await createChatGptTarget(CHATGPT_URL);
+  const client = new CdpClient(target.webSocketDebuggerUrl);
+  await client.connect();
+  try {
+    await client.call("Page.enable");
+    await client.call("Runtime.enable");
+    await client.call("Page.bringToFront");
+    const preparedSurface = await prepareProjectSurface(client, mode, fresh, preferredUrl);
+    const selectedExperience = await waitForComposer(client);
+    if (!String(selectedExperience?.url ?? "").startsWith(CHATGPT_URL)) throw new Error("project surface left ChatGPT");
+
+    const preSubmissionTurns = await snapshotConversationMessages(client);
+    const baselineAssistantMessages = Array.isArray(preSubmissionTurns)
+      ? preSubmissionTurns.filter((message) => message.role === "assistant")
+      : [];
+    const baselineAssistantCount = baselineAssistantMessages.length;
+    const baselineLastAssistant = baselineAssistantMessages.at(-1) ?? null;
+    const freshBaselineEmpty = fresh && Array.isArray(preSubmissionTurns) && preSubmissionTurns.length === 0;
+    const beforeUserCount = await evaluate(client, `(() => document.querySelectorAll('[data-message-author-role="user"]').length)()`);
+    let phaseToken = `goriq-phase-${randomUUID()}`;
+    await markPhaseCopyBaseline(client, phaseToken);
 
     const focused = await evaluate(client, `(() => {
-      const el = document.querySelector('textarea') || document.querySelector('[contenteditable="true"]');
+      const visible = (el) => {
+        const rect = el.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0
+          && getComputedStyle(el).visibility !== 'hidden'
+          && getComputedStyle(el).display !== 'none';
+      };
+      const candidates = [...document.querySelectorAll('textarea,[contenteditable="true"]')]
+        .filter((el) => visible(el) && !el.matches('[aria-hidden="true"]') && !el.disabled);
+      const el = candidates.find((item) => item.closest('form'))
+        || candidates.find((item) => item.closest('main'))
+        || candidates.at(-1)
+        || null;
       if (!el) return false;
       el.focus();
-      return true;
+      return document.activeElement === el || el.contains(document.activeElement);
     })()`);
     if (!focused) throw new Error("could not focus ChatGPT composer");
+    await setExecutionDiagnostic("composer-focused", {
+      mode,
+      fresh,
+      repairMode,
+      sessionReuse: Boolean(preparedSurface?.reused),
+      invalidSavedSession: Boolean(preparedSurface?.invalidSavedSession),
+    });
 
     await client.call("Input.dispatchKeyEvent", { type: "keyDown", key: "a", code: "KeyA", modifiers: 4 });
     await client.call("Input.dispatchKeyEvent", { type: "keyUp", key: "a", code: "KeyA", modifiers: 4 });
     await client.call("Input.dispatchKeyEvent", { type: "keyDown", key: "Backspace", code: "Backspace" });
     await client.call("Input.dispatchKeyEvent", { type: "keyUp", key: "Backspace", code: "Backspace" });
-    await client.call("Input.insertText", { text: prompt });
-    await client.call("Input.dispatchKeyEvent", { type: "keyDown", key: "Enter", code: "Enter" });
-    await client.call("Input.dispatchKeyEvent", { type: "keyUp", key: "Enter", code: "Enter" });
+    await client.call("Input.insertText", { text: submittedPrompt });
 
-    const deadline = Date.now() + 240000;
-    let candidateFingerprint = "";
-    let lastText = "";
-    let stableSince = 0;
-    while (Date.now() < deadline) {
-      const state = await evaluate(client, `(() => {
-        const nodes = [...document.querySelectorAll('[data-message-author-role="assistant"]')];
-        const messages = nodes.map((node, index) => ({
-          id: node.getAttribute('data-message-id') || node.id || null,
-          index,
-          text: (node.innerText || '').trim(),
-        }));
-        const generating = !!document.querySelector('button[data-testid="stop-button"]') || [...document.querySelectorAll('button')].some((el) => /stop generating|停止/i.test(el.textContent || ''));
-        return { url: location.href, messages, generating };
-      })()`);
+    const sendTarget = await evaluate(client, `(() => {
+      const visible = (el) => {
+        const rect = el.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0
+          && getComputedStyle(el).visibility !== 'hidden'
+          && getComputedStyle(el).display !== 'none';
+      };
+      const composers = [...document.querySelectorAll('textarea,[contenteditable="true"]')]
+        .filter((el) => visible(el) && !el.matches('[aria-hidden="true"]') && !el.disabled);
+      const composer = composers.find((item) => item.closest('form'))
+        || composers.find((item) => item.closest('main'))
+        || composers.at(-1)
+        || null;
+      const form = composer?.closest('form') || null;
+      const buttons = [...(form ? form.querySelectorAll('button') : document.querySelectorAll('button'))];
+      const isSend = (el) => {
+        const aria = (el.getAttribute('aria-label') || '').trim();
+        const testid = (el.getAttribute('data-testid') || '').trim();
+        const text = (el.textContent || '').trim();
+        const type = (el.getAttribute('type') || '').trim();
+        return visible(el)
+          && !el.disabled
+          && !el.matches('[aria-hidden="true"]')
+          && (
+            /send/i.test(testid)
+            || /^(send|send prompt|送信|送信する)$/i.test(aria)
+            || /^(send|送信)$/i.test(text)
+            || type === 'submit'
+          );
+      };
+      const button = buttons.find(isSend)
+        || [...document.querySelectorAll('button')].find(isSend)
+        || null;
+      if (!button) return null;
+      const rect = button.getBoundingClientRect();
+      return {
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2,
+        testid: button.getAttribute('data-testid') || '',
+        aria: button.getAttribute('aria-label') || '',
+        type: button.getAttribute('type') || '',
+      };
+    })()`);
 
-      const messages = Array.isArray(state?.messages) ? state.messages : [];
-      const newMessages = messages.filter((message) => !baselineFingerprints.has(fingerprintMessage(message)));
-      const candidate = newMessages.at(-1);
-      const currentFingerprint = fingerprintMessage(candidate);
-      const conversationAdvanced = state?.url && (state.url !== initialUrl || /\/c\//.test(state.url));
+    await setExecutionDiagnostic("send-target", {
+      mode,
+      fresh,
+      repairMode,
+      found: Boolean(sendTarget?.x && sendTarget?.y),
+      testid: sendTarget?.testid || "",
+      aria: sendTarget?.aria || "",
+      type: sendTarget?.type || "",
+    });
 
-      if (candidate?.text && conversationAdvanced) {
-        if (candidateFingerprint !== currentFingerprint) {
-          candidateFingerprint = currentFingerprint;
-          lastText = candidate.text;
-          stableSince = Date.now();
-        } else if (candidate.text !== lastText) {
-          lastText = candidate.text;
-          stableSince = Date.now();
-        } else if (!state.generating && Date.now() - stableSince >= 1800) {
-          return lastText.slice(0, 8000);
+    if (sendTarget?.x && sendTarget?.y) {
+      await client.call("Input.dispatchMouseEvent", { type: "mouseMoved", x: sendTarget.x, y: sendTarget.y });
+      await client.call("Input.dispatchMouseEvent", { type: "mousePressed", x: sendTarget.x, y: sendTarget.y, button: "left", clickCount: 1 });
+      await client.call("Input.dispatchMouseEvent", { type: "mouseReleased", x: sendTarget.x, y: sendTarget.y, button: "left", clickCount: 1 });
+    }
+
+    const submissionState = async () => evaluate(client, `(() => {
+      const visible = (el) => {
+        const rect = el.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0
+          && getComputedStyle(el).visibility !== 'hidden'
+          && getComputedStyle(el).display !== 'none';
+      };
+      const composers = [...document.querySelectorAll('textarea,[contenteditable="true"]')]
+        .filter((el) => visible(el) && !el.matches('[aria-hidden="true"]') && !el.disabled);
+      const composer = composers.find((item) => item.closest('form'))
+        || composers.find((item) => item.closest('main'))
+        || composers.at(-1)
+        || null;
+      const userTurns = [...document.querySelectorAll(
+        'main [data-message-author-role="user"], main [data-testid^="conversation-turn"], main article, main [data-message-id]'
+      )].filter((node) => {
+        const roleNode = node.matches?.('[data-message-author-role]') ? node : node.closest?.('[data-message-author-role]');
+        if (roleNode?.getAttribute?.('data-message-author-role') === 'user') return true;
+        const controls = [...node.querySelectorAll?.('button') || []].map((button) =>
+          [button.getAttribute('aria-label'), button.getAttribute('data-testid'), button.textContent].filter(Boolean).join(' ')
+        ).join(' | ');
+        return /メッセージを編集|edit message/i.test(controls);
+      });
+      return {
+        userCount: userTurns.length,
+        composerText: composer ? (composer.value || composer.innerText || composer.textContent || '').trim() : '',
+        composerTag: composer?.tagName || null,
+        composerInForm: !!composer?.closest('form'),
+        composerInMain: !!composer?.closest('main'),
+      };
+    })()`);
+
+    const isSubmitted = (state) => state?.userCount > beforeUserCount || !state?.composerText;
+
+    await sleep(700);
+    let submitted = await submissionState();
+
+    if (!isSubmitted(submitted)) {
+      await evaluate(client, `(() => {
+        const visible = (el) => {
+          const rect = el.getBoundingClientRect();
+          return rect.width > 0 && rect.height > 0;
+        };
+        const buttons = [...document.querySelectorAll('button')];
+        const button = document.querySelector('button[data-testid="send-button"]')
+          || buttons.find((el) => {
+            const aria = (el.getAttribute('aria-label') || '').trim();
+            const testid = (el.getAttribute('data-testid') || '').trim();
+            const text = (el.textContent || '').trim();
+            return visible(el)
+              && !el.disabled
+              && (/^(send|送信)$/i.test(aria) || /send-button/i.test(testid) || /^(send|送信)$/i.test(text));
+          });
+        const form = button?.closest('form') || (document.querySelector('textarea') || document.querySelector('[contenteditable="true"]'))?.closest('form');
+        if (!form) return false;
+        if (typeof form.requestSubmit === 'function') {
+          form.requestSubmit(button || undefined);
+          return true;
         }
+        form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+        return true;
+      })()`);
+      await sleep(700);
+      submitted = await submissionState();
+    }
+
+    if (!isSubmitted(submitted)) {
+      await client.call("Input.dispatchKeyEvent", {
+        type: "rawKeyDown",
+        key: "Enter",
+        code: "Enter",
+        windowsVirtualKeyCode: 13,
+        nativeVirtualKeyCode: 13,
+      });
+      await client.call("Input.dispatchKeyEvent", {
+        type: "char",
+        key: "Enter",
+        code: "Enter",
+        text: "\r",
+        unmodifiedText: "\r",
+      });
+      await client.call("Input.dispatchKeyEvent", {
+        type: "keyUp",
+        key: "Enter",
+        code: "Enter",
+        windowsVirtualKeyCode: 13,
+        nativeVirtualKeyCode: 13,
+      });
+      await sleep(700);
+      submitted = await submissionState();
+    }
+
+    await setExecutionDiagnostic("submission-check", {
+      mode,
+      fresh,
+      repairMode,
+      submitted: isSubmitted(submitted),
+      userCount: Number(submitted?.userCount ?? -1),
+      composerRemaining: String(submitted?.composerText ?? "").length,
+      composerInForm: Boolean(submitted?.composerInForm),
+      composerInMain: Boolean(submitted?.composerInMain),
+    });
+
+    if (isSubmitted(submitted) && !repairMode) {
+      const immediateUrl = String(await evaluate(client, "location.href") || preparedSurface?.url || selectedExperience?.url || "");
+      if (submissionIdentity?.issueNumber && submissionIdentity?.pendingOwnerMessageId) {
+        await recordSubmissionReceipt({
+          issueNumber: submissionIdentity.issueNumber,
+          pendingOwnerMessageId: submissionIdentity.pendingOwnerMessageId,
+          requestMarker,
+          surface: mode,
+          url: immediateUrl,
+          goalId,
+        });
+        await setExecutionDiagnostic("submission-receipt-recorded", {
+          issueNumber: Number(submissionIdentity.issueNumber),
+          surface: mode,
+          hasConversationUrl: immediateUrl.startsWith(CHATGPT_URL),
+        });
       }
+
+      let persistableUrl = preparedSurface?.reused ? String(preparedSurface?.url || "") : "";
+      if (!preparedSurface?.reused) {
+        persistableUrl = await waitForPersistableProjectConversationUrl(
+          client,
+          String(preparedSurface?.url || selectedExperience?.url || ""),
+        ) || "";
+      }
+
+      if (persistableUrl) {
+        await recordProjectSession(mode, persistableUrl, goalId);
+        await writeProjectSurface(mode, persistableUrl);
+        if (submissionIdentity?.issueNumber && submissionIdentity?.pendingOwnerMessageId) {
+          await recordSubmissionReceipt({
+            issueNumber: submissionIdentity.issueNumber,
+            pendingOwnerMessageId: submissionIdentity.pendingOwnerMessageId,
+            requestMarker,
+            surface: mode,
+            url: persistableUrl,
+            goalId,
+          });
+        }
+        await setExecutionDiagnostic("session-persisted-on-submit", {
+          mode,
+          fresh,
+          sessionReuse: Boolean(preparedSurface?.reused),
+          invalidSavedSession: Boolean(preparedSurface?.invalidSavedSession),
+          conversationUrlTransitioned: !preparedSurface?.reused,
+        });
+      } else {
+        await setExecutionDiagnostic("session-url-not-ready", {
+          mode,
+          fresh,
+          sessionReuse: Boolean(preparedSurface?.reused),
+          invalidSavedSession: Boolean(preparedSurface?.invalidSavedSession),
+        });
+      }
+    }
+
+    if (!isSubmitted(submitted)) {
+      const diagnostics = await evaluate(client, `(() => {
+        const visible = (el) => {
+          const rect = el.getBoundingClientRect();
+          return rect.width > 0 && rect.height > 0;
+        };
+        const controls = [...document.querySelectorAll('button')]
+          .filter(visible)
+          .slice(-40)
+          .map((el) => ({
+            aria: (el.getAttribute('aria-label') || '').slice(0, 120),
+            testid: (el.getAttribute('data-testid') || '').slice(0, 120),
+            type: (el.getAttribute('type') || '').slice(0, 40),
+            disabled: !!el.disabled,
+          }));
+        return {
+          composerTag: __COMPOSER_TAG__,
+          composerInForm: __COMPOSER_IN_FORM__,
+          composerInMain: __COMPOSER_IN_MAIN__,
+          sendTarget: __SEND_TARGET__,
+          controls,
+        };
+      })()`
+        .replace("__COMPOSER_TAG__", JSON.stringify(submitted?.composerTag ?? null))
+        .replace("__COMPOSER_IN_FORM__", JSON.stringify(Boolean(submitted?.composerInForm)))
+        .replace("__COMPOSER_IN_MAIN__", JSON.stringify(Boolean(submitted?.composerInMain)))
+        .replace("__SEND_TARGET__", JSON.stringify(sendTarget ?? null)));
+      throw new Error(`CHATGPT_SUBMIT_FAILED: userCount=${submitted?.userCount ?? "unknown"}; composerRemaining=${String(submitted?.composerText ?? "").length}; diagnostic=${JSON.stringify(diagnostics).slice(0, 3000)}`);
+    }
+
+    const markerDeadline = Date.now() + 15000;
+    let markerUserIndex = -1;
+    while (Date.now() < markerDeadline) {
+      const turns = await snapshotConversationMessages(client);
+      markerUserIndex = Array.isArray(turns)
+        ? turns.findLastIndex((message) => message.role === "user" && message.text.includes(requestMarker))
+        : -1;
+      if (markerUserIndex >= 0) break;
+      await sleep(300);
+    }
+    if (markerUserIndex < 0) {
+      const reusedSessionSubmissionConfirmed = !fresh && isSubmitted(submitted);
+      if (!freshBaselineEmpty && !reusedSessionSubmissionConfirmed) {
+        throw new Error("CHATGPT_SUBMITTED_TURN_NOT_FOUND");
+      }
+      markerUserIndex = -1;
+    }
+
+    if (mode === "chat" && !repairMode) {
+      const answer = await waitForOrdinaryChatAnswer(client, baselineAssistantCount, baselineLastAssistant);
+      if (!fresh) {
+        const surfaceUrl = await evaluate(client, "location.href");
+        await recordProjectSession(mode, String(surfaceUrl || ""), goalId);
+        await writeProjectSurface(mode, String(surfaceUrl || ""));
+      }
+      return answer;
+    }
+
+    const absoluteDeadline = Date.now() + (mode === "chat" ? CHAT_ABSOLUTE_CEILING_MS : WORK_ABSOLUTE_CEILING_MS);
+    let phase = 1;
+    let phaseStartedAt = Date.now();
+    const phaseOutputs = [];
+    let phaseMarker = requestMarker;
+    let completionSignature = "";
+    let completionStableSince = 0;
+
+    while (Date.now() < absoluteDeadline) {
+      const state = await snapshotExecutionUiState(client, phaseToken);
+
+      if (state.completionReady && state.newCopyCount > 0) {
+        if (state.completionSignature !== completionSignature) {
+          completionSignature = state.completionSignature;
+          completionStableSince = Date.now();
+        } else if (Date.now() - completionStableSince >= COMPLETION_STABLE_MS) {
+          const copied = await copyAssistantAnswerFromUi(client, phaseMarker, phaseToken);
+          if (copied) {
+            if (mode !== "chat") {
+              if (!fresh) {
+                const surfaceUrl = await evaluate(client, "location.href");
+                await recordProjectSession(mode, String(surfaceUrl || ""), goalId);
+                await writeProjectSurface(mode, String(surfaceUrl || ""));
+              }
+              return copied.slice(0, 8000);
+            }
+
+            phaseOutputs.push(copied);
+
+            const finalPhase = phase >= CHAT_MAX_PHASES;
+            if (finalPhase) {
+              if (looksLikeUnifiedDiff(copied)) {
+                if (!fresh) {
+                  const surfaceUrl = await evaluate(client, "location.href");
+                  await recordProjectSession(mode, String(surfaceUrl || ""), goalId);
+                await writeProjectSurface(mode, String(surfaceUrl || ""));
+                }
+                return copied.slice(0, 8000);
+              }
+              throw new Error(`CHAT_REPAIR_PHASES_EXHAUSTED: phase=${phase}; reason=final-output-not-diff`);
+            }
+
+            if (!preSplit && phase === 1 && looksLikeUnifiedDiff(copied)) {
+              if (!fresh) {
+                const surfaceUrl = await evaluate(client, "location.href");
+                await recordProjectSession(mode, String(surfaceUrl || ""), goalId);
+                await writeProjectSurface(mode, String(surfaceUrl || ""));
+              }
+              return copied.slice(0, 8000);
+            }
+
+            if (copied.trim() === "GORIQ_CHAT_PHASE_EXHAUSTED") {
+              throw new Error(`CHAT_REPAIR_PHASES_EXHAUSTED: phase=${phase}; reason=explicit-exhaustion`);
+            }
+
+            phase += 1;
+            phaseMarker = `GORIQ_BRIDGE_PHASE_ID=${randomUUID()}`;
+            phaseToken = `goriq-phase-${randomUUID()}`;
+            await markPhaseCopyBaseline(client, phaseToken);
+            await submitFollowupPrompt(
+              client,
+              buildChatRecoveryPhasePrompt(phase, preSplit ? "planned-phase-complete" : "intermediate-phase-complete", phaseMarker, phaseOutputs),
+            );
+            phaseStartedAt = Date.now();
+            completionSignature = "";
+            completionStableSince = 0;
+            continue;
+          }
+        }
+      } else {
+        completionSignature = "";
+        completionStableSince = 0;
+      }
+
+      if (mode === "chat") {
+        const phaseExpired = Date.now() - phaseStartedAt >= CHAT_PHASE_BUDGET_MS;
+        if (state.retryVisible || phaseExpired) {
+          if (phase >= CHAT_MAX_PHASES) {
+            if (state.generating) await stopActiveGeneration(client);
+            const diagnostics = await snapshotSafeControlDiagnostics(client);
+            console.log(`[bridge] ${new Date().toISOString()} phase-exhausted-ui: ${JSON.stringify(diagnostics)}`);
+            throw new Error(`CHAT_REPAIR_PHASES_EXHAUSTED: phase=${phase}; reason=${state.retryVisible ? "retry-visible" : "one-minute-budget"}`);
+          }
+
+          if (state.generating) {
+            await stopActiveGeneration(client);
+            await sleep(500);
+          }
+
+          phase += 1;
+          phaseMarker = `GORIQ_BRIDGE_PHASE_ID=${randomUUID()}`;
+          phaseToken = `goriq-phase-${randomUUID()}`;
+          await markPhaseCopyBaseline(client, phaseToken);
+          const reason = state.retryVisible ? "retry-visible" : "one-minute-budget";
+          await submitFollowupPrompt(client, buildChatRecoveryPhasePrompt(phase, reason, phaseMarker, phaseOutputs));
+          phaseStartedAt = Date.now();
+          completionSignature = "";
+          completionStableSince = 0;
+          continue;
+        }
+      } else if (state.retryVisible) {
+        throw new Error("WORK_REPAIR_RETRY_REQUIRED");
+      }
+
       await sleep(700);
     }
-    throw new Error("ChatGPT fresh-turn response timeout; pending was preserved");
+    const diagnostic = await evaluate(client, `(() => {
+      const turns = [...document.querySelectorAll('main [data-message-author-role], main [data-testid^="conversation-turn"], main article, main [data-message-id]')];
+      const assistant = turns.filter((node) => node.getAttribute?.('data-message-author-role') === 'assistant' || [...node.querySelectorAll?.('button') || []].some((button) => /回答を再生成|regenerate|読み上げ|read aloud|リアクション|reaction/i.test((button.getAttribute('aria-label') || button.textContent || '')))).map((node) => (node.innerText || '').trim()).filter(Boolean);
+      const user = turns.filter((node) => node.getAttribute?.('data-message-author-role') === 'user' || [...node.querySelectorAll?.('button') || []].some((button) => /メッセージを編集|edit message/i.test((button.getAttribute('aria-label') || button.textContent || '')))).map((node) => (node.innerText || '').trim()).filter(Boolean);
+      const composer = document.querySelector('textarea') || document.querySelector('[contenteditable="true"]');
+      const buttons = [...document.querySelectorAll('button')].slice(-40).map((el) => ({
+        text: (el.innerText || el.textContent || '').trim().slice(0, 120),
+        aria: el.getAttribute('aria-label'),
+        testid: el.getAttribute('data-testid'),
+        disabled: !!el.disabled,
+      }));
+      return {
+        url: location.href,
+        title: document.title,
+        assistantCount: assistant.length,
+        lastAssistant: assistant.at(-1)?.slice(0, 500) || '',
+        userCount: user.length,
+        lastUser: user.at(-1)?.slice(0, 500) || '',
+        composerText: composer ? (composer.value || composer.innerText || composer.textContent || '').slice(0, 500) : '',
+        buttons,
+      };
+    })()`);
+    throw new Error(`ChatGPT fresh-turn response timeout; pending was preserved; diagnostic=${JSON.stringify(diagnostic).slice(0, 4000)}`);
   } finally {
     client.close();
     await closeTarget(target.id);
@@ -349,15 +1728,101 @@ async function processIssue(issue) {
   if (existing) {
     await setHealth("reconciling", `Issue #${issue.number} already has an AI reply; clearing stale pending`, { issueNumber: issue.number });
     await reconcileExistingAiReply(issue.number, meta, existing);
+    await clearSubmissionReceipt(issue.number, pending.id);
     return;
   }
 
-  await setHealth("processing", `Issue #${issue.number}: ${pending.id}`, { issueNumber: issue.number, pendingOwnerMessageId: pending.id });
-  const prompt = buildBridgePrompt({ issueNumber: issue.number, meta, messages, pending });
-  const answer = await submitPromptAndReadAnswer(prompt);
+  if (isRepairIssue(issue)) {
+    const prompt = buildBridgePrompt({ issueNumber: issue.number, meta, messages, pending });
+    const surface = repairSurfaceFromPending(pending);
+    const answer = await submitPromptAndReadAnswer(prompt, surface, isRepairIssue(issue), null, null, true);
+    if (!answer.trim()) throw new Error("ChatGPT returned an empty answer; pending was preserved");
+    const aiMessage = await postAiReply(issue.number, meta, answer);
+    await setHealth("synced", `Issue #${issue.number} synced`, { issueNumber: issue.number, lastAiMessageId: aiMessage.id });
+    return;
+  }
+
+  await discardStaleSubmissionReceipts(issue.number, pending.id);
+  const receipt = await getSubmissionReceipt(issue.number, pending.id);
+  if (receipt) {
+    await setHealth("recovering", `Issue #${issue.number}: recovering already-submitted request without resending`, {
+      issueNumber: issue.number,
+      pendingOwnerMessageId: pending.id,
+      selectedSurface: receipt.surface,
+      duplicateSubmissionBlocked: true,
+    });
+    await setExecutionDiagnostic("submission-recovery", {
+      issueNumber: issue.number,
+      selectedSurface: receipt.surface,
+      duplicateSubmissionBlocked: true,
+    });
+    const answer = await recoverSubmittedAnswer(receipt);
+    if (!answer.trim()) throw new Error("ChatGPT recovered an empty answer; pending was preserved");
+    const aiMessage = await postAiReply(issue.number, meta, answer);
+    await clearSubmissionReceipt(issue.number, pending.id);
+    await setExecutionDiagnostic("synced", {
+      issueNumber: issue.number,
+      answerLength: String(answer).length,
+      recoveredSubmission: true,
+    });
+    await setHealth("synced", `Issue #${issue.number} synced from existing submission`, {
+      issueNumber: issue.number,
+      lastAiMessageId: aiMessage.id,
+      duplicateSubmissionBlocked: true,
+    });
+    return;
+  }
+
+  const taskContext = inferBridgeTaskContext(meta, messages, pending);
+  const registry = await readProjectSessions();
+  const decision = selectBridgeSession(taskContext, registry);
+  await setHealth("processing", `Issue #${issue.number}: ${pending.id}`, {
+    issueNumber: issue.number,
+    pendingOwnerMessageId: pending.id,
+    selectedSurface: decision.surface,
+    sessionReuse: decision.reuse,
+    goalId: taskContext.goalId,
+  });
+  await setExecutionDiagnostic("routing", {
+    issueNumber: issue.number,
+    selectedSurface: decision.surface,
+    sessionReuse: decision.reuse,
+    createNew: decision.createNew,
+    hasGoalId: Boolean(taskContext.goalId),
+  });
+  const prompt = buildBridgePrompt({
+    issueNumber: issue.number,
+    meta,
+    messages,
+    pending,
+    routing: { ...decision, goalId: taskContext.goalId },
+  });
+  const answer = await submitPromptAndReadAnswer(
+    prompt,
+    decision.surface,
+    decision.createNew,
+    decision.session?.url ?? null,
+    taskContext.goalId,
+    false,
+    { issueNumber: issue.number, pendingOwnerMessageId: pending.id },
+  );
   if (!answer.trim()) throw new Error("ChatGPT returned an empty answer; pending was preserved");
   const aiMessage = await postAiReply(issue.number, meta, answer);
+  await clearSubmissionReceipt(issue.number, pending.id);
+  await setExecutionDiagnostic("synced", { issueNumber: issue.number, answerLength: String(answer).length });
   await setHealth("synced", `Issue #${issue.number} synced`, { issueNumber: issue.number, lastAiMessageId: aiMessage.id });
+}
+
+async function runOneShotRepair(issueNumber) {
+  if (!Number.isInteger(issueNumber) || issueNumber < 1) throw new Error("INVALID_REPAIR_ISSUE_NUMBER");
+  await setHealth("starting", `one-shot repair issue #${issueNumber}`, { issueNumber });
+  await ensureGitHubReady();
+  await ensureChromeRunning();
+  const issue = await ghJson(`repos/${REPO}/issues/${issueNumber}`);
+  if (!isPendingConversationIssue(issue) || !isRepairIssue(issue)) {
+    throw new Error(`REPAIR_ISSUE_NOT_PENDING: #${issueNumber}`);
+  }
+  await processIssue(issue);
 }
 
 async function runLoop() {
@@ -380,6 +1845,10 @@ async function runLoop() {
           } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
             const status = message === "CHATGPT_LOGIN_REQUIRED" ? "waiting_for_chatgpt_login" : "error";
+            await setExecutionDiagnostic("error", {
+              issueNumber: issue.number,
+              errorCode: String(message).split(/[;:]/, 1)[0].slice(0, 160),
+            });
             await setHealth(status, `${message}; GitHub pending preserved`, { issueNumber: issue.number });
           }
         }
@@ -402,9 +1871,13 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
   });
 }
 
-runLoop().catch(async (error) => {
+const main = Number.isInteger(ONE_SHOT_REPAIR_ISSUE) && ONE_SHOT_REPAIR_ISSUE > 0
+  ? () => runOneShotRepair(ONE_SHOT_REPAIR_ISSUE)
+  : runLoop;
+
+main().catch(async (error) => {
   const message = error instanceof Error ? error.message : String(error);
-  try { await setHealth("fatal", message); } catch {}
+  try { await setHealth("fatal", message, Number.isInteger(ONE_SHOT_REPAIR_ISSUE) && ONE_SHOT_REPAIR_ISSUE > 0 ? { issueNumber: ONE_SHOT_REPAIR_ISSUE } : {}); } catch {}
   await releaseLock();
   console.error(error);
   process.exit(1);

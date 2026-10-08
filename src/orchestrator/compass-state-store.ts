@@ -1,3 +1,5 @@
+import { canonicalRequirementBlockers } from "./owner-requirement-canonical.ts";
+import { goalWorkStateId } from "./work-state-integration.ts";
 import type { CompassStore, GoalRecord, StateRecord, WriteBackInput } from "../compass/store.ts";
 import type { Goal, LoopState, StateStore, WriteBackRecord } from "./goal-loop.ts";
 
@@ -31,11 +33,19 @@ export class CompassStateStoreAdapter implements StateStore {
     this.compass = compass;
   }
 
+  async completionBlockers(goal: Goal): Promise<string[]> {
+    return canonicalRequirementBlockers(this.compass.getState().active, goalWorkStateId(goal));
+  }
+
   async getState(): Promise<LoopState> {
     return compassStateToLoopState(this.compass.getState());
   }
 
   async writeBack(record: WriteBackRecord): Promise<void> {
+    if (record.stopReason === "goal_complete") {
+      const pending = await this.completionBlockers(record.goal);
+      if (pending.length) record = { ...record, stopReason: "blocked", nextAction: pending.join("; ") };
+    }
     const current = this.compass.getState();
     const completed = [...strings(current.completed)];
     if (record.result?.ok && record.action?.description && !completed.includes(record.action.description)) {

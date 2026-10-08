@@ -33,7 +33,7 @@ export function validateProductionConfig(value, root) {
   if (env.JARVIS_PUBLIC_BROKER_URL !== `https://${host}:8792`) throw Error('Worker origin mismatch');
   const download = new URL(env.JARVIS_WORKER_INSTALL_URL);
   if (download.protocol !== 'https:' || download.username || download.password) throw Error('Invalid APK URL');
-  return { ...env, NODE_ENV: 'production', JARVIS_BROKER_HOST: '127.0.0.1',
+  return { ...env, GORIQ_RUNTIME_REVISION: value.commit, NODE_ENV: 'production', JARVIS_BROKER_HOST: '127.0.0.1',
     JARVIS_BROKER_URL: 'http://127.0.0.1:8787', JARVIS_REMOTE_GATEWAY_URL: 'http://127.0.0.1:8790',
     JARVIS_REMOTE_GATEWAY_HOST: '127.0.0.1', JARVIS_BROKER_PORT: '8787', JARVIS_REMOTE_GATEWAY_PORT: '8790',
     JARVIS_DASHBOARD_PORT: '3000', JARVIS_ENROLLMENT_PORTAL_ENABLED: '0',

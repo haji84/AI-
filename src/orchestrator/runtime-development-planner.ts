@@ -1,9 +1,11 @@
 import type { ActionResult, ContextItem, Goal, InferredIntent, Planner, ProposedAction } from "./goal-loop.ts";
 import { goalWorkStateId } from "./work-state-integration.ts";
+import { createHash } from "node:crypto";
 
 const DEVELOPMENT_MARKERS = /(code|coding|implement|implementation|fix|repair|refactor|test|build|source|repository|script|patch|develop|development|コード|実装|修正|改修|開発|テスト)/i;
 const IMPLEMENTATION_DOD_MARKERS = /(code|implement|implementation|fix|repair|refactor|source|script|patch|develop|development|コード|実装|修正|改修|開発)/i;
 const VERIFICATION_DOD_MARKERS = /(^|[^a-z])(test|tests|verify|verification|lint|build|security|review|deploy)([^a-z]|$)|テスト|検証|確認|ビルド|セキュリティ|レビュー|デプロイ/i;
+const AUTOMATED_CHECK_DOD_MARKERS = /(^|[^a-z])(test|tests|verify|verification|lint|build|security)([^a-z]|$)|テスト|検証|確認|ビルド|セキュリティ/i;
 
 interface WorkStateSnapshotData {
   status?: unknown;
@@ -11,6 +13,30 @@ interface WorkStateSnapshotData {
   remainingDefinitionOfDone?: unknown;
 }
 interface RemainingDefinitionOfDoneItem { id?: unknown; description?: unknown; }
+interface RepositoryContextData {
+  baseRevision: string;
+  contextDigest: string;
+  targetFiles: string[];
+  localOnly: boolean;
+  previousStrategyFingerprints: string[];
+}
+
+function repositoryContext(context: ContextItem[]): RepositoryContextData | null {
+  const item = context.find((entry) => entry.source === "development.repository_context");
+  if (!item?.data || typeof item.data !== "object" || Array.isArray(item.data)) return null;
+  const value = item.data as Partial<RepositoryContextData>;
+  if (!/^[a-f0-9]{40,64}$/.test(value.baseRevision ?? "") || !/^[a-f0-9]{64}$/.test(value.contextDigest ?? "")) return null;
+  if (!Array.isArray(value.targetFiles) || value.targetFiles.some((path) => typeof path !== "string")) return null;
+  if (value.localOnly !== undefined && typeof value.localOnly !== "boolean") return null;
+  if (value.previousStrategyFingerprints !== undefined && (!Array.isArray(value.previousStrategyFingerprints) || value.previousStrategyFingerprints.some((fingerprint) => !/^[a-f0-9]{64}$/.test(fingerprint)))) return null;
+  return {
+    baseRevision: value.baseRevision!,
+    contextDigest: value.contextDigest!,
+    targetFiles: [...new Set(value.targetFiles)],
+    localOnly: value.localOnly === true,
+    previousStrategyFingerprints: [...new Set(value.previousStrategyFingerprints ?? [])],
+  };
+}
 
 function workStateSnapshot(context: ContextItem[]): WorkStateSnapshotData | null {
   const item = context.find((entry) => entry.source === "gai-work-state");
@@ -32,8 +58,22 @@ function implementationDefinitionOfDoneIds(context: ContextItem[]): string[] {
     const id = typeof item.id === "string" ? item.id.trim() : "";
     const description = typeof item.description === "string" ? item.description.trim() : "";
     if (!id || !description) return [];
-    if (!IMPLEMENTATION_DOD_MARKERS.test(description) || VERIFICATION_DOD_MARKERS.test(description)) return [];
+    // A file path such as tests/fixtures/result.txt names the implementation
+    // target; its directory name is not a repository-wide test requirement.
+    const wording = description.replace(/(?:src|tests|scripts|docs)\/[A-Za-z0-9_./-]+/g, " ");
+    if (!IMPLEMENTATION_DOD_MARKERS.test(wording) || VERIFICATION_DOD_MARKERS.test(wording)) return [];
     return [id];
+  });
+}
+function automatedCheckDefinitionOfDoneIds(context: ContextItem[]): string[] {
+  const snapshot = workStateSnapshot(context);
+  if (!snapshot || !Array.isArray(snapshot.remainingDefinitionOfDone)) return [];
+  return snapshot.remainingDefinitionOfDone.flatMap((raw) => {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return [];
+    const item = raw as RemainingDefinitionOfDoneItem;
+    const id = typeof item.id === "string" ? item.id.trim() : "";
+    const description = typeof item.description === "string" ? item.description.trim() : "";
+    return id && description && AUTOMATED_CHECK_DOD_MARKERS.test(description) ? [id] : [];
   });
 }
 function nextAction(context: ContextItem[]): string | null {
@@ -104,9 +144,19 @@ export class RuntimeDevelopmentPlanner implements Planner {
     const recovery = input.previousResult && !input.previousResult.ok;
     const now = Date.now();
     const objective = next || input.goal.description?.trim() || input.goal.title;
-    const files = extractFiles(scope);
-    const verificationContract = trustedVerificationContract(input.context, files) ?? exactFileVerification(scope, files);
-    const satisfiesDefinitionOfDone = implementationDefinitionOfDoneIds(input.context);
+    const repository = repositoryContext(input.context);
+    const files = repository?.targetFiles.length ? repository.targetFiles : extractFiles(scope);
+    const verificationContract = trustedVerificationContract(input.context, files)
+      ?? exactFileVerification(scope, files)
+      ?? { kind: "repository_checks" as const, profile: "standard" as const };
+    const satisfiesDefinitionOfDone = [
+      ...implementationDefinitionOfDoneIds(input.context),
+      ...(verificationContract.kind === "repository_checks" ? automatedCheckDefinitionOfDoneIds(input.context) : []),
+    ];
+    const hypothesis = recovery
+      ? `Use verifier evidence and a materially different implementation for ${input.previousResult?.actionId ?? "the failed attempt"}`
+      : "Use a focused failing test followed by the smallest implementation";
+    const strategyDigest = createHash("sha256").update(JSON.stringify({ objective, files, hypothesis, contextDigest: repository?.contextDigest ?? null })).digest("hex").slice(0, 24);
     return {
       id: `runtime-builder:${goalWorkStateId(input.goal)}`,
       description: objective,
@@ -118,7 +168,13 @@ export class RuntimeDevelopmentPlanner implements Planner {
       input: {
         goalId: goalWorkStateId(input.goal),
         attemptId: `attempt-${now}`,
-        strategyId: recovery ? `recovery-${now}` : `initial-${now}`,
+        strategyId: recovery ? `recovery-${strategyDigest}` : `initial-${strategyDigest}`,
+        hypothesis,
+        ...(repository ? {
+          baseRevision: repository.baseRevision,
+          localOnly: repository.localOnly,
+          previousStrategyFingerprints: repository.previousStrategyFingerprints,
+        } : {}),
         objective: recovery
           ? (() => {
               const evidence = input.previousResult?.evidence;

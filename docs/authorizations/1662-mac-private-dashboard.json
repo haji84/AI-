@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "issue": 1662,
+  "goalIssue": 1219,
+  "owner": "haji84",
+  "nodeId": "macbook",
+  "platform": "macos",
+  "operation": "private-dashboard-loopback-and-tailnet-https",
+  "approvedAt": "2026-10-06T14:06:21Z",
+  "expiresAt": "2026-10-07T14:06:21Z",
+  "evidence": "https://github.com/haji84/AI-/issues/1662#issuecomment-6031617235",
+  "dashboardPort": 3000,
+  "httpsPort": 443,
+  "sourceBinding": "current-main-successful-ci",
+  "artifacts": {
+    "scripts/goriq-mac-private-dashboard.mjs": "5ff82058359d653b9bb88d5ab584870895998ebf",
+    "scripts/goriq-mac-private-dashboard-native.mjs": "72614f1c06c50431141f5cf4e3812d8ea178292e",
+    "scripts/goriq-mac-private-dashboard-entry.sh": "75bc8237079103c0de9e53922f213829d9e58e1c",
+    ".github/workflows/goriq-mac-private-dashboard.yml": "ff7cb3f8193d63befcb828f06e58f27ce85cf613",
+    "scripts/goriq-mac-owner-secret.mjs": "c45f426b661ce4217a5e684b944084865e90c584",
+    "scripts/goriq-owner-file-swap.py": "81ff8df140587328326e8e44cb442338c584531a"
+  }
+}

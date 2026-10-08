@@ -31,7 +31,7 @@ test("SEC-001 owner-only broker guard fails closed and validates the signed owne
   assert.match(broker, /if \(!ownerSecret\) return false;/);
   assert.match(
     broker,
-    /verifyOwnerSessionToken\(ownerSecret, cookieStore\.get\(OWNER_SESSION_COOKIE\)\?\.value\)/,
+    /verifyOwnerSessionAccess\(ownerSecret, cookieStore\.get\(OWNER_SESSION_COOKIE\)\?\.value\)/,
   );
 });
 
@@ -43,5 +43,5 @@ test("SEC-001 authentication primitives reject a wrong passcode and wrong sessio
   const token = createOwnerSessionToken(secret);
   assert.equal(verifyOwnerSessionToken(secret, token), true);
   assert.equal(verifyOwnerSessionToken("different-owner-secret", token), false);
-  assert.equal(OWNER_SESSION_MAX_AGE_SECONDS, 60 * 60 * 12);
+  assert.equal(OWNER_SESSION_MAX_AGE_SECONDS, 60 * 60 * 24 * 3);
 });

@@ -1,0 +1,44 @@
+{
+  "kind": "READ_ONLY_PRODUCTION_BASELINE",
+  "capturedAt": "2026-09-24T02:38:54.397Z",
+  "productionCommit": "773ee4ca34b7e8c3889897470a69e36fbc43564e",
+  "snapshotGeneratedAt": "2026-09-24T02:38:50.554Z",
+  "schema": [
+    {
+      "type": "table",
+      "name": "jarvis_state"
+    },
+    {
+      "type": "table",
+      "name": "jarvis_worker_identity"
+    }
+  ],
+  "stats": {
+    "registered": 38,
+    "ready": 38,
+    "offline": 0,
+    "needsHuman": 0,
+    "queued": 0,
+    "running": 0,
+    "completed": 75,
+    "failed": 0
+  },
+  "fleetCount": 38,
+  "uniqueFleetIds": 38,
+  "identityCount": 38,
+  "uniqueIdentityIds": 38,
+  "allIdentityRowsMatchNodeIds": true,
+  "allFleetNodesHaveUnrevokedPublicKey": true,
+  "identityAlgorithms": {
+    "ecdsa-p256-sha256": 38
+  },
+  "identityMetadataSha256": "896f932686f700a4325fdb51ca4c542ee8cb6effbd654517e02b0321409d00ed",
+  "fleetIdsSha256": "ad9fd767550797d58c90fe404343de6bcd888d544201333a1643ebe8c4cc79f7",
+  "fleetIdentityCapabilitiesEnrollmentSha256": "6105a6bca979c17f5ed4b2f86a68a68c4072d4207c1a90380a798a61921c759e",
+  "tasksCount": 81,
+  "taskStateSha256": "c718b7d6493f16a8ed29c6fc5f7d0d02aeeddcc3592e9f5f1796d056714a6580",
+  "activeTakeoversCount": 0,
+  "compassDbAlreadyExists": false,
+  "rawKeysOrSecretsIncluded": false,
+  "liveWritesPerformed": false
+}

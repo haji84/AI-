@@ -203,6 +203,8 @@ export class WorkStateWriteBackStore implements StateStore {
     this.workState = workState;
   }
 
+  completionBlockers(goal: Goal) { return this.inner.completionBlockers?.(goal) ?? Promise.resolve([]); }
+
   getState() {
     return this.inner.getState();
   }

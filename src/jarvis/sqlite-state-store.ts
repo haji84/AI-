@@ -1,6 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { isDeepStrictEqual } from "node:util";
 import type { JarvisControlPlaneSnapshot } from "./control-plane.ts";
 import { installJarvisNoncePersistence, type JarvisWorkerIdentity } from "./worker-auth.ts";
 
@@ -68,6 +69,25 @@ export class JarvisSqliteStateStore {
       VALUES (?, ?, ?)
       ON CONFLICT(node_id) DO UPDATE SET payload = excluded.payload, updated_at = excluded.updated_at
     `).run(identity.nodeId, JSON.stringify(identity), now.toISOString());
+  }
+
+  /** New identity + fleet record commit together in existing tables; no schema change. */
+  saveNewEnrollment(expected: JarvisControlPlaneSnapshot | undefined, next: JarvisControlPlaneSnapshot,
+    identity: JarvisWorkerIdentity): void {
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      if (this.getWorkerIdentity(identity.nodeId)) throw new Error("worker identity already exists");
+      if (!isDeepStrictEqual(this.load(), expected)) throw new Error("fleet state changed before enrollment");
+      const previousIds = (expected?.fleet ?? []).map(n => n.id);
+      if (previousIds.includes(identity.nodeId) || next.fleet.length !== previousIds.length + 1 ||
+        next.fleet.filter(n => n.id === identity.nodeId).length !== 1 ||
+        new Set(next.fleet.map(n => n.id)).size !== next.fleet.length ||
+        previousIds.some(id => !next.fleet.some(n => n.id === id))) throw new Error("enrollment must preserve existing fleet membership");
+      this.db.prepare("INSERT INTO jarvis_worker_identity(node_id,payload,updated_at) VALUES(?,?,?)")
+        .run(identity.nodeId, JSON.stringify(identity), identity.enrolledAt);
+      this.save(next);
+      this.db.exec("COMMIT");
+    } catch (error) { this.db.exec("ROLLBACK"); throw error; }
   }
 
   getWorkerIdentity(nodeId: string): JarvisWorkerIdentity | undefined {

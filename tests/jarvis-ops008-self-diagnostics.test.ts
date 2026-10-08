@@ -104,5 +104,5 @@ test("OPS-008 has an owner-facing page linked from the primary JARVIS page", asy
   assert.match(diagnosticsPage, /fetch\("\/api\/jarvis\/diagnostics", \{ cache: "no-store" \}\)/);
   assert.match(diagnosticsPage, /JARVIS SELF DIAGNOSTICS/);
   assert.match(diagnosticsPage, /分からないものは「未確認」のまま/);
-  assert.match(jarvisPage, /href="\/jarvis\/diagnostics">自己診断/);
+  assert.match(jarvisPage, /href:\s*"\/jarvis\/diagnostics"[\s\S]*label:\s*"自己診断"/);
 });

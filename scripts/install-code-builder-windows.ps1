@@ -12,9 +12,12 @@ if (-not $Workspace) {
   $Workspace = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 }
 
-$root = Join-Path $env:LOCALAPPDATA 'GAIWorker\code-builder'
+$gaiRoot = Join-Path $env:LOCALAPPDATA 'GAIWorker'
+$root = Join-Path $gaiRoot 'code-builder'
 $serviceSource = (Resolve-Path (Join-Path $PSScriptRoot 'code-builder-worker-service.ts')).Path
 $servicePath = Join-Path $root 'code-builder-worker-service.ts'
+$policySource = (Resolve-Path (Join-Path $PSScriptRoot '..\src\orchestrator\test-contract-evolution.ts')).Path
+$policyPath = Join-Path $gaiRoot 'src\orchestrator\test-contract-evolution.ts'
 $launcherPath = Join-Path $root 'run-code-builder.ps1'
 $tokenPath = Join-Path $root 'token.txt'
 $logPath = Join-Path $root 'worker.log'
@@ -25,7 +28,9 @@ $statusPath = Join-Path $root 'install-status.json'
 $taskName = 'GAI Code Builder Worker'
 
 New-Item -ItemType Directory -Force -Path $root | Out-Null
+New-Item -ItemType Directory -Force -Path (Split-Path $policyPath -Parent) | Out-Null
 Copy-Item -Force $serviceSource $servicePath
+Copy-Item -Force $policySource $policyPath
 
 $node = (Get-Command node -ErrorAction Stop).Source
 $nodeVersion = (& $node --version 2>&1 | Out-String).Trim()

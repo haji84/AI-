@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { manageProcess, serviceSpecs } from './jarvis-managed-process.mjs';
+import { networkInterfaces } from 'node:os';
+import { manageProcess, manageNetworkProcess, serviceSpecs } from './jarvis-managed-process.mjs';
 import { loadWindowsProductionConfig } from './jarvis-production-config.mjs';
 
 const root = process.cwd();
@@ -50,7 +51,7 @@ const specs = serviceSpecs(root, process.execPath, process.env.JARVIS_DASHBOARD_
 function startManaged(spec) {
   if (shuttingDown.value) return;
   console.log(`[remote-host] starting ${spec.name}`);
-  const child = manageProcess(spec, {
+  const options = {
     cwd: root,
     env: {
       ...process.env,
@@ -59,8 +60,17 @@ function startManaged(spec) {
     },
     stdio: 'inherit',
     report: event => console.log(`[remote-host] ${JSON.stringify(event)}`),
-    onExhausted: () => shutdown('restart-budget-exhausted', 2),
-  });
+  };
+  const child = spec.name === 'private-worker-ingress'
+    ? manageNetworkProcess(spec, {
+      ...options,
+      canStart: () => Object.values(networkInterfaces()).flat().some(address =>
+        address?.family === 'IPv4' && address.address === process.env.JARVIS_PRIVATE_WORKER_HOST),
+    })
+    : manageProcess(spec, {
+      ...options,
+      onExhausted: () => shutdown('restart-budget-exhausted', 2),
+    });
   children.set(spec.name, child);
 }
 

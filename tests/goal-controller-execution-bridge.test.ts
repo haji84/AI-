@@ -84,3 +84,17 @@ test("goal continuation has a bounded stagnation guard", async () => {
   assert.equal(calls, 3);
   assert.equal(result.reason, "goal_continuation_budget_exhausted");
 });
+
+test("publication wait is a durable continuation boundary, not a failed Goal or exhausted retry", async () => {
+  const adapter: GoalExecutionAdapter = {
+    async run() {
+      return { cycles: [], stopReason: "cycle_budget_exhausted", goalEvaluation: { achieved: false, reason: "ready to publish", verifiedRequired: [], failedRequired: [], unverifiedRequired: ["release"], blockers: [], remainingGaps: ["publication_connectivity_unavailable"] } };
+    },
+  };
+  const result = await new GoalControllerExecutionBridge(adapter).executeUntilGoalTerminal(
+    decision("CONTINUE_GOAL", "goal-1"),
+    { maxRuns: 1 },
+  );
+  assert.equal(result.reason, "publication_wait");
+  assert.equal(result.report?.stopReason, "cycle_budget_exhausted");
+});

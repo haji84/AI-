@@ -6,7 +6,7 @@ test("runtime Builder accepts explicit loopback endpoint and executes through re
   const fetchImpl: typeof fetch = async (input) => {
     const url = String(input);
     if (url.endsWith("/health")) {
-      return new Response(JSON.stringify({ ok: true, capabilities: ["code-builder"] }), { status: 200 });
+      return new Response(JSON.stringify({ ok: true, capabilities: ["code-builder"], engine: "llama.cpp", inference: { locality: "device", networkAccess: false } }), { status: 200 });
     }
     return new Response(JSON.stringify({ ok: true, summary: "runtime build complete", evidence: { engine: "codex" } }), { status: 200 });
   };

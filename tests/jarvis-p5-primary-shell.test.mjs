@@ -7,22 +7,27 @@ async function source(path) {
   return readFile(new URL(`../${path}`, import.meta.url), "utf8");
 }
 
-test("P5 primary shell exposes the five frozen top-level operating screens", async () => {
+test("P5 primary shell keeps one Daily Driver front door with the usability-first five-item navigation", async () => {
   const shell = await source("src/app/jarvis/JarvisPrimaryShell.tsx");
+  const more = await source("src/app/jarvis/more/page.tsx");
   const layout = await source("src/app/jarvis/layout.tsx");
 
   for (const [href, label] of [
     ["/jarvis", "ホーム"],
-    ["/jarvis/devices", "デバイス"],
-    ["/jarvis/tasks", "タスク"],
-    ["/jarvis/research", "リサーチ"],
-    ["/jarvis/settings", "設定"],
+    ["/jarvis/tasks", "プロジェクト"],
+    ["/jarvis/new-development", "新規開発"],
+    ["/jarvis/decisions", "判断待ち"],
+    ["/jarvis/more", "その他"],
   ]) {
-    assert.ok(shell.includes(`href: "${href}"`), `missing ${href}`);
-    assert.ok(shell.includes(`label: "${label}"`), `missing ${label}`);
+    assert.ok(shell.includes(`href: "${href}"`), `missing primary route ${href}`);
+    assert.ok(shell.includes(`label: "${label}"`), `missing primary label ${label}`);
   }
 
-  assert.match(shell, /aria-label="JARVIS メインナビゲーション"/);
+  for (const href of ["/jarvis/devices", "/jarvis/settings", "/jarvis/research"]) {
+    assert.match(more, new RegExp(href.replaceAll("/", "\\/")));
+  }
+
+  assert.match(shell, /aria-label="GORIQ メインナビゲーション"/);
   assert.match(shell, /pathname\.startsWith\("\/jarvis\/login"\)/);
   assert.match(layout, /<JarvisPrimaryShell>\{children\}<\/JarvisPrimaryShell>/);
 });
@@ -59,8 +64,9 @@ test("P5 settings are local display preferences only and do not mutate protected
   assert.doesNotMatch(preferences, /fetch\(/);
   assert.doesNotMatch(accessibility, /fetch\(/);
   assert.doesNotMatch(accessibilityPreferences, /fetch\(/);
-  assert.match(settings, /端末権限、認証、秘密情報、課金設定には触れない/);
+  assert.match(settings, /端末権限、認証、秘密情報、課金設定には触れません/);
   assert.match(page, /認証情報、端末権限、ネットワーク公開範囲、課金、破壊的操作、Human Gateルール/);
   assert.match(page, /Widget編集[\s\S]*アクセシビリティ表示設定は実装済み/);
-  assert.match(page, /音声runtimeの字幕や実機操作性は別途検証する/);
+  assert.match(page, /AivisSpeech Engine優先・VOICEVOX Engine予備/);
+  assert.match(page, /未検出時は文字応答へ明示的に退避する/);
 });

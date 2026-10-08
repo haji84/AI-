@@ -7,7 +7,6 @@ import {
   JARVIS_ACCENTS,
   JARVIS_LAYOUTS,
   JARVIS_PERSONAS,
-  JARVIS_THEMES,
   JARVIS_VOICES,
   readJarvisPreferences,
   writeJarvisPreferences,
@@ -50,17 +49,11 @@ export default function JarvisLocalSettings() {
     <section className="panel jarvis-settings-card" aria-busy={!ready}>
       <div>
         <p className="eyebrow">LOCAL CUSTOMIZATION</p>
-        <h2>表示・ペルソナ設定</h2>
-        <p className="muted">テーマ / ペルソナ / 音声設定 / 色 / レイアウトを別々に保存する。この画面はブラウザ内のUI設定だけを変更し、端末権限、認証、秘密情報、課金設定には触れない。</p>
+        <h2>ペルソナ・色・基本配置</h2>
+        <p className="muted">従来のテーマ / ペルソナ / 音声設定 / 色 / レイアウトのうち、テーマは上の「画面デザイン」に統合しました。ここではペルソナ / 声の基本設定 / アクセント色 / 基本レイアウトを別々に保存します。端末権限、認証、秘密情報、課金設定には触れません。表示専用の設定です。</p>
       </div>
 
       <div className="jarvis-preference-grid">
-        <label>
-          <span>テーマ <small>{JARVIS_THEMES.length}種類</small></span>
-          <select value={preferences.theme} onChange={(event) => save({ theme: event.target.value })}>
-            {JARVIS_THEMES.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
-          </select>
-        </label>
         <label>
           <span>ペルソナ <small>{JARVIS_PERSONAS.length}種類</small></span>
           <select value={preferences.persona} onChange={(event) => save({ persona: event.target.value })}>
@@ -102,7 +95,6 @@ export default function JarvisLocalSettings() {
       </fieldset>
 
       <div className="jarvis-preference-summary" aria-live="polite">
-        <span>テーマ: <strong>{preferences.theme}</strong></span>
         <span>ペルソナ: <strong>{preferences.persona}</strong></span>
         <span>音声: <strong>{preferences.voice}</strong></span>
         <span>色: <strong>{preferences.accent}</strong></span>

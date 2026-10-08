@@ -10,9 +10,15 @@ Statuses: VERIFIED, IMPLEMENTED_UNVERIFIED, PARTIAL, MISSING, PLATFORM_LIMITED. 
 
 ## Architecture and safety
 
-Home Coordinator is a logical role independent of physical host. ZBook / Windows remains the temporary deployed host until compatibility shadow/canary/physical acceptance permits migration; ZBook can later be a mobile high-performance worker. MacBook is an auxiliary/development/possible fixed-home host. No re-enrollment, key replacement or destructive migration is authorized by this reconciliation. External smartphone → cellular Internet → private encrypted Tailscale tailnet → ZBook → JARVIS → Broker / Remote Gateway → home Wi-Fi Android fleet. Android devices need not each install Tailscale. Router public port forwarding, Funnel, public Broker and public Remote Gateway are prohibited.
+Home Coordinator is a transferable logical role independent of physical host. GORIQ has no permanent Main PC: the currently available trusted nodes plus durable Goal/Task/State/Memory/Evidence collectively form the active GORIQ body. MacBook, ZBook, Nubia, iPhone, future PCs and later Android Fleet members participate through capability/resource contracts appropriate to each platform. Coordinator/Executor/Storage/Verifier/Gateway/Owner-Input/Sensor-Edge roles may move when health, load or connectivity changes. No re-enrollment, key replacement or destructive migration is authorized by this reconciliation. Router public port forwarding, Funnel, public Broker and public Remote Gateway remain prohibited. See `docs/architecture/goriq-distributed-node-fabric.md`.
 
 One user-visible JARVIS dynamically composes Planner, Executor, Verifier, Researcher, Device/Browser/PC/Mobile Worker, Recovery, Memory, Skill, Security and Auditor roles as needed. Work/Codex supplies model reasoning; no additional paid AI API path. Credentials, permissions, billing, irreversible/destructive operations and security/governance changes retain Human Gates. Routine low/medium work continues within authorized execution; bounded retries (maximum 3 per issue), durable next action and fail-visible behavior remain required.
+
+### Distributed self-complementing node fabric (Owner decision 2026-09-28 JST)
+
+After the current Mac stabilization is completed and verified, distributed-node completion is prioritized as: MacBook + ZBook two-node failover and scheduling → Nubia as the first full Android/mobile-edge canary → iPhone within iOS limits → automatic addition of future high-performance PCs → preserved Android 38-device Fleet later. Android 38-device physical connection is intentionally deferred from the current completion milestone.
+
+The distributed runtime must reuse the existing Worker Runtime, Durable Task Runtime, Offline-First Runtime, Sync/Conflict Resolution, Local Device Mesh, Recovery, World/Resource Model and Capability Router rather than creating parallel control planes. Task ownership uses lease + idempotency + execution epoch + fencing token, and every durable Task declares MIGRATABLE / RESTARTABLE / PINNED / SIDE_EFFECTING semantics. See `docs/architecture/goriq-distributed-node-fabric.md` for the normative architecture and acceptance matrix.
 
 ## Phase ownership (Issue #681 P0–P10)
 
@@ -129,8 +135,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 ```json
 {
   "id": "NET-003",
-  "title": "100台のAndroid全台へTailscaleを入れずZBookがprivate ingressとLAN Worker群を橋渡しする",
-  "description": "100台のAndroid全台へTailscaleを入れずZBookがprivate ingressとLAN Worker群を橋渡しする。",
+  "title": "Android Fleetは特定PCを恒久Gatewayとせずtrusted LAN/private routeから接続",
+  "description": "Android各端末へPrivate Overlay導入を必須にせず、利用可能なtrusted Gateway/Coordinator NodeがLAN Worker群を橋渡しする。ZBook固定依存を禁止し、NubiaでNode Contractを先行実証後、保存済みAndroid 38台を同一Fleet Contractへ後日追加する。",
   "phase": "P1",
   "required_evidence": [
     "CODE",
@@ -141,17 +147,18 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   "implementation_refs": [
     "scripts/jarvis-remote-access-lib.mjs",
     "scripts/jarvis-remote-preflight.mjs",
-    "docs/architecture/jarvis-remote-access.md"
+    "docs/architecture/jarvis-remote-access.md",
+    "docs/architecture/goriq-distributed-node-fabric.md"
   ],
   "test_refs": [
     "scripts/jarvis-remote-access.test.mjs"
   ],
   "evidence_refs": [],
   "status": "PARTIAL",
-  "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+  "blocker": "現行private-ingressはZBook中心の経路を持つ。Gateway/Coordinatorの複数Node failover、Nubia canary、38台後続Fleetの実機Evidenceは未完了。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P1: 100台のAndroid全台へTailscaleを入れずZBookがprivate ingressとLAN Worker群を橋渡しする。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "Mac安定化完了後、MacBook+ZBookのGateway/Coordinator failoverを実証し、Nubiaを最初のAndroid distributed nodeとして追加する。38台Androidはその後のFleet拡張で接続する。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -348,8 +355,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 ```json
 {
   "id": "HOST-001",
-  "title": "ZBook/Windowsを家側常時稼働Main Hostとする",
-  "description": "ZBook/Windowsを家側常時稼働Main Hostとする。",
+  "title": "恒久Main Hostを置かず利用可能なtrusted node全体をGORIQ本体とする",
+  "description": "GORIQはZBook、MacBookその他の単一物理PCを恒久Main Hostとしない。現在利用可能なtrusted node群とdurable Goal/Task/State/Memory/EvidenceがGORIQ本体として振る舞い、Coordinatorは移動可能な論理roleとする。",
   "phase": "P1",
   "required_evidence": [
     "CODE",
@@ -362,7 +369,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "scripts/jarvis-remote-host.mjs",
     "scripts/jarvis-power-recovery-lib.mjs",
     "scripts/install-jarvis-remote-autostart-windows.ps1",
-    "scripts/jarvis-managed-process.mjs"
+    "scripts/jarvis-managed-process.mjs",
+    "docs/architecture/goriq-distributed-node-fabric.md"
   ],
   "test_refs": [
     "scripts/jarvis-power-recovery.test.mjs",
@@ -373,10 +381,10 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "docs/audit/jarvis-zbook-readiness.md"
   ],
   "status": "PARTIAL",
-  "blocker": "子Issue #683でWindows spawn/backoffとprivate-ingress判定を修正。Tailscale/OS startup・cellular/実機復旧Evidenceは未取得。",
+  "blocker": "個別Host自動起動・復旧部品は存在するが、恒久Main HostなしのCoordinator failover、Task ownership移管、Mac/ZBook実機停止・復旧Evidenceは未完了。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P1/P2: Windows非対話起動・battery policy診断を完成し、OS/account gate準備と実機接続・復旧Evidenceを取得する。独立するP3以降のソフトウェア作業を継続。",
+  "next_action": "現在のMac安定化を完了・検証後、MacBook+ZBookの2-node構成でCoordinator failover、Task再配置、再同期、再統合を実装・実機検証する。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -395,8 +403,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 ```json
 {
   "id": "HOST-002",
-  "title": "MacBookは補助Host/development/failover候補",
-  "description": "MacBookは補助Host/development/failover候補。",
+  "title": "MacBookは固定本体ではなく独立Node・Coordinator候補として参加",
+  "description": "MacBookは補助Hostに固定せず、ZBook等と同じtrusted Node Contractに参加する。能力・負荷・データ所在・接続状態に応じてCoordinator/Executor/Storage/Verifier等の論理roleを保持または解放し、停止・復旧時は自動再構成する。",
   "phase": "P2",
   "required_evidence": [
     "CODE",
@@ -407,7 +415,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   ],
   "implementation_refs": [
     "docs/architecture/jarvis-remote-access.md",
-    "scripts/install-jarvis-remote-launchdaemon-macos.sh"
+    "scripts/install-jarvis-remote-launchdaemon-macos.sh",
+    "docs/architecture/goriq-distributed-node-fabric.md"
   ],
   "test_refs": [
     "scripts/jarvis-power-recovery.test.mjs",
@@ -415,10 +424,10 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   ],
   "evidence_refs": [],
   "status": "PARTIAL",
-  "blocker": "Mac補助ホストとしての実機failoverは未検証。",
+  "blocker": "Mac resident runtimeは安定化進行中。固定本体を前提としないNode role移動と実機failoverは未検証。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P2: MacBookは補助Host/development/failover候補。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "Mac安定化完了後、Mac停止/復旧を含む2-node failoverと自動role再割当を実機検証する。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -1009,8 +1018,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 ```json
 {
   "id": "FLEET-007",
-  "title": "各Deviceにidentity/signing/capability/platform/connectivity/healthを保持",
-  "description": "各Deviceにidentity/signing/capability/platform/connectivity/healthを保持。",
+  "title": "各Nodeにidentity/signing/capability/resource/platform/connectivity/healthを保持",
+  "description": "各Nodeはstable identity/signingに加え、CPU/GPU/accelerator、RAM、OS/architecture、現在負荷、storage/data locality、network route、power/battery、thermal、sensor/camera/location、background制約、tool capability、health/lastSeenを可能な範囲でmanifest化する。不明値は推測しない。",
   "phase": "P4",
   "required_evidence": [
     "CODE",
@@ -1021,18 +1030,25 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   "implementation_refs": [
     "src/jarvis/fleet-manager.ts",
     "src/jarvis/enrollment.ts",
-    "src/app/jarvis/enroll/page.tsx"
+    "src/app/jarvis/enroll/page.tsx",
+    "docs/architecture/goriq-distributed-node-fabric.md",
+    "src/gai/device-capability-runtime.ts",
+    "src/gai/world-resource-model.ts",
+    "src/orchestrator/owner-fleet-capability-pool.ts"
   ],
   "test_refs": [
     "tests/jarvis-final-fleet-acceptance.test.ts",
-    "tests/jarvis-enrollment-security.test.ts"
+    "tests/jarvis-enrollment-security.test.ts",
+    "tests/gai-device-capability-runtime.test.ts",
+    "tests/gai-world-resource-model.test.ts",
+    "tests/owner-fleet-capability-pool.test.ts"
   ],
   "evidence_refs": [],
   "status": "PARTIAL",
-  "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+  "blocker": "identity/capability基盤は存在するが、全Node共通resource manifestとreturn/rebalance用更新契約の統合・実機Evidenceは未完了。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P4: 各Deviceにidentity/signing/capability/platform/connectivity/healthを保持。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "MacBook+ZBookでresource manifestを統一し、Nubiaでmobile-edge manifestを実証する。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -2459,8 +2475,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 ```json
 {
   "id": "DEV-PC-007",
-  "title": "Platform-specific capability manifest",
-  "description": "Platform-specific capability manifest。",
+  "title": "Platform-specific capability/resource manifest",
+  "description": "PC/Mobile NodeはOS固有能力だけでなくCPU/GPU/RAM/load/data locality/network/power/thermal等のresource情報を共通Node Manifestへ公開し、Capability Routerが配置・fallback・rebalancingに利用する。",
   "phase": "P4",
   "required_evidence": [
     "CODE",
@@ -2470,18 +2486,23 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   ],
   "implementation_refs": [
     "src/gai/initial-worker-adapters.ts",
-    "src/gai/device-capability-runtime.ts"
+    "src/gai/device-capability-runtime.ts",
+    "docs/architecture/goriq-distributed-node-fabric.md",
+    "src/gai/world-resource-model.ts",
+    "src/orchestrator/owner-fleet-capability-pool.ts"
   ],
   "test_refs": [
     "tests/gai-initial-worker-adapters.test.ts",
-    "tests/gai-device-capability-runtime.test.ts"
+    "tests/gai-device-capability-runtime.test.ts",
+    "tests/gai-world-resource-model.test.ts",
+    "tests/owner-fleet-capability-pool.test.ts"
   ],
   "evidence_refs": [],
   "status": "PARTIAL",
-  "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+  "blocker": "platform capability manifestは部分実装。resource-aware schedulingに必要な統一manifestと物理Node検証が不足。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P4: Platform-specific capability manifest。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "MacBook/ZBook/Nubiaの実機manifestを同一Contractで取得し、unknown値をfail-visibleにした上でRouterへ接続する。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -3547,8 +3568,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 ```json
 {
   "id": "UI-002",
-  "title": "Devices",
-  "description": "Devices。",
+  "title": "Devices / ノード管理",
+  "description": "Devices / ノード管理。各Nodeをカードで表示し、オンライン/オフライン、現在のTask、負荷の要約、役割・Capability、詳細への導線を一目で確認できる。通常のTask配置は自動のまま、新しいNode追加と必要時の詳細操作だけを明示する。画面デザイン変更でNodeの実体・権限・状態は変えない。",
   "phase": "P5",
   "required_evidence": [
     "CODE",
@@ -3566,7 +3587,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P5: Devices。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "既存Devices/Node surfacesを再利用し、カード表示・負荷/Task要約・Node追加導線・自動配置との整合を実装して実機Evidenceを取得する。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -3576,7 +3597,10 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
     "staged_implementation_refs": [],
     "audit_ref": "docs/evidence/1188-requirements-windows.md"
-  }
+  },
+  "source_decisions": [
+    "owner-2026-10-06-goriq-design-session"
+  ]
 }
 ```
 
@@ -3585,8 +3609,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 ```json
 {
   "id": "UI-003",
-  "title": "Tasks",
-  "description": "Tasks。",
+  "title": "Projects / Tasks / 判断待ち",
+  "description": "Projects / Tasks / 判断待ち。Project詳細はGoal、現在のphase/state、進捗、次のcheckpoint/action、Task状態、参加Node、最近のactivityを優先表示する。判断待ちは問題・選択肢・影響・推奨理由を短く表示し、完全なTask/Decision/Failure/Recovery履歴は保持したまま通常画面では最近/関連分だけを見せ、詳細履歴は必要時に開ける。",
   "phase": "P5",
   "required_evidence": [
     "CODE",
@@ -3596,15 +3620,25 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   ],
   "implementation_refs": [
     "src/app/jarvis/JarvisConsole.tsx",
-    "src/app/jarvis/jarvis.css"
+    "src/app/jarvis/jarvis.css",
+    "src/app/jarvis/tasks/RequirementsPanel.tsx",
+    "src/app/jarvis/tasks/TaskBoard.tsx",
+    "src/app/jarvis/JarvisWorkShell.tsx"
   ],
-  "test_refs": [],
-  "evidence_refs": [],
+  "test_refs": [
+    "tests/owner-conversation.test.ts",
+    "tests/owner-requirement-additions.test.mjs",
+    "tests/owner-requirement-workflow.test.mjs",
+    "scripts/verify-owner-requirement-ui.mjs"
+  ],
+  "evidence_refs": [
+    "docs/evidence/1205-owner-spec-completion.md"
+  ],
   "status": "PARTIAL",
   "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P5: Tasks。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "既存Task/Work surfacesをProject詳細と判断待ちのOwner向け導線へ統合し、最近表示と完全履歴の分離、実機操作Evidenceを取得する。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -3614,7 +3648,19 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
     "staged_implementation_refs": [],
     "audit_ref": "docs/evidence/1188-requirements-windows.md"
-  }
+  },
+  "candidate_audit": {
+    "issue": 1205,
+    "revision": "0b1c4a7fd9f52c2548a3e62261d6423c23c55e59",
+    "implementation": "ADDITIVE_IDS_SAVED_CONVERSATION_OWNER_UI",
+    "connection": "BROKER_HTTP_BROWSER_QA_AND_BOUNDED_PUBLISHER_FIXTURE",
+    "evidence_ref": "docs/evidence/1205-owner-spec-completion.md",
+    "production_activation": "MAC_HOOK_APPROVED_CANDIDATE_PENDING_CI_PRODUCTION_NOT_APPLIED",
+    "scope": "Requested software paths tested; arbitrary language/all-route audit and applicable physical acceptance not claimed."
+  },
+  "source_decisions": [
+    "owner-2026-10-06-goriq-design-session"
+  ]
 }
 ```
 
@@ -3661,7 +3707,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 {
   "id": "UI-005",
   "title": "Settings",
-  "description": "Settings。",
+  "description": "Settings。Owner向け表記を分かりやすい日本語にし、少なくとも「画面デザイン」「画面の配置を変更」「声」を独立して設定できる。画面デザインはサムネイル、試し適用/プレビュー、お気に入り、再選択を提供し、声は試し聞きから選択できる。設定変更はGoal/Task/権限/Human Gateを変えない。",
   "phase": "P5",
   "required_evidence": [
     "CODE",
@@ -3678,7 +3724,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   "blocker": "Settings画面のコードはmainに存在。全設定項目の永続化・権限制御・画面からの操作受入証拠が未整理。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "既存Settings画面を再利用し、必要設定ごとに保存・再読込・Owner認証の受入証拠を対応付ける。",
+  "next_action": "既存Settings画面を再利用し、「画面デザイン」「画面の配置を変更」「声」のOwner向け設定と保存/再読込/Preview受入Evidenceを対応付ける。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -3688,7 +3734,10 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
     "staged_implementation_refs": [],
     "audit_ref": "docs/evidence/1188-requirements-windows.md"
-  }
+  },
+  "source_decisions": [
+    "owner-2026-10-06-goriq-design-session"
+  ]
 }
 ```
 
@@ -3697,8 +3746,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 ```json
 {
   "id": "UI-006",
-  "title": "未来的JARVIS表示と可読性の両立",
-  "description": "未来的JARVIS表示と可読性の両立。",
+  "title": "未来的GORIQ表示・可読性・共通操作の両立",
+  "description": "未来的GORIQ表示と可読性を両立し、毎日長時間使っても情報過多や配色で疲れにくい構成にする。画面デザインごとに見た目や配置は変えてよいが、open/select/back/close/save/cancel/pause/resumeの意味、主要機能への到達性、状態ラベルの意味は一貫させる。状態を色だけで表現せず文字/アイコンも併用し、デザイン変更でGoal data、履歴、進捗、権限、実行状態を変えない。",
   "phase": "P5",
   "required_evidence": [
     "CODE",
@@ -3716,7 +3765,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P5: 未来的JARVIS表示と可読性の両立。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "既存theme shellへ共通操作invariantと色以外の状態表現を追加し、複数デザインで同じ主要フローを実機確認する。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -3726,7 +3775,10 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
     "staged_implementation_refs": [],
     "audit_ref": "docs/evidence/1188-requirements-windows.md"
-  }
+  },
+  "source_decisions": [
+    "owner-2026-10-06-goriq-design-session"
+  ]
 }
 ```
 
@@ -3735,8 +3787,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 ```json
 {
   "id": "UI-007",
-  "title": "20以上のtheme/persona preset",
-  "description": "20以上のtheme/persona preset。",
+  "title": "35 selectable 画面デザイン + persona presets",
+  "description": "Owner提供の2つのvisual reference setを統合せず個別プリセットとして保持し、合計35枠の「画面デザイン」を選択可能にする。Set A 15: クリーンモダン / ダークシネマティック / アニメ調 美人秘書 / リアル 美人秘書 / イケメン秘書 / ホログラム空間 / ナチュラルウッド / ミニマルGlass / AR空間UI / サイバーシティ / コックピット / モバイル特化 / デュアルモニター / データビジュアル / 癒し空間。Set B 20: クリーンモダン / ダークシネマティック / アニメ美人秘書 / リアル美人秘書 / リアルイケメン秘書 / アニメイケメン秘書 / ホログラム人型 / AIコア型 / 執事型JARVIS / 秘書チーム型 / 未来研究室型 / 宇宙船ブリッジ型 / 高級車コックピット型 / AR空間型 / サイバーシティ型 / 自然融合型 / ブラック＆ゴールド / 白銀ラボ型 / デジタルツイン型 / 可変人格型。似た名称/世界観でもOwnerが別枠として指定したものは統合しない。画面デザインは色だけでなくlayout/density/装飾/hero/persona presentationを変えられるが、機能とdata contractは共通。Settingsでthumbnail、即時preview/apply、お気に入り、再切替を提供する。",
   "phase": "P5",
   "required_evidence": [
     "CODE",
@@ -3756,10 +3808,10 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "docs/evidence/1191-ui007-presets.md"
   ],
   "status": "PARTIAL",
-  "blocker": "Software implementation and regression evidence are mapped on current main; required PHYSICAL acceptance remains pending.",
+  "blocker": "Current main has a 20-theme catalog and preference foundation, but the owner-approved two reference sets total 35 selectable screen-design slots; the additional concepts, exact per-preset presentation, favorites and physical acceptance are not complete.",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "Retain PARTIAL until UI-007 PHYSICAL acceptance is captured; continue independent non-physical JARVIS gaps without treating CI as physical proof.",
+  "next_action": "現行20-theme基盤を壊さず、Owner reference Set A 15 + Set B 20を35個の個別presetとして識別可能にし、thumbnail/preview/favoriteとmobile renditionを実装・検証する。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "f974cc39dc25697e6cf999764e9d695ee753e14d",
@@ -3769,7 +3821,10 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
     "staged_implementation_refs": [],
     "audit_ref": "docs/evidence/1191-ui007-presets.md"
-  }
+  },
+  "source_decisions": [
+    "owner-2026-10-06-goriq-design-session"
+  ]
 }
 ```
 
@@ -3813,8 +3868,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 ```json
 {
   "id": "UI-009",
-  "title": "Voiceは独立設定",
-  "description": "Voiceは独立設定。",
+  "title": "Voice / 声は独立設定",
+  "description": "VoiceはTheme/Persona/Speech styleから独立したOwner設定とし、表示名は分かりやすく「声」とする。利用可能なlicense確認済み音声を一覧表示し、1タップ試聴から選択できる。初期catalogは8〜12種類を目標とし、speech rate、pitch(対応engineのみ)、volumeを別設定できる。声を変えても会話履歴、AI能力、権限、Human Gateは変わらない。",
   "phase": "P5",
   "required_evidence": [
     "CODE",
@@ -3822,14 +3877,23 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "INTEGRATION",
     "PHYSICAL"
   ],
-  "implementation_refs": [],
-  "test_refs": [],
+  "implementation_refs": [
+    "src/jarvis/local-tts.ts",
+    "scripts/jarvis-broker.ts",
+    "src/app/api/jarvis/voice/route.ts",
+    "src/app/jarvis/settings/GoriqVoiceSettings.tsx",
+    "src/app/jarvis/voice-output.ts"
+  ],
+  "test_refs": [
+    "tests/goriq-local-tts.test.ts",
+    "tests/goriq-daily-driver-conversation.test.mjs"
+  ],
   "evidence_refs": [],
-  "status": "MISSING",
-  "blocker": "現行JARVIS UIに当該製品機能を未発見。P5で実装と操作検証が必要。",
+  "status": "IMPLEMENTED_UNVERIFIED",
+  "blocker": "AivisSpeech Engine primary / VOICEVOX fallback, engine discovery, usage-terms presence gate, 8–12 bounded voice catalog, preview and rate/pitch/volume controls are implemented. Real attached voice-model/audio quality and physical-device evidence are still required before VERIFIED.",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P5: Voiceは独立設定。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "Run the merged build against an actual local AivisSpeech/VOICEVOX installation and record physical playback/model-license evidence; keep text-only fallback visible when no engine is present.",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -3839,7 +3903,10 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
     "staged_implementation_refs": [],
     "audit_ref": "docs/evidence/1188-requirements-windows.md"
-  }
+  },
+  "source_decisions": [
+    "owner-2026-10-06-goriq-design-session"
+  ]
 }
 ```
 
@@ -3884,7 +3951,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 {
   "id": "UI-011",
   "title": "Layoutは独立設定",
-  "description": "Layoutは独立設定。Theme/Persona/Voice/Color/Layoutを独立管理。",
+  "description": "LayoutはTheme/Persona/Voice/Colorから独立設定。さらにOwnerの画面デザインごと・screenごとに配置を保存し、そのデザインへ戻した時は前回配置を復元する。画面デザイン切替は表示/配置だけを変え、Goal/Task/data/authorityは変えない。",
   "phase": "P5",
   "required_evidence": [
     "CODE",
@@ -3892,14 +3959,21 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "INTEGRATION",
     "PHYSICAL"
   ],
-  "implementation_refs": [],
-  "test_refs": [],
+  "implementation_refs": [
+    "src/app/jarvis/screen-layout-profiles.ts",
+    "src/app/jarvis/settings/JarvisScreenLayoutProfiles.tsx",
+    "src/app/jarvis/settings/GoriqThemeSettings.tsx"
+  ],
+  "test_refs": [
+    "tests/jarvis-screen-layout-profiles.test.ts",
+    "tests/goriq-owner-ui.test.ts"
+  ],
   "evidence_refs": [],
-  "status": "MISSING",
-  "blocker": "現行JARVIS UIに当該製品機能を未発見。P5で実装と操作検証が必要。",
+  "status": "IMPLEMENTED_UNVERIFIED",
+  "blocker": "Per-design + per-screen layout persistence, legacy migration, restore and reset are implemented in browser-local state. Physical/touch acceptance is still required before VERIFIED.",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P5: Layoutは独立設定。Theme/Persona/Voice/Color/Layoutを独立管理。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "Physically verify switching among representative screen designs restores each saved layout and does not mutate Goal/Task/authority state.",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -3909,7 +3983,10 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
     "staged_implementation_refs": [],
     "audit_ref": "docs/evidence/1188-requirements-windows.md"
-  }
+  },
+  "source_decisions": [
+    "owner-2026-10-06-goriq-design-session"
+  ]
 }
 ```
 
@@ -3919,7 +3996,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 {
   "id": "UI-012",
   "title": "Widget drag/move",
-  "description": "Widget drag/move。",
+  "description": "Widget drag/move。通常時は誤移動させず、長押しまたはSettingsの「画面の配置を変更」から明示的にlayout edit modeへ入り、そのmode中だけdrag/moveを許可する。Touchでは誤操作防止の意図確認を挟める。",
   "phase": "P5",
   "required_evidence": [
     "CODE",
@@ -3934,7 +4011,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   "blocker": "現行JARVIS UIに当該製品機能を未発見。P5で実装と操作検証が必要。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P5: Widget drag/move。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "明示的layout edit mode、long-press/settings入口、drag/moveと通常mode固定を実装・検証する。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -3944,7 +4021,10 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
     "staged_implementation_refs": [],
     "audit_ref": "docs/evidence/1188-requirements-windows.md"
-  }
+  },
+  "source_decisions": [
+    "owner-2026-10-06-goriq-design-session"
+  ]
 }
 ```
 
@@ -3989,7 +4069,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 {
   "id": "UI-014",
   "title": "Widget hide/show",
-  "description": "Widget hide/show。",
+  "description": "Widget hide/show。Ownerが補助情報を非表示/再表示できる一方、新規開発・Project/Task・判断待ち・Node/Device・Settingsなど主要capabilityへの到達手段は完全には消せない。デザイン変更やhide/showで実行中Goalのstateを変えない。",
   "phase": "P5",
   "required_evidence": [
     "CODE",
@@ -4004,7 +4084,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   "blocker": "現行JARVIS UIに当該製品機能を未発見。P5で実装と操作検証が必要。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P5: Widget hide/show。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "Hide/showとcritical navigation protection、再表示導線、state不変を実装・検証する。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -4014,7 +4094,10 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
     "staged_implementation_refs": [],
     "audit_ref": "docs/evidence/1188-requirements-windows.md"
-  }
+  },
+  "source_decisions": [
+    "owner-2026-10-06-goriq-design-session"
+  ]
 }
 ```
 
@@ -4163,8 +4246,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 ```json
 {
   "id": "UI-019",
-  "title": "Reset",
-  "description": "Reset。",
+  "title": "Reset / 初期配置に戻す",
+  "description": "Reset。画面デザインごとの配置を安全に「初期配置に戻す」操作を提供する。配置変更のUndo/Redoとは別に明示し、Goal/Task/data/権限はresetしない。",
   "phase": "P5",
   "required_evidence": [
     "CODE",
@@ -4179,7 +4262,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   "blocker": "現行JARVIS UIに当該製品機能を未発見。P5で実装と操作検証が必要。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P5: Reset。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "Per-design layout resetとdata/authority不変を実装・検証する。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -4189,7 +4272,10 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
     "staged_implementation_refs": [],
     "audit_ref": "docs/evidence/1188-requirements-windows.md"
-  }
+  },
+  "source_decisions": [
+    "owner-2026-10-06-goriq-design-session"
+  ]
 }
 ```
 
@@ -4198,8 +4284,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 ```json
 {
   "id": "UI-020",
-  "title": "Universal Command Bar",
-  "description": "Universal Command Bar。",
+  "title": "Universal Command / Conversation entry",
+  "description": "Universal Command BarをGORIQ全体のcommand/conversation入口として扱う。どの主要画面・どの画面デザインでも会話へ1 actionで入れ、PC/mobileとも「新規開発」を明示的な主要入口として到達可能にする。主要導線としてProject/Task、判断待ち、Node/Device、Settingsへの到達性もデザインで失わない。",
   "phase": "P5",
   "required_evidence": [
     "CODE",
@@ -4208,16 +4294,22 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "PHYSICAL"
   ],
   "implementation_refs": [
-    "src/app/jarvis/JarvisConsole.tsx",
-    "src/app/jarvis/jarvis.css"
+    "src/app/jarvis/GlobalConversationLauncher.tsx",
+    "src/app/CommandChat.tsx",
+    "src/app/jarvis/JarvisPrimaryShell.tsx",
+    "src/app/api/command/route.ts",
+    "scripts/chatgpt-resident-bridge-lib.mjs"
   ],
-  "test_refs": [],
+  "test_refs": [
+    "tests/goriq-daily-driver-conversation.test.mjs",
+    "tests/jarvis-p5-primary-shell.test.mjs"
+  ],
   "evidence_refs": [],
-  "status": "PARTIAL",
-  "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+  "status": "IMPLEMENTED_UNVERIFIED",
+  "blocker": "System-wide one-action conversation entry, shared GitHub-backed history, current-screen priority context and GORIQ-wide bridge scope are implemented. Physical multi-device acceptance remains pending.",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P5: Universal Command Bar。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "Run PC and smartphone physical acceptance for global conversation entry, visible history, screen-context priority and cross-project/GORIQ-wide questions.",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -4227,7 +4319,10 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
     "staged_implementation_refs": [],
     "audit_ref": "docs/evidence/1188-requirements-windows.md"
-  }
+  },
+  "source_decisions": [
+    "owner-2026-10-06-goriq-design-session"
+  ]
 }
 ```
 
@@ -4411,8 +4506,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 ```json
 {
   "id": "UI-026",
-  "title": "Mobile Mode",
-  "description": "Mobile Mode。",
+  "title": "Mobile Mode / smartphone-specific UX",
+  "description": "Mobile Mode。Desktopを縮小するだけにせず、phone専用の縦scroll/片手操作layoutを使う。Bottom navigationの基本は「ホーム / プロジェクト / 新規開発 / 判断待ち / その他」とし、global conversation/voiceを1 actionで呼び出せる。Project詳細はGoal→current state→next action→running tasks→recent historyを優先し、判断待ちは短いlarge-card操作にする。",
   "phase": "P5",
   "required_evidence": [
     "CODE",
@@ -4421,16 +4516,23 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "PHYSICAL"
   ],
   "implementation_refs": [
-    "src/app/jarvis/JarvisConsole.tsx",
-    "src/app/jarvis/jarvis.css"
+    "src/app/jarvis/JarvisPrimaryShell.tsx",
+    "src/app/jarvis/shell.css",
+    "src/app/jarvis/GlobalConversationLauncher.tsx",
+    "src/app/jarvis/decisions/page.tsx",
+    "src/app/jarvis/more/page.tsx"
   ],
-  "test_refs": [],
+  "test_refs": [
+    "tests/goriq-owner-ui.test.ts",
+    "tests/goriq-daily-driver-conversation.test.mjs",
+    "tests/jarvis-p5-primary-shell.test.mjs"
+  ],
   "evidence_refs": [],
-  "status": "PARTIAL",
-  "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+  "status": "IMPLEMENTED_UNVERIFIED",
+  "blocker": "Five-item smartphone bottom navigation, one-hand global conversation entry and dedicated decision/more routes are implemented. Real-device visual/touch acceptance remains pending.",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P5: Mobile Mode。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "Run smartphone physical acceptance at representative widths for bottom navigation, decision cards, conversation drawer and no-overflow behavior.",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -4440,7 +4542,10 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
     "staged_implementation_refs": [],
     "audit_ref": "docs/evidence/1188-requirements-windows.md"
-  }
+  },
+  "source_decisions": [
+    "owner-2026-10-06-goriq-design-session"
+  ]
 }
 ```
 
@@ -4449,8 +4554,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 ```json
 {
   "id": "UI-027",
-  "title": "Adaptive Layout",
-  "description": "Adaptive Layout。",
+  "title": "Adaptive Layout / 35-design mobile rendition",
+  "description": "Adaptive Layout。各画面デザインはdesktop gridを単純縮小せず、同じ世界観をphone/tablet用layoutへ変換する。35個すべての画面デザインで機能同等性を保ち、touchのlayout編集は意図的なedit modeに限定する。",
   "phase": "P5",
   "required_evidence": [
     "CODE",
@@ -4465,10 +4570,10 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   "test_refs": [],
   "evidence_refs": [],
   "status": "PARTIAL",
-  "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+  "blocker": "Responsive/adaptive foundations exist, but all 35 owner-approved design slots do not yet have verified mobile-appropriate renditions.",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P5: Adaptive Layout。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "35 designそれぞれにmobile rendition rulesを定義し、主要フロー・no-overflow・touch誤操作防止を実機検証する。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -4478,7 +4583,10 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
     "staged_implementation_refs": [],
     "audit_ref": "docs/evidence/1188-requirements-windows.md"
-  }
+  },
+  "source_decisions": [
+    "owner-2026-10-06-goriq-design-session"
+  ]
 }
 ```
 
@@ -4894,8 +5002,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 ```json
 {
   "id": "INT-001",
-  "title": "Voice command",
-  "description": "Voice command。",
+  "title": "Voice command / system-wide voice conversation",
+  "description": "Voice command。音声は新規開発専用ではなく、GORIQの全主要画面から呼べるsystem-wide conversation inputとする。認識した発話は送信前/送信後にvisible textとして扱い、Voice Human Gate等の既存authorityを一切迂回しない。",
   "phase": "P6",
   "required_evidence": [
     "CODE",
@@ -4903,14 +5011,24 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "INTEGRATION",
     "PHYSICAL"
   ],
-  "implementation_refs": [],
-  "test_refs": [],
+  "implementation_refs": [
+    "src/app/CommandChat.tsx",
+    "src/app/jarvis/GlobalConversationLauncher.tsx",
+    "src/app/jarvis/mobile/voice/MobileVoiceCommander.tsx",
+    "src/app/api/command/route.ts",
+    "src/app/api/jarvis/voice/route.ts"
+  ],
+  "test_refs": [
+    "tests/goriq-daily-driver-conversation.test.mjs",
+    "tests/jarvis-p6-voice-input.test.ts",
+    "tests/goriq-local-tts.test.ts"
+  ],
   "evidence_refs": [],
-  "status": "MISSING",
-  "blocker": "当該製品機能の実装・テスト・Evidenceを未発見。",
+  "status": "IMPLEMENTED_UNVERIFIED",
+  "blocker": "All primary screens can open the same visible conversation; browser speech recognition writes into the normal visible transcript and voice-originated AI replies use the selected local TTS path when available. Physical microphone/TTS acceptance is pending.",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P6: Voice command。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "Verify microphone recognition, editable visible transcript, shared history and local voice reply on a physical phone and PC without bypassing Human Gate.",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -4920,7 +5038,10 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
     "staged_implementation_refs": [],
     "audit_ref": "docs/evidence/1188-requirements-windows.md"
-  }
+  },
+  "source_decisions": [
+    "owner-2026-10-06-goriq-design-session"
+  ]
 }
 ```
 
@@ -5004,8 +5125,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 ```json
 {
   "id": "INT-004",
-  "title": "Voice/text同一conversation context",
-  "description": "Voice/text同一conversation context。",
+  "title": "Voice/text同一conversation context + visible transcript",
+  "description": "Voice/textは同一conversation contextと履歴を共有する。Voice inputはdefaultでvoice response、text inputはdefaultでtext responseとし、Owner設定でoverride可能。Owner発話の文字起こしとAI返答はhidden storageだけでなく通常の会話履歴に見える形で残し、modeを切り替えてもcontextを失わない。",
   "phase": "P6",
   "required_evidence": [
     "CODE",
@@ -5017,10 +5138,10 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   "test_refs": [],
   "evidence_refs": [],
   "status": "MISSING",
-  "blocker": "当該製品機能の実装・テスト・Evidenceを未発見。",
+  "blocker": "Unified visible voice/text conversation with modality-matched response and persistent transcript is not yet verified end-to-end.",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P6: Voice/text同一conversation context。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "Voice/textの同一thread、visible transcript、input modalityに応じたdefault response modeとoverride設定を実装・実機検証する。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -5030,7 +5151,10 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
     "staged_implementation_refs": [],
     "audit_ref": "docs/evidence/1188-requirements-windows.md"
-  }
+  },
+  "source_decisions": [
+    "owner-2026-10-06-goriq-design-session"
+  ]
 }
 ```
 
@@ -5039,8 +5163,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 ```json
 {
   "id": "INT-005",
-  "title": "Screen-context reference「これ」",
-  "description": "Screen-context reference「これ」。",
+  "title": "Screen-context + GORIQ-wide context「これ」",
+  "description": "「これ」等のscreen-context referenceでは現在画面/Projectを高優先contextとして使うが、それを検索境界にはしない。Owner権限内のGORIQ-wide Goal/Project/Task/Decision/Node/Log/History/Settings stateへ質問でき、command対象が一意ならそのauthority内で操作する。曖昧な変更指示だけ最小限のclarificationを求める。",
   "phase": "P6",
   "required_evidence": [
     "CODE",
@@ -5055,7 +5179,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   "blocker": "当該製品機能の実装・テスト・Evidenceを未発見。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P6: Screen-context reference「これ」。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "Current-screen priority + GORIQ-wide retrieval/action scopeとambiguous-target clarificationを実装・統合検証する。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -5065,7 +5189,10 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
     "staged_implementation_refs": [],
     "audit_ref": "docs/evidence/1188-requirements-windows.md"
-  }
+  },
+  "source_decisions": [
+    "owner-2026-10-06-goriq-design-session"
+  ]
 }
 ```
 
@@ -5144,8 +5271,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 ```json
 {
   "id": "INT-008",
-  "title": "Voice Persona",
-  "description": "Voice Persona。",
+  "title": "Local-first TTS engine / Voice Persona",
+  "description": "Voice Personaと音声engine authorityを分離する。標準TTS engineはAivisSpeech Engine、fallbackはVOICEVOX Engineとし、local-firstで動作するreplaceable engine abstractionを持つ。利用不能時に有料providerや外部data egressへ黙ってfallbackしない。各voice modelのlicenseを確認し、engine/model unavailableはfail-visibleにする。Voice selection、Persona、Speech styleは独立設定。",
   "phase": "P6",
   "required_evidence": [
     "CODE",
@@ -5157,10 +5284,10 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   "test_refs": [],
   "evidence_refs": [],
   "status": "MISSING",
-  "blocker": "当該製品機能の実装・テスト・Evidenceを未発見。",
+  "blocker": "No verified AivisSpeech primary / VOICEVOX fallback adapter, license-checked model catalog, or fail-visible local-first fallback contract is mapped in the current requirement evidence.",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P6: Voice Persona。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "AivisSpeech primary + VOICEVOX fallback adapter contract、license check、local-only default、fail-visible behaviorを実装・検証する。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -5170,7 +5297,10 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
     "staged_implementation_refs": [],
     "audit_ref": "docs/evidence/1188-requirements-windows.md"
-  }
+  },
+  "source_decisions": [
+    "owner-2026-10-06-goriq-design-session"
+  ]
 }
 ```
 
@@ -5180,7 +5310,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 {
   "id": "INT-009",
   "title": "Speech style",
-  "description": "Speech style。",
+  "description": "Speech style。Voice engine/voice selection/personaとは独立し、少なくともstandard/brief/formal等の返答styleを保存できる。Speech rate/pitch/volumeはVoice settingsとして別管理し、style変更でcommand parsing、priority、permission、Human Gateを変えない。",
   "phase": "P6",
   "required_evidence": [
     "CODE",
@@ -5195,7 +5325,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   "blocker": "当該製品機能の実装・テスト・Evidenceを未発見。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P6: Speech style。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "Speech styleとvoice acoustic settingsを分離し、保存/再読込とauthority不変を検証する。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -5205,7 +5335,10 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
     "staged_implementation_refs": [],
     "audit_ref": "docs/evidence/1188-requirements-windows.md"
-  }
+  },
+  "source_decisions": [
+    "owner-2026-10-06-goriq-design-session"
+  ]
 }
 ```
 
@@ -5944,8 +6077,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 ```json
 {
   "id": "AUTO-005",
-  "title": "Decisions persistence",
-  "description": "Decisions persistence。",
+  "title": "Decisions persistence / rationale history",
+  "description": "Decisions persistence。Owner/AIが確定した仕様判断、選択肢、採用/不採用、理由、影響、関連Goal/Task、必要な差分をdurableに保持し、後から「なぜこれにしたか」を追跡できる。判断確定後は仕様/Goalへ反映し、待っていた依存Taskだけを正確にresumeする。",
   "phase": "P7",
   "required_evidence": [
     "CODE",
@@ -5968,7 +6101,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P7: Decisions persistence。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "Decision rationale/impact/Goal linkageと依存Task resume evidenceを既存durable stateへ統合・検証する。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -5978,7 +6111,10 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
     "staged_implementation_refs": [],
     "audit_ref": "docs/evidence/1188-requirements-windows.md"
-  }
+  },
+  "source_decisions": [
+    "owner-2026-10-06-goriq-design-session"
+  ]
 }
 ```
 
@@ -6157,8 +6293,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 ```json
 {
   "id": "AUTO-010",
-  "title": "Capability Router",
-  "description": "Capability Router。 ADR 0013のpriority engine、scheduler、event engine、dependency graph、resource manager、power policy、network policyを用いて選択する。",
+  "title": "Resource-aware Capability Router",
+  "description": "Capability Routerはrequired capabilityに加えCPU/GPU/RAM、OS固有能力、現在負荷、data locality、network/power/thermal、risk/privacyを評価し、利用可能NodeへTaskを配置する。高速経路喪失時は正しさを維持できる低速経路へ自動fallbackし、独立Taskは可能な範囲で並列化する。",
   "phase": "P7",
   "required_evidence": [
     "CODE",
@@ -6168,17 +6304,18 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   ],
   "implementation_refs": [
     "src/gai/worker-runtime.ts",
-    "src/gai/goal-loop-worker-executor.ts"
+    "src/gai/goal-loop-worker-executor.ts",
+    "docs/architecture/goriq-distributed-node-fabric.md"
   ],
   "test_refs": [
     "tests/gai-goal-loop-worker-integration.test.ts"
   ],
   "evidence_refs": [],
   "status": "PARTIAL",
-  "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+  "blocker": "Capability routingとresource modelは存在するが、複数物理Nodeでのresource-aware配置、低速fallback、再配分の統合Evidenceは未完了。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P7: Capability Router。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "MacBook+ZBookで負荷/能力差を使う配置とfallbackを実証し、その後Nubiaを追加して3-node再配分を検証する。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -6197,8 +6334,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 ```json
 {
   "id": "AUTO-011",
-  "title": "Dynamic worker selection",
-  "description": "Dynamic worker selection。",
+  "title": "Dynamic worker selection and automatic rebalancing",
+  "description": "Node参加・離脱・復旧・負荷変化のたびに利用可能能力を再評価し、待機Taskと安全に移行可能な実行中Taskを自動再配置する。新規高性能PC追加時は手動topology再構成なしで処理能力を拡張する。",
   "phase": "P7",
   "required_evidence": [
     "CODE",
@@ -6208,17 +6345,18 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   ],
   "implementation_refs": [
     "src/gai/worker-runtime.ts",
-    "src/gai/goal-loop-worker-executor.ts"
+    "src/gai/goal-loop-worker-executor.ts",
+    "docs/architecture/goriq-distributed-node-fabric.md"
   ],
   "test_refs": [
     "tests/gai-goal-loop-worker-integration.test.ts"
   ],
   "evidence_refs": [],
   "status": "PARTIAL",
-  "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+  "blocker": "動的worker選択は部分実装。Node join/leave/returnでの自動rebalancingと新規PC容量拡張の物理Evidenceが不足。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P7: Dynamic worker selection。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "Mac/ZBook loss-returnでrebalancingを検証し、Nubia参加、将来PC自動追加の順で受入する。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -6237,8 +6375,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 ```json
 {
   "id": "AUTO-012",
-  "title": "Dynamic role composition",
-  "description": "Dynamic role composition。",
+  "title": "Dynamic logical role composition across nodes",
+  "description": "Coordinator/Executor/Storage/Verifier/Gateway/Owner-Input/Sensor-Edge等のroleを物理端末へ固定せず、verified capability・health・riskに応じて動的構成する。一Nodeが複数roleを持てるがCoordinator消失をGORIQ全停止条件にしない。",
   "phase": "P7",
   "required_evidence": [
     "CODE",
@@ -6248,7 +6386,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   ],
   "implementation_refs": [
     "src/orchestrator/dynamic-capability-team.ts",
-    "src/orchestrator/team-composer.ts"
+    "src/orchestrator/team-composer.ts",
+    "docs/architecture/goriq-distributed-node-fabric.md"
   ],
   "test_refs": [
     "tests/dynamic-multi-agent-runtime.test.ts",
@@ -6256,10 +6395,10 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   ],
   "evidence_refs": [],
   "status": "PARTIAL",
-  "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+  "blocker": "Agent/role compositionは存在するが、物理Node間でCoordinator等のruntime roleを移動する統合・復旧Evidenceは未完了。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P7: Dynamic role composition。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "Coordinator/Executor/VerifierをMacBook+ZBook間で移動させ、停止・復旧時のrole再構成を検証する。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -6647,8 +6786,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 ```json
 {
   "id": "AUTO-022",
-  "title": "Only genuine Human Gate interrupts",
-  "description": "Only genuine Human Gate interrupts。",
+  "title": "Only genuine Human Gate interrupts; dependency-only pause",
+  "description": "Only genuine Human Gate interrupts。判断待ち/Human Gateが発生してもProject全体を一律停止せず、その判断に依存するTask/closureだけをPAUSED/WAITINGにし、無関係なsafe workは自動継続する。判断が全体architecture等へ波及する時だけ必要範囲を広く止め、解決後は影響Taskのみresumeする。",
   "phase": "P7",
   "required_evidence": [
     "CODE",
@@ -6669,7 +6808,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P7: Only genuine Human Gate interrupts。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "Dependency-aware pause/resume、unrelated safe work continuation、wide-impact判定を統合/physical scenarioで検証する。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -6679,7 +6818,10 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
     "staged_implementation_refs": [],
     "audit_ref": "docs/evidence/1188-requirements-windows.md"
-  }
+  },
+  "source_decisions": [
+    "owner-2026-10-06-goriq-design-session"
+  ]
 }
 ```
 
@@ -7467,8 +7609,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 ```json
 {
   "id": "OFF-003",
-  "title": "Online-required workはWAITING_FOR_CONNECTIVITY",
-  "description": "Online-required workはWAITING_FOR_CONNECTIVITY。",
+  "title": "代替不能TaskだけをWAITING_FOR_CONNECTIVITY/CAPABILITYにする",
+  "description": "Onlineまたは特定Node/OS/Device capabilityが真に必要なTaskだけをdurable waiting状態へ置く。高速経路だけが失われた場合は低速fallbackを評価し、無関係なlocal-capable Taskは継続する。",
   "phase": "P7",
   "required_evidence": [
     "CODE",
@@ -7480,7 +7622,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   "implementation_refs": [
     "src/gai/offline-first-runtime.ts",
     "src/gai/durable-task-runtime.ts",
-    "src/gai/sync-engine.ts"
+    "src/gai/sync-engine.ts",
+    "docs/architecture/goriq-distributed-node-fabric.md"
   ],
   "test_refs": [
     "tests/gai-offline-first-runtime.test.ts",
@@ -7489,10 +7632,10 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   ],
   "evidence_refs": [],
   "status": "PARTIAL",
-  "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+  "blocker": "WAITING_FOR_CONNECTIVITY基盤はあるが、missing capabilityと性能低下を区別したfallback/waiting判定の物理Evidenceは未完了。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P7: Online-required workはWAITING_FOR_CONNECTIVITY。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "Mac/ZBook停止テストでfallback可能TaskとPINNED Taskを分離し、無関係Task継続を実証する。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -7555,8 +7698,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 ```json
 {
   "id": "OFF-005",
-  "title": "Checkpoint",
-  "description": "Checkpoint。",
+  "title": "Checkpoint + Task Migration Class",
+  "description": "Durable checkpointを保持し、各TaskをMIGRATABLE / RESTARTABLE / PINNED / SIDE_EFFECTINGに分類する。移行不能Taskを移行可能と偽らず、migration classに応じてcheckpoint継続、再実行、待機、side-effect保護を選ぶ。",
   "phase": "P7",
   "required_evidence": [
     "CODE",
@@ -7568,7 +7711,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   "implementation_refs": [
     "src/gai/offline-first-runtime.ts",
     "src/gai/durable-task-runtime.ts",
-    "src/gai/sync-engine.ts"
+    "src/gai/sync-engine.ts",
+    "docs/architecture/goriq-distributed-node-fabric.md"
   ],
   "test_refs": [
     "tests/gai-offline-first-runtime.test.ts",
@@ -7577,10 +7721,10 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   ],
   "evidence_refs": [],
   "status": "PARTIAL",
-  "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+  "blocker": "Checkpoint基盤は存在するが、4種migration classとNode failover時の運用統合は未完了。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P7: Checkpoint。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "Task migration class contractを既存durable runtimeへ統合し、各classの停止/復旧テストを追加する。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -7599,8 +7743,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 ```json
 {
   "id": "OFF-006",
-  "title": "Resume",
-  "description": "Resume。",
+  "title": "Resume / migrate / restart according to durable ownership",
+  "description": "Node停止時にdurable checkpointとmigration classを読み、別Nodeで安全ならresume/migrate/restartする。復旧後の旧Nodeは現所有権を再確認し、古い実行を継続しない。",
   "phase": "P7",
   "required_evidence": [
     "CODE",
@@ -7612,7 +7756,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   "implementation_refs": [
     "src/gai/offline-first-runtime.ts",
     "src/gai/durable-task-runtime.ts",
-    "src/gai/sync-engine.ts"
+    "src/gai/sync-engine.ts",
+    "docs/architecture/goriq-distributed-node-fabric.md"
   ],
   "test_refs": [
     "tests/gai-offline-first-runtime.test.ts",
@@ -7621,10 +7766,10 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   ],
   "evidence_refs": [],
   "status": "PARTIAL",
-  "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+  "blocker": "Resumeは部分実装。cross-node migration/restart、復旧Nodeのstale ownership拒否が未検証。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P7: Resume。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "MacBook↔ZBookでMIGRATABLE/RESTARTABLE Taskの引継ぎと復旧後stale execution拒否を実機検証する。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -7687,8 +7832,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 ```json
 {
   "id": "OFF-008",
-  "title": "Leases/duplicate prevention",
-  "description": "Leases/duplicate prevention。",
+  "title": "Lease / execution ownership / epoch / fencing token / duplicate prevention",
+  "description": "各TaskはTask ID、idempotency key、current execution owner、lease expiry、execution epoch、fencing token、checkpoint/result versionを保持する。Ownership移動時はepoch/tokenを進め、旧Nodeの遅延結果・二重反映・二重side effectを拒否する。",
   "phase": "P7",
   "required_evidence": [
     "CODE",
@@ -7700,7 +7845,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   "implementation_refs": [
     "src/gai/offline-first-runtime.ts",
     "src/gai/durable-task-runtime.ts",
-    "src/gai/sync-engine.ts"
+    "src/gai/sync-engine.ts",
+    "docs/architecture/goriq-distributed-node-fabric.md"
   ],
   "test_refs": [
     "tests/gai-offline-first-runtime.test.ts",
@@ -7709,10 +7855,10 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   ],
   "evidence_refs": [],
   "status": "PARTIAL",
-  "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+  "blocker": "Lease/idempotencyは部分実装。execution epoch/fencing tokenを含むsplit-brain防止とside-effect ownershipの実機Evidenceは未完了。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P7: Leases/duplicate prevention。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "通信断中の二重所有を注入し、古いepoch/token結果が拒否される自動/実機テストを追加する。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -7731,8 +7877,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 ```json
 {
   "id": "OFF-009",
-  "title": "Sync",
-  "description": "Sync。",
+  "title": "Partition delta sync for Task/Result/State/Evidence/Memory/Learning",
+  "description": "別拠点または通信断で各Node/partitionが独立稼働した後、再接続時にGoal/Task/checkpoint/result/state/evidence/artifact reference/memory/verified learning/capability差分を同期する。",
   "phase": "P7",
   "required_evidence": [
     "CODE",
@@ -7744,7 +7890,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   "implementation_refs": [
     "src/gai/offline-first-runtime.ts",
     "src/gai/durable-task-runtime.ts",
-    "src/gai/sync-engine.ts"
+    "src/gai/sync-engine.ts",
+    "docs/architecture/goriq-distributed-node-fabric.md"
   ],
   "test_refs": [
     "tests/gai-offline-first-runtime.test.ts",
@@ -7753,10 +7900,10 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   ],
   "evidence_refs": [],
   "status": "PARTIAL",
-  "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+  "blocker": "Sync Engineは存在するが、複数物理Nodeのpartition独立稼働と広い状態差分syncのRECOVERY/PHYSICAL Evidenceは未完了。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P7: Sync。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "Mac/ZBookを意図的にpartitionし、独立進行→再接続→差分同期→再検証を実機で行う。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -7775,8 +7922,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 ```json
 {
   "id": "OFF-010",
-  "title": "Conflict resolution",
-  "description": "Conflict resolution。",
+  "title": "Causal conflict resolution after node partitions",
+  "description": "再接続時の競合はnaive timestamp/LWWで決めず、execution ownership、epoch/fencing token、causal/version metadata、verification evidenceを使って解決する。安全に解決できない競合はfail-visibleとする。",
   "phase": "P7",
   "required_evidence": [
     "CODE",
@@ -7788,7 +7935,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   "implementation_refs": [
     "src/gai/offline-first-runtime.ts",
     "src/gai/durable-task-runtime.ts",
-    "src/gai/sync-engine.ts"
+    "src/gai/sync-engine.ts",
+    "docs/architecture/goriq-distributed-node-fabric.md"
   ],
   "test_refs": [
     "tests/gai-offline-first-runtime.test.ts",
@@ -7797,10 +7945,10 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   ],
   "evidence_refs": [],
   "status": "PARTIAL",
-  "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+  "blocker": "Conflict resolverは存在するが、execution epoch/fencingを含む分散競合解決の物理Evidenceは未完了。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P7: Conflict resolution。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "同一Goalのpartition競合fixtureと実機scenarioを作り、安全な自動解決とfail-visible分岐を検証する。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -7863,8 +8011,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 ```json
 {
   "id": "OFF-012",
-  "title": "Real physical offline test",
-  "description": "Real physical offline test。",
+  "title": "Real physical node-loss / offline / recovery matrix",
+  "description": "MacBook停止、ZBook停止、通信断、same-LAN継続、途中復旧、両方復旧、再同期、競合、処理再配分、Nubia join/loss/return、新規PC追加を自動テストと実機テストで検証し証拠を残す。Android 38台はNubia canary後の後続Fleet受入とする。",
   "phase": "P7",
   "required_evidence": [
     "CODE",
@@ -7876,7 +8024,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   "implementation_refs": [
     "src/gai/offline-first-runtime.ts",
     "src/gai/durable-task-runtime.ts",
-    "src/gai/sync-engine.ts"
+    "src/gai/sync-engine.ts",
+    "docs/architecture/goriq-distributed-node-fabric.md"
   ],
   "test_refs": [
     "tests/gai-offline-first-runtime.test.ts",
@@ -7885,10 +8034,10 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   ],
   "evidence_refs": [],
   "status": "PARTIAL",
-  "blocker": "現行コードの関連箇所は候補マッピング。要件全体を満たす統合・実機Evidenceを未確認。",
+  "blocker": "個別offlineテストは存在するが、distributed node-loss/recovery matrix全体の実機Evidenceは未取得。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P7: Real physical offline test。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "Mac安定化完了後にMacBook+ZBookを最小distributed acceptanceとし、Nubia、新規PC、後日Android38台の順で拡張する。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -9670,8 +9819,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 ```json
 {
   "id": "ACC-008",
-  "title": "Offline→local work or waiting→reconnect→sync→resume→verify",
-  "description": "Offline→local work or waiting→reconnect→sync→resume→verify。",
+  "title": "Offline/partition→local work or waiting→reconnect→sync→rebalance→verify",
+  "description": "通信断中は各Node/partitionが安全なlocal workを継続し、代替不能Taskだけ待機する。再接続後は差分同期、競合解決、stale ownership拒否、Task再配分、Verifier再確認まで実機で通す。",
   "phase": "P9",
   "required_evidence": [
     "CODE",
@@ -9680,14 +9829,25 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "PHYSICAL",
     "RECOVERY"
   ],
-  "implementation_refs": [],
-  "test_refs": [],
+  "implementation_refs": [
+    "docs/architecture/goriq-distributed-node-fabric.md",
+    "src/gai/offline-first-runtime.ts",
+    "src/gai/durable-task-runtime.ts",
+    "src/gai/sync-engine.ts",
+    "src/gai/local-device-mesh.ts"
+  ],
+  "test_refs": [
+    "tests/gai-offline-first-runtime.test.ts",
+    "tests/gai-durable-task-runtime.test.ts",
+    "tests/gai-sync-engine.test.ts",
+    "tests/local-device-mesh.test.ts"
+  ],
   "evidence_refs": [],
   "status": "MISSING",
-  "blocker": "当該製品機能の実装・テスト・Evidenceを未発見。",
+  "blocker": "software primitivesは存在するが、Mac/ZBook/Nubiaを用いたend-to-end physical partition/recovery acceptanceは未完了。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "P9: Offline→local work or waiting→reconnect→sync→resume→verify。 について実装の不足を埋め、required_evidenceを取得する。",
+  "next_action": "Stage B/Cの物理受入でpartition→independent work→sync→rebalance→verifyを証明する。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -10298,8 +10458,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 ```json
 {
   "id": "MIG-008",
-  "title": "Coordinator役割分離",
-  "description": "durable Broker・registry・enrollment・routingを物理PCと独立した論理roleにする",
+  "title": "Coordinator role separation and failover",
+  "description": "durable Broker/registry/enrollment/routing/schedulingのCoordinatorを物理PCから分離した論理roleとし、現在のCoordinator Node停止時に別trusted Nodeへ安全にfailoverできるようにする。Coordinator消失をGORIQ全停止条件にしない。",
   "phase": "P1",
   "migration_phase": "M1",
   "required_evidence": [
@@ -10310,14 +10470,21 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "PHYSICAL",
     "RECOVERY"
   ],
-  "implementation_refs": [],
-  "test_refs": [],
+  "implementation_refs": [
+    "docs/architecture/goriq-distributed-node-fabric.md",
+    "src/gai/distributed-coordinator.ts",
+    "src/gai/sync-engine.ts"
+  ],
+  "test_refs": [
+    "tests/gai-distributed-coordinator.test.ts",
+    "tests/gai-sync-engine.test.ts"
+  ],
   "evidence_refs": [],
-  "status": "MISSING",
-  "blocker": "Expanded requirement reconciled from staged ledger; main runtime integration and required evidence remain to be verified. Component software exists in unmerged #884; actual execution-path integration and requirement-wide evidence remain incomplete.",
+  "status": "PARTIAL",
+  "blocker": "Transferable Coordinator lease/epoch/fencing and replica convergence are implemented in current main candidate, but authenticated production-role integration and physical MacBook↔ZBook Coordinator failover/recovery evidence are not yet complete.",
   "platform_limit": null,
   "fallback": "現在のZBook Coordinator pathを保持する。",
-  "next_action": "Review/reuse staged implementation with current main; wire and verify required execution path. Wire the component into the applicable authenticated execution path, add integration/security acceptance, then obtain all required evidence classes. See docs/audit/887-completion-integration.md.",
+  "next_action": "Run controlled MacBook↔ZBook Coordinator ownership transfer/rejoin/rebalance E2E, then wire the verified role into the authenticated production Coordinator path.",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -10420,8 +10587,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 ```json
 {
   "id": "MIG-011",
-  "title": "Logical Coordinator ID",
-  "description": "物理host移動で変化しないservice identityを既存protocolを壊さず導入する",
+  "title": "Logical Coordinator ID + transferable coordinator lease",
+  "description": "物理host移動で変化しないservice identityを維持し、Coordinator ownershipはlease/epoch/fencingで移動可能にする。旧Coordinator復帰後のstale authorityを拒否する。",
   "phase": "P1",
   "migration_phase": "M1",
   "required_evidence": [
@@ -10432,14 +10599,21 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "PHYSICAL",
     "RECOVERY"
   ],
-  "implementation_refs": [],
-  "test_refs": [],
+  "implementation_refs": [
+    "docs/architecture/goriq-distributed-node-fabric.md",
+    "src/gai/distributed-coordinator.ts",
+    "src/gai/sync-engine.ts"
+  ],
+  "test_refs": [
+    "tests/gai-distributed-coordinator.test.ts",
+    "tests/gai-sync-engine.test.ts"
+  ],
   "evidence_refs": [],
-  "status": "MISSING",
-  "blocker": "Expanded requirement reconciled from staged ledger; main runtime integration and required evidence remain to be verified. Component software exists in unmerged #884; actual execution-path integration and requirement-wide evidence remain incomplete.",
+  "status": "PARTIAL",
+  "blocker": "Logical cluster identity plus transferable Coordinator lease/epoch/fencing and stale-claim rejection are implemented in the core, but physical-node recovery and production authority integration remain unverified.",
   "platform_limit": null,
   "fallback": "現在のZBook Coordinator pathを保持する。",
-  "next_action": "Review/reuse staged implementation with current main; wire and verify required execution path. Wire the component into the applicable authenticated execution path, add integration/security acceptance, then obtain all required evidence classes. See docs/audit/887-completion-integration.md.",
+  "next_action": "Prove MacBook↔ZBook Coordinator epoch transfer, stale authority rejection, return without premature preemption, and post-lease rebalance on physical nodes.",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -10622,8 +10796,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 ```json
 {
   "id": "MIG-016",
-  "title": "Android/iPhone canary",
-  "description": "各1台でidentity/key・delivery・signed result・verifier・history・reboot/network recoveryを実証する",
+  "title": "Nubia first Android canary, iPhone capability acceptance, then Android Fleet",
+  "description": "Nubiaを最初のfull Android/mobile-edge distributed Nodeとしてidentity/capability/task/offline/failover/reconnect/rebalanceを実証する。iPhoneはiOS制約内のOwner/input/sensor Nodeとして受入し、その後保存済みAndroid 38台を同一Node/Fleet Contractへ追加する。",
   "phase": "P9",
   "migration_phase": "M6",
   "required_evidence": [
@@ -10634,14 +10808,16 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "PHYSICAL",
     "RECOVERY"
   ],
-  "implementation_refs": [],
+  "implementation_refs": [
+    "docs/architecture/goriq-distributed-node-fabric.md"
+  ],
   "test_refs": [],
   "evidence_refs": [],
   "status": "MISSING",
-  "blocker": "Expanded requirement reconciled from staged ledger; main runtime integration and required evidence remain to be verified. mainには互換Coordinator移行の完成実装・実機証拠なし。#863/PR #864は監査準備として別管理。既存device/credential/queueを変更していない。",
+  "blocker": "Nubia distributed canaryと後続38台Fleet拡張の物理Evidenceは未取得。38台は現在の完成条件から意図的に除外。",
   "platform_limit": null,
   "fallback": "現在のZBook Coordinator pathを保持する。",
-  "next_action": "M0 baselineを現在時刻で再取得し、旧endpoint依存を確認してからM1/M2を追加。shadow/canaryの実機PASS前に切替しない。",
+  "next_action": "MacBook+ZBook分散基盤後にNubia canaryを通し、iPhone integration、新規PC、最後にAndroid38台Fleetを追加する。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -10778,8 +10954,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 ```json
 {
   "id": "MIG-020",
-  "title": "ZBook removal test",
-  "description": "ZBookを家Wi-Fiから外してもhome fleet/job/private accessが継続し再登録不要",
+  "title": "MacBook/ZBook node removal and failover test",
+  "description": "MacBookまたはZBookを意図的に停止/切断しても、残存Nodeで代替可能なGoal/Taskが継続し、PINNED/代替不能Taskだけが待機することを再登録なしで実証する。",
   "phase": "P9",
   "migration_phase": "M8",
   "required_evidence": [
@@ -10790,14 +10966,16 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "PHYSICAL",
     "RECOVERY"
   ],
-  "implementation_refs": [],
+  "implementation_refs": [
+    "docs/architecture/goriq-distributed-node-fabric.md"
+  ],
   "test_refs": [],
   "evidence_refs": [],
   "status": "MISSING",
-  "blocker": "Expanded requirement reconciled from staged ledger; main runtime integration and required evidence remain to be verified. mainには互換Coordinator移行の完成実装・実機証拠なし。#863/PR #864は監査準備として別管理。既存device/credential/queueを変更していない。",
+  "blocker": "単一Node停止時のdistributed failover実機Evidenceなし。",
   "platform_limit": null,
   "fallback": "現在のZBook Coordinator pathを保持する。",
-  "next_action": "M0 baselineを現在時刻で再取得し、旧endpoint依存を確認してからM1/M2を追加。shadow/canaryの実機PASS前に切替しない。",
+  "next_action": "Stage BでMac停止とZBook停止を別々に実施し、Task ownership、fallback、waiting分離、全体継続を証明する。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -10816,8 +10994,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 ```json
 {
   "id": "MIG-021",
-  "title": "ZBook return test",
-  "description": "外部networkと自宅帰還で同じWorker IDを保持しLAN優先へ戻る",
+  "title": "Node return and automatic reintegration test",
+  "description": "MacBook/ZBook/Nubia等のNode復旧時に同じidentityを維持してcapability/resourceを再登録し、offline中の差分を同期し、待機/実行Taskを再評価して自動rebalancingする。",
   "phase": "P9",
   "migration_phase": "M8",
   "required_evidence": [
@@ -10828,14 +11006,16 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "PHYSICAL",
     "RECOVERY"
   ],
-  "implementation_refs": [],
+  "implementation_refs": [
+    "docs/architecture/goriq-distributed-node-fabric.md"
+  ],
   "test_refs": [],
   "evidence_refs": [],
   "status": "MISSING",
-  "blocker": "Expanded requirement reconciled from staged ledger; main runtime integration and required evidence remain to be verified. mainには互換Coordinator移行の完成実装・実機証拠なし。#863/PR #864は監査準備として別管理。既存device/credential/queueを変更していない。",
+  "blocker": "return/reintegration/rebalanceのphysical evidenceなし。",
   "platform_limit": null,
   "fallback": "現在のZBook Coordinator pathを保持する。",
-  "next_action": "M0 baselineを現在時刻で再取得し、旧endpoint依存を確認してからM1/M2を追加。shadow/canaryの実機PASS前に切替しない。",
+  "next_action": "Mac/ZBook loss-return後に自動再参加・state sync・rebalancingを実証し、その後Nubiaで同じContractを確認する。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -10854,8 +11034,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 ```json
 {
   "id": "MIG-022",
-  "title": "Automatic route selection",
-  "description": "trusted LAN fast path/private tailnet/durable offlineをidentity変更なしで選択する",
+  "title": "Automatic route and execution-path selection",
+  "description": "trusted LAN fast path/private tailnet/durable offlineに加え、利用可能Nodeのcapability/resource/load/data localityを評価してidentity変更なしでroute/execute/fallback pathを自動選択する。",
   "phase": "P1",
   "migration_phase": "M8",
   "required_evidence": [
@@ -10866,14 +11046,16 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "PHYSICAL",
     "RECOVERY"
   ],
-  "implementation_refs": [],
+  "implementation_refs": [
+    "docs/architecture/goriq-distributed-node-fabric.md"
+  ],
   "test_refs": [],
   "evidence_refs": [],
   "status": "MISSING",
-  "blocker": "Expanded requirement reconciled from staged ledger; main runtime integration and required evidence remain to be verified. Component software exists in unmerged #884; actual execution-path integration and requirement-wide evidence remain incomplete.",
+  "blocker": "route selection部品はあるが、Network routeとcompute placementを統合した自動選択の実機Evidenceは未完了。",
   "platform_limit": null,
   "fallback": "現在のZBook Coordinator pathを保持する。",
-  "next_action": "Review/reuse staged implementation with current main; wire and verify required execution path. Wire the component into the applicable authenticated execution path, add integration/security acceptance, then obtain all required evidence classes. See docs/audit/887-completion-integration.md.",
+  "next_action": "same-LAN/Internet断/別拠点を含むMac+ZBook scenarioでrouteとcompute placementの再評価を実証する。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -10934,8 +11116,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 ```json
 {
   "id": "MIG-024",
-  "title": "Security invariants",
-  "description": "owner auth・signing・nonce/replay/clock・allowlist・capability・Human Gate・private ingressを維持しFunnel/公開Broker禁止",
+  "title": "Distributed security invariants",
+  "description": "Owner auth、stable device/node identity、signed request/result、nonce/replay/clock、allowlist、capability authorization、Human Gate、private ingress、audit/evidence/queue/historyをNode failover・offline・rebalancing中も維持する。性能最適化やfailoverは権限拡張を意味しない。",
   "phase": "P1",
   "migration_phase": "M2",
   "required_evidence": [
@@ -10946,14 +11128,16 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "PHYSICAL",
     "RECOVERY"
   ],
-  "implementation_refs": [],
+  "implementation_refs": [
+    "docs/architecture/goriq-distributed-node-fabric.md"
+  ],
   "test_refs": [],
   "evidence_refs": [],
   "status": "MISSING",
-  "blocker": "Expanded requirement reconciled from staged ledger; main runtime integration and required evidence remain to be verified. mainには互換Coordinator移行の完成実装・実機証拠なし。#863/PR #864は監査準備として別管理。既存device/credential/queueを変更していない。",
+  "blocker": "既存security invariantは個別検証済み/部分実装だが、distributed failover全経路でのSECURITY/PHYSICAL/RECOVERY Evidenceは未完了。",
   "platform_limit": null,
   "fallback": "現在のZBook Coordinator pathを保持する。",
-  "next_action": "M0 baselineを現在時刻で再取得し、旧endpoint依存を確認してからM1/M2を追加。shadow/canaryの実機PASS前に切替しない。",
+  "next_action": "distributed acceptance matrixにsecurity regression、stale owner rejection、Human Gate preservationを組み込む。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -11136,14 +11320,21 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "PHYSICAL",
     "RECOVERY"
   ],
-  "implementation_refs": [],
-  "test_refs": [],
+  "implementation_refs": [
+    "src/gai/distributed-coordinator.ts",
+    "src/gai/sync-engine.ts",
+    "docs/architecture/goriq-distributed-node-fabric.md"
+  ],
+  "test_refs": [
+    "tests/gai-distributed-coordinator.test.ts",
+    "tests/gai-sync-engine.test.ts"
+  ],
   "evidence_refs": [],
-  "status": "MISSING",
-  "blocker": "Expanded requirement reconciled from staged ledger; main runtime integration and required evidence remain to be verified. Component software exists in unmerged #884; actual execution-path integration and requirement-wide evidence remain incomplete.",
+  "status": "PARTIAL",
+  "blocker": "Coordinator single-writer lease/epoch/fencing and same-epoch split-brain detection are implemented, but registry/dispatch replay-window integration and required physical/recovery evidence remain incomplete.",
   "platform_limit": null,
   "fallback": "現在のZBook Coordinator pathを保持する。",
-  "next_action": "Review/reuse staged implementation with current main; wire and verify required execution path. Wire the component into the applicable authenticated execution path, add integration/security acceptance, then obtain all required evidence classes. See docs/audit/887-completion-integration.md.",
+  "next_action": "Bind Coordinator fencing to the authenticated dispatch/registry write path and verify no stale Coordinator can commit after physical-node ownership transfer.",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -11521,7 +11712,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 {
   "id": "CORE-009",
   "title": "Parallel / Adaptive / Multi-plan",
-  "description": "独立Task並列化、Fast/Deep、High Riskの独立検証。重要案件は複数Planの成功確率・品質・時間・費用・Riskを比較し実測Verifierで評価。",
+  "description": "独立Taskを複数trusted Nodeへ並列化し、Fast/Deep、High Riskの独立検証を行う。配置はcapabilityだけでなくCPU/GPU/RAM、負荷、data locality、network/power制約を考慮する。重要案件は複数Planの成功確率・品質・時間・費用・Riskを比較し実測Verifierで評価。",
   "phase": "P7",
   "required_evidence": [
     "CODE",
@@ -11529,7 +11720,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "INTEGRATION"
   ],
   "implementation_refs": [
-    "src/orchestrator/dynamic-multi-agent-runtime.ts"
+    "src/orchestrator/dynamic-multi-agent-runtime.ts",
+    "docs/architecture/goriq-distributed-node-fabric.md"
   ],
   "test_refs": [],
   "evidence_refs": [],
@@ -11742,8 +11934,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 ```json
 {
   "id": "CORE-014",
-  "title": "Software Development Autopilot",
-  "description": "Frontend/Backend/DB/API/Auth/Web/iOS/Android/Windows/macOS/AI/Infrastructure/Deployを要件発見→研究→設計→実装→統合→Unit/Integration/E2E/Security→必須Visual QA→Deploy→Production Verificationまで扱う。",
+  "title": "Software Development Autopilot + conversational 新規開発",
+  "description": "Frontend/Backend/DB/API/Auth/Web/iOS/Android/Windows/macOS/AI/Infrastructure/Deployを要件発見→研究→設計→実装→統合→Unit/Integration/E2E/Security→必須Visual QA→Deploy→Production Verificationまで扱う。新規開発はform-firstではなくconversation-firstの設計室とし、Goal/spec/architecture/technology/DoDを対話で提案・修正・確定する。確定済み内容と後続要求が矛盾する場合はsilent overwriteせず差分と必要判断を示す。開始前にGoal/spec/design/technology/DoDの最終summaryを1回確認し、承認後は既存Goal Controllerで自律実行する。技術選定は要件に基づき候補・tradeoff・推奨を説明し、採用stackを黙って変更しない。真正な新規ProjectではGitHub repositoryをprivate defaultで自動作成し、README/.gitignore/GORIQ Goal linkage等の最小bootstrapを行える。完了後のautomation levelは「開発完了で停止 / 配布成果物まで / 許可済み本番・運用まで」をProjectごとに選択し、本番cutover等の既存Human Gateを維持する。外部serviceはpurpose/data flow/read-write/cost/authorityを明示し、zero-additional-cost policyと既存secret/permission/billing gateを守る。",
   "phase": "P7",
   "required_evidence": [
     "CODE",
@@ -11761,10 +11953,10 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
   ],
   "evidence_refs": [],
   "status": "PARTIAL",
-  "blocker": "Expanded requirement reconciled from staged ledger; main runtime integration and required evidence remain to be verified. 関連する基盤は存在するが、この拡張要求の全範囲・統合・必要Evidenceを満たしていない。",
+  "blocker": "Existing software-autopilot components do not yet prove the owner-approved conversational design-room flow, final confirmation, stack-lock behavior, private-default repository provisioning and per-project completion automation modes end-to-end.",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "関連する既存基盤を再利用し、要求の各条件・DoDを細分化して不足実装と検証Evidenceを追加する。",
+  "next_action": "既存Autopilot/Unified Intake/Goal Controllerを再利用し、conversation-first 新規開発、stack提案/lock、private repo bootstrap、completion modeを実装・統合検証する。",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -11774,7 +11966,10 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
     "staged_implementation_refs": [],
     "audit_ref": "docs/evidence/1188-requirements-windows.md"
-  }
+  },
+  "source_decisions": [
+    "owner-2026-10-06-goriq-design-session"
+  ]
 }
 ```
 
@@ -11784,7 +11979,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 {
   "id": "CORE-015",
   "title": "Software Lifecycle",
-  "description": "Build→Operate→Monitor→Improve→Update→Repair。Product Spec/Architecture/Code/DB Schema/Tests/Deployment/Decisions/Change HistoryをLiving Specificationとして同期。",
+  "description": "Build→Operate→Monitor→Improve→Update→Repair。Product Spec/Architecture/Code/DB Schema/Tests/Deployment/Decisions/Change HistoryをLiving Specificationとして同期。 Ownerが採用した会話要求をIDEA/PROPOSEDと区別し、出典・採用状態・既存要件への意味対応・supersede履歴を保持してPRODUCT_SPEC/JSON mirrorへ同期する。採用済み要求の仕様未同期は完了扱いにしない。重大変更は既存Human Gateを維持する。",
   "phase": "P7",
   "required_evidence": [
     "CODE",
@@ -11792,17 +11987,47 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "INTEGRATION"
   ],
   "implementation_refs": [
-    "src/gai/production-autonomy-runtime.ts"
+    "src/gai/production-autonomy-runtime.ts",
+    "scripts/jarvis-requirement-audit.mjs",
+    "src/orchestrator/owner-requirement-intake.ts",
+    "src/orchestrator/owner-requirement-canonical.ts",
+    "scripts/jarvis-owner-spec-sync.mjs",
+    "scripts/jarvis-broker.ts",
+    "src/compass/store.ts",
+    "src/orchestrator/goal-loop.ts",
+    "scripts/jarvis-spec-publisher.mjs",
+    "src/orchestrator/requirements-proxy.ts",
+    "src/app/api/jarvis/requirements/route.ts",
+    "scripts/jarvis-additional-inventory.mjs",
+    "scripts/jarvis-requirement-workflow.mjs",
+    "src/orchestrator/owner-conversation.ts",
+    "src/app/jarvis/tasks/RequirementsPanel.tsx"
   ],
   "test_refs": [
-    "tests/gai-phase20-production-autonomy.test.ts"
+    "tests/gai-phase20-production-autonomy.test.ts",
+    "tests/jarvis-requirement-traceability.test.mjs",
+    "tests/owner-requirement-intake.test.ts",
+    "tests/owner-requirement-ingress.test.ts",
+    "tests/owner-requirement-gate.test.ts",
+    "tests/owner-specification-sync.test.mjs",
+    "tests/jarvis-spec-publisher.test.mjs",
+    "tests/requirements-proxy.test.ts",
+    "tests/owner-conversation.test.ts",
+    "tests/owner-requirement-additions.test.mjs",
+    "tests/owner-requirement-workflow.test.mjs",
+    "scripts/verify-owner-requirement-ui.mjs"
   ],
-  "evidence_refs": [],
+  "evidence_refs": [
+    "docs/evidence/1205-reverse-traceability.md",
+    "docs/evidence/1205-live-owner-intake.md",
+    "docs/evidence/1205-spec-publisher.md",
+    "docs/evidence/1205-owner-spec-completion.md"
+  ],
   "status": "PARTIAL",
   "blocker": "Expanded requirement reconciled from staged ledger; main runtime integration and required evidence remain to be verified. 関連する基盤は存在するが、この拡張要求の全範囲・統合・必要Evidenceを満たしていない。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "関連する既存基盤を再利用し、要求の各条件・DoDを細分化して不足実装と検証Evidenceを追加する。",
+  "next_action": "Mac manual-only hook gate approved/applied; complete exact-head CI/review and main CI. Production activation must preserve credentials and physical holds. Broader audit/semantic routes remain.",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -11812,6 +12037,18 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
     "staged_implementation_refs": [],
     "audit_ref": "docs/evidence/1188-requirements-windows.md"
+  },
+  "source_decisions": [
+    "owner-1205-living-specification"
+  ],
+  "candidate_audit": {
+    "issue": 1205,
+    "revision": "0b1c4a7fd9f52c2548a3e62261d6423c23c55e59",
+    "implementation": "ADDITIVE_IDS_SAVED_CONVERSATION_OWNER_UI",
+    "connection": "BROKER_HTTP_BROWSER_QA_AND_BOUNDED_PUBLISHER_FIXTURE",
+    "evidence_ref": "docs/evidence/1205-owner-spec-completion.md",
+    "production_activation": "MAC_HOOK_APPROVED_CANDIDATE_PENDING_CI_PRODUCTION_NOT_APPLIED",
+    "scope": "Requested software paths tested; arbitrary language/all-route audit and applicable physical acceptance not claimed."
   }
 }
 ```
@@ -13352,7 +13589,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 {
   "id": "GOV-021",
   "title": "123. Resource Governance",
-  "description": "Prevent unbounded agent loops and resource exhaustion.\r\n\r\nControl:\r\n- maximum task runtime\r\n- token/model budget where applicable\r\n- CPU/GPU/RAM\r\n- disk\r\n- network\r\n- child-agent count\r\n- retry count\r\n- parallelism\r\n- recursive planning depth\r\n\r\nBudget exhaustion must produce a resumable, explicit state rather than silent truncation.",
+  "description": "Prevent unbounded agent loops and resource exhaustion across the distributed node fabric.\n\nControl:\n- maximum task runtime\n- token/model budget where applicable\n- per-node and fleet CPU/GPU/RAM\n- disk and data locality\n- network\n- power/thermal constraints where available\n- child-agent count\n- retry count\n- parallelism\n- recursive planning depth\n- migration/rebalance budgets\n\nBudget exhaustion or node loss must produce a resumable, explicit state or safe fallback rather than silent truncation. Resource governance must not turn one node failure into a global stop when another authorized path remains.",
   "phase": "P8",
   "required_evidence": [
     "CODE",
@@ -13361,7 +13598,8 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "SECURITY"
   ],
   "implementation_refs": [
-    "src/gai/durable-task-runtime.ts"
+    "src/gai/durable-task-runtime.ts",
+    "docs/architecture/goriq-distributed-node-fabric.md"
   ],
   "test_refs": [],
   "evidence_refs": [],
@@ -13500,7 +13738,7 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
 {
   "id": "GOV-025",
   "title": "127. Requirement-to-Evidence Traceability",
-  "description": "Every production requirement must map to:\r\n- implementation\r\n- tests\r\n- required evidence class\r\n- observed evidence\r\n- limitations\r\n- last verified version/commit\r\n\r\nA requirement is not complete while the required evidence slot is empty.",
+  "description": "Every production requirement must map to:\r\n- implementation\r\n- tests\r\n- required evidence class\r\n- observed evidence\r\n- limitations\r\n- last verified version/commit\r\n\r\nA requirement is not complete while the required evidence slot is empty. Ownerが採用した会話要求をIDEA/PROPOSEDと区別し、出典・採用状態・既存要件への意味対応・supersede履歴を保持してPRODUCT_SPEC/JSON mirrorへ同期する。採用済み要求の仕様未同期は完了扱いにしない。重大変更は既存Human Gateを維持する。",
   "phase": "P8",
   "required_evidence": [
     "CODE",
@@ -13509,15 +13747,46 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "SECURITY"
   ],
   "implementation_refs": [
-    "scripts/validate-jarvis-requirements.mjs"
+    "scripts/validate-jarvis-requirements.mjs",
+    "scripts/jarvis-requirement-audit.mjs",
+    "src/orchestrator/owner-requirement-intake.ts",
+    "src/orchestrator/owner-requirement-canonical.ts",
+    "scripts/jarvis-owner-spec-sync.mjs",
+    "scripts/jarvis-broker.ts",
+    "src/compass/store.ts",
+    "src/orchestrator/goal-loop.ts",
+    "scripts/jarvis-spec-publisher.mjs",
+    "src/orchestrator/requirements-proxy.ts",
+    "src/app/api/jarvis/requirements/route.ts",
+    "scripts/jarvis-additional-inventory.mjs",
+    "scripts/jarvis-requirement-workflow.mjs",
+    "src/orchestrator/owner-conversation.ts",
+    "src/app/jarvis/tasks/RequirementsPanel.tsx"
   ],
-  "test_refs": [],
-  "evidence_refs": [],
+  "test_refs": [
+    "tests/jarvis-requirement-traceability.test.mjs",
+    "tests/owner-requirement-intake.test.ts",
+    "tests/owner-requirement-ingress.test.ts",
+    "tests/owner-requirement-gate.test.ts",
+    "tests/owner-specification-sync.test.mjs",
+    "tests/jarvis-spec-publisher.test.mjs",
+    "tests/requirements-proxy.test.ts",
+    "tests/owner-conversation.test.ts",
+    "tests/owner-requirement-additions.test.mjs",
+    "tests/owner-requirement-workflow.test.mjs",
+    "scripts/verify-owner-requirement-ui.mjs"
+  ],
+  "evidence_refs": [
+    "docs/evidence/1205-reverse-traceability.md",
+    "docs/evidence/1205-live-owner-intake.md",
+    "docs/evidence/1205-spec-publisher.md",
+    "docs/evidence/1205-owner-spec-completion.md"
+  ],
   "status": "PARTIAL",
   "blocker": "Expanded requirement reconciled from staged ledger; main runtime integration and required evidence remain to be verified. 関連基盤のみ存在。この拡張要求の全条件を強制する統合機能とEvidenceは未完成。関連ファイルは要件全体の実装済みを意味しない。",
   "platform_limit": null,
   "fallback": null,
-  "next_action": "関連する既存基盤を再利用し、要求の各条件・DoDを細分化して不足実装と検証Evidenceを追加する。",
+  "next_action": "Mac manual-only hook gate approved/applied; complete exact-head CI/review and main CI. Production activation must preserve credentials and physical holds. Broader audit/semantic routes remain.",
   "last_verified_commit": null,
   "delivery_audit": {
     "main_revision": "278d17c28528476f12bc6f9b8d5221ea340686b9",
@@ -13527,6 +13796,18 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "staged_revision": "6af365ceb1b52b9111f98760da8d352449632871",
     "staged_implementation_refs": [],
     "audit_ref": "docs/evidence/1188-requirements-windows.md"
+  },
+  "source_decisions": [
+    "owner-1205-living-specification"
+  ],
+  "candidate_audit": {
+    "issue": 1205,
+    "revision": "0b1c4a7fd9f52c2548a3e62261d6423c23c55e59",
+    "implementation": "ADDITIVE_IDS_SAVED_CONVERSATION_OWNER_UI",
+    "connection": "BROKER_HTTP_BROWSER_QA_AND_BOUNDED_PUBLISHER_FIXTURE",
+    "evidence_ref": "docs/evidence/1205-owner-spec-completion.md",
+    "production_activation": "MAC_HOOK_APPROVED_CANDIDATE_PENDING_CI_PRODUCTION_NOT_APPLIED",
+    "scope": "Requested software paths tested; arbitrary language/all-route audit and applicable physical acceptance not claimed."
   }
 }
 ```
@@ -13802,5 +14083,109 @@ All 244 main IDs are retained; 96 CORE/GOV/MIG/DEV-AX IDs from #783/#784 and the
     "staged_implementation_refs": [],
     "audit_ref": "docs/evidence/1188-requirements-windows.md"
   }
+}
+```
+
+
+## GORIQ (formerly JARVIS) Cognitive Core / Primary Brain
+
+Owner instruction 2026-09-23, Issue #1216. Full normative integration contract: [Cognitive Core architecture](architecture/goriq-cognitive-core.md). The local Primary Brain proposes reasoning and plans; existing Goal/Gate/State authority remains unchanged. External AI is optional expertise, not a runtime dependency. No new paid-provider, credential or permission path is authorized. Existing R8/R14/R16/R17 research evidence is reused only within its original scope. See [delivery stages](goriq-cognitive-status.json) for SPECIFIED/IMPLEMENTED/TESTED/INTEGRATED/VERIFIED/EXPERIMENTAL distinctions. These stages do not replace canonical evidence statuses.
+
+### OWN-001
+
+```json
+{
+  "id": "OWN-001",
+  "title": "GORIQ Cognitive Core / Local Primary Brain",
+  "description": "Integrate the existing GAI execution, memory, world model, research and governed learning assets into one durable local-first cognition loop. Owner scope includes PrimaryBrainAdapter, unknown-task experiments, failure/correction/strategy recall, skill synthesis, historical import, optional verified expert learning, privacy-separated users, local training candidate pipeline, independence benchmarks, sandboxed improvement and offline recovery. Full contract: docs/architecture/goriq-cognitive-core.md; delivery stages: docs/goriq-cognitive-status.json. External AI availability is not a local-work stop condition.",
+  "phase": "P7",
+  "required_evidence": [
+    "CODE",
+    "UNIT",
+    "INTEGRATION",
+    "SECURITY",
+    "PHYSICAL",
+    "RECOVERY"
+  ],
+  "implementation_refs": [
+    "src/gai/cognitive-core.ts",
+    "src/gai/primary-brain.ts",
+    "src/gai/cognitive-state.ts",
+    "src/gai/cognitive-learning.ts",
+    "src/gai/cognitive-learning-data.ts",
+    "src/gai/cognitive-local-work.ts",
+    "src/gai/cognitive-service.ts",
+    "src/orchestrator/compass-goal-execution-adapter.ts",
+    "src/app/api/jarvis/cognitive/route.ts",
+    "src/gai/cognitive-local-outcomes.ts",
+    "src/gai/cognitive-host-config.ts",
+    "src/gai/cognitive-material-intake.ts",
+    "src/gai/cognitive-history.ts",
+    "src/app/jarvis/tasks/CognitivePanel.tsx",
+    "src/app/jarvis/tasks/CognitiveMaterials.tsx",
+    "src/app/jarvis/tasks/CognitiveLearning.tsx",
+    "src/orchestrator/cognitive-material-proxy.ts",
+    "src/app/api/jarvis/cognitive/materials/route.ts",
+    "src/app/api/jarvis/cognitive/learning/route.ts",
+    "src/orchestrator/cognitive-goal-input.ts",
+    "src/orchestrator/cognitive-goal-refinement.ts",
+    "src/compass/store.ts",
+    "src/app/api/jarvis/cognitive/goal/route.ts",
+    "src/app/jarvis/tasks/CognitiveGoalCriteria.tsx",
+    "src/app/api/jarvis/cognitive/goal/proposal/route.ts",
+    "src/gai/cognitive-operation.ts",
+    "src/gai/cognitive-research.ts",
+    "src/gai/research-loop.ts",
+    "src/gai/world-model-calibration.ts"
+  ],
+  "test_refs": [
+    "tests/goriq-cognitive-core.test.ts",
+    "tests/goriq-cognitive-runtime.test.ts",
+    "tests/goriq-cognitive-acceptance.test.ts",
+    "tests/cognitive-learning.test.ts",
+    "tests/cognitive-learning-data.test.ts",
+    "tests/goriq-cognitive-proxy.test.ts",
+    "tests/goriq-cognitive-outcomes.test.ts",
+    "tests/goriq-cognitive-outcome-runtime.test.ts",
+    "tests/goriq-cognitive-config.test.ts",
+    "tests/goriq-cognitive-broker.test.ts",
+    "tests/goriq-cognitive-recovery.test.ts",
+    "tests/cognitive-history.test.ts",
+    "tests/goriq-cognitive-history-service.test.ts",
+    "tests/goriq-cognitive-correction-boundary.test.ts",
+    "tests/goriq-cognitive-material-proxy.test.ts",
+    "tests/goriq-material-intake.test.ts",
+    "tests/goriq-material-review.test.ts",
+    "tests/goriq-cognitive-legacy-ui.test.mjs",
+    "scripts/goriq-cognitive-browser-smoke.mjs",
+    "tests/cognitive-goal-refinement.test.ts",
+    "tests/cognitive-goal-store.test.ts",
+    "tests/goriq-cognitive-goal-service.test.ts",
+    "tests/goriq-cognitive-goal-review.test.ts",
+    "tests/goriq-goal-proposal-brain.test.ts",
+    "tests/goriq-goal-proposal-service.test.ts",
+    "tests/goriq-goal-proposal-review.test.ts",
+    "scripts/goriq-local-goal-proposal-smoke.ts",
+    "tests/cognitive-operation-learning.test.ts",
+    "tests/goriq-operation-runtime.test.ts",
+    "tests/goriq-operation-review.test.ts",
+    "tests/goriq-research-calibration.test.ts",
+    "tests/goriq-research-boundary.test.ts",
+    "tests/goriq-research-review.test.ts"
+  ],
+  "evidence_refs": [
+    "docs/evidence/1216-cognitive-core.md",
+    "docs/audit/goriq-cognitive-brain-audit.md",
+    "docs/audit/goriq-cognitive-learning-audit.md"
+  ],
+  "status": "PARTIAL",
+  "blocker": "Local Goal/material execution, inert cross-Goal operation candidates and bounded evidence-bound R16 prediction calibration are integrated. Real measured skill gain, general semantic fidelity/novel executable skills, historical revalidation, teaching integration, R16 tool experiments/R17 promotion, model training and physical/cross-device acceptance remain. Synthetic calibration comparisons are not real task-success evidence; ordinary runtime lacks independent heldout trials.",
+  "platform_limit": null,
+  "fallback": null,
+  "next_action": "Verify exact-commit research boundary/calibration CI. Preserve frozen train/heldout separation and zero comparison when evidence is absent; then implement authoritative independent evaluation collection and bounded skill/research execution with actual oracles, while completing semantic/teaching/history/model integration without weakening gates.",
+  "last_verified_commit": null,
+  "source_decisions": [
+    "owner-intake-cc6f2a30e8336d322129e2972d1e8f90"
+  ]
 }
 ```

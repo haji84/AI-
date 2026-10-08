@@ -1,0 +1,192 @@
+name: GORIQ Stage B Two Node Failover
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/goriq-stage-b-two-node-failover.yml'
+      - 'scripts/goriq-two-node-failover-e2e.ts'
+      - 'tests/goriq-two-node-failover-e2e.test.ts'
+      - 'src/gai/durable-task-runtime.ts'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: goriq-stage-b-two-node-failover
+  cancel-in-progress: false
+
+jobs:
+  mac-origin:
+    name: MacBook origin handoff
+    runs-on: [self-hosted, macOS, ARM64]
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Prepare MacBook-owned migratable and restartable tasks
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .goriq-stage-b/mac-to-zbook
+          node scripts/goriq-two-node-failover-e2e.ts \
+            --phase prepare \
+            --dir .goriq-stage-b/mac-to-zbook \
+            --origin macbook \
+            --target zbook \
+            --sha "$GITHUB_SHA" \
+            --lease-ms 3000
+
+      - name: Upload MacBook handoff state
+        uses: actions/upload-artifact@v4
+        with:
+          name: goriq-stage-b-mac-to-zbook-handoff
+          path: .goriq-stage-b/mac-to-zbook/
+          include-hidden-files: true
+          retention-days: 7
+          if-no-files-found: error
+
+  zbook-resume:
+    name: ZBook resumes MacBook work
+    needs: mac-origin
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: goriq-stage-b-mac-to-zbook-handoff
+          path: .goriq-stage-b/mac-to-zbook
+
+      - name: Reclaim and complete MacBook tasks on ZBook
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path .goriq-stage-b\evidence | Out-Null
+          node scripts/goriq-two-node-failover-e2e.ts `
+            --phase resume `
+            --dir .goriq-stage-b/mac-to-zbook `
+            --node zbook `
+            --sha "$env:GITHUB_SHA" `
+            --evidence .goriq-stage-b/evidence/mac-to-zbook-evidence.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Upload MacBook to ZBook evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: goriq-stage-b-mac-to-zbook-evidence
+          path: .goriq-stage-b/evidence/mac-to-zbook-evidence.json
+          retention-days: 30
+          if-no-files-found: error
+
+  zbook-origin:
+    name: ZBook origin handoff
+    needs: zbook-resume
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Prepare ZBook-owned migratable and restartable tasks
+        shell: powershell
+        run: |
+          Remove-Item -Recurse -Force .goriq-stage-b\zbook-to-macbook -ErrorAction SilentlyContinue
+          node scripts/goriq-two-node-failover-e2e.ts `
+            --phase prepare `
+            --dir .goriq-stage-b/zbook-to-macbook `
+            --origin zbook `
+            --target macbook `
+            --sha "$env:GITHUB_SHA" `
+            --lease-ms 3000
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Upload ZBook handoff state
+        uses: actions/upload-artifact@v4
+        with:
+          name: goriq-stage-b-zbook-to-macbook-handoff
+          path: .goriq-stage-b/zbook-to-macbook/
+          include-hidden-files: true
+          retention-days: 7
+          if-no-files-found: error
+
+  mac-resume:
+    name: MacBook resumes ZBook work
+    needs: zbook-origin
+    runs-on: [self-hosted, macOS, ARM64]
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: goriq-stage-b-zbook-to-macbook-handoff
+          path: .goriq-stage-b/zbook-to-macbook
+
+      - name: Reclaim and complete ZBook tasks on MacBook
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .goriq-stage-b/evidence
+          node scripts/goriq-two-node-failover-e2e.ts \
+            --phase resume \
+            --dir .goriq-stage-b/zbook-to-macbook \
+            --node macbook \
+            --sha "$GITHUB_SHA" \
+            --evidence .goriq-stage-b/evidence/zbook-to-macbook-evidence.json
+
+      - name: Upload ZBook to MacBook evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: goriq-stage-b-zbook-to-macbook-evidence
+          path: .goriq-stage-b/evidence/zbook-to-macbook-evidence.json
+          retention-days: 30
+          if-no-files-found: error
+
+  verify:
+    name: Verify two-node failover evidence
+    needs: mac-resume
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: goriq-stage-b-mac-to-zbook-evidence
+          path: .goriq-stage-b/mac-to-zbook-evidence
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: goriq-stage-b-zbook-to-macbook-evidence
+          path: .goriq-stage-b/zbook-to-macbook-evidence
+
+      - name: Verify exact-SHA bidirectional physical-node evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .goriq-stage-b/final
+          node scripts/goriq-two-node-failover-e2e.ts \
+            --phase verify \
+            --evidence-a .goriq-stage-b/mac-to-zbook-evidence/mac-to-zbook-evidence.json \
+            --evidence-b .goriq-stage-b/zbook-to-macbook-evidence/zbook-to-macbook-evidence.json \
+            --sha "$GITHUB_SHA" \
+            --output .goriq-stage-b/final/two-node-failover-evidence.json
+
+      - name: Upload combined Stage B evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: goriq-stage-b-two-node-failover-evidence
+          path: .goriq-stage-b/final/two-node-failover-evidence.json
+          retention-days: 30
+          if-no-files-found: error

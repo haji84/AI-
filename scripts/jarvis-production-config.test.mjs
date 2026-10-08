@@ -20,6 +20,7 @@ test('production pins local management and supervises only explicitly enabled Wo
   assert.equal(env.JARVIS_BROKER_HOST,'127.0.0.1');
   assert.equal(env.JARVIS_REMOTE_GATEWAY_HOST,'127.0.0.1');
   assert.equal(env.JARVIS_ENROLLMENT_PORTAL_ENABLED,'0');
+  assert.equal(env.GORIQ_RUNTIME_REVISION,'a'.repeat(40));
   assert.equal(serviceSpecs(process.cwd()).some(s=>s.name==='private-worker-ingress'),false);
   const spec=serviceSpecs(process.cwd(),process.execPath,'3000',{enablePrivateWorkerIngress:true}).find(s=>s.name==='private-worker-ingress');
   assert.match(spec.args[0],/jarvis-private-worker-ingress\.ts$/);

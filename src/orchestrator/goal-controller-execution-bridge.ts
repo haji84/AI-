@@ -57,6 +57,9 @@ export class GoalControllerExecutionBridge {
       if (report.stopReason === "blocked" || report.stopReason === "retry_exhausted") {
         return { decision, executed: true, report, reports, reason: report.stopReason };
       }
+      if (report.goalEvaluation?.remainingGaps.some((gap) => gap === "publication_connectivity_unavailable" || gap.startsWith("publication_wait:"))) {
+        return { decision, executed: true, report, reports, reason: "publication_wait" };
+      }
     }
     return {
       decision,

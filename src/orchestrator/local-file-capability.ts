@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
-import { lstat, mkdir, readFile, realpath, rename, rm, stat, writeFile } from "node:fs/promises";
-import { relative, resolve, sep } from "node:path";
+import { lstat, mkdir, readFile, realpath, link, rm, stat, writeFile } from "node:fs/promises";
+import { isAbsolute, relative, resolve, sep } from "node:path";
 import type { WorkAction, WorkCapability, WorkResult } from "./work-capability.ts";
 
 interface SecureWriteTarget {
@@ -52,14 +52,14 @@ export class LocalFileCapability implements WorkCapability {
     if (typeof value !== "string" || !value.trim()) throw new Error("path required");
     const target = resolve(this.root, value);
     const rel = relative(this.root, target);
-    if (rel === ".." || rel.startsWith(`..${sep}`)) throw new Error("path escapes allowed root");
+    if (isAbsolute(rel) || rel === ".." || rel.startsWith(`..${sep}`)) throw new Error("path escapes allowed root");
     if (!rel) throw new Error("file path required");
     return rel;
   }
 
   private assertContained(root: string, candidate: string): void {
     const rel = relative(root, candidate);
-    if (rel === ".." || rel.startsWith(`..${sep}`)) throw new Error("resolved file escapes allowed root");
+    if (isAbsolute(rel) || rel === ".." || rel.startsWith(`..${sep}`)) throw new Error("resolved file escapes allowed root");
   }
 
   private async secureReadPath(value: unknown): Promise<string> {
@@ -130,7 +130,15 @@ export class LocalFileCapability implements WorkCapability {
     const temp = resolve(target + `.jarvis-${process.pid}-${randomUUID()}.tmp`);
     try {
       await writeFile(temp, bytes, { flag: "wx" });
-      await rename(temp, target);
+      try { await link(temp, target); }
+      catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+        // An intervening writer must never be replaced, even on POSIX rename semantics.
+        const checked = await this.secureWritePath(path);
+        const currentBytes = await readFile(checked.target);
+        const currentSha256 = sha256(currentBytes);
+        return { target, sha256: requestedSha256, status: currentBytes.equals(bytes) ? "idempotent" : "blocked", currentSha256 };
+      }
     } finally {
       await rm(temp, { force: true }).catch(() => undefined);
     }

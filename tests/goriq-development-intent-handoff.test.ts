@@ -1,0 +1,4 @@
+import assert from"node:assert/strict";import{readFile}from"node:fs/promises";import test from"node:test";import{URL}from"node:url";
+const r=(p:string)=>readFile(new URL(`../${p}`,import.meta.url),"utf8");
+test("Broker preserves development intent and original Owner text into Goal executor context",async()=>{const s=await r("scripts/jarvis-broker.ts");assert.match(s,/trusted-device-development-intake", text: request\.text, intent: decision\.resolution\.intent/);assert.match(s,/owner-work-intake", text, intent: decision\.resolution\.intent/);});
+test("Goal executor activates development runtime from declared DEVELOPMENT_TASK without keyword guessing",async()=>{const s=await r("scripts/jarvis-goal-executor.ts");assert.match(s,/declaredDevelopment/);assert.match(s,/intent === "DEVELOPMENT_TASK"/);assert.match(s,/!explicitDevelopment && !declaredDevelopment && !inferredDevelopment/);});

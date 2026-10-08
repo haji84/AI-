@@ -1,0 +1,683 @@
+name: GORIQ JARVIS Production Sync
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-code:
+    if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main'
+    concurrency:
+      group: jarvis-vercel-code-deploy
+      cancel-in-progress: true
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_TEAM_ID: team_YGrZkBR7MyYxkq3K9XkTBhqu
+      VERCEL_PROJECT_NAME: jarvis
+      JARVIS_PRODUCTION_URL: https://jarvis-fawn-iota.vercel.app
+      SYNC_COMMIT_SHA: ${{ github.event.workflow_run.head_sha }}
+    steps:
+      - name: Authorize exact production mutation
+        id: authorization
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const { appendFile } = await import('node:fs/promises');
+          const env = process.env;
+          const repository = env.GITHUB_REPOSITORY;
+          const sha = env.SYNC_COMMIT_SHA;
+          const output = env.GITHUB_OUTPUT;
+          async function deny(reason) {
+            if (output) {
+              await appendFile(output, 'authorized=false\n');
+            }
+            if (env.GITHUB_STEP_SUMMARY) {
+              await appendFile(env.GITHUB_STEP_SUMMARY, `Production authorization denied: ${reason}. No production mutation authorized.\n`);
+            }
+            throw new Error(`PRODUCTION_AUTHORIZATION_${reason}`);
+          }
+          if (repository !== 'haji84/AI-' || env.GITHUB_REPOSITORY_OWNER !== 'haji84' ||
+              env.GITHUB_REF !== 'refs/heads/main' || !/^[a-f0-9]{40}$/.test(sha ?? '') || !output ||
+              !['push', 'schedule', 'workflow_dispatch', 'workflow_run'].includes(env.GITHUB_EVENT_NAME)) {
+            await deny('CONTEXT');
+          }
+          async function get(path) {
+            try {
+              // Existing public metadata capability; no token or permission expansion.
+              const response = await fetch(`https://api.github.com/repos/${repository}/${path}`, {
+                headers: { Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' },
+                signal: AbortSignal.timeout(15000), redirect: 'error',
+              });
+              if (!response.ok) throw new Error('unavailable');
+              return await response.json();
+            } catch { return deny('METADATA_UNAVAILABLE'); }
+          }
+          if ((await get('git/ref/heads/main'))?.object?.sha !== sha) await deny('STALE_MAIN');
+          const runs = await get(`actions/workflows/ci.yml/runs?event=push&branch=main&head_sha=${sha}&per_page=100`);
+          const ci = Array.isArray(runs?.workflow_runs) ? runs.workflow_runs[0] : null;
+          if (!ci || ci.name !== 'CI' || ci.path !== '.github/workflows/ci.yml' || ci.event !== 'push' ||
+              ci.head_branch !== 'main' || ci.head_sha !== sha || ci.status !== 'completed' || ci.conclusion !== 'success') {
+            await deny('EXACT_MAIN_CI_REQUIRED');
+          }
+          const pulls = await get(`commits/${sha}/pulls`);
+          const pr = Array.isArray(pulls) ? pulls.find(candidate => candidate?.merged_at &&
+            candidate?.base?.ref === 'main' && candidate?.base?.repo?.full_name === repository && candidate?.merge_commit_sha === sha) : null;
+          if (!pr) await deny('MERGED_PR_REQUIRED');
+          const body = typeof pr.body === 'string' ? pr.body : '';
+          const scopeMatch = body.match(/<!--\s*ai-company-task-scope:\s*issue:(\d+)\s*-->/i);
+          const approved = /<!--\s*ai-company-production-deploy:\s*approved\s*-->/i.test(body);
+          const expiryMatch = body.match(/<!--\s*ai-company-task-authorization-expires-at:\s*([^>]+?)\s*-->/i);
+          if (!scopeMatch || !approved || !expiryMatch) await deny('TASK_SCOPE_REQUIRED');
+          const issueNumber = Number(scopeMatch[1]);
+          const expiresAt = Date.parse(expiryMatch[1].trim());
+          if (!Number.isSafeInteger(issueNumber) || issueNumber < 1 || !Number.isFinite(expiresAt) || expiresAt <= Date.now()) await deny('EXPIRED_OR_INVALID');
+          const issue = await get(`issues/${issueNumber}`);
+          const issueBody = typeof issue?.body === 'string' ? issue.body : '';
+          const ownerCommandMatch = issueBody.match(/## Owner command\s*\n([\s\S]*?)(?:\n\n##|\n## Execution contract|$)/i);
+          const ownerCommand = ownerCommandMatch?.[1]?.trim() || '';
+          // Keep the existing Scoped Production Deploy completion contract unchanged.
+          const completionInstruction = /(最後まで.{0,12}(進め|やって|任せ)|完了まで.{0,12}(進め|やって|任せ)|完成.{0,12}(させ|まで|して|させて)|全部.{0,12}(進め|やって|任せ)|任せる|finish\s+(it|this|the\s+task)|take\s+it\s+to\s+completion|handle.{0,20}(through|to)\s+(the\s+)?end)/iu.test(ownerCommand);
+          const persistedApproval = /production-deploy-authorized:\s*true/i.test(issueBody);
+          if (issue?.number !== issueNumber || issue?.pull_request || issue?.user?.login !== env.GITHUB_REPOSITORY_OWNER || !persistedApproval || !completionInstruction) await deny('OWNER_COMPLETION_REQUIRED');
+          // Recheck after metadata lookup; never grant an expired or superseded source.
+          if ((await get('git/ref/heads/main'))?.object?.sha !== sha) await deny('STALE_MAIN');
+          if (expiresAt <= Date.now()) await deny('EXPIRED_OR_INVALID');
+          // Reserve the entire 20-minute job lifetime, including subprocess setup.
+          if (expiresAt - Date.now() < 21 * 60 * 1000) await deny('INSUFFICIENT_AUTHORIZATION_WINDOW');
+          await appendFile(output, `authorized=true\nissue_number=${issueNumber}\ndeploy_sha=${sha}\nexpires_at=${new Date(expiresAt).toISOString()}\n`);
+          if (env.GITHUB_STEP_SUMMARY) {
+            await appendFile(env.GITHUB_STEP_SUMMARY, `Production authorization PASS: issue #${issueNumber}, exact main ${sha}.\n`);
+          }
+          console.log('Exact main CI and task-scoped completion authorization verified.');
+          NODE
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SYNC_COMMIT_SHA }}
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.19.0
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+
+      - name: Bind exact JARVIS Vercel project
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${VERCEL_TOKEN:?missing VERCEL_TOKEN}"
+          node <<'NODE'
+          const fs = await import("node:fs/promises");
+          const token = process.env.VERCEL_TOKEN;
+          const teamId = process.env.VERCEL_TEAM_ID;
+          const projectName = process.env.VERCEL_PROJECT_NAME;
+          const response = await fetch(
+            `https://api.vercel.com/v9/projects/${encodeURIComponent(projectName)}?teamId=${encodeURIComponent(teamId)}`,
+            { headers: { Authorization: `Bearer ${token}` } },
+          );
+          const body = await response.json().catch(() => null);
+          if (!response.ok || !body?.id || !body?.accountId) {
+            throw new Error(`Unable to resolve JARVIS Vercel project (HTTP ${response.status})`);
+          }
+          await fs.mkdir(".vercel", { recursive: true });
+          await fs.writeFile(
+            ".vercel/project.json",
+            JSON.stringify({ projectId: body.id, orgId: body.accountId }) + "\n",
+            { mode: 0o600 },
+          );
+          console.log("Bound hosted deploy to JARVIS Vercel project.");
+          NODE
+
+      - name: Deploy exact verified main commit to JARVIS Production
+        id: deploy
+        env:
+          PRODUCTION_AUTHORIZATION_EXPIRES_AT: ${{ steps.authorization.outputs.expires_at }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          output="$RUNNER_TEMP/jarvis-hosted-deploy.txt"
+          node scripts/goriq-production-authorization-expiry.mjs || exit 1
+          set +e
+          pnpm dlx vercel@latest deploy --prod --yes --token="$VERCEL_TOKEN" >"$output" 2>&1
+          status=$?
+          set -e
+          cat "$output"
+          if (( status != 0 )); then
+            if grep -q 'api-deployments-free-per-day' "$output"; then
+              echo "Vercel deployment quota blocked hosted JARVIS code deploy." >&2
+            fi
+            exit "$status"
+          fi
+          url="$(grep -Eo 'https://[^[:space:]]+\.vercel\.app' "$output" | tail -n 1)"
+          test -n "$url"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
+      - name: Verify JARVIS Production code endpoint responds
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location --retry 3 --retry-delay 2 "$JARVIS_PRODUCTION_URL" >/dev/null
+          echo "JARVIS Production code deploy responded successfully."
+
+  sync:
+    if: github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
+    concurrency:
+      group: jarvis-vercel-runtime-sync
+      cancel-in-progress: true
+    runs-on: [self-hosted, macOS, ARM64]
+    timeout-minutes: 20
+    environment: production
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_TEAM_ID: team_YGrZkBR7MyYxkq3K9XkTBhqu
+      VERCEL_PROJECT_NAME: jarvis
+      JARVIS_PRODUCTION_URL: https://jarvis-fawn-iota.vercel.app
+      SYNC_COMMIT_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+    steps:
+      - name: Authorize exact production mutation
+        id: authorization
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const { appendFile } = await import('node:fs/promises');
+          const env = process.env;
+          const repository = env.GITHUB_REPOSITORY;
+          const sha = env.SYNC_COMMIT_SHA;
+          const output = env.GITHUB_OUTPUT;
+          async function deny(reason) {
+            if (output) {
+              await appendFile(output, 'authorized=false\n');
+            }
+            if (env.GITHUB_STEP_SUMMARY) {
+              await appendFile(env.GITHUB_STEP_SUMMARY, `Production authorization denied: ${reason}. No production mutation authorized.\n`);
+            }
+            throw new Error(`PRODUCTION_AUTHORIZATION_${reason}`);
+          }
+          if (repository !== 'haji84/AI-' || env.GITHUB_REPOSITORY_OWNER !== 'haji84' ||
+              env.GITHUB_REF !== 'refs/heads/main' || !/^[a-f0-9]{40}$/.test(sha ?? '') || !output ||
+              !['push', 'schedule', 'workflow_dispatch', 'workflow_run'].includes(env.GITHUB_EVENT_NAME)) {
+            await deny('CONTEXT');
+          }
+          async function get(path) {
+            try {
+              // Existing public metadata capability; no token or permission expansion.
+              const response = await fetch(`https://api.github.com/repos/${repository}/${path}`, {
+                headers: { Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' },
+                signal: AbortSignal.timeout(15000), redirect: 'error',
+              });
+              if (!response.ok) throw new Error('unavailable');
+              return await response.json();
+            } catch { return deny('METADATA_UNAVAILABLE'); }
+          }
+          if ((await get('git/ref/heads/main'))?.object?.sha !== sha) await deny('STALE_MAIN');
+          const runs = await get(`actions/workflows/ci.yml/runs?event=push&branch=main&head_sha=${sha}&per_page=100`);
+          const ci = Array.isArray(runs?.workflow_runs) ? runs.workflow_runs[0] : null;
+          if (!ci || ci.name !== 'CI' || ci.path !== '.github/workflows/ci.yml' || ci.event !== 'push' ||
+              ci.head_branch !== 'main' || ci.head_sha !== sha || ci.status !== 'completed' || ci.conclusion !== 'success') {
+            await deny('EXACT_MAIN_CI_REQUIRED');
+          }
+          const pulls = await get(`commits/${sha}/pulls`);
+          const pr = Array.isArray(pulls) ? pulls.find(candidate => candidate?.merged_at &&
+            candidate?.base?.ref === 'main' && candidate?.base?.repo?.full_name === repository && candidate?.merge_commit_sha === sha) : null;
+          if (!pr) await deny('MERGED_PR_REQUIRED');
+          const body = typeof pr.body === 'string' ? pr.body : '';
+          const scopeMatch = body.match(/<!--\s*ai-company-task-scope:\s*issue:(\d+)\s*-->/i);
+          const approved = /<!--\s*ai-company-production-deploy:\s*approved\s*-->/i.test(body);
+          const expiryMatch = body.match(/<!--\s*ai-company-task-authorization-expires-at:\s*([^>]+?)\s*-->/i);
+          if (!scopeMatch || !approved || !expiryMatch) await deny('TASK_SCOPE_REQUIRED');
+          const issueNumber = Number(scopeMatch[1]);
+          const expiresAt = Date.parse(expiryMatch[1].trim());
+          if (!Number.isSafeInteger(issueNumber) || issueNumber < 1 || !Number.isFinite(expiresAt) || expiresAt <= Date.now()) await deny('EXPIRED_OR_INVALID');
+          const issue = await get(`issues/${issueNumber}`);
+          const issueBody = typeof issue?.body === 'string' ? issue.body : '';
+          const ownerCommandMatch = issueBody.match(/## Owner command\s*\n([\s\S]*?)(?:\n\n##|\n## Execution contract|$)/i);
+          const ownerCommand = ownerCommandMatch?.[1]?.trim() || '';
+          // Keep the existing Scoped Production Deploy completion contract unchanged.
+          const completionInstruction = /(最後まで.{0,12}(進め|やって|任せ)|完了まで.{0,12}(進め|やって|任せ)|完成.{0,12}(させ|まで|して|させて)|全部.{0,12}(進め|やって|任せ)|任せる|finish\s+(it|this|the\s+task)|take\s+it\s+to\s+completion|handle.{0,20}(through|to)\s+(the\s+)?end)/iu.test(ownerCommand);
+          const persistedApproval = /production-deploy-authorized:\s*true/i.test(issueBody);
+          if (issue?.number !== issueNumber || issue?.pull_request || issue?.user?.login !== env.GITHUB_REPOSITORY_OWNER || !persistedApproval || !completionInstruction) await deny('OWNER_COMPLETION_REQUIRED');
+          // Recheck after metadata lookup; never grant an expired or superseded source.
+          if ((await get('git/ref/heads/main'))?.object?.sha !== sha) await deny('STALE_MAIN');
+          if (expiresAt <= Date.now()) await deny('EXPIRED_OR_INVALID');
+          // Reserve the entire 20-minute job lifetime, including subprocess setup.
+          if (expiresAt - Date.now() < 21 * 60 * 1000) await deny('INSUFFICIENT_AUTHORIZATION_WINDOW');
+          await appendFile(output, `authorized=true\nissue_number=${issueNumber}\ndeploy_sha=${sha}\nexpires_at=${new Date(expiresAt).toISOString()}\n`);
+          if (env.GITHUB_STEP_SUMMARY) {
+            await appendFile(env.GITHUB_STEP_SUMMARY, `Production authorization PASS: issue #${issueNumber}, exact main ${sha}.\n`);
+          }
+          console.log('Exact main CI and task-scoped completion authorization verified.');
+          NODE
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SYNC_COMMIT_SHA }}
+
+      - name: Update local JARVIS Broker to exact verified main
+        if: github.event_name == 'push' || github.event_name == 'workflow_run'
+        env:
+          PRODUCTION_AUTHORIZATION_EXPIRES_AT: ${{ steps.authorization.outputs.expires_at }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ACTUAL_SHA="$(git rev-parse HEAD)"
+          if [[ "$SYNC_COMMIT_SHA" != "$ACTUAL_SHA" ]]; then
+            echo "RUNTIME_PREFLIGHT sha_mismatch expected=$SYNC_COMMIT_SHA actual=$ACTUAL_SHA" >&2
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "$SYNC_COMMIT_SHA" origin/main 2>/dev/null; then
+            echo "RUNTIME_PREFLIGHT refreshing_origin_main"
+            git fetch --no-tags origin main
+            git merge-base --is-ancestor "$SYNC_COMMIT_SHA" origin/main || { echo "RUNTIME_PREFLIGHT verified_sha_not_on_main" >&2; exit 1; }
+          fi
+          STATE_ROOT="$HOME/Library/Application Support/JARVIS"
+          node scripts/goriq-production-authorization-expiry.mjs || exit 1
+          mkdir -p "$STATE_ROOT"
+          printf '%s\n' "$SYNC_COMMIT_SHA" > "$STATE_ROOT/runtime-target-main-sha"
+          ENV_FILE="$STATE_ROOT/jarvis.env"
+          if [[ ! -s "$ENV_FILE" ]]; then
+            echo "RUNTIME_PREFLIGHT env_missing recovery=zero-touch"
+            JARVIS_REPO_ROOT="$GITHUB_WORKSPACE" bash scripts/jarvis-mac-zero-touch.sh || true
+          fi
+          if [[ ! -s "$ENV_FILE" ]]; then
+            echo "RUNTIME_PREFLIGHT env_unrecoverable HUMAN_GATE_REQUIRED" >&2
+            exit 1
+          fi
+          if grep -q '^GORIQ_RUNTIME_REVISION=' "$ENV_FILE"; then
+            node scripts/goriq-production-authorization-expiry.mjs || exit 1
+            sed -i '' "s/^GORIQ_RUNTIME_REVISION=.*/GORIQ_RUNTIME_REVISION=$SYNC_COMMIT_SHA/" "$ENV_FILE"
+          else
+            node scripts/goriq-production-authorization-expiry.mjs || exit 1
+            printf '\nGORIQ_RUNTIME_REVISION=%s\n' "$SYNC_COMMIT_SHA" >> "$ENV_FILE"
+          fi
+          chmod 600 "$ENV_FILE"
+          runtime_label() {
+            if launchctl print "gui/$(id -u)/com.aicompany.jarvis-runtime" >/dev/null 2>&1; then
+              printf '%s' "com.aicompany.jarvis-runtime"
+            elif launchctl print "gui/$(id -u)/com.aicompany.jarvis-broker" >/dev/null 2>&1; then
+              printf '%s' "com.aicompany.jarvis-broker"
+            fi
+          }
+          ensure_runtime() {
+            node scripts/goriq-production-authorization-expiry.mjs || exit 1
+            local label
+            label="$(runtime_label)"
+            if [[ -z "$label" ]]; then
+              echo "RUNTIME_RECOVERY stage=bootstrap reason=no-loaded-runtime"
+              if ! JARVIS_REPO_ROOT="$GITHUB_WORKSPACE" bash scripts/jarvis-mac-install-launchagent.sh; then
+                echo "RUNTIME_RECOVERY bootstrap_failed"
+              fi
+              label="$(runtime_label || true)"
+            fi
+            [[ -n "$label" ]] || return 1
+            if ! launchctl kickstart -k "gui/$(id -u)/$label"; then
+              echo "RUNTIME_RECOVERY kickstart_failed label=$label"
+              return 1
+            fi
+          }
+          runtime_healthy() {
+            local body
+            body="$(curl --fail --silent --show-error --max-time 5 "http://127.0.0.1:${JARVIS_PORT:-8787}/health" 2>/dev/null || true)"
+            node -e 'const x=JSON.parse(process.argv[1]);process.exit(x.ok===true&&x.runtimeRevision===process.argv[2]?0:1)' "$body" "$SYNC_COMMIT_SHA" 2>/dev/null
+          }
+          wait_runtime() {
+            for _ in $(seq 1 15); do
+              sleep 2
+              runtime_healthy && return 0
+            done
+            return 1
+          }
+
+          recovery_complete=false
+          for strategy in restart canonical-reinstall retire-legacy-owner zero-touch stale-process-reset; do
+            node scripts/goriq-production-authorization-expiry.mjs || exit 1
+            echo "RUNTIME_RECOVERY strategy=$strategy"
+            case "$strategy" in
+              restart)
+                ensure_runtime || true
+                ;;
+              canonical-reinstall)
+                JARVIS_REPO_ROOT="$GITHUB_WORKSPACE" bash scripts/jarvis-mac-install-launchagent.sh || true
+                ensure_runtime || true
+                ;;
+              zero-touch)
+                launchctl kickstart -k "gui/$(id -u)/com.aicompany.jarvis-zero-touch" >/dev/null 2>&1 || true
+                sleep 3
+                ensure_runtime || true
+                ;;
+              retire-legacy-owner)
+                echo "RUNTIME_RECOVERY retiring legacy broker owner"
+                LEGACY_ROOT="$HOME/JARVIS-AI-"
+                MIGRATION_EVIDENCE="$STATE_ROOT/legacy-runtime-migration.txt"
+                if [[ -d "$LEGACY_ROOT/.git" ]]; then
+                  {
+                    echo "checkedAt=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+                    echo "legacyRoot=$LEGACY_ROOT"
+                    echo "legacyHead=$(git -C "$LEGACY_ROOT" rev-parse HEAD 2>/dev/null || true)"
+                    echo "canonicalHead=$SYNC_COMMIT_SHA"
+                    echo "legacyTrackedChangesBegin"
+                    git -C "$LEGACY_ROOT" status --porcelain --untracked-files=no || true
+                    echo "legacyTrackedChangesEnd"
+                    echo "legacyUntrackedBegin"
+                    git -C "$LEGACY_ROOT" ls-files --others --exclude-standard || true
+                    echo "legacyUntrackedEnd"
+                  } > "$MIGRATION_EVIDENCE"
+                  if [[ -n "$(git -C "$LEGACY_ROOT" status --porcelain --untracked-files=no)" ]]; then
+                    echo "RUNTIME_MIGRATION legacy_tracked_changes HUMAN_GATE_REQUIRED evidence=$MIGRATION_EVIDENCE"
+                    continue
+                  fi
+                  legacy_untracked="$(git -C "$LEGACY_ROOT" ls-files --others --exclude-standard || true)"
+                  if [[ -n "$legacy_untracked" ]]; then
+                    echo "RUNTIME_MIGRATION legacy_untracked_files HUMAN_GATE_REQUIRED evidence=$MIGRATION_EVIDENCE"
+                    continue
+                  fi
+                fi
+                LEGACY_PLIST="$HOME/Library/LaunchAgents/com.aicompany.jarvis-broker.plist"
+                launchctl bootout "gui/$(id -u)" "$LEGACY_PLIST" >/dev/null 2>&1 || true
+                launchctl bootout "gui/$(id -u)/com.aicompany.jarvis-broker" >/dev/null 2>&1 || true
+                pkill -f '/Users/haji/JARVIS-AI-/.*jarvis-broker' >/dev/null 2>&1 || true
+                JARVIS_REPO_ROOT="$GITHUB_WORKSPACE" bash scripts/jarvis-mac-install-launchagent.sh || true
+                ensure_runtime || true
+                ;;
+              stale-process-reset)
+                pkill -f 'scripts/jarvis-broker.ts' >/dev/null 2>&1 || true
+                sleep 2
+                JARVIS_REPO_ROOT="$GITHUB_WORKSPACE" bash scripts/jarvis-mac-install-launchagent.sh || true
+                ensure_runtime || true
+                ;;
+            esac
+            if wait_runtime; then
+              recovery_complete=true
+              echo "RUNTIME_RECOVERY completed strategy=$strategy"
+              break
+            fi
+            echo "RUNTIME_RECOVERY strategy_failed=$strategy"
+          done
+          if [[ "$recovery_complete" != true ]]; then
+            echo "RUNTIME_RECOVERY exhausted_safe_strategies HUMAN_GATE_REQUIRED" >&2
+            launchctl print "gui/$(id -u)/com.aicompany.jarvis-runtime" 2>&1 | tail -n 80 || true
+            launchctl print "gui/$(id -u)/com.aicompany.jarvis-broker" 2>&1 | tail -n 80 || true
+            tail -n 80 "$STATE_ROOT/launchagent.err.log" 2>/dev/null || true
+            tail -n 80 "$STATE_ROOT/broker-service.err.log" 2>/dev/null || true
+            exit 1
+          fi
+          printf '%s\n' "$SYNC_COMMIT_SHA" > "$STATE_ROOT/runtime-active-main-sha"
+          echo "GORIQ_RUNTIME_UPDATED sha=$SYNC_COMMIT_SHA"
+
+      - name: Reconcile Mac persistence and ChatGPT bridge from exact main
+        if: github.event_name == 'workflow_run' || github.event_name == 'workflow_dispatch'
+        env:
+          PRODUCTION_AUTHORIZATION_EXPIRES_AT: ${{ steps.authorization.outputs.expires_at }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/goriq-production-authorization-expiry.mjs || exit 1
+          echo "MAC_RUNTIME_RECONCILE sha=$(git rev-parse HEAD)"
+          chmod +x             scripts/gai-macbook-watchdog.sh             scripts/gai-macbook-runner-supervisor.sh             scripts/install-macbook-persistence.sh             scripts/install-macos-chatgpt-bridge.sh
+          GAI_RUNNER_ROOT="$HOME/actions-runner" ./scripts/install-macbook-persistence.sh
+          node scripts/goriq-production-authorization-expiry.mjs || exit 1
+          bash scripts/install-macos-chatgpt-bridge.sh
+          launchctl print "gui/$(id -u)/com.gai.runner-supervisor" >/dev/null
+          launchctl print "gui/$(id -u)/com.ai-company.chatgpt-bridge" >/dev/null
+          test -s "$HOME/.ai-company/runtime/chatgpt-resident-bridge-v2.mjs"
+          test -s "$HOME/.ai-company/src/orchestrator/chat-work-session-router.ts"
+          echo "MAC_RUNTIME_RECONCILE completed"
+
+      - name: Emit sanitized resident Bridge diagnostic
+        if: github.event_name == 'workflow_run' || github.event_name == 'workflow_dispatch'
+        shell: bash
+        run: |
+          set -euo pipefail
+          FILE="$HOME/.ai-company/chatgpt-bridge-execution.json"
+          HEALTH="$HOME/.ai-company/chatgpt-bridge-health.json"
+          MIN_UPDATED_AT="$(date -u +%s)"
+          for _ in $(seq 1 30); do
+            if [[ -s "$FILE" ]]; then
+              read -r stage updated_epoch <<<"$(node -e 'const fs=require("fs");const x=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));const t=Date.parse(String(x.updatedAt||""));process.stdout.write(String(x.stage||"")+" "+(Number.isFinite(t)?String(Math.floor(t/1000)):"0"));' "$FILE" 2>/dev/null || printf " 0")"
+              if [[ "$updated_epoch" =~ ^[0-9]+$ && "$updated_epoch" -ge "$MIN_UPDATED_AT" ]]; then
+                case "$stage" in
+                  submission-check|session-persisted-on-submit|ordinary-chat-wait|ordinary-chat-answer-detected|synced|error)
+                    break
+                    ;;
+                esac
+              fi
+            fi
+            sleep 2
+          done
+          echo "BRIDGE_DIAGNOSTIC_BEGIN"
+          if [[ -s "$FILE" ]]; then
+            node -e 'const fs=require("fs");const x=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));const allowed=["stage","updatedAt","pid","issueNumber","selectedSurface","sessionReuse","createNew","hasGoalId","mode","fresh","repairMode","found","testid","aria","type","submitted","userCount","composerRemaining","composerInForm","composerInMain","assistantCount","baselineCount","assistantIdChanged","textChanged","generating","textLength","answerLength","errorCode"];const y={};for(const k of allowed)if(k in x)y[k]=x[k];console.log(JSON.stringify(y));' "$FILE"
+          else
+            echo '{"stage":"missing"}'
+          fi
+          if [[ -s "$HEALTH" ]]; then
+            node -e 'const fs=require("fs");const x=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));console.log(JSON.stringify({healthStatus:x.status,healthIssueNumber:x.issueNumber??null,healthSelectedSurface:x.selectedSurface??null,healthSessionReuse:x.sessionReuse??null}));' "$HEALTH"
+          fi
+          echo "BRIDGE_DIAGNOSTIC_END"
+
+      - name: Sync live JARVIS endpoints into Vercel
+        id: sync
+        env:
+          PRODUCTION_AUTHORIZATION_EXPIRES_AT: ${{ steps.authorization.outputs.expires_at }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          STATE_ROOT="$HOME/Library/Application Support/JARVIS"
+          ENV_FILE="$STATE_ROOT/jarvis.env"
+          SYNC_FILE="$STATE_ROOT/vercel-api-sync.sha256"
+          RETRY_FILE="$STATE_ROOT/vercel-deploy-retry-after.epoch"
+          test -s "$ENV_FILE"
+
+          load_runtime() {
+            set -a
+            source "$ENV_FILE"
+            set +a
+          }
+          broker_is_live() {
+            [[ -n "${JARVIS_PUBLIC_BROKER_URL:-}" ]] && curl --fail --silent --show-error --max-time 8 "$JARVIS_PUBLIC_BROKER_URL/health" >/dev/null 2>&1
+          }
+          dump_tunnel_diagnostics() {
+            echo "TUNNEL_RECOVERY_DIAGNOSTICS"
+            echo "--- launchd broker tunnel ---"
+            launchctl print "gui/$(id -u)/com.aicompany.jarvis-broker-tunnel" 2>&1 | tail -n 120 || true
+            echo "--- cloudflared processes ---"
+            pgrep -alf cloudflared 2>/dev/null | tail -n 40 || true
+            for file in "$STATE_ROOT/broker-tunnel.log" "$STATE_ROOT/broker-tunnel-service.err.log" "$STATE_ROOT/broker-tunnel-service.out.log" "$STATE_ROOT/zero-touch-launch.err.log" "$STATE_ROOT/zero-touch-launch.out.log"; do
+              echo "--- $(basename "$file") ---"
+              tail -n 120 "$file" 2>/dev/null || true
+            done
+          }
+
+          load_runtime
+          : "${JARVIS_OWNER_TOKEN:?missing JARVIS_OWNER_TOKEN}"
+          : "${VERCEL_TOKEN:?missing VERCEL_TOKEN}"
+
+          if ! broker_is_live; then
+            node scripts/goriq-production-authorization-expiry.mjs || exit 1
+            echo "Stored Quick Tunnel is stale. Rotating the Broker tunnel automatically."
+            launchctl kickstart -k "gui/$(id -u)/com.aicompany.jarvis-broker" >/dev/null 2>&1 || true
+            launchctl kickstart -k "gui/$(id -u)/com.aicompany.jarvis-broker-tunnel" >/dev/null 2>&1 || true
+            sleep 5
+            node scripts/goriq-production-authorization-expiry.mjs || exit 1
+            launchctl kickstart -k "gui/$(id -u)/com.aicompany.jarvis-zero-touch" >/dev/null 2>&1 || true
+
+            refreshed=false
+            for _ in $(seq 1 30); do
+              sleep 2
+              load_runtime
+              if broker_is_live; then
+                refreshed=true
+                break
+              fi
+            done
+            if [[ "$refreshed" != true ]]; then
+              dump_tunnel_diagnostics
+              echo "Unable to obtain a healthy replacement Quick Tunnel URL." >&2
+              exit 2
+            fi
+          fi
+
+          load_runtime
+          : "${JARVIS_PUBLIC_BROKER_URL:?missing JARVIS_PUBLIC_BROKER_URL after tunnel reconciliation}"
+          broker_is_live || { echo "JARVIS public Broker is not reachable after reconciliation." >&2; exit 3; }
+
+          desired_hash="$(printf '%s\n%s\n%s\n%s\n%s' \
+            "$JARVIS_PUBLIC_BROKER_URL" \
+            "$JARVIS_OWNER_TOKEN" \
+            "${JARVIS_REMOTE_PUBLIC_URL:-}" \
+            "${JARVIS_REMOTE_GATEWAY_TOKEN:-}" \
+            "$SYNC_COMMIT_SHA" | shasum -a 256 | awk '{print $1}')"
+          previous_hash="$(cat "$SYNC_FILE" 2>/dev/null || true)"
+          echo "desired_hash=$desired_hash" >> "$GITHUB_OUTPUT"
+
+          if [[ "$desired_hash" == "$previous_hash" ]]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "JARVIS Vercel environment and deployed commit already match the current runtime."
+            exit 0
+          fi
+
+          now="$(date +%s)"
+          retry_after="$(cat "$RETRY_FILE" 2>/dev/null || true)"
+          if [[ "$retry_after" =~ ^[0-9]+$ ]] && (( now < retry_after )); then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "JARVIS Production deploy is deferred by Vercel quota until epoch $retry_after."
+            exit 0
+          fi
+          rm -f "$RETRY_FILE"
+
+          node <<'NODE'
+          const token = process.env.VERCEL_TOKEN;
+          const teamId = process.env.VERCEL_TEAM_ID;
+          const projectName = process.env.VERCEL_PROJECT_NAME;
+          const brokerUrl = process.env.JARVIS_PUBLIC_BROKER_URL;
+          const ownerToken = process.env.JARVIS_OWNER_TOKEN;
+          const remoteUrl = process.env.JARVIS_REMOTE_PUBLIC_URL || "";
+          const remoteToken = process.env.JARVIS_REMOTE_GATEWAY_TOKEN || "";
+          if (!token || !teamId || !projectName || !brokerUrl || !ownerToken) throw new Error("JARVIS/Vercel sync context is incomplete");
+
+          const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+          async function request(url, init = {}) {
+            if (init.method && init.method !== 'GET') {
+              const { assertProductionAuthorizationFresh } = await import('./scripts/goriq-production-authorization-expiry.mjs');
+              assertProductionAuthorizationFresh(process.env.PRODUCTION_AUTHORIZATION_EXPIRES_AT);
+            }
+            const response = await fetch(url, { ...init, headers: { ...headers, ...(init.headers || {}) } });
+            const text = await response.text();
+            let body = null;
+            if (text) { try { body = JSON.parse(text); } catch { body = { message: text }; } }
+            if (!response.ok) throw new Error(`Vercel API ${response.status}: ${body?.error?.message || body?.message || "request failed"}`);
+            return body;
+          }
+
+          const project = await request(`https://api.vercel.com/v9/projects/${encodeURIComponent(projectName)}?teamId=${encodeURIComponent(teamId)}`);
+          if (!project?.id || !project?.accountId) throw new Error("Unable to resolve JARVIS Vercel project");
+
+          const envs = [
+            { key: "JARVIS_BROKER_URL", value: brokerUrl, type: "plain", target: ["production"] },
+            { key: "JARVIS_OWNER_TOKEN", value: ownerToken, type: "sensitive", target: ["production"] },
+          ];
+          if (remoteUrl && remoteToken) {
+            envs.push(
+              { key: "JARVIS_REMOTE_GATEWAY_URL", value: remoteUrl, type: "plain", target: ["production"] },
+              { key: "JARVIS_REMOTE_GATEWAY_TOKEN", value: remoteToken, type: "sensitive", target: ["production"] },
+            );
+          }
+
+          await request(`https://api.vercel.com/v10/projects/${encodeURIComponent(project.id)}/env?upsert=true&teamId=${encodeURIComponent(teamId)}`, {
+            method: "POST",
+            body: JSON.stringify(envs),
+          });
+
+          const fs = await import("node:fs/promises");
+          await fs.mkdir(".vercel", { recursive: true });
+          await fs.writeFile(".vercel/project.json", JSON.stringify({ projectId: project.id, orgId: project.accountId }) + "\n", { mode: 0o600 });
+          console.log(`Synced JARVIS runtime endpoints to Vercel project ${projectName}.`);
+          NODE
+
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - uses: pnpm/action-setup@v4
+        if: steps.sync.outputs.changed == 'true'
+        with:
+          version: 11.19.0
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        if: steps.sync.outputs.changed == 'true'
+        with:
+          node-version: 24.19.0
+
+      - name: Redeploy Production with synchronized environment
+        id: deploy
+        if: steps.sync.outputs.changed == 'true'
+        env:
+          PRODUCTION_AUTHORIZATION_EXPIRES_AT: ${{ steps.authorization.outputs.expires_at }}
+        shell: bash
+        run: |
+          set -uo pipefail
+          STATE_ROOT="$HOME/Library/Application Support/JARVIS"
+          RETRY_FILE="$STATE_ROOT/vercel-deploy-retry-after.epoch"
+          OUTPUT_FILE="$RUNNER_TEMP/jarvis-vercel-deploy-output.txt"
+
+          node scripts/goriq-production-authorization-expiry.mjs || exit 1
+          set +e
+          pnpm dlx vercel@latest deploy --prod --yes --token="$VERCEL_TOKEN" >"$OUTPUT_FILE" 2>&1
+          status=$?
+          set -e
+          cat "$OUTPUT_FILE"
+
+          if (( status == 0 )); then
+            rm -f "$RETRY_FILE"
+            echo "deployed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if grep -q 'api-deployments-free-per-day' "$OUTPUT_FILE"; then
+            retry_after="$(( $(date +%s) + 86400 ))"
+            printf '%s\n' "$retry_after" > "$RETRY_FILE"
+            chmod 600 "$RETRY_FILE"
+            echo "deployed=false" >> "$GITHUB_OUTPUT"
+            echo "Vercel free deployment quota reached; JARVIS will retry automatically after the quota window."
+            exit 0
+          fi
+
+          exit "$status"
+
+      - name: Verify Vercel can reach the live Broker
+        if: steps.sync.outputs.changed == 'true' && steps.deploy.outputs.deployed == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          STATE_ROOT="$HOME/Library/Application Support/JARVIS"
+          SYNC_FILE="$STATE_ROOT/vercel-api-sync.sha256"
+          RETRY_FILE="$STATE_ROOT/vercel-deploy-retry-after.epoch"
+          for _ in $(seq 1 30); do
+            body="$(curl --silent --show-error --location --max-time 10 "$JARVIS_PRODUCTION_URL/api/jarvis/connectivity" || true)"
+            if node -e 'const x=JSON.parse(process.argv[1]); process.exit(x.ok===true && x.brokerConfigured===true && x.ownerTokenConfigured===true && x.brokerReachable===true ? 0 : 1)' "$body" 2>/dev/null; then
+              printf '%s\n' '${{ steps.sync.outputs.desired_hash }}' > "$SYNC_FILE"
+              chmod 600 "$SYNC_FILE"
+              rm -f "$RETRY_FILE"
+              echo "JARVIS Production connectivity verified and deployed commit recorded."
+              exit 0
+            fi
+            sleep 4
+          done
+          echo "JARVIS Production connectivity verification timed out." >&2
+          exit 1

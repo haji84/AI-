@@ -19,6 +19,10 @@ test("development goal routes to code.builder with scoped files", async () => {
   assert.equal(action?.capability, "code.builder");
   assert.deepEqual((action?.input as { files?: string[] }).files, ["tests/fixtures/runtime-builder-smoke.txt"]);
   assert.match(String((action?.input as { strategyId?: string }).strategyId), /^initial-/);
+  assert.deepEqual((action?.input as { verificationContract?: unknown }).verificationContract, {
+    kind: "repository_checks",
+    profile: "standard",
+  });
 });
 
 test("failed Builder result creates a different recovery strategy and carries failure signature", async () => {
@@ -46,7 +50,30 @@ test("non-development goal delegates to baseline planner", async () => {
 });
 
 
-test("development planner binds Builder success only to implementation DoD", async () => {
+test("repository check verification can satisfy automated test/build DoD without claiming review or deploy", async () => {
+  const planner = new RuntimeDevelopmentPlanner(new BaselinePlanner());
+  const action = await planner.proposeNextAction({
+    goal,
+    context: [{
+      source: "gai-work-state",
+      summary: "work state",
+      data: {
+        status: "IN_PROGRESS",
+        blockers: [],
+        remainingDefinitionOfDone: [
+          { id: "implement", description: "Implement the requested code change" },
+          { id: "tests", description: "Lint, tests, security verification and build pass" },
+          { id: "review", description: "Open a reviewed pull request" },
+          { id: "deploy", description: "Deploy to Production" },
+        ],
+      },
+    }],
+    intent,
+  });
+  assert.deepEqual((action as { satisfiesDefinitionOfDone?: string[] })?.satisfiesDefinitionOfDone, ["implement", "tests"]);
+});
+
+test("exact-file Builder verification does not claim repository-wide test DoD", async () => {
   const planner = new RuntimeDevelopmentPlanner(new BaselinePlanner());
   const action = await planner.proposeNextAction({
     goal,
@@ -61,10 +88,27 @@ test("development planner binds Builder success only to implementation DoD", asy
           { id: "tests", description: "All tests and verification pass" },
         ],
       },
+    }, {
+      source: "development.verification_contract",
+      summary: "trusted exact-file oracle",
+      data: { kind: "file_exact", path: "tests/fixtures/runtime-builder-smoke.txt", expected: "verified" },
     }],
     intent,
   });
+  assert.deepEqual((action?.input as { verificationContract?: unknown }).verificationContract, {
+    kind: "file_exact", path: "tests/fixtures/runtime-builder-smoke.txt", expected: "verified",
+  });
   assert.deepEqual((action as { satisfiesDefinitionOfDone?: string[] })?.satisfiesDefinitionOfDone, ["implement"]);
+});
+
+test("an implementation criterion naming a file under tests is not mistaken for a test gate", async () => {
+  const planner = new RuntimeDevelopmentPlanner(new BaselinePlanner());
+  const action = await planner.proposeNextAction({
+    goal: { title: "Complete code in tests/fixtures/autonomous-builder-e2e.txt", description: "Make its complete content exactly: beta.", successCriteria: ["Implement code in tests/fixtures/autonomous-builder-e2e.txt with complete content exactly beta"], constraints: [] },
+    context: [{ source: "gai-work-state", summary: "work", data: { status: "IN_PROGRESS", blockers: [], remainingDefinitionOfDone: [{ id: "criterion-1", description: "Implement code in tests/fixtures/autonomous-builder-e2e.txt with complete content exactly beta" }] } }],
+    intent,
+  });
+  assert.deepEqual((action as { satisfiesDefinitionOfDone?: string[] })?.satisfiesDefinitionOfDone, ["criterion-1"]);
 });
 
 test("completed WorkState stops normal development planning", async () => {
@@ -186,4 +230,35 @@ test("recovery objective uses verifier evidence only after failure", async () =>
   assert.match(objective, /runtime-daily/);
   assert.match(objective, /runtime-wrong/);
   assert.match(objective, /available only after failure/);
+});
+
+test("trusted repository context binds Builder base revision and local-only mode", async () => {
+  const planner = new RuntimeDevelopmentPlanner(new BaselinePlanner());
+  const action = await planner.proposeNextAction({
+    goal,
+    context: [{
+      source: "development.repository_context",
+      summary: "bounded repository context",
+      data: {
+        baseRevision: "a".repeat(40),
+        contextDigest: "b".repeat(64),
+        targetFiles: ["tests/fixtures/runtime-builder-smoke.txt"],
+        localOnly: true,
+        previousStrategyFingerprints: ["c".repeat(64)],
+      },
+    }],
+    intent,
+  });
+  const input = action?.input as {
+    baseRevision?: string;
+    files?: string[];
+    localOnly?: boolean;
+    hypothesis?: string;
+    previousStrategyFingerprints?: string[];
+  };
+  assert.equal(input.baseRevision, "a".repeat(40));
+  assert.deepEqual(input.files, ["tests/fixtures/runtime-builder-smoke.txt"]);
+  assert.equal(input.localOnly, true);
+  assert.match(input.hypothesis ?? "", /focused failing test/i);
+  assert.deepEqual(input.previousStrategyFingerprints, ["c".repeat(64)]);
 });

@@ -79,6 +79,12 @@ export interface WriteBackInput {
 }
 
 const PROJECT_ID = "default";
+// Owner requirement receipts are written exclusively by the authenticated intake
+// controller via updateActive. Generic model/worker write-back cannot replace them.
+function preserveOwnerReceipts(current: unknown[], proposed: unknown[]): unknown[] {
+  const reserved = (v: unknown) => !!v && typeof v === "object" && (v as {kind?: unknown}).kind === "jarvis-owner-requirements";
+  return [...proposed.filter(v => !reserved(v)), ...current.filter(reserved)];
+}
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -117,7 +123,10 @@ export class CompassStore {
   constructor(dbPath: string) {
     this.dbPath = dbPath;
     if (dbPath !== ":memory:") mkdirSync(dirname(dbPath), { recursive: true });
-    this.db = new DatabaseSync(dbPath);
+    // The Broker and its isolated Goal executor can write the same Compass
+    // database concurrently. Wait for the other bounded transaction instead
+    // of rejecting an authenticated intake during a brief write lock.
+    this.db = new DatabaseSync(dbPath, { timeout: 5_000 });
     this.db.exec("PRAGMA foreign_keys = ON;");
     this.initialize();
   }
@@ -263,6 +272,22 @@ export class CompassStore {
     return this.getGoal() as GoalRecord;
   }
 
+  /** Goal Controller-only additive DoD adoption; caller must enforce owner/pristine-work checks. */
+  adoptPristineGoalCriteria(expectedGoal: GoalRecord, expectedState: StateRecord, criteria: string[], receipt: unknown): GoalRecord {
+    if (!Array.isArray(criteria) || criteria.length < 1 || criteria.length > 16 ||
+        criteria.some(c => typeof c !== "string" || !c.trim() || c.length > 500) || new Set(criteria).size !== criteria.length ||
+        !receipt || typeof receipt !== "object" || encode(receipt).length > 32_000) throw Error("Invalid Goal refinement");
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      const current = this.getGoal(), state = this.getState();
+      if (!current || current.successCriteria.length || encode(current) !== encode(expectedGoal) || encode(state) !== encode(expectedState)) throw Error("Goal or work state changed before refinement");
+      const result = this.setGoal({ title: current.title, description: current.description, constraints: current.constraints, successCriteria: criteria });
+      this.db.prepare("UPDATE state SET decisions = ?, updated_at = ? WHERE project_id = ?").run(encode([...state.decisions, receipt]), nowIso(), PROJECT_ID);
+      this.db.exec("COMMIT");
+      return result;
+    } catch (error) { this.db.exec("ROLLBACK"); throw error; }
+  }
+
   getState(): StateRecord {
     const row = this.db.prepare("SELECT * FROM state WHERE project_id = ?").get(PROJECT_ID) as Record<string, unknown>;
     return {
@@ -280,13 +305,25 @@ export class CompassStore {
     };
   }
 
+  /** Atomic envelope update: no schema change and no lost concurrent intake history. */
+  updateActive(transform: (active: unknown[]) => unknown[]): void {
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      const active = transform(this.getState().active);
+      this.db.prepare("UPDATE state SET active = ?, updated_at = ? WHERE project_id = ?").run(encode(active), nowIso(), PROJECT_ID);
+      this.db.exec("COMMIT");
+    } catch (error) { this.db.exec("ROLLBACK"); throw error; }
+  }
+
   updateState(patch: StatePatch): StateRecord {
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
     const current = this.getState();
     const next = {
       phase: patch.phase === undefined ? current.phase : patch.phase,
       status: patch.status === undefined ? current.status : patch.status,
       completed: patch.completed === undefined ? current.completed : patch.completed,
-      active: patch.active === undefined ? current.active : patch.active,
+      active: patch.active === undefined ? current.active : preserveOwnerReceipts(current.active, patch.active),
       blockers: patch.blockers === undefined ? current.blockers : patch.blockers,
       decisions: patch.decisions === undefined ? current.decisions : patch.decisions,
       deliverables: patch.deliverables === undefined ? current.deliverables : patch.deliverables,
@@ -312,7 +349,10 @@ export class CompassStore {
       nowIso(),
       PROJECT_ID,
     );
-    return this.getState();
+    const result = this.getState();
+    this.db.exec("COMMIT");
+    return result;
+    } catch (error) { this.db.exec("ROLLBACK"); throw error; }
   }
 
   getNextAction(): string | null {
@@ -393,7 +433,7 @@ export class CompassStore {
       const current = this.getState();
       const nextCompleted = input.completed ?? current.completed;
       const nextBlockers = input.blockers ?? current.blockers;
-      const nextActive = input.active ?? current.active;
+      const nextActive = input.active === undefined ? current.active : preserveOwnerReceipts(current.active, input.active);
       const nextDecisions = input.decisions ?? current.decisions;
       const nextDeliverables = input.deliverables ?? current.deliverables;
       const nextAction = input.nextAction === undefined ? current.nextAction : input.nextAction;

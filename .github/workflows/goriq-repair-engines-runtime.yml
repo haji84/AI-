@@ -1,0 +1,196 @@
+name: GORIQ Repair Engines Runtime
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/goriq-pr-ci-recovery.ts'
+      - 'scripts/goriq-ollama-repair.mjs'
+      - 'scripts/goriq-chatgpt-repair-client.mjs'
+      - 'scripts/install-goriq-local-repair-windows.ps1'
+      - 'scripts/chatgpt-resident-bridge-v2.mjs'
+      - 'scripts/chatgpt-resident-bridge-lib.mjs'
+      - 'scripts/install-macos-chatgpt-bridge.sh'
+      - 'scripts/goriq-chatgpt-bridge-health-check.mjs'
+      - 'scripts/goriq-learned-repair-smoke.mjs'
+      - 'src/orchestrator/repair-engine-router.ts'
+      - '.github/workflows/goriq-repair-engines-runtime.yml'
+      - '.github/workflows/autonomy-mobile.yml'
+  workflow_dispatch:
+    inputs:
+      run_chat_work_smoke:
+        description: "Run real Chat/Work repair round-trip smoke (consumes ChatGPT tokens)"
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: goriq-repair-engines-runtime
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  zbook-local-repair:
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+      - name: Install and verify GORIQ local repair engines
+        shell: powershell
+        run: |
+          .\scripts\install-goriq-local-repair-windows.ps1
+      - name: Capture local repair status
+        if: always()
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path .goriq-repair-results | Out-Null
+          $status = Join-Path $env:LOCALAPPDATA 'GORIQ\repair-engines\status.json'
+          if (Test-Path $status) {
+            Copy-Item $status .goriq-repair-results\status.json -Force
+            Get-Content $status
+          }
+      - name: Upload local repair status
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: goriq-zbook-repair-engines
+          path: .goriq-repair-results/
+          include-hidden-files: true
+          retention-days: 30
+
+  mac-chat-work-bridge:
+    runs-on: [self-hosted, macOS, ARM64]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+      - name: Refresh Chat and Work resident bridge
+        shell: bash
+        run: |
+          node -e 'process.stdout.write(String(Date.now()))' > "$RUNNER_TEMP/goriq-bridge-restart-ms.txt"
+          bash scripts/install-macos-chatgpt-bridge.sh
+      - name: Verify fresh usable bridge health after restart
+        shell: bash
+        run: |
+          HEALTH="$HOME/.ai-company/chatgpt-bridge-health.json"
+          MIN_UPDATED_AT="$(cat "$RUNNER_TEMP/goriq-bridge-restart-ms.txt")"
+          healthy=false
+          for _ in $(seq 1 45); do
+            if [[ -s "$HEALTH" ]] && node scripts/goriq-chatgpt-bridge-health-check.mjs "$HEALTH" "$MIN_UPDATED_AT"; then
+              healthy=true
+              break
+            fi
+            sleep 2
+          done
+          if [[ "$healthy" != "true" ]]; then
+            echo "Fresh usable Chat/Work bridge health was not observed." >&2
+            [[ -s "$HEALTH" ]] && cat "$HEALTH" >&2 || true
+            exit 1
+          fi
+
+  learned-repair-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+      - name: Verify learned repair memory round trip
+        shell: bash
+        run: node ./scripts/goriq-learned-repair-smoke.mjs
+
+  mac-bridge-post-cleanup-proof:
+    needs: [mac-chat-work-bridge]
+    runs-on: [self-hosted, macOS, ARM64]
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+      - name: Verify resident bridge survived previous runner cleanup
+        shell: bash
+        run: |
+          HEALTH="$HOME/.ai-company/chatgpt-bridge-health.json"
+          MIN_UPDATED_AT="$(node -e 'process.stdout.write(String(Date.now()-15000))')"
+          sleep 6
+          node scripts/goriq-chatgpt-bridge-health-check.mjs "$HEALTH" "$MIN_UPDATED_AT"
+          pgrep -alf "$HOME/.ai-company/runtime/chatgpt-resident-bridge-v2.mjs"
+          launchctl print "gui/$(id -u)/com.ai-company.chatgpt-bridge" >/dev/null
+      - name: Show bridge diagnostics
+        if: always()
+        shell: bash
+        run: |
+          echo '--- health ---'
+          cat "$HOME/.ai-company/chatgpt-bridge-health.json" 2>/dev/null || true
+          echo '--- process ---'
+          pgrep -alf 'chatgpt-resident-bridge|run-chatgpt-bridge' || true
+          echo '--- stdout ---'
+          tail -120 "$HOME/Library/Logs/AICompanyChatGPTBridge.log" 2>/dev/null || true
+          echo '--- stderr ---'
+          tail -120 "$HOME/Library/Logs/AICompanyChatGPTBridge.error.log" 2>/dev/null || true
+
+  chat-work-repair-smoke:
+    if: github.event_name == 'workflow_dispatch' && inputs.run_chat_work_smoke == true
+    needs: [mac-bridge-post-cleanup-proof]
+    permissions:
+      contents: write
+      issues: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+      - name: Verify Chat repair round trip
+        shell: bash
+        env:
+          GORIQ_REPAIR_REPOSITORY: ${{ github.repository }}
+          GORIQ_REPAIR_GITHUB_TOKEN: ${{ github.token }}
+          AI_COMPANY_CHATGPT_PROJECT_NAME: 自動化
+        run: |
+          ROOT="$RUNNER_TEMP/goriq-chat-repair-smoke"
+          rm -rf "$ROOT"
+          mkdir -p "$ROOT"
+          printf 'BEFORE_CHAT' > "$ROOT/probe.txt"
+          git -C "$ROOT" init >/dev/null
+          git -C "$ROOT" config user.name goriq-smoke
+          git -C "$ROOT" config user.email smoke@localhost
+          git -C "$ROOT" add probe.txt
+          git -C "$ROOT" commit -m baseline >/dev/null
+          printf 'AllowedPaths=probe.txt\nReplace the complete content of probe.txt with exactly AFTER_CHAT.\n' |
+            node ./scripts/goriq-chatgpt-repair-client.mjs --workspace "$ROOT" --mode chat
+          ACTUAL="$(tr -d '\r\n' < "$ROOT/probe.txt")"
+          [[ "$ACTUAL" == "AFTER_CHAT" ]]
+      - name: Verify Work repair round trip
+        shell: bash
+        env:
+          GORIQ_REPAIR_REPOSITORY: ${{ github.repository }}
+          GORIQ_REPAIR_GITHUB_TOKEN: ${{ github.token }}
+          AI_COMPANY_CHATGPT_PROJECT_NAME: 自動化
+        run: |
+          ROOT="$RUNNER_TEMP/goriq-work-repair-smoke"
+          rm -rf "$ROOT"
+          mkdir -p "$ROOT"
+          printf 'BEFORE_WORK' > "$ROOT/probe.txt"
+          git -C "$ROOT" init >/dev/null
+          git -C "$ROOT" config user.name goriq-smoke
+          git -C "$ROOT" config user.email smoke@localhost
+          git -C "$ROOT" add probe.txt
+          git -C "$ROOT" commit -m baseline >/dev/null
+          printf 'AllowedPaths=probe.txt\nReplace the complete content of probe.txt with exactly AFTER_WORK.\n' |
+            node ./scripts/goriq-chatgpt-repair-client.mjs --workspace "$ROOT" --mode work
+          ACTUAL="$(tr -d '\r\n' < "$ROOT/probe.txt")"
+          [[ "$ACTUAL" == "AFTER_WORK" ]]
+

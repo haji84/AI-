@@ -1,0 +1,556 @@
+{
+  "schema_version": 1,
+  "canonical_requirement": "OWN-001",
+  "issue": 1216,
+  "baseline_commit": "54b5df2a41eaef75e7c40a83474aceb8fc15b3be",
+  "states": [
+    "SPECIFIED",
+    "IMPLEMENTED",
+    "TESTED",
+    "VERIFIED",
+    "INTEGRATED",
+    "EXPERIMENTAL"
+  ],
+  "note": "Stages describe component delivery, not whole-product completion. Synthetic evidence is not real-model or physical evidence.",
+  "components": [
+    {
+      "id": "COG-001",
+      "title": "Primary Brain controller and replaceable local adapter",
+      "states": [
+        "SPECIFIED",
+        "IMPLEMENTED",
+        "TESTED",
+        "INTEGRATED"
+      ],
+      "implementation_refs": [
+        "src/gai/primary-brain.ts",
+        "src/gai/cognitive-core.ts",
+        "src/gai/cognitive-research.ts",
+        "src/gai/research-loop.ts"
+      ],
+      "test_refs": [
+        "tests/goriq-cognitive-core.test.ts",
+        "tests/goriq-cognitive-runtime.test.ts",
+        "tests/goriq-goal-proposal-brain.test.ts",
+        "tests/goriq-goal-proposal-service.test.ts",
+        "tests/goriq-goal-proposal-review.test.ts",
+        "scripts/goriq-local-goal-proposal-smoke.ts",
+        "tests/goriq-research-calibration.test.ts",
+        "tests/goriq-research-boundary.test.ts",
+        "tests/goriq-research-review.test.ts"
+      ],
+      "evidence_refs": [
+        "docs/evidence/1216-cognitive-core.md"
+      ],
+      "last_verified_commit": "44750d237bb20b452d3fa4a186930743404a5141",
+      "remaining": "The replaceable local adapter supports non-executing, unverified GoalDraft proposals alongside bounded registered-action planning. Broad proposal semantic/language fidelity, open-ended plan synthesis and model-quality calibration remain. Fixed offline prediction calibration is connected as evidence metadata only. Actual independent evaluation collection, task-quality gains and general tool/model experiments remain; no automatic confidence/policy promotion."
+    },
+    {
+      "id": "COG-002",
+      "title": "Local-first reasoning and optional external experts",
+      "states": [
+        "SPECIFIED",
+        "IMPLEMENTED",
+        "TESTED",
+        "INTEGRATED"
+      ],
+      "implementation_refs": [
+        "src/gai/primary-brain.ts",
+        "src/gai/cognitive-core.ts"
+      ],
+      "test_refs": [
+        "tests/goriq-cognitive-acceptance.test.ts"
+      ],
+      "evidence_refs": [
+        "docs/evidence/1216-cognitive-core.md"
+      ],
+      "last_verified_commit": "596b3f893ddfcc0ea5d5989a55e29e7f1265cc70",
+      "remaining": "Local-first and explicit optional expert routing are integrated. Actual external-provider teacher acceptance remains; no paid fallback."
+    },
+    {
+      "id": "COG-003",
+      "title": "Unknown-task observation and safe experiments",
+      "states": [
+        "SPECIFIED",
+        "IMPLEMENTED",
+        "TESTED",
+        "INTEGRATED",
+        "EXPERIMENTAL"
+      ],
+      "implementation_refs": [
+        "src/gai/cognitive-core.ts",
+        "src/gai/cognitive-local-work.ts",
+        "src/gai/cognitive-local-outcomes.ts",
+        "src/gai/cognitive-material-intake.ts",
+        "src/orchestrator/cognitive-goal-input.ts",
+        "src/orchestrator/cognitive-goal-refinement.ts",
+        "src/gai/primary-brain.ts",
+        "src/gai/cognitive-service.ts",
+        "src/gai/cognitive-operation.ts",
+        "src/gai/cognitive-research.ts",
+        "src/gai/research-loop.ts"
+      ],
+      "test_refs": [
+        "tests/goriq-cognitive-acceptance.test.ts",
+        "tests/goriq-cognitive-outcomes.test.ts",
+        "tests/goriq-cognitive-outcome-runtime.test.ts",
+        "tests/goriq-material-intake.test.ts",
+        "tests/goriq-material-review.test.ts",
+        "tests/cognitive-goal-refinement.test.ts",
+        "tests/cognitive-goal-store.test.ts",
+        "tests/goriq-cognitive-goal-service.test.ts",
+        "tests/goriq-cognitive-goal-review.test.ts",
+        "tests/goriq-goal-proposal-brain.test.ts",
+        "tests/goriq-goal-proposal-service.test.ts",
+        "tests/goriq-goal-proposal-review.test.ts",
+        "scripts/goriq-local-goal-proposal-smoke.ts",
+        "tests/cognitive-operation-learning.test.ts",
+        "tests/goriq-operation-runtime.test.ts",
+        "tests/goriq-operation-review.test.ts",
+        "tests/goriq-research-calibration.test.ts",
+        "tests/goriq-research-boundary.test.ts",
+        "tests/goriq-research-review.test.ts"
+      ],
+      "evidence_refs": [
+        "docs/evidence/1216-cognitive-core.md"
+      ],
+      "last_verified_commit": "44750d237bb20b452d3fa4a186930743404a5141",
+      "remaining": "Local Primary Brain proposes unverified DoD; explicit owner adoption and fixed material transforms remain authoritative. Two independent local material Goals now generate inert host-operation candidates while preserving exact action identities. Broad conversational fidelity, arbitrary novel decomposition, executable tool synthesis and semantic outcome verification remain. Fixed offline prediction calibration is connected as evidence metadata only. Actual independent evaluation collection, task-quality gains and general tool/model experiments remain; no automatic confidence/policy promotion."
+    },
+    {
+      "id": "COG-004",
+      "title": "Durable goal cognitive state and restart",
+      "states": [
+        "SPECIFIED",
+        "IMPLEMENTED",
+        "TESTED",
+        "INTEGRATED"
+      ],
+      "implementation_refs": [
+        "src/gai/cognitive-state.ts",
+        "src/gai/cognitive-lease.ts",
+        "src/gai/cognitive-material-intake.ts",
+        "src/gai/cognitive-service.ts",
+        "src/orchestrator/cognitive-goal-input.ts",
+        "src/orchestrator/cognitive-goal-refinement.ts",
+        "src/compass/store.ts",
+        "src/gai/cognitive-learning.ts",
+        "src/gai/cognitive-operation.ts"
+      ],
+      "test_refs": [
+        "tests/goriq-cognitive-recovery.test.ts",
+        "tests/goriq-cognitive-runtime.test.ts",
+        "tests/goriq-cognitive-outcome-runtime.test.ts",
+        "tests/goriq-material-intake.test.ts",
+        "tests/goriq-material-review.test.ts",
+        "tests/cognitive-goal-refinement.test.ts",
+        "tests/cognitive-goal-store.test.ts",
+        "tests/goriq-cognitive-goal-service.test.ts",
+        "tests/goriq-cognitive-goal-review.test.ts",
+        "tests/goriq-operation-review.test.ts"
+      ],
+      "evidence_refs": [
+        "docs/evidence/1216-cognitive-core.md"
+      ],
+      "last_verified_commit": "20c30191e45dcd3a64b171ed455e6111ec1895e3",
+      "remaining": "Pristine Goal adoption retains atomic CAS and orphan-learning checks. Pending actions, attempts and retryable learning outboxes preserve optional host-operation provenance; recovery rejects changed provenance before authority write-back, and legacy pending records gain no inferred operation. Arbitrary external effects, cross-device transport and physical power-loss acceptance remain."
+    },
+    {
+      "id": "COG-005",
+      "title": "Memory and World Model execution-loop integration",
+      "states": [
+        "SPECIFIED",
+        "IMPLEMENTED",
+        "TESTED",
+        "INTEGRATED"
+      ],
+      "implementation_refs": [
+        "src/gai/cognitive-core.ts",
+        "src/gai/cognitive-learning.ts",
+        "src/gai/cognitive-research.ts",
+        "src/gai/research-loop.ts"
+      ],
+      "test_refs": [
+        "tests/goriq-cognitive-core.test.ts",
+        "tests/goriq-cognitive-acceptance.test.ts",
+        "tests/goriq-research-calibration.test.ts",
+        "tests/goriq-research-boundary.test.ts",
+        "tests/goriq-research-review.test.ts"
+      ],
+      "evidence_refs": [
+        "docs/evidence/1216-cognitive-core.md"
+      ],
+      "last_verified_commit": "44750d237bb20b452d3fa4a186930743404a5141",
+      "remaining": "Scoped memory/world updates are on the same execution loop. Broad domain prediction quality and cross-device transfer remain. Fixed offline prediction calibration is connected as evidence metadata only. Actual independent evaluation collection, task-quality gains and general tool/model experiments remain; no automatic confidence/policy promotion."
+    },
+    {
+      "id": "COG-006",
+      "title": "Unified verified learning and knowledge consolidation",
+      "states": [
+        "SPECIFIED",
+        "IMPLEMENTED",
+        "TESTED",
+        "INTEGRATED",
+        "EXPERIMENTAL"
+      ],
+      "implementation_refs": [
+        "src/gai/cognitive-learning.ts",
+        "src/gai/cognitive-operation.ts",
+        "src/gai/cognitive-core.ts",
+        "src/gai/cognitive-research.ts",
+        "src/gai/research-loop.ts"
+      ],
+      "test_refs": [
+        "tests/cognitive-learning.test.ts",
+        "tests/cognitive-operation-learning.test.ts",
+        "tests/goriq-operation-runtime.test.ts",
+        "tests/goriq-operation-review.test.ts",
+        "tests/goriq-research-calibration.test.ts",
+        "tests/goriq-research-boundary.test.ts",
+        "tests/goriq-research-review.test.ts"
+      ],
+      "evidence_refs": [
+        "docs/evidence/1216-cognitive-core.md"
+      ],
+      "last_verified_commit": "44750d237bb20b452d3fa4a186930743404a5141",
+      "remaining": "Verified runtime experience reaches existing memory/world/ClosedLearningLoop and R16 failure hypotheses. Independent Goals can consolidate the same versioned host operation without rewriting exact action/strategy IDs or mixing legacy/held-out records. Actual R16 experiment execution, teaching replay binding and generalization-quality evaluation remain. Fixed offline prediction calibration is connected as evidence metadata only. Actual independent evaluation collection, task-quality gains and general tool/model experiments remain; no automatic confidence/policy promotion."
+    },
+    {
+      "id": "COG-007",
+      "title": "Skill synthesis and regression demotion",
+      "states": [
+        "SPECIFIED",
+        "IMPLEMENTED",
+        "TESTED",
+        "INTEGRATED"
+      ],
+      "implementation_refs": [
+        "src/gai/cognitive-learning.ts",
+        "src/gai/cognitive-operation.ts",
+        "src/gai/cognitive-core.ts"
+      ],
+      "test_refs": [
+        "tests/cognitive-learning.test.ts",
+        "tests/goriq-cognitive-acceptance.test.ts",
+        "tests/cognitive-operation-learning.test.ts",
+        "tests/goriq-operation-runtime.test.ts",
+        "tests/goriq-operation-review.test.ts"
+      ],
+      "evidence_refs": [
+        "docs/evidence/1216-cognitive-core.md"
+      ],
+      "last_verified_commit": "20c30191e45dcd3a64b171ed455e6111ec1895e3",
+      "remaining": "Real local material flows generate inert read/copy candidates across two independent Goals. Certified-operation resolution and verified-regression quarantine are covered by bounded contract tests; actual independent measured gain and candidate promotion were not performed in this increment. Novel executable procedures and an integrated certification experiment runner remain absent."
+    },
+    {
+      "id": "COG-008",
+      "title": "Strategy scoring and failure intelligence",
+      "states": [
+        "SPECIFIED",
+        "IMPLEMENTED",
+        "TESTED",
+        "INTEGRATED"
+      ],
+      "implementation_refs": [
+        "src/gai/cognitive-learning.ts",
+        "src/gai/cognitive-core.ts",
+        "src/gai/cognitive-operation.ts",
+        "src/gai/cognitive-research.ts",
+        "src/gai/research-loop.ts"
+      ],
+      "test_refs": [
+        "tests/goriq-cognitive-acceptance.test.ts",
+        "tests/cognitive-operation-learning.test.ts",
+        "tests/goriq-operation-review.test.ts",
+        "tests/goriq-research-calibration.test.ts",
+        "tests/goriq-research-boundary.test.ts",
+        "tests/goriq-research-review.test.ts"
+      ],
+      "evidence_refs": [
+        "docs/evidence/1216-cognitive-core.md"
+      ],
+      "last_verified_commit": "44750d237bb20b452d3fa4a186930743404a5141",
+      "remaining": "Failure avoidance remains exact-action scoped; verified relevant operation regression can quarantine a certified family without banning every changed-source action. Full environment-specific cost/time/quality strategy calibration remains. Fixed offline prediction calibration is connected as evidence metadata only. Actual independent evaluation collection, task-quality gains and general tool/model experiments remain; no automatic confidence/policy promotion."
+    },
+    {
+      "id": "COG-009",
+      "title": "Explicit human correction learning",
+      "states": [
+        "SPECIFIED",
+        "IMPLEMENTED",
+        "TESTED",
+        "INTEGRATED"
+      ],
+      "implementation_refs": [
+        "src/gai/cognitive-learning.ts",
+        "src/gai/cognitive-service.ts",
+        "src/app/jarvis/tasks/CognitiveLearning.tsx",
+        "src/orchestrator/cognitive-material-proxy.ts",
+        "src/app/api/jarvis/cognitive/learning/route.ts",
+        "src/gai/cognitive-core.ts",
+        "src/gai/cognitive-operation.ts"
+      ],
+      "test_refs": [
+        "tests/cognitive-learning.test.ts",
+        "tests/goriq-cognitive-acceptance.test.ts",
+        "tests/goriq-cognitive-correction-boundary.test.ts",
+        "tests/goriq-cognitive-material-proxy.test.ts",
+        "tests/goriq-cognitive-legacy-ui.test.mjs",
+        "tests/cognitive-operation-learning.test.ts",
+        "tests/goriq-operation-review.test.ts"
+      ],
+      "evidence_refs": [
+        "docs/evidence/1216-cognitive-core.md"
+      ],
+      "last_verified_commit": "20c30191e45dcd3a64b171ed455e6111ec1895e3",
+      "remaining": "Owner UI/CLI corrections retain verified exact-action replacement and Goal/contract/lease checks. An eligible explicit replacement takes priority over a broader certified operation family; correction history never becomes a blanket operation veto. Free-form corrections and Goal/catalog binding for TeachingStore replay remain."
+    },
+    {
+      "id": "COG-010",
+      "title": "Provenance-preserving historical learning import",
+      "states": [
+        "SPECIFIED",
+        "IMPLEMENTED",
+        "TESTED",
+        "INTEGRATED",
+        "EXPERIMENTAL"
+      ],
+      "implementation_refs": [
+        "src/gai/cognitive-learning-data.ts",
+        "src/gai/cognitive-history.ts",
+        "src/gai/cognitive-service.ts",
+        "src/app/jarvis/tasks/CognitiveLearning.tsx"
+      ],
+      "test_refs": [
+        "tests/cognitive-learning-data.test.ts",
+        "tests/cognitive-history.test.ts",
+        "tests/goriq-cognitive-history-service.test.ts",
+        "tests/goriq-cognitive-material-proxy.test.ts"
+      ],
+      "evidence_refs": [
+        "docs/evidence/1216-cognitive-core.md"
+      ],
+      "last_verified_commit": "d26d67ff10b3cf3b69b7d255c598e77dd603132e",
+      "remaining": "Explicit configured local historical artifacts are acquired, hashed and persisted as partitioned UNVERIFIED candidates through service/Broker/CLI/UI. Live GitHub harvesting, historical claim revalidation and verified knowledge promotion remain; raw claims never become recall or executable authority."
+    },
+    {
+      "id": "COG-011",
+      "title": "Expert suggestion verification and internal reuse",
+      "states": [
+        "SPECIFIED",
+        "IMPLEMENTED",
+        "TESTED",
+        "INTEGRATED",
+        "EXPERIMENTAL"
+      ],
+      "implementation_refs": [
+        "src/gai/cognitive-core.ts",
+        "src/gai/cognitive-learning.ts"
+      ],
+      "test_refs": [
+        "tests/goriq-cognitive-acceptance.test.ts"
+      ],
+      "evidence_refs": [
+        "docs/evidence/1216-cognitive-core.md"
+      ],
+      "last_verified_commit": "596b3f893ddfcc0ea5d5989a55e29e7f1265cc70",
+      "remaining": "Synthetic expert-to-verified-host-skill reuse passes. Actual provider response/query/rejection learning coverage remains."
+    },
+    {
+      "id": "COG-012",
+      "title": "Local brain training-candidate pipeline",
+      "states": [
+        "SPECIFIED",
+        "IMPLEMENTED",
+        "TESTED",
+        "INTEGRATED",
+        "EXPERIMENTAL"
+      ],
+      "implementation_refs": [
+        "src/gai/cognitive-learning-data.ts",
+        "src/gai/cognitive-service.ts",
+        "src/gai/cognitive-history.ts",
+        "src/app/jarvis/tasks/CognitiveLearning.tsx"
+      ],
+      "test_refs": [
+        "tests/cognitive-learning-data.test.ts",
+        "tests/cognitive-history.test.ts",
+        "tests/goriq-cognitive-history-service.test.ts"
+      ],
+      "evidence_refs": [
+        "docs/evidence/1216-cognitive-core.md"
+      ],
+      "last_verified_commit": "d26d67ff10b3cf3b69b7d255c598e77dd603132e",
+      "remaining": "Candidate preview merges actual verified live experience with historical candidates, excludes unverified claims and preserves held-out separation. Fine-tuning/LoRA execution, training resource acceptance and model promotion remain unimplemented/inactive."
+    },
+    {
+      "id": "COG-013",
+      "title": "Multi-user learning privacy partitions",
+      "states": [
+        "SPECIFIED",
+        "IMPLEMENTED",
+        "TESTED",
+        "INTEGRATED"
+      ],
+      "implementation_refs": [
+        "src/gai/cognitive-state.ts",
+        "src/gai/cognitive-learning.ts",
+        "src/gai/cognitive-learning-data.ts",
+        "src/gai/cognitive-history.ts",
+        "src/gai/cognitive-material-intake.ts"
+      ],
+      "test_refs": [
+        "tests/cognitive-learning-data.test.ts",
+        "tests/cognitive-learning.test.ts",
+        "tests/cognitive-history.test.ts",
+        "tests/goriq-cognitive-history-service.test.ts",
+        "tests/goriq-material-review.test.ts"
+      ],
+      "evidence_refs": [
+        "docs/evidence/1216-cognitive-core.md"
+      ],
+      "last_verified_commit": "d26d67ff10b3cf3b69b7d255c598e77dd603132e",
+      "remaining": "Host-bound owner/tester history, material receipts and learning remain partitioned; no raw historical content is exposed in status/UI. Multi-user production identity provisioning and authorized generalized sharing remain."
+    },
+    {
+      "id": "COG-014",
+      "title": "Offline and cross-device recovery",
+      "states": [
+        "SPECIFIED",
+        "IMPLEMENTED",
+        "TESTED",
+        "INTEGRATED"
+      ],
+      "implementation_refs": [
+        "src/gai/cognitive-state.ts",
+        "src/gai/cognitive-core.ts",
+        "src/gai/cognitive-lease.ts",
+        "src/gai/cognitive-operation.ts"
+      ],
+      "test_refs": [
+        "tests/goriq-cognitive-recovery.test.ts",
+        "tests/goriq-cognitive-acceptance.test.ts",
+        "tests/goriq-operation-review.test.ts"
+      ],
+      "evidence_refs": [
+        "docs/evidence/1216-cognitive-core.md"
+      ],
+      "last_verified_commit": "20c30191e45dcd3a64b171ed455e6111ec1895e3",
+      "remaining": "Same-host pending-action/outbox recovery preserves host-operation provenance, rejects changed bindings and reconciles legacy exact actions without inferring metadata. Network cross-device checkpoint transport and physical recovery acceptance remain."
+    },
+    {
+      "id": "COG-015",
+      "title": "Independence benchmark with matched ablations",
+      "states": [
+        "SPECIFIED",
+        "IMPLEMENTED",
+        "TESTED",
+        "INTEGRATED",
+        "EXPERIMENTAL"
+      ],
+      "implementation_refs": [
+        "src/gai/cognitive-learning.ts"
+      ],
+      "test_refs": [
+        "tests/goriq-cognitive-acceptance.test.ts"
+      ],
+      "evidence_refs": [
+        "docs/evidence/1216-cognitive-core.md"
+      ],
+      "last_verified_commit": "596b3f893ddfcc0ea5d5989a55e29e7f1265cc70",
+      "remaining": "12 metrics and matched bounded memory ablation are measured. Broad actual-model independence/transfer campaigns remain; absent denominators are null."
+    },
+    {
+      "id": "COG-016",
+      "title": "Governed self-improvement and verified rollback",
+      "states": [
+        "SPECIFIED",
+        "IMPLEMENTED",
+        "TESTED",
+        "EXPERIMENTAL"
+      ],
+      "implementation_refs": [
+        "src/gai/cognitive-learning.ts"
+      ],
+      "test_refs": [
+        "tests/goriq-cognitive-acceptance.test.ts",
+        "tests/cognitive-learning.test.ts"
+      ],
+      "evidence_refs": [
+        "docs/evidence/1216-cognitive-core.md"
+      ],
+      "last_verified_commit": "596b3f893ddfcc0ea5d5989a55e29e7f1265cc70",
+      "remaining": "R17 adapter rejects no-gain, requires independent/security checks and verifies rollback. Autonomous proposal-to-model/code promotion is not integrated."
+    },
+    {
+      "id": "COG-017",
+      "title": "Production intake and Goal execution integration",
+      "states": [
+        "SPECIFIED",
+        "IMPLEMENTED",
+        "TESTED",
+        "INTEGRATED"
+      ],
+      "implementation_refs": [
+        "src/gai/cognitive-service.ts",
+        "src/gai/cognitive-local-work.ts",
+        "src/gai/cognitive-host-config.ts",
+        "src/gai/cognitive-local-outcomes.ts",
+        "src/gai/cognitive-material-intake.ts",
+        "src/gai/cognitive-history.ts",
+        "src/app/jarvis/tasks/CognitivePanel.tsx",
+        "src/app/jarvis/tasks/CognitiveMaterials.tsx",
+        "src/app/jarvis/tasks/CognitiveLearning.tsx",
+        "src/orchestrator/cognitive-material-proxy.ts",
+        "src/app/api/jarvis/cognitive/materials/route.ts",
+        "src/app/api/jarvis/cognitive/learning/route.ts",
+        "src/orchestrator/cognitive-goal-input.ts",
+        "src/orchestrator/cognitive-goal-refinement.ts",
+        "src/compass/store.ts",
+        "src/app/api/jarvis/cognitive/goal/route.ts",
+        "src/app/jarvis/tasks/CognitiveGoalCriteria.tsx",
+        "src/gai/primary-brain.ts",
+        "src/app/api/jarvis/cognitive/goal/proposal/route.ts",
+        "src/gai/cognitive-operation.ts",
+        "src/gai/cognitive-core.ts",
+        "src/gai/cognitive-learning.ts",
+        "src/gai/cognitive-research.ts",
+        "src/gai/research-loop.ts"
+      ],
+      "test_refs": [
+        "tests/goriq-cognitive-broker.test.ts",
+        "tests/goriq-cognitive-runtime.test.ts",
+        "tests/goriq-cognitive-proxy.test.ts",
+        "tests/goriq-cognitive-config.test.ts",
+        "tests/goriq-material-intake.test.ts",
+        "tests/goriq-material-review.test.ts",
+        "tests/goriq-cognitive-material-proxy.test.ts",
+        "tests/goriq-cognitive-history-service.test.ts",
+        "tests/goriq-cognitive-correction-boundary.test.ts",
+        "tests/goriq-cognitive-legacy-ui.test.mjs",
+        "scripts/goriq-cognitive-browser-smoke.mjs",
+        "tests/cognitive-goal-refinement.test.ts",
+        "tests/cognitive-goal-store.test.ts",
+        "tests/goriq-cognitive-goal-service.test.ts",
+        "tests/goriq-cognitive-goal-review.test.ts",
+        "tests/goriq-goal-proposal-brain.test.ts",
+        "tests/goriq-goal-proposal-service.test.ts",
+        "tests/goriq-goal-proposal-review.test.ts",
+        "scripts/goriq-local-goal-proposal-smoke.ts",
+        "tests/cognitive-operation-learning.test.ts",
+        "tests/goriq-operation-runtime.test.ts",
+        "tests/goriq-operation-review.test.ts",
+        "tests/goriq-research-calibration.test.ts",
+        "tests/goriq-research-boundary.test.ts",
+        "tests/goriq-research-review.test.ts"
+      ],
+      "evidence_refs": [
+        "docs/evidence/1216-cognitive-core.md"
+      ],
+      "last_verified_commit": "44750d237bb20b452d3fa4a186930743404a5141",
+      "remaining": "Opt-in normal Goal intake, local unverified DoD proposal/manual entry, owner adoption, material execution and verified download are integrated. Two actual local material Goals produce inert host-operation candidates with zero model/external calls; no promotion or Production activation is implied. General semantic adequacy, arbitrary attachment conversion, R16/R17 runtime improvement and physical acceptance remain. Fixed offline prediction calibration is connected as evidence metadata only. Actual independent evaluation collection, task-quality gains and general tool/model experiments remain; no automatic confidence/policy promotion."
+    }
+  ],
+  "verified_software_commit": "44750d237bb20b452d3fa4a186930743404a5141",
+  "ci_evidence": "https://github.com/haji84/AI-/actions/runs/35941700486"
+}

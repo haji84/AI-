@@ -1,0 +1,36 @@
+name: GORIQ Broker Fleet DB Inventory
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/goriq-broker-db-inventory.mjs'
+      - 'scripts/goriq-broker-db-inventory-windows.ps1'
+      - '.github/workflows/goriq-broker-db-inventory.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  mac:
+    runs-on: [self-hosted, macOS, ARM64]
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+      - name: Inventory Mac Broker DB candidates
+        shell: bash
+        run: node scripts/goriq-broker-db-inventory.mjs
+
+  zbook:
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+      - name: Inventory protected ZBook Broker DB
+        shell: powershell
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/goriq-broker-db-inventory-windows.ps1

@@ -1,0 +1,10 @@
+# Approved ZBook runtime refresh recovery
+
+Continue #1662/#1219 using prior Evidence. Actual preflight36861334218: Mac exact6e72a03 PASS; ZBook healthy but protected configured revisionff761733c66f60a49e8c25c5ab0450a7a5e679c5, runtime revision absent, nonce table exists. Historical773ee4 schema is superseded context, not current machine truth. No enrollment ran.
+
+Owner approval5930240842 allows exact successful-main Production refresh within its original expiry2026-10-02T11:18:17Z. Preserve credentials, existing38 Android records/identities, DB/Compass schemas, TLS/ports/firewall and existing Limited task/action/principal/stored credential. No new install/account/key or Owner/Admin authority. Update existing runtime code and protected release-root/commit metadata only; retain prior release and protected backups. Do not modify Mac runtime entry.
+
+1. Implement read-only strict schema/quiescence/baseline inspection against current code's off-production synthetic schema, and pure config revision update with environment equality checks; RED→GREEN fixture tests.
+2. Implement same-owner Windows plan/apply operation: trusted mainCI guard and unexpired approval, immutable native release/build, protected baseline/config/launcher recovery, identified task stop, no unknown process force-kill, atomic same-credential config/launcher update, existing task restart, exact runtime/fleet/schema verification. On failure retain current DB and backups and restore only prior runtime/config/launcher when safe. Missing schema, active work, changed owner/task, privilege denial or unknown listener fails visibly rather than migrating/escalating.
+3. Manual-only source-gated workflow with plan default and one ZBook host. Independent review and required checks precede protected merge; exact mainCI precedes plan/apply on the physical host. Software update alone does not grant PC Node roles or pass task/mesh/StageC gates.
+4. Re-run both-host enrollment preflight. Only after runtime prerequisites hold continue approved PC registration, signed peer transport and actual task/offline/reconnect/failover/rebalance Evidence.

@@ -1,0 +1,18 @@
+{
+  "status": "PASS",
+  "timestamp": "2026-09-23T08:12:18.066Z",
+  "checks": [
+    "real isolated Broker + browser owner auth",
+    "natural adoption persisted",
+    "lost response retry is idempotent",
+    "adopted source marked used",
+    "new-ID preview",
+    "publication-disabled without capability",
+    "example kept IDEA",
+    "selected saved-reference adoption",
+    "desktop/mobile no horizontal overflow",
+    "no browser page errors"
+  ],
+  "pageErrors": [],
+  "physical": false
+}

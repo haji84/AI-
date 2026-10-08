@@ -170,3 +170,198 @@ test("connectivity transitions emit bounded evidence and ignore duplicate state"
   assert.deepEqual(events, ["online->degraded:packet loss", "degraded->offline:no route"]);
   assert.equal(manager.lastEvidence?.current, "offline");
 });
+
+test("reconnect publishes a saved offline result without executing the worker again", async () => {
+  const tasks = new DurableTaskRuntime(new MemoryDurableTaskStore());
+  await tasks.enqueue({ id: "local-publish", idempotencyKey: "local-publish", type: "local-analysis" });
+  const connectivity = new ConnectivityManager("offline");
+  let workerRuns = 0;
+  const worker = createFunctionWorker({ descriptor: offlineWorkerDescriptor, health: () => ({ connectivity: "offline" }), run: async () => { workerRuns += 1; return "artifact"; } });
+  const coordinator = new OfflineFirstExecutionCoordinator({
+    tasks, workers: new MultiWorkerRuntime([worker]), connectivity,
+    resolve: () => ({ networkRequirement: "offline-capable", requestedCapability: "local-model", publicationRequired: true }),
+    publisher: async (task) => ({ publisherId: "publisher", receipt: { artifact: (task.result as { output: string }).output } }),
+  });
+  assert.equal((await coordinator.runNext())?.task.status, "ready-to-publish");
+  assert.equal(workerRuns, 1);
+  await connectivity.transition("online", "network verified");
+  const published = await coordinator.runNext();
+  assert.equal(published?.evidence.decision, "publish");
+  assert.equal(published?.task.status, "completed");
+  assert.equal(workerRuns, 1);
+});
+
+
+test("claim heartbeat keeps long worker execution valid beyond the initial lease", async () => {
+  const tasks = new DurableTaskRuntime(new MemoryDurableTaskStore());
+  await tasks.enqueue({
+    id: "long-fenced",
+    idempotencyKey: "long-fenced",
+    type: "local-analysis",
+    migrationClass: "MIGRATABLE",
+  });
+
+  const worker = createFunctionWorker({
+    descriptor: offlineWorkerDescriptor,
+    health: () => ({ connectivity: "offline" }),
+    run: async () => {
+      await new Promise((resolve) => setTimeout(resolve, 90));
+      return "long-result";
+    },
+  });
+  const coordinator = new OfflineFirstExecutionCoordinator({
+    tasks,
+    workers: new MultiWorkerRuntime([worker]),
+    connectivity: new ConnectivityManager("offline"),
+    resolve: resolver,
+    leaseMs: 30,
+    heartbeatIntervalMs: 5,
+  });
+
+  const outcome = await coordinator.runNext();
+  assert.equal(outcome?.task.status, "completed");
+  assert.equal(outcome?.task.executionEpoch, 1);
+  assert.equal(outcome?.task.fencingToken, undefined);
+  assert.equal((outcome?.task.result as { output?: string })?.output, "long-result");
+});
+
+test("lost execution claim prevents a late worker result from committing", async () => {
+  const tasks = new DurableTaskRuntime(new MemoryDurableTaskStore());
+  await tasks.enqueue({
+    id: "claim-loss",
+    idempotencyKey: "claim-loss",
+    type: "local-analysis",
+    migrationClass: "MIGRATABLE",
+  });
+
+  const worker = createFunctionWorker({
+    descriptor: offlineWorkerDescriptor,
+    health: () => ({ connectivity: "offline" }),
+    run: async () => {
+      await tasks.waitForResource("claim-loss", "ownership moved while old worker was executing");
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      return "must-not-commit";
+    },
+  });
+  const coordinator = new OfflineFirstExecutionCoordinator({
+    tasks,
+    workers: new MultiWorkerRuntime([worker]),
+    connectivity: new ConnectivityManager("offline"),
+    resolve: resolver,
+    leaseMs: 40,
+    heartbeatIntervalMs: 5,
+  });
+
+  await assert.rejects(() => coordinator.runNext(), /EXECUTION_LEASE_LOST/);
+  const task = await tasks.get("claim-loss");
+  assert.equal(task?.status, "waiting-resource");
+  assert.equal(task?.result, undefined);
+  assert.equal(task?.fencingToken, undefined);
+});
+
+test("heartbeat interval must remain inside the lease window", () => {
+  const tasks = new DurableTaskRuntime(new MemoryDurableTaskStore());
+  assert.throws(() => new OfflineFirstExecutionCoordinator({
+    tasks,
+    workers: new MultiWorkerRuntime([localWorker()]),
+    connectivity: new ConnectivityManager("offline"),
+    resolve: resolver,
+    leaseMs: 100,
+    heartbeatIntervalMs: 100,
+  }), /heartbeatIntervalMs/);
+});
+
+
+test("PINNED task waits for its exact node and resumes only when that node returns", async () => {
+  const tasks = new DurableTaskRuntime(new MemoryDurableTaskStore());
+  await tasks.enqueue({
+    id: "pinned-offline",
+    idempotencyKey: "pinned-offline",
+    type: "local-analysis",
+    migrationClass: "PINNED",
+    pinnedNodeId: "pinned-worker",
+  });
+
+  let pinnedAvailable = false;
+  const alternate = createFunctionWorker({
+    descriptor: { ...offlineWorkerDescriptor, id: "a-alternate", label: "Alternate" },
+    health: () => ({ connectivity: "offline" }),
+    run: async () => "alternate-must-not-run",
+  });
+  const pinned = createFunctionWorker({
+    descriptor: { ...offlineWorkerDescriptor, id: "pinned-worker", label: "Pinned" },
+    available: () => pinnedAvailable,
+    health: () => ({ connectivity: "offline" }),
+    run: async () => "pinned-result",
+  });
+  const coordinator = new OfflineFirstExecutionCoordinator({
+    tasks,
+    workers: new MultiWorkerRuntime([alternate, pinned]),
+    connectivity: new ConnectivityManager("offline"),
+    resolve: resolver,
+  });
+
+  const waiting = await coordinator.runNext();
+  assert.equal(waiting?.task.status, "waiting-resource");
+  assert.equal(waiting?.task.waitReason, "pinned-node");
+  assert.equal(waiting?.evidence.decision, "wait-resource");
+  assert.equal(await tasks.resumeWaiting("resource"), 0);
+
+  pinnedAvailable = true;
+  assert.equal(await tasks.resumePinnedNode("pinned-worker"), 1);
+  const completed = await coordinator.runNext();
+  assert.equal(completed?.task.status, "completed");
+  assert.equal(completed?.evidence.selectedWorkerId, "pinned-worker");
+  assert.equal((completed?.task.result as { output?: string })?.output, "pinned-result");
+});
+
+
+test("OfflineFirstExecutionCoordinator forwards resource requirements into placement", async () => {
+  const tasks = new DurableTaskRuntime(new MemoryDurableTaskStore());
+  await tasks.enqueue({
+    id: "memory-heavy",
+    idempotencyKey: "memory-heavy",
+    type: "memory-heavy",
+    migrationClass: "RESTARTABLE",
+  });
+
+  const small = createFunctionWorker({
+    descriptor: { ...offlineWorkerDescriptor, id: "small-node", label: "Small", maxParallelTasks: 2 },
+    health: () => ({
+      connectivity: "offline",
+      resources: { cpuAvailable: true, cpuLoadPercent: 10, memoryAvailableMb: 8_000 },
+      runtimeState: { activeTasks: 0, completedTasks: 0, failedTasks: 0 },
+    }),
+    run: async () => "small",
+  });
+  const large = createFunctionWorker({
+    descriptor: { ...offlineWorkerDescriptor, id: "large-node", label: "Large", maxParallelTasks: 2 },
+    health: () => ({
+      connectivity: "offline",
+      resources: { cpuAvailable: true, cpuLoadPercent: 40, memoryAvailableMb: 32_000, dataLocalityKeys: ["payload-A"] },
+      runtimeState: { activeTasks: 0, completedTasks: 0, failedTasks: 0 },
+    }),
+    run: async () => "large",
+  });
+
+  const coordinator = new OfflineFirstExecutionCoordinator({
+    tasks,
+    workers: new MultiWorkerRuntime([small, large]),
+    connectivity: new ConnectivityManager("offline"),
+    resolve: () => ({
+      networkRequirement: "offline-capable",
+      requestedCapability: "local-model",
+      requiredCapabilities: ["local-model"],
+      allowOffline: true,
+      resourceRequirements: {
+        minMemoryAvailableMb: 16_000,
+        preferredDataLocalityKeys: ["payload-A"],
+      },
+    }),
+  });
+
+  const outcome = await coordinator.runNext();
+  assert.equal(outcome?.task.status, "completed");
+  assert.equal(outcome?.evidence.selectedWorkerId, "large-node");
+  assert.equal((outcome?.task.result as { output?: string })?.output, "large");
+});

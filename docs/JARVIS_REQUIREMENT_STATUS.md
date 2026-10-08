@@ -180,6 +180,7 @@ See [full ledger](JARVIS_PRODUCT_SPEC.md) and [Windows/inventory evidence](evide
 | AUTO-029 | Sandbox before promotion | PARTIAL | MAIN_CODE_PRESENT | RUNTIME_ACCEPTANCE_REQUIRED | PENDING |
 | AUTO-030 | Regression test | PARTIAL | MAIN_CODE_PRESENT | RUNTIME_ACCEPTANCE_REQUIRED | PENDING |
 | AUTO-031 | Known-good rollback | PARTIAL | MAIN_CODE_PRESENT | RUNTIME_ACCEPTANCE_REQUIRED | PENDING |
+
 | MEM-001 | Working Memory | PARTIAL | MAIN_CODE_PRESENT | RUNTIME_ACCEPTANCE_REQUIRED | PENDING |
 | MEM-002 | Episodic Memory | PARTIAL | MAIN_CODE_PRESENT | RUNTIME_ACCEPTANCE_REQUIRED | PENDING |
 | MEM-003 | Semantic Memory | PARTIAL | MAIN_CODE_PRESENT | RUNTIME_ACCEPTANCE_REQUIRED | PENDING |
@@ -348,3 +349,9 @@ See [full ledger](JARVIS_PRODUCT_SPEC.md) and [Windows/inventory evidence](evide
 | DEV-AX-002 | Worker自動更新 | PARTIAL | MAIN_CODE_PRESENT | RUNTIME_ACCEPTANCE_REQUIRED | PENDING |
 | DEV-AX-003 | 画面OFFから自動復帰 | PARTIAL | MAIN_CODE_PRESENT | RUNTIME_ACCEPTANCE_REQUIRED | PENDING |
 | DEV-AX-004 | 登録中の更新保護 | PARTIAL | MAIN_CODE_PRESENT | RUNTIME_ACCEPTANCE_REQUIRED | PENDING |
+
+> #681 evidence sync (2026-09-26): bounded component-contract fixtures cover Builder routing, local-only exclusion, offline Release Gate decision, integration metadata provenance, persisted rollback state, and durable one-iPhone intake. PRs #1256, #1258, and #1259 passed protected CI and merged. Current-main workflow run `36251840188` produced admissible real `qwen3:4b` self-development evidence with one Builder call, independent verification, durable `READY_TO_PUBLISH`, and restart resume. Canonical statuses remain `PARTIAL`; the remaining external gate is one current physical-iPhone signed round trip. The self-hosted MacBook runner detected no available physical iPhone in two attempts. See `docs/evidence/681-self-development-acceptance.md`.
+
+## GORIQ Cognitive Core / Primary Brain (#1216)
+
+OWN-001 adds the owner-requested Cognitive Core without removing the frozen340. Full contract: docs/architecture/goriq-cognitive-core.md. Seventeen delivery components are tracked in docs/goriq-cognitive-status.json. Source availability, integration, synthetic acceptance, actual local-model capability and physical evidence are separate; no new completion claim.

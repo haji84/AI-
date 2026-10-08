@@ -45,6 +45,12 @@ jobs:
         run: pnpm test
       - name: P8 Security Regression Suite
         run: pnpm test:p8-security
+      - name: Windows ACL repair decision fixtures
+        shell: pwsh
+        run: |
+          ./tests/goriq-zbook-owner-acl-repair.test.ps1
+          ./tests/jarvis-pc-runtime-acl.test.ps1
+          ./tests/jarvis-pc-runtime-process.test.ps1
       - name: Build
         run: pnpm build
       - name: Verify production health endpoint
@@ -58,3 +64,17 @@ jobs:
             cat next-server.log
             exit 1
           fi
+
+  windows-runtime-byte-fixtures:
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Windows PowerShell 5.1 atomic pointer fixtures
+        shell: powershell
+        run: |
+          ./tests/goriq-pc-runtime-replace.test.ps1
+          ./tests/goriq-zbook-runtime-owner-repair.test.ps1
+          ./tests/goriq-pc-runtime-launch.test.ps1
+          ./tests/gai-zbook-launcher-file.test.ps1
+          ./tests/goriq-zbook-watchdog-launcher-repair.test.ps1

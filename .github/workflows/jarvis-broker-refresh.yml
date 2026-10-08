@@ -1,11 +1,6 @@
 name: JARVIS Broker Refresh
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'scripts/jarvis-broker.ts'
-      - '.github/workflows/jarvis-broker-refresh.yml'
   workflow_dispatch:
 
 permissions:

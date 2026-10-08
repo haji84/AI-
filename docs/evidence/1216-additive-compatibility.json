@@ -1,0 +1,56 @@
+{
+  "status": "PASS",
+  "evidenceClass": "INTEGRATION",
+  "environment": "win32/v24.19.0",
+  "at": "2026-09-24T02:42:57.996Z",
+  "sourceCommit": "d029c800cd12fc6cf04a2adce96f40ba57be332b",
+  "priorCommit": "773ee4ca34b7e8c3889897470a69e36fbc43564e",
+  "oldSourceSha256": "7a3b6ccf81e9a87cd9b1b7126eee8c3a4079e2bf9e2531b4ea0c5468ad773896",
+  "newSourceSha256": "fa3c63a6160f8a70ac17f5674b6b4e0cb0f650dbb3e4b6ca8826659c43ee8598",
+  "syntheticOnly": true,
+  "productionDatabaseOpened": false,
+  "productionMutation": false,
+  "beforeSchema": [
+    {
+      "type": "table",
+      "name": "jarvis_state"
+    },
+    {
+      "type": "table",
+      "name": "jarvis_worker_identity"
+    }
+  ],
+  "afterSchema": [
+    {
+      "type": "index",
+      "name": "jarvis_worker_nonce_expires_at"
+    },
+    {
+      "type": "table",
+      "name": "jarvis_state"
+    },
+    {
+      "type": "table",
+      "name": "jarvis_worker_identity"
+    },
+    {
+      "type": "table",
+      "name": "jarvis_worker_nonce"
+    }
+  ],
+  "checks": [
+    "old exact-release store creates old DDL",
+    "new store retains synthetic identity, enrollment, queue and audit",
+    "new nonce table and index added",
+    "nonce survives close/reopen",
+    "old reader still reads preserved snapshot and identity after addition",
+    "new reader still reads original records after old reader opens"
+  ],
+  "limitations": [
+    "Not live Worker signature/reconnect evidence",
+    "Not authorization to migrate production",
+    "Old runtime does not enforce durable nonce replay protection",
+    "No physical power/network recovery claim"
+  ],
+  "temporaryArtifactRoot": "C:\\Users\\qq113\\AppData\\Local\\Temp\\goriq-1216-additive-compatibility-0ZtcLE"
+}

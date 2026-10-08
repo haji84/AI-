@@ -1,7 +1,8 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { readDashboardState } from "../../dashboard-state.ts";
-import { OWNER_SESSION_COOKIE, verifyOwnerSessionToken } from "../../owner-auth.ts";
+import { OWNER_SESSION_COOKIE } from "../../owner-auth.ts";
+import { verifyOwnerSessionAccess } from "../jarvis/broker.ts";
 
 const PENDING_APPROVAL_COOKIE = "ai_company_approval_pending";
 
@@ -12,7 +13,7 @@ export async function POST(request: Request) {
   if (!ownerSecret || !githubToken) return new NextResponse("Approval dispatch is not configured", { status: 503 });
 
   const cookieStore = await cookies();
-  if (!verifyOwnerSessionToken(ownerSecret, cookieStore.get(OWNER_SESSION_COOKIE)?.value)) {
+  if (!await verifyOwnerSessionAccess(ownerSecret, cookieStore.get(OWNER_SESSION_COOKIE)?.value)) {
     return new NextResponse("Unauthorized", { status: 401 });
   }
 

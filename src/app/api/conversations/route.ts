@@ -14,7 +14,8 @@ import {
   type ConversationMeta,
   type PersistedChatMessage,
 } from "../../chat-memory.ts";
-import { OWNER_SESSION_COOKIE, verifyOwnerSessionToken } from "../../owner-auth.ts";
+import { OWNER_SESSION_COOKIE } from "../../owner-auth.ts";
+import { verifyOwnerSessionAccess } from "../jarvis/broker.ts";
 
 const CHAT_PREFIX = "[AI Chat] ";
 
@@ -24,7 +25,7 @@ async function ownerContext() {
   const repository = process.env.AI_COMPANY_GITHUB_REPOSITORY?.trim() || "haji84/AI-";
   if (!ownerSecret || !githubToken) return { error: NextResponse.json({ message: "操作機能の設定が不足しています" }, { status: 503 }) };
   const cookieStore = await cookies();
-  if (!verifyOwnerSessionToken(ownerSecret, cookieStore.get(OWNER_SESSION_COOKIE)?.value)) {
+  if (!await verifyOwnerSessionAccess(ownerSecret, cookieStore.get(OWNER_SESSION_COOKIE)?.value)) {
     return { error: NextResponse.json({ message: "オーナー認証が必要です" }, { status: 401 }) };
   }
   return { githubToken, repository };

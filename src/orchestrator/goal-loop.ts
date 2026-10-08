@@ -123,6 +123,7 @@ export interface WriteBackRecord {
 }
 
 export interface StateStore {
+  completionBlockers?(goal: Goal): Promise<string[]>;
   getState(): Promise<LoopState>;
   writeBack(record: WriteBackRecord): Promise<void>;
 }
@@ -410,6 +411,10 @@ export class GoalDrivenLoop {
   }
 
   private async finish(record: WriteBackRecord, context: ContextItem[]): Promise<CycleReport> {
+    if (record.stopReason === "goal_complete") {
+      const blockers = await this.store.completionBlockers?.(record.goal) ?? [];
+      if (blockers.length) record = { ...record, stopReason: "blocked", nextAction: blockers.join("; ") };
+    }
     await this.store.writeBack(record);
     return {
       ...record,

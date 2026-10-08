@@ -11,7 +11,9 @@ const mirror = data => data.requirements.map(row => '```json\n' + JSON.stringify
 const structuredClone = value => JSON.parse(JSON.stringify(value));
 
 test('all 340 owner requirements have exact canonical mapping', () => {
-  assert.equal(source.requirements.length, 340);
+  const inventory = JSON.parse(fs.readFileSync(new URL('../docs/jarvis-additional-requirements.json', import.meta.url), 'utf8'));
+  assert.equal(source.requirements.filter(row => !row.id.startsWith('OWN-')).length, 340);
+  assert.equal(source.requirements.length, 340 + inventory.allocations.length);
   assert.deepEqual(validateRequirements(source, ledger, root), []);
 });
 

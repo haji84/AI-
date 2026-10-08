@@ -1,15 +1,19 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { homedir } from "node:os";
 import type { Verifier } from "./goal-loop.ts";
 
 function localToken(env: Record<string, string | undefined>): string | null {
   const explicit = env.CODE_BUILDER_LOCAL_TOKEN?.trim();
   if (explicit) return explicit;
-  if (process.platform !== "win32") return null;
-  const root = env.LOCALAPPDATA?.trim();
-  if (!root) return null;
-  const path = join(root, "GAIWorker", "code-builder", "token.txt");
-  if (!existsSync(path)) return null;
+  let path: string | null = null;
+  if (process.platform === "win32") {
+    const root = env.LOCALAPPDATA?.trim();
+    if (root) path = join(root, "GAIWorker", "code-builder", "token.txt");
+  } else if (process.platform === "darwin") {
+    path = join(homedir(), "Library", "Application Support", "GAIWorker", "code-builder", "token.txt");
+  }
+  if (!path || !existsSync(path)) return null;
   return readFileSync(path, "utf8").trim() || null;
 }
 
@@ -23,7 +27,11 @@ export function createRuntimeDevelopmentVerifier(
       if (action.capability !== "code.builder") {
         return { ok: true, summary: "Capability execution verified", evidence: result.evidence };
       }
-      const input = action.input as { verificationContract?: unknown } | undefined;
+      const input = action.input as {
+        verificationContract?: unknown;
+        candidate?: { artifactRef?: string; changedPaths?: string[] };
+        releaseBinding?: { builderId?: string; sourceRevision?: string; artifactDigest?: string };
+      } | undefined;
       if (!input?.verificationContract) {
         return {
           ok: false,
@@ -48,11 +56,45 @@ export function createRuntimeDevelopmentVerifier(
         const response = await fetchImpl(`${url.replace(/\/$/, "")}/verify`, {
           method: "POST",
           headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ contract: input.verificationContract }),
+          body: JSON.stringify({ contract: input.verificationContract, candidate: input.candidate, binding: input.releaseBinding }),
         });
         const payload = await response.json().catch(() => null) as { ok?: boolean; summary?: string; evidence?: unknown } | null;
-        const ok = response.ok && payload?.ok === true;
-        const evidence = payload?.evidence as { expected?: unknown; actual?: unknown } | undefined;
+        let ok = response.ok && payload?.ok === true;
+        const evidence = payload?.evidence as {
+          expected?: unknown;
+          actual?: unknown;
+          verifierId?: unknown;
+          sourceRevision?: unknown;
+          artifactDigest?: unknown;
+          verificationEvidence?: Array<{ check?: unknown; verifierId?: unknown; sourceRevision?: unknown; artifactDigest?: unknown; status?: unknown; recordedAt?: unknown }>;
+        } | undefined;
+        if (ok && input.releaseBinding) {
+          const binding = input.releaseBinding;
+          ok = typeof evidence?.verifierId === "string"
+            && evidence.verifierId !== binding.builderId
+            && evidence.sourceRevision === binding.sourceRevision
+            && evidence.artifactDigest === binding.artifactDigest;
+          const requiredChecks = (input.verificationContract as { requiredChecks?: unknown }).requiredChecks;
+          if (ok && Array.isArray(requiredChecks)) {
+            ok = requiredChecks.every((check) => evidence?.verificationEvidence?.some((item) =>
+              item.check === check
+              && item.verifierId === evidence.verifierId
+              && item.verifierId !== binding.builderId
+              && item.sourceRevision === binding.sourceRevision
+              && item.artifactDigest === binding.artifactDigest
+              && item.status === "passed"
+              && typeof item.recordedAt === "string"
+              && Number.isFinite(Date.parse(item.recordedAt)),
+            ));
+          }
+          if (!ok) {
+            return {
+              ok: false,
+              summary: "Development verification evidence is not independently bound to the requested release artifact",
+              evidence: { blocker: "development_verification_evidence_invalid" },
+            };
+          }
+        }
         const detail = !ok && evidence && typeof evidence.expected === "string" && typeof evidence.actual === "string"
           ? ` expected=${JSON.stringify(evidence.expected)} actual=${JSON.stringify(evidence.actual)}`
           : "";

@@ -1,5 +1,8 @@
 "use client";
 
+import CognitivePanel from "./CognitivePanel";
+import GoalBridgeStatus from "./GoalBridgeStatus";
+import RequirementsPanel from "./RequirementsPanel";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 type TaskItem = {
@@ -36,7 +39,7 @@ function fmt(value: string) {
   }).format(new Date(value));
 }
 
-export default function TaskBoard() {
+export default function TaskBoard({ filter = "all" }: { filter?: "all" | "needs-human" }) {
   const [state, setState] = useState<StatePayload | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -66,18 +69,21 @@ export default function TaskBoard() {
     return () => window.clearInterval(timer);
   }, [refresh]);
 
-  const tasks = useMemo(
-    () => state?.tasks.slice().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 50) ?? [],
-    [state],
-  );
+  const tasks = useMemo(() => {
+    const source = state?.tasks.slice().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)) ?? [];
+    const filtered = filter === "needs-human"
+      ? source.filter((task) => ["needs_human", "human_gate", "waiting_for_human"].includes(task.status.toLowerCase()))
+      : source;
+    return filtered.slice(0, 50);
+  }, [filter, state]);
 
   return (
     <main className="jarvis-screen-page">
       <div className="jarvis-screen-heading">
         <div>
-          <p className="eyebrow">TASK CONTROL</p>
-          <h1>タスク</h1>
-          <p className="muted">Queue、実行中、完了、失敗、Human Gate待ちを同じ画面で確認する。</p>
+          <p className="eyebrow">{filter === "needs-human" ? "DECISION QUEUE" : "PROJECT / TASK CONTROL"}</p>
+          <h1>{filter === "needs-human" ? "判断待ち" : "プロジェクト"}</h1>
+          <p className="muted">{filter === "needs-human" ? "あなたの判断が必要な項目だけを表示する。無関係な安全作業は止めない。" : "Goal、Queue、実行中、完了、失敗、Human Gate待ちを同じ画面で確認する。"}</p>
         </div>
         <button className="button secondary" type="button" disabled={loading} onClick={() => void refresh()}>{loading ? "更新中" : "更新"}</button>
       </div>
@@ -90,6 +96,9 @@ export default function TaskBoard() {
         </div>
       )}
 
+      <RequirementsPanel />
+      <CognitivePanel />
+      <GoalBridgeStatus />
       <section className="jarvis-stats" aria-label="タスク集計">
         <article><span>Queue</span><strong>{state?.stats.queued ?? "-"}</strong></article>
         <article><span>実行中</span><strong>{state?.stats.running ?? "-"}</strong></article>
@@ -100,14 +109,14 @@ export default function TaskBoard() {
 
       <section className="panel jarvis-section">
         <div className="jarvis-screen-heading compact">
-          <div><h2>最新50件</h2><p className="muted">取得時刻: {state ? fmt(state.generatedAt) : "-"}</p></div>
+          <div><h2>{filter === "needs-human" ? "判断が必要な項目" : "最新50件"}</h2><p className="muted">取得時刻: {state ? fmt(state.generatedAt) : "-"}</p></div>
         </div>
         <div className="jarvis-table-wrap">
           <table className="jarvis-table">
             <thead><tr><th>ID</th><th>種類</th><th>状態</th><th>端末</th><th>試行</th><th>更新</th></tr></thead>
             <tbody>
               {tasks.length === 0 ? (
-                <tr><td className="jarvis-empty" colSpan={6}>{loading ? "読み込み中…" : error ? "状態取得待ち" : "タスクはありません"}</td></tr>
+                <tr><td className="jarvis-empty" colSpan={6}>{loading ? "読み込み中…" : error ? "状態取得待ち" : filter === "needs-human" ? "現在、判断待ちはありません" : "タスクはありません"}</td></tr>
               ) : tasks.map((task) => (
                 <tr key={task.id}>
                   <td><strong>{task.id}</strong></td>

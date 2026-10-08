@@ -55,7 +55,7 @@ export default function SpeechPersonaStylePanel() {
     <section className="commander-card voice-persona-style-card" aria-label="音声ペルソナと発話スタイル">
       <div className="commander-card-title"><span>話し方</span><small>端末内設定</small></div>
       <div className="voice-persona-style-grid">
-        <label>音声プロファイル
+        <label>声（音声プロファイル）
           <select value={preferences.voice} onChange={(event) => updatePreferences({ voice: event.target.value })}>
             {JARVIS_VOICES.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
           </select>

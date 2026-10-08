@@ -1,0 +1,64 @@
+{
+  "issue": 1205,
+  "code_commit": "10f684f664e1d8f9ee0932952e55091d6688a0f9",
+  "source_main": "9cbf6accaec5eb1ec76359a6b88af6bf225eb51e",
+  "timestamp": "2026-09-23T07:08:25.126Z",
+  "physical_claim": false,
+  "production_changed": false,
+  "tests": {
+    "full": 1453,
+    "security": 321,
+    "focused": 35,
+    "failed": 0,
+    "skipped": 0
+  },
+  "independent_review": {
+    "fixed_findings": 2,
+    "remaining_confirmed_blockers": 0,
+    "reviewer_test_passes": 15
+  },
+  "logs": [
+    {
+      "command": "pnpm test (process-local Git Bash PATH)",
+      "result": "PASS",
+      "path": ".jarvis/verification-1205-publisher/tests.log",
+      "sha256": "0b28109a22e5af4b70fc747e119daafbab5ac39da2dd45fe00c229372e81b3b8",
+      "timestamp": "2026-09-23T07:04:27.301Z"
+    },
+    {
+      "command": "pnpm test:p8-security",
+      "result": "PASS",
+      "path": ".jarvis/verification-1205-publisher/security.log",
+      "sha256": "79e0943775cc1d8974c35540ce837905e052979cf910430aaf6d085c3b36097f",
+      "timestamp": "2026-09-23T07:04:32.918Z"
+    },
+    {
+      "command": "node --test tests/jarvis-spec-publisher.test.mjs tests/requirements-proxy.test.ts tests/owner-requirement-intake.test.ts tests/owner-requirement-ingress.test.ts tests/owner-requirement-gate.test.ts tests/owner-specification-sync.test.mjs tests/jarvis-requirement-traceability.test.mjs",
+      "result": "PASS",
+      "path": ".jarvis/verification-1205-publisher/focused.log",
+      "sha256": "df49a51a0b744a4257eb889a6e4f572285558b0a133b35fa07f0e0964e2b7923",
+      "timestamp": "2026-09-23T07:06:46.009Z"
+    },
+    {
+      "command": "pnpm lint",
+      "result": "PASS",
+      "path": ".jarvis/verification-1205-publisher/lint.log",
+      "sha256": "cc5a0b39c7052d24c24888403c48018b4fcccc9d799f81be6c9c30c9e19c85fc",
+      "timestamp": "2026-09-23T07:05:22.897Z"
+    },
+    {
+      "command": "pnpm exec tsc --noEmit",
+      "result": "PASS",
+      "path": ".jarvis/verification-1205-publisher/types.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "timestamp": "2026-09-23T07:06:30.825Z"
+    },
+    {
+      "command": "pnpm build",
+      "result": "PASS",
+      "path": ".jarvis/verification-1205-publisher/build.log",
+      "sha256": "bd31d2ecc5b5bd9af79920ab0237e9bda9fa8415081c4f556295233ce3b07277",
+      "timestamp": "2026-09-23T07:05:41.484Z"
+    }
+  ]
+}

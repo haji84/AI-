@@ -1,5 +1,6 @@
-import type { DurableTask } from "./durable-task-runtime.ts";
+import type { DurableTask, DurableTaskExecutionClaim } from "./durable-task-runtime.ts";
 import { DurableTaskRuntime } from "./durable-task-runtime.ts";
+import { setTimeout as delay } from "node:timers/promises";
 import type { TaskProfile } from "./types.ts";
 import {
   MultiWorkerRuntime,
@@ -9,6 +10,7 @@ import {
   type WorkerNetworkRequirement,
   type WorkerPlatform,
   type WorkerExecutionMode,
+  type WorkerResourceRequirements,
 } from "./worker-runtime.ts";
 
 export type ConnectivityState = WorkerConnectivity;
@@ -66,6 +68,8 @@ export interface OfflineExecutionPlan {
   preferredPlatform?: WorkerPlatform;
   requiredExecutionMode?: WorkerExecutionMode;
   allowOffline?: boolean;
+  publicationRequired?: boolean;
+  resourceRequirements?: WorkerResourceRequirements;
 }
 
 export type OfflineExecutionResolver = (task: DurableTask) => OfflineExecutionPlan;
@@ -74,7 +78,7 @@ export interface OfflineExecutionEvidence {
   taskId: string;
   connectivity: ConnectivityState;
   networkRequirement: WorkerNetworkRequirement;
-  decision: "execute" | "wait-connectivity" | "wait-resource";
+  decision: "execute" | "publish" | "ready-to-publish" | "wait-connectivity" | "wait-resource";
   selectedWorkerId?: string;
   selectedPlatform?: WorkerPlatform;
   reason: string;
@@ -118,6 +122,8 @@ export class OfflineFirstExecutionCoordinator {
   private readonly connectivity: ConnectivityManager;
   private readonly resolve: OfflineExecutionResolver;
   private readonly leaseMs: number;
+  private readonly heartbeatIntervalMs: number;
+  private readonly publisher?: (task: DurableTask) => Promise<{ publisherId: string; receipt: unknown }>;
 
   constructor(options: {
     tasks: DurableTaskRuntime;
@@ -125,12 +131,20 @@ export class OfflineFirstExecutionCoordinator {
     connectivity: ConnectivityManager;
     resolve: OfflineExecutionResolver;
     leaseMs?: number;
+    heartbeatIntervalMs?: number;
+    publisher?: (task: DurableTask) => Promise<{ publisherId: string; receipt: unknown }>;
   }) {
     this.tasks = options.tasks;
     this.workers = options.workers;
     this.connectivity = options.connectivity;
     this.resolve = options.resolve;
     this.leaseMs = options.leaseMs ?? 120_000;
+    if (!Number.isFinite(this.leaseMs) || this.leaseMs <= 0) throw new Error("leaseMs must be positive");
+    this.heartbeatIntervalMs = options.heartbeatIntervalMs ?? Math.max(1, Math.floor(this.leaseMs / 3));
+    if (!Number.isFinite(this.heartbeatIntervalMs) || this.heartbeatIntervalMs <= 0 || this.heartbeatIntervalMs >= this.leaseMs) {
+      throw new Error("heartbeatIntervalMs must be positive and shorter than leaseMs");
+    }
+    this.publisher = options.publisher;
 
     this.connectivity.subscribe(async (event) => {
       if (event.current === "online") {
@@ -140,6 +154,14 @@ export class OfflineFirstExecutionCoordinator {
   }
 
   async runNext(now = new Date()): Promise<OfflineExecutionOutcome | null> {
+    if (networkUsable(this.connectivity.state)) {
+      const publication = await this.tasks.nextPublication();
+      if (publication && this.publisher) {
+        const result = await this.publisher(publication);
+        const completed = await this.tasks.completePublication(publication.id, result.publisherId, result.receipt, now);
+        return { task: completed, evidence: { taskId: publication.id, connectivity: this.connectivity.state, networkRequirement: this.resolve(publication).networkRequirement, decision: "publish", reason: "saved offline execution result published without rebuilding", at: now.toISOString() } };
+      }
+    }
     for (;;) {
       const task = await this.tasks.next(now);
       if (!task) return null;
@@ -162,6 +184,8 @@ export class OfflineFirstExecutionCoordinator {
         requiredCapabilities: plan.requiredCapabilities ?? [plan.requestedCapability],
         preferredPlatform: plan.preferredPlatform,
         requiredExecutionMode: plan.requiredExecutionMode,
+        requiredWorkerId: task.migrationClass === "PINNED" ? task.pinnedNodeId : undefined,
+        resourceRequirements: plan.resourceRequirements,
         connectivity: state,
         allowOffline: plan.allowOffline ?? plan.networkRequirement !== "online-required",
       };
@@ -170,11 +194,10 @@ export class OfflineFirstExecutionCoordinator {
       try {
         selection = await this.workers.select(request);
       } catch (error) {
-        const waiting = await this.tasks.waitForResource(
-          task.id,
-          error instanceof Error ? error.message : String(error),
-          now,
-        );
+        const reason = error instanceof Error ? error.message : String(error);
+        const waiting = task.migrationClass === "PINNED"
+          ? await this.tasks.waitForPinnedNode(task.id, reason, now)
+          : await this.tasks.waitForResource(task.id, reason, now);
         return {
           task: waiting,
           evidence: {
@@ -188,16 +211,31 @@ export class OfflineFirstExecutionCoordinator {
         };
       }
 
-      await this.tasks.lease(task.id, selection.worker.descriptor.id, this.leaseMs, now);
-      await this.tasks.markRunning(task.id, selection.worker.descriptor.id, now);
-      const result = await selection.worker.execute(request);
+      const claim = await this.tasks.leaseClaim(task.id, selection.worker.descriptor.id, this.leaseMs, now);
+      await this.tasks.markRunningClaimed(claim, now);
+      const wallStartedAt = Date.now();
+      const clock = () => new Date(now.getTime() + Math.max(0, Date.now() - wallStartedAt));
+      const execution = await this.executeWithClaimHeartbeat(
+        claim,
+        () => selection.worker.execute(request),
+        clock,
+      );
+      const result = execution.result;
+      const finalClaim = execution.claim;
+      const finishedAt = clock();
 
+      const readyToPublish = result.ok && plan.publicationRequired === true && !networkUsable(state);
       const finalTask = result.ok
-        ? await this.tasks.complete(task.id, selection.worker.descriptor.id, {
+        ? readyToPublish
+          ? await this.tasks.readyToPublishClaimed(finalClaim, {
+              output: result.output,
+              evidence: result.evidence ?? null,
+            }, finishedAt)
+          : await this.tasks.completeClaimed(finalClaim, {
             output: result.output,
             evidence: result.evidence ?? null,
-          }, now)
-        : await this.tasks.fail(task.id, selection.worker.descriptor.id, result.output, 0, now);
+          }, finishedAt)
+        : await this.tasks.failClaimed(finalClaim, result.output, 0, finishedAt);
 
       return {
         task: finalTask,
@@ -205,14 +243,58 @@ export class OfflineFirstExecutionCoordinator {
           taskId: task.id,
           connectivity: state,
           networkRequirement: plan.networkRequirement,
-          decision: "execute",
+          decision: readyToPublish ? "ready-to-publish" : "execute",
           selectedWorkerId: selection.worker.descriptor.id,
           selectedPlatform: selection.worker.descriptor.platform,
-          reason: result.ok ? "offline-first execution completed" : "worker execution failed and entered retry policy",
-          at: now.toISOString(),
+          reason: readyToPublish
+            ? "offline development verified and persisted for publication after reconnect"
+            : result.ok ? "offline-first execution completed" : "worker execution failed and entered retry policy",
+          at: finishedAt.toISOString(),
         },
       };
     }
+  }
+
+  private async executeWithClaimHeartbeat<T>(
+    initialClaim: DurableTaskExecutionClaim,
+    execute: () => Promise<T>,
+    clock: () => Date,
+  ): Promise<{ result: T; claim: DurableTaskExecutionClaim }> {
+    let claim = initialClaim;
+    let heartbeatError: unknown;
+    const abort = new AbortController();
+    const heartbeat = (async () => {
+      while (!abort.signal.aborted) {
+        try {
+          await delay(this.heartbeatIntervalMs, undefined, { signal: abort.signal });
+        } catch (error) {
+          if (abort.signal.aborted) return;
+          heartbeatError = error;
+          return;
+        }
+        if (abort.signal.aborted) return;
+        try {
+          claim = await this.tasks.heartbeatClaimed(claim, this.leaseMs, clock());
+        } catch (error) {
+          heartbeatError = error;
+          return;
+        }
+      }
+    })();
+
+    let result: T;
+    try {
+      result = await execute();
+    } finally {
+      abort.abort();
+      await heartbeat;
+    }
+
+    if (heartbeatError) {
+      const detail = heartbeatError instanceof Error ? heartbeatError.message : String(heartbeatError);
+      throw new Error(`EXECUTION_LEASE_LOST: ${detail}`);
+    }
+    return { result, claim };
   }
 }
 

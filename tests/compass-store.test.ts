@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
+import { once } from "node:events";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -49,6 +51,31 @@ test("set/get goal round trip survives restart", () => {
     assert.deepEqual(goal?.constraints, ["local only"]);
   } finally {
     second.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("authenticated intake can wait for another process's brief Compass write lock", { timeout: 10_000 }, async () => {
+  const dir = mkdtempSync(join(tmpdir(), "compass-concurrent-"));
+  const dbPath = join(dir, "compass.db");
+  const store = new CompassStore(dbPath);
+  const holder = spawn(process.execPath, ["-e", `
+    const { DatabaseSync } = require('node:sqlite');
+    const db = new DatabaseSync(process.argv[1]);
+    db.exec('BEGIN IMMEDIATE');
+    process.stdout.write('LOCKED\\n');
+    setTimeout(() => { db.exec('COMMIT'); db.close(); }, 300);
+  `, dbPath], { stdio: ["ignore", "pipe", "pipe"] });
+  try {
+    const [signal] = await once(holder.stdout!, "data");
+    assert.match(String(signal), /LOCKED/);
+    store.updateState({ nextAction: "intake accepted after executor commit" });
+    assert.equal(store.getState().nextAction, "intake accepted after executor commit");
+    const [code] = await once(holder, "exit");
+    assert.equal(code, 0);
+  } finally {
+    holder.kill();
+    store.close();
     rmSync(dir, { recursive: true, force: true });
   }
 });

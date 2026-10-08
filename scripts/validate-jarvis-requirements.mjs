@@ -1,3 +1,4 @@
+import {loadAdditionalInventory,validateAdditionalInventory} from "./jarvis-additional-inventory.mjs";
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -12,10 +13,13 @@ const sha = value => typeof value === 'string' && /^[a-f0-9]{40}$/.test(value);
 const text = value => typeof value === 'string' && value.trim().length > 0;
 const physicalRequired = id => /^(NET-00[1-4]|HOST-|DEV-|RA-(?!021)|ACC-|TEACH-|OFF-012|MIG-|CORE-0(?:18|19|21|22)|GOV-0(?:11|12))/.test(id);
 
-export function validateRequirements(matrix, ledger, root) {
+export function validateRequirements(matrix, ledger, root, inventory = loadAdditionalInventory(root)) {
   const errors = [];
   if (!matrix || matrix.schema_version !== 1 || !Array.isArray(matrix.requirements) || !Array.isArray(matrix.evidence_records)) return ['Invalid requirement matrix envelope'];
   const expected = Object.entries(REQUIRED_COUNTS).flatMap(([group, count]) => Array.from({ length: count }, (_, i) => `${group}-${String(i + 1).padStart(3, '0')}`));
+  errors.push(...validateAdditionalInventory(inventory));
+  const allocations=Array.isArray(inventory?.allocations)?inventory.allocations:[];
+  expected.push(...allocations.map(a=>a.id));
   const ids = matrix.requirements.map(row => row?.id);
   for (const id of expected) if (ids.filter(item => item === id).length !== 1) errors.push(`${id}: must occur exactly once`);
   for (const id of ids) if (!expected.includes(id)) errors.push(`Unknown requirement ${id}`);
@@ -36,6 +40,8 @@ export function validateRequirements(matrix, ledger, root) {
     if (!/^P(?:[0-9]|10)$/.test(row.phase)) fail('invalid phase');
     if (!statuses.has(row.status)) fail('invalid status');
     for (const field of ['required_evidence', 'implementation_refs', 'test_refs', 'evidence_refs']) if (!Array.isArray(row[field]) || row[field].some(item => !text(item))) fail(`invalid ${field}`);
+    const allocation=allocations.find(a=>a.id===row.id);
+    if(allocation&&(!row.source_decisions?.includes(allocation.decision_id)||allocation.required_evidence.some(kind=>!row.required_evidence?.includes(kind))))fail("additional source/evidence floor may not be removed");
     const needs = Array.isArray(row.required_evidence) ? row.required_evidence : [];
     if (!needs.length || needs.some(item => !classes.has(item)) || new Set(needs).size !== needs.length) fail('invalid required evidence classes');
     if (physicalRequired(row.id) && !needs.includes('PHYSICAL')) fail('PHYSICAL evidence may not be removed');

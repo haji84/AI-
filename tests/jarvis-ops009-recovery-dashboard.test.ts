@@ -157,5 +157,5 @@ test("OPS-009 owner-facing page is linked and contains no recovery execution con
   assert.match(pageSource, /Blocker/);
   assert.doesNotMatch(pageSource, /fetch\([^\n]+method:\s*["'](?:POST|PUT|PATCH|DELETE)/i);
   assert.doesNotMatch(pageSource, /再実行|復旧開始|resume|trigger recovery/i);
-  assert.match(jarvisPage, /href="\/jarvis\/recovery">Recovery/);
+  assert.match(jarvisPage, /href:\s*"\/jarvis\/recovery"[\s\S]*label:\s*"復旧"/);
 });

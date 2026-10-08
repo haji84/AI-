@@ -1,0 +1,24 @@
+name: GORIQ ZBook Goal 1218 State Snapshot
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - name: Read bounded persisted Goal and verifier state
+        shell: powershell
+        run: node scripts/zbook-goal-diagnostics.ts
+      - name: Upload bounded state snapshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: goriq-zbook-goal-state-1218
+          path: .gai-results/goal-1218-bridge-diagnostics.json
+          retention-days: 14

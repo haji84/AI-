@@ -1,3 +1,5 @@
+import type { WorkerResourceRequirements, WorkerThermalState } from "../gai/worker-runtime.ts";
+
 export const JARVIS_MAX_NODES = 100;
 
 export type JarvisNodeKind = "android" | "ios" | "windows" | "macos" | "linux" | "cloud";
@@ -48,6 +50,41 @@ export interface JarvisNodePolicy {
   requireHumanForLockedDevice: boolean;
 }
 
+export interface JarvisAndroidNodeContractV1 {
+  schemaVersion: 1;
+  platform: "android";
+  architecture: string | null;
+  executionModes: Array<"foreground" | "background-scheduled" | "deferred">;
+  networkRequirement: "offline-capable";
+  persistence: {
+    localState: boolean;
+    checkpointResume: boolean;
+    offlineQueue: boolean;
+  };
+  migration: {
+    supported: Array<"RESTARTABLE" | "PINNED">;
+    checkpointResume: boolean;
+    sideEffectingFencing: boolean;
+  };
+  security: {
+    credentialIsolation: boolean;
+    taskScopedAuthorization: boolean;
+  };
+  constraints: {
+    residentExecution: false;
+    lockedUiRequiresHuman: true;
+  };
+  resources: {
+    cpuCores?: number;
+    memoryAvailableMb?: number;
+    freeStorageMb?: number;
+    batteryPercent?: number;
+    charging?: boolean;
+    network?: "wifi" | "cellular" | "lan" | "offline";
+  };
+  checkedAt: string;
+}
+
 export interface JarvisNodeTelemetry {
   remoteProtocol?: number;
   androidApi?: number;
@@ -57,6 +94,12 @@ export interface JarvisNodeTelemetry {
   freeStorageMb?: number;
   cpuLoadPercent?: number;
   gpuLoadPercent?: number;
+  memoryAvailableMb?: number;
+  cpuAvailable?: boolean;
+  gpuAvailable?: boolean;
+  onExternalPower?: boolean;
+  thermalState?: WorkerThermalState;
+  dataLocalityKeys?: string[];
   network?: "wifi" | "cellular" | "lan" | "offline";
   deviceOwner?: boolean;
   adminActive?: boolean;
@@ -74,6 +117,14 @@ export interface JarvisNode {
   capabilities: JarvisCapability[];
   policy: JarvisNodePolicy;
   telemetry: JarvisNodeTelemetry;
+  nodeContract?: JarvisAndroidNodeContractV1;
+  pcAuthority?: {
+    version: 1;
+    approvalIssue: number;
+    goalIssue: number;
+    roles: Array<"Executor" | "Storage" | "Verifier" | "Coordinator">;
+    capabilityCeiling: JarvisCapability[];
+  };
   enrollment: "quick" | "full";
   fleetNumber?: number;
   group?: string;
@@ -88,6 +139,7 @@ export interface JarvisTask {
   status: JarvisTaskStatus;
   requiredCapabilities: JarvisCapability[];
   preferredKinds?: JarvisNodeKind[];
+  resourceRequirements?: WorkerResourceRequirements;
   priority: "urgent" | "high" | "normal" | "low" | "background";
   requiresOnline: boolean;
   targetNodeId?: string;
