@@ -76,3 +76,5 @@ jobs:
           ./tests/goriq-pc-runtime-replace.test.ps1
           ./tests/goriq-zbook-runtime-owner-repair.test.ps1
           ./tests/goriq-pc-runtime-launch.test.ps1
+          ./tests/gai-zbook-launcher-file.test.ps1
+          ./tests/goriq-zbook-watchdog-launcher-repair.test.ps1

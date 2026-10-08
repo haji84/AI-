@@ -4,6 +4,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'gai-zbook-launcher-file.ps1')
 $stateRoot = Join-Path $env:LOCALAPPDATA 'GAIWorker'
 New-Item -ItemType Directory -Force -Path $stateRoot | Out-Null
 $logPath = Join-Path $stateRoot 'zbook-watchdog.log'
@@ -33,7 +34,7 @@ function Ensure-HiddenScheduledTaskHost {
     'Set shell = CreateObject("WScript.Shell")',
     ('shell.Run "{0}", 0, False' -f $escapedWatchdogCommand)
   ) -join "`r`n"
-  Set-Content -Path $launcherVbs -Value $launcherContent -Encoding Unicode
+  Write-GaiLauncherFile $launcherVbs ($launcherContent + "`r`n")
   $taskCommand = "`"$wscript`" //B //NoLogo `"$launcherVbs`""
 
   foreach ($taskName in @('GAI-ZBook-Runner-OnLogon', 'GAI-ZBook-Watchdog')) {
