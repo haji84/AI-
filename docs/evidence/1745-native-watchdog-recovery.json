@@ -144,5 +144,34 @@
     "finalVerifierRun": false
   },
   "fullRecoveryVerified": false,
-  "securityPolicyChanged": false
+  "securityPolicyChanged": false,
+  "protectionPreservingFollowup": {
+    "observedAt": "2026-10-08T08:22:55.0119002Z",
+    "ownerDirection": "Investigate without disabling Smart App Control",
+    "offApproved": false,
+    "smartAppControlState": "On",
+    "antivirusEnabled": true,
+    "realTimeProtectionEnabled": true,
+    "broker": {
+      "ok": true,
+      "runtimeRevision": "a49c458d69a28c0266be8fcad5b26253e5ed8d75",
+      "stats": {
+        "registered": 40,
+        "ready": 39,
+        "offline": 1,
+        "needsHuman": 0,
+        "queued": 0,
+        "running": 0,
+        "completed": 75,
+        "failed": 0
+      }
+    },
+    "mapsProbe": {
+      "at": "2026-10-08T08:21:15.8158357Z",
+      "exitCode": -2147024891,
+      "reason": "access_denied",
+      "currentConnectivityVerified": false
+    },
+    "windowsConsumer": "PR1208 open and unmerged; existing-device acceptance pending"
+  }
 }

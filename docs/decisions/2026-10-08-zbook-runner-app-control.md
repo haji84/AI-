@@ -1,19 +1,22 @@
-# ZBook Runner blocked by Smart App Control (#1745)
+# Preserve Smart App Control during ZBook recovery (#1745)
 
 Date: 2026-10-08
-Status: BLOCKED at security decision; no security change authorized by this document.
+Status: Preserve protection; investigate supported alternatives. Runner recovery remains blocked.
 
-Native watchdog file publication passed on main 7b3e8678. The remaining Runner failure is Windows application-control rejection 0x800711C7. Installed Runner.Listener DLL and EXE match the hash-verified official v2.337.0 ZIP. Replacing the same files has no demonstrated benefit. See [native evidence](../evidence/1745-native-watchdog-recovery.md) and its JSON receipt.
+The owner asked whether recovery could proceed without disabling Smart App Control. Continue with protection enabled. The prior OFF proposal received no approval and is not the chosen next action.
 
-## Options and exact boundary
+Native watchdog file publication passed on main 7b3e8678. The remaining Runner failure is Windows application-control rejection 0x800711C7. Installed Runner.Listener DLL and EXE match the hash-verified official v2.337.0 ZIP. Replacing identical files has no demonstrated benefit. See [native evidence](../evidence/1745-native-watchdog-recovery.md) and its JSON receipt.
 
-1. Retain Smart App Control. Keep the ZBook Runner recovery gate BLOCKED until an accepted/signed vendor build or another legitimate vendor-supported resolution is available. Independent repository work can be scheduled separately; no physical PASS is inferred.
-2. Separately authorize turning Smart App Control Off on this ZBook through Windows Security's supported setting. This is a device-wide reduction of application execution protection, not a Runner-only exception. It permits other software that this layer would have rejected. The requested scope would not include changing Defender antivirus, firewall, other App Control policies, credentials, task principals, ACLs or runner registration.
+## Protection-preserving investigation
 
-The [Microsoft FAQ](https://support.microsoft.com/en-us/windows/security/threat-malware-protection/smart-app-control-frequently-asked-questions) states that individual-app exceptions are unavailable. It also states that recent Windows updates support re-enabling the feature, but the actual device UI and restoration capability must be checked before any change; this record does not promise rollback. Do not replace the supported setting with registry edits, policy removal, broad allow rules or trust-metadata bypasses.
+1. Look for a supported vendor-signed or Microsoft-reputation-accepted Runner release and diagnose the existing protection service's health. Do not promise that a cloud connectivity check fixes file reputation. Any vendor communication or binary submission is a separate external action, not implicitly authorized by this record.
+2. Inspect the existing GORIQ Windows execution route independently of Actions Runner. The native Broker health endpoint is healthy on a49c458d; this does not prove an active native Windows task consumer. That bounded consumer is in open, unmerged PR1208 for issue1207, with existing-device identity and reboot acceptance still pending. Reconcile/review that work before a bounded physical canary; do not invent a second worker.
+3. Keep the existing Runner-loss run37607612844 queued. Another execution route cannot fabricate Runner reconnection or satisfy its final Verifier. Coordinator, native Worker and network acceptance require their own correctly labeled evidence.
 
-For option 2, obtain a separate explicit owner decision bound to issue1745, this ZBook and an expiry before execution. The existing completion authority and PR1746 distribution-guard approval do not cover it. If the setting or restoration path cannot be confirmed, stop with that limitation rather than inventing reversibility.
+## Security boundary
 
-After an authorized change, observe the existing periodic watchdog, verify the same Runner identity reconnects, and let existing node-loss run37607612844 reach rejoin and final Verifier. Record results separately from publication. Do not rerun the successful launcher repair or initiate a second fault run. If the owner wants protection restored, use the supported UI and verify its reported state; disabling/re-enabling is not a guaranteed route to keep an unsigned Runner running.
+The [Microsoft FAQ](https://support.microsoft.com/en-us/windows/security/threat-malware-protection/smart-app-control-frequently-asked-questions) states that individual-app exceptions are unavailable. No registry edit, policy removal, new allow rule, trust-metadata bypass or protection downgrade is part of this plan. Do not change Defender antivirus, firewall, task principals, ACLs, credentials or runner registration.
 
-AGENTS.md requires a separate Human Gate for "security weakening, protection/audit disabling". This is why the next security decision remains outside ordinary completion approval. No security configuration, authorization receipt or runtime code changes are included here.
+A future proposal to turn Smart App Control Off would affect application execution protection across the device, not only Runner. AGENTS.md requires a separate Human Gate for "security weakening, protection/audit disabling". Existing task completion authority and PR1746 distribution-guard approval do not cover it. The owner has not granted it.
+
+Preserve successful watchdog publication and retained backups. #1662 ACL recurrence remains separately blocked at its no-repeat-removal boundary. No deployment, security configuration, authorization receipt or runtime code change is included in this decision.

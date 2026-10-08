@@ -62,3 +62,9 @@ The [Microsoft Smart App Control FAQ](https://support.microsoft.com/en-us/window
 GitHub run [37607612844](https://github.com/haji84/AI-/actions/runs/37607612844) still has five successful jobs and ZBook rejoin job112747693411 queued; final Verifier has not run. No duplicate fault run was started. The existing scenario tests Runner.Listener loss and artifact handoff, not Coordinator loss or network partition. Those later gates remain unverified.
 
 Publication PASS; full watchdog/Runner recovery BLOCKED by application control. Preserve the reviewed files and backups rather than repeat the completed repair. #1662's separately observed ACL recurrence retains its no-repeat-removal boundary. Android38/identity40, the existing a49 native JARVIS runtime, and deferred Nubia scope remain unchanged.
+
+## Owner direction: preserve protection
+
+The owner asked to proceed without disabling Smart App Control. No OFF approval was received; protection stays On. At08:21Z, Get-MpComputerStatus reported SAC On, Defender Normal, antivirus and real-time protection enabled; AppIDSvc, WdNisSvc and WinDefend were running. The non-elevated ValidateMapsConnection probe returned access denied0x80070005, not a successful connectivity test. Its output reported a prior successful MAPS connection at16:49:29 local time; that is not proof of a current ISG reputation acceptance.
+
+The native Broker health endpoint remained healthy on a49c458d, with40 registered/39 ready/1 offline, queued0/running0. This is Broker evidence, not Windows task-consumer or Runner recovery. The existing bounded consumer is in open PR1208; existing-device identity and physical reboot acceptance remain pending. Investigate that existing route separately while retaining this Runner-loss gate as incomplete.
