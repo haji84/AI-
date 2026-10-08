@@ -6,7 +6,7 @@ $script=Join-Path $PSScriptRoot '..\scripts\goriq-zbook-watchdog-launcher-repair
 $tokens=$null;$errors=$null
 $ast=[Management.Automation.Language.Parser]::ParseFile($script,[ref]$tokens,[ref]$errors)
 if($errors.Count){throw 'repair-parse-error'}
-foreach($name in @('Assert-WatchdogRecoveryApproval','Replace-RecoveryBytes','Assert-RecoveryNativePath')){
+foreach($name in @('Assert-WatchdogRecoveryApproval','Replace-RecoveryBytes','Assert-RecoveryNativePath','Write-RecoveryExistingBytes','Write-RecoveryStream')){
   $function=$ast.Find({param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $name},$true)
   if(-not $function){throw 'missing-repair-function'}
   . ([scriptblock]::Create($function.Extent.Text))
@@ -53,5 +53,20 @@ if([Convert]::ToBase64String([IO.File]::ReadAllBytes($target)) -cne 'BAUG'){thro
 Replace-RecoveryBytes $target ([byte[]](1,2,3))
 if([Convert]::ToBase64String([IO.File]::ReadAllBytes($target)) -cne 'AQID'){throw 'rollback-bytes-mismatch'}
 if(@(Get-ChildItem $root -Filter '.goriq-1745-*.tmp').Count){throw 'recovery-temporary-left-behind'}
+$inPlaceAcl=(Get-Acl -LiteralPath $target).Sddl
+Write-RecoveryExistingBytes $target ([byte[]](10,11,12,13))
+if([Convert]::ToBase64String([IO.File]::ReadAllBytes($target)) -cne 'CgsMDQ==' -or (Get-Acl -LiteralPath $target).Sddl -cne $inPlaceAcl){throw 'existing-file-bytes-or-owner-changed'}
+$writeStream=(Get-Command Write-RecoveryStream).ScriptBlock
+try{
+  function Write-RecoveryStream($stream,[byte[]]$bytes){$stream.WriteByte(255);throw [IO.IOException]::new('injected-existing-write-failure')}
+  $rejected=$false;try{Write-RecoveryExistingBytes $target ([byte[]](20,21,22))}catch{$rejected=$_.Exception.Message -eq 'injected-existing-write-failure'}
+  if(-not $rejected -or [Convert]::ToBase64String([IO.File]::ReadAllBytes($target)) -cne 'CgsMDQ==' -or (Get-Acl -LiteralPath $target).Sddl -cne $inPlaceAcl){throw 'existing-file-failure-not-restored'}
+}finally{Set-Item Function:Write-RecoveryStream $writeStream}
+$lock=[IO.File]::OpenRead($target)
+try{
+  $rejected=$false;try{Write-RecoveryExistingBytes $target ([byte[]](30))}catch{$rejected=$_.Exception.InnerException -is [IO.IOException]}
+  if(-not $rejected){throw 'existing-file-not-exclusive'}
+}finally{$lock.Dispose()}
+if([Convert]::ToBase64String([IO.File]::ReadAllBytes($target)) -cne 'CgsMDQ=='){throw 'exclusive-file-refusal-changed-bytes'}
 Write-Host 'Recovery scope/expiry rejection, native path, byte publication and rollback fixtures PASS.'
 exit 0
