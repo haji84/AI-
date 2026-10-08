@@ -1,5 +1,6 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
+. (Join-Path $PSScriptRoot '..\scripts\gai-zbook-launcher-file.ps1')
 # Load only pure validation/publication functions; never execute the native repair body.
 $script=Join-Path $PSScriptRoot '..\scripts\goriq-zbook-watchdog-launcher-repair.ps1'
 $tokens=$null;$errors=$null
@@ -42,7 +43,7 @@ $target=Join-Path $root 'fixture.bin'
 $acl=(Get-Acl -LiteralPath $target).Sddl
 Assert-RecoveryNativePath $target
 Replace-RecoveryBytes $target ([byte[]](4,5,6))
-if([Convert]::ToBase64String([IO.File]::ReadAllBytes($target)) -cne 'BAUG' -or (Get-Acl -LiteralPath $target).Sddl -cne $acl){throw 'replace-bytes-or-acl'}
+if([Convert]::ToBase64String([IO.File]::ReadAllBytes($target)) -cne 'BAUG' -or (Get-GaiComparableFileSddl (Get-Acl -LiteralPath $target).Sddl) -cne (Get-GaiComparableFileSddl $acl)){throw 'replace-bytes-or-acl'}
 $lock=[IO.File]::Open($target,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
 try{
   $rejected=$false;try{Replace-RecoveryBytes $target ([byte[]](7,8,9))}catch{$rejected=$_.Exception.InnerException -is [IO.IOException]}

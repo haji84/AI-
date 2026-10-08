@@ -17,11 +17,13 @@ function Assert-WatchdogRecoveryApproval($approval,[datetimeoffset]$now) {
 }
 function Replace-RecoveryBytes([string]$path,[byte[]]$bytes) {
   $temporary=Join-Path (Split-Path -Parent $path) ('.goriq-1745-'+[guid]::NewGuid().ToString('N')+'.tmp')
+  $replacementStarted=$false
   try {
     $stream=[IO.File]::Open($temporary,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
     try{$stream.Write($bytes,0,$bytes.Length);$stream.Flush($true)}finally{$stream.Dispose()}
-    [IO.File]::Replace($temporary,$path,[NullString]::Value)
-  }finally{if([IO.File]::Exists($temporary)){[IO.File]::Delete($temporary)}}
+    $replacementStarted=$true
+    Invoke-GaiSafeFileReplace $temporary $path
+  }finally{if(-not $replacementStarted -and [IO.File]::Exists($temporary)){[IO.File]::Delete($temporary)}}
 }
 function Assert-RecoveryNativePath([string]$path) {
   if(-not ('Goriq1745Path' -as [type])) {
@@ -113,7 +115,7 @@ try {
   Replace-RecoveryBytes $watchdog ([IO.File]::ReadAllBytes((Join-Path $PSScriptRoot 'gai-zbook-watchdog.ps1')))
   Write-GaiLauncherFile $launcher $nextLauncher
   $stage='verify-publication'
-  foreach($path in $acls.Keys){if((Get-Acl -LiteralPath $path).Sddl -cne $acls[$path]){throw 'acl-changed'}}
+  foreach($path in $acls.Keys){if((Get-GaiComparableFileSddl (Get-Acl -LiteralPath $path).Sddl) -cne (Get-GaiComparableFileSddl $acls[$path])){throw 'acl-changed'}}
   foreach($name in $taskXml.Keys){if((Export-ScheduledTask -TaskName $name) -cne $taskXml[$name]){throw 'task-changed'}}
   foreach($path in @($watchdog,$launcher,$helper)){Assert-RecoveryNativePath $path}
   foreach($name in @('gai-zbook-watchdog.ps1','gai-zbook-launcher-file.ps1')){
@@ -131,7 +133,7 @@ try {
       Replace-RecoveryBytes $watchdog $watchdogBefore
       Replace-RecoveryBytes $launcher $launcherBefore
       $restored=((Get-FileHash $watchdog -Algorithm SHA256).Hash -eq $expectedWatchdog -and (Get-FileHash $launcher -Algorithm SHA256).Hash -eq $expectedVbs)
-      foreach($path in $acls.Keys){if((Get-Acl -LiteralPath $path).Sddl -cne $acls[$path]){$restored=$false}}
+      foreach($path in $acls.Keys){if((Get-GaiComparableFileSddl (Get-Acl -LiteralPath $path).Sddl) -cne (Get-GaiComparableFileSddl $acls[$path])){$restored=$false}}
       foreach($name in $taskXml.Keys){if((Export-ScheduledTask -TaskName $name) -cne $taskXml[$name]){$restored=$false}}
       $rollbackFailed=-not $restored
     }catch{$rollbackFailed=$true}

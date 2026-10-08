@@ -31,7 +31,19 @@ $unicode=$program+'Rem '+[char]0x65e5+[char]0x672c+"`r`n"
 Write-GaiLauncherFile $target $unicode
 if([IO.File]::ReadAllText($target) -cne $unicode){throw 'unicode-changed'}
 $aclAfter=(Get-Acl -LiteralPath $target).Sddl
-if($aclAfter -cne $aclBefore){throw "fixture-acl-changed: before=$aclBefore after=$aclAfter"}
+if((Get-GaiComparableFileSddl $aclAfter) -cne (Get-GaiComparableFileSddl $aclBefore)){throw "fixture-acl-changed: before=$aclBefore after=$aclAfter"}
+$sddl='O:BAG:BAD:(A;ID;FA;;;BA)'
+if((Get-GaiComparableFileSddl $sddl) -cne (Get-GaiComparableFileSddl 'O:BAG:BAD:AI(A;ID;FA;;;BA)')){throw 'auto-inherited-bookkeeping-not-normalized'}
+foreach($different in @('O:SYG:BAD:(A;ID;FA;;;BA)','O:BAG:SYD:(A;ID;FA;;;BA)','O:BAG:BAD:P(A;ID;FA;;;BA)','O:BAG:BAD:(A;ID;FR;;;BA)','O:BAG:BAD:(A;;FA;;;BA)','O:BAG:BAD:(A;ID;FA;;;SY)')){
+  if((Get-GaiComparableFileSddl $sddl) -ceq (Get-GaiComparableFileSddl $different)){throw 'actual-authority-change-ignored'}
+}
+# Inject documented partial replacement: original moved to backup, new target absent.
+$nativeReplace=(Get-Command Invoke-GaiNativeFileReplace).ScriptBlock
+try {
+  function Invoke-GaiNativeFileReplace([string]$temporary,[string]$target,[string]$backup){[IO.File]::Move($target,$backup);throw [IO.IOException]::new('injected-partial-replacement')}
+  $rejected=$false;try{Write-GaiLauncherFile $target ($unicode+'different')}catch{$rejected=$_.Exception.Message -eq 'injected-partial-replacement'}
+  if(-not $rejected -or [IO.File]::ReadAllText($target) -cne $unicode -or (Get-Acl -LiteralPath $target).Sddl -cne $aclAfter){throw 'partial-replacement-not-restored'}
+}finally{Set-Item Function:Invoke-GaiNativeFileReplace $nativeReplace}
 $helper=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\scripts\gai-zbook-launcher-file.ps1'))
 $writer=Join-Path $root 'writer.ps1'
 @('param([string]$Helper,[string]$Target,[string]$Label)','$ErrorActionPreference=''Stop''','. $Helper','for($i=0;$i -lt 12;$i++){Write-GaiLauncherFile $Target ("Option Explicit`r`nDim shell`r`nWScript.Echo ""fixture-once""`r`nRem "+$Label+"`r`n")}','Write-Output "completed-$Label"','exit 0') | Set-Content $writer -Encoding UTF8
@@ -47,8 +59,9 @@ foreach($label in @('a','b','c')){
 $published=[IO.File]::ReadAllText($target)
 $valid=@('a','b','c') | Where-Object {$published -ceq ($program+'Rem '+$_+"`r`n")}
 if(@($valid).Count -ne 1){throw 'concurrent-publication-incomplete'}
-if((Get-Acl -LiteralPath $target).Sddl -cne $aclBefore){throw 'concurrent-publication-acl-changed'}
+if((Get-GaiComparableFileSddl (Get-Acl -LiteralPath $target).Sddl) -cne (Get-GaiComparableFileSddl $aclBefore)){throw 'concurrent-publication-acl-changed'}
 if(@(Get-ChildItem $root -Filter '.gai-launcher-*.tmp').Count){throw 'temporary-left-behind'}
+if(@(Get-ChildItem $root -Filter '.gai-replace-*.bak').Count){throw 'replacement-backup-left-behind'}
 Write-Host 'Concurrent publication preserves one complete candidate and target ACL.'
 Write-Host 'Complete, idempotent, failure-preserving launcher publication PASS.'
 exit 0
