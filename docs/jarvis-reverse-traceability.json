@@ -3703,6 +3703,18 @@
       "reason": "Self-improvement candidate runtime"
     },
     {
+      "path": "src/gai/shared-workload-authority.ts",
+      "sha256": "",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OFF-005",
+        "OFF-006",
+        "OFF-008",
+        "MIG-008"
+      ],
+      "reason": "Defines a shared linearizable coordinator/task CAS contract and stale-claim guarded completion; physical cross-host store, native migration and partition acceptance remain pending."
+    },
+    {
       "path": "src/gai/skill-execution-runtime.ts",
       "sha256": "36f061fc711f71d863b985ed9a534facbab6eb413dfb326312dd0bfdc7126be4",
       "classification": "COVERED_BY_REQUIREMENT",
