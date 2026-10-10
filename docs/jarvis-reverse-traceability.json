@@ -3704,7 +3704,7 @@
     },
     {
       "path": "src/gai/shared-workload-authority.ts",
-      "sha256": "",
+      "sha256": "edf15cd6ba756c72df3c80a15e232bc31493a333fcab7934a07090768b68acd1",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OFF-005",
