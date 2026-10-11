@@ -28,16 +28,18 @@ function isEnvelope(value: unknown): value is WorkStateEnvelope {
 export class CompassWorkStateStoreAdapter implements WorkStateStore {
   private readonly compass: CompassStore;
   private readonly fenced: boolean;
+  private readonly assertAtomicWriteAuthority?: () => void;
 
-  constructor(compass: CompassStore, fenced = false) {
+  constructor(compass: CompassStore, fenced = false, assertAtomicWriteAuthority?: () => void) {
     this.compass = compass;
     this.fenced = fenced;
+    this.assertAtomicWriteAuthority = assertAtomicWriteAuthority;
   }
 
   private assertAtomicAuthority(): void {
     // A separate Durable Task lease check cannot protect this Compass mutation.
     // Reject fenced writes until the lease and Compass share an atomic boundary.
-    if (this.fenced) throw new Error("COMPASS_FENCED_WORK_STATE_ATOMICITY_REQUIRED");
+    if (this.fenced && !this.assertAtomicWriteAuthority) throw new Error("COMPASS_FENCED_WORK_STATE_ATOMICITY_REQUIRED");
   }
 
   async get(goalId: string): Promise<WorkState | null> {
@@ -62,7 +64,7 @@ export class CompassWorkStateStoreAdapter implements WorkStateStore {
         events: existing?.events ?? [],
       };
       return [...active.filter(entry => !(isEnvelope(entry) && entry.goalId === state.goalId)), next];
-    });
+    }, this.assertAtomicWriteAuthority);
   }
 
   async appendEvent(goalId: string, event: WorkEvent): Promise<void> {
@@ -76,7 +78,7 @@ export class CompassWorkStateStoreAdapter implements WorkStateStore {
         events: [...existing.events, structuredClone(event)].slice(-MAX_EVENTS),
       };
       return [...active.filter(entry => !(isEnvelope(entry) && entry.goalId === goalId)), next];
-    });
+    }, this.assertAtomicWriteAuthority);
   }
 
   private envelopes(): WorkStateEnvelope[] {
