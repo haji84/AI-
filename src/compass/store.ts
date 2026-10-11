@@ -312,9 +312,10 @@ export class CompassStore {
   }
 
   /** Atomic envelope update: no schema change and no lost concurrent intake history. */
-  updateActive(transform: (active: unknown[]) => unknown[]): void {
+  updateActive(transform: (active: unknown[]) => unknown[], assertFencedAuthority?: () => void): void {
     this.db.exec("BEGIN IMMEDIATE");
     try {
+      assertFencedAuthority?.();
       const active = transform(this.getState().active);
       this.db.prepare("UPDATE state SET active = ?, updated_at = ? WHERE project_id = ?").run(encode(active), nowIso(), PROJECT_ID);
       this.db.exec("COMMIT");
