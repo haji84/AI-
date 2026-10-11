@@ -4,12 +4,13 @@ import { hostname } from "node:os";
 import { randomUUID } from "node:crypto";
 import { assessAutonomyLock } from "../src/orchestrator/autonomy-lock-assessment.ts";
 import { CompassStore } from "../src/compass/store.ts";
+import { DurableTaskRuntime, JsonFileDurableTaskStore } from "../src/gai/durable-task-runtime.ts";
 import { BaselinePlanner, createContextInspectCapability } from "../src/orchestrator/baseline-planner.ts";
 import { RuntimeDevelopmentPlanner } from "../src/orchestrator/runtime-development-planner.ts";
 import { createCodeBuilderCapability, createRuntimeBuilderRouter } from "../src/orchestrator/runtime-builder-capability.ts";
 import { runBoundedGoalLoop } from "../src/orchestrator/bounded-runner.ts";
 import { CapabilityRegistry } from "../src/orchestrator/capabilities.ts";
-import { CompassStateStoreAdapter, compassGoalToLoopGoal } from "../src/orchestrator/compass-state-store.ts";
+import { CompassStateStoreAdapter, compassGoalToLoopGoal, durableClaimWriteAuthority } from "../src/orchestrator/compass-state-store.ts";
 import { CompassWorkStateStoreAdapter } from "../src/orchestrator/compass-work-state-store.ts";
 import { selectIndependentWorkItem } from "../src/orchestrator/work-state.ts";
 import { type ContextSource, type Verifier } from "../src/orchestrator/goal-loop.ts";
@@ -122,13 +123,26 @@ try {
     },
   };
 
+  // Explicit opt-in only: the local durable store does not provide cross-node consensus.
+  // Until a shared atomic Compass/fencing commit exists, guarded PASS writes fail closed.
+  const fencedStorePath = process.env.AUTONOMY_FENCED_TASK_STORE_PATH?.trim();
+  let writeAuthority: (() => Promise<void>) | undefined;
+  if (fencedStorePath) {
+    const durable = new DurableTaskRuntime(new JsonFileDurableTaskStore(resolve(fencedStorePath)));
+    const taskId = goalWorkStateId(goal);
+    await durable.enqueue({ id: taskId, idempotencyKey: taskId, type: "autonomy-goal-execution", migrationClass: "RESTARTABLE" });
+    await durable.reclaimExpiredLeases();
+    const claim = await durable.leaseClaim(taskId, `${hostname()}:${runId}`);
+    writeAuthority = durableClaimWriteAuthority(durable, claim);
+  }
+
   const loop = createWorkStateIntegratedGoalLoop({
     goal,
     planner: new RuntimeDevelopmentPlanner(new BaselinePlanner()),
     contextSources: [contextSource],
     executor: registry,
     verifier,
-    stateStore: new CompassStateStoreAdapter(activeCompass),
+    stateStore: new CompassStateStoreAdapter(activeCompass, writeAuthority),
     workStateStore: new CompassWorkStateStoreAdapter(activeCompass),
   });
 
