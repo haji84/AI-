@@ -131,6 +131,9 @@ try {
   process.stdout.write(`${JSON.stringify({ dryRun, dbPath, report }, null, 2)}\n`);
   }
 } finally {
-  compass?.close();
-  rmSync(lockPath, { recursive: true, force: true });
+  try {
+    compass?.close();
+  } finally {
+    rmSync(lockPath, { recursive: true, force: true });
+  }
 }
