@@ -56,7 +56,7 @@ export async function commitSharedWorkloadResult(
 ): Promise<DurableTask> {
   for (let attempt = 0; attempt < 3; attempt++) {
     const state = await store.load();
-    if (state.version !== 1 || state.tasks.version !== 1 || !Number.isSafeInteger(state.revision) || state.revision < 0) {
+    if (state.version !== 1 || state.tasks.version !== 1 || !Number.isSafeInteger(state.revision) || state.revision < 0 || state.revision === Number.MAX_SAFE_INTEGER) {
       throw new SharedAuthorityUnavailable();
     }
     assertLeader(state.coordinator, coordinatorClaim, now);
