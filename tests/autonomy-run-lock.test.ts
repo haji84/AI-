@@ -115,3 +115,39 @@ test("owner metadata is written before Compass initialization and removed on fai
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test("SIGKILL leaves the owner lock for reconciliation and blocks another runner", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "goriq-sigkill-lock-"));
+  const dbPath = join(dir, "compass.db");
+  const lockPath = dbPath + ".autonomy-lock";
+  const holder = spawn(process.execPath, ["-e", `
+    const fs = require("node:fs");
+    fs.mkdirSync(process.argv[1]);
+    fs.writeFileSync(process.argv[1] + "/owner.json", JSON.stringify({
+      host: require("node:os").hostname(), pid: process.pid, startedAt: new Date().toISOString()
+    }));
+    process.stdout.write("READY\\n");
+    setTimeout(() => {}, 30000);
+  `, lockPath], { stdio: ["ignore", "pipe", "pipe"] });
+  try {
+    await new Promise<void>((resolveReady, reject) => {
+      const timeout = setTimeout(() => reject(new Error("holder timeout")), 5000);
+      holder.stdout.once("data", data => {
+        clearTimeout(timeout);
+        String(data).includes("READY") ? resolveReady() : reject(new Error("holder not ready"));
+      });
+      holder.once("error", reject);
+    });
+    holder.kill("SIGKILL");
+    await new Promise<void>(resolveExit => holder.once("exit", () => resolveExit()));
+    assert.equal(existsSync(lockPath), true);
+    const retry = spawnSync(process.execPath, [resolve("scripts/autonomy-run.ts"), "--resume-only"], {
+      env: { ...process.env, COMPASS_DB_PATH: dbPath }, encoding: "utf8", timeout: 10000,
+    });
+    assert.notEqual(retry.status, 0);
+    assert.match(retry.stderr, /autonomy already locked/);
+  } finally {
+    holder.kill("SIGKILL");
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
