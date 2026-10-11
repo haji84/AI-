@@ -6158,7 +6158,7 @@
     },
     {
       "path": "src/orchestrator/work-state-integration.ts",
-      "sha256": "a35be9b662b43a627c60bcdb1657a8ca4061d5155c8b3daaefd0bfc5a9658bfc",
+      "sha256": "8d2369293bbc47c49e3395b69ee768e6fb64a45a4ed1e8516a6ca02035fd29fe",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-002",
