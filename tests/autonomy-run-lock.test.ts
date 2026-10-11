@@ -17,7 +17,7 @@ test("a concurrent autonomy invocation fails closed before opening Compass", () 
       timeout: 10000,
     });
     assert.notEqual(result.status, 0);
-    assert.match(result.stderr, /autonomy already locked \\(unknown\\); reconcile previous run before retry/);
+    assert.match(result.stderr, /autonomy already locked \(unknown\); reconcile previous run before retry/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
