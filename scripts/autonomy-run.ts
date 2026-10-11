@@ -41,6 +41,7 @@ try {
   }
 
   const currentState = compass.getState();
+  // A pending approval remains gated. Only an independently authorized action may proceed.
   const mayResume = Boolean(resumeHint) && currentState.status !== "ACHIEVED"
     && currentState.status !== "PAUSED"
     && currentState.status !== "BLOCKED" && currentState.status !== "approval_required";
