@@ -40,13 +40,12 @@ try {
   rmSync(lockPath, { recursive: true, force: true });
   throw error;
 }
-let compass: CompassStore | undefined;
+const compass = new CompassStore(dbPath);
 try {
-  compass = new CompassStore(dbPath);
   const goalRecord = compass.getGoal();
   if (!goalRecord) throw new Error("Compass goal is not set");
   const goal = compassGoalToLoopGoal(goalRecord);
-  const checkpointPath = process.env.AUTONOMY_CHECKPOINT_PATH?.trim() || resolve(dirname(dbPath), "autonomy-checkpoint.json");
+  const checkpointPath: string = process.env.AUTONOMY_CHECKPOINT_PATH?.trim() || resolve(dirname(dbPath), "autonomy-checkpoint.json");
   let resumeHint: string | null = null;
   if (existsSync(checkpointPath)) {
     try {
@@ -141,7 +140,7 @@ try {
   }
 } finally {
   try {
-    compass?.close();
+    compass.close();
   } finally {
     rmSync(lockPath, { recursive: true, force: true });
   }
