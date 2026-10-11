@@ -41,6 +41,15 @@ export class CompassExecutionLease {
     }
   }
 
+  /** Called only inside an existing BEGIN IMMEDIATE transaction. */
+  assertCurrent(claim: { taskId: string; owner: string; epoch: number; token: string }, now = Date.now()): void {
+    const current = this.db.prepare("SELECT * FROM compass_execution_lease WHERE task_id = ?")
+      .get(claim.taskId) as { owner: string; epoch: number; token: string; expires_at: number } | undefined;
+    if (!current || current.owner !== claim.owner || current.epoch !== claim.epoch ||
+        current.token !== claim.token || current.expires_at <= now)
+      throw new Error("COMPASS_LEASE_STALE_CLAIM");
+  }
+
   /** Run only synchronous Compass database mutations in this transaction. */
   commit<T>(
     claim: { taskId: string; owner: string; epoch: number; token: string },
@@ -49,11 +58,7 @@ export class CompassExecutionLease {
   ): T {
     this.db.exec("BEGIN IMMEDIATE");
     try {
-      const current = this.db.prepare("SELECT * FROM compass_execution_lease WHERE task_id = ?")
-        .get(claim.taskId) as { owner: string; epoch: number; token: string; expires_at: number } | undefined;
-      if (!current || current.owner !== claim.owner || current.epoch !== claim.epoch ||
-          current.token !== claim.token || current.expires_at <= now)
-        throw new Error("COMPASS_LEASE_STALE_CLAIM");
+      this.assertCurrent(claim, now);
       const result = mutation();
       this.db.exec("COMMIT");
       return result;
