@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, mkdirSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import test from "node:test";
@@ -149,6 +149,31 @@ test("SIGKILL leaves the owner lock for reconciliation and blocks another runner
     assert.match(retry.stderr, /autonomy already locked/);
   } finally {
     holder.kill("SIGKILL");
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("a foreign-owned lock is never removed or overwritten by a competing invocation", () => {
+  const dir = mkdtempSync(join(tmpdir(), "goriq-foreign-lock-"));
+  try {
+    const dbPath = join(dir, "compass.db");
+    const lockPath = dbPath + ".autonomy-lock";
+    mkdirSync(lockPath);
+    const ownerPath = join(lockPath, "owner.json");
+    const owner = JSON.stringify({
+      host: "another-trusted-node", pid: 12345, startedAt: "2026-10-11T00:00:00.000Z",
+      runId: "existing-owner-token",
+    });
+    writeFileSync(ownerPath, owner);
+    const result = spawnSync(process.execPath, [resolve("scripts/autonomy-run.ts"), "--resume-only"], {
+      env: { ...process.env, COMPASS_DB_PATH: dbPath },
+      encoding: "utf8", timeout: 10000,
+    });
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /autonomy already locked/);
+    assert.equal(readFileSync(ownerPath, "utf8"), owner);
+    assert.equal(existsSync(lockPath), true);
+  } finally {
     rmSync(dir, { recursive: true, force: true });
   }
 });
