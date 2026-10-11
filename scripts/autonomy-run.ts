@@ -126,6 +126,13 @@ try {
   // Explicit opt-in only: the local durable store does not provide cross-node consensus.
   // Until a shared atomic Compass/fencing commit exists, guarded PASS writes fail closed.
   const fencedStorePath = process.env.AUTONOMY_FENCED_TASK_STORE_PATH?.trim();
+  const sqliteFenced = process.env.AUTONOMY_COMPASS_SQLITE_FENCE === "1";
+  if (sqliteFenced && !dryRun) throw new Error("AUTONOMY_SQLITE_FENCE_EFFECT_RECONCILIATION_REQUIRED");
+  if (sqliteFenced && fencedStorePath) throw new Error("AUTONOMY_FENCE_BACKENDS_CONFLICT");
+  const sqliteLease = sqliteFenced ? activeCompass.executionLease() : null;
+  const sqliteClaim = sqliteLease?.claim(goalWorkStateId(goal), `${hostname()}:${runId}`, 60_000);
+  const assertSqliteAuthority = sqliteLease && sqliteClaim
+    ? () => sqliteLease.assertCurrent(sqliteClaim) : undefined;
   let writeAuthority: (() => Promise<void>) | undefined;
   if (fencedStorePath && !dryRun) {
     // A pre-write claim check is not atomic with Compass or work-state writes.
@@ -148,8 +155,8 @@ try {
     contextSources: [contextSource],
     executor: registry,
     verifier,
-    stateStore: new CompassStateStoreAdapter(activeCompass, writeAuthority),
-    workStateStore: new CompassWorkStateStoreAdapter(activeCompass, Boolean(fencedStorePath)),
+    stateStore: new CompassStateStoreAdapter(activeCompass, writeAuthority, assertSqliteAuthority),
+    workStateStore: new CompassWorkStateStoreAdapter(activeCompass, Boolean(fencedStorePath || sqliteFenced), assertSqliteAuthority),
   });
 
   const report = await runBoundedGoalLoop(loop, goal, { maxCycles });
