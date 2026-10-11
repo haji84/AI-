@@ -6169,7 +6169,7 @@
     },
     {
       "path": "src/orchestrator/work-state.ts",
-      "sha256": "24ad1a6134d3945ca91ea94bd6e56962c08466064ddec281fcc17f0e4ca46053",
+      "sha256": "a62bf1d7f157a143d79abb5a4dae6ac84d233c8c86d1d12977c87706c50e5304",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-002",
