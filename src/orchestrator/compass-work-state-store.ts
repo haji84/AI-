@@ -27,9 +27,17 @@ function isEnvelope(value: unknown): value is WorkStateEnvelope {
 
 export class CompassWorkStateStoreAdapter implements WorkStateStore {
   private readonly compass: CompassStore;
+  private readonly fenced: boolean;
 
-  constructor(compass: CompassStore) {
+  constructor(compass: CompassStore, fenced = false) {
     this.compass = compass;
+    this.fenced = fenced;
+  }
+
+  private assertAtomicAuthority(): void {
+    // A separate Durable Task lease check cannot protect this Compass mutation.
+    // Reject fenced writes until the lease and Compass share an atomic boundary.
+    if (this.fenced) throw new Error("COMPASS_FENCED_WORK_STATE_ATOMICITY_REQUIRED");
   }
 
   async get(goalId: string): Promise<WorkState | null> {
@@ -43,6 +51,7 @@ export class CompassWorkStateStoreAdapter implements WorkStateStore {
   }
 
   async put(state: WorkState): Promise<void> {
+    this.assertAtomicAuthority();
     this.compass.updateActive(active => {
       const existing = active.filter(isEnvelope).find(entry => entry.goalId === state.goalId);
       const next: WorkStateEnvelope = {
@@ -57,6 +66,7 @@ export class CompassWorkStateStoreAdapter implements WorkStateStore {
   }
 
   async appendEvent(goalId: string, event: WorkEvent): Promise<void> {
+    this.assertAtomicAuthority();
     this.compass.updateActive(active => {
       const existing = active.filter(isEnvelope).find(entry => entry.goalId === goalId);
       if (!existing) return active;
