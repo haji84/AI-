@@ -182,12 +182,12 @@ export class WorkStateGuardedExecutor implements CapabilityExecutor {
     // This is enforced at execution time, even if the planner selected it earlier.
     if (bound.workItemId) {
       const item = state.childWorkItems.find(candidate => candidate.id === bound.workItemId);
-      if (item?.status === "BLOCKED") {
+      if (item?.status === "BLOCKED" || item?.status === "FAILED" || item?.status === "COMPLETED") {
         return {
           actionId: action.id,
           ok: false,
-          summary: "Work item is blocked and cannot execute without resolving its gate",
-          blocker: "work_item_blocked",
+          summary: "Work item is not executable in its current state",
+          blocker: "work_item_not_executable",
         };
       }
     }
