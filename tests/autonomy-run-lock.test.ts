@@ -201,3 +201,35 @@ test("Compass fenced progress rejects a stale claim before writing state", async
   await assert.rejects(validButNonAtomic.writeBack(record), /COMPASS_FENCED_WRITE_ATOMICITY_REQUIRED/);
   assert.equal(writes, 0);
 });
+
+test("real durable takeover fences Compass progress and preserves its state", async () => {
+  const { CompassStateStoreAdapter, durableClaimWriteAuthority } = await import("../src/orchestrator/compass-state-store.ts");
+  const { DurableTaskRuntime, MemoryDurableTaskStore } = await import("../src/gai/durable-task-runtime.ts");
+  const runtime = new DurableTaskRuntime(new MemoryDurableTaskStore());
+  await runtime.enqueue({ id: "autonomy-goal-test", idempotencyKey: "autonomy-goal-test", type: "autonomy", migrationClass: "RESTARTABLE" });
+  const oldClaim = await runtime.leaseClaim("autonomy-goal-test", "old-runner");
+  await runtime.recoverOrphans(new Set());
+  const newClaim = await runtime.leaseClaim("autonomy-goal-test", "new-runner");
+  assert.ok(newClaim.epoch > oldClaim.epoch);
+  let writes = 0;
+  const compass = {
+    getState: () => ({ status: "continue", completed: [], blockers: [], active: [], nextAction: null }),
+    writeBack: () => { writes++; },
+  } as unknown as ConstructorParameters<typeof CompassStateStoreAdapter>[0];
+  const record = {
+    goal: { title: "test", successCriteria: [], constraints: [] },
+    intent: { summary: "test", confidence: 1, evidence: [] },
+    action: { id: "a", description: "work", capability: "test", risk: "low" as const },
+    result: { actionId: "a", ok: true, summary: "done" },
+    stopReason: "continue" as const,
+  };
+  await assert.rejects(
+    new CompassStateStoreAdapter(compass, durableClaimWriteAuthority(runtime, oldClaim)).writeBack(record),
+    /STALE_EXECUTION_CLAIM/,
+  );
+  await assert.rejects(
+    new CompassStateStoreAdapter(compass, durableClaimWriteAuthority(runtime, newClaim)).writeBack(record),
+    /COMPASS_FENCED_WRITE_ATOMICITY_REQUIRED/,
+  );
+  assert.equal(writes, 0);
+});
