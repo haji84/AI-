@@ -31,7 +31,7 @@ try {
   mkdirSync(lockPath);
 } catch (error) {
   if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
-  process.stdout.write(`${JSON.stringify({ status: "already_running_or_recovery_required", dbPath })}\\n`);
+  process.stdout.write(`${JSON.stringify({ status: "already_running_or_recovery_required", dbPath })}\n`);
   process.exit(0);
 }
 let compass: CompassStore;
