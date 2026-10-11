@@ -46,6 +46,23 @@ export interface ChildWorkItem {
   status: WorkStatus;
 }
 
+/** A candidate is eligible only when explicitly ready and outside gated scopes. */
+export function selectIndependentWorkItem(
+  items: readonly ChildWorkItem[],
+  gatedItemIds: readonly string[],
+  gatedScopes: readonly string[],
+): ChildWorkItem | null {
+  const ids = new Set(gatedItemIds);
+  const scopes = new Set(gatedScopes);
+  const eligible = items.find((item) =>
+    item.status === "NOT_STARTED"
+    && !ids.has(item.id)
+    && item.affectedScope.length > 0
+    && item.affectedScope.every((scope) => !scopes.has(scope))
+  );
+  return eligible ? structuredClone(eligible) : null;
+}
+
 export interface WorkEvent {
   id: string;
   at: string;
