@@ -46,7 +46,16 @@ try {
     && currentState.status !== "PAUSED"
     && currentState.status !== "BLOCKED" && currentState.status !== "approval_required";
   if (resumeOnly && !mayResume) {
-    process.stdout.write(`${JSON.stringify({ status: "resume_not_authorized_or_unavailable", dbPath })}\n`);
+    const approvalPending = currentState.status === "approval_required";
+    // Preserve the pending gate. The scheduler may discover alternative work,
+    // but cannot execute the gated action using this Goal's authority.
+    const outcome = approvalPending ? "approval_pending_independent_work_required"
+      : "resume_not_authorized_or_unavailable";
+    process.stdout.write(`${JSON.stringify({
+      status: outcome,
+      dbPath,
+      nextAction: approvalPending ? "Select an independently authorized work item" : null,
+    })}\n`);
     process.exitCode = 0;
   } else {
   const contextSource: ContextSource = {
