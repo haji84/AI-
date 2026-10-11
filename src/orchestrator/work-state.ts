@@ -59,6 +59,8 @@ export function selectIndependentWorkItem(
     && !ids.has(item.id)
     && item.affectedScope.length > 0
     && item.affectedScope.every((scope) => !scopes.has(scope))
+    && item.executionApproach.trim().length > 0
+    && item.verificationMethod.trim().length > 0
   );
   return eligible ? structuredClone(eligible) : null;
 }
