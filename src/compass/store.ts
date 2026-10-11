@@ -409,7 +409,7 @@ export class CompassStore {
     }));
   }
 
-  writeBack(input: WriteBackInput): {
+  writeBack(input: WriteBackInput, assertFencedAuthority?: () => void): {
     state: StateRecord;
     history: HistoryRecord;
     verification: VerificationRecord | null;
@@ -423,6 +423,7 @@ export class CompassStore {
 
     this.db.exec("BEGIN IMMEDIATE");
     try {
+      assertFencedAuthority?.();
       let verification: VerificationRecord | null = null;
       let verificationId: number | null = null;
       if (input.verification) {
