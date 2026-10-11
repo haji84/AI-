@@ -127,6 +127,12 @@ try {
   // Until a shared atomic Compass/fencing commit exists, guarded PASS writes fail closed.
   const fencedStorePath = process.env.AUTONOMY_FENCED_TASK_STORE_PATH?.trim();
   let writeAuthority: (() => Promise<void>) | undefined;
+  if (fencedStorePath && !dryRun) {
+    // A pre-write claim check is not atomic with Compass or work-state writes.
+    // Do not execute capabilities that could cause effects before the final
+    // write-back is rejected. Keep the experimental path read-only for now.
+    throw new Error("AUTONOMY_FENCED_ATOMIC_COMMIT_REQUIRED: cannot execute with separate durable and Compass stores");
+  }
   if (fencedStorePath) {
     const durable = new DurableTaskRuntime(new JsonFileDurableTaskStore(resolve(fencedStorePath)));
     const taskId = goalWorkStateId(goal);
