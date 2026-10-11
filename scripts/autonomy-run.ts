@@ -1,4 +1,4 @@
-import { mkdirSync, renameSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { CompassStore } from "../src/compass/store.ts";
 import { BaselinePlanner, createContextInspectCapability } from "../src/orchestrator/baseline-planner.ts";
@@ -26,6 +26,18 @@ try {
   const goalRecord = compass.getGoal();
   if (!goalRecord) throw new Error("Compass goal is not set");
   const goal = compassGoalToLoopGoal(goalRecord);
+  const checkpointPath = process.env.AUTONOMY_CHECKPOINT_PATH?.trim() || resolve(dirname(dbPath), "autonomy-checkpoint.json");
+  let resumeHint: string | null = null;
+  if (existsSync(checkpointPath)) {
+    try {
+      const value: unknown = JSON.parse(readFileSync(checkpointPath, "utf-8"));
+      if (value && typeof value === "object") {
+        const hint = value as Record<string, unknown>;
+        if (hint.version === 1 && hint.goalTitle === goal.title && hint.requiresResume === true
+          && typeof hint.nextAction === "string") resumeHint = hint.nextAction;
+      }
+    } catch { /* A corrupt hint cannot override Compass state. */ }
+  }
 
   const contextSource: ContextSource = {
     name: "compass-state",
@@ -33,6 +45,7 @@ try {
       const state = compass.getState();
       const items = [];
       if (state.nextAction) items.push({ source: "state.next_action", summary: state.nextAction });
+      else if (resumeHint) items.push({ source: "checkpoint.resume_hint", summary: resumeHint });
       items.push({ source: "state.status", summary: state.status ?? "unknown" });
       items.push({ source: "state.blockers", summary: JSON.stringify(state.blockers) });
       return items;
@@ -62,8 +75,6 @@ try {
   // Preserve a bounded, non-secret checkpoint for the next scheduler invocation.
   // Compass remains the authoritative durable Goal and work-state store.
   if (!dryRun) {
-    const checkpointPath = process.env.AUTONOMY_CHECKPOINT_PATH?.trim()
-      || resolve(dirname(dbPath), "autonomy-checkpoint.json");
     const state = compass.getState();
     const checkpoint = {
       version: 1,
