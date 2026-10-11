@@ -4777,6 +4777,15 @@
       "reason": "Declared autonomy-delegation.ts responsibility implements/supports Fact Verification Engine; 110. Provenance and Reproducibility. Parent ownership is not functional or physical acceptance evidence."
     },
     {
+      "path": "src/orchestrator/autonomy-lock-assessment.ts",
+      "sha256": "edc76689dd47e5831fb6f120c6e6887286b2fe8de56500a9557c06f428260b66",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "AUTO-010"
+      ],
+      "reason": "Conservative lock-owner diagnostics for autonomous continuation; no authorization to reclaim locks and no claim of unattended recovery completion."
+    },
+    {
       "path": "src/orchestrator/autonomy-run-outcome.ts",
       "sha256": "bea78f6ef2f6cf6fb851aed292f153678c3c06bf775b59844417b4ee7747f488",
       "classification": "COVERED_BY_REQUIREMENT",
