@@ -29,9 +29,15 @@ const lockOwnerPath = resolve(lockPath, "owner.json");
 mkdirSync(dirname(lockPath), { recursive: true });
 try {
   mkdirSync(lockPath);
-  writeFileSync(lockOwnerPath, JSON.stringify({ pid: process.pid, startedAt: new Date().toISOString(), host: process.env.HOSTNAME ?? null }) + "\\n", { flag: "wx", mode: 0o600 });
+
 } catch (error) {
   throw new Error("autonomy already locked; reconcile previous run before retry", { cause: error });
+}
+try {
+  writeFileSync(lockOwnerPath, JSON.stringify({ pid: process.pid, startedAt: new Date().toISOString(), host: process.env.HOSTNAME ?? null }) + "\\n", { flag: "wx", mode: 0o600 });
+} catch (error) {
+  rmSync(lockPath, { recursive: true, force: true });
+  throw error;
 }
 let compass: CompassStore | undefined;
 try {
