@@ -13,6 +13,7 @@ import { createWorkStateIntegratedGoalLoop } from "../src/orchestrator/work-stat
 
 const args = new Set(process.argv.slice(2));
 const dryRun = args.has("--dry-run");
+const resumeOnly = args.has("--resume-only");
 const maxCyclesArg = process.argv.find((value) => value.startsWith("--max-cycles="));
 // Each invocation is bounded; unfinished Goals must resume via durable state, not a fixed retry count.
 const maxCycles = maxCyclesArg ? Number(maxCyclesArg.split("=")[1]) : 1;
@@ -39,6 +40,10 @@ try {
     } catch { /* A corrupt hint cannot override Compass state. */ }
   }
 
+  if (resumeOnly && !resumeHint) {
+    process.stdout.write(`${JSON.stringify({ status: "no_valid_resume_hint", dbPath })}\n`);
+    process.exitCode = 0;
+  } else {
   const contextSource: ContextSource = {
     name: "compass-state",
     async collect() {
@@ -90,6 +95,7 @@ try {
     renameSync(temporaryPath, checkpointPath);
   }
   process.stdout.write(`${JSON.stringify({ dryRun, dbPath, report }, null, 2)}\n`);
+  }
 } finally {
   compass.close();
 }
