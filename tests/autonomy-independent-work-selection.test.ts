@@ -5,7 +5,7 @@ import { selectIndependentWorkItem, type ChildWorkItem } from "../src/orchestrat
 function item(id: string, status: ChildWorkItem["status"], scope: string): ChildWorkItem {
   return {
     id, status, objective: id, affectedScope: [scope],
-    definitionOfDone: [], executionApproach: "bounded", verificationMethod: "verifier",
+    definitionOfDone: [{ id: `${id}-verified`, description: "Verifier confirms outcome" }], executionApproach: "bounded", verificationMethod: "verifier",
   };
 }
 
