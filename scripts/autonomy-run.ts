@@ -55,6 +55,7 @@ try {
       status: outcome,
       dbPath,
       nextAction: approvalPending ? "Select an independently authorized work item" : null,
+      approvalGatePreserved: approvalPending,
     })}\n`);
     process.exitCode = 0;
   } else {
