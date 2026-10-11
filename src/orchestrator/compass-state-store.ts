@@ -28,9 +28,11 @@ export function compassStateToLoopState(state: StateRecord): LoopState {
 
 export class CompassStateStoreAdapter implements StateStore {
   private readonly compass: CompassStore;
+  private readonly assertWriteAuthority?: () => Promise<void>;
 
-  constructor(compass: CompassStore) {
+  constructor(compass: CompassStore, assertWriteAuthority?: () => Promise<void>) {
     this.compass = compass;
+    this.assertWriteAuthority = assertWriteAuthority;
   }
 
   async completionBlockers(goal: Goal): Promise<string[]> {
@@ -76,6 +78,9 @@ export class CompassStateStoreAdapter implements StateStore {
       nextAction: record.nextAction ?? null,
     };
 
+    // Reject stale ownership before committing Goal progress. This guard must be
+    // backed by the authoritative execution claim, not a PID or lock-file probe.
+    await this.assertWriteAuthority?.();
     this.compass.writeBack(input);
   }
 }
