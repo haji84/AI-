@@ -134,7 +134,8 @@ test("SIGKILL leaves the owner lock for reconciliation and blocks another runner
       const timeout = setTimeout(() => reject(new Error("holder timeout")), 5000);
       holder.stdout.once("data", data => {
         clearTimeout(timeout);
-        String(data).includes("READY") ? resolveReady() : reject(new Error("holder not ready"));
+        if (String(data).includes("READY")) resolveReady();
+        else reject(new Error("holder not ready"));
       });
       holder.once("error", reject);
     });
