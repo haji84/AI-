@@ -32,3 +32,12 @@ test("candidate selection does not authorize blocked work or a completed task", 
   ];
   assert.equal(selectIndependentWorkItem(items, ["waiting"], ["docs"]), null);
 });
+
+test("ready candidate must have a verification contract and nonempty scope", () => {
+  const missingAcceptance = item("missing-acceptance", "NOT_STARTED", "docs");
+  missingAcceptance.definitionOfDone = [];
+  const missingScope = item("missing-scope", "NOT_STARTED", "docs");
+  missingScope.affectedScope = [];
+  const ready = item("ready", "NOT_STARTED", "tests");
+  assert.equal(selectIndependentWorkItem([missingAcceptance, missingScope, ready], [], [])?.id, "ready");
+});
