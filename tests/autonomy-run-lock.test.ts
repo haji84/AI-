@@ -96,3 +96,22 @@ test("simultaneous processes cannot both acquire the same lock", async () => {
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test("owner metadata is written before Compass initialization and removed on failure", () => {
+  const dir = mkdtempSync(join(tmpdir(), "goriq-owner-metadata-"));
+  try {
+    const dbPath = join(dir, "compass.db");
+    const lockPath = dbPath + ".autonomy-lock";
+    // An invalid database forces startup to fail after the lock is acquired.
+    const result = spawnSync(process.execPath, [resolve("scripts/autonomy-run.ts"), "--resume-only"], {
+      env: { ...process.env, COMPASS_DB_PATH: dbPath },
+      encoding: "utf8",
+      timeout: 10000,
+    });
+    assert.notEqual(result.status, 0);
+    assert.equal(existsSync(lockPath), false);
+    assert.doesNotMatch(result.stderr, /autonomy already locked/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
