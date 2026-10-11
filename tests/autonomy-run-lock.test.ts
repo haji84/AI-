@@ -177,3 +177,27 @@ test("a foreign-owned lock is never removed or overwritten by a competing invoca
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test("Compass fenced progress rejects a stale claim before writing state", async () => {
+  const { CompassStateStoreAdapter } = await import("../src/orchestrator/compass-state-store.ts");
+  let writes = 0;
+  const compass = {
+    getState: () => ({ status: "continue", completed: [], blockers: [], active: [], nextAction: null }),
+    writeBack: () => { writes++; },
+  } as unknown as ConstructorParameters<typeof CompassStateStoreAdapter>[0];
+  const record = {
+    goal: { title: "test", successCriteria: [], constraints: [] },
+    intent: { summary: "test", confidence: 1, evidence: [] },
+    action: { id: "a", description: "complete work", capability: "test", risk: "low" as const },
+    result: { actionId: "a", ok: true, summary: "done" },
+    stopReason: "continue" as const,
+  };
+  const stale = new CompassStateStoreAdapter(compass, async () => {
+    throw new Error("STALE_EXECUTION_CLAIM");
+  });
+  await assert.rejects(stale.writeBack(record), /STALE_EXECUTION_CLAIM/);
+  assert.equal(writes, 0);
+  const validButNonAtomic = new CompassStateStoreAdapter(compass, async () => {});
+  await assert.rejects(validButNonAtomic.writeBack(record), /COMPASS_FENCED_WRITE_ATOMICITY_REQUIRED/);
+  assert.equal(writes, 0);
+});
