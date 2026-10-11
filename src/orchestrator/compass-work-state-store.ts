@@ -43,29 +43,30 @@ export class CompassWorkStateStoreAdapter implements WorkStateStore {
   }
 
   async put(state: WorkState): Promise<void> {
-    const active = this.compass.getState().active;
-    const next: WorkStateEnvelope = {
-      kind: KIND,
-      version: VERSION,
-      goalId: state.goalId,
-      state: structuredClone(state),
-      events: this.envelopes().find((entry) => entry.goalId === state.goalId)?.events ?? [],
-    };
-    const retained = active.filter((entry) => !(isEnvelope(entry) && entry.goalId === state.goalId));
-    this.compass.updateState({ active: [...retained, next] });
+    this.compass.updateActive(active => {
+      const existing = active.filter(isEnvelope).find(entry => entry.goalId === state.goalId);
+      const next: WorkStateEnvelope = {
+        kind: KIND,
+        version: VERSION,
+        goalId: state.goalId,
+        state: structuredClone(state),
+        events: existing?.events ?? [],
+      };
+      return [...active.filter(entry => !(isEnvelope(entry) && entry.goalId === state.goalId)), next];
+    });
   }
 
   async appendEvent(goalId: string, event: WorkEvent): Promise<void> {
-    const active = this.compass.getState().active;
-    const existing = this.envelopes().find((entry) => entry.goalId === goalId);
-    if (!existing) return;
-    const next: WorkStateEnvelope = {
-      ...existing,
-      state: structuredClone(existing.state),
-      events: [...existing.events, structuredClone(event)].slice(-MAX_EVENTS),
-    };
-    const retained = active.filter((entry) => !(isEnvelope(entry) && entry.goalId === goalId));
-    this.compass.updateState({ active: [...retained, next] });
+    this.compass.updateActive(active => {
+      const existing = active.filter(isEnvelope).find(entry => entry.goalId === goalId);
+      if (!existing) return active;
+      const next: WorkStateEnvelope = {
+        ...existing,
+        state: structuredClone(existing.state),
+        events: [...existing.events, structuredClone(event)].slice(-MAX_EVENTS),
+      };
+      return [...active.filter(entry => !(isEnvelope(entry) && entry.goalId === goalId)), next];
+    });
   }
 
   private envelopes(): WorkStateEnvelope[] {
