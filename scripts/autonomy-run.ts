@@ -52,7 +52,7 @@ try {
 
   const currentState = compass.getState();
   // A pending approval remains gated. Only an independently authorized action may proceed.
-  const mayResume = Boolean(resumeHint) && currentState.status !== "ACHIEVED"
+  const mayResume = Boolean(resumeHint) && currentState.nextAction === resumeHint && currentState.status !== "ACHIEVED"
     && currentState.status !== "PAUSED"
     && currentState.status !== "BLOCKED" && currentState.status !== "approval_required";
   if (resumeOnly && !mayResume) {
@@ -121,7 +121,7 @@ try {
       observedAt: new Date().toISOString(),
       status: state.status ?? "unknown",
       nextAction: state.nextAction ?? null,
-      requiresResume: state.status !== "ACHIEVED",
+      requiresResume: Boolean(state.nextAction) && !["ACHIEVED", "PAUSED", "BLOCKED", "approval_required"].includes(state.status),
     };
     mkdirSync(dirname(checkpointPath), { recursive: true });
     const temporaryPath = `${checkpointPath}.${process.pid}.tmp`;
