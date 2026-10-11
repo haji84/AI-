@@ -39,10 +39,12 @@ export function durableClaimWriteAuthority(runtime: DurableTaskRuntime, claim: D
 export class CompassStateStoreAdapter implements StateStore {
   private readonly compass: CompassStore;
   private readonly assertWriteAuthority?: () => Promise<void>;
+  private readonly assertAtomicWriteAuthority?: () => void;
 
-  constructor(compass: CompassStore, assertWriteAuthority?: () => Promise<void>) {
+  constructor(compass: CompassStore, assertWriteAuthority?: () => Promise<void>, assertAtomicWriteAuthority?: () => void) {
     this.compass = compass;
     this.assertWriteAuthority = assertWriteAuthority;
+    this.assertAtomicWriteAuthority = assertAtomicWriteAuthority;
   }
 
   async completionBlockers(goal: Goal): Promise<string[]> {
@@ -97,6 +99,6 @@ export class CompassStateStoreAdapter implements StateStore {
     if (this.assertWriteAuthority && (record.result?.ok || record.stopReason === "goal_complete" || record.verification?.ok)) {
       throw new Error("COMPASS_FENCED_WRITE_ATOMICITY_REQUIRED");
     }
-    this.compass.writeBack(input);
+    this.compass.writeBack(input, this.assertAtomicWriteAuthority);
   }
 }
