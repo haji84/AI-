@@ -178,6 +178,18 @@ export class WorkStateGuardedExecutor implements CapabilityExecutor {
       bound.completesWorkItem ??= true;
     }
 
+    const validation = validateMutationBinding({
+      materialMutation,
+      workItemId: bound.workItemId,
+    }, state);
+    if (!validation.ok) {
+      return {
+        actionId: action.id,
+        ok: false,
+        summary: `Work-State mutation gate rejected action: ${validation.reason}`,
+        blocker: validation.reason,
+      };
+    }
     // A queued independent action cannot execute a gated or blocked child item.
     // This is enforced at execution time, even if the planner selected it earlier.
     if (bound.workItemId) {
@@ -209,18 +221,6 @@ export class WorkStateGuardedExecutor implements CapabilityExecutor {
       }
     }
 
-    const validation = validateMutationBinding({
-      materialMutation,
-      workItemId: bound.workItemId,
-    }, state);
-    if (!validation.ok) {
-      return {
-        actionId: action.id,
-        ok: false,
-        summary: `Work-State mutation gate rejected action: ${validation.reason}`,
-        blocker: validation.reason,
-      };
-    }
     return this.inner.execute(action, context);
   }
 }
