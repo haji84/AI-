@@ -1,6 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { CompassExecutionLease } from "./execution-lease.ts";
 
 export type VerificationStatus = "PASS" | "FAIL";
 
@@ -133,6 +134,11 @@ export class CompassStore {
 
   close(): void {
     this.db.close();
+  }
+
+  /** Same connection as Compass progress: lease checks share its write transaction. */
+  executionLease(): CompassExecutionLease {
+    return new CompassExecutionLease(this.db);
   }
 
   private initialize(): void {
