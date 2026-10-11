@@ -40,9 +40,11 @@ try {
   rmSync(lockPath, { recursive: true, force: true });
   throw error;
 }
-const compass = new CompassStore(dbPath);
+let compass: CompassStore | null = null;
 try {
-  const goalRecord = compass.getGoal();
+  compass = new CompassStore(dbPath);
+  const activeCompass = compass;
+  const goalRecord = activeCompass.getGoal();
   if (!goalRecord) throw new Error("Compass goal is not set");
   const goal = compassGoalToLoopGoal(goalRecord);
   const checkpointPath: string = process.env.AUTONOMY_CHECKPOINT_PATH?.trim() || resolve(dirname(dbPath), "autonomy-checkpoint.json");
@@ -58,7 +60,7 @@ try {
     } catch { /* A corrupt hint cannot override Compass state. */ }
   }
 
-  const currentState = compass.getState();
+  const currentState = activeCompass.getState();
   // A pending approval remains gated. Only an independently authorized action may proceed.
   const mayResume = Boolean(resumeHint) && currentState.nextAction === resumeHint && currentState.status !== "ACHIEVED"
     && currentState.status !== "PAUSED"
@@ -67,7 +69,7 @@ try {
     const approvalPending = currentState.status === "approval_required";
     // Candidate discovery is informational; it never grants execution authority.
     const work = approvalPending
-      ? await new CompassWorkStateStoreAdapter(compass).get(goalWorkStateId(goal)) : null;
+      ? await new CompassWorkStateStoreAdapter(activeCompass).get(goalWorkStateId(goal)) : null;
     const gated = work?.childWorkItems.filter(item => item.status === "BLOCKED") ?? [];
     const candidate = approvalPending ? selectIndependentWorkItem(
       work?.childWorkItems ?? [], gated.map(item => item.id),
@@ -89,7 +91,7 @@ try {
   const contextSource: ContextSource = {
     name: "compass-state",
     async collect() {
-      const state = compass.getState();
+      const state = activeCompass.getState();
       const items = [];
       if (state.nextAction) items.push({ source: "state.next_action", summary: state.nextAction });
       else if (resumeHint) items.push({ source: "checkpoint.resume_hint", summary: resumeHint });
@@ -114,15 +116,15 @@ try {
     contextSources: [contextSource],
     executor: registry,
     verifier,
-    stateStore: new CompassStateStoreAdapter(compass),
-    workStateStore: new CompassWorkStateStoreAdapter(compass),
+    stateStore: new CompassStateStoreAdapter(activeCompass),
+    workStateStore: new CompassWorkStateStoreAdapter(activeCompass),
   });
 
   const report = await runBoundedGoalLoop(loop, goal, { maxCycles });
   // Preserve a bounded, non-secret checkpoint for the next scheduler invocation.
   // Compass remains the authoritative durable Goal and work-state store.
   if (!dryRun) {
-    const state = compass.getState();
+    const state = activeCompass.getState();
     const checkpoint = {
       version: 1,
       goalTitle: goal.title,
@@ -140,7 +142,7 @@ try {
   }
 } finally {
   try {
-    compass.close();
+    compass?.close();
   } finally {
     rmSync(lockPath, { recursive: true, force: true });
   }
