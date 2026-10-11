@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -59,6 +59,40 @@ test("lock release after a failed invocation permits a later attempt", () => {
     assert.notEqual(second.status, 0);
     assert.doesNotMatch(second.stderr, /autonomy already locked/);
   } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("simultaneous processes cannot both acquire the same lock", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "goriq-parallel-lock-"));
+  const lockPath = join(dir, "compass.db.autonomy-lock");
+  const holder = spawn(process.execPath, ["-e", `
+    const fs = require("node:fs");
+    fs.mkdirSync(process.argv[1]);
+    process.stdout.write("LOCKED\\n");
+    setTimeout(() => {}, 30000);
+  `, lockPath], { stdio: ["ignore", "pipe", "pipe"] });
+  try {
+    await new Promise<void>((resolveReady, reject) => {
+      const timer = setTimeout(() => reject(new Error("holder never acquired lock")), 5000);
+      holder.stdout.once("data", data => {
+        clearTimeout(timer);
+        if (String(data).includes("LOCKED")) resolveReady();
+        else reject(new Error("unexpected holder output"));
+      });
+      holder.once("error", reject);
+      holder.once("exit", () => reject(new Error("holder exited before ready")));
+    });
+    const attempt = spawnSync(process.execPath, [resolve("scripts/autonomy-run.ts"), "--resume-only"], {
+      env: { ...process.env, COMPASS_DB_PATH: join(dir, "compass.db") },
+      encoding: "utf8",
+      timeout: 10000,
+    });
+    assert.notEqual(attempt.status, 0);
+    assert.match(attempt.stderr, /autonomy already locked/);
+    assert.equal(existsSync(lockPath), true);
+  } finally {
+    holder.kill("SIGKILL");
     rmSync(dir, { recursive: true, force: true });
   }
 });
