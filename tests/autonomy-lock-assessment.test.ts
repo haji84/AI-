@@ -32,3 +32,14 @@ test("missing or corrupt metadata cannot authorize reclaim", () => {
     assert.equal(assessAutonomyLock(join(dir, "lock")), "unknown");
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
+
+test("dead local owner is only a candidate, never an automatic reclaim authorization", () => {
+  const dir = mkdtempSync(join(tmpdir(), "goriq-owner-dead-"));
+  try {
+    mkdirSync(join(dir, "lock"));
+    writeFileSync(join(dir, "lock", "owner.json"), JSON.stringify({
+      host: hostname(), pid: 2147483647, startedAt: new Date().toISOString(),
+    }));
+    assert.equal(assessAutonomyLock(join(dir, "lock")), "stale_candidate");
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
