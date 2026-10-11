@@ -10,7 +10,7 @@ import { CompassStateStoreAdapter, compassGoalToLoopGoal } from "../src/orchestr
 import { CompassWorkStateStoreAdapter } from "../src/orchestrator/compass-work-state-store.ts";
 import { selectIndependentWorkItem } from "../src/orchestrator/work-state.ts";
 import { type ContextSource, type Verifier } from "../src/orchestrator/goal-loop.ts";
-import { createWorkStateIntegratedGoalLoop } from "../src/orchestrator/work-state-integration.ts";
+import { createWorkStateIntegratedGoalLoop, goalWorkStateId } from "../src/orchestrator/work-state-integration.ts";
 
 const args = new Set(process.argv.slice(2));
 const dryRun = args.has("--dry-run");
@@ -49,8 +49,13 @@ try {
   if (resumeOnly && !mayResume) {
     const approvalPending = currentState.status === "approval_required";
     // Candidate discovery is informational; it never grants execution authority.
-    const candidate: ReturnType<typeof selectIndependentWorkItem> = approvalPending
-      ? selectIndependentWorkItem([], [], []) : null;
+    const work = approvalPending
+      ? await new CompassWorkStateStoreAdapter(compass).get(goalWorkStateId(goal)) : null;
+    const gated = work?.childWorkItems.filter(item => item.status === "BLOCKED") ?? [];
+    const candidate = approvalPending ? selectIndependentWorkItem(
+      work?.childWorkItems ?? [], gated.map(item => item.id),
+      gated.flatMap(item => item.affectedScope),
+    ) : null;
     // Preserve the pending gate. The scheduler may discover alternative work,
     // but cannot execute the gated action using this Goal's authority.
     const outcome = approvalPending ? "approval_pending_independent_work_required"
