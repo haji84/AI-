@@ -1,3 +1,4 @@
+import type { DurableTaskExecutionClaim, DurableTaskRuntime } from "../gai/durable-task-runtime.ts";
 import { canonicalRequirementBlockers } from "./owner-requirement-canonical.ts";
 import { goalWorkStateId } from "./work-state-integration.ts";
 import type { CompassStore, GoalRecord, StateRecord, WriteBackInput } from "../compass/store.ts";
@@ -23,6 +24,15 @@ export function compassStateToLoopState(state: StateRecord): LoopState {
     completed: strings(state.completed),
     blockers: strings(state.blockers),
     nextAction: state.nextAction,
+  };
+}
+
+/** Verify an existing fenced execution claim before Compass accepts progress. */
+export function durableClaimWriteAuthority(runtime: DurableTaskRuntime, claim: DurableTaskExecutionClaim): () => Promise<void> {
+  return async () => {
+    // Heartbeat validates owner, epoch, fencing token and lease expiry atomically
+    // in the durable store. It does not confer any new Goal or approval authority.
+    await runtime.heartbeatClaimed(claim);
   };
 }
 
