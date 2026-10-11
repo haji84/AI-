@@ -129,7 +129,7 @@ try {
       observedAt: new Date().toISOString(),
       status: state.status ?? "unknown",
       nextAction: state.nextAction ?? null,
-      requiresResume: Boolean(state.nextAction) && !["ACHIEVED", "PAUSED", "BLOCKED", "approval_required"].includes(state.status),
+      requiresResume: Boolean(state.nextAction) && state.status !== "ACHIEVED" && state.status !== "PAUSED" && state.status !== "BLOCKED" && state.status !== "approval_required",
     };
     mkdirSync(dirname(checkpointPath), { recursive: true });
     const temporaryPath = `${checkpointPath}.${process.pid}.tmp`;
