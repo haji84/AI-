@@ -149,7 +149,7 @@ try {
     executor: registry,
     verifier,
     stateStore: new CompassStateStoreAdapter(activeCompass, writeAuthority),
-    workStateStore: new CompassWorkStateStoreAdapter(activeCompass),
+    workStateStore: new CompassWorkStateStoreAdapter(activeCompass, Boolean(fencedStorePath)),
   });
 
   const report = await runBoundedGoalLoop(loop, goal, { maxCycles });
