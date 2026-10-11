@@ -233,3 +233,25 @@ test("real durable takeover fences Compass progress and preserves its state", as
   );
   assert.equal(writes, 0);
 });
+
+test("fenced mode refuses execution before creating a separate durable claim", async () => {
+  const { CompassStore } = await import("../src/compass/store.ts");
+  const dir = mkdtempSync(join(tmpdir(), "goriq-fenced-atomic-"));
+  const dbPath = join(dir, "compass.db");
+  const durablePath = join(dir, "durable-tasks.json");
+  try {
+    const compass = new CompassStore(dbPath);
+    try { compass.setGoal({ title: "fenced-atomic-test", successCriteria: ["verified"] }); }
+    finally { compass.close(); }
+    const result = spawnSync(process.execPath, [resolve("scripts/autonomy-run.ts"), "--max-cycles=1"], {
+      env: { ...process.env, COMPASS_DB_PATH: dbPath, AUTONOMY_FENCED_TASK_STORE_PATH: durablePath },
+      encoding: "utf8", timeout: 10000,
+    });
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /AUTONOMY_FENCED_ATOMIC_COMMIT_REQUIRED/);
+    assert.equal(existsSync(durablePath), false);
+    assert.equal(existsSync(dbPath + ".autonomy-lock"), false);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
