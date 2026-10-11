@@ -8,6 +8,7 @@ import { runBoundedGoalLoop } from "../src/orchestrator/bounded-runner.ts";
 import { CapabilityRegistry } from "../src/orchestrator/capabilities.ts";
 import { CompassStateStoreAdapter, compassGoalToLoopGoal } from "../src/orchestrator/compass-state-store.ts";
 import { CompassWorkStateStoreAdapter } from "../src/orchestrator/compass-work-state-store.ts";
+import { selectIndependentWorkItem } from "../src/orchestrator/work-state.ts";
 import { type ContextSource, type Verifier } from "../src/orchestrator/goal-loop.ts";
 import { createWorkStateIntegratedGoalLoop } from "../src/orchestrator/work-state-integration.ts";
 
@@ -41,12 +42,15 @@ try {
   }
 
   const currentState = compass.getState();
+  const workStore = new CompassWorkStateStoreAdapter(compass);
   // A pending approval remains gated. Only an independently authorized action may proceed.
   const mayResume = Boolean(resumeHint) && currentState.status !== "ACHIEVED"
     && currentState.status !== "PAUSED"
     && currentState.status !== "BLOCKED" && currentState.status !== "approval_required";
   if (resumeOnly && !mayResume) {
     const approvalPending = currentState.status === "approval_required";
+    // Candidate discovery is informational; it never grants execution authority.
+    const candidate = approvalPending ? selectIndependentWorkItem([], [], []) : null;
     // Preserve the pending gate. The scheduler may discover alternative work,
     // but cannot execute the gated action using this Goal's authority.
     const outcome = approvalPending ? "approval_pending_independent_work_required"
@@ -56,6 +60,7 @@ try {
       dbPath,
       nextAction: approvalPending ? "Select an independently authorized work item" : null,
       approvalGatePreserved: approvalPending,
+      independentCandidateId: candidate?.id ?? null,
     })}\n`);
     process.exitCode = 0;
   } else {
