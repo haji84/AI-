@@ -13,7 +13,10 @@ import { createWorkStateIntegratedGoalLoop } from "../src/orchestrator/work-stat
 const args = new Set(process.argv.slice(2));
 const dryRun = args.has("--dry-run");
 const maxCyclesArg = process.argv.find((value) => value.startsWith("--max-cycles="));
-const maxCycles = maxCyclesArg ? Number(maxCyclesArg.split("=")[1]) : 1;
+const maxCycles = maxCyclesArg ? Number(maxCyclesArg.split("=")[1]) : 3;
+if (!Number.isInteger(maxCycles) || maxCycles < 1 || maxCycles > 20) {
+  throw new Error("max-cycles must be an integer from 1 to 20");
+}
 const dbPath = process.env.COMPASS_DB_PATH?.trim() || resolve(process.cwd(), ".compass", "compass.db");
 
 const compass = new CompassStore(dbPath);
