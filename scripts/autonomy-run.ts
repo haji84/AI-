@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { CompassStore } from "../src/compass/store.ts";
 import { BaselinePlanner, createContextInspectCapability } from "../src/orchestrator/baseline-planner.ts";
@@ -23,8 +23,17 @@ if (!Number.isInteger(maxCycles) || maxCycles < 1 || maxCycles > 20) {
 }
 const dbPath = process.env.COMPASS_DB_PATH?.trim() || resolve(process.cwd(), ".compass", "compass.db");
 
-const compass = new CompassStore(dbPath);
+// Atomic exclusive lock. A crash leaves the lock in place until reconciled.
+const lockPath = dbPath + ".autonomy-lock";
+mkdirSync(dirname(lockPath), { recursive: true });
 try {
+  mkdirSync(lockPath);
+} catch (error) {
+  throw new Error("autonomy already locked; reconcile previous run before retry", { cause: error });
+}
+let compass: CompassStore | undefined;
+try {
+  compass = new CompassStore(dbPath);
   const goalRecord = compass.getGoal();
   if (!goalRecord) throw new Error("Compass goal is not set");
   const goal = compassGoalToLoopGoal(goalRecord);
@@ -122,5 +131,6 @@ try {
   process.stdout.write(`${JSON.stringify({ dryRun, dbPath, report }, null, 2)}\n`);
   }
 } finally {
-  compass.close();
+  compass?.close();
+  rmSync(lockPath, { recursive: true, force: true });
 }
