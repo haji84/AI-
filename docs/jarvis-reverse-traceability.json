@@ -4998,7 +4998,7 @@
     },
     {
       "path": "src/orchestrator/compass-state-store.ts",
-      "sha256": "b23552986b04235bd9ada7f1705fe2a5b10601906131991e31354f4c6c1e30e4",
+      "sha256": "0c6b56d0e1b3a42ae66aa1c5d2879b99275b6e62b35f4aab340418456e10ce05",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-002",
