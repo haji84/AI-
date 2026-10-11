@@ -9,7 +9,7 @@ import { dispatchAutonomyEvent, EventContextSource, type AutonomyEventType } fro
 import { GoalDrivenLoop, type Verifier } from "../src/orchestrator/goal-loop.ts";
 
 const args = process.argv.slice(2);
-const resumeAutonomy = args.includes("--resume-autonomy");
+const resumeAutonomy = args.includes("--resume-autonomy") || (args.includes("--type=schedule") && !args.includes("--inspect-only"));
 const typeArg = args.find((value) => value.startsWith("--type="));
 const idArg = args.find((value) => value.startsWith("--id="));
 const summaryArg = args.find((value) => value.startsWith("--summary="));
@@ -27,7 +27,7 @@ if (!["repository_state", "schedule", "manual"].includes(eventType)) {
 // Opt-in scheduled handoff uses the normal bounded Goal loop and all its gates.
 if (resumeAutonomy) {
   if (eventType !== "schedule") throw new Error("--resume-autonomy requires --type=schedule");
-  const result = spawnSync(process.execPath, ["--import", "tsx", resolve(process.cwd(), "scripts/autonomy-run.ts"), "--resume-only", "--max-cycles=1"], {
+  const result = spawnSync(process.execPath, [resolve(process.cwd(), "scripts/autonomy-run.ts"), "--resume-only", "--max-cycles=1"], {
     cwd: process.cwd(), env: process.env, stdio: "inherit", timeout: 120_000,
   });
   if (result.error) throw result.error;
