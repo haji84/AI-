@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
+import { hostname } from "node:os";
 import { CompassStore } from "../src/compass/store.ts";
 import { BaselinePlanner, createContextInspectCapability } from "../src/orchestrator/baseline-planner.ts";
 import { RuntimeDevelopmentPlanner } from "../src/orchestrator/runtime-development-planner.ts";
@@ -34,7 +35,7 @@ try {
   throw new Error("autonomy already locked; reconcile previous run before retry", { cause: error });
 }
 try {
-  writeFileSync(lockOwnerPath, JSON.stringify({ pid: process.pid, startedAt: new Date().toISOString(), host: process.env.HOSTNAME ?? null }) + "\\n", { flag: "wx", mode: 0o600 });
+  writeFileSync(lockOwnerPath, JSON.stringify({ pid: process.pid, startedAt: new Date().toISOString(), host: hostname() }) + "\n", { flag: "wx", mode: 0o600 });
 } catch (error) {
   rmSync(lockPath, { recursive: true, force: true });
   throw error;
