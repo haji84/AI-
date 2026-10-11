@@ -24,3 +24,11 @@ test("no eligible independent item returns null without bypassing the gate", () 
     item("blocked", "BLOCKED", "docs"),
   ], ["gated"], ["protected"]), null);
 });
+
+test("candidate selection does not authorize blocked work or a completed task", () => {
+  const items = [
+    item("waiting", "BLOCKED", "docs"),
+    item("finished", "COMPLETED", "other"),
+  ];
+  assert.equal(selectIndependentWorkItem(items, ["waiting"], ["docs"]), null);
+});
