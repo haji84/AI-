@@ -192,6 +192,23 @@ export class WorkStateGuardedExecutor implements CapabilityExecutor {
       }
     }
 
+    // Bind an independently selected action to its declared scope before the
+    // normal capability, risk, and verifier pipeline runs.
+    if (bound.workItemId) {
+      const selected = state.childWorkItems.find(item => item.id === bound.workItemId);
+      if (selected && selected.affectedScope.length > 0) {
+        const requested = affectedScope(action);
+        if (!requested.every(scope => selected.affectedScope.includes(scope))) {
+          return {
+            actionId: action.id,
+            ok: false,
+            summary: "Action scope differs from its bound work item",
+            blocker: "work_item_scope_mismatch",
+          };
+        }
+      }
+    }
+
     const validation = validateMutationBinding({
       materialMutation,
       workItemId: bound.workItemId,
