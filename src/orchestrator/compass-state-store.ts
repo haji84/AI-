@@ -91,6 +91,12 @@ export class CompassStateStoreAdapter implements StateStore {
     // Reject stale ownership before committing Goal progress. This guard must be
     // backed by the authoritative execution claim, not a PID or lock-file probe.
     await this.assertWriteAuthority?.();
+    // A separate lease check cannot make the following Compass write atomic.
+    // Refuse success/progress commits until a shared transaction or fencing
+    // boundary covers both authority validation and the Compass mutation.
+    if (this.assertWriteAuthority && (record.result?.ok || record.stopReason === "goal_complete")) {
+      throw new Error("COMPASS_FENCED_WRITE_ATOMICITY_REQUIRED");
+    }
     this.compass.writeBack(input);
   }
 }
