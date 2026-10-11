@@ -7,7 +7,9 @@ import { DatabaseSync } from "node:sqlite";
  * database through a supported coordinator. Do not share SQLite via network FS.
  */
 export class CompassExecutionLease {
-  constructor(private readonly db: DatabaseSync) {
+  private readonly db: DatabaseSync;
+  constructor(db: DatabaseSync) {
+    this.db = db;
     this.db.exec(`CREATE TABLE IF NOT EXISTS compass_execution_lease (
       task_id TEXT PRIMARY KEY,
       owner TEXT NOT NULL,
