@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { hostname } from "node:os";
+import { randomUUID } from "node:crypto";
 import { assessAutonomyLock } from "../src/orchestrator/autonomy-lock-assessment.ts";
 import { CompassStore } from "../src/compass/store.ts";
 import { BaselinePlanner, createContextInspectCapability } from "../src/orchestrator/baseline-planner.ts";
@@ -28,6 +29,15 @@ const dbPath = process.env.COMPASS_DB_PATH?.trim() || resolve(process.cwd(), ".c
 // Atomic exclusive lock. A crash leaves the lock in place until reconciled.
 const lockPath = dbPath + ".autonomy-lock";
 const lockOwnerPath = resolve(lockPath, "owner.json");
+const runId = randomUUID();
+// Never release a lock whose ownership metadata has changed.
+function releaseOwnedLock(): void {
+  let owner: unknown;
+  try { owner = JSON.parse(readFileSync(lockOwnerPath, "utf8")); }
+  catch { return; }
+  if (!owner || typeof owner !== "object" || (owner as Record<string, unknown>).runId !== runId) return;
+  rmSync(lockPath, { recursive: true, force: true });
+}
 mkdirSync(dirname(lockPath), { recursive: true });
 try {
   mkdirSync(lockPath);
@@ -37,9 +47,9 @@ try {
   throw new Error(`autonomy already locked (${assessment}); reconcile previous run before retry`, { cause: error });
 }
 try {
-  writeFileSync(lockOwnerPath, JSON.stringify({ pid: process.pid, startedAt: new Date().toISOString(), host: hostname() }) + "\n", { flag: "wx", mode: 0o600 });
+  writeFileSync(lockOwnerPath, JSON.stringify({ pid: process.pid, startedAt: new Date().toISOString(), host: hostname(), runId }) + "\n", { flag: "wx", mode: 0o600 });
 } catch (error) {
-  rmSync(lockPath, { recursive: true, force: true });
+  releaseOwnedLock();
   throw error;
 }
 let compass: CompassStore | null = null;
@@ -146,6 +156,6 @@ try {
   try {
     compass?.close();
   } finally {
-    rmSync(lockPath, { recursive: true, force: true });
+    releaseOwnedLock();
   }
 }
