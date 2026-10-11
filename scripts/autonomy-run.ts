@@ -43,7 +43,7 @@ try {
   const currentState = compass.getState();
   const mayResume = Boolean(resumeHint) && currentState.status !== "ACHIEVED"
     && currentState.status !== "PAUSED"
-    && currentState.status !== "BLOCKED";
+    && currentState.status !== "BLOCKED" && currentState.status !== "approval_required";
   if (resumeOnly && !mayResume) {
     process.stdout.write(`${JSON.stringify({ status: "resume_not_authorized_or_unavailable", dbPath })}\n`);
     process.exitCode = 0;
