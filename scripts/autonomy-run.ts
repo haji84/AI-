@@ -40,8 +40,12 @@ try {
     } catch { /* A corrupt hint cannot override Compass state. */ }
   }
 
-  if (resumeOnly && !resumeHint) {
-    process.stdout.write(`${JSON.stringify({ status: "no_valid_resume_hint", dbPath })}\n`);
+  const currentState = compass.getState();
+  const mayResume = Boolean(resumeHint) && currentState.status !== "ACHIEVED"
+    && currentState.status !== "PAUSED"
+    && currentState.status !== "BLOCKED";
+  if (resumeOnly && !mayResume) {
+    process.stdout.write(`${JSON.stringify({ status: "resume_not_authorized_or_unavailable", dbPath })}\n`);
     process.exitCode = 0;
   } else {
   const contextSource: ContextSource = {
