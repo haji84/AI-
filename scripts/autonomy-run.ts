@@ -67,7 +67,7 @@ try {
     const state = compass.getState();
     const checkpoint = {
       version: 1,
-      goalId: goal.id,
+      goalTitle: goal.title,
       observedAt: new Date().toISOString(),
       status: state.status ?? "unknown",
       nextAction: state.nextAction ?? null,
