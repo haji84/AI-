@@ -1,4 +1,5 @@
-import { resolve } from "node:path";
+import { mkdirSync, renameSync, writeFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 import { CompassStore } from "../src/compass/store.ts";
 import { BaselinePlanner, createContextInspectCapability } from "../src/orchestrator/baseline-planner.ts";
 import { RuntimeDevelopmentPlanner } from "../src/orchestrator/runtime-development-planner.ts";
@@ -58,6 +59,25 @@ try {
   });
 
   const report = await runBoundedGoalLoop(loop, goal, { maxCycles });
+  // Preserve a bounded, non-secret checkpoint for the next scheduler invocation.
+  // Compass remains the authoritative durable Goal and work-state store.
+  if (!dryRun) {
+    const checkpointPath = process.env.AUTONOMY_CHECKPOINT_PATH?.trim()
+      || resolve(dirname(dbPath), "autonomy-checkpoint.json");
+    const state = compass.getState();
+    const checkpoint = {
+      version: 1,
+      goalId: goal.id,
+      observedAt: new Date().toISOString(),
+      status: state.status ?? "unknown",
+      nextAction: state.nextAction ?? null,
+      requiresResume: state.status !== "ACHIEVED",
+    };
+    mkdirSync(dirname(checkpointPath), { recursive: true });
+    const temporaryPath = `${checkpointPath}.${process.pid}.tmp`;
+    writeFileSync(temporaryPath, `${JSON.stringify(checkpoint, null, 2)}\n`, { encoding: "utf-8", mode: 0o600 });
+    renameSync(temporaryPath, checkpointPath);
+  }
   process.stdout.write(`${JSON.stringify({ dryRun, dbPath, report }, null, 2)}\n`);
 } finally {
   compass.close();
