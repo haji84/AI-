@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { CompassStore } from "../src/compass/store.ts";
 import { BaselinePlanner, createContextInspectCapability } from "../src/orchestrator/baseline-planner.ts";
@@ -23,7 +23,24 @@ if (!Number.isInteger(maxCycles) || maxCycles < 1 || maxCycles > 20) {
 }
 const dbPath = process.env.COMPASS_DB_PATH?.trim() || resolve(process.cwd(), ".compass", "compass.db");
 
-const compass = new CompassStore(dbPath);
+// mkdir is atomic on the local filesystem: duplicate invocations must not execute.
+// A leftover lock fails closed; it must not be stolen on elapsed time alone.
+const lockPath = `${dbPath}.autonomy-run.lock`;
+mkdirSync(dirname(lockPath), { recursive: true });
+try {
+  mkdirSync(lockPath);
+} catch (error) {
+  if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+  process.stdout.write(`${JSON.stringify({ status: "already_running_or_recovery_required", dbPath })}\\n`);
+  process.exit(0);
+}
+let compass: CompassStore;
+try {
+  compass = new CompassStore(dbPath);
+} catch (error) {
+  rmSync(lockPath, { recursive: true });
+  throw error;
+}
 try {
   const goalRecord = compass.getGoal();
   if (!goalRecord) throw new Error("Compass goal is not set");
@@ -122,5 +139,6 @@ try {
   process.stdout.write(`${JSON.stringify({ dryRun, dbPath, report }, null, 2)}\n`);
   }
 } finally {
-  compass.close();
+  try { compass.close(); }
+  finally { rmSync(lockPath, { recursive: true }); }
 }
