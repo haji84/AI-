@@ -178,6 +178,20 @@ export class WorkStateGuardedExecutor implements CapabilityExecutor {
       bound.completesWorkItem ??= true;
     }
 
+    // A queued independent action cannot execute a gated or blocked child item.
+    // This is enforced at execution time, even if the planner selected it earlier.
+    if (bound.workItemId) {
+      const item = state.childWorkItems.find(candidate => candidate.id === bound.workItemId);
+      if (item?.status === "BLOCKED") {
+        return {
+          actionId: action.id,
+          ok: false,
+          summary: "Work item is blocked and cannot execute without resolving its gate",
+          blocker: "work_item_blocked",
+        };
+      }
+    }
+
     const validation = validateMutationBinding({
       materialMutation,
       workItemId: bound.workItemId,
