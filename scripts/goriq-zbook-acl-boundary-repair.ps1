@@ -80,7 +80,15 @@ function New-BoundaryDacl($acl,[string]$reader) {
   if($rules.Count -ne 1 -or -not $rules[0].IsInherited -or [long]$rules[0].FileSystemRights -ne 0x1200A9 -or
     [string]$rules[0].InheritanceFlags -ne 'ContainerInherit, ObjectInherit' -or
     [string]$rules[0].PropagationFlags -ne 'None'){throw 'BOUNDARY_REJECTED'}
-  $acl.SetAccessRuleProtection($true,$true)
+  # On PowerShell5.1, preserveInheritance=true leaves in-memory ACEs marked
+  # inherited until persisted. Convert them explicitly before selecting removal.
+  $inherited=@($acl.GetAccessRules($false,$true,[Security.Principal.SecurityIdentifier]))
+  $acl.SetAccessRuleProtection($true,$false)
+  foreach($rule in $inherited){
+    $copy=New-Object Security.AccessControl.FileSystemAccessRule($rule.IdentityReference,
+      $rule.FileSystemRights,$rule.InheritanceFlags,$rule.PropagationFlags,$rule.AccessControlType)
+    $acl.AddAccessRule($copy)
+  }
   $explicit=@($acl.GetAccessRules($true,$false,[Security.Principal.SecurityIdentifier]) | Where-Object {
     $_.AccessControlType -eq 'Allow' -and $_.IdentityReference.Value -ceq $reader})
   if($explicit.Count -ne 1){throw 'BOUNDARY_REJECTED'}
