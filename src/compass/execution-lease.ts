@@ -20,8 +20,7 @@ export class CompassExecutionLease {
   }
 
   claim(taskId: string, owner: string, ttlMs: number, now = Date.now()) {
-    if (!taskId.trim() || !owner.trim() || !Number.isSafeInteger(ttlMs) || ttlMs <= 0 ||
-        !Number.isSafeInteger(now) || !Number.isSafeInteger(now + ttlMs))
+    if (!taskId.trim() || !owner.trim() || !Number.isSafeInteger(ttlMs) || ttlMs <= 0)
       throw new Error("COMPASS_LEASE_INVALID_INPUT");
     this.db.exec("BEGIN IMMEDIATE");
     try {
