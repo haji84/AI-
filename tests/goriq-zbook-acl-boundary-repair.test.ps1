@@ -5,12 +5,19 @@ if(-not (Test-Path -LiteralPath $source)){throw 'boundary-helper-missing'}
 $tokens=$null;$errors=$null
 $ast=[Management.Automation.Language.Parser]::ParseFile($source,[ref]$tokens,[ref]$errors)
 if($errors.Count){throw 'boundary-helper-parse'}
-foreach($name in @('Import-AclPredicates','Assert-BoundaryReader','Assert-SameSnapshot','Write-BoundaryBackup','New-BoundaryDacl','Initialize-BoundaryFileInfo','Get-BoundarySnapshot','Get-ExpectedSnapshot','Assert-BoundaryIdentity','Restore-BoundaryBaseline')){
+foreach($name in @('Assert-ProfileOwner','Assert-NativeProfile','Import-AclPredicates','Assert-BoundaryReader','Assert-SameSnapshot','Write-BoundaryBackup','New-BoundaryDacl','Initialize-BoundaryFileInfo','Get-BoundarySnapshot','Get-ExpectedSnapshot','Assert-BoundaryIdentity','Restore-BoundaryBaseline')){
   $definition=$ast.Find({param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq $name},$true)
   if($null -eq $definition){throw ('boundary-function-missing: '+$name)}
   Invoke-Expression $definition.Extent.Text
 }
 Import-AclPredicates (Join-Path $PSScriptRoot '..\scripts\goriq-zbook-owner-acl-repair.ps1')
+Assert-ProfileOwner 'fixture-user' 'fixture-user'
+Assert-ProfileOwner 'S-1-5-18' 'fixture-user'
+foreach($sid in @('S-1-5-32-544','S-1-1-0','other','')){
+  $rejected=$false
+  try{Assert-ProfileOwner $sid 'fixture-user'}catch{$rejected=$true}
+  if(-not $rejected){throw 'untrusted-profile-owner-accepted'}
+}
 if(-not (Test-KnownReadOnlyRights 0x1200A9) -or (Test-KnownReadOnlyRights 0x1201BF)){
   throw 'imported-selector-parameters-lost'
 }
@@ -93,6 +100,10 @@ try{
   $rawParent.DiscretionaryAcl.InsertAce($rawParent.DiscretionaryAcl.Count,$rawAllow)
   $parent.SetSecurityDescriptorSddlForm($rawParent.GetSddlForm([Security.AccessControl.AccessControlSections]::All))
   Set-Acl -LiteralPath $fixture -AclObject $parent
+  Assert-NativeProfile $fixture $identity
+  $rejected=$false
+  try{Assert-NativeProfile $backup $identity}catch{$rejected=$true}
+  if(-not $rejected){throw 'profile-file-not-rejected'}
   $roots=@((Join-Path $fixture 'production'),(Join-Path $fixture 'releases'))
   foreach($root in $roots){
     $null=New-Item -ItemType Directory -Path $root
@@ -202,6 +213,9 @@ try{
   $link=Join-Path $roots[0] 'junction'
   $null=New-Item -ItemType Junction -Path $link -Target $roots[1]
   try{
+    $profileRejected=$false
+    try{Assert-NativeProfile $link $identity}catch{$profileRejected=$true}
+    if(-not $profileRejected){throw 'profile-junction-not-rejected'}
     $rejected=$false
     try{$null=Get-BoundarySnapshot $roots}catch{
       if($_.Exception.Message -ne 'REPARSE_REJECTED'){throw};$rejected=$true

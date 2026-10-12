@@ -7,6 +7,18 @@ $ErrorActionPreference='Stop'
 $env:PSModulePath=Join-Path $PSHOME 'Modules'
 $stage='approval';$changed=$false;$restored=$false;$backupId=$null;$snapshot=$null
 $sections=[Security.AccessControl.AccessControlSections]::All
+function Assert-ProfileOwner([string]$ownerSid,[string]$currentUserSid) {
+  # Unchanged OS-managed ancestor, never a repair target or an execution identity.
+  if($ownerSid -notin @($currentUserSid,'S-1-5-18')){throw 'OWNER_BOUNDARY_REJECTED'}
+}
+function Assert-NativeProfile([string]$path,$identity) {
+  $item=Get-Item -LiteralPath $path -Force -ErrorAction Stop
+  if(-not $item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)){
+    throw 'OWNER_BOUNDARY_REJECTED'
+  }
+  $ownerSid=(Get-Acl -LiteralPath $path).GetOwner([Security.Principal.SecurityIdentifier]).Value
+  Assert-ProfileOwner $ownerSid $identity.User.Value
+}
 function Import-AclPredicates([string]$source) {
   # Reuse selectors, not the expired historical root-repair entry point.
   $tokens=$null;$errors=$null
@@ -234,7 +246,10 @@ try {
   $roots=@($production,$releases)
   $oldRoot=Join-Path $releases 'a49c458d69a28c0266be8fcad5b26253e5ed8d75'
   $config=Join-Path $production 'config.dpapi';$launcher=Join-Path $production 'launch-current.ps1'
-  foreach($path in @($env:USERPROFILE,$root,$production,$releases,$oldRoot,$config,$launcher)){
+  $stage='profile-boundary';Write-Host ('ACL_BOUNDARY_STAGE='+$stage)
+  Assert-NativeProfile $env:USERPROFILE $identity
+  $stage='boundary';Write-Host ('ACL_BOUNDARY_STAGE='+$stage)
+  foreach($path in @($root,$production,$releases,$oldRoot,$config,$launcher)){
     Assert-OwnedNative $path $identity
   }
   $ancestorBefore=(Get-Acl -LiteralPath $root -Audit).GetSecurityDescriptorSddlForm($sections)
