@@ -120,6 +120,16 @@ export class CompassExecutionLease {
     }, now);
   }
 
+  /** Read the persisted effect status; a missing or pending result is not a retry permit. */
+  effectStatus(taskId: string, actionId: string): "UNRECORDED" | "PENDING" | "CONFIRMED" {
+    if (!taskId.trim() || !actionId.trim()) throw new Error("COMPASS_EFFECT_INVALID_INPUT");
+    const table = this.db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'compass_execution_effect'").get();
+    if (!table) return "UNRECORDED";
+    const row = this.db.prepare("SELECT state FROM compass_execution_effect WHERE task_id = ? AND action_id = ?")
+      .get(taskId, actionId) as { state: "PENDING" | "CONFIRMED" } | undefined;
+    return row?.state ?? "UNRECORDED";
+  }
+
   /** Run only synchronous Compass database mutations in this transaction. */
   commit<T>(
     claim: { taskId: string; owner: string; epoch: number; token: string },
