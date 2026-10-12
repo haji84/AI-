@@ -136,6 +136,8 @@ try {
   const sqliteFenced = process.env.AUTONOMY_COMPASS_SQLITE_FENCE === "1";
   if (sqliteFenced && !dryRun) throw new Error("AUTONOMY_SQLITE_FENCE_EFFECT_RECONCILIATION_REQUIRED");
   if (sqliteFenced && fencedStorePath) throw new Error("AUTONOMY_FENCE_BACKENDS_CONFLICT");
+  // A dry-run may inspect fencing state, but must never mutate the real Goal.
+  // Keep the real execution path disabled until effect reconciliation is implemented.
   const sqliteLease = sqliteFenced ? activeCompass.executionLease() : null;
   const sqliteClaim = sqliteLease?.claim(goalWorkStateId(goal), `${hostname()}:${runId}`, 60_000);
   const assertSqliteAuthority = sqliteLease && sqliteClaim
