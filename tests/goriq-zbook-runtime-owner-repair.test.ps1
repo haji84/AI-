@@ -96,3 +96,6 @@ try{
 & (Join-Path $PSScriptRoot 'goriq-zbook-acl-boundary-repair.test.ps1')
 
 & (Join-Path $PSScriptRoot 'goriq-nonpropagating-acl-probe.test.ps1')
+
+
+& (Join-Path $PSScriptRoot 'goriq-zbook-fixed-acl-repair.test.ps1')
