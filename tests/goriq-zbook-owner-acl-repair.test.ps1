@@ -75,3 +75,6 @@ foreach($set in @(@($owner),@($owner,$valid,(Fact @{})))){
 Write-Output 'Owner ACL repair decision fixtures PASS (no ACL mutation)'
 
 & (Join-Path $PSScriptRoot 'goriq-zbook-acl-boundary-repair.test.ps1')
+
+
+& (Join-Path $PSScriptRoot 'goriq-zbook-fixed-acl-repair.test.ps1')
