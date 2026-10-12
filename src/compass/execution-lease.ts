@@ -107,6 +107,19 @@ export class CompassExecutionLease {
     }, now);
   }
 
+  /** Record confirmed outcome only for the owner of the reserved effect.
+   * Unknown outcomes remain PENDING and require reconciliation.
+   */
+  confirmEffect(claim: { taskId: string; owner: string; epoch: number; token: string }, actionId: string, now = Date.now()): void {
+    if (!actionId.trim()) throw new Error("COMPASS_EFFECT_INVALID_INPUT");
+    this.commit(claim, () => {
+      const result = this.db.prepare(`UPDATE compass_execution_effect SET state = 'CONFIRMED'
+        WHERE task_id = ? AND action_id = ? AND epoch = ? AND state = 'PENDING'`)
+        .run(claim.taskId, actionId, claim.epoch);
+      if (result.changes !== 1) throw new Error("COMPASS_EFFECT_CONFIRMATION_RECONCILIATION_REQUIRED");
+    }, now);
+  }
+
   /** Run only synchronous Compass database mutations in this transaction. */
   commit<T>(
     claim: { taskId: string; owner: string; epoch: number; token: string },
