@@ -80,7 +80,7 @@ public static class GoriqFixedAclNative {
  public static SafeFileHandle Open(string path,bool writable,bool directory) {
   // MAXIMUM_ALLOWED suppresses SetSecurityInfo child propagation. File handles
   // deny replacement; directory handles retain identity and detect pathname drift.
-  var h=CreateFileW(path,writable?0x02000000u:0x20080u,(writable&&directory)?7u:3u,IntPtr.Zero,3,0x02200000,IntPtr.Zero);
+  var h=CreateFileW(path,writable?0x02000000u:0x120081u,(writable&&directory)?7u:3u,IntPtr.Zero,3,0x02200000,IntPtr.Zero);
   try {
    if(h.IsInvalid)throw new Exception("HANDLE_REJECTED_"+Marshal.GetLastWin32Error());
    string id=Identity(h);
@@ -189,6 +189,11 @@ function Read-FixedTransaction([string]$backupPath,[string]$marker,[string]$id) 
   if($null -ne $markerHandle){$markerHandle.Dispose()};if($null -ne $backupHandle){$backupHandle.Dispose()}
   $decoded=$null
  }
+}
+function Test-FixedReconciliation([string]$marker,[bool]$changed,[bool]$restored,[string]$reason) {
+ if($reason -eq 'RECONCILIATION_REQUIRED' -or ($changed -and -not $restored)){return $true}
+ if([string]::IsNullOrEmpty($marker)){return $null}
+ try{return [bool](Test-Path -LiteralPath $marker -ErrorAction Stop)}catch{return $true}
 }
 function Assert-FixedGuards {
  for($i=0;$i -lt $guardEntries.Count;$i++){Assert-FixedRecord $guardRecords[$i] (Get-FixedRecord $guardEntries[$i] $guards[$i])}
@@ -340,7 +345,7 @@ try {
  @{version=1;issue=1662;repairIssue=1787;nodeId='zbook';phase=$Phase;failedStage=$stage;failureReason=$reason;
   permissionChanged=$changed;restored=$restored;backupId=$backupIdResult;
   nativeErrorCode=$nativeErrorCode;intentPending=($null -ne $marker -and (Test-Path -LiteralPath $marker));
-  reconciliationRequired=(($null -ne $marker -and (Test-Path -LiteralPath $marker)) -or $reason -eq 'RECONCILIATION_REQUIRED' -or ($changed -and -not $restored));
+  reconciliationRequired=(Test-FixedReconciliation $marker $changed $restored $reason);
   observedAt=[datetimeoffset]::UtcNow.ToString('o')} | ConvertTo-Json -Compress
  exit 1
 }finally{

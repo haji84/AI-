@@ -5,7 +5,7 @@ if(-not(Test-Path -LiteralPath $source)){throw 'fixed-repair-helper-missing'}
 $tokens=$null;$errors=$null
 $ast=[Management.Automation.Language.Parser]::ParseFile($source,[ref]$tokens,[ref]$errors)
 if($errors.Count){throw 'fixed-repair-parse'}
-foreach($name in @('Get-FixedTargets','New-FixedDescriptor','Initialize-FixedNative','Get-FixedRecord','Assert-FixedRecord','Invoke-FixedTransition','Restore-FixedRecords','Get-FixedHash','Write-FixedTransaction','Read-FixedTransaction','Import-FixedFunctions')){
+foreach($name in @('Get-FixedTargets','New-FixedDescriptor','Initialize-FixedNative','Get-FixedRecord','Assert-FixedRecord','Invoke-FixedTransition','Restore-FixedRecords','Get-FixedHash','Write-FixedTransaction','Read-FixedTransaction','Import-FixedFunctions','Test-FixedReconciliation')){
  $def=$ast.Find({param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq $name},$true)
  if($null -eq $def){throw 'fixed-function-missing'}
  Invoke-Expression $def.Extent.Text
@@ -159,6 +159,9 @@ try {
  try{Write-FixedTransaction $flushBackup $flushMarker $transaction ([guid]::NewGuid().ToString('N'))}catch{$rejected=$true}
  finally{Set-Item Function:Read-FixedTransaction -Value $savedRead}
  if(-not $rejected -or -not(Test-Path -LiteralPath $flushMarker)){throw 'fixed-post-flush-intent-lost'}
+ if(-not(Test-FixedReconciliation $flushMarker $false $false 'FIXED_REPAIR_FAILED')){throw 'fixed-pending-intent-status-hidden'}
+ if(-not(Test-FixedReconciliation $flushMarker $false $false 'APPROVAL_REJECTED')){throw 'fixed-expired-intent-status-hidden'}
+ if(Test-FixedReconciliation (Join-Path $fixture 'absent.json') $false $false 'ARTIFACT_REJECTED'){throw 'fixed-clean-status-wrong'}
  $rejected=$false
  try{$null=Read-FixedTransaction $backup $marker ([guid]::NewGuid().ToString('N'))}catch{$rejected=$true}
  if(-not $rejected){throw 'fixed-wrong-backup-accepted'}
