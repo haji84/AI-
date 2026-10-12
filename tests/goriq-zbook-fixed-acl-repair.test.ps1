@@ -5,7 +5,7 @@ if(-not(Test-Path -LiteralPath $source)){throw 'fixed-repair-helper-missing'}
 $tokens=$null;$errors=$null
 $ast=[Management.Automation.Language.Parser]::ParseFile($source,[ref]$tokens,[ref]$errors)
 if($errors.Count){throw 'fixed-repair-parse'}
-foreach($name in @('Get-FixedTargets','New-FixedDescriptor','Initialize-FixedNative','Get-FixedRecord','Assert-FixedRecord','Invoke-FixedTransition','Restore-FixedRecords','Get-FixedHash','Write-FixedTransaction','Read-FixedTransaction','Import-FixedFunctions','Test-FixedReconciliation','Invoke-FixedHostTransaction','Assert-FixedTree','Get-FixedState','Get-FixedBytes')){
+foreach($name in @('Get-FixedTargets','New-FixedDescriptor','Initialize-FixedNative','Get-FixedRecord','Assert-FixedRecord','Invoke-FixedTransition','Restore-FixedRecords','Get-FixedHash','Write-FixedTransaction','Read-FixedTransaction','Import-FixedFunctions','Test-FixedReconciliation','Invoke-FixedHostTransaction','Assert-FixedTree','Get-FixedState','Get-FixedBytes','Initialize-FixedProcessNative','Bind-FixedProcessTree','Test-FixedStopRequired','Close-FixedHandles','Open-FixedHandles','Assert-FixedKnownTargets','Persist-FixedHostBaseline','Stop-FixedHost','Write-FixedTargets','Start-FixedHost','Verify-FixedHost','Recover-FixedHost','Assert-FixedRuntime','Assert-FixedGuards')){
  $def=$ast.Find({param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq $name},$true)
  if($null -eq $def){throw 'fixed-function-missing'}
  Invoke-Expression $def.Extent.Text
@@ -33,6 +33,7 @@ try{Assert-FixedTree $tree @([pscustomobject]@{ProcessId=7;CreationDate='replace
 if(-not $rejected){throw 'host-replaced-pid-accepted'}
 if($env:OS -ne 'Windows_NT'){Write-Output 'Fixed repair syntax/scope PASS; Windows native required';return}
 Initialize-FixedNative
+Initialize-FixedProcessNative
 $backupSource=Join-Path $PSScriptRoot '..\scripts\goriq-zbook-acl-boundary-repair.ps1'
 Import-FixedFunctions (Get-Content -LiteralPath $backupSource -Raw) @('Write-BoundaryBackup')
 $identity=[Security.Principal.WindowsIdentity]::GetCurrent()
@@ -236,8 +237,10 @@ try {
   Assert-FixedTree @($script:hostRecord) @($live)
   $owner=Invoke-CimMethod -InputObject $live -MethodName GetOwnerSid
   if($owner.ReturnValue -ne 0 -or $owner.Sid -cne $user){throw 'disposable-owner-mismatch'}
-  $result=Invoke-CimMethod -InputObject $live -MethodName Terminate
-  if($result.ReturnValue -ne 0 -or -not $script:hostProcess.WaitForExit(5000)){throw 'disposable-stop-unverified'}
+  [GoriqFixedProcessNative]::Clear()
+  [GoriqFixedProcessNative]::Bind([int]$live.ProcessId,$live.CreationDate.ToUniversalTime().Ticks,$user)
+  $result=[GoriqFixedProcessNative]::Terminate([int]$live.ProcessId)
+  if($result -ne 0 -or -not $script:hostProcess.WaitForExit(5000)){throw 'disposable-stop-unverified'}
  }
  function Open-DisposableHandles([bool]$writable) {
   foreach($h in $script:hostHandles){$h.Dispose()};$script:hostHandles=@()
@@ -247,6 +250,18 @@ try {
  try{
   foreach($prefixFailure in @(0,3)){
    Start-DisposableHost
+   $savedRecord=$script:hostRecord
+   $script:hostRecord=[pscustomobject]@{ProcessId=$savedRecord.ProcessId;CreationDate=$savedRecord.CreationDate.AddSeconds(-1);CommandLine=$savedRecord.CommandLine}
+   $rejected=$false
+   try{Stop-DisposableHost}catch{if($_.Exception.Message -ne 'PROCESS_CHANGED'){throw};$rejected=$true}
+   finally{$script:hostRecord=$savedRecord}
+   if(-not $rejected -or $script:hostProcess.HasExited -or $unrelated.HasExited){throw 'disposable-stale-process-stopped'}
+   [GoriqFixedProcessNative]::Clear()
+   foreach($bad in @(@{ticks=$savedRecord.CreationDate.ToUniversalTime().Ticks-10000000;sid=$user},@{ticks=$savedRecord.CreationDate.ToUniversalTime().Ticks;sid='S-1-5-18'})){
+    $rejected=$false
+    try{[GoriqFixedProcessNative]::Bind([int]$savedRecord.ProcessId,$bad.ticks,$bad.sid)}catch{$rejected=$true}
+    if(-not $rejected -or $script:hostProcess.HasExited){throw 'disposable-native-identity-accepted'}
+   }
    # With only the live child holding native CWD, the write open must refuse.
    $rejected=$false
    try{$h=[GoriqFixedAclNative]::Open($targets[2].path,$true,$true);$h.Dispose()}catch{
@@ -299,9 +314,76 @@ try {
    foreach($h in $script:hostHandles){$h.Dispose()};$script:hostHandles=@()
    foreach($p in $untouched){if((Get-Acl -LiteralPath $p -Audit).Sddl -cne $before[$p]){throw 'child-transaction-propagated'}}
   }
+  # Exercise the production wrappers, with only scheduler/network/state discovery
+  # substituted. Filesystem ACLs, DPAPI, CIM identity and pinned termination are real.
+  $runtimeSource=Join-Path $PSScriptRoot '..\scripts\goriq-pc-runtime-refresh-windows.ps1'
+  Import-FixedFunctions (Get-Content -LiteralPath $runtimeSource -Raw) @('Get-LiveListeners','Assert-StoppedInstallation','Assert-State-Preserved','Stop-OwnedTree','Wait-Health')
+  $script:fixtureTaskState='Running';$script:failNextStart=$false
+  function Get-ScheduledTask {param($TaskName) [pscustomobject]@{State=$script:fixtureTaskState}}
+  function Export-ScheduledTask {param($TaskName) 'fixture-task-xml'}
+  function Stop-ScheduledTask {param($TaskName) $script:fixtureTaskState='Ready'}
+  function Start-ScheduledTask {
+   param($TaskName)
+   if($script:failNextStart){$script:failNextStart=$false;throw 'injected-start-failure'}
+   Start-DisposableHost;$script:fixtureTaskState='Running'
+  }
+  function Get-NetTCPConnection {param($State) @()}
+  function Get-OwnedTree {
+   param($root,$requireHealthy=$true,$requiredPorts=@())
+   if($null -eq $script:hostProcess -or $script:hostProcess.HasExited){return @()}
+   return @(Get-CimInstance Win32_Process -Filter ('ProcessId='+$script:hostProcess.Id))
+  }
+  $script:current=[pscustomobject]@{commit='public-old-revision'}
+  function Invoke-RestMethod {param($Uri,$TimeoutSec) [pscustomobject]@{ok=$true;runtimeRevision=$script:current.commit;status='ok'}}
+  $script:stateBefore=[pscustomobject]@{schemaCompatible=$true;quiescent=$true;privateAddressAssigned=$true;
+   schemaDigest='schema';identityDigest='identity';fleetDigest='fleet';tasksDigest='tasks';pcTasksDigest='pc';compassDigest='compass'}
+  function Inspect-State {param($operation) $script:stateBefore}
+  function Assert-FixedExpiry {}
+  $script:ports=@();$script:taskName='fixture';$script:taskXml='fixture-task-xml';$script:installationRoot=$fixture
+  $script:config=$targets[3].path;$script:launcher=$targets[4].path
+  $script:configHash=Get-FixedHash $script:config;$script:launcherHash=Get-FixedHash $script:launcher
+  $script:oldRoot=$targets[2].path;$script:releaseRoot=$script:oldRoot
+  $script:HostStopApproved=$true;$script:guardEntries=@();$script:guardRecords=@();$script:guards=@()
+  $savedLocalAppData=$env:LOCALAPPDATA;$env:LOCALAPPDATA=$fixture
+  try{
+   foreach($failStartup in @($false,$true)){
+    Start-DisposableHost;$script:tree=@(Get-OwnedTree $script:oldRoot)
+    $script:fixtureTaskState='Running';$script:hostStopped=$false;$script:hostStopAttempted=$false
+    $script:restartAttempted=$false;$script:serviceRecoveryVerified=$false;$script:restored=$false;$script:changed=$false
+    $script:marker=Join-Path $fixture ('wrapper-'+$failStartup+'.json')
+    Open-FixedHandles $false
+    if(-not(Test-FixedStopRequired)){throw 'production-probe-missed-native-cwd'}
+    $script:failNextStart=$failStartup
+    $result=Invoke-FixedHostTransaction -Persist {Persist-FixedHostBaseline} -Stop {Stop-FixedHost} -Write {Write-FixedTargets} -Start {Start-FixedHost} -Verify {Verify-FixedHost} -Recover {Recover-FixedHost}
+    if(-not $script:hostStopAttempted -or -not $script:serviceRecoveryVerified -or $unrelated.HasExited){throw 'production-wrapper-scope-or-recovery'}
+    if(-not $failStartup -and -not $result.verified){throw 'production-wrapper-normal-failed'}
+    if($failStartup -and ($result.verified -or -not $result.restored)){throw 'production-wrapper-failed-start-not-restored'}
+    if(Test-Path -LiteralPath $script:marker){throw 'production-wrapper-intent-not-cleared'}
+    Stop-DisposableHost;$script:fixtureTaskState='Ready';$script:hostStopped=$true
+    Open-FixedHandles $true
+    Restore-FixedRecords $targets $handles $records $wanted
+    Close-FixedHandles
+   }
+   # Partial stop whose result is unknown must not restart or write; intent stays.
+   Start-DisposableHost;$script:tree=@(Get-OwnedTree $script:oldRoot)
+   $script:fixtureTaskState='Running';$script:hostStopped=$false;$script:restartAttempted=$false
+   $script:hostStopAttempted=$false;$script:marker=Join-Path $fixture 'wrapper-unknown-stop.json'
+   Open-FixedHandles $false
+   $savedStop=(Get-Item Function:Stop-OwnedTree).ScriptBlock
+   Set-Item Function:Stop-OwnedTree -Value {throw 'injected-unknown-stop'}
+   try{
+    $result=Invoke-FixedHostTransaction -Persist {Persist-FixedHostBaseline} -Stop {Stop-FixedHost} -Write {Write-FixedTargets} -Start {Start-FixedHost} -Verify {Verify-FixedHost} -Recover {Recover-FixedHost}
+   }finally{Set-Item Function:Stop-OwnedTree -Value $savedStop}
+   if($result.verified -or $result.restored -or $script:hostProcess.HasExited -or -not(Test-Path -LiteralPath $script:marker)){throw 'production-unknown-stop-retried'}
+   for($i=0;$i -lt 5;$i++){Assert-FixedRecord $records[$i] (Get-FixedRecord $targets[$i] $handles[$i])}
+   if(-not(Test-FixedReconciliation $script:marker $false $false 'FIXED_REPAIR_FAILED')){throw 'production-host-intent-hidden'}
+   Stop-DisposableHost;Close-FixedHandles
+   Write-Output 'Production stop/repair/start/recovery wrappers with real pinned process/ACL/DPAPI: normal, failed-start recovery, unknown-stop no retry PASS (scheduler/network/state mocked; not physical Broker E2E)'
+  }finally{$env:LOCALAPPDATA=$savedLocalAppData;Close-FixedHandles;[GoriqFixedProcessNative]::Clear()}
   Write-Output 'Disposable Windows native-CWD child: persist/scoped stop/five-object repair/restart and partial-failure original recovery PASS; unrelated process and child ACLs preserved (not physical ZBook E2E)'
  }finally{
   foreach($h in $script:hostHandles){$h.Dispose()}
+  [GoriqFixedProcessNative]::Clear()
   if($null -ne $script:hostProcess){if(-not $script:hostProcess.HasExited){$script:hostProcess.StandardInput.WriteLine('exit');if(-not $script:hostProcess.WaitForExit(5000)){Stop-DisposableHost}};$script:hostProcess.Dispose()}
   if($null -ne $unrelated){if(-not $unrelated.HasExited){$unrelated.StandardInput.WriteLine('exit');if(-not $unrelated.WaitForExit(5000)){$unrelated.Kill();$unrelated.WaitForExit()}};$unrelated.Dispose()}
  }

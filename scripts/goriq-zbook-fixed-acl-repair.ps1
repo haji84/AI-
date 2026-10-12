@@ -2,7 +2,8 @@ param([ValidateSet('plan','apply','restore')][string]$Phase='plan',[switch]$Owne
  [Parameter(Mandatory=$true)][string]$SourceRevision,
  [Parameter(Mandatory=$true)][string]$ExpectedRepairSha256,[string]$BackupId,[switch]$HostStopApproved)
 # #1787/#1662: owner approval 2026-10-12T14:39:12Z, issue comment6126491312.
-# Exact five existing objects; no recursive propagation, process stop or ancestor ACL write.
+# Exact five existing objects; approved scoped host stop/restart only on sharing block.
+# No recursive propagation or ancestor/dependency ACL writes; stop approval6127583703.
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $env:PSModulePath=Join-Path $PSHOME 'Modules'
@@ -27,7 +28,10 @@ function Import-FixedFunctions([string]$sourceText,[string[]]$names) {
   if($name -eq 'Stop-OwnedTree'){
    if(-not $definition.Contains('  Stop-ScheduledTask ') -or -not $definition.Contains('    $result=Invoke-CimMethod ')){throw 'SOURCE_REJECTED'}
    $definition=$definition.Replace('  Stop-ScheduledTask ','  Assert-FixedExpiry; Stop-ScheduledTask ')
-   $definition=$definition.Replace('    $result=Invoke-CimMethod ','    Assert-FixedExpiry; $result=Invoke-CimMethod ')
+   $lines=$definition -split "`n"
+   $terminations=@($lines | Where-Object {$_ -match '^    \$result=Invoke-CimMethod .* -MethodName Terminate\s*$'})
+   if($terminations.Count -ne 1){throw 'SOURCE_REJECTED'}
+   $definition=$definition.Replace($terminations[0], '    Assert-FixedExpiry; $result=[pscustomobject]@{ReturnValue=[GoriqFixedProcessNative]::Terminate([int]$live.ProcessId)}')
   }
   Invoke-Expression ($definition.Replace(('function '+$name),('function script:'+$name)))
  }
@@ -118,6 +122,59 @@ public static class GoriqFixedAclNative {
  }
 }
 '@
+}
+function Initialize-FixedProcessNative {
+ if('GoriqFixedProcessNative' -as [type]){return}
+ Add-Type -TypeDefinition @'
+using System;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
+using System.Security.Principal;
+using Microsoft.Win32.SafeHandles;
+public static class GoriqFixedProcessNative {
+ static readonly Dictionary<int,SafeWaitHandle> Handles=new Dictionary<int,SafeWaitHandle>();
+ [DllImport("kernel32.dll",SetLastError=true)] static extern SafeWaitHandle OpenProcess(uint access,bool inherit,int pid);
+ [DllImport("kernel32.dll",SetLastError=true)] static extern bool GetProcessTimes(SafeWaitHandle h,out long created,out long exited,out long kernel,out long user);
+ [DllImport("advapi32.dll",SetLastError=true)] static extern bool OpenProcessToken(SafeWaitHandle h,uint access,out SafeWaitHandle token);
+ [DllImport("advapi32.dll",SetLastError=true)] static extern bool GetTokenInformation(SafeWaitHandle token,uint kind,IntPtr buffer,uint size,out uint needed);
+ [DllImport("kernel32.dll",SetLastError=true)] static extern bool GetExitCodeProcess(SafeWaitHandle h,out uint code);
+ [DllImport("kernel32.dll",SetLastError=true)] static extern bool TerminateProcess(SafeWaitHandle h,uint code);
+ [DllImport("kernel32.dll",SetLastError=true)] static extern uint WaitForSingleObject(SafeWaitHandle h,uint milliseconds);
+ public static void Clear() {foreach(var h in Handles.Values)h.Dispose();Handles.Clear();}
+ public static void Bind(int pid,long expectedUtcTicks,string expectedSid) {
+  if(Handles.ContainsKey(pid))throw new Exception("PROCESS_REJECTED");
+  var h=OpenProcess(0x101001,false,pid);SafeWaitHandle token=null;IntPtr memory=IntPtr.Zero;
+  try {
+   long created,exited,kernel,user;uint needed;
+   if(h.IsInvalid || !GetProcessTimes(h,out created,out exited,out kernel,out user) ||
+    DateTime.FromFileTimeUtc(created).Ticks/10!=expectedUtcTicks/10 ||
+    !OpenProcessToken(h,8,out token))throw new Exception("PROCESS_REJECTED");
+   GetTokenInformation(token,1,IntPtr.Zero,0,out needed);
+   if(needed<8 || needed>65536)throw new Exception("PROCESS_REJECTED");
+   memory=Marshal.AllocHGlobal((int)needed);
+   if(!GetTokenInformation(token,1,memory,needed,out needed) ||
+    new SecurityIdentifier(Marshal.ReadIntPtr(memory)).Value!=expectedSid)throw new Exception("PROCESS_REJECTED");
+   Handles.Add(pid,h);h=null;
+  }finally{if(h!=null)h.Dispose();if(token!=null)token.Dispose();if(memory!=IntPtr.Zero)Marshal.FreeHGlobal(memory);}
+ }
+ public static int Terminate(int pid) {
+  SafeWaitHandle h;uint code;
+  if(!Handles.TryGetValue(pid,out h) || !GetExitCodeProcess(h,out code))throw new Exception("PROCESS_REJECTED");
+  uint status=WaitForSingleObject(h,0);
+  if(status==0)return 0; // Positively observed already exited; never redirect by PID.
+  if(status!=258)throw new Exception("PROCESS_REJECTED");
+  if(!TerminateProcess(h,1)) {if(WaitForSingleObject(h,0)==0)return 0;throw new Exception("PROCESS_REJECTED");}
+  if(WaitForSingleObject(h,5000)!=0)throw new Exception("PROCESS_REJECTED");
+  return 0;
+ }
+}
+'@
+}
+function Bind-FixedProcessTree([object[]]$processes) {
+ Initialize-FixedProcessNative
+ [GoriqFixedProcessNative]::Clear()
+ try{foreach($p in $processes){[GoriqFixedProcessNative]::Bind([int]$p.ProcessId,$p.CreationDate.ToUniversalTime().Ticks,$identity.User.Value)}}
+ catch{[GoriqFixedProcessNative]::Clear();throw}
 }
 function Get-FixedBytes([string]$path) {
  $share=[IO.FileShare]::ReadWrite -bor [IO.FileShare]::Delete
@@ -251,6 +308,19 @@ function Assert-FixedKnownTargets {
   Assert-FixedRecord $expected $live
  }
 }
+function Test-FixedStopRequired([bool]$allowWanted=$false) {
+ $required=$false
+ try{Open-FixedHandles $true}catch{
+  $failure=$_.Exception
+  while($null -ne $failure.InnerException){$failure=$failure.InnerException}
+  if($failure.Message -cne 'HANDLE_REJECTED_32'){throw}
+  $required=$true;Open-FixedHandles $false
+ }
+ if($allowWanted){Assert-FixedKnownTargets}else{
+  for($i=0;$i -lt 5;$i++){Assert-FixedRecord $records[$i] (Get-FixedRecord $targets[$i] $handles[$i])}
+ }
+ return $required
+}
 function Persist-FixedHostBaseline {
  Assert-FixedGuards;Assert-FixedRuntime;Assert-FixedExpiry
  $script:backupIdResult=[guid]::NewGuid().ToString('N')
@@ -267,6 +337,7 @@ function Stop-FixedHost {
  Assert-FixedRuntime;Assert-FixedGuards;Assert-FixedKnownTargets
  $liveTree=@(Get-OwnedTree $oldRoot)
  Assert-FixedTree $tree $liveTree
+ Bind-FixedProcessTree $liveTree
  Assert-FixedExpiry
  $script:hostStopAttempted=$true
  Stop-OwnedTree $liveTree
@@ -314,6 +385,7 @@ function Recover-FixedHost {
   $liveTree=@(Get-OwnedTree $oldRoot $false)
   if($liveTree.Count){
    Assert-FixedTree $liveTree @(Get-OwnedTree $oldRoot $false)
+   Bind-FixedProcessTree $liveTree
    Assert-FixedExpiry;Stop-OwnedTree $liveTree
   }
  }
@@ -322,6 +394,7 @@ function Recover-FixedHost {
  $needsRestore=$false
  for($i=0;$i -lt 5;$i++){if((Get-FixedRecord $targets[$i] $handles[$i]).descriptor -cne $records[$i].descriptor){$needsRestore=$true}}
  if($needsRestore){
+  $script:changed=$true
   Open-FixedHandles $true
   Restore-FixedRecords $targets $handles $records $wanted -EnforceExpiry
  }
@@ -354,7 +427,8 @@ function Assert-FixedExpiry {
 try {
  Assert-FixedExpiry
  if([datetimeoffset]::UtcNow -lt [datetimeoffset]::Parse('2026-10-12T14:39:12Z') -or
-  ($Phase -ne 'plan' -and -not $OwnerApproved)){throw 'APPROVAL_REJECTED'}
+  ($Phase -ne 'plan' -and -not $OwnerApproved) -or
+  ($Phase -ne 'plan' -and $HostStopApproved -and [datetimeoffset]::UtcNow -lt [datetimeoffset]::Parse('2026-10-12T15:41:01Z'))){throw 'APPROVAL_REJECTED'}
  if($env:OS -ne 'Windows_NT' -or $SourceRevision -notmatch '^[a-f0-9]{40}$' -or
   $ExpectedRepairSha256 -notmatch '^[a-f0-9]{64}$' -or
   (Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash.ToLowerInvariant() -cne $ExpectedRepairSha256){throw 'ARTIFACT_REJECTED'}
@@ -468,24 +542,26 @@ try {
   Assert-State-Preserved $transaction.state $stateBefore
   $records=@($transaction.records);$wanted=@($transaction.wanted);$backupIdResult=$BackupId
   $stage='restore';Write-Host ('FIXED_ACL_STAGE='+$stage)
-  # A running original host is first fenced and stopped under the new explicit gate.
-  if(-not $hostStopped){Stop-FixedHost}
-  Recover-FixedHost
+  $stopRequired=Test-FixedStopRequired $true
+  try{
+   if(-not $hostStopped -and $stopRequired){Stop-FixedHost}
+   if($hostStopped){Recover-FixedHost}else{
+    # Compatible running host: no operational stop beyond the proven sharing gate.
+    $changed=$true;Restore-FixedRecords $targets $handles $records $wanted -EnforceExpiry
+    Open-FixedHandles $false;Assert-FixedRuntime;Assert-FixedGuards
+    Remove-Item -LiteralPath $marker -Force;$markerCreated=$false;$restored=$true
+   }
+  }catch{
+   $originalFailure=$_
+   # A positively stopped host gets one recovery attempt. Unknown residuals or
+   # a failed restart do not trigger an unfenced repeat operation.
+   if($hostStopped -and -not $restartAttempted){try{Assert-StoppedInstallation;Recover-FixedHost}catch{}}
+   throw $originalFailure
+  }
  }else{
   $stage='plan';Write-Host ('FIXED_ACL_STAGE='+$stage)
   for($i=0;$i -lt 5;$i++){$wanted+=,(New-FixedDescriptor $records[$i].descriptor $identity.User.Value $candidate.sidValue $targets[$i].directory)}
-  $stopRequired=$false
-  try{
-   Open-FixedHandles $true
-   for($i=0;$i -lt 5;$i++){Assert-FixedRecord $records[$i] (Get-FixedRecord $targets[$i] $handles[$i])}
-  }catch{
-   $probeFailure=$_.Exception
-   while($null -ne $probeFailure.InnerException){$probeFailure=$probeFailure.InnerException}
-   if($probeFailure.Message -cne 'HANDLE_REJECTED_32'){throw}
-   $stopRequired=$true
-   Open-FixedHandles $false
-   for($i=0;$i -lt 5;$i++){Assert-FixedRecord $records[$i] (Get-FixedRecord $targets[$i] $handles[$i])}
-  }
+  $stopRequired=Test-FixedStopRequired
   if($Phase -eq 'apply'){
    if(-not $HostStopApproved){throw 'HOST_STOP_APPROVAL_REQUIRED'}
    $stage='host-transaction';Write-Host ('FIXED_ACL_STAGE='+$stage)
@@ -511,7 +587,7 @@ try {
 }catch{
  $known=@('APPROVAL_REJECTED','ARTIFACT_REJECTED','ADMIN_REQUIRED','SOURCE_REJECTED','MAIN_CI_REQUIRED','OWNER_BOUNDARY_REJECTED',
   'ACL_CANDIDATE_REJECTED','DACL_REJECTED','BASELINE_CHANGED','REPARSE_REJECTED','HARDLINK_REJECTED','HANDLE_REJECTED',
-  'HOST_STOP_APPROVAL_REQUIRED','PROCESS_CHANGED','SERVICE_RECOVERY_REQUIRED','WRITE_REJECTED','BACKUP_REJECTED','RESTORE_REJECTED','RUNTIME_CHANGED','RECONCILIATION_REQUIRED')
+  'HOST_STOP_APPROVAL_REQUIRED','PROCESS_CHANGED','PROCESS_REJECTED','SERVICE_RECOVERY_REQUIRED','WRITE_REJECTED','BACKUP_REJECTED','RESTORE_REJECTED','RUNTIME_CHANGED','RECONCILIATION_REQUIRED')
  $failure=$_.Exception
  while($null -ne $failure.InnerException){$failure=$failure.InnerException}
  $nativeErrorCode=$null
@@ -520,12 +596,13 @@ try {
  @{version=1;issue=1662;repairIssue=1787;nodeId='zbook';phase=$Phase;failedStage=$stage;failureReason=$reason;
   permissionChanged=$changed;restored=$restored;backupId=$backupIdResult;hostStopAttempted=$hostStopAttempted;serviceRecoveryVerified=$serviceRecoveryVerified;
   nativeErrorCode=$nativeErrorCode;intentPending=($null -ne $marker -and (Test-Path -LiteralPath $marker));
-  reconciliationRequired=(Test-FixedReconciliation $marker $changed $restored $reason);
+  reconciliationRequired=(Test-FixedReconciliation $marker ($changed -or $hostStopAttempted) $restored $reason);
   observedAt=[datetimeoffset]::UtcNow.ToString('o')} | ConvertTo-Json -Compress
  exit 1
 }finally{
  foreach($handle in $handles){$handle.Dispose()};foreach($guard in $guards){$guard.Dispose()}
  foreach($stream in $sourceStreams){$stream.Dispose()};$sourceTexts=$null
+ if('GoriqFixedProcessNative' -as [type]){[GoriqFixedProcessNative]::Clear()}
  Set-Location $initialLocation
  $plain=$null;$decoded=$null;$records=$null;$wanted=$null;$transaction=$null;$candidate=$null;$bytes=$null
 }
