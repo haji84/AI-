@@ -124,3 +124,18 @@ test("a second process connection reclaims an expired lease and fences the old o
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test("released claim is fenced even if the old process remains alive", () => {
+  const db = new DatabaseSync(":memory:");
+  try {
+    db.exec("CREATE TABLE progress (value TEXT)");
+    const leases = new CompassExecutionLease(db);
+    const mac = leases.claim("goal", "mac", 1000, 1000);
+    leases.release(mac, 1050);
+    assert.throws(() => leases.commit(mac, () => db.exec("INSERT INTO progress VALUES ('stale')"), 1050), /STALE_CLAIM/);
+    assert.throws(() => leases.renew(mac, 100, 1050), /STALE_CLAIM/);
+    const zbook = leases.claim("goal", "zbook", 1000, 1050);
+    leases.commit(zbook, () => db.exec("INSERT INTO progress VALUES ('valid')"), 1051);
+    assert.deepEqual(db.prepare("SELECT value FROM progress").all().map(row => ({ value: row.value })), [{ value: "valid" }]);
+  } finally { db.close(); }
+});
