@@ -60,7 +60,8 @@ try {
   }
   foreach($path in @($config,$launcher,$package,$target,$alias)){
     # MAXIMUM_ALLOWED includes write/delete access; verification must share both.
-    $stream=New-Object IO.FileStream($path,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::ReadWrite -bor [IO.FileShare]::Delete)
+    $share=[IO.FileShare]::ReadWrite -bor [IO.FileShare]::Delete
+    $stream=New-Object IO.FileStream($path,[IO.FileMode]::Open,[IO.FileAccess]::Read,$share)
     $readerStream=New-Object IO.StreamReader($stream)
     try{if($readerStream.ReadToEnd() -cne 'public fixture bytes'){throw 'probe-content-mutated'}}
     finally{$readerStream.Dispose();$stream.Dispose()}
