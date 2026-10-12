@@ -142,6 +142,11 @@ try {
   // Recovery is inspection-only until effectful work has a reconciliation contract.
   // A pending external effect cannot be retried or treated as completed.
   const recoveryActionId = process.env.AUTONOMY_RECOVERY_ACTION_ID?.trim();
+  // A requested external-effect recovery check must never be silently skipped
+  // when the authoritative SQLite fencing backend is disabled.
+  if (recoveryActionId && !sqliteLease) {
+    throw new Error("AUTONOMY_RECOVERY_REQUIRES_SQLITE_FENCE");
+  }
   if (sqliteLease && recoveryActionId) {
     const decision = sqliteLease.recoveryDecision(goalWorkStateId(goal), recoveryActionId);
     if (decision !== "READY_FOR_FIRST_EXECUTION") {
