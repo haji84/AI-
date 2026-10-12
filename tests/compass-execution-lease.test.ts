@@ -31,3 +31,28 @@ test("failed mutation rolls back without publishing progress", () => {
     assert.deepEqual(db.prepare("SELECT value FROM progress").all(), []);
   } finally { db.close(); }
 });
+
+test("simultaneous workers cannot both acquire the same live lease", () => {
+  const db = new DatabaseSync(":memory:");
+  try {
+    const leases = new CompassExecutionLease(db);
+    const mac = leases.claim("goal", "mac", 1000, 1000);
+    assert.throws(() => leases.claim("goal", "zbook", 1000, 1000), /ALREADY_HELD/);
+    assert.throws(() => leases.claim("goal", "zbook", 1000, 1999), /ALREADY_HELD/);
+    const zbook = leases.claim("goal", "zbook", 1000, 2000);
+    assert.equal(zbook.epoch, mac.epoch + 1);
+    assert.notEqual(zbook.token, mac.token);
+    assert.throws(() => leases.commit(mac, () => db.exec("CREATE TABLE stale (id INTEGER)"), 2001), /STALE_CLAIM/);
+  } finally { db.close(); }
+});
+
+test("expired lease cannot publish a result without a successor", () => {
+  const db = new DatabaseSync(":memory:");
+  try {
+    db.exec("CREATE TABLE progress (value TEXT)");
+    const leases = new CompassExecutionLease(db);
+    const claim = leases.claim("goal", "mac", 100, 1000);
+    assert.throws(() => leases.commit(claim, () => db.exec("INSERT INTO progress VALUES ('expired')"), 1100), /STALE_CLAIM/);
+    assert.equal(db.prepare("SELECT COUNT(*) AS count FROM progress").get()?.count, 0);
+  } finally { db.close(); }
+});
