@@ -31,7 +31,13 @@ try {
  $acl.AddAuditRule((New-Object Security.AccessControl.FileSystemAuditRule($identity.User,'ReadData','ContainerInherit,ObjectInherit','None','Success')))
  Set-Acl -LiteralPath $fixture -AclObject $acl
  $targets=@(Get-FixedTargets $fixture)
- foreach($entry in $targets){if($entry.directory){$null=New-Item -ItemType Directory -Path $entry.path}else{[IO.File]::WriteAllText($entry.path,'public fixture bytes')}}
+ foreach($entry in $targets){
+  if($entry.directory){$null=New-Item -ItemType Directory -Path $entry.path}else{[IO.File]::WriteAllText($entry.path,'public fixture bytes')}
+  # Elevated Windows can default new-object Owner to Administrators; emulate confirmed ZBook owner.
+  $owned=Get-Acl -LiteralPath $entry.path -Audit;$owned.SetOwner($identity.User)
+  Set-Acl -LiteralPath $entry.path -AclObject $owned
+  if((Get-Acl -LiteralPath $entry.path).GetOwner([Security.Principal.SecurityIdentifier]).Value -cne $user){throw 'fixture-owner-mismatch'}
+ }
  $deps=Join-Path $targets[2].path 'node_modules';$outside=Join-Path $fixture 'outside'
  foreach($p in @($deps,$outside)){$null=New-Item -ItemType Directory -Path $p}
  $file=Join-Path $deps 'package.bin';$alias=Join-Path $outside 'alias.bin';$link=Join-Path $deps 'link'
