@@ -200,3 +200,32 @@ test("recovery decision distinguishes first execution, uncertain effect, and con
     assert.equal(leases.recoveryDecision(zbook.taskId, "first"), "READY_FOR_FIRST_EXECUTION");
   } finally { db.close(); }
 });
+
+test("interrupted external effect remains blocked after database reopen and takeover", async () => {
+  const { mkdtempSync, rmSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const dir = mkdtempSync(join(tmpdir(), "goriq-effect-restart-"));
+  const path = join(dir, "compass.db");
+  try {
+    const original = new DatabaseSync(path);
+    try {
+      const lease = new CompassExecutionLease(original);
+      const first = lease.claim("goal", "old-worker", 100, 1000);
+      lease.reserveEffect(first, "external-payment-like-action", 1001);
+    } finally { original.close(); }
+
+    const restarted = new DatabaseSync(path);
+    try {
+      const lease = new CompassExecutionLease(restarted);
+      const next = lease.claim("goal", "new-worker", 100, 1100);
+      assert.equal(next.epoch, 2);
+      assert.equal(lease.recoveryDecision("goal", "external-payment-like-action"), "RECONCILIATION_REQUIRED");
+      assert.throws(
+        () => lease.reserveEffect(next, "external-payment-like-action", 1101),
+        /RECONCILIATION_REQUIRED/,
+      );
+      assert.equal(lease.effectStatus("goal", "external-payment-like-action"), "PENDING");
+    } finally { restarted.close(); }
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
