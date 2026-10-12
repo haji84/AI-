@@ -5,10 +5,14 @@ if(-not (Test-Path -LiteralPath $source)){throw 'boundary-helper-missing'}
 $tokens=$null;$errors=$null
 $ast=[Management.Automation.Language.Parser]::ParseFile($source,[ref]$tokens,[ref]$errors)
 if($errors.Count){throw 'boundary-helper-parse'}
-foreach($name in @('Assert-BoundaryReader','Assert-SameSnapshot','New-BoundaryDacl','Get-BoundarySnapshot','Restore-BoundaryBaseline')){
+foreach($name in @('Import-AclPredicates','Assert-BoundaryReader','Assert-SameSnapshot','Write-BoundaryBackup','New-BoundaryDacl','Get-BoundarySnapshot','Restore-BoundaryBaseline')){
   $definition=$ast.Find({param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq $name},$true)
   if($null -eq $definition){throw ('boundary-function-missing: '+$name)}
   Invoke-Expression $definition.Extent.Text
+}
+Import-AclPredicates (Join-Path $PSScriptRoot '..\scripts\goriq-zbook-owner-acl-repair.ps1')
+if(-not (Test-KnownReadOnlyRights 0x1200A9) -or (Test-KnownReadOnlyRights 0x1201BF)){
+  throw 'imported-selector-parameters-lost'
 }
 function ReaderFact([hashtable]$changes){
   $fact=@{accessType='Allow';approvedPrincipal=$false;sidValue='reader';inherited=$true;
@@ -43,6 +47,12 @@ $identity=[Security.Principal.WindowsIdentity]::GetCurrent()
 $fixture=Join-Path ([IO.Path]::GetTempPath()) ('goriq-boundary-fixture-'+[guid]::NewGuid().ToString('N'))
 $null=New-Item -ItemType Directory -Path $fixture
 try{
+  $backup=Join-Path $fixture 'baseline.dpapi'
+  $largePlain='fixture-baseline-'*6000
+  Write-BoundaryBackup $backup $largePlain
+  $rejected=$false
+  try{Write-BoundaryBackup $backup 'replacement'}catch{$rejected=$true}
+  if(-not $rejected){throw 'backup-overwrite-accepted'}
   $parent=New-Object Security.AccessControl.DirectorySecurity
   $parent.SetOwner($identity.User)
   $parent.SetAccessRuleProtection($true,$false)
