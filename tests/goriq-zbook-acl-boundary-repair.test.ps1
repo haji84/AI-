@@ -98,7 +98,7 @@ try{
     $null=New-Item -ItemType Directory -Path $root
     $child=Join-Path $root 'child';$null=New-Item -ItemType Directory -Path $child
     [IO.File]::WriteAllText((Join-Path $child 'unchanged.txt'),'fixture bytes')
-    $childAcl=Get-Acl -LiteralPath $child
+    $childAcl=Get-Acl -LiteralPath $child -Audit
     $childAcl.AddAccessRule((New-Object Security.AccessControl.FileSystemAccessRule($identity.User,'ReadAndExecute','Allow')))
     $deny=New-Object Security.AccessControl.FileSystemAccessRule(
       (New-Object Security.Principal.SecurityIdentifier('S-1-5-32-546')),'Write','Deny')
@@ -106,7 +106,7 @@ try{
     Set-Acl -LiteralPath $child -AclObject $childAcl
     $protected=Join-Path $child 'protected'
     $null=New-Item -ItemType Directory -Path $protected
-    $protectedAcl=Get-Acl -LiteralPath $protected
+    $protectedAcl=Get-Acl -LiteralPath $protected -Audit
     $protectedAcl.SetAccessRuleProtection($true,$true)
     Set-Acl -LiteralPath $protected -AclObject $protectedAcl
     [IO.File]::WriteAllText((Join-Path $protected 'retained.txt'),'protected bytes')
@@ -155,7 +155,7 @@ try{
   Write-Output 'Boundary explicit reader refusal restoration PASS'
   # Explicit reader grants on a reachable descendant are outside this remedy.
   $child=Join-Path $roots[0] 'child'
-  $childAcl=Get-Acl -LiteralPath $child
+  $childAcl=Get-Acl -LiteralPath $child -Audit
   $childAcl.AddAccessRule((New-Object Security.AccessControl.FileSystemAccessRule(
     (New-Object Security.Principal.SecurityIdentifier($reader)),'ReadAndExecute','Allow')))
   Set-Acl -LiteralPath $child -AclObject $childAcl
@@ -165,7 +165,7 @@ try{
   }
   if(-not $rejected){throw 'explicit-descendant-reader-not-rejected'}
   $originalChild=@($before | Where-Object {$_.path -ceq $child})[0]
-  $childAcl=Get-Acl -LiteralPath $child
+  $childAcl=Get-Acl -LiteralPath $child -Audit
   $childAcl.SetSecurityDescriptorSddlForm($originalChild.descriptor,[Security.AccessControl.AccessControlSections]::Access)
   Set-Acl -LiteralPath $child -AclObject $childAcl
   Assert-SameSnapshot $before (Get-BoundarySnapshot $roots)
@@ -210,7 +210,7 @@ try{
   }finally{[IO.Directory]::Delete($link)}
   Write-Output 'Boundary junction refusal PASS'
   # A failure after only the first boundary was written must restore both trees.
-  Set-Acl -LiteralPath $roots[0] -AclObject (New-BoundaryDacl (Get-Acl -LiteralPath $roots[0]) $reader)
+  Set-Acl -LiteralPath $roots[0] -AclObject (New-BoundaryDacl (Get-Acl -LiteralPath $roots[0] -Audit) $reader)
   Restore-BoundaryBaseline $before $roots
   Assert-SameSnapshot $before (Get-BoundarySnapshot $roots)
   Write-Output 'Windows native boundary inheritance/content/Deny/partial-rollback fixtures PASS'
