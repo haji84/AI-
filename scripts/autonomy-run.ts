@@ -118,6 +118,8 @@ try {
   let heartbeatFailure: Error | null = null;
   // The fenced dry-run path may only inspect state. Do not register code-building
   // capabilities until non-idempotent effects have a reconciliation contract.
+  const fencedStorePath = process.env.AUTONOMY_FENCED_TASK_STORE_PATH?.trim();
+  const sqliteFenced = process.env.AUTONOMY_COMPASS_SQLITE_FENCE === "1";
   const registry = new CapabilityRegistry({ dryRun })
     .register(createContextInspectCapability());
   if (!sqliteFenced && !fencedStorePath) {
@@ -132,8 +134,6 @@ try {
 
   // Explicit opt-in only: the local durable store does not provide cross-node consensus.
   // Until a shared atomic Compass/fencing commit exists, guarded PASS writes fail closed.
-  const fencedStorePath = process.env.AUTONOMY_FENCED_TASK_STORE_PATH?.trim();
-  const sqliteFenced = process.env.AUTONOMY_COMPASS_SQLITE_FENCE === "1";
   if (sqliteFenced && !dryRun) throw new Error("AUTONOMY_SQLITE_FENCE_EFFECT_RECONCILIATION_REQUIRED");
   if (sqliteFenced && fencedStorePath) throw new Error("AUTONOMY_FENCE_BACKENDS_CONFLICT");
   // A dry-run may inspect fencing state, but must never mutate the real Goal.
