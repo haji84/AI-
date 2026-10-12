@@ -66,6 +66,18 @@ try{
     (New-Object Security.Principal.SecurityIdentifier($reader)),'ReadAndExecute,Synchronize','ContainerInherit,ObjectInherit','None','Allow')))
   $parent.AddAuditRule((New-Object Security.AccessControl.FileSystemAuditRule(
     $identity.User,'ReadData','ContainerInherit,ObjectInherit','None','Success')))
+  # Raw ACEs pin masks that FileSystemAccessRule constructors would normalize.
+  $rawParent=New-Object Security.AccessControl.RawSecurityDescriptor($parent.GetSecurityDescriptorSddlForm(
+    [Security.AccessControl.AccessControlSections]::All))
+  $rawDeny=New-Object Security.AccessControl.CommonAce([Security.AccessControl.AceFlags]3,
+    [Security.AccessControl.AceQualifier]::AccessDenied,0x100002,
+    (New-Object Security.Principal.SecurityIdentifier('S-1-5-32-546')),$false,$null)
+  $rawAllow=New-Object Security.AccessControl.CommonAce([Security.AccessControl.AceFlags]1,
+    [Security.AccessControl.AceQualifier]::AccessAllowed,0x20089,
+    (New-Object Security.Principal.SecurityIdentifier('S-1-5-32-547')),$false,$null)
+  $rawParent.DiscretionaryAcl.InsertAce(0,$rawDeny)
+  $rawParent.DiscretionaryAcl.InsertAce($rawParent.DiscretionaryAcl.Count,$rawAllow)
+  $parent.SetSecurityDescriptorSddlForm($rawParent.GetSddlForm([Security.AccessControl.AccessControlSections]::All))
   Set-Acl -LiteralPath $fixture -AclObject $parent
   $roots=@((Join-Path $fixture 'production'),(Join-Path $fixture 'releases'))
   foreach($root in $roots){
@@ -89,6 +101,13 @@ try{
   foreach($root in $roots){Assert-BoundaryIdentity $root @($before | Where-Object {$_.path -ceq $root})[0]}
   $sections=[Security.AccessControl.AccessControlSections]::All
   $expected=Get-ExpectedSnapshot $before $roots $reader
+  foreach($root in $roots){
+    $narrow=New-BoundaryDacl (Get-Acl -LiteralPath $root -Audit) $reader
+    $rawNarrow=New-Object Security.AccessControl.RawSecurityDescriptor($narrow.Sddl)
+    foreach($mask in @(0x100002,0x20089)){
+      if(-not @($rawNarrow.DiscretionaryAcl | Where-Object {$_.AccessMask -eq $mask}).Count){throw 'raw-mask-normalized'}
+    }
+  }
   $parentBefore=(Get-Acl -LiteralPath $fixture).Sddl
   foreach($root in $roots){
     $acl=Get-Acl -LiteralPath $root -Audit
