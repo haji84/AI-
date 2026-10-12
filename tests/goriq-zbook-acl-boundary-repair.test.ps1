@@ -114,7 +114,15 @@ try{
     $narrow=New-BoundaryDacl $acl $reader
     Set-Acl -LiteralPath $root -AclObject $narrow
   }
-  Assert-SameSnapshot $expected (Get-BoundarySnapshot $roots)
+  $actual=Get-BoundarySnapshot $roots
+  for($i=0;$i -lt $expected.Count;$i++){
+    if($expected[$i].descriptor -cne $actual[$i].descriptor){
+      @{fixtureSurface=$expected[$i].path.Substring($fixture.Length);
+        expected=$expected[$i].descriptor.Replace($identity.User.Value,'fixture-owner');
+        actual=$actual[$i].descriptor.Replace($identity.User.Value,'fixture-owner')} | ConvertTo-Json -Compress
+    }
+  }
+  Assert-SameSnapshot $expected $actual
   foreach($root in $roots){
     $acl=Get-Acl -LiteralPath $root
     if(@($acl.GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier]) | Where-Object {
