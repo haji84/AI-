@@ -139,6 +139,16 @@ try {
   // A dry-run may inspect fencing state, but must never mutate the real Goal.
   // Keep the real execution path disabled until effect reconciliation is implemented.
   const sqliteLease = sqliteFenced ? activeCompass.executionLease() : null;
+  // Recovery is inspection-only until effectful work has a reconciliation contract.
+  // A pending external effect cannot be retried or treated as completed.
+  const recoveryActionId = process.env.AUTONOMY_RECOVERY_ACTION_ID?.trim();
+  if (sqliteLease && recoveryActionId) {
+    const decision = sqliteLease.recoveryDecision(goalWorkStateId(goal), recoveryActionId);
+    if (decision !== "READY_FOR_FIRST_EXECUTION") {
+      process.stdout.write(`${JSON.stringify({ status: decision, actionId: recoveryActionId, executable: false })}\\n`);
+      throw new Error(`AUTONOMY_RECOVERY_EFFECT_NOT_EXECUTABLE: ${decision}`);
+    }
+  }
   const sqliteClaim = sqliteLease?.claim(goalWorkStateId(goal), `${hostname()}:${runId}`, 60_000);
   const assertSqliteAuthority = sqliteLease && sqliteClaim
     ? () => sqliteLease.assertCurrent(sqliteClaim) : undefined;
