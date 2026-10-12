@@ -214,17 +214,31 @@ function Get-OwnedTree([string]$root,[bool]$requireHealthy=$true,[int[]]$require
     $owner=Invoke-CimMethod -OperationTimeoutSec 15 -InputObject $p -MethodName GetOwnerSid
     if($owner.ReturnValue -ne 0 -or $owner.Sid -ne $identity.User.Value){throw 'process-owner'}
   }
-  $observedPorts=@($listeners | Select-Object -ExpandProperty LocalPort -Unique)
-  # Preserve all four listener ownership checks. Only the required set follows
-  # the authoritative runtime inspector's OS-observed private IP assignment.
-  # Unknown/untyped state fails closed; never infer "not assigned" on error.
+  # Preserve every observed listener's address, port and owner across the
+  # OS-private-IP check; do not authorize an owned host stop from mixed-time
+  # network facts. The recheck is bounded and fail closed, not a retry.
   if($requireHealthy -and $requiredPorts.Count -eq 0){
-    $privateState=Inspect-State 'inspect'
-    if($null -eq $privateState -or
-      $null -eq $privateState.PSObject.Properties['privateAddressAssigned'] -or
-      $privateState.privateAddressAssigned -isnot [bool]){throw 'private-address-query'}
-    $requiredPorts=if($privateState.privateAddressAssigned){@($ports)}else{@(3000,8787,8790)}
+    try{$beforeState=Inspect-State 'inspect'}catch{throw 'private-address-query'}
+    if($null -eq $beforeState -or
+      $null -eq $beforeState.PSObject.Properties['privateAddressAssigned'] -or
+      $beforeState.privateAddressAssigned -isnot [bool]){throw 'private-address-query'}
+    $recheckedListeners=@(Get-LiveListeners)
+    try{$afterState=Inspect-State 'inspect'}catch{throw 'private-address-query'}
+    if($null -eq $afterState -or
+      $null -eq $afterState.PSObject.Properties['privateAddressAssigned'] -or
+      $afterState.privateAddressAssigned -isnot [bool] -or
+      $beforeState.privateAddressAssigned -ne $afterState.privateAddressAssigned){throw 'private-address-query'}
+    $first=@($listeners | ForEach-Object {
+      '{0}|{1}|{2}' -f [int]$_.LocalPort,[int]$_.OwningProcess,[string]$_.LocalAddress
+    } | Sort-Object)
+    $second=@($recheckedListeners | ForEach-Object {
+      '{0}|{1}|{2}' -f [int]$_.LocalPort,[int]$_.OwningProcess,[string]$_.LocalAddress
+    } | Sort-Object)
+    if($first.Count -ne $second.Count -or ($first -join "`n") -cne ($second -join "`n")){throw 'listeners'}
+    $listeners=$recheckedListeners
+    $requiredPorts=if($afterState.privateAddressAssigned){@($ports)}else{@(3000,8787,8790)}
   }
+  $observedPorts=@($listeners | Select-Object -ExpandProperty LocalPort -Unique)
   if(($requireHealthy -and ($observedPorts.Count -ne $requiredPorts.Count -or
       @($requiredPorts | Where-Object {$observedPorts -notcontains $_}).Count)) -or
     @($listeners | Where-Object {$ids -notcontains [int]$_.OwningProcess}).Count){throw 'listeners'}
