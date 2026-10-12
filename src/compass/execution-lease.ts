@@ -130,6 +130,14 @@ export class CompassExecutionLease {
     return row?.state ?? "UNRECORDED";
   }
 
+  /** Conservative recovery decision: unknown external effects must be reconciled. */
+  recoveryDecision(taskId: string, actionId: string): "READY_FOR_FIRST_EXECUTION" | "RECONCILIATION_REQUIRED" | "ALREADY_CONFIRMED" {
+    const status = this.effectStatus(taskId, actionId);
+    if (status === "PENDING") return "RECONCILIATION_REQUIRED";
+    if (status === "CONFIRMED") return "ALREADY_CONFIRMED";
+    return "READY_FOR_FIRST_EXECUTION";
+  }
+
   /** Run only synchronous Compass database mutations in this transaction. */
   commit<T>(
     claim: { taskId: string; owner: string; epoch: number; token: string },
