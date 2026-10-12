@@ -5,7 +5,7 @@ if(-not (Test-Path -LiteralPath $source)){throw 'boundary-helper-missing'}
 $tokens=$null;$errors=$null
 $ast=[Management.Automation.Language.Parser]::ParseFile($source,[ref]$tokens,[ref]$errors)
 if($errors.Count){throw 'boundary-helper-parse'}
-foreach($name in @('Import-AclPredicates','Assert-BoundaryReader','Assert-SameSnapshot','Write-BoundaryBackup','New-BoundaryDacl','Get-BoundarySnapshot','Restore-BoundaryBaseline')){
+foreach($name in @('Import-AclPredicates','Assert-BoundaryReader','Assert-SameSnapshot','Write-BoundaryBackup','New-BoundaryDacl','Initialize-BoundaryFileInfo','Get-BoundarySnapshot','Get-ExpectedSnapshot','Restore-BoundaryBaseline')){
   $definition=$ast.Find({param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq $name},$true)
   if($null -eq $definition){throw ('boundary-function-missing: '+$name)}
   Invoke-Expression $definition.Extent.Text
@@ -33,10 +33,11 @@ foreach($case in @(@{facts=@();protected=$false},@{facts=@((ReaderFact @{}),(Rea
   try{Assert-BoundaryReader $case.facts 'reader' $case.protected}catch{$rejected=$true}
   if(-not $rejected){throw 'unsafe-boundary-shape-accepted'}
 }
-$record=[pscustomobject]@{path='fixture';descriptor='baseline';directory=$true}
+$record=[pscustomobject]@{path='fixture';descriptor='baseline';directory=$true;identity='original'}
 Assert-SameSnapshot @($record) @($record)
-foreach($other in @(@(),@([pscustomobject]@{path='fixture';descriptor='changed';directory=$true}),
-  @([pscustomobject]@{path='other';descriptor='baseline';directory=$true}))){
+foreach($other in @(@(),@([pscustomobject]@{path='fixture';descriptor='changed';directory=$true;identity='original'}),
+  @([pscustomobject]@{path='other';descriptor='baseline';directory=$true;identity='original'}),
+  @([pscustomobject]@{path='fixture';descriptor='baseline';directory=$true;identity='replacement'}))){
   $rejected=$false
   try{Assert-SameSnapshot @($record) $other}catch{$rejected=$true}
   if(-not $rejected){throw 'changed-snapshot-accepted'}
@@ -63,6 +64,8 @@ try{
   $reader='S-1-1-0'
   $parent.AddAccessRule((New-Object Security.AccessControl.FileSystemAccessRule(
     (New-Object Security.Principal.SecurityIdentifier($reader)),'ReadAndExecute,Synchronize','ContainerInherit,ObjectInherit','None','Allow')))
+  $parent.AddAuditRule((New-Object Security.AccessControl.FileSystemAuditRule(
+    $identity.User,'ReadData','ContainerInherit,ObjectInherit','None','Success')))
   Set-Acl -LiteralPath $fixture -AclObject $parent
   $roots=@((Join-Path $fixture 'production'),(Join-Path $fixture 'releases'))
   foreach($root in $roots){
@@ -75,16 +78,25 @@ try{
       (New-Object Security.Principal.SecurityIdentifier('S-1-5-32-546')),'Write','Deny')
     $childAcl.AddAccessRule($deny)
     Set-Acl -LiteralPath $child -AclObject $childAcl
+    $protected=Join-Path $child 'protected'
+    $null=New-Item -ItemType Directory -Path $protected
+    $protectedAcl=Get-Acl -LiteralPath $protected
+    $protectedAcl.SetAccessRuleProtection($true,$true)
+    Set-Acl -LiteralPath $protected -AclObject $protectedAcl
+    [IO.File]::WriteAllText((Join-Path $protected 'retained.txt'),'protected bytes')
   }
   $before=Get-BoundarySnapshot $roots
+  $sections=[Security.AccessControl.AccessControlSections]::All
+  $expected=Get-ExpectedSnapshot $before $roots $reader
   $parentBefore=(Get-Acl -LiteralPath $fixture).Sddl
   foreach($root in $roots){
-    $acl=Get-Acl -LiteralPath $root
+    $acl=Get-Acl -LiteralPath $root -Audit
     $narrow=New-BoundaryDacl $acl $reader
     Set-Acl -LiteralPath $root -AclObject $narrow
   }
-  foreach($entry in (Get-BoundarySnapshot $roots)){
-    $acl=Get-Acl -LiteralPath $entry.path
+  Assert-SameSnapshot $expected (Get-BoundarySnapshot $roots)
+  foreach($root in $roots){
+    $acl=Get-Acl -LiteralPath $root
     if(@($acl.GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier]) | Where-Object {
       $_.AccessControlType -eq 'Allow' -and $_.IdentityReference.Value -eq $reader}).Count){throw 'reader-still-inherited'}
   }
@@ -96,6 +108,43 @@ try{
   }
   Restore-BoundaryBaseline $before $roots
   Assert-SameSnapshot $before (Get-BoundarySnapshot $roots)
+  # Explicit reader grants on a reachable descendant are outside this remedy.
+  $child=Join-Path $roots[0] 'child'
+  $childAcl=Get-Acl -LiteralPath $child
+  $childAcl.AddAccessRule((New-Object Security.AccessControl.FileSystemAccessRule(
+    (New-Object Security.Principal.SecurityIdentifier($reader)),'ReadAndExecute','Allow')))
+  Set-Acl -LiteralPath $child -AclObject $childAcl
+  $rejected=$false
+  try{$null=Get-ExpectedSnapshot (Get-BoundarySnapshot $roots) $roots $reader}catch{
+    if($_.Exception.Message -ne 'BOUNDARY_REJECTED'){throw};$rejected=$true
+  }
+  if(-not $rejected){throw 'explicit-descendant-reader-not-rejected'}
+  $originalChild=@($before | Where-Object {$_.path -ceq $child})[0]
+  $childAcl=Get-Acl -LiteralPath $child
+  $childAcl.SetSecurityDescriptorSddlForm($originalChild.descriptor,[Security.AccessControl.AccessControlSections]::Access)
+  Set-Acl -LiteralPath $child -AclObject $childAcl
+  Assert-SameSnapshot $before (Get-BoundarySnapshot $roots)
+  # A hard link outside the two roots shares its security descriptor: refuse it.
+  $alias=Join-Path $fixture 'outside-alias.txt'
+  $file=Join-Path $roots[0] 'child\unchanged.txt'
+  $null=New-Item -ItemType HardLink -Path $alias -Target $file
+  try{
+    $rejected=$false
+    try{$null=Get-BoundarySnapshot $roots}catch{
+      if($_.Exception.Message -ne 'HARDLINK_REJECTED'){throw};$rejected=$true
+    }
+    if(-not $rejected){throw 'hardlink-not-rejected'}
+  }finally{[IO.File]::Delete($alias)}
+  # Junctions must be rejected before inspecting/traversing their targets.
+  $link=Join-Path $roots[0] 'junction'
+  $null=New-Item -ItemType Junction -Path $link -Target $roots[1]
+  try{
+    $rejected=$false
+    try{$null=Get-BoundarySnapshot $roots}catch{
+      if($_.Exception.Message -ne 'REPARSE_REJECTED'){throw};$rejected=$true
+    }
+    if(-not $rejected){throw 'junction-not-rejected'}
+  }finally{[IO.Directory]::Delete($link)}
   # A failure after only the first boundary was written must restore both trees.
   Set-Acl -LiteralPath $roots[0] -AclObject (New-BoundaryDacl (Get-Acl -LiteralPath $roots[0]) $reader)
   Restore-BoundaryBaseline $before $roots
