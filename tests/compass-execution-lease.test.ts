@@ -184,3 +184,19 @@ test("recovery can inspect effect status without granting replay authority", () 
     assert.throws(() => leases.confirmEffect(zbook, "action", 1101), /RECONCILIATION_REQUIRED/);
   } finally { db.close(); }
 });
+
+test("recovery decision distinguishes first execution, uncertain effect, and confirmed effect", () => {
+  const db = new DatabaseSync(":memory:");
+  try {
+    const leases = new CompassExecutionLease(db);
+    assert.equal(leases.recoveryDecision("goal", "first"), "READY_FOR_FIRST_EXECUTION");
+    const mac = leases.claim("goal", "mac", 100, 1000);
+    leases.reserveEffect(mac, "uncertain", 1001);
+    leases.reserveEffect(mac, "done", 1002);
+    leases.confirmEffect(mac, "done", 1003);
+    const zbook = leases.claim("goal", "zbook", 100, 1100);
+    assert.equal(leases.recoveryDecision(zbook.taskId, "uncertain"), "RECONCILIATION_REQUIRED");
+    assert.equal(leases.recoveryDecision(zbook.taskId, "done"), "ALREADY_CONFIRMED");
+    assert.equal(leases.recoveryDecision(zbook.taskId, "first"), "READY_FOR_FIRST_EXECUTION");
+  } finally { db.close(); }
+});
