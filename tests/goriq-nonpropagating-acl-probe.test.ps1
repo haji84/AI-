@@ -59,7 +59,11 @@ try {
     if((Get-Acl -LiteralPath $path -Audit).Sddl -cne $before[$path]){throw 'probe-child-or-alias-mutated'}
   }
   foreach($path in @($config,$launcher,$package,$target,$alias)){
-    if([IO.File]::ReadAllText($path) -cne 'public fixture bytes'){throw 'probe-content-mutated'}
+    # MAXIMUM_ALLOWED includes write/delete access; verification must share both.
+    $stream=New-Object IO.FileStream($path,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::ReadWrite -bor [IO.FileShare]::Delete)
+    $readerStream=New-Object IO.StreamReader($stream)
+    try{if($readerStream.ReadToEnd() -cne 'public fixture bytes'){throw 'probe-content-mutated'}}
+    finally{$readerStream.Dispose();$stream.Dispose()}
   }
   Write-Output 'MAXIMUM_ALLOWED five-object narrowing, CWD compatibility, no child/link/hardlink propagation, audit/content PASS'
   # Restore ancestors before their children, with the same no-propagation API.
@@ -69,10 +73,17 @@ try {
   foreach($path in $all){
     if((Get-Acl -LiteralPath $path -Audit).Sddl -cne $before[$path]){throw 'probe-full-restore-mismatch'}
   }
-  [GoriqNonPropagatingAclProbe]::Apply($handles[0],$wanted[$objects[0]])
-  [GoriqNonPropagatingAclProbe]::Apply($handles[0],$before[$objects[0]])
-  foreach($path in $all){
-    if((Get-Acl -LiteralPath $path -Audit).Sddl -cne $before[$path]){throw 'probe-partial-restore-mismatch'}
+  # Each possible failure boundary restores the full five-object baseline.
+  for($prefix=1;$prefix -le $objects.Count;$prefix++){
+    for($i=0;$i -lt $prefix;$i++){
+      [GoriqNonPropagatingAclProbe]::Apply($handles[$i],$wanted[$objects[$i]])
+    }
+    for($i=0;$i -lt $objects.Count;$i++){
+      [GoriqNonPropagatingAclProbe]::Apply($handles[$i],$before[$objects[$i]])
+    }
+    foreach($path in $all){
+      if((Get-Acl -LiteralPath $path -Audit).Sddl -cne $before[$path]){throw 'probe-partial-restore-mismatch'}
+    }
   }
   foreach($unsafe in @('O:SYG:SY','D:')){
     $rejected=$false
