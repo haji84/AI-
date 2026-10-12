@@ -98,3 +98,29 @@ test("only the current owner can release and successor keeps fencing epoch", () 
     assert.throws(() => leases.claim("goal", "other", 100, 1051), /ALREADY_HELD/);
   } finally { db.close(); }
 });
+
+test("a second process connection reclaims an expired lease and fences the old owner", async () => {
+  const { mkdtempSync, rmSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const dir = mkdtempSync(join(tmpdir(), "goriq-lease-recovery-"));
+  const path = join(dir, "compass.db");
+  const macDb = new DatabaseSync(path);
+  const zbookDb = new DatabaseSync(path);
+  try {
+    macDb.exec("CREATE TABLE progress (value TEXT)");
+    const macLease = new CompassExecutionLease(macDb);
+    const zbookLease = new CompassExecutionLease(zbookDb);
+    const old = macLease.claim("goal", "mac", 100, 1000);
+    assert.throws(() => zbookLease.claim("goal", "zbook", 100, 1099), /ALREADY_HELD/);
+    const current = zbookLease.claim("goal", "zbook", 100, 1100);
+    assert.equal(current.epoch, old.epoch + 1);
+    assert.throws(() => macLease.commit(old, () => macDb.exec("INSERT INTO progress VALUES ('old')"), 1101), /STALE_CLAIM/);
+    zbookLease.commit(current, () => zbookDb.exec("INSERT INTO progress VALUES ('new')"), 1101);
+    assert.deepEqual(macDb.prepare("SELECT value FROM progress").all().map(row => ({ value: row.value })), [{ value: "new" }]);
+  } finally {
+    zbookDb.close();
+    macDb.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
