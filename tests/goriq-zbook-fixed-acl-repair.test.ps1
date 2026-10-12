@@ -336,7 +336,7 @@ try {
    if($script:failNextStart){$script:failNextStart=$false;throw 'injected-start-failure'}
    Start-DisposableHost;$script:fixtureTaskState='Running'
   }
-  function Get-NetTCPConnection {param($State) if($script:fixtureTaskState -eq 'Running'){[pscustomobject]@{LocalPort=1;OwningProcess=$script:hostProcess.Id}}}
+  function Get-NetTCPConnection {param($State) if($script:fixtureTaskState -eq 'Running'){foreach($p in @(1,2)){[pscustomobject]@{LocalPort=$p;OwningProcess=$script:hostProcess.Id}}}}
   function Get-OwnedTree {
    param($root,$requireHealthy=$true,$requiredPorts=@())
    if($null -eq $script:hostProcess -or $script:hostProcess.HasExited){return @()}
@@ -348,7 +348,7 @@ try {
    schemaDigest='schema';identityDigest='identity';fleetDigest='fleet';tasksDigest='tasks';pcTasksDigest='pc';compassDigest='compass'}
   function Inspect-State {param($operation) $script:stateBefore}
   function Assert-FixedExpiry {}
-  $script:ports=@(1);$script:taskName='fixture';$script:taskXml='fixture-task-xml';$script:installationRoot=$fixture
+  $script:ports=@(1,2);$script:taskName='fixture';$script:taskXml='fixture-task-xml';$script:installationRoot=$fixture
   $script:config=$targets[3].path;$script:launcher=$targets[4].path
   $script:configHash=Get-FixedHash $script:config;$script:launcherHash=Get-FixedHash $script:launcher
   $script:oldRoot=$targets[2].path;$script:releaseRoot=$script:oldRoot
