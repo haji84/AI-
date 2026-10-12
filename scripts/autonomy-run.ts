@@ -159,7 +159,27 @@ try {
     workStateStore: new CompassWorkStateStoreAdapter(activeCompass, Boolean(fencedStorePath || sqliteFenced), assertSqliteAuthority),
   });
 
-  const report = await runBoundedGoalLoop(loop, goal, { maxCycles });
+  // The SQLite-fenced path remains dry-run only until external effects are reconciled.
+  // Keep the claim alive while a bounded loop runs, then release it on exit.
+  let heartbeatFailure: Error | null = null;
+  const heartbeat = sqliteLease && sqliteClaim
+    ? setInterval(() => {
+        if (heartbeatFailure) return;
+        try { sqliteLease.renew(sqliteClaim, 60_000); }
+        catch (error) { heartbeatFailure = error instanceof Error ? error : new Error(String(error)); }
+      }, 20_000)
+    : null;
+  let report: Awaited<ReturnType<typeof runBoundedGoalLoop>>;
+  try {
+    report = await runBoundedGoalLoop(loop, goal, { maxCycles });
+    if (heartbeatFailure) throw heartbeatFailure;
+  } finally {
+    if (heartbeat) clearInterval(heartbeat);
+    if (sqliteLease && sqliteClaim && !heartbeatFailure) {
+      try { sqliteLease.release(sqliteClaim); }
+      catch { /* An expired or transferred claim must not be released by the old owner. */ }
+    }
+  }
   // Preserve a bounded, non-secret checkpoint for the next scheduler invocation.
   // Compass remains the authoritative durable Goal and work-state store.
   if (!dryRun) {
