@@ -14,7 +14,7 @@ test("expired owner cannot commit after new owner claims the task", () => {
     assert.equal(second.epoch, first.epoch + 1);
     assert.throws(() => leases.commit(first, () => db.exec("INSERT INTO progress VALUES ('stale')"), 1101), /STALE_CLAIM/);
     leases.commit(second, () => db.exec("INSERT INTO progress VALUES ('valid')"), 1101);
-    assert.deepEqual(db.prepare("SELECT value FROM progress").all(), [{ value: "valid" }]);
+    assert.deepEqual(db.prepare("SELECT value FROM progress").all().map(row => ({ value: row.value })), [{ value: "valid" }]);
   } finally { db.close(); }
 });
 
