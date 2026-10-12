@@ -90,6 +90,23 @@ export class CompassExecutionLease {
       throw new Error("COMPASS_LEASE_STALE_CLAIM");
   }
 
+  /** Reserve a single external action intent under the current fenced epoch.
+   * A pending intent is never permission to repeat an unknown external effect.
+   */
+  reserveEffect(claim: { taskId: string; owner: string; epoch: number; token: string }, actionId: string, now = Date.now()): void {
+    if (!actionId.trim()) throw new Error("COMPASS_EFFECT_INVALID_INPUT");
+    this.commit(claim, () => {
+      this.db.exec(`CREATE TABLE IF NOT EXISTS compass_execution_effect (
+        task_id TEXT NOT NULL, action_id TEXT NOT NULL, epoch INTEGER NOT NULL,
+        state TEXT NOT NULL CHECK(state IN ('PENDING', 'CONFIRMED')),
+        PRIMARY KEY(task_id, action_id)
+      )`);
+      const result = this.db.prepare(`INSERT OR IGNORE INTO compass_execution_effect(task_id, action_id, epoch, state)
+        VALUES (?, ?, ?, 'PENDING')`).run(claim.taskId, actionId, claim.epoch);
+      if (result.changes !== 1) throw new Error("COMPASS_EFFECT_ALREADY_RESERVED_RECONCILIATION_REQUIRED");
+    }, now);
+  }
+
   /** Run only synchronous Compass database mutations in this transaction. */
   commit<T>(
     claim: { taskId: string; owner: string; epoch: number; token: string },
