@@ -45,6 +45,20 @@ foreach($other in @(@(),@([pscustomobject]@{path='fixture';descriptor='changed';
 Write-Output 'Boundary ACL decision fixtures PASS (no production mutation)'
 if($env:OS -ne 'Windows_NT'){return}
 $identity=[Security.Principal.WindowsIdentity]::GetCurrent()
+$baselineComparer=${function:Assert-SameSnapshot}
+function Assert-SameSnapshot([object[]]$before,[object[]]$after){
+  try{& $baselineComparer $before $after}catch{
+    for($i=0;$i -lt [Math]::Min($before.Count,$after.Count);$i++){
+      if($before[$i].descriptor -cne $after[$i].descriptor -or $before[$i].identity -cne $after[$i].identity -or $before[$i].path -cne $after[$i].path){
+        @{fixtureSurface=$before[$i].path.Substring($fixture.Length);
+          sameIdentity=($before[$i].identity -ceq $after[$i].identity);samePath=($before[$i].path -ceq $after[$i].path);
+          expected=$before[$i].descriptor.Replace($identity.User.Value,'fixture-owner');
+          actual=$after[$i].descriptor.Replace($identity.User.Value,'fixture-owner')} | ConvertTo-Json -Compress
+      }
+    }
+    throw
+  }
+}
 $fixture=Join-Path ([IO.Path]::GetTempPath()) ('goriq-boundary-fixture-'+[guid]::NewGuid().ToString('N'))
 $null=New-Item -ItemType Directory -Path $fixture
 try{
