@@ -10,6 +10,63 @@ foreach($name in @('Get-FixedTargets','New-FixedDescriptor','Initialize-FixedNat
  if($null -eq $def){throw 'fixed-function-missing'}
  Invoke-Expression $def.Extent.Text
 }
+# The same owned-process guard must accept the network-waiting three-port
+# baseline, require 8792 with the private address, and refuse unknown state.
+# This is an isolated process/port fixture: no production task or ACL writes.
+& {
+ $runtimeSource=Join-Path $PSScriptRoot '..\\scripts\\goriq-pc-runtime-refresh-windows.ps1'
+ $runtimeTokens=$null;$runtimeErrors=$null
+ $runtimeAst=[Management.Automation.Language.Parser]::ParseFile($runtimeSource,[ref]$runtimeTokens,[ref]$runtimeErrors)
+ if($runtimeErrors.Count){throw 'listener-runtime-parse'}
+ $ownedDef=$runtimeAst.Find({param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq 'Get-OwnedTree'},$true)
+ if($null -eq $ownedDef){throw 'listener-owned-tree-missing'}
+ Invoke-Expression $ownedDef.Extent.Text
+ $installationRoot='fixture-installation';$launcherPath='fixture-launcher';$compat='fixture-compat'
+ $ports=@(3000,8787,8790,8792)
+ $identity=[pscustomobject]@{User=[pscustomobject]@{Value='S-1-5-21-9001'}}
+ $script:listenerTestState=[pscustomobject]@{privateAddressAssigned=$false}
+ $script:listenerTestPorts=@(3000,8787,8790)
+ function Get-CimInstance {
+   param([string]$ClassName,[int]$OperationTimeoutSec)
+   [pscustomobject]@{Name='node.exe';ProcessId=700;ParentProcessId=0;CommandLine='node fixture-release jarvis-remote-host.mjs'}
+ }
+ function Invoke-CimMethod {
+   param($InputObject,[string]$MethodName,[int]$OperationTimeoutSec)
+   [pscustomobject]@{ReturnValue=0;Sid='S-1-5-21-9001'}
+ }
+ function Get-LiveListeners {
+   foreach($port in $script:listenerTestPorts){[pscustomobject]@{LocalPort=$port;OwningProcess=700}}
+ }
+ function Inspect-State {param([string]$operation) $script:listenerTestState}
+ try {
+   if(@(Get-OwnedTree 'fixture-release').Count -ne 1){throw 'listener-three-port-rejected'}
+   $script:listenerTestState=[pscustomobject]@{privateAddressAssigned=$true}
+   $rejected=$false
+   try{$null=Get-OwnedTree 'fixture-release'}catch{
+     if($_.Exception.Message -cne 'listeners'){throw};$rejected=$true
+   }
+   if(-not $rejected){throw 'listener-missing-private-port-accepted'}
+   $script:listenerTestPorts=@(3000,8787,8790,8792)
+   if(@(Get-OwnedTree 'fixture-release').Count -ne 1){throw 'listener-four-port-rejected'}
+   $script:listenerTestState=[pscustomobject]@{privateAddressAssigned=$false}
+   $rejected=$false
+   try{$null=Get-OwnedTree 'fixture-release'}catch{
+     if($_.Exception.Message -cne 'listeners'){throw};$rejected=$true
+   }
+   if(-not $rejected){throw 'listener-unexpected-private-port-accepted'}
+   $script:listenerTestPorts=@(3000,8787,8790)
+   foreach($bad in @($null,[pscustomobject]@{},[pscustomobject]@{privateAddressAssigned='False'})){
+     $script:listenerTestState=$bad;$rejected=$false
+     try{$null=Get-OwnedTree 'fixture-release'}catch{
+       if($_.Exception.Message -cne 'private-address-query'){throw};$rejected=$true
+     }
+     if(-not $rejected){throw 'listener-unknown-private-state-accepted'}
+   }
+   Write-Output 'Private-address-conditioned listener ownership (3/4/unknown) PASS'
+ }finally{
+   $script:listenerTestState=$null;$script:listenerTestPorts=$null
+ }
+}
 $targets=@(Get-FixedTargets 'fixture')
 if($targets.Count -ne 5 -or $targets[2].path -notmatch 'a49c458d69a28c0266be8fcad5b26253e5ed8d75$'){throw 'fixed-target-scope'}
 $root='fixture';$SourceRevision='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';$releaseRoot='existing'
