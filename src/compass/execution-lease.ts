@@ -66,6 +66,21 @@ export class CompassExecutionLease {
     }
   }
 
+  /** Release only a still-current lease, without resetting its fencing epoch. */
+  release(claim: { taskId: string; owner: string; epoch: number; token: string }, now = Date.now()): void {
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      this.assertCurrent(claim, now);
+      this.db.prepare(`UPDATE compass_execution_lease SET expires_at = ?
+        WHERE task_id = ? AND owner = ? AND epoch = ? AND token = ?`)
+        .run(now, claim.taskId, claim.owner, claim.epoch, claim.token);
+      this.db.exec("COMMIT");
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
+  }
+
   /** Called only inside an existing BEGIN IMMEDIATE transaction. */
   assertCurrent(claim: { taskId: string; owner: string; epoch: number; token: string }, now = Date.now()): void {
     const current = this.db.prepare("SELECT * FROM compass_execution_lease WHERE task_id = ?")
