@@ -73,3 +73,5 @@ foreach($set in @(@($owner),@($owner,$valid,(Fact @{})))){
   if(-not $rejected){throw 'candidate-cardinality-not-enforced'}
 }
 Write-Output 'Owner ACL repair decision fixtures PASS (no ACL mutation)'
+
+& (Join-Path $PSScriptRoot 'goriq-zbook-acl-boundary-repair.test.ps1')
