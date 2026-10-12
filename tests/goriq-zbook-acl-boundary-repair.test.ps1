@@ -5,7 +5,7 @@ if(-not (Test-Path -LiteralPath $source)){throw 'boundary-helper-missing'}
 $tokens=$null;$errors=$null
 $ast=[Management.Automation.Language.Parser]::ParseFile($source,[ref]$tokens,[ref]$errors)
 if($errors.Count){throw 'boundary-helper-parse'}
-foreach($name in @('Import-AclPredicates','Assert-BoundaryReader','Assert-SameSnapshot','Write-BoundaryBackup','New-BoundaryDacl','Initialize-BoundaryFileInfo','Get-BoundarySnapshot','Get-ExpectedSnapshot','Restore-BoundaryBaseline')){
+foreach($name in @('Import-AclPredicates','Assert-BoundaryReader','Assert-SameSnapshot','Write-BoundaryBackup','New-BoundaryDacl','Initialize-BoundaryFileInfo','Get-BoundarySnapshot','Get-ExpectedSnapshot','Assert-BoundaryIdentity','Restore-BoundaryBaseline')){
   $definition=$ast.Find({param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq $name},$true)
   if($null -eq $definition){throw ('boundary-function-missing: '+$name)}
   Invoke-Expression $definition.Extent.Text
@@ -86,6 +86,7 @@ try{
     [IO.File]::WriteAllText((Join-Path $protected 'retained.txt'),'protected bytes')
   }
   $before=Get-BoundarySnapshot $roots
+  foreach($root in $roots){Assert-BoundaryIdentity $root @($before | Where-Object {$_.path -ceq $root})[0]}
   $sections=[Security.AccessControl.AccessControlSections]::All
   $expected=Get-ExpectedSnapshot $before $roots $reader
   $parentBefore=(Get-Acl -LiteralPath $fixture).Sddl
@@ -135,6 +136,22 @@ try{
     }
     if(-not $rejected){throw 'hardlink-not-rejected'}
   }finally{[IO.File]::Delete($alias)}
+  # A replacement with identical ACL must never receive the old boundary DACL.
+  $moved=$roots[0]+'-moved'
+  [IO.Directory]::Move($roots[0],$moved)
+  $null=New-Item -ItemType Directory -Path $roots[0]
+  $replacementBefore=(Get-Acl -LiteralPath $roots[0] -Audit).Sddl
+  try{
+    $rejected=$false
+    try{Restore-BoundaryBaseline $before $roots}catch{
+      if($_.Exception.Message -ne 'BASELINE_CHANGED'){throw};$rejected=$true
+    }
+    if(-not $rejected){throw 'replacement-directory-not-rejected'}
+    if((Get-Acl -LiteralPath $roots[0] -Audit).Sddl -cne $replacementBefore){throw 'replacement-directory-mutated'}
+  }finally{
+    [IO.Directory]::Delete($roots[0])
+    [IO.Directory]::Move($moved,$roots[0])
+  }
   # Junctions must be rejected before inspecting/traversing their targets.
   $link=Join-Path $roots[0] 'junction'
   $null=New-Item -ItemType Junction -Path $link -Target $roots[1]
