@@ -43,6 +43,29 @@ export class CompassExecutionLease {
     }
   }
 
+  /** Extend only the current owner's lease; never revive an expired claim. */
+  renew(
+    claim: { taskId: string; owner: string; epoch: number; token: string },
+    ttlMs: number,
+    now = Date.now(),
+  ) {
+    if (!Number.isSafeInteger(ttlMs) || ttlMs <= 0 || !Number.isSafeInteger(now) ||
+        !Number.isSafeInteger(now + ttlMs)) throw new Error("COMPASS_LEASE_INVALID_INPUT");
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      this.assertCurrent(claim, now);
+      const expiresAt = now + ttlMs;
+      this.db.prepare(`UPDATE compass_execution_lease SET expires_at = ?
+        WHERE task_id = ? AND owner = ? AND epoch = ? AND token = ?`)
+        .run(expiresAt, claim.taskId, claim.owner, claim.epoch, claim.token);
+      this.db.exec("COMMIT");
+      return { ...claim, expiresAt };
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
+  }
+
   /** Called only inside an existing BEGIN IMMEDIATE transaction. */
   assertCurrent(claim: { taskId: string; owner: string; epoch: number; token: string }, now = Date.now()): void {
     const current = this.db.prepare("SELECT * FROM compass_execution_lease WHERE task_id = ?")
