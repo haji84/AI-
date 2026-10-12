@@ -5,7 +5,7 @@ if(-not(Test-Path -LiteralPath $source)){throw 'fixed-repair-helper-missing'}
 $tokens=$null;$errors=$null
 $ast=[Management.Automation.Language.Parser]::ParseFile($source,[ref]$tokens,[ref]$errors)
 if($errors.Count){throw 'fixed-repair-parse'}
-foreach($name in @('Get-FixedTargets','New-FixedDescriptor','Initialize-FixedNative','Get-FixedRecord','Assert-FixedRecord','Invoke-FixedTransition','Restore-FixedRecords','Get-FixedHash','Write-FixedTransaction','Read-FixedTransaction','Import-FixedFunctions','Test-FixedReconciliation','Invoke-FixedHostTransaction','Assert-FixedTree','Get-FixedState','Get-FixedBytes','Initialize-FixedProcessNative','Bind-FixedProcessTree','Test-FixedStopRequired','Close-FixedHandles','Open-FixedHandles','Assert-FixedKnownTargets','Persist-FixedHostBaseline','Stop-FixedHost','Write-FixedTargets','Start-FixedHost','Verify-FixedHost','Recover-FixedHost','Assert-FixedRuntime','Assert-FixedGuards')){
+foreach($name in @('Get-FixedTargets','New-FixedDescriptor','Initialize-FixedNative','Get-FixedRecord','Assert-FixedRecord','Invoke-FixedTransition','Restore-FixedRecords','Get-FixedHash','Write-FixedTransaction','Read-FixedTransaction','Import-FixedFunctions','Test-FixedReconciliation','Invoke-FixedHostTransaction','Assert-FixedTree','Get-FixedState','Get-FixedBytes','Initialize-FixedProcessNative','Bind-FixedProcessTree','Test-FixedStopRequired','Close-FixedHandles','Open-FixedHandles','Assert-FixedKnownTargets','Persist-FixedHostBaseline','Stop-FixedHost','Write-FixedTargets','Start-FixedHost','Verify-FixedHost','Recover-FixedHost','Invoke-FixedRestore','Assert-FixedRuntime','Assert-FixedGuards')){
  $def=$ast.Find({param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq $name},$true)
  if($null -eq $def){throw 'fixed-function-missing'}
  Invoke-Expression $def.Extent.Text
@@ -31,6 +31,14 @@ Assert-FixedTree $tree $tree
 $rejected=$false
 try{Assert-FixedTree $tree @([pscustomobject]@{ProcessId=7;CreationDate='replacement';CommandLine='known'})}catch{$rejected=$true}
 if(-not $rejected){throw 'host-replaced-pid-accepted'}
+# Drive the actual restore try/catch: a failure before Start cannot retry recovery.
+$restoreTry=$ast.Find({param($n) $n -is [Management.Automation.Language.TryStatementAst] -and $n.Body.Extent.Text -match '^\{\s*if\(-not \$hostStopped'},$true)
+$savedRecover=(Get-Item Function:Recover-FixedHost).ScriptBlock
+$script:recoveryCount=0;$script:hostStopped=$true;$script:restartAttempted=$false;$script:recoveryAttempted=$false;$stopRequired=$false
+function Assert-StoppedInstallation {}
+Set-Item Function:Recover-FixedHost -Value {$script:recoveryCount++;$script:recoveryAttempted=$true;throw 'failed-before-start'}
+try{try{& ([scriptblock]::Create($restoreTry.Extent.Text))}catch{}}finally{Set-Item Function:Recover-FixedHost -Value $savedRecover}
+if($script:recoveryCount -ne 1){throw 'restore-recovery-retried'}
 if($env:OS -ne 'Windows_NT'){Write-Output 'Fixed repair syntax/scope PASS; Windows native required';return}
 Initialize-FixedNative
 Initialize-FixedProcessNative
@@ -318,16 +326,17 @@ try {
   # substituted. Filesystem ACLs, DPAPI, CIM identity and pinned termination are real.
   $runtimeSource=Join-Path $PSScriptRoot '..\scripts\goriq-pc-runtime-refresh-windows.ps1'
   Import-FixedFunctions (Get-Content -LiteralPath $runtimeSource -Raw) @('Get-LiveListeners','Assert-StoppedInstallation','Assert-State-Preserved','Stop-OwnedTree','Wait-Health')
-  $script:fixtureTaskState='Running';$script:failNextStart=$false
+  $script:fixtureTaskState='Running';$script:failNextStart=$false;$script:fixtureStops=0;$script:fixtureStarts=0
   function Get-ScheduledTask {param($TaskName) [pscustomobject]@{State=$script:fixtureTaskState}}
   function Export-ScheduledTask {param($TaskName) 'fixture-task-xml'}
-  function Stop-ScheduledTask {param($TaskName) $script:fixtureTaskState='Ready'}
+  function Stop-ScheduledTask {param($TaskName) $script:fixtureStops++;$script:fixtureTaskState='Ready'}
   function Start-ScheduledTask {
    param($TaskName)
+   $script:fixtureStarts++
    if($script:failNextStart){$script:failNextStart=$false;throw 'injected-start-failure'}
    Start-DisposableHost;$script:fixtureTaskState='Running'
   }
-  function Get-NetTCPConnection {param($State) @()}
+  function Get-NetTCPConnection {param($State) if($script:fixtureTaskState -eq 'Running'){[pscustomobject]@{LocalPort=1;OwningProcess=$script:hostProcess.Id}}}
   function Get-OwnedTree {
    param($root,$requireHealthy=$true,$requiredPorts=@())
    if($null -eq $script:hostProcess -or $script:hostProcess.HasExited){return @()}
@@ -339,7 +348,7 @@ try {
    schemaDigest='schema';identityDigest='identity';fleetDigest='fleet';tasksDigest='tasks';pcTasksDigest='pc';compassDigest='compass'}
   function Inspect-State {param($operation) $script:stateBefore}
   function Assert-FixedExpiry {}
-  $script:ports=@();$script:taskName='fixture';$script:taskXml='fixture-task-xml';$script:installationRoot=$fixture
+  $script:ports=@(1);$script:taskName='fixture';$script:taskXml='fixture-task-xml';$script:installationRoot=$fixture
   $script:config=$targets[3].path;$script:launcher=$targets[4].path
   $script:configHash=Get-FixedHash $script:config;$script:launcherHash=Get-FixedHash $script:launcher
   $script:oldRoot=$targets[2].path;$script:releaseRoot=$script:oldRoot
@@ -349,13 +358,13 @@ try {
    foreach($failStartup in @($false,$true)){
     Start-DisposableHost;$script:tree=@(Get-OwnedTree $script:oldRoot)
     $script:fixtureTaskState='Running';$script:hostStopped=$false;$script:hostStopAttempted=$false
-    $script:restartAttempted=$false;$script:serviceRecoveryVerified=$false;$script:restored=$false;$script:changed=$false
+    $script:restartAttempted=$false;$script:recoveryAttempted=$false;$script:serviceRecoveryVerified=$false;$script:restored=$false;$script:changed=$false
     $script:marker=Join-Path $fixture ('wrapper-'+$failStartup+'.json')
     Open-FixedHandles $false
     if(-not(Test-FixedStopRequired)){throw 'production-probe-missed-native-cwd'}
     $script:failNextStart=$failStartup
     $result=Invoke-FixedHostTransaction -Persist {Persist-FixedHostBaseline} -Stop {Stop-FixedHost} -Write {Write-FixedTargets} -Start {Start-FixedHost} -Verify {Verify-FixedHost} -Recover {Recover-FixedHost}
-    if(-not $script:hostStopAttempted -or -not $script:serviceRecoveryVerified -or $unrelated.HasExited){throw 'production-wrapper-scope-or-recovery'}
+    if(-not $script:hostStopAttempted -or -not $script:serviceRecoveryVerified -or $unrelated.HasExited){throw ('production-wrapper-scope-or-recovery: '+$result.failure.Message)}
     if(-not $failStartup -and -not $result.verified){throw 'production-wrapper-normal-failed'}
     if($failStartup -and ($result.verified -or -not $result.restored)){throw 'production-wrapper-failed-start-not-restored'}
     if(Test-Path -LiteralPath $script:marker){throw 'production-wrapper-intent-not-cleared'}
@@ -378,6 +387,56 @@ try {
    for($i=0;$i -lt 5;$i++){Assert-FixedRecord $records[$i] (Get-FixedRecord $targets[$i] $handles[$i])}
    if(-not(Test-FixedReconciliation $script:marker $false $false 'FIXED_REPAIR_FAILED')){throw 'production-host-intent-hidden'}
    Stop-DisposableHost;Close-FixedHandles
+   # Drive v2 backup validation and the actual restore entry point in all states.
+   $script:candidate=[pscustomobject]@{sidValue=$reader}
+   foreach($restoreCase in @('ready','running-native-cwd','running-compatible','failed-recovery')){
+    $script:fixtureTaskState='Running';$script:hostStopped=$false;$script:restartAttempted=$false;$script:recoveryAttempted=$false
+    $script:serviceRecoveryVerified=$false;$script:hostStopAttempted=$false;$script:restored=$false
+    $script:marker=Join-Path $fixture ('restore-'+$restoreCase+'.json')
+    Start-DisposableHost;$script:tree=@(Get-OwnedTree $script:oldRoot)
+    Open-FixedHandles $false;Persist-FixedHostBaseline
+    $script:BackupId=$script:backupIdResult
+    Stop-DisposableHost;$script:fixtureTaskState='Ready';$script:hostStopped=$true
+    Open-FixedHandles $true
+    for($i=0;$i -lt 3;$i++){Invoke-FixedTransition $targets[$i] $handles[$i] $records[$i] $wanted[$i]}
+    Open-FixedHandles $false
+    if($restoreCase -eq 'running-native-cwd'){
+     Start-DisposableHost;$script:fixtureTaskState='Running';$script:hostStopped=$false
+    }elseif($restoreCase -eq 'running-compatible'){
+     $script:hostProcess.Dispose();$script:hostProcess=New-DisposableHost $outside
+     $script:hostRecord=Get-CimInstance Win32_Process -Filter ('ProcessId='+$script:hostProcess.Id)
+     $script:fixtureTaskState='Running';$script:hostStopped=$false
+    }
+    $script:tree=@(Get-OwnedTree $script:oldRoot)
+    $script:fixtureStops=0;$script:fixtureStarts=0;$script:recoveryCount=0
+    $savedGuards=(Get-Item Function:Assert-FixedGuards).ScriptBlock
+    if($restoreCase -eq 'failed-recovery'){
+     Set-Item Function:Assert-FixedGuards -Value {if($script:recoveryAttempted){$script:recoveryCount++;throw 'injected-before-recovery-start'}}
+    }
+    $restoreFailed=$false
+    try{Invoke-FixedRestore}catch{$restoreFailed=$true}finally{Set-Item Function:Assert-FixedGuards -Value $savedGuards}
+    if($restoreCase -eq 'failed-recovery'){
+     if(-not $restoreFailed -or $script:recoveryCount -ne 1 -or $script:fixtureStarts -ne 0 -or $script:fixtureStops -ne 0 -or
+      -not(Test-Path -LiteralPath $script:marker)){throw 'restore-failure-retried-or-intent-lost'}
+     for($i=0;$i -lt 5;$i++){
+      $expected=$records[$i].PSObject.Copy();if($i -lt 3){$expected.descriptor=$wanted[$i]}
+      Assert-FixedRecord $expected (Get-FixedRecord $targets[$i] $handles[$i])
+     }
+    }else{
+     if($restoreFailed -or -not $script:restored -or (Test-Path -LiteralPath $script:marker) -or $unrelated.HasExited){throw ('restore-case-failed-'+$restoreCase)}
+     $expectedStops=if($restoreCase -eq 'running-native-cwd'){1}else{0}
+     $expectedStarts=if($restoreCase -eq 'running-compatible'){0}else{1}
+     if($script:fixtureStops -ne $expectedStops -or $script:fixtureStarts -ne $expectedStarts){throw 'restore-scheduler-scope'}
+     if($script:fixtureTaskState -ne 'Running' -or $script:hostProcess.HasExited){throw 'restore-runtime-not-running'}
+     if($expectedStarts -eq 1 -and -not $script:serviceRecoveryVerified){throw 'restore-health-not-verified'}
+     for($i=0;$i -lt 5;$i++){Assert-FixedRecord $records[$i] (Get-FixedRecord $targets[$i] $handles[$i])}
+     Assert-FixedRuntime;Assert-FixedGuards
+    }
+    if(-not $script:hostProcess.HasExited){Stop-DisposableHost}
+    $script:fixtureTaskState='Ready';$script:hostStopped=$true
+    Open-FixedHandles $true;Restore-FixedRecords $targets $handles $records $wanted;Close-FixedHandles
+   }
+   Write-Output 'Actual v2 restore: Ready partial ACL, Running native CWD, compatible Running no stop, failed recovery exactly once/intent retained PASS (disposable fixtures)'
    Write-Output 'Production stop/repair/start/recovery wrappers with real pinned process/ACL/DPAPI: normal, failed-start recovery, unknown-stop no retry PASS (scheduler/network/state mocked; not physical Broker E2E)'
   }finally{$env:LOCALAPPDATA=$savedLocalAppData;Close-FixedHandles;[GoriqFixedProcessNative]::Clear()}
   Write-Output 'Disposable Windows native-CWD child: persist/scoped stop/five-object repair/restart and partial-failure original recovery PASS; unrelated process and child ACLs preserved (not physical ZBook E2E)'

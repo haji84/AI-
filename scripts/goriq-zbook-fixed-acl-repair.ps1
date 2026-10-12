@@ -8,7 +8,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $env:PSModulePath=Join-Path $PSHOME 'Modules'
 $stage='approval';$changed=$false;$restored=$false;$records=@();$wanted=@();$handles=@();$guards=@()
-$backupIdResult=$null;$markerCreated=$false;$transaction=$null;$sourceStreams=@();$sourceTexts=@{};$marker=$null;$hostStopped=$false;$hostStopAttempted=$false;$restartAttempted=$false;$serviceRecoveryVerified=$false;$stateBefore=$null;$stopRequired=$false;$initialLocation=Get-Location
+$backupIdResult=$null;$markerCreated=$false;$transaction=$null;$sourceStreams=@();$sourceTexts=@{};$marker=$null;$hostStopped=$false;$hostStopAttempted=$false;$restartAttempted=$false;$recoveryAttempted=$false;$serviceRecoveryVerified=$false;$stateBefore=$null;$stopRequired=$false;$initialLocation=Get-Location
 $sections=[Security.AccessControl.AccessControlSections]::All
 function Get-FixedTargets([string]$root) {
  @([pscustomobject]@{path=(Join-Path $root 'production');directory=$true},
@@ -376,6 +376,7 @@ function Verify-FixedHost {
  Remove-Item -LiteralPath $marker -Force;$script:markerCreated=$false
 }
 function Recover-FixedHost {
+ $script:recoveryAttempted=$true
  $script:serviceRecoveryVerified=$false
  Assert-FixedExpiry;Assert-FixedGuards
  # Never terminate an unknown partial-stop residual. If restart was attempted,
@@ -405,6 +406,39 @@ function Recover-FixedHost {
  Assert-FixedRuntime;Assert-FixedGuards
  Remove-Item -LiteralPath $marker -Force;$script:markerCreated=$false
  $script:restored=$true
+}
+function Invoke-FixedRestore {
+  if(-not $HostStopApproved -or $BackupId -notmatch '^[a-f0-9]{32}$' -or -not(Test-Path -LiteralPath $marker)){throw 'BACKUP_REJECTED'}
+  $backupPath=Join-Path $env:LOCALAPPDATA ('goriq-fixed-acl-before-'+$BackupId+'.dpapi')
+  $transaction=Read-FixedTransaction $backupPath $marker $BackupId
+  if($transaction.version -ne 2 -or $transaction.issue -ne 1787 -or $transaction.sourceRevision -cne $SourceRevision -or
+   $transaction.hostWasRunning -ne $true -or $transaction.userSid -cne $identity.User.Value -or $transaction.records.Count -ne 5 -or $transaction.wanted.Count -ne 5){throw 'BACKUP_REJECTED'}
+  for($i=0;$i -lt 5;$i++){
+   if($transaction.records[$i].path -cne $targets[$i].path -or
+    (New-FixedDescriptor $transaction.records[$i].descriptor $identity.User.Value $candidate.sidValue $targets[$i].directory) -cne $transaction.wanted[$i]){throw 'BACKUP_REJECTED'}
+  }
+  if($transaction.taskXml -cne $taskXml -or $transaction.configHash -cne $configHash -or $transaction.launcherHash -cne $launcherHash){throw 'RUNTIME_CHANGED'}
+  if($transaction.guards.Count -ne $guardRecords.Count){throw 'BASELINE_CHANGED'}
+  for($i=0;$i -lt $guardRecords.Count;$i++){Assert-FixedRecord $transaction.guards[$i] $guardRecords[$i]}
+  Assert-State-Preserved $transaction.state $stateBefore
+  $script:records=@($transaction.records);$script:wanted=@($transaction.wanted);$script:backupIdResult=$BackupId
+  $script:stage='restore';Write-Host ('FIXED_ACL_STAGE='+$stage)
+  $script:stopRequired=Test-FixedStopRequired $true
+  try{
+   if(-not $hostStopped -and $stopRequired){Stop-FixedHost}
+   if($hostStopped){Recover-FixedHost}else{
+    # Compatible running host: no operational stop beyond the proven sharing gate.
+    $script:changed=$true;Restore-FixedRecords $targets $handles $records $wanted -EnforceExpiry
+    Open-FixedHandles $false;Assert-FixedRuntime;Assert-FixedGuards
+    Remove-Item -LiteralPath $marker -Force;$script:markerCreated=$false;$script:restored=$true
+   }
+  }catch{
+   $originalFailure=$_
+   # A positively stopped host gets one recovery attempt. Unknown residuals or
+   # a failed restart do not trigger an unfenced repeat operation.
+   if($hostStopped -and -not $restartAttempted -and -not $recoveryAttempted){try{Assert-StoppedInstallation;Recover-FixedHost}catch{}}
+   throw $originalFailure
+  }
 }
 function Assert-FixedGuards {
  for($i=0;$i -lt $guardEntries.Count;$i++){Assert-FixedRecord $guardRecords[$i] (Get-FixedRecord $guardEntries[$i] $guards[$i])}
@@ -527,37 +561,7 @@ try {
  $marker=Join-Path $env:LOCALAPPDATA 'goriq-fixed-acl-active.json'
  if($Phase -ne 'restore' -and (Test-Path -LiteralPath $marker)){throw 'RECONCILIATION_REQUIRED'}
  if($Phase -eq 'restore'){
-  if(-not $HostStopApproved -or $BackupId -notmatch '^[a-f0-9]{32}$' -or -not(Test-Path -LiteralPath $marker)){throw 'BACKUP_REJECTED'}
-  $backupPath=Join-Path $env:LOCALAPPDATA ('goriq-fixed-acl-before-'+$BackupId+'.dpapi')
-  $transaction=Read-FixedTransaction $backupPath $marker $BackupId
-  if($transaction.version -ne 2 -or $transaction.issue -ne 1787 -or $transaction.sourceRevision -cne $SourceRevision -or
-   $transaction.hostWasRunning -ne $true -or $transaction.userSid -cne $identity.User.Value -or $transaction.records.Count -ne 5 -or $transaction.wanted.Count -ne 5){throw 'BACKUP_REJECTED'}
-  for($i=0;$i -lt 5;$i++){
-   if($transaction.records[$i].path -cne $targets[$i].path -or
-    (New-FixedDescriptor $transaction.records[$i].descriptor $identity.User.Value $candidate.sidValue $targets[$i].directory) -cne $transaction.wanted[$i]){throw 'BACKUP_REJECTED'}
-  }
-  if($transaction.taskXml -cne $taskXml -or $transaction.configHash -cne $configHash -or $transaction.launcherHash -cne $launcherHash){throw 'RUNTIME_CHANGED'}
-  if($transaction.guards.Count -ne $guardRecords.Count){throw 'BASELINE_CHANGED'}
-  for($i=0;$i -lt $guardRecords.Count;$i++){Assert-FixedRecord $transaction.guards[$i] $guardRecords[$i]}
-  Assert-State-Preserved $transaction.state $stateBefore
-  $records=@($transaction.records);$wanted=@($transaction.wanted);$backupIdResult=$BackupId
-  $stage='restore';Write-Host ('FIXED_ACL_STAGE='+$stage)
-  $stopRequired=Test-FixedStopRequired $true
-  try{
-   if(-not $hostStopped -and $stopRequired){Stop-FixedHost}
-   if($hostStopped){Recover-FixedHost}else{
-    # Compatible running host: no operational stop beyond the proven sharing gate.
-    $changed=$true;Restore-FixedRecords $targets $handles $records $wanted -EnforceExpiry
-    Open-FixedHandles $false;Assert-FixedRuntime;Assert-FixedGuards
-    Remove-Item -LiteralPath $marker -Force;$markerCreated=$false;$restored=$true
-   }
-  }catch{
-   $originalFailure=$_
-   # A positively stopped host gets one recovery attempt. Unknown residuals or
-   # a failed restart do not trigger an unfenced repeat operation.
-   if($hostStopped -and -not $restartAttempted){try{Assert-StoppedInstallation;Recover-FixedHost}catch{}}
-   throw $originalFailure
-  }
+  Invoke-FixedRestore
  }else{
   $stage='plan';Write-Host ('FIXED_ACL_STAGE='+$stage)
   for($i=0;$i -lt 5;$i++){$wanted+=,(New-FixedDescriptor $records[$i].descriptor $identity.User.Value $candidate.sidValue $targets[$i].directory)}
