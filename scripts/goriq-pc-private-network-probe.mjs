@@ -1,4 +1,5 @@
 import { execFile } from 'node:child_process';
+import { collectNativeInventory } from './goriq-pc-native-inventory.mjs';
 import { promisify } from 'node:util';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -97,7 +98,10 @@ export async function collectNetwork({platform=process.platform,revision,run=run
     loopbackHealth:{dashboard,broker,gateway},privateHttpsHealth};
 }
 if (process.argv[1] && import.meta.url===pathToFileURL(process.argv[1]).href) {
-  collectNetwork({revision:process.env.GITHUB_SHA}).then(result=>console.log(JSON.stringify(result))).catch(()=>{
+  collectNetwork({revision:process.env.GITHUB_SHA}).then(async result=>{
+    const nativeInventory=await collectNativeInventory();
+    console.log(JSON.stringify({...result,nativeInventory}));
+  }).catch(()=>{
     console.error(JSON.stringify({version:1,issue:1662,readOnly:true,diagnosticOnly:true,complete:false,
       failureReason:'PC_PRIVATE_NETWORK_DIAGNOSTIC_FAILED'}));process.exitCode=1;
   });
