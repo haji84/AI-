@@ -72,3 +72,16 @@ test("renewal extends the current lease but cannot revive stale ownership", () =
     assert.throws(() => leases.renew(zbook, 100, 1250), /STALE_CLAIM/);
   } finally { db.close(); }
 });
+
+test("lease renewal rejects invalid TTL without extending authority", () => {
+  const db = new DatabaseSync(":memory:");
+  try {
+    const leases = new CompassExecutionLease(db);
+    const mac = leases.claim("goal", "mac", 100, 1000);
+    for (const ttl of [0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY]) {
+      assert.throws(() => leases.renew(mac, ttl, 1050), /INVALID_INPUT/);
+    }
+    const zbook = leases.claim("goal", "zbook", 100, 1100);
+    assert.equal(zbook.epoch, mac.epoch + 1);
+  } finally { db.close(); }
+});
