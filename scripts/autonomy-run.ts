@@ -104,6 +104,7 @@ try {
   const contextSource: ContextSource = {
     name: "compass-state",
     async collect() {
+      if (heartbeatFailure) throw heartbeatFailure;
       const state = activeCompass.getState();
       const items = [];
       if (state.nextAction) items.push({ source: "state.next_action", summary: state.nextAction });
@@ -114,11 +115,13 @@ try {
     },
   };
 
+  let heartbeatFailure: Error | null = null;
   const registry = new CapabilityRegistry({ dryRun })
     .register(createContextInspectCapability())
     .register(createCodeBuilderCapability(createRuntimeBuilderRouter()));
   const verifier: Verifier = {
     async verify({ result }) {
+      if (heartbeatFailure) throw heartbeatFailure;
       return { ok: result.ok, summary: result.ok ? "Capability execution verified" : result.summary, evidence: result.evidence };
     },
   };
@@ -161,7 +164,6 @@ try {
 
   // The SQLite-fenced path remains dry-run only until external effects are reconciled.
   // Keep the claim alive while a bounded loop runs, then release it on exit.
-  let heartbeatFailure: Error | null = null;
   const heartbeat = sqliteLease && sqliteClaim
     ? setInterval(() => {
         if (heartbeatFailure) return;
