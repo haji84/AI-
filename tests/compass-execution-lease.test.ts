@@ -85,3 +85,16 @@ test("lease renewal rejects invalid TTL without extending authority", () => {
     assert.equal(zbook.epoch, mac.epoch + 1);
   } finally { db.close(); }
 });
+
+test("only the current owner can release and successor keeps fencing epoch", () => {
+  const db = new DatabaseSync(":memory:");
+  try {
+    const leases = new CompassExecutionLease(db);
+    const mac = leases.claim("goal", "mac", 100, 1000);
+    leases.release(mac, 1050);
+    const zbook = leases.claim("goal", "zbook", 100, 1050);
+    assert.equal(zbook.epoch, mac.epoch + 1);
+    assert.throws(() => leases.release(mac, 1051), /STALE_CLAIM/);
+    assert.throws(() => leases.claim("goal", "other", 100, 1051), /ALREADY_HELD/);
+  } finally { db.close(); }
+});
