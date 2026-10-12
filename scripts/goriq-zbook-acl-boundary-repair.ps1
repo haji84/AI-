@@ -132,7 +132,7 @@ function Restore-BoundaryBaseline([object[]]$baseline,[string[]]$roots) {
     if($entry.Count -ne 1){throw 'RESTORE_REJECTED'}
     $item=Get-Item -LiteralPath $root -Force -ErrorAction Stop
     Assert-BoundaryIdentity $root $entry[0]
-    $acl=Get-Acl -LiteralPath $root
+    $acl=Get-Acl -LiteralPath $root -Audit
     $acl.SetSecurityDescriptorSddlForm($entry[0].descriptor,[Security.AccessControl.AccessControlSections]::Access)
     Set-Acl -LiteralPath $root -AclObject $acl
   }
