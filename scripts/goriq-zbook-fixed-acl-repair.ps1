@@ -7,7 +7,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $env:PSModulePath=Join-Path $PSHOME 'Modules'
 $stage='approval';$changed=$false;$restored=$false;$records=@();$wanted=@();$handles=@();$guards=@()
-$backupIdResult=$null;$markerCreated=$false;$transaction=$null
+$backupIdResult=$null;$markerCreated=$false;$transaction=$null;$sourceStreams=@();$sourceTexts=@{}
 $sections=[Security.AccessControl.AccessControlSections]::All
 function Get-FixedTargets([string]$root) {
  @([pscustomobject]@{path=(Join-Path $root 'production');directory=$true},
@@ -16,9 +16,9 @@ function Get-FixedTargets([string]$root) {
    [pscustomobject]@{path=(Join-Path $root 'production\config.dpapi');directory=$false},
    [pscustomobject]@{path=(Join-Path $root 'production\launch-current.ps1');directory=$false})
 }
-function Import-FixedFunctions([string]$source,[string[]]$names) {
+function Import-FixedFunctions([string]$sourceText,[string[]]$names) {
  $tokens=$null;$errors=$null
- $ast=[Management.Automation.Language.Parser]::ParseFile($source,[ref]$tokens,[ref]$errors)
+ $ast=[Management.Automation.Language.Parser]::ParseInput($sourceText,[ref]$tokens,[ref]$errors)
  if($errors.Count){throw 'SOURCE_REJECTED'}
  foreach($name in $names){
   $def=$ast.Find({param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq $name},$true)
@@ -77,11 +77,16 @@ public static class GoriqFixedAclNative {
  [DllImport("advapi32.dll",SetLastError=true)] static extern bool GetSecurityDescriptorControl(IntPtr descriptor,out ushort control,out uint revision);
  [DllImport("advapi32.dll")] static extern uint SetSecurityInfo(SafeFileHandle handle,uint type,uint information,IntPtr owner,IntPtr group,IntPtr dacl,IntPtr sacl);
  [DllImport("kernel32.dll")] static extern IntPtr LocalFree(IntPtr memory);
- public static SafeFileHandle Open(string path,bool writable) {
-  // MAXIMUM_ALLOWED suppresses SetSecurityInfo child propagation. No FILE_SHARE_DELETE
-  // pins the object against path replacement throughout mutation and rollback.
-  var h=CreateFileW(path,writable?0x02000000u:0x20080u,3,IntPtr.Zero,3,0x02200000,IntPtr.Zero);
-  try { Identity(h); return h; } catch {h.Dispose();throw;}
+ public static SafeFileHandle Open(string path,bool writable,bool directory) {
+  // MAXIMUM_ALLOWED suppresses SetSecurityInfo child propagation. File handles
+  // deny replacement; directory handles retain identity and detect pathname drift.
+  var h=CreateFileW(path,writable?0x02000000u:0x20080u,(writable&&directory)?7u:3u,IntPtr.Zero,3,0x02200000,IntPtr.Zero);
+  try {
+   if(h.IsInvalid)throw new Exception("HANDLE_REJECTED_"+Marshal.GetLastWin32Error());
+   string id=Identity(h);
+   if(id.EndsWith(":True",StringComparison.Ordinal)!=directory)throw new Exception("HANDLE_REJECTED");
+   return h;
+  } catch {h.Dispose();throw;}
  }
  public static string Identity(SafeFileHandle h) {
   Info i;
@@ -130,13 +135,14 @@ function Assert-FixedRecord($before,$after) {
   if($before.$key -cne $after.$key){throw 'BASELINE_CHANGED'}
  }
 }
-function Invoke-FixedTransition($entry,$handle,$baseline,[string]$descriptor) {
+function Invoke-FixedTransition($entry,$handle,$baseline,[string]$descriptor,[switch]$EnforceExpiry) {
  Assert-FixedRecord $baseline (Get-FixedRecord $entry $handle)
+ if($EnforceExpiry){Assert-FixedExpiry}
  [GoriqFixedAclNative]::Apply($handle,$descriptor)
  $expected=$baseline.PSObject.Copy();$expected.descriptor=$descriptor
  Assert-FixedRecord $expected (Get-FixedRecord $entry $handle)
 }
-function Restore-FixedRecords([object[]]$targets,[object[]]$handles,[object[]]$baseline,[string[]]$wanted) {
+function Restore-FixedRecords([object[]]$targets,[object[]]$handles,[object[]]$baseline,[string[]]$wanted,[switch]$EnforceExpiry) {
  if($targets.Count -ne 5 -or $handles.Count -ne 5 -or $baseline.Count -ne 5 -or $wanted.Count -ne 5){throw 'RESTORE_REJECTED'}
  # Preflight ALL objects before restoration; unknown effects never trigger blind writes.
  for($i=0;$i -lt 5;$i++){
@@ -147,9 +153,42 @@ function Restore-FixedRecords([object[]]$targets,[object[]]$handles,[object[]]$b
  }
  for($i=0;$i -lt 5;$i++){
   $live=Get-FixedRecord $targets[$i] $handles[$i]
-  if($live.descriptor -cne $baseline[$i].descriptor){Invoke-FixedTransition $targets[$i] $handles[$i] $live $baseline[$i].descriptor}
+  if($live.descriptor -cne $baseline[$i].descriptor -and $live.descriptor -cne $wanted[$i]){throw 'RECONCILIATION_REQUIRED'}
+  $expected=$baseline[$i].PSObject.Copy();$expected.descriptor=$live.descriptor
+  Assert-FixedRecord $expected $live
+  if($live.descriptor -cne $baseline[$i].descriptor){Invoke-FixedTransition $targets[$i] $handles[$i] $live $baseline[$i].descriptor -EnforceExpiry:$EnforceExpiry}
  }
  for($i=0;$i -lt 5;$i++){Assert-FixedRecord $baseline[$i] (Get-FixedRecord $targets[$i] $handles[$i])}
+}
+function Write-FixedTransaction([string]$backupPath,[string]$marker,$transaction,[string]$id) {
+ $plain=$transaction | ConvertTo-Json -Depth 8 -Compress
+ Write-BoundaryBackup $backupPath $plain
+ $intent=@{version=1;backupId=$id;backupHash=(Get-FixedHash $backupPath)} | ConvertTo-Json -Compress
+ $stream=New-Object IO.FileStream($marker,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
+ try{$bytes=[Text.Encoding]::UTF8.GetBytes($intent);$stream.Write($bytes,0,$bytes.Length);$stream.Flush($true)}finally{$stream.Dispose()}
+ # Read back DPAPI and marker before the first mutation; malformed/truncated is blocked.
+ $roundTrip=Read-FixedTransaction $backupPath $marker $id
+ if(($roundTrip | ConvertTo-Json -Depth 8 -Compress) -cne $plain){throw 'BACKUP_REJECTED'}
+}
+function Read-FixedTransaction([string]$backupPath,[string]$marker,[string]$id) {
+ if($id -notmatch '^[a-f0-9]{32}$'){throw 'BACKUP_REJECTED'}
+ $markerHandle=$null;$backupHandle=$null
+ try {
+  $markerHandle=[GoriqFixedAclNative]::Open($marker,$false,$false)
+  $backupHandle=[GoriqFixedAclNative]::Open($backupPath,$false,$false)
+  $markerHash=Get-FixedHash $marker
+  $intent=Get-Content -LiteralPath $marker -Raw | ConvertFrom-Json
+  if($intent.version -ne 1 -or $intent.backupId -cne $id -or $intent.backupHash -notmatch '^[A-F0-9]{64}$' -or
+   (Get-FixedHash $backupPath) -cne $intent.backupHash){throw 'BACKUP_REJECTED'}
+  Add-Type -AssemblyName System.Security
+  $decoded=[Security.Cryptography.ProtectedData]::Unprotect([IO.File]::ReadAllBytes($backupPath),$null,[Security.Cryptography.DataProtectionScope]::CurrentUser)
+  $transaction=[Text.Encoding]::UTF8.GetString($decoded) | ConvertFrom-Json
+  if((Get-FixedHash $marker) -cne $markerHash -or (Get-FixedHash $backupPath) -cne $intent.backupHash){throw 'BACKUP_REJECTED'}
+  return $transaction
+ }finally{
+  if($null -ne $markerHandle){$markerHandle.Dispose()};if($null -ne $backupHandle){$backupHandle.Dispose()}
+  $decoded=$null
+ }
 }
 function Assert-FixedGuards {
  for($i=0;$i -lt $guardEntries.Count;$i++){Assert-FixedRecord $guardRecords[$i] (Get-FixedRecord $guardEntries[$i] $guards[$i])}
@@ -178,6 +217,12 @@ try {
  $repository=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
  if((& git -C $repository rev-parse HEAD).Trim() -cne $SourceRevision -or $LASTEXITCODE -ne 0){throw 'SOURCE_REJECTED'}
  foreach($relative in @('scripts/goriq-zbook-fixed-acl-repair.ps1','scripts/goriq-zbook-acl-boundary-repair.ps1','scripts/goriq-zbook-owner-acl-repair.ps1')){
+  # Cache bytes while denying concurrent write/delete; import that same verified snapshot.
+  $sourcePath=Join-Path $repository $relative
+  $sourceStream=New-Object IO.FileStream($sourcePath,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
+  $sourceStreams+=,$sourceStream
+  $memory=New-Object IO.MemoryStream
+  try{$sourceStream.CopyTo($memory);$sourceTexts[$relative]=[Text.Encoding]::UTF8.GetString($memory.ToArray())}finally{$memory.Dispose()}
   $expectedBlob=(& git -C $repository rev-parse ($SourceRevision+':'+$relative)).Trim()
   if($LASTEXITCODE -ne 0){throw 'SOURCE_REJECTED'}
   $actualBlob=(& git -C $repository hash-object ('--path='+$relative) (Join-Path $repository $relative)).Trim()
@@ -188,8 +233,8 @@ try {
  if($main.object.sha -cne $SourceRevision -or -not @($runs.workflow_runs | Where-Object {
   $_.name -eq 'CI' -and $_.event -eq 'push' -and $_.head_branch -eq 'main' -and $_.head_sha -eq $SourceRevision -and
   $_.status -eq 'completed' -and $_.conclusion -eq 'success'}).Count){throw 'MAIN_CI_REQUIRED'}
- Import-FixedFunctions (Join-Path $PSScriptRoot 'goriq-zbook-acl-boundary-repair.ps1') @('Assert-ProfileOwner','Assert-NativeProfile','Write-BoundaryBackup')
- Import-FixedFunctions (Join-Path $PSScriptRoot 'goriq-zbook-owner-acl-repair.ps1') @('Test-KnownReadOnlyRights','Get-RuleFacts','Assert-OwnedNative','Select-RepairCandidate')
+ Import-FixedFunctions $sourceTexts['scripts/goriq-zbook-acl-boundary-repair.ps1'] @('Assert-ProfileOwner','Assert-NativeProfile','Write-BoundaryBackup')
+ Import-FixedFunctions $sourceTexts['scripts/goriq-zbook-owner-acl-repair.ps1'] @('Test-KnownReadOnlyRights','Get-RuleFacts','Assert-OwnedNative','Select-RepairCandidate')
  Initialize-FixedNative
  $stage='paths';Write-Host ('FIXED_ACL_STAGE='+$stage)
  $root=Join-Path $env:USERPROFILE 'JARVIS';$targets=@(Get-FixedTargets $root)
@@ -209,7 +254,7 @@ try {
  foreach($entry in $targets){$unique.Remove([IO.Path]::GetFullPath($entry.path))}
  foreach($path in @($unique.Keys | Sort-Object)){
   $entry=[pscustomobject]@{path=$path;directory=$true}
-  $guard=[GoriqFixedAclNative]::Open($path,$false);$guards+=,$guard
+  $guard=[GoriqFixedAclNative]::Open($path,$false,$true);$guards+=,$guard
   $guardEntries+=,$entry;$guardRecords+=,(Get-FixedRecord $entry $guard)
  }
  Assert-NativeProfile $env:USERPROFILE $identity
@@ -219,7 +264,7 @@ try {
  $candidate=Select-RepairCandidate @(Get-RuleFacts (Get-Acl -LiteralPath $root) $identity)
  if([long]$candidate.rule.FileSystemRights -ne 0x1200A9 -or [string]$candidate.rule.PropagationFlags -ne 'None'){throw 'DACL_REJECTED'}
  foreach($entry in $targets){
-  $handle=[GoriqFixedAclNative]::Open($entry.path,$true);$handles+=,$handle
+  $handle=[GoriqFixedAclNative]::Open($entry.path,$true,$entry.directory);$handles+=,$handle
   $records+=,(Get-FixedRecord $entry $handle)
  }
  $task=Get-ScheduledTask -TaskName 'JARVIS Remote Host';$taskSid=[string]$task.Principal.UserId
@@ -231,13 +276,8 @@ try {
  if($Phase -ne 'restore' -and (Test-Path -LiteralPath $marker)){throw 'RECONCILIATION_REQUIRED'}
  if($Phase -eq 'restore'){
   if($BackupId -notmatch '^[a-f0-9]{32}$' -or -not(Test-Path -LiteralPath $marker)){throw 'BACKUP_REJECTED'}
-  $intent=Get-Content -LiteralPath $marker -Raw | ConvertFrom-Json
-  if($intent.backupId -cne $BackupId){throw 'BACKUP_REJECTED'}
   $backupPath=Join-Path $env:LOCALAPPDATA ('goriq-fixed-acl-before-'+$BackupId+'.dpapi')
-  if((Get-FixedHash $backupPath) -cne $intent.backupHash){throw 'BACKUP_REJECTED'}
-  Add-Type -AssemblyName System.Security
-  $decoded=[Security.Cryptography.ProtectedData]::Unprotect([IO.File]::ReadAllBytes($backupPath),$null,[Security.Cryptography.DataProtectionScope]::CurrentUser)
-  $transaction=[Text.Encoding]::UTF8.GetString($decoded) | ConvertFrom-Json
+  $transaction=Read-FixedTransaction $backupPath $marker $BackupId
   if($transaction.version -ne 1 -or $transaction.issue -ne 1787 -or $transaction.sourceRevision -cne $SourceRevision -or
    $transaction.userSid -cne $identity.User.Value -or $transaction.records.Count -ne 5 -or $transaction.wanted.Count -ne 5){throw 'BACKUP_REJECTED'}
   for($i=0;$i -lt 5;$i++){
@@ -249,7 +289,7 @@ try {
   for($i=0;$i -lt $guardRecords.Count;$i++){Assert-FixedRecord $transaction.guards[$i] $guardRecords[$i]}
   $records=@($transaction.records);$wanted=@($transaction.wanted);$backupIdResult=$BackupId
   $stage='restore';Write-Host ('FIXED_ACL_STAGE='+$stage)
-  $changed=$true;Restore-FixedRecords $targets $handles $records $wanted
+  $changed=$true;Restore-FixedRecords $targets $handles $records $wanted -EnforceExpiry
   Assert-FixedGuards;Assert-FixedRuntime;$restored=$true
   Remove-Item -LiteralPath $marker -Force
  }else{
@@ -259,19 +299,16 @@ try {
    $stage='backup';Write-Host ('FIXED_ACL_STAGE='+$stage)
    $backupIdResult=[guid]::NewGuid().ToString('N')
    $backupPath=Join-Path $env:LOCALAPPDATA ('goriq-fixed-acl-before-'+$backupIdResult+'.dpapi')
-   $plain=@{version=1;issue=1787;sourceRevision=$SourceRevision;userSid=$identity.User.Value;records=$records;wanted=$wanted;
-    guards=$guardRecords;taskXml=$taskXml;configHash=$configHash;launcherHash=$launcherHash} | ConvertTo-Json -Depth 8 -Compress
-   Write-BoundaryBackup $backupPath $plain;$plain=$null
-   Assert-FixedGuards;Assert-FixedRuntime;Assert-FixedExpiry
-   $intent=@{version=1;backupId=$backupIdResult;backupHash=(Get-FixedHash $backupPath)} | ConvertTo-Json -Compress
-   $stream=New-Object IO.FileStream($marker,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
-   try{$bytes=[Text.Encoding]::UTF8.GetBytes($intent);$stream.Write($bytes,0,$bytes.Length);$stream.Flush($true)}finally{$stream.Dispose()}
+   $transaction=[pscustomobject]@{version=1;issue=1787;sourceRevision=$SourceRevision;userSid=$identity.User.Value;records=$records;wanted=$wanted;
+    guards=$guardRecords;taskXml=$taskXml;configHash=$configHash;launcherHash=$launcherHash}
+   Write-FixedTransaction $backupPath $marker $transaction $backupIdResult
    $markerCreated=$true
+   Assert-FixedGuards;Assert-FixedRuntime;Assert-FixedExpiry
    $stage='write';Write-Host ('FIXED_ACL_STAGE='+$stage)
    for($i=0;$i -lt 5;$i++){
     Assert-FixedExpiry;Assert-FixedGuards;Assert-FixedRuntime
     $changed=$true
-    Invoke-FixedTransition $targets[$i] $handles[$i] $records[$i] $wanted[$i]
+    Invoke-FixedTransition $targets[$i] $handles[$i] $records[$i] $wanted[$i] -EnforceExpiry
    }
    Assert-FixedGuards;Assert-FixedRuntime
    $stage='verify';Write-Host ('FIXED_ACL_STAGE='+$stage)
@@ -292,7 +329,7 @@ try {
   'WRITE_REJECTED','BACKUP_REJECTED','RESTORE_REJECTED','RUNTIME_CHANGED','RECONCILIATION_REQUIRED')
  $reason=if($_.Exception.Message -in $known){$_.Exception.Message}else{'FIXED_REPAIR_FAILED'}
  if($changed -and $Phase -eq 'apply'){
-  try{Restore-FixedRecords $targets $handles $records $wanted;Assert-FixedGuards;Assert-FixedRuntime;$restored=$true
+  try{Restore-FixedRecords $targets $handles $records $wanted -EnforceExpiry;Assert-FixedGuards;Assert-FixedRuntime;$restored=$true
    if($markerCreated){Remove-Item -LiteralPath $marker -Force;$markerCreated=$false}
   }catch{$restored=$false}
  }
@@ -303,5 +340,6 @@ try {
  exit 1
 }finally{
  foreach($handle in $handles){$handle.Dispose()};foreach($guard in $guards){$guard.Dispose()}
+ foreach($stream in $sourceStreams){$stream.Dispose()};$sourceTexts=$null
  $plain=$null;$decoded=$null;$records=$null;$wanted=$null;$transaction=$null;$candidate=$null;$bytes=$null
 }

@@ -5,7 +5,7 @@ if(-not(Test-Path -LiteralPath $source)){throw 'fixed-repair-helper-missing'}
 $tokens=$null;$errors=$null
 $ast=[Management.Automation.Language.Parser]::ParseFile($source,[ref]$tokens,[ref]$errors)
 if($errors.Count){throw 'fixed-repair-parse'}
-foreach($name in @('Get-FixedTargets','New-FixedDescriptor','Initialize-FixedNative','Get-FixedRecord','Assert-FixedRecord','Invoke-FixedTransition','Restore-FixedRecords','Get-FixedHash')){
+foreach($name in @('Get-FixedTargets','New-FixedDescriptor','Initialize-FixedNative','Get-FixedRecord','Assert-FixedRecord','Invoke-FixedTransition','Restore-FixedRecords','Get-FixedHash','Write-FixedTransaction','Read-FixedTransaction','Import-FixedFunctions')){
  $def=$ast.Find({param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq $name},$true)
  if($null -eq $def){throw 'fixed-function-missing'}
  Invoke-Expression $def.Extent.Text
@@ -14,6 +14,8 @@ $targets=@(Get-FixedTargets 'fixture')
 if($targets.Count -ne 5 -or $targets[2].path -notmatch 'a49c458d69a28c0266be8fcad5b26253e5ed8d75$'){throw 'fixed-target-scope'}
 if($env:OS -ne 'Windows_NT'){Write-Output 'Fixed repair syntax/scope PASS; Windows native required';return}
 Initialize-FixedNative
+$backupSource=Join-Path $PSScriptRoot '..\scripts\goriq-zbook-acl-boundary-repair.ps1'
+Import-FixedFunctions (Get-Content -LiteralPath $backupSource -Raw) @('Write-BoundaryBackup')
 $identity=[Security.Principal.WindowsIdentity]::GetCurrent()
 $user=$identity.User.Value;$reader='S-1-1-0'
 $fixture=Join-Path ([IO.Path]::GetTempPath()) ('goriq-fixed-fixture-'+[guid]::NewGuid().ToString('N'))
@@ -51,7 +53,7 @@ try {
  if([Environment]::CurrentDirectory -cne $targets[2].path){throw 'native-cwd-not-set'}
  $records=@();$wanted=@()
  foreach($entry in $targets){
-  $handle=[GoriqFixedAclNative]::Open($entry.path,$true);$handles+=,$handle
+  $handle=[GoriqFixedAclNative]::Open($entry.path,$true,$entry.directory);$handles+=,$handle
   $record=Get-FixedRecord $entry $handle
   $records+=,$record
   $wanted+=,(New-FixedDescriptor $record.descriptor $user $reader $entry.directory)
@@ -97,6 +99,46 @@ try {
  try{Invoke-FixedTransition $targets[3] $handles[3] $bad $wanted[3]}catch{$rejected=$true}
  if(-not $rejected){throw 'fixed-baseline-drift-accepted'}
  Assert-FixedRecord $records[3] (Get-FixedRecord $targets[3] $handles[3])
+ # An expired gate blocks the actual native writer, including rollback.
+ Set-Item Function:Assert-FixedExpiry -Value {throw 'APPROVAL_REJECTED'}
+ $rejected=$false
+ try{Invoke-FixedTransition $targets[0] $handles[0] $records[0] $wanted[0] -EnforceExpiry}catch{
+  if($_.Exception.Message -ne 'APPROVAL_REJECTED'){throw};$rejected=$true
+ }
+ if(-not $rejected){throw 'fixed-expired-write-accepted'}
+ Assert-FixedRecord $records[0] (Get-FixedRecord $targets[0] $handles[0])
+ [GoriqFixedAclNative]::Apply($handles[0],$wanted[0])
+ $rejected=$false
+ try{Restore-FixedRecords $targets $handles $records $wanted -EnforceExpiry}catch{
+  if($_.Exception.Message -ne 'APPROVAL_REJECTED'){throw};$rejected=$true
+ }
+ if(-not $rejected -or (Get-FixedRecord $targets[0] $handles[0]).descriptor -cne $wanted[0]){throw 'fixed-expired-restore-mutated'}
+ [GoriqFixedAclNative]::Apply($handles[0],$records[0].descriptor)
+ Remove-Item Function:Assert-FixedExpiry
+ # DPAPI intent persists across reads and prevents transaction overwrite after crash.
+ $backup=Join-Path $fixture 'before.dpapi';$marker=Join-Path $fixture 'active.json'
+ $id=[guid]::NewGuid().ToString('N')
+ $transaction=[pscustomobject]@{version=1;issue=1787;records=$records;wanted=$wanted;notes=('x'*100000)}
+ Write-FixedTransaction $backup $marker $transaction $id
+ $decoded=Read-FixedTransaction $backup $marker $id
+ if($decoded.records.Count -ne 5 -or $decoded.wanted.Count -ne 5 -or $decoded.notes.Length -ne 100000){throw 'fixed-dpapi-roundtrip'}
+ $originalBackup=Get-FixedHash $backup;$originalMarker=Get-FixedHash $marker
+ $rejected=$false
+ try{Write-FixedTransaction $backup $marker $transaction $id}catch{$rejected=$true}
+ if(-not $rejected -or (Get-FixedHash $backup) -cne $originalBackup -or (Get-FixedHash $marker) -cne $originalMarker){throw 'fixed-pending-transaction-overwritten'}
+ $rejected=$false
+ try{$null=Read-FixedTransaction $backup $marker ([guid]::NewGuid().ToString('N'))}catch{$rejected=$true}
+ if(-not $rejected){throw 'fixed-wrong-backup-accepted'}
+ $cipher=[IO.File]::ReadAllBytes($backup);$cipher[0]=$cipher[0] -bxor 1;[IO.File]::WriteAllBytes($backup,$cipher)
+ $rejected=$false
+ try{$null=Read-FixedTransaction $backup $marker $id}catch{$rejected=$true}
+ if(-not $rejected){throw 'fixed-tampered-backup-accepted'}
+ [IO.File]::WriteAllText($marker,'{')
+ $rejected=$false
+ try{$null=Read-FixedTransaction $backup $marker $id}catch{$rejected=$true}
+ if(-not $rejected){throw 'fixed-truncated-intent-accepted'}
+ for($i=0;$i -lt 5;$i++){Assert-FixedRecord $records[$i] (Get-FixedRecord $targets[$i] $handles[$i])}
+ Write-Output 'Fixed DPAPI large baseline/intent crash persistence/overwrite/tamper refusal and expired mutation/restore refusal PASS'
  # Unsupported callback ACE must never be normalized into an ordinary allow.
  $raw=New-Object Security.AccessControl.RawSecurityDescriptor($records[0].descriptor)
  $callback=New-Object Security.AccessControl.CommonAce([Security.AccessControl.AceFlags]::Inherited,[Security.AccessControl.AceQualifier]::AccessAllowed,1,$identity.User,$true,[byte[]]@(1,2,3,4))
@@ -106,11 +148,11 @@ try {
  if(-not $rejected){throw 'fixed-callback-accepted'}
  foreach($path in @($link,$alias)){
   $rejected=$false
-  try{$unsafe=[GoriqFixedAclNative]::Open($path,$true);$unsafe.Dispose()}catch{$rejected=$true}
+  try{$unsafe=[GoriqFixedAclNative]::Open($path,$true,[bool](Get-Item -LiteralPath $path -Force).PSIsContainer);$unsafe.Dispose()}catch{$rejected=$true}
   if(-not $rejected){throw 'fixed-link-accepted'}
  }
  # Guard ancestor is immutable while handles are retained.
- $guard=[GoriqFixedAclNative]::Open($outside,$false)
+ $guard=[GoriqFixedAclNative]::Open($outside,$false,$true)
  $rejected=$false
  try{[IO.Directory]::Move($outside,($outside+'.moved'))}catch{$rejected=$true}
  if(-not $rejected){throw 'fixed-ancestor-renamed'}
