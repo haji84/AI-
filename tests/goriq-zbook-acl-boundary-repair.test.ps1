@@ -122,7 +122,7 @@ try{
       if(-not @($rawNarrow.DiscretionaryAcl | Where-Object {$_.AccessMask -eq $mask}).Count){throw 'raw-mask-normalized'}
     }
   }
-  $parentBefore=(Get-Acl -LiteralPath $fixture).Sddl
+  $parentBefore=(Get-Acl -LiteralPath $fixture -Audit).Sddl
   foreach($root in $roots){
     $acl=Get-Acl -LiteralPath $root -Audit
     $narrow=New-BoundaryDacl $acl $reader
@@ -143,7 +143,7 @@ try{
     if(@($acl.GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier]) | Where-Object {
       $_.AccessControlType -eq 'Allow' -and $_.IdentityReference.Value -eq $reader}).Count){throw 'reader-still-inherited'}
   }
-  if((Get-Acl -LiteralPath $fixture).Sddl -cne $parentBefore){throw 'ancestor-mutated'}
+  if((Get-Acl -LiteralPath $fixture -Audit).Sddl -cne $parentBefore){throw 'ancestor-mutated'}
   foreach($root in $roots){
     if([IO.File]::ReadAllText((Join-Path $root 'child\unchanged.txt')) -cne 'fixture bytes'){throw 'fixture-content-changed'}
     if(-not @((Get-Acl -LiteralPath (Join-Path $root 'child')).Access | Where-Object {
