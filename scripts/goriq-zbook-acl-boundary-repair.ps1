@@ -80,19 +80,25 @@ function New-BoundaryDacl($acl,[string]$reader) {
   if($rules.Count -ne 1 -or -not $rules[0].IsInherited -or [long]$rules[0].FileSystemRights -ne 0x1200A9 -or
     [string]$rules[0].InheritanceFlags -ne 'ContainerInherit, ObjectInherit' -or
     [string]$rules[0].PropagationFlags -ne 'None'){throw 'BOUNDARY_REJECTED'}
-  # On PowerShell5.1, preserveInheritance=true leaves in-memory ACEs marked
-  # inherited until persisted. Convert them explicitly before selecting removal.
-  $inherited=@($acl.GetAccessRules($false,$true,[Security.Principal.SecurityIdentifier]))
-  $acl.SetAccessRuleProtection($true,$false)
-  foreach($rule in $inherited){
-    $copy=New-Object Security.AccessControl.FileSystemAccessRule($rule.IdentityReference,
-      $rule.FileSystemRights,$rule.InheritanceFlags,$rule.PropagationFlags,$rule.AccessControlType)
-    $acl.AddAccessRule($copy)
+  # Preserve raw masks: FileSystemAccessRule constructors can normalize Synchronize.
+  $raw=New-Object Security.AccessControl.RawSecurityDescriptor(
+    $acl.GetSecurityDescriptorSddlForm([Security.AccessControl.AccessControlSections]::All))
+  $removed=0
+  for($i=$raw.DiscretionaryAcl.Count-1;$i -ge 0;$i--){
+    $ace=$raw.DiscretionaryAcl[$i]
+    if($ace -is [Security.AccessControl.CommonAce] -and
+      $ace.AceQualifier -eq [Security.AccessControl.AceQualifier]::AccessAllowed -and
+      $ace.SecurityIdentifier.Value -ceq $reader){
+      if($ace.AccessMask -ne 0x1200A9 -or [int]$ace.AceFlags -ne 0x13){throw 'BOUNDARY_REJECTED'}
+      $raw.DiscretionaryAcl.RemoveAce($i);$removed++;continue
+    }
+    $ace.AceFlags=[Security.AccessControl.AceFlags]([int]$ace.AceFlags -band (-bnot 0x10))
   }
-  $explicit=@($acl.GetAccessRules($true,$false,[Security.Principal.SecurityIdentifier]) | Where-Object {
-    $_.AccessControlType -eq 'Allow' -and $_.IdentityReference.Value -ceq $reader})
-  if($explicit.Count -ne 1){throw 'BOUNDARY_REJECTED'}
-  $acl.RemoveAccessRuleSpecific($explicit[0])
+  if($removed -ne 1){throw 'BOUNDARY_REJECTED'}
+  $raw.SetFlags([Security.AccessControl.ControlFlags]([int]$raw.ControlFlags -bor 0x1000))
+  $wanted=$raw.GetSddlForm([Security.AccessControl.AccessControlSections]::Access)
+  $acl.SetSecurityDescriptorSddlForm($wanted,[Security.AccessControl.AccessControlSections]::Access)
+  if($acl.GetSecurityDescriptorSddlForm([Security.AccessControl.AccessControlSections]::Access) -cne $wanted){throw 'BOUNDARY_REJECTED'}
   return $acl
 }
 function Get-BoundarySnapshot([string[]]$roots) {
@@ -153,7 +159,7 @@ function Get-ExpectedSnapshot([object[]]$baseline,[string[]]$roots,[string]$read
       while($reachable -and $roots -cnotcontains $parent){
         if(-not $descriptors.ContainsKey($parent)){throw 'BOUNDARY_REJECTED'}
         $parentRaw=New-Object Security.AccessControl.RawSecurityDescriptor($descriptors[$parent])
-        if($parentRaw.ControlFlags -band [Security.AccessControl.ControlFlags]::DiscretionaryAclProtected){$reachable=$false;break}
+        if(([int]$parentRaw.ControlFlags -band 0x1000) -ne 0){$reachable=$false;break}
         $parent=[IO.Path]::GetDirectoryName($parent)
       }
       if(-not $reachable){
@@ -170,7 +176,7 @@ function Get-ExpectedSnapshot([object[]]$baseline,[string[]]$roots,[string]$read
             $ace=$raw.DiscretionaryAcl[$i]
             if($ace -is [Security.AccessControl.CommonAce] -and
               $ace.AceQualifier -eq [Security.AccessControl.AceQualifier]::AccessAllowed -and
-              ($ace.AceFlags -band [Security.AccessControl.AceFlags]::Inherited) -and
+              (([int]$ace.AceFlags -band 0x10) -ne 0) -and
               $ace.SecurityIdentifier.Value -ceq $reader){$raw.DiscretionaryAcl.RemoveAce($i)}
           }
           $acl.SetSecurityDescriptorSddlForm($raw.GetSddlForm($sections),$sections)
