@@ -56,3 +56,19 @@ test("expired lease cannot publish a result without a successor", () => {
     assert.equal(db.prepare("SELECT COUNT(*) AS count FROM progress").get()?.count, 0);
   } finally { db.close(); }
 });
+
+test("renewal extends the current lease but cannot revive stale ownership", () => {
+  const db = new DatabaseSync(":memory:");
+  try {
+    const leases = new CompassExecutionLease(db);
+    const mac = leases.claim("goal", "mac", 100, 1000);
+    const renewed = leases.renew(mac, 100, 1050);
+    assert.equal(renewed.expiresAt, 1150);
+    assert.equal(renewed.epoch, mac.epoch);
+    assert.throws(() => leases.claim("goal", "zbook", 100, 1149), /ALREADY_HELD/);
+    const zbook = leases.claim("goal", "zbook", 100, 1150);
+    assert.equal(zbook.epoch, mac.epoch + 1);
+    assert.throws(() => leases.renew(mac, 100, 1151), /STALE_CLAIM/);
+    assert.throws(() => leases.renew(zbook, 100, 1250), /STALE_CLAIM/);
+  } finally { db.close(); }
+});
