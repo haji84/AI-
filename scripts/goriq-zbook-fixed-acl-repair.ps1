@@ -1,13 +1,13 @@
 param([ValidateSet('plan','apply','restore')][string]$Phase='plan',[switch]$OwnerApproved,
  [Parameter(Mandatory=$true)][string]$SourceRevision,
- [Parameter(Mandatory=$true)][string]$ExpectedRepairSha256,[string]$BackupId)
+ [Parameter(Mandatory=$true)][string]$ExpectedRepairSha256,[string]$BackupId,[switch]$HostStopApproved)
 # #1787/#1662: owner approval 2026-10-12T14:39:12Z, issue comment6126491312.
 # Exact five existing objects; no recursive propagation, process stop or ancestor ACL write.
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $env:PSModulePath=Join-Path $PSHOME 'Modules'
 $stage='approval';$changed=$false;$restored=$false;$records=@();$wanted=@();$handles=@();$guards=@()
-$backupIdResult=$null;$markerCreated=$false;$transaction=$null;$sourceStreams=@();$sourceTexts=@{};$marker=$null
+$backupIdResult=$null;$markerCreated=$false;$transaction=$null;$sourceStreams=@();$sourceTexts=@{};$marker=$null;$hostStopped=$false;$hostStopAttempted=$false;$restartAttempted=$false;$serviceRecoveryVerified=$false;$stateBefore=$null;$stopRequired=$false;$initialLocation=Get-Location
 $sections=[Security.AccessControl.AccessControlSections]::All
 function Get-FixedTargets([string]$root) {
  @([pscustomobject]@{path=(Join-Path $root 'production');directory=$true},
@@ -23,7 +23,13 @@ function Import-FixedFunctions([string]$sourceText,[string[]]$names) {
  foreach($name in $names){
   $def=$ast.Find({param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq $name},$true)
   if($null -eq $def){throw 'SOURCE_REJECTED'}
-  Invoke-Expression ($def.Extent.Text.Replace(('function '+$name),('function script:'+$name)))
+  $definition=$def.Extent.Text
+  if($name -eq 'Stop-OwnedTree'){
+   if(-not $definition.Contains('  Stop-ScheduledTask ') -or -not $definition.Contains('    $result=Invoke-CimMethod ')){throw 'SOURCE_REJECTED'}
+   $definition=$definition.Replace('  Stop-ScheduledTask ','  Assert-FixedExpiry; Stop-ScheduledTask ')
+   $definition=$definition.Replace('    $result=Invoke-CimMethod ','    Assert-FixedExpiry; $result=Invoke-CimMethod ')
+  }
+  Invoke-Expression ($definition.Replace(('function '+$name),('function script:'+$name)))
  }
 }
 function New-FixedDescriptor([string]$descriptor,[string]$user,[string]$reader,[bool]$directory) {
@@ -113,6 +119,12 @@ public static class GoriqFixedAclNative {
 }
 '@
 }
+function Get-FixedBytes([string]$path) {
+ $share=[IO.FileShare]::ReadWrite -bor [IO.FileShare]::Delete
+ $stream=New-Object IO.FileStream($path,[IO.FileMode]::Open,[IO.FileAccess]::Read,$share)
+ $memory=New-Object IO.MemoryStream
+ try{$stream.CopyTo($memory);return ,$memory.ToArray()}finally{$memory.Dispose();$stream.Dispose()}
+}
 function Get-FixedHash([string]$path) {
  $share=[IO.FileShare]::ReadWrite -bor [IO.FileShare]::Delete
  $stream=New-Object IO.FileStream($path,[IO.FileMode]::Open,[IO.FileAccess]::Read,$share)
@@ -195,15 +207,146 @@ function Test-FixedReconciliation([string]$marker,[bool]$changed,[bool]$restored
  if([string]::IsNullOrEmpty($marker)){return $null}
  try{return [bool](Test-Path -LiteralPath $marker -ErrorAction Stop)}catch{return $true}
 }
+function Get-FixedState([string]$operation) {
+ # Inspector validates an in-memory candidate root; recovery health still uses
+ # the unchanged old release. The local variable cannot leak into Wait-Health.
+ $releaseRoot=Join-Path $root ('releases\'+$SourceRevision)
+ & $script:inspectStateImplementation $operation
+}
+function Assert-FixedTree([object[]]$before,[object[]]$after) {
+ $left=@($before | Sort-Object ProcessId);$right=@($after | Sort-Object ProcessId)
+ if($left.Count -eq 0 -or $left.Count -ne $right.Count){throw 'PROCESS_CHANGED'}
+ for($i=0;$i -lt $left.Count;$i++){
+  foreach($key in @('ProcessId','CreationDate','CommandLine')){if($left[$i].$key -cne $right[$i].$key){throw 'PROCESS_CHANGED'}}
+ }
+}
+function Invoke-FixedHostTransaction([scriptblock]$Persist,[scriptblock]$Stop,[scriptblock]$Write,
+ [scriptblock]$Start,[scriptblock]$Verify,[scriptblock]$Recover) {
+ # Failure to persist can never flow into a stop. Unknown stop is recovered once,
+ # not blindly repeated; recovery must positively verify the original service.
+ [void](& $Persist)
+ try {
+  [void](& $Stop);[void](& $Write);[void](& $Start);[void](& $Verify)
+  return [pscustomobject]@{verified=$true;restored=$false;stopAttempted=$true}
+ }catch{
+  $failure=$_.Exception;$recovered=$false
+  try{[void](& $Recover);$recovered=$true}catch{}
+  return [pscustomobject]@{verified=$false;restored=$recovered;stopAttempted=$true;failure=$failure}
+ }
+}
+function Close-FixedHandles {
+ foreach($handle in $script:handles){$handle.Dispose()};$script:handles=@()
+}
+function Open-FixedHandles([bool]$writable) {
+ Close-FixedHandles
+ try{
+  foreach($entry in $targets){$script:handles+=,[GoriqFixedAclNative]::Open($entry.path,$writable,$entry.directory)}
+ }catch{Close-FixedHandles;throw}
+}
+function Assert-FixedKnownTargets {
+ for($i=0;$i -lt 5;$i++){
+  $live=Get-FixedRecord $targets[$i] $handles[$i]
+  if($live.descriptor -cne $records[$i].descriptor -and $live.descriptor -cne $wanted[$i]){throw 'RECONCILIATION_REQUIRED'}
+  $expected=$records[$i].PSObject.Copy();$expected.descriptor=$live.descriptor
+  Assert-FixedRecord $expected $live
+ }
+}
+function Persist-FixedHostBaseline {
+ Assert-FixedGuards;Assert-FixedRuntime;Assert-FixedExpiry
+ $script:backupIdResult=[guid]::NewGuid().ToString('N')
+ $backupPath=Join-Path $env:LOCALAPPDATA ('goriq-fixed-acl-before-'+$backupIdResult+'.dpapi')
+ $transaction=[pscustomobject]@{version=2;issue=1787;sourceRevision=$SourceRevision;userSid=$identity.User.Value;
+  records=$records;wanted=$wanted;guards=$guardRecords;taskXml=$taskXml;configHash=$configHash;launcherHash=$launcherHash;
+  state=$stateBefore;hostWasRunning=$true;configCipher=[Convert]::ToBase64String((Get-FixedBytes $config));
+  launcherCipher=[Convert]::ToBase64String((Get-FixedBytes $launcher))}
+ Write-FixedTransaction $backupPath $marker $transaction $backupIdResult
+ $script:markerCreated=$true
+}
+function Stop-FixedHost {
+ if(-not $HostStopApproved -or [datetimeoffset]::UtcNow -lt [datetimeoffset]::Parse('2026-10-12T15:41:01Z')){throw 'HOST_STOP_APPROVAL_REQUIRED'}
+ Assert-FixedRuntime;Assert-FixedGuards;Assert-FixedKnownTargets
+ $liveTree=@(Get-OwnedTree $oldRoot)
+ Assert-FixedTree $tree $liveTree
+ Assert-FixedExpiry
+ $script:hostStopAttempted=$true
+ Stop-OwnedTree $liveTree
+ $script:hostStopped=$true
+ Assert-FixedRuntime
+}
+function Write-FixedTargets {
+ Assert-FixedRuntime;Assert-FixedGuards
+ Open-FixedHandles $true
+ for($i=0;$i -lt 5;$i++){
+  Assert-FixedRuntime;Assert-FixedGuards
+  $script:changed=$true
+  Invoke-FixedTransition $targets[$i] $handles[$i] $records[$i] $wanted[$i] -EnforceExpiry
+ }
+ Assert-FixedGuards;Assert-FixedRuntime
+}
+function Start-FixedHost {
+ # MAXIMUM_ALLOWED contains DELETE and can block a new native CWD. Release
+ # those handles, repin read/list handles and verify before starting the task.
+ Open-FixedHandles $false
+ Assert-FixedKnownTargets;Assert-FixedGuards;Assert-FixedRuntime
+ Assert-FixedExpiry
+ $script:restartAttempted=$true
+ Start-ScheduledTask -TaskName $taskName -ErrorAction Stop
+ $script:hostStopped=$false
+ $ready=Wait-Health $current.commit
+ if(-not $ready.serviceRecoveryVerified){throw 'SERVICE_RECOVERY_REQUIRED'}
+ $script:serviceRecoveryVerified=$true
+}
+function Verify-FixedHost {
+ Assert-FixedRuntime;Assert-FixedGuards
+ for($i=0;$i -lt 5;$i++){
+  $expected=$records[$i].PSObject.Copy();$expected.descriptor=$wanted[$i]
+  Assert-FixedRecord $expected (Get-FixedRecord $targets[$i] $handles[$i])
+ }
+ Remove-Item -LiteralPath $marker -Force;$script:markerCreated=$false
+}
+function Recover-FixedHost {
+ $script:serviceRecoveryVerified=$false
+ Assert-FixedExpiry;Assert-FixedGuards
+ # Never terminate an unknown partial-stop residual. If restart was attempted,
+ # fresh exact installation ownership/state evidence is required before stopping.
+ if($restartAttempted){
+  $state=Inspect-State 'inspect';Assert-State-Preserved $stateBefore $state
+  $liveTree=@(Get-OwnedTree $oldRoot $false)
+  if($liveTree.Count){
+   Assert-FixedTree $liveTree @(Get-OwnedTree $oldRoot $false)
+   Assert-FixedExpiry;Stop-OwnedTree $liveTree
+  }
+ }
+ Assert-StoppedInstallation;$script:hostStopped=$true
+ Open-FixedHandles $false;Assert-FixedKnownTargets
+ $needsRestore=$false
+ for($i=0;$i -lt 5;$i++){if((Get-FixedRecord $targets[$i] $handles[$i]).descriptor -cne $records[$i].descriptor){$needsRestore=$true}}
+ if($needsRestore){
+  Open-FixedHandles $true
+  Restore-FixedRecords $targets $handles $records $wanted -EnforceExpiry
+ }
+ Open-FixedHandles $false
+ for($i=0;$i -lt 5;$i++){Assert-FixedRecord $records[$i] (Get-FixedRecord $targets[$i] $handles[$i])}
+ Assert-FixedRuntime;Assert-FixedGuards
+ Start-FixedHost
+ Assert-FixedRuntime;Assert-FixedGuards
+ Remove-Item -LiteralPath $marker -Force;$script:markerCreated=$false
+ $script:restored=$true
+}
 function Assert-FixedGuards {
  for($i=0;$i -lt $guardEntries.Count;$i++){Assert-FixedRecord $guardRecords[$i] (Get-FixedRecord $guardEntries[$i] $guards[$i])}
 }
 function Assert-FixedRuntime {
  if((Get-FixedHash $config) -cne $configHash -or (Get-FixedHash $launcher) -cne $launcherHash -or
   (Export-ScheduledTask -TaskName 'JARVIS Remote Host') -cne $taskXml){throw 'RUNTIME_CHANGED'}
- if((Get-ScheduledTask -TaskName 'JARVIS Remote Host').State -ne 'Running'){throw 'RUNTIME_CHANGED'}
- $health=Invoke-RestMethod -Uri 'http://127.0.0.1:8787/health' -TimeoutSec 5
- if($health.ok -ne $true){throw 'RUNTIME_CHANGED'}
+ $state=Inspect-State 'inspect'
+ if($state.schemaCompatible -ne $true -or $state.quiescent -ne $true){throw 'RUNTIME_CHANGED'}
+ if($null -ne $stateBefore){Assert-State-Preserved $stateBefore $state}
+ if($hostStopped){Assert-StoppedInstallation}else{
+  if((Get-ScheduledTask -TaskName $taskName).State -ne 'Running'){throw 'RUNTIME_CHANGED'}
+  $health=Invoke-RestMethod -Uri 'http://127.0.0.1:8787/health' -TimeoutSec 5
+  if($health.ok -ne $true -or $health.runtimeRevision -cne $current.commit){throw 'RUNTIME_CHANGED'}
+ }
 }
 function Assert-FixedExpiry {
  if([datetimeoffset]::UtcNow -ge [datetimeoffset]::Parse('2026-10-13T11:12:13.845Z')){throw 'APPROVAL_REJECTED'}
@@ -221,7 +364,7 @@ try {
  $stage='source';Write-Host ('FIXED_ACL_STAGE='+$stage)
  $repository=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
  if((& git -C $repository rev-parse HEAD).Trim() -cne $SourceRevision -or $LASTEXITCODE -ne 0){throw 'SOURCE_REJECTED'}
- foreach($relative in @('scripts/goriq-zbook-fixed-acl-repair.ps1','scripts/goriq-zbook-acl-boundary-repair.ps1','scripts/goriq-zbook-owner-acl-repair.ps1')){
+ foreach($relative in @('scripts/goriq-zbook-fixed-acl-repair.ps1','scripts/goriq-zbook-acl-boundary-repair.ps1','scripts/goriq-zbook-owner-acl-repair.ps1','scripts/goriq-pc-runtime-refresh-windows.ps1')){
   # Cache bytes while denying concurrent write/delete; import that same verified snapshot.
   $sourcePath=Join-Path $repository $relative
   $sourceStream=New-Object IO.FileStream($sourcePath,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
@@ -240,10 +383,21 @@ try {
   $_.status -eq 'completed' -and $_.conclusion -eq 'success'}).Count){throw 'MAIN_CI_REQUIRED'}
  Import-FixedFunctions $sourceTexts['scripts/goriq-zbook-acl-boundary-repair.ps1'] @('Assert-ProfileOwner','Assert-NativeProfile','Write-BoundaryBackup')
  Import-FixedFunctions $sourceTexts['scripts/goriq-zbook-owner-acl-repair.ps1'] @('Test-KnownReadOnlyRights','Get-RuleFacts','Assert-OwnedNative','Select-RepairCandidate')
+ Import-FixedFunctions $sourceTexts['scripts/goriq-pc-runtime-refresh-windows.ps1'] @('Inspect-State','Get-LiveListeners','Assert-StoppedInstallation','Assert-State-Preserved','Get-OwnedTree','Stop-OwnedTree','Wait-Health')
+ $script:inspectStateImplementation=(Get-Item Function:Inspect-State).ScriptBlock
+ Set-Item Function:script:Inspect-State -Value (Get-Item Function:Get-FixedState).ScriptBlock
+ # State inspector's transitive tracked inputs must also match this exact commit.
+ & git -C $repository diff --quiet HEAD --
+ if($LASTEXITCODE -ne 0){throw 'SOURCE_REJECTED'}
+ Set-Location $repository
+ $source=$repository;$node=(Get-Command node.exe -ErrorAction Stop).Source
+ $env:GORIQ_PC_APPROVED_REVISION=$SourceRevision
+ $taskName='JARVIS Remote Host';$ports=@(3000,8787,8790,8792)
  Initialize-FixedNative
  $stage='paths';Write-Host ('FIXED_ACL_STAGE='+$stage)
  $root=Join-Path $env:USERPROFILE 'JARVIS';$targets=@(Get-FixedTargets $root)
- $config=$targets[3].path;$launcher=$targets[4].path
+ $config=$targets[3].path;$launcher=$targets[4].path;$launcherPath=$launcher;$installationRoot=$root
+ $compat=Join-Path $env:LOCALAPPDATA 'JARVIS\production\launch-current.ps1'
  # Hold every ancestor directory (including volume root) without delete sharing.
  $ancestorPaths=@($env:LOCALAPPDATA,(Join-Path $targets[2].path 'node_modules'))
  foreach($entry in $targets){$ancestorPaths+=([IO.Path]::GetDirectoryName($entry.path))}
@@ -269,22 +423,41 @@ try {
  $candidate=Select-RepairCandidate @(Get-RuleFacts (Get-Acl -LiteralPath $root) $identity)
  if([long]$candidate.rule.FileSystemRights -ne 0x1200A9 -or [string]$candidate.rule.PropagationFlags -ne 'None'){throw 'DACL_REJECTED'}
  foreach($entry in $targets){
-  $handle=[GoriqFixedAclNative]::Open($entry.path,$true,$entry.directory);$handles+=,$handle
+  $handle=[GoriqFixedAclNative]::Open($entry.path,$false,$entry.directory);$handles+=,$handle
   $records+=,(Get-FixedRecord $entry $handle)
  }
  $task=Get-ScheduledTask -TaskName 'JARVIS Remote Host';$taskSid=[string]$task.Principal.UserId
  if($taskSid -notmatch '^S-1-'){$taskSid=([Security.Principal.NTAccount]$taskSid).Translate([Security.Principal.SecurityIdentifier]).Value}
  if($taskSid -cne $identity.User.Value -or $task.Principal.RunLevel -ne 'Limited' -or $task.Principal.LogonType -ne 'Password'){throw 'RUNTIME_CHANGED'}
  $taskXml=Export-ScheduledTask -TaskName 'JARVIS Remote Host';$configHash=Get-FixedHash $config;$launcherHash=Get-FixedHash $launcher
+ if($task.Actions.Count -ne 1 -or $task.Actions[0].Execute -notmatch '(?i)\\WindowsPowerShell\\v1\.0\\powershell\.exe$' -or
+  -not $task.Actions[0].Arguments.Contains($compat) -or $task.Actions[0].Arguments -notmatch '(?i)RemoteSigned' -or
+  -not ([IO.File]::ReadAllText($compat)).Contains($launcherPath)){throw 'RUNTIME_CHANGED'}
+ $secure=ConvertTo-SecureString ([IO.File]::ReadAllText($config).Trim())
+ $plain=(New-Object Management.Automation.PSCredential('config',$secure)).GetNetworkCredential().Password
+ $current=$plain | ConvertFrom-Json;$plain=$null;$secure=$null
+ $oldRoot=[IO.Path]::GetFullPath($current.releaseRoot);$releaseRoot=$oldRoot
+ if($current.version -ne 1 -or $current.commit -cne 'a49c458d69a28c0266be8fcad5b26253e5ed8d75' -or
+  $oldRoot -cne $targets[2].path -or -not ([IO.File]::ReadAllText($launcher)).Contains($oldRoot)){throw 'RUNTIME_CHANGED'}
+ $manifest=Get-Content -LiteralPath (Join-Path $oldRoot 'jarvis-release.json') -Raw | ConvertFrom-Json
+ if($manifest.commit -cne $current.commit){throw 'RUNTIME_CHANGED'}
+ if($task.State -eq 'Running'){$tree=@(Get-OwnedTree $oldRoot)}elseif($Phase -eq 'restore' -and $task.State -eq 'Ready'){Assert-StoppedInstallation;$hostStopped=$true;$tree=@()}else{throw 'RUNTIME_CHANGED'}
+ # Inspect prepares only an in-memory candidate; use approved new source root.
+ $releaseRoot=Join-Path $root ('releases\'+$SourceRevision)
+ $stateBefore=Inspect-State 'inspect'
+ if($stateBefore.schemaCompatible -ne $true -or $stateBefore.quiescent -ne $true){throw 'RUNTIME_CHANGED'}
+ # Wait-Health validates the original existing release, not a new installation.
+ $releaseRoot=$oldRoot
+
  Assert-FixedRuntime;Assert-FixedGuards
  $marker=Join-Path $env:LOCALAPPDATA 'goriq-fixed-acl-active.json'
  if($Phase -ne 'restore' -and (Test-Path -LiteralPath $marker)){throw 'RECONCILIATION_REQUIRED'}
  if($Phase -eq 'restore'){
-  if($BackupId -notmatch '^[a-f0-9]{32}$' -or -not(Test-Path -LiteralPath $marker)){throw 'BACKUP_REJECTED'}
+  if(-not $HostStopApproved -or $BackupId -notmatch '^[a-f0-9]{32}$' -or -not(Test-Path -LiteralPath $marker)){throw 'BACKUP_REJECTED'}
   $backupPath=Join-Path $env:LOCALAPPDATA ('goriq-fixed-acl-before-'+$BackupId+'.dpapi')
   $transaction=Read-FixedTransaction $backupPath $marker $BackupId
-  if($transaction.version -ne 1 -or $transaction.issue -ne 1787 -or $transaction.sourceRevision -cne $SourceRevision -or
-   $transaction.userSid -cne $identity.User.Value -or $transaction.records.Count -ne 5 -or $transaction.wanted.Count -ne 5){throw 'BACKUP_REJECTED'}
+  if($transaction.version -ne 2 -or $transaction.issue -ne 1787 -or $transaction.sourceRevision -cne $SourceRevision -or
+   $transaction.hostWasRunning -ne $true -or $transaction.userSid -cne $identity.User.Value -or $transaction.records.Count -ne 5 -or $transaction.wanted.Count -ne 5){throw 'BACKUP_REJECTED'}
   for($i=0;$i -lt 5;$i++){
    if($transaction.records[$i].path -cne $targets[$i].path -or
     (New-FixedDescriptor $transaction.records[$i].descriptor $identity.User.Value $candidate.sidValue $targets[$i].directory) -cne $transaction.wanted[$i]){throw 'BACKUP_REJECTED'}
@@ -292,58 +465,60 @@ try {
   if($transaction.taskXml -cne $taskXml -or $transaction.configHash -cne $configHash -or $transaction.launcherHash -cne $launcherHash){throw 'RUNTIME_CHANGED'}
   if($transaction.guards.Count -ne $guardRecords.Count){throw 'BASELINE_CHANGED'}
   for($i=0;$i -lt $guardRecords.Count;$i++){Assert-FixedRecord $transaction.guards[$i] $guardRecords[$i]}
+  Assert-State-Preserved $transaction.state $stateBefore
   $records=@($transaction.records);$wanted=@($transaction.wanted);$backupIdResult=$BackupId
   $stage='restore';Write-Host ('FIXED_ACL_STAGE='+$stage)
-  $changed=$true;Restore-FixedRecords $targets $handles $records $wanted -EnforceExpiry
-  Assert-FixedGuards;Assert-FixedRuntime;$restored=$true
-  Remove-Item -LiteralPath $marker -Force
+  # A running original host is first fenced and stopped under the new explicit gate.
+  if(-not $hostStopped){Stop-FixedHost}
+  Recover-FixedHost
  }else{
   $stage='plan';Write-Host ('FIXED_ACL_STAGE='+$stage)
   for($i=0;$i -lt 5;$i++){$wanted+=,(New-FixedDescriptor $records[$i].descriptor $identity.User.Value $candidate.sidValue $targets[$i].directory)}
+  $stopRequired=$false
+  try{
+   Open-FixedHandles $true
+   for($i=0;$i -lt 5;$i++){Assert-FixedRecord $records[$i] (Get-FixedRecord $targets[$i] $handles[$i])}
+  }catch{
+   $probeFailure=$_.Exception
+   while($null -ne $probeFailure.InnerException){$probeFailure=$probeFailure.InnerException}
+   if($probeFailure.Message -cne 'HANDLE_REJECTED_32'){throw}
+   $stopRequired=$true
+   Open-FixedHandles $false
+   for($i=0;$i -lt 5;$i++){Assert-FixedRecord $records[$i] (Get-FixedRecord $targets[$i] $handles[$i])}
+  }
   if($Phase -eq 'apply'){
-   $stage='backup';Write-Host ('FIXED_ACL_STAGE='+$stage)
-   $backupIdResult=[guid]::NewGuid().ToString('N')
-   $backupPath=Join-Path $env:LOCALAPPDATA ('goriq-fixed-acl-before-'+$backupIdResult+'.dpapi')
-   $transaction=[pscustomobject]@{version=1;issue=1787;sourceRevision=$SourceRevision;userSid=$identity.User.Value;records=$records;wanted=$wanted;
-    guards=$guardRecords;taskXml=$taskXml;configHash=$configHash;launcherHash=$launcherHash}
-   Write-FixedTransaction $backupPath $marker $transaction $backupIdResult
-   $markerCreated=$true
-   Assert-FixedGuards;Assert-FixedRuntime;Assert-FixedExpiry
-   $stage='write';Write-Host ('FIXED_ACL_STAGE='+$stage)
-   for($i=0;$i -lt 5;$i++){
-    Assert-FixedExpiry;Assert-FixedGuards;Assert-FixedRuntime
-    $changed=$true
-    Invoke-FixedTransition $targets[$i] $handles[$i] $records[$i] $wanted[$i] -EnforceExpiry
+   if(-not $HostStopApproved){throw 'HOST_STOP_APPROVAL_REQUIRED'}
+   $stage='host-transaction';Write-Host ('FIXED_ACL_STAGE='+$stage)
+   if($stopRequired){
+    $result=Invoke-FixedHostTransaction -Persist {Persist-FixedHostBaseline} -Stop {Stop-FixedHost} -Write {Write-FixedTargets} -Start {Start-FixedHost} -Verify {Verify-FixedHost} -Recover {Recover-FixedHost}
+    if(-not $result.verified){$restored=$result.restored;throw $result.failure}
+   }else{
+    Persist-FixedHostBaseline
+    try{Write-FixedTargets;Open-FixedHandles $false;Verify-FixedHost;$serviceRecoveryVerified=$true}catch{
+     $originalFailure=$_
+     try{Open-FixedHandles $true;Restore-FixedRecords $targets $handles $records $wanted -EnforceExpiry;Open-FixedHandles $false;Assert-FixedRuntime;Assert-FixedGuards
+      Remove-Item -LiteralPath $marker -Force;$markerCreated=$false;$restored=$true
+     }catch{$restored=$false}
+     throw $originalFailure
+    }
    }
-   Assert-FixedGuards;Assert-FixedRuntime
-   $stage='verify';Write-Host ('FIXED_ACL_STAGE='+$stage)
-   for($i=0;$i -lt 5;$i++){
-    $expected=$records[$i].PSObject.Copy();$expected.descriptor=$wanted[$i]
-    Assert-FixedRecord $expected (Get-FixedRecord $targets[$i] $handles[$i])
-   }
-   Remove-Item -LiteralPath $marker -Force;$markerCreated=$false
   }
  }
  @{version=1;issue=1662;repairIssue=1787;nodeId='zbook';phase=$Phase;sourceRevision=$SourceRevision;
   readOnly=($Phase -eq 'plan');verified=$true;permissionChanged=$changed;targetCount=5;backupId=$backupIdResult;
-  restored=$restored;runtimeUnchanged=$true;ancestorUnchanged=$true;recursiveWrite=$false;
+  restored=$restored;hostStopAttempted=$hostStopAttempted;serviceRecoveryVerified=$serviceRecoveryVerified;plannedHostStop=$stopRequired;runtimeUnchanged=$true;ancestorUnchanged=$true;recursiveWrite=$false;
   observedAt=[datetimeoffset]::UtcNow.ToString('o')} | ConvertTo-Json -Compress
 }catch{
  $known=@('APPROVAL_REJECTED','ARTIFACT_REJECTED','ADMIN_REQUIRED','SOURCE_REJECTED','MAIN_CI_REQUIRED','OWNER_BOUNDARY_REJECTED',
   'ACL_CANDIDATE_REJECTED','DACL_REJECTED','BASELINE_CHANGED','REPARSE_REJECTED','HARDLINK_REJECTED','HANDLE_REJECTED',
-  'WRITE_REJECTED','BACKUP_REJECTED','RESTORE_REJECTED','RUNTIME_CHANGED','RECONCILIATION_REQUIRED')
+  'HOST_STOP_APPROVAL_REQUIRED','PROCESS_CHANGED','SERVICE_RECOVERY_REQUIRED','WRITE_REJECTED','BACKUP_REJECTED','RESTORE_REJECTED','RUNTIME_CHANGED','RECONCILIATION_REQUIRED')
  $failure=$_.Exception
  while($null -ne $failure.InnerException){$failure=$failure.InnerException}
  $nativeErrorCode=$null
  if($failure.Message -match '^HANDLE_REJECTED_([0-9]+)$'){$nativeErrorCode=[int]$Matches[1];$failure=New-Object Exception('HANDLE_REJECTED')}
  $reason=if($failure.Message -in $known){$failure.Message}else{'FIXED_REPAIR_FAILED'}
- if($changed -and $Phase -eq 'apply'){
-  try{Restore-FixedRecords $targets $handles $records $wanted -EnforceExpiry;Assert-FixedGuards;Assert-FixedRuntime;$restored=$true
-   if($markerCreated){Remove-Item -LiteralPath $marker -Force;$markerCreated=$false}
-  }catch{$restored=$false}
- }
  @{version=1;issue=1662;repairIssue=1787;nodeId='zbook';phase=$Phase;failedStage=$stage;failureReason=$reason;
-  permissionChanged=$changed;restored=$restored;backupId=$backupIdResult;
+  permissionChanged=$changed;restored=$restored;backupId=$backupIdResult;hostStopAttempted=$hostStopAttempted;serviceRecoveryVerified=$serviceRecoveryVerified;
   nativeErrorCode=$nativeErrorCode;intentPending=($null -ne $marker -and (Test-Path -LiteralPath $marker));
   reconciliationRequired=(Test-FixedReconciliation $marker $changed $restored $reason);
   observedAt=[datetimeoffset]::UtcNow.ToString('o')} | ConvertTo-Json -Compress
@@ -351,5 +526,6 @@ try {
 }finally{
  foreach($handle in $handles){$handle.Dispose()};foreach($guard in $guards){$guard.Dispose()}
  foreach($stream in $sourceStreams){$stream.Dispose()};$sourceTexts=$null
+ Set-Location $initialLocation
  $plain=$null;$decoded=$null;$records=$null;$wanted=$null;$transaction=$null;$candidate=$null;$bytes=$null
 }
