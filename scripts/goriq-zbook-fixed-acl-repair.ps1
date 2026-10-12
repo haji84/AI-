@@ -7,7 +7,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $env:PSModulePath=Join-Path $PSHOME 'Modules'
 $stage='approval';$changed=$false;$restored=$false;$records=@();$wanted=@();$handles=@();$guards=@()
-$backupIdResult=$null;$markerCreated=$false;$transaction=$null;$sourceStreams=@();$sourceTexts=@{}
+$backupIdResult=$null;$markerCreated=$false;$transaction=$null;$sourceStreams=@();$sourceTexts=@{};$marker=$null
 $sections=[Security.AccessControl.AccessControlSections]::All
 function Get-FixedTargets([string]$root) {
  @([pscustomobject]@{path=(Join-Path $root 'production');directory=$true},
@@ -327,7 +327,11 @@ try {
  $known=@('APPROVAL_REJECTED','ARTIFACT_REJECTED','ADMIN_REQUIRED','SOURCE_REJECTED','MAIN_CI_REQUIRED','OWNER_BOUNDARY_REJECTED',
   'ACL_CANDIDATE_REJECTED','DACL_REJECTED','BASELINE_CHANGED','REPARSE_REJECTED','HARDLINK_REJECTED','HANDLE_REJECTED',
   'WRITE_REJECTED','BACKUP_REJECTED','RESTORE_REJECTED','RUNTIME_CHANGED','RECONCILIATION_REQUIRED')
- $reason=if($_.Exception.Message -in $known){$_.Exception.Message}else{'FIXED_REPAIR_FAILED'}
+ $failure=$_.Exception
+ while($null -ne $failure.InnerException){$failure=$failure.InnerException}
+ $nativeErrorCode=$null
+ if($failure.Message -match '^HANDLE_REJECTED_([0-9]+)$'){$nativeErrorCode=[int]$Matches[1];$failure=New-Object Exception('HANDLE_REJECTED')}
+ $reason=if($failure.Message -in $known){$failure.Message}else{'FIXED_REPAIR_FAILED'}
  if($changed -and $Phase -eq 'apply'){
   try{Restore-FixedRecords $targets $handles $records $wanted -EnforceExpiry;Assert-FixedGuards;Assert-FixedRuntime;$restored=$true
    if($markerCreated){Remove-Item -LiteralPath $marker -Force;$markerCreated=$false}
@@ -335,7 +339,8 @@ try {
  }
  @{version=1;issue=1662;repairIssue=1787;nodeId='zbook';phase=$Phase;failedStage=$stage;failureReason=$reason;
   permissionChanged=$changed;restored=$restored;backupId=$backupIdResult;
-  reconciliationRequired=($reason -eq 'RECONCILIATION_REQUIRED' -or ($changed -and -not $restored));
+  nativeErrorCode=$nativeErrorCode;intentPending=($null -ne $marker -and (Test-Path -LiteralPath $marker));
+  reconciliationRequired=(($null -ne $marker -and (Test-Path -LiteralPath $marker)) -or $reason -eq 'RECONCILIATION_REQUIRED' -or ($changed -and -not $restored));
   observedAt=[datetimeoffset]::UtcNow.ToString('o')} | ConvertTo-Json -Compress
  exit 1
 }finally{

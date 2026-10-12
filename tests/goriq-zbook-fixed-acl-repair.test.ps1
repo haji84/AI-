@@ -19,7 +19,7 @@ Import-FixedFunctions (Get-Content -LiteralPath $backupSource -Raw) @('Write-Bou
 $identity=[Security.Principal.WindowsIdentity]::GetCurrent()
 $user=$identity.User.Value;$reader='S-1-1-0'
 $fixture=Join-Path ([IO.Path]::GetTempPath()) ('goriq-fixed-fixture-'+[guid]::NewGuid().ToString('N'))
-$handles=@();$guard=$null;$link=$null;$location=Get-Location;$nativeLocation=[Environment]::CurrentDirectory
+$handles=@();$guard=$null;$dependencyGuard=$null;$link=$null;$location=Get-Location;$nativeLocation=[Environment]::CurrentDirectory
 try {
  $null=New-Item -ItemType Directory -Path $fixture
  $acl=New-Object Security.AccessControl.DirectorySecurity
@@ -48,15 +48,36 @@ try {
  $null=New-Item -ItemType SymbolicLink -Path $link -Target $outside
  $untouched=@($fixture,$deps,$outside,$file,$alias,$link);$before=@{}
  foreach($p in $untouched){$before[$p]=(Get-Acl -LiteralPath $p -Audit).Sddl}
- Set-Location $targets[2].path
+ $cwdBefore=@{}
+ foreach($entry in $targets){$cwdBefore[$entry.path]=(Get-Acl -LiteralPath $entry.path -Audit).Sddl}
  [Environment]::CurrentDirectory=$targets[2].path
  if([Environment]::CurrentDirectory -cne $targets[2].path){throw 'native-cwd-not-set'}
+ $cwdRejected=$false
+ try{$cwdHandle=[GoriqFixedAclNative]::Open($targets[2].path,$true,$true);$cwdHandle.Dispose()}catch{
+  if($_.Exception.InnerException.Message -cne 'HANDLE_REJECTED_32'){throw};$cwdRejected=$true
+ }
+ if(-not $cwdRejected){throw 'native-cwd-sharing-assumption-changed'}
+ foreach($entry in $targets){if((Get-Acl -LiteralPath $entry.path -Audit).Sddl -cne $cwdBefore[$entry.path]){throw 'cwd-refusal-mutated-acl'}}
+ foreach($entry in @($targets | Where-Object {-not $_.directory})){
+  if((Get-FixedHash $entry.path) -cne (Get-FixedHash $file)){throw 'cwd-refusal-mutated-content'}
+ }
+ if(Test-Path -LiteralPath (Join-Path $fixture 'active.json')){throw 'cwd-refusal-created-intent'}
+ Write-Output 'Real native CWD: MAXIMUM_ALLOWED sharing refusal before ACL/content/intent mutation PASS; runtime compatibility remains UNSATISFIED'
+ [Environment]::CurrentDirectory=$nativeLocation
+ # Successful transaction case explicitly requires native CWD outside its targets.
+ $dependencyGuard=[GoriqFixedAclNative]::Open($deps,$false,$true)
  $records=@();$wanted=@()
  foreach($entry in $targets){
   $handle=[GoriqFixedAclNative]::Open($entry.path,$true,$entry.directory);$handles+=,$handle
   $record=Get-FixedRecord $entry $handle
   $records+=,$record
   $wanted+=,(New-FixedDescriptor $record.descriptor $user $reader $entry.directory)
+ }
+ # Production-equivalent descendant pins must prevent each directory rename.
+ foreach($entry in @($targets | Where-Object {$_.directory})){
+  $rejected=$false
+  try{[IO.Directory]::Move($entry.path,($entry.path+'.moved'))}catch{$rejected=$true}
+  if(-not $rejected){throw 'fixed-directory-pin-insufficient'}
  }
  # Pinned target cannot be renamed while a transaction owns its handle.
  $rejected=$false
@@ -126,6 +147,18 @@ try {
  $rejected=$false
  try{Write-FixedTransaction $backup $marker $transaction $id}catch{$rejected=$true}
  if(-not $rejected -or (Get-FixedHash $backup) -cne $originalBackup -or (Get-FixedHash $marker) -cne $originalMarker){throw 'fixed-pending-transaction-overwritten'}
+ $freshBackup=Join-Path $fixture 'fresh-before.dpapi'
+ $rejected=$false
+ try{Write-FixedTransaction $freshBackup $marker $transaction ([guid]::NewGuid().ToString('N'))}catch{$rejected=$true}
+ if(-not $rejected -or (Get-FixedHash $marker) -cne $originalMarker){throw 'fixed-active-marker-overwritten'}
+ # Failure after durable intent flush leaves a reconciliation record, no target writes.
+ $flushBackup=Join-Path $fixture 'flush-before.dpapi';$flushMarker=Join-Path $fixture 'flush-active.json'
+ $savedRead=(Get-Item Function:Read-FixedTransaction).ScriptBlock
+ Set-Item Function:Read-FixedTransaction -Value {throw 'injected-readback-failure'}
+ $rejected=$false
+ try{Write-FixedTransaction $flushBackup $flushMarker $transaction ([guid]::NewGuid().ToString('N'))}catch{$rejected=$true}
+ finally{Set-Item Function:Read-FixedTransaction -Value $savedRead}
+ if(-not $rejected -or -not(Test-Path -LiteralPath $flushMarker)){throw 'fixed-post-flush-intent-lost'}
  $rejected=$false
  try{$null=Read-FixedTransaction $backup $marker ([guid]::NewGuid().ToString('N'))}catch{$rejected=$true}
  if(-not $rejected){throw 'fixed-wrong-backup-accepted'}
@@ -156,12 +189,13 @@ try {
  $rejected=$false
  try{[IO.Directory]::Move($outside,($outside+'.moved'))}catch{$rejected=$true}
  if(-not $rejected){throw 'fixed-ancestor-renamed'}
- Write-Output 'Fixed five-object no-propagation, all partial restoration, Deny/audit/content, CWD, pinned replacement and drift/link/callback refusal PASS'
+ Write-Output 'Fixed five-object no-propagation, all partial restoration, Deny/audit/content under compatible native CWD, pinned replacement and drift/link/callback refusal PASS'
 }finally{
  Set-Location $location
  [Environment]::CurrentDirectory=$nativeLocation
  foreach($handle in $handles){$handle.Dispose()}
  if($null -ne $guard){$guard.Dispose()}
+ if($null -ne $dependencyGuard){$dependencyGuard.Dispose()}
  if($null -ne $link -and (Test-Path -LiteralPath $link)){[IO.Directory]::Delete($link)}
  if(Test-Path -LiteralPath $fixture){Remove-Item -LiteralPath $fixture -Recurse -Force}
 }
