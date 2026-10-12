@@ -116,9 +116,13 @@ try {
   };
 
   let heartbeatFailure: Error | null = null;
+  // The fenced dry-run path may only inspect state. Do not register code-building
+  // capabilities until non-idempotent effects have a reconciliation contract.
   const registry = new CapabilityRegistry({ dryRun })
-    .register(createContextInspectCapability())
-    .register(createCodeBuilderCapability(createRuntimeBuilderRouter()));
+    .register(createContextInspectCapability());
+  if (!sqliteFenced && !fencedStorePath) {
+    registry.register(createCodeBuilderCapability(createRuntimeBuilderRouter()));
+  }
   const verifier: Verifier = {
     async verify({ result }) {
       if (heartbeatFailure) throw heartbeatFailure;
