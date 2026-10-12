@@ -6,7 +6,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $env:PSModulePath=Join-Path $PSHOME 'Modules'
 $stage='approval';$changed=$false;$restored=$false;$backupId=$null;$snapshot=$null
-$sections=[Security.AccessControl.AccessControlSections]'Owner,Group,Access'
+$sections=[Security.AccessControl.AccessControlSections]::All
 function Import-AclPredicates([string]$source) {
   # Reuse selectors, not the expired historical root-repair entry point.
   $tokens=$null;$errors=$null
@@ -30,7 +30,7 @@ function Assert-SameSnapshot([object[]]$before,[object[]]$after) {
   if($before.Count -ne $after.Count){throw 'BASELINE_CHANGED'}
   for($i=0;$i -lt $before.Count;$i++){
     if($before[$i].path -cne $after[$i].path -or $before[$i].descriptor -cne $after[$i].descriptor -or
-      $before[$i].directory -ne $after[$i].directory){throw 'BASELINE_CHANGED'}
+      $before[$i].directory -ne $after[$i].directory -or $before[$i].identity -cne $after[$i].identity){throw 'BASELINE_CHANGED'}
   }
 }
 function Write-BoundaryBackup([string]$path,[string]$plain) {
@@ -43,6 +43,34 @@ function Write-BoundaryBackup([string]$path,[string]$plain) {
   $decoded=[Security.Cryptography.ProtectedData]::Unprotect([IO.File]::ReadAllBytes($path),$null,
     [Security.Cryptography.DataProtectionScope]::CurrentUser)
   if([Text.Encoding]::UTF8.GetString($decoded) -cne $plain){throw 'BACKUP_REJECTED'}
+}
+function Initialize-BoundaryFileInfo {
+  if('GoriqBoundaryFileInfo' -as [type]){return}
+  Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+using Microsoft.Win32.SafeHandles;
+public static class GoriqBoundaryFileInfo {
+  [StructLayout(LayoutKind.Sequential)] public struct Info {
+    public uint Attributes; public System.Runtime.InteropServices.ComTypes.FILETIME Creation;
+    public System.Runtime.InteropServices.ComTypes.FILETIME Access;
+    public System.Runtime.InteropServices.ComTypes.FILETIME Write;
+    public uint Volume, SizeHigh, SizeLow, Links, IndexHigh, IndexLow;
+  }
+  [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)]
+  static extern SafeFileHandle CreateFileW(string name, uint access, uint share, IntPtr security,
+    uint disposition, uint flags, IntPtr template);
+  [DllImport("kernel32.dll", SetLastError=true)]
+  static extern bool GetFileInformationByHandle(SafeFileHandle handle, out Info info);
+  public static Info Read(string path) {
+    using (var handle=CreateFileW(path,0x80,7,IntPtr.Zero,3,0x02200000,IntPtr.Zero)) {
+      Info info;
+      if(handle.IsInvalid || !GetFileInformationByHandle(handle,out info)) throw new Exception("FILE_INFO_REJECTED");
+      return info;
+    }
+  }
+}
+'@
 }
 function New-BoundaryDacl($acl,[string]$reader) {
   if($acl.AreAccessRulesProtected){throw 'BOUNDARY_REJECTED'}
@@ -59,6 +87,7 @@ function New-BoundaryDacl($acl,[string]$reader) {
   return $acl
 }
 function Get-BoundarySnapshot([string[]]$roots) {
+  Initialize-BoundaryFileInfo
   $records=New-Object 'Collections.Generic.List[object]'
   $pending=New-Object 'Collections.Generic.Stack[string]'
   foreach($root in $roots){$pending.Push($root)}
@@ -67,9 +96,13 @@ function Get-BoundarySnapshot([string[]]$roots) {
     $item=Get-Item -LiteralPath $path -Force -ErrorAction Stop
     # Never traverse or alter a junction/symlink or its target.
     if($item.Attributes -band [IO.FileAttributes]::ReparsePoint){throw 'REPARSE_REJECTED'}
-    $acl=Get-Acl -LiteralPath $path -ErrorAction Stop
+    $info=[GoriqBoundaryFileInfo]::Read($path)
+    if($info.Attributes -band 0x400){throw 'REPARSE_REJECTED'}
+    if(-not $item.PSIsContainer -and $info.Links -ne 1){throw 'HARDLINK_REJECTED'}
+    $acl=Get-Acl -LiteralPath $path -Audit -ErrorAction Stop
     $records.Add([pscustomobject]@{path=$path;directory=[bool]$item.PSIsContainer;
-      descriptor=$acl.GetSecurityDescriptorSddlForm([Security.AccessControl.AccessControlSections]'Owner,Group,Access')})
+      identity=('{0}:{1}:{2}' -f $info.Volume,$info.IndexHigh,$info.IndexLow);
+      descriptor=$acl.GetSecurityDescriptorSddlForm([Security.AccessControl.AccessControlSections]::All)})
     if($records.Count -gt 200000){throw 'SNAPSHOT_LIMIT'}
     if($item.PSIsContainer){
       foreach($child in @(Get-ChildItem -LiteralPath $path -Force -ErrorAction Stop)){$pending.Push($child.FullName)}
@@ -92,11 +125,28 @@ function Restore-BoundaryBaseline([object[]]$baseline,[string[]]$roots) {
   Assert-SameSnapshot $baseline (Get-BoundarySnapshot $roots)
 }
 function Get-ExpectedSnapshot([object[]]$baseline,[string[]]$roots,[string]$reader) {
+  $descriptors=@{}
+  foreach($entry in $baseline){$descriptors[$entry.path]=$entry.descriptor}
   $expected=@()
   foreach($entry in $baseline){
     $acl=if($entry.directory){New-Object Security.AccessControl.DirectorySecurity}else{New-Object Security.AccessControl.FileSecurity}
     $acl.SetSecurityDescriptorSddlForm($entry.descriptor,$sections)
     if($roots -ccontains $entry.path){$acl=New-BoundaryDacl $acl $reader}else{
+      # Protected descendants stop propagation, including all children below them.
+      $reachable=-not $acl.AreAccessRulesProtected
+      $parent=[IO.Path]::GetDirectoryName($entry.path)
+      while($reachable -and $roots -cnotcontains $parent){
+        if(-not $descriptors.ContainsKey($parent)){throw 'BOUNDARY_REJECTED'}
+        $parentRaw=New-Object Security.AccessControl.RawSecurityDescriptor($descriptors[$parent])
+        if($parentRaw.ControlFlags -band [Security.AccessControl.ControlFlags]::DiscretionaryAclProtected){$reachable=$false;break}
+        $parent=[IO.Path]::GetDirectoryName($parent)
+      }
+      if(-not $reachable){
+        $expected+=[pscustomobject]@{path=$entry.path;directory=$entry.directory;identity=$entry.identity;descriptor=$entry.descriptor}
+        continue
+      }
+      if(@($acl.GetAccessRules($true,$false,[Security.Principal.SecurityIdentifier]) | Where-Object {
+        $_.AccessControlType -eq 'Allow' -and $_.IdentityReference.Value -ceq $reader}).Count){throw 'BOUNDARY_REJECTED'}
       foreach($rule in @($acl.GetAccessRules($false,$true,[Security.Principal.SecurityIdentifier]))){
         if($rule.AccessControlType -eq 'Allow' -and $rule.IdentityReference.Value -ceq $reader){
           # Remove an inherited ACE in the expected descriptor only; never write it.
@@ -113,7 +163,7 @@ function Get-ExpectedSnapshot([object[]]$baseline,[string[]]$roots,[string]$read
         }
       }
     }
-    $expected+=[pscustomobject]@{path=$entry.path;directory=$entry.directory;descriptor=$acl.GetSecurityDescriptorSddlForm($sections)}
+    $expected+=[pscustomobject]@{path=$entry.path;directory=$entry.directory;identity=$entry.identity;descriptor=$acl.GetSecurityDescriptorSddlForm($sections)}
   }
   return $expected
 }
@@ -125,6 +175,10 @@ function Assert-RuntimeUnchanged {
   if($task.State -ne 'Running'){throw 'RUNTIME_CHANGED'}
   $health=Invoke-RestMethod -Uri 'http://127.0.0.1:8787/health' -TimeoutSec 5
   if($health.ok -ne $true){throw 'RUNTIME_CHANGED'}
+}
+function Assert-AncestorsUnchanged {
+  if((Get-Acl -LiteralPath $root -Audit).GetSecurityDescriptorSddlForm($sections) -cne $ancestorBefore -or
+    (Get-Acl -LiteralPath $env:USERPROFILE -Audit).GetSecurityDescriptorSddlForm($sections) -cne $profileBefore){throw 'ANCESTOR_CHANGED'}
 }
 try {
   $now=[datetimeoffset]::UtcNow
@@ -138,10 +192,15 @@ try {
   $principal=New-Object Security.Principal.WindowsPrincipal($identity)
   if(-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)){throw 'ADMIN_REQUIRED'}
   $stage='source';Write-Host ('ACL_BOUNDARY_STAGE='+$stage)
-  $head=(& git rev-parse HEAD).Trim()
+  $repository=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+  $head=(& git -C $repository rev-parse HEAD).Trim()
   if($LASTEXITCODE -ne 0 -or $head -cne $SourceRevision){throw 'SOURCE_REJECTED'}
-  & git diff --quiet HEAD -- scripts/goriq-zbook-acl-boundary-repair.ps1 scripts/goriq-zbook-owner-acl-repair.ps1
-  if($LASTEXITCODE -ne 0){throw 'SOURCE_REJECTED'}
+  foreach($relative in @('scripts/goriq-zbook-acl-boundary-repair.ps1','scripts/goriq-zbook-owner-acl-repair.ps1')){
+    $expectedBlob=(& git -C $repository rev-parse ($SourceRevision+':'+$relative)).Trim()
+    if($LASTEXITCODE -ne 0){throw 'SOURCE_REJECTED'}
+    $actualBlob=(& git -C $repository hash-object ('--path='+$relative) (Join-Path $repository $relative)).Trim()
+    if($LASTEXITCODE -ne 0 -or $actualBlob -cne $expectedBlob){throw 'SOURCE_REJECTED'}
+  }
   $main=Invoke-RestMethod -Uri 'https://api.github.com/repos/haji84/AI-/git/ref/heads/main' -TimeoutSec 15
   $runs=Invoke-RestMethod -Uri ('https://api.github.com/repos/haji84/AI-/actions/runs?head_sha='+$SourceRevision+'&event=push&per_page=100') -TimeoutSec 15
   if($main.object.sha -cne $SourceRevision -or -not @($runs.workflow_runs | Where-Object {
@@ -157,8 +216,8 @@ try {
   foreach($path in @($env:USERPROFILE,$root,$production,$releases,$oldRoot,$config,$launcher)){
     Assert-OwnedNative $path $identity
   }
-  $ancestorBefore=(Get-Acl -LiteralPath $root).GetSecurityDescriptorSddlForm($sections)
-  $profileBefore=(Get-Acl -LiteralPath $env:USERPROFILE).GetSecurityDescriptorSddlForm($sections)
+  $ancestorBefore=(Get-Acl -LiteralPath $root -Audit).GetSecurityDescriptorSddlForm($sections)
+  $profileBefore=(Get-Acl -LiteralPath $env:USERPROFILE -Audit).GetSecurityDescriptorSddlForm($sections)
   $facts=@(Get-RuleFacts (Get-Acl -LiteralPath $root) $identity)
   $candidate=Select-RepairCandidate $facts
   if([long]$candidate.rule.FileSystemRights -ne 0x1200A9 -or
@@ -194,14 +253,18 @@ try {
     if([datetimeoffset]::UtcNow -ge [datetimeoffset]::Parse('2026-10-13T11:12:13.845Z')){throw 'APPROVAL_REJECTED'}
     $stage='isolate';Write-Host ('ACL_BOUNDARY_STAGE='+$stage)
     foreach($path in $roots){
-      $acl=New-BoundaryDacl (Get-Acl -LiteralPath $path) $candidate.sidValue
+      Assert-OwnedNative $path $identity
+      Assert-AncestorsUnchanged
+      $acl=Get-Acl -LiteralPath $path -Audit
+      $original=@($snapshot | Where-Object {$_.path -ceq $path})
+      if($original.Count -ne 1 -or $acl.GetSecurityDescriptorSddlForm($sections) -cne $original[0].descriptor){throw 'BASELINE_CHANGED'}
+      $acl=New-BoundaryDacl $acl $candidate.sidValue
       $changed=$true
       Set-Acl -LiteralPath $path -AclObject $acl
     }
     $stage='verify';Write-Host ('ACL_BOUNDARY_STAGE='+$stage)
     Assert-SameSnapshot $expected (Get-BoundarySnapshot $roots)
-    if((Get-Acl -LiteralPath $root).GetSecurityDescriptorSddlForm($sections) -cne $ancestorBefore -or
-      (Get-Acl -LiteralPath $env:USERPROFILE).GetSecurityDescriptorSddlForm($sections) -cne $profileBefore){throw 'ANCESTOR_CHANGED'}
+    Assert-AncestorsUnchanged
     foreach($path in @($production,$releases,$oldRoot,$config,$launcher)){
       foreach($fact in @(Get-RuleFacts (Get-Acl -LiteralPath $path) $identity)){
         if($fact.accessType -eq 'Allow' -and -not $fact.approvedPrincipal){throw 'VERIFICATION_FAILED'}
@@ -216,13 +279,14 @@ try {
 }catch {
   $known=@('APPROVAL_REJECTED','ARTIFACT_REJECTED','ADMIN_REQUIRED','SOURCE_REJECTED','MAIN_CI_REQUIRED',
     'OWNER_BOUNDARY_REJECTED','ACL_CANDIDATE_REJECTED','BOUNDARY_REJECTED','BASELINE_CHANGED',
-    'REPARSE_REJECTED','SNAPSHOT_LIMIT','BACKUP_REJECTED','RUNTIME_CHANGED','ANCESTOR_CHANGED','VERIFICATION_FAILED')
+    'REPARSE_REJECTED','HARDLINK_REJECTED','SNAPSHOT_LIMIT','BACKUP_REJECTED','RUNTIME_CHANGED','ANCESTOR_CHANGED','VERIFICATION_FAILED')
   $reason=if($_.Exception.Message -in $known){$_.Exception.Message}else{'BOUNDARY_REPAIR_FAILED'}
   if($changed){
-    try{Restore-BoundaryBaseline $snapshot $roots;Assert-RuntimeUnchanged;$restored=$true}catch{$restored=$false}
+    try{Restore-BoundaryBaseline $snapshot $roots;Assert-RuntimeUnchanged;Assert-AncestorsUnchanged;$restored=$true}catch{$restored=$false}
   }
   @{version=1;issue=1662;repairIssue=1787;nodeId='zbook';phase=$Phase;failedStage=$stage;
     failureReason=$reason;permissionChanged=$changed;restored=$restored;backupId=$backupId;
     observedAt=[datetimeoffset]::UtcNow.ToString('o')} | ConvertTo-Json -Compress
   exit 1
 }finally{$snapshot=$null;$expected=$null;$candidate=$null;$plain=$null;$decoded=$null;$secure=$null;$encrypted=$null;$bytes=$null}
+  Add-Type -AssemblyName System.Security
