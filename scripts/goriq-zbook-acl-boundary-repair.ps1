@@ -34,6 +34,7 @@ function Assert-SameSnapshot([object[]]$before,[object[]]$after) {
   }
 }
 function Write-BoundaryBackup([string]$path,[string]$plain) {
+  Add-Type -AssemblyName System.Security
   # Raw CurrentUser DPAPI handles large tree baselines; SecureString has a size limit.
   $bytes=[Text.Encoding]::UTF8.GetBytes($plain)
   $encrypted=[Security.Cryptography.ProtectedData]::Protect($bytes,$null,
@@ -116,13 +117,19 @@ function Restore-BoundaryBaseline([object[]]$baseline,[string[]]$roots) {
     $entry=@($baseline | Where-Object {$_.path -ceq $root})
     if($entry.Count -ne 1){throw 'RESTORE_REJECTED'}
     $item=Get-Item -LiteralPath $root -Force -ErrorAction Stop
-    if($item.Attributes -band [IO.FileAttributes]::ReparsePoint){throw 'RESTORE_REJECTED'}
+    Assert-BoundaryIdentity $root $entry[0]
     $acl=Get-Acl -LiteralPath $root
     $acl.SetSecurityDescriptorSddlForm($entry[0].descriptor,[Security.AccessControl.AccessControlSections]::Access)
     Set-Acl -LiteralPath $root -AclObject $acl
   }
   # No explicit child ACL write. Restoration must match the captured entire trees.
   Assert-SameSnapshot $baseline (Get-BoundarySnapshot $roots)
+}
+function Assert-BoundaryIdentity([string]$path,$entry) {
+  $item=Get-Item -LiteralPath $path -Force -ErrorAction Stop
+  if(-not $item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)){throw 'BOUNDARY_REJECTED'}
+  $info=[GoriqBoundaryFileInfo]::Read($path)
+  if(($info.Attributes -band 0x400) -or ('{0}:{1}:{2}' -f $info.Volume,$info.IndexHigh,$info.IndexLow) -cne $entry.identity){throw 'BASELINE_CHANGED'}
 }
 function Get-ExpectedSnapshot([object[]]$baseline,[string[]]$roots,[string]$reader) {
   $descriptors=@{}
@@ -258,6 +265,7 @@ try {
       $acl=Get-Acl -LiteralPath $path -Audit
       $original=@($snapshot | Where-Object {$_.path -ceq $path})
       if($original.Count -ne 1 -or $acl.GetSecurityDescriptorSddlForm($sections) -cne $original[0].descriptor){throw 'BASELINE_CHANGED'}
+      Assert-BoundaryIdentity $path $original[0]
       $acl=New-BoundaryDacl $acl $candidate.sidValue
       $changed=$true
       Set-Acl -LiteralPath $path -AclObject $acl
@@ -289,4 +297,3 @@ try {
     observedAt=[datetimeoffset]::UtcNow.ToString('o')} | ConvertTo-Json -Compress
   exit 1
 }finally{$snapshot=$null;$expected=$null;$candidate=$null;$plain=$null;$decoded=$null;$secure=$null;$encrypted=$null;$bytes=$null}
-  Add-Type -AssemblyName System.Security
