@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { mkdtemp, mkdir, writeFile, symlink, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { collectNativeInventory, summarizeStatus } from '../scripts/goriq-pc-native-inventory.mjs';
 
 test('health summaries retain only typed status, time and PID facts', () => {
@@ -37,15 +40,27 @@ test('Windows inventory sanitizes scheduled-task and malformed status output', a
   const result = await collectNativeInventory({ platform: 'win32', home: 'C:/fixture', localAppData: 'C:/fixture/local',
     read: async () => '{broken SECRET', metadata: async () => ({ present: false }),
     run: async (command, args) => { commandText = args.join(' '); return { ok: true,
-      stdout: JSON.stringify([{ name: 'GAI-ZBook-Watchdog', state: 'Ready', actionCount: 1, secret: 'SECRET' },
+      stdout: JSON.stringify([{ name: 'GAI-ZBook-Watchdog', querySucceeded: true, state: 'Ready', actionCount: 1, secret: 'SECRET' },
         { name: 'SECRET', state: 'Ready' }]) }; },
   });
   assert.equal(result.bridge.readable, false);
   assert.equal(result.startup.tasks[1].state, 'Ready');
-  assert.equal(result.startup.tasks[0].available, false);
+  assert.equal(result.startup.tasks[0].available, null);
   assert.match(commandText, /Get-ScheduledTask/);
   assert.doesNotMatch(commandText, /Start-ScheduledTask|Stop-ScheduledTask|Register-ScheduledTask|Set-ScheduledTask/);
   assert.doesNotMatch(JSON.stringify(result), /SECRET|fixture/);
+});
+
+test('partial Windows query success preserves failed task lookup as unknown', async () => {
+  const result = await collectNativeInventory({ platform: 'win32', home: 'C:/fixture', localAppData: 'C:/fixture/local',
+    read: async () => { throw new Error('SECRET'); }, metadata: async () => ({ present: false }),
+    run: async () => ({ ok: true, stdout: JSON.stringify([
+      { name: 'GAI-ZBook-Watchdog', querySucceeded: true, state: 'Ready', actionCount: 1 },
+      { name: 'JARVIS Remote Host', querySucceeded: false },
+    ]) }) });
+  assert.equal(result.startup.tasks[1].available, true);
+  assert.equal(result.startup.tasks[3].available, null);
+  assert.equal(result.startup.tasks[3].state, 'Unknown');
 });
 
 test('unsupported OS and missing Windows state root fail closed', async () => {
@@ -62,4 +77,27 @@ test('failed task queries remain unknown rather than claiming tasks are absent',
     assert.equal(result.logs.watchdog.present, null);
     assert.doesNotMatch(JSON.stringify(result), /SECRET/);
   }
+});
+
+test('native reads reject symlinks and oversized status and inspect only the bounded log tail', async () => {
+  const home = await mkdtemp(join(tmpdir(), 'goriq-readonly-test-'));
+  try {
+    const bridgeRoot = join(home, '.ai-company');
+    const stateRoot = join(home, 'Library', 'Application Support', 'GAIWorker');
+    await mkdir(bridgeRoot, { recursive: true });
+    await mkdir(stateRoot, { recursive: true });
+    const bridgePath = join(bridgeRoot, 'chatgpt-bridge-health.json');
+    await writeFile(bridgePath, JSON.stringify({ status: 'idle', pid: 42, padding: 'x'.repeat(70000) }));
+    const logPath = join(stateRoot, 'macbook-watchdog.log');
+    await writeFile(logPath, 'EACCES\n' + 'x'.repeat(70000) + '\nECONNREFUSED\n');
+    const result = await collectNativeInventory({ platform: 'darwin', home, run: async () => ({ ok: false }) });
+    assert.equal(result.bridge.readable, false);
+    assert.equal(result.logs.watchdog.readable, true);
+    assert.deepEqual(result.logs.watchdog.errorCodes, ['ECONNREFUSED']);
+    await rm(bridgePath);
+    await symlink(logPath, bridgePath);
+    const linked = await collectNativeInventory({ platform: 'darwin', home, run: async () => ({ ok: false }) });
+    assert.equal(linked.bridge.readable, false);
+    assert.doesNotMatch(JSON.stringify(linked), /goriq-readonly-test-/);
+  } finally { await rm(home, { recursive: true, force: true }); }
 });

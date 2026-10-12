@@ -1,4 +1,5 @@
 import { execFile } from 'node:child_process';
+import { constants } from 'node:fs';
 import { open, lstat } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
@@ -23,10 +24,12 @@ export function summarizeStatus(value, now = Date.now()) {
 async function nativeRead(path, tail = false) {
   const info = await lstat(path);
   if (!info.isFile() || info.isSymbolicLink() || (!tail && info.size > 65536)) throw new Error('UNREADABLE');
-  const handle = await open(path, 'r');
+  const handle = await open(path, constants.O_RDONLY | constants.O_NONBLOCK | (constants.O_NOFOLLOW ?? 0));
   try {
+    const opened = await handle.stat();
+    if (!opened.isFile() || opened.dev !== info.dev || opened.ino !== info.ino || (!tail && opened.size > 65536)) throw new Error('FILE_CHANGED');
     const buffer = Buffer.alloc(65537);
-    const position = tail ? Math.max(0, info.size - 65536) : 0;
+    const position = tail ? Math.max(0, opened.size - 65536) : 0;
     const { bytesRead } = await handle.read(buffer, 0, tail ? 65536 : 65537, position);
     if (bytesRead > 65536) throw new Error('OVERSIZED');
     return buffer.subarray(0, bytesRead).toString('utf8').replace(/^\uFEFF/, '');
@@ -90,7 +93,7 @@ export async function collectNativeInventory({ platform = process.platform, home
         pid: result.ok === true ? positiveInteger(Number(result.stdout?.match(/^\s*pid = (\d+)\s*$/m)?.[1])) : null };
     }
   } else {
-    const script = "$ErrorActionPreference='Stop';@('GAI-ZBook-Runner-OnLogon','GAI-ZBook-Watchdog','GAI-ZBook-Runner-Supervisor','JARVIS Remote Host') | ForEach-Object { $t=Get-ScheduledTask -TaskName $_ -ErrorAction SilentlyContinue; if($t){ [pscustomobject]@{name=$_;state=[string]$t.State;actionCount=@($t.Actions).Count} } } | ConvertTo-Json -Compress";
+    const script = "$ErrorActionPreference='Stop';@('GAI-ZBook-Runner-OnLogon','GAI-ZBook-Watchdog','GAI-ZBook-Runner-Supervisor','JARVIS Remote Host') | ForEach-Object { $name=$_; try { $t=Get-ScheduledTask -TaskName $name -ErrorAction Stop; if(-not $t){throw 'UNAVAILABLE'}; [pscustomobject]@{name=$name;querySucceeded=$true;state=[string]$t.State;actionCount=@($t.Actions).Count} } catch { [pscustomobject]@{name=$name;querySucceeded=$false} } } | ConvertTo-Json -Compress";
     const result = await run('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script]);
     let tasks = [], queryReadable = false;
     try { const raw = JSON.parse(result.stdout?.replace(/^\uFEFF/, '') ?? 'null');
@@ -98,8 +101,8 @@ export async function collectNativeInventory({ platform = process.platform, home
       tasks = queryReadable ? (Array.isArray(raw) ? raw : [raw]) : []; } catch {}
     startup = { tasks: taskNames.map(name => {
       const matches = tasks.filter(task => task?.name === name);
-      const task = matches.length === 1 ? matches[0] : undefined;
-      return { name, available: queryReadable ? Boolean(task) : null, state: taskStates.has(task?.state) ? task.state : 'Unknown',
+      const task = matches.length === 1 && matches[0].querySucceeded === true ? matches[0] : undefined;
+      return { name, available: queryReadable && task ? true : null, state: taskStates.has(task?.state) ? task.state : 'Unknown',
         actionCount: Number.isSafeInteger(task?.actionCount) && task.actionCount >= 0 ? task.actionCount : null };
     }) };
   }
