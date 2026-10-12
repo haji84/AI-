@@ -173,7 +173,7 @@ function Assert-StoppedRollback {
     -not (Same-Bytes $launcherBytes ([IO.File]::ReadAllBytes($launcherPath)))){throw 'baseline-changed'}
   Assert-State-Preserved $before (Inspect-State 'inspect')
 }
-function Get-OwnedTree([string]$root,[bool]$requireHealthy=$true,[int[]]$requiredPorts=$ports) {
+function Get-OwnedTree([string]$root,[bool]$requireHealthy=$true,[int[]]$requiredPorts=@()) {
   try{$all=@(Get-CimInstance Win32_Process -OperationTimeoutSec 15 -ErrorAction Stop)}catch{throw 'process-query'}
   $hosts=@($all | Where-Object {$_.Name -eq 'node.exe' -and $_.CommandLine -and
     $_.CommandLine.Contains($root) -and $_.CommandLine.Contains('jarvis-remote-host.mjs')})
@@ -215,6 +215,16 @@ function Get-OwnedTree([string]$root,[bool]$requireHealthy=$true,[int[]]$require
     if($owner.ReturnValue -ne 0 -or $owner.Sid -ne $identity.User.Value){throw 'process-owner'}
   }
   $observedPorts=@($listeners | Select-Object -ExpandProperty LocalPort -Unique)
+  # Preserve all four listener ownership checks. Only the required set follows
+  # the authoritative runtime inspector's OS-observed private IP assignment.
+  # Unknown/untyped state fails closed; never infer "not assigned" on error.
+  if($requireHealthy -and $requiredPorts.Count -eq 0){
+    $privateState=Inspect-State 'inspect'
+    if($null -eq $privateState -or
+      $null -eq $privateState.PSObject.Properties['privateAddressAssigned'] -or
+      $privateState.privateAddressAssigned -isnot [bool]){throw 'private-address-query'}
+    $requiredPorts=if($privateState.privateAddressAssigned){@($ports)}else{@(3000,8787,8790)}
+  }
   if(($requireHealthy -and ($observedPorts.Count -ne $requiredPorts.Count -or
       @($requiredPorts | Where-Object {$observedPorts -notcontains $_}).Count)) -or
     @($listeners | Where-Object {$ids -notcontains [int]$_.OwningProcess}).Count){throw 'listeners'}
