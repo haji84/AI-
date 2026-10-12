@@ -169,3 +169,18 @@ test("only the reserving owner can confirm an external effect", () => {
     assert.throws(() => leases.confirmEffect(mac, "action-1", 1101), /STALE_CLAIM/);
   } finally { db.close(); }
 });
+
+test("recovery can inspect effect status without granting replay authority", () => {
+  const db = new DatabaseSync(":memory:");
+  try {
+    const leases = new CompassExecutionLease(db);
+    assert.equal(leases.effectStatus("goal", "action"), "UNRECORDED");
+    const mac = leases.claim("goal", "mac", 100, 1000);
+    leases.reserveEffect(mac, "action", 1001);
+    assert.equal(leases.effectStatus("goal", "action"), "PENDING");
+    const zbook = leases.claim("goal", "zbook", 100, 1100);
+    assert.equal(leases.effectStatus("goal", "action"), "PENDING");
+    assert.throws(() => leases.reserveEffect(zbook, "action", 1101), /RECONCILIATION_REQUIRED/);
+    assert.throws(() => leases.confirmEffect(zbook, "action", 1101), /RECONCILIATION_REQUIRED/);
+  } finally { db.close(); }
+});
