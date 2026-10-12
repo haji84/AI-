@@ -2933,7 +2933,7 @@
     },
     {
       "path": "src/compass/execution-lease.ts",
-      "sha256": "fa2502d34187a93ca4165366f44bd4d3879c552b2a6c7b73ac9b2a41d43c159c",
+      "sha256": "ca7be790efdb07d7826d0df9e58fd437f361c15a212ef07728ce7f1d949fd8e1",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-002",
