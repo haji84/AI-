@@ -139,3 +139,18 @@ test("released claim is fenced even if the old process remains alive", () => {
     assert.deepEqual(db.prepare("SELECT value FROM progress").all().map(row => ({ value: row.value })), [{ value: "valid" }]);
   } finally { db.close(); }
 });
+
+test("external effect intent persists and blocks replay after lease takeover", () => {
+  const db = new DatabaseSync(":memory:");
+  try {
+    const leases = new CompassExecutionLease(db);
+    const mac = leases.claim("goal", "mac", 100, 1000);
+    leases.reserveEffect(mac, "external-action-1", 1001);
+    assert.throws(() => leases.reserveEffect(mac, "external-action-1", 1002), /RECONCILIATION_REQUIRED/);
+    const zbook = leases.claim("goal", "zbook", 100, 1100);
+    assert.throws(() => leases.reserveEffect(zbook, "external-action-1", 1101), /RECONCILIATION_REQUIRED/);
+    assert.throws(() => leases.reserveEffect(mac, "external-action-2", 1101), /STALE_CLAIM/);
+    leases.reserveEffect(zbook, "external-action-2", 1101);
+    assert.equal(db.prepare("SELECT COUNT(*) AS count FROM compass_execution_effect").get()?.count, 2);
+  } finally { db.close(); }
+});
