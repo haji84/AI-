@@ -123,6 +123,7 @@ try{
     }
   }
   Assert-SameSnapshot $expected $actual
+  Write-Output 'Boundary expected descriptor projection PASS'
   foreach($root in $roots){
     $acl=Get-Acl -LiteralPath $root
     if(@($acl.GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier]) | Where-Object {
@@ -135,7 +136,9 @@ try{
       $_.AccessControlType -eq 'Deny' -and -not $_.IsInherited}).Count){throw 'deny-lost'}
   }
   Restore-BoundaryBaseline $before $roots
+  Write-Output 'Boundary full restore PASS'
   Assert-SameSnapshot $before (Get-BoundarySnapshot $roots)
+  Write-Output 'Boundary explicit reader refusal restoration PASS'
   # Explicit reader grants on a reachable descendant are outside this remedy.
   $child=Join-Path $roots[0] 'child'
   $childAcl=Get-Acl -LiteralPath $child
@@ -163,6 +166,7 @@ try{
     }
     if(-not $rejected){throw 'hardlink-not-rejected'}
   }finally{[IO.File]::Delete($alias)}
+  Write-Output 'Boundary hardlink refusal PASS'
   # A replacement with identical ACL must never receive the old boundary DACL.
   $moved=$roots[0]+'-moved'
   [IO.Directory]::Move($roots[0],$moved)
@@ -179,6 +183,7 @@ try{
     [IO.Directory]::Delete($roots[0])
     [IO.Directory]::Move($moved,$roots[0])
   }
+  Write-Output 'Boundary replacement refusal PASS'
   # Junctions must be rejected before inspecting/traversing their targets.
   $link=Join-Path $roots[0] 'junction'
   $null=New-Item -ItemType Junction -Path $link -Target $roots[1]
@@ -189,6 +194,7 @@ try{
     }
     if(-not $rejected){throw 'junction-not-rejected'}
   }finally{[IO.Directory]::Delete($link)}
+  Write-Output 'Boundary junction refusal PASS'
   # A failure after only the first boundary was written must restore both trees.
   Set-Acl -LiteralPath $roots[0] -AclObject (New-BoundaryDacl (Get-Acl -LiteralPath $roots[0]) $reader)
   Restore-BoundaryBaseline $before $roots
