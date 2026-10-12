@@ -154,3 +154,18 @@ test("external effect intent persists and blocks replay after lease takeover", (
     assert.equal(db.prepare("SELECT COUNT(*) AS count FROM compass_execution_effect").get()?.count, 2);
   } finally { db.close(); }
 });
+
+test("only the reserving owner can confirm an external effect", () => {
+  const db = new DatabaseSync(":memory:");
+  try {
+    const leases = new CompassExecutionLease(db);
+    const mac = leases.claim("goal", "mac", 100, 1000);
+    leases.reserveEffect(mac, "action-1", 1001);
+    leases.confirmEffect(mac, "action-1", 1002);
+    assert.equal(db.prepare("SELECT state FROM compass_execution_effect WHERE action_id = ?").get("action-1")?.state, "CONFIRMED");
+    assert.throws(() => leases.confirmEffect(mac, "action-1", 1003), /RECONCILIATION_REQUIRED/);
+    const zbook = leases.claim("goal", "zbook", 100, 1100);
+    assert.throws(() => leases.confirmEffect(zbook, "action-1", 1101), /RECONCILIATION_REQUIRED/);
+    assert.throws(() => leases.confirmEffect(mac, "action-1", 1101), /STALE_CLAIM/);
+  } finally { db.close(); }
+});
