@@ -29,7 +29,7 @@ async function main() {
   const baseSha = argument("base");
   const headSha = argument("head");
   const makerRole = argument("maker");
-  const model = argument("model") ?? process.env.GORIQ_OLLAMA_MODEL ?? "qwen2.5-coder:1.5b";
+  const model = argument("model") ?? process.env.GORIQ_OLLAMA_MODEL ?? "qwen2.5-coder:3b";
   const args = process.argv.slice(2);
   if (args.length !== 8 || !["--base", "--head", "--maker", "--model"].every(flag => args.includes(flag)) ||
       !revision(baseSha) || !revision(headSha) ||
