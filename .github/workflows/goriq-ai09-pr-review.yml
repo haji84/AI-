@@ -1,0 +1,126 @@
+name: GORIQ AI-09 Advisory PR Review
+
+# Deploy only from reviewed default-branch source. Do not execute PR code.
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+
+permissions: {}
+
+concurrency:
+  group: goriq-ai09-${{ github.event.workflow_run.pull_requests[0].number || github.event.workflow_run.id }}
+  cancel-in-progress: true
+
+jobs:
+  preflight:
+    if: github.event.workflow_run.event == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      eligible: ${{ steps.scope.outputs.eligible }}
+      repository: ${{ steps.scope.outputs.repository }}
+      pr_number: ${{ steps.scope.outputs.pr_number }}
+      base_sha: ${{ steps.scope.outputs.base_sha }}
+      head_sha: ${{ steps.scope.outputs.head_sha }}
+      trusted_sha: ${{ steps.scope.outputs.trusted_sha }}
+      ci_run_id: ${{ steps.scope.outputs.ci_run_id }}
+      ci_conclusion: ${{ steps.scope.outputs.ci_conclusion }}
+    steps:
+      - name: Checkout trusted default branch only
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+      - name: Validate exact CI and PR provenance
+        id: scope
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/goriq-ai09-preflight.mjs
+
+  review:
+    needs: [preflight]
+    if: needs.preflight.outputs.eligible == 'true'
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 7
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Checkout pinned trusted main reviewer code only
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.preflight.outputs.trusted_sha }}
+          persist-credentials: false
+          clean: true
+      - name: Verify local Node runtime
+        shell: pwsh
+        run: |
+          $node = node --version
+          if ($LASTEXITCODE -ne 0 -or $node -notmatch '^v24\.') { throw 'AI09_NODE_24_REQUIRED' }
+      - name: Review GitHub API diff using local model only
+        shell: pwsh
+        env:
+          GORIQ_AI09_REPOSITORY: ${{ needs.preflight.outputs.repository }}
+          GORIQ_AI09_PR_NUMBER: ${{ needs.preflight.outputs.pr_number }}
+          GORIQ_AI09_HEAD: ${{ needs.preflight.outputs.head_sha }}
+          GORIQ_AI09_BASE: ${{ needs.preflight.outputs.base_sha }}
+          GORIQ_AI09_TRUSTED_SHA: ${{ needs.preflight.outputs.trusted_sha }}
+          GORIQ_AI09_CI_RUN_ID: ${{ needs.preflight.outputs.ci_run_id }}
+          GORIQ_AI09_CI_CONCLUSION: ${{ needs.preflight.outputs.ci_conclusion }}
+          GORIQ_AI09_REPORT_FILE: ${{ runner.temp }}\goriq-ai09-report.json
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/goriq-ai09-ci-review.mjs
+      - name: Upload JSON review receipt only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: goriq-ai09-advisory
+          path: ${{ runner.temp }}\goriq-ai09-report.json
+          if-no-files-found: warn
+          retention-days: 3
+
+  comment:
+    needs: [preflight, review]
+    if: needs.preflight.outputs.eligible == 'true' && needs.review.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    # Only this GitHub-hosted job can WRITE, and only to Issue/PR comments.
+    permissions:
+      contents: read
+      pull-requests: read
+      actions: read
+      issues: write
+    steps:
+      - name: Checkout pinned trusted reviewer code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.preflight.outputs.trusted_sha }}
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+      - name: Download bounded advisory receipt only
+        uses: actions/download-artifact@v4
+        with:
+          name: goriq-ai09-advisory
+          path: ${{ runner.temp }}/goriq-ai09
+      - name: Revalidate current PR, patch and SHA then post advisory comment
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GORIQ_AI09_REPOSITORY: ${{ needs.preflight.outputs.repository }}
+          GORIQ_AI09_PR_NUMBER: ${{ needs.preflight.outputs.pr_number }}
+          GORIQ_AI09_HEAD: ${{ needs.preflight.outputs.head_sha }}
+          GORIQ_AI09_BASE: ${{ needs.preflight.outputs.base_sha }}
+          GORIQ_AI09_TRUSTED_SHA: ${{ needs.preflight.outputs.trusted_sha }}
+          GORIQ_AI09_CI_RUN_ID: ${{ needs.preflight.outputs.ci_run_id }}
+          GORIQ_AI09_RECEIPT_PATH: ${{ runner.temp }}/goriq-ai09/goriq-ai09-report.json
+        run: node scripts/goriq-ai09-post-review.mjs
