@@ -74,6 +74,9 @@ jobs:
           if ($env:RUNNER_OS -ne 'Windows' -or $env:RUNNER_ARCH -ne 'X64') {
             throw 'AI09_RUNNER_PLATFORM_NOT_AUTHORIZED'
           }
+          if ($env:RUNNER_ENVIRONMENT -ne 'self-hosted') {
+            throw 'AI09_RUNNER_ENVIRONMENT_NOT_AUTHORIZED'
+          }
           Write-Host 'AI09_EXPECTED_RUNNER_MATCHED'
       - name: Checkout pinned trusted main reviewer code only
         uses: actions/checkout@v4
