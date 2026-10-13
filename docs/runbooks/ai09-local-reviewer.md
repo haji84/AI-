@@ -14,7 +14,7 @@ Issue: #1796. Existing role: `.github/agents/reviewer.agent.md`.
 From a local checkout of the exact PR head, using Node.js 24.19+ and an already installed Ollama model:
 
 ```sh
-node scripts/goriq-ai09-review.mjs --base <40-hex-base-commit> --head <40-hex-PR-head-commit> --maker Builder --model qwen2.5-coder:1.5b
+node scripts/goriq-ai09-review.mjs --base <40-hex-base-commit> --head <40-hex-PR-head-commit> --maker Builder --model qwen2.5-coder:3b
 ```
 
 The CLI outputs a single JSON record containing reviewer ID, base/head SHA, patch SHA-256, changed paths, findings and blockers. Its `githubApprovalSatisfied`, `independentGitHubAccountVerified` and `mergeAuthorized` fields are always false. Blocked/inconclusive/findings outcomes exit nonzero.
