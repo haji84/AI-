@@ -193,7 +193,7 @@ test("privileged commenter refuses model-supplied secrets instead of relying on 
 test("oversized diff refuses before local model context is truncated", () => {
   const huge = {
     status: "ahead", ahead_by: 1, total_commits: 1,
-    files: [{ filename: "src/file.ts", patch: "@@ -1 +1 @@\n+" + "a".repeat(13 * 1024) }],
+    files: [{ filename: "src/file.ts", patch: "@@ -1 +1 @@\n+" + "a".repeat(17 * 1024) }],
   };
   assert.doesNotThrow(() => compareToPatch(huge, shaA, shaB));
   assert.throws(() => compareToReviewChunks(huge, shaA, shaB), /review_file_exceeds_context/);
@@ -203,7 +203,7 @@ test("oversized diff refuses before local model context is truncated", () => {
 test("large PRs are fully covered by bounded chunks without truncated evidence", () => {
   const files = Array.from({ length: 6 }, (_, i) => ({
     filename: "src/unit-" + i + ".ts",
-    patch: "@@ -0,0 +1,1 @@\n+" + String(i).repeat(6200),
+    patch: "@@ -0,0 +1,1 @@\n+" + String(i).repeat(9000),
   }));
   const compare = { status: "ahead", ahead_by: 1, total_commits: 1, files };
   const full = compareToReviewChunks(compare, shaA, shaB);
@@ -211,7 +211,7 @@ test("large PRs are fully covered by bounded chunks without truncated evidence",
   assert.equal(full.chunks.length, 6);
   assert.equal(full.chunks.map(c => c.patch).join("\n"), full.patch);
   for (const chunk of full.chunks) {
-    assert.ok(Buffer.byteLength(chunk.patch) <= 12 * 1024);
+    assert.ok(Buffer.byteLength(chunk.patch) <= 16 * 1024);
     assert.equal(chunk.paths.length, 1);
   }
   const scope = { headSha: shaB, baseSha: shaA, paths: full.paths, patchSha256: full.patchSha256 };
@@ -242,7 +242,7 @@ test("chunk findings trigger action and cannot be confused with a clean aggregat
   const compare = {
     status: "ahead", ahead_by: 1, total_commits: 1,
     files: ["a.ts", "b.ts"].map(filename => ({
-      filename, patch: "@@ -1 +1 @@\n+" + filename.repeat(1700),
+      filename, patch: "@@ -1 +1 @@\n+" + filename.repeat(2800),
     })),
   };
   const prepared = compareToReviewChunks(compare, shaA, shaB);
