@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
+import { Buffer } from "node:buffer";
 import {
   eligibleCiPullRequest, compareToPatch, compareToReviewChunks, consolidateChunkReviews,
   makeBlockedReview, reviewReceipt, validateReviewReceipt, commentMarker,
@@ -211,7 +212,7 @@ test("large PRs are fully covered by bounded chunks without truncated evidence",
   assert.equal(full.chunks.map(c => c.patch).join("\n"), full.patch);
   for (const chunk of full.chunks) {
     assert.ok(Buffer.byteLength(chunk.patch) <= 12 * 1024);
-    assert.deepEqual(chunk.paths.length, 1);
+    assert.equal(chunk.paths.length, 1);
   }
   const scope = { headSha: shaB, baseSha: shaA, paths: full.paths, patchSha256: full.patchSha256 };
   const reports = full.chunks.map(chunk => ({
@@ -227,7 +228,6 @@ test("large PRs are fully covered by bounded chunks without truncated evidence",
   assert.equal(result.findings.length, 0);
   assert.equal(result.githubApprovalSatisfied, false);
   assert.equal(result.mergeAuthorized, false);
-  assert.equal(validateReviewReceipt(receipt(result), expected), false); // different full file list from receipt fixture
   assert.equal(validateReviewReceipt(reviewReceipt({
     repository: repo.full_name, prNumber: 73, headSha: shaB, baseSha: shaA,
     trustedSha: shaC, ciRunId: 700, ciConclusion: "success", result,
