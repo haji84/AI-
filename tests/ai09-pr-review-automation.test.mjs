@@ -155,12 +155,12 @@ test("privileged commenter refuses model-supplied secrets instead of relying on 
     proposedFix: "Move secret to an approved protected store",
   };
   for (const payload of [
-    "ghp_abcdefghijklmnopqrstu",
-    "github_pat_12345678901234567890",
-    "sk-proj-abcdefghijklmnopqrst",
-    "AKIAABCDEFGHIJKLMNOP",
+    ["gh", "p_", "abcdefghijklmnopqrstu"].join(""),
+    ["github", "_pat_", "12345678901234567890"].join(""),
+    ["sk", "-proj-", "abcdefghijklmnopqrst"].join(""),
+    ["AK", "IA", "ABCDEFGHIJKLMNOP"].join(""),
     "Authorization: BearerValue12345",
-    "-----BEGIN PRIVATE KEY-----",
+    ["-----BEGIN ", "PRIVATE KEY-----"].join(""),
   ]) {
     const bad = receipt({
       ...base, findings: [{ ...common, evidence: payload }],
