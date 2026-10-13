@@ -3,6 +3,7 @@ import { readFileSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 import {
   SHA40, validateReviewReceipt, commentMarker, formatReviewComment, compareToPatch,
+  validCompletedCiRun,
 } from "../src/orchestrator/ai09-pr-review-automation.mjs";
 
 const repoPattern = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
@@ -54,6 +55,12 @@ async function run() {
   if (!stats.isFile() || stats.size < 100 || stats.size > 64 * 1024) throw new Error("invalid_receipt_size");
   const receipt = JSON.parse(readFileSync(c.artifactPath, "utf8"));
   if (!validateReviewReceipt(receipt, c)) throw new Error("untrusted_or_stale_review_receipt");
+  // Re-establish the CI verdict from GitHub, not from self-hosted output.
+  // No review claim is published if the completed run or PR link differs.
+  const ciRun = await githubApi(c, "/actions/runs/" + c.ciRunId);
+  if (!validCompletedCiRun(ciRun, { ...c, ciConclusion: receipt.ciConclusion })) {
+    throw new Error("untrusted_ci_verdict_or_pr_link");
+  }
   const pr = await githubApi(c, "/pulls/" + c.prNumber);
   if (pr?.state !== "open" || pr?.head?.sha !== c.headSha || pr?.base?.sha !== c.baseSha ||
     pr?.head?.repo?.full_name !== c.repository || pr?.base?.repo?.full_name !== c.repository) {
