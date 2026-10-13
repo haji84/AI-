@@ -4,7 +4,8 @@ import { resolve, dirname, basename } from "node:path";
 import { execFileSync } from "node:child_process";
 import { reviewLocalPatch } from "../src/orchestrator/ai09-local-reviewer.mjs";
 import {
-  SHA40, compareToPatch, makeBlockedReview, reviewReceipt, validateReviewReceipt,
+  SHA40, compareToReviewChunks, consolidateChunkReviews,
+  makeBlockedReview, reviewReceipt, validateReviewReceipt,
 } from "../src/orchestrator/ai09-pr-review-automation.mjs";
 
 const safeRepo = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
@@ -93,14 +94,22 @@ async function main() {
       diff?.commits?.at(-1)?.sha !== c.headSha) {
       throw new Error("comparison_revision_mismatch");
     }
-    const prepared = compareToPatch(diff, c.baseSha, c.headSha);
+    const prepared = compareToReviewChunks(diff, c.baseSha, c.headSha);
     scope.paths = prepared.paths;
     scope.patchSha256 = prepared.patchSha256;
-    result = await reviewLocalPatch({
-      baseSha: c.baseSha, headSha: c.headSha, makerRole: "Builder",
-      paths: prepared.paths, patch: prepared.patch,
-      infer: prompt => localInfer(c, prompt),
-    });
+    scope.reviewChunks = prepared.chunks.length;
+    const chunkReports = [];
+    for (const chunk of prepared.chunks) {
+      const chunkResult = await reviewLocalPatch({
+        baseSha: c.baseSha, headSha: c.headSha, makerRole: "Builder",
+        paths: chunk.paths, patch: chunk.patch,
+        infer: prompt => localInfer(c, prompt),
+      });
+      chunkReports.push(chunkResult);
+      if (chunkResult.status === "BLOCKED") break;
+    }
+    // No chunk can silently disappear, and no partial model review can pass.
+    result = consolidateChunkReviews(chunkReports, scope, prepared.chunks);
     const after = await githubGet(c, "/pulls/" + c.prNumber);
     if (!safePr(after, c)) throw new Error("pr_changed_during_review");
   } catch {
