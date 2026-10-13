@@ -30,6 +30,24 @@ export function eligibleCiPullRequest({ run, pr, repo, defaultBranch = "main" })
   );
 }
 
+export function validCompletedCiRun(run, expected) {
+  if (!run || typeof run !== "object" ||
+    run.id !== expected.ciRunId || run.name !== "CI" ||
+    run.event !== "pull_request" || run.status !== "completed" ||
+    !["success", "failure", "cancelled", "timed_out", "neutral", "skipped", "action_required"].includes(run.conclusion) ||
+    run.conclusion !== expected.ciConclusion ||
+    run.repository?.full_name !== expected.repository ||
+    run.head_sha !== expected.headSha ||
+    !Array.isArray(run.pull_requests)) return false;
+  return run.pull_requests.some(link =>
+    link.number === expected.prNumber &&
+    link.head?.sha === expected.headSha &&
+    link.base?.sha === expected.baseSha &&
+    link.head?.repo?.id === run.repository.id &&
+    link.base?.repo?.id === run.repository.id
+  );
+}
+
 export function compareToPatch(compare, baseSha, headSha) {
   if (!SHA40.test(baseSha) || !SHA40.test(headSha) || baseSha === headSha ||
     !compare || !["ahead", "diverged"].includes(compare.status) ||
