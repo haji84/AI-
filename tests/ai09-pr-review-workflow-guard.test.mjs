@@ -66,6 +66,7 @@ test("review requires an owner-pinned ZBook runner before checkout", () => {
   assert.match(s, /\[StringComparison\]::Ordinal/);
   assert.match(s, /AI09_RUNNER_IDENTITY_NOT_AUTHORIZED/);
   assert.match(s, /AI09_RUNNER_PLATFORM_NOT_AUTHORIZED/);
+  assert.match(s, /AI09_RUNNER_ENVIRONMENT_NOT_AUTHORIZED/);
 });
 
 test("self-hosted review timeout can cover every bounded model chunk", () => {
