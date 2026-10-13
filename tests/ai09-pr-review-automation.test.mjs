@@ -7,7 +7,7 @@ import { assertCompleteComparison } from "../scripts/goriq-ai09-compare-coverage
 import {
   eligibleCiPullRequest, compareToPatch, compareToReviewChunks, consolidateChunkReviews,
   makeBlockedReview, reviewReceipt, validateReviewReceipt, commentMarker,
-  formatReviewComment, validCompletedCiRun,
+  formatReviewComment, validCompletedCiRun, hasAddedCredentialLogging,
 } from "../src/orchestrator/ai09-pr-review-automation.mjs";
 
 const shaA = "a".repeat(40), shaB = "b".repeat(40), shaC = "c".repeat(40);
@@ -266,6 +266,73 @@ test("large PRs are fully covered by bounded chunks without truncated evidence",
   assert.equal(consolidateChunkReviews([...reports.slice(0, 1), { ...reports[1], status: "BLOCKED" }, ...reports.slice(2)], scope, full.chunks).status, "BLOCKED");
   assert.equal(consolidateChunkReviews([{ ...reports[0], status: "INCONCLUSIVE" }, ...reports.slice(1)], scope, full.chunks).status, "INCONCLUSIVE");
   assert.equal(consolidateChunkReviews([{ ...reports[0], scope: { ...reports[0].scope, patchSha256: shaA } }, ...reports.slice(1)], scope, full.chunks).status, "BLOCKED");
+});
+
+
+test("deterministic guard blocks clean model verdict on added credential logging", () => {
+  const examples = [
+    "console.log(request.headers.authorization);",
+    "logger.info(req?.headers?.cookie);",
+    'console.warn(request.headers["Authorization"]);',
+  ];
+  for (const sample of examples) {
+    const compare = { status: "ahead", ahead_by: 1, files: [{
+      filename: "src/auth.js", patch: "@@ -0,0 +1 @@\n+" + sample,
+    }] };
+    const prepared = compareToReviewChunks(compare, shaA, shaB);
+    const scope = { baseSha: shaA, headSha: shaB, paths: prepared.paths,
+      patchSha256: prepared.patchSha256 };
+    const report = {
+      ...goodResult(),
+      scope: { baseSha: shaA, headSha: shaB,
+        paths: prepared.chunks[0].paths,
+        patchSha256: createHash("sha256").update(prepared.chunks[0].patch).digest("hex") },
+    };
+    assert.equal(hasAddedCredentialLogging(prepared.patch), true);
+    const result = consolidateChunkReviews([report], scope, prepared.chunks);
+    assert.equal(result.status, "BLOCKED");
+    assert.deepEqual(result.blockers, ["deterministic_sensitive_logging_risk"]);
+    assert.equal(result.mergeAuthorized, false);
+    assert.equal(validateReviewReceipt(receipt(result), expected), true);
+    assert.match(formatReviewComment(receipt(result)), /HOLD/);
+    assert.doesNotMatch(formatReviewComment(receipt(result)), /GitHub approval satisfied: YES/);
+  }
+});
+
+test("deterministic guard does not invent findings from safe, quoted, removed, or context lines", () => {
+  const safe = [
+    "diff --git a/src/a.js b/src/a.js\n@@ -0,0 +1 @@\n+export function add(a, b) { return a + b; }",
+    "diff --git a/src/a.js b/src/a.js\n@@ -1 +0,0 @@\n-console.log(request.headers.authorization);",
+    "diff --git a/src/a.js b/src/a.js\n@@ -1 +1 @@\n console.log(request.headers.authorization);\n+console.log('hello');",
+    "diff --git a/src/a.js b/src/a.js\n@@ -0,0 +1 @@\n+// console.log(request.headers.authorization);",
+    'diff --git a/src/a.js b/src/a.js\n@@ -0,0 +1 @@\n+console.log("example request.headers.authorization");',
+    'diff --git a/src/a.js b/src/a.js\n@@ -0,0 +1 @@\n+const example = "console.log(request.headers.authorization)";',
+  ];
+  for (const patch of safe) assert.equal(hasAddedCredentialLogging(patch), false);
+  assert.equal(hasAddedCredentialLogging("not a diff"), false);
+  assert.equal(hasAddedCredentialLogging(42), false);
+});
+
+test("model findings and inconclusive statuses retain their behavior under deterministic backstop", () => {
+  const compare = { status: "ahead", ahead_by: 1, files: [{
+    filename: "src/auth.js",
+    patch: "@@ -0,0 +1 @@\n+console.log(request.headers.authorization);",
+  }] };
+  const prepared = compareToReviewChunks(compare, shaA, shaB);
+  const scope = { baseSha: shaA, headSha: shaB,
+    paths: prepared.paths, patchSha256: prepared.patchSha256 };
+  const report = {
+    ...goodResult(), scope: { baseSha: shaA, headSha: shaB, paths: prepared.paths,
+      patchSha256: createHash("sha256").update(prepared.chunks[0].patch).digest("hex") },
+  };
+  assert.equal(consolidateChunkReviews(
+    [{ ...report, status: "INCONCLUSIVE" }], scope, prepared.chunks).status, "INCONCLUSIVE");
+  assert.equal(consolidateChunkReviews(
+    [{ ...report, status: "CHANGES_REQUESTED", findings: [{
+      path: "src/auth.js", line: 1, severity: "high",
+      summary: "Credential exposure", evidence: "Log writes auth header",
+      proposedFix: "Remove credential logging",
+    }] }], scope, prepared.chunks).status, "CHANGES_REQUESTED");
 });
 
 test("chunk findings trigger action and cannot be confused with a clean aggregate", () => {
