@@ -4737,6 +4737,16 @@
       "reason": "Declared adaptive-team-runner.ts responsibility implements/supports Dynamic Orchestration; Parallel / Adaptive / Multi-plan. Parent ownership is not functional or physical acceptance evidence."
     },
     {
+      "path": "src/orchestrator/ai09-local-reviewer.mjs",
+      "sha256": "d0cef721489a66e02b8086e985e67ff49374ded96df9d6a06f2fea9859f75544",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-010",
+        "CORE-011"
+      ],
+      "reason": "AI-09 local read-only PR review supports independent verification and evidence-bound assessment as advisory AI_ASSERTED output; no independent GitHub account or production acceptance is implied."
+    },
+    {
       "path": "src/orchestrator/approval-key.ts",
       "sha256": "d419cf1c2251cc29399f4ac348b13a3c0bb86bb5a7c99b221a52e45ce1d6822b",
       "classification": "COVERED_BY_REQUIREMENT",
