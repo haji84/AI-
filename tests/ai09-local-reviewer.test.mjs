@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { execFileSync } from "node:child_process";
+import process from "node:process";
 import { reviewLocalPatch } from "../src/orchestrator/ai09-local-reviewer.mjs";
 
 const baseSha = "a".repeat(40);
