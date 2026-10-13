@@ -43,8 +43,9 @@ foreach($name in @('Get-FixedTargets','New-FixedDescriptor','Initialize-FixedNat
      $current=$script:listenerTestPhases[$script:listenerReadCount-1]
    }
    foreach($port in $current){
-     if($port -is [pscustomobject]){$port}
-     else{[pscustomobject]@{LocalPort=[int]$port;OwningProcess=700;LocalAddress='127.0.0.1'}}
+     if($port -is [int]){[pscustomobject]@{LocalPort=$port;OwningProcess=700;LocalAddress='127.0.0.1'}}
+     elseif($null -ne $port -and $null -ne $port.PSObject.Properties['LocalPort']){$port}
+     else{throw 'listener-fixture-invalid-port-shape'}
    }
  }
  function Inspect-State {
@@ -57,6 +58,7 @@ foreach($name in @('Get-FixedTargets','New-FixedDescriptor','Initialize-FixedNat
    $script:listenerTestState
  }
  try {
+   Write-Output 'Listener fixture: first healthy baseline'
    if(@(Get-OwnedTree 'fixture-release').Count -ne 1){throw 'listener-three-port-rejected'}
    $script:listenerTestState=[pscustomobject]@{privateAddressAssigned=$true}
    $rejected=$false
@@ -80,6 +82,7 @@ foreach($name in @('Get-FixedTargets','New-FixedDescriptor','Initialize-FixedNat
      }
      if(-not $rejected){throw 'listener-unknown-private-state-accepted'}
    }
+   Write-Output 'Listener fixture: inspector exception and outsider ownership'
    $script:inspectionError=$true
    $rejected=$false
    try{$null=Get-OwnedTree 'fixture-release'}catch{
@@ -109,6 +112,7 @@ foreach($name in @('Get-FixedTargets','New-FixedDescriptor','Initialize-FixedNat
    if(@(Get-OwnedTree 'fixture-release' $false).Count -ne 1 -or
      $script:inspectionCount -ne 0){throw 'listener-recovery-mode-regressed'}
    $script:inspectionError=$false
+   Write-Output 'Listener fixture: IP transition cases'
    # Deliberately alter OS address state during the two-sample preflight.
    foreach($transition in @(@($false,$true),@($true,$false))){
      $script:listenerTestStates=@()
@@ -122,6 +126,7 @@ foreach($name in @('Get-FixedTargets','New-FixedDescriptor','Initialize-FixedNat
      if(-not $rejected -or $script:inspectionCount -ne 2){throw 'listener-ip-transition-accepted'}
    }
    $script:listenerTestStates=@()
+   Write-Output 'Listener fixture: port transition cases'
    # A listener appearing or disappearing during the IP inspector also rejects.
    foreach($reverse in @($false,$true)){
      $script:listenerTestState=[pscustomobject]@{privateAddressAssigned=$reverse}
@@ -139,6 +144,7 @@ foreach($name in @('Get-FixedTargets','New-FixedDescriptor','Initialize-FixedNat
    $script:listenerTestPhases=@()
    $script:listenerTestPorts=@(3000,8787,8790)
    $script:listenerTestState=[pscustomobject]@{privateAddressAssigned=$false}
+   Write-Output 'Listener fixture: ownership transition case'
    # Rebinding an owned port to a new PID between listener samples must reject.
    $script:listenerTestPhases=@()
    $script:listenerTestPhases+=,@(3000,8787,8790)
