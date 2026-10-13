@@ -67,3 +67,12 @@ test("self-hosted review timeout can cover every bounded model chunk", () => {
   assert.ok(jobMillis >= worstInferenceMillis + 4 * 60_000,
     "review job must allow all model chunks plus finite overhead");
 });
+
+test("both trust boundaries reject incomplete API patches", () => {
+  const reviewer = readFileSync("scripts/goriq-ai09-ci-review.mjs", "utf8");
+  const poster = readFileSync("scripts/goriq-ai09-post-review.mjs", "utf8");
+  for (const script of [reviewer, poster]) {
+    assert.match(script, /import \{ assertCompleteComparison \}/);
+    assert.match(script, /assertCompleteComparison\(/);
+  }
+});
