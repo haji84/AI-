@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { readFileSync, writeFileSync } from "node:fs";
+import { writeFileSync } from "node:fs";
 import { resolve, dirname, basename } from "node:path";
 import { execFileSync } from "node:child_process";
 import { reviewLocalPatch } from "../src/orchestrator/ai09-local-reviewer.mjs";
