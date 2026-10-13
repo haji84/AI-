@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import {
-  eligibleCiPullRequest, compareToPatch, makeBlockedReview, reviewReceipt,
-  validateReviewReceipt, commentMarker, formatReviewComment, validCompletedCiRun,
+  eligibleCiPullRequest, compareToPatch, compareToReviewChunks, consolidateChunkReviews,
+  makeBlockedReview, reviewReceipt, validateReviewReceipt, commentMarker,
+  formatReviewComment, validCompletedCiRun,
 } from "../src/orchestrator/ai09-pr-review-automation.mjs";
 
 const shaA = "a".repeat(40), shaB = "b".repeat(40), shaC = "c".repeat(40);
@@ -74,7 +76,7 @@ test("GitHub compare payload produces bounded untrusted patch only", () => {
       { filename: "src/file.ts", patch: "@@ first" },
       { filename: "src/file.ts", patch: "@@ second" },
     ] },
-    { ...comparison, files: [{ filename: "src/file.ts", patch: "@@" + "a".repeat(66000) }] },
+    { ...comparison, files: [{ filename: "src/file.ts", patch: "@@" + "a".repeat(130 * 1024) }] },
   ]) {
     assert.throws(() => compareToPatch(invalid, shaA, shaB));
   }
@@ -192,7 +194,78 @@ test("oversized diff refuses before local model context is truncated", () => {
     status: "ahead", ahead_by: 1, total_commits: 1,
     files: [{ filename: "src/file.ts", patch: "@@ -1 +1 @@\n+" + "a".repeat(13 * 1024) }],
   };
-  assert.throws(() => compareToPatch(huge, shaA, shaB), /diff_exceeds_local_review_budget/);
+  assert.doesNotThrow(() => compareToPatch(huge, shaA, shaB));
+  assert.throws(() => compareToReviewChunks(huge, shaA, shaB), /review_file_exceeds_context/);
+});
+
+
+test("large PRs are fully covered by bounded chunks without truncated evidence", () => {
+  const files = Array.from({ length: 6 }, (_, i) => ({
+    filename: "src/unit-" + i + ".ts",
+    patch: "@@ -0,0 +1,1 @@\n+" + String(i).repeat(6200),
+  }));
+  const compare = { status: "ahead", ahead_by: 1, total_commits: 1, files };
+  const full = compareToReviewChunks(compare, shaA, shaB);
+  assert.equal(full.paths.length, files.length);
+  assert.equal(full.chunks.length, 6);
+  assert.equal(full.chunks.map(c => c.patch).join("\n"), full.patch);
+  for (const chunk of full.chunks) {
+    assert.ok(Buffer.byteLength(chunk.patch) <= 12 * 1024);
+    assert.deepEqual(chunk.paths.length, 1);
+  }
+  const scope = { headSha: shaB, baseSha: shaA, paths: full.paths, patchSha256: full.patchSha256 };
+  const reports = full.chunks.map(chunk => ({
+    ...goodResult(),
+    scope: {
+      baseSha: shaA, headSha: shaB,
+      paths: chunk.paths,
+      patchSha256: createHash("sha256").update(chunk.patch).digest("hex"),
+    },
+  }));
+  const result = consolidateChunkReviews(reports, scope, full.chunks);
+  assert.equal(result.status, "NO_ACTIONABLE_FINDINGS");
+  assert.equal(result.findings.length, 0);
+  assert.equal(result.githubApprovalSatisfied, false);
+  assert.equal(result.mergeAuthorized, false);
+  assert.equal(validateReviewReceipt(receipt(result), expected), false); // different full file list from receipt fixture
+  assert.equal(validateReviewReceipt(reviewReceipt({
+    repository: repo.full_name, prNumber: 73, headSha: shaB, baseSha: shaA,
+    trustedSha: shaC, ciRunId: 700, ciConclusion: "success", result,
+  }), expected), true);
+  assert.equal(consolidateChunkReviews(reports.slice(0, -1), scope, full.chunks).status, "BLOCKED");
+  assert.equal(consolidateChunkReviews([...reports.slice(0, 1), { ...reports[1], status: "BLOCKED" }, ...reports.slice(2)], scope, full.chunks).status, "BLOCKED");
+  assert.equal(consolidateChunkReviews([{ ...reports[0], status: "INCONCLUSIVE" }, ...reports.slice(1)], scope, full.chunks).status, "INCONCLUSIVE");
+  assert.equal(consolidateChunkReviews([{ ...reports[0], scope: { ...reports[0].scope, patchSha256: shaA } }, ...reports.slice(1)], scope, full.chunks).status, "BLOCKED");
+});
+
+test("chunk findings trigger action and cannot be confused with a clean aggregate", () => {
+  const compare = {
+    status: "ahead", ahead_by: 1, total_commits: 1,
+    files: ["a.ts", "b.ts"].map(filename => ({
+      filename, patch: "@@ -1 +1 @@\n+" + filename.repeat(1700),
+    })),
+  };
+  const prepared = compareToReviewChunks(compare, shaA, shaB);
+  assert.equal(prepared.chunks.length, 2);
+  const scope = { headSha: shaB, baseSha: shaA, paths: prepared.paths, patchSha256: prepared.patchSha256 };
+  const reports = prepared.chunks.map(chunk => ({
+    ...goodResult(), scope: {
+      headSha: shaB, baseSha: shaA, paths: chunk.paths,
+      patchSha256: createHash("sha256").update(chunk.patch).digest("hex"),
+    },
+  }));
+  reports[1] = {
+    ...reports[1], status: "CHANGES_REQUESTED",
+    findings: [{
+      path: "b.ts", line: 2, severity: "medium", summary: "review error",
+      evidence: "line 2 changed", proposedFix: "check validation",
+    }],
+    blockers: ["model_findings_require_action"],
+  };
+  const result = consolidateChunkReviews(reports, scope, prepared.chunks);
+  assert.equal(result.status, "CHANGES_REQUESTED");
+  assert.equal(result.findings[0].path, "b.ts");
+  assert.equal(result.mergeAuthorized, false);
 });
 
 test("review process has no GitHub write token; publishing code is comment-only", () => {
