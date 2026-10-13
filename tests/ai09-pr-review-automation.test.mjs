@@ -3,7 +3,7 @@ import test from "node:test";
 import { readFileSync } from "node:fs";
 import {
   eligibleCiPullRequest, compareToPatch, makeBlockedReview, reviewReceipt,
-  validateReviewReceipt, commentMarker, formatReviewComment,
+  validateReviewReceipt, commentMarker, formatReviewComment, validCompletedCiRun,
 } from "../src/orchestrator/ai09-pr-review-automation.mjs";
 
 const shaA = "a".repeat(40), shaB = "b".repeat(40), shaC = "c".repeat(40);
@@ -99,6 +99,24 @@ test("AI_ASSERTED receipt cannot be elevated to authenticated approval", () => {
     { scope: { ...goodResult().scope, headSha: shaC } },
     { scope: { ...goodResult().scope, patchSha256: "not-a-hash" } },
   ]) assert.equal(validateReviewReceipt(receipt({ ...goodResult(), ...mutation }), expected), false);
+});
+
+
+test("GitHub-hosted commenter rejects forged CI verdict and stale run linkage", () => {
+  const complete = {
+    ...run, conclusion: "success",
+    repository: { ...run.repository, full_name: repo.full_name },
+  };
+  const evidence = { ...expected, ciConclusion: "success" };
+  assert.equal(validCompletedCiRun(complete, evidence), true);
+  assert.equal(validCompletedCiRun({ ...complete, conclusion: "failure" }, evidence), false);
+  assert.equal(validCompletedCiRun({ ...complete, status: "in_progress" }, evidence), false);
+  assert.equal(validCompletedCiRun({ ...complete, event: "push" }, evidence), false);
+  assert.equal(validCompletedCiRun({ ...complete, head_sha: shaC }, evidence), false);
+  assert.equal(validCompletedCiRun({ ...complete, repository: { ...complete.repository, full_name: "other/repository" } }, evidence), false);
+  assert.equal(validCompletedCiRun({ ...complete, pull_requests: [] }, evidence), false);
+  assert.equal(validCompletedCiRun({ ...complete, pull_requests: [{ ...complete.pull_requests[0], base: { ...complete.pull_requests[0].base, sha: shaC } }] }, evidence), false);
+  assert.equal(validCompletedCiRun({ ...complete, id: 701 }, evidence), false);
 });
 
 test("BLOCKED output has no authority and reports missing local model", () => {
