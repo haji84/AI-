@@ -53,6 +53,21 @@ test("only hosted publisher can write issue comments after successful review", (
   assert.doesNotMatch(s, /contents:\s*write|pull-requests:\s*write|actions:\s*write/);
 });
 
+
+test("review requires an owner-pinned ZBook runner before checkout", () => {
+  const s = job("review", "comment");
+  const identity = s.indexOf("- name: Verify owner-pinned ZBook runner name");
+  const checkout = s.indexOf("- name: Checkout pinned trusted main reviewer code only");
+  assert.ok(identity >= 0 && checkout > identity,
+    "runner identity must be checked before any checkout or model execution");
+  assert.match(s, /GORIQ_AI09_EXPECTED_RUNNER_NAME:\s*\$\{\{\s*vars\.GORIQ_AI09_EXPECTED_RUNNER_NAME\s*\}\}/);
+  assert.match(s, /IsNullOrWhiteSpace\(\$expected\)/);
+  assert.match(s, /\$env:RUNNER_NAME/);
+  assert.match(s, /\[StringComparison\]::Ordinal/);
+  assert.match(s, /AI09_RUNNER_IDENTITY_NOT_AUTHORIZED/);
+  assert.match(s, /AI09_RUNNER_PLATFORM_NOT_AUTHORIZED/);
+});
+
 test("self-hosted review timeout can cover every bounded model chunk", () => {
   const reviewJob = job("review", "comment");
   const timeoutMatch = reviewJob.match(/timeout-minutes:\s*(\d+)/);
