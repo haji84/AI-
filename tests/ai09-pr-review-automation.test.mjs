@@ -167,6 +167,35 @@ test("result shape rejects forged file and code-like data", () => {
 });
 
 
+
+test("hosted poster rejects forged BLOCKED diagnostic strings from untrusted artifacts", () => {
+  const blocked = makeBlockedReview(
+    { baseSha: shaA, headSha: shaB, paths: [] },
+    "review_prerequisite_or_model_unavailable",
+  );
+  assert.equal(validateReviewReceipt(receipt(blocked), expected), true);
+  for (const untrusted of [
+    "github_pat_" + "abcdefghijklmnopqrst",
+    "Authorization: " + "BearerValue12345",
+    "a".repeat(150),
+    "unknown_failure_reason",
+    "review_prerequisite_or_model_unavailable\n@everyone",
+  ]) {
+    assert.equal(validateReviewReceipt(receipt({
+      ...blocked, blockers: [untrusted],
+    }), expected), false);
+  }
+  assert.equal(validateReviewReceipt(receipt({
+    ...blocked, blockers: ["model_findings_require_action"],
+  }), expected), false);
+  assert.equal(validateReviewReceipt(receipt({
+    ...goodResult(), status: "INCONCLUSIVE", blockers: ["model_inconclusive"],
+  }), expected), true);
+  assert.equal(validateReviewReceipt(receipt({
+    ...goodResult(), status: "INCONCLUSIVE", blockers: ["untrusted"],
+  }), expected), false);
+});
+
 test("privileged commenter refuses model-supplied secrets instead of relying on redaction", () => {
   const base = {
     ...goodResult(), status: "CHANGES_REQUESTED", blockers: ["model_findings_require_action"],
