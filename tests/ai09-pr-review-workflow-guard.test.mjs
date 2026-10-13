@@ -92,3 +92,15 @@ test("both trust boundaries reject incomplete API patches", () => {
     assert.match(script, /assertCompleteComparison\(/);
   }
 });
+
+
+test("poster independently repeats deterministic risk check and both local defaults use 3b", () => {
+  const reviewer = readFileSync("scripts/goriq-ai09-ci-review.mjs", "utf8");
+  const local = readFileSync("scripts/goriq-ai09-review.mjs", "utf8");
+  const poster = readFileSync("scripts/goriq-ai09-post-review.mjs", "utf8");
+  assert.match(reviewer, /GORIQ_OLLAMA_MODEL\s*\|\|\s*"qwen2\.5-coder:3b"/);
+  assert.match(local, /GORIQ_OLLAMA_MODEL\s*\?\?\s*"qwen2\.5-coder:3b"/);
+  assert.match(poster, /hasAddedCredentialLogging\(trusted\.patch\)/);
+  assert.match(poster, /reviewerResult\.status === "NO_ACTIONABLE_FINDINGS"/);
+  assert.match(poster, /deterministic_sensitive_logging_risk/);
+});
