@@ -27,8 +27,11 @@ into the default branch. This runbook is not independent approval or ZBook proof
   Its value must be obtained from authenticated owner inspection of the
   intended registered ZBook runner. This workflow does NOT set it or change
   labels, machine privileges, ACLs or GitHub permissions.
-  A matched name alone still does NOT prove physical ZBook execution;
-  cross-check GitHub job runner metadata and actual ZBook evidence.
+  A matched name alone still does NOT prove physical ZBook execution:
+  GitHub documents that RUNNER_NAME need not be globally unique across runner
+  groups. Require RUNNER_ENVIRONMENT=self-hosted as a separate sanity check,
+  and cross-check the GitHub job's actual runner identity, runner group and
+  native ZBook evidence before treating the physical test as verified.
 
 ## Activation gates
 
