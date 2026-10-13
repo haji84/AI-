@@ -21,7 +21,7 @@ function config() {
     trustedSha: env.GORIQ_AI09_TRUSTED_SHA,
     ciRunId: Number(env.GORIQ_AI09_CI_RUN_ID),
     ciConclusion: env.GORIQ_AI09_CI_CONCLUSION,
-    modelName: env.GORIQ_OLLAMA_MODEL || "qwen2.5-coder:1.5b",
+    modelName: env.GORIQ_OLLAMA_MODEL || "qwen2.5-coder:3b",
     output: env.GORIQ_AI09_REPORT_FILE,
     temp: env.RUNNER_TEMP,
     token: env.GITHUB_TOKEN,
