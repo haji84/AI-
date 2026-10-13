@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { Buffer } from "node:buffer";
 
 const SHA = /^[a-f0-9]{40}$/;
 const REVIEWER_ID = "AI-09";
@@ -6,8 +7,15 @@ const MAX_DIFF_BYTES = 64 * 1024;
 const MAX_FILES = 30;
 const MAX_FINDINGS = 20;
 
+function hasUnexpectedControl(value, allowWhitespace = false) {
+  return [...value].some(character => {
+    const code = character.charCodeAt(0);
+    return code < 32 && (!allowWhitespace || ![9, 10, 13].includes(code));
+  });
+}
+
 function cleanText(value, max) {
-  if (typeof value !== "string" || !value.trim() || value.length > max || /[\x00-\x08\x0b\x0c\x0e-\x1f]/.test(value)) {
+  if (typeof value !== "string" || !value.trim() || value.length > max || hasUnexpectedControl(value, true)) {
     throw new Error("invalid_review_field");
   }
   return value.trim();
@@ -35,7 +43,7 @@ function validInput(input) {
   if (typeof input.makerRole !== "string" || !input.makerRole.trim() || input.makerRole.trim().toLowerCase() === REVIEWER_ID.toLowerCase()) return false;
   if (!Array.isArray(input.paths) || input.paths.length === 0 || input.paths.length > MAX_FILES) return false;
   if (new Set(input.paths).size !== input.paths.length) return false;
-  if (input.paths.some(path => typeof path !== "string" || path.length > 250 || !path || path.startsWith("/") || path.startsWith("-") || path.split("/").includes("..") || /[\x00-\x1f]/.test(path))) return false;
+  if (input.paths.some(path => typeof path !== "string" || path.length > 250 || !path || path.startsWith("/") || path.startsWith("-") || path.split("/").includes("..") || hasUnexpectedControl(path))) return false;
   if (typeof input.patch !== "string" || !input.patch || Buffer.byteLength(input.patch, "utf8") > MAX_DIFF_BYTES) return false;
   if (typeof input.infer !== "function") return false;
   return true;
