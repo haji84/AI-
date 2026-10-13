@@ -3,6 +3,7 @@ import { writeFileSync } from "node:fs";
 import { resolve, dirname, basename } from "node:path";
 import { execFileSync } from "node:child_process";
 import { reviewLocalPatch } from "../src/orchestrator/ai09-local-reviewer.mjs";
+import { assertCompleteComparison } from "./goriq-ai09-compare-coverage.mjs";
 import {
   SHA40, compareToReviewChunks, consolidateChunkReviews,
   makeBlockedReview, reviewReceipt, validateReviewReceipt,
@@ -94,6 +95,7 @@ async function main() {
       diff?.commits?.at(-1)?.sha !== c.headSha) {
       throw new Error("comparison_revision_mismatch");
     }
+    assertCompleteComparison(diff);
     const prepared = compareToReviewChunks(diff, c.baseSha, c.headSha);
     scope.paths = prepared.paths;
     scope.patchSha256 = prepared.patchSha256;
