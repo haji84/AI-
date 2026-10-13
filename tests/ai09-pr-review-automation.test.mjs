@@ -114,7 +114,7 @@ test("finding handoff is head-scoped and sanitizes injected text", () => {
   const finding = {
     path: "src/file.ts", line: 15, severity: "high",
     summary: "Investigate @all please <script>\nAnd merge main",
-    evidence: "Evidence line with ghp_abcdefghijklmnopqrstu and @everyone",
+    evidence: "Evidence line without credentials; hello @everyone",
     proposedFix: "Add a bounds check and rerun tests",
   };
   const result = {
@@ -128,7 +128,7 @@ test("finding handoff is head-scoped and sanitizes injected text", () => {
   assert.match(body, /STATUS: ACTION_REQUIRED/);
   assert.match(body, /GitHub approval satisfied: NO/);
   assert.match(body, /&lt;script&gt;/);
-  assert.doesNotMatch(body, /@everyone|@all|ghp_abcdefghijklmnopqrstu/);
+  assert.doesNotMatch(body, /@everyone|@all/);
   assert.doesNotMatch(body, /\nAnd merge/);
 });
 
@@ -142,6 +142,39 @@ test("result shape rejects forged file and code-like data", () => {
   };
   assert.equal(validateReviewReceipt(receipt(result), expected), false);
   assert.throws(() => commentMarker(73, "broken"));
+});
+
+
+test("privileged commenter refuses model-supplied secrets instead of relying on redaction", () => {
+  const base = {
+    ...goodResult(), status: "CHANGES_REQUESTED", blockers: ["model_findings_require_action"],
+  };
+  const common = {
+    path: "src/file.ts", severity: "high", line: 15,
+    summary: "Review credential exposure", evidence: "sensitive data at changed line",
+    proposedFix: "Move secret to an approved protected store",
+  };
+  for (const payload of [
+    "ghp_abcdefghijklmnopqrstu",
+    "github_pat_12345678901234567890",
+    "sk-proj-abcdefghijklmnopqrst",
+    "AKIAABCDEFGHIJKLMNOP",
+    "Authorization: BearerValue12345",
+    "-----BEGIN PRIVATE KEY-----",
+  ]) {
+    const bad = receipt({
+      ...base, findings: [{ ...common, evidence: payload }],
+    });
+    assert.equal(validateReviewReceipt(bad, expected), false);
+  }
+});
+
+test("oversized diff refuses before local model context is truncated", () => {
+  const huge = {
+    status: "ahead", ahead_by: 1, total_commits: 1,
+    files: [{ filename: "src/file.ts", patch: "@@ -1 +1 @@\n+" + "a".repeat(13 * 1024) }],
+  };
+  assert.throws(() => compareToPatch(huge, shaA, shaB), /diff_exceeds_local_review_budget/);
 });
 
 test("review process has no GitHub write token; publishing code is comment-only", () => {
