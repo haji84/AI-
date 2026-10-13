@@ -68,7 +68,7 @@ async function localInfer(config, prompt) {
     signal: AbortSignal.timeout(120000),
     body: JSON.stringify({
       model: config.modelName, stream: false, format: "json",
-      options: { temperature: 0, num_ctx: 8192 },
+      options: { temperature: 0, num_ctx: 32768 },
       messages: [{ role: "user", content: prompt }],
     }),
   });
