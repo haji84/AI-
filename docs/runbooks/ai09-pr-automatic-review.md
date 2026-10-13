@@ -33,6 +33,23 @@ into the default branch. This runbook is not independent approval or ZBook proof
   and cross-check the GitHub job's actual runner identity, runner group and
   native ZBook evidence before treating the physical test as verified.
 
+## Public-repository self-hosted runner risk
+
+GitHub's Secure use reference warns that publicly accessible repositories
+should almost never use persistent self-hosted runners. A same-repo PR filter
+and trusted pinned-main checkout reduce exposure for THIS workflow, but do
+not prove the ZBook is isolated from other jobs, users or internal services.
+Before activating this workflow, obtain and record owner-side evidence that
+the intended registered runner is correctly scoped, its other eligible
+workflows and access are controlled, and the host is suitably isolated from
+sensitive files/credentials and networks. Prefer dedicated, isolated runner
+capacity if it can be arranged through separately authorized changes.
+The RUNNER_NAME match alone cannot provide that evidence.
+
+Do NOT modify runner groups, labels, host ACLs, tokens, network access or
+repository visibility as part of this read-only review. Missing isolation
+evidence is an activation HOLD requiring the applicable separate Human Gate.
+
 ## Activation gates
 
 1. Re-read exact main SHA/tree, AGENTS, roadmap, state, Issues #1796/#1798,
