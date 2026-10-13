@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { readFileSync, statSync } from "node:fs";
 import { resolve } from "node:path";
+import { assertCompleteComparison } from "./goriq-ai09-compare-coverage.mjs";
 import {
   SHA40, validateReviewReceipt, commentMarker, formatReviewComment, compareToPatch,
   validCompletedCiRun,
@@ -73,6 +74,7 @@ async function run() {
     const compare = await githubApi(c, "/compare/" + c.baseSha + "..." + c.headSha);
     if (compare?.base_commit?.sha !== c.baseSha ||
       compare?.commits?.at(-1)?.sha !== c.headSha) throw new Error("comment_diff_revision_mismatch");
+    assertCompleteComparison(compare);
     const trusted = compareToPatch(compare, c.baseSha, c.headSha);
     const received = receipt.reviewerResult.scope;
     if (trusted.patchSha256 !== received.patchSha256 ||
