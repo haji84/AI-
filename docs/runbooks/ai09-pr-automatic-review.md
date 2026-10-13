@@ -19,9 +19,16 @@ into the default branch. This runbook is not independent approval or ZBook proof
 - Limits: 30 files, 120 KiB entire patch, 16 KiB per chunk, 12 chunks.
   Single oversize files fail closed. Maximum local inference timeout is
   120 seconds per chunk; Windows job timeout is 30 minutes.
-- Workflow runner selector is generic self-hosted Windows X64.
-  Its actual ZBook identity requires independent runtime evidence.
-  Workflow success alone does not prove the reviewer executed on ZBook.
+- Workflow selector is generic self-hosted Windows X64; to fail closed on
+  unexpected machines the FIRST review step compares RUNNER_NAME to repository
+  Actions variable GORIQ_AI09_EXPECTED_RUNNER_NAME. Missing/blank/mismatched
+  variable or wrong OS/arch blocks BEFORE checkout or Ollama inference.
+  This variable is not a secret, token, new credential or runner permission.
+  Its value must be obtained from authenticated owner inspection of the
+  intended registered ZBook runner. This workflow does NOT set it or change
+  labels, machine privileges, ACLs or GitHub permissions.
+  A matched name alone still does NOT prove physical ZBook execution;
+  cross-check GitHub job runner metadata and actual ZBook evidence.
 
 ## Activation gates
 
@@ -33,10 +40,13 @@ into the default branch. This runbook is not independent approval or ZBook proof
 3. Integrate PR #1797 first only if its gate passes. Retarget PR #1799
    to that new main, reconfirm all changed files and fresh CI. Obtain
    workflow/permission-change Human Gate for the current revision.
-4. Verify authorized Windows runner is ZBook, Node 24.x, local Ollama and
-   model present. Read-only checks (node --version and ollama list) are
-   safe within existing authority. Do not alter runner labels, tokens,
-   ACLs, processes or networking without authorization.
+4. Inspect the authorized registered ZBook runner identity and explicitly
+   set repository Actions variable GORIQ_AI09_EXPECTED_RUNNER_NAME to its
+   exact verified RUNNER_NAME only under owner-authorized repository settings.
+   If this variable is unset, the reviewer will deliberately HOLD.
+   Verify Node 24.x, local Ollama and model with read-only checks.
+   Do not alter runner labels, credentials, permissions, ACLs, processes
+   or networking without authorization.
 
 ## Disposable-PR native E2E, not yet completed
 
