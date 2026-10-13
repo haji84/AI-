@@ -125,7 +125,7 @@ test("GitHub-hosted commenter rejects forged CI verdict and stale run linkage", 
 
 test("BLOCKED output has no authority and reports missing local model", () => {
   const scope = { baseSha: shaA, headSha: shaB, paths: [] };
-  const report = receipt(makeBlockedReview(scope, "local_model_unavailable"));
+  const report = receipt(makeBlockedReview(scope, "review_prerequisite_or_model_unavailable"));
   assert.equal(validateReviewReceipt(report, expected), true);
   assert.match(formatReviewComment(report), /reviewer.*advisory/i);
   assert.match(formatReviewComment(report), /HOLD/);
