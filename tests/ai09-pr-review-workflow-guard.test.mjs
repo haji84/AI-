@@ -52,3 +52,17 @@ test("only hosted publisher can write issue comments after successful review", (
   assert.match(s, /node scripts\/goriq-ai09-post-review.mjs/);
   assert.doesNotMatch(s, /contents:\s*write|pull-requests:\s*write|actions:\s*write/);
 });
+
+test("self-hosted review timeout can cover every bounded model chunk", () => {
+  const reviewJob = job("review", "comment");
+  const timeoutMatch = reviewJob.match(/timeout-minutes:\\s*(\\d+)/);
+  const automation = readFileSync("src/orchestrator/ai09-pr-review-automation.mjs", "utf8");
+  const inference = readFileSync("scripts/goriq-ai09-ci-review.mjs", "utf8");
+  const chunkMatch = automation.match(/const MAX_CHUNKS = (\\d+);/);
+  const deadlineMatch = inference.match(/AbortSignal\\.timeout\\((\\d+)\\)/);
+  assert.ok(timeoutMatch && chunkMatch && deadlineMatch, "required bounded limits missing");
+  const jobMillis = Number(timeoutMatch[1]) * 60_000;
+  const worstInferenceMillis = Number(chunkMatch[1]) * Number(deadlineMatch[1]);
+  assert.ok(jobMillis >= worstInferenceMillis + 4 * 60_000,
+    "review job must allow all model chunks plus finite overhead");
+});
