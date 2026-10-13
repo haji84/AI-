@@ -33,6 +33,38 @@ into the default branch. This runbook is not independent approval or ZBook proof
   and cross-check the GitHub job's actual runner identity, runner group and
   native ZBook evidence before treating the physical test as verified.
 
+## Reviewer model and deterministic false-clean backstop
+
+The **proposed** default model for the local review CLI and CI reviewer is
+`qwen2.5-coder:3b` (already observed installed on ZBook). Earlier
+owner-supplied synthetic tests returned 3/3 expected verdicts for 3B and 0/3
+for 1.5B on ordinary arithmetic, obvious command injection and path traversal.
+That is a tiny non-blinded sample, NOT a verified vulnerability detection rate
+or approval to trust model-proposed code fixes. Model suggestions such as
+replacing `exec` with `execSync` are NOT automatically safe.
+
+A narrow static backstop examines **added** patch lines for direct
+`console.log(request.headers.authorization)`, direct credential-cookie
+logging, and comparable direct console/logger invocations. If every model
+chunk claims NO_ACTIONABLE_FINDINGS in the presence of a known pattern, the
+result becomes BLOCKED with fixed reason
+`deterministic_sensitive_logging_risk`. On the GitHub-hosted posting
+boundary, the same check is repeated on the independently reconstructed
+GitHub diff before a purported clean advisory can be published. This guard
+does not authorize a merge, execute a fix, or replace human/security review.
+
+Limitations: it intentionally avoids inferring executable JavaScript syntax
+from string literals or comments and does not detect every wrapped, aliased,
+multiline, or transformed credential leak. It is **not** a complete static
+analyzer, and safe output cannot establish overall code safety. Existing
+INCONCLUSIVE and CHANGES_REQUESTED flow is preserved; risky patches cannot
+be self-certified clean. Keep recovery bounded and review each new SHA.
+
+Any source/model-default changes after an exact-head owner authorization
+require fresh CI/review and *renewed* scope-bound permission/governance gate
+before main integration. Native ZBook PR-to-GitHub-comment E2E and shared
+runner isolation are separate outstanding acceptance criteria.
+
 ## Public-repository self-hosted runner risk
 
 GitHub's Secure use reference warns that publicly accessible repositories
