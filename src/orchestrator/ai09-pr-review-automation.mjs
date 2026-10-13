@@ -8,7 +8,7 @@ const MAX_FILES = 30;
 // Review all changed bytes, but feed the local model only bounded per-file
 // segments. Never silently truncate a patch or mark partial review as clean.
 const MAX_PATCH_BYTES = 120 * 1024;
-const MAX_CHUNK_BYTES = 12 * 1024;
+const MAX_CHUNK_BYTES = 16 * 1024;
 const MAX_CHUNKS = 12;
 const ALLOWED = new Set(["NO_ACTIONABLE_FINDINGS", "CHANGES_REQUESTED", "INCONCLUSIVE", "BLOCKED"]);
 
