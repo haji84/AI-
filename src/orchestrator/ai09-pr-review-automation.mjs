@@ -206,7 +206,29 @@ export function validateReviewReceipt(receipt, expected) {
     !["low", "medium", "high", "critical"].includes(f.severity) ||
     (f.line !== null && f.line !== undefined && (!Number.isSafeInteger(f.line) || f.line <= 0 || f.line > 500000)) ||
     ["summary", "evidence", "proposedFix"].some(k => typeof f[k] !== "string" || !f[k].trim() || f[k].length > 800 || hasControl(f[k]) || hasPotentialSecret(f[k])))) return false;
-  if (review.blockers.some(b => typeof b !== "string" || b.length > 250 || !b.trim() || hasControl(b))) return false;
+  // BLOCKED receipts can intentionally omit the patch digest and path list.
+  // Never print arbitrary self-hosted artifact text under that exception.
+  // Only locally generated, fixed diagnostic codes may reach hosted comments.
+  const blockerCodes = new Set([
+    "invalid_scope_or_self_review", "sensitive_paths_require_human_review",
+    "local_model_unavailable_or_invalid_response", "model_inconclusive",
+    "model_findings_require_action", "review_chunk_inconclusive",
+    "incomplete_model_review", "review_chunk_invalid_or_blocked",
+    "too_many_review_findings", "review_prerequisite_or_model_unavailable",
+  ]);
+  if (review.blockers.some(b => typeof b !== "string" || !blockerCodes.has(b))) return false;
+  if (review.status === "CHANGES_REQUESTED" &&
+    (review.blockers.length !== 1 || review.blockers[0] !== "model_findings_require_action")) return false;
+  if (review.status === "INCONCLUSIVE" &&
+    (review.blockers.length !== 1 ||
+      !["model_inconclusive", "review_chunk_inconclusive"].includes(review.blockers[0]))) return false;
+  if (review.status === "BLOCKED" &&
+    (review.blockers.length !== 1 || ![
+      "invalid_scope_or_self_review", "sensitive_paths_require_human_review",
+      "local_model_unavailable_or_invalid_response", "incomplete_model_review",
+      "review_chunk_invalid_or_blocked", "too_many_review_findings",
+      "review_prerequisite_or_model_unavailable",
+    ].includes(review.blockers[0]))) return false;
   return true;
 }
 
