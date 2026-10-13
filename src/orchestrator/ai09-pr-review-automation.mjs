@@ -113,6 +113,18 @@ export function compareToReviewChunks(compare, baseSha, headSha) {
   return { ...whole, chunks };
 }
 
+// Narrow deterministic backstop. Scan *added* executable lines only; deleted
+// lines, diff headers, comments, and examples in strings are not findings.
+// This intentionally catches only direct credential-header logging, not all
+// possible data leaks. A model's NO_FINDINGS cannot override this signal.
+export function hasAddedCredentialLogging(patch) {
+  if (typeof patch !== "string" || Buffer.byteLength(patch, "utf8") > MAX_PATCH_BYTES) return false;
+  const directLog = /^(?:console|logger|log)\.(?:log|debug|info|warn|error)\s*\(\s*(?:req|request)(?:\?\.|\.)headers(?:(?:\?\.|\.)(?:authorization|cookie)\b|\[\s*['"](?:authorization|cookie)['"]\s*\])/i;
+  return patch.split("\n").some(line =>
+    line.startsWith("+") && !line.startsWith("+++") &&
+    directLog.test(line.slice(1).trimStart()));
+}
+
 export function consolidateChunkReviews(reports, scope, chunks) {
   if (!Array.isArray(reports) || !Array.isArray(chunks) ||
     !chunks.length || chunks.length > MAX_CHUNKS || reports.length !== chunks.length) {
@@ -142,6 +154,12 @@ export function consolidateChunkReviews(reports, scope, chunks) {
   }
   const status = sawInconclusive ? "INCONCLUSIVE" :
     sawChanges ? "CHANGES_REQUESTED" : "NO_ACTIONABLE_FINDINGS";
+  // The backstop does not invent AI findings or authorize a fix.
+  // If a model incorrectly declares a known dangerous addition clean, HOLD.
+  if (status === "NO_ACTIONABLE_FINDINGS" &&
+    hasAddedCredentialLogging(chunks.map(chunk => chunk.patch).join("\n"))) {
+    return makeBlockedReview(scope, "deterministic_sensitive_logging_risk");
+  }
   return {
     version: 1, reviewer: "AI-09", scope,
     status, findings, blockers: status === "NO_ACTIONABLE_FINDINGS" ? [] :
@@ -215,6 +233,7 @@ export function validateReviewReceipt(receipt, expected) {
     "model_findings_require_action", "review_chunk_inconclusive",
     "incomplete_model_review", "review_chunk_invalid_or_blocked",
     "too_many_review_findings", "review_prerequisite_or_model_unavailable",
+    "deterministic_sensitive_logging_risk",
   ]);
   if (review.blockers.some(b => typeof b !== "string" || !blockerCodes.has(b))) return false;
   if (review.status === "CHANGES_REQUESTED" &&
@@ -227,7 +246,7 @@ export function validateReviewReceipt(receipt, expected) {
       "invalid_scope_or_self_review", "sensitive_paths_require_human_review",
       "local_model_unavailable_or_invalid_response", "incomplete_model_review",
       "review_chunk_invalid_or_blocked", "too_many_review_findings",
-      "review_prerequisite_or_model_unavailable",
+      "review_prerequisite_or_model_unavailable", "deterministic_sensitive_logging_risk",
     ].includes(review.blockers[0]))) return false;
   return true;
 }
