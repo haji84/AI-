@@ -3,6 +3,7 @@ import test from "node:test";
 import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { Buffer } from "node:buffer";
+import { assertCompleteComparison } from "../scripts/goriq-ai09-compare-coverage.mjs";
 import {
   eligibleCiPullRequest, compareToPatch, compareToReviewChunks, consolidateChunkReviews,
   makeBlockedReview, reviewReceipt, validateReviewReceipt, commentMarker,
@@ -277,4 +278,25 @@ test("review process has no GitHub write token; publishing code is comment-only"
   assert.match(poster, /\/issues\/" \+ c\.prNumber \+ "\/comments"/);
   assert.doesNotMatch(poster, /\/merge"|\/repos\/.*\/contents|actions\.dispatch/);
   assert.match(preflight, /eligibleCiPullRequest/);
+});
+
+test("GitHub API patch must match full per-file addition and deletion totals", () => {
+  const complete = { files: [{
+    filename: "src/example.ts",
+    additions: 2, deletions: 1,
+    patch: "@@ -1,1 +1,2 @@\n-old\n+first\n+++literal-code",
+  }] };
+  assert.doesNotThrow(() => assertCompleteComparison(complete));
+  assert.throws(() => assertCompleteComparison({
+    files: [{ ...complete.files[0], patch: "@@ -1,1 +1,2 @@\n-old\n+first" }],
+  }), /incomplete_github_patch/);
+  assert.throws(() => assertCompleteComparison({
+    files: [{ ...complete.files[0], additions: 3 }],
+  }), /incomplete_github_patch/);
+  assert.throws(() => assertCompleteComparison({
+    files: [{ ...complete.files[0], deletions: undefined }],
+  }), /unverifiable_patch_statistics/);
+  assert.throws(() => assertCompleteComparison({
+    files: [{ ...complete.files[0], patch: null }],
+  }), /unverifiable_patch_statistics/);
 });
