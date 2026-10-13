@@ -55,11 +55,12 @@ test("only hosted publisher can write issue comments after successful review", (
 
 test("self-hosted review timeout can cover every bounded model chunk", () => {
   const reviewJob = job("review", "comment");
-  const timeoutMatch = reviewJob.match(/timeout-minutes:\\s*(\\d+)/);
+  const timeoutMatch = reviewJob.match(/timeout-minutes:\s*(\d+)/);
   const automation = readFileSync("src/orchestrator/ai09-pr-review-automation.mjs", "utf8");
   const inference = readFileSync("scripts/goriq-ai09-ci-review.mjs", "utf8");
-  const chunkMatch = automation.match(/const MAX_CHUNKS = (\\d+);/);
-  const deadlineMatch = inference.match(/AbortSignal\\.timeout\\((\\d+)\\)/);
+  const chunkMatch = automation.match(/const MAX_CHUNKS = (\d+);/);
+  const modelFunction = inference.split("async function localInfer(")[1]?.split("\nasync function main()")[0];
+  const deadlineMatch = modelFunction?.match(/AbortSignal\.timeout\((\d+)\)/);
   assert.ok(timeoutMatch && chunkMatch && deadlineMatch, "required bounded limits missing");
   const jobMillis = Number(timeoutMatch[1]) * 60_000;
   const worstInferenceMillis = Number(chunkMatch[1]) * Number(deadlineMatch[1]);
