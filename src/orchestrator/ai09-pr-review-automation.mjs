@@ -116,7 +116,7 @@ export function commentMarker(prNumber, headSha) {
 function safeLine(value) {
   return String(value).replace(/[\r\n\t]/g, " ").replace(/@/g, "@\u200b")
     .replace(/</g, "&lt;").replace(/>/g, "&gt;")
-    .replace(/\u0060/g, "\\\u0060").replace(/([*_|\[\]])/g, "\\$1")
+    .replace(/\u0060/g, "\\\u0060").replace(/([*_|])/g, "\\$1").replaceAll("[", "\\[").replaceAll("]", "\\]")
     .replace(/(gh[pousr]_[A-Za-z0-9_]{12,}|sk-proj-[A-Za-z0-9_-]{12,}|AKIA[A-Z0-9]{16})/gi, "[REDACTED]")
     .slice(0, 1300);
 }
