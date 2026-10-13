@@ -82,3 +82,20 @@ negative cases, handoff receipt and recovery evidence to Issue/PR.
 - Authorized rollback requires a reviewed default-branch change, CI
   and explicit verification of workflow events, runner and comment state.
   A Git revert alone is not proof that external state was reversed.
+
+## Bootstrap transition record (2026-10-13 JST)
+
+- PR #1797 was merged with a narrow **owner-authorized one-time exception**
+  for the otherwise unavailable separate-account review. Exact merged main:
+  `83b1cc9cda738f00bae4f4d2dbe05c46fe6d1b81`. This is NOT
+  GitHub APPROVED by an independent account.
+- GitHub retargeted stacked PR #1799 to **main** automatically after that
+  merge. All old #1799 CI outcomes were for the earlier stacked base; they
+  cannot qualify the retargeted PR. A new exact-head/base CI and technical
+  review are mandatory before integration.
+- The #1797 exception **never** applies to #1799. The workflow trigger
+  and hosted `issues:write` permission still require their own separate
+  explicit governance Human Gate. This document only prepares testing and
+  cannot authorize workflow activation.
+- The existing main production-sync workflow is out of scope. Do not
+  use a merge or CI event as deployment authorization.
