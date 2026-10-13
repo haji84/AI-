@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import { assertCompleteComparison } from "./goriq-ai09-compare-coverage.mjs";
 import {
   SHA40, validateReviewReceipt, commentMarker, formatReviewComment, compareToPatch,
-  validCompletedCiRun,
+  validCompletedCiRun, hasAddedCredentialLogging,
 } from "../src/orchestrator/ai09-pr-review-automation.mjs";
 
 const repoPattern = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
@@ -80,6 +80,12 @@ async function run() {
     if (trusted.patchSha256 !== received.patchSha256 ||
       JSON.stringify(trusted.paths) !== JSON.stringify(received.paths)) {
       throw new Error("untrusted_review_patch_receipt");
+    }
+    // Re-evaluate independently on GitHub-hosted infrastructure.
+    // A forged clean receipt from the self-hosted worker must not pass.
+    if (receipt.reviewerResult.status === "NO_ACTIONABLE_FINDINGS" &&
+      hasAddedCredentialLogging(trusted.patch)) {
+      throw new Error("deterministic_sensitive_logging_risk");
     }
   } else if (receipt.reviewerResult.scope.paths.length > 0) {
     throw new Error("unverified_blocked_review_paths");
