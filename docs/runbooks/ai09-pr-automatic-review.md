@@ -10,7 +10,7 @@ into the default branch. This runbook is not independent approval or ZBook proof
 - Preflight and posting use GitHub-hosted workers. The Windows local-model job
   checks out only pinned trusted main source. Never execute PR-head code.
 - Local Ollama is fixed at 127.0.0.1:11434. Default model:
-  qwen2.5-coder:1.5b. No remote/paid model fallback.
+  qwen2.5-coder:3b. No remote/paid model fallback.
 - Only the hosted poster has issues:write, solely for advisory comments.
   Every receipt is AI_ASSERTED, never GitHub APPROVED or merge authorization.
 - The GitHub API patch must have all addition/deletion hunks according to
