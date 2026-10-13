@@ -5,7 +5,9 @@ export const SHA40 = /^[a-f0-9]{40}$/;
 const SHA256 = /^[a-f0-9]{64}$/;
 const REPO = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 const MAX_FILES = 30;
-const MAX_PATCH_BYTES = 64 * 1024;
+// Keep bounded patch data well below the local 8192-token model context budget.
+// Oversized changes require decomposition or a larger separately verified model.
+const MAX_PATCH_BYTES = 12 * 1024;
 const ALLOWED = new Set(["NO_ACTIONABLE_FINDINGS", "CHANGES_REQUESTED", "INCONCLUSIVE", "BLOCKED"]);
 
 export function eligibleCiPullRequest({ run, pr, repo, defaultBranch = "main" }) {
@@ -74,6 +76,12 @@ function hasControl(value) {
   return [...value].some(char => char.charCodeAt(0) < 32 && ![9, 10, 13].includes(char.charCodeAt(0)));
 }
 
+function hasPotentialSecret(value) {
+  // Untrusted model output must not be published when it resembles a credential.
+  // False positives safely block a comment rather than leaking private material.
+  return /(?:gh[pousr]_[A-Za-z0-9_]{12,}|github_pat_[A-Za-z0-9_]{12,}|sk-proj-[A-Za-z0-9_-]{12,}|AKIA[A-Z0-9]{16}|-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|(?:authorization|api[_ -]?key|secret|password|access[_ -]?token)\s*[:=]\s*[^\s,;]{8,})/i.test(value);
+}
+
 export function validateReviewReceipt(receipt, expected) {
   if (!receipt || typeof receipt !== "object" || Array.isArray(receipt) ||
     receipt.schemaVersion !== 1 || receipt.repository !== expected.repository ||
@@ -103,7 +111,7 @@ export function validateReviewReceipt(receipt, expected) {
   if (review.findings.some(f => !f || !paths.includes(f.path) ||
     !["low", "medium", "high", "critical"].includes(f.severity) ||
     (f.line !== null && f.line !== undefined && (!Number.isSafeInteger(f.line) || f.line <= 0 || f.line > 500000)) ||
-    ["summary", "evidence", "proposedFix"].some(k => typeof f[k] !== "string" || !f[k].trim() || f[k].length > 800 || hasControl(f[k])))) return false;
+    ["summary", "evidence", "proposedFix"].some(k => typeof f[k] !== "string" || !f[k].trim() || f[k].length > 800 || hasControl(f[k]) || hasPotentialSecret(f[k])))) return false;
   if (review.blockers.some(b => typeof b !== "string" || b.length > 250 || !b.trim() || hasControl(b))) return false;
   return true;
 }
