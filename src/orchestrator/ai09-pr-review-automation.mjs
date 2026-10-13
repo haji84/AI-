@@ -5,9 +5,11 @@ export const SHA40 = /^[a-f0-9]{40}$/;
 const SHA256 = /^[a-f0-9]{64}$/;
 const REPO = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 const MAX_FILES = 30;
-// Keep bounded patch data well below the local 8192-token model context budget.
-// Oversized changes require decomposition or a larger separately verified model.
-const MAX_PATCH_BYTES = 12 * 1024;
+// Review all changed bytes, but feed the local model only bounded per-file
+// segments. Never silently truncate a patch or mark partial review as clean.
+const MAX_PATCH_BYTES = 120 * 1024;
+const MAX_CHUNK_BYTES = 12 * 1024;
+const MAX_CHUNKS = 12;
 const ALLOWED = new Set(["NO_ACTIONABLE_FINDINGS", "CHANGES_REQUESTED", "INCONCLUSIVE", "BLOCKED"]);
 
 export function eligibleCiPullRequest({ run, pr, repo, defaultBranch = "main" }) {
@@ -74,6 +76,80 @@ export function compareToPatch(compare, baseSha, headSha) {
   const patch = chunks.join("\n");
   if (Buffer.byteLength(patch, "utf8") > MAX_PATCH_BYTES) throw new Error("diff_exceeds_local_review_budget");
   return { paths, patch, patchSha256: createHash("sha256").update(patch).digest("hex") };
+}
+
+export function compareToReviewChunks(compare, baseSha, headSha) {
+  const whole = compareToPatch(compare, baseSha, headSha);
+  const chunks = [];
+  let currentPaths = [];
+  let currentPieces = [];
+  let currentBytes = 0;
+  const flush = () => {
+    if (currentPieces.length === 0) return;
+    chunks.push({ paths: currentPaths, patch: currentPieces.join("\n") });
+    currentPaths = [];
+    currentPieces = [];
+    currentBytes = 0;
+  };
+  for (const file of compare.files) {
+    const piece = "diff --git a/" + file.filename + " b/" + file.filename + "\n" + file.patch;
+    const bytes = Buffer.byteLength(piece, "utf8");
+    // Oversized *single-file* patches are not safe to sample or truncate.
+    if (bytes > MAX_CHUNK_BYTES) throw new Error("review_file_exceeds_context");
+    if (currentBytes > 0 && currentBytes + 1 + bytes > MAX_CHUNK_BYTES) flush();
+    currentPaths.push(file.filename);
+    currentPieces.push(piece);
+    currentBytes += bytes + (currentPieces.length > 1 ? 1 : 0);
+  }
+  flush();
+  if (chunks.length === 0 || chunks.length > MAX_CHUNKS ||
+    chunks.some(chunk => Buffer.byteLength(chunk.patch, "utf8") > MAX_CHUNK_BYTES)) {
+    throw new Error("review_chunk_budget_exhausted");
+  }
+  // Segments reconstruct the full verified patch byte-for-byte.
+  if (chunks.map(chunk => chunk.patch).join("\n") !== whole.patch) {
+    throw new Error("review_chunk_coverage_mismatch");
+  }
+  return { ...whole, chunks };
+}
+
+export function consolidateChunkReviews(reports, scope, chunks) {
+  if (!Array.isArray(reports) || !Array.isArray(chunks) ||
+    !chunks.length || chunks.length > MAX_CHUNKS || reports.length !== chunks.length) {
+    return makeBlockedReview(scope, "incomplete_model_review");
+  }
+  let sawInconclusive = false;
+  let sawChanges = false;
+  const findings = [];
+  for (let i = 0; i < chunks.length; i++) {
+    const report = reports[i];
+    const chunk = chunks[i];
+    if (!report || report.reviewer !== "AI-09" || report.evidenceClass !== "AI_ASSERTED" ||
+      report.githubApprovalSatisfied !== false || report.mergeAuthorized !== false ||
+      report.independentGitHubAccountVerified !== false || report.physicalEvidenceVerified !== false ||
+      !["NO_ACTIONABLE_FINDINGS", "CHANGES_REQUESTED", "INCONCLUSIVE"].includes(report.status) ||
+      report.scope?.headSha !== scope.headSha || report.scope?.baseSha !== scope.baseSha ||
+      report.scope?.patchSha256 !== createHash("sha256").update(chunk.patch).digest("hex") ||
+      JSON.stringify(report.scope.paths) !== JSON.stringify(chunk.paths) ||
+      !Array.isArray(report.findings) ||
+      report.findings.some(finding => !chunk.paths.includes(finding.path))) {
+      return makeBlockedReview(scope, "review_chunk_invalid_or_blocked");
+    }
+    if (report.status === "INCONCLUSIVE") sawInconclusive = true;
+    if (report.status === "CHANGES_REQUESTED") sawChanges = true;
+    findings.push(...report.findings);
+    if (findings.length > 20) return makeBlockedReview(scope, "too_many_review_findings");
+  }
+  const status = sawInconclusive ? "INCONCLUSIVE" :
+    sawChanges ? "CHANGES_REQUESTED" : "NO_ACTIONABLE_FINDINGS";
+  return {
+    version: 1, reviewer: "AI-09", scope,
+    status, findings, blockers: status === "NO_ACTIONABLE_FINDINGS" ? [] :
+      [status === "INCONCLUSIVE" ? "review_chunk_inconclusive" : "model_findings_require_action"],
+    evidenceClass: "AI_ASSERTED", githubApprovalSatisfied: false,
+    independentGitHubAccountVerified: false, physicalEvidenceVerified: false,
+    mergeAuthorized: false,
+  };
 }
 
 export function makeBlockedReview(scope, reason) {
