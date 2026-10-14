@@ -88,7 +88,7 @@ try {
     }
     Initialize-Disk -Number $disk.Number -PartitionStyle MBR | Out-Null
     $part = New-Partition -DiskNumber $disk.Number -UseMaximumSize -AssignDriveLetter
-    Format-Volume -Partition $part -FileSystem FAT32 -NewFileSystelLabel 'AI09SEED' -Confirm:$false -Force | Out-Null
+    Format-Volume -Partition $part -FileSystem FAT32 -NewFileSystemLabel 'AI09SEED' -Confirm:$false -Force | Out-Null
     $letter = (Get-Partition -DiskNumber $disk.Number | Where-Object { $_.DriveLetter } | Select-Object -First 1).DriveLetter
     if (-not $letter) { throw 'SEED_LETTER_MISSING' }
     $file = "$($letter):\bridge.sh"
