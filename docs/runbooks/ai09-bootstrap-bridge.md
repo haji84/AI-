@@ -22,7 +22,7 @@ The preparation script itself also defaults to Verify. Before Execute it checks 
 
 There is no authenticated command channel before bootstrap. Do not inject VMConnect keystrokes. After successful seed attachment, use the Ubuntu console once to mount the **recorded seed UUID** at `/mnt`, explicitly invoke `/mnt/bridge.sh`, sync and unmount. Refuse an already occupied `/mnt`. Use the exact UUID and guest-script SHA-256 from the Windows preparation receipt; validate the hash before invocation.
 
-The guest script checks root, hostname, mountpoint, vfat, label, filesystem UUID, partition UUID, run marker and expected NIC MAC before writing results or changing the ephemeral network configuration. It refuses existing receipt files and existing `10-ai09.network`. It collects SSH-server availability, public host key when present, IPv4, routes and storage; it does not install packages, provision credentials, start SSH or alter Hyper-V ACLs. Missing DHCP is a failure with a recorded exit code, not a completed SSH bridge.
+The guest script checks root, hostname, mountpoint, vfat, label, filesystem UUID, partition UUID and run marker before writing results. It checks the expected NIC MAC before changing the ephemeral network configuration. It refuses existing receipt files and existing `10-ai09.network`. It collects SSH-server availability, public host key when present, IPv4, routes and storage; it does not install packages, provision credentials, start SSH or alter Hyper-V ACLs. Missing DHCP is a failure with a recorded exit code, not a completed SSH bridge.
 
 Guest outputs on the seed:
 
