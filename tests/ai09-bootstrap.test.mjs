@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import process from "node:process";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, URL } from "node:url";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const powershell = process.platform === "win32" ? "powershell.exe" : "pwsh";
