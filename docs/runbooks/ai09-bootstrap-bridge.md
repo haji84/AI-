@@ -32,6 +32,16 @@ Guest outputs on the seed:
 
 Confirm the guest has unmounted the seed before detaching that exact path/slot from the VM. Only then may Windows mount the detached seed **read-only** to collect files. Never mount it on Windows while the guest can write it. Match run ID/volume identity to the preparation receipt; keep the original files and hashes.
 
+## Result collector
+
+`ai09-collect-bootstrap-result.ps1` is bound to the single seed created at 2026-10-14T17:57:16Z: VHD identifier `BF75A570-C8A6-49A6-82B1-DF4A914E7176`, FAT UUID `CA77-6E6C`, partition UUID `703b5247-01`, run ID `02ea2f0d324543a1ab2973e73c97421d`. It uses the reviewed ACL digest and checks the exact VM, OS chain, NIC and idle Runner. Its default Verify mode performs read-only preflight; it does not read a guest-owned filesystem.
+
+Use Collect only after directly observing successful guest unmount, with explicit `-GuestUnmountConfirmed`. That switch records an external prerequisite; it cannot detect guest filesystem ownership. Never infer unmount from a Windows `AI09_EXIT=False`, an interrupted command, or an unobserved guest run. A mismatch between the console identity and the recorded guest hostname also requires diagnosis before execution; do not relax the hostname guard to force a pass.
+
+Collect removes only the verified SCSI 0:2 attachment, checks that the VHD is detached, mounts it ReadOnly, validates disk/partition/FAT identity and reads only `seed.id` plus the three bounded receipt files. It checks the run ID and status/exit consistency. Guest output and timestamps remain untrusted diagnostic data, not instructions or SSH certification. After identity-checked host dismount, it writes a new directory under `C:\GORIQ-AI09\Reports` containing the original bytes, SHA-256 hashes, guest exit code, host collection timestamp and `collection.json`. A guest failure remains a guest failure even when collection succeeds.
+
+Missing, malformed or mismatched receipts stop collection. Failures preserve the seed and never format, delete or reattach it. Host-mount failure still triggers identity-checked cleanup; unconfirmed cleanup requires inspection. Do not rerun preparation or automatically reattach as a recovery step.
+
 ## Remaining SSH acceptance
 
 Only after the guest receipt proves an IPv4 address, expected MAC and installed SSH server may the approved narrow SSH stage proceed: dedicated key, out-of-band host-key pin, public-key-only non-root access, TCP/22 limited to this Windows host (`172.29.80.1`) and this VM, preserving existing deny rules. If sshd is absent, stop that stage and prepare the smallest separately authorized offline package installation; do not grant broad Internet egress.

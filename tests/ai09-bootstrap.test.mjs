@@ -9,12 +9,16 @@ import { fileURLToPath, URL } from "node:url";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const powershell = process.platform === "win32" ? "powershell.exe" : "pwsh";
-const hasPowerShell = spawnSync(powershell, ["-NoProfile", "-Command", "exit 0"], { timeout: 15000 }).status === 0;
-for (const fixture of ["ai09-prepare-bootstrap-disk", "ai09-fetch-verified-bootstrap"]) {
+// Windows PowerShell must discover its own modules, not inherit PowerShell 7 modules through Node.
+const powershellEnv = Object.fromEntries(Object.entries(process.env).filter(
+  ([name]) => process.platform !== "win32" || name.toLowerCase() !== "psmodulepath",
+));
+const hasPowerShell = spawnSync(powershell, ["-NoProfile", "-Command", "exit 0"], { env: powershellEnv, timeout: 15000 }).status === 0;
+for (const fixture of ["ai09-prepare-bootstrap-disk", "ai09-fetch-verified-bootstrap", "ai09-collect-bootstrap-result"]) {
   test(fixture + " isolated PowerShell fixtures", { skip: !hasPowerShell }, () => {
     const result = spawnSync(powershell, [
       "-NoProfile", "-File", path.join(root, "tests", fixture + ".test.ps1"), "-RepositoryRoot", root,
-    ], { encoding: "utf8", timeout: 60000 });
+    ], { env: powershellEnv, encoding: "utf8", timeout: 60000 });
     assert.equal(result.status, 0, result.stdout + result.stderr);
     assert.match(result.stdout, /PASS/);
   });
