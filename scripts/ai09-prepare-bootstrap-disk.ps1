@@ -104,7 +104,7 @@ function New-Ai09GuestScript {
 set -euo pipefail
 # No receipt or network writes before all identity checks pass.
 [[ "$(id -u)" = 0 ]] || { echo ROOT_REQUIRED >&2; exit 3; }
-[[ "$(hostname)" = 8484 ]] || { echo WRONG_GUEST >&2; exit 4; }
+[[ "$(hostname)" = 848484 ]] || { echo WRONG_GUEST >&2; exit 4; }
 [[ "$(readlink -f -- "${BASH_SOURCE[0]}")" = /mnt/bridge.sh && ! -L /mnt/bridge.sh ]] || exit 5
 [[ "$(findmnt -rn -M /mnt -o TARGET)" = /mnt ]] || { echo SEED_NOT_MOUNTED >&2; exit 6; }
 [[ "$(findmnt -rn -M /mnt -o FSTYPE)" = vfat ]] || exit 7

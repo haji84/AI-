@@ -22,7 +22,7 @@ The preparation script itself also defaults to Verify. Before Execute it checks 
 
 The [owner's 2026-10-15 instruction](https://github.com/haji84/AI-/issues/1798#issuecomment-6181861052) authorizes bounded VMConnect keyboard automation for this one-time bootstrap on HAJI / `GORIQ-AI09-Ubuntu` / VM ID `453b139b-cceb-446e-99fb-f45bf5895436`, superseding the earlier no-keystrokes instruction for this task only. Use only fixed, reviewed identity and bootstrap commands. Confirm the exact VM target and current Ubuntu shell prompt, then observe the complete typed command before sending Enter. If the target, prompt or typed input cannot be confirmed, stop input and diagnose. API success or a window title is not proof of guest execution.
 
-This does not authorize authentication automation, a general command bridge, protection changes or wider permissions. Observe actual command output before accepting guest identity: the hostname remains unverified, and the existing `8484` guard must not be changed merely to match an apparent prompt.
+This does not authorize authentication automation, a general command bridge, protection changes or wider permissions. On 2026-10-15, observed `hostname` output was `848484`, and observed `ip link show eth0` output showed MAC `00:15:5d:dc:2c:00`, matching the exact VM above. The preparation source now expects `848484`; the previous `8484` handoff value was incorrect. The check remains strict, and this identity correction does not establish guest bootstrap or SSH success.
 
 There is no authenticated command channel before bootstrap. After successful seed attachment and guest identity verification, use the Ubuntu console to mount the **recorded seed UUID** at `/mnt`, explicitly invoke `/mnt/bridge.sh`, sync and unmount. Refuse an already occupied `/mnt`. Use the exact UUID and guest-script SHA-256 from the Windows preparation receipt; validate the hash before invocation.
 
@@ -35,6 +35,21 @@ Guest outputs on the seed:
 - `ai09-result.txt`: run ID, UTC timestamp, status and exit code
 
 Confirm the guest has unmounted the seed before detaching that exact path/slot from the VM. Only then may Windows mount the detached seed **read-only** to collect files. Never mount it on Windows while the guest can write it. Match run ID/volume identity to the preparation receipt; keep the original files and hashes.
+
+## Existing seed hostname correction
+
+Retained local evidence (images are not committed): `tmp/ai09-keyboard-hostname-physical-keys/after.png`, SHA-256 `B170170B994AEFAEF49386DC68C0B7FA558F1F2D82A2FA1D47ECD327575FD500`, shows the actual hostname output; `tmp/ai09-console-readonly-batch/command-1-after.png`, SHA-256 `70902A4750D08271B073747DAB0C070860166407692BA3DE8DAB55AB2864817B`, shows the matching guest MAC. Both observations used the exact VM identity, with the typed command inspected before Enter.
+
+The existing seed must not be recreated or reformatted. Its original generated `bridge.sh` is reproducible from the preparation source with run ID `02ea2f0d324543a1ab2973e73c97421d`, FAT UUID `CA77-6E6C` and partition UUID `703b5247-01`: SHA-256 `C2C1B80DFFDE73BBAAB1B3F54BCCCA90E03CEE208CBC1EFD4BB03B0444BDCCA8`. Replacing only the single hostname comparison `8484` with `848484`, preserving every other byte, produces SHA-256 `0306204EB6D8DFDD8C659938A6C92373A8CD89B659017F269FBF6C34DEE85A33`. A changed source file does not repair the attached seed automatically.
+
+The bounded repair below is a plan, not execution evidence:
+
+1. Default Verify remains read-only. Require fresh observed guest unmounted state, exact VM/OS chain/seed identity, unchanged ACL digest and idle Runner before explicit repair execution. Use the collector's disk/partition/FAT/run identity checks; do not weaken its ReadOnly collection mode.
+2. Detach only the existing seed at SCSI 0:2. Check host/guest ownership, inspect the detached seed read-only, verify `seed.id` and the exact original script hash, then dismount. Save the original script bytes and hash in a new Windows evidence directory before any seed write.
+3. A separately reviewed repair may mount only that identified seed writable. Revalidate media identity and the original file hash through the final exclusive file handle. Replace exactly one guard literal and verify the complete expected new hash. No other seed file, OS disk, checkpoint, guest hostname, network setting or credential may change.
+4. Always dismount the owned host mount and verify detachment. Restore the original SCSI 0:2 attachment only after verified repair, successful host dismount and repeated VM/Runner preflight. On failure preserve the seed and backup, record the failure and leave attachment recovery for inspection; no deletion, formatting or automatic retry.
+
+Rollback restores only the hash-verified original `bridge.sh` bytes under the same ownership and identity checks, records the restored hash and safely dismounts. Restoring the old guard intentionally restores its refusal on this guest; it is not bootstrap success. Never rename the guest or remove the guard as a workaround.
 
 ## Result collector
 

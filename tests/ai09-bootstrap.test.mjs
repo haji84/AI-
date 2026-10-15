@@ -63,9 +63,17 @@ test("wrong guest is rejected before mount or output access", { skip: !hasBash }
 });
 
 test("missing exact seed mount refuses before any receipt or network write", { skip: !hasBash }, () => {
-  const prefix = 'id() { echo 0; }\nhostname() { echo 8484; }\nreadlink() { echo /mnt/bridge.sh; }\nfindmnt() { echo /; }\n';
+  const prefix = 'id() { echo 0; }\nhostname() { echo 848484; }\nreadlink() { echo /mnt/bridge.sh; }\nfindmnt() { echo /; }\n';
   const result = runGuest(prefix);
   assert.equal(result.status, 6, result.stdout + result.stderr);
   assert.match(result.stderr, /SEED_NOT_MOUNTED/);
+  assert.equal(result.stdout, "");
+});
+
+test("obsolete handoff hostname is rejected before seed access", { skip: !hasBash }, () => {
+  const prefix = 'id() { echo 0; }\nhostname() { echo 8484; }\nreadlink() { echo /mnt/bridge.sh; }\nfindmnt() { echo /; }\n';
+  const result = runGuest(prefix);
+  assert.equal(result.status, 4, result.stdout + result.stderr);
+  assert.match(result.stderr, /WRONG_GUEST/);
   assert.equal(result.stdout, "");
 });
