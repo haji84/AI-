@@ -51,6 +51,18 @@ The existing seed must not be recreated or reformatted. Its original generated `
 
 Rollback restores only the hash-verified original `bridge.sh` bytes under the same ownership and identity checks, records the restored hash and safely dismounts. Restoring the old guard intentionally restores its refusal on this guest; it is not bootstrap success. Never rename the guest or remove the guard as a workaround.
 
+## Synchronized console startup
+
+`scripts/ai09-console-bootstrap-synced.ps1` is a one-shot helper for this approved HAJI/VM/seed only. It retains the eleven fixed diagnostic/bootstrap/cleanup commands and the existing native identity checks. It requires an already elevated Windows PowerShell process; it does not elevate, accept command payloads, handle passwords, alter sudo policy or change network authority. Dot-sourcing defines functions without starting the native body, allowing isolated tests.
+
+The old helper began a 90-second observation deadline before the observer was ready. The replacement holds its own source read lock and waits up to 300 seconds for a readiness response bound to its unique run, source hash, nonce and expiry. The observer must verify the source hash against the reviewed artifact before responding. After readiness, the helper checks native state again and captures a **new** initial frame; readiness alone permits no keyboard input. Each image then has a separate 90-second deadline, and the whole run is limited to 1,800 seconds using both monotonic and wall clocks.
+
+Each response must match the request's exact run/source/stage/nonce/image hash/expiry and contain only the expected string fields. Publish a completed, closed temporary file using a non-overwriting move; never pre-acknowledge a frame or reflect a request before observing its actual image. A consumed response cannot be reused. `command-2-after` requires the distinct `SUDO_ROOT_EXIT0_OBSERVED` decision, which may be supplied only after observing current root identity and exit 0. Sudo authentication may expire between stages: observe every later sudo result independently, and stop on failure without claiming unmount or transferring seed ownership. `ABORT` stops the currently waiting stage; it does not cancel an already running guest command or prove cleanup. Only modifiers whose press this helper attempted may be released after its deadline; new input stays blocked.
+
+The output directory is fixed and must not already exist. Preserve it after success or failure. In particular, a failure after mount may leave the seed guest-owned: do not detach or host-mount without fresh device-wide guest-unmount evidence. The helper's `Success` flag records completion of the observed fixed sequence, while `GuestExecutionVerified` stays false; actual guest exit codes, receipt collection and authenticated SSH are separate verification requirements.
+
+The PowerShell fixture covers delayed readiness, expiry, stale/wrong/replayed responses, partial-file publication, invalid decision types, stop-only abort and modifier cleanup without real VM access. Its historical command/encoder/preflight comparisons use independently derived, LF-normalized hashes rather than private temporary files. The Node wrapper runs these fixtures in repository CI. Passing these tests is software evidence only.
+
 ## Result collector
 
 `ai09-collect-bootstrap-result.ps1` is bound to the single seed created at 2026-10-14T17:57:16Z: VHD identifier `BF75A570-C8A6-49A6-82B1-DF4A914E7176`, FAT UUID `CA77-6E6C`, partition UUID `703b5247-01`, run ID `02ea2f0d324543a1ab2973e73c97421d`. It uses the reviewed ACL digest and checks the exact VM, OS chain, NIC and idle Runner. Its default Verify mode performs read-only preflight; it does not read a guest-owned filesystem.
