@@ -15,12 +15,17 @@ const powershellEnv = Object.fromEntries(Object.entries(process.env).filter(
 ));
 const hasPowerShell = spawnSync(powershell, ["-NoProfile", "-Command", "exit 0"], { env: powershellEnv, timeout: 15000 }).status === 0;
 for (const fixture of ["ai09-prepare-bootstrap-disk", "ai09-fetch-verified-bootstrap", "ai09-collect-bootstrap-result", "ai09-repair-seed-hostname"]) {
-  test(fixture + " isolated PowerShell fixtures", { skip: !hasPowerShell }, () => {
+  test(fixture + " isolated PowerShell fixtures", { skip: !hasPowerShell }, (context) => {
     const result = spawnSync(powershell, [
       "-NoProfile", "-File", path.join(root, "tests", fixture + ".test.ps1"), "-RepositoryRoot", root,
     ], { env: powershellEnv, encoding: "utf8", timeout: 60000 });
     assert.equal(result.status, 0, result.stdout + result.stderr);
     assert.match(result.stdout, /PASS/);
+    if (fixture === "ai09-repair-seed-hostname") {
+      const metrics = result.stdout.split(/\r?\n/).find((line) => line.startsWith("AI09_REPAIR_ENTRY_METRICS="));
+      assert.ok(metrics, "Repair fixture must report its harmless lock measurements");
+      context.diagnostic(metrics);
+    }
   });
 }
 

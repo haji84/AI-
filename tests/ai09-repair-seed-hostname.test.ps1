@@ -286,14 +286,19 @@ try {
 $Mode = 'Verify'; $GuestUnmountConfirmed = $false
 function Invoke-Ai09SeedHostnameRepair {
     param($Mode, [switch]$GuestUnmountConfirmed)
-    $blocked = 0
+    $blocked = 0; $exclusiveBlocked = 0
     foreach ($name in @('ai09-prepare-bootstrap-disk.ps1', 'ai09-collect-bootstrap-result.ps1')) {
         $other = $null
         try { $other = [IO.File]::Open((Join-Path $PSScriptRoot $name), [IO.FileMode]::Open, [IO.FileAccess]::Write, [IO.FileShare]::ReadWrite) }
         catch [IO.IOException] { $blocked++ }
         finally { if ($other) { $other.Dispose() } }
+        $other = $null
+        try { $other = [IO.File]::Open((Join-Path $PSScriptRoot $name), [IO.FileMode]::Open, [IO.FileAccess]::Write, [IO.FileShare]::None) }
+        catch [IO.IOException] { $exclusiveBlocked++ }
+        finally { if ($other) { $other.Dispose() } }
     }
-    [pscustomobject]@{ Mode = $Mode; Confirmed = [bool]$GuestUnmountConfirmed; LockedHelpers = $blocked }
+    [pscustomobject]@{ Mode = $Mode; Confirmed = [bool]$GuestUnmountConfirmed; LockedHelpers = $blocked
+        ExclusiveLocks = $exclusiveBlocked; Platform = [Environment]::OSVersion.Platform.ToString() }
 }
 '@
         $utf8 = [Text.UTF8Encoding]::new($false)
@@ -328,7 +333,14 @@ function Invoke-Ai09SeedHostnameRepair {
             $child = Invoke-EntryFixture
             Assert-True ($child.ExitCode -eq 0) ("Trusted fixture entry failed: " + $child.Stderr)
             $result = $child.Stdout | ConvertFrom-Json
-            Assert-True ($result.Mode -eq 'Execute' -and $result.Confirmed -and $result.LockedHelpers -eq 2) 'Entry lost arguments or helper lock'
+            Write-Output ('AI09_REPAIR_ENTRY_METRICS=' + ($result | ConvertTo-Json -Compress))
+            Assert-True ($result.Mode -eq 'Execute' -and $result.Confirmed) 'Entry lost arguments'
+            # Unix uses shared locks for both Share.Read and Share.ReadWrite; Share.None is exclusive.
+            # Source: dotnet/runtime SafeFileHandle.Unix.cs, Init. Windows additionally denies shared writes.
+            Assert-True ($result.ExclusiveLocks -eq 2) 'Entry did not hold both helper handles'
+            if ([Environment]::OSVersion.Platform -eq 'Win32NT') {
+                Assert-True ($result.LockedHelpers -eq 2) 'Windows entry allowed writes to a verified helper'
+            }
             foreach ($file in @($prepare, $collector)) {
                 $handle = [IO.File]::Open($file, [IO.FileMode]::Open, [IO.FileAccess]::Write, [IO.FileShare]::None)
                 $handle.Dispose()
