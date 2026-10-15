@@ -42,7 +42,7 @@ Retained local evidence (images are not committed): `tmp/ai09-keyboard-hostname-
 
 The existing seed must not be recreated or reformatted. Its original generated `bridge.sh` is reproducible from the preparation source with run ID `02ea2f0d324543a1ab2973e73c97421d`, FAT UUID `CA77-6E6C` and partition UUID `703b5247-01`: SHA-256 `C2C1B80DFFDE73BBAAB1B3F54BCCCA90E03CEE208CBC1EFD4BB03B0444BDCCA8`. Replacing only the single hostname comparison `8484` with `848484`, preserving every other byte, produces SHA-256 `0306204EB6D8DFDD8C659938A6C92373A8CD89B659017F269FBF6C34DEE85A33`. A changed source file does not repair the attached seed automatically.
 
-The bounded repair below is a plan, not execution evidence:
+`scripts/ai09-repair-seed-hostname.ps1` implements the bounded repair below. Its default `Verify` mode reads host metadata only; it does not detach, mount or inspect guest files. `-Mode Execute -GuestUnmountConfirmed` is permitted only after actual guest unmounted state has been observed. The switch records that prerequisite; it does not prove it. The repair is prepared code, not execution evidence.
 
 1. Default Verify remains read-only. Require fresh observed guest unmounted state, exact VM/OS chain/seed identity, unchanged ACL digest and idle Runner before explicit repair execution. Use the collector's disk/partition/FAT/run identity checks; do not weaken its ReadOnly collection mode.
 2. Detach only the existing seed at SCSI 0:2. Check host/guest ownership, inspect the detached seed read-only, verify `seed.id` and the exact original script hash, then dismount. Save the original script bytes and hash in a new Windows evidence directory before any seed write.
