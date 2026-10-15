@@ -34,7 +34,7 @@ Guest outputs on the seed:
 - `ai09-stderr.txt`
 - `ai09-result.txt`: run ID, UTC timestamp, status and exit code
 
-Confirm the guest has unmounted the seed before detaching that exact path/slot from the VM. Only then may Windows mount the detached seed **read-only** to collect files. Never mount it on Windows while the guest can write it. Match run ID/volume identity to the preparation receipt; keep the original files and hashes.
+Confirm the guest has unmounted the seed before detaching that exact path/slot from the VM. Identify the actual seed device in fresh guest output using its `AI09SEED` label, vfat filesystem and recorded UUID, then verify that no active mounts for that device remain, including outside /mnt. An unoccupied `/mnt` alone is insufficient because the seed may be mounted elsewhere. If output is ambiguous, inspect the already observed device with a fixed read-only mount query; a missing result or exit code alone is not proof. Only then may Windows mount the detached seed **read-only** to collect files. Never mount it on Windows while the guest can write it. Match run ID/volume identity to the preparation receipt; keep the original files and hashes.
 
 ## Existing seed hostname correction
 
