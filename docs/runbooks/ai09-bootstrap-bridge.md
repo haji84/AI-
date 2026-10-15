@@ -75,9 +75,19 @@ Missing, malformed or mismatched receipts stop collection. Failures preserve the
 
 ## Remaining SSH acceptance
 
-Only after the guest receipt proves an IPv4 address, expected MAC and installed SSH server may the approved narrow SSH stage proceed: dedicated key, out-of-band host-key pin, public-key-only non-root access, TCP/22 limited to this Windows host (`172.29.80.1`) and this VM, preserving existing deny rules. If sshd is absent, stop that stage and prepare the smallest separately authorized offline package installation; do not grant broad Internet egress.
+### Observed physical state, 2026-10-16 JST
+
+The [physical execution and collection record](https://github.com/haji84/AI-/issues/1798#issuecomment-6197038139) supersedes the earlier expired-sudo blocker. Run `d2e5bf3898a1454eb3c9acdcdeb1979d` observed root identity/exit 0 and the exact repaired bridge hash, but the bridge returned **18**, `EXISTING_NETWORK_CONFIG_REFUSED`. It preserved `/run/systemd/network/10-ai09.network` without reload or reconfiguration. Subsequent sync/unmount succeeded, fresh device-wide output showed no seed mounts, and the Windows collector returned 0 after read-only collection and verified host dismount. The seed remains detached. Collector success does not change the guest FAILED/18 result.
+
+Collection receipt SHA-256 is `CE800DD118AD3CA0D7701126FCD7E55869B29E4F139E7384CE3ECFA86A5A7C43`. The collected output confirms hostname `848484`, expected MAC, installed sshd and public host-key fingerprint `SHA256:tXO5C217Ce6OU0dYni/SRbrQMA6n735VOI2X/QariEA`. Current IPv4, existing network-file contents and actual SSH listener/socket state still require observation. An inactive `ssh.service` alone does not establish absence of a socket-activated listener. Do not rerun the bridge, remove receipts or overwrite the existing network file to bypass this failure.
+
+Only after collected guest evidence and fresh read-only diagnostics establish an IPv4 address, expected MAC and installed SSH server may the approved narrow SSH stage proceed: dedicated key, out-of-band host-key pin, public-key-only non-root access, TCP/22 limited to this Windows host (`172.29.80.1`) and this VM, preserving existing deny rules. If sshd is absent, stop that stage and prepare the smallest separately authorized offline package installation; do not grant broad Internet egress.
 
 The final Windows-side probe must use BatchMode, strict host-key checking, a fixed read-only command set and bounded timeout, storing separate stdout/stderr plus actual exit code and timestamp. Test success, authentication/host-key rejection, nonzero exit and timeout. CI, mocked Hyper-V calls, successful seed creation and DHCP alone are **not** this physical SSH E2E.
+
+`scripts/ai09-ssh-command-gate.sh` prepares three fixed acceptance probes: actual process identity/hostname, distinct stdout/stderr with exit 7, and a five-second sleep for client timeout verification. SSH acceptance separately requires a non-root account; the gate itself does not enforce the account identity. Every other command, including an empty shell request, extra arguments and shell syntax, is rejected with exit 64. It never evaluates the client's command string. The shell tests execute the real gate and exercise rejection, identity, stream/exit preservation and both deadline termination and natural completion.
+
+The gate is not an installer and has not been installed on the guest. Provisioning must separately verify a root-owned gate that the SSH account cannot modify, a host-restricted forced-command key with forwarding/PTY disabled, and effective sshd settings that do not accept environment injection or user environment overrides. Shell tests do not certify those deployment conditions or real SSH authentication. Rollback of a deployed gate/key/ACL must be scoped to the exact recorded new entries; the preparation above changes none of them.
 
 ## Failure and recovery
 
