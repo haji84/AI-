@@ -18,9 +18,13 @@ After download the loader opens a read-only handle that denies other writes/dele
 
 The preparation script itself also defaults to Verify. Before Execute it checks VM identity/state, the exact OS disk chain, NIC, reviewed ACL contents, free space, one Listener/no Worker, and the absence of the seed. It rechecks these boundaries before changes. Only the newly created VHD's identity and corresponding non-system RAW disk may be initialized. The host dismount must succeed before guest attachment. A retry stops if the seed exists.
 
-## One manual guest action
+## One-time guest console action
 
-There is no authenticated command channel before bootstrap. Do not inject VMConnect keystrokes. After successful seed attachment, use the Ubuntu console once to mount the **recorded seed UUID** at `/mnt`, explicitly invoke `/mnt/bridge.sh`, sync and unmount. Refuse an already occupied `/mnt`. Use the exact UUID and guest-script SHA-256 from the Windows preparation receipt; validate the hash before invocation.
+The [owner's 2026-10-15 instruction](https://github.com/haji84/AI-/issues/1798#issuecomment-6181861052) authorizes bounded VMConnect keyboard automation for this one-time bootstrap on HAJI / `GORIQ-AI09-Ubuntu` / VM ID `453b139b-cceb-446e-99fb-f45bf5895436`, superseding the earlier no-keystrokes instruction for this task only. Use only fixed, reviewed identity and bootstrap commands. Confirm the exact VM target and current Ubuntu shell prompt, then observe the complete typed command before sending Enter. If the target, prompt or typed input cannot be confirmed, stop input and diagnose. API success or a window title is not proof of guest execution.
+
+This does not authorize authentication automation, a general command bridge, protection changes or wider permissions. Observe actual command output before accepting guest identity: the hostname remains unverified, and the existing `8484` guard must not be changed merely to match an apparent prompt.
+
+There is no authenticated command channel before bootstrap. After successful seed attachment and guest identity verification, use the Ubuntu console to mount the **recorded seed UUID** at `/mnt`, explicitly invoke `/mnt/bridge.sh`, sync and unmount. Refuse an already occupied `/mnt`. Use the exact UUID and guest-script SHA-256 from the Windows preparation receipt; validate the hash before invocation.
 
 The guest script checks root, hostname, mountpoint, vfat, label, filesystem UUID, partition UUID and run marker before writing results. It checks the expected NIC MAC before changing the ephemeral network configuration. It refuses existing receipt files and existing `10-ai09.network`. It collects SSH-server availability, public host key when present, IPv4, routes and storage; it does not install packages, provision credentials, start SSH or alter Hyper-V ACLs. Missing DHCP is a failure with a recorded exit code, not a completed SSH bridge.
 
