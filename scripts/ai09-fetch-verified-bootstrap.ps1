@@ -37,8 +37,8 @@ function Invoke-Ai09VerifiedFetch {
     [CmdletBinding()]
     param([ValidateSet('Verify', 'Execute')][string]$Mode = 'Verify', [string]$ExpectedAclSha256 = '')
     if ($Mode -eq 'Execute' -and $ExpectedAclSha256 -notmatch '^[A-Fa-f0-9]{64}$') { throw 'ACL_BASELINE_REQUIRED' }
-    $uri = 'https://raw.githubusercontent.com/haji84/AI-/6b36842e791611ecba0a1917d4732ab09d6c5af1/scripts/ai09-prepare-bootstrap-disk.ps1'
-    $expectedSha256 = 'DF755ECA63C62576E93AFBB17E40450DABD9367082C18D4D5593E6EE3F6FAACB'
+    $uri = 'https://raw.githubusercontent.com/haji84/AI-/0f1de940f7b16a3f634aa60076b07010b86d7d92/scripts/ai09-prepare-bootstrap-disk.ps1'
+    $expectedSha256 = 'E6E7B482E112609749C6982F051B1D35842EEE51FCDC563F4E9408B1D3C15B6B'
     $runId = [Guid]::NewGuid().ToString('N')
     $runDirectory = Join-Path ([IO.Path]::GetTempPath()) ('goriq-ai09-bootstrap-' + $runId)
     if (Test-Path -LiteralPath $runDirectory) { throw 'RUN_DIRECTORY_COLLISION' }

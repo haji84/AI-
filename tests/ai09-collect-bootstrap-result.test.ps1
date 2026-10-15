@@ -257,7 +257,7 @@ function Invoke-Ai09BootstrapCollection {
             # Establish that this helper is writable before the entry holds its read lock.
             $probe = [IO.File]::Open($helperFile, [IO.FileMode]::Open, [IO.FileAccess]::Write, [IO.FileShare]::ReadWrite); $probe.Dispose()
             $helperHash = (Get-FileHash -LiteralPath $helperFile -Algorithm SHA256).Hash
-            [IO.File]::WriteAllText($entryFile, $originalEntry.Replace('DF755ECA63C62576E93AFBB17E40450DABD9367082C18D4D5593E6EE3F6FAACB', $helperHash), $encoding)
+            [IO.File]::WriteAllText($entryFile, $originalEntry.Replace('E6E7B482E112609749C6982F051B1D35842EEE51FCDC563F4E9408B1D3C15B6B', $helperHash), $encoding)
             $entryResult = Invoke-FixtureEntry
             Assert-True ($entryResult.ExitCode -eq 0) ('Harmless entry failed: ' + $entryResult.Stderr)
             $report = $entryResult.Stdout | ConvertFrom-Json

@@ -199,7 +199,7 @@ if ($MyInvocation.InvocationName -ne '.') {
         $helperHasher = [Security.Cryptography.SHA256]::Create()
         try { $helperHash = ([BitConverter]::ToString($helperHasher.ComputeHash($collectionHelperLock))).Replace('-', '') }
         finally { $helperHasher.Dispose() }
-        if ($helperHash -ne 'DF755ECA63C62576E93AFBB17E40450DABD9367082C18D4D5593E6EE3F6FAACB') { throw 'PREPARE_HELPER_HASH_MISMATCH' }
+        if ($helperHash -ne 'E6E7B482E112609749C6982F051B1D35842EEE51FCDC563F4E9408B1D3C15B6B') { throw 'PREPARE_HELPER_HASH_MISMATCH' }
         . $helper
         Invoke-Ai09BootstrapCollection -Mode $requestedMode -GuestUnmountConfirmed:$requestedConfirmation | ConvertTo-Json -Depth 6
     } catch { Write-Error $_; exit 1 }
