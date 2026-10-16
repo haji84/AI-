@@ -22,7 +22,7 @@ jobs:
       github.event.pull_request.number == 1799 &&
       github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 48
     env:
       OLLAMA_HOST: 127.0.0.1:11434
       OLLAMA_NUM_PARALLEL: "1"
