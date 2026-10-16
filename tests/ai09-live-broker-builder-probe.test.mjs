@@ -86,7 +86,7 @@ test("no credentials or inaccessible host fail closed without leaking private va
   const bad=await probeLiveGoriqConnection({
     ownerToken:undefined,builderToken:BUILDER,
   });
-  assert.equal(bad.reason,"EXISTING_OWNER_AND_BUILDER_CREDENTIALS_REQUIRED");
+  assert.equal(bad.reason,"EXISTING_SCOPED_CREDENTIALS_REQUIRED");
   const ctx=fixture({failPath:"/api/jarvis/admin/work/"});
   const result=await probeLiveGoriqConnection({
     ownerToken:OWNER,builderToken:BUILDER,fetchImpl:ctx.fetchImpl,
