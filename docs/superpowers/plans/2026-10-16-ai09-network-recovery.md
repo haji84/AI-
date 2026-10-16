@@ -33,17 +33,27 @@
 
 1. Host staging: `scripts/ai09-stage-network-recovery.ps1`, `tests/ai09-stage-network-recovery.test.ps1`, Node fixture registration in `tests/ai09-bootstrap.test.mjs`.
    - [x] Missing-script RED, then isolated preflight/mount/cleanup/CreateNew/order fixtures GREEN on PS5.1/PS7.
-   - [ ] Pin final canonical LF guest-script hash, finish independent review, verify source locking and original-evidence guards.
+   - [x] Pin final canonical LF guest-script hash, finish independent review, verify source locking and original-evidence guards.
 2. Guest recovery: `scripts/ai09-network-recovery.sh`, `tests/ai09-network-recovery.test.mjs`.
    - [x] RED tests, fixed identity/media/original-file guards, CreateNew backup/config/receipt files, bounded reload/reconfigure/DHCP wait; 11 shell fixtures pass.
-   - [x] Code requires selected Network File and actual172.29.80.0/20 IPv4; keeps failure codes and original bytes. Physical verification remains pending.
+   - [x] Code requires selected Network File and an actual usable IPv4 within 172.29.80.0/20; keeps failure codes and original bytes. Physical verification remains pending.
 3. Collection: `scripts/ai09-collect-network-recovery.ps1` and isolated fixture coverage.
    - [x] Implemented observed unmount and console exit requirements, exact seed detach, ReadOnly collection, bounded file/hash checks and host dismount. No automatic reattachment; 24 isolated fixtures pass on PS5.1/PS7. Physical collection remains pending.
 4. Review and physical execution.
-   - [ ] Related tests, lint, independent review and exact-head CI before native staging.
+   - [x] Recovery implementation at a44e73fd passed related tests, lint, independent review and CI38825147825. Later session changes require their own verification.
    - [ ] Standard administrator launch, source lock, native receipts; fixed observed guest commands, fresh root proof, result/cleanup observations; no password handling.
 5. Restricted SSH acceptance after actual IPv4 proof.
    - [ ] Inspect effective SSH auth/environment policy. Install only the authorized dedicated non-root forced-command key and root-owned fixed gate; pin collected host key.
    - [ ] Add only exact host172.29.80.1→observed VM TCP22 stateful ACL, preserving denies; record exact rollback entries.
    - [ ] Observe identity, stdout/stderr/exit7, unknown-command rejection, auth/host-key rejection and timeout through real SSH.
    - [ ] Update GitHub/Compass and physical status; keep Draft/HOLD until all acceptance gates pass.
+
+## Follow-up: one bounded native session
+
+The 2026-10-16 administrator launch ended before a native child started; the owner reported that UAC was not visible. Read-only inspection found the existing elevated interactive PowerShell in the same active console session. The cause of the missing consent UI is not established. Do not repeatedly request UAC, change consent policy, or inject commands into that process.
+
+- [x] Add `ai09-network-recovery-session.ps1` with fixed source-pinned staging, authentication-prompt, console and collection children. Default Verify must remain read-only; no arbitrary command/path parameters, elevation or automatic retry.
+- [x] Wait for source/run/nonce-bound observer readiness, then stage once, request only `sudo -v`, and wait for a separate authentication handoff before starting the console. A handoff permits root verification; it does not prove authentication.
+- [x] Keep the console's observed `sudo -n id` root/exit0 gate. Require final same-run console evidence for actual guest exit, umount0, device-wide seed unmount and mountpoint32 before collection.
+- [x] Bind the collection response to receipt and all four image hashes, consumed observation nonces, source/run and expiry; re-read proof after the response. Preserve timeout/partial child state without killing, detaching or claiming cleanup.
+- [ ] Use isolated PS5.1/PS7 fixtures, Node CI registration and independent review before one launch from the already elevated console. Native execution and SSH remain unverified until actual evidence is collected.
