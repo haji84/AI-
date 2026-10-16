@@ -129,9 +129,9 @@ async function main() {
     // No PR code execution, credentials, network model endpoint, paid provider or fallback.
     const response=await fetch("http://127.0.0.1:11434/api/chat",{
       method:"POST",headers:{"Content-Type":"application/json"},
-      signal:AbortSignal.timeout(210000),
+      signal:AbortSignal.timeout(105000),
       body:JSON.stringify({model:"qwen2.5-coder:3b",stream:false,format:"json",
-        options:{temperature:0,num_ctx:16384,num_predict:512},messages:[{role:"user",content:prompt}]})
+        options:{temperature:0,num_ctx:8192,num_predict:384},messages:[{role:"user",content:prompt}]})
     });
     if(!response.ok){
       console.log("AI09_MODEL_HTTP_STATUS="+response.status);
