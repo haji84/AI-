@@ -117,10 +117,11 @@ async function main() {
   const {number,head,base}=parseRaceRequest(process.argv.slice(2));
   async function api(path) {
     const url="https://api.github.com/repos/"+REPO+path;
-    const response=await fetch(url,{
-      headers:{"Accept":"application/vnd.github+json","User-Agent":"GORIQ-AI09-readonly"},
-      signal:AbortSignal.timeout(15000)
-    });
+    const headers={"Accept":"application/vnd.github+json","User-Agent":"GORIQ-AI09-readonly"};
+    // The ephemeral runner receives only this repository's read-only GitHub token.
+    // Never put the token, headers, or any credentials into localInfer/prompts.
+    if(process.env.GITHUB_TOKEN)headers.Authorization="Bearer "+process.env.GITHUB_TOKEN;
+    const response=await fetch(url,{headers,signal:AbortSignal.timeout(15000)});
     if(!response.ok)throw Error("RACE_GITHUB_GET_FAILED_"+response.status);
     return response.json();
   }
