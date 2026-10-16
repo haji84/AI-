@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
-import { createGitHubHumanReproductionVerifier } from "../scripts/goriq-ai09-github-human-verifier.mjs";
+import { createGitHubHumanReproductionVerifier, createGitHubReadOnlyPullReviewClient } from "../scripts/goriq-ai09-github-human-verifier.mjs";
 import { prepareVerifiedRepairProposal } from "../scripts/goriq-ai09-independent-triage.mjs";
 
 const A="a".repeat(40),B="b".repeat(40),REPO="haji84/AI-";
@@ -118,4 +118,75 @@ test("short GitHub actor names remain valid; distinct identity still required",a
   assert.equal(output.status,"VERIFIED_CANDIDATE");
   assert.equal(output.handoff.VERIFIED_EVIDENCE.verifierActor,"QA");
   assert.equal(output.writeAuthorized,false);
+});
+
+
+test("read-only GitHub client accepts only fixed PR/review endpoints and never POST",async()=>{
+  const calls=[];
+  const getter=createGitHubReadOnlyPullReviewClient({
+    repository:REPO,token:"fixture_token_only",
+    fetchImpl:async(url,init)=>{
+      calls.push({url,init});
+      return {ok:true,json:async()=>url.includes("/reviews?")
+        ? [review()]:pr()};
+    },
+  });
+  const result=await getter("/pulls/73");
+  const reviews=await getter("/pulls/73/reviews?per_page=100&page=1");
+  assert.equal(result.number,73);
+  assert.equal(reviews[0].id,123456);
+  assert.equal(calls.length,2);
+  assert.ok(calls.every(x=>x.init.method==="GET"&&x.init.redirect==="error"));
+  assert.ok(calls.every(x=>x.url.startsWith("https://api.github.com/repos/haji84/AI-/pulls/73")));
+  assert.ok(calls.every(x=>x.init.headers.Authorization==="Bearer fixture_token_only"));
+  for(const unsafe of [
+    "/pulls/73/comments", "/pulls/73/reviews?per_page=100&page=2",
+    "/issues/73/comments", "/pulls/73/merge", "/pulls/../73",
+    "https://elsewhere.example", "/pulls/73?token=value",
+  ])await assert.rejects(getter(unsafe),/UNAUTHORIZED_GITHUB_READ_PATH/);
+  assert.equal(calls.length,2);
+});
+
+test("GitHub API failures never log or return token or remote error body",async()=>{
+  const bad=createGitHubReadOnlyPullReviewClient({
+    repository:REPO,token:"read_token_123",
+    fetchImpl:async()=>({ok:false,status:403,json:async()=>({
+      secret:"read_token_123",
+    })}),
+  });
+  await assert.rejects(bad("/pulls/73"),error=>{
+    assert.equal(error.message,"GITHUB_READONLY_REVIEW_UNAVAILABLE");
+    assert.doesNotMatch(error.message,/read_token/);
+    return true;
+  });
+  const unavailable=createGitHubReadOnlyPullReviewClient({
+    repository:REPO,token:"read_token_123",
+    fetchImpl:async()=>{throw Error("should never log private info");},
+  });
+  await assert.rejects(unavailable("/pulls/73"),/GITHUB_READONLY_REVIEW_UNAVAILABLE/);
+  assert.throws(()=>createGitHubReadOnlyPullReviewClient({
+    repository:"../different",token:"valid_token_123",
+  }),/INVALID_GITHUB_READONLY_CLIENT_CONFIG/);
+  assert.throws(()=>createGitHubReadOnlyPullReviewClient({
+    repository:REPO,token:"",
+  }),/INVALID_GITHUB_READONLY_CLIENT_CONFIG/);
+});
+
+test("read-only GitHub REST client can back the independent review contract",async()=>{
+  const getter=createGitHubReadOnlyPullReviewClient({
+    repository:REPO,token:"fixture_token_only",
+    fetchImpl:async(url,init)=>{
+      assert.equal(init.method,"GET");
+      return {ok:true,json:async()=>url.includes("/reviews?")
+        ? [review()]:pr()};
+    },
+  });
+  const verifier=createGitHubHumanReproductionVerifier({
+    repository:REPO,builderActor:"builder-1",
+    allowedReviewerLogins:["reviewer-1"],githubGet:getter,
+  });
+  const output=await prepareVerifiedRepairProposal(input,verifier);
+  assert.equal(output.status,"VERIFIED_CANDIDATE");
+  assert.equal(output.writeAuthorized,false);
+  assert.equal(output.correctionTaskCreated,false);
 });
