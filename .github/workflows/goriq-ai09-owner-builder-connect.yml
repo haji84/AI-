@@ -160,6 +160,35 @@ jobs:
           $root = Join-Path $env:LOCALAPPDATA 'GAIWorker\code-builder'
           $launcherPresent = Test-Path -LiteralPath (Join-Path $root 'run-code-builder.ps1') -PathType Leaf
           $serviceSourcePresent = Test-Path -LiteralPath (Join-Path $root 'code-builder-worker-service.ts') -PathType Leaf
+
+          # Read-only checks of existing installation. No launcher/token contents printed.
+          $nodeOnRunnerPath = [bool](Get-Command node -ErrorAction SilentlyContinue)
+          $policyPresent = Test-Path -LiteralPath (Join-Path $env:LOCALAPPDATA 'GAIWorker\src\orchestrator\test-contract-evolution.ts') -PathType Leaf
+          # The existing safety contract prohibits inspection of token-bearing
+          # task arguments. Check only the executable class and action count.
+          $taskActionUsesPowerShell = $false
+          if ($registeredTask -and @($registeredTask.Actions).Count -eq 1) {
+            $taskActionUsesPowerShell = (
+              [string]$registeredTask.Actions[0].Execute -ieq 'powershell.exe'
+            )
+          }
+          $serviceMatchesTrustedMain = $false
+          if ($serviceSourcePresent) {
+            $mainService = Join-Path $env:GITHUB_WORKSPACE 'scripts\code-builder-worker-service.ts'
+            if (Test-Path -LiteralPath $mainService -PathType Leaf) {
+              $serviceMatchesTrustedMain = (
+                (Get-FileHash -LiteralPath $mainService -Algorithm SHA256).Hash -eq
+                (Get-FileHash -LiteralPath (Join-Path $root 'code-builder-worker-service.ts') -Algorithm SHA256).Hash
+              )
+            }
+          }
+          $lastTaskRunWithinTenMinutes = $false
+          if ($taskInfo -and $taskInfo.LastRunTime -is [datetime]) {
+            $lastTaskRunWithinTenMinutes = (
+              $taskInfo.LastRunTime.ToUniversalTime() -gt
+              (Get-Date).ToUniversalTime().AddMinutes(-10)
+            )
+          }
           # Read bounded existing local worker logs but emit ONLY static,
           # allowlisted error categories; never output raw lines, tokens,
           # stack traces, process arguments or workspace data.
@@ -201,6 +230,11 @@ jobs:
             scheduledTaskLastResult = $taskLastResult
             launcherPresent = [bool]$launcherPresent
             installedServiceSourcePresent = [bool]$serviceSourcePresent
+            nodeAvailableOnRunnerPath = [bool]$nodeOnRunnerPath
+            installedPolicyPresent = [bool]$policyPresent
+            existingTaskExecutableIsPowerShell = [bool]$taskActionUsesPowerShell
+            installedServiceEqualsCurrentMain = [bool]$serviceMatchesTrustedMain
+            lastTaskRunWithinTenMinutes = [bool]$lastTaskRunWithinTenMinutes
             tokenFilePresent = [bool]$tokenPresent
             listenerPresent = [bool]$listenerPresent
             loopbackBound = [bool]$loopbackBound
