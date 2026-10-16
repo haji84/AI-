@@ -162,7 +162,7 @@ test("human review and raw Actions proof jointly gate a real-shaped triage propo
     githubApprovalSatisfied:false,independentGitHubAccountVerified:false,
     scope:{headSha:B,baseSha:A,patchSha256,paths:[scope.path]},
     findings:[{path:scope.path,line:1,
-      evidence:"Added \`console.log(request.headers.authorization);\`",
+      evidence:"Added `console.log(request.headers.authorization);`",
       severity:"high",summary:"Needs independent reproduction",
       proposedFix:"Request triage"}]};
   const proposal=await prepareVerifiedRepairProposal({
