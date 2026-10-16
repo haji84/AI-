@@ -320,14 +320,14 @@ export function formatReviewComment(receipt) {
   }
   if (r.blockers.length) lines.push("", "**Review blockers:** " + r.blockers.map(safeLine).join(", "));
   if (r.status === "CHANGES_REQUESTED") {
-    lines.push("", "### Implementation handoff (advisory only)",
-      "TASK_ID: ai09:pr:" + receipt.prNumber + ":" + receipt.headSha,
+    lines.push("", "### Findings triage (unverified AI-09 advisory)",
+      "REVIEW_ID: ai09:pr:" + receipt.prNumber + ":" + receipt.headSha,
       "SOURCE_AGENT: AI-09 Reviewer",
-      "TARGET_AGENT: Builder/Debugger",
-      "STATUS: ACTION_REQUIRED",
-      "ALLOWED_PATHS: " + r.scope.paths.map(safeLine).join(", "),
-      "NEXT_ACTION: Inspect findings, make bounded corrections, rerun CI and request a fresh exact-head review.",
-      "This comment is a durable handoff record, **not** an automatic fixer invocation.");
+      "TARGET_STAGE: IndependentTechnicalTriage",
+      "STATUS: TRIAGE_REQUIRED",
+      "REVIEWED_PATHS: " + r.scope.paths.map(safeLine).join(", "),
+      "NEXT_ACTION: Verify the alleged defect on the pinned head with concrete code and reproducible evidence. Only separately confirmed findings may become scoped Builder/Debugger repair tasks. Re-run CI and AI-09 on every changed head.",
+      "This advisory does not create, authorize, or acknowledge a Builder/Debugger repair task.");
   }
   if (r.status === "BLOCKED" || r.status === "INCONCLUSIVE") {
     lines.push("", "NEXT_ACTION: Restore trusted local model / evidence, then re-run on an unchanged PR head; treat as HOLD.");
