@@ -1,0 +1,119 @@
+#!/usr/bin/env node
+// GORIQ AI-09 independent technical advisory for RACE AI.
+// Read-only: the only network destinations are the public GitHub API and loopback Ollama.
+// It does not post comments, change repository settings, merge, or claim approvals.
+import { createHash } from "node:crypto";
+import { Buffer } from "node:buffer";
+import { pathToFileURL } from "node:url";
+import { reviewLocalPatch } from "../src/orchestrator/ai09-local-reviewer.mjs";
+import { assertCompleteComparison } from "./goriq-ai09-compare-coverage.mjs";
+import { compareToReviewChunks, consolidateChunkReviews, makeBlockedReview } from "../src/orchestrator/ai09-pr-review-automation.mjs";
+
+const REPO = "haji84/RACE-AI";
+const SHA40 = /^[a-f0-9]{40}$/;
+const REQUIRED_CHECKS = ["unit (windows-latest)", "unit (ubuntu-latest)", "pilot"];
+
+function assertPr(pr, number, head, base) {
+  if (!Number.isSafeInteger(number) || number < 1 || !SHA40.test(head) || !SHA40.test(base) ||
+      head === base || pr?.number !== number || pr?.state !== "open" ||
+      pr.head?.sha !== head || pr.base?.sha !== base ||
+      pr.head?.repo?.full_name !== REPO || pr.base?.repo?.full_name !== REPO ||
+      pr.head.repo.id !== pr.base.repo.id) throw Error("RACE_PR_HEAD_OR_ORIGIN_CHANGED");
+}
+
+export function requireRaceChecks(checks, head) {
+  if (!Array.isArray(checks) || !SHA40.test(head)) throw Error("RACE_CI_EVIDENCE_INVALID");
+  for (const name of REQUIRED_CHECKS) {
+    const matching = checks.filter(x => x?.name === name && x.head_sha === head &&
+      x.app?.slug === "github-actions");
+    if (matching.length !== 1 || matching[0].status !== "completed" ||
+        matching[0].conclusion !== "success") throw Error("RACE_CI_NOT_VERIFIED_" + name);
+  }
+}
+
+export async function reviewRacePull({number,head,base,api,infer}) {
+  if (!Number.isSafeInteger(number) || number < 1 || !SHA40.test(head) ||
+      !SHA40.test(base) || head === base || typeof api !== "function" ||
+      typeof infer !== "function") throw Error("INVALID_REVIEW_REQUEST");
+  const first = await api("/pulls/" + number);
+  assertPr(first, number, head, base);
+  const checks = await api("/commits/" + head + "/check-runs?per_page=100");
+  if (!Number.isSafeInteger(checks?.total_count) || checks.total_count > 100 ||
+      !Array.isArray(checks.check_runs) || checks.total_count !== checks.check_runs.length)
+    throw Error("RACE_CHECKS_PAGINATION_INCOMPLETE");
+  requireRaceChecks(checks.check_runs, head);
+  const compare = await api("/compare/" + base + "..." + head);
+  if (compare?.base_commit?.sha !== base || compare?.commits?.at(-1)?.sha !== head)
+    throw Error("RACE_COMPARE_REVISION_CHANGED");
+  assertCompleteComparison(compare);
+  const prepared = compareToReviewChunks(compare, base, head);
+  const scope = {baseSha:base,headSha:head,paths:prepared.paths,
+    patchSha256:prepared.patchSha256,reviewChunks:prepared.chunks.length};
+  const reports = [];
+  for(const chunk of prepared.chunks) {
+    const report = await reviewLocalPatch({
+      baseSha:base,headSha:head,makerRole:"Builder",
+      paths:chunk.paths,patch:chunk.patch,infer
+    });
+    reports.push(report);
+    if(report.status === "BLOCKED")break;
+  }
+  const result = consolidateChunkReviews(reports,scope,prepared.chunks);
+  const second=await api("/pulls/"+number);
+  assertPr(second,number,head,base);
+  if (result.status === "NO_ACTIONABLE_FINDINGS" &&
+      !reports.every(x => x.status === "NO_ACTIONABLE_FINDINGS"))
+    throw Error("UNTRUSTED_CLEAN_RESULT");
+  return {
+    schemaVersion:1,repository:REPO,prNumber:number,headSha:head,baseSha:base,
+    reviewer:"AI-09",reviewerRole:"separate_advisory",
+    status:result.status,findings:result.findings,blockers:result.blockers,
+    patchSha256:prepared.patchSha256,
+    reviewedPaths:prepared.paths,chunkCount:prepared.chunks.length,
+    modelProvider:"loopback-only",evidenceClass:"AI_ASSERTED",
+    physicalEvidenceVerified:false,githubApprovalSatisfied:false,
+    independentGitHubAccountVerified:false,mergeAuthorized:false,
+    correctionHandoff:result.status === "CHANGES_REQUESTED" ?
+      {taskId:"ai09:race:"+number+":"+head,target:"Builder/Debugger",
+       actualTaskAcknowledged:false,allowedToWrite:false} : null
+  };
+}
+
+function parseArgs(args) {
+  if(args.length !== 6 || args[0] !== "--pr" || args[2] !== "--head" || args[4] !== "--base")
+    throw Error("USAGE: --pr NUMBER --head FULL_SHA --base FULL_SHA");
+  const number=Number(args[1]),head=args[3],base=args[5];
+  if(!Number.isSafeInteger(number) || number <= 0 || !SHA40.test(head) || !SHA40.test(base))
+    throw Error("INVALID_EXACT_REVIEW_SCOPE");
+  return {number,head,base};
+}
+
+async function main() {
+  const {number,head,base}=parseArgs(process.argv.slice(2));
+  async function api(path) {
+    const url="https://api.github.com/repos/"+REPO+path;
+    const response=await fetch(url,{
+      headers:{"Accept":"application/vnd.github+json","User-Agent":"GORIQ-AI09-readonly"},
+      signal:AbortSignal.timeout(15000)
+    });
+    if(!response.ok)throw Error("RACE_GITHUB_GET_FAILED_"+response.status);
+    return response.json();
+  }
+  const infer=async prompt => {
+    // No PR code execution, credentials, network model endpoint, paid provider or fallback.
+    const response=await fetch("http://127.0.0.1:11434/api/chat",{
+      method:"POST",headers:{"Content-Type":"application/json"},
+      signal:AbortSignal.timeout(120000),
+      body:JSON.stringify({model:"qwen2.5-coder:3b",stream:false,format:"json",
+        options:{temperature:0,num_ctx:32768},messages:[{role:"user",content:prompt}]})
+    });
+    if(!response.ok)throw Error("LOCAL_MODEL_UNAVAILABLE");
+    return (await response.json())?.message?.content;
+  };
+  const review=await reviewRacePull({number,head,base,api,infer});
+  // Findings are advisory. Never turn them into a GitHub APPROVED review.
+  process.stdout.write(JSON.stringify(review,null,2)+"\n");
+  if (review.status !== "NO_ACTIONABLE_FINDINGS")process.exitCode=2;
+}
+if(process.argv[1] && import.meta.url===pathToFileURL(process.argv[1]).href)
+  main().catch(e=>{process.stderr.write("AI09_RACE_REVIEW_HOLD: "+e.message+"\n");process.exitCode=2;});
