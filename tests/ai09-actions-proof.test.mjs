@@ -147,10 +147,10 @@ test("human review and raw Actions proof jointly gate a real-shaped triage propo
     if(path==="/pulls/73/reviews?per_page=100&page=1")return [review];
     throw Error("unexpected verified review read");
   };
-  const sources=sources({ci:run,task:job,body:log});
+  const evidenceSource=sources({ci:run,task:job,body:log});
   const verifyReproductionEvidence=createGitHubActionsFailureVerifier({
-    repository:REPO,githubGet:sources.githubGet,
-    githubReadJobLog:sources.githubReadJobLog,
+    repository:REPO,githubGet:evidenceSource.githubGet,
+    githubReadJobLog:evidenceSource.githubReadJobLog,
   });
   const verifier=createGitHubHumanReproductionVerifier({
     repository:REPO,builderActor:"builder-1",
@@ -177,7 +177,7 @@ test("human review and raw Actions proof jointly gate a real-shaped triage propo
   // Even if the human attestation is otherwise authenticated, a mismatched
   // downloaded log must prevent all Builder proposals.
   const changed=createGitHubActionsFailureVerifier({
-    repository:REPO,githubGet:sources.githubGet,
+    repository:REPO,githubGet:evidenceSource.githubGet,
     githubReadJobLog:async()=>Buffer.from("malformed log bytes\n"),
   });
   const rejectVerifier=createGitHubHumanReproductionVerifier({
