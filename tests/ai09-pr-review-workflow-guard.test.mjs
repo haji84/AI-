@@ -70,7 +70,7 @@ test("per-file model budget fits the bounded hosted worker timeout",()=>{
  const ms=Number(slice.match(/AbortSignal\.timeout\((\d+)\)/)?.[1]);
  assert.ok(minutes>0 && chunks>0 && ms>0);
  assert.ok(minutes*60000>=chunks*ms+5*60000);
- assert.match(inference,/num_predict:\s*512/);
+ assert.match(inference,/num_predict:\s*384/);
 });
 test("model worker and poster each reject incomplete GitHub patches",()=>{
  const worker=readFileSync("scripts/goriq-ai09-ci-review.mjs","utf8");
