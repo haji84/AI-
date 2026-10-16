@@ -17,3 +17,5 @@ The PR is for verification only. Do not merge this fixture into main.
 Native retest after scoped safe-poster diagnostics merge: main 5060c2b0e8fcbf72e59bb95823c4ebebaff598d5.
 
 PR write permission verification (comment job only), main dbb433773d86c250bcb341566f7903e4fecbf89a. This is a disposable PR E2E fixture.
+
+Changed-head verification only: a new commit must receive a distinct head-bound AI-09 advisory. All previous head comments remain untouched.
