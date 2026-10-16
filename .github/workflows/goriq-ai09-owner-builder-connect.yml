@@ -69,7 +69,7 @@ jobs:
           ref: main
           persist-credentials: false
       - name: Enforce exact current main source
-        shell: pwsh
+        shell: powershell
         run: |
           git fetch --no-tags origin main
           if ($LASTEXITCODE -ne 0) { throw "Trusted main fetch unavailable" }
@@ -77,7 +77,7 @@ jobs:
           $trusted = (git rev-parse origin/main).Trim()
           if ($head -ne $trusted) { throw "Current main revision mismatch" }
       - name: Authenticate against existing local Builder read-only
-        shell: pwsh
+        shell: powershell
         run: |
           $tokenPath = Join-Path $env:LOCALAPPDATA 'GAIWorker\code-builder\token.txt'
           if (-not (Test-Path -LiteralPath $tokenPath -PathType Leaf)) {
