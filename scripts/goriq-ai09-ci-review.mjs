@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 import { writeFileSync } from "node:fs";
+import { performance } from "node:perf_hooks";
+import { Buffer } from "node:buffer";
 import { resolve, dirname, basename } from "node:path";
 import { execFileSync } from "node:child_process";
 import { reviewLocalPatch } from "../src/orchestrator/ai09-local-reviewer.mjs";
@@ -63,19 +65,38 @@ function safePr(pr, config) {
 }
 
 async function localInfer(config, prompt) {
-  const response = await fetch("http://127.0.0.1:11434/api/chat", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    signal: AbortSignal.timeout(210000),
-    body: JSON.stringify({
-      model: config.modelName, stream: false, format: "json",
-      options: { temperature: 0, num_ctx: 16384, num_predict: 512 },
-      messages: [{ role: "user", content: prompt }],
-    }),
-  });
-  if (!response.ok) throw new Error("local_inference_unavailable");
-  const payload = await response.json();
-  return payload?.message?.content;
+  const started = performance.now();
+  const index = (config.inferenceIndex = (config.inferenceIndex || 0) + 1);
+  try {
+    const response = await fetch("http://127.0.0.1:11434/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: AbortSignal.timeout(105000),
+      body: JSON.stringify({
+        model: config.modelName, stream: false, format: "json",
+        options: { temperature: 0, num_ctx: 8192, num_predict: 384 },
+        messages: [{ role: "user", content: prompt }],
+      }),
+    });
+    if (!response.ok) throw new Error("local_inference_http_error");
+    const payload = await response.json();
+    const content = payload?.message?.content;
+    const safeReason = ["stop", "length"].includes(payload?.done_reason) ? payload.done_reason : "unknown";
+    console.log("AI09_INFER_METRIC=" + JSON.stringify({
+      chunk:index, ms:Math.round(performance.now() - started),
+      promptTokens:Number.isSafeInteger(payload?.prompt_eval_count) ? payload.prompt_eval_count : null,
+      outputTokens:Number.isSafeInteger(payload?.eval_count) ? payload.eval_count : null,
+      outputBytes:typeof content === "string" ? Buffer.byteLength(content,"utf8") : null,
+      doneReason:safeReason, responseAvailable:typeof content === "string",
+    }));
+    return content;
+  } catch (error) {
+    console.log("AI09_INFER_HOLD=" + JSON.stringify({
+      chunk:index, ms:Math.round(performance.now() - started),
+      reason:error?.name === "TimeoutError" ? "TIMEOUT" : "LOCAL_INFER_FAILURE"
+    }));
+    throw error;
+  }
 }
 
 async function main() {
@@ -102,12 +123,18 @@ async function main() {
     scope.reviewChunks = prepared.chunks.length;
     const chunkReports = [];
     for (const chunk of prepared.chunks) {
+      const beforeChunk = performance.now();
       const chunkResult = await reviewLocalPatch({
         baseSha: c.baseSha, headSha: c.headSha, makerRole: "Builder",
         paths: chunk.paths, patch: chunk.patch,
         infer: prompt => localInfer(c, prompt),
       });
       chunkReports.push(chunkResult);
+      console.log("AI09_CHUNK_STATUS=" + JSON.stringify({
+        index:chunkReports.length,total:prepared.chunks.length,
+        bytes:Buffer.byteLength(chunk.patch,"utf8"),
+        status:chunkResult.status,ms:Math.round(performance.now()-beforeChunk)
+      }));
       if (chunkResult.status === "BLOCKED") break;
     }
     // No chunk can silently disappear, and no partial model review can pass.
