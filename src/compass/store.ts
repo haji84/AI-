@@ -121,15 +121,15 @@ export class CompassStore {
   readonly dbPath: string;
   private readonly db: DatabaseSync;
 
-  constructor(dbPath: string) {
+  constructor(dbPath: string, options: { readOnly?: boolean } = {}) {
     this.dbPath = dbPath;
-    if (dbPath !== ":memory:") mkdirSync(dirname(dbPath), { recursive: true });
+    if (!options.readOnly && dbPath !== ":memory:") mkdirSync(dirname(dbPath), { recursive: true });
     // The Broker and its isolated Goal executor can write the same Compass
     // database concurrently. Wait for the other bounded transaction instead
     // of rejecting an authenticated intake during a brief write lock.
-    this.db = new DatabaseSync(dbPath, { timeout: 5_000 });
+    this.db = new DatabaseSync(dbPath, { timeout: 5_000, readOnly: options.readOnly ?? false });
     this.db.exec("PRAGMA foreign_keys = ON;");
-    this.initialize();
+    if (!options.readOnly) this.initialize();
   }
 
   close(): void {
@@ -137,8 +137,8 @@ export class CompassStore {
   }
 
   /** Same connection as Compass progress: lease checks share its write transaction. */
-  executionLease(): CompassExecutionLease {
-    return new CompassExecutionLease(this.db);
+  executionLease(options: { initialize?: boolean } = {}): CompassExecutionLease {
+    return new CompassExecutionLease(this.db, options);
   }
 
   private initialize(): void {

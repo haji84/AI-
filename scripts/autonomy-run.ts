@@ -1,10 +1,10 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { hostname } from "node:os";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { assessAutonomyLock } from "../src/orchestrator/autonomy-lock-assessment.ts";
 import { CompassStore } from "../src/compass/store.ts";
-import { DurableTaskRuntime, JsonFileDurableTaskStore } from "../src/gai/durable-task-runtime.ts";
+import { DurableTaskRuntime, JsonFileDurableTaskStore, MemoryDurableTaskStore } from "../src/gai/durable-task-runtime.ts";
 import { BaselinePlanner, createContextInspectCapability } from "../src/orchestrator/baseline-planner.ts";
 import { RuntimeDevelopmentPlanner } from "../src/orchestrator/runtime-development-planner.ts";
 import { createCodeBuilderCapability, createRuntimeBuilderRouter } from "../src/orchestrator/runtime-builder-capability.ts";
@@ -26,6 +26,8 @@ if (!Number.isInteger(maxCycles) || maxCycles < 1 || maxCycles > 20) {
   throw new Error("max-cycles must be an integer from 1 to 20");
 }
 const dbPath = process.env.COMPASS_DB_PATH?.trim() || resolve(process.cwd(), ".compass", "compass.db");
+const recoveryActionId = process.env.AUTONOMY_RECOVERY_ACTION_ID?.trim();
+const sqliteFenced = process.env.AUTONOMY_COMPASS_SQLITE_FENCE === "1";
 
 // Atomic exclusive lock. A crash leaves the lock in place until reconciled.
 const lockPath = dbPath + ".autonomy-lock";
@@ -55,11 +57,24 @@ try {
 }
 let compass: CompassStore | null = null;
 try {
-  compass = new CompassStore(dbPath);
+  compass = new CompassStore(dbPath, { readOnly: dryRun });
+  const persistedGoal = compass.getGoal();
+  const persistedState = compass.getState();
+  const sourceRecoveryDecision = dryRun && sqliteFenced && recoveryActionId && persistedGoal
+    ? compass.executionLease({ initialize: false }).recoveryDecision(goalWorkStateId(compassGoalToLoopGoal(persistedGoal)), recoveryActionId) : null;
+  if (dryRun) {
+    const source = compass;
+    source.close();
+    compass = new CompassStore(":memory:");
+    if (persistedGoal) compass.setGoal(persistedGoal);
+    compass.updateState(persistedState);
+  }
   const activeCompass = compass;
   const goalRecord = activeCompass.getGoal();
   if (!goalRecord) throw new Error("Compass goal is not set");
   const goal = compassGoalToLoopGoal(goalRecord);
+  const fingerprint = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
+  const currentState = activeCompass.getState();
   const checkpointPath: string = process.env.AUTONOMY_CHECKPOINT_PATH?.trim() || resolve(dirname(dbPath), "autonomy-checkpoint.json");
   let resumeHint: string | null = null;
   if (existsSync(checkpointPath)) {
@@ -67,17 +82,16 @@ try {
       const value: unknown = JSON.parse(readFileSync(checkpointPath, "utf-8"));
       if (value && typeof value === "object") {
         const hint = value as Record<string, unknown>;
-        if (hint.version === 1 && hint.goalTitle === goal.title && hint.requiresResume === true
-          && typeof hint.nextAction === "string") resumeHint = hint.nextAction;
+        if (hint.version === 2 && hint.goalFingerprint === fingerprint(persistedGoal)
+          && hint.stateFingerprint === fingerprint(persistedState) && hint.requiresResume === true
+          && typeof hint.nextAction === "string" && hint.nextAction.trim()) resumeHint = hint.nextAction;
       }
     } catch { /* A corrupt hint cannot override Compass state. */ }
   }
 
-  const currentState = activeCompass.getState();
   // A pending approval remains gated. Only an independently authorized action may proceed.
-  const mayResume = Boolean(resumeHint) && currentState.nextAction === resumeHint && currentState.status !== "ACHIEVED"
-    && currentState.status !== "PAUSED"
-    && currentState.status !== "BLOCKED" && currentState.status !== "approval_required";
+  const mayResume = Boolean(resumeHint) && currentState.nextAction === resumeHint
+    && currentState.status === "continue" && currentState.blockers.length === 0;
   if (resumeOnly && !mayResume) {
     const approvalPending = currentState.status === "approval_required";
     // Candidate discovery is informational; it never grants execution authority.
@@ -119,7 +133,6 @@ try {
   // The fenced dry-run path may only inspect state. Do not register code-building
   // capabilities until non-idempotent effects have a reconciliation contract.
   const fencedStorePath = process.env.AUTONOMY_FENCED_TASK_STORE_PATH?.trim();
-  const sqliteFenced = process.env.AUTONOMY_COMPASS_SQLITE_FENCE === "1";
   const registry = new CapabilityRegistry({ dryRun })
     .register(createContextInspectCapability());
   if (!sqliteFenced && !fencedStorePath) {
@@ -141,14 +154,13 @@ try {
   const sqliteLease = sqliteFenced ? activeCompass.executionLease() : null;
   // Recovery is inspection-only until effectful work has a reconciliation contract.
   // A pending external effect cannot be retried or treated as completed.
-  const recoveryActionId = process.env.AUTONOMY_RECOVERY_ACTION_ID?.trim();
   // A requested external-effect recovery check must never be silently skipped
   // when the authoritative SQLite fencing backend is disabled.
   if (recoveryActionId && !sqliteLease) {
     throw new Error("AUTONOMY_RECOVERY_REQUIRES_SQLITE_FENCE");
   }
   if (sqliteLease && recoveryActionId) {
-    const decision = sqliteLease.recoveryDecision(goalWorkStateId(goal), recoveryActionId);
+    const decision = sourceRecoveryDecision ?? sqliteLease.recoveryDecision(goalWorkStateId(goal), recoveryActionId);
     if (decision !== "READY_FOR_FIRST_EXECUTION") {
       process.stdout.write(`${JSON.stringify({ status: decision, actionId: recoveryActionId, executable: false })}\\n`);
       throw new Error(`AUTONOMY_RECOVERY_EFFECT_NOT_EXECUTABLE: ${decision}`);
@@ -165,7 +177,7 @@ try {
     throw new Error("AUTONOMY_FENCED_ATOMIC_COMMIT_REQUIRED: cannot execute with separate durable and Compass stores");
   }
   if (fencedStorePath) {
-    const durable = new DurableTaskRuntime(new JsonFileDurableTaskStore(resolve(fencedStorePath)));
+    const durable = new DurableTaskRuntime(dryRun ? new MemoryDurableTaskStore() : new JsonFileDurableTaskStore(resolve(fencedStorePath)));
     const taskId = goalWorkStateId(goal);
     await durable.enqueue({ id: taskId, idempotencyKey: taskId, type: "autonomy-goal-execution", migrationClass: "RESTARTABLE" });
     await durable.reclaimExpiredLeases();
@@ -208,12 +220,13 @@ try {
   if (!dryRun) {
     const state = activeCompass.getState();
     const checkpoint = {
-      version: 1,
-      goalTitle: goal.title,
+      version: 2,
+      goalFingerprint: fingerprint(activeCompass.getGoal()),
+      stateFingerprint: fingerprint(state),
       observedAt: new Date().toISOString(),
       status: state.status ?? "unknown",
       nextAction: state.nextAction ?? null,
-      requiresResume: Boolean(state.nextAction) && state.status !== "ACHIEVED" && state.status !== "PAUSED" && state.status !== "BLOCKED" && state.status !== "approval_required",
+      requiresResume: Boolean(state.nextAction?.trim()) && state.status === "continue" && state.blockers.length === 0,
     };
     mkdirSync(dirname(checkpointPath), { recursive: true });
     const temporaryPath = `${checkpointPath}.${process.pid}.tmp`;

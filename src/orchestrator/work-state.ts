@@ -53,12 +53,16 @@ export function selectIndependentWorkItem(
   gatedScopes: readonly string[],
 ): ChildWorkItem | null {
   const ids = new Set(gatedItemIds);
-  const scopes = new Set(gatedScopes);
+  const normalized = (scope: string) => scope.replace(/\\/g, "/").replace(/\/+$/, "");
+  const overlaps = (left: string, right: string) => {
+    const a = normalized(left), b = normalized(right);
+    return !a || !b || a === b || a.startsWith(`${b}/`) || b.startsWith(`${a}/`);
+  };
   const eligible = items.find((item) =>
     item.status === "NOT_STARTED"
     && !ids.has(item.id)
     && item.affectedScope.length > 0
-    && item.affectedScope.every((scope) => !scopes.has(scope))
+    && item.affectedScope.every((scope) => !gatedScopes.some(gated => overlaps(scope, gated)))
     && item.executionApproach.trim().length > 0
     && item.verificationMethod.trim().length > 0
     && item.definitionOfDone.length > 0

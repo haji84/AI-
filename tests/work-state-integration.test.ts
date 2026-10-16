@@ -184,3 +184,81 @@ test("Compass adapter persists work state and events without a provider dependen
   assert.equal((active[0].events as unknown[]).length, 1);
   compass.close();
 });
+
+test("verified partial DoD progress persists the remaining action in both stores", async () => {
+  const workStore = new MemoryWorkStateStore();
+  await new WorkStateContextSource(workStore).collect({ goal });
+  const base = new MemoryLoopStore();
+  const store = new WorkStateWriteBackStore(base, workStore);
+  await store.writeBack({
+    goal, intent: { summary: "continue", confidence: 1, evidence: [] },
+    action: { id: "partial", capability: "context.inspect", description: "verify implementation", risk: "low", satisfiesDefinitionOfDone: ["criterion-1"] } as WorkStateAction,
+    result: { actionId: "partial", ok: true, summary: "implementation verified" },
+    verification: { ok: true, summary: "independent check", evidence: { digest: "test-evidence" } },
+    stopReason: "continue", nextAction: null,
+  });
+  assert.match(base.records[0].nextAction ?? "", /handoff verified/);
+  assert.equal(workStore.state?.nextAction, base.records[0].nextAction);
+  assert.equal(workStore.state?.verificationResults.length, 1);
+  assert.notEqual(workStore.state?.status, "COMPLETED");
+});
+
+test("inspection, failed verification and repeated accepted DoD do not invent continuation", async () => {
+  for (const mode of ["inspection", "failed", "repeated"]) {
+    const workStore = new MemoryWorkStateStore();
+    await new WorkStateContextSource(workStore).collect({ goal });
+    if (mode === "repeated") workStore.state!.verificationResults.push({ itemId: "criterion-1", passed: true, evidence: "already accepted" });
+    const base = new MemoryLoopStore();
+    const store = new WorkStateWriteBackStore(base, workStore);
+    await store.writeBack({
+      goal, intent: { summary: "continue", confidence: 1, evidence: [] },
+      action: { id: mode, capability: "context.inspect", description: mode, risk: "low", satisfiesDefinitionOfDone: mode === "inspection" ? [] : ["criterion-1"] } as WorkStateAction,
+      result: { actionId: mode, ok: true, summary: mode },
+      verification: { ok: mode !== "failed", summary: mode },
+      stopReason: "continue", nextAction: null,
+    });
+    assert.equal(base.records[0].nextAction, null, mode);
+    assert.equal(workStore.state?.nextAction, null, mode);
+  }
+});
+
+test("last verified criterion schedules a final Goal-controller completion check", async () => {
+  const workStore = new MemoryWorkStateStore();
+  await new WorkStateContextSource(workStore).collect({ goal });
+  workStore.state!.verificationResults.push({ itemId: "criterion-1", passed: true, evidence: "prior independent check" });
+  const base = new MemoryLoopStore();
+  const store = new WorkStateWriteBackStore(base, workStore);
+  await store.writeBack({
+    goal, intent: { summary: "continue", confidence: 1, evidence: [] },
+    action: { id: "last", capability: "context.inspect", description: "verify handoff", risk: "low", satisfiesDefinitionOfDone: ["criterion-2"] } as WorkStateAction,
+    result: { actionId: "last", ok: true, summary: "handoff verified" },
+    verification: { ok: true, summary: "independent check", evidence: "handoff evidence" },
+    stopReason: "continue", nextAction: null,
+  });
+  assert.equal(workStore.state?.status, "COMPLETED");
+  assert.equal(base.records[0].stopReason, "continue", "the Goal Controller must still perform its completion gates");
+  assert.match(base.records[0].nextAction ?? "", /Finalize verified Goal completion/);
+});
+
+test("a revised same-identity Goal cannot reuse old WorkState completion", async () => {
+  for (const patch of [{ successCriteria: [...goal.successCriteria, "new required verification"] }, { constraints: ["different authority boundary"] }]) {
+    const store = new MemoryWorkStateStore();
+    const source = new WorkStateContextSource(store);
+    await source.collect({ goal });
+    const before = structuredClone(store.state);
+    await assert.rejects(source.collect({ goal: { ...goal, ...patch } }), /WORK_STATE_GOAL_CONTRACT_MISMATCH/);
+    assert.deepEqual(store.state, before);
+  }
+});
+
+test("scoped Builder work accepts its string file list and rejects an out-of-scope file", async () => {
+  const store = new MemoryWorkStateStore();
+  await new WorkStateContextSource(store).collect({ goal });
+  store.state!.childWorkItems.push({ id: "builder-child", objective: "bounded fix", definitionOfDone: [{ id: "verified", description: "independent tests" }], affectedScope: ["src/allowed.ts"], executionApproach: "Builder", verificationMethod: "test", status: "IN_PROGRESS" });
+  let executions = 0;
+  const guarded = new WorkStateGuardedExecutor({ async execute(action) { executions++; return { actionId: action.id, ok: true, summary: "executed" }; } }, store, goal);
+  const action = { id: "scoped", capability: "code.builder", description: "fix", risk: "low", materialMutation: true, workItemId: "builder-child", input: { files: ["src/allowed.ts"] } } as WorkStateAction;
+  assert.equal((await guarded.execute(action, [])).ok, true);
+  assert.equal((await guarded.execute({ ...action, input: { files: ["src/other.ts"] } }, [])).blocker, "work_item_scope_mismatch");
+  assert.equal(executions, 1);
+});

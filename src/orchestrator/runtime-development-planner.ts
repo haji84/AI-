@@ -157,8 +157,11 @@ export class RuntimeDevelopmentPlanner implements Planner {
       ? `Use verifier evidence and a materially different implementation for ${input.previousResult?.actionId ?? "the failed attempt"}`
       : "Use a focused failing test followed by the smallest implementation";
     const strategyDigest = createHash("sha256").update(JSON.stringify({ objective, files, hypothesis, contextDigest: repository?.contextDigest ?? null })).digest("hex").slice(0, 24);
+    const remaining = workStateSnapshot(input.context)?.remainingDefinitionOfDone;
+    const sliceId = Array.isArray(remaining)
+      ? `:${createHash("sha256").update(JSON.stringify(remaining)).digest("hex").slice(0, 16)}` : "";
     return {
-      id: `runtime-builder:${goalWorkStateId(input.goal)}`,
+      id: `runtime-builder:${goalWorkStateId(input.goal)}${sliceId}`,
       description: objective,
       capability: "code.builder",
       risk: "low",

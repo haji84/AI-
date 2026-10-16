@@ -92,3 +92,10 @@ try{
   if((Get-Acl -LiteralPath $path).GetSecurityDescriptorSddlForm([Security.AccessControl.AccessControlSections]::Access) -cne $beforeDacl){throw 'rejected-dacl-mutated-target'}
   Write-Output 'Runtime owner restoration/rejection/idempotency/content/DACL fixtures PASS'
 }finally{Remove-Item -LiteralPath $fixture -Recurse -Force}
+
+& (Join-Path $PSScriptRoot 'goriq-zbook-acl-boundary-repair.test.ps1')
+
+& (Join-Path $PSScriptRoot 'goriq-nonpropagating-acl-probe.test.ps1')
+
+
+& (Join-Path $PSScriptRoot 'goriq-zbook-fixed-acl-repair.test.ps1')

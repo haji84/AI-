@@ -19,7 +19,7 @@ export function compassGoalToLoopGoal(goal: GoalRecord): Goal {
 
 export function compassStateToLoopState(state: StateRecord): LoopState {
   return {
-    paused: state.status === "PAUSED",
+    paused: state.status?.toUpperCase() === "PAUSED",
     retriesForCurrentAction: 0,
     completed: strings(state.completed),
     blockers: strings(state.blockers),

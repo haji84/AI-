@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "issue": 1763,
+  "pr": 1764,
+  "source_main": "dbb433773d86c250bcb341566f7903e4fecbf89a",
+  "prior_pr_head": "977edbe70c54f67d8fce5fb3d91767dd9bd4fda4",
+  "classification": "REPOSITORY_AND_LOCAL_PROCESS_EVIDENCE_NOT_PHYSICAL_ACCEPTANCE",
+  "checks": {
+    "focused": {
+      "log_sha256": "38f9b48338d9e15455a3add6d8d206aeaf6f0510aac9de9134f3ecf4da40caf4",
+      "counts": {
+        "tests": 66,
+        "pass": 66,
+        "fail": 0,
+        "skipped": 0
+      },
+      "status": "PASS"
+    },
+    "p8": {
+      "log_sha256": "bd93c6aae2de79a0610bd12d293b9341111ef7d0165cabcda529e2f2f6753587",
+      "counts": {
+        "tests": 332,
+        "pass": 332,
+        "fail": 0,
+        "skipped": 0
+      },
+      "status": "PASS"
+    },
+    "full": {
+      "log_sha256": "a2d319724335ca1e318d773717100842792e466ba3b09bae5a1b5454776c57ec",
+      "counts": {
+        "tests": 2574,
+        "pass": 2566,
+        "fail": 3,
+        "skipped": 5
+      },
+      "status": "FAIL_ENVIRONMENT",
+      "failures": [
+        {
+          "test": "missing configured LAN leaves local Broker available without launching private ingress",
+          "reason": "networkInterfaces syscall is restricted (uv_interface_addresses)"
+        },
+        {
+          "test": "private ingress retry exhaustion preserves the independently running local Broker",
+          "reason": "same networkInterfaces runtime restriction; unchanged baseline failure"
+        },
+        {
+          "test": "native refresh supports stopped offline baseline without false full-service acceptance",
+          "reason": "pwsh executable absent (ENOENT)"
+        }
+      ]
+    },
+    "build": {
+      "log_sha256": "07c4edc96ba1cbc44fb3d648426f33a09db573db5ad53317cf75e60a82e75c90",
+      "counts": {},
+      "status": "PASS"
+    },
+    "health": {
+      "status": "PASS",
+      "command": "next start --hostname 127.0.0.1 --port 3100; HEALTHCHECK_URL=http://127.0.0.1:3100/api/health node scripts/health-check.mjs",
+      "scope": "local production-build process only; not Production deployment"
+    },
+    "lint": {
+      "status": "PASS",
+      "command": "node node_modules/eslint/bin/eslint.js ."
+    },
+    "typecheck": {
+      "status": "PASS",
+      "command": "node node_modules/typescript/bin/tsc --noEmit"
+    },
+    "canonical_audit": {
+      "status": "PASS",
+      "command": "node scripts/goriq-completion-audit.mjs --check",
+      "scope": "source mapping only; product_complete=false"
+    }
+  },
+  "physical_acceptance": false,
+  "production_activation": false,
+  "formal_independent_github_approval": false,
+  "measured_product_speedup": null,
+  "product_complete": false,
+  "remaining": [
+    "exact-head GitHub CI",
+    "applicable formal independent approval/attestation",
+    "native shared cross-host authority and uncertain-effect reconciliation",
+    "durable failure/strategy history across separate scheduled runs",
+    "real Builder -> PR -> merge -> runtime -> next job acceptance",
+    "physical restart/network/partition recovery",
+    "measured verified-requirement throughput before/after",
+    "cross-project transfer under separate credentials/policies"
+  ]
+}

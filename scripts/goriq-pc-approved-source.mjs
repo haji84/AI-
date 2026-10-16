@@ -10,6 +10,8 @@ async function read(endpoint) {
 }
 const main = await read('git/ref/heads/main');
 if (main.object?.sha !== revision) throw Error('PC activation requires current exact main');
-const runs = await read(`actions/runs?head_sha=${revision}&per_page=100`);
+// Exclude scheduled/dispatch runs so they cannot bury the eligible push CI.
+// The exact source, workflow, event and successful-result checks remain below.
+const runs = await read(`actions/runs?head_sha=${revision}&event=push&per_page=100`);
 if (!runs.workflow_runs?.some(run => run.name === 'CI' && run.event === 'push' && run.head_branch === 'main' && run.head_sha === revision && run.status === 'completed' && run.conclusion === 'success')) throw Error('PC successful exact main CI required');
 console.log(JSON.stringify({ sourceRevision: revision, exactMainCi: true, checkedAt: new Date().toISOString() }));

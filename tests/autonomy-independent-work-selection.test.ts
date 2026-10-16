@@ -41,3 +41,10 @@ test("ready candidate must have a verification contract and nonempty scope", () 
   const ready = item("ready", "NOT_STARTED", "tests");
   assert.equal(selectIndependentWorkItem([missingAcceptance, missingScope, ready], [], [])?.id, "ready");
 });
+
+test("candidate discovery excludes parent and descendant paths of gated scopes", () => {
+  for (const [candidate, gated] of [["src/protected/file.ts", "src/protected"], ["src/protected", "src/protected/file.ts"], ["src\\protected\\file.ts", "src/protected/"]]) {
+    assert.equal(selectIndependentWorkItem([item("overlap", "NOT_STARTED", candidate)], [], [gated]), null);
+  }
+  assert.equal(selectIndependentWorkItem([item("safe", "NOT_STARTED", "src/protected-other")], [], ["src/protected"])?.id, "safe");
+});

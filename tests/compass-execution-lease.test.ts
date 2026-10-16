@@ -2,6 +2,54 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { DatabaseSync } from "node:sqlite";
 import { CompassExecutionLease } from "../src/compass/execution-lease.ts";
+import { spawn } from "node:child_process";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+test("lease operations recheck current time after a contended SQLite transaction begins", async () => {
+  for (const operation of ["commit", "renew", "release", "reserve", "confirm"] as const) {
+    const dir = mkdtempSync(join(tmpdir(), "goriq-lease-contention-"));
+    const path = join(dir, "lease.db");
+    const db = new DatabaseSync(path, { timeout: 5000 });
+    const leases = new CompassExecutionLease(db);
+    db.exec("CREATE TABLE progress (value TEXT)");
+    const child = spawn(process.execPath, ["--input-type=module", "-e", `
+      import { DatabaseSync } from 'node:sqlite';
+      const db = new DatabaseSync(process.argv[1], { timeout: 5000 });
+      process.stdout.write('READY\\n');
+      process.stdin.once('data', () => {
+        db.exec('BEGIN IMMEDIATE');
+        process.stdout.write('LOCKED\\n');
+        setTimeout(() => { db.exec('ROLLBACK'); db.close(); process.exit(0); }, 1200);
+      });
+    `, path], { stdio: ["pipe", "pipe", "pipe"] });
+    const line = () => new Promise<void>((resolveReady, reject) => {
+      const timer = setTimeout(() => reject(new Error("contention child did not become ready")), 5000);
+      child.stdout.once("data", () => { clearTimeout(timer); resolveReady(); });
+      child.once("error", reject);
+    });
+    try {
+      await line();
+      const claim = leases.claim("goal", "old", 1000);
+      if (operation === "confirm") leases.reserveEffect(claim, "effect");
+      const locked = line(); child.stdin.write("lock\n"); await locked;
+      assert.ok(Date.now() < claim.expiresAt, "call must begin with a live lease");
+      assert.throws(() => {
+        if (operation === "commit") leases.commit(claim, () => db.exec("INSERT INTO progress VALUES ('stale')"));
+        if (operation === "renew") leases.renew(claim, 1000);
+        if (operation === "release") leases.release(claim);
+        if (operation === "reserve") leases.reserveEffect(claim, "effect");
+        if (operation === "confirm") leases.confirmEffect(claim, "effect");
+      }, /STALE_CLAIM/, operation);
+      assert.equal(db.prepare("SELECT COUNT(*) AS count FROM progress").get()?.count, 0);
+      if (operation === "reserve") assert.equal(leases.effectStatus("goal", "effect"), "UNRECORDED");
+      if (operation === "confirm") assert.equal(leases.effectStatus("goal", "effect"), "PENDING");
+    } finally {
+      child.kill("SIGKILL"); db.close(); rmSync(dir, { recursive: true, force: true });
+    }
+  }
+});
 
 test("expired owner cannot commit after new owner claims the task", () => {
   const db = new DatabaseSync(":memory:");

@@ -8,8 +8,9 @@ import { DatabaseSync } from "node:sqlite";
  */
 export class CompassExecutionLease {
   private readonly db: DatabaseSync;
-  constructor(db: DatabaseSync) {
+  constructor(db: DatabaseSync, options: { initialize?: boolean } = {}) {
     this.db = db;
+    if (options.initialize === false) return;
     this.db.exec(`CREATE TABLE IF NOT EXISTS compass_execution_lease (
       task_id TEXT PRIMARY KEY,
       owner TEXT NOT NULL,
@@ -19,17 +20,18 @@ export class CompassExecutionLease {
     )`);
   }
 
-  claim(taskId: string, owner: string, ttlMs: number, now = Date.now()) {
+  claim(taskId: string, owner: string, ttlMs: number, now?: number) {
     if (!taskId.trim() || !owner.trim() || !Number.isSafeInteger(ttlMs) || ttlMs <= 0)
       throw new Error("COMPASS_LEASE_INVALID_INPUT");
     this.db.exec("BEGIN IMMEDIATE");
     try {
+      const checkedAt = now ?? Date.now();
       const previous = this.db.prepare("SELECT * FROM compass_execution_lease WHERE task_id = ?")
         .get(taskId) as { owner: string; epoch: number; expires_at: number } | undefined;
-      if (previous && previous.expires_at > now) throw new Error("COMPASS_LEASE_ALREADY_HELD");
+      if (previous && previous.expires_at > checkedAt) throw new Error("COMPASS_LEASE_ALREADY_HELD");
       const epoch = (previous?.epoch ?? 0) + 1;
       const token = randomUUID();
-      const expiresAt = now + ttlMs;
+      const expiresAt = checkedAt + ttlMs;
       this.db.prepare(`INSERT INTO compass_execution_lease(task_id, owner, epoch, token, expires_at)
         VALUES (?, ?, ?, ?, ?)
         ON CONFLICT(task_id) DO UPDATE SET owner=excluded.owner, epoch=excluded.epoch,
@@ -47,14 +49,15 @@ export class CompassExecutionLease {
   renew(
     claim: { taskId: string; owner: string; epoch: number; token: string },
     ttlMs: number,
-    now = Date.now(),
+    now?: number,
   ) {
-    if (!Number.isSafeInteger(ttlMs) || ttlMs <= 0 || !Number.isSafeInteger(now) ||
-        !Number.isSafeInteger(now + ttlMs)) throw new Error("COMPASS_LEASE_INVALID_INPUT");
+    if (!Number.isSafeInteger(ttlMs) || ttlMs <= 0) throw new Error("COMPASS_LEASE_INVALID_INPUT");
     this.db.exec("BEGIN IMMEDIATE");
     try {
-      this.assertCurrent(claim, now);
-      const expiresAt = now + ttlMs;
+      const checkedAt = now ?? Date.now();
+      if (!Number.isSafeInteger(checkedAt) || !Number.isSafeInteger(checkedAt + ttlMs)) throw new Error("COMPASS_LEASE_INVALID_INPUT");
+      this.assertCurrent(claim, checkedAt);
+      const expiresAt = checkedAt + ttlMs;
       this.db.prepare(`UPDATE compass_execution_lease SET expires_at = ?
         WHERE task_id = ? AND owner = ? AND epoch = ? AND token = ?`)
         .run(expiresAt, claim.taskId, claim.owner, claim.epoch, claim.token);
@@ -67,13 +70,14 @@ export class CompassExecutionLease {
   }
 
   /** Release only a still-current lease, without resetting its fencing epoch. */
-  release(claim: { taskId: string; owner: string; epoch: number; token: string }, now = Date.now()): void {
+  release(claim: { taskId: string; owner: string; epoch: number; token: string }, now?: number): void {
     this.db.exec("BEGIN IMMEDIATE");
     try {
-      this.assertCurrent(claim, now);
+      const checkedAt = now ?? Date.now();
+      this.assertCurrent(claim, checkedAt);
       this.db.prepare(`UPDATE compass_execution_lease SET expires_at = ?
         WHERE task_id = ? AND owner = ? AND epoch = ? AND token = ?`)
-        .run(now, claim.taskId, claim.owner, claim.epoch, claim.token);
+        .run(checkedAt, claim.taskId, claim.owner, claim.epoch, claim.token);
       this.db.exec("COMMIT");
     } catch (error) {
       this.db.exec("ROLLBACK");
@@ -93,7 +97,7 @@ export class CompassExecutionLease {
   /** Reserve a single external action intent under the current fenced epoch.
    * A pending intent is never permission to repeat an unknown external effect.
    */
-  reserveEffect(claim: { taskId: string; owner: string; epoch: number; token: string }, actionId: string, now = Date.now()): void {
+  reserveEffect(claim: { taskId: string; owner: string; epoch: number; token: string }, actionId: string, now?: number): void {
     if (!actionId.trim()) throw new Error("COMPASS_EFFECT_INVALID_INPUT");
     this.commit(claim, () => {
       this.db.exec(`CREATE TABLE IF NOT EXISTS compass_execution_effect (
@@ -110,7 +114,7 @@ export class CompassExecutionLease {
   /** Record confirmed outcome only for the owner of the reserved effect.
    * Unknown outcomes remain PENDING and require reconciliation.
    */
-  confirmEffect(claim: { taskId: string; owner: string; epoch: number; token: string }, actionId: string, now = Date.now()): void {
+  confirmEffect(claim: { taskId: string; owner: string; epoch: number; token: string }, actionId: string, now?: number): void {
     if (!actionId.trim()) throw new Error("COMPASS_EFFECT_INVALID_INPUT");
     this.commit(claim, () => {
       const result = this.db.prepare(`UPDATE compass_execution_effect SET state = 'CONFIRMED'
@@ -142,12 +146,13 @@ export class CompassExecutionLease {
   commit<T>(
     claim: { taskId: string; owner: string; epoch: number; token: string },
     mutation: () => T,
-    now = Date.now(),
+    now?: number,
   ): T {
     this.db.exec("BEGIN IMMEDIATE");
     try {
       this.assertCurrent(claim, now);
       const result = mutation();
+      this.assertCurrent(claim, now);
       this.db.exec("COMMIT");
       return result;
     } catch (error) {
