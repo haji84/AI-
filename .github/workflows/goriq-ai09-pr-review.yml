@@ -51,7 +51,7 @@ jobs:
     if: needs.preflight.outputs.eligible == 'true'
     # MacBook/ZBook are intentionally out of scope: only ephemeral GitHub-hosted CPU.
     runs-on: ubuntu-24.04
-    timeout-minutes: 50
+    timeout-minutes: 70
     permissions:
       contents: read
       pull-requests: read
