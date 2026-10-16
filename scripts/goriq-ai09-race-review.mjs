@@ -1,3 +1,4 @@
+import { holdUngroundedAdvisory } from "./goriq-ai09-finding-anchors.mjs";
 #!/usr/bin/env node
 // GORIQ AI-09 independent technical advisory for RACE AI.
 // Read-only: the only network destinations are the public GitHub API and loopback Ollama.
@@ -109,7 +110,7 @@ export async function reviewRacePull({number,head,base,api,infer}) {
     });
     if(report.status === "BLOCKED")break;
   }
-  const result = consolidateChunkReviews(reports,scope,prepared.chunks);
+  const result = holdUngroundedAdvisory(consolidateChunkReviews(reports,scope,prepared.chunks), prepared.patch);
   const findingGrounding=assessFindingAnchors(compare,result.findings);
   const second=await api("/pulls/"+number);
   assertPr(second,number,head,base);
