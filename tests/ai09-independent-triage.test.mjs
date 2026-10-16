@@ -61,6 +61,7 @@ test("untrusted or stale independent attestation holds correction proposal",asyn
   for(const override of [
     {authenticated:false},{independent:false},{reproduced:false},
     {headSha:A},{baseSha:B},{path:"src/other.mjs"},{line:123},
+    {findingIndex:99},
     {evidenceClass:"AI_ASSERTED"},{verifierActor:"Builder01"},
   ]){
     const out=await prepareVerifiedRepairProposal(input,async()=>({...proof(expected),...override}));
