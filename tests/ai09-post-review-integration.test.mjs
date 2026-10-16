@@ -60,6 +60,16 @@ test("existing head-scoped AI09 comment causes idempotent skip, not second POST"
   assert.equal(await publishReceipt(c,receipt(),f.api),"ALREADY_RECORDED");
   assert.equal(f.calls.filter(x=>x.method!=="GET").length,0);
 });
+
+test("same head with changed base is a new review, not a duplicate", async()=>{
+  const priorBase="d".repeat(40);
+  const priorComment=commentMarker(1799,head,priorBase)+"\nreview against old base";
+  const f=fakeApi({oldComments:[{user:{login:"github-actions[bot]"},body:priorComment}]});
+  assert.equal(await publishReceipt(c,receipt(),f.api),"POSTED");
+  const writes=f.calls.filter(x=>x.method==="POST");
+  assert.equal(writes.length,1);
+  assert.ok(writes[0].body.body.startsWith(commentMarker(1799,head,base)));
+});
 test("untrusted receipt cannot even perform GitHub read", async ()=>{
   const f=fakeApi();
   await assert.rejects(publishReceipt(c,receipt({...result,mergeAuthorized:true}),f.api),/untrusted_or_stale_review_receipt/);
