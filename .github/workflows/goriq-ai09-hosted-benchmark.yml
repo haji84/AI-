@@ -5,6 +5,7 @@ on:
   pull_request:
     paths:
       - scripts/goriq-ai09-hosted-benchmark.mjs
+      - scripts/goriq-ai09-race-review.mjs
       - tests/ai09-hosted-benchmark.test.mjs
       - .github/workflows/goriq-ai09-hosted-benchmark.yml
 
@@ -21,7 +22,7 @@ jobs:
       github.event.pull_request.number == 1799 &&
       github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
-    timeout-minutes: 18
+    timeout-minutes: 30
     env:
       OLLAMA_HOST: 127.0.0.1:11434
       OLLAMA_NUM_PARALLEL: "1"
@@ -74,6 +75,59 @@ jobs:
         run: |
           set -euo pipefail
           node scripts/goriq-ai09-hosted-benchmark.mjs
+      - name: Resolve actual RACE AI PR 65 revision from public GitHub
+        id: race
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module -e '
+            import { appendFileSync } from "node:fs";
+            const r=await fetch("https://api.github.com/repos/haji84/RACE-AI/pulls/65",
+              {headers:{"Accept":"application/vnd.github+json"},signal:AbortSignal.timeout(15000)});
+            if(!r.ok)throw Error("RACE_PR_LOOKUP_FAILED");
+            const p=await r.json();
+            if(p.state!=="open"||p.number!==65||
+              p.head?.repo?.full_name!=="haji84/RACE-AI"||
+              p.base?.repo?.full_name!=="haji84/RACE-AI"||
+              !/^[a-f0-9]{40}$/.test(p.head.sha)||
+              !/^[a-f0-9]{40}$/.test(p.base.sha))throw Error("RACE_PR_NOT_TRUSTED");
+            appendFileSync(process.env.GITHUB_OUTPUT,
+              "head="+p.head.sha+"\nbase="+p.base.sha+"\n");
+          '
+      - name: Actual RACE AI PR review with isolated AI-09 model, no GitHub posting
+        shell: bash
+        env:
+          RACE_PR_HEAD: ${{ steps.race.outputs.head }}
+          RACE_PR_BASE: ${{ steps.race.outputs.base }}
+        run: |
+          set -euo pipefail
+          set +e
+          node scripts/goriq-ai09-race-review.mjs \
+            --pr 65 --head "$RACE_PR_HEAD" --base "$RACE_PR_BASE" \
+            > "$RUNNER_TEMP/race-ai09-advisory.json"
+          reviewer_code=$?
+          set -e
+          if [ ! -s "$RUNNER_TEMP/race-ai09-advisory.json" ]; then
+            echo "AI09_RACE_PR_REVIEW_NO_RECEIPT"; exit 2
+          fi
+          REVIEWER_CODE="$reviewer_code" node --input-type=module -e '
+            import {readFileSync} from "node:fs";
+            const r=JSON.parse(readFileSync(process.env.RUNNER_TEMP+"/race-ai09-advisory.json","utf8"));
+            const valid=r.repository==="haji84/RACE-AI" &&
+              r.prNumber===65 && r.headSha===process.env.RACE_PR_HEAD &&
+              r.baseSha===process.env.RACE_PR_BASE && r.reviewer==="AI-09" &&
+              r.githubApprovalSatisfied===false && r.mergeAuthorized===false &&
+              r.physicalEvidenceVerified===false && r.evidenceClass==="AI_ASSERTED" &&
+              ["NO_ACTIONABLE_FINDINGS","CHANGES_REQUESTED","INCONCLUSIVE","BLOCKED"].includes(r.status);
+            if(!valid)throw Error("AI09_RACE_RECEIPT_REJECTED");
+            console.log("AI09_RACE_PR_REVIEW_HEAD="+r.headSha);
+            console.log("AI09_RACE_PR_REVIEW_STATUS="+r.status);
+            console.log("AI09_RACE_PR_REVIEW_FINDINGS="+r.findings.length);
+            if(r.status==="BLOCKED"||r.status==="INCONCLUSIVE")process.exitCode=2;
+            if((r.status==="CHANGES_REQUESTED" && process.env.REVIEWER_CODE!=="2") ||
+               (r.status==="NO_ACTIONABLE_FINDINGS" && process.env.REVIEWER_CODE!=="0"))
+              process.exitCode=2;
+          '
       - name: Emit scope and security guarantees
         if: always()
         shell: bash
