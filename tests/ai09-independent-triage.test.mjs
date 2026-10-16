@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
+import { readFileSync } from "node:fs";
 import { anchorAudit } from "../scripts/goriq-ai09-finding-anchors.mjs";
-import { prepareVerifiedRepairProposal } from "../scripts/goriq-ai09-independent-triage.mjs";
+import { EVIDENCE_FIRST_MODEL_INSTRUCTIONS, prepareVerifiedRepairProposal } from "../scripts/goriq-ai09-independent-triage.mjs";
 
 const A="a".repeat(40),B="b".repeat(40),REPO="haji84/AI-";
 const patch="diff --git a/src/example.mjs b/src/example.mjs\n@@ -0,0 +1 @@\n+console.log(request.headers.authorization);";
@@ -88,4 +89,15 @@ test("separately authenticated reproduction builds proposal without task dispatc
   assert.equal(out.githubApprovalSatisfied,false);
   assert.equal(out.mergeAuthorized,false);
   assert.doesNotMatch(JSON.stringify(out),/Review this operation|Logging risk/);
+});
+
+test("hosted and RACE model calls receive exact-line quality instructions",()=>{
+  assert.match(EVIDENCE_FIRST_MODEL_INSTRUCTIONS,/added new-side line number/);
+  assert.match(EVIDENCE_FIRST_MODEL_INSTRUCTIONS,/reproducible failure case/);
+  assert.match(EVIDENCE_FIRST_MODEL_INSTRUCTIONS,/INCONCLUSIVE/);
+  for(const path of ["scripts/goriq-ai09-ci-review.mjs","scripts/goriq-ai09-race-review.mjs"]){
+    const s=readFileSync(path,"utf8");
+    assert.match(s,/EVIDENCE_FIRST_MODEL_INSTRUCTIONS/);
+    assert.match(s,/infer:/);
+  }
 });
