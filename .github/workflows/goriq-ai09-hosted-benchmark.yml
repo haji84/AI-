@@ -123,6 +123,8 @@ jobs:
             console.log("AI09_RACE_PR_REVIEW_HEAD="+r.headSha);
             console.log("AI09_RACE_PR_REVIEW_STATUS="+r.status);
             console.log("AI09_RACE_PR_REVIEW_FINDINGS="+r.findings.length);
+            console.log("AI09_RACE_PR_REVIEW_CHUNKS="+JSON.stringify(r.chunkOutcomes));
+            console.log("AI09_RACE_PR_REVIEW_BLOCKERS="+r.blockers.filter(b=>/^[a-z_]+$/.test(b)).join(","));
             if(r.status==="BLOCKED"||r.status==="INCONCLUSIVE")process.exitCode=2;
             if((r.status==="CHANGES_REQUESTED" && process.env.REVIEWER_CODE!=="2") ||
                (r.status==="NO_ACTIONABLE_FINDINGS" && process.env.REVIEWER_CODE!=="0"))
