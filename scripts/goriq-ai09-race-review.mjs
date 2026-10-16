@@ -4,6 +4,7 @@
 // It does not post comments, change repository settings, merge, or claim approvals.
 import { pathToFileURL } from "node:url";
 import { readFileSync } from "node:fs";
+import { Buffer } from "node:buffer";
 import { performance } from "node:perf_hooks";
 import { reviewLocalPatch } from "../src/orchestrator/ai09-local-reviewer.mjs";
 import { assertCompleteComparison } from "./goriq-ai09-compare-coverage.mjs";
