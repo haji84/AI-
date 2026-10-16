@@ -1,0 +1,77 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {reviewRacePull,requireRaceChecks} from "../scripts/goriq-ai09-race-review.mjs";
+
+const A="a".repeat(40),B="b".repeat(40),REPO="haji84/RACE-AI";
+const pr={number:65,state:"open",head:{sha:B,repo:{id:31,full_name:REPO}},
+ base:{sha:A,repo:{id:31,full_name:REPO}}};
+const checks=["unit (ubuntu-latest)","unit (windows-latest)","pilot"].map((name,i)=>
+  ({id:i+1,name,head_sha:B,app:{slug:"github-actions"},status:"completed",conclusion:"success"}));
+const compare={status:"ahead",ahead_by:1,total_commits:1,
+  base_commit:{sha:A},commits:[{sha:B}],
+  files:[{filename:"src/example.mjs",patch:"@@ -0,0 +1,1 @@\n+export const answer=42;",
+    additions:1,deletions:0}]};
+const good=JSON.stringify({verdict:"NO_FINDINGS",findings:[]});
+const bad=JSON.stringify({verdict:"CHANGES_REQUESTED",
+ findings:[{path:"src/example.mjs",line:1,severity:"low",summary:"Review example",evidence:"Added export",proposedFix:"Verify feature"}]});
+const api=(opts={})=>async path=>{
+ if(path==="/pulls/65")return opts.pr??pr;
+ if(path.includes("/check-runs"))return {total_count:(opts.checks??checks).length,
+   check_runs:opts.checks??checks};
+ if(path.includes("/compare/"))return opts.compare??compare;
+ throw Error("unexpected API route");
+};
+const req=(opts={})=>({number:65,head:B,base:A,api:api(opts),infer:async()=>good});
+test("successful local-model contract is advisory only, never merge authority",async()=>{
+ const result=await reviewRacePull(req());
+ assert.equal(result.reviewer,"AI-09");
+ assert.equal(result.status,"NO_ACTIONABLE_FINDINGS");
+ assert.deepEqual(result.reviewedPaths,["src/example.mjs"]);
+ assert.equal(result.githubApprovalSatisfied,false);
+ assert.equal(result.physicalEvidenceVerified,false);
+ assert.equal(result.mergeAuthorized,false);
+});
+test("independent Builder/Debugger correction is an unacknowledged handoff",async()=>{
+ const result=await reviewRacePull({...req(),infer:async()=>bad});
+ assert.equal(result.status,"CHANGES_REQUESTED");
+ assert.equal(result.correctionHandoff.taskId,"ai09:race:65:"+B);
+ assert.equal(result.correctionHandoff.actualTaskAcknowledged,false);
+ assert.equal(result.correctionHandoff.allowedToWrite,false);
+});
+test("head or origin mutation refuses untrusted input",async()=>{
+ for(const edited of [
+   {...pr,head:{...pr.head,sha:A}},
+   {...pr,head:{...pr.head,repo:{id:99,full_name:"other/else"}}},
+   {...pr,base:{...pr.base,sha:B}}
+ ])await assert.rejects(reviewRacePull(req({pr:edited})),/RACE_PR_HEAD_OR_ORIGIN_CHANGED/);
+});
+test("failed, pending, missing or duplicate exact-head CI never runs the model",async()=>{
+ for(const change of [
+   checks.slice(1),
+   [checks[0],checks[0],...checks.slice(1)],
+   checks.map((x,i)=>i===0?{...x,status:"in_progress"}:x),
+   checks.map((x,i)=>i===1?{...x,conclusion:"failure"}:x),
+   checks.map((x,i)=>i===1?{...x,head_sha:A}:x)
+ ]) {
+   let invoked=0;
+   await assert.rejects(reviewRacePull({...req({checks:change}),infer:async()=>{invoked++;return good;}}),/RACE_CI_NOT_VERIFIED/);
+   assert.equal(invoked,0);
+ }
+});
+test("incomplete PR patch is blocked before model inference",async()=>{
+ let invoked=0;
+ const truncated={...compare,files:[{...compare.files[0],additions:2}]};
+ await assert.rejects(reviewRacePull({...req({compare:truncated}),infer:async()=>{invoked++;return good;}}),/incomplete_github_patch/);
+ assert.equal(invoked,0);
+});
+test("invalid local model output cannot become a clean review",async()=>{
+ const result=await reviewRacePull({...req(),infer:async()=>"{not json"});
+ assert.equal(result.status,"BLOCKED");
+ assert.equal(result.mergeAuthorized,false);
+});
+test("changed comparison SHA refuses model execution",async()=>{
+ let invoked=0;
+ await assert.rejects(reviewRacePull({...req({compare:{...compare,commits:[{sha:A}] }),
+   infer:async()=>{invoked++;return good;}}),/RACE_COMPARE_REVISION_CHANGED/);
+ assert.equal(invoked,0);
+});
