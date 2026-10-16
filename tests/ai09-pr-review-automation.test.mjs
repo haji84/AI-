@@ -145,7 +145,7 @@ test("finding handoff is head-scoped and sanitizes injected text", () => {
   };
   const body = formatReviewComment(receipt(result));
   assert.equal(validateReviewReceipt(receipt(result), expected), true);
-  assert.equal(body.startsWith(commentMarker(73, shaB)), true);
+  assert.equal(body.startsWith(commentMarker(73, shaB, shaA)), true);
   assert.match(body, /TARGET_AGENT: Builder\/Debugger/);
   assert.match(body, /STATUS: ACTION_REQUIRED/);
   assert.match(body, /GitHub approval satisfied: NO/);
@@ -163,7 +163,7 @@ test("result shape rejects forged file and code-like data", () => {
     }],
   };
   assert.equal(validateReviewReceipt(receipt(result), expected), false);
-  assert.throws(() => commentMarker(73, "broken"));
+  assert.throws(() => commentMarker(73, "broken", shaA));
 });
 
 
