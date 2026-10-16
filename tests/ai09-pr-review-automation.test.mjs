@@ -271,8 +271,8 @@ test("large PRs are fully covered by bounded chunks without truncated evidence",
 
 
 test("one real-size hunk splits into byte-exact 4KiB review slices", () => {
-  const original = "@@ -0,0 +1,160 @@\n" +
-    Array.from({length:160}, (_, i) => "+const field_" + i + " = " + JSON.stringify("x".repeat(70)) + ";").join("\n");
+  const original = "@@ -0,0 +1,200 @@\n" +
+    Array.from({length:200}, (_, i) => "+const field_" + i + " = " + JSON.stringify("x".repeat(70)) + ";").join("\n");
   assert.ok(Buffer.byteLength(original) > 15 * 1024);
   const compare={status:"ahead",ahead_by:1,total_commits:1,
     files:[{filename:"src/large.js",patch:original}]};
