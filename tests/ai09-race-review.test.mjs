@@ -71,7 +71,7 @@ test("invalid local model output cannot become a clean review",async()=>{
 });
 test("changed comparison SHA refuses model execution",async()=>{
  let invoked=0;
- await assert.rejects(reviewRacePull({...req({compare:{...compare,commits:[{sha:A}] }),
+ await assert.rejects(reviewRacePull({...req({compare:{...compare,commits:[{sha:A}]}}),
    infer:async()=>{invoked++;return good;}}),/RACE_COMPARE_REVISION_CHANGED/);
  assert.equal(invoked,0);
 });
