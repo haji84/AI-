@@ -242,3 +242,20 @@ test("local startup log diagnosis emits only predefined categories, never raw se
   assert.doesNotMatch(step,/Write-Host.*\$sample|Write-Output.*\$sample|Write-Host.*\$lines|Write-Host.*\$token/);
   assert.doesNotMatch(step,/Start-ScheduledTask|Register-ScheduledTask|Stop-Process|Start-Process|Restart-Service|Invoke-RestMethod|CODE_BUILDER_TOKEN\s*=\s*\$token/);
 });
+
+
+test("installed task identity and service checksum are read-only booleans",()=>{
+  const workflow=readFileSync(".github/workflows/goriq-ai09-owner-builder-connect.yml","utf8");
+  const block=workflow.split("      - name: Diagnose existing local Builder availability without mutation")[1];
+  assert.ok(block);
+  assert.match(block,/nodeAvailableOnRunnerPath = \[bool\]\$nodeOnRunnerPath/);
+  assert.match(block,/installedPolicyPresent = \[bool\]\$policyPresent/);
+  assert.match(block,/existingTaskExecutableIsPowerShell = \[bool\]\$taskActionUsesPowerShell/);
+  assert.match(block,/installedServiceEqualsCurrentMain = \[bool\]\$serviceMatchesTrustedMain/);
+  assert.match(block,/lastTaskRunWithinTenMinutes = \[bool\]\$lastTaskRunWithinTenMinutes/);
+  assert.match(block,/Get-FileHash -LiteralPath .* -Algorithm SHA256/);
+  assert.match(block,/Get-ScheduledTask -TaskName \$taskName/);
+  assert.doesNotMatch(block,/Start-ScheduledTask|Register-ScheduledTask|Set-ScheduledTask|Unregister-ScheduledTask|Start-Process|Stop-Process|Restart-Service|Set-Content|Out-File/);
+  assert.doesNotMatch(block,/Write-Host.*\$taskAction|Write-Host.*\$token|Write-Host.*\$launcher|Get-Content\s+.*run-code-builder/);
+  assert.doesNotMatch(block,/Action\.Arguments|\$taskAction\.Arguments/);
+});
