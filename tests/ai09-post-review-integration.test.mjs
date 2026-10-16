@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { publishReceipt } from "../scripts/goriq-ai09-post-review.mjs";
+import { publishReceipt, safePostFailureCode } from "../scripts/goriq-ai09-post-review.mjs";
 import {
   compareToPatch, reviewReceipt, commentMarker
 } from "../src/orchestrator/ai09-pr-review-automation.mjs";
@@ -106,4 +106,19 @@ test("failed exact-head CI can never be published as a clean AI-09 advisory",asy
    /clean_review_requires_successful_exact_head_ci/
  );
  assert.equal(failed.calls.filter(x=>x.method!=="GET").length,0);
+});
+
+test("posting failure diagnostics show only safe stages/codes, never untrusted response data",()=>{
+  assert.equal(safePostFailureCode(new Error("github_comment_write_http_403")),
+    "github_comment_write_http_403");
+  assert.equal(safePostFailureCode(new Error("github_ci_read_http_404")),
+    "github_ci_read_http_404");
+  assert.equal(safePostFailureCode(new Error("untrusted_or_stale_review_receipt")),
+    "untrusted_or_stale_review_receipt");
+  assert.equal(safePostFailureCode(new Error("authorization: ghp_unsafe_do_not_log")),
+    "unexpected_post_error");
+  assert.equal(safePostFailureCode(new Error("github_comment_write_http_403: token=secret")),
+    "unexpected_post_error");
+  assert.equal(safePostFailureCode({message:"github_comment_write_http_500"}),
+    "unexpected_post_error");
 });

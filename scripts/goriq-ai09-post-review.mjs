@@ -47,7 +47,15 @@ async function githubApi(c, apiPath, method = "GET", body) {
     body: body === undefined ? undefined : JSON.stringify(body),
     signal: AbortSignal.timeout(15000),
   });
-  if (!response.ok) throw new Error("github_advisory_post_failed");
+  if (!response.ok) {
+    // Never log API response bodies or URL/query contents. Fixed stage + status only.
+    const stage = method === "POST" ? "comment_write" :
+      apiPath.startsWith("/actions/runs/") ? "ci_read" :
+      apiPath.startsWith("/pulls/") ? "pr_read" :
+      apiPath.startsWith("/compare/") ? "comparison_read" :
+      apiPath.startsWith("/issues/") ? "comment_inventory_read" : "other_read";
+    throw new Error("github_" + stage + "_http_" + response.status);
+  }
   return response.json();
 }
 
@@ -121,9 +129,28 @@ async function run() {
   return publishReceipt(c, receipt);
 }
 
+// No user-controlled body, token, response text or stack trace is ever logged.
+export function safePostFailureCode(error) {
+  const message = error instanceof Error ? error.message : "";
+  const fixed = new Set([
+    "invalid_posting_scope", "invalid_receipt_size",
+    "untrusted_or_stale_review_receipt", "untrusted_ci_verdict_or_pr_link",
+    "clean_review_requires_successful_exact_head_ci",
+    "comment_diff_revision_mismatch", "unverifiable_patch_statistics",
+    "incomplete_github_patch", "untrusted_review_patch_receipt",
+    "deterministic_sensitive_logging_risk", "unverified_blocked_review_paths",
+    "invalid_comment_inventory", "unbounded_comment_inventory",
+  ]);
+  if (fixed.has(message) ||
+      /^github_(?:ci_read|pr_read|comparison_read|comment_inventory_read|comment_write|other_read)_http_[45]\d{2}$/.test(message)) {
+    return message;
+  }
+  return "unexpected_post_error";
+}
+
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  await run().catch(() => {
-    console.error("AI09_ADVISORY_POST_BLOCKED");
+  await run().catch(error => {
+    console.error("AI09_ADVISORY_POST_BLOCKED=" + safePostFailureCode(error));
     process.exitCode = 2;
   });
 }
