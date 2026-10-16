@@ -86,6 +86,15 @@ test("RACE-issued bounded request manifest can be received only with exact scope
  };
  const parsed=parseRaceRequest(["--manifest","fixture"],()=>manifest);
  assert.deepEqual(parsed,{number:65,head:B,base:A});
+ // Request artifact is created before its own CI finishes. The receiver
+ // MUST accept that pending receipt and independently verify live checks.
+ const pending=parseRaceRequest(["--manifest","fixture"],()=>({
+   ...manifest,ciReady:false,nextAction:"WAIT_FOR_EXACT_HEAD_CI"
+ }));
+ assert.deepEqual(pending,{number:65,head:B,base:A});
+ assert.throws(()=>parseRaceRequest(["--manifest","fixture"],()=>({
+   ...manifest,ciReady:false,nextAction:"REQUEST_AI09"
+ })));
  for(const alteration of [
    {ciReady:false}, {mergeAuthorized:true}, {repository:"evil/fork"},
    {nextAction:"HOLD_REVIEW"}, {headSha:A},{reviewerMustDifferFromBuilder:false},
