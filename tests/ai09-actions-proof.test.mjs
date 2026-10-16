@@ -87,7 +87,17 @@ test("read-only client never sends token to signed GitHub log storage",async()=>
   const fetchImpl=async (url,init)=>{
     calls.push({url,init});
     if(url.endsWith("/logs"))return {status:302,headers:{get:()=>redirect}};
-    if(url===redirect)return {status:200,headers:{get:()=>String(log.length)},arrayBuffer:async()=>log};
+    if(url===redirect)return {
+      status:200,headers:{get:()=>String(log.length)},
+      body:{getReader:()=>{
+        let sent=false;
+        return {read:async()=>{
+          if(sent)return {done:true};
+          sent=true;
+          return {done:false,value:new Uint8Array(log)};
+        }};
+      }},
+    };
     return {status:200,json:async()=>url.endsWith("/jobs/98765")?job:run};
   };
   const client=createGitHubReadOnlyActionsClient({
@@ -117,6 +127,19 @@ test("read-only client denies unknown routes and untrusted log redirect",async()
   assert.equal(calls,0);
   await assert.rejects(client.githubReadJobLog(98765),/UNTRUSTED_ACTIONS_LOG_REDIRECT/);
   assert.equal(calls,1);
+});
+test("a streamed log exceeding the byte cap is rejected without materializing it",async()=>{
+  const signed="https://objects.githubusercontent.com/job-log?sig=test";
+  const client=createGitHubReadOnlyActionsClient({
+    repository:REPO,token:"test_readonly_token",
+    fetchImpl:async(url)=>url.endsWith("/logs")
+      ? {status:302,headers:{get:()=>signed}}
+      : {status:200,headers:{get:()=>null},body:{getReader:()=>({
+          read:async()=>({done:false,value:new Uint8Array(2*1024*1024+1)}),
+          cancel:async()=>{},
+        })}},
+  });
+  await assert.rejects(client.githubReadJobLog(98765),/UNREVIEWABLE_ACTIONS_LOG_SIZE/);
 });
 test("unsafe repository scope and empty credentials cannot construct live reader",()=>{
   for(const repository of ["haji84/..","../AI-","haji84/AI-/next"]){
