@@ -107,3 +107,15 @@ test("trusted allowlist rejects builder, AI-09, duplicates, or missing getter",(
     repository:REPO,builderActor:"builder-1",allowedReviewerLogins:["reviewer-1"]
   }),/INVALID_TRUSTED_VERIFIER_CONFIG/);
 });
+
+test("short GitHub actor names remain valid; distinct identity still required",async()=>{
+  const f=fixture({reviews:[{...review(),user:{login:"QA",type:"User"}}]});
+  const a=createGitHubHumanReproductionVerifier({
+    repository:REPO,builderActor:"Dev",
+    allowedReviewerLogins:["QA"],githubGet:f.githubGet,
+  });
+  const output=await prepareVerifiedRepairProposal(input,a);
+  assert.equal(output.status,"VERIFIED_CANDIDATE");
+  assert.equal(output.handoff.VERIFIED_EVIDENCE.verifierActor,"QA");
+  assert.equal(output.writeAuthorized,false);
+});
