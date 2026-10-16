@@ -33,6 +33,10 @@ function adapter(f){
   return createGitHubHumanReproductionVerifier({
     repository:REPO,builderActor:"builder-1",
     allowedReviewerLogins:["reviewer-1"],githubGet:f.githubGet,
+    verifyReproductionEvidence:async({expected,attestation})=>({
+      verified:true,headSha:expected.headSha,logSha256:attestation.reproductionSha256,
+      conclusion:"failure",evidenceClass:"MACHINE_VERIFIED_LOG_PROVENANCE",
+    }),
   });
 }
 const input={repository:REPO,prNumber:73,
@@ -113,6 +117,10 @@ test("short GitHub actor names remain valid; distinct identity still required",a
   const a=createGitHubHumanReproductionVerifier({
     repository:REPO,builderActor:"Dev",
     allowedReviewerLogins:["QA"],githubGet:f.githubGet,
+    verifyReproductionEvidence:async({expected,attestation})=>({
+      verified:true,headSha:expected.headSha,logSha256:attestation.reproductionSha256,
+      conclusion:"failure",evidenceClass:"MACHINE_VERIFIED_LOG_PROVENANCE",
+    }),
   });
   const output=await prepareVerifiedRepairProposal(input,a);
   assert.equal(output.status,"VERIFIED_CANDIDATE");
@@ -191,9 +199,40 @@ test("read-only GitHub REST client can back the independent review contract",asy
   const verifier=createGitHubHumanReproductionVerifier({
     repository:REPO,builderActor:"builder-1",
     allowedReviewerLogins:["reviewer-1"],githubGet:getter,
+    verifyReproductionEvidence:async({expected,attestation})=>({
+      verified:true,headSha:expected.headSha,logSha256:attestation.reproductionSha256,
+      conclusion:"failure",evidenceClass:"MACHINE_VERIFIED_LOG_PROVENANCE",
+    }),
   });
   const output=await prepareVerifiedRepairProposal(input,verifier);
   assert.equal(output.status,"VERIFIED_CANDIDATE");
   assert.equal(output.writeAuthorized,false);
   assert.equal(output.correctionTaskCreated,false);
+});
+
+
+test("authenticated GitHub review alone cannot promote a repair proposal if raw CI evidence is unavailable",async()=>{
+  let checked=0;
+  const verifier=createGitHubHumanReproductionVerifier({
+    repository:REPO,builderActor:"builder-1",
+    allowedReviewerLogins:["reviewer-1"],githubGet:fixture().githubGet,
+    verifyReproductionEvidence:async()=>{checked++;throw Error("log digest mismatch");},
+  });
+  const result=await prepareVerifiedRepairProposal(input,verifier);
+  assert.equal(checked,1);
+  assert.equal(result.status,"TRIAGE_REQUIRED");
+  assert.equal(result.handoff,null);
+});
+test("forged failure attestation from trusted identity remains held without matching bytes",async()=>{
+  const verifier=createGitHubHumanReproductionVerifier({
+    repository:REPO,builderActor:"builder-1",
+    allowedReviewerLogins:["reviewer-1"],githubGet:fixture().githubGet,
+    verifyReproductionEvidence:async({expected})=>({
+      verified:true,headSha:expected.headSha,logSha256:"0".repeat(64),
+      conclusion:"failure",evidenceClass:"MACHINE_VERIFIED_LOG_PROVENANCE",
+    }),
+  });
+  const result=await prepareVerifiedRepairProposal(input,verifier);
+  assert.equal(result.status,"TRIAGE_REQUIRED");
+  assert.equal(result.handoff,null);
 });
