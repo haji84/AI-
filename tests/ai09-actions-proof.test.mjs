@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { Buffer } from "node:buffer";
 import { createGitHubActionsFailureVerifier,createGitHubReadOnlyActionsClient } from "../scripts/goriq-ai09-actions-proof.mjs";
+import { createGitHubHumanReproductionVerifier } from "../scripts/goriq-ai09-github-human-verifier.mjs";
+import { prepareVerifiedRepairProposal } from "../scripts/goriq-ai09-independent-triage.mjs";
 
 const A="a".repeat(40),B="b".repeat(40),REPO="haji84/AI-";
 const expected={repository:REPO,prNumber:73,headSha:B,baseSha:A,
@@ -124,4 +126,69 @@ test("unsafe repository scope and empty credentials cannot construct live reader
   }
   assert.throws(()=>createGitHubReadOnlyActionsClient({repository:REPO,token:""}),
     /INVALID_ACTIONS_READONLY_CLIENT_CONFIG/);
+});
+
+test("human review and raw Actions proof jointly gate a real-shaped triage proposal",async()=>{
+  const patch="diff --git a/src/proof.mjs b/src/proof.mjs\n@@ -0,0 +1 @@\n+console.log(request.headers.authorization);";
+  const patchSha256=createHash("sha256").update(patch).digest("hex");
+  const scope={...expected,patchSha256,path:"src/proof.mjs"};
+  const attested={schemaVersion:1,...scope,reproduced:true,
+    reproductionCaseRef:"gh:job:98765",reproductionSha256:logHash};
+  const review={
+    id:112233,user:{login:"separate-reviewer",type:"User"},
+    state:"COMMENTED",commit_id:B,submitted_at:"2026-10-17T00:30:00Z",
+    body:"AI09_INDEPENDENT_REPRODUCTION_V1\n"+JSON.stringify(attested),
+  };
+  const getReview=async path=>{
+    if(path==="/pulls/73")return {number:73,state:"open",
+      user:{login:"different-author"},
+      head:{sha:B,repo:{full_name:REPO}},
+      base:{sha:A,repo:{full_name:REPO}}};
+    if(path==="/pulls/73/reviews?per_page=100&page=1")return [review];
+    throw Error("unexpected verified review read");
+  };
+  const sources=sources({ci:run,task:job,body:log});
+  const verifyReproductionEvidence=createGitHubActionsFailureVerifier({
+    repository:REPO,githubGet:sources.githubGet,
+    githubReadJobLog:sources.githubReadJobLog,
+  });
+  const verifier=createGitHubHumanReproductionVerifier({
+    repository:REPO,builderActor:"builder-1",
+    allowedReviewerLogins:["separate-reviewer"],
+    githubGet:getReview,verifyReproductionEvidence,
+  });
+  const aiReview={reviewer:"AI-09",evidenceClass:"AI_ASSERTED",
+    status:"CHANGES_REQUESTED",mergeAuthorized:false,
+    githubApprovalSatisfied:false,independentGitHubAccountVerified:false,
+    scope:{headSha:B,baseSha:A,patchSha256,paths:[scope.path]},
+    findings:[{path:scope.path,line:1,
+      evidence:"Added \`console.log(request.headers.authorization);\`",
+      severity:"high",summary:"Needs independent reproduction",
+      proposedFix:"Request triage"}]};
+  const proposal=await prepareVerifiedRepairProposal({
+    repository:REPO,prNumber:73,review:aiReview,
+    trustedPatch:patch,findingIndex:0,verificationRef:"gh:review:112233",
+  },verifier);
+  assert.equal(proposal.status,"VERIFIED_CANDIDATE");
+  assert.equal(proposal.handoff.VERIFIED_EVIDENCE.evidenceClass,"HUMAN_VERIFIED");
+  assert.equal(proposal.builderAcknowledged,false);
+  assert.equal(proposal.correctionTaskCreated,false);
+  assert.equal(proposal.writeAuthorized,false);
+  // Even if the human attestation is otherwise authenticated, a mismatched
+  // downloaded log must prevent all Builder proposals.
+  const changed=createGitHubActionsFailureVerifier({
+    repository:REPO,githubGet:sources.githubGet,
+    githubReadJobLog:async()=>Buffer.from("malformed log bytes\n"),
+  });
+  const rejectVerifier=createGitHubHumanReproductionVerifier({
+    repository:REPO,builderActor:"builder-1",
+    allowedReviewerLogins:["separate-reviewer"],
+    githubGet:getReview,verifyReproductionEvidence:changed,
+  });
+  const held=await prepareVerifiedRepairProposal({
+    repository:REPO,prNumber:73,review:aiReview,
+    trustedPatch:patch,findingIndex:0,verificationRef:"gh:review:112233",
+  },rejectVerifier);
+  assert.equal(held.status,"TRIAGE_REQUIRED");
+  assert.equal(held.handoff,null);
 });
