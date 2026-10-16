@@ -8,6 +8,11 @@ import { createGitHubReadOnlyActionsClient } from "./goriq-ai09-actions-proof.mj
 const REPO="haji84/AI-";
 const RUN_ID=38926717190, JOB_ID=117060019163;
 const HISTORIC_SHA="af16e06f91334a3cca97916a500d4b7174fcc376";
+const PRIOR_RECORDED_LOG_SHA256="e1f853bcff7dd0b5839ff70e2f9208d43ccb4753237fd024b92b6113a35fb8af";
+// Pre-existing public issue record, created 2026-10-16T16:13:19Z.
+// This owner-authored declaration is independent of this later runner
+// calculation, NOT a separate authenticated verifier's defect signoff.
+const PRIOR_CLAIM_URL="https://github.com/haji84/AI-/issues/1805#issuecomment-6219682030";
 const sha=bytes=>createHash("sha256").update(bytes).digest("hex");
 
 export async function probeHistoricRawLog({ fetchImpl=fetch, outputPath }={}) {
@@ -53,12 +58,17 @@ export async function probeHistoricRawLog({ fetchImpl=fetch, outputPath }={}) {
   const digest1=sha(first),digest2=sha(second);
   if(first.length<32||first.length!==second.length||digest1!==digest2||
      !first.equals(second))throw Error("RAW_LOG_RETRIEVAL_MISMATCH");
+  if(digest1!==PRIOR_RECORDED_LOG_SHA256||digest2!==PRIOR_RECORDED_LOG_SHA256)
+    throw Error("PREDECLARED_RAW_LOG_SHA256_MISMATCH");
   const receipt={
     schemaVersion:1,source:"GITHUB_ACTIONS_RAW_LOG_TWO_INDEPENDENT_DOWNLOADS",
     repository:REPO,runId:RUN_ID,jobId:JOB_ID,
     immutableHeadSha:HISTORIC_SHA,bytes:first.length,sha256:digest1,
     runsReportedFailure:true,jobReportedFailure:true,
     rawBytesReFetchedAndMatched:true,
+    priorClaimSource:PRIOR_CLAIM_URL,
+    priorClaimSha256:PRIOR_RECORDED_LOG_SHA256,
+    priorClaimMatchesRawLog:true,
     historicalProofOnly:true,currentHeadDefectVerified:false,
     independentHumanReviewVerified:false,realBuilderAcknowledgementVerified:false,
     githubApprovalSatisfied:false,mergeAuthorized:false,
@@ -77,6 +87,7 @@ if(process.argv[1]&&process.argv[1].endsWith("goriq-ai09-public-raw-log-probe.mj
         "GITHUB_PUBLIC_RAW_LOG_DOWNLOAD_ONE_UNAVAILABLE",
         "GITHUB_PUBLIC_RAW_LOG_DOWNLOAD_TWO_UNAVAILABLE",
         "RAW_LOG_RETRIEVAL_MISMATCH",
+        "PREDECLARED_RAW_LOG_SHA256_MISMATCH",
       ]);
       const code=known.has(error?.message)?error.message:"UNEXPECTED_READONLY_FAILURE";
       console.error("AI09_RAW_LOG_EVIDENCE=INCONCLUSIVE;REASON="+code);
