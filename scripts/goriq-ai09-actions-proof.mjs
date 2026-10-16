@@ -2,6 +2,7 @@
 // A failed CI job and exact raw log SHA are provenance, not by themselves
 // proof that a particular AI-09 finding is substantively correct.
 import { createHash } from "node:crypto";
+import { Buffer } from "node:buffer";
 
 const SHA=/^[a-f0-9]{40}$/;
 const SHA256=/^[a-f0-9]{64}$/;
