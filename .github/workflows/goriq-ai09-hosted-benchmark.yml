@@ -138,5 +138,5 @@ jobs:
         shell: bash
         run: |
           echo '### AI-09 GitHub-hosted experimental benchmark' >> "$GITHUB_STEP_SUMMARY"
-          echo 'Synthetic diff only; no PR contents submitted to model; no secrets or GitHub write permission.' >> "$GITHUB_STEP_SUMMARY"
-          echo 'No review approval, deployment, merge, autonomous Builder handoff or PC fallback is authorized by this run.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Synthetic benchmark plus public RACE PR diff, local model only; repo-scoped read-only API token is never sent to the model.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'No review approval, deployment, merge, automatic Builder handoff, user-secret access, or PC fallback is authorized by this run.' >> "$GITHUB_STEP_SUMMARY"
