@@ -125,3 +125,48 @@ test("even COMPLETED Goal Work Run is not proof of a Builder receipt",async()=>{
   assert.equal(out.builderAcknowledged,false);
   assert.equal(out.completionClaim,false);
 });
+
+test("read-only separately authenticated host checks allow disjoint Mac Broker and ZBook Builder",async()=>{
+  const brokerCtx=fixture();
+  const m=await probeLiveGoriqConnection({
+    mode:"broker",ownerToken:OWNER,fetchImpl:brokerCtx.fetchImpl,
+    goalId:"goal-test-123",
+  });
+  assert.equal(m.status,"BROKER_AUTHENTICATED_READONLY");
+  assert.equal(m.brokerAuthenticated,true);
+  assert.equal(m.builderAuthenticated,false);
+  assert.equal(m.goalWorkRunObserved,true);
+  assert.equal(m.builderAcknowledged,false);
+  assert.equal(m.actualTaskId,null);
+  assert.deepEqual(brokerCtx.calls.map(x=>x.url),[
+    "http://127.0.0.1:8787/health",
+    "http://127.0.0.1:8787/api/jarvis/admin/bridge/events?goalId=ai09-connection-probe",
+    "http://127.0.0.1:8787/api/jarvis/admin/work/goal-test-123"
+  ]);
+
+  const builderCtx=fixture();
+  const b=await probeLiveGoriqConnection({
+    mode:"builder",builderToken:BUILDER,fetchImpl:builderCtx.fetchImpl,
+  });
+  assert.equal(b.status,"BUILDER_AUTHENTICATED_READONLY");
+  assert.equal(b.brokerAuthenticated,false);
+  assert.equal(b.builderAuthenticated,true);
+  assert.equal(b.builderIdentity,"zbook");
+  assert.equal(b.builderAcknowledged,false);
+  assert.deepEqual(builderCtx.calls.map(x=>x.url),["http://127.0.0.1:8796/health"]);
+  assert.equal(builderCtx.calls[0].options.headers.Authorization,"Bearer "+BUILDER);
+});
+test("single-host mode never forges cross-host authentication or creates Builder receipt",async()=>{
+  const c=fixture();
+  for(const request of [
+    {mode:"administrator",ownerToken:OWNER,builderToken:BUILDER},
+    {mode:"builder",builderToken:BUILDER,goalId:"goal-test-123"},
+    {mode:"broker",ownerToken:undefined},
+    {mode:"builder",builderToken:undefined}
+  ]){
+    const x=await probeLiveGoriqConnection({...request,fetchImpl:c.fetchImpl});
+    assert.equal(x.status,"HOLD");
+    assert.equal(x.builderAcknowledged,false);
+  }
+  assert.equal(c.calls.length,0);
+});
