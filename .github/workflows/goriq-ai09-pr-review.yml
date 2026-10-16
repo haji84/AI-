@@ -130,10 +130,12 @@ jobs:
     if: needs.preflight.outputs.eligible == 'true' && needs.review.result == 'success'
     runs-on: ubuntu-24.04
     timeout-minutes: 3
-    # Only this GitHub-hosted job can WRITE, and only to Issue/PR comments.
+    # Only this GitHub-hosted job receives PR write permission.
+    # GitHub API may require it for PR timeline comments. The trusted poster
+    # makes only POST /issues/<current-pr>/comments after exact SHA/CI checks.
     permissions:
       contents: read
-      pull-requests: read
+      pull-requests: write
       actions: read
       issues: write
     steps:
