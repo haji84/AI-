@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { holdUngroundedAdvisory } from "./goriq-ai09-finding-anchors.mjs";
+import { EVIDENCE_FIRST_MODEL_INSTRUCTIONS } from "./goriq-ai09-independent-triage.mjs";
 // GORIQ AI-09 independent technical advisory for RACE AI.
 // Read-only: the only network destinations are the public GitHub API and loopback Ollama.
 // It does not post comments, change repository settings, merge, or claim approvals.
@@ -98,7 +99,7 @@ export async function reviewRacePull({number,head,base,api,infer}) {
     const started = performance.now();
     const report = await reviewLocalPatch({
       baseSha:base,headSha:head,makerRole:"Builder",
-      paths:chunk.paths,patch:chunk.patch,infer
+      paths:chunk.paths,patch:chunk.patch,\n      infer:prompt=>infer(EVIDENCE_FIRST_MODEL_INSTRUCTIONS + "\n" + prompt)
     });
     reports.push(report);
     chunkOutcomes.push({
