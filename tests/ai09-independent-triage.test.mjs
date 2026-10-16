@@ -62,6 +62,7 @@ test("untrusted or stale independent attestation holds correction proposal",asyn
   for(const override of [
     {authenticated:false},{independent:false},{reproduced:false},
     {headSha:A},{baseSha:B},{path:"src/other.mjs"},{line:123},
+    {evidenceId:"ci:job:different"},
     {findingIndex:99},
     {evidenceClass:"AI_ASSERTED"},{verifierActor:"Builder01"},
   ]){
