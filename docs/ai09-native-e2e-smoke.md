@@ -13,3 +13,5 @@ Acceptance checks:
 - No code, credentials, deployment configuration or protections are changed.
 
 The PR is for verification only. Do not merge this fixture into main.
+
+Native retest after scoped safe-poster diagnostics merge: main 5060c2b0e8fcbf72e59bb95823c4ebebaff598d5.
