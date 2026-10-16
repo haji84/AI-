@@ -36,6 +36,8 @@ test("only authenticated loopback Builder health is checked, no task receipt is 
   assert.match(workflow,/\$request.AllowAutoRedirect = \$false/);
   assert.match(workflow,/AI09_EXISTING_BUILDER_START=/);
   assert.match(workflow,/builderTaskAccepted = \$false/);
+  assert.match(workflow,/existingConfigAndTokenNotRewritten = \$true/);
+  assert.match(workflow,/runtimePidOrLogMayBeUpdatedByLauncher = \$started/);
   assert.match(workflow,/actualBuilderReceiptId = \$null/);
   assert.match(workflow,/writeOrMergeAuthorized = \$false/);
   assert.doesNotMatch(workflow,/Invoke-RestMethod.*\/build|\/api\/jarvis\/admin\/work|\/verify|method: POST|method: PATCH|curl .*POST/);
