@@ -73,6 +73,18 @@ export async function probeLiveGoriqConnection({
   catch {return hold("BROKER_NOT_REACHABLE_OR_AUTHENTICATED");}
   if(broker?.ok!==true||broker?.service!=="jarvis-broker")
     return hold("UNEXPECTED_BROKER_SERVICE");
+  // /health is publicly reachable. Only an owner-guarded admin endpoint can
+  // authenticate the existing owner credential; never confuse reachability
+  // with successful owner authorization.
+  let ownerProof;
+  try {
+    ownerProof=await read(
+      BROKER+"/api/jarvis/admin/bridge/events?goalId=ai09-connection-probe",
+      ownerToken,
+    );
+  } catch {return hold("OWNER_AUTHENTICATION_NOT_VERIFIED");}
+  if(!Array.isArray(ownerProof?.events))
+    return hold("UNEXPECTED_OWNER_AUTH_RESPONSE");
 
   let builder;
   try {builder=await read(BUILDER+"/health",builderToken);}
