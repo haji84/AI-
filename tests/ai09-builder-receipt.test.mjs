@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { prepareVerifiedRepairProposal } from "../scripts/goriq-ai09-independent-triage.mjs";
 import { verifyBuilderAcknowledgement } from "../scripts/goriq-ai09-builder-receipt.mjs";
+import { CompassStore } from "../src/compass/store.ts";
+import { CompassWorkStateStoreAdapter } from "../src/orchestrator/compass-work-state-store.ts";
 const A="a".repeat(40),B="b".repeat(40),REPO="haji84/AI-";
 const patch="diff --git a/src/check.mjs b/src/check.mjs\n@@ -0,0 +1 @@\n+console.log(request.headers.authorization);";
 const sha=createHash("sha256").update(patch).digest("hex");
@@ -104,4 +106,36 @@ test("duplicate task, stale status and widened files are rejected",async()=>{
     const r=await check(proposal,{...data,state:{...data.state,childWorkItems:children}});
     assert.equal(r.status,"BUILDER_ACK_PENDING");
   }
+});
+
+test("real GORIQ Compass WorkStateStore adapter is read before simulated Builder receipt",async()=>{
+  const proposal=await candidate();
+  const data=setup(proposal);
+  const compass=new CompassStore(":memory:");
+  try {
+    const store=new CompassWorkStateStoreAdapter(compass);
+    await store.put({
+      ...data.state,
+      objective:"Reproduce separately verified bug",
+      definitionOfDone:[],currentState:"acceptance-test",
+      status:"IN_PROGRESS",riskClass:"R1",constraints:[],
+      decisions:[],artifacts:[],verificationResults:[],
+      blockers:[],nextAction:"Builder acknowledgement",updatedAt:"2026-10-17T00:01:00Z",
+    });
+    const verified=await verifyBuilderAcknowledgement({
+      goalId,proposal,workStateStore:store,
+      // Synthetic trusted receipt is intentionally NOT a live Builder response.
+      readAuthenticatedReceipt:async()=>data.receipt,
+    });
+    assert.equal(verified.status,"BUILDER_RECEIPT_MATCHED");
+    assert.equal(verified.writeAuthorized,false);
+    // Removing the child from the actual Compass-backed WorkState invalidates it.
+    const persisted=await store.get(goalId);
+    await store.put({...persisted,childWorkItems:[]});
+    const stale=await verifyBuilderAcknowledgement({
+      goalId,proposal,workStateStore:store,
+      readAuthenticatedReceipt:async()=>data.receipt,
+    });
+    assert.equal(stale.status,"BUILDER_ACK_PENDING");
+  } finally { compass.close(); }
 });
