@@ -133,6 +133,36 @@ jobs:
                (r.status==="NO_ACTIONABLE_FINDINGS" && process.env.REVIEWER_CODE!=="0"))
               process.exitCode=2;
           '
+      - name: Produce scoped AI-09 findings for independent verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module -e '
+            import {readFileSync, writeFileSync} from "node:fs";
+            import {safeRaceFindingSummaries} from "./scripts/goriq-ai09-race-review.mjs";
+            const r=JSON.parse(readFileSync(process.env.RUNNER_TEMP+"/race-ai09-advisory.json","utf8"));
+            const findings=safeRaceFindingSummaries(r);
+            const record={
+              repository:r.repository,prNumber:r.prNumber,
+              headSha:r.headSha,baseSha:r.baseSha,patchSha256:r.patchSha256,
+              totalChunks:r.chunkCount,completedChunks:r.chunkOutcomes.length,
+              status:r.status,findings,
+              evidenceClass:"AI_ASSERTED",githubApprovalSatisfied:false,
+              mergeAuthorized:false,independentSecurityReviewSatisfied:false
+            };
+            writeFileSync(process.env.RUNNER_TEMP+"/race-ai09-safe-findings.json",
+              JSON.stringify(record,null,2)+"\n",{mode:0o600,flag:"wx"});
+            console.log("AI09_SAFE_FINDINGS_COUNT="+findings.length);
+            console.log("AI09_SAFE_FINDINGS="+JSON.stringify(findings));
+          '
+      - name: Upload sanitized advisory only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai09-race-safe-findings
+          path: ${{ runner.temp }}/race-ai09-safe-findings.json
+          if-no-files-found: warn
+          retention-days: 3
       - name: Emit scope and security guarantees
         if: always()
         shell: bash
