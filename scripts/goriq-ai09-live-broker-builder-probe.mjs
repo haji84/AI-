@@ -2,7 +2,7 @@
 // No task creation, remote token retrieval, code write, repair or merge.
 const BROKER = "http://127.0.0.1:8787";
 const BUILDER = "http://127.0.0.1:8796";
-const GOAL_ID = /^[a-zA-Z0-9][a-zA-Z0-9:_./-]{5,159}$/;
+const GOAL_ID = /^[a-zA-Z0-9][a-zA-Z0-9:_.-]{5,159}$/;
 
 function hold(reason, detail={}) {
   return {
