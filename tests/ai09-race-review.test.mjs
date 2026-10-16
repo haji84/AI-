@@ -14,7 +14,7 @@ const compare={status:"ahead",ahead_by:1,total_commits:1,
     additions:1,deletions:0}]};
 const good=JSON.stringify({verdict:"NO_FINDINGS",findings:[]});
 const bad=JSON.stringify({verdict:"CHANGES_REQUESTED",
- findings:[{path:"src/example.mjs",line:1,severity:"low",summary:"Review example",evidence:"Added export",proposedFix:"Verify feature"}]});
+ findings:[{path:"src/example.mjs",line:1,severity:"low",summary:"Review example",evidence:"Added `export const answer=42;`",proposedFix:"Verify feature"}]});
 const api=(opts={})=>async path=>{
  if(path==="/pulls/65")return opts.pr??pr;
  if(path.includes("/check-runs"))return {total_count:(opts.checks??checks).length,
