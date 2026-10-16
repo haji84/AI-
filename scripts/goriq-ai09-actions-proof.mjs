@@ -131,11 +131,29 @@ export function createGitHubReadOnlyActionsClient({
     if(log) {
       const declared=Number(response.headers?.get("content-length"));
       if(declared>MAX_LOG_BYTES)throw Error("UNREVIEWABLE_ACTIONS_LOG_SIZE");
-      let data;
-      try {data=Buffer.from(await response.arrayBuffer());}
-      catch {throw Error("ACTIONS_READ_UNAVAILABLE");}
-      if(data.length>MAX_LOG_BYTES)throw Error("UNREVIEWABLE_ACTIONS_LOG_SIZE");
-      return data;
+      // Stream the signed log with a strict byte bound, including when
+      // GitHub's storage response omits or understates Content-Length.
+      const reader=response.body?.getReader?.();
+      if(!reader)throw Error("ACTIONS_READ_UNAVAILABLE");
+      const chunks=[];let bytes=0;
+      try {
+        for (;;) {
+          const {done,value}=await reader.read();
+          if(done)break;
+          if(!(value instanceof Uint8Array))
+            throw Error("ACTIONS_READ_UNAVAILABLE");
+          bytes+=value.byteLength;
+          if(bytes>MAX_LOG_BYTES) {
+            await reader.cancel();
+            throw Error("UNREVIEWABLE_ACTIONS_LOG_SIZE");
+          }
+          chunks.push(Buffer.from(value));
+        }
+      } catch(error) {
+        if(error?.message==="UNREVIEWABLE_ACTIONS_LOG_SIZE")throw error;
+        throw Error("ACTIONS_READ_UNAVAILABLE");
+      }
+      return Buffer.concat(chunks,bytes);
     }
     try {return await response.json();}
     catch {throw Error("INVALID_ACTIONS_METADATA");}
