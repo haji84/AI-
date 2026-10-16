@@ -76,6 +76,55 @@ try{
     $script:attached=$false;$script:boundaryFailure=$true
     Refuses {Assert-Ai09PostRecoveryPreflight ([pscustomobject]@{})} 'EXACT_BOUNDARY_CHANGED'
 
+
+    # Startup waits only on the unchanged full preflight's exact busy-Runner result.
+    $preflightAst=$ast.Find({param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -ceq 'Assert-Ai09PostRecoveryPreflight'},$false)
+    $script:waitCalls=0;$script:busyRemaining=2;$script:waitFailure='';$script:realWait=$false
+    function Assert-Ai09PostRecoveryPreflight {
+        param($Scope)
+        $script:waitCalls++
+        if($script:waitFailure){throw $script:waitFailure}
+        if($script:busyRemaining -gt 0){$script:busyRemaining--;throw 'RUNNER_NOT_IDLE'}
+    }
+    function Start-Sleep {param([int]$Milliseconds);if($Milliseconds -le 0 -or $Milliseconds -gt 5000){throw 'INVALID_FIXTURE_SLEEP_BOUND'};if($script:realWait){[Threading.Thread]::Sleep($Milliseconds)}}
+    function New-WaitFixture {
+        $c=New-Ai09SyncContext $temp ('A'*64)
+        $c.ReadyAccepted=$true;$null=$c.Stages.Add('ready')
+        return $c
+    }
+    $waitContext=New-WaitFixture;$waitReport=[ordered]@{Events=@()}
+    Wait-Ai09DiagnosticStartup $waitContext ([pscustomobject]@{}) $waitReport
+    Assert ($script:waitCalls -eq 3 -and $waitReport.StartupRunnerWait.BusyObservations -eq 2 -and $waitReport.StartupRunnerWait.Outcome -ceq 'PREFLIGHT_PASSED') 'BUSY_RUNNER_NOT_RECHECKED'
+    Assert ($waitReport.StartupRunnerWait.LimitSeconds -eq 300 -and @($waitReport.Events).Count -eq 0 -and -not $waitContext.FreshBeforeAccepted) 'STARTUP_WAIT_CHANGED_INPUT_STATE'
+    Refuses {Wait-Ai09DiagnosticStartup $waitContext ([pscustomobject]@{}) $waitReport} 'STARTUP_ONLY_WAIT'
+    $script:waitCalls=0;$script:busyRemaining=1000;$script:realWait=$true
+    $waitContext=New-WaitFixture;$waitReport=[ordered]@{Events=@()}
+    Refuses {Wait-Ai09DiagnosticStartup $waitContext ([pscustomobject]@{}) $waitReport -Seconds 0.03} 'STARTUP_RUNNER_WAIT_TIMEOUT'
+    Assert ($waitReport.StartupRunnerWait.Outcome -ceq 'STOPPED' -and $waitReport.StartupRunnerWait.BusyObservations -ge 1) 'WAIT_TIMEOUT_EVIDENCE_MISSING'
+    $waitContext=New-WaitFixture;$waitContext.Deadline=[DateTimeOffset]::UtcNow.AddMilliseconds(30);$waitReport=[ordered]@{Events=@()}
+    Refuses {Wait-Ai09DiagnosticStartup $waitContext ([pscustomobject]@{}) $waitReport} 'WHOLE_RUN_DEADLINE'
+    $script:realWait=$false;$script:waitCalls=0;$script:waitFailure='VM_ACL_CHANGED'
+    $waitContext=New-WaitFixture;$waitReport=[ordered]@{Events=@()}
+    Refuses {Wait-Ai09DiagnosticStartup $waitContext ([pscustomobject]@{}) $waitReport} 'VM_ACL_CHANGED'
+    Assert ($script:waitCalls -eq 1 -and $waitReport.StartupRunnerWait.BusyObservations -eq 0) 'OTHER_FAILURE_RETRIED'
+    $script:waitFailure='';$script:waitCalls=0
+    foreach($advancedState in @('notready','before','event','pressed')){
+        $waitContext=New-WaitFixture;$waitReport=[ordered]@{Events=@()}
+        switch($advancedState){
+            notready {$waitContext.ReadyAccepted=$false}
+            before {$null=$waitContext.Stages.Add('before')}
+            event {$waitReport.Events=@([pscustomobject]@{Event='before'})}
+            pressed {$null=$waitContext.PressAttempted.Add(17)}
+        }
+        Refuses {Wait-Ai09DiagnosticStartup $waitContext ([pscustomobject]@{}) $waitReport} 'STARTUP_ONLY_WAIT'
+    }
+    Assert ($script:waitCalls -eq 0) 'ADVANCED_STATE_REACHED_PREFLIGHT_WAIT'
+    $waitContext=New-WaitFixture;$waitContext.Deadline=[DateTimeOffset]::UtcNow.AddSeconds(-1)
+    Refuses {Wait-Ai09DiagnosticStartup $waitContext ([pscustomobject]@{}) ([ordered]@{Events=@()})} 'WHOLE_RUN_DEADLINE'
+    Refuses {Wait-Ai09DiagnosticStartup (New-WaitFixture) ([pscustomobject]@{}) ([ordered]@{Events=@()}) -Seconds 301} 'INVALID_STARTUP_WAIT'
+    Remove-Item -LiteralPath Function:\Start-Sleep
+    . ([scriptblock]::Create($preflightAst.Extent.Text))
+
     $script:ruleHash='D'*64
     function Get-NetAdapter {param($Name,$ErrorAction);[pscustomobject]@{Name=$Name;InterfaceIndex=37;MacAddress='00-15-5D-B2-2D-C4';Status='Up'}}
     function Get-NetIPAddress {param($InterfaceIndex,$AddressFamily,$ErrorAction);[pscustomobject]@{InterfaceIndex=37;IPAddress='172.27.128.1';PrefixLength=20;AddressState='Preferred';PrefixOrigin='Manual';SuffixOrigin='Manual'}}
@@ -164,6 +213,9 @@ try{
     . ([scriptblock]::Create($selectorText))
     $locks=[Collections.Generic.List[IO.FileStream]]::new()
     Assert ((Get-Ai09DiagnosticOutputRoot $locks) -ceq $oldRoot -and $locks.Count -eq 0) 'FIRST_RUN_REDIRECTED'
+    $null=New-Item -ItemType Directory -Path $retryRoot
+    Refuses {Get-Ai09DiagnosticOutputRoot $locks} 'ORIGINAL_RETRY_PROOF_MISSING'
+    Remove-Item -LiteralPath $retryRoot
     $null=New-Item -ItemType Directory -Path $oldRoot
     Refuses {Get-Ai09DiagnosticOutputRoot $locks} 'RETRY_FILE_SET'
     [IO.File]::WriteAllBytes((Join-Path $oldRoot 'before.png'),[byte[]]@(1,2,3))
@@ -188,8 +240,60 @@ try{
         Refuses {$h=[IO.File]::Open((Join-Path $oldRoot 'receipt.json'),'Open','ReadWrite','None');$h.Dispose()} ''
     }finally{foreach($held in $locks){$held.Dispose()};$locks.Clear()}
     $null=New-Item -ItemType Directory -Path $retryRoot
+    try{Refuses {Get-Ai09DiagnosticOutputRoot $locks} 'RETRY_FILE_SET'}finally{foreach($held in $locks){$held.Dispose()};$locks.Clear()}
+    $secondReceipt=[pscustomobject]@{
+        RunId='1ab689a6b0e94f8cb390ee762c79aeb8';SourceSha256='AB0AEEC3468B0BBFC29EAEC5A738234FA77494F1985CD288BB7AAD0E439DED46'
+        StartedAt='2026-10-16T04:37:45.8595958+00:00';FinishedAt='2026-10-16T04:38:12.5462601+00:00';Error='RUNNER_NOT_IDLE'
+        Success=$false;GuestExecutionVerified=$false;GuestNetworkVerified=$false;AuthenticationVerified=$false;Events=@()
+        ContinuedFromRunId='5da8b683fa714b4796505665c5445820';ContinuationReceiptSha256='7BFDB29801FCABB72078F2F26B63E120C2DF1047D5DCEF6DFB70967CE62AE68E'
+    }
+    $secondReady=[pscustomobject]@{
+        Version='1';RunId=$secondReceipt.RunId;SourceSha256=$secondReceipt.SourceSha256;Stage='ready'
+        Nonce='c02643b99d054f019004d2ab7261dddc';ImageSha256='';ExpiresAt='2026-10-16T04:42:45.8846469+00:00';Decision='READY'
+    }
+    Assert-Ai09DiagnosticSecondRetryProof $secondReceipt $secondReady
+    Assert $true 'EXACT_SECOND_FAILURE_REFUSED'
+    foreach($field in @('RunId','SourceSha256','Error','ContinuedFromRunId','ContinuationReceiptSha256')){
+        $bad=$secondReceipt.PSObject.Copy();$bad.$field=@($secondReceipt.$field)
+        Refuses {Assert-Ai09DiagnosticSecondRetryProof $bad $secondReady} 'SECOND_RETRY'
+    }
+    foreach($events in @(@{Value=$null},@{Value=@([pscustomobject]@{Event='before'})})){
+        $bad=$secondReceipt.PSObject.Copy();$bad.Events=$events.Value
+        Refuses {Assert-Ai09DiagnosticSecondRetryProof $bad $secondReady} 'SECOND_RETRY'
+    }
+    $bad=$secondReceipt.PSObject.Copy();$bad.GuestNetworkVerified=$true
+    Refuses {Assert-Ai09DiagnosticSecondRetryProof $bad $secondReady} 'SECOND_RETRY'
+    foreach($field in @('RunId','SourceSha256','Stage','Nonce','Decision','ImageSha256')){
+        $bad=$secondReady.PSObject.Copy();$bad.$field='wrong'
+        Refuses {Assert-Ai09DiagnosticSecondRetryProof $secondReceipt $bad} 'SECOND_RETRY'
+    }
+    $bad=$secondReady.PSObject.Copy();$bad.Decision=@()
+    Refuses {Assert-Ai09DiagnosticSecondRetryProof $secondReceipt $bad} 'SECOND_RETRY'
+    $secondReceiptText=$secondReceipt|ConvertTo-Json -Depth 8 -Compress
+    $secondReadyText=$secondReady|ConvertTo-Json -Compress
+    [IO.File]::WriteAllText((Join-Path $retryRoot 'receipt.json'),$secondReceiptText)
+    [IO.File]::WriteAllText((Join-Path $retryRoot 'ready.request.json'),$secondReadyText)
+    [IO.File]::WriteAllText((Join-Path $retryRoot 'ready.consumed.json'),$secondReadyText)
+    $selectorText=$selectorText.Replace('073FDE9DBFE5A85442F3CE12B4F566F27A0989E57FC9D6DBB86CE6792A025B56',(Get-FileHash -LiteralPath (Join-Path $retryRoot 'receipt.json')).Hash)
+    $selectorText=$selectorText.Replace('E3AF8C299B90443BF842FF7AD5273D41CB01772571C64626A9A829DBF6EB7F17',(Get-FileHash -LiteralPath (Join-Path $retryRoot 'ready.request.json')).Hash)
+    . ([scriptblock]::Create($selectorText))
+    $retry2Root=$oldRoot+'-retry2'
+    try{
+        Assert ((Get-Ai09DiagnosticOutputRoot $locks) -ceq $retry2Root -and $locks.Count -eq 9) 'FINAL_RETRY_NOT_SELECTED_OR_UNLOCKED'
+        foreach($heldPath in @((Join-Path $oldRoot 'receipt.json'),(Join-Path $retryRoot 'receipt.json'))){
+            Refuses {$h=[IO.File]::Open($heldPath,'Open','ReadWrite','None');$h.Dispose()} ''
+        }
+    }finally{foreach($held in $locks){$held.Dispose()};$locks.Clear()}
+    $null=New-Item -ItemType Directory -Path $retry2Root
     Refuses {Get-Ai09DiagnosticOutputRoot $locks} 'RETRY_ALREADY_STARTED'
-    Remove-Item -LiteralPath $retryRoot
+    Assert ($locks.Count -eq 0) 'FINAL_RETRY_EXISTENCE_NOT_CHECKED_FIRST'
+    Remove-Item -LiteralPath $retry2Root
+    $advancedSecond=Join-Path $retryRoot 'before.png';[IO.File]::WriteAllText($advancedSecond,'unexpected')
+    try{Refuses {Get-Ai09DiagnosticOutputRoot $locks} 'RETRY_FILE_SET'}finally{foreach($held in $locks){$held.Dispose()};$locks.Clear()}
+    Remove-Item -LiteralPath $advancedSecond
+    [IO.File]::AppendAllText((Join-Path $retryRoot 'ready.consumed.json'),' ')
+    try{Refuses {Get-Ai09DiagnosticOutputRoot $locks} 'PINNED_FILE_HASH'}finally{foreach($held in $locks){$held.Dispose()};$locks.Clear()}
+    [IO.File]::WriteAllText((Join-Path $retryRoot 'ready.consumed.json'),$secondReadyText)
     $advanced=Join-Path $oldRoot 'awake.png';[IO.File]::WriteAllText($advanced,'unexpected')
     Refuses {Get-Ai09DiagnosticOutputRoot $locks} 'RETRY_FILE_SET'
     Remove-Item -LiteralPath $advanced

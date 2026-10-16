@@ -126,6 +126,41 @@ function Assert-Ai09PostRecoveryPreflight {
     $null=Assert-Ai09CollectionEnvironment -Scope $Scope -SeedAttached $false
     if((Get-Ai09CollectionVhd $Scope).Attached){throw 'DIAGNOSTIC_SEED_HOST_ATTACHED'}
 }
+function Wait-Ai09DiagnosticStartup {
+    param($Context,$Scope,$Report,[double]$Seconds=300)
+    if($Seconds -le 0 -or $Seconds -gt 300){throw 'INVALID_STARTUP_WAIT'}
+    if(-not $Context.ReadyAccepted -or $Context.FreshBeforeAccepted -or
+       $Context.Stages.Count -ne 1 -or -not $Context.Stages.Contains('ready') -or
+       $Context.PressAttempted.Count -ne 0 -or @($Report.Events).Count -ne 0 -or
+       $Report.Contains('StartupRunnerWait')){throw 'STARTUP_ONLY_WAIT'}
+    Assert-Ai09SyncLive $Context
+    $clock=[Diagnostics.Stopwatch]::StartNew()
+    $state=[ordered]@{StartedAt=[DateTimeOffset]::UtcNow.ToString('o');LimitSeconds=$Seconds;Attempts=0;BusyObservations=0;Outcome='WAITING'}
+    $Report.StartupRunnerWait=$state
+    try {
+        while($true){
+            Assert-Ai09SyncLive $Context
+            if($clock.Elapsed.TotalSeconds -ge $Seconds -or $state.Attempts -ge 61){throw 'STARTUP_RUNNER_WAIT_TIMEOUT'}
+            $state.Attempts++
+            try {
+                Assert-Ai09PostRecoveryPreflight $Scope
+                Assert-Ai09SyncLive $Context
+                if($clock.Elapsed.TotalSeconds -ge $Seconds){throw 'STARTUP_RUNNER_WAIT_TIMEOUT'}
+                $state.Outcome='PREFLIGHT_PASSED'
+                return
+            }catch{
+                # This exact transient guard is the only retryable error, before any frame.
+                if($_.Exception.Message -cne 'RUNNER_NOT_IDLE'){throw}
+                $state.BusyObservations++
+            }
+            Assert-Ai09SyncLive $Context
+            $remaining=[Math]::Min($Seconds-$clock.Elapsed.TotalSeconds,
+                [Math]::Min($Context.WholeSeconds-$Context.Clock.Elapsed.TotalSeconds,($Context.Deadline-[DateTimeOffset]::UtcNow).TotalSeconds))
+            if($remaining -gt 0){Start-Sleep -Milliseconds ([int][Math]::Ceiling([Math]::Min([double]5,$remaining)*1000))}
+        }
+    }catch{$state.Outcome='STOPPED';$state.Error=$_.Exception.Message;throw}
+    finally{$state.FinishedAt=[DateTimeOffset]::UtcNow.ToString('o');$state.ElapsedSeconds=[Math]::Round($clock.Elapsed.TotalSeconds,3)}
+}
 function Get-Ai09PostRecoveryHostSnapshot {
     param($Scope)
     $adapter=@(Get-NetAdapter -Name 'vEthernet (Default Switch)' -ErrorAction Stop)
@@ -196,12 +231,39 @@ function Assert-Ai09DiagnosticRetryProof {
         if($i -lt 2 -and ($events[$i+6].Stage -isnot [string] -or $events[$i+6].Stage -cne 'before')){throw 'DIAGNOSTIC_RETRY_INPUT_OR_ADVANCED_STAGE'}
     }
 }
+function Assert-Ai09DiagnosticSecondRetryProof {
+    param($Receipt,$Ready)
+    $identities=@{RunId='1ab689a6b0e94f8cb390ee762c79aeb8';SourceSha256='AB0AEEC3468B0BBFC29EAEC5A738234FA77494F1985CD288BB7AAD0E439DED46'
+        Error='RUNNER_NOT_IDLE';ContinuedFromRunId='5da8b683fa714b4796505665c5445820';ContinuationReceiptSha256='7BFDB29801FCABB72078F2F26B63E120C2DF1047D5DCEF6DFB70967CE62AE68E'}
+    foreach($field in $identities.Keys){
+        if($Receipt.$field -isnot [string] -or $Receipt.$field -cne $identities[$field]){throw 'DIAGNOSTIC_SECOND_RETRY_TERMINAL_MISMATCH'}
+    }
+    foreach($field in @('Success','GuestExecutionVerified','GuestNetworkVerified','AuthenticationVerified')){
+        if($Receipt.$field -isnot [bool] -or $Receipt.$field){throw 'DIAGNOSTIC_SECOND_RETRY_TERMINAL_MISMATCH'}
+    }
+    if($Receipt.Events -isnot [array] -or $Receipt.Events.Count -ne 0){throw 'DIAGNOSTIC_SECOND_RETRY_INPUT_OR_ADVANCED_STAGE'}
+    $readyIdentity=@{Version='1';RunId=$identities.RunId;SourceSha256=$identities.SourceSha256;Stage='ready'
+        Nonce='c02643b99d054f019004d2ab7261dddc';ImageSha256='';ExpiresAt='2026-10-16T04:42:45.8846469+00:00';Decision='READY'}
+    if((@($Ready.PSObject.Properties.Name|Sort-Object)-join '|') -cne (@($readyIdentity.Keys|Sort-Object)-join '|')){throw 'DIAGNOSTIC_SECOND_RETRY_READY_MISMATCH'}
+    foreach($field in $readyIdentity.Keys){
+        if($Ready.$field -isnot [string] -or $Ready.$field -cne $readyIdentity[$field]){throw 'DIAGNOSTIC_SECOND_RETRY_READY_MISMATCH'}
+    }
+    if($Receipt.StartedAt -isnot [string] -or $Receipt.FinishedAt -isnot [string]){throw 'DIAGNOSTIC_SECOND_RETRY_TERMINAL_TIME'}
+    $start=[DateTimeOffset]::ParseExact($Receipt.StartedAt,'o',[Globalization.CultureInfo]::InvariantCulture)
+    $finish=[DateTimeOffset]::ParseExact($Receipt.FinishedAt,'o',[Globalization.CultureInfo]::InvariantCulture)
+    $expiry=[DateTimeOffset]::ParseExact($Ready.ExpiresAt,'o',[Globalization.CultureInfo]::InvariantCulture)
+    if($finish -lt $start -or $finish -ge $expiry -or $finish -gt [DateTimeOffset]::UtcNow){throw 'DIAGNOSTIC_SECOND_RETRY_TERMINAL_TIME'}
+}
 function Get-Ai09DiagnosticOutputRoot {
     param([Collections.Generic.List[IO.FileStream]]$Locks)
     $original='C:\Users\qq113\.codex\worktrees\ai09-bootstrap-1798\AI-\tmp\ai09-console-postrecovery-diagnostic'
     $retry=$original+'-retry1'
-    if(Test-Path -LiteralPath $retry){throw 'DIAGNOSTIC_RETRY_ALREADY_STARTED'}
-    if(-not(Test-Path -LiteralPath $original)){return $original}
+    $finalRetry=$original+'-retry2'
+    if(Test-Path -LiteralPath $finalRetry){throw 'DIAGNOSTIC_RETRY_ALREADY_STARTED'}
+    if(-not(Test-Path -LiteralPath $original)){
+        if(Test-Path -LiteralPath $retry){throw 'DIAGNOSTIC_ORIGINAL_RETRY_PROOF_MISSING'}
+        return $original
+    }
     Assert-Ai09DiagnosticPath $original
     $pins=[ordered]@{
         'before-1024.raw'='24F8FD825EC6D0D066263095FEDA465A921016CDD1B3466335AC2B1AD3C06B7D'
@@ -228,7 +290,29 @@ function Get-Ai09DiagnosticOutputRoot {
     }
     Assert-Ai09DiagnosticRetryProof $json['receipt.json'] $json['before.request.json'] $pins['before.png']
     if((@(Get-ChildItem -LiteralPath $original -Force|ForEach-Object Name|Sort-Object)-join '|') -cne $expected){throw 'DIAGNOSTIC_RETRY_FILE_SET_CHANGED'}
-    return $retry
+    if(-not(Test-Path -LiteralPath $retry)){return $retry}
+    Assert-Ai09DiagnosticPath $retry
+    $secondPins=[ordered]@{
+        'ready.request.json'='E3AF8C299B90443BF842FF7AD5273D41CB01772571C64626A9A829DBF6EB7F17'
+        'ready.consumed.json'='E3AF8C299B90443BF842FF7AD5273D41CB01772571C64626A9A829DBF6EB7F17'
+        'receipt.json'='073FDE9DBFE5A85442F3CE12B4F566F27A0989E57FC9D6DBB86CE6792A025B56'
+    }
+    $secondNames=(@($secondPins.Keys|Sort-Object)-join '|')
+    if((@(Get-ChildItem -LiteralPath $retry -Force|ForEach-Object Name|Sort-Object)-join '|') -cne $secondNames){throw 'DIAGNOSTIC_RETRY_FILE_SET_CHANGED'}
+    foreach($name in $secondPins.Keys){
+        $held=Open-Ai09DiagnosticPinnedFile (Join-Path $retry $name) $secondPins[$name]
+        $Locks.Add($held)
+        if($held.Length -gt 16384){throw 'DIAGNOSTIC_RETRY_JSON_TOO_LARGE'}
+        $held.Position=0
+        $reader=[IO.StreamReader]::new($held,[Text.UTF8Encoding]::new($false,$true),$false,16384,$true)
+        try{$parameters=@{InputObject=$reader.ReadToEnd();ErrorAction='Stop'}}finally{$reader.Dispose()}
+        if((Get-Command ConvertFrom-Json).Parameters.ContainsKey('DateKind')){$parameters.DateKind='String'}
+        $json[$name]=ConvertFrom-Json @parameters
+    }
+    Assert-Ai09DiagnosticSecondRetryProof $json['receipt.json'] $json['ready.request.json']
+    Assert-Ai09DiagnosticSecondRetryProof $json['receipt.json'] $json['ready.consumed.json']
+    if((@(Get-ChildItem -LiteralPath $retry -Force|ForEach-Object Name|Sort-Object)-join '|') -cne $secondNames){throw 'DIAGNOSTIC_RETRY_FILE_SET_CHANGED'}
+    return $finalRetry
 }
 function Invoke-Ai09PostRecoveryDiagnostic {
     param([string]$sourceHash)
@@ -243,6 +327,7 @@ $null = New-Item -ItemType Directory -Path $outputRoot -ErrorAction Stop
 $sync = New-Ai09SyncContext -Root $outputRoot -SourceSha256 $sourceHash
 $report = [ordered]@{ RunId=$sync.RunId; SourceSha256=$sourceHash; StartedAt=[DateTimeOffset]::UtcNow.ToString('o'); Success=$false; SuccessMeaning='FIXED_READONLY_COMMANDS_OBSERVED'; GuestExecutionVerified=$false; GuestNetworkVerified=$false; AuthenticationVerified=$false; Commands=@(Get-Ai09PostRecoveryCommands); Events=@() }
 if($outputRoot.EndsWith('-retry1')){$report.ContinuedFromRunId='5da8b683fa714b4796505665c5445820';$report.ContinuationReceiptSha256='7BFDB29801FCABB72078F2F26B63E120C2DF1047D5DCEF6DFB70967CE62AE68E'}
+elseif($outputRoot.EndsWith('-retry2')){$report.ContinuedFromRunId='1ab689a6b0e94f8cb390ee762c79aeb8';$report.ContinuationReceiptSha256='073FDE9DBFE5A85442F3CE12B4F566F27A0989E57FC9D6DBB86CE6792A025B56'}
 function Save-GuestThumbnail([string]$name) {
     $selected = $false
     foreach ($dimensions in @(@(1024,768), @(640,480), @(320,240))) {
@@ -352,7 +437,7 @@ try {
     $report.CollectionReceiptSha256=$collectionHash
     Assert-Ai09Administrator
     $scope=Get-Ai09CollectionScope
-    Assert-Ai09PostRecoveryPreflight $scope
+    Wait-Ai09DiagnosticStartup $sync $scope $report
     $report.HostPreflight=Get-Ai09PostRecoveryHostSnapshot $scope
     $vmId = '453b139b-cceb-446e-99fb-f45bf5895436'
     $vm = Get-VM -Id $vmId
