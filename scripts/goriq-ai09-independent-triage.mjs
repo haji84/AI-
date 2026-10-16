@@ -101,6 +101,7 @@ export async function prepareVerifiedRepairProposal({
       proof?.headSha !== scope.headSha || proof?.baseSha !== scope.baseSha ||
       proof?.patchSha256 !== patchDigest ||
       proof?.path !== finding.path || proof?.line !== finding.line ||
+      proof?.findingIndex !== findingIndex ||
       typeof actor !== "string" || !REF.test(actor) ||
       typeof builder !== "string" || !REF.test(builder) ||
       actor.toLowerCase() === builder.toLowerCase() ||
