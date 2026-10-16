@@ -29,9 +29,15 @@ async function main() {
   const baseSha = argument("base");
   const headSha = argument("head");
   const makerRole = argument("maker");
-  const model = argument("model") ?? process.env.GORIQ_OLLAMA_MODEL ?? "qwen2.5-coder:1.5b";
+  const model = argument("model") ?? process.env.GORIQ_OLLAMA_MODEL ?? "qwen2.5-coder:3b";
   const args = process.argv.slice(2);
-  if (args.length !== 8 || !["--base", "--head", "--maker", "--model"].every(flag => args.includes(flag)) ||
+  const requiredFlags = ["--base", "--head", "--maker"];
+  const allowedFlags = [...requiredFlags, "--model"];
+  const flags = args.filter((_, index) => index % 2 === 0);
+  if (![6, 8].includes(args.length) ||
+      flags.length !== new Set(flags).size ||
+      !requiredFlags.every(flag => flags.includes(flag)) ||
+      !flags.every(flag => allowedFlags.includes(flag)) ||
       !revision(baseSha) || !revision(headSha) ||
       !/^[a-zA-Z0-9][a-zA-Z0-9_./:-]{0,100}$/.test(model) ||
       typeof makerRole !== "string" || !/^[A-Za-z][A-Za-z0-9 _/-]{0,63}$/.test(makerRole)) {

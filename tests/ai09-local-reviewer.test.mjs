@@ -108,3 +108,26 @@ test("CLI without scope refuses before contacting local model", () => {
     assert.equal(report.mergeAuthorized, false);
   }
 });
+
+
+test("manual CLI accepts omitted model with local default, but refuses unknown switches", () => {
+  function invoke(args) {
+    try {
+      execFileSync(process.execPath, ["scripts/goriq-ai09-review.mjs", ...args], {
+        encoding: "utf8", timeout: 10000, stdio: ["ignore", "pipe", "ignore"],
+      });
+      assert.fail("not at exact test SHA but CLI unexpectedly passed");
+    } catch (error) {
+      assert.equal(error.status, 2);
+      return JSON.parse(error.stdout.toString());
+    }
+  }
+  const valid = ["--base", baseSha, "--head", headSha, "--maker", "Builder"];
+  const report = invoke(valid);
+  // Scope validation passes; only the local Git HEAD mismatch blocks.
+  assert.deepEqual(report.blockers, ["checkout_head_mismatch"]);
+  assert.deepEqual(invoke([...valid, "--unknown", "value"]).blockers,
+    ["invalid_readonly_cli_arguments"]);
+  assert.deepEqual(invoke([...valid, "--maker", "Reviewer"]).blockers,
+    ["invalid_readonly_cli_arguments"]);
+});

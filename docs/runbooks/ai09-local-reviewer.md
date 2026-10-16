@@ -14,10 +14,10 @@ Issue: #1796. Existing role: `.github/agents/reviewer.agent.md`.
 From a local checkout of the exact PR head, using Node.js 24.19+ and an already installed Ollama model:
 
 ```sh
-node scripts/goriq-ai09-review.mjs --base <40-hex-base-commit> --head <40-hex-PR-head-commit> --maker Builder --model qwen2.5-coder:1.5b
+node scripts/goriq-ai09-review.mjs --base <40-hex-base-commit> --head <40-hex-PR-head-commit> --maker Builder
 ```
 
-The CLI outputs a single JSON record containing reviewer ID, base/head SHA, patch SHA-256, changed paths, findings and blockers. Its `githubApprovalSatisfied`, `independentGitHubAccountVerified` and `mergeAuthorized` fields are always false. Blocked/inconclusive/findings outcomes exit nonzero.
+The default model is `qwen2.5-coder:3b`. Use `--model <installed-local-model>` only for an explicitly reviewed local override; there is no paid/remote fallback. The CLI still requires base/head/maker scope and a matching read-only checkout.\n\nThe CLI outputs a single JSON record containing reviewer ID, base/head SHA, patch SHA-256, changed paths, findings and blockers. Its `githubApprovalSatisfied`, `independentGitHubAccountVerified` and `mergeAuthorized` fields are always false. Blocked/inconclusive/findings outcomes exit nonzero.
 
 **CI:** `node --test tests/ai09-local-reviewer.test.mjs`, plus normal `pnpm lint`, `pnpm test`, `pnpm test:p8-security`, `pnpm build`. These checks validate the software contract only. Actual local-model inference on ZBook/MacBook requires separate observed runtime evidence.
 

@@ -4747,6 +4747,16 @@
       "reason": "AI-09 local read-only PR review supports independent verification and evidence-bound assessment as advisory AI_ASSERTED output; no independent GitHub account or production acceptance is implied."
     },
     {
+      "path": "src/orchestrator/ai09-pr-review-automation.mjs",
+      "sha256": "a77ce0a4c3aa3cd00793c5e5f0074f3f78a56d882baf08d4b39dfdf5643a92e8",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-010",
+        "CORE-011"
+      ],
+      "reason": "AI-09 exact-head PR review event, diff, and advisory handoff functions support independent verification, keeping GitHub review approvals and merge authorization false. CI validates contract only, not live model or device."
+    },
+    {
       "path": "src/orchestrator/approval-key.ts",
       "sha256": "d419cf1c2251cc29399f4ac348b13a3c0bb86bb5a7c99b221a52e45ce1d6822b",
       "classification": "COVERED_BY_REQUIREMENT",
