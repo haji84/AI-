@@ -1,0 +1,95 @@
+name: GORIQ AI-09 Owner Broker and Builder Read-Only Connect
+
+# Must run from protected main, never from an untrusted PR head.
+on:
+  workflow_dispatch:
+  issues:
+    types: [opened, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  owner-broker-readonly:
+    if: >-
+      github.repository == 'haji84/AI-' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event_name == 'issues' &&
+        startsWith(github.event.issue.title, '[AI09 READONLY CONNECT]') &&
+        github.event.issue.user.login == github.repository_owner &&
+        github.event.sender.login == github.repository_owner))
+    runs-on: [self-hosted, macOS, ARM64]
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout only trusted protected main source
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Enforce exact current main source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)"
+      - name: Authenticate against local owner's Broker read-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          ENV_FILE="$HOME/Library/Application Support/JARVIS/jarvis.env"
+          if [[ ! -s "$ENV_FILE" ]]; then echo 'AI09_EXISTING_OWNER_ENV_UNAVAILABLE'; exit 2; fi
+          set -a
+          source "$ENV_FILE"
+          set +a
+          if [[ -z "$(printenv JARVIS_OWNER_TOKEN 2>/dev/null || true)" ]]; then
+            echo 'AI09_EXISTING_OWNER_TOKEN_MISSING'
+            exit 2
+          fi
+          export GORIQ_AI09_CONNECT_MODE=broker
+          node scripts/goriq-ai09-live-broker-builder-probe.mjs
+          unset JARVIS_OWNER_TOKEN
+  zbook-builder-readonly:
+    if: >-
+      github.repository == 'haji84/AI-' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event_name == 'issues' &&
+        startsWith(github.event.issue.title, '[AI09 READONLY CONNECT]') &&
+        github.event.issue.user.login == github.repository_owner &&
+        github.event.sender.login == github.repository_owner))
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout only trusted protected main source
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Enforce exact current main source
+        shell: pwsh
+        run: |
+          git fetch --no-tags origin main
+          if ($LASTEXITCODE -ne 0) { throw "Trusted main fetch unavailable" }
+          $head = (git rev-parse HEAD).Trim()
+          $trusted = (git rev-parse origin/main).Trim()
+          if ($head -ne $trusted) { throw "Current main revision mismatch" }
+      - name: Authenticate against existing local Builder read-only
+        shell: pwsh
+        run: |
+          $tokenPath = Join-Path $env:LOCALAPPDATA 'GAIWorker\code-builder\token.txt'
+          if (-not (Test-Path -LiteralPath $tokenPath -PathType Leaf)) {
+            Write-Host 'AI09_EXISTING_BUILDER_TOKEN_MISSING'
+            exit 2
+          }
+          $env:CODE_BUILDER_LOCAL_TOKEN = (Get-Content -LiteralPath $tokenPath -Raw).Trim()
+          $env:GORIQ_AI09_CONNECT_MODE = 'builder'
+          try {
+            node scripts/goriq-ai09-live-broker-builder-probe.mjs
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          } finally {
+            Remove-Item Env:CODE_BUILDER_LOCAL_TOKEN -ErrorAction SilentlyContinue
+            Remove-Item Env:GORIQ_AI09_CONNECT_MODE -ErrorAction SilentlyContinue
+          }
