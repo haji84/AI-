@@ -1,5 +1,5 @@
-import { holdUngroundedAdvisory } from "./goriq-ai09-finding-anchors.mjs";
 #!/usr/bin/env node
+import { holdUngroundedAdvisory } from "./goriq-ai09-finding-anchors.mjs";
 import { writeFileSync } from "node:fs";
 import { performance } from "node:perf_hooks";
 import { Buffer } from "node:buffer";
