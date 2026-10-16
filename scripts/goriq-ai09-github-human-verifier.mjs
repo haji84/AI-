@@ -56,14 +56,15 @@ export function createGitHubReadOnlyPullReviewClient({
 
 
 export function createGitHubHumanReproductionVerifier({
-  repository,builderActor,allowedReviewerLogins,githubGet,
+  repository,builderActor,allowedReviewerLogins,githubGet,verifyReproductionEvidence,
 }) {
   if(!validRepository(repository)||
      !ACTOR.test(builderActor??"")||
      !Array.isArray(allowedReviewerLogins)||
      allowedReviewerLogins.length<1||allowedReviewerLogins.length>20||
      !allowedReviewerLogins.every(x=>ACTOR.test(x))||
-     typeof githubGet!=="function")throw Error("INVALID_TRUSTED_VERIFIER_CONFIG");
+     typeof githubGet!=="function"||
+     typeof verifyReproductionEvidence!=="function")throw Error("INVALID_TRUSTED_VERIFIER_CONFIG");
   const allowed=new Set(allowedReviewerLogins.map(x=>x.toLowerCase()));
   if(allowed.size!==allowedReviewerLogins.length ||
      allowed.has("ai-09")||allowed.has("github-actions")||
@@ -127,6 +128,21 @@ export function createGitHubHumanReproductionVerifier({
        !SHA256.test(attestation.reproductionSha256??""))
       throw Error("REPRODUCTION_ATTESTATION_SCOPE_MISMATCH");
 
+    // Review-author identity proves who made the statement, not that a
+    // failure happened. Independently re-fetch the exact CI job and raw log,
+    // and require a byte-for-byte SHA-256 match before promoting the proposal.
+    let reproduction;
+    try {
+      reproduction=await verifyReproductionEvidence({expected,attestation});
+    } catch {
+      throw Error("REPRODUCTION_LOG_UNVERIFIED");
+    }
+    if(reproduction?.verified!==true ||
+       reproduction?.headSha!==expected.headSha ||
+       reproduction?.logSha256!==attestation.reproductionSha256 ||
+       reproduction?.conclusion!=="failure" ||
+       reproduction?.evidenceClass!=="MACHINE_VERIFIED_LOG_PROVENANCE")
+      throw Error("REPRODUCTION_LOG_UNVERIFIED");
     return {
       ...expected, authenticated:true,independent:true,reproduced:true,
       evidenceClass:"HUMAN_VERIFIED",evidenceId:verificationRef,
