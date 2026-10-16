@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 import { holdUngroundedAdvisory } from "./goriq-ai09-finding-anchors.mjs";
-import { EVIDENCE_FIRST_MODEL_INSTRUCTIONS } from "./goriq-ai09-independent-triage.mjs";
 import { writeFileSync } from "node:fs";
 import { performance } from "node:perf_hooks";
 import { Buffer } from "node:buffer";
@@ -129,7 +128,7 @@ async function main() {
       const chunkResult = await reviewLocalPatch({
         baseSha: c.baseSha, headSha: c.headSha, makerRole: "Builder",
         paths: chunk.paths, patch: chunk.patch,
-        infer: prompt => localInfer(c, EVIDENCE_FIRST_MODEL_INSTRUCTIONS + "\n" + prompt),
+        infer: prompt => localInfer(c, prompt),
       });
       chunkReports.push(chunkResult);
       console.log("AI09_CHUNK_STATUS=" + JSON.stringify({
