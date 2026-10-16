@@ -90,6 +90,49 @@ export async function reviewRacePull({number,head,base,api,infer}) {
   };
 }
 
+
+const SAFE_LEAK = /(?:gh[pousr]_[A-Za-z0-9_]{12,}|github_pat_[A-Za-z0-9_]{12,}|sk-proj-[A-Za-z0-9_-]{12,}|AKIA[A-Z0-9]{16}|-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|(?:authorization|api[_ -]?key|secret|password|access[_ -]?token)\s*[:=]\s*[^\s,;]{8,})/i;
+function safeFindingText(value, max) {
+  if (typeof value !== "string" || !value.trim() || value.length > max ||
+      /[\u0000-\u001f\u007f]/.test(value) || SAFE_LEAK.test(value)) {
+    throw Error("UNSAFE_AI09_FINDING_FOR_PUBLIC_LOG");
+  }
+  return value.replace(/@/g, "@\u200b").replace(/</g, "&lt;").replace(/>/g, "&gt;").trim();
+}
+export function safeRaceFindingSummaries(review) {
+  if (!review || review.schemaVersion !== 1 ||
+      review.repository !== REPO || review.reviewer !== "AI-09" ||
+      review.evidenceClass !== "AI_ASSERTED" ||
+      review.githubApprovalSatisfied !== false || review.mergeAuthorized !== false ||
+      review.independentGitHubAccountVerified !== false ||
+      !SHA40.test(review.headSha ?? "") || !SHA40.test(review.baseSha ?? "") ||
+      !Array.isArray(review.reviewedPaths) || !Array.isArray(review.findings) ||
+      review.findings.length > 20 || review.chunkOutcomes?.length !== review.chunkCount ||
+      !review.chunkOutcomes.every((c,i)=>c.sequence === i+1 &&
+        ["NO_ACTIONABLE_FINDINGS","CHANGES_REQUESTED","INCONCLUSIVE"].includes(c.status)) ||
+      !["NO_ACTIONABLE_FINDINGS","CHANGES_REQUESTED","INCONCLUSIVE"].includes(review.status)) {
+    throw Error("INCOMPLETE_OR_UNTRUSTED_AI09_FINDINGS");
+  }
+  return review.findings.map(f => {
+    if (!review.reviewedPaths.includes(f.path) || !["low","medium","high","critical"].includes(f.severity) ||
+        (f.line != null && (!Number.isSafeInteger(f.line) || f.line < 1 || f.line > 500000))) {
+      throw Error("INVALID_AI09_FINDING_SCOPE");
+    }
+    return {
+      headSha:review.headSha,
+      path:safeFindingText(f.path,250),
+      line:f.line??null,
+      severity:f.severity,
+      summary:safeFindingText(f.summary,500),
+      evidence:safeFindingText(f.evidence,800),
+      proposedFix:safeFindingText(f.proposedFix,800),
+      evidenceClass:"AI_ASSERTED",
+      githubApprovalSatisfied:false,
+      mergeAuthorized:false
+    };
+  });
+}
+
 export function parseRaceRequest(args, loadManifest = path => JSON.parse(readFileSync(path,"utf8"))) {
   if(args.length === 2 && args[0] === "--manifest") {
     const manifest=loadManifest(args[1]);
