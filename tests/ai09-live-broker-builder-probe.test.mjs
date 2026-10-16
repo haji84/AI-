@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { probeLiveGoriqConnection } from "../scripts/goriq-ai09-live-broker-builder-probe.mjs";
 const OWNER="fixture_only_owner_token";
 const BUILDER="fixture_only_builder_token";
@@ -169,4 +170,21 @@ test("single-host mode never forges cross-host authentication or creates Builder
     assert.equal(x.builderAcknowledged,false);
   }
   assert.equal(c.calls.length,0);
+});
+
+test("trusted-main-only owner-probe workflow never grants write scopes",()=>{
+  const workflow=readFileSync(".github/workflows/goriq-ai09-owner-builder-connect.yml","utf8");
+  assert.match(workflow,/github\.event\.issue\.user\.login == github\.repository_owner/);
+  assert.match(workflow,/github\.event\.sender\.login == github\.repository_owner/);
+  assert.match(workflow,/ref: main/);
+  assert.match(workflow,/persist-credentials: false/);
+  assert.match(workflow,/runs-on: \[self-hosted, macOS, ARM64\]/);
+  assert.match(workflow,/runs-on: \[self-hosted, Windows, X64\]/);
+  assert.equal((workflow.match(/permissions:\n\s+contents: read/g)||[]).length,3);
+  assert.doesNotMatch(workflow,/pull_request_target|pull_request:\s|repository_dispatch|contents: write|issues: write|id-token: write|pull-requests: write/);
+  assert.doesNotMatch(workflow,/\/build|\/api\/jarvis\/admin\/tasks|Remove-Item\s+\$[A-Za-z]+Workspace/);
+  const script=readFileSync("scripts/goriq-ai09-live-broker-builder-probe.mjs","utf8");
+  assert.doesNotMatch(script,/method:"POST"|execSync|spawn\(/);
+  assert.match(script,/OWNER_AUTHENTICATION_NOT_VERIFIED/);
+  assert.match(script,/builderAcknowledged:false/);
 });
