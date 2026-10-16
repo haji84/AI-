@@ -226,22 +226,23 @@ test("oversized diff refuses before local model context is truncated", () => {
     files: [{ filename: "src/file.ts", patch: "@@ -1 +1 @@\n+" + "a".repeat(17 * 1024) }],
   };
   assert.doesNotThrow(() => compareToPatch(huge, shaA, shaB));
-  assert.throws(() => compareToReviewChunks(huge, shaA, shaB), /review_file_exceeds_context/);
+  assert.throws(() => compareToReviewChunks(huge, shaA, shaB), /unreviewable_oversized_line/);
 });
 
 
 test("large PRs are fully covered by bounded chunks without truncated evidence", () => {
   const files = Array.from({ length: 6 }, (_, i) => ({
     filename: "src/unit-" + i + ".ts",
-    patch: "@@ -0,0 +1,1 @@\n+" + String(i).repeat(9000),
+    patch: "@@ -0,0 +1,100 @@\n" + Array.from({length:100}, (_, line) => "+" + String(i).repeat(90) + line).join("\n"),
   }));
   const compare = { status: "ahead", ahead_by: 1, total_commits: 1, files };
   const full = compareToReviewChunks(compare, shaA, shaB);
   assert.equal(full.paths.length, files.length);
-  assert.equal(full.chunks.length, 6);
-  assert.equal(full.chunks.map(c => c.patch).join("\n"), full.patch);
+  assert.ok(full.chunks.length > 6);
+  assert.equal(files.map((file, index) => "diff --git a/" + file.filename + " b/" + file.filename + "\n" +
+    full.chunks.filter(c => c.fileIndex === index).map(c => c.source).join("\n")).join("\n"), full.patch);
   for (const chunk of full.chunks) {
-    assert.ok(Buffer.byteLength(chunk.patch) <= 16 * 1024);
+    assert.ok(Buffer.byteLength(chunk.patch) <= 4 * 1024);
     assert.equal(chunk.paths.length, 1);
   }
   const scope = { headSha: shaB, baseSha: shaA, paths: full.paths, patchSha256: full.patchSha256 };
@@ -266,6 +267,28 @@ test("large PRs are fully covered by bounded chunks without truncated evidence",
   assert.equal(consolidateChunkReviews([...reports.slice(0, 1), { ...reports[1], status: "BLOCKED" }, ...reports.slice(2)], scope, full.chunks).status, "BLOCKED");
   assert.equal(consolidateChunkReviews([{ ...reports[0], status: "INCONCLUSIVE" }, ...reports.slice(1)], scope, full.chunks).status, "INCONCLUSIVE");
   assert.equal(consolidateChunkReviews([{ ...reports[0], scope: { ...reports[0].scope, patchSha256: shaA } }, ...reports.slice(1)], scope, full.chunks).status, "BLOCKED");
+});
+
+
+test("one real-size hunk splits into byte-exact 4KiB review slices", () => {
+  const original = "@@ -0,0 +1,160 @@\n" +
+    Array.from({length:160}, (_, i) => "+const field_" + i + " = " + JSON.stringify("x".repeat(70)) + ";").join("\n");
+  assert.ok(Buffer.byteLength(original) > 15 * 1024);
+  const compare={status:"ahead",ahead_by:1,total_commits:1,
+    files:[{filename:"src/large.js",patch:original}]};
+  const review=compareToReviewChunks(compare,shaA,shaB);
+  assert.ok(review.chunks.length>=4);
+  assert.ok(review.chunks.every(c=>c.paths.length===1 && c.paths[0]==="src/large.js" &&
+    Buffer.byteLength(c.patch)<=4*1024));
+  assert.equal(review.chunks.map(c=>c.source).join("\n"),original);
+  const scope={baseSha:shaA,headSha:shaB,paths:review.paths,patchSha256:review.patchSha256};
+  const reports=review.chunks.map(c=>({
+    ...goodResult(),scope:{baseSha:shaA,headSha:shaB,paths:c.paths,
+      patchSha256:createHash("sha256").update(c.patch).digest("hex")}
+  }));
+  assert.equal(consolidateChunkReviews(reports,scope,review.chunks).status,"NO_ACTIONABLE_FINDINGS");
+  assert.equal(consolidateChunkReviews(reports.slice(1),scope,review.chunks).status,"BLOCKED");
+  assert.equal(consolidateChunkReviews(reports.map((r,i)=>i===2?{...r,status:"INCONCLUSIVE"}:r),scope,review.chunks).status,"INCONCLUSIVE");
 });
 
 
