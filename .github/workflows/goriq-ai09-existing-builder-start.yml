@@ -119,7 +119,8 @@ jobs:
             servicePort = 8796
             taskName = $taskName
             existingTaskTriggeredExactlyOnce = $started
-            installedFilesUnmodified = $true
+            existingConfigAndTokenNotRewritten = $true
+            runtimePidOrLogMayBeUpdatedByLauncher = $started
             tokenRotated = $false
             authenticatedBuilderHealthy = $healthy
             workerId = $workerId
