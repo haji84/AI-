@@ -4738,7 +4738,7 @@
     },
     {
       "path": "src/orchestrator/ai09-local-reviewer.mjs",
-      "sha256": "a38921a6f51011ff6cdbb6c995d92d268f04380d2f752f9552dd3b26f3488d3b",
+      "sha256": "d0cef721489a66e02b8086e985e67ff49374ded96df9d6a06f2fea9859f75544",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-010",
