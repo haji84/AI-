@@ -94,15 +94,18 @@ test("separately authenticated reproduction builds proposal without task dispatc
   assert.doesNotMatch(JSON.stringify(out),/Review this operation|Logging risk/);
 });
 
-test("hosted and RACE model calls receive exact-line quality instructions",()=>{
+test("unverified new prompt stays experimental; production reviewers keep the proven inference contract",()=>{
   assert.match(EVIDENCE_FIRST_MODEL_INSTRUCTIONS,/added new-side line number/);
   assert.match(EVIDENCE_FIRST_MODEL_INSTRUCTIONS,/reproducible failure case/);
   assert.match(EVIDENCE_FIRST_MODEL_INSTRUCTIONS,/INCONCLUSIVE/);
-  for(const path of ["scripts/goriq-ai09-ci-review.mjs","scripts/goriq-ai09-race-review.mjs"]){
-    const s=readFileSync(path,"utf8");
-    assert.match(s,/EVIDENCE_FIRST_MODEL_INSTRUCTIONS/);
-    assert.match(s,/infer:/);
-  }
+  const benchmark=readFileSync("scripts/goriq-ai09-hosted-benchmark.mjs","utf8");
+  assert.match(benchmark,/EVIDENCE_FIRST_MODEL_INSTRUCTIONS/);
+  const hosted=readFileSync("scripts/goriq-ai09-ci-review.mjs","utf8");
+  const race=readFileSync("scripts/goriq-ai09-race-review.mjs","utf8");
+  assert.doesNotMatch(hosted,/EVIDENCE_FIRST_MODEL_INSTRUCTIONS/);
+  assert.doesNotMatch(race,/EVIDENCE_FIRST_MODEL_INSTRUCTIONS/);
+  assert.match(hosted,/infer: prompt => localInfer\(c, prompt\)/);
+  assert.match(race,/paths:chunk.paths,patch:chunk.patch,infer/);
 });
 
 test("labeled source-citation corpus tracks confusion matrix without bug-accuracy claims",()=>{
