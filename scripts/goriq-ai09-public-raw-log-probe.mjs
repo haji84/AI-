@@ -19,9 +19,13 @@ export async function probeHistoricRawLog({ fetchImpl=fetch, outputPath }={}) {
     void unused;
     return fetchImpl(url,{...init,headers:Object.keys(safe).length?safe:undefined});
   };
+  // Reuse only the existing token's currently permitted read scope.
+  // No new credential or GitHub Actions permission is created here.
+  const provided=process.env.GITHUB_TOKEN;
   const client=createGitHubReadOnlyActionsClient({
-    repository:REPO,token:"anonymous-public",
-    fetchImpl:publicFetch,
+    repository:REPO,
+    token:typeof provided==="string"&&provided.length>8?provided:"anonymous-public",
+    fetchImpl:typeof provided==="string"&&provided.length>8?fetchImpl:publicFetch,
   });
   let job,run;
   try {
