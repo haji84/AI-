@@ -93,11 +93,18 @@ export async function reviewRacePull({number,head,base,api,infer}) {
 
 const SAFE_LEAK = /(?:gh[pousr]_[A-Za-z0-9_]{12,}|github_pat_[A-Za-z0-9_]{12,}|sk-proj-[A-Za-z0-9_-]{12,}|AKIA[A-Z0-9]{16}|-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|(?:authorization|api[_ -]?key|secret|password|access[_ -]?token)\s*[:=]\s*[^\s,;]{8,})/i;
 function safeFindingText(value, max) {
-  if (typeof value !== "string" || !value.trim() || value.length > max ||
-      [...value].some(c => c.charCodeAt(0) < 32 || c.charCodeAt(0) === 127) || SAFE_LEAK.test(value)) {
-    throw Error("UNSAFE_AI09_FINDING_FOR_PUBLIC_LOG");
-  }
-  return value.replace(/@/g, "@\u200b").replace(/</g, "&lt;").replace(/>/g, "&gt;").trim();
+  // The advisory is untrusted model data, never authority. Unpublishable
+  // fields are replaced wholesale rather than allowing any guessed secret
+  // to escape into public CI logs or artifacts.
+  const REDACTED = "[REDACTED_UNSAFE_AI09_TEXT]";
+  if (typeof value !== "string" || !value.trim() || value.length > max) return REDACTED;
+  const hasBadControl=[...value].some(c => {
+    const n=c.charCodeAt(0);
+    return (n < 32 && ![9,10,13].includes(n)) || n === 127;
+  });
+  if (hasBadControl || SAFE_LEAK.test(value)) return REDACTED;
+  return value.replace(/[\\r\\n\\t]/g," ").replace(/@/g,"@\\u200b")
+    .replace(/</g,"&lt;").replace(/>/g,"&gt;").trim();
 }
 export function safeRaceFindingSummaries(review) {
   if (!review || review.schemaVersion !== 1 ||
