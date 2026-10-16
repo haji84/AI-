@@ -4748,7 +4748,7 @@
     },
     {
       "path": "src/orchestrator/ai09-pr-review-automation.mjs",
-      "sha256": "68b15639ad6758a1842a2d5bf56169bdd877d23f43a553589d96bd4623186996",
+      "sha256": "01d15de259aeb68ecc3bde8e88172d379ea4bc3f9a0e3d55c19d244286a4bb43",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-010",
