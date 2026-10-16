@@ -148,3 +148,16 @@ negative cases, handoff receipt and recovery evidence to Issue/PR.
   cannot authorize workflow activation.
 - The existing main production-sync workflow is out of scope. Do not
   use a merge or CI event as deployment authorization.
+
+
+## RACE AI cross-repository pilot (read-only)
+
+- Existing AI-09 employee is reused; CodeRabbit is not a reviewer, approval, or completion source.
+- The RACE AI PR #65 \`completion-controller-pilot\` GitHub Action emits a \`race-ai09-review-request\` JSON artifact (\`GORIQ_AI09_ADVISORY_REQUEST_V1\`). Its pilot CI succeeds, but that is **not** AI-09 inference.
+- \`scripts/goriq-ai09-race-review.mjs\` receives the extracted request file through \`--manifest <path>\` or explicit \`--pr NUMBER --head SHA --base SHA\`. It accepts only \`haji84/RACE-AI\` and exact live head/base, verifies all three RACE AI checks, bounds the GitHub patch by existing diff limits, invokes the already-installed loopback \`qwen2.5-coder:3b\` model, then rechecks the same PR revision. Nothing from a PR is executed.
+- Local readonly manual command, **only after environment isolation and provenance checks**: \`node scripts/goriq-ai09-race-review.mjs --manifest <path-to-extracted-ai09-handoff.json>\`. Or use explicit \`--pr 65 --head <current-full-sha> --base <current-full-sha>\`. Do not reuse outdated SHA values from this runbook. The command fetches public GitHub data; it does not post comments, modify settings, change processes, or trigger Builder/Debugger.
+- The emitted JSON is \`AI_ASSERTED\`, with GitHub approval, independent account, physical evidence and merge authorization set false. \`CHANGES_REQUESTED\` carries a proposed Builder/Debugger task identifier, **not an acknowledged or executed task**. Never claim an actual review until the CLI and real model run on an authorized, observed host and the exact output is collected.
+- Cross-repository automatic invocation, signed/artifact provenance, verified GitHub comment publication under the target repository's scoped identity and Builder/Debugger task acknowledgement are **NOT yet wired**. No new PAT/OAuth/runner registration or permission scope may be invented. A cross-repository bot comment with an untrusted token or copied output is not acceptable evidence.
+- Public repository self-hosted runner isolation remains a hard HOLD for unattended workflow activation. The previous owner exception was bound to an older PR head, and cannot approve the current changed head, workflow_run or issues:write authority. Need fresh review, current-head authorization and physical isolation evidence.
+
+Verification: \`node --test tests/ai09-race-review.test.mjs\`; full CI on exact GORIQ head; separately perform the real isolated model/runner-to-target E2E before activation. These tests simulate the local inference callback and DO NOT verify the native ZBook model.
