@@ -23,10 +23,13 @@ export async function probeHistoricRawLog({ fetchImpl=fetch, outputPath }={}) {
     repository:REPO,token:"anonymous-public",
     fetchImpl:publicFetch,
   });
-  const [job,run]=await Promise.all([
-    client.githubGet("/actions/jobs/"+JOB_ID),
-    client.githubGet("/actions/runs/"+RUN_ID),
-  ]);
+  let job,run;
+  try {
+    [job,run]=await Promise.all([
+      client.githubGet("/actions/jobs/"+JOB_ID),
+      client.githubGet("/actions/runs/"+RUN_ID),
+    ]);
+  } catch {throw Error("GITHUB_PUBLIC_JOB_METADATA_UNAVAILABLE");}
   if(job?.id!==JOB_ID||job?.run_id!==RUN_ID||
      job?.head_sha!==HISTORIC_SHA||job?.status!=="completed"||
      job?.conclusion!=="failure"||
@@ -38,8 +41,11 @@ export async function probeHistoricRawLog({ fetchImpl=fetch, outputPath }={}) {
 
   // Two separate live downloads of GitHub's signed original log, not a
   // connector-decoded text re-encoding. No model output supplies the hash.
-  const first=await client.githubReadJobLog(JOB_ID);
-  const second=await client.githubReadJobLog(JOB_ID);
+  let first,second;
+  try {first=await client.githubReadJobLog(JOB_ID);}
+  catch {throw Error("GITHUB_PUBLIC_RAW_LOG_DOWNLOAD_ONE_UNAVAILABLE");}
+  try {second=await client.githubReadJobLog(JOB_ID);}
+  catch {throw Error("GITHUB_PUBLIC_RAW_LOG_DOWNLOAD_TWO_UNAVAILABLE");}
   const digest1=sha(first),digest2=sha(second);
   if(first.length<32||first.length!==second.length||digest1!==digest2||
      !first.equals(second))throw Error("RAW_LOG_RETRIEVAL_MISMATCH");
@@ -60,5 +66,16 @@ export async function probeHistoricRawLog({ fetchImpl=fetch, outputPath }={}) {
 if(process.argv[1]&&process.argv[1].endsWith("goriq-ai09-public-raw-log-probe.mjs")){
   probeHistoricRawLog({outputPath:process.env.GORIQ_AI09_RAW_PROOF_PATH})
     .then(x=>console.log("AI09_RAW_LOG_EVIDENCE="+JSON.stringify(x)))
-    .catch(()=>{console.error("AI09_RAW_LOG_EVIDENCE=INCONCLUSIVE");process.exitCode=2;});
+    .catch(error=>{
+      const known=new Set([
+        "GITHUB_PUBLIC_JOB_METADATA_UNAVAILABLE",
+        "HISTORIC_SOURCE_PROVENANCE_NOT_VERIFIED",
+        "GITHUB_PUBLIC_RAW_LOG_DOWNLOAD_ONE_UNAVAILABLE",
+        "GITHUB_PUBLIC_RAW_LOG_DOWNLOAD_TWO_UNAVAILABLE",
+        "RAW_LOG_RETRIEVAL_MISMATCH",
+      ]);
+      const code=known.has(error?.message)?error.message:"UNEXPECTED_READONLY_FAILURE";
+      console.error("AI09_RAW_LOG_EVIDENCE=INCONCLUSIVE;REASON="+code);
+      process.exitCode=2;
+    });
 }
