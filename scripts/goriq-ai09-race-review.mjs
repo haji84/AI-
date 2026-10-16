@@ -107,6 +107,7 @@ export function safeRaceFindingSummaries(review) {
       review.independentGitHubAccountVerified !== false ||
       !SHA40.test(review.headSha ?? "") || !SHA40.test(review.baseSha ?? "") ||
       !Array.isArray(review.reviewedPaths) || !Array.isArray(review.findings) ||
+      !Array.isArray(review.chunkOutcomes) || !Number.isSafeInteger(review.chunkCount) ||
       review.findings.length > 20 || review.chunkOutcomes?.length !== review.chunkCount ||
       !review.chunkOutcomes.every((c,i)=>c.sequence === i+1 &&
         ["NO_ACTIONABLE_FINDINGS","CHANGES_REQUESTED","INCONCLUSIVE"].includes(c.status)) ||
