@@ -84,10 +84,11 @@ export function parseRaceRequest(args, loadManifest = path => JSON.parse(readFil
     if (manifest?.schemaVersion !== 1 ||
       manifest.contract !== "GORIQ_AI09_ADVISORY_REQUEST_V1" ||
       manifest.repository !== REPO || manifest.recipient !== "GORIQ/AI-09" ||
-      manifest.ciReady !== true || manifest.githubApprovalSatisfied !== false ||
+      typeof manifest.ciReady !== "boolean" || manifest.githubApprovalSatisfied !== false ||
       manifest.mergeAuthorized !== false || manifest.gitHubWritePerformed !== false ||
       manifest.reviewerMustDifferFromBuilder !== true ||
-      manifest.nextAction !== "REQUEST_AI09") throw Error("UNTRUSTED_RACE_MANIFEST");
+      !((manifest.ciReady === true && manifest.nextAction === "REQUEST_AI09") ||
+        (manifest.ciReady === false && manifest.nextAction === "WAIT_FOR_EXACT_HEAD_CI"))) throw Error("UNTRUSTED_RACE_MANIFEST");
     const {prNumber:number,headSha:head,baseSha:base}=manifest;
     if (!Number.isSafeInteger(number) || number < 1 || !SHA40.test(head) ||
       !SHA40.test(base) || head === base) throw Error("INVALID_MANIFEST_SCOPE");
