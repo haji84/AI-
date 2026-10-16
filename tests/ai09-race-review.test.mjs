@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import {reviewRacePull,parseRaceRequest,safeRaceFindingSummaries} from "../scripts/goriq-ai09-race-review.mjs";
+import {reviewRacePull,parseRaceRequest,safeRaceFindingSummaries,assessFindingAnchors} from "../scripts/goriq-ai09-race-review.mjs";
 
 const A="a".repeat(40),B="b".repeat(40),REPO="haji84/RACE-AI";
 const pr={number:65,state:"open",head:{sha:B,repo:{id:31,full_name:REPO}},
@@ -112,6 +112,22 @@ test("review stdout contains only machine-readable JSON",()=>{
 });
 
 
+
+test("GitHub diff line and exact code quote are independently checked before handing off AI suggestions",()=>{
+ const changed={status:"ahead",ahead_by:1,total_commits:1,
+   files:[{filename:"src/example.mjs",patch:"@@ -0,0 +1,1 @@\n+const_superSecureFlagIsEnabled=true;",
+     additions:1,deletions:0}]};
+ const suggestion={path:"src/example.mjs",line:1,
+   evidence:"const_superSecureFlagIsEnabled=true;",summary:"Risky change",
+   proposedFix:"Inspect actual source",severity:"medium"};
+ const check=assessFindingAnchors(changed,[suggestion])[0];
+ assert.equal(check.status,"CODE_QUOTE_MATCHED");
+ assert.equal(check.machineGrounded,true);
+ assert.equal(check.issueConfirmed,false);
+ assert.equal(assessFindingAnchors(changed,[{...suggestion,line:123}])[0].status,"INVALID_CHANGED_LINE");
+ assert.equal(assessFindingAnchors(changed,[{...suggestion,evidence:"This could be malicious!"}])[0].status,"MISSING_CODE_QUOTE");
+ assert.equal(assessFindingAnchors(changed,[{...suggestion,path:"../wrong-file"}])[0].status,"INVALID_PATH");
+});
 test("real AI-09 findings are safely printable only after all chunks finish",()=>{
  const r={
   schemaVersion:1,repository:REPO,reviewer:"AI-09",headSha:B,baseSha:A,
@@ -120,6 +136,7 @@ test("real AI-09 findings are safely printable only after all chunks finish",()=
   reviewedPaths:["src/example.mjs"],chunkCount:2,
   chunkOutcomes:[{sequence:1,status:"CHANGES_REQUESTED"},{sequence:2,status:"NO_ACTIONABLE_FINDINGS"}],
   status:"CHANGES_REQUESTED",
+  findingGrounding:[{path:"src/example.mjs",line:7,status:"MISSING_CODE_QUOTE",machineGrounded:false,issueConfirmed:false}],
   findings:[{path:"src/example.mjs",line:7,severity:"medium",
     summary:"Validate edge cases @all",evidence:"A value may be omitted",
     proposedFix:"Add an explicit bounds check and test"}]
@@ -129,6 +146,8 @@ test("real AI-09 findings are safely printable only after all chunks finish",()=
  assert.doesNotMatch(safe[0].summary,/@all/);
  assert.equal(safe[0].mergeAuthorized,false);
  assert.equal(safe[0].evidenceClass,"AI_ASSERTED");
+ assert.equal(safe[0].machineGrounded,false);
+ assert.equal(safe[0].issueConfirmed,false);
  for(const change of [
    {chunkCount:3}, {chunkOutcomes:r.chunkOutcomes.slice(0,1)},
    {chunkOutcomes:[{sequence:2,status:"CHANGES_REQUESTED"},r.chunkOutcomes[1]]},
