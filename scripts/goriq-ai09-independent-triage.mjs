@@ -11,7 +11,10 @@ const REF = /^[A-Za-z0-9_:/.-]{8,128}$/;
 function safePath(path) {
   return typeof path === "string" && path.length > 0 && path.length <= 250 &&
     !path.startsWith("/") && !path.startsWith("-") &&
-    !path.includes("\\") && !/[\x00-\x1f\x7f]/.test(path) &&
+    !path.includes("\\") && ![...path].some(char => {
+      const code = char.charCodeAt(0);
+      return code < 32 || code === 127;
+    }) &&
     path.split("/").every(part => part !== "" && part !== "." && part !== "..");
 }
 function hold(reason) {
