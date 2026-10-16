@@ -42,7 +42,7 @@ export const GROUNDING_CORPUS=Object.freeze([
 
 export function evaluateGroundingCorpus(corpus=GROUNDING_CORPUS, patch=PATCH) {
   if(!Array.isArray(corpus)||corpus.length<1||corpus.length>100 ||
-     typeof patch!=="string"||patch.length>150000)throw Error("INVALID_EVAL_CORPUS");
+     typeof patch!=="string"||!patch||patch.length>150000)throw Error("INVALID_EVAL_CORPUS");
   const seen=new Set();
   const outcomes=corpus.map(item=>{
     if(typeof item?.id!=="string"||!/^[a-z0-9-]{4,60}$/.test(item.id)||
