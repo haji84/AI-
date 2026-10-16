@@ -51,12 +51,12 @@ test("real hosted poster validation path can write exactly one advisory comment 
   const writes=f.calls.filter(x=>x.method!=="GET");
   assert.equal(writes.length,1);
   assert.equal(writes[0].path,"/issues/1799/comments");
-  assert.ok(writes[0].body.body.startsWith(commentMarker(1799,head)));
+  assert.ok(writes[0].body.body.startsWith(commentMarker(1799,head,base)));
   assert.match(writes[0].body.body,/GitHub approval satisfied: NO/);
   assert.match(writes[0].body.body,/Merge authorized: NO/);
 });
 test("existing head-scoped AI09 comment causes idempotent skip, not second POST", async ()=>{
-  const f=fakeApi({oldComments:[{user:{login:"github-actions[bot]"},body:commentMarker(1799,head)+"\nrecorded"}]});
+  const f=fakeApi({oldComments:[{user:{login:"github-actions[bot]"},body:commentMarker(1799,head,base)+"\nrecorded"}]});
   assert.equal(await publishReceipt(c,receipt(),f.api),"ALREADY_RECORDED");
   assert.equal(f.calls.filter(x=>x.method!=="GET").length,0);
 });
