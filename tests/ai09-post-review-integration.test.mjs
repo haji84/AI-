@@ -97,3 +97,13 @@ test("unsafe direct credential logging cannot be published as clean even with va
   await assert.rejects(publishReceipt(c,forgedReceipt,f.api),/deterministic_sensitive_logging_risk/);
   assert.equal(f.calls.filter(x=>x.method!=="GET").length,0);
 });
+
+test("failed exact-head CI can never be published as a clean AI-09 advisory",async()=>{
+ const failed=fakeApi({ciResponse:{...ci(),conclusion:"failure"}});
+ const receiptWithFailedCI={...receipt(),ciConclusion:"failure"};
+ await assert.rejects(
+   publishReceipt(c,receiptWithFailedCI,failed.api),
+   /clean_review_requires_successful_exact_head_ci/
+ );
+ assert.equal(failed.calls.filter(x=>x.method!=="GET").length,0);
+});
