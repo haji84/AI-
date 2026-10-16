@@ -88,7 +88,7 @@ export async function publishReceipt(c, receipt, githubApiFn = githubApi) {
   } else if (receipt.reviewerResult.scope.paths.length > 0) {
     throw new Error("unverified_blocked_review_paths");
   }
-  const marker = commentMarker(c.prNumber, c.headSha);
+  const marker = commentMarker(c.prNumber, c.headSha, c.baseSha);
   for (let page = 1; page <= 10; page++) {
     const comments = await githubApiFn(c, "/issues/" + c.prNumber + "/comments?per_page=100&page=" + page);
     if (!Array.isArray(comments)) throw new Error("invalid_comment_inventory");
