@@ -9,6 +9,13 @@ const SHA256=/^[a-f0-9]{64}$/;
 const ACTOR=/^[A-Za-z0-9-]{1,39}$/;
 const REF=/^[A-Za-z0-9_:/.-]{8,128}$/;
 const PREFIX="AI09_INDEPENDENT_REPRODUCTION_V1\n";
+function validRepository(value) {
+  if(typeof value!=="string"||
+      !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(value))return false;
+  const [owner,name]=value.split("/");
+  return owner!=="." && owner!==".." && name!=="." && name!=="..";
+}
+
 
 // Trusted controller wiring for the read-only GitHub verification adapter.
 // Only fixed pull request metadata and bounded reviews can be fetched.
@@ -16,7 +23,7 @@ const PREFIX="AI09_INDEPENDENT_REPRODUCTION_V1\n";
 export function createGitHubReadOnlyPullReviewClient({
   repository, token, fetchImpl = fetch,
 }) {
-  if(!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository??"") ||
+  if(!validRepository(repository) ||
      typeof token!=="string" || token.length<8 || token.length>2048 ||
      typeof fetchImpl!=="function")
     throw Error("INVALID_GITHUB_READONLY_CLIENT_CONFIG");
@@ -51,7 +58,7 @@ export function createGitHubReadOnlyPullReviewClient({
 export function createGitHubHumanReproductionVerifier({
   repository,builderActor,allowedReviewerLogins,githubGet,
 }) {
-  if(!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository??"")||
+  if(!validRepository(repository)||
      !ACTOR.test(builderActor??"")||
      !Array.isArray(allowedReviewerLogins)||
      allowedReviewerLogins.length<1||allowedReviewerLogins.length>20||
