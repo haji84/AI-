@@ -13,7 +13,7 @@ function job(name,until) {
 test("review triggers only after CI completes and no root write rights",()=>{
  assert.match(source,/\non:\n\s+workflow_run:\n\s+workflows: \["CI"\]\n\s+types: \[completed\]/);
  assert.match(source,/\npermissions: \{\}/);
- const root = source.split("\\njobs:\\n")[0];
+ const root = source.split("\njobs:\n")[0];
  assert.doesNotMatch(root,/pull_request_target|id-token:\s*write|contents:\s*write|pull-requests:\s*write|actions:\s*write|issues:\s*write/);
  assert.match(source,/cancel-in-progress:\s*true/);
 });
