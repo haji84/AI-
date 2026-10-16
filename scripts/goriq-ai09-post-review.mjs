@@ -142,7 +142,7 @@ export function safePostFailureCode(error) {
     "invalid_comment_inventory", "unbounded_comment_inventory",
   ]);
   if (fixed.has(message) ||
-      /^github_(?:ci_read|pr_read|comparison_read|comment_inventory_read|comment_write|other_read)_http_[45]\\d{2}$/.test(message)) {
+      /^github_(?:ci_read|pr_read|comparison_read|comment_inventory_read|comment_write|other_read)_http_[45]\d{2}$/.test(message)) {
     return message;
   }
   return "unexpected_post_error";
