@@ -71,10 +71,10 @@ async function localInfer(config, prompt) {
     const response = await fetch("http://127.0.0.1:11434/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      signal: AbortSignal.timeout(105000),
+      signal: AbortSignal.timeout(150000),
       body: JSON.stringify({
         model: config.modelName, stream: false, format: "json",
-        options: { temperature: 0, num_ctx: 8192, num_predict: 384 },
+        options: { temperature: 0, num_ctx: 8192, num_predict: 768 },
         messages: [{ role: "user", content: prompt }],
       }),
     });
