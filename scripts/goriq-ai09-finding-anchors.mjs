@@ -3,7 +3,7 @@
 // This does NOT prove the code is vulnerable, secure, or formally approved.
 const HUNK = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/;
 const DIFF = /^diff --git a\/(.+) b\/(.+)$/;
-const QUOTED = /\`([^\`]{12,200})\`|'([^']{12,200})'|"([^"]{12,200})"/g;
+const QUOTED = /`([^`]{12,200})`|'([^']{12,200})'|"([^"]{12,200})"/g;
 
 export function anchorAudit(findings, patch) {
   if (!Array.isArray(findings) || findings.length > 20 ||
