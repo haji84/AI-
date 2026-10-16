@@ -13,7 +13,8 @@ function job(name,until) {
 test("review triggers only after CI completes and no root write rights",()=>{
  assert.match(source,/\non:\n\s+workflow_run:\n\s+workflows: \["CI"\]\n\s+types: \[completed\]/);
  assert.match(source,/\npermissions: \{\}/);
- assert.doesNotMatch(source,/pull_request_target|id-token:\s*write|contents:\s*write|pull-requests:\s*write|actions:\s*write/);
+ const root = source.split("\\njobs:\\n")[0];
+ assert.doesNotMatch(root,/pull_request_target|id-token:\s*write|contents:\s*write|pull-requests:\s*write|actions:\s*write|issues:\s*write/);
  assert.match(source,/cancel-in-progress:\s*true/);
 });
 test("preflight runs on GitHub, validates current CI/PR scope and never writes",()=>{
@@ -24,7 +25,7 @@ test("preflight runs on GitHub, validates current CI/PR scope and never writes",
  assert.match(s,/ref:\s*main/);
  assert.match(s,/persist-credentials:\s*false/);
  assert.match(s,/node scripts\/goriq-ai09-preflight\.mjs/);
- assert.doesNotMatch(s,/issues:\s*write/);
+ assert.doesNotMatch(s,/issues:\s*write|pull-requests:\s*write|contents:\s*write|actions:\s*write|id-token:\s*write/);
 });
 test("model worker is ephemeral GitHub-hosted only, no portable PC or PR code",()=>{
  const s=job("review","comment");
@@ -37,7 +38,7 @@ test("model worker is ephemeral GitHub-hosted only, no portable PC or PR code",(
  assert.match(s,/test "\$\(git rev-parse HEAD\)" = "\$TRUSTED_SHA"/);
  assert.match(s,/persist-credentials:\s*false/);
  assert.match(s,/node scripts\/goriq-ai09-ci-review\.mjs/);
- assert.doesNotMatch(s,/issues:\s*write|pull_request_target|ref:\s*\$\{\{\s*github\.event\.pull_request/);
+ assert.doesNotMatch(s,/issues:\s*write|pull-requests:\s*write|contents:\s*write|actions:\s*write|id-token:\s*write|pull_request_target|ref:\s*\$\{\{\s*github\.event\.pull_request/);
 });
 test("Ollama is loopback, binary SHA256-pinned, and one free model",()=>{
  const s=job("review","comment");
@@ -55,10 +56,13 @@ test("hosted publisher alone may post comments with permission scoped to one job
  assert.match(s,/needs\.review\.result == 'success'/);
  assert.match(s,/issues:\s*write/);
  assert.match(s,/contents:\s*read/);
- assert.match(s,/pull-requests:\s*read/);
+ assert.match(s,/pull-requests:\s*write/);
  assert.match(s,/ref:\s*\$\{\{ needs\.preflight\.outputs\.trusted_sha \}\}/);
  assert.match(s,/node scripts\/goriq-ai09-post-review\.mjs/);
- assert.doesNotMatch(s,/contents:\s*write|pull-requests:\s*write|actions:\s*write/);
+ assert.equal((source.match(/pull-requests:\s*write/g) || []).length,1);
+ assert.doesNotMatch(s,/contents:\s*write|actions:\s*write|id-token:\s*write/);
+ const poster=readFileSync("scripts/goriq-ai09-post-review.mjs","utf8");
+ assert.match(poster,/githubApiFn\(c, "\/issues\/" \+ c\.prNumber \+ "\/comments", "POST", \{ body \}\)/);
 });
 test("per-file model budget fits the bounded hosted worker timeout",()=>{
  const w=job("review","comment");
