@@ -15,11 +15,12 @@ concurrency:
 jobs:
   preflight:
     if: github.event.workflow_run.event == 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 3
     permissions:
       contents: read
       pull-requests: read
+      actions: read
     outputs:
       eligible: ${{ steps.scope.outputs.eligible }}
       repository: ${{ steps.scope.outputs.repository }}
@@ -48,49 +49,62 @@ jobs:
   review:
     needs: [preflight]
     if: needs.preflight.outputs.eligible == 'true'
-    runs-on: [self-hosted, Windows, X64]
-    # 12 bounded chunks x 120-second Ollama deadline plus API/checkout overhead.
-    # This is a finite self-hosted local-only budget, not unattended approval.
-    timeout-minutes: 30
+    # MacBook/ZBook are intentionally out of scope: only ephemeral GitHub-hosted CPU.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
     permissions:
       contents: read
       pull-requests: read
+    env:
+      OLLAMA_HOST: 127.0.0.1:11434
+      OLLAMA_NUM_PARALLEL: "1"
+      OLLAMA_MAX_LOADED_MODELS: "1"
+      OLLAMA_KEEP_ALIVE: 5m
     steps:
-      # Keep untrusted diff and even trusted checkout off an unexpected worker.
-      # The repository variable is a plain runner-name allowlist, not a secret.
-      # Missing/mismatched identity deliberately fails closed.
-      - name: Verify owner-pinned ZBook runner name
-        shell: pwsh
-        env:
-          GORIQ_AI09_EXPECTED_RUNNER_NAME: ${{ vars.GORIQ_AI09_EXPECTED_RUNNER_NAME }}
-        run: |
-          $expected = $env:GORIQ_AI09_EXPECTED_RUNNER_NAME
-          $actual = $env:RUNNER_NAME
-          if ([string]::IsNullOrWhiteSpace($expected) -or
-              [string]::IsNullOrWhiteSpace($actual) -or
-              ![string]::Equals($expected, $actual, [StringComparison]::Ordinal)) {
-            throw 'AI09_RUNNER_IDENTITY_NOT_AUTHORIZED'
-          }
-          if ($env:RUNNER_OS -ne 'Windows' -or $env:RUNNER_ARCH -ne 'X64') {
-            throw 'AI09_RUNNER_PLATFORM_NOT_AUTHORIZED'
-          }
-          if ($env:RUNNER_ENVIRONMENT -ne 'self-hosted') {
-            throw 'AI09_RUNNER_ENVIRONMENT_NOT_AUTHORIZED'
-          }
-          Write-Host 'AI09_EXPECTED_RUNNER_MATCHED'
-      - name: Checkout pinned trusted main reviewer code only
+      - name: Checkout pinned trusted main code, never PR head
         uses: actions/checkout@v4
         with:
           ref: ${{ needs.preflight.outputs.trusted_sha }}
           persist-credentials: false
           clean: true
-      - name: Verify local Node runtime
-        shell: pwsh
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24.19.0"
+      - name: Verify trusted source and GitHub-hosted Linux
+        shell: bash
+        env:
+          TRUSTED_SHA: ${{ needs.preflight.outputs.trusted_sha }}
         run: |
-          $node = node --version
-          if ($LASTEXITCODE -ne 0 -or $node -notmatch '^v24\.') { throw 'AI09_NODE_24_REQUIRED' }
-      - name: Review GitHub API diff using local model only
-        shell: pwsh
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$TRUSTED_SHA"
+          test "$RUNNER_ENVIRONMENT" = "github-hosted"
+          test "$RUNNER_OS" = "Linux"
+          test "$RUNNER_ARCH" = "X64"
+      - name: Install SHA256-pinned Ollama Linux binary
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --silent --show-error --retry 2 --max-time 300 \
+            https://github.com/ollama/ollama/releases/download/v0.34.0/ollama-linux-amd64.tar.zst \
+            -o "$RUNNER_TEMP/ollama-linux-amd64.tar.zst"
+          echo "cf95886728959aa09910bb34de5cca1cc5a8f68003b5597197d3f2c2d57c0804  $RUNNER_TEMP/ollama-linux-amd64.tar.zst" | sha256sum -c -
+          sudo tar --zstd -xf "$RUNNER_TEMP/ollama-linux-amd64.tar.zst" -C /usr
+          ollama --version
+      - name: Start loopback Ollama with bounded one-model quota
+        shell: bash
+        run: |
+          set -euo pipefail
+          OLLAMA_HOST=127.0.0.1:11434 ollama serve >"$RUNNER_TEMP/ai09-ollama.log" 2>&1 &
+          ready=0
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:11434/api/tags >/dev/null 2>&1; then ready=1; break; fi
+            sleep 2
+          done
+          test "$ready" = "1"
+          timeout 480s ollama pull qwen2.5-coder:3b
+      - name: Read GitHub diff and review with isolated local AI-09
+        shell: bash
         env:
           GORIQ_AI09_REPOSITORY: ${{ needs.preflight.outputs.repository }}
           GORIQ_AI09_PR_NUMBER: ${{ needs.preflight.outputs.pr_number }}
@@ -99,22 +113,22 @@ jobs:
           GORIQ_AI09_TRUSTED_SHA: ${{ needs.preflight.outputs.trusted_sha }}
           GORIQ_AI09_CI_RUN_ID: ${{ needs.preflight.outputs.ci_run_id }}
           GORIQ_AI09_CI_CONCLUSION: ${{ needs.preflight.outputs.ci_conclusion }}
-          GORIQ_AI09_REPORT_FILE: ${{ runner.temp }}\goriq-ai09-report.json
+          GORIQ_AI09_REPORT_FILE: ${{ runner.temp }}/goriq-ai09-report.json
           GITHUB_TOKEN: ${{ github.token }}
         run: node scripts/goriq-ai09-ci-review.mjs
-      - name: Upload JSON review receipt only
+      - name: Upload bounded advisory JSON, not code or credentials
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: goriq-ai09-advisory
-          path: ${{ runner.temp }}\goriq-ai09-report.json
+          path: ${{ runner.temp }}/goriq-ai09-report.json
           if-no-files-found: warn
           retention-days: 3
 
   comment:
     needs: [preflight, review]
     if: needs.preflight.outputs.eligible == 'true' && needs.review.result == 'success'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 3
     # Only this GitHub-hosted job can WRITE, and only to Issue/PR comments.
     permissions:
