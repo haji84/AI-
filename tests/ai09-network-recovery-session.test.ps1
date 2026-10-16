@@ -207,6 +207,7 @@ try {
         $fake=[pscustomobject]@{Id=12345;ExitCode=7}
         if($script:childBehavior -eq 'timeout'){$fake.ExitCode=$null}
         $fake|Add-Member ScriptMethod WaitForExit {param([int]$Milliseconds=0);if($script:childBehavior -eq 'timeout'){$script:childContext.Deadline=[DateTimeOffset]::UtcNow.AddSeconds(-1);return $false};return $true}
+        $fake|Add-Member ScriptMethod get_Handle {if($script:childBehavior -eq 'handle-unavailable'){return $null};return [IntPtr]::new(1)}
         $fake|Add-Member ScriptMethod Refresh {}
         return $fake
     }
@@ -219,6 +220,10 @@ try {
     Refuses {Invoke-Ai09SessionChild $childScope $childContext Stage} 'STILL_RUNNING_NO_KILL'
     $childReceipt=(Read-Ai09SessionEvidence -Path (Join-Path $childContext.Root 'Stage/receipt.json') -Json).Value
     Assert ($childReceipt.Pid -eq 12345 -and $null -eq $childReceipt.ExitCode -and $childReceipt.TimedOut -and -not $childReceipt.OutputComplete -and -not $childReceipt.CleanupVerified) 'TIMEOUT_FAKED_CLEANUP'
+    $script:childBehavior='handle-unavailable';$childContext=Fixture-Context;$script:childContext=$childContext
+    Refuses {Invoke-Ai09SessionChild $childScope $childContext Stage} 'NATIVE_HANDLE_UNAVAILABLE'
+    $childReceipt=(Read-Ai09SessionEvidence -Path (Join-Path $childContext.Root 'Stage/receipt.json') -Json).Value
+    Assert ($childReceipt.Pid -eq 12345 -and $null -eq $childReceipt.ExitCode -and -not $childReceipt.OutputComplete) 'MISSING_HANDLE_FAKED_COMPLETION'
     Remove-Item Function:\Start-Process
 
     # Model the complete orchestration with native actions replaced by trace-only adapters.

@@ -14,8 +14,9 @@ const powershellEnv = Object.fromEntries(Object.entries(process.env).filter(
   ([name]) => process.platform !== "win32" || name.toLowerCase() !== "psmodulepath",
 ));
 const hasPowerShell = spawnSync(powershell, ["-NoProfile", "-Command", "exit 0"], { env: powershellEnv, timeout: 15000 }).status === 0;
-for (const fixture of ["ai09-prepare-bootstrap-disk", "ai09-fetch-verified-bootstrap", "ai09-collect-bootstrap-result", "ai09-repair-seed-hostname", "ai09-stage-network-recovery", "ai09-collect-network-recovery", "ai09-network-recovery-session"]) {
-  test(fixture + " isolated PowerShell fixtures", { skip: !hasPowerShell }, (context) => {
+for (const fixture of ["ai09-prepare-bootstrap-disk", "ai09-fetch-verified-bootstrap", "ai09-collect-bootstrap-result", "ai09-repair-seed-hostname", "ai09-stage-network-recovery", "ai09-collect-network-recovery", "ai09-network-recovery-session", "ai09-network-recovery-resume", "ai09-network-recovery-session-native"]) {
+  const requiresWindows = fixture === "ai09-network-recovery-session-native";
+  test(fixture + " isolated PowerShell fixtures", { skip: !hasPowerShell || (requiresWindows && process.platform !== "win32") }, (context) => {
     const result = spawnSync(powershell, [
       "-NoProfile", "-File", path.join(root, "tests", fixture + ".test.ps1"), "-RepositoryRoot", root,
     ], { env: powershellEnv, encoding: "utf8", timeout: 60000 });
@@ -25,6 +26,11 @@ for (const fixture of ["ai09-prepare-bootstrap-disk", "ai09-fetch-verified-boots
       const metrics = result.stdout.split(/\r?\n/).find((line) => line.startsWith("AI09_REPAIR_ENTRY_METRICS="));
       assert.ok(metrics, "Repair fixture must report its harmless lock measurements");
       context.diagnostic(metrics);
+    }
+    if (requiresWindows) {
+      for (const metrics of result.stdout.split(/\r?\n/).filter((line) => line.startsWith("SESSION_NATIVE_CHILD_METRICS="))) {
+        context.diagnostic(metrics);
+      }
     }
   });
 }

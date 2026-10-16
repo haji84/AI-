@@ -1,6 +1,6 @@
 # Issue #1798. Fixed one-shot native session; no arbitrary command/path input.
 [CmdletBinding()]
-param([ValidateSet('Verify','Execute')][string]$Mode='Verify')
+param([ValidateSet('Verify','Execute','ResumeAfterStaging')][string]$Mode='Verify')
 $ErrorActionPreference='Stop'
 
 function Get-Ai09SessionScope {
@@ -11,7 +11,17 @@ function Get-Ai09SessionScope {
         ConsoleRoot=(Join-Path $temporary 'ai09-console-network-recovery')
         AuthRoot=(Join-Path $temporary 'ai09-console-network-auth')
         StageRoot=(Join-Path $temporary 'ai09-native-network-stage')
+        PreviousRoot=(Join-Path $temporary 'ai09-network-recovery-session')
+        ResumeRoot=(Join-Path $temporary 'ai09-network-recovery-session-resume-stage1')
         NativePowerShell='C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe'
+        ResumePins=@(
+            @{Name='PreviousSession';Path=(Join-Path $temporary 'ai09-network-recovery-session\receipt.json');Hash='D2AFB49920EAEF8DD87CB98CDE8ECF062DB50DB898F7CFDA1D4A7E49D52EE54F'},
+            @{Name='PreviousChild';Path=(Join-Path $temporary 'ai09-network-recovery-session\Stage\receipt.json');Hash='6BE87A376345F746E444A72AAC41447B6F7332E3244C4DB92E7F6281598EF084'},
+            @{Name='StagedNative';Path=(Join-Path $temporary 'ai09-native-network-stage\receipt.json');Hash='41213C0AC339AD62F4D1C996C9A1A2C6DAF6577076E14DE3537F7D658B18F585'},
+            @{Name='StagedOutput';Path=(Join-Path $temporary 'ai09-native-network-stage\stdout.txt');Hash='4DE28106A66732CE9576C234360B7E2D6ADCEE95569A3D4C41786945DF145C30'},
+            @{Name='StagedErrors';Path=(Join-Path $temporary 'ai09-native-network-stage\stderr.txt');Hash='E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855'},
+            @{Name='StagedHost';Path='C:\GORIQ-AI09\Reports\network-stage-5498c7d145424be4b5bead231e47ad59\staging.json';Hash='AA2FCE801EF3B71A49DBE94EBEA03B5EA3E814ECBEB678EA50D731F14D77EFEF'}
+        )
         Pins=@(
             @{Name='Stage';Path=(Join-Path $temporary 'ai09-native-network-stage.ps1');Hash='CBF7E2F9DC6929D6225D6155E6F06F1B0D0C1F0122462105ABBF1D3A786C26F1'},
             @{Name='Auth';Path=(Join-Path $temporary 'ai09-console-network-auth.ps1');Hash='464A40FDBF38FF8A9226E63E758C51347BC3380DA63D6AFDC2CC1F80D09A5868'},
@@ -227,6 +237,9 @@ function Invoke-Ai09SessionChild {
         Assert-Ai09SessionLive $Context
         $child=Start-Process -FilePath $Scope.NativePowerShell -ArgumentList $arguments -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $directory 'stdout.txt') -RedirectStandardError (Join-Path $directory 'stderr.txt')
         $record.Pid=$child.Id
+        # PS5.1 redirected children need their own handle cached before they exit.
+        $ownedHandle=$child.get_Handle()
+        if($ownedHandle -eq [IntPtr]::Zero -or $null -eq $ownedHandle){throw 'SESSION_NATIVE_HANDLE_UNAVAILABLE'}
         while(-not $child.WaitForExit(100)){
             try{Assert-Ai09SessionLive $Context}catch{$record.TimedOut=$true;throw 'SESSION_CHILD_STILL_RUNNING_NO_KILL'}
         }
@@ -250,23 +263,63 @@ function Assert-Ai09SessionAuthPrompt {
        $r.SuccessMeaning -isnot [string] -or $r.SuccessMeaning -cne 'FIXED_SUDO_PROMPT_SENT_ONLY' -or $r.SourceSha256 -isnot [string] -or $r.SourceSha256 -cne $pin.Hash){throw 'SESSION_AUTH_PROMPT_NOT_VERIFIED'}
     return $proof.Hash
 }
+function Assert-Ai09StagedResume {
+    param($Scope)
+    # Only the reviewed, successfully staged run may continue. Never rerun Stage.
+    $locks=Open-Ai09SessionPins ([pscustomobject]@{Pins=$Scope.ResumePins})
+    try {
+        $records=@{}
+        foreach($pin in $Scope.ResumePins){
+            if($pin.Name -ne 'StagedErrors'){$records[$pin.Name]=(Read-Ai09SessionEvidence -Path $pin.Path -Json).Value}
+        }
+        $old=$records.PreviousSession;$child=$records.PreviousChild;$native=$records.StagedNative
+        if($old.RunId -isnot [string] -or $old.RunId -cne 'c692d7e6426349cc90d2155cc1c95864' -or
+           $old.SourceSha256 -isnot [string] -or $old.SourceSha256 -cne '7C143591435AC6C831E7ECC94F20192FAA0E6677FA65A63CB95DD46D8EFC2494' -or
+           $old.Status -isnot [string] -or $old.Status -cne 'STOPPED' -or
+           $old.Error -isnot [string] -or $old.Error -cne 'SESSION_NATIVE_EXIT_UNAVAILABLE' -or
+           $old.Success -isnot [bool] -or $old.Success -or @($old.Children).Count -ne 0){throw 'STAGED_RESUME_PREVIOUS_SESSION_REFUSED'}
+        if(-not(Test-Ai09SessionInteger $child.Pid 33544 33544) -or $null -ne $child.ExitCode -or
+           $child.TimedOut -isnot [bool] -or $child.TimedOut -or
+           -not(Test-Ai09SessionInteger $native.NativeExitCode 0 0)){throw 'STAGED_RESUME_NATIVE_RESULT_REFUSED'}
+        if($null -ne (Get-Process -Id $child.Pid -ErrorAction SilentlyContinue)){throw 'STAGED_RESUME_PREVIOUS_CHILD_PRESENT'}
+        foreach($record in @($records.StagedOutput,$records.StagedHost)){
+            if($record.Status -isnot [string] -or $record.Status -cne 'RECOVERY_SCRIPT_STAGED_GUEST_NOT_EXECUTED' -or
+               $record.Phase -isnot [string] -or $record.Phase -cne 'VERIFIED_ATTACHMENT' -or
+               $record.Success -isnot [bool] -or -not $record.Success -or
+               $record.GuestExecuted -isnot [bool] -or $record.GuestExecuted -or
+               $record.SeedRunId -isnot [string] -or $record.SeedRunId -cne '02ea2f0d324543a1ab2973e73c97421d' -or
+               $record.RecoveryRunId -isnot [string] -or $record.RecoveryRunId -cne 'network-recovery-20261016-v1' -or
+               $record.GuestScriptSha256 -isnot [string] -or $record.GuestScriptSha256 -cne '213E06BB5459C35E4535EB8C81C9DE5014D7BF85E30895F4C19F4864DEFE3CED'){throw 'STAGED_RESUME_ATTACHMENT_PROOF_REFUSED'}
+        }
+        foreach($path in @($Scope.AuthRoot,$Scope.ConsoleRoot,(Join-Path $Scope.PreviousRoot 'Auth'),(Join-Path $Scope.PreviousRoot 'Console'),(Join-Path $Scope.PreviousRoot 'Collect'))){
+            if(Test-Path -LiteralPath $path){throw 'STAGED_RESUME_ALREADY_ADVANCED'}
+        }
+        return [pscustomobject]@{PreviousRunId=$old.RunId;StagingReused=$true;Evidence=@($Scope.ResumePins|ForEach-Object {[pscustomobject]@{Name=$_.Name;Sha256=$_.Hash}})}
+    } finally {foreach($handle in $locks){$handle.Dispose()}}
+}
 function Invoke-Ai09NetworkRecoverySession {
-    param([ValidateSet('Verify','Execute')][string]$Mode='Verify',[string]$SourceHash)
+    param([ValidateSet('Verify','Execute','ResumeAfterStaging')][string]$Mode='Verify',[string]$SourceHash)
     $scope=Get-Ai09SessionScope
+    $resuming=$Mode -eq 'ResumeAfterStaging'
+    if($resuming){$scope.Root=$scope.ResumeRoot;$scope.Pins=@($scope.Pins)+@($scope.ResumePins)}
     $locks=Open-Ai09SessionPins $scope
     $context=$null;$report=$null
     try {
         if($Mode -eq 'Verify'){return [pscustomobject]@{Status='READ_ONLY_SESSION_SOURCE_VERIFIED';PinnedSources=$scope.Pins.Count;NativeStarted=$false;GuestUnmountVerified=$false}}
         Assert-Ai09SessionNative
-        foreach($path in @($scope.Root,$scope.StageRoot,$scope.AuthRoot,$scope.ConsoleRoot)){
+        $unusedPaths=@($scope.Root,$scope.AuthRoot,$scope.ConsoleRoot)
+        if(-not $resuming){$unusedPaths+=@($scope.StageRoot)}
+        foreach($path in $unusedPaths){
             if(Test-Path -LiteralPath $path){throw 'SESSION_ONE_SHOT_ALREADY_STARTED'}
             Assert-Ai09SessionPath (Split-Path $path -Parent)
         }
+        if($resuming){$null=Assert-Ai09StagedResume $scope}
         $context=New-Ai09SessionContext -Root $scope.Root -SourceHash $SourceHash
         $null=New-Item -ItemType Directory -Path $context.Root -ErrorAction Stop
         $report=[ordered]@{RunId=$context.RunId;SourceSha256=$SourceHash;StartedAt=$context.StartedAt.ToString('o');Success=$false;SshVerified=$false;AuthenticationVerified=$false;CleanupVerified=$false;GuestExitCode=$null;Status='STARTED';Children=@()}
         $null=Wait-Ai09SessionResponse $context (New-Ai09SessionRequest $context SESSION_READY)
-        $report.Children+=Invoke-Ai09SessionChild $scope $context Stage
+        if($resuming){$report.ResumeProof=Assert-Ai09StagedResume $scope}
+        else{$report.Children+=Invoke-Ai09SessionChild $scope $context Stage}
         $report.Children+=Invoke-Ai09SessionChild $scope $context Auth
         $report.AuthPromptReceiptSha256=Assert-Ai09SessionAuthPrompt $scope
         $null=Wait-Ai09SessionResponse $context (New-Ai09SessionRequest $context AUTH_HANDOFF)
@@ -302,7 +355,7 @@ if($MyInvocation.InvocationName -ne '.'){
         try{$digest=([BitConverter]::ToString($sha.ComputeHash($self))).Replace('-','')}finally{$sha.Dispose()}
         $result=Invoke-Ai09NetworkRecoverySession -Mode $Mode -SourceHash $digest
         $result|ConvertTo-Json -Depth 8
-        if($Mode -eq 'Execute' -and -not $result.Success){exit 1}
+        if($Mode -ne 'Verify' -and -not $result.Success){exit 1}
     } catch {Write-Error $_;exit 1}
     finally {if($self){$self.Dispose()}}
 }
