@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import {reviewRacePull,parseRaceRequest} from "../scripts/goriq-ai09-race-review.mjs";
+import {reviewRacePull,parseRaceRequest,safeRaceFindingSummaries} from "../scripts/goriq-ai09-race-review.mjs";
 
 const A="a".repeat(40),B="b".repeat(40),REPO="haji84/RACE-AI";
 const pr={number:65,state:"open",head:{sha:B,repo:{id:31,full_name:REPO}},
@@ -109,4 +109,33 @@ test("review stdout contains only machine-readable JSON",()=>{
  assert.match(source,/console\.error\("AI09_MODEL_OUTPUT_METRICS="/);
  assert.match(source,/process\.stdout\.write\(JSON\.stringify\(review/);
  assert.doesNotMatch(source,/console\.log\(/);
+});
+
+
+test("real AI-09 findings are safely printable only after all chunks finish",()=>{
+ const r={
+  schemaVersion:1,repository:REPO,reviewer:"AI-09",headSha:B,baseSha:A,
+  evidenceClass:"AI_ASSERTED",githubApprovalSatisfied:false,mergeAuthorized:false,
+  independentGitHubAccountVerified:false,
+  reviewedPaths:["src/example.mjs"],chunkCount:2,
+  chunkOutcomes:[{sequence:1,status:"CHANGES_REQUESTED"},{sequence:2,status:"NO_ACTIONABLE_FINDINGS"}],
+  status:"CHANGES_REQUESTED",
+  findings:[{path:"src/example.mjs",line:7,severity:"medium",
+    summary:"Validate edge cases @all",evidence:"A value may be omitted",
+    proposedFix:"Add an explicit bounds check and test"}]
+ };
+ const safe=safeRaceFindingSummaries(r);
+ assert.equal(safe.length,1);
+ assert.doesNotMatch(safe[0].summary,/@all/);
+ assert.equal(safe[0].mergeAuthorized,false);
+ assert.equal(safe[0].evidenceClass,"AI_ASSERTED");
+ for(const change of [
+   {chunkCount:3}, {chunkOutcomes:r.chunkOutcomes.slice(0,1)},
+   {chunkOutcomes:[{sequence:2,status:"CHANGES_REQUESTED"},r.chunkOutcomes[1]]},
+   {githubApprovalSatisfied:true},
+   {status:"BLOCKED"},
+   {findings:[{...r.findings[0],summary:"github_pat_12345678901234567890"}]},
+   {findings:[{...r.findings[0],path:"../../out-of-scope"}]},
+   {findings:[{...r.findings[0],evidence:"hello\nworld"}]}
+ ]) assert.throws(()=>safeRaceFindingSummaries({...r,...change}));
 });
