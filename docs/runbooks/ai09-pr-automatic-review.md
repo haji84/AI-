@@ -1,3 +1,20 @@
+# AI-09 hosted-first operating policy (owner direction, 2026-10-16)
+
+**Current intended runtime:** standard short-lived GitHub-hosted Ubuntu 24.04 runner. MacBook and ZBook integration is DEFERRED, not an activation prerequisite. The older ZBook instructions and owner-supplied physical observations below are retained only as historical context; **do not use them for this hosted-first activation**. CodeRabbit is not accepted as an independent reviewer.
+
+The workflow \`.github/workflows/goriq-ai09-pr-review.yml\` replaces the self-hosted reviewer job with:
+- A GitHub-hosted, read-only preflight that binds a successful trusted CI workflow_run to the same-repo current PR head/base. Forks and stale references are rejected.
+- A separate GitHub-hosted, read-only reviewer that checks out only pinned trusted main reviewer source, verifies the GitHub-hosted runner identity, downloads a fixed-version Ollama package with pinned SHA-256, runs qwen2.5-coder:3b on 127.0.0.1, and inspects only bounded GitHub API patch text. It does not execute PR code. Maximum job time is 50 minutes and each model call is bounded to 210 seconds.
+- A separate GitHub-hosted comment job with isolated \`issues:write\` and independent exact-head/CI/patch/receipt and duplicate checks. The model job itself has no GitHub write scopes. All AI-09 findings are AI_ASSERTED, **never** independent GitHub APPROVED or authority to merge.
+- Builder/Debugger handoff remains advisory in existing PR comments. Actual task acknowledgment, implementation, corrected-head re-review, and verified promotion are distinct milestones.
+- No metered model API, GPU runner, new token, PC runtime, machine privilege, branch-protection bypass, or production deploy.
+
+**Safe activation conditions:** use reviewed default-branch workflow source only; the feature-branch workflow's passing CI is not evidence that workflow_run has executed after merge. Obtain an independent reviewer/security decision and the applicable head-specific Human Gate for adding the workflow and its \`issues:write\` job; do not reuse old authorizations bound to past heads. Confirm main CI, workflow-run preflight/review/post execution, exact head-scoped comment, duplicate/stale handling, security invariants and review result. Only then call the GitHub-hosted mode operational.
+
+**Current pilot evidence:** GitHub-hosted 3B local benchmark [run 38833494131](https://github.com/haji84/AI-/actions/runs/38833494131) succeeded on three synthetic code cases, with total measured model latency 33.962 s. This does not validate general review accuracy or comment publication. RACE AI PR #65 live review experiments separately showed safe BLOCKED and require latest verified E2E. The standalone benchmark workflow is *not* the default-branch automatic reviewer.
+
+## Archived ZBook plan: not the current activation route
+
 # AI-09 automatic advisory review: activation and recovery
 
 Issue #1798 and PR #1799. This proposed workflow is NOT active until merged
