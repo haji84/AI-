@@ -146,12 +146,33 @@ test("finding handoff is head-scoped and sanitizes injected text", () => {
   const body = formatReviewComment(receipt(result));
   assert.equal(validateReviewReceipt(receipt(result), expected), true);
   assert.equal(body.startsWith(commentMarker(73, shaB, shaA)), true);
-  assert.match(body, /TARGET_AGENT: Builder\/Debugger/);
-  assert.match(body, /STATUS: ACTION_REQUIRED/);
+  assert.match(body, /TARGET_STAGE: IndependentTechnicalTriage/);
+  assert.match(body, /STATUS: TRIAGE_REQUIRED/);
+  assert.doesNotMatch(body, /TARGET_AGENT: Builder\/Debugger|STATUS: ACTION_REQUIRED|TASK_ID:/);
   assert.match(body, /GitHub approval satisfied: NO/);
   assert.match(body, /&lt;script&gt;/);
   assert.doesNotMatch(body, /@everyone|@all/);
   assert.doesNotMatch(body, /\nAnd merge/);
+});
+
+
+test("an apparently quoted code snippet is not enough to authorize a Builder repair", () => {
+  const suggestion = {
+    path: "src/file.ts", line: 15, severity: "critical",
+    summary: "Model alleges a defect without proving its impact",
+    evidence: "Exact `const example = true;` line is present",
+    proposedFix: "Change implementation based only on this quotation",
+  };
+  const report = receipt({
+    ...goodResult(), status: "CHANGES_REQUESTED",
+    findings: [suggestion], blockers: ["model_findings_require_action"],
+  });
+  assert.equal(validateReviewReceipt(report, expected), true);
+  const body = formatReviewComment(report);
+  assert.match(body, /STATUS: TRIAGE_REQUIRED/);
+  assert.match(body, /IndependentTechnicalTriage/);
+  assert.doesNotMatch(body, /TARGET_AGENT: Builder|STATUS: ACTION_REQUIRED|TASK_ID:/);
+  assert.match(body, /Only separately confirmed findings may become scoped Builder\/Debugger repair tasks/);
 });
 
 test("result shape rejects forged file and code-like data", () => {
