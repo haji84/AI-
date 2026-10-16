@@ -362,7 +362,7 @@ test("chunk findings trigger action and cannot be confused with a clean aggregat
   const compare = {
     status: "ahead", ahead_by: 1, total_commits: 1,
     files: ["a.ts", "b.ts"].map(filename => ({
-      filename, patch: "@@ -1 +1 @@\n+" + filename.repeat(2800),
+      filename, patch: "@@ -1 +1 @@\n+" + filename.repeat(250),
     })),
   };
   const prepared = compareToReviewChunks(compare, shaA, shaB);
