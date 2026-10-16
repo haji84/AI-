@@ -226,3 +226,19 @@ test("Task Scheduler metadata can be inspected without starting Builder or expos
   assert.doesNotMatch(block,/Start-ScheduledTask|Register-ScheduledTask|Unregister-ScheduledTask|Set-ScheduledTask|Restart-Service|Start-Process|Get-Content\s+.*run-code-builder|Action\.Arguments|Install-.*Builder/);
   assert.doesNotMatch(block,/Get-Content\s+.*worker\.(?:log|stderr\.log)|Write-Host\s+\$token/);
 });
+
+test("local startup log diagnosis emits only predefined categories, never raw secrets",()=>{
+  const workflow=readFileSync(".github/workflows/goriq-ai09-owner-builder-connect.yml","utf8");
+  const step=workflow.split("      - name: Diagnose existing local Builder availability without mutation")[1];
+  assert.ok(step);
+  assert.match(step,/existingLogErrorClass = \$logErrorClass/);
+  assert.match(step,/Get-Content -LiteralPath \$logFile -Tail 80/);
+  assert.match(step,/foreach \(\$signature in \$knownSignatures\)/);
+  assert.match(step,/MODULE_NOT_FOUND/);
+  assert.match(step,/LAUNCHER_COMMAND_NOT_FOUND/);
+  assert.match(step,/NODE_TYPESCRIPT_RUNTIME_ERROR/);
+  assert.match(step,/LOCAL_BIND_ERROR/);
+  assert.match(step,/UNCLASSIFIED_EXISTING_LOG/);
+  assert.doesNotMatch(step,/Write-Host.*\$sample|Write-Output.*\$sample|Write-Host.*\$lines|Write-Host.*\$token/);
+  assert.doesNotMatch(step,/Start-ScheduledTask|Register-ScheduledTask|Stop-Process|Start-Process|Restart-Service|Invoke-RestMethod|CODE_BUILDER_TOKEN\s*=\s*\$token/);
+});
