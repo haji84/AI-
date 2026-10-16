@@ -1,3 +1,4 @@
+import { holdUngroundedAdvisory } from "./goriq-ai09-finding-anchors.mjs";
 #!/usr/bin/env node
 import { writeFileSync } from "node:fs";
 import { performance } from "node:perf_hooks";
@@ -138,7 +139,8 @@ async function main() {
       if (chunkResult.status === "BLOCKED") break;
     }
     // No chunk can silently disappear, and no partial model review can pass.
-    result = consolidateChunkReviews(chunkReports, scope, prepared.chunks);
+    result = holdUngroundedAdvisory(consolidateChunkReviews(chunkReports, scope, prepared.chunks), prepared.patch);
+    console.log("AI09_MODEL_ANCHOR_GATE=" + result.status);
     const after = await githubGet(c, "/pulls/" + c.prNumber);
     if (!safePr(after, c)) throw new Error("pr_changed_during_review");
   } catch {
