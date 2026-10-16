@@ -104,7 +104,8 @@ test("trusted allowlist rejects builder, AI-09, duplicates, or missing getter",(
   for(const reviewers of [["builder-1"],["AI-09"],["reviewer-1","REVIEWER-1"]]){
     assert.throws(()=>createGitHubHumanReproductionVerifier({
       repository:REPO,builderActor:"builder-1",
-      allowedReviewerLogins:reviewers,githubGet:fixture().githubGet
+      allowedReviewerLogins:reviewers,githubGet:fixture().githubGet,
+      verifyReproductionEvidence:async()=>null
     }),/INVALID_VERIFIER_ALLOWLIST/);
   }
   assert.throws(()=>createGitHubHumanReproductionVerifier({
