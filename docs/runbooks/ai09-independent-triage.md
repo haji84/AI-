@@ -137,3 +137,56 @@ Builder agent. The present mocks cannot stand in for that real system.
 
 ## Rollback
 The new triage module is not registered as an automatic task dispatcher or workflow job. Revert its addition and the tests/docs by a reviewed, protected PR if it proves unsafe. Existing AI-09 automation remains available. No credentials, CI permissions, host state, deployed modules or model providers were changed by this Issue.
+
+## Owner-authorized, read-only live Broker and Builder connectivity
+
+The owner expressly authorized connecting the existing GORIQ Broker and Builder.
+This is a scoped **connection and evidence inspection** approval only. It does
+not authorize new tokens, credential rotation, installer re-execution,
+privileged code execution, remote public exposure, unsafe LAN tunneling,
+automatic fixes or altered branch protection.
+
+The new `scripts/goriq-ai09-live-broker-builder-probe.mjs` checks only the
+pre-existing local endpoints. On the Mac host it performs authenticated GET
+`http://127.0.0.1:8787/health` followed by the owner-protected
+`GET /api/jarvis/admin/bridge/events?goalId=ai09-connection-probe`.
+The public health response alone is not accepted as owner authentication.
+On ZBook it performs a bearer-authenticated
+`GET http://127.0.0.1:8796/health` and requires the real
+`code-builder-worker` service and `code-builder` capability. The read-only
+test can also inspect an *already existing* Goal Work Run by ID; it will not
+create one. The Mac and ZBook can be verified separately because loopback
+addresses refer to different machines.
+
+`.github/workflows/goriq-ai09-owner-builder-connect.yml` provides two
+strictly read-only self-hosted jobs. It accepts only an owner-created or
+owner-reopened Issue titled with the prefix `[AI09 READONLY CONNECT]` or
+a trusted `workflow_dispatch`. Both jobs check out only protected `main`,
+require current main SHA, and have `contents: read` with no write
+permissions. The Mac job reads its **existing** protected JARVIS environment;
+the Windows job reads its **existing** local Builder token file. Both use
+tokens only against 127.0.0.1 and report bounded, non-secret statuses.
+No source is executed from a pull-request head on a credentialed host.
+
+**Activation is not achieved by this Draft PR.** GitHub Actions only enables
+the new owner-only Issue trigger when its workflow is reviewed and integrated
+into the repository's default branch. There is no remote trigger to this
+host from the ChatGPT GitHub connector before that protected integration.
+The protected main workflow must receive an independent risk/security review
+before main integration. Owner approval cannot transform an unverified
+self-review into independent approval.
+
+**Passing both read-only host checks is not Builder acceptance.**
+An actual approved task still requires a current-head reproduced finding,
+a durable GORIQ Goal Controller WorkState task, and an authenticated
+Builder/Debugger receipt ID from the worker itself. A healthy process,
+a 202 Goal intake response, a completed Work Run, or a GitHub Issue is never
+such a receipt. `scripts/goriq-ai09-builder-receipt.mjs` must validate
+the exact task and receipt against durable state before the result can be
+called `BUILDER_RECEIPT_MATCHED`. The current Builder service exposes
+`GET /health`, `POST /verify` and `POST /build`, but not a trusted
+task-acceptance receipt endpoint. Do not invent an ACK from those routes.
+
+Rollback: protected PR revert of these additive probe/workflow files and
+tests. No existing runtime, credentials, permissions or user data changed
+by simply proposing this connection workflow.
