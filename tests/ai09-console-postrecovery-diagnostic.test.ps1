@@ -109,12 +109,100 @@ try{
     Assert ($encoderHash -ceq '0DCA46956711AFA401AF7A0573659498EAC0B93CCB432F158A495ACF0ABB00DE') 'REVIEWED_ENCODER_CHANGED'
     Assert ($text -notmatch 'SeedAttached \$true|SudoRootObserved|OneDrive|Invoke-Expression|Start-Process|Set-Net|Add-VM|Mount-VHD|Remove-VM') 'UNAUTHORIZED_NATIVE_PATH'
 
+
+    # Image rendezvous uses 300 seconds, while the whole-run deadline still wins.
+    $longContext=New-Ai09SyncContext $temp ('A'*64)
+    $now=[DateTimeOffset]::UtcNow
+    $longRequest=New-Ai09SyncRequest $longContext command-4-after ('B'*64)
+    $expiry=[DateTimeOffset]::ParseExact($longRequest.ExpiresAt,'o',[Globalization.CultureInfo]::InvariantCulture)
+    Assert (($expiry-$now).TotalSeconds -ge 299 -and ($expiry-$now).TotalSeconds -le 301) 'IMAGE_RENDEZVOUS_NOT_300_SECONDS'
+    Assert ($longContext.WholeSeconds -eq 1800) 'WHOLE_DEADLINE_CHANGED'
+    $shortContext=New-Ai09SyncContext $temp ('A'*64) -WholeSeconds 2
+    $shortRequest=New-Ai09SyncRequest $shortContext command-10-typed ('B'*64)
+    Assert ([DateTimeOffset]::ParseExact($shortRequest.ExpiresAt,'o',[Globalization.CultureInfo]::InvariantCulture) -le $shortContext.Deadline) 'IMAGE_WAIT_EXCEEDS_WHOLE_DEADLINE'
+    $shortContext.Deadline=[DateTimeOffset]::UtcNow.AddSeconds(-1)
+    Refuses {Assert-Ai09SyncResponse $shortContext $shortRequest $shortRequest} 'WHOLE_RUN_DEADLINE'
+
+    $proofReceipt=[pscustomobject]@{
+        RunId='5da8b683fa714b4796505665c5445820';SourceSha256='190E33522BB620AF520F217AAC01F3DBC705DB5465BF3A84750F29597DCCAF99'
+        Success=$false;GuestExecutionVerified=$false;GuestNetworkVerified=$false;AuthenticationVerified=$false
+        Error='OBSERVER_TIMEOUT_before';StartedAt='2026-10-16T04:17:37.6542482+00:00';FinishedAt='2026-10-16T04:20:03.9340604+00:00'
+        Events=@(
+            @(160,161,162,163,164,165)|ForEach-Object{[pscustomobject]@{Method='IsKeyPressed';Key=$_;ReturnValue=0;KeyState=$false}}
+        )+@(
+            [pscustomobject]@{Event='ThumbnailMetadata';Stage='before'},
+            [pscustomobject]@{Event='ThumbnailDecoded';Stage='before'},
+            [pscustomobject]@{Event='before'}
+        )
+    }
+    $proofRequest=[pscustomobject]@{Version='1';RunId=$proofReceipt.RunId;SourceSha256=$proofReceipt.SourceSha256;Stage='before';Nonce='5c7ae13562e1483b8f58d6a148acf312';ImageSha256=('B'*64);ExpiresAt='2026-10-16T04:20:03.8981577+00:00';Decision='OBSERVED'}
+    Assert-Ai09DiagnosticRetryProof $proofReceipt $proofRequest ('B'*64)
+    Assert $true 'EXACT_NO_INPUT_FAILURE_REFUSED'
+    foreach($field in @('RunId','SourceSha256','Error','FinishedAt')){
+        $bad=$proofReceipt.PSObject.Copy();$bad.$field='wrong'
+        Refuses {Assert-Ai09DiagnosticRetryProof $bad $proofRequest ('B'*64)} ''
+    }
+    $bad=$proofReceipt.PSObject.Copy();$bad.Success=$true
+    Refuses {Assert-Ai09DiagnosticRetryProof $bad $proofRequest ('B'*64)} 'RETRY_TERMINAL'
+    $bad=$proofReceipt.PSObject.Copy();$bad.Error=@('OBSERVER_TIMEOUT_before')
+    Refuses {Assert-Ai09DiagnosticRetryProof $bad $proofRequest ('B'*64)} 'RETRY_TERMINAL'
+    $bad=$proofReceipt.PSObject.Copy();$bad.Events=@($proofReceipt.Events)+@{Event='FixedCommandStart'}
+    Refuses {Assert-Ai09DiagnosticRetryProof $bad $proofRequest ('B'*64)} 'RETRY_INPUT'
+    $savedMethod=$proofReceipt.Events[0].Method;$proofReceipt.Events[0].Method='TypeKey'
+    Refuses {Assert-Ai09DiagnosticRetryProof $proofReceipt $proofRequest ('B'*64)} 'RETRY_INPUT'
+    $proofReceipt.Events[0].Method=$savedMethod
+    $badRequest=$proofRequest.PSObject.Copy();$badRequest.ImageSha256='C'*64
+    Refuses {Assert-Ai09DiagnosticRetryProof $proofReceipt $badRequest ('B'*64)} 'RETRY_BEFORE'
+    $badRequest=$proofRequest.PSObject.Copy();$badRequest.Stage='awake'
+    Refuses {Assert-Ai09DiagnosticRetryProof $proofReceipt $badRequest ('B'*64)} 'RETRY_BEFORE'
+
+    # Exercise the fixed selector with test-local paths and independently hashed fixture bytes.
+    $oldRoot=Join-Path $temp 'old';$retryRoot=$oldRoot+'-retry1'
+    $selector=$ast.Find({param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -ceq 'Get-Ai09DiagnosticOutputRoot'},$false)
+    $literalRoot='C:\Users\qq113\.codex\worktrees\ai09-bootstrap-1798\AI-\tmp\ai09-console-postrecovery-diagnostic'
+    $selectorText=$selector.Extent.Text.Replace($literalRoot,$oldRoot.Replace("'","''"))
+    . ([scriptblock]::Create($selectorText))
+    $locks=[Collections.Generic.List[IO.FileStream]]::new()
+    Assert ((Get-Ai09DiagnosticOutputRoot $locks) -ceq $oldRoot -and $locks.Count -eq 0) 'FIRST_RUN_REDIRECTED'
+    $null=New-Item -ItemType Directory -Path $oldRoot
+    Refuses {Get-Ai09DiagnosticOutputRoot $locks} 'RETRY_FILE_SET'
+    [IO.File]::WriteAllBytes((Join-Path $oldRoot 'before.png'),[byte[]]@(1,2,3))
+    [IO.File]::WriteAllBytes((Join-Path $oldRoot 'before-1024.raw'),[byte[]]@(4,5,6))
+    $proofRequest.ImageSha256=(Get-FileHash -LiteralPath (Join-Path $oldRoot 'before.png')).Hash
+    [IO.File]::WriteAllText((Join-Path $oldRoot 'before.request.json'),($proofRequest|ConvertTo-Json -Compress))
+    [IO.File]::WriteAllText((Join-Path $oldRoot 'receipt.json'),($proofReceipt|ConvertTo-Json -Depth 8 -Compress))
+    [IO.File]::WriteAllText((Join-Path $oldRoot 'ready.request.json'),'{"fixture":true}')
+    [IO.File]::WriteAllText((Join-Path $oldRoot 'ready.consumed.json'),'{"fixture":true}')
+    $actualPins=@{
+        'before-1024.raw'='24F8FD825EC6D0D066263095FEDA465A921016CDD1B3466335AC2B1AD3C06B7D'
+        'before.png'='AE59E2DB9564011827DF400748EA4D16E3F22CFA90EB6ED455EFE262CFAADDBD'
+        'before.request.json'='51E4CC07107D72377FB267F778ED2F69C9B6568B4DC40DFA406839C78A5461CA'
+        'ready.request.json'='296EDB3AEAF544145436352AA66DAA5005A52AC78ED42F7D693CDC2FFB855039'
+        'ready.consumed.json'='296EDB3AEAF544145436352AA66DAA5005A52AC78ED42F7D693CDC2FFB855039'
+        'receipt.json'='7BFDB29801FCABB72078F2F26B63E120C2DF1047D5DCEF6DFB70967CE62AE68E'
+    }
+    foreach($name in $actualPins.Keys){$selectorText=$selectorText.Replace($actualPins[$name],(Get-FileHash -LiteralPath (Join-Path $oldRoot $name)).Hash)}
+    . ([scriptblock]::Create($selectorText))
+    try{
+        Assert ((Get-Ai09DiagnosticOutputRoot $locks) -ceq $retryRoot -and $locks.Count -eq 6) 'EXACT_RETRY_NOT_SELECTED'
+        Refuses {$h=[IO.File]::Open((Join-Path $oldRoot 'receipt.json'),'Open','ReadWrite','None');$h.Dispose()} ''
+    }finally{foreach($held in $locks){$held.Dispose()};$locks.Clear()}
+    $null=New-Item -ItemType Directory -Path $retryRoot
+    Refuses {Get-Ai09DiagnosticOutputRoot $locks} 'RETRY_ALREADY_STARTED'
+    Remove-Item -LiteralPath $retryRoot
+    $advanced=Join-Path $oldRoot 'awake.png';[IO.File]::WriteAllText($advanced,'unexpected')
+    Refuses {Get-Ai09DiagnosticOutputRoot $locks} 'RETRY_FILE_SET'
+    Remove-Item -LiteralPath $advanced
+    $tampered=Join-Path $oldRoot 'before.png';[IO.File]::WriteAllBytes($tampered,[byte[]]@(9))
+    try{Refuses {Get-Ai09DiagnosticOutputRoot $locks} 'PINNED_FILE_HASH'}finally{foreach($held in $locks){$held.Dispose()};$locks.Clear()}
+
     # Execute only the startup failure path with readiness and helper loading stubbed.
     # The fixed production output path is replaced inside this test-local function AST.
     $main=$ast.Find({param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -ceq 'Invoke-Ai09PostRecoveryDiagnostic'},$false)
     $safeRun=Join-Path $temp 'startup-failure'
     $originalOutput='C:\Users\qq113\.codex\worktrees\ai09-bootstrap-1798\AI-\tmp\ai09-console-postrecovery-diagnostic'
-    $testFunction=$main.Extent.Text.Replace($originalOutput,$safeRun.Replace("'","''"))
+    $testFunction=$main.Extent.Text
+    function Get-Ai09DiagnosticOutputRoot {param($Locks);return $safeRun}
     . ([scriptblock]::Create($testFunction))
     $script:nativeQueries=0
     function Get-VM {$script:nativeQueries++;throw 'UNEXPECTED_NATIVE_QUERY'}

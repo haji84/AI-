@@ -38,7 +38,7 @@ function Read-Ai09SyncJson {
     } finally { $stream.Dispose() }
 }
 function New-Ai09SyncRequest {
-    param($Context, [string]$Stage, [string]$ImageSha256 = '', [double]$Seconds = 90)
+    param($Context, [string]$Stage, [string]$ImageSha256 = '', [double]$Seconds = 300)
     Assert-Ai09SyncLive $Context
     if ($Stage -cnotmatch '^(ready|before|awake|command-(?:[0-9]|10)-(?:typed|after))$' -or $Seconds -le 0 -or $Seconds -gt 300) { throw 'INVALID_SYNC_STAGE' }
     if (($Stage -eq 'ready' -and $ImageSha256 -ne '') -or ($Stage -ne 'ready' -and $ImageSha256 -cnotmatch '^[0-9A-F]{64}$')) { throw 'INVALID_IMAGE_DIGEST' }
@@ -161,16 +161,88 @@ function Get-Ai09PostRecoveryCommands {
         'timeout -k 1s 5s date -u; echo $?'
     )
 }
+function Assert-Ai09DiagnosticRetryProof {
+    param($Receipt,$Before,[string]$ImageHash)
+    $run='5da8b683fa714b4796505665c5445820'
+    $source='190E33522BB620AF520F217AAC01F3DBC705DB5465BF3A84750F29597DCCAF99'
+    if($Receipt.RunId -isnot [string] -or $Receipt.RunId -cne $run -or
+       $Receipt.SourceSha256 -isnot [string] -or $Receipt.SourceSha256 -cne $source -or
+       $Receipt.Error -isnot [string] -or $Receipt.Error -cne 'OBSERVER_TIMEOUT_before'){throw 'DIAGNOSTIC_RETRY_TERMINAL_MISMATCH'}
+    foreach($field in @('Success','GuestExecutionVerified','GuestNetworkVerified','AuthenticationVerified')){
+        if($Receipt.$field -isnot [bool] -or $Receipt.$field){throw 'DIAGNOSTIC_RETRY_TERMINAL_MISMATCH'}
+    }
+    foreach($field in @('Version','RunId','SourceSha256','Stage','Nonce','ImageSha256','ExpiresAt','Decision')){
+        if($Before.$field -isnot [string]){throw 'DIAGNOSTIC_RETRY_BEFORE_MISMATCH'}
+    }
+    if($Before.Version -cne '1' -or $Before.RunId -cne $run -or $Before.SourceSha256 -cne $source -or
+       $Before.Stage -cne 'before' -or $Before.Decision -cne 'OBSERVED' -or
+       $Before.Nonce -cne '5c7ae13562e1483b8f58d6a148acf312' -or $Before.ImageSha256 -cne $ImageHash){throw 'DIAGNOSTIC_RETRY_BEFORE_MISMATCH'}
+    if($Receipt.StartedAt -isnot [string] -or $Receipt.FinishedAt -isnot [string]){throw 'DIAGNOSTIC_RETRY_TERMINAL_TIME'}
+    $start=[DateTimeOffset]::ParseExact($Receipt.StartedAt,'o',[Globalization.CultureInfo]::InvariantCulture)
+    $finish=[DateTimeOffset]::ParseExact($Receipt.FinishedAt,'o',[Globalization.CultureInfo]::InvariantCulture)
+    $expiry=[DateTimeOffset]::ParseExact($Before.ExpiresAt,'o',[Globalization.CultureInfo]::InvariantCulture)
+    if($finish -lt $expiry -or $start -ge $expiry -or $finish -gt [DateTimeOffset]::UtcNow){throw 'DIAGNOSTIC_RETRY_TERMINAL_TIME'}
+    $events=@($Receipt.Events)
+    if($events.Count -ne 9){throw 'DIAGNOSTIC_RETRY_INPUT_OR_ADVANCED_STAGE'}
+    $keys=@(160,161,162,163,164,165)
+    for($i=0;$i -lt 6;$i++){
+        if($events[$i].Method -isnot [string] -or $events[$i].Method -cne 'IsKeyPressed' -or
+           $events[$i].Key -ne $keys[$i] -or $events[$i].ReturnValue -ne 0 -or
+           $events[$i].KeyState -isnot [bool] -or $events[$i].KeyState){throw 'DIAGNOSTIC_RETRY_INPUT_OR_ADVANCED_STAGE'}
+    }
+    $names=@('ThumbnailMetadata','ThumbnailDecoded','before')
+    for($i=0;$i -lt 3;$i++){
+        if($events[$i+6].Event -isnot [string] -or $events[$i+6].Event -cne $names[$i]){throw 'DIAGNOSTIC_RETRY_INPUT_OR_ADVANCED_STAGE'}
+        if($i -lt 2 -and ($events[$i+6].Stage -isnot [string] -or $events[$i+6].Stage -cne 'before')){throw 'DIAGNOSTIC_RETRY_INPUT_OR_ADVANCED_STAGE'}
+    }
+}
+function Get-Ai09DiagnosticOutputRoot {
+    param([Collections.Generic.List[IO.FileStream]]$Locks)
+    $original='C:\Users\qq113\.codex\worktrees\ai09-bootstrap-1798\AI-\tmp\ai09-console-postrecovery-diagnostic'
+    $retry=$original+'-retry1'
+    if(Test-Path -LiteralPath $retry){throw 'DIAGNOSTIC_RETRY_ALREADY_STARTED'}
+    if(-not(Test-Path -LiteralPath $original)){return $original}
+    Assert-Ai09DiagnosticPath $original
+    $pins=[ordered]@{
+        'before-1024.raw'='24F8FD825EC6D0D066263095FEDA465A921016CDD1B3466335AC2B1AD3C06B7D'
+        'before.png'='AE59E2DB9564011827DF400748EA4D16E3F22CFA90EB6ED455EFE262CFAADDBD'
+        'before.request.json'='51E4CC07107D72377FB267F778ED2F69C9B6568B4DC40DFA406839C78A5461CA'
+        'ready.consumed.json'='296EDB3AEAF544145436352AA66DAA5005A52AC78ED42F7D693CDC2FFB855039'
+        'ready.request.json'='296EDB3AEAF544145436352AA66DAA5005A52AC78ED42F7D693CDC2FFB855039'
+        'receipt.json'='7BFDB29801FCABB72078F2F26B63E120C2DF1047D5DCEF6DFB70967CE62AE68E'
+    }
+    $expected=(@($pins.Keys|Sort-Object)-join '|')
+    if((@(Get-ChildItem -LiteralPath $original -Force|ForEach-Object Name|Sort-Object)-join '|') -cne $expected){throw 'DIAGNOSTIC_RETRY_FILE_SET_CHANGED'}
+    $json=@{}
+    foreach($name in $pins.Keys){
+        $held=Open-Ai09DiagnosticPinnedFile (Join-Path $original $name) $pins[$name]
+        $Locks.Add($held)
+        if($name -in @('receipt.json','before.request.json')){
+            if($held.Length -gt 16384){throw 'DIAGNOSTIC_RETRY_JSON_TOO_LARGE'}
+            $held.Position=0
+            $reader=[IO.StreamReader]::new($held,[Text.UTF8Encoding]::new($false,$true),$false,16384,$true)
+            try{$parameters=@{InputObject=$reader.ReadToEnd();ErrorAction='Stop'}}finally{$reader.Dispose()}
+            if((Get-Command ConvertFrom-Json).Parameters.ContainsKey('DateKind')){$parameters.DateKind='String'}
+            $json[$name]=ConvertFrom-Json @parameters
+        }
+    }
+    Assert-Ai09DiagnosticRetryProof $json['receipt.json'] $json['before.request.json'] $pins['before.png']
+    if((@(Get-ChildItem -LiteralPath $original -Force|ForEach-Object Name|Sort-Object)-join '|') -cne $expected){throw 'DIAGNOSTIC_RETRY_FILE_SET_CHANGED'}
+    return $retry
+}
 function Invoke-Ai09PostRecoveryDiagnostic {
     param([string]$sourceHash)
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
-$outputRoot = 'C:\Users\qq113\.codex\worktrees\ai09-bootstrap-1798\AI-\tmp\ai09-console-postrecovery-diagnostic'
+$continuationLocks=[Collections.Generic.List[IO.FileStream]]::new()
+try {
+$outputRoot = Get-Ai09DiagnosticOutputRoot $continuationLocks
 Assert-Ai09DiagnosticPath (Split-Path $outputRoot -Parent)
 if (Test-Path -LiteralPath $outputRoot) { throw 'ONE_SHOT_ALREADY_STARTED' }
 $null = New-Item -ItemType Directory -Path $outputRoot -ErrorAction Stop
 $sync = New-Ai09SyncContext -Root $outputRoot -SourceSha256 $sourceHash
 $report = [ordered]@{ RunId=$sync.RunId; SourceSha256=$sourceHash; StartedAt=[DateTimeOffset]::UtcNow.ToString('o'); Success=$false; SuccessMeaning='FIXED_READONLY_COMMANDS_OBSERVED'; GuestExecutionVerified=$false; GuestNetworkVerified=$false; AuthenticationVerified=$false; Commands=@(Get-Ai09PostRecoveryCommands); Events=@() }
+if($outputRoot.EndsWith('-retry1')){$report.ContinuedFromRunId='5da8b683fa714b4796505665c5445820';$report.ContinuationReceiptSha256='7BFDB29801FCABB72078F2F26B63E120C2DF1047D5DCEF6DFB70967CE62AE68E'}
 function Save-GuestThumbnail([string]$name) {
     $selected = $false
     foreach ($dimensions in @(@(1024,768), @(640,480), @(320,240))) {
@@ -242,8 +314,8 @@ function Invoke-Key([string]$method, [uint32]$key) {
 function Wait-ForImageObservation([string]$name) {
     $imagePath = Join-Path $outputRoot ($name + '.png')
     $expected = (Get-FileHash -LiteralPath $imagePath -Algorithm SHA256).Hash
-    $request = New-Ai09SyncRequest -Context $sync -Stage $name -ImageSha256 $expected -Seconds 90
-    Wait-Ai09SyncResponse -Context $sync -Request $request -Seconds 90
+    $request = New-Ai09SyncRequest -Context $sync -Stage $name -ImageSha256 $expected -Seconds 300
+    Wait-Ai09SyncResponse -Context $sync -Request $request -Seconds 300
     $report.Events += [ordered]@{ Event='ObservationConsumed'; Stage=$name; Nonce=$request.Nonce; ImageSha256=$expected; Decision=$request.Decision }
 }
 function Assert-ModifiersReleased {
@@ -382,6 +454,7 @@ finally {
 }
 if (-not $report.Success) { throw ('POSTRECOVERY_DIAGNOSTIC_STOPPED: ' + $report.Error) }
 
+} finally {foreach($held in $continuationLocks){$held.Dispose()}}
 }
 if ($MyInvocation.InvocationName -ne '.') {
     $sourceLock = $null
