@@ -78,13 +78,15 @@ jobs:
       - name: Resolve actual RACE AI PR 65 revision from public GitHub
         id: race
         shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           node --input-type=module -e '
             import { appendFileSync } from "node:fs";
             const r=await fetch("https://api.github.com/repos/haji84/RACE-AI/pulls/65",
-              {headers:{"Accept":"application/vnd.github+json"},signal:AbortSignal.timeout(15000)});
-            if(!r.ok)throw Error("RACE_PR_LOOKUP_FAILED");
+              {headers:{"Accept":"application/vnd.github+json","Authorization":"Bearer "+process.env.GITHUB_TOKEN},signal:AbortSignal.timeout(15000)});
+            if(!r.ok)throw Error("RACE_PR_LOOKUP_FAILED_"+r.status);
             const p=await r.json();
             if(p.state!=="open"||p.number!==65||
               p.head?.repo?.full_name!=="haji84/RACE-AI"||
@@ -97,6 +99,7 @@ jobs:
       - name: Actual RACE AI PR review with isolated AI-09 model, no GitHub posting
         shell: bash
         env:
+          GITHUB_TOKEN: ${{ github.token }}
           RACE_PR_HEAD: ${{ steps.race.outputs.head }}
           RACE_PR_BASE: ${{ steps.race.outputs.base }}
         run: |
