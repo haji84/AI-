@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import test from "node:test";
 import { readFileSync } from "node:fs";
 import { anchorAudit } from "../scripts/goriq-ai09-finding-anchors.mjs";
+import { GROUNDING_CORPUS, evaluateGroundingCorpus } from "../scripts/goriq-ai09-grounding-eval.mjs";
 import { EVIDENCE_FIRST_MODEL_INSTRUCTIONS, prepareVerifiedRepairProposal } from "../scripts/goriq-ai09-independent-triage.mjs";
 
 const A="a".repeat(40),B="b".repeat(40),REPO="haji84/AI-";
@@ -101,4 +102,38 @@ test("hosted and RACE model calls receive exact-line quality instructions",()=>{
     assert.match(s,/EVIDENCE_FIRST_MODEL_INSTRUCTIONS/);
     assert.match(s,/infer:/);
   }
+});
+
+test("labeled source-citation corpus tracks confusion matrix without bug-accuracy claims",()=>{
+  assert.equal(GROUNDING_CORPUS.length,18);
+  const m=evaluateGroundingCorpus();
+  assert.equal(m.total,18);
+  assert.equal(m.truePositive,4);
+  assert.equal(m.falsePositive,0);
+  assert.equal(m.trueNegative,14);
+  assert.equal(m.falseNegative,0);
+  assert.equal(m.precision,1);
+  assert.equal(m.recall,1);
+  assert.equal(m.falsePositiveRate,0);
+  assert.equal(m.accuracy,1);
+  assert.equal(m.actualDefectsConfirmed,0);
+  assert.equal(m.realModelPrecisionVerified,false);
+  assert.equal(m.githubApprovalSatisfied,false);
+  assert.equal(m.mergeAuthorized,false);
+  assert.equal(m.scope,"SOURCE_LINE_GROUNDING_ONLY_NOT_BUG_DETECTION");
+  assert.ok(m.outcomes.every(item=>item.matched));
+});
+test("citation corpus fails closed for empty, invalid, duplicated or forged labels",()=>{
+  assert.throws(()=>evaluateGroundingCorpus([]),/INVALID_EVAL_CORPUS/);
+  assert.throws(()=>evaluateGroundingCorpus([GROUNDING_CORPUS[0],GROUNDING_CORPUS[0]]),/INVALID_EVAL_LABEL/);
+  assert.throws(()=>evaluateGroundingCorpus([{
+    ...GROUNDING_CORPUS[0],expectedGrounded:"approved"
+  }]),/INVALID_EVAL_LABEL/);
+  assert.throws(()=>evaluateGroundingCorpus(GROUNDING_CORPUS,""),/INVALID_EVAL_CORPUS/);
+});
+test("a safe added line counts as grounded, but never as a confirmed defect",()=>{
+  const m=evaluateGroundingCorpus();
+  assert.equal(m.outcomes.find(x=>x.id==="added-valid-second-line").observedGrounded,true);
+  assert.equal(m.actualDefectsConfirmed,0);
+  assert.equal(m.independentSecurityReviewSatisfied,false);
 });
