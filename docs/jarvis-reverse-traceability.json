@@ -5009,7 +5009,7 @@
     },
     {
       "path": "src/orchestrator/compass-state-store.ts",
-      "sha256": "0a1fdd323afe9e34cf3ee3618c8fcebaee493d7dfa944943c96d9d94b40dcb0a",
+      "sha256": "fd8235465e27c46a3288ffe761b4a9ef2acd4702e65bf3d028f7598955d62ae9",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-002",
@@ -6178,7 +6178,7 @@
     },
     {
       "path": "src/orchestrator/work-state-integration.ts",
-      "sha256": "59d6cd74523ebd136623a75f2a414eefa90e5fd9d646286693c3aa5c0539e1d8",
+      "sha256": "096c1adcb9f474dc765fa1ed720e5cbfec05fae96d89716414f4783bb5fb2703",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-002",

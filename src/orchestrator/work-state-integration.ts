@@ -254,10 +254,13 @@ export class WorkStateWriteBackStore implements StateStore {
     const action = record.action as WorkStateAction | null | undefined;
     const now = new Date().toISOString();
 
-    const incomingResults = [...(result?.definitionOfDoneResults ?? [])];
-    if (record.verification?.ok && action?.satisfiesDefinitionOfDone) {
+    const verifiedSuccess = record.result?.ok === true && record.verification?.ok === true;
+    // A Builder may report a failed criterion, but cannot certify its own PASS
+    // or waive a requirement. Waivers belong to the authoritative Goal contract.
+    const incomingResults = (result?.definitionOfDoneResults ?? []).filter(item => !item.waived && (!item.passed || verifiedSuccess));
+    if (verifiedSuccess && action?.satisfiesDefinitionOfDone) {
       for (const itemId of action.satisfiesDefinitionOfDone) {
-        incomingResults.push({ itemId, passed: true, evidence: record.verification.evidence ?? record.result?.evidence });
+        incomingResults.push({ itemId, passed: true, evidence: record.verification?.evidence ?? record.result?.evidence });
       }
     }
     if (incomingResults.length > 0) {
@@ -280,7 +283,7 @@ export class WorkStateWriteBackStore implements StateStore {
     await this.inner.writeBack(record);
 
     const childWorkItems = state.childWorkItems.map((item) => {
-      if (action?.completesWorkItem && action.workItemId === item.id && record.verification?.ok) {
+      if (action?.completesWorkItem && action.workItemId === item.id && verifiedSuccess) {
         return { ...item, status: "COMPLETED" as const };
       }
       if (action?.workItemId === item.id && record.result?.blocker) {

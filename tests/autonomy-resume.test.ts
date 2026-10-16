@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
+import { createServer } from "node:http";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -10,6 +11,43 @@ import { goalWorkStateId } from "../src/orchestrator/work-state-integration.ts";
 
 const hash = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
 const goal = { title: "Inspect local status", description: "Inspect only", successCriteria: ["status independently known"], constraints: ["read only"] };
+
+test("scheduled development verifies Builder output instead of accepting its success claim", async () => {
+  const f = fixture();
+  const requests: string[] = [];
+  const server = createServer((request, response) => {
+    requests.push(request.url ?? "");
+    response.setHeader("Content-Type", "application/json");
+    response.end(JSON.stringify(request.url === "/health"
+      ? { ok: true, capabilities: ["code-builder"], engine: "llama.cpp", inference: { locality: "device", networkAccess: false } }
+      : request.url === "/verify" ? { ok: false, summary: "Independent readback failed", evidence: { expected: "42", actual: "wrong" } }
+      : { ok: true, summary: "Builder claims success" }));
+  });
+  try {
+    await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address !== "string");
+    f.compass.setGoal({ title: "Implement tests/fixtures/result.txt", successCriteria: ["implement output"] });
+    f.compass.updateState({ status: "continue", nextAction: "Implement tests/fixtures/result.txt", blockers: [] });
+    const child = spawn(process.execPath, [resolve("scripts/autonomy-run.ts"), "--max-cycles=1"], {
+      env: { ...process.env, COMPASS_DB_PATH: join(f.dir, "compass.db"), AUTONOMY_CHECKPOINT_PATH: f.checkpointPath,
+        CODE_BUILDER_LOCAL_URL: `http://127.0.0.1:${address.port}`, CODE_BUILDER_LOCAL_TOKEN: "fixture-only-token",
+        CODE_BUILDER_ENDPOINTS_JSON: "{}" }, stdio: ["ignore", "pipe", "pipe"], timeout: 15_000,
+    });
+    let stdout = "", stderr = "";
+    child.stdout.on("data", chunk => { stdout += chunk; });
+    child.stderr.on("data", chunk => { stderr += chunk; });
+    const code = await new Promise<number | null>((resolve, reject) => { child.once("error", reject); child.once("exit", resolve); });
+    assert.equal(code, 0, stderr);
+    assert.ok(requests.includes("/build"));
+    assert.ok(requests.includes("/verify"), "Builder success must reach the independent verification endpoint");
+    assert.equal(JSON.parse(stdout).report.cycles[0].verification.ok, false);
+    assert.deepEqual(f.compass.getState().completed, []);
+  } finally {
+    await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
+    f.compass.close(); rmSync(f.dir, { recursive: true, force: true });
+  }
+});
 
 function fixture() {
   const dir = mkdtempSync(join(tmpdir(), "goriq-resume-"));

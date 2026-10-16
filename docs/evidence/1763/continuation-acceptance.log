@@ -1,0 +1,96 @@
+✔ existing Builder start is a separate owner-trigger-only trusted-main workflow (1.395551ms)
+✔ only one existing scheduled task may be triggered, never reinstalled or rotated (0.439182ms)
+✔ only authenticated loopback Builder health is checked, no task receipt is claimed (0.347153ms)
+✔ authenticates existing local Broker and Builder and does not claim task receipt (2.940247ms)
+✔ refuses remote URLs, external redirects, token in URL, or arbitrary goal path (0.533814ms)
+✔ owner's public Broker health alone is not authentication (0.308865ms)
+✔ no credentials or inaccessible host fail closed without leaking private values (0.922049ms)
+✔ rejects untrusted service identity and non-builder capabilities (0.540704ms)
+✔ even COMPLETED Goal Work Run is not proof of a Builder receipt (0.333853ms)
+✔ read-only separately authenticated host checks allow disjoint Mac Broker and ZBook Builder (0.755758ms)
+✔ single-host mode never forges cross-host authentication or creates Builder receipt (0.316286ms)
+✔ trusted-main-only owner-probe workflow never grants write scopes (0.610539ms)
+✔ ZBook failure diagnosis records only safe availability and does not alter host state (0.606904ms)
+✔ Task Scheduler metadata can be inspected without starting Builder or exposing launcher contents (4.451813ms)
+✔ local startup log diagnosis emits only predefined categories, never raw secrets (0.353222ms)
+✔ scheduled development verifies Builder output instead of accepting its success claim (383.85339ms)
+✔ scheduled re-entry runs an exact persisted continuation without a new owner command (717.050094ms)
+✔ fenced dry-run never writes verification or progress into the authoritative Compass (150.50831ms)
+✔ dry-run evaluates the same exact persisted resume hint without changing its timestamps (156.961984ms)
+✔ dry-run recovery consults the authoritative pending effect instead of an empty memory copy (159.606926ms)
+✔ same title cannot reuse a checkpoint after Goal criteria, constraints or description change (434.008505ms)
+✔ terminal states and blockers never become resume authority (1447.108688ms)
+✔ changed persisted state or malformed checkpoint leaves history untouched (436.999475ms)
+✔ Compass adapter reads goal and durably writes cycle state (15.704308ms)
+✔ bounded runner stops at approval_required (0.556758ms)
+✔ representative multi-step Compass job pauses only at Human Gate and resumes after restart (41.270861ms)
+✔ bounded runner cannot exceed cycle budget (0.269796ms)
+✔ local historical artifact is hashed, persisted, replay-safe and remains unverified (73.309888ms)
+✔ changed historical source ID cannot overwrite prior provenance (43.454204ms)
+✔ host manifest cannot assert verification or grant cross-user/global learning scope (38.689861ms)
+✔ history denies escapes, secrets, invalid UTF8, special files and oversized data atomically (113.276552ms)
+✔ symlink source or directory cannot import outside approved data root (27.814685ms)
+✔ partitioned history merges with verified live data while preserving held-out exclusion (68.580621ms)
+✔ invalid second source leaves no partial historical import (46.354363ms)
+✔ source count, manifest and combined byte limits reject before any history write (41.405564ms)
+✔ concurrent independent store instances preserve imports without duplicated records (48.439812ms)
+✔ persisted candidate verification, foreign partition and digest tampering fail closed (47.916184ms)
+✔ equivalent tenant and principal field ordering retains same historical partition (16.161116ms)
+✔ distinct historical sources imported by separate processes survive a shared ledger restart (249.575545ms)
+✔ adapter commits only the current owner and rejects stale ownership (10.15373ms)
+✔ Compass completed work requires a successful verification, not only Builder success (6.291859ms)
+✔ Builder-supplied DoD passes cannot bypass a missing or failed independent verifier (5.965392ms)
+✔ worker preflight -> persistent resource model -> context source -> Phase 9 replan (13.306978ms)
+✔ collector records one worker failure without discarding healthy peer observations (4.367257ms)
+✔ A: certified existing skill completes with no external provider (358.384438ms)
+ℹ {"attempts":1,"externalCalls":0,"modelCalls":0,"skillSourceExperiences":2,"verifiedRegressionQuarantined":true}
+✔ B: unfamiliar local input is experimented on, verified, and replanned (194.354816ms)
+ℹ {"attempts":2,"failures":1,"finalVerified":true,"scope":"bounded host-supplied action catalog; arbitrary novel decomposition not established"}
+✔ C: verified failure recall avoids repeating the same failed strategy (91.816835ms)
+ℹ {"failedStrategyRepeated":false,"attempts":1}
+✔ D: memory ablation measures fewer attempts with recalled evidence (123.617859ms)
+ℹ {"sameInput":true,"withoutMemoryAttempts":2,"withMemoryAttempts":1,"reduction":0.5,"trainingCostExcluded":true}
+✔ E: verified simulated expert strategy is recalled by a later local run (53.230656ms)
+ℹ {"provider":"simulation","expertCallsFirst":1,"expertCallsNext":0,"localRebind":"host-authorized existing tool","limit":"new executable skill generation from arbitrary expert prose not tested"}
+✔ F: independently verified human correction prevents the old decision (47.659773ms)
+ℹ {"oldDecisionRepeated":false,"testerCorrectionLeakage":0}
+✔ G: offline cognitive state and learning restore across runtime instances (38.339293ms)
+ℹ {"restoredGoal":true,"savedAttempts":1,"finalAttempts":2,"externalCalls":0,"scope":"runtime restart; no uncertain in-flight effects"}
+✔ H: no measured improvement is rejected before mutation (4.305163ms)
+ℹ {"baselineScore":1,"candidateScore":1,"rejected":true,"mutations":0}
+✔ I: canary regression restores and independently verifies the baseline (5.556066ms)
+ℹ {"canaryRegression":true,"rollbackVerified":true,"physicalEvidence":false}
+✔ J: unavailable local model and disabled experts preserve useful degraded execution (27.086969ms)
+ℹ {"degraded":true,"verifiedLocalOutput":true,"measured":{"goals":1,"completedGoals":1,"externalAiFreeCompletionRate":1,"localOnlyCompletionRate":1,"unknownTaskLocalSuccessRate":null,"externalExpertEscalationRate":0,"externalAiCallsPerGoal":0,"externalAiDependencyRate":0,"skillReuseRate":0,"memoryAssistedImprovement":null,"secondAttemptImprovement":null,"selfRecoveryRate":null,"humanInterventionRate":0,"transferSuccessRate":null}}
+✔ identified lock survives live contention and is reclaimed after its actual process exits (154.042472ms)
+✔ authority write failure recovers an independently verified file without repeating create (172.477153ms)
+﹣ Windows cross-volume and UNC paths fail before any I/O (0.646753ms) # SKIP
+✔ crash while holding native recovery arbiter does not leave an anonymous reclamation lock (127.432883ms)
+✔ unfinished child cannot persist Goal completion or completed learning metrics (154.118558ms)
+✔ concurrent local file creations cannot overwrite the winning content (12.555496ms)
+✔ actual Compass factory completes local artifact through Core, persistence, verifier and learning without external AI (253.673586ms)
+✔ host catalog rejects escaping paths, secrets, invalid Goal criteria and model-defined tools (0.729909ms)
+✔ shared execution lease fails visibly and never overwrites a foreign result (17.929708ms)
+✔ learning outage commits WorkState then replays the exact outbox without repeating the file action (60.947967ms)
+✔ development verifier fails closed without a verification contract (1.287449ms)
+✔ development verifier returns exact expected/actual evidence from Builder (2.652765ms)
+✔ development verifier rejects Builder-issued or stale release evidence (0.43154ms)
+✔ development verifier sends an addressable candidate and accepts per-check bound evidence (1.168129ms)
+✔ work-state context initializes from the goal and exposes a resumable handoff (2.383079ms)
+✔ material mutation automatically creates a bounded child work item before execution (1.393448ms)
+✔ explicit binding to an inactive child work item is rejected (0.590349ms)
+✔ verified cycle writes artifacts, decisions, DoD and next action back to work state (1.078865ms)
+✔ Compass adapter persists work state and events without a provider dependency (3.372829ms)
+✔ verified partial DoD progress persists the remaining action in both stores (2.890082ms)
+✔ inspection, failed verification and repeated accepted DoD do not invent continuation (0.943551ms)
+✔ last verified criterion schedules a final Goal-controller completion check (0.49111ms)
+✔ a revised same-identity Goal cannot reuse old WorkState completion (2.639725ms)
+✔ scoped Builder work accepts its string file list and rejects an out-of-scope file (0.660575ms)
+ℹ tests 78
+ℹ suites 0
+ℹ pass 77
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 1
+ℹ todo 0
+ℹ duration_ms 4115.205634

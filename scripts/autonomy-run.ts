@@ -7,6 +7,7 @@ import { CompassStore } from "../src/compass/store.ts";
 import { DurableTaskRuntime, JsonFileDurableTaskStore, MemoryDurableTaskStore } from "../src/gai/durable-task-runtime.ts";
 import { BaselinePlanner, createContextInspectCapability } from "../src/orchestrator/baseline-planner.ts";
 import { RuntimeDevelopmentPlanner } from "../src/orchestrator/runtime-development-planner.ts";
+import { createRuntimeDevelopmentVerifier } from "../src/orchestrator/runtime-development-verifier.ts";
 import { createCodeBuilderCapability, createRuntimeBuilderRouter } from "../src/orchestrator/runtime-builder-capability.ts";
 import { runBoundedGoalLoop } from "../src/orchestrator/bounded-runner.ts";
 import { CapabilityRegistry } from "../src/orchestrator/capabilities.ts";
@@ -138,10 +139,11 @@ try {
   if (!sqliteFenced && !fencedStorePath) {
     registry.register(createCodeBuilderCapability(createRuntimeBuilderRouter()));
   }
+  const developmentVerifier = createRuntimeDevelopmentVerifier();
   const verifier: Verifier = {
-    async verify({ result }) {
+    async verify(input) {
       if (heartbeatFailure) throw heartbeatFailure;
-      return { ok: result.ok, summary: result.ok ? "Capability execution verified" : result.summary, evidence: result.evidence };
+      return developmentVerifier.verify(input);
     },
   };
 

@@ -27,3 +27,11 @@ Corrections:
 Review rulings: valid Builder scope rejection was treated as a liveness defect; incorrect independence discovery was treated as an isolation defect under the owner's explicit requirements. Both were corrected with RED-to-GREEN tests. No cosmetic findings or unrelated refactoring were added.
 
 Limitations: these are repository code-review and test evidence. They are not a formal non-author GitHub approval, authenticated independent bug-reproduction attestation, live Builder acknowledgement, production execution, physical MacBook/ZBook recovery, real-model quality benchmark or measured product speedup. Existing external-effect, shared-authority and physical acceptance holds remain.
+
+## Seven-step follow-up review
+
+A separate read-only reviewer independently passed 63 focused tests, then reproduced two existing acceptance bypasses: Builder-supplied DoD PASS persisted COMPLETED after failed verification; autonomy-run called only /health and /build and mirrored Builder success without /verify. After the first corrections, the reviewer reproduced a third variant: waived:true still completed DoD after verification failure.
+
+Corrections reuse the existing development verifier in autonomy-run, require execution and verification success before Compass/WorkState progress, and reject Builder waiver claims (waivers belong to the authoritative Goal). The reviewer independently reran 25 focused tests after the first correction and 10 targeted tests after the waiver correction: all passed. No remaining issue was found in these reviewed fixes. This is software review evidence; it is not formal GitHub approval, an independent physical run, or completion of the seven steps.
+
+RED evidence: independent-verifier-red.log and verified-progress-red.log. GREEN: verifier-gates-green.log. Device run IDs and every remaining acceptance gap: seven-step-status.json.

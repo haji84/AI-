@@ -1,0 +1,33 @@
+✔ scheduled development verifies Builder output instead of accepting its success claim (229.913962ms)
+✔ scheduled re-entry runs an exact persisted continuation without a new owner command (617.211397ms)
+✔ fenced dry-run never writes verification or progress into the authoritative Compass (148.353812ms)
+✔ dry-run evaluates the same exact persisted resume hint without changing its timestamps (138.141085ms)
+✔ dry-run recovery consults the authoritative pending effect instead of an empty memory copy (143.769281ms)
+✔ same title cannot reuse a checkpoint after Goal criteria, constraints or description change (451.01243ms)
+✔ terminal states and blockers never become resume authority (1409.72139ms)
+✔ changed persisted state or malformed checkpoint leaves history untouched (403.322022ms)
+✔ adapter commits only the current owner and rejects stale ownership (5.725994ms)
+✔ Compass completed work requires a successful verification, not only Builder success (5.97485ms)
+✔ Builder-supplied DoD passes cannot bypass a missing or failed independent verifier (8.630199ms)
+✔ development verifier fails closed without a verification contract (0.979035ms)
+✔ development verifier returns exact expected/actual evidence from Builder (2.943604ms)
+✔ development verifier rejects Builder-issued or stale release evidence (0.628406ms)
+✔ development verifier sends an addressable candidate and accepts per-check bound evidence (1.578357ms)
+✔ work-state context initializes from the goal and exposes a resumable handoff (2.507747ms)
+✔ material mutation automatically creates a bounded child work item before execution (1.265076ms)
+✔ explicit binding to an inactive child work item is rejected (0.585802ms)
+✔ verified cycle writes artifacts, decisions, DoD and next action back to work state (1.087688ms)
+✔ Compass adapter persists work state and events without a provider dependency (3.937482ms)
+✔ verified partial DoD progress persists the remaining action in both stores (0.850561ms)
+✔ inspection, failed verification and repeated accepted DoD do not invent continuation (0.942049ms)
+✔ last verified criterion schedules a final Goal-controller completion check (3.036243ms)
+✔ a revised same-identity Goal cannot reuse old WorkState completion (1.054719ms)
+✔ scoped Builder work accepts its string file list and rejects an out-of-scope file (0.498902ms)
+ℹ tests 25
+ℹ suites 0
+ℹ pass 25
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3720.433634

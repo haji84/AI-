@@ -62,7 +62,7 @@ export class CompassStateStoreAdapter implements StateStore {
     }
     const current = this.compass.getState();
     const completed = [...strings(current.completed)];
-    if (record.result?.ok && record.action?.description && !completed.includes(record.action.description)) {
+    if (record.result?.ok && record.verification?.ok && record.action?.description && !completed.includes(record.action.description)) {
       completed.push(record.action.description);
     }
 

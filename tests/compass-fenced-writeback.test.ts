@@ -14,6 +14,7 @@ test("adapter commits only the current owner and rejects stale ownership", async
       intent: { summary: "verified", confidence: 1, evidence: [] },
       action: { id: "a", description: "done", capability: "test", risk: "low" as const },
       result: { actionId: "a", ok: true, summary: "done" },
+      verification: { ok: true, summary: "read back output", evidence: ["readback:done"] },
       stopReason: "continue" as const,
     };
     const stale = new CompassStateStoreAdapter(store, undefined, () => lease.assertCurrent(old, 1101));
