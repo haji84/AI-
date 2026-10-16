@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {reviewRacePull,requireRaceChecks,parseRaceRequest} from "../scripts/goriq-ai09-race-review.mjs";
+import {reviewRacePull,parseRaceRequest} from "../scripts/goriq-ai09-race-review.mjs";
 
 const A="a".repeat(40),B="b".repeat(40),REPO="haji84/RACE-AI";
 const pr={number:65,state:"open",head:{sha:B,repo:{id:31,full_name:REPO}},
