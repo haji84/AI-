@@ -8,8 +8,8 @@ const MAX_FILES = 30;
 // Review all changed bytes, but feed the local model only bounded per-file
 // segments. Never silently truncate a patch or mark partial review as clean.
 const MAX_PATCH_BYTES = 120 * 1024;
-const MAX_CHUNK_BYTES = 16 * 1024;
-const MAX_CHUNKS = 12;
+const MAX_CHUNK_BYTES = 4 * 1024;
+const MAX_CHUNKS = 24;
 const ALLOWED = new Set(["NO_ACTIONABLE_FINDINGS", "CHANGES_REQUESTED", "INCONCLUSIVE", "BLOCKED"]);
 
 export function eligibleCiPullRequest({ run, pr, repo, defaultBranch = "main" }) {
@@ -80,35 +80,61 @@ export function compareToPatch(compare, baseSha, headSha) {
 
 export function compareToReviewChunks(compare, baseSha, headSha) {
   const whole = compareToPatch(compare, baseSha, headSha);
+  // Small semantic slices are much faster on GitHub-hosted CPU than a 15 KiB
+  // single-model request. These are model inputs only; the canonical full
+  // comparison and SHA remain the authority for every review receipt.
   const chunks = [];
-  let currentPaths = [];
-  let currentPieces = [];
-  let currentBytes = 0;
-  const flush = () => {
-    if (currentPieces.length === 0) return;
-    chunks.push({ paths: currentPaths, patch: currentPieces.join("\n") });
-    currentPaths = [];
-    currentPieces = [];
-    currentBytes = 0;
-  };
+  const fileParts = [];
   for (const file of compare.files) {
-    const piece = "diff --git a/" + file.filename + " b/" + file.filename + "\n" + file.patch;
-    const bytes = Buffer.byteLength(piece, "utf8");
-    // Oversized *single-file* patches are not safe to sample or truncate.
-    if (bytes > MAX_CHUNK_BYTES) throw new Error("review_file_exceeds_context");
-    if (currentBytes > 0 && currentBytes + 1 + bytes > MAX_CHUNK_BYTES) flush();
-    currentPaths.push(file.filename);
-    currentPieces.push(piece);
-    currentBytes += bytes + (currentPieces.length > 1 ? 1 : 0);
+    const header = "diff --git a/" + file.filename + " b/" + file.filename;
+    const lines = file.patch.split("\n");
+    const groups = [];
+    let section = [], previousHunk = "";
+    const buildDisplay = (part, hunk, index) =>
+      header + "\n" +
+      "# AI09_REVIEW_SLICE " + (index + 1) + " of this file; review only shown additions/deletions\n" +
+      (part[0]?.startsWith("@@") ? "" : hunk + "\n") + part.join("\n");
+    const flush = () => {
+      if (!section.length) return;
+      const hunk = groups.length ? groups.at(-1).endingHunk : previousHunk;
+      const display = buildDisplay(section, hunk || "@@ continuation @@", groups.length);
+      if (Buffer.byteLength(display, "utf8") > MAX_CHUNK_BYTES) throw Error("unreviewable_oversized_line");
+      groups.push({source: section.join("\n"), display, endingHunk:previousHunk});
+      section = [];
+    };
+    for (const line of lines) {
+      const hunk = line.startsWith("@@") ? line : previousHunk;
+      const next = [...section, line];
+      // Reserve overhead for the stable synthetic header and hunk context.
+      const head = section[0]?.startsWith("@@") ? "" : (hunk || "@@ continuation @@") + "\n";
+      const projected = header + "\n# AI09_REVIEW_SLICE " + (groups.length + 1) +
+        " of this file; review only shown additions/deletions\n" + head + next.join("\n");
+      if (Buffer.byteLength(projected, "utf8") > MAX_CHUNK_BYTES && section.length) flush();
+      const one = header + "\n# AI09_REVIEW_SLICE " + (groups.length + 1) +
+        " of this file; review only shown additions/deletions\n" + (line.startsWith("@@") ? "" : (hunk || "@@ continuation @@") + "\n") + line;
+      if (Buffer.byteLength(one, "utf8") > MAX_CHUNK_BYTES) throw Error("unreviewable_oversized_line");
+      section.push(line);
+      if (line.startsWith("@@")) previousHunk = line;
+    }
+    flush();
+    const joined = groups.map(g => g.source).join("\n");
+    if (joined !== file.patch) throw Error("review_source_line_coverage_mismatch");
+    fileParts.push(header + "\n" + joined);
+    for (const group of groups) {
+      chunks.push({paths:[file.filename], patch:group.display, source:group.source,
+        fileIndex:fileParts.length - 1});
+    }
   }
-  flush();
-  if (chunks.length === 0 || chunks.length > MAX_CHUNKS ||
-    chunks.some(chunk => Buffer.byteLength(chunk.patch, "utf8") > MAX_CHUNK_BYTES)) {
-    throw new Error("review_chunk_budget_exhausted");
+  if (!chunks.length || chunks.length > MAX_CHUNKS ||
+      chunks.some(c => Buffer.byteLength(c.patch, "utf8") > MAX_CHUNK_BYTES)) {
+    throw Error("review_chunk_budget_exhausted");
   }
-  // Segments reconstruct the full verified patch byte-for-byte.
-  if (chunks.map(chunk => chunk.patch).join("\n") !== whole.patch) {
-    throw new Error("review_chunk_coverage_mismatch");
+  // Every source byte belongs to exactly one chunk; display-only repeated
+  // context does not count as duplicated review coverage.
+  if (fileParts.join("\n") !== whole.patch ||
+      chunks.length !== compare.files.reduce((sum,_,i) => sum +
+        chunks.filter(c => c.fileIndex === i).length, 0)) {
+    throw Error("review_chunk_coverage_mismatch");
   }
   return { ...whole, chunks };
 }
