@@ -45,6 +45,7 @@ export function createGitHubActionsFailureVerifier({
         throw Error("UNVERIFIED_FAILURE_JOB");
       run=await githubGet("/actions/runs/"+job.run_id);
       if(run?.id!==job.run_id||run.status!=="completed"||
+         run.conclusion!=="failure"||
          run.event!=="pull_request"||run.name!=="CI"||
          run.head_sha!==expected.headSha||
          run.repository?.full_name!==repository ||
