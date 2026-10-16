@@ -150,12 +150,36 @@ jobs:
             import {readFileSync, writeFileSync} from "node:fs";
             import {safeRaceFindingSummaries} from "./scripts/goriq-ai09-race-review.mjs";
             const r=JSON.parse(readFileSync(process.env.RUNNER_TEMP+"/race-ai09-advisory.json","utf8"));
-            const findings=safeRaceFindingSummaries(r);
+            // A BLOCKED model result may stop before every chunk is processed.
+            // Keep only validated, non-actionable operational evidence; never
+            // promote a partial review to full findings, PASS or repair authority.
+            const blocked=r.status==="BLOCKED";
+            if(blocked && !(r.schemaVersion===1 &&
+              r.repository==="haji84/RACE-AI" && r.prNumber===65 &&
+              r.reviewer==="AI-09" && r.evidenceClass==="AI_ASSERTED" &&
+              r.githubApprovalSatisfied===false && r.mergeAuthorized===false &&
+              r.independentGitHubAccountVerified===false &&
+              r.physicalEvidenceVerified===false &&
+              /^[a-f0-9]{40}$/.test(r.headSha??"") &&
+              /^[a-f0-9]{40}$/.test(r.baseSha??"") &&
+              /^[a-f0-9]{64}$/.test(r.patchSha256??"") &&
+              Number.isSafeInteger(r.chunkCount) && r.chunkCount>0 &&
+              Array.isArray(r.chunkOutcomes) &&
+              r.chunkOutcomes.length<r.chunkCount &&
+              r.chunkOutcomes.every((c,i)=>c.sequence===i+1 &&
+                ["NO_ACTIONABLE_FINDINGS","CHANGES_REQUESTED","INCONCLUSIVE","BLOCKED"].includes(c.status)) &&
+              Array.isArray(r.findings) && r.findings.length===0 &&
+              Array.isArray(r.blockers) && r.blockers.length===1 &&
+              r.blockers[0]==="incomplete_model_review")) {
+              throw Error("INVALID_BLOCKED_REVIEW_EVIDENCE");
+            }
+            const findings=blocked?[]:safeRaceFindingSummaries(r);
             const record={
               repository:r.repository,prNumber:r.prNumber,
               headSha:r.headSha,baseSha:r.baseSha,patchSha256:r.patchSha256,
               totalChunks:r.chunkCount,completedChunks:r.chunkOutcomes.length,
               status:r.status,findings,
+              partialModelCoverage:blocked,blockers:blocked?["incomplete_model_review"]:[],
               evidenceClass:"AI_ASSERTED",githubApprovalSatisfied:false,
               mergeAuthorized:false,independentSecurityReviewSatisfied:false
             };
