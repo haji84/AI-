@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { Buffer } from "node:buffer";
 import { createGitHubActionsFailureVerifier,createGitHubReadOnlyActionsClient } from "../scripts/goriq-ai09-actions-proof.mjs";
 
 const A="a".repeat(40),B="b".repeat(40),REPO="haji84/AI-";
