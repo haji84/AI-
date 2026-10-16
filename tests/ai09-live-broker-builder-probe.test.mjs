@@ -188,3 +188,24 @@ test("trusted-main-only owner-probe workflow never grants write scopes",()=>{
   assert.match(script,/OWNER_AUTHENTICATION_NOT_VERIFIED/);
   assert.match(script,/builderAcknowledged:false/);
 });
+
+test("ZBook failure diagnosis records only safe availability and does not alter host state",()=>{
+  const workflow=readFileSync(".github/workflows/goriq-ai09-owner-builder-connect.yml","utf8");
+  const marker="      - name: Diagnose existing local Builder availability without mutation";
+  const i=workflow.indexOf(marker);
+  assert.ok(i>0);
+  const block=workflow.slice(i);
+  assert.match(block,/if: failure\(\)/);
+  assert.match(block,/shell: powershell/);
+  assert.match(block,/Get-NetTCPConnection -LocalPort 8796 -State Listen/);
+  assert.match(block,/tokenFilePresent = \[bool\]\$tokenPresent/);
+  assert.match(block,/loopbackBound = \[bool\]\$loopbackBound/);
+  assert.match(block,/authenticatedHealthStatus = \$healthStatus/);
+  assert.match(block,/AI09_ZBOOK_BUILDER_DIAGNOSTIC=/);
+  assert.match(block,/\$request.Method = 'GET'/);
+  assert.match(block,/AllowAutoRedirect = \$false/);
+  assert.match(block,/builderTaskAcknowledged = \$false/);
+  assert.match(block,/serviceStartedOrModified = \$false/);
+  assert.doesNotMatch(block,/Start-Process|Restart-Service|New-Service|Install-|Remove-Item|Set-Content|Out-File|Invoke-RestMethod|POST|PATCH|PUT/);
+  assert.doesNotMatch(block,/Write-Host \(\$token|Write-Host \(\$env:CODE_BUILDER_LOCAL_TOKEN/);
+});

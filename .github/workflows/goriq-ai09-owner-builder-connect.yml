@@ -93,3 +93,63 @@ jobs:
             Remove-Item Env:CODE_BUILDER_LOCAL_TOKEN -ErrorAction SilentlyContinue
             Remove-Item Env:GORIQ_AI09_CONNECT_MODE -ErrorAction SilentlyContinue
           }
+      - name: Diagnose existing local Builder availability without mutation
+        if: failure()
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          # Inspect only the existing local service. Never install, start,
+          # restart, rotate a token, disclose a token or modify host state.
+          $tokenPath = Join-Path $env:LOCALAPPDATA 'GAIWorker\code-builder\token.txt'
+          $tokenPresent = Test-Path -LiteralPath $tokenPath -PathType Leaf
+          $listenerPresent = $false
+          $loopbackBound = $false
+          try {
+            $listeners = @(Get-NetTCPConnection -LocalPort 8796 -State Listen -ErrorAction SilentlyContinue)
+            $listenerPresent = ($listeners.Count -gt 0)
+            $loopbackBound = (@($listeners | Where-Object { $_.LocalAddress -eq '127.0.0.1' }).Count -gt 0)
+          } catch {
+            # Unsupported or unavailable inspection command is inconclusive.
+          }
+          $healthStatus = 'NOT_CHECKED'
+          if ($listenerPresent -and $tokenPresent) {
+            $token = ''
+            $response = $null
+            try {
+              $token = (Get-Content -LiteralPath $tokenPath -Raw).Trim()
+              if ($token.Length -ge 8) {
+                $request = [System.Net.HttpWebRequest]::Create('http://127.0.0.1:8796/health')
+                $request.Method = 'GET'
+                $request.Timeout = 4000
+                $request.AllowAutoRedirect = $false
+                $request.Headers.Add('Authorization', 'Bearer ' + $token)
+                $response = $request.GetResponse()
+                $healthStatus = 'HTTP_' + [int]$response.StatusCode
+              } else {
+                $healthStatus = 'INVALID_LOCAL_TOKEN_LENGTH'
+              }
+            } catch [System.Net.WebException] {
+              if ($_.Exception.Response) {
+                $healthStatus = 'HTTP_' + [int]$_.Exception.Response.StatusCode
+                $_.Exception.Response.Close()
+              } else {
+                $healthStatus = 'LOCAL_CONNECTION_FAILED'
+              }
+            } catch {
+              $healthStatus = 'LOCAL_PROBE_ERROR'
+            } finally {
+              if ($response) { $response.Close() }
+              $token = ''
+              $request = $null
+            }
+          }
+          $result = [ordered]@{
+            servicePort = 8796
+            tokenFilePresent = [bool]$tokenPresent
+            listenerPresent = [bool]$listenerPresent
+            loopbackBound = [bool]$loopbackBound
+            authenticatedHealthStatus = $healthStatus
+            serviceStartedOrModified = $false
+            builderTaskAcknowledged = $false
+          }
+          Write-Host ('AI09_ZBOOK_BUILDER_DIAGNOSTIC=' + ($result | ConvertTo-Json -Compress))
