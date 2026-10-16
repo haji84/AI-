@@ -10,6 +10,12 @@ Related: Issue #1805. Extend, do not replace, the existing GitHub-hosted AI-09 r
 - The proposal has `correctionTaskCreated:false`, `builderAcknowledged:false`, `writeAuthorized:false`, `githubApprovalSatisfied:false` and `mergeAuthorized:false`. It is not an actual Builder/Debugger acknowledgement, permission grant, verified repair or deployment.
 
 
+## Real-model quality experiment: fail-closed result
+
+The isolated [GitHub-hosted evaluation run #38883743643](https://github.com/haji84/AI-/actions/runs/38883743643) exercised actual `qwen2.5-coder:3b` inference on **six curated synthetic examples** with the proposed evidence-first prompt. It was **FAILURE**, not a qualified benchmark pass: 4/6 expected decisions, two positive defect detections, zero asserted false positives, two benign clean verdicts, and two `INCONCLUSIVE` results (one defective credential logging example and one benign fixed-command example). Conservative confusion matrix: TP2/FP0/TN2/FN1, abstention2; measured synthetic precision 1.0, recall 0.667. These are tiny synthetic data, not validated real PR vulnerability-detection rates.
+
+**Rollback/hold decision:** this new instruction is limited to the read-only experimental benchmark. Do not add it to either operating `scripts/goriq-ai09-ci-review.mjs` or `scripts/goriq-ai09-race-review.mjs` until a broader real case-labeled quality evaluation shows no unacceptable regression. Existing deployed model prompt, source quote anchoring, advisory/commenting and token scopes remain unchanged. Never improve the benchmark score by changing expected labels or treating `INCONCLUSIVE` as `NO_ACTIONABLE_FINDINGS`.
+
 ## Deterministic grounding quality fixture
 Run `node --test tests/ai09-independent-triage.test.mjs`. The fixed `GROUNDING_CORPUS`
 contains 18 labeled source-citation cases. It measures whether a claimed exact
