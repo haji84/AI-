@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { readFileSync, statSync } from "node:fs";
 import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { assertCompleteComparison } from "./goriq-ai09-compare-coverage.mjs";
 import {
   SHA40, validateReviewReceipt, commentMarker, formatReviewComment, compareToPatch,
@@ -50,28 +51,25 @@ async function githubApi(c, apiPath, method = "GET", body) {
   return response.json();
 }
 
-async function run() {
-  const c = config();
-  const stats = statSync(c.artifactPath);
-  if (!stats.isFile() || stats.size < 100 || stats.size > 64 * 1024) throw new Error("invalid_receipt_size");
-  const receipt = JSON.parse(readFileSync(c.artifactPath, "utf8"));
-  if (!validateReviewReceipt(receipt, c)) throw new Error("untrusted_or_stale_review_receipt");
+export async function publishReceipt(c, receipt, githubApiFn = githubApi) {
+  // The public test seam cannot bypass the production receipt schema.
+  if (!c || !validateReviewReceipt(receipt, c)) throw new Error("untrusted_or_stale_review_receipt");
   // Re-establish the CI verdict from GitHub, not from self-hosted output.
   // No review claim is published if the completed run or PR link differs.
-  const ciRun = await githubApi(c, "/actions/runs/" + c.ciRunId);
+  const ciRun = await githubApiFn(c, "/actions/runs/" + c.ciRunId);
   if (!validCompletedCiRun(ciRun, { ...c, ciConclusion: receipt.ciConclusion })) {
     throw new Error("untrusted_ci_verdict_or_pr_link");
   }
-  const pr = await githubApi(c, "/pulls/" + c.prNumber);
+  const pr = await githubApiFn(c, "/pulls/" + c.prNumber);
   if (pr?.state !== "open" || pr?.head?.sha !== c.headSha || pr?.base?.sha !== c.baseSha ||
     pr?.head?.repo?.full_name !== c.repository || pr?.base?.repo?.full_name !== c.repository) {
     console.log("AI09_POST_SKIPPED_STALE_PR");
-    return;
+    return "STALE_PR";
   }
   // A self-hosted runner is not the authority for the patch hash or file list.
   // Recompute them on GitHub-hosted infrastructure directly from trusted GitHub API.
   if (receipt.reviewerResult.status !== "BLOCKED" || receipt.reviewerResult.scope.patchSha256) {
-    const compare = await githubApi(c, "/compare/" + c.baseSha + "..." + c.headSha);
+    const compare = await githubApiFn(c, "/compare/" + c.baseSha + "..." + c.headSha);
     if (compare?.base_commit?.sha !== c.baseSha ||
       compare?.commits?.at(-1)?.sha !== c.headSha) throw new Error("comment_diff_revision_mismatch");
     assertCompleteComparison(compare);
@@ -92,23 +90,34 @@ async function run() {
   }
   const marker = commentMarker(c.prNumber, c.headSha);
   for (let page = 1; page <= 10; page++) {
-    const comments = await githubApi(c, "/issues/" + c.prNumber + "/comments?per_page=100&page=" + page);
+    const comments = await githubApiFn(c, "/issues/" + c.prNumber + "/comments?per_page=100&page=" + page);
     if (!Array.isArray(comments)) throw new Error("invalid_comment_inventory");
     if (comments.some(comment => comment.user?.login === "github-actions[bot]" &&
       typeof comment.body === "string" && comment.body.startsWith(marker))) {
       console.log("AI09_POST_SKIPPED_ALREADY_RECORDED");
-      return;
+      return "ALREADY_RECORDED";
     }
     if (comments.length < 100) break;
     if (page === 10) throw new Error("unbounded_comment_inventory");
   }
   const body = formatReviewComment(receipt);
   // One permitted mutation: a PR Conversation comment. No merge, approval, repo state or file writes.
-  await githubApi(c, "/issues/" + c.prNumber + "/comments", "POST", { body });
+  await githubApiFn(c, "/issues/" + c.prNumber + "/comments", "POST", { body });
   console.log("AI09_REVIEW_COMMENT_RECORDED");
+  return "POSTED";
 }
 
-await run().catch(() => {
-  console.error("AI09_ADVISORY_POST_BLOCKED");
-  process.exitCode = 2;
-});
+async function run() {
+  const c = config();
+  const stats = statSync(c.artifactPath);
+  if (!stats.isFile() || stats.size < 100 || stats.size > 64 * 1024) throw new Error("invalid_receipt_size");
+  const receipt = JSON.parse(readFileSync(c.artifactPath, "utf8"));
+  return publishReceipt(c, receipt);
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  await run().catch(() => {
+    console.error("AI09_ADVISORY_POST_BLOCKED");
+    process.exitCode = 2;
+  });
+}
