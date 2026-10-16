@@ -143,8 +143,29 @@ jobs:
               $request = $null
             }
           }
+          # Read only Task Scheduler metadata from the existing Builder install.
+          # Do not inspect or print task Action.Arguments: the installed launcher
+          # contains an existing bearer token and workspace configuration.
+          $taskName = 'GAI Code Builder Worker'
+          $taskState = 'UNAVAILABLE'
+          $taskLastResult = $null
+          try {
+            $registeredTask = Get-ScheduledTask -TaskName $taskName -ErrorAction Stop
+            $taskState = [string]$registeredTask.State
+            $taskInfo = Get-ScheduledTaskInfo -TaskName $taskName -ErrorAction Stop
+            $taskLastResult = [int]$taskInfo.LastTaskResult
+          } catch {
+            # Unregistered or inaccessible task is a read-only diagnostic HOLD.
+          }
+          $root = Join-Path $env:LOCALAPPDATA 'GAIWorker\code-builder'
+          $launcherPresent = Test-Path -LiteralPath (Join-Path $root 'run-code-builder.ps1') -PathType Leaf
+          $serviceSourcePresent = Test-Path -LiteralPath (Join-Path $root 'code-builder-worker-service.ts') -PathType Leaf
           $result = [ordered]@{
             servicePort = 8796
+            scheduledTaskState = $taskState
+            scheduledTaskLastResult = $taskLastResult
+            launcherPresent = [bool]$launcherPresent
+            installedServiceSourcePresent = [bool]$serviceSourcePresent
             tokenFilePresent = [bool]$tokenPresent
             listenerPresent = [bool]$listenerPresent
             loopbackBound = [bool]$loopbackBound
