@@ -158,13 +158,20 @@ export function safeRaceFindingSummaries(review) {
       !SHA40.test(review.headSha ?? "") || !SHA40.test(review.baseSha ?? "") ||
       !Array.isArray(review.reviewedPaths) || !Array.isArray(review.findings) ||
       !Array.isArray(review.chunkOutcomes) || !Number.isSafeInteger(review.chunkCount) ||
+      !Array.isArray(review.findingGrounding) || review.findingGrounding.length !== review.findings.length ||
       review.findings.length > 20 || review.chunkOutcomes?.length !== review.chunkCount ||
       !review.chunkOutcomes.every((c,i)=>c.sequence === i+1 &&
         ["NO_ACTIONABLE_FINDINGS","CHANGES_REQUESTED","INCONCLUSIVE"].includes(c.status)) ||
       !["NO_ACTIONABLE_FINDINGS","CHANGES_REQUESTED","INCONCLUSIVE"].includes(review.status)) {
     throw Error("INCOMPLETE_OR_UNTRUSTED_AI09_FINDINGS");
   }
-  return review.findings.map(f => {
+  return review.findings.map((f,index) => {
+    const grounding=review.findingGrounding[index];
+    if (!grounding || grounding.path !== f.path || grounding.line !== (f.line??null) ||
+        !["CODE_QUOTE_MATCHED","MISSING_CODE_QUOTE","INVALID_CHANGED_LINE","INVALID_PATH"].includes(grounding.status) ||
+        grounding.issueConfirmed !== false || grounding.machineGrounded !== (grounding.status === "CODE_QUOTE_MATCHED")) {
+      throw Error("INVALID_GROUNDING_RECEIPT");
+    }
     if (!review.reviewedPaths.includes(f.path) || !["low","medium","high","critical"].includes(f.severity) ||
         (f.line != null && (!Number.isSafeInteger(f.line) || f.line < 1 || f.line > 500000))) {
       throw Error("INVALID_AI09_FINDING_SCOPE");
@@ -178,6 +185,9 @@ export function safeRaceFindingSummaries(review) {
       evidence:safeFindingText(f.evidence,800),
       proposedFix:safeFindingText(f.proposedFix,800),
       evidenceClass:"AI_ASSERTED",
+      evidenceAnchorStatus:grounding.status,
+      machineGrounded:grounding.machineGrounded,
+      issueConfirmed:false,
       githubApprovalSatisfied:false,
       mergeAuthorized:false
     };
