@@ -8,6 +8,15 @@ const SHA40 = /^[a-f0-9]{40}$/;
 const SHA256 = /^[a-f0-9]{64}$/;
 const REF = /^[A-Za-z0-9_:/.-]{8,128}$/;
 
+export const EVIDENCE_FIRST_MODEL_INSTRUCTIONS = [
+  "For a finding, cite exact changed file and added new-side line number.",
+  "Quote 12 or more consecutive characters of code from the cited added line.",
+  "Explain the concrete bug and a reproducible failure case.",
+  "Do not infer defects from generic warnings or a prompt delimiter.",
+  "If evidence is uncertain, return INCONCLUSIVE instead of a guessed finding.",
+  "These code citations are advisory and do not establish an approved defect.",
+].join("\n");
+
 function safePath(path) {
   return typeof path === "string" && path.length > 0 && path.length <= 250 &&
     !path.startsWith("/") && !path.startsWith("-") &&
