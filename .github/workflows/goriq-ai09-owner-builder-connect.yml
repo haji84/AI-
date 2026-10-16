@@ -160,6 +160,95 @@ jobs:
           $root = Join-Path $env:LOCALAPPDATA 'GAIWorker\code-builder'
           $launcherPresent = Test-Path -LiteralPath (Join-Path $root 'run-code-builder.ps1') -PathType Leaf
           $serviceSourcePresent = Test-Path -LiteralPath (Join-Path $root 'code-builder-worker-service.ts') -PathType Leaf
+
+          # Existing-task diagnostics after the owner-authorized one-shot
+          # failed. Only emit trusted booleans. Do not read or print the
+          # token-bearing launcher, task arguments or worker log contents.
+          $nodeOnRunnerPath = [bool](Get-Command node -ErrorAction SilentlyContinue)
+          $policyPresent = Test-Path -LiteralPath (
+            Join-Path $env:LOCALAPPDATA 'GAIWorker\src\orchestrator\test-contract-evolution.ts'
+          ) -PathType Leaf
+          $taskActionMatchesLauncher = $false
+          if ($registeredTask -and @($registeredTask.Actions).Count -eq 1) {
+            $taskAction = $registeredTask.Actions[0]
+            $launcher = Join-Path $root 'run-code-builder.ps1'
+            $taskActionMatchesLauncher = (
+              $taskAction.Execute -match '(?i)(^|[\\/])powershell\.exe
+          # Read bounded existing local worker logs but emit ONLY static,
+          # allowlisted error categories; never output raw lines, tokens,
+          # stack traces, process arguments or workspace data.
+          $logErrorClass = 'NO_DIAGNOSTIC_LOG'
+          $knownSignatures = @(
+            @{ pattern='ERR_MODULE_NOT_FOUND|Cannot find module'; category='MODULE_NOT_FOUND' },
+            @{ pattern='ERR_UNKNOWN_FILE_EXTENSION|ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX'; category='NODE_TYPESCRIPT_RUNTIME_ERROR' },
+            @{ pattern='EADDRINUSE|EACCES.*listen'; category='LOCAL_BIND_ERROR' },
+            @{ pattern='is not recognized as the name of a cmdlet|CommandNotFoundException'; category='LAUNCHER_COMMAND_NOT_FOUND' },
+            @{ pattern='Cannot find path|ENOENT'; category='LOCAL_PATH_NOT_FOUND' },
+            @{ pattern='CODE_BUILDER_TOKEN is required'; category='WORKER_TOKEN_MISSING_IN_LAUNCHER' },
+            @{ pattern='SyntaxError|TypeError|ReferenceError'; category='WORKER_RUNTIME_EXCEPTION' }
+          )
+          foreach ($logName in @('worker.stderr.log','worker.log')) {
+            $logFile = Join-Path $root $logName
+            if (-not (Test-Path -LiteralPath $logFile -PathType Leaf)) { continue }
+            $logErrorClass = 'UNCLASSIFIED_EXISTING_LOG'
+            try {
+              $lines = @(Get-Content -LiteralPath $logFile -Tail 80 -ErrorAction Stop)
+              $sample = $lines -join [Environment]::NewLine
+              foreach ($signature in $knownSignatures) {
+                if ($sample -match $signature.pattern) {
+                  $logErrorClass = $signature.category
+                  break
+                }
+              }
+            } catch {
+              $logErrorClass = 'LOG_READ_UNAVAILABLE'
+            } finally {
+              $sample = $null
+              $lines = $null
+            }
+            if ($logErrorClass -ne 'UNCLASSIFIED_EXISTING_LOG') { break }
+          }
+          $result = [ordered]@{
+            existingLogErrorClass = $logErrorClass
+            servicePort = 8796
+            scheduledTaskState = $taskState
+            scheduledTaskLastResult = $taskLastResult
+            launcherPresent = [bool]$launcherPresent
+            installedServiceSourcePresent = [bool]$serviceSourcePresent
+            nodeAvailableOnRunnerPath = [bool]$nodeOnRunnerPath
+            installedPolicyPresent = [bool]$policyPresent
+            taskActionMatchesExistingLauncher = [bool]$taskActionMatchesLauncher
+            installedServiceEqualsCurrentMain = [bool]$serviceMatchesTrustedMain
+            lastTaskRunWithinTenMinutes = [bool]$lastTaskRunWithinTenMinutes
+            tokenFilePresent = [bool]$tokenPresent
+            listenerPresent = [bool]$listenerPresent
+            loopbackBound = [bool]$loopbackBound
+            authenticatedHealthStatus = $healthStatus
+            serviceStartedOrModified = $false
+            builderTaskAcknowledged = $false
+          }
+          Write-Host ('AI09_ZBOOK_BUILDER_DIAGNOSTIC=' + ($result | ConvertTo-Json -Compress))
+ -and
+              $taskAction.Arguments -like ('*' + '-File "' + $launcher + '"')
+            )
+          }
+          $serviceMatchesTrustedMain = $false
+          if ($serviceSourcePresent) {
+            $mainService = Join-Path $env:GITHUB_WORKSPACE 'scripts\code-builder-worker-service.ts'
+            if (Test-Path -LiteralPath $mainService -PathType Leaf) {
+              $serviceMatchesTrustedMain = (
+                (Get-FileHash -LiteralPath $mainService -Algorithm SHA256).Hash -eq
+                (Get-FileHash -LiteralPath (Join-Path $root 'code-builder-worker-service.ts') -Algorithm SHA256).Hash
+              )
+            }
+          }
+          $lastTaskRunWithinTenMinutes = $false
+          if ($taskInfo -and $taskInfo.LastRunTime -is [datetime]) {
+            $lastTaskRunWithinTenMinutes = (
+              $taskInfo.LastRunTime.ToUniversalTime() -gt
+              (Get-Date).ToUniversalTime().AddMinutes(-10)
+            )
+          }
           # Read bounded existing local worker logs but emit ONLY static,
           # allowlisted error categories; never output raw lines, tokens,
           # stack traces, process arguments or workspace data.
