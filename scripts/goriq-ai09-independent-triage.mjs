@@ -96,7 +96,8 @@ export async function prepareVerifiedRepairProposal({
   const builder = proof?.builderActor;
   if (proof?.authenticated !== true || proof?.independent !== true ||
       proof?.reproduced !== true || !["MACHINE_VERIFIED", "HUMAN_VERIFIED"].includes(proof?.evidenceClass) ||
-      !REF.test(proof?.evidenceId ?? "") || !SHA256.test(proof?.evidenceSha256 ?? "") ||
+      !REF.test(proof?.evidenceId ?? "") || proof.evidenceId !== verificationRef ||
+      !SHA256.test(proof?.evidenceSha256 ?? "") ||
       proof?.repository !== repository || proof?.prNumber !== prNumber ||
       proof?.headSha !== scope.headSha || proof?.baseSha !== scope.baseSha ||
       proof?.patchSha256 !== patchDigest ||
