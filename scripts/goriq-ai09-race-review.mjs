@@ -133,8 +133,24 @@ async function main() {
       body:JSON.stringify({model:"qwen2.5-coder:3b",stream:false,format:"json",
         options:{temperature:0,num_ctx:16384,num_predict:512},messages:[{role:"user",content:prompt}]})
     });
-    if(!response.ok)throw Error("LOCAL_MODEL_UNAVAILABLE");
-    return (await response.json())?.message?.content;
+    if(!response.ok){
+      console.log("AI09_MODEL_HTTP_STATUS="+response.status);
+      throw Error("LOCAL_MODEL_UNAVAILABLE");
+    }
+    const payload=await response.json();
+    const content=payload?.message?.content;
+    let parsed=null;
+    try { parsed=JSON.parse(content); } catch { /* no model text is logged */ }
+    const safeVerdict=["NO_FINDINGS","CHANGES_REQUESTED","INCONCLUSIVE"].includes(parsed?.verdict) ? parsed.verdict : "INVALID";
+    console.log("AI09_MODEL_OUTPUT_METRICS="+JSON.stringify({
+      doneReason:["stop","length"].includes(payload?.done_reason) ? payload.done_reason : "unknown",
+      promptTokens:Number.isSafeInteger(payload?.prompt_eval_count)?payload.prompt_eval_count:null,
+      outputTokens:Number.isSafeInteger(payload?.eval_count)?payload.eval_count:null,
+      responseBytes:typeof content==="string"?Buffer.byteLength(content,"utf8"):0,
+      parsedAsJson:!!parsed, safeVerdict,
+      findingsCount:Array.isArray(parsed?.findings)?parsed.findings.length:null
+    }));
+    return content;
   };
   const review=await reviewRacePull({number,head,base,api,infer});
   // Findings are advisory. Never turn them into a GitHub APPROVED review.
