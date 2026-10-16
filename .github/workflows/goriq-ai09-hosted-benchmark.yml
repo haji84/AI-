@@ -19,7 +19,7 @@ concurrency:
 jobs:
   synthetic-local-model-probe:
     if: >-
-      github.event.pull_request.number == 1799 &&
+      github.event.pull_request.number == 1806 &&
       github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
     timeout-minutes: 48
@@ -203,3 +203,36 @@ jobs:
           echo '### AI-09 GitHub-hosted experimental benchmark' >> "$GITHUB_STEP_SUMMARY"
           echo 'Synthetic benchmark plus public RACE PR diff, local model only; repo-scoped read-only API token is never sent to the model.' >> "$GITHUB_STEP_SUMMARY"
           echo 'No review approval, deployment, merge, automatic Builder handoff, user-secret access, or PC fallback is authorized by this run.' >> "$GITHUB_STEP_SUMMARY"
+
+  raw-gh-failure-log-origin-probe:
+    # Read-only, uncredentialed and independent of the Ollama benchmark result.
+    if: >-
+      github.event.pull_request.number == 1806 &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout exact same-repo smoke source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.19.0"
+      - name: Re-download immutable historical GitHub CI raw logs twice, compare SHA-256
+        env:
+          # Existing scoped job token, no added permission, never redirected.
+          GITHUB_TOKEN: ${{ github.token }}
+          GORIQ_AI09_RAW_PROOF_PATH: ${{ runner.temp }}/ai09-raw-log-provenance.json
+        run: node scripts/goriq-ai09-public-raw-log-probe.mjs
+      - name: Upload machine evidence receipt only, never raw CI log or tokens
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai09-github-raw-log-provenance
+          path: ${{ runner.temp }}/ai09-raw-log-provenance.json
+          if-no-files-found: warn
+          retention-days: 14

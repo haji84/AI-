@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {runProbe, summarize, scenarios} from "../scripts/goriq-ai09-hosted-benchmark.mjs";
 
 test("the benchmark includes safe code, sensitive logging and command injection", () => {
- assert.deepEqual(scenarios.map(s=>s.id),["SAFE_ADDITION","SENSITIVE_LOGGING","COMMAND_INJECTION"]);
+ assert.deepEqual(scenarios.map(s=>s.id),["SAFE_ADDITION","SENSITIVE_LOGGING","COMMAND_INJECTION","BENIGN_VALIDATION","BENIGN_FIXED_EXEC","UNSAFE_DYNAMIC_EVAL"]);
  assert.ok(scenarios.every(s=>s.patch.length<4096 && s.path.startsWith("src/")));
 });
 test("summaries never authorize merge or mistake partial coverage for success",()=>{
@@ -12,9 +12,23 @@ test("summaries never authorize merge or mistake partial coverage for success",(
  assert.equal(s.passesThisProbe,true);
  assert.equal(s.mergeAuthorized,false);
  assert.equal(s.githubApprovalSatisfied,false);
- assert.equal(s.total,3);
+ assert.equal(s.total,6);
+ assert.deepEqual([s.truePositive,s.falsePositive,s.trueNegative,s.falseNegative],[3,0,3,0]);
+ assert.equal(s.inconclusiveOrBlocked,0);
+ assert.equal(s.precision,1);
+ assert.equal(s.recall,1);
+ assert.equal(s.specificity,1);
+ assert.equal(s.testSet.includes("synthetic"),true);
+ assert.equal(s.evaluation,"small_synthetic_six_case_probe_not_real_world_detection_certification");
  assert.equal(s.maxObservedUsedMemMiB,100);
  assert.equal(summarize(xs.map((v,i)=>i===1?{...v,status:"INCONCLUSIVE"}:v)).passesThisProbe,false);
+ const abstained=summarize(xs.map((v,i)=>i===1?{...v,status:"INCONCLUSIVE"}:v));
+ assert.equal(abstained.inconclusiveOrBlocked,1);
+ assert.equal(abstained.falseNegative,1);
+ const falsePositive=summarize(xs.map((v,i)=>i===3?{...v,status:"CHANGES_REQUESTED"}:v));
+ assert.equal(falsePositive.falsePositive,1);
+ assert.equal(falsePositive.precision,0.75);
+ assert.equal(falsePositive.passesThisProbe,false);
  assert.throws(()=>summarize(xs.slice(1)),/missing_scenario/);
 });
 test("actual existing AI-09 review parser is exercised on mocked inference, no remote model",async()=>{
