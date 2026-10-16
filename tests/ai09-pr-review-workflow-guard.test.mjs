@@ -47,7 +47,7 @@ test("Ollama is loopback, binary SHA256-pinned, and one free model",()=>{
  assert.match(s,/timeout 480s ollama pull qwen2\.5-coder:3b/);
  assert.match(s,/OLLAMA_NUM_PARALLEL:\s*"1"/);
  assert.match(s,/OLLAMA_MAX_LOADED_MODELS:\s*"1"/);
- assert.match(s,/timeout-minutes:\s*50/);
+ assert.match(s,/timeout-minutes:\s*70/);
 });
 test("hosted publisher alone may post comments with permission scoped to one job",()=>{
  const s=job("comment");
