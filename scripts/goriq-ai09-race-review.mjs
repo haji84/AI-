@@ -32,6 +32,47 @@ export function requireRaceChecks(checks, head) {
   }
 }
 
+export function assessFindingAnchors(compare, findings) {
+  if (!Array.isArray(compare?.files) || !Array.isArray(findings)) throw Error("INVALID_GROUNDING_INPUT");
+  const changed = new Map();
+  for (const file of compare.files) {
+    if (!file || typeof file.filename !== "string" || typeof file.patch !== "string") {
+      throw Error("INVALID_GROUNDING_FILE");
+    }
+    const lines = new Map();
+    let nextLine = null;
+    for (const line of file.patch.split("\n")) {
+      const hunk = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(line);
+      if (hunk) {nextLine=Number(hunk[1]);continue;}
+      if (nextLine === null)continue;
+      if (line.startsWith("+")) {lines.set(nextLine,line.slice(1));nextLine++;}
+      else if (line.startsWith(" "))nextLine++;
+      else if (line.startsWith("-") || line.startsWith("\\"))continue;
+      else throw Error("INVALID_GROUNDING_HUNK");
+    }
+    changed.set(file.filename, lines);
+  }
+  return findings.map(finding => {
+    const changedLines = changed.get(finding.path);
+    let status = "UNVERIFIED";
+    if (!changedLines)status="INVALID_PATH";
+    else if (!Number.isSafeInteger(finding.line) || !changedLines.has(finding.line)) status="INVALID_CHANGED_LINE";
+    else {
+      // A purported vulnerability is not grounded just because the file exists.
+      // Match a meaningful literal from the actual ADDED code; source patch is
+      // trusted GitHub diff input while model claims are untrusted suggestions.
+      const line=changedLines.get(finding.line).trim();
+      const evidence=typeof finding.evidence === "string" ? finding.evidence : "";
+      const fragments=line.match(/[\w.$()[\]{}=;:,+*-]{12,}/g)||[];
+      if (fragments.some(part=>evidence.includes(part))) status="CODE_QUOTE_MATCHED";
+      else status="MISSING_CODE_QUOTE";
+    }
+    return {path:finding.path,line:finding.line??null,status,
+      machineGrounded:status==="CODE_QUOTE_MATCHED",
+      issueConfirmed:false};
+  });
+}
+
 export async function reviewRacePull({number,head,base,api,infer}) {
   if (!Number.isSafeInteger(number) || number < 1 || !SHA40.test(head) ||
       !SHA40.test(base) || head === base || typeof api !== "function" ||
@@ -69,6 +110,7 @@ export async function reviewRacePull({number,head,base,api,infer}) {
     if(report.status === "BLOCKED")break;
   }
   const result = consolidateChunkReviews(reports,scope,prepared.chunks);
+  const findingGrounding=assessFindingAnchors(compare,result.findings);
   const second=await api("/pulls/"+number);
   assertPr(second,number,head,base);
   if (result.status === "NO_ACTIONABLE_FINDINGS" &&
@@ -80,6 +122,7 @@ export async function reviewRacePull({number,head,base,api,infer}) {
     status:result.status,findings:result.findings,blockers:result.blockers,
     patchSha256:prepared.patchSha256,
     reviewedPaths:prepared.paths,chunkCount:prepared.chunks.length,
+    findingGrounding,
     chunkOutcomes,
     modelProvider:"loopback-only",evidenceClass:"AI_ASSERTED",
     physicalEvidenceVerified:false,githubApprovalSatisfied:false,
