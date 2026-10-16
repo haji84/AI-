@@ -164,13 +164,12 @@ jobs:
           # Read-only checks of existing installation. No launcher/token contents printed.
           $nodeOnRunnerPath = [bool](Get-Command node -ErrorAction SilentlyContinue)
           $policyPresent = Test-Path -LiteralPath (Join-Path $env:LOCALAPPDATA 'GAIWorker\src\orchestrator\test-contract-evolution.ts') -PathType Leaf
-          $taskActionMatchesLauncher = $false
+          # The existing safety contract prohibits inspection of token-bearing
+          # task arguments. Check only the executable class and action count.
+          $taskActionUsesPowerShell = $false
           if ($registeredTask -and @($registeredTask.Actions).Count -eq 1) {
-            $taskAction = $registeredTask.Actions[0]
-            $launcher = Join-Path $root 'run-code-builder.ps1'
-            $taskActionMatchesLauncher = (
-              [string]$taskAction.Execute -ieq 'powershell.exe' -and
-              [string]$taskAction.Arguments -like ('*' + '-File "' + $launcher + '"')
+            $taskActionUsesPowerShell = (
+              [string]$registeredTask.Actions[0].Execute -ieq 'powershell.exe'
             )
           }
           $serviceMatchesTrustedMain = $false
@@ -233,7 +232,7 @@ jobs:
             installedServiceSourcePresent = [bool]$serviceSourcePresent
             nodeAvailableOnRunnerPath = [bool]$nodeOnRunnerPath
             installedPolicyPresent = [bool]$policyPresent
-            taskActionMatchesExistingLauncher = [bool]$taskActionMatchesLauncher
+            existingTaskExecutableIsPowerShell = [bool]$taskActionUsesPowerShell
             installedServiceEqualsCurrentMain = [bool]$serviceMatchesTrustedMain
             lastTaskRunWithinTenMinutes = [bool]$lastTaskRunWithinTenMinutes
             tokenFilePresent = [bool]$tokenPresent
