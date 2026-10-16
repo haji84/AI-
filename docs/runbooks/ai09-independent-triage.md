@@ -76,6 +76,59 @@ An implementation of the trusted verifier adapter **must** obtain authenticated 
 
 The adapter must only be constructed by the trusted controller, **never** by AI-09 model output. The caller must provide the actual, fully validated GitHub comparison patch. Do not execute code, commands or tests suggested by an untrusted model while evaluating an allegation.
 
+
+## GitHub Actions raw failure-log verification (Issue #1805)
+
+`scripts/goriq-ai09-actions-proof.mjs` adds a **read-only** exact-head log
+provenance gate. Human review `reproductionCaseRef` must use
+`gh:job:<numeric-id>` and `reproductionSha256` must be the SHA-256 of
+the raw, unmodified job-log bytes. The trusted verifier independently reads:
+
+1. GitHub REST `GET /actions/jobs/<id>`. Job must be completed FAILURE on the exact PR head.
+2. GitHub REST `GET /actions/runs/<run-id>`. The run must be a completed
+   pull-request `CI` workflow, exact head/repository, linked PR number,
+   head SHA and base SHA, with the same repository identity.
+3. GitHub REST `GET /actions/jobs/<id>/logs`. Fetch complete raw log bytes,
+   bounded to 2 MiB, and recompute SHA-256 before accepting the human statement.
+
+GitHub-supplied log downloads may redirect to signed GitHub-managed storage.
+The client uses a separate unauthenticated HTTPS GET for approved storage
+hosts and never forwards the GitHub token to redirected hosts. A second
+redirect, unknown endpoint/host, missing/error log, stale head, successful
+job, incomplete PR link or digest mismatch rejects the proof.
+
+The independently authenticated **GitHub human review** is necessary but
+not sufficient: `createGitHubHumanReproductionVerifier` now also requires a
+trusted `verifyReproductionEvidence` callback. If a raw log is missing or
+its digest differs, even an allowlisted review author cannot promote an
+AI-09 allegation. The combined result proves job-log provenance plus the
+human's attestation. It does **not** by itself establish that the failing
+test substantively proves the model's particular alleged defect. The
+failure mechanism must be independently interpreted or reproduced.
+
+The production wiring requires an authenticated read-only token within the
+existing permissions and a trusted controller to instantiate both adapters.
+This PR does not add a token or workflow permission. Unit-test HTTP fixtures
+are **not a live GitHub Actions network acceptance**.
+
+## GORIQ Builder receipt evidence
+
+`scripts/goriq-ai09-builder-receipt.mjs` only **reads** a trusted
+`WorkStateStore.get(goalId)` and a separate authenticated Builder receipt
+source. The Goal Controller must already have created a real child work item
+with exact task identity, active status and one allowed path. The trusted
+receipt must match goal ID, task/work-item ID, revision SHA, patch digest,
+verifier evidence ID, receiving Builder identity and receipt timestamp.
+Only then is the result `BUILDER_RECEIPT_MATCHED`. It **never grants**
+write, merge, deploy or security policy authority.
+
+This mirrors the existing
+`src/orchestrator/work-state.ts` `WorkStateStore` contract and its
+`CompassWorkStateStoreAdapter`. It does not independently insert or
+acknowledge a work item. Real acceptance requires a resident GORIQ
+Goal Controller with a persistent state and an authenticated receiving
+Builder agent. The present mocks cannot stand in for that real system.
+
 ## Next gates
 1. Establish a measured independent evaluation set with labeled true/false defects, changed-line grounding and replayable regression evidence. Track false-positive and missed-defect rates separately. The current small synthetic/model pilots are not proof of real-world detection accuracy.
 2. Implement/authenticate the separate verifier provider and demonstrate genuine reproduction, including negative/stale/forged cases.
