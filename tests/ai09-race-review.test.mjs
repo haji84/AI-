@@ -134,7 +134,7 @@ test("real AI-09 findings are safely printable only after all chunks finish",()=
    {chunkOutcomes:[{sequence:2,status:"CHANGES_REQUESTED"},r.chunkOutcomes[1]]},
    {githubApprovalSatisfied:true},
    {status:"BLOCKED"},
-   {findings:[{...r.findings[0],summary:"github_pat_12345678901234567890"}]},
+   {findings:[{...r.findings[0],summary:["git","hub_pat_","12345678901234567890"].join("")}]},
    {findings:[{...r.findings[0],path:"../../out-of-scope"}]},
    {findings:[{...r.findings[0],evidence:"hello\nworld"}]}
  ]) assert.throws(()=>safeRaceFindingSummaries({...r,...change}));
