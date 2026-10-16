@@ -110,14 +110,14 @@ export async function probeLiveGoriqConnection({
   if(goalId!==undefined) {
     try {run=await read(BROKER+"/api/jarvis/admin/work/"+goalId,ownerToken);}
     catch {return hold("GOAL_RUN_NOT_AUTHENTICATED_OR_FOUND",{
-      brokerAuthenticated:true,builderAuthenticated:true,
-      builderIdentity:boundedIdentity(builder.workerId),
+      brokerAuthenticated:true,builderAuthenticated:mode!=="broker",
+      builderIdentity:builder?boundedIdentity(builder.workerId):null,
     });}
     if(run?.run?.goalId!==goalId||
        typeof run?.run?.phase!=="string"||
        !["QUEUED","RUNNING","VERIFYING","RECOVERING","BLOCKED","HUMAN_GATE","COMPLETED","FAILED"].includes(run.run.phase))
       return hold("UNTRUSTED_GOAL_RUN_RECEIPT",{
-        brokerAuthenticated:true,builderAuthenticated:true,
+        brokerAuthenticated:true,builderAuthenticated:mode!=="broker",
       });
   }
   return {
