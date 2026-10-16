@@ -168,6 +168,13 @@ test("GitHub API failures never log or return token or remote error body",async(
     repository:"../different",token:"valid_token_123",
   }),/INVALID_GITHUB_READONLY_CLIENT_CONFIG/);
   assert.throws(()=>createGitHubReadOnlyPullReviewClient({
+    repository:"haji84/..",token:"valid_token_123",
+  }),/INVALID_GITHUB_READONLY_CLIENT_CONFIG/);
+  assert.throws(()=>createGitHubHumanReproductionVerifier({
+    repository:"haji84/..",builderActor:"builder-1",
+    allowedReviewerLogins:["reviewer-1"],githubGet:fixture().githubGet,
+  }),/INVALID_TRUSTED_VERIFIER_CONFIG/);
+  assert.throws(()=>createGitHubReadOnlyPullReviewClient({
     repository:REPO,token:"",
   }),/INVALID_GITHUB_READONLY_CLIENT_CONFIG/);
 });
