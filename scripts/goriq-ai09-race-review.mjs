@@ -103,7 +103,7 @@ function safeFindingText(value, max) {
     return (n < 32 && ![9,10,13].includes(n)) || n === 127;
   });
   if (hasBadControl || SAFE_LEAK.test(value)) return REDACTED;
-  return value.replace(/[\\r\\n\\t]/g," ").replace(/@/g,"@\\u200b")
+  return value.replace(/[\r\n\t]/g," ").replace(/@/g,"@\u200b")
     .replace(/</g,"&lt;").replace(/>/g,"&gt;").trim();
 }
 export function safeRaceFindingSummaries(review) {
