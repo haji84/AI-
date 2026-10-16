@@ -33,17 +33,20 @@ function boundedIdentity(value) {
 
 export async function probeLiveGoriqConnection({
   brokerUrl = BROKER, builderUrl = BUILDER,
-  ownerToken, builderToken, goalId,
+  ownerToken, builderToken, goalId, mode = "combined",
   fetchImpl = fetch,
 } = {}) {
   if(!onlyLoopback(brokerUrl,BROKER)||
      !onlyLoopback(builderUrl,BUILDER)||
      typeof fetchImpl!=="function")
     return hold("ONLY_EXACT_LOOPBACK_ENDPOINTS_ALLOWED");
-  if(typeof ownerToken!=="string"||ownerToken.trim().length<8||
-     typeof builderToken!=="string"||builderToken.trim().length<8)
-    return hold("EXISTING_OWNER_AND_BUILDER_CREDENTIALS_REQUIRED");
-  if(goalId!==undefined && (!GOAL_ID.test(goalId)||goalId.includes("..")))
+  if(!["combined","broker","builder"].includes(mode))
+    return hold("UNSUPPORTED_CONNECTION_SCOPE");
+  if((mode!=="builder" && (typeof ownerToken!=="string"||ownerToken.trim().length<8))||
+     (mode!=="broker" && (typeof builderToken!=="string"||builderToken.trim().length<8)))
+    return hold("EXISTING_SCOPED_CREDENTIALS_REQUIRED");
+  if(goalId!==undefined && (mode==="builder"||
+     !GOAL_ID.test(goalId)||goalId.includes("..")))
     return hold("INVALID_GOAL_IDENTIFIER");
 
   async function read(url,token) {
@@ -68,6 +71,7 @@ export async function probeLiveGoriqConnection({
   // Do not send tokens beyond local loopback. The Builder health request is
   // authenticated, but an HTTP response is only a service observation, NOT
   // a cryptographic proof of accepted work.
+  if(mode!=="builder") {
   let broker;
   try {broker=await read(BROKER+"/health",ownerToken);}
   catch {return hold("BROKER_NOT_REACHABLE_OR_AUTHENTICATED");}
@@ -86,17 +90,21 @@ export async function probeLiveGoriqConnection({
   if(!Array.isArray(ownerProof?.events))
     return hold("UNEXPECTED_OWNER_AUTH_RESPONSE");
 
+  }
+
   let builder;
+  if(mode!=="broker") {
   try {builder=await read(BUILDER+"/health",builderToken);}
   catch {return hold("BUILDER_NOT_REACHABLE_OR_AUTHENTICATED",{
-    brokerAuthenticated:true,
+    brokerAuthenticated:mode!=="builder",
   });}
   if(builder?.ok!==true||builder?.service!=="code-builder-worker"||
      !Array.isArray(builder.capabilities)||
      !builder.capabilities.includes("code-builder"))
     return hold("BUILDER_NOT_AVAILABLE",{
-      brokerAuthenticated:true,
+      brokerAuthenticated:mode!=="builder",
     });
+  }
 
   let run=null;
   if(goalId!==undefined) {
@@ -113,10 +121,12 @@ export async function probeLiveGoriqConnection({
       });
   }
   return {
-    status:"READONLY_CONNECTION_CONFIRMED",
-    brokerAuthenticated:true,builderAuthenticated:true,
-    builderIdentity:boundedIdentity(builder.workerId),
-    builderCapabilityPresent:true,
+    status:mode==="broker"?"BROKER_AUTHENTICATED_READONLY":
+      mode==="builder"?"BUILDER_AUTHENTICATED_READONLY":"READONLY_CONNECTION_CONFIRMED",
+    brokerAuthenticated:mode!=="builder",
+    builderAuthenticated:mode!=="broker",
+    builderIdentity:builder?boundedIdentity(builder.workerId):null,
+    builderCapabilityPresent:mode!=="broker",
     goalWorkRunObserved:run!==null,
     goalWorkRunPhase:run?.run?.phase??null,
     // The Broker /work/:goalId endpoint does NOT furnish an authenticated
@@ -133,9 +143,11 @@ if(process.argv[1]?.endsWith("goriq-ai09-live-broker-builder-probe.mjs")){
     ownerToken:process.env.JARVIS_OWNER_TOKEN,
     builderToken:process.env.CODE_BUILDER_LOCAL_TOKEN||process.env.CODE_BUILDER_TOKEN,
     goalId:process.env.GORIQ_AI09_GOAL_ID||undefined,
+    mode:process.env.GORIQ_AI09_CONNECT_MODE||"combined",
   }).then(result=>{
     console.log("AI09_LIVE_CONNECTION="+JSON.stringify(result));
-    if(result.status!=="READONLY_CONNECTION_CONFIRMED")process.exitCode=2;
+    if(!["READONLY_CONNECTION_CONFIRMED","BROKER_AUTHENTICATED_READONLY",
+      "BUILDER_AUTHENTICATED_READONLY"].includes(result.status))process.exitCode=2;
   }).catch(()=>{
     console.log("AI09_LIVE_CONNECTION="+JSON.stringify(hold("UNEXPECTED_PROBE_FAILURE")));
     process.exitCode=2;
