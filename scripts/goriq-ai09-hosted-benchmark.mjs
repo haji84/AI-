@@ -4,6 +4,7 @@
 import { readFileSync } from "node:fs";
 import { performance } from "node:perf_hooks";
 import { reviewLocalPatch } from "../src/orchestrator/ai09-local-reviewer.mjs";
+import { EVIDENCE_FIRST_MODEL_INSTRUCTIONS } from "./goriq-ai09-independent-triage.mjs";
 
 const MODEL = "qwen2.5-coder:3b";
 const LOOPBACK = "http://127.0.0.1:11434/api/chat";
@@ -29,6 +30,25 @@ export const scenarios = Object.freeze([
     patch: "diff --git a/src/exec.js b/src/exec.js\n@@ -0,0 +1,2 @@\n+import { exec } from 'node:child_process';\n+exec(userInput);",
     expected: "CHANGES_REQUESTED",
   },
+
+  {
+    id: "BENIGN_VALIDATION",
+    path: "src/guard.js",
+    patch: "diff --git a/src/guard.js b/src/guard.js\n@@ -0,0 +1,2 @@\n+export const decode = input => { try { return JSON.parse(input); } catch { return null; } };\n+export const valid = value => value !== null;",
+    expected: "NO_ACTIONABLE_FINDINGS",
+  },
+  {
+    id: "BENIGN_FIXED_EXEC",
+    path: "src/versions.js",
+    patch: "diff --git a/src/versions.js b/src/versions.js\n@@ -0,0 +1,2 @@\n+import { execFileSync } from 'node:child_process';\n+export const version = () => execFileSync('node', ['--version'], { encoding: 'utf8' });",
+    expected: "NO_ACTIONABLE_FINDINGS",
+  },
+  {
+    id: "UNSAFE_DYNAMIC_EVAL",
+    path: "src/eval.js",
+    patch: "diff --git a/src/eval.js b/src/eval.js\n@@ -0,0 +1 @@\n+export const compute = userInput => eval(userInput);",
+    expected: "CHANGES_REQUESTED",
+  },
 ]);
 
 export function summarize(observations) {
@@ -47,8 +67,21 @@ export function summarize(observations) {
     }
   }
   const correct = scenarios.filter(s => byId.get(s.id).status === s.expected).length;
+  const actualPositive = s => byId.get(s.id).status === "CHANGES_REQUESTED";
+  const positive = s => s.expected === "CHANGES_REQUESTED";
+  const tp = scenarios.filter(s => positive(s) && actualPositive(s)).length;
+  const fp = scenarios.filter(s => !positive(s) && actualPositive(s)).length;
+  const tn = scenarios.filter(s => !positive(s) && byId.get(s.id).status === "NO_ACTIONABLE_FINDINGS").length;
+  const fn = scenarios.filter(s => positive(s) && !actualPositive(s)).length;
+  const abstentions = scenarios.filter(s => ["BLOCKED","INCONCLUSIVE"].includes(byId.get(s.id).status)).length;
+  const ratio = (n, den) => den === 0 ? null : n / den;
   return {
-    evaluation: "small_synthetic_three_case_probe_not_production_safety_certification",
+    evaluation: "small_synthetic_six_case_probe_not_real_world_detection_certification",
+    testSet: "6 curated synthetic benign/vulnerable examples; not production defect ground truth",
+    truePositive: tp, falsePositive: fp, trueNegative: tn, falseNegative: fn,
+    inconclusiveOrBlocked: abstentions,
+    precision: ratio(tp, tp+fp), recall: ratio(tp, tp+fn),
+    specificity: ratio(tn, tn+fp),
     model: MODEL,
     total: scenarios.length,
     matchingExpectedVerdict: correct,
@@ -104,7 +137,8 @@ export async function runProbe({infer = localInfer, sampleMemory = usedMemMiB} =
     try {
       result = await reviewLocalPatch({
         baseSha: SHA_A, headSha: SHA_B, makerRole: "Builder",
-        paths: [scenario.path], patch: scenario.patch, infer,
+        paths: [scenario.path], patch: scenario.patch,
+        infer: prompt => infer(EVIDENCE_FIRST_MODEL_INSTRUCTIONS + "\n" + prompt),
       });
     } finally {
       clearInterval(interval);
