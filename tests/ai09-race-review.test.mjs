@@ -134,8 +134,14 @@ test("real AI-09 findings are safely printable only after all chunks finish",()=
    {chunkOutcomes:[{sequence:2,status:"CHANGES_REQUESTED"},r.chunkOutcomes[1]]},
    {githubApprovalSatisfied:true},
    {status:"BLOCKED"},
-   {findings:[{...r.findings[0],summary:["git","hub_pat_","12345678901234567890"].join("")}]},
-   {findings:[{...r.findings[0],path:"../../out-of-scope"}]},
-   {findings:[{...r.findings[0],evidence:"hello\nworld"}]}
+   {findings:[{...r.findings[0],path:"../../out-of-scope"}]}
  ]) assert.throws(()=>safeRaceFindingSummaries({...r,...change}));
+ const secret=safeRaceFindingSummaries({...r,findings:[{
+   ...r.findings[0],summary:["git","hub_pat_","12345678901234567890"].join("")
+ }]});
+ assert.equal(secret[0].summary,"[REDACTED_UNSAFE_AI09_TEXT]");
+ const multiline=safeRaceFindingSummaries({...r,findings:[{
+   ...r.findings[0],evidence:"hello\nworld"
+ }]});
+ assert.equal(multiline[0].evidence,"hello world");
 });
