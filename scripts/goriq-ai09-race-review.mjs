@@ -134,7 +134,7 @@ async function main() {
         options:{temperature:0,num_ctx:8192,num_predict:384},messages:[{role:"user",content:prompt}]})
     });
     if(!response.ok){
-      console.log("AI09_MODEL_HTTP_STATUS="+response.status);
+      console.error("AI09_MODEL_HTTP_STATUS="+response.status);
       throw Error("LOCAL_MODEL_UNAVAILABLE");
     }
     const payload=await response.json();
@@ -142,7 +142,7 @@ async function main() {
     let parsed=null;
     try { parsed=JSON.parse(content); } catch { /* no model text is logged */ }
     const safeVerdict=["NO_FINDINGS","CHANGES_REQUESTED","INCONCLUSIVE"].includes(parsed?.verdict) ? parsed.verdict : "INVALID";
-    console.log("AI09_MODEL_OUTPUT_METRICS="+JSON.stringify({
+    console.error("AI09_MODEL_OUTPUT_METRICS="+JSON.stringify({
       doneReason:["stop","length"].includes(payload?.done_reason) ? payload.done_reason : "unknown",
       promptTokens:Number.isSafeInteger(payload?.prompt_eval_count)?payload.prompt_eval_count:null,
       outputTokens:Number.isSafeInteger(payload?.eval_count)?payload.eval_count:null,
