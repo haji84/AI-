@@ -1,0 +1,83 @@
+name: GORIQ AI-09 GitHub-hosted CPU Benchmark
+
+# First-stage pilot only. No automatic review or writes to PRs.
+on:
+  pull_request:
+    paths:
+      - scripts/goriq-ai09-hosted-benchmark.mjs
+      - tests/ai09-hosted-benchmark.test.mjs
+      - .github/workflows/goriq-ai09-hosted-benchmark.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ai09-hosted-benchmark-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  synthetic-local-model-probe:
+    if: >-
+      github.event.pull_request.number == 1799 &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    env:
+      OLLAMA_HOST: 127.0.0.1:11434
+      OLLAMA_NUM_PARALLEL: "1"
+      OLLAMA_MAX_LOADED_MODELS: "1"
+      OLLAMA_KEEP_ALIVE: 5m
+    steps:
+      - name: Checkout exact same-repository PR head without persistent credentials
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Run bounded static and mocked-inference checks
+        run: node --test tests/ai09-hosted-benchmark.test.mjs
+      - name: Record baseline compute capacity
+        run: |
+          echo "Runner: $RUNNER_OS / $RUNNER_ARCH"
+          echo "CPU count: $(nproc)"
+          free -m
+          df -h / | tail -n 1
+      - name: Install public Ollama Linux binary on ephemeral runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --silent --show-error --retry 2 --max-time 240 \
+            https://ollama.com/download/ollama-linux-amd64.tar.zst \
+            -o "$RUNNER_TEMP/ollama-linux-amd64.tar.zst"
+          sudo tar --zstd -xf "$RUNNER_TEMP/ollama-linux-amd64.tar.zst" -C /usr
+          ollama --version
+      - name: Start loopback-only Ollama and pull one verified-free model
+        shell: bash
+        run: |
+          set -euo pipefail
+          OLLAMA_HOST=127.0.0.1:11434 ollama serve >"$RUNNER_TEMP/ai09-ollama.log" 2>&1 &
+          echo "OLLAMA_SERVER_PID=$!" >> "$GITHUB_ENV"
+          ready=0
+          for attempt in $(seq 1 30); do
+            if curl --silent --fail http://127.0.0.1:11434/api/tags >/dev/null; then ready=1; break; fi
+            sleep 2
+          done
+          if [ "$ready" != "1" ]; then echo "LOCAL_OLLAMA_START_FAILED"; exit 1; fi
+          start=$(date +%s)
+          timeout 480s ollama pull qwen2.5-coder:3b
+          echo "AI09_MODEL_PULL_SECONDS=$(($(date +%s) - start))"
+          ollama list
+      - name: Exercise actual AI-09 parser with real local inference and capture timing and RAM
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/goriq-ai09-hosted-benchmark.mjs
+      - name: Emit scope and security guarantees
+        if: always()
+        shell: bash
+        run: |
+          echo '### AI-09 GitHub-hosted experimental benchmark' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Synthetic diff only; no PR contents submitted to model; no secrets or GitHub write permission.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'No review approval, deployment, merge, autonomous Builder handoff or PC fallback is authorized by this run.' >> "$GITHUB_STEP_SUMMARY"
