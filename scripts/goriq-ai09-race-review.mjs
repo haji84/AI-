@@ -4,6 +4,7 @@
 // It does not post comments, change repository settings, merge, or claim approvals.
 import { pathToFileURL } from "node:url";
 import { readFileSync } from "node:fs";
+import { performance } from "node:perf_hooks";
 import { reviewLocalPatch } from "../src/orchestrator/ai09-local-reviewer.mjs";
 import { assertCompleteComparison } from "./goriq-ai09-compare-coverage.mjs";
 import { compareToReviewChunks, consolidateChunkReviews } from "../src/orchestrator/ai09-pr-review-automation.mjs";
@@ -49,12 +50,21 @@ export async function reviewRacePull({number,head,base,api,infer}) {
   const scope = {baseSha:base,headSha:head,paths:prepared.paths,
     patchSha256:prepared.patchSha256,reviewChunks:prepared.chunks.length};
   const reports = [];
+  const chunkOutcomes = [];
   for(const chunk of prepared.chunks) {
+    const started = performance.now();
     const report = await reviewLocalPatch({
       baseSha:base,headSha:head,makerRole:"Builder",
       paths:chunk.paths,patch:chunk.patch,infer
     });
     reports.push(report);
+    chunkOutcomes.push({
+      sequence:chunkOutcomes.length+1,
+      bytes:Buffer.byteLength(chunk.patch,"utf8"),
+      durationMs:Math.round(performance.now()-started),
+      status:report.status,
+      blocker:report.blockers.length === 1 && /^[a-z_]+$/.test(report.blockers[0]) ? report.blockers[0] : "none"
+    });
     if(report.status === "BLOCKED")break;
   }
   const result = consolidateChunkReviews(reports,scope,prepared.chunks);
@@ -69,6 +79,7 @@ export async function reviewRacePull({number,head,base,api,infer}) {
     status:result.status,findings:result.findings,blockers:result.blockers,
     patchSha256:prepared.patchSha256,
     reviewedPaths:prepared.paths,chunkCount:prepared.chunks.length,
+    chunkOutcomes,
     modelProvider:"loopback-only",evidenceClass:"AI_ASSERTED",
     physicalEvidenceVerified:false,githubApprovalSatisfied:false,
     independentGitHubAccountVerified:false,mergeAuthorized:false,
@@ -116,9 +127,9 @@ async function main() {
     // No PR code execution, credentials, network model endpoint, paid provider or fallback.
     const response=await fetch("http://127.0.0.1:11434/api/chat",{
       method:"POST",headers:{"Content-Type":"application/json"},
-      signal:AbortSignal.timeout(120000),
+      signal:AbortSignal.timeout(210000),
       body:JSON.stringify({model:"qwen2.5-coder:3b",stream:false,format:"json",
-        options:{temperature:0,num_ctx:32768},messages:[{role:"user",content:prompt}]})
+        options:{temperature:0,num_ctx:16384,num_predict:512},messages:[{role:"user",content:prompt}]})
     });
     if(!response.ok)throw Error("LOCAL_MODEL_UNAVAILABLE");
     return (await response.json())?.message?.content;
