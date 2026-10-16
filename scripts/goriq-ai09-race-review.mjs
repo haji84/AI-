@@ -1,5 +1,5 @@
-import { holdUngroundedAdvisory } from "./goriq-ai09-finding-anchors.mjs";
 #!/usr/bin/env node
+import { holdUngroundedAdvisory } from "./goriq-ai09-finding-anchors.mjs";
 // GORIQ AI-09 independent technical advisory for RACE AI.
 // Read-only: the only network destinations are the public GitHub API and loopback Ollama.
 // It does not post comments, change repository settings, merge, or claim approvals.
