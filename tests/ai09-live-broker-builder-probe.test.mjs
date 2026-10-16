@@ -12,6 +12,7 @@ function fixture({failPath,runPhase="RUNNING",builderPayload=builder,brokerPaylo
     calls.push({url,options});
     if(url.includes(failPath??"___disabled___"))return result({message:"denied"},401);
     if(url==="http://127.0.0.1:8787/health")return result(brokerPayload);
+    if(url==="http://127.0.0.1:8787/api/jarvis/admin/bridge/events?goalId=ai09-connection-probe")return result({events:[]});
     if(url==="http://127.0.0.1:8796/health")return result(builderPayload);
     if(url==="http://127.0.0.1:8787/api/jarvis/admin/work/goal-test-123")
       return result({run:{goalId:"goal-test-123",phase:runPhase}});
@@ -39,13 +40,15 @@ test("authenticates existing local Broker and Builder and does not claim task re
   assert.equal(r.mergeAuthorized,false);
   assert.deepEqual(ctx.calls.map(x=>x.url),[
     "http://127.0.0.1:8787/health",
+    "http://127.0.0.1:8787/api/jarvis/admin/bridge/events?goalId=ai09-connection-probe",
     "http://127.0.0.1:8796/health",
     "http://127.0.0.1:8787/api/jarvis/admin/work/goal-test-123"
   ]);
   assert.ok(ctx.calls.every(x=>x.options.method==="GET"&&x.options.redirect==="error"));
   assert.ok(ctx.calls.every(x=>x.url.startsWith("http://127.0.0.1:")));
   assert.equal(ctx.calls[0].options.headers.Authorization,"Bearer "+OWNER);
-  assert.equal(ctx.calls[1].options.headers.Authorization,"Bearer "+BUILDER);
+  assert.equal(ctx.calls[1].options.headers.Authorization,"Bearer "+OWNER);
+  assert.equal(ctx.calls[2].options.headers.Authorization,"Bearer "+BUILDER);
   assert.doesNotMatch(JSON.stringify(r),/fixture_only_/);
 });
 test("refuses remote URLs, external redirects, token in URL, or arbitrary goal path",async()=>{
@@ -67,6 +70,16 @@ test("refuses remote URLs, external redirects, token in URL, or arbitrary goal p
     assert.equal(r.builderAcknowledged,false);
   }
   assert.equal(ctx.calls.length,0);
+});
+test("owner's public Broker health alone is not authentication",async()=>{
+  const c=fixture({failPath:"/api/jarvis/admin/bridge/events?"});
+  const out=await probeLiveGoriqConnection({
+    ownerToken:OWNER,builderToken:BUILDER,fetchImpl:c.fetchImpl,
+  });
+  assert.equal(out.status,"HOLD");
+  assert.equal(out.reason,"OWNER_AUTHENTICATION_NOT_VERIFIED");
+  assert.equal(out.brokerAuthenticated,false);
+  assert.equal(c.calls.length,2);
 });
 test("no credentials or inaccessible host fail closed without leaking private values",async()=>{
   const bad=await probeLiveGoriqConnection({
