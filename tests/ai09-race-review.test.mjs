@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {reviewRacePull,requireRaceChecks} from "../scripts/goriq-ai09-race-review.mjs";
+import {reviewRacePull,requireRaceChecks,parseRaceRequest} from "../scripts/goriq-ai09-race-review.mjs";
 
 const A="a".repeat(40),B="b".repeat(40),REPO="haji84/RACE-AI";
 const pr={number:65,state:"open",head:{sha:B,repo:{id:31,full_name:REPO}},
@@ -74,4 +74,22 @@ test("changed comparison SHA refuses model execution",async()=>{
  await assert.rejects(reviewRacePull({...req({compare:{...compare,commits:[{sha:A}]}}),
    infer:async()=>{invoked++;return good;}}),/RACE_COMPARE_REVISION_CHANGED/);
  assert.equal(invoked,0);
+});
+
+test("RACE-issued bounded request manifest can be received only with exact scope",()=>{
+ const manifest={
+   schemaVersion:1,contract:"GORIQ_AI09_ADVISORY_REQUEST_V1",
+   repository:REPO,prNumber:65,headSha:B,baseSha:A,
+   recipient:"GORIQ/AI-09",ciReady:true,reviewerMustDifferFromBuilder:true,
+   githubApprovalSatisfied:false,mergeAuthorized:false,gitHubWritePerformed:false,
+   nextAction:"REQUEST_AI09"
+ };
+ const parsed=parseRaceRequest(["--manifest","fixture"],()=>manifest);
+ assert.deepEqual(parsed,{number:65,head:B,base:A});
+ for(const alteration of [
+   {ciReady:false}, {mergeAuthorized:true}, {repository:"evil/fork"},
+   {nextAction:"HOLD_REVIEW"}, {headSha:A},{reviewerMustDifferFromBuilder:false},
+   {gitHubWritePerformed:true}, {contract:"forged"}
+ ])assert.throws(()=>parseRaceRequest(["--manifest","fixture"],()=>({...manifest,...alteration})));
+ assert.throws(()=>parseRaceRequest(["--manifest","fixture"],()=>null));
 });
