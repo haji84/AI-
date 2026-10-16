@@ -209,3 +209,20 @@ test("ZBook failure diagnosis records only safe availability and does not alter 
   assert.doesNotMatch(block,/Start-Process|Restart-Service|New-Service|Install-|Remove-Item|Set-Content|Out-File|Invoke-RestMethod|POST|PATCH|PUT/);
   assert.doesNotMatch(block,/Write-Host \(\$token|Write-Host \(\$env:CODE_BUILDER_LOCAL_TOKEN/);
 });
+
+test("Task Scheduler metadata can be inspected without starting Builder or exposing launcher contents",()=>{
+  const wf=readFileSync(".github/workflows/goriq-ai09-owner-builder-connect.yml","utf8");
+  const marker="      - name: Diagnose existing local Builder availability without mutation";
+  const index=wf.indexOf(marker);
+  assert.ok(index>=0);
+  const block=wf.slice(index);
+  assert.match(block,/Get-ScheduledTask -TaskName \$taskName -ErrorAction Stop/);
+  assert.match(block,/Get-ScheduledTaskInfo -TaskName \$taskName -ErrorAction Stop/);
+  assert.match(block,/scheduledTaskState = \$taskState/);
+  assert.match(block,/scheduledTaskLastResult = \$taskLastResult/);
+  assert.match(block,/launcherPresent = \[bool\]\$launcherPresent/);
+  assert.match(block,/installedServiceSourcePresent = \[bool\]\$serviceSourcePresent/);
+  assert.match(block,/AI09_ZBOOK_BUILDER_DIAGNOSTIC=/);
+  assert.doesNotMatch(block,/Start-ScheduledTask|Register-ScheduledTask|Unregister-ScheduledTask|Set-ScheduledTask|Restart-Service|Start-Process|Get-Content\s+.*run-code-builder|Action\.Arguments|Install-.*Builder/);
+  assert.doesNotMatch(block,/Get-Content\s+.*worker\.(?:log|stderr\.log)|Write-Host\s+\$token/);
+});
