@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import {reviewRacePull,parseRaceRequest} from "../scripts/goriq-ai09-race-review.mjs";
 
 const A="a".repeat(40),B="b".repeat(40),REPO="haji84/RACE-AI";
@@ -101,4 +102,11 @@ test("RACE-issued bounded request manifest can be received only with exact scope
    {gitHubWritePerformed:true}, {contract:"forged"}
  ])assert.throws(()=>parseRaceRequest(["--manifest","fixture"],()=>({...manifest,...alteration})));
  assert.throws(()=>parseRaceRequest(["--manifest","fixture"],()=>null));
+});
+
+test("review stdout contains only machine-readable JSON",()=>{
+ const source=readFileSync("scripts/goriq-ai09-race-review.mjs","utf8");
+ assert.match(source,/console\.error\("AI09_MODEL_OUTPUT_METRICS="/);
+ assert.match(source,/process\.stdout\.write\(JSON\.stringify\(review/);
+ assert.doesNotMatch(source,/console\.log\(/);
 });
