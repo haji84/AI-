@@ -16,6 +16,7 @@ import {
   createHandoffSnapshot,
   deriveWorkStatus,
   mergeDefinitionOfDoneResults,
+  remainingDefinitionOfDone,
   validateMutationBinding,
   type ArtifactRef,
   type ChildWorkItem,
@@ -87,7 +88,13 @@ function riskClass(record: WriteBackRecord, current: WorkRiskClass): WorkRiskCla
 async function ensureState(store: WorkStateStore, goal: Goal): Promise<WorkState> {
   const goalId = goalWorkStateId(goal);
   const existing = await store.get(goalId);
-  if (existing) return existing;
+  if (existing) {
+    if (JSON.stringify(existing.definitionOfDone.map(item => item.description)) !== JSON.stringify(goal.successCriteria)
+      || JSON.stringify(existing.constraints) !== JSON.stringify(goal.constraints)) {
+      throw new Error("WORK_STATE_GOAL_CONTRACT_MISMATCH: resolve the revised Goal before resuming old work");
+    }
+    return existing;
+  }
   const state = initialWorkState(goal, goalId, new Date().toISOString());
   await store.put(state);
   return state;
@@ -108,7 +115,7 @@ function affectedScope(action: ProposedAction): string[] {
     const files = (input as { files?: unknown }).files;
     if (Array.isArray(files)) {
       const paths = files
-        .map((file) => file && typeof file === "object" ? (file as { path?: unknown }).path : null)
+        .map((file) => typeof file === "string" ? file : file && typeof file === "object" ? (file as { path?: unknown }).path : null)
         .filter((path): path is string => typeof path === "string" && path.trim().length > 0);
       if (paths.length > 0) return paths;
     }
@@ -190,6 +197,37 @@ export class WorkStateGuardedExecutor implements CapabilityExecutor {
         blocker: validation.reason,
       };
     }
+    // A queued independent action cannot execute a gated or blocked child item.
+    // This is enforced at execution time, even if the planner selected it earlier.
+    if (bound.workItemId) {
+      const item = state.childWorkItems.find(candidate => candidate.id === bound.workItemId);
+      if (item?.status === "BLOCKED" || item?.status === "FAILED" || item?.status === "COMPLETED") {
+        return {
+          actionId: action.id,
+          ok: false,
+          summary: "Work item is not executable in its current state",
+          blocker: "work_item_not_executable",
+        };
+      }
+    }
+
+    // Bind an independently selected action to its declared scope before the
+    // normal capability, risk, and verifier pipeline runs.
+    if (bound.workItemId) {
+      const selected = state.childWorkItems.find(item => item.id === bound.workItemId);
+      if (selected && selected.affectedScope.length > 0) {
+        const requested = affectedScope(action);
+        if (!requested.every(scope => selected.affectedScope.includes(scope))) {
+          return {
+            actionId: action.id,
+            ok: false,
+            summary: "Action scope differs from its bound work item",
+            blocker: "work_item_scope_mismatch",
+          };
+        }
+      }
+    }
+
     return this.inner.execute(action, context);
   }
 }
@@ -210,16 +248,19 @@ export class WorkStateWriteBackStore implements StateStore {
   }
 
   async writeBack(record: WriteBackRecord): Promise<void> {
-    await this.inner.writeBack(record);
     let state = await ensureState(this.workState, record.goal);
+    const remainingBefore = remainingDefinitionOfDone(state).filter(item => item.required !== false).length;
     const result = record.result as WorkStateActionResult | null | undefined;
     const action = record.action as WorkStateAction | null | undefined;
     const now = new Date().toISOString();
 
-    const incomingResults = [...(result?.definitionOfDoneResults ?? [])];
-    if (record.verification?.ok && action?.satisfiesDefinitionOfDone) {
+    const verifiedSuccess = record.result?.ok === true && record.verification?.ok === true;
+    // A Builder may report a failed criterion, but cannot certify its own PASS
+    // or waive a requirement. Waivers belong to the authoritative Goal contract.
+    const incomingResults = (result?.definitionOfDoneResults ?? []).filter(item => !item.waived && (!item.passed || verifiedSuccess));
+    if (verifiedSuccess && action?.satisfiesDefinitionOfDone) {
       for (const itemId of action.satisfiesDefinitionOfDone) {
-        incomingResults.push({ itemId, passed: true, evidence: record.verification.evidence ?? record.result?.evidence });
+        incomingResults.push({ itemId, passed: true, evidence: record.verification?.evidence ?? record.result?.evidence });
       }
     }
     if (incomingResults.length > 0) {
@@ -233,8 +274,16 @@ export class WorkStateWriteBackStore implements StateStore {
     }
     if (record.result?.blocker && !blockers.includes(record.result.blocker)) blockers.push(record.result.blocker);
 
+    const remaining = remainingDefinitionOfDone(state).filter(item => item.required !== false);
+    if (record.stopReason === "continue" && !record.nextAction && !blockers.length
+      && record.result?.ok && record.verification?.ok && remaining.length < remainingBefore) {
+      record = { ...record, nextAction: remaining.length
+        ? `Plan the next authorized action for: ${remaining[0].description}` : "Finalize verified Goal completion" };
+    }
+    await this.inner.writeBack(record);
+
     const childWorkItems = state.childWorkItems.map((item) => {
-      if (action?.completesWorkItem && action.workItemId === item.id && record.verification?.ok) {
+      if (action?.completesWorkItem && action.workItemId === item.id && verifiedSuccess) {
         return { ...item, status: "COMPLETED" as const };
       }
       if (action?.workItemId === item.id && record.result?.blocker) {

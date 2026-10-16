@@ -46,6 +46,30 @@ export interface ChildWorkItem {
   status: WorkStatus;
 }
 
+/** A candidate is eligible only when explicitly ready and outside gated scopes. */
+export function selectIndependentWorkItem(
+  items: readonly ChildWorkItem[],
+  gatedItemIds: readonly string[],
+  gatedScopes: readonly string[],
+): ChildWorkItem | null {
+  const ids = new Set(gatedItemIds);
+  const normalized = (scope: string) => scope.replace(/\\/g, "/").replace(/\/+$/, "");
+  const overlaps = (left: string, right: string) => {
+    const a = normalized(left), b = normalized(right);
+    return !a || !b || a === b || a.startsWith(`${b}/`) || b.startsWith(`${a}/`);
+  };
+  const eligible = items.find((item) =>
+    item.status === "NOT_STARTED"
+    && !ids.has(item.id)
+    && item.affectedScope.length > 0
+    && item.affectedScope.every((scope) => !gatedScopes.some(gated => overlaps(scope, gated)))
+    && item.executionApproach.trim().length > 0
+    && item.verificationMethod.trim().length > 0
+    && item.definitionOfDone.length > 0
+  );
+  return eligible ? structuredClone(eligible) : null;
+}
+
 export interface WorkEvent {
   id: string;
   at: string;

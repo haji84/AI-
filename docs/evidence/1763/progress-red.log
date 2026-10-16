@@ -1,0 +1,64 @@
+✖ a new remaining-DoD slice has a distinct action identity while retries stay stable (3.885825ms)
+✔ development goal routes to code.builder with scoped files (0.997533ms)
+✔ failed Builder result creates a different recovery strategy and carries failure signature (0.309437ms)
+✔ non-development goal delegates to baseline planner (0.409077ms)
+✔ repository check verification can satisfy automated test/build DoD without claiming review or deploy (0.350738ms)
+✔ exact-file Builder verification does not claim repository-wide test DoD (0.248244ms)
+✔ an implementation criterion naming a file under tests is not mistaken for a test gate (0.348815ms)
+✔ completed WorkState stops normal development planning (0.162585ms)
+✔ Builder wording in implementation DoD is not misclassified as build verification (0.246301ms)
+✔ exact-content development goal emits a deterministic file verification contract (0.39191ms)
+✔ runtime Builder action id stays stable across recovery attempts (0.295936ms)
+✔ trusted verification oracle is consumed even when expected value is absent from goal text (0.175054ms)
+✔ recovery objective uses verifier evidence only after failure (0.167593ms)
+✔ trusted repository context binds Builder base revision and local-only mode (0.41205ms)
+✔ work-state context initializes from the goal and exposes a resumable handoff (2.185323ms)
+✔ material mutation automatically creates a bounded child work item before execution (1.246568ms)
+✔ explicit binding to an inactive child work item is rejected (0.509017ms)
+✔ verified cycle writes artifacts, decisions, DoD and next action back to work state (0.910441ms)
+✔ Compass adapter persists work state and events without a provider dependency (3.31198ms)
+✖ verified partial DoD progress persists the remaining action in both stores (1.395002ms)
+✔ inspection, failed verification and repeated accepted DoD do not invent continuation (0.915379ms)
+ℹ tests 21
+ℹ suites 0
+ℹ pass 19
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 185.088926
+
+✖ failing tests:
+
+test at tests/runtime-development-planner.test.ts:16:1
+✖ a new remaining-DoD slice has a distinct action identity while retries stay stable (3.885825ms)
+  AssertionError [ERR_ASSERTION]: Expected "actual" to be strictly unequal to:
+  
+  'runtime-builder:goal-fc284a21c93dcd10'
+      at TestContext.<anonymous> (file:///workspace/scratch/8e2d524683d3/goriq/tests/runtime-development-planner.test.ts:23:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'runtime-builder:goal-fc284a21c93dcd10',
+    expected: 'runtime-builder:goal-fc284a21c93dcd10',
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at tests/work-state-integration.test.ts:188:1
+✖ verified partial DoD progress persists the remaining action in both stores (1.395002ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /handoff verified/. Input:
+  
+  ''
+  
+      at TestContext.<anonymous> (file:///workspace/scratch/8e2d524683d3/goriq/tests/work-state-integration.test.ts:200:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '',
+    expected: /handoff verified/,
+    operator: 'match',
+    diff: 'simple'
+  }

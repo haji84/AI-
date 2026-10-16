@@ -1,4 +1,5 @@
 import { resolve } from "node:path";
+import { spawnSync } from "node:child_process";
 import { CompassStore } from "../src/compass/store.ts";
 import { BaselinePlanner, createContextInspectCapability } from "../src/orchestrator/baseline-planner.ts";
 import { CapabilityRegistry } from "../src/orchestrator/capabilities.ts";
@@ -8,6 +9,7 @@ import { dispatchAutonomyEvent, EventContextSource, type AutonomyEventType } fro
 import { GoalDrivenLoop, type Verifier } from "../src/orchestrator/goal-loop.ts";
 
 const args = process.argv.slice(2);
+const resumeAutonomy = args.includes("--resume-autonomy") || (args.includes("--type=schedule") && !args.includes("--inspect-only"));
 const typeArg = args.find((value) => value.startsWith("--type="));
 const idArg = args.find((value) => value.startsWith("--id="));
 const summaryArg = args.find((value) => value.startsWith("--summary="));
@@ -20,6 +22,16 @@ const dbPath = process.env.COMPASS_DB_PATH?.trim() || resolve(process.cwd(), ".c
 
 if (!["repository_state", "schedule", "manual"].includes(eventType)) {
   throw new Error(`unsupported event type: ${eventType}`);
+}
+
+// Opt-in scheduled handoff uses the normal bounded Goal loop and all its gates.
+if (resumeAutonomy) {
+  if (eventType !== "schedule") throw new Error("--resume-autonomy requires --type=schedule");
+  const result = spawnSync(process.execPath, [resolve(process.cwd(), "scripts/autonomy-run.ts"), "--resume-only", "--max-cycles=1"], {
+    cwd: process.cwd(), env: process.env, stdio: "inherit", timeout: 120_000,
+  });
+  if (result.error) throw result.error;
+  process.exit(result.status ?? 1);
 }
 
 const compass = new CompassStore(dbPath);

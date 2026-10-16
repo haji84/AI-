@@ -27,9 +27,19 @@ function isEnvelope(value: unknown): value is WorkStateEnvelope {
 
 export class CompassWorkStateStoreAdapter implements WorkStateStore {
   private readonly compass: CompassStore;
+  private readonly fenced: boolean;
+  private readonly assertAtomicWriteAuthority?: () => void;
 
-  constructor(compass: CompassStore) {
+  constructor(compass: CompassStore, fenced = false, assertAtomicWriteAuthority?: () => void) {
     this.compass = compass;
+    this.fenced = fenced;
+    this.assertAtomicWriteAuthority = assertAtomicWriteAuthority;
+  }
+
+  private assertAtomicAuthority(): void {
+    // A separate Durable Task lease check cannot protect this Compass mutation.
+    // Reject fenced writes until the lease and Compass share an atomic boundary.
+    if (this.fenced && !this.assertAtomicWriteAuthority) throw new Error("COMPASS_FENCED_WORK_STATE_ATOMICITY_REQUIRED");
   }
 
   async get(goalId: string): Promise<WorkState | null> {
@@ -43,29 +53,32 @@ export class CompassWorkStateStoreAdapter implements WorkStateStore {
   }
 
   async put(state: WorkState): Promise<void> {
-    const active = this.compass.getState().active;
-    const next: WorkStateEnvelope = {
-      kind: KIND,
-      version: VERSION,
-      goalId: state.goalId,
-      state: structuredClone(state),
-      events: this.envelopes().find((entry) => entry.goalId === state.goalId)?.events ?? [],
-    };
-    const retained = active.filter((entry) => !(isEnvelope(entry) && entry.goalId === state.goalId));
-    this.compass.updateState({ active: [...retained, next] });
+    this.assertAtomicAuthority();
+    this.compass.updateActive(active => {
+      const existing = active.filter(isEnvelope).find(entry => entry.goalId === state.goalId);
+      const next: WorkStateEnvelope = {
+        kind: KIND,
+        version: VERSION,
+        goalId: state.goalId,
+        state: structuredClone(state),
+        events: existing?.events ?? [],
+      };
+      return [...active.filter(entry => !(isEnvelope(entry) && entry.goalId === state.goalId)), next];
+    }, this.assertAtomicWriteAuthority);
   }
 
   async appendEvent(goalId: string, event: WorkEvent): Promise<void> {
-    const active = this.compass.getState().active;
-    const existing = this.envelopes().find((entry) => entry.goalId === goalId);
-    if (!existing) return;
-    const next: WorkStateEnvelope = {
-      ...existing,
-      state: structuredClone(existing.state),
-      events: [...existing.events, structuredClone(event)].slice(-MAX_EVENTS),
-    };
-    const retained = active.filter((entry) => !(isEnvelope(entry) && entry.goalId === goalId));
-    this.compass.updateState({ active: [...retained, next] });
+    this.assertAtomicAuthority();
+    this.compass.updateActive(active => {
+      const existing = active.filter(isEnvelope).find(entry => entry.goalId === goalId);
+      if (!existing) return active;
+      const next: WorkStateEnvelope = {
+        ...existing,
+        state: structuredClone(existing.state),
+        events: [...existing.events, structuredClone(event)].slice(-MAX_EVENTS),
+      };
+      return [...active.filter(entry => !(isEnvelope(entry) && entry.goalId === goalId)), next];
+    }, this.assertAtomicWriteAuthority);
   }
 
   private envelopes(): WorkStateEnvelope[] {

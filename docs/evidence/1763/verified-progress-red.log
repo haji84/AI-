@@ -1,0 +1,28 @@
+✔ Compass completed work requires a successful verification, not only Builder success (6.250588ms)
+✖ Builder-supplied DoD passes cannot bypass a missing or failed independent verifier (9.015193ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 1
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 541.870689
+
+✖ failing tests:
+
+test at tests/compass-verified-progress.test.ts:34:1
+✖ Builder-supplied DoD passes cannot bypass a missing or failed independent verifier (9.015193ms)
+  AssertionError [ERR_ASSERTION]: Expected "actual" to be strictly unequal to:
+
+  'COMPLETED'
+      at TestContext.<anonymous> (file:///workspace/scratch/8e2d524683d3/goriq/tests/compass-verified-progress.test.ts:52:14)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'COMPLETED',
+    expected: 'COMPLETED',
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }

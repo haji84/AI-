@@ -1,0 +1,203 @@
+{
+  "schema_version": 1,
+  "observed_at": "2026-10-16T18:31:27.766486+00:00",
+  "issue": 1763,
+  "pull_request": 1764,
+  "source_main": "a07d66d358563cec8a18b533d5322b4c09903565",
+  "prior_candidate": "231ba300165e854b497b330a7eb5410f8ee4beb2",
+  "classification": "REPOSITORY_TESTS_AND_RETRIEVED_DEVICE_LOGS_NOT_FULL_ACCEPTANCE",
+  "corrections": [
+    "Compass completed list requires execution and verifier success",
+    "Builder result DoD PASS requires execution and verifier success; Builder waiver claims cannot change authoritative Goal",
+    "autonomy-run reuses runtime-development-verifier instead of mirroring Builder success"
+  ],
+  "independent_review": {
+    "reviewer": "separate read-only reviewer",
+    "initial_targeted_pass": 63,
+    "post_correction_targeted_pass": 25,
+    "final_waiver_and_subprocess_pass": 10,
+    "formal_github_approval": false,
+    "physical_acceptance": false
+  },
+  "steps": [
+    {
+      "id": 1,
+      "status": "LATEST_MAIN_IN_LOCAL_CANDIDATE",
+      "remaining": [
+        "Publish same PR and require exact updated-head CI"
+      ]
+    },
+    {
+      "id": 2,
+      "status": "SOFTWARE_REVIEW_FIXES_VERIFIED_INTEGRATION_HOLD",
+      "remaining": [
+        "Applicable non-author authority/acceptance and existing safe-takeover HOLD; no protection bypass"
+      ]
+    },
+    {
+      "id": 3,
+      "status": "BROKER_AUTHENTICATED_BUILDER_UNAVAILABLE",
+      "broker_run": 38946442731,
+      "broker_job": 117126652576,
+      "builder_job": 117126652874,
+      "start_run": 38946098440,
+      "start_job": 117125479154,
+      "existing_task_started_once": true,
+      "builder_authenticated_health": false,
+      "task_last_result": 1,
+      "listener_present": false,
+      "diagnostic": "UNCLASSIFIED_EXISTING_LOG",
+      "actual_task_id": null,
+      "actual_receipt_id": null,
+      "remaining": [
+        "Diagnose existing launcher without disclosing token or raw private logs; do not blindly repeat one-shot start",
+        "Restore existing Builder under its host gates, then dispatch through authoritative Goal Controller and retain real receipt"
+      ]
+    },
+    {
+      "id": 4,
+      "status": "EXISTING_COGNITIVE_LOCAL_CONTINUATION_TESTED_NOT_PRODUCT_CYCLES",
+      "reuse": [
+        "src/gai/cognitive-state.ts",
+        "src/gai/cognitive-core.ts",
+        "src/orchestrator/compass-goal-execution-adapter.ts"
+      ],
+      "remaining": [
+        "Legacy non-Core recovery map remains process-local",
+        "Real Builder-to-PR-to-merge-to-runtime consecutive cycles not evidenced"
+      ]
+    },
+    {
+      "id": 5,
+      "status": "LOCAL_PROCESS_RECONCILIATION_TESTED_PHYSICAL_RECOVERY_UNVERIFIED",
+      "remaining": [
+        "Shared cross-host atomic authority and uncertain external-effect reconciliation",
+        "Physical MacBook/ZBook reboot and network-loss acceptance"
+      ]
+    },
+    {
+      "id": 6,
+      "status": "EXISTING_RESOURCE_PLANNER_TESTED_NO_PRODUCT_SPEEDUP_MEASUREMENT",
+      "reuse": [
+        "src/gai/world-resource-collector.ts",
+        "src/gai/world-resource-model.ts",
+        "src/orchestrator/world-resource-context.ts"
+      ],
+      "verified_requirements_per_hour_before": null,
+      "verified_requirements_per_hour_after": null,
+      "speedup": null,
+      "remaining": [
+        "Collect actual CPU/GPU/RAM/host/CI capacity",
+        "Demonstrate conflict-free adaptive concurrency and measured completed requirements, including repair/integration cost"
+      ]
+    },
+    {
+      "id": 7,
+      "status": "CANONICAL_PROJECTS_IDENTIFIED_TRANSFER_UNVERIFIED",
+      "projects": [
+        {
+          "repository": "haji84/RACE-AI",
+          "observed_main": "8bb7d69f9c8fb302055bc9e2609903d1e8f73e4b",
+          "read": [
+            "README.md"
+          ],
+          "missing": [
+            "AGENTS.md",
+            "PROJECT_STATE.md"
+          ],
+          "constraints": [
+            "No automatic betting/payment",
+            "Pre-race time and source rights required",
+            "README describes design registration; actual implementation must be located before declaring missing"
+          ]
+        },
+        {
+          "repository": "haji84/-AI",
+          "observed_main": "6a4d27a77e9fec2075277d5022e1d86a67431c7c",
+          "read": [
+            "README.md",
+            "AGENTS.md",
+            "PROJECT_STATE.md"
+          ],
+          "canonical_spec": "docs/SPECIFICATION.md",
+          "constraints": [
+            "No operational PII or originals in git",
+            "Legal/formal judgment and original changes remain Human Gate",
+            "No direct multi-host shared JSON/SQLite writes",
+            "Dedicated server-mediated business DB and RBAC"
+          ]
+        }
+      ],
+      "remaining": [
+        "Read each exact canonical spec and reconcile current implementation/PRs before mutation",
+        "Isolate access, data, approval and verification environment; demonstrate actual scoped transfer"
+      ]
+    }
+  ],
+  "checks": {
+    "continuation-acceptance.log": {
+      "sha256": "cc5b18eaf7ca12c8523417944d23f7e84b53bfefb8589368c1d852c13297694d"
+    },
+    "verifier-gates-green.log": {
+      "sha256": "e5e015042f313684d8fd5fca13de913403ecb2bd0b755de3dbdaa89d53711ff4"
+    },
+    "verified-progress-red.log": {
+      "sha256": "be7af9fe1ecbd305821c46f3211ec65d8717ba182d539d90af63cd7c3e3b8033",
+      "normalization": "trailing whitespace removed"
+    },
+    "independent-verifier-red.log": {
+      "sha256": "7c4dcb0a7bdedae1482c2f6df77550e4c8e659f97f98a78b34c088dae18abee3"
+    },
+    "full": {
+      "sha256": "1b13579bff8735dfe716d0a3cadbb4fdda2813c094ee7341ec5d4a488817fa5e",
+      "counts": {
+        "tests": 2592,
+        "pass": 2584,
+        "fail": 3,
+        "skipped": 5
+      },
+      "status": "FAIL_ENVIRONMENT",
+      "failures": [
+        "missing configured LAN leaves local Broker available without launching private ingress: uv_interface_addresses restriction",
+        "private ingress retry exhaustion preserves the independently running local Broker: same runtime restriction",
+        "native refresh supports stopped offline baseline without false full-service acceptance: pwsh ENOENT"
+      ]
+    },
+    "p8": {
+      "sha256": "6ed281db8f1f34c62d640943635363268f15c6eb98c40e1aa0e165ca70367e44",
+      "counts": {
+        "tests": 332,
+        "pass": 332,
+        "fail": 0,
+        "skipped": 0
+      },
+      "status": "PASS"
+    },
+    "build": {
+      "sha256": "ed64d244edddd0b7915e6b3746bffb3179d90827bacba26c1ee11283647a2030",
+      "counts": {},
+      "status": "PASS"
+    },
+    "health": {
+      "sha256": "720a8d5c9518cb9d49f08472f8fd0e9790194368b30b99601acd042cbb55dedb",
+      "counts": {},
+      "status": "PASS"
+    },
+    "lint": {
+      "status": "PASS"
+    },
+    "typecheck": {
+      "status": "PASS"
+    },
+    "canonical_audit": {
+      "status": "PASS",
+      "canonical_requirements": 341,
+      "incomplete_requirements": 338,
+      "product_complete": false
+    }
+  },
+  "all_seven_complete": false,
+  "production_activation": false,
+  "product_complete": false,
+  "rollback": "Revert task-linked code and dependent traceability changes together. Preserve Goal/effect/history records; no production migration or token/permission change performed."
+}

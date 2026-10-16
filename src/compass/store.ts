@@ -1,6 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { CompassExecutionLease } from "./execution-lease.ts";
 
 export type VerificationStatus = "PASS" | "FAIL";
 
@@ -120,19 +121,24 @@ export class CompassStore {
   readonly dbPath: string;
   private readonly db: DatabaseSync;
 
-  constructor(dbPath: string) {
+  constructor(dbPath: string, options: { readOnly?: boolean } = {}) {
     this.dbPath = dbPath;
-    if (dbPath !== ":memory:") mkdirSync(dirname(dbPath), { recursive: true });
+    if (!options.readOnly && dbPath !== ":memory:") mkdirSync(dirname(dbPath), { recursive: true });
     // The Broker and its isolated Goal executor can write the same Compass
     // database concurrently. Wait for the other bounded transaction instead
     // of rejecting an authenticated intake during a brief write lock.
-    this.db = new DatabaseSync(dbPath, { timeout: 5_000 });
+    this.db = new DatabaseSync(dbPath, { timeout: 5_000, readOnly: options.readOnly ?? false });
     this.db.exec("PRAGMA foreign_keys = ON;");
-    this.initialize();
+    if (!options.readOnly) this.initialize();
   }
 
   close(): void {
     this.db.close();
+  }
+
+  /** Same connection as Compass progress: lease checks share its write transaction. */
+  executionLease(options: { initialize?: boolean } = {}): CompassExecutionLease {
+    return new CompassExecutionLease(this.db, options);
   }
 
   private initialize(): void {
@@ -306,9 +312,10 @@ export class CompassStore {
   }
 
   /** Atomic envelope update: no schema change and no lost concurrent intake history. */
-  updateActive(transform: (active: unknown[]) => unknown[]): void {
+  updateActive(transform: (active: unknown[]) => unknown[], assertFencedAuthority?: () => void): void {
     this.db.exec("BEGIN IMMEDIATE");
     try {
+      assertFencedAuthority?.();
       const active = transform(this.getState().active);
       this.db.prepare("UPDATE state SET active = ?, updated_at = ? WHERE project_id = ?").run(encode(active), nowIso(), PROJECT_ID);
       this.db.exec("COMMIT");
@@ -409,7 +416,7 @@ export class CompassStore {
     }));
   }
 
-  writeBack(input: WriteBackInput): {
+  writeBack(input: WriteBackInput, assertFencedAuthority?: () => void): {
     state: StateRecord;
     history: HistoryRecord;
     verification: VerificationRecord | null;
@@ -423,6 +430,7 @@ export class CompassStore {
 
     this.db.exec("BEGIN IMMEDIATE");
     try {
+      assertFencedAuthority?.();
       let verification: VerificationRecord | null = null;
       let verificationId: number | null = null;
       if (input.verification) {

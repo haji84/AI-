@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "parent_issue": 1763,
+  "diagnostic_pr": 1816,
+  "source_main": "cb6b0fa06492b3d610ecb527645244b9a46ba8eb",
+  "merged": true,
+  "main_ci": {
+    "run": 38950171282,
+    "status": "SUCCESS",
+    "total": 2542,
+    "passed": 2537,
+    "failed": 0,
+    "skipped": 5,
+    "p8_passed": 332,
+    "p8_failed": 0
+  },
+  "probe": {
+    "run": 38950524749,
+    "broker_job": 117140455186,
+    "builder_job": 117140454779,
+    "broker_authenticated": true,
+    "builder_authenticated": false,
+    "scheduled_task_state": "Ready",
+    "last_task_result": 1,
+    "launcher_present": true,
+    "installed_service_present": true,
+    "node_found_on_runner_path": true,
+    "installed_policy_present": true,
+    "task_single_powershell_action": true,
+    "installed_service_equals_current_main": true,
+    "recent_task_run_within_10_minutes": false,
+    "existing_log_error_class": "UNCLASSIFIED_EXISTING_LOG",
+    "listener_present": false,
+    "health_status": "NOT_CHECKED",
+    "service_started_or_modified": false,
+    "builder_task_acknowledged": false,
+    "actual_task_id": null,
+    "actual_receipt_id": null
+  },
+  "deployment": {
+    "run": 38950489179,
+    "reason": "PRODUCTION_AUTHORIZATION_TASK_SCOPE_REQUIRED",
+    "mutation_authorized": false
+  },
+  "root_cause": "NOT_ESTABLISHED",
+  "next_action": "Request separate scope to inspect only launcher syntax, captured Node target existence and sanitized error identifiers locally, without displaying/exporting credentials, launcher text or raw logs; no restart or repair until cause is evidenced.",
+  "all_remaining_steps_complete": false
+}

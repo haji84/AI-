@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "source_main": "b064fda706eacfe2805d8f03065a8be4329d89aa",
+  "source_main": "dbb433773d86c250bcb341566f7903e4fecbf89a",
   "scope": "Declared audit roots; no functional or physical completion inference",
   "surfaces": [
     {
@@ -2944,7 +2944,7 @@
     },
     {
       "path": "src/compass/store.ts",
-      "sha256": "480a4d6f421ae78afbd0493f5a22a2c7b4933fe731e0fc70ddf5da690438a755",
+      "sha256": "508b4a5eb8aa2aed447a81da943cccb612a535bf5da71b5c650b3471fd84c8f9",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-002",
@@ -5009,7 +5009,7 @@
     },
     {
       "path": "src/orchestrator/compass-state-store.ts",
-      "sha256": "dd5bbd882b40a12c645662aa9975f38bf6e401df92dec3aad2c68cf09b295374",
+      "sha256": "fd8235465e27c46a3288ffe761b4a9ef2acd4702e65bf3d028f7598955d62ae9",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-002",
@@ -5042,7 +5042,7 @@
     },
     {
       "path": "src/orchestrator/compass-work-state-store.ts",
-      "sha256": "1aee990907e0c50b4317cddaf6f009d3fb8818c58077a2dff17c1ffed5e7c129",
+      "sha256": "35c3914eede9513b6d1bf427de7d74a92c306d5bab6584f9a644fbd880478625",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-002",
@@ -5931,7 +5931,7 @@
     },
     {
       "path": "src/orchestrator/runtime-development-planner.ts",
-      "sha256": "7772a55843a986d7919fb4a2f52b43dc8c0f9be01ac2a0b324fe96c9f37adb37",
+      "sha256": "35fa44c1acde93a78068eb3d2df79d7af492b05b04bec367788c59816aeb1671",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -6178,7 +6178,7 @@
     },
     {
       "path": "src/orchestrator/work-state-integration.ts",
-      "sha256": "d4fab8488d46770550fee4748a18966a4d6cf7b7427099a7b30e7fed99928c4a",
+      "sha256": "096c1adcb9f474dc765fa1ed720e5cbfec05fae96d89716414f4783bb5fb2703",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-002",
@@ -6189,7 +6189,7 @@
     },
     {
       "path": "src/orchestrator/work-state.ts",
-      "sha256": "24ad1a6134d3945ca91ea94bd6e56962c08466064ddec281fcc17f0e4ca46053",
+      "sha256": "ea76990da93141364f753c7e7ef48a84eba7064a240a4c20b9f539e5cef3e7c5",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-002",
@@ -6219,6 +6219,25 @@
         "OWN-001"
       ],
       "reason": "Issue #1219 ZBook timeout-only recovery transition preserves Goal identity, completion checks, evidence, and Human Gate boundaries; parent requirements remain PARTIAL pending physical E2E."
+    },
+    {
+      "path": "src/compass/execution-lease.ts",
+      "sha256": "7444e74cc208173e6e0f901f9a7e79d9dfa11b25251bdddf4f178016c1960e98",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-002",
+        "AUTO-004"
+      ],
+      "reason": "SQLite lease and fencing safety for autonomous continuation; cross-node recovery remains unverified."
+    },
+    {
+      "path": "src/orchestrator/autonomy-lock-assessment.ts",
+      "sha256": "edc76689dd47e5831fb6f120c6e6887286b2fe8de56500a9557c06f428260b66",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "AUTO-010"
+      ],
+      "reason": "Conservative lock-owner diagnostics for autonomous continuation; no authorization to reclaim locks and no claim of unattended recovery completion."
     }
   ],
   "hash_policy": "utf8-crlf-to-lf-v1;binary-raw"

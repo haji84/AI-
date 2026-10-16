@@ -13,6 +13,16 @@ const goal: Goal = {
 
 const intent = { summary: "implement code change", confidence: 1, evidence: [] };
 
+test("a new remaining-DoD slice has a distinct action identity while retries stay stable", async () => {
+  const planner = new RuntimeDevelopmentPlanner(new BaselinePlanner());
+  const context = (ids: string[]) => [{ source: "gai-work-state", summary: "work", data: { status: "IN_PROGRESS", blockers: [], remainingDefinitionOfDone: ids.map(id => ({ id, description: `Implement ${id}` })) } }];
+  const first = await planner.proposeNextAction({ goal, context: context(["one", "two"]), intent });
+  const retry = await planner.proposeNextAction({ goal, context: context(["one", "two"]), intent, previousResult: { actionId: first!.id, ok: false, summary: "test failed" } });
+  const next = await planner.proposeNextAction({ goal, context: context(["two"]), intent });
+  assert.equal(retry?.id, first?.id);
+  assert.notEqual(next?.id, first?.id);
+});
+
 test("development goal routes to code.builder with scoped files", async () => {
   const planner = new RuntimeDevelopmentPlanner(new BaselinePlanner());
   const action = await planner.proposeNextAction({ goal, context: [], intent });

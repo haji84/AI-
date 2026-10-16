@@ -1,3 +1,4 @@
+import type { DurableTaskExecutionClaim, DurableTaskRuntime } from "../gai/durable-task-runtime.ts";
 import { canonicalRequirementBlockers } from "./owner-requirement-canonical.ts";
 import { goalWorkStateId } from "./work-state-integration.ts";
 import type { CompassStore, GoalRecord, StateRecord, WriteBackInput } from "../compass/store.ts";
@@ -18,7 +19,7 @@ export function compassGoalToLoopGoal(goal: GoalRecord): Goal {
 
 export function compassStateToLoopState(state: StateRecord): LoopState {
   return {
-    paused: state.status === "PAUSED",
+    paused: state.status?.toUpperCase() === "PAUSED",
     retriesForCurrentAction: 0,
     completed: strings(state.completed),
     blockers: strings(state.blockers),
@@ -26,11 +27,24 @@ export function compassStateToLoopState(state: StateRecord): LoopState {
   };
 }
 
+/** Verify an existing fenced execution claim before Compass accepts progress. */
+export function durableClaimWriteAuthority(runtime: DurableTaskRuntime, claim: DurableTaskExecutionClaim): () => Promise<void> {
+  return async () => {
+    // Heartbeat validates owner, epoch, fencing token and lease expiry atomically
+    // in the durable store. It does not confer any new Goal or approval authority.
+    await runtime.heartbeatClaimed(claim);
+  };
+}
+
 export class CompassStateStoreAdapter implements StateStore {
   private readonly compass: CompassStore;
+  private readonly assertWriteAuthority?: () => Promise<void>;
+  private readonly assertAtomicWriteAuthority?: () => void;
 
-  constructor(compass: CompassStore) {
+  constructor(compass: CompassStore, assertWriteAuthority?: () => Promise<void>, assertAtomicWriteAuthority?: () => void) {
     this.compass = compass;
+    this.assertWriteAuthority = assertWriteAuthority;
+    this.assertAtomicWriteAuthority = assertAtomicWriteAuthority;
   }
 
   async completionBlockers(goal: Goal): Promise<string[]> {
@@ -48,7 +62,7 @@ export class CompassStateStoreAdapter implements StateStore {
     }
     const current = this.compass.getState();
     const completed = [...strings(current.completed)];
-    if (record.result?.ok && record.action?.description && !completed.includes(record.action.description)) {
+    if (record.result?.ok && record.verification?.ok && record.action?.description && !completed.includes(record.action.description)) {
       completed.push(record.action.description);
     }
 
@@ -76,6 +90,15 @@ export class CompassStateStoreAdapter implements StateStore {
       nextAction: record.nextAction ?? null,
     };
 
-    this.compass.writeBack(input);
+    // Reject stale ownership before committing Goal progress. This guard must be
+    // backed by the authoritative execution claim, not a PID or lock-file probe.
+    await this.assertWriteAuthority?.();
+    // A separate lease check cannot make the following Compass write atomic.
+    // Refuse success/progress commits until a shared transaction or fencing
+    // boundary covers both authority validation and the Compass mutation.
+    if (this.assertWriteAuthority && (record.result?.ok || record.stopReason === "goal_complete" || record.verification?.ok)) {
+      throw new Error("COMPASS_FENCED_WRITE_ATOMICITY_REQUIRED");
+    }
+    this.compass.writeBack(input, this.assertAtomicWriteAuthority);
   }
 }

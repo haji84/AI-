@@ -1,0 +1,2962 @@
+{
+  "observed_at": "2026-10-16T16:04:53.138Z",
+  "repository": "haji84/AI-",
+  "source_main": "dbb433773d86c250bcb341566f7903e4fecbf89a",
+  "complete_pages": 2,
+  "open_prs": [
+    {
+      "number": 1806,
+      "title": "feat(ai09): authenticated triage gate before any repair handoff",
+      "head": "cd5b3f935a436bea166fc62d12ed077545a45086",
+      "base": "main",
+      "base_sha": "dbb433773d86c250bcb341566f7903e4fecbf89a",
+      "draft": true,
+      "updated_at": "2026-10-16T15:56:21Z",
+      "url": "https://github.com/haji84/AI-/pull/1806",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 38927919860,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/38927919860",
+        "head_sha": "cd5b3f935a436bea166fc62d12ed077545a45086"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [
+          {
+            "id": 5545671854,
+            "author": "haji84",
+            "author_type": "User",
+            "state": "COMMENTED",
+            "commit": "b464bc02b43db4605b951e13c1e57b5e978919cd",
+            "submitted_at": "2026-10-16T09:23:31Z",
+            "url": "https://github.com/haji84/AI-/pull/1806#pullrequestreview-5545671854"
+          },
+          {
+            "id": 5545922804,
+            "author": "haji84",
+            "author_type": "User",
+            "state": "COMMENTED",
+            "commit": "2c8e5006b174b2bdc27a961dd09c0940f5019670",
+            "submitted_at": "2026-10-16T09:45:33Z",
+            "url": "https://github.com/haji84/AI-/pull/1806#pullrequestreview-5545922804"
+          },
+          {
+            "id": 5546235965,
+            "author": "haji84",
+            "author_type": "User",
+            "state": "COMMENTED",
+            "commit": "0df7c2c35325625817c1bc351ddd78dd23d74a5d",
+            "submitted_at": "2026-10-16T10:08:46Z",
+            "url": "https://github.com/haji84/AI-/pull/1806#pullrequestreview-5546235965"
+          },
+          {
+            "id": 5550370058,
+            "author": "haji84",
+            "author_type": "User",
+            "state": "COMMENTED",
+            "commit": "7a0363207470724f35ec689e88906226726e5884",
+            "submitted_at": "2026-10-16T16:02:45Z",
+            "url": "https://github.com/haji84/AI-/pull/1806#pullrequestreview-5550370058"
+          }
+        ],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": true
+    },
+    {
+      "number": 1800,
+      "title": "AI-09: verify seed bootstrap and collect guest diagnostics safely",
+      "head": "43069992f1c3414ec1801095dd1f4d3cbfc8074a",
+      "base": "main",
+      "base_sha": "83b1cc9cda738f00bae4f4d2dbe05c46fe6d1b81",
+      "draft": true,
+      "updated_at": "2026-10-16T08:59:40Z",
+      "url": "https://github.com/haji84/AI-/pull/1800",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 38877015135,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/38877015135",
+        "head_sha": "43069992f1c3414ec1801095dd1f4d3cbfc8074a"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [
+          {
+            "id": 5521883198,
+            "author": "haji84",
+            "author_type": "User",
+            "state": "COMMENTED",
+            "commit": "d7eeb3ee3c5feb6dd6ded581d8e9f9a93be221e6",
+            "submitted_at": "2026-10-14T17:22:29Z",
+            "url": "https://github.com/haji84/AI-/pull/1800#pullrequestreview-5521883198"
+          }
+        ],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": true
+    },
+    {
+      "number": 1795,
+      "title": "fix(zbook): accept verified 3-port network-waiting runtime without weakening listener ownership",
+      "head": "5e2173c4670b86d830f2bbb943239d3a8a53b121",
+      "base": "main",
+      "base_sha": "43f20fa5c4f41d949728680bd70c90bb67aecdc4",
+      "draft": false,
+      "updated_at": "2026-10-13T00:24:49Z",
+      "url": "https://github.com/haji84/AI-/pull/1795",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 38325083034,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/38325083034",
+        "head_sha": "5e2173c4670b86d830f2bbb943239d3a8a53b121"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [
+          {
+            "id": 5497195342,
+            "author": "haji84",
+            "author_type": "User",
+            "state": "COMMENTED",
+            "commit": "fa2a8c55bfa0ecaa44fea0ff0296f40c9dd4015f",
+            "submitted_at": "2026-10-12T23:57:00Z",
+            "url": "https://github.com/haji84/AI-/pull/1795#pullrequestreview-5497195342"
+          }
+        ],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": true
+    },
+    {
+      "number": 1764,
+      "title": "fix(autonomy): bounded multi-cycle continuation for #1763",
+      "head": "977edbe70c54f67d8fce5fb3d91767dd9bd4fda4",
+      "base": "main",
+      "base_sha": "82018fc5de04d122cb99a778613ca5d7b8959e3f",
+      "draft": true,
+      "updated_at": "2026-10-12T07:29:31Z",
+      "url": "https://github.com/haji84/AI-/pull/1764",
+      "ancestry": "DIVERGED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 38218004714,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/38218004714",
+        "head_sha": "977edbe70c54f67d8fce5fb3d91767dd9bd4fda4"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": true
+    },
+    {
+      "number": 1770,
+      "title": "fix(autonomy): reject overlapping local runner invocations",
+      "head": "d9993374c72dab2d7f4055fae17f1b728d6729fb",
+      "base": "fix/1763-bounded-autonomy-continuation",
+      "base_sha": "8017d5d8aceec184fbfa8d4042f2323a0ddf7817",
+      "draft": true,
+      "updated_at": "2026-10-11T06:12:58Z",
+      "url": "https://github.com/haji84/AI-/pull/1770",
+      "ancestry": "DIVERGED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 38117314757,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/38117314757",
+        "head_sha": "d9993374c72dab2d7f4055fae17f1b728d6729fb"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": true
+    },
+    {
+      "number": 1759,
+      "title": "feat(goriq): shared coordinator/task authority transaction contract",
+      "head": "4f7ffa6450747fed204beadb6b3d33c92c711971",
+      "base": "main",
+      "base_sha": "82018fc5de04d122cb99a778613ca5d7b8959e3f",
+      "draft": true,
+      "updated_at": "2026-10-11T00:59:14Z",
+      "url": "https://github.com/haji84/AI-/pull/1759",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "failure",
+        "run_id": 38100255800,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/38100255800",
+        "head_sha": "4f7ffa6450747fed204beadb6b3d33c92c711971"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "CI_REPAIR_REQUIRED",
+      "declared_hold": true
+    },
+    {
+      "number": 1208,
+      "title": "feat(jarvis): add bounded native Windows verification worker",
+      "head": "b052fe972867e51c96892a5887c4dd2b6f5d9d27",
+      "base": "main",
+      "base_sha": "a7bfcbe52e8108aa567c0ef4c6b90b16c2156c00",
+      "draft": true,
+      "updated_at": "2026-10-08T09:03:44Z",
+      "url": "https://github.com/haji84/AI-/pull/1208",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 37753567555,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/37753567555",
+        "head_sha": "b052fe972867e51c96892a5887c4dd2b6f5d9d27"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": true
+    },
+    {
+      "number": 1558,
+      "title": "fix: derive Mac runner loss target from active job process tree",
+      "head": "acc6df7dd1a037e61ff80e0fe2c09057042c6446",
+      "base": "main",
+      "base_sha": "6d4548c92f5325f9d269bbbb1a83d950e20345df",
+      "draft": false,
+      "updated_at": "2026-09-29T21:56:41Z",
+      "url": "https://github.com/haji84/AI-/pull/1558",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 36636511551,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/36636511551",
+        "head_sha": "acc6df7dd1a037e61ff80e0fe2c09057042c6446"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": true
+    },
+    {
+      "number": 1515,
+      "title": "fix: correlate Chat phases by assistant Copy action identity",
+      "head": "e4687ad2ea7fd71130a9f237155991570f7a6a4f",
+      "base": "main",
+      "base_sha": "b2bc2e8e80ec9a2f30f42a6af54f80483f6a0835",
+      "draft": false,
+      "updated_at": "2026-09-29T11:24:43Z",
+      "url": "https://github.com/haji84/AI-/pull/1515",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "failure",
+        "run_id": 36561567851,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/36561567851",
+        "head_sha": "e4687ad2ea7fd71130a9f237155991570f7a6a4f"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "CI_REPAIR_REQUIRED",
+      "declared_hold": true
+    },
+    {
+      "number": 1510,
+      "title": "fix: diagnose Chat completion false negatives",
+      "head": "5c70d44057a48cf538a9174ad9e50be5812110b4",
+      "base": "main",
+      "base_sha": "3a9bb246ffe75497fa0fde9b37f587821362f7a3",
+      "draft": false,
+      "updated_at": "2026-09-29T10:46:51Z",
+      "url": "https://github.com/haji84/AI-/pull/1510",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 36557635560,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/36557635560",
+        "head_sha": "5c70d44057a48cf538a9174ad9e50be5812110b4"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": true
+    },
+    {
+      "number": 1457,
+      "title": "test: disposable autonomous repair routing probe",
+      "head": "173bd824ad197e33dbc7618e4ef2966e01c755f0",
+      "base": "main",
+      "base_sha": "87fb738ee163705559dde4028e0d2c0c1af0b07e",
+      "draft": false,
+      "updated_at": "2026-09-29T02:25:18Z",
+      "url": "https://github.com/haji84/AI-/pull/1457",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "failure",
+        "run_id": 36512483788,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/36512483788",
+        "head_sha": "173bd824ad197e33dbc7618e4ef2966e01c755f0"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "CI_REPAIR_REQUIRED",
+      "declared_hold": true
+    },
+    {
+      "number": 1426,
+      "title": "fix(recovery): support Groq web secret setup without gh",
+      "head": "dd175a0b4e476e59035606819154584cd31309e3",
+      "base": "main",
+      "base_sha": "740b31086f91a961da5a11e4eb20b8d2d63bf339",
+      "draft": false,
+      "updated_at": "2026-09-28T23:36:24Z",
+      "url": "https://github.com/haji84/AI-/pull/1426",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 36498876549,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/36498876549",
+        "head_sha": "dd175a0b4e476e59035606819154584cd31309e3"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": false
+    },
+    {
+      "number": 1377,
+      "title": "test(e2e): autonomous CI repair on existing implementation",
+      "head": "a1598b149e8017fe10444d8d0194e05d9ad8294e",
+      "base": "main",
+      "base_sha": "c7baa799b10864d51f96ce073a1e5b95a94a1de0",
+      "draft": true,
+      "updated_at": "2026-09-28T09:00:01Z",
+      "url": "https://github.com/haji84/AI-/pull/1377",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "failure",
+        "run_id": 36400717619,
+        "run_attempt": 7,
+        "url": "https://github.com/haji84/AI-/actions/runs/36400717619",
+        "head_sha": "a1598b149e8017fe10444d8d0194e05d9ad8294e"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "CI_REPAIR_REQUIRED",
+      "declared_hold": true
+    },
+    {
+      "number": 1370,
+      "title": "feat(broker): fence Production Worker task ownership",
+      "head": "00975bb3033fd12da26987795d9d0e6e0a05cd1a",
+      "base": "feat/broker-resource-placement-1362",
+      "base_sha": "a2ddab82f641daa23b6a707f5769ed80776d4af8",
+      "draft": false,
+      "updated_at": "2026-09-28T08:13:42Z",
+      "url": "https://github.com/haji84/AI-/pull/1370",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "failure",
+        "run_id": 36396082676,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/36396082676",
+        "head_sha": "00975bb3033fd12da26987795d9d0e6e0a05cd1a"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "CI_REPAIR_REQUIRED",
+      "declared_hold": false
+    },
+    {
+      "number": 1365,
+      "title": "runtime: migration class handling",
+      "head": "b787754e961829b89cd74f1fc9a896b7fd627504",
+      "base": "main",
+      "base_sha": "bc6eb9c8e29b55e63b8cff96cd8589a9ed8005b4",
+      "draft": false,
+      "updated_at": "2026-09-28T05:57:55Z",
+      "url": "https://github.com/haji84/AI-/pull/1365",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 36384170986,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/36384170986",
+        "head_sha": "b787754e961829b89cd74f1fc9a896b7fd627504"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": false
+    },
+    {
+      "number": 1281,
+      "title": "ci(ios): approved one-time physical install of current main",
+      "head": "137ddb35540dd3273ffea36c3d7204a7589bb4d2",
+      "base": "main",
+      "base_sha": "755e8a07ee469473fed9184458447cf5f222ea5e",
+      "draft": true,
+      "updated_at": "2026-09-27T00:11:46Z",
+      "url": "https://github.com/haji84/AI-/pull/1281",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 36281743206,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/36281743206",
+        "head_sha": "137ddb35540dd3273ffea36c3d7204a7589bb4d2"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": true
+    },
+    {
+      "number": 1254,
+      "title": "Prepare gated Owner code rotation with encrypted backup and rollback",
+      "head": "39a8a591d66da1ba4ec9bf034d4406c5e3c1296e",
+      "base": "main",
+      "base_sha": "599bc275e6d00d078171f7f684d1d5a3f3132fc3",
+      "draft": true,
+      "updated_at": "2026-09-25T03:28:00Z",
+      "url": "https://github.com/haji84/AI-/pull/1254",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 36090441954,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/36090441954",
+        "head_sha": "39a8a591d66da1ba4ec9bf034d4406c5e3c1296e"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": true
+    },
+    {
+      "number": 1210,
+      "title": "feat(jarvis): add bounded canonical reconciliation PR path",
+      "head": "91892b13f391b51cd64e9768f31676b1a7303357",
+      "base": "main",
+      "base_sha": "1ba440a4daf1bc2e1ffb20088d42b07fc62d21fa",
+      "draft": false,
+      "updated_at": "2026-09-22T22:08:55Z",
+      "url": "https://github.com/haji84/AI-/pull/1210",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35790753061,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35790753061",
+        "head_sha": "91892b13f391b51cd64e9768f31676b1a7303357"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": true
+    },
+    {
+      "number": 1204,
+      "title": "spec: add Reset & Recovery Lifecycle",
+      "head": "ea64e901294a3577ad2c60c6ddca2918cb9d6a01",
+      "base": "main",
+      "base_sha": "ab792ecaac73c961a12141d437971134102f6515",
+      "draft": false,
+      "updated_at": "2026-09-22T19:32:24Z",
+      "url": "https://github.com/haji84/AI-/pull/1204",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35774402395,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35774402395",
+        "head_sha": "ea64e901294a3577ad2c60c6ddca2918cb9d6a01"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": false
+    },
+    {
+      "number": 1202,
+      "title": "docs(jarvis): canonicalize Fact Check and Local/Online execution",
+      "head": "f71e2c56f1a7f8eb1b72d29abeecdfeb7455d0c1",
+      "base": "main",
+      "base_sha": "ab792ecaac73c961a12141d437971134102f6515",
+      "draft": false,
+      "updated_at": "2026-09-22T18:41:32Z",
+      "url": "https://github.com/haji84/AI-/pull/1202",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35768830561,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35768830561",
+        "head_sha": "f71e2c56f1a7f8eb1b72d29abeecdfeb7455d0c1"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": false
+    },
+    {
+      "number": 1201,
+      "title": "docs(jarvis): canonicalize UI/UX after full audit",
+      "head": "c81f9997f335cd16dce4e477606c8eea4ea53427",
+      "base": "main",
+      "base_sha": "f974cc39dc25697e6cf999764e9d695ee753e14d",
+      "draft": false,
+      "updated_at": "2026-09-22T18:33:36Z",
+      "url": "https://github.com/haji84/AI-/pull/1201",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35767935932,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35767935932",
+        "head_sha": "c81f9997f335cd16dce4e477606c8eea4ea53427"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": false
+    },
+    {
+      "number": 1199,
+      "title": "docs(jarvis): synchronize full canonical architecture specification",
+      "head": "4a7758d14158a8c228f79ea3b2250bea74e03408",
+      "base": "main",
+      "base_sha": "f974cc39dc25697e6cf999764e9d695ee753e14d",
+      "draft": false,
+      "updated_at": "2026-09-22T18:28:47Z",
+      "url": "https://github.com/haji84/AI-/pull/1199",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35767395857,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35767395857",
+        "head_sha": "4a7758d14158a8c228f79ea3b2250bea74e03408"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": false
+    },
+    {
+      "number": 1198,
+      "title": "docs(jarvis): full canonical PRODUCT_SPEC synchronization",
+      "head": "752b6cc34c466f1df0df22171758d2e3b0bdf0c4",
+      "base": "main",
+      "base_sha": "f974cc39dc25697e6cf999764e9d695ee753e14d",
+      "draft": false,
+      "updated_at": "2026-09-22T18:27:54Z",
+      "url": "https://github.com/haji84/AI-/pull/1198",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35767304993,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35767304993",
+        "head_sha": "752b6cc34c466f1df0df22171758d2e3b0bdf0c4"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": false
+    },
+    {
+      "number": 1195,
+      "title": "JARVIS: integrate corrected demonstrations with durable verified Skills",
+      "head": "cb4697504b724c324a5f6bfafd9f21366c6d7157",
+      "base": "main",
+      "base_sha": "f974cc39dc25697e6cf999764e9d695ee753e14d",
+      "draft": false,
+      "updated_at": "2026-09-22T18:27:14Z",
+      "url": "https://github.com/haji84/AI-/pull/1195",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35766801267,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35766801267",
+        "head_sha": "cb4697504b724c324a5f6bfafd9f21366c6d7157"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": true
+    },
+    {
+      "number": 1197,
+      "title": "docs(jarvis): reconcile canonical main subsystems before further Codex work",
+      "head": "67a6e7bf1d10b7becac966fec3bf9b1fe4772075",
+      "base": "main",
+      "base_sha": "f974cc39dc25697e6cf999764e9d695ee753e14d",
+      "draft": false,
+      "updated_at": "2026-09-22T18:24:56Z",
+      "url": "https://github.com/haji84/AI-/pull/1197",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35766959432,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35766959432",
+        "head_sha": "67a6e7bf1d10b7becac966fec3bf9b1fe4772075"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": false
+    },
+    {
+      "number": 1196,
+      "title": "docs(jarvis): make Capability Fabric and Owner Fleet canonical",
+      "head": "fc3f23985411ca22e92d1167547e0a06dcc75534",
+      "base": "main",
+      "base_sha": "f974cc39dc25697e6cf999764e9d695ee753e14d",
+      "draft": false,
+      "updated_at": "2026-09-22T18:21:48Z",
+      "url": "https://github.com/haji84/AI-/pull/1196",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35766620642,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35766620642",
+        "head_sha": "fc3f23985411ca22e92d1167547e0a06dcc75534"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": false
+    },
+    {
+      "number": 1182,
+      "title": "feat(jarvis): wire bounded Windows verification into Broker",
+      "head": "807fc68367ea2ed78b3159962df0ba82c5fef990",
+      "base": "main",
+      "base_sha": "6eaf6e845e47b89842d399744189830100bd29a1",
+      "draft": false,
+      "updated_at": "2026-09-22T15:53:58Z",
+      "url": "https://github.com/haji84/AI-/pull/1182",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35750408649,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35750408649",
+        "head_sha": "807fc68367ea2ed78b3159962df0ba82c5fef990"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": false
+    },
+    {
+      "number": 1181,
+      "title": "feat(jarvis): add bounded Windows/ZBook verification dispatch",
+      "head": "9546b50eafdc490d89c39814ab6182305360dd23",
+      "base": "main",
+      "base_sha": "6eaf6e845e47b89842d399744189830100bd29a1",
+      "draft": false,
+      "updated_at": "2026-09-22T15:47:17Z",
+      "url": "https://github.com/haji84/AI-/pull/1181",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35749640486,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35749640486",
+        "head_sha": "9546b50eafdc490d89c39814ab6182305360dd23"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": false
+    },
+    {
+      "number": 1166,
+      "title": "feat(jarvis): add ZBook/Windows real-machine verification adapter",
+      "head": "4dd5ab6684d09d562557e44100d7dff0dc2d0bc9",
+      "base": "main",
+      "base_sha": "baaa6ff77b8923b58ed8bfced6c6437d4a049e63",
+      "draft": false,
+      "updated_at": "2026-09-22T15:30:26Z",
+      "url": "https://github.com/haji84/AI-/pull/1166",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35747789665,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35747789665",
+        "head_sha": "4dd5ab6684d09d562557e44100d7dff0dc2d0bc9"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": true
+    },
+    {
+      "number": 1126,
+      "title": "feat(jarvis): verify Research claims from acquired source evidence",
+      "head": "558ca34b872558a54310b21254cccbb49b210370",
+      "base": "main",
+      "base_sha": "7169aefa4c2dce6419006ec4a5026dbbb34be18f",
+      "draft": false,
+      "updated_at": "2026-09-22T15:26:52Z",
+      "url": "https://github.com/haji84/AI-/pull/1126",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35747363538,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35747363538",
+        "head_sha": "558ca34b872558a54310b21254cccbb49b210370"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": false
+    },
+    {
+      "number": 1164,
+      "title": "test(jarvis): Capability Fabric E2E on latest main",
+      "head": "6708ce3edd3ac64a20e28cf00592d478044fe8c6",
+      "base": "main",
+      "base_sha": "baaa6ff77b8923b58ed8bfced6c6437d4a049e63",
+      "draft": false,
+      "updated_at": "2026-09-22T10:22:48Z",
+      "url": "https://github.com/haji84/AI-/pull/1164",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35715613301,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35715613301",
+        "head_sha": "6708ce3edd3ac64a20e28cf00592d478044fe8c6"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": false
+    },
+    {
+      "number": 1162,
+      "title": "test(jarvis): Capability Fabric orchestration E2E",
+      "head": "5d5db357630d83095011b76f865a168fe7ca3b33",
+      "base": "main",
+      "base_sha": "a54bc40dfeb78b8a881e77a95bacf417d7eca22f",
+      "draft": false,
+      "updated_at": "2026-09-22T10:13:12Z",
+      "url": "https://github.com/haji84/AI-/pull/1162",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35714750389,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35714750389",
+        "head_sha": "5d5db357630d83095011b76f865a168fe7ca3b33"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": true
+    },
+    {
+      "number": 1161,
+      "title": "test(net004): pin reconnect without re-enrollment contract",
+      "head": "8b5631287f5ffd3427d09ca7e4ee6991478eb67d",
+      "base": "main",
+      "base_sha": "a54bc40dfeb78b8a881e77a95bacf417d7eca22f",
+      "draft": false,
+      "updated_at": "2026-09-22T10:12:45Z",
+      "url": "https://github.com/haji84/AI-/pull/1161",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35714704756,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35714704756",
+        "head_sha": "8b5631287f5ffd3427d09ca7e4ee6991478eb67d"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": false
+    },
+    {
+      "number": 1156,
+      "title": "feat(jarvis): Production Research Browser + Safe Autonomy current main",
+      "head": "b6ac9c5b2663494ab9d25a5a641a63851d1eba6a",
+      "base": "main",
+      "base_sha": "4f7d6b0a215116fe91c29c76afd2d3d3e6c54989",
+      "draft": false,
+      "updated_at": "2026-09-22T09:54:22Z",
+      "url": "https://github.com/haji84/AI-/pull/1156",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35712995743,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35712995743",
+        "head_sha": "b6ac9c5b2663494ab9d25a5a641a63851d1eba6a"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": false
+    },
+    {
+      "number": 1154,
+      "title": "feat(jarvis): add Production Browser evidence contract",
+      "head": "33675edcacad9ea4323812ea41e5a337c27121d5",
+      "base": "main",
+      "base_sha": "9bb05d8b9f7c91a88c80e835c0d14538aa8f03a0",
+      "draft": false,
+      "updated_at": "2026-09-22T09:49:45Z",
+      "url": "https://github.com/haji84/AI-/pull/1154",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35712558679,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35712558679",
+        "head_sha": "33675edcacad9ea4323812ea41e5a337c27121d5"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": true
+    },
+    {
+      "number": 1153,
+      "title": "test(jarvis): Safe Autonomy acceptance on current main",
+      "head": "3e56d8ebb925b30efbf0d0c9b633279dbb6aa092",
+      "base": "main",
+      "base_sha": "9bb05d8b9f7c91a88c80e835c0d14538aa8f03a0",
+      "draft": false,
+      "updated_at": "2026-09-22T09:40:11Z",
+      "url": "https://github.com/haji84/AI-/pull/1153",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35711656653,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35711656653",
+        "head_sha": "3e56d8ebb925b30efbf0d0c9b633279dbb6aa092"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": false
+    },
+    {
+      "number": 1152,
+      "title": "feat(jarvis): add evidence-backed Production Research core",
+      "head": "e432b7ad2fe193c3b28f58a6ff45502bd709702e",
+      "base": "main",
+      "base_sha": "9bb05d8b9f7c91a88c80e835c0d14538aa8f03a0",
+      "draft": false,
+      "updated_at": "2026-09-22T09:38:29Z",
+      "url": "https://github.com/haji84/AI-/pull/1152",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35711496402,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35711496402",
+        "head_sha": "e432b7ad2fe193c3b28f58a6ff45502bd709702e"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": false
+    },
+    {
+      "number": 1151,
+      "title": "test(jarvis): pin Safe Autonomy Human Gate boundaries",
+      "head": "445d3d057f61a556262d8cb1422f101f4e150a63",
+      "base": "main",
+      "base_sha": "ca51cdf857f3d7ac711e65b60ee9a70ea048f3a1",
+      "draft": false,
+      "updated_at": "2026-09-22T09:35:49Z",
+      "url": "https://github.com/haji84/AI-/pull/1151",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35711261709,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35711261709",
+        "head_sha": "445d3d057f61a556262d8cb1422f101f4e150a63"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": true
+    },
+    {
+      "number": 1149,
+      "title": "feat(jarvis): add role-separated Parallel Research merge",
+      "head": "3ac2a151646a10297715742e791f9780f92dfdfa",
+      "base": "main",
+      "base_sha": "a2075243a25d691e0b63f3c393b070d623aebeb2",
+      "draft": false,
+      "updated_at": "2026-09-22T09:29:19Z",
+      "url": "https://github.com/haji84/AI-/pull/1149",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35710636813,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35710636813",
+        "head_sha": "3ac2a151646a10297715742e791f9780f92dfdfa"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": false
+    },
+    {
+      "number": 1147,
+      "title": "feat(jarvis): add model-independent hot-swappable Brain contract",
+      "head": "c4bc57c5d9d6e229d3ca040d57758490baba1836",
+      "base": "main",
+      "base_sha": "6760b7b26ddf775c76f59bf7ae3409273c137149",
+      "draft": false,
+      "updated_at": "2026-09-22T09:24:08Z",
+      "url": "https://github.com/haji84/AI-/pull/1147",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35710152471,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35710152471",
+        "head_sha": "c4bc57c5d9d6e229d3ca040d57758490baba1836"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": false
+    },
+    {
+      "number": 1145,
+      "title": "feat(jarvis): Demonstration Learning on current main",
+      "head": "0633e05076ffd942a3adb8032d12780141ef9561",
+      "base": "main",
+      "base_sha": "6760b7b26ddf775c76f59bf7ae3409273c137149",
+      "draft": false,
+      "updated_at": "2026-09-22T09:22:48Z",
+      "url": "https://github.com/haji84/AI-/pull/1145",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35710016778,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35710016778",
+        "head_sha": "0633e05076ffd942a3adb8032d12780141ef9561"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": false
+    },
+    {
+      "number": 1144,
+      "title": "feat(jarvis): add correction-aware Demonstration Learning",
+      "head": "9dbe53ef29e558bdcf8a4d153dade59dd4032d65",
+      "base": "main",
+      "base_sha": "a1c1853f00494fa84d2d1e1fe0ff213c9d65117b",
+      "draft": false,
+      "updated_at": "2026-09-22T09:16:54Z",
+      "url": "https://github.com/haji84/AI-/pull/1144",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35709468122,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35709468122",
+        "head_sha": "9dbe53ef29e558bdcf8a4d153dade59dd4032d65"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": false
+    },
+    {
+      "number": 1142,
+      "title": "feat(jarvis): add evidence-driven Self-Development loop",
+      "head": "aa520b93ada1876f494dd62933cc489fe2ada298",
+      "base": "main",
+      "base_sha": "c7332f887c48ac7a5dbbd7acf3b0bbb7744f3187",
+      "draft": false,
+      "updated_at": "2026-09-22T09:13:07Z",
+      "url": "https://github.com/haji84/AI-/pull/1142",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35709098726,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35709098726",
+        "head_sha": "aa520b93ada1876f494dd62933cc489fe2ada298"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": false
+    },
+    {
+      "number": 1135,
+      "title": "test(jarvis): accept verified Skill Synthesis and learn-from-work",
+      "head": "725d1cb9930312fe9f3cf086301fba36af3fcb9e",
+      "base": "main",
+      "base_sha": "71253b6166028b02f84955ad3e335123d172e86b",
+      "draft": false,
+      "updated_at": "2026-09-22T08:47:24Z",
+      "url": "https://github.com/haji84/AI-/pull/1135",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35706701070,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35706701070",
+        "head_sha": "725d1cb9930312fe9f3cf086301fba36af3fcb9e"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": true
+    },
+    {
+      "number": 1115,
+      "title": "feat(jarvis): bounded real XLSX adapter on latest main",
+      "head": "9232fa7377db1da28778da44b6187ba84033ca8e",
+      "base": "main",
+      "base_sha": "79dcc1f682cca197c337fb63e22e69727898eaa5",
+      "draft": false,
+      "updated_at": "2026-09-22T06:00:14Z",
+      "url": "https://github.com/haji84/AI-/pull/1115",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "failure",
+        "run_id": 35692905070,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35692905070",
+        "head_sha": "9232fa7377db1da28778da44b6187ba84033ca8e"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "CI_REPAIR_REQUIRED",
+      "declared_hold": false
+    },
+    {
+      "number": 1112,
+      "title": "feat(jarvis): bounded real XLSX adapter on current main",
+      "head": "b7922024296a8747e7221740b851894515c5d11f",
+      "base": "main",
+      "base_sha": "fad728849a9a9f89ef5a6cabf7e615a1c1ccf624",
+      "draft": false,
+      "updated_at": "2026-09-22T03:59:59Z",
+      "url": "https://github.com/haji84/AI-/pull/1112",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35685176283,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35685176283",
+        "head_sha": "b7922024296a8747e7221740b851894515c5d11f"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": false
+    },
+    {
+      "number": 1107,
+      "title": "feat(jarvis): add bounded real XLSX production adapter",
+      "head": "b6a3102c91fb25199f173e7b8454b9c9faf1cff5",
+      "base": "main",
+      "base_sha": "2d3baa137dfc4158d21e0aba0d2910ed39ba11c4",
+      "draft": false,
+      "updated_at": "2026-09-22T02:08:35Z",
+      "url": "https://github.com/haji84/AI-/pull/1107",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35678357636,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35678357636",
+        "head_sha": "b6a3102c91fb25199f173e7b8454b9c9faf1cff5"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": true
+    },
+    {
+      "number": 1101,
+      "title": "feat(jarvis): drive launch core from real Work Run progress",
+      "head": "8b1d2108487f58eedf48d0bf37317761ad6d7edc",
+      "base": "main",
+      "base_sha": "dcacb2ad4cb3194ba1502df4703310ff24778e9a",
+      "draft": false,
+      "updated_at": "2026-09-22T00:42:50Z",
+      "url": "https://github.com/haji84/AI-/pull/1101",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "failure",
+        "run_id": 35673065654,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35673065654",
+        "head_sha": "8b1d2108487f58eedf48d0bf37317761ad6d7edc"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "CI_REPAIR_REQUIRED",
+      "declared_hold": true
+    },
+    {
+      "number": 1098,
+      "title": "feat(jarvis): persist Work Run progress in Compass",
+      "head": "18a8cf2f24821888c378d34864bbd6535112e8a0",
+      "base": "main",
+      "base_sha": "a02d2d3a30510f88d9ea8f289509c0cb0519ee05",
+      "draft": false,
+      "updated_at": "2026-09-22T00:33:40Z",
+      "url": "https://github.com/haji84/AI-/pull/1098",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35672445804,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35672445804",
+        "head_sha": "18a8cf2f24821888c378d34864bbd6535112e8a0"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": false
+    },
+    {
+      "number": 1096,
+      "title": "feat(jarvis): drive Work Run VERIFYING and RECOVERING from real results",
+      "head": "e52d8022fee4c54bb7bf22db882beee8a1acc487",
+      "base": "main",
+      "base_sha": "8027ff26158e84d4d00eeb6233aa0475c87a137a",
+      "draft": false,
+      "updated_at": "2026-09-22T00:27:31Z",
+      "url": "https://github.com/haji84/AI-/pull/1096",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35672017727,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35672017727",
+        "head_sha": "e52d8022fee4c54bb7bf22db882beee8a1acc487"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": false
+    },
+    {
+      "number": 1085,
+      "title": "feat(jarvis): promote intuitive Work Shell to primary UI",
+      "head": "2319c0c8be0333d76217e5d29dcd7836f4e827d5",
+      "base": "main",
+      "base_sha": "4cce49f96a148141f5939ef402e558aacc1d86d6",
+      "draft": false,
+      "updated_at": "2026-09-21T23:19:47Z",
+      "url": "https://github.com/haji84/AI-/pull/1085",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35667018404,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35667018404",
+        "head_sha": "2319c0c8be0333d76217e5d29dcd7836f4e827d5"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": false
+    },
+    {
+      "number": 1083,
+      "title": "test(jarvis): prove mixed-domain Work OS recovery E2E",
+      "head": "45a96b306abe7700231d0c90462951386c05000f",
+      "base": "main",
+      "base_sha": "1395dfbf02ece773a8cd971bf3df1bf4af73aff9",
+      "draft": false,
+      "updated_at": "2026-09-21T22:56:20Z",
+      "url": "https://github.com/haji84/AI-/pull/1083",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35665153871,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35665153871",
+        "head_sha": "45a96b306abe7700231d0c90462951386c05000f"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": false
+    },
+    {
+      "number": 1082,
+      "title": "feat(jarvis): add device observed-state recovery sandbox",
+      "head": "5c9ebcf2660b82844fb5d0a02b1b65ad95d2b10b",
+      "base": "main",
+      "base_sha": "5355cb09ce9347deb3344c6aac983acad339d2ae",
+      "draft": false,
+      "updated_at": "2026-09-21T22:55:38Z",
+      "url": "https://github.com/haji84/AI-/pull/1082",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35665095524,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35665095524",
+        "head_sha": "5c9ebcf2660b82844fb5d0a02b1b65ad95d2b10b"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": false
+    },
+    {
+      "number": 1080,
+      "title": "feat(jarvis): add grounded research verifier sandbox",
+      "head": "b797ccbdf8dd0ee36abcdbf0f411bbdbc726a201",
+      "base": "main",
+      "base_sha": "5355cb09ce9347deb3344c6aac983acad339d2ae",
+      "draft": false,
+      "updated_at": "2026-09-21T22:54:34Z",
+      "url": "https://github.com/haji84/AI-/pull/1080",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35665003069,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35665003069",
+        "head_sha": "b797ccbdf8dd0ee36abcdbf0f411bbdbc726a201"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": false
+    },
+    {
+      "number": 1076,
+      "title": "feat(jarvis): add mandatory cross-domain Fact Verification gate",
+      "head": "1765eae11ef5141b962af85a8d943dc7f6e74eb6",
+      "base": "main",
+      "base_sha": "1cbeaee719f39d9276dcdaca205c251c16438c24",
+      "draft": false,
+      "updated_at": "2026-09-21T22:46:57Z",
+      "url": "https://github.com/haji84/AI-/pull/1076",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35664400129,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35664400129",
+        "head_sha": "1765eae11ef5141b962af85a8d943dc7f6e74eb6"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": false
+    },
+    {
+      "number": 1074,
+      "title": "feat(jarvis): add document verifier recovery sandbox",
+      "head": "c36eb73e87ebb53bf1979176aaa38b70b4008d1e",
+      "base": "main",
+      "base_sha": "71d2895b9f7cb603d14e670a7e9e99a04b8a17b3",
+      "draft": false,
+      "updated_at": "2026-09-21T22:45:09Z",
+      "url": "https://github.com/haji84/AI-/pull/1074",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35664240750,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35664240750",
+        "head_sha": "c36eb73e87ebb53bf1979176aaa38b70b4008d1e"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": false
+    },
+    {
+      "number": 1070,
+      "title": "feat(jarvis): prove spreadsheet verifier recovery in sandbox",
+      "head": "1c174c2c5ad37cfdb8923077891a70b265628c4d",
+      "base": "main",
+      "base_sha": "a0b0313c680b08ced85f4a75fbde3916e75c9959",
+      "draft": false,
+      "updated_at": "2026-09-21T22:38:42Z",
+      "url": "https://github.com/haji84/AI-/pull/1070",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35663710835,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35663710835",
+        "head_sha": "1c174c2c5ad37cfdb8923077891a70b265628c4d"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": false
+    },
+    {
+      "number": 1066,
+      "title": "chore(jarvis): remove confirmed zombie Commander v2/v3",
+      "head": "966f4f5da3e5b50c7366c0cafce89e05a60e0e5c",
+      "base": "main",
+      "base_sha": "139a988b2d3820b66a1881d8b72d3a71047a8f00",
+      "draft": false,
+      "updated_at": "2026-09-21T22:01:58Z",
+      "url": "https://github.com/haji84/AI-/pull/1066",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35660485486,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35660485486",
+        "head_sha": "966f4f5da3e5b50c7366c0cafce89e05a60e0e5c"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": true
+    },
+    {
+      "number": 1062,
+      "title": "fix(jarvis): feed post-failure verifier evidence into recovery",
+      "head": "74529550e172b5a8fa0b01f1df8b63ada921eb0a",
+      "base": "main",
+      "base_sha": "6d478c46312e62d76f832d97b4621e03ac784720",
+      "draft": false,
+      "updated_at": "2026-09-21T21:36:23Z",
+      "url": "https://github.com/haji84/AI-/pull/1062",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35658102138,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35658102138",
+        "head_sha": "74529550e172b5a8fa0b01f1df8b63ada921eb0a"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": true
+    },
+    {
+      "number": 1051,
+      "title": "feat(jarvis): gate Broker success on host verifier",
+      "head": "fdcedfe821aa3a9a508a7f212bebf121820bfc7c",
+      "base": "main",
+      "base_sha": "210d4611ab3ce692f5cc61d289242ea157dc8251",
+      "draft": false,
+      "updated_at": "2026-09-21T16:33:54Z",
+      "url": "https://github.com/haji84/AI-/pull/1051",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35626357425,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35626357425",
+        "head_sha": "fdcedfe821aa3a9a508a7f212bebf121820bfc7c"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": true
+    },
+    {
+      "number": 1031,
+      "title": "Separate trusted verifier oracle from normal Builder context",
+      "head": "8aa37e85fb147263d34c2dcf1894c0877fee327a",
+      "base": "main",
+      "base_sha": "767cbefee8f95b69f88d5ca5bc27961f43d4d53c",
+      "draft": false,
+      "updated_at": "2026-09-21T14:17:10Z",
+      "url": "https://github.com/haji84/AI-/pull/1031",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "failure",
+        "run_id": 35611122726,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35611122726",
+        "head_sha": "8aa37e85fb147263d34c2dcf1894c0877fee327a"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "CI_REPAIR_REQUIRED",
+      "declared_hold": true
+    },
+    {
+      "number": 1022,
+      "title": "Add fail-closed deterministic verification to normal development runtime",
+      "head": "41a38d863554534c5c360d6b7b80407ab2d0cdd2",
+      "base": "main",
+      "base_sha": "3db6d4fb009ccac03fc1e329ffae1c1ca8fc7eda",
+      "draft": false,
+      "updated_at": "2026-09-21T13:50:24Z",
+      "url": "https://github.com/haji84/AI-/pull/1022",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35608133743,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35608133743",
+        "head_sha": "41a38d863554534c5c360d6b7b80407ab2d0cdd2"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": false
+    },
+    {
+      "number": 1019,
+      "title": "Promote real Builder changes into bounded PR flow",
+      "head": "b32a0d3279e1a3f65f21a3884c04b35fab40a87c",
+      "base": "main",
+      "base_sha": "deb42f16ab1b159a38c96ba8978c5f09ee32fb4f",
+      "draft": false,
+      "updated_at": "2026-09-21T13:43:50Z",
+      "url": "https://github.com/haji84/AI-/pull/1019",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35607445077,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35607445077",
+        "head_sha": "b32a0d3279e1a3f65f21a3884c04b35fab40a87c"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": true
+    },
+    {
+      "number": 1018,
+      "title": "feat: add OPS-012 first-run setup wizard",
+      "head": "f6c4e9fbfd6345f1af0bcac9657c36b6a2cbc0df",
+      "base": "main",
+      "base_sha": "deb42f16ab1b159a38c96ba8978c5f09ee32fb4f",
+      "draft": false,
+      "updated_at": "2026-09-21T13:32:54Z",
+      "url": "https://github.com/haji84/AI-/pull/1018",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35606276896,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35606276896",
+        "head_sha": "f6c4e9fbfd6345f1af0bcac9657c36b6a2cbc0df"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": true
+    },
+    {
+      "number": 980,
+      "title": "Add safe ZBook Codex sandbox policy diagnostics",
+      "head": "2138cf87478dc51888668939cf33852315e10d7e",
+      "base": "main",
+      "base_sha": "032eb15ed9dd2fa09447d7e488cff918c89dd825",
+      "draft": false,
+      "updated_at": "2026-09-21T07:54:16Z",
+      "url": "https://github.com/haji84/AI-/pull/980",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35575148269,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35575148269",
+        "head_sha": "2138cf87478dc51888668939cf33852315e10d7e"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": true
+    },
+    {
+      "number": 970,
+      "title": "test(jarvis): harden SEC-016 remote assist audit boundary",
+      "head": "a5ac2715411f0733a960173d425e6c9d3b1e8bda",
+      "base": "main",
+      "base_sha": "484788afd42e4a01cdf86856d054136ffcd9fb04",
+      "draft": false,
+      "updated_at": "2026-09-21T05:37:31Z",
+      "url": "https://github.com/haji84/AI-/pull/970",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35565348950,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35565348950",
+        "head_sha": "a5ac2715411f0733a960173d425e6c9d3b1e8bda"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": true
+    },
+    {
+      "number": 883,
+      "title": "feat(jarvis): add verified email owner recovery",
+      "head": "a112e6023f5de1d317417dc596e7369d3edea14e",
+      "base": "main",
+      "base_sha": "655c313201bd3ebe8b833dbf284b10dcfde55fe0",
+      "draft": false,
+      "updated_at": "2026-09-20T22:41:51Z",
+      "url": "https://github.com/haji84/AI-/pull/883",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35542447489,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35542447489",
+        "head_sha": "a112e6023f5de1d317417dc596e7369d3edea14e"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": true
+    },
+    {
+      "number": 916,
+      "title": "Connect JARVIS control plane and prove failure-to-recovery E2E",
+      "head": "aa5b31e42724efe69c1e9953d005929a1cef095b",
+      "base": "main",
+      "base_sha": "0180ec159be8ca8eabb3a33142efd2f16bacfeb5",
+      "draft": false,
+      "updated_at": "2026-09-20T22:40:41Z",
+      "url": "https://github.com/haji84/AI-/pull/916",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35542391680,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35542391680",
+        "head_sha": "aa5b31e42724efe69c1e9953d005929a1cef095b"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": false
+    },
+    {
+      "number": 905,
+      "title": "feat(jarvis): persist owner-facing fact audits and conservative evidence (#904)",
+      "head": "6af365ceb1b52b9111f98760da8d352449632871",
+      "base": "codex/902-input-intake",
+      "base_sha": "ab27557af63d3e096a55f9cf27e60cf19f9920ea",
+      "draft": false,
+      "updated_at": "2026-09-20T20:39:15Z",
+      "url": "https://github.com/haji84/AI-/pull/905",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35536220846,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35536220846",
+        "head_sha": "6af365ceb1b52b9111f98760da8d352449632871"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": true
+    },
+    {
+      "number": 903,
+      "title": "feat(jarvis): preserve input uncertainty at command intake (#902)",
+      "head": "ab27557af63d3e096a55f9cf27e60cf19f9920ea",
+      "base": "feature/893-model-router-integration",
+      "base_sha": "9bc8c5f527a1c163b94aa1933e6e3e8b612e866c",
+      "draft": false,
+      "updated_at": "2026-09-20T20:13:21Z",
+      "url": "https://github.com/haji84/AI-/pull/903",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35534831817,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35534831817",
+        "head_sha": "ab27557af63d3e096a55f9cf27e60cf19f9920ea"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": false
+    },
+    {
+      "number": 898,
+      "title": "chore(jarvis): reconcile fleet capacity ledger evidence (#725)",
+      "head": "c2f200bb8bf7dd47851ba8812678d1d0010eb0e5",
+      "base": "main",
+      "base_sha": "6a2be422b1a5de793a6b0e522b35e678aa5aba53",
+      "draft": true,
+      "updated_at": "2026-09-20T17:13:16Z",
+      "url": "https://github.com/haji84/AI-/pull/898",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "failure",
+        "run_id": 35525052541,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35525052541",
+        "head_sha": "c2f200bb8bf7dd47851ba8812678d1d0010eb0e5"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "CI_REPAIR_REQUIRED",
+      "declared_hold": true
+    },
+    {
+      "number": 897,
+      "title": "docs(jarvis): reconcile FLEET-010-011 capacity evidence",
+      "head": "6060ff90d79d9b37baf0cdf65c918d8b7f6d5df0",
+      "base": "main",
+      "base_sha": "6a2be422b1a5de793a6b0e522b35e678aa5aba53",
+      "draft": false,
+      "updated_at": "2026-09-20T16:47:39Z",
+      "url": "https://github.com/haji84/AI-/pull/897",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "action_required",
+        "run_id": 35523804804,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35523804804",
+        "head_sha": "6060ff90d79d9b37baf0cdf65c918d8b7f6d5df0"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "ACTION_REQUIRED",
+      "declared_hold": true
+    },
+    {
+      "number": 895,
+      "title": "feat(jarvis): integrate resource-aware governed execution (#893)",
+      "head": "9bc8c5f527a1c163b94aa1933e6e3e8b612e866c",
+      "base": "feature/892-teaching-skills",
+      "base_sha": "8c8a78fe75e05d22bc9ea44a006e0fa754d21462",
+      "draft": false,
+      "updated_at": "2026-09-20T15:09:58Z",
+      "url": "https://github.com/haji84/AI-/pull/895",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35518701210,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35518701210",
+        "head_sha": "9bc8c5f527a1c163b94aa1933e6e3e8b612e866c"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": true
+    },
+    {
+      "number": 894,
+      "title": "feat(jarvis): persist corrections and revalidate reusable teaching Skills (#892)",
+      "head": "8c8a78fe75e05d22bc9ea44a006e0fa754d21462",
+      "base": "feature/888-teaching-candidates",
+      "base_sha": "5c42f57e310bb7bf489391befadcbad4831c7e9e",
+      "draft": false,
+      "updated_at": "2026-09-20T14:59:36Z",
+      "url": "https://github.com/haji84/AI-/pull/894",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35518143650,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35518143650",
+        "head_sha": "8c8a78fe75e05d22bc9ea44a006e0fa754d21462"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": true
+    },
+    {
+      "number": 890,
+      "title": "feat(jarvis): connect teaching history to learning candidates (#888)",
+      "head": "5c42f57e310bb7bf489391befadcbad4831c7e9e",
+      "base": "feature/887-completion-readiness",
+      "base_sha": "1fb7727d149876e051274db29060a37ecbad362a",
+      "draft": false,
+      "updated_at": "2026-09-20T14:10:13Z",
+      "url": "https://github.com/haji84/AI-/pull/890",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35515645615,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35515645615",
+        "head_sha": "5c42f57e310bb7bf489391befadcbad4831c7e9e"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": true
+    },
+    {
+      "number": 889,
+      "title": "fix(jarvis): distinguish component availability from integrated readiness (#887)",
+      "head": "1fb7727d149876e051274db29060a37ecbad362a",
+      "base": "feature/882-completion-engines",
+      "base_sha": "e97903f7835177ef8283ff5b0837229849c58f48",
+      "draft": false,
+      "updated_at": "2026-09-20T14:03:24Z",
+      "url": "https://github.com/haji84/AI-/pull/889",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35515312965,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35515312965",
+        "head_sha": "1fb7727d149876e051274db29060a37ecbad362a"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": true
+    },
+    {
+      "number": 884,
+      "title": "feat(jarvis): implement remaining non-physical completion engines",
+      "head": "e97903f7835177ef8283ff5b0837229849c58f48",
+      "base": "main",
+      "base_sha": "fb01f129d2ba1c9387b78fe4512beb9d680c958c",
+      "draft": false,
+      "updated_at": "2026-09-20T13:39:17Z",
+      "url": "https://github.com/haji84/AI-/pull/884",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35514121761,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35514121761",
+        "head_sha": "e97903f7835177ef8283ff5b0837229849c58f48"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": true
+    },
+    {
+      "number": 870,
+      "title": "feat: silent ZBook Codex recovery and explicit Work restart",
+      "head": "645ace818b4a9f41dec3a8c2f10fca470f87b5cc",
+      "base": "main",
+      "base_sha": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "draft": true,
+      "updated_at": "2026-09-18T12:18:14Z",
+      "url": "https://github.com/haji84/AI-/pull/870",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35343837564,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35343837564",
+        "head_sha": "645ace818b4a9f41dec3a8c2f10fca470f87b5cc"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": false
+    },
+    {
+      "number": 862,
+      "title": "Wake Android before remote operations with lock and expiry checks (#861)",
+      "head": "5b870e6b120b837e780b9fd94f8414e237edab9a",
+      "base": "codex/859-android8",
+      "base_sha": "3ccac0d31bf239ca8b4137269bda7cf32b45603b",
+      "draft": true,
+      "updated_at": "2026-09-18T00:09:53Z",
+      "url": "https://github.com/haji84/AI-/pull/862",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35289990106,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35289990106",
+        "head_sha": "5b870e6b120b837e780b9fd94f8414e237edab9a"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": true
+    },
+    {
+      "number": 860,
+      "title": "Android 8 screen sharing and enrollment-safe update staging (#859)",
+      "head": "61538ede1523d0a13bca0434edc14f4396b4d44a",
+      "base": "codex/857-worker-updates",
+      "base_sha": "51651f5b969bae219f1ad737b02ac5b0b001d8f4",
+      "draft": true,
+      "updated_at": "2026-09-17T21:13:24Z",
+      "url": "https://github.com/haji84/AI-/pull/860",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35275182737,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35275182737",
+        "head_sha": "61538ede1523d0a13bca0434edc14f4396b4d44a"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": true
+    },
+    {
+      "number": 868,
+      "title": "JARVIS: diagnose offsite fleet route and prepare private Mac login (#867)",
+      "head": "0d747edfe207e358c822a840d1e0b388f40b04c2",
+      "base": "main",
+      "base_sha": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "draft": true,
+      "updated_at": "2026-09-17T13:28:48Z",
+      "url": "https://github.com/haji84/AI-/pull/868",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35227287154,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35227287154",
+        "head_sha": "0d747edfe207e358c822a840d1e0b388f40b04c2"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": true
+    },
+    {
+      "number": 866,
+      "title": "docs(jarvis): reconcile full product scope and evidence boundaries (#865)",
+      "head": "b986ea11ef48e99122a674dc727f449001ede1e1",
+      "base": "main",
+      "base_sha": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "draft": true,
+      "updated_at": "2026-09-17T12:16:02Z",
+      "url": "https://github.com/haji84/AI-/pull/866",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35220117190,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35220117190",
+        "head_sha": "b986ea11ef48e99122a674dc727f449001ede1e1"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": true
+    },
+    {
+      "number": 864,
+      "title": "JARVIS: audit Home Coordinator compatibility and freeze migration requirements",
+      "head": "ab136a48600af1bfea38716fc610b386d13e0fb9",
+      "base": "codex/861-auto-wake",
+      "base_sha": "6de0087665ff5c5ecbdd6660d12383517a2e50b0",
+      "draft": true,
+      "updated_at": "2026-09-17T09:37:07Z",
+      "url": "https://github.com/haji84/AI-/pull/864",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35206059389,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35206059389",
+        "head_sha": "ab136a48600af1bfea38716fc610b386d13e0fb9"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": true
+    },
+    {
+      "number": 858,
+      "title": "fix(jarvis): reliable Worker update delivery and per-device version status (#857)",
+      "head": "51651f5b969bae219f1ad737b02ac5b0b001d8f4",
+      "base": "main",
+      "base_sha": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+      "draft": false,
+      "updated_at": "2026-09-16T21:39:03Z",
+      "url": "https://github.com/haji84/AI-/pull/858",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35153343229,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35153343229",
+        "head_sha": "51651f5b969bae219f1ad737b02ac5b0b001d8f4"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": true
+    },
+    {
+      "number": 784,
+      "title": "docs: expand JARVIS integrated specification with fact-checked control gaps",
+      "head": "917be00f8d96c336de95df9fb9158c13c732b561",
+      "base": "main",
+      "base_sha": "9dff5c1e1e93769394605fd0f28d69ceabaaf293",
+      "draft": false,
+      "updated_at": "2026-09-16T08:40:58Z",
+      "url": "https://github.com/haji84/AI-/pull/784",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 35075113267,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/35075113267",
+        "head_sha": "917be00f8d96c336de95df9fb9158c13c732b561"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": true
+    },
+    {
+      "number": 595,
+      "title": "feat: add governed reusable skill runtime",
+      "head": "5dfe3358d6a85138f76471540e5ab6f1eaffc9a3",
+      "base": "main",
+      "base_sha": "354117d59f6c7d5fc2e86a9af004821cfb548b04",
+      "draft": false,
+      "updated_at": "2026-09-15T01:07:08Z",
+      "url": "https://github.com/haji84/AI-/pull/595",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "failure",
+        "run_id": 34915978334,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/34915978334",
+        "head_sha": "5dfe3358d6a85138f76471540e5ab6f1eaffc9a3"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "CI_REPAIR_REQUIRED",
+      "declared_hold": true
+    },
+    {
+      "number": 542,
+      "title": "feat: unify Commander autonomy execution path",
+      "head": "4574c0962e1a59d706cb615e94e2153ea9bb9072",
+      "base": "main",
+      "base_sha": "651d717fbf5bc960eb9407af75713a30088140d9",
+      "draft": true,
+      "updated_at": "2026-09-14T21:01:52Z",
+      "url": "https://github.com/haji84/AI-/pull/542",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 34896390750,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/34896390750",
+        "head_sha": "4574c0962e1a59d706cb615e94e2153ea9bb9072"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": false
+    },
+    {
+      "number": 541,
+      "title": "fix: remove no-think from real tool-use planner",
+      "head": "75e3f86b34418991987a79a13237657193043196",
+      "base": "main",
+      "base_sha": "651d717fbf5bc960eb9407af75713a30088140d9",
+      "draft": false,
+      "updated_at": "2026-09-14T16:10:54Z",
+      "url": "https://github.com/haji84/AI-/pull/541",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 34866989513,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/34866989513",
+        "head_sha": "75e3f86b34418991987a79a13237657193043196"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": false
+    },
+    {
+      "number": 535,
+      "title": "perf: cut R6 timeout and format failures with concise output",
+      "head": "d67ab098664168a30e04a365e8ccaaecddabfbd6",
+      "base": "main",
+      "base_sha": "eb1f0eb034f9f2da2d4f53dd8b0d839010a4d248",
+      "draft": false,
+      "updated_at": "2026-09-14T15:48:38Z",
+      "url": "https://github.com/haji84/AI-/pull/535",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 34864554061,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/34864554061",
+        "head_sha": "d67ab098664168a30e04a365e8ccaaecddabfbd6"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": false
+    },
+    {
+      "number": 505,
+      "title": "feat: navigate to configured sheet cells before tapping",
+      "head": "af62871e60b8b2299a9e49488d314e4ca1af8c02",
+      "base": "main",
+      "base_sha": "4996d1c2d7ab5748df7da86736268ddd3eff5ef4",
+      "draft": false,
+      "updated_at": "2026-09-13T17:37:19Z",
+      "url": "https://github.com/haji84/AI-/pull/505",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 34772143748,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/34772143748",
+        "head_sha": "af62871e60b8b2299a9e49488d314e4ca1af8c02"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": false
+    },
+    {
+      "number": 493,
+      "title": "feat: add per-device spreadsheet assignments",
+      "head": "b9265d1d2297fa987006b7494d53bef44ea39f82",
+      "base": "main",
+      "base_sha": "df57b7557e51648196be1b38f6fede8504673322",
+      "draft": false,
+      "updated_at": "2026-09-13T14:17:34Z",
+      "url": "https://github.com/haji84/AI-/pull/493",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 34762219882,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/34762219882",
+        "head_sha": "b9265d1d2297fa987006b7494d53bef44ea39f82"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": false
+    },
+    {
+      "number": 481,
+      "title": "fix: launch direct JARVIS Commander with Node",
+      "head": "b2150e931b50550386da62689e9f5d22c3c2f15b",
+      "base": "main",
+      "base_sha": "2fd01f2212f20a427a06da8063cb0d17a0528239",
+      "draft": false,
+      "updated_at": "2026-09-13T12:11:55Z",
+      "url": "https://github.com/haji84/AI-/pull/481",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 34756431836,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/34756431836",
+        "head_sha": "b2150e931b50550386da62689e9f5d22c3c2f15b"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": false
+    },
+    {
+      "number": 463,
+      "title": "feat: run fresh R2 v3 with explicit Qwen3 think control",
+      "head": "8f4af4b8a45cf5c8a6911c0550a2302e6a5b817a",
+      "base": "main",
+      "base_sha": "4dcaf5a1a7f878094ce9679dfaf25f19a6a7607a",
+      "draft": false,
+      "updated_at": "2026-09-13T11:30:51Z",
+      "url": "https://github.com/haji84/AI-/pull/463",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 34754634092,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/34754634092",
+        "head_sha": "8f4af4b8a45cf5c8a6911c0550a2302e6a5b817a"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": true
+    },
+    {
+      "number": 450,
+      "title": "feat: accelerate and resume R2 local-model research runs",
+      "head": "9b264a34de0ba3d845f002203ef6bf4150dba6db",
+      "base": "main",
+      "base_sha": "d556599593fecbb6250359758aa56aee0229a094",
+      "draft": false,
+      "updated_at": "2026-09-13T06:28:13Z",
+      "url": "https://github.com/haji84/AI-/pull/450",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 34742813830,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/34742813830",
+        "head_sha": "9b264a34de0ba3d845f002203ef6bf4150dba6db"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": true
+    },
+    {
+      "number": 284,
+      "title": "chore: PROJECT_STATEを現行autonomy状態へ同期",
+      "head": "92d6c498b6e85138823ce6ec22441eeaaee88443",
+      "base": "main",
+      "base_sha": "e27e5a081f0b0ceca96ba89c7c5b059de4e8577a",
+      "draft": false,
+      "updated_at": "2026-09-10T03:29:54Z",
+      "url": "https://github.com/haji84/AI-/pull/284",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 34433551976,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/34433551976",
+        "head_sha": "92d6c498b6e85138823ce6ec22441eeaaee88443"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": false
+    },
+    {
+      "number": 266,
+      "title": "fix: dashboard quick controlのcommand sourceを統一する",
+      "head": "c424bfc4274b1e02102a4748b897b9fae8fdd1e6",
+      "base": "main",
+      "base_sha": "3091dfaaf328bdc18c4db875f8c1e891861bf54a",
+      "draft": false,
+      "updated_at": "2026-09-08T19:52:23Z",
+      "url": "https://github.com/haji84/AI-/pull/266",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 34263099324,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/34263099324",
+        "head_sha": "c424bfc4274b1e02102a4748b897b9fae8fdd1e6"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [
+          {
+            "id": 5146351134,
+            "author": "haji84",
+            "author_type": "User",
+            "state": "COMMENTED",
+            "commit": "c424bfc4274b1e02102a4748b897b9fae8fdd1e6",
+            "submitted_at": "2026-09-08T19:52:23Z",
+            "url": "https://github.com/haji84/AI-/pull/266#pullrequestreview-5146351134"
+          }
+        ],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": false
+    },
+    {
+      "number": 264,
+      "title": "test: reasoning handoffから安全な実作業へ継続できることをE2E検証",
+      "head": "083bec3d30c69926d0258059dcffaa0c7ce7cafd",
+      "base": "main",
+      "base_sha": "3091dfaaf328bdc18c4db875f8c1e891861bf54a",
+      "draft": false,
+      "updated_at": "2026-09-08T17:11:19Z",
+      "url": "https://github.com/haji84/AI-/pull/264",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 34255582077,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/34255582077",
+        "head_sha": "083bec3d30c69926d0258059dcffaa0c7ce7cafd"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": true
+    },
+    {
+      "number": 259,
+      "title": "chore: reasoning handoff E2Eを次の自律タスクへ切り替える",
+      "head": "33eb07cc58c30f11bb059f04c6e13dd8b6c4535c",
+      "base": "main",
+      "base_sha": "44d29b979385f4744046252356097b9668b3fc14",
+      "draft": false,
+      "updated_at": "2026-09-08T16:57:09Z",
+      "url": "https://github.com/haji84/AI-/pull/259",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 34254168335,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/34254168335",
+        "head_sha": "33eb07cc58c30f11bb059f04c6e13dd8b6c4535c"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [
+          {
+            "id": 5143956912,
+            "author": "haji84",
+            "author_type": "User",
+            "state": "COMMENTED",
+            "commit": "42392e7beeda07c7005534a48f17ae67733ce834",
+            "submitted_at": "2026-09-08T15:49:59Z",
+            "url": "https://github.com/haji84/AI-/pull/259#pullrequestreview-5143956912"
+          }
+        ],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": false
+    },
+    {
+      "number": 172,
+      "title": "test: verify one-cycle bounded command completion",
+      "head": "9cc3ab390619ffd3d1093a3f5d7a9671480baa8b",
+      "base": "main",
+      "base_sha": "2dfec9bca9cd38ad01eade002e4ec1090f9f5b8c",
+      "draft": false,
+      "updated_at": "2026-09-03T22:46:22Z",
+      "url": "https://github.com/haji84/AI-/pull/172",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "failure",
+        "run_id": 33814607038,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/33814607038",
+        "head_sha": "9cc3ab390619ffd3d1093a3f5d7a9671480baa8b"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "CI_REPAIR_REQUIRED",
+      "declared_hold": false
+    },
+    {
+      "number": 132,
+      "title": "feat: 日本語のスマホ向けAI会社ダッシュボードを追加",
+      "head": "43c27d2584cc3c48e635e93b693bcc24756ba692",
+      "base": "main",
+      "base_sha": "cf399eed7e79b2e583a56a0600f57fe5904bccdc",
+      "draft": false,
+      "updated_at": "2026-09-03T03:12:57Z",
+      "url": "https://github.com/haji84/AI-/pull/132",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 33710554495,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/33710554495",
+        "head_sha": "43c27d2584cc3c48e635e93b693bcc24756ba692"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": false
+    },
+    {
+      "number": 110,
+      "title": "feat: use Work cloud as the default orchestration path",
+      "head": "801e25b6eca47e4c7d006da4ebf508ffa434fef6",
+      "base": "main",
+      "base_sha": "6a72fe110107c2e2f67282c7b8ff2637783d3adc",
+      "draft": false,
+      "updated_at": "2026-09-03T00:04:51Z",
+      "url": "https://github.com/haji84/AI-/pull/110",
+      "ancestry": "HEAD_NOT_FETCHED",
+      "ci": {
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 33697943361,
+        "run_attempt": 1,
+        "url": "https://github.com/haji84/AI-/actions/runs/33697943361",
+        "head_sha": "801e25b6eca47e4c7d006da4ebf508ffa434fef6"
+      },
+      "independent_review": {
+        "non_author_exact_head": 0,
+        "complete_pages": true,
+        "reviews": [],
+        "acceptance": "NOT_ESTABLISHED"
+      },
+      "acceptance": "NOT_ESTABLISHED",
+      "pipeline_stage": "INDEPENDENT_REVIEW_NOT_ESTABLISHED",
+      "declared_hold": false
+    }
+  ],
+  "critical_path": [
+    {
+      "issue": 1763,
+      "prs": [
+        1764,
+        1770
+      ],
+      "stage": "bounded continuation and verified next-step selection",
+      "status": "IMPLEMENTED_UNVERIFIED"
+    },
+    {
+      "issue": 1805,
+      "prs": [
+        1806
+      ],
+      "stage": "genuine independent reproduction and receiving Builder acknowledgement",
+      "status": "BLOCKED"
+    },
+    {
+      "issue": 1756,
+      "prs": [
+        1759,
+        1208
+      ],
+      "stage": "native authority and physical failure/recovery",
+      "status": "BLOCKED"
+    }
+  ],
+  "functional_completion_claim": false,
+  "summary": {
+    "open_prs": 101,
+    "ancestry": {
+      "HEAD_NOT_FETCHED": 99,
+      "DIVERGED": 2
+    },
+    "ci": {
+      "success": 89,
+      "failure": 11,
+      "action_required": 1
+    },
+    "independent_exact_head_non_author_reviews": 0
+  },
+  "limitations": [
+    "GitHub search and CI/review API snapshot, not code or runtime acceptance.",
+    "All 101 open PRs retrieved across two pages; CI selected from first 30 exact-head pull_request workflow runs.",
+    "No exact-head non-author GitHub reviews were returned; this does not establish physical/device or artifact verification.",
+    "Head ancestry not fetched for 99 PRs. Open PR count is not remaining work or completed requirements.",
+    "No old PR was closed, approved, merged or treated as obsolete based on its age or title."
+  ]
+}
