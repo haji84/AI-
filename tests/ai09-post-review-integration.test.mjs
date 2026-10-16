@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { publishReceipt } from "../scripts/goriq-ai09-post-review.mjs";
 import {
-  compareToPatch, reviewReceipt, commentMarker, makeBlockedReview
+  compareToPatch, reviewReceipt, commentMarker
 } from "../src/orchestrator/ai09-pr-review-automation.mjs";
 
 const repo = "haji84/AI-";
