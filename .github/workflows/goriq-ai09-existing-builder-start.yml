@@ -1,0 +1,131 @@
+name: GORIQ AI-09 One-Shot Existing Builder Start
+
+# Explicit owner-only recovery. Never install, rotate tokens, or run PR head.
+on:
+  issues:
+    types: [opened, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  existing-builder-one-shot:
+    if: >-
+      github.repository == 'haji84/AI-' &&
+      startsWith(github.event.issue.title, '[AI09 ONE-SHOT BUILDER START]') &&
+      github.event.issue.user.login == github.repository_owner &&
+      github.event.sender.login == github.repository_owner
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 7
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout only trusted protected main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Recheck exact main and verified source before activating task
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          git fetch --no-tags origin main
+          if ($LASTEXITCODE -ne 0) { throw 'AI09_SOURCE_FETCH_FAILED' }
+          if ((git rev-parse HEAD).Trim() -ne (git rev-parse origin/main).Trim()) {
+            throw 'AI09_STALE_MAIN_HOLD'
+          }
+      - name: Start existing Builder scheduled task once and authenticate local health
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = Join-Path $env:LOCALAPPDATA 'GAIWorker\code-builder'
+          $launcher = Join-Path $root 'run-code-builder.ps1'
+          $service = Join-Path $root 'code-builder-worker-service.ts'
+          $tokenFile = Join-Path $root 'token.txt'
+          $taskName = 'GAI Code Builder Worker'
+          foreach ($file in @($launcher,$service,$tokenFile)) {
+            if (-not (Test-Path -LiteralPath $file -PathType Leaf)) {
+              throw 'AI09_EXISTING_BUILDER_COMPONENT_MISSING'
+            }
+          }
+          $task = Get-ScheduledTask -TaskName $taskName -ErrorAction Stop
+          if ($task.Actions.Count -ne 1) { throw 'AI09_UNEXPECTED_TASK_ACTION_COUNT' }
+          $action = $task.Actions[0]
+          # Check the installed task's selected executable and -File target
+          # without ever writing its arguments or token-bearing launcher.
+          if (($action.Execute -notmatch '(?i)(^|[\\/])powershell\.exe$') -or
+              ($action.Arguments -notmatch '(?i)-NoProfile\s+-ExecutionPolicy\s+Bypass') -or
+              ($action.Arguments -notlike ('*' + '-File "' + $launcher + '"'))) {
+            throw 'AI09_UNTRUSTED_EXISTING_TASK_ACTION'
+          }
+          $listeners = @(Get-NetTCPConnection -LocalPort 8796 -State Listen -ErrorAction SilentlyContinue)
+          if (@($listeners | Where-Object { $_.LocalAddress -notin @('127.0.0.1','::1') }).Count -gt 0) {
+            throw 'AI09_BUILDER_NON_LOOPBACK_LISTENER'
+          }
+          $started = $false
+          if ($listeners.Count -eq 0) {
+            if ([string]$task.State -ne 'Ready') {
+              throw 'AI09_EXISTING_TASK_NOT_READY'
+            }
+            # Exactly one invocation of an installed task; no registration,
+            # alteration, installer, token creation, restart, or job dispatch.
+            Start-ScheduledTask -TaskName $taskName -ErrorAction Stop
+            $started = $true
+          }
+          $healthy = $false
+          $workerId = $null
+          for ($attempt=0; $attempt -lt 18; $attempt++) {
+            $listeners = @(Get-NetTCPConnection -LocalPort 8796 -State Listen -ErrorAction SilentlyContinue)
+            if (@($listeners | Where-Object { $_.LocalAddress -notin @('127.0.0.1','::1') }).Count -gt 0) {
+              throw 'AI09_BUILDER_NON_LOOPBACK_LISTENER'
+            }
+            if (@($listeners | Where-Object { $_.LocalAddress -eq '127.0.0.1' }).Count -gt 0) {
+              $token = ''
+              $response = $null
+              try {
+                $token = (Get-Content -LiteralPath $tokenFile -Raw).Trim()
+                if ($token.Length -lt 8) { throw 'AI09_EXISTING_TOKEN_INVALID' }
+                $request = [System.Net.HttpWebRequest]::Create('http://127.0.0.1:8796/health')
+                $request.Method = 'GET'
+                $request.Timeout = 3500
+                $request.AllowAutoRedirect = $false
+                $request.Headers.Add('Authorization', 'Bearer ' + $token)
+                $response = $request.GetResponse()
+                if ([int]$response.StatusCode -eq 200) {
+                  $stream = New-Object System.IO.StreamReader($response.GetResponseStream())
+                  try { $data = $stream.ReadToEnd() | ConvertFrom-Json }
+                  finally { $stream.Close() }
+                  if ($data.ok -eq $true -and $data.service -eq 'code-builder-worker' -and
+                      @($data.capabilities) -contains 'code-builder') {
+                    $healthy = $true
+                    if ($data.workerId -match '^[A-Za-z0-9_.-]{1,64}$') {
+                      $workerId = [string]$data.workerId
+                    }
+                    break
+                  }
+                }
+              } catch {
+                # Do not print exception, raw log, launcher or token.
+              } finally {
+                if ($response) { $response.Close() }
+                $token = ''
+                $request = $null
+              }
+            }
+            Start-Sleep -Seconds 2
+          }
+          $evidence = [ordered]@{
+            schemaVersion = 1
+            servicePort = 8796
+            taskName = $taskName
+            existingTaskTriggeredExactlyOnce = $started
+            installedFilesUnmodified = $true
+            tokenRotated = $false
+            authenticatedBuilderHealthy = $healthy
+            workerId = $workerId
+            builderTaskAccepted = $false
+            actualBuilderReceiptId = $null
+            writeOrMergeAuthorized = $false
+          }
+          Write-Host ('AI09_EXISTING_BUILDER_START=' + ($evidence | ConvertTo-Json -Compress))
+          if (-not $healthy) { throw 'AI09_EXISTING_BUILDER_STILL_UNAVAILABLE_AFTER_ONE_START' }
