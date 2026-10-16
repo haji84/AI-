@@ -10,6 +10,44 @@ const ACTOR=/^[A-Za-z0-9-]{1,39}$/;
 const REF=/^[A-Za-z0-9_:/.-]{8,128}$/;
 const PREFIX="AI09_INDEPENDENT_REPRODUCTION_V1\n";
 
+// Trusted controller wiring for the read-only GitHub verification adapter.
+// Only fixed pull request metadata and bounded reviews can be fetched.
+// Never use a model-chosen route, HTTP method, repository or credential.
+export function createGitHubReadOnlyPullReviewClient({
+  repository, token, fetchImpl = fetch,
+}) {
+  if(!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository??"") ||
+     typeof token!=="string" || token.length<8 || token.length>2048 ||
+     typeof fetchImpl!=="function")
+    throw Error("INVALID_GITHUB_READONLY_CLIENT_CONFIG");
+  const pathPattern=/^\/pulls\/[1-9][0-9]{0,9}(?:\/reviews\?per_page=100&page=1)?$/;
+  return async path=>{
+    if(typeof path!=="string"||!pathPattern.test(path))
+      throw Error("UNAUTHORIZED_GITHUB_READ_PATH");
+    let response;
+    try {
+      response=await fetchImpl("https://api.github.com/repos/"+repository+path,{
+        method:"GET",
+        headers:{
+          Accept:"application/vnd.github+json",
+          Authorization:"Bearer "+token,
+          "X-GitHub-Api-Version":"2022-11-28",
+          "User-Agent":"GORIQ-AI09-independent-readonly-verifier",
+        },
+        redirect:"error",
+        signal:AbortSignal.timeout(15000),
+      });
+    } catch {
+      throw Error("GITHUB_READONLY_REVIEW_UNAVAILABLE");
+    }
+    if(!response||response.ok!==true)
+      throw Error("GITHUB_READONLY_REVIEW_UNAVAILABLE");
+    try {return await response.json();}
+    catch {throw Error("INVALID_GITHUB_READONLY_REVIEW_RESPONSE");}
+  };
+}
+
+
 export function createGitHubHumanReproductionVerifier({
   repository,builderActor,allowedReviewerLogins,githubGet,
 }) {
