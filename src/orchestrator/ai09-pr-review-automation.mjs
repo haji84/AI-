@@ -277,9 +277,14 @@ export function validateReviewReceipt(receipt, expected) {
   return true;
 }
 
-export function commentMarker(prNumber, headSha) {
-  if (!Number.isSafeInteger(prNumber) || prNumber < 1 || !SHA40.test(headSha)) throw new Error("invalid_review_marker");
-  return "<!-- GORIQ_AI09_ADVISORY_V1 PR=" + prNumber + " SHA=" + headSha + " -->";
+export function commentMarker(prNumber, headSha, baseSha) {
+  if (!Number.isSafeInteger(prNumber) || prNumber < 1 ||
+      !SHA40.test(headSha) || !SHA40.test(baseSha) || headSha === baseSha) {
+    throw new Error("invalid_review_marker");
+  }
+  // A base change invalidates the old review even if PR head is unchanged.
+  return "<!-- GORIQ_AI09_ADVISORY_V2 PR=" + prNumber +
+    " HEAD=" + headSha + " BASE=" + baseSha + " -->";
 }
 
 function safeLine(value) {
@@ -294,7 +299,7 @@ export function formatReviewComment(receipt) {
   const r = receipt.reviewerResult;
   const quote = String.fromCharCode(96);
   const lines = [
-    commentMarker(receipt.prNumber, receipt.headSha),
+    commentMarker(receipt.prNumber, receipt.headSha, receipt.baseSha),
     "## AI-09 Reviewer — automatic local advisory review",
     "**Status:** " + safeLine(r.status),
     "**Reviewed PR head:** " + quote + receipt.headSha + quote,
