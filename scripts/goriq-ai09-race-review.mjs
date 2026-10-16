@@ -2,12 +2,10 @@
 // GORIQ AI-09 independent technical advisory for RACE AI.
 // Read-only: the only network destinations are the public GitHub API and loopback Ollama.
 // It does not post comments, change repository settings, merge, or claim approvals.
-import { createHash } from "node:crypto";
-import { Buffer } from "node:buffer";
 import { pathToFileURL } from "node:url";
 import { reviewLocalPatch } from "../src/orchestrator/ai09-local-reviewer.mjs";
 import { assertCompleteComparison } from "./goriq-ai09-compare-coverage.mjs";
-import { compareToReviewChunks, consolidateChunkReviews, makeBlockedReview } from "../src/orchestrator/ai09-pr-review-automation.mjs";
+import { compareToReviewChunks, consolidateChunkReviews } from "../src/orchestrator/ai09-pr-review-automation.mjs";
 
 const REPO = "haji84/RACE-AI";
 const SHA40 = /^[a-f0-9]{40}$/;
