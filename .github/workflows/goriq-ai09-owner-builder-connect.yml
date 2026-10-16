@@ -144,7 +144,7 @@ jobs:
             }
           }
           # Read only Task Scheduler metadata from the existing Builder install.
-          # Do not inspect or print task Action.Arguments: the installed launcher
+          # Do not inspect or print task configuration: the installed launcher
           # contains an existing bearer token and workspace configuration.
           $taskName = 'GAI Code Builder Worker'
           $taskState = 'UNAVAILABLE'
