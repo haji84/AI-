@@ -60,6 +60,12 @@ export async function publishReceipt(c, receipt, githubApiFn = githubApi) {
   if (!validCompletedCiRun(ciRun, { ...c, ciConclusion: receipt.ciConclusion })) {
     throw new Error("untrusted_ci_verdict_or_pr_link");
   }
+  // A model can report no code findings while CI is failing. Never publish
+  // that as a clean advisory if CI has not succeeded on this exact head.
+  if (receipt.reviewerResult.status === "NO_ACTIONABLE_FINDINGS" &&
+      receipt.ciConclusion !== "success") {
+    throw new Error("clean_review_requires_successful_exact_head_ci");
+  }
   const pr = await githubApiFn(c, "/pulls/" + c.prNumber);
   if (pr?.state !== "open" || pr?.head?.sha !== c.headSha || pr?.base?.sha !== c.baseSha ||
     pr?.head?.repo?.full_name !== c.repository || pr?.base?.repo?.full_name !== c.repository) {
