@@ -3,6 +3,7 @@
 // Read-only: the only network destinations are the public GitHub API and loopback Ollama.
 // It does not post comments, change repository settings, merge, or claim approvals.
 import { pathToFileURL } from "node:url";
+import { readFileSync } from "node:fs";
 import { reviewLocalPatch } from "../src/orchestrator/ai09-local-reviewer.mjs";
 import { assertCompleteComparison } from "./goriq-ai09-compare-coverage.mjs";
 import { compareToReviewChunks, consolidateChunkReviews } from "../src/orchestrator/ai09-pr-review-automation.mjs";
@@ -77,17 +78,30 @@ export async function reviewRacePull({number,head,base,api,infer}) {
   };
 }
 
-function parseArgs(args) {
+export function parseRaceRequest(args, loadManifest = path => JSON.parse(readFileSync(path,"utf8"))) {
+  if(args.length === 2 && args[0] === "--manifest") {
+    const manifest=loadManifest(args[1]);
+    if (manifest?.schemaVersion !== 1 ||
+      manifest.contract !== "GORIQ_AI09_ADVISORY_REQUEST_V1" ||
+      manifest.repository !== REPO || manifest.recipient !== "GORIQ/AI-09" ||
+      manifest.ciReady !== true || manifest.githubApprovalSatisfied !== false ||
+      manifest.mergeAuthorized !== false || manifest.gitHubWritePerformed !== false ||
+      manifest.reviewerMustDifferFromBuilder !== true ||
+      manifest.nextAction !== "REQUEST_AI09") throw Error("UNTRUSTED_RACE_MANIFEST");
+    const {prNumber:number,headSha:head,baseSha:base}=manifest;
+    if (!Number.isSafeInteger(number) || number < 1 || !SHA40.test(head) ||
+      !SHA40.test(base) || head === base) throw Error("INVALID_MANIFEST_SCOPE");
+    return {number,head,base};
+  }
   if(args.length !== 6 || args[0] !== "--pr" || args[2] !== "--head" || args[4] !== "--base")
-    throw Error("USAGE: --pr NUMBER --head FULL_SHA --base FULL_SHA");
+    throw Error("USAGE: --manifest PATH | --pr NUMBER --head FULL_SHA --base FULL_SHA");
   const number=Number(args[1]),head=args[3],base=args[5];
   if(!Number.isSafeInteger(number) || number <= 0 || !SHA40.test(head) || !SHA40.test(base))
     throw Error("INVALID_EXACT_REVIEW_SCOPE");
   return {number,head,base};
 }
-
 async function main() {
-  const {number,head,base}=parseArgs(process.argv.slice(2));
+  const {number,head,base}=parseRaceRequest(process.argv.slice(2));
   async function api(path) {
     const url="https://api.github.com/repos/"+REPO+path;
     const response=await fetch(url,{
