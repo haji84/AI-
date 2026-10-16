@@ -7,6 +7,7 @@ import { anchorAudit } from "./goriq-ai09-finding-anchors.mjs";
 const SHA40 = /^[a-f0-9]{40}$/;
 const SHA256 = /^[a-f0-9]{64}$/;
 const REF = /^[A-Za-z0-9_:/.-]{8,128}$/;
+const ACTOR = /^[A-Za-z0-9-]{1,39}$/;
 
 export const EVIDENCE_FIRST_MODEL_INSTRUCTIONS = [
   "For a finding, cite exact changed file and added new-side line number.",
@@ -103,8 +104,8 @@ export async function prepareVerifiedRepairProposal({
       proof?.patchSha256 !== patchDigest ||
       proof?.path !== finding.path || proof?.line !== finding.line ||
       proof?.findingIndex !== findingIndex ||
-      typeof actor !== "string" || !REF.test(actor) ||
-      typeof builder !== "string" || !REF.test(builder) ||
+      typeof actor !== "string" || !ACTOR.test(actor) ||
+      typeof builder !== "string" || !ACTOR.test(builder) ||
       actor.toLowerCase() === builder.toLowerCase() ||
       actor.toLowerCase() === "ai-09")
     return hold("INDEPENDENT_REPRODUCTION_NOT_VERIFIED");
