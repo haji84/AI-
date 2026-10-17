@@ -67,7 +67,7 @@ function planCodexBuilder(
   const actualHostPath = (value: string) => {
     const windowsPath = /^[a-zA-Z]:[\\/]/.test(value);
     const dialect = windowsPath ? win32 : posix;
-    if (!value || [...value].some((ch) => ch.charCodeAt(0) < 32).test(value) ||
+    if (!value || [...value].some((ch) => ch.charCodeAt(0) < 32) ||
         value.split(/[\\/]/).includes("..") ||
         (!windowsPath && value.startsWith("//")) ||
         !dialect.isAbsolute(value)) {
