@@ -5918,7 +5918,7 @@
     },
     {
       "path": "src/orchestrator/runtime-builder-capability.ts",
-      "sha256": "403dd6a8bb5190198bf1015401f158858486fb7e25a72dd8443ca91b06657dc7",
+      "sha256": "a45bddd1e1d5ab3fe655663ee93a4fceb632d10553cb98228eefa3b50b766497",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
