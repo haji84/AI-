@@ -183,9 +183,14 @@ function configuredDevelopmentRuntime(compassPath: string, context: unknown[]): 
         });
       },
       ...(executionScope.localOllama && process.env.GORIQ_LOCAL_OLLAMA_TDD_PROFILE === "python_add_v1" ? {
-        async verifyRed({ changeSet }: { changeSet: { baseRevision: string } }) {
+        async verifyRed({ changeSet }: { changeSet: { baseRevision: string; artifactDigest: string; candidateRevision: string; changedPaths: string[] } }) {
           const red = runLocalTddVerification(repositoryRoot, changeSet.baseRevision, "red");
-          if (!red.ok || !red.evidenceDigest) throw new Error(red.blocker ?? "independent_red_unproven");
+          if (!red.ok || !red.evidenceDigest ||
+              red.evidence?.artifactSha256 !== changeSet.artifactDigest ||
+              red.evidence?.candidateRevision !== changeSet.candidateRevision ||
+              changeSet.changedPaths.length !== 1 || changeSet.changedPaths[0] !== localOllamaFixtureTestPath) {
+            throw new Error(red.blocker ?? "independent_red_artifact_binding_invalid");
+          }
           return { digest: red.evidenceDigest, issuer: red.evidence!.verifierId };
         },
       } : {}),
@@ -203,7 +208,8 @@ function configuredDevelopmentRuntime(compassPath: string, context: unknown[]): 
         };
         if (executionScope.localOllama && process.env.GORIQ_LOCAL_OLLAMA_TDD_PROFILE === "python_add_v1") {
           const green = runLocalTddVerification(repositoryRoot, changeSet.baseRevision, "green");
-          if (!green.ok || green.evidence?.artifactSha256 !== changeSet.artifactDigest) return [];
+          if (!green.ok || green.evidence?.artifactSha256 !== changeSet.artifactDigest ||
+              green.evidence?.candidateRevision !== plan.sourceRevision) return [];
           // This narrow Python unit proof cannot be mislabeled as the complete
           // repository-wide lint/typecheck/build/security gate.
           return [{ check: "unit" as const, verifierId: green.evidence!.verifierId,
