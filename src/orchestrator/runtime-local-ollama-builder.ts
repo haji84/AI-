@@ -154,6 +154,8 @@ export function createLocalOllamaBuilder(input: LocalOllamaBuilderOptions): Buil
 }
 
 export function configuredLocalOllamaBuilder(env: Record<string, string | undefined> = process.env, fetchImpl: typeof fetch = fetch): BuilderCapability | null {
+  const profile = env.GORIQ_LOCAL_OLLAMA_TDD_PROFILE?.trim();
+  if (profile && profile !== "python_add_v1") throw new Error("Unknown local Ollama TDD profile");
   const enabled = env.GORIQ_LOCAL_OLLAMA_BUILDER_ENABLED?.trim();
   if (!enabled) return null;
   if (enabled !== "1") throw new Error("Local Ollama Builder opt-in is invalid");
