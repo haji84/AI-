@@ -7,7 +7,7 @@
 import { createHash } from "node:crypto";
 import { spawnSync, execFileSync } from "node:child_process";
 import { existsSync, lstatSync, readFileSync, realpathSync } from "node:fs";
-import { dirname, isAbsolute, join, resolve } from "node:path";
+import { isAbsolute, join } from "node:path";
 
 const source = "tests/fixtures/goriq_goal_add.py";
 const test = "tests/fixtures/goriq_goal_add_test.py";
