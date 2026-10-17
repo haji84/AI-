@@ -62,9 +62,13 @@ async function main() {
   if (!red && !green) throw Error("PYTHON_TDD_EXPECTATION_NOT_MET");
   const after = git(root,"status","--porcelain","-uall").split("\n").filter(Boolean).sort();
   if (JSON.stringify(after)!==JSON.stringify(allowed.sort())) throw Error("TEST_MUTATED_WORKTREE");
-  const artifactSha256 = digest(req.phase==="red" ? actualTest : readFileSync(targetSource));
+  const actualContent = req.phase==="red" ? actualTest : readFileSync(targetSource,"utf8");
+  const actualPath = req.phase==="red" ? test : source;
+  const artifactSha256 = digest(actualContent);
+  const patchDigest = digest(`create\\0${actualPath}\\0${actualContent}`);
+  const candidateRevision = digest(`candidate\\0${req.baseRevision}\\0${patchDigest}`);
   const evidence = {phase:req.phase, outcome:red?"RED_FAIL_OBSERVED":"GREEN_PASS_OBSERVED",
-    testSha256:digest(actualTest), artifactSha256, baseRevision:req.baseRevision,
+    testSha256:digest(actualTest), artifactSha256, patchDigest, candidateRevision, baseRevision:req.baseRevision,
     exitCode:child.status, verifierId:"local-tdd-separate-process", origin:"node-child-plus-python",
     checks:req.phase==="red"?["missing_source_failure"]:["add_positive","add_zero"],
     recordedAt:new Date().toISOString()};
