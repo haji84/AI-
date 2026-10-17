@@ -939,6 +939,18 @@
       "reason": "Organization-aware reusable memory"
     },
     {
+      "path": "scripts/goriq-local-ollama-tdd-verifier.mjs",
+      "sha256": "d6d7420b3df7db7296fad7935e2d10579f9523ab9e17dfa838c6c729fe90b7b9",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-014",
+        "AUTO-001",
+        "AUTO-004",
+        "GOV-025"
+      ],
+      "reason": "#1219 bounded Python fixture separate-process TDD RED/GREEN evidence support; not a general code verifier, not full release acceptance."
+    },
+    {
       "path": "scripts/jarvis-adb-mass-enroll.sh",
       "sha256": "218d856fc06b462305ac093bea39fca09a44f768575fd1abf9719a8b12b98455",
       "classification": "COVERED_BY_REQUIREMENT",
@@ -1073,7 +1085,7 @@
     },
     {
       "path": "scripts/jarvis-goal-executor.ts",
-      "sha256": "dc6a84183fe3d506df13644d05e81a2978fd503348aa7e363bf8c3b405f91a48",
+      "sha256": "a513a68b37b5f17376796644eb2fdfd431649c8c2489a65354e5f1643044afd2",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "AUTO-001",
@@ -1081,7 +1093,7 @@
         "GOV-025",
         "OWN-001"
       ],
-      "reason": "Issues #1219/#1284 Direct Goal Bridge executor auto-routes accepted development intent from Daily Driver into the bounded Builder runtime when explicit self-development environment configuration is absent; existing capability, verifier, risk, Human Gate, and release controls remain authoritative. Physical iPhone E2E remains required before completion. #1219 scope pinning follows resident Ollama opt-in; no complete runtime E2E claim."
+      "reason": "Issues #1219/#1284 Direct Goal Bridge executor auto-routes accepted development intent from Daily Driver into the bounded Builder runtime when explicit self-development environment configuration is absent; existing capability, verifier, risk, Human Gate, and release controls remain authoritative. Physical iPhone E2E remains required before completion. #1219 scope pinning follows resident Ollama opt-in; no complete runtime E2E claim. #1219 bounded Codex-free TDD RED and local separate-process GREEN proof work; complete independent release verification and physical Goal E2E are not claimed."
     },
     {
       "path": "scripts/jarvis-mac-broker-service.sh",
@@ -5611,6 +5623,18 @@
       "reason": "#681 live acceptance rejects non-loopback inference and undeclared edits, and separates simulated contract runs from admissible self-hosted Ollama evidence."
     },
     {
+      "path": "src/orchestrator/local-ollama-tdd.ts",
+      "sha256": "a057ba6915a0c11ad4be5231484e863577bad7d7fb0b2b0e27ee21b03cd85d31",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-014",
+        "AUTO-001",
+        "AUTO-004",
+        "GOV-025"
+      ],
+      "reason": "#1219 bounded Python fixture separate-process TDD RED/GREEN evidence support; not a general code verifier, not full release acceptance."
+    },
+    {
       "path": "src/orchestrator/local-spreadsheet-capability.ts",
       "sha256": "370780847923181e2bfbca02ccc0cc1e3888367d66bfe8c0f8ce2d5ac42c0753",
       "classification": "COVERED_BY_REQUIREMENT",
@@ -5892,7 +5916,7 @@
     },
     {
       "path": "src/orchestrator/resident-development-goal-host.ts",
-      "sha256": "40255ff4e7374f40bcfc385fc93d98f16b62f21c540a8addf88d6a969ad89a79",
+      "sha256": "8d7cbd2fbcdb84e289ae0aabec2ca7edafc666c3cb67e250c5ac1826a56b4870",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -5904,11 +5928,11 @@
         "AUTO-025",
         "AUTO-026"
       ],
-      "reason": "#681 explicit host-opted resident development runtime resumes durable Job and Change Set stages without duplicate Builder, verifier, or release effects."
+      "reason": "#681 explicit host-opted resident development runtime resumes durable Job and Change Set stages without duplicate Builder, verifier, or release effects. #1219 bounded Codex-free TDD RED and local separate-process GREEN proof work; complete independent release verification and physical Goal E2E are not claimed."
     },
     {
       "path": "src/orchestrator/resident-development-scope.ts",
-      "sha256": "f9db34fad357c8d91c49fc84a5db8b6a68eeca4cf7d373365367fe0fc45eb4de",
+      "sha256": "11dac3d33ab250a5d2040ec2d6077e744fea62f617b42caa5ffe03711c912d7e",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -5916,7 +5940,7 @@
         "AUTO-004",
         "GOV-025"
       ],
-      "reason": "#1219 local Goal runtime pins the isolated workspace and allows exactly one owner-scoped file. This is implementation traceability, not Codex-free E2E acceptance."
+      "reason": "#1219 local Goal runtime pins the isolated workspace and allows exactly one owner-scoped file. This is implementation traceability, not Codex-free E2E acceptance. #1219 bounded Codex-free TDD RED and local separate-process GREEN proof work; complete independent release verification and physical Goal E2E are not claimed."
     },
     {
       "path": "src/orchestrator/risk-policy.ts",
@@ -5970,7 +5994,7 @@
     },
     {
       "path": "src/orchestrator/runtime-local-ollama-builder.ts",
-      "sha256": "a689887b5199c6864ee4566deeea85d0da2e818eaa2d2775e859133929ccc0ba",
+      "sha256": "c21a080f74641679454a9a63d298d4b342d26bdcd5983a31faa90ce28fe4f34e",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-008",
@@ -5978,7 +6002,7 @@
         "AUTO-010",
         "AUTO-015"
       ],
-      "reason": "#1219 Codex-independent local Ollama Builder: explicit detached-clean-worktree and new-file allowlist, exclusive write, no existing-file overwrite or remote fallback. This is implementation mapping, not independent verifier or complete Goal E2E evidence."
+      "reason": "#1219 Codex-independent local Ollama Builder: explicit detached-clean-worktree and new-file allowlist, exclusive write, no existing-file overwrite or remote fallback. This is implementation mapping, not independent verifier or complete Goal E2E evidence. #1219 bounded Codex-free TDD RED and local separate-process GREEN proof work; complete independent release verification and physical Goal E2E are not claimed."
     },
     {
       "path": "src/orchestrator/safe-pr-capability.ts",
