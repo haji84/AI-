@@ -65,8 +65,8 @@ async function main() {
   const actualContent = req.phase==="red" ? actualTest : readFileSync(targetSource,"utf8");
   const actualPath = req.phase==="red" ? test : source;
   const artifactSha256 = digest(actualContent);
-  const patchDigest = digest(`create\\0${actualPath}\\0${actualContent}`);
-  const candidateRevision = digest(`candidate\\0${req.baseRevision}\\0${patchDigest}`);
+  const patchDigest = digest(`create\0${actualPath}\0${actualContent}`);
+  const candidateRevision = digest(`candidate\0${req.baseRevision}\0${patchDigest}`);
   const evidence = {phase:req.phase, outcome:red?"RED_FAIL_OBSERVED":"GREEN_PASS_OBSERVED",
     testSha256:digest(actualTest), artifactSha256, patchDigest, candidateRevision, baseRevision:req.baseRevision,
     exitCode:child.status, verifierId:"local-tdd-separate-process", origin:"node-child-plus-python",
