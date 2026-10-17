@@ -16,6 +16,7 @@ import { JsonFileDevelopmentJobStore } from "../src/orchestrator/development-job
 import { ResidentDevelopmentGoalHost } from "../src/orchestrator/resident-development-goal-host.ts";
 import { createRuntimeBuilderRouter } from "../src/orchestrator/runtime-builder-capability.ts";
 import { resolveResidentDevelopmentScope } from "../src/orchestrator/resident-development-scope.ts";
+import { localOllamaFixtureTestPath, runLocalTddVerification } from "../src/orchestrator/local-ollama-tdd.ts";
 import { createRuntimeDevelopmentVerifier } from "../src/orchestrator/runtime-development-verifier.ts";
 import { HttpDevelopmentReleaseCapability } from "../src/orchestrator/http-development-release-capability.ts";
 import { createTaskCompletionAuthorization, normalizeTaskCompletionAuthorization } from "../src/orchestrator/task-authorization.ts";
@@ -149,7 +150,8 @@ function configuredDevelopmentRuntime(compassPath: string, context: unknown[]): 
             attemptId: `${job.jobId}:attempt:${job.attempts.length + 1}`,
             strategyId: `${job.jobId}:strategy:${job.attempts.length + 1}`,
             objective: workItem.objective,
-            files: resolvedTargets,
+            files: executionScope.localOllama && process.env.GORIQ_LOCAL_OLLAMA_TDD_PROFILE === "python_add_v1" && tddPhase === "red"
+              ? [localOllamaFixtureTestPath] : resolvedTargets,
             baseRevision: job.baseRevision,
             previousFailureSignatures: job.failureSignatures,
             previousStrategyFingerprints: job.rejectedStrategyIds,
@@ -180,6 +182,13 @@ function configuredDevelopmentRuntime(compassPath: string, context: unknown[]): 
           rollback: { kind: "git-base", reference: job.baseRevision },
         });
       },
+      ...(executionScope.localOllama && process.env.GORIQ_LOCAL_OLLAMA_TDD_PROFILE === "python_add_v1" ? {
+        async verifyRed({ changeSet }: { changeSet: { baseRevision: string } }) {
+          const red = runLocalTddVerification(repositoryRoot, changeSet.baseRevision, "red");
+          if (!red.ok || !red.evidenceDigest) throw new Error(red.blocker ?? "independent_red_unproven");
+          return { digest: red.evidenceDigest, issuer: red.evidence!.verifierId };
+        },
+      } : {}),
       async verify({ job, changeSet, plan, goal, context: runtimeContext }) {
         const action = {
           id: `${job.jobId}:verify`,
@@ -192,6 +201,15 @@ function configuredDevelopmentRuntime(compassPath: string, context: unknown[]): 
             releaseBinding: { builderId: plan.builderId, sourceRevision: plan.sourceRevision, artifactDigest: plan.artifactDigest },
           },
         };
+        if (executionScope.localOllama && process.env.GORIQ_LOCAL_OLLAMA_TDD_PROFILE === "python_add_v1") {
+          const green = runLocalTddVerification(repositoryRoot, changeSet.baseRevision, "green");
+          if (!green.ok || green.evidence?.artifactSha256 !== changeSet.artifactDigest) return [];
+          // This narrow Python unit proof cannot be mislabeled as the complete
+          // repository-wide lint/typecheck/build/security gate.
+          return [{ check: "unit" as const, verifierId: green.evidence!.verifierId,
+            sourceRevision: plan.sourceRevision, artifactDigest: plan.artifactDigest,
+            status: "passed" as const, recordedAt: green.evidence!.recordedAt }];
+        }
         const result = await verifier.verify({ goal, action, result: { actionId: action.id, ok: true, summary: "Change Set ready for verification" }, context: runtimeContext });
         if (!result.ok) return [];
         const evidence = result.evidence as { verificationEvidence?: unknown } | undefined;
