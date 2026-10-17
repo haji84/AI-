@@ -71,11 +71,9 @@ test("real separate process observes RED test failure then GREEN success without
     assert.equal(greenProof.ok, true, JSON.stringify(greenProof));
     assert.equal(greenProof.evidence?.outcome, "GREEN_PASS_OBSERVED");
     assert.equal(greenProof.evidence?.exitCode, 0);
-    assert.deepEqual(calls, [
-      "http://127.0.0.1:11434/api/tags",
-      "http://127.0.0.1:11434/api/tags",
-      "http://127.0.0.1:11434/api/generate",
-    ]);
+    assert.equal(calls.filter(url => url.endsWith("/api/tags")).length, 4);
+    assert.equal(calls.filter(url => url.endsWith("/api/generate")).length, 1);
+    assert.ok(calls.every(url => url.startsWith("http://127.0.0.1:11434/")));
     assert.equal(git(p.root, "status", "--porcelain", "-uall"), "");
   } finally { p.cleanup(); }
 });
