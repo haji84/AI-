@@ -136,6 +136,7 @@ function configuredDevelopmentRuntime(compassPath: string, context: unknown[]): 
     },
     stages: {
       builderId: "builder:resident",
+      deferMissingVerification: executionScope.localOllama,
       async build({ job, context: runtimeContext, workItemId }) {
         const workItem = job.workItems.find((item) => item.id === workItemId);
         if (!workItem) throw new Error("resident Builder Work Item is not in the durable Job");
