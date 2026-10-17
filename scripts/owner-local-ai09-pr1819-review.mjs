@@ -64,27 +64,57 @@ async function review(){
   s.totalChunks=prepared.chunks.length;
   s.patchSha256=prepared.patchSha256;
   const reports=[];
+  // Keep all five chunks observable even when one inference cannot be parsed.
+  // A blocked chunk is NEVER counted as valid coverage or a clean review.
   for(const [index,chunk] of prepared.chunks.entries()){
     const start=performance.now();
+    let metric={doneReason:"unavailable",promptTokens:null,outputTokens:null,
+      failureClass:"UNKNOWN"};
     const result=await reviewLocalPatch({
       baseSha:BASE,headSha:HEAD,makerRole:"Builder",
       paths:chunk.paths,patch:chunk.patch,
       infer:async(prompt)=>{
-        const ans=await json(HOST+"/api/chat",{timeout:120000,
-          body:{model:choice,stream:false,format:"json",
-            options:{temperature:0,num_ctx:8192,num_predict:768},
-            messages:[{role:"user",content:prompt}]}});
-        const output=ans.message?.content;
-        if(typeof output!=="string"||output.length>20000)reject("MODEL_RESPONSE_INVALID");
-        return output;
+        // Large, repetitive JSON findings can exceed num_predict and truncate
+        // the only valid response. Ask for few, exact, line-grounded findings.
+        const scopedPrompt="Report no more than TWO distinct, verifiable issues. "+
+          "Each finding must cite the exact changed line and quote the actual "+
+          "added code. Test-only dummy values and documentation prose are not "+
+          "secret disclosures or executable access-control bypasses. "+
+          "Return INCONCLUSIVE when evidence is missing.\\n"+prompt;
+        try {
+          const ans=await json(HOST+"/api/chat",{timeout:120000,
+            body:{model:choice,stream:false,format:"json",
+              options:{temperature:0,num_ctx:8192,num_predict:1536},
+              messages:[{role:"user",content:scopedPrompt}]}});
+          const output=ans.message?.content;
+          metric={doneReason:["stop","length"].includes(ans.done_reason)?
+            ans.done_reason:"unknown",
+            promptTokens:Number.isSafeInteger(ans.prompt_eval_count)?
+              ans.prompt_eval_count:null,
+            outputTokens:Number.isSafeInteger(ans.eval_count)?
+              ans.eval_count:null,
+            failureClass:"NONE"};
+          if(typeof output!=="string"||output.length>20000)
+            reject("MODEL_RESPONSE_INVALID");
+          return output;
+        } catch(e) {
+          metric.failureClass=e?.name==="TimeoutError"?"TIMEOUT":
+            (e?.message==="MODEL_RESPONSE_INVALID"?"MODEL_RESPONSE_INVALID":
+              e?.message==="HTTP_UNAVAILABLE"?"HTTP_UNAVAILABLE":"INFERENCE_ERROR");
+          throw e;
+        }
       }});
     reports.push(result);
     s.reviewedChunks++;
     s.chunkResults.push({chunk:index+1,status:result.status,
       durationMs:Math.round(performance.now()-start),
       bytes:Buffer.byteLength(chunk.patch,"utf8"),
-      findings:result.findings?.length||0});
-    if(result.status==="BLOCKED")break;
+      findings:result.findings?.length||0,
+      doneReason:metric.doneReason,
+      promptTokens:metric.promptTokens,
+      outputTokens:metric.outputTokens,
+      failureClass:result.status==="BLOCKED"&&metric.failureClass==="NONE"?
+        "MODEL_JSON_OR_CONTRACT_INVALID":metric.failureClass});
   }
   const scope={baseSha:BASE,headSha:HEAD,paths:prepared.paths,
     patchSha256:prepared.patchSha256,reviewChunks:prepared.chunks.length};
@@ -94,7 +124,8 @@ async function review(){
   s.blockers=(verdict.blockers||[]).filter(x=>/^[a-z_]+$/.test(x));
   s.findings=(verdict.findings||[]).map(x=>({path:x.path,line:x.line,
     severity:x.severity,summary:x.summary,evidence:x.evidence}));
-  s.completeCoverage=reports.length===prepared.chunks.length &&
+  s.allChunksAttempted=reports.length===prepared.chunks.length;
+  s.completeCoverage=s.allChunksAttempted &&
     reports.every(r=>r.status!=="BLOCKED");
   const last=await json(api+"/pulls/"+PR);
   if(last.head?.sha!==HEAD||last.base?.sha!==BASE)reject("PR_CHANGED_DURING_REVIEW");
