@@ -8,7 +8,7 @@ import type { BuilderCapability, BuilderRequest } from "./builder-router.ts";
 
 const sha256 = (value: string | Buffer) => createHash("sha256").update(value).digest("hex");
 const git = (root: string, ...args: string[]) => execFileSync("git", args, { cwd: root, encoding: "utf8", timeout: 8000, windowsHide: true }).trim();
-const validPath = (p: string) => /^(?:src|scripts|tests|docs)\/[a-zA-Z0-9_.\/-]+$/.test(p)
+const validPath = (p: string) => /^(?:src|scripts|tests|docs)\/[a-zA-Z0-9_./-]+$/.test(p)
   && !p.split("/").some(v => v === "." || v === ".." || v === "") && !p.includes("//");
 
 export interface LocalOllamaBuilderOptions {
