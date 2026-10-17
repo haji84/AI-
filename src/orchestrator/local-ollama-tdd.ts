@@ -37,7 +37,7 @@ export function runLocalTddVerification(
   workspace: string, baseRevision: string, phase: LocalTddPhase,
 ): LocalTddResult {
   // This executable is neither the model nor the local 8796/8797 Builder.
-  const executable = fileURLToPath(new URL("../../scripts/goriq-local-ollama-tdd-verifier.mjs", import.meta.url));
+  const executable = fileURLToPath(new URL("../../scripts/jarvis-local-ollama-tdd-verifier.mjs", import.meta.url));
   const child = spawnSync(process.execPath, [executable], {
     input: JSON.stringify({ workspace, baseRevision, phase }),
     encoding: "utf8",
