@@ -16,6 +16,7 @@ test("missing verifier receipts preserve candidate and resume without a second B
     const base = "a".repeat(40), artifact = "b".repeat(64);
     let builds = 0, verificationCalls = 0, fullVerifierReady = false;
     const stages: ResidentDevelopmentStages = {
+      deferMissingVerification: true,
       async build({job,workItemId}) {
         builds++;
         const red = workItemId.endsWith(":test");
@@ -66,7 +67,7 @@ test("missing verifier receipts preserve candidate and resume without a second B
     const third = await makeHost().run(request);
     assert.equal(third.goalEvaluation?.achieved, false);
     assert.equal(builds, 2);
-    assert.equal((await changes.list()).filter(c=>c.status==="READY_TO_PUBLISH").length, 1);
-    assert.equal((await jobs.getByGoal("goal:wait"))[0]?.phase, "READY_TO_PUBLISH");
+    assert.equal((await new JsonFileDevelopmentChangeSetStore(join(root, "changes.json")).list()).filter(c=>c.status==="READY_TO_PUBLISH").length, 1);
+    assert.equal((await new JsonFileDevelopmentJobStore(join(root, "jobs.json")).getByGoal("goal:wait"))[0]?.phase, "READY_TO_PUBLISH");
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
