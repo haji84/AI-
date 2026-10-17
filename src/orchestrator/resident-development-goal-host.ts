@@ -42,6 +42,8 @@ export interface ResidentDevelopmentReleaseState {
 
 export interface ResidentDevelopmentStages {
   builderId?: string;
+  /** Only an explicitly opted-in local verifier may suspend on missing receipts. */
+  deferMissingVerification?: boolean;
   build(input: { job: DevelopmentJob; goal: Goal; context: ContextItem[]; workItemId: string }): Promise<DevelopmentChangeSet>;
   /** Optional independent RED attestation. The Builder cannot declare its own test failure. */
   verifyRed?(input: { job: DevelopmentJob; changeSet: DevelopmentChangeSet; goal: Goal; context: ContextItem[] }): Promise<{ digest: string; issuer: string }>;
@@ -196,7 +198,7 @@ export class ResidentDevelopmentGoalHost {
         // than rejecting a good artifact and rerunning a now-dirty Builder.
         // Only genuinely failed/stale/inconsistent evidence enters recovery.
         const outstanding = verification.reasons.every(reason => reason.startsWith("missing_evidence:"));
-        if (outstanding) {
+        if (outstanding && this.stages.deferMissingVerification === true) {
           return report(false, `independent_verifier_pending:${verification.reasons.join(",")}`);
         }
         const signature = createHash("sha256").update(verification.reasons.slice().sort().join("\n")).digest("hex");
