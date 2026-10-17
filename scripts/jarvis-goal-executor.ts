@@ -16,6 +16,7 @@ import { JsonFileDevelopmentJobStore } from "../src/orchestrator/development-job
 import { ResidentDevelopmentGoalHost } from "../src/orchestrator/resident-development-goal-host.ts";
 import { createRuntimeBuilderRouter } from "../src/orchestrator/runtime-builder-capability.ts";
 import { resolveResidentDevelopmentScope } from "../src/orchestrator/resident-development-scope.ts";
+import { localOllamaFixtureTestPath, runLocalTddVerification } from "../src/orchestrator/local-ollama-tdd.ts";
 import { createRuntimeDevelopmentVerifier } from "../src/orchestrator/runtime-development-verifier.ts";
 import { HttpDevelopmentReleaseCapability } from "../src/orchestrator/http-development-release-capability.ts";
 import { createTaskCompletionAuthorization, normalizeTaskCompletionAuthorization } from "../src/orchestrator/task-authorization.ts";
@@ -135,6 +136,7 @@ function configuredDevelopmentRuntime(compassPath: string, context: unknown[]): 
     },
     stages: {
       builderId: "builder:resident",
+      deferMissingVerification: executionScope.localOllama,
       async build({ job, context: runtimeContext, workItemId }) {
         const workItem = job.workItems.find((item) => item.id === workItemId);
         if (!workItem) throw new Error("resident Builder Work Item is not in the durable Job");
@@ -149,7 +151,8 @@ function configuredDevelopmentRuntime(compassPath: string, context: unknown[]): 
             attemptId: `${job.jobId}:attempt:${job.attempts.length + 1}`,
             strategyId: `${job.jobId}:strategy:${job.attempts.length + 1}`,
             objective: workItem.objective,
-            files: resolvedTargets,
+            files: executionScope.localOllama && process.env.GORIQ_LOCAL_OLLAMA_TDD_PROFILE === "python_add_v1" && tddPhase === "red"
+              ? [localOllamaFixtureTestPath] : resolvedTargets,
             baseRevision: job.baseRevision,
             previousFailureSignatures: job.failureSignatures,
             previousStrategyFingerprints: job.rejectedStrategyIds,
@@ -180,6 +183,18 @@ function configuredDevelopmentRuntime(compassPath: string, context: unknown[]): 
           rollback: { kind: "git-base", reference: job.baseRevision },
         });
       },
+      ...(executionScope.localOllama && process.env.GORIQ_LOCAL_OLLAMA_TDD_PROFILE === "python_add_v1" ? {
+        async verifyRed({ changeSet }: { changeSet: { baseRevision: string; artifactDigest: string; candidateRevision: string; changedPaths: string[] } }) {
+          const red = runLocalTddVerification(repositoryRoot, changeSet.baseRevision, "red");
+          if (!red.ok || !red.evidenceDigest ||
+              red.evidence?.artifactSha256 !== changeSet.artifactDigest ||
+              red.evidence?.candidateRevision !== changeSet.candidateRevision ||
+              changeSet.changedPaths.length !== 1 || changeSet.changedPaths[0] !== localOllamaFixtureTestPath) {
+            throw new Error(red.blocker ?? "independent_red_artifact_binding_invalid");
+          }
+          return { digest: red.evidenceDigest, issuer: red.evidence!.verifierId };
+        },
+      } : {}),
       async verify({ job, changeSet, plan, goal, context: runtimeContext }) {
         const action = {
           id: `${job.jobId}:verify`,
@@ -192,6 +207,16 @@ function configuredDevelopmentRuntime(compassPath: string, context: unknown[]): 
             releaseBinding: { builderId: plan.builderId, sourceRevision: plan.sourceRevision, artifactDigest: plan.artifactDigest },
           },
         };
+        if (executionScope.localOllama && process.env.GORIQ_LOCAL_OLLAMA_TDD_PROFILE === "python_add_v1") {
+          const green = runLocalTddVerification(repositoryRoot, changeSet.baseRevision, "green");
+          if (!green.ok || green.evidence?.artifactSha256 !== changeSet.artifactDigest ||
+              green.evidence?.candidateRevision !== plan.sourceRevision) return [];
+          // This narrow Python unit proof cannot be mislabeled as the complete
+          // repository-wide lint/typecheck/build/security gate.
+          return [{ check: "unit" as const, verifierId: green.evidence!.verifierId,
+            sourceRevision: plan.sourceRevision, artifactDigest: plan.artifactDigest,
+            status: "passed" as const, recordedAt: green.evidence!.recordedAt }];
+        }
         const result = await verifier.verify({ goal, action, result: { actionId: action.id, ok: true, summary: "Change Set ready for verification" }, context: runtimeContext });
         if (!result.ok) return [];
         const evidence = result.evidence as { verificationEvidence?: unknown } | undefined;
@@ -253,7 +278,7 @@ async function main(): Promise<void> {
         : result.reason === "blocked" || result.reason === "retry_exhausted"
           ? "GOAL_BLOCKED"
           : "IMPORTANT_UPDATE";
-    const phase = result.reason === "goal_complete" ? "COMPLETED" : result.reason === "human_gate" ? "HUMAN_GATE" : result.reason === "publication_wait" ? "RUNNING" : "BLOCKED";
+    const phase = result.reason === "goal_complete" ? "COMPLETED" : result.reason === "human_gate" ? "HUMAN_GATE" : (result.reason === "publication_wait" || result.reason === "verification_wait") ? "RUNNING" : "BLOCKED";
     await updateWorkRun(compassPath, goalId, phase, result.reason ?? report?.stopReason ?? "goal_execution_incomplete");
     await appendEvent(compassPath, {
       goalId,
