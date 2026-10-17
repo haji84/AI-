@@ -67,8 +67,8 @@ function planCodexBuilder(
   const actualHostPath = (value: string) => {
     const windowsPath = /^[a-zA-Z]:[\\/]/.test(value);
     const dialect = windowsPath ? win32 : posix;
-    if (!value || /[\\u0000\\r\\n]/.test(value) ||
-        value.split(/[\\\\/]/).includes("..") ||
+    if (!value || /[\u0000\r\n]/.test(value) ||
+        value.split(/[\\/]/).includes("..") ||
         (!windowsPath && value.startsWith("//")) ||
         !dialect.isAbsolute(value)) {
       throw new Error("Plan-included Codex workspace must be an absolute non-root path");
