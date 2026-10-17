@@ -1073,7 +1073,7 @@
     },
     {
       "path": "scripts/jarvis-goal-executor.ts",
-      "sha256": "a513a68b37b5f17376796644eb2fdfd431649c8c2489a65354e5f1643044afd2",
+      "sha256": "88a79ff5bb5d3144d9dba3a6a0cb1fbb0a391df0fd99c408d9f7aa437d80ee3d",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "AUTO-001",
@@ -1085,7 +1085,7 @@
     },
     {
       "path": "scripts/jarvis-local-ollama-tdd-verifier.mjs",
-      "sha256": "f496f555b98be9096e4884fd0b83ecf1b9f2ec50fd4b0807a76f53adda1f2f42",
+      "sha256": "d738c8100dd54530f9d0b21528fdce346f82f3b48afc0d2d0e6d43ad68821026",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -5624,7 +5624,7 @@
     },
     {
       "path": "src/orchestrator/local-ollama-tdd.ts",
-      "sha256": "d03283ceab7121fe7a5314caf95ab62f3c099c94ee8b2f3bbe6d75f590361ef7",
+      "sha256": "6d68d4286c9b8475ec8c192bed83a0fc8df6b3553a1f247c866e8b53d6a9b7e5",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
