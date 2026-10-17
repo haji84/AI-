@@ -103,7 +103,7 @@ export function createLocalOllamaBuilder(input: LocalOllamaBuilderOptions): Buil
         }
         const digest = sha256(localOllamaFixtureTest);
         return { ok: true, summary: "Trusted test file created; RED proof must be independently verified before implementation",
-          changedPaths: [path], patchDigest: sha256(`create\\0${path}\\0${localOllamaFixtureTest}`),
+          changedPaths: [path], patchDigest: sha256(`create\0${path}\0${localOllamaFixtureTest}`),
           artifactDigest: digest, artifactRef: `sha256:${digest}`, tddPhase: "red" as const,
           tddEvidenceDigest: digest, evidence: { fixtureOnly: true, redVerified: false, releaseAuthorized: false } };
       }
