@@ -5956,7 +5956,7 @@
     },
     {
       "path": "src/orchestrator/runtime-development-verifier.ts",
-      "sha256": "1376b76ca8ce1ffc8421a0bb91d0a8b7a5b8a070aaef848094c67170c8558c6a",
+      "sha256": "26ceb43426bf18eae8cec0457ed6e81c4b85a9a99cacf349f611a7af1304a6fc",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-010",
@@ -5966,7 +5966,7 @@
         "AUTO-004",
         "OWN-001"
       ],
-      "reason": "Declared runtime-development-verifier.ts responsibility implements/supports 独立Verification; World-state Verification. Parent ownership is not functional or physical acceptance evidence. #1219 supports independent verification against the protected loopback Mac Builder token."
+      "reason": "Declared runtime-development-verifier.ts responsibility implements/supports 独立Verification; World-state Verification. Parent ownership is not functional or physical acceptance evidence. #1219 supports independent verification against the protected loopback Mac Builder token. #1219 Codex-free local Ollama opt-in rejects the legacy 8796 Builder verifier until independently rooted evidence exists."
     },
     {
       "path": "src/orchestrator/runtime-local-ollama-builder.ts",
