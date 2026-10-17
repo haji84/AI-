@@ -1073,7 +1073,7 @@
     },
     {
       "path": "scripts/jarvis-goal-executor.ts",
-      "sha256": "9a633048dd0740285c32251bfca16ef42b05ddc3757ca702fa22283831245e2e",
+      "sha256": "23494c1c37ec5a3f718bd51d6be778e5e85eb989051a5f5ec13a2f4c372e27a0",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "AUTO-001",
@@ -5928,7 +5928,7 @@
     },
     {
       "path": "src/orchestrator/resident-development-goal-host.ts",
-      "sha256": "83cca8d2a3dcdae89878e93d61de67ab02c613e745108c0dda34c33d2c30f959",
+      "sha256": "420499c219acf23b0cb1cc115f194c7611de3040d0f857ad75c49633dba37393",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
