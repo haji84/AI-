@@ -65,12 +65,18 @@ test("real separate process observes RED test failure then GREEN success without
     assert.equal(redProof.ok, true, JSON.stringify(redProof));
     assert.equal(redProof.evidence?.outcome, "RED_FAIL_OBSERVED");
     assert.notEqual(redProof.evidence?.exitCode, 0);
+    const redEnvelope = (redBuild.evidence as { changeSet?: { candidateRevision: string; artifactDigest: string } }).changeSet;
+    assert.equal(redProof.evidence?.candidateRevision, redEnvelope?.candidateRevision);
+    assert.equal(redProof.evidence?.artifactSha256, redEnvelope?.artifactDigest);
     const greenBuild = await router.execute(request(p.head, "green"), []);
     assert.equal(greenBuild.ok, true, JSON.stringify(greenBuild));
     const greenProof = runLocalTddVerification(p.isolated, p.head, "green");
     assert.equal(greenProof.ok, true, JSON.stringify(greenProof));
     assert.equal(greenProof.evidence?.outcome, "GREEN_PASS_OBSERVED");
     assert.equal(greenProof.evidence?.exitCode, 0);
+    const greenEnvelope = (greenBuild.evidence as { changeSet?: { candidateRevision: string; artifactDigest: string } }).changeSet;
+    assert.equal(greenProof.evidence?.candidateRevision, greenEnvelope?.candidateRevision);
+    assert.equal(greenProof.evidence?.artifactSha256, greenEnvelope?.artifactDigest);
     assert.equal(calls.filter(url => url.endsWith("/api/tags")).length, 4);
     assert.equal(calls.filter(url => url.endsWith("/api/generate")).length, 1);
     assert.ok(calls.every(url => url.startsWith("http://127.0.0.1:11434/")));
