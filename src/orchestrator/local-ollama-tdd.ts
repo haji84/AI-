@@ -46,7 +46,7 @@ export function runLocalTddVerification(
     timeout: 16000,
     maxBuffer: 16384,
     windowsHide: true,
-    env: { PATH: process.env.PATH, SystemRoot: process.env.SystemRoot, SystemDrive: process.env.SystemDrive },
+    env: { NODE_ENV: process.env.NODE_ENV ?? "test", PATH: process.env.PATH, SystemRoot: process.env.SystemRoot, SystemDrive: process.env.SystemDrive },
   });
   if (child.error || child.status === null || !child.stdout) {
     return { ok: false, blocker: "INDEPENDENT_TDD_VERIFIER_UNAVAILABLE" };
