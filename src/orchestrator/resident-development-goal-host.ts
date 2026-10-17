@@ -43,6 +43,8 @@ export interface ResidentDevelopmentReleaseState {
 export interface ResidentDevelopmentStages {
   builderId?: string;
   build(input: { job: DevelopmentJob; goal: Goal; context: ContextItem[]; workItemId: string }): Promise<DevelopmentChangeSet>;
+  /** Optional independent RED attestation. The Builder cannot declare its own test failure. */
+  verifyRed?(input: { job: DevelopmentJob; changeSet: DevelopmentChangeSet; goal: Goal; context: ContextItem[] }): Promise<{ digest: string; issuer: string }>;
   verify(input: { job: DevelopmentJob; changeSet: DevelopmentChangeSet; plan: DevelopmentVerificationPlan; goal: Goal; context: ContextItem[] }): Promise<DevelopmentVerificationEvidence[]>;
   acceptanceEvidence?(input: { job: DevelopmentJob; changeSet: DevelopmentChangeSet; plan: DevelopmentVerificationPlan; goal: Goal; context: ContextItem[] }): Promise<DevelopmentEvidence[]>;
   releaseState(input: { job: DevelopmentJob; changeSet: DevelopmentChangeSet; goal: Goal; context: ContextItem[] }): Promise<ResidentDevelopmentReleaseState>;
@@ -145,10 +147,19 @@ export class ResidentDevelopmentGoalHost {
       if (testItem && !existingTest) {
         let testChangeSet = await this.stages.build({ job, goal: input.goal, context: input.context, workItemId: testItem.id });
         if (testChangeSet.jobId !== job.jobId || testChangeSet.baseRevision !== job.baseRevision || testChangeSet.workItemId !== testItem.id) throw new Error("resident Builder returned an unbound TDD test Change Set");
-        if (testChangeSet.tddPhase !== "red" || !testChangeSet.tddEvidenceDigest) throw new Error("resident Builder did not prove the new test fails before implementation");
-        testChangeSet = { ...testChangeSet, status: "VERIFIED", updatedAt: nextTimestamp(testChangeSet.updatedAt) };
+        if (testChangeSet.tddPhase !== "red" || !testChangeSet.tddEvidenceDigest) throw new Error("resident Builder did not supply a TDD test candidate");
+        const independentRed = this.stages.verifyRed
+          ? await this.stages.verifyRed({ job, changeSet: testChangeSet, goal: input.goal, context: input.context })
+          : null;
+        if (this.stages.verifyRed && (!independentRed || !/^[a-f0-9]{64}$/.test(independentRed.digest)
+          || !independentRed.issuer || independentRed.issuer === testChangeSet.deviceId)) {
+          throw new Error("independent RED attestation rejected");
+        }
+        testChangeSet = { ...testChangeSet,
+          ...(independentRed ? { tddEvidenceDigest: independentRed.digest } : {}),
+          status: "VERIFIED", updatedAt: nextTimestamp(testChangeSet.updatedAt) };
         await this.changeSets.put(testChangeSet);
-        job = this.controller.apply(job, { transitionId: `${job.jobId}:tdd-red`, actor: "state-controller", to: "IMPLEMENTING", reason: "failing test Work Item persisted before implementation", evidence: [{ id: `${job.jobId}:tdd-red`, criterionId: "repository-tdd", kind: "development-tdd-red", issuer: testChangeSet.deviceId, verified: true, sourceRevision: testChangeSet.candidateRevision, artifactDigest: testChangeSet.tddEvidenceDigest, recordedAt: testChangeSet.updatedAt }] });
+        job = this.controller.apply(job, { transitionId: `${job.jobId}:tdd-red`, actor: "state-controller", to: "IMPLEMENTING", reason: "failing test Work Item persisted before implementation", evidence: [{ id: `${job.jobId}:tdd-red`, criterionId: "repository-tdd", kind: "development-tdd-red", issuer: independentRed?.issuer ?? testChangeSet.deviceId, verified: true, sourceRevision: testChangeSet.candidateRevision, artifactDigest: testChangeSet.tddEvidenceDigest, recordedAt: testChangeSet.updatedAt }] });
         await this.jobs.put(job);
       }
       changeSet = await this.stages.build({ job, goal: input.goal, context: input.context, workItemId: implementationItem.id });
