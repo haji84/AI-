@@ -145,3 +145,51 @@ test("plan Codex will not route when live engine, identity or workspace differs"
     assert.equal(posts, 0, "unverified Builder must not receive source");
   }
 });
+
+test("owner-pinned Codex workspace refuses relative, root, UNC and traversal paths", () => {
+  const base = {
+    CODE_BUILDER_PLAN_CODEX_APPROVED: "1",
+    CODE_BUILDER_PLAN_CODEX_URL: "http://127.0.0.1:8797",
+    CODE_BUILDER_PLAN_CODEX_TOKEN: "test-token-only",
+  };
+  const invalid = [
+    "relative/workspace", "../worktree", ".", "C:", "C:\\", "/",
+    "C:\\isolated\\..\\other", "/tmp/../other", "//server/share",
+    "\\\\server\\share", "C:\\isolated\nmalformed",
+  ];
+  for (const workspace of invalid) {
+    assert.throws(() => createRuntimeBuilderRouter({
+      ...base, CODE_BUILDER_PLAN_CODEX_WORKSPACE: workspace,
+    }), /workspace must/, workspace.replaceAll("\n", "[newline]"));
+  }
+});
+
+test("owner-pinned Codex health has an abort deadline and no redirect", async () => {
+  const env = {
+    CODE_BUILDER_PLAN_CODEX_APPROVED: "1",
+    CODE_BUILDER_PLAN_CODEX_URL: "http://127.0.0.1:8797",
+    CODE_BUILDER_PLAN_CODEX_TOKEN: "test-token-only",
+    CODE_BUILDER_PLAN_CODEX_WORKSPACE: "C:\\isolated\\goal-one",
+  };
+  let buildCalls = 0;
+  let healthCalls = 0;
+  const fetchImpl: typeof fetch = async (input, init) => {
+    if (!String(input).endsWith("/health")) {
+      buildCalls += 1;
+      throw new Error("Builder must not receive task when health fails");
+    }
+    healthCalls += 1;
+    assert.equal(init?.redirect, "error");
+    assert.ok(init?.signal instanceof AbortSignal, "health fetch must be abortable");
+    throw new Error("Simulated offline Builder");
+  };
+  const router = createCodeBuilderCapability(createRuntimeBuilderRouter(env, fetchImpl));
+  const result = await router.execute({
+    id: "health-gate", description: "do not build", capability: "code.builder", risk: "low",
+    input: { goalId: "g", attemptId: "a", strategyId: "s", objective: "do not build" },
+  }, []);
+  assert.equal(result.ok, false);
+  assert.equal(result.blocker, "real_builder_capability_unavailable");
+  assert.equal(healthCalls, 1);
+  assert.equal(buildCalls, 0);
+});
