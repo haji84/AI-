@@ -1,4 +1,5 @@
 import { isAbsolute, resolve } from "node:path";
+import { localOllamaFixtureSourcePath, localOllamaFixtureTestPath } from "./local-ollama-tdd.ts";
 
 /**
  * Repository discovery for the resident Goal Executor.
@@ -28,17 +29,25 @@ export function resolveResidentDevelopmentScope(
   if (!workspace || !isAbsolute(workspace) || resolve(workspace) === resolve(processRoot)) {
     throw new Error("Local Ollama Goal must use a distinct absolute isolated workspace");
   }
-  // The resident TDD host currently admits only one bounded file per Builder
-  // call. It must not silently widen that scope using Goal text.
-  if (paths.length !== 1 || !/^(?:src|scripts|tests|docs)\/[A-Za-z0-9_./-]+$/.test(paths[0])
-    || paths[0].split("/").some(part => !part || part === "." || part === "..")) {
+  // Only the special bounded fixture may add a second path for its trusted
+  // RED test. All other Goals retain the original exact one-file contract.
+  const profile = env.GORIQ_LOCAL_OLLAMA_TDD_PROFILE?.trim();
+  if (profile && profile !== "python_add_v1") throw new Error("Unsupported local Ollama TDD profile");
+  const fixture = profile === "python_add_v1";
+  const target = fixture ? localOllamaFixtureSourcePath : paths[0];
+  if (fixture && (paths.length !== 2 || !paths.includes(localOllamaFixtureSourcePath) ||
+      !paths.includes(localOllamaFixtureTestPath))) {
+    throw new Error("TDD Goal requires exactly two known fixture paths");
+  }
+  if (!fixture && (paths.length !== 1 || !/^(?:src|scripts|tests|docs)\/[A-Za-z0-9_./-]+$/.test(paths[0])
+    || paths[0].split("/").some(part => !part || part === "." || part === ".."))) {
     throw new Error("Resident local Ollama Goal requires exactly one safe pinned target file");
   }
-  if (configuredFiles.length > 0 && (configuredFiles.length !== 1 || configuredFiles[0] !== paths[0])) {
+  if (configuredFiles.length > 0 && (configuredFiles.length !== 1 || configuredFiles[0] !== target)) {
     throw new Error("Resident local Ollama target conflicts with owner-pinned development scope");
   }
   if (!env.GAI_LOCAL_MODEL_NAME?.trim() || env.GORIQ_SELF_DEVELOPMENT_LOCAL_ONLY === "0") {
     throw new Error("Resident local Ollama requires a named model and local-only policy");
   }
-  return { repositoryRoot: resolve(workspace), targetFiles: paths, localOnly: true, localOllama: true };
+  return { repositoryRoot: resolve(workspace), targetFiles: [target], localOnly: true, localOllama: true };
 }
