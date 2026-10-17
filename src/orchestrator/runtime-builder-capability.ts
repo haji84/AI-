@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { homedir } from "node:os";
 import type { CapabilityHandler } from "./capabilities.ts";
 import { BuilderRouter } from "./builder-router.ts";
+import { configuredLocalOllamaBuilder } from "./runtime-local-ollama-builder.ts";
 import { HttpWorkerBuilderCapability, createEnvHttpWorkerBuilders } from "../gai/http-worker-builder-capability.ts";
 
 function localBuilderConfig(env: Record<string, string | undefined>): { url: string; token: string } | null {
@@ -39,6 +40,10 @@ export function createRuntimeBuilderRouter(
   env: Record<string, string | undefined> = process.env,
   fetchImpl: typeof fetch = fetch,
 ): BuilderRouter {
+  // Explicit Codex-free selection: never fall back to the 8796/8797 coding engines
+  // or any potentially billable remote endpoint for this isolated Goal.
+  const ollama = configuredLocalOllamaBuilder(env, fetchImpl);
+  if (ollama) return new BuilderRouter([ollama]);
   const builders = [...createEnvHttpWorkerBuilders(env)];
   const local = localBuilderConfig(env);
   if (local) {
