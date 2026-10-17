@@ -62,8 +62,9 @@ test("scoped local Ollama Builder produces one file and no Codex/paid fallback",
     const router = createRuntimeBuilderRouter(env(p.isolated), mockOllama(counts));
     const result = await router.execute(request(p.head), []);
     assert.equal(result.ok, true, JSON.stringify(result));
-    assert.equal(result.evidence?.builderKind, "local");
-    assert.deepEqual((result.evidence?.changeSet as { changedPaths: string[] })?.changedPaths, [file]);
+    const evidence = result.evidence as { builderKind?: unknown; changeSet?: { changedPaths: string[] } } | undefined;
+    assert.equal(evidence?.builderKind, "local");
+    assert.deepEqual(evidence?.changeSet?.changedPaths, [file]);
     assert.equal(readFileSync(join(p.isolated, file), "utf8"), "safe-test\n");
     assert.equal(run(p.isolated, "status", "--porcelain", "-uall"), `?? ${file}`);
     assert.equal(run(p.main, "status", "--porcelain", "-uall"), "");
