@@ -68,6 +68,8 @@ test("missing verifier receipts preserve candidate and resume without a second B
     assert.equal(third.goalEvaluation?.achieved, false);
     assert.equal(builds, 2);
     assert.equal((await new JsonFileDevelopmentChangeSetStore(join(root, "changes.json")).list()).filter(c=>c.status==="READY_TO_PUBLISH").length, 1);
-    assert.equal((await new JsonFileDevelopmentJobStore(join(root, "jobs.json")).getByGoal("goal:wait"))[0]?.phase, "READY_TO_PUBLISH");
+    // The independent checks passed, but missing publication authority still
+    // correctly prevents release; a Human Gate is not an execution failure.
+    assert.equal((await new JsonFileDevelopmentJobStore(join(root, "jobs.json")).getByGoal("goal:wait"))[0]?.phase, "HUMAN_GATE");
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
