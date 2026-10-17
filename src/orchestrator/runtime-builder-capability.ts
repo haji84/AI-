@@ -1,8 +1,8 @@
 import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, win32, posix } from "node:path";
 import { homedir } from "node:os";
 import type { CapabilityHandler } from "./capabilities.ts";
-import { BuilderRouter } from "./builder-router.ts";
+import { BuilderRouter, type BuilderCapability } from "./builder-router.ts";
 import { HttpWorkerBuilderCapability, createEnvHttpWorkerBuilders } from "../gai/http-worker-builder-capability.ts";
 
 function localBuilderConfig(env: Record<string, string | undefined>): { url: string; token: string } | null {
@@ -35,11 +35,73 @@ function assertLocalLoopback(urlString: string): void {
   if (!loopback) throw new Error("Local code Builder must use loopback HTTP only");
 }
 
+/**
+ * Plan-included Codex has a loopback TRANSPORT, but is not a device-local
+ * inference model. It requires a separately scoped owner opt-in; merely
+ * detecting an installed Codex CLI does not grant usage/billing authority.
+ */
+function planCodexBuilder(
+  env: Record<string, string | undefined>,
+  fetchImpl: typeof fetch,
+): BuilderCapability | null {
+  const keys = [
+    env.CODE_BUILDER_PLAN_CODEX_APPROVED?.trim(),
+    env.CODE_BUILDER_PLAN_CODEX_URL?.trim(),
+    env.CODE_BUILDER_PLAN_CODEX_TOKEN?.trim(),
+    env.CODE_BUILDER_PLAN_CODEX_WORKSPACE?.trim(),
+  ];
+  if (keys.every((value) => !value)) return null;
+  if (keys.some((value) => !value) || keys[0] !== "1") {
+    throw new Error("Plan-included Codex Builder requires explicit owner approval, URL, token and pinned workspace");
+  }
+  const [, urlString, token, expectedWorkspace] = keys as [string, string, string, string];
+  let url: URL;
+  try { url = new URL(urlString); }
+  catch { throw new Error("Plan-included Codex Builder URL must be exact loopback HTTP"); }
+  if (url.protocol !== "http:" || url.hostname !== "127.0.0.1" || !url.port ||
+      url.pathname !== "/" || url.username || url.password || url.search || url.hash) {
+    throw new Error("Plan-included Codex Builder URL must be exact loopback HTTP");
+  }
+  const actualHostPath = (value: string) => {
+    const windowsPath = /^[a-zA-Z]:[\\/]/.test(value);
+    return (windowsPath ? win32 : posix).normalize(value).replace(/[\\/]$/, "").toLowerCase();
+  };
+  const expectedPath = actualHostPath(expectedWorkspace);
+  const delegate = new HttpWorkerBuilderCapability(
+    "owner-plan-codex-builder", { url: url.origin, token }, fetchImpl, "external",
+  );
+  return {
+    id: delegate.id,
+    kind: "external",
+    async available() {
+      try {
+        const response = await fetchImpl(`${url.origin}/health`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!response.ok) return false;
+        const payload = await response.json() as {
+          ok?: unknown; service?: unknown; engine?: unknown; workspace?: unknown;
+          capabilities?: unknown;
+        };
+        return payload?.ok === true && payload.service === "code-builder-worker" &&
+          payload.engine === "codex" &&
+          Array.isArray(payload.capabilities) && payload.capabilities.includes("code-builder") &&
+          typeof payload.workspace === "string" && actualHostPath(payload.workspace) === expectedPath;
+      } catch {
+        return false;
+      }
+    },
+    build(request) { return delegate.build(request); },
+  };
+}
+
 export function createRuntimeBuilderRouter(
   env: Record<string, string | undefined> = process.env,
   fetchImpl: typeof fetch = fetch,
 ): BuilderRouter {
-  const builders = [...createEnvHttpWorkerBuilders(env)];
+  const builders: BuilderCapability[] = [...createEnvHttpWorkerBuilders(env)];
+  const scopedCodex = planCodexBuilder(env, fetchImpl);
+  if (scopedCodex) builders.unshift(scopedCodex);
   const local = localBuilderConfig(env);
   if (local) {
     assertLocalLoopback(local.url);
