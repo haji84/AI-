@@ -24,6 +24,8 @@ export interface LocalTddResult {
     outcome: "RED_FAIL_OBSERVED" | "GREEN_PASS_OBSERVED";
     testSha256: string;
     artifactSha256: string;
+    patchDigest: string;
+    candidateRevision: string;
     baseRevision: string;
     verifierId: string;
     origin: string;
@@ -53,6 +55,8 @@ export function runLocalTddVerification(
     const result = JSON.parse(child.stdout.trim()) as LocalTddResult;
     if (child.status !== 0 || result.ok !== true || result.evidence?.phase !== phase ||
         result.evidence?.baseRevision !== baseRevision ||
+        !/^[a-f0-9]{64}$/.test(result.evidence?.candidateRevision ?? "") ||
+        !/^[a-f0-9]{64}$/.test(result.evidence?.patchDigest ?? "") ||
         result.evidence?.verifierId !== "local-tdd-separate-process" ||
         result.evidence?.outcome !== (phase === "red" ? "RED_FAIL_OBSERVED" : "GREEN_PASS_OBSERVED") ||
         !/^[a-f0-9]{64}$/.test(result.evidenceDigest ?? "") ||
