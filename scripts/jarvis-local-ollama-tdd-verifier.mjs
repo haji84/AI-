@@ -8,6 +8,7 @@ import { createHash } from "node:crypto";
 import { spawnSync, execFileSync } from "node:child_process";
 import { existsSync, lstatSync, readFileSync, realpathSync } from "node:fs";
 import { isAbsolute, join } from "node:path";
+import { attestLocalCandidate } from "./jarvis-independent-artifact-attestation.mjs";
 
 const source = "tests/fixtures/goriq_goal_add.py";
 const test = "tests/fixtures/goriq_goal_add_test.py";
@@ -50,6 +51,12 @@ async function main() {
   if (JSON.stringify(status)!==JSON.stringify(allowed.sort())) throw Error("WORKTREE_MUTATION_UNEXPECTED");
   if (req.phase === "red" && existsSync(targetSource)) throw Error("RED_SOURCE_ALREADY_EXISTS");
   if (req.phase === "green" && readFileSync(targetSource,"utf8") !== expectedSource) throw Error("UNSAFE_UNREVIEWED_GENERATED_PYTHON");
+  const actualPath = req.phase === "red" ? test : source;
+  const scopedPaths = req.phase === "red" ? [test] : [source, test];
+  // Read independently from disk and reject symlinks, unexpected Git changes,
+  // bytes outside the owner-declared scope, and incorrect HEAD before execution.
+  const before = attestLocalCandidate({ workspace: root, baseRevision: req.baseRevision,
+    targetPath: actualPath, allowedUntracked: scopedPaths });
   const runner = process.platform === "win32" ? "py" : "python3";
   const args = process.platform === "win32" ? ["-3","-I","-B",targetTest] : ["-I","-B",targetTest];
   const child = spawnSync(runner,args,{cwd:root,timeout:10000,maxBuffer:12000,windowsHide:true,
@@ -63,10 +70,15 @@ async function main() {
   const after = git(root,"status","--porcelain","-uall").split("\n").filter(Boolean).sort();
   if (JSON.stringify(after)!==JSON.stringify(allowed.sort())) throw Error("TEST_MUTATED_WORKTREE");
   const actualContent = req.phase==="red" ? actualTest : readFileSync(targetSource,"utf8");
-  const actualPath = req.phase==="red" ? test : source;
+  const afterReadback = attestLocalCandidate({ workspace: root, baseRevision: req.baseRevision,
+    targetPath: actualPath, allowedUntracked: scopedPaths });
   const artifactSha256 = digest(actualContent);
   const patchDigest = digest(`create\0${actualPath}\0${actualContent}`);
   const candidateRevision = digest(`candidate\0${req.baseRevision}\0${patchDigest}`);
+  if (before.artifactDigest !== afterReadback.artifactDigest ||
+      artifactSha256 !== afterReadback.artifactDigest ||
+      patchDigest !== afterReadback.patchDigest ||
+      candidateRevision !== afterReadback.candidateRevision) throw Error("INDEPENDENT_ARTIFACT_CHANGED");
   const evidence = {phase:req.phase, outcome:red?"RED_FAIL_OBSERVED":"GREEN_PASS_OBSERVED",
     testSha256:digest(actualTest), artifactSha256, patchDigest, candidateRevision, baseRevision:req.baseRevision,
     exitCode:child.status, verifierId:"local-tdd-separate-process", origin:"node-child-plus-python",
