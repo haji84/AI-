@@ -5918,7 +5918,7 @@
     },
     {
       "path": "src/orchestrator/runtime-builder-capability.ts",
-      "sha256": "c975965ddc4ad580eab79f481c8bae9c4f903455cb156e859d5ab384fa592e97",
+      "sha256": "a45bddd1e1d5ab3fe655663ee93a4fceb632d10553cb98228eefa3b50b766497",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -5927,7 +5927,7 @@
         "AUTO-004",
         "OWN-001"
       ],
-      "reason": "Declared runtime-builder-capability.ts responsibility implements/supports Software Development Autopilot. Parent ownership is not functional or physical acceptance evidence. #1219 allows the resident Mac Goal executor to discover its protected local Builder token and loopback endpoint."
+      "reason": "Declared runtime-builder-capability.ts responsibility implements/supports Software Development Autopilot. Parent ownership is not functional or physical acceptance evidence. #1219 allows the resident Mac Goal executor to discover its protected local Builder token and loopback endpoint. #1219 owner-scoped plan-included Codex now requires explicit opt-in, exact authenticated loopback endpoint, pinned worktree, and external-inference classification; the existing device-local-only guard remains fail-closed. Presence and routing are not Goal acceptance. Scoped Codex health checks now have bounded abort/no redirect and expected-workspace rejects roots, relative paths and traversal; this does not independently certify runtime identity."
     },
     {
       "path": "src/orchestrator/runtime-development-planner.ts",
