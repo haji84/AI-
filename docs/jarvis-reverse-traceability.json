@@ -940,7 +940,7 @@
     },
     {
       "path": "scripts/goriq-local-ollama-tdd-verifier.mjs",
-      "sha256": "d6d7420b3df7db7296fad7935e2d10579f9523ab9e17dfa838c6c729fe90b7b9",
+      "sha256": "f496f555b98be9096e4884fd0b83ecf1b9f2ec50fd4b0807a76f53adda1f2f42",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
