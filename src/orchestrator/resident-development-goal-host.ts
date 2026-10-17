@@ -191,6 +191,14 @@ export class ResidentDevelopmentGoalHost {
       const evidence = await this.stages.verify({ job, changeSet, plan: verificationPlan, goal: input.goal, context: input.context });
       const verification = evaluateDevelopmentVerification(verificationPlan, evidence);
       if (!verification.passed) {
+        // Missing independent check receipts are WAITING, not failed code.
+        // Preserve the exact candidate and durable VERIFYING checkpoint rather
+        // than rejecting a good artifact and rerunning a now-dirty Builder.
+        // Only genuinely failed/stale/inconsistent evidence enters recovery.
+        const outstanding = verification.reasons.every(reason => reason.startsWith("missing_evidence:"));
+        if (outstanding) {
+          return report(false, `independent_verifier_pending:${verification.reasons.join(",")}`);
+        }
         const signature = createHash("sha256").update(verification.reasons.slice().sort().join("\n")).digest("hex");
         const strategyId = `verify-recovery-${job.attempts.length + 1}`;
         changeSet = { ...changeSet, status: "REJECTED", updatedAt: nextTimestamp(changeSet.updatedAt) };
