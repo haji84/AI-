@@ -62,9 +62,22 @@ function planCodexBuilder(
       url.pathname !== "/" || url.username || url.password || url.search || url.hash) {
     throw new Error("Plan-included Codex Builder URL must be exact loopback HTTP");
   }
+  // The owner pins a real, non-root absolute worktree; never accept an
+  // ambiguous relative path, traversal, root, or Windows UNC share.
   const actualHostPath = (value: string) => {
     const windowsPath = /^[a-zA-Z]:[\\/]/.test(value);
-    return (windowsPath ? win32 : posix).normalize(value).replace(/[\\/]$/, "").toLowerCase();
+    const dialect = windowsPath ? win32 : posix;
+    if (!value || /[\\u0000\\r\\n]/.test(value) ||
+        value.split(/[\\\\/]/).includes("..") ||
+        (!windowsPath && value.startsWith("//")) ||
+        !dialect.isAbsolute(value)) {
+      throw new Error("Plan-included Codex workspace must be an absolute non-root path");
+    }
+    const normalized = dialect.normalize(value);
+    if (normalized === dialect.parse(normalized).root) {
+      throw new Error("Plan-included Codex workspace must not be a filesystem root");
+    }
+    return windowsPath ? normalized.toLowerCase() : normalized;
   };
   const expectedPath = actualHostPath(expectedWorkspace);
   const delegate = new HttpWorkerBuilderCapability(
@@ -77,6 +90,9 @@ function planCodexBuilder(
       try {
         const response = await fetchImpl(`${url.origin}/health`, {
           headers: { Authorization: `Bearer ${token}` },
+          // A dead or stalled Builder must never hang the Goal Controller.
+          signal: AbortSignal.timeout(5000),
+          redirect: "error",
         });
         if (!response.ok) return false;
         const payload = await response.json() as {
