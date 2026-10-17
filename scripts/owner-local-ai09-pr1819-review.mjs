@@ -10,8 +10,8 @@ import { randomUUID } from "node:crypto";
 import { performance } from "node:perf_hooks";
 const REPO="haji84/AI-", PR=1819;
 const BASE="cb6b0fa06492b3d610ecb527645244b9a46ba8eb";
-const HEAD="ee4d2c8d5e92de534c061b3f1a38c32f4a7f9875";
-const CI=38993760493, HOST="http://127.0.0.1:11434";
+const HEAD="a63273495091f4c4f57e1fb1ed3576dc6dee0c9d";
+const CI=38997315712, HOST="http://127.0.0.1:11434";
 const s={pr:PR,baseSha:BASE,headSha:HEAD,ciRunId:CI,model:null,totalChunks:null,
   reviewedChunks:0,completeCoverage:false,patchSha256:null,reviewStatus:"BLOCKED",
   blockers:[],chunkResults:[],findings:[],evidenceClass:"AI_ASSERTED",
