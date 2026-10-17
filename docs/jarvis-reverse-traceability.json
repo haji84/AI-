@@ -1073,7 +1073,7 @@
     },
     {
       "path": "scripts/jarvis-goal-executor.ts",
-      "sha256": "88a79ff5bb5d3144d9dba3a6a0cb1fbb0a391df0fd99c408d9f7aa437d80ee3d",
+      "sha256": "9a633048dd0740285c32251bfca16ef42b05ddc3757ca702fa22283831245e2e",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "AUTO-001",
@@ -1081,11 +1081,11 @@
         "GOV-025",
         "OWN-001"
       ],
-      "reason": "Issues #1219/#1284 Direct Goal Bridge executor auto-routes accepted development intent from Daily Driver into the bounded Builder runtime when explicit self-development environment configuration is absent; existing capability, verifier, risk, Human Gate, and release controls remain authoritative. Physical iPhone E2E remains required before completion. #1219 scope pinning follows resident Ollama opt-in; no complete runtime E2E claim. #1219 bounded Codex-free TDD RED and local separate-process GREEN proof work; complete independent release verification and physical Goal E2E are not claimed."
+      "reason": "Issues #1219/#1284 Direct Goal Bridge executor auto-routes accepted development intent from Daily Driver into the bounded Builder runtime when explicit self-development environment configuration is absent; existing capability, verifier, risk, Human Gate, and release controls remain authoritative. Physical iPhone E2E remains required before completion. #1219 scope pinning follows resident Ollama opt-in; no complete runtime E2E claim. #1219 bounded Codex-free TDD RED and local separate-process GREEN proof work; complete independent release verification and physical Goal E2E are not claimed. #1219 independently readback artifact bytes and hold unavailable evidence without discarding Change Set."
     },
     {
-      "path": "scripts/jarvis-local-ollama-tdd-verifier.mjs",
-      "sha256": "478f2efbed38f75d6322ef9baecf423473bc90b6bb189aa01d006afa5825fe28",
+      "path": "scripts/jarvis-independent-artifact-attestation.mjs",
+      "sha256": "f4db218fb826aad4e7a2c91d09637783565df52e50a2e048d1c28faab37b23a9",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -1093,7 +1093,19 @@
         "AUTO-004",
         "GOV-025"
       ],
-      "reason": "#1219 bounded Python fixture separate-process TDD RED/GREEN evidence support; not a general code verifier, not full release acceptance."
+      "reason": "#1219 generic bounded artifact readback verifies UTF-8 SHA256, Git scope and revisions. Does not claim executable behavior or whole-product acceptance."
+    },
+    {
+      "path": "scripts/jarvis-local-ollama-tdd-verifier.mjs",
+      "sha256": "b62ce0490d460eed1c2e3f9b7caaa9550475971019e06ada332a9ffec000e134",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-014",
+        "AUTO-001",
+        "AUTO-004",
+        "GOV-025"
+      ],
+      "reason": "#1219 bounded Python fixture separate-process TDD RED/GREEN evidence support; not a general code verifier, not full release acceptance. #1219 independently readback artifact bytes and hold unavailable evidence without discarding Change Set."
     },
     {
       "path": "scripts/jarvis-mac-broker-service.sh",
@@ -5399,13 +5411,13 @@
     },
     {
       "path": "src/orchestrator/goal-controller-execution-bridge.ts",
-      "sha256": "890716e0c80a9f10521ef7e5360c52f28f882a17932375394a80d081ead37a6f",
+      "sha256": "eb60d111a101099304a130291f5e4b6cdc2d92acba789f26703ca82252e485c9",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-001",
         "CORE-002"
       ],
-      "reason": "Declared goal-controller-execution-bridge.ts responsibility implements/supports One Front Door; Goal Completion Engine. Parent ownership is not functional or physical acceptance evidence."
+      "reason": "Declared goal-controller-execution-bridge.ts responsibility implements/supports One Front Door; Goal Completion Engine. Parent ownership is not functional or physical acceptance evidence. #1219 independently readback artifact bytes and hold unavailable evidence without discarding Change Set."
     },
     {
       "path": "src/orchestrator/goal-controller-runtime.ts",
@@ -5916,7 +5928,7 @@
     },
     {
       "path": "src/orchestrator/resident-development-goal-host.ts",
-      "sha256": "8d7cbd2fbcdb84e289ae0aabec2ca7edafc666c3cb67e250c5ac1826a56b4870",
+      "sha256": "83cca8d2a3dcdae89878e93d61de67ab02c613e745108c0dda34c33d2c30f959",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -5928,7 +5940,7 @@
         "AUTO-025",
         "AUTO-026"
       ],
-      "reason": "#681 explicit host-opted resident development runtime resumes durable Job and Change Set stages without duplicate Builder, verifier, or release effects. #1219 bounded Codex-free TDD RED and local separate-process GREEN proof work; complete independent release verification and physical Goal E2E are not claimed."
+      "reason": "#681 explicit host-opted resident development runtime resumes durable Job and Change Set stages without duplicate Builder, verifier, or release effects. #1219 bounded Codex-free TDD RED and local separate-process GREEN proof work; complete independent release verification and physical Goal E2E are not claimed. #1219 independently readback artifact bytes and hold unavailable evidence without discarding Change Set."
     },
     {
       "path": "src/orchestrator/resident-development-scope.ts",
