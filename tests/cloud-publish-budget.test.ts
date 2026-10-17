@@ -61,7 +61,7 @@ test("Pages blocks the 301st monthly attempt, including imported monthly usage",
   const s = makeStore();
   const usage = { ...BASE_USAGE, pagesBuildsThisPeriod: 299 };
   assert.equal((await reserveCloudPublishAttempt(s, attempt("300", "pages", { usage }))).status, "RESERVED");
-  assert.deepEqual(await reserveCloudPublishAttempt(s, attempt("301", "pages", { usage }),
+  assert.deepEqual(await reserveCloudPublishAttempt(s, attempt("301", "pages", { usage })),
     { status: "BLOCKED", reason: "pages_monthly_budget_exhausted" });
 });
 
@@ -71,7 +71,7 @@ test("Workers reserves worst-case minutes; 2700th fits but another 20-minute bui
   const first = await reserveCloudPublishAttempt(s, attempt("minutes-2700", "workers", { usage }));
   assert.equal(first.status, "RESERVED");
   if (first.status === "RESERVED") assert.equal(first.reservation.reservedBuildMinutes, 20);
-  assert.deepEqual(await reserveCloudPublishAttempt(s, attempt("minutes-2720", "workers", { usage }),
+  assert.deepEqual(await reserveCloudPublishAttempt(s, attempt("minutes-2720", "workers", { usage })),
     { status: "BLOCKED", reason: "workers_build_minutes_budget_exhausted" });
 });
 
