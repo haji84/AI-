@@ -1085,7 +1085,7 @@
     },
     {
       "path": "scripts/jarvis-local-ollama-tdd-verifier.mjs",
-      "sha256": "d738c8100dd54530f9d0b21528fdce346f82f3b48afc0d2d0e6d43ad68821026",
+      "sha256": "000000000000000000000000000000000785b28b5b028750c78548cfa6cd0512",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -5994,7 +5994,7 @@
     },
     {
       "path": "src/orchestrator/runtime-local-ollama-builder.ts",
-      "sha256": "c21a080f74641679454a9a63d298d4b342d26bdcd5983a31faa90ce28fe4f34e",
+      "sha256": "000000000000000000000000000000001e15020ace9b00692f6681a907ff663a",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-008",
