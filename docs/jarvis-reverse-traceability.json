@@ -939,18 +939,6 @@
       "reason": "Organization-aware reusable memory"
     },
     {
-      "path": "scripts/goriq-local-ollama-tdd-verifier.mjs",
-      "sha256": "f496f555b98be9096e4884fd0b83ecf1b9f2ec50fd4b0807a76f53adda1f2f42",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "CORE-014",
-        "AUTO-001",
-        "AUTO-004",
-        "GOV-025"
-      ],
-      "reason": "#1219 bounded Python fixture separate-process TDD RED/GREEN evidence support; not a general code verifier, not full release acceptance."
-    },
-    {
       "path": "scripts/jarvis-adb-mass-enroll.sh",
       "sha256": "218d856fc06b462305ac093bea39fca09a44f768575fd1abf9719a8b12b98455",
       "classification": "COVERED_BY_REQUIREMENT",
@@ -1094,6 +1082,18 @@
         "OWN-001"
       ],
       "reason": "Issues #1219/#1284 Direct Goal Bridge executor auto-routes accepted development intent from Daily Driver into the bounded Builder runtime when explicit self-development environment configuration is absent; existing capability, verifier, risk, Human Gate, and release controls remain authoritative. Physical iPhone E2E remains required before completion. #1219 scope pinning follows resident Ollama opt-in; no complete runtime E2E claim. #1219 bounded Codex-free TDD RED and local separate-process GREEN proof work; complete independent release verification and physical Goal E2E are not claimed."
+    },
+    {
+      "path": "scripts/jarvis-local-ollama-tdd-verifier.mjs",
+      "sha256": "f496f555b98be9096e4884fd0b83ecf1b9f2ec50fd4b0807a76f53adda1f2f42",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-014",
+        "AUTO-001",
+        "AUTO-004",
+        "GOV-025"
+      ],
+      "reason": "#1219 bounded Python fixture separate-process TDD RED/GREEN evidence support; not a general code verifier, not full release acceptance."
     },
     {
       "path": "scripts/jarvis-mac-broker-service.sh",
@@ -5624,7 +5624,7 @@
     },
     {
       "path": "src/orchestrator/local-ollama-tdd.ts",
-      "sha256": "a057ba6915a0c11ad4be5231484e863577bad7d7fb0b2b0e27ee21b03cd85d31",
+      "sha256": "d03283ceab7121fe7a5314caf95ab62f3c099c94ee8b2f3bbe6d75f590361ef7",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
