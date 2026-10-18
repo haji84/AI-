@@ -1096,6 +1096,18 @@
       "reason": "#1219 generic bounded artifact readback verifies UTF-8 SHA256, Git scope and revisions. Does not claim executable behavior or whole-product acceptance."
     },
     {
+      "path": "scripts/jarvis-independent-check-runner.mjs",
+      "sha256": "783730466ec8ea5fb8e149c808d1f8186eaba3ad98872ab5a033e8558b602f92",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-014",
+        "AUTO-001",
+        "AUTO-004",
+        "GOV-025"
+      ],
+      "reason": "#1219 explicit locally provisioned isolated verifier runner with immutable container image requirement, no-network Docker check execution from a separate verifier workspace, exact Change Set digest recheck and separately held Ed25519 signing. OS/container trust and physical deployment still unverified."
+    },
+    {
       "path": "scripts/jarvis-local-ollama-tdd-verifier.mjs",
       "sha256": "b62ce0490d460eed1c2e3f9b7caaa9550475971019e06ada332a9ffec000e134",
       "classification": "COVERED_BY_REQUIREMENT",
