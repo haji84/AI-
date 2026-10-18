@@ -1,3 +1,4 @@
+import process from "node:process";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { runIndependentVerifier, validateVerifierRunRequest, verifierCommand } from "../scripts/jarvis-independent-check-runner.mjs";
