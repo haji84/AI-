@@ -5532,7 +5532,7 @@
     },
     {
       "path": "src/orchestrator/goal-verifier-receipt-wake.ts",
-      "sha256": "fc3024d3a23c584943b5c775a80c332d423f3ae9a56c318c160d21106cbb546b",
+      "sha256": "70f9ea0920f27c301a5a5957db29ca13378d6146ea61e167cb8d1b81977773cb",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-001",
