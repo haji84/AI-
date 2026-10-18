@@ -1435,6 +1435,17 @@
       "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
     },
     {
+      "path": "scripts/jarvis-zbook-ollama-acceptance-preflight.mjs",
+      "sha256": "63ad903919ec0b4561a4799edd33b7a94b4394611cae98796e088120ff9ae8af",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-001",
+        "AUTO-004",
+        "GOV-025"
+      ],
+      "reason": "#1219 read-only physical ZBook acceptance preflight; listens on existing loopback ports and checks model/checkout without writing, authenticating or asserting E2E Goal completion."
+    },
+    {
       "path": "src/app/api/command/route.ts",
       "sha256": "1ba659e6f7b5f05d61ddd88a5efc5acd954e0543fe817a42b167f4e017a9874a",
       "classification": "COVERED_BY_REQUIREMENT",
