@@ -1,3 +1,4 @@
+import { Buffer } from "node:buffer";
 #!/usr/bin/env node
 /**
  * Owner-provisioned verifier-side worker. This is NOT a sandbox.
