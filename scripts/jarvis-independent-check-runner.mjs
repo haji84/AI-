@@ -24,7 +24,7 @@ export function verifierCommand(name) {
     case "lint": return ["pnpm",["lint"]];
     case "typecheck": return ["pnpm",["exec","tsc","--noEmit"]];
     case "unit": return ["pnpm",["test"]];
-    case "integration": return ["node",["--test","tests/goal-controller-execution-bridge.test.ts","tests/goriq-self-development-runtime.test.ts"]];
+    case "integration": return ["pnpm",["test"]]; // full suite includes cross-module tests; no partial subset is misrepresented
     case "security": return ["pnpm",["test:p8-security"]];
     case "build": return ["pnpm",["build"]];
     default: throw Error("VERIFIER_CHECK_UNSUPPORTED");
@@ -65,7 +65,9 @@ export function validateVerifierRunRequest(req) {
     !/^[a-f0-9]{64}$/.test(req.sourceRevision??"")||
     !/^[a-f0-9]{64}$/.test(req.artifactDigest??"")||
     !validPath(req.targetPath)||
-    !Array.isArray(req.allowedUntracked)||req.allowedUntracked.length!==1||req.allowedUntracked[0]!==req.targetPath||
+    !Array.isArray(req.allowedUntracked)||req.allowedUntracked.length<1||req.allowedUntracked.length>32||
+    req.allowedUntracked.some(p=>!validPath(p))||new Set(req.allowedUntracked).size!==req.allowedUntracked.length||
+    !req.allowedUntracked.includes(req.targetPath)||
     !Array.isArray(req.requiredChecks)||req.requiredChecks.length<1||req.requiredChecks.length>6||
     req.requiredChecks.some(x=>!names.includes(x))||new Set(req.requiredChecks).size!==req.requiredChecks.length||
     !["candidateWorkspace","verifierWorkspace","privateKeyFile","receiptFile"].every(x=>typeof req[x]==="string"&&isAbsolute(req[x]))) {
@@ -94,10 +96,12 @@ export function runIndependentVerifier(req) {
     throw Error("VERIFIER_PRIVATE_KEY_UNAVAILABLE");
   const key=createPrivateKey(readFileSync(keyFile));
   if(key.asymmetricKeyType!=="ed25519")throw Error("VERIFIER_SIGNER_NOT_ED25519");
-  const target=resolve(runner,req.targetPath),parent=dirname(target);
-  if(!realpathSync(parent).startsWith(runner+sep)||existsSync(target))
-    throw Error("VERIFIER_TARGET_NOT_NEW");
-  copyFileSync(resolve(candidate,req.targetPath),target,constants.COPYFILE_EXCL);
+  for(const path of req.allowedUntracked) {
+    const target=resolve(runner,path),parent=dirname(target);
+    if(!realpathSync(parent).startsWith(runner+sep)||existsSync(target))
+      throw Error("VERIFIER_TARGET_NOT_NEW");
+    copyFileSync(resolve(candidate,path),target,constants.COPYFILE_EXCL);
+  }
   const staged=attestLocalCandidate({workspace:runner,baseRevision:req.baseRevision,
     targetPath:req.targetPath,allowedUntracked:req.allowedUntracked});
   if(staged.artifactDigest!==before.artifactDigest||staged.candidateRevision!==before.candidateRevision)
