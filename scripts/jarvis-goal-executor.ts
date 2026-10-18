@@ -3,7 +3,7 @@ import { compassGoalToLoopGoal } from "../src/orchestrator/compass-state-store.t
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
-import { dirname, isAbsolute, join, relative, resolve } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { CompassGoalExecutionAdapter, type DevelopmentRuntimeOptions } from "../src/orchestrator/compass-goal-execution-adapter.ts";
 import { CompassGoalBridgeEventStore } from "../src/orchestrator/compass-goal-bridge-event-store.ts";
 import { CompassWorkRunStore } from "../src/orchestrator/compass-work-run-store.ts";
@@ -125,7 +125,7 @@ function configuredDevelopmentRuntime(compassPath: string, context: unknown[]): 
   if (executionScope.localOllama && verifierReceipt && verifierPublicKey) {
     for (const file of [verifierReceipt, verifierPublicKey]) {
       const rel = relative(repositoryRoot, resolve(file));
-      if (!isAbsolute(file) || rel === "" || (!isAbsolute(rel) && rel !== ".." && !rel.startsWith(".." + (process.platform === "win32" ? "\\\\" : "/")))) {
+      if (!isAbsolute(file) || rel === "" || (!isAbsolute(rel) && rel !== ".." && !rel.startsWith(".." + sep))) {
         throw new Error("SIGNED_LOCAL_VERIFIER_AUTHORITY_MUST_BE_OUTSIDE_BUILDER_WORKSPACE");
       }
     }
