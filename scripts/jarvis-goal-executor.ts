@@ -17,6 +17,7 @@ import { ResidentDevelopmentGoalHost } from "../src/orchestrator/resident-develo
 import { createRuntimeBuilderRouter } from "../src/orchestrator/runtime-builder-capability.ts";
 import { resolveResidentDevelopmentScope } from "../src/orchestrator/resident-development-scope.ts";
 import { localOllamaFixtureTestPath, runLocalTddVerification } from "../src/orchestrator/local-ollama-tdd.ts";
+import { readSignedLocalVerifierReceipt } from "../src/orchestrator/signed-local-verifier-receipt.ts";
 import { createRuntimeDevelopmentVerifier } from "../src/orchestrator/runtime-development-verifier.ts";
 import { HttpDevelopmentReleaseCapability } from "../src/orchestrator/http-development-release-capability.ts";
 import { createTaskCompletionAuthorization, normalizeTaskCompletionAuthorization } from "../src/orchestrator/task-authorization.ts";
@@ -116,6 +117,19 @@ function configuredDevelopmentRuntime(compassPath: string, context: unknown[]): 
   const repositoryContext = buildRepositoryDevelopmentContext({ objective: "resident self-development", preferredFiles: resolvedTargets, entries, maxChars: 40_000 });
   const router = createRuntimeBuilderRouter();
   const verifier = createRuntimeDevelopmentVerifier();
+  const verifierReceipt = process.env.GORIQ_LOCAL_VERIFIER_RECEIPT_FILE?.trim();
+  const verifierPublicKey = process.env.GORIQ_LOCAL_VERIFIER_PUBLIC_KEY_FILE?.trim();
+  if (executionScope.localOllama && Boolean(verifierReceipt) !== Boolean(verifierPublicKey)) {
+    throw new Error("SIGNED_LOCAL_VERIFIER_CONFIGURATION_INCOMPLETE");
+  }
+  if (executionScope.localOllama && verifierReceipt && verifierPublicKey) {
+    for (const file of [verifierReceipt, verifierPublicKey]) {
+      const rel = relative(repositoryRoot, resolve(file));
+      if (!isAbsolute(file) || rel === "" || (!isAbsolute(rel) && rel !== ".." && !rel.startsWith(".." + (process.platform === "win32" ? "\\\\" : "/")))) {
+        throw new Error("SIGNED_LOCAL_VERIFIER_AUTHORITY_MUST_BE_OUTSIDE_BUILDER_WORKSPACE");
+      }
+    }
+  }
   const releaseUrl = process.env.GORIQ_SELF_DEVELOPMENT_RELEASE_URL?.trim();
   const releaseToken = process.env.GORIQ_SELF_DEVELOPMENT_RELEASE_TOKEN?.trim();
   if (Boolean(releaseUrl) !== Boolean(releaseToken)) throw new Error("GORIQ release URL and token must be configured together");
@@ -211,11 +225,21 @@ function configuredDevelopmentRuntime(compassPath: string, context: unknown[]): 
           const green = runLocalTddVerification(repositoryRoot, changeSet.baseRevision, "green");
           if (!green.ok || green.evidence?.artifactSha256 !== changeSet.artifactDigest ||
               green.evidence?.candidateRevision !== plan.sourceRevision) return [];
+          if (verifierReceipt && verifierPublicKey && existsSync(verifierReceipt)) {
+            return readSignedLocalVerifierReceipt({ receiptPath: verifierReceipt,
+              publicKeyPem: readFileSync(verifierPublicKey, "utf8"),
+              plan, changeSet, goalId: job.goalId });
+          }
           // This narrow Python unit proof cannot be mislabeled as the complete
           // repository-wide lint/typecheck/build/security gate.
           return [{ check: "unit" as const, verifierId: green.evidence!.verifierId,
             sourceRevision: plan.sourceRevision, artifactDigest: plan.artifactDigest,
             status: "passed" as const, recordedAt: green.evidence!.recordedAt }];
+        }
+        if (executionScope.localOllama) {
+          if (!verifierReceipt || !verifierPublicKey || !existsSync(verifierReceipt)) return [];
+          return readSignedLocalVerifierReceipt({ receiptPath: verifierReceipt,
+            publicKeyPem: readFileSync(verifierPublicKey, "utf8"), plan, changeSet, goalId: job.goalId });
         }
         const result = await verifier.verify({ goal, action, result: { actionId: action.id, ok: true, summary: "Change Set ready for verification" }, context: runtimeContext });
         if (!result.ok) return [];
