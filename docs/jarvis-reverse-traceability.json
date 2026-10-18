@@ -1097,7 +1097,7 @@
     },
     {
       "path": "scripts/jarvis-independent-check-runner.mjs",
-      "sha256": "783730466ec8ea5fb8e149c808d1f8186eaba3ad98872ab5a033e8558b602f92",
+      "sha256": "1cd1ae39e4efd3132cdc90976ef49f12984ac0baac9819a2193c40f92c85a896",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
