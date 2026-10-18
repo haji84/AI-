@@ -1,5 +1,5 @@
-import { Buffer } from "node:buffer";
 #!/usr/bin/env node
+import { Buffer } from "node:buffer";
 /**
  * Owner-provisioned verifier-side worker. This is NOT a sandbox.
  * Run only as an owner-provisioned, restricted verifier principal with a\n * locally available digest-pinned no-network container runtime.
