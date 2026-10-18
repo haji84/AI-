@@ -959,7 +959,7 @@
     },
     {
       "path": "scripts/jarvis-broker.ts",
-      "sha256": "6d216853a21b4b5103eb30a749e5f18e421f3f2d3c476c765a9accf2b8393a2d",
+      "sha256": "881b065a6fb1373f2607408c466f58cfeec104e9f0bef1c566996aa3343c0d74",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "NET-003",
@@ -980,7 +980,7 @@
         "UI-009",
         "INT-001"
       ],
-      "reason": "Protected Broker now exposes bounded local-first voice discovery and synthesis while preserving existing owner authority and all prior Broker responsibilities."
+      "reason": "Protected Broker now exposes bounded local-first voice discovery and synthesis while preserving existing owner authority and all prior Broker responsibilities. #1219 only accepted nonterminal Goal resumed on changed verifier receipt; signature and authorizations still checked in child Executor."
     },
     {
       "path": "scripts/jarvis-direct-commander-service.sh",
@@ -5529,6 +5529,17 @@
         "GOV-002"
       ],
       "reason": "Declared goal-loop.ts responsibility implements/supports One Front Door; Goal persistence; DoD persistence; Current State persistence; Decisions persistence; Deliverables persistence; Verification persistence; Next Action persistence; Planner; Executor; Verifier; Repair; Replan; Bounded retry; Failure classification; Ordinary LOW/MEDIUM auto-continue; Only genuine Human Gate interrupts; Restart resume; Offline resume; Reconnect resume; Verified completion only; No silent paid API; Human Gate: payment/purchase/billing/contract/permission changes/credentials/tokens/security weakening/destructive deletion/irreversible action/governance changes/protected external publication/protected production action; Goal Completion Engine; Software Development Autopilot; 104. Agent Goal Integrity. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/goal-verifier-receipt-wake.ts",
+      "sha256": "fc3024d3a23c584943b5c775a80c332d423f3ae9a56c318c160d21106cbb546b",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-001",
+        "AUTO-004",
+        "GOV-025"
+      ],
+      "reason": "#1219 bounded read-only digest polling of verifier receipt for idempotent resume of already accepted Goal; not a new source of Goal authority."
     },
     {
       "path": "src/orchestrator/governed-fabric-dispatch.ts",
