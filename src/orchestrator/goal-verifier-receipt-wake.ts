@@ -17,7 +17,7 @@ export class GoalVerifierReceiptWake {
       if (!stat.isFile() || stat.isSymbolicLink() || stat.size < 1 || stat.size > 24_576) return null;
       bytes = readFileSync(this.path);
     } catch (e) {
-      if (e && typeof e === "object" && "code" in e && (e.code === "ENOENT" || e.code === "EACCES")) return null;
+      if (e && typeof e === "object" && "code" in e && e.code === "ENOENT") return null;
       throw e;
     }
     if (bytes.length < 1 || bytes.length > 24_576) return null;
