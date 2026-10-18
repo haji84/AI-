@@ -1436,14 +1436,14 @@
     },
     {
       "path": "scripts/jarvis-zbook-ollama-acceptance-preflight.mjs",
-      "sha256": "63ad903919ec0b4561a4799edd33b7a94b4394611cae98796e088120ff9ae8af",
+      "sha256": "aba2512e3422d22872e5d2e9cfba3ad5e1ba726931471ad3f83fc48f0604cb4f",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-001",
         "AUTO-004",
         "GOV-025"
       ],
-      "reason": "#1219 read-only physical ZBook acceptance preflight; listens on existing loopback ports and checks model/checkout without writing, authenticating or asserting E2E Goal completion."
+      "reason": "#1219 read-only physical ZBook acceptance preflight; listens on existing loopback ports and checks model/checkout without writing, authenticating or asserting E2E Goal completion. Read-only inspection now reports Docker daemon, digest-pinned local image and verifier public-key pin readiness separately from physical OS-principal proof."
     },
     {
       "path": "src/app/api/command/route.ts",
