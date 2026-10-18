@@ -6,7 +6,7 @@
  */
 import { execFileSync } from "node:child_process";
 import { connect } from "node:net";
-import { resolve } from "node:path";
+import { isAbsolute, resolve } from "node:path";
 import { existsSync, lstatSync, readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 
@@ -73,7 +73,7 @@ async function main(){
   if(!response.verifier.pinnedImagePresent)response.reasons.push("PINNED_VERIFIER_IMAGE_NOT_AVAILABLE_OFFLINE");
   const keyPath=process.env.GORIQ_LOCAL_VERIFIER_PUBLIC_KEY_FILE||"";
   const expectedFingerprint=process.env.GORIQ_LOCAL_VERIFIER_PUBLIC_KEY_SHA256||"";
-  if(keyPath&&/^[a-f0-9]{64}$/.test(expectedFingerprint)) {
+  if(isAbsolute(keyPath)&&/^[a-f0-9]{64}$/.test(expectedFingerprint)) {
     try {
       const st=lstatSync(keyPath);
       if(st.isFile()&&!st.isSymbolicLink()&&st.size>0&&st.size<=8192&&existsSync(keyPath)) {
