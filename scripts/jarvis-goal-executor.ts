@@ -122,13 +122,22 @@ function configuredDevelopmentRuntime(compassPath: string, context: unknown[]): 
   if (executionScope.localOllama && Boolean(verifierReceipt) !== Boolean(verifierPublicKey)) {
     throw new Error("SIGNED_LOCAL_VERIFIER_CONFIGURATION_INCOMPLETE");
   }
+  const verifierPublicKeySha256 = process.env.GORIQ_LOCAL_VERIFIER_PUBLIC_KEY_SHA256?.trim();
   if (executionScope.localOllama && verifierReceipt && verifierPublicKey) {
+    if (!/^[a-f0-9]{64}$/.test(verifierPublicKeySha256 ?? "")) {
+      throw new Error("SIGNED_LOCAL_VERIFIER_PUBLIC_KEY_PIN_REQUIRED");
+    }
     for (const file of [verifierReceipt, verifierPublicKey]) {
       const rel = relative(repositoryRoot, resolve(file));
       if (!isAbsolute(file) || rel === "" || (!isAbsolute(rel) && rel !== ".." && !rel.startsWith(".." + sep))) {
         throw new Error("SIGNED_LOCAL_VERIFIER_AUTHORITY_MUST_BE_OUTSIDE_BUILDER_WORKSPACE");
       }
     }
+  }
+  const verifierKeyPem = executionScope.localOllama && verifierPublicKey
+    ? readFileSync(verifierPublicKey, "utf8") : null;
+  if (verifierKeyPem && createHash("sha256").update(verifierKeyPem).digest("hex") !== verifierPublicKeySha256) {
+    throw new Error("SIGNED_LOCAL_VERIFIER_PUBLIC_KEY_PIN_MISMATCH");
   }
   const releaseUrl = process.env.GORIQ_SELF_DEVELOPMENT_RELEASE_URL?.trim();
   const releaseToken = process.env.GORIQ_SELF_DEVELOPMENT_RELEASE_TOKEN?.trim();
@@ -227,7 +236,7 @@ function configuredDevelopmentRuntime(compassPath: string, context: unknown[]): 
               green.evidence?.candidateRevision !== plan.sourceRevision) return [];
           if (verifierReceipt && verifierPublicKey && existsSync(verifierReceipt)) {
             return readSignedLocalVerifierReceipt({ receiptPath: verifierReceipt,
-              publicKeyPem: readFileSync(verifierPublicKey, "utf8"),
+              publicKeyPem: verifierKeyPem!,
               plan, changeSet, goalId: job.goalId });
           }
           // This narrow Python unit proof cannot be mislabeled as the complete
@@ -239,7 +248,7 @@ function configuredDevelopmentRuntime(compassPath: string, context: unknown[]): 
         if (executionScope.localOllama) {
           if (!verifierReceipt || !verifierPublicKey || !existsSync(verifierReceipt)) return [];
           return readSignedLocalVerifierReceipt({ receiptPath: verifierReceipt,
-            publicKeyPem: readFileSync(verifierPublicKey, "utf8"), plan, changeSet, goalId: job.goalId });
+            publicKeyPem: verifierKeyPem!, plan, changeSet, goalId: job.goalId });
         }
         const result = await verifier.verify({ goal, action, result: { actionId: action.id, ok: true, summary: "Change Set ready for verification" }, context: runtimeContext });
         if (!result.ok) return [];
