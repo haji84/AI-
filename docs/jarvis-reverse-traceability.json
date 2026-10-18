@@ -1073,7 +1073,7 @@
     },
     {
       "path": "scripts/jarvis-goal-executor.ts",
-      "sha256": "23494c1c37ec5a3f718bd51d6be778e5e85eb989051a5f5ec13a2f4c372e27a0",
+      "sha256": "70103dcf57821e83912852d4d2f437589f8ae73cde727a3be0a636759915ed27",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "AUTO-001",
@@ -1081,7 +1081,7 @@
         "GOV-025",
         "OWN-001"
       ],
-      "reason": "Issues #1219/#1284 Direct Goal Bridge executor auto-routes accepted development intent from Daily Driver into the bounded Builder runtime when explicit self-development environment configuration is absent; existing capability, verifier, risk, Human Gate, and release controls remain authoritative. Physical iPhone E2E remains required before completion. #1219 scope pinning follows resident Ollama opt-in; no complete runtime E2E claim. #1219 bounded Codex-free TDD RED and local separate-process GREEN proof work; complete independent release verification and physical Goal E2E are not claimed. #1219 independently readback artifact bytes and hold unavailable evidence without discarding Change Set."
+      "reason": "Issues #1219/#1284 Direct Goal Bridge executor auto-routes accepted development intent from Daily Driver into the bounded Builder runtime when explicit self-development environment configuration is absent; existing capability, verifier, risk, Human Gate, and release controls remain authoritative. Physical iPhone E2E remains required before completion. #1219 scope pinning follows resident Ollama opt-in; no complete runtime E2E claim. #1219 bounded Codex-free TDD RED and local separate-process GREEN proof work; complete independent release verification and physical Goal E2E are not claimed. #1219 independently readback artifact bytes and hold unavailable evidence without discarding Change Set. #1219 independently signed local verifier receipts bound to exact Goal and Change Set before required checks may be accepted."
     },
     {
       "path": "scripts/jarvis-independent-artifact-attestation.mjs",
@@ -6054,6 +6054,18 @@
         "MEM-001"
       ],
       "reason": "Declared shared-context.ts responsibility implements/supports Context Partitioning; Working Memory. Parent ownership is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/signed-local-verifier-receipt.ts",
+      "sha256": "50f2134e62bed3b5a4c4d21d4c1a3a933347e3a258a951ed8e63d591c54d0885",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-014",
+        "AUTO-001",
+        "AUTO-004",
+        "GOV-025"
+      ],
+      "reason": "#1219 explicit opt-in signed local verifier receipt contract. Separate verifier private-key/OS trust is a mandatory physical acceptance boundary; no generalized code safety claim."
     },
     {
       "path": "src/orchestrator/spreadsheet-sandbox-capability.ts",
