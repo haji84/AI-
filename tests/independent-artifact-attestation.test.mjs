@@ -19,6 +19,7 @@ function fixture() {
   git(original, "init");
   git(original, "config", "user.name", "Verifier Test");
   git(original, "config", "user.email", "verifier@example.invalid");
+  git(original, "config", "core.autocrlf", "false");
   mkdirSync(join(original, "docs"));
   writeFileSync(join(original, "docs", ".gitkeep"), "base\n");
   git(original, "add", ".");
@@ -55,6 +56,24 @@ test("independent verifier refuses unexpected changes, wrong revision and unsafe
     assert.throws(() => check({ allowedUntracked: ["docs/result.txt", "docs/other.txt"] }), /STATUS_MISMATCH/);
     writeFileSync(join(f.candidate, "docs", "unexpected.txt"), "keep\n");
     assert.throws(() => check({}), /STATUS_MISMATCH/);
+  } finally { f.close(); }
+});
+
+test("support-file substitutions change the complete candidate identity regardless of allowlist order", () => {
+  const f = fixture();
+  try {
+    writeFileSync(join(f.candidate, "docs/result.txt"), "implementation\n");
+    writeFileSync(join(f.candidate, "docs/check.txt"), "assert original\n");
+    const request = { workspace: f.candidate, baseRevision: f.revision,
+      targetPath: "docs/result.txt", allowedUntracked: ["docs/result.txt", "docs/check.txt"] };
+    const before = attestLocalCandidate(request);
+    assert.equal(attestLocalCandidate({ ...request, allowedUntracked: [...request.allowedUntracked].reverse() }).candidateRevision,
+      before.candidateRevision);
+    writeFileSync(join(f.candidate, "docs/check.txt"), "assert substituted\n");
+    const after = attestLocalCandidate(request);
+    assert.equal(after.artifactDigest, before.artifactDigest);
+    assert.notEqual(after.patchDigest, before.patchDigest);
+    assert.notEqual(after.candidateRevision, before.candidateRevision);
   } finally { f.close(); }
 });
 

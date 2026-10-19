@@ -111,7 +111,10 @@ export class ResidentDevelopmentGoalHost {
   }
 
   async run(input: { goalId: string; goal: Goal; context: ContextItem[] }): Promise<BoundedRunReport> {
-    let job = (await this.jobs.getByGoal(input.goalId)).find((candidate) => candidate.phase !== "CANCELLED") ?? null;
+    const goalJobs = (await this.jobs.getByGoal(input.goalId)).filter((candidate) => candidate.phase !== "CANCELLED");
+    // Completed Jobs must not hide existing unfinished work after restart.
+    // Keep persisted order, including Human Gates and blockers on the next Job.
+    let job = goalJobs.find((candidate) => candidate.phase !== "COMPLETED") ?? goalJobs[0] ?? null;
     if (!job) {
       const planned = new DevelopmentOrchestrator().plan({
         jobId: jobId(input.goalId),
@@ -306,6 +309,9 @@ export class ResidentDevelopmentGoalHost {
       }
       job = this.controller.apply(job, { transitionId: `${job.jobId}:completed`, actor: "state-controller", to: "COMPLETED", reason: "exact Production artifact independently verified" });
       await this.jobs.put(job);
+      const unfinishedJobs = (await this.jobs.getByGoal(input.goalId))
+        .some((candidate) => candidate.phase !== "COMPLETED" && candidate.phase !== "CANCELLED");
+      if (unfinishedJobs) return report(false, "development Job completed; next persisted Job remains");
       return report(true, "durable development release completed");
     }
     if (!this.stages.executeRelease) return report(false, `release capability unavailable:${gate.action}`, ["release_capability_unavailable"]);

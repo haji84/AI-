@@ -3,15 +3,13 @@
  * It checks bytes and Git state. It NEVER certifies executable behavior,
  * repository checks, OS isolation, reviewer independence or release readiness.
  */
-import { createHash } from "node:crypto";
-import { execFileSync } from "node:child_process";
-import { lstatSync, realpathSync, readFileSync } from "node:fs";
+import { closeSync, constants, fstatSync, lstatSync, openSync, realpathSync, readSync } from "node:fs";
 import { isAbsolute, join, resolve, sep } from "node:path";
 import { TextDecoder } from "node:util";
+import { localCandidateIdentity } from "../src/orchestrator/local-candidate-identity.ts";
+import { safeGit } from "./jarvis-verifier-safe-git.mjs";
 
-const hex = value => createHash("sha256").update(value).digest("hex");
-const git = (root, ...args) => execFileSync("git", args,
-  { cwd: root, encoding: "utf8", timeout: 8000, windowsHide: true }).trim();
+const git = (root, ...args) => safeGit(root,args);
 
 function safeRelative(value) {
   return typeof value === "string"
@@ -42,8 +40,7 @@ export function attestLocalCandidate({ workspace, baseRevision, targetPath, allo
   const expected = allowedUntracked.map(p => `?? ${p}`).sort();
   if (JSON.stringify(observed) !== JSON.stringify(expected)) throw Error("INDEPENDENT_ARTIFACT_STATUS_MISMATCH");
   const decoder = new TextDecoder("utf-8", { fatal: true, ignoreBOM: false });
-  const hashes = {};
-  let targetContent = null;
+  const files = {};
   for (const path of allowedUntracked) {
     let cursor = root;
     for (const part of path.split("/").slice(0, -1)) {
@@ -55,22 +52,31 @@ export function attestLocalCandidate({ workspace, baseRevision, targetPath, allo
     if (!(file.startsWith(root + sep))) throw Error("INDEPENDENT_ARTIFACT_PATH_ESCAPE");
     const info = lstatSync(file);
     if (!info.isFile() || info.isSymbolicLink() || info.size > maxBytes) throw Error("INDEPENDENT_ARTIFACT_FILE_UNSAFE");
-    const bytes = readFileSync(file);
+    const fd = openSync(file, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
+    let bytes;
+    try {
+      const opened = fstatSync(fd);
+      if (!opened.isFile() || opened.nlink !== 1 || opened.dev !== info.dev || opened.ino !== info.ino)
+        throw Error("INDEPENDENT_ARTIFACT_FILE_UNSAFE");
+      const buffer = Buffer.alloc(maxBytes + 1);
+      let count = 0, read;
+      while (count < buffer.length && (read = readSync(fd, buffer, count, buffer.length - count, null)) > 0) count += read;
+      const after = fstatSync(fd);
+      if (count > maxBytes || count !== opened.size || after.size !== opened.size || after.mtimeMs !== opened.mtimeMs)
+        throw Error("INDEPENDENT_ARTIFACT_CHANGED_DURING_READ");
+      bytes = buffer.subarray(0, count);
+    } finally { closeSync(fd); }
     const content = decoder.decode(bytes);
     if (!Buffer.from(content, "utf8").equals(bytes) || content.includes("\u0000")) throw Error("INDEPENDENT_ARTIFACT_NOT_PLAIN_UTF8");
-    hashes[path] = hex(bytes);
-    if (path === targetPath) targetContent = content;
+    files[path] = bytes;
   }
   const after = git(root, "status", "--porcelain", "-uall").split("\n").filter(Boolean).sort();
   if (JSON.stringify(after) !== JSON.stringify(expected) || git(root, "rev-parse", "HEAD") !== baseRevision) {
     throw Error("INDEPENDENT_ARTIFACT_CHANGED_DURING_READ");
   }
-  const artifactDigest = hashes[targetPath];
-  const patchDigest = hex(`create\0${targetPath}\0${targetContent}`);
-  const candidateRevision = hex(`candidate\0${baseRevision}\0${patchDigest}`);
   return {
     baseRevision, targetPath, allowedUntracked: [...allowedUntracked].sort(),
-    fileHashes: hashes, artifactDigest, patchDigest, candidateRevision,
+    ...localCandidateIdentity(baseRevision, targetPath, files),
     verifierKind: "independent-byte-readback", recordedAt: new Date().toISOString(),
   };
 }

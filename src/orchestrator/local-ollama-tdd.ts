@@ -46,7 +46,9 @@ export function runLocalTddVerification(
     timeout: 16000,
     maxBuffer: 16384,
     windowsHide: true,
-    env: { NODE_ENV: process.env.NODE_ENV ?? "test", PATH: process.env.PATH, SystemRoot: process.env.SystemRoot, SystemDrive: process.env.SystemDrive },
+    env: { NODE_ENV: process.env.NODE_ENV ?? "test", PATH: process.env.PATH, SystemRoot: process.env.SystemRoot,
+      TEMP: process.env.TEMP, TMP: process.env.TMP,
+      SystemDrive: process.env.SystemDrive, GORIQ_LOCAL_TDD_PYTHON: process.env.GORIQ_LOCAL_TDD_PYTHON },
   });
   if (child.error || child.status === null || !child.stdout) {
     return { ok: false, blocker: "INDEPENDENT_TDD_VERIFIER_UNAVAILABLE" };

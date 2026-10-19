@@ -36,17 +36,17 @@ test("reject caller command injection, path escapes, duplicate check or fake sco
   assert.throws(()=>validateVerifierRunRequest({...p,baseRevision:"123"}),/NOT_BOUNDED/);
   assert.throws(()=>validateVerifierRunRequest({...p,sourceRevision:"9"}),/NOT_BOUNDED/);
 });
-test("no privileged signer may run without separate-principal and offline image setup",()=>{
+test("no privileged signer may run without separate-principal and offline image setup",async()=>{
   const a=process.env.GORIQ_VERIFIER_OPERATOR_ISOLATED;
   const b=process.env.GORIQ_VERIFIER_CONTAINER_IMAGE;
   try {
     delete process.env.GORIQ_VERIFIER_OPERATOR_ISOLATED;
     delete process.env.GORIQ_VERIFIER_CONTAINER_IMAGE;
-    assert.throws(()=>runIndependentVerifier(request()),/SEPARATE_PRINCIPAL_NOT_ACKNOWLEDGED/);
+    await assert.rejects(()=>runIndependentVerifier(request()),/SEPARATE_PRINCIPAL_NOT_ACKNOWLEDGED/);
     process.env.GORIQ_VERIFIER_OPERATOR_ISOLATED="1";
-    assert.throws(()=>runIndependentVerifier(request()),/TRUSTED_CONTAINER_IMAGE_REQUIRED/);
+    await assert.rejects(()=>runIndependentVerifier(request()),/TRUSTED_CONTAINER_IMAGE_REQUIRED/);
     process.env.GORIQ_VERIFIER_CONTAINER_IMAGE="not-pinned:latest";
-    assert.throws(()=>runIndependentVerifier(request()),/TRUSTED_CONTAINER_IMAGE_REQUIRED/);
+    await assert.rejects(()=>runIndependentVerifier(request()),/TRUSTED_CONTAINER_IMAGE_REQUIRED/);
   } finally {
     if(a===undefined)delete process.env.GORIQ_VERIFIER_OPERATOR_ISOLATED;else process.env.GORIQ_VERIFIER_OPERATOR_ISOLATED=a;
     if(b===undefined)delete process.env.GORIQ_VERIFIER_CONTAINER_IMAGE;else process.env.GORIQ_VERIFIER_CONTAINER_IMAGE=b;

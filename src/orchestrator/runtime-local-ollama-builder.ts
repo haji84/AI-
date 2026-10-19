@@ -6,6 +6,7 @@ import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { LocalDevelopmentBuilder } from "./local-development-builder.ts";
 import type { BuilderCapability, BuilderRequest } from "./builder-router.ts";
 import { localOllamaFixtureSourcePath, localOllamaFixtureTestPath, localOllamaFixtureTest, runLocalTddVerification } from "./local-ollama-tdd.ts";
+import { localCandidateIdentity } from "./local-candidate-identity.ts";
 
 const sha256 = (value: string | Buffer) => createHash("sha256").update(value).digest("hex");
 const git = (root: string, ...args: string[]) => execFileSync("git", args, { cwd: root, encoding: "utf8", timeout: 8000, windowsHide: true }).trim();
@@ -144,8 +145,8 @@ export function createLocalOllamaBuilder(input: LocalOllamaBuilderOptions): Buil
           (fixtureTdd && readFileSync(resolve(workspace, localOllamaFixtureTestPath), "utf8") !== localOllamaFixtureTest)) {
         return { ok: false, summary: "Output verification or workspace isolation failed", blocker: "local_model_postwrite_unverified" };
       }
-      const patchDigest = sha256(`create\0${path}\0${content}`);
-      const artifactDigest = sha256(actual);
+      const { patchDigest, artifactDigest } = localCandidateIdentity(request.baseRevision, path,
+        fixtureTdd ? { [path]: actual, [localOllamaFixtureTestPath]: localOllamaFixtureTest } : { [path]: actual });
       return { ok: true, summary: "Local Ollama generated one bounded new file; independent verification still required",
         changedPaths: [path], patchDigest, artifactDigest, artifactRef: `sha256:${artifactDigest}`,
         evidence: { model: configuredModel, inferenceLocality: "device", externalApiCalls: 0, releaseAuthorized: false } };

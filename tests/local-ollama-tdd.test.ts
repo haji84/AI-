@@ -19,6 +19,7 @@ function sandbox() {
   git(root, "init");
   git(root, "config", "user.name", "CI");
   git(root, "config", "user.email", "tdd@example.invalid");
+  git(root, "config", "core.autocrlf", "false");
   mkdirSync(join(root, "tests", "fixtures"), { recursive: true });
   writeFileSync(join(root, "tests", "fixtures", ".gitkeep"), "test\n");
   git(root, "add", ".");
