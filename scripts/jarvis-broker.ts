@@ -12,8 +12,8 @@ import { OwnerRequirementIntake, matchRequirementCandidates } from "../src/orche
 import { execFileSync, spawn } from "node:child_process";
 import { createHash, createPublicKey, randomBytes, timingSafeEqual } from "node:crypto";
 import { existsSync, readFileSync, lstatSync } from "node:fs";
-import { dirname, isAbsolute, join, resolve } from "node:path";
-import { GoalVerifierReceiptWake } from "../src/orchestrator/goal-verifier-receipt-wake.ts";
+import { dirname, join, resolve } from "node:path";
+import { createResidentReceiptWakes } from "../src/orchestrator/resident-receipt-wakes.ts";
 import { OwnerInvitationStore, INVITATION_PREFIX } from "../src/jarvis/owner-invitation.ts";
 import { generateOwnerRecoveryCode, OwnerRecoveryRejectedError, TrustedDeviceRegistry } from "../src/jarvis/trusted-device-registry.ts";
 import { GoogleOwnerStateRegistry } from "../src/jarvis/google-owner-state-registry.ts";
@@ -40,6 +40,7 @@ import { PendingEnrollment } from "../src/jarvis/pending-enrollment.ts";
 import { CompassStore } from "../src/compass/store.ts";
 import { GoalControllerRuntime, type GoalControllerDecision } from "../src/orchestrator/goal-controller-runtime.ts";
 import { CompassGoalRegistryAdapter, CompassGoalDecisionStoreAdapter } from "../src/orchestrator/compass-goal-controller.ts";
+import { CompassWorkStateStoreAdapter } from "../src/orchestrator/compass-work-state-store.ts";
 import { CompassWorkRunStore } from "../src/orchestrator/compass-work-run-store.ts";
 import { CompassGoalBridgeEventStore } from "../src/orchestrator/compass-goal-bridge-event-store.ts";
 import { CompassGoalExecutionContextStore } from "../src/orchestrator/compass-goal-execution-context-store.ts";
@@ -95,8 +96,10 @@ const goalExecutionContexts = new CompassGoalExecutionContextStore(compass);
 const cognitive = new CognitiveService(compassPath, cognitiveHostOptions(process.env));
 const ownerRequirements = new OwnerRequirementIntake(compass);
 const specificationPublisher = createSpecificationPublisher({root:fileURLToPath(new URL("../",import.meta.url)),intake:ownerRequirements,token:process.env.GITHUB_TOKEN});
+const goalWorkStates = new CompassWorkStateStoreAdapter(compass);
 const goalController = new GoalControllerRuntime({
-  registry: new CompassGoalRegistryAdapter(compass),
+  registry: new CompassGoalRegistryAdapter(compass, goalWorkStates),
+  workStateStore: goalWorkStates,
   decisionStore: new CompassGoalDecisionStoreAdapter(compass),
 });
 const deviceDevelopmentIntake = new DeviceDevelopmentIntake({
@@ -968,10 +971,7 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
 const server = createServer((request, response) => {
   handler(request, response).catch((error) => { console.error("[jarvis-broker] request failed", error); json(response, 500, { message: error instanceof Error ? error.message : "internal error" }); });
 });
-const externalVerifierReceipt = process.env.GORIQ_LOCAL_OLLAMA_BUILDER_ENABLED === "1"
-  ? process.env.GORIQ_LOCAL_VERIFIER_RECEIPT_FILE?.trim() : undefined;
-const verifierReceiptWake = externalVerifierReceipt && isAbsolute(externalVerifierReceipt)
-  ? new GoalVerifierReceiptWake(externalVerifierReceipt) : null;
+const verifierReceiptWakes = createResidentReceiptWakes(process.env, process.cwd());
 let verifierReceiptTimer: NodeJS.Timeout | undefined;
 
 server.listen(port, host, () => {
@@ -980,7 +980,7 @@ server.listen(port, host, () => {
   // A signer is a separate OS/VM principal. New receipt bytes wake an already
   // accepted non-terminal Goal, never create a new Goal or grant approval.
   // Signature, artifact binding and all gates are checked by Goal Executor.
-  if (verifierReceiptWake) {
+  if (verifierReceiptWakes.length) {
     let inspecting = false;
     verifierReceiptTimer = setInterval(() => {
       if (inspecting || activeGoalExecutions.size > 0) return;
@@ -991,7 +991,7 @@ server.listen(port, host, () => {
         const run = await workRuns.getByGoal(active.goalId);
         if (!run || !["RUNNING", "VERIFYING"].includes(run.phase) ||
             activeGoalExecutions.has(active.goalId)) return;
-        if (!verifierReceiptWake.changedDigest()) return;
+        if (!verifierReceiptWakes.map(wake => wake.changedDigest()).some(Boolean)) return;
         scheduleGoalExecution({
           action: "CONTINUE_GOAL", goalId: active.goalId, resolution: {
             kind: "EXISTING_GOAL", intent: "COMMAND", goal: active,

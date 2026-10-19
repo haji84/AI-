@@ -22,6 +22,9 @@ import { createWorkStateIntegratedGoalLoop, goalWorkStateId, type WorkStateActio
 import { CognitiveCore, createCognitiveGoalLoop, cognitiveActionFingerprint, type CognitiveLearningBridge } from "../gai/cognitive-core.ts";
 import { CognitiveStateStore, cognitiveDigest, type CognitivePartition } from "../gai/cognitive-state.ts";
 import { configuredPrimaryBrain, type PrimaryBrainAdapter } from "../gai/primary-brain.ts";
+import type { ResidentDevelopmentProgress } from "./resident-development-goal-host.ts";
+import { residentDevelopmentGoalDigest } from "./resident-development-sequence.ts";
+import type { DefinitionOfDoneResult, WorkState } from "./work-state.ts";
 
 export interface CognitiveRuntimeOptions {
   /** Explicit host opt-in; absent preserves the existing development execution path. */
@@ -43,6 +46,8 @@ export interface CognitiveRuntimeOptions {
 export interface DevelopmentGoalRuntime {
   matches(goal: Goal, context: unknown[]): boolean;
   run(input: { goalId: string; goal: Goal; context: ContextItem[] }): Promise<BoundedRunReport>;
+  /** Explicit trusted host contract; generic runtime reports alone cannot certify criteria. */
+  getVerifiedProgress?(input: { goalId: string; goal: Goal }): Promise<ResidentDevelopmentProgress | null>;
 }
 
 export interface DevelopmentRuntimeOptions {
@@ -73,6 +78,46 @@ class EntryContextSource implements ContextSource {
     }));
   }
   async collect(): Promise<ContextItem[]> { return this.items; }
+}
+
+async function projectResidentProgress(compass: CompassStore, goalId: string, goal: Goal,
+  report: BoundedRunReport, progress: ResidentDevelopmentProgress): Promise<BoundedRunReport> {
+  const definitionOfDone = goal.successCriteria.map((description, index) => ({ id: `criterion-${index + 1}`, description, required: true }));
+  const validIds = new Set(definitionOfDone.map(item => item.id));
+  const completedIds = progress.completedJobs.flatMap(job => job.criterionIds);
+  const reported = report.goalEvaluation?.verifiedRequired ?? [];
+  if (progress.goalDigest !== residentDevelopmentGoalDigest(goal) || !/^[a-f0-9]{64}$/.test(progress.sequenceDigest)
+    || new Set(completedIds).size !== completedIds.length || completedIds.some(id => !validIds.has(id))
+    || JSON.stringify([...completedIds].sort()) !== JSON.stringify([...reported].sort())) throw Error("RESIDENT_PROGRESS_BINDING_MISMATCH");
+  const store = new CompassWorkStateStoreAdapter(compass), prior = await store.get(goalId);
+  if (prior && JSON.stringify(prior.definitionOfDone) !== JSON.stringify(definitionOfDone)) throw Error("RESIDENT_PROGRESS_GOAL_MISMATCH");
+  const incoming: DefinitionOfDoneResult[] = progress.completedJobs.flatMap(job => job.criterionIds.map(id => {
+    const acceptance = job.evidence.filter(item => item.criterionId === id && item.verified && item.sourceRevision && item.artifactDigest && item.issuer && item.recordedAt);
+    if (!acceptance.length) throw Error("RESIDENT_PROGRESS_ACCEPTANCE_MISSING");
+    return { itemId: id, passed: true, evidence: { kind: "resident-development-completed-job", sequenceDigest: progress.sequenceDigest,
+      goalDigest: progress.goalDigest, jobId: job.jobId, acceptance } };
+  }));
+  for (const result of prior?.verificationResults ?? []) {
+    const evidence = result.evidence as { kind?: string; sequenceDigest?: string; goalDigest?: string } | undefined;
+    if (!incoming.some(item => item.itemId === result.itemId) || evidence?.kind !== "resident-development-completed-job"
+      || evidence.sequenceDigest !== progress.sequenceDigest || evidence.goalDigest !== progress.goalDigest) throw Error("RESIDENT_PROGRESS_PRIOR_EVIDENCE_MISMATCH");
+  }
+  const canonicalBlockers = await new CompassStateStoreAdapter(compass).completionBlockers(goal);
+  const blockers = [...new Set([...(prior?.blockers ?? []), ...canonicalBlockers, ...(report.goalEvaluation?.blockers ?? [])])];
+  const incompleteChildren = prior?.childWorkItems.some(item => item.status !== "COMPLETED") ?? false;
+  if (incompleteChildren) blockers.push("child_work_incomplete");
+  const achieved = report.goalEvaluation?.achieved === true && completedIds.length === definitionOfDone.length && !blockers.length;
+  const next: WorkState = { ...(prior ?? { goalId, objective: goal.description?.trim() || goal.title, definitionOfDone,
+    riskClass: progress.maxRisk === "low" ? "R1" : progress.maxRisk === "medium" ? "R2" : progress.maxRisk === "high" ? "R3" : "R4",
+    constraints: [...goal.constraints], decisions: [], artifacts: [], childWorkItems: [] }),
+    currentState: achieved ? "All approved development Job criteria verified" : "Approved development Job progress persisted",
+    status: blockers.length ? "BLOCKED" : achieved ? "COMPLETED" : "VERIFYING", verificationResults: incoming, blockers,
+    nextAction: achieved ? null : report.goalEvaluation?.remainingGaps[0] ?? "Continue the next approved development Job",
+    updatedAt: new Date().toISOString() };
+  await store.put(next);
+  const evaluation = evaluateGoalFromWorkState(next);
+  return { ...report, stopReason: blockers.length && report.stopReason !== "approval_required" ? "blocked" : report.stopReason,
+    goalEvaluation: { ...evaluation, achieved, remainingGaps: [...new Set([...(report.goalEvaluation?.remainingGaps ?? []), ...evaluation.remainingGaps])] } };
 }
 
 export class CompassGoalExecutionAdapter implements GoalExecutionAdapter {
@@ -121,11 +166,33 @@ export class CompassGoalExecutionAdapter implements GoalExecutionAdapter {
         },
       };
       if (this.developmentOptions?.runtime.matches(goal, input.context ?? [])) {
+        const runtime = this.developmentOptions.runtime;
+        // Only the explicitly bound sequence participates in this preflight.
+        // Read persisted completed progress without executing any candidate work.
+        const before = await runtime.getVerifiedProgress?.({ goalId: authoritativeGoalId, goal });
+        if (before) {
+          const current = compass.getState();
+          const prior = await new CompassWorkStateStoreAdapter(compass).get(authoritativeGoalId);
+          const canonical = await new CompassStateStoreAdapter(compass).completionBlockers(goal);
+          const blockers = [...new Set([...(prior?.blockers ?? []), ...canonical,
+            ...current.blockers.filter((item): item is string => typeof item === "string")])];
+          const paused = current.status === "PAUSED";
+          if (paused || blockers.length) {
+            const ids = goal.successCriteria.map((_, index) => `criterion-${index + 1}`);
+            const completed = new Set(before.completedJobs.flatMap(job => job.criterionIds));
+            if (before.goalDigest !== residentDevelopmentGoalDigest(goal) || [...completed].some(id => !ids.includes(id))) throw Error("RESIDENT_PROGRESS_BINDING_MISMATCH");
+            return { cycles: [], stopReason: paused ? "paused" : "blocked", goalEvaluation: { achieved: false,
+              verifiedRequired: ids.filter(id => completed.has(id)), failedRequired: [], unverifiedRequired: ids.filter(id => !completed.has(id)),
+              blockers, remainingGaps: paused ? ["project_paused", ...blockers] : blockers } };
+          }
+        }
         const context = await Promise.all([
           contextSource.collect({ goal }),
           new EntryContextSource(input.context ?? []).collect(),
         ]);
-        return this.developmentOptions.runtime.run({ goalId: authoritativeGoalId, goal, context: context.flat() });
+        const report = await runtime.run({ goalId: authoritativeGoalId, goal, context: context.flat() });
+        const progress = await runtime.getVerifiedProgress?.({ goalId: authoritativeGoalId, goal });
+        return progress ? await projectResidentProgress(compass, authoritativeGoalId, goal, report, progress) : report;
       }
       const registry = new CapabilityRegistry()
         .register(createContextInspectCapability())

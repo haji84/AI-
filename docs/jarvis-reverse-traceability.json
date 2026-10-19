@@ -959,7 +959,7 @@
     },
     {
       "path": "scripts/jarvis-broker.ts",
-      "sha256": "881b065a6fb1373f2607408c466f58cfeec104e9f0bef1c566996aa3343c0d74",
+      "sha256": "957e73e05b97c9b27d3f4bbad86148276a5d9cf1cbcddbe51dbf675984b80278",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "NET-003",
@@ -1073,7 +1073,7 @@
     },
     {
       "path": "scripts/jarvis-goal-executor.ts",
-      "sha256": "d2f278f2b75427ef705ec76ac0946ad482b821310fb3478931e78c4cb5a0e63c",
+      "sha256": "181d8c1931c1be79d0cf41749c8076fa3b6662ccec055fdf085126c5babfa9cc",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "AUTO-001",
@@ -5055,7 +5055,7 @@
     },
     {
       "path": "src/orchestrator/compass-goal-execution-adapter.ts",
-      "sha256": "22614eaab2575158d9fc32b990488f9864d1c1e075f1a36503652019f7f96df1",
+      "sha256": "0189edc838e4281146bcb8a338b6c9d6a8f942e2e787b97bb46a85603850a97a",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-002",
@@ -5262,7 +5262,7 @@
     },
     {
       "path": "src/orchestrator/development-orchestrator.ts",
-      "sha256": "0b1e1564e2f073875e7e931dcd3d469a6d8d00214daf04f29fda6048de29ac54",
+      "sha256": "e93d14e98189d75a48776e1efcc539ae75f2cb44d963ff073ba0c172fecb29f1",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -5456,7 +5456,7 @@
     },
     {
       "path": "src/orchestrator/goal-controller-execution-bridge.ts",
-      "sha256": "eb60d111a101099304a130291f5e4b6cdc2d92acba789f26703ca82252e485c9",
+      "sha256": "6034cf17f23cac78b068e56a3f688a0c1d433572d0f6108d2e6ff6bd52f52439",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-001",
@@ -5995,7 +5995,7 @@
     },
     {
       "path": "src/orchestrator/resident-development-goal-host.ts",
-      "sha256": "063b2b320148f9def5a0285507c4ff6bb12344c77504e3b08f4a3c5001f7a9be",
+      "sha256": "1bcafa1816ab224cd53fc47c5cd3478552dc766da5d8dd33ed37fcb17842fb7c",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -6358,6 +6358,90 @@
         "OWN-001"
       ],
       "reason": "Issue #1219 ZBook timeout-only recovery transition preserves Goal identity, completion checks, evidence, and Human Gate boundaries; parent requirements remain PARTIAL pending physical E2E."
+    },
+    {
+      "path": "scripts/jarvis-local-artifact-readback.mjs",
+      "sha256": "226fe877ab74aa2b29c3323bc7735dc0f5316306b51acb951e5f0f4943f48e3d",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-014",
+        "AUTO-001",
+        "AUTO-004",
+        "GOV-025"
+      ],
+      "reason": "#1219 host-pinned criterion acceptance and bounded successor Job continuation; software contract only, independent physical signer and native E2E remain unverified."
+    },
+    {
+      "path": "src/orchestrator/resident-development-sequence.ts",
+      "sha256": "64b9a3d10e6cabbef09e1f057c0952b26beb657f4f5333b702353ce95960b11e",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-014",
+        "AUTO-001",
+        "AUTO-004",
+        "GOV-025"
+      ],
+      "reason": "#1219 host-pinned criterion acceptance and bounded successor Job continuation; software contract only, independent physical signer and native E2E remain unverified."
+    },
+    {
+      "path": "src/orchestrator/resident-execution-manifest.ts",
+      "sha256": "4f2203ab9790cc4e95f705c7f686bbdd0765576fd361399eed5cfe3c4b283aad",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-014",
+        "AUTO-001",
+        "AUTO-004",
+        "GOV-025"
+      ],
+      "reason": "#1219 host-pinned criterion acceptance and bounded successor Job continuation; software contract only, independent physical signer and native E2E remain unverified."
+    },
+    {
+      "path": "src/orchestrator/resident-receipt-wakes.ts",
+      "sha256": "6024c76704e90c6ac7fd39c0f192639d753aa475c55ea7124b668a282fc96538",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-014",
+        "AUTO-001",
+        "AUTO-004",
+        "GOV-025"
+      ],
+      "reason": "#1219 host-pinned criterion acceptance and bounded successor Job continuation; software contract only, independent physical signer and native E2E remain unverified."
+    },
+    {
+      "path": "src/orchestrator/resident-runtime-files.ts",
+      "sha256": "8f9cf5598f0c312210f5133351fa8a98f9dd31e80df92cf8a6c29d1f8d7c6b0a",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-014",
+        "AUTO-001",
+        "AUTO-004",
+        "GOV-025"
+      ],
+      "reason": "#1219 host-pinned criterion acceptance and bounded successor Job continuation; software contract only, independent physical signer and native E2E remain unverified."
+    },
+    {
+      "path": "src/orchestrator/resident-signed-acceptance.ts",
+      "sha256": "995033d0ac5dbc4aefdb36ac6bb40d2264436158da4c0a97c33b6c986460597a",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-014",
+        "AUTO-001",
+        "AUTO-004",
+        "GOV-025"
+      ],
+      "reason": "#1219 host-pinned criterion acceptance and bounded successor Job continuation; software contract only, independent physical signer and native E2E remain unverified."
+    },
+    {
+      "path": "src/orchestrator/sequenced-resident-runtime.ts",
+      "sha256": "aaf9880efa21561f58b940286d1d5560f26ab38592546c36fbce155d72090ead",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-014",
+        "AUTO-001",
+        "AUTO-004",
+        "GOV-025"
+      ],
+      "reason": "#1219 host-pinned criterion acceptance and bounded successor Job continuation; software contract only, independent physical signer and native E2E remain unverified."
     }
   ],
   "hash_policy": "utf8-crlf-to-lf-v1;binary-raw"

@@ -20,6 +20,15 @@ import {
 } from "./development-verification-plan.ts";
 import type { ContextItem, Goal } from "./goal-loop.ts";
 import type { TaskCompletionAuthorization } from "./task-authorization.ts";
+import {
+  RESIDENT_SEQUENCE_EVIDENCE_KIND,
+  residentDevelopmentSequenceDigest,
+  residentDevelopmentGoalDigest,
+  residentDevelopmentSequenceJobId,
+  selectResidentDevelopmentSequenceJob,
+  validateResidentDevelopmentSequence,
+  type ResidentDevelopmentSequence,
+} from "./resident-development-sequence.ts";
 
 export interface ResidentDevelopmentReleaseState {
   connected: boolean;
@@ -60,9 +69,17 @@ export interface ResidentDevelopmentPlanning {
   maxRisk: DevelopmentRisk;
   targetFiles: string[];
   contextDigest: string;
+  sequence?: ResidentDevelopmentSequence;
 }
 
-function report(achieved: boolean, reason: string, blockers: string[] = []): BoundedRunReport {
+export interface ResidentDevelopmentProgress {
+  goalDigest: string;
+  sequenceDigest: string;
+  maxRisk: DevelopmentRisk;
+  completedJobs: { jobId: string; criterionIds: string[]; evidence: DevelopmentEvidence[] }[];
+}
+
+function buildReport(achieved: boolean, reason: string, blockers: string[] = []): BoundedRunReport {
   return {
     cycles: [],
     stopReason: achieved ? "goal_complete" : blockers.includes("human_gate") ? "approval_required" : blockers.length ? "blocked" : "cycle_budget_exhausted",
@@ -105,30 +122,95 @@ export class ResidentDevelopmentGoalHost {
   }
 
   matches(goal: Goal): boolean {
+    if (this.planning.sequence) {
+      validateResidentDevelopmentSequence(this.planning.sequence, goal, this.planning);
+      return true;
+    }
     return /(?:develop|development|implement|code|fix|repair|refactor|test|build|開発|実装|修正|改修|テスト)/i.test(
       [goal.title, goal.description ?? "", ...goal.successCriteria].join("\n"),
     );
   }
 
+  /** Only persisted completed Jobs may project acceptance into the Goal ledger. */
+  async getVerifiedProgress(input: { goalId: string; goal: Goal }): Promise<ResidentDevelopmentProgress | null> {
+    const sequence = this.planning.sequence;
+    if (!sequence) return null;
+    validateResidentDevelopmentSequence(sequence, input.goal, this.planning);
+    const jobs = await this.jobs.getByGoal(input.goalId);
+    selectResidentDevelopmentSequenceJob(sequence, input.goalId, jobs);
+    const changes = await this.changeSets.list();
+    const completedJobs = jobs.filter(job => job.phase === "COMPLETED").map(job => {
+      const change = changes.find(candidate => candidate.jobId === job.jobId && candidate.workItemId === `${job.jobId}:implement`
+        && candidate.status !== "REJECTED");
+      if (!change) throw Error("SEQUENCE_COMPLETED_EVIDENCE_MISSING");
+      const plan = createDevelopmentVerificationPlan({ builderId: change.deviceId, sourceRevision: change.candidateRevision,
+        artifactDigest: change.artifactDigest, changedPaths: change.changedPaths });
+      const evidence = job.evidence.filter(item => item.verified && item.issuer !== change.deviceId
+        && item.sourceRevision === change.candidateRevision && item.artifactDigest === change.artifactDigest
+        && item.recordedAt && Number.isFinite(Date.parse(item.recordedAt)));
+      const checks: DevelopmentVerificationEvidence[] = plan.requiredChecks.flatMap(check => {
+        const item = evidence.find(entry => entry.kind === `development-check:${check}`);
+        return item ? [{ check, verifierId: item.issuer, status: "passed", sourceRevision: item.sourceRevision!,
+          artifactDigest: item.artifactDigest!, recordedAt: item.recordedAt! }] : [];
+      });
+      if (!evaluateDevelopmentVerification(plan, checks).passed
+        || job.definitionOfDone.some(criterion => criterion.description !== input.goal.successCriteria[Number(criterion.id.slice("criterion-".length)) - 1]
+          || !evidence.some(item => item.criterionId === criterion.id))) throw Error("SEQUENCE_COMPLETED_EVIDENCE_MISSING");
+      return { jobId: job.jobId, criterionIds: job.definitionOfDone.map(criterion => criterion.id), evidence };
+    });
+    return { goalDigest: residentDevelopmentGoalDigest(input.goal), sequenceDigest: residentDevelopmentSequenceDigest(sequence),
+      maxRisk: sequence.maxRisk, completedJobs };
+  }
+
   async run(input: { goalId: string; goal: Goal; context: ContextItem[] }): Promise<BoundedRunReport> {
-    const goalJobs = (await this.jobs.getByGoal(input.goalId)).filter((candidate) => candidate.phase !== "CANCELLED");
+    const persistedJobs = await this.jobs.getByGoal(input.goalId);
+    const sequence = this.planning.sequence;
+    if (sequence) validateResidentDevelopmentSequence(sequence, input.goal, this.planning);
+    else if (persistedJobs.some(candidate => candidate.evidence.some(item => item.kind === RESIDENT_SEQUENCE_EVIDENCE_KIND))) {
+      throw Error("SEQUENCE_PERSISTED_JOB_MISMATCH");
+    }
+    const selected = sequence ? selectResidentDevelopmentSequenceJob(sequence, input.goalId, persistedJobs) : null;
+    if (sequence && persistedJobs.some(candidate => candidate.definitionOfDone.some(criterion =>
+      criterion.description !== input.goal.successCriteria[Number(criterion.id.slice("criterion-".length)) - 1]))) throw Error("SEQUENCE_PERSISTED_GOAL_MISMATCH");
+    const goalJobs = persistedJobs.filter((candidate) => candidate.phase !== "CANCELLED");
     // Completed Jobs must not hide existing unfinished work after restart.
     // Keep persisted order, including Human Gates and blockers on the next Job.
-    let job = goalJobs.find((candidate) => candidate.phase !== "COMPLETED") ?? goalJobs[0] ?? null;
+    let job = sequence ? selected?.job ?? null : goalJobs.find((candidate) => candidate.phase !== "COMPLETED") ?? goalJobs[0] ?? null;
+    const report = (achieved: boolean, reason: string, blockers: string[] = []): BoundedRunReport => {
+      if (!sequence) return buildReport(achieved, reason, blockers);
+      const currentJobs = [...goalJobs.filter(candidate => candidate.jobId !== job?.jobId), ...(job ? [job] : [])];
+      const completedCriteria = new Set(currentJobs.filter(candidate => candidate.phase === "COMPLETED").flatMap(candidate => candidate.definitionOfDone.map(criterion => criterion.id)));
+      const allCriteria = input.goal.successCriteria.map((_, index) => `criterion-${index + 1}`);
+      const result = buildReport(achieved && completedCriteria.size === allCriteria.length, reason, blockers);
+      result.goalEvaluation!.verifiedRequired = allCriteria.filter(id => completedCriteria.has(id));
+      result.goalEvaluation!.unverifiedRequired = allCriteria.filter(id => !completedCriteria.has(id));
+      return result;
+    };
+    if (sequence && !selected) return report(true, "all approved development Jobs completed");
     if (!job) {
       const planned = new DevelopmentOrchestrator().plan({
-        jobId: jobId(input.goalId),
+        jobId: sequence ? residentDevelopmentSequenceJobId(input.goalId, sequence, selected!.definition.key) : jobId(input.goalId),
         goalId: input.goalId,
-        objective: input.goal.description?.trim() || input.goal.title,
+        objective: selected?.definition.objective ?? (input.goal.description?.trim() || input.goal.title),
         requirementIds: this.planning.requirementIds,
-        acceptanceCriteria: input.goal.successCriteria.length ? input.goal.successCriteria : [input.goal.description?.trim() || input.goal.title],
-        baseRevision: this.planning.baseRevision,
+        acceptanceCriteria: selected ? selected.definition.criterionIds.map(id => input.goal.successCriteria[Number(id.slice("criterion-".length)) - 1]!)
+          : input.goal.successCriteria.length ? input.goal.successCriteria : [input.goal.description?.trim() || input.goal.title],
+        criterionIds: selected?.definition.criterionIds,
+        baseRevision: selected?.definition.baseRevision ?? this.planning.baseRevision,
         taskScopeId: this.planning.taskScopeId,
         maxRisk: this.planning.maxRisk,
-        targetFiles: this.planning.targetFiles,
+        targetFiles: selected?.definition.targetFiles ?? this.planning.targetFiles,
         contextDigest: this.planning.contextDigest,
       });
       job = planned.job;
+      if (sequence) {
+        job.approvalScope.expiresAt = sequence.expiresAt;
+        job = this.controller.apply(job, { transitionId: `${job.jobId}:sequence`, actor: "state-controller", to: "PLANNING",
+          reason: "host-approved development sequence bound before execution", evidence: [{ id: `${job.jobId}:sequence`,
+            criterionId: "repository-plan", kind: RESIDENT_SEQUENCE_EVIDENCE_KIND, issuer: "resident-development-host", verified: false,
+            artifactDigest: residentDevelopmentSequenceDigest(sequence), sourceRevision: sequence.goalDigest,
+            environment: selected!.definition.key, recordedAt: new Date().toISOString() }] });
+      }
       await this.jobs.put(job);
     }
     if (job.phase === "COMPLETED") return report(true, "durable development release completed");
@@ -137,6 +219,12 @@ export class ResidentDevelopmentGoalHost {
 
     const implementationItem = job.workItems.find((item) => item.id.endsWith(":implement")) ?? job.workItems[1] ?? job.workItems[0]!;
     const testItem = job.workItems.find((item) => item.id.endsWith(":test"));
+    const assertSequenceChangeSet = (candidate: DevelopmentChangeSet): void => {
+      if (selected && (candidate.baseRevision !== selected.definition.baseRevision
+        || !candidate.changedPaths.length || candidate.changedPaths.some(path => !selected.definition.targetFiles.includes(path)))) {
+        throw Error("SEQUENCE_CHANGESET_SCOPE_MISMATCH");
+      }
+    };
     const storedChangeSets = (await this.changeSets.list()).filter((candidate) => candidate.jobId === job!.jobId && candidate.status !== "REJECTED");
     let changeSet = storedChangeSets.find((candidate) => candidate.workItemId === implementationItem.id) ?? null;
     if (!changeSet) {
@@ -152,6 +240,7 @@ export class ResidentDevelopmentGoalHost {
       if (testItem && !existingTest) {
         let testChangeSet = await this.stages.build({ job, goal: input.goal, context: input.context, workItemId: testItem.id });
         if (testChangeSet.jobId !== job.jobId || testChangeSet.baseRevision !== job.baseRevision || testChangeSet.workItemId !== testItem.id) throw new Error("resident Builder returned an unbound TDD test Change Set");
+        assertSequenceChangeSet(testChangeSet);
         if (testChangeSet.tddPhase !== "red" || !testChangeSet.tddEvidenceDigest) throw new Error("resident Builder did not supply a TDD test candidate");
         const independentRed = this.stages.verifyRed
           ? await this.stages.verifyRed({ job, changeSet: testChangeSet, goal: input.goal, context: input.context })
@@ -168,11 +257,13 @@ export class ResidentDevelopmentGoalHost {
         await this.jobs.put(job);
       }
       changeSet = await this.stages.build({ job, goal: input.goal, context: input.context, workItemId: implementationItem.id });
-      if (changeSet.jobId !== job.jobId || changeSet.baseRevision !== job.baseRevision) throw new Error("resident Builder returned an unbound Change Set");
+      if (changeSet.jobId !== job.jobId || changeSet.baseRevision !== job.baseRevision || changeSet.workItemId !== implementationItem.id) throw new Error("resident Builder returned an unbound Change Set");
+      assertSequenceChangeSet(changeSet);
       await this.changeSets.put(changeSet);
       job = this.controller.apply(job, { transitionId: `${job.jobId}:verify`, actor: "state-controller", to: "VERIFYING", reason: "isolated Change Set persisted" });
       await this.jobs.put(job);
     }
+    assertSequenceChangeSet(changeSet);
 
     if (changeSet.status === "LOCAL" && job.phase !== "VERIFYING" && job.phase !== "RECOVERING") {
       job = this.controller.apply(job, { transitionId: `${job.jobId}:reconcile-verifying:${changeSet.changeSetId}`, actor: "state-controller", to: "VERIFYING", reason: "reconciled persisted Change Set after interrupted checkpoint" });
@@ -192,8 +283,14 @@ export class ResidentDevelopmentGoalHost {
       artifactDigest: changeSet.artifactDigest,
       changedPaths: changeSet.changedPaths,
     });
+    const localCompletion = sequence?.completionMode === "verified-local-artifact";
+    let localEvidence: DevelopmentEvidence[] = [];
     if (changeSet.status === "LOCAL") {
       const evidence = await this.stages.verify({ job, changeSet, plan: verificationPlan, goal: input.goal, context: input.context });
+      if (sequence && evidence.some(item => Date.parse(item.recordedAt) < Date.parse(changeSet!.createdAt) - 60_000
+        || Date.parse(item.recordedAt) > Date.now() + 60_000)) {
+        return report(false, "independent verification evidence predates the candidate or is future-dated", ["verification_evidence_stale"]);
+      }
       const verification = evaluateDevelopmentVerification(verificationPlan, evidence);
       if (!verification.passed) {
         // Missing independent check receipts are WAITING, not failed code.
@@ -218,19 +315,18 @@ export class ResidentDevelopmentGoalHost {
         || !item.verified
         || item.sourceRevision !== verificationPlan.sourceRevision
         || item.artifactDigest !== verificationPlan.artifactDigest
+        || !item.issuer.trim()
         || item.issuer === verificationPlan.builderId
         || !item.recordedAt
-        || !Number.isFinite(Date.parse(item.recordedAt)),
+        || !Number.isFinite(Date.parse(item.recordedAt))
+        || (sequence && (Date.parse(item.recordedAt) < Date.parse(changeSet!.createdAt) - 60_000
+          || Date.parse(item.recordedAt) > Date.now() + 60_000)),
       );
       if (invalidAcceptance.length) return report(false, "criterion-specific acceptance evidence is invalid", ["acceptance_evidence_invalid"]);
-      changeSet = { ...changeSet, status: "READY_TO_PUBLISH", updatedAt: nextTimestamp(changeSet.updatedAt) };
-      await this.changeSets.put(changeSet);
-      job = this.controller.apply(job, {
-        transitionId: `${job.jobId}:ready-to-publish`,
-        actor: "state-controller",
-        to: "READY_TO_PUBLISH",
-        reason: "independent verification passed",
-        evidence: [
+      const missingAcceptance = job.definitionOfDone.filter(criterion => criterion.required
+        && !acceptanceEvidence.some(item => item.criterionId === criterion.id));
+      if (sequence && missingAcceptance.length) return report(false, `independent_verifier_pending:${missingAcceptance.map(item => `missing_acceptance_evidence:${item.id}`).join(",")}`);
+      const completeEvidence: DevelopmentEvidence[] = [
           ...evidence.map((item) => ({
             id: `${job!.jobId}:check:${item.check}`,
             criterionId: "repository-verification",
@@ -242,9 +338,21 @@ export class ResidentDevelopmentGoalHost {
             recordedAt: item.recordedAt,
           })),
           ...acceptanceEvidence,
-        ],
-      });
-      await this.jobs.put(job);
+      ];
+      if (localCompletion) {
+        // Keep the durable candidate in VERIFYING until both the trusted local
+        // contract and the non-bypassable gate have passed. The final Job write
+        // atomically commits acceptance and completion together.
+        localEvidence = completeEvidence;
+      } else {
+        changeSet = { ...changeSet, status: "READY_TO_PUBLISH", updatedAt: nextTimestamp(changeSet.updatedAt) };
+        await this.changeSets.put(changeSet);
+        job = this.controller.apply(job, {
+          transitionId: `${job.jobId}:ready-to-publish`, actor: "state-controller", to: "READY_TO_PUBLISH",
+          reason: "independent verification passed", evidence: completeEvidence,
+        });
+        await this.jobs.put(job);
+      }
     }
 
     const releaseState = await this.stages.releaseState({ job, changeSet, goal: input.goal, context: input.context });
@@ -252,6 +360,32 @@ export class ResidentDevelopmentGoalHost {
       job = this.controller.apply(job, { transitionId: `${job.jobId}:scope-mismatch`, actor: "state-controller", to: "HUMAN_GATE", reason: "release authorization scope does not match durable Job", blockers: ["release_authorization_scope_mismatch"] });
       await this.jobs.put(job);
       return report(false, "release authorization scope mismatch", ["human_gate"]);
+    }
+    if (localCompletion) {
+      // An explicitly approved LOW local artifact contract cannot authorize any
+      // protected operation, and never invokes publishing or Production stages.
+      if (releaseState.protectedConditions.length || job.approvalScope.maxRisk !== "low") {
+        job = this.controller.apply(job, { transitionId: `${job.jobId}:local-human-gate`, actor: "state-controller", to: "HUMAN_GATE",
+          reason: "local artifact contract encountered a protected condition", blockers: releaseState.protectedConditions });
+        await this.jobs.put(job);
+        return report(false, "local artifact requires Human Gate", ["human_gate"]);
+      }
+      if (!releaseState.classifications?.destructiveChangeAbsent || !releaseState.classifications.privilegedChangeAbsent) {
+        job = this.controller.apply(job, { transitionId: `${job.jobId}:local-classification`, actor: "state-controller", to: "BLOCKED",
+          reason: "trusted safe local change classification is missing", blockers: ["trusted_change_classification_missing"] });
+        await this.jobs.put(job);
+        return report(false, "local change classification is missing", ["trusted_change_classification_missing"]);
+      }
+      if (job.phase !== "VERIFYING" || !localEvidence.length) return report(false, "local verification checkpoint is incomplete", ["local_verification_incomplete"]);
+      // Recheck expiry after potentially long Builder/verifier operations.
+      validateResidentDevelopmentSequence(sequence!, input.goal, this.planning);
+      job = this.controller.apply(job, { transitionId: `${job.jobId}:completed`, actor: "state-controller", to: "COMPLETED",
+        reason: "host-approved local artifact criteria independently verified", evidence: localEvidence });
+      await this.jobs.put(job);
+      changeSet = { ...changeSet, status: "VERIFIED", updatedAt: nextTimestamp(changeSet.updatedAt) };
+      await this.changeSets.put(changeSet);
+      const remaining = selectResidentDevelopmentSequenceJob(sequence!, input.goalId, await this.jobs.getByGoal(input.goalId));
+      return report(!remaining, remaining ? "development Job completed; next approved Job remains" : "all approved local artifact Jobs completed");
     }
     const persistedEvidence: DevelopmentVerificationEvidence[] = verificationPlan.requiredChecks.flatMap((check) => {
       const item = job!.evidence.find((candidate) => candidate.kind === `development-check:${check}`);
@@ -309,6 +443,10 @@ export class ResidentDevelopmentGoalHost {
       }
       job = this.controller.apply(job, { transitionId: `${job.jobId}:completed`, actor: "state-controller", to: "COMPLETED", reason: "exact Production artifact independently verified" });
       await this.jobs.put(job);
+      if (sequence) {
+        const remaining = selectResidentDevelopmentSequenceJob(sequence, input.goalId, await this.jobs.getByGoal(input.goalId));
+        return report(!remaining, remaining ? "development Job completed; next approved Job remains" : "all approved development releases completed");
+      }
       const unfinishedJobs = (await this.jobs.getByGoal(input.goalId))
         .some((candidate) => candidate.phase !== "COMPLETED" && candidate.phase !== "CANCELLED");
       if (unfinishedJobs) return report(false, "development Job completed; next persisted Job remains");

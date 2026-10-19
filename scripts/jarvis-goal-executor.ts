@@ -22,6 +22,8 @@ import { createRuntimeDevelopmentVerifier } from "../src/orchestrator/runtime-de
 import { HttpDevelopmentReleaseCapability } from "../src/orchestrator/http-development-release-capability.ts";
 import { createTaskCompletionAuthorization, normalizeTaskCompletionAuthorization } from "../src/orchestrator/task-authorization.ts";
 import { buildRepositoryDevelopmentContext } from "../src/orchestrator/repository-development-context.ts";
+import { createSequencedResidentRuntime } from "../src/orchestrator/sequenced-resident-runtime.ts";
+import type { Goal } from "../src/orchestrator/goal-loop.ts";
 
 function requiredEnv(name: string): string {
   const value = process.env[name]?.trim();
@@ -65,16 +67,24 @@ function configuredDevelopmentRuntime(compassPath: string, context: unknown[]): 
   const contextText = JSON.stringify(context);
   const goalStore = new CompassStore(compassPath);
   let persistedGoalText = "";
+  let persistedGoal: Goal | undefined;
   let persistedOwnerCommand: string | undefined;
   try {
     const record = goalStore.getGoal();
     if (record) {
       const goal = compassGoalToLoopGoal(record);
+      persistedGoal = goal;
       persistedGoalText = [goal.title, goal.description ?? "", ...goal.successCriteria].join("\n");
       persistedOwnerCommand = goal.description?.trim() || goal.title;
     }
   } finally {
     goalStore.close();
+  }
+  if (process.env.GORIQ_SELF_DEVELOPMENT_SEQUENCE_FILE || process.env.GORIQ_SELF_DEVELOPMENT_SEQUENCE_SHA256) {
+    if (!persistedGoal) throw Error("RESIDENT_SEQUENCE_PERSISTED_GOAL_REQUIRED");
+    const runtime = createSequencedResidentRuntime({ env: process.env, runtimeRoot: process.cwd(), compassPath, goal: persistedGoal });
+    if (!runtime) throw Error("RESIDENT_SEQUENCE_CONFIGURATION_REQUIRED");
+    return { runtime };
   }
   const developmentSignalText = `${contextText}\n${persistedGoalText}`;
   const explicitDevelopment = process.env.GORIQ_SELF_DEVELOPMENT_RUNTIME === "1";

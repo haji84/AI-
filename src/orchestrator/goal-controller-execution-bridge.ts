@@ -48,6 +48,9 @@ export class GoalControllerExecutionBridge {
     for (let run = 0; run < maxRuns; run += 1) {
       const report = await this.adapter.run(decision.goalId, { context: options.context ?? [] });
       reports.push(report);
+      if (report.stopReason === "paused") {
+        return { decision, executed: true, report, reports, reason: "paused" };
+      }
       if (report.goalEvaluation?.achieved === true || report.stopReason === "goal_complete") {
         return { decision, executed: true, report, reports, reason: "goal_complete" };
       }
