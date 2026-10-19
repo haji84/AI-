@@ -69,23 +69,29 @@ try {
   Assert-True $refused 'missing trusted manifest cannot fall back to PSModulePath'
   # Real snapshot projection through fake native-module boundaries, never Hyper-V.
   $null=New-Module -Name Hyper-V -ScriptBlock {
-    function Get-VM { param($Id) return @{Id=$Id;Name='GORIQ-AI09-Ubuntu';State='Running';Generation=2} }
+    function Get-VM { param($Id) return @{Id=$Id;Name=$global:Ai09FixtureVmName;State='Running';Generation=2} }
     function Get-VMNetworkAdapter { param($VM,$VMName,[switch]$ManagementOS)
       if($ManagementOS){return @{SwitchId='fixture-switch';MacAddress='001122334455'}}
-      return @{Id='fixture-nic';VMId='453b139b-cceb-446e-99fb-f45bf5895436';Name='Network Adapter';MacAddress='00155DDC2C00';SwitchId='fixture-switch';SwitchName='Default Switch';IPAddresses=$global:Ai09FixtureGuestAddresses}
+      return @{Id='fixture-nic';VMId='453b139b-cceb-446e-99fb-f45bf5895436';Name='Network Adapter';MacAddress=$global:Ai09FixtureMac;SwitchId='fixture-switch';SwitchName='Default Switch';IPAddresses=$global:Ai09FixtureGuestAddresses}
     }
     function Get-VMSwitch {param($Id) return @{Id=$Id;Name='Default Switch';SwitchType='Internal'}}
     function Get-VMHardDiskDrive {param($VM) return @{Path='fixture.vhdx';ControllerType='SCSI';ControllerNumber=0;ControllerLocation=0}}
     function Get-VHD {param($Path) return @{DiskIdentifier='fixture-disk';ParentPath='';VhdType='Dynamic';VhdFormat='VHDX';Size=65536;FileSize=32768}}
     function Get-VMNetworkAdapterExtendedAcl {param($VMNetworkAdapter) return [pscustomobject]@{Action='Deny';Direction='Inbound';Weight=1;LocalIPAddress='ANY';RemoteIPAddress='ANY';LocalPort='ANY';RemotePort='ANY';Protocol='ANY';Stateful=$false;IdleSessionTimeout=0;IsolationID=0}}
-    function Add-VMNetworkAdapterExtendedAcl {param($VMNetworkAdapter,$Action,$Direction,$LocalIPAddress,$RemoteIPAddress,$LocalPort,$RemotePort,$Protocol,$Weight,$Stateful,$IdleSessionTimeout,$IsolationID) $global:Ai09FixtureAdd=$PSBoundParameters}
-    function Remove-VMNetworkAdapterExtendedAcl {param($VMNetworkAdapter,$Direction,$Weight,[switch]$Confirm) $global:Ai09FixtureRemove=$PSBoundParameters}
+    function Get-VMIntegrationService {param($VM) if($global:Ai09FixtureIntegrationUnavailable){throw 'fixture query failure'}; return $global:Ai09FixtureIntegrationServices}
+    function Add-VMNetworkAdapterExtendedAcl {param($VMNetworkAdapter,$Action,$Direction,$LocalIPAddress,$RemoteIPAddress,$LocalPort,$RemotePort,$Protocol,$Weight,$Stateful,$IdleSessionTimeout,$IsolationID) $global:Ai09FixtureMutations++; $global:Ai09FixtureAdd=$PSBoundParameters}
+    function Remove-VMNetworkAdapterExtendedAcl {param($VMNetworkAdapter,$Direction,$Weight,[switch]$Confirm) $global:Ai09FixtureMutations++; $global:Ai09FixtureRemove=$PSBoundParameters}
+    function Enable-VMIntegrationService { $global:Ai09FixtureMutations++; throw 'MUTATOR_FORBIDDEN' }
+    function Copy-VMFile { $global:Ai09FixtureMutations++; throw 'MUTATOR_FORBIDDEN' }
     Export-ModuleMember -Function *
   } | Import-Module -PassThru
   $null=New-Module -Name NetAdapter -ScriptBlock {function Get-NetAdapter {param([switch]$IncludeHidden) return @{MacAddress='00-11-22-33-44-55';ifIndex=21}}; Export-ModuleMember -Function *} | Import-Module -PassThru
   $null=New-Module -Name NetTCPIP -ScriptBlock {function Get-NetIPAddress {param($InterfaceIndex,$AddressFamily) return $global:Ai09FixtureHostAddresses}; Export-ModuleMember -Function *} | Import-Module -PassThru
   $global:Ai09FixtureGuestAddresses=@('192.168.50.9')
   $global:Ai09FixtureHostAddresses=@(@{IPAddress='192.168.50.1';PrefixLength=24;AddressState='Preferred'})
+  $global:Ai09FixtureVmName='GORIQ-AI09-Ubuntu'; $global:Ai09FixtureMac='00155DDC2C00'
+  $global:Ai09FixtureMutations=0; $global:Ai09FixtureIntegrationUnavailable=$false
+  $global:Ai09FixtureIntegrationServices=@([pscustomobject]@{Id='Microsoft:453b139b-cceb-446e-99fb-f45bf5895436\6C09BB55-D683-4DA0-8931-C9BF705F6480';Name='Localized guest service';Enabled=$false;PrimaryStatusDescription='OK';SecondaryStatusDescription=''})
   $native=& $script:NativeSnapshot; $native.hostName='HAJI'
   $projected=ConvertTo-Ai09State $native
   Assert-Equal $projected.disks[0].diskIdentifier 'fixture-disk' 'native disk projection'
@@ -108,6 +114,45 @@ try {
   $refused=''; try {$null=& $script:NativeSnapshot} catch {$refused=$_.Exception.Message}
   Assert-Equal $refused 'HOST_ADDRESS_UNAVAILABLE_OR_AMBIGUOUS' 'native missing host address is distinguished'
   $global:Ai09FixtureHostAddresses=@(@{IPAddress='192.168.50.1';PrefixLength=24;AddressState='Preferred'})
+  # Removing address evidence must not discard the bounded host observations or
+  # make a diagnostic result usable as an activation baseline.
+  $script:Clock=[DateTimeOffset]::UtcNow
+  $global:Ai09FixtureMutations=0; $global:Ai09FixtureGuestAddresses=@()
+  $bootstrap=Invoke-Ai09AccessHost -Mode BootstrapInspect
+  Assert-Equal $bootstrap.status 'INCOMPLETE' ('bootstrap missing guest stays incomplete '+($bootstrap|ConvertTo-Json -Depth 8 -Compress))
+  Assert-Equal $bootstrap.observations.vmId '453b139b-cceb-446e-99fb-f45bf5895436' 'bootstrap retains VM identity'
+  Assert-Equal $bootstrap.observations.nic.mac '00155DDC2C00' 'bootstrap retains NIC identity'
+  Assert-Equal $bootstrap.observations.hostAddressCandidates[0] '192.168.50.1' 'bootstrap retains host address'
+  Assert-Equal @($bootstrap.observations.guestAddressCandidates).Count 0 'missing guest is not inferred'
+  Assert-True ($bootstrap.blockers -contains 'GUEST_ADDRESS_UNAVAILABLE') 'missing guest reason explicit'
+  Assert-Equal $bootstrap.observations.integrationServices.guestServiceInterface.enabled $false 'localized guest service identified by stable id'
+  Assert-Equal $bootstrap.authenticatedConnectionVerified $false 'host observation is not authentication'
+  Assert-Equal $bootstrap.activationReady $false 'host observation is not activation readiness'
+  Assert-True (-not $bootstrap.Contains('baseline') -and -not $bootstrap.Contains('baselineSha256')) 'partial observation is not an activation baseline'
+  $global:Ai09FixtureGuestAddresses=@('192.168.50.9','192.168.50.10')
+  $bootstrap=Invoke-Ai09AccessHost -Mode BootstrapInspect
+  Assert-True ($bootstrap.blockers -contains 'GUEST_ADDRESS_AMBIGUOUS') 'multiple guest addresses are not selected'
+  Assert-Equal @($bootstrap.observations.guestAddressCandidates).Count 2 'all bounded guest candidates retained'
+  $global:Ai09FixtureGuestAddresses=@('192.168.50.9'); $global:Ai09FixtureHostAddresses=@()
+  $bootstrap=Invoke-Ai09AccessHost -Mode BootstrapInspect
+  Assert-True ($bootstrap.blockers -contains 'HOST_ADDRESS_UNAVAILABLE') 'missing host explicit'
+  Assert-Equal $bootstrap.observations.guestAddressCandidates[0] '192.168.50.9' 'guest retained with missing host'
+  $global:Ai09FixtureHostAddresses=@(@{IPAddress='192.168.50.1';PrefixLength=24;AddressState='Preferred'},@{IPAddress='192.168.50.2';PrefixLength=24;AddressState='Preferred'})
+  Assert-True ((Invoke-Ai09AccessHost -Mode BootstrapInspect).blockers -contains 'HOST_ADDRESS_AMBIGUOUS') 'ambiguous host explicit'
+  $global:Ai09FixtureHostAddresses=@(@{IPAddress='192.168.50.1';PrefixLength=24;AddressState='Preferred'})
+  $global:Ai09FixtureIntegrationUnavailable=$true
+  $bootstrap=Invoke-Ai09AccessHost -Mode BootstrapInspect
+  Assert-Equal $bootstrap.observations.integrationServices.status 'UNAVAILABLE' 'integration query failure retained'
+  Assert-True ($bootstrap.blockers -contains 'INTEGRATION_SERVICES_UNAVAILABLE') 'integration error explicit'
+  Assert-Equal $bootstrap.observations.nic.mac '00155DDC2C00' 'integration failure preserves NIC observation'
+  $global:Ai09FixtureIntegrationUnavailable=$false; $global:Ai09FixtureVmName='unrelated-vm'
+  Assert-Equal (Invoke-Ai09AccessHost -Mode BootstrapInspect).code 'VM_BINDING_UNAVAILABLE' 'wrong VM refused'
+  $global:Ai09FixtureVmName='GORIQ-AI09-Ubuntu'; $global:Ai09FixtureMac='001122334455'
+  Assert-Equal (Invoke-Ai09AccessHost -Mode BootstrapInspect).code 'VM_BINDING_UNAVAILABLE' 'wrong NIC refused'
+  $global:Ai09FixtureMac='00155DDC2C00'
+  $bootstrap=Invoke-Ai09AccessHost -Mode BootstrapInspect
+  Assert-Equal $bootstrap.status 'INCOMPLETE' 'single endpoints still do not prove authentication'
+  Assert-Equal $global:Ai09FixtureMutations 0 'all bootstrap paths perform no mutation'
   Reset-Fixture
   $inspect=Invoke-Ai09AccessHost
   Assert-Equal $inspect.status 'OBSERVED' 'inspect default'

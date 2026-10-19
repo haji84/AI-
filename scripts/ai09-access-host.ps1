@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([ValidateSet('Inspect','Apply','Rollback')][string]$Mode='Inspect',[string]$PlanPath,[string]$ExpectedPlanSha256,[string]$AuthorizationReference,[string]$JournalPath)
+param([ValidateSet('Inspect','BootstrapInspect','Apply','Rollback')][string]$Mode='Inspect',[string]$PlanPath,[string]$ExpectedPlanSha256,[string]$AuthorizationReference,[string]$JournalPath)
 # No installation/elevation, keys, service operations, VM changes or IP probes.
 # Approval reference and independent plan SHA must arrive through the owner-approved
 # control path. A JSON file alone does not authenticate an owner or grant authority.
@@ -152,6 +152,64 @@ function Get-Ai09Observed {
   if ([Text.Encoding]::UTF8.GetByteCount((Get-Ai09Json $state)) -gt 65536) {throw 'BASELINE_BOUND'}
   return @{status='OBSERVED';version=1;issue=1219;observedAt=(Get-Ai09UtcNow).ToString('o');baselineSha256=(Get-Ai09Digest $state);baseline=$state}
 }
+function Get-Ai09BootstrapObserved {
+  # Public host observations only. No guest authentication, ACL baseline, probes
+  # or file transfer. Incomplete addresses must not discard other observations.
+  $vm=Hyper-V\Get-VM -Id '453b139b-cceb-446e-99fb-f45bf5895436' -ErrorAction Stop
+  if ([string]$vm.Id -ne '453b139b-cceb-446e-99fb-f45bf5895436' -or [string]$vm.Name -cne 'GORIQ-AI09-Ubuntu') {throw 'VM_BINDING_UNAVAILABLE'}
+  $nics=@(Hyper-V\Get-VMNetworkAdapter -VM $vm -ErrorAction Stop)
+  if ($nics.Count -ne 1) {throw 'NIC_AMBIGUOUS'}; $nic=$nics[0]
+  if ([string]$nic.VMId -ne [string]$vm.Id -or [string]$nic.MacAddress -cne '00155DDC2C00') {throw 'VM_BINDING_UNAVAILABLE'}
+  $switch=Hyper-V\Get-VMSwitch -Id $nic.SwitchId -ErrorAction Stop
+  if ([string]$switch.Id -ne [string]$nic.SwitchId -or [string]$switch.Name -cne [string]$nic.SwitchName) {throw 'NETWORK_BINDING_UNAVAILABLE'}
+  foreach($value in @($vm.State,$nic.Id,$nic.Name,$nic.SwitchId,$nic.SwitchName,$switch.SwitchType)) {
+    if ([string]::IsNullOrWhiteSpace([string]$value) -or ([string]$value).Length -gt 256) {throw 'BOOTSTRAP_PROJECTION_UNAVAILABLE'}
+  }
+  $blockers=@('AUTHENTICATED_GUEST_TRANSPORT_UNVERIFIED'); $hostCandidates=@(); $guestCandidates=@()
+  $guestAddresses=@($nic.IPAddresses)
+  if ($guestAddresses.Count -gt 64) {throw 'ADDRESS_BOUND'}
+  $guestCandidates=@($guestAddresses | Where-Object {Test-Ai09Address ([string]$_)} | ForEach-Object {[string]$_} | Sort-Object -Unique)
+  try {
+    $management=@(Hyper-V\Get-VMNetworkAdapter -ManagementOS -ErrorAction Stop | Where-Object {$_.SwitchId -eq $nic.SwitchId})
+    if ($management.Count -ne 1) {throw 'HOST_INTERFACE_AMBIGUOUS'}
+    $interfaces=@(NetAdapter\Get-NetAdapter -IncludeHidden -ErrorAction Stop | Where-Object {$_.MacAddress.Replace('-','') -eq $management[0].MacAddress})
+    if ($interfaces.Count -ne 1) {throw 'HOST_INTERFACE_AMBIGUOUS'}
+    $addresses=@(NetTCPIP\Get-NetIPAddress -InterfaceIndex $interfaces[0].ifIndex -AddressFamily IPv4 -ErrorAction Stop)
+    if ($addresses.Count -gt 64) {throw 'ADDRESS_BOUND'}
+    $hostCandidates=@($addresses | Where-Object {$_.AddressState -eq 'Preferred' -and (Test-Ai09Address $_.IPAddress)} | ForEach-Object {[string]$_.IPAddress} | Sort-Object -Unique)
+  } catch {$blockers+=@('HOST_ADDRESS_OBSERVATION_UNAVAILABLE')}
+  if ($hostCandidates.Count -eq 0) {$blockers+=@('HOST_ADDRESS_UNAVAILABLE')} elseif ($hostCandidates.Count -gt 1) {$blockers+=@('HOST_ADDRESS_AMBIGUOUS')}
+  if ($guestCandidates.Count -eq 0) {$blockers+=@('GUEST_ADDRESS_UNAVAILABLE')} elseif ($guestCandidates.Count -gt 1) {$blockers+=@('GUEST_ADDRESS_AMBIGUOUS')}
+  $integration=@{status='UNAVAILABLE';services=@();guestServiceInterface=$null}
+  try {
+    # The imported Get-VM was already pinned to the native module by authority
+    # checks. Do not resolve the new read cmdlet from another module/function.
+    $trusted=Get-Command 'Hyper-V\Get-VM' -ErrorAction Stop
+    $reader=Get-Command 'Hyper-V\Get-VMIntegrationService' -ErrorAction Stop
+    if ($reader.Module.Path -cne $trusted.Module.Path -or $reader.CommandType -ne $trusted.CommandType) {throw 'NATIVE_HYPERV_REQUIRED'}
+    $services=@(Hyper-V\Get-VMIntegrationService -VM $vm -ErrorAction Stop)
+    if ($services.Count -lt 1 -or $services.Count -gt 16) {throw 'INTEGRATION_SERVICES_BOUND'}
+    $rows=@(); $ids=@()
+    foreach($service in $services) {
+      $id=[string]$service.Id
+      if ($id -notmatch ('^Microsoft:'+([regex]::Escape([string]$vm.Id))+'\\[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$') -or $id -in $ids -or $service.Enabled -isnot [bool]) {throw 'INTEGRATION_SERVICES_PROJECTION_UNAVAILABLE'}
+      $ids+=@($id)
+      foreach($name in @('Name','PrimaryStatusDescription','SecondaryStatusDescription')) {
+        if ($null -eq $service.PSObject.Properties[$name] -or ([string]$service.$name).Length -gt 512) {throw 'INTEGRATION_SERVICES_PROJECTION_UNAVAILABLE'}
+      }
+      $rows+=@([ordered]@{id=$id;name=[string]$service.Name;enabled=[bool]$service.Enabled;primaryStatusDescription=[string]$service.PrimaryStatusDescription;secondaryStatusDescription=[string]$service.SecondaryStatusDescription})
+    }
+    $guestService=@($rows | Where-Object {$_.id -eq ('Microsoft:'+([string]$vm.Id)+'\6C09BB55-D683-4DA0-8931-C9BF705F6480')})
+    $integration=@{status='OBSERVED';services=@($rows | Sort-Object {$_['id']});guestServiceInterface=$null}
+    if ($guestService.Count -eq 1) {$integration.guestServiceInterface=$guestService[0]} else {$blockers+=@('GUEST_SERVICE_INTERFACE_UNAVAILABLE')}
+  } catch {$blockers+=@('INTEGRATION_SERVICES_UNAVAILABLE')}
+  $observations=[ordered]@{hostName=[Environment]::MachineName;vmId=[string]$vm.Id;vmName=[string]$vm.Name;vmState=[string]$vm.State
+    nic=[ordered]@{id=[string]$nic.Id;name=[string]$nic.Name;mac=[string]$nic.MacAddress;switchId=[string]$nic.SwitchId;switchName=[string]$nic.SwitchName}
+    switch=[ordered]@{id=[string]$switch.Id;name=[string]$switch.Name;type=[string]$switch.SwitchType}
+    hostAddressCandidates=@($hostCandidates);guestAddressCandidates=@($guestCandidates);integrationServices=$integration}
+  if ([Text.Encoding]::UTF8.GetByteCount((Get-Ai09Json $observations)) -gt 32768) {throw 'BOOTSTRAP_OBSERVATION_BOUND'}
+  return @{status='INCOMPLETE';mode='BootstrapInspect';version=1;issue=1219;observedAt=(Get-Ai09UtcNow).ToString('o');observations=$observations;blockers=$blockers;authenticatedConnectionVerified=$false;activationReady=$false;mutationsPerformed=$false}
+}
 function Get-Ai09Timestamp($Value) {
   # PowerShell 7.5+ JSON eagerly parses ISO dates; PS5.1 keeps strings.
   if ($Value -is [DateTime]) { return [DateTimeOffset]$Value }
@@ -195,10 +253,11 @@ function Write-Ai09Journal($Stream,$Record) {
   $null=$Stream.Seek(0,[IO.SeekOrigin]::End); $Stream.Write($bytes,0,$bytes.Length); $Stream.Flush($true)
 }
 function Invoke-Ai09AccessHost {
-  param([ValidateSet('Inspect','Apply','Rollback')]$Mode='Inspect',$PlanPath,$ExpectedPlanSha256,$AuthorizationReference,$JournalPath)
+  param([ValidateSet('Inspect','BootstrapInspect','Apply','Rollback')]$Mode='Inspect',$PlanPath,$ExpectedPlanSha256,$AuthorizationReference,$JournalPath)
   $ErrorActionPreference='Stop'; $journal=$null; $mutating=$false
   try {
     Assert-Ai09NativeAuthority
+    if ($Mode -eq 'BootstrapInspect') { return Get-Ai09BootstrapObserved }
     if ($Mode -eq 'Inspect') { return Get-Ai09Observed }
     $plan=Get-Ai09Plan $PlanPath $ExpectedPlanSha256 $AuthorizationReference
     $path=Get-Ai09SafePath $JournalPath; $observed=Get-Ai09Observed; $state=$observed.baseline
