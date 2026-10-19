@@ -12,9 +12,26 @@ function Assert-Ai09ClientConsole {}
 $root=Join-Path ([IO.Path]::GetTempPath()) ('ai09-client-fixture-'+[guid]::NewGuid().ToString('N'))
 $null=New-Item -ItemType Directory -Path $root
 $script:NativeCalls=0
+$script:ProbeKnownHostSharing=$false
+$script:KnownHostLookup=$null
 $script:RealSshConsole=(Get-Command Invoke-Ai09SshConsole).ScriptBlock
 function Invoke-Ai09SshConsole {param($Ssh,$Arguments,$Frame)
   $script:NativeCalls++
+  if ($script:ProbeKnownHostSharing) {
+    # Query the public known_hosts entry while the real client holds its guard.
+    # This operation does not generate a key, read private keys or use network.
+    $known=@($Arguments|Where-Object {$_ -clike 'UserKnownHostsFile=*'})[0].Substring(19).Trim('"')
+    $previousErrors=$ErrorActionPreference
+    try {
+      $ErrorActionPreference='Continue'
+      $lookup=@(& (Join-Path $env:SystemRoot 'System32/OpenSSH/ssh-keygen.exe') -F 'goriq-ai09-1219' -f $known 2>&1|ForEach-Object {[string]$_})
+      $script:KnownHostLookup=@{exit=$LASTEXITCODE;lines=$lookup}
+    } finally {$ErrorActionPreference=$previousErrors}
+    if ($script:KnownHostLookup.exit -ne 0) {return 255}
+    $writer=$null; $writerDenied=$false
+    try {$writer=[IO.File]::Open($known,'Open','Write','ReadWrite')} catch [IO.IOException] {$writerDenied=$true} finally {if ($writer) {$writer.Dispose()}}
+    if (-not $writerDenied) {throw 'CONCURRENT_KNOWN_HOST_WRITER_NOT_BLOCKED'}
+  }
   foreach($line in $script:WireLines) {Add-Ai09FrameLine $Frame $line}
   return $script:WireExit
 }
@@ -64,7 +81,13 @@ try {
     $request=New-Request; Add-NetworkProof $request $change; Equal (Invoke-Ai09FirstAccessClient @request -Execute).status 'BLOCKED' 'wrong network proof refuses'; Equal $script:NativeCalls 0 'wrong proof never connects'
   }
   $request=New-Request; Add-NetworkProof $request; Set-Wire $request
+  $script:ProbeKnownHostSharing=([Environment]::OSVersion.Platform -eq 'Win32NT')
   $result=Invoke-Ai09FirstAccessClient @request -Execute
+  if ($script:ProbeKnownHostSharing) {
+    Equal $script:KnownHostLookup.exit 0 ('real OpenSSH public lookup while guard held: '+($script:KnownHostLookup.lines -join ' '))
+    Yes ($script:KnownHostLookup.lines -ccontains 'goriq-ai09-1219 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILryvuH/6LTW0dNGQaj2LW3I7dYDZw8lpIdqHEh6xCDp') 'exact historical public key readable by OpenSSH'
+  }
+  $script:ProbeKnownHostSharing=$false
   Equal $result.status 'AUTHENTICATED_GUEST_BASELINE' ('fixture frame accepted '+($result|ConvertTo-Json -Compress -Depth 20)); Equal $script:NativeCalls 1 'one invocation only'; Equal $result.physicalE2EVerified $false 'never physical E2E'
   Equal $result.rootExecutionAttested $false 'remote shell output is not root attestation'; Equal $result.trustedGuestShellRequired $true 'existing guest shell trust is required'
   $p=Get-Content -LiteralPath $request.RequestPath -Raw|ConvertFrom-Json

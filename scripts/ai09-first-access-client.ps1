@@ -164,6 +164,10 @@ function Invoke-Ai09FirstAccessClient {
     foreach($path in @($p.knownHostsPath,$p.intentPath,$p.receiptPath)) {if (Test-Path -LiteralPath $path) {throw 'ATTEMPT_ALREADY_PREPARED'}}
     foreach($path in @($p.knownHostsPath,$p.intentPath,$p.receiptPath)) {$files+=@(New-Object IO.FileStream($path,[IO.FileMode]::CreateNew,[IO.FileAccess]::ReadWrite,[IO.FileShare]::Read,4096,[IO.FileOptions]::WriteThrough))}
     $receipt=$files[2]; $key=[Text.Encoding]::ASCII.GetBytes('goriq-ai09-1219 '+$script:Ai09ClientPublic+"`n"); $files[0].Write($key,0,$key.Length); $files[0].Flush($true)
+    # Windows OpenSSH's public lookup cannot share an existing writer. Retire
+    # that handle, then retain a read-only guard that still denies other writers.
+    $files[0].Dispose(); $files[0]=[IO.File]::Open((Get-Ai09SafePath $p.knownHostsPath),'Open','Read','Read')
+    if ((Get-Ai09ShaBytes (Read-Ai09Bytes $files[0] $key.Length)) -cne (Get-Ai09ShaBytes $key)) {throw 'KNOWN_HOSTS_BYTES_CHANGED'}
     Write-Ai09ClientRecord $files[1] ([ordered]@{version=1;issue=1219;status='PREPARED_READ_ONLY_SSH';requestSha256=$ExpectedRequestSha256;nonce=$p.nonce;networkJournalSha256=$p.networkJournalSha256;observedAt=(Get-Ai09UtcNow).ToString('o');authenticatedConnectionVerified=$false;physicalE2EVerified=$false})
     $inspector=Read-Ai09ClientFile $script:Ai09ClientInspector 65536
     if ((Get-Ai09ShaBytes $inspector) -cne $p.inspectorSha256) {throw 'CLIENT_SOURCE_PIN_MISMATCH'}
