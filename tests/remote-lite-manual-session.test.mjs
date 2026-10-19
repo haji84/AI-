@@ -139,3 +139,17 @@ test('bounded signaling queues cannot grow indefinitely', () => {
     signal: { type: 'candidate', candidate: 'candidate:overflow', sdpMid: '0', sdpMLineIndex: 0 } }), /SIGNAL_QUEUE_FULL/);
   assert.equal(store.receiveSignals({ sessionId: s.sessionId, as: 'device', identityId: 'signed-android-1' }).length, 64);
 });
+
+test('revoked device identity cannot receive more manual input or signaling', () => {
+  let active = true;
+  const store = new ManualRemoteSessionStore({
+    authenticateViewer: ({viewerId, deviceId}) => viewerId === 'f' && deviceId === 'android',
+    authenticateDevice: ({deviceId, devicePrincipalId}) => active && deviceId === 'android' && devicePrincipalId === 'signed-agent',
+  });
+  const s = store.request({viewerId:'f', deviceId:'android'});
+  store.accept({sessionId:s.sessionId, deviceId:'android', devicePrincipalId:'signed-agent'});
+  active = false;
+  assert.throws(() => store.input({sessionId:s.sessionId,viewerId:'f',viewerToken:s.viewerToken,sequence:1,command:{action:'tap',x:0.5,y:0.5}}),/DEVICE_NOT_AUTHORIZED/);
+  assert.throws(() => store.signal({sessionId:s.sessionId,from:'viewer',identityId:'f',viewerToken:s.viewerToken,signal:{type:'offer',sdp:'v=0\r\n'}}),/DEVICE_NOT_AUTHORIZED/);
+  assert.equal(store.close({sessionId:s.sessionId,as:'viewer',identityId:'f',viewerToken:s.viewerToken}).status,'closed');
+});
