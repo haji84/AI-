@@ -95,6 +95,37 @@ try {
   # The real pipeline must propagate a collector refusal; no SSH is invoked here.
   Reject {& $script:RealSshConsole $probe @('-B','-c','import sys; print("x"*131073); print("UNRETAINED_AFTER_BOUND")') @{state=0;json=$null;bytes=0}} 'SSH_OUTPUT_BOUND'
   if ([Environment]::OSVersion.Platform -eq 'Win32NT') {
+    # A fresh hidden console exercises actual native standard handles. A Python
+    # stdin-only PTY probe cannot detect stderr redirected by the PS adapter.
+    $consoleRecord=Join-Path $root 'native-console.json'
+    $pythonPath=(& python -B -c 'import sys; print(sys.executable)').Trim()
+    $childCode=@'
+param($Source,$Python,$Output)
+$ErrorActionPreference='Stop'
+. $Source
+$code='import json,os,sys; sys.stderr.write("AI09_PUBLIC_STDERR_SENTINEL\n"); print("AI09_FIRST_ACCESS_BEGIN"); print(json.dumps(dict(stdinTTY=os.isatty(0),stdoutTTY=os.isatty(1),stderrTTY=os.isatty(2)))); print("AI09_FIRST_ACCESS_END")'
+$record=[ordered]@{parentInputRedirected=[Console]::IsInputRedirected;parentOutputRedirected=[Console]::IsOutputRedirected}
+$frame=@{state=0;json=$null;bytes=0}
+try {$record.exit=Invoke-Ai09SshConsole $Python @('-B','-c',$code) $frame; $record.frameState=$frame.state; $record.native=$frame.json|ConvertFrom-Json} catch {$record.error='FIXTURE_NATIVE_FAILURE'}
+$plain=@(& $Python '-B' '-c' (ConvertTo-Ai09LegacyArgument 'import json,os; print(json.dumps(dict(stdinTTY=os.isatty(0),stdoutTTY=os.isatty(1),stderrTTY=os.isatty(2))))') | ForEach-Object {$_})
+$record.plainPipeline=($plain -join '')|ConvertFrom-Json
+$stream=[IO.File]::Open($Output,'CreateNew','Write','None')
+try {$bytes=[Text.Encoding]::UTF8.GetBytes(($record|ConvertTo-Json -Depth 10 -Compress));$stream.Write($bytes,0,$bytes.Length);$stream.Flush($true)} finally {$stream.Dispose()}
+'@
+    $command='& {'+$childCode+"} -Source '"+$source.Replace("'","''")+"' -Python '"+$pythonPath.Replace("'","''")+"' -Output '"+$consoleRecord.Replace("'","''")+"'"
+    $encoded=[Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($command))
+    $originalModules=[Environment]::GetEnvironmentVariable('PSModulePath')
+    try {
+      [Environment]::SetEnvironmentVariable('PSModulePath',$null)
+      $console=Start-Process -FilePath (Join-Path $env:SystemRoot 'System32/WindowsPowerShell/v1.0/powershell.exe') -ArgumentList @('-NoLogo','-NoProfile','-NonInteractive','-EncodedCommand',$encoded) -WindowStyle Hidden -PassThru
+      if (-not $console.WaitForExit(10000)) {$console.Kill();throw 'ASSERT:NATIVE_CONSOLE_FIXTURE_TIMEOUT'}
+      Equal $console.ExitCode 0 'native console fixture completed'
+    } finally {[Environment]::SetEnvironmentVariable('PSModulePath',$originalModules);if ($console) {$console.Dispose()}}
+    $observed=Get-Content -LiteralPath $consoleRecord -Raw|ConvertFrom-Json
+    Equal $observed.parentInputRedirected $false 'fixture parent has console input'; Equal $observed.parentOutputRedirected $false 'fixture parent has console output'
+    Equal $observed.native.stdinTTY $true 'native stdin retains console'
+    Equal $observed.native.stderrTTY $true ('native stderr retains console '+($observed|ConvertTo-Json -Compress -Depth 10))
+    Equal $observed.native.stdoutTTY $false 'only native stdout captured'; Equal $observed.frameState 2 'native frame complete'; Equal $observed.exit 0 'native console adapter exit'
     # -G only evaluates fixed options; it does not connect or run remote commands.
     $ssh=Join-Path $env:SystemRoot 'System32/OpenSSH/ssh.exe'
     $gArgs=@(@('-G')+$arguments|ForEach-Object {ConvertTo-Ai09LegacyArgument $_})

@@ -1,6 +1,6 @@
 # #1219 — Proposed native SSH first access
 
-Status: source preparation and independent review. **NOT APPLIED; SSH authentication and physical E2E remain unverified.** This document is not an approval record.
+Status: **owner-approved network rule APPLIED; actual SSH host-key match VERIFIED; account authentication and physical E2E remain unverified.** The original proposal and execution are distinguished below. This document is not an approval issuer.
 
 The owner requested that command entry, setup and collection be performed by the agent, with critical execution changes presented together. The current native token is non-administrator. The last bounded VMConnect attempt produced no visible input echo, and no Enter was sent. No further VMConnect/keyboard/OCR/UAC diagnostic loop is part of this path.
 
@@ -58,13 +58,23 @@ Reviewed source-byte pins:
 | --- | --- |
 | first-access-host.ps1 | fea386a38e421727134f44af15574c0bf5217bc70aa19291cbd82d7da09fb7cc |
 | first-access-native.ps1 | 864ecaded826ca51308bdfb62ee4ef9743b8c88e72140d24d8313133ffc5e166 |
-| first-access-client.ps1 | 121587d289884840fd3f4b9138da45d058e5d5aa0e427975454480ff6d2c0fd8 |
+| first-access-client.ps1 | c842fead38606b62cb60556053e300abbf95750698d63097acc8321c1e5b25c3 |
 | first-access-inspect.py | dee4d8d046995431546639e87303cf42b5f96c3cf8b48ec56981851c5688cdc1 |
 | unchanged ai09-access-host.ps1 dependency | 1e7f2ca24588c3cde6fc7808d14783b0cce8fb88790f6eded73dd0ab79632a64 |
 
-The four new Node fixture wrappers pass on native Windows. Host/native/client PowerShell fixtures cover95/84/84 assertions; Python13 cases have11 passes and2 explicit POSIX-only skips on Windows. Client regressions exercised real Windows native argument binding and OpenSSH `-G` option parsing without a network connection. SSH stdin/PAM/sudo authentication remains untested. The private-host-key parsing boundary and absolute sudo/report-only root claim corrections were first observed as failing regressions, then passed after their fixes.
+The four new Node fixture wrappers pass on native Windows. Host/native/client PowerShell fixtures cover95/84/92 assertions; Python13 cases have11 passes and2 explicit POSIX-only skips on Windows. Client regressions exercised real Windows native argument binding and OpenSSH `-G` option parsing without a network connection. A hidden real PS5 console/native Python regression proved that the former combined stdout/stderr pipeline removed native stderr's TTY; stdout-only capture preserves native stdin/stderr on the console and still validates the frame. It failed before the correction and passed after it. Actual password authentication and the cause of the earlier SSH255 exit remain unproven by that fixture. The private-host-key parsing boundary and absolute sudo/report-only root claim corrections also used failing-then-passing regressions.
 
 The retained native Windows full-suite observation is **FAIL**:2723 cases,2672 pass,24 fail,1 cancelled,26 skipped,135895.8619ms. Its log SHA256 is496a18c3ae7a35b72d75a5522eb8fc9af274c75774404e05f4244b2a65350eaa (`checks/first-access-frozen-native-suite-20261019T1414Z.log` outside the checkout). It includes platform-dependent Mac/Bash/symlink/Python/TDD failures and is a precommit working-tree observation, not clean exact-head CI or physical acceptance. Do not discard these failures or convert the whole native suite to PASS because the new focused fixtures pass. Exact-head hosted CI is a separate required record in Issue#1219.
+
+## Actual execution and current boundary
+
+At source93569855, [CI39267493967](https://github.com/haji84/AI-/actions/runs/39267493967) passed all four jobs, including the actual restricted-container six checks. The public receipt/signature, reconstructed candidate/context, six actual logs and confirmed cleanup were independently audited. Unit/integration each2718PASS/0FAIL/5SKIP within the unchanged180000ms limit. [Permanent evidence](https://github.com/haji84/AI-/issues/1219#issuecomment-6269808514) retains the public signed receipt and key. This remains HOSTED_CONTAINER_CI, physicalAcceptanceVerified:false; it is not the subsequent console correction's exact-head CI.
+
+The owner explicitly approved envelope633f3d013a36194087cca834707a4bf7bd901bef8e5c5f7aedb1bde671644346 and exact recorded-entry removal on failure until2026-10-20T13:00Z. One native admin invocation applied the rule at2026-10-19T14:27:30.7998758Z, verifying original4 to expected5 rules. Before digest00753d23bc2c5d4c24b1d131d13b2e6e184699ad621712cdee9fb4a7e9ac098b; after digest2aecdb55efcb24b2a8f86212b704251924514e6379f5cd41102da4a5217860c7. Plan digest0ed5ba34aa0b8552dcf107e80d3c090bed853980950c17dccd8e540302cf10a3 and journal digesta321e66980117ff4cf92b046b86c16b3338ffe85616671098f6b0525cf6d86f2 bind that operation. **The rule is currently present, without native automatic expiry.** Account/key/package/service configuration, VM lifecycle, seed and disk were not changed.
+
+A real bounded no-auth handshake established TCP22 and the exact historical ED25519 host-key match; the server advertised OpenSSH9.6p1 Ubuntu-3ubuntu13.19 and publickey,password authentication. A second all-credentials-disabled diagnostic using the client's exact options/native binding also reached the matching key and user-authentication service. Neither authenticates ai09 or proves a trusted root/Verifier environment.
+
+The initial normal console failed before SSH because an inherited PSModulePath prevented Windows PowerShell5.1 standard-command loading. Removing that variable only for the child launch, then immediately restoring the parent, corrected that preparation failure without OS configuration changes. The first actual client then returned SSH_AUTHENTICATION_OR_COMMAND_FAILED with no guest frame. Its failed request/receipt and historical client pin121587d289884840fd3f4b9138da45d058e5d5aa0e427975454480ff6d2c0fd8 remain preserved. A new request must pin the corrected source and exclusive new output paths before any later owner-password attempt. Do not reuse the old failed attempt or rerun network Apply.
 
 Primary references: [Hyper-V extended ACL](https://learn.microsoft.com/en-us/powershell/module/hyper-v/add-vmnetworkadapterextendedacl?view=windowsserver2025-ps), [OpenSSH client options](https://man.openbsd.org/ssh_config), [existing VMConnect grant semantics](https://learn.microsoft.com/en-us/powershell/module/hyper-v/grant-vmconnectaccess?view=windowsserver2025-ps). These references explain APIs; they do not prove current machine configuration.
 

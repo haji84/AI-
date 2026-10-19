@@ -32,3 +32,5 @@
 - Native Windows SSH binary SHA25698d447730047f5df91373e852d057928a921c3d1e89938700ab656ba84b19dc8; Authenticode Valid.
 - Real local PTY/pipeline fixture retained interactive stdin and delivered the non-secret fixture input. This is not an SSH, sudo or VM proof.
 - Implementation/source/testing authorized by the owner's instruction to prepare changes and ask only critical execution gates. No additional routine design approval requested.
+- Owner approved the exact network envelope and failure removal; actual Apply at14:27:30Z verified original4→5 rules. A no-auth handshake matched the historical host key; ai09 authentication remains false. Rule remains present without automatic expiry until an explicit recorded removal.
+- Actual native launch required child-only PSModulePath cleanup. The next console correction preserves native stderr's console while capturing stdout; real hidden-console RED/GREEN verifies that property, not the cause of SSH255 or actual authentication. Preserve failed attempt artifacts and prepare a fresh source-pinned request.

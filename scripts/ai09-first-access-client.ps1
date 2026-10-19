@@ -109,10 +109,11 @@ function Invoke-Ai09SshConsole($Ssh,$Arguments,$Frame) {
     [Environment]::SetEnvironmentVariable('SSH_ASKPASS_REQUIRE','never')
     $PSNativeCommandArgumentPassing='Legacy'; $ErrorActionPreference='Continue'
     $nativeArguments=@($Arguments|ForEach-Object {ConvertTo-Ai09LegacyArgument $_})
-    # No input pipeline/redirection: native SSH inherits the owner's console.
+    # Preserve native stdin AND stderr on the owner's console. Capture only
+    # stdout: local authentication prompts/diagnostics never enter the frame.
     # PowerShell buffers native lines before this callback: this is a retained
     # frame cap, not a hard raw-output allocation or wall/tree-cleanup guarantee.
-    & $Ssh @nativeArguments 2>&1 | ForEach-Object -ErrorAction Stop { $line=[string]$_; Add-Ai09FrameLine $Frame $line; Write-Host $line }
+    & $Ssh @nativeArguments | ForEach-Object -ErrorAction Stop { $line=[string]$_; Add-Ai09FrameLine $Frame $line; Write-Host $line }
     return $LASTEXITCODE
   } catch {
     if ($Frame.ContainsKey('failure')) {throw $Frame.failure}; throw 'SSH_NATIVE_PIPELINE_FAILED'
