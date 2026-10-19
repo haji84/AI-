@@ -584,6 +584,14 @@
       "reason": "Normative no-single-host distributed node fabric, failover, execution ownership and staged Nubia/Fleet rollout"
     },
     {
+      "path": "docs/architecture/goriq-remote-lite-manual.md",
+      "sha256": "62ec61eadfc65a40f1e35018664546429ec2bd5753bfa3b65d2081754feef3ff",
+      "classification": "EXCLUDED",
+      "requirement_ids": [],
+      "reason": "Separate friend-distributable manual Remote Lite product, not an existing JARVIS canonical capability; no parent product completion inference",
+      "exclusion_ref": "https://github.com/haji84/AI-/issues/1831"
+    },
+    {
       "path": "docs/architecture/jarvis-bounded-fact-research.md",
       "sha256": "9d7d1dc90a7e71bcd7c9bd121fe2c4d595ebac1e282deb78a90c16e13e48ac2d",
       "classification": "COVERED_BY_REQUIREMENT",
