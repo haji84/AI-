@@ -14,6 +14,7 @@ import { createRuntimeBuilderRouter } from "./runtime-builder-capability.ts";
 import { localOllamaFixtureTestPath, runLocalTddVerification } from "./local-ollama-tdd.ts";
 import { validateSignedLocalVerifierReceipt } from "./signed-local-verifier-receipt.ts";
 import { publishResidentVerifierRequest } from "./resident-verifier-request.ts";
+import { createPreparedLocalWriteCheckpoint } from "./local-prepared-write.ts";
 
 /** Explicit host-pinned local fixture sequence. No provisioning, publishing or implicit oracle. */
 export function createSequencedResidentRuntime(input: {
@@ -33,11 +34,7 @@ export function createSequencedResidentRuntime(input: {
   const runtimes = manifest.executions.map(execution => {
     const key = readBoundedRuntimeFile(execution.publicKeyFile, 8192, workspaces);
     if (hash(key) !== execution.publicKeySha256) throw Error("SIGNED_LOCAL_VERIFIER_PUBLIC_KEY_PIN_MISMATCH");
-    const router = createRuntimeBuilderRouter({ ...input.env,
-      GORIQ_LOCAL_OLLAMA_BUILDER_ENABLED: "1", GORIQ_LOCAL_OLLAMA_BUILDER_WORKSPACE: execution.workspace,
-      GORIQ_LOCAL_OLLAMA_TDD_PROFILE: execution.tddProfile, GORIQ_LOCAL_OLLAMA_ALLOWED_FILES: execution.allowedFiles.join(","),
-    }, input.fetchImpl);
-    return { execution, publicKeyPem: key.toString("utf8"), router };
+    return { execution, publicKeyPem: key.toString("utf8") };
   });
   const forJob = (goalId: string, jobId: string) => {
     const runtime = runtimes.find(({ execution }) => residentDevelopmentSequenceJobId(goalId, manifest.sequence, execution.key) === jobId);
@@ -54,13 +51,24 @@ export function createSequencedResidentRuntime(input: {
     stages: {
       builderId: "local-ollama-builder", deferMissingVerification: true,
       async build({ job, context, workItemId }) {
-        const { router, execution } = forJob(job.goalId, job.jobId);
+        const { execution } = forJob(job.goalId, job.jobId);
         const item = job.workItems.find(workItem => workItem.id === workItemId);
         if (!item) throw Error("RESIDENT_SEQUENCE_WORK_ITEM_UNKNOWN");
         const phase = item.id.endsWith(":test") ? "red" : "green";
+        const attemptId = `${job.jobId}:attempt:${job.attempts.length + 1}`, strategyId = `${job.jobId}:strategy:${job.attempts.length + 1}`;
+        const targetPath = phase === "red" ? localOllamaFixtureTestPath : execution.targetPath;
+        const preparedWrite = createPreparedLocalWriteCheckpoint({ stateRoot, workspaces, binding: {
+          executionContractDigest: manifest.sequence.executionContractDigest!, goalId: job.goalId, jobId: job.jobId,
+          workItemId, attemptId, strategyId, phase, baseRevision: job.baseRevision, workspace: execution.workspace,
+          path: targetPath, model: input.env.GAI_LOCAL_MODEL_NAME?.trim() ?? "",
+        } });
+        const router = createRuntimeBuilderRouter({ ...input.env,
+          GORIQ_LOCAL_OLLAMA_BUILDER_ENABLED: "1", GORIQ_LOCAL_OLLAMA_BUILDER_WORKSPACE: execution.workspace,
+          GORIQ_LOCAL_OLLAMA_TDD_PROFILE: execution.tddProfile, GORIQ_LOCAL_OLLAMA_ALLOWED_FILES: execution.allowedFiles.join(","),
+        }, input.fetchImpl, { preparedWrite });
         const result = await router.execute({ id: `${job.jobId}:build:${phase}`, description: item.objective, capability: "code.builder", risk: "low",
-          input: { goalId: job.goalId, attemptId: `${job.jobId}:attempt:${job.attempts.length + 1}`, strategyId: `${job.jobId}:strategy:${job.attempts.length + 1}`,
-            objective: item.objective, files: [phase === "red" ? localOllamaFixtureTestPath : execution.targetPath], baseRevision: job.baseRevision,
+          input: { goalId: job.goalId, attemptId, strategyId,
+            objective: item.objective, files: [targetPath], baseRevision: job.baseRevision,
             previousFailureSignatures: job.failureSignatures, previousStrategyFingerprints: job.rejectedStrategyIds, localOnly: true, tddPhase: phase } }, context);
         if (!result.ok) throw Error(result.blocker ?? result.summary);
         const change = (result.evidence as { changeSet?: { baseRevision?: string; changedPaths?: string[]; patchDigest?: string; candidateRevision?: string;

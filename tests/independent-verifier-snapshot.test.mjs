@@ -62,9 +62,11 @@ function fixture(t) {
     assert.ok(root.includes("goriq-runner-snapshot-"));
     fs.rmSync(root, { recursive: true, force: true });
   });
-  const docker = (effect = () => {}) => {
+  const calls = [];
+  const docker = (effect = () => {}, expectedExecutable = dockerFile) => {
     t.mock.method(childProcess, "spawn", (command, args) => {
-      assert.equal(command, dockerFile);
+      assert.equal(command, expectedExecutable);
+      calls.push({ command, args });
       const child=new EventEmitter();
       child.stdout=new PassThrough();child.stderr=new PassThrough();
       child.kill=()=>true;child.unref=()=>{};
@@ -82,8 +84,26 @@ function fixture(t) {
     });
     syncBuiltinESMExports();
   };
-  return { root, candidate, runner, req, docker };
+  return { root, candidate, runner, req, docker, calls };
 }
+
+test("ignored candidate Docker executable cannot fabricate six successful checks", async t => {
+  const f = fixture(t), unsafeBin = join(f.candidate, ".jarvis", "bin");
+  fs.mkdirSync(unsafeBin, { recursive: true });
+  const unsafeExecutable = join(unsafeBin, process.platform === "win32" ? "docker.exe" : "docker");
+  fs.writeFileSync(unsafeExecutable, "candidate-owned fake Docker", { mode: 0o755 });
+  process.env.PATH = unsafeBin + delimiter + process.env.PATH;
+  f.docker(() => ({ stdout: "NO_CONTAINER_OR_CHECK_EXECUTED" }), unsafeExecutable);
+  const result = await runIndependentVerifier({ ...f.req,
+    requiredChecks: ["lint", "typecheck", "unit", "integration", "security", "build"] });
+  assert.equal(result.verified, false, "a candidate-owned CLI must not manufacture a signed all-checks success");
+  assert.equal(f.calls.length, 0, "reject before run or cleanup can execute the candidate CLI");
+  assert.deepEqual(result.checks.map(check => check.status), ["inconclusive"]);
+  const log = JSON.parse(fs.readFileSync(join(f.req.receiptFile + ".logs", "lint.json")));
+  assert.equal(log.errorCode, "VERIFIER_CONTAINER_EXECUTABLE_IN_WORKSPACE");
+  const receipt = JSON.parse(fs.readFileSync(f.req.receiptFile, "utf8"));
+  assert.equal(receipt.payload.checks.some(check => check.status === "passed"), false);
+});
 
 test("runner refuses a support file swapped during staging before any container starts", async t => {
   const f = fixture(t), originalCopy = fs.copyFileSync;

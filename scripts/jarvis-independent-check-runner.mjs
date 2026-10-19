@@ -199,6 +199,7 @@ export async function runIndependentVerifier(req) {
       "--workdir","/","--entrypoint","/bin/sh",
       image,"-ec",staticScript];
     const output=await runVerifierContainer(dockerArgs,{cwd:runner,
+      untrustedExecutableRoots:[candidate,runner,snapshot],
       timeoutMs:180000,maxBuffer:2*1024*1024,env:{
         PATH:process.env.PATH??"",SystemRoot:process.env.SystemRoot??"",
       }});

@@ -6,9 +6,9 @@ import { EventEmitter } from "node:events";
 import { Buffer } from "node:buffer";
 import { PassThrough } from "node:stream";
 import { syncBuiltinESMExports } from "node:module";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { delimiter, dirname, join, resolve } from "node:path";
 
 import { runVerifierContainer } from "../scripts/jarvis-verifier-container.mjs";
 
@@ -140,5 +140,37 @@ test("caller cannot replace the generated cleanup identity", async t => {
   const f = fixture(t);
   await assert.rejects(runVerifierContainer(["run", "--name=unrelated", "fixture"], f.options),
     /VERIFIER_CONTAINER_REQUEST_INVALID/);
+  assert.equal(f.calls.length, 0);
+});
+
+for (const [label, alias] of [["candidate", false], ["candidate alias", true], ["exported snapshot", false]]) {
+  test(`Docker resolved inside ${label} is rejected before any process launch`, async t => {
+    const f = fixture(t), parent = dirname(f.options.cwd);
+    const untrustedRoot = join(parent, alias ? "candidate" : label.replaceAll(" ", "-"));
+    const unsafeBin = join(untrustedRoot, "bin");
+    mkdirSync(unsafeBin, { recursive: true });
+    writeFileSync(join(unsafeBin, process.platform === "win32" ? "docker.exe" : "docker"), "untrusted CLI", { mode: 0o755 });
+    let pathEntry = unsafeBin;
+    if (alias) {
+      pathEntry = join(parent, "tool-alias");
+      symlinkSync(unsafeBin, pathEntry, process.platform === "win32" ? "junction" : "dir");
+    }
+    let launches = 0;
+    t.mock.method(childProcess, "spawn", () => { launches++; throw Error("UNTRUSTED_CLI_LAUNCHED"); });
+    syncBuiltinESMExports();
+    const result = await runVerifierContainer(runArgs, { ...f.options,
+      untrustedExecutableRoots: [untrustedRoot], env: { PATH: pathEntry + delimiter + f.options.env.PATH } });
+    assert.equal(result.error?.code, "VERIFIER_CONTAINER_EXECUTABLE_IN_WORKSPACE");
+    assert.equal(launches, 0);
+    assert.deepEqual(result.cleanup, { attempted: false, confirmed: false });
+  });
+}
+
+test("untrusted executable roots must be bounded absolute host paths", async t => {
+  const f = fixture(t);
+  for (const roots of ["workspace", ["relative"], [null], Array(9).fill(f.options.cwd)]) {
+    await assert.rejects(runVerifierContainer(runArgs, { ...f.options, untrustedExecutableRoots: roots }),
+      /VERIFIER_CONTAINER_REQUEST_INVALID/);
+  }
   assert.equal(f.calls.length, 0);
 });

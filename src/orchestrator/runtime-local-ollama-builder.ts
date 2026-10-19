@@ -7,6 +7,8 @@ import { LocalDevelopmentBuilder } from "./local-development-builder.ts";
 import type { BuilderCapability, BuilderRequest } from "./builder-router.ts";
 import { localOllamaFixtureSourcePath, localOllamaFixtureTestPath, localOllamaFixtureTest, runLocalTddVerification } from "./local-ollama-tdd.ts";
 import { localCandidateIdentity } from "./local-candidate-identity.ts";
+import type { PreparedLocalWriteCheckpoint } from "./local-prepared-write.ts";
+import { assertExternalRuntimePath, readBoundedRuntimeFile } from "./resident-runtime-files.ts";
 
 const sha256 = (value: string | Buffer) => createHash("sha256").update(value).digest("hex");
 const git = (root: string, ...args: string[]) => execFileSync("git", args, { cwd: root, encoding: "utf8", timeout: 8000, windowsHide: true }).trim();
@@ -20,6 +22,8 @@ export interface LocalOllamaBuilderOptions {
   endpoint?: string;
   fetchImpl?: typeof fetch;
   tddProfile?: "python_add_v1";
+  /** Direct trusted host option; never supplied through Goal/model/environment. */
+  preparedWrite?: PreparedLocalWriteCheckpoint;
 }
 
 function isolatedWorkspace(workspace: string): string {
@@ -64,6 +68,7 @@ export function createLocalOllamaBuilder(input: LocalOllamaBuilderOptions): Buil
   let modelConfirmed = false;
 
   const available = async () => {
+    if (input.preparedWrite && input.preparedWrite.load() !== null) return true;
     try {
       const reply = await fetchImpl(`${url.origin}/api/tags`, { method: "GET", redirect: "error", signal: AbortSignal.timeout(5000) });
       const listing = await boundedJson(reply) as { models?: Array<{ name?: string; model?: string }> };
@@ -75,7 +80,7 @@ export function createLocalOllamaBuilder(input: LocalOllamaBuilderOptions): Buil
   return new LocalDevelopmentBuilder({
     id: "local-ollama-builder", workspaceRoot: workspace, available,
     async run(request: BuilderRequest) {
-      if (!modelConfirmed) return { ok: false, summary: "Installed Ollama model not verified", blocker: "local_model_unavailable" };
+      if (!modelConfirmed && !input.preparedWrite) return { ok: false, summary: "Installed Ollama model not verified", blocker: "local_model_unavailable" };
       if (request.tddPhase === "red" && !fixtureTdd) return { ok: false, summary: "Independent failing test is required before TDD red evidence", blocker: "local_model_tdd_red_unproven" };
       if (!request.localOnly || !request.baseRevision || !/^[a-f0-9]{40}$/.test(request.baseRevision)
         || !Array.isArray(request.files) || request.files.length !== 1 || !allow.has(request.files[0])) {
@@ -87,6 +92,50 @@ export function createLocalOllamaBuilder(input: LocalOllamaBuilderOptions): Buil
       }
       const target = resolve(workspace, path);
       const parent = realpathSync(dirname(target));
+      if (input.preparedWrite) {
+        assertExternalRuntimePath(target, []);
+        assertExternalRuntimePath(resolve(workspace, localOllamaFixtureTestPath), []);
+        const b = input.preparedWrite.binding;
+        if (!fixtureTdd || b.goalId !== request.goalId || b.attemptId !== request.attemptId || b.strategyId !== request.strategyId
+          || b.phase !== request.tddPhase || b.baseRevision !== request.baseRevision || resolve(b.workspace) !== workspace
+          || b.path !== path || b.model !== configuredModel) throw Error("PREPARED_WRITE_REQUEST_MISMATCH");
+        const prepared = input.preparedWrite.load();
+        if (prepared !== null) {
+          if (prepared !== (b.phase === "red" ? localOllamaFixtureTest : "def add(a, b):\n    return a + b\n")) throw Error("PREPARED_WRITE_CONTENT_MISMATCH");
+          const test = resolve(workspace, localOllamaFixtureTestPath);
+          const checkState = () => {
+            assertExternalRuntimePath(target, []); assertExternalRuntimePath(test, []);
+            const present = existsSync(target);
+            const expected = (b.phase === "red" ? present ? [`?? ${path}`] : []
+              : present ? [`?? ${path}`, `?? ${localOllamaFixtureTestPath}`] : [`?? ${localOllamaFixtureTestPath}`]).sort().join("\n");
+            if (git(workspace, "rev-parse", "HEAD") !== b.baseRevision
+              || git(workspace, "status", "--porcelain", "-uall").split("\n").filter(Boolean).sort().join("\n") !== expected
+              || (present && readBoundedRuntimeFile(target, 8192).toString("utf8") !== prepared)
+              || (b.phase === "green" && readBoundedRuntimeFile(test, 8192).toString("utf8") !== localOllamaFixtureTest)) throw Error("PREPARED_WRITE_CANDIDATE_MISMATCH");
+            return present;
+          };
+          if (!checkState()) {
+            if (b.phase === "green") {
+              const red = runLocalTddVerification(workspace, request.baseRevision, "red");
+              if (!red.ok) throw Error(red.blocker ?? "PREPARED_WRITE_RED_UNPROVEN");
+            }
+            checkState(); writeFileSync(target, prepared, { flag: "wx" });
+          }
+          checkState();
+          if (b.phase === "red") {
+            const digest = sha256(prepared);
+            return { ok: true, summary: "Prepared RED candidate recovered; independent RED verification remains required",
+              changedPaths: [path], patchDigest: sha256(`create\0${path}\0${prepared}`), artifactDigest: digest, artifactRef: `sha256:${digest}`,
+              tddPhase: "red" as const, tddEvidenceDigest: digest, evidence: { fixtureOnly: true, redVerified: false, preparedWriteRecovered: true, releaseAuthorized: false } };
+          }
+          const { patchDigest, artifactDigest } = localCandidateIdentity(request.baseRevision, path,
+            { [path]: readBoundedRuntimeFile(target, 8192), [localOllamaFixtureTestPath]: localOllamaFixtureTest });
+          return { ok: true, summary: "Prepared local candidate recovered; independent signed verification remains required",
+            changedPaths: [path], patchDigest, artifactDigest, artifactRef: `sha256:${artifactDigest}`,
+            evidence: { preparedWriteRecovered: true, externalApiCalls: 0, releaseAuthorized: false } };
+        }
+      }
+      if (!modelConfirmed) return { ok: false, summary: "Installed Ollama model not verified", blocker: "local_model_unavailable" };
       if (!validPath(path) || relative(workspace, target).startsWith("..") || relative(workspace, target).startsWith(sep)
         || relative(workspace, parent).startsWith("..") || relative(workspace, parent).startsWith(sep)
         || existsSync(target)) {
@@ -98,6 +147,7 @@ export function createLocalOllamaBuilder(input: LocalOllamaBuilderOptions): Buil
         return { ok: false, summary: "Isolated workspace is dirty or its revision changed", blocker: "local_model_workspace_not_clean" };
       }
       if (fixtureTdd && request.tddPhase === "red") {
+        input.preparedWrite?.prepare(localOllamaFixtureTest);
         writeFileSync(target, localOllamaFixtureTest, { flag: "wx" });
         if (readFileSync(target, "utf8") !== localOllamaFixtureTest || git(workspace, "status", "--porcelain", "-uall") !== `?? ${path}`) {
           return { ok: false, summary: "TDD test creation not isolated", blocker: "local_model_tdd_write_unverified" };
@@ -137,6 +187,7 @@ export function createLocalOllamaBuilder(input: LocalOllamaBuilderOptions): Buil
       if (fixtureTdd && content !== "def add(a, b):\n    return a + b\n") {
         return { ok: false, summary: "Unsafe or unreviewed generated Python rejected", blocker: "local_model_fixture_content_rejected" };
       }
+      input.preparedWrite?.prepare(content);
       writeFileSync(target, content, { flag: "wx" });
       const changed = git(workspace, "status", "--porcelain", "-uall");
       const actual = readFileSync(target);
@@ -154,7 +205,8 @@ export function createLocalOllamaBuilder(input: LocalOllamaBuilderOptions): Buil
   });
 }
 
-export function configuredLocalOllamaBuilder(env: Record<string, string | undefined> = process.env, fetchImpl: typeof fetch = fetch): BuilderCapability | null {
+export function configuredLocalOllamaBuilder(env: Record<string, string | undefined> = process.env, fetchImpl: typeof fetch = fetch,
+  hostOptions: { preparedWrite?: PreparedLocalWriteCheckpoint } = {}): BuilderCapability | null {
   const profile = env.GORIQ_LOCAL_OLLAMA_TDD_PROFILE?.trim();
   if (profile && profile !== "python_add_v1") throw new Error("Unknown local Ollama TDD profile");
   const enabled = env.GORIQ_LOCAL_OLLAMA_BUILDER_ENABLED?.trim();
@@ -166,5 +218,6 @@ export function configuredLocalOllamaBuilder(env: Record<string, string | undefi
   return createLocalOllamaBuilder({ workspace: env.GORIQ_LOCAL_OLLAMA_BUILDER_WORKSPACE,
     model: env.GAI_LOCAL_MODEL_NAME, allowedPaths: env.GORIQ_LOCAL_OLLAMA_ALLOWED_FILES.split(","),
     endpoint: env.GAI_LOCAL_MODEL_ENDPOINT, fetchImpl,
-    tddProfile: env.GORIQ_LOCAL_OLLAMA_TDD_PROFILE === "python_add_v1" ? "python_add_v1" : undefined });
+    tddProfile: env.GORIQ_LOCAL_OLLAMA_TDD_PROFILE === "python_add_v1" ? "python_add_v1" : undefined,
+    preparedWrite: hostOptions.preparedWrite });
 }

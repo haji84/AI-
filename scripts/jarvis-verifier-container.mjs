@@ -10,16 +10,19 @@ import { delimiter, isAbsolute, join, relative, sep } from "node:path";
 const failure = code => Object.assign(new Error(code), { code });
 const bounded = (value, maximum) => Number.isInteger(value) && value > 0 && value <= maximum;
 
-function dockerExecutable(cwd, env) {
-  // Do not let Windows resolve a candidate-provided docker.exe from cwd.
+function dockerExecutable(untrustedRoots, env) {
+  // Candidate, staged checkout and exported source must never supply host tools.
   const filename = process.platform === "win32" ? "docker.exe" : "docker";
   for (const entry of (env.PATH ?? "").split(delimiter)) {
     if (!isAbsolute(entry)) continue;
     const candidate = join(entry, filename);
     if (!existsSync(candidate) || !statSync(candidate).isFile()) continue;
-    const file = realpathSync(candidate), inside = relative(cwd, file);
-    if (!inside || (!isAbsolute(inside) && inside !== ".." && !inside.startsWith(".." + sep))) {
-      throw failure("VERIFIER_CONTAINER_EXECUTABLE_IN_WORKSPACE");
+    const file = realpathSync(candidate);
+    for (const root of untrustedRoots) {
+      const inside = relative(root, file);
+      if (!inside || (!isAbsolute(inside) && inside !== ".." && !inside.startsWith(".." + sep))) {
+        throw failure("VERIFIER_CONTAINER_EXECUTABLE_IN_WORKSPACE");
+      }
     }
     return file;
   }
@@ -82,17 +85,20 @@ const record = result => ({ status: result.status, signal: result.signal,
 export async function runVerifierContainer(args, {
   cwd, env, timeoutMs = 180_000, maxBuffer = 2 * 1024 * 1024,
   cleanupTimeoutMs = 8_000, killGraceMs = 1_000,
+  untrustedExecutableRoots = [],
 } = {}) {
   if (typeof cwd !== "string" || !isAbsolute(cwd) || !env || typeof env !== "object" ||
       !Array.isArray(args) || args.length < 2 || args.length > 128 || args[0] !== "run" ||
       args.some(arg => typeof arg !== "string" || arg.includes("\0") || arg.length > 16_384 ||
         /^--(?:name|cidfile)(?:=|$)/.test(arg)) ||
+      !Array.isArray(untrustedExecutableRoots) || untrustedExecutableRoots.length > 8 ||
+      untrustedExecutableRoots.some(root => typeof root !== "string" || !isAbsolute(root) || root.includes("\0")) ||
       !bounded(timeoutMs, 180_000) || !bounded(maxBuffer, 2 * 1024 * 1024) ||
       !bounded(cleanupTimeoutMs, 30_000) || !bounded(killGraceMs, 1_000)) {
     throw failure("VERIFIER_CONTAINER_REQUEST_INVALID");
   }
   let executable;
-  try { executable = dockerExecutable(realpathSync(cwd), env); }
+  try { executable = dockerExecutable([cwd, ...untrustedExecutableRoots].map(root => realpathSync(root)), env); }
   catch (error) {
     return { status: null, signal: null, stdout: "", stderr: "", error,
       closeObserved: false, cleanup: { attempted: false, confirmed: false } };

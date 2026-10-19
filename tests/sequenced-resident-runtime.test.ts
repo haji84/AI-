@@ -13,7 +13,7 @@ import { JsonFileDevelopmentChangeSetStore } from "../src/orchestrator/developme
 import { createDevelopmentVerificationPlan } from "../src/orchestrator/development-verification-plan.ts";
 import { canonicalLocalVerifierPayload, type SignedLocalVerifierPayload } from "../src/orchestrator/signed-local-verifier-receipt.ts";
 
-test("two bounded local Jobs resume from signed acceptance without rebuilding the completed Job", async t => {
+for (const interrupted of ["none", "red", "green"] as const) test(`two bounded local Jobs resume through signed acceptance after ${interrupted} ChangeSet checkpoint interruption`, async t => {
   const root = mkdtempSync(join(tmpdir(), "goriq-sequence-runtime-"));
   t.after(() => { assert.ok(resolve(root).startsWith(resolve(tmpdir()) + sep)); rmSync(root, { recursive: true, force: true }); });
   const repo = join(root, "repo"); mkdirSync(repo);
@@ -51,6 +51,22 @@ test("two bounded local Jobs resume from signed acceptance without rebuilding th
   assert.throws(() => createSequencedResidentRuntime({ env: { ...env, GORIQ_LOCAL_OLLAMA_BUILDER_ENABLED: undefined }, runtimeRoot: repo, compassPath, goal, fetchImpl }), /OPT_IN/);
   assert.equal(createSequencedResidentRuntime({ env: {}, runtimeRoot: repo, compassPath, goal }), null);
   const input = { goalId: "fixture-goal", goal, context: [] };
+  if (interrupted !== "none") {
+    const originalPut = JsonFileDevelopmentChangeSetStore.prototype.put;
+    let faulted = false;
+    JsonFileDevelopmentChangeSetStore.prototype.put = async function(value, now) {
+      if (!faulted && value.workItemId.endsWith(interrupted === "red" ? ":test" : ":implement")) {
+        faulted = true; throw Error("fixture_interrupted_before_changeset_checkpoint");
+      }
+      return originalPut.call(this, value, now);
+    };
+    try { await assert.rejects(() => create().run(input), /fixture_interrupted_before_changeset_checkpoint/); }
+    finally { JsonFileDevelopmentChangeSetStore.prototype.put = originalPut; }
+    assert.equal(faulted, true);
+    assert.equal(generations, interrupted === "green" ? 1 : 0);
+    assert.equal(existsSync(join(workspaces[0]!, interrupted === "red" ? localOllamaFixtureTestPath : localOllamaFixtureSourcePath)), true);
+    assert.equal(existsSync(executions[0]!.receiptFile), false, "prepared intent is not a verifier receipt");
+  }
   let report = await create().run(input);
   assert.equal(report.goalEvaluation?.achieved, false); assert.equal(generations, 1);
   const requestFile = executions[0]!.receiptFile + ".request.json";
