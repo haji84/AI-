@@ -69,7 +69,7 @@ export class BrowserManualPeer {
       if (this.#closed) return;
       const s = safeState(this.#pc.connectionState);
       this.#onState(s);
-      if (s === 'failed' || s === 'closed' || s === 'disconnected') this.#manualAllowed = false;
+      if (s === 'failed' || s === 'closed' || s === 'disconnected') this.close('connection-lost');
     };
     if (role === 'host') {
       this.#pc.ondatachannel = event => this.#attachChannel(event.channel);
