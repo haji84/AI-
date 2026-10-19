@@ -1,18 +1,20 @@
 import assert from "node:assert/strict";
-import { chmod, mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, symlink } from "node:fs/promises";
 import { execFile } from "node:child_process";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import process from "node:process";
 import { promisify } from "node:util";
 import test from "node:test";
 
 const execFileAsync = promisify(execFile);
 const resolver = new URL("../scripts/resolve-code-builder-engine.sh", import.meta.url);
 
-async function executable(path: string, body = "#!/bin/sh\nexit 0\n") {
+async function executable(path: string, target = process.execPath) {
   await mkdir(join(path, ".."), { recursive: true });
-  await writeFile(path, body, "utf8");
-  await chmod(path, 0o755);
+  // Discovery checks need a real executable, not writable temporary scripts.
+  // Resolve to the installed tool on its executable, read-only image mount.
+  await symlink(target, path, "file");
 }
 
 test("Mac Builder resolver finds an existing Codex CLI outside the noninteractive PATH", async () => {
@@ -32,17 +34,12 @@ test("Mac Builder resolver finds Codex from the active npm global prefix", async
   const prefix = join(home, "npm-prefix");
   const npm = join(tools, "npm");
   const codex = join(prefix, "bin", "codex");
-  await executable(npm, `#!/bin/sh
-if [ "$1" = "prefix" ] && [ "$2" = "-g" ]; then
-  printf '%s\\n' "$HOME/npm-prefix"
-  exit 0
-fi
-exit 1
-`);
+  await executable(npm, join(dirname(process.execPath), "npm"));
+  await executable(join(tools, "node"));
   await executable(codex);
 
   const { stdout } = await execFileAsync("/bin/bash", [resolver.pathname], {
-    env: { HOME: home, PATH: `${tools}:/usr/bin:/bin`, NODE_ENV: "test" },
+    env: { HOME: home, PATH: `${tools}:/usr/bin:/bin`, NODE_ENV: "test", npm_config_prefix: prefix },
   });
   assert.equal(stdout.trim(), codex);
 });

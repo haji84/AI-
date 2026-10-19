@@ -67,7 +67,8 @@ function boundaryProbe(privateKeyFile, marker) {
   return `import assert from "node:assert/strict";
 import test from "node:test";
 import process from "node:process";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { accessSync, constants, existsSync, lstatSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { networkInterfaces } from "node:os";
 test("real verifier container keeps the Builder away from signer and host", () => {
   assert.equal(process.getuid(), 65534);
@@ -76,6 +77,20 @@ test("real verifier container keeps the Builder away from signer and host", () =
   assert.match(status, /^NoNewPrivs:\\s+1$/m);
   assert.equal(readFileSync("/sys/fs/cgroup/memory.max", "utf8").trim(), "2147483648");
   assert.equal(readFileSync("/sys/fs/cgroup/pids.max", "utf8").trim(), "128");
+  const temporary = lstatSync("/tmp");
+  assert.equal(temporary.uid, 65534); assert.equal(temporary.gid, 65534);
+  assert.equal(temporary.mode & 0o777, 0o700);
+  const mountOptions = readFileSync("/proc/self/mountinfo", "utf8").split("\\n")
+    .find(line => line.split(" ")[4] === "/tmp").split(" ")[5].split(",");
+  for (const option of ["rw", "nosuid", "nodev", "noexec"]) assert.ok(mountOptions.includes(option));
+  const probe = mkdtempSync("/tmp/noexec-boundary-");
+  const script = probe + "/native-script", link = probe + "/image-node";
+  writeFileSync(script, "#!/bin/sh\\nexit 0\\n", { mode: 0o700, flag: "wx" });
+  assert.throws(() => accessSync(script, constants.X_OK), /EACCES/);
+  assert.equal(spawnSync(script, [], { timeout: 5000 }).error?.code, "EACCES");
+  symlinkSync(process.execPath, link);
+  const linked = spawnSync(link, ["--version"], { encoding: "utf8", timeout: 5000 });
+  assert.equal(linked.status, 0); assert.equal(linked.stdout.trim(), process.version);
   assert.deepEqual(Object.keys(networkInterfaces()), ["lo"]);
   assert.equal(existsSync("/var/run/docker.sock"), false);
   assert.equal(existsSync(${JSON.stringify(privateKeyFile)}), false);
@@ -83,6 +98,8 @@ test("real verifier container keeps the Builder away from signer and host", () =
   assert.throws(() => writeFileSync("/source/docs/verifier-live-result.txt", "mutated"), /EROFS|EACCES/);
   assert.throws(() => writeFileSync("/opt/goriq-verifier/dependencies/package.json", "mutated"), /EROFS|EACCES/);
   assert.throws(() => writeFileSync("/verifier-root-write-probe", "mutated"), /EROFS|EACCES/);
+  process.stdout.write("GORIQ_TMPFS_BOUNDARY:" + JSON.stringify({ uid: temporary.uid, gid: temporary.gid,
+    mode: temporary.mode & 0o777, mountOptions, nativeExecutionRejected: true, imageLinkExecuted: true }) + "\\n");
   process.stdout.write(${JSON.stringify(marker + "\n")});
 });
 `;

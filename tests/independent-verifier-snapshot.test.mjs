@@ -180,6 +180,17 @@ test("container must prepare matching offline dependencies with the image-owned 
   assert.equal(script, "node /opt/goriq-verifier/jarvis-verifier-offline-workspace.mjs && cd /tmp/verify && exec pnpm test");
 });
 
+test("writable temporary storage is private to the unprivileged verifier and remains noexec", async t => {
+  const f = fixture(t);
+  let mount;
+  f.docker(args => { mount = args[args.indexOf("--tmpfs") + 1]; });
+  assert.equal((await runIndependentVerifier(f.req)).verified, true);
+  const options = mount.slice("/tmp:".length).split(",");
+  for (const option of ["rw", "noexec", "nosuid", "nodev", "uid=65534", "gid=65534", "mode=0700", "size=1536m"])
+    assert.ok(options.includes(option), "missing temporary boundary: " + option);
+  assert.equal(options.includes("exec"), false);
+});
+
 test("offline bundle refusal is retained as a failed signed check with no later checks", async t => {
   const f = fixture(t);
   f.docker(args => {

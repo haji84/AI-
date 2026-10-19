@@ -3,7 +3,7 @@
 This increment closes a software-verification coverage gap: the existing host
 suite tested the Docker boundary with process doubles. A new explicit
 `independent-verifier-container` hosted-Linux job invokes the unchanged
-`runIndependentVerifier()` against the complete exact checkout and two detached
+`runIndependentVerifier()` fixed commands against the complete exact checkout and two detached
 worktrees. It does not install or run Docker on ZBook or AI-09.
 
 The image build context contains only the two project dependency manifests, the
@@ -63,14 +63,48 @@ run passed51 cases, failed0 and skipped1 POSIX-only permission case on Windows
 Hosted Linux CI is still required to establish the complete image/check outcome.
 
 Independent review found a pnpm11.19 configuration incompatibility before the
-first image execution and two cleanup failure paths. The image-owned pnpm wrapper
-now passes explicit error-on-dependency-mismatch/offline CLI settings. An actual
-pnpm11.19.0 missing-dependency fixture returned `ERR_PNPM_VERIFY_DEPS_BEFORE_RUN`
-without running its script, creating dependency files or calling guarded network
-APIs. Corrections and exact-head hosted results are recorded on Issue #1219.
-Source-only checks cannot prove image
-viability or successful six-check execution; no anticipated live result is
-claimed in this report.
+first image execution and two cleanup failure paths. The corrected image-owned
+pnpm wrapper disables implicit dependency repair and keeps offline mode enabled.
+The image-owned helper still admits only byte-identical package/lock manifests
+and immutable prepared dependencies. Actual pnpm11.19.0 probes execute the
+borrowed TypeScript tool, fail a required missing import with `MODULE_NOT_FOUND`,
+and perform no install/network request or dependency metadata change. This
+permits an existing nested build fixture to reuse installed dependencies without
+overriding or skipping any actual check. Corrections and exact-head hosted
+results are recorded on Issue #1219. Source-only checks cannot prove image
+viability or successful six-check execution.
+
+## First actual hosted run
+
+At source `3043b8f786192e4cd4bdaf7e221ededab8031a58`,
+[CI39244171115](https://github.com/haji84/AI-/actions/runs/39244171115)
+successfully built the real image and executed actual lint and typecheck. The
+unit container then returned exit1:2716 total,2703 passed,8 failed,5 skipped in
+118.95seconds. No timeout or output overflow occurred. Integration, security and
+build were not run after that failure. The job failed and retained its partial
+signed receipt. All three exact named containers and the outer registry/fixture
+cleanup were confirmed. The separate host project job passed2710 tests with5
+skipped,332 security cases, build/health and Windows fixtures.
+
+[Artifact12183045654](https://github.com/haji84/AI-/actions/runs/39244171115/artifacts/12183045654)
+ZIP SHA256 is `c116ca16c11d6088a45b6c7204abf8fb808c4c77a6311b3fb965b5532b1e7966`.
+The retained [partial record](1219-hosted-container-partial-2026-10-19.json)
+contains the public key, original receipt, environment/image identity and three
+log hashes/cleanup records. Root independently validated the signature and all
+three downloaded log hashes. This is a failed result, not a six-check PASS.
+
+The eight real failures exposed test-environment assumptions: a CLI test assumed
+surrounding Git metadata; three filesystem tests correctly rejected the writable
+`/tmp` ancestor; three executable-discovery fixtures placed shell executables on
+Docker's noexec tmpfs; and the nested build fixture's explicit dependency-reuse
+setting was overridden by the earlier image wrapper. The corrective source
+creates a dedicated Git fixture, uses installed executable symlinks for discovery,
+and disables implicit pnpm repair while retaining offline manifest admission.
+The runner now states existing `noexec` explicitly and strengthens temporary
+ownership to65534:65534 mode0700. A new real probe requires native execution from
+tmpfs to fail with EACCES and verifies execution through a link to image-owned
+Node. No security gate, assertion, resource limit or test is weakened/removed.
+The corrected actual hosted outcome is still required before claiming success.
 
 Even a successful hosted-container run proves only that CI execution and its
 receipt plumbing. It does **not** prove AI09 authentication, provisioned physical

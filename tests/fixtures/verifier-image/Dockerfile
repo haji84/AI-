@@ -52,16 +52,17 @@ RUN printf '%s\n' \
     > /opt/goriq-verifier/prepare-home.cjs \
     && printf '%s\n' \
         '#!/bin/sh' \
-        'exec /usr/local/bin/node /opt/goriq-verifier/toolchain/lib/node_modules/pnpm/bin/pnpm.mjs --config.verify-deps-before-run=error --config.offline=true "$@"' \
+        'exec /usr/local/bin/node /opt/goriq-verifier/toolchain/lib/node_modules/pnpm/bin/pnpm.mjs --config.verify-deps-before-run=false --config.offline=true "$@"' \
         > /usr/local/bin/pnpm \
     && chmod 0555 /usr/local/bin/pnpm \
     && chmod -R a+rX,a-w /opt/goriq-verifier
 
 # No package installation or version download is permitted during a check.
 # The runner independently enforces a read-only root/dependency bundle and no
-# network. Dependency verification reports an error instead of auto-installing.
-# pnpm 11.19.0 does not reliably accept this enum from environment variables;
-# the image-owned wrapper supplies the supported explicit CLI options instead.
+# network; the image-owned helper requires exact top-level manifest bytes.
+# Disable pnpm's implicit dependency repair so nested test fixtures can borrow
+# the installed bundle. Actual check commands still fail on missing tools/modules.
+# Explicit CLI options avoid pnpm 11.19.0's inconsistent enum environment parsing.
 ENV HOME=/tmp/goriq-verifier-home \
     XDG_CACHE_HOME=/tmp/goriq-verifier-home/.cache \
     XDG_CONFIG_HOME=/tmp/goriq-verifier-home/.config \
@@ -74,7 +75,7 @@ USER 65534:65534
 # The real six checks with read-only mounts/resource limits run only in CI.
 RUN test "$(node --version)" = "v24.19.0" \
     && test "$(pnpm --version)" = "11.19.0" \
-    && test "$(pnpm config get verifyDepsBeforeRun)" = "error" \
+    && test "$(pnpm config get verifyDepsBeforeRun)" = "false" \
     && test "$(pnpm config get offline)" = "true" \
     && bash --version \
     && git --version \
