@@ -12,7 +12,7 @@
 
 ## Global constraints
 
-- Keep all six production commands and the180-second,2GiB,128-PID,1.5GiB tmpfs limits unchanged.
+- Keep all six check kinds; use the explicit supported Next production build profile `pnpm build --webpack` with signed `next-webpack-v1` metadata. Other five commands and the180-second,2GiB,128-PID,1.5GiB tmpfs limits stay unchanged.
 - Only disposable GitHub-hosted Linux execution may build images/start the local registry. Never install or activate containers, credentials, networking or startup changes on ZBook/AI09.
 - No workflow permission, secret, deployment or merge-authority changes. No external image publication.
 - Ephemeral test private key stays outside every container mount and uploaded artifact. Retain public key, receipt, six logs, exact source/image identities and cleanup evidence only.
@@ -64,3 +64,5 @@
 - Review corrections: guard registry cleanup before its CLI launch; independent evidence-copy/registry/filesystem cleanup; replace ineffective pnpm env configuration with proved explicit options in image-owned wrapper. No runtime/check-limit or authority relaxation.
 - Actual run1 at3043b8f7/CI39244171115: image/lint/typecheck passed; unit2703PASS/8FAIL/5SKIP in119seconds; later checks notrun. Three signed log hashes, signature and all cleanup confirmed. Host project2710PASS/5SKIP, security332PASS and other jobsPASS. Retain failed partial record, never classify full acceptancePASS.
 - Evidence-backed correction: create explicit Git precondition in CLI test, use real installed executable symlinks for discovery, make noexec explicit and tmpfs private UID/GID65534 mode0700, disable pnpm's implicit repair/offline only while keeping exact image-helper admission. All original assertions/check commands remain. New tmpfs contract RED thenGREEN;27 related audit/manual/offline testsPASS; independent review noP1/P2. Hosted run2 required.
+- Actual run2 at79e07df3/CI39245845801: first5checksPASS, each fullsuite2712PASS/5SKIP/~175seconds and realnoexec/private0700/EACCES/imageNodelinkproof; finalbuildFAILED becauseTurbopack rejects externalimmutable dependency link. Sixloghashes/signature/sourcecandidate/imageinput reconstruction andcleanupPASS; fullsixPASSfalse.
+- Ruling: explicit code-owned `pnpm build --webpack`/`next-webpack-v1` is the supported full production-build profile for this immutable-link layout, reusing the existing nativeMacbuild strategy. Record actualargs/profile and require them in audit; no hiddenwrapper rewrite, source-config alteration, writable dependency copy, root widening or private env switch. This corrects the initial command-identity assumption without weakening the build check. Third actualCI is the final bounded attempt; preserve failures if unsuccessful.

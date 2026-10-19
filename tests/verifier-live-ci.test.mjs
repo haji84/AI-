@@ -11,7 +11,7 @@ import { canonicalLocalVerifierPayload } from "../src/orchestrator/signed-local-
 import { assertHostedVerifierCI, auditLiveVerifierReceipt } from "../scripts/jarvis-verifier-live-ci.mjs";
 
 const checks = ["lint", "typecheck", "unit", "integration", "security", "build"];
-const commands = [["lint"], ["exec", "tsc", "--noEmit"], ["test"], ["test"], ["test:p8-security"], ["build"]];
+const commands = [["lint"], ["exec", "tsc", "--noEmit"], ["test"], ["test"], ["test:p8-security"], ["build", "--webpack"]];
 const sha = bytes => createHash("sha256").update(bytes).digest("hex");
 
 function fixture(t) {
@@ -32,7 +32,8 @@ function fixture(t) {
     issuedAt: at, expiresAt: new Date(Date.now() + 60_000).toISOString(), checks: [] };
   for (const [i, check] of checks.entries()) {
     const bytes = JSON.stringify({ sourceRevision: request.sourceRevision, fileHashes: { "docs/live-result.txt": "e".repeat(64) },
-      command: "pnpm", args: commands[i], containerImage: expectedImage, exit: 0, signal: null,
+      command: "pnpm", args: commands[i], executionProfile: check === "build" ? "next-webpack-v1" : null,
+      containerImage: expectedImage, exit: 0, signal: null,
       stdout: ["unit", "integration"].includes(check) ? marker : "real check output", stderr: "",
       errorCode: null, runErrorCode: null, closeObserved: true, cleanup: { attempted: true,
         containerName: "goriq-verifier-00000000-0000-4000-8000-" + String(i).padStart(12, "0"), confirmed: true,
@@ -101,6 +102,14 @@ test("wrong public key or cross-Goal receipt is refused by the existing receipt 
   assert.throws(() => auditLiveVerifierReceipt({ ...f.input, publicKeyPem: other }), /SIGNATURE_INVALID/);
   assert.throws(() => auditLiveVerifierReceipt({ ...f.input,
     request: { ...f.input.request, goalId: "different-goal" } }), /BINDING_INVALID/);
+});
+
+test("a signed build log must identify the exact explicit Webpack production profile", t => {
+  for (const change of [log => { delete log.executionProfile; },
+    log => { log.executionProfile = "turbopack"; }, log => { log.args = ["build"]; }]) {
+    const f = fixture(t); f.changeLog("build", change);
+    assert.throws(() => auditLiveVerifierReceipt(f.input), /LIVE_LOG_BINDING_INVALID/);
+  }
 });
 
 test("explicit live execution is limited to disposable hosted Linux, never local or self-hosted", () => {

@@ -44,6 +44,7 @@ export function auditLiveVerifierReceipt({ request, publicKeyPem, expectedImage,
     const log = JSON.parse(logBytes), [command, args] = verifierCommand(check.check);
     assert.ok(log.sourceRevision === request.sourceRevision && log.containerImage === expectedImage
       && log.command === command && JSON.stringify(log.args) === JSON.stringify(args)
+      && (check.check !== "build" || log.executionProfile === "next-webpack-v1")
       && JSON.stringify(sortedHashes(log.fileHashes)) === JSON.stringify(sortedHashes(expectedFileHashes)), "LIVE_LOG_BINDING_INVALID");
     assert.ok(log.exit === 0 && log.signal === null && log.closeObserved === true
       && log.errorCode === null && log.runErrorCode === null && log.cleanup?.attempted === true
@@ -138,6 +139,7 @@ async function executeHostedCI() {
     writeEvidence("environment.json", { evidenceClass: "HOSTED_CONTAINER_CI", physicalAcceptanceVerified: false,
       baseRevision, githubRunId: process.env.GITHUB_RUN_ID, node: process.version,
       registryImage, dockerClient: version.Client.Version, dockerServer: version.Server.Version,
+      buildProfile: { id: "next-webpack-v1", command: "pnpm", args: ["build", "--webpack"] },
       limits: { timeoutMs: 180_000, memoryBytes: 2147483648, pids: 128, tmpfsMiB: 1536, network: "none", uid: 65534 } });
     const context = join(root, "image-context"); mkdirSync(context, { mode: 0o700 });
     for (const file of ["package.json", "pnpm-lock.yaml"]) copyFileSync(join(repo, file), join(context, file));
@@ -163,7 +165,7 @@ async function executeHostedCI() {
     docker(["pull", image], 180_000);
     assert.equal(docker(["image", "inspect", image, "--format", "{{.Id}}"]),
       docker(["image", "inspect", tag, "--format", "{{.Id}}"]), "LIVE_IMAGE_ID_MISMATCH");
-    writeEvidence("image.json", { image, buildContextHashes: Object.fromEntries(readdirSync(context).sort()
+    writeEvidence("image.json", { image, buildProfile: "next-webpack-v1", buildContextHashes: Object.fromEntries(readdirSync(context).sort()
       .map(name => [name, hash(readFileSync(join(context, name)))])) });
     git("worktree", "add", "--detach", candidate, baseRevision);
     git("worktree", "add", "--detach", runner, baseRevision);

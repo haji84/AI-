@@ -1097,7 +1097,7 @@
     },
     {
       "path": "scripts/jarvis-independent-check-runner.mjs",
-      "sha256": "55cedc291a6493d29f6f9080390baeff33b90c86c086b699e4606b7132631fbb",
+      "sha256": "8d09f7bc119216380941f5aeb4f1042cb826fffa70ba125de7a7888972af4918",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -1105,7 +1105,7 @@
         "AUTO-004",
         "GOV-025"
       ],
-      "reason": "#1219 explicit locally provisioned isolated verifier runner with immutable container image requirement, no-network Docker check execution from a separate verifier workspace, exact Change Set digest recheck and separately held Ed25519 signing. OS/container trust and physical deployment still unverified. #1219 additionally excludes both the candidate and verifier workspaces from trusted Docker executable resolution; source tests do not establish physical isolation. #1219 makes existing noexec explicit and tightens temporary storage to UID/GID65534 mode0700; execution/network/resource restrictions remain in force."
+      "reason": "#1219 explicit locally provisioned isolated verifier runner with immutable container image requirement, no-network Docker check execution from a separate verifier workspace, exact Change Set digest recheck and separately held Ed25519 signing. OS/container trust and physical deployment still unverified. #1219 additionally excludes both the candidate and verifier workspaces from trusted Docker executable resolution; source tests do not establish physical isolation. #1219 makes existing noexec explicit and tightens temporary storage to UID/GID65534 mode0700; execution/network/resource restrictions remain in force. #1219 records an explicit supported Next production Webpack build profile and actual fixed arguments; Turbopack compatibility is not inferred."
     },
     {
       "path": "scripts/jarvis-local-ollama-tdd-verifier.mjs",
@@ -1436,7 +1436,7 @@
     },
     {
       "path": "scripts/jarvis-verifier-live-ci.mjs",
-      "sha256": "3a06494f85b4602a8faf6d755ba1ac941c0059d9c18753aa0ff068f46391e567",
+      "sha256": "a03467593a33f573adeec3f54494ecc21ec5a38f884e9ca88437f1ab34385b86",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "CORE-010",

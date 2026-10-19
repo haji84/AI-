@@ -191,6 +191,15 @@ test("writable temporary storage is private to the unprivileged verifier and rem
   assert.equal(options.includes("exec"), false);
 });
 
+test("build receipt log records the fixed supported production Webpack profile", async t => {
+  const f = fixture(t);
+  f.docker();
+  assert.equal((await runIndependentVerifier({ ...f.req, requiredChecks: ["build"] })).verified, true);
+  const log = JSON.parse(fs.readFileSync(join(f.req.receiptFile + ".logs", "build.json"), "utf8"));
+  assert.deepEqual(log.args, ["build", "--webpack"]);
+  assert.equal(log.executionProfile, "next-webpack-v1");
+});
+
 test("offline bundle refusal is retained as a failed signed check with no later checks", async t => {
   const f = fixture(t);
   f.docker(args => {

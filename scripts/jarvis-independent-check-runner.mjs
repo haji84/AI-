@@ -28,7 +28,10 @@ export function verifierCommand(name) {
     case "unit": return ["pnpm",["test"]];
     case "integration": return ["pnpm",["test"]]; // full suite includes cross-module tests; no partial subset is misrepresented
     case "security": return ["pnpm",["test:p8-security"]];
-    case "build": return ["pnpm",["build"]];
+    // Explicit supported Next production bundler: the immutable image-owned
+    // dependency link lies outside Turbopack's inferred project root. Never
+    // widen that root, rewrite source config or silently fall back on failure.
+    case "build": return ["pnpm",["build","--webpack"]];
     default: throw Error("VERIFIER_CHECK_UNSUPPORTED");
   }
 }
@@ -206,7 +209,8 @@ export async function runIndependentVerifier(req) {
     const status=output.error||output.status===null?"inconclusive":output.status===0?"passed":"failed";
     const log=JSON.stringify({
       sourceRevision:before.candidateRevision,fileHashes:before.fileHashes,
-      command, args, containerImage:image, exit:output.status, signal:output.signal,
+      command, args, executionProfile:name==="build"?"next-webpack-v1":null,
+      containerImage:image, exit:output.status, signal:output.signal,
       stdout:output.stdout??"", stderr:output.stderr??"",
       errorCode:output.error?.code??null,
       runErrorCode:output.runErrorCode??null,closeObserved:output.closeObserved,cleanup:output.cleanup,

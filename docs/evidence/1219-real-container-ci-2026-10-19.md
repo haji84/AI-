@@ -15,7 +15,7 @@ establishes an actual repository digest, which is pulled and checked against the
 built image ID before executing the six checks. Nothing is published to an
 external image registry.
 
-The six production commands and restrictions remain unchanged: lint, typecheck,
+The six required checks remain lint, typecheck,
 full unit suite, full integration suite, security suite and build;
 180seconds/check,2GiB,128PIDs,2CPUs,1.5GiBtmpfs, UID65534, no network, read-only
 root/source/dependencies, dropped capabilities and no-new-privileges. A generated
@@ -105,6 +105,43 @@ ownership to65534:65534 mode0700. A new real probe requires native execution fro
 tmpfs to fail with EACCES and verifies execution through a link to image-owned
 Node. No security gate, assertion, resource limit or test is weakened/removed.
 The corrected actual hosted outcome is still required before claiming success.
+
+## Second actual hosted run and explicit build profile
+
+Source `79e07df368d4db6644b2e0475d52fdd1b550fcf9`,
+[CI39245845801](https://github.com/haji84/AI-/actions/runs/39245845801), passed the
+first five actual container checks. Unit and integration each passed2712 cases
+with5 skipped, in174.6/174.8seconds. Both signed logs record UID/GID65534,
+mode0700, actual noexec/nosuid/nodev, rejected X_OK/native execution and successful
+execution of an image-owned Node symlink. The fixed180second deadline was not
+increased; these durations leave limited margin and future timeouts remain
+inconclusive failures.
+
+The last build check failed with normal exit1 because Turbopack rejected the
+image-owned `node_modules` link outside its inferred project filesystem root.
+All six log hashes, receipt signature, exact candidate reconstruction and image
+build inputs were independently verified. All six container cleanups and outer
+fixture cleanup were confirmed. The [five-check record](1219-hosted-container-five-checks-2026-10-19.json)
+retains public evidence; [artifact12183743692](https://github.com/haji84/AI-/actions/runs/39245845801/artifacts/12183743692)
+ZIP SHA256 is `b8fad16305de742e6221984c122af31a5eb8e7d93f5be8ad50184195f32b69ed`.
+This run remains FAILED, not a six-check PASS.
+
+The bounded third strategy selects the public Next production Webpack build
+profile already used by the repository's native Mac build. The actual
+code-owned build command is now `pnpm build --webpack`, with
+`executionProfile:next-webpack-v1` in the signed log and explicit CI metadata.
+The audit rejects missing/conflicting profile or arguments. Other five commands,
+all checks, immutable dependencies, source bytes, noexec and resource limits
+remain unchanged. There is no source-config rewrite, expanded Turbopack root,
+image-wrapper command substitution, private/test environment switch or automatic
+bundler fallback. Next documents the [production CLI option](https://nextjs.org/docs/app/api-reference/cli/next)
+and the [linked-dependency root limitation](https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack).
+A successful third run would prove this explicit Webpack profile; it would not
+prove Turbopack compatibility. New profile/audit cases were observed failing
+before implementation, then passed13 focused cases plus a retained-log case;
+broader audit/manual/offline28cases, TypeScript, ESLint and canonical audit pass.
+The third actual CI result remains to be observed. Do not report anticipated
+success or silently increase the retry budget if it fails.
 
 Even a successful hosted-container run proves only that CI execution and its
 receipt plumbing. It does **not** prove AI09 authentication, provisioned physical

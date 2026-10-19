@@ -1,15 +1,16 @@
 # #1219 offline verifier image contract
 
-This is a source contract and operator handoff, not evidence of a built image,
-container execution, independent signer isolation or physical end-to-end PASS.
-Those acceptance holds remain open.
+This is a source contract and operator handoff, not physical AI09 provisioning or
+end-to-end PASS. Disposable hosted-container execution evidence is recorded in
+`1219-real-container-ci-2026-10-19.md`; physical acceptance holds remain open.
 
 ## Image-owned layout
 
 The independent runner requires an already available digest-pinned Linux image
 (`name@sha256:<digest>`). Each check runs with no network, no image pull, a
 read-only image filesystem, an unprivileged UID, a read-only source mount and a
-fresh writable `/tmp`. The image must provide this layout:
+fresh private `/tmp` owned by65534:65534 with mode0700, noexec/nosuid/nodev and a
+1536MiB bound. The image must provide this layout:
 
 ```text
 /opt/goriq-verifier/
@@ -23,7 +24,7 @@ fresh writable `/tmp`. The image must provide this layout:
 ```
 
 The image also needs the approved toolchain on its image-controlled `PATH`:
-Node 24.19.0, pnpm 11.19.0, Git and Python 3. Native dependencies must match the
+Node24.19.0, pnpm11.19.0, Git, Python3, Bash and PowerShell7. Native dependencies must match the
 image's platform and architecture. Merely caching pnpm package archives is
 insufficient: the installed module tree and shims must already work without an
 install step. The toolchain must be executable and the bundle readable by
@@ -37,8 +38,8 @@ image digest in owner-controlled verifier configuration. The helper must be
 copied from the reviewed tooling revision; the runner never executes
 `/source/scripts/jarvis-verifier-offline-workspace.mjs`. Image assembly and
 dependency preparation are separate provisioning actions; neither is performed
-by the runner or this change. No image has been built or installed for this
-source verification.
+by the runner. Disposable hosted CI has built real images; none has been
+installed or provisioned on ZBook/AI09 by this work.
 
 ## Per-check behavior
 
@@ -65,6 +66,15 @@ command is used for preparation. A mismatch stops the shell chain before the
 check and remains a failed check with a retained, signed log digest. It never
 becomes a successful no-op. The six fixed checks remain lint, typecheck, unit,
 integration (the full suite), security and build.
+
+The build check has an explicit `next-webpack-v1` profile: its code-owned command
+is `pnpm build --webpack`, and those exact arguments plus the profile identifier
+are retained in the signed check log. This invokes the supported Next production
+build without changing candidate configuration, widening Turbopack's filesystem
+root or introducing an automatic bundler fallback. Immutable dependencies remain
+image-owned outside the writable workspace. The prior default Turbopack build
+rejected that link layout; a Webpack result does not establish Turbopack
+compatibility. No caller-supplied command/profile is accepted.
 
 ## Verification boundary
 

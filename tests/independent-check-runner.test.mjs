@@ -21,7 +21,7 @@ test("independent runner fixes executable to policy-owned check table",()=>{
   assert.deepEqual(verifierCommand("unit"),["pnpm",["test"]]);
   assert.deepEqual(verifierCommand("security"),["pnpm",["test:p8-security"]]);
   assert.deepEqual(verifierCommand("integration"),["pnpm",["test"]]);
-  assert.deepEqual(verifierCommand("build"),["pnpm",["build"]]);
+  assert.deepEqual(verifierCommand("build"),["pnpm",["build","--webpack"]]);
   assert.throws(()=>verifierCommand("postinstall"),/UNSUPPORTED/);
   assert.throws(()=>verifierCommand("rm -rf ."),/UNSUPPORTED/);
 });
