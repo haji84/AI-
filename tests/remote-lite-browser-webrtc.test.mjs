@@ -155,3 +155,14 @@ test('invalid ICE configuration, signaling order, and a second attempt fail safe
   await assert.rejects(()=>f.viewer.receiveSignal({type:'answer',sdp:'v=0\r\n'}),/UNEXPECTED_ANSWER/);
   f.host.close();f.viewer.close();
 });
+
+test('connection loss immediately terminates screen capture and manual session',async()=>{
+  const f=fixture();
+  await f.connect();
+  f.peerHost.connectionState='disconnected';
+  f.peerHost.onconnectionstatechange();
+  assert.equal(f.host.closed,true);
+  assert.equal(f.getStopped(),1);
+  assert.equal(f.commands.length,0);
+  f.viewer.close();
+});
