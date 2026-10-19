@@ -1,4 +1,5 @@
 import { createHash, createPublicKey, randomBytes, randomUUID, verify } from 'node:crypto';
+import { Buffer } from 'node:buffer';
 
 const validId = (value) => typeof value === 'string' && value.length >= 1 && value.length <= 128 && /^[a-zA-Z0-9._:-]+$/.test(value);
 const hexHash = (value) => createHash('sha256').update(value).digest('hex');
