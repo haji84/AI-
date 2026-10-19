@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash, generateKeyPairSync, sign } from 'node:crypto';
 import { Buffer } from 'node:buffer';
+import { request as nodeRequest } from 'node:http';
 import { ManualRemoteCoordinator } from '../src/remote-lite/manual-coordinator.mjs';
 import { RemoteLitePairingRegistry } from '../src/remote-lite/device-pairing.mjs';
 import { createLoopbackSignaling } from '../src/remote-lite/loopback-signaling.mjs';
@@ -120,7 +121,20 @@ test('real local HTTP: unauthorized users cannot enumerate or control other owne
 
 test('real local HTTP: rejects malicious Host, browser Origin and unexpected cookies', async t => {
   const h = await rig();t.after(() => h.local.stop());
-  assert.equal((await h.post('/v1/invite',{},'fixture-alice',{headers:{Host:'attacker.example'}})).status,403);
+  // Undici fetch rewrites the forbidden Host header; use an actual HTTP client
+  // so that the on-wire Host header is genuinely hostile.
+  const hostileHostStatus = await new Promise((resolve, reject) => {
+    const req = nodeRequest({
+      host: h.info.hostname, port: h.info.port, path: '/v1/invite', method: 'POST',
+      headers: { Host: 'attacker.example', 'Content-Type': 'application/json', Authorization: 'Bearer fixture-alice' },
+    }, res => {
+      res.resume();
+      res.on('end', () => resolve(res.statusCode));
+    });
+    req.on('error', reject);
+    req.end('{}');
+  });
+  assert.equal(hostileHostStatus, 403);
   assert.equal((await h.post('/v1/invite',{},'fixture-alice',{headers:{Origin:'https://attacker.example'}})).status,403);
   assert.equal((await h.post('/v1/invite',{},'fixture-alice',{headers:{Cookie:'session=forged'}})).status,403);
   assert.equal((await h.post('/v1/invite',{},'fixture-alice',{method:'GET',body:null})).status,404);
