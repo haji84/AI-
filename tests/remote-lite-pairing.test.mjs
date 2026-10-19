@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { generateKeyPairSync, sign } from 'node:crypto';
+import { Buffer } from 'node:buffer';
 import { RemoteLitePairingRegistry } from '../src/remote-lite/device-pairing.mjs';
 
 const pair = () => generateKeyPairSync('ed25519');
