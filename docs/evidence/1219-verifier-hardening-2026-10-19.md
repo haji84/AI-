@@ -21,6 +21,24 @@ Targeted tests exercise actual temporary Git worktrees, persisted JSON stores, r
 
 Initial native baseline: 12/13 selected tests passed; `goal-verifier-receipt-wake.test.ts` failed at Windows file-symlink creation with `EPERM`. That existing test was not disabled or weakened. Its real symlink coverage requires a capable CI environment. The new Unix umask test is platform-specific and is skipped on Windows; it is configured to run on Linux, with the CI result recorded separately.
 
+## Bounded real Ollama execution on ZBook
+
+At source commit `9c0427498366b7967e0a6d471d529209d246855a`, the standalone native Builder/Python smoke completed from `2026-10-19T02:07:31.216Z` to `2026-10-19T02:07:50.396Z`. A new scratch repository at fixture base `835006ff847a37bdb1a6d814eb97b5231affe563` and its separate detached candidate were used. This fixture base is not GORIQ main, and `1219-native-smoke` is a fixture identifier, not a Broker-accepted Goal.
+
+The installed `qwen2.5-coder:3b` received one real `POST http://127.0.0.1:11434/api/generate` (HTTP 200, `02:07:37.375Z`–`02:07:47.025Z`). Actual Python observed RED exit 1, then GREEN exit 0 for `add_positive` and `add_zero`. Inference was not mocked; routing allowed only the existing local Ollama endpoints and used the explicitly selected existing bundled Python. This proves the bounded Builder/Python path only, not authenticated intake, six-check independent verification, an independent OS signer, Broker restart or next-Job physical continuation.
+
+Preserved artifacts: `C:\Users\qq113\.codex\worktrees\goriq-1219-verifier\checks\native-ollama-20261019\` (candidate, scratch repository and `evidence.json`). Driver: adjacent `checks\run-native-ollama.mjs`.
+
+The parent invocation explicitly set `GORIQ_LOCAL_TDD_PYTHON=C:\Users\qq113\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe`. That interpreter selection is recorded in the execution transcript, not embedded in `evidence.json`; the raw evidence must not be treated as self-contained interpreter provenance.
+
+| Evidence | SHA-256 |
+| --- | --- |
+| Exact `evidence.json` bytes | `cbd5311e0a487df430978a41f27087d56f336ad5964e805bcaa3ef75a6ba4bb7` |
+| GREEN primary artifact | `ba1a531f581d2e6094e978ed6f7aca7a8d92eeb62c6e7ad73ee692f7f18bc772` |
+| GREEN complete candidate identity | `0d96920a2e79d42223e38f6a57ef25c2e4743265605b85515ee13e9052c2068c` |
+
+Public handoff: [Issue #1219 native smoke and initial CI failure](https://github.com/haji84/AI-/issues/1219#issuecomment-6258180807). The first full CI at this source commit had 2598 passing tests, 8 failures caused by unreconciled source traceability, and 5 skips. Reconciliation must preserve requirement statuses; subsequent exact-head CI is recorded separately on the Issue.
+
 ## Read-only physical observations
 
 On ZBook/HAJI, the local executor observed listener PIDs 10068/33948/25144 on 8787/8796/8797 and PID12920 on 11434; subsequent inventory retained those same PIDs. Ollama `/api/tags` reported `qwen2.5-coder:3b` installed. The preflight found no Docker CLI on this execution PATH, no configured/available pinned verifier image, no matched verifier public-key fingerprint and no attested independent principal. This does not prove that no container runtime exists elsewhere or inside the VM.

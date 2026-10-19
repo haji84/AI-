@@ -1085,7 +1085,7 @@
     },
     {
       "path": "scripts/jarvis-independent-artifact-attestation.mjs",
-      "sha256": "f4db218fb826aad4e7a2c91d09637783565df52e50a2e048d1c28faab37b23a9",
+      "sha256": "b1df4d1e8bfb30a1ed9753cfa86b208eb6b6b50b3b076c91bfffc658df87ed9f",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -1097,7 +1097,7 @@
     },
     {
       "path": "scripts/jarvis-independent-check-runner.mjs",
-      "sha256": "1cd1ae39e4efd3132cdc90976ef49f12984ac0baac9819a2193c40f92c85a896",
+      "sha256": "a1810e03d928bce7c8963645c63b8a32e694f2391f1adce1658d42e78b5d3cbd",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -1109,7 +1109,7 @@
     },
     {
       "path": "scripts/jarvis-local-ollama-tdd-verifier.mjs",
-      "sha256": "b62ce0490d460eed1c2e3f9b7caaa9550475971019e06ada332a9ffec000e134",
+      "sha256": "eee7c92b2bc994083fcc1e1445bdae7900cb48e19c4a6e659d361df080394351",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -1422,6 +1422,28 @@
       ],
       "reason": "Bounded authenticated canonical Draft publication and retry/proxy contract; mapping is ownership, not completion or deployment evidence.",
       "sha256": "5157a4c8cbf4a9e4d58ac34a75dcb50a66ebfdec5fb644ad93e8af64e917b958"
+    },
+    {
+      "path": "scripts/jarvis-verifier-container.mjs",
+      "sha256": "76255cf6e382d3a262255c2aea8b98f24e678e80f777a503eeabb8b026593dff",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "CORE-010",
+        "AUTO-016",
+        "GOV-004"
+      ],
+      "reason": "#1219 independent-verifier container lifecycle helper bounds CLI deadlines and output, uses an absolute runtime outside the workspace, and requires exact named-container cleanup confirmation. Supports code-execution containment; real container isolation and separate-principal acceptance remain unverified."
+    },
+    {
+      "path": "scripts/jarvis-verifier-safe-git.mjs",
+      "sha256": "5fd766222076ce5ae74c925c7dc6fb0563ff18458b936e2b63ab436010661559",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "CORE-010",
+        "AUTO-016",
+        "GOV-004"
+      ],
+      "reason": "#1219 bounded Git observations for independent verification disable callbacks, reject execution configuration and submodules, isolate inherited Git settings, and preserve literal tracked paths. This supports host code-execution containment under owner-controlled Git metadata; it is not a sandbox or physical acceptance evidence."
     },
     {
       "path": "scripts/jarvis-windows-install-paths.mjs",
@@ -5624,6 +5646,17 @@
       "reason": "Declared local-artifact-verifier.ts responsibility implements/supports Fact Verification Engine; Numerical Verification. Parent ownership is not functional or physical acceptance evidence."
     },
     {
+      "path": "src/orchestrator/local-candidate-identity.ts",
+      "sha256": "2bb07102a715bcf26cd8a107d0ad91d2df8e1ce9805886bf93d36ce6140a236a",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "CORE-014",
+        "CORE-010",
+        "GOV-008"
+      ],
+      "reason": "#1219 shared deterministic candidate identity binds the base revision and every declared file hash across the local Builder and independent verifier, including supporting tests. Supports artifact provenance; hashing alone is not verification, release authorization or whole-Goal acceptance."
+    },
+    {
       "path": "src/orchestrator/local-development-builder.ts",
       "sha256": "93b98833cdc34a3f386ad19119506033172312cda93b2db4a838cbb9a21e2b83",
       "classification": "COVERED_BY_REQUIREMENT",
@@ -5670,7 +5703,7 @@
     },
     {
       "path": "src/orchestrator/local-ollama-tdd.ts",
-      "sha256": "6d68d4286c9b8475ec8c192bed83a0fc8df6b3553a1f247c866e8b53d6a9b7e5",
+      "sha256": "e1cfeef10315f8f72ab69996a1b9ca7dcbdc363c58fdfe154cfbbe0413cb4905",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -5962,7 +5995,7 @@
     },
     {
       "path": "src/orchestrator/resident-development-goal-host.ts",
-      "sha256": "420499c219acf23b0cb1cc115f194c7611de3040d0f857ad75c49633dba37393",
+      "sha256": "063b2b320148f9def5a0285507c4ff6bb12344c77504e3b08f4a3c5001f7a9be",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -6040,7 +6073,7 @@
     },
     {
       "path": "src/orchestrator/runtime-local-ollama-builder.ts",
-      "sha256": "0f93bcd25ed03d24fc04e6838469f1b459d6596d6a03e6dda6be60e3edacd318",
+      "sha256": "7a19ec69c70d17e84445f72c94f542a09452399064ef08d1635ac98b0795e4cf",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-008",
