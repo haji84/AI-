@@ -11,7 +11,7 @@ A conversation-download ZIP named `GORIQ_Remote_Lite_Windows_Local_Preview.zip` 
 - `apps/remote-lite-windows/cmd/localhost/index.html`
 - a Windows/amd64 executable and Japanese README
 
-Final bundled executable SHA256: `32d74223862fd4fae0bd3ea22c1cef2f11e4c78351579bce06a07288e6492746`.
+Final bundled executable SHA256: `6ccb62b6fc196e1a0a1ae7fceb78429927494fc1be6ce41ff9c93222fc3ae1d3`.
 **These Go/HTML source files are attached to the chat ZIP, not yet imported into this GitHub PR.** A GitHub issue comment records the development output, but the ZIP is not a durable GitHub release.
 
 ## Behavior (code-level)
@@ -36,3 +36,7 @@ This local test **does not** provide Internet access from iPhone, Android captur
 Before integrating this prototype as a real feature: import Go/HTML sources into an isolated reviewed branch, review Windows secure-desktop and owner-consent behavior, authenticate the WebRTC peer independently of signals, connect a time-limited manual-only channel to the native Win32 bridge, test in a physical Windows user session, and validate signed Windows distribution. Preserve GORIQ parent services and identities.
 
 Rollback: discard this documentation/prototype; no existing runtime or configuration is mutated.
+
+## Windows input ABI correction
+
+A source review of the Windows `SendInput` P/Invoke found that the first preview mistakenly allocated an `INPUT` struct with 48 bytes. The Windows/amd64 `INPUT` structure requires 40 bytes (8-byte header plus a 32-byte union). The ZIP was rebuilt with a 32-byte union, and a 40-byte runtime guard plus Windows-only layout test were added. A matching layout independently measures 40/32/24 bytes for INPUT/MOUSEINPUT/KEYBDINPUT on amd64. **This is a corrected build, not a Windows physical execution pass.** Use only the latest ZIP and SHA above; earlier preview SHA values are superseded.
