@@ -1,1 +1,6 @@
 scripts/ai09-baseline-command-gate.sh text eol=lf
+scripts/ai09-access-host.ps1 text eol=lf
+scripts/ai09-first-access-host.ps1 text eol=lf
+scripts/ai09-first-access-native.ps1 text eol=lf
+scripts/ai09-first-access-client.ps1 text eol=lf
+scripts/ai09-first-access-inspect.py text eol=lf
