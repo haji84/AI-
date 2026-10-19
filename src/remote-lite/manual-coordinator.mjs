@@ -109,8 +109,9 @@ export class ManualRemoteCoordinator {
     this.#owner(ownerId, authorization, 'revoke-device');
     const result = this.#pairing.revoke({ ownerId, authorization, deviceId });
     this.#deviceOwners.delete(deviceId);
-    // Session authorization fails closed immediately. A future transport must
-    // also terminate active media and clear resource allocations on revocation.
+    // Invalidate the local session before another controller can reconnect.
+    // A future transport must also terminate active WebRTC tracks and channels.
+    this.#sessions.invalidateDevice({ deviceId });
     return result;
   }
 
