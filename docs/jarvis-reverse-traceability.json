@@ -1435,6 +1435,17 @@
       "reason": "#1219 independent-verifier container lifecycle helper bounds CLI deadlines and output, uses an absolute runtime outside the workspace, and requires exact named-container cleanup confirmation. Supports code-execution containment; real container isolation and separate-principal acceptance remain unverified. #1219 validates the Docker executable against all host-supplied candidate and verifier-workspace roots before any CLI call; no physical containment claim."
     },
     {
+      "path": "scripts/jarvis-verifier-live-ci.mjs",
+      "sha256": "0f6b1b98294d7e1aea5ea9f16c9004cd69f3aa7300e1a3144b0de61f36433102",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "CORE-010",
+        "AUTO-016",
+        "GOV-004"
+      ],
+      "reason": "#1219 explicit disposable hosted-container CI assembles exact offline dependencies, executes all six production checks, audits signed log/image/source/cleanup bindings and retains public evidence only. This is CI infrastructure, not AI09 physical principal, native Ollama or Windows reboot acceptance."
+    },
+    {
       "path": "scripts/jarvis-verifier-safe-git.mjs",
       "sha256": "5fd766222076ce5ae74c925c7dc6fb0563ff18458b936e2b63ab436010661559",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
