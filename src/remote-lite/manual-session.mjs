@@ -149,6 +149,18 @@ export class ManualRemoteSessionStore {
     return { sessionId: s.id, status: 'closed' };
   }
 
+  /** Internal coordinator hook after an independently authenticated owner revokes
+   * a paired device. Future network adapters must also stop active media streams.
+   * Never expose this maintenance operation to untrusted HTTP callers. */
+  invalidateDevice({ deviceId } = {}) {
+    if (!isId(deviceId)) return fail('DEVICE_NOT_AUTHORIZED');
+    const id = this.#deviceToSession.get(deviceId);
+    if (!id) return { deviceId, invalidated: false };
+    this.#deviceToSession.delete(deviceId);
+    this.#sessions.delete(id);
+    return { deviceId, invalidated: true };
+  }
+
   /** Safe for status displays. Tokens, text, SDP, ICE and typed input are never returned. */
   status({ sessionId, viewerId, viewerToken } = {}) {
     const s = this.#session(sessionId);
