@@ -14,13 +14,13 @@ function Get-Ai09ConsoleNativeSnapshot {
 function Grant-Ai09ConsoleNative {
   $script:Grants++
   Assert-True ((Get-Item -LiteralPath $script:Journal).Length -gt 0) 'intent saved before grant'
-  if(-not $script:NoEffect){$script:State.aces=@($script:State.aces)+@([pscustomobject]@{UserName='HAJI\qq113';UserId='S-1-5-21-3241814747-1938433149-1705921193-1004';VMName='GORIQ-AI09-Ubuntu';VMId='453b139b-cceb-446e-99fb-f45bf5895436';ComputerName='HAJI';Access='Allowed'})}
+  if(-not $script:NoEffect){$script:State.aces=@($script:State.aces)+@([pscustomobject]@{UserName=$script:NativeTargetName;UserId='S-1-5-21-3241814747-1938433149-1705921193-1004';VMName='GORIQ-AI09-Ubuntu';VMId='453b139b-cceb-446e-99fb-f45bf5895436';ComputerName='HAJI';Access='Allowed'})}
   if($script:ExtraChange){$script:State.aces[0].Access='Denied'}
   if($script:ThrowAfterGrant){throw 'FIXTURE_GRANT_UNCONFIRMED'}
 }
 function Revoke-Ai09ConsoleNative {$script:Revokes++;$script:State.aces=@($script:State.aces|Where-Object {$_.UserId -ne 'S-1-5-21-3241814747-1938433149-1705921193-1004'})}
 function Reset-Fixture {
-  $script:Grants=0;$script:Revokes=0;$script:Reads=0;$script:DriftOnRead=0;$script:NoEffect=$false;$script:ExtraChange=$false;$script:ThrowAfterGrant=$false;$script:Clock=[datetimeoffset]::UtcNow
+  $script:Grants=0;$script:Revokes=0;$script:Reads=0;$script:DriftOnRead=0;$script:NoEffect=$false;$script:ExtraChange=$false;$script:ThrowAfterGrant=$false;$script:NativeTargetName='HAJI\qq113';$script:Clock=[datetimeoffset]::UtcNow
   $script:State=[ordered]@{hostName='HAJI';vmId='453b139b-cceb-446e-99fb-f45bf5895436';vmName='GORIQ-AI09-Ubuntu';vmState='Running';nicId='fixed-nic';nicMac='00155DDC2C00';userName='HAJI\qq113';userSid='S-1-5-21-3241814747-1938433149-1705921193-1004';aces=@([pscustomobject]@{UserName='HAJI\unrelated';UserId='S-1-5-21-3241814747-1938433149-1705921193-1005';VMName='GORIQ-AI09-Ubuntu';VMId='453b139b-cceb-446e-99fb-f45bf5895436';ComputerName='HAJI';Access='Allowed'})}
   $script:Journal=Join-Path $root ([guid]::NewGuid().ToString('N')+'.journal')
 }
@@ -43,6 +43,15 @@ try {
   $rollback=Plan-Arguments 'Revoke';$rolled=Invoke-Ai09ConsoleAccess @rollback
   Assert-Equal $rolled.status 'ROLLED_BACK' 'exact own grant rollback';Assert-Equal $script:Revokes 1 'one revoke';Assert-Equal $script:State.aces.Count 1 'unrelated ACE retained'
   Assert-Equal (Invoke-Ai09ConsoleAccess).baselineSha256 $read.baselineSha256 'original policy restored'
+  Reset-Fixture;$script:NativeTargetName='haji\qq113';$read=Invoke-Ai09ConsoleAccess;$args=Plan-Arguments
+  Assert-Equal (Invoke-Ai09ConsoleAccess @args).status 'APPLIED' 'native target account casing preserves Windows identity'
+  Assert-Equal (Invoke-Ai09ConsoleAccess).baseline.aces[0].UserName 'HAJI\qq113' 'only fixed target name is canonicalized'
+  $rollback=Plan-Arguments 'Revoke'
+  Assert-Equal (Invoke-Ai09ConsoleAccess @rollback).status 'ROLLED_BACK' 'case-varied native own entry can be removed exactly'
+  Assert-Equal (Invoke-Ai09ConsoleAccess).baselineSha256 $read.baselineSha256 'case-varied rollback preserves complete before policy'
+  Reset-Fixture;$script:NativeTargetName='HAJI\someone-else';$args=Plan-Arguments
+  Assert-Equal (Invoke-Ai09ConsoleAccess @args).status 'UNCERTAIN' 'same SID with conflicting account name is never accepted'
+  Assert-Equal $script:Revokes 0 'identity conflict never triggers blanket recovery'
   Reset-Fixture;$args=Plan-Arguments;$null=Invoke-Ai09ConsoleAccess @args;$script:Journal=Join-Path $root 'no-change-not-created.journal';$args=Plan-Arguments
   Assert-Equal (Invoke-Ai09ConsoleAccess @args).status 'NO_CHANGE' 'existing target Allowed never regranted';Assert-Equal $script:Grants 1 'no repeat grant';Assert-True (-not (Test-Path -LiteralPath $script:Journal)) 'NO_CHANGE creates no own rollback journal'
   $script:State.aces[1].Access='Denied';$args=Plan-Arguments
@@ -65,6 +74,8 @@ try {
   Assert-Equal (Invoke-Ai09ConsoleAccess @rollback).code 'JOURNAL_PIN_MISMATCH' 'independent journal pin';Assert-Equal $script:Revokes 0 'wrong journal no revoke'
   Reset-Fixture;$args=Plan-Arguments;$null=Invoke-Ai09ConsoleAccess @args;$script:State.aces[0].Access='Denied';$rollback=Plan-Arguments 'Revoke'
   Assert-Equal (Invoke-Ai09ConsoleAccess @rollback).code 'ROLLBACK_STATE_DRIFT' 'rollback refuses unrelated policy drift';Assert-Equal $script:Revokes 0 'unrelated changes retained'
+  Reset-Fixture;$args=Plan-Arguments;$null=Invoke-Ai09ConsoleAccess @args;$script:State.aces[0].UserName='haji\unrelated';$rollback=Plan-Arguments 'Revoke'
+  Assert-Equal (Invoke-Ai09ConsoleAccess @rollback).code 'ROLLBACK_STATE_DRIFT' 'unrelated account spelling remains strictly pinned';Assert-Equal $script:Revokes 0 'target case fix never relaxes unrelated policy'
   Reset-Fixture;$args=Plan-Arguments;[IO.File]::WriteAllText($script:Journal,'existing evidence')
   Assert-Equal (Invoke-Ai09ConsoleAccess @args).status 'BLOCKED' 'exclusive journal';Assert-Equal ([IO.File]::ReadAllText($script:Journal)) 'existing evidence' 'no journal overwrite';Assert-Equal $script:Grants 0 'existing journal no grant'
   Write-Output "AI09_CONSOLE_FIXTURES_PASS assertions=$script:Assertions; no real Hyper-V mutation or guest authentication"

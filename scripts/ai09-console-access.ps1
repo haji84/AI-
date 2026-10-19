@@ -69,7 +69,10 @@ function ConvertTo-Ai09ConsoleState($Raw){
     foreach($field in @('UserName','UserId','VMName','VMId','ComputerName','Access')){if($null -eq $ace.PSObject.Properties[$field] -or ([string]$ace.$field).Length -gt 512){throw 'ACE_PROJECTION_UNAVAILABLE'}}
     if([string]$ace.VMId -ine $Raw.vmId -or [string]$ace.VMName -cne $Raw.vmName -or [string]$ace.ComputerName -ine 'HAJI' -or [string]$ace.Access -cnotin @('Allowed','Denied') -or [string]$ace.UserId -cnotmatch '^S-1-\d+(-\d+){1,15}$' -or [string]::IsNullOrWhiteSpace([string]$ace.UserName)){throw 'ACE_PROJECTION_UNAVAILABLE'}
     if(([string]$ace.UserId -eq $Raw.userSid) -ne ([string]$ace.UserName -ieq $Raw.userName)){throw 'TARGET_IDENTITY_CONFLICT'}
-    $row=[ordered]@{UserName=[string]$ace.UserName;UserId=[string]$ace.UserId;VMName=[string]$ace.VMName;VMId=([string]$ace.VMId).ToLowerInvariant();ComputerName=([string]$ace.ComputerName).ToUpperInvariant();Access=[string]$ace.Access}
+    # Windows account names are case-insensitive. Only this already SID/name-
+    # validated target has a fixed spelling; unrelated policy remains exact.
+    $accountName=if([string]$ace.UserId -ceq $Raw.userSid){$Raw.userName}else{[string]$ace.UserName}
+    $row=[ordered]@{UserName=$accountName;UserId=[string]$ace.UserId;VMName=[string]$ace.VMName;VMId=([string]$ace.VMId).ToLowerInvariant();ComputerName=([string]$ace.ComputerName).ToUpperInvariant();Access=[string]$ace.Access}
     $json=Get-Ai09ConsoleJson $row;if($json -in $seen){throw 'ACE_AMBIGUOUS'};$seen+=@($json);$rows+=@($json)
   }
   [string[]]$ordered=$rows;[Array]::Sort($ordered,[StringComparer]::Ordinal)
