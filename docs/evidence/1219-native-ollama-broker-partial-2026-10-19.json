@@ -1,0 +1,116 @@
+{
+  "version": 1,
+  "issue": 1219,
+  "outcome": "NATIVE_INFERENCE_AND_BROKER_CONTINUATION_OBSERVED_WITH_FIXTURE_VERIFIER",
+  "harnessSha256": "156e754969f372409c3d61f97b59ed6c529b4d003fd3966cc268744706886732",
+  "capturedAt": "2026-10-19T09:16:08.642Z",
+  "sourceRevision": "ec827e45feee815508e1c9bed85e594a29df7554",
+  "sourcePatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "model": "qwen2.5-coder:3b",
+  "realGenerateAttempts": 2,
+  "observedCalls": [
+    {
+      "endpoint": "http://127.0.0.1:11434/api/tags",
+      "method": "GET",
+      "status": 200,
+      "startedAt": "2026-10-19T09:15:13.013Z",
+      "finishedAt": "2026-10-19T09:15:13.049Z",
+      "requestSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "responseSha256": "cd43fc1e7ce38fd2e32bdd02f32c7fefd14a38b075aa1b6f8e9d199da3f41c58"
+    },
+    {
+      "endpoint": "http://127.0.0.1:11434/api/tags",
+      "method": "GET",
+      "status": 200,
+      "startedAt": "2026-10-19T09:15:13.058Z",
+      "finishedAt": "2026-10-19T09:15:13.104Z",
+      "requestSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "responseSha256": "cd43fc1e7ce38fd2e32bdd02f32c7fefd14a38b075aa1b6f8e9d199da3f41c58"
+    },
+    {
+      "endpoint": "http://127.0.0.1:11434/api/tags",
+      "method": "GET",
+      "status": 200,
+      "startedAt": "2026-10-19T09:15:16.580Z",
+      "finishedAt": "2026-10-19T09:15:16.629Z",
+      "requestSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "responseSha256": "cd43fc1e7ce38fd2e32bdd02f32c7fefd14a38b075aa1b6f8e9d199da3f41c58"
+    },
+    {
+      "endpoint": "http://127.0.0.1:11434/api/tags",
+      "method": "GET",
+      "status": 200,
+      "startedAt": "2026-10-19T09:15:16.642Z",
+      "finishedAt": "2026-10-19T09:15:16.694Z",
+      "requestSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "responseSha256": "cd43fc1e7ce38fd2e32bdd02f32c7fefd14a38b075aa1b6f8e9d199da3f41c58"
+    },
+    {
+      "endpoint": "http://127.0.0.1:11434/api/generate",
+      "method": "POST",
+      "status": 200,
+      "startedAt": "2026-10-19T09:15:20.117Z",
+      "finishedAt": "2026-10-19T09:15:27.531Z",
+      "requestSha256": "9af4cf2399811455d462b9063b6d0e2b878f16e75d4f34b925f40d9b60032892",
+      "responseSha256": "7d891e2bdff67a1f6e88341ba7dd6fecfe670be3d6f30f69b1680f7ce34af3d8"
+    },
+    {
+      "endpoint": "http://127.0.0.1:11434/api/tags",
+      "method": "GET",
+      "status": 200,
+      "startedAt": "2026-10-19T09:15:39.155Z",
+      "finishedAt": "2026-10-19T09:15:39.200Z",
+      "requestSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "responseSha256": "cd43fc1e7ce38fd2e32bdd02f32c7fefd14a38b075aa1b6f8e9d199da3f41c58"
+    },
+    {
+      "endpoint": "http://127.0.0.1:11434/api/tags",
+      "method": "GET",
+      "status": 200,
+      "startedAt": "2026-10-19T09:15:39.211Z",
+      "finishedAt": "2026-10-19T09:15:39.255Z",
+      "requestSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "responseSha256": "cd43fc1e7ce38fd2e32bdd02f32c7fefd14a38b075aa1b6f8e9d199da3f41c58"
+    },
+    {
+      "endpoint": "http://127.0.0.1:11434/api/tags",
+      "method": "GET",
+      "status": 200,
+      "startedAt": "2026-10-19T09:15:42.832Z",
+      "finishedAt": "2026-10-19T09:15:42.875Z",
+      "requestSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "responseSha256": "cd43fc1e7ce38fd2e32bdd02f32c7fefd14a38b075aa1b6f8e9d199da3f41c58"
+    },
+    {
+      "endpoint": "http://127.0.0.1:11434/api/tags",
+      "method": "GET",
+      "status": 200,
+      "startedAt": "2026-10-19T09:15:42.888Z",
+      "finishedAt": "2026-10-19T09:15:42.942Z",
+      "requestSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "responseSha256": "cd43fc1e7ce38fd2e32bdd02f32c7fefd14a38b075aa1b6f8e9d199da3f41c58"
+    },
+    {
+      "endpoint": "http://127.0.0.1:11434/api/generate",
+      "method": "POST",
+      "status": 200,
+      "startedAt": "2026-10-19T09:15:46.238Z",
+      "finishedAt": "2026-10-19T09:15:53.015Z",
+      "requestSha256": "9af4cf2399811455d462b9063b6d0e2b878f16e75d4f34b925f40d9b60032892",
+      "responseSha256": "279c3cc08d9db2fbe02774164d17537cebd281c4cde2755fe0738211a84f9ef4"
+    }
+  ],
+  "brokerPids": [
+    40724,
+    34824
+  ],
+  "childCleanupConfirmed": true,
+  "proxyCleanupConfirmed": true,
+  "authentication": "ephemeral test owner token, isolated loopback Broker",
+  "signer": "same-process fixture signer; six check outcomes simulated",
+  "independentSignerVerified": false,
+  "independentSixChecksExecuted": false,
+  "windowsRebootVerified": false,
+  "physicalGoalE2EComplete": false,
+  "retainedFixtureRoot": "C:\\Users\\qq113\\.codex\\worktrees\\goriq-1219-verifier\\checks\\native-broker-sequence-20261019\\retained-fixture-45fVRV"
+}
