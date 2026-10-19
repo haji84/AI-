@@ -26,7 +26,7 @@ export function parseManualInput(input) {
       return { action: 'swipe', x1: input.x1, y1: input.y1, x2: input.x2, y2: input.y2, durationMs: input.durationMs };
     case 'text':
       if (!hasOnlyKeys(input, ['action', 'text']) || typeof input.text !== 'string' ||
-        input.text.length < 1 || input.text.length > 512 || /[\u0000-\u0008\u000B\u000C\u000E-\u001F]/u.test(input.text)) return reject();
+        input.text.length < 1 || input.text.length > 512 || [...input.text].some(char => { const cp = char.codePointAt(0); return cp < 32 && ![9, 10, 13].includes(cp); })) return reject();
       return { action: 'text', text: input.text };
     case 'key':
       if (!hasOnlyKeys(input, ['action', 'key']) || !['BACK', 'HOME', 'APP_SWITCH', 'ENTER', 'ESCAPE', 'TAB', 'BACKSPACE', 'DELETE', 'ARROW_UP', 'ARROW_DOWN', 'ARROW_LEFT', 'ARROW_RIGHT'].includes(input.key)) return reject();
