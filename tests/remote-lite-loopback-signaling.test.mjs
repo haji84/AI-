@@ -26,7 +26,7 @@ async function rig() {
   const post = async (route, data = {}, token = 'fixture-alice', options = {}) => {
     const headers = { 'Content-Type': 'application/json', ...options.headers };
     if (token) headers.Authorization = 'Bearer ' + token;
-    const response = await fetch(url + route, {
+    const response = await globalThis.fetch(url + route, {
       method: options.method || 'POST', headers,
       body: options.body === undefined ? JSON.stringify(data) : options.body,
       redirect: 'manual',
