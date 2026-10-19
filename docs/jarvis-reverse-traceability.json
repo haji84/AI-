@@ -1097,7 +1097,7 @@
     },
     {
       "path": "scripts/jarvis-independent-check-runner.mjs",
-      "sha256": "19e492bc70b0d4f7d0dcd79ec984d5cf0418606b762c731b57f1dddc5bd5c4ce",
+      "sha256": "526a17f5f8b7cab10fc0e514b8b9bfb61f51682790c65ab5244af4cf68d4632a",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -1105,7 +1105,7 @@
         "AUTO-004",
         "GOV-025"
       ],
-      "reason": "#1219 explicit locally provisioned isolated verifier runner with immutable container image requirement, no-network Docker check execution from a separate verifier workspace, exact Change Set digest recheck and separately held Ed25519 signing. OS/container trust and physical deployment still unverified."
+      "reason": "#1219 explicit locally provisioned isolated verifier runner with immutable container image requirement, no-network Docker check execution from a separate verifier workspace, exact Change Set digest recheck and separately held Ed25519 signing. OS/container trust and physical deployment still unverified. #1219 additionally excludes both the candidate and verifier workspaces from trusted Docker executable resolution; source tests do not establish physical isolation."
     },
     {
       "path": "scripts/jarvis-local-ollama-tdd-verifier.mjs",
@@ -1425,14 +1425,14 @@
     },
     {
       "path": "scripts/jarvis-verifier-container.mjs",
-      "sha256": "76255cf6e382d3a262255c2aea8b98f24e678e80f777a503eeabb8b026593dff",
+      "sha256": "daf334545c94297c040cd1d004d7a18179da4b4b44a4da1f7aec6576794a7890",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "CORE-010",
         "AUTO-016",
         "GOV-004"
       ],
-      "reason": "#1219 independent-verifier container lifecycle helper bounds CLI deadlines and output, uses an absolute runtime outside the workspace, and requires exact named-container cleanup confirmation. Supports code-execution containment; real container isolation and separate-principal acceptance remain unverified."
+      "reason": "#1219 independent-verifier container lifecycle helper bounds CLI deadlines and output, uses an absolute runtime outside the workspace, and requires exact named-container cleanup confirmation. Supports code-execution containment; real container isolation and separate-principal acceptance remain unverified. #1219 validates the Docker executable against all host-supplied candidate and verifier-workspace roots before any CLI call; no physical containment claim."
     },
     {
       "path": "scripts/jarvis-verifier-safe-git.mjs",
@@ -6033,7 +6033,7 @@
     },
     {
       "path": "src/orchestrator/runtime-builder-capability.ts",
-      "sha256": "11ca2c4b04b305c997737b1e69f1c314ae1474a0a7ca19e762adc29324ffb62c",
+      "sha256": "669773ae80a26dc4b97d0d1737c08898c322df0555e2bd963c16dd2428ecb4b2",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -6042,7 +6042,7 @@
         "AUTO-004",
         "OWN-001"
       ],
-      "reason": "Declared runtime-builder-capability.ts responsibility implements/supports Software Development Autopilot. Parent ownership is not functional or physical acceptance evidence. #1219 allows the resident Mac Goal executor to discover its protected local Builder token and loopback endpoint. #1219 adds explicit isolated Ollama-only routing; main/8796/8797 and fallback unchanged when disabled."
+      "reason": "Declared runtime-builder-capability.ts responsibility implements/supports Software Development Autopilot. Parent ownership is not functional or physical acceptance evidence. #1219 allows the resident Mac Goal executor to discover its protected local Builder token and loopback endpoint. #1219 adds explicit isolated Ollama-only routing; main/8796/8797 and fallback unchanged when disabled. #1219 forwards prepared-write recovery only as a direct trusted host option; Goal/model/environment payloads cannot select a journal path."
     },
     {
       "path": "src/orchestrator/runtime-development-planner.ts",
@@ -6073,7 +6073,7 @@
     },
     {
       "path": "src/orchestrator/runtime-local-ollama-builder.ts",
-      "sha256": "7a19ec69c70d17e84445f72c94f542a09452399064ef08d1635ac98b0795e4cf",
+      "sha256": "f9262dbf5dcc382842c4e04cda83c2d8e8ec9d42d5459b91a9554780f68e65d4",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-008",
@@ -6081,7 +6081,7 @@
         "AUTO-010",
         "AUTO-015"
       ],
-      "reason": "#1219 Codex-independent local Ollama Builder: explicit detached-clean-worktree and new-file allowlist, exclusive write, no existing-file overwrite or remote fallback. This is implementation mapping, not independent verifier or complete Goal E2E evidence. #1219 bounded Codex-free TDD RED and local separate-process GREEN proof work; complete independent release verification and physical Goal E2E are not claimed."
+      "reason": "#1219 Codex-independent local Ollama Builder: explicit detached-clean-worktree and new-file allowlist, exclusive write, no existing-file overwrite or remote fallback. This is implementation mapping, not independent verifier or complete Goal E2E evidence. #1219 bounded Codex-free TDD RED and local separate-process GREEN proof work; complete independent release verification and physical Goal E2E are not claimed. #1219 recovers only exact host-bound prepared RED/GREEN writes after complete scoped worktree readback, without new inference or overwriting existing bytes; intent never substitutes for independent verification."
     },
     {
       "path": "src/orchestrator/safe-pr-capability.ts",
@@ -6433,7 +6433,7 @@
     },
     {
       "path": "src/orchestrator/sequenced-resident-runtime.ts",
-      "sha256": "e8efc273509af8cb5d9fcdbaa1743ee6f411979486ca2615ca8dcc9e6b501cf0",
+      "sha256": "06070fabdcc12ff903cba7afe88254efa0ac6b3deca8cae4d10b802b5106f724",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -6441,7 +6441,7 @@
         "AUTO-004",
         "GOV-025"
       ],
-      "reason": "#1219 host-pinned criterion acceptance and bounded successor Job continuation; software contract only, independent physical signer and native E2E remain unverified."
+      "reason": "#1219 host-pinned criterion acceptance and bounded successor Job continuation; software contract only, independent physical signer and native E2E remain unverified. #1219 binds each prepared-write journal to the pinned execution contract, Goal/Job/WorkItem, attempt, phase and candidate path so interrupted ChangeSet persistence can resume through unchanged independent checks and signed acceptance."
     },
     {
       "path": "scripts/jarvis-verifier-offline-workspace.mjs",
@@ -6475,6 +6475,18 @@
         "GOV-025"
       ],
       "reason": "#1219 bounded verifier request transfer and offline preparation; implementation mapping only, no physical completion claim."
+    },
+    {
+      "path": "src/orchestrator/local-prepared-write.ts",
+      "sha256": "5700fbcd4f7918f4c1f7342ebb88ef09623dabb4c0e9dc485ae34ea4231cfa58",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "CORE-014",
+        "AUTO-001",
+        "AUTO-004",
+        "GOV-025"
+      ],
+      "reason": "#1219 immutable create-only, fsynced external prepared-write journal binds the trusted execution contract and exact Goal/Job/WorkItem/attempt/phase/base/workspace/path/model and public fixture bytes. It supports interrupted local execution recovery under the existing host authority; unverified intent grants no criterion acceptance, signer authority or physical reboot completion."
     }
   ],
   "hash_policy": "utf8-crlf-to-lf-v1;binary-raw"
