@@ -24,7 +24,6 @@ export class BrowserManualPeer {
   #onStream;
   #onManualInput;
   #onState;
-  #onChannel;
   #channel;
   #stream;
   #closed = false;
