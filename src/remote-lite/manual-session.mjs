@@ -89,6 +89,7 @@ export class ManualRemoteSessionStore {
     if (s.status !== 'pending') return fail('SESSION_NOT_PENDING');
     if (this.authenticateViewer({ viewerId: s.viewerId, deviceId: s.deviceId }) !== true) return fail('VIEWER_NOT_AUTHORIZED');
     s.status = 'active';
+    s.devicePrincipalId = devicePrincipalId;
     s.expiresAt = Math.min(this.now() + this.idleMs, s.absoluteExpiresAt);
     return { sessionId: s.id, deviceId: s.deviceId, status: s.status, expiresAt: s.expiresAt };
   }
@@ -98,6 +99,7 @@ export class ManualRemoteSessionStore {
     const s = this.#session(sessionId);
     this.#viewer(s, viewerId, viewerToken);
     if (s.status !== 'active') return fail('SESSION_NOT_ACTIVE');
+    this.#device(s, s.deviceId, s.devicePrincipalId);
     if (!Number.isSafeInteger(sequence) || sequence !== s.nextSequence) return fail('INPUT_SEQUENCE_INVALID');
     // A refused command never reaches the transport. No execution is performed here.
     const validated = parseManualInput(command);
@@ -113,6 +115,7 @@ export class ManualRemoteSessionStore {
   signal({ sessionId, from, identityId, viewerToken, signal } = {}) {
     const s = this.#session(sessionId);
     if (s.status !== 'active') return fail('SESSION_NOT_ACTIVE');
+    this.#device(s, s.deviceId, s.devicePrincipalId);
     if (from === 'viewer') this.#viewer(s, identityId, viewerToken);
     else if (from === 'device') this.#device(s, s.deviceId, identityId);
     else return fail('UNKNOWN_PEER');
@@ -128,6 +131,7 @@ export class ManualRemoteSessionStore {
   receiveSignals({ sessionId, as, identityId, viewerToken } = {}) {
     const s = this.#session(sessionId);
     if (s.status !== 'active') return fail('SESSION_NOT_ACTIVE');
+    this.#device(s, s.deviceId, s.devicePrincipalId);
     if (as === 'viewer') this.#viewer(s, identityId, viewerToken);
     else if (as === 'device') this.#device(s, s.deviceId, identityId);
     else return fail('UNKNOWN_PEER');
