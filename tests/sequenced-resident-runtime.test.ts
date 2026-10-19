@@ -53,14 +53,31 @@ test("two bounded local Jobs resume from signed acceptance without rebuilding th
   const input = { goalId: "fixture-goal", goal, context: [] };
   let report = await create().run(input);
   assert.equal(report.goalEvaluation?.achieved, false); assert.equal(generations, 1);
+  const requestFile = executions[0]!.receiptFile + ".request.json";
+  assert.equal(existsSync(requestFile), true, "verification wait must publish the exact candidate request without another Builder call");
+  const requestBytes = readFileSync(requestFile);
+  const request = JSON.parse(requestBytes.toString("utf8"));
+  assert.equal(request.request.goalId, input.goalId);
+  assert.equal(request.executionContractDigest, env.GORIQ_SELF_DEVELOPMENT_SEQUENCE_SHA256);
+  assert.equal(request.files.length, 2);
+  assert.deepEqual(request.request.requiredChecks, ["lint", "typecheck", "unit", "integration", "security", "build"]);
+  assert.equal(JSON.stringify(request).includes(workspaces[0]!), false, "portable request must not carry host paths or signer authority");
+  await create().run(input);
+  assert.deepEqual(readFileSync(requestFile), requestBytes, "restart/wake must preserve the same request");
+  assert.equal(generations, 1);
   const receipt = async (index: number) => {
     const jobs = await new JsonFileDevelopmentJobStore(join(stateRoot, "jobs.json")).getByGoal(input.goalId);
     const job = jobs[index]!; assert.equal(job.phase, "VERIFYING");
     const changeSet = (await new JsonFileDevelopmentChangeSetStore(join(stateRoot, "change-sets.json")).list()).find(c => c.jobId === job.jobId && c.workItemId.endsWith(":implement"))!;
     const plan = createDevelopmentVerificationPlan({ builderId: changeSet.deviceId, sourceRevision: changeSet.candidateRevision, artifactDigest: changeSet.artifactDigest, changedPaths: changeSet.changedPaths });
+    const delivered = JSON.parse(readFileSync(executions[index]!.receiptFile + ".request.json", "utf8")).request;
+    assert.equal(delivered.jobId, job.jobId);
+    assert.equal(delivered.changeSetId, changeSet.changeSetId);
+    assert.equal(delivered.sourceRevision, plan.sourceRevision);
+    assert.equal(delivered.artifactDigest, plan.artifactDigest);
     const issuedAt = new Date().toISOString();
-    const payload: SignedLocalVerifierPayload = { version: 1, verifierId: "fixture-independent-signer", goalId: input.goalId, jobId: job.jobId,
-      changeSetId: changeSet.changeSetId, builderId: plan.builderId, baseRevision: base, sourceRevision: plan.sourceRevision, artifactDigest: plan.artifactDigest,
+    const payload: SignedLocalVerifierPayload = { version: 1, verifierId: "fixture-independent-signer", goalId: delivered.goalId, jobId: delivered.jobId,
+      changeSetId: delivered.changeSetId, builderId: delivered.builderId, baseRevision: delivered.baseRevision, sourceRevision: delivered.sourceRevision, artifactDigest: delivered.artifactDigest,
       issuedAt, expiresAt: new Date(Date.now() + 600000).toISOString(), checks: plan.requiredChecks.map(check => ({ check, status: "passed", outputDigest: sha(check), recordedAt: issuedAt })) };
     writeFileSync(executions[index]!.receiptFile, JSON.stringify({ payload, signatureBase64: sign(null, Buffer.from(canonicalLocalVerifierPayload(payload)), keys.privateKey).toString("base64") }));
   };

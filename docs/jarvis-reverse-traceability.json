@@ -1097,7 +1097,7 @@
     },
     {
       "path": "scripts/jarvis-independent-check-runner.mjs",
-      "sha256": "a1810e03d928bce7c8963645c63b8a32e694f2391f1adce1658d42e78b5d3cbd",
+      "sha256": "19e492bc70b0d4f7d0dcd79ec984d5cf0418606b762c731b57f1dddc5bd5c4ce",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -6385,7 +6385,7 @@
     },
     {
       "path": "src/orchestrator/resident-execution-manifest.ts",
-      "sha256": "4f2203ab9790cc4e95f705c7f686bbdd0765576fd361399eed5cfe3c4b283aad",
+      "sha256": "e58cc2a2fd91208660ef5efc867e613dca42083af6517d39fa4babce8fecb50e",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -6433,7 +6433,7 @@
     },
     {
       "path": "src/orchestrator/sequenced-resident-runtime.ts",
-      "sha256": "aaf9880efa21561f58b940286d1d5560f26ab38592546c36fbce155d72090ead",
+      "sha256": "e8efc273509af8cb5d9fcdbaa1743ee6f411979486ca2615ca8dcc9e6b501cf0",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -6442,6 +6442,39 @@
         "GOV-025"
       ],
       "reason": "#1219 host-pinned criterion acceptance and bounded successor Job continuation; software contract only, independent physical signer and native E2E remain unverified."
+    },
+    {
+      "path": "scripts/jarvis-verifier-offline-workspace.mjs",
+      "sha256": "a92a5c24ae9bad4b9db92eedbf6abb5d08e3835b79792c83c570d29229c711d3",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-014",
+        "AUTO-004",
+        "GOV-025"
+      ],
+      "reason": "#1219 bounded verifier request transfer and offline preparation; implementation mapping only, no physical completion claim."
+    },
+    {
+      "path": "scripts/jarvis-verifier-request-transfer.mjs",
+      "sha256": "b286576bfb5d3630b87ca28176363f853c51a59bb3cd5d604fc1727e732bc004",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-014",
+        "AUTO-004",
+        "GOV-025"
+      ],
+      "reason": "#1219 bounded verifier request transfer and offline preparation; implementation mapping only, no physical completion claim."
+    },
+    {
+      "path": "src/orchestrator/resident-verifier-request.ts",
+      "sha256": "a019f93ad0676060d82f38bc0ed026015461fbdbac97e2b46830fa2a7a28364d",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-014",
+        "AUTO-004",
+        "GOV-025"
+      ],
+      "reason": "#1219 bounded verifier request transfer and offline preparation; implementation mapping only, no physical completion claim."
     }
   ],
   "hash_policy": "utf8-crlf-to-lf-v1;binary-raw"

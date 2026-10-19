@@ -36,6 +36,14 @@ test("reject caller command injection, path escapes, duplicate check or fake sco
   assert.throws(()=>validateVerifierRunRequest({...p,baseRevision:"123"}),/NOT_BOUNDED/);
   assert.throws(()=>validateVerifierRunRequest({...p,sourceRevision:"9"}),/NOT_BOUNDED/);
 });
+test("optional portable request expiry must be a valid future timestamp",()=>{
+  const p=request();
+  assert.throws(()=>validateVerifierRunRequest({...p,expiresAt:"not-a-date"}),/REQUEST_EXPIRY_INVALID/);
+  assert.throws(()=>validateVerifierRunRequest({...p,expiresAt:"2000-01-01T00:00:00.000Z"}),/REQUEST_EXPIRED/);
+  assert.throws(()=>validateVerifierRunRequest({...p,expiresAt:Date.now()+60_000}),/REQUEST_EXPIRY_INVALID/);
+  const future={...p,expiresAt:new Date(Date.now()+60_000).toISOString()};
+  assert.equal(validateVerifierRunRequest(future),future);
+});
 test("no privileged signer may run without separate-principal and offline image setup",async()=>{
   const a=process.env.GORIQ_VERIFIER_OPERATOR_ISOLATED;
   const b=process.env.GORIQ_VERIFIER_CONTAINER_IMAGE;

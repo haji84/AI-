@@ -129,6 +129,12 @@ export function validateVerifierRunRequest(req) {
     !["candidateWorkspace","verifierWorkspace","privateKeyFile","receiptFile"].every(x=>typeof req[x]==="string"&&isAbsolute(req[x]))) {
     throw Error("VERIFIER_REQUEST_NOT_BOUNDED");
   }
+  if(req.expiresAt!==undefined){
+    const deadline=typeof req.expiresAt==="string"?Date.parse(req.expiresAt):NaN;
+    if(!Number.isFinite(deadline)||new Date(deadline).toISOString()!==req.expiresAt)
+      throw Error("VERIFIER_REQUEST_EXPIRY_INVALID");
+    if(deadline<=Date.now())throw Error("VERIFIER_REQUEST_EXPIRED");
+  }
   // This profile cannot attest visual/mobile/device checks; those remain pending.
   return req;
 }
@@ -150,8 +156,10 @@ export async function runIndependentVerifier(req) {
   if(existsSync(receiptFile))throw Error("VERIFIER_RECEIPT_MUST_BE_NEW");
   if(!existsSync(keyFile)||lstatSync(keyFile).isSymbolicLink()||!lstatSync(keyFile).isFile())
     throw Error("VERIFIER_PRIVATE_KEY_UNAVAILABLE");
+  validateVerifierRunRequest(req);
   const key=readPrivateKey(keyFile);
   if(key.asymmetricKeyType!=="ed25519")throw Error("VERIFIER_SIGNER_NOT_ED25519");
+  validateVerifierRunRequest(req);
   for(const path of req.allowedUntracked) {
     const target=resolve(runner,path),parent=dirname(target);
     if(!realpathSync(parent).startsWith(runner+sep)||existsSync(target))
@@ -170,6 +178,7 @@ export async function runIndependentVerifier(req) {
   exportSnapshot(runner,snapshot,staged.fileHashes);
   const issuedAt=new Date().toISOString(),checks=[];
   for(const name of req.requiredChecks) {
+    validateVerifierRunRequest(req);
     const [command,args]=verifierCommand(name);
     // Untrusted generated code must NEVER execute with this signer's host
     // identity or have access to the Ed25519 private key. A preinstalled,
@@ -179,7 +188,9 @@ export async function runIndependentVerifier(req) {
       throw Error("VERIFIER_TRUSTED_CONTAINER_IMAGE_REQUIRED");
     // command/args come exclusively from the code-owned enum above.
     // Host shell never interprets paths or caller-controlled instructions.
-    const staticScript="cp -a /source/. /tmp/verify && chmod -R u+rwX /tmp/verify && cd /tmp/verify && exec "+[command,...args].join(" ");
+    // The helper is part of the pinned image, never the untrusted /source tree.
+    // It admits only a byte-matching, already-installed offline dependency set.
+    const staticScript="node /opt/goriq-verifier/jarvis-verifier-offline-workspace.mjs && cd /tmp/verify && exec "+[command,...args].join(" ");
     const dockerArgs=["run","--rm","--pull=never","--network=none","--read-only",
       "--cap-drop=ALL","--security-opt=no-new-privileges","--pids-limit=128",
       "--memory=2g","--cpus=2","--user=65534:65534",
@@ -194,7 +205,7 @@ export async function runIndependentVerifier(req) {
     const status=output.error||output.status===null?"inconclusive":output.status===0?"passed":"failed";
     const log=JSON.stringify({
       sourceRevision:before.candidateRevision,fileHashes:before.fileHashes,
-      command, args, exit:output.status, signal:output.signal,
+      command, args, containerImage:image, exit:output.status, signal:output.signal,
       stdout:output.stdout??"", stderr:output.stderr??"",
       errorCode:output.error?.code??null,
       runErrorCode:output.runErrorCode??null,closeObserved:output.closeObserved,cleanup:output.cleanup,
@@ -213,7 +224,9 @@ export async function runIndependentVerifier(req) {
     targetPath:req.targetPath,allowedUntracked:req.allowedUntracked});
   if(runnerAfter.candidateRevision!==before.candidateRevision)
     throw Error("VERIFIER_RUNNER_CHANGED_DURING_EXECUTION");
-  const expiry=new Date(Date.now()+20*60_000).toISOString();
+  validateVerifierRunRequest(req);
+  const expiry=new Date(Math.min(Date.now()+20*60_000,
+    req.expiresAt===undefined?Infinity:Date.parse(req.expiresAt))).toISOString();
   const payload={version:1,verifierId:req.verifierId,goalId:req.goalId,
     jobId:req.jobId,changeSetId:req.changeSetId,builderId:req.builderId,
     baseRevision:req.baseRevision,sourceRevision:req.sourceRevision,

@@ -38,4 +38,9 @@ test("host-pinned manifest binds independent workspaces and receipt paths to an 
   assert.throws(() => readResidentExecutionManifest(save(), root, goal), /AUTHORITY_INSIDE_CANDIDATE/);
   manifest.executions[1]!.receiptFile = manifest.executions[1]!.publicKeyFile;
   assert.throws(() => readResidentExecutionManifest(save(), join(root, "runtime"), goal), /AUTHORITY_OVERLAP/);
+  manifest.executions[1]!.receiptFile = manifest.executions[0]!.receiptFile + ".request.json";
+  assert.throws(() => readResidentExecutionManifest(save(), root, goal), /RECEIPT_OVERLAP/);
+  manifest.executions[1]!.receiptFile = join(root, "receipt-b.json");
+  manifest.executions[1]!.publicKeyFile = manifest.executions[0]!.receiptFile + ".request.json";
+  assert.throws(() => readResidentExecutionManifest(save(), root, goal), /AUTHORITY_OVERLAP/);
 });

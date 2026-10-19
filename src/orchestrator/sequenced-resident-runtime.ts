@@ -13,6 +13,7 @@ import { evaluateSignedFileAcceptance } from "./resident-signed-acceptance.ts";
 import { createRuntimeBuilderRouter } from "./runtime-builder-capability.ts";
 import { localOllamaFixtureTestPath, runLocalTddVerification } from "./local-ollama-tdd.ts";
 import { validateSignedLocalVerifierReceipt } from "./signed-local-verifier-receipt.ts";
+import { publishResidentVerifierRequest } from "./resident-verifier-request.ts";
 
 /** Explicit host-pinned local fixture sequence. No provisioning, publishing or implicit oracle. */
 export function createSequencedResidentRuntime(input: {
@@ -85,7 +86,12 @@ export function createSequencedResidentRuntime(input: {
         if (!green.ok || green.evidence?.artifactSha256 !== changeSet.artifactDigest || green.evidence.candidateRevision !== plan.sourceRevision) {
           throw Error(green.blocker ?? "INDEPENDENT_GREEN_BINDING_INVALID");
         }
-        if (!existsSync(execution.receiptFile)) return [];
+        if (!existsSync(execution.receiptFile)) {
+          publishResidentVerifierRequest({ job, changeSet, executionContractDigest: manifest.sequence.executionContractDigest!,
+            workspace: execution.workspace, targetPath: execution.targetPath, allowedFiles: execution.allowedFiles,
+            receiptFile: execution.receiptFile, workspaces });
+          return [];
+        }
         const receipt = JSON.parse(readBoundedRuntimeFile(execution.receiptFile, 24576, workspaces).toString("utf8"));
         return validateSignedLocalVerifierReceipt({ receipt, publicKeyPem, plan, changeSet, goalId: job.goalId });
       },

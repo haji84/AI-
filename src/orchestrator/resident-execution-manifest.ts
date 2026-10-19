@@ -69,6 +69,9 @@ export function readResidentExecutionManifest(
     workspaces.push(workspace); keys.add(execution.key);
     if (receipts.has(samePath(execution.receiptFile))) throw Error("RESIDENT_MANIFEST_RECEIPT_OVERLAP");
     receipts.add(samePath(execution.receiptFile));
+    const request = samePath(execution.receiptFile + ".request.json");
+    if (receipts.has(request)) throw Error("RESIDENT_MANIFEST_RECEIPT_OVERLAP");
+    receipts.add(request);
     if (goal) assertSignedFileAcceptanceContracts(execution.acceptance, job.criterionIds.map(id => ({
       id, description: goal.successCriteria[Number(id.slice("criterion-".length)) - 1]!, required: true,
     })));
@@ -81,7 +84,7 @@ export function readResidentExecutionManifest(
   if (receipts.has(samePath(file)) || manifest.executions.some(e => receipts.has(samePath(e.publicKeyFile)) || samePath(e.publicKeyFile) === samePath(file))) {
     throw Error("RESIDENT_MANIFEST_AUTHORITY_OVERLAP");
   }
-  for (const authority of [file, ...manifest.executions.flatMap(e => [e.receiptFile, e.publicKeyFile])]) {
+  for (const authority of [file, ...manifest.executions.flatMap(e => [e.receiptFile, e.receiptFile + ".request.json", e.publicKeyFile])]) {
     assertExternalRuntimePath(authority, workspaces);
   }
   return manifest;

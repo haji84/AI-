@@ -11,6 +11,7 @@ import { tmpdir } from "node:os";
 import { join, dirname, resolve, delimiter } from "node:path";
 import { attestLocalCandidate } from "../scripts/jarvis-independent-artifact-attestation.mjs";
 import { runIndependentVerifier } from "../scripts/jarvis-independent-check-runner.mjs";
+import { prepareOfflineVerifierWorkspace } from "../scripts/jarvis-verifier-offline-workspace.mjs";
 
 // Only the unavailable container boundary is doubled. Git, file staging,
 // identity, ephemeral test signing and persisted receipts are real.
@@ -68,12 +69,14 @@ function fixture(t) {
       child.stdout=new PassThrough();child.stderr=new PassThrough();
       child.kill=()=>true;child.unref=()=>{};
       globalThis.queueMicrotask(()=>{
+        let output = {};
         if(args[0]==="run"){
           assert.ok(args.includes("--network=none"));
-          effect(args);
-          child.stdout.write("fixture stdout");
+          output = effect(args) ?? {};
+          child.stdout.write(output.stdout ?? "fixture stdout");
+          child.stderr.write(output.stderr ?? "");
         }
-        child.stdout.end();child.stderr.end();child.emit("close",0,null);
+        child.stdout.end();child.stderr.end();child.emit("close",output.status ?? 0,null);
       });
       return child;
     });
@@ -129,6 +132,7 @@ test("signed output digest identifies a retained bounded log and complete file m
   assert.equal(createHash("sha256").update(bytes).digest("hex"), receipt.payload.checks[0].outputDigest);
   const log = JSON.parse(bytes);
   assert.equal(log.stdout, "fixture stdout");
+  assert.equal(log.containerImage, "fixture@sha256:" + "a".repeat(64));
   assert.equal(log.sourceRevision, f.req.sourceRevision);
   assert.equal(log.cleanup.confirmed,true);
   assert.deepEqual(Object.keys(log.fileHashes).sort(), ["docs/check.txt", "docs/result.txt"]);
@@ -146,6 +150,60 @@ test("execution snapshot excludes ignored workspace files and Git metadata", asy
     assert.equal(fs.readFileSync(join(snapshot, "docs/check.txt"), "utf8"), "trusted assertion\n");
   });
   assert.equal((await runIndependentVerifier(f.req)).verified, true);
+});
+
+test("container must prepare matching offline dependencies with the image-owned helper before a check", async t => {
+  const f = fixture(t);
+  let script;
+  f.docker(args => { script = args.at(-1); });
+  await runIndependentVerifier(f.req);
+  assert.equal(script, "node /opt/goriq-verifier/jarvis-verifier-offline-workspace.mjs && cd /tmp/verify && exec pnpm test");
+});
+
+test("offline bundle refusal is retained as a failed signed check with no later checks", async t => {
+  const f = fixture(t);
+  f.docker(args => {
+    const source = args[args.indexOf("--mount") + 1].match(/source=(.*),target=/)[1];
+    // Execute the real preparation logic against the exported snapshot. Only
+    // Docker is unavailable in this fixture; no package manager is executed.
+    try {
+      prepareOfflineVerifierWorkspace({ source, dependencies: join(f.root, "missing-image-bundle"),
+        destination: join(f.root, "container-tmp") });
+      return { status: 0 };
+    } catch (error) { return { status: 1, stderr: String(error.message) }; }
+  });
+  const result = await runIndependentVerifier({ ...f.req, requiredChecks: ["unit", "build"] });
+  assert.equal(result.verified, false);
+  assert.deepEqual(result.checks.map(check => [check.check, check.status]), [["unit", "failed"]]);
+  const receipt = JSON.parse(fs.readFileSync(f.req.receiptFile, "utf8"));
+  const logBytes = fs.readFileSync(join(f.req.receiptFile + ".logs", "unit.json"));
+  assert.equal(receipt.payload.checks[0].outputDigest, createHash("sha256").update(logBytes).digest("hex"));
+  assert.match(JSON.parse(logBytes).stderr, /VERIFIER_OFFLINE_DEPENDENCIES_MISSING/);
+  assert.equal(fs.existsSync(join(f.req.receiptFile + ".logs", "build.json")), false);
+});
+
+for (const requiredChecks of [["unit"], ["unit", "build"]]) {
+  test(`an expired request stops before ${requiredChecks.length === 1 ? "signing" : "the next check"}`, async t => {
+    const f = fixture(t), deadline = Date.now() + 60_000;
+    let launches = 0;
+    f.docker(() => {
+      launches++;
+      t.mock.method(Date, "now", () => deadline + 1);
+    });
+    await assert.rejects(() => runIndependentVerifier({ ...f.req, requiredChecks,
+      expiresAt: new Date(deadline).toISOString() }), /VERIFIER_REQUEST_EXPIRED/);
+    assert.equal(launches, 1);
+    assert.equal(fs.existsSync(f.req.receiptFile), false);
+    assert.equal(fs.existsSync(join(f.req.receiptFile + ".logs", "unit.json")), true);
+    assert.equal(fs.existsSync(join(f.req.receiptFile + ".logs", "build.json")), false);
+  });
+}
+
+test("a signed receipt cannot outlive the portable request deadline", async t => {
+  const f = fixture(t), expiresAt = new Date(Date.now() + 60_000).toISOString();
+  f.docker();
+  assert.equal((await runIndependentVerifier({ ...f.req, expiresAt })).verified, true);
+  assert.equal(JSON.parse(fs.readFileSync(f.req.receiptFile, "utf8")).payload.expiresAt, expiresAt);
 });
 
 test("restricted signer umask leaves the export readable but logs private", {skip:process.platform==="win32"}, async t => {
