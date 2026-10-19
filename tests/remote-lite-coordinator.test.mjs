@@ -70,9 +70,11 @@ test('owner revocation disables existing control and new sessions',()=>{
   const {c,enroll,proof}=harness(),d=enroll(),s=c.startSession({...auth(),deviceId:d.deviceId});
   c.acceptSession({sessionId:s.sessionId,deviceId:d.deviceId,proof:proof(d,s.sessionId,'session-accept')});
   assert.equal(c.revokeDevice({...auth(),deviceId:d.deviceId}).status,'revoked');
-  assert.throws(()=>c.manualInput({...auth(),sessionId:s.sessionId,viewerToken:s.viewerToken,sequence:1,command:{action:'tap',x:0.5,y:0.5}}),/VIEWER_NOT_AUTHORIZED/);
+  assert.throws(()=>c.manualInput({...auth(),sessionId:s.sessionId,viewerToken:s.viewerToken,sequence:1,command:{action:'tap',x:0.5,y:0.5}}),/SESSION_NOT_FOUND_OR_EXPIRED/);
   assert.throws(()=>c.startSession({...auth(),deviceId:d.deviceId}),/DEVICE_NOT_OWNED/);
   assert.throws(()=>c.challengeDevice({deviceId:d.deviceId,operation:'signal-receive',sessionId:s.sessionId}),/DEVICE_UNAVAILABLE/);
+  const r=enroll('alice',d.deviceId);
+  assert.equal(c.startSession({...auth(),deviceId:r.deviceId}).status,'pending');
 });
 
 test('every viewer operation checks that owner authentication is still valid',()=>{
