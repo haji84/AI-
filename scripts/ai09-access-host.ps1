@@ -103,7 +103,8 @@ function Get-Ai09NativeSnapshot {
   if ($interfaces.Count -ne 1) { throw 'HOST_INTERFACE_AMBIGUOUS' }
   $addresses=@(NetTCPIP\Get-NetIPAddress -InterfaceIndex $interfaces[0].ifIndex -AddressFamily IPv4 -ErrorAction Stop | Where-Object {$_.AddressState -eq 'Preferred' -and (Test-Ai09Address $_.IPAddress)})
   $guest=@($nic.IPAddresses | Where-Object {Test-Ai09Address $_})
-  if ($addresses.Count -ne 1 -or $guest.Count -ne 1) { throw 'ADDRESS_UNAVAILABLE_OR_AMBIGUOUS' }
+  if ($addresses.Count -ne 1) { throw 'HOST_ADDRESS_UNAVAILABLE_OR_AMBIGUOUS' }
+  if ($guest.Count -ne 1) { throw 'GUEST_ADDRESS_UNAVAILABLE_OR_AMBIGUOUS' }
   $disks=@(Hyper-V\Get-VMHardDiskDrive -VM $vm -ErrorAction Stop | ForEach-Object {
     $vhd=Hyper-V\Get-VHD -Path $_.Path -ErrorAction Stop
     [pscustomobject][ordered]@{path=[string]$_.Path;controllerType=[string]$_.ControllerType;controllerNumber=[int]$_.ControllerNumber;controllerLocation=[int]$_.ControllerLocation;diskIdentifier=[string]$vhd.DiskIdentifier;parentPath=[string]$vhd.ParentPath;vhdType=[string]$vhd.VhdType;vhdFormat=[string]$vhd.VhdFormat;size=[long]$vhd.Size;fileSize=[long]$vhd.FileSize}

@@ -72,7 +72,7 @@ try {
     function Get-VM { param($Id) return @{Id=$Id;Name='GORIQ-AI09-Ubuntu';State='Running';Generation=2} }
     function Get-VMNetworkAdapter { param($VM,$VMName,[switch]$ManagementOS)
       if($ManagementOS){return @{SwitchId='fixture-switch';MacAddress='001122334455'}}
-      return @{Id='fixture-nic';VMId='453b139b-cceb-446e-99fb-f45bf5895436';Name='Network Adapter';MacAddress='00155DDC2C00';SwitchId='fixture-switch';SwitchName='Default Switch';IPAddresses=@('192.168.50.9')}
+      return @{Id='fixture-nic';VMId='453b139b-cceb-446e-99fb-f45bf5895436';Name='Network Adapter';MacAddress='00155DDC2C00';SwitchId='fixture-switch';SwitchName='Default Switch';IPAddresses=$global:Ai09FixtureGuestAddresses}
     }
     function Get-VMSwitch {param($Id) return @{Id=$Id;Name='Default Switch';SwitchType='Internal'}}
     function Get-VMHardDiskDrive {param($VM) return @{Path='fixture.vhdx';ControllerType='SCSI';ControllerNumber=0;ControllerLocation=0}}
@@ -83,7 +83,9 @@ try {
     Export-ModuleMember -Function *
   } | Import-Module -PassThru
   $null=New-Module -Name NetAdapter -ScriptBlock {function Get-NetAdapter {param([switch]$IncludeHidden) return @{MacAddress='00-11-22-33-44-55';ifIndex=21}}; Export-ModuleMember -Function *} | Import-Module -PassThru
-  $null=New-Module -Name NetTCPIP -ScriptBlock {function Get-NetIPAddress {param($InterfaceIndex,$AddressFamily) return @{IPAddress='192.168.50.1';PrefixLength=24;AddressState='Preferred'}}; Export-ModuleMember -Function *} | Import-Module -PassThru
+  $null=New-Module -Name NetTCPIP -ScriptBlock {function Get-NetIPAddress {param($InterfaceIndex,$AddressFamily) return $global:Ai09FixtureHostAddresses}; Export-ModuleMember -Function *} | Import-Module -PassThru
+  $global:Ai09FixtureGuestAddresses=@('192.168.50.9')
+  $global:Ai09FixtureHostAddresses=@(@{IPAddress='192.168.50.1';PrefixLength=24;AddressState='Preferred'})
   $native=& $script:NativeSnapshot; $native.hostName='HAJI'
   $projected=ConvertTo-Ai09State $native
   Assert-Equal $projected.disks[0].diskIdentifier 'fixture-disk' 'native disk projection'
@@ -98,6 +100,14 @@ try {
   Assert-Equal $global:Ai09FixtureRemove.VMNetworkAdapter.Id 'fixture-nic' 'native remove exact adapter'
   Assert-Equal $global:Ai09FixtureRemove.Direction 'Inbound' 'native exact direction'
   Assert-Equal $global:Ai09FixtureRemove.Weight 2 'native exact recorded weight'
+  $global:Ai09FixtureGuestAddresses=@()
+  $refused=''; try {$null=& $script:NativeSnapshot} catch {$refused=$_.Exception.Message}
+  Assert-Equal $refused 'GUEST_ADDRESS_UNAVAILABLE_OR_AMBIGUOUS' 'native missing guest address is distinguished'
+  $global:Ai09FixtureGuestAddresses=@('192.168.50.9')
+  $global:Ai09FixtureHostAddresses=@()
+  $refused=''; try {$null=& $script:NativeSnapshot} catch {$refused=$_.Exception.Message}
+  Assert-Equal $refused 'HOST_ADDRESS_UNAVAILABLE_OR_AMBIGUOUS' 'native missing host address is distinguished'
+  $global:Ai09FixtureHostAddresses=@(@{IPAddress='192.168.50.1';PrefixLength=24;AddressState='Preferred'})
   Reset-Fixture
   $inspect=Invoke-Ai09AccessHost
   Assert-Equal $inspect.status 'OBSERVED' 'inspect default'
