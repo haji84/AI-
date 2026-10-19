@@ -1,4 +1,5 @@
 import { createServer } from 'node:http';
+import { Buffer } from 'node:buffer';
 import { ManualRemoteCoordinator } from './manual-coordinator.mjs';
 
 /**
