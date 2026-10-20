@@ -61,6 +61,7 @@ function Reset-Fixture {
     New=0;Mounts=0;Dismounts=0;Adds=0;Removes=0;Formats=0;Keys=0;Reads=0;DriftAt=-1;NetworkAdds=0
     FormatFail=$false;ExpireAfterFormat=$false;ExpireNow=$false;ForceWritable=$false;WrongAttachment=$false;DismountNoEffect=$false
     Serial='CA771234';Signature=[uint32]0x12345678;LastMountReadOnly=$false
+    ManagementMac='001122334455';Interfaces=@(@{MacAddress=$null;ifIndex=98},@{MacAddress='';ifIndex=97},@{MacAddress='00-11-22-33-44-55';ifIndex=21})
     Expiry=[DateTimeOffset]::UtcNow.AddHours(1).ToString('yyyy-MM-ddTHH:mm:ss.fffZ')
     State=[ordered]@{hostName='HAJI';vmId='453b139b-cceb-446e-99fb-f45bf5895436';vmName='GORIQ-AI09-Ubuntu';vmState='Running';generation=2
       nic=[ordered]@{id='Microsoft:453B139B-CCEB-446E-99FB-F45BF5895436\796BBDF2-8959-42DE-BD42-E248AA53EB9D';name='Network Adapter';mac='00155DDC2C00';switchId='c08cb7b8-9b3c-408e-8e30-5e16a3aeb444';switchName='Default Switch'}
@@ -95,7 +96,7 @@ try {
     function Get-VM {param($Id) $s=$global:MediaFixture.State;return @{Id=$s.vmId;Name=$s.vmName;State='Running';Generation=2}}
     function Get-VMNetworkAdapter {param($VM,[switch]$ManagementOS)
       $s=$global:MediaFixture.State
-      if($ManagementOS){return @{SwitchId=$s.nic.switchId;MacAddress='001122334455'}}
+      if($ManagementOS){return @{SwitchId=$s.nic.switchId;MacAddress=$global:MediaFixture.ManagementMac}}
       return @{Id=$s.nic.id;VMId=$s.vmId;Name=$s.nic.name;MacAddress=$s.nic.mac;SwitchId=$s.nic.switchId;SwitchName=$s.nic.switchName;IPAddresses=$s.guestAddressCandidates}
     }
     function Get-VMSwitch {param($Id) $s=$global:MediaFixture.State.switch;return @{Id=$s.id;Name=$s.name;SwitchType=$s.type}}
@@ -170,7 +171,7 @@ try {
     }
     Export-ModuleMember -Function *
   }|Import-Module -PassThru
-  $null=New-Module -Name NetAdapter -ScriptBlock {function Get-NetAdapter {param([switch]$IncludeHidden) return @{MacAddress='00-11-22-33-44-55';ifIndex=21}};Export-ModuleMember -Function *}|Import-Module -PassThru
+  $null=New-Module -Name NetAdapter -ScriptBlock {function Get-NetAdapter {param([switch]$IncludeHidden) return $global:MediaFixture.Interfaces};Export-ModuleMember -Function *}|Import-Module -PassThru
   $null=New-Module -Name NetTCPIP -ScriptBlock {function Get-NetIPAddress {param($InterfaceIndex,$AddressFamily) return @{IPAddress='172.27.128.1';PrefixLength=20;AddressState='Preferred'}};Export-ModuleMember -Function *}|Import-Module -PassThru
 
   Reset-Fixture
@@ -272,6 +273,20 @@ try {
   Equal @($native.disks).Count 1 'two attachments project only the original OS identity'
   Equal $canonical.disks[0].diskIdentifier '9D28872E-0087-4A33-ABFA-AE0DEF1E66B8' 'OS identity is preserved'
   Equal @($native.acls).Count 4 'native reader retains all ACLs'
+  Equal $native.hostInterfaceIndex 21 'media native reader ignores MAC-less adapters'
+  $savedInterfaces=$global:MediaFixture.Interfaces
+  foreach($case in @('MissingManagement','EmptyManagement','MalformedManagement','Duplicate','MissingMatch')){
+    $global:MediaFixture.Interfaces=$savedInterfaces;$global:MediaFixture.ManagementMac='001122334455'
+    switch($case){
+      'MissingManagement' {$global:MediaFixture.ManagementMac=$null}
+      'EmptyManagement' {$global:MediaFixture.ManagementMac=''}
+      'MalformedManagement' {$global:MediaFixture.ManagementMac='00112233445Z';$global:MediaFixture.Interfaces=@(@{MacAddress='00-11-22-33-44-5Z';ifIndex=21})}
+      'Duplicate' {$global:MediaFixture.Interfaces=@($savedInterfaces)+@(@{MacAddress='00-11-22-33-44-55';ifIndex=22})}
+      'MissingMatch' {$global:MediaFixture.Interfaces=@($savedInterfaces|Where-Object {$_.ifIndex -ne 21})}
+    }
+    Reject {& $script:RealMediaSnapshot} 'HOST_INTERFACE_AMBIGUOUS'
+  }
+  $global:MediaFixture.Interfaces=$savedInterfaces;$global:MediaFixture.ManagementMac='001122334455'
   $global:MediaFixture.WrongAttachment=$true
   Reject {& $script:RealMediaSnapshot} 'MEDIA_TOPOLOGY_DRIFT'
   $locks=New-Object 'Collections.Generic.List[IO.FileStream]'

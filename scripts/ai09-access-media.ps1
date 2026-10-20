@@ -147,8 +147,8 @@ function Get-Ai09MediaNativeSnapshot {
   if($nics.Count -ne 1 -or [string]$nics[0].VMId -cne '453b139b-cceb-446e-99fb-f45bf5895436'){throw 'VM_BINDING_UNAVAILABLE'}
   $nic=$nics[0];$switch=Hyper-V\Get-VMSwitch -Id $nic.SwitchId -ErrorAction Stop
   $management=@(Hyper-V\Get-VMNetworkAdapter -ManagementOS -ErrorAction Stop|Where-Object {$_.SwitchId -eq $nic.SwitchId})
-  if($management.Count -ne 1){throw 'HOST_INTERFACE_AMBIGUOUS'}
-  $interfaces=@(NetAdapter\Get-NetAdapter -IncludeHidden -ErrorAction Stop|Where-Object {$_.MacAddress.Replace('-','') -eq $management[0].MacAddress})
+  if($management.Count -ne 1 -or [string]$management[0].MacAddress -cnotmatch '^[A-Fa-f0-9]{12}$'){throw 'HOST_INTERFACE_AMBIGUOUS'}
+  $interfaces=@(NetAdapter\Get-NetAdapter -IncludeHidden -ErrorAction Stop|Where-Object {$mac=([string]$_.MacAddress).Replace('-','');$mac -cmatch '^[A-Fa-f0-9]{12}$' -and $mac -eq $management[0].MacAddress})
   if($interfaces.Count -ne 1){throw 'HOST_INTERFACE_AMBIGUOUS'}
   $addresses=@(NetTCPIP\Get-NetIPAddress -InterfaceIndex $interfaces[0].ifIndex -AddressFamily IPv4 -ErrorAction Stop|Where-Object {$_.AddressState -eq 'Preferred' -and (Test-Ai09Address $_.IPAddress)})
   if($addresses.Count -ne 1 -or @($nic.IPAddresses).Count -gt 64){throw 'ADDRESS_UNAVAILABLE_OR_AMBIGUOUS'}

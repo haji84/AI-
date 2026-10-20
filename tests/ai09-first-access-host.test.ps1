@@ -55,11 +55,13 @@ try {
   # Exercise the actual fixed native command adapters through named fake modules;
   # authority/provenance boundaries are disabled only in this fixture process.
   Reset-Fixture; $global:Ai09FirstNativeState=$script:State; $global:Ai09FirstNativeCalls=0
+  $global:Ai09FirstManagementMac='001122334455'
+  $global:Ai09FirstInterfaces=@(@{MacAddress=$null;ifIndex=98},@{MacAddress='';ifIndex=97},@{MacAddress='00-99-88-77-66-55';ifIndex=96},@{MacAddress='00-11-22-33-44-55';ifIndex=21})
   $null=New-Module -Name Hyper-V -ScriptBlock {
     function Get-VM {param($Id) return @{Id=$global:Ai09FirstNativeState.vmId;Name=$global:Ai09FirstNativeState.vmName;State='Running';Generation=2}}
     function Get-VMNetworkAdapter {param($VM,$VMName,[switch]$ManagementOS)
       $s=$global:Ai09FirstNativeState
-      if ($ManagementOS) {return @{SwitchId=$s.nic.switchId;MacAddress='001122334455'}}
+      if ($ManagementOS) {return @{SwitchId=$s.nic.switchId;MacAddress=$global:Ai09FirstManagementMac}}
       return @{Id=$s.nic.id;VMId=$s.vmId;Name=$s.nic.name;MacAddress=$s.nic.mac;SwitchId=$s.nic.switchId;SwitchName=$s.nic.switchName;IPAddresses=$s.guestAddressCandidates}
     }
     function Get-VMSwitch {param($Id) $s=$global:Ai09FirstNativeState.switch; return @{Id=$s.id;Name=$s.name;SwitchType=$s.type}}
@@ -70,11 +72,25 @@ try {
     function Remove-VMNetworkAdapterExtendedAcl {param($VMNetworkAdapter,$Direction,$Weight,[switch]$Confirm) $global:Ai09FirstNativeCalls++; $global:Ai09FirstNativeRemove=$PSBoundParameters}
     Export-ModuleMember -Function *
   }|Import-Module -PassThru
-  $null=New-Module -Name NetAdapter -ScriptBlock {function Get-NetAdapter {param([switch]$IncludeHidden) return @{MacAddress='00-11-22-33-44-55';ifIndex=21}};Export-ModuleMember -Function *}|Import-Module -PassThru
+  $null=New-Module -Name NetAdapter -ScriptBlock {function Get-NetAdapter {param([switch]$IncludeHidden) return $global:Ai09FirstInterfaces};Export-ModuleMember -Function *}|Import-Module -PassThru
   $null=New-Module -Name NetTCPIP -ScriptBlock {function Get-NetIPAddress {param($InterfaceIndex,$AddressFamily) return @{IPAddress='172.27.128.1';PrefixLength=20;AddressState='Preferred'}};Export-ModuleMember -Function *}|Import-Module -PassThru
   $native=& $script:NativeSnapshot; $native.hostName='HAJI'; $projected=Get-Ai09FirstCanonical $native
   Equal $projected.nic.mac '00155DDC2C00' 'actual adapter projects fixed NIC'; Equal $projected.disks[0].diskIdentifier '9D28872E-0087-4A33-ABFA-AE0DEF1E66B8' 'actual adapter projects disk identity'
   Equal $projected.acls.Count 4 'actual adapter retains complete policy'; Equal @($native.guestAddressCandidates).Count 0 'no KVP fallback assertion'
+  Equal $projected.hostInterfaceIndex 21 'MAC-less hidden adapters do not displace the exact host interface'
+  $savedInterfaces=$global:Ai09FirstInterfaces
+  foreach($case in @('MissingManagement','EmptyManagement','MalformedManagement','Duplicate','MissingMatch')){
+    $global:Ai09FirstInterfaces=$savedInterfaces;$global:Ai09FirstManagementMac='001122334455'
+    switch($case){
+      'MissingManagement' {$global:Ai09FirstManagementMac=$null}
+      'EmptyManagement' {$global:Ai09FirstManagementMac=''}
+      'MalformedManagement' {$global:Ai09FirstManagementMac='00112233445Z';$global:Ai09FirstInterfaces=@(@{MacAddress='00-11-22-33-44-5Z';ifIndex=21})}
+      'Duplicate' {$global:Ai09FirstInterfaces=@($savedInterfaces)+@(@{MacAddress='00-11-22-33-44-55';ifIndex=22})}
+      'MissingMatch' {$global:Ai09FirstInterfaces=@($savedInterfaces|Where-Object {$_.ifIndex -ne 21})}
+    }
+    try{& $script:NativeSnapshot|Out-Null;throw 'ASSERT:EXPECTED_INTERFACE_REFUSAL'}catch{Equal $_.Exception.Message 'HOST_INTERFACE_AMBIGUOUS' "native host interface refuses $case"}
+  }
+  $global:Ai09FirstInterfaces=$savedInterfaces;$global:Ai09FirstManagementMac='001122334455'
   $permit=New-Ai09FirstRule; & $script:NativeAdd $projected $permit
   Equal $global:Ai09FirstNativeAdd.VMNetworkAdapter.Id $script:State.nic.id 'native add bound adapter'; Equal $global:Ai09FirstNativeAdd.LocalIPAddress '172.27.140.254/32' 'native add target only'; Equal $global:Ai09FirstNativeAdd.RemoteIPAddress '172.27.128.1/32' 'native add source only'; Equal $global:Ai09FirstNativeAdd.Weight 201 'native fixed weight'
   & $script:NativeRemove $projected $permit

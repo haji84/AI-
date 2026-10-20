@@ -6,7 +6,7 @@ param([ValidateSet('ValidateOnly','Execute')][string]$Mode='ValidateOnly',[strin
 # the core plan supplies fresh evidence, never new authority. Execution expiry
 # does not expire the Hyper-V rule. Separately approved exact rollback is required.
 $ai09NativeArguments=@{}+$PSBoundParameters; $script:Ai09NativeSource=$PSCommandPath
-$script:Ai09NativeCoreSha='fea386a38e421727134f44af15574c0bf5217bc70aa19291cbd82d7da09fb7cc'
+$script:Ai09NativeCoreSha='c4c1fed72a8059b1175aa1c33cb2644e8f937fc20873a99554477e586c0e3668'
 $corePath=Join-Path $PSScriptRoot 'ai09-first-access-host.ps1'; $coreLock=[IO.File]::Open($corePath,'Open','Read','Read')
 try {
   $h=[Security.Cryptography.SHA256]::Create()

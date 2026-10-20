@@ -13,7 +13,7 @@ $dependencyLock=[IO.File]::Open($dependency,'Open','Read','Read')
 try {
   $hash=[Security.Cryptography.SHA256]::Create()
   try {$actual=([BitConverter]::ToString($hash.ComputeHash($dependencyLock))).Replace('-','').ToLowerInvariant()} finally {$hash.Dispose()}
-  if ($actual -cne 'fea386a38e421727134f44af15574c0bf5217bc70aa19291cbd82d7da09fb7cc') {throw 'HOST_SOURCE_PIN_MISMATCH'}
+  if ($actual -cne 'c4c1fed72a8059b1175aa1c33cb2644e8f937fc20873a99554477e586c0e3668') {throw 'HOST_SOURCE_PIN_MISMATCH'}
   . $dependency # Pinned definitions only; does not invoke native host operations.
 } finally {$dependencyLock.Dispose()}
 function Read-Ai09ClientFile($Path,[int]$Limit) {

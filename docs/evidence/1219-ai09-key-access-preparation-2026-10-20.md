@@ -191,3 +191,47 @@ The existing production path validator was also executed read-only on both
 proposed new paths and passed. These checks are not native preparation or SSH
 success. After any future approved Prepare, inspect the new VHD file's actual
 ACL before guest execution; do not silently allow unknown writable principals.
+
+## Native read-only preflight and null-MAC repair (2026-10-21 JST)
+
+The owner approved exactedbd97ed/bundle2b09 and completed Windows UAC. That
+Prepare returned InvokeMethodOnNull in first-access-host.ps1:36, before new
+State/key/VHD creation. Receipt SHA256:
+`7e8d6b330773a86758715f805c0248b8d6f133c5251ad677f85d884f224904e6`.
+Native PS5 read-only enumeration confirmed19 adapters,14 without MAC and5 with
+MAC. A hidden WAN/Tailscale/switch adapter must not prevent finding the exact
+Hyper-V management interface. No mutating replay was performed.
+
+The bounded repair changes the first-access and media snapshot readers only:
+require one management adapter with a valid12-hex MAC, convert each row MAC to
+string before normalization, exclude empty/malformed rows, and retain exact-one
+match refusal. Active client/native source pins and their fixture are updated.
+Legacy unused access-host readers and historical hashes remain unchanged; no
+new authority or first/name/index fallback is introduced. Fixtures reproduce
+null and malformed-MAC REDs, then verify normal identity and refusal of absent,
+empty, malformed, missing-match and duplicate bindings. Related Node8/8 PASS;
+first-access101/media96 assertions PASS on native PS5.1. Lint/typecheck PASS.
+
+Corrected five-source bundle:
+`31e1c7a45abb7ef9b3834f0763da4ae4d4e219a9d8a2d4a48511f93e942dcd02`.
+Media SHA256 `ef0b44f3cdf3dd4f1298a64a8d8850062e62714a7716236e92c307dc53c3b5b9`;
+first-access SHA256
+`c4c1fed72a8059b1175aa1c33cb2644e8f937fc20873a99554477e586c0e3668`.
+
+Before another activation gate, an independently reviewed fixed native
+**read-only** preflight executed the real Assert-Ai09MediaState(false), rather
+than substituting source-only Verify. Media source was opened/read-locked and
+handle-hashed before dot-source; all five source locks were retained for the
+native observations. The caller also pinned/read-locked the preflight wrapper
+across native launch. At2026-10-20T17:02:36.6922958Z it returned
+READ_ONLY_NATIVE_PREFLIGHT_PASS/exit0: exact Running VM/OS disk/freeSCSI0:3,
+management interface37/172.27.128.1/20, original4ACLs, safe proposed paths,
+absent State/newVHD/A09 label, required native commands and Valid keygen signature.
+No configuration mutation or guest authentication occurred.
+
+Public receipt: checks/ai09-key-media-20261020/readonly-native-preflight-31e1c7a4.json
+outside the repository. Wrapper SHA256:
+`dcbf352a74317d7a712fc4642e249853c66fa4af1675b8e94dc80f0bc6e9bb84`.
+CI/review on the final corrected commit and a replacement exact-code critical
+gate are still required before activation. Both previous failed launchers remain
+consumed; neither is replayed. Native SSH/Verifier/stages3/4 remain unverified.
