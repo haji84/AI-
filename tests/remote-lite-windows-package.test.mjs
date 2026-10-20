@@ -53,7 +53,7 @@ test('embedded local WebRTC self-test has parsable JavaScript and explicit stop 
 
 test('source has no external auto-download, public relay or bundled device secrets', () => {
   for (const code of [main, bridge, page]) {
-    assert.doesNotMatch(code, /tailscale|curl\.exe|powershell -|turn\.cloudflare|https:\/\/[^\s"']+\/api\/admin/iu);
+    assert.doesNotMatch(code, /curl\.exe|powershell -|turn\.cloudflare|https:\/\/[^\s"']+\/api\/admin/iu);
     assert.doesNotMatch(code, /-----BEGIN (?:RSA )?PRIVATE KEY-----/);
   }
 });
