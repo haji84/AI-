@@ -12,7 +12,7 @@ A conversation-download ZIP named `GORIQ_Remote_Lite_Windows_Local_Preview.zip` 
 - a Windows/amd64 executable and Japanese README
 
 Final bundled executable SHA256: `6ccb62b6fc196e1a0a1ae7fceb78429927494fc1be6ce41ff9c93222fc3ae1d3`.
-**These Go/HTML source files are attached to the chat ZIP, not yet imported into this GitHub PR.** A GitHub issue comment records the development output, but the ZIP is not a durable GitHub release.
+**2026-10-20 update:** All listed Go/HTML source files have now been imported under `apps/remote-lite-windows/` in the isolated draft PR #1832, with a new native Windows/WebRTC local self-test. The earlier attached ZIP and historical SHA-256 refer only to the October 19 prototype and should not be confused with the newer build. See `apps/remote-lite-windows/README.md` for the current sources and acceptance instructions.
 
 ## Behavior (code-level)
 1. Run the unsigned preview locally as the normal Windows desktop user, never with raised privileges.
