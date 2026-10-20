@@ -28,18 +28,4 @@ Reject {New-Ai09MediaWrapper $p 'CA77-1234' '12345678-01' @{'enroll.py'='bad'}} 
 $native=[IO.File]::ReadAllText($source)
 Yes ($native.Contains('-ReadOnly')) 'collection cannot write guest filesystem'
 Yes (-not ($native -match 'Remove-Item|Remove-VMHardDiskDrive.*\*|Stop-VM|Restart-VM|Set-VMFirmware|Set-VMProcessor|Set-VMMemory')) 'no destructive or unrelated VM operations'
-# Exercise real ACL predicates with metadata-only fakes; no ACL is changed and
-# no private-key bytes are opened or hashed.
-$current=[Security.Principal.WindowsIdentity]::GetCurrent()
-$script:MediaTestAcl=[pscustomobject]@{Owner=$current.Name;Access=@([pscustomobject]@{AccessControlType='Allow';FileSystemRights=[Security.AccessControl.FileSystemRights]::FullControl;IdentityReference=$current.User})}
-function Get-Acl {param($LiteralPath) return $script:MediaTestAcl}
-function Get-Ai09SafePath {param($Path) Assert-Ai09MediaAllowedWriter $Path;return $Path}
-Assert-Ai09MediaAllowedWriter $source
-Assert-Ai09MediaPrivateKeyMetadata $source
-Yes $true 'owner-only metadata accepted without reading content'
-$script:MediaTestAcl.Access+=@([pscustomobject]@{AccessControlType='Allow';FileSystemRights=[Security.AccessControl.FileSystemRights]::Read;IdentityReference=(New-Object Security.Principal.SecurityIdentifier('S-1-1-0'))})
-Assert-Ai09MediaAllowedWriter $source
-Reject {Assert-Ai09MediaPrivateKeyMetadata $source} 'MEDIA_PRIVATE_KEY_METADATA_INVALID'
-$script:MediaTestAcl.Access[1].FileSystemRights=[Security.AccessControl.FileSystemRights]::Write
-Reject {Assert-Ai09MediaAllowedWriter $source} 'OWNER_PATH_REQUIRED'
 Write-Output ("AI09_ACCESS_MEDIA_FIXTURES_PASS assertions="+$script:Assertions)

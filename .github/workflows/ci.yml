@@ -100,3 +100,9 @@ jobs:
           ./tests/goriq-pc-runtime-launch.test.ps1
           ./tests/gai-zbook-launcher-file.test.ps1
           ./tests/goriq-zbook-watchdog-launcher-repair.test.ps1
+      - name: Windows PowerShell 5.1 access media fixtures
+        shell: powershell
+        run: |
+          ./tests/ai09-access-media.test.ps1
+          ./tests/ai09-access-media-windows-acl.test.ps1
+          ./tests/ai09-access-media-lifecycle.test.ps1

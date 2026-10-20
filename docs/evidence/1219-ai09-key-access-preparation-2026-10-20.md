@@ -344,3 +344,88 @@ Independent task review: source/spec PASS, no P1/P2; existing Prepare/Collect
 gates preserved, fixed read-only preflight has no activation call and matches
 source/binding pins. Report `resume-empty-mbr-review-1.md` SHA256
 `3c5cb5c0596c0da33565163efcfad458dd7e237055d99e8a61955a600e22ef38`.
+
+## Exact750ceed0 CI failure — activation HOLD
+
+The reviewed patch was committed and pushed as
+`750ceed0de5af8d8900fdc637a6b22aff0b6758f`. All five privileged working files
+were compared byte-for-byte by SHA256 with staged and then committed Git blobs;
+bundlecb65d46e matched. Automatic PR CI39468766740 finished with two SUCCESS
+(repository-guard, windows-runtime-byte-fixtures) and two FAIL
+(project-checks, independent-verifier-container). No manual dispatch or rerun.
+
+The project Test step's sole failure is introduced by this patch:
+`AI09 new access media guards execute without live VM or credential mutation`,
+from tests/ai09-access-media.test.mjs:15. Added metadata fixture line33 calls
+WindowsIdentity.GetCurrent on Linux and throws Windows Principal functionality
+is not supported on this platform.2732total/2725PASS/1FAIL/6SKIP. The actual
+Linux failure supersedes the earlier local Windows and independent-review
+readiness assessment. It is not evidence of a fix or an old heartbeat flake.
+Retained project log750ceed0-project-checks.log SHA256
+`582709e45a64c5ff0e83fc7f69b502128739fb1880aef1ab18c930a004b370ea`.
+
+Native Resume/Collect has NOT executed; attempt/completion remain absent. The
+proposal request36f20bce/launcher61c34264 is HOLD and unapproved. There is no
+native activation question while required CI fails. The owner's supplied
+AGENTS three-fix cap overrides the newer checkout retry wording; this third
+software repair is returned to Governor. No fourth automatic repair is made.
+A proposed next test-only repair should execute Windows ACL cases on Windows
+while retaining portable Linux guard coverage and all rejection assertions.
+It must not skip protection checks merely to obtain green. A renewed bounded
+repair budget and applicable governance are evaluated before implementation.
+
+Governor handoff and final container failure artifact/provenance report are
+retained in external checks; Issue1219/PR1827/Compass carry the current blocker.
+SSH/independent authority/signed-six native E2E remain unverified. All keys,
+media, original records and protected services remain preserved.
+Final hosted failure audit: artifact12286940640 ZIP SHA256
+`debaabc97ef1dd780d96b26df16ebcd9ebbf9c2663dbe5c00b7788462e1d28b4`
+matches GitHub digest. Failed receipt SHA256
+`30f618123a191e8be015e308764e4bc0fe2a9229a02823721474b41e8846293b` has
+valid Ed25519 signature/schema/source/probe/candidate/image bindings at recorded
+time, but reports lint/typecheck PASS and unit FAIL exit1. Restricted unit2733/
+2726PASS/1FAIL/6SKIP;111298.677ms; cleanup confirmed for all three executed checks.
+Integration/security/build were not run. Valid signature is not acceptance PASS.
+Failure audit SHA256
+`7d0c58b78357d582bffa9bdbdc235e33f8920fadfa7eedfffe60373b1de379eb`;
+750ceed0-ci-report.md SHA256
+`d059d895467bfca8dee8f72eeaa059b3f371f9950edce04bdf7b90c608fabf19`.
+All evidence remains HOSTED_CONTAINER_CI, physicalAcceptanceVerified=false.
+Bookkeeping-only local state/evidence edits are retained uncommitted to avoid
+triggering another knowingly failing duplicate CI run; product/test bytes remain
+exact750ceed0. Root has not performed additional repair, activation or deletion.
+## Owner task-only retry override and portability repair resumed (2026-10-21 JST)
+
+The owner explicitly lifted the automatic three-fix limit for THIS task and
+instructed Linux compatibility/full CI followed by SSH/native E2E, preserving
+existing environments and asking only for critical changes. Direct instruction
+is retained in external owner-retry-cap-override-20261021.json. This is not a
+global policy edit, test weakening or grant of credential/permission/network
+changes. Prior Governor stop and failed750 evidence remain historical facts.
+
+The minimal correction retains all14 portable assertions on Linux and moves
+all3 Windows-only ACL metadata acceptance/rejection cases to a dedicated fixture
+that runs explicitly in existing Windows CI. Product's five source bytes/bundle,
+all existing test calls, CI authority and deadlines must remain unchanged.
+Actual Linux GREEN requires the new exact commit's CI; local Windows results
+alone do not establish it. Native Resume/key enrollment/TCP22 remains a separate
+critical gate after code/review/CI and current execution package verification.
+The test-only placement correction is implemented in exactly three files:
+portable media PS1, new Windows ACL PS1, and one added test step in the existing
+Windows CI job. Old17 assertions are preserved as14 portable plus3 Windows ACL
+assertions; the relocated ACL block is byte-identical after newline normalization.
+The Linux Node wrapper still executes the portable fixture. The new dedicated
+fixture explicitly refuses non-Windows and is required by Windows CI; no blanket
+skip, removed check, altered authority/deadline or production source edit is used.
+
+Native PS5 and bundled PS7 each pass14+3+323 assertions; related Node wrappers
+18PASS/0FAIL/0SKIP. Product source bundle stays exactlycb65d46e. Local logs:
+PS5/PS7 SHA256 `69e9ef47568aa7f04cf0aa32f7afb0a89b3572f5ab5b01e4fece51191c13789c`;
+Node `06bbee2ffb0be0eaf27ce9ac0e0c187888d174dad876d30822b1137f432fba75`;
+assertion/workflow-prefix/source invariants
+`4fad44d2877ec6e12c3a9ad8a24e762dbe9d515d94ae480cb51de122227c1af8`.
+Report SHA256 `e5f30937b0e24a1a1bbee61a643c90b950d9fcc159acc24a3b081238f48754bd`.
+Actual Linux GREEN and native activation remain subject to later exact CI and
+critical gate. All prior failure evidence remains retained.
+Independent portability task review: spec/quality PASS, no P1/P2.
+Report linux-portability-review.md SHA256 `5e883439c714f85940d116b056ca7be97882256c0dae08c5e933fb5c963714a9`. No source revision requested; actual Linux CI remains pending.
