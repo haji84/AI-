@@ -27,3 +27,15 @@ References:
 - https://developer.android.com/media/grow/media-projection
 - https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-sendinput
 - https://github.com/coturn/coturn/wiki/turnserver
+
+## 2026-10-20 progress: Windows source imported, local real-RTC smoke test available
+
+All six Windows Go/HTML files are now in this draft PR under `apps/remote-lite-windows/` and can be built without third-party Go dependencies. An unsigned Windows/amd64 EXE and Japanese manual have also been created in the conversation as `GORIQ_Remote_Lite_WebRTC_Windows_DevTest.zip`. This ZIP is a local developer artifact, not a public GitHub Release or verified installer.
+
+The Windows HTML now includes a **real browser RTCPeerConnection loopback self-test**: native JPEG snapshots are drawn into a canvas, a canvas video track is sent between two local browser peers using the normal WebRTC stack, and a DataChannel ping/pong is checked. A separate, locally confirmed test moves the Windows pointer via the WebRTC DataChannel into the same-host native input API. The test requires explicit Windows owner consent and is capped at 60 seconds. No outside network path or relay server is opened.
+
+**Verification accomplished**: Go Windows/amd64 cross-build PASS, Windows target `go vet` PASS, Windows native layout test compiled but cannot execute on Linux, embedded JavaScript `node --check` PASS. Actual Windows runtime capture/input, decoded browser media and pointer movement are still **PENDING PHYSICAL TEST**. A source-invariant Node test checks that the Windows host still binds only to loopback and keeps the consent/expiry/secure-desktop protections.
+
+**The four original completion criteria remain unmet as a complete product**: (1) remote peer media/input over authenticated signaling, (2) physical Windows manual control across machines, (3) independently installable Android low-latency media and Japanese first-run UI, (4) private-account HTTPS signaling and TURN that actually work across mobile NAT and have approved cost protections. Build and simulated contract checks are not equivalent to the friend's iPhone controlling their own Android/Windows PC.
+
+External relay pricing is a separate billing gate. Cloudflare Realtime TURN, for example, publishes a monthly free allocation followed by usage-based overages, so its free allocation alone is not a verified hard-zero charge guarantee. See: https://developers.cloudflare.com/realtime/turn/ and https://developers.cloudflare.com/durable-objects/platform/pricing/. No account linking, DNS, Worker or TURN service has been deployed in this task.
