@@ -5,3 +5,5 @@ scripts/ai09-first-access-native.ps1 text eol=lf
 scripts/ai09-first-access-client.ps1 text eol=lf
 scripts/ai09-first-access-inspect.py text eol=lf
 scripts/ai09-console-access.ps1 text eol=lf
+scripts/ai09-access-media.ps1 text eol=lf
+scripts/ai09-owner-key-enroll.py text eol=lf
