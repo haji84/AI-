@@ -155,6 +155,8 @@ test("signed output digest identifies a retained bounded log and complete file m
   assert.equal(log.containerImage, "fixture@sha256:" + "a".repeat(64));
   assert.equal(log.sourceRevision, f.req.sourceRevision);
   assert.equal(log.cleanup.confirmed,true);
+  assert.match(log.cliTiming.startedAt, /^\d{4}-\d{2}-\d{2}T/);
+  assert.ok(log.cliTiming.elapsedMs >= log.cliTiming.lastOutputElapsedMs);
   assert.deepEqual(Object.keys(log.fileHashes).sort(), ["docs/check.txt", "docs/result.txt"]);
 });
 

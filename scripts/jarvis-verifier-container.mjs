@@ -31,6 +31,9 @@ function dockerExecutable(untrustedRoots, env) {
 
 function runProcess(executable, args, options) {
   return new Promise(resolve => {
+    const startedAt = new Date().toISOString(), started = process.hrtime.bigint();
+    const elapsed = () => Number(process.hrtime.bigint() - started) / 1_000_000;
+    let firstOutputElapsedMs = null, lastOutputElapsedMs = null;
     const output = { status: null, signal: null, stdout: "", stderr: "", closeObserved: false };
     const chunks = { stdout: [], stderr: [] };
     let child, deadline, grace, total = 0, settled = false;
@@ -40,6 +43,8 @@ function runProcess(executable, args, options) {
       clearTimeout(deadline); clearTimeout(grace);
       output.stdout = Buffer.concat(chunks.stdout).toString("utf8");
       output.stderr = Buffer.concat(chunks.stderr).toString("utf8");
+      // CLI lifetime/output arrival, not test-file start/completion times.
+      output.cliTiming = { startedAt, elapsedMs: elapsed(), firstOutputElapsedMs, lastOutputElapsedMs };
       if (!output.closeObserved && child) {
         child.stdout?.destroy(); child.stderr?.destroy(); child.unref();
       }
@@ -58,6 +63,8 @@ function runProcess(executable, args, options) {
       for (const stream of ["stdout", "stderr"]) {
         child[stream].on("data", chunk => {
           if (settled || output.error) return;
+          lastOutputElapsedMs = elapsed();
+          firstOutputElapsedMs ??= lastOutputElapsedMs;
           const bytes = Buffer.from(chunk), available = Math.max(0, options.maxBuffer - total);
           // Own only retained bytes: an empty/subarray view would otherwise
           // retain arbitrarily large original chunks after output overflow.
@@ -80,7 +87,7 @@ function runProcess(executable, args, options) {
 
 const record = result => ({ status: result.status, signal: result.signal,
   stdout: result.stdout, stderr: result.stderr, errorCode: result.error?.code ?? null,
-  closeObserved: result.closeObserved });
+  closeObserved: result.closeObserved, cliTiming: result.cliTiming });
 
 export async function runVerifierContainer(args, {
   cwd, env, timeoutMs = 180_000, maxBuffer = 2 * 1024 * 1024,

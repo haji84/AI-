@@ -6,9 +6,68 @@ import { createHash } from "node:crypto";
 import { createRequire, syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
+import * as offlineWorkspace from "../scripts/jarvis-verifier-offline-workspace.mjs";
 
 const prepare = async paths => (await import("../scripts/jarvis-verifier-offline-workspace.mjs"))
   .prepareOfflineVerifierWorkspace(paths);
+
+test("resource observations distinguish Node default parallelism from cgroup CPU quota", () => {
+  const files = { "cpu.max": "200000 100000\n", "cpu.stat": "usage_usec 123456\nnr_throttled 7\nthrottled_usec 1234\n",
+    "pids.max": "128\n", "pids.current": "12\n", "memory.max": "2147483648\n", "memory.current": "9007199254740993\n" };
+  const paths = [];
+  const observation = offlineWorkspace.collectVerifierResourceSnapshot({ platform: "linux", parallelism: () => 8,
+    readResource: path => { paths.push(path); return files[path.split("/").at(-1)]; } });
+  assert.equal(observation.availableParallelism, 8);
+  assert.equal(observation.node24DefaultTestFileConcurrency, 7);
+  assert.deepEqual(observation.cgroup.cpuMax, { quotaUsec: "200000", periodUsec: "100000" });
+  assert.equal(observation.cgroup.cpuStat.nr_throttled, "7");
+  assert.equal(observation.cgroup.memoryCurrent, "9007199254740993");
+  assert.deepEqual(observation.unavailable, []);
+  assert.equal(paths.length, 6);
+  assert.ok(paths.every(path => /^\/sys\/fs\/cgroup\/(cpu\.(max|stat)|pids\.(max|current)|memory\.(max|current))$/.test(path)));
+});
+
+test("unavailable or invalid resource data never discloses its raw contents", () => {
+  const observation = offlineWorkspace.collectVerifierResourceSnapshot({ platform: "linux", parallelism: () => 2,
+    readResource: path => { if (path.endsWith("cpu.max")) return "max 100000";
+      if (path.endsWith("cpu.stat")) return "usage_usec 123\nunknown_secret sensitive-value\n";
+      if (path.endsWith("pids.max")) return "max";
+      if (path.endsWith("pids.current")) return "sensitive-value";
+      if (path.endsWith("memory.max")) return "1".repeat(4097);
+      throw Error("sensitive-value"); } });
+  assert.deepEqual(observation.cgroup.cpuMax, { quotaUsec: "max", periodUsec: "100000" });
+  assert.deepEqual(observation.cgroup.cpuStat, { usage_usec: "123" });
+  assert.equal(observation.cgroup.pidsMax, "max");
+  assert.deepEqual(observation.unavailable, ["pidsCurrent", "memoryMax", "memoryCurrent"]);
+  assert.ok(!JSON.stringify(observation).includes("sensitive-value"));
+  assert.ok(!JSON.stringify(observation).includes("unknown_secret"));
+});
+
+test("non-Linux resource observation does not attempt cgroup reads", () => {
+  const observation = offlineWorkspace.collectVerifierResourceSnapshot({ platform: "win32", parallelism: () => 1,
+    readResource: () => { throw Error("must not read"); } });
+  assert.equal(observation.node24DefaultTestFileConcurrency, 1);
+  assert.deepEqual(observation.cgroup, {});
+  assert.equal(observation.unavailable.length, 6);
+});
+
+test("native resource file reads are capped before parsing and handles always close", t => {
+  const reads = [], closed = [];
+  t.mock.method(fs, "openSync", () => 123);
+  t.mock.method(fs, "readSync", (fd, buffer, offset, length, position) => {
+    reads.push({ fd, offset, length, position }); buffer.fill(49); return length;
+  });
+  t.mock.method(fs, "closeSync", fd => closed.push(fd));
+  syncBuiltinESMExports();
+  try {
+    const observation = offlineWorkspace.collectVerifierResourceSnapshot({ platform: "linux", parallelism: () => 2 });
+    assert.equal(reads.length, 6);
+    assert.ok(reads.every(read => read.length === 4097 && read.offset === 0 && read.position === 0));
+    assert.equal(closed.length, 6);
+    assert.deepEqual(observation.cgroup, {});
+    assert.equal(observation.unavailable.length, 6);
+  } finally { t.mock.restoreAll(); syncBuiltinESMExports(); }
+});
 
 function fixture(t) {
   const root = fs.mkdtempSync(join(tmpdir(), "goriq-offline-workspace-"));

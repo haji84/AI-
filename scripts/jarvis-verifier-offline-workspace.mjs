@@ -5,8 +5,9 @@
  * this helper does not install packages, run lifecycle scripts or use network.
  */
 import { createHash } from "node:crypto";
-import { chmodSync, constants, copyFileSync, existsSync, lstatSync, mkdirSync, readFileSync,
-  readdirSync, realpathSync, statSync, symlinkSync } from "node:fs";
+import { chmodSync, closeSync, constants, copyFileSync, existsSync, lstatSync, mkdirSync, openSync, readFileSync,
+  readSync, readdirSync, realpathSync, statSync, symlinkSync } from "node:fs";
+import { availableParallelism } from "node:os";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
 const hash = bytes => createHash("sha256").update(bytes).digest("hex");
@@ -14,6 +15,61 @@ const inside = (root, path) => {
   const diff = relative(root, path);
   return diff === "" || (!isAbsolute(diff) && diff !== ".." && !diff.startsWith(".." + sep));
 };
+
+const resourceFiles = { cpuMax: "cpu.max", cpuStat: "cpu.stat", pidsMax: "pids.max",
+  pidsCurrent: "pids.current", memoryMax: "memory.max", memoryCurrent: "memory.current" };
+const cpuStatKeys = new Set(["usage_usec", "user_usec", "system_usec", "nr_periods", "nr_throttled", "throttled_usec"]);
+const decimal = value => typeof value === "string" && /^[0-9]{1,24}$/.test(value);
+function readResource(path) {
+  const fd = openSync(path, "r"), bytes = Buffer.alloc(4097);
+  try {
+    const length = readSync(fd, bytes, 0, bytes.length, 0);
+    if (length > 4096) throw Error("RESOURCE_BOUND");
+    return bytes.subarray(0, length).toString("utf8");
+  } finally { closeSync(fd); }
+}
+
+/** Observation only: a before-check snapshot cannot establish runtime CPU
+ * throttling or observed test concurrency. No env, cmdline or arbitrary paths. */
+export function collectVerifierResourceSnapshot({ platform = process.platform,
+  parallelism = availableParallelism, readResource: read = readResource } = {}) {
+  const observation = { version: 1, platform, availableParallelism: null,
+    node24DefaultTestFileConcurrency: null, cgroup: {}, unavailable: [] };
+  try {
+    const count = parallelism();
+    if (!Number.isInteger(count) || count < 1 || count > 65536) throw Error("RESOURCE_INVALID");
+    observation.availableParallelism = count;
+    // Pinned Node24 default, not an observation of worker start/end events.
+    observation.node24DefaultTestFileConcurrency = Math.max(count - 1, 1);
+  } catch { observation.unavailable.push("availableParallelism"); }
+  for (const [key, file] of Object.entries(resourceFiles)) {
+    try {
+      if (platform !== "linux") throw Error("RESOURCE_UNAVAILABLE");
+      const text = read("/sys/fs/cgroup/" + file);
+      if (typeof text !== "string" || Buffer.byteLength(text) > 4096) throw Error("RESOURCE_BOUND");
+      const value = text.trim();
+      if (key === "cpuMax") {
+        const fields = value.split(/\s+/);
+        if (fields.length !== 2 || !(fields[0] === "max" || decimal(fields[0])) || !decimal(fields[1])) throw Error("RESOURCE_INVALID");
+        observation.cgroup[key] = { quotaUsec: fields[0], periodUsec: fields[1] };
+      } else if (key === "cpuStat") {
+        const counters = {};
+        for (const line of value.split("\n")) {
+          const [name, counter, ...extra] = line.trim().split(/\s+/);
+          if (!cpuStatKeys.has(name)) continue;
+          if (!decimal(counter) || extra.length || Object.hasOwn(counters, name)) throw Error("RESOURCE_INVALID");
+          counters[name] = counter;
+        }
+        if (!Object.keys(counters).length) throw Error("RESOURCE_UNAVAILABLE");
+        observation.cgroup[key] = counters;
+      } else {
+        if (!(decimal(value) || (key.endsWith("Max") && value === "max"))) throw Error("RESOURCE_INVALID");
+        observation.cgroup[key] = value;
+      }
+    } catch { observation.unavailable.push(key); }
+  }
+  return observation;
+}
 
 function plainPath(path) {
   if (typeof path !== "string" || !isAbsolute(path)) throw Error("VERIFIER_OFFLINE_PATH_UNSAFE");
@@ -130,6 +186,7 @@ if (process.argv[1] && basename(process.argv[1]) === "jarvis-verifier-offline-wo
     const result = prepareOfflineVerifierWorkspace({ source: "/source",
       dependencies: "/opt/goriq-verifier/dependencies", destination: "/tmp/verify" });
     process.stdout.write("VERIFIER_OFFLINE_READY:" + JSON.stringify(result) + "\n");
+    process.stdout.write("VERIFIER_RUNTIME_RESOURCES:" + JSON.stringify(collectVerifierResourceSnapshot()) + "\n");
   } catch (error) {
     process.stderr.write("VERIFIER_OFFLINE_STOP:" + String(error.message).slice(0, 180) + "\n");
     process.exitCode = 1;

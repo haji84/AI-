@@ -69,6 +69,12 @@ test("zero exit requires exact named-container cleanup and confirmed absence", a
   assert.equal(result.error, undefined);
   assert.equal(result.stdout, "check output");
   assert.equal(result.cleanup?.confirmed, true);
+  assert.match(result.cliTiming.startedAt, /^\d{4}-\d{2}-\d{2}T/);
+  assert.ok(result.cliTiming.elapsedMs >= 0);
+  assert.ok(result.cliTiming.firstOutputElapsedMs >= 0);
+  assert.ok(result.cliTiming.lastOutputElapsedMs >= result.cliTiming.firstOutputElapsedMs);
+  assert.ok(result.cliTiming.elapsedMs >= result.cliTiming.lastOutputElapsedMs);
+  assert.ok(result.cleanup.removal.cliTiming.elapsedMs >= 0);
   const name = f.calls[0][f.calls[0].indexOf("--name") + 1];
   assert.match(name, /^goriq-verifier-[a-f0-9-]{36}$/);
   assert.deepEqual(f.calls[1], ["rm", "--force", "--volumes", name]);
@@ -79,6 +85,9 @@ test("timeout kills the Docker CLI and cleans the container", async t => {
   const f = fixture(t, { hang: true });
   const result = await runVerifierContainer(runArgs, f.options);
   assert.equal(result.error?.code, "ETIMEDOUT");
+  assert.ok(result.cliTiming.elapsedMs >= f.options.timeoutMs);
+  assert.equal(result.cliTiming.firstOutputElapsedMs, null);
+  assert.equal(result.cliTiming.lastOutputElapsedMs, null);
   assert.equal(result.cleanup?.confirmed, true);
   assert.equal(result.closeObserved, true);
   assert.equal(f.killed[0]?.signal, "SIGKILL");

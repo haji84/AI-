@@ -214,6 +214,7 @@ export async function runIndependentVerifier(req) {
       stdout:output.stdout??"", stderr:output.stderr??"",
       errorCode:output.error?.code??null,
       runErrorCode:output.runErrorCode??null,closeObserved:output.closeObserved,cleanup:output.cleanup,
+      cliTiming:output.cliTiming??null,
     })+"\n";
     const outputDigest=hash(log);
     externalPath(candidate,runner,logDirectory);
