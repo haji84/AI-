@@ -235,3 +235,112 @@ outside the repository. Wrapper SHA256:
 CI/review on the final corrected commit and a replacement exact-code critical
 gate are still required before activation. Both previous failed launchers remain
 consumed; neither is replayed. Native SSH/Verifier/stages3/4 remain unverified.
+
+## Consumed native preparation and retained partial media (2026-10-21 JST)
+
+Exact source `0f1b61b1e75ad9f8da261853084fc429ff1c5ff1` subsequently passed
+CI39462873672 all four jobs, actual six checks and signature/log/source audit.
+Artifact12284415487 ZIP SHA256
+`4cb1c37c36189a6ed115c913f7c0d0aa61707560acd3d1eae89bec5edd9b8e80`.
+Audit SHA256 `018f49dba597ed10b9a294013d2b2f30ae3c666a1a50e2516fee5b78b7d251c5`.
+This remains historical HOSTED_CONTAINER_CI evidence, not guest verification.
+
+Owner explicitly approved the replacement source/bundle. Its one fixed native
+Prepare was executed once: child21300 exit1, NATIVE_PREPARATION_FAILED,
+CmdletizationQuery_NotFound_DiskNumber,Get-Partition. The real Windows CDXML
+provider throws when a disk-number query has no matching partition; the fixture
+returned an empty list and concealed the compatibility bug. The exception followed
+new client-key and exact new256MiB VHD creation and MBR initialization, before
+New-Partition, Format-Volume, payload writes, VM attachment or network change.
+
+Original evidence outside the repository is retained in
+`checks/ai09-key-media-20261020/`:
+
+- Failure `native-prepare-0f1b61b1-20261020T1705Z.json`, SHA256
+  `8e551f6bff745fb5b08d80578b63a2c44c2e287130741887fc0ebc483bc4a298`.
+- Fresh read-only `readonly-partial-media-inspect-028cc365.json`, SHA256
+  `7989b72529625b4e68635a1bc585f450d80b94015ff3fcf74d823fe4557f56a1`.
+  Real native child41904 exit0 at2026-10-20T17:29:18Z confirmed the same Running
+  VM/OS/NIC/host37 and original4ACLs; new VHD detached from both host and guest.
+  This inspection does not mount the media or independently prove MBR/partition0.
+
+The new State `C:\Users\qq113\.codex\ai09-access-1219-20261020` is protected
+for owner/SYSTEM/Administrators. Private-key content was not read or hashed.
+New VHD `C:\Users\qq113\.codex\AI09-ACCESS-1219-20261020.vhdx` has identifier
+`BB6408C8-49AE-4575-B5F0-69AC73DDFE86`, disk UniqueId
+`60022480C80864BBAE4969AC73DDFE86`, run
+`028cc365d24b48d3a8ddfbbe07d0ac95`. No unknown writer was found in its metadata ACL.
+Original intent SHA256 is
+`f9dc1e81ca498ac0c2b5a5d576b48b5aa044e557a238654de7b64bb4a391b8f5`;
+prepared SHA256 is
+`75409f7caf39af78a1d6c4b000e6de377fd6b8e075f1496620c75b425f4cb56d`.
+The empty payload/UUID stage and original records remain preserved.
+
+No Prepare replay or automatic cleanup is authorized. The third and final bounded
+software repair will reproduce provider behavior and implement explicit,
+origin-hash-bound ResumeEmptyMbr for only the existing owned empty MBR media.
+It must not create another key, call New-VHD/Initialize-Disk, alter ACLs, delete,
+or overwrite original records. A separate CreateNew completion record and
+explicit pinned Collect linkage preserve provenance. Native continuation must
+first verify fresh baseline, detachment, exact VHD/disk identity, MBR and zero
+partitions; its new exact-source approval must describe existing-media writes.
+Tests, independent review and exact-commit CI are required before that gate.
+
+Authenticated AI09, independent signer authority, signed six checks on this guest,
+iPhone Goal/Ollama/restart/Job2 and later repair/selection/final acceptance remain
+NOT VERIFIED. Existing services/VM/old seed/worktrees remain protected.
+## Explicit empty-MBR continuation implementation
+
+The provider mismatch was first reproduced RED using the real error identifier
+and a fixture containing another disk's partition. The correction enumerates
+partitions without a filtered empty-disk query, then selects only the fresh owned
+DiskNumber; actual provider errors still terminate. No error suppression was added.
+
+The explicit ResumeEmptyMbr mode binds the old bundle, exact original
+intent/prepared/failure/public-key hashes and one owned run/VHD/UniqueId to a new
+current source bundle and approval. It reuses the existing key and media. It never
+creates a key/VHD, initializes a disk, changes ACLs, deletes or overwrites originals.
+A durable CreateNew attempt marker prevents silent replay. Fresh native baseline,
+host/guest detachment, exact VHD/disk identity, writable online nonboot/nonsystem
+MBR and zero partitions are mandatory before the shared partition/payload steps.
+A separate CreateNew completion record and its explicit hash connect Collect;
+there is no automatic fallback from Prepare or discovery of another record.
+
+Prepared bundle SHA256:
+`cb65d46ec0cad1040114453b1ab3056f6e5fe10b41b1fe491247f57a95939762`.
+Media source SHA256:
+`7ff6a932825e14db4b9be3a7895bd09bdb8dc7a0000841fb566b1445af3d8088`.
+Final tests on this source: PS5.1 and bundled PS7 each pass media17/lifecycle323/
+first-access101/legacy-host131 assertions; related Node wrappers18PASS/0SKIP;
+lint and typecheck exit0. Provider RED log SHA256
+`5edca0f622d9a40fd79b362f6610fb3dfc37180e88eb4fc790550127c3e2920a`;
+PS5/PS7 GREEN log SHA256 (identical textual results)
+`6d580decf4573cf398b6f63628052fa74aa1859c1ca5f7a066f37f83fb833712`;
+Node log SHA256 `5cba0d7789b963a462f58f6c2ef643e39545ac2bc5cd5fa0826ee93c93b57486`.
+Report SHA256 `e329b165bfed566d343ff04b50b03c31cc47b9fd744dadcc0790fbe2cd19daff`.
+All logs/report are retained under the external checks directory. These are
+software fixtures, not native recovery or physical Verifier evidence.
+
+Independent review, exact committed CI and source-blob/bundle matching remain
+activation conditions. A fixed read-only native origin/ACL/detachment preflight
+is separate from activation and must not mount or write the media. Its successful
+result, if obtained, still cannot establish MBR/partition0; that check belongs to
+the separately approved limited resume. Current expiry is not extended beyond
+2026-10-21T09:00:00.000Z. Authenticated SSH and stages3/4 remain unverified.
+The fixed new-source read-only native preflight completed at
+2026-10-20T17:40:52.9035020Z, child40916 exit0,
+READ_ONLY_RESUME_PREFLIGHT_PASS. Source/binding/original-record locks were retained;
+origin hashes/private-key metadata ACL and fresh exact baseline verified. New
+media is detached from host and guest and resume attempt/completion are absent.
+Receipt `readonly-resume-preflight-cb65d46e.json` SHA256
+`d5c297b468033e3247b56d5ccc62aba08dc14481332e0bcadaecaa1c7836c92f`.
+Wrapper SHA256 `c9621abdd9c4a727724864d5e2822d55575be65a808332ea85f645a665ba780d`;
+resume binding SHA256
+`d9dc8192431d2efe6f5454dd94e4157e6caf1acab1b8a58aef00241e853e5784`.
+ConfigurationMutationsPerformed/privateKeyContentRead/partitionStageVerified/
+authenticatedConnectionVerified/physicalE2EVerified are all false. This is a
+native read-only preflight, not authorization or recovery success.
+Independent task review: source/spec PASS, no P1/P2; existing Prepare/Collect
+gates preserved, fixed read-only preflight has no activation call and matches
+source/binding pins. Report `resume-empty-mbr-review-1.md` SHA256
+`3c5cb5c0596c0da33565163efcfad458dd7e237055d99e8a61955a600e22ef38`.

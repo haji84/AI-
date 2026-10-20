@@ -5,6 +5,7 @@ $ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot '../scripts/ai09-access-media.ps1')
 $script:RealMediaSnapshot=(Get-Command Get-Ai09MediaNativeSnapshot).ScriptBlock
 $script:RealLease=(Get-Command Assert-Ai09MediaLease).ScriptBlock
+$script:RealVolume=(Get-Command Assert-Ai09MediaVolume).ScriptBlock
 $script:Assertions=0
 function Yes($Value,$Label){$script:Assertions++;if(-not $Value){throw "ASSERT:$Label"}}
 function Equal($Actual,$Expected,$Label){Yes ($Actual -ceq $Expected) "$Label expected=$Expected actual=$Actual"}
@@ -12,9 +13,10 @@ function Reject($Action,$Code){try{& $Action|Out-Null;throw 'ASSERT:EXPECTED_REF
 function Assert-Ai09NativeAuthority {}
 function Assert-Ai09FirstNetworkReaders {}
 function Assert-Ai09OwnerPath {param($Path)}
-function Get-Ai09SafePath {param($Path) return $Path}
+function Assert-Ai09MediaAllowedWriter {param($Path)}
+function Get-Ai09SafePath {param($Path) if($global:MediaFixture -and $global:MediaFixture.UnsafePath){throw 'PATH_ALIAS'};return $Path}
 function Get-Ai09MediaScope {return $global:MediaFixture.Scope}
-function New-Ai09PrivateDirectory {param($Path) $null=[IO.Directory]::CreateDirectory($Path)}
+function New-Ai09PrivateDirectory {param($Path) $global:MediaFixture.PrivateDirs++;$null=[IO.Directory]::CreateDirectory($Path)}
 function New-Ai09MediaClientKey {param($Key)
   $global:MediaFixture.Keys++
   [IO.File]::WriteAllText($Key,'TEST FIXTURE ONLY: NOT AN SSH PRIVATE KEY')
@@ -32,11 +34,15 @@ function Read-FixtureState {
 function Get-Ai09FirstNativeSnapshot {return Read-FixtureState}
 function Get-Ai09MediaNativeSnapshot {return Read-FixtureState}
 function Assert-Ai09MediaVolume {param($Record,[bool]$Raw=$false)
-  $null=Assert-Ai09MediaVhd $Record $true
-  $d=Storage\Get-Disk -Number $Record.diskNumber
-  if($Raw){return $d}
-  return @{disk=$d;partition=[pscustomobject]@{DriveLetter='X';DiskNumber=7;PartitionNumber=1};root=$global:MediaFixture.Volume}
+  $v=& $script:RealVolume $Record $Raw
+  if(-not $Raw){$v.root=$global:MediaFixture.Volume}
+  return $v
 }
+function Assert-Ai09MediaPrivateKeyMetadata {param($Path)
+  if($global:MediaFixture.UnsafeMetadata){throw 'MEDIA_PRIVATE_KEY_METADATA_INVALID'}
+  if(-not(Test-Path -LiteralPath $Path -PathType Leaf)){throw 'MEDIA_PRIVATE_KEY_METADATA_INVALID'}
+}
+function Get-Ai09MediaResumeOrigin {return $global:MediaFixture.Origin}
 function Get-CimInstance {param($ClassName,$Filter)
   if($ClassName -cne 'Win32_LogicalDisk' -or $Filter -cne "DeviceID='X:'"){throw 'UNEXPECTED_CIM_QUERY'}
   return @{VolumeSerialNumber=$global:MediaFixture.Serial}
@@ -58,7 +64,8 @@ function Reset-Fixture {
   $global:MediaFixture=[ordered]@{
     Scope=[ordered]@{Media=(Join-Path $case 'new.vhdx');State=(Join-Path $case 'state');Slot=3;Label='A09'}
     Volume=$volume;HostMounted=$false;GuestAttached=$false;ReadOnly=$false;Style='RAW';Partitions=0
-    New=0;Mounts=0;Dismounts=0;Adds=0;Removes=0;Formats=0;Keys=0;Reads=0;DriftAt=-1;NetworkAdds=0
+    New=0;Mounts=0;Dismounts=0;Adds=0;Removes=0;Formats=0;Keys=0;Reads=0;DriftAt=-1;NetworkAdds=0;Initializes=0;PartitionWrites=0
+    EnumerationFail=$false;UnsafeMetadata=$false;UnsafePath=$false;Origin=$null;BindingPath='';BindingSha256='';WrongUniqueId=$false;WrongVhd=$false;PrivateDirs=0;CheckOriginLocks=$false;OriginLocksChecked=0
     FormatFail=$false;ExpireAfterFormat=$false;ExpireNow=$false;ForceWritable=$false;WrongAttachment=$false;DismountNoEffect=$false
     Serial='CA771234';Signature=[uint32]0x12345678;LastMountReadOnly=$false
     ManagementMac='001122334455';Interfaces=@(@{MacAddress=$null;ifIndex=98},@{MacAddress='';ifIndex=97},@{MacAddress='00-11-22-33-44-55';ifIndex=21})
@@ -90,6 +97,35 @@ function Guest-AppliedFixture {
   [IO.File]::WriteAllText((Join-Path $f.Volume 'baseline.txt'),("AI09_FIRST_ACCESS_BEGIN`n"+(Get-Ai09Json $base)+"`nAI09_FIRST_ACCESS_END`n"))
   [IO.File]::WriteAllText((Join-Path $f.Volume 'enrollment.json'),(Get-Ai09Json $receipt))
   [IO.File]::WriteAllText((Join-Path $f.Volume 'exit.txt'),'0')
+}
+function Reset-ResumeFixture {
+  Reset-Fixture;$f=$global:MediaFixture
+  $null=[IO.Directory]::CreateDirectory($f.Scope.State)
+  New-Ai09MediaClientKey (Join-Path $f.Scope.State 'client_ed25519');$f.Keys=0
+  [IO.File]::WriteAllText($f.Scope.Media,'FAKE EXISTING VHD')
+  $baseline=Get-Ai09FirstCanonical (Read-FixtureState)
+  $r=[ordered]@{version=1;issue=1219;runId=('a'*32);authorizationRef='old-fixture-owner';expiresAt=$f.Expiry;bundleSha256=('b'*64);baselineSha256=(Get-Ai09Digest $baseline);baseline=$baseline;vhdIdentifier='';diskUniqueId='';diskNumber=-1;fileSystemUuid='';partitionUuid='';payloadSha256=@{}}
+  Write-Ai09MediaNew (Join-Path $f.Scope.State 'intent.json') ([Text.Encoding]::UTF8.GetBytes((Get-Ai09Json $r)))
+  $r.vhdIdentifier='fixture-vhd-id';$r.diskUniqueId='fixture-disk-id';$r.diskNumber=983
+  Write-Ai09MediaNew (Join-Path $f.Scope.State 'prepared.json') ([Text.Encoding]::UTF8.GetBytes((Get-Ai09Json $r)))
+  $failure=Join-Path $f.Scope.State 'failure.json'
+  [IO.File]::WriteAllText($failure,'{"status":"NATIVE_PREPARATION_FAILED","errorId":"CmdletizationQuery_NotFound_DiskNumber,Get-Partition"}')
+  $f.Origin=[ordered]@{runId=$r.runId;vhdIdentifier=$r.vhdIdentifier;diskUniqueId=$r.diskUniqueId;baselineSha256=$r.baselineSha256;bundleSha256=$r.bundleSha256;authorizationRef=$r.authorizationRef;expiresAt=$r.expiresAt;failurePath=$failure}
+  foreach($pair in @(@('intentSha256','intent.json'),@('preparedSha256','prepared.json'),@('publicKeySha256','client_ed25519.pub'),@('failureSha256','failure.json'))){$f.Origin[$pair[0]]=Get-Ai09ShaBytes ([IO.File]::ReadAllBytes((Join-Path $f.Scope.State $pair[1])))}
+  $f.BindingPath=Join-Path $f.Scope.State 'resume-binding.json'
+  $binding=[ordered]@{version=1;issue=1219;profile='AI09_RESUME_EMPTY_MBR_V1';bundleSha256=$script:Bundle.sha256;authorizationRef='fixture-owner';expiresAt=$f.Expiry;originBundleSha256=$f.Origin.bundleSha256;intentSha256=$f.Origin.intentSha256;preparedSha256=$f.Origin.preparedSha256;failureSha256=$f.Origin.failureSha256;publicKeySha256=$f.Origin.publicKeySha256}
+  [IO.File]::WriteAllText($f.BindingPath,(Get-Ai09Json $binding))
+  $f.BindingSha256=Get-Ai09ShaBytes ([IO.File]::ReadAllBytes($f.BindingPath));$f.Style='MBR'
+}
+function Resume-Fixture {
+  return Invoke-Ai09MediaOperation -Mode ResumeEmptyMbr -LockedBundle $script:Bundle -AuthorizationReference 'fixture-owner' -ExpiresAt $global:MediaFixture.Expiry -ResumeBindingPath $global:MediaFixture.BindingPath -ResumeBindingSha256 $global:MediaFixture.BindingSha256
+}
+function Collect-ResumeFixture([string]$CompletionSha256,[switch]$PermitNetwork) {
+  return Invoke-Ai09MediaOperation -Mode Collect -LockedBundle $script:Bundle -AuthorizationReference 'fixture-owner' -ExpiresAt $global:MediaFixture.Expiry -GuestUnmountConfirmed -ResumeBindingPath $global:MediaFixture.BindingPath -ResumeBindingSha256 $global:MediaFixture.BindingSha256 -CompletionRecordSha256 $CompletionSha256 -PermitNetwork:$PermitNetwork
+}
+function Change-ResumeBinding($Change) {
+  $f=$global:MediaFixture;$b=Read-Ai09MediaJson $f.BindingPath;& $Change $b
+  [IO.File]::WriteAllText($f.BindingPath,(Get-Ai09Json $b));$f.BindingSha256=Get-Ai09ShaBytes ([IO.File]::ReadAllBytes($f.BindingPath))
 }
 try {
   $null=New-Module -Name Hyper-V -ScriptBlock {
@@ -123,7 +159,8 @@ try {
       $f=$global:MediaFixture
       if($Path -ceq $f.State.disks[0].path){return $f.State.disks[0]}
       if($Path -cne $f.Scope.Media){throw 'UNEXPECTED_VHD_PATH'}
-      return @{Path=$Path;DiskIdentifier='fixture-vhd-id';Size=256MB;VhdType='Dynamic';VhdFormat='VHDX';ParentPath='';Attached=$f.HostMounted;DiskNumber=7}
+      $id='fixture-vhd-id';if($f.WrongVhd){$id='unrelated-vhd'}
+      return @{Path=$Path;DiskIdentifier=$id;Size=256MB;VhdType='Dynamic';VhdFormat='VHDX';ParentPath='';Attached=$f.HostMounted;DiskNumber=7}
     }
     function Mount-VHD {param($Path,[switch]$ReadOnly,[switch]$PassThru)
       $f=$global:MediaFixture;if($Path -cne $f.Scope.Media -or $f.GuestAttached){throw 'UNSAFE_MOUNT'}
@@ -146,22 +183,37 @@ try {
     Export-ModuleMember -Function *
   }|Import-Module -PassThru
   $null=New-Module -Name Storage -ScriptBlock {
-    function Get-Volume {return @()}
+    function Get-Volume {param($Partition)
+      if($Partition){return @{FileSystem='FAT32';FileSystemLabel='A09'}}
+      return @()
+    }
     function Get-Disk {param($Number)
       $f=$global:MediaFixture;if($Number -ne 7){throw 'UNEXPECTED_DISK'}
-      return @{Number=7;UniqueId='fixture-disk-id';Size=256MB;IsBoot=$false;IsSystem=$false;IsOffline=$false;PartitionStyle=$f.Style;Signature=$f.Signature;IsReadOnly=$f.ReadOnly}
+      $id='fixture-disk-id';if($f.WrongUniqueId){$id='unrelated-disk'}
+      return @{Number=7;UniqueId=$id;Size=256MB;IsBoot=$false;IsSystem=$false;IsOffline=$false;PartitionStyle=$f.Style;Signature=$f.Signature;IsReadOnly=$f.ReadOnly}
     }
     function Initialize-Disk {param($Number,$PartitionStyle)
       $f=$global:MediaFixture;if($Number -ne 7 -or $PartitionStyle -cne 'MBR' -or $f.Style -cne 'RAW'){throw 'UNEXPECTED_INITIALIZE'}
-      $f.Style='MBR'
+      $f.Initializes++;$f.Style='MBR'
     }
     function Get-Partition {param($DiskNumber)
+      if($global:MediaFixture.EnumerationFail){throw 'GENUINE_STORAGE_ENUMERATION_FAILURE'}
+      if($PSBoundParameters.ContainsKey('DiskNumber') -and -not $global:MediaFixture.Partitions){throw 'CmdletizationQuery_NotFound_DiskNumber'}
+      if(-not $PSBoundParameters.ContainsKey('DiskNumber')){Write-Output @{DiskNumber=99;PartitionNumber=1;DriveLetter='Z'}}
       if($global:MediaFixture.Partitions){return @{DiskNumber=7;PartitionNumber=1;DriveLetter='X'}}
       return @()
     }
     function New-Partition {param($DiskNumber,[switch]$UseMaximumSize,[switch]$AssignDriveLetter)
       if($DiskNumber -ne 7 -or -not $UseMaximumSize -or -not $AssignDriveLetter){throw 'UNEXPECTED_PARTITION'}
-      $global:MediaFixture.Partitions=1;return @{DiskNumber=7;PartitionNumber=1;DriveLetter='X'}
+      $f=$global:MediaFixture
+      if($f.CheckOriginLocks){
+        foreach($path in @($f.BindingPath,(Join-Path $f.Scope.State 'intent.json'),(Join-Path $f.Scope.State 'prepared.json'),$f.Origin.failurePath,(Join-Path $f.Scope.State 'client_ed25519.pub'))){
+          $denied=$false;$writer=$null
+          try{$writer=[IO.File]::Open($path,'Open','Write','None')}catch [IO.IOException]{$denied=$true}finally{if($writer){$writer.Dispose()}}
+          if(-not $denied){throw 'ORIGIN_NOT_READ_LOCKED'};$f.OriginLocksChecked++
+        }
+      }
+      $global:MediaFixture.PartitionWrites++;$global:MediaFixture.Partitions=1;return @{DiskNumber=7;PartitionNumber=1;DriveLetter='X'}
     }
     function Format-Volume {param($Partition,$FileSystem,$NewFileSystemLabel,[switch]$Confirm)
       $f=$global:MediaFixture
@@ -301,6 +353,85 @@ try {
     }
   } finally {foreach($lock in $locks){$lock.Dispose()}}
   Equal ([IO.File]::ReadAllText($script:OldMedia)) 'UNRELATED OLD MEDIA MUST REMAIN' 'old media untouched'
+  Reset-Fixture;$global:MediaFixture.EnumerationFail=$true
+  Reject {Prepare-Fixture} 'GENUINE_STORAGE_ENUMERATION_FAILURE'
+  Equal $global:MediaFixture.PartitionWrites 0 'genuine enumeration failure never partitions'
+  Equal $global:MediaFixture.Formats 0 'genuine enumeration failure never formats'
+  Equal $global:MediaFixture.Adds 0 'genuine enumeration failure never attaches'
+
+  Reset-ResumeFixture;$f=$global:MediaFixture
+  $originals=@{};foreach($name in @('intent.json','prepared.json','failure.json','client_ed25519.pub')){$originals[$name]=Get-Ai09ShaBytes ([IO.File]::ReadAllBytes((Join-Path $f.Scope.State $name)))}
+  $f.CheckOriginLocks=$true;$resumed=Resume-Fixture
+  Equal $resumed.status 'RESUMED_MEDIA_ATTACHED_GUEST_NOT_EXECUTED' 'bounded resume succeeds'
+  Equal $f.Keys 0 'resume never generates keys';Equal $f.New 0 'resume never creates VHD';Equal $f.Initializes 0 'resume never initializes disk'
+  Equal $f.PrivateDirs 0 'resume never changes private directory ACL';Equal $f.OriginLocksChecked 5 'origin and binding held read-locked through partition write'
+  Equal $f.PartitionWrites 1 'resume partitions exact owned disk only';Equal $f.Formats 1 'resume formats exact owned partition only'
+  Equal $f.NetworkAdds 0 'resume never changes network ACL';Equal $f.Dismounts 1 'resume dismounts before attachment';Equal $f.Adds 1 'resume attaches exactly once'
+  foreach($name in $originals.Keys){Equal (Get-Ai09ShaBytes ([IO.File]::ReadAllBytes((Join-Path $f.Scope.State $name)))) $originals[$name] "origin $name bytes unchanged"}
+  Reject {Collect-Fixture} 'MEDIA_RECEIPT_SCOPE_INVALID'
+  Equal $f.Removes 0 'no automatic discovery of resume completion'
+  Reject {Collect-ResumeFixture ('f'*64)} 'MEDIA_ORIGIN_HASH_DRIFT'
+  Equal $f.Removes 0 'wrong completion pin never detaches'
+  Guest-AppliedFixture
+  $collected=Collect-ResumeFixture $resumed.completionRecordSha256 -PermitNetwork
+  Equal $collected.network.status 'APPLIED_NETWORK_ONLY' 'explicit completion pin connects to guarded Collect'
+  Equal $f.Removes 1 'pinned resume collection detaches exact media'
+  Equal $f.LastMountReadOnly $true 'resumed collection is readonly'
+  Equal $collected.authenticatedConnectionVerified $false 'resumed collection is not SSH proof'
+
+  foreach($variant in @('RAW','GPT','Nonempty','UniqueId','VhdIdentity','Enumeration','UnsafeMetadata','UnsafePath','HostMounted','GuestAttached','Baseline','OriginHash','PreparedHash','FailureHash','PublicHash','MissingOrigin','Source','OldBundle','Schema','Extended','Expired','Stage','DuplicateAttempt','DuplicateCompletion','Dismount','ExpiryAfterFormat')){
+    Reset-ResumeFixture;$f=$global:MediaFixture;$beforeMount=$false
+    switch($variant){
+      'RAW' {$f.Style='RAW';$code='MEDIA_RESUME_EMPTY_MBR_REQUIRED'}
+      'GPT' {$f.Style='GPT';$code='MEDIA_RESUME_EMPTY_MBR_REQUIRED'}
+      'Nonempty' {$f.Partitions=1;$code='MEDIA_RESUME_EMPTY_MBR_REQUIRED'}
+      'UniqueId' {$f.WrongUniqueId=$true;$code='MEDIA_RESUME_EMPTY_MBR_REQUIRED'}
+      'VhdIdentity' {$f.WrongVhd=$true;$code='MEDIA_VHD_IDENTITY_DRIFT';$beforeMount=$true}
+      'Enumeration' {$f.EnumerationFail=$true;$code='GENUINE_STORAGE_ENUMERATION_FAILURE'}
+      'UnsafeMetadata' {$f.UnsafeMetadata=$true;$code='MEDIA_PRIVATE_KEY_METADATA_INVALID';$beforeMount=$true}
+      'UnsafePath' {$f.UnsafePath=$true;$code='PATH_ALIAS';$beforeMount=$true}
+      'HostMounted' {$f.HostMounted=$true;$code='MEDIA_HOST_MUST_BE_DETACHED';$beforeMount=$true}
+      'GuestAttached' {$f.GuestAttached=$true;$code='MEDIA_TOPOLOGY_DRIFT';$beforeMount=$true}
+      'Baseline' {$f.State.acls[0].RemotePort='9';$code='ORIGINAL_POLICY_DRIFT';$beforeMount=$true}
+      'OriginHash' {[IO.File]::AppendAllText((Join-Path $f.Scope.State 'intent.json'),' ');$code='MEDIA_ORIGIN_HASH_DRIFT';$beforeMount=$true}
+      'PreparedHash' {[IO.File]::AppendAllText((Join-Path $f.Scope.State 'prepared.json'),' ');$code='MEDIA_ORIGIN_HASH_DRIFT';$beforeMount=$true}
+      'FailureHash' {[IO.File]::AppendAllText($f.Origin.failurePath,' ');$code='MEDIA_ORIGIN_HASH_DRIFT';$beforeMount=$true}
+      'PublicHash' {[IO.File]::AppendAllText((Join-Path $f.Scope.State 'client_ed25519.pub'),' ');$code='MEDIA_ORIGIN_HASH_DRIFT';$beforeMount=$true}
+      'MissingOrigin' {$f.Origin.failurePath=Join-Path $f.Scope.State 'absent-failure.json';$code=$null;$beforeMount=$true}
+      'Source' {Change-ResumeBinding {param($b) $b.bundleSha256=('f'*64)};$code='MEDIA_RESUME_SCOPE_INVALID';$beforeMount=$true}
+      'OldBundle' {Change-ResumeBinding {param($b) $b.originBundleSha256=('f'*64)};$code='MEDIA_RESUME_SCOPE_INVALID';$beforeMount=$true}
+      'Schema' {Change-ResumeBinding {param($b) $b|Add-Member -NotePropertyName executablePath -NotePropertyValue 'arbitrary.exe'};$code='SCHEMA_INVALID';$beforeMount=$true}
+      'Extended' {$f.Expiry=[DateTimeOffset]::Parse($f.Expiry).AddMinutes(1).ToString('yyyy-MM-ddTHH:mm:ss.fffZ');Change-ResumeBinding {param($b) $b.expiresAt=$global:MediaFixture.Expiry};$code='MEDIA_RESUME_SCOPE_INVALID';$beforeMount=$true}
+      'Expired' {$f.Expiry=[DateTimeOffset]::UtcNow.AddSeconds(-1).ToString('yyyy-MM-ddTHH:mm:ss.fffZ');Change-ResumeBinding {param($b) $b.expiresAt=$global:MediaFixture.Expiry};$code='APPROVAL_EXPIRED_OR_TOO_LONG';$beforeMount=$true}
+      'Stage' {$path=Join-Path $f.Scope.State 'prepared.json';$v=Read-Ai09MediaJson $path;$v.fileSystemUuid='CA77-1234';[IO.File]::WriteAllText($path,(Get-Ai09Json $v));$f.Origin.preparedSha256=Get-Ai09ShaBytes ([IO.File]::ReadAllBytes($path));Change-ResumeBinding {param($b) $b.preparedSha256=$global:MediaFixture.Origin.preparedSha256};$code='MEDIA_ORIGIN_STAGE_INVALID';$beforeMount=$true}
+      'DuplicateAttempt' {[IO.File]::WriteAllText((Join-Path $f.Scope.State 'resume-empty-mbr-attempt.json'),'existing');$code='MEDIA_RESUME_ALREADY_ATTEMPTED';$beforeMount=$true}
+      'DuplicateCompletion' {[IO.File]::WriteAllText((Join-Path $f.Scope.State 'resume-empty-mbr-completed.json'),'existing');$code='MEDIA_RESUME_ALREADY_ATTEMPTED';$beforeMount=$true}
+      'Dismount' {$f.DismountNoEffect=$true;$code='MEDIA_HOST_STILL_MOUNTED'}
+      'ExpiryAfterFormat' {$f.ExpireAfterFormat=$true;$code='APPROVAL_EXPIRED_OR_TOO_LONG'}
+    }
+    if($variant -eq 'MissingOrigin'){
+      $refused=$false;try{Resume-Fixture|Out-Null}catch{$refused=$true};Yes $refused 'missing origin metadata refuses'
+    }else{Reject {Resume-Fixture} $code}
+    Equal $f.Adds 0 "$variant resume never attaches"
+    Equal $f.Keys 0 "$variant no key generation";Equal $f.New 0 "$variant no VHD creation";Equal $f.Initializes 0 "$variant no initialize"
+    if($beforeMount){Equal $f.Mounts 0 "$variant refusal before mount";Equal $f.PartitionWrites 0 "$variant refusal before partition"}
+    elseif($variant -notin @('Dismount','ExpiryAfterFormat')){Equal $f.PartitionWrites 0 "$variant no partition writes";Equal $f.Formats 0 "$variant no format";Equal $f.Dismounts 1 "$variant cleans host mount"}
+    if(Test-Path -LiteralPath (Join-Path $f.Scope.State 'resume-empty-mbr-attempt.json')){Reject {Resume-Fixture} 'MEDIA_RESUME_ALREADY_ATTEMPTED'}
+  }
+  foreach($variant in @('BindingSelection','OriginLink','AttemptLink')){
+    Reset-ResumeFixture;$resumed=Resume-Fixture;$f=$global:MediaFixture
+    $completionPath=Join-Path $f.Scope.State 'resume-empty-mbr-completed.json'
+    $completion=Read-Ai09MediaJson $completionPath
+    switch($variant){
+      'BindingSelection' {$completion.resumeBindingSha256=('f'*64)}
+      'OriginLink' {$completion.origin.originBundleSha256=('f'*64)}
+      'AttemptLink' {$path=Join-Path $f.Scope.State 'resume-empty-mbr-attempt.json';$attempt=Read-Ai09MediaJson $path;$attempt.runId=('f'*32);[IO.File]::WriteAllText($path,(Get-Ai09Json $attempt));$completion.attemptSha256=Get-Ai09ShaBytes ([IO.File]::ReadAllBytes($path))}
+    }
+    [IO.File]::WriteAllText($completionPath,(Get-Ai09Json $completion))
+    Reject {Collect-ResumeFixture (Get-Ai09ShaBytes ([IO.File]::ReadAllBytes($completionPath)))} 'MEDIA_RESUME_COMPLETION_INVALID'
+    Equal $f.Removes 0 "$variant forged pinned completion never detaches"
+    Equal $f.NetworkAdds 0 "$variant forged completion never grants network"
+  }
   Write-Output "AI09_MEDIA_LIFECYCLE_FIXTURES_PASS assertions=$script:Assertions SOURCE_ONLY no native mutation"
 } finally {
   $resolved=[IO.Path]::GetFullPath($root)
