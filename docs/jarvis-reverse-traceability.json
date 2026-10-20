@@ -1097,7 +1097,7 @@
     },
     {
       "path": "scripts/jarvis-independent-check-runner.mjs",
-      "sha256": "8d09f7bc119216380941f5aeb4f1042cb826fffa70ba125de7a7888972af4918",
+      "sha256": "522ab29f0336da6a2cc3157ab65641b50cd7a85b7398ddd911fef47d048f8762",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -1105,7 +1105,7 @@
         "AUTO-004",
         "GOV-025"
       ],
-      "reason": "#1219 explicit locally provisioned isolated verifier runner with immutable container image requirement, no-network Docker check execution from a separate verifier workspace, exact Change Set digest recheck and separately held Ed25519 signing. OS/container trust and physical deployment still unverified. #1219 additionally excludes both the candidate and verifier workspaces from trusted Docker executable resolution; source tests do not establish physical isolation. #1219 makes existing noexec explicit and tightens temporary storage to UID/GID65534 mode0700; execution/network/resource restrictions remain in force. #1219 records an explicit supported Next production Webpack build profile and actual fixed arguments; Turbopack compatibility is not inferred."
+      "reason": "#1219 explicit locally provisioned isolated verifier runner with immutable container image requirement, no-network Docker check execution from a separate verifier workspace, exact Change Set digest recheck and separately held Ed25519 signing. OS/container trust and physical deployment still unverified. #1219 additionally excludes both the candidate and verifier workspaces from trusted Docker executable resolution; source tests do not establish physical isolation. #1219 makes existing noexec explicit and tightens temporary storage to UID/GID65534 mode0700; execution/network/resource restrictions remain in force. #1219 records an explicit supported Next production Webpack build profile and actual fixed arguments; Turbopack compatibility is not inferred. #1219 retains bounded Docker CLI timing in the existing signed output digest; no check or acceptance change."
     },
     {
       "path": "scripts/jarvis-local-ollama-tdd-verifier.mjs",
@@ -1425,14 +1425,14 @@
     },
     {
       "path": "scripts/jarvis-verifier-container.mjs",
-      "sha256": "daf334545c94297c040cd1d004d7a18179da4b4b44a4da1f7aec6576794a7890",
+      "sha256": "a4f13822e102c95405d53dd69172b7c8a5e9e73e7d11cb254b92fa506ac5733f",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "CORE-010",
         "AUTO-016",
         "GOV-004"
       ],
-      "reason": "#1219 independent-verifier container lifecycle helper bounds CLI deadlines and output, uses an absolute runtime outside the workspace, and requires exact named-container cleanup confirmation. Supports code-execution containment; real container isolation and separate-principal acceptance remain unverified. #1219 validates the Docker executable against all host-supplied candidate and verifier-workspace roots before any CLI call; no physical containment claim."
+      "reason": "#1219 independent-verifier container lifecycle helper bounds CLI deadlines and output, uses an absolute runtime outside the workspace, and requires exact named-container cleanup confirmation. Supports code-execution containment; real container isolation and separate-principal acceptance remain unverified. #1219 validates the Docker executable against all host-supplied candidate and verifier-workspace roots before any CLI call; no physical containment claim. #1219 records monotonic CLI lifetime and output-arrival timing without changing deadlines, output caps, failure or cleanup decisions."
     },
     {
       "path": "scripts/jarvis-verifier-live-ci.mjs",
@@ -6456,14 +6456,14 @@
     },
     {
       "path": "scripts/jarvis-verifier-offline-workspace.mjs",
-      "sha256": "a92a5c24ae9bad4b9db92eedbf6abb5d08e3835b79792c83c570d29229c711d3",
+      "sha256": "7af15a69bfb5f354ec06722e27d5f1e7b5a149ae1371325ef960813347dd7fa4",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
         "AUTO-004",
         "GOV-025"
       ],
-      "reason": "#1219 bounded verifier request transfer and offline preparation; implementation mapping only, no physical completion claim."
+      "reason": "#1219 bounded verifier request transfer and offline preparation; implementation mapping only, no physical completion claim. #1219 adds bounded before-check observations of fixed cgroup files and derived Node24 default concurrency; unavailable data stays explicit and these observations do not prove runtime throttling, observed concurrency or physical acceptance."
     },
     {
       "path": "scripts/jarvis-verifier-request-transfer.mjs",
