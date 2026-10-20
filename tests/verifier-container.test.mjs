@@ -33,6 +33,7 @@ function fixture(t, behavior = {}) {
     child.unref = () => {};
     child.kill = signal => {
       killed.push({ args, signal });
+      behavior.onKill?.();
       if (!behavior.ignoreKill) globalThis.queueMicrotask(() => complete(child, null));
       return !behavior.ignoreKill;
     };
@@ -82,10 +83,15 @@ test("zero exit requires exact named-container cleanup and confirmed absence", a
 });
 
 test("timeout kills the Docker CLI and cleans the container", async t => {
-  const f = fixture(t, { hang: true });
+  // Test the measured monotonic interval deterministically; a real timer's
+  // callback scheduling is not an exact wall-clock measurement contract.
+  let clock = 0n;
+  const f = fixture(t, { hang: true, onKill: () => { clock = 37_250_000n; } });
+  t.mock.method(process.hrtime, "bigint", () => clock);
   const result = await runVerifierContainer(runArgs, f.options);
   assert.equal(result.error?.code, "ETIMEDOUT");
   assert.ok(result.cliTiming.elapsedMs >= f.options.timeoutMs);
+  assert.equal(result.cliTiming.elapsedMs, 37.25);
   assert.equal(result.cliTiming.firstOutputElapsedMs, null);
   assert.equal(result.cliTiming.lastOutputElapsedMs, null);
   assert.equal(result.cleanup?.confirmed, true);
