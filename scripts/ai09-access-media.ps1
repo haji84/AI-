@@ -9,7 +9,7 @@ $script:Ai09MediaSource=$PSCommandPath
 $script:Ai09MediaScripts=$PSScriptRoot
 
 function Get-Ai09MediaScope {
-  return [ordered]@{Media='C:\GORIQ-AI09\Bootstrap\AI09-ACCESS-1219-20261020.vhdx';
+  return [ordered]@{Media='C:\Users\qq113\.codex\AI09-ACCESS-1219-20261020.vhdx';
     State='C:\Users\qq113\.codex\ai09-access-1219-20261020';Slot=3;Label='A09'}
 }
 function Assert-Ai09MediaDrives($Drives,$Dvd,[bool]$Attached) {

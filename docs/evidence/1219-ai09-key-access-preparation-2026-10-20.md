@@ -20,7 +20,7 @@ grant were restored; neither old approval nor launcher is reused.
 2. Under one separately approved Windows administrator invocation, verify the
    running VM `453b139b-cceb-446e-99fb-f45bf5895436`, NIC `00155DDC2C00`, original
    OS/checkpoint chain, switch/host address, original four ACLs and free SCSI0:3.
-   Create only `C:\GORIQ-AI09\Bootstrap\AI09-ACCESS-1219-20261020.vhdx`
+   Create only `C:\Users\qq113\.codex\AI09-ACCESS-1219-20261020.vhdx`
    (new dynamic256MiB FAT32, label A09). Existing seed/OS disks are never mounted,
    detached, edited or reformatted. Occupied slot, existing new-media path, label
    collision, changed source or changed baseline refuses before attachment.
@@ -113,7 +113,7 @@ do not satisfy these claims.
 The current phase remains BLOCKED on the new critical owner approval. No PASS is
 claimed for native SSH, native independent Verifier, iPhone intake or stages3/4.
 
-## Frozen source preparation and verification
+## Historical frozen source preparation and verification (548924ff)
 
 Independent AI-employee review: READY_FOR_CRITICAL_OWNER_APPROVAL, no remaining
 P1/P2 within the explicit ordinary-account/manual-key-reconciliation scope.
@@ -145,3 +145,49 @@ OpenSSH option semantics are checked against the official
 [Ubuntu24.04 sshd manual](https://manpages.ubuntu.com/manpages/noble/man8/sshd.8.html):
 `restrict` restricts transport features, not ordinary remote-command authority;
 `expiry-time` determines acceptance of the supplied key for new authentication.
+
+## Native preparation refusal and bounded path correction (2026-10-21 JST)
+
+The owner explicitly approved the historical 548924ff/b4ae80ea bundle until
+2026-10-21 18:00 JST. CI39406126768 attempt2 subsequently completed all four
+jobs and real six-check execution successfully. Artifact12257354956 ZIP SHA256
+`d5e3d70754b44222728a130fef64c71853572784b19781168533b619053370f0`
+matches GitHub's digest; independent signature/log/source/cleanup auditing is
+recorded in `checks/ai09-key-media-20261020/548924ff-attempt2-cryptographic-audit.json`
+outside the repository. This is historical HOSTED_CONTAINER_CI evidence, not
+current authorization or physical verification. Attempt1's retained heartbeat
+failure cause remains unresolved; a successful rerun does not establish a fix.
+
+One owner-approved native Prepare launch returned `OWNER_PATH_REQUIRED` before
+the first mutation. Read-only ACL inspection and the unmodified production guard
+both confirm that the old media parent `C:\GORIQ-AI09\Bootstrap` grants inherited
+Modify to Authenticated Users. The new credential directory and original proposed
+VHDX remain absent. No guest enrollment, media attachment or network grant ran.
+
+The bounded correction changes only the NEW public media destination to
+`C:\Users\qq113\.codex\AI09-ACCESS-1219-20261020.vhdx`. The same production
+owner guard passes on its existing parent. No existing parent ACL is changed;
+the separately protected private credential directory remains unchanged in the
+plan. Capacity256MiB, labelA09, SCSI0:3, payload binding, fresh guest verification,
+TCP22 scope and all manual-reconciliation/expiry limits remain unchanged.
+The rejected parent is not made permissive and its guard is not weakened.
+
+The regression scope assertion was first observed RED on the old production
+path. Tests/review/CI for the corrected commit are required before activation;
+the old exact-code approval cannot authorize the corrected source/path. A single
+renewed critical gate must bind the replacement commit and five-file bundle.
+Until then native authenticated SSH and stages3/4 remain BLOCKED. No new owner
+terminal operation is needed to prepare or review this correction.
+
+Corrected five-source bundle SHA256:
+`2b09f592fb9c85ea0bb7511dc0c43c76c0cff38be20202d323fee3e3633c731f`;
+media executor SHA256:
+`820ede6b4e239e999ad630c38803a9654895bf66db0c8c9f4d826c292d00e198`.
+The other four privileged dependency hashes remain exactly the historical ones.
+Focused Node wrappers6/6 PASS with explicit bundled Python; PS5.1 and PS7
+lifecycle90 assertions PASS; lint and typecheck PASS. Related-test log SHA256
+`16b4d43265a965dcbf8f2107d93edfae48ea2af54fc83a743180f022b914119b`.
+The existing production path validator was also executed read-only on both
+proposed new paths and passed. These checks are not native preparation or SSH
+success. After any future approved Prepare, inspect the new VHD file's actual
+ACL before guest execution; do not silently allow unknown writable principals.

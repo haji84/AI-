@@ -7,7 +7,7 @@ $script:Assertions=0
 function Yes($Value,$Label) {$script:Assertions++;if(-not $Value){throw "ASSERT:$Label"}}
 function Reject($Action,$Code) {try{& $Action;throw 'ASSERT:EXPECTED_REFUSAL'}catch{Yes ($_.Exception.Message -ceq $Code) $Code}}
 $scope=Get-Ai09MediaScope
-Yes ($scope.Media -ceq 'C:\GORIQ-AI09\Bootstrap\AI09-ACCESS-1219-20261020.vhdx') 'new media only'
+Yes ($scope.Media -ceq 'C:\Users\qq113\.codex\AI09-ACCESS-1219-20261020.vhdx') 'public media uses owner-controlled parent outside private credentials'
 Yes ($scope.Media -cne 'C:\GORIQ-AI09\Bootstrap\AI09-SEED.vhdx') 'old seed preserved'
 Yes ($scope.Slot -eq 3) 'explicit new slot'
 $rootDisk=[pscustomobject]@{Path='C:\GORIQ-AI09\Disks\GORIQ-AI09-Ubuntu_C8BCC940-3DC2-4DA8-B311-F82A663F0C3D.avhdx';ControllerType='SCSI';ControllerNumber=0;ControllerLocation=0}
