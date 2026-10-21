@@ -39,6 +39,7 @@ try {
   const bound = await local.start();
   process.stdout.write(JSON.stringify({ event: 'ready', url: `http://127.0.0.1:${bound.port}`,
     deviceId, sessionId: session.sessionId,
+    viewerToken: session.viewerToken,
     privateKeyDer: keys.privateKey.export({ type: 'pkcs8', format: 'der' }).toString('base64') }) + '\n');
   const lines = createInterface({ input: process.stdin });
   for await (const line of lines) {
