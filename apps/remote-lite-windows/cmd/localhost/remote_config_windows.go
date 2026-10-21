@@ -20,10 +20,10 @@ import (
 // This file is populated only after a separately approved device-enrollment
 // flow. It is never shipped with the EXE and is never created on first launch.
 type activeRemoteSession struct {
-	Version              int    `json:"version"`
-	StatusServiceURL     string `json:"statusServiceUrl"`
-	DeviceID             string `json:"deviceId"`
-	SessionID            string `json:"sessionId"`
+	Version             int    `json:"version"`
+	StatusServiceURL    string `json:"statusServiceUrl"`
+	DeviceID            string `json:"deviceId"`
+	SessionID           string `json:"sessionId"`
 	ProtectedPrivateKey string `json:"protectedPrivateKey"`
 }
 
