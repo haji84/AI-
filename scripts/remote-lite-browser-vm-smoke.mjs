@@ -85,9 +85,14 @@ for (const stream of [driver.stdout, driver.stderr]) stream.on('data', chunk => 
   driverLog = (driverLog + chunk.toString()).slice(-4000);
 });
 const webdriver = async (method, path, body) => {
-  const response = await fetch(driverUrl + path, { method,
-    headers: body ? { 'Content-Type': 'application/json' } : {},
-    body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(5000) });
+  let response;
+  try {
+    response = await fetch(driverUrl + path, { method,
+      headers: body ? { 'Content-Type': 'application/json' } : {},
+      body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(30000) });
+  } catch (error) {
+    throw new Error(`WebDriver ${method} ${path}: ${error.message}; ChromeDriver: ${driverLog.slice(-1000)}`, { cause: error });
+  }
   const result = await response.json();
   if (!response.ok || result.value?.error) throw new Error(result.value?.message || `WebDriver HTTP ${response.status}`);
   return result.value;
@@ -119,6 +124,9 @@ try {
     throw new Error('Real Chromium RTC smoke failed: ' + JSON.stringify(result));
   }
   process.stdout.write('PASS real Chromium VM WebRTC media/DataChannel, manual ACK, revoked track stop: ' + JSON.stringify(result) + '\n');
+} catch (error) {
+  process.stderr.write(`FAIL Chromium VM smoke: ${error.message}\n`);
+  throw error;
 } finally {
   if (sessionId) await webdriver('DELETE', `/session/${sessionId}`).catch(() => {});
   driver.kill();
