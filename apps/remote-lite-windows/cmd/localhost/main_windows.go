@@ -5,6 +5,7 @@
 package main
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/subtle"
 	"encoding/hex"
@@ -43,13 +44,48 @@ func secret() (string, error) {
 }
 
 type server struct {
-	bridge  *winbridge.Bridge
-	token   string
-	mu      sync.Mutex
-	enabled bool
-	expires time.Time
-	cancel  func()
-	host    string
+	bridge       desktopBridge
+	remoteStatus statusChecker
+	token        string
+	mu           sync.Mutex
+	operationMu  sync.Mutex
+	enabled      bool
+	expires      time.Time
+	cancel       func()
+	host         string
+}
+
+type desktopBridge interface {
+	CaptureJPEG() ([]byte, error)
+	Apply(winbridge.Command) error
+	Stop() error
+}
+
+type statusChecker interface{ Check(context.Context) error }
+
+// The native status check and the following desktop operation are serialized.
+// Once a failed check is observed, no later request can use the bridge.
+func (s *server) allowRemote(w http.ResponseWriter, r *http.Request, afterInput bool) bool {
+	if s.remoteStatus == nil {
+		return true // local-only preview, with local owner consent and token
+	}
+	if err := s.remoteStatus.Check(r.Context()); err != nil {
+		s.mu.Lock()
+		s.enabled = false
+		s.mu.Unlock()
+		if stopErr := s.bridge.Stop(); stopErr != nil {
+			http.Error(w, "session stopped; local button or key release unconfirmed", http.StatusConflict)
+		} else if afterInput {
+			http.Error(w, "input may have applied; session ended; do not retry blindly", http.StatusConflict)
+		} else {
+			http.Error(w, "signed device session inactive or unavailable", http.StatusForbidden)
+		}
+		if s.cancel != nil {
+			time.AfterFunc(200*time.Millisecond, s.cancel)
+		}
+		return false
+	}
+	return true
 }
 
 func (s *server) headers(w http.ResponseWriter) {
@@ -96,7 +132,11 @@ func (s *server) check(w http.ResponseWriter, r *http.Request, method string) bo
 	valid := s.enabled && time.Now().Before(s.expires)
 	s.mu.Unlock()
 	if !valid {
-		http.Error(w, "session ended", http.StatusForbidden)
+		if err := s.bridge.Stop(); err != nil {
+			http.Error(w, "session ended; local button or key release unconfirmed", http.StatusConflict)
+		} else {
+			http.Error(w, "session ended", http.StatusForbidden)
+		}
 		return false
 	}
 	candidate := r.Header.Get("X-Goriq-Session")
@@ -105,6 +145,17 @@ func (s *server) check(w http.ResponseWriter, r *http.Request, method string) bo
 		return false
 	}
 	return true
+}
+func (s *server) requireSignedRemote(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// A remote endpoint must never inherit the local-preview nil-gate behavior.
+		if s.remoteStatus == nil {
+			s.headers(w)
+			http.Error(w, "signed remote session unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		next(w, r)
+	}
 }
 func (s *server) routes(m *http.ServeMux) {
 	m.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -118,15 +169,27 @@ func (s *server) routes(m *http.ServeMux) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		_, _ = w.Write(indexHTML)
 	})
-	m.HandleFunc("/api/status", func(w http.ResponseWriter, r *http.Request) {
+	statusRoute := func(w http.ResponseWriter, r *http.Request) {
+		s.operationMu.Lock()
+		defer s.operationMu.Unlock()
 		if !s.check(w, r, "GET") {
+			return
+		}
+		if !s.allowRemote(w, r, false) {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]any{"mode": "local-preview-only", "secondsRemaining": int(time.Until(s.expires).Seconds()), "internetRemote": false})
-	})
-	m.HandleFunc("/api/frame", func(w http.ResponseWriter, r *http.Request) {
+	}
+	m.HandleFunc("/api/status", statusRoute)
+	m.HandleFunc("/api/remote/status", s.requireSignedRemote(statusRoute))
+	frameRoute := func(w http.ResponseWriter, r *http.Request) {
+		s.operationMu.Lock()
+		defer s.operationMu.Unlock()
 		if !s.check(w, r, "GET") {
+			return
+		}
+		if !s.allowRemote(w, r, false) {
 			return
 		}
 		b, err := s.bridge.CaptureJPEG()
@@ -134,11 +197,21 @@ func (s *server) routes(m *http.ServeMux) {
 			http.Error(w, "capture unavailable", http.StatusConflict)
 			return
 		}
+		if !s.check(w, r, "GET") {
+			return
+		}
+		if !s.allowRemote(w, r, false) {
+			return
+		}
 		w.Header().Set("Content-Type", "image/jpeg")
 		w.Header().Set("Content-Length", fmt.Sprint(len(b)))
 		_, _ = w.Write(b)
-	})
-	m.HandleFunc("/api/input", func(w http.ResponseWriter, r *http.Request) {
+	}
+	m.HandleFunc("/api/frame", frameRoute)
+	m.HandleFunc("/api/remote/frame", s.requireSignedRemote(frameRoute))
+	inputRoute := func(w http.ResponseWriter, r *http.Request) {
+		s.operationMu.Lock()
+		defer s.operationMu.Unlock()
 		if !s.check(w, r, "POST") {
 			return
 		}
@@ -155,13 +228,34 @@ func (s *server) routes(m *http.ServeMux) {
 			http.Error(w, "invalid input trailing data", 400)
 			return
 		}
+		if !s.allowRemote(w, r, false) {
+			return
+		}
 		if err := s.bridge.Apply(cmd); err != nil {
 			http.Error(w, "input refused", 409)
 			return
 		}
+		s.mu.Lock()
+		localActive := s.enabled && time.Now().Before(s.expires)
+		s.mu.Unlock()
+		if !localActive {
+			if err := s.bridge.Stop(); err != nil {
+				http.Error(w, "input may have applied; local button or key release unconfirmed", http.StatusConflict)
+			} else {
+				http.Error(w, "input may have applied; local consent ended", http.StatusConflict)
+			}
+			return
+		}
+		if !s.allowRemote(w, r, true) {
+			return
+		}
 		w.WriteHeader(http.StatusNoContent)
-	})
+	}
+	m.HandleFunc("/api/input", inputRoute)
+	m.HandleFunc("/api/remote/input", s.requireSignedRemote(inputRoute))
 	m.HandleFunc("/api/end", func(w http.ResponseWriter, r *http.Request) {
+		s.operationMu.Lock()
+		defer s.operationMu.Unlock()
 		if !s.check(w, r, "POST") {
 			return
 		}
@@ -208,6 +302,11 @@ func main() {
 	fmt.Println("Windows上でこのリンクを開く:", url)
 	_ = exec.Command("rundll32.exe", "url.dll,FileProtocolHandler", url).Start()
 	time.AfterFunc(time.Until(end), func() {
+		app.operationMu.Lock()
+		defer app.operationMu.Unlock()
+		app.mu.Lock()
+		app.enabled = false
+		app.mu.Unlock()
 		_ = bridge.Stop()
 		_ = httpServer.Close()
 	})
