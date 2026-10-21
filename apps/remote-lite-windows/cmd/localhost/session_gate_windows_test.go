@@ -131,7 +131,7 @@ func TestSignedPendingDiscoveryRejectsMismatchedAndExpiredResults(t *testing.T) 
 		switch r.URL.Path {
 		case "/v1/device/challenge":
 			var request struct {
-				DeviceID string `json:"deviceId"`
+				DeviceID  string `json:"deviceId"`
 				SessionID string `json:"sessionId"`
 				Operation string `json:"operation"`
 			}
