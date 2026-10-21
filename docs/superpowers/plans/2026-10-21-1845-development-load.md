@@ -56,6 +56,16 @@ Files: goriq-pr-ci-recovery workflow/script shared path policy/preflight helper 
 All code/config changes are isolated to this issue branch, then one reviewed PR. Revert the issue's merge commit and run the same checks if regression occurs; no runtime/service/configuration rollback is needed because no live installation is performed. Preserve pre-existing worktrees, uncommitted files, logs and VM state.
 
 ## Progress ledger
+
+### Separately approved native-trigger containment
+
+PR1847/main accf8294 passed hosted CI but triggered existing native installer/upload jobs, breaching the task constraint. Completed steps cannot be undone by cancellation; Mac Bootstrap partial effects and uploaded-artifact privacy remain unreviewed. Issue1845 was reopened, Compass recorded task-safety FAIL/HUMAN_GATE, and the PR description corrected. No manual reinstall/restart/restore/deletion was attempted.
+
+The owner explicitly selected 「この差分の検証・統合まで承認する」 for the reviewed7-workflow/14-job-if proposal, SHA2565fcfffd391f95fbde0332db734aa866fabc1329ed2671257db3fbdeb2e3c4740. This separate Human Gate authorizes only these deployment-control restrictions plus necessary tests/evidence, protected PR integration and main CI. Expiry remains2026-10-22T12:16:36Z. No runtime operation, secret/permission change, paid activation, restore or deletion is authorized.
+
+Bounded plan: (1) behavioral RED for all automatic events and positive manual paths; (2) apply exact approved patch; (3) verify all non-job-if workflow bytes and existing authorization implementation unchanged; (4) related authorization/security/trigger regressions and scoped lint; (5) independent review, latest-head hosted CI, protected merge/main CI; (6) observe all affected automatic native jobs skip without dispatching any workflow. Correct the earlier no-install evidence and retain incident/diagnostic unknowns.
+
+Verification so far: new behavioral suite RED1PASS/8FAIL then GREEN9/9; related regressions152PASS/0FAIL/1existingSKIP1841.6ms. Two legacy workflow-contract test files now assert the approved manual-only policy while preserving exact source/CI/expiry/step checks; CRLF-safe matching retains the original per-step guards. Scoped lint/diffcheck PASS. No live workflow/model/service was invoked by this follow-up.
 2026-10-21 baseline: public repo; main cb6b0fa; normalCI3 hosted jobs. 124 runs fetched for2026-10-21UTC; source metrics absent. Self-hosted recovery39572807594 overlaps first memory-exhaustion episode; temporal association does not establish allocation culprit. Detailed Windows evidence remains local.
 
 2026-10-21 implementation: integrated serial194/194 PASS11795.6ms; scoped lint/changed TS graph/diffcheck PASS. P1 in-flight Human Gate overwrite and P2 disk-filesystem mismatch reproduced and fixed before integration. Read-only native probe2328ms, no new selected crash/resource signals since21:10JST. No installer/service/model/stress operation performed. Full hosted CI/review/main receipts pending on the PR.
