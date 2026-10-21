@@ -40,7 +40,7 @@ async function post(url: string, path: string, body: unknown) {
 
 test("Builder build and heavy verification return resource waits while file_exact remains usable", async () => fixture(async workspace => {
   await writeFile(join(workspace, "source.txt"), "fixture", "utf8");
-  const server = createCodeBuilderWorkerServer({ env: { CODE_BUILDER_TOKEN: "fixture-token", CODE_BUILDER_WORKSPACE: workspace }, admit: (work, options) => {
+  const server = createCodeBuilderWorkerServer({ env: { NODE_ENV: "test", CODE_BUILDER_TOKEN: "fixture-token", CODE_BUILDER_WORKSPACE: workspace }, admit: (work, options) => {
     assert.equal(options?.directory, workspace, "admission must probe the actual target filesystem");
     return pressured(workspace)(work, options);
   } });
@@ -61,7 +61,7 @@ test("Builder build and heavy verification return resource waits while file_exac
 
 test("research admission returns structured HTTP503 without calling model transport", async () => fixture(async workspace => {
   let modelCalls = 0;
-  const server = createResearchWorkerServer({ env: { RESEARCH_WORKER_TOKEN: "fixture-token", GAI_LOCAL_MODEL_ENDPOINT: "http://127.0.0.1:11434" },
+  const server = createResearchWorkerServer({ env: { NODE_ENV: "test", RESEARCH_WORKER_TOKEN: "fixture-token", GAI_LOCAL_MODEL_ENDPOINT: "http://127.0.0.1:11434" },
     admit: pressured(workspace), fetchImpl: async () => { modelCalls++; throw new Error("unexpected model request"); } });
   await serving(server, async url => {
     const result = await post(url, "/research", { query: "Fixture only" });
@@ -80,7 +80,7 @@ test("repository verification executes identical unit/integration command once w
   const artifactDigest = createHash("sha256").update("goriq-change-artifact-v1\0").digest("hex");
   const candidateRevision = createHash("sha256").update(`candidate-v1\0${baseRevision}\0${artifactDigest}`).digest("hex");
   const executions: string[][] = [];
-  const server = createCodeBuilderWorkerServer({ env: { CODE_BUILDER_TOKEN: "fixture-token", CODE_BUILDER_WORKSPACE: workspace }, admit: fixtureResourceAdmission,
+  const server = createCodeBuilderWorkerServer({ env: { NODE_ENV: "test", CODE_BUILDER_TOKEN: "fixture-token", CODE_BUILDER_WORKSPACE: workspace }, admit: fixtureResourceAdmission,
     runCommand: async (command, args, options) => {
       if (command === "pnpm" || command === "pnpm.cmd") {
         executions.push(args);
