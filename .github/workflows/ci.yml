@@ -78,3 +78,24 @@ jobs:
           ./tests/goriq-pc-runtime-launch.test.ps1
           ./tests/gai-zbook-launcher-file.test.ps1
           ./tests/goriq-zbook-watchdog-launcher-repair.test.ps1
+
+  remote-lite-windows-vm:
+    runs-on: windows-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/remote-lite-windows/go.mod
+      - name: Test isolated Remote Lite Windows host in a virtual machine
+        working-directory: apps/remote-lite-windows
+        shell: pwsh
+        run: |
+          $unformatted = gofmt -l winbridge/bridge_windows.go winbridge/layout_windows_test.go winbridge/release_windows_test.go
+          if ($unformatted) { throw "Unformatted Go sources: $unformatted" }
+          go test -count=1 -v ./...
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          go vet ./...
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          go build -trimpath -o "$env:RUNNER_TEMP/GORIQ_Remote_Lite_Windows_VM_Test.exe" ./cmd/localhost
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

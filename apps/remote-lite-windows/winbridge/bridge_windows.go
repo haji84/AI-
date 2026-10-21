@@ -118,6 +118,14 @@ type Bridge struct {
 	mu           sync.Mutex
 	grantedUntil time.Time
 	closed       bool
+	heldLeft     bool
+	heldRight    bool
+	releaseTimer *time.Timer
+	holdDuration time.Duration
+	// These hooks let a Windows VM test the input boundary without moving its cursor.
+	desktopFn func() bool
+	screenFn  func() (rect, error)
+	sendFn    func([]winInput) error
 }
 
 // AuthorizeLocalUse must be called only from the host-side visible consent UI
@@ -136,8 +144,69 @@ func (b *Bridge) Stop() {
 	defer b.mu.Unlock()
 	b.closed = true
 	b.grantedUntil = time.Time{}
+	b.releaseHeldLocked()
 }
 func (b *Bridge) allowed() bool { return !b.closed && time.Now().Before(b.grantedUntil) }
+func (b *Bridge) normalDesktop() bool {
+	if b.desktopFn != nil {
+		return b.desktopFn()
+	}
+	return normalInputDesktop()
+}
+func (b *Bridge) bounds() (rect, error) {
+	if b.screenFn != nil {
+		return b.screenFn()
+	}
+	return screen()
+}
+func (b *Bridge) emit(inputs []winInput) error {
+	if b.sendFn != nil {
+		return b.sendFn(inputs)
+	}
+	return send(inputs)
+}
+func (b *Bridge) armReleaseLocked() {
+	if b.releaseTimer != nil {
+		b.releaseTimer.Stop()
+	}
+	duration := b.holdDuration
+	if duration <= 0 {
+		duration = 5 * time.Second
+	}
+	b.releaseTimer = time.AfterFunc(duration, func() {
+		b.mu.Lock()
+		defer b.mu.Unlock()
+		b.releaseTimer = nil
+		b.releaseHeldLocked()
+	})
+}
+func (b *Bridge) releaseHeldLocked() {
+	if b.releaseTimer != nil {
+		b.releaseTimer.Stop()
+		b.releaseTimer = nil
+	}
+	if !b.heldLeft && !b.heldRight {
+		return
+	}
+	if !b.normalDesktop() {
+		if !b.closed {
+			b.armReleaseLocked()
+		}
+		return
+	}
+	inputs := make([]winInput, 0, 2)
+	if b.heldLeft {
+		inputs = append(inputs, mouseInput(mouseLeftUp, 0, 0, 0))
+	}
+	if b.heldRight {
+		inputs = append(inputs, mouseInput(mouseRightUp, 0, 0, 0))
+	}
+	if err := b.emit(inputs); err == nil {
+		b.heldLeft, b.heldRight = false, false
+	} else if !b.closed {
+		b.armReleaseLocked()
+	}
+}
 func screen() (rect, error) {
 	x, _, _ := getSystemMetrics.Call(smXVScreen)
 	y, _, _ := getSystemMetrics.Call(smYVScreen)
@@ -256,16 +325,18 @@ func (b *Bridge) Apply(c Command) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if !b.allowed() {
+		b.releaseHeldLocked()
 		return errors.New("host consent required")
 	}
-	if !normalInputDesktop() {
+	if !b.normalDesktop() {
 		return errors.New("locked or protected desktop refused")
 	}
-	r, err := screen()
+	r, err := b.bounds()
 	if err != nil {
 		return err
 	}
 	inputs := make([]winInput, 0, 512)
+	nextLeft, nextRight := b.heldLeft, b.heldRight
 	switch c.Action {
 	case "tap", "pointer":
 		if !normalized(c.X) || !normalized(c.Y) {
@@ -276,6 +347,9 @@ func (b *Bridge) Apply(c Command) error {
 		move := mouseInput(mouseMove|mouseAbsolute|mouseVirtualDesk, x, y, 0)
 		inputs = append(inputs, move)
 		if c.Action == "tap" {
+			if nextLeft || nextRight {
+				return errors.New("pointer already held")
+			}
 			inputs = append(inputs, mouseInput(mouseLeftDown, 0, 0, 0), mouseInput(mouseLeftUp, 0, 0, 0))
 		}
 		if c.Action == "pointer" {
@@ -284,16 +358,29 @@ func (b *Bridge) Apply(c Command) error {
 			}
 			switch c.Phase {
 			case "down":
+				if nextLeft || nextRight {
+					return errors.New("pointer already held")
+				}
 				if c.Button == "left" {
 					inputs = append(inputs, mouseInput(mouseLeftDown, 0, 0, 0))
+					nextLeft = true
 				} else {
 					inputs = append(inputs, mouseInput(mouseRightDown, 0, 0, 0))
+					nextRight = true
 				}
 			case "up":
 				if c.Button == "left" {
+					if !nextLeft {
+						return errors.New("pointer not held")
+					}
 					inputs = append(inputs, mouseInput(mouseLeftUp, 0, 0, 0))
+					nextLeft = false
 				} else {
+					if !nextRight {
+						return errors.New("pointer not held")
+					}
 					inputs = append(inputs, mouseInput(mouseRightUp, 0, 0, 0))
+					nextRight = false
 				}
 			case "move":
 			default:
@@ -301,6 +388,9 @@ func (b *Bridge) Apply(c Command) error {
 			}
 		}
 	case "swipe":
+		if nextLeft || nextRight {
+			return errors.New("pointer already held")
+		}
 		if !normalized(c.X1) || !normalized(c.Y1) || !normalized(c.X2) || !normalized(c.Y2) || c.DurationMs < 50 || c.DurationMs > 5000 {
 			return errors.New("bad swipe")
 		}
@@ -339,5 +429,27 @@ func (b *Bridge) Apply(c Command) error {
 		return errors.New("action not manually permitted")
 	}
 	_ = r
-	return send(inputs)
+	if err := b.emit(inputs); err != nil {
+		// A partial SendInput batch can leave a down event behind.
+		if c.Action == "tap" || c.Action == "swipe" || (c.Action == "pointer" && c.Phase == "down") {
+			if c.Action == "tap" || c.Action == "swipe" || c.Button == "left" {
+				b.heldLeft = true
+			}
+			if c.Action == "pointer" && c.Button == "right" {
+				b.heldRight = true
+			}
+			b.releaseHeldLocked()
+		}
+		return err
+	}
+	b.heldLeft, b.heldRight = nextLeft, nextRight
+	if b.heldLeft || b.heldRight {
+		if c.Action == "pointer" && c.Phase == "down" {
+			b.armReleaseLocked()
+		}
+	} else if b.releaseTimer != nil {
+		b.releaseTimer.Stop()
+		b.releaseTimer = nil
+	}
+	return nil
 }
