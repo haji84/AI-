@@ -16,9 +16,40 @@ import (
 	"path/filepath"
 	"strings"
 	"sync/atomic"
+	"syscall"
 	"testing"
 	"time"
+	"unsafe"
 )
+
+type vmPoint struct{ X, Y int32 }
+
+// An acknowledgement from the DataChannel is insufficient evidence of native
+// input. Read the actual Windows cursor after the browser reports success.
+func assertVMCursorAtScreenCenter(t *testing.T) {
+	t.Helper()
+	user32 := syscall.NewLazyDLL("user32.dll")
+	metrics := user32.NewProc("GetSystemMetrics")
+	getCursor := user32.NewProc("GetCursorPos")
+	readMetric := func(index uintptr) int32 {
+		value, _, _ := metrics.Call(index)
+		return int32(value)
+	}
+	left, top := readMetric(76), readMetric(77)
+	width, height := readMetric(78), readMetric(79)
+	if width < 1 || height < 1 {
+		t.Fatalf("invalid VM screen: %d x %d", width, height)
+	}
+	var cursor vmPoint
+	if ok, _, err := getCursor.Call(uintptr(unsafe.Pointer(&cursor))); ok == 0 {
+		t.Fatalf("GetCursorPos failed: %v", err)
+	}
+	wantX, wantY := left+width/2, top+height/2
+	if cursor.X < wantX-8 || cursor.X > wantX+8 || cursor.Y < wantY-8 || cursor.Y > wantY+8 {
+		t.Fatalf("RTC pointer command acknowledged but native cursor is (%d,%d), wanted screen center (%d,%d)",
+			cursor.X, cursor.Y, wantX, wantY)
+	}
+}
 
 type revocableStatusGate struct {
 	base    statusChecker
@@ -81,6 +112,7 @@ func TestWindowsVMNativeWebRTCFrameInputAndRevocation(t *testing.T) {
 	if !lines.Scan() || !bytes.Contains(lines.Bytes(), []byte(`"event":"active"`)) {
 		t.Fatalf("native WebRTC failed before revocation: %v %s", lines.Err(), stderr.String())
 	}
+	assertVMCursorAtScreenCenter(t)
 	gate.revoked.Store(true)
 	if _, err := fmt.Fprintln(stdin, "revoke"); err != nil {
 		t.Fatal(err)

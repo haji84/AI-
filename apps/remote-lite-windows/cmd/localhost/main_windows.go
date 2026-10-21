@@ -271,9 +271,18 @@ func (s *server) routes(m *http.ServeMux) {
 	})
 }
 func main() {
+	remoteGate, err := configuredSignedRemoteSession(nil)
+	if err != nil {
+		log.Fatal("signed remote session configuration refused: ", err)
+	}
 	if !approve() {
 		fmt.Println("LOCAL_CONSENT_DENIED")
 		return
+	}
+	if remoteGate != nil {
+		if err := remoteGate.Check(context.Background()); err != nil {
+			log.Fatal("signed remote session inactive: ", err)
+		}
 	}
 	token, err := secret()
 	if err != nil {
@@ -291,14 +300,19 @@ func main() {
 	defer listener.Close()
 	port := listener.Addr().String()
 	httpServer := &http.Server{ReadHeaderTimeout: 3 * time.Second, ReadTimeout: 6 * time.Second, WriteTimeout: 10 * time.Second, IdleTimeout: 12 * time.Second, MaxHeaderBytes: 8192}
-	app := &server{bridge: bridge, token: token, enabled: true, expires: end, host: port}
+	app := &server{bridge: bridge, remoteStatus: remoteGate, token: token, enabled: true, expires: end, host: port}
 	app.cancel = func() { _ = httpServer.Close() }
 	mux := http.NewServeMux()
 	app.routes(mux)
 	httpServer.Handler = mux
 	// This URL is a locally displayed capability, not an internet-ready share link.
 	url := "http://" + port + "/#token=" + token
-	fmt.Println("GORIQ Remote Lite: local-only preview. Auto-stop in 15 minutes.")
+	if remoteGate != nil {
+		url += "&remote=1"
+		fmt.Println("GORIQ Remote Lite: signed session local host. Auto-stop in 15 minutes. No Internet peer transport yet.")
+	} else {
+		fmt.Println("GORIQ Remote Lite: local-only preview. Auto-stop in 15 minutes.")
+	}
 	fmt.Println("Windows上でこのリンクを開く:", url)
 	_ = exec.Command("rundll32.exe", "url.dll,FileProtocolHandler", url).Start()
 	time.AfterFunc(time.Until(end), func() {

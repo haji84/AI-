@@ -6,8 +6,6 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"crypto/ed25519"
-	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -16,9 +14,24 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
+	"unsafe"
 )
+
+func protectVMDeviceKey(keyDER []byte) ([]byte, error) {
+	input := dataBlob{Size: uint32(len(keyDER)), Data: &keyDER[0]}
+	var output dataBlob
+	protect := syscall.NewLazyDLL("crypt32.dll").NewProc("CryptProtectData")
+	ok, _, err := protect.Call(uintptr(unsafe.Pointer(&input)), 0, 0, 0, 0,
+		0x00000001, uintptr(unsafe.Pointer(&output)))
+	if ok == 0 || output.Data == nil {
+		return nil, fmt.Errorf("VM DPAPI protection failed: %w", err)
+	}
+	defer localFree.Call(uintptr(unsafe.Pointer(output.Data)))
+	return append([]byte(nil), unsafe.Slice(output.Data, output.Size)...), nil
+}
 
 // This opt-in VM test crosses the real Node loopback signaling adapter and
 // the Go signed gate. The device key exists only inside the child process and
@@ -67,18 +80,27 @@ func TestActualNodeCoordinatorRevocationStopsWindowsRoutes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	parsedKey, err := x509.ParsePKCS8PrivateKey(keyDER)
+	protected, err := protectVMDeviceKey(keyDER)
 	if err != nil {
 		t.Fatal(err)
 	}
-	private, ok := parsedKey.(ed25519.PrivateKey)
-	if !ok {
-		t.Fatal("fixture key is not Ed25519")
-	}
-	gate, err := newSignedStatusGate(ready.URL, ready.DeviceID, ready.SessionID,
-		func(message []byte) ([]byte, error) { return ed25519.Sign(private, message), nil }, nil)
+	clear(keyDER)
+	config, err := json.Marshal(activeRemoteSession{Version: 1, StatusServiceURL: ready.URL,
+		DeviceID: ready.DeviceID, SessionID: ready.SessionID,
+		ProtectedPrivateKey: base64.StdEncoding.EncodeToString(protected)})
 	if err != nil {
 		t.Fatal(err)
+	}
+	configPath := filepath.Join(t.TempDir(), "active-session.json")
+	if err := os.WriteFile(configPath, config, 0600); err != nil {
+		t.Fatal(err)
+	}
+	gate, err := loadSignedRemoteSession(configPath, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := gate.Check(ctx); err != nil {
+		t.Fatalf("normal EXE signed gate could not check actual coordinator: %v", err)
 	}
 	bridge := new(fakeRemoteDesktop)
 	app := &server{bridge: bridge, remoteStatus: gate, token: strings.Repeat("c", 64),
