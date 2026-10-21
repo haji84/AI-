@@ -100,8 +100,16 @@ test('real local HTTP: owner invites, device signs, owner approves, offer/answer
   }, null)).status, 200);
   const reply = await h.post('/v1/viewer/poll', {sessionId,viewerToken});
   assert.deepEqual(reply.result, [answer]);
+  assert.equal((await h.post('/v1/device/status', {
+    sessionId, deviceId: device.deviceId,
+    proof: await h.deviceProof(device, sessionId, 'session-status'),
+  }, null)).result.status, 'active');
   assert.equal((await h.post('/v1/viewer/status',{sessionId,viewerToken})).result.status,'active');
   assert.equal((await h.post('/v1/viewer/end',{sessionId,viewerToken})).result.status,'closed');
+  assert.equal((await h.post('/v1/device/status', {
+    sessionId, deviceId: device.deviceId,
+    proof: await h.deviceProof(device, sessionId, 'session-status'),
+  }, null)).status, 403);
   assert.equal((await h.post('/v1/viewer/status',{sessionId,viewerToken})).status,403);
 });
 

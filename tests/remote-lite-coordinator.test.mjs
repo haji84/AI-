@@ -30,6 +30,8 @@ test('local pairing -> device-accepted session -> WebRTC signaling -> manual inp
   assert.equal(s.status,'pending');
   assert.throws(()=>c.manualInput({...auth(),sessionId:s.sessionId,viewerToken:s.viewerToken,sequence:1,command:{action:'tap',x:0.5,y:0.5}}),/SESSION_NOT_ACTIVE/);
   c.acceptSession({sessionId:s.sessionId,deviceId:d.deviceId,proof:proof(d,s.sessionId,'session-accept')});
+  assert.equal(c.deviceStatus({sessionId:s.sessionId,deviceId:d.deviceId,
+    proof:proof(d,s.sessionId,'session-status')}).status,'active');
   const offer={type:'offer',sdp:'v=0\r\n'};
   c.viewerSignal({...auth(),sessionId:s.sessionId,viewerToken:s.viewerToken,signal:offer});
   assert.deepEqual(c.receiveSignalsForDevice({sessionId:s.sessionId,deviceId:d.deviceId,proof:proof(d,s.sessionId,'signal-receive')}),[offer]);
@@ -40,6 +42,8 @@ test('local pairing -> device-accepted session -> WebRTC signaling -> manual inp
   assert.deepEqual(c.manualInput({...auth(),sessionId:s.sessionId,viewerToken:s.viewerToken,sequence:1,command:{action:'tap',x:0.5,y:0.5}}).command,{action:'tap',x:0.5,y:0.5});
   assert.equal(c.viewerStatus({...auth(),sessionId:s.sessionId,viewerToken:s.viewerToken}).status,'active');
   assert.equal(c.endSession({...auth(),sessionId:s.sessionId,viewerToken:s.viewerToken}).status,'closed');
+  assert.throws(()=>c.deviceStatus({sessionId:s.sessionId,deviceId:d.deviceId,
+    proof:proof(d,s.sessionId,'session-status')}),/SESSION_NOT_FOUND_OR_EXPIRED/);
   assert.throws(()=>c.viewerStatus({...auth(),sessionId:s.sessionId,viewerToken:s.viewerToken}),/SESSION_NOT_FOUND_OR_EXPIRED/);
 });
 

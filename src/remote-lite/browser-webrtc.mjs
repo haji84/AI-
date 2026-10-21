@@ -23,24 +23,35 @@ export class BrowserManualPeer {
   #sendSignal;
   #onStream;
   #onManualInput;
+  #onManualAcknowledged;
+  #checkSession;
   #onState;
   #channel;
   #stream;
+  #screenApprovalPending = false;
   #closed = false;
   #remoteSet = false;
   #pendingCandidates = [];
   #sentSeq = 0;
   #receivedSeq = 0;
+  #acknowledgedSeq = 0;
+  #inputQueue = [];
+  #inputTimes = [];
+  #drainingInputs = false;
+  #sessionTimer;
   #manualAllowed = false;
   #seenOffer = false;
   #seenAnswer = false;
 
   constructor({ role, rtcFactory, iceServers = [], sendSignal, onStream = () => {},
-    onManualInput = () => {}, onState = () => {}, requestScreen } = {}) {
+    onManualInput = () => {}, onManualAcknowledged = () => {}, onState = () => {},
+    requestScreen, checkSession } = {}) {
     if (!allowedRoles.has(role) || typeof rtcFactory !== 'function' ||
       typeof sendSignal !== 'function' || typeof onStream !== 'function' ||
-      typeof onManualInput !== 'function' || typeof onState !== 'function') fault('INVALID_PEER_CONFIG');
+      typeof onManualInput !== 'function' || typeof onManualAcknowledged !== 'function' ||
+      typeof onState !== 'function') fault('INVALID_PEER_CONFIG');
     if (role === 'host' && typeof requestScreen !== 'function') fault('SCREEN_CONSENT_CALLBACK_REQUIRED');
+    if (role === 'host' && typeof checkSession !== 'function') fault('SESSION_CHECK_REQUIRED');
     if (!Array.isArray(iceServers) || iceServers.length > 8) fault('ICE_CONFIG_INVALID');
     for (const item of iceServers) {
       if (!item || typeof item !== 'object' || !Array.isArray(item.urls) || item.urls.length > 4 ||
@@ -52,6 +63,8 @@ export class BrowserManualPeer {
     this.#sendSignal = sendSignal;
     this.#onStream = onStream;
     this.#onManualInput = onManualInput;
+    this.#onManualAcknowledged = onManualAcknowledged;
+    this.#checkSession = checkSession;
     this.#onState = onState;
     this.#pc = rtcFactory({ iceServers, bundlePolicy: 'max-bundle' });
     if (!this.#pc || typeof this.#pc.createOffer !== 'function' || typeof this.#pc.close !== 'function') fault('WEBRTC_UNAVAILABLE');
@@ -85,6 +98,25 @@ export class BrowserManualPeer {
   get closed() { return this.#closed; }
   get connected() { return !this.#closed && this.#channel?.readyState === 'open' && this.#pc.connectionState === 'connected'; }
 
+  /** The host callback must check the independently authenticated, unexpired
+   * device session. Failure or a lost status service ends capture and input. */
+  async verifySession() {
+    if (this.#role !== 'host') fault('INVALID_STATE');
+    if (this.#closed) return false;
+    let timeout;
+    try {
+      const active = await Promise.race([
+        Promise.resolve().then(() => this.#checkSession()),
+        new Promise(resolve => { timeout = globalThis.setTimeout(() => resolve(false), 3000); }),
+      ]);
+      if (this.#closed) return false;
+      if (active === true) return true;
+    } catch { /* unavailable status is never permission to continue */ }
+    finally { globalThis.clearTimeout(timeout); }
+    this.close('session-not-active');
+    return false;
+  }
+
   #attachChannel(channel) {
     if (this.#closed || this.#channel || !channel || channel.label !== 'goriq-manual-v1') {
       channel?.close?.(); return;
@@ -94,7 +126,7 @@ export class BrowserManualPeer {
       if (this.#closed) return;
       this.#onState('control-channel-open');
     };
-    channel.onclose = () => { this.#manualAllowed = false; this.#onState('control-channel-closed'); };
+    channel.onclose = () => this.close('control-channel-closed');
     channel.onerror = () => this.close('control-channel-failed');
     if (this.#role === 'host') {
       channel.onmessage = event => {
@@ -106,10 +138,51 @@ export class BrowserManualPeer {
             !Number.isSafeInteger(payload.sequence) || payload.sequence !== this.#receivedSeq + 1) return;
           const valid = parseManualInput(payload.command);
           this.#receivedSeq = payload.sequence;
-          this.#onManualInput(valid);
+          const receivedAt = Date.now();
+          this.#inputTimes = this.#inputTimes.filter(time => receivedAt - time < 1000);
+          if (this.#inputTimes.length >= 30) return this.close('manual-input-rate-limited');
+          this.#inputTimes.push(receivedAt);
+          if (this.#inputQueue.length >= 64) return this.close('manual-input-queue-full');
+          this.#inputQueue.push({ sequence: payload.sequence, command: valid, receivedAt });
+          void this.#drainInputs();
         } catch { /* invalid input is ignored, never executed */ }
       };
+    } else {
+      channel.onmessage = event => {
+        if (this.#closed || typeof event.data !== 'string' || event.data.length > 256) return;
+        try {
+          const ack = JSON.parse(event.data);
+          if (!ack || Object.keys(ack).sort().join(',') !== 'sequence,type' ||
+            ack.type !== 'manual-applied' || !Number.isSafeInteger(ack.sequence) ||
+            ack.sequence !== this.#acknowledgedSeq + 1 || ack.sequence > this.#sentSeq) {
+            return this.close('manual-ack-invalid');
+          }
+          this.#acknowledgedSeq = ack.sequence;
+          this.#onManualAcknowledged(ack.sequence);
+        } catch { this.close('manual-ack-invalid'); }
+      };
     }
+  }
+
+  async #drainInputs() {
+    if (this.#drainingInputs) return;
+    this.#drainingInputs = true;
+    try {
+      while (!this.#closed && this.#inputQueue.length) {
+        const { sequence, command, receivedAt } = this.#inputQueue.shift();
+        if (Date.now() - receivedAt > 1000) return this.close('manual-input-stale');
+        if (!await this.verifySession()) return;
+        const applied = await this.#onManualInput(command);
+        if (this.#closed) return;
+        if (!await this.verifySession()) return;
+        if (applied !== true || this.#channel?.readyState !== 'open') {
+          this.close('manual-input-not-confirmed');
+          return;
+        }
+        this.#channel.send(JSON.stringify({ type: 'manual-applied', sequence }));
+      }
+    } catch { this.close('manual-input-failed'); }
+    finally { this.#drainingInputs = false; }
   }
 
   /**
@@ -128,20 +201,31 @@ export class BrowserManualPeer {
   }
 
   async approveLocalScreen() {
-    if (this.#role !== 'host' || this.#closed || this.#stream) fault('INVALID_STATE');
-    // Must be called by the physical host user. A connected remote peer alone
-    // cannot invoke this or bypass OS screen-sharing consent.
-    const stream = await this.requestScreen();
-    const tracks = stream?.getVideoTracks?.();
-    if (!Array.isArray(tracks) || tracks.length !== 1 || tracks[0].kind !== 'video' || tracks[0].readyState === 'ended') {
-      stream?.getTracks?.().forEach(track => track.stop());
-      fault('SCREEN_CONSENT_REQUIRED');
-    }
-    this.#stream = stream;
-    tracks[0].addEventListener?.('ended', () => this.close('screen-stopped'), { once: true });
-    this.#pc.addTrack(tracks[0], stream);
-    this.#manualAllowed = true;
-    this.#onState('screen-approved');
+    if (this.#role !== 'host' || this.#closed || this.#stream || this.#screenApprovalPending) fault('INVALID_STATE');
+    this.#screenApprovalPending = true;
+    let stream;
+    try {
+      // Invoke the browser permission prompt in the same user gesture. The
+      // resulting track stays local until the signed session is checked.
+      stream = await this.requestScreen();
+      if (this.#closed) fault('CLOSED');
+      if (!await this.verifySession()) fault('SESSION_NOT_ACTIVE');
+      const tracks = stream?.getVideoTracks?.();
+      if (!Array.isArray(tracks) || tracks.length !== 1 || tracks[0].kind !== 'video' || tracks[0].readyState === 'ended') {
+        fault('SCREEN_CONSENT_REQUIRED');
+      }
+      tracks[0].addEventListener?.('ended', () => this.close('screen-stopped'), { once: true });
+      this.#pc.addTrack(tracks[0], stream);
+      this.#stream = stream;
+      this.#manualAllowed = true;
+      this.#sessionTimer = globalThis.setInterval(() => { void this.verifySession(); }, 1000);
+      this.#sessionTimer.unref?.();
+      this.#onState('screen-approved');
+    } catch (error) {
+      if (this.#stream) this.close('screen-approval-failed');
+      else stream?.getTracks?.().forEach(track => track.stop());
+      throw error;
+    } finally { this.#screenApprovalPending = false; }
   }
 
   async receiveSignal(signal) {
@@ -191,7 +275,9 @@ export class BrowserManualPeer {
   close(reason = 'user-ended') {
     if (this.#closed) return;
     this.#closed = true;
+    globalThis.clearInterval(this.#sessionTimer);
     this.#manualAllowed = false;
+    this.#inputQueue = [];
     this.#channel?.close?.();
     this.#stream?.getTracks?.().forEach(track => track.stop());
     this.#pc?.close();

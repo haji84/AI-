@@ -5,9 +5,16 @@
 async function api(route,body){const headers={'X-Goriq-Session':token};if(body!==undefined)headers['Content-Type']='application/json';const r=await fetch(route,{method:body===undefined?'GET':'POST',headers,body:body===undefined?undefined:JSON.stringify(body),cache:'no-store',credentials:'omit'});if(!r.ok)throw new Error('接続/権限がありません（'+r.status+'）');return r;}
 async function capture(){if(!active||inflight)return;inflight=true;try{const r=await api('/api/frame');const blob=await r.blob();const u=URL.createObjectURL(blob);const old=screen.src;screen.onload=()=>{if(old.startsWith('blob:'))URL.revokeObjectURL(old);const canvas=document.querySelector('#sourceCanvas');canvas.width=screen.naturalWidth||640;canvas.height=screen.naturalHeight||360;canvas.getContext('2d',{alpha:false}).drawImage(screen,0,0,canvas.width,canvas.height)};screen.src=u;status.textContent='画面取得 '+new Date().toLocaleTimeString();error.textContent='';}catch(e){error.textContent=e.message;auto=false;document.querySelector('#auto').textContent='自動更新：OFF';}finally{inflight=false}}
 async function send(command){if(!active)return;try{await api('/api/input',command);setTimeout(capture,200);}catch(e){error.textContent=e.message}}
-function pt(e){const r=screen.getBoundingClientRect();return{x:Math.max(0,Math.min(1,(e.clientX-r.left)/r.width)),y:Math.max(0,Math.min(1,(e.clientY-r.top)/r.height))}}
-screen.addEventListener('pointerdown',e=>{if(!active||e.button!==0)return;pressed=pt(e);screen.setPointerCapture(e.pointerId)});
-screen.addEventListener('pointerup',async e=>{if(!pressed)return;const b=pt(e),a=pressed;pressed=null;if(Math.abs(b.x-a.x)+Math.abs(b.y-a.y)<.03)await send({action:'tap',x:b.x,y:b.y});else await send({action:'swipe',x1:a.x,y1:a.y,x2:b.x,y2:b.y,durationMs:300});});
+function pt(e){
+  const r=screen.getBoundingClientRect(),iw=screen.naturalWidth,ih=screen.naturalHeight;
+  if(!iw||!ih||!r.width||!r.height)return null;
+  const scale=Math.min(r.width/iw,r.height/ih),w=iw*scale,h=ih*scale;
+  const x=(e.clientX-r.left-(r.width-w)/2)/w,y=(e.clientY-r.top-(r.height-h)/2)/h;
+  if(x<0||x>1||y<0||y>1)return null;
+  return{x,y};
+}
+screen.addEventListener('pointerdown',e=>{if(!active||e.button!==0)return;pressed=pt(e);if(pressed)screen.setPointerCapture(e.pointerId)});
+screen.addEventListener('pointerup',async e=>{if(!pressed)return;const b=pt(e),a=pressed;pressed=null;if(!b)return;if(Math.abs(b.x-a.x)+Math.abs(b.y-a.y)<.03)await send({action:'tap',x:b.x,y:b.y});else await send({action:'swipe',x1:a.x,y1:a.y,x2:b.x,y2:b.y,durationMs:300});});
 for(const [id,key] of [['back','ESCAPE'],['enter','ENTER'],['tab','TAB'],['up','ARROW_UP'],['down','ARROW_DOWN']])document.getElementById(id).onclick=()=>send({action:'key',key});
 document.querySelector('#send').onclick=()=>{const t=document.querySelector('#text');if(t.value)send({action:'text',text:t.value});t.value=''};
 document.querySelector('#refresh').onclick=capture;document.querySelector('#auto').onclick=e=>{auto=!auto;e.target.textContent='自動更新：'+(auto?'ON':'OFF');if(auto)capture()};document.querySelector('#stop').onclick=async()=>{stopRtc('ホスト終了');active=false;auto=false;clearInterval(tick);try{await api('/api/end',{})}catch{}status.textContent='終了しました'};

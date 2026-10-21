@@ -167,6 +167,13 @@ export class ManualRemoteSessionStore {
     this.#viewer(s, viewerId, viewerToken);
     return { sessionId: s.id, deviceId: s.deviceId, status: s.status, expiresAt: s.expiresAt };
   }
+
+  /** Device status must be requested through a fresh signed device proof. */
+  deviceStatus({ sessionId, deviceId, devicePrincipalId } = {}) {
+    const s = this.#session(sessionId);
+    this.#device(s, deviceId, devicePrincipalId);
+    return { sessionId: s.id, deviceId: s.deviceId, status: s.status, expiresAt: s.expiresAt };
+  }
 }
 
 export { RemoteLiteProtocolError };

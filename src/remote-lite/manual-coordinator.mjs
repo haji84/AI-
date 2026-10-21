@@ -95,6 +95,11 @@ export class ManualRemoteCoordinator {
     return this.#sessions.status({ sessionId, viewerId: ownerId, viewerToken });
   }
 
+  deviceStatus({ sessionId, deviceId, proof } = {}) {
+    const principal = this.#requireProof('session-status', sessionId, deviceId, proof);
+    return this.#sessions.deviceStatus({ sessionId, deviceId, devicePrincipalId: principal.devicePrincipalId });
+  }
+
   endSession({ ownerId, authorization, sessionId, viewerToken } = {}) {
     this.#owner(ownerId, authorization, 'end-session');
     return this.#sessions.close({ sessionId, as: 'viewer', identityId: ownerId, viewerToken });

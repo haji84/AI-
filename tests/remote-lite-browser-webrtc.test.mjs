@@ -36,25 +36,27 @@ class FakeRtc {
   addTrack(track, stream) { this.tracks.push({ track, stream }); }
   close() { this.connectionState = 'closed'; }
 }
-function fixture() {
+function fixture({ applyInput, checkSession = () => true } = {}) {
   const peerViewer = new FakeRtc(), peerHost = new FakeRtc();
   peerViewer.partner = peerHost;
   peerHost.partner = peerViewer;
-  const viewerSignals = [], hostSignals = [], commands = [], streams = [], states = [];
+  const viewerSignals = [], hostSignals = [], commands = [], streams = [], states = [], acknowledgements = [];
   let consent = 0, stopped = 0;
   const track = { kind: 'video', readyState: 'live', addEventListener() {}, stop() { stopped++; } };
   const screen = { getVideoTracks: () => [track], getTracks: () => [track] };
   const host = new BrowserManualPeer({
     role: 'host', rtcFactory: () => peerHost, iceServers: [],
     sendSignal: signal => hostSignals.push(signal),
+    checkSession,
     requestScreen: async () => { consent++; return screen; },
-    onManualInput: command => commands.push(command),
+    onManualInput: command => { commands.push(command); return applyInput ? applyInput(command) : true; },
     onState: value => states.push(value),
   });
   const viewer = new BrowserManualPeer({
     role: 'viewer', rtcFactory: () => peerViewer, iceServers: [],
     sendSignal: signal => viewerSignals.push(signal),
     onStream: stream => streams.push(stream),
+    onManualAcknowledged: sequence => acknowledgements.push(sequence),
     onState: value => states.push(value),
   });
   const connect = async () => {
@@ -64,7 +66,7 @@ function fixture() {
     await viewer.receiveSignal(hostSignals.shift());
   };
   return { peerHost, peerViewer, host, viewer, viewerSignals, hostSignals,
-    commands, streams, states, connect, screen, getConsent: () => consent, getStopped: () => stopped };
+    commands, streams, states, acknowledgements, connect, screen, getConsent: () => consent, getStopped: () => stopped };
 }
 
 test('browser peer blocks host offer until local screen permission', async () => {
@@ -85,9 +87,12 @@ test('browser peer establishes SDP, approved video track and manual input data c
   assert.equal(f.viewer.connected, true);
   assert.equal(f.host.connected, true);
   assert.equal(f.viewer.sendManual({ action:'tap', x:0.5, y:0.6 }), 1);
+  await new Promise(resolve => globalThis.setImmediate(resolve));
   assert.deepEqual(f.commands, [{ action:'tap', x:0.5, y:0.6 }]);
   assert.equal(f.viewer.sendManual({ action:'key', key:'HOME' }), 2);
+  await new Promise(resolve => globalThis.setImmediate(resolve));
   assert.deepEqual(f.commands[1], { action:'key', key:'HOME' });
+  assert.deepEqual(f.acknowledgements, [1, 2]);
   f.viewer.close();
   f.host.close();
   assert.equal(f.getStopped(), 1);
@@ -118,6 +123,7 @@ test('manual peer discards malformed, nonsequential, extra-authority inputs', as
     JSON.stringify({sequence:1,command:{action:'tap',x:0.5,y:0.5,run:'shell'}})]) ch.send(message);
   assert.equal(f.commands.length,0);
   ch.send(JSON.stringify({sequence:1,command:{action:'tap',x:0.4,y:0.4}}));
+  await new Promise(resolve => globalThis.setImmediate(resolve));
   assert.equal(f.commands.length,1);
   ch.send(JSON.stringify({sequence:1,command:{action:'tap',x:0.4,y:0.4}}));
   assert.equal(f.commands.length,1);
@@ -139,10 +145,124 @@ test('ICE candidate arriving before SDP is queued, then applied after SDP', asyn
 test('screen capture error cannot silently become permission grant', async () => {
   const peer = new FakeRtc();
   const h=new BrowserManualPeer({role:'host',rtcFactory:()=>peer,sendSignal:()=>{},
-    requestScreen:async()=>null});
+    checkSession:()=>true, requestScreen:async()=>null});
   await assert.rejects(()=>h.approveLocalScreen(),/SCREEN_CONSENT_REQUIRED/);
   assert.equal(peer.tracks.length,0);
   h.close();
+});
+
+test('closing while screen consent is pending stops a late capture', async () => {
+  let completeConsent;
+  let stopped = 0;
+  const track = { kind: 'video', readyState: 'live', addEventListener() {}, stop() { stopped++; } };
+  const stream = { getVideoTracks: () => [track], getTracks: () => [track] };
+  const peer = new FakeRtc();
+  const host = new BrowserManualPeer({ role: 'host', rtcFactory: () => peer,
+    sendSignal: () => {}, checkSession: () => true,
+    requestScreen: () => new Promise(resolve => { completeConsent = resolve; }) });
+  const pending = host.approveLocalScreen();
+  await new Promise(resolve => globalThis.setImmediate(resolve));
+  host.close('session-revoked');
+  completeConsent(stream);
+  await assert.rejects(pending, /CLOSED/);
+  assert.equal(stopped, 1);
+  assert.equal(peer.tracks.length, 0);
+});
+
+test('concurrent screen approval cannot start two captures', async () => {
+  let finishConsent;
+  let requests = 0;
+  let stopped = 0;
+  const track = { kind: 'video', readyState: 'live', addEventListener() {}, stop() { stopped++; } };
+  const stream = { getVideoTracks: () => [track], getTracks: () => [track] };
+  const peer = new FakeRtc();
+  const host = new BrowserManualPeer({ role: 'host', rtcFactory: () => peer,
+    sendSignal: () => {}, checkSession: () => true,
+    requestScreen: () => { requests++; return new Promise(resolve => { finishConsent = resolve; }); } });
+  const pending = host.approveLocalScreen();
+  await new Promise(resolve => globalThis.setImmediate(resolve));
+  await assert.rejects(() => host.approveLocalScreen(), /INVALID_STATE/);
+  finishConsent(stream);
+  await pending;
+  assert.equal(requests, 1);
+  assert.equal(peer.tracks.length, 1);
+  host.close();
+  assert.equal(stopped, 1);
+});
+
+test('screen permission request starts synchronously during the user gesture', async () => {
+  let inGesture = true;
+  let requestedInGesture = false;
+  const track = { kind: 'video', readyState: 'live', addEventListener() {}, stop() {} };
+  const stream = { getVideoTracks: () => [track], getTracks: () => [track] };
+  const host = new BrowserManualPeer({ role: 'host', rtcFactory: () => new FakeRtc(),
+    sendSignal: () => {}, checkSession: async () => true,
+    requestScreen: () => { requestedInGesture = inGesture; return Promise.resolve(stream); } });
+  const pending = host.approveLocalScreen();
+  inGesture = false;
+  await pending;
+  assert.equal(requestedInGesture, true);
+  host.close();
+});
+
+test('manual input is acknowledged only after host application succeeds', async () => {
+  let finishInput;
+  const f = fixture({ applyInput: () => new Promise(resolve => { finishInput = resolve; }) });
+  await f.connect();
+  f.viewer.sendManual({ action: 'tap', x: 0.4, y: 0.6 });
+  await new Promise(resolve => globalThis.setImmediate(resolve));
+  assert.deepEqual(f.acknowledgements, []);
+  finishInput(true);
+  await new Promise(resolve => globalThis.setImmediate(resolve));
+  assert.deepEqual(f.acknowledgements, [1]);
+  f.host.close(); f.viewer.close();
+});
+
+test('refused manual input closes host without a false acknowledgement', async () => {
+  const f = fixture({ applyInput: async () => false });
+  await f.connect();
+  f.viewer.sendManual({ action: 'tap', x: 0.4, y: 0.6 });
+  await new Promise(resolve => globalThis.setImmediate(resolve));
+  assert.deepEqual(f.acknowledgements, []);
+  assert.equal(f.host.closed, true);
+  assert.equal(f.getStopped(), 1);
+  f.viewer.close();
+});
+
+test('host rejects a burst beyond 30 valid manual inputs per second', async () => {
+  const f = fixture();
+  await f.connect();
+  for (let sequence = 1; sequence <= 31; sequence++) {
+    f.peerViewer.channel.send(JSON.stringify({ sequence, command: { action: 'tap', x: 0.5, y: 0.5 } }));
+  }
+  await new Promise(resolve => globalThis.setImmediate(resolve));
+  assert.equal(f.host.closed, true);
+  assert.ok(f.commands.length <= 30);
+  assert.equal(f.getStopped(), 1);
+  f.viewer.close();
+});
+
+test('revoked session stops an established screen and blocks further input', async () => {
+  let active = true;
+  const f = fixture({ checkSession: () => active });
+  await f.connect();
+  active = false;
+  assert.equal(await f.host.verifySession(), false);
+  f.viewer.sendManual({ action: 'tap', x: 0.5, y: 0.5 });
+  await new Promise(resolve => globalThis.setImmediate(resolve));
+  assert.equal(f.host.closed, true);
+  assert.equal(f.getStopped(), 1);
+  assert.deepEqual(f.commands, []);
+  f.viewer.close();
+});
+
+test('host refuses to capture when the session cannot be confirmed', async () => {
+  const f = fixture({ checkSession: () => false });
+  await assert.rejects(() => f.host.approveLocalScreen(), /SESSION_NOT_ACTIVE/);
+  assert.equal(f.getConsent(), 1);
+  assert.equal(f.getStopped(), 1);
+  assert.equal(f.peerHost.tracks.length, 0);
+  f.host.close(); f.viewer.close();
 });
 
 test('invalid ICE configuration, signaling order, and a second attempt fail safely',async()=>{
@@ -164,5 +284,14 @@ test('connection loss immediately terminates screen capture and manual session',
   assert.equal(f.host.closed,true);
   assert.equal(f.getStopped(),1);
   assert.equal(f.commands.length,0);
+  f.viewer.close();
+});
+
+test('control channel loss stops host screen capture', async () => {
+  const f = fixture();
+  await f.connect();
+  f.peerViewer.channel.partner.onclose();
+  assert.equal(f.host.closed, true);
+  assert.equal(f.getStopped(), 1);
   f.viewer.close();
 });
