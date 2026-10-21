@@ -72,6 +72,7 @@ async function startRtc(){
     }
   };
   const channel=viewer.createDataChannel('manual-local-test-v1',{ordered:true});
+  viewer.addTransceiver('video',{direction:'recvonly'});
   state.channel=channel;
   channel.onopen=()=>{rtcMessage('RTCDataChannel接続。画面の受信待ち…');channel.send(JSON.stringify({type:'ping'}))};
   channel.onmessage=e=>{
