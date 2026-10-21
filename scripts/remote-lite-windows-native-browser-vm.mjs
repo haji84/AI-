@@ -55,13 +55,15 @@ try {
   if (!loaded) throw new Error('native JPEG did not load');
   await evalPage('window.confirm = () => true; document.querySelector("#rtcStart").click(); return true');
   let mediaReady = false;
+  let lastMediaState;
   for (let attempt = 0; attempt < 100; attempt++) {
-    const state = await evalPage('return { text: document.querySelector("#rtcStatus").textContent, width: document.querySelector("#rtcVideo").videoWidth, input: !document.querySelector("#rtcInput").disabled }');
+    const state = await evalPage('return { text: document.querySelector("#rtcStatus").textContent, width: document.querySelector("#rtcVideo").videoWidth, input: !document.querySelector("#rtcInput").disabled, source: document.querySelector("#sourceCanvas").width, screen: document.querySelector("#screen").naturalWidth, rtc: typeof rtcState === "undefined" || !rtcState ? null : { pong: rtcState.pong, videoReady: rtcState.videoReady, viewer: rtcState.viewer.connectionState, host: rtcState.host.connectionState, channel: rtcState.channel?.readyState } }');
+    if (state.rtc) lastMediaState = state;
     if (state.text.startsWith('PASS:') && state.width > 0 && state.input) { mediaReady = true; break; }
-    if (/失敗|応答なし|拒否/u.test(state.text)) throw new Error('native WebRTC failed: ' + state.text);
+    if (/失敗|応答なし|拒否/u.test(state.text)) throw new Error('native WebRTC failed: ' + JSON.stringify({ state, lastMediaState }));
     await pause(150);
   }
-  if (!mediaReady) throw new Error('native video/DataChannel did not connect');
+  if (!mediaReady) throw new Error('native video/DataChannel did not connect: ' + JSON.stringify(lastMediaState));
   await evalPage('document.querySelector("#rtcInput").click(); return true');
   let inputReady = false;
   for (let attempt = 0; attempt < 70; attempt++) {
@@ -71,19 +73,31 @@ try {
     await pause(150);
   }
   if (!inputReady) throw new Error('manual DataChannel input lacked native acknowledgement');
+  const refs = await evalPage('window.__vmTrack = rtcState?.stream?.getVideoTracks()[0]; window.__vmChannel = rtcState?.channel; return { track: !!window.__vmTrack, channel: !!window.__vmChannel }');
+  if (!refs.track || !refs.channel) throw new Error('VM could not retain live media/channel references');
   process.stdout.write(JSON.stringify({ event: 'active', nativeJPEG: true, decodedVideo: true,
     manualNativeAck: true }) + '\n');
   const lines = createInterface({ input: process.stdin });
   for await (const line of lines) { if (line === 'revoke') break; }
   let stopped = false;
   for (let attempt = 0; attempt < 50; attempt++) {
-    const state = await evalPage('return { text: document.querySelector("#rtcStatus").textContent, stream: document.querySelector("#rtcVideo").srcObject, image: document.querySelector("#screen").getAttribute("src") }');
-    if (state.text.includes('署名付き端末セッション') && state.stream === null && state.image === null) {
+    const state = await evalPage('return { text: document.querySelector("#rtcStatus").textContent, stream: document.querySelector("#rtcVideo").srcObject, image: document.querySelector("#screen").getAttribute("src"), track: window.__vmTrack?.readyState, channel: window.__vmChannel?.readyState }');
+    if (state.text.includes('署名付き端末セッション') && state.stream === null && state.image === null &&
+      state.track === 'ended' && state.channel === 'closed') {
       stopped = true; break;
     }
     await pause(150);
   }
   if (!stopped) throw new Error('revoked native WebRTC media did not stop');
+  // A response already in flight must not repaint the screen after the first
+  // empty observation. Keep checking beyond the frame polling interval.
+  for (let attempt = 0; attempt < 12; attempt++) {
+    await pause(200);
+    const state = await evalPage('return { stream: document.querySelector("#rtcVideo").srcObject, image: document.querySelector("#screen").getAttribute("src"), track: window.__vmTrack?.readyState, channel: window.__vmChannel?.readyState }');
+    if (state.stream !== null || state.image !== null || state.track !== 'ended' || state.channel !== 'closed') {
+      throw new Error('revoked media reappeared after stop');
+    }
+  }
   process.stdout.write(JSON.stringify({ event: 'stopped', revokedVideoClosed: true }) + '\n');
 } catch (error) {
   process.stderr.write(`FAIL Windows native browser VM: ${error?.stack || String(error)}\n`);
