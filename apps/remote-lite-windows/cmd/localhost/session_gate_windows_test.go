@@ -181,3 +181,61 @@ func TestSignedPendingDiscoveryRejectsMismatchedAndExpiredResults(t *testing.T) 
 		t.Fatalf("discovery made %d requests; expected direct signed POSTs", requests)
 	}
 }
+
+func TestAcceptanceResponseLossOpensOnlyAfterFreshSignedActiveStatus(t *testing.T) {
+	_, private, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, acceptedOnServer := range []bool{false, true} {
+		t.Run(strconv.FormatBool(acceptedOnServer), func(t *testing.T) {
+			now := time.Now()
+			active := false
+			statusChecks := 0
+			coordinator := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				switch r.URL.Path {
+				case "/v1/device/challenge":
+					_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "result": map[string]any{
+						"challengeId": "51c18b98-f073-4c32-a8e7-79e5cff81837", "challenge": strings.Repeat("a", 48), "expiresAt": now.Add(time.Minute).UnixMilli(),
+					}})
+				case "/v1/device/accept":
+					active = acceptedOnServer
+					w.WriteHeader(http.StatusInternalServerError) // response lost after possible commit
+				case "/v1/device/status":
+					statusChecks++
+					if !active {
+						w.WriteHeader(http.StatusForbidden)
+						return
+					}
+					_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "result": map[string]any{
+						"sessionId": "session-a", "deviceId": "windows-a", "status": "active", "expiresAt": now.Add(time.Minute).UnixMilli(),
+					}})
+				default:
+					w.WriteHeader(http.StatusNotFound)
+				}
+			}))
+			defer coordinator.Close()
+			gate, err := newSignedStatusGate(coordinator.URL, "windows-a", "windows-a", func(message []byte) ([]byte, error) {
+				return ed25519.Sign(private, message), nil
+			}, coordinator.Client())
+			if err != nil {
+				t.Fatal(err)
+			}
+			gate.discoveryOnly = true
+			gate.now = func() time.Time { return now }
+			pending := &pendingRemoteSession{SessionID: "session-a", DeviceID: "windows-a", Status: "pending", ExpiresAt: now.Add(time.Minute).UnixMilli()}
+			err = gate.AcceptPending(context.Background(), pending)
+			if statusChecks != 1 {
+				t.Fatalf("uncertain acceptance required one signed status check, got %d", statusChecks)
+			}
+			if acceptedOnServer {
+				if err != nil || gate.discoveryOnly || gate.sessionID != pending.SessionID {
+					t.Fatalf("confirmed active session not recovered: %v", err)
+				}
+			} else if err == nil || !gate.discoveryOnly {
+				t.Fatalf("unconfirmed session enabled remote route: %v", err)
+			}
+		})
+	}
+}

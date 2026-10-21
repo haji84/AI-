@@ -248,7 +248,18 @@ func (g *signedStatusGate) AcceptPending(parent context.Context, pending *pendin
 			"challengeId": challenge.ChallengeID, "signature": base64.StdEncoding.EncodeToString(signature),
 		},
 	}, &accepted); err != nil {
-		return err
+		// The coordinator may have committed acceptance before its response was
+		// lost. Never retry accept. A fresh signed active-status proof is the
+		// only safe way to resolve this uncertain result.
+		candidate := *g
+		candidate.sessionID = pending.SessionID
+		candidate.discoveryOnly = false
+		if checkErr := candidate.Check(parent); checkErr != nil {
+			return fmt.Errorf("acceptance outcome unconfirmed: %w", err)
+		}
+		g.sessionID = pending.SessionID
+		g.discoveryOnly = false
+		return nil
 	}
 	if accepted.SessionID != pending.SessionID || accepted.DeviceID != g.deviceID || accepted.Status != "active" || accepted.ExpiresAt <= g.now().UnixMilli() {
 		return errors.New("accepted session invalid or mismatched")

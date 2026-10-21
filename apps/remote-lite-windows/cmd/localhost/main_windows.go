@@ -31,7 +31,7 @@ func approve() bool {
 	popup := user32.NewProc("MessageBoxW")
 	message, _ := syscall.UTF16PtrFromString("GORIQ Remote Lite 開発用プレビュー\n\nこのPC上のブラウザから15分間、画面を表示・マウス・キーボードを操作できるようにします。\nインターネット越しの遠隔接続は有効になりません。\n\nこのPCで許可しますか？")
 	title, _ := syscall.UTF16PtrFromString("GORIQ Remote Lite 端末側の許可")
-	n, _, _ := popup.Call(0, uintptr(unsafe.Pointer(message)), uintptr(unsafe.Pointer(title)), 0x00000024)
+	n, _, _ := popup.Call(0, uintptr(unsafe.Pointer(message)), uintptr(unsafe.Pointer(title)), 0x00000124) // No is the default button
 	return n == 6
 }
 
@@ -40,7 +40,7 @@ func approveRemote(sessionID string) bool {
 	popup := user32.NewProc("MessageBoxW")
 	message, _ := syscall.UTF16PtrFromString("GORIQ Remote Lite 接続要求\n\nセッション: " + sessionID + "\n\nこのPCの画面表示とマウス・キーボードによる手動操作を最長15分許可しますか？\n接続が切れるか期限が切れると停止します。")
 	title, _ := syscall.UTF16PtrFromString("GORIQ Remote Lite 端末側の許可")
-	n, _, _ := popup.Call(0, uintptr(unsafe.Pointer(message)), uintptr(unsafe.Pointer(title)), 0x00000024)
+	n, _, _ := popup.Call(0, uintptr(unsafe.Pointer(message)), uintptr(unsafe.Pointer(title)), 0x00000124) // No is the default button
 	return n == 6
 }
 

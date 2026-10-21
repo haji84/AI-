@@ -14,6 +14,8 @@ test('Windows native app remains an isolated, user-consented local test (not a p
   assert.match(main, /net\.Listen\("tcp4", "127\.0\.0\.1:0"\)/);
   assert.match(main, /return approveLocal\(\), nil/);
   assert.match(main, /if !approveSession\(pending\.SessionID\)/);
+  assert.equal((main.match(/popup\.Call\([^\n]*0x00000124\)/gu) || []).length, 2,
+    'both local and remote consent dialogs must default to No');
   assert.match(main, /15 \* time\.Minute/);
   assert.match(main, /ConstantTimeCompare/);
   assert.match(main, /X-Goriq-Session/);

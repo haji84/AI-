@@ -86,7 +86,7 @@ func TestActualNodeCoordinatorRevocationStopsWindowsRoutes(t *testing.T) {
 	}
 	clear(keyDER)
 	config, err := json.Marshal(activeRemoteSession{Version: 2, StatusServiceURL: ready.URL,
-		DeviceID: ready.DeviceID,
+		DeviceID:            ready.DeviceID,
 		ProtectedPrivateKey: base64.StdEncoding.EncodeToString(protected)})
 	if err != nil {
 		t.Fatal(err)
