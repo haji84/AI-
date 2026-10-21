@@ -429,3 +429,166 @@ Actual Linux GREEN and native activation remain subject to later exact CI and
 critical gate. All prior failure evidence remains retained.
 Independent portability task review: spec/quality PASS, no P1/P2.
 Report linux-portability-review.md SHA256 `5e883439c714f85940d116b056ca7be97882256c0dae08c5e933fb5c963714a9`. No source revision requested; actual Linux CI remains pending.
+
+## Exactdcedf687 all-CI/signed-six PASS and current native gate
+
+Source `dcedf6874b59ac6744548937dae29329a9e0e11b`, automatic PR run39471177133
+attempt1, all4jobs SUCCESS. Required Windows step actually printed14 portable/
+3 ACL/323 lifecycle assertions (logSHA
+`ffffda5826a7615077fb1f5cb4eb5aba901c6b349fa24a3f0aa5b2c07b8987a1`).
+Linux project-checks and actual restricted-container six checks passed. Unit and
+integration each2733total/2727PASS/6SKIP/0FAIL; security332PASS; buildexit0.
+Unit/integration145352.2/148257.1ms stay below unchanged180000ms; all cleanup
+confirmed. Source/image/boundary/probe/candidate and four build input hashes match.
+
+Artifact12286799043 ZIP SHA256
+`e27eca1ea22f5f099a239c41340edff75e6e29937e87d1ab8dadbf74902ce443`
+matches GitHub digest. Receipt SHA256
+`05457bd480122e8c65421c1b1e290ef73a2db4a747a66910ec1f3dab75d60791`;
+audit SHA256 `a06127e5269b991c895a183a52ac93b6c32c20e64cffc81fc81401010364be72`;
+report SHA256 `2ed5966e84e559db0c1d251aaa49cd991d2e3875f6ed871971d817823ff17ae5`.
+Signatures/schema/source/log bindings were independently verified at recorded
+time; evidence class HOSTED_CONTAINER_CI and physicalAcceptanceVerified=false.
+Failed750 and old unresolved548 heartbeat evidence remain preserved.
+
+Native5-source bundle remains exactlycb65d46e, media7ff6a932, launcher61c34264,
+bindingd9dc8192. New proposal critical-request-dcedf687.json SHA256
+`90937337c5c93cf1beceb42510cdd8badd59c6678ebb545c9622c7e854701919`
+binds this exact successful source/run and original owned run/media/provenance.
+Deadline remains2026-10-21T09:00Z; no extension. It is not owner consent. After
+new exact approval, only the already-owned empty-MBR256MiB media may be finished,
+existing key reused, one ai09 public-key line enrolled locally and one TCP22 rule
+added after fresh successful guest evidence. Original records/old media/OS remain
+protected; no new key, ACL, signer/install or Production authority is included.
+
+Current native Resume/Collect and authenticated SSH are still unexecuted;
+mounted MBR0, independent authority and physical E2E are not claimed. Final
+state/evidence-only local edits are retained without another CI-triggering push.
+## Native owned-media Resume completed; owner guest enrollment pending
+
+At2026-10-20T18:48:06Z the exact approved dced/cb65 Resume completed once,
+exit0/status RESUMED_MEDIA_ATTACHED_GUEST_NOT_EXECUTED. Receipt SHA256
+`8ba50c0e7396433dfecd98a095406fa4659bbde165922c80e178f76fa45c6943`;
+completion SHA256
+`60e9bda14e4ae234c03715bae356aa2d141094aaa833fe4f26b7d7fbbc52f303`.
+The owned VHD/run match original provenance; FAT UUID02FC-FB01,
+PARTUUIDd9dc024b-01. Only AI09 SCSI0:3 is attached. Original intent, prepared,
+failure and public-key hashes remain unchanged. No private-key content was read.
+Protected listeners8787/8797/Ollama retain PIDs10068/25144/12920;8796 was
+already absent and was not restarted. No Prepare/Resume replay occurred.
+
+Owner critical approval call_d8028fad1f6c4c6797edfc7caf4e3d85 and subsequent
+UAC acknowledgement are retained separately. Deadline remains09:00Z; no
+extension. Native media preparation PASS is not guest enrollment or SSH PASS.
+The owner was asked for initial Ubuntu3shortcommands/existing sudo authentication
+and actual A09_UNMOUNTED exit0 confirmation. Completion-pinned external Collect
+launcher SHA256
+`1a8ade9ffbc5d5e398aa25e5f5e5baddcc917fbfb8e9a80f0582c6601df0e533`
+passes syntax and independent review/no P1/P2. It has NOT run; it requires the
+actual owner reply record/hash and same exact approved bundle/deadline. Fresh
+root guest identity/host key/enrollment/exit0 must precede the approved oneTCP22.
+Authenticated SSH, independent native six and Goal E2E remain unverified.
+
+Issue1219 comment6297653635 and Compass history321 record this checkpoint.
+The temporary storage wait resolved naturally. Diagnostic SHA256
+`a21b3d44614bfdbcb5e9ecf71aa11f1d2c7b01610b004dd2950bbc03cfa27f84`
+records that later CIM observations were after completion and cannot prove a
+delay cause. No corrective source change was made based on that wait.
+
+## Initial guest sudo authentication rejected (Oct21 08:41JST)
+
+After the owner reported password entry, supported Computer Use read the existing
+AI09 console at2026-10-20T23:41:55Z: sudo printed3incorrectpasswordattempts and
+returned to the ai09 prompt. The exact expected mkdir/a09 command/success was
+not established; the earlier malformed argument was still the visible attempt.
+No authentication details or raw screenshot are published. This proves sudo
+authentication rejection only; password correctness/input-layout/account-policy
+cause and the earlier server-side SSH refusal cause remain unknown.
+
+Password retries are stopped. Pinned owner-key enrollment requires Linuxroot;
+no bypass/reset/PAM/sshd/security/permission change is authorized by this failure.
+Owner recent successful-login history is requested, without any password value.
+Existing native media/key/provenance remain retained. Collect/network/SSH and
+independent native E2E are unexecuted; no unmount or root result is inferred from
+the owner's password-entry reply. Exact approval deadline remains09:00Z/18:00JST.
+External observation: guest-sudo-auth-refused-20261021T0842JST.json.
+
+## Agent-operated guest diagnosis and owner authentication prompt (Oct21 09:50JST)
+
+Fixed read-only native Hyper-V input is now measured working. Earlier v1 timed
+out before any input; v2 garbled echo and v3 uppercase echo were rejected without
+Enter. V4 used momentary Shift around letters only: exact lowercase journalctl
+command observed before nonce-bound ACK, exactly1 Enter, worker/controller exit0,
+all owned modifiers released. Actual guest output shows previous root sudo
+sessions onOct19 and latest PAM authentication failure/3incorrect attempts onOct20.
+Root cause remains unknown; no locked/expired/account-policy conclusion is drawn.
+V4 receipt SHA256:23d90d5593d20569af61f60c16a7355a1dc9e0029e651ee1cf624bb74243f65b.
+
+V5 no-argument setleds read actual current/default flags and LEDs: NumLockOFF,
+CapsLockOFF, ScrollLockOFF. No lock flag was changed. Therefore the uppercase
+native input behavior is NOT evidence of guest CapsLock causing password failure.
+V6 started only sudo-v and actual password prompt was observed; owner is asked
+for existing password once, no command typing, screenshot, or password in chat.
+No password is available to or automated by the agent. Authentication success,
+root enrollment, guest unmount, Collect/network, strict SSH, independent native
+six, signed Goal/restart/Job2 and final acceptance are still NOT verified.
+
+External bounded observation record:
+guest-native-log-and-keyboard-observation-20261021T0950JST.json.
+No raw screen or incidental terminal content published. Existing product source
+bundle, native media/key, approval scope/deadline, services and worktrees unchanged.
+
+## Actual root authentication and approved guest bootstrap (Oct21 11:13JST)
+
+After owner password entry, the agent verified actual sudo-n-id output uid0/gid0.
+No password value was known/recorded. V8 refused unsafe original source path
+before any key input. Exact5cb65 source bytes were copied to an existing protected
+state child/scripts; no ACL change. V9 refused a mismatched operator echo before
+Enter. V10/V11/V12 then individually submitted the exact approved mkdir/mount/go
+commands, each gated on actual echo. Audited guest program printed the exact
+A09_UNMOUNTED exit0 marker/run028cc365d24b48d3a8ddfbbe07d0ac95 and normal prompt.
+V12 receipt SHA256332f7c77f7dbc7c4ed056bcf2921da19f26aeb641c480bbd6d383db7ead5dad8.
+Unmount observation SHA256c47e030189b6250da2fdbf9e20ec01fd26405e3fde97129e8876b41ba34aea3f.
+This is observed audited machine output, not an owner reply or independent signature.
+
+No Collect/network operation was launched. Preflight inspection established the
+legacy origin failure witness path also fails OWNER_PATH_REQUIRED. The same8e55
+bytes are copied CreateNew into protected State/origin-failure-witness-0f1b61b1.json;
+original evidence/ACLs remain unchanged. A typed Collect-only continuation binding
+is being implemented, keeping historical prepared/media/completion cb65 provenance
+and new executor/auth separate. Baseline freshness900s remains mandatory; if stale,
+network must refuse. Activation/new privileged scope cannot borrow the old exact
+code approval. SSH, native independent six, signed Goal/restart/Job2 and final
+acceptance remain unverified. Owned media remains safely attached after guest
+unmount; no OS/VM restart, source ACL repair, install, signing key or deployment.
+
+## Protected-witness Collect continuation: implemented, not activated
+
+The new CollectBindingPath/Sha256 accepts only AI09_RESUMED_COLLECT_V1 for Collect.
+It binds the current executor/new execution reference/nonextended lease/explicit
+PermitNetwork boolean to fixed historical cb65, resume binding d9dc8192, completion
+60e9bda1 and protected8e55 witness. Prepare/Resume reject this selector. Safe paths,
+allowed writers, read locks, immutable history, exact media/read-only mount and
+CreateNew evidence checks remain. Network=false never enters the network writer;
+900s freshness, historical enrollment and exit0 checks remain for true-network.
+A binding/reference is not owner approval. Old dced/cb65 authorization cannot be
+reused for this changed executor. Native Collect/SSH/E2E have NOT been performed.
+
+Current source-byte bundle:
+affc8a60b10d5df289711786e4eef725f4e8c23fa38519fe0ce87984a5bfcf1d.
+Media source SHA256:
+79a0461301da0acdf4cd50c123c71decbf6bb0be46b80699d3366be52b4a7e20.
+TDD RED retained MEDIA_RESUME_SCOPE_INVALID on the new changed-executor path.
+Independent review found no P1/P2. Root independently reran WindowsPowerShell5
+and PowerShell7: portable14/real-reader-ACL8/lifecycle473/first-host101/legacy-host131
+assertions each passed, exit0. Node wrappers18PASS/0FAIL/0SKIP. These are isolated
+software fixtures, not actual Hyper-V collection or independent signed evidence.
+Agent lint/typecheck/AST passed; same-commit automatic CI is the next gate.
+
+Read-only runtime readiness: existing Ollama tags responded and coder models are
+listed; no new inference/job was launched. Protected resident Broker health is OK,
+revision a49c458d69a28c0266be8fcad5b26253e5ed8d75, selfDevelopmentRuntime=false.
+Any acceptance run must use the owner-isolated test runtime; no production flag or
+service restart was performed. Main remains cb6b0fa0 and Draft1824/1826/1827 remain
+open. Rollback before activation is code/test revert on the issue branch, preserving
+native records/key/media. No initial media preparation or enrollment replay.

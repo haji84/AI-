@@ -2,6 +2,7 @@
 param([ValidateSet('Verify','Prepare','ResumeEmptyMbr','Collect')][string]$Mode='Verify',
   [string]$ExpectedBundleSha256,[string]$AuthorizationReference,[string]$ExpiresAt,
   [string]$ResumeBindingPath,[string]$ResumeBindingSha256,[string]$CompletionRecordSha256,
+  [string]$CollectBindingPath,[string]$CollectBindingSha256,
   [switch]$GuestUnmountConfirmed,[switch]$PermitNetwork)
 # Issue1219. Source preparation is unprivileged; Prepare/Collect are separately
 # owner-approved native administrator operations. A reference string is NOT consent.
@@ -238,7 +239,7 @@ function Assert-Ai09MediaPrivateKeyMetadata([string]$Path) {
     if($ace.AccessControlType -eq 'Allow' -and $ace.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value -notin $allowed){throw 'MEDIA_PRIVATE_KEY_METADATA_INVALID'}
   }
 }
-function Read-Ai09MediaResumeChain($Bundle,[string]$Reference,[string]$Expiry,[string]$BindingPath,[string]$BindingSha256,$Locks) {
+function Read-Ai09MediaResumeChain($Bundle,[string]$Reference,[string]$Expiry,[string]$BindingPath,[string]$BindingSha256,$Locks,[switch]$ProtectedFailureWitness) {
   $s=Get-Ai09MediaScope;$origin=Get-Ai09MediaResumeOrigin
   $binding=ConvertFrom-Ai09MediaJson (Read-Ai09MediaLocked $BindingPath $BindingSha256 $Locks)
   Assert-Ai09Fields $binding @('version','issue','profile','bundleSha256','authorizationRef','expiresAt','originBundleSha256','intentSha256','preparedSha256','failureSha256','publicKeySha256')
@@ -247,7 +248,9 @@ function Read-Ai09MediaResumeChain($Bundle,[string]$Reference,[string]$Expiry,[s
   Assert-Ai09MediaPrivateKeyMetadata (Join-Path $s.State 'client_ed25519')
   $intent=ConvertFrom-Ai09MediaJson (Read-Ai09MediaLocked (Join-Path $s.State 'intent.json') $origin.intentSha256 $Locks)
   $record=ConvertFrom-Ai09MediaJson (Read-Ai09MediaLocked (Join-Path $s.State 'prepared.json') $origin.preparedSha256 $Locks)
-  $failure=ConvertFrom-Ai09MediaJson (Read-Ai09MediaLocked $origin.failurePath $origin.failureSha256 $Locks)
+  $failurePath=$origin.failurePath
+  if($ProtectedFailureWitness){$failurePath=Join-Path $s.State 'origin-failure-witness-0f1b61b1.json'}
+  $failure=ConvertFrom-Ai09MediaJson (Read-Ai09MediaLocked $failurePath $origin.failureSha256 $Locks)
   $public=(Read-Ai09MediaLocked (Join-Path $s.State 'client_ed25519.pub') $origin.publicKeySha256 $Locks).Trim().Split(' ')
   if($public.Count -ne 3 -or $public[0] -cne 'ssh-ed25519' -or $public[1] -cnotmatch '^[A-Za-z0-9+/]+={0,2}$'){throw 'PUBLIC_KEY_INVALID'}
   foreach($r in @($intent,$record)){
@@ -256,6 +259,21 @@ function Read-Ai09MediaResumeChain($Bundle,[string]$Reference,[string]$Expiry,[s
   }
   if($intent.vhdIdentifier -cne '' -or $intent.diskUniqueId -cne '' -or $intent.diskNumber -ne -1 -or $record.vhdIdentifier -cne $origin.vhdIdentifier -or $record.diskUniqueId -cne $origin.diskUniqueId -or $failure.status -cne 'NATIVE_PREPARATION_FAILED' -or $failure.errorId -cne 'CmdletizationQuery_NotFound_DiskNumber,Get-Partition'){throw 'MEDIA_ORIGIN_STAGE_INVALID'}
   return @{origin=$origin;record=$record;binding=$binding;publicKey=($public[0]+' '+$public[1])}
+}
+function Get-Ai09MediaCollectOrigin {
+  return [ordered]@{bundleSha256='cb65d46ec0cad1040114453b1ab3056f6e5fe10b41b1fe491247f57a95939762';authorizationRef='owner-1219-ai09-empty-mbr-resume-20261021';expiresAt='2026-10-21T09:00:00.000Z';resumeBindingSha256='d9dc8192431d2efe6f5454dd94e4157e6caf1acab1b8a58aef00241e853e5784';completionRecordSha256='60e9bda14e4ae234c03715bae356aa2d141094aaa833fe4f26b7d7fbbc52f303'}
+}
+function Read-Ai09MediaCollectBinding($Bundle,[string]$Reference,[string]$Expiry,[bool]$PermitNetwork,[string]$Path,[string]$Sha256,$Locks) {
+  $binding=ConvertFrom-Ai09MediaJson (Read-Ai09MediaLocked $Path $Sha256 $Locks)
+  Assert-Ai09Fields $binding @('version','issue','profile','bundleSha256','authorizationRef','expiresAt','permitNetwork','resumeBundleSha256','resumeBindingSha256','completionRecordSha256','failureWitnessSha256')
+  $history=Get-Ai09MediaCollectOrigin;$origin=Get-Ai09MediaResumeOrigin
+  $leaseExpiry=[DateTimeOffset]::ParseExact($Expiry,'yyyy-MM-ddTHH:mm:ss.fffZ',[Globalization.CultureInfo]::InvariantCulture,[Globalization.DateTimeStyles]::AssumeUniversal)
+  Assert-Ai09MediaLease $leaseExpiry
+  # Current execution authority and historical enrollment authority are separate.
+  # No historical receipt is rewritten to label it with the new executor bundle.
+  if($binding.version -ne 1 -or $binding.issue -ne 1219 -or $binding.profile -cne 'AI09_RESUMED_COLLECT_V1' -or $binding.bundleSha256 -cne $Bundle.sha256 -or $Bundle.sha256 -ceq $history.bundleSha256 -or $binding.authorizationRef -cne $Reference -or $Reference -cnotmatch '^[A-Za-z0-9._:-]{1,128}$' -or $Reference -ceq $history.authorizationRef -or $Reference -ceq $origin.authorizationRef -or $binding.expiresAt -cne $Expiry -or $leaseExpiry -gt [DateTimeOffset]::Parse($history.expiresAt)){throw 'MEDIA_COLLECT_BINDING_SCOPE_INVALID'}
+  if($binding.permitNetwork -isnot [bool] -or $binding.permitNetwork -ne $PermitNetwork -or $binding.resumeBundleSha256 -cne $history.bundleSha256 -or $binding.resumeBindingSha256 -cne $history.resumeBindingSha256 -or $binding.completionRecordSha256 -cne $history.completionRecordSha256 -or $binding.failureWitnessSha256 -cne $origin.failureSha256){throw 'MEDIA_COLLECT_BINDING_SCOPE_INVALID'}
+  return $binding
 }
 function New-Ai09PrivateDirectory([string]$Path) {
   if(Test-Path -LiteralPath $Path){throw 'ACCESS_STATE_ALREADY_EXISTS'}
@@ -284,7 +302,7 @@ function New-Ai09MediaClientKey([string]$Key) {
     $proc=[Diagnostics.Process]::Start($start)
     try{if(-not $proc.WaitForExit(15000)){ $proc.Kill();throw 'KEYGEN_TIMEOUT' };if($proc.ExitCode -ne 0){throw 'KEYGEN_FAILED'}}finally{$proc.Dispose()}
 }
-function Complete-Ai09MediaNetwork($Record,$Bundle,[string]$Reference,[string]$ExpiresAt) {
+function Complete-Ai09MediaNetwork($Record,$Bundle,[string]$Reference,[string]$ExpiresAt,[string]$EnrollmentReference=$Reference,[string]$EnrollmentExpiresAt=$ExpiresAt) {
   $s=Get-Ai09MediaScope
   $plan=Read-Ai09MediaJson (Join-Path $s.State 'collected-plan.json')
   $enrollment=Read-Ai09MediaJson (Join-Path $s.State 'collected-enrollment.json')
@@ -295,7 +313,7 @@ function Complete-Ai09MediaNetwork($Record,$Bundle,[string]$Reference,[string]$E
   $observed=[DateTimeOffset]::Parse($baseline.observedAt)
   $age=([DateTimeOffset]::UtcNow-$observed).TotalSeconds
   if($age -lt -60 -or $age -gt 900 -or $baseline.status -cne 'AUTHENTICATED_ROOT_BASELINE' -or $baseline.nonce -cne $Record.runId -or $baseline.effectiveUid -ne 0 -or $baseline.hostname -cne '848484' -or $baseline.mac -cne '00:15:5d:dc:2c:00' -or @($baseline.addresses).Count -ne 1 -or $baseline.addresses[0] -cne '172.27.140.254/20' -or $baseline.hostKeyFingerprint -cne 'SHA256:tXO5C217Ce6OU0dYni/SRbrQMA6n735VOI2X/QariEA'){throw 'FRESH_GUEST_BASELINE_REQUIRED'}
-  if($enrollment.status -cne 'APPLIED' -or $enrollment.runId -cne $Record.runId -or $enrollment.authorizationRef -cne $Reference -or $enrollment.expiresAt -cne $ExpiresAt -or $enrollment.planSha256 -cne $Record.payloadSha256.'plan.json' -or $enrollment.executorSha256 -cne $Bundle.files['ai09-owner-key-enroll.py'] -or $plan.runId -cne $Record.runId -or $plan.authorizationRef -cne $Reference -or $plan.expiresAt -cne $ExpiresAt){throw 'ENROLLMENT_NOT_CONFIRMED'}
+  if($enrollment.status -cne 'APPLIED' -or $enrollment.runId -cne $Record.runId -or $enrollment.authorizationRef -cne $EnrollmentReference -or $enrollment.expiresAt -cne $EnrollmentExpiresAt -or $enrollment.planSha256 -cne $Record.payloadSha256.'plan.json' -or $enrollment.executorSha256 -cne $Bundle.files['ai09-owner-key-enroll.py'] -or $plan.runId -cne $Record.runId -or $plan.authorizationRef -cne $EnrollmentReference -or $plan.expiresAt -cne $EnrollmentExpiresAt){throw 'ENROLLMENT_NOT_CONFIRMED'}
   $exitPath=Join-Path $s.State 'collected-exit.txt'
   $null=Get-Ai09SafePath $exitPath
   $exitFile=Get-Item -LiteralPath $exitPath -Force -ErrorAction Stop
@@ -334,14 +352,22 @@ function Get-Ai09MediaResumeAttempt($Chain,[string]$BindingSha256) {
 }
 function Invoke-Ai09MediaOperation {
   param([ValidateSet('Prepare','ResumeEmptyMbr','Collect')]$Mode,$LockedBundle,$AuthorizationReference,$ExpiresAt,[switch]$GuestUnmountConfirmed,[switch]$PermitNetwork,
-    [string]$ResumeBindingPath,[string]$ResumeBindingSha256,[string]$CompletionRecordSha256)
+    [string]$ResumeBindingPath,[string]$ResumeBindingSha256,[string]$CompletionRecordSha256,[string]$CollectBindingPath,[string]$CollectBindingSha256)
   $locks=New-Object 'Collections.Generic.List[IO.FileStream]'
   try{
-    $chain=$null;$selected=$null;$s=Get-Ai09MediaScope
+    $chain=$null;$selected=$null;$s=Get-Ai09MediaScope;$collection=$null
+    $chainBundle=$LockedBundle;$chainReference=$AuthorizationReference;$chainExpiry=$ExpiresAt
+    if($CollectBindingPath -or $CollectBindingSha256){
+      if($Mode -cne 'Collect' -or -not $CollectBindingPath -or $CollectBindingSha256 -cnotmatch '^[a-f0-9]{64}$'){throw 'MEDIA_COLLECT_SELECTION_INVALID'}
+      $collection=Read-Ai09MediaCollectBinding $LockedBundle $AuthorizationReference $ExpiresAt ([bool]$PermitNetwork) $CollectBindingPath $CollectBindingSha256 $locks
+      if($ResumeBindingSha256 -cne $collection.resumeBindingSha256 -or $CompletionRecordSha256 -cne $collection.completionRecordSha256){throw 'MEDIA_COLLECT_SELECTION_INVALID'}
+      $history=Get-Ai09MediaCollectOrigin
+      $chainBundle=@{sha256=$history.bundleSha256};$chainReference=$history.authorizationRef;$chainExpiry=$history.expiresAt
+    }
     $selection=($ResumeBindingPath -or $ResumeBindingSha256 -or $CompletionRecordSha256)
     if($Mode -eq 'ResumeEmptyMbr' -or $selection){
       if($Mode -eq 'Prepare' -or -not $ResumeBindingPath -or $ResumeBindingSha256 -cnotmatch '^[a-f0-9]{64}$' -or ($Mode -eq 'ResumeEmptyMbr' -and ($CompletionRecordSha256 -or $PermitNetwork -or $GuestUnmountConfirmed)) -or ($Mode -eq 'Collect' -and $CompletionRecordSha256 -cnotmatch '^[a-f0-9]{64}$')){throw 'MEDIA_RESUME_SELECTION_INVALID'}
-      $chain=Read-Ai09MediaResumeChain $LockedBundle $AuthorizationReference $ExpiresAt $ResumeBindingPath $ResumeBindingSha256 $locks
+      $chain=Read-Ai09MediaResumeChain $chainBundle $chainReference $chainExpiry $ResumeBindingPath $ResumeBindingSha256 $locks -ProtectedFailureWitness:($null -ne $collection)
       if($Mode -eq 'Collect'){
         $selected=ConvertFrom-Ai09MediaJson (Read-Ai09MediaLocked (Join-Path $s.State 'resume-empty-mbr-completed.json') $CompletionRecordSha256 $locks)
         Assert-Ai09Fields $selected @('version','issue','runId','authorizationRef','expiresAt','bundleSha256','baselineSha256','baseline','vhdIdentifier','diskUniqueId','diskNumber','fileSystemUuid','partitionUuid','payloadSha256','resumeBindingSha256','origin','attemptSha256')
@@ -353,11 +379,11 @@ function Invoke-Ai09MediaOperation {
         foreach($p in $selected.payloadSha256.PSObject.Properties){if($p.Value -cnotmatch '^[a-f0-9]{64}$'){throw 'MEDIA_RESUME_COMPLETION_INVALID'}}
       }
     }
-    return Invoke-Ai09MediaCore -Mode $Mode -LockedBundle $LockedBundle -AuthorizationReference $AuthorizationReference -ExpiresAt $ExpiresAt -GuestUnmountConfirmed:$GuestUnmountConfirmed -PermitNetwork:$PermitNetwork -ResumeChain $chain -ResumeBindingSha256 $ResumeBindingSha256 -SelectedRecord $selected
+    return Invoke-Ai09MediaCore -Mode $Mode -LockedBundle $LockedBundle -AuthorizationReference $AuthorizationReference -ExpiresAt $ExpiresAt -GuestUnmountConfirmed:$GuestUnmountConfirmed -PermitNetwork:$PermitNetwork -ResumeChain $chain -ResumeBindingSha256 $ResumeBindingSha256 -SelectedRecord $selected -CollectionBinding $collection
   }finally{foreach($lock in $locks){$lock.Dispose()}}
 }
 function Invoke-Ai09MediaCore {
-  param([ValidateSet('Prepare','ResumeEmptyMbr','Collect')]$Mode,$LockedBundle,$AuthorizationReference,$ExpiresAt,[switch]$GuestUnmountConfirmed,[switch]$PermitNetwork,$ResumeChain,[string]$ResumeBindingSha256,$SelectedRecord)
+  param([ValidateSet('Prepare','ResumeEmptyMbr','Collect')]$Mode,$LockedBundle,$AuthorizationReference,$ExpiresAt,[switch]$GuestUnmountConfirmed,[switch]$PermitNetwork,$ResumeChain,[string]$ResumeBindingSha256,$SelectedRecord,$CollectionBinding)
   $ErrorActionPreference='Stop';$s=Get-Ai09MediaScope;$bundle=$LockedBundle
   if($AuthorizationReference -cnotmatch '^[A-Za-z0-9._:-]{1,128}$'){throw 'APPROVED_BUNDLE_REQUIRED'}
   $expiry=[DateTimeOffset]::ParseExact($ExpiresAt,'yyyy-MM-ddTHH:mm:ss.fffZ',[Globalization.CultureInfo]::InvariantCulture,[Globalization.DateTimeStyles]::AssumeUniversal)
@@ -453,7 +479,9 @@ function Invoke-Ai09MediaCore {
   if(-not $GuestUnmountConfirmed){throw 'OWNER_OBSERVED_UNMOUNT_REQUIRED'}
   $record=$SelectedRecord
   if(-not $record){$record=Read-Ai09MediaJson (Join-Path $s.State 'prepared.json')}
-  if($record.authorizationRef -cne $AuthorizationReference -or $record.expiresAt -cne $ExpiresAt -or $record.bundleSha256 -cne $bundle.sha256){throw 'MEDIA_RECEIPT_SCOPE_INVALID'}
+  $receiptScope=@{authorizationRef=$AuthorizationReference;expiresAt=$ExpiresAt;bundleSha256=$bundle.sha256}
+  if($CollectionBinding){$receiptScope=Get-Ai09MediaCollectOrigin}
+  if($record.authorizationRef -cne $receiptScope.authorizationRef -or $record.expiresAt -cne $receiptScope.expiresAt -or $record.bundleSha256 -cne $receiptScope.bundleSha256){throw 'MEDIA_RECEIPT_SCOPE_INVALID'}
   $null=Assert-Ai09MediaState $true $record
   $drive=@(Hyper-V\Get-VMHardDiskDrive -VMName 'GORIQ-AI09-Ubuntu' -ErrorAction Stop|Where-Object {$_.Path -ceq $s.Media -and $_.ControllerNumber -eq 0 -and $_.ControllerLocation -eq $s.Slot})
   if($drive.Count -ne 1){throw 'MEDIA_ATTACHMENT_AMBIGUOUS'}
@@ -484,12 +512,13 @@ function Invoke-Ai09MediaCore {
     if((Assert-Ai09MediaVhd $record $false).Attached){throw 'MEDIA_HOST_STILL_MOUNTED'}
   }
   $result=[ordered]@{status='NEW_MEDIA_COLLECTED_NOT_SSH_VERIFIED';runId=$record.runId;authenticatedConnectionVerified=$false;mediaRetained=$true;oldMediaUntouched=$true}
-  if($PermitNetwork){$result.network=Complete-Ai09MediaNetwork $record $bundle $AuthorizationReference $ExpiresAt}
+  if($CollectionBinding){$result.collection=[ordered]@{profile=$CollectionBinding.profile;executorBundleSha256=$bundle.sha256;authorizationRef=$AuthorizationReference;expiresAt=$ExpiresAt;historicalBundleSha256=$record.bundleSha256;completionRecordSha256=$CollectionBinding.completionRecordSha256;failureWitnessSha256=$CollectionBinding.failureWitnessSha256}}
+  if($PermitNetwork){$result.network=Complete-Ai09MediaNetwork $record $bundle $AuthorizationReference $ExpiresAt $receiptScope.authorizationRef $receiptScope.expiresAt}
   return $result
 }
 function Invoke-Ai09AccessMedia {
   param([ValidateSet('Verify','Prepare','ResumeEmptyMbr','Collect')]$Mode='Verify',$ExpectedBundleSha256,$AuthorizationReference,$ExpiresAt,[switch]$GuestUnmountConfirmed,[switch]$PermitNetwork,
-    [string]$ResumeBindingPath,[string]$ResumeBindingSha256,[string]$CompletionRecordSha256)
+    [string]$ResumeBindingPath,[string]$ResumeBindingSha256,[string]$CompletionRecordSha256,[string]$CollectBindingPath,[string]$CollectBindingSha256)
   $bundle=Get-Ai09MediaBundle
   if($Mode -eq 'Verify'){return [ordered]@{status='SOURCE_ONLY_NOT_ACTIVATED';bundle=$bundle;scope=(Get-Ai09MediaScope);authenticatedConnectionVerified=$false}}
   if($ExpectedBundleSha256 -cne $bundle.sha256 -or $AuthorizationReference -cnotmatch '^[A-Za-z0-9._:-]{1,128}$'){throw 'APPROVED_BUNDLE_REQUIRED'}
@@ -497,7 +526,7 @@ function Invoke-Ai09AccessMedia {
   try{
     $locked=Get-Ai09MediaBundle $locks
     if($locked.sha256 -cne $ExpectedBundleSha256){throw 'APPROVED_BUNDLE_DRIFT'}
-    $request=@{Mode=$Mode;LockedBundle=$locked;AuthorizationReference=$AuthorizationReference;ExpiresAt=$ExpiresAt;GuestUnmountConfirmed=$GuestUnmountConfirmed;PermitNetwork=$PermitNetwork;ResumeBindingPath=$ResumeBindingPath;ResumeBindingSha256=$ResumeBindingSha256;CompletionRecordSha256=$CompletionRecordSha256}
+    $request=@{Mode=$Mode;LockedBundle=$locked;AuthorizationReference=$AuthorizationReference;ExpiresAt=$ExpiresAt;GuestUnmountConfirmed=$GuestUnmountConfirmed;PermitNetwork=$PermitNetwork;ResumeBindingPath=$ResumeBindingPath;ResumeBindingSha256=$ResumeBindingSha256;CompletionRecordSha256=$CompletionRecordSha256;CollectBindingPath=$CollectBindingPath;CollectBindingSha256=$CollectBindingSha256}
     . (Join-Path $script:Ai09MediaScripts 'ai09-first-access-host.ps1')
     return Invoke-Ai09MediaOperation @request
   }finally{foreach($lock in $locks){$lock.Dispose()}}
