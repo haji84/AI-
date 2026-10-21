@@ -63,7 +63,7 @@ function workItems(input: DevelopmentPlanningInput): DevelopmentWorkItem[] {
 }
 
 export class DevelopmentOrchestrator {
-  plan(input: DevelopmentPlanningInput): DevelopmentPlan {
+  plan(input: DevelopmentPlanningInput, now = new Date()): DevelopmentPlan {
     if (!input.objective.trim() || !input.acceptanceCriteria.length || !input.targetFiles.length) {
       throw new Error("development objective, acceptance criteria, and target files are required");
     }
@@ -91,7 +91,7 @@ export class DevelopmentOrchestrator {
       baseRevision: input.baseRevision,
       approvalScope: { taskScopeId: input.taskScopeId, maxRisk: input.maxRisk },
       workItems: workItems(input),
-    });
+    }, now);
     return {
       job,
       strategy: {

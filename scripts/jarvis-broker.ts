@@ -44,6 +44,7 @@ import { CompassGoalBridgeEventStore } from "../src/orchestrator/compass-goal-br
 import { CompassGoalExecutionContextStore } from "../src/orchestrator/compass-goal-execution-context-store.ts";
 import { workRunProgress } from "../src/orchestrator/work-run-state.ts";
 import { createQueuedWorkRun } from "../src/orchestrator/work-run-state.ts";
+import { ResourceWaitScheduler } from "../src/orchestrator/development-resource-scheduler.ts";
 import { validateWindowsVerificationDispatch } from "../src/orchestrator/windows-verification-dispatch.ts";
 import { DeviceDevelopmentIntake, JsonFileDeviceDevelopmentInbox } from "../src/orchestrator/device-development-intake.ts";
 import { parseDailyDriverDeviceCommand } from "../src/jarvis/daily-driver-device-command.ts";
@@ -110,6 +111,23 @@ const deviceDevelopmentIntake = new DeviceDevelopmentIntake({
   },
 });
 const activeGoalExecutions = new Map<string, ReturnType<typeof spawn>>();
+const resourceWaitScheduler = new ResourceWaitScheduler({
+  async read(goalId) {
+    const active = await new CompassGoalRegistryAdapter(compass).listActive();
+    return { active: compass.getState().status !== "PAUSED" && active.some(goal => goal.goalId === goalId), run: await workRuns.getByGoal(goalId) };
+  },
+  async resume(goalId) {
+    const active = (await new CompassGoalRegistryAdapter(compass).listActive()).find(goal => goal.goalId === goalId);
+    if (!active || compass.getState().status === "PAUSED") return;
+    scheduleGoalExecution({
+      action: "CONTINUE_GOAL", goalId, resolution: {
+        kind: "EXISTING_GOAL", intent: "COMMAND", goal: active, reason: "resume_persisted_resource_wait",
+        intake: { id: "resource-" + goalId, source: "event", text: "Recheck accepted resource wait", sourceContext: {}, idempotencyKey: "resource-" + goalId, goalHint: goalId },
+      },
+    }, goalExecutionContexts.get(goalId));
+  },
+  onError: error => console.error("[goriq-goal] resource_resume_failed", error),
+});
 
 function encodeGoalExecutionContext(context: unknown[]): string {
   const encoded = Buffer.from(JSON.stringify(context), "utf8").toString("base64");
@@ -148,6 +166,7 @@ function scheduleGoalExecution(decision: GoalControllerDecision, context: unknow
     if (code !== 0) {
       console.error("[goriq-goal]", goalId, `executor_exit=${code ?? "null"} signal=${signal ?? "none"} ${stderr.trim()}`.trim());
     }
+    if (code === 0) void resourceWaitScheduler.arm(goalId).catch(error => console.error("[goriq-goal] resource_resume_failed", error));
   });
   activeGoalExecutions.set(goalId, child);
   return true;
@@ -974,9 +993,10 @@ server.listen(port, host, () => {
   // A Broker restart must resume it without another owner message.
   void (async () => {
     const active = (await new CompassGoalRegistryAdapter(compass).listActive())[0];
-    if (!active) return;
+    if (!active || compass.getState().status === "PAUSED") return;
     const run = await workRuns.getByGoal(active.goalId);
     if (!run || !["QUEUED", "PLANNING", "RUNNING", "VERIFYING", "RECOVERING"].includes(run.phase)) return;
+    if (await resourceWaitScheduler.arm(active.goalId)) return;
     scheduleGoalExecution({
       action: "CONTINUE_GOAL", goalId: active.goalId, resolution: {
         kind: "EXISTING_GOAL", intent: "COMMAND", goal: active, reason: "resume_persisted_work_run",
@@ -986,6 +1006,7 @@ server.listen(port, host, () => {
   })().catch((error) => console.error("[goriq-goal] startup_resume_failed", error));
 });
 function shutdown(): void {
+  resourceWaitScheduler.close();
   for (const child of activeGoalExecutions.values()) {
     if (child.exitCode === null && child.signalCode === null) child.kill();
   }

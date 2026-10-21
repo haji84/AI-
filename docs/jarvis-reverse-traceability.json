@@ -967,7 +967,7 @@
     },
     {
       "path": "scripts/jarvis-broker.ts",
-      "sha256": "6d216853a21b4b5103eb30a749e5f18e421f3f2d3c476c765a9accf2b8393a2d",
+      "sha256": "dbe2338f8630eb173c83f506e0cc9dfb4ff30975e5237564919d3b92f947c90d",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "NET-003",
@@ -988,7 +988,7 @@
         "UI-009",
         "INT-001"
       ],
-      "reason": "Protected Broker now exposes bounded local-first voice discovery and synthesis while preserving existing owner authority and all prior Broker responsibilities."
+      "reason": "Protected Broker now exposes bounded local-first voice discovery and synthesis while preserving existing owner authority and all prior Broker responsibilities. #1845 fresh resource admission/bounded durable wait integration; preserves existing ownership and gates, no functional or physical acceptance claim."
     },
     {
       "path": "scripts/jarvis-direct-commander-service.sh",
@@ -1081,7 +1081,7 @@
     },
     {
       "path": "scripts/jarvis-goal-executor.ts",
-      "sha256": "27844810e38af97c64c40b49a8acc578e78a30f4422442e9fbe67d04295ed57a",
+      "sha256": "e374f9f6fbe4e4b84e7474c764f3717c67369e45cb10d0f1b70d6e07bcb1490b",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "AUTO-001",
@@ -1089,7 +1089,7 @@
         "GOV-025",
         "OWN-001"
       ],
-      "reason": "Issues #1219/#1284 Direct Goal Bridge executor auto-routes accepted development intent from Daily Driver into the bounded Builder runtime when explicit self-development environment configuration is absent; existing capability, verifier, risk, Human Gate, and release controls remain authoritative. Physical iPhone E2E remains required before completion."
+      "reason": "Issues #1219/#1284 Direct Goal Bridge executor auto-routes accepted development intent from Daily Driver into the bounded Builder runtime when explicit self-development environment configuration is absent; existing capability, verifier, risk, Human Gate, and release controls remain authoritative. Physical iPhone E2E remains required before completion. #1845 fresh resource admission/bounded durable wait integration; preserves existing ownership and gates, no functional or physical acceptance claim."
     },
     {
       "path": "scripts/jarvis-mac-broker-service.sh",
@@ -3498,12 +3498,12 @@
     },
     {
       "path": "src/gai/primary-brain.ts",
-      "sha256": "37f41b7b2f95a8d8e89cb3fefb4cc1ba41bf2ba85cca787846302f2ac4bef47d",
+      "sha256": "5288e6e1ab48e247bf1559ecee6a9abde73514d478f8f8317294a5f23266d7cd",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OWN-001"
       ],
-      "reason": "#1216 OWN-001 bounded local cognition and evidence-bound prediction calibration; research metadata never grants authority or implies whole-product acceptance."
+      "reason": "#1216 OWN-001 bounded local cognition and evidence-bound prediction calibration; research metadata never grants authority or implies whole-product acceptance. #1845 fresh resource admission/bounded durable wait integration; preserves existing ownership and gates, no functional or physical acceptance claim."
     },
     {
       "path": "src/gai/production-autonomy-runtime.ts",
@@ -3808,13 +3808,13 @@
     },
     {
       "path": "src/gai/worker-runtime.ts",
-      "sha256": "e02c6614481d1847d7463a9124ed2b26d44708f4cb50e761f1afa485febf646d",
+      "sha256": "3a7f46c4b8dad210a2b74eb2178df6cd8d40ea18d8478985e810142f74c3ba22",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-010",
         "AUTO-011"
       ],
-      "reason": "Shared pure node resource fitness policy reused by MultiWorkerRuntime and Production Jarvis FleetManager; evaluates bounded capability/resource/load/locality/power/thermal constraints without a third scheduler."
+      "reason": "Shared pure node resource fitness policy reused by MultiWorkerRuntime and Production Jarvis FleetManager; evaluates bounded capability/resource/load/locality/power/thermal constraints without a third scheduler. #1845 fresh resource admission/bounded durable wait integration; preserves existing ownership and gates, no functional or physical acceptance claim."
     },
     {
       "path": "src/gai/world-model-calibration.ts",
@@ -4827,14 +4827,14 @@
     },
     {
       "path": "src/orchestrator/bounded-runner.ts",
-      "sha256": "3b7c7fd57496879ef148ba3323c5e97fd359b88be91eebde45c166e11beb2c91",
+      "sha256": "b2c6c15fddb9661641e8e442d92d2cdc853eeb3fa8bd81639260dfa2242ad50d",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-017",
         "AUTO-018",
         "AUTO-019"
       ],
-      "reason": "Declared bounded-runner.ts responsibility implements/supports Repair; Replan; Bounded retry. Parent ownership is not functional or physical acceptance evidence."
+      "reason": "Declared bounded-runner.ts responsibility implements/supports Repair; Replan; Bounded retry. Parent ownership is not functional or physical acceptance evidence. #1845 fresh resource admission/bounded durable wait integration; preserves existing ownership and gates, no functional or physical acceptance claim."
     },
     {
       "path": "src/orchestrator/brain-provider.ts",
@@ -4994,7 +4994,7 @@
     },
     {
       "path": "src/orchestrator/compass-goal-execution-adapter.ts",
-      "sha256": "22614eaab2575158d9fc32b990488f9864d1c1e075f1a36503652019f7f96df1",
+      "sha256": "dab01b770277ba0ba4bc238e1d46b8f45867c63dad14467b069b56deff8aeedb",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-002",
@@ -5002,7 +5002,7 @@
         "AUTO-026",
         "OWN-001"
       ],
-      "reason": "Issue #1216 reviewed Cognitive Core integration/hardening; mapped requirement does not imply full acceptance"
+      "reason": "Issue #1216 reviewed Cognitive Core integration/hardening; mapped requirement does not imply full acceptance #1845 fresh resource admission/bounded durable wait integration; preserves existing ownership and gates, no functional or physical acceptance claim."
     },
     {
       "path": "src/orchestrator/compass-goal-execution-context-store.ts",
@@ -5169,7 +5169,7 @@
     },
     {
       "path": "src/orchestrator/development-job-store.ts",
-      "sha256": "63edb21201d942cae5417ebc456d8ffadf115f08c5c65c458f55dcd662bd47b5",
+      "sha256": "7589cc672859c410f9f17fab782ed23df90ec07ca8fc7c1cd2dc59afb3fc65ed",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -5180,11 +5180,11 @@
         "AUTO-008",
         "AUTO-023"
       ],
-      "reason": "#681 atomic durable Development Job storage and reconstruction."
+      "reason": "#681 atomic durable Development Job storage and reconstruction. #1845 fresh resource admission/bounded durable wait integration; preserves existing ownership and gates, no functional or physical acceptance claim."
     },
     {
       "path": "src/orchestrator/development-job.ts",
-      "sha256": "cb3e3afa2763eac549c35d8b9e5be9e3a0b59b4af301687987cdbfbfd2f0a64b",
+      "sha256": "ef8a75719e8fdeb8e252e4b0e4a8f99e9ef62e2a203a1e2b2ba77b07f57ab8b2",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -5197,11 +5197,11 @@
         "AUTO-008",
         "AUTO-026"
       ],
-      "reason": "#681 State Controller-owned append-only Development Job contract and verified-completion invariant."
+      "reason": "#681 State Controller-owned append-only Development Job contract and verified-completion invariant. #1845 fresh resource admission/bounded durable wait integration; preserves existing ownership and gates, no functional or physical acceptance claim."
     },
     {
       "path": "src/orchestrator/development-orchestrator.ts",
-      "sha256": "0b1e1564e2f073875e7e931dcd3d469a6d8d00214daf04f29fda6048de29ac54",
+      "sha256": "e798312c8826795d020895e6cf04ae362f1cc2be7de6ec1c2f08886bef68bf6b",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -5210,7 +5210,7 @@
         "AUTO-017",
         "AUTO-018"
       ],
-      "reason": "#681 TDD-first development planning, dependency decomposition, recovery strategy variation, and no release authority."
+      "reason": "#681 TDD-first development planning, dependency decomposition, recovery strategy variation, and no release authority. #1845 fresh resource admission/bounded durable wait integration; preserves existing ownership and gates, no functional or physical acceptance claim."
     },
     {
       "path": "src/orchestrator/development-release-gate.ts",
@@ -5395,13 +5395,13 @@
     },
     {
       "path": "src/orchestrator/goal-controller-execution-bridge.ts",
-      "sha256": "890716e0c80a9f10521ef7e5360c52f28f882a17932375394a80d081ead37a6f",
+      "sha256": "83a1de0ce7b7b9ef6ec17f5e68ff412e94e51e76bf725b24a39f31893901cd1a",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-001",
         "CORE-002"
       ],
-      "reason": "Declared goal-controller-execution-bridge.ts responsibility implements/supports One Front Door; Goal Completion Engine. Parent ownership is not functional or physical acceptance evidence."
+      "reason": "Declared goal-controller-execution-bridge.ts responsibility implements/supports One Front Door; Goal Completion Engine. Parent ownership is not functional or physical acceptance evidence. #1845 fresh resource admission/bounded durable wait integration; preserves existing ownership and gates, no functional or physical acceptance claim."
     },
     {
       "path": "src/orchestrator/goal-controller-runtime.ts",
@@ -5900,7 +5900,7 @@
     },
     {
       "path": "src/orchestrator/resident-development-goal-host.ts",
-      "sha256": "40255ff4e7374f40bcfc385fc93d98f16b62f21c540a8addf88d6a969ad89a79",
+      "sha256": "f6577618dcd7e982b79c04a058052270799b89154efd023fefd670be02ef7e48",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -5912,7 +5912,7 @@
         "AUTO-025",
         "AUTO-026"
       ],
-      "reason": "#681 explicit host-opted resident development runtime resumes durable Job and Change Set stages without duplicate Builder, verifier, or release effects."
+      "reason": "#681 explicit host-opted resident development runtime resumes durable Job and Change Set stages without duplicate Builder, verifier, or release effects. #1845 fresh resource admission/bounded durable wait integration; preserves existing ownership and gates, no functional or physical acceptance claim."
     },
     {
       "path": "src/orchestrator/risk-policy.ts",
@@ -5952,7 +5952,7 @@
     },
     {
       "path": "src/orchestrator/runtime-development-verifier.ts",
-      "sha256": "1376b76ca8ce1ffc8421a0bb91d0a8b7a5b8a070aaef848094c67170c8558c6a",
+      "sha256": "d7d0afce76a4b00f5849e1fe71157d3478aa6a998582e2f7a432102ad6ca4fe0",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-010",
@@ -5962,7 +5962,7 @@
         "AUTO-004",
         "OWN-001"
       ],
-      "reason": "Declared runtime-development-verifier.ts responsibility implements/supports 独立Verification; World-state Verification. Parent ownership is not functional or physical acceptance evidence. #1219 supports independent verification against the protected loopback Mac Builder token."
+      "reason": "Declared runtime-development-verifier.ts responsibility implements/supports 独立Verification; World-state Verification. Parent ownership is not functional or physical acceptance evidence. #1219 supports independent verification against the protected loopback Mac Builder token. #1845 fresh resource admission/bounded durable wait integration; preserves existing ownership and gates, no functional or physical acceptance claim."
     },
     {
       "path": "src/orchestrator/safe-pr-capability.ts",
@@ -6175,14 +6175,14 @@
     },
     {
       "path": "src/orchestrator/work-run-state.ts",
-      "sha256": "b246d100e79091450d66f99aa99e71d3b4805ba5fa0b612eafd1b0d9250f982a",
+      "sha256": "33b95ea2fa757b1ee691b7d1be3480645f3578ec3dc65fbdf7d509c781f96863",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-002",
         "AUTO-004",
         "AUTO-026"
       ],
-      "reason": "Declared work-run-state.ts responsibility implements/supports Goal persistence; Current State persistence; Verified completion only. Parent ownership is not functional or physical acceptance evidence."
+      "reason": "Declared work-run-state.ts responsibility implements/supports Goal persistence; Current State persistence; Verified completion only. Parent ownership is not functional or physical acceptance evidence. #1845 fresh resource admission/bounded durable wait integration; preserves existing ownership and gates, no functional or physical acceptance claim."
     },
     {
       "path": "src/orchestrator/work-state-integration.ts",
@@ -6227,6 +6227,50 @@
         "OWN-001"
       ],
       "reason": "Issue #1219 ZBook timeout-only recovery transition preserves Goal identity, completion checks, evidence, and Human Gate boundaries; parent requirements remain PARTIAL pending physical E2E."
+    },
+    {
+      "path": "src/gai/development-resource-admission.ts",
+      "sha256": "8bad0dcaaac1d0c4902e398387a15c9c380139fbd55545799c68ea53413c8742",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "CORE-014",
+        "AUTO-010",
+        "AUTO-011"
+      ],
+      "reason": "#1845 Execution-time admission reuses shared resource fitness and per-user cognitive lease; a resource wait is not completion."
+    },
+    {
+      "path": "src/gai/worker-resource-probe.ts",
+      "sha256": "e1262d33222b1e8abdfc4545c46435a4ef84baae79b736b04bf19dea21db6032",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "FLEET-007",
+        "DEV-PC-007"
+      ],
+      "reason": "#1845 Bounded measured native CPU/RAM/commit/disk/optional GPU snapshot; unknowns retained, no broader manifest or physical acceptance claim."
+    },
+    {
+      "path": "src/orchestrator/development-resource-scheduler.ts",
+      "sha256": "c7528872d5c344be28b946e0fed26233b409ca52089cc42f60ff60b0cd62e12e",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "CORE-014",
+        "AUTO-002",
+        "AUTO-004",
+        "AUTO-005"
+      ],
+      "reason": "#1845 Existing Broker one-shot continuation from persisted resource wait; goal/run gates rechecked and budget expiry remains visible."
+    },
+    {
+      "path": "src/orchestrator/development-resource-wait.ts",
+      "sha256": "76a378f837fc591d8e97ebae3387a11d2517d37424eb32f8517d2ede5d5624a4",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "CORE-014",
+        "AUTO-002",
+        "AUTO-004"
+      ],
+      "reason": "#1845 Typed bounded resource-wait checkpoint and evidence parsing; preserves state without treating pressure as test success."
     }
   ],
   "hash_policy": "utf8-crlf-to-lf-v1;binary-raw"

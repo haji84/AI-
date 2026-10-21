@@ -1,0 +1,3661 @@
+{
+  "baseline_sha": "cb6b0fa06492b3d610ecb527645244b9a46ba8eb",
+  "issue": 1845,
+  "audit_type": "read-only static job/dependency/trigger audit",
+  "workflow_count": 75,
+  "static_job_count": 135,
+  "matrix_job_declarations": 3,
+  "matrix_expanded_possible_job_count": 138,
+  "current_runner_counts": {
+    "A": 43,
+    "C": 40,
+    "B": 49,
+    "B/C": 3
+  },
+  "classified_counts": {
+    "A": 45,
+    "C": 39,
+    "B": 48,
+    "B/C": 3
+  },
+  "classification_notes": "A hosted-capable compute; B physical Windows/ZBook or existing local authority/resource; C Mac/device; B/C explicit two-host matrix; D duplicate execution source overlap tag; E efficiency candidate tag; F unresolved dependency equivalence tag. Counts are static definitions, not observed executions.",
+  "runtime_metrics": "No hosted or ZBook CPU/RAM history measured in this audit. Timeout is maximum, not observed duration.",
+  "jobs": [
+    {
+      "file": ".github/workflows/autonomy-mobile.yml",
+      "job": "issue-command-bridge",
+      "line": 50,
+      "classification": "A",
+      "current_runner_class": "A",
+      "runner": "ubuntu-latest",
+      "tags": [],
+      "needs": null,
+      "condition": ">-",
+      "timeout_minutes_maximum_not_duration": "5",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": [
+        "\"17 */6 * * *\""
+      ],
+      "dependency_reason": "Hosted bounded control/state work; Mac project-chat-work-repair requires resident authenticated ChatGPT bridge.",
+      "scripts": [],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": []
+    },
+    {
+      "file": ".github/workflows/autonomy-mobile.yml",
+      "job": "project-chat-work-repair",
+      "line": 90,
+      "classification": "C",
+      "current_runner_class": "C",
+      "runner": "[self-hosted, macOS, ARM64]",
+      "tags": [],
+      "needs": null,
+      "condition": ">-",
+      "timeout_minutes_maximum_not_duration": "15",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": [
+        "\"17 */6 * * *\""
+      ],
+      "dependency_reason": "Hosted bounded control/state work; Mac project-chat-work-repair requires resident authenticated ChatGPT bridge.",
+      "scripts": [
+        "scripts/chatgpt-resident-bridge-v2.mjs"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": []
+    },
+    {
+      "file": ".github/workflows/autonomy-mobile.yml",
+      "job": "autonomy",
+      "line": 117,
+      "classification": "A",
+      "current_runner_class": "A",
+      "runner": "ubuntu-latest",
+      "tags": [],
+      "needs": null,
+      "condition": ">-",
+      "timeout_minutes_maximum_not_duration": "15",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": [
+        "\"17 */6 * * *\""
+      ],
+      "dependency_reason": "Hosted bounded control/state work; Mac project-chat-work-repair requires resident authenticated ChatGPT bridge.",
+      "scripts": [],
+      "notes": [],
+      "cache_related_lines": [
+        "cache: pnpm",
+        "uses: actions/cache/restore@v4",
+        "restore-keys: |",
+        "uses: actions/cache/save@v4"
+      ],
+      "artifact_related_lines": [
+        "uses: actions/upload-artifact@v4",
+        "if-no-files-found: warn",
+        "retention-days: 7"
+      ]
+    },
+    {
+      "file": ".github/workflows/ci.yml",
+      "job": "repository-guard",
+      "line": 13,
+      "classification": "A",
+      "current_runner_class": "A",
+      "runner": "ubuntu-latest",
+      "tags": [
+        "E"
+      ],
+      "needs": null,
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": null,
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Repository/lint/test/P8/build/health and Windows 5.1 fixture checks already use standard hosted runners.",
+      "scripts": [],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": []
+    },
+    {
+      "file": ".github/workflows/ci.yml",
+      "job": "project-checks",
+      "line": 28,
+      "classification": "A",
+      "current_runner_class": "A",
+      "runner": "ubuntu-latest",
+      "tags": [
+        "E"
+      ],
+      "needs": null,
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": null,
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Repository/lint/test/P8/build/health and Windows 5.1 fixture checks already use standard hosted runners.",
+      "scripts": [
+        "tests/goriq-zbook-owner-acl-repair.test.ps1",
+        "tests/jarvis-pc-runtime-acl.test.ps1",
+        "tests/jarvis-pc-runtime-process.test.ps1"
+      ],
+      "notes": [],
+      "cache_related_lines": [
+        "cache: pnpm"
+      ],
+      "artifact_related_lines": []
+    },
+    {
+      "file": ".github/workflows/ci.yml",
+      "job": "windows-runtime-byte-fixtures",
+      "line": 68,
+      "classification": "A",
+      "current_runner_class": "A",
+      "runner": "windows-latest",
+      "tags": [
+        "E"
+      ],
+      "needs": null,
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "5",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Repository/lint/test/P8/build/health and Windows 5.1 fixture checks already use standard hosted runners.",
+      "scripts": [
+        "tests/goriq-pc-runtime-replace.test.ps1",
+        "tests/goriq-zbook-runtime-owner-repair.test.ps1",
+        "tests/goriq-pc-runtime-launch.test.ps1",
+        "tests/gai-zbook-launcher-file.test.ps1",
+        "tests/goriq-zbook-watchdog-launcher-repair.test.ps1"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": []
+    },
+    {
+      "file": ".github/workflows/gai-code-builder-zbook.yml",
+      "job": "install-and-probe",
+      "line": 21,
+      "classification": "B",
+      "current_runner_class": "B",
+      "runner": "[self-hosted, Windows, X64]",
+      "tags": [],
+      "needs": null,
+      "condition": "github.event_name != 'issues' || startsWith(github.event.issue.title, '[JARVIS CODE BUILDER PROBE]')",
+      "timeout_minutes_maximum_not_duration": "15",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Installs persistent shared ZBook Builder scheduled task/8796 and reads owner-local state.",
+      "scripts": [
+        "scripts/install-code-builder-windows.ps1"
+      ],
+      "notes": [
+        "Shared mutable Builder path/task/port8796; serial runner jobs do not prove resident service isolation."
+      ],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "uses: actions/upload-artifact@v4",
+        "name: gai-zbook-code-builder",
+        "retention-days: 30"
+      ]
+    },
+    {
+      "file": ".github/workflows/gai-r1-evidence-rerun.yml",
+      "job": "r1-zbook",
+      "line": 25,
+      "classification": "B",
+      "current_runner_class": "B",
+      "runner": "[self-hosted, Windows, X64]",
+      "tags": [
+        "D"
+      ],
+      "needs": null,
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "180",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "ZBook loopback Ollama real baseline plus derived evidence/safety tests; publishes Issue321 measurement.",
+      "scripts": [
+        "scripts/gai-baseline.mjs",
+        "scripts/gai-r1-evidence.ts",
+        "tests/approval-key.test.ts",
+        "tests/approval-readiness.test.ts",
+        "tests/auto-merge-policy.test.ts",
+        "tests/bounded-runner.test.ts",
+        "tests/autonomy-capabilities.test.ts",
+        "scripts/gai-r1-safety-evidence.ts",
+        "scripts/research-program-status.ts"
+      ],
+      "notes": [
+        "Confirmed source overlap on six common push paths; semantics differ (--resume/publication), so no blind removal."
+      ],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "uses: actions/upload-artifact@v4",
+        "name: gai-baseline-zbook",
+        "retention-days: 90"
+      ]
+    },
+    {
+      "file": ".github/workflows/gai-r10-router-governance.yml",
+      "job": "r10-policy",
+      "line": 18,
+      "classification": "A",
+      "current_runner_class": "A",
+      "runner": "ubuntu-latest",
+      "tags": [],
+      "needs": null,
+      "condition": "github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'",
+      "timeout_minutes_maximum_not_duration": "15",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Deterministic router policy campaign, no physical device dependency.",
+      "scripts": [
+        "scripts/gai-r10-router-governance.ts"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "uses: actions/upload-artifact@v4",
+        "name: gai-baseline-zbook",
+        "retention-days: 90"
+      ]
+    },
+    {
+      "file": ".github/workflows/gai-r11-recovery.yml",
+      "job": "r11-recovery",
+      "line": 18,
+      "classification": "A",
+      "current_runner_class": "A",
+      "runner": "ubuntu-latest",
+      "tags": [],
+      "needs": null,
+      "condition": "github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'",
+      "timeout_minutes_maximum_not_duration": "15",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Deterministic two-process checkpoint/recovery campaign.",
+      "scripts": [
+        "scripts/gai-r11-recovery.ts"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "uses: actions/upload-artifact@v4",
+        "name: gai-baseline-zbook",
+        "retention-days: 90"
+      ]
+    },
+    {
+      "file": ".github/workflows/gai-r13-cross-device.yml",
+      "job": "zbook-prefix",
+      "line": 18,
+      "classification": "B",
+      "current_runner_class": "B",
+      "runner": "[self-hosted, Windows, X64]",
+      "tags": [],
+      "needs": null,
+      "condition": "github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'",
+      "timeout_minutes_maximum_not_duration": "15",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Small deterministic computation, but current evidence explicitly represents ZBook/Mac execution; preserve provenance. Aggregate is artifact-only hosted.",
+      "scripts": [
+        "scripts/gai-r13-cross-device.ts"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "- uses: actions/upload-artifact@v4",
+        "retention-days: 90"
+      ]
+    },
+    {
+      "file": ".github/workflows/gai-r13-cross-device.yml",
+      "job": "mac-resume",
+      "line": 37,
+      "classification": "C",
+      "current_runner_class": "C",
+      "runner": "[self-hosted, macOS, ARM64]",
+      "tags": [],
+      "needs": "zbook-prefix",
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "15",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Small deterministic computation, but current evidence explicitly represents ZBook/Mac execution; preserve provenance. Aggregate is artifact-only hosted.",
+      "scripts": [
+        "scripts/gai-r13-cross-device.ts"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "- uses: actions/download-artifact@v4",
+        "- uses: actions/upload-artifact@v4",
+        "retention-days: 90"
+      ]
+    },
+    {
+      "file": ".github/workflows/gai-r13-cross-device.yml",
+      "job": "aggregate",
+      "line": 60,
+      "classification": "A",
+      "current_runner_class": "A",
+      "runner": "ubuntu-latest",
+      "tags": [],
+      "needs": "[zbook-prefix, mac-resume]",
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "10",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Small deterministic computation, but current evidence explicitly represents ZBook/Mac execution; preserve provenance. Aggregate is artifact-only hosted.",
+      "scripts": [
+        "scripts/gai-r13-cross-device.ts"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "- uses: actions/download-artifact@v4",
+        "- uses: actions/download-artifact@v4",
+        "- uses: actions/upload-artifact@v4",
+        "name: gai-baseline-zbook",
+        "retention-days: 90"
+      ]
+    },
+    {
+      "file": ".github/workflows/gai-r14-continual-learning.yml",
+      "job": "r14-continual",
+      "line": 18,
+      "classification": "A",
+      "current_runner_class": "A",
+      "runner": "ubuntu-latest",
+      "tags": [],
+      "needs": null,
+      "condition": "github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'",
+      "timeout_minutes_maximum_not_duration": "15",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Deterministic sequential learning evidence campaign already hosted.",
+      "scripts": [
+        "scripts/gai-r14-continual-learning.ts"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "uses: actions/upload-artifact@v4",
+        "name: gai-baseline-zbook",
+        "retention-days: 90"
+      ]
+    },
+    {
+      "file": ".github/workflows/gai-r15-curriculum.yml",
+      "job": "r15-curriculum",
+      "line": 18,
+      "classification": "A",
+      "current_runner_class": "A",
+      "runner": "ubuntu-latest",
+      "tags": [],
+      "needs": null,
+      "condition": "github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'",
+      "timeout_minutes_maximum_not_duration": "15",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Reads verified R1 artifact and derives heldout-safe curriculum, already hosted.",
+      "scripts": [
+        "scripts/gai-r15-curriculum.mjs"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "uses: actions/download-artifact@v4",
+        "name: gai-baseline-zbook",
+        "uses: actions/upload-artifact@v4",
+        "name: gai-baseline-zbook",
+        "retention-days: 90"
+      ]
+    },
+    {
+      "file": ".github/workflows/gai-r16-research-loop.yml",
+      "job": "r16-sandbox",
+      "line": 17,
+      "classification": "A",
+      "current_runner_class": "A",
+      "runner": "ubuntu-latest",
+      "tags": [],
+      "needs": null,
+      "condition": "github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'",
+      "timeout_minutes_maximum_not_duration": "15",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Reproducible sandbox hypothesis campaign already hosted.",
+      "scripts": [
+        "scripts/gai-r16-research-loop.mjs"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "uses: actions/upload-artifact@v4",
+        "name: gai-baseline-zbook",
+        "retention-days: 90"
+      ]
+    },
+    {
+      "file": ".github/workflows/gai-r17-self-modification.yml",
+      "job": "r17-sandbox",
+      "line": 18,
+      "classification": "A",
+      "current_runner_class": "A",
+      "runner": "ubuntu-latest",
+      "tags": [],
+      "needs": null,
+      "condition": ">-",
+      "timeout_minutes_maximum_not_duration": "20",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Owner-gated ephemeral sandbox mutation with safety checks, already hosted; preserve approval checks.",
+      "scripts": [
+        "tests/approval-key.test.ts",
+        "tests/approval-readiness.test.ts",
+        "tests/auto-merge-policy.test.ts",
+        "tests/bounded-runner.test.ts",
+        "tests/risk-policy.test.ts",
+        "scripts/gai-r17-self-modification.mjs"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "uses: actions/upload-artifact@v4",
+        "name: gai-baseline-zbook",
+        "retention-days: 90"
+      ]
+    },
+    {
+      "file": ".github/workflows/gai-r18-adaptation-preflight.yml",
+      "job": "route",
+      "line": 24,
+      "classification": "A",
+      "current_runner_class": "A",
+      "runner": "ubuntu-latest",
+      "tags": [],
+      "needs": null,
+      "condition": "github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'",
+      "timeout_minutes_maximum_not_duration": "10",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": [
+        "\"29 * * * *\""
+      ],
+      "dependency_reason": "Hosted provenance/availability router; ZBook job inspects physical GPU/CUDA/RAM/disk/Ollama.",
+      "scripts": [],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "uses: actions/upload-artifact@v4",
+        "name: gai-r18-route-status",
+        "retention-days: 30"
+      ]
+    },
+    {
+      "file": ".github/workflows/gai-r18-adaptation-preflight.yml",
+      "job": "r18-preflight",
+      "line": 71,
+      "classification": "B",
+      "current_runner_class": "B",
+      "runner": "[self-hosted, Windows, X64]",
+      "tags": [],
+      "needs": "route",
+      "condition": "needs.route.outputs.zbook_online == 'true'",
+      "timeout_minutes_maximum_not_duration": "15",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": [
+        "\"29 * * * *\""
+      ],
+      "dependency_reason": "Hosted provenance/availability router; ZBook job inspects physical GPU/CUDA/RAM/disk/Ollama.",
+      "scripts": [],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "uses: actions/upload-artifact@v4",
+        "name: gai-r18-adaptation-preflight",
+        "retention-days: 30"
+      ]
+    },
+    {
+      "file": ".github/workflows/gai-r2-fresh-v2.yml",
+      "job": "route",
+      "line": 24,
+      "classification": "A",
+      "current_runner_class": "A",
+      "runner": "ubuntu-latest",
+      "tags": [],
+      "needs": null,
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "10",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": [
+        "\"23 * * * *\""
+      ],
+      "dependency_reason": "Hosted router has already/executing/busy checks; physical ZBook/Mac inference or existing hosted CPU fallback. Not all branches run together.",
+      "scripts": [
+        "tests/r2-fresh-v2.test.ts"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "- uses: actions/upload-artifact@v4",
+        "name: gai-r2-v2-route-status",
+        "retention-days: 30"
+      ]
+    },
+    {
+      "file": ".github/workflows/gai-r2-fresh-v2.yml",
+      "job": "zbook",
+      "line": 78,
+      "classification": "B",
+      "current_runner_class": "B",
+      "runner": "[self-hosted, Windows, X64]",
+      "tags": [],
+      "needs": "route",
+      "condition": "needs.route.outputs.target == 'zbook'",
+      "timeout_minutes_maximum_not_duration": "180",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": [
+        "\"23 * * * *\""
+      ],
+      "dependency_reason": "Hosted router has already/executing/busy checks; physical ZBook/Mac inference or existing hosted CPU fallback. Not all branches run together.",
+      "scripts": [
+        "tests/approval-key.test.ts",
+        "tests/approval-readiness.test.ts",
+        "tests/auto-merge-policy.test.ts",
+        "tests/bounded-runner.test.ts",
+        "tests/autonomy-capabilities.test.ts",
+        "scripts/gai-r2-fresh-v2.mjs"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "uses: actions/upload-artifact@v4",
+        "name: gai-baseline-zbook",
+        "retention-days: 90"
+      ]
+    },
+    {
+      "file": ".github/workflows/gai-r2-fresh-v2.yml",
+      "job": "macbook",
+      "line": 121,
+      "classification": "C",
+      "current_runner_class": "C",
+      "runner": "[self-hosted, macOS, ARM64]",
+      "tags": [],
+      "needs": "route",
+      "condition": "needs.route.outputs.target == 'macbook'",
+      "timeout_minutes_maximum_not_duration": "180",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": [
+        "\"23 * * * *\""
+      ],
+      "dependency_reason": "Hosted router has already/executing/busy checks; physical ZBook/Mac inference or existing hosted CPU fallback. Not all branches run together.",
+      "scripts": [
+        "tests/approval-key.test.ts",
+        "tests/approval-readiness.test.ts",
+        "tests/auto-merge-policy.test.ts",
+        "tests/bounded-runner.test.ts",
+        "tests/autonomy-capabilities.test.ts",
+        "scripts/gai-r2-fresh-v2.mjs"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "uses: actions/upload-artifact@v4",
+        "name: gai-baseline-zbook",
+        "retention-days: 90"
+      ]
+    },
+    {
+      "file": ".github/workflows/gai-r2-fresh-v2.yml",
+      "job": "hosted",
+      "line": 155,
+      "classification": "A",
+      "current_runner_class": "A",
+      "runner": "ubuntu-latest",
+      "tags": [],
+      "needs": "route",
+      "condition": "needs.route.outputs.target == 'hosted'",
+      "timeout_minutes_maximum_not_duration": "180",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": [
+        "\"23 * * * *\""
+      ],
+      "dependency_reason": "Hosted router has already/executing/busy checks; physical ZBook/Mac inference or existing hosted CPU fallback. Not all branches run together.",
+      "scripts": [
+        "tests/approval-key.test.ts",
+        "tests/approval-readiness.test.ts",
+        "tests/auto-merge-policy.test.ts",
+        "tests/bounded-runner.test.ts",
+        "tests/autonomy-capabilities.test.ts",
+        "scripts/gai-r2-fresh-v2.mjs"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "uses: actions/upload-artifact@v4",
+        "name: gai-baseline-zbook",
+        "retention-days: 90"
+      ]
+    },
+    {
+      "file": ".github/workflows/gai-r2-hypothesis-plan.yml",
+      "job": "plan-r2",
+      "line": 18,
+      "classification": "A",
+      "current_runner_class": "A",
+      "runner": "ubuntu-latest",
+      "tags": [],
+      "needs": null,
+      "condition": "github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'",
+      "timeout_minutes_maximum_not_duration": "10",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Verified R1 artifact-to-plan derivation already hosted.",
+      "scripts": [
+        "scripts/gai-r2-hypothesis-plan.ts"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "uses: actions/download-artifact@v4",
+        "name: gai-baseline-zbook",
+        "uses: actions/upload-artifact@v4",
+        "name: gai-r2-hypothesis-plan",
+        "retention-days: 90"
+      ]
+    },
+    {
+      "file": ".github/workflows/gai-r2-improvement.yml",
+      "job": "route",
+      "line": 31,
+      "classification": "A",
+      "current_runner_class": "A",
+      "runner": "ubuntu-latest",
+      "tags": [],
+      "needs": null,
+      "condition": "github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'",
+      "timeout_minutes_maximum_not_duration": "10",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": [
+        "\"11 * * * *\""
+      ],
+      "dependency_reason": "Hosted R1 provenance/router; real local-model TRAIN/HELDOUT campaign on selected physical worker. Existing prior-run guard limits repeated work.",
+      "scripts": [],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "uses: actions/upload-artifact@v4",
+        "name: gai-r2-route-status",
+        "retention-days: 30"
+      ]
+    },
+    {
+      "file": ".github/workflows/gai-r2-improvement.yml",
+      "job": "r2-zbook",
+      "line": 97,
+      "classification": "B",
+      "current_runner_class": "B",
+      "runner": "[self-hosted, Windows, X64]",
+      "tags": [],
+      "needs": "route",
+      "condition": "needs.route.outputs.target == 'zbook'",
+      "timeout_minutes_maximum_not_duration": "180",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": [
+        "\"11 * * * *\""
+      ],
+      "dependency_reason": "Hosted R1 provenance/router; real local-model TRAIN/HELDOUT campaign on selected physical worker. Existing prior-run guard limits repeated work.",
+      "scripts": [
+        "tests/approval-key.test.ts",
+        "tests/approval-readiness.test.ts",
+        "tests/auto-merge-policy.test.ts",
+        "tests/bounded-runner.test.ts",
+        "tests/autonomy-capabilities.test.ts",
+        "scripts/gai-r2-improvement.mjs"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "- uses: actions/download-artifact@v4",
+        "name: gai-baseline-zbook",
+        "uses: actions/upload-artifact@v4",
+        "name: gai-baseline-zbook",
+        "retention-days: 90"
+      ]
+    },
+    {
+      "file": ".github/workflows/gai-r2-improvement.yml",
+      "job": "r2-macbook",
+      "line": 148,
+      "classification": "C",
+      "current_runner_class": "C",
+      "runner": "[self-hosted, macOS, ARM64]",
+      "tags": [],
+      "needs": "route",
+      "condition": "needs.route.outputs.target == 'macbook'",
+      "timeout_minutes_maximum_not_duration": "180",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": [
+        "\"11 * * * *\""
+      ],
+      "dependency_reason": "Hosted R1 provenance/router; real local-model TRAIN/HELDOUT campaign on selected physical worker. Existing prior-run guard limits repeated work.",
+      "scripts": [
+        "tests/approval-key.test.ts",
+        "tests/approval-readiness.test.ts",
+        "tests/auto-merge-policy.test.ts",
+        "tests/bounded-runner.test.ts",
+        "tests/autonomy-capabilities.test.ts",
+        "scripts/gai-r2-improvement.mjs"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "- uses: actions/download-artifact@v4",
+        "name: gai-baseline-zbook",
+        "uses: actions/upload-artifact@v4",
+        "name: gai-baseline-zbook",
+        "retention-days: 90"
+      ]
+    },
+    {
+      "file": ".github/workflows/gai-r20-dossier.yml",
+      "job": "dossier",
+      "line": 18,
+      "classification": "A",
+      "current_runner_class": "B",
+      "runner": "[self-hosted, Windows, X64]",
+      "tags": [
+        "E",
+        "F"
+      ],
+      "needs": null,
+      "condition": "github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'",
+      "timeout_minutes_maximum_not_duration": "15",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Pure Node artifact processor; workflow presently requires persistent ZBook-local ledger. Hosted migration needs explicit provenance-preserving ledger artifact handoff; equivalence unknown.",
+      "scripts": [
+        "scripts/gai-r20-dossier.mjs"
+      ],
+      "notes": [
+        "Unknown equivalence between local persistent ledger and hosted canonical ledger; not a one-line runner migration."
+      ],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "uses: actions/upload-artifact@v4",
+        "name: gai-r20-dossier",
+        "retention-days: 90"
+      ]
+    },
+    {
+      "file": ".github/workflows/gai-r3-swebench-preflight.yml",
+      "job": "zbook-preflight",
+      "line": 18,
+      "classification": "B",
+      "current_runner_class": "B",
+      "runner": "[self-hosted, Windows, X64]",
+      "tags": [],
+      "needs": null,
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "15",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Physical ZBook capacity/Ollama inspection.",
+      "scripts": [],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "uses: actions/upload-artifact@v4",
+        "name: gai-r3-swebench-preflight",
+        "retention-days: 30"
+      ]
+    },
+    {
+      "file": ".github/workflows/gai-r4-endurance.yml",
+      "job": "r4-zbook",
+      "line": 17,
+      "classification": "B",
+      "current_runner_class": "B",
+      "runner": "[self-hosted, Windows, X64]",
+      "tags": [],
+      "needs": null,
+      "condition": "github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'",
+      "timeout_minutes_maximum_not_duration": "180",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "ZBook loopback real model endurance/checkpoint campaign; derived evidence/checks share same job.",
+      "scripts": [
+        "scripts/gai-r4-endurance.mjs",
+        "tests/bounded-runner.test.ts",
+        "tests/recovery-policy.test.ts",
+        "tests/recovery-loop-integration.test.ts",
+        "tests/risk-policy.test.ts",
+        "scripts/gai-r4-evidence.ts"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "uses: actions/upload-artifact@v4",
+        "name: gai-baseline-zbook",
+        "retention-days: 90"
+      ]
+    },
+    {
+      "file": ".github/workflows/gai-r6-benchmark.yml",
+      "job": "r6-zbook",
+      "line": 21,
+      "classification": "B",
+      "current_runner_class": "B",
+      "runner": "[self-hosted, Windows, X64]",
+      "tags": [],
+      "needs": null,
+      "condition": "github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'",
+      "timeout_minutes_maximum_not_duration": "180",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "ZBook real-model benchmark; source/GPU performance context must remain explicit.",
+      "scripts": [
+        "scripts/gai-baseline-v11-optimized.mjs",
+        "scripts/gai-r6-evidence.ts"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "uses: actions/upload-artifact@v4",
+        "name: gai-baseline-zbook",
+        "retention-days: 90"
+      ]
+    },
+    {
+      "file": ".github/workflows/gai-r6-calibration.yml",
+      "job": "calibrate-zbook",
+      "line": 19,
+      "classification": "B",
+      "current_runner_class": "B",
+      "runner": "[self-hosted, Windows, X64]",
+      "tags": [],
+      "needs": null,
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "60",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Physical ZBook GPU/local-model calibration with nvidia-smi.",
+      "scripts": [
+        "scripts/gai-r6-calibration.mjs"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "uses: actions/upload-artifact@v4",
+        "name: gai-r6-zbook-calibration",
+        "if-no-files-found: error",
+        "retention-days: 90"
+      ]
+    },
+    {
+      "file": ".github/workflows/gai-r6-output-canary.yml",
+      "job": "canary-zbook",
+      "line": 18,
+      "classification": "B",
+      "current_runner_class": "B",
+      "runner": "[self-hosted, Windows, X64]",
+      "tags": [],
+      "needs": null,
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "30",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Real ZBook local-model canary, bounded task output validation.",
+      "scripts": [
+        "scripts/gai-r6-output-canary.mjs"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "uses: actions/upload-artifact@v4",
+        "name: gai-r6-output-canary",
+        "retention-days: 90"
+      ]
+    },
+    {
+      "file": ".github/workflows/gai-r7-repeatability.yml",
+      "job": "r7-zbook",
+      "line": 18,
+      "classification": "B",
+      "current_runner_class": "B",
+      "runner": "[self-hosted, Windows, X64]",
+      "tags": [],
+      "needs": null,
+      "condition": "github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'",
+      "timeout_minutes_maximum_not_duration": "180",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Second real ZBook model run paired with downloaded R6 reference.",
+      "scripts": [
+        "scripts/gai-baseline-v11.mjs",
+        "scripts/gai-r7-repeatability.ts"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "uses: actions/download-artifact@v4",
+        "name: gai-baseline-zbook",
+        "uses: actions/upload-artifact@v4",
+        "name: gai-baseline-zbook",
+        "retention-days: 90"
+      ]
+    },
+    {
+      "file": ".github/workflows/gai-r8-memory-transfer.yml",
+      "job": "r8-zbook",
+      "line": 18,
+      "classification": "B",
+      "current_runner_class": "B",
+      "runner": "[self-hosted, Windows, X64]",
+      "tags": [],
+      "needs": null,
+      "condition": "github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'",
+      "timeout_minutes_maximum_not_duration": "120",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Real ZBook local-model heldout transfer campaign.",
+      "scripts": [
+        "scripts/gai-r8-memory-transfer.mjs"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "uses: actions/upload-artifact@v4",
+        "name: gai-baseline-zbook",
+        "retention-days: 90"
+      ]
+    },
+    {
+      "file": ".github/workflows/gai-r9-calibration.yml",
+      "job": "r9-zbook",
+      "line": 18,
+      "classification": "B",
+      "current_runner_class": "B",
+      "runner": "[self-hosted, Windows, X64]",
+      "tags": [],
+      "needs": null,
+      "condition": "github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'",
+      "timeout_minutes_maximum_not_duration": "90",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Real ZBook local-model heldout calibration.",
+      "scripts": [
+        "scripts/gai-r9-calibration.mjs"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "uses: actions/upload-artifact@v4",
+        "name: gai-baseline-zbook",
+        "retention-days: 90"
+      ]
+    },
+    {
+      "file": ".github/workflows/gai-real-builder-recovery-e2e.yml",
+      "job": "real-builder-recovery",
+      "line": 12,
+      "classification": "B",
+      "current_runner_class": "B",
+      "runner": "[self-hosted, Windows, X64]",
+      "tags": [],
+      "needs": null,
+      "condition": "github.event_name != 'issues' || startsWith(github.event.issue.title, '[JARVIS REAL BUILDER E2E]')",
+      "timeout_minutes_maximum_not_duration": "30",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Owner-local Codex login/token, shared persistent Builder8796, isolated fixture repo and real E2E.",
+      "scripts": [
+        "scripts/install-code-builder-windows.ps1",
+        "scripts/real-builder-recovery-e2e.ts"
+      ],
+      "notes": [
+        "Shared mutable Builder path/task/port8796; serial runner jobs do not prove resident service isolation."
+      ],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "uses: actions/upload-artifact@v4",
+        "name: gai-real-builder-recovery-e2e",
+        "retention-days: 30"
+      ]
+    },
+    {
+      "file": ".github/workflows/gai-research-control-plane.yml",
+      "job": "control-plane",
+      "line": 24,
+      "classification": "A",
+      "current_runner_class": "A",
+      "runner": "ubuntu-latest",
+      "tags": [],
+      "needs": null,
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "10",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": [
+        "\"17 * * * *\""
+      ],
+      "dependency_reason": "Hosted nonblocking runner registry/control-plane routing; actual CPU/RAM snapshots unavailable.",
+      "scripts": [
+        "scripts/research-control-plane-status.ts",
+        "tests/research-control-plane.test.ts"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "uses: actions/upload-artifact@v4",
+        "name: gai-research-control-plane-status",
+        "retention-days: 30"
+      ]
+    },
+    {
+      "file": ".github/workflows/gai-research-ledger.yml",
+      "job": "rebuild-hosted-ledger",
+      "line": 25,
+      "classification": "A",
+      "current_runner_class": "A",
+      "runner": "ubuntu-latest",
+      "tags": [],
+      "needs": null,
+      "condition": "github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'",
+      "timeout_minutes_maximum_not_duration": "20",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": [
+        "\"37 2 * * *\""
+      ],
+      "dependency_reason": "Hosted scan of retained artifacts and canonical ledger rebuild; no physical dependency.",
+      "scripts": [
+        "scripts/research-ledger-rebuild.ts"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "uses: actions/upload-artifact@v4",
+        "name: gai-research-ledger-state",
+        "retention-days: 90"
+      ]
+    },
+    {
+      "file": ".github/workflows/gai-runtime-builder-daily-smoke.yml",
+      "job": "runtime-builder-smoke",
+      "line": 12,
+      "classification": "B",
+      "current_runner_class": "B",
+      "runner": "[self-hosted, Windows, X64]",
+      "tags": [],
+      "needs": null,
+      "condition": "github.event_name != 'issues' || startsWith(github.event.issue.title, '[JARVIS RUNTIME BUILDER SMOKE]')",
+      "timeout_minutes_maximum_not_duration": "20",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "ZBook-local persistent Builder installer and durable smoke state; real local coding runtime.",
+      "scripts": [
+        "scripts/install-code-builder-windows.ps1",
+        "scripts/runtime-builder-daily-smoke.ts"
+      ],
+      "notes": [
+        "Shared mutable Builder path/task/port8796; serial runner jobs do not prove resident service isolation."
+      ],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "uses: actions/upload-artifact@v4",
+        "name: gai-runtime-builder-daily-smoke",
+        "retention-days: 30"
+      ]
+    },
+    {
+      "file": ".github/workflows/gai-tool-use-120.yml",
+      "job": "tool-use-zbook",
+      "line": 18,
+      "classification": "B",
+      "current_runner_class": "B",
+      "runner": "[self-hosted, Windows, X64]",
+      "tags": [],
+      "needs": null,
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "180",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Real ZBook loopback local-model tool-use benchmark.",
+      "scripts": [
+        "scripts/gai-tool-use-benchmark.ts"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "uses: actions/upload-artifact@v4",
+        "name: gai-tool-use-120-zbook",
+        "retention-days: 90"
+      ]
+    },
+    {
+      "file": ".github/workflows/gai-worker-persistence.yml",
+      "job": "zbook-persistence",
+      "line": 23,
+      "classification": "B",
+      "current_runner_class": "B",
+      "runner": "[self-hosted, Windows, X64]",
+      "tags": [],
+      "needs": null,
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "15",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Exact-scope authorized OS startup/watchdog mutation and native status; physical host required.",
+      "scripts": [
+        "scripts/install-zbook-persistence.ps1"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "uses: actions/upload-artifact@v4",
+        "name: gai-zbook-persistence",
+        "retention-days: 30"
+      ]
+    },
+    {
+      "file": ".github/workflows/gai-worker-persistence.yml",
+      "job": "macbook-persistence",
+      "line": 133,
+      "classification": "C",
+      "current_runner_class": "C",
+      "runner": "[self-hosted, macbook]",
+      "tags": [],
+      "needs": null,
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "15",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Exact-scope authorized OS startup/watchdog mutation and native status; physical host required.",
+      "scripts": [
+        "scripts/gai-macbook-watchdog.sh",
+        "scripts/install-macbook-persistence.sh"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "uses: actions/upload-artifact@v4",
+        "name: gai-macbook-persistence",
+        "retention-days: 30"
+      ]
+    },
+    {
+      "file": ".github/workflows/gai-workers.yml",
+      "job": "zbook-smoke",
+      "line": 32,
+      "classification": "B",
+      "current_runner_class": "B",
+      "runner": "[self-hosted, Windows, X64]",
+      "tags": [],
+      "needs": null,
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "10",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Physical smoke metadata on each PC; ZBook baseline uses local Ollama. Same baseline/evidence sequence overlaps R1 rerun.",
+      "scripts": [],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "uses: actions/upload-artifact@v4",
+        "name: gai-zbook-smoke",
+        "retention-days: 14"
+      ]
+    },
+    {
+      "file": ".github/workflows/gai-workers.yml",
+      "job": "macbook-smoke",
+      "line": 61,
+      "classification": "C",
+      "current_runner_class": "C",
+      "runner": "[self-hosted, macbook]",
+      "tags": [],
+      "needs": null,
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "10",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Physical smoke metadata on each PC; ZBook baseline uses local Ollama. Same baseline/evidence sequence overlaps R1 rerun.",
+      "scripts": [],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "uses: actions/upload-artifact@v4",
+        "name: gai-macbook-smoke",
+        "retention-days: 14"
+      ]
+    },
+    {
+      "file": ".github/workflows/gai-workers.yml",
+      "job": "baseline-zbook",
+      "line": 92,
+      "classification": "B",
+      "current_runner_class": "B",
+      "runner": "[self-hosted, Windows, X64]",
+      "tags": [
+        "D"
+      ],
+      "needs": "[zbook-smoke, macbook-smoke]",
+      "condition": "github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.mode == 'baseline')",
+      "timeout_minutes_maximum_not_duration": "180",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Physical smoke metadata on each PC; ZBook baseline uses local Ollama. Same baseline/evidence sequence overlaps R1 rerun.",
+      "scripts": [
+        "scripts/gai-baseline.mjs",
+        "scripts/gai-r1-evidence.ts",
+        "tests/approval-key.test.ts",
+        "tests/approval-readiness.test.ts",
+        "tests/auto-merge-policy.test.ts",
+        "tests/bounded-runner.test.ts",
+        "tests/autonomy-capabilities.test.ts",
+        "scripts/gai-r1-safety-evidence.ts",
+        "scripts/research-program-status.ts"
+      ],
+      "notes": [
+        "Confirmed source overlap on six common push paths; semantics differ (--resume/publication), so no blind removal."
+      ],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "uses: actions/upload-artifact@v4",
+        "name: gai-baseline-zbook",
+        "retention-days: 30"
+      ]
+    },
+    {
+      "file": ".github/workflows/gai-zbook-diagnostic-1218.yml",
+      "job": "inspect",
+      "line": 10,
+      "classification": "B",
+      "current_runner_class": "B",
+      "runner": "[self-hosted, Windows, X64]",
+      "tags": [],
+      "needs": null,
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "5",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Reads ZBook persisted Goal/workspace/credential diagnostics plus portable tests; do not export owner state to hosted.",
+      "scripts": [
+        "scripts/zbook-goal-diagnostics.ts",
+        "tests/jarvis-adb-mass-enrollment.test.ts",
+        "scripts/owner-code-windows.test.mjs",
+        "scripts/jarvis-production-config.test.mjs",
+        "tests/trusted-device-registry.test.ts",
+        "scripts/zbook-isolated-test-diagnostic.ts"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "uses: actions/upload-artifact@v4",
+        "name: goriq-zbook-goal-1218-diagnosis",
+        "retention-days: 30"
+      ]
+    },
+    {
+      "file": ".github/workflows/gai-zbook-goal-1218.yml",
+      "job": "owner-code-goal",
+      "line": 10,
+      "classification": "B",
+      "current_runner_class": "B",
+      "runner": "[self-hosted, Windows, X64]",
+      "tags": [],
+      "needs": null,
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "40",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "ZBook owner-local Goal/Builder/token/durable workspace path.",
+      "scripts": [
+        "tests/jarvis-adb-mass-enrollment.test.ts",
+        "tests/goriq-direct-goal-bridge-resume.test.ts",
+        "scripts/install-code-builder-windows.ps1",
+        "scripts/zbook-recover-timeout-1218.ts",
+        "scripts/zbook-owner-code-goal-1218.ts",
+        "scripts/owner-code-windows.test.mjs",
+        "scripts/zbook-goal-diagnostics.ts"
+      ],
+      "notes": [
+        "Shared mutable Builder path/task/port8796; serial runner jobs do not prove resident service isolation."
+      ],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "uses: actions/upload-artifact@v4",
+        "name: goriq-zbook-goal-1218",
+        "retention-days: 30"
+      ]
+    },
+    {
+      "file": ".github/workflows/gai-zbook-goal-state-1218.yml",
+      "job": "inspect",
+      "line": 10,
+      "classification": "B",
+      "current_runner_class": "B",
+      "runner": "[self-hosted, Windows, X64]",
+      "tags": [],
+      "needs": null,
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "5",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Reads persisted native Goal/verifier state.",
+      "scripts": [
+        "scripts/zbook-goal-diagnostics.ts"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "uses: actions/upload-artifact@v4",
+        "name: goriq-zbook-goal-state-1218",
+        "retention-days: 14"
+      ]
+    },
+    {
+      "file": ".github/workflows/goriq-ai09-existing-builder-start.yml",
+      "job": "existing-builder-one-shot",
+      "line": 12,
+      "classification": "B",
+      "current_runner_class": "B",
+      "runner": "[self-hosted, Windows, X64]",
+      "tags": [],
+      "needs": null,
+      "condition": ">-",
+      "timeout_minutes_maximum_not_duration": "7",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Exact-main owner-only starts existing ZBook scheduled task and authenticates loopback health.",
+      "scripts": [],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": []
+    },
+    {
+      "file": ".github/workflows/goriq-ai09-hosted-benchmark.yml",
+      "job": "synthetic-local-model-probe",
+      "line": 20,
+      "classification": "A",
+      "current_runner_class": "A",
+      "runner": "ubuntu-24.04",
+      "tags": [],
+      "needs": null,
+      "condition": ">-",
+      "timeout_minutes_maximum_not_duration": "48",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Existing hosted CPU local-model pilot with bounded public model, advisory artifacts, no PR writes.",
+      "scripts": [
+        "tests/ai09-hosted-benchmark.test.mjs",
+        "scripts/goriq-ai09-hosted-benchmark.mjs",
+        "scripts/goriq-ai09-race-review.mjs"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "uses: actions/upload-artifact@v4",
+        "if-no-files-found: warn",
+        "retention-days: 3"
+      ]
+    },
+    {
+      "file": ".github/workflows/goriq-ai09-owner-builder-connect.yml",
+      "job": "owner-broker-readonly",
+      "line": 13,
+      "classification": "C",
+      "current_runner_class": "C",
+      "runner": "[self-hosted, macOS, ARM64]",
+      "tags": [],
+      "needs": null,
+      "condition": ">-",
+      "timeout_minutes_maximum_not_duration": "5",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Authenticates physical Mac owner Broker / ZBook local Builder with host-local credentials, read-only.",
+      "scripts": [
+        "scripts/goriq-ai09-live-broker-builder-probe.mjs"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": []
+    },
+    {
+      "file": ".github/workflows/goriq-ai09-owner-builder-connect.yml",
+      "job": "zbook-builder-readonly",
+      "line": 53,
+      "classification": "B",
+      "current_runner_class": "B",
+      "runner": "[self-hosted, Windows, X64]",
+      "tags": [],
+      "needs": null,
+      "condition": ">-",
+      "timeout_minutes_maximum_not_duration": "5",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Authenticates physical Mac owner Broker / ZBook local Builder with host-local credentials, read-only.",
+      "scripts": [
+        "scripts/goriq-ai09-live-broker-builder-probe.mjs",
+        "scripts/code-builder-worker-service.ts"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": []
+    },
+    {
+      "file": ".github/workflows/goriq-ai09-pr-review.yml",
+      "job": "preflight",
+      "line": 16,
+      "classification": "A",
+      "current_runner_class": "A",
+      "runner": "ubuntu-24.04",
+      "tags": [],
+      "needs": null,
+      "condition": "github.event.workflow_run.event == 'pull_request'",
+      "timeout_minutes_maximum_not_duration": "3",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "All jobs hosted; trusted source, precise CI/PR provenance, local inference and separate bounded comment job. Preserve current patch/SHA revalidation.",
+      "scripts": [
+        "scripts/goriq-ai09-preflight.mjs"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": []
+    },
+    {
+      "file": ".github/workflows/goriq-ai09-pr-review.yml",
+      "job": "review",
+      "line": 49,
+      "classification": "A",
+      "current_runner_class": "A",
+      "runner": "ubuntu-24.04",
+      "tags": [],
+      "needs": "[preflight]",
+      "condition": "needs.preflight.outputs.eligible == 'true'",
+      "timeout_minutes_maximum_not_duration": "70",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "All jobs hosted; trusted source, precise CI/PR provenance, local inference and separate bounded comment job. Preserve current patch/SHA revalidation.",
+      "scripts": [
+        "scripts/goriq-ai09-ci-review.mjs"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "uses: actions/upload-artifact@v4",
+        "name: goriq-ai09-advisory",
+        "if-no-files-found: warn",
+        "retention-days: 3"
+      ]
+    },
+    {
+      "file": ".github/workflows/goriq-ai09-pr-review.yml",
+      "job": "comment",
+      "line": 128,
+      "classification": "A",
+      "current_runner_class": "A",
+      "runner": "ubuntu-24.04",
+      "tags": [],
+      "needs": "[preflight, review]",
+      "condition": "needs.preflight.outputs.eligible == 'true' && needs.review.result == 'success'",
+      "timeout_minutes_maximum_not_duration": "3",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "All jobs hosted; trusted source, precise CI/PR provenance, local inference and separate bounded comment job. Preserve current patch/SHA revalidation.",
+      "scripts": [
+        "scripts/goriq-ai09-post-review.mjs"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "uses: actions/download-artifact@v4",
+        "name: goriq-ai09-advisory"
+      ]
+    },
+    {
+      "file": ".github/workflows/goriq-broker-db-inventory.yml",
+      "job": "mac",
+      "line": 16,
+      "classification": "C",
+      "current_runner_class": "C",
+      "runner": "[self-hosted, macOS, ARM64]",
+      "tags": [],
+      "needs": null,
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "5",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Reads each native production DB path; no fixture substitute for physical inventory.",
+      "scripts": [
+        "scripts/goriq-broker-db-inventory.mjs"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": []
+    },
+    {
+      "file": ".github/workflows/goriq-broker-db-inventory.yml",
+      "job": "zbook",
+      "line": 27,
+      "classification": "B",
+      "current_runner_class": "B",
+      "runner": "[self-hosted, Windows, X64]",
+      "tags": [],
+      "needs": null,
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "5",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Reads each native production DB path; no fixture substitute for physical inventory.",
+      "scripts": [
+        "scripts/goriq-broker-db-inventory-windows.ps1"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": []
+    },
+    {
+      "file": ".github/workflows/goriq-daily-driver-live-e2e.yml",
+      "job": "live-device-status",
+      "line": 22,
+      "classification": "C",
+      "current_runner_class": "C",
+      "runner": "[self-hosted, macOS, ARM64]",
+      "tags": [],
+      "needs": null,
+      "condition": ">-",
+      "timeout_minutes_maximum_not_duration": "8",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Mac native owner Broker token and physical Android status acceptance.",
+      "scripts": [
+        "scripts/goriq-daily-driver-live-e2e.mjs"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "uses: actions/upload-artifact@v4",
+        "name: goriq-daily-driver-live-android",
+        "if-no-files-found: error",
+        "retention-days: 30"
+      ]
+    },
+    {
+      "file": ".github/workflows/goriq-groq-one-click-bootstrap.yml",
+      "job": "install-launcher",
+      "line": 22,
+      "classification": "B",
+      "current_runner_class": "B",
+      "runner": "[self-hosted, Windows, X64]",
+      "tags": [],
+      "needs": null,
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "5",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "ZBook launcher install and DPAPI-held existing external-repair secret. Privileged/cost-sensitive path outside optimization scope.",
+      "scripts": [
+        "scripts/install-groq-one-click-windows.ps1"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": []
+    },
+    {
+      "file": ".github/workflows/goriq-groq-one-click-bootstrap.yml",
+      "job": "groq-repair-smoke",
+      "line": 43,
+      "classification": "B",
+      "current_runner_class": "B",
+      "runner": "[self-hosted, Windows, X64]",
+      "tags": [],
+      "needs": "[install-launcher]",
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "8",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "ZBook launcher install and DPAPI-held existing external-repair secret. Privileged/cost-sensitive path outside optimization scope.",
+      "scripts": [
+        "scripts/invoke-node-with-groq-secret-windows.ps1",
+        "scripts/goriq-groq-repair.mjs"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": []
+    },
+    {
+      "file": ".github/workflows/goriq-jarvis-production-sync.yml",
+      "job": "deploy-code",
+      "line": 18,
+      "classification": "A",
+      "current_runner_class": "A",
+      "runner": "ubuntu-latest",
+      "tags": [],
+      "needs": null,
+      "condition": "github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main'",
+      "timeout_minutes_maximum_not_duration": "20",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": [
+        "'*/5 * * * *'"
+      ],
+      "dependency_reason": "Hosted exact-authorized deploy plus physical Mac runtime/env/launchd/endpoint synchronization; gated production mutations. Do not optimize under read-only audit.",
+      "scripts": [
+        "scripts/goriq-production-authorization-expiry.mjs"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": []
+    },
+    {
+      "file": ".github/workflows/goriq-jarvis-production-sync.yml",
+      "job": "sync",
+      "line": 179,
+      "classification": "C",
+      "current_runner_class": "C",
+      "runner": "[self-hosted, macOS, ARM64]",
+      "tags": [],
+      "needs": null,
+      "condition": "github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')",
+      "timeout_minutes_maximum_not_duration": "20",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": [
+        "'*/5 * * * *'"
+      ],
+      "dependency_reason": "Hosted exact-authorized deploy plus physical Mac runtime/env/launchd/endpoint synchronization; gated production mutations. Do not optimize under read-only audit.",
+      "scripts": [
+        "scripts/goriq-production-authorization-expiry.mjs",
+        "scripts/jarvis-mac-zero-touch.sh",
+        "scripts/jarvis-mac-install-launchagent.sh",
+        "scripts/jarvis-broker.ts",
+        "scripts/gai-macbook-watchdog.sh",
+        "scripts/gai-macbook-runner-supervisor.sh",
+        "scripts/install-macbook-persistence.sh",
+        "scripts/install-macos-chatgpt-bridge.sh"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": []
+    },
+    {
+      "file": ".github/workflows/goriq-mac-private-dashboard.yml",
+      "job": "mac-dashboard",
+      "line": 24,
+      "classification": "C",
+      "current_runner_class": "C",
+      "runner": "[self-hosted, macOS, ARM64]",
+      "tags": [],
+      "needs": null,
+      "condition": "github.repository == 'haji84/AI-' && github.ref == 'refs/heads/main' && github.actor == 'haji84' && (github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'workflow_run' && github.event.workflow_run.actor.login == 'haji84'))",
+      "timeout_minutes_maximum_not_duration": "20",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Existing exact-main/CI-approved native dashboard staging/plan/apply with private route and owner scope.",
+      "scripts": [
+        "scripts/goriq-pc-approved-source.mjs",
+        "scripts/goriq-mac-private-dashboard-native.mjs"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": []
+    },
+    {
+      "file": ".github/workflows/goriq-pc-enrollment.yml",
+      "job": "source",
+      "line": 28,
+      "classification": "A",
+      "current_runner_class": "A",
+      "runner": "ubuntu-latest",
+      "tags": [],
+      "needs": null,
+      "condition": "github.ref == 'refs/heads/main'",
+      "timeout_minutes_maximum_not_duration": "5",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Hosted public source check; native Mac/ZBook enrollment and peer challenge/sign/prove use existing host-bound identities. Matrix preflight expands to two physical jobs.",
+      "scripts": [
+        "scripts/goriq-pc-approved-source.mjs"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": []
+    },
+    {
+      "file": ".github/workflows/goriq-pc-enrollment.yml",
+      "job": "preflight",
+      "line": 42,
+      "classification": "B/C",
+      "current_runner_class": "B/C",
+      "runner": "${{ fromJSON(matrix.runner) }}",
+      "tags": [],
+      "needs": "source",
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "5",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Hosted public source check; native Mac/ZBook enrollment and peer challenge/sign/prove use existing host-bound identities. Matrix preflight expands to two physical jobs.",
+      "scripts": [
+        "scripts/goriq-pc-enroll-macos.sh",
+        "scripts/goriq-pc-enroll.ts"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": []
+    },
+    {
+      "file": ".github/workflows/goriq-pc-enrollment.yml",
+      "job": "mac-enroll",
+      "line": 69,
+      "classification": "C",
+      "current_runner_class": "C",
+      "runner": "[self-hosted, macOS, ARM64]",
+      "tags": [],
+      "needs": "preflight",
+      "condition": "inputs.phase == 'enroll'",
+      "timeout_minutes_maximum_not_duration": "5",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Hosted public source check; native Mac/ZBook enrollment and peer challenge/sign/prove use existing host-bound identities. Matrix preflight expands to two physical jobs.",
+      "scripts": [
+        "scripts/goriq-pc-approved-source.mjs",
+        "scripts/goriq-pc-enroll-macos.sh"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": []
+    },
+    {
+      "file": ".github/workflows/goriq-pc-enrollment.yml",
+      "job": "zbook-enroll",
+      "line": 85,
+      "classification": "B",
+      "current_runner_class": "B",
+      "runner": "[self-hosted, Windows, X64]",
+      "tags": [],
+      "needs": "mac-enroll",
+      "condition": "inputs.phase == 'enroll'",
+      "timeout_minutes_maximum_not_duration": "5",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Hosted public source check; native Mac/ZBook enrollment and peer challenge/sign/prove use existing host-bound identities. Matrix preflight expands to two physical jobs.",
+      "scripts": [
+        "scripts/goriq-pc-approved-source.mjs",
+        "scripts/goriq-pc-enroll.ts"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": []
+    },
+    {
+      "file": ".github/workflows/goriq-pc-enrollment.yml",
+      "job": "mac-public-proof",
+      "line": 105,
+      "classification": "C",
+      "current_runner_class": "C",
+      "runner": "[self-hosted, macOS, ARM64]",
+      "tags": [],
+      "needs": "preflight",
+      "condition": "inputs.phase == 'peer-enroll'",
+      "timeout_minutes_maximum_not_duration": "5",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Hosted public source check; native Mac/ZBook enrollment and peer challenge/sign/prove use existing host-bound identities. Matrix preflight expands to two physical jobs.",
+      "scripts": [
+        "scripts/goriq-pc-peer-enroll-macos.sh"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": []
+    },
+    {
+      "file": ".github/workflows/goriq-pc-enrollment.yml",
+      "job": "zbook-peer-challenge",
+      "line": 124,
+      "classification": "B",
+      "current_runner_class": "B",
+      "runner": "[self-hosted, Windows, X64]",
+      "tags": [],
+      "needs": "mac-public-proof",
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "5",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Hosted public source check; native Mac/ZBook enrollment and peer challenge/sign/prove use existing host-bound identities. Matrix preflight expands to two physical jobs.",
+      "scripts": [
+        "scripts/goriq-pc-peer-enroll.ts"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": []
+    },
+    {
+      "file": ".github/workflows/goriq-pc-enrollment.yml",
+      "job": "mac-peer-sign",
+      "line": 149,
+      "classification": "C",
+      "current_runner_class": "C",
+      "runner": "[self-hosted, macOS, ARM64]",
+      "tags": [],
+      "needs": "zbook-peer-challenge",
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "5",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Hosted public source check; native Mac/ZBook enrollment and peer challenge/sign/prove use existing host-bound identities. Matrix preflight expands to two physical jobs.",
+      "scripts": [
+        "scripts/goriq-pc-peer-enroll-macos.sh"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": []
+    },
+    {
+      "file": ".github/workflows/goriq-pc-enrollment.yml",
+      "job": "zbook-peer-prove",
+      "line": 171,
+      "classification": "B",
+      "current_runner_class": "B",
+      "runner": "[self-hosted, Windows, X64]",
+      "tags": [],
+      "needs": "[mac-public-proof, zbook-peer-challenge, mac-peer-sign]",
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "5",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Hosted public source check; native Mac/ZBook enrollment and peer challenge/sign/prove use existing host-bound identities. Matrix preflight expands to two physical jobs.",
+      "scripts": [
+        "scripts/goriq-pc-peer-enroll.ts"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": []
+    },
+    {
+      "file": ".github/workflows/goriq-pc-enrollment.yml",
+      "job": "mac-peer-prove",
+      "line": 197,
+      "classification": "C",
+      "current_runner_class": "C",
+      "runner": "[self-hosted, macOS, ARM64]",
+      "tags": [],
+      "needs": "[zbook-peer-challenge, mac-peer-sign, zbook-peer-prove]",
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "5",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Hosted public source check; native Mac/ZBook enrollment and peer challenge/sign/prove use existing host-bound identities. Matrix preflight expands to two physical jobs.",
+      "scripts": [
+        "scripts/goriq-pc-peer-enroll-macos.sh"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": []
+    },
+    {
+      "file": ".github/workflows/goriq-pc-private-network-probe.yml",
+      "job": "observe",
+      "line": 14,
+      "classification": "B/C",
+      "current_runner_class": "B/C",
+      "runner": "${{ matrix.runner }}",
+      "tags": [],
+      "needs": null,
+      "condition": "github.repository == 'haji84/AI-' && github.ref == 'refs/heads/main' && github.actor == 'haji84'",
+      "timeout_minutes_maximum_not_duration": "3",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Native route/local health read-only probe matrix, expands to Mac and ZBook.",
+      "scripts": [
+        "scripts/goriq-pc-approved-source.mjs",
+        "scripts/goriq-pc-private-network-probe.mjs"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": []
+    },
+    {
+      "file": ".github/workflows/goriq-pc-runtime-refresh.yml",
+      "job": "source",
+      "line": 28,
+      "classification": "A",
+      "current_runner_class": "A",
+      "runner": "ubuntu-latest",
+      "tags": [],
+      "needs": null,
+      "condition": "github.ref == 'refs/heads/main'",
+      "timeout_minutes_maximum_not_duration": "5",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Hosted approved source; native ZBook ACL/process/state/release plan/apply. Preserve strict guards.",
+      "scripts": [
+        "scripts/goriq-pc-approved-source.mjs"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": []
+    },
+    {
+      "file": ".github/workflows/goriq-pc-runtime-refresh.yml",
+      "job": "zbook",
+      "line": 41,
+      "classification": "B",
+      "current_runner_class": "B",
+      "runner": "[self-hosted, Windows, X64]",
+      "tags": [],
+      "needs": "source",
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "30",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Hosted approved source; native ZBook ACL/process/state/release plan/apply. Preserve strict guards.",
+      "scripts": [
+        "tests/jarvis-pc-runtime-acl.test.ps1",
+        "tests/jarvis-pc-runtime-process.test.ps1",
+        "scripts/goriq-pc-runtime-refresh-windows.ps1"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": []
+    },
+    {
+      "file": ".github/workflows/goriq-pc-task-execution.yml",
+      "job": "source",
+      "line": 22,
+      "classification": "A",
+      "current_runner_class": "A",
+      "runner": "ubuntu-latest",
+      "tags": [],
+      "needs": null,
+      "condition": "github.ref == 'refs/heads/main'",
+      "timeout_minutes_maximum_not_duration": "5",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Hosted approved source; signed task on registered host identities/native DB paths; matrix expands to both PCs.",
+      "scripts": [
+        "scripts/goriq-pc-approved-source.mjs"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": []
+    },
+    {
+      "file": ".github/workflows/goriq-pc-task-execution.yml",
+      "job": "execute",
+      "line": 36,
+      "classification": "B/C",
+      "current_runner_class": "B/C",
+      "runner": "${{ fromJSON(matrix.runner) }}",
+      "tags": [],
+      "needs": "source",
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "5",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Hosted approved source; signed task on registered host identities/native DB paths; matrix expands to both PCs.",
+      "scripts": [
+        "scripts/goriq-pc-approved-source.mjs",
+        "scripts/goriq-pc-task-execute.ts"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": []
+    },
+    {
+      "file": ".github/workflows/goriq-physical-iphone-preflight.yml",
+      "job": "physical-iphone-preflight",
+      "line": 16,
+      "classification": "C",
+      "current_runner_class": "C",
+      "runner": "[self-hosted, macOS, ARM64]",
+      "tags": [],
+      "needs": null,
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "8",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Physical USB iPhone discovery/pairing/Xcode/signing identity; cannot substitute hosted simulator.",
+      "scripts": [
+        "scripts/goriq-physical-iphone-preflight.mjs"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "uses: actions/upload-artifact@v4",
+        "name: goriq-681-physical-iphone-preflight",
+        "if-no-files-found: error",
+        "retention-days: 7"
+      ]
+    },
+    {
+      "file": ".github/workflows/goriq-pr-ci-recovery.yml",
+      "job": "preflight",
+      "line": 19,
+      "classification": "A",
+      "current_runner_class": "A",
+      "runner": "ubuntu-latest",
+      "tags": [
+        "E"
+      ],
+      "needs": null,
+      "condition": ">-",
+      "timeout_minutes_maximum_not_duration": "5",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Hosted current-head preflight; Windows recovery uses DPAPI repair secret/local engine memory/Codex/Ollama and candidate lint/test/P8/build. Portable check substeps are not standalone physical dependencies.",
+      "scripts": [],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": []
+    },
+    {
+      "file": ".github/workflows/goriq-pr-ci-recovery.yml",
+      "job": "recover",
+      "line": 64,
+      "classification": "B",
+      "current_runner_class": "B",
+      "runner": "[self-hosted, Windows, X64]",
+      "tags": [
+        "E"
+      ],
+      "needs": "[preflight]",
+      "condition": "needs.preflight.outputs.eligible == 'true'",
+      "timeout_minutes_maximum_not_duration": "75",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Hosted current-head preflight; Windows recovery uses DPAPI repair secret/local engine memory/Codex/Ollama and candidate lint/test/P8/build. Portable check substeps are not standalone physical dependencies.",
+      "scripts": [
+        "scripts/invoke-node-with-groq-secret-windows.ps1",
+        "scripts/goriq-pr-ci-recovery.ts"
+      ],
+      "notes": [],
+      "cache_related_lines": [
+        "cache: pnpm",
+        "cache-dependency-path: target/pnpm-lock.yaml"
+      ],
+      "artifact_related_lines": []
+    },
+    {
+      "file": ".github/workflows/goriq-repair-engines-runtime.yml",
+      "job": "zbook-local-repair",
+      "line": 36,
+      "classification": "B",
+      "current_runner_class": "B",
+      "runner": "[self-hosted, Windows, X64]",
+      "tags": [],
+      "needs": null,
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "35",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Native Windows local-engine install, native Mac resident bridge/update/proof; learned-memory smoke/optional client roundtrip already hosted.",
+      "scripts": [
+        "scripts/install-goriq-local-repair-windows.ps1"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "uses: actions/upload-artifact@v4",
+        "name: goriq-zbook-repair-engines",
+        "retention-days: 30"
+      ]
+    },
+    {
+      "file": ".github/workflows/goriq-repair-engines-runtime.yml",
+      "job": "mac-chat-work-bridge",
+      "line": 66,
+      "classification": "C",
+      "current_runner_class": "C",
+      "runner": "[self-hosted, macOS, ARM64]",
+      "tags": [],
+      "needs": null,
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "15",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Native Windows local-engine install, native Mac resident bridge/update/proof; learned-memory smoke/optional client roundtrip already hosted.",
+      "scripts": [
+        "scripts/install-macos-chatgpt-bridge.sh",
+        "scripts/goriq-chatgpt-bridge-health-check.mjs"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": []
+    },
+    {
+      "file": ".github/workflows/goriq-repair-engines-runtime.yml",
+      "job": "learned-repair-smoke",
+      "line": 97,
+      "classification": "A",
+      "current_runner_class": "A",
+      "runner": "ubuntu-latest",
+      "tags": [],
+      "needs": null,
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "5",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Native Windows local-engine install, native Mac resident bridge/update/proof; learned-memory smoke/optional client roundtrip already hosted.",
+      "scripts": [
+        "scripts/goriq-learned-repair-smoke.mjs"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": []
+    },
+    {
+      "file": ".github/workflows/goriq-repair-engines-runtime.yml",
+      "job": "mac-bridge-post-cleanup-proof",
+      "line": 111,
+      "classification": "C",
+      "current_runner_class": "C",
+      "runner": "[self-hosted, macOS, ARM64]",
+      "tags": [],
+      "needs": "[mac-chat-work-bridge]",
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "5",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Native Windows local-engine install, native Mac resident bridge/update/proof; learned-memory smoke/optional client roundtrip already hosted.",
+      "scripts": [
+        "scripts/goriq-chatgpt-bridge-health-check.mjs"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": []
+    },
+    {
+      "file": ".github/workflows/goriq-repair-engines-runtime.yml",
+      "job": "chat-work-repair-smoke",
+      "line": 141,
+      "classification": "A",
+      "current_runner_class": "A",
+      "runner": "ubuntu-latest",
+      "tags": [],
+      "needs": "[mac-bridge-post-cleanup-proof]",
+      "condition": "github.event_name == 'workflow_dispatch' && inputs.run_chat_work_smoke == true",
+      "timeout_minutes_maximum_not_duration": "25",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Native Windows local-engine install, native Mac resident bridge/update/proof; learned-memory smoke/optional client roundtrip already hosted.",
+      "scripts": [
+        "scripts/goriq-chatgpt-repair-client.mjs"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": []
+    },
+    {
+      "file": ".github/workflows/goriq-secure-fleet-db-migration.yml",
+      "job": "mac-prepare",
+      "line": 21,
+      "classification": "C",
+      "current_runner_class": "C",
+      "runner": "[self-hosted, macOS, ARM64]",
+      "tags": [],
+      "needs": null,
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "5",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Native keygen/DPAPI snapshot/encrypted transfer/native DB import/restart, authority-sensitive. No migration executed.",
+      "scripts": [
+        "scripts/goriq-fleet-db-migration.mjs"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "uses: actions/upload-artifact@v4",
+        "retention-days: 1"
+      ]
+    },
+    {
+      "file": ".github/workflows/goriq-secure-fleet-db-migration.yml",
+      "job": "zbook-seal",
+      "line": 46,
+      "classification": "B",
+      "current_runner_class": "B",
+      "runner": "[self-hosted, Windows, X64]",
+      "tags": [],
+      "needs": "mac-prepare",
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "10",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Native keygen/DPAPI snapshot/encrypted transfer/native DB import/restart, authority-sensitive. No migration executed.",
+      "scripts": [
+        "scripts/goriq-fleet-db-seal-windows.ps1"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "- uses: actions/download-artifact@v4",
+        "uses: actions/upload-artifact@v4",
+        "retention-days: 1"
+      ]
+    },
+    {
+      "file": ".github/workflows/goriq-secure-fleet-db-migration.yml",
+      "job": "mac-import",
+      "line": 75,
+      "classification": "C",
+      "current_runner_class": "C",
+      "runner": "[self-hosted, macOS, ARM64]",
+      "tags": [],
+      "needs": "zbook-seal",
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "10",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Native keygen/DPAPI snapshot/encrypted transfer/native DB import/restart, authority-sensitive. No migration executed.",
+      "scripts": [
+        "scripts/goriq-fleet-db-migration.mjs",
+        "scripts/jarvis-mac-install-launchagent.sh",
+        "scripts/goriq-broker-db-inventory.mjs"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "- uses: actions/download-artifact@v4"
+      ]
+    },
+    {
+      "file": ".github/workflows/goriq-self-development-live-acceptance.yml",
+      "job": "real-local-model",
+      "line": 20,
+      "classification": "B",
+      "current_runner_class": "B",
+      "runner": "[self-hosted, Windows, X64]",
+      "tags": [],
+      "needs": null,
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "20",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "ZBook loopback actual model/provenance, isolated candidate and exact-candidate verification; Mac physical iPhone signed roundtrip/install. Preserve both evidence classes.",
+      "scripts": [
+        "scripts/goriq-self-development-local-model-e2e.mjs"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "uses: actions/upload-artifact@v4",
+        "name: goriq-681-real-local-model",
+        "if-no-files-found: error",
+        "retention-days: 30"
+      ]
+    },
+    {
+      "file": ".github/workflows/goriq-self-development-live-acceptance.yml",
+      "job": "physical-iphone",
+      "line": 75,
+      "classification": "C",
+      "current_runner_class": "C",
+      "runner": "[self-hosted, macOS, ARM64]",
+      "tags": [],
+      "needs": null,
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "20",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "ZBook loopback actual model/provenance, isolated candidate and exact-candidate verification; Mac physical iPhone signed roundtrip/install. Preserve both evidence classes.",
+      "scripts": [
+        "scripts/goriq-physical-iphone-preflight.mjs",
+        "scripts/iphone-bridge-server-entry.ts",
+        "scripts/goriq-verify-physical-iphone-evidence.mjs"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "uses: actions/upload-artifact@v4",
+        "name: goriq-681-physical-iphone",
+        "if-no-files-found: error",
+        "retention-days: 30"
+      ]
+    },
+    {
+      "file": ".github/workflows/goriq-stage-b-coordinator-failover.yml",
+      "job": "mac-origin",
+      "line": 20,
+      "classification": "C",
+      "current_runner_class": "C",
+      "runner": "[self-hosted, macOS, ARM64]",
+      "tags": [],
+      "needs": null,
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "10",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Physical Mac/ZBook controlled lease/fencing harness with artifact transport; hosted aggregate. This does not prove native coordinator or abrupt power recovery.",
+      "scripts": [
+        "scripts/goriq-coordinator-failover-e2e.ts"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "uses: actions/upload-artifact@v4",
+        "name: goriq-stage-b-coordinator-mac-origin",
+        "retention-days: 7",
+        "if-no-files-found: error"
+      ]
+    },
+    {
+      "file": ".github/workflows/goriq-stage-b-coordinator-failover.yml",
+      "job": "zbook-failover",
+      "line": 50,
+      "classification": "B",
+      "current_runner_class": "B",
+      "runner": "[self-hosted, Windows, X64]",
+      "tags": [],
+      "needs": "mac-origin",
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "10",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Physical Mac/ZBook controlled lease/fencing harness with artifact transport; hosted aggregate. This does not prove native coordinator or abrupt power recovery.",
+      "scripts": [
+        "scripts/goriq-coordinator-failover-e2e.ts"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "- uses: actions/download-artifact@v4",
+        "name: goriq-stage-b-coordinator-mac-origin",
+        "uses: actions/upload-artifact@v4",
+        "name: goriq-stage-b-coordinator-zbook-state",
+        "retention-days: 7",
+        "if-no-files-found: error",
+        "uses: actions/upload-artifact@v4",
+        "name: goriq-stage-b-coordinator-zbook-evidence",
+        "retention-days: 30",
+        "if-no-files-found: error"
+      ]
+    },
+    {
+      "file": ".github/workflows/goriq-stage-b-coordinator-failover.yml",
+      "job": "mac-return",
+      "line": 94,
+      "classification": "C",
+      "current_runner_class": "C",
+      "runner": "[self-hosted, macOS, ARM64]",
+      "tags": [],
+      "needs": "zbook-failover",
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "10",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Physical Mac/ZBook controlled lease/fencing harness with artifact transport; hosted aggregate. This does not prove native coordinator or abrupt power recovery.",
+      "scripts": [
+        "scripts/goriq-coordinator-failover-e2e.ts"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "- uses: actions/download-artifact@v4",
+        "name: goriq-stage-b-coordinator-zbook-state",
+        "uses: actions/upload-artifact@v4",
+        "name: goriq-stage-b-coordinator-mac-return-evidence",
+        "retention-days: 30",
+        "if-no-files-found: error"
+      ]
+    },
+    {
+      "file": ".github/workflows/goriq-stage-b-coordinator-failover.yml",
+      "job": "verify",
+      "line": 129,
+      "classification": "A",
+      "current_runner_class": "A",
+      "runner": "ubuntu-latest",
+      "tags": [],
+      "needs": "mac-return",
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "5",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Physical Mac/ZBook controlled lease/fencing harness with artifact transport; hosted aggregate. This does not prove native coordinator or abrupt power recovery.",
+      "scripts": [
+        "scripts/goriq-coordinator-failover-e2e.ts"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "- uses: actions/download-artifact@v4",
+        "name: goriq-stage-b-coordinator-zbook-evidence",
+        "- uses: actions/download-artifact@v4",
+        "name: goriq-stage-b-coordinator-mac-return-evidence",
+        "uses: actions/upload-artifact@v4",
+        "name: goriq-stage-b-coordinator-failover-evidence",
+        "retention-days: 30",
+        "if-no-files-found: error"
+      ]
+    },
+    {
+      "file": ".github/workflows/goriq-stage-b-node-loss-rejoin.yml",
+      "job": "mac-loss",
+      "line": 16,
+      "classification": "C",
+      "current_runner_class": "C",
+      "runner": "[self-hosted, macOS, ARM64]",
+      "tags": [],
+      "needs": null,
+      "condition": "github.event_name == 'workflow_dispatch' || startsWith(github.event.issue.title, '[GORIQ STAGE B NODE LOSS]')",
+      "timeout_minutes_maximum_not_duration": "10",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Physical listener-loss/watchdog recovery evidence on both hosts; hosted verifier. Not eligible for cancellation/hosted substitution.",
+      "scripts": [
+        "scripts/goriq-two-node-failover-e2e.ts"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "- uses: actions/upload-artifact@v4",
+        "name: goriq-stage-b-node-loss-mac-handoff",
+        "retention-days: 7",
+        "if-no-files-found: error"
+      ]
+    },
+    {
+      "file": ".github/workflows/goriq-stage-b-node-loss-rejoin.yml",
+      "job": "zbook-survives-mac",
+      "line": 83,
+      "classification": "B",
+      "current_runner_class": "B",
+      "runner": "[self-hosted, Windows, X64]",
+      "tags": [],
+      "needs": "mac-loss",
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "10",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Physical listener-loss/watchdog recovery evidence on both hosts; hosted verifier. Not eligible for cancellation/hosted substitution.",
+      "scripts": [
+        "scripts/goriq-two-node-failover-e2e.ts"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "- uses: actions/download-artifact@v4",
+        "name: goriq-stage-b-node-loss-mac-handoff",
+        "- uses: actions/upload-artifact@v4",
+        "name: goriq-stage-b-node-loss-mac-survivor",
+        "retention-days: 30",
+        "if-no-files-found: error"
+      ]
+    },
+    {
+      "file": ".github/workflows/goriq-stage-b-node-loss-rejoin.yml",
+      "job": "mac-rejoin",
+      "line": 109,
+      "classification": "C",
+      "current_runner_class": "C",
+      "runner": "[self-hosted, macOS, ARM64]",
+      "tags": [],
+      "needs": "zbook-survives-mac",
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "12",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Physical listener-loss/watchdog recovery evidence on both hosts; hosted verifier. Not eligible for cancellation/hosted substitution.",
+      "scripts": [
+        "scripts/goriq-node-loss-rejoin-e2e.mjs"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "- uses: actions/download-artifact@v4",
+        "name: goriq-stage-b-node-loss-mac-survivor",
+        "- uses: actions/upload-artifact@v4",
+        "name: goriq-stage-b-node-loss-mac-rejoin",
+        "retention-days: 30",
+        "if-no-files-found: error"
+      ]
+    },
+    {
+      "file": ".github/workflows/goriq-stage-b-node-loss-rejoin.yml",
+      "job": "zbook-loss",
+      "line": 164,
+      "classification": "B",
+      "current_runner_class": "B",
+      "runner": "[self-hosted, Windows, X64]",
+      "tags": [],
+      "needs": "mac-rejoin",
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "10",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Physical listener-loss/watchdog recovery evidence on both hosts; hosted verifier. Not eligible for cancellation/hosted substitution.",
+      "scripts": [
+        "scripts/goriq-two-node-failover-e2e.ts"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "- uses: actions/upload-artifact@v4",
+        "name: goriq-stage-b-node-loss-zbook-handoff",
+        "retention-days: 7",
+        "if-no-files-found: error"
+      ]
+    },
+    {
+      "file": ".github/workflows/goriq-stage-b-node-loss-rejoin.yml",
+      "job": "mac-survives-zbook",
+      "line": 208,
+      "classification": "C",
+      "current_runner_class": "C",
+      "runner": "[self-hosted, macOS, ARM64]",
+      "tags": [],
+      "needs": "zbook-loss",
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "10",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Physical listener-loss/watchdog recovery evidence on both hosts; hosted verifier. Not eligible for cancellation/hosted substitution.",
+      "scripts": [
+        "scripts/goriq-two-node-failover-e2e.ts"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "- uses: actions/download-artifact@v4",
+        "name: goriq-stage-b-node-loss-zbook-handoff",
+        "- uses: actions/upload-artifact@v4",
+        "name: goriq-stage-b-node-loss-zbook-survivor",
+        "retention-days: 30",
+        "if-no-files-found: error"
+      ]
+    },
+    {
+      "file": ".github/workflows/goriq-stage-b-node-loss-rejoin.yml",
+      "job": "zbook-rejoin",
+      "line": 234,
+      "classification": "B",
+      "current_runner_class": "B",
+      "runner": "[self-hosted, Windows, X64]",
+      "tags": [],
+      "needs": "mac-survives-zbook",
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "12",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Physical listener-loss/watchdog recovery evidence on both hosts; hosted verifier. Not eligible for cancellation/hosted substitution.",
+      "scripts": [
+        "scripts/goriq-node-loss-rejoin-e2e.mjs"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "- uses: actions/download-artifact@v4",
+        "name: goriq-stage-b-node-loss-zbook-survivor",
+        "- uses: actions/upload-artifact@v4",
+        "name: goriq-stage-b-node-loss-zbook-rejoin",
+        "retention-days: 30",
+        "if-no-files-found: error"
+      ]
+    },
+    {
+      "file": ".github/workflows/goriq-stage-b-node-loss-rejoin.yml",
+      "job": "verify",
+      "line": 294,
+      "classification": "A",
+      "current_runner_class": "A",
+      "runner": "ubuntu-latest",
+      "tags": [],
+      "needs": "zbook-rejoin",
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "5",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Physical listener-loss/watchdog recovery evidence on both hosts; hosted verifier. Not eligible for cancellation/hosted substitution.",
+      "scripts": [
+        "scripts/goriq-node-loss-rejoin-e2e.mjs"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "- uses: actions/download-artifact@v4",
+        "name: goriq-stage-b-node-loss-mac-rejoin",
+        "- uses: actions/download-artifact@v4",
+        "name: goriq-stage-b-node-loss-zbook-rejoin",
+        "- uses: actions/upload-artifact@v4",
+        "name: goriq-stage-b-node-loss-rejoin-evidence",
+        "retention-days: 30",
+        "if-no-files-found: error"
+      ]
+    },
+    {
+      "file": ".github/workflows/goriq-stage-b-two-node-failover.yml",
+      "job": "mac-origin",
+      "line": 21,
+      "classification": "C",
+      "current_runner_class": "C",
+      "runner": "[self-hosted, macOS, ARM64]",
+      "tags": [],
+      "needs": null,
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "10",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Physical controlled handoff harness on both hosts, exact-SHA verifier hosted; no claim of abrupt/native workload migration.",
+      "scripts": [
+        "scripts/goriq-two-node-failover-e2e.ts"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "uses: actions/upload-artifact@v4",
+        "name: goriq-stage-b-mac-to-zbook-handoff",
+        "retention-days: 7",
+        "if-no-files-found: error"
+      ]
+    },
+    {
+      "file": ".github/workflows/goriq-stage-b-two-node-failover.yml",
+      "job": "zbook-resume",
+      "line": 52,
+      "classification": "B",
+      "current_runner_class": "B",
+      "runner": "[self-hosted, Windows, X64]",
+      "tags": [],
+      "needs": "mac-origin",
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "10",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Physical controlled handoff harness on both hosts, exact-SHA verifier hosted; no claim of abrupt/native workload migration.",
+      "scripts": [
+        "scripts/goriq-two-node-failover-e2e.ts"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "- uses: actions/download-artifact@v4",
+        "name: goriq-stage-b-mac-to-zbook-handoff",
+        "uses: actions/upload-artifact@v4",
+        "name: goriq-stage-b-mac-to-zbook-evidence",
+        "retention-days: 30",
+        "if-no-files-found: error"
+      ]
+    },
+    {
+      "file": ".github/workflows/goriq-stage-b-two-node-failover.yml",
+      "job": "zbook-origin",
+      "line": 87,
+      "classification": "B",
+      "current_runner_class": "B",
+      "runner": "[self-hosted, Windows, X64]",
+      "tags": [],
+      "needs": "zbook-resume",
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "10",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Physical controlled handoff harness on both hosts, exact-SHA verifier hosted; no claim of abrupt/native workload migration.",
+      "scripts": [
+        "scripts/goriq-two-node-failover-e2e.ts"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "uses: actions/upload-artifact@v4",
+        "name: goriq-stage-b-zbook-to-macbook-handoff",
+        "retention-days: 7",
+        "if-no-files-found: error"
+      ]
+    },
+    {
+      "file": ".github/workflows/goriq-stage-b-two-node-failover.yml",
+      "job": "mac-resume",
+      "line": 119,
+      "classification": "C",
+      "current_runner_class": "C",
+      "runner": "[self-hosted, macOS, ARM64]",
+      "tags": [],
+      "needs": "zbook-origin",
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "10",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Physical controlled handoff harness on both hosts, exact-SHA verifier hosted; no claim of abrupt/native workload migration.",
+      "scripts": [
+        "scripts/goriq-two-node-failover-e2e.ts"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "- uses: actions/download-artifact@v4",
+        "name: goriq-stage-b-zbook-to-macbook-handoff",
+        "uses: actions/upload-artifact@v4",
+        "name: goriq-stage-b-zbook-to-macbook-evidence",
+        "retention-days: 30",
+        "if-no-files-found: error"
+      ]
+    },
+    {
+      "file": ".github/workflows/goriq-stage-b-two-node-failover.yml",
+      "job": "verify",
+      "line": 154,
+      "classification": "A",
+      "current_runner_class": "A",
+      "runner": "ubuntu-latest",
+      "tags": [],
+      "needs": "mac-resume",
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "5",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Physical controlled handoff harness on both hosts, exact-SHA verifier hosted; no claim of abrupt/native workload migration.",
+      "scripts": [
+        "scripts/goriq-two-node-failover-e2e.ts"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "- uses: actions/download-artifact@v4",
+        "name: goriq-stage-b-mac-to-zbook-evidence",
+        "- uses: actions/download-artifact@v4",
+        "name: goriq-stage-b-zbook-to-macbook-evidence",
+        "uses: actions/upload-artifact@v4",
+        "name: goriq-stage-b-two-node-failover-evidence",
+        "retention-days: 30",
+        "if-no-files-found: error"
+      ]
+    },
+    {
+      "file": ".github/workflows/goriq-stage-c-preflight.yml",
+      "job": "nubia-preflight",
+      "line": 16,
+      "classification": "B",
+      "current_runner_class": "B",
+      "runner": "[self-hosted, Windows, X64]",
+      "tags": [],
+      "needs": null,
+      "condition": ">-",
+      "timeout_minutes_maximum_not_duration": "5",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Existing authorized USB Nubia/native Broker state on ZBook.",
+      "scripts": [
+        "scripts/goriq-stage-c-preflight-windows.ps1"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "uses: actions/upload-artifact@v4",
+        "name: goriq-stage-c-nubia-preflight-${{ github.run_id }}",
+        "if-no-files-found: error",
+        "retention-days: 30"
+      ]
+    },
+    {
+      "file": ".github/workflows/goriq-zbook-fleet-liveness.yml",
+      "job": "inspect",
+      "line": 16,
+      "classification": "B",
+      "current_runner_class": "B",
+      "runner": "[self-hosted, Windows, X64]",
+      "tags": [],
+      "needs": null,
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "5",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Physical protected ZBook SQLite freshness and registered scheduled task.",
+      "scripts": [
+        "scripts/goriq-zbook-fleet-sqlite-liveness.mjs"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "uses: actions/upload-artifact@v4",
+        "name: goriq-zbook-fleet-liveness",
+        "if-no-files-found: error",
+        "retention-days: 14"
+      ]
+    },
+    {
+      "file": ".github/workflows/iphone-owner-auto-update.yml",
+      "job": "classify",
+      "line": 28,
+      "classification": "A",
+      "current_runner_class": "A",
+      "runner": "ubuntu-latest",
+      "tags": [],
+      "needs": null,
+      "condition": "github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'",
+      "timeout_minutes_maximum_not_duration": null,
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Hosted path/security classifier; Mac native signing/device/install-state path. Actual install conditioned on eligibility.",
+      "scripts": [],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": []
+    },
+    {
+      "file": ".github/workflows/iphone-owner-auto-update.yml",
+      "job": "install",
+      "line": 85,
+      "classification": "C",
+      "current_runner_class": "C",
+      "runner": "[self-hosted, macOS, ARM64]",
+      "tags": [],
+      "needs": "classify",
+      "condition": "needs.classify.outputs.eligible == 'true'",
+      "timeout_minutes_maximum_not_duration": "20",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Hosted path/security classifier; Mac native signing/device/install-state path. Actual install conditioned on eligibility.",
+      "scripts": [],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": []
+    },
+    {
+      "file": ".github/workflows/iphone-owner-build-1218.yml",
+      "job": "compile",
+      "line": 29,
+      "classification": "C",
+      "current_runner_class": "C",
+      "runner": "[self-hosted, macOS, ARM64]",
+      "tags": [],
+      "needs": null,
+      "condition": "(github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == 'haji84/AI-' && github.event.pull_request.head.ref == 'goriq/native-ios-daily-driver') || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/goriq/native-ios-daily-driver') || (github.event_name == 'workflow_call' && github.ref == 'refs/heads/goriq/native-ios-daily-driver')",
+      "timeout_minutes_maximum_not_duration": "15",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Mac unsigned compile could be split to hosted macOS only after preserving physical preflight; same job also contains authorized device signing/install.",
+      "scripts": [],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": []
+    },
+    {
+      "file": ".github/workflows/jarvis-android-worker.yml",
+      "job": "android-worker",
+      "line": 19,
+      "classification": "A",
+      "current_runner_class": "A",
+      "runner": "ubuntu-latest",
+      "tags": [],
+      "needs": null,
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "20",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "APK compile/test hosted; Mac uses local signing/state and resident Broker distribution.",
+      "scripts": [],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "- uses: actions/upload-artifact@v4",
+        "if-no-files-found: error",
+        "retention-days: 30"
+      ]
+    },
+    {
+      "file": ".github/workflows/jarvis-android-worker.yml",
+      "job": "deploy-mac",
+      "line": 52,
+      "classification": "C",
+      "current_runner_class": "C",
+      "runner": "[self-hosted, macOS, ARM64]",
+      "tags": [],
+      "needs": "android-worker",
+      "condition": "github.event_name != 'pull_request' && github.ref == 'refs/heads/main'",
+      "timeout_minutes_maximum_not_duration": "20",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "APK compile/test hosted; Mac uses local signing/state and resident Broker distribution.",
+      "scripts": [],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "- uses: actions/download-artifact@v4"
+      ]
+    },
+    {
+      "file": ".github/workflows/jarvis-broker-refresh.yml",
+      "job": "refresh",
+      "line": 14,
+      "classification": "C",
+      "current_runner_class": "C",
+      "runner": "[self-hosted, macOS, ARM64]",
+      "tags": [],
+      "needs": null,
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "10",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Native Mac resident repository/launchd Broker refresh, preserves live tunnel.",
+      "scripts": [],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": []
+    },
+    {
+      "file": ".github/workflows/jarvis-direct-commander.yml",
+      "job": "deploy",
+      "line": 20,
+      "classification": "C",
+      "current_runner_class": "C",
+      "runner": "[self-hosted, macOS, ARM64]",
+      "tags": [],
+      "needs": null,
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "10",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Native Mac resident service/launchd/optional tunnel/owner state; privileged mutations not eligible here.",
+      "scripts": [
+        "scripts/jarvis-direct-commander-service.sh",
+        "scripts/jarvis-direct-commander-tunnel-service.sh"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": []
+    },
+    {
+      "file": ".github/workflows/jarvis-mac-bootstrap.yml",
+      "job": "install",
+      "line": 26,
+      "classification": "C",
+      "current_runner_class": "C",
+      "runner": "[self-hosted, macOS, ARM64]",
+      "tags": [],
+      "needs": null,
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "20",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Native Mac zero-touch runtime and authenticated resident ChatGPT bridge install/status.",
+      "scripts": [
+        "scripts/jarvis-mac-zero-touch-install.sh",
+        "scripts/install-macos-chatgpt-bridge.sh"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": []
+    },
+    {
+      "file": ".github/workflows/jarvis-one-tap-e2e.yml",
+      "job": "live-one-tap-url",
+      "line": 10,
+      "classification": "C",
+      "current_runner_class": "C",
+      "runner": "[self-hosted, macOS, ARM64]",
+      "tags": [],
+      "needs": null,
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "10",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Native Mac live enrollment URL/owner token and connected Android check.",
+      "scripts": [],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "uses: actions/upload-artifact@v4",
+        "if-no-files-found: error",
+        "retention-days: 1"
+      ]
+    },
+    {
+      "file": ".github/workflows/jarvis-real-device-cell-e2e.yml",
+      "job": "real-device-cell-e2e",
+      "line": 10,
+      "classification": "C",
+      "current_runner_class": "C",
+      "runner": "[self-hosted, macOS, ARM64]",
+      "tags": [],
+      "needs": null,
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "10",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Native Mac live Broker/Android cell selection diagnosis.",
+      "scripts": [],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": []
+    },
+    {
+      "file": ".github/workflows/jarvis-vercel-access-diagnostic.yml",
+      "job": "diagnose",
+      "line": 14,
+      "classification": "A",
+      "current_runner_class": "A",
+      "runner": "ubuntu-latest",
+      "tags": [],
+      "needs": null,
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": null,
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Hosted Vercel API scope diagnostic, no local device dependency.",
+      "scripts": [],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": []
+    },
+    {
+      "file": ".github/workflows/nightly.yml",
+      "job": "governance",
+      "line": 12,
+      "classification": "A",
+      "current_runner_class": "A",
+      "runner": "ubuntu-latest",
+      "tags": [],
+      "needs": null,
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": null,
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": [
+        "'17 18 * * *'"
+      ],
+      "dependency_reason": "Hosted governance file existence check; distinct scheduled governance purpose.",
+      "scripts": [],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": []
+    },
+    {
+      "file": ".github/workflows/research-worker-e2e.yml",
+      "job": "zbook-real",
+      "line": 25,
+      "classification": "B",
+      "current_runner_class": "B",
+      "runner": "[self-hosted, zbook]",
+      "tags": [],
+      "needs": null,
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "30",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Native per-PC watchdog/bootstrap/Ollama Research Worker acceptance; hosted aggregate validates both artifacts.",
+      "scripts": [
+        "scripts/gai-zbook-watchdog.ps1",
+        "scripts/bootstrap-local-research-model.ps1",
+        "scripts/research-worker-e2e.ts"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "- uses: actions/upload-artifact@v4",
+        "if-no-files-found: warn",
+        "retention-days: 30"
+      ]
+    },
+    {
+      "file": ".github/workflows/research-worker-e2e.yml",
+      "job": "macbook-real",
+      "line": 55,
+      "classification": "C",
+      "current_runner_class": "C",
+      "runner": "[self-hosted, macOS]",
+      "tags": [],
+      "needs": null,
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "30",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Native per-PC watchdog/bootstrap/Ollama Research Worker acceptance; hosted aggregate validates both artifacts.",
+      "scripts": [
+        "scripts/gai-macbook-watchdog.sh",
+        "scripts/bootstrap-local-research-model.sh",
+        "scripts/research-worker-e2e.ts"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "- uses: actions/upload-artifact@v4",
+        "if-no-files-found: warn",
+        "retention-days: 30"
+      ]
+    },
+    {
+      "file": ".github/workflows/research-worker-e2e.yml",
+      "job": "aggregate",
+      "line": 85,
+      "classification": "A",
+      "current_runner_class": "A",
+      "runner": "ubuntu-latest",
+      "tags": [],
+      "needs": "[zbook-real, macbook-real]",
+      "condition": "always()",
+      "timeout_minutes_maximum_not_duration": "10",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Native per-PC watchdog/bootstrap/Ollama Research Worker acceptance; hosted aggregate validates both artifacts.",
+      "scripts": [],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "- uses: actions/download-artifact@v4"
+      ]
+    },
+    {
+      "file": ".github/workflows/resident-research-worker-e2e.yml",
+      "job": "install-zbook",
+      "line": 28,
+      "classification": "B",
+      "current_runner_class": "B",
+      "runner": "[self-hosted, Windows, zbook]",
+      "tags": [],
+      "needs": null,
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "30",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Native service install/health on both PCs, then ZBook natural-command E2E against resident service.",
+      "scripts": [
+        "scripts/bootstrap-local-research-model.ps1",
+        "scripts/install-research-worker-windows.ps1"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "- uses: actions/upload-artifact@v4",
+        "retention-days: 30"
+      ]
+    },
+    {
+      "file": ".github/workflows/resident-research-worker-e2e.yml",
+      "job": "install-macbook",
+      "line": 62,
+      "classification": "C",
+      "current_runner_class": "C",
+      "runner": "[self-hosted, macOS]",
+      "tags": [],
+      "needs": null,
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "30",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Native service install/health on both PCs, then ZBook natural-command E2E against resident service.",
+      "scripts": [
+        "scripts/bootstrap-local-research-model.sh",
+        "scripts/install-research-worker-macos.sh"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "- uses: actions/upload-artifact@v4",
+        "retention-days: 30"
+      ]
+    },
+    {
+      "file": ".github/workflows/resident-research-worker-e2e.yml",
+      "job": "natural-command-e2e",
+      "line": 93,
+      "classification": "B",
+      "current_runner_class": "B",
+      "runner": "[self-hosted, Windows, zbook]",
+      "tags": [],
+      "needs": "[install-zbook, install-macbook]",
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "15",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Native service install/health on both PCs, then ZBook natural-command E2E against resident service.",
+      "scripts": [
+        "scripts/resident-research-command-e2e.ts"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "- uses: actions/upload-artifact@v4",
+        "if-no-files-found: warn",
+        "retention-days: 30"
+      ]
+    },
+    {
+      "file": ".github/workflows/runtime-github-token-repair.yml",
+      "job": "authorize",
+      "line": 18,
+      "classification": "A",
+      "current_runner_class": "A",
+      "runner": "ubuntu-latest",
+      "tags": [],
+      "needs": null,
+      "condition": ">-",
+      "timeout_minutes_maximum_not_duration": null,
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Hosted owner-authorized credential repair and exact commit production deploy; separate Human Gate, do not touch.",
+      "scripts": [],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": []
+    },
+    {
+      "file": ".github/workflows/runtime-github-token-repair.yml",
+      "job": "repair-and-deploy",
+      "line": 110,
+      "classification": "A",
+      "current_runner_class": "A",
+      "runner": "ubuntu-latest",
+      "tags": [],
+      "needs": "authorize",
+      "condition": "needs.authorize.outputs.authorized == 'true'",
+      "timeout_minutes_maximum_not_duration": null,
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Hosted owner-authorized credential repair and exact commit production deploy; separate Human Gate, do not touch.",
+      "scripts": [],
+      "notes": [],
+      "cache_related_lines": [
+        "cache: pnpm"
+      ],
+      "artifact_related_lines": []
+    },
+    {
+      "file": ".github/workflows/vercel-dashboard-deploy.yml",
+      "job": "deploy",
+      "line": 35,
+      "classification": "A",
+      "current_runner_class": "A",
+      "runner": "ubuntu-latest",
+      "tags": [],
+      "needs": null,
+      "condition": ">-",
+      "timeout_minutes_maximum_not_duration": null,
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Hosted explicit preview/production path with existing secret/project/deploy behavior, do not touch.",
+      "scripts": [],
+      "notes": [],
+      "cache_related_lines": [
+        "cache: pnpm"
+      ],
+      "artifact_related_lines": []
+    },
+    {
+      "file": ".github/workflows/vercel-scoped-production-deploy.yml",
+      "job": "authorize",
+      "line": 18,
+      "classification": "A",
+      "current_runner_class": "A",
+      "runner": "ubuntu-latest",
+      "tags": [],
+      "needs": null,
+      "condition": ">-",
+      "timeout_minutes_maximum_not_duration": null,
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Hosted machine-readable exact task-scope authorization and exact successful main deploy; do not touch.",
+      "scripts": [],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": []
+    },
+    {
+      "file": ".github/workflows/vercel-scoped-production-deploy.yml",
+      "job": "deploy",
+      "line": 117,
+      "classification": "A",
+      "current_runner_class": "A",
+      "runner": "ubuntu-latest",
+      "tags": [],
+      "needs": "authorize",
+      "condition": "needs.authorize.outputs.authorized == 'true'",
+      "timeout_minutes_maximum_not_duration": null,
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Hosted machine-readable exact task-scope authorization and exact successful main deploy; do not touch.",
+      "scripts": [],
+      "notes": [],
+      "cache_related_lines": [
+        "cache: pnpm"
+      ],
+      "artifact_related_lines": []
+    },
+    {
+      "file": ".github/workflows/zbook-e2e-dispatcher.yml",
+      "job": "reserve-mac-and-dispatch",
+      "line": 15,
+      "classification": "A",
+      "current_runner_class": "C",
+      "runner": "[self-hosted, macOS]",
+      "tags": [
+        "E"
+      ],
+      "needs": null,
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "10",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Dispatch API has no physical Mac need; Mac is intentionally held by sleep180 only to coerce generic self-hosted target selection. Proper target labels can eliminate reservation.",
+      "scripts": [],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": []
+    },
+    {
+      "file": ".github/workflows/zbook-e2e-target.yml",
+      "job": "zbook-forced-real",
+      "line": 11,
+      "classification": "B",
+      "current_runner_class": "B",
+      "runner": "[self-hosted]",
+      "tags": [
+        "E"
+      ],
+      "needs": null,
+      "condition": null,
+      "timeout_minutes_maximum_not_duration": "30",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Generic self-hosted label is disambiguated by runtime Require ZBook guard; local GPU/Ollama/watchdog real research E2E.",
+      "scripts": [
+        "scripts/gai-zbook-watchdog.ps1",
+        "scripts/bootstrap-local-research-model.ps1",
+        "scripts/research-worker-e2e.ts"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "- uses: actions/upload-artifact@v4",
+        "if-no-files-found: warn",
+        "retention-days: 30"
+      ]
+    },
+    {
+      "file": ".github/workflows/zbook-wake-via-macbook.yml",
+      "job": "wake-zbook",
+      "line": 12,
+      "classification": "C",
+      "current_runner_class": "C",
+      "runner": "[self-hosted, macOS]",
+      "tags": [],
+      "needs": null,
+      "condition": "github.event_name != 'issues' || startsWith(github.event.issue.title, '[JARVIS ZBOOK WAKE]')",
+      "timeout_minutes_maximum_not_duration": "5",
+      "observed_duration_seconds": null,
+      "historical_peak_rss_mb": null,
+      "historical_cpu_percent": null,
+      "static_frequency": "event-driven/manual; see source triggers",
+      "dependency_reason": "Bounded Wake-on-LAN from existing Mac LAN to physical ZBook; network reachability required.",
+      "scripts": [
+        "scripts/wake-zbook-from-macbook.sh"
+      ],
+      "notes": [],
+      "cache_related_lines": [],
+      "artifact_related_lines": [
+        "uses: actions/upload-artifact@v4",
+        "if-no-files-found: warn",
+        "retention-days: 30"
+      ]
+    }
+  ]
+}

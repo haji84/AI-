@@ -1,3 +1,4 @@
+import { fixtureResourceAdmission } from "./helpers/resource-admission-fixture.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { mkdtemp, rm } from "node:fs/promises";
@@ -65,7 +66,7 @@ test("legacy pending exact action reconciles without inferring new operation met
 test("model-supplied operation cannot attach learning authority to an unannotated host action", async () => fixture(async (_root, state) => {
   const experiences: CognitiveExperience[] = [];
   const learning: CognitiveLearningBridge = { async recall() { return emptyRecall(); }, async observe(value) { experiences.push(value); } };
-  const brain = new OllamaPrimaryBrainAdapter({ endpoint: "http://127.0.0.1:11434", model: "test-fixture", fetchImpl: async () => new Response(JSON.stringify({ response: JSON.stringify({ candidateId: candidate().id, assessment: "Use current candidate", hypotheses: [], expectedOutcome: "Output preserved", confidence: 0.8, learningOperation: operation, operation, catalogOperation: operation }) })) });
+  const brain = new OllamaPrimaryBrainAdapter({ admit: fixtureResourceAdmission, endpoint: "http://127.0.0.1:11434", model: "test-fixture", fetchImpl: async () => new Response(JSON.stringify({ response: JSON.stringify({ candidateId: candidate().id, assessment: "Use current candidate", hypotheses: [], expectedOutcome: "Output preserved", confidence: 0.8, learningOperation: operation, operation, catalogOperation: operation }) })) });
   const core = new CognitiveCore({ goalId: "goal", partition, state, environment: "local", brain, learning, candidates: async () => [candidate(false)] });
   const loop = createCognitiveGoalLoop({ core, contextSources: [], executor: { async execute() { return result; } }, verifier: { async verify() { return verification; } }, stateStore: sink() });
   await loop.runCycle({ goal });
