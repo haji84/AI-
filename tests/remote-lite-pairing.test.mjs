@@ -92,6 +92,24 @@ test('one device cannot fill the shared challenge pool for another device',()=>{
   assert.doesNotThrow(()=>r.challengeDevice({deviceId:b.deviceId,operation:'session-status',sessionId:'s'}));
 });
 
+test('one owner with many devices cannot fill the shared challenge pool',()=>{
+  const {r,enroll}=setup();
+  const aliceA=enroll('alice-a','alice'),aliceB=enroll('alice-b','alice');
+  const aliceC=enroll('alice-c','alice'),bob=enroll('bob-a','bob');
+  let first;
+  for(const device of [aliceA,aliceB]) {
+    for(let i=0;i<8;i++) {
+      const challenge=r.challengeDevice({deviceId:device.deviceId,operation:'session-status',sessionId:'s'});
+      if(!first) first=challenge;
+    }
+  }
+  assert.throws(()=>r.challengeDevice({deviceId:aliceC.deviceId,operation:'session-status',sessionId:'s'}),/CHALLENGE_OWNER_CAPACITY_REACHED/);
+  assert.doesNotThrow(()=>r.challengeDevice({deviceId:bob.deviceId,operation:'session-status',sessionId:'s'}));
+  const message=RemoteLitePairingRegistry.deviceMessage({...first,deviceId:aliceA.deviceId,operation:'session-status',sessionId:'s'});
+  r.verifyDevice({...first,deviceId:aliceA.deviceId,operation:'session-status',sessionId:'s',signature:sig(aliceA.keys.privateKey,message)});
+  assert.doesNotThrow(()=>r.challengeDevice({deviceId:aliceC.deviceId,operation:'session-status',sessionId:'s'}));
+});
+
 test('revoke disables identity, cancels challenges and blocks cross-owner revocation',()=>{
   const {r,enroll,owner,proof}=setup(),d=enroll(),p=proof(d);
   assert.throws(()=>r.revoke({...owner('bob'),deviceId:d.deviceId}),/DEVICE_NOT_FOUND/);

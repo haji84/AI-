@@ -116,16 +116,20 @@ export class RemoteLitePairingRegistry {
    * granted until the signed, nonce-bound response is verified. */
   challengeDevice({ deviceId, operation, sessionId, payloadHash = '' } = {}) {
     this.#prune();
-    if (!validId(deviceId) || !validId(sessionId) || !operations.has(operation) || !this.#devices.has(deviceId)) fail('DEVICE_UNAVAILABLE');
+    const ownerId = this.#devices.get(deviceId)?.ownerId;
+    if (!validId(deviceId) || !validId(sessionId) || !operations.has(operation) || !ownerId) fail('DEVICE_UNAVAILABLE');
     if ((operation === 'signal-send' && !/^[0-9a-f]{64}$/.test(payloadHash)) || (operation !== 'signal-send' && payloadHash !== '')) fail('SIGNAL_BINDING_INVALID');
     if ([...this.#challenges.values()].filter(record => record.deviceId === deviceId).length >= Math.min(8, this.limit)) {
       fail('CHALLENGE_DEVICE_CAPACITY_REACHED');
+    }
+    if ([...this.#challenges.values()].filter(record => record.ownerId === ownerId).length >= Math.min(16, this.limit * 2)) {
+      fail('CHALLENGE_OWNER_CAPACITY_REACHED');
     }
     if (this.#challenges.size >= this.limit * 2) fail('CHALLENGE_CAPACITY_REACHED');
     const challenge = token();
     const challengeId = randomUUID();
     const expiresAt = this.now() + this.proofMs;
-    this.#challenges.set(challengeId, { deviceId, operation, sessionId, payloadHash, challenge, expiresAt });
+    this.#challenges.set(challengeId, { ownerId, deviceId, operation, sessionId, payloadHash, challenge, expiresAt });
     return { challengeId, challenge, expiresAt };
   }
 
