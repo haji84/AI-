@@ -63,7 +63,7 @@ const endpoint = (c, path, p, principal) => {
     case '/v1/approve': return c.approveDevice({ ...o, ...only(p, ['requestId', 'expectedFingerprint']) });
     case '/v1/start': return c.startSession({ ...o, ...only(p, ['deviceId']) });
     case '/v1/viewer/signal': return c.viewerSignal({ ...o, ...only(p, ['sessionId', 'viewerToken', 'signal']) });
-    case '/v1/viewer/poll': return c.receiveSignalsForViewer({ ...o, ...only(p, ['sessionId', 'viewerToken']) });
+    case '/v1/viewer/poll': return c.receiveSignalsForViewer({ ...o, ...only(p, ['sessionId', 'viewerToken', 'ack']) });
     case '/v1/viewer/status': return c.viewerStatus({ ...o, ...only(p, ['sessionId', 'viewerToken']) });
     case '/v1/viewer/end': return c.endSession({ ...o, ...only(p, ['sessionId', 'viewerToken']) });
     case '/v1/revoke': return c.revokeDevice({ ...o, ...only(p, ['deviceId']) });
@@ -74,7 +74,7 @@ const endpoint = (c, path, p, principal) => {
     case '/v1/device/status': return c.deviceStatus(only(p, ['sessionId', 'deviceId', 'proof']));
     case '/v1/device/pending': return c.discoverPendingSession(only(p, ['deviceId', 'proof']));
     case '/v1/device/signal': return c.deviceSignal(only(p, ['sessionId', 'deviceId', 'proof', 'signal']));
-    case '/v1/device/poll': return c.receiveSignalsForDevice(only(p, ['sessionId', 'deviceId', 'proof']));
+    case '/v1/device/poll': return c.receiveSignalsForDevice(only(p, ['sessionId', 'deviceId', 'proof', 'ack']));
     case '/v1/device/end': return c.endSessionFromDevice(only(p, ['sessionId', 'deviceId', 'proof']));
     default: throw new LocalSignalingError('NOT_FOUND', 404);
   }

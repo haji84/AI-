@@ -173,12 +173,16 @@ func TestRemoteRoutesDenyWhenSignedGateIsMissing(t *testing.T) {
 		expires: time.Now().Add(time.Minute), host: "127.0.0.1:42000"}
 	mux := http.NewServeMux()
 	app.routes(mux)
-	for _, path := range []string{"/api/remote/status", "/api/remote/frame", "/api/remote/input"} {
+	for _, path := range []string{"/api/remote/status", "/api/remote/frame", "/api/remote/input", "/api/remote/poll", "/api/remote/signal"} {
 		method := http.MethodGet
 		var body []byte
-		if strings.HasSuffix(path, "/input") {
+		if strings.HasSuffix(path, "/input") || strings.HasSuffix(path, "/signal") {
 			method = http.MethodPost
-			body = []byte(`{"action":"tap","x":0.5,"y":0.5}`)
+			if strings.HasSuffix(path, "/input") {
+				body = []byte(`{"action":"tap","x":0.5,"y":0.5}`)
+			} else {
+				body = []byte(`{"type":"offer","sdp":"v=0\r\n"}`)
+			}
 		}
 		if got := remoteRequest(t, mux, method, path, body); got.Code != http.StatusServiceUnavailable {
 			t.Fatalf("remote route %s accepted without signed gate: HTTP %d", path, got.Code)

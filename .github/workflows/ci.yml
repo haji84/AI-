@@ -94,7 +94,7 @@ jobs:
         working-directory: apps/remote-lite-windows
         shell: pwsh
         run: |
-          foreach ($source in @('winbridge/bridge_windows.go', 'winbridge/release_windows_test.go', 'cmd/localhost/main_windows.go', 'cmd/localhost/session_gate.go', 'cmd/localhost/session_signal_windows.go', 'cmd/localhost/remote_config_windows.go', 'cmd/localhost/remote_config_windows_test.go', 'cmd/localhost/session_gate_windows_test.go', 'cmd/localhost/remote_routes_windows_test.go', 'cmd/localhost/node_interop_windows_test.go', 'cmd/localhost/native_browser_windows_test.go')) {
+          foreach ($source in @('winbridge/bridge_windows.go', 'winbridge/release_windows_test.go', 'cmd/localhost/main_windows.go', 'cmd/localhost/session_gate.go', 'cmd/localhost/session_signal_windows.go', 'cmd/localhost/session_routes_windows.go', 'cmd/localhost/remote_config_windows.go', 'cmd/localhost/remote_config_windows_test.go', 'cmd/localhost/session_gate_windows_test.go', 'cmd/localhost/remote_routes_windows_test.go', 'cmd/localhost/node_interop_windows_test.go', 'cmd/localhost/native_browser_windows_test.go')) {
             $normalized = [IO.File]::ReadAllText((Resolve-Path $source)).Replace("`r`n", "`n")
             $temporary = Join-Path $env:RUNNER_TEMP ([IO.Path]::GetFileName($source))
             [IO.File]::WriteAllText($temporary, $normalized, [Text.UTF8Encoding]::new($false))

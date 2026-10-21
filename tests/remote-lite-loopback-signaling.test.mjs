@@ -96,7 +96,7 @@ test('real local HTTP: owner invites, device signs, owner approves, offer/answer
   const polled = await h.post('/v1/device/poll', {
     sessionId, deviceId: device.deviceId, proof: await h.deviceProof(device, sessionId, 'signal-receive'),
   }, null);
-  assert.deepEqual(polled.result, [offer]);
+  assert.deepEqual(polled.result, {cursor:1, signals:[offer]});
 
   const answer = {type:'answer',sdp:'v=0\r\na=recvonly'};
   const hash = createHash('sha256').update(JSON.stringify(answer)).digest('hex');
@@ -105,7 +105,7 @@ test('real local HTTP: owner invites, device signs, owner approves, offer/answer
     proof: await h.deviceProof(device, sessionId, 'signal-send', hash),
   }, null)).status, 200);
   const reply = await h.post('/v1/viewer/poll', {sessionId,viewerToken});
-  assert.deepEqual(reply.result, [answer]);
+  assert.deepEqual(reply.result, {cursor:1, signals:[answer]});
   assert.equal((await h.post('/v1/device/status', {
     sessionId, deviceId: device.deviceId,
     proof: await h.deviceProof(device, sessionId, 'session-status'),
@@ -275,14 +275,47 @@ test('separate viewer and device signaling clients exchange WebRTC messages only
   const offer={type:'offer',sdp:'v=0\r\n'};
   await viewer.send(offer);
   assert.deepEqual(await host.receive(),[offer]);
+  host.acknowledge();
   const answer={type:'answer',sdp:'v=0\r\na=recvonly'};
   await host.send(answer);
   assert.deepEqual(await viewer.receive(),[answer]);
+  viewer.acknowledge();
   const candidate={type:'candidate',candidate:'candidate:1 1 udp 1 127.0.0.1 1234 typ host',sdpMid:'0',sdpMLineIndex:0};
   await host.send(candidate);
   assert.deepEqual(await viewer.receive(),[candidate]);
+  viewer.acknowledge();
   assert.deepEqual(await host.receive(),[]);
   await h.post('/v1/revoke',{deviceId:device.deviceId});
   await assert.rejects(()=>host.receive(),/SIGNALING_REFUSED/);
   await assert.rejects(()=>viewer.send(offer),/SIGNALING_REFUSED/);
+});
+
+test('a lost poll response replays a large SDP until the receiver acknowledges it', async t => {
+  const h = await rig(); t.after(() => h.local.stop());
+  const device = await h.register('fixture-alice', 'windows-large-sdp');
+  const started = await h.post('/v1/start', {deviceId:device.deviceId});
+  const sessionId = started.result.sessionId, viewerToken = started.result.viewerToken;
+  assert.equal((await h.post('/v1/device/accept', {
+    sessionId, deviceId:device.deviceId,
+    proof:await h.deviceProof(device, sessionId, 'session-accept'),
+  }, null)).status, 200);
+  const offer = {type:'offer', sdp:'v=0\r\n' + 'a'.repeat(32 * 1024)};
+  assert.equal((await h.post('/v1/viewer/signal', {sessionId, viewerToken, signal:offer})).status, 200);
+  let loseResponse = true;
+  const host = createManualSignalingTransport({role:'host', sessionId, deviceId:device.deviceId,
+    signMessage:message=>sign(null,Buffer.from(message),device.keys.privateKey).toString('base64'),
+    post:async (path, body) => {
+      const result = await h.post(path, body, null);
+      if (path === '/v1/device/poll' && loseResponse) { loseResponse = false; throw new Error('simulated lost response'); }
+      return result;
+    },
+  });
+  await assert.rejects(()=>host.receive(),/SIGNALING_REFUSED/);
+  assert.deepEqual(await host.receive(), [offer]);
+  assert.deepEqual(await host.receive(), [offer]);
+  host.acknowledge();
+  assert.deepEqual(await host.receive(), []);
+  const invalid = await h.post('/v1/device/poll', {sessionId, deviceId:device.deviceId, ack:3,
+    proof:await h.deviceProof(device, sessionId, 'signal-receive')}, null);
+  assert.equal(invalid.status, 403);
 });

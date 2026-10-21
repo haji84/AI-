@@ -49,14 +49,16 @@ try {
     }
     if (line === 'offer') {
       coordinator.viewerSignal({ ownerId, authorization, sessionId: session.sessionId,
-        viewerToken: session.viewerToken, signal: { type: 'offer', sdp: 'v=0\r\n' } });
+        viewerToken: session.viewerToken, signal: { type: 'offer', sdp: 'v=0\r\n' + 'a'.repeat(32 * 1024) } });
       process.stdout.write(JSON.stringify({ event: 'offered' }) + '\n');
     }
     if (line === 'answer') {
       const signals = coordinator.receiveSignalsForViewer({ ownerId, authorization,
         sessionId: session.sessionId, viewerToken: session.viewerToken });
-      if (signals.length !== 2 || signals[0].type !== 'answer' || signals[0].sdp !== 'v=0\r\na=recvonly' ||
-        signals[1].type !== 'candidate' || signals[1].sdpMid !== '0' || signals[1].sdpMLineIndex !== 0) {
+      const next = coordinator.receiveSignalsForViewer({ ownerId, authorization,
+        sessionId: session.sessionId, viewerToken: session.viewerToken, ack: signals.cursor });
+      if (signals.cursor !== 1 || signals.signals.length !== 1 || signals.signals[0].type !== 'answer' || signals.signals[0].sdp !== 'v=0\r\na=recvonly' ||
+        next.cursor !== 2 || next.signals.length !== 1 || next.signals[0].type !== 'candidate' || next.signals[0].sdpMid !== '0' || next.signals[0].sdpMLineIndex !== 0) {
         throw new Error('Go signed answer/ICE missing or mismatched');
       }
       process.stdout.write(JSON.stringify({ event: 'answered' }) + '\n');

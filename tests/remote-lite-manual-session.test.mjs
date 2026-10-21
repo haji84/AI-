@@ -72,10 +72,11 @@ test('signaling enforces viewer/device direction, bounds and sender isolation', 
   assert.throws(() => store.signal({ sessionId: s.sessionId, from: 'device', identityId: 'signed-android-1', signal: offer }), /SIGNAL_DIRECTION_INVALID/);
   assert.throws(() => store.signal({ sessionId: s.sessionId, from: 'device', identityId: 'signed-android-2', signal: { type: 'answer', sdp: 'v=0\r\n' } }), /DEVICE_NOT_AUTHORIZED/);
   store.signal({ sessionId: s.sessionId, from: 'viewer', identityId: 'friend-a', viewerToken: s.viewerToken, signal: offer });
-  assert.deepEqual(store.receiveSignals({ sessionId: s.sessionId, as: 'device', identityId: 'signed-android-1' }), [offer]);
-  assert.deepEqual(store.receiveSignals({ sessionId: s.sessionId, as: 'device', identityId: 'signed-android-1' }), []);
+  assert.deepEqual(store.receiveSignals({ sessionId: s.sessionId, as: 'device', identityId: 'signed-android-1' }), { cursor: 1, signals: [offer] });
+  assert.deepEqual(store.receiveSignals({ sessionId: s.sessionId, as: 'device', identityId: 'signed-android-1' }), { cursor: 1, signals: [offer] });
+  assert.deepEqual(store.receiveSignals({ sessionId: s.sessionId, as: 'device', identityId: 'signed-android-1', ack: 1 }), { cursor: 1, signals: [] });
   store.signal({ sessionId: s.sessionId, from: 'device', identityId: 'signed-android-1', signal: { type: 'answer', sdp: 'v=0\r\n' } });
-  assert.deepEqual(store.receiveSignals({ sessionId: s.sessionId, as: 'viewer', identityId: 'friend-a', viewerToken: s.viewerToken }), [{ type: 'answer', sdp: 'v=0\r\n' }]);
+  assert.deepEqual(store.receiveSignals({ sessionId: s.sessionId, as: 'viewer', identityId: 'friend-a', viewerToken: s.viewerToken }), { cursor: 1, signals: [{ type: 'answer', sdp: 'v=0\r\n' }] });
   assert.throws(() => store.signal({ sessionId: s.sessionId, from: 'viewer', identityId: 'friend-a', viewerToken: s.viewerToken, signal: { type: 'candidate', candidate: 'a'.repeat(5000), sdpMid: null, sdpMLineIndex: 0 } }), RemoteLiteProtocolError);
 });
 
@@ -137,7 +138,13 @@ test('bounded signaling queues cannot grow indefinitely', () => {
     signal: { type: 'candidate', candidate: 'candidate:' + i, sdpMid: '0', sdpMLineIndex: 0 } });
   assert.throws(() => store.signal({ sessionId: s.sessionId, from: 'viewer', identityId: 'friend-a', viewerToken: s.viewerToken,
     signal: { type: 'candidate', candidate: 'candidate:overflow', sdpMid: '0', sdpMLineIndex: 0 } }), /SIGNAL_QUEUE_FULL/);
-  assert.equal(store.receiveSignals({ sessionId: s.sessionId, as: 'device', identityId: 'signed-android-1' }).length, 64);
+  let ack = 0;
+  for (let i = 0; i < 64; i++) {
+    const batch = store.receiveSignals({ sessionId: s.sessionId, as: 'device', identityId: 'signed-android-1', ack });
+    assert.equal(batch.signals.length, 1);
+    ack = batch.cursor;
+  }
+  assert.deepEqual(store.receiveSignals({ sessionId: s.sessionId, as: 'device', identityId: 'signed-android-1', ack }), { cursor: 64, signals: [] });
 });
 
 test('revoked device identity cannot receive more manual input or signaling', () => {

@@ -1,4 +1,5 @@
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
+import { Buffer } from 'node:buffer';
 import { parseManualInput, parseWebRtcSignal, RemoteLiteProtocolError } from './manual-protocol.mjs';
 
 const isId = (value) => typeof value === 'string' && value.length > 0 && value.length <= 128 && /^[a-zA-Z0-9._:-]+$/u.test(value);
@@ -77,7 +78,8 @@ export class ManualRemoteSessionStore {
     const t = this.now();
     const s = { id, viewerId, deviceId, status: 'pending', viewerTokenHash: digest(viewerToken),
       expiresAt: t + this.pendingMs, absoluteExpiresAt: t + this.maxMs, nextSequence: 1, inputWindowAt: t, inputWindowCount: 0,
-      fromViewer: [], fromDevice: [] };
+      fromViewer: [], fromDevice: [], viewerSignalSeq: 0, deviceSignalSeq: 0,
+      viewerSignalAck: 0, deviceSignalAck: 0, viewerSignalDelivered: 0, deviceSignalDelivered: 0 };
     this.#sessions.set(id, s);
     this.#deviceToSession.set(deviceId, id);
     return { sessionId: id, viewerToken, status: 'pending', expiresAt: s.expiresAt };
@@ -120,15 +122,17 @@ export class ManualRemoteSessionStore {
     else if (from === 'device') this.#device(s, s.deviceId, identityId);
     else return fail('UNKNOWN_PEER');
     const valid = parseWebRtcSignal(signal);
+    if (Buffer.byteLength(JSON.stringify(valid), 'utf8') > 72 * 1024) return fail('SIGNAL_TOO_LARGE');
     if ((valid.type === 'offer' && from !== 'viewer') || (valid.type === 'answer' && from !== 'device')) return fail('SIGNAL_DIRECTION_INVALID');
     const queue = from === 'viewer' ? s.fromViewer : s.fromDevice;
     // Do not retain unbounded SDP/ICE messages from malicious peers.
     if (queue.length >= 64) return fail('SIGNAL_QUEUE_FULL');
-    queue.push(valid);
+    const sequence = from === 'viewer' ? ++s.viewerSignalSeq : ++s.deviceSignalSeq;
+    queue.push({ sequence, signal: valid });
     return { queued: true, sessionId: s.id };
   }
 
-  receiveSignals({ sessionId, as, identityId, viewerToken } = {}) {
+  receiveSignals({ sessionId, as, identityId, viewerToken, ack = 0 } = {}) {
     const s = this.#session(sessionId);
     if (s.status !== 'active') return fail('SESSION_NOT_ACTIVE');
     this.#device(s, s.deviceId, s.devicePrincipalId);
@@ -136,7 +140,17 @@ export class ManualRemoteSessionStore {
     else if (as === 'device') this.#device(s, s.deviceId, identityId);
     else return fail('UNKNOWN_PEER');
     const queue = as === 'viewer' ? s.fromDevice : s.fromViewer;
-    return queue.splice(0, queue.length);
+    const ackKey = as === 'viewer' ? 'deviceSignalAck' : 'viewerSignalAck';
+    const deliveredKey = as === 'viewer' ? 'deviceSignalDelivered' : 'viewerSignalDelivered';
+    if (!Number.isSafeInteger(ack) || ack < 0 || ack > s[deliveredKey]) return fail('SIGNAL_ACK_INVALID');
+    s[ackKey] = Math.max(s[ackKey], ack);
+    while (queue.length && queue[0].sequence <= s[ackKey]) queue.shift();
+    // A single bounded message per response prevents a valid SDP or ICE burst
+    // from exceeding the native HTTP limit. Repeated polls replay until ACK.
+    const next = queue[0];
+    if (!next) return { cursor: s[ackKey], signals: [] };
+    s[deliveredKey] = Math.max(s[deliveredKey], next.sequence);
+    return { cursor: next.sequence, signals: [next.signal] };
   }
 
   close({ sessionId, as, identityId, viewerToken } = {}) {

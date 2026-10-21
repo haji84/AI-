@@ -45,6 +45,8 @@ export function createManualSignalingTransport({ role, sessionId, deviceId, view
     if (!validSignature(signature)) fail('SIGNALING_SIGNATURE_INVALID');
     return { deviceId, operation, sessionId, challengeId: nonce.challengeId, payloadHash, signature };
   };
+  let acknowledged = 0;
+  let pendingCursor = 0;
   return Object.freeze({
     async send(signal) {
       const valid = parseWebRtcSignal(signal);
@@ -58,12 +60,21 @@ export function createManualSignalingTransport({ role, sessionId, deviceId, view
     },
     async receive() {
       const received = role === 'viewer'
-        ? await request('/v1/viewer/poll', { sessionId, viewerToken })
-        : await request('/v1/device/poll', { sessionId, deviceId,
+        ? await request('/v1/viewer/poll', { sessionId, viewerToken, ack: acknowledged })
+        : await request('/v1/device/poll', { sessionId, deviceId, ack: acknowledged,
           proof: await proof('signal-receive') });
-      if (!Array.isArray(received) || received.length > 64) fail('SIGNALING_RESPONSE_INVALID');
-      try { return received.map(parseWebRtcSignal); }
+      if (!Number.isSafeInteger(received?.cursor) || received.cursor < acknowledged ||
+        received.cursor > acknowledged + 1 || !Array.isArray(received.signals) || received.signals.length > 1 ||
+        (received.signals.length === 1) !== (received.cursor === acknowledged + 1)) fail('SIGNALING_RESPONSE_INVALID');
+      try {
+        const valid = received.signals.map(parseWebRtcSignal);
+        pendingCursor = received.cursor;
+        return valid;
+      }
       catch { fail('SIGNALING_RESPONSE_INVALID'); }
     },
+    // Call only after the peer has applied the returned SDP/ICE. A failed
+    // application leaves the message available for a retry or session close.
+    acknowledge() { acknowledged = pendingCursor; },
   });
 }

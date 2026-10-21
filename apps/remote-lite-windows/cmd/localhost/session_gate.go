@@ -85,6 +85,10 @@ func decodeStatusJSON(data []byte, destination any) error {
 }
 
 func (g *signedStatusGate) post(ctx context.Context, path string, body any, result any) error {
+	return g.postLimited(ctx, path, body, result, maxStatusResponse)
+}
+
+func (g *signedStatusGate) postLimited(ctx context.Context, path string, body any, result any, limit int64) error {
 	encoded, err := json.Marshal(body)
 	if err != nil {
 		return err
@@ -108,8 +112,8 @@ func (g *signedStatusGate) post(ctx context.Context, path string, body any, resu
 	if err != nil || mediaType != "application/json" {
 		return errors.New("status service returned non-JSON data")
 	}
-	data, err := io.ReadAll(io.LimitReader(response.Body, maxStatusResponse+1))
-	if err != nil || len(data) > maxStatusResponse {
+	data, err := io.ReadAll(io.LimitReader(response.Body, limit+1))
+	if err != nil || int64(len(data)) > limit {
 		return errors.New("status response unavailable or oversized")
 	}
 	var envelope struct {

@@ -23,6 +23,10 @@ type remoteSignal struct {
 	SDPMLineIndex *int    `json:"sdpMLineIndex"`
 }
 
+func (signal remoteSignal) MarshalJSON() ([]byte, error) {
+	return canonicalRemoteSignal(signal)
+}
+
 func asciiSignal(value string) bool {
 	for _, c := range value {
 		if c > 127 || c == 0 {
@@ -66,6 +70,9 @@ func canonicalRemoteSignal(signal remoteSignal) ([]byte, error) {
 	encoder.SetEscapeHTML(false)
 	if err := encoder.Encode(value); err != nil {
 		return nil, err
+	}
+	if buffer.Len() > 72*1024 {
+		return nil, errors.New("signal oversized")
 	}
 	return bytes.TrimSuffix(buffer.Bytes(), []byte("\n")), nil
 }
@@ -117,35 +124,44 @@ func (g *signedStatusGate) SendSignal(parent context.Context, signal remoteSigna
 	}, &result)
 }
 
-func (g *signedStatusGate) ReceiveSignals(parent context.Context) ([]remoteSignal, error) {
+type remoteSignalBatch struct {
+	Cursor  uint64         `json:"cursor"`
+	Signals []remoteSignal `json:"signals"`
+}
+
+func (g *signedStatusGate) ReceiveSignals(parent context.Context, ack uint64) (remoteSignalBatch, error) {
 	if g == nil || g.discoveryOnly {
-		return nil, errors.New("signed session unavailable")
+		return remoteSignalBatch{}, errors.New("signed session unavailable")
 	}
 	ctx, cancel := context.WithTimeout(parent, 3*time.Second)
 	defer cancel()
 	proof, err := g.signalProof(ctx, "signal-receive", "")
 	if err != nil {
-		return nil, err
+		return remoteSignalBatch{}, err
 	}
-	var raw []json.RawMessage
-	if err := g.post(ctx, "/v1/device/poll", map[string]any{
-		"deviceId": g.deviceID, "sessionId": g.sessionID, "proof": proof,
-	}, &raw); err != nil {
-		return nil, err
+	var raw struct {
+		Cursor  uint64            `json:"cursor"`
+		Signals []json.RawMessage `json:"signals"`
 	}
-	if len(raw) > 64 {
-		return nil, errors.New("signal queue oversized")
+	if err := g.postLimited(ctx, "/v1/device/poll", map[string]any{
+		"deviceId": g.deviceID, "sessionId": g.sessionID, "proof": proof, "ack": ack,
+	}, &raw, 96*1024); err != nil {
+		return remoteSignalBatch{}, err
 	}
-	signals := make([]remoteSignal, 0, len(raw))
-	for _, entry := range raw {
+	if len(raw.Signals) > 1 || raw.Cursor < ack || raw.Cursor > ack+1 ||
+		(len(raw.Signals) == 1) != (raw.Cursor == ack+1) {
+		return remoteSignalBatch{}, errors.New("signal batch invalid")
+	}
+	signals := make([]remoteSignal, 0, len(raw.Signals))
+	for _, entry := range raw.Signals {
 		var signal remoteSignal
 		if err := decodeStatusJSON(entry, &signal); err != nil {
-			return nil, errors.New("signal result invalid")
+			return remoteSignalBatch{}, errors.New("signal result invalid")
 		}
 		if _, err := canonicalRemoteSignal(signal); err != nil {
-			return nil, err
+			return remoteSignalBatch{}, err
 		}
 		signals = append(signals, signal)
 	}
-	return signals, nil
+	return remoteSignalBatch{Cursor: raw.Cursor, Signals: signals}, nil
 }

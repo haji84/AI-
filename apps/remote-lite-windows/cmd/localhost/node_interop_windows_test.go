@@ -135,22 +135,39 @@ func TestActualNodeCoordinatorRevocationStopsWindowsRoutes(t *testing.T) {
 	if err := gate.Check(ctx); err != nil {
 		t.Fatalf("normal EXE signed gate could not check actual coordinator: %v", err)
 	}
+	bridge := new(fakeRemoteDesktop)
+	app := newHostServer(bridge, gate, strings.Repeat("c", 64), time.Now().Add(time.Minute), "127.0.0.1:42000")
+	mux := http.NewServeMux()
+	app.routes(mux)
 	if _, err := fmt.Fprintln(stdin, "offer"); err != nil {
 		t.Fatal(err)
 	}
 	if !lines.Scan() || !bytes.Contains(lines.Bytes(), []byte(`"event":"offered"`)) {
 		t.Fatalf("Node viewer did not send offer: %v %s", lines.Err(), stderr.String())
 	}
-	signals, err := gate.ReceiveSignals(ctx)
-	if err != nil || len(signals) != 1 || signals[0].Type != "offer" || signals[0].SDP != "v=0\r\n" {
-		t.Fatalf("signed Windows host did not receive viewer offer: %+v %v", signals, err)
+	polled := remoteRequest(t, mux, http.MethodGet, "/api/remote/poll?ack=0", nil)
+	var batch remoteSignalBatch
+	if polled.Code != http.StatusOK || json.Unmarshal(polled.Body.Bytes(), &batch) != nil || batch.Cursor != 1 || len(batch.Signals) != 1 || batch.Signals[0].Type != "offer" || batch.Signals[0].SDP != "v=0\r\n"+strings.Repeat("a", 32*1024) {
+		t.Fatalf("signed Windows host did not receive viewer offer: HTTP %d %+v %s", polled.Code, batch, polled.Body.String())
 	}
-	if err := gate.SendSignal(ctx, remoteSignal{Type: "answer", SDP: "v=0\r\na=recvonly"}); err != nil {
-		t.Fatalf("signed Windows host could not send answer: %v", err)
+	replayed := remoteRequest(t, mux, http.MethodGet, "/api/remote/poll?ack=0", nil)
+	var replay remoteSignalBatch
+	if replayed.Code != http.StatusOK || json.Unmarshal(replayed.Body.Bytes(), &replay) != nil || replay.Cursor != batch.Cursor || len(replay.Signals) != 1 || replay.Signals[0].SDP != batch.Signals[0].SDP {
+		t.Fatalf("unacknowledged offer was not replayed: HTTP %d %s", replayed.Code, replayed.Body.String())
+	}
+	acknowledged := remoteRequest(t, mux, http.MethodGet, "/api/remote/poll?ack=1", nil)
+	var empty remoteSignalBatch
+	if acknowledged.Code != http.StatusOK || json.Unmarshal(acknowledged.Body.Bytes(), &empty) != nil || empty.Cursor != 1 || len(empty.Signals) != 0 {
+		t.Fatalf("acknowledged offer was not cleared: HTTP %d %s", acknowledged.Code, acknowledged.Body.String())
+	}
+	answer, _ := json.Marshal(remoteSignal{Type: "answer", SDP: "v=0\r\na=recvonly"})
+	if got := remoteRequest(t, mux, http.MethodPost, "/api/remote/signal", answer); got.Code != http.StatusNoContent {
+		t.Fatalf("signed Windows host could not send answer: HTTP %d %s", got.Code, got.Body.String())
 	}
 	mid, line := "0", 0
-	if err := gate.SendSignal(ctx, remoteSignal{Type: "candidate", Candidate: "candidate:1 1 udp 1 127.0.0.1 1234 typ host", SDPMid: &mid, SDPMLineIndex: &line}); err != nil {
-		t.Fatalf("signed Windows host could not send ICE candidate: %v", err)
+	candidate, _ := json.Marshal(remoteSignal{Type: "candidate", Candidate: "candidate:1 1 udp 1 127.0.0.1 1234 typ host", SDPMid: &mid, SDPMLineIndex: &line})
+	if got := remoteRequest(t, mux, http.MethodPost, "/api/remote/signal", candidate); got.Code != http.StatusNoContent {
+		t.Fatalf("signed Windows host could not send ICE candidate: HTTP %d %s", got.Code, got.Body.String())
 	}
 	if _, err := fmt.Fprintln(stdin, "answer"); err != nil {
 		t.Fatal(err)
@@ -161,10 +178,6 @@ func TestActualNodeCoordinatorRevocationStopsWindowsRoutes(t *testing.T) {
 	if pending, err := gate.DiscoverPending(ctx); err != nil || pending != nil {
 		t.Fatalf("active session appeared as pending: %+v, %v", pending, err)
 	}
-	bridge := new(fakeRemoteDesktop)
-	app := newHostServer(bridge, gate, strings.Repeat("c", 64), time.Now().Add(time.Minute), "127.0.0.1:42000")
-	mux := http.NewServeMux()
-	app.routes(mux)
 	if got := remoteRequest(t, mux, http.MethodGet, "/api/remote/frame", nil); got.Code != http.StatusOK || bridge.frames != 1 {
 		t.Fatalf("real Node active status did not permit one frame: HTTP %d frames=%d %s", got.Code, bridge.frames, stderr.String())
 	}

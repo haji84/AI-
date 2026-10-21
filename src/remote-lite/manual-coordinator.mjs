@@ -86,14 +86,14 @@ export class ManualRemoteCoordinator {
     return this.#sessions.signal({ sessionId, from: 'device', identityId: principal.devicePrincipalId, signal: validated });
   }
 
-  receiveSignalsForDevice({ sessionId, deviceId, proof } = {}) {
+  receiveSignalsForDevice({ sessionId, deviceId, proof, ack } = {}) {
     const principal = this.#requireProof('signal-receive', sessionId, deviceId, proof);
-    return this.#sessions.receiveSignals({ sessionId, as: 'device', identityId: principal.devicePrincipalId });
+    return this.#sessions.receiveSignals({ sessionId, as: 'device', identityId: principal.devicePrincipalId, ack });
   }
 
-  receiveSignalsForViewer({ ownerId, authorization, sessionId, viewerToken } = {}) {
+  receiveSignalsForViewer({ ownerId, authorization, sessionId, viewerToken, ack } = {}) {
     this.#owner(ownerId, authorization, 'signal');
-    return this.#sessions.receiveSignals({ sessionId, as: 'viewer', identityId: ownerId, viewerToken });
+    return this.#sessions.receiveSignals({ sessionId, as: 'viewer', identityId: ownerId, viewerToken, ack });
   }
 
   manualInput({ ownerId, authorization, sessionId, viewerToken, sequence, command } = {}) {

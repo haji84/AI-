@@ -294,6 +294,7 @@ func (s *server) routes(m *http.ServeMux) {
 	}
 	m.HandleFunc("/api/input", inputRoute)
 	m.HandleFunc("/api/remote/input", s.requireSignedRemote(inputRoute))
+	s.signalRoutes(m)
 	m.HandleFunc("/api/end", func(w http.ResponseWriter, r *http.Request) {
 		s.operationMu.Lock()
 		defer s.operationMu.Unlock()

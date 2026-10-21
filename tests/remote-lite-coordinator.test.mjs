@@ -39,11 +39,11 @@ test('local pairing -> device-accepted session -> WebRTC signaling -> manual inp
     proof:proof(d,s.sessionId,'session-status')}).status,'active');
   const offer={type:'offer',sdp:'v=0\r\n'};
   c.viewerSignal({...auth(),sessionId:s.sessionId,viewerToken:s.viewerToken,signal:offer});
-  assert.deepEqual(c.receiveSignalsForDevice({sessionId:s.sessionId,deviceId:d.deviceId,proof:proof(d,s.sessionId,'signal-receive')}),[offer]);
+  assert.deepEqual(c.receiveSignalsForDevice({sessionId:s.sessionId,deviceId:d.deviceId,proof:proof(d,s.sessionId,'signal-receive')}),{cursor:1,signals:[offer]});
   const answer={type:'answer',sdp:'v=0\r\n'};
   const payloadHash=createHash('sha256').update(JSON.stringify(answer)).digest('hex');
   c.deviceSignal({sessionId:s.sessionId,deviceId:d.deviceId,signal:answer,proof:proof(d,s.sessionId,'signal-send',payloadHash)});
-  assert.deepEqual(c.receiveSignalsForViewer({...auth(),sessionId:s.sessionId,viewerToken:s.viewerToken}),[answer]);
+  assert.deepEqual(c.receiveSignalsForViewer({...auth(),sessionId:s.sessionId,viewerToken:s.viewerToken}),{cursor:1,signals:[answer]});
   assert.deepEqual(c.manualInput({...auth(),sessionId:s.sessionId,viewerToken:s.viewerToken,sequence:1,command:{action:'tap',x:0.5,y:0.5}}).command,{action:'tap',x:0.5,y:0.5});
   assert.equal(c.viewerStatus({...auth(),sessionId:s.sessionId,viewerToken:s.viewerToken}).status,'active');
   assert.equal(c.endSession({...auth(),sessionId:s.sessionId,viewerToken:s.viewerToken}).status,'closed');
