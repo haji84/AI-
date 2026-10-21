@@ -134,7 +134,7 @@ func (s *server) headers(w http.ResponseWriter) {
 	h.Set("Cache-Control", "no-store")
 	h.Set("Referrer-Policy", "no-referrer")
 	h.Set("X-Content-Type-Options", "nosniff")
-	h.Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; img-src 'self' blob: data:; base-uri 'none'; form-action 'none'")
+	h.Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' blob: data:; base-uri 'none'; form-action 'none'")
 	h.Set("Cross-Origin-Resource-Policy", "same-origin")
 }
 func (s *server) guard(w http.ResponseWriter, r *http.Request) bool {
@@ -199,6 +199,23 @@ func (s *server) requireSignedRemote(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 func (s *server) routes(m *http.ServeMux) {
+	for path, content := range map[string][]byte{
+		"/browser-webrtc.mjs": browserPeerBytes,
+		"/manual-protocol.mjs": manualProtocolBytes,
+		"/windows-host.mjs": windowsHostBytes,
+	} {
+		m.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+			if r.Method != http.MethodGet || r.URL.Path != path {
+				http.NotFound(w, r)
+				return
+			}
+			if !s.guard(w, r) {
+				return
+			}
+			w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
+			_, _ = w.Write(content)
+		})
+	}
 	m.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "GET" || r.URL.Path != "/" {
 			http.NotFound(w, r)

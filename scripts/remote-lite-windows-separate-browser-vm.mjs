@@ -1,0 +1,104 @@
+// Disposable Windows VM: two independent Chromium browser sessions, one
+// native Windows host and one test-only viewer. No public listener or account.
+import { spawn } from 'node:child_process';
+import { createInterface } from 'node:readline';
+import { createServer } from 'node:http';
+import { once } from 'node:events';
+
+const [hostUrl, viewerUrl] = process.argv.slice(2);
+if (!/^http:\/\/127\.0\.0\.1:\d+\/#token=[0-9a-f]{64}&remote=1$/u.test(hostUrl || '') ||
+  !/^http:\/\/127\.0\.0\.1:\d+\/vm\/viewer$/u.test(viewerUrl || '')) {
+  throw new Error('disposable loopback VM pages required');
+}
+const pause = ms => new Promise(resolve => globalThis.setTimeout(resolve, ms));
+const probe = createServer();
+probe.listen(0, '127.0.0.1');
+await once(probe, 'listening');
+const driverPort = probe.address().port;
+probe.close();
+await once(probe, 'close');
+const driverUrl = `http://127.0.0.1:${driverPort}`;
+const driver = spawn(process.env.REMOTE_LITE_CHROMEDRIVER || 'chromedriver', [`--port=${driverPort}`],
+  { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+let driverLog = '';
+for (const stream of [driver.stdout, driver.stderr]) stream.on('data', chunk => {
+  driverLog = (driverLog + chunk.toString()).slice(-3000);
+});
+const webdriver = async (method, path, body) => {
+  const response = await fetch(driverUrl + path, { method,
+    headers: body ? { 'Content-Type': 'application/json' } : {},
+    body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(20000) });
+  const result = await response.json();
+  if (!response.ok || result.value?.error) throw new Error(result.value?.message || `WebDriver HTTP ${response.status}`);
+  return result.value;
+};
+const sessions = [];
+try {
+  let started = false;
+  for (let attempt = 0; attempt < 40; attempt++) {
+    if (driver.exitCode !== null) throw new Error('ChromeDriver exited: ' + driverLog);
+    try { await webdriver('GET', '/status'); started = true; break; } catch { await pause(250); }
+  }
+  if (!started) throw new Error('ChromeDriver unavailable: ' + driverLog);
+  const newSession = async url => {
+    const session = await webdriver('POST', '/session', { capabilities: { alwaysMatch: {
+      browserName: 'chrome', 'goog:chromeOptions': { args: ['--headless=new'] },
+    } } });
+    sessions.push(session.sessionId);
+    await webdriver('POST', `/session/${session.sessionId}/url`, { url });
+    return session.sessionId;
+  };
+  const evalPage = (id, script) => webdriver('POST', `/session/${id}/execute/sync`, { script, args: [] });
+  const host = await newSession(hostUrl);
+  let frameReady = false;
+  for (let attempt = 0; attempt < 100; attempt++) {
+    const state = await evalPage(host, 'return {width:document.querySelector("#screen")?.naturalWidth||0,error:document.querySelector("#error")?.textContent}');
+    if (state.width > 0) { frameReady = true; break; }
+    if (state.error) throw new Error('native frame refused: ' + state.error);
+    await pause(150);
+  }
+  if (!frameReady) throw new Error('native screen unavailable');
+  await evalPage(host, 'document.querySelector("#remotePeerStart").click();return true');
+  const viewer = await newSession(viewerUrl);
+  let mediaReady = false;
+  let lastState;
+  for (let attempt = 0; attempt < 130; attempt++) {
+    const state = await evalPage(viewer, 'return {width:document.querySelector("#remoteVideo")?.videoWidth||0,status:document.querySelector("#viewerStatus")?.textContent,connected:window.vmViewer?.connected||false}');
+    lastState = state;
+    if (state.width > 0 && state.connected) { mediaReady = true; break; }
+    if (/failed|refused|closed/u.test(state.status || '')) throw new Error('viewer refused: ' + JSON.stringify(state));
+    await pause(150);
+  }
+  if (!mediaReady) throw new Error('separate browser media not decoded: ' + JSON.stringify(lastState));
+  process.stdout.write(JSON.stringify({event:'media-ready', separateBrowsers:true, width:lastState.width}) + '\n');
+  const lines = createInterface({ input: process.stdin })[Symbol.asyncIterator]();
+  if ((await lines.next()).value !== 'move') throw new Error('VM cursor setup missing');
+  const sequence = await evalPage(viewer, 'return window.vmViewer.sendManual({action:"pointer",phase:"move",button:"left",x:.5,y:.5})');
+  if (sequence !== 1) throw new Error('manual input sequence was not one');
+  let acknowledged = false;
+  for (let attempt = 0; attempt < 80; attempt++) {
+    const status = await evalPage(viewer, 'return document.querySelector("#viewerStatus").textContent');
+    if (status === 'manual-ack:1') { acknowledged = true; break; }
+    if (/failed|refused|closed/u.test(status)) throw new Error('manual input refused: ' + status);
+    await pause(150);
+  }
+  if (!acknowledged) throw new Error('native input acknowledgement absent');
+  process.stdout.write(JSON.stringify({event:'manual-ack', nativeInput:true}) + '\n');
+  if ((await lines.next()).value !== 'revoke') throw new Error('VM revocation missing');
+  let stopped = false;
+  for (let attempt = 0; attempt < 80; attempt++) {
+    const state = await evalPage(host, 'return {status:document.querySelector("#remotePeerStatus").textContent,image:document.querySelector("#screen").getAttribute("src")}');
+    if ((/session-not-active|screen-stopped|signed-signaling-unavailable/u.test(state.status)) && state.image === null) {
+      stopped = true; break;
+    }
+    await pause(150);
+  }
+  if (!stopped) throw new Error('revoked signed host retained visible media');
+  process.stdout.write(JSON.stringify({event:'stopped', revokedHost:true}) + '\n');
+} catch (error) {
+  process.stderr.write(`FAIL separate-browser Windows VM: ${error?.stack || String(error)}\n`);
+  process.exitCode = 1;
+} finally {
+  for (const id of sessions) await webdriver('DELETE', `/session/${id}`).catch(() => {});
+  driver.kill();
+}
