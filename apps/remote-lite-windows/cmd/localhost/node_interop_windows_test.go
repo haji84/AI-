@@ -135,6 +135,29 @@ func TestActualNodeCoordinatorRevocationStopsWindowsRoutes(t *testing.T) {
 	if err := gate.Check(ctx); err != nil {
 		t.Fatalf("normal EXE signed gate could not check actual coordinator: %v", err)
 	}
+	if _, err := fmt.Fprintln(stdin, "offer"); err != nil {
+		t.Fatal(err)
+	}
+	if !lines.Scan() || !bytes.Contains(lines.Bytes(), []byte(`"event":"offered"`)) {
+		t.Fatalf("Node viewer did not send offer: %v %s", lines.Err(), stderr.String())
+	}
+	signals, err := gate.ReceiveSignals(ctx)
+	if err != nil || len(signals) != 1 || signals[0].Type != "offer" || signals[0].SDP != "v=0\r\n" {
+		t.Fatalf("signed Windows host did not receive viewer offer: %+v %v", signals, err)
+	}
+	if err := gate.SendSignal(ctx, remoteSignal{Type: "answer", SDP: "v=0\r\na=recvonly"}); err != nil {
+		t.Fatalf("signed Windows host could not send answer: %v", err)
+	}
+	mid, line := "0", 0
+	if err := gate.SendSignal(ctx, remoteSignal{Type: "candidate", Candidate: "candidate:1 1 udp 1 127.0.0.1 1234 typ host", SDPMid: &mid, SDPMLineIndex: &line}); err != nil {
+		t.Fatalf("signed Windows host could not send ICE candidate: %v", err)
+	}
+	if _, err := fmt.Fprintln(stdin, "answer"); err != nil {
+		t.Fatal(err)
+	}
+	if !lines.Scan() || !bytes.Contains(lines.Bytes(), []byte(`"event":"answered"`)) {
+		t.Fatalf("Node viewer did not receive signed answer: %v %s", lines.Err(), stderr.String())
+	}
 	if pending, err := gate.DiscoverPending(ctx); err != nil || pending != nil {
 		t.Fatalf("active session appeared as pending: %+v, %v", pending, err)
 	}

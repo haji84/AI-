@@ -47,6 +47,20 @@ try {
         proof: proof(session.sessionId, 'session-accept') });
       process.stdout.write(JSON.stringify({ event: 'accepted' }) + '\n');
     }
+    if (line === 'offer') {
+      coordinator.viewerSignal({ ownerId, authorization, sessionId: session.sessionId,
+        viewerToken: session.viewerToken, signal: { type: 'offer', sdp: 'v=0\r\n' } });
+      process.stdout.write(JSON.stringify({ event: 'offered' }) + '\n');
+    }
+    if (line === 'answer') {
+      const signals = coordinator.receiveSignalsForViewer({ ownerId, authorization,
+        sessionId: session.sessionId, viewerToken: session.viewerToken });
+      if (signals.length !== 2 || signals[0].type !== 'answer' || signals[0].sdp !== 'v=0\r\na=recvonly' ||
+        signals[1].type !== 'candidate' || signals[1].sdpMid !== '0' || signals[1].sdpMLineIndex !== 0) {
+        throw new Error('Go signed answer/ICE missing or mismatched');
+      }
+      process.stdout.write(JSON.stringify({ event: 'answered' }) + '\n');
+    }
     if (line === 'revoke') {
       coordinator.revokeDevice({ ownerId, authorization, deviceId });
       process.stdout.write(JSON.stringify({ event: 'revoked' }) + '\n');

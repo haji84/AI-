@@ -6,6 +6,7 @@ import { request as nodeRequest } from 'node:http';
 import { ManualRemoteCoordinator } from '../src/remote-lite/manual-coordinator.mjs';
 import { RemoteLitePairingRegistry } from '../src/remote-lite/device-pairing.mjs';
 import { createLoopbackSignaling } from '../src/remote-lite/loopback-signaling.mjs';
+import { createManualSignalingTransport } from '../src/remote-lite/manual-signaling-transport.mjs';
 
 async function rig() {
   // Fixed synthetic identities are local-test fixtures, not production tokens.
@@ -255,4 +256,33 @@ test('real local HTTP: signed device pending discovery is scoped and one-use', a
   assert.equal((await h.post('/v1/device/pending',{
     deviceId:alice.deviceId,proof:h.discoveryProof(alice),
   },null)).result,null);
+});
+
+test('separate viewer and device signaling clients exchange WebRTC messages only while authorized', async t => {
+  const h=await rig();t.after(()=>h.local.stop());
+  const device=await h.register('fixture-alice','windows-rtc-host');
+  const started=await h.post('/v1/start',{deviceId:device.deviceId});
+  const sessionId=started.result.sessionId,viewerToken=started.result.viewerToken;
+  assert.equal((await h.post('/v1/device/accept',{
+    sessionId,deviceId:device.deviceId,
+    proof:await h.deviceProof(device,sessionId,'session-accept'),
+  },null)).result.status,'active');
+  const viewer=createManualSignalingTransport({role:'viewer',sessionId,viewerToken,
+    post:(path,body)=>h.post(path,body,'fixture-alice')});
+  const host=createManualSignalingTransport({role:'host',sessionId,deviceId:device.deviceId,
+    post:(path,body)=>h.post(path,body,null),
+    signMessage:message=>sign(null,Buffer.from(message),device.keys.privateKey).toString('base64')});
+  const offer={type:'offer',sdp:'v=0\r\n'};
+  await viewer.send(offer);
+  assert.deepEqual(await host.receive(),[offer]);
+  const answer={type:'answer',sdp:'v=0\r\na=recvonly'};
+  await host.send(answer);
+  assert.deepEqual(await viewer.receive(),[answer]);
+  const candidate={type:'candidate',candidate:'candidate:1 1 udp 1 127.0.0.1 1234 typ host',sdpMid:'0',sdpMLineIndex:0};
+  await host.send(candidate);
+  assert.deepEqual(await viewer.receive(),[candidate]);
+  assert.deepEqual(await host.receive(),[]);
+  await h.post('/v1/revoke',{deviceId:device.deviceId});
+  await assert.rejects(()=>host.receive(),/SIGNALING_REFUSED/);
+  await assert.rejects(()=>viewer.send(offer),/SIGNALING_REFUSED/);
 });
