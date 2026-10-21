@@ -106,8 +106,21 @@ func TestActualNodeCoordinatorRevocationStopsWindowsRoutes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	pending, err := gate.DiscoverPending(ctx)
+	if err != nil || pending == nil || pending.SessionID != ready.SessionID || pending.DeviceID != ready.DeviceID || pending.Status != "pending" {
+		t.Fatalf("signed pending session was not discovered through the real coordinator: %+v, %v", pending, err)
+	}
+	if _, err := fmt.Fprintln(stdin, "accept"); err != nil {
+		t.Fatal(err)
+	}
+	if !lines.Scan() || !bytes.Contains(lines.Bytes(), []byte(`"event":"accepted"`)) {
+		t.Fatalf("Node fixture did not accept pending session: %v %s", lines.Err(), stderr.String())
+	}
 	if err := gate.Check(ctx); err != nil {
 		t.Fatalf("normal EXE signed gate could not check actual coordinator: %v", err)
+	}
+	if pending, err := gate.DiscoverPending(ctx); err != nil || pending != nil {
+		t.Fatalf("active session appeared as pending: %+v, %v", pending, err)
 	}
 	bridge := new(fakeRemoteDesktop)
 	app := newHostServer(bridge, gate, strings.Repeat("c", 64), time.Now().Add(time.Minute), "127.0.0.1:42000")

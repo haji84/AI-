@@ -117,3 +117,54 @@ func TestSignedStatusGateRequiresDeviceProofAndFreshMatchingStatus(t *testing.T)
 		}
 	}
 }
+
+func TestSignedPendingDiscoveryRejectsMismatchedAndExpiredResults(t *testing.T) {
+	_, private, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now()
+	deviceID := "windows-other"
+	expiresAt := now.Add(time.Minute).UnixMilli()
+	coordinator := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/v1/device/challenge":
+			var request struct {
+				DeviceID string `json:"deviceId"`
+				SessionID string `json:"sessionId"`
+				Operation string `json:"operation"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&request); err != nil || request.DeviceID != "windows-a" || request.SessionID != "windows-a" || request.Operation != "session-discover" {
+				t.Errorf("invalid discovery challenge request: %+v, %v", request, err)
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "result": map[string]any{
+				"challengeId": "51c18b98-f073-4c32-a8e7-79e5cff81837", "challenge": strings.Repeat("a", 48), "expiresAt": now.Add(time.Minute).UnixMilli(),
+			}})
+		case "/v1/device/pending":
+			_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "result": map[string]any{
+				"sessionId": "session-a", "deviceId": deviceID, "status": "pending", "expiresAt": expiresAt,
+			}})
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer coordinator.Close()
+	gate, err := newSignedStatusGate(coordinator.URL, "windows-a", "session-a", func(message []byte) ([]byte, error) {
+		return ed25519.Sign(private, message), nil
+	}, coordinator.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	gate.now = func() time.Time { return now }
+	if pending, err := gate.DiscoverPending(context.Background()); err == nil || pending != nil {
+		t.Fatalf("other device's request was accepted: %+v, %v", pending, err)
+	}
+	deviceID = "windows-a"
+	expiresAt = now.Add(-time.Second).UnixMilli()
+	if pending, err := gate.DiscoverPending(context.Background()); err == nil || pending != nil {
+		t.Fatalf("expired request was accepted: %+v, %v", pending, err)
+	}
+}

@@ -36,14 +36,17 @@ try {
   coordinator.approveDevice({ ownerId, authorization, requestId: proposed.requestId,
     expectedFingerprint: proposed.fingerprint });
   const session = coordinator.startSession({ ownerId, authorization, deviceId });
-  coordinator.acceptSession({ sessionId: session.sessionId, deviceId,
-    proof: proof(session.sessionId, 'session-accept') });
   const bound = await local.start();
   process.stdout.write(JSON.stringify({ event: 'ready', url: `http://127.0.0.1:${bound.port}`,
     deviceId, sessionId: session.sessionId,
     privateKeyDer: keys.privateKey.export({ type: 'pkcs8', format: 'der' }).toString('base64') }) + '\n');
   const lines = createInterface({ input: process.stdin });
   for await (const line of lines) {
+    if (line === 'accept') {
+      coordinator.acceptSession({ sessionId: session.sessionId, deviceId,
+        proof: proof(session.sessionId, 'session-accept') });
+      process.stdout.write(JSON.stringify({ event: 'accepted' }) + '\n');
+    }
     if (line === 'revoke') {
       coordinator.revokeDevice({ ownerId, authorization, deviceId });
       process.stdout.write(JSON.stringify({ event: 'revoked' }) + '\n');
