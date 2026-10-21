@@ -24,11 +24,12 @@ try {
   const video = document.createElement('video');
   video.autoplay = true; video.muted = true; video.playsInline = true;
   document.body.append(video);
-  let frame = false, applied = 0, acknowledged = 0, active = true;
+  let frame = false, applied = 0, acknowledged = 0, active = true, stopReason = '';
   const pc = configuration => new RTCPeerConnection(configuration);
   host = new BrowserManualPeer({ role: 'host', rtcFactory: pc,
     sendSignal: signal => viewer.receiveSignal(signal),
     requestScreen: async () => stream, checkSession: async () => active,
+    onState: state => { if (host?.closed) stopReason = state; },
     onManualInput: command => { if (command.action !== 'tap') throw new Error('wrong input'); applied++; return true; } });
   viewer = new BrowserManualPeer({ role: 'viewer', rtcFactory: pc,
     sendSignal: signal => host.receiveSignal(signal),
@@ -44,10 +45,10 @@ try {
   viewer.sendManual({ action: 'tap', x: .5, y: .5 });
   await until(() => applied === 1 && acknowledged === 1, 'manual input acknowledgement');
   active = false;
-  await host.verifySession();
-  await until(() => host.closed && stream.getVideoTracks()[0].readyState === 'ended', 'revoked capture stop');
+  await until(() => stopReason === 'session-not-active' && host.closed &&
+    stream.getVideoTracks()[0].readyState === 'ended', 'periodic revoked capture stop');
   window.__remoteLiteResult = { status: 'PASS', videoWidth: video.videoWidth, applied, acknowledged,
-    trackEnded: stream.getVideoTracks()[0].readyState === 'ended' };
+    periodicStop: stopReason === 'session-not-active' && host.closed && stream.getVideoTracks()[0].readyState === 'ended' };
 } catch (error) {
   window.__remoteLiteResult = { status: 'FAIL', error: String(error?.message || error) };
 } finally { clearInterval(timer); host?.close(); viewer?.close(); }
@@ -120,10 +121,10 @@ try {
     await pause(500);
   }
   if (result?.status !== 'PASS' || result.videoWidth < 1 || result.applied !== 1 ||
-    result.acknowledged !== 1 || result.trackEnded !== true) {
+    result.acknowledged !== 1 || result.periodicStop !== true) {
     throw new Error('Real Chromium RTC smoke failed: ' + JSON.stringify(result));
   }
-  process.stdout.write('PASS real Chromium VM WebRTC media/DataChannel, manual ACK, revoked track stop: ' + JSON.stringify(result) + '\n');
+  process.stdout.write('PASS real Chromium VM WebRTC media/DataChannel, manual ACK, periodic revoked track stop: ' + JSON.stringify(result) + '\n');
 } catch (error) {
   process.stderr.write(`FAIL Chromium VM smoke: ${error.message}\n`);
   throw error;
