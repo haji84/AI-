@@ -222,3 +222,23 @@ test('real local HTTP: revoked devices cannot negotiate; clean stop is idempoten
   await h.local.stop();
   await h.local.stop();
 });
+
+test('real local HTTP: signed device pending discovery is scoped and one-use', async t => {
+  const h=await rig();t.after(()=>h.local.stop());
+  const alice=await h.register('fixture-alice','win-alice-pending');
+  const bob=await h.register('fixture-bob','win-bob-pending');
+  const started=await h.post('/v1/start',{deviceId:alice.deviceId});
+  assert.equal(started.status,200);
+  const proof=await h.deviceProof(alice,alice.deviceId,'session-discover');
+  const pending=await h.post('/v1/device/pending',{deviceId:alice.deviceId,proof},null);
+  assert.equal(pending.status,200);
+  assert.deepEqual(pending.result,{sessionId:started.result.sessionId,deviceId:alice.deviceId,status:'pending',expiresAt:started.result.expiresAt});
+  assert.equal((await h.post('/v1/device/pending',{deviceId:alice.deviceId,proof},null)).status,403);
+  assert.equal((await h.post('/v1/device/pending',{
+    deviceId:bob.deviceId,proof:await h.deviceProof(bob,bob.deviceId,'session-discover'),
+  },null)).result,null);
+  await h.post('/v1/viewer/end',{sessionId:started.result.sessionId,viewerToken:started.result.viewerToken});
+  assert.equal((await h.post('/v1/device/pending',{
+    deviceId:alice.deviceId,proof:await h.deviceProof(alice,alice.deviceId,'session-discover'),
+  },null)).result,null);
+});

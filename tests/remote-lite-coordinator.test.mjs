@@ -105,3 +105,16 @@ test('every viewer operation checks that owner authentication is still valid',()
   assert.throws(()=>c.viewerSignal({ownerId:'alice',authorization:'valid',sessionId:s.sessionId,viewerToken:s.viewerToken,signal:{type:'offer',sdp:'v=0\r\n'}}),/OWNER_NOT_AUTHORIZED/);
   assert.throws(()=>c.manualInput({ownerId:'alice',authorization:'valid',sessionId:s.sessionId,viewerToken:s.viewerToken,sequence:1,command:{action:'tap',x:0.1,y:0.1}}),/OWNER_NOT_AUTHORIZED/);
 });
+
+test('registered device discovers only its own pending session with a fresh signed proof',()=>{
+  const {c,enroll,proof}=harness(),a=enroll('alice','win-alice'),b=enroll('bob','win-bob');
+  const noSession=proof(a,a.deviceId,'session-discover');
+  assert.equal(c.discoverPendingSession({deviceId:a.deviceId,proof:noSession}),null);
+  assert.throws(()=>c.discoverPendingSession({deviceId:a.deviceId,proof:noSession}),/CHALLENGE_NOT_FOUND_OR_MISMATCH/);
+  const started=c.startSession({...auth('alice'),deviceId:a.deviceId});
+  const pending=c.discoverPendingSession({deviceId:a.deviceId,proof:proof(a,a.deviceId,'session-discover')});
+  assert.deepEqual(pending,{sessionId:started.sessionId,deviceId:a.deviceId,status:'pending',expiresAt:started.expiresAt});
+  assert.equal(c.discoverPendingSession({deviceId:b.deviceId,proof:proof(b,b.deviceId,'session-discover')}),null);
+  c.acceptSession({sessionId:started.sessionId,deviceId:a.deviceId,proof:proof(a,started.sessionId,'session-accept')});
+  assert.equal(c.discoverPendingSession({deviceId:a.deviceId,proof:proof(a,a.deviceId,'session-discover')}),null);
+});

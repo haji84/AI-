@@ -175,6 +175,18 @@ export class ManualRemoteSessionStore {
     return { sessionId: s.id, deviceId: s.deviceId, status: s.status, expiresAt: s.expiresAt };
   }
 
+  /** Return only a pending session ID to its authenticated device. A viewer
+   * token and owner identity never enter this response. */
+  pendingForDevice({ deviceId, devicePrincipalId } = {}) {
+    this.#purge();
+    if (!isId(deviceId) || !isId(devicePrincipalId) ||
+      this.authenticateDevice({ deviceId, devicePrincipalId }) !== true) return fail('DEVICE_NOT_AUTHORIZED');
+    const sessionId = this.#deviceToSession.get(deviceId);
+    const s = sessionId && this.#sessions.get(sessionId);
+    if (!s || s.status !== 'pending') return null;
+    return { sessionId: s.id, deviceId: s.deviceId, status: 'pending', expiresAt: s.expiresAt };
+  }
+
   /** A challenge grants no authority, but only a real matching session may
    * consume its bounded nonce pool. The later signature remains mandatory. */
   challengeableDevice({ sessionId, deviceId, operation } = {}) {

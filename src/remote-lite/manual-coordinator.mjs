@@ -51,8 +51,15 @@ export class ManualRemoteCoordinator {
 
   challengeDevice(input = {}) {
     if (!this.#deviceOwners.has(input.deviceId)) throw new RemoteLiteSessionError('DEVICE_UNAVAILABLE');
-    this.#sessions.challengeableDevice(input);
+    if (input.operation === 'session-discover') {
+      if (input.sessionId !== input.deviceId) throw new RemoteLiteSessionError('DEVICE_PROOF_REQUIRED');
+    } else this.#sessions.challengeableDevice(input);
     return this.#pairing.challengeDevice(input);
+  }
+
+  discoverPendingSession({ deviceId, proof } = {}) {
+    const principal = this.#requireProof('session-discover', deviceId, deviceId, proof);
+    return this.#sessions.pendingForDevice({ deviceId, devicePrincipalId: principal.devicePrincipalId });
   }
 
   startSession({ ownerId, authorization, deviceId } = {}) {
