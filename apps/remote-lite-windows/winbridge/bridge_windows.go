@@ -115,13 +115,14 @@ type Command struct {
 }
 
 type Bridge struct {
-	mu           sync.Mutex
-	grantedUntil time.Time
-	closed       bool
-	heldLeft     bool
-	heldRight    bool
-	releaseTimer *time.Timer
-	holdDuration time.Duration
+	mu            sync.Mutex
+	grantedUntil  time.Time
+	closed        bool
+	heldLeft      bool
+	heldRight     bool
+	pendingKeyUps []winInput
+	releaseTimer  *time.Timer
+	holdDuration  time.Duration
 	// These hooks let a Windows VM test the input boundary without moving its cursor.
 	desktopFn func() bool
 	screenFn  func() (rect, error)
@@ -139,12 +140,38 @@ func (b *Bridge) AuthorizeLocalUse(expiry time.Time) error {
 	b.grantedUntil = expiry
 	return nil
 }
-func (b *Bridge) Stop() {
+func (b *Bridge) Stop() error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.closed = true
 	b.grantedUntil = time.Time{}
-	b.releaseHeldLocked()
+	return b.releaseHeldLocked()
+}
+
+// WaitForRelease retries only button/key UP after Stop. It never restores
+// consent or sends new manual input. The caller must keep the process alive
+// for this bounded cleanup window after closing the listener.
+func (b *Bridge) WaitForRelease(maxWait time.Duration) error {
+	if maxWait < 0 || maxWait > 30*time.Second {
+		return errors.New("invalid release wait")
+	}
+	deadline := time.Now().Add(maxWait)
+	for {
+		b.mu.Lock()
+		if !b.closed {
+			b.mu.Unlock()
+			return errors.New("host not stopped")
+		}
+		err := b.releaseHeldLocked()
+		b.mu.Unlock()
+		if err == nil {
+			return nil
+		}
+		if !time.Now().Before(deadline) {
+			return err
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
 }
 func (b *Bridge) allowed() bool { return !b.closed && time.Now().Before(b.grantedUntil) }
 func (b *Bridge) normalDesktop() bool {
@@ -177,35 +204,55 @@ func (b *Bridge) armReleaseLocked() {
 		b.mu.Lock()
 		defer b.mu.Unlock()
 		b.releaseTimer = nil
-		b.releaseHeldLocked()
+		_ = b.releaseHeldLocked()
 	})
 }
-func (b *Bridge) releaseHeldLocked() {
+func (b *Bridge) releaseHeldLocked() error {
 	if b.releaseTimer != nil {
 		b.releaseTimer.Stop()
 		b.releaseTimer = nil
 	}
-	if !b.heldLeft && !b.heldRight {
-		return
+	if !b.heldLeft && !b.heldRight && len(b.pendingKeyUps) == 0 {
+		return nil
 	}
 	if !b.normalDesktop() {
 		if !b.closed {
 			b.armReleaseLocked()
 		}
-		return
+		return errors.New("button or key release blocked by protected desktop")
 	}
-	inputs := make([]winInput, 0, 2)
+	inputs := make([]winInput, 0, 2+len(b.pendingKeyUps))
 	if b.heldLeft {
 		inputs = append(inputs, mouseInput(mouseLeftUp, 0, 0, 0))
 	}
 	if b.heldRight {
 		inputs = append(inputs, mouseInput(mouseRightUp, 0, 0, 0))
 	}
-	if err := b.emit(inputs); err == nil {
-		b.heldLeft, b.heldRight = false, false
-	} else if !b.closed {
-		b.armReleaseLocked()
+	inputs = append(inputs, b.pendingKeyUps...)
+	if err := b.emit(inputs); err != nil {
+		if !b.closed {
+			b.armReleaseLocked()
+		}
+		return err
 	}
+	b.heldLeft, b.heldRight, b.pendingKeyUps = false, false, nil
+	return nil
+}
+func keyReleaseInputs(inputs []winInput) []winInput {
+	ups := make([]winInput, 0, len(inputs)/2)
+	for _, input := range inputs {
+		if input.Kind != keyboardInputType {
+			continue
+		}
+		data := (*keyData)(unsafe.Pointer(&input.Data[0]))
+		if data.Flags&keyUp != 0 {
+			continue
+		}
+		up := input
+		(*keyData)(unsafe.Pointer(&up.Data[0])).Flags |= keyUp
+		ups = append(ups, up)
+	}
+	return ups
 }
 func screen() (rect, error) {
 	x, _, _ := getSystemMetrics.Call(smXVScreen)
@@ -325,11 +372,16 @@ func (b *Bridge) Apply(c Command) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if !b.allowed() {
-		b.releaseHeldLocked()
+		_ = b.releaseHeldLocked()
 		return errors.New("host consent required")
 	}
 	if !b.normalDesktop() {
 		return errors.New("locked or protected desktop refused")
+	}
+	if len(b.pendingKeyUps) > 0 {
+		if err := b.releaseHeldLocked(); err != nil {
+			return errors.New("previous key release incomplete")
+		}
 	}
 	r, err := b.bounds()
 	if err != nil {
@@ -431,6 +483,10 @@ func (b *Bridge) Apply(c Command) error {
 	_ = r
 	if err := b.emit(inputs); err != nil {
 		// A partial SendInput batch can leave a down event behind.
+		if c.Action == "key" || c.Action == "text" {
+			b.pendingKeyUps = append(b.pendingKeyUps, keyReleaseInputs(inputs)...)
+			_ = b.releaseHeldLocked()
+		}
 		if c.Action == "tap" || c.Action == "swipe" || (c.Action == "pointer" && c.Phase == "down") {
 			if c.Action == "tap" || c.Action == "swipe" || c.Button == "left" {
 				b.heldLeft = true
@@ -438,7 +494,7 @@ func (b *Bridge) Apply(c Command) error {
 			if c.Action == "pointer" && c.Button == "right" {
 				b.heldRight = true
 			}
-			b.releaseHeldLocked()
+			_ = b.releaseHeldLocked()
 		}
 		return err
 	}

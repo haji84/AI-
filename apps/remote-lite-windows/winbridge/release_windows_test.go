@@ -35,8 +35,12 @@ func TestStopReleasesHeldPointerExactlyOnce(t *testing.T) {
 	if err := b.Apply(Command{Action: "pointer", Phase: "down", Button: "left", X: .5, Y: .5}); err != nil {
 		t.Fatal(err)
 	}
-	b.Stop()
-	b.Stop()
+	if err := b.Stop(); err != nil {
+		t.Fatal(err)
+	}
+	if err := b.Stop(); err != nil {
+		t.Fatal(err)
+	}
 	up := 0
 	for _, flag := range *flags {
 		if flag == mouseLeftUp {
@@ -72,9 +76,75 @@ func TestReleaseFailureDoesNotClaimButtonCleared(t *testing.T) {
 	b, _ := pointerFixture(t)
 	b.heldLeft = true
 	b.sendFn = func([]winInput) error { return errors.New("SendInput failed") }
-	b.Stop()
+	if err := b.Stop(); err == nil {
+		t.Fatal("failed release must be reported")
+	}
 	if !b.heldLeft {
 		t.Fatal("failed release must remain observable")
+	}
+}
+
+func TestStopReportsProtectedDesktopWithoutSendingInput(t *testing.T) {
+	b, _ := pointerFixture(t)
+	b.heldLeft = true
+	b.desktopFn = func() bool { return false }
+	sent := false
+	b.sendFn = func([]winInput) error { sent = true; return nil }
+	if err := b.Stop(); err == nil || !b.heldLeft || sent {
+		t.Fatal("protected desktop release must remain unconfirmed without SendInput")
+	}
+}
+
+func TestStoppedHostRetriesOnlyReleaseWhenDesktopReturns(t *testing.T) {
+	b, _ := pointerFixture(t)
+	b.heldLeft = true
+	checks, sent := 0, []uint32{}
+	b.desktopFn = func() bool { checks++; return checks >= 3 }
+	b.sendFn = func(inputs []winInput) error {
+		for _, input := range inputs {
+			sent = append(sent, (*mouseData)(unsafe.Pointer(&input.Data[0])).Flags)
+		}
+		return nil
+	}
+	if err := b.Stop(); err == nil {
+		t.Fatal("initial protected desktop must prevent release")
+	}
+	if err := b.WaitForRelease(2 * time.Second); err != nil {
+		t.Fatal(err)
+	}
+	if b.heldLeft || len(sent) != 1 || sent[0] != mouseLeftUp {
+		t.Fatalf("retry must send only left UP: held=%v flags=%v", b.heldLeft, sent)
+	}
+	if err := b.Apply(Command{Action: "tap", X: .5, Y: .5}); err == nil {
+		t.Fatal("stop must never restore input consent")
+	}
+}
+
+func TestPartialKeyboardBatchReleasesDownKeys(t *testing.T) {
+	for _, command := range []Command{{Action: "key", Key: "ENTER"}, {Action: "text", Text: "Ab"}} {
+		b, _ := pointerFixture(t)
+		calls, cleanupUps := 0, 0
+		b.sendFn = func(inputs []winInput) error {
+			calls++
+			if calls == 1 {
+				return errors.New("partial keyboard batch")
+			}
+			for _, input := range inputs {
+				if input.Kind == keyboardInputType && (*keyData)(unsafe.Pointer(&input.Data[0])).Flags&keyUp != 0 {
+					cleanupUps++
+				}
+			}
+			return nil
+		}
+		if err := b.Apply(command); err == nil {
+			t.Fatalf("partial batch must fail: %v", command.Action)
+		}
+		if calls != 2 || cleanupUps == 0 || len(b.pendingKeyUps) != 0 {
+			t.Fatalf("keyboard cleanup failed for %s: calls=%d ups=%d pending=%d", command.Action, calls, cleanupUps, len(b.pendingKeyUps))
+		}
+		if err := b.Stop(); err != nil {
+			t.Fatal(err)
+		}
 	}
 }
 

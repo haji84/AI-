@@ -168,8 +168,11 @@ func (s *server) routes(m *http.ServeMux) {
 		s.mu.Lock()
 		s.enabled = false
 		s.mu.Unlock()
-		s.bridge.Stop()
-		w.WriteHeader(http.StatusNoContent)
+		if err := s.bridge.Stop(); err != nil {
+			http.Error(w, "operation stopped; local button or key release could not be confirmed", http.StatusConflict)
+		} else {
+			w.WriteHeader(http.StatusNoContent)
+		}
 		go s.cancel()
 	})
 }
@@ -204,9 +207,17 @@ func main() {
 	fmt.Println("GORIQ Remote Lite: local-only preview. Auto-stop in 15 minutes.")
 	fmt.Println("Windows上でこのリンクを開く:", url)
 	_ = exec.Command("rundll32.exe", "url.dll,FileProtocolHandler", url).Start()
-	time.AfterFunc(time.Until(end), func() { bridge.Stop(); _ = httpServer.Close() })
+	time.AfterFunc(time.Until(end), func() {
+		_ = bridge.Stop()
+		_ = httpServer.Close()
+	})
 	if err := httpServer.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Println("server stopped:", err)
 	}
-	bridge.Stop()
+	if err := bridge.Stop(); err != nil {
+		log.Println("local input release retrying:", err)
+		if err := bridge.WaitForRelease(15 * time.Second); err != nil {
+			log.Println("local input release still unconfirmed:", err)
+		}
+	}
 }
