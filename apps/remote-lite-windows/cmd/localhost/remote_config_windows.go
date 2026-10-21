@@ -81,7 +81,9 @@ func loadSignedRemoteSession(path string, client *http.Client) (*signedStatusGat
 		return nil, errors.New("remote session file unavailable or oversized")
 	}
 	var config activeRemoteSession
-	if err := decodeStatusJSON(data, &config); err != nil || config.Version != 1 {
+	if err := decodeStatusJSON(data, &config); err != nil ||
+		(config.Version != 1 && config.Version != 2) ||
+		(config.Version == 2 && config.SessionID != "") {
 		return nil, errors.New("remote session configuration invalid")
 	}
 	ciphertext, err := base64.StdEncoding.Strict().DecodeString(config.ProtectedPrivateKey)
@@ -102,11 +104,16 @@ func loadSignedRemoteSession(path string, client *http.Client) (*signedStatusGat
 		return nil, errors.New("device key type invalid")
 	}
 	key = append(ed25519.PrivateKey(nil), key...)
-	gate, err := newSignedStatusGate(config.StatusServiceURL, config.DeviceID, config.SessionID,
+	sessionID := config.SessionID
+	if config.Version == 2 {
+		sessionID = config.DeviceID // discovery-only sentinel; Check refuses it
+	}
+	gate, err := newSignedStatusGate(config.StatusServiceURL, config.DeviceID, sessionID,
 		func(message []byte) ([]byte, error) { return ed25519.Sign(key, message), nil }, client)
 	if err != nil {
 		return nil, fmt.Errorf("remote session configuration invalid: %w", err)
 	}
+	gate.discoveryOnly = config.Version == 2
 	return gate, nil
 }
 

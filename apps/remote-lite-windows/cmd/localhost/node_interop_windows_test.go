@@ -85,8 +85,8 @@ func TestActualNodeCoordinatorRevocationStopsWindowsRoutes(t *testing.T) {
 		t.Fatal(err)
 	}
 	clear(keyDER)
-	config, err := json.Marshal(activeRemoteSession{Version: 1, StatusServiceURL: ready.URL,
-		DeviceID: ready.DeviceID, SessionID: ready.SessionID,
+	config, err := json.Marshal(activeRemoteSession{Version: 2, StatusServiceURL: ready.URL,
+		DeviceID: ready.DeviceID,
 		ProtectedPrivateKey: base64.StdEncoding.EncodeToString(protected)})
 	if err != nil {
 		t.Fatal(err)
@@ -106,15 +106,31 @@ func TestActualNodeCoordinatorRevocationStopsWindowsRoutes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if !gate.discoveryOnly {
+		t.Fatal("registered device configuration must discover a session before capture")
+	}
+	if err := gate.Check(ctx); err == nil {
+		t.Fatal("discovery-only configuration enabled frame or input before acceptance")
+	}
 	pending, err := gate.DiscoverPending(ctx)
 	if err != nil || pending == nil || pending.SessionID != ready.SessionID || pending.DeviceID != ready.DeviceID || pending.Status != "pending" {
 		t.Fatalf("signed pending session was not discovered through the real coordinator: %+v, %v", pending, err)
 	}
-	if _, err := fmt.Fprintln(stdin, "accept"); err != nil {
-		t.Fatal(err)
+	approved, err := prepareRemoteGate(ctx, gate, func() bool { t.Fatal("local-only approval used"); return false },
+		func(sessionID string) bool { return false })
+	if err != nil || approved || !gate.discoveryOnly {
+		t.Fatalf("denied local consent activated remote session: %v, %v", approved, err)
 	}
-	if !lines.Scan() || !bytes.Contains(lines.Bytes(), []byte(`"event":"accepted"`)) {
-		t.Fatalf("Node fixture did not accept pending session: %v %s", lines.Err(), stderr.String())
+	approved, err = prepareRemoteGate(ctx, gate, func() bool { t.Fatal("local-only approval used"); return false },
+		func(sessionID string) bool {
+			if sessionID != ready.SessionID {
+				t.Errorf("wrong session shown for approval: %s", sessionID)
+				return false
+			}
+			return true
+		})
+	if err != nil || !approved || gate.discoveryOnly || gate.sessionID != ready.SessionID {
+		t.Fatalf("normal EXE flow did not accept pending session: %v, %v %s", approved, err, stderr.String())
 	}
 	if err := gate.Check(ctx); err != nil {
 		t.Fatalf("normal EXE signed gate could not check actual coordinator: %v", err)

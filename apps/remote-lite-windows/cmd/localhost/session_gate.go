@@ -33,12 +33,13 @@ var (
 // a fresh, operation-bound challenge for every status check and never hands
 // signing authority to the local browser or a WebRTC peer.
 type signedStatusGate struct {
-	baseURL   *url.URL
-	deviceID  string
-	sessionID string
-	sign      func([]byte) ([]byte, error)
-	client    *http.Client
-	now       func() time.Time
+	baseURL       *url.URL
+	deviceID      string
+	sessionID     string
+	sign          func([]byte) ([]byte, error)
+	client        *http.Client
+	now           func() time.Time
+	discoveryOnly bool
 }
 
 type pendingRemoteSession struct {
@@ -128,7 +129,7 @@ func (g *signedStatusGate) post(ctx context.Context, path string, body any, resu
 // prevent the next frame/input; the caller is responsible for stopping media
 // and releasing held input when Check fails.
 func (g *signedStatusGate) Check(parent context.Context) error {
-	if g == nil {
+	if g == nil || g.discoveryOnly {
 		return errors.New("signed status gate unavailable")
 	}
 	ctx, cancel := context.WithTimeout(parent, 3*time.Second)
@@ -209,4 +210,50 @@ func (g *signedStatusGate) DiscoverPending(parent context.Context) (*pendingRemo
 		return nil, errors.New("pending session invalid or mismatched")
 	}
 	return pending, nil
+}
+
+// AcceptPending is called only after an explicit local approval of the
+// discovered session. It binds the registered device to that session before
+// the native frame and input routes can use Check.
+func (g *signedStatusGate) AcceptPending(parent context.Context, pending *pendingRemoteSession) error {
+	if g == nil || !g.discoveryOnly || pending == nil || !statusID.MatchString(pending.SessionID) ||
+		pending.DeviceID != g.deviceID || pending.Status != "pending" || pending.ExpiresAt <= g.now().UnixMilli() {
+		return errors.New("pending session unavailable or mismatched")
+	}
+	ctx, cancel := context.WithTimeout(parent, 3*time.Second)
+	defer cancel()
+	var challenge struct {
+		ChallengeID string `json:"challengeId"`
+		Challenge   string `json:"challenge"`
+		ExpiresAt   int64  `json:"expiresAt"`
+	}
+	if err := g.post(ctx, "/v1/device/challenge", map[string]string{
+		"deviceId": g.deviceID, "operation": "session-accept", "sessionId": pending.SessionID,
+	}, &challenge); err != nil {
+		return err
+	}
+	if !statusChallengeID.MatchString(challenge.ChallengeID) || !statusNonce.MatchString(challenge.Challenge) || challenge.ExpiresAt <= g.now().UnixMilli() {
+		return errors.New("acceptance challenge invalid or expired")
+	}
+	message := []byte("GORIQ_REMOTE_DEVICE_AUTH_V1\n" + g.deviceID + "\nsession-accept\n" + pending.SessionID + "\n" + challenge.ChallengeID + "\n" + challenge.Challenge + "\n")
+	signature, err := g.sign(message)
+	if err != nil || len(signature) != ed25519.SignatureSize {
+		return errors.New("device signing failed")
+	}
+	var accepted pendingRemoteSession
+	if err := g.post(ctx, "/v1/device/accept", map[string]any{
+		"sessionId": pending.SessionID, "deviceId": g.deviceID,
+		"proof": map[string]string{
+			"deviceId": g.deviceID, "operation": "session-accept", "sessionId": pending.SessionID,
+			"challengeId": challenge.ChallengeID, "signature": base64.StdEncoding.EncodeToString(signature),
+		},
+	}, &accepted); err != nil {
+		return err
+	}
+	if accepted.SessionID != pending.SessionID || accepted.DeviceID != g.deviceID || accepted.Status != "active" || accepted.ExpiresAt <= g.now().UnixMilli() {
+		return errors.New("accepted session invalid or mismatched")
+	}
+	g.sessionID = pending.SessionID
+	g.discoveryOnly = false
+	return nil
 }

@@ -12,7 +12,8 @@ const moduleFile = read('apps/remote-lite-windows/go.mod');
 test('Windows native app remains an isolated, user-consented local test (not a public server)', () => {
   assert.equal(moduleFile.includes('require ('), false);
   assert.match(main, /net\.Listen\("tcp4", "127\.0\.0\.1:0"\)/);
-  assert.match(main, /if !approve\(\)/);
+  assert.match(main, /return approveLocal\(\), nil/);
+  assert.match(main, /if !approveSession\(pending\.SessionID\)/);
   assert.match(main, /15 \* time\.Minute/);
   assert.match(main, /ConstantTimeCompare/);
   assert.match(main, /X-Goriq-Session/);

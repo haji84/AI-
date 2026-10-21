@@ -35,6 +35,42 @@ func approve() bool {
 	return n == 6
 }
 
+func approveRemote(sessionID string) bool {
+	user32 := syscall.NewLazyDLL("user32.dll")
+	popup := user32.NewProc("MessageBoxW")
+	message, _ := syscall.UTF16PtrFromString("GORIQ Remote Lite 接続要求\n\nセッション: " + sessionID + "\n\nこのPCの画面表示とマウス・キーボードによる手動操作を最長15分許可しますか？\n接続が切れるか期限が切れると停止します。")
+	title, _ := syscall.UTF16PtrFromString("GORIQ Remote Lite 端末側の許可")
+	n, _, _ := popup.Call(0, uintptr(unsafe.Pointer(message)), uintptr(unsafe.Pointer(title)), 0x00000024)
+	return n == 6
+}
+
+func prepareRemoteGate(ctx context.Context, gate *signedStatusGate, approveLocal func() bool, approveSession func(string) bool) (bool, error) {
+	if gate == nil {
+		return approveLocal(), nil
+	}
+	if gate.discoveryOnly {
+		pending, err := gate.DiscoverPending(ctx)
+		if err != nil {
+			return false, err
+		}
+		if pending == nil {
+			return false, errors.New("no pending remote connection for this device; start a viewer request, then reopen the Windows host")
+		}
+		if !approveSession(pending.SessionID) {
+			return false, nil
+		}
+		if err := gate.AcceptPending(ctx, pending); err != nil {
+			return false, err
+		}
+	} else if !approveSession(gate.sessionID) {
+		return false, nil
+	}
+	if err := gate.Check(ctx); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 func secret() (string, error) {
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
@@ -280,14 +316,13 @@ func main() {
 	if err != nil {
 		log.Fatal("signed remote session configuration refused: ", err)
 	}
-	if !approve() {
+	allowed, err := prepareRemoteGate(context.Background(), remoteGate, approve, approveRemote)
+	if err != nil {
+		log.Fatal("signed remote session startup refused: ", err)
+	}
+	if !allowed {
 		fmt.Println("LOCAL_CONSENT_DENIED")
 		return
-	}
-	if remoteGate != nil {
-		if err := remoteGate.Check(context.Background()); err != nil {
-			log.Fatal("signed remote session inactive: ", err)
-		}
 	}
 	token, err := secret()
 	if err != nil {
