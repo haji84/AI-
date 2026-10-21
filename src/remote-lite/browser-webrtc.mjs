@@ -6,6 +6,38 @@ export class BrowserPeerError extends Error {
 const fault = code => { throw new BrowserPeerError(code); };
 const allowedRoles = new Set(['viewer', 'host']);
 const safeState = state => ['new','connecting','connected','disconnected','failed','closed'].includes(state) ? state : 'unknown';
+const validDeviceId = value => typeof value === 'string' && value.length > 0 && value.length <= 128 && /^[a-zA-Z0-9._:-]+$/u.test(value);
+
+/** Host-side status binding. `post` must use a pinned, authenticated transport;
+ * `signMessage` must stay inside the device's private-key boundary. No key is
+ * passed to a viewer or persisted by this adapter. Any uncertainty denies use. */
+export function createDeviceSessionCheck({ sessionId, deviceId, post, signMessage, now = () => Date.now() } = {}) {
+  if (!validDeviceId(sessionId) || !validDeviceId(deviceId) ||
+    typeof post !== 'function' || typeof signMessage !== 'function' || typeof now !== 'function') {
+    fault('INVALID_SESSION_CHECK_CONFIG');
+  }
+  return async () => {
+    try {
+      const challenge = await post('/v1/device/challenge', { sessionId, deviceId, operation: 'session-status' });
+      const nonce = challenge?.result;
+      if (challenge?.status !== 200 || challenge.ok !== true ||
+        typeof nonce?.challengeId !== 'string' || !/^[0-9a-f-]{36}$/u.test(nonce.challengeId) ||
+        typeof nonce.challenge !== 'string' || !/^[0-9a-f]{48}$/u.test(nonce.challenge) ||
+        !Number.isSafeInteger(nonce.expiresAt) || nonce.expiresAt <= now()) return false;
+      const message = ['GORIQ_REMOTE_DEVICE_AUTH_V1', deviceId, 'session-status',
+        sessionId, nonce.challengeId, nonce.challenge, ''].join('\n');
+      const signature = await signMessage(message);
+      if (typeof signature !== 'string' || !/^[A-Za-z0-9+/]{86}==$/u.test(signature)) return false;
+      const status = await post('/v1/device/status', {
+        sessionId, deviceId, proof: { deviceId, operation: 'session-status', sessionId,
+          challengeId: nonce.challengeId, signature },
+      });
+      return status?.status === 200 && status.ok === true && status.result?.sessionId === sessionId &&
+        status.result?.deviceId === deviceId && status.result?.status === 'active' &&
+        Number.isSafeInteger(status.result?.expiresAt) && status.result.expiresAt > now();
+    } catch { return false; }
+  };
+}
 
 /**
  * An actual browser WebRTC media + manual data-channel adapter, independent of

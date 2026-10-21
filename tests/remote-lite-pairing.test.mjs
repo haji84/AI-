@@ -85,6 +85,13 @@ test('signal sending requires a payload hash and its verified signature',()=>{
   assert.equal(r.verifyDevice(next).operation,'signal-send');
 });
 
+test('one device cannot fill the shared challenge pool for another device',()=>{
+  const {r,enroll}=setup(),a=enroll('android-a'),b=enroll('android-b');
+  for(let i=0;i<8;i++) assert.doesNotThrow(()=>r.challengeDevice({deviceId:a.deviceId,operation:'session-status',sessionId:'s'}));
+  assert.throws(()=>r.challengeDevice({deviceId:a.deviceId,operation:'session-status',sessionId:'s'}),/CHALLENGE_DEVICE_CAPACITY_REACHED/);
+  assert.doesNotThrow(()=>r.challengeDevice({deviceId:b.deviceId,operation:'session-status',sessionId:'s'}));
+});
+
 test('revoke disables identity, cancels challenges and blocks cross-owner revocation',()=>{
   const {r,enroll,owner,proof}=setup(),d=enroll(),p=proof(d);
   assert.throws(()=>r.revoke({...owner('bob'),deviceId:d.deviceId}),/DEVICE_NOT_FOUND/);

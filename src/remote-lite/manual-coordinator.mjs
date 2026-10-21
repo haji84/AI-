@@ -49,7 +49,11 @@ export class ManualRemoteCoordinator {
     return result;
   }
 
-  challengeDevice(input) { return this.#pairing.challengeDevice(input); }
+  challengeDevice(input = {}) {
+    if (!this.#deviceOwners.has(input.deviceId)) throw new RemoteLiteSessionError('DEVICE_UNAVAILABLE');
+    this.#sessions.challengeableDevice(input);
+    return this.#pairing.challengeDevice(input);
+  }
 
   startSession({ ownerId, authorization, deviceId } = {}) {
     this.#owner(ownerId, authorization, 'start-session');

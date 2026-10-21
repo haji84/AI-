@@ -174,6 +174,15 @@ export class ManualRemoteSessionStore {
     this.#device(s, deviceId, devicePrincipalId);
     return { sessionId: s.id, deviceId: s.deviceId, status: s.status, expiresAt: s.expiresAt };
   }
+
+  /** A challenge grants no authority, but only a real matching session may
+   * consume its bounded nonce pool. The later signature remains mandatory. */
+  challengeableDevice({ sessionId, deviceId, operation } = {}) {
+    const s = this.#session(sessionId);
+    if (s.deviceId !== deviceId) return fail('DEVICE_NOT_AUTHORIZED');
+    if (s.status !== (operation === 'session-accept' ? 'pending' : 'active')) return fail('SESSION_NOT_ACTIVE');
+    return true;
+  }
 }
 
 export { RemoteLiteProtocolError };

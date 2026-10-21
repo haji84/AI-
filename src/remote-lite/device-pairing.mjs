@@ -118,6 +118,9 @@ export class RemoteLitePairingRegistry {
     this.#prune();
     if (!validId(deviceId) || !validId(sessionId) || !operations.has(operation) || !this.#devices.has(deviceId)) fail('DEVICE_UNAVAILABLE');
     if ((operation === 'signal-send' && !/^[0-9a-f]{64}$/.test(payloadHash)) || (operation !== 'signal-send' && payloadHash !== '')) fail('SIGNAL_BINDING_INVALID');
+    if ([...this.#challenges.values()].filter(record => record.deviceId === deviceId).length >= Math.min(8, this.limit)) {
+      fail('CHALLENGE_DEVICE_CAPACITY_REACHED');
+    }
     if (this.#challenges.size >= this.limit * 2) fail('CHALLENGE_CAPACITY_REACHED');
     const challenge = token();
     const challengeId = randomUUID();

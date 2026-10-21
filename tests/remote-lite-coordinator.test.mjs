@@ -81,6 +81,18 @@ test('owner revocation disables existing control and new sessions',()=>{
   assert.equal(c.startSession({...auth(),deviceId:r.deviceId}).status,'pending');
 });
 
+test('unrelated or inactive sessions cannot consume device challenge capacity',()=>{
+  const {c,enroll,proof}=harness(),a=enroll('alice','android-a'),b=enroll('bob','android-b');
+  const s=c.startSession({...auth('alice'),deviceId:a.deviceId});
+  for(let i=0;i<201;i++) {
+    assert.throws(()=>c.challengeDevice({deviceId:a.deviceId,operation:'session-status',sessionId:'fake-'+i}),/SESSION_NOT_FOUND_OR_EXPIRED/);
+  }
+  assert.throws(()=>c.challengeDevice({deviceId:b.deviceId,operation:'session-accept',sessionId:s.sessionId}),/DEVICE_NOT_AUTHORIZED/);
+  assert.throws(()=>c.challengeDevice({deviceId:a.deviceId,operation:'session-status',sessionId:s.sessionId}),/SESSION_NOT_ACTIVE/);
+  c.acceptSession({sessionId:s.sessionId,deviceId:a.deviceId,proof:proof(a,s.sessionId,'session-accept')});
+  assert.doesNotThrow(()=>c.challengeDevice({deviceId:a.deviceId,operation:'session-status',sessionId:s.sessionId}));
+});
+
 test('every viewer operation checks that owner authentication is still valid',()=>{
   let active=true;
   const c=new ManualRemoteCoordinator({authorizeOwner:({ownerId,authorization})=>active&&ownerId==='alice'&&authorization==='valid'});

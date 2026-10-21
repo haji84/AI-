@@ -105,12 +105,55 @@ test('real local HTTP: owner invites, device signs, owner approves, offer/answer
     proof: await h.deviceProof(device, sessionId, 'session-status'),
   }, null)).result.status, 'active');
   assert.equal((await h.post('/v1/viewer/status',{sessionId,viewerToken})).result.status,'active');
+  const lateStatusProof = await h.deviceProof(device, sessionId, 'session-status');
   assert.equal((await h.post('/v1/viewer/end',{sessionId,viewerToken})).result.status,'closed');
   assert.equal((await h.post('/v1/device/status', {
     sessionId, deviceId: device.deviceId,
-    proof: await h.deviceProof(device, sessionId, 'session-status'),
+    proof: lateStatusProof,
+  }, null)).status, 403);
+  assert.equal((await h.post('/v1/device/challenge', {
+    sessionId, deviceId: device.deviceId, operation: 'session-status',
   }, null)).status, 403);
   assert.equal((await h.post('/v1/viewer/status',{sessionId,viewerToken})).status,403);
+});
+
+test('signed local status check shuts a WebRTC host before applying input after revocation', async t => {
+  const { createDeviceSessionCheck, BrowserManualPeer } = await import('../src/remote-lite/browser-webrtc.mjs');
+  assert.equal(typeof createDeviceSessionCheck, 'function');
+  const h = await rig();
+  t.after(() => h.local.stop());
+  const device = await h.register('fixture-alice', 'win-alice-status');
+  const started = await h.post('/v1/start', { deviceId: device.deviceId });
+  assert.equal(started.status, 200);
+  const { sessionId } = started.result;
+  assert.equal((await h.post('/v1/device/accept', {
+    sessionId, deviceId: device.deviceId,
+    proof: await h.deviceProof(device, sessionId, 'session-accept'),
+  }, null)).result.status, 'active');
+  const checkSession = createDeviceSessionCheck({
+    sessionId, deviceId: device.deviceId,
+    post: (path, payload) => h.post(path, payload, null),
+    signMessage: message => sign(null, Buffer.from(message), device.keys.privateKey).toString('base64'),
+  });
+  assert.equal(await checkSession(), true);
+  let stopped = 0, applied = 0;
+  const track = { kind: 'video', readyState: 'live', addEventListener() {}, stop() { stopped++; } };
+  const stream = { getVideoTracks: () => [track], getTracks: () => [track] };
+  const rtc = { connectionState: 'connected', createOffer() {}, addTrack() {}, close() {} };
+  const host = new BrowserManualPeer({ role: 'host', rtcFactory: () => rtc,
+    sendSignal: () => {}, checkSession, requestScreen: () => stream,
+    onManualInput: () => { applied++; return true; } });
+  t.after(() => host.close());
+  await host.approveLocalScreen();
+  const channel = { label: 'goriq-manual-v1', readyState: 'open', close() { this.readyState = 'closed'; }, send() {} };
+  rtc.ondatachannel({ channel });
+  assert.equal((await h.post('/v1/revoke', { deviceId: device.deviceId })).result.status, 'revoked');
+  channel.onmessage({ data: JSON.stringify({ sequence: 1, command: { action: 'tap', x: 0.5, y: 0.5 } }) });
+  const deadline = Date.now() + 4000;
+  while (!host.closed && Date.now() < deadline) await new Promise(resolve => globalThis.setTimeout(resolve, 10));
+  assert.equal(host.closed, true);
+  assert.equal(applied, 0);
+  assert.equal(stopped, 1);
 });
 
 test('real local HTTP: unauthorized users cannot enumerate or control other owners devices', async t => {
