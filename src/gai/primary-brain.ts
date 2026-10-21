@@ -3,6 +3,7 @@ import type { Goal, RiskLevel } from "../orchestrator/goal-loop.ts";
 import { normalizeGoalDraft, type GoalQuestion } from "../orchestrator/goal-draft.ts";
 import { cognitiveLearningText } from "./cognitive-learning.ts";
 import { assertCognitiveSafe } from "./cognitive-state.ts";
+import { withDevelopmentResourceAdmission } from "./development-resource-admission.ts";
 
 export interface PrimaryBrainContext {
   /** Offline measured prediction error only; never permission, completion or skill promotion. */
@@ -107,17 +108,24 @@ export class OllamaPrimaryBrainAdapter implements PrimaryBrainAdapter {
   private readonly maxOutputTokens: number;
   private readonly thinking: boolean;
   private readonly fetchImpl: typeof fetch;
-  constructor(input: { endpoint: string; model: string; timeoutMs?: number; maxResponseBytes?: number; maxOutputTokens?: number; thinking?: boolean; fetchImpl?: typeof fetch }) {
+  private readonly admit: typeof withDevelopmentResourceAdmission;
+  constructor(input: { endpoint: string; model: string; timeoutMs?: number; maxResponseBytes?: number; maxOutputTokens?: number; thinking?: boolean; fetchImpl?: typeof fetch; admit?: typeof withDevelopmentResourceAdmission }) {
     const url = new URL(input.endpoint);
     if (url.protocol !== "http:" || !["127.0.0.1", "localhost", "[::1]"].includes(url.hostname) || url.username || url.password || url.search || url.hash || !["", "/"].includes(url.pathname)) throw new Error("Primary Brain requires loopback HTTP origin");
     if (!input.model.trim() || input.model.length > 200) throw new Error("configured local model is required");
     this.endpoint = url.origin; this.model = input.model; this.timeoutMs = input.timeoutMs ?? 30_000;
     this.maxBytes = input.maxResponseBytes ?? 64_000; this.fetchImpl = input.fetchImpl ?? fetch;
+    this.admit = input.admit ?? withDevelopmentResourceAdmission;
     this.maxOutputTokens = input.maxOutputTokens ?? 512; this.thinking = input.thinking ?? false;
     if (!Number.isInteger(this.timeoutMs) || this.timeoutMs < 10 || this.timeoutMs > 60_000 || !Number.isInteger(this.maxBytes) || this.maxBytes < 100 || this.maxBytes > 256_000) throw new Error("invalid brain transport bounds");
     if (!Number.isInteger(this.maxOutputTokens) || this.maxOutputTokens < 64 || this.maxOutputTokens > 2048) throw new Error("invalid brain output budget");
   }
   private async run(operation: string, context: PrimaryBrainContext): Promise<PrimaryBrainDecision> {
+    assertCognitiveSafe(context);
+    goalDraftPurpose(context);
+    return this.admit(() => this.runAdmitted(operation, context), { kind: "local-model" });
+  }
+  private async runAdmitted(operation: string, context: PrimaryBrainContext): Promise<PrimaryBrainDecision> {
     assertCognitiveSafe(context);
     const proposal = goalDraftPurpose(context);
     const encoded = JSON.stringify(context);

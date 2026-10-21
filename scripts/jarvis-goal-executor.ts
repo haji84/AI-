@@ -19,6 +19,8 @@ import { createRuntimeDevelopmentVerifier } from "../src/orchestrator/runtime-de
 import { HttpDevelopmentReleaseCapability } from "../src/orchestrator/http-development-release-capability.ts";
 import { createTaskCompletionAuthorization, normalizeTaskCompletionAuthorization } from "../src/orchestrator/task-authorization.ts";
 import { buildRepositoryDevelopmentContext } from "../src/orchestrator/repository-development-context.ts";
+import { ResourceWaitError } from "../src/gai/development-resource-admission.ts";
+import { nextResourceWait, resourceWaitExhausted, resourceWaitFromEvidence, type DevelopmentResourceWait } from "../src/orchestrator/development-resource-wait.ts";
 
 function requiredEnv(name: string): string {
   const value = process.env[name]?.trim();
@@ -157,7 +159,7 @@ function configuredDevelopmentRuntime(compassPath: string, context: unknown[]): 
           },
         };
         const result = await router.execute(action, [...runtimeContext, { source: "repository.development-context", summary: `Selected ${repositoryContext.selectedPaths.length} repository files`, data: repositoryContext }]);
-        if (!result.ok) throw new Error(result.blocker ?? result.summary);
+        if (!result.ok) throw (result.blocker === "WAITING_FOR_RESOURCE" ? resourceWaitFromEvidence(result.evidence) : null) ?? new Error(result.blocker ?? result.summary);
         const envelope = (result.evidence as { changeSet?: { baseRevision?: string | null; changedPaths?: string[]; patchDigest?: string; candidateRevision?: string; artifactDigest?: string; artifactRef?: string; tddPhase?: "red" | "green"; tddEvidenceDigest?: string; builderId?: string } } | undefined)?.changeSet;
         if (!envelope || envelope.baseRevision !== job.baseRevision || !envelope.patchDigest) throw new Error("resident Builder returned incomplete Change Set evidence");
         return createDevelopmentChangeSet({
@@ -191,7 +193,11 @@ function configuredDevelopmentRuntime(compassPath: string, context: unknown[]): 
           },
         };
         const result = await verifier.verify({ goal, action, result: { actionId: action.id, ok: true, summary: "Change Set ready for verification" }, context: runtimeContext });
-        if (!result.ok) return [];
+        if (!result.ok) {
+          const wait = resourceWaitFromEvidence(result.evidence);
+          if (wait) throw wait;
+          return [];
+        }
         const evidence = result.evidence as { verificationEvidence?: unknown } | undefined;
         return Array.isArray(evidence?.verificationEvidence) ? evidence.verificationEvidence as never : [];
       },
@@ -218,13 +224,14 @@ async function appendEvent(
   }
 }
 
-async function updateWorkRun(compassPath: string, goalId: string, phase: "RUNNING" | "COMPLETED" | "BLOCKED" | "HUMAN_GATE", reason: string | null): Promise<void> {
+async function updateWorkRun(compassPath: string, goalId: string, phase: "RUNNING" | "COMPLETED" | "BLOCKED" | "HUMAN_GATE", reason: string | null, resourceWait?: DevelopmentResourceWait | null): Promise<void> {
   const compass = new CompassStore(compassPath);
   try {
     const store = new CompassWorkRunStore(compass);
     const current = await store.getByGoal(goalId);
     if (!current) throw new Error("Accepted Goal has no durable Work Run");
-    await store.put({ ...current, phase, blockers: phase === "BLOCKED" ? [reason ?? "execution_failed"] : [], nextAction: phase === "COMPLETED" ? null : reason, updatedAt: new Date().toISOString() });
+    if (compass.getState().status === "PAUSED" || current.phase === "HUMAN_GATE" && phase !== "HUMAN_GATE") return;
+    await store.put({ ...current, phase, resourceWait: resourceWait === undefined ? current.resourceWait : resourceWait ?? undefined, blockers: phase === "BLOCKED" ? [reason ?? "execution_failed"] : [], nextAction: phase === "COMPLETED" ? null : reason, updatedAt: new Date().toISOString() });
   } finally {
     compass.close();
   }
@@ -236,6 +243,19 @@ async function main(): Promise<void> {
   const context = decodeContext(process.env.JARVIS_GOAL_EXECUTION_CONTEXT_B64);
   const decision = executorDecision(goalId);
   try {
+    const compass = new CompassStore(compassPath);
+    try {
+      const current = await new CompassWorkRunStore(compass).getByGoal(goalId);
+      if (compass.getState().status === "PAUSED" || !current || !["QUEUED", "PLANNING", "RUNNING", "VERIFYING", "RECOVERING"].includes(current.phase)) return;
+      if (current.resourceWait) {
+        if (resourceWaitExhausted(current.resourceWait, new Date())) {
+          await updateWorkRun(compassPath, goalId, "BLOCKED", "resource_wait_budget_exhausted", null);
+          await appendEvent(compassPath, { goalId, type: "GOAL_BLOCKED", summary: "resource_wait_budget_exhausted", evidenceRefs: [] });
+          return;
+        }
+        if (Date.now() < Date.parse(current.resourceWait.retryAt)) return;
+      }
+    } finally { compass.close(); }
     await updateWorkRun(compassPath, goalId, "RUNNING", "Execute accepted Goal");
     const developmentRuntime = configuredDevelopmentRuntime(compassPath, context);
     const adapter = developmentRuntime
@@ -244,6 +264,7 @@ async function main(): Promise<void> {
     const bridge = new GoalControllerExecutionBridge(adapter);
     const result = await bridge.executeUntilGoalTerminal(decision, { maxRuns: 12, context });
     const report = result.report;
+    if (result.reason === "paused") return;
     const type = result.reason === "goal_complete"
       ? "GOAL_COMPLETED"
       : result.reason === "human_gate"
@@ -251,8 +272,8 @@ async function main(): Promise<void> {
         : result.reason === "blocked" || result.reason === "retry_exhausted"
           ? "GOAL_BLOCKED"
           : "IMPORTANT_UPDATE";
-    const phase = result.reason === "goal_complete" ? "COMPLETED" : result.reason === "human_gate" ? "HUMAN_GATE" : result.reason === "publication_wait" ? "RUNNING" : "BLOCKED";
-    await updateWorkRun(compassPath, goalId, phase, result.reason ?? report?.stopReason ?? "goal_execution_incomplete");
+    const phase = result.reason === "goal_complete" ? "COMPLETED" : result.reason === "human_gate" ? "HUMAN_GATE" : result.reason === "publication_wait" || result.reason === "resource_wait" ? "RUNNING" : "BLOCKED";
+    await updateWorkRun(compassPath, goalId, phase, result.reason ?? report?.stopReason ?? "goal_execution_incomplete", report?.resourceWait ?? null);
     await appendEvent(compassPath, {
       goalId,
       type,
@@ -263,6 +284,18 @@ async function main(): Promise<void> {
       console.error("[goriq-goal-executor]", goalId, result.reason);
     }
   } catch (error) {
+    if (error instanceof ResourceWaitError) {
+      const compass = new CompassStore(compassPath);
+      try {
+        const current = await new CompassWorkRunStore(compass).getByGoal(goalId);
+        if (!current) throw new Error("Accepted Goal has no durable Work Run");
+        const exhausted = current.resourceWait && resourceWaitExhausted(current.resourceWait, new Date());
+        const wait = exhausted ? null : nextResourceWait(current.resourceWait, error.outcome, new Date());
+        await updateWorkRun(compassPath, goalId, exhausted ? "BLOCKED" : "RUNNING", exhausted ? "resource_wait_budget_exhausted" : "resource_wait:" + error.outcome.reason, wait);
+        await appendEvent(compassPath, { goalId, type: exhausted ? "GOAL_BLOCKED" : "IMPORTANT_UPDATE", summary: exhausted ? "resource_wait_budget_exhausted" : "resource_wait", evidenceRefs: [] });
+      } finally { compass.close(); }
+      return;
+    }
     try {
       await updateWorkRun(compassPath, goalId, "BLOCKED", error instanceof Error ? error.message : "execution_failed");
       await appendEvent(compassPath, {
