@@ -98,3 +98,34 @@ test("publication wait is a durable continuation boundary, not a failed Goal or 
   assert.equal(result.reason, "publication_wait");
   assert.equal(result.report?.stopReason, "cycle_budget_exhausted");
 });
+
+test("missing independent verifier evidence waits durably without exhausting Goal retries", async () => {
+  let calls = 0;
+  const adapter: GoalExecutionAdapter = {
+    async run() {
+      calls++;
+      return { cycles: [], stopReason: "cycle_budget_exhausted", goalEvaluation: {
+        achieved: false, verifiedRequired: [], failedRequired: [], unverifiedRequired: ["release"],
+        blockers: [], remainingGaps: ["independent_verifier_pending:missing_evidence:lint"],
+      } };
+    },
+  };
+  const result = await new GoalControllerExecutionBridge(adapter).executeUntilGoalTerminal(
+    decision("CONTINUE_GOAL", "goal-1"), { maxRuns: 12 },
+  );
+  assert.equal(result.reason, "verification_wait");
+  assert.equal(calls, 1);
+});
+
+test("paused Goal stops continuation after one read without consuming the run budget", async () => {
+  let calls = 0;
+  const adapter: GoalExecutionAdapter = { async run() {
+    calls++;
+    return { cycles: [], stopReason: "paused", goalEvaluation: { achieved: false, verifiedRequired: ["criterion-1"],
+      failedRequired: [], unverifiedRequired: ["criterion-2"], blockers: [], remainingGaps: ["project_paused"] } };
+  } };
+  const result = await new GoalControllerExecutionBridge(adapter).executeUntilGoalTerminal(decision("CONTINUE_GOAL", "goal-1"), { maxRuns: 12 });
+  assert.equal(calls, 1);
+  assert.equal(result.reason, "paused");
+  assert.equal(result.reports?.length, 1);
+});

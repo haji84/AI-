@@ -65,6 +65,28 @@ jobs:
             exit 1
           fi
 
+  independent-verifier-container:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+      - name: Real restricted-container six-check verification
+        run: node scripts/jarvis-verifier-live-ci.mjs --execute-hosted-ci
+      - name: Retain hosted-container evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: independent-verifier-container-${{ github.sha }}
+          path: ${{ runner.temp }}/goriq-verifier-live-evidence/
+          if-no-files-found: error
+          retention-days: 14
+
   windows-runtime-byte-fixtures:
     runs-on: windows-latest
     timeout-minutes: 5
@@ -78,3 +100,9 @@ jobs:
           ./tests/goriq-pc-runtime-launch.test.ps1
           ./tests/gai-zbook-launcher-file.test.ps1
           ./tests/goriq-zbook-watchdog-launcher-repair.test.ps1
+      - name: Windows PowerShell 5.1 access media fixtures
+        shell: powershell
+        run: |
+          ./tests/ai09-access-media.test.ps1
+          ./tests/ai09-access-media-windows-acl.test.ps1
+          ./tests/ai09-access-media-lifecycle.test.ps1

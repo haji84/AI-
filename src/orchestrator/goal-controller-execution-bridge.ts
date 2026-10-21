@@ -48,6 +48,9 @@ export class GoalControllerExecutionBridge {
     for (let run = 0; run < maxRuns; run += 1) {
       const report = await this.adapter.run(decision.goalId, { context: options.context ?? [] });
       reports.push(report);
+      if (report.stopReason === "paused") {
+        return { decision, executed: true, report, reports, reason: "paused" };
+      }
       if (report.goalEvaluation?.achieved === true || report.stopReason === "goal_complete") {
         return { decision, executed: true, report, reports, reason: "goal_complete" };
       }
@@ -56,6 +59,9 @@ export class GoalControllerExecutionBridge {
       }
       if (report.stopReason === "blocked" || report.stopReason === "retry_exhausted") {
         return { decision, executed: true, report, reports, reason: report.stopReason };
+      }
+      if (report.goalEvaluation?.remainingGaps.some(gap => gap.startsWith("independent_verifier_pending:"))) {
+        return { decision, executed: true, report, reports, reason: "verification_wait" };
       }
       if (report.goalEvaluation?.remainingGaps.some((gap) => gap === "publication_connectivity_unavailable" || gap.startsWith("publication_wait:"))) {
         return { decision, executed: true, report, reports, reason: "publication_wait" };

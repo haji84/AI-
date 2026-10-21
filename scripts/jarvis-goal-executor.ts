@@ -3,7 +3,7 @@ import { compassGoalToLoopGoal } from "../src/orchestrator/compass-state-store.t
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
-import { dirname, isAbsolute, join, relative, resolve } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { CompassGoalExecutionAdapter, type DevelopmentRuntimeOptions } from "../src/orchestrator/compass-goal-execution-adapter.ts";
 import { CompassGoalBridgeEventStore } from "../src/orchestrator/compass-goal-bridge-event-store.ts";
 import { CompassWorkRunStore } from "../src/orchestrator/compass-work-run-store.ts";
@@ -16,10 +16,14 @@ import { JsonFileDevelopmentJobStore } from "../src/orchestrator/development-job
 import { ResidentDevelopmentGoalHost } from "../src/orchestrator/resident-development-goal-host.ts";
 import { createRuntimeBuilderRouter } from "../src/orchestrator/runtime-builder-capability.ts";
 import { resolveResidentDevelopmentScope } from "../src/orchestrator/resident-development-scope.ts";
+import { localOllamaFixtureTestPath, runLocalTddVerification } from "../src/orchestrator/local-ollama-tdd.ts";
+import { readSignedLocalVerifierReceipt } from "../src/orchestrator/signed-local-verifier-receipt.ts";
 import { createRuntimeDevelopmentVerifier } from "../src/orchestrator/runtime-development-verifier.ts";
 import { HttpDevelopmentReleaseCapability } from "../src/orchestrator/http-development-release-capability.ts";
 import { createTaskCompletionAuthorization, normalizeTaskCompletionAuthorization } from "../src/orchestrator/task-authorization.ts";
 import { buildRepositoryDevelopmentContext } from "../src/orchestrator/repository-development-context.ts";
+import { createSequencedResidentRuntime } from "../src/orchestrator/sequenced-resident-runtime.ts";
+import type { Goal } from "../src/orchestrator/goal-loop.ts";
 
 function requiredEnv(name: string): string {
   const value = process.env[name]?.trim();
@@ -63,16 +67,24 @@ function configuredDevelopmentRuntime(compassPath: string, context: unknown[]): 
   const contextText = JSON.stringify(context);
   const goalStore = new CompassStore(compassPath);
   let persistedGoalText = "";
+  let persistedGoal: Goal | undefined;
   let persistedOwnerCommand: string | undefined;
   try {
     const record = goalStore.getGoal();
     if (record) {
       const goal = compassGoalToLoopGoal(record);
+      persistedGoal = goal;
       persistedGoalText = [goal.title, goal.description ?? "", ...goal.successCriteria].join("\n");
       persistedOwnerCommand = goal.description?.trim() || goal.title;
     }
   } finally {
     goalStore.close();
+  }
+  if (process.env.GORIQ_SELF_DEVELOPMENT_SEQUENCE_FILE || process.env.GORIQ_SELF_DEVELOPMENT_SEQUENCE_SHA256) {
+    if (!persistedGoal) throw Error("RESIDENT_SEQUENCE_PERSISTED_GOAL_REQUIRED");
+    const runtime = createSequencedResidentRuntime({ env: process.env, runtimeRoot: process.cwd(), compassPath, goal: persistedGoal });
+    if (!runtime) throw Error("RESIDENT_SEQUENCE_CONFIGURATION_REQUIRED");
+    return { runtime };
   }
   const developmentSignalText = `${contextText}\n${persistedGoalText}`;
   const explicitDevelopment = process.env.GORIQ_SELF_DEVELOPMENT_RUNTIME === "1";
@@ -115,6 +127,28 @@ function configuredDevelopmentRuntime(compassPath: string, context: unknown[]): 
   const repositoryContext = buildRepositoryDevelopmentContext({ objective: "resident self-development", preferredFiles: resolvedTargets, entries, maxChars: 40_000 });
   const router = createRuntimeBuilderRouter();
   const verifier = createRuntimeDevelopmentVerifier();
+  const verifierReceipt = process.env.GORIQ_LOCAL_VERIFIER_RECEIPT_FILE?.trim();
+  const verifierPublicKey = process.env.GORIQ_LOCAL_VERIFIER_PUBLIC_KEY_FILE?.trim();
+  if (executionScope.localOllama && Boolean(verifierReceipt) !== Boolean(verifierPublicKey)) {
+    throw new Error("SIGNED_LOCAL_VERIFIER_CONFIGURATION_INCOMPLETE");
+  }
+  const verifierPublicKeySha256 = process.env.GORIQ_LOCAL_VERIFIER_PUBLIC_KEY_SHA256?.trim();
+  if (executionScope.localOllama && verifierReceipt && verifierPublicKey) {
+    if (!/^[a-f0-9]{64}$/.test(verifierPublicKeySha256 ?? "")) {
+      throw new Error("SIGNED_LOCAL_VERIFIER_PUBLIC_KEY_PIN_REQUIRED");
+    }
+    for (const file of [verifierReceipt, verifierPublicKey]) {
+      const rel = relative(repositoryRoot, resolve(file));
+      if (!isAbsolute(file) || rel === "" || (!isAbsolute(rel) && rel !== ".." && !rel.startsWith(".." + sep))) {
+        throw new Error("SIGNED_LOCAL_VERIFIER_AUTHORITY_MUST_BE_OUTSIDE_BUILDER_WORKSPACE");
+      }
+    }
+  }
+  const verifierKeyPem = executionScope.localOllama && verifierPublicKey
+    ? readFileSync(verifierPublicKey, "utf8") : null;
+  if (verifierKeyPem && createHash("sha256").update(verifierKeyPem).digest("hex") !== verifierPublicKeySha256) {
+    throw new Error("SIGNED_LOCAL_VERIFIER_PUBLIC_KEY_PIN_MISMATCH");
+  }
   const releaseUrl = process.env.GORIQ_SELF_DEVELOPMENT_RELEASE_URL?.trim();
   const releaseToken = process.env.GORIQ_SELF_DEVELOPMENT_RELEASE_TOKEN?.trim();
   if (Boolean(releaseUrl) !== Boolean(releaseToken)) throw new Error("GORIQ release URL and token must be configured together");
@@ -135,6 +169,7 @@ function configuredDevelopmentRuntime(compassPath: string, context: unknown[]): 
     },
     stages: {
       builderId: "builder:resident",
+      deferMissingVerification: executionScope.localOllama,
       async build({ job, context: runtimeContext, workItemId }) {
         const workItem = job.workItems.find((item) => item.id === workItemId);
         if (!workItem) throw new Error("resident Builder Work Item is not in the durable Job");
@@ -149,7 +184,8 @@ function configuredDevelopmentRuntime(compassPath: string, context: unknown[]): 
             attemptId: `${job.jobId}:attempt:${job.attempts.length + 1}`,
             strategyId: `${job.jobId}:strategy:${job.attempts.length + 1}`,
             objective: workItem.objective,
-            files: resolvedTargets,
+            files: executionScope.localOllama && process.env.GORIQ_LOCAL_OLLAMA_TDD_PROFILE === "python_add_v1" && tddPhase === "red"
+              ? [localOllamaFixtureTestPath] : resolvedTargets,
             baseRevision: job.baseRevision,
             previousFailureSignatures: job.failureSignatures,
             previousStrategyFingerprints: job.rejectedStrategyIds,
@@ -180,6 +216,18 @@ function configuredDevelopmentRuntime(compassPath: string, context: unknown[]): 
           rollback: { kind: "git-base", reference: job.baseRevision },
         });
       },
+      ...(executionScope.localOllama && process.env.GORIQ_LOCAL_OLLAMA_TDD_PROFILE === "python_add_v1" ? {
+        async verifyRed({ changeSet }: { changeSet: { baseRevision: string; artifactDigest: string; candidateRevision: string; changedPaths: string[] } }) {
+          const red = runLocalTddVerification(repositoryRoot, changeSet.baseRevision, "red");
+          if (!red.ok || !red.evidenceDigest ||
+              red.evidence?.artifactSha256 !== changeSet.artifactDigest ||
+              red.evidence?.candidateRevision !== changeSet.candidateRevision ||
+              changeSet.changedPaths.length !== 1 || changeSet.changedPaths[0] !== localOllamaFixtureTestPath) {
+            throw new Error(red.blocker ?? "independent_red_artifact_binding_invalid");
+          }
+          return { digest: red.evidenceDigest, issuer: red.evidence!.verifierId };
+        },
+      } : {}),
       async verify({ job, changeSet, plan, goal, context: runtimeContext }) {
         const action = {
           id: `${job.jobId}:verify`,
@@ -192,6 +240,26 @@ function configuredDevelopmentRuntime(compassPath: string, context: unknown[]): 
             releaseBinding: { builderId: plan.builderId, sourceRevision: plan.sourceRevision, artifactDigest: plan.artifactDigest },
           },
         };
+        if (executionScope.localOllama && process.env.GORIQ_LOCAL_OLLAMA_TDD_PROFILE === "python_add_v1") {
+          const green = runLocalTddVerification(repositoryRoot, changeSet.baseRevision, "green");
+          if (!green.ok || green.evidence?.artifactSha256 !== changeSet.artifactDigest ||
+              green.evidence?.candidateRevision !== plan.sourceRevision) return [];
+          if (verifierReceipt && verifierPublicKey && existsSync(verifierReceipt)) {
+            return readSignedLocalVerifierReceipt({ receiptPath: verifierReceipt,
+              publicKeyPem: verifierKeyPem!,
+              plan, changeSet, goalId: job.goalId });
+          }
+          // This narrow Python unit proof cannot be mislabeled as the complete
+          // repository-wide lint/typecheck/build/security gate.
+          return [{ check: "unit" as const, verifierId: green.evidence!.verifierId,
+            sourceRevision: plan.sourceRevision, artifactDigest: plan.artifactDigest,
+            status: "passed" as const, recordedAt: green.evidence!.recordedAt }];
+        }
+        if (executionScope.localOllama) {
+          if (!verifierReceipt || !verifierPublicKey || !existsSync(verifierReceipt)) return [];
+          return readSignedLocalVerifierReceipt({ receiptPath: verifierReceipt,
+            publicKeyPem: verifierKeyPem!, plan, changeSet, goalId: job.goalId });
+        }
         const result = await verifier.verify({ goal, action, result: { actionId: action.id, ok: true, summary: "Change Set ready for verification" }, context: runtimeContext });
         if (!result.ok) return [];
         const evidence = result.evidence as { verificationEvidence?: unknown } | undefined;
@@ -253,7 +321,7 @@ async function main(): Promise<void> {
         : result.reason === "blocked" || result.reason === "retry_exhausted"
           ? "GOAL_BLOCKED"
           : "IMPORTANT_UPDATE";
-    const phase = result.reason === "goal_complete" ? "COMPLETED" : result.reason === "human_gate" ? "HUMAN_GATE" : result.reason === "publication_wait" ? "RUNNING" : "BLOCKED";
+    const phase = result.reason === "goal_complete" ? "COMPLETED" : result.reason === "human_gate" ? "HUMAN_GATE" : (result.reason === "publication_wait" || result.reason === "verification_wait") ? "RUNNING" : "BLOCKED";
     await updateWorkRun(compassPath, goalId, phase, result.reason ?? report?.stopReason ?? "goal_execution_incomplete");
     await appendEvent(compassPath, {
       goalId,

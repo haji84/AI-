@@ -13,6 +13,8 @@ export interface DevelopmentPlanningInput {
   objective: string;
   requirementIds: string[];
   acceptanceCriteria: string[];
+  /** Preserve host-assigned Goal criterion identities when planning a subset. */
+  criterionIds?: string[];
   baseRevision: string;
   taskScopeId: string;
   maxRisk: DevelopmentRisk;
@@ -67,6 +69,9 @@ export class DevelopmentOrchestrator {
     if (!input.objective.trim() || !input.acceptanceCriteria.length || !input.targetFiles.length) {
       throw new Error("development objective, acceptance criteria, and target files are required");
     }
+    if (input.criterionIds && (input.criterionIds.length !== input.acceptanceCriteria.length
+      || new Set(input.criterionIds).size !== input.criterionIds.length
+      || input.criterionIds.some(id => !id.trim()))) throw new Error("development criterion identities must match acceptance criteria");
     const failures = input.priorFailures ?? [];
     const hypothesis = failures.length
       ? `Replace failed strategy ${failures.at(-1)!.strategyId} using a smaller isolated implementation and its verifier evidence`
@@ -84,7 +89,7 @@ export class DevelopmentOrchestrator {
       requirementIds: input.requirementIds,
       acceptanceCriteria: input.acceptanceCriteria,
       definitionOfDone: input.acceptanceCriteria.map((criterion, index) => ({
-        id: `criterion-${index + 1}`,
+        id: input.criterionIds?.[index] ?? `criterion-${index + 1}`,
         description: criterion,
         required: true,
       })),

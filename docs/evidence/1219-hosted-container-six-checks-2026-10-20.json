@@ -1,0 +1,299 @@
+{
+  "schemaVersion": 1,
+  "evidenceClass": "HOSTED_CONTAINER_CI",
+  "physicalAcceptanceVerified": false,
+  "sourceRevision": "3dfc2b0727e39767dbaffdb48d4baa9421212e1f",
+  "runUrl": "https://github.com/haji84/AI-/actions/runs/39329694811",
+  "artifactId": 12224018566,
+  "artifactZipSha256": "5ee2c6d50e2bbaefec5424518e04fce6e29c5e615b20af9ba45415e49e057c47",
+  "environment": {
+    "evidenceClass": "HOSTED_CONTAINER_CI",
+    "physicalAcceptanceVerified": false,
+    "baseRevision": "3dfc2b0727e39767dbaffdb48d4baa9421212e1f",
+    "githubRunId": "39329694811",
+    "node": "v24.19.0",
+    "registryImage": "registry:2.8.3@sha256:a3d8aaa63ed8681a604f1dea0aa03f100d5895b6a58ace528858a7b332415373",
+    "dockerClient": "28.0.4",
+    "dockerServer": "28.0.4",
+    "buildProfile": {
+      "id": "next-webpack-v1",
+      "command": "pnpm",
+      "args": [
+        "build",
+        "--webpack"
+      ]
+    },
+    "limits": {
+      "timeoutMs": 180000,
+      "memoryBytes": 2147483648,
+      "pids": 128,
+      "tmpfsMiB": 1536,
+      "network": "none",
+      "uid": 65534
+    }
+  },
+  "image": {
+    "image": "127.0.0.1:32768/verifier@sha256:d30a9797d4ff6c83a472a949c34241efb42288015a86c4e9e69c226894ad165a",
+    "buildProfile": "next-webpack-v1",
+    "buildContextHashes": {
+      "Dockerfile": "7c19deb9eddf89715b13d9f12de548fdc1195b870b68c2d426a08c48ea7f3a7f",
+      "jarvis-verifier-offline-workspace.mjs": "a92a5c24ae9bad4b9db92eedbf6abb5d08e3835b79792c83c570d29229c711d3",
+      "package.json": "d92950d3516f24fd908d50348116150c197a3335e48590dcc1b0798e0aa59774",
+      "pnpm-lock.yaml": "2531ddfad5ef473ef7aa4b4c3cdbc77846db448129325fd2235f676b59dafd90"
+    }
+  },
+  "result": {
+    "status": "PASSED",
+    "physicalAcceptanceVerified": false,
+    "baseRevision": "3dfc2b0727e39767dbaffdb48d4baa9421212e1f",
+    "containerExecutionVerified": true,
+    "receiptSha256": "becdb8c4faffbb178756a825a9f3607d513475544d30efdc19c26fec1d96310d",
+    "checks": [
+      {
+        "check": "lint",
+        "outputDigest": "a1a9930aa8346c2671d12fed7f10cb5e16d064ec59c841a9d0a09dc45cdd58d2",
+        "containerName": "goriq-verifier-3a6ff0aa-6475-4166-993a-0b1d1bf90dd0"
+      },
+      {
+        "check": "typecheck",
+        "outputDigest": "e37193e8c3beb44a09f7d13c17893b6d9cfa4f6ad8c45d9456cd450accdc0588",
+        "containerName": "goriq-verifier-7806ce1f-00e3-4e5f-8ea8-a6cd4562b82f"
+      },
+      {
+        "check": "unit",
+        "outputDigest": "16e80fec01f6517b7de2f6bf62a15a9e214cf1d3fd033ddbf696f6e45dc90acd",
+        "containerName": "goriq-verifier-4987a789-e84e-43ab-8c4c-36fbe4eafd98"
+      },
+      {
+        "check": "integration",
+        "outputDigest": "319284409ec2dd39c2fa7255ed52ae868bedf26c792c405429e45e6322f8a719",
+        "containerName": "goriq-verifier-331466d0-5070-41af-8487-0a58b8e867d6"
+      },
+      {
+        "check": "security",
+        "outputDigest": "ca010afae727a26a0a0199470ae4745fc36f7fab947d552bb960adbd963f5d8e",
+        "containerName": "goriq-verifier-fd7aed65-2109-46ad-a2ad-09f9a4687a28"
+      },
+      {
+        "check": "build",
+        "outputDigest": "9a9caa2b647adbcc7b06b5e3180103ebac1a4e488313b60b75f22696fa6c9393",
+        "containerName": "goriq-verifier-8e165bd2-f0bf-445d-ad69-1477cda6ea0b"
+      }
+    ],
+    "image": "127.0.0.1:32768/verifier@sha256:d30a9797d4ff6c83a472a949c34241efb42288015a86c4e9e69c226894ad165a",
+    "goalId": "ci-goal-9c73ba25-bf0d-4166-aa5d-d578fff606f7",
+    "jobId": "ci-job-9c73ba25-bf0d-4166-aa5d-d578fff606f7",
+    "changeSetId": "ci-change-9c73ba25-bf0d-4166-aa5d-d578fff606f7",
+    "sourceRevision": "fe6f823db6615ffae3f5c96d96b90a21b64a9632e5337655a693a70e596ac5f4",
+    "artifactDigest": "7d09c38a61111fe40aed15c84cfd7c43e821dfad32986b3d997f50776d220a43",
+    "publicKeySha256": "38db887afe284da5a248a786219b2f38daad60ea99470092852c1549052c57f3",
+    "fixtureCleanupConfirmed": true
+  },
+  "receipt": {
+    "payload": {
+      "version": 1,
+      "verifierId": "ci-host-signer",
+      "goalId": "ci-goal-9c73ba25-bf0d-4166-aa5d-d578fff606f7",
+      "jobId": "ci-job-9c73ba25-bf0d-4166-aa5d-d578fff606f7",
+      "changeSetId": "ci-change-9c73ba25-bf0d-4166-aa5d-d578fff606f7",
+      "builderId": "ci-untrusted-container",
+      "baseRevision": "3dfc2b0727e39767dbaffdb48d4baa9421212e1f",
+      "sourceRevision": "fe6f823db6615ffae3f5c96d96b90a21b64a9632e5337655a693a70e596ac5f4",
+      "artifactDigest": "7d09c38a61111fe40aed15c84cfd7c43e821dfad32986b3d997f50776d220a43",
+      "issuedAt": "2026-10-19T21:44:52.601Z",
+      "expiresAt": "2026-10-19T22:10:57.115Z",
+      "checks": [
+        {
+          "check": "lint",
+          "status": "passed",
+          "outputDigest": "a1a9930aa8346c2671d12fed7f10cb5e16d064ec59c841a9d0a09dc45cdd58d2",
+          "recordedAt": "2026-10-19T21:45:04.289Z"
+        },
+        {
+          "check": "typecheck",
+          "status": "passed",
+          "outputDigest": "e37193e8c3beb44a09f7d13c17893b6d9cfa4f6ad8c45d9456cd450accdc0588",
+          "recordedAt": "2026-10-19T21:45:14.181Z"
+        },
+        {
+          "check": "unit",
+          "status": "passed",
+          "outputDigest": "16e80fec01f6517b7de2f6bf62a15a9e214cf1d3fd033ddbf696f6e45dc90acd",
+          "recordedAt": "2026-10-19T21:47:47.154Z"
+        },
+        {
+          "check": "integration",
+          "status": "passed",
+          "outputDigest": "319284409ec2dd39c2fa7255ed52ae868bedf26c792c405429e45e6322f8a719",
+          "recordedAt": "2026-10-19T21:50:17.358Z"
+        },
+        {
+          "check": "security",
+          "status": "passed",
+          "outputDigest": "ca010afae727a26a0a0199470ae4745fc36f7fab947d552bb960adbd963f5d8e",
+          "recordedAt": "2026-10-19T21:50:32.964Z"
+        },
+        {
+          "check": "build",
+          "status": "passed",
+          "outputDigest": "9a9caa2b647adbcc7b06b5e3180103ebac1a4e488313b60b75f22696fa6c9393",
+          "recordedAt": "2026-10-19T21:50:56.920Z"
+        }
+      ]
+    },
+    "signatureBase64": "+wx2+vby0/WKGVLxG7mI57WbeP3YwsIddYqfI4bLoI0tJLTXa5JQ5F8VgxttcaQlpzV5LQXuojNcKvLqTfIfCw=="
+  },
+  "receiptSha256": "becdb8c4faffbb178756a825a9f3607d513475544d30efdc19c26fec1d96310d",
+  "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAKjfRLsWuCEY3VLSLIyAu+ncFluFFL0ltOt5yZLEY1Fc=\n-----END PUBLIC KEY-----\n",
+  "audit": {
+    "source": "3dfc2b0727e39767dbaffdb48d4baa9421212e1f",
+    "evidenceClass": "HOSTED_CONTAINER_CI",
+    "physicalAcceptanceVerified": false,
+    "receiptSha256": "becdb8c4faffbb178756a825a9f3607d513475544d30efdc19c26fec1d96310d",
+    "publicKeySha256": "38db887afe284da5a248a786219b2f38daad60ea99470092852c1549052c57f3",
+    "signatureValid": true,
+    "candidateReconstructed": true,
+    "sourceRevision": "fe6f823db6615ffae3f5c96d96b90a21b64a9632e5337655a693a70e596ac5f4",
+    "fileHashes": {
+      "docs/verifier-live-result.txt": "7d09c38a61111fe40aed15c84cfd7c43e821dfad32986b3d997f50776d220a43",
+      "tests/verifier-ci-boundary-probe.test.mjs": "38a82687df63e519546cac953fc5aa55a4c35c8090f249d9f9d9708638f24a0c"
+    },
+    "image": "127.0.0.1:32768/verifier@sha256:d30a9797d4ff6c83a472a949c34241efb42288015a86c4e9e69c226894ad165a",
+    "buildContextHashesVerified": true,
+    "environment": {
+      "evidenceClass": "HOSTED_CONTAINER_CI",
+      "physicalAcceptanceVerified": false,
+      "baseRevision": "3dfc2b0727e39767dbaffdb48d4baa9421212e1f",
+      "githubRunId": "39329694811",
+      "node": "v24.19.0",
+      "registryImage": "registry:2.8.3@sha256:a3d8aaa63ed8681a604f1dea0aa03f100d5895b6a58ace528858a7b332415373",
+      "dockerClient": "28.0.4",
+      "dockerServer": "28.0.4",
+      "buildProfile": {
+        "id": "next-webpack-v1",
+        "command": "pnpm",
+        "args": [
+          "build",
+          "--webpack"
+        ]
+      },
+      "limits": {
+        "timeoutMs": 180000,
+        "memoryBytes": 2147483648,
+        "pids": 128,
+        "tmpfsMiB": 1536,
+        "network": "none",
+        "uid": 65534
+      }
+    },
+    "checks": [
+      {
+        "check": "lint",
+        "command": "pnpm lint",
+        "profile": null,
+        "outputDigest": "a1a9930aa8346c2671d12fed7f10cb5e16d064ec59c841a9d0a09dc45cdd58d2",
+        "exit": 0,
+        "cleanup": true,
+        "summary": [],
+        "boundary": [],
+        "consoleCoverage": []
+      },
+      {
+        "check": "typecheck",
+        "command": "pnpm exec tsc --noEmit",
+        "profile": null,
+        "outputDigest": "e37193e8c3beb44a09f7d13c17893b6d9cfa4f6ad8c45d9456cd450accdc0588",
+        "exit": 0,
+        "cleanup": true,
+        "summary": [],
+        "boundary": [],
+        "consoleCoverage": []
+      },
+      {
+        "check": "unit",
+        "command": "pnpm test",
+        "profile": null,
+        "outputDigest": "16e80fec01f6517b7de2f6bf62a15a9e214cf1d3fd033ddbf696f6e45dc90acd",
+        "exit": 0,
+        "cleanup": true,
+        "summary": [
+          "ℹ tests 2725",
+          "ℹ pass 2719",
+          "ℹ fail 0",
+          "ℹ cancelled 0",
+          "ℹ skipped 6",
+          "ℹ duration_ms 151928.810941"
+        ],
+        "boundary": [
+          "GORIQ_TMPFS_BOUNDARY:{\"uid\":65534,\"gid\":65534,\"mode\":448,\"mountOptions\":[\"rw\",\"nosuid\",\"nodev\",\"noexec\",\"relatime\"],\"nativeExecutionRejected\":true,\"imageLinkExecuted\":true}",
+          "GORIQ_REAL_BOUNDARY_PROBE_PASS:9c73ba25-bf0d-4166-aa5d-d578fff606f7"
+        ],
+        "consoleCoverage": [
+          "✔ AI09 per-VM console grant uses only fixture-native boundaries (773.352294ms)",
+          "﹣ AI09 console paths accept real owned Windows files beneath the OS drive (0.13509ms) # SKIP"
+        ]
+      },
+      {
+        "check": "integration",
+        "command": "pnpm test",
+        "profile": null,
+        "outputDigest": "319284409ec2dd39c2fa7255ed52ae868bedf26c792c405429e45e6322f8a719",
+        "exit": 0,
+        "cleanup": true,
+        "summary": [
+          "ℹ tests 2725",
+          "ℹ pass 2719",
+          "ℹ fail 0",
+          "ℹ cancelled 0",
+          "ℹ skipped 6",
+          "ℹ duration_ms 149151.889684"
+        ],
+        "boundary": [
+          "GORIQ_TMPFS_BOUNDARY:{\"uid\":65534,\"gid\":65534,\"mode\":448,\"mountOptions\":[\"rw\",\"nosuid\",\"nodev\",\"noexec\",\"relatime\"],\"nativeExecutionRejected\":true,\"imageLinkExecuted\":true}",
+          "GORIQ_REAL_BOUNDARY_PROBE_PASS:9c73ba25-bf0d-4166-aa5d-d578fff606f7"
+        ],
+        "consoleCoverage": [
+          "✔ AI09 per-VM console grant uses only fixture-native boundaries (755.610263ms)",
+          "﹣ AI09 console paths accept real owned Windows files beneath the OS drive (0.135972ms) # SKIP"
+        ]
+      },
+      {
+        "check": "security",
+        "command": "pnpm test:p8-security",
+        "profile": null,
+        "outputDigest": "ca010afae727a26a0a0199470ae4745fc36f7fab947d552bb960adbd963f5d8e",
+        "exit": 0,
+        "cleanup": true,
+        "summary": [
+          "ℹ tests 332",
+          "ℹ pass 332",
+          "ℹ fail 0",
+          "ℹ cancelled 0",
+          "ℹ skipped 0",
+          "ℹ duration_ms 14562.575262"
+        ],
+        "boundary": [],
+        "consoleCoverage": []
+      },
+      {
+        "check": "build",
+        "command": "pnpm build --webpack",
+        "profile": "next-webpack-v1",
+        "outputDigest": "9a9caa2b647adbcc7b06b5e3180103ebac1a4e488313b60b75f22696fa6c9393",
+        "exit": 0,
+        "cleanup": true,
+        "summary": [],
+        "boundary": [],
+        "consoleCoverage": []
+      }
+    ],
+    "allSixAuditPassed": true,
+    "fixtureCleanupConfirmed": true
+  },
+  "limitations": [
+    "Historical hosted CI evidence at the exact source above; not a current runtime authorization or proof that this key remains isolated on ZBook.",
+    "Windows ACL fixture is explicitly skipped on Linux; actual local Windows ACL checks are separate.",
+    "Earlier timeout failures remain retained; this successful run does not prove timing stability.",
+    "AI-09 authenticated SSH, physical independent signer and Windows OS reboot continuation remain unverified."
+  ]
+}
