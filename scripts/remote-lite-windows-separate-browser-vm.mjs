@@ -70,7 +70,40 @@ try {
     await pause(150);
   }
   if (!mediaReady) throw new Error('separate browser media not decoded: ' + JSON.stringify(lastState));
-  process.stdout.write(JSON.stringify({event:'media-ready', separateBrowsers:true, width:lastState.width}) + '\n');
+  // A decoded video width alone can pass with an empty black canvas. Compare
+  // actual GDI JPEG pixels, the host's Canvas, and the decoded viewer frame.
+  const pixelScript = selector => `const element=document.querySelector(${JSON.stringify(selector)});
+    if(!element||!(element.naturalWidth||element.videoWidth||element.width))return null;
+    const probe=document.createElement("canvas");probe.width=12;probe.height=7;
+    const ctx=probe.getContext("2d",{willReadFrequently:true});ctx.drawImage(element,0,0,12,7);
+    return Array.from(ctx.getImageData(0,0,12,7).data);`;
+  const pixelDifference = (left, right) => {
+    if (!Array.isArray(left) || !Array.isArray(right) || left.length !== 12 * 7 * 4 ||
+      right.length !== left.length) return Infinity;
+    let sum = 0;
+    for (let i = 0; i < left.length; i += 4) {
+      sum += Math.abs(left[i] - right[i]) + Math.abs(left[i + 1] - right[i + 1]) +
+        Math.abs(left[i + 2] - right[i + 2]);
+    }
+    return sum / (12 * 7 * 3);
+  };
+  let matchedPixels = false;
+  let lastPixels;
+  for (let attempt = 0; attempt < 60; attempt++) {
+    const image = await evalPage(host, pixelScript('#screen'));
+    const canvas = await evalPage(host, pixelScript('#sourceCanvas'));
+    const video = await evalPage(viewer, pixelScript('#remoteVideo'));
+    const sourceHasContent = Array.isArray(image) && image.some((value, index) => index % 4 !== 3 && value > 24);
+    lastPixels = {sourceHasContent, canvasError:pixelDifference(image, canvas),
+      viewerError:pixelDifference(image, video)};
+    if (sourceHasContent && lastPixels.canvasError < 6 && lastPixels.viewerError < 32) {
+      matchedPixels = true; break;
+    }
+    await pause(150);
+  }
+  if (!matchedPixels) throw new Error('native GDI pixels did not reach separate viewer: ' + JSON.stringify(lastPixels));
+  process.stdout.write(JSON.stringify({event:'media-ready', separateBrowsers:true,
+    width:lastState.width, pixelsMatched:true}) + '\n');
   const lines = createInterface({ input: process.stdin })[Symbol.asyncIterator]();
   if ((await lines.next()).value !== 'move') throw new Error('VM cursor setup missing');
   const sequence = await evalPage(viewer, 'return window.vmViewer.sendManual({action:"pointer",phase:"move",button:"left",x:.5,y:.5})');

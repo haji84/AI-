@@ -220,7 +220,8 @@ func TestWindowsVMSeparateChromiumRealCoordinator(t *testing.T) {
 		_ = browser.Wait()
 	})
 	browserLines := bufio.NewScanner(browserOutput)
-	if !browserLines.Scan() || !bytes.Contains(browserLines.Bytes(), []byte(`"event":"media-ready"`)) {
+	if !browserLines.Scan() || !bytes.Contains(browserLines.Bytes(), []byte(`"event":"media-ready"`)) ||
+		!bytes.Contains(browserLines.Bytes(), []byte(`"pixelsMatched":true`)) {
 		t.Fatalf("real Node signals did not connect separate browsers: %v %s %s",
 			browserLines.Err(), browserErrors.String(), fixtureErrors.String())
 	}

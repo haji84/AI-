@@ -201,7 +201,8 @@ func TestWindowsVMSeparateChromiumSignedPeer(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = stdin.Close(); _ = command.Wait() })
 	lines := bufio.NewScanner(stdout)
-	if !lines.Scan() || !bytes.Contains(lines.Bytes(), []byte(`"event":"media-ready"`)) {
+	if !lines.Scan() || !bytes.Contains(lines.Bytes(), []byte(`"event":"media-ready"`)) ||
+		!bytes.Contains(lines.Bytes(), []byte(`"pixelsMatched":true`)) {
 		t.Fatalf("separate Chromium sessions did not decode native screen: %v %s", lines.Err(), stderr.String())
 	}
 	prepareVMCursorAwayFromCenter(t)
