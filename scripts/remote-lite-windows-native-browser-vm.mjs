@@ -64,6 +64,11 @@ try {
     await pause(150);
   }
   if (!mediaReady) throw new Error('native video/DataChannel did not connect: ' + JSON.stringify(lastMediaState));
+  process.stdout.write(JSON.stringify({ event: 'media-ready', nativeJPEG: true, decodedVideo: true }) + '\n');
+  const lines = createInterface({ input: process.stdin });
+  const commands = lines[Symbol.asyncIterator]();
+  const move = await commands.next();
+  if (move.value !== 'move') throw new Error('VM cursor setup was not confirmed');
   await evalPage('document.querySelector("#rtcInput").click(); return true');
   let inputReady = false;
   for (let attempt = 0; attempt < 70; attempt++) {
@@ -77,8 +82,8 @@ try {
   if (!refs.track || !refs.channel) throw new Error('VM could not retain live media/channel references');
   process.stdout.write(JSON.stringify({ event: 'active', nativeJPEG: true, decodedVideo: true,
     manualNativeAck: true }) + '\n');
-  const lines = createInterface({ input: process.stdin });
-  for await (const line of lines) { if (line === 'revoke') break; }
+  const revoke = await commands.next();
+  if (revoke.value !== 'revoke') throw new Error('VM revocation command missing');
   let stopped = false;
   for (let attempt = 0; attempt < 50; attempt++) {
     const state = await evalPage('return { text: document.querySelector("#rtcStatus").textContent, stream: document.querySelector("#rtcVideo").srcObject, image: document.querySelector("#screen").getAttribute("src"), track: window.__vmTrack?.readyState, channel: window.__vmChannel?.readyState }');

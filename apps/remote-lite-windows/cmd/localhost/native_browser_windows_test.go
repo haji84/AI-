@@ -24,6 +24,34 @@ import (
 
 type vmPoint struct{ X, Y int32 }
 
+func prepareVMCursorAwayFromCenter(t *testing.T) {
+	t.Helper()
+	user32 := syscall.NewLazyDLL("user32.dll")
+	metrics := user32.NewProc("GetSystemMetrics")
+	setCursor := user32.NewProc("SetCursorPos")
+	getCursor := user32.NewProc("GetCursorPos")
+	readMetric := func(index uintptr) int32 {
+		value, _, _ := metrics.Call(index)
+		return int32(value)
+	}
+	left, top := readMetric(76), readMetric(77)
+	width, height := readMetric(78), readMetric(79)
+	if width < 16 || height < 16 {
+		t.Fatalf("invalid VM screen: %d x %d", width, height)
+	}
+	x, y := left+width/8, top+height/8
+	if ok, _, err := setCursor.Call(uintptr(x), uintptr(y)); ok == 0 {
+		t.Fatalf("SetCursorPos failed: %v", err)
+	}
+	var before vmPoint
+	if ok, _, err := getCursor.Call(uintptr(unsafe.Pointer(&before))); ok == 0 {
+		t.Fatalf("GetCursorPos before RTC input failed: %v", err)
+	}
+	if before.X < x-8 || before.X > x+8 || before.Y < y-8 || before.Y > y+8 {
+		t.Fatalf("cursor did not reach VM test start coordinate: got (%d,%d), expected (%d,%d)", before.X, before.Y, x, y)
+	}
+}
+
 // An acknowledgement from the DataChannel is insufficient evidence of native
 // input. Read the actual Windows cursor after the browser reports success.
 func assertVMCursorAtScreenCenter(t *testing.T) {
@@ -109,6 +137,13 @@ func TestWindowsVMNativeWebRTCFrameInputAndRevocation(t *testing.T) {
 		_ = cmd.Wait()
 	})
 	lines := bufio.NewScanner(stdout)
+	if !lines.Scan() || !bytes.Contains(lines.Bytes(), []byte(`"event":"media-ready"`)) {
+		t.Fatalf("native WebRTC failed before pointer test: %v %s", lines.Err(), stderr.String())
+	}
+	prepareVMCursorAwayFromCenter(t)
+	if _, err := fmt.Fprintln(stdin, "move"); err != nil {
+		t.Fatal(err)
+	}
 	if !lines.Scan() || !bytes.Contains(lines.Bytes(), []byte(`"event":"active"`)) {
 		t.Fatalf("native WebRTC failed before revocation: %v %s", lines.Err(), stderr.String())
 	}

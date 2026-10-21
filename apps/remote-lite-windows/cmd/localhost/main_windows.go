@@ -63,6 +63,11 @@ type desktopBridge interface {
 
 type statusChecker interface{ Check(context.Context) error }
 
+func newHostServer(bridge desktopBridge, remoteStatus statusChecker, token string, expiry time.Time, host string) *server {
+	return &server{bridge: bridge, remoteStatus: remoteStatus, token: token,
+		enabled: true, expires: expiry, host: host}
+}
+
 // The native status check and the following desktop operation are serialized.
 // Once a failed check is observed, no later request can use the bridge.
 func (s *server) allowRemote(w http.ResponseWriter, r *http.Request, afterInput bool) bool {
@@ -300,7 +305,7 @@ func main() {
 	defer listener.Close()
 	port := listener.Addr().String()
 	httpServer := &http.Server{ReadHeaderTimeout: 3 * time.Second, ReadTimeout: 6 * time.Second, WriteTimeout: 10 * time.Second, IdleTimeout: 12 * time.Second, MaxHeaderBytes: 8192}
-	app := &server{bridge: bridge, remoteStatus: remoteGate, token: token, enabled: true, expires: end, host: port}
+	app := newHostServer(bridge, remoteGate, token, end, port)
 	app.cancel = func() { _ = httpServer.Close() }
 	mux := http.NewServeMux()
 	app.routes(mux)

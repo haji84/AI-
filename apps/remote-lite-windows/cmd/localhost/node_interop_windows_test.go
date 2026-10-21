@@ -91,11 +91,18 @@ func TestActualNodeCoordinatorRevocationStopsWindowsRoutes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	configPath := filepath.Join(t.TempDir(), "active-session.json")
+	t.Setenv("LOCALAPPDATA", t.TempDir())
+	configPath, err := remoteSessionPath()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Dir(configPath), 0700); err != nil {
+		t.Fatal(err)
+	}
 	if err := os.WriteFile(configPath, config, 0600); err != nil {
 		t.Fatal(err)
 	}
-	gate, err := loadSignedRemoteSession(configPath, nil)
+	gate, err := configuredSignedRemoteSession(nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -103,8 +110,7 @@ func TestActualNodeCoordinatorRevocationStopsWindowsRoutes(t *testing.T) {
 		t.Fatalf("normal EXE signed gate could not check actual coordinator: %v", err)
 	}
 	bridge := new(fakeRemoteDesktop)
-	app := &server{bridge: bridge, remoteStatus: gate, token: strings.Repeat("c", 64),
-		enabled: true, expires: time.Now().Add(time.Minute), host: "127.0.0.1:42000"}
+	app := newHostServer(bridge, gate, strings.Repeat("c", 64), time.Now().Add(time.Minute), "127.0.0.1:42000")
 	mux := http.NewServeMux()
 	app.routes(mux)
 	if got := remoteRequest(t, mux, http.MethodGet, "/api/remote/frame", nil); got.Code != http.StatusOK || bridge.frames != 1 {

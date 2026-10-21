@@ -99,7 +99,7 @@ jobs:
             $temporary = Join-Path $env:RUNNER_TEMP ([IO.Path]::GetFileName($source))
             [IO.File]::WriteAllText($temporary, $normalized, [Text.UTF8Encoding]::new($false))
             $unformatted = gofmt -l $temporary
-            if ($unformatted) { throw "Unformatted Go source: $source" }
+            if ($unformatted) { gofmt -d $temporary; throw "Unformatted Go source: $source" }
           }
           $env:GORIQ_REMOTE_LITE_NODE_INTEROP = '1'
           $env:GORIQ_REMOTE_LITE_VM_NATIVE = '1'
