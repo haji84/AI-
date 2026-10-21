@@ -4,7 +4,7 @@ import { Buffer } from 'node:buffer';
 const validId = (value) => typeof value === 'string' && value.length >= 1 && value.length <= 128 && /^[a-zA-Z0-9._:-]+$/.test(value);
 const hexHash = (value) => createHash('sha256').update(value).digest('hex');
 const fail = (code) => { throw new PairingError(code); };
-const operations = new Set(['session-accept', 'session-status', 'session-discover', 'signal-send', 'signal-receive', 'session-end', 'reconnect']);
+const operations = new Set(['session-accept', 'session-status', 'signal-send', 'signal-receive', 'session-end', 'reconnect']);
 const token = () => randomBytes(24).toString('hex');
 const bytesOfSignature = (value) => {
   if (typeof value !== 'string' || !/^[A-Za-z0-9+/]{86}==$/.test(value)) fail('SIGNATURE_INVALID');
@@ -33,6 +33,7 @@ export class RemoteLitePairingRegistry {
   #pending = new Map();
   #devices = new Map();
   #challenges = new Map();
+  #discoveryNonces = new Map();
 
   constructor({ authorizeOwner, now = () => Date.now(), inviteMs = 5 * 60_000, proofMs = 60_000, limit = 100 } = {}) {
     if (typeof authorizeOwner !== 'function' || typeof now !== 'function') throw new TypeError('An independent owner authorization function and clock are required');
@@ -49,6 +50,10 @@ export class RemoteLitePairingRegistry {
     for (const [k, v] of this.#invites) if (t >= v.expiresAt) this.#invites.delete(k);
     for (const [k, v] of this.#pending) if (t >= v.expiresAt) this.#pending.delete(k);
     for (const [k, v] of this.#challenges) if (t >= v.expiresAt) this.#challenges.delete(k);
+    for (const [deviceId, nonces] of this.#discoveryNonces) {
+      for (const [nonce, expiresAt] of nonces) if (t >= expiresAt) nonces.delete(nonce);
+      if (nonces.size === 0) this.#discoveryNonces.delete(deviceId);
+    }
   }
 
   #owner(ownerId, authorization, action) {
@@ -137,6 +142,28 @@ export class RemoteLitePairingRegistry {
     return ['GORIQ_REMOTE_DEVICE_AUTH_V1',deviceId,operation,sessionId,challengeId,challenge,payloadHash].join('\n');
   }
 
+  static discoveryMessage({ deviceId, issuedAt, nonce }) {
+    return ['GORIQ_REMOTE_DEVICE_DISCOVER_V1', deviceId, issuedAt, nonce].join('\n');
+  }
+
+  /** Discovery has no unauthenticated challenge allocation. The registered
+   * device signs its own fresh nonce and time; replay state is device-scoped. */
+  verifyDiscovery({ deviceId, issuedAt, nonce, signature } = {}) {
+    this.#prune();
+    const device = this.#devices.get(deviceId);
+    if (!validId(deviceId) || !device) fail('DEVICE_REVOKED');
+    if (!Number.isSafeInteger(issuedAt) || Math.abs(this.now() - issuedAt) >= 30_000 ||
+        typeof nonce !== 'string' || !/^[0-9a-f]{48}$/.test(nonce)) fail('DISCOVERY_EXPIRED');
+    const message = RemoteLitePairingRegistry.discoveryMessage({ deviceId, issuedAt, nonce });
+    if (!verify(null, Buffer.from(message), device.key, bytesOfSignature(signature))) fail('DEVICE_PROOF_INVALID');
+    let nonces = this.#discoveryNonces.get(deviceId);
+    if (!nonces) { nonces = new Map(); this.#discoveryNonces.set(deviceId, nonces); }
+    if (nonces.has(nonce)) fail('DISCOVERY_REPLAYED');
+    if (nonces.size >= 64) fail('DISCOVERY_RATE_LIMITED');
+    nonces.set(nonce, this.now() + 60_000);
+    return { ownerId: device.ownerId, deviceId, devicePrincipalId: device.fingerprint };
+  }
+
   verifyDevice({ deviceId, operation, sessionId, challengeId, payloadHash = '', signature } = {}) {
     this.#prune();
     const record = this.#challenges.get(challengeId);
@@ -163,6 +190,7 @@ export class RemoteLitePairingRegistry {
     const stored = this.#devices.get(deviceId);
     if (!stored || stored.ownerId !== ownerId) fail('DEVICE_NOT_FOUND');
     this.#devices.delete(deviceId);
+    this.#discoveryNonces.delete(deviceId);
     for (const [k, c] of this.#challenges) if (c.deviceId === deviceId) this.#challenges.delete(k);
     return { deviceId, status: 'revoked' };
   }

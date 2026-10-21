@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createHash, generateKeyPairSync, sign } from 'node:crypto';
+import { createHash, generateKeyPairSync, randomBytes, sign } from 'node:crypto';
 import { Buffer } from 'node:buffer';
 import { request as nodeRequest } from 'node:http';
 import { ManualRemoteCoordinator } from '../src/remote-lite/manual-coordinator.mjs';
@@ -44,6 +44,11 @@ async function rig() {
     });
     return { ...ch.result, deviceId: device.deviceId, sessionId, operation, payloadHash, signature: key(device.keys, message) };
   };
+  const discoveryProof = (device) => {
+    const issuedAt = Date.now(), nonce = randomBytes(24).toString('hex');
+    return { deviceId: device.deviceId, issuedAt, nonce,
+      signature: key(device.keys, RemoteLitePairingRegistry.discoveryMessage({deviceId:device.deviceId,issuedAt,nonce})) };
+  };
   const register = async (ownerToken, deviceId) => {
     const keys = generateKeyPairSync('ed25519');
     const invitation = await post('/v1/invite', {}, ownerToken);
@@ -66,7 +71,7 @@ async function rig() {
     assert.equal(approved.status, 200);
     return { deviceId, keys, fingerprint: approved.result.fingerprint };
   };
-  return { local, info, post, url, register, deviceProof, sessions };
+  return { local, info, post, url, register, deviceProof, discoveryProof, sessions };
 }
 
 test('real local HTTP: owner invites, device signs, owner approves, offer/answer, then disconnect', async t => {
@@ -229,16 +234,25 @@ test('real local HTTP: signed device pending discovery is scoped and one-use', a
   const bob=await h.register('fixture-bob','win-bob-pending');
   const started=await h.post('/v1/start',{deviceId:alice.deviceId});
   assert.equal(started.status,200);
-  const proof=await h.deviceProof(alice,alice.deviceId,'session-discover');
+  for(let i=0;i<20;i++) assert.equal((await h.post('/v1/device/challenge',{
+    deviceId:alice.deviceId,sessionId:alice.deviceId,operation:'session-discover',
+  },null)).status,403);
+  const proof=h.discoveryProof(alice);
   const pending=await h.post('/v1/device/pending',{deviceId:alice.deviceId,proof},null);
   assert.equal(pending.status,200);
   assert.deepEqual(pending.result,{sessionId:started.result.sessionId,deviceId:alice.deviceId,status:'pending',expiresAt:started.result.expiresAt});
   assert.equal((await h.post('/v1/device/pending',{deviceId:alice.deviceId,proof},null)).status,403);
   assert.equal((await h.post('/v1/device/pending',{
-    deviceId:bob.deviceId,proof:await h.deviceProof(bob,bob.deviceId,'session-discover'),
+    deviceId:bob.deviceId,proof:h.discoveryProof(bob),
   },null)).result,null);
+  assert.equal((await h.post('/v1/device/pending',{
+    deviceId:bob.deviceId,proof:h.discoveryProof(alice),
+  },null)).status,403);
+  assert.equal((await h.post('/v1/device/challenge',{
+    deviceId:alice.deviceId,sessionId:started.result.sessionId,operation:'session-accept',
+  },null)).status,200);
   await h.post('/v1/viewer/end',{sessionId:started.result.sessionId,viewerToken:started.result.viewerToken});
   assert.equal((await h.post('/v1/device/pending',{
-    deviceId:alice.deviceId,proof:await h.deviceProof(alice,alice.deviceId,'session-discover'),
+    deviceId:alice.deviceId,proof:h.discoveryProof(alice),
   },null)).result,null);
 });

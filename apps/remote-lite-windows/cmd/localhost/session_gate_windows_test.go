@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -119,31 +120,40 @@ func TestSignedStatusGateRequiresDeviceProofAndFreshMatchingStatus(t *testing.T)
 }
 
 func TestSignedPendingDiscoveryRejectsMismatchedAndExpiredResults(t *testing.T) {
-	_, private, err := ed25519.GenerateKey(rand.Reader)
+	public, private, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		t.Fatal(err)
 	}
 	now := time.Now()
 	deviceID := "windows-other"
 	expiresAt := now.Add(time.Minute).UnixMilli()
+	requests := 0
 	coordinator := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests++
 		w.Header().Set("Content-Type", "application/json")
 		switch r.URL.Path {
-		case "/v1/device/challenge":
+		case "/v1/device/pending":
 			var request struct {
-				DeviceID  string `json:"deviceId"`
-				SessionID string `json:"sessionId"`
-				Operation string `json:"operation"`
+				DeviceID string `json:"deviceId"`
+				Proof    struct {
+					DeviceID  string `json:"deviceId"`
+					IssuedAt  int64  `json:"issuedAt"`
+					Nonce     string `json:"nonce"`
+					Signature string `json:"signature"`
+				} `json:"proof"`
 			}
-			if err := json.NewDecoder(r.Body).Decode(&request); err != nil || request.DeviceID != "windows-a" || request.SessionID != "windows-a" || request.Operation != "session-discover" {
-				t.Errorf("invalid discovery challenge request: %+v, %v", request, err)
+			if err := json.NewDecoder(r.Body).Decode(&request); err != nil || request.DeviceID != "windows-a" || request.Proof.DeviceID != "windows-a" || request.Proof.IssuedAt != now.UnixMilli() || !statusNonce.MatchString(request.Proof.Nonce) {
+				t.Errorf("invalid discovery request: %+v, %v", request, err)
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
-			_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "result": map[string]any{
-				"challengeId": "51c18b98-f073-4c32-a8e7-79e5cff81837", "challenge": strings.Repeat("a", 48), "expiresAt": now.Add(time.Minute).UnixMilli(),
-			}})
-		case "/v1/device/pending":
+			message := []byte("GORIQ_REMOTE_DEVICE_DISCOVER_V1\nwindows-a\n" + strconv.FormatInt(request.Proof.IssuedAt, 10) + "\n" + request.Proof.Nonce)
+			signature, err := base64.StdEncoding.DecodeString(request.Proof.Signature)
+			if err != nil || !ed25519.Verify(public, message, signature) {
+				t.Error("invalid discovery signature")
+				w.WriteHeader(http.StatusForbidden)
+				return
+			}
 			_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "result": map[string]any{
 				"sessionId": "session-a", "deviceId": deviceID, "status": "pending", "expiresAt": expiresAt,
 			}})
@@ -166,5 +176,8 @@ func TestSignedPendingDiscoveryRejectsMismatchedAndExpiredResults(t *testing.T) 
 	expiresAt = now.Add(-time.Second).UnixMilli()
 	if pending, err := gate.DiscoverPending(context.Background()); err == nil || pending != nil {
 		t.Fatalf("expired request was accepted: %+v, %v", pending, err)
+	}
+	if requests != 2 {
+		t.Fatalf("discovery made %d requests; expected direct signed POSTs", requests)
 	}
 }

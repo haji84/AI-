@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createHash, generateKeyPairSync, sign } from 'node:crypto';
+import { createHash, generateKeyPairSync, randomBytes, sign } from 'node:crypto';
 import { Buffer } from 'node:buffer';
 import { ManualRemoteCoordinator } from '../src/remote-lite/manual-coordinator.mjs';
 import { RemoteLitePairingRegistry } from '../src/remote-lite/device-pairing.mjs';
@@ -22,7 +22,12 @@ function harness() {
     const signed=sign(null,Buffer.from(RemoteLitePairingRegistry.deviceMessage({...challenge,deviceId:d.deviceId,operation,sessionId,payloadHash})),d.keys.privateKey).toString('base64');
     return {...challenge,deviceId:d.deviceId,operation,sessionId,payloadHash,signature:signed};
   };
-  return {c,enroll,proof,advance:n=>{t+=n;}};
+  const discoveryProof=(d)=>{
+    const issuedAt=t,nonce=randomBytes(24).toString('hex');
+    const signature=sign(null,Buffer.from(RemoteLitePairingRegistry.discoveryMessage({deviceId:d.deviceId,issuedAt,nonce})),d.keys.privateKey).toString('base64');
+    return {deviceId:d.deviceId,issuedAt,nonce,signature};
+  };
+  return {c,enroll,proof,discoveryProof,advance:n=>{t+=n;}};
 }
 
 test('local pairing -> device-accepted session -> WebRTC signaling -> manual input -> disconnect',()=>{
@@ -107,14 +112,27 @@ test('every viewer operation checks that owner authentication is still valid',()
 });
 
 test('registered device discovers only its own pending session with a fresh signed proof',()=>{
-  const {c,enroll,proof}=harness(),a=enroll('alice','win-alice'),b=enroll('bob','win-bob');
-  const noSession=proof(a,a.deviceId,'session-discover');
+  const {c,enroll,proof,discoveryProof,advance}=harness(),a=enroll('alice','win-alice'),b=enroll('bob','win-bob');
+  for(let i=0;i<20;i++) assert.throws(()=>c.challengeDevice({deviceId:a.deviceId,operation:'session-discover',sessionId:a.deviceId}),/DEVICE_UNAVAILABLE/);
+  const noSession=discoveryProof(a);
   assert.equal(c.discoverPendingSession({deviceId:a.deviceId,proof:noSession}),null);
-  assert.throws(()=>c.discoverPendingSession({deviceId:a.deviceId,proof:noSession}),/CHALLENGE_NOT_FOUND_OR_MISMATCH/);
+  assert.throws(()=>c.discoverPendingSession({deviceId:a.deviceId,proof:noSession}),/DISCOVERY_REPLAYED/);
+  const future=discoveryProof(a);
+  future.issuedAt+=29_999;
+  future.signature=sign(null,Buffer.from(RemoteLitePairingRegistry.discoveryMessage(future)),a.keys.privateKey).toString('base64');
+  assert.equal(c.discoverPendingSession({deviceId:a.deviceId,proof:future}),null);
+  advance(60_000);
+  assert.throws(()=>c.discoverPendingSession({deviceId:a.deviceId,proof:future}),/DISCOVERY_EXPIRED/);
   const started=c.startSession({...auth('alice'),deviceId:a.deviceId});
-  const pending=c.discoverPendingSession({deviceId:a.deviceId,proof:proof(a,a.deviceId,'session-discover')});
+  const pending=c.discoverPendingSession({deviceId:a.deviceId,proof:discoveryProof(a)});
   assert.deepEqual(pending,{sessionId:started.sessionId,deviceId:a.deviceId,status:'pending',expiresAt:started.expiresAt});
-  assert.equal(c.discoverPendingSession({deviceId:b.deviceId,proof:proof(b,b.deviceId,'session-discover')}),null);
+  assert.equal(c.discoverPendingSession({deviceId:b.deviceId,proof:discoveryProof(b)}),null);
+  const forged=discoveryProof(a);
+  forged.signature=sign(null,Buffer.from(RemoteLitePairingRegistry.discoveryMessage(forged)),b.keys.privateKey).toString('base64');
+  assert.throws(()=>c.discoverPendingSession({deviceId:a.deviceId,proof:forged}),/DEVICE_PROOF_INVALID/);
+  const stale=discoveryProof(a);
+  advance(31_000);
+  assert.throws(()=>c.discoverPendingSession({deviceId:a.deviceId,proof:stale}),/DISCOVERY_EXPIRED/);
   c.acceptSession({sessionId:started.sessionId,deviceId:a.deviceId,proof:proof(a,started.sessionId,'session-accept')});
-  assert.equal(c.discoverPendingSession({deviceId:a.deviceId,proof:proof(a,a.deviceId,'session-discover')}),null);
+  assert.equal(c.discoverPendingSession({deviceId:a.deviceId,proof:discoveryProof(a)}),null);
 });

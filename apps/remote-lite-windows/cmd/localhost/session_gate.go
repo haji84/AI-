@@ -6,7 +6,9 @@ import (
 	"bytes"
 	"context"
 	"crypto/ed25519"
+	"crypto/rand"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,6 +17,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"strconv"
 	"time"
 )
 
@@ -178,20 +181,13 @@ func (g *signedStatusGate) DiscoverPending(parent context.Context) (*pendingRemo
 	}
 	ctx, cancel := context.WithTimeout(parent, 3*time.Second)
 	defer cancel()
-	var challenge struct {
-		ChallengeID string `json:"challengeId"`
-		Challenge   string `json:"challenge"`
-		ExpiresAt   int64  `json:"expiresAt"`
+	nonceBytes := make([]byte, 24)
+	if _, err := rand.Read(nonceBytes); err != nil {
+		return nil, errors.New("discovery nonce unavailable")
 	}
-	if err := g.post(ctx, "/v1/device/challenge", map[string]string{
-		"deviceId": g.deviceID, "operation": "session-discover", "sessionId": g.deviceID,
-	}, &challenge); err != nil {
-		return nil, err
-	}
-	if !statusChallengeID.MatchString(challenge.ChallengeID) || !statusNonce.MatchString(challenge.Challenge) || challenge.ExpiresAt <= g.now().UnixMilli() {
-		return nil, errors.New("discovery challenge invalid or expired")
-	}
-	message := []byte("GORIQ_REMOTE_DEVICE_AUTH_V1\n" + g.deviceID + "\nsession-discover\n" + g.deviceID + "\n" + challenge.ChallengeID + "\n" + challenge.Challenge + "\n")
+	nonce := hex.EncodeToString(nonceBytes)
+	issuedAt := g.now().UnixMilli()
+	message := []byte("GORIQ_REMOTE_DEVICE_DISCOVER_V1\n" + g.deviceID + "\n" + strconv.FormatInt(issuedAt, 10) + "\n" + nonce)
 	signature, err := g.sign(message)
 	if err != nil || len(signature) != ed25519.SignatureSize {
 		return nil, errors.New("device signing failed")
@@ -199,9 +195,9 @@ func (g *signedStatusGate) DiscoverPending(parent context.Context) (*pendingRemo
 	var pending *pendingRemoteSession
 	if err := g.post(ctx, "/v1/device/pending", map[string]any{
 		"deviceId": g.deviceID,
-		"proof": map[string]string{
-			"deviceId": g.deviceID, "operation": "session-discover", "sessionId": g.deviceID,
-			"challengeId": challenge.ChallengeID, "signature": base64.StdEncoding.EncodeToString(signature),
+		"proof": map[string]any{
+			"deviceId": g.deviceID, "issuedAt": issuedAt, "nonce": nonce,
+			"signature": base64.StdEncoding.EncodeToString(signature),
 		},
 	}, &pending); err != nil {
 		return nil, err
