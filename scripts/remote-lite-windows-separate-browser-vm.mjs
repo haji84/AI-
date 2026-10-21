@@ -4,7 +4,7 @@ import { spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
 import { createServer } from 'node:http';
 import { once } from 'node:events';
-import { compareFramePixels, pixelProbeScript } from './remote-lite-vm-pixels.mjs';
+import { compareFrameHistory, pixelProbeScript } from './remote-lite-vm-pixels.mjs';
 
 const [hostUrl, viewerUrl] = process.argv.slice(2);
 if (!/^http:\/\/127\.0\.0\.1:\d+\/#token=[0-9a-f]{64}&remote=1$/u.test(hostUrl || '') ||
@@ -51,6 +51,16 @@ try {
   };
   const evalPage = (id, script) => webdriver('POST', `/session/${id}/execute/sync`, { script, args: [] });
   const host = await newSession(hostUrl);
+  // Retain pixels just after each JPEG load handler draws that same frame into
+  // the capture canvas. Live DOM probes can straddle two asynchronous frames.
+  const snapshot = pixelProbeScript('#screen', '#sourceCanvas');
+  await evalPage(host, `window.vmFrameSamples=[];
+    const snapshot=()=>{${snapshot}};
+    document.querySelector('#screen').addEventListener('load',()=>{
+      setTimeout(()=>{const [image,canvas]=snapshot();
+        if(image&&canvas){window.vmFrameSamples.push({image,canvas});
+          if(window.vmFrameSamples.length>20)window.vmFrameSamples.shift();}},0);
+    });return true;`);
   let frameReady = false;
   for (let attempt = 0; attempt < 100; attempt++) {
     const state = await evalPage(host, 'return {width:document.querySelector("#screen")?.naturalWidth||0,error:document.querySelector("#error")?.textContent}');
@@ -71,14 +81,14 @@ try {
     await pause(150);
   }
   if (!mediaReady) throw new Error('separate browser media not decoded: ' + JSON.stringify(lastState));
-  // A decoded video width alone can pass with an empty black canvas. Compare
-  // actual GDI JPEG pixels, the host's Canvas, and the decoded viewer frame.
+  // A decoded video width alone can pass with black frames. Compare recent
+  // GDI/Canvas frame generations against the separately decoded viewer video.
   let matchedPixels = false;
   let lastPixels;
   for (let attempt = 0; attempt < 60; attempt++) {
-    const [image, canvas] = await evalPage(host, pixelProbeScript('#screen', '#sourceCanvas'));
+    const frames = await evalPage(host, 'return window.vmFrameSamples');
     const video = await evalPage(viewer, pixelProbeScript('#remoteVideo'));
-    lastPixels = compareFramePixels(image, canvas, video);
+    lastPixels = compareFrameHistory(frames, video);
     if (lastPixels.matched) {
       matchedPixels = true; break;
     }

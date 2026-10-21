@@ -43,3 +43,15 @@ export function compareFramePixels(image, canvas, video) {
     matched: sourceHasContent && canvasError < 6 && viewerError < 32 &&
       canvasErrorRatio < .3 && viewerErrorRatio < .6 };
 }
+
+export function compareFrameHistory(frames, video) {
+  if (!Array.isArray(frames) || !frames.length) {
+    return { ...compareFramePixels(null, null, video), framesObserved:0 };
+  }
+  let last;
+  for (const frame of frames) {
+    last = compareFramePixels(frame?.image, frame?.canvas, video);
+    if (last.matched) break;
+  }
+  return { ...last, framesObserved:frames.length };
+}

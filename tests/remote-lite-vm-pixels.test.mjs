@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { compileFunction } from 'node:vm';
-import { compareFramePixels, pixelProbeScript } from '../scripts/remote-lite-vm-pixels.mjs';
+import { compareFrameHistory, compareFramePixels, pixelProbeScript } from '../scripts/remote-lite-vm-pixels.mjs';
 
 const blank = () => Array(12 * 7 * 4).fill(0);
 const color = (pixels, index, rgb) => {
@@ -44,4 +44,13 @@ test('source image and stream canvas can be sampled in one browser evaluation', 
     }) }),
   };
   assert.deepEqual(probe(document), [[10], [20]]);
+});
+
+test('a decoded earlier frame matches its own GDI/Canvas generation', () => {
+  const earlier = color(blank(), 0, [100, 120, 140]);
+  const current = color(blank(), 0, [220, 240, 250]);
+  const frames = [{ image:earlier, canvas:earlier }, { image:current, canvas:current }];
+  assert.equal(compareFrameHistory(frames, [...earlier]).matched, true);
+  assert.equal(compareFrameHistory(frames, blank()).matched, false);
+  assert.equal(compareFrameHistory([{ image:earlier, canvas:blank() }], earlier).matched, false);
 });
