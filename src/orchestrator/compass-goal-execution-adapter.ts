@@ -109,6 +109,8 @@ export class CompassGoalExecutionAdapter implements GoalExecutionAdapter {
         throw new Error(`Goal Controller goal mismatch: requested=${goalId} authoritative=${authoritativeGoalId}`);
       }
 
+      if (compass.getState().status === "PAUSED") return { cycles: [], stopReason: "paused" };
+
       const contextSource: ContextSource = {
         name: "compass-state",
         async collect() {
