@@ -25,7 +25,7 @@ on:
         default: false
 
 concurrency:
-  group: goriq-repair-engines-runtime
+  group: goriq-repair-engines-runtime-${{ github.event_name }}
   cancel-in-progress: true
 
 permissions:

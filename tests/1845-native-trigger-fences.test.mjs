@@ -48,3 +48,16 @@ test('hosted pure repair smoke remains automatic and manual-only verification ne
   assert.match(body(workflow('research-worker-e2e.yml'),'aggregate'),/if: github.event_name == 'workflow_dispatch' && always\(\)/);
   assert.match(body(workflow('resident-research-worker-e2e.yml'),'natural-command-e2e'),/needs: \[install-zbook, install-macbook\]/);
 });
+
+for (const file of ['research-worker-e2e.yml','resident-research-worker-e2e.yml','goriq-repair-engines-runtime.yml']) {
+  test(file+' isolates automatic and manual cancellation while retaining same-event cancellation',()=>{
+    const concurrency=workflow(file).match(/^concurrency:\r?\n {2}group: ([^\r\n]+)\r?\n {2}cancel-in-progress: (true|false)/m);
+    assert.ok(concurrency,'workflow concurrency remains explicit');
+    assert.equal(concurrency[2],'true','same-event replacement remains enabled');
+    const groupFor=(event)=>concurrency[1].replace(/\$\{\{([^}]+)\}\}/g,(_,expression)=>
+      vm.runInNewContext(expression,{github:{event_name:event}},{timeout:100}));
+    assert.notEqual(groupFor('push'),groupFor('workflow_dispatch'),'automatic push must not cancel manual work');
+    assert.equal(groupFor('workflow_dispatch'),groupFor('workflow_dispatch'),'manual retries share a cancellation group');
+    assert.equal(groupFor('push'),groupFor('push'),'automatic retries share a cancellation group');
+  });
+}

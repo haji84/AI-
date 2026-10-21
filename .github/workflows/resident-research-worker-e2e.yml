@@ -21,7 +21,7 @@ permissions:
   actions: read
 
 concurrency:
-  group: resident-research-worker-e2e
+  group: resident-research-worker-e2e-${{ github.event_name }}
   cancel-in-progress: true
 
 jobs:
