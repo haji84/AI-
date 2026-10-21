@@ -53,7 +53,7 @@ Files: goriq-pr-ci-recovery workflow/script shared path policy/preflight helper 
 - [ ] Run safe latest-main native checks without deploying/copying over services; record before/after observations and unobserved long-run effects separately. Write back Compass/state-only bookkeeping and next action. Never call freeze prevention proven.
 
 ## Rollback
-All code/config changes are isolated to this issue branch, then one reviewed PR. Revert the issue's merge commit and run the same checks if regression occurs; no runtime/service/configuration rollback is needed because no live installation is performed. Preserve pre-existing worktrees, uncommitted files, logs and VM state.
+Source rollback requires a reviewed revert that preserves the separately approved native-mutation fences. Automatic installs did change live state after PR1847; any native restoration needs read-only assessment and separate authority. A source revert alone must not be assumed to restore services. No native rollback was attempted. Preserve pre-existing worktrees, uncommitted files, logs and VM state.
 
 ## Progress ledger
 
