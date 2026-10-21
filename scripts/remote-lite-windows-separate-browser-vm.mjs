@@ -83,18 +83,31 @@ try {
     await pause(150);
   }
   if (!acknowledged) throw new Error('native input acknowledgement absent');
+  const refs = await evalPage(viewer, 'window.vmViewerTrack=document.querySelector("#remoteVideo").srcObject?.getVideoTracks()[0];return {track:window.vmViewerTrack?.readyState,channel:window.vmViewerChannel?.readyState}');
+  if (refs.track !== 'live' || refs.channel !== 'open') throw new Error('separate viewer did not retain live media and control references');
   process.stdout.write(JSON.stringify({event:'manual-ack', nativeInput:true}) + '\n');
   if ((await lines.next()).value !== 'revoke') throw new Error('VM revocation missing');
   let stopped = false;
   for (let attempt = 0; attempt < 80; attempt++) {
-    const state = await evalPage(host, 'return {status:document.querySelector("#remotePeerStatus").textContent,image:document.querySelector("#screen").getAttribute("src")}');
-    if ((/session-not-active|screen-stopped|signed-signaling-unavailable/u.test(state.status)) && state.image === null) {
+    const owner = await evalPage(host, 'return {status:document.querySelector("#remotePeerStatus").textContent,image:document.querySelector("#screen").getAttribute("src")}');
+    const remote = await evalPage(viewer, 'return {closed:window.vmViewer.closed,video:document.querySelector("#remoteVideo").srcObject,track:window.vmViewerTrack?.readyState,channel:window.vmViewerChannel?.readyState}');
+    if ((/session-not-active|screen-stopped|signed-signaling-unavailable/u.test(owner.status)) && owner.image === null &&
+      remote.closed && remote.video === null && remote.track === 'ended' && remote.channel === 'closed') {
       stopped = true; break;
     }
     await pause(150);
   }
-  if (!stopped) throw new Error('revoked signed host retained visible media');
-  process.stdout.write(JSON.stringify({event:'stopped', revokedHost:true}) + '\n');
+  if (!stopped) throw new Error('revoked signed host retained separate viewer media or input channel');
+  for (let attempt = 0; attempt < 12; attempt++) {
+    await pause(200);
+    const owner = await evalPage(host, 'return {image:document.querySelector("#screen").getAttribute("src")}');
+    const remote = await evalPage(viewer, 'return {closed:window.vmViewer.closed,video:document.querySelector("#remoteVideo").srcObject,track:window.vmViewerTrack?.readyState,channel:window.vmViewerChannel?.readyState}');
+    if (owner.image !== null || !remote.closed || remote.video !== null ||
+      remote.track !== 'ended' || remote.channel !== 'closed') throw new Error('revoked media or input reappeared');
+  }
+  const postStopInput = await evalPage(viewer, 'try{window.vmViewer.sendManual({action:"pointer",phase:"move",button:"left",x:.1,y:.1});return "accepted"}catch(error){return error.code||error.message}');
+  if (postStopInput === 'accepted') throw new Error('revoked viewer accepted manual input');
+  process.stdout.write(JSON.stringify({event:'stopped', revokedHost:true, revokedViewer:true}) + '\n');
 } catch (error) {
   process.stderr.write(`FAIL separate-browser Windows VM: ${error?.stack || String(error)}\n`);
   process.exitCode = 1;

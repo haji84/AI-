@@ -92,7 +92,12 @@ import { BrowserManualPeer } from '/browser-webrtc.mjs';
 const video=document.querySelector('#remoteVideo');
 const status=document.querySelector('#viewerStatus');
 let ack=0;
-const peer=new BrowserManualPeer({role:'viewer',rtcFactory:config=>new RTCPeerConnection(config),iceServers:[],
+const peer=new BrowserManualPeer({role:'viewer',rtcFactory:config=>{
+  const pc=new RTCPeerConnection(config);
+  const create=pc.createDataChannel.bind(pc);
+  pc.createDataChannel=(...args)=>{const channel=create(...args);window.vmViewerChannel=channel;return channel};
+  return pc;
+},iceServers:[],
   sendSignal:async signal=>{const r=await fetch('/vm/viewer/signal',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(signal)});if(!r.ok)throw Error('signal refused')},
   onStream:stream=>{video.srcObject=stream;video.play().catch(()=>{status.textContent='video failed'})},
   onManualAcknowledged:sequence=>{status.textContent='manual-ack:'+sequence},
