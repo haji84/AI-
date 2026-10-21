@@ -57,6 +57,16 @@ Source rollback requires a reviewed revert that preserves the separately approve
 
 ## Progress ledger
 
+### Separately approved concurrency event isolation
+
+Owner explicitly selected 「追加3行の検証・統合も承認する」 for the prepared3-line patch9d9a5e69e2de186a36c73320aa297414af4b082e0eed6d2b01660f5130f263cd. Reuse Issue1845; PR1849 was already merged, so use a minimal follow-up branch/PR from main c4aa4194910b57d529bb1fdbe33db613801b4296. Scope/expiry remains this issue only through2026-10-22T12:16:36Z. No native dispatch, runtime install/restart/restore, deletion, secret/permission/billing change is authorized.
+
+Minimum plan: reproduce the push/manual cancellation-group collision; apply only the three approved group lines; retain same-event cancel-in-progress, all job conditions/steps/permissions; run related regression checks and independent review; verify exact-head hosted CI and protected main CI; observe automatic native jobs remain skipped without launching manual work. Risk MEDIUM within the explicit Human Gate: workflow concurrency behavior changes but no runtime operation is requested. Before merge check for already-running manual jobs using the legacy group. A rollback would restore cancellation coupling and requires a separate reviewed decision; do not remove native-start fences or restore runtime automatically.
+
+The owner asked what folder the artifact cleanup question concerns. Explained that GitHub artifacts/logs contain personal-folder path strings; no actual user folder, development repo, VM data or local diagnostic backup is proposed for deletion. The exact4 GitHub data-object cleanup is still unapproved and NOT performed. Preserve incident FAIL305 and unresolved Mac/allocator/long-run boundaries.
+
+Local verification: three new collision regressions RED9PASS/3FAIL, then GREEN12/12 after exact patch. The legacy repair-runtime source assertion still required the old fixed group; updated it to require the exact approved event-qualified group, retaining cancel-in-progress and the unrelated autonomy assertion. Related29/29PASS260.2ms; scoped ESLint and git diff --check PASS. Commands: `node --test --test-concurrency=1 tests/1845-native-trigger-fences.test.mjs tests/goriq-repair-engine-runtime.test.ts`; ESLint on the two changed test files using existing installed dependencies. No new CI fix attempt was consumed by changing this obsolete source contract; earlier issue CI repair attempts remain2/3. Hosted CI/review/main evidence belongs to this follow-up's exact final head.
+
 ### Separately approved native-trigger containment
 
 PR1847/main accf8294 passed hosted CI but triggered existing native installer/upload jobs, breaching the task constraint. Completed steps cannot be undone by cancellation; Mac Bootstrap partial effects and uploaded-artifact privacy remain unreviewed. Issue1845 was reopened, Compass recorded task-safety FAIL/HUMAN_GATE, and the PR description corrected. No manual reinstall/restart/restore/deletion was attempted.
