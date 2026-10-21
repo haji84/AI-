@@ -38,6 +38,13 @@ type signedStatusGate struct {
 	now       func() time.Time
 }
 
+type pendingRemoteSession struct {
+	SessionID string `json:"sessionId"`
+	DeviceID  string `json:"deviceId"`
+	Status    string `json:"status"`
+	ExpiresAt int64  `json:"expiresAt"`
+}
+
 func newSignedStatusGate(rawURL, deviceID, sessionID string, sign func([]byte) ([]byte, error), client *http.Client) (*signedStatusGate, error) {
 	u, err := url.Parse(rawURL)
 	if err != nil || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || (u.Path != "" && u.Path != "/") {
@@ -160,4 +167,50 @@ func (g *signedStatusGate) Check(parent context.Context) error {
 		return errors.New("device session inactive or mismatched")
 	}
 	return nil
+}
+
+// DiscoverPending asks the coordinator for this registered device's single
+// pending request. The response carries no viewer token and grants no capture
+// or input authority; a separate locally approved acceptance is still needed.
+func (g *signedStatusGate) DiscoverPending(parent context.Context) (*pendingRemoteSession, error) {
+	if g == nil {
+		return nil, errors.New("signed device identity unavailable")
+	}
+	ctx, cancel := context.WithTimeout(parent, 3*time.Second)
+	defer cancel()
+	var challenge struct {
+		ChallengeID string `json:"challengeId"`
+		Challenge   string `json:"challenge"`
+		ExpiresAt   int64  `json:"expiresAt"`
+	}
+	if err := g.post(ctx, "/v1/device/challenge", map[string]string{
+		"deviceId": g.deviceID, "operation": "session-discover", "sessionId": g.deviceID,
+	}, &challenge); err != nil {
+		return nil, err
+	}
+	if !statusChallengeID.MatchString(challenge.ChallengeID) || !statusNonce.MatchString(challenge.Challenge) || challenge.ExpiresAt <= g.now().UnixMilli() {
+		return nil, errors.New("discovery challenge invalid or expired")
+	}
+	message := []byte("GORIQ_REMOTE_DEVICE_AUTH_V1\n" + g.deviceID + "\nsession-discover\n" + g.deviceID + "\n" + challenge.ChallengeID + "\n" + challenge.Challenge + "\n")
+	signature, err := g.sign(message)
+	if err != nil || len(signature) != ed25519.SignatureSize {
+		return nil, errors.New("device signing failed")
+	}
+	var pending *pendingRemoteSession
+	if err := g.post(ctx, "/v1/device/pending", map[string]any{
+		"deviceId": g.deviceID,
+		"proof": map[string]string{
+			"deviceId": g.deviceID, "operation": "session-discover", "sessionId": g.deviceID,
+			"challengeId": challenge.ChallengeID, "signature": base64.StdEncoding.EncodeToString(signature),
+		},
+	}, &pending); err != nil {
+		return nil, err
+	}
+	if pending == nil {
+		return nil, nil
+	}
+	if !statusID.MatchString(pending.SessionID) || pending.DeviceID != g.deviceID || pending.Status != "pending" || pending.ExpiresAt <= g.now().UnixMilli() {
+		return nil, errors.New("pending session invalid or mismatched")
+	}
+	return pending, nil
 }
