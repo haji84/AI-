@@ -20,6 +20,15 @@ Read-MsiRows 'SELECT `Property`, `Value` FROM `Property`' | ForEach-Object { $pr
 if ($properties.ProductName -ne 'GORIQ Remote Lite Candidate' -or $properties.ALLUSERS) {
     throw 'Wrong product or machine-wide installation scope'
 }
+$conditions = @(Read-MsiRows 'SELECT `Condition` FROM `LaunchCondition`' | ForEach-Object { $_[0] })
+if ('NOT ALLUSERS' -notin $conditions) { throw 'Missing rejection of machine-wide overrides' }
+foreach ($sequence in @('InstallUISequence', 'InstallExecuteSequence')) {
+    $actions = @{}
+    Read-MsiRows ('SELECT `Action`, `Sequence` FROM `' + $sequence + '`') | ForEach-Object { $actions[$_[0]] = [int]$_[1] }
+    if (!$actions.LaunchConditions -or $actions.LaunchConditions -ge $actions.CostInitialize) {
+        throw 'Machine-scope rejection must run before costing and installation'
+    }
+}
 $summary = $database.SummaryInformation(0)
 if (([int]$summary.Property(15) -band 8) -eq 0) { throw 'MSI requests elevated installation' }
 $tables = @(Read-MsiRows 'SELECT `Name` FROM `_Tables`' | ForEach-Object { $_[0] })
@@ -33,21 +42,25 @@ foreach ($row in @(Read-MsiRows 'SELECT `FileName` FROM `RemoveFile`')) {
     if ($row[0]) { throw 'Unexpected wildcard or foreign-file deletion' }
 }
 $components = @(Read-MsiRows 'SELECT `Component`, `Directory_` FROM `Component`')
-if ($components.Count -ne 2 -or
-    !($components | Where-Object { $_[0] -eq 'ManualHost' -and $_[1] -eq 'RemoteLiteInstallFolder' }) -or
-    !($components | Where-Object { $_[0] -eq 'StartMenu' -and $_[1] -eq 'RemoteLiteMenuFolder' })) {
+if ($components.Count -ne 1 -or
+    !($components | Where-Object { $_[0] -eq 'ManualHost' -and $_[1] -eq 'RemoteLiteInstallFolder' })) {
     throw 'Payload escaped the manual host/menu directories'
 }
 $files = @(Read-MsiRows 'SELECT `FileName` FROM `File`' | ForEach-Object { ($_[0] -split '\|')[-1] } | Sort-Object)
 if (($files -join ',') -ne 'GO_LICENSE.txt,GORIQRemoteLite.exe') { throw 'Unexpected payload or missing Go notice' }
 foreach ($row in @(Read-MsiRows 'SELECT `Root`, `Key` FROM `Registry`')) {
-    if ($row[0] -ne '1' -or $row[1] -ne 'Software\GORIQRemoteLiteInstaller') { throw 'Unexpected registry scope' }
+    if ($row[0] -ne '-1' -or $row[1] -ne 'Software\GORIQRemoteLiteInstaller') { throw 'Unexpected registry scope' }
 }
 $directories = @(Read-MsiRows 'SELECT `Directory`, `Directory_Parent`, `DefaultDir` FROM `Directory`')
-if (!($directories | Where-Object { $_[0] -eq 'RemoteLitePrograms' -and $_[1] -eq 'LocalAppDataFolder' -and $_[2] -eq 'Programs' })) {
-    throw 'Install root is outside the current user local application data'
+if (!($directories | Where-Object { $_[0] -eq 'ProgramFiles64Folder' -and $_[1] -eq 'TARGETDIR' })) {
+    throw 'Missing context-aware program directory'
 }
-if (!($directories | Where-Object { $_[0] -eq 'RemoteLiteInstallFolder' -and $_[1] -eq 'RemoteLitePrograms' -and ($_[2] -split '\|')[-1] -eq 'GORIQ Remote Lite' })) {
+if (!($directories | Where-Object { $_[0] -eq 'RemoteLiteInstallFolder' -and $_[1] -eq 'ProgramFiles64Folder' -and ($_[2] -split '\|')[-1] -eq 'GORIQ Remote Lite' })) {
     throw 'Install directory mismatch'
+}
+$shortcuts = @(Read-MsiRows 'SELECT `Component_`, `Directory_`, `Target` FROM `Shortcut`')
+if ($shortcuts.Count -ne 1 -or $shortcuts[0][0] -ne 'ManualHost' -or
+    $shortcuts[0][1] -ne 'RemoteLiteMenuFolder' -or $shortcuts[0][2] -ne '[#HostExecutable]') {
+    throw 'Shortcut must belong to and start exactly the manual host component'
 }
 Write-Output 'PASS MSI metadata: per-user, no elevation/custom actions, exact manual-host payload and user registry'

@@ -588,3 +588,71 @@ VM observations, not physical or public-connection acceptance.
 Rollback: revert the physicalCheck preparation commit to remove only this
 test build profile. Earlier implementation rollback is `f4b00c1` then `f279a5d`.
 Do not delete the user's device registration, OS settings or existing GORIQ data.
+
+## USB physical nubia acceptance, 2026-10-23 01:29–01:40 JST
+
+The owner returned to the sharing screen and personally approved both Android
+screen-sharing dialogs. This supersedes the earlier owner-away hold for this
+bounded test. Device: nubia A403ZT/Z6701S, Android15/API35,1080x2400. Viewer:
+separate real Chrome on the Windows PC; signaling is USB-forwarded loopback
+HTTPS at127.0.0.1:57755. Media used the actual Android capture and manual input
+used the actual Accessibility dispatch. This is **USB/local physical evidence**,
+not iPhone/cellular/public/TURN or clean friend-install acceptance.
+
+The initial no-request result was accompanied by an empty `adb reverse --list`.
+Restoring only the existing tcp57755 loopback mapping made signed discovery
+succeed and display the matching pending session on the phone. No new device
+enrollment, key, firewall or public listener was introduced. Pending sessions
+still expire after60seconds; no consent/expiry bypass was used.
+
+The old installed diagnostic APK (last update2026-10-22 20:22:49) delivered a
+real test-counter0→1 and ACK1–7, including four500ms swipes, with received
+callbacks continuing ten seconds afterward. On opening LicenseActivity it
+subsequently stopped with the viewer's stale-frame message and native
+`stop:control-channel-ended`. That is a reproduced transition failure, not proof
+that the owner's original fourth swipe had the same cause. One extra counter
+increment in the older, nonisolated observation interval is unattributed; the
+controlled three-tap run below is separate.
+
+The updated physicalCheck APK was built from head
+`0837256b066638b55280315168949b78027faff7` (Android runtime unchanged from
+`9f623791d8f6c8053a4140b5b32b932557ff7b34`) and installed with `adb install -r`
+at01:35:59. SHA256:
+`ABC5C2ADFBA84BEC1C04CFC7C8E73B1BB865D6FB4A0B3B912A38592182BEE659`.
+The existing test signing identity, CA, device registration and endpoint were
+retained. The local test server restarted on the same port with current code;
+no GORIQ service was restarted. A direct attempt to start the nonexported
+sharing activity was refused by Android; the test instead opened exported
+MainActivity and its ordinary sharing-settings button. No manifest weakening.
+
+Latest candidate results:
+
+| Step | Observed result |
+|---|---|
+| Three separate remote taps | Browser ACK1/2/3 and actual phone counter0→1→2→3, with corresponding captured color changes |
+| Open LicenseActivity | Remote tap ACK4, read-only focused-window evidence names LicenseActivity, and its text subsequently appears in the real received video |
+| Four real license scrolls | ACK5–8, changed central video pixels23.82/25.85/18.70/18.91%; elapsed from browser gesture start to ACK plus changed pixels1.321/1.347/1.223/1.179seconds (includes500ms gesture and polling) |
+| Ten-second static observation after scrolls | LIVE, ACK8,285received callbacks/313decoded total; latest-frame age969.5ms; maximum callback gap across the observed session2,799.9ms, below the4second stop threshold |
+| Explicit browser disconnect | At812ms: video srcObject cleared, all input keys disabled, status disconnected. Native log records control-channel-ended, stop-captured-frames1190 and ICE CLOSED |
+
+The2.8second maximum received-frame gap can temporarily exceed the2second input
+freshness threshold. This is not a claim of constant frame rate or acceptance
+of the requested smooth40-device/mobile experience. The original owner's
+specific gesture sequence was not reconstructed, and no single-change physical
+causal attribution is claimed. Do not modify passing Android input/capture
+features solely to chase an unmeasured performance assumption.
+
+Local screenshots and the measured receipt are retained under the ignored
+`.jarvis/remote-lite-physical/` directory (new-operation1–4, new-swipe5–8,
+new-license-settled, new-disconnected and latest-physical-receipt). No media,
+owner key, SDP, device serial or enrollment secret is uploaded here. Read-only
+logcat/window/screencap checks did not replace the actual remote input path.
+UIAutomator was used only for setup/diagnosis, not as input-result proof; its
+inspection can detach Accessibility services, so it was avoided during the
+controlled input/scroll run.
+
+**Still not distributable:** public HTTPS/owner account and relay deployment,
+iPhone cellular→Windows/Android, clean Windows install, final signatures,
+Android9–13 input, lock/reboot unattended recovery and40-device capacity remain
+unaccepted. The owner asked for alternatives to Oracle after the test; no new
+provider/account/paid service was activated.

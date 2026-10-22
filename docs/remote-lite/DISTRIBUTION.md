@@ -8,7 +8,10 @@ Public service, physical/mobile acceptance and final signing remain open.
 The standard Windows Installer package installs only the manual host EXE and the
 Go redistribution notice under the current user's
 `%LOCALAPPDATA%\Programs\GORIQ Remote Lite`, with a current-user Start menu
-shortcut. It uses perUser/limited installation scope, HKCU component markers
+shortcut. It uses perUser/limited installation scope and rejects ALLUSERS
+machine-scope overrides before costing/install actions. Context-aware MSI
+folder/registry rows resolve to the current user's Programs/HKCU locations;
+the package does not opt into dual-purpose installation. It uses
 and standard MSI actions. It does not add a service, scheduled task, autorun,
 firewall rule, public listener, credential, URL handler or executable custom
 action. Installation does not start the host or grant screen/input consent.
@@ -51,11 +54,25 @@ LGHT1105. No administrator retry, validation suppression or green-build claim
 was made. Read-only inspection of that generated candidate passed; it is not a
 successful full build or install.
 
+Head0837256b's normal CI39811612840 first failed an existing Windows browser
+startup before reaching this step. Its one failed-job retry passed the existing
+Windows tests but full ICE then reported ICE69 (cross-component shortcut file
+reference) and ICE91 (fixed per-user LocalAppData file location). The correction
+keeps pure per-user/limited scope, uses the context-aware ProgramFiles64Folder,
+moves the shortcut into the EXE component and uses its context-aware registry
+key path. It preserves all ICE checks and warnings-as-errors. Local old-MSI
+inspection now fails the added machine-override gate; the corrected MSI passes
+read-only metadata inspection. Full local ICE remains blocked by LGHT1105.
+
 The existing disposable Windows CI job builds0.1.0 twice and0.1.1. The guarded VM
-script checks initial install, same-version maintenance/refusal, actual repair
+script first checks two machine-scope overrides fail at the intended launch
+condition without files, HKLM/common-menu entries or product registration.
+It then checks initial install, same-version maintenance/refusal, actual repair
 of a corrupted EXE, version upgrade to a distinct host binary and uninstall,
 retaining a dummy enrollment
-file and a foreign file. It refuses execution outside a GitHub-hosted Windows
+file and a foreign file. Explicit ProductsEx enumeration has positive installed
+registration assertions as well as negative override/uninstall checks. It
+refuses execution outside a GitHub-hosted Windows
 VM and refuses preexisting app/identity paths. All fixture cleanup is explicit
 file/empty-directory removal. **Exact-head CI results are pending.**
 
