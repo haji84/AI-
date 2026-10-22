@@ -12,6 +12,7 @@ class SecureTestActivity : Activity() {
         window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
         var taps = 0
         setContentView(Button(this).apply {
+            isAllCaps = false
             text = "Secure target taps: 0"
             setOnClickListener { text = "Secure target taps: " + ++taps }
         })
