@@ -176,7 +176,17 @@ def allow_accessibility_in_settings(return_to_main=True):
     else:
         raise AssertionError(f"Service missing from Accessibility settings: {visible()!r}")
 
-    switch = wait_for_nodes(find_switch, "Accessibility service switch")
+    for attempt in range(1, 4):
+        try:
+            switch = wait_for_nodes(find_switch, "Accessibility service switch", seconds=8)
+            break
+        except AssertionError:
+            # Retry only if the same Settings list is still visible, never dismiss a product error.
+            service = optional_text("GORIQ Remote Lite 手動操作", seconds=2)
+            if attempt == 3 or service is None:
+                raise
+            print(f"VM Settings service row did not open, retry {attempt + 1}/3", flush=True)
+            tap_node(service)
     if switch.get("checked") != "true":
         tap_node(switch)
         decision = wait_for_nodes(confirmation_or_enabled,

@@ -192,6 +192,9 @@ class NativeRtcPeer(private val context: Context, private val lease: CaptureLeas
             catch (_: Exception) { fail("signaling-failed") }
         }
         override fun onIceCandidatesRemoved(candidates: Array<out IceCandidate>?) {}
+        override fun onIceCandidateError(event: IceCandidateErrorEvent?) {
+            trace("ice-candidate-error:" + event?.errorCode)
+        }
         override fun onAddStream(stream: MediaStream?) { fail("unexpected-incoming-media") }
         override fun onRemoveStream(stream: MediaStream?) {}
         override fun onRenegotiationNeeded() {}
