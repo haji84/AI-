@@ -175,7 +175,15 @@ class ManualAccessibilityService : AccessibilityService() {
                 checkNotNull(candidates.firstOrNull { it.bounds.contains(point.x.toInt(), point.y.toInt()) })
             }
             check(selected.map { it.id }.distinct().size == 1) { "Gesture crosses windows" }
-            return selected.first()
+            val chosen = selected.first()
+            if (points.size == 2) {
+                val swept = Rect(points.minOf { it.x }.toInt(), points.minOf { it.y }.toInt(),
+                    points.maxOf { it.x }.toInt() + 1, points.maxOf { it.y }.toInt() + 1)
+                check(candidates.none { it.id != chosen.id && it.layer >= chosen.layer && Rect.intersects(it.bounds, swept) }) {
+                    "Gesture crosses an overlapping window"
+                }
+            }
+            return chosen
         }
         val window = target()
         val done = CountDownLatch(1)

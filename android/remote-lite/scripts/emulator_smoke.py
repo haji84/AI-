@@ -205,8 +205,19 @@ def verify_real_keystore_pairing():
         def open_invite(code):
             link = "goriqremote://enroll?" + urllib.parse.urlencode({
                 "server": ready["origin"], "invite": code})
-            adb("shell", "am", "start", "-W", "-n", f"{PACKAGE}/.EnrollmentActivity",
-                "-a", "android.intent.action.VIEW", "-d", shlex.quote(link))
+            for attempt in range(1, 4):
+                adb("shell", "am", "start", "-W", "-n", f"{PACKAGE}/.EnrollmentActivity",
+                    "-a", "android.intent.action.VIEW", "-d", shlex.quote(link))
+                if optional_text(f"接続先: {ready['origin']}", seconds=10) is not None:
+                    return
+                # Cold hosted images can show a launcher ANR before the app starts.
+                # Handle only that named external process; product ANRs remain failures.
+                if optional_text("Pixel Launcher isn't responding", seconds=2) is None:
+                    break
+                print(f"VM environment: Pixel Launcher ANR during setup launch {attempt}/3; explicitly closing launcher dialog", flush=True)
+                tap_exact_text("Close app")
+                time.sleep(2)
+            wait_for_text(f"接続先: {ready['origin']}")
         # A definitely invalid invite must leave recoverable metadata, never auto-resend.
         open_invite("0" * 48)
         wait_for_text(f"接続先: {ready['origin']}")

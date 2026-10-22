@@ -105,7 +105,9 @@ open class RemoteSessionService : Service() {
                         !getSystemService(PowerManager::class.java).isInteractive) requestStop("device-locked")
                     if (!lease.allowed()) requestStop("status-deadline")
                 }, 250, 250, TimeUnit.MILLISECONDS)
-                val signaling = DeviceSignaling(identity, exchange, session, SignalCursorSettings(this))
+                val cursorStore = SignalCursorSettings(this)
+                check(cursorStore.read(session) == 0L) { "A new session is required after media termination" }
+                val signaling = DeviceSignaling(identity, exchange, session, cursorStore)
                 val display = (getSystemService(WINDOW_SERVICE) as WindowManager).defaultDisplay
                 val size = Point()
                 display.getRealSize(size)

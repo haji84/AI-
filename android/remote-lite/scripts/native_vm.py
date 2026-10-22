@@ -115,6 +115,12 @@ def verify_native(owner_post, ready, device_id, old_session, old_token):
             adb("reverse", "tcp:43478", "tcp:43478")
             browser = Browser(ready)
 
+            def projection_released():
+                projection = adb("shell", "dumpsys", "media_projection")
+                if not re.search(r"Media Projection:\s*null\b", projection):
+                    raise AssertionError("OS still has a MediaProjection grant: " + projection[-2000:])
+                print("Android OS confirms Media Projection: null", flush=True)
+
             def new_session():
                 started = owner_post("/v1/start", {"deviceId": device_id})
                 assert started.get("ok"), started
@@ -132,6 +138,8 @@ def verify_native(owner_post, ready, device_id, old_session, old_token):
                     "OS full-display MediaProjection confirmation")
                 ui.tap_node(consent)
                 ui.wait_for_text("画面共有を開始しました", seconds=35)
+                projection = adb("shell", "dumpsys", "media_projection")
+                assert ui.PACKAGE in projection, "OS capture grant not present: " + projection[-1500:]
                 browser.navigate(ready["origin"] + "/vm/viewer")
                 browser.until("return window.vm?.ready === true", "viewer reload")
                 result = browser.script("const done=arguments[arguments.length-1]; "
@@ -207,6 +215,7 @@ def verify_native(owner_post, ready, device_id, old_session, old_token):
             # Observe final capture cleanup before a new consent/session; no force-stop workaround.
             adb("shell", "input", "keyevent", "4")
             ui.wait_for_text("入力結果を確認できないため停止しました", seconds=35)
+            projection_released()
 
             second = new_session()
             bounds = real_tap()
@@ -218,6 +227,7 @@ def verify_native(owner_post, ready, device_id, old_session, old_token):
             ui.wait_for_text("接続の承認を確認できないため画面共有と操作を停止しました", seconds=15)
             elapsed = time.monotonic() - revoked_at
             assert elapsed < 12, f"Native cleanup exceeded bounded VM deadline: {elapsed}"
+            projection_released()
             ui.wait_for_text("入力テスト: 3")
             snapshot = browser.stats()
             time.sleep(2)

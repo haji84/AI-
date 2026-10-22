@@ -55,7 +55,7 @@
 - [x] Generate ephemeral loopback PKCS12/certificate in ignored build output; copy only certificate to generated debug resources.
 - [x] Drive normal EnrollmentActivity over HTTPS, compare displayed fingerprint in the fixture owner approval, then signed registration/status/capture/tap/revocation through the shared exchange.
 - [x] Inspect compiled release for INTERNET, no cleartext, no test CA config/activity; run Android VM and ordinary CI on the pushed head.
-- [ ] Independent review; fix substantive findings with reproduction tests. Save evidence, failures, next action and reverse commit order to Issue #1831; update the existing PR description.
+- [x] Independent review; fix substantive findings with reproduction tests. Save evidence, failures, next action and reverse commit order to Issue #1831; update the existing PR description. Saved in comment6333984707 and PR body at7a41a9d3; native continuation has a separate plan.
 
 ## Progress
 

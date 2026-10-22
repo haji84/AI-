@@ -2,7 +2,21 @@
 
 Issue #1831. Friend installs the Windows host and Android companion and controls their own devices from iPhone/PC without user-managed VPN, router rules or GORIQ AI access. No production publication yet.
 
-## Code now on draft PR
+## Current acceptance summary (2026-10-22)
+
+The sections below retain historical evidence; earlier "pending" statements describe their recorded commit. Current verified baseline is7a41a9d3: normal CI39730997279 and Android CI39730997369 passed. That Android VM drove normal HTTPS setup, real AndroidKeyStore enrollment/approval, receipt/cursor recovery after process stops, signed synthetic SDP/ICE, and actual local Accessibility capture/tap/revocation. The synthetic signaling check is not native video.
+
+Native Android MediaProjection/WebRTC video, locally bound OS consent/foreground service, ordered manual input and signed status/stop cleanup have since been implemented as candidates. Local49 JVM tests, debug/release builds and lint passed. Independent review led to startup lease, stop/input, lock, secure-window proof, screenshot-rate pacing, coordinator session-end and JNI teardown fixes. A separate Chromium/local TURN VM test now asserts actual video/pixel change, taps/ACK, secure-window denial and Android-driven revoke shutdown. Its native media result is still pending exact-head CI. Public endpoints and friend distribution are not enabled.
+
+| Parent condition | Current gap |
+| --- | --- |
+| Android9–15 standalone smooth control | Native candidate targets API34+ safe input; API28–33 equivalent boundary and broader device/performance tests remain. |
+| Unattended after lock/reboot | Normal Android14+ MediaProjection requires fresh local consent; this APK does not meet this requirement. No consent bypass, root or administrator capability added. |
+| Outside-network iPhone/PC connection | Separate owner login, durable coordinator state, public HTTPS/TURN/quotas, deployment account and actual cellular/NAT tests remain. |
+| Distribution | Windows installer/Android distribution signing, license/security final review, updates/uninstall/recovery and clean friend-equivalent physical acceptance remain. |
+| ~40 devices, including3–5 moving devices | Concurrency, mobile handover, thermal/battery/network capacity and real fleet acceptance remain unverified. |
+
+## Historical initial code on draft PR
 - Manual-only schema, identity-bound expiring sessions, signed device enrollment, owner approval and revocation, locally bound HTTP signaling.
 - Browser WebRTC adapter: sends a screen video track and manual-only input via ordered DataChannel. The sharing user must explicitly approve the screen. Peer disconnect stops the local capture. Tests use simulated peers, not real hardware.
 - Short-lived coturn TURN credential helper with explicit deny-by-default billing/deployment readiness.
