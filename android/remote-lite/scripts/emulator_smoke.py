@@ -91,7 +91,8 @@ def optional_text(fragment, seconds=6, exact=False):
 
 def open_debug_activity(port, invite_code):
     for attempt in range(1, 4):
-        launched = adb("shell", "am", "start", "-W", "-n", f"{PACKAGE}/.DebugPairingActivity",
+        launched = adb("shell", "am", "start", "-W", "-f", "0x10000000",
+            "-n", f"{PACKAGE}/.DebugPairingActivity",
             "--ei", "port", str(port), "--es", "inviteCode", invite_code)
         print(f"Debug activity launch {attempt}/3: {launched.strip()}", flush=True)
         if optional_text("アクティブを再発見する", seconds=6) is not None:
@@ -155,7 +156,7 @@ def allow_accessibility_in_settings():
         if decision == "allow":
             tap_exact_text("Allow")
         wait_for_nodes(enabled_switch, "enabled Accessibility switch")
-    adb("shell", "am", "start", "-n", f"{PACKAGE}/.MainActivity")
+    adb("shell", "am", "start", "-f", "0x10000000", "-n", f"{PACKAGE}/.MainActivity")
 
 
 def verify_real_keystore_pairing():
@@ -260,7 +261,7 @@ def verify_accessibility_capture():
 def main():
     adb("install", "-r", APK)
     verify_real_keystore_pairing()
-    adb("shell", "am", "start", "-n", f"{PACKAGE}/.MainActivity")
+    adb("shell", "am", "start", "-f", "0x10000000", "-n", f"{PACKAGE}/.MainActivity")
     tap_text("手動入力を診断する")
     wait_for_text("画面取得と手動入力: 成功")
     print("Android 15 VM: local key, Accessibility screenshot and actual tap passed")
