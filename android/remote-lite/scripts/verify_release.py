@@ -147,9 +147,16 @@ def manifest_policy(badging, permissions, manifest, resources, version_code, ver
 
 def signature_policy(output, expected, require_v1=False, payload=None):
     require(re.findall(r"^Number of signers: (\d+)\s*$", output, re.M) == ["1"], "exactly one APK signer is required")
-    fingerprints = re.findall(r"^Signer #(\d+) certificate SHA-256 digest: ([0-9a-fA-F]+)\s*$", output, re.M)
-    require(fingerprints == [("1", expected)] or [(index, digest.lower()) for index, digest in fingerprints] == [("1", expected)],
+    certificate_lines = [line for line in output.splitlines() if " certificate SHA-256 digest:" in line]
+    require(len(certificate_lines) == 1, "exactly one APK signer certificate SHA256 is required")
+    # Build Tools 37.0.0/apksigner 0.9 labels the verified v3 certificate this way.
+    # Keep unknown/rotation labels and multiple certificate records fail-closed.
+    fingerprint = re.fullmatch(r"(Signer #1|V3\.0 Signer:) certificate SHA-256 digest: ([0-9a-fA-F]{64})[ \t]*", certificate_lines[0])
+    require(fingerprint is not None and fingerprint[2].lower() == expected,
             "APK signer certificate SHA256 does not match expected signer")
+    if fingerprint[1] == "V3.0 Signer:":
+        require(not require_v1 and re.search(r"^Verified using v3 scheme \(APK Signature Scheme v3\): true\s*$", output, re.M),
+                "V3.0 signer must belong to a verified v3 signature")
     if require_v1:
         require(re.search(r"^Verified using v1 scheme \(JAR signing\): true\s*$", output, re.M),
                 "excluded v1 metadata must have a verified v1 signature")

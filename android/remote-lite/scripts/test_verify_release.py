@@ -42,6 +42,28 @@ Number of signers: 1
 Signer #1 certificate DN: CN=Remote Lite CI fixture ONLY
 Signer #1 certificate SHA-256 digest: {SIGNER}
 '''
+# Actual public test certificate output from Build Tools 37.0.0/apksigner 0.9,
+# CI run 39872893061. No keystore or private key is retained in this fixture.
+SDK37_SIGNER = "881157ff714a2eac32b678cd589eef682c89a4b223ab80e0fa69bded664128bd"
+SDK37_SIGNATURE = '''Verifies
+Verified using v1 scheme (JAR signing): false
+Verified using v2 scheme (APK Signature Scheme v2): false
+Verified using v3 scheme (APK Signature Scheme v3): true
+Verified using v3.1 scheme (APK Signature Scheme v3.1): false
+Verified using v3.2 scheme (APK Signature Scheme v3.2): false
+Verified using v4 scheme (APK Signature Scheme v4): false
+Verified for SourceStamp: false
+Number of signers: 1
+V3.0 Signer: certificate DN: CN=Remote Lite CI fixture ONLY
+V3.0 Signer: certificate SHA-256 digest: 881157ff714a2eac32b678cd589eef682c89a4b223ab80e0fa69bded664128bd
+V3.0 Signer: certificate SHA-1 digest: 3508c5626e27d916689493246b22e18a388e03d7
+V3.0 Signer: certificate MD5 digest: a1693118cf60f36d31057acdd6e3e6d9
+V3.0 Signer: key algorithm: RSA
+V3.0 Signer: key size (bits): 2048
+V3.0 Signer: public key SHA-256 digest: c97f623da07ed0bb8372df7bb9605117c9620eb9b1c1af7684c5478cdc530f68
+V3.0 Signer: public key SHA-1 digest: d8a5342e6c98cbee80bda5a005b40a96e666045a
+V3.0 Signer: public key MD5 digest: 40382066f701fb1e455cf68db059db67
+'''
 
 
 class ReleaseVerificationTest(unittest.TestCase):
@@ -231,6 +253,25 @@ class ReleaseVerificationTest(unittest.TestCase):
                 self.signature = signature
                 with self.assertRaises(self.verifier.VerificationError):
                     self.verify()
+
+    def test_sdk37_verified_v3_signer_matches_independent_certificate(self):
+        self.signature = SDK37_SIGNATURE
+        receipt = self.verify(signer_sha256=SDK37_SIGNER)
+        self.assertEqual(receipt["signerCertificateSha256"], SDK37_SIGNER)
+
+    def test_sdk37_wrong_duplicate_unknown_or_unverified_signer_is_rejected(self):
+        fingerprint = "V3.0 Signer: certificate SHA-256 digest: " + SDK37_SIGNER + "\n"
+        for signature in (SDK37_SIGNATURE.replace(SDK37_SIGNER, "cd" * 32),
+                          SDK37_SIGNATURE + fingerprint,
+                          SDK37_SIGNATURE + fingerprint.replace("V3.0 Signer:", "Signer #1"),
+                          SDK37_SIGNATURE + fingerprint.replace("V3.0 Signer:", "Unknown signer"),
+                          SDK37_SIGNATURE.replace("V3.0 Signer:", "V3.1 Signer:"),
+                          SDK37_SIGNATURE.replace("v3 scheme (APK Signature Scheme v3): true", "v3 scheme (APK Signature Scheme v3): false"),
+                          SDK37_SIGNATURE.replace("Number of signers: 1", "Number of signers: 2")):
+            with self.subTest(signature=signature):
+                self.signature = signature
+                with self.assertRaises(self.verifier.VerificationError):
+                    self.verify(signer_sha256=SDK37_SIGNER)
 
     def test_signature_or_alignment_tool_failure_never_produces_a_receipt(self):
         for tool in ("aapt", "apksigner", "zipalign"):

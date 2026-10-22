@@ -71,6 +71,14 @@ def main():
                 print("PASS rejection: " + expected_error)
                 return None
             if result.returncode:
+                with zipfile.ZipFile(signed) as archive:
+                    has_v1 = "META-INF/MANIFEST.MF" in archive.namelist()
+                if has_v1:
+                    auxiliary = subprocess.run([str(apksigner), "verify", "--verbose", "--print-certs",
+                                                "--min-sdk-version", "23", "--max-sdk-version", "23", str(signed)],
+                                               capture_output=True, text=True, encoding="utf-8", timeout=120, check=False)
+                    print(json.dumps(dict(fixture="EPHEMERAL_CI_ONLY", auxiliaryV1Exit=auxiliary.returncode,
+                                          stdout=auxiliary.stdout[-16000:], stderr=auxiliary.stderr[-4000:])), flush=True)
                 raise AssertionError(result.stderr)
             receipt = json.loads(result.stdout)
             assert receipt["status"] == "PASS" and receipt["distributable"] is False
@@ -88,12 +96,12 @@ def main():
                               expectedCertificateSha256=expected_signer)), flush=True)
         print(command([apksigner, "verify", "--verbose", "--print-certs", "-Werr", signed]), flush=True)
         receipt = verify(signed)
-        print("PASS actual v2/v3 signature with independently exported certificate fingerprint")
+        print("PASS actual required v2-or-v3 signature with independently exported certificate fingerprint")
         signed_v1 = directory / "signed-v1-test-only.apk"
         sign(unsigned, signed_v1, v1=True)
         v1_receipt = verify(signed_v1)
         assert len(v1_receipt["excludedSigningEntries"]) == 3
-        print("PASS actual v1+v2+v3 signature metadata exception")
+        print("PASS actual v1 metadata and required v2-or-v3 signature")
         verify(signed, "signer certificate SHA256", signer_sha256="0" * 64)
         verify(signed, "unsigned SHA256", unsigned_sha256="0" * 64)
         verify(signed, "package/version", version_code="2")
@@ -137,7 +145,7 @@ def main():
         verify(changed_signed, "payload differs")
         assert hashlib.sha256(unsigned.read_bytes()).hexdigest() == before
         print(json.dumps(dict(fixture="EPHEMERAL_CI_ONLY", distributable=False,
-                              checks="v1/v2/v3, signer, hash, version, unsigned, corrupt signature, re-signed payload",
+                              checks="v2-or-v3, auxiliary v1, signer, hash, version, unsigned, corrupt signature, re-signed payload",
                               buildTools=command([aapt, "version"]).strip(),
                               apksignerVersion=command([apksigner, "version"]).strip(), receipt=receipt), indent=2))
 
