@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>GORIQ Remote</title><link rel="stylesheet" href="/portal.css"></head>
+<body><main><header><h1>GORIQ Remote</h1><p>自分の端末を、手動で遠隔操作</p></header>
+<p id="message" role="status" aria-live="polite"></p><p id="error" role="alert"></p>
+<section id="login"><h2>所有者ログイン</h2><p>運営者から個別に受け取ったログインキーを入力してください。端末側でも登録と画面共有の許可が必要です。</p>
+<form id="loginForm"><label>ログインキー<input id="key" type="password" autocomplete="off" maxlength="64" required></label><button>ログイン</button></form></section>
+<section id="account" hidden><div class="row"><h2>端末一覧</h2><button id="refresh">更新</button><button id="logout">すべて切断してログアウト</button></div>
+<p id="owner"></p><div id="devices"></div><h3>登録申請</h3><p>端末の設定画面に表示される指紋が、ここに表示される指紋と一致することを確認してください。</p><div id="pending"></div>
+<details><summary>新しい端末を追加する</summary><p>招待は1台・1回限りです。登録する自分の端末だけに渡してください。</p><button id="invite">招待を作る</button><label>端末へ渡す招待リンク<textarea id="invitation" readonly rows="3"></textarea></label><button id="copy">招待をコピー</button><p id="inviteExpiry"></p></details></section>
+<section id="control" hidden><h2 id="target">接続</h2><p id="status" role="status">端末側の許可を待っています</p><p id="mode"></p>
+<p>Androidは画面共有のOSダイアログを許可してください。Windowsはホストを開き、接続許可後に「遠隔共有を開始」を押してください。</p>
+<video id="screen" autoplay muted playsinline aria-label="遠隔画面"></video><p id="ack">入力確認: 0</p>
+<label>接続先の種類（補助キー用）<select id="platform"><option value="">選択してください</option><option value="android">Android</option><option value="windows">Windows</option></select></label>
+<div id="keys" class="row"><button data-platform="android" data-key="BACK">戻る</button><button data-platform="android" data-key="HOME">ホーム</button><button data-platform="android" data-key="APP_SWITCH">アプリ一覧</button><button data-platform="windows" data-key="ENTER">Enter</button><button data-platform="windows" data-key="ESCAPE">Esc</button><button data-platform="windows" data-key="TAB">Tab</button><button data-platform="windows" data-key="BACKSPACE">Backspace</button></div>
+<p>画面をタップしてクリック、なぞってスワイプ／ドラッグできます。映像が更新されている間だけ入力できます。</p><button id="disconnect" class="stop">切断</button></section>
+<footer><p>ロック画面や保護された画面は操作できません。Androidの再起動・画面共有終了後には、端末側の許可が再び必要です。</p></footer></main><script type="module" src="/portal.mjs"></script></body></html>

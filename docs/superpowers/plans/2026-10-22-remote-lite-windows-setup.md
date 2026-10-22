@@ -36,8 +36,8 @@ Files: add setup handler/UI/tests, update main startup and embed declarations, e
 
 - [x] Start setup only when no active config is available. Use a per-user directory lock for the setup lifetime, a loopback-only random token and15min expiry. No desktop bridge exists in setup.
 - [x] Japanese invitation preview/register, exact fingerprint/receipt display, owner approval check and explicitly confirmed uncertain-request recovery. Clear pasted invitations and fragment token from visible URL; no browser persistence.
-- [ ] Verify independent Node pairing and browser setup in disposable Windows VM, plus negative origin/token/unknown-fields tests and all existing Windows native/browser checks.
-- [ ] Independent review, exact-revision evidence, Issue/PR write-back. Continue to separate public login/persistence/infrastructure and installer gates; setup success alone is not friend readiness.
+- [x] Verify independent Node pairing and browser setup in disposable Windows VM, plus negative origin/token/unknown-fields tests and all existing Windows native/browser checks. F279a5de normal CI39753290523 all4 jobs PASS, Android39753290543 PASS.
+- [x] Independent review and exact-revision evidence recorded in ACCEPTANCE.md. Continue Issue/PR write-back with the20:00 critical-path checkpoint. Separate public login/persistence/infrastructure and installer gates remain; setup success alone is not friend readiness.
 
 Rollback: revert this setup change and rebuild the EXE. Preserve user's encrypted identity/journal and active-session.json; do not delete app data or silently re-enroll. There is no production deployment or schema migration.
 

@@ -15,10 +15,11 @@ export class ManualRemoteCoordinator {
   #authorizeOwner;
   #deviceOwners = new Map();
 
-  constructor({ authorizeOwner, now = () => Date.now() } = {}) {
+  constructor({ authorizeOwner, now = () => Date.now(), initialDevices = [], persistDevices } = {}) {
     if (typeof authorizeOwner !== 'function') throw new TypeError('Independent owner authentication is required');
     this.#authorizeOwner = authorizeOwner;
-    this.#pairing = new RemoteLitePairingRegistry({ authorizeOwner, now });
+    this.#pairing = new RemoteLitePairingRegistry({ authorizeOwner, now, initialDevices, persistDevices });
+    for (const record of initialDevices) this.#deviceOwners.set(record.deviceId, record.ownerId);
     this.#sessions = new ManualRemoteSessionStore({
       now,
       authenticateViewer: ({ viewerId, deviceId }) => this.#pairing.ownsDevice({ ownerId: viewerId, deviceId }),
@@ -29,6 +30,7 @@ export class ManualRemoteCoordinator {
   }
 
   #owner(ownerId, authorization, action) {
+    this.#pairing.assertHealthy();
     if (typeof ownerId !== 'string' || this.#authorizeOwner({ ownerId, authorization, action }) !== true) {
       throw new RemoteLiteSessionError('OWNER_NOT_AUTHORIZED');
     }
@@ -41,6 +43,7 @@ export class ManualRemoteCoordinator {
 
   proposeDevice(input) { return this.#pairing.propose(input); }
   proveDeviceEnrollment(input) { return this.#pairing.prove(input); }
+  listDevices(input) { return this.#pairing.list(input); }
 
   approveDevice({ ownerId, authorization, requestId, expectedFingerprint } = {}) {
     this.#owner(ownerId, authorization, 'approve-device');

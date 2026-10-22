@@ -124,3 +124,6 @@ jobs:
           $env:REMOTE_LITE_CHROMEDRIVER = $driver.Source
           node scripts/remote-lite-browser-vm-smoke.mjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $env:REMOTE_LITE_PORTAL_BROWSER = '1'
+          node --test tests/remote-lite-owner-portal.test.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

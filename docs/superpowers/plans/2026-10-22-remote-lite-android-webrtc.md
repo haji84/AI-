@@ -17,7 +17,7 @@ No public server/account, paid service, production credential, device-administra
 - [x] Add native video peer/capture consent and foreground lifecycle; verify real decoded screen frames in a separate browser process through a local TURN fixture where needed. D7813971 / Android39748823593 PASS.
 - [x] Connect ordered manual input with queue/sequence/age bounds and fresh signed status checks; verify the actual tap target and media/input stop after owner revoke. D7813971 / Android39748823593 PASS; secure-window refusal and OS capture release also passed.
 - [ ] Extend native VM acceptance to expiry/lock and broader OS/device/input coverage; these are not implied by the owner-revoke pass.
-- [ ] Independently review, record exact-head CI and known gaps in Issue #1831, and update the existing Draft PR.
+- [x] Independently review, record exact-head CI and known gaps in Issue #1831, and update the existing Draft PR. D7813971 PASS recorded in Issue comment6336634109 and PR1832; parent physical/device/public/distribution gates remain open.
 
 The first bounded implementation step is the signaling prerequisite. Do not claim native media or friend readiness from that prerequisite. Public HTTPS/authentication/persistence/TURN operation, distribution signing, Android 9–15 and 40-device coverage, physical iPhone cellular tests and unattended-restart acceptance remain separate parent requirements.
 

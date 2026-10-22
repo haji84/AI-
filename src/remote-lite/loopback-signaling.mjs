@@ -56,7 +56,9 @@ const only = (obj, names) => {
 export class LocalSignalingError extends Error {
   constructor(code, httpStatus = 400) { super(code); this.code = code; this.httpStatus = httpStatus; }
 }
-const endpoint = (c, path, p, principal) => {
+// Shared strict operation dispatcher. Transport authentication stays mandatory
+// in each adapter; exporting this function does not start a listener.
+export const dispatchRemoteOperation = (c, path, p, principal) => {
   const o = principal || {};
   switch (path) {
     case '/v1/invite': return c.issueInvite({ ...o, ...only(p, []) });
@@ -112,7 +114,7 @@ export function createLoopbackSignaling({ coordinator, authenticateOwnerRequest 
         throw new LocalSignalingError('NOT_AUTHENTICATED', 401);
       }
       const payload = await json(req);
-      const result = endpoint(coordinator, req.url, payload, principal);
+      const result = dispatchRemoteOperation(coordinator, req.url, payload, principal);
       safeResponse(res, 200, { ok: true, result });
     } catch (e) {
       const permitted = e instanceof LocalSignalingError || ['PairingError','RemoteLiteProtocolError','RemoteLiteSessionError'].includes(e?.name);

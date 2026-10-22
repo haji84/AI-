@@ -40,8 +40,11 @@ export class RemoteLitePairingRegistry {
   #devices = new Map();
   #challenges = new Map();
   #discoveryNonces = new Map();
+  #persistDevices;
+  #storageFailed = false;
 
-  constructor({ authorizeOwner, now = () => Date.now(), inviteMs = 5 * 60_000, proofMs = 60_000, limit = 100 } = {}) {
+  constructor({ authorizeOwner, now = () => Date.now(), inviteMs = 5 * 60_000, proofMs = 60_000, limit = 100,
+    initialDevices = [], persistDevices = () => {} } = {}) {
     if (typeof authorizeOwner !== 'function' || typeof now !== 'function') throw new TypeError('An independent owner authorization function and clock are required');
     if (![inviteMs, proofMs].every(n => Number.isInteger(n) && n >= 1000 && n <= 10 * 60_000) || !Number.isInteger(limit) || limit < 1 || limit > 100) throw new TypeError('Invalid pairing bounds');
     this.authorizeOwner = authorizeOwner;
@@ -49,9 +52,49 @@ export class RemoteLitePairingRegistry {
     this.inviteMs = inviteMs;
     this.proofMs = proofMs;
     this.limit = limit;
+    if (!Array.isArray(initialDevices) || initialDevices.length > limit || typeof persistDevices !== 'function') fail('REGISTRY_INVALID');
+    for (const record of initialDevices) {
+      if (!record || Object.keys(record).sort().join(',') !== 'deviceId,fingerprint,ownerId,publicKeyPem' ||
+        !validId(record.ownerId) || !validId(record.deviceId) || this.#devices.has(record.deviceId)) fail('REGISTRY_INVALID');
+      const loaded = loadKey(record.publicKeyPem);
+      if (loaded.fingerprint !== record.fingerprint) fail('REGISTRY_INVALID');
+      this.#devices.set(record.deviceId, { ownerId: record.ownerId, ...loaded });
+    }
+    this.#persistDevices = persistDevices;
+  }
+
+  assertHealthy() { if (this.#storageFailed) fail('REGISTRY_STORAGE_UNAVAILABLE'); }
+
+  #persist(next) {
+    this.assertHealthy();
+    const records = [...next].map(([deviceId, d]) => ({ deviceId, ownerId: d.ownerId,
+      fingerprint: d.fingerprint, publicKeyPem: d.key.export({ type: 'spki', format: 'pem' }) }));
+    try {
+      const result = this.#persistDevices(records);
+      if (result && typeof result.then === 'function') {
+        // An async writer is never an acknowledged durable commit.
+        Promise.resolve(result).catch(() => {});
+        throw new Error('Synchronous persistence required');
+      }
+    } catch {
+      this.#storageFailed = true;
+      fail('REGISTRY_STORAGE_UNAVAILABLE');
+    }
+  }
+
+  list({ ownerId, authorization } = {}) {
+    this.#owner(ownerId, authorization, 'list-devices');
+    this.#prune();
+    return {
+      registered: [...this.#devices].filter(([, d]) => d.ownerId === ownerId)
+        .map(([deviceId, d]) => ({ deviceId, fingerprint: d.fingerprint })),
+      pending: [...this.#pending].filter(([, d]) => d.ownerId === ownerId && d.proven)
+        .map(([requestId, d]) => ({ requestId, deviceId: d.deviceId, fingerprint: d.fingerprint, expiresAt: d.expiresAt })),
+    };
   }
 
   #prune() {
+    this.assertHealthy();
     const t = this.now();
     for (const [k, v] of this.#invites) if (t >= v.expiresAt) this.#invites.delete(k);
     for (const [k, v] of this.#pending) if (t >= v.expiresAt) this.#pending.delete(k);
@@ -63,6 +106,7 @@ export class RemoteLitePairingRegistry {
   }
 
   #owner(ownerId, authorization, action) {
+    this.assertHealthy();
     if (!validId(ownerId) || this.authorizeOwner({ ownerId, authorization, action }) !== true) fail('OWNER_NOT_AUTHORIZED');
   }
 
@@ -118,7 +162,10 @@ export class RemoteLitePairingRegistry {
     if (pending.fingerprint !== expectedFingerprint) fail('FINGERPRINT_MISMATCH');
     if (this.#devices.has(pending.deviceId)) fail('DEVICE_ALREADY_REGISTERED');
     if (this.#devices.size >= this.limit) fail('PAIRING_CAPACITY_REACHED');
-    this.#devices.set(pending.deviceId, { ownerId, key: pending.key, fingerprint: pending.fingerprint });
+    const next = new Map(this.#devices);
+    next.set(pending.deviceId, { ownerId, key: pending.key, fingerprint: pending.fingerprint });
+    this.#persist(next);
+    this.#devices = next;
     this.#pending.delete(requestId);
     return { deviceId: pending.deviceId, fingerprint: pending.fingerprint, status: 'registered' };
   }
@@ -183,10 +230,12 @@ export class RemoteLitePairingRegistry {
   }
 
   ownsDevice({ ownerId, deviceId } = {}) {
+    this.assertHealthy();
     return Boolean(validId(ownerId) && validId(deviceId) && this.#devices.get(deviceId)?.ownerId === ownerId);
   }
 
   isAuthorizedDevice({ ownerId, deviceId, devicePrincipalId } = {}) {
+    this.assertHealthy();
     const stored = this.#devices.get(deviceId);
     return Boolean(stored && stored.ownerId === ownerId && stored.fingerprint === devicePrincipalId);
   }
@@ -195,7 +244,10 @@ export class RemoteLitePairingRegistry {
     this.#owner(ownerId, authorization, 'revoke-device');
     const stored = this.#devices.get(deviceId);
     if (!stored || stored.ownerId !== ownerId) fail('DEVICE_NOT_FOUND');
-    this.#devices.delete(deviceId);
+    const next = new Map(this.#devices);
+    next.delete(deviceId);
+    this.#persist(next);
+    this.#devices = next;
     this.#discoveryNonces.delete(deviceId);
     for (const [k, c] of this.#challenges) if (c.deviceId === deviceId) this.#challenges.delete(k);
     return { deviceId, status: 'revoked' };
