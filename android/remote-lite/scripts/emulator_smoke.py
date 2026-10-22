@@ -28,6 +28,8 @@ def nodes():
     output = adb("shell", "am", "instrument", "-w", "-r",
                  "app.goriq.remote.vmprobe/.HierarchyProbe")
     found = re.search(r"^INSTRUMENTATION_RESULT: hierarchy=(.+)$", output, re.MULTILINE)
+    if "probe_error=WINDOW_NOT_READY" in output:
+        raise ET.ParseError("VM hierarchy window not ready")
     if found is None or "INSTRUMENTATION_CODE: 0" not in output:
         raise AssertionError(f"VM hierarchy probe failed: {output[-1200:]!r}")
     return list(ET.fromstring(found.group(1)).iter("node"))

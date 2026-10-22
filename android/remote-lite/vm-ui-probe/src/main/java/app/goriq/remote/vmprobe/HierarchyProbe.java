@@ -4,6 +4,7 @@ import android.app.Instrumentation;
 import android.app.UiAutomation;
 import android.graphics.Rect;
 import android.os.Bundle;
+import android.os.SystemClock;
 import android.util.Xml;
 import android.view.accessibility.AccessibilityNodeInfo;
 import java.io.StringWriter;
@@ -24,8 +25,20 @@ public final class HierarchyProbe extends Instrumentation {
             // Default UiAutomation (including CLI dump) suppresses the service being tested.
             UiAutomation automation = getUiAutomation(UiAutomation.FLAG_DONT_SUPPRESS_ACCESSIBILITY_SERVICES);
             if (automation == null) throw new IllegalStateException("UI automation unavailable");
-            AccessibilityNodeInfo root = automation.getRootInActiveWindow();
-            if (root == null) throw new IllegalStateException("No active window");
+            // A fresh automation connection has not necessarily observed the focused window yet.
+            try { automation.waitForIdle(100, 2_000); }
+            catch (java.util.concurrent.TimeoutException ignored) { /* A busy UI can still have a root. */ }
+            AccessibilityNodeInfo root = null;
+            long deadline = SystemClock.elapsedRealtime() + 3_000;
+            while (root == null && SystemClock.elapsedRealtime() < deadline) {
+                root = automation.getRootInActiveWindow();
+                if (root == null) SystemClock.sleep(50);
+            }
+            if (root == null) {
+                result.putString("probe_error", "WINDOW_NOT_READY");
+                finish(1, result);
+                return;
+            }
             StringWriter output = new StringWriter();
             XmlSerializer xml = Xml.newSerializer();
             xml.setOutput(output);
@@ -37,7 +50,7 @@ public final class HierarchyProbe extends Instrumentation {
             result.putString("hierarchy", output.toString());
             finish(0, result);
         } catch (Exception failure) {
-            result.putString("probe_error", failure.getClass().getSimpleName());
+            result.putString("probe_error", failure.getClass().getSimpleName() + ": " + failure.getMessage());
             finish(1, result);
         }
     }
