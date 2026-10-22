@@ -106,7 +106,8 @@ open class RemoteSessionService : Service() {
                 val checkStarted = SystemClock.elapsedRealtime()
                 check(access.verifyActive(session).allowed && SystemClock.elapsedRealtime() - checkStarted < 3_000)
                 // Discovery/acceptance can take several round trips. Arm only after fresh final authorization.
-                val lease = CaptureLease(SystemClock::elapsedRealtime).also { activeLease = it }
+                val lease = CaptureLease(SystemClock::elapsedRealtime,
+                    hardDeadlineElapsed = ice.credentialDeadlineElapsed ?: Long.MAX_VALUE).also { activeLease = it }
                 check(!stopping.get() && lease.renew())
                 statusWorker.scheduleWithFixedDelay({
                     if (stopping.get()) return@scheduleWithFixedDelay

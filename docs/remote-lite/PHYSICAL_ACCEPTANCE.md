@@ -556,6 +556,15 @@ remain open. Credential refresh/ICE restart is not implemented; relay sessions
 stop within600seconds and require a new session. No permanent OS screen-sharing
 permission or unattended lock/reboot recovery is claimed.
 
+A follow-up review found that the250ms expiry watchdog alone left a small
+interval for new frame/input work after the relay deadline. CaptureLease now
+has a nonrenewable monotonic hard deadline shared by the existing frame,
+capture-refresh, final input-dispatch and ACK guards. Fresh status cannot extend
+it; reaching it permanently closes the lease even before a watchdog tick.
+The added regression checks repeated renewals,5,999ms allowed/6,000ms refused
+and no revival after clock reversal. JVM57tests and debug/release builds pass;
+focused independent re-review found no new P1/P2. Exact follow-up CI is pending.
+
 Commit `f4b00c147e3996c79643cf88c39c3f0633f6f4ad` passed normal CI
 ([39758076923](https://github.com/haji84/AI-/actions/runs/39758076923)) and
 Android candidate CI

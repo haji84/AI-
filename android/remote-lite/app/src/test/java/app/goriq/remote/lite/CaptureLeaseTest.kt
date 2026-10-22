@@ -53,4 +53,23 @@ class CaptureLeaseTest {
         assertFalse(lease.renew())
         assertFalse(lease.allowed())
     }
+
+    @Test fun relayDeadlineCannotBeExtendedByFreshStatusOrALateWatchdog() {
+        var now = 0L
+        val lease = CaptureLease({ now }, hardDeadlineElapsed = 6_000)
+        assertTrue(lease.renew())
+        now = 2_999
+        assertTrue(lease.renew())
+        now = 5_998
+        assertTrue(lease.renew())
+        now = 5_999
+        assertTrue(lease.allowed())
+        now = 6_000
+        // Publishing and dispatch call allowed() directly; no watchdog tick is needed.
+        assertFalse(lease.allowed())
+        assertFalse(lease.renew())
+        now = 1
+        assertFalse(lease.allowed())
+        assertFalse(lease.renew())
+    }
 }
