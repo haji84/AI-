@@ -4,4 +4,4 @@ dependencyResolutionManagement {
     repositories { google(); mavenCentral() }
 }
 rootProject.name = "GoriqRemoteLiteAndroid"
-include(":app")
+include(":app", ":vm-ui-probe")

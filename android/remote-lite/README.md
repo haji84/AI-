@@ -10,4 +10,6 @@ The `debug` variant adds a VM-only diagnostic activity and a generated two-day l
 
 Before a debug build, run `python scripts/prepare_vm_tls.py` from this project with JDK 17 `JAVA_HOME` set (or pass `--keytool`). It generates the test key/certificate only under ignored `app/build/`; release does not consume them. Then run `gradle :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease`. All server resources in the VM fixture bind only `127.0.0.1`.
 
+The VM UI harness also builds `:vm-ui-probe:assembleDebug` and installs that separate test-only APK with `adb install -t`. Its self-instrumentation reads the visible hierarchy with Android's `FLAG_DONT_SUPPRESS_ACCESSIBILITY_SERVICES`: the ordinary `uiautomator dump` command can suppress the very service being tested. The probe has no network permission, does not target/restart the product process and is never part of the product APK. Failed enrollment can be retried with a new same-origin invitation only after an explicit local confirmation that the owner checked the expired old request; the key and prior receipts are retained.
+
 Rollback: revert this feature's commits. Builds create only disposable local debug TLS fixtures. Actual user-triggered enrollment metadata and AndroidKeyStore identity must be retained during rollback; no app-data deletion or silent re-pairing is part of it.

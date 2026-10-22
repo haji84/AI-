@@ -26,7 +26,7 @@ jobs:
       - name: Generate ephemeral debug-only loopback TLS fixture
         run: python3 android/remote-lite/scripts/prepare_vm_tls.py
       - name: Test and build separate manual-only APKs
-        run: gradle -p android/remote-lite :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease --stacktrace
+        run: gradle -p android/remote-lite :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease :vm-ui-probe:assembleDebug --stacktrace
       - name: Verify candidate APK exists
         run: test -s android/remote-lite/app/build/outputs/apk/debug/app-debug.apk
       - name: Verify release APK HTTPS and debug isolation

@@ -14,6 +14,7 @@ import xml.etree.ElementTree as ET
 
 PACKAGE = "app.goriq.remote.lite"
 APK = "android/remote-lite/app/build/outputs/apk/debug/app-debug.apk"
+PROBE_APK = "android/remote-lite/vm-ui-probe/build/outputs/apk/debug/vm-ui-probe-debug.apk"
 
 
 def adb(*arguments):
@@ -24,9 +25,12 @@ def adb(*arguments):
 
 
 def nodes():
-    adb("shell", "uiautomator", "dump", "/sdcard/remote_lite_window.xml")
-    xml = adb("exec-out", "cat", "/sdcard/remote_lite_window.xml")
-    return list(ET.fromstring(xml).iter("node"))
+    output = adb("shell", "am", "instrument", "-w", "-r",
+                 "app.goriq.remote.vmprobe/.HierarchyProbe")
+    found = re.search(r"^INSTRUMENTATION_RESULT: hierarchy=(.+)$", output, re.MULTILINE)
+    if found is None or "INSTRUMENTATION_CODE: 0" not in output:
+        raise AssertionError(f"VM hierarchy probe failed: {output[-1200:]!r}")
+    return list(ET.fromstring(found.group(1)).iter("node"))
 
 
 def label(node):
@@ -328,6 +332,7 @@ def verify_accessibility_capture():
 
 def main():
     adb("install", "-r", APK)
+    adb("install", "-r", "-t", PROBE_APK)
     verify_real_keystore_pairing()
     adb("shell", "am", "start", "-f", "0x10000000", "-n", f"{PACKAGE}/.MainActivity")
     wait_for_text("端末ID:")
