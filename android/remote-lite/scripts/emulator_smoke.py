@@ -210,8 +210,25 @@ def verify_real_keystore_pairing():
         open_debug_activity(port, ready["inviteCode"])
         tap_text("アクティブを再発見する")
         wait_for_text(f"再発見成功 ID: {session_id}", seconds=35)
+        for attempt in range(1, 11):
+            tap_text("操作権限接続を確認する")
+            if optional_text("操作権限状態: 接続済み", seconds=2, exact=True) is not None:
+                break
+            print(f"Accessibility not connected after check {attempt}/10", flush=True)
+            time.sleep(1)
+        else:
+            raise AssertionError("Accessibility service did not bind after visible permission setup")
+        if optional_text("対象タップ数: 0", exact=True) is None:
+            raise AssertionError("Tap target changed before authorized operation")
         tap_text("画面操作ゲートを診断する")
-        wait_for_text("認証済み画面取得と実タップ: 成功", seconds=35)
+        outcome = wait_for_nodes(
+            lambda items: next((node for node in items if
+                "認証済み画面取得と実タップ: 成功" in label(node) or
+                "画面操作を拒否:" in label(node)), None),
+            "authenticated capture and tap outcome", seconds=35)
+        if "認証済み画面取得と実タップ: 成功" not in label(outcome):
+            raise AssertionError(f"Authenticated operation uncertain or refused: {label(outcome)!r}; "
+                f"target={optional_text('対象タップ数: 1', exact=True) is not None}")
         wait_for_text("対象タップ数: 1")
         print("Android 15 VM: signed status gated actual Accessibility screenshot and tap", flush=True)
         revoked = owner_post("/v1/revoke", {"deviceId": device_id})

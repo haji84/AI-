@@ -23,6 +23,8 @@ class DebugPairingActivity : Activity() {
         val sessionButton = Button(this).apply { text = "セッションを診断する" }
         val restoreButton = Button(this).apply { text = "アクティブを再発見する" }
         val checkButton = Button(this).apply { text = "状態を再確認する" }
+        val serviceButton = Button(this).apply { text = "操作権限接続を確認する" }
+        val serviceStatus = TextView(this).apply { text = "操作権限状態: 未確認" }
         val operationButton = Button(this).apply { text = "画面操作ゲートを診断する" }
         val operationStatus = TextView(this).apply { text = "操作ゲート診断は未実行です" }
         val tapCount = TextView(this).apply { text = "対象タップ数: 0" }
@@ -43,6 +45,8 @@ class DebugPairingActivity : Activity() {
             addView(restoreButton)
             addView(checkButton)
             addView(sessionStatus)
+            addView(serviceButton)
+            addView(serviceStatus)
             addView(operationButton)
             addView(targetButton)
             addView(tapCount)
@@ -118,6 +122,10 @@ class DebugPairingActivity : Activity() {
                     checkButton.isEnabled = true
                 }
             }.start()
+        }
+        serviceButton.setOnClickListener {
+            serviceStatus.text = if (ManualAccessibilityService.connected())
+                "操作権限状態: 接続済み" else "操作権限状態: 未接続"
         }
         operationButton.setOnClickListener {
             operationButton.isEnabled = false
