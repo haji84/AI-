@@ -1,0 +1,29 @@
+name: Remote Lite Android candidate
+
+on:
+  pull_request:
+    paths:
+      - 'android/remote-lite/**'
+      - '.github/workflows/remote-lite-android.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  android-candidate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.6.0'
+      - name: Test and build separate manual-only APK
+        run: gradle -p android/remote-lite :app:testDebugUnitTest :app:assembleDebug --stacktrace
+      - name: Verify candidate APK exists
+        run: test -s android/remote-lite/app/build/outputs/apk/debug/app-debug.apk
