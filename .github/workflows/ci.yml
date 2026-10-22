@@ -157,3 +157,16 @@ jobs:
           ./scripts/remote-lite-build-windows-installer.ps1 -WixDirectory $wixDirectory -OutputDirectory $rebuilt -Version 0.1.0
           ./scripts/remote-lite-build-windows-installer.ps1 -WixDirectory $wixDirectory -OutputDirectory $upgrade -Version 0.1.1
           ./scripts/remote-lite-windows-installer-vm.ps1 -FirstMsi (Join-Path $first 'GORIQRemoteLite-0.1.0.msi') -RebuiltMsi (Join-Path $rebuilt 'GORIQRemoteLite-0.1.0.msi') -UpgradeMsi (Join-Path $upgrade 'GORIQRemoteLite-0.1.1.msi') -FirstHost (Join-Path $first 'GORIQRemoteLite.exe') -UpgradeHost (Join-Path $upgrade 'GORIQRemoteLite.exe')
+      - name: Retain the verified unsigned Windows candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: remote-lite-windows-unsigned-${{ github.sha }}
+          if-no-files-found: error
+          retention-days: 14
+          path: |
+            ${{ runner.temp }}/remote-lite-msi-0.1.0/GORIQRemoteLite-0.1.0.msi
+            ${{ runner.temp }}/remote-lite-msi-0.1.0/GORIQRemoteLite.exe
+            ${{ runner.temp }}/remote-lite-msi-0.1.0/GO_LICENSE.txt
+            ${{ runner.temp }}/remote-lite-msi-0.1.0/START_HERE_JA.md
+            ${{ runner.temp }}/remote-lite-msi-0.1.0/candidate.json
+            ${{ runner.temp }}/remote-lite-msi-0.1.0/SHA256SUMS.txt

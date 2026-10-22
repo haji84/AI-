@@ -47,3 +47,18 @@ Save evidence, unresolved gates, next action and rollback to Issue1831/PR1832.
 
 Risk: MEDIUM reversible test-environment/package changes, no new privilege.
 Rollback only these task commits; retain all user enrollment data and keys.
+
+## Checkpoint
+
+b715de08 CI39840077911: explicit156 pair preflight4149ms, native Windows real
+frame/input/revocation9.11s and setup3.16s passed. Separate-browser scripts
+failed on absent DOM canvas before probe installation. Added a bounded DOM
+readiness requirement; wrong documents still fail and every downstream
+pixel/input/ACK/revoke assertion remains. Missing-element regression failed
+before correction and8/8 pixel tests passed afterward; RemoteLite115pass/1skip.
+Independent review found no P1/P2. Exact-head full Windows/MSI CI still required.
+
+Distribution preparation adds a clean-source-commit receipt, Japanese guide,
+Go notice, checksums and six-file CI artifact allowlist after MSI lifecycle
+success. Real dirty-worktree build was refused before output creation. Source
+SHA in PR CI denotes the tested synthetic merge, not necessarily the PR head.

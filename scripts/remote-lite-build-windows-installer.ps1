@@ -18,6 +18,10 @@ $goRoot = & $go env GOROOT
 if ($LASTEXITCODE -ne 0) { throw 'Go runtime unavailable' }
 $goLicense = Join-Path $goRoot 'LICENSE'
 if (!(Test-Path -LiteralPath $goLicense -PathType Leaf)) { throw 'Go redistribution notice unavailable' }
+$sourceCommit = git -C $repo rev-parse HEAD
+if ($LASTEXITCODE -ne 0 -or $sourceCommit -notmatch '^[0-9a-f]{40}$') { throw 'Source commit unavailable' }
+$sourceChanges = git -C $repo status --porcelain --untracked-files=normal
+if ($LASTEXITCODE -ne 0 -or $sourceChanges) { throw 'Candidate requires a clean source worktree' }
 New-Item -ItemType Directory -Path $output | Out-Null
 $hostExe = Join-Path $output 'GORIQRemoteLite.exe'
 Push-Location (Join-Path $repo 'apps/remote-lite-windows')
@@ -37,8 +41,15 @@ if ($LASTEXITCODE -ne 0) { throw 'Installer compilation failed' }
 if ($LASTEXITCODE -ne 0) { throw 'Installer linking/validation failed' }
 & (Join-Path $PSScriptRoot 'remote-lite-windows-package-check.ps1') -MsiPath $msi
 if (!$?) { throw 'MSI verification failed' }
+Copy-Item -LiteralPath $goLicense -Destination (Join-Path $output 'GO_LICENSE.txt')
+Copy-Item -LiteralPath (Join-Path $repo 'docs/remote-lite/START_HERE_JA.md') -Destination (Join-Path $output 'START_HERE_JA.md')
 [ordered]@{ version = $Version; productCode = $productCode; distributable = $false; signing = 'UNSIGNED_CANDIDATE';
+    sourceCommit = $sourceCommit; sourceRepository = 'https://github.com/haji84/AI-';
+    acceptance = 'PHYSICAL_PUBLIC_SIGNING_PENDING';
     msi = (Get-FileHash -LiteralPath $msi -Algorithm SHA256).Hash;
     host = (Get-FileHash -LiteralPath $hostExe -Algorithm SHA256).Hash } |
     ConvertTo-Json | Set-Content -LiteralPath (Join-Path $output 'candidate.json') -Encoding utf8
+$inventory = @(('GORIQRemoteLite-' + $Version + '.msi'), 'GORIQRemoteLite.exe', 'GO_LICENSE.txt', 'START_HERE_JA.md', 'candidate.json')
+$hashes = foreach ($name in $inventory) { (Get-FileHash -LiteralPath (Join-Path $output $name) -Algorithm SHA256).Hash + '  ' + $name }
+$hashes | Set-Content -LiteralPath (Join-Path $output 'SHA256SUMS.txt') -Encoding utf8
 Write-Output "Built unsigned candidate: $msi"
