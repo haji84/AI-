@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process';
 import { createServer } from 'node:http';
 import { once } from 'node:events';
 
-export async function verifyOwnerPortalBrowser({ origin, spki, ownerKey, enroll, holdNextStart }) {
+export async function verifyOwnerPortalBrowser({ origin, spki, ownerKey, enroll, holdNextStart, expirePending }) {
   if (!/^https:\/\/127\.0\.0\.1:\d+$/u.test(origin)) throw new Error('Disposable loopback HTTPS required');
   const probe = createServer(); probe.listen(0, '127.0.0.1'); await once(probe, 'listening');
   const port = probe.address().port; probe.close(); await once(probe, 'close');
@@ -59,6 +59,13 @@ export async function verifyOwnerPortalBrowser({ origin, spki, ownerKey, enroll,
     if (!(await run('return document.querySelector("#status").textContent')).includes('切断')) throw new Error('Late start revived a stopped UI');
     await run('document.querySelector("#devices article button").click();return true');
     await until('return !document.querySelector("#control").hidden && document.querySelector("#status").textContent.includes("許可")','pending native consent');
+    await until('return document.querySelector("#sessionIdentity")?.textContent.includes("セッションID:") && document.querySelector("#status").textContent.includes("残り")','session comparison and pending deadline');
+    expirePending();
+    await until('return document.querySelector("#status").textContent.includes("再接続") && document.querySelector("#error").textContent.includes("接続要求を確認する")','expired consent recovery instructions');
+    if ((await run('return document.querySelector("#status").textContent')).includes('未確認')) throw new Error('Server-confirmed expired session displayed an unconfirmed stop warning');
+    if (!(await run('return document.querySelector("#screen").srcObject===null && [...document.querySelectorAll("#keys button")].every(b=>b.disabled)'))) throw new Error('Expired consent kept media or input available');
+    await run('document.querySelector("#devices article button").click();return true');
+    await until('return document.querySelector("#status").textContent.includes("残り")','fresh consent request after expiration');
     await run('document.querySelector("#logout").click();return true');
     await until('return document.querySelector("#account").hidden && !document.querySelector("#login").hidden','logout while waiting for consent');
     console.log('PASS real HTTPS Chrome owner login, invitation, real signed device enrollment, fingerprint approval, page reopen, pending connection and logout. Native media is verified separately.');

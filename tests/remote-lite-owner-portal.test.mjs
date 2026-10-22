@@ -165,5 +165,6 @@ test('real Chrome owner invitation/approval/device selection and logout UI', { s
   const f = await fixture(t);
   const { verifyOwnerPortalBrowser } = await import('../scripts/remote-lite-owner-browser-vm.mjs');
   await verifyOwnerPortalBrowser({ origin: f.origin, spki: f.spki, ownerKey: f.ownerKey,
-    enroll: async invite => f.enroll(await f.login(f.ownerKey), invite), holdNextStart: f.holdNextStart });
+    enroll: async invite => f.enroll(await f.login(f.ownerKey), invite), holdNextStart: f.holdNextStart,
+    expirePending: () => f.advance(61_000) });
 });

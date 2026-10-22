@@ -67,6 +67,43 @@ name, switch/Allow/enabled checks and the later exact-service binding assertions
 It does not grant permissions through shell or change the product. A denied
 alternate launch remains a failed test. This approach is pending CI validation.
 
+## 19:40 JST checkpoint — physical video not accepted
+
+Head `42d48aebbe634d1a7bcb3a0197d4a78ed14b2538` passed normal CI
+[39763402723](https://github.com/haji84/AI-/actions/runs/39763402723) (all four jobs)
+and Android CI
+[39763402705](https://github.com/haji84/AI-/actions/runs/39763402705).
+Android VM decoded native video through the local TURN fixture, observed actual
+tap/ACK/pixel changes at 0.888/0.644 seconds, refused the secure target and
+released video/input/capture after revocation in 0.250 seconds. The Settings row
+opened on the first normal attempt in this run; the alternative Settings entry
+was not exercised and is not claimed as runtime-verified.
+
+The owner reported approving screen sharing on nubia but seeing no PC video.
+The PC owner page subsequently showed `SESSION_NOT_FOUND_OR_EXPIRED`; read-only
+Android diagnostics showed MediaProjection null and no RemoteSessionService.
+The Accessibility service remained enabled and bound. Both endpoints had Wi-Fi
+addresses on the same LAN; this alone does not prove a working ICE route. A new
+browser request remained pending and expired without observed native acceptance.
+The actual stop cause of the original attempt is not established. Do not report
+physical video/input as passed or change the accepted Android capture path on
+the basis of this observation alone.
+
+The owner UI now shows the session ID for comparison, the remaining consent
+deadline, and specific steps for a new request after expiration. The 60-second
+server deadline and all native authorization checks remain unchanged. Its real
+HTTPS Chrome regression test advances the fixture clock to reproduce expiration,
+requires disabled input/no media, then verifies a fresh request and logout.
+The test failed before the UI change and passed afterward (4/4 focused tests).
+The Remote Lite suite passed 95 tests with the separately executed browser test
+skipped in the ordinary invocation; ESLint and diff checks passed.
+
+Next physical check: open RemoteSessionActivity first, then start a fresh PC
+request and complete local consent within its displayed deadline. Record the
+native message/frame count, PC decoded video and actual test-button effect/ACK.
+The USB reverse carries HTTPS signaling only, not WebRTC media. Public HTTPS,
+TURN, cellular iPhone, release signing and distribution acceptance remain open.
+
 ## Owner portal baseline
 
 Commit `f4b00c147e3996c79643cf88c39c3f0633f6f4ad` passed normal CI

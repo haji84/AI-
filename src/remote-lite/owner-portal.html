@@ -7,7 +7,7 @@
 <section id="account" hidden><div class="row"><h2>端末一覧</h2><button id="refresh">更新</button><button id="logout">すべて切断してログアウト</button></div>
 <p id="owner"></p><div id="devices"></div><h3>登録申請</h3><p>端末の設定画面に表示される指紋が、ここに表示される指紋と一致することを確認してください。</p><div id="pending"></div>
 <details><summary>新しい端末を追加する</summary><p>招待は1台・1回限りです。登録する自分の端末だけに渡してください。</p><button id="invite">招待を作る</button><label>端末へ渡す招待リンク<textarea id="invitation" readonly rows="3"></textarea></label><button id="copy">招待をコピー</button><p id="inviteExpiry"></p></details></section>
-<section id="control" hidden><h2 id="target">接続</h2><p id="status" role="status">端末側の許可を待っています</p><p id="mode"></p>
+<section id="control" hidden><h2 id="target">接続</h2><p id="status" role="status">端末側の許可を待っています</p><p id="sessionIdentity"></p><p id="mode"></p>
 <p>Androidは画面共有のOSダイアログを許可してください。Windowsはホストを開き、接続許可後に「遠隔共有を開始」を押してください。</p>
 <video id="screen" autoplay muted playsinline aria-label="遠隔画面"></video><p id="ack">入力確認: 0</p>
 <label>接続先の種類（補助キー用）<select id="platform"><option value="">選択してください</option><option value="android">Android</option><option value="windows">Windows</option></select></label>

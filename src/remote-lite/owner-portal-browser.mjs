@@ -10,7 +10,10 @@ const api = async (path, payload = {}, keepalive = false) => {
   if (!response.ok || data.ok !== true) { const e = new Error(data.code || 'CONNECTION_FAILED'); e.code = data.code; throw e; }
   return data.result;
 };
-const showError = e => { el('error').textContent = '処理を確認できませんでした。接続・ログイン・端末側の許可を確認してください。' + (e?.code ? ' (' + e.code + ')' : ''); };
+const showError = e => { el('error').textContent = e?.code === 'SESSION_NOT_FOUND_OR_EXPIRED'
+  ? '接続要求の期限が切れたか、接続が終了しました。端末一覧で「接続」を押してください。Androidでは「接続要求を確認する」→「このセッションへ画面を共有する」→OSの許可を続けて行ってください。Windowsではホストで新しい接続要求を確認・許可し、「遠隔共有を開始」を押してください。'
+  : '処理を確認できませんでした。接続・ログイン・端末側の許可を確認してください。' + (e?.code ? ' (' + e.code + ')' : ''); };
+const pendingMessage = expiresAt => '端末側の許可を待っています（残り ' + Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000)) + ' 秒）。この画面を開いたまま端末側で許可してください。';
 const action = fn => async event => {
   event?.preventDefault(); if (actionBusy) return;
   actionBusy = true; el('error').textContent = '';
@@ -57,7 +60,7 @@ async function stop(message = '切断しました', keepalive = false) {
   el('keys').querySelectorAll('button').forEach(b => { b.disabled = true; });
   if (old) {
     try { await api('/api/viewer/end', { sessionId: old.sessionId }, keepalive); }
-    catch { if (epoch === operationEpoch) el('status').textContent = message + '。端末への停止通知は未確認です。端末側でも停止を確認してください。'; }
+    catch (e) { if (e?.code !== 'SESSION_NOT_FOUND_OR_EXPIRED' && epoch === operationEpoch) el('status').textContent = message + '。端末への停止通知は未確認です。端末側でも停止を確認してください。'; }
   }
 }
 async function connect(deviceId) {
@@ -74,7 +77,8 @@ async function connect(deviceId) {
   const s = { ...session, peer: null, cursor: 0, lastFrame: 0, totalFrames: 0, began: 0 };
   current = s; el('control').hidden = false; el('target').textContent = '接続先: ' + deviceId;
   el('platform').value = '';
-  el('status').textContent = '端末側の許可を待っています'; el('ack').textContent = '入力確認: 0';
+  el('status').textContent = pendingMessage(s.expiresAt); el('ack').textContent = '入力確認: 0';
+  el('sessionIdentity').textContent = 'セッションID: ' + s.sessionId + '（端末側の表示と照合してください）';
   el('mode').textContent = session.connectionMode === 'direct-only'
     ? '直接接続モード。中継が必要な回線では接続できません。' : '中継対応の接続設定';
   el('control').scrollIntoView({ behavior: 'smooth' });
@@ -110,6 +114,7 @@ async function connect(deviceId) {
       if (current !== s) return;
       if (status.status === 'active') break;
       if (status.status !== 'pending') throw new Error('SESSION_NOT_ACTIVE');
+      el('status').textContent = pendingMessage(status.expiresAt);
       await delay(400);
     }
     if (current !== s) return;
@@ -127,7 +132,8 @@ async function connect(deviceId) {
       if (status.status !== 'active') throw new Error('SESSION_NOT_ACTIVE');
       await delay(200);
     }
-  } catch (e) { if (current === s) { showError(e); await stop('接続を確認できないため停止しました'); } } })();
+  } catch (e) { if (current === s) { showError(e); await stop(e?.code === 'SESSION_NOT_FOUND_OR_EXPIRED'
+    ? '接続要求は終了しました。端末一覧の「接続」から再接続してください。' : '接続を確認できないため停止しました'); } } })();
 }
 function send(command) {
   const s = current;
