@@ -43,16 +43,16 @@
 
 **Interfaces:** `CoordinatorExchange(transport: HttpsJsonTransport): EnrollmentExchange, DeviceSessionExchange`; settings retain origin and `EnrollmentReceipt`, never invite; EnrollmentActivity previews link and requires explicit submit, then signed registration check.
 
-- [ ] Add failure tests for response identity/status mismatch and Android intent bootstrap rejection.
-- [ ] Implement shared JSON paths and normal setup activity, preserving the device key and pending receipt after process restart. No remote media/input starts.
-- [ ] Add INTERNET to release for the user-authorized enrollment function; preserve cleartext refusal and debug activity exclusion.
-- [ ] Run unit tests and builds, commit.
+- [x] Add failure tests for response identity/status mismatch and Android intent bootstrap rejection.
+- [x] Implement shared JSON paths and normal setup activity, preserving the device key and pending receipt after process restart. No remote media/input starts.
+- [x] Add INTERNET to release for the user-authorized enrollment function; preserve cleartext refusal and debug activity exclusion.
+- [x] Run unit tests and builds, commit.
 
 ### Task 3: Real HTTPS Android VM acceptance
 
 **Files:** Update `scripts/pairing_fixture.mjs`, `scripts/emulator_smoke.py`, add `scripts/prepare_vm_tls.py`, debug network config, `.github/workflows/remote-lite-android.yml`, README.
 
-- [ ] Generate ephemeral loopback PKCS12/certificate in ignored build output; copy only certificate to generated debug resources.
+- [x] Generate ephemeral loopback PKCS12/certificate in ignored build output; copy only certificate to generated debug resources.
 - [ ] Drive normal EnrollmentActivity over HTTPS, compare displayed fingerprint in the fixture owner approval, then signed registration/status/capture/tap/revocation through the shared exchange.
 - [ ] Inspect compiled release for INTERNET, no cleartext, no test CA config/activity; run Android VM and ordinary CI on the pushed head.
 - [ ] Independent review; fix substantive findings with reproduction tests. Save evidence, failures, next action and reverse commit order to Issue #1831; update the existing PR description.
@@ -62,3 +62,4 @@
 - Baseline: `dd1790f2`, main `f2b56c80`, prior normal/Android CI green. Untracked Python cache predates this plan and is excluded from commits.
 - Execution: native implementation under the user's autonomous completion instruction. No additional plan approval is required for this continuation.
 - Task 1 complete: invitation tests 3 RED to GREEN; HTTPS tests 5 RED to GREEN using a genuine local TLS socket and untrusted-certificate denial. Full Android unit suite passed locally. No dependency or external account added.
+- Task 2 complete: lost-response/pending-receipt tests 2 RED to GREEN, origin replacement regression, existing identity/status mismatch tests and full Android units/builds passed. Release archive inspection confirms INTERNET, cleartext false, no debug screen/config/CA. JSON mapping is exercised next by the real Android VM rather than a mocked JSON library.

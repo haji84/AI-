@@ -9,6 +9,7 @@ import android.view.ViewGroup
 import android.view.ViewTreeObserver
 import android.widget.Button
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.TextView
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -90,7 +91,10 @@ class MainActivity : Activity() {
                 }
             })
         }
-        setContentView(column)
+        button("端末登録の設定を開く") {
+            startActivity(Intent(this, EnrollmentActivity::class.java))
+        }
+        setContentView(ScrollView(this).apply { addView(column) })
         Thread {
             val result = runCatching {
                 val identity = LocalIdentity(this)
@@ -99,5 +103,9 @@ class MainActivity : Activity() {
             }
             runOnUiThread { status.text = result.getOrElse { "端末鍵を確認できません: ${it.message}" } }
         }.start()
+        try {
+            if (EnrollmentSettings(this).read() == null)
+                startActivity(Intent(this, EnrollmentActivity::class.java))
+        } catch (_: Exception) { status.text = "保存済みの登録情報を確認できません。端末鍵を保持してください。" }
     }
 }

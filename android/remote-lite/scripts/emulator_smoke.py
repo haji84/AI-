@@ -3,9 +3,12 @@
 import json
 import re
 import select
+import shlex
+import ssl
 import subprocess
 import time
 import urllib.request
+import urllib.parse
 import xml.etree.ElementTree as ET
 
 
@@ -89,11 +92,22 @@ def optional_text(fragment, seconds=6, exact=False):
     return None
 
 
-def open_debug_activity(port, invite_code):
+def tap_scrolled(fragment):
+    for direction in ("down", "up"):
+        for _ in range(6):
+            found = optional_text(fragment, seconds=2)
+            if found is not None and found.get("enabled") == "true":
+                tap_node(found)
+                return
+            start, end = (550, 180) if direction == "down" else (180, 550)
+            adb("shell", "input", "swipe", "160", str(start), "160", str(end), "250")
+    raise AssertionError(f"Missing scrollable control {fragment!r}; visible={visible()!r}")
+
+
+def open_debug_activity():
     for attempt in range(1, 4):
         launched = adb("shell", "am", "start", "-W", "-f", "0x10000000",
-            "-n", f"{PACKAGE}/.DebugPairingActivity",
-            "--ei", "port", str(port), "--es", "inviteCode", invite_code)
+            "-n", f"{PACKAGE}/.DebugPairingActivity")
         print(f"Debug activity launch {attempt}/3: {launched.strip()}", flush=True)
         if optional_text("アクティブを再発見する", seconds=6) is not None:
             return
@@ -174,25 +188,39 @@ def verify_real_keystore_pairing():
         ready = json.loads(ready_line)
         port = ready["port"]
         adb("reverse", f"tcp:{port}", f"tcp:{port}")
-        open_debug_activity(port, ready["inviteCode"])
-        tap_text("ローカル登録を診断する")
+        link = "goriqremote://enroll?" + urllib.parse.urlencode({
+            "server": ready["origin"], "invite": ready["inviteCode"]})
+        adb("shell", "am", "start", "-W", "-n", f"{PACKAGE}/.EnrollmentActivity",
+            "-a", "android.intent.action.VIEW", "-d", shlex.quote(link))
+        wait_for_text(f"接続先: {ready['origin']}")
+        tap_scrolled("この接続先へ端末を登録する")
         result = wait_for_text("所有者の承認待ち", seconds=35).get("text", "")
         request_id = re.search(r"申請ID: ([0-9a-f-]{36})", result)
         fingerprint = re.search(r"指紋: ([0-9a-f]{64})", result)
         if request_id is None or fingerprint is None:
             raise AssertionError(f"Android pairing receipt incomplete: {result!r}")
+        adb("shell", "am", "force-stop", PACKAGE)
+        adb("shell", "am", "start", "-W", "-n", f"{PACKAGE}/.EnrollmentActivity")
+        retained = wait_for_text("所有者の承認待ち", seconds=35).get("text", "")
+        if request_id.group(1) not in retained or fingerprint.group(1) not in retained:
+            raise AssertionError("Normal setup lost its pending receipt after process restart")
+        context = ssl.create_default_context(
+            cafile="android/remote-lite/app/build/generated/vm-res/raw/remote_lite_vm_ca.pem")
         def owner_post(path, payload):
-            request = urllib.request.Request(f"http://127.0.0.1:{port}{path}",
+            request = urllib.request.Request(ready["origin"] + path,
                 json.dumps(payload).encode(),
                 {"Content-Type": "application/json", "X-VM-Owner": ready["ownerAuthorization"]})
-            with urllib.request.urlopen(request, timeout=5) as response:
+            with urllib.request.urlopen(request, timeout=5, context=context) as response:
                 return json.load(response)
 
         approved = owner_post("/v1/approve", {"requestId": request_id.group(1),
             "expectedFingerprint": fingerprint.group(1)})
         if not approved.get("ok") or approved.get("result", {}).get("status") != "registered":
             raise AssertionError(f"Node coordinator refused AndroidKeyStore proof: {approved!r}")
-        print("Android 15 VM: real AndroidKeyStore P-256 enrollment accepted by Node coordinator", flush=True)
+        tap_scrolled("所有者の承認を確認する")
+        wait_for_text("登録済み", seconds=35)
+        print("Android 15 VM: normal setup registered real AndroidKeyStore over HTTPS and retained receipt", flush=True)
+        open_debug_activity()
         device_id = approved["result"]["deviceId"]
         started = owner_post("/v1/start", {"deviceId": device_id})
         if not started.get("ok") or not started.get("result", {}).get("sessionId"):
@@ -202,12 +230,12 @@ def verify_real_keystore_pairing():
         wait_for_text(f"セッション有効 ID: {session_id}", seconds=35)
         print("Android 15 VM: signed discovery, acceptance and active status passed", flush=True)
         adb("shell", "am", "force-stop", PACKAGE)
-        open_debug_activity(port, ready["inviteCode"])
+        open_debug_activity()
         tap_text("アクティブを再発見する")
         wait_for_text(f"再発見成功 ID: {session_id}", seconds=35)
         print("Android 15 VM: process restart rediscovered the active session with AndroidKeyStore", flush=True)
         allow_accessibility_in_settings(return_to_main=False)
-        open_debug_activity(port, ready["inviteCode"])
+        open_debug_activity()
         tap_text("アクティブを再発見する")
         wait_for_text(f"再発見成功 ID: {session_id}", seconds=35)
         for attempt in range(1, 11):
@@ -282,7 +310,7 @@ def main():
     adb("shell", "am", "start", "-f", "0x10000000", "-n", f"{PACKAGE}/.MainActivity")
     wait_for_text("端末ID:")
     verify_accessibility_capture()
-    tap_text("手動入力を診断する")
+    tap_scrolled("手動入力を診断する")
     wait_for_text("画面取得と手動入力: 成功")
     print("Android 15 VM: local key, Accessibility screenshot and actual tap passed")
 

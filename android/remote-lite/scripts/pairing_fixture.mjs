@@ -1,4 +1,7 @@
 import { randomBytes } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { request } from 'node:http';
+import { createServer } from 'node:https';
 import process from 'node:process';
 import { ManualRemoteCoordinator } from '../../../src/remote-lite/manual-coordinator.mjs';
 import { createLoopbackSignaling } from '../../../src/remote-lite/loopback-signaling.mjs';
@@ -34,7 +37,32 @@ const server = createLoopbackSignaling({
     ? { ownerId, authorization } : null,
 });
 const address = await server.start();
+// Local TLS wrapper for the Android system-trust test. This proxy has one fixed
+// loopback destination; it is never a public or user-configurable proxy.
+const secure = createServer({
+  pfx: readFileSync(new URL('../app/build/vm-tls/server.p12', import.meta.url)),
+  passphrase: 'vm-fixture-only',
+}, (req, res) => {
+  const forwarded = request({ hostname: '127.0.0.1', port: address.port,
+    method: req.method, path: req.url,
+    headers: { ...req.headers, host: `127.0.0.1:${address.port}` } }, response => {
+    res.writeHead(response.statusCode, response.headers);
+    response.pipe(res);
+  });
+  forwarded.on('error', () => { res.writeHead(502); res.end(); });
+  req.pipe(forwarded);
+});
+await new Promise((resolve, reject) => {
+  secure.once('error', reject);
+  secure.listen({ host: '127.0.0.1', port: 0, exclusive: true }, resolve);
+});
+const port = secure.address().port;
 const invite = coordinator.issueInvite({ ownerId, authorization });
-process.stdout.write(JSON.stringify({ port: address.port, inviteCode: invite.inviteCode,
+process.stdout.write(JSON.stringify({ port, origin: `https://127.0.0.1:${port}`, inviteCode: invite.inviteCode,
   ownerAuthorization: authorization }) + '\n');
-process.on('SIGTERM', async () => { await server.stop(); process.exit(0); });
+process.on('SIGTERM', async () => {
+  secure.closeAllConnections();
+  await new Promise(resolve => secure.close(resolve));
+  await server.stop();
+  process.exit(0);
+});

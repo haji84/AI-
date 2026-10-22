@@ -23,11 +23,13 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.6.0'
+      - name: Generate ephemeral debug-only loopback TLS fixture
+        run: python3 android/remote-lite/scripts/prepare_vm_tls.py
       - name: Test and build separate manual-only APKs
         run: gradle -p android/remote-lite :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease --stacktrace
       - name: Verify candidate APK exists
         run: test -s android/remote-lite/app/build/outputs/apk/debug/app-debug.apk
-      - name: Verify release APK excludes VM network and pairing screen
+      - name: Verify release APK HTTPS and debug isolation
         run: |
           set -euo pipefail
           release=android/remote-lite/app/build/outputs/apk/release/app-release-unsigned.apk
@@ -35,13 +37,19 @@ jobs:
           aapt="$(find "$ANDROID_HOME/build-tools" -mindepth 2 -maxdepth 2 -type f -name aapt | sort -V | tail -n 1)"
           test -x "$aapt"
           permissions="$("$aapt" dump permissions "$release")"
-          if grep -Fq android.permission.INTERNET <<< "$permissions"; then
-            echo 'Release APK unexpectedly has INTERNET permission'
-            exit 1
-          fi
+          grep -Fq android.permission.INTERNET <<< "$permissions"
           manifest="$("$aapt" dump xmltree "$release" AndroidManifest.xml)"
           if grep -Fq DebugPairingActivity <<< "$manifest"; then
             echo 'Release APK unexpectedly includes debug pairing activity'
+            exit 1
+          fi
+          if grep -Fq networkSecurityConfig <<< "$manifest"; then
+            echo 'Release APK unexpectedly includes debug certificate trust'
+            exit 1
+          fi
+          grep -Eq 'usesCleartextTraffic.*0x0' <<< "$manifest"
+          if unzip -l "$release" | grep -Fq remote_lite_vm_ca; then
+            echo 'Release APK unexpectedly includes VM CA'
             exit 1
           fi
       - name: Enable KVM for Android emulator

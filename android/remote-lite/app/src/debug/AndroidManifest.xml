@@ -1,10 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools">
-    <!-- Emulator integration only. The release APK has no network permission. -->
-    <uses-permission android:name="android.permission.INTERNET" />
-    <application android:usesCleartextTraffic="true"
-        tools:replace="android:usesCleartextTraffic">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Ephemeral loopback CA and diagnostic screen are debug-only. -->
+    <application android:networkSecurityConfig="@xml/vm_network_security">
         <activity android:name=".DebugPairingActivity" android:exported="true" />
     </application>
 </manifest>
