@@ -1,8 +1,10 @@
 """Check Accessibility screenshot and gesture via Android's visible setup UI."""
 
+import json
 import re
 import subprocess
 import time
+import urllib.request
 import xml.etree.ElementTree as ET
 
 
@@ -141,6 +143,47 @@ def allow_accessibility_in_settings():
     adb("shell", "am", "start", "-n", f"{PACKAGE}/.MainActivity")
 
 
+def verify_real_keystore_pairing():
+    fixture = subprocess.Popen(
+        ["node", "android/remote-lite/scripts/pairing_fixture.mjs"],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    port = None
+    try:
+        ready_line = fixture.stdout.readline()
+        if not ready_line:
+            raise AssertionError("Local pairing fixture failed to start")
+        ready = json.loads(ready_line)
+        port = ready["port"]
+        adb("reverse", f"tcp:{port}", f"tcp:{port}")
+        adb("shell", "am", "start", "-n", f"{PACKAGE}/.DebugPairingActivity",
+            "--ei", "port", str(port), "--es", "inviteCode", ready["inviteCode"])
+        tap_text("ローカル登録を診断する")
+        result = wait_for_text("所有者の承認待ち", seconds=35).get("text", "")
+        request_id = re.search(r"申請ID: ([0-9a-f-]{36})", result)
+        fingerprint = re.search(r"指紋: ([0-9a-f]{64})", result)
+        if request_id is None or fingerprint is None:
+            raise AssertionError(f"Android pairing receipt incomplete: {result!r}")
+        payload = json.dumps({"requestId": request_id.group(1),
+                              "expectedFingerprint": fingerprint.group(1)}).encode()
+        request = urllib.request.Request(f"http://127.0.0.1:{port}/v1/approve", payload,
+            {"Content-Type": "application/json", "X-VM-Owner": ready["ownerAuthorization"]})
+        with urllib.request.urlopen(request, timeout=5) as response:
+            approved = json.load(response)
+        if not approved.get("ok") or approved.get("result", {}).get("status") != "registered":
+            raise AssertionError(f"Node coordinator refused AndroidKeyStore proof: {approved!r}")
+        print("Android 15 VM: real AndroidKeyStore P-256 enrollment accepted by Node coordinator", flush=True)
+    finally:
+        if port is not None:
+            subprocess.run(["adb", "reverse", "--remove", f"tcp:{port}"],
+                           capture_output=True, text=True, timeout=10)
+        fixture.terminate()
+        try:
+            fixture.communicate(timeout=5)
+        except subprocess.TimeoutExpired:
+            fixture.kill()
+            fixture.communicate()
+
+
 def main():
     adb("install", "-r", APK)
     allow_accessibility_in_settings()
@@ -150,6 +193,7 @@ def main():
     tap_text("手動入力を診断する")
     wait_for_text("画面取得と手動入力: 成功")
     print("Android 15 VM: local key, Accessibility screenshot and actual tap passed")
+    verify_real_keystore_pairing()
 
 
 if __name__ == "__main__":
