@@ -1,7 +1,8 @@
 GAI tool-use 120 benchmark trigger
 Mode: real qwen3:4b planner + real sandbox tools
 Tasks: 120, heldout: 30
+Planner: normal thinking, no /no_think, 120s ceiling, 256 output tokens
 Human Gate remains authoritative
 Paid API fallback: disabled
 Issue: #537
-Requested: 2026-09-15
+Revision: planner-output-fix-2026-09-15
