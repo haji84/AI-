@@ -35,7 +35,7 @@ test('owner-code utility reuses the production reader and selects only the owner
   assert.match(readerSource, /configuration\.environment\.JARVIS_OWNER_SECRET/);
   assert.doesNotMatch(readerSource, /configuration\.environment\.JARVIS_OWNER_TOKEN/);
   assert.doesNotMatch(readerSource, /configuration\.environment\.JARVIS_REMOTE_GATEWAY_TOKEN/);
-  assert.match(readerSource, /if \(\$OwnerLoginCode\) \{ throw 'Protected configuration unavailable/);
+  assert.match(readerSource, /if \(\$OwnerLoginCode -or \$null -ne \$ConfigurationConsumer\) \{ throw 'Protected configuration unavailable/);
   assert.doesNotMatch(readerSource, /Write-Output[^\r\n]*\$ownerCode/i);
   assert.match(readerSource, /& \$OwnerLoginCodeConsumer \$ownerCode \| Out-Null/);
   assert.doesNotMatch(source, /ProcessStartInfo|EncodedCommand|Start-Process/);
