@@ -33,7 +33,7 @@ class NativeRtcPeer(private val context: Context, private val lease: CaptureLeas
     private var source: VideoSource? = null
     private var track: VideoTrack? = null
     private var texture: SurfaceTextureHelper? = null
-    private var capture: ScreenCapturerAndroid? = null
+    private var capture: AuthorizedScreenCapture? = null
     @Volatile private var channel: DataChannel? = null
     private var receivedOffer = false
     private var remoteSet = false
@@ -92,14 +92,14 @@ class NativeRtcPeer(private val context: Context, private val lease: CaptureLeas
             checkNotNull(connection.addTrack(videoTrack, listOf("remote-lite-screen")))
             val helper = checkNotNull(SurfaceTextureHelper.create("remote-lite-screen", gl.eglBaseContext))
                 .also { texture = it }
-            val capturer = ScreenCapturerAndroid(projectionData, object : MediaProjection.Callback() {
+            val projectionCallback = object : MediaProjection.Callback() {
                 override fun onStop() { fail("screen-permission-ended") }
                 override fun onCapturedContentResize(newWidth: Int, newHeight: Int) {
                     if (newWidth != width || newHeight != height) fail("display-changed")
                 }
-            }).also { capture = it }
+            }
             val delegate = videoSource.capturerObserver
-            capturer.initialize(helper, context.applicationContext, object : CapturerObserver {
+            val guardedObserver = object : CapturerObserver {
                 override fun onCapturerStarted(success: Boolean) {
                     delegate.onCapturerStarted(success)
                     if (!success) fail("screen-capture-failed")
@@ -118,12 +118,15 @@ class NativeRtcPeer(private val context: Context, private val lease: CaptureLeas
                         frames.incrementAndGet()
                     }
                 }
-            })
+            }
+            val capturer = AuthorizedScreenCapture(context.applicationContext, projectionData,
+                projectionCallback, helper, guardedObserver, { !closed.get() && lease.allowed() },
+                { fail("screen-refresh-failed") }).also { capture = it }
             check(!closed.get() && lease.allowed()) { "Authorization ended while preparing capture" }
-            capturer.startCapture(width, height, 15)
+            capturer.start(width, height)
             if (Build.VERSION.SDK_INT >= 31) {
                 captureRefresh.scheduleWithFixedDelay({
-                    try { refreshIdleCapture(width, height) }
+                    try { refreshIdleCapture() }
                     catch (_: Exception) { if (!closed.get()) fail("screen-refresh-failed") }
                 }, 1_000, 500, TimeUnit.MILLISECONDS)
             }
@@ -134,7 +137,7 @@ class NativeRtcPeer(private val context: Context, private val lease: CaptureLeas
         }
     }
 
-    @Synchronized private fun refreshIdleCapture(width: Int, height: Int) {
+    @Synchronized private fun refreshIdleCapture() {
         val now = SystemClock.elapsedRealtime()
         if (closed.get() || !lease.allowed()) return
         if (now - lastCaptureTraceAt >= 1_000) {
@@ -144,10 +147,9 @@ class NativeRtcPeer(private val context: Context, private val lease: CaptureLeas
         if (now - lastCapturedAt.get() < 1_000 ||
             now - lastRefreshAt < 1_000) return
         lastRefreshAt = now
-        // SDK 150 uses resize/setSurface on the existing authorized VirtualDisplay
-        // on Android 12+. No new projection/token, cached frame, input or timestamp.
-        // Only an actual subsequent capture callback can advance frame freshness.
-        checkNotNull(capture).changeCaptureFormat(width, height, 15)
+        // Reconnect the same authorized display output without changing geometry,
+        // requesting another projection, or replaying a cached frame.
+        checkNotNull(capture).refresh()
         trace("idle-display-refresh-requested")
     }
 
@@ -362,8 +364,7 @@ class NativeRtcPeer(private val context: Context, private val lease: CaptureLeas
         release { detached?.close() }
         release { detached?.dispose() }
         release { pc?.close() }
-        release { capture?.stopCapture() }
-        release { capture?.dispose() }
+        release { capture?.stop() }
         release { track?.dispose() }
         release { source?.dispose() }
         release { texture?.dispose() }

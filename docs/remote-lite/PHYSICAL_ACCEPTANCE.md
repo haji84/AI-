@@ -353,6 +353,36 @@ failure logs were taken after the second session and do not establish that
 distinction. It changes no authorization, input, frame timestamps or acceptance
 assertions, and remains disabled in the release build.
 
+### Alternate capture refresh — existing output reconnect
+
+At `c36455171a655534e20518ba9fbc8fce4df90c1e`, normal CI39780439455 passed;
+Android CI39780439479 failed at 5,882 ms maximum decoded frame gap. Four swipes,
+both rapid pairs, secure refusal and revoke (0.255 s) passed in this run.
+Native observations show count 358 unchanged while age grew 542→3,548 ms,
+then count 359 unchanged as age grew 446→5,463 ms, despite repeated same-size
+refresh requests. This locates the observed stall before subsequent capture
+callbacks/handoff; it does not by itself exclude delegate/GPU backpressure.
+
+Minimal next strategy (MEDIUM, reversible, Issue1831 only): own the same public
+MediaProjection/VirtualDisplay lifecycle instead of the SDK's inaccessible
+display handle. After the existing one-second idle criterion, detach the
+existing output surface, then restore it after 50 ms so the operations cannot
+collapse into one unchanged compositor traversal. The display, surface geometry,
+consent result and projection identity do not change; no second display is
+created. The public [VirtualDisplay surface API](https://developer.android.com/reference/android/hardware/display/VirtualDisplay#setSurface(android.view.Surface))
+supports detaching and reattaching the caller's surface. This is an experiment,
+not proof that a fresh buffer will be produced on every device.
+
+The new `AuthorizedScreenCapture` owns only that projection/display/surface.
+All its state and delayed restoration run on the existing texture handler.
+Restoration and frame callbacks recheck current authorization; stop cancels
+restoration before releasing every resource, and reports cleanup failure to the
+existing peer teardown. Existing native lock/power/lease checks remain at the
+publishing boundary. No Accessibility screenshot fallback, cached frame, extra
+permission, new consent, resolution change or frame timestamp rewrite is added.
+The same red native VM test must pass without changing its assertions. Rollback
+is the revert of this capture change; preserve app data and registrations.
+
 ## Owner portal baseline
 
 Commit `f4b00c147e3996c79643cf88c39c3f0633f6f4ad` passed normal CI
