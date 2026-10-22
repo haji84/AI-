@@ -11,7 +11,9 @@ class LicenseActivity : Activity() {
         val text = TextView(this).apply {
             textSize = 12f
             setPadding(24, 24, 24, 24)
-            text = "WebRTC Android SDK 150.7871.01\nPublisher: https://github.com/webrtc-sdk/android\n\n" +
+            text = "GORIQ Remote Lite\n\n" +
+                assets.open("notices/REMOTE_LITE_LICENSE.txt").bufferedReader().use { it.readText() } + "\n\n" +
+                "WebRTC Android SDK 150.7871.01\nPublisher: https://github.com/webrtc-sdk/android\n\n" +
                 assets.open("notices/WEBRTC_SDK_LICENSE.txt").bufferedReader().use { it.readText() } + "\n\n" +
                 assets.open("notices/WEBRTC.md").bufferedReader().use { it.readText() }
         }

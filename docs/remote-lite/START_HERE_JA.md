@@ -80,6 +80,9 @@ Androidのデータ消去・アンインストールは鍵を失う場合があ�
 
 ## この候補に残る受入
 
+ライセンスはWindowsのインストール先にある`REMOTE_LITE_LICENSE.txt`、
+Androidの「ライセンス」画面から確認できます。Go/WebRTC等の第三者の条件も保持します。
+
 WindowsインストーラーのCI結果、正式署名、クリーンな実機への初期導入、
 外出先PC→Android、iPhone携帯回線→Windows、公開TURN、通信断・再起動復旧、
 約40台同時操作の確認が必要です。`candidate.json` の

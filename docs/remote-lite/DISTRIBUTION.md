@@ -5,15 +5,18 @@ Public service, physical/mobile acceptance and final signing remain open.
 
 The [signing preparation runbook](SIGNING_PREPARATION_JA.md) separates Android
 keystore preparation from Windows publisher trust, records the free OSS signing
-eligibility gap, and gives the artifact verification order. The
+eligibility conditions, and gives the artifact verification order. The owner
+approved the [scoped MIT notice](../../LICENSE-REMOTE-LITE.txt) for original
+Remote Lite material with copyright holder haji84; see [scope](LICENSE_SCOPE.md).
+GORIQ core and third-party material are excluded. The
 [service operations runbook](SERVICE_OPERATIONS_JA.md) records current free-only
 hosting limits and concrete environment approvals. Neither document activates a
 provider, creates a publisher identity, or authorizes release.
 
 ## Package boundary
 
-The standard Windows Installer package installs only the manual host EXE and the
-Go redistribution notice under the current user's
+The standard Windows Installer package installs only the manual host EXE, the
+Remote Lite MIT notice and the Go redistribution notice under the current user's
 `%LOCALAPPDATA%\Programs\GORIQ Remote Lite`, with a current-user Start menu
 shortcut. It uses perUser/limited installation scope and rejects ALLUSERS
 machine-scope overrides before costing/install actions. One non-executable
@@ -129,7 +132,7 @@ file/empty-directory removal. **Exact-head CI results are pending.**
 
 ## Candidate provenance and handoff
 
-The Windows builder prepares MSI, EXE, Go license, Japanese START_HERE,
+The Windows builder prepares MSI, EXE, Remote Lite and Go license notices, Japanese START_HERE,
 candidate.json and SHA256SUMS.txt. The Android job similarly prepares the normal
 unsigned release APK, its two WebRTC notices, the same guide, candidate.json and
 checksums only after the existing native emulator acceptance succeeds. Neither

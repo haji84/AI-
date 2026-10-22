@@ -71,6 +71,9 @@ ADB導入でこの条件を回避する計画にはしません。
 **所有者は2026-10-23に「現行のインストーラーを直接渡す（MSI形式）」を選択しました。**
 今回の準備対象は現在のMSI/EXEです。Store/MSIX案は比較情報として残し、実装対象にしません。
 方式の選択はOSSライセンス付与、申請/契約、署名権限、配布承認を兼ねません。
+その後、所有者からRemote Lite自作部分のMIT化と著作権者表記`haji84`を個別に承認いただき、
+[限定ライセンス](../../LICENSE-REMOTE-LITE.txt)と[適用範囲](LICENSE_SCOPE.md)を追加しました。
+GORIQ本体と第三者の著作物はこの許諾の対象外です。署名者名義の決定とは別です。
 
 |候補|無料部分|残る条件|
 |---|---|---|
@@ -90,7 +93,7 @@ Individualは事業・職業と無関係な非商用個人の配布が対象で�
 
 本人によるPartner Center登録/身元確認、表示する発行者名、契約と配布対象の承認後に
 Store用package identityを確定します。本人確認書類をリポジトリやチャットで受け取りません。
-今回はアカウント登録、商品名予約、MSIX作成/送信、ライセンス変更を実行していません。
+Storeのアカウント登録、商品名予約、MSIX作成/送信は実行していません。
 [個人登録とMSIX無料署名](https://blogs.windows.com/windowsdeveloper/2025/09/10/free-developer-registration-for-individual-developers-on-microsoft-store/)、
 [Company無料登録の告知](https://blogs.windows.com/windowsdeveloper/2026/05/07/publish-to-microsoft-store-as-a-company-now-with-free-registration-and-faster-onboarding/)、
 [MSIX署名の区別](https://learn.microsoft.com/en-us/windows/msix/package/signing-package-overview)、
@@ -98,19 +101,19 @@ Store用package identityを確定します。本人確認書類をリポジト�
 
 既存MSI/EXEを維持する無料候補はSignPath FoundationのOSS支援です。OSI承認ライセンス、公開・保守される
 プロジェクト、ソースからのビルド、レビュー/発行体の手続きなどが必要で、採用は保証されません。
-Foundation名義の発行となる条件も確認します。現リポジトリにはトップレベルのLICENSEが
-なく、公開GitHubで見えることだけではOSS要件を満たしません。
+Foundation名義の発行となる条件も確認します。現リポジトリ全体を許諾するLICENSEはなく、
+Remote Lite限定のMIT許諾があっても混在リポジトリの申請資格が自動で確定するわけではありません。
 [SignPathの条件](https://signpath.org/terms)。
 
-無料申請を選ぶ場合、次の**Remote Lite範囲だけ**の著作権/依存関係棚卸しとライセンス判断が
-必要です。GORIQ本体を勝手にOSS化・別リポジトリ公開しません。
+次の**Remote Lite範囲だけ**の自作部分についてMITを承認済みです。
+依存関係の個別条件と申請範囲は引き続き確認します。GORIQ本体のOSS化や別リポジトリ公開は行いません。
 
 - `apps/remote-lite-windows/`、`android/remote-lite/`、`src/remote-lite/`
 - 対応する`remote-lite-*` build/test scripts、tests、製品文書
 - Go/WebRTC等の依存物の通知とライセンス。第三者の著作物へ別ライセンスを上書きしない
 
-所有者によるライセンス指定と権利確認、申請内容、必要なGitHub App/署名権限を具体化して
-からHuman Gateを通します。今回LICENSEの追加、申請送信、GitHub App導入はしていません。
+所有者指定の限定MIT通知をWindows/MSIとAndroid/APKへ同梱します。申請内容と必要な
+GitHub App/署名権限は具体化してからHuman Gateを通します。申請送信、GitHub App導入は未実施です。
 無料申請が不可なら、既存の信頼されたコード署名証明書の有無を確認し、費用のある取得は
 別承認とします。自己署名をWindowsの信頼済み配布署名と表示せず、SmartScreenや
 Application Controlを無効化する手順も追加しません。
@@ -144,9 +147,9 @@ MSIの版番号はこの設定のsubject/author制約だけでは検証できな
 
 ### 次のHuman Gateを分ける
 
-1. **権利とライセンス**：上記Remote Lite範囲のうち本人が権利を持つ部分へMIT等の
-   OSI承認ライセンスを付与できるか、正式な権利者表示を確認する。第三者のGo、WebRTC、
-   生成ツール等の元の条件は保持する。GORIQ本体や共通workflowを一括で再ライセンスしない。
+1. **権利とライセンス（自作部分は承認済み）**：2026-10-23にMITと著作権者`haji84`を
+   所有者が個別承認。第三者のGo、WebRTC、生成ツール等の元の条件は保持する。
+   GORIQ本体や共通workflowを一括で再ライセンスしない。
    混在リポジトリでの申請範囲はSignPathの審査対象で、部分的なLICENSEだけで採用確定とはしない。
 2. **申請/契約と公開範囲**：未リリースの候補であること、Remote Liteの手動画面/入力機能、
    対象ソース/バイナリ、必要な公開ページ、発行者名義を記載した申請内容を本人が確認する。
@@ -155,7 +158,7 @@ MSIの版番号はこの設定のsubject/author制約だけでは検証できな
    手動承認する本人を確定する。鍵/token/権限設定の承認は別途取得する。
 4. **署名済み成果物の配布**：以下の受入と延期中の実機検証が完了してから判断する。
 
-この準備では上記を承認済みにせず、ライセンス、アカウント、署名鍵、GitHub権限を作成しません。
+MIT化の承認を2〜4の承認へ流用しません。アカウント、署名鍵、GitHub権限の作成は未実施です。
 build-onlyツールは[goversioninfoのMIT](https://github.com/josephspurrier/goversioninfo/blob/v1.5.0/LICENSE)と
 [rsrcのMIT](https://github.com/akavel/rsrc/blob/v0.10.2/LICENSE.txt)。生成ツールの実行ファイルはMSIへ同梱しません。
 

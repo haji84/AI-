@@ -1,5 +1,8 @@
 # GORIQ Remote Lite: Windows interactive-desktop local prototype
 
+Original Remote Lite code is licensed under the [scoped MIT notice](../../LICENSE-REMOTE-LITE.txt).
+See [license boundaries](../../docs/remote-lite/LICENSE_SCOPE.md); other GORIQ code and third-party material are excluded.
+
 Owner task: [Issue #1831](https://github.com/haji84/AI-/issues/1831). **Development test only, not a distributable external remote-control product.**
 
 ## Functional boundaries

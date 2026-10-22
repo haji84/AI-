@@ -97,6 +97,8 @@ jobs:
           fi
           grep -Fq assets/notices/WEBRTC.md <<< "$archive"
           grep -Fq assets/notices/WEBRTC_SDK_LICENSE.txt <<< "$archive"
+          unzip -p "$release" assets/notices/REMOTE_LITE_LICENSE.txt | cmp LICENSE-REMOTE-LITE.txt -
+          echo 'PASS actual release APK contains the exact approved Remote Lite MIT notice'
           resources="$("$aapt" dump --values resources "$release")"
           if grep -Eq 'VmRemoteSessionService|public-vm-fixture-only' <<< "$resources"; then exit 1; fi
       - name: Verify physical acceptance APK uses the normal service
@@ -139,6 +141,7 @@ jobs:
           cp android/remote-lite/app/build/outputs/apk/release/app-release-unsigned.apk "$candidate/GORIQRemoteLite-unsigned.apk"
           cp android/remote-lite/app/src/main/assets/notices/WEBRTC.md "$candidate/WEBRTC.md"
           cp android/remote-lite/app/src/main/assets/notices/WEBRTC_SDK_LICENSE.txt "$candidate/WEBRTC_SDK_LICENSE.txt"
+          cp LICENSE-REMOTE-LITE.txt "$candidate/REMOTE_LITE_LICENSE.txt"
           cp docs/remote-lite/START_HERE_JA.md "$candidate/START_HERE_JA.md"
           python3 - <<'PY'
           import hashlib, json, os, pathlib, subprocess
@@ -149,7 +152,7 @@ jobs:
                          package='app.goriq.remote.lite', signing='UNSIGNED_CANDIDATE',
                          distributable=False, acceptance='PHYSICAL_PUBLIC_SIGNING_PENDING', sha256=apk_hash)
           (output / 'candidate.json').write_text(json.dumps(receipt, indent=2) + '\n', encoding='utf-8')
-          names = ['GORIQRemoteLite-unsigned.apk', 'WEBRTC.md', 'WEBRTC_SDK_LICENSE.txt', 'START_HERE_JA.md', 'candidate.json']
+          names = ['GORIQRemoteLite-unsigned.apk', 'WEBRTC.md', 'WEBRTC_SDK_LICENSE.txt', 'REMOTE_LITE_LICENSE.txt', 'START_HERE_JA.md', 'candidate.json']
           (output / 'SHA256SUMS.txt').write_text(''.join(
               hashlib.sha256((output / name).read_bytes()).hexdigest() + '  ' + name + '\n'
               for name in names), encoding='utf-8')

@@ -15,6 +15,10 @@ $rebuilt = (Resolve-Path -LiteralPath $RebuiltMsi).Path
 $upgrade = (Resolve-Path -LiteralPath $UpgradeMsi).Path
 $firstHash = (Get-FileHash -LiteralPath $FirstHost -Algorithm SHA256).Hash
 $upgradeHash = (Get-FileHash -LiteralPath $UpgradeHost -Algorithm SHA256).Hash
+$licenseHash = (Get-FileHash -LiteralPath (Join-Path (Split-Path -Parent $first) 'REMOTE_LITE_LICENSE.txt') -Algorithm SHA256).Hash
+if ((Get-FileHash -LiteralPath (Join-Path (Split-Path -Parent $upgrade) 'REMOTE_LITE_LICENSE.txt') -Algorithm SHA256).Hash -ne $licenseHash) {
+    throw 'Same-source test versions must contain the same approved license'
+}
 if ($firstHash -eq $upgradeHash) { throw 'Upgrade test requires different real host binaries' }
 & (Join-Path $PSScriptRoot 'remote-lite-windows-package-check.ps1') -MsiPath $first
 & (Join-Path $PSScriptRoot 'remote-lite-windows-package-check.ps1') -MsiPath $rebuilt
@@ -93,7 +97,9 @@ function Assert-Installed([string]$ExpectedHash) {
     $hashMatches = $binaryExists -and (Get-FileHash -LiteralPath $binary -Algorithm SHA256).Hash -eq $ExpectedHash
     $shortcutExists = Test-Path -LiteralPath $shortcut
     $noticeExists = Test-Path -LiteralPath (Join-Path $installed 'GO_LICENSE.txt')
-    if (!$binaryExists -or !$hashMatches -or !$shortcutExists -or !$noticeExists) {
+    $licensePath = Join-Path $installed 'REMOTE_LITE_LICENSE.txt'
+    $licenseMatches = (Test-Path -LiteralPath $licensePath) -and (Get-FileHash -LiteralPath $licensePath -Algorithm SHA256).Hash -eq $licenseHash
+    if (!$binaryExists -or !$hashMatches -or !$shortcutExists -or !$noticeExists -or !$licenseMatches) {
         Write-Output "MSI payload: binary=$binaryExists hash=$hashMatches shortcut=$shortcutExists notice=$noticeExists"
         # Disposable runner paths and installation scope only; never dump the
         # full log, environment or retained enrollment data.
@@ -126,6 +132,7 @@ Assert-Installed $firstHash
 Assert-ProductRegistration $firstCode $true
 # A real repair must restore a corrupted candidate file, without executing it.
 [IO.File]::WriteAllText((Join-Path $installed 'GORIQRemoteLite.exe'), 'VM repair fixture')
+[IO.File]::WriteAllText((Join-Path $installed 'REMOTE_LITE_LICENSE.txt'), 'VM repair fixture')
 Invoke-Msi -Arguments @('/fa', ('"' + $first + '"')) -Stage 'repair'
 Assert-Installed $firstHash
 Invoke-Msi -Arguments @('/i', ('"' + $upgrade + '"')) -Stage 'upgrade'
@@ -137,6 +144,8 @@ Set-Content -LiteralPath $foreignMarker -Value 'VM-owned foreign file; not an in
 Invoke-Msi -Arguments @('/x', $upgradeCode) -Stage 'uninstall'
 Assert-IdentityRetained
 if ((Test-Path -LiteralPath (Join-Path $installed 'GORIQRemoteLite.exe')) -or
+    (Test-Path -LiteralPath (Join-Path $installed 'REMOTE_LITE_LICENSE.txt')) -or
+    (Test-Path -LiteralPath (Join-Path $installed 'GO_LICENSE.txt')) -or
     (Test-Path -LiteralPath $shortcut) -or (Test-Path -LiteralPath $registry) -or
     !(Test-Path -LiteralPath $foreignMarker)) { throw 'Uninstall removed foreign data or retained installed components' }
 foreach ($path in $machinePaths) {
@@ -144,7 +153,7 @@ foreach ($path in $machinePaths) {
 }
 Assert-ProductRegistration $firstCode $false
 Assert-ProductRegistration $upgradeCode $false
-Write-Output 'PASS machine overrides rejected; real per-user MSI install, same-version rebuild, corrupted-file repair, version upgrade and uninstall; identity and foreign files retained'
+Write-Output 'PASS machine overrides rejected; real per-user MSI install, same-version rebuild, corrupted-file repair, version upgrade and uninstall; MIT notice bytes verified; identity and foreign files retained'
 # No recursive removal. Delete only the two fixture files created above.
 Remove-Item -LiteralPath $foreignMarker
 Remove-Item -LiteralPath $identityMarker

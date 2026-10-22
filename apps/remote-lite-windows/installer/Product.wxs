@@ -23,6 +23,7 @@
             <Component Id="ManualHost" Guid="CF9CE26E-41B4-4E5C-8E73-0E71DE8F1831" Win64="yes">
               <File Id="HostExecutable" Name="GORIQRemoteLite.exe" Source="$(var.HostExecutable)" />
               <File Id="GoLicense" Name="GO_LICENSE.txt" Source="$(var.GoLicense)" />
+              <File Id="RemoteLiteLicense" Name="REMOTE_LITE_LICENSE.txt" Source="$(var.RemoteLiteLicense)" />
               <RemoveFolder Id="RemoveInstalledFolder" On="uninstall" />
               <RegistryValue Root="HKMU" Key="Software\GORIQRemoteLiteInstaller" Name="Path"
                              Value="[RemoteLiteInstallFolder]" Type="string" KeyPath="yes" />

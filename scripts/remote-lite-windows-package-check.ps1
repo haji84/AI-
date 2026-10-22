@@ -69,7 +69,7 @@ if ($components.Count -ne 2 -or
     throw 'Payload escaped the manual host/menu directories'
 }
 $files = @(Read-MsiRows 'SELECT `FileName` FROM `File`' | ForEach-Object { ($_[0] -split '\|')[-1] } | Sort-Object)
-if (($files -join ',') -ne 'GO_LICENSE.txt,GORIQRemoteLite.exe') { throw 'Unexpected payload or missing Go notice' }
+if (($files -join ',') -ne 'GO_LICENSE.txt,GORIQRemoteLite.exe,REMOTE_LITE_LICENSE.txt') { throw 'Unexpected payload or missing license notice' }
 $registryRows = @(Read-MsiRows 'SELECT `Root`, `Key`, `Component_` FROM `Registry`')
 if ($registryRows.Count -ne 2) { throw 'Unexpected component registration count' }
 foreach ($row in $registryRows) {

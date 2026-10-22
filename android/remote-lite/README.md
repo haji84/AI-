@@ -1,5 +1,8 @@
 # GORIQ Remote Lite Android candidate
 
+Original Remote Lite code is licensed under the [scoped MIT notice](../../LICENSE-REMOTE-LITE.txt).
+See [license boundaries](../../docs/remote-lite/LICENSE_SCOPE.md); other GORIQ code and third-party material are excluded.
+
 Issue #1831 owner approval (2026-10-22, this task): add the normal `ACCESS_NETWORK_STATE` permission for WebRTC network observation. It does not grant screen/input access; those retain their separate visible OS consent. The SDK now uses its Android network monitor when granted, with the existing permission-free interface-enumeration fallback retained. Public hosting is still unavailable: the owner reports the separate Oracle account is not prepared.
 
 This is an independent `app.goriq.remote.lite` Android project with a P-256 AndroidKeyStore identity, Japanese invitation/owner-approval setup, bounded system-validated HTTPS, and a local Accessibility screenshot/gesture service. It includes no GORIQ Worker, AI, task executor, device administrator, boot receiver, public listener, or GORIQ owner credential.
