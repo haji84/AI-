@@ -44,11 +44,15 @@ window.beginNative = async config => {
   await viewer.startViewer();
   void (async () => {
     while (!viewer.closed) {
+      if (window.vm.pausePolling) { await delay(100); continue; }
       try {
         const batch = await post('poll', { ack: cursor });
         for (const signal of batch.signals) await viewer.receiveSignal(signal);
         cursor = batch.cursor;
-      } catch (error) { window.vm.errors.push(error.message); viewer.close('fixture-signaling-ended'); }
+      } catch (error) {
+        // Retain RTC: revocation must be enforced by the Android status/media boundary.
+        window.vm.errors.push(error.message); window.vm.pollRefused = true; break;
+      }
       await delay(150);
     }
   })();

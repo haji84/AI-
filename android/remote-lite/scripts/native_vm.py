@@ -142,7 +142,7 @@ def verify_native(owner_post, ready, device_id, old_session, old_token):
                 deadline = time.monotonic() + 40
                 while time.monotonic() < deadline:
                     stats = browser.stats()
-                    if stats["width"] > 0 and stats["decoded"] >= 3 and stats["localType"] == "relay" and stats["remoteType"] == "relay":
+                    if stats["width"] > 0 and stats["decoded"] >= 3 and stats.get("localType") == "relay" and stats.get("remoteType") == "relay":
                         print("Android native decoded video via forced loopback TURN: " + json.dumps(stats), flush=True)
                         return session
                     time.sleep(.5)
@@ -193,7 +193,7 @@ def verify_native(owner_post, ready, device_id, old_session, old_token):
                 print("Android native two rapid same-window taps paced fresh proofs, actual count/ACK=3", flush=True)
                 return bounds
 
-            first = new_session()
+            new_session()
             real_tap()
             adb("shell", "am", "start", "-W", "-n", f"{ui.PACKAGE}/.SecureTestActivity")
             target = ui.wait_for_text("Secure target taps: 0")
@@ -210,6 +210,8 @@ def verify_native(owner_post, ready, device_id, old_session, old_token):
 
             second = new_session()
             bounds = real_tap()
+            # Keep established RTC/channel alive across owner revocation; no viewer-side stop shortcut.
+            browser.script("window.vm.pausePolling=true; return true")
             revoked_at = time.monotonic()
             revoked = owner_post("/v1/revoke", {"deviceId": device_id})
             assert revoked.get("ok") and revoked["result"]["status"] == "revoked", revoked

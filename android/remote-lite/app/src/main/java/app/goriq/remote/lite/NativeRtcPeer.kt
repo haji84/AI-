@@ -42,6 +42,7 @@ class NativeRtcPeer(private val context: Context, private val lease: CaptureLeas
     private val inputLock = Any()
     private val channelLock = Any()
     private val inputs = ThreadPoolExecutor(1, 1, 0, TimeUnit.MILLISECONDS, ArrayBlockingQueue(16))
+    private val control = ThreadPoolExecutor(1, 1, 0, TimeUnit.MILLISECONDS, ArrayBlockingQueue(16))
 
     @Synchronized fun start(projectionData: Intent, width: Int, height: Int,
         iceServers: List<PeerConnection.IceServer> = emptyList(), relayOnly: Boolean = false) {
@@ -195,7 +196,7 @@ class NativeRtcPeer(private val context: Context, private val lease: CaptureLeas
                 override fun onStateChange() {
                     if (closed.get()) return
                     // Native callbacks never wait for the cleanup lock while JNI close waits for them.
-                    try { inputs.execute {
+                    try { control.execute {
                       synchronized(channelLock) {
                         if (closed.get()) return@synchronized
                         when (incoming.state()) {
@@ -289,7 +290,9 @@ class NativeRtcPeer(private val context: Context, private val lease: CaptureLeas
         if (!closed.compareAndSet(false, true)) return cleanupConfirmed
         lease.close()
         inputs.shutdownNow()
+        control.shutdownNow()
         fun release(action: () -> Unit) { runCatching(action).onFailure { cleanupConfirmed = false } }
+        release { check(control.awaitTermination(3, TimeUnit.SECONDS)) }
         release { track?.setEnabled(false) }
         // Exclude in-flight ACK JNI calls, then drop the Java lock before JNI teardown.
         // unregisterObserver may synchronously wait for the signaling callback thread.
