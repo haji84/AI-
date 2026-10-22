@@ -65,6 +65,8 @@ jobs:
         run: |
           python3 -m unittest discover -s android/remote-lite/scripts -p test_native_vm.py
           python3 android/remote-lite/scripts/native_vm.py
+      - name: Test read-only Android release verifier
+        run: python3 -m unittest discover -s android/remote-lite/scripts -p test_verify_release.py
       - name: Test and build separate manual-only APKs
         run: gradle -p android/remote-lite :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease :app:assemblePhysicalCheck :vm-ui-probe:assembleDebug --stacktrace
       - name: Verify candidate APK exists
@@ -101,6 +103,14 @@ jobs:
           echo 'PASS actual release APK contains the exact approved Remote Lite MIT notice'
           resources="$("$aapt" dump --values resources "$release")"
           if grep -Eq 'VmRemoteSessionService|public-vm-fixture-only' <<< "$resources"; then exit 1; fi
+      - name: Verify actual APK signatures with a disposable CI-only key
+        run: |
+          set -euo pipefail
+          aapt="$(find "$ANDROID_HOME/build-tools" -mindepth 2 -maxdepth 2 -type f -name aapt | sort -V | tail -n 1)"
+          test -x "$aapt"
+          python3 android/remote-lite/scripts/ci_signing_fixture.py \
+            --unsigned android/remote-lite/app/build/outputs/apk/release/app-release-unsigned.apk \
+            --build-tools "$(dirname "$aapt")" --source-commit "$(git rev-parse HEAD)"
       - name: Verify physical acceptance APK uses the normal service
         run: |
           set -euo pipefail

@@ -42,7 +42,8 @@ Let's Encrypt証明書はアプリのコード署名には使えません。
 
 ## 配置用の具体例
 
-`deploy/remote-lite/`に`portal.json.example`、systemd unit、coturn設定例があります。
+`deploy/remote-lite/`に`portal.json.example`、portal/TURN/転送量ガードのsystemd unit、
+`traffic-budget.json.example`、coturn設定例があります。
 **例のまま起動できる完成設定ではなく、秘密情報も含みません。**
 アプリ名、IP、証明書SAN、ユーザー、実パスと権限を確定してから私有設定へ展開します。
 設定の検査だけでは、OS unit/coturnの実起動や公開通信を検証したことにはなりません。
@@ -60,6 +61,8 @@ coturn例の対象は上流4.18.0です。4.18で削除された`no-cli`/`no-dtl
 |`/etc/goriq-remote-lite/private/turn-shared-secret`|独立したTURN秘密。Node/coturnに必要な読取だけ付与|
 |`/etc/goriq-remote-lite/tls/<certificate-version>/`|fullchain/privkey。rootが管理し必要ユーザーだけ読取|
 |`/var/lib/goriq-remote-lite`|登録台帳とlock。専用ユーザーのみ書込、他アプリと共用しない|
+|`/etc/goriq-remote-lite/traffic-budget.json`|期間・上限・既使用量。独立した監視ユーザーの所有、0600|
+|`/var/lib/goriq-remote-lite-traffic/<period-id>`|送信量台帳とlock。監視専用ユーザーだけが書込、0700|
 
 Nodeは直接HTTPS443を扱う例です。HTTPや検証無効のバックエンドへ変更しません。
 systemd unitの低位port capability付与も実行時の個別承認に含めます。
@@ -109,10 +112,43 @@ coturn quotaのuserは一時usernameで、製品の所有者別40台制限とは
 40台がそれぞれ1Mbpsを連続送信するだけで約13.4TB/月の目安になり、無料で40台を
 常に滑らかに操作できる証拠はありません。Direct優先・relay時の容量実測が必要です。
 
-現時点では本番の月間メーター連携/自動遮断を実装・検証していません。公開前に全VM送信量を
-永続計測し、8TBを保守的な停止目安として決め、計測不明/再起動による欠測時もサービスを止める
-具体方式を独立に検査します。アラート通知だけをhard capにしません。課金上の0円条件は、
-まず無料専用アカウントで有料利用ができないことを確認して担保します。有料口座は承認しません。
+### 永続送信量ガード
+
+`scripts/remote-lite-traffic-guard.mjs`はLinuxの非loopback全インターフェースの
+`tx_bytes`を5秒ごとに読み、64bit整数を丸めず専用台帳へ同期保存します。初期値は
+**確認済み既使用量 + 現在の起動からの全カウンター**です。重複計上は許容し、
+仮想NICも省略しません。NIC重複で実際より早く停止する場合があります。
+8TBは設定例の停止目安で、課金メーターやプロバイダー側の上限ではありません。
+
+- 上限以上、期間終了、再起動、NIC増減、カウンター巻き戻り、15秒超の計測空白、
+  時計逆行、台帳欠損/破損、書込失敗で起動を拒否または異常停止します。
+- 保存後だけsystemdへREADY/WATCHDOGを通知します。監視が固まっても15秒のwatchdogで終了。
+  portalとTURNは`BindsTo`と`After`で連動停止し、停止猶予は5秒です。
+  非同期の検出・停止までに送信される分は残るため、無料枠から十分な余裕を取ります。
+- ガードは独立したOSユーザーで動かします。portal/TURNが監視台帳を書き換えたり、
+  監視への通知を代行できる同一ユーザー構成にはしません。unitの権限追加は未実行です。
+- 異常時のlock、使用量、旧期間を自動削除しません。設定上限変更で残量を復活させません。
+  正常停止でも15秒を超えて停止した場合は欠測として再起動を拒否します。
+
+実配置時は、無料専用アカウント、対象VM、プロバイダーが使う期間と既使用量の根拠、
+停止余裕を確認してから私有JSONを作成します。`openingBytes:null`の例は起動できません。
+過去の使用量が不明なときに0を入れません。空の専用期間ディレクトリに一度だけ
+`node scripts/remote-lite-traffic-guard.mjs <private-config> --initialize`を実行し、
+直ちに（15秒以内）確定したguard unitを起動し、その後にportal/TURNを起動します。
+OSの配布元coturn unitを並行して有効にすると連動停止の対象外になるため使用しません。
+
+期間更新・VM再起動・欠測復旧では、まずportal/TURNを停止し、前の使用量と
+プロバイダー側の使用量を照合します。前台帳を保持し、今回の期間について保守的な既使用量を
+引き継いだ**新しい専用ディレクトリ**を手動で初期化します。同じ期間の復旧では前のlimitと
+期間を保持し、上限到達した期間を再開しません。異常lockを自動で消す手順はありません。
+
+ローカルの境界・永続化・通知順序検査に加え、CIの隔離Linux VMで実カウンター、
+systemd READY、期間終了、監視プロセス停止時のwatchdog、依存unit停止、再起動拒否を
+検査します。依存unitは無通信の代役です。実際の公開portal/coturnと課金計測の受入は別に必要です。
+全VMの他サービスやクラウドアカウント内の別資源は、このサービス停止だけでは止まりません。
+課金上の0円条件は、無料専用アカウントで有料利用ができないことを確認して担保します。
+[systemdの依存関係](https://www.freedesktop.org/software/systemd/man/latest/systemd.unit.html)、
+[systemdのwatchdog](https://www.freedesktop.org/software/systemd/man/latest/systemd.service.html)。
 
 TURN資格情報は最長10分。現実装は更新せず期限で停止し、新セッションが必要です。
 logout/revoke後も既発行TURN資格情報の即時失効は保証しません。製品側映像/入力は停止します。

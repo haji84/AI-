@@ -45,6 +45,8 @@ jobs:
         run: pnpm test
       - name: P8 Security Regression Suite
         run: pnpm test:p8-security
+      - name: Remote Lite traffic guard systemd failure propagation on isolated Linux VM
+        run: node scripts/remote-lite-traffic-systemd-vm.mjs
       - name: Windows ACL repair decision fixtures
         shell: pwsh
         run: |

@@ -1,0 +1,25 @@
+# REVIEW TEMPLATE ONLY. Do not enable the distro coturn unit alongside this unit.
+[Unit]
+Description=GORIQ Remote Lite independent coturn relay
+After=network-online.target goriq-remote-lite-traffic.service
+Wants=network-online.target
+BindsTo=goriq-remote-lite-traffic.service
+
+[Service]
+Type=simple
+User=goriq-remote-lite-turn
+Group=goriq-remote-lite-turn
+ExecStart=/usr/bin/turnserver -c /etc/goriq-remote-lite/turnserver.conf --pidfile=
+Restart=no
+TimeoutStopSec=5s
+KillSignal=SIGTERM
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+CapabilityBoundingSet=
+
+[Install]
+WantedBy=multi-user.target

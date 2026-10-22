@@ -2,8 +2,9 @@
 # Create the separate account/paths and initialize the registry only after approval.
 [Unit]
 Description=GORIQ Remote Lite independent HTTPS portal
-After=network-online.target
+After=network-online.target goriq-remote-lite-traffic.service
 Wants=network-online.target
+BindsTo=goriq-remote-lite-traffic.service
 StartLimitIntervalSec=300
 StartLimitBurst=3
 
@@ -16,7 +17,7 @@ ExecStart=/usr/bin/node scripts/remote-lite-owner-server.mjs /etc/goriq-remote-l
 ExecReload=/bin/kill -HUP $MAINPID
 Restart=on-failure
 RestartSec=10
-TimeoutStopSec=20
+TimeoutStopSec=5
 KillSignal=SIGTERM
 UMask=0077
 NoNewPrivileges=yes

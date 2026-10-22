@@ -1,6 +1,6 @@
 # 署名配布の準備
 
-Issue1831 / PR1832。2026-10-23確認。**鍵発行・署名・アップロード・配布は未実施。**
+Issue1831 / PR1832。2026-10-23確認。**本番鍵発行・本番署名・アップロード・配布は未実施。**
 現在の候補は`distributable:false`のままです。TLS証明書、端末認証鍵、コード署名鍵は
 別の用途です。所有者ログイン鍵やGORIQの鍵を署名へ流用しません。
 
@@ -50,6 +50,58 @@ zipalign -c -P 16 4 <NEW_SIGNED_APK>
 5. signed APKのSHA256、指紋、source、CI、版番号を私有release台帳へ記録。
    初回導入・同じ鍵での更新・登録ID維持・停止/削除を実機で確認する。
 6. 公開先と配布対象の承認後に、私有鍵を含まない成果物だけを渡す。
+
+### 署名後の読取り専用検証器
+
+[`verify_release.py`](../../android/remote-lite/scripts/verify_release.py)は署名・インストールを
+行わず、承認済みunsigned APKと署名済みAPKを照合してJSONの検証記録を標準出力へ返します。
+本番keystoreやパスワードを渡す引数はありません。承認したソースのcheckoutと、使用版を
+確認したAndroid Build Tools内の`aapt`/`apksigner`/`zipalign`を使います。
+
+```text
+python android/remote-lite/scripts/verify_release.py --unsigned <APPROVED_UNSIGNED_APK> --signed <NEW_SIGNED_APK> --unsigned-sha256 <INDEPENDENTLY_RECORDED_UNSIGNED_SHA256> --signer-sha256 <OWNER_CONFIRMED_CERTIFICATE_SHA256_HEX> --version-code <APPROVED_VERSION_CODE> --version-name <APPROVED_VERSION_NAME> --previous-version-code <LAST_ACCEPTED_VERSION_CODE_OR_0> --source-commit <APPROVED_40_HEX_COMMIT> --build-tools <ANDROID_BUILD_TOOLS_DIRECTORY>
+```
+
+- unsigned SHA256は先に承認したCI記録から取得します。検証対象からその場で計算した値を
+  「承認済み」と扱いません。署名者指紋も対象APK自身から採った値で置き換えません。
+- 通常package `app.goriq.remote.lite`、指定した版番号/版名、前回より大きいversionCode、
+  正確な5権限、通常版6component、非debug/非test、HTTPS限定、VM CA/信頼設定の不在を検査します。
+- 全ZIP entryの名前・展開後の長さ/SHA256・圧縮方式を照合し、追加/削除/差替え、重複、
+  traversal等を拒否します。例外は完全なv1署名メタデータ3ファイルのみで、`META-INF/`全体を
+  除外しません。この例外にはv1署名の別検証も必須です。v2/v3署名ブロックはZIP entry外にあり、
+  `apksigner`で暗号学的に検証します。
+- MIT通知とWebRTCの2通知は、検証器のcheckout内の原本とバイト一致を要求します。
+  CIと異なる改行変換をしたcheckoutで通知不一致になった場合も停止し、承認したビルド時の
+  原本を確認します。検査を省略するオプションはありません。
+- `apksigner verify --verbose --print-certs -Werr`の成功、単一の承認指紋、v2/v3署名を要求します。
+  v1メタデータが存在する場合だけAPI23に限定した追加のv1検証を行います。これはアプリの
+  Android6対応を意味しません。この追加検証では、v1の対象外になる通常の`META-INF/`ファイルに
+  ついて公式の未保護警告が出ます。全payload一致を既に確認したそのファイルの警告だけを許容し、
+  `v1Warnings`に残します。それ以外の警告と署名不正は拒否し、通常のv2/v3検証では`-Werr`を維持します。
+  unsigned/signed双方へ`zipalign -c -P 16 -v 4`を実行します。
+  このチェックはZIP内の整列検証で、全端末の16KBページ互換性や実機起動成功の証明ではありません。
+
+記録は`distributable:false`、`physicalAcceptance:NOT_RUN`、`releaseAcceptance:PENDING`です。
+source commitは呼出側の申告値として明記され、APKだけからソースとの対応を証明したとは
+扱いません。unsigned SHA256と独立した正確なCI/source記録との照合を署名承認時に行います。
+失敗時は非0終了し、PASS記録を出しません。出力を保存する場合は入力APKとは別の私有ファイルにします。
+[apksigner検証オプション](https://developer.android.com/tools/apksigner)、
+[16KBのzipalign確認](https://developer.android.com/tools/zipalign)。
+
+### CIの使い捨て署名試験
+
+既存Android workflowへ、Linux GitHub-hosted runner内だけで動く
+[`ci_signing_fixture.py`](../../android/remote-lite/scripts/ci_signing_fixture.py)を追加しています。
+`RUNNER_TEMP`配下に2日有効の`CN=Remote Lite CI fixture ONLY`鍵を作り、release APKの別コピーを
+署名します。証明書DERから独立に計算した指紋で正常系を検査し、誤指紋/誤hash/古い版、
+未署名、署名ブロック破損、正しい鍵で再署名した別payloadを拒否することも実行します。
+既存のnative画面/タップ/停止smokeは引き続き必須です。
+
+鍵・署名済み試験APKは一時ディレクトリ終了時に破棄し、upload/artifact/配布へ渡しません。
+既存候補はunsignedのまま保持します。試験記録は`CI_TEST_ONLY`であり、本番用の継続鍵、
+バックアップ/復元確認、本番署名、実機受入、配布許可を代替しません。所有者PCではこの
+fixtureを実行せず、SDKがない場合はPythonのZIP/policy単体試験までとし、実署名の成否は
+正確なコミットのCI結果で判断します。
 
 ### 40台への配布とAndroidの開発者確認
 
