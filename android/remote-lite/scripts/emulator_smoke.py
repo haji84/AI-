@@ -86,6 +86,21 @@ def optional_text(fragment, seconds=6, exact=False):
     return None
 
 
+def find_switch(items):
+    return next((node for node in items if "Switch" in node.get("class", "")), None)
+
+
+def enabled_switch(items):
+    switch = find_switch(items)
+    return switch if switch is not None and switch.get("checked") == "true" else None
+
+
+def confirmation_or_enabled(items):
+    if any(node.get("text", "").strip() == "Allow" for node in items):
+        return "allow"
+    return "enabled" if enabled_switch(items) is not None else None
+
+
 def allow_accessibility_in_settings():
     # A sideloaded APK may require an extra confirmation on its App Info page.
     adb("shell", "am", "start", "-a", "android.settings.APPLICATION_DETAILS_SETTINGS",
@@ -115,18 +130,14 @@ def allow_accessibility_in_settings():
     else:
         raise AssertionError(f"Service missing from Accessibility settings: {visible()!r}")
 
-    find_switch = lambda items: next((node for node in items if "Switch" in node.get("class", "")), None)
     switch = wait_for_nodes(find_switch, "Accessibility service switch")
     if switch.get("checked") != "true":
         tap_node(switch)
-        decision = wait_for_nodes(
-            lambda items: next(("allow" for node in items if node.get("text", "").strip() == "Allow"), None)
-            or ("enabled" if (item := find_switch(items)) is not None and item.get("checked") == "true" else None),
-            "Accessibility confirmation or enabled switch")
+        decision = wait_for_nodes(confirmation_or_enabled,
+                                  "Accessibility confirmation or enabled switch")
         if decision == "allow":
             tap_exact_text("Allow")
-        wait_for_nodes(lambda items: (item := find_switch(items)) if item is not None and
-                       item.get("checked") == "true" else None, "enabled Accessibility switch")
+        wait_for_nodes(enabled_switch, "enabled Accessibility switch")
     adb("shell", "am", "start", "-n", f"{PACKAGE}/.MainActivity")
 
 
