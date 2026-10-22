@@ -124,3 +124,10 @@ Next method establishes a fixed inert data document in the newly selected tab
 and verifies its title/document-complete before the single target navigation.
 This tests a committed document, not merely a window handle; no delay, failed
 fixture retry, security bypass or media/input assertion change is added.
+
+57730d07 CI39848397116: bootstrap barrier alone did not fix it. Native11.36s,
+signed separate11.01s, setup2.89s and MSI passed; actual coordinator host loaded,
+but viewer navigation canceled. The root observer does not log /vm/viewer, so
+this does NOT establish absence of a viewer HTTP request. Extend the safe CDP
+diagnostic with matching response status/HTML boolean and current bootstrap/
+target document booleans before deciding any bounded fixture recovery.

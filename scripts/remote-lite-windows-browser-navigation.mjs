@@ -13,9 +13,21 @@ async function navigationFailureState(webdriver, session, target) {
       } catch { return false; }
     });
     const requestIds = new Set(requested.map(event => event.params.requestId));
+    const document = await webdriver('POST', `/session/${session}/execute/sync`, {
+      script: `const target=new URL(arguments[0]);return {
+        bootstrap:location.protocol==='data:' && document.title==='Remote Lite fixture ready' && document.readyState==='complete',
+        target:location.origin===target.origin && location.pathname===target.pathname && location.search===target.search && document.readyState==='complete'
+      };`, args: [target.href],
+    });
     // Never return requests, URLs, headers or arbitrary protocol error strings.
     return {
       targetDocumentRequests: requested.length,
+      responses: events.filter(event => event.method === 'Network.responseReceived' && event.params?.type === 'Document' && requestIds.has(event.params.requestId)).map(event => ({
+        status: Number.isInteger(event.params.response?.status) ? event.params.response.status : null,
+        html: event.params.response?.mimeType === 'text/html',
+      })),
+      bootstrapComplete: document?.bootstrap === true,
+      targetComplete: document?.target === true,
       failedDocuments: events.filter(event => event.method === 'Network.loadingFailed' && event.params?.type === 'Document' && requestIds.has(event.params.requestId)).map(event => ({
         error: /^(?:net::)?(ERR_[A-Z0-9_]+)$/u.exec(event.params.errorText || '')?.[1] || 'unavailable',
         canceled: event.params.canceled === true,
