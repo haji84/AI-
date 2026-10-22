@@ -258,6 +258,25 @@ test('real local HTTP: signed device pending discovery is scoped and one-use', a
   },null)).result,null);
 });
 
+test('real local HTTP: signed active discovery supports restart but not revocation', async t => {
+  const h=await rig();t.after(()=>h.local.stop());
+  const device=await h.register('fixture-alice','win-restart-active');
+  const started=await h.post('/v1/start',{deviceId:device.deviceId});
+  const body=()=>({deviceId:device.deviceId,proof:h.discoveryProof(device)});
+  assert.equal((await h.post('/v1/device/active',body(),null)).result,null);
+  assert.equal((await h.post('/v1/device/accept',{
+    sessionId:started.result.sessionId,deviceId:device.deviceId,
+    proof:await h.deviceProof(device,started.result.sessionId,'session-accept'),
+  },null)).result.status,'active');
+  const active=await h.post('/v1/device/active',body(),null);
+  assert.equal(active.status,200);
+  assert.equal(active.result.sessionId,started.result.sessionId);
+  assert.equal(active.result.status,'active');
+  assert.equal(Object.hasOwn(active.result,'viewerToken'),false);
+  await h.post('/v1/revoke',{deviceId:device.deviceId});
+  assert.equal((await h.post('/v1/device/active',body(),null)).status,403);
+});
+
 test('separate viewer and device signaling clients exchange WebRTC messages only while authorized', async t => {
   const h=await rig();t.after(()=>h.local.stop());
   const device=await h.register('fixture-alice','windows-rtc-host');

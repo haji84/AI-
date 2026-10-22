@@ -62,6 +62,12 @@ export class ManualRemoteCoordinator {
     return this.#sessions.pendingForDevice({ deviceId, devicePrincipalId: principal.devicePrincipalId });
   }
 
+  discoverActiveSession({ deviceId, proof } = {}) {
+    if (!proof || proof.deviceId !== deviceId) throw new RemoteLiteSessionError('DEVICE_PROOF_REQUIRED');
+    const principal = this.#pairing.verifyDiscovery(proof);
+    return this.#sessions.activeForDevice({ deviceId, devicePrincipalId: principal.devicePrincipalId });
+  }
+
   startSession({ ownerId, authorization, deviceId } = {}) {
     this.#owner(ownerId, authorization, 'start-session');
     if (!this.#pairing.ownsDevice({ ownerId, deviceId })) throw new RemoteLiteSessionError('DEVICE_NOT_OWNED');

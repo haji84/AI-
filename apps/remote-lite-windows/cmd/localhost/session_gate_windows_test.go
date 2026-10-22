@@ -239,3 +239,34 @@ func TestAcceptanceResponseLossOpensOnlyAfterFreshSignedActiveStatus(t *testing.
 		})
 	}
 }
+
+func TestRestartDoesNotBindSessionWhenActiveStatusCannotBeConfirmed(t *testing.T) {
+	_, private, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now()
+	coordinator := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Path == "/v1/device/challenge" {
+			_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "result": map[string]any{
+				"challengeId": "51c18b98-f073-4c32-a8e7-79e5cff81837", "challenge": strings.Repeat("a", 48), "expiresAt": now.Add(time.Minute).UnixMilli(),
+			}})
+			return
+		}
+		w.WriteHeader(http.StatusForbidden)
+	}))
+	defer coordinator.Close()
+	gate, err := newSignedStatusGate(coordinator.URL, "windows-a", "windows-a", func(message []byte) ([]byte, error) {
+		return ed25519.Sign(private, message), nil
+	}, coordinator.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	gate.discoveryOnly = true
+	gate.now = func() time.Time { return now }
+	active := &pendingRemoteSession{SessionID: "session-a", DeviceID: "windows-a", Status: "active", ExpiresAt: now.Add(time.Minute).UnixMilli()}
+	if err := gate.ResumeActive(context.Background(), active); err == nil || !gate.discoveryOnly || gate.sessionID != "windows-a" {
+		t.Fatalf("unconfirmed active status opened the gate: err=%v gate=%+v", err, gate)
+	}
+}

@@ -136,3 +136,23 @@ test('registered device discovers only its own pending session with a fresh sign
   c.acceptSession({sessionId:started.sessionId,deviceId:a.deviceId,proof:proof(a,started.sessionId,'session-accept')});
   assert.equal(c.discoverPendingSession({deviceId:a.deviceId,proof:discoveryProof(a)}),null);
 });
+
+test('registered device can rediscover only its own active session after host restart',()=>{
+  const {c,enroll,proof,discoveryProof,advance}=harness();
+  const a=enroll('alice','win-restart'),b=enroll('bob','win-other');
+  const started=c.startSession({...auth('alice'),deviceId:a.deviceId});
+  assert.equal(c.discoverActiveSession({deviceId:a.deviceId,proof:discoveryProof(a)}),null);
+  c.acceptSession({sessionId:started.sessionId,deviceId:a.deviceId,proof:proof(a,started.sessionId,'session-accept')});
+  const recovered=c.discoverActiveSession({deviceId:a.deviceId,proof:discoveryProof(a)});
+  assert.deepEqual(recovered,{sessionId:started.sessionId,deviceId:a.deviceId,status:'active',expiresAt:recovered.expiresAt});
+  assert.equal(c.discoverActiveSession({deviceId:b.deviceId,proof:discoveryProof(b)}),null);
+  const forged=discoveryProof(a);
+  forged.signature=sign(null,Buffer.from(RemoteLitePairingRegistry.discoveryMessage(forged)),b.keys.privateKey).toString('base64');
+  assert.throws(()=>c.discoverActiveSession({deviceId:a.deviceId,proof:forged}),/DEVICE_PROOF_INVALID/);
+  c.endSession({...auth('alice'),sessionId:started.sessionId,viewerToken:started.viewerToken});
+  assert.equal(c.discoverActiveSession({deviceId:a.deviceId,proof:discoveryProof(a)}),null);
+  const second=c.startSession({...auth('alice'),deviceId:a.deviceId});
+  c.acceptSession({sessionId:second.sessionId,deviceId:a.deviceId,proof:proof(a,second.sessionId,'session-accept')});
+  advance(10*60_000);
+  assert.equal(c.discoverActiveSession({deviceId:a.deviceId,proof:discoveryProof(a)}),null);
+});

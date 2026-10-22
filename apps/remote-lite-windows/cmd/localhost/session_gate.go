@@ -181,6 +181,16 @@ func (g *signedStatusGate) Check(parent context.Context) error {
 // pending request. The response carries no viewer token and grants no capture
 // or input authority; a separate locally approved acceptance is still needed.
 func (g *signedStatusGate) DiscoverPending(parent context.Context) (*pendingRemoteSession, error) {
+	return g.discoverSession(parent, "/v1/device/pending", "pending")
+}
+
+// DiscoverActive permits a registered device to find its existing session
+// after a host process restart. It does not itself enable capture or input.
+func (g *signedStatusGate) DiscoverActive(parent context.Context) (*pendingRemoteSession, error) {
+	return g.discoverSession(parent, "/v1/device/active", "active")
+}
+
+func (g *signedStatusGate) discoverSession(parent context.Context, path, expectedStatus string) (*pendingRemoteSession, error) {
 	if g == nil {
 		return nil, errors.New("signed device identity unavailable")
 	}
@@ -198,7 +208,7 @@ func (g *signedStatusGate) DiscoverPending(parent context.Context) (*pendingRemo
 		return nil, errors.New("device signing failed")
 	}
 	var pending *pendingRemoteSession
-	if err := g.post(ctx, "/v1/device/pending", map[string]any{
+	if err := g.post(ctx, path, map[string]any{
 		"deviceId": g.deviceID,
 		"proof": map[string]any{
 			"deviceId": g.deviceID, "issuedAt": issuedAt, "nonce": nonce,
@@ -210,10 +220,29 @@ func (g *signedStatusGate) DiscoverPending(parent context.Context) (*pendingRemo
 	if pending == nil {
 		return nil, nil
 	}
-	if !statusID.MatchString(pending.SessionID) || pending.DeviceID != g.deviceID || pending.Status != "pending" || pending.ExpiresAt <= g.now().UnixMilli() {
-		return nil, errors.New("pending session invalid or mismatched")
+	if !statusID.MatchString(pending.SessionID) || pending.DeviceID != g.deviceID || pending.Status != expectedStatus || pending.ExpiresAt <= g.now().UnixMilli() {
+		return nil, errors.New("discovered session invalid or mismatched")
 	}
 	return pending, nil
+}
+
+// ResumeActive requires a fresh signed active-status check after the local
+// owner has approved this exact session ID. An unconfirmed result leaves the
+// registered gate in discovery-only mode.
+func (g *signedStatusGate) ResumeActive(parent context.Context, active *pendingRemoteSession) error {
+	if g == nil || !g.discoveryOnly || active == nil || !statusID.MatchString(active.SessionID) ||
+		active.DeviceID != g.deviceID || active.Status != "active" || active.ExpiresAt <= g.now().UnixMilli() {
+		return errors.New("active session unavailable or mismatched")
+	}
+	candidate := *g
+	candidate.sessionID = active.SessionID
+	candidate.discoveryOnly = false
+	if err := candidate.Check(parent); err != nil {
+		return fmt.Errorf("active session restart unconfirmed: %w", err)
+	}
+	g.sessionID = active.SessionID
+	g.discoveryOnly = false
+	return nil
 }
 
 // AcceptPending is called only after an explicit local approval of the

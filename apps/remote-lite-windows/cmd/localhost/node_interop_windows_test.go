@@ -135,6 +135,27 @@ func TestActualNodeCoordinatorRevocationStopsWindowsRoutes(t *testing.T) {
 	if err := gate.Check(ctx); err != nil {
 		t.Fatalf("normal EXE signed gate could not check actual coordinator: %v", err)
 	}
+	deniedRestart, err := configuredSignedRemoteSession(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	approved, err = prepareRemoteGate(ctx, deniedRestart, func() bool { t.Fatal("local-only approval used"); return false },
+		func(sessionID string) bool { return false })
+	if err != nil || approved || !deniedRestart.discoveryOnly {
+		t.Fatalf("restarted EXE bypassed local consent: approved=%v err=%v", approved, err)
+	}
+	// A process restart reloads only the registered device identity. The active
+	// session must require a fresh signed discovery and local consent again.
+	restartedGate, err := configuredSignedRemoteSession(nil)
+	if err != nil || restartedGate == nil || !restartedGate.discoveryOnly {
+		t.Fatalf("restarted EXE did not load registered identity: %v", err)
+	}
+	approved, err = prepareRemoteGate(ctx, restartedGate, func() bool { t.Fatal("local-only approval used"); return false },
+		func(sessionID string) bool { return sessionID == ready.SessionID })
+	if err != nil || !approved || restartedGate.discoveryOnly || restartedGate.sessionID != ready.SessionID {
+		t.Fatalf("restarted EXE could not safely rejoin active session: approved=%v err=%v", approved, err)
+	}
+	gate = restartedGate
 	bridge := new(fakeRemoteDesktop)
 	app := newHostServer(bridge, gate, strings.Repeat("c", 64), time.Now().Add(time.Minute), "127.0.0.1:42000")
 	mux := http.NewServeMux()

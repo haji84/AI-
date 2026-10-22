@@ -54,7 +54,20 @@ func prepareRemoteGate(ctx context.Context, gate *signedStatusGate, approveLocal
 			return false, err
 		}
 		if pending == nil {
-			return false, errors.New("no pending remote connection for this device; start a viewer request, then reopen the Windows host")
+			active, err := gate.DiscoverActive(ctx)
+			if err != nil {
+				return false, err
+			}
+			if active == nil {
+				return false, errors.New("no pending or active remote connection for this device; start a viewer request, then reopen the Windows host")
+			}
+			if !approveSession(active.SessionID) {
+				return false, nil
+			}
+			if err := gate.ResumeActive(ctx, active); err != nil {
+				return false, err
+			}
+			return true, nil
 		}
 		if !approveSession(pending.SessionID) {
 			return false, nil

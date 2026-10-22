@@ -17,7 +17,7 @@ const OWNER_PATHS = new Set([
 ]);
 const DEVICE_PATHS = new Set([
   '/v1/device/propose', '/v1/device/prove', '/v1/device/challenge',
-  '/v1/device/accept', '/v1/device/status', '/v1/device/pending', '/v1/device/signal', '/v1/device/poll', '/v1/device/end',
+  '/v1/device/accept', '/v1/device/status', '/v1/device/pending', '/v1/device/active', '/v1/device/signal', '/v1/device/poll', '/v1/device/end',
 ]);
 const safeResponse = (res, status, value) => {
   res.writeHead(status, {
@@ -73,6 +73,7 @@ const endpoint = (c, path, p, principal) => {
     case '/v1/device/accept': return c.acceptSession(only(p, ['sessionId', 'deviceId', 'proof']));
     case '/v1/device/status': return c.deviceStatus(only(p, ['sessionId', 'deviceId', 'proof']));
     case '/v1/device/pending': return c.discoverPendingSession(only(p, ['deviceId', 'proof']));
+    case '/v1/device/active': return c.discoverActiveSession(only(p, ['deviceId', 'proof']));
     case '/v1/device/signal': return c.deviceSignal(only(p, ['sessionId', 'deviceId', 'proof', 'signal']));
     case '/v1/device/poll': return c.receiveSignalsForDevice(only(p, ['sessionId', 'deviceId', 'proof', 'ack']));
     case '/v1/device/end': return c.endSessionFromDevice(only(p, ['sessionId', 'deviceId', 'proof']));
