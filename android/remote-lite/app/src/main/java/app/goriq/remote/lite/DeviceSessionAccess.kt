@@ -15,6 +15,7 @@ data class DeviceSessionCheck(val allowed: Boolean, val reason: String)
 
 interface DeviceSessionExchange {
     fun pending(id: String, proof: DiscoveryProof): DeviceSessionView?
+    fun active(id: String, proof: DiscoveryProof): DeviceSessionView?
     fun challenge(id: String, operation: String, session: String): DeviceSessionChallenge
     fun accept(session: String, id: String, proof: DeviceSessionProof): DeviceSessionView
     fun status(session: String, id: String, proof: DeviceSessionProof): DeviceSessionView
@@ -30,13 +31,26 @@ class DeviceSessionAccess(private val identity: EnrollmentIdentity,
     },
     private val elapsedMs: () -> Long = { System.nanoTime() / 1_000_000 }) {
 
-    fun discoverPending(): DeviceSessionView? {
+    private fun discoveryProof(): DiscoveryProof {
         val id = identity.deviceId()
         val issuedAt = issuedAtMs()
         val nonce = nonceHex()
         val signature = identity.sign(DeviceProofMessage.discovery(id, issuedAt, nonce))
-        val view = exchange.pending(id, DiscoveryProof(id, issuedAt, nonce, signature))
-        if (view != null) requireView(view, id, view.sessionId, "pending")
+        return DiscoveryProof(id, issuedAt, nonce, signature)
+    }
+
+    fun discoverPending(): DeviceSessionView? {
+        val proof = discoveryProof()
+        val view = exchange.pending(proof.deviceId, proof)
+        if (view != null) requireView(view, proof.deviceId, view.sessionId, "pending")
+        return view
+    }
+
+    /** Reconnect after process death only while the coordinator still accepts this key. */
+    fun discoverActive(): DeviceSessionView? {
+        val proof = discoveryProof()
+        val view = exchange.active(proof.deviceId, proof)
+        if (view != null) requireView(view, proof.deviceId, view.sessionId, "active")
         return view
     }
 

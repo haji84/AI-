@@ -19,6 +19,7 @@ class DebugPairingActivity : Activity() {
         val status = TextView(this).apply { text = "端末の登録診断は未実行です" }
         val button = Button(this).apply { text = "ローカル登録を診断する" }
         val sessionButton = Button(this).apply { text = "セッションを診断する" }
+        val restoreButton = Button(this).apply { text = "アクティブを再発見する" }
         val checkButton = Button(this).apply { text = "状態を再確認する" }
         val sessionStatus = TextView(this).apply { text = "セッション診断は未実行です" }
         val content = LinearLayout(this).apply {
@@ -27,6 +28,7 @@ class DebugPairingActivity : Activity() {
             addView(button)
             addView(status)
             addView(sessionButton)
+            addView(restoreButton)
             addView(checkButton)
             addView(sessionStatus)
         }
@@ -64,6 +66,24 @@ class DebugPairingActivity : Activity() {
                 runOnUiThread {
                     sessionStatus.text = result.getOrElse { "セッション拒否: ${it.message ?: "不明なエラー"}" }
                     sessionButton.isEnabled = true
+                }
+            }.start()
+        }
+        restoreButton.setOnClickListener {
+            restoreButton.isEnabled = false
+            sessionStatus.text = "再発見しています…"
+            Thread {
+                val result = runCatching {
+                    val access = DeviceSessionAccess(LocalIdentity(this),
+                        LoopbackCoordinatorExchange(intent.getIntExtra("port", -1)))
+                    val active = checkNotNull(access.discoverActive()) { "アクティブセッションなし" }
+                    check(access.verifyActive(active.sessionId).allowed) { "署名付き状態照会を拒否" }
+                    activeSessionId = active.sessionId
+                    "再発見成功 ID: ${active.sessionId}"
+                }
+                runOnUiThread {
+                    sessionStatus.text = result.getOrElse { "再発見拒否: ${it.message ?: "不明なエラー"}" }
+                    restoreButton.isEnabled = true
                 }
             }.start()
         }
@@ -143,6 +163,11 @@ private class LoopbackCoordinatorExchange(private val port: Int) :
 
     override fun pending(id: String, proof: DiscoveryProof): DeviceSessionView? =
         post("/v1/device/pending", JSONObject().put("deviceId", id).put("proof", JSONObject()
+            .put("deviceId", proof.deviceId).put("issuedAt", proof.issuedAt)
+            .put("nonce", proof.nonce).put("signature", proof.signature)))?.let(::view)
+
+    override fun active(id: String, proof: DiscoveryProof): DeviceSessionView? =
+        post("/v1/device/active", JSONObject().put("deviceId", id).put("proof", JSONObject()
             .put("deviceId", proof.deviceId).put("issuedAt", proof.issuedAt)
             .put("nonce", proof.nonce).put("signature", proof.signature)))?.let(::view)
 

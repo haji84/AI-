@@ -2,6 +2,7 @@
 
 import json
 import re
+import select
 import subprocess
 import time
 import urllib.request
@@ -183,12 +184,25 @@ def verify_real_keystore_pairing():
         tap_text("セッションを診断する")
         wait_for_text(f"セッション有効 ID: {session_id}", seconds=35)
         print("Android 15 VM: signed discovery, acceptance and active status passed", flush=True)
+        adb("shell", "am", "force-stop", PACKAGE)
+        adb("shell", "am", "start", "-n", f"{PACKAGE}/.DebugPairingActivity",
+            "--ei", "port", str(port), "--es", "inviteCode", ready["inviteCode"])
+        tap_text("アクティブを再発見する")
+        wait_for_text(f"再発見成功 ID: {session_id}", seconds=35)
+        print("Android 15 VM: process restart rediscovered the active session with AndroidKeyStore", flush=True)
         revoked = owner_post("/v1/revoke", {"deviceId": device_id})
         if not revoked.get("ok") or revoked.get("result", {}).get("status") != "revoked":
             raise AssertionError(f"Owner could not revoke local registration: {revoked!r}")
         tap_text("状態を再確認する")
         wait_for_text("失効後は操作拒否", seconds=35)
-        print("Android 15 VM: revoked key cannot pass manual-operation gate", flush=True)
+        readable, _, _ = select.select([fixture.stdout], [], [], 10)
+        if not readable:
+            raise AssertionError("Node did not receive Android's post-revocation status challenge")
+        rejected = json.loads(fixture.stdout.readline())
+        if rejected != {"event": "revoked-status-rejected", "deviceId": device_id,
+                        "sessionId": session_id, "code": "DEVICE_UNAVAILABLE"}:
+            raise AssertionError(f"Node did not reject revoked session status: {rejected!r}")
+        print("Android 15 VM: Node rejected the revoked device status challenge and Android denied operation", flush=True)
     finally:
         if port is not None:
             subprocess.run(["adb", "reverse", "--remove", f"tcp:{port}"],

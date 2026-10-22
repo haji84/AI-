@@ -35,6 +35,7 @@ class DeviceSessionAccessTest {
                 assertEquals("signed-1", proof.signature)
                 return DeviceSessionView(sessionId, deviceId, "pending", issuedAt + 60_000)
             }
+            override fun active(id: String, proof: DiscoveryProof): DeviceSessionView? = null
             override fun challenge(id: String, operation: String, session: String): DeviceSessionChallenge {
                 assertEquals(deviceId, id)
                 assertEquals(sessionId, session)
@@ -68,6 +69,7 @@ class DeviceSessionAccessTest {
         var operations = 0
         val exchange = object : DeviceSessionExchange {
             override fun pending(id: String, proof: DiscoveryProof): DeviceSessionView? = null
+            override fun active(id: String, proof: DiscoveryProof): DeviceSessionView? = null
             override fun challenge(id: String, operation: String, session: String): DeviceSessionChallenge {
                 if (revoked) error("DEVICE_REVOKED")
                 return DeviceSessionChallenge(challengeId, challenge, issuedAt + 60_000)
@@ -88,5 +90,30 @@ class DeviceSessionAccessTest {
             access.requireActiveThen(sessionId) { operations++ }
         }
         assertEquals(0, operations)
+    }
+
+    @Test fun processRestartCanRediscoverActiveSessionWithFreshSignedNonce() {
+        val identity = Identity(deviceId)
+        val exchange = object : DeviceSessionExchange {
+            override fun pending(id: String, proof: DiscoveryProof): DeviceSessionView? = null
+            override fun active(id: String, proof: DiscoveryProof): DeviceSessionView? {
+                assertEquals(deviceId, id)
+                assertEquals("signed-1", proof.signature)
+                assertEquals(nonce, proof.nonce)
+                return DeviceSessionView(sessionId, id, "active", issuedAt + 600_000)
+            }
+            override fun challenge(id: String, operation: String, session: String): DeviceSessionChallenge =
+                DeviceSessionChallenge(challengeId, challenge, issuedAt + 60_000)
+            override fun accept(session: String, id: String, proof: DeviceSessionProof): DeviceSessionView =
+                error("not used")
+            override fun status(session: String, id: String, proof: DeviceSessionProof) =
+                DeviceSessionView(session, id, "active", issuedAt + 600_000)
+        }
+        val accessAfterRestart = DeviceSessionAccess(identity, exchange, { issuedAt }, { nonce }, { 0L })
+        val restored = accessAfterRestart.discoverActive()
+        assertEquals(sessionId, restored?.sessionId)
+        assertTrue(accessAfterRestart.verifyActive(requireNotNull(restored).sessionId).allowed)
+        assertEquals("GORIQ_REMOTE_DEVICE_DISCOVER_V1\n$deviceId\n$issuedAt\n$nonce", identity.messages[0])
+        assertEquals("GORIQ_REMOTE_DEVICE_AUTH_V1\n$deviceId\nsession-status\n$sessionId\n$challengeId\n$challenge\n", identity.messages[1])
     }
 }

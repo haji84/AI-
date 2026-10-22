@@ -9,6 +9,25 @@ const coordinator = new ManualRemoteCoordinator({
   authorizeOwner: ({ ownerId: candidate, authorization: supplied }) =>
     candidate === ownerId && supplied === authorization,
 });
+let revokedDeviceId = null;
+const revokeDevice = coordinator.revokeDevice.bind(coordinator);
+coordinator.revokeDevice = input => {
+  const result = revokeDevice(input);
+  if (result.status === 'revoked') revokedDeviceId = input.deviceId;
+  return result;
+};
+const challengeDevice = coordinator.challengeDevice.bind(coordinator);
+coordinator.challengeDevice = input => {
+  try { return challengeDevice(input); }
+  catch (error) {
+    if (input.deviceId === revokedDeviceId && input.operation === 'session-status' &&
+      error.code === 'DEVICE_UNAVAILABLE') {
+      process.stdout.write(JSON.stringify({ event: 'revoked-status-rejected',
+        deviceId: input.deviceId, sessionId: input.sessionId, code: error.code }) + '\n');
+    }
+    throw error;
+  }
+};
 const server = createLoopbackSignaling({
   coordinator,
   authenticateOwnerRequest: req => req.headers['x-vm-owner'] === authorization
