@@ -119,7 +119,7 @@ def confirmation_or_enabled(items):
     return "enabled" if enabled_switch(items) is not None else None
 
 
-def allow_accessibility_in_settings():
+def allow_accessibility_in_settings(return_to_main=True):
     # A sideloaded APK may require an extra confirmation on its App Info page.
     adb("shell", "am", "start", "-a", "android.settings.APPLICATION_DETAILS_SETTINGS",
         "-d", f"package:{PACKAGE}")
@@ -156,7 +156,10 @@ def allow_accessibility_in_settings():
         if decision == "allow":
             tap_exact_text("Allow")
         wait_for_nodes(enabled_switch, "enabled Accessibility switch")
-    adb("shell", "am", "start", "-f", "0x10000000", "-n", f"{PACKAGE}/.MainActivity")
+    if return_to_main:
+        adb("shell", "am", "start", "-f", "0x10000000", "-n", f"{PACKAGE}/.MainActivity")
+    else:
+        adb("shell", "input", "keyevent", "3")
 
 
 def verify_real_keystore_pairing():
@@ -203,12 +206,7 @@ def verify_real_keystore_pairing():
         tap_text("アクティブを再発見する")
         wait_for_text(f"再発見成功 ID: {session_id}", seconds=35)
         print("Android 15 VM: process restart rediscovered the active session with AndroidKeyStore", flush=True)
-        allow_accessibility_in_settings()
-        wait_for_text("端末ID:")
-        verify_accessibility_capture()
-        # Settings owns the foreground task on this VM; leave it before launching
-        # the separate debug activity from the app task.
-        adb("shell", "input", "keyevent", "3")
+        allow_accessibility_in_settings(return_to_main=False)
         open_debug_activity(port, ready["inviteCode"])
         tap_text("アクティブを再発見する")
         wait_for_text(f"再発見成功 ID: {session_id}", seconds=35)
@@ -265,6 +263,8 @@ def main():
     adb("install", "-r", APK)
     verify_real_keystore_pairing()
     adb("shell", "am", "start", "-f", "0x10000000", "-n", f"{PACKAGE}/.MainActivity")
+    wait_for_text("端末ID:")
+    verify_accessibility_capture()
     tap_text("手動入力を診断する")
     wait_for_text("画面取得と手動入力: 成功")
     print("Android 15 VM: local key, Accessibility screenshot and actual tap passed")
