@@ -89,6 +89,20 @@ def optional_text(fragment, seconds=6, exact=False):
     return None
 
 
+def open_debug_activity(port, invite_code):
+    for attempt in range(1, 4):
+        launched = adb("shell", "am", "start", "-W", "-n", f"{PACKAGE}/.DebugPairingActivity",
+            "--ei", "port", str(port), "--es", "inviteCode", invite_code)
+        print(f"Debug activity launch {attempt}/3: {launched.strip()}", flush=True)
+        if optional_text("アクティブを再発見する", seconds=6) is not None:
+            return
+        time.sleep(1)
+    activity = adb("shell", "dumpsys", "activity", "activities")
+    crashes = adb("shell", "logcat", "-d", "-t", "100", "-s", "AndroidRuntime:E")
+    raise AssertionError(f"Debug activity did not appear; visible={visible()!r}; "
+        f"activity={activity[-1800:]!r}; crashes={crashes[-1800:]!r}")
+
+
 def find_switch(items):
     return next((node for node in items if "Switch" in node.get("class", "")), None)
 
@@ -156,8 +170,7 @@ def verify_real_keystore_pairing():
         ready = json.loads(ready_line)
         port = ready["port"]
         adb("reverse", f"tcp:{port}", f"tcp:{port}")
-        adb("shell", "am", "start", "-n", f"{PACKAGE}/.DebugPairingActivity",
-            "--ei", "port", str(port), "--es", "inviteCode", ready["inviteCode"])
+        open_debug_activity(port, ready["inviteCode"])
         tap_text("ローカル登録を診断する")
         result = wait_for_text("所有者の承認待ち", seconds=35).get("text", "")
         request_id = re.search(r"申請ID: ([0-9a-f-]{36})", result)
@@ -185,16 +198,14 @@ def verify_real_keystore_pairing():
         wait_for_text(f"セッション有効 ID: {session_id}", seconds=35)
         print("Android 15 VM: signed discovery, acceptance and active status passed", flush=True)
         adb("shell", "am", "force-stop", PACKAGE)
-        adb("shell", "am", "start", "-n", f"{PACKAGE}/.DebugPairingActivity",
-            "--ei", "port", str(port), "--es", "inviteCode", ready["inviteCode"])
+        open_debug_activity(port, ready["inviteCode"])
         tap_text("アクティブを再発見する")
         wait_for_text(f"再発見成功 ID: {session_id}", seconds=35)
         print("Android 15 VM: process restart rediscovered the active session with AndroidKeyStore", flush=True)
         allow_accessibility_in_settings()
         wait_for_text("端末ID:")
         verify_accessibility_capture()
-        adb("shell", "am", "start", "-n", f"{PACKAGE}/.DebugPairingActivity",
-            "--ei", "port", str(port), "--es", "inviteCode", ready["inviteCode"])
+        open_debug_activity(port, ready["inviteCode"])
         tap_text("アクティブを再発見する")
         wait_for_text(f"再発見成功 ID: {session_id}", seconds=35)
         tap_text("画面操作ゲートを診断する")
