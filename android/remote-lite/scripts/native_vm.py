@@ -8,6 +8,7 @@ import socket
 import subprocess
 import time
 import urllib.request
+import urllib.error
 
 
 class Browser:
@@ -37,6 +38,9 @@ class Browser:
             self.navigate(ready["origin"] + "/vm/viewer")
             self.until("return window.vm?.ready === true", "viewer module load")
         except Exception:
+            self.log.flush()
+            self.log.seek(0)
+            print("ChromeDriver startup diagnostics: " + self.log.read()[-5000:], flush=True)
             self.close()
             raise
 
@@ -44,8 +48,12 @@ class Browser:
         request = urllib.request.Request(self.url + path, method=method,
             data=None if payload is None else json.dumps(payload).encode(),
             headers={"Content-Type": "application/json"})
-        with urllib.request.urlopen(request, timeout=35) as response:
-            result = json.load(response)["value"]
+        try:
+            with urllib.request.urlopen(request, timeout=35) as response:
+                result = json.load(response)["value"]
+        except urllib.error.HTTPError as failure:
+            detail = failure.read(8000).decode("utf-8", errors="replace")
+            raise AssertionError(f"WebDriver {method} {path} HTTP{failure.code}: {detail}") from failure
         if isinstance(result, dict) and result.get("error"):
             raise AssertionError(f"WebDriver failed: {result}")
         return result
@@ -253,3 +261,23 @@ def verify_native(owner_post, ready, device_id, old_session, old_token):
             except subprocess.TimeoutExpired:
                 turn.kill()
                 turn.wait(timeout=5)
+
+
+if __name__ == "__main__":
+    # Fail browser/TLS setup early, before the slower emulator acceptance stage.
+    fixture = subprocess.Popen(["node", "android/remote-lite/scripts/pairing_fixture.mjs"],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    browser = None
+    try:
+        ready = json.loads(fixture.stdout.readline())
+        browser = Browser(ready)
+        print("PASS separate Chromium process and pinned loopback TLS viewer preflight", flush=True)
+    finally:
+        if browser:
+            browser.close()
+        fixture.terminate()
+        try:
+            fixture.communicate(timeout=5)
+        except subprocess.TimeoutExpired:
+            fixture.kill()
+            fixture.communicate()

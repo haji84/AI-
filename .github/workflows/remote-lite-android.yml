@@ -49,6 +49,11 @@ jobs:
           gradle-version: '9.6.0'
       - name: Generate ephemeral debug-only loopback TLS fixture
         run: python3 android/remote-lite/scripts/prepare_vm_tls.py
+      - name: Verify separate browser and loopback TLS before emulator startup
+        env:
+          REMOTE_LITE_CHROME: ${{ steps.chrome.outputs.chrome-path }}
+          REMOTE_LITE_CHROMEDRIVER: ${{ steps.chrome.outputs.chromedriver-path }}
+        run: python3 android/remote-lite/scripts/native_vm.py
       - name: Test and build separate manual-only APKs
         run: gradle -p android/remote-lite :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease :vm-ui-probe:assembleDebug --stacktrace
       - name: Verify candidate APK exists
