@@ -82,6 +82,8 @@ jobs:
   remote-lite-windows-vm:
     runs-on: windows-latest
     timeout-minutes: 12
+    env:
+      REMOTE_LITE_CHROME_VERSION: '156.0.8078.47'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -90,6 +92,21 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24.19.0
+      - uses: browser-actions/setup-chrome@v2
+        id: remote-lite-chrome
+        with:
+          chrome-version: ${{ env.REMOTE_LITE_CHROME_VERSION }}
+          install-chromedriver: true
+      - name: Verify isolated browser before native acceptance
+        shell: pwsh
+        env:
+          REMOTE_LITE_CHROME: ${{ steps.remote-lite-chrome.outputs.chrome-path }}
+          REMOTE_LITE_CHROMEDRIVER: ${{ steps.remote-lite-chrome.outputs.chromedriver-path }}
+        run: |
+          "REMOTE_LITE_CHROME=$env:REMOTE_LITE_CHROME" >> $env:GITHUB_ENV
+          "REMOTE_LITE_CHROMEDRIVER=$env:REMOTE_LITE_CHROMEDRIVER" >> $env:GITHUB_ENV
+          node scripts/remote-lite-windows-browser-preflight.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Test isolated Remote Lite Windows host in a virtual machine
         working-directory: apps/remote-lite-windows
         shell: pwsh
@@ -110,7 +127,6 @@ jobs:
           }
           $env:GORIQ_REMOTE_LITE_NODE_INTEROP = '1'
           $env:GORIQ_REMOTE_LITE_VM_NATIVE = '1'
-          $env:REMOTE_LITE_CHROMEDRIVER = (Get-Command chromedriver -ErrorAction Stop).Source
           go test -count=1 -v ./...
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           go vet ./...
@@ -120,8 +136,6 @@ jobs:
       - name: Real Chromium WebRTC on virtual Windows
         shell: pwsh
         run: |
-          $driver = Get-Command chromedriver -ErrorAction Stop
-          $env:REMOTE_LITE_CHROMEDRIVER = $driver.Source
           node scripts/remote-lite-browser-vm-smoke.mjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $env:REMOTE_LITE_PORTAL_BROWSER = '1'

@@ -24,7 +24,10 @@ try {
   let ready = false;
   for (let i=0;i<40;i++) { try { await webdriver('GET','/status'); ready=true; break; } catch { await pause(250); } }
   if (!ready) throw new Error('Setup browser unavailable');
-  const created = await webdriver('POST','/session',{capabilities:{alwaysMatch:{browserName:'chrome','goog:chromeOptions':{args:['--headless=new']}}}});
+  const created = await webdriver('POST','/session',{capabilities:{alwaysMatch:{browserName:'chrome','goog:chromeOptions':{
+    args:['--headless=new'],
+    ...(process.env.REMOTE_LITE_CHROME ? { binary: process.env.REMOTE_LITE_CHROME } : {}),
+  }}}});
   session=created.sessionId;
   const run=(script,...args)=>webdriver('POST',`/session/${session}/execute/sync`,{script,args});
   const until=async script=>{for(let i=0;i<80;i++){if(await run(script))return;await pause(100)}throw new Error('Setup UI condition not reached')};
