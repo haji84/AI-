@@ -23,13 +23,23 @@ let driverLog = '';
 for (const stream of [driver.stdout, driver.stderr]) stream.on('data', chunk => {
   driverLog = (driverLog + chunk.toString()).slice(-3000);
 });
+let phase = 'driver-start';
 const webdriver = async (method, path, body) => {
-  const response = await fetch(driverUrl + path, { method,
-    headers: body ? { 'Content-Type': 'application/json' } : {},
-    body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(20000) });
-  const result = await response.json();
-  if (!response.ok || result.value?.error) throw new Error(result.value?.message || `WebDriver HTTP ${response.status}`);
-  return result.value;
+  // Never print the page URL/body: they contain the local launch capability.
+  const route = path.replace(/\/session\/[^/]+/u, '/session/<id>');
+  let status = 'unavailable';
+  try {
+    const response = await fetch(driverUrl + path, { method,
+      headers: body ? { 'Content-Type': 'application/json' } : {},
+      body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(20000) });
+    status = response.status;
+    const result = await response.json();
+    if (!response.ok || result.value?.error) throw new Error('WebDriver response refused');
+    return result.value;
+  } catch (error) {
+    const kind = error?.name === 'TimeoutError' ? 'timeout' : 'request-failed';
+    throw new Error(`WebDriver ${method} ${route} phase=${phase} ${kind} HTTP=${status}`);
+  }
 };
 let sessionId;
 try {
@@ -39,12 +49,15 @@ try {
     try { await webdriver('GET', '/status'); started = true; break; } catch { await pause(250); }
   }
   if (!started) throw new Error('ChromeDriver unavailable: ' + driverLog);
+  phase = 'session-creation';
   const session = await webdriver('POST', '/session', { capabilities: { alwaysMatch: {
     browserName: 'chrome', 'goog:chromeOptions': { args: ['--headless=new'] },
   } } });
   sessionId = session.sessionId;
+  phase = 'navigation';
   await webdriver('POST', `/session/${sessionId}/url`, { url: pageUrl });
   const evalPage = script => webdriver('POST', `/session/${sessionId}/execute/sync`, { script, args: [] });
+  phase = 'native-jpeg';
   let loaded = false;
   for (let attempt = 0; attempt < 80; attempt++) {
     const state = await evalPage('return { width: document.querySelector("#screen")?.naturalWidth || 0, error: document.querySelector("#error")?.textContent }');
@@ -53,7 +66,9 @@ try {
     await pause(150);
   }
   if (!loaded) throw new Error('native JPEG did not load');
+  phase = 'rtc-start';
   await evalPage('window.confirm = () => true; document.querySelector("#rtcStart").click(); return true');
+  phase = 'rtc-media';
   let mediaReady = false;
   let lastMediaState;
   for (let attempt = 0; attempt < 100; attempt++) {
@@ -69,6 +84,7 @@ try {
   const commands = lines[Symbol.asyncIterator]();
   const move = await commands.next();
   if (move.value !== 'move') throw new Error('VM cursor setup was not confirmed');
+  phase = 'native-input';
   await evalPage('document.querySelector("#rtcInput").click(); return true');
   let inputReady = false;
   for (let attempt = 0; attempt < 70; attempt++) {
@@ -84,6 +100,7 @@ try {
     manualNativeAck: true }) + '\n');
   const revoke = await commands.next();
   if (revoke.value !== 'revoke') throw new Error('VM revocation command missing');
+  phase = 'revocation';
   let stopped = false;
   for (let attempt = 0; attempt < 50; attempt++) {
     const state = await evalPage('return { text: document.querySelector("#rtcStatus").textContent, stream: document.querySelector("#rtcVideo").srcObject, image: document.querySelector("#screen").getAttribute("src"), track: window.__vmTrack?.readyState, channel: window.__vmChannel?.readyState }');
@@ -108,6 +125,7 @@ try {
   process.stderr.write(`FAIL Windows native browser VM: ${error?.stack || String(error)}\n`);
   process.exitCode = 1;
 } finally {
+  phase = 'cleanup';
   if (sessionId) await webdriver('DELETE', `/session/${sessionId}`).catch(() => {});
   driver.kill();
 }
