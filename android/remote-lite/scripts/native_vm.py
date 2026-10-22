@@ -142,7 +142,7 @@ def verify_native(owner_post, ready, device_id, old_session, old_token):
                 if allow is not None:
                     ui.tap_node(allow)
                 consent = ui.wait_for_nodes(lambda items: next((node for node in items if
-                    node.get("text", "").strip() in ("Start now", "Start recording", "Share screen")), None),
+                    node.get("text", "").strip() in ("Start", "Start now", "Start recording", "Share screen")), None),
                     "OS full-display MediaProjection confirmation")
                 ui.tap_node(consent)
                 ui.wait_for_text("画面共有を開始しました", seconds=35)
@@ -248,7 +248,7 @@ def verify_native(owner_post, ready, device_id, old_session, old_token):
             return second["sessionId"]
         except Exception:
             print("Native diagnostics: " + adb("shell", "logcat", "-d", "-t", "250", "-s",
-                "RemoteLiteNative:E", "AndroidRuntime:E", "*:S")[-7000:], flush=True)
+                "RemoteLiteNative:I", "AndroidRuntime:E", "*:S")[-7000:], flush=True)
             print("TURN diagnostics: " + log_path.read_text()[-3500:], flush=True)
             raise
         finally:

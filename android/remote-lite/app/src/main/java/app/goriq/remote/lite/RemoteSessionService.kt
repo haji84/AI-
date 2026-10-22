@@ -129,7 +129,9 @@ open class RemoteSessionService : Service() {
                     { event -> publish("接続状態: " + event) },
                     ::requestStop).also { peer = it }
                 val ice = iceConfiguration()
+                diagnostic("capture-preparing")
                 connection.start(projection, size.x, size.y, ice.servers, ice.relayOnly)
+                diagnostic("capture-started")
                 publish("画面共有を開始しました。接続元の映像と操作結果を確認してください。")
                 worker.scheduleWithFixedDelay({
                     if (stopping.get()) return@scheduleWithFixedDelay
@@ -160,6 +162,7 @@ open class RemoteSessionService : Service() {
         peer?.stopPublishing()
         inputGate.close()
         if (!stopping.compareAndSet(false, true)) return
+        diagnostic("stop:" + reason)
         val message = when (reason) {
             "local-stop" -> "共有を停止しました。"
             "display-changed" -> "画面の大きさが変わったため停止しました。再接続と画面共有の許可が必要です。"
@@ -212,6 +215,11 @@ open class RemoteSessionService : Service() {
                 stopSelf()
             }
         }.start()
+    }
+
+    private fun diagnostic(event: String) {
+        if (applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0)
+            android.util.Log.i("RemoteLiteNative", event)
     }
 
     override fun onDestroy() {
