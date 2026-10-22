@@ -383,6 +383,58 @@ permission, new consent, resolution change or frame timestamp rewrite is added.
 The same red native VM test must pass without changing its assertions. Rollback
 is the revert of this capture change; preserve app data and registrations.
 
+### Viewer pacing for the independently reproduced input queue failure
+
+The real owner portal and native VM viewer now opt into one transmitted manual
+input at a time, releasing the next only after the preceding applied-result ACK.
+The existing native one-second admission/proof deadline is unchanged. The viewer
+keeps at most 16 unsent commands; a command waiting one second is never sent.
+Closing discards the queue, and unknown delivery is never retried. ACK validation
+uses the last actually transmitted sequence, not merely an allocated sequence.
+At actual transmission the owner portal rechecks visible/current session and
+the unchanged two-second decoded-frame freshness gate, so queueing cannot extend
+permission to use stale video. Other peer users retain the previous default
+transmission behavior unless they explicitly enable pacing.
+
+The delayed-result, stale queue, late-ACK/close and lost-media-gate regression
+tests failed before the change and passed afterward. Targeted Node checks passed
+26 tests with one separately enabled real-Chrome case skipped, and ESLint passed.
+The original native rapid-pair count/ACK assertions remain in the VM test; the
+test uses the same pacing option as the owner portal rather than sleeping or
+extending native freshness. The explicit real HTTPS Chrome invocation passed
+all four owner-portal cases without skips; independent review found no P1/P2.
+When no ACK arrives, queued input stays unsent; the one-second age is checked
+before transmission and is not a promise of an automatic one-second disconnect.
+Native runtime effect and final CI remain pending. No physical APK update or
+owner action is involved.
+
+Full Remote Lite Node verification initially detected a stale embedded Windows
+copy of the shared peer. The existing byte-equality assertion failed; the EXE's
+copy was synchronized to the canonical source without changing that assertion.
+The full suite then passed 101 tests with one separately run browser case skipped.
+
+Capture candidate `377150cfcbe8b07ab20c3a7c0af62092de9054b3` passed normal
+CI39788284766, but Android39788284706 stopped before idle observation at the
+first swipe. Signed pre-status passed at 218 ms; window enumeration reported
+`remote-window-refused:no-target`, and input was refused at 220 ms. The capture
+refresh effect is therefore still unverified. This is separate from queue aging.
+The next VM order observes static media before swiping, retaining every swipe,
+pixel/ACK, rapid-pair, secure/revoke and four-second-gap assertion. No protected
+window/input condition is relaxed to obtain a pass.
+
+The next native input candidate explicitly refreshes this service connection's
+transient Accessibility cache before each window enumeration, both before the
+non-secure proof and at the existing final dispatch check. Android's public
+[clearCache API](https://developer.android.com/reference/android/accessibilityservice/AccessibilityService#clearCache())
+is available from API33; remote input already requires API34. The
+[platform implementation](https://android.googlesource.com/platform/frameworks/base/+/refs/heads/main/core/java/android/view/accessibility/AccessibilityCache.java)
+clears the cached window snapshot so a subsequent query can fetch current OS
+information. Stale/empty cached geometry is a hypothesis for the repeated
+post-transition `no-target` refusal, not a confirmed root cause. No OS permission,
+event subscription or persisted/user data changes. Failed cache refresh, absent
+targets, cross-window/overlap, secure/lock/geometry changes and the one-second
+input deadline still refuse input. No OS gesture is retried.
+
 ## Owner portal baseline
 
 Commit `f4b00c147e3996c79643cf88c39c3f0633f6f4ad` passed normal CI

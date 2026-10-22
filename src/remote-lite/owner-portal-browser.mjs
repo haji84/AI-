@@ -84,7 +84,9 @@ async function connect(deviceId) {
   el('control').scrollIntoView({ behavior: 'smooth' });
   const post = (path, extra = {}) => api('/api/viewer/' + path, { sessionId: s.sessionId, ...extra });
   const video = el('screen');
-  s.peer = new BrowserManualPeer({ role: 'viewer', iceServers: session.iceServers,
+  s.peer = new BrowserManualPeer({ role: 'viewer', iceServers: session.iceServers, waitForManualAck: true,
+    canSendManual: () => current === s && doc.visibilityState === 'visible' && s.lastFrame > 0 &&
+      globalThis.performance.now() - s.lastFrame < 2000,
     rtcFactory: options => new globalThis.RTCPeerConnection(options),
     sendSignal: signal => post('signal', { signal }),
     onStream: stream => { if (current === s) { video.srcObject = stream; video.play().catch(() => { if (current === s) void stop('動画の再生を開始できません'); }); } },

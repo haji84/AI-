@@ -242,26 +242,6 @@ def verify_native(owner_post, ready, device_id, old_session, old_token):
                     time.sleep(.2)
                 else:
                     raise AssertionError("Static license activity did not become resumed")
-                for index in range(4):
-                    time.sleep(1)
-                    browser.script("window.vm.markContent(); return true")
-                    decoded = browser.stats()["decoded"]
-                    y1, y2 = (.75, .3) if index % 2 == 0 else (.3, .75)
-                    began = time.monotonic()
-                    browser.script("window.vm.send(arguments[0]); return true", {
-                        "action": "swipe", "x1": .5, "y1": y1, "x2": .5, "y2": y2, "durationMs": 250})
-                    expected = 2 + index
-                    browser.until(f"return window.vm.acknowledged === {expected}", f"swipe {index + 1}/4 OS input ACK")
-                    deadline = time.monotonic() + 10
-                    while time.monotonic() < deadline:
-                        changed = browser.script("return window.vm.contentChange()")
-                        if changed > .02 and browser.stats()["decoded"] > decoded:
-                            break
-                        time.sleep(.2)
-                    else:
-                        raise AssertionError(f"Swipe {index + 1}/4 acknowledged but received content did not change")
-                    print(f"Android native swipe {index + 1}/4 ACK={expected} + decoded app-content change "
-                        f"{changed:.1%} in {time.monotonic() - began:.3f}s", flush=True)
                 # Observe real compositor callbacks, not a transport heartbeat/currentTime.
                 # Defer the freshness assertion until existing secure/revoke checks also finish.
                 time.sleep(1)
@@ -287,6 +267,26 @@ def verify_native(owner_post, ready, device_id, old_session, old_token):
                 observations = [line for line in capture_log.splitlines()
                     if "idle-capture-observation:" in line or "idle-display-refresh-requested" in line]
                 print("Android native capture-side idle observations:\n" + "\n".join(observations[-25:]), flush=True)
+                for index in range(4):
+                    time.sleep(1)
+                    browser.script("window.vm.markContent(); return true")
+                    decoded = browser.stats()["decoded"]
+                    y1, y2 = (.75, .3) if index % 2 == 0 else (.3, .75)
+                    began = time.monotonic()
+                    browser.script("window.vm.send(arguments[0]); return true", {
+                        "action": "swipe", "x1": .5, "y1": y1, "x2": .5, "y2": y2, "durationMs": 250})
+                    expected = 2 + index
+                    browser.until(f"return window.vm.acknowledged === {expected}", f"swipe {index + 1}/4 OS input ACK")
+                    deadline = time.monotonic() + 10
+                    while time.monotonic() < deadline:
+                        changed = browser.script("return window.vm.contentChange()")
+                        if changed > .02 and browser.stats()["decoded"] > decoded:
+                            break
+                        time.sleep(.2)
+                    else:
+                        raise AssertionError(f"Swipe {index + 1}/4 acknowledged but received content did not change")
+                    print(f"Android native swipe {index + 1}/4 ACK={expected} + decoded app-content change "
+                        f"{changed:.1%} in {time.monotonic() - began:.3f}s", flush=True)
                 adb("shell", "input", "keyevent", "4")
                 ui.wait_for_text("入力テスト: 1")
                 return maximum_gap

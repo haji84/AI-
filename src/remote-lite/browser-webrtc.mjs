@@ -66,8 +66,12 @@ export class BrowserManualPeer {
   #remoteSet = false;
   #pendingCandidates = [];
   #sentSeq = 0;
+  #transmittedSeq = 0;
   #receivedSeq = 0;
   #acknowledgedSeq = 0;
+  #waitForManualAck;
+  #canSendManual;
+  #outgoingManual = [];
   #inputQueue = [];
   #inputTimes = [];
   #drainingInputs = false;
@@ -78,11 +82,12 @@ export class BrowserManualPeer {
 
   constructor({ role, rtcFactory, iceServers = [], sendSignal, onStream = () => {},
     onManualInput = () => {}, onManualAcknowledged = () => {}, onState = () => {},
-    requestScreen, checkSession } = {}) {
+    requestScreen, checkSession, waitForManualAck = false, canSendManual = () => true } = {}) {
     if (!allowedRoles.has(role) || typeof rtcFactory !== 'function' ||
       typeof sendSignal !== 'function' || typeof onStream !== 'function' ||
       typeof onManualInput !== 'function' || typeof onManualAcknowledged !== 'function' ||
-      typeof onState !== 'function') fault('INVALID_PEER_CONFIG');
+      typeof onState !== 'function' || typeof waitForManualAck !== 'boolean' ||
+      typeof canSendManual !== 'function') fault('INVALID_PEER_CONFIG');
     if (role === 'host' && typeof requestScreen !== 'function') fault('SCREEN_CONSENT_CALLBACK_REQUIRED');
     if (role === 'host' && typeof checkSession !== 'function') fault('SESSION_CHECK_REQUIRED');
     if (!Array.isArray(iceServers) || iceServers.length > 8) fault('ICE_CONFIG_INVALID');
@@ -93,6 +98,8 @@ export class BrowserManualPeer {
       if (Object.keys(item).some(key => !['urls','username','credential'].includes(key))) fault('ICE_CONFIG_INVALID');
     }
     this.#role = role;
+    this.#waitForManualAck = waitForManualAck;
+    this.#canSendManual = canSendManual;
     this.#sendSignal = sendSignal;
     this.#onStream = onStream;
     this.#onManualInput = onManualInput;
@@ -187,11 +194,12 @@ export class BrowserManualPeer {
           const ack = JSON.parse(event.data);
           if (!ack || Object.keys(ack).sort().join(',') !== 'sequence,type' ||
             ack.type !== 'manual-applied' || !Number.isSafeInteger(ack.sequence) ||
-            ack.sequence !== this.#acknowledgedSeq + 1 || ack.sequence > this.#sentSeq) {
+            ack.sequence !== this.#acknowledgedSeq + 1 || ack.sequence > this.#transmittedSeq) {
             return this.close('manual-ack-invalid');
           }
           this.#acknowledgedSeq = ack.sequence;
           this.#onManualAcknowledged(ack.sequence);
+          this.#drainOutgoingManual();
         } catch { this.close('manual-ack-invalid'); }
       };
     }
@@ -300,9 +308,30 @@ export class BrowserManualPeer {
     if (this.#role !== 'viewer' || !this.connected) fault('NOT_CONNECTED');
     const valid = parseManualInput(command);
     if (this.#channel.bufferedAmount > 65536) fault('CHANNEL_BACKPRESSURE');
-    const message = JSON.stringify({ sequence: ++this.#sentSeq, command: valid });
-    this.#channel.send(message);
-    return this.#sentSeq;
+    if (this.#outgoingManual.length >= 16) {
+      this.close('manual-input-queue-full'); fault('CHANNEL_BACKPRESSURE');
+    }
+    const sequence = ++this.#sentSeq;
+    this.#outgoingManual.push({ sequence, command: valid, queuedAt: globalThis.performance.now() });
+    this.#drainOutgoingManual();
+    return sequence;
+  }
+
+  #drainOutgoingManual() {
+    if (this.#closed || !this.#outgoingManual.length ||
+      (this.#waitForManualAck && this.#transmittedSeq !== this.#acknowledgedSeq)) return;
+    const input = this.#outgoingManual.shift();
+    const age = globalThis.performance.now() - input.queuedAt;
+    if (age < 0 || age >= 1000) { this.close('manual-input-stale'); return; }
+    let allowed = false;
+    try { allowed = this.connected && this.#canSendManual() === true; } catch { /* deny */ }
+    if (!allowed) { this.close('manual-input-not-allowed'); return; }
+    if (this.#channel.bufferedAmount > 65536) {
+      this.close('manual-input-backpressure'); fault('CHANNEL_BACKPRESSURE');
+    }
+    this.#transmittedSeq = input.sequence;
+    try { this.#channel.send(JSON.stringify({ sequence: input.sequence, command: input.command })); }
+    catch { this.close('manual-input-send-failed'); fault('CHANNEL_SEND_FAILED'); }
   }
 
   close(reason = 'user-ended') {
@@ -311,6 +340,7 @@ export class BrowserManualPeer {
     globalThis.clearInterval(this.#sessionTimer);
     this.#manualAllowed = false;
     this.#inputQueue = [];
+    this.#outgoingManual = [];
     this.#channel?.close?.();
     this.#stream?.getTracks?.().forEach(track => track.stop());
     this.#pc?.close();

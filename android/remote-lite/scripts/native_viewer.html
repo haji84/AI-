@@ -40,7 +40,7 @@ window.beginNative = async config => {
     if (!response.ok || !result.ok) throw new Error('fixture operation refused: ' + operation);
     return result.result;
   };
-  const viewer = new BrowserManualPeer({ role: 'viewer',
+  const viewer = new BrowserManualPeer({ role: 'viewer', waitForManualAck: true,
     iceServers,
     rtcFactory: options => {
       pc = new RTCPeerConnection({ ...options, iceTransportPolicy: 'relay' });

@@ -144,14 +144,20 @@ class ManualAccessibilityService : AccessibilityService() {
 
     private data class InputWindow(val id: Int, val bounds: Rect, val layer: Int, val active: Boolean)
 
+    @TargetApi(33)
     @Suppress("DEPRECATION")
-    private fun inputWindows(): List<InputWindow> = windows.map { window ->
-        try {
-            val bounds = Rect()
-            window.getBoundsInScreen(bounds)
-            InputWindow(window.id, bounds, window.layer, window.isActive)
-        } finally { window.recycle() }
-    }.sortedByDescending { it.layer }
+    private fun inputWindows(): List<InputWindow> {
+        // This connection's cached window list can lag an activity transition.
+        // Both the proof and final dispatch must query current OS geometry.
+        check(clearCache()) { "Window cache unavailable" }
+        return windows.map { window ->
+            try {
+                val bounds = Rect()
+                window.getBoundsInScreen(bounds)
+                InputWindow(window.id, bounds, window.layer, window.isActive)
+            } finally { window.recycle() }
+        }.sortedByDescending { it.layer }
+    }
 
     @TargetApi(34)
     private fun applyRemoteChecked(action: ManualAction, width: Int, height: Int, rotation: Int,

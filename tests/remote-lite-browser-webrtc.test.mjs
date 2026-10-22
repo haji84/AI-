@@ -36,7 +36,8 @@ class FakeRtc {
   addTrack(track, stream) { this.tracks.push({ track, stream }); }
   close() { this.connectionState = 'closed'; }
 }
-function fixture({ applyInput, checkSession = () => true } = {}) {
+function fixture({ applyInput, checkSession = () => true, waitForManualAck = false,
+  canSendManual = () => true } = {}) {
   const peerViewer = new FakeRtc(), peerHost = new FakeRtc();
   peerViewer.partner = peerHost;
   peerHost.partner = peerViewer;
@@ -54,6 +55,7 @@ function fixture({ applyInput, checkSession = () => true } = {}) {
   });
   const viewer = new BrowserManualPeer({
     role: 'viewer', rtcFactory: () => peerViewer, iceServers: [],
+    waitForManualAck, canSendManual,
     sendSignal: signal => viewerSignals.push(signal),
     onStream: stream => streams.push(stream),
     onManualAcknowledged: sequence => acknowledgements.push(sequence),
@@ -216,6 +218,107 @@ test('manual input is acknowledged only after host application succeeds', async 
   await new Promise(resolve => globalThis.setImmediate(resolve));
   assert.deepEqual(f.acknowledgements, [1]);
   f.host.close(); f.viewer.close();
+});
+
+test('ACK-paced viewer sends the next input only after the preceding OS result', async () => {
+  const completions = [];
+  const f = fixture({ waitForManualAck: true,
+    applyInput: () => new Promise(resolve => completions.push(resolve)) });
+  try {
+    await f.connect();
+    assert.equal(f.viewer.sendManual({ action: 'tap', x: .2, y: .3 }), 1);
+    assert.equal(f.viewer.sendManual({ action: 'tap', x: .4, y: .5 }), 2);
+    assert.equal(f.peerViewer.channel.messages.length, 1, 'second packet must remain at viewer');
+    await new Promise(resolve => globalThis.setImmediate(resolve));
+    assert.equal(f.commands.length, 1);
+    completions.shift()(true);
+    await new Promise(resolve => globalThis.setImmediate(resolve));
+    assert.equal(f.peerViewer.channel.messages.length, 2);
+    assert.equal(f.commands.length, 2);
+    assert.deepEqual(f.acknowledgements, [1]);
+    completions.shift()(true);
+    await new Promise(resolve => globalThis.setImmediate(resolve));
+    assert.deepEqual(f.acknowledgements, [1, 2]);
+  } finally { f.viewer.close(); f.host.close(); }
+});
+
+test('ACK-paced viewer never sends an input that expired in its local queue', async t => {
+  let now = 1000, finish;
+  t.mock.method(globalThis.performance, 'now', () => now);
+  const f = fixture({ waitForManualAck: true,
+    applyInput: () => new Promise(resolve => { finish = resolve; }) });
+  try {
+    await f.connect();
+    f.viewer.sendManual({ action: 'tap', x: .2, y: .3 });
+    f.viewer.sendManual({ action: 'tap', x: .4, y: .5 });
+    await new Promise(resolve => globalThis.setImmediate(resolve));
+    now = 2001;
+    finish(true);
+    await new Promise(resolve => globalThis.setImmediate(resolve));
+    assert.equal(f.viewer.closed, true);
+    assert.ok(f.states.includes('manual-input-stale'));
+    assert.equal(f.peerViewer.channel.messages.length, 1);
+    assert.equal(f.commands.length, 1);
+  } finally { f.viewer.close(); f.host.close(); }
+});
+
+test('closing an ACK-paced viewer discards queued input even after a late ACK', async () => {
+  let finish;
+  const f = fixture({ waitForManualAck: true,
+    applyInput: () => new Promise(resolve => { finish = resolve; }) });
+  try {
+    await f.connect();
+    f.viewer.sendManual({ action: 'tap', x: .2, y: .3 });
+    f.viewer.sendManual({ action: 'tap', x: .4, y: .5 });
+    await new Promise(resolve => globalThis.setImmediate(resolve));
+    f.viewer.close();
+    finish(true);
+    await new Promise(resolve => globalThis.setImmediate(resolve));
+    assert.equal(f.peerViewer.channel.messages.length, 1);
+    assert.equal(f.commands.length, 1);
+  } finally { f.viewer.close(); f.host.close(); }
+});
+
+test('queued input rechecks the viewer media/visibility gate at actual transmission', async () => {
+  let allowed = true, finish;
+  const f = fixture({ waitForManualAck: true, canSendManual: () => allowed,
+    applyInput: () => new Promise(resolve => { finish = resolve; }) });
+  try {
+    await f.connect();
+    f.viewer.sendManual({ action: 'tap', x: .2, y: .3 });
+    f.viewer.sendManual({ action: 'tap', x: .4, y: .5 });
+    await new Promise(resolve => globalThis.setImmediate(resolve));
+    allowed = false;
+    finish(true);
+    await new Promise(resolve => globalThis.setImmediate(resolve));
+    assert.equal(f.viewer.closed, true);
+    assert.ok(f.states.includes('manual-input-not-allowed'));
+    assert.equal(f.peerViewer.channel.messages.length, 1);
+    assert.equal(f.commands.length, 1);
+  } finally { f.viewer.close(); f.host.close(); }
+});
+
+test('ACK-paced queue is bounded and cannot acknowledge an unsent packet', async () => {
+  const f = fixture({ waitForManualAck: true, applyInput: () => new Promise(() => {}) });
+  try {
+    await f.connect();
+    for (let i = 0; i < 17; i++) f.viewer.sendManual({ action: 'tap', x: .2, y: .3 });
+    assert.equal(f.peerViewer.channel.messages.length, 1);
+    assert.throws(() => f.viewer.sendManual({ action: 'tap', x: .4, y: .5 }), /CHANNEL_BACKPRESSURE/);
+    assert.equal(f.viewer.closed, true);
+    assert.ok(f.states.includes('manual-input-queue-full'));
+  } finally { f.viewer.close(); f.host.close(); }
+  const g = fixture({ waitForManualAck: true, applyInput: () => new Promise(() => {}) });
+  try {
+    await g.connect();
+    g.viewer.sendManual({ action: 'tap', x: .2, y: .3 });
+    g.viewer.sendManual({ action: 'tap', x: .4, y: .5 });
+    // Packet2 has an allocated sequence but has never crossed the channel.
+    g.peerViewer.channel.onmessage({ data: JSON.stringify({ type: 'manual-applied', sequence: 2 }) });
+    assert.equal(g.peerViewer.channel.messages.length, 1);
+    assert.equal(g.viewer.closed, true);
+    assert.ok(g.states.includes('manual-ack-invalid'));
+  } finally { g.viewer.close(); g.host.close(); }
 });
 
 test('refused manual input closes host without a false acknowledgement', async () => {
