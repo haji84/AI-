@@ -31,13 +31,13 @@ def visible():
     return [label(node) for node in nodes() if label(node).strip()]
 
 
-def wait_for_text(fragment, seconds=35):
+def wait_for_nodes(find, description, seconds=35):
     deadline = time.monotonic() + seconds
     last = []
     while time.monotonic() < deadline:
         try:
             last = nodes()
-            found = next((node for node in last if fragment in label(node)), None)
+            found = find(last)
             if found is not None:
                 return found
         except (subprocess.CalledProcessError, ET.ParseError):
@@ -46,7 +46,13 @@ def wait_for_text(fragment, seconds=35):
     visible_labels = [label(node) for node in last if label(node).strip()]
     bound = [line.strip() for line in adb("shell", "dumpsys", "accessibility").splitlines()
              if PACKAGE in line][:12]
-    raise AssertionError(f"Missing UI text {fragment!r}; visible={visible_labels!r}; accessibility={bound!r}")
+    raise AssertionError(f"Missing {description}; visible={visible_labels!r}; accessibility={bound!r}")
+
+
+def wait_for_text(fragment, seconds=35):
+    return wait_for_nodes(
+        lambda items: next((node for node in items if fragment in label(node)), None),
+        f"UI text {fragment!r}", seconds)
 
 
 def tap_node(node):
@@ -60,17 +66,24 @@ def tap_text(fragment):
     tap_node(wait_for_text(fragment))
 
 
-def has_text(fragment):
-    return any(fragment in label(node) for node in nodes())
-
-
-def has_exact_text(value):
-    return any(node.get("text", "").strip() == value for node in nodes())
-
-
 def tap_exact_text(value):
-    node = next(node for node in nodes() if node.get("text", "").strip() == value)
-    tap_node(node)
+    tap_node(wait_for_nodes(
+        lambda items: next((node for node in items if node.get("text", "").strip() == value), None),
+        f"exact UI text {value!r}"))
+
+
+def optional_text(fragment, seconds=6, exact=False):
+    deadline = time.monotonic() + seconds
+    while time.monotonic() < deadline:
+        try:
+            found = next((node for node in nodes() if
+                          (node.get("text", "").strip() == fragment if exact else fragment in label(node))), None)
+            if found is not None:
+                return found
+        except (subprocess.CalledProcessError, ET.ParseError):
+            pass
+        time.sleep(1)
+    return None
 
 
 def allow_accessibility_in_settings():
@@ -79,37 +92,41 @@ def allow_accessibility_in_settings():
         "-d", f"package:{PACKAGE}")
     wait_for_text("GORIQ Remote Lite")
     print(f"App Info controls: {visible()!r}", flush=True)
-    if has_text("More options"):
-        tap_text("More options")
-        if has_text("Allow restricted settings"):
-            tap_text("Allow restricted settings")
-            if has_exact_text("Allow"):
+    more = optional_text("More options")
+    if more is not None:
+        tap_node(more)
+        restricted = optional_text("Allow restricted settings")
+        if restricted is not None:
+            tap_node(restricted)
+            if optional_text("Allow", 4, exact=True) is not None:
                 tap_exact_text("Allow")
 
     adb("shell", "am", "start", "-a", "android.settings.ACCESSIBILITY_SETTINGS")
-    print(f"Accessibility controls: {visible()!r}", flush=True)
     for _ in range(4):
-        if has_text("GORIQ Remote Lite 手動操作"):
-            tap_text("GORIQ Remote Lite 手動操作")
+        option = wait_for_nodes(
+            lambda items: next((node for name in ("GORIQ Remote Lite 手動操作", "Downloaded apps", "Installed apps")
+                                for node in items if name in label(node)), None),
+            "Accessibility service or downloaded-apps entry")
+        print(f"Accessibility controls: {visible()!r}", flush=True)
+        is_service = "GORIQ Remote Lite 手動操作" in label(option)
+        tap_node(option)
+        if is_service:
             break
-        if has_text("Downloaded apps"):
-            tap_text("Downloaded apps")
-            continue
-        if has_text("Installed apps"):
-            tap_text("Installed apps")
-            continue
-        raise AssertionError(f"Accessibility setup page unknown: {visible()!r}")
     else:
         raise AssertionError(f"Service missing from Accessibility settings: {visible()!r}")
 
-    switches = [node for node in nodes() if "Switch" in node.get("class", "")]
-    if not switches:
-        raise AssertionError(f"Accessibility service switch missing: {visible()!r}")
-    switch = switches[0]
+    find_switch = lambda items: next((node for node in items if "Switch" in node.get("class", "")), None)
+    switch = wait_for_nodes(find_switch, "Accessibility service switch")
     if switch.get("checked") != "true":
         tap_node(switch)
-        if has_exact_text("Allow"):
+        decision = wait_for_nodes(
+            lambda items: next(("allow" for node in items if node.get("text", "").strip() == "Allow"), None)
+            or ("enabled" if (item := find_switch(items)) is not None and item.get("checked") == "true" else None),
+            "Accessibility confirmation or enabled switch")
+        if decision == "allow":
             tap_exact_text("Allow")
+        wait_for_nodes(lambda items: (item := find_switch(items)) if item is not None and
+                       item.get("checked") == "true" else None, "enabled Accessibility switch")
     adb("shell", "am", "start", "-n", f"{PACKAGE}/.MainActivity")
 
 
