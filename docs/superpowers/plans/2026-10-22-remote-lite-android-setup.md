@@ -53,8 +53,8 @@
 **Files:** Update `scripts/pairing_fixture.mjs`, `scripts/emulator_smoke.py`, add `scripts/prepare_vm_tls.py`, debug network config, `.github/workflows/remote-lite-android.yml`, README.
 
 - [x] Generate ephemeral loopback PKCS12/certificate in ignored build output; copy only certificate to generated debug resources.
-- [ ] Drive normal EnrollmentActivity over HTTPS, compare displayed fingerprint in the fixture owner approval, then signed registration/status/capture/tap/revocation through the shared exchange.
-- [ ] Inspect compiled release for INTERNET, no cleartext, no test CA config/activity; run Android VM and ordinary CI on the pushed head.
+- [x] Drive normal EnrollmentActivity over HTTPS, compare displayed fingerprint in the fixture owner approval, then signed registration/status/capture/tap/revocation through the shared exchange.
+- [x] Inspect compiled release for INTERNET, no cleartext, no test CA config/activity; run Android VM and ordinary CI on the pushed head.
 - [ ] Independent review; fix substantive findings with reproduction tests. Save evidence, failures, next action and reverse commit order to Issue #1831; update the existing PR description.
 
 ## Progress
@@ -63,3 +63,4 @@
 - Execution: native implementation under the user's autonomous completion instruction. No additional plan approval is required for this continuation.
 - Task 1 complete: invitation tests 3 RED to GREEN; HTTPS tests 5 RED to GREEN using a genuine local TLS socket and untrusted-certificate denial. Full Android unit suite passed locally. No dependency or external account added.
 - Task 2 complete: lost-response/pending-receipt tests 2 RED to GREEN, origin replacement regression, existing identity/status mismatch tests and full Android units/builds passed. Release archive inspection confirms INTERNET, cleartext false, no debug screen/config/CA. JSON mapping is exercised next by the real Android VM rather than a mocked JSON library.
+- Task 3 VM complete at `9584ff6e`: [Android run](https://github.com/haji84/AI-/actions/runs/39729977289) and [ordinary CI](https://github.com/haji84/AI-/actions/runs/39729977333) succeeded. The test exercised explicit recovery from an invalid invitation, HTTPS enrollment, persisted receipt/key, signed approval/session checks, process restart, actual Accessibility screenshot/tap, and rejection after owner revocation. Earlier failures were retained in Issue #1831. A separate self-instrumented test-only APK now reads the hierarchy without suppressing Accessibility; ordinary CLI dump was repeatedly unbinding the service. This is Android VM evidence, not native WebRTC video or physical acceptance.

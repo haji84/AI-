@@ -260,6 +260,31 @@ def verify_real_keystore_pairing():
         tap_text("アクティブを再発見する")
         wait_for_text(f"再発見成功 ID: {session_id}", seconds=35)
         print("Android 15 VM: process restart rediscovered the active session with AndroidKeyStore", flush=True)
+        viewer_token = started["result"]["viewerToken"]
+        offer = {"type": "offer", "sdp": "v=0\r\ns=android-vm-signaling\r\n"}
+        signaled = owner_post("/v1/viewer/signal", {"sessionId": session_id,
+            "viewerToken": viewer_token, "signal": offer})
+        if not signaled.get("ok"):
+            raise AssertionError("Owner synthetic signaling offer was refused")
+        tap_text("署名付き信号を診断する")
+        wait_for_text("署名付き信号の往復: 成功")
+        for cursor, expected in (
+            (0, {"type": "answer", "sdp": "v=0\r\ns=android-key-signaling-answer\r\n"}),
+            (1, {"type": "candidate", "candidate": "candidate:1 1 UDP 1 127.0.0.1 5000 typ host",
+                 "sdpMid": "0", "sdpMLineIndex": 0}),
+        ):
+            reply = owner_post("/v1/viewer/poll", {"sessionId": session_id,
+                "viewerToken": viewer_token, "ack": cursor})
+            if not reply.get("ok") or reply.get("result") != {"cursor": cursor + 1, "signals": [expected]}:
+                raise AssertionError("Node did not accept AndroidKeyStore-bound SDP/ICE")
+        print("Android 15 VM: Node verified actual AndroidKeyStore signatures binding synthetic SDP and ICE", flush=True)
+        adb("shell", "am", "force-stop", PACKAGE)
+        open_debug_activity()
+        tap_text("アクティブを再発見する")
+        wait_for_text(f"再発見成功 ID: {session_id}", seconds=35)
+        tap_text("署名付き信号を診断する")
+        wait_for_text("信号カーソル再発見: 成功")
+        print("Android 15 VM: applied signaling cursor survived process restart", flush=True)
         allow_accessibility_in_settings(return_to_main=False)
         open_debug_activity()
         tap_text("アクティブを再発見する")

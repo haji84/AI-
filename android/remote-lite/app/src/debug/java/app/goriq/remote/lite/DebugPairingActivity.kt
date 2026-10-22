@@ -18,7 +18,7 @@ class DebugPairingActivity : Activity() {
         super.onCreate(savedInstanceState)
         val sessionButton = Button(this).apply { text = "セッションを診断する" }
         val restoreButton = Button(this).apply { text = "アクティブを再発見する" }
-        val checkButton = Button(this).apply { text = "状態を再確認する" }
+        val checkButton = Button(this).apply { text = "署名付き信号を診断する" }
         val serviceButton = Button(this).apply { text = "操作権限接続を確認する" }
         val serviceStatus = TextView(this).apply { text = "操作権限状態: 未確認" }
         val operationButton = Button(this).apply { text = "画面操作ゲートを診断する" }
@@ -86,16 +86,33 @@ class DebugPairingActivity : Activity() {
         }
         checkButton.setOnClickListener {
             checkButton.isEnabled = false
-            sessionStatus.text = "再照会しています…"
+            sessionStatus.text = "署名付き信号を確認しています…"
             Thread {
                 val result = runCatching {
                     val session = checkNotNull(activeSessionId) { "有効セッションなし" }
-                    val access = DeviceSessionAccess(LocalIdentity(this),
-                        coordinator())
-                    access.requireActiveThen(session) { "セッションは有効" }
+                    val identity = LocalIdentity(this)
+                    val exchange = coordinator()
+                    val access = DeviceSessionAccess(identity, exchange)
+                    access.requireActiveThen(session) {
+                        val signaling = DeviceSignaling(identity, exchange, session, SignalCursorSettings(this))
+                        val batch = signaling.receive()
+                        if (batch.signals.isEmpty()) {
+                            check(batch.cursor == 1L)
+                            "信号カーソル再発見: 成功"
+                        } else {
+                            val offer = batch.signals.single() as RtcSignal.Sdp
+                            check(offer.type == "offer" && offer.sdp == "v=0\r\ns=android-vm-signaling\r\n")
+                            // Synthetic descriptions verify the signed contract, not a native RTC connection.
+                            signaling.acknowledge(batch.cursor)
+                            signaling.send(RtcSignal.Sdp("answer", "v=0\r\ns=android-key-signaling-answer\r\n"))
+                            signaling.send(RtcSignal.Candidate("candidate:1 1 UDP 1 127.0.0.1 5000 typ host", "0", 0))
+                            check(signaling.receive() == SignalBatch(1, emptyList()))
+                            "署名付き信号の往復: 成功"
+                        }
+                    }
                 }
                 runOnUiThread {
-                    sessionStatus.text = result.getOrElse { "失効後は操作拒否" }
+                    sessionStatus.text = result.getOrElse { "署名付き信号を拒否" }
                     checkButton.isEnabled = true
                 }
             }.start()
