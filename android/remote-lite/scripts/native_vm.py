@@ -265,11 +265,13 @@ def verify_native(owner_post, ready, device_id, old_session, old_token):
                 start = browser.stats()
                 maximum_gap = 0
                 deadline = time.monotonic() + 10
-                while time.monotonic() < deadline:
+                while True:
                     snapshot = browser.stats()
                     assert not snapshot["closed"], "Native RTC ended while license screen was idle: " + json.dumps(snapshot)
                     assert snapshot["frameAgeMs"] is not None, "No native video presentation callback"
                     maximum_gap = max(maximum_gap, snapshot["maxIdleFrameGapMs"])
+                    if time.monotonic() >= deadline:
+                        break
                     time.sleep(.2)
                 print("Android native static-screen observation: " + json.dumps({
                     "seconds": 10, "maxFrameAgeMs": maximum_gap,
