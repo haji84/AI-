@@ -190,11 +190,24 @@ def verify_real_keystore_pairing():
         tap_text("アクティブを再発見する")
         wait_for_text(f"再発見成功 ID: {session_id}", seconds=35)
         print("Android 15 VM: process restart rediscovered the active session with AndroidKeyStore", flush=True)
+        allow_accessibility_in_settings()
+        wait_for_text("端末ID:")
+        verify_accessibility_capture()
+        adb("shell", "am", "start", "-n", f"{PACKAGE}/.DebugPairingActivity",
+            "--ei", "port", str(port), "--es", "inviteCode", ready["inviteCode"])
+        tap_text("アクティブを再発見する")
+        wait_for_text(f"再発見成功 ID: {session_id}", seconds=35)
+        tap_text("画面操作ゲートを診断する")
+        wait_for_text("認証済み画面取得と実タップ: 成功", seconds=35)
+        wait_for_text("対象タップ数: 1")
+        print("Android 15 VM: signed status gated actual Accessibility screenshot and tap", flush=True)
         revoked = owner_post("/v1/revoke", {"deviceId": device_id})
         if not revoked.get("ok") or revoked.get("result", {}).get("status") != "revoked":
             raise AssertionError(f"Owner could not revoke local registration: {revoked!r}")
-        tap_text("状態を再確認する")
-        wait_for_text("失効後は操作拒否", seconds=35)
+        tap_text("画面操作ゲートを診断する")
+        wait_for_text("画面操作を拒否: Remote session is not active", seconds=35)
+        if optional_text("対象タップ数: 1", exact=True) is None:
+            raise AssertionError("A tap reached the target after owner revocation")
         readable, _, _ = select.select([fixture.stdout], [], [], 10)
         if not readable:
             raise AssertionError("Node did not receive Android's post-revocation status challenge")
@@ -202,7 +215,7 @@ def verify_real_keystore_pairing():
         if rejected != {"event": "revoked-status-rejected", "deviceId": device_id,
                         "sessionId": session_id, "code": "DEVICE_UNAVAILABLE"}:
             raise AssertionError(f"Node did not reject revoked session status: {rejected!r}")
-        print("Android 15 VM: Node rejected the revoked device status challenge and Android denied operation", flush=True)
+        print("Android 15 VM: Node rejected revoked status and Android did not repeat the real tap", flush=True)
     finally:
         if port is not None:
             subprocess.run(["adb", "reverse", "--remove", f"tcp:{port}"],
@@ -236,9 +249,7 @@ def verify_accessibility_capture():
 def main():
     adb("install", "-r", APK)
     verify_real_keystore_pairing()
-    allow_accessibility_in_settings()
-    wait_for_text("端末ID:")
-    verify_accessibility_capture()
+    adb("shell", "am", "start", "-n", f"{PACKAGE}/.MainActivity")
     tap_text("手動入力を診断する")
     wait_for_text("画面取得と手動入力: 成功")
     print("Android 15 VM: local key, Accessibility screenshot and actual tap passed")

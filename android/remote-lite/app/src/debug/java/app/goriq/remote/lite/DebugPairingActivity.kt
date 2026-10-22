@@ -8,11 +8,13 @@ import android.widget.TextView
 import java.io.ByteArrayOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.concurrent.atomic.AtomicInteger
 import org.json.JSONObject
 
 /** Debug-only integration path for the Android VM and a loopback Node coordinator. */
 class DebugPairingActivity : Activity() {
     private var activeSessionId: String? = null
+    private val diagnosticTaps = AtomicInteger()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -21,6 +23,16 @@ class DebugPairingActivity : Activity() {
         val sessionButton = Button(this).apply { text = "セッションを診断する" }
         val restoreButton = Button(this).apply { text = "アクティブを再発見する" }
         val checkButton = Button(this).apply { text = "状態を再確認する" }
+        val operationButton = Button(this).apply { text = "画面操作ゲートを診断する" }
+        val operationStatus = TextView(this).apply { text = "操作ゲート診断は未実行です" }
+        val tapCount = TextView(this).apply { text = "対象タップ数: 0" }
+        val targetButton = Button(this).apply {
+            text = "認証された実タップの対象"
+            setOnClickListener {
+                diagnosticTaps.incrementAndGet()
+                tapCount.text = "対象タップ数: ${diagnosticTaps.get()}"
+            }
+        }
         val sessionStatus = TextView(this).apply { text = "セッション診断は未実行です" }
         val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -31,6 +43,10 @@ class DebugPairingActivity : Activity() {
             addView(restoreButton)
             addView(checkButton)
             addView(sessionStatus)
+            addView(operationButton)
+            addView(targetButton)
+            addView(tapCount)
+            addView(operationStatus)
         }
         setContentView(content)
         button.setOnClickListener {
@@ -100,6 +116,38 @@ class DebugPairingActivity : Activity() {
                 runOnUiThread {
                     sessionStatus.text = result.getOrElse { "失効後は操作拒否" }
                     checkButton.isEnabled = true
+                }
+            }.start()
+        }
+        operationButton.setOnClickListener {
+            operationButton.isEnabled = false
+            operationStatus.text = "画面と入力を認証しています…"
+            val location = IntArray(2)
+            targetButton.getLocationOnScreen(location)
+            val centerX = location[0] + targetButton.width / 2.0
+            val centerY = location[1] + targetButton.height / 2.0
+            val previous = diagnosticTaps.get()
+            Thread {
+                val result = runCatching {
+                    val session = checkNotNull(activeSessionId) { "有効セッションなし" }
+                    val access = DeviceSessionAccess(LocalIdentity(this),
+                        LoopbackCoordinatorExchange(intent.getIntExtra("port", -1)))
+                    val frame = access.requireActiveThen(session) { ManualAccessibilityService.capture() }
+                    val x = (centerX / (frame.width - 1)).coerceIn(0.0, 1.0)
+                    val y = (centerY / (frame.height - 1)).coerceIn(0.0, 1.0)
+                    check(access.requireActiveThen(session) {
+                        ManualAccessibilityService.apply(ManualAction.Tap(x, y))
+                    }) { "Gesture refused" }
+                    val deadline = System.currentTimeMillis() + 2_000
+                    while (diagnosticTaps.get() == previous && System.currentTimeMillis() < deadline) {
+                        Thread.sleep(25)
+                    }
+                    check(diagnosticTaps.get() > previous) { "Tap did not reach target" }
+                    "認証済み画面取得と実タップ: 成功"
+                }
+                runOnUiThread {
+                    operationStatus.text = result.getOrElse { "画面操作を拒否: ${it.message ?: "不明なエラー"}" }
+                    operationButton.isEnabled = true
                 }
             }.start()
         }
