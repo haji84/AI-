@@ -223,7 +223,9 @@ open class RemoteSessionService : Service() {
     }
 
     private fun diagnostic(event: String) {
-        if (applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0)
+        if (resources.getBoolean(app.goriq.remote.lite.R.bool.remote_test_diagnostics))
+            android.util.Log.w("RemoteLiteNative", event)
+        else if (applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0)
             android.util.Log.i("RemoteLiteNative", event)
     }
 

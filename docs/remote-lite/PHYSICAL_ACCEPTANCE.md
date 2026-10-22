@@ -104,6 +104,44 @@ native message/frame count, PC decoded video and actual test-button effect/ACK.
 The USB reverse carries HTTPS signaling only, not WebRTC media. Public HTTPS,
 TURN, cellular iPhone, release signing and distribution acceptance remain open.
 
+## Physical input interruption report — 2026-10-22 19:51 JST
+
+The owner reported that nubia video sharing worked but stopped on the fourth
+input. This is human-reported physical video evidence, not machine-verified
+input/ACK or sustained-session acceptance. The fourth action and its spacing
+are not yet known. Do not infer that a three-input product limit exists.
+
+At inspection MediaProjection was null and the sharing service had stopped.
+The in-app browser showed a hidden-page stop and zero ACKs; it is not yet known
+whether the reported test used that browser or the separate Chrome window.
+The initial physicalCheck was not debuggable, so existing diagnostic events were
+disabled. Enabling them for that test package at INFO still produced no events:
+read-only inspection found the device's `persist.log.tag=W`. The device-wide
+logging configuration was left unchanged.
+
+A resource switch now enables the existing bounded diagnostic event names at
+WARN only in physicalCheck. Debug retains INFO; release has the resource set to
+false. Events contain lifecycle/stop codes, timing, error classes and candidate
+types, not screen contents, input contents, coordinates, SDP, IP addresses,
+session IDs or keys. Authorization, capture, input and stop logic are unchanged.
+The updated APK was installed with `adb install -r` only after confirming no
+active MediaProjection; application data and keys were preserved.
+
+- `assemblePhysicalCheck assembleRelease testDebugUnitTest`: success, 49 JVM
+  tests with zero failures/errors; APK v2 signature verification passed.
+- Compiled APK resources: physicalCheck diagnostics true; release false.
+- Current diagnostic APK SHA-256:
+  `7CA238C1D9F28E42291F9A6C5D7C8D23D31085E0D4A4A9FAF05756D1B83C4A8E`.
+- Independent review found no P1/P2 in the diagnostic-only change.
+- Reproduction remains required: new consent, five taps on the app's harmless
+  test button spaced about one second apart, then inspect stop code/frame/ACK
+  evidence. Do not retry uncertain inputs automatically or relax the one-second
+  input freshness rule to obtain a pass.
+
+Rollback this diagnostic change by reverting its commit and rebuilding/updating
+the same test package with the existing test signer. Do not uninstall/clear app
+data, regenerate keys or change the device-wide logging/Accessibility settings.
+
 ## Owner portal baseline
 
 Commit `f4b00c147e3996c79643cf88c39c3f0633f6f4ad` passed normal CI

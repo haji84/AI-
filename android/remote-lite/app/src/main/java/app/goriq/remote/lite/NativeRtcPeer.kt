@@ -45,7 +45,9 @@ class NativeRtcPeer(private val context: Context, private val lease: CaptureLeas
     private val control = ThreadPoolExecutor(1, 1, 0, TimeUnit.MILLISECONDS, ArrayBlockingQueue(16))
 
     private fun trace(event: String) {
-        if (context.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0)
+        if (context.resources.getBoolean(app.goriq.remote.lite.R.bool.remote_test_diagnostics))
+            android.util.Log.w("RemoteLiteNative", event)
+        else if (context.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0)
             android.util.Log.i("RemoteLiteNative", event)
     }
 
