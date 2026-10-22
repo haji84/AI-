@@ -53,7 +53,8 @@ try {
   if (!started) throw new Error('ChromeDriver unavailable: ' + driverLog);
   phase = 'session-creation';
   const session = await webdriver('POST', '/session', { capabilities: { alwaysMatch: {
-    browserName: 'chrome', 'goog:chromeOptions': { args: ['--headless=new'],
+    browserName: 'chrome', 'goog:loggingPrefs': { performance: 'ALL' },
+    'goog:chromeOptions': { args: ['--headless=new'],
       ...(process.env.REMOTE_LITE_CHROME ? { binary: process.env.REMOTE_LITE_CHROME } : {}),
     },
   } } });

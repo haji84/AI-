@@ -105,3 +105,13 @@ any host root request; setup still passed. Change the environment dimension:
 pin only this job to supported windows-2022, retaining exact Chrome156 and all
 timeouts/media/input/security/MSI assertions. This isolates the moving2025 image
 and does not claim2025 or physical acceptance. No whole-test retries/skips.
+
+ebbba75e CI39846658183 disproved an image-only fix: 2022 still aborted all
+browser navigations and its direct native capture returned409 unavailable.
+MSI lifecycle passed again. Restore an explicit windows-2025 desktop fixture.
+Add the missing preflight dimension: a fixed loopback HTTP server reached by
+the same owned-tab/CDP path, verifying actual GET and DOM. Performance-log
+diagnostics on failure expose only document request counts, fixed ERR codes,
+canceled and blocked booleans. No URLs/headers/body/IDs are emitted; injected
+secret-error checks pass. Local real156 HTTP preflight passed1632ms. Hosted
+failure classification is pending; no new production behavior or relaxed gate.

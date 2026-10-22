@@ -80,11 +80,10 @@ jobs:
           ./tests/goriq-zbook-watchdog-launcher-repair.test.ps1
 
   remote-lite-windows-vm:
-    # Keep the native acceptance environment explicit. On the moving 2025 image,
-    # Chrome156 aborted fixture navigation before HTTP (CI39846020674).
-    # Same browser and every acceptance assertion run on this supported image;
-    # this does not establish Windows2025 or physical Windows acceptance.
-    runs-on: windows-2022
+    # Explicit native desktop fixture. The 2022 isolation run39846658183 also
+    # aborted browser navigation and could not capture a desktop; 2025 supplies
+    # native GDI. Keep all browser/media/input assertions on this image.
+    runs-on: windows-2025
     timeout-minutes: 12
     env:
       REMOTE_LITE_CHROME_VERSION: '156.0.8078.47'

@@ -25,7 +25,7 @@ try {
   let ready = false;
   for (let i=0;i<40;i++) { try { await webdriver('GET','/status'); ready=true; break; } catch { await pause(250); } }
   if (!ready) throw new Error('Setup browser unavailable');
-  const created = await webdriver('POST','/session',{capabilities:{alwaysMatch:{browserName:'chrome','goog:chromeOptions':{
+  const created = await webdriver('POST','/session',{capabilities:{alwaysMatch:{browserName:'chrome','goog:loggingPrefs':{performance:'ALL'},'goog:chromeOptions':{
     args:['--headless=new'],
     ...(process.env.REMOTE_LITE_CHROME ? { binary: process.env.REMOTE_LITE_CHROME } : {}),
   }}}});

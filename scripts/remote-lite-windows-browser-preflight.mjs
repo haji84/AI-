@@ -6,6 +6,7 @@ import { isAbsolute } from 'node:path';
 import { createServer } from 'node:http';
 import { once } from 'node:events';
 import { performance } from 'node:perf_hooks';
+import { navigateWindowsFixture, openWindowsFixtureTab } from './remote-lite-windows-browser-navigation.mjs';
 
 const chrome = process.env.REMOTE_LITE_CHROME;
 const driverPath = process.env.REMOTE_LITE_CHROMEDRIVER;
@@ -16,6 +17,14 @@ if (![chrome, driverPath].every(value => typeof value === 'string' && isAbsolute
 }
 await access(chrome); await access(driverPath);
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
+let documentRequests = 0;
+const fixture = createServer((incoming, response) => {
+  if (incoming.method !== 'GET' || incoming.url !== '/') { response.writeHead(404).end(); return; }
+  documentRequests++;
+  response.setHeader('Content-Type', 'text/html; charset=utf-8');
+  response.end('<title>Remote Lite HTTP preflight</title><main>fixture</main>');
+});
+fixture.listen(0, '127.0.0.1'); await once(fixture, 'listening');
 const probe = createServer();
 probe.listen(0, '127.0.0.1'); await once(probe, 'listening');
 const port = probe.address().port; probe.close(); await once(probe, 'close');
@@ -49,7 +58,8 @@ try {
   // A single cold startup may be slower than subsequent acceptance sessions.
   // This is bounded infrastructure preparation, not an acceptance-test retry.
   const created = await request('POST', '/session', { capabilities: { alwaysMatch: {
-    browserName: 'chrome', 'goog:chromeOptions': { binary: chrome, args: ['--headless=new'] },
+    browserName: 'chrome', 'goog:loggingPrefs': { performance: 'ALL' },
+    'goog:chromeOptions': { binary: chrome, args: ['--headless=new'] },
   } } }, 60000);
   session = created.sessionId;
   const browserVersion = created.capabilities.browserVersion;
@@ -61,15 +71,26 @@ try {
     script: 'return {title:document.title,ready:document.readyState}', args: [],
   });
   if (state.title !== 'Remote Lite preflight' || state.ready !== 'complete') throw new Error('Browser document did not execute');
+  phase = 'loopback-http';
+  await openWindowsFixtureTab(request, session);
+  await navigateWindowsFixture(request, session, `http://127.0.0.1:${fixture.address().port}/`);
+  const httpState = await request('POST', `/session/${session}/execute/sync`, {
+    script: 'return {title:document.title,ready:document.readyState}', args: [],
+  });
+  if (!documentRequests || httpState.title !== 'Remote Lite HTTP preflight' || httpState.ready !== 'complete') {
+    throw new Error('Loopback HTTP document did not arrive and execute');
+  }
   phase = 'session-close';
   await request('DELETE', `/session/${session}`); session = undefined;
   process.stdout.write(JSON.stringify({ browserPreflight: 'PASS', browserVersion, driverVersion,
-    driverReadyMs, elapsedMs: Math.round(performance.now() - started), sessionClosed: true }) + '\n');
+    driverReadyMs, elapsedMs: Math.round(performance.now() - started), loopbackHTTP: true, sessionClosed: true }) + '\n');
 } catch (error) {
-  // Only this fixed data document is ever visited. Still omit payloads/IDs.
-  process.stderr.write(`FAIL browser preflight phase=${phase}: ${error?.name || 'Error'}\n`);
+  // Both documents are fixed fixtures. Driver payloads and IDs remain omitted.
+  const detail = error?.message?.startsWith('Windows VM browser navigation refused:') ? error.message : error?.name || 'Error';
+  process.stderr.write(`FAIL browser preflight phase=${phase} loopbackRequests=${documentRequests}: ${detail}\n`);
   process.exitCode = 1;
 } finally {
   if (session) await request('DELETE', `/session/${session}`).catch(() => {});
   driver.kill();
+  fixture.close();
 }
