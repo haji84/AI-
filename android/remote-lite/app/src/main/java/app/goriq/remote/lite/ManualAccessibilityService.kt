@@ -182,7 +182,7 @@ class ManualAccessibilityService : AccessibilityService() {
             if (points.isEmpty()) return checkNotNull(candidates.firstOrNull { it.active })
             val selected = points.map { point ->
                 checkNotNull(candidates.firstOrNull { it.bounds.contains(point.x.toInt(), point.y.toInt()) }
-                    .also { if (it == null) diagnostic("remote-window-refused:no-target") })
+                    .also { if (it == null) diagnostic("remote-window-refused:no-target:window-count=" + candidates.size) })
             }
             val sameWindow = selected.map { it.id }.distinct().size == 1
             if (!sameWindow) diagnostic("remote-window-refused:cross-window")

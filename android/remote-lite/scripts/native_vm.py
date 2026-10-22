@@ -65,13 +65,16 @@ class Browser:
     def navigate(self, url):
         self.call("POST", f"/session/{self.session}/url", {"url": url})
 
-    def until(self, code, description, seconds=35):
+    def until(self, code, description, seconds=35, require_live=False):
         deadline = time.monotonic() + seconds
         result = None
         while time.monotonic() < deadline:
             result = self.script(code)
             if result:
                 return result
+            if require_live:
+                snapshot = self.stats()
+                assert not snapshot["closed"], f"Native RTC ended before {description}: " + json.dumps(snapshot)
             time.sleep(.2)
         raise AssertionError(f"Browser missing {description}; last={result}; state=" +
             str(self.script("return {state:window.vm?.state, errors:window.vm?.errors}")))
@@ -197,7 +200,7 @@ def verify_native(owner_post, ready, device_id, old_session, old_token):
 
             def queued_taps(bounds, expected=3):
                 browser.script("window.vm.send(arguments[0]); window.vm.send(arguments[0]); return true", command_at(bounds))
-                browser.until(f"return window.vm.acknowledged === {expected}", "two queued same-window taps without screenshot throttling")
+                browser.until(f"return window.vm.acknowledged === {expected}", "two queued same-window taps without screenshot throttling", require_live=True)
                 ui.wait_for_text("入力テスト: 3")
                 print(f"Android native two rapid same-window taps paced fresh proofs, actual count=3/ACK={expected}", flush=True)
 
@@ -212,7 +215,7 @@ def verify_native(owner_post, ready, device_id, old_session, old_token):
                 before = browser.script("return window.vm.pixel(arguments[0],arguments[1])", *sample)
                 began = time.monotonic()
                 browser.script("window.vm.send(arguments[0]); return true", command_at(bounds))
-                browser.until("return window.vm.acknowledged === 1", "actual OS input ACK")
+                browser.until("return window.vm.acknowledged === 1", "actual OS input ACK", require_live=True)
                 elapsed = time.monotonic() - began
                 ui.wait_for_text("入力テスト: 1")
                 deadline = time.monotonic() + 10
@@ -251,7 +254,7 @@ def verify_native(owner_post, ready, device_id, old_session, old_token):
                     browser.script("window.vm.send(arguments[0]); return true", {
                         "action": "swipe", "x1": .5, "y1": y1, "x2": .5, "y2": y2, "durationMs": 250})
                     expected = 2 + index
-                    browser.until(f"return window.vm.acknowledged === {expected}", f"swipe {index + 1}/4 OS input ACK")
+                    browser.until(f"return window.vm.acknowledged === {expected}", f"swipe {index + 1}/4 OS input ACK", require_live=True)
                     deadline = time.monotonic() + 10
                     while time.monotonic() < deadline:
                         changed = browser.script("return window.vm.contentChange()")
@@ -350,6 +353,16 @@ def verify_native(owner_post, ready, device_id, old_session, old_token):
                 f"stop threshold: {idle_frame_gap:.0f}ms; standalone RTC success is not product acceptance")
             return second["sessionId"]
         except Exception:
+            # VM-only read-only geometry, captured immediately on channel loss.
+            # Never dump the license's huge text tree to establish window readiness.
+            try:
+                print("VM display size: " + adb("shell", "wm", "size"), flush=True)
+                window_dump = adb("shell", "dumpsys", "window", "windows")
+                geometry = [line for line in window_dump.splitlines() if re.search(
+                    r"Window #|mCurrentFocus|mFocusedApp|mDisplayId|mHasSurface|mViewVisibility|mFrame=|Frames:|mWindowFrames|DrawState|isReadyForDisplay|isVisible=", line)]
+                print("VM window geometry at failure:\n" + "\n".join(geometry[-100:]), flush=True)
+            except Exception as diagnostic_error:
+                print("VM geometry diagnostic unavailable: " + type(diagnostic_error).__name__, flush=True)
             print("Native diagnostics: " + adb("shell", "logcat", "-d", "-s",
                 "RemoteLiteNative:I", "RemoteLiteLifecycle:I", "AndroidRuntime:E", "libc:F", "libjingle:V", "org.webrtc.Logging:V",
                 "NetworkMonitor:V", "NetworkMonitorAutoDetect:V", "*:S")[-12000:], flush=True)

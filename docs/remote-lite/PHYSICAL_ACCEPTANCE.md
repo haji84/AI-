@@ -468,6 +468,23 @@ review found no P1/P2. Actual device APK, keys, permissions, public infrastructu
 and costs were not changed. Distribution remains blocked by physical/public/
 signing/clean-install acceptance and unsupported older-Android/unattended goals.
 
+The original-order follow-up `d8f25aa70974b222ae61b63df4abd9fd2f62684d` passed
+normal CI39791933863 but failed Android39791933708. The first tap passed at
+0.640 s; the first swipe again reported no target at 228 ms and closed RTC.
+Explicit cache refresh has therefore not established a fix for the transition
+failure. Post-swipe idle observation was not reached; the cc4 success remains
+limited to its observed order.
+
+Next diagnostic (no change to input decisions): report only the candidate-window
+count with the existing no-target category, fail input waits immediately when
+native RTC closes, and capture read-only VM display/window geometry at that
+moment. The earlier 35-second wait delayed failure inspection until the window
+could already have settled. VM-only geometry contains test window metadata,
+not the license's large content tree; native/release logs still contain no
+coordinates, window identity, screen text or credentials. Existing assertions,
+input freshness and permission checks are retained. This will distinguish an
+unready OS window from a geometry mismatch before selecting another correction.
+
 ## Owner portal baseline
 
 Commit `f4b00c147e3996c79643cf88c39c3f0633f6f4ad` passed normal CI
