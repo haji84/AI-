@@ -143,13 +143,23 @@ def verify_native(owner_post, ready, device_id, old_session, old_token):
                 ui.tap_text("接続要求を確認する")
                 ui.wait_for_text("セッションID: " + session["sessionId"])
                 ui.tap_scrolled("このセッションへ画面を共有する")
-                allow = ui.optional_text("Allow", seconds=4, exact=True)
-                if allow is not None:
-                    ui.tap_node(allow)
-                consent = ui.wait_for_nodes(lambda items: next((node for node in items if
-                    node.get("text", "").strip() in ("Start", "Start now", "Start recording", "Share screen")), None),
-                    "OS full-display MediaProjection confirmation")
-                ui.tap_node(consent)
+                # Notification permission may appear after the first hierarchy read.
+                # Wait for either OS dialog instead of treating a short absence as a grant.
+                dialog_deadline = time.monotonic() + 35
+                for attempt in range(1, 5):
+                    consent = ui.wait_for_nodes(lambda items: next((node for node in items if
+                        node.get("text", "").strip() in ("Allow", "Start", "Start now", "Start recording", "Share screen")), None),
+                        "OS notification or full-display MediaProjection confirmation",
+                        seconds=max(1, dialog_deadline - time.monotonic()))
+                    notification = consent.get("text", "").strip() == "Allow"
+                    if notification and attempt > 3:
+                        raise AssertionError("Notification permission did not close after three visible UI taps")
+                    ui.tap_node(consent)
+                    if not notification:
+                        break
+                    print(f"Android OS notification Allow tapped {attempt}/3", flush=True)
+                else:
+                    raise AssertionError("OS MediaProjection confirmation not reached")
                 ui.wait_for_text("画面共有を開始しました", seconds=35)
                 projection = adb("shell", "dumpsys", "media_projection")
                 assert ui.PACKAGE in projection, "OS capture grant not present: " + projection[-1500:]
@@ -237,7 +247,18 @@ def verify_native(owner_post, ready, device_id, old_session, old_token):
             revoked_at = time.monotonic()
             revoked = owner_post("/v1/revoke", {"deviceId": device_id})
             assert revoked.get("ok") and revoked["result"]["status"] == "revoked", revoked
-            ui.wait_for_text("接続の承認を確認できないため画面共有と操作を停止しました", seconds=15)
+            # Either signed worker can stop first. Require the actual Android-driven
+            # channel closure AND OS projection release, not a race-dependent label.
+            deadline = revoked_at + 12
+            while time.monotonic() < deadline:
+                closed = browser.stats()["closed"]
+                projection = adb("shell", "dumpsys", "media_projection")
+                if closed and re.search(r"Media Projection:\s*null\b", projection):
+                    break
+                time.sleep(.2)
+            else:
+                raise AssertionError("Revoked Android did not close RTC and release OS capture: " +
+                    json.dumps(browser.stats()) + projection[-1500:])
             elapsed = time.monotonic() - revoked_at
             assert elapsed < 12, f"Native cleanup exceeded bounded VM deadline: {elapsed}"
             projection_released()

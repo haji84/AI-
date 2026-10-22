@@ -338,11 +338,15 @@ def verify_real_keystore_pairing():
         native_session = verify_native(owner_post, ready, device_id, session_id, viewer_token)
         readable, _, _ = select.select([fixture.stdout], [], [], 10)
         if not readable:
-            raise AssertionError("Node did not receive Android's post-revocation status challenge")
+            raise AssertionError("Node did not observe a post-revocation device/session request refusal")
         rejected = json.loads(fixture.stdout.readline())
-        if rejected != {"event": "revoked-status-rejected", "deviceId": device_id,
-                        "sessionId": native_session, "code": "DEVICE_UNAVAILABLE"}:
-            raise AssertionError(f"Node did not reject revoked native session status: {rejected!r}")
+        if (rejected.get("event") != "revoked-request-rejected" or rejected.get("deviceId") != device_id or
+                rejected.get("sessionId") != native_session or
+                rejected.get("operation") not in ("session-status", "signal-receive", "signal-send") or
+                rejected.get("phase") not in ("challenge", "signed-request") or
+                rejected.get("code") not in ("DEVICE_UNAVAILABLE", "CHALLENGE_NOT_FOUND_OR_MISMATCH", "DEVICE_REVOKED")):
+            raise AssertionError(f"Node did not reject revoked native device/session request: {rejected!r}")
+        print("Coordinator's actual post-revocation refusal: " + json.dumps(rejected), flush=True)
     finally:
         if port is not None:
             subprocess.run(["adb", "reverse", "--remove", f"tcp:{port}"],

@@ -16,24 +16,42 @@ const coordinator = new ManualRemoteCoordinator({
     candidate === ownerId && supplied === authorization,
 });
 let revokedDeviceId = null;
+let revokedRejectionRecorded = false;
 const revokeDevice = coordinator.revokeDevice.bind(coordinator);
 coordinator.revokeDevice = input => {
   const result = revokeDevice(input);
-  if (result.status === 'revoked') revokedDeviceId = input.deviceId;
+  if (result.status === 'revoked') {
+    revokedDeviceId = input.deviceId;
+    revokedRejectionRecorded = false;
+  }
   return result;
 };
-const challengeDevice = coordinator.challengeDevice.bind(coordinator);
-coordinator.challengeDevice = input => {
-  try { return challengeDevice(input); }
-  catch (error) {
-    if (input.deviceId === revokedDeviceId && input.operation === 'session-status' &&
-      error.code === 'DEVICE_UNAVAILABLE') {
-      process.stdout.write(JSON.stringify({ event: 'revoked-status-rejected',
-        deviceId: input.deviceId, sessionId: input.sessionId, code: error.code }) + '\n');
+// The independent status and signaling workers race legitimately after revocation.
+// Observe the first real refusal without changing the coordinator's result. A
+// denied challenge is evidence of refusal, not of signature verification.
+const liveOperations = new Set(['session-status', 'signal-receive', 'signal-send']);
+function observeRefusal(method, operation, phase) {
+  const original = coordinator[method].bind(coordinator);
+  coordinator[method] = input => {
+    try { return original(input); }
+    catch (error) {
+      const actualOperation = operation || input.operation;
+      if (!revokedRejectionRecorded && input.deviceId === revokedDeviceId &&
+        liveOperations.has(actualOperation) && typeof input.sessionId === 'string' &&
+        ['DEVICE_UNAVAILABLE', 'CHALLENGE_NOT_FOUND_OR_MISMATCH', 'DEVICE_REVOKED'].includes(error.code)) {
+        revokedRejectionRecorded = true;
+        process.stdout.write(JSON.stringify({ event: 'revoked-request-rejected',
+          deviceId: input.deviceId, sessionId: input.sessionId, operation: actualOperation,
+          phase, code: error.code }) + '\n');
+      }
+      throw error;
     }
-    throw error;
-  }
-};
+  };
+}
+observeRefusal('challengeDevice', null, 'challenge');
+observeRefusal('deviceStatus', 'session-status', 'signed-request');
+observeRefusal('receiveSignalsForDevice', 'signal-receive', 'signed-request');
+observeRefusal('deviceSignal', 'signal-send', 'signed-request');
 const server = createLoopbackSignaling({
   coordinator,
   authenticateOwnerRequest: req => req.headers['x-vm-owner'] === authorization
