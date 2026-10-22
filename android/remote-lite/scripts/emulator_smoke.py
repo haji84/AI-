@@ -163,15 +163,32 @@ def verify_real_keystore_pairing():
         fingerprint = re.search(r"指紋: ([0-9a-f]{64})", result)
         if request_id is None or fingerprint is None:
             raise AssertionError(f"Android pairing receipt incomplete: {result!r}")
-        payload = json.dumps({"requestId": request_id.group(1),
-                              "expectedFingerprint": fingerprint.group(1)}).encode()
-        request = urllib.request.Request(f"http://127.0.0.1:{port}/v1/approve", payload,
-            {"Content-Type": "application/json", "X-VM-Owner": ready["ownerAuthorization"]})
-        with urllib.request.urlopen(request, timeout=5) as response:
-            approved = json.load(response)
+        def owner_post(path, payload):
+            request = urllib.request.Request(f"http://127.0.0.1:{port}{path}",
+                json.dumps(payload).encode(),
+                {"Content-Type": "application/json", "X-VM-Owner": ready["ownerAuthorization"]})
+            with urllib.request.urlopen(request, timeout=5) as response:
+                return json.load(response)
+
+        approved = owner_post("/v1/approve", {"requestId": request_id.group(1),
+            "expectedFingerprint": fingerprint.group(1)})
         if not approved.get("ok") or approved.get("result", {}).get("status") != "registered":
             raise AssertionError(f"Node coordinator refused AndroidKeyStore proof: {approved!r}")
         print("Android 15 VM: real AndroidKeyStore P-256 enrollment accepted by Node coordinator", flush=True)
+        device_id = approved["result"]["deviceId"]
+        started = owner_post("/v1/start", {"deviceId": device_id})
+        if not started.get("ok") or not started.get("result", {}).get("sessionId"):
+            raise AssertionError(f"Owner could not start local session: {started!r}")
+        session_id = started["result"]["sessionId"]
+        tap_text("セッションを診断する")
+        wait_for_text(f"セッション有効 ID: {session_id}", seconds=35)
+        print("Android 15 VM: signed discovery, acceptance and active status passed", flush=True)
+        revoked = owner_post("/v1/revoke", {"deviceId": device_id})
+        if not revoked.get("ok") or revoked.get("result", {}).get("status") != "revoked":
+            raise AssertionError(f"Owner could not revoke local registration: {revoked!r}")
+        tap_text("状態を再確認する")
+        wait_for_text("失効後は操作拒否", seconds=35)
+        print("Android 15 VM: revoked key cannot pass manual-operation gate", flush=True)
     finally:
         if port is not None:
             subprocess.run(["adb", "reverse", "--remove", f"tcp:{port}"],
