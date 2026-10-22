@@ -79,6 +79,14 @@ def main():
 
         signed = directory / "signed-test-only.apk"
         sign(unsigned, signed)
+        # Preserve the tool/version boundary if the independent verifier rejects a
+        # new SDK output shape. This is an ephemeral public certificate, never key
+        # material or a production identity. Do not infer an expected fingerprint
+        # from this output: it remains the independently exported DER hash above.
+        print(json.dumps(dict(fixture="EPHEMERAL_CI_ONLY", buildToolsDirectory=arguments.build_tools.name,
+                              apksignerVersion=command([apksigner, "version"]).strip(),
+                              expectedCertificateSha256=expected_signer)), flush=True)
+        print(command([apksigner, "verify", "--verbose", "--print-certs", "-Werr", signed]), flush=True)
         receipt = verify(signed)
         print("PASS actual v2/v3 signature with independently exported certificate fingerprint")
         signed_v1 = directory / "signed-v1-test-only.apk"
