@@ -12,6 +12,15 @@ Issue1831 / PR1832. This independent portal connects the existing signed device 
 
 ## Operator configuration (after concrete environment approval)
 
+See [the current service preparation and renewal runbook](SERVICE_OPERATIONS_JA.md)
+for free-only hosting conditions, private deployment templates, quotas and
+approval gaps. The operator CLI supports Linux SIGHUP certificate renewal:
+it validates a matching, currently valid pair for the configured TLS name and swaps only
+the TLS context. Invalid renewal retains the prior context and reports only
+`TLS_RELOAD_FAILED`; confirm a fresh trusted TLS handshake after `TLS_RELOAD_OK`.
+Existing owner sessions and registration state are retained. This does not
+issue certificates, provision a server, or reload coturn automatically.
+
 The operator runs the independent Node service; friends use the HTTPS browser and native apps. Node24 and a valid system-trusted TLS certificate/key are required. The certificate must match the exact origin. The JSON config is private and must stay outside Git:
 
 ```json
@@ -61,7 +70,14 @@ browser behind an approved HTTPS proxy can retain its forwarding headers.
 Exact encrypted Host/Origin, CSRF, native proofs, request timeouts and rates
 remain enforced. A temporary Quick Tunnel is a bounded acceptance fixture,
 not final friend hosting. Its origin TLS must verify the existing certificate
-and CA; never use `--no-tls-verify`.
+and CA; never use `--no-tls-verify`. Startup and renewal now verify the origin's
+hostname against the certificate SAN. A separately approved proxy whose verified
+origin TLS name differs from its public Host must explicitly set `tlsServerName`
+(for example `127.0.0.1`) in the private config and configure that same name in the
+proxy's normal CA verification. This exception requires `listenHost` to be exactly
+`127.0.0.1` or `::1`; other listeners reject a different name. Existing proxy configs
+without this field must be reviewed before their next start. No proxy is started
+or its expired publication approval extended by this option.
 
 The CLI defaults to **direct ICE only**. After verifying the independent coturn
 provider, free limit/hard cap, authentication and public ports, an operator may

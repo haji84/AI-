@@ -3,6 +3,13 @@
 Issue1831 / PR1832. **Unsigned candidate, not approved for friend distribution.**
 Public service, physical/mobile acceptance and final signing remain open.
 
+The [signing preparation runbook](SIGNING_PREPARATION_JA.md) separates Android
+keystore preparation from Windows publisher trust, records the free OSS signing
+eligibility gap, and gives the artifact verification order. The
+[service operations runbook](SERVICE_OPERATIONS_JA.md) records current free-only
+hosting limits and concrete environment approvals. Neither document activates a
+provider, creates a publisher identity, or authorizes release.
+
 ## Package boundary
 
 The standard Windows Installer package installs only the manual host EXE and the

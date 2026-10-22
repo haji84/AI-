@@ -1,0 +1,13 @@
+{
+  "origin": "https://APP_HOST.example",
+  "listenHost": "0.0.0.0",
+  "listenPort": 443,
+  "tlsCert": "/etc/goriq-remote-lite/tls/current/fullchain.pem",
+  "tlsKey": "/etc/goriq-remote-lite/tls/current/privkey.pem",
+  "stateDirectory": "/var/lib/goriq-remote-lite",
+  "owners": [{ "ownerId": "friend-01", "keyHash": "REPLACE_WITH_APPROVED_OWNER_KEY_SHA256" }],
+  "turn": {
+    "urls": ["turn:RELAY_HOST.example:3478?transport=udp", "turns:RELAY_HOST.example:5349?transport=tcp"],
+    "sharedSecretFile": "/etc/goriq-remote-lite/private/turn-shared-secret"
+  }
+}
