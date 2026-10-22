@@ -19,10 +19,19 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Select the hosted image's installed Chrome
+        id: installed-chrome
+        run: |
+          set -euo pipefail
+          test -x /opt/google/chrome/chrome
+          version="$(/opt/google/chrome/chrome --product-version)"
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          /opt/google/chrome/chrome --version
       - uses: browser-actions/setup-chrome@v2
         id: chrome
         with:
-          chrome-version: stable
+          chrome-version: ${{ steps.installed-chrome.outputs.version }}
           install-chromedriver: true
       - name: Extract local TURN fixture without installing a system service
         run: |
@@ -51,7 +60,7 @@ jobs:
         run: python3 android/remote-lite/scripts/prepare_vm_tls.py
       - name: Verify separate browser and loopback TLS before emulator startup
         env:
-          REMOTE_LITE_CHROME: ${{ steps.chrome.outputs.chrome-path }}
+          REMOTE_LITE_CHROME: /opt/google/chrome/chrome
           REMOTE_LITE_CHROMEDRIVER: ${{ steps.chrome.outputs.chromedriver-path }}
         run: python3 android/remote-lite/scripts/native_vm.py
       - name: Test and build separate manual-only APKs
@@ -94,7 +103,7 @@ jobs:
       - name: Android 15 emulator screen and tap smoke
         uses: reactivecircus/android-emulator-runner@v2
         env:
-          REMOTE_LITE_CHROME: ${{ steps.chrome.outputs.chrome-path }}
+          REMOTE_LITE_CHROME: /opt/google/chrome/chrome
           REMOTE_LITE_CHROMEDRIVER: ${{ steps.chrome.outputs.chromedriver-path }}
         with:
           api-level: 35

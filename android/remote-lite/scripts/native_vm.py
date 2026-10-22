@@ -20,7 +20,7 @@ class Browser:
         self.session = None
         self.log = open("android/remote-lite/app/build/chromedriver.log", "w+")
         self.driver = subprocess.Popen([os.environ.get("REMOTE_LITE_CHROMEDRIVER", "chromedriver"),
-            f"--port={port}", "--allowed-ips=127.0.0.1"], stdout=self.log, stderr=self.log)
+            f"--port={port}", "--allowed-ips=127.0.0.1", "--verbose"], stdout=self.log, stderr=self.log)
         try:
             for _ in range(40):
                 try:
