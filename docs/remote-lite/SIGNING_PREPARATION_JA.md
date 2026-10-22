@@ -68,12 +68,14 @@ ADB導入でこの条件を回避する計画にはしません。
 
 ## Windows：無料署名は申請条件を先に確認
 
-無料候補は次の2経路です。現在のMSI/EXEをそのまま配る経路と、Storeへの提出は区別します。
+**所有者は2026-10-23に「現行のインストーラーを直接渡す（MSI形式）」を選択しました。**
+今回の準備対象は現在のMSI/EXEです。Store/MSIX案は比較情報として残し、実装対象にしません。
+方式の選択はOSSライセンス付与、申請/契約、署名権限、配布承認を兼ねません。
 
 |候補|無料部分|残る条件|
 |---|---|---|
 |Microsoft Store + MSIX|該当する開発者登録、Store配布のパッケージ署名/ホスティング|配布主体/アカウント種別確認、本人確認、契約、MSIX包装と互換性受入、Store審査、配布範囲承認|
-|SignPath Foundation + 現在のMSI/EXE|条件を満たしたOSSへの署名支援|ライセンス/権利判断、資格審査、ビルド/署名権限、署名済みEXEからのMSI構築|
+|SignPath Foundation + 現在のMSI/EXE（選択した形式の無料候補）|条件を満たしたOSSへの署名支援|ライセンス/権利判断、資格審査、ビルド/署名権限、内部EXEとMSIのdeep signing受入|
 
 StoreはMSIXパッケージを審査後に署名します。MSI/EXE提出やStore外のファイル配布まで
 無償署名する仕組みではありません。既存ホストをMSIXへ包装する案なら新UIフレームワークは
@@ -113,12 +115,56 @@ Foundation名義の発行となる条件も確認します。現リポジトリ�
 別承認とします。自己署名をWindowsの信頼済み配布署名と表示せず、SmartScreenや
 Application Controlを無効化する手順も追加しません。
 
+### 既存MSIを使う署名工程の準備
+
+SignPathのdeep signingは、MSI内のEXEを署名し、MSIを再梱包して外側にも署名します。
+そのため現在のunsigned MSIを入力にできる候補があり、署名のためだけにビルダーを
+EXE先行署名方式へ分割する必要はありません。サービスでの実行/採用は未検証です。
+[公式MSI deep signing例](https://docs.signpath.io/artifact-configuration/examples)。
+
+現ビルダーはソースの正確なコミットを新しい作業用ディレクトリへexportし、
+`goversioninfo v1.5.0` / `rsrc v0.10.2`の固定版とgo.sumを使ってVERSIONINFOを生成します。
+これは独立したbuild-only Go moduleで、Windowsホストの実行時依存は増やしません。
+manifest、管理者権限、OS同意の設定は変えません。製品名は現在のMSIと同じ
+`GORIQ Remote Lite Candidate`、文字列版番号はMSIと同じ`0.x.y`、数値は`0.x.y.0`。
+CommentsにソースSHAを記録します。これは署名や真正性の証明ではありません。
+
+ビルド後にWindowsのFileVersionInfo APIでEXEを読み、名前/文字列版/数値版/ソースSHAを
+検査します。実MSIのProductVersionとHostExecutableのFile.Versionも検査します。
+既存の全ICEと導入・修復・更新・削除のVM試験は引き続き必須です。
+生成物はリポジトリへ書かず、以前のunsigned候補も書き換えません。
+
+[署名設定案](../../deploy/remote-lite/signpath-msi.xml.example)はEXEとMSIを双方指定し、
+名前/版番号を制約しています。内部パスはサービス側artifact表示で確認するまで
+`__CONFIRM_EXACT_MSI_HOST_PATH__`のままです。WiX darkが展開するFile IDとサービス上の
+パスが同じとは推測せず、確認後に完全一致のパスへ置換します。公式XSDに適合しても、
+内部ファイル照合/署名成功や信頼された発行者を確認したことにはなりません。
+MSIの版番号はこの設定のsubject/author制約だけでは検証できないため、CIの実MSI検査と
+ビルド由来検証を署名承認の前提にします。
+
+### 次のHuman Gateを分ける
+
+1. **権利とライセンス**：上記Remote Lite範囲のうち本人が権利を持つ部分へMIT等の
+   OSI承認ライセンスを付与できるか、正式な権利者表示を確認する。第三者のGo、WebRTC、
+   生成ツール等の元の条件は保持する。GORIQ本体や共通workflowを一括で再ライセンスしない。
+   混在リポジトリでの申請範囲はSignPathの審査対象で、部分的なLICENSEだけで採用確定とはしない。
+2. **申請/契約と公開範囲**：未リリースの候補であること、Remote Liteの手動画面/入力機能、
+   対象ソース/バイナリ、必要な公開ページ、発行者名義を記載した申請内容を本人が確認する。
+   既存リリースも資格条件のため、未承認の公開を先に行って資格を作らない。
+3. **権限と署名承認者**：採用後、GitHub連携の具体的な権限、MFA、レビュー担当、署名を
+   手動承認する本人を確定する。鍵/token/権限設定の承認は別途取得する。
+4. **署名済み成果物の配布**：以下の受入と延期中の実機検証が完了してから判断する。
+
+この準備では上記を承認済みにせず、ライセンス、アカウント、署名鍵、GitHub権限を作成しません。
+build-onlyツールは[goversioninfoのMIT](https://github.com/josephspurrier/goversioninfo/blob/v1.5.0/LICENSE)と
+[rsrcのMIT](https://github.com/akavel/rsrc/blob/v0.10.2/LICENSE.txt)。生成ツールの実行ファイルはMSIへ同梱しません。
+
 ### Windows署名後に必要な検証
 
-1. 保護された正確なsource SHAをCIでビルドし、まずEXEを承認済み発行者で署名。
-2. 署名済みEXEを含むMSIを同一のreview済み手順で構築し、MSIも署名・timestamp。
-   **現ビルダーはunsigned EXEを内部ビルドするため、署名方式決定後にこの順序へ対応が必要。**
-   外側MSIだけの署名で内部EXEも署名済みになったと扱わない。
+1. 保護された正確なsource SHAをCIでビルドし、unsigned EXE/MSIとhash/検査記録を保持。
+2. 承認済みのdeep signing設定で内部EXE→MSI再梱包→外側MSI署名/timestampを実行する。
+   返されたMSIからEXEを読み取り専用で展開し、内部EXEも署名済みであることを検査する。
+   MSI再梱包で変わった表/streamとEXEの署名差分を照合し、別payloadへの置換がないことを確認する。
 3. SignToolの`verify /pa /all /v`等でEXE/MSIのchain・発行者・timestampを確認し、
    承認した証明書指紋、ソース、署名前/署名後hashを照合。
 4. 署名済みMSIそのものに全ICE/metadata、導入・修復・更新・削除・登録ID保持の受入を実施。

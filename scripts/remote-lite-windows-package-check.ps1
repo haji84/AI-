@@ -1,4 +1,4 @@
-param([Parameter(Mandatory)][string]$MsiPath)
+param([Parameter(Mandatory)][string]$MsiPath, [string]$ExpectedVersion)
 $ErrorActionPreference = 'Stop'
 
 # Read MSI tables only. This check never installs, launches, or removes an app.
@@ -19,6 +19,13 @@ $properties = @{}
 Read-MsiRows 'SELECT `Property`, `Value` FROM `Property`' | ForEach-Object { $properties[$_[0]] = $_[1] }
 if ($properties.ProductName -ne 'GORIQ Remote Lite Candidate' -or $properties.ALLUSERS) {
     throw 'Wrong product or machine-wide installation scope'
+}
+if ($ExpectedVersion -and $properties.ProductVersion -cne $ExpectedVersion) { throw 'MSI product version mismatch' }
+if ($ExpectedVersion) {
+    $hostRows = @(Read-MsiRows 'SELECT `File`, `Version` FROM `File`' | Where-Object { $_[0] -eq 'HostExecutable' })
+    if ($hostRows.Count -ne 1 -or $hostRows[0][1] -cne "$ExpectedVersion.0") {
+        throw 'MSI embedded host file version mismatch'
+    }
 }
 $conditions = @(Read-MsiRows 'SELECT `Condition` FROM `LaunchCondition`' | ForEach-Object { $_[0] })
 if ('NOT ALLUSERS' -notin $conditions) { throw 'Missing rejection of machine-wide overrides' }

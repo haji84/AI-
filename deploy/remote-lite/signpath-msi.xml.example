@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- PREPARATION ONLY: not an active signing policy. Before use, confirm OSS
+     eligibility, owner-approved signer/roles/build origin and exact MSI path in
+     SignPath's artifact view. Replace the sentinel path with that literal path;
+     do not broaden it to a wildcard. Schema validity is not signing acceptance. -->
+<artifact-configuration xmlns="http://signpath.io/artifact-configuration/v1">
+  <parameters>
+    <parameter name="version" required="true" />
+  </parameters>
+  <msi-file path="GORIQRemoteLite-${version}.msi"
+            subject="GORIQ Remote Lite Candidate" author="GORIQ Remote Lite">
+    <pe-file path="__CONFIRM_EXACT_MSI_HOST_PATH__/GORIQRemoteLite.exe"
+             product-name="GORIQ Remote Lite Candidate" product-version="${version}"
+             file-version="${version}" company-name="GORIQ Remote Lite"
+             original-filename="GORIQRemoteLite.exe">
+      <authenticode-sign />
+    </pe-file>
+    <authenticode-sign />
+  </msi-file>
+</artifact-configuration>

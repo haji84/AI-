@@ -44,6 +44,11 @@ The CI download is pinned to SHA256
 `6AC824E1642D6F7277D0ED7EA09411A508F6116BA6FAE0AA5F2C7DAA2FF43D31`.
 No WiX runtime/custom-action DLL is shipped in the MSI. Tools run from a private
 build directory; no local tool installation, elevation or paid activation.
+The owner selected direct MSI distribution on 2026-10-23. The build-only version
+resource generator is pinned separately in `apps/remote-lite-windows/buildtools/versioninfo`
+with `go.sum`. Go downloads that pinned module on first build. The manual host
+still uses only the standard library. Generated resources/staged source remain
+under the new output directory, never in the source worktree or installed MSI.
 
 ```powershell
 ./scripts/remote-lite-build-windows-installer.ps1 `
@@ -51,10 +56,23 @@ build directory; no local tool installation, elevation or paid activation.
   -OutputDirectory <new-candidate-directory> -Version 0.1.0
 ```
 
+Use a fresh output directory outside the source worktree (CI uses RUNNER_TEMP).
+The builder rejects paths inside the source worktree. Keep the build directory
+private and do not point it through a junction/symlink back into the worktree.
+Host sources, MSI authoring, metadata checks and the Japanese guide are all
+exported from the same source commit before building, so concurrent worktree
+edits cannot change the inputs attributed to that commit.
 The builder creates the host, compiles and links with warnings as errors and
 full ICE validation, then reads the actual MSI tables to verify its scope and
 exact payload. It refuses to overwrite an output directory and writes a
 `distributable=false` unsigned-candidate hash receipt. There is no publish step.
+Before packaging it reads the actual EXE's VERSIONINFO (product, string and
+numeric versions, source commit); after packaging it checks MSI ProductVersion
+and the embedded host's File.Version. Metadata alone does not establish trust.
+The SignPath deep-signing policy example is unconfigured and unsubmitted; its
+sentinel inner path must be replaced only after inspecting the service's actual
+artifact layout. Signing eligibility, rights and signed artifact acceptance are
+still separate gates described in the signing runbook.
 
 Local compile first refused Japanese text in codepage1252; the product now uses
 932. Mandatory ICE validation then stopped with local application policy
