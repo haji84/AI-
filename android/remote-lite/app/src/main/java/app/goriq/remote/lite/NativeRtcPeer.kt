@@ -58,7 +58,14 @@ class NativeRtcPeer(private val context: Context, private val lease: CaptureLeas
                 .builder(context.applicationContext).setEnableInternalTracer(false).createInitializationOptions())
             Logging.enableLogToDebugOutput(Logging.Severity.LS_NONE)
             val gl = EglBase.create().also { egl = it }
+            val options = PeerConnectionFactory.Options().apply {
+                // Never call protected ConnectivityManager APIs without a declared/granted permission.
+                disableNetworkMonitor = context.checkSelfPermission(android.Manifest.permission.ACCESS_NETWORK_STATE) !=
+                    android.content.pm.PackageManager.PERMISSION_GRANTED
+            }
+            trace(if (options.disableNetworkMonitor) "network-monitor:native-interface-enumeration" else "network-monitor:android")
             val peerFactory = PeerConnectionFactory.builder()
+                .setOptions(options)
                 .setVideoEncoderFactory(DefaultVideoEncoderFactory(gl.eglBaseContext, true, true))
                 .setVideoDecoderFactory(DefaultVideoDecoderFactory(gl.eglBaseContext))
                 .createPeerConnectionFactory().also { factory = it }
