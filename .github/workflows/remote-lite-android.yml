@@ -30,7 +30,10 @@ jobs:
           mkdir -p android/remote-lite/app/build/vm-turn
           cd android/remote-lite/app/build/vm-turn
           sudo apt-get update -qq
-          mapfile -t packages < <(apt-cache depends coturn | sed -n 's/^  Depends: //p' | grep -E '^[a-z0-9.+-]+$')
+          # Other native dependencies already exist on the hosted image. Download only
+          # the missing hiredis runtime; installed third-party libpq versions may be unavailable.
+          mapfile -t packages < <(apt-cache depends coturn | sed -n 's/^  Depends: //p' | grep -E '^libhiredis[a-z0-9.+-]+$')
+          test "${#packages[@]}" -eq 1
           apt-get download coturn "${packages[@]}"
           for package in *.deb; do dpkg-deb -x "$package" extracted; done
           echo "REMOTE_LITE_TURNSERVER=$PWD/extracted/usr/bin/turnserver" >> "$GITHUB_ENV"

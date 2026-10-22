@@ -291,11 +291,12 @@ class NativeRtcPeer(private val context: Context, private val lease: CaptureLeas
         inputs.shutdownNow()
         fun release(action: () -> Unit) { runCatching(action).onFailure { cleanupConfirmed = false } }
         release { track?.setEnabled(false) }
-        synchronized(channelLock) {
-            release { channel?.unregisterObserver() }
-            release { channel?.close() }
-            release { channel?.dispose() }
-        }
+        // Exclude in-flight ACK JNI calls, then drop the Java lock before JNI teardown.
+        // unregisterObserver may synchronously wait for the signaling callback thread.
+        val detached = synchronized(channelLock) { channel.also { channel = null } }
+        release { detached?.unregisterObserver() }
+        release { detached?.close() }
+        release { detached?.dispose() }
         release { pc?.close() }
         release { capture?.stopCapture() }
         release { capture?.dispose() }
