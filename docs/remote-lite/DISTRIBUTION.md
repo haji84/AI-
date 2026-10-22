@@ -1,4 +1,4 @@
-# Remote Lite Windows MSI candidate
+# Remote Lite distribution candidates
 
 Issue1831 / PR1832. **Unsigned candidate, not approved for friend distribution.**
 Public service, physical/mobile acceptance and final signing remain open.
@@ -85,6 +85,34 @@ registration assertions as well as negative override/uninstall checks. It
 refuses execution outside a GitHub-hosted Windows
 VM and refuses preexisting app/identity paths. All fixture cleanup is explicit
 file/empty-directory removal. **Exact-head CI results are pending.**
+
+## Candidate provenance and handoff
+
+The Windows builder prepares MSI, EXE, Go license, Japanese START_HERE,
+candidate.json and SHA256SUMS.txt. The Android job similarly prepares the normal
+unsigned release APK, its two WebRTC notices, the same guide, candidate.json and
+checksums only after the existing native emulator acceptance succeeds. Neither
+candidate includes a signing key, owner/device identity, VM CA or diagnostic APK.
+CI candidates remain in ephemeral runner storage. There is no binary artifact
+upload or release publication: this is a public repository, so an Actions
+artifact would be externally downloadable and requires a separate publication
+decision. Local unsigned candidates remain in the ignored preparation directory.
+
+MSI verification runs independently even when a preceding browser check fails.
+The job still fails if any required check fails; packaging is never evidence
+that native video/input acceptance passed.
+
+Both receipts mark `distributable: false`, `UNSIGNED_CANDIDATE` and
+`PHYSICAL_PUBLIC_SIGNING_PENDING`. Their `sourceCommit` is the actual checked-out
+Git commit. For a pull-request workflow it is normally GitHub's synthetic merge
+commit, rather than the PR head SHA. Builders require a clean source checkout.
+Checksums detect changed files; they do not replace publisher signing or trust.
+
+The [Japanese guide](START_HERE_JA.md) describes the intended owner invitation,
+fingerprint confirmation, OS consent, connect/disconnect and update/recovery
+steps. A candidate is not usable merely by sending its ZIP to a friend. A tested
+service endpoint, individual owner access, formal signing and the deferred
+outside-network physical acceptance are still required.
 
 ## Remaining distribution gates and rollback
 

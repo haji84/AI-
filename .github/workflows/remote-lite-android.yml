@@ -79,7 +79,9 @@ jobs:
           permissions="$("$aapt" dump permissions "$release")"
           grep -Fq android.permission.INTERNET <<< "$permissions"
           manifest="$("$aapt" dump xmltree "$release" AndroidManifest.xml)"
-          if grep -Eq 'DebugPairingActivity|SecureTestActivity|VmRemoteSessionService' <<< "$manifest"; then
+          badging="$("$aapt" dump badging "$release")"
+          grep -Eq "^package: name='app[.]goriq[.]remote[.]lite' " <<< "$badging"
+          if grep -Eq 'DebugPairingActivity|SecureTestActivity|VmRemoteSessionService|debuggable.*0xffffffff' <<< "$manifest"; then
             echo 'Release APK unexpectedly includes a VM component'
             exit 1
           fi
@@ -127,3 +129,28 @@ jobs:
           arch: x86_64
           ram-size: 2048M
           script: python3 android/remote-lite/scripts/emulator_smoke.py
+      - name: Prepare traceable unsigned Android candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "$(git status --porcelain --untracked-files=normal)"
+          candidate="$RUNNER_TEMP/remote-lite-android-candidate"
+          mkdir "$candidate"
+          cp android/remote-lite/app/build/outputs/apk/release/app-release-unsigned.apk "$candidate/GORIQRemoteLite-unsigned.apk"
+          cp android/remote-lite/app/src/main/assets/notices/WEBRTC.md "$candidate/WEBRTC.md"
+          cp android/remote-lite/app/src/main/assets/notices/WEBRTC_SDK_LICENSE.txt "$candidate/WEBRTC_SDK_LICENSE.txt"
+          cp docs/remote-lite/START_HERE_JA.md "$candidate/START_HERE_JA.md"
+          python3 - <<'PY'
+          import hashlib, json, os, pathlib, subprocess
+          output = pathlib.Path(os.environ['RUNNER_TEMP']) / 'remote-lite-android-candidate'
+          commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+          apk_hash = hashlib.sha256((output / 'GORIQRemoteLite-unsigned.apk').read_bytes()).hexdigest()
+          receipt = dict(sourceCommit=commit, sourceRepository='https://github.com/haji84/AI-',
+                         package='app.goriq.remote.lite', signing='UNSIGNED_CANDIDATE',
+                         distributable=False, acceptance='PHYSICAL_PUBLIC_SIGNING_PENDING', sha256=apk_hash)
+          (output / 'candidate.json').write_text(json.dumps(receipt, indent=2) + '\n', encoding='utf-8')
+          names = ['GORIQRemoteLite-unsigned.apk', 'WEBRTC.md', 'WEBRTC_SDK_LICENSE.txt', 'START_HERE_JA.md', 'candidate.json']
+          (output / 'SHA256SUMS.txt').write_text(''.join(
+              hashlib.sha256((output / name).read_bytes()).hexdigest() + '  ' + name + '\n'
+              for name in names), encoding='utf-8')
+          PY
