@@ -64,6 +64,29 @@ V3.0 Signer: public key SHA-256 digest: c97f623da07ed0bb8372df7bb9605117c9620eb9
 V3.0 Signer: public key SHA-1 digest: d8a5342e6c98cbee80bda5a005b40a96e666045a
 V3.0 Signer: public key MD5 digest: 40382066f701fb1e455cf68db059db67
 '''
+# Actual auxiliary API23 verification from the same SDK, CI run 39873537229.
+SDK37_V1_SIGNER = "faa2a39faddb0368719552f9ceea47c3ad197cd93ca5b48f2c356a538227d520"
+SDK37_V1_SIGNATURE = '''Verifies
+Verified using v1 scheme (JAR signing): true
+Verified using v2 scheme (APK Signature Scheme v2): false
+Verified using v3 scheme (APK Signature Scheme v3): false
+Verified using v3.1 scheme (APK Signature Scheme v3.1): false
+Verified using v3.2 scheme (APK Signature Scheme v3.2): false
+Verified using v4 scheme (APK Signature Scheme v4): false
+Verified for SourceStamp: false
+Number of signers: 1
+V1 Signer: certificate DN: CN=Remote Lite CI fixture ONLY
+V1 Signer: certificate SHA-256 digest: faa2a39faddb0368719552f9ceea47c3ad197cd93ca5b48f2c356a538227d520
+V1 Signer: certificate SHA-1 digest: 0db40a3073b4812a46eb62b98dc7481f4ca47c4a
+V1 Signer: certificate MD5 digest: a5696d1472cdcb5380735c6f624b5d00
+V1 Signer: key algorithm: RSA
+V1 Signer: key size (bits): 2048
+V1 Signer: public key SHA-256 digest: a6c09fb3a15aca6946e4f440c2642a871982eb733cdff89a8c6914e5df3cddb6
+V1 Signer: public key SHA-1 digest: 17ea790dffcfd3a432540786ea7d8accc317c8bc
+V1 Signer: public key MD5 digest: 64f46912bfaff56c38e19077275fe69d
+WARNING: META-INF/com/android/build/gradle/app-metadata.properties not protected by signature. Unauthorized modifications to this JAR entry will not be detected. Delete or move the entry outside of META-INF/.
+WARNING: META-INF/version-control-info.textproto not protected by signature. Unauthorized modifications to this JAR entry will not be detected. Delete or move the entry outside of META-INF/.
+'''
 
 
 class ReleaseVerificationTest(unittest.TestCase):
@@ -272,6 +295,32 @@ class ReleaseVerificationTest(unittest.TestCase):
                 self.signature = signature
                 with self.assertRaises(self.verifier.VerificationError):
                     self.verify(signer_sha256=SDK37_SIGNER)
+
+    def test_sdk37_v1_signer_is_verified_for_matching_auxiliary_metadata(self):
+        self.payload["META-INF/version-control-info.textproto"] = b"approved source metadata"
+        self.write_zip(self.unsigned, self.payload)
+        self.write_zip(self.signed, self.payload | {"META-INF/MANIFEST.MF": b"manifest",
+            "META-INF/CERT.SF": b"digest", "META-INF/CERT.RSA": b"signature"})
+        self.signature = SDK37_SIGNATURE.replace(SDK37_SIGNER, SDK37_V1_SIGNER)
+        self.v1_signature = SDK37_V1_SIGNATURE
+        receipt = self.verify(signer_sha256=SDK37_V1_SIGNER,
+                              unsigned_sha256=hashlib.sha256(self.unsigned.read_bytes()).hexdigest())
+        self.assertTrue(receipt["v1MetadataVerified"])
+        self.assertEqual(len(receipt["v1Warnings"]), 2)
+        self.assertEqual(receipt["signerCertificateSha256"], SDK37_V1_SIGNER)
+
+    def test_sdk37_v1_label_cannot_satisfy_main_check_or_wrong_duplicate_unverified_certificate(self):
+        payload = {"META-INF/com/android/build/gradle/app-metadata.properties": (),
+                   "META-INF/version-control-info.textproto": ()}
+        fingerprint = "V1 Signer: certificate SHA-256 digest: " + SDK37_V1_SIGNER + "\n"
+        for output, auxiliary in (
+            (SDK37_V1_SIGNATURE.replace("v3 scheme (APK Signature Scheme v3): false", "v3 scheme (APK Signature Scheme v3): true"), False),
+            (SDK37_V1_SIGNATURE.replace("scheme (JAR signing): true", "scheme (JAR signing): false"), True),
+            (SDK37_V1_SIGNATURE.replace(SDK37_V1_SIGNER, "cd" * 32), True),
+            (SDK37_V1_SIGNATURE + fingerprint, True),
+            (SDK37_V1_SIGNATURE.replace("V1 Signer:", "Unknown Signer:"), True)):
+            with self.subTest(output=output, auxiliary=auxiliary), self.assertRaises(self.verifier.VerificationError):
+                self.verifier.signature_policy(output, SDK37_V1_SIGNER, require_v1=auxiliary, payload=payload)
 
     def test_signature_or_alignment_tool_failure_never_produces_a_receipt(self):
         for tool in ("aapt", "apksigner", "zipalign"):

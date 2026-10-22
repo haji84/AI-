@@ -149,9 +149,10 @@ def signature_policy(output, expected, require_v1=False, payload=None):
     require(re.findall(r"^Number of signers: (\d+)\s*$", output, re.M) == ["1"], "exactly one APK signer is required")
     certificate_lines = [line for line in output.splitlines() if " certificate SHA-256 digest:" in line]
     require(len(certificate_lines) == 1, "exactly one APK signer certificate SHA256 is required")
-    # Build Tools 37.0.0/apksigner 0.9 labels the verified v3 certificate this way.
+    # Build Tools 37.0.0/apksigner 0.9 labels v1 and v3 certificates by scheme.
     # Keep unknown/rotation labels and multiple certificate records fail-closed.
-    fingerprint = re.fullmatch(r"(Signer #1|V3\.0 Signer:) certificate SHA-256 digest: ([0-9a-fA-F]{64})[ \t]*", certificate_lines[0])
+    labels = r"(Signer #1|V1 Signer:)" if require_v1 else r"(Signer #1|V3\.0 Signer:)"
+    fingerprint = re.fullmatch(labels + r" certificate SHA-256 digest: ([0-9a-fA-F]{64})[ \t]*", certificate_lines[0])
     require(fingerprint is not None and fingerprint[2].lower() == expected,
             "APK signer certificate SHA256 does not match expected signer")
     if fingerprint[1] == "V3.0 Signer:":
