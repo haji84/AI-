@@ -16,6 +16,20 @@ export const pixelProbeScript = (...selectors) => `const sample=selector=>{const
   return ${selectors.length === 1 ? `sample(${JSON.stringify(selectors[0])})` :
     `${JSON.stringify(selectors)}.map(sample)`};`;
 
+// VM-only probe: observe a completed canvas draw synchronously. A timer
+// scheduled from the image load event can sample a later image generation.
+export function installFrameDrawProbe(image, canvas, record) {
+  const context = canvas.getContext('2d', { alpha: false });
+  const original = context.drawImage;
+  context.drawImage = function (...args) {
+    const result = original.apply(this, args);
+    if (args[0] === image) record();
+    return result;
+  };
+  if (context.drawImage === original) throw new Error('VM canvas draw probe unavailable');
+  return true;
+}
+
 export function compareFramePixels(image, canvas, video) {
   const unavailable = { sourceHasContent:false, sourceEnergy:0, canvasError:null,
     viewerError:null, canvasErrorRatio:null, viewerErrorRatio:null, matched:false };

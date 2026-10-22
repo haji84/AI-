@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { compileFunction } from 'node:vm';
-import { compareFrameHistory, compareFramePixels, pixelProbeScript } from '../scripts/remote-lite-vm-pixels.mjs';
+import * as pixels from '../scripts/remote-lite-vm-pixels.mjs';
+const { compareFrameHistory, compareFramePixels, pixelProbeScript } = pixels;
 
 const blank = () => Array(12 * 7 * 4).fill(0);
 const color = (pixels, index, rgb) => {
@@ -53,4 +54,23 @@ test('a decoded earlier frame matches its own GDI/Canvas generation', () => {
   assert.equal(compareFrameHistory(frames, [...earlier]).matched, true);
   assert.equal(compareFrameHistory(frames, blank()).matched, false);
   assert.equal(compareFrameHistory([{ image:earlier, canvas:blank() }], earlier).matched, false);
+});
+
+test('draw probe records the image only after that image has reached the stream canvas', () => {
+  assert.equal(typeof pixels.installFrameDrawProbe, 'function');
+  const image = { pixels: 'first' };
+  const canvas = { pixels: null };
+  const context = { drawImage(source) { canvas.pixels = source.pixels; } };
+  canvas.getContext = () => context;
+  const samples = [];
+  assert.equal(pixels.installFrameDrawProbe(image, canvas,
+    () => samples.push([image.pixels, canvas.pixels])), true);
+  assert.deepEqual(samples, []);
+  context.drawImage(image);
+  image.pixels = 'second';
+  assert.deepEqual(samples, [['first', 'first']]);
+  context.drawImage(image);
+  assert.deepEqual(samples, [['first', 'first'], ['second', 'second']]);
+  context.drawImage({ pixels: 'unrelated' });
+  assert.equal(samples.length, 2);
 });

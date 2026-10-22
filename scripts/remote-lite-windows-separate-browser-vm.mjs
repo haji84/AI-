@@ -4,7 +4,7 @@ import { spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
 import { createServer } from 'node:http';
 import { once } from 'node:events';
-import { compareFrameHistory, pixelProbeScript } from './remote-lite-vm-pixels.mjs';
+import { compareFrameHistory, installFrameDrawProbe, pixelProbeScript } from './remote-lite-vm-pixels.mjs';
 
 const [hostUrl, viewerUrl] = process.argv.slice(2);
 if (!/^http:\/\/127\.0\.0\.1:\d+\/#token=[0-9a-f]{64}&remote=1$/u.test(hostUrl || '') ||
@@ -51,16 +51,16 @@ try {
   };
   const evalPage = (id, script) => webdriver('POST', `/session/${id}/execute/sync`, { script, args: [] });
   const host = await newSession(hostUrl);
-  // Retain pixels just after each JPEG load handler draws that same frame into
-  // the capture canvas. Live DOM probes can straddle two asynchronous frames.
+  // Record only after the page has painted the JPEG into the capture canvas.
+  // Background-tab timers after an image load can straddle frame generations.
   const snapshot = pixelProbeScript('#screen', '#sourceCanvas');
   await evalPage(host, `window.vmFrameSamples=[];
-    const snapshot=()=>{${snapshot}};
-    document.querySelector('#screen').addEventListener('load',()=>{
-      setTimeout(()=>{const [image,canvas]=snapshot();
+    return (${installFrameDrawProbe.toString()})(
+      document.querySelector('#screen'),document.querySelector('#sourceCanvas'),()=>{
+        const [image,canvas]=(()=>{${snapshot}})();
         if(image&&canvas){window.vmFrameSamples.push({image,canvas});
-          if(window.vmFrameSamples.length>20)window.vmFrameSamples.shift();}},0);
-    });return true;`);
+          if(window.vmFrameSamples.length>20)window.vmFrameSamples.shift();}
+      });`);
   let frameReady = false;
   for (let attempt = 0; attempt < 100; attempt++) {
     const state = await evalPage(host, 'return {width:document.querySelector("#screen")?.naturalWidth||0,error:document.querySelector("#error")?.textContent}');
