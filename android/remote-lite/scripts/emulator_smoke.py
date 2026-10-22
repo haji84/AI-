@@ -204,13 +204,13 @@ def verify_accessibility_capture():
 
 def main():
     adb("install", "-r", APK)
+    verify_real_keystore_pairing()
     allow_accessibility_in_settings()
     wait_for_text("端末ID:")
     verify_accessibility_capture()
     tap_text("手動入力を診断する")
     wait_for_text("画面取得と手動入力: 成功")
     print("Android 15 VM: local key, Accessibility screenshot and actual tap passed")
-    verify_real_keystore_pairing()
 
 
 if __name__ == "__main__":
