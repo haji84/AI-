@@ -13,7 +13,7 @@ data class JsonReply(val status: Int, val body: String) {
 class HttpsJsonTransport(private val endpoint: RemoteEndpoint) {
     private val routes = setOf("/v1/device/propose", "/v1/device/prove", "/v1/device/pending",
         "/v1/device/active", "/v1/device/challenge", "/v1/device/accept", "/v1/device/status",
-        "/v1/device/signal", "/v1/device/poll", "/v1/device/end")
+        "/v1/device/signal", "/v1/device/poll", "/v1/device/end", "/v1/device/ice")
 
     fun post(path: String, body: String): JsonReply {
         require(path in routes) { "Unsupported device endpoint" }

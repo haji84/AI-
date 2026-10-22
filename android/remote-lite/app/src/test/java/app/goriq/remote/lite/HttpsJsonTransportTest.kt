@@ -118,6 +118,17 @@ class HttpsJsonTransportTest {
         }
     }
 
+    @Test fun signedSessionIceUsesTheValidatedHttpsTransport() = trusted {
+        Server().use { server ->
+            val body = "{\"sessionId\":\"fixture-session\",\"proof\":{}}"
+            val reply = HttpsJsonTransport(server.endpoint).post("/v1/device/ice", body)
+            assertEquals(200, reply.status)
+            assertEquals("{\"ok\":true,\"result\":null}", reply.body)
+            assertEquals(body, server.received)
+            assertEquals(1, server.hits.get())
+        }
+    }
+
     @Test fun redirectIsRefusedInsteadOfForwardingTheBody() = trusted {
         Server(status = 302, headers = "Location: https://127.0.0.1:1/v1/device/propose\r\n").use { server ->
             assertThrows(IllegalStateException::class.java) {

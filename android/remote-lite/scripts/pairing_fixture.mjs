@@ -7,11 +7,16 @@ import process from 'node:process';
 import { setTimeout } from 'node:timers';
 import { ManualRemoteCoordinator } from '../../../src/remote-lite/manual-coordinator.mjs';
 import { createLoopbackSignaling } from '../../../src/remote-lite/loopback-signaling.mjs';
+import { createPortalTurnIssuer, issueTurnCredentials } from '../../../src/remote-lite/turn-credentials.mjs';
 
 const ownerId = 'android-vm-owner';
 const authorization = randomBytes(24).toString('hex');
 const bridge = randomBytes(24).toString('hex');
+// Disposable loopback fixture only, never copied into a native release resource.
+const turnSecret = 'public-vm-turn-secret-never-a-production-secret-1831';
 const coordinator = new ManualRemoteCoordinator({
+  iceForSession: createPortalTurnIssuer({ sharedSecret: turnSecret,
+    urls: ['turn:10.0.2.2:43478?transport=tcp'] }),
   authorizeOwner: ({ ownerId: candidate, authorization: supplied }) =>
     candidate === ownerId && supplied === authorization,
 });
@@ -107,7 +112,9 @@ const invite = coordinator.issueInvite({ ownerId, authorization });
 const certificate = new X509Certificate(readFileSync(new URL('../app/build/generated/vm-res/raw/remote_lite_vm_ca.pem', import.meta.url)));
 const spki = createHash('sha256').update(certificate.publicKey.export({ type: 'spki', format: 'der' })).digest('base64');
 process.stdout.write(JSON.stringify({ port, origin: `https://127.0.0.1:${port}`, inviteCode: invite.inviteCode,
-  ownerAuthorization: authorization, bridge, spki }) + '\n');
+  ownerAuthorization: authorization, bridge, spki,
+  turnIceServers: issueTurnCredentials({ sharedSecret: turnSecret, urls: ['turn:127.0.0.1:43478?transport=tcp'],
+    principalId: ownerId, sessionId: 'vm-viewer-fixture', authorize: () => true, ttlSeconds: 600 }).iceServers }) + '\n');
 process.on('SIGTERM', async () => {
   secure.closeAllConnections();
   await new Promise(resolve => secure.close(resolve));

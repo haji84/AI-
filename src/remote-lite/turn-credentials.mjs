@@ -12,14 +12,14 @@ export class TurnConfigError extends Error {
   constructor(code) { super(code); this.name = 'TurnConfigError'; this.code = code; }
 }
 const fault = c => { throw new TurnConfigError(c); };
-const turnUrl = value => {
+export const isTurnUrl = value => {
   if (typeof value !== 'string' || value.length > 256 || value.includes('..')) return false;
   const match = /^turns?:[a-zA-Z0-9.-]+(?::([0-9]{1,5}))?(?:\?transport=(?:udp|tcp))?$/u.exec(value);
   return Boolean(match && (match[1] === undefined || (Number(match[1]) >= 1 && Number(match[1]) <= 65535)));
 };
 const validateConfig = (sharedSecret, urls) => {
   if (typeof sharedSecret !== 'string' || sharedSecret.length < 32 || sharedSecret.length > 512) fault('TURN_SECRET_UNAVAILABLE');
-  if (!Array.isArray(urls) || urls.length < 1 || urls.length > 4 || !urls.every(turnUrl)) fault('TURN_URLS_INVALID');
+  if (!Array.isArray(urls) || urls.length < 1 || urls.length > 4 || !urls.every(isTurnUrl)) fault('TURN_URLS_INVALID');
 };
 
 export function issueTurnCredentials({ sharedSecret, urls, principalId, sessionId, authorize,
@@ -46,9 +46,18 @@ export function issueTurnCredentials({ sharedSecret, urls, principalId, sessionI
 export function createPortalTurnIssuer({ sharedSecret, urls, now = () => Date.now() } = {}) {
   validateConfig(sharedSecret, urls);
   const approvedUrls = [...urls];
-  return ({ ownerId, sessionId }) => issueTurnCredentials({ sharedSecret, urls: approvedUrls,
-    principalId: ownerId, sessionId, now, ttlSeconds: 600,
-    authorize: p => p.principalId === ownerId && p.sessionId === sessionId });
+  return ({ ownerId, sessionId, sessionExpiresAt }) => {
+    const issuedAt = now();
+    let ttlSeconds = 600;
+    if (sessionExpiresAt !== undefined) {
+      if (!Number.isSafeInteger(sessionExpiresAt)) fault('TURN_SESSION_EXPIRING');
+      ttlSeconds = Math.min(600, Math.floor(sessionExpiresAt / 1000) - Math.floor(issuedAt / 1000));
+      if (ttlSeconds < 30) fault('TURN_SESSION_EXPIRING');
+    }
+    return issueTurnCredentials({ sharedSecret, urls: approvedUrls,
+      principalId: ownerId, sessionId, now: () => issuedAt, ttlSeconds,
+      authorize: p => p.principalId === ownerId && p.sessionId === sessionId });
+  };
 }
 
 /** Separate hard deny-by-default cost and deployment readiness policy.

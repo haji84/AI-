@@ -19,6 +19,7 @@ type remoteSignaler interface {
 // Only the local, token-authenticated page may ask the native signer to
 // exchange bounded SDP/ICE for its already accepted device session.
 func (s *server) signalRoutes(m *http.ServeMux) {
+	s.iceRoutes(m)
 	m.HandleFunc("/api/remote/signal", s.requireSignedRemote(func(w http.ResponseWriter, r *http.Request) {
 		s.operationMu.Lock()
 		defer s.operationMu.Unlock()

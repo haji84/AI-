@@ -509,6 +509,53 @@ DRAW_PENDING transitioned to HAS_DRAWN. It is not the USB-connected device.
 
 ## Owner portal baseline
 
+### Original-order VM result and authenticated native relay candidate
+
+Head `97fbd56ba167da8c0c29882b857786e60ad23828` passed
+[Android39797166512](https://github.com/haji84/AI-/actions/runs/39797166512).
+The target's own drawn/visible surface and a new received callback became ready
+in1.712s. Four swipes changed real pixels24.9/24.0/22.8/23.5%, ACK2–5,
+in0.877/0.872/0.875/0.879s. The following ten-second static observation had
+maximum presentation gap1,733.3ms,9callbacks/9decoded frames. Both rapid pairs
+reached count3; secure input was refused, and revocation stopped RTC and released
+OS capture in0.252s with stable decoded/ACK counts and late input refused.
+
+[Normal39797166515](https://github.com/haji84/AI-/actions/runs/39797166515)
+first failed only its Windows browser VM job with two20second WebDriver
+timeouts before media readiness. One failed-job retry passed without a source
+change; the overall run now reports success. The initial failure remains
+recorded; its browser startup cause was not established.
+
+The next candidate connects both native hosts to authenticated session ICE.
+The new `/v1/device/ice` endpoint requires an active same-device session and
+one-use, purpose-bound signature before returning one cached short-lived TURN
+credential. No caller supplies the owner or receives the long-term secret.
+Malformed issuer output fails closed before caching. Expired host credentials
+cannot be reissued for the same session. Fresh serverTime and monotonic client
+deadlines handle small clock skew without extending expiry after clock rollback.
+
+Independent review found and resolved an Android transport allowlist omission
+and the expiry/clock-skew boundary. A real TLS transport regression reproduced
+the first failure before the route was added; server fresh-time and Windows
+600second/clock-skew/200ms-fetch/one-hour-clock-rollback checks also passed after
+the correction. Final focused review found no new P1/P2.
+
+Local candidate checks: Remote Lite Node110pass/1ordinary browser skip, explicit
+real HTTPS Chrome5pass/0skip, JVM56pass/0fail/0error/0skip, debug/release builds,
+Go tests/vet/EXE build and actual Node/Go signed interop, targeted ESLint, Python
+3 readiness tests/compile and diff checks. The new VM fixture uses coturn REST
+authentication, a separate short-lived viewer credential and the real native
+signed ICE route; it requires successful valid allocation and refusal of a bad
+password before emulator input tests. Exact-head CI is pending.
+
+These observations do not prove the nubia's fourth-swipe problem fixed or any
+public/mobile path accepted. The physical APK was not replaced while the owner
+was away. Public infrastructure, real Windows TURN allocation, iPhone cellular,
+final signing/clean installation, older Android input and40device acceptance
+remain open. Credential refresh/ICE restart is not implemented; relay sessions
+stop within600seconds and require a new session. No permanent OS screen-sharing
+permission or unattended lock/reboot recovery is claimed.
+
 Commit `f4b00c147e3996c79643cf88c39c3f0633f6f4ad` passed normal CI
 ([39758076923](https://github.com/haji84/AI-/actions/runs/39758076923)) and
 Android candidate CI

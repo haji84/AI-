@@ -53,6 +53,27 @@ class CoordinatorExchange(private val transport: HttpsJsonTransport) :
         sessionPost("/v1/device/accept", session, id, proof)
     override fun status(session: String, id: String, proof: DeviceSessionProof) =
         sessionPost("/v1/device/status", session, id, proof)
+    override fun ice(session: String, id: String, proof: DeviceSessionProof): DeviceSessionIce {
+        val result = post("/v1/device/ice", JSONObject().put("sessionId", session).put("deviceId", id)
+            .put("proof", proofJson(proof))) ?: error("Missing session ICE")
+        require(result.keys().asSequence().all { it in setOf("sessionId", "deviceId", "expiresAt", "mode", "iceServers", "serverTime") })
+        val array = result.getJSONArray("iceServers")
+        require(array.length() in 0..4) { "ICE server count invalid" }
+        val servers = (0 until array.length()).map { index ->
+            val server = array.getJSONObject(index)
+            require(server.keys().asSequence().all { it in setOf("urls", "username", "credential") })
+            val urls = server.getJSONArray("urls")
+            require(urls.length() in 1..4) { "ICE URL count invalid" }
+            SessionIceServer((0 until urls.length()).map { urls.get(it) as? String ?: error("ICE URL invalid") },
+                server.get("username") as? String ?: error("ICE username invalid"),
+                server.get("credential") as? String ?: error("ICE credential invalid"))
+        }
+        return DeviceSessionIce(result.get("sessionId") as? String ?: error("ICE session invalid"),
+            result.get("deviceId") as? String ?: error("ICE device invalid"),
+            integer(result.get("expiresAt"), 9_007_199_254_740_991L),
+            result.get("mode") as? String ?: error("ICE mode invalid"), servers,
+            integer(result.get("serverTime"), 9_007_199_254_740_991L))
+    }
     override fun end(session: String, id: String, proof: DeviceSessionProof): DeviceSessionClosed {
         val result = post("/v1/device/end", JSONObject().put("sessionId", session).put("deviceId", id)
             .put("proof", proofJson(proof))) ?: error("Missing session closure")

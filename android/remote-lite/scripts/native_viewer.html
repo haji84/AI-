@@ -5,10 +5,11 @@ import { BrowserManualPeer } from '/vm/browser-webrtc.mjs';
 const video = document.querySelector('video');
 window.vm = { ready: true, acknowledged: 0, decoded: 0, errors: [] };
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
-const iceServers = [{ urls: ['turn:127.0.0.1:43478?transport=tcp'],
-  username: 'remote-lite-vm', credential: 'public-vm-fixture-only' }];
-window.probeRelay = async () => {
-  const pc = new RTCPeerConnection({ iceServers, iceTransportPolicy: 'relay' });
+let iceServers = [];
+window.configureVmIce = servers => { iceServers = servers; };
+window.probeRelay = async credential => {
+  const servers = credential ? iceServers.map(server => ({ ...server, credential })) : iceServers;
+  const pc = new RTCPeerConnection({ iceServers: servers, iceTransportPolicy: 'relay' });
   const candidates = [], errors = [];
   pc.onicecandidate = event => { if (event.candidate) candidates.push(event.candidate.type); };
   pc.onicecandidateerror = event => errors.push({ code: event.errorCode, text: event.errorText });

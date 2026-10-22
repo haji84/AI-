@@ -58,10 +58,27 @@ An issuer failure closes the newly created session. These settings do not
 provision coturn or enforce its traffic budget: provider billing/free-only status
 and relay bandwidth limits must be verified in the actual environment.
 
-Native release hosts still use direct ICE; only the viewer receives this relay
-configuration. One-sided relay, carrier NAT, Safari and sustained sessions past
+Native Windows/Android hosts now request relay settings through
+`POST /v1/device/ice`, using a one-use `session-ice` challenge signed by the
+registered device key. The server checks the active session and derives its
+owner from the registry before issuance. It caches one host credential per
+session, requires fresh authorization on every fetch, and refuses a new
+credential after expiry until a new session is created. Direct-only mode returns
+an explicit empty server list. Unknown fields, invalid URLs/credentials, wrong
+device/session bindings, replay and expired/revoked authority fail closed.
+
+Credential expiry is clipped to the active session and at most600seconds. Each
+authenticated response includes fresh server time; clients allow the existing
+30second discovery clock skew, count the whole fetch against remaining lifetime,
+and stop on a fixed monotonic deadline. A later device clock rollback cannot
+extend relay use. The server's long-term secret stays out of APKs/EXEs and logs.
+
+This path has local signed-HTTPS, JVM and Windows unit/interoperability coverage;
+the REST-authenticated coturn Android VM integration is pending exact-head CI.
+Windows real relay allocation, carrier NAT, Safari and sustained sessions past
 credential expiry have not been accepted. Credentials are not yet refreshed in
-an active browser connection. Logout/revoke stops product media/input but does
+an active connection: relay sessions stop at expiry and require a new session
+(and Android OS screen-sharing consent). Logout/revoke stops product media/input but does
 not invalidate an already issued TURN password before its expiry; coturn must
 have restrictive allocation/bandwidth quotas and private-network peer denial.
 A public hostname and TLS alone do not establish usable media across all networks.

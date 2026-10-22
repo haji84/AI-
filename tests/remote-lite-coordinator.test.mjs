@@ -4,11 +4,12 @@ import { createHash, generateKeyPairSync, randomBytes, sign } from 'node:crypto'
 import { Buffer } from 'node:buffer';
 import { ManualRemoteCoordinator } from '../src/remote-lite/manual-coordinator.mjs';
 import { RemoteLitePairingRegistry } from '../src/remote-lite/device-pairing.mjs';
+import { createPortalTurnIssuer } from '../src/remote-lite/turn-credentials.mjs';
 
 const auth=(ownerId='alice')=>({ownerId,authorization:'logged-in:'+ownerId});
-function harness() {
+function harness({ iceForSession } = {}) {
   let t=1000000;
-  const c=new ManualRemoteCoordinator({now:()=>t,authorizeOwner:({ownerId,authorization})=>authorization==='logged-in:'+ownerId});
+  const c=new ManualRemoteCoordinator({now:()=>t,iceForSession,authorizeOwner:({ownerId,authorization})=>authorization==='logged-in:'+ownerId});
   const enroll=(ownerId='alice',deviceId='win-alice')=>{
     const keys=generateKeyPairSync('ed25519'),inv=c.issueInvite(auth(ownerId));
     const req=c.proposeDevice({inviteCode:inv.inviteCode,deviceId,publicKeyPem:keys.publicKey.export({type:'spki',format:'pem'})});
@@ -29,6 +30,101 @@ function harness() {
   };
   return {c,enroll,proof,discoveryProof,advance:n=>{t+=n;}};
 }
+
+test('signed active device receives one cached session-bound TURN credential',()=>{
+  let calls=0, issuedFor;
+  const secret='test-only-device-turn-secret-never-deployed';
+  const issuer=createPortalTurnIssuer({sharedSecret:secret,urls:['turn:relay.example.net:3478?transport=udp'],now:()=>1000000});
+  const {c,enroll,proof,advance}=harness({iceForSession: p=>{calls++;issuedFor=p;return issuer(p);}});
+  const d=enroll(), s=c.startSession({...auth(),deviceId:d.deviceId});
+  const accepted=c.acceptSession({sessionId:s.sessionId,deviceId:d.deviceId,proof:proof(d,s.sessionId,'session-accept')});
+  const p=proof(d,s.sessionId,'session-ice');
+  const get=proof=>c.deviceIce({sessionId:s.sessionId,deviceId:d.deviceId,proof});
+  const ice=get(p);
+  assert.equal(ice.sessionId,s.sessionId);assert.equal(ice.deviceId,d.deviceId);
+  assert.equal(ice.mode,'turn-ephemeral-approved-provider');
+  assert.equal(ice.expiresAt,accepted.expiresAt);
+  assert.equal(issuedFor.ownerId,'alice');assert.equal(issuedFor.sessionExpiresAt,accepted.expiresAt);
+  assert.equal(JSON.stringify(ice).includes(secret),false);
+  assert.throws(()=>get(p),/CHALLENGE_NOT_FOUND_OR_MISMATCH/);
+  const saved=globalThis.structuredClone(ice);
+  ice.iceServers[0].credential='caller mutation';
+  assert.equal(ice.serverTime,1000000);
+  advance(1000);
+  assert.deepEqual(get(proof(d,s.sessionId,'session-ice')),{...saved,serverTime:1001000});
+  assert.equal(calls,1);
+});
+
+test('device ICE refuses pending, wrong-operation/device/session, forged, revoked and expired authority before issuer',()=>{
+  let calls=0;
+  const {c,enroll,proof,advance}=harness({iceForSession:()=>{calls++;return {iceServers:[],mode:'direct-only'};}});
+  const d=enroll(), other=enroll('bob','other-device'), s=c.startSession({...auth(),deviceId:d.deviceId});
+  assert.throws(()=>proof(d,s.sessionId,'session-ice'),/SESSION_NOT_ACTIVE/);
+  c.acceptSession({sessionId:s.sessionId,deviceId:d.deviceId,proof:proof(d,s.sessionId,'session-accept')});
+  assert.throws(()=>c.deviceIce({sessionId:s.sessionId,deviceId:d.deviceId}),/DEVICE_PROOF_REQUIRED/);
+  assert.throws(()=>proof(other,s.sessionId,'session-ice'),/DEVICE_NOT_AUTHORIZED/);
+  assert.throws(()=>c.deviceIce({sessionId:s.sessionId,deviceId:d.deviceId,proof:proof(d,s.sessionId,'session-status')}),/DEVICE_PROOF_REQUIRED/);
+  const bound=proof(d,s.sessionId,'session-ice');
+  assert.throws(()=>c.deviceIce({sessionId:'another-session',deviceId:d.deviceId,proof:bound}),/DEVICE_PROOF_REQUIRED/);
+  const forged={...bound,signature:sign(null,Buffer.from(RemoteLitePairingRegistry.deviceMessage(bound)),other.keys.privateKey).toString('base64')};
+  assert.throws(()=>c.deviceIce({sessionId:s.sessionId,deviceId:d.deviceId,proof:forged}),/DEVICE_PROOF_INVALID/);
+  const revoked=proof(d,s.sessionId,'session-ice');
+  c.revokeDevice({...auth(),deviceId:d.deviceId});
+  assert.throws(()=>c.deviceIce({sessionId:s.sessionId,deviceId:d.deviceId,proof:revoked}),/CHALLENGE_NOT_FOUND_OR_MISMATCH/);
+  const fresh=enroll('alice','fresh-device'), next=c.startSession({...auth(),deviceId:fresh.deviceId});
+  c.acceptSession({sessionId:next.sessionId,deviceId:fresh.deviceId,proof:proof(fresh,next.sessionId,'session-accept')});
+  advance(599990);
+  const expired=proof(fresh,next.sessionId,'session-ice');advance(11);
+  assert.throws(()=>c.deviceIce({sessionId:next.sessionId,deviceId:fresh.deviceId,proof:expired}),/SESSION_NOT_FOUND_OR_EXPIRED/);
+  assert.equal(calls,0);
+});
+
+test('device ICE without an approved TURN issuer stays explicitly direct-only',()=>{
+  const {c,enroll,proof}=harness(),d=enroll(),s=c.startSession({...auth(),deviceId:d.deviceId});
+  const accepted=c.acceptSession({sessionId:s.sessionId,deviceId:d.deviceId,proof:proof(d,s.sessionId,'session-accept')});
+  assert.deepEqual(c.deviceIce({sessionId:s.sessionId,deviceId:d.deviceId,proof:proof(d,s.sessionId,'session-ice')}),
+    {sessionId:s.sessionId,deviceId:d.deviceId,mode:'direct-only',iceServers:[],expiresAt:accepted.expiresAt,serverTime:1000000});
+});
+
+test('expired device TURN stays denied until a new session, even while old session remains active',()=>{
+  let time=1000000,calls=0;
+  const issuer=createPortalTurnIssuer({sharedSecret:'test-only-expiry-turn-secret-not-deployed',urls:['turn:relay.example.net'],now:()=>time});
+  const {c,enroll,proof,advance}=harness({iceForSession:p=>{calls++;return issuer({...p,sessionExpiresAt:time+60000});}});
+  const d=enroll(),s=c.startSession({...auth(),deviceId:d.deviceId});
+  c.acceptSession({sessionId:s.sessionId,deviceId:d.deviceId,proof:proof(d,s.sessionId,'session-accept')});
+  c.deviceIce({sessionId:s.sessionId,deviceId:d.deviceId,proof:proof(d,s.sessionId,'session-ice')});
+  advance(60001);time+=60001;
+  assert.equal(c.deviceStatus({sessionId:s.sessionId,deviceId:d.deviceId,proof:proof(d,s.sessionId,'session-status')}).status,'active');
+  assert.throws(()=>c.deviceIce({sessionId:s.sessionId,deviceId:d.deviceId,proof:proof(d,s.sessionId,'session-ice')}),/ICE_CREDENTIALS_EXPIRED/);
+  assert.equal(calls,1);
+  c.endSession({...auth(),sessionId:s.sessionId,viewerToken:s.viewerToken});
+  const fresh=c.startSession({...auth(),deviceId:d.deviceId});
+  c.acceptSession({sessionId:fresh.sessionId,deviceId:d.deviceId,proof:proof(d,fresh.sessionId,'session-accept')});
+  assert.equal(c.deviceIce({sessionId:fresh.sessionId,deviceId:d.deviceId,proof:proof(d,fresh.sessionId,'session-ice')}).sessionId,fresh.sessionId);
+  assert.equal(calls,2);
+});
+
+test('malformed device relay configuration cannot return extra secrets or create a cached credential',()=>{
+  const issuer=createPortalTurnIssuer({sharedSecret:'test-only-malformed-relay-secret-not-deployed',urls:['turn:relay.example.net'],now:()=>1000000});
+  const invalid=[
+    ice=>({...ice,sharedSecret:'private-marker'}),
+    ice=>({...ice,iceServers:[{}]}),
+    ice=>({...ice,iceServers:[{...ice.iceServers[0],sharedSecret:'private-marker'}]}),
+    ice=>({...ice,iceServers:[{...ice.iceServers[0],urls:['https://unexpected.example']}]}),
+    ice=>({...ice,iceServers:[{...ice.iceServers[0],urls:['turn:relay.example.net:0']}]}),
+    ice=>({...ice,iceServers:[{...ice.iceServers[0],username:'wrong'}]}),
+    ice=>({...ice,iceServers:[{...ice.iceServers[0],credential:'wrong'}]}),
+  ];
+  for(const mutate of invalid){
+    let broken=true;
+    const {c,enroll,proof}=harness({iceForSession:p=>broken?mutate(issuer(p)):issuer(p)});
+    const d=enroll(),s=c.startSession({...auth(),deviceId:d.deviceId});
+    c.acceptSession({sessionId:s.sessionId,deviceId:d.deviceId,proof:proof(d,s.sessionId,'session-accept')});
+    assert.throws(()=>c.deviceIce({sessionId:s.sessionId,deviceId:d.deviceId,proof:proof(d,s.sessionId,'session-ice')}),/ICE_UNAVAILABLE/);
+    broken=false;
+    assert.equal(c.deviceIce({sessionId:s.sessionId,deviceId:d.deviceId,proof:proof(d,s.sessionId,'session-ice')}).mode,'turn-ephemeral-approved-provider');
+  }
+});
 
 test('local pairing -> device-accepted session -> WebRTC signaling -> manual input -> disconnect',()=>{
   const {c,enroll,proof}=harness(),d=enroll(),s=c.startSession({...auth(),deviceId:d.deviceId});

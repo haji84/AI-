@@ -160,6 +160,12 @@ func TestActualNodeCoordinatorRevocationStopsWindowsRoutes(t *testing.T) {
 	app := newHostServer(bridge, gate, strings.Repeat("c", 64), time.Now().Add(time.Minute), "127.0.0.1:42000")
 	mux := http.NewServeMux()
 	app.routes(mux)
+	iceReply := remoteRequest(t, mux, http.MethodGet, "/api/remote/ice", nil)
+	var ice remoteICEConfig
+	if iceReply.Code != http.StatusOK || json.Unmarshal(iceReply.Body.Bytes(), &ice) != nil ||
+		ice.SessionID != ready.SessionID || ice.DeviceID != ready.DeviceID || ice.Mode != "direct-only" || len(ice.ICEServers) != 0 {
+		t.Fatalf("actual Node did not authorize signed Windows ICE: HTTP %d", iceReply.Code)
+	}
 	if _, err := fmt.Fprintln(stdin, "offer"); err != nil {
 		t.Fatal(err)
 	}

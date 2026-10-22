@@ -45,6 +45,31 @@ class DeviceSessionAccessTest {
         assertFalse(brokenDiagnostic.verifyActive(sessionId).allowed)
     }
 
+    @Test fun sessionIceUsesPurposeBoundSignatureAndRejectsAnotherDeviceReply() {
+        val identity = Identity(deviceId)
+        var reply = DeviceSessionIce(sessionId, deviceId, issuedAt + 60_000, "direct-only", emptyList(), issuedAt)
+        val exchange = object : DeviceSessionExchange {
+            override fun pending(id: String, proof: DiscoveryProof): DeviceSessionView? = null
+            override fun active(id: String, proof: DiscoveryProof): DeviceSessionView? = null
+            override fun challenge(id: String, operation: String, session: String): DeviceSessionChallenge {
+                assertEquals("session-ice", operation)
+                return DeviceSessionChallenge(challengeId, challenge, issuedAt + 60_000)
+            }
+            override fun accept(session: String, id: String, proof: DeviceSessionProof): DeviceSessionView = error("unused")
+            override fun status(session: String, id: String, proof: DeviceSessionProof): DeviceSessionView = error("unused")
+            override fun ice(session: String, id: String, proof: DeviceSessionProof): DeviceSessionIce {
+                assertEquals(sessionId, session); assertEquals(deviceId, id)
+                assertEquals("session-ice", proof.operation)
+                return reply
+            }
+        }
+        val access = DeviceSessionAccess(identity, exchange, { issuedAt }, { nonce }, { 0L })
+        assertEquals("direct-only", access.ice(sessionId).mode)
+        assertEquals("GORIQ_REMOTE_DEVICE_AUTH_V1\n$deviceId\nsession-ice\n$sessionId\n$challengeId\n$challenge\n", identity.messages.single())
+        reply = DeviceSessionIce(sessionId, "another-device", issuedAt + 60_000, "direct-only", emptyList(), issuedAt)
+        assertThrows(IllegalArgumentException::class.java) { access.ice(sessionId) }
+    }
+
     private class Identity(private val id: String) : EnrollmentIdentity {
         val messages = mutableListOf<String>()
         override fun deviceId() = id

@@ -22,7 +22,7 @@ const body = async req => {
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) fail('INVALID_JSON', 400);
   return parsed;
 };
-const deviceRoutes = new Set(['propose','prove','challenge','accept','status','pending','active','signal','poll','end'].map(v => '/v1/device/' + v));
+const deviceRoutes = new Set(['propose','prove','challenge','accept','status','ice','pending','active','signal','poll','end'].map(v => '/v1/device/' + v));
 const apiRoutes = new Map([
   ['/api/invite', ['/v1/invite', []]], ['/api/approve', ['/v1/approve', ['requestId','expectedFingerprint']]],
   ['/api/revoke', ['/v1/revoke', ['deviceId']]],
@@ -40,7 +40,7 @@ const staticFiles = new Map([
 
 /** HTTPS request handler. Caller must supply a real HTTPS server, exact public
  * origin, validated durable registry and configured owner key digests. No listener
- * or account starts on import. Native device protocol is unchanged. */
+ * or account starts on import. Existing native operation contracts are retained. */
 export function createOwnerPortal({ origin, owners, initialDevices = [], persistDevices,
   now = () => Date.now(), iceForSession = () => ({ iceServers: [], mode: 'direct-only' }) } = {}) {
   const parsed = new globalThis.URL(origin);
@@ -56,7 +56,7 @@ export function createOwnerPortal({ origin, owners, initialDevices = [], persist
     }
     s.connections.clear();
   } });
-  coordinator = new ManualRemoteCoordinator({ initialDevices, persistDevices, now,
+  coordinator = new ManualRemoteCoordinator({ initialDevices, persistDevices, now, iceForSession,
     authorizeOwner: p => ownerIds.has(p.ownerId) && (p.authorization === cleanupAuthority || auth.authorized(p)) });
   // Global fixed windows bound work/memory without trusting forwarded IP headers.
   let windowAt = now(), requestCount = 0, loginCount = 0;

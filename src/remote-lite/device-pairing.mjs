@@ -5,7 +5,7 @@ import { deviceSignatureFormat } from './device-signature-format.mjs';
 const validId = (value) => typeof value === 'string' && value.length >= 1 && value.length <= 128 && /^[a-zA-Z0-9._:-]+$/.test(value);
 const hexHash = (value) => createHash('sha256').update(value).digest('hex');
 const fail = (code) => { throw new PairingError(code); };
-const operations = new Set(['session-accept', 'session-status', 'signal-send', 'signal-receive', 'session-end', 'reconnect']);
+const operations = new Set(['session-accept', 'session-status', 'session-ice', 'signal-send', 'signal-receive', 'session-end', 'reconnect']);
 const token = () => randomBytes(24).toString('hex');
 const bytesOfSignature = (value, key) => {
   const expected = key.asymmetricKeyType === 'ed25519' ? 'ed25519' : 'p256';

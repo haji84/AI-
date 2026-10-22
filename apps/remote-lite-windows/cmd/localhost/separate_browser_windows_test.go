@@ -74,6 +74,13 @@ type vmSeparateSignalGate struct {
 }
 
 func (g *vmSeparateSignalGate) Check(ctx context.Context) error { return g.status.Check(ctx) }
+func (g *vmSeparateSignalGate) SessionICE(ctx context.Context) (remoteICEConfig, error) {
+	if err := g.Check(ctx); err != nil {
+		return remoteICEConfig{}, err
+	}
+	return remoteICEConfig{SessionID: "session-a", DeviceID: "windows-a", Mode: "direct-only",
+		ExpiresAt: time.Now().Add(time.Minute).UnixMilli(), ServerTime: time.Now().UnixMilli(), ICEServers: []remoteICEServer{}}, nil
+}
 func (g *vmSeparateSignalGate) SendSignal(_ context.Context, signal remoteSignal) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()

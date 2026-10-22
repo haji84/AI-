@@ -173,7 +173,7 @@ func TestRemoteRoutesDenyWhenSignedGateIsMissing(t *testing.T) {
 		expires: time.Now().Add(time.Minute), host: "127.0.0.1:42000"}
 	mux := http.NewServeMux()
 	app.routes(mux)
-	for _, path := range []string{"/api/remote/status", "/api/remote/frame", "/api/remote/input", "/api/remote/poll", "/api/remote/signal"} {
+	for _, path := range []string{"/api/remote/status", "/api/remote/frame", "/api/remote/input", "/api/remote/poll", "/api/remote/signal", "/api/remote/ice"} {
 		method := http.MethodGet
 		var body []byte
 		if strings.HasSuffix(path, "/input") || strings.HasSuffix(path, "/signal") {

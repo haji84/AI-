@@ -153,6 +153,40 @@ test('HTTPS TURN issuance requires owner/device/CSRF authority and a failed issu
   assert.equal(calls, 2);
 });
 
+test('real HTTPS device ICE requires a fresh active-session signature and keeps the shared secret server-side',async t=>{
+  const secret='test-only-https-device-ice-shared-secret-not-deployed';
+  const issuer=createPortalTurnIssuer({sharedSecret:secret,urls:['turn:relay.example.net:3478?transport=udp']});
+  let calls=0;
+  const f=await fixture(t,{iceForSession:p=>{calls++;return issuer(p);}});
+  const owner=await f.login(f.ownerKey),d=await f.enroll(owner);
+  await f.post('/api/approve',{requestId:d.requestId,expectedFingerprint:d.expectedFingerprint},owner);
+  const started=await f.post('/api/start',{deviceId:d.deviceId},owner);
+  assert.equal(started.status,200);assert.equal(calls,1); // Existing viewer issuance.
+  const sessionId=started.result.sessionId;
+  const proof=async operation=>{
+    const ch=await f.post('/v1/device/challenge',{deviceId:d.deviceId,sessionId,operation});
+    assert.equal(ch.status,200);
+    const p={deviceId:d.deviceId,sessionId,operation,challengeId:ch.result.challengeId};
+    return {...p,signature:sign(null,Buffer.from(RemoteLitePairingRegistry.deviceMessage({...p,challenge:ch.result.challenge})),d.keys.privateKey).toString('base64')};
+  };
+  const get=p=>f.post('/v1/device/ice',{sessionId,deviceId:d.deviceId,proof:p});
+  assert.equal((await get(undefined)).status,403);
+  assert.equal((await f.post('/v1/device/challenge',{deviceId:d.deviceId,sessionId,operation:'session-ice'})).status,403);
+  assert.equal((await f.post('/v1/device/accept',{sessionId,deviceId:d.deviceId,proof:await proof('session-accept')})).status,200);
+  assert.equal((await get(await proof('session-status'))).status,403);
+  const bound=await proof('session-ice');
+  const first=await get(bound);
+  assert.equal(first.status,200);assert.equal(first.headers['cache-control'],'no-store');
+  assert.equal(first.result.sessionId,sessionId);assert.equal(first.result.deviceId,d.deviceId);
+  assert.equal(first.result.mode,'turn-ephemeral-approved-provider');
+  assert.equal(JSON.stringify(first.result).includes(secret),false);
+  assert.equal((await get(bound)).status,403);
+  assert.deepEqual((await get(await proof('session-ice'))).result,first.result);
+  assert.equal(calls,2); // Repeated host reads reuse its one credential.
+  assert.equal((await f.post('/api/viewer/end',{sessionId},owner)).status,200);
+  assert.equal((await f.post('/v1/device/challenge',{deviceId:d.deviceId,sessionId,operation:'session-ice'})).status,403);
+});
+
 test('registry disk excludes another writer and refuses missing/corrupt startup', t => {
   const dir = mkdtempSync(join(tmpdir(), 'remote-lite-registry-')); t.after(() => rmSync(dir, { recursive: true, force: true }));
   const root = join(dir, 'state'); const r = openRemoteRegistry(root, { initialize: true });

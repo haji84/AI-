@@ -20,6 +20,7 @@ interface DeviceSessionExchange {
     fun challenge(id: String, operation: String, session: String): DeviceSessionChallenge
     fun accept(session: String, id: String, proof: DeviceSessionProof): DeviceSessionView
     fun status(session: String, id: String, proof: DeviceSessionProof): DeviceSessionView
+    fun ice(session: String, id: String, proof: DeviceSessionProof): DeviceSessionIce = error("Session ICE unsupported")
     fun end(session: String, id: String, proof: DeviceSessionProof): DeviceSessionClosed = error("Session end unsupported")
 }
 
@@ -95,6 +96,12 @@ class DeviceSessionAccess(private val identity: EnrollmentIdentity,
     fun <T> requireActiveThen(sessionId: String, operation: () -> T): T {
         check(verifyActive(sessionId).allowed) { "Remote session is not active" }
         return operation()
+    }
+
+    fun ice(sessionId: String): DeviceSessionIce {
+        val id = identity.deviceId()
+        return exchange.ice(sessionId, id, proof(id, sessionId, "session-ice"))
+            .validated(sessionId, id, issuedAtMs())
     }
 
     fun end(sessionId: String): Boolean = try {

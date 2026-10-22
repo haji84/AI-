@@ -6,7 +6,7 @@ object DeviceProofMessage {
     private val requestPattern = Regex("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
     private val noncePattern = Regex("[0-9a-f]{48}")
     private val fingerprintPattern = Regex("[0-9a-f]{64}")
-    private val operations = setOf("session-accept", "session-status", "signal-send",
+    private val operations = setOf("session-accept", "session-status", "session-ice", "signal-send",
         "signal-receive", "session-end", "reconnect")
 
     private fun id(value: String): String {

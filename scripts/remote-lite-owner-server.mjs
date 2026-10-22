@@ -31,7 +31,7 @@ try {
   server = createServer({ cert: readFileSync(relative(config.tlsCert)), key: readFileSync(relative(config.tlsKey)), minVersion: 'TLSv1.2' }, portal.handler);
   server.maxHeadersCount = 24; server.headersTimeout = 10000; server.requestTimeout = 10000; server.maxConnections = 512;
   await new Promise((ok, no) => { server.once('error', no); server.listen({ host: config.listenHost, port: config.listenPort, exclusive: true }, ok); });
-  console.log('GORIQ Remote Lite HTTPS owner portal started. ' + (iceForSession ? 'Temporary viewer TURN credentials configured; external acceptance is still required.' : 'Direct ICE only; public relay acceptance is required separately.'));
+  console.log('GORIQ Remote Lite HTTPS owner portal started. ' + (iceForSession ? 'Temporary viewer/native TURN credentials configured; external acceptance is still required.' : 'Direct ICE only; public relay acceptance is required separately.'));
 } catch (error) { portal?.close(); registry.close(); throw error; }
 let stopping = false;
 const stop = () => {

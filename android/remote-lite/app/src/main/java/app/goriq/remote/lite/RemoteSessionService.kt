@@ -12,7 +12,8 @@ import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
-class NativeIceConfig(val servers: List<PeerConnection.IceServer> = emptyList(), val relayOnly: Boolean = false)
+class NativeIceConfig(val servers: List<PeerConnection.IceServer> = emptyList(), val relayOnly: Boolean = false,
+    val credentialDeadlineElapsed: Long? = null)
 data class SharingState(val sessionId: String?, val message: String, val frames: Long = 0)
 
 /** One locally confirmed screen-sharing service; never restarted by boot or sticky intents. */
@@ -39,7 +40,15 @@ open class RemoteSessionService : Service() {
     @Volatile private var endSession: (() -> Boolean)? = null
     private var sessionId: String? = null
 
-    protected open fun iceConfiguration() = NativeIceConfig()
+    protected open fun iceConfiguration(access: DeviceSessionAccess, session: String): NativeIceConfig {
+        val started = SystemClock.elapsedRealtime()
+        val ice = access.ice(session)
+        val deadline = ice.monotonicDeadline(started, SystemClock.elapsedRealtime())
+        return NativeIceConfig(ice.iceServers.map { server ->
+            PeerConnection.IceServer.builder(server.urls).setUsername(server.username)
+                .setPassword(server.credential).createIceServer()
+        }, credentialDeadlineElapsed = if (ice.mode == "direct-only") null else deadline)
+    }
 
     override fun onBind(intent: Intent?) = null
 
@@ -91,6 +100,9 @@ open class RemoteSessionService : Service() {
                     check(pending.sessionId == session)
                     access.accept(pending)
                 } else check(active.sessionId == session)
+                // Slow relay provisioning precedes, and never extends, the live authorization lease.
+                val ice = iceConfiguration(access, session)
+                check(!stopping.get())
                 val checkStarted = SystemClock.elapsedRealtime()
                 check(access.verifyActive(session).allowed && SystemClock.elapsedRealtime() - checkStarted < 3_000)
                 // Discovery/acceptance can take several round trips. Arm only after fresh final authorization.
@@ -109,6 +121,8 @@ open class RemoteSessionService : Service() {
                     if (keyguard.isDeviceLocked || keyguard.isKeyguardLocked ||
                         !getSystemService(PowerManager::class.java).isInteractive) requestStop("device-locked")
                     if (!lease.allowed()) requestStop("status-deadline")
+                    if (ice.credentialDeadlineElapsed?.let { SystemClock.elapsedRealtime() >= it } == true)
+                        requestStop("relay-credentials-expired")
                 }, 250, 250, TimeUnit.MILLISECONDS)
                 val cursorStore = SignalCursorSettings(this)
                 check(cursorStore.read(session) == 0L) { "A new session is required after media termination" }
@@ -138,7 +152,6 @@ open class RemoteSessionService : Service() {
                     },
                     { event -> publish("接続状態: " + event) },
                     ::requestStop).also { peer = it }
-                val ice = iceConfiguration()
                 diagnostic("capture-preparing")
                 connection.start(projection, size.x, size.y, ice.servers, ice.relayOnly)
                 diagnostic("capture-started")
@@ -181,6 +194,7 @@ open class RemoteSessionService : Service() {
             "device-locked" -> "端末がロックされたため停止しました。解除後に画面共有の許可が必要です。"
             "peer-disconnected", "control-channel-ended" -> "接続が切れたため画面共有と操作を停止しました。"
             "session-not-active", "status-deadline" -> "接続の承認を確認できないため画面共有と操作を停止しました。"
+            "relay-credentials-expired" -> "中継の有効期限に達したため停止しました。接続元で新しい接続を作成してください。"
             "manual-input-not-confirmed", "invalid-manual-input" -> "入力結果を確認できないため停止しました。操作権限と端末状態を確認してください。"
             else -> "画面共有を開始または継続できません。承認・画面共有許可・通信を確認してください。"
         }

@@ -54,3 +54,12 @@ test('portal adapter validates configuration before listen and requires an authe
   assert.throws(() => createPortalTurnIssuer({ sharedSecret: values.sharedSecret, urls: ['turn:host:99999'] }), /TURN_URLS_INVALID/);
   assert.throws(() => issuer({ ownerId: undefined, sessionId: 'session-17' }), /TURN_PRINCIPAL_INVALID/);
 });
+
+test('actual TURN username expiry stays inside the session deadline and refuses less than30 seconds',()=>{
+  const issuer=createPortalTurnIssuer({sharedSecret:values.sharedSecret,urls:values.urls,now:values.now});
+  const result=issuer({ownerId:'friend-a',sessionId:'session-17',sessionExpiresAt:100045999});
+  assert.equal(result.expiresAt,100045000);
+  assert.equal(Number(result.iceServers[0].username.split(':')[0])*1000,result.expiresAt);
+  assert.throws(()=>issuer({ownerId:'friend-a',sessionId:'session-17',sessionExpiresAt:100029999}),/TURN_SESSION_EXPIRING/);
+  assert.throws(()=>issuer({ownerId:'friend-a',sessionId:'session-17',sessionExpiresAt:Infinity}),/TURN_SESSION_EXPIRING/);
+});

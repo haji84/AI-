@@ -1,7 +1,20 @@
 import { createHash } from 'node:crypto';
+import { Buffer } from 'node:buffer';
 import { parseWebRtcSignal } from './manual-protocol.mjs';
 import { RemoteLitePairingRegistry } from './device-pairing.mjs';
 import { ManualRemoteSessionStore, RemoteLiteSessionError } from './manual-session.mjs';
+import { isTurnUrl } from './turn-credentials.mjs';
+
+const validIceServer = (server, expiresAt) => {
+  if (!server || typeof server !== 'object' || Array.isArray(server) ||
+      Object.keys(server).some(k => !['urls','username','credential'].includes(k)) ||
+      !Array.isArray(server.urls) || server.urls.length < 1 || server.urls.length > 4 || !server.urls.every(isTurnUrl) ||
+      typeof server.username !== 'string' || !/^[1-9][0-9]{0,12}:[a-f0-9]{32}$/u.test(server.username) ||
+      Number(server.username.split(':')[0]) * 1000 !== expiresAt ||
+      typeof server.credential !== 'string' || server.credential.length !== 28) return false;
+  const decoded = Buffer.from(server.credential, 'base64');
+  return decoded.length === 20 && decoded.toString('base64') === server.credential;
+};
 
 /**
  * No network endpoints, OS screen capture or device input are started here.
@@ -14,10 +27,17 @@ export class ManualRemoteCoordinator {
   #sessions;
   #authorizeOwner;
   #deviceOwners = new Map();
+  #iceForSession;
+  #ice = new Map();
+  #now;
 
-  constructor({ authorizeOwner, now = () => Date.now(), initialDevices = [], persistDevices } = {}) {
+  constructor({ authorizeOwner, now = () => Date.now(), initialDevices = [], persistDevices,
+    iceForSession = () => ({ iceServers: [], mode: 'direct-only' }) } = {}) {
     if (typeof authorizeOwner !== 'function') throw new TypeError('Independent owner authentication is required');
+    if (typeof iceForSession !== 'function') throw new TypeError('Session ICE issuer required');
     this.#authorizeOwner = authorizeOwner;
+    this.#iceForSession = iceForSession;
+    this.#now = now;
     this.#pairing = new RemoteLitePairingRegistry({ authorizeOwner, now, initialDevices, persistDevices });
     for (const record of initialDevices) this.#deviceOwners.set(record.deviceId, record.ownerId);
     this.#sessions = new ManualRemoteSessionStore({
@@ -120,14 +140,55 @@ export class ManualRemoteCoordinator {
     return this.#sessions.deviceStatus({ sessionId, deviceId, devicePrincipalId: principal.devicePrincipalId });
   }
 
+  /** One-use, purpose-bound proof is required even for a cached credential.
+   * No caller supplies the owner identity or the provider's shared secret. */
+  deviceIce({ sessionId, deviceId, proof } = {}) {
+    const principal = this.#requireProof('session-ice', sessionId, deviceId, proof);
+    const active = this.#sessions.deviceStatus({ sessionId, deviceId, devicePrincipalId: principal.devicePrincipalId });
+    if (active.status !== 'active') throw new RemoteLiteSessionError('SESSION_NOT_ACTIVE');
+    const cached = this.#ice.get(sessionId);
+    if (cached) {
+      if (cached.value.expiresAt <= this.#now()) throw new RemoteLiteSessionError('ICE_CREDENTIALS_EXPIRED');
+      return { ...globalThis.structuredClone(cached.value), serverTime: this.#now() };
+    }
+    // Remove really ended/expired sessions, not merely expired TURN entries:
+    // an active session cannot mint another username after its ICE expires.
+    for (const [id, entry] of this.#ice) {
+      try {
+        if (this.#sessions.deviceStatus({ sessionId: id, deviceId: entry.value.deviceId,
+          devicePrincipalId: entry.principalId }).status === 'active') continue;
+      } catch { /* No longer authorized. Drop only the in-memory credential. */ }
+      this.#ice.delete(id);
+    }
+    if (this.#ice.size >= 100) throw new RemoteLiteSessionError('ICE_CAPACITY_REACHED');
+    const ice = this.#iceForSession({ ownerId: this.#deviceOwners.get(deviceId), sessionId,
+      sessionExpiresAt: active.expiresAt });
+    const direct = ice?.mode === 'direct-only';
+    const expiresAt = direct ? active.expiresAt : ice?.expiresAt;
+    if (!ice || Object.keys(ice).some(k => !['iceServers','mode','expiresAt'].includes(k)) ||
+        !Array.isArray(ice.iceServers) || ice.iceServers.length > 4 ||
+        (direct ? ice.iceServers.length !== 0 : ice.mode !== 'turn-ephemeral-approved-provider' || ice.iceServers.length === 0) ||
+        !Number.isSafeInteger(expiresAt) || expiresAt <= this.#now() || expiresAt > active.expiresAt ||
+        (!direct && (expiresAt > this.#now() + 600000 || !ice.iceServers.every(s => validIceServer(s, expiresAt))))) {
+      throw new RemoteLiteSessionError('ICE_UNAVAILABLE');
+    }
+    const value = globalThis.structuredClone({ sessionId, deviceId, iceServers: ice.iceServers, mode: ice.mode, expiresAt });
+    if (!direct) this.#ice.set(sessionId, { value, principalId: principal.devicePrincipalId });
+    return { ...globalThis.structuredClone(value), serverTime: this.#now() };
+  }
+
   endSession({ ownerId, authorization, sessionId, viewerToken } = {}) {
     this.#owner(ownerId, authorization, 'end-session');
-    return this.#sessions.close({ sessionId, as: 'viewer', identityId: ownerId, viewerToken });
+    const result = this.#sessions.close({ sessionId, as: 'viewer', identityId: ownerId, viewerToken });
+    this.#ice.delete(sessionId);
+    return result;
   }
 
   endSessionFromDevice({ sessionId, deviceId, proof } = {}) {
     const principal = this.#requireProof('session-end', sessionId, deviceId, proof);
-    return this.#sessions.close({ sessionId, as: 'device', identityId: principal.devicePrincipalId });
+    const result = this.#sessions.close({ sessionId, as: 'device', identityId: principal.devicePrincipalId });
+    this.#ice.delete(sessionId);
+    return result;
   }
 
   revokeDevice({ ownerId, authorization, deviceId } = {}) {
@@ -137,6 +198,7 @@ export class ManualRemoteCoordinator {
     // Invalidate the local session before another controller can reconnect.
     // A future transport must also terminate active WebRTC tracks and channels.
     this.#sessions.invalidateDevice({ deviceId });
+    for (const [id, entry] of this.#ice) if (entry.value.deviceId === deviceId) this.#ice.delete(id);
     return result;
   }
 

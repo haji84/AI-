@@ -49,6 +49,7 @@ class Browser:
             self.call("POST", f"/session/{self.session}/timeouts", {"script": 30000})
             self.navigate(ready["origin"] + "/vm/viewer")
             self.until("return window.vm?.ready === true", "viewer module load")
+            self.script("window.configureVmIce(arguments[0]); return true", ready["turnIceServers"])
         except Exception:
             self.log.flush()
             self.log.seek(0)
@@ -112,7 +113,7 @@ def turn_arguments(log_path):
     return [os.environ["REMOTE_LITE_TURNSERVER"], "-n", "--verbose",
         "--listening-ip=127.0.0.1", "--relay-ip=127.0.0.1", "--listening-port=43478",
         "--min-port=50000", "--max-port=50100", "--realm=remote-lite-vm",
-        "--lt-cred-mech", "--user=remote-lite-vm:public-vm-fixture-only", "--userdb=:memory:",
+        "--use-auth-secret", "--static-auth-secret=public-vm-turn-secret-never-a-production-secret-1831", "--userdb=:memory:",
         "--no-tls", "--no-dtls", "--no-cli", "--no-multicast-peers", "--allow-loopback-peers",
         "--log-file=stdout", "--simple-log", "--pidfile=" + str(log_path.with_suffix(".pid"))]
 
@@ -180,6 +181,7 @@ def verify_native(owner_post, ready, device_id, old_session, old_token):
                 assert ui.PACKAGE in projection, "OS capture grant not present: " + projection[-1500:]
                 browser.navigate(ready["origin"] + "/vm/viewer")
                 browser.until("return window.vm?.ready === true", "viewer reload")
+                browser.script("window.configureVmIce(arguments[0]); return true", ready["turnIceServers"])
                 result = browser.script("const done=arguments[arguments.length-1]; "
                     "window.beginNative(arguments[0]).then(()=>done('started'),e=>done(String(e)))",
                     {"sessionId": session["sessionId"], "viewerToken": session["viewerToken"], "bridge": ready["bridge"]},
@@ -426,6 +428,9 @@ if __name__ == "__main__":
         relay = browser.script("const done=arguments[arguments.length-1]; window.probeRelay().then(done)", asynchronous=True)
         assert "relay" in relay["candidates"], "Browser did not obtain TURN allocation: " + json.dumps(relay)
         print("PASS actual browser loopback TURN allocation: " + json.dumps(relay), flush=True)
+        denied = browser.script("const done=arguments[arguments.length-1]; window.probeRelay('invalid-vm-credential').then(done)", asynchronous=True)
+        assert "relay" not in denied["candidates"], "TURN accepted an invalid fixture credential"
+        print("PASS loopback TURN refused allocation with invalid credential", flush=True)
     finally:
         if browser:
             browser.close()
