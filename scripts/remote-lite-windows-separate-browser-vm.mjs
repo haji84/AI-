@@ -6,7 +6,7 @@ import { createServer } from 'node:http';
 import { once } from 'node:events';
 import { compareFrameHistory, installFrameDrawProbe, nativeCopyPixelProbeScript } from './remote-lite-vm-pixels.mjs';
 import { nativeDocumentState } from './remote-lite-windows-document-state.mjs';
-import { navigateWindowsFixture } from './remote-lite-windows-browser-navigation.mjs';
+import { navigateWindowsFixture, openWindowsFixtureTab } from './remote-lite-windows-browser-navigation.mjs';
 
 const [hostUrl, viewerUrl] = process.argv.slice(2);
 if (!/^http:\/\/127\.0\.0\.1:\d+\/#token=[0-9a-f]{64}&remote=1$/u.test(hostUrl || '') ||
@@ -50,6 +50,7 @@ try {
       },
     } } });
     sessions.push(session.sessionId);
+    await openWindowsFixtureTab(webdriver, session.sessionId);
     await navigateWindowsFixture(webdriver, session.sessionId, url);
     return session.sessionId;
   };

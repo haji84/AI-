@@ -60,6 +60,8 @@ function Invoke-Msi([string[]]$Arguments, [string]$Stage, [int[]]$AllowedCodes =
     $log = Join-Path $env:RUNNER_TEMP ('remote-lite-msi-' + $Stage + '.log')
     $argumentsWithLog = $Arguments + @('/qn', '/norestart', '/l*v', ('"' + $log + '"'))
     $process = Start-Process -FilePath (Join-Path $env:SystemRoot 'System32/msiexec.exe') -ArgumentList $argumentsWithLog -WindowStyle Hidden -Wait -PassThru
+    $script:lastMsiLog = $log
+    Write-Output "MSI stage=$Stage exit=$($process.ExitCode)"
     if ($process.ExitCode -notin $AllowedCodes) { throw "MSI $Stage failed with exit $($process.ExitCode); inspect the VM log" }
     if ($ScopeRejection) {
         $contents = Get-Content -LiteralPath $log -Raw
@@ -87,8 +89,16 @@ function Assert-ProductRegistration([string]$Code, [bool]$Expected) {
 }
 function Assert-Installed([string]$ExpectedHash) {
     $binary = Join-Path $installed 'GORIQRemoteLite.exe'
-    if (!(Test-Path -LiteralPath $binary) -or (Get-FileHash -LiteralPath $binary -Algorithm SHA256).Hash -ne $ExpectedHash -or
-        !(Test-Path -LiteralPath $shortcut) -or !(Test-Path -LiteralPath (Join-Path $installed 'GO_LICENSE.txt'))) {
+    $binaryExists = Test-Path -LiteralPath $binary
+    $hashMatches = $binaryExists -and (Get-FileHash -LiteralPath $binary -Algorithm SHA256).Hash -eq $ExpectedHash
+    $shortcutExists = Test-Path -LiteralPath $shortcut
+    $noticeExists = Test-Path -LiteralPath (Join-Path $installed 'GO_LICENSE.txt')
+    if (!$binaryExists -or !$hashMatches -or !$shortcutExists -or !$noticeExists) {
+        Write-Output "MSI payload: binary=$binaryExists hash=$hashMatches shortcut=$shortcutExists notice=$noticeExists"
+        # Disposable runner paths and installation scope only; never dump the
+        # full log, environment or retained enrollment data.
+        Select-String -LiteralPath $script:lastMsiLog -Pattern '^Property\([CS]\): (ALLUSERS|MSIINSTALLPERUSER|ProgramFiles64Folder|RemoteLiteInstallFolder|ProgramMenuFolder|RemoteLiteMenuFolder|LocalAppDataFolder) = ' |
+            ForEach-Object { Write-Output $_.Line }
         throw 'Installed payload, shortcut or notice mismatch'
     }
     $link = (New-Object -ComObject WScript.Shell).CreateShortcut($shortcut)

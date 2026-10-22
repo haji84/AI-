@@ -3,7 +3,7 @@ import { spawn } from 'node:child_process';
 import { createServer } from 'node:http';
 import { once } from 'node:events';
 import { createInterface } from 'node:readline';
-import { navigateWindowsFixture } from './remote-lite-windows-browser-navigation.mjs';
+import { navigateWindowsFixture, openWindowsFixtureTab } from './remote-lite-windows-browser-navigation.mjs';
 
 const [setupUrl] = process.argv.slice(2);
 if (!/^http:\/\/127\.0\.0\.1:\d+\/#token=[0-9a-f]{64}$/u.test(setupUrl || '')) throw new Error('Loopback setup required');
@@ -30,6 +30,7 @@ try {
     ...(process.env.REMOTE_LITE_CHROME ? { binary: process.env.REMOTE_LITE_CHROME } : {}),
   }}}});
   session=created.sessionId;
+  await openWindowsFixtureTab(webdriver, session);
   const run=(script,...args)=>webdriver('POST',`/session/${session}/execute/sync`,{script,args});
   const until=async script=>{for(let i=0;i<80;i++){if(await run(script))return;await pause(100)}throw new Error('Setup UI condition not reached')};
   await navigateWindowsFixture(webdriver, session, setupUrl);
