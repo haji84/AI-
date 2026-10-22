@@ -319,6 +319,22 @@ refresh media. Existing frame-age, input, lock, revocation and consent condition
 remain unchanged. Effectiveness is pending the same native VM test; it is not
 installed on the physical nubia. Rollback is a revert of this candidate commit.
 
+The candidate `aaaa185249bd74eb9376a4eba76717aceefa98da` passed local 51 JVM
+tests, release build, diff checks, independent review and
+[normal CI 39777129151](https://github.com/haji84/AI-/actions/runs/39777129151).
+[Android CI 39777129148](https://github.com/haji84/AI-/actions/runs/39777129148)
+failed before reaching the swipe/idle experiment: the second rapid tap reached
+signed pre-status at 991 ms, then failed before OS dispatch at 1,005 ms.
+Actual count/ACK remained 2. This reproduces the independent queue/freshness
+failure; the idle-refresh candidate's effect remains unverified.
+
+The next experiment moves the same four-swipe/ten-second idle observation before
+the first rapid-tap pair. Both rapid-tap pairs and their real count/ACK assertions
+remain, as do secure-window rejection, revocation and the four-second frame gap
+limit. The first session now has tap ACK 1, swipe ACK 2–5, and rapid-tap ACK 6–7.
+No failure is converted to a pass, no native deadline changes, and no extra
+physical consent is requested while the owner is away.
+
 ## Owner portal baseline
 
 Commit `f4b00c147e3996c79643cf88c39c3f0633f6f4ad` passed normal CI

@@ -195,7 +195,13 @@ def verify_native(owner_post, ready, device_id, old_session, old_token):
                 return {"action": "tap", "x": (bounds[0] + bounds[2]) / 2 / int(size[0]),
                     "y": (bounds[1] + bounds[3]) / 2 / int(size[1])}
 
-            def real_tap():
+            def queued_taps(bounds, expected=3):
+                browser.script("window.vm.send(arguments[0]); window.vm.send(arguments[0]); return true", command_at(bounds))
+                browser.until(f"return window.vm.acknowledged === {expected}", "two queued same-window taps without screenshot throttling")
+                ui.wait_for_text("入力テスト: 3")
+                print(f"Android native two rapid same-window taps paced fresh proofs, actual count=3/ACK={expected}", flush=True)
+
+            def real_tap(rapid=True):
                 _, bounds = scroll_target("この画面の入力テスト対象")
                 counter = ui.wait_for_text("入力テスト: 0")
                 counter_bounds = [int(v) for v in re.findall(r"\d+", counter.get("bounds", ""))]
@@ -218,10 +224,8 @@ def verify_native(owner_post, ready, device_id, old_session, old_token):
                 else:
                     raise AssertionError(f"Real screen pixel change absent: {before} -> {after}")
                 print(f"Android native actual Accessibility tap + ACK + decoded pixel change: latency={elapsed:.3f}s {before}->{after}", flush=True)
-                browser.script("window.vm.send(arguments[0]); window.vm.send(arguments[0]); return true", command_at(bounds))
-                browser.until("return window.vm.acknowledged === 3", "two queued same-window taps without screenshot throttling")
-                ui.wait_for_text("入力テスト: 3")
-                print("Android native two rapid same-window taps paced fresh proofs, actual count/ACK=3", flush=True)
+                if rapid:
+                    queued_taps(bounds)
                 return bounds
 
             def swipe_and_idle():
@@ -246,7 +250,7 @@ def verify_native(owner_post, ready, device_id, old_session, old_token):
                     began = time.monotonic()
                     browser.script("window.vm.send(arguments[0]); return true", {
                         "action": "swipe", "x1": .5, "y1": y1, "x2": .5, "y2": y2, "durationMs": 250})
-                    expected = 4 + index
+                    expected = 2 + index
                     browser.until(f"return window.vm.acknowledged === {expected}", f"swipe {index + 1}/4 OS input ACK")
                     deadline = time.monotonic() + 10
                     while time.monotonic() < deadline:
@@ -278,12 +282,16 @@ def verify_native(owner_post, ready, device_id, old_session, old_token):
                     "callbackDelta": snapshot["frameCallbacks"] - start["frameCallbacks"],
                     "decodedDelta": snapshot["decoded"] - start["decoded"]}), flush=True)
                 adb("shell", "input", "keyevent", "4")
-                ui.wait_for_text("入力テスト: 3")
+                ui.wait_for_text("入力テスト: 1")
                 return maximum_gap
 
             new_session()
-            real_tap()
+            real_tap(rapid=False)
             idle_frame_gap = swipe_and_idle()
+            # Keep the rapid-input assertion, after static media observation so
+            # independent queue latency cannot hide the capture experiment.
+            _, bounds = scroll_target("この画面の入力テスト対象")
+            queued_taps(bounds, expected=7)
             adb("shell", "am", "start", "-W", "-n", f"{ui.PACKAGE}/.SecureTestActivity")
             target = ui.wait_for_text("Secure target taps: 0")
             secure_bounds = [int(v) for v in re.findall(r"\d+", target.get("bounds", ""))]
