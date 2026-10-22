@@ -563,7 +563,18 @@ capture-refresh, final input-dispatch and ACK guards. Fresh status cannot extend
 it; reaching it permanently closes the lease even before a watchdog tick.
 The added regression checks repeated renewals,5,999ms allowed/6,000ms refused
 and no revival after clock reversal. JVM57tests and debug/release builds pass;
-focused independent re-review found no new P1/P2. Exact follow-up CI is pending.
+focused independent re-review found no new P1/P2.
+
+Exact9f623791 [normal39806463888](https://github.com/haji84/AI-/actions/runs/39806463888)
+and [Android39806463894](https://github.com/haji84/AI-/actions/runs/39806463894)
+passed. Actual native relay/relay video320x640, taps0.669/0.857s, four swipes
+with pixels24.9/22.1/24.9/22.4% and0.863/0.873/0.858/0.863s, then ten-second
+static maximum frameAge1,516.5ms/7callbacks/7decoded passed. Both rapid pairs
+reached count3, secure input was refused, and revoke stopped RTC/input and
+released OS projection in0.479s with stable decoded/ACK and later input refused.
+The real REST allocation accepted the valid credential and refused a bad one.
+This does not establish physical/public acceptance or running beyond credential
+expiry; the strict expiry boundary has unit/independent-review evidence.
 
 Commit `f4b00c147e3996c79643cf88c39c3f0633f6f4ad` passed normal CI
 ([39758076923](https://github.com/haji84/AI-/actions/runs/39758076923)) and

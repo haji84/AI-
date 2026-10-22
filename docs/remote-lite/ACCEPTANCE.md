@@ -4,7 +4,19 @@ Issue #1831. Friend installs the Windows host and Android companion and controls
 
 ## Current acceptance summary (2026-10-22)
 
-The sections below retain historical evidence; earlier "pending" statements describe their recorded commit. Current verified baseline is7a41a9d3: normal CI39730997279 and Android CI39730997369 passed. That Android VM drove normal HTTPS setup, real AndroidKeyStore enrollment/approval, receipt/cursor recovery after process stops, signed synthetic SDP/ICE, and actual local Accessibility capture/tap/revocation. The synthetic signaling check is not native video.
+Latest runtime code9f623791 passed [normal39806463888](https://github.com/haji84/AI-/actions/runs/39806463888)
+and [Android39806463894](https://github.com/haji84/AI-/actions/runs/39806463894).
+Both native hosts now fetch purpose-signed active-session ICE. Android VM used
+REST-authenticated coturn, actual MediaProjection to separate Chrome, four real
+swipes followed by ten-second static video, rapid inputs, secure refusal and
+revoke-driven OS capture release in0.479s. Local Node110pass/1ordinary skip,
+explicit Chrome5pass/0skip, JVM57pass, Go tests/vet/build and independent review
+are recorded in PHYSICAL_ACCEPTANCE.md. These do not prove physical, public,
+iPhone, older Android, unattended or40device acceptance. Relay refresh is absent
+and credentials expire within600seconds. The next Windows MSI candidate and its
+pending install/repair/upgrade/uninstall VM gates are in DISTRIBUTION.md.
+
+The sections below retain historical evidence; earlier "pending" statements describe their recorded commit. Earlier verified baseline7a41a9d3: normal CI39730997279 and Android CI39730997369 passed. That Android VM drove normal HTTPS setup, real AndroidKeyStore enrollment/approval, receipt/cursor recovery after process stops, signed synthetic SDP/ICE, and actual local Accessibility capture/tap/revocation. The synthetic signaling check is not native video.
 
 Native Android MediaProjection/WebRTC video, locally bound OS consent/foreground service, ordered manual input and signed status/stop cleanup have since been implemented as candidates. Local49 JVM tests, debug/release builds and lint passed. Independent review led to startup lease, stop/input, lock, secure-window proof, screenshot-rate pacing, coordinator session-end and JNI teardown fixes. A separate Chromium/local TURN VM test asserts actual video/pixel change, taps/ACK, secure-window denial and Android-driven revoke shutdown.
 

@@ -127,3 +127,19 @@ jobs:
           $env:REMOTE_LITE_PORTAL_BROWSER = '1'
           node --test tests/remote-lite-owner-portal.test.mjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Verify per-user Remote Lite MSI install repair upgrade and uninstall
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $wixArchive = Join-Path $env:RUNNER_TEMP 'remote-lite-wix3141.zip'
+          Invoke-WebRequest -Uri 'https://github.com/wixtoolset/wix3/releases/download/wix3141rtm/wix314-binaries.zip' -OutFile $wixArchive
+          if ((Get-FileHash -LiteralPath $wixArchive -Algorithm SHA256).Hash -ne '6AC824E1642D6F7277D0ED7EA09411A508F6116BA6FAE0AA5F2C7DAA2FF43D31') { throw 'WiX archive integrity mismatch' }
+          $wixDirectory = Join-Path $env:RUNNER_TEMP 'remote-lite-wix3141'
+          Expand-Archive -LiteralPath $wixArchive -DestinationPath $wixDirectory
+          $first = Join-Path $env:RUNNER_TEMP 'remote-lite-msi-0.1.0'
+          $rebuilt = Join-Path $env:RUNNER_TEMP 'remote-lite-msi-0.1.0-rebuilt'
+          $upgrade = Join-Path $env:RUNNER_TEMP 'remote-lite-msi-0.1.1'
+          ./scripts/remote-lite-build-windows-installer.ps1 -WixDirectory $wixDirectory -OutputDirectory $first -Version 0.1.0
+          ./scripts/remote-lite-build-windows-installer.ps1 -WixDirectory $wixDirectory -OutputDirectory $rebuilt -Version 0.1.0
+          ./scripts/remote-lite-build-windows-installer.ps1 -WixDirectory $wixDirectory -OutputDirectory $upgrade -Version 0.1.1
+          ./scripts/remote-lite-windows-installer-vm.ps1 -FirstMsi (Join-Path $first 'GORIQRemoteLite-0.1.0.msi') -RebuiltMsi (Join-Path $rebuilt 'GORIQRemoteLite-0.1.0.msi') -UpgradeMsi (Join-Path $upgrade 'GORIQRemoteLite-0.1.1.msi') -FirstHost (Join-Path $first 'GORIQRemoteLite.exe') -UpgradeHost (Join-Path $upgrade 'GORIQRemoteLite.exe')

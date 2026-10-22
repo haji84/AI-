@@ -73,8 +73,11 @@ authenticated response includes fresh server time; clients allow the existing
 and stop on a fixed monotonic deadline. A later device clock rollback cannot
 extend relay use. The server's long-term secret stays out of APKs/EXEs and logs.
 
-This path has local signed-HTTPS, JVM and Windows unit/interoperability coverage;
-the REST-authenticated coturn Android VM integration is pending exact-head CI.
+This path has local signed-HTTPS, JVM and Windows unit/interoperability coverage.
+Code head9f623791 passed [Android REST coturn integration](https://github.com/haji84/AI-/actions/runs/39806463894)
+and [normal CI](https://github.com/haji84/AI-/actions/runs/39806463888): actual native
+relay/relay media, four swipes followed by static video, secure-input refusal
+and owner-revoke capture shutdown. These are disposable loopback VM results.
 Windows real relay allocation, carrier NAT, Safari and sustained sessions past
 credential expiry have not been accepted. Credentials are not yet refreshed in
 an active connection: relay sessions stop at expiry and require a new session
