@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.os.Build
 import android.provider.Settings
 import android.view.ViewGroup
+import android.view.ViewTreeObserver
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -59,29 +60,35 @@ class MainActivity : Activity() {
             status.text = "入力テスト対象にタップが届きました。"
         }
         button("手動入力を診断する") {
-            val location = IntArray(2)
-            target.getLocationOnScreen(location)
-            val centerX = location[0] + target.width / 2.0
-            val centerY = location[1] + target.height / 2.0
             val previous = diagnosticTaps.get()
             status.text = "画面取得と入力を確認しています…"
-            Thread {
-                val result = runCatching {
-                    val frame = ManualAccessibilityService.capture()
-                    val x = (centerX / (frame.width - 1)).coerceIn(0.0, 1.0)
-                    val y = (centerY / (frame.height - 1)).coerceIn(0.0, 1.0)
-                    check(ManualAccessibilityService.apply(ManualAction.Tap(x, y))) { "Gesture refused" }
-                    val deadline = System.currentTimeMillis() + 2_000
-                    while (diagnosticTaps.get() == previous && System.currentTimeMillis() < deadline) {
-                        Thread.sleep(25)
-                    }
-                    check(diagnosticTaps.get() > previous) { "Tap did not reach test target" }
-                    "画面取得と手動入力: 成功"
+            target.viewTreeObserver.addOnPreDrawListener(object : ViewTreeObserver.OnPreDrawListener {
+                override fun onPreDraw(): Boolean {
+                    target.viewTreeObserver.removeOnPreDrawListener(this)
+                    val location = IntArray(2)
+                    target.getLocationOnScreen(location)
+                    val centerX = location[0] + target.width / 2.0
+                    val centerY = location[1] + target.height / 2.0
+                    Thread {
+                        val result = runCatching {
+                            val frame = ManualAccessibilityService.capture()
+                            val x = (centerX / (frame.width - 1)).coerceIn(0.0, 1.0)
+                            val y = (centerY / (frame.height - 1)).coerceIn(0.0, 1.0)
+                            check(ManualAccessibilityService.apply(ManualAction.Tap(x, y))) { "Gesture refused" }
+                            val deadline = System.currentTimeMillis() + 2_000
+                            while (diagnosticTaps.get() == previous && System.currentTimeMillis() < deadline) {
+                                Thread.sleep(25)
+                            }
+                            check(diagnosticTaps.get() > previous) { "Tap did not reach test target" }
+                            "画面取得と手動入力: 成功"
+                        }
+                        runOnUiThread {
+                            status.text = result.getOrElse { "手動入力できません: ${it.message ?: "端末状態を確認してください"}" }
+                        }
+                    }.start()
+                    return true
                 }
-                runOnUiThread {
-                    status.text = result.getOrElse { "手動入力できません: ${it.message ?: "端末状態を確認してください"}" }
-                }
-            }.start()
+            })
         }
         setContentView(column)
         Thread {
