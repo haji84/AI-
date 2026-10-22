@@ -5,6 +5,7 @@ import { createInterface } from 'node:readline';
 import { createServer } from 'node:http';
 import { once } from 'node:events';
 import { compareFrameHistory, installFrameDrawProbe, nativeCopyPixelProbeScript } from './remote-lite-vm-pixels.mjs';
+import { nativeDocumentState } from './remote-lite-windows-document-state.mjs';
 
 const [hostUrl, viewerUrl] = process.argv.slice(2);
 if (!/^http:\/\/127\.0\.0\.1:\d+\/#token=[0-9a-f]{64}&remote=1$/u.test(hostUrl || '') ||
@@ -70,7 +71,7 @@ try {
     await pause(100);
   }
   if (!probeInstalled) {
-    const state = await evalPage(host, 'return {ready:document.readyState,screen:!!document.querySelector("#screen"),canvas:!!document.querySelector("#sourceCanvas"),bridge:!!window.remoteLiteBridge}');
+    const state = await evalPage(host, `return (${nativeDocumentState.toString()})()`);
     throw new Error('Host document did not expose the native frame surface: ' + JSON.stringify(state));
   }
   let frameReady = false;

@@ -186,7 +186,7 @@ func TestWindowsVMSeparateChromiumSignedPeer(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(batch)
 	})
-	vmServer := httptest.NewServer(mux)
+	vmServer := httptest.NewServer(observeVMRoot(t, app, mux))
 	t.Cleanup(vmServer.Close)
 	app.host = strings.TrimPrefix(vmServer.URL, "http://")
 	ctx, cancel := context.WithTimeout(context.Background(), 70*time.Second)

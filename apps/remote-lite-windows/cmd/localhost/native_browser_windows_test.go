@@ -24,6 +24,28 @@ import (
 
 type vmPoint struct{ X, Y int32 }
 
+// Observe only the root document, without logging capabilities or request data.
+// This distinguishes an HTTP refusal from a browser that never reached the host.
+func observeVMRoot(t *testing.T, app *server, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet || r.URL.Path != "/" {
+			next.ServeHTTP(w, r)
+			return
+		}
+		recorded := httptest.NewRecorder()
+		next.ServeHTTP(recorded, r)
+		t.Logf("VM root: status=%d embeddedHTML=%t hostMatches=%t loopback=%t originValid=%t cookiePresent=%t",
+			recorded.Code, bytes.Equal(recorded.Body.Bytes(), indexHTML), r.Host == app.host,
+			isLoopback(r.RemoteAddr), r.Header.Get("Origin") == "" || r.Header.Get("Origin") == "http://"+r.Host,
+			r.Header.Get("Cookie") != "")
+		for key, values := range recorded.Header() {
+			w.Header()[key] = values
+		}
+		w.WriteHeader(recorded.Code)
+		_, _ = w.Write(recorded.Body.Bytes())
+	})
+}
+
 func prepareVMCursorAwayFromCenter(t *testing.T) {
 	t.Helper()
 	user32 := syscall.NewLazyDLL("user32.dll")
@@ -111,7 +133,7 @@ func TestWindowsVMNativeWebRTCFrameInputAndRevocation(t *testing.T) {
 		expires: time.Now().Add(2 * time.Minute), remoteStatus: gate}
 	mux := http.NewServeMux()
 	app.routes(mux)
-	vmServer := httptest.NewServer(mux)
+	vmServer := httptest.NewServer(observeVMRoot(t, app, mux))
 	t.Cleanup(vmServer.Close)
 	app.host = strings.TrimPrefix(vmServer.URL, "http://")
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Second)

@@ -196,7 +196,7 @@ func TestWindowsVMSeparateChromiumRealCoordinator(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write(result)
 	})
-	vmServer := httptest.NewServer(mux)
+	vmServer := httptest.NewServer(observeVMRoot(t, app, mux))
 	t.Cleanup(vmServer.Close)
 	app.host = strings.TrimPrefix(vmServer.URL, "http://")
 	browserScript := filepath.Join("..", "..", "..", "..", "scripts", "remote-lite-windows-separate-browser-vm.mjs")

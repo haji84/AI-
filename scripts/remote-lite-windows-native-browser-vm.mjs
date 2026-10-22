@@ -4,6 +4,7 @@ import { spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
 import { createServer } from 'node:http';
 import { once } from 'node:events';
+import { nativeDocumentState } from './remote-lite-windows-document-state.mjs';
 
 const pageUrl = process.argv[2];
 if (!/^http:\/\/127\.0\.0\.1:\d+\/#token=[0-9a-f]{64}&remote=1$/u.test(pageUrl || '')) {
@@ -67,7 +68,10 @@ try {
     if (state.error) throw new Error('native frame request failed: ' + state.error);
     await pause(150);
   }
-  if (!loaded) throw new Error('native JPEG did not load');
+  if (!loaded) {
+    const state = await evalPage(`return (${nativeDocumentState.toString()})()`);
+    throw new Error('native JPEG did not load: ' + JSON.stringify(state));
+  }
   phase = 'rtc-start';
   await evalPage('window.confirm = () => true; document.querySelector("#rtcStart").click(); return true');
   phase = 'rtc-media';
