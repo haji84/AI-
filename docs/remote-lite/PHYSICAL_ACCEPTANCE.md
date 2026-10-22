@@ -435,6 +435,39 @@ event subscription or persisted/user data changes. Failed cache refresh, absent
 targets, cross-window/overlap, secure/lock/geometry changes and the one-second
 input deadline still refuse input. No OS gesture is retried.
 
+### Native VM milestone — capture reconnect and ACK pacing
+
+`cc4b562f0133bdb809f6f4df65a113e59e094e5a` passed
+[normal CI39790446520](https://github.com/haji84/AI-/actions/runs/39790446520) and
+[Android CI39790446532](https://github.com/haji84/AI-/actions/runs/39790446532).
+Android15 sent real MediaProjection video to separate Chrome through the forced
+local coturn relay/relay route. Initial taps/ACK/decoded pixel change completed
+in 0.851/0.854 s across two sessions.
+
+The ten-second static observation **before swipes** had maximum presentation gap
+1,516.7 ms, 12 callbacks and 13 decoded frames. Native frame counts continued
+after each detach/restore request, without fake timestamps or cached-frame sends.
+All four subsequent 250 ms swipes passed real app-pixel changes
+24.3/24.0/24.5/22.7%, ACK 2–5, in 0.853/0.841/0.852/0.847 s. Both rapid pairs
+passed actual count3/ACK7 and count3/ACK3 with ACK pacing. Secure-window input
+was refused with no target tap or extra ACK. Owner revocation stopped RTC/input,
+released OS capture in 0.260 s, kept decoded/ACK stable and refused late input.
+
+This is the first passing VM run of the new capture/pacing candidates, not a
+physical nubia or public/mobile-network acceptance. Because it observed idle
+before the swipes, it does not yet reproduce the owner's post-fourth-swipe
+scenario. The next test restores the original **four swipes then ten seconds
+idle** order, retaining all exact action, pixel/ACK/count, secure/revoke and
+four-second-gap checks. It also exercises window enumeration shortly after
+activity transition rather than giving it ten seconds to settle. This is a
+remaining concrete risk, not a blind repeat of the passing test.
+
+Local baseline remains Node101pass/1ordinary browser skip (explicit real Chrome
+4pass/0skip), JVM51pass, release build, ESLint, Python and diff checks; independent
+review found no P1/P2. Actual device APK, keys, permissions, public infrastructure
+and costs were not changed. Distribution remains blocked by physical/public/
+signing/clean-install acceptance and unsupported older-Android/unattended goals.
+
 ## Owner portal baseline
 
 Commit `f4b00c147e3996c79643cf88c39c3f0633f6f4ad` passed normal CI
