@@ -64,7 +64,7 @@ jobs:
           REMOTE_LITE_CHROMEDRIVER: ${{ steps.chrome.outputs.chromedriver-path }}
         run: python3 android/remote-lite/scripts/native_vm.py
       - name: Test and build separate manual-only APKs
-        run: gradle -p android/remote-lite :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease :vm-ui-probe:assembleDebug --stacktrace
+        run: gradle -p android/remote-lite :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease :app:assemblePhysicalCheck :vm-ui-probe:assembleDebug --stacktrace
       - name: Verify candidate APK exists
         run: test -s android/remote-lite/app/build/outputs/apk/debug/app-debug.apk
       - name: Verify release APK HTTPS and debug isolation
@@ -95,6 +95,20 @@ jobs:
           grep -Fq assets/notices/WEBRTC_SDK_LICENSE.txt <<< "$archive"
           resources="$("$aapt" dump --values resources "$release")"
           if grep -Eq 'VmRemoteSessionService|public-vm-fixture-only' <<< "$resources"; then exit 1; fi
+      - name: Verify physical acceptance APK uses the normal service
+        run: |
+          set -euo pipefail
+          apk=android/remote-lite/app/build/outputs/apk/physicalCheck/app-physicalCheck.apk
+          test -s "$apk"
+          aapt="$(find "$ANDROID_HOME/build-tools" -mindepth 2 -maxdepth 2 -type f -name aapt | sort -V | tail -n 1)"
+          manifest="$("$aapt" dump xmltree "$apk" AndroidManifest.xml)"
+          grep -Fq 'app.goriq.remote.lite.physicaltest' <<< "$manifest"
+          grep -Fq 'app.goriq.remote.lite.RemoteSessionService' <<< "$manifest"
+          grep -Eq 'usesCleartextTraffic.*0x0' <<< "$manifest"
+          if grep -Eq 'DebugPairingActivity|SecureTestActivity|VmRemoteSessionService|debuggable.*0xffffffff' <<< "$manifest"; then
+            echo 'Physical acceptance APK unexpectedly includes a VM/debug component'
+            exit 1
+          fi
       - name: Enable KVM for Android emulator
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules

@@ -16,6 +16,16 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     sourceSets.getByName("debug").res.srcDir("build/generated/vm-res")
+    // Physical acceptance over an explicitly configured USB HTTPS loopback.
+    // Separate package; normal service/ICE, no emulator-only debug components.
+    buildTypes.create("physicalCheck") {
+        initWith(buildTypes.getByName("release"))
+        applicationIdSuffix = ".physicaltest"
+        isDebuggable = false
+        signingConfig = signingConfigs.getByName("debug")
+        matchingFallbacks += "release"
+    }
+    sourceSets.getByName("physicalCheck").res.srcDir("build/generated/vm-res")
 }
 
 dependencies {
