@@ -12,7 +12,7 @@ import java.security.spec.ECGenParameterSpec
 import java.util.UUID
 
 /** A separate AndroidKeyStore identity; no JARVIS/GORIQ owner credential is reused. */
-class LocalIdentity(context: Context) {
+class LocalIdentity(context: Context) : EnrollmentIdentity {
     private val prefs = context.getSharedPreferences("remote_lite_identity", Context.MODE_PRIVATE)
     private val alias = "remote_lite_p256_v1"
 
@@ -35,20 +35,23 @@ class LocalIdentity(context: Context) {
         return id
     }
 
-    fun publicKeyPem(): String {
+    override fun deviceId(): String = ensure()
+
+    override fun publicKeyPem(): String {
         ensure()
         val encoded = store().getCertificate(alias).publicKey.encoded
         val body = Base64.encodeToString(encoded, Base64.NO_WRAP).chunked(64).joinToString("\n")
         return "-----BEGIN PUBLIC KEY-----\n$body\n-----END PUBLIC KEY-----\n"
     }
 
-    fun fingerprint(): String {
+    override fun fingerprint(): String {
+        ensure()
         val encoded = store().getCertificate(alias).publicKey.encoded
         return MessageDigest.getInstance("SHA-256").digest(encoded)
             .joinToString("") { "%02x".format(it) }
     }
 
-    fun sign(message: String): String {
+    override fun sign(message: String): String {
         ensure()
         val privateKey = store().getKey(alias, null) as java.security.PrivateKey
         val signer = Signature.getInstance("SHA256withECDSA")
