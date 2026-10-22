@@ -41,7 +41,9 @@ def wait_for_text(fragment, seconds=35):
             pass
         time.sleep(1)
     visible = [node.get("text", "") for node in last if node.get("text")]
-    raise AssertionError(f"Missing UI text {fragment!r}; visible={visible!r}")
+    bound = [line.strip() for line in adb("shell", "dumpsys", "accessibility").splitlines()
+             if PACKAGE in line][:12]
+    raise AssertionError(f"Missing UI text {fragment!r}; visible={visible!r}; accessibility={bound!r}")
 
 
 def tap_text(fragment):

@@ -21,7 +21,7 @@ import java.util.concurrent.TimeUnit
 
 data class CapturedFrame(val jpeg: ByteArray, val width: Int, val height: Int, val capturedAtMs: Long)
 
-/** Manual-only Android OS boundary. The service is not exported and opens no listener. */
+/** Manual-only Android OS boundary. Only Android's bind permission can start this service. */
 class ManualAccessibilityService : AccessibilityService() {
     private val captureExecutor = Executors.newSingleThreadExecutor { task ->
         Thread(task, "remote-lite-capture").apply { isDaemon = true }
@@ -42,7 +42,7 @@ class ManualAccessibilityService : AccessibilityService() {
     }
     override fun onAccessibilityEvent(event: AccessibilityEvent?) { /* No event collection. */ }
     override fun onInterrupt() {
-        if (current === this) current = null
+        // Feedback interruption is not an unbind; keep the system-bound service available.
         lastFrame = null
     }
     override fun onUnbind(intent: android.content.Intent?): Boolean {

@@ -13,7 +13,7 @@
         </activity>
         <service
             android:name=".ManualAccessibilityService"
-            android:exported="false"
+            android:exported="true"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
             android:label="@string/service_name">
             <intent-filter>
