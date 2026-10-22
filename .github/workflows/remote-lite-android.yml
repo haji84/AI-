@@ -62,7 +62,9 @@ jobs:
         env:
           REMOTE_LITE_CHROME: /opt/google/chrome/chrome
           REMOTE_LITE_CHROMEDRIVER: ${{ steps.chrome.outputs.chromedriver-path }}
-        run: python3 android/remote-lite/scripts/native_vm.py
+        run: |
+          python3 -m unittest discover -s android/remote-lite/scripts -p test_native_vm.py
+          python3 android/remote-lite/scripts/native_vm.py
       - name: Test and build separate manual-only APKs
         run: gradle -p android/remote-lite :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease :app:assemblePhysicalCheck :vm-ui-probe:assembleDebug --stacktrace
       - name: Verify candidate APK exists

@@ -485,6 +485,28 @@ coordinates, window identity, screen text or credentials. Existing assertions,
 input freshness and permission checks are retained. This will distinguish an
 unready OS window from a geometry mismatch before selecting another correction.
 
+Diagnostic head `71960c0a0cf2a03162f7a41d370a20700b1196a5` produced the needed
+failure evidence in Android CI39794991741/job119879948741: first real tap/pixel
+ACK took 0.887 s; the first swipe was refused with one candidate window. The
+immediate OS dump showed LicenseActivity at the expected [0,0][320,640], but
+`mDrawState=DRAW_PENDING`, `Surface: shown=false` and
+`isReadyForDisplay()=false`. The previous RemoteSessionActivity was still drawn.
+The resumed-activity fixture had admitted input before the new window was ready.
+This explains this VM refusal; it does not establish the physical nubia cause.
+
+The next fixture correction waits at most 20 s for the exact target Window
+header's own surface, HAS_DRAWN, display-ready and visible flags. It then waits
+at most 10 s for a new actual browser video presentation callback with age below
+2 s. This proves received-frame progress after the readiness observation, not
+the frame's capture timestamp. It retains the original four-swipes-then-static
+order and every input/pixel/counter/secure/revoke/four-second assertion. No native
+input condition or deadline changes. Three parser regression tests reject a
+pending target even when a drawn wallpaper/global footer names that target,
+reject missing readiness flags/wrong component, and accept the exact ready
+target. They failed before the helper existed and now pass; independent review
+found no P1/P2. A separate task-local API35/WHPX VM also observed resumed before
+DRAW_PENDING transitioned to HAS_DRAWN. It is not the USB-connected device.
+
 ## Owner portal baseline
 
 Commit `f4b00c147e3996c79643cf88c39c3f0633f6f4ad` passed normal CI

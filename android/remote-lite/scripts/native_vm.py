@@ -11,6 +11,18 @@ import urllib.request
 import urllib.error
 
 
+def window_is_drawn(window_dump, component):
+    # A resumed activity can still have NO_SURFACE/DRAW_PENDING. Match its own
+    # window header, not another ready window or a later mFocusedApp reference.
+    for block in re.split(r"(?m)(?=^[ \t]*Window #\d+ )", window_dump):
+        if not re.match(r"[ \t]*Window #\d+ Window\{[^\n]* " + re.escape(component) + r"\}:", block):
+            continue
+        return all(re.search(pattern, block) for pattern in (
+            r"\bmHasSurface=true\b", r"\bisReadyForDisplay\(\)=true\b",
+            r"\bmDrawState=HAS_DRAWN\b", r"\bisVisible=true\b"))
+    return False
+
+
 class Browser:
     def __init__(self, ready):
         with socket.socket() as probe:
@@ -236,15 +248,30 @@ def verify_native(owner_post, ready, device_id, old_session, old_token):
                 # Use the existing static license screen so it cannot mask idle capture gaps.
                 ui.tap_scrolled("ライセンスを表示する")
                 # Its full third-party notice text exceeds the VM hierarchy probe's
-                # 12KB node limit. Observe the resumed activity without dumping that text.
+                # 12KB node limit. Resumed is too early: the first layout can still
+                # be DRAW_PENDING. Require its actual drawn OS window, then a new
+                # received frame, before taking the first swipe's pixel baseline.
+                began = time.monotonic()
                 deadline = time.monotonic() + 20
                 while time.monotonic() < deadline:
-                    activities = adb("shell", "dumpsys", "activity", "activities")
-                    if re.search(r"(?:topResumedActivity|mResumedActivity|ResumedActivity)[^\n]*\.LicenseActivity\b", activities):
+                    if window_is_drawn(adb("shell", "dumpsys", "window", "windows"),
+                            f"{ui.PACKAGE}/{ui.PACKAGE}.LicenseActivity"):
                         break
                     time.sleep(.2)
                 else:
-                    raise AssertionError("Static license activity did not become resumed")
+                    raise AssertionError("Static license window did not become drawn/visible")
+                ready = browser.stats()
+                deadline = time.monotonic() + 10
+                while time.monotonic() < deadline:
+                    snapshot = browser.stats()
+                    assert not snapshot["closed"], "Native RTC ended before drawn-window video: " + json.dumps(snapshot)
+                    if (snapshot["frameCallbacks"] > ready["frameCallbacks"] and
+                            snapshot["frameAgeMs"] is not None and snapshot["frameAgeMs"] < 2000):
+                        break
+                    time.sleep(.2)
+                else:
+                    raise AssertionError("No fresh received frame after static window became drawn")
+                print(f"Android VM static target drawn + fresh received frame in {time.monotonic() - began:.3f}s", flush=True)
                 for index in range(4):
                     time.sleep(1)
                     browser.script("window.vm.markContent(); return true")
