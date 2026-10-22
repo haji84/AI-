@@ -59,7 +59,7 @@ async function createFixture(root: string) {
   const spreadsheet = await spreadsheets.execute(action("spreadsheet.local", "spreadsheet", "write", "derived/report.xlsx", { workbook }));
   const doc = await documents.execute(action("document.local", "document", "write", "derived/report.docx", { document }));
   assert.equal(source.ok, true);
-  assert.equal(spreadsheet.ok, true);
+  assert.equal(spreadsheet.ok, true, `fixture spreadsheet write failed: ${spreadsheet.error ?? JSON.stringify(spreadsheet.outputs)}`);
   assert.equal(doc.ok, true);
 
   const expectations: LocalArtifactExpectation[] = [
