@@ -101,6 +101,13 @@ jobs:
             $unformatted = gofmt -l $temporary
             if ($unformatted) { gofmt -d $temporary; throw "Unformatted Go source: $source" }
           }
+          foreach ($source in @('cmd/localhost/enrollment_windows.go', 'cmd/localhost/enrollment_windows_test.go', 'cmd/localhost/setup_windows.go', 'cmd/localhost/setup_windows_test.go', 'cmd/localhost/setup_node_windows_test.go', 'cmd/localhost/web_windows.go')) {
+            $normalized = [IO.File]::ReadAllText((Resolve-Path $source)).Replace("`r`n", "`n")
+            $temporary = Join-Path $env:RUNNER_TEMP ([IO.Path]::GetFileName($source))
+            [IO.File]::WriteAllText($temporary, $normalized, [Text.UTF8Encoding]::new($false))
+            $unformatted = gofmt -l $temporary
+            if ($unformatted) { gofmt -d $temporary; throw "Unformatted Go source: $source" }
+          }
           $env:GORIQ_REMOTE_LITE_NODE_INTEROP = '1'
           $env:GORIQ_REMOTE_LITE_VM_NATIVE = '1'
           $env:REMOTE_LITE_CHROMEDRIVER = (Get-Command chromedriver -ErrorAction Stop).Source

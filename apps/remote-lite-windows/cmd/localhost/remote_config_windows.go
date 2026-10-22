@@ -17,8 +17,8 @@ import (
 	"unsafe"
 )
 
-// This file is populated only after a separately approved device-enrollment
-// flow. It is never shipped with the EXE and is never created on first launch.
+// This file is populated only after local invitation enrollment and a fresh
+// signed owner-approval check. It is never shipped with the EXE.
 type activeRemoteSession struct {
 	Version             int    `json:"version"`
 	StatusServiceURL    string `json:"statusServiceUrl"`

@@ -7,8 +7,12 @@ import _ "embed"
 //go:embed index.html
 var htmlBytes []byte
 
+//go:embed setup.html
+var setupHTML []byte
+
 // These copies are checked byte-for-byte against src/remote-lite in CI.
 // Embedding keeps the standalone EXE independent of the source checkout.
+//
 //go:embed browser-webrtc.mjs
 var browserPeerBytes []byte
 

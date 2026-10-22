@@ -348,6 +348,12 @@ func main() {
 	if err != nil {
 		log.Fatal("signed remote session configuration refused: ", err)
 	}
+	if remoteGate == nil {
+		if err := runEnrollmentSetup(); err != nil {
+			log.Fatal("端末登録の開始または終了を確認できません。別の登録画面が開いていないか、保存済み登録情報を確認してください。")
+		}
+		return
+	}
 	allowed, err := prepareRemoteGate(context.Background(), remoteGate, approve, approveRemote)
 	if err != nil {
 		log.Fatal("signed remote session startup refused: ", err)
