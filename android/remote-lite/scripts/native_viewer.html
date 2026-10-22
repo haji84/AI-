@@ -22,6 +22,16 @@ window.probeRelay = async () => {
 window.beginNative = async config => {
   let cursor = 0;
   let pc;
+  let lastFrame = 0, frameCallbacks = 0;
+  let observingIdle = false, maxIdleFrameGap = 0;
+  const observeFrame = () => {
+    const now = performance.now();
+    if (observingIdle && lastFrame) maxIdleFrameGap = Math.max(maxIdleFrameGap, now - lastFrame);
+    lastFrame = now; frameCallbacks++;
+    video.requestVideoFrameCallback(observeFrame);
+  };
+  video.requestVideoFrameCallback(observeFrame);
+  window.vm.beginIdleObservation = () => { maxIdleFrameGap = 0; observingIdle = true; };
   const post = async (operation, extra = {}) => {
     const response = await fetch('/vm/' + operation, { method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-VM-Bridge': config.bridge },
@@ -49,6 +59,8 @@ window.beginNative = async config => {
     const pair = transport && reports.get(transport.selectedCandidatePairId);
     return { state: window.vm.state, closed: viewer.closed, acknowledged: window.vm.acknowledged,
       width: video.videoWidth, height: video.videoHeight, decoded: video.getVideoPlaybackQuality().totalVideoFrames,
+      frameCallbacks, frameAgeMs: lastFrame ? performance.now() - lastFrame : null,
+      maxIdleFrameGapMs: observingIdle && lastFrame ? Math.max(maxIdleFrameGap, performance.now() - lastFrame) : null,
       localType: pair && reports.get(pair.localCandidateId)?.candidateType,
       remoteType: pair && reports.get(pair.remoteCandidateId)?.candidateType,
       gathering: pc.iceGatheringState, ice: pc.iceConnectionState,
@@ -60,6 +72,26 @@ window.beginNative = async config => {
     const canvas = document.createElement('canvas'); canvas.width = video.videoWidth; canvas.height = video.videoHeight;
     const context = canvas.getContext('2d'); context.drawImage(video, 0, 0);
     return [...context.getImageData(Math.floor(x * canvas.width), Math.floor(y * canvas.height), 1, 1).data];
+  };
+  const contentPixels = () => {
+    // Exclude system bars; only a change in the received app content counts.
+    const canvas = document.createElement('canvas'); canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+    const context = canvas.getContext('2d'); context.drawImage(video, 0, 0);
+    return context.getImageData(Math.floor(canvas.width * .1), Math.floor(canvas.height * .2),
+      Math.floor(canvas.width * .8), Math.floor(canvas.height * .6)).data;
+  };
+  let markedContent;
+  window.vm.markContent = () => { markedContent = contentPixels(); };
+  window.vm.contentChange = () => {
+    const pixels = contentPixels();
+    if (!markedContent || markedContent.length !== pixels.length) throw new Error('Content dimensions changed');
+    let changed = 0;
+    for (let i = 0; i < pixels.length; i += 4) {
+      const difference = Math.abs(pixels[i] - markedContent[i]) + Math.abs(pixels[i + 1] - markedContent[i + 1]) +
+        Math.abs(pixels[i + 2] - markedContent[i + 2]);
+      if (difference > 90) changed++;
+    }
+    return changed / (pixels.length / 4);
   };
   await viewer.startViewer();
   void (async () => {

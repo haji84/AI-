@@ -224,15 +224,71 @@ def verify_native(owner_post, ready, device_id, old_session, old_token):
                 print("Android native two rapid same-window taps paced fresh proofs, actual count/ACK=3", flush=True)
                 return bounds
 
+            def swipe_and_idle():
+                # The sharing activity redraws its frame counter every 500 ms.
+                # Use the existing static license screen so it cannot mask idle capture gaps.
+                ui.tap_scrolled("ライセンスを表示する")
+                # Its full third-party notice text exceeds the VM hierarchy probe's
+                # 12KB node limit. Observe the resumed activity without dumping that text.
+                deadline = time.monotonic() + 20
+                while time.monotonic() < deadline:
+                    activities = adb("shell", "dumpsys", "activity", "activities")
+                    if re.search(r"(?:topResumedActivity|mResumedActivity|ResumedActivity)[^\n]*\.LicenseActivity\b", activities):
+                        break
+                    time.sleep(.2)
+                else:
+                    raise AssertionError("Static license activity did not become resumed")
+                for index in range(4):
+                    time.sleep(1)
+                    browser.script("window.vm.markContent(); return true")
+                    decoded = browser.stats()["decoded"]
+                    y1, y2 = (.75, .3) if index % 2 == 0 else (.3, .75)
+                    began = time.monotonic()
+                    browser.script("window.vm.send(arguments[0]); return true", {
+                        "action": "swipe", "x1": .5, "y1": y1, "x2": .5, "y2": y2, "durationMs": 250})
+                    expected = 4 + index
+                    browser.until(f"return window.vm.acknowledged === {expected}", f"swipe {index + 1}/4 OS input ACK")
+                    deadline = time.monotonic() + 10
+                    while time.monotonic() < deadline:
+                        changed = browser.script("return window.vm.contentChange()")
+                        if changed > .02 and browser.stats()["decoded"] > decoded:
+                            break
+                        time.sleep(.2)
+                    else:
+                        raise AssertionError(f"Swipe {index + 1}/4 acknowledged but received content did not change")
+                    print(f"Android native swipe {index + 1}/4 ACK={expected} + decoded app-content change "
+                        f"{changed:.1%} in {time.monotonic() - began:.3f}s", flush=True)
+                # Observe real compositor callbacks, not a transport heartbeat/currentTime.
+                # Defer the freshness assertion until existing secure/revoke checks also finish.
+                time.sleep(1)
+                browser.script("window.vm.beginIdleObservation(); return true")
+                start = browser.stats()
+                maximum_gap = 0
+                deadline = time.monotonic() + 10
+                while time.monotonic() < deadline:
+                    snapshot = browser.stats()
+                    assert not snapshot["closed"], "Native RTC ended while license screen was idle: " + json.dumps(snapshot)
+                    assert snapshot["frameAgeMs"] is not None, "No native video presentation callback"
+                    maximum_gap = max(maximum_gap, snapshot["maxIdleFrameGapMs"])
+                    time.sleep(.2)
+                print("Android native static-screen observation: " + json.dumps({
+                    "seconds": 10, "maxFrameAgeMs": maximum_gap,
+                    "callbackDelta": snapshot["frameCallbacks"] - start["frameCallbacks"],
+                    "decodedDelta": snapshot["decoded"] - start["decoded"]}), flush=True)
+                adb("shell", "input", "keyevent", "4")
+                ui.wait_for_text("入力テスト: 3")
+                return maximum_gap
+
             new_session()
             real_tap()
+            idle_frame_gap = swipe_and_idle()
             adb("shell", "am", "start", "-W", "-n", f"{ui.PACKAGE}/.SecureTestActivity")
             target = ui.wait_for_text("Secure target taps: 0")
             secure_bounds = [int(v) for v in re.findall(r"\d+", target.get("bounds", ""))]
             browser.script("window.vm.send(arguments[0]); return true", command_at(secure_bounds))
             browser.until("return window.vm.state === 'connection-lost' || window.vm.state === 'control-channel-closed' || "
                 "window.vm.state === 'control-channel-failed' || window.vm.state === 'fixture-signaling-ended'", "secure input refusal")
-            assert browser.stats()["acknowledged"] == 3, "Secure input was acknowledged"
+            assert browser.stats()["acknowledged"] == 7, "Secure input was acknowledged"
             ui.wait_for_text("Secure target taps: 0")
             print("Android native secure-window input refused with no OS target tap or ACK", flush=True)
             # Observe final capture cleanup before a new consent/session; no force-stop workaround.
@@ -274,12 +330,17 @@ def verify_native(owner_post, ready, device_id, old_session, old_token):
             assert result == "refused", result
             scroll_target("入力テスト: 3")
             print(f"Android native owner revoke stopped actual video/input and released capture in {elapsed:.3f}s: " + json.dumps(later), flush=True)
+            assert idle_frame_gap < 4000, ("Native static-screen frame gap exceeds the production owner's four-second "
+                f"stop threshold: {idle_frame_gap:.0f}ms; standalone RTC success is not product acceptance")
             return second["sessionId"]
         except Exception:
             print("Native diagnostics: " + adb("shell", "logcat", "-d", "-s",
                 "RemoteLiteNative:I", "RemoteLiteLifecycle:I", "AndroidRuntime:E", "libc:F", "libjingle:V", "org.webrtc.Logging:V",
                 "NetworkMonitor:V", "NetworkMonitorAutoDetect:V", "*:S")[-12000:], flush=True)
-            print("Android visible controls: " + str(ui.visible()), flush=True)
+            try:
+                print("Android visible controls: " + str(ui.visible()), flush=True)
+            except Exception as diagnostic_error:
+                print("Android hierarchy diagnostic unavailable: " + type(diagnostic_error).__name__, flush=True)
             print("TURN diagnostics: " + log_path.read_text()[-3500:], flush=True)
             raise
         finally:

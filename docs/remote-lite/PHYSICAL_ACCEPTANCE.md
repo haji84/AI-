@@ -220,11 +220,30 @@ The latter is emulator evidence: native tap/ACK/decoded pixel change 0.641/0.637
 secure-window refusal, and owner revoke stopping video/input and releasing capture
 in 0.266 s. It is not sustained physical or cellular acceptance.
 
-Next action: obtain one prepared physical consent, observe frame production and
-browser display while idle, then compare harmless repeated input and home-screen
-idle. Select a fix from that evidence; do not label stale pixels LIVE or count a
+The owner subsequently reported being away from home. Local nubia consent is
+unavailable, and capture is already stopped. Do not request more local device
+actions or restart capture through a permission workaround. The next available
+step is Android VM reproduction; physical retesting remains blocked.
+
+Diagnostic source `937c23cf68053d220f9773b84abb80d94c1e7eb5` passed
+[normal CI 39770678090](https://github.com/haji84/AI-/actions/runs/39770678090)
+and [Android CI 39770677947](https://github.com/haji84/AI-/actions/runs/39770677947).
+The VM recorded actual tap/ACK/pixel changes in 0.648/0.634 s and revoke cleanup
+in 0.245 s. These checks still used three taps in the sharing activity, whose
+500 ms frame-counter redraw can hide static-screen behavior.
+
+The next VM experiment adds four alternating RTC swipes on the existing license
+screen. Each requires an OS ACK and a substantial change in decoded app pixels,
+excluding system bars. It then records ten seconds of presentation-callback age
+without changing the screen. A gap at or above the product browser's four-second
+stop threshold fails the experiment, after the existing secure-window/revocation
+checks have run. The fixture viewer still differs from the production owner UI;
+this checks the native stream/input hypothesis, not end-to-end product acceptance.
+No product capture, input, authorization, timeout or permission setting changes.
+
+Select a fix from observed evidence; do not label stale pixels LIVE or count a
 transport heartbeat as a new frame. No release/distribution acceptance is granted.
-Rollback this record with its commit; runtime and device settings are unchanged.
+Rollback this VM experiment by reverting its commit; device state is unchanged.
 
 ## Owner portal baseline
 
