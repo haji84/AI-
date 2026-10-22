@@ -39,7 +39,33 @@ registry while investigating failures; do not reset them to obtain a pass.
 - Physical APK SHA-256 at initial preparation:
   `8719274DF2A548DC2495FBAA7F3AA54F83B3190EBE0587E647F0CA0F3929DBF2`.
 - This records artifact preparation only. Physical video/input acceptance is
-  still pending; USB device was detected with owner authorization pending.
+  still pending at artifact preparation.
+
+## Physical setup observed, 2026-10-22
+
+The owner authorized USB debugging. Read-only device properties identified nubia
+A403ZT, Android 15 / API 35. The above APK installed successfully as a separate
+app. Only test port 57755 was reverse-mapped. The owner submitted enrollment in
+the normal UI, confirmed the complete fingerprint against the independent
+owner registry, and explicitly enabled the Accessibility service. The exact
+physicaltest service appears in the OS enabled-service setting. No capture or
+remote-input success is implied by these setup observations. Browser/capture
+consent and actual video/input are the next checks.
+
+The `d685dd76` physical profile passed CI39760390261 and Android39760390265,
+including APK separation checks. The following `ba4bd63d` TURN wiring passed
+normal CI39761328273, but Android39761328131 FAILED in the VM's Settings setup:
+three service-row coordinate taps left the same list visible. No native media
+test ran in that job. Android and harness files did not change between those
+two heads; the successful previous run also needed its second Settings tap.
+The exact cause of the ignored coordinate tap is not established.
+
+The next harness method records node bounds/enabled/class and focused activity;
+after the existing three taps, it tries Android 15's normal Accessibility detail
+Settings entry once. It preserves platform permission checks, visible service
+name, switch/Allow/enabled checks and the later exact-service binding assertions.
+It does not grant permissions through shell or change the product. A denied
+alternate launch remains a failed test. This approach is pending CI validation.
 
 ## Owner portal baseline
 

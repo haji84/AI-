@@ -170,6 +170,7 @@ def allow_accessibility_in_settings(return_to_main=True):
             "Accessibility service or downloaded-apps entry")
         print(f"Accessibility controls: {visible()!r}", flush=True)
         is_service = "GORIQ Remote Lite 手動操作" in label(option)
+        print(f"Settings target: {option.attrib!r}", flush=True)
         tap_node(option)
         if is_service:
             break
@@ -183,9 +184,26 @@ def allow_accessibility_in_settings(return_to_main=True):
         except AssertionError:
             # Retry only if the same Settings list is still visible, never dismiss a product error.
             service = optional_text("GORIQ Remote Lite 手動操作", seconds=2)
-            if attempt == 3 or service is None:
+            if service is None:
                 raise
+            if attempt == 3:
+                # Three coordinate attempts are exhausted. Use Android 15's
+                # normal service-detail Settings entry, not a permission grant.
+                # Its platform permission/DeviceAdmin/AppOps checks still apply;
+                # a denied launch or missing target/switch must fail this test.
+                focused = [line.strip() for line in adb("shell", "dumpsys", "activity", "activities").splitlines()
+                           if "ResumedActivity" in line or "topResumedActivity" in line]
+                print(f"Settings row failed: node={service.attrib!r}; focused={focused!r}", flush=True)
+                launched = adb("shell", "am", "start", "-W", "-a",
+                    "android.settings.ACCESSIBILITY_DETAILS_SETTINGS", "-p", "com.android.settings",
+                    "--es", "android.intent.extra.COMPONENT_NAME",
+                    f"{PACKAGE}/{PACKAGE}.ManualAccessibilityService")
+                print(f"Alternate Settings detail launch (1/1): {launched.strip()}", flush=True)
+                wait_for_text("GORIQ Remote Lite 手動操作", seconds=8)
+                switch = wait_for_nodes(find_switch, "target Accessibility detail switch", seconds=8)
+                break
             print(f"VM Settings service row did not open, retry {attempt + 1}/3", flush=True)
+            print(f"Settings retry target: {service.attrib!r}", flush=True)
             tap_node(service)
     if switch.get("checked") != "true":
         tap_node(switch)
