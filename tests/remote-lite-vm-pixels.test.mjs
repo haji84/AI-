@@ -75,6 +75,15 @@ test('draw probe records the image only after that image has reached the stream 
   assert.equal(samples.length, 2);
 });
 
+test('draw probe waits for both DOM elements without installing a partial observer', () => {
+  let contexts = 0;
+  const canvas = { getContext() { contexts++; throw new Error('must not touch incomplete DOM'); } };
+  assert.equal(pixels.installFrameDrawProbe(null, null, () => {}), false);
+  assert.equal(pixels.installFrameDrawProbe({}, null, () => {}), false);
+  assert.equal(pixels.installFrameDrawProbe(null, canvas, () => {}), false);
+  assert.equal(contexts, 0);
+});
+
 test('native-size copy uses the same final sampling path for image and canvas', () => {
   assert.equal(typeof pixels.nativeCopyPixelProbeScript, 'function');
   const actual = Array(12 * 7 * 4).fill(100);

@@ -39,6 +39,9 @@ export const nativeCopyPixelProbeScript = (...selectors) => `const sample=select
 // VM-only probe: observe a completed canvas draw synchronously. A timer
 // scheduled from the image load event can sample a later image generation.
 export function installFrameDrawProbe(image, canvas, record) {
+  // WebDriver navigation completion does not establish this page's DOM contract.
+  // Let the bounded caller wait; never install against only one ready element.
+  if (!image || !canvas) return false;
   const context = canvas.getContext('2d', { alpha: false });
   const original = context.drawImage;
   context.drawImage = function (...args) {

@@ -57,13 +57,22 @@ try {
   // Copy at native size before sampling so JPEG, canvas and video use the same
   // downsampling path; direct 12x7 sampling gave a false 46.6 RGB difference.
   const nativeSnapshot = nativeCopyPixelProbeScript('#screen', '#sourceCanvas');
-  await evalPage(host, `window.vmNativeFrameSamples=[];
+  let probeInstalled = false;
+  for (let attempt = 0; attempt < 50; attempt++) {
+    probeInstalled = await evalPage(host, `window.vmNativeFrameSamples=[];
     return (${installFrameDrawProbe.toString()})(
       document.querySelector('#screen'),document.querySelector('#sourceCanvas'),()=>{
         const [nativeImage,nativeCanvas]=(()=>{${nativeSnapshot}})();
         if(nativeImage&&nativeCanvas){window.vmNativeFrameSamples.push({image:nativeImage,canvas:nativeCanvas});
           if(window.vmNativeFrameSamples.length>20)window.vmNativeFrameSamples.shift();}
       });`);
+    if (probeInstalled) break;
+    await pause(100);
+  }
+  if (!probeInstalled) {
+    const state = await evalPage(host, 'return {ready:document.readyState,screen:!!document.querySelector("#screen"),canvas:!!document.querySelector("#sourceCanvas"),bridge:!!window.remoteLiteBridge}');
+    throw new Error('Host document did not expose the native frame surface: ' + JSON.stringify(state));
+  }
   let frameReady = false;
   for (let attempt = 0; attempt < 100; attempt++) {
     const state = await evalPage(host, 'return {width:document.querySelector("#screen")?.naturalWidth||0,error:document.querySelector("#error")?.textContent}');
