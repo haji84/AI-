@@ -36,7 +36,8 @@ async function rig() {
     const result = await response.json();
     return { status: response.status, ...result, headers: response.headers };
   };
-  const key = (keys, payload) => sign(null, Buffer.from(payload), keys.privateKey).toString('base64');
+  const key = (keys, payload) => sign(keys.privateKey.asymmetricKeyType === 'ec' ? 'sha256' : null,
+    Buffer.from(payload), keys.privateKey).toString('base64');
   const deviceProof = async (device, sessionId, operation, payloadHash = '') => {
     const ch = await post('/v1/device/challenge', { deviceId: device.deviceId, sessionId, operation, payloadHash }, null);
     assert.equal(ch.status, 200);
@@ -50,8 +51,8 @@ async function rig() {
     return { deviceId: device.deviceId, issuedAt, nonce,
       signature: key(device.keys, RemoteLitePairingRegistry.discoveryMessage({deviceId:device.deviceId,issuedAt,nonce})) };
   };
-  const register = async (ownerToken, deviceId) => {
-    const keys = generateKeyPairSync('ed25519');
+  const register = async (ownerToken, deviceId, algorithm = 'ed25519') => {
+    const keys = algorithm === 'p256' ? generateKeyPairSync('ec',{namedCurve:'prime256v1'}) : generateKeyPairSync('ed25519');
     const invitation = await post('/v1/invite', {}, ownerToken);
     assert.equal(invitation.status, 200);
     const proposed = await post('/v1/device/propose', {
@@ -72,8 +73,39 @@ async function rig() {
     assert.equal(approved.status, 200);
     return { deviceId, keys, fingerprint: approved.result.fingerprint };
   };
-  return { local, info, post, url, register, deviceProof, discoveryProof, sessions };
+  return { local, info, post, url, register, deviceProof, discoveryProof, sessions, key };
 }
+
+test('P-256 Android identity signs local HTTP discovery, session status and WebRTC signaling', async t => {
+  const {createDeviceSessionCheck} = await import('../src/remote-lite/browser-webrtc.mjs');
+  const h=await rig();t.after(()=>h.local.stop());
+  const device=await h.register('fixture-alice','android-p256','p256');
+  const started=await h.post('/v1/start',{deviceId:device.deviceId});
+  const {sessionId,viewerToken}=started.result;
+  assert.equal((await h.post('/v1/device/pending',{
+    deviceId:device.deviceId,proof:h.discoveryProof(device),
+  },null)).status,200);
+  assert.equal((await h.post('/v1/device/accept',{
+    sessionId,deviceId:device.deviceId,
+    proof:await h.deviceProof(device,sessionId,'session-accept'),
+  },null)).status,200);
+  const check=createDeviceSessionCheck({sessionId,deviceId:device.deviceId,
+    post:(path,body)=>h.post(path,body,null),signMessage:message=>h.key(device.keys,message)});
+  assert.equal(await check(),true);
+  const viewer=createManualSignalingTransport({role:'viewer',sessionId,viewerToken,
+    post:(path,body)=>h.post(path,body,'fixture-alice')});
+  const host=createManualSignalingTransport({role:'host',sessionId,deviceId:device.deviceId,
+    post:(path,body)=>h.post(path,body,null),signMessage:message=>h.key(device.keys,message)});
+  const offer={type:'offer',sdp:'v=0\r\n'};
+  await viewer.send(offer);
+  assert.deepEqual(await host.receive(),[offer]);
+  const answer={type:'answer',sdp:'v=0\r\n'};
+  await host.send(answer);
+  assert.deepEqual(await viewer.receive(),[answer]);
+  await h.post('/v1/revoke',{deviceId:device.deviceId});
+  assert.equal(await check(),false);
+  await assert.rejects(()=>host.receive(),/SIGNALING_REFUSED/);
+});
 
 test('real local HTTP: owner invites, device signs, owner approves, offer/answer, then disconnect', async t => {
   const h = await rig();

@@ -213,9 +213,10 @@ func (s *server) requireSignedRemote(next http.HandlerFunc) http.HandlerFunc {
 }
 func (s *server) routes(m *http.ServeMux) {
 	for path, content := range map[string][]byte{
-		"/browser-webrtc.mjs":  browserPeerBytes,
-		"/manual-protocol.mjs": manualProtocolBytes,
-		"/windows-host.mjs":    windowsHostBytes,
+		"/browser-webrtc.mjs":          browserPeerBytes,
+		"/manual-protocol.mjs":         manualProtocolBytes,
+		"/device-signature-format.mjs": deviceSignatureFormatBytes,
+		"/windows-host.mjs":            windowsHostBytes,
 	} {
 		m.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
 			if r.Method != http.MethodGet || r.URL.Path != path {

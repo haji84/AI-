@@ -61,7 +61,8 @@ const server = createServer(async (request, response) => {
     response.end(html);
     return;
   }
-  if (request.url === '/src/remote-lite/browser-webrtc.mjs' || request.url === '/src/remote-lite/manual-protocol.mjs') {
+  if (['browser-webrtc.mjs','manual-protocol.mjs','device-signature-format.mjs']
+    .some(name => request.url === `/src/remote-lite/${name}`)) {
     const name = request.url.split('/').at(-1);
     response.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'no-store' });
     response.end(await readFile(new URL(name, source)));

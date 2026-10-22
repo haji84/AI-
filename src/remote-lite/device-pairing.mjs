@@ -1,22 +1,28 @@
 import { createHash, createPublicKey, randomBytes, randomUUID, verify } from 'node:crypto';
 import { Buffer } from 'node:buffer';
+import { deviceSignatureFormat } from './device-signature-format.mjs';
 
 const validId = (value) => typeof value === 'string' && value.length >= 1 && value.length <= 128 && /^[a-zA-Z0-9._:-]+$/.test(value);
 const hexHash = (value) => createHash('sha256').update(value).digest('hex');
 const fail = (code) => { throw new PairingError(code); };
 const operations = new Set(['session-accept', 'session-status', 'signal-send', 'signal-receive', 'session-end', 'reconnect']);
 const token = () => randomBytes(24).toString('hex');
-const bytesOfSignature = (value) => {
-  if (typeof value !== 'string' || !/^[A-Za-z0-9+/]{86}==$/.test(value)) fail('SIGNATURE_INVALID');
-  const data = Buffer.from(value, 'base64');
-  if (data.length !== 64 || data.toString('base64') !== value) fail('SIGNATURE_INVALID');
-  return data;
+const bytesOfSignature = (value, key) => {
+  const expected = key.asymmetricKeyType === 'ed25519' ? 'ed25519' : 'p256';
+  if (deviceSignatureFormat(value, expected) !== expected) fail('SIGNATURE_INVALID');
+  return Buffer.from(value, 'base64');
+};
+const verifySignature = (key, message, signature) => {
+  const bytes = bytesOfSignature(signature, key);
+  try { return verify(key.asymmetricKeyType === 'ec' ? 'sha256' : null, Buffer.from(message), key, bytes); }
+  catch { return false; }
 };
 const loadKey = (pem) => {
   if (typeof pem !== 'string' || pem.length > 1024 || !pem.startsWith('-----BEGIN PUBLIC KEY-----')) fail('DEVICE_KEY_INVALID');
   try {
     const key = createPublicKey(pem);
-    if (key.asymmetricKeyType !== 'ed25519') fail('DEVICE_KEY_INVALID');
+    if (key.asymmetricKeyType !== 'ed25519' &&
+        !(key.asymmetricKeyType === 'ec' && key.asymmetricKeyDetails?.namedCurve === 'prime256v1')) fail('DEVICE_KEY_INVALID');
     return { key, fingerprint: hexHash(key.export({ type: 'spki', format: 'der' })) };
   } catch { fail('DEVICE_KEY_INVALID'); }
 };
@@ -98,7 +104,7 @@ export class RemoteLitePairingRegistry {
     if (!pending) fail('PAIRING_EXPIRED_OR_NOT_FOUND');
     if (pending.proven) fail('PROOF_ALREADY_USED');
     const message = RemoteLitePairingRegistry.enrollmentMessage({ requestId, deviceId: pending.deviceId, fingerprint: pending.fingerprint, challenge: pending.challenge });
-    if (!verify(null, Buffer.from(message), pending.key, bytesOfSignature(signature))) fail('DEVICE_PROOF_INVALID');
+    if (!verifySignature(pending.key, message, signature)) fail('DEVICE_PROOF_INVALID');
     pending.proven = true;
     pending.challenge = null;
     return { requestId, deviceId: pending.deviceId, fingerprint: pending.fingerprint, status: 'awaiting-owner-approval' };
@@ -155,7 +161,7 @@ export class RemoteLitePairingRegistry {
     if (!Number.isSafeInteger(issuedAt) || Math.abs(this.now() - issuedAt) >= 30_000 ||
         typeof nonce !== 'string' || !/^[0-9a-f]{48}$/.test(nonce)) fail('DISCOVERY_EXPIRED');
     const message = RemoteLitePairingRegistry.discoveryMessage({ deviceId, issuedAt, nonce });
-    if (!verify(null, Buffer.from(message), device.key, bytesOfSignature(signature))) fail('DEVICE_PROOF_INVALID');
+    if (!verifySignature(device.key, message, signature)) fail('DEVICE_PROOF_INVALID');
     let nonces = this.#discoveryNonces.get(deviceId);
     if (!nonces) { nonces = new Map(); this.#discoveryNonces.set(deviceId, nonces); }
     if (nonces.has(nonce)) fail('DISCOVERY_REPLAYED');
@@ -172,7 +178,7 @@ export class RemoteLitePairingRegistry {
     const device = this.#devices.get(deviceId);
     if (!device) fail('DEVICE_REVOKED');
     const message = RemoteLitePairingRegistry.deviceMessage({ ...record, challengeId });
-    if (!verify(null, Buffer.from(message), device.key, bytesOfSignature(signature))) fail('DEVICE_PROOF_INVALID');
+    if (!verifySignature(device.key, message, signature)) fail('DEVICE_PROOF_INVALID');
     return { ownerId: device.ownerId, deviceId, devicePrincipalId: device.fingerprint, operation, sessionId };
   }
 

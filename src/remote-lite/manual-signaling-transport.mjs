@@ -1,11 +1,12 @@
 import { parseWebRtcSignal } from './manual-protocol.mjs';
+import { deviceSignatureFormat } from './device-signature-format.mjs';
 
 export class ManualSignalingTransportError extends Error {
   constructor(code) { super(code); this.name = 'ManualSignalingTransportError'; this.code = code; }
 }
 const fail = code => { throw new ManualSignalingTransportError(code); };
 const validId = value => typeof value === 'string' && /^[a-zA-Z0-9._:-]{1,128}$/u.test(value);
-const validSignature = value => typeof value === 'string' && /^[A-Za-z0-9+/]{86}==$/u.test(value);
+const validSignature = value => deviceSignatureFormat(value) !== null;
 const challengeId = value => typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u.test(value);
 const hexNonce = value => typeof value === 'string' && /^[0-9a-f]{48}$/u.test(value);
 const hexHash = async value => {

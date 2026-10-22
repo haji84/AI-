@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { generateKeyPairSync, sign } from 'node:crypto';
 import { Buffer } from 'node:buffer';
 import { RemoteLitePairingRegistry } from '../src/remote-lite/device-pairing.mjs';
+import { deviceSignatureFormat } from '../src/remote-lite/device-signature-format.mjs';
 
 const pair = () => generateKeyPairSync('ed25519');
 const sig = (key, data) => sign(null, Buffer.from(data), key).toString('base64');
@@ -146,4 +147,39 @@ test('malformed signatures, unsupported operation and other-owner keys fail clos
   assert.throws(()=>r.verifyDevice({...challenge,deviceId:a.deviceId,operation:'session-accept',sessionId:'s',signature:forged}),/DEVICE_PROOF_INVALID/);
   const second=r.challengeDevice({deviceId:a.deviceId,operation:'session-accept',sessionId:'s'});
   assert.throws(()=>r.verifyDevice({...second,deviceId:a.deviceId,operation:'session-accept',sessionId:'s',signature:'bad'}),/SIGNATURE_INVALID/);
+});
+
+test('Android Keystore P-256 identity proves enrollment, discovery and a bound session before revocation',()=>{
+  const {r,owner}=setup(),deviceId='android-p256';
+  const keys=generateKeyPairSync('ec',{namedCurve:'prime256v1'});
+  const signature=message=>sign('sha256',Buffer.from(message),keys.privateKey).toString('base64');
+  const invitation=r.issueInvite(owner());
+  const request=r.propose({inviteCode:invitation.inviteCode,deviceId,publicKeyPem:pem(keys)});
+  const enrollment=RemoteLitePairingRegistry.enrollmentMessage({...request,deviceId});
+  assert.throws(()=>r.prove({requestId:request.requestId,signature:sig(pair().privateKey,enrollment)}),/SIGNATURE_INVALID/);
+  assert.equal(r.prove({requestId:request.requestId,signature:signature(enrollment)}).status,'awaiting-owner-approval');
+  r.approve({...owner(),requestId:request.requestId,expectedFingerprint:request.fingerprint});
+  const discovery={deviceId,issuedAt:1000000,nonce:'a'.repeat(48)};
+  const signedDiscovery={...discovery,signature:signature(RemoteLitePairingRegistry.discoveryMessage(discovery))};
+  assert.equal(r.verifyDiscovery(signedDiscovery).devicePrincipalId,request.fingerprint);
+  assert.throws(()=>r.verifyDiscovery(signedDiscovery),/DISCOVERY_REPLAYED/);
+  const challenge=r.challengeDevice({deviceId,operation:'session-status',sessionId:'s'});
+  const message=RemoteLitePairingRegistry.deviceMessage({...challenge,deviceId,operation:'session-status',sessionId:'s'});
+  assert.equal(r.verifyDevice({...challenge,deviceId,operation:'session-status',sessionId:'s',signature:signature(message)}).devicePrincipalId,request.fingerprint);
+  assert.equal(r.revoke({...owner(),deviceId}).status,'revoked');
+  assert.throws(()=>r.verifyDiscovery({...signedDiscovery,nonce:'b'.repeat(48)}),/DEVICE_REVOKED/);
+});
+
+test('only P-256 named-curve EC public keys are accepted',()=>{
+  const {r,owner}=setup();
+  const invitation=r.issueInvite(owner());
+  const p384=generateKeyPairSync('ec',{namedCurve:'secp384r1'});
+  assert.throws(()=>r.propose({inviteCode:invitation.inviteCode,deviceId:'p384',publicKeyPem:pem(p384)}),/DEVICE_KEY_INVALID/);
+});
+
+test('a 64-byte DER signature is classified by the pinned P-256 key format',()=>{
+  const der=Buffer.concat([Buffer.from([0x30,62,0x02,29,1]),Buffer.alloc(28),
+    Buffer.from([0x02,29,1]),Buffer.alloc(28)]).toString('base64');
+  assert.equal(deviceSignatureFormat(der,'p256'),'p256');
+  assert.equal(deviceSignatureFormat(der,'ed25519'),'ed25519');
 });

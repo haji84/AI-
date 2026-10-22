@@ -1,4 +1,5 @@
 import { parseManualInput, parseWebRtcSignal } from './manual-protocol.mjs';
+import { deviceSignatureFormat } from './device-signature-format.mjs';
 
 export class BrowserPeerError extends Error {
   constructor(code) { super(code); this.code = code; this.name = 'BrowserPeerError'; }
@@ -27,7 +28,7 @@ export function createDeviceSessionCheck({ sessionId, deviceId, post, signMessag
       const message = ['GORIQ_REMOTE_DEVICE_AUTH_V1', deviceId, 'session-status',
         sessionId, nonce.challengeId, nonce.challenge, ''].join('\n');
       const signature = await signMessage(message);
-      if (typeof signature !== 'string' || !/^[A-Za-z0-9+/]{86}==$/u.test(signature)) return false;
+      if (deviceSignatureFormat(signature) === null) return false;
       const status = await post('/v1/device/status', {
         sessionId, deviceId, proof: { deviceId, operation: 'session-status', sessionId,
           challengeId: nonce.challengeId, signature },

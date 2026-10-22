@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { createWindowsRemoteHost } from '../apps/remote-lite-windows/cmd/localhost/windows-host.mjs';
 
 test('standalone EXE embeds exact manual-only peer and protocol source', () => {
-  for (const name of ['browser-webrtc.mjs', 'manual-protocol.mjs']) {
+  for (const name of ['browser-webrtc.mjs', 'manual-protocol.mjs', 'device-signature-format.mjs']) {
     assert.deepEqual(readFileSync(`apps/remote-lite-windows/cmd/localhost/${name}`),
       readFileSync(`src/remote-lite/${name}`));
   }
