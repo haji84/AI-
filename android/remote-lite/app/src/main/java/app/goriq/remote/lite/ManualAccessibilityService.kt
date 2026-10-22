@@ -6,17 +6,28 @@ import android.annotation.TargetApi
 import android.app.KeyguardManager
 import android.graphics.Bitmap
 import android.graphics.Path
+import android.graphics.Point
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock
 import android.view.Display
+import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import java.io.ByteArrayOutputStream
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
 data class CapturedFrame(val jpeg: ByteArray, val width: Int, val height: Int, val capturedAtMs: Long)
 
 /** Manual-only Android OS boundary. The service is not exported and opens no listener. */
 class ManualAccessibilityService : AccessibilityService() {
+    private val captureExecutor = Executors.newSingleThreadExecutor { task ->
+        Thread(task, "remote-lite-capture").apply { isDaemon = true }
+    }
+    @Volatile private var lastFrame: FrameGeometry? = null
+
     companion object {
         @Volatile private var current: ManualAccessibilityService? = null
         fun connected(): Boolean = current != null
@@ -30,24 +41,53 @@ class ManualAccessibilityService : AccessibilityService() {
         current = this
     }
     override fun onAccessibilityEvent(event: AccessibilityEvent?) { /* No event collection. */ }
-    override fun onInterrupt() { current = null }
+    override fun onInterrupt() {
+        if (current === this) current = null
+        lastFrame = null
+    }
+    override fun onUnbind(intent: android.content.Intent?): Boolean {
+        if (current === this) current = null
+        lastFrame = null
+        return super.onUnbind(intent)
+    }
     override fun onDestroy() {
         if (current === this) current = null
+        lastFrame = null
+        captureExecutor.shutdownNow()
         super.onDestroy()
     }
 
-    private fun requireUnlocked() {
+    private fun requireWorkerThread() {
+        check(Looper.myLooper() != Looper.getMainLooper()) { "Run screen and input calls off the UI thread" }
+    }
+
+    private fun requireActiveUnlocked() {
+        check(current === this) { "Accessibility disconnected" }
         check(getSystemService(KeyguardManager::class.java)?.isDeviceLocked == false) { "Device locked" }
+    }
+
+    private data class DisplayState(val width: Int, val height: Int, val rotation: Int)
+
+    @Suppress("DEPRECATION")
+    private fun displayState(): DisplayState {
+        val display = (getSystemService(WINDOW_SERVICE) as WindowManager).defaultDisplay
+        val size = Point()
+        display.getRealSize(size)
+        check(size.x > 0 && size.y > 0) { "Display unavailable" }
+        return DisplayState(size.x, size.y, display.rotation)
     }
 
     @TargetApi(30)
     private fun captureScreen(): CapturedFrame {
         check(Build.VERSION.SDK_INT >= 30) { "Screenshot requires Android 11 or newer" }
-        requireUnlocked()
+        requireWorkerThread()
+        requireActiveUnlocked()
+        lastFrame = null
+        val before = displayState()
         val done = CountDownLatch(1)
         var frame: CapturedFrame? = null
         var failure = "Screenshot unavailable"
-        takeScreenshot(Display.DEFAULT_DISPLAY, mainExecutor, object : TakeScreenshotCallback {
+        takeScreenshot(Display.DEFAULT_DISPLAY, captureExecutor, object : TakeScreenshotCallback {
             override fun onSuccess(result: ScreenshotResult) {
                 try {
                     result.hardwareBuffer.use { buffer ->
@@ -73,25 +113,37 @@ class ManualAccessibilityService : AccessibilityService() {
             }
         })
         check(done.await(3, TimeUnit.SECONDS)) { "Screenshot timed out" }
-        return frame ?: error(failure)
+        requireActiveUnlocked()
+        val captured = frame ?: error(failure)
+        check(displayState() == before && captured.width == before.width && captured.height == before.height) {
+            "Screenshot does not match current display"
+        }
+        lastFrame = FrameGeometry(captured.width, captured.height, before.rotation, SystemClock.elapsedRealtime())
+        return captured
     }
 
     private fun applyManual(action: ManualAction): Boolean {
-        requireUnlocked()
-        return when (action) {
+        requireWorkerThread()
+        requireActiveUnlocked()
+        val applied = when (action) {
             ManualAction.Back -> performGlobalAction(GLOBAL_ACTION_BACK)
             ManualAction.Home -> performGlobalAction(GLOBAL_ACTION_HOME)
             ManualAction.Recents -> performGlobalAction(GLOBAL_ACTION_RECENTS)
             is ManualAction.Tap -> gesture(action.x, action.y, action.x, action.y, 80)
             is ManualAction.Swipe -> gesture(action.x1, action.y1, action.x2, action.y2, action.durationMs)
         }
+        requireActiveUnlocked()
+        return applied
     }
 
     private fun gesture(x1: Double, y1: Double, x2: Double, y2: Double, duration: Long): Boolean {
-        val metrics = resources.displayMetrics
+        val state = displayState()
+        val frame = lastFrame ?: error("Capture a fresh frame before input")
+        val start = frame.point(x1, y1, state.width, state.height, state.rotation, SystemClock.elapsedRealtime())
+        val end = frame.point(x2, y2, state.width, state.height, state.rotation, SystemClock.elapsedRealtime())
         val path = Path().apply {
-            moveTo((metrics.widthPixels * x1).toFloat(), (metrics.heightPixels * y1).toFloat())
-            lineTo((metrics.widthPixels * x2).toFloat(), (metrics.heightPixels * y2).toFloat())
+            moveTo(start.x, start.y)
+            lineTo(end.x, end.y)
         }
         val done = CountDownLatch(1)
         var applied = false
@@ -103,8 +155,11 @@ class ManualAccessibilityService : AccessibilityService() {
                     done.countDown()
                 }
                 override fun onCancelled(gestureDescription: GestureDescription?) { done.countDown() }
-            }, null)
+            }, Handler(Looper.getMainLooper()))
         if (!accepted) return false
-        return done.await(6, TimeUnit.SECONDS) && applied
+        val finished = done.await(6, TimeUnit.SECONDS)
+        requireActiveUnlocked()
+        check(displayState() == state) { "Display changed during input" }
+        return finished && applied
     }
 }
