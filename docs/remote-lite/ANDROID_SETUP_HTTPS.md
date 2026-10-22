@@ -10,6 +10,8 @@ The normal release requires INTERNET for this explicitly requested function. Pri
 
 ## Boundaries
 
+An unsuccessful or uncertain request is never automatically repeated. After the owner verifies that the old request expired without registration, a new same-origin invitation can be submitted through an explicit local confirmation dialog. The key, fingerprint and previous receipt IDs remain intact. Approved registrations cannot use this recovery route; concurrent requests and stale approval snapshots are refused.
+
 `EnrollmentLink` validates a maximum 2048-character invitation and an HTTPS origin with no credentials, path, query or fragment. Unknown/duplicate parameters fail. `HttpsJsonTransport` uses standard certificate and hostname validation, disables redirects/cache, permits only the existing fixed device endpoint paths, bounds request/response bytes to 96 KiB, and uses 5-second connect/read timeouts. It never falls back to HTTP. `CoordinatorExchange` owns JSON protocol mapping and sanitized refusal codes; it is reused by release and VM diagnostics. UI persistence never contains the invite, private key or viewer token. User-visible errors do not echo raw responses.
 
 ## Verification

@@ -38,5 +38,5 @@ export default defineConfig([
       "@typescript-eslint/no-explicit-any": "off",
     },
   },
-  globalIgnores([".next/**", "next-env.d.ts"]),
+  globalIgnores([".next/**", "next-env.d.ts", "android/remote-lite/**/build/**"]),
 ]);

@@ -48,7 +48,8 @@ jobs:
             exit 1
           fi
           grep -Eq 'usesCleartextTraffic.*0x0' <<< "$manifest"
-          if unzip -l "$release" | grep -Fq remote_lite_vm_ca; then
+          archive="$(unzip -l "$release")"
+          if grep -Fq remote_lite_vm_ca <<< "$archive"; then
             echo 'Release APK unexpectedly includes VM CA'
             exit 1
           fi

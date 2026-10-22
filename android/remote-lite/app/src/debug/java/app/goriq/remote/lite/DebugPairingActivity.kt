@@ -113,6 +113,7 @@ class DebugPairingActivity : Activity() {
             val centerY = location[1] + targetButton.height / 2.0
             val previous = diagnosticTaps.get()
             Thread {
+                var stage = "capture"
                 val result = runCatching {
                     val session = checkNotNull(activeSessionId) { "有効セッションなし" }
                     val access = DeviceSessionAccess(LocalIdentity(this),
@@ -120,6 +121,7 @@ class DebugPairingActivity : Activity() {
                     val frame = access.requireActiveThen(session) { ManualAccessibilityService.capture() }
                     val x = (centerX / (frame.width - 1)).coerceIn(0.0, 1.0)
                     val y = (centerY / (frame.height - 1)).coerceIn(0.0, 1.0)
+                    stage = "input"
                     check(access.requireActiveThen(session) {
                         ManualAccessibilityService.apply(ManualAction.Tap(x, y))
                     }) { "Gesture refused" }
@@ -131,7 +133,7 @@ class DebugPairingActivity : Activity() {
                     "認証済み画面取得と実タップ: 成功"
                 }
                 runOnUiThread {
-                    operationStatus.text = result.getOrElse { "画面操作を拒否: ${it.message ?: "不明なエラー"}" }
+                    operationStatus.text = result.getOrElse { "画面操作を拒否: ${it.message ?: "不明なエラー"} (stage=$stage)" }
                     operationButton.isEnabled = true
                 }
             }.start()

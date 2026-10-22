@@ -36,9 +36,16 @@ class ManualAccessibilityService : AccessibilityService() {
             (current ?: error("Accessibility unavailable")).applyManual(action)
     }
 
+    private fun diagnostic(event: String) {
+        if (applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0)
+            android.util.Log.i("RemoteLiteLifecycle",
+                "$event pid=${android.os.Process.myPid()} instance=${System.identityHashCode(this)} elapsed=${SystemClock.elapsedRealtime()}")
+    }
+
     override fun onServiceConnected() {
         super.onServiceConnected()
         current = this
+        diagnostic("connected")
     }
     override fun onAccessibilityEvent(event: AccessibilityEvent?) { /* No event collection. */ }
     override fun onInterrupt() {
@@ -46,11 +53,13 @@ class ManualAccessibilityService : AccessibilityService() {
         lastFrame = null
     }
     override fun onUnbind(intent: android.content.Intent?): Boolean {
+        diagnostic("unbind")
         if (current === this) current = null
         lastFrame = null
         return super.onUnbind(intent)
     }
     override fun onDestroy() {
+        diagnostic("destroy")
         if (current === this) current = null
         lastFrame = null
         captureExecutor.shutdownNow()

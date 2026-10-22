@@ -1,6 +1,7 @@
 package app.goriq.remote.lite
 
 import android.app.Activity
+import android.app.AlertDialog
 import android.os.Bundle
 import android.text.InputType
 import android.view.View
@@ -17,6 +18,7 @@ class EnrollmentActivity : Activity() {
     private lateinit var status: TextView
     private lateinit var register: Button
     private lateinit var confirm: Button
+    private lateinit var recover: Button
     private lateinit var input: EditText
     private var invitation: EnrollmentLink? = null
 
@@ -52,6 +54,7 @@ class EnrollmentActivity : Activity() {
         status = label("招待リンクを開くか、ここへ貼り付けてください。")
         register = button("この接続先へ端末を登録する") { submit() }.apply { isEnabled = false }
         confirm = button("所有者の承認を確認する") { confirmRegistration() }.apply { isEnabled = false }
+        recover = button("所有者確認後に新しい招待で再申請する") { recoverRegistration() }.apply { isEnabled = false }
         button("閉じる") { finish() }
         setContentView(ScrollView(this).apply { addView(column) })
         renderSaved()
@@ -64,12 +67,17 @@ class EnrollmentActivity : Activity() {
         input.text.clear()
         invitation = null
         register.isEnabled = false
+        recover.isEnabled = false
         try {
             val link = EnrollmentLink.parse(value)
             val saved = settings.read()
             if (saved != null) {
+                if (saved.origin == link.endpoint.origin && saved.phase != "approved") {
+                    invitation = link
+                    recover.isEnabled = true
+                }
                 status.text = if (saved.origin == link.endpoint.origin)
-                    "この端末には登録情報があります。再登録せず、所有者の承認を確認してください。\n${description(saved)}"
+                    "登録情報を保持しています。承認確認、または所有者確認後の再申請を選んでください。\n${description(saved)}"
                     else "別の接続先の登録情報を保持しています。接続先を自動変更できません。\n${description(saved)}"
                 confirm.isEnabled = true
                 return
@@ -82,15 +90,31 @@ class EnrollmentActivity : Activity() {
         }
     }
 
+    private fun recoverRegistration() {
+        val link = invitation ?: return
+        val expected = runCatching { settings.read() }.getOrNull() ?: return
+        AlertDialog.Builder(this)
+            .setTitle("所有者側で以前の申請を確認しましたか？")
+            .setMessage("以前の申請が期限切れで、登録されていないことを所有者側で確認してから実行してください。端末鍵・指紋・以前の申請IDを保持し、同じ接続先へ新しい招待で再申請します。承認済みの場合は承認確認を使ってください。")
+            .setNegativeButton("戻る", null)
+            .setPositiveButton("確認済み・再申請する") { _, _ -> submit(link, expected) }
+            .show()
+    }
+
     private fun submit() {
         val link = invitation ?: return
+        submit(link, null)
+    }
+
+    private fun submit(link: EnrollmentLink, recovery: SavedEnrollment?) {
         invitation = null
         busy("端末を登録しています…")
         Thread {
             val result = runCatching {
-                EnrollmentSetup(LocalIdentity(this), settings) {
+                val setup = EnrollmentSetup(LocalIdentity(this), settings) {
                     CoordinatorExchange(HttpsJsonTransport(it))
-                }.submit(link)
+                }
+                if (recovery == null) setup.submit(link) else setup.retryAfterOwnerConfirmation(link, recovery)
             }
             runOnUiThread {
                 if (!renderSaved()) status.text = "登録できません。接続先と安全なHTTPS通信を確認してください。"
@@ -109,7 +133,7 @@ class EnrollmentActivity : Activity() {
                 val exchange = CoordinatorExchange(HttpsJsonTransport(RemoteEndpoint.parse(saved.origin)))
                 DeviceSessionAccess(identity, exchange).discoverPending()
                 // A successful signed discovery authenticates the approved key even with no pending session.
-                saved.copy(phase = "approved").also { settings.write(it) }
+                EnrollmentSetup(identity, settings) { exchange }.recordApprovalAfterSignedCheck(saved)
             }
             runOnUiThread {
                 renderSaved()
@@ -122,18 +146,21 @@ class EnrollmentActivity : Activity() {
     private fun busy(message: String) {
         register.isEnabled = false
         confirm.isEnabled = false
+        recover.isEnabled = false
         status.text = message
     }
 
     private fun renderSaved(): Boolean = try {
         val saved = settings.read()
         register.isEnabled = false
+        recover.isEnabled = false
         confirm.isEnabled = saved != null
         if (saved != null) status.text = description(saved)
         saved != null
     } catch (_: Exception) {
         register.isEnabled = false
         confirm.isEnabled = false
+        recover.isEnabled = false
         status.text = "保存済みの登録情報を確認できません。端末鍵を消去せず、所有者へ確認してください。"
         true
     }
@@ -142,9 +169,11 @@ class EnrollmentActivity : Activity() {
         val state = when (saved.phase) {
             "approved" -> "登録情報を保存済み。利用時に承認状態を再確認します。遠隔接続はこの開発版ではまだ利用できません。"
             "awaiting-owner-approval" -> "所有者の承認待ち。所有者の画面で指紋を照合して承認してください。"
-            else -> "登録結果が不明です。再登録せず、所有者側の状態を確認してください。"
+            else -> "登録結果が不明です。所有者側で確認してください。未登録で以前の申請が期限切れなら、新しい招待を貼り付けて確認後に再申請できます。"
         }
         return "$state\n接続先: ${saved.origin}\n端末ID: ${saved.deviceId}\n" +
-            (saved.requestId?.let { "申請ID: $it\n" } ?: "") + "指紋: ${saved.fingerprint}"
+            (saved.requestId?.let { "申請ID: $it\n" } ?: "") +
+            (if (saved.previousRequestIds.isEmpty()) "" else "以前の申請ID: ${saved.previousRequestIds.joinToString(", ")}\n") +
+            "指紋: ${saved.fingerprint}"
     }
 }

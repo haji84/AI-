@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { request } from 'node:http';
 import { createServer } from 'node:https';
+import { URL } from 'node:url';
 import process from 'node:process';
 import { ManualRemoteCoordinator } from '../../../src/remote-lite/manual-coordinator.mjs';
 import { createLoopbackSignaling } from '../../../src/remote-lite/loopback-signaling.mjs';

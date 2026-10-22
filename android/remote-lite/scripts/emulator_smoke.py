@@ -118,6 +118,14 @@ def open_debug_activity():
         f"activity={activity[-1800:]!r}; crashes={crashes[-1800:]!r}")
 
 
+def accessibility_diagnostic(stage):
+    pid = adb("shell", "pidof", PACKAGE).strip()
+    state = [line.strip() for line in adb("shell", "dumpsys", "accessibility").splitlines()
+             if PACKAGE in line or "Bound services:" in line or "Enabled services:" in line]
+    events = adb("shell", "logcat", "-d", "-t", "300", "-s", "RemoteLiteLifecycle:I", "*:S")
+    print(f"Accessibility {stage}: pid={pid}; state={state!r}; lifecycle={events[-2500:]!r}", flush=True)
+
+
 def find_switch(items):
     return next((node for node in items if "Switch" in node.get("class", "")), None)
 
@@ -188,17 +196,29 @@ def verify_real_keystore_pairing():
         ready = json.loads(ready_line)
         port = ready["port"]
         adb("reverse", f"tcp:{port}", f"tcp:{port}")
-        link = "goriqremote://enroll?" + urllib.parse.urlencode({
-            "server": ready["origin"], "invite": ready["inviteCode"]})
-        adb("shell", "am", "start", "-W", "-n", f"{PACKAGE}/.EnrollmentActivity",
-            "-a", "android.intent.action.VIEW", "-d", shlex.quote(link))
+        def open_invite(code):
+            link = "goriqremote://enroll?" + urllib.parse.urlencode({
+                "server": ready["origin"], "invite": code})
+            adb("shell", "am", "start", "-W", "-n", f"{PACKAGE}/.EnrollmentActivity",
+                "-a", "android.intent.action.VIEW", "-d", shlex.quote(link))
+        # A definitely invalid invite must leave recoverable metadata, never auto-resend.
+        open_invite("0" * 48)
         wait_for_text(f"接続先: {ready['origin']}")
         tap_scrolled("この接続先へ端末を登録する")
+        failed = wait_for_text("登録結果が不明", seconds=35).get("text", "")
+        old_fingerprint = re.search(r"指紋: ([0-9a-f]{64})", failed)
+        if old_fingerprint is None:
+            raise AssertionError("Failed enrollment lost its identity")
+        open_invite(ready["inviteCode"])
+        tap_scrolled("所有者確認後に新しい招待で再申請する")
+        tap_text("確認済み・再申請する")
         result = wait_for_text("所有者の承認待ち", seconds=35).get("text", "")
         request_id = re.search(r"申請ID: ([0-9a-f-]{36})", result)
         fingerprint = re.search(r"指紋: ([0-9a-f]{64})", result)
         if request_id is None or fingerprint is None:
             raise AssertionError(f"Android pairing receipt incomplete: {result!r}")
+        if old_fingerprint.group(1) != fingerprint.group(1):
+            raise AssertionError("Owner-confirmed recovery replaced the device key")
         adb("shell", "am", "force-stop", PACKAGE)
         adb("shell", "am", "start", "-W", "-n", f"{PACKAGE}/.EnrollmentActivity")
         retained = wait_for_text("所有者の承認待ち", seconds=35).get("text", "")
@@ -246,6 +266,7 @@ def verify_real_keystore_pairing():
             time.sleep(1)
         else:
             raise AssertionError("Accessibility service did not bind after visible permission setup")
+        accessibility_diagnostic("after connected check")
         if optional_text("対象タップ数: 0", exact=True) is None:
             raise AssertionError("Tap target changed before authorized operation")
         tap_text("画面操作ゲートを診断する")
@@ -255,6 +276,7 @@ def verify_real_keystore_pairing():
                 "画面操作を拒否:" in label(node)), None),
             "authenticated capture and tap outcome", seconds=35)
         if "認証済み画面取得と実タップ: 成功" not in label(outcome):
+            accessibility_diagnostic("operation refused")
             raise AssertionError(f"Authenticated operation uncertain or refused: {label(outcome)!r}; "
                 f"target={optional_text('対象タップ数: 1', exact=True) is not None}")
         wait_for_text("対象タップ数: 1")

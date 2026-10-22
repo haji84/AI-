@@ -63,4 +63,83 @@ class EnrollmentSetupTest {
         assertEquals("https://original.example", store.value?.origin)
         assertEquals("approved", store.value?.phase)
     }
+
+    @Test fun ownerConfirmedRecoveryKeepsTheIdentityAndPriorReceipt() {
+        val old = SavedEnrollment(link.endpoint.origin, "awaiting-owner-approval", id, fingerprint, request)
+        val store = Store().apply { value = old }
+        val replacement = "123e4567-e89b-42d3-a456-426614174002"
+        val exchange = object : EnrollmentExchange {
+            override fun propose(code: String, deviceId: String, publicKeyPem: String): EnrollmentChallenge {
+                assertEquals(request, store.value?.requestId)
+                assertEquals(id, deviceId)
+                return EnrollmentChallenge(replacement, "c".repeat(48), fingerprint, 1_900_000_000_000)
+            }
+            override fun prove(requestId: String, signature: String) =
+                EnrollmentReceipt(replacement, id, fingerprint, "awaiting-owner-approval")
+        }
+        val result = EnrollmentSetup(identity, store) { exchange }.retryAfterOwnerConfirmation(link, old)
+        assertEquals(replacement, result.requestId)
+        assertEquals(listOf(request), result.previousRequestIds)
+        assertEquals(id, result.deviceId)
+        assertEquals(fingerprint, result.fingerprint)
+    }
+
+    @Test fun recoveryRequiresTheSameUnapprovedStateAndServer() {
+        val old = SavedEnrollment("https://original.example", "requesting", id, fingerprint)
+        val store = Store().apply { value = old }
+        val setup = EnrollmentSetup(identity, store) { error("Must not reach network") }
+        assertThrows(IllegalStateException::class.java) { setup.retryAfterOwnerConfirmation(link, old) }
+        store.value = old.copy(origin = link.endpoint.origin, phase = "approved")
+        assertThrows(IllegalStateException::class.java) {
+            setup.retryAfterOwnerConfirmation(link, checkNotNull(store.value))
+        }
+        store.value = old.copy(origin = link.endpoint.origin)
+        assertThrows(IllegalStateException::class.java) {
+            setup.retryAfterOwnerConfirmation(link, checkNotNull(store.value).copy(requestId = request))
+        }
+    }
+
+    @Test fun aLostRecoveryReplyRetainsThePreviousReceiptAndStillNeedsNewConfirmation() {
+        val old = SavedEnrollment(link.endpoint.origin, "awaiting-owner-approval", id, fingerprint, request)
+        val store = Store().apply { value = old }
+        var attempts = 0
+        val exchange = object : EnrollmentExchange {
+            override fun propose(code: String, deviceId: String, publicKeyPem: String): EnrollmentChallenge {
+                attempts++
+                error("lost reply")
+            }
+            override fun prove(requestId: String, signature: String): EnrollmentReceipt = error("not used")
+        }
+        val setup = EnrollmentSetup(identity, store) { exchange }
+        runCatching { setup.retryAfterOwnerConfirmation(link, old) }
+        assertEquals("requesting", store.value?.phase)
+        assertEquals(request, store.value?.requestId)
+        assertThrows(IllegalStateException::class.java) { setup.submit(link) }
+        assertEquals(1, attempts)
+    }
+
+    @Test fun aSecondActivityCannotRecoverWhileTheFirstRequestIsStillRunning() {
+        val store = Store()
+        lateinit var exchange: EnrollmentExchange
+        exchange = object : EnrollmentExchange {
+            override fun propose(code: String, deviceId: String, publicKeyPem: String): EnrollmentChallenge {
+                val second = EnrollmentSetup(identity, store) { error("Duplicate network request") }
+                assertThrows(IllegalStateException::class.java) {
+                    second.retryAfterOwnerConfirmation(link, checkNotNull(store.value))
+                }
+                return EnrollmentChallenge(request, "c".repeat(48), fingerprint, 1_900_000_000_000)
+            }
+            override fun prove(requestId: String, signature: String) =
+                EnrollmentReceipt(request, id, fingerprint, "awaiting-owner-approval")
+        }
+        assertEquals(request, EnrollmentSetup(identity, store) { exchange }.submit(link).requestId)
+    }
+
+    @Test fun aStaleApprovalCheckCannotOverwriteANewerReceipt() {
+        val old = SavedEnrollment(link.endpoint.origin, "requesting", id, fingerprint)
+        val store = Store().apply { value = old.copy(phase = "awaiting-owner-approval", requestId = request) }
+        val setup = EnrollmentSetup(identity, store) { error("not used") }
+        assertThrows(IllegalStateException::class.java) { setup.recordApprovalAfterSignedCheck(old) }
+        assertEquals(request, store.value?.requestId)
+    }
 }
