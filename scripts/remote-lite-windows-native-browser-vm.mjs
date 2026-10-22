@@ -61,7 +61,7 @@ try {
   sessionId = session.sessionId;
   await openWindowsFixtureTab(webdriver, sessionId);
   phase = 'navigation';
-  await navigateWindowsFixture(webdriver, sessionId, pageUrl);
+  const navigation = await navigateWindowsFixture(webdriver, sessionId, pageUrl, { recoverBootstrap: true });
   const evalPage = script => webdriver('POST', `/session/${sessionId}/execute/sync`, { script, args: [] });
   phase = 'native-jpeg';
   let loaded = false;
@@ -88,7 +88,8 @@ try {
     await pause(150);
   }
   if (!mediaReady) throw new Error('native video/DataChannel did not connect: ' + JSON.stringify(lastMediaState));
-  process.stdout.write(JSON.stringify({ event: 'media-ready', nativeJPEG: true, decodedVideo: true }) + '\n');
+  process.stdout.write(JSON.stringify({ event: 'media-ready', nativeJPEG: true, decodedVideo: true,
+    navigationRecoveries: navigation.recoveries }) + '\n');
   const lines = createInterface({ input: process.stdin });
   const commands = lines[Symbol.asyncIterator]();
   const move = await commands.next();

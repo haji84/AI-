@@ -59,7 +59,7 @@ export async function openWindowsFixtureTab(webdriver, session) {
   if (committed !== true) throw new Error('Windows VM fixture bootstrap document did not commit');
 }
 
-export async function navigateWindowsFixture(webdriver, session, destination) {
+export async function navigateWindowsFixture(webdriver, session, destination, { recoverBootstrap = false } = {}) {
   const target = new URL(destination);
   if (destination !== 'about:blank' &&
       (target.protocol !== 'http:' || target.hostname !== '127.0.0.1' || !target.port || target.username || target.password)) {
@@ -75,6 +75,23 @@ export async function navigateWindowsFixture(webdriver, session, destination) {
       navigation.errorText || navigation.isDownload) {
     const errorCode = /^(?:net::)?(ERR_[A-Z0-9_]+)$/u.exec(navigation?.errorText || '')?.[1] || 'unavailable';
     const state = await navigationFailureState(webdriver, session, target);
+    // Hosted Chrome can cancel a first fixed-document GET while still showing
+    // our inert bootstrap (CI39849339866). Allow exactly one infrastructure
+    // recovery, explicitly opted into by native fixtures. Never retry a page
+    // that received a response, committed, was blocked, or lacks this evidence.
+    const interrupted = state.failedDocuments?.[0];
+    if (recoverBootstrap && target.protocol === 'http:' && !target.search &&
+        ['/', '/vm/viewer'].includes(target.pathname) &&
+        typeof navigation?.frameId === 'string' && navigation.frameId &&
+        errorCode === 'ERR_ABORTED' && !navigation.isDownload &&
+        state.targetDocumentRequests === 1 && state.responses?.length === 0 &&
+        state.bootstrapComplete === true && state.targetComplete === false &&
+        state.failedDocuments?.length === 1 && interrupted.error === 'ERR_ABORTED' &&
+        interrupted.canceled === true && interrupted.blocked === false) {
+      // Default options disable recovery in this second and final attempt.
+      await navigateWindowsFixture(webdriver, session, destination);
+      return { recoveries: 1 };
+    }
     throw new Error(`Windows VM browser navigation refused: ${errorCode} ${JSON.stringify(state)}`);
   }
   for (let attempt = 0; attempt < 80; attempt++) {
@@ -83,7 +100,7 @@ export async function navigateWindowsFixture(webdriver, session, destination) {
         location.origin===target.origin && location.pathname===target.pathname && location.search===target.search;`,
       args: [destination],
     });
-    if (arrived === true) return;
+    if (arrived === true) return { recoveries: 0 };
     await new Promise(resolve => setTimeout(resolve, 100));
   }
   // Never include the launch URL or page body in diagnostics.

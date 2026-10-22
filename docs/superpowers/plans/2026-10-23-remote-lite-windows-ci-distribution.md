@@ -131,3 +131,17 @@ but viewer navigation canceled. The root observer does not log /vm/viewer, so
 this does NOT establish absence of a viewer HTTP request. Extend the safe CDP
 diagnostic with matching response status/HTML boolean and current bootstrap/
 target document booleans before deciding any bounded fixture recovery.
+
+8700415b CI39849339866 confirmed exactly: one target request, no response,
+bootstrapComplete=true, targetComplete=false, ERR_ABORTED canceled=true and
+blocked=false. A controlled local real-Chrome cancellation reproduces this
+state and a subsequent fixed GET succeeds. Native fixtures now opt into one
+re-navigation only under all those conditions, only / or /vm/viewer without a
+query. Setup/preflight default to no recovery. A second failure stays failed;
+HTTP responses, blocks, committed pages and unknown diagnostics never retry.
+Native media-ready receipts carry recovery counts and Go logs them explicitly.
+All actual media/pixels/SendInput/ACK/revocation assertions and time limits remain.
+Fifteen guard/boundary tests, real-Chrome controlled recovery, Go/Node interop/vet
+with owner-PC native mode disabled, ESLint and diff checks passed. Hosted
+full acceptance remains pending. This is fixture recovery, not app reconnect
+behavior or evidence of physical/public acceptance.

@@ -46,6 +46,7 @@ const webdriver = async (method, path, body) => {
   }
 };
 const sessions = [];
+let navigationRecoveries = 0;
 try {
   let started = false;
   for (let attempt = 0; attempt < 40; attempt++) {
@@ -62,7 +63,8 @@ try {
     } } });
     sessions.push(session.sessionId);
     await openWindowsFixtureTab(webdriver, session.sessionId);
-    await navigateWindowsFixture(webdriver, session.sessionId, url);
+    const navigation = await navigateWindowsFixture(webdriver, session.sessionId, url, { recoverBootstrap: true });
+    navigationRecoveries += navigation.recoveries;
     return session.sessionId;
   };
   const evalPage = (id, script) => webdriver('POST', `/session/${id}/execute/sync`, { script, args: [] });
@@ -122,7 +124,7 @@ try {
   }
   if (!matchedPixels) throw new Error('native GDI pixels did not reach separate viewer: ' + JSON.stringify(lastNativePixels));
   process.stdout.write(JSON.stringify({event:'media-ready', separateBrowsers:true,
-    width:lastState.width, pixelsMatched:true}) + '\n');
+    width:lastState.width, pixelsMatched:true, navigationRecoveries}) + '\n');
   const lines = createInterface({ input: process.stdin })[Symbol.asyncIterator]();
   if ((await lines.next()).value !== 'move') throw new Error('VM cursor setup missing');
   const sequence = await evalPage(viewer, 'return window.vmViewer.sendManual({action:"pointer",phase:"move",button:"left",x:.5,y:.5})');

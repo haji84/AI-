@@ -6,6 +6,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"goriq-remote-lite-windows/winbridge"
@@ -23,6 +24,18 @@ import (
 )
 
 type vmPoint struct{ X, Y int32 }
+
+func logVMNavigationRecoveries(t *testing.T, receipt []byte) {
+	t.Helper()
+	var report struct {
+		Recoveries *int `json:"navigationRecoveries"`
+	}
+	if err := json.Unmarshal(receipt, &report); err != nil || report.Recoveries == nil ||
+		*report.Recoveries < 0 || *report.Recoveries > 2 {
+		t.Fatal("missing or invalid browser bootstrap recovery receipt")
+	}
+	t.Logf("VM browser bootstrap navigation recoveries=%d", *report.Recoveries)
+}
 
 // Observe only the root document, without logging capabilities or request data.
 // This distinguishes an HTTP refusal from a browser that never reached the host.
@@ -162,6 +175,7 @@ func TestWindowsVMNativeWebRTCFrameInputAndRevocation(t *testing.T) {
 	if !lines.Scan() || !bytes.Contains(lines.Bytes(), []byte(`"event":"media-ready"`)) {
 		t.Fatalf("native WebRTC failed before pointer test: %v %s", lines.Err(), stderr.String())
 	}
+	logVMNavigationRecoveries(t, lines.Bytes())
 	prepareVMCursorAwayFromCenter(t)
 	if _, err := fmt.Fprintln(stdin, "move"); err != nil {
 		t.Fatal(err)

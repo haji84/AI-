@@ -225,6 +225,7 @@ func TestWindowsVMSeparateChromiumRealCoordinator(t *testing.T) {
 		t.Fatalf("real Node signals did not connect separate browsers: %v %s %s",
 			browserLines.Err(), browserErrors.String(), fixtureErrors.String())
 	}
+	logVMNavigationRecoveries(t, browserLines.Bytes())
 	prepareVMCursorAwayFromCenter(t)
 	if _, err := fmt.Fprintln(browserInput, "move"); err != nil {
 		t.Fatal(err)

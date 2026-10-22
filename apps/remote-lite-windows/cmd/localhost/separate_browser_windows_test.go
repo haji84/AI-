@@ -212,6 +212,7 @@ func TestWindowsVMSeparateChromiumSignedPeer(t *testing.T) {
 		!bytes.Contains(lines.Bytes(), []byte(`"pixelsMatched":true`)) {
 		t.Fatalf("separate Chromium sessions did not decode native screen: %v %s", lines.Err(), stderr.String())
 	}
+	logVMNavigationRecoveries(t, lines.Bytes())
 	prepareVMCursorAwayFromCenter(t)
 	if _, err := fmt.Fprintln(stdin, "move"); err != nil {
 		t.Fatal(err)
