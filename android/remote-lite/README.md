@@ -1,5 +1,7 @@
 # GORIQ Remote Lite Android candidate
 
+Issue #1831 owner approval (2026-10-22, this task): add the normal `ACCESS_NETWORK_STATE` permission for WebRTC network observation. It does not grant screen/input access; those retain their separate visible OS consent. The SDK now uses its Android network monitor when granted, with the existing permission-free interface-enumeration fallback retained. Public hosting is still unavailable: the owner reports the separate Oracle account is not prepared.
+
 This is an independent `app.goriq.remote.lite` Android project with a P-256 AndroidKeyStore identity, Japanese invitation/owner-approval setup, bounded system-validated HTTPS, and a local Accessibility screenshot/gesture service. It includes no GORIQ Worker, AI, task executor, device administrator, boot receiver, public listener, or GORIQ owner credential.
 
 The APK is **not ready for a friend**. Release can submit device enrollment to an operator-supplied HTTPS coordinator. Native WebRTC MediaProjection video and ordered manual input are now implementation candidates undergoing VM acceptance. Public owner accounts, public ICE/HTTPS configuration, Android9–13 safe remote input, distribution signing and unattended reconnect remain unavailable. A `goriqremote://enroll?server=<encoded HTTPS origin>&invite=<48 hex>` invitation is only a preview until a local registration tap. Pending metadata survives process restart; invitations are not saved and an uncertain request is never automatically resubmitted. A changed server cannot replace an existing enrollment silently.

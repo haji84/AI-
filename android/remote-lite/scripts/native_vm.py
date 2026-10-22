@@ -262,14 +262,17 @@ def verify_native(owner_post, ready, device_id, old_session, old_token):
             elapsed = time.monotonic() - revoked_at
             assert elapsed < 12, f"Native cleanup exceeded bounded VM deadline: {elapsed}"
             projection_released()
-            ui.wait_for_text("入力テスト: 3")
+            # A longer stop/end-unconfirmed explanation can move the counter
+            # below the viewport. Inspect it by local scrolling only, after the
+            # Android-driven RTC/capture shutdown has already been asserted.
+            scroll_target("入力テスト: 3")
             snapshot = browser.stats()
             time.sleep(2)
             later = browser.stats()
             assert later["decoded"] == snapshot["decoded"] and later["acknowledged"] == 3, (snapshot, later)
             result = browser.script("try {window.vm.send(arguments[0]); return 'sent';} catch {return 'refused';}", command_at(bounds))
             assert result == "refused", result
-            ui.wait_for_text("入力テスト: 3")
+            scroll_target("入力テスト: 3")
             print(f"Android native owner revoke stopped actual video/input and released capture in {elapsed:.3f}s: " + json.dumps(later), flush=True)
             return second["sessionId"]
         except Exception:
