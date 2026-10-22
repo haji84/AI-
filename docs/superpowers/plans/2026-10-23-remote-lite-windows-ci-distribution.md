@@ -115,3 +115,12 @@ diagnostics on failure expose only document request counts, fixed ERR codes,
 canceled and blocked booleans. No URLs/headers/body/IDs are emitted; injected
 secret-error checks pass. Local real156 HTTP preflight passed1632ms. Hosted
 failure classification is pending; no new production behavior or relaxed gate.
+
+df5b1d0c CI39847696343: HTTP preflight, native9.58s, actual-coordinator13.06s,
+setup3.03s and full MSI lifecycle passed. Signed separate-peer failed before
+host GET: one targetDocumentRequest, ERR_ABORTED, canceled=true, blocked=false.
+This is evidence of browser cancellation, not a proven specific Chrome bug.
+Next method establishes a fixed inert data document in the newly selected tab
+and verifies its title/document-complete before the single target navigation.
+This tests a committed document, not merely a window handle; no delay, failed
+fixture retry, security bypass or media/input assertion change is added.

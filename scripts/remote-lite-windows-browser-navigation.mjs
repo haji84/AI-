@@ -34,6 +34,17 @@ export async function openWindowsFixtureTab(webdriver, session) {
   if (await webdriver('GET', `/session/${session}/window`) !== tab.handle) {
     throw new Error('Windows VM fixture tab was not selected');
   }
+  // A selected target handle alone does not prove its startup navigation has
+  // committed. Establish and verify our own inert document before the HTTP
+  // fixture, so it cannot race the tab's initial document load. No time delay
+  // or retry of a failed fixture navigation is used here.
+  await webdriver('POST', `/session/${session}/url`, {
+    url: 'data:text/html,<title>Remote Lite fixture ready</title>',
+  });
+  const committed = await webdriver('POST', `/session/${session}/execute/sync`, {
+    script: 'return document.readyState === "complete" && document.title === "Remote Lite fixture ready";', args: [],
+  });
+  if (committed !== true) throw new Error('Windows VM fixture bootstrap document did not commit');
 }
 
 export async function navigateWindowsFixture(webdriver, session, destination) {
