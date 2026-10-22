@@ -335,6 +335,24 @@ limit. The first session now has tap ACK 1, swipe ACK 2–5, and rapid-tap ACK 6
 No failure is converted to a pass, no native deadline changes, and no extra
 physical consent is requested while the owner is away.
 
+At `977ad54d4f531d8bdb14804e836a4eab5839da8e`,
+[normal CI 39778639184](https://github.com/haji84/AI-/actions/runs/39778639184)
+passed, but [Android CI 39778639236](https://github.com/haji84/AI-/actions/runs/39778639236)
+failed the static frame-gap assertion at 9,942 ms (two decoded frames/callbacks).
+All four swipes had actual pixel changes and ACK 2–5 in 0.859/0.851/0.847/0.845 s.
+Both rapid pairs passed in this run, secure input was refused, and revocation
+released RTC/OS capture in 0.467 s. Earlier rapid-input failures remain unresolved.
+The idle-refresh candidate has not fixed the decoded-frame gap and is not shipped.
+
+Before replacing the capture path, the next diagnostic records capture-side
+actual frame count/age once per second and reads those fixed numeric events
+immediately after idle observation. An increasing count establishes continued
+native callbacks/handoff before the browser; a stalled count still leaves both
+producer inactivity and delegate/GPU backpressure possible. Previous bounded
+failure logs were taken after the second session and do not establish that
+distinction. It changes no authorization, input, frame timestamps or acceptance
+assertions, and remains disabled in the release build.
+
 ## Owner portal baseline
 
 Commit `f4b00c147e3996c79643cf88c39c3f0633f6f4ad` passed normal CI

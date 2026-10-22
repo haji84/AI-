@@ -281,6 +281,12 @@ def verify_native(owner_post, ready, device_id, old_session, old_token):
                     "seconds": 10, "maxFrameAgeMs": maximum_gap,
                     "callbackDelta": snapshot["frameCallbacks"] - start["frameCallbacks"],
                     "decodedDelta": snapshot["decoded"] - start["decoded"]}), flush=True)
+                # Read bounded fixed numeric diagnostics before later session logs
+                # displace them. No screenshot, coordinates, identity or token.
+                capture_log = adb("shell", "logcat", "-d", "-s", "RemoteLiteNative:I", "*:S")
+                observations = [line for line in capture_log.splitlines()
+                    if "idle-capture-observation:" in line or "idle-display-refresh-requested" in line]
+                print("Android native capture-side idle observations:\n" + "\n".join(observations[-25:]), flush=True)
                 adb("shell", "input", "keyevent", "4")
                 ui.wait_for_text("入力テスト: 1")
                 return maximum_gap

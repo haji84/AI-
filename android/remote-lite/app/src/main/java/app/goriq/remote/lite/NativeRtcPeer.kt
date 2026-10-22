@@ -41,6 +41,7 @@ class NativeRtcPeer(private val context: Context, private val lease: CaptureLeas
     private val frames = AtomicLong()
     private val lastCapturedAt = AtomicLong()
     private var lastRefreshAt = 0L
+    private var lastCaptureTraceAt = 0L
     private val captureRefresh = Executors.newSingleThreadScheduledExecutor { task ->
         Thread(task, "remote-lite-display-refresh").apply { isDaemon = true }
     }
@@ -135,7 +136,12 @@ class NativeRtcPeer(private val context: Context, private val lease: CaptureLeas
 
     @Synchronized private fun refreshIdleCapture(width: Int, height: Int) {
         val now = SystemClock.elapsedRealtime()
-        if (closed.get() || !lease.allowed() || now - lastCapturedAt.get() < 1_000 ||
+        if (closed.get() || !lease.allowed()) return
+        if (now - lastCaptureTraceAt >= 1_000) {
+            trace("idle-capture-observation:age-ms=" + (now - lastCapturedAt.get()) + ":frames=" + frames.get())
+            lastCaptureTraceAt = now
+        }
+        if (now - lastCapturedAt.get() < 1_000 ||
             now - lastRefreshAt < 1_000) return
         lastRefreshAt = now
         // SDK 150 uses resize/setSurface on the existing authorized VirtualDisplay
