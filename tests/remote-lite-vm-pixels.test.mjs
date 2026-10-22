@@ -74,3 +74,26 @@ test('draw probe records the image only after that image has reached the stream 
   context.drawImage({ pixels: 'unrelated' });
   assert.equal(samples.length, 2);
 });
+
+test('native-size copy uses the same final sampling path for image and canvas', () => {
+  assert.equal(typeof pixels.nativeCopyPixelProbeScript, 'function');
+  const actual = Array(12 * 7 * 4).fill(100);
+  const distorted = Array(12 * 7 * 4).fill(30);
+  const image = { tagName: 'IMG', complete: true, naturalWidth: 24, naturalHeight: 14, pixels: actual };
+  const canvas = { tagName: 'CANVAS', width: 24, height: 14, pixels: actual };
+  const document = {
+    querySelector: selector => selector === '#screen' ? image : canvas,
+    createElement: () => {
+      const target = { width: 0, height: 0, pixels: null };
+      target.getContext = () => ({
+        drawImage: source => { target.pixels = target.width === 12 && source.tagName === 'IMG' ? distorted : source.pixels; },
+        getImageData: () => ({ data: target.pixels }),
+      });
+      return target;
+    },
+  };
+  const direct = compileFunction(pixelProbeScript('#screen', '#sourceCanvas'), ['document'])(document);
+  assert.notDeepEqual(direct[0], direct[1]);
+  const normalized = compileFunction(pixels.nativeCopyPixelProbeScript('#screen', '#sourceCanvas'), ['document'])(document);
+  assert.deepEqual(normalized, [actual, actual]);
+});

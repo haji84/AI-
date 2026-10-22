@@ -16,6 +16,26 @@ export const pixelProbeScript = (...selectors) => `const sample=selector=>{const
   return ${selectors.length === 1 ? `sample(${JSON.stringify(selectors[0])})` :
     `${JSON.stringify(selectors)}.map(sample)`};`;
 
+// The direct 12x7 draw can use different browser downsampling paths for a JPEG,
+// canvas, and decoded video. Copy each source at its native size first.
+export const nativeCopyPixelProbeScript = (...selectors) => `const sample=selector=>{
+  const element=document.querySelector(selector);
+  if(!element||!(element.naturalWidth||element.videoWidth||element.width)||
+    (element.tagName==="IMG"&&!element.complete)||
+    (element.tagName==="VIDEO"&&element.readyState<2))return null;
+  try {
+    const width=element.naturalWidth||element.videoWidth||element.width;
+    const height=element.naturalHeight||element.videoHeight||element.height;
+    const native=document.createElement("canvas");native.width=width;native.height=height;
+    native.getContext("2d",{alpha:false}).drawImage(element,0,0,width,height);
+    const probe=document.createElement("canvas");probe.width=12;probe.height=7;
+    const ctx=probe.getContext("2d",{willReadFrequently:true});
+    ctx.drawImage(native,0,0,12,7);
+    return Array.from(ctx.getImageData(0,0,12,7).data);
+  } catch { return null; }};
+  return ${selectors.length === 1 ? `sample(${JSON.stringify(selectors[0])})` :
+    `${JSON.stringify(selectors)}.map(sample)`};`;
+
 // VM-only probe: observe a completed canvas draw synchronously. A timer
 // scheduled from the image load event can sample a later image generation.
 export function installFrameDrawProbe(image, canvas, record) {

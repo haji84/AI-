@@ -4,7 +4,7 @@ import { spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
 import { createServer } from 'node:http';
 import { once } from 'node:events';
-import { compareFrameHistory, installFrameDrawProbe, pixelProbeScript } from './remote-lite-vm-pixels.mjs';
+import { compareFrameHistory, installFrameDrawProbe, nativeCopyPixelProbeScript, pixelProbeScript } from './remote-lite-vm-pixels.mjs';
 
 const [hostUrl, viewerUrl] = process.argv.slice(2);
 if (!/^http:\/\/127\.0\.0\.1:\d+\/#token=[0-9a-f]{64}&remote=1$/u.test(hostUrl || '') ||
@@ -54,12 +54,16 @@ try {
   // Record only after the page has painted the JPEG into the capture canvas.
   // Background-tab timers after an image load can straddle frame generations.
   const snapshot = pixelProbeScript('#screen', '#sourceCanvas');
-  await evalPage(host, `window.vmFrameSamples=[];
+  const nativeSnapshot = nativeCopyPixelProbeScript('#screen', '#sourceCanvas');
+  await evalPage(host, `window.vmFrameSamples=[];window.vmNativeFrameSamples=[];
     return (${installFrameDrawProbe.toString()})(
       document.querySelector('#screen'),document.querySelector('#sourceCanvas'),()=>{
         const [image,canvas]=(()=>{${snapshot}})();
         if(image&&canvas){window.vmFrameSamples.push({image,canvas});
           if(window.vmFrameSamples.length>20)window.vmFrameSamples.shift();}
+        const [nativeImage,nativeCanvas]=(()=>{${nativeSnapshot}})();
+        if(nativeImage&&nativeCanvas){window.vmNativeFrameSamples.push({image:nativeImage,canvas:nativeCanvas});
+          if(window.vmNativeFrameSamples.length>20)window.vmNativeFrameSamples.shift();}
       });`);
   let frameReady = false;
   for (let attempt = 0; attempt < 100; attempt++) {
@@ -85,16 +89,21 @@ try {
   // GDI/Canvas frame generations against the separately decoded viewer video.
   let matchedPixels = false;
   let lastPixels;
+  let lastNativePixels;
   for (let attempt = 0; attempt < 60; attempt++) {
     const frames = await evalPage(host, 'return window.vmFrameSamples');
     const video = await evalPage(viewer, pixelProbeScript('#remoteVideo'));
     lastPixels = compareFrameHistory(frames, video);
+    const nativeFrames = await evalPage(host, 'return window.vmNativeFrameSamples');
+    const nativeVideo = await evalPage(viewer, nativeCopyPixelProbeScript('#remoteVideo'));
+    lastNativePixels = compareFrameHistory(nativeFrames, nativeVideo);
     if (lastPixels.matched) {
       matchedPixels = true; break;
     }
     await pause(150);
   }
-  if (!matchedPixels) throw new Error('native GDI pixels did not reach separate viewer: ' + JSON.stringify(lastPixels));
+  if (!matchedPixels) throw new Error('native GDI pixels did not reach separate viewer: ' +
+    JSON.stringify({ direct:lastPixels, nativeCopy:lastNativePixels }));
   process.stdout.write(JSON.stringify({event:'media-ready', separateBrowsers:true,
     width:lastState.width, pixelsMatched:true}) + '\n');
   const lines = createInterface({ input: process.stdin })[Symbol.asyncIterator]();
