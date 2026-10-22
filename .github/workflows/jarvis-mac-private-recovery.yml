@@ -1,0 +1,31 @@
+name: JARVIS bounded Mac private login handoff
+on:
+  push:
+    branches: [codex/867-private-recovery]
+    paths: [.github/workflows/jarvis-mac-private-recovery.yml]
+permissions:
+  contents: read
+concurrency:
+  group: jarvis-mac-private-recovery
+  cancel-in-progress: false
+jobs:
+  login-handoff:
+    if: github.repository == 'haji84/AI-' && github.ref == 'refs/heads/codex/867-private-recovery'
+    runs-on: [self-hosted, macOS, ARM64]
+    timeout-minutes: 2
+    steps:
+      - name: Request a bounded login handoff without exposing its URL
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          JARVIS_AUTH_TRANSPORT_PUBLIC_KEY: LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQm9qQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FZOEFNSUlCaWdLQ0FZRUEyVzNKV0RhSnNLdGZ3eFhsUjlzWQo3WFJ2MDZGU3ZlRGlWVHpqZVlHaXphdFNMeTZMS2ZoNWg4c3V3MHA2cHZoS0ZNMTFSQ1BQa2RSbUFGSGZjNWdaCmxKakhibjEvQVZhVmY5TlFocHBhTms0WExZam8rUmRneFFPayt6WnRrd0QyQkVxbTNvcEVHRWxOS3ptWVdGUUQKMjYrN25BVWptVGE2UTN6MDF1d2lRSkh1QU9wck53dWloWDcwb0xYWDB4OHo5Z1cyazA2a2tQSWFySDRaRmpndAo3MXhhL0ViL1hIcDJtRkt5NXJGVDh6RkNxSm5Ec015VUE1UzlKeFR6c0hId2twMEFrazF6ODcxUmZoVEpoWTBICkJPOTVLWVNiWWw5YVhGWDE3OVlTdG5aWklTc0JiN1dETm0vV2lXN1UvaUNwb29MdWFLMFVJRDVwaksybjR5Z3UKd1RlOEEvR1pld2FoclU1cUVsQTVKUzFleWQ5Vk5PalpOMTdoTkRjNGF0Ynh6N25FSHdLQzRrOXlHRVhMem11QQo3d1NiYzJ3MlJvSkY0SUUzc1hwbTlEbytEZ2Rud0tJZVN5ZTJOMlJxNjRUMzRXUE9hQ1RSMzY5STJWSE0xYTlFClgzTis1ckltTXBlaWN2Ukc0anJJUEd1S2RUSjZodG9uOXVoam5HZ1FBWTZ0QWdNQkFBRT0KLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg==
+        run: |
+          set -euo pipefail
+          # Owner authorized #867 restoration excluding billing. One-session expiry.
+          node -e 'if(Date.now()>Date.parse("2026-09-17T14:30:00Z"))process.exit(1)'
+          script="$RUNNER_TEMP/jarvis-mac-auth-request-867.mjs"
+          curl --fail --silent --show-error --max-time 20 \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            "https://raw.githubusercontent.com/haji84/AI-/3d3de352cb25a5eb09ca5cd5f13776a19559d0e1/scripts/jarvis-mac-auth-request.mjs" \
+            -o "$script"
+          node "$script" --request
