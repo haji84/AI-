@@ -5,6 +5,20 @@ import { BrowserManualPeer } from '/vm/browser-webrtc.mjs';
 const video = document.querySelector('video');
 window.vm = { ready: true, acknowledged: 0, decoded: 0, errors: [] };
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+const iceServers = [{ urls: ['turn:127.0.0.1:43478?transport=tcp'],
+  username: 'remote-lite-vm', credential: 'public-vm-fixture-only' }];
+window.probeRelay = async () => {
+  const pc = new RTCPeerConnection({ iceServers, iceTransportPolicy: 'relay' });
+  const candidates = [], errors = [];
+  pc.onicecandidate = event => { if (event.candidate) candidates.push(event.candidate.type); };
+  pc.onicecandidateerror = event => errors.push({ code: event.errorCode, text: event.errorText });
+  try {
+    pc.createDataChannel('relay-probe');
+    await pc.setLocalDescription(await pc.createOffer());
+    for (let i = 0; i < 80 && !candidates.includes('relay'); i++) await delay(100);
+    return { candidates, errors, gathering: pc.iceGatheringState };
+  } finally { pc.close(); }
+};
 window.beginNative = async config => {
   let cursor = 0;
   let pc;
@@ -17,9 +31,12 @@ window.beginNative = async config => {
     return result.result;
   };
   const viewer = new BrowserManualPeer({ role: 'viewer',
-    iceServers: [{ urls: ['turn:127.0.0.1:43478?transport=tcp'],
-      username: 'remote-lite-vm', credential: 'public-vm-fixture-only' }],
-    rtcFactory: options => (pc = new RTCPeerConnection({ ...options, iceTransportPolicy: 'relay' })),
+    iceServers,
+    rtcFactory: options => {
+      pc = new RTCPeerConnection({ ...options, iceTransportPolicy: 'relay' });
+      pc.addEventListener('icecandidateerror', event => window.vm.errors.push({ code: event.errorCode, text: event.errorText }));
+      return pc;
+    },
     sendSignal: signal => post('signal', { signal }),
     onStream: stream => { video.srcObject = stream; video.play().catch(error => window.vm.errors.push(error.message)); },
     onState: state => { window.vm.state = state; },
@@ -34,6 +51,9 @@ window.beginNative = async config => {
       width: video.videoWidth, height: video.videoHeight, decoded: video.getVideoPlaybackQuality().totalVideoFrames,
       localType: pair && reports.get(pair.localCandidateId)?.candidateType,
       remoteType: pair && reports.get(pair.remoteCandidateId)?.candidateType,
+      gathering: pc.iceGatheringState, ice: pc.iceConnectionState,
+      candidates: [...reports.values()].filter(item => ['local-candidate','remote-candidate'].includes(item.type))
+        .map(item => ({ side: item.type, candidate: item.candidateType, protocol: item.protocol })),
       errors: window.vm.errors };
   };
   window.vm.pixel = (x, y) => {

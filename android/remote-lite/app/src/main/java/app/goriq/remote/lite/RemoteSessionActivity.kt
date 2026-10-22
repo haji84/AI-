@@ -21,7 +21,7 @@ class RemoteSessionActivity : Activity() {
     private val refresh = object : Runnable {
         override fun run() {
             val state = RemoteSessionService.state
-            sharing.text = state.message + "\n送信フレーム数: " + state.frames
+            sharing.text = state.message + "\n画面取得フレーム数: " + state.frames
             handler.postDelayed(this, 500)
         }
     }

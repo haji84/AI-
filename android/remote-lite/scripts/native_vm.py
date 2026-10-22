@@ -93,6 +93,27 @@ class Browser:
             self.log.close()
 
 
+def turn_arguments(log_path):
+    return [os.environ["REMOTE_LITE_TURNSERVER"], "-n", "--verbose",
+        "--listening-ip=127.0.0.1", "--relay-ip=127.0.0.1", "--listening-port=43478",
+        "--min-port=50000", "--max-port=50100", "--realm=remote-lite-vm",
+        "--lt-cred-mech", "--user=remote-lite-vm:public-vm-fixture-only", "--userdb=:memory:",
+        "--no-tls", "--no-dtls", "--no-cli", "--no-multicast-peers", "--allow-loopback-peers",
+        "--log-file=stdout", "--simple-log", "--pidfile=" + str(log_path.with_suffix(".pid"))]
+
+
+def wait_turn(turn, log_path):
+    for _ in range(30):
+        if turn.poll() is not None:
+            raise AssertionError("Loopback TURN exited: " + log_path.read_text()[-2000:])
+        try:
+            with socket.create_connection(("127.0.0.1", 43478), timeout=.2):
+                return
+        except OSError:
+            time.sleep(.2)
+    raise AssertionError("Loopback TURN listener did not start")
+
+
 def verify_native(owner_post, ready, device_id, old_session, old_token):
     # Import the already-running smoke module without executing main again.
     import emulator_smoke as ui
@@ -101,26 +122,10 @@ def verify_native(owner_post, ready, device_id, old_session, old_token):
     assert ended.get("ok"), ended
     log_path = Path("android/remote-lite/app/build/turnserver.log")
     with log_path.open("w") as log:
-        turn = subprocess.Popen([os.environ["REMOTE_LITE_TURNSERVER"], "-n",
-            "--listening-ip=127.0.0.1", "--relay-ip=127.0.0.1", "--listening-port=43478",
-            "--min-port=50000", "--max-port=50100", "--realm=remote-lite-vm",
-            "--lt-cred-mech", "--user=remote-lite-vm:public-vm-fixture-only",
-            "--no-tls", "--no-dtls", "--no-cli", "--no-multicast-peers", "--allow-loopback-peers",
-            "--log-file=stdout", "--simple-log", "--pidfile=" + str(log_path.with_suffix(".pid"))],
-            stdout=log, stderr=log)
+        turn = subprocess.Popen(turn_arguments(log_path), stdout=log, stderr=log)
         browser = None
         try:
-            for _ in range(30):
-                if turn.poll() is not None:
-                    raise AssertionError("Loopback TURN exited: " + log_path.read_text()[-2000:])
-                try:
-                    with socket.create_connection(("127.0.0.1", 43478), timeout=.2):
-                        break
-                except OSError:
-                    time.sleep(.2)
-            else:
-                raise AssertionError("Loopback TURN listener did not start")
-            adb("reverse", "tcp:43478", "tcp:43478")
+            wait_turn(turn, log_path)
             browser = Browser(ready)
 
             def projection_released():
@@ -247,14 +252,14 @@ def verify_native(owner_post, ready, device_id, old_session, old_token):
             print(f"Android native owner revoke stopped actual video/input and released capture in {elapsed:.3f}s: " + json.dumps(later), flush=True)
             return second["sessionId"]
         except Exception:
-            print("Native diagnostics: " + adb("shell", "logcat", "-d", "-t", "250", "-s",
+            print("Native diagnostics: " + adb("shell", "logcat", "-d", "-s",
                 "RemoteLiteNative:I", "AndroidRuntime:E", "*:S")[-7000:], flush=True)
+            print("Android visible controls: " + str(ui.visible()), flush=True)
             print("TURN diagnostics: " + log_path.read_text()[-3500:], flush=True)
             raise
         finally:
             if browser:
                 browser.close()
-            subprocess.run(["adb", "reverse", "--remove", "tcp:43478"], capture_output=True, timeout=10)
             turn.terminate()
             try:
                 turn.wait(timeout=5)
@@ -268,10 +273,17 @@ if __name__ == "__main__":
     fixture = subprocess.Popen(["node", "android/remote-lite/scripts/pairing_fixture.mjs"],
         stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     browser = None
+    log_path = Path("android/remote-lite/app/build/turn-preflight.log")
+    log = log_path.open("w")
+    turn = subprocess.Popen(turn_arguments(log_path), stdout=log, stderr=log)
     try:
+        wait_turn(turn, log_path)
         ready = json.loads(fixture.stdout.readline())
         browser = Browser(ready)
         print("PASS separate Chromium process and pinned loopback TLS viewer preflight", flush=True)
+        relay = browser.script("const done=arguments[arguments.length-1]; window.probeRelay().then(done)", asynchronous=True)
+        assert "relay" in relay["candidates"], "Browser did not obtain TURN allocation: " + json.dumps(relay)
+        print("PASS actual browser loopback TURN allocation: " + json.dumps(relay), flush=True)
     finally:
         if browser:
             browser.close()
@@ -281,3 +293,9 @@ if __name__ == "__main__":
         except subprocess.TimeoutExpired:
             fixture.kill()
             fixture.communicate()
+        turn.terminate()
+        try:
+            turn.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            turn.kill(); turn.wait(timeout=5)
+        log.close()

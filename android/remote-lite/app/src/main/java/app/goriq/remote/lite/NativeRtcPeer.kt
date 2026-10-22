@@ -44,6 +44,11 @@ class NativeRtcPeer(private val context: Context, private val lease: CaptureLeas
     private val inputs = ThreadPoolExecutor(1, 1, 0, TimeUnit.MILLISECONDS, ArrayBlockingQueue(16))
     private val control = ThreadPoolExecutor(1, 1, 0, TimeUnit.MILLISECONDS, ArrayBlockingQueue(16))
 
+    private fun trace(event: String) {
+        if (context.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0)
+            android.util.Log.i("RemoteLiteNative", event)
+    }
+
     @Synchronized fun start(projectionData: Intent, width: Int, height: Int,
         iceServers: List<PeerConnection.IceServer> = emptyList(), relayOnly: Boolean = false) {
         check(!closed.get() && pc == null && lease.allowed()) { "No current media authorization" }
@@ -117,6 +122,7 @@ class NativeRtcPeer(private val context: Context, private val lease: CaptureLeas
                 waitSet { connection.setRemoteDescription(it, SessionDescription(SessionDescription.Type.OFFER, signal.sdp)) }
                 check(!closed.get() && lease.allowed())
                 remoteSet = true
+                trace("remote-offer-applied")
                 candidates.forEach(::addCandidate)
                 candidates.clear()
                 val answer = CompletableFuture<SessionDescription>()
@@ -130,6 +136,7 @@ class NativeRtcPeer(private val context: Context, private val lease: CaptureLeas
                 check(!closed.get() && lease.allowed())
                 waitSet { connection.setLocalDescription(it, description) }
                 sendSignal(RtcSignal.Sdp("answer", description.description))
+                trace("local-answer-queued")
             }
             is RtcSignal.Candidate -> {
                 if (remoteSet) addCandidate(signal) else {
@@ -162,6 +169,7 @@ class NativeRtcPeer(private val context: Context, private val lease: CaptureLeas
     private val observer = object : PeerConnection.Observer {
         override fun onSignalingChange(state: PeerConnection.SignalingState?) {}
         override fun onIceConnectionChange(state: PeerConnection.IceConnectionState?) {
+            trace("ice-state:" + state?.name)
             if (state in setOf(PeerConnection.IceConnectionState.FAILED, PeerConnection.IceConnectionState.CLOSED,
                     PeerConnection.IceConnectionState.DISCONNECTED)) fail("peer-disconnected")
         }
@@ -169,9 +177,10 @@ class NativeRtcPeer(private val context: Context, private val lease: CaptureLeas
             if (state == PeerConnection.PeerConnectionState.CONNECTED && !closed.get()) onState("peer-connected")
         }
         override fun onIceConnectionReceivingChange(receiving: Boolean) {}
-        override fun onIceGatheringChange(state: PeerConnection.IceGatheringState?) {}
+        override fun onIceGatheringChange(state: PeerConnection.IceGatheringState?) { trace("ice-gathering:" + state?.name) }
         override fun onIceCandidate(candidate: IceCandidate?) {
             if (closed.get() || candidate == null) return
+            trace("local-candidate:" + candidate.sdp.substringAfter(" typ ").substringBefore(' '))
             try { sendSignal(RtcSignal.Candidate(candidate.sdp, candidate.sdpMid, candidate.sdpMLineIndex)) }
             catch (_: Exception) { fail("signaling-failed") }
         }
