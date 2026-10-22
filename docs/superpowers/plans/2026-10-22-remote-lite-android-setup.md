@@ -32,10 +32,10 @@
 
 **Interfaces:** `RemoteEndpoint.parse(String): RemoteEndpoint`, `EnrollmentLink.parse(String): EnrollmentLink`, `HttpsJsonTransport.post(path: String, body: String): JsonReply(status: Int, body: String)`.
 
-- [ ] Write tests for valid invitation, duplicate/unknown parameters, HTTP/userinfo/path/fragment rejection, valid TLS request, certificate rejection, redirect refusal, invalid path, and 96 KiB bounds.
-- [ ] Run tests with local portable JDK/Gradle/SDK; record RED for missing behavior.
-- [ ] Implement standard URI and HttpsURLConnection boundary, then run all Android unit tests GREEN.
-- [ ] Commit the independently testable boundary.
+- [x] Write tests for valid invitation, duplicate/unknown parameters, HTTP/userinfo/path/fragment rejection, valid TLS request, certificate rejection, redirect refusal, invalid path, and 96 KiB bounds.
+- [x] Run tests with local portable JDK/Gradle/SDK; record RED for missing behavior.
+- [x] Implement standard URI and HttpsURLConnection boundary, then run all Android unit tests GREEN.
+- [x] Commit the independently testable boundary.
 
 ### Task 2: Shared protocol and first-run UI
 
@@ -61,3 +61,4 @@
 
 - Baseline: `dd1790f2`, main `f2b56c80`, prior normal/Android CI green. Untracked Python cache predates this plan and is excluded from commits.
 - Execution: native implementation under the user's autonomous completion instruction. No additional plan approval is required for this continuation.
+- Task 1 complete: invitation tests 3 RED to GREEN; HTTPS tests 5 RED to GREEN using a genuine local TLS socket and untrusted-certificate denial. Full Android unit suite passed locally. No dependency or external account added.
