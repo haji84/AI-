@@ -288,6 +288,37 @@ Rollback the short-gesture/diagnostic change by reverting its commit. The earlie
 VM experiment can be reverted with `56b28e31` then `19606ffb`. Device registrations,
 permissions and production state were not changed by these commits.
 
+### Static native video gap reproduced — 2026-10-22 21:05 JST
+
+`8856c7e88b024d11d29815b2f478064ac1ca6239` passed
+[normal CI 39774535191](https://github.com/haji84/AI-/actions/runs/39774535191).
+[Android CI 39774535169](https://github.com/haji84/AI-/actions/runs/39774535169)
+passed all four RTC swipes: ACK 4–7, decoded app-pixel changes
+45.3/23.6/21.7/20.7%, and 0.856/0.841/0.830/0.830 s. The earlier window-selection
+refusal did not recur; that alone does not establish that it is fixed.
+
+The ten-second static license-screen observation recorded a maximum frame gap of
+10,088.9 ms (two presentation callbacks/decoded frames during the interval).
+RTC stayed connected. The unchanged four-second freshness assertion correctly
+failed the run. This reproduces the static-native-stream/owner-watchdog mismatch
+without a synthetic canvas. It is not confirmation of the physical nubia's cause.
+The existing secure-window refusal and owner-revoke checks still ran: revoke
+stopped RTC/input and released OS capture in 0.455 s.
+
+The next candidate requests a fresh compositor output only when native capture
+has been idle for one second, at most once per second. It uses the existing
+ScreenCapturerAndroid `changeCaptureFormat` with unchanged dimensions on Android
+12 or newer. Inspection of the pinned SDK 150.7871.01 bytecode confirmed that
+this calls resize/setSurface on the existing authorized VirtualDisplay, without
+creating another projection or reusing a consent token. See also the
+[upstream capturer implementation](https://webrtc.googlesource.com/src/+/refs/heads/main/sdk/android/api/org/webrtc/ScreenCapturerAndroid.java).
+The timer is separate from authorization/watchdog work, checks the existing lease
+and closed state, and is shut down on close. It does not emit a cached frame or
+advance any frame timestamp/counter itself. Only a subsequent real capture can
+refresh media. Existing frame-age, input, lock, revocation and consent conditions
+remain unchanged. Effectiveness is pending the same native VM test; it is not
+installed on the physical nubia. Rollback is a revert of this candidate commit.
+
 ## Owner portal baseline
 
 Commit `f4b00c147e3996c79643cf88c39c3f0633f6f4ad` passed normal CI

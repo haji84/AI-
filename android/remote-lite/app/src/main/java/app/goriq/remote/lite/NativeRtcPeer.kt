@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.app.KeyguardManager
 import android.os.PowerManager
+import android.os.Build
 import android.media.projection.MediaProjection
 import android.os.SystemClock
 import org.json.JSONObject
@@ -13,6 +14,7 @@ import java.nio.charset.CodingErrorAction
 import java.util.ArrayDeque
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.Executors
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
@@ -37,6 +39,11 @@ class NativeRtcPeer(private val context: Context, private val lease: CaptureLeas
     private var remoteSet = false
     private val candidates = ArrayList<RtcSignal.Candidate>()
     private val frames = AtomicLong()
+    private val lastCapturedAt = AtomicLong()
+    private var lastRefreshAt = 0L
+    private val captureRefresh = Executors.newSingleThreadScheduledExecutor { task ->
+        Thread(task, "remote-lite-display-refresh").apply { isDaemon = true }
+    }
     private var receivedSequence = 0L
     private val inputTimes = ArrayDeque<Long>()
     private val inputLock = Any()
@@ -106,17 +113,36 @@ class NativeRtcPeer(private val context: Context, private val lease: CaptureLeas
                     // This is on the publishing boundary, independently of any network callback.
                     if (!closed.get() && lease.allowed()) {
                         delegate.onFrameCaptured(frame)
+                        lastCapturedAt.set(SystemClock.elapsedRealtime())
                         frames.incrementAndGet()
                     }
                 }
             })
             check(!closed.get() && lease.allowed()) { "Authorization ended while preparing capture" }
             capturer.startCapture(width, height, 15)
+            if (Build.VERSION.SDK_INT >= 31) {
+                captureRefresh.scheduleWithFixedDelay({
+                    try { refreshIdleCapture(width, height) }
+                    catch (_: Exception) { if (!closed.get()) fail("screen-refresh-failed") }
+                }, 1_000, 500, TimeUnit.MILLISECONDS)
+            }
         } catch (failure: Throwable) {
             lease.close()
             close()
             throw failure
         }
+    }
+
+    @Synchronized private fun refreshIdleCapture(width: Int, height: Int) {
+        val now = SystemClock.elapsedRealtime()
+        if (closed.get() || !lease.allowed() || now - lastCapturedAt.get() < 1_000 ||
+            now - lastRefreshAt < 1_000) return
+        lastRefreshAt = now
+        // SDK 150 uses resize/setSurface on the existing authorized VirtualDisplay
+        // on Android 12+. No new projection/token, cached frame, input or timestamp.
+        // Only an actual subsequent capture callback can advance frame freshness.
+        checkNotNull(capture).changeCaptureFormat(width, height, 15)
+        trace("idle-display-refresh-requested")
     }
 
     /** Run on the single signaling worker, never a WebRTC callback or Android UI thread. */
@@ -317,6 +343,7 @@ class NativeRtcPeer(private val context: Context, private val lease: CaptureLeas
     @Synchronized fun close(): Boolean {
         if (!closed.compareAndSet(false, true)) return cleanupConfirmed
         lease.close()
+        captureRefresh.shutdownNow()
         inputs.shutdownNow()
         control.shutdownNow()
         fun release(action: () -> Unit) { runCatching(action).onFailure { cleanupConfirmed = false } }
