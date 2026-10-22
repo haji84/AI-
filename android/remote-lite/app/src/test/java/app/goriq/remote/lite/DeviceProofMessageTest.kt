@@ -20,6 +20,12 @@ class DeviceProofMessageTest {
             DeviceProofMessage.session(device, "session-status", "session-1", request, challenge))
     }
 
+    @Test fun signalSendBindsTheExactPayloadHash() {
+        val hash = "c".repeat(64)
+        assertEquals("GORIQ_REMOTE_DEVICE_AUTH_V1\n$device\nsignal-send\nsession-1\n$request\n$challenge\n$hash",
+            DeviceProofMessage.session(device, "signal-send", "session-1", request, challenge, hash))
+    }
+
     @Test fun discoveryMatchesCoordinatorCanonicalMessage() {
         assertEquals("GORIQ_REMOTE_DEVICE_DISCOVER_V1\n$device\n1720000000000\n$challenge",
             DeviceProofMessage.discovery(device, 1720000000000, challenge))
@@ -34,6 +40,9 @@ class DeviceProofMessageTest {
         }
         assertThrows(IllegalArgumentException::class.java) {
             DeviceProofMessage.session(device, "signal-send", "session-1", request, challenge)
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            DeviceProofMessage.session(device, "session-status", "session-1", request, challenge, "c".repeat(64))
         }
         assertThrows(IllegalArgumentException::class.java) {
             DeviceProofMessage.discovery(device, -1, challenge)
