@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto';
+import process from 'node:process';
 import { ManualRemoteCoordinator } from '../../../src/remote-lite/manual-coordinator.mjs';
 import { createLoopbackSignaling } from '../../../src/remote-lite/loopback-signaling.mjs';
 

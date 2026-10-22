@@ -184,12 +184,29 @@ def verify_real_keystore_pairing():
             fixture.communicate()
 
 
+def verify_accessibility_capture():
+    for attempt in range(1, 4):
+        tap_text("画面取得を診断する")
+        outcome = wait_for_nodes(
+            lambda items: next((node for node in items if
+                "画面取得:" in label(node) or "画面取得できません:" in label(node)), None),
+            "screen capture diagnostic result")
+        result = label(outcome)
+        if "画面取得:" in result:
+            return
+        if "Accessibility disconnected" not in result:
+            raise AssertionError(f"Screen capture diagnostic failed: {result!r}")
+        print(f"Accessibility rebound during capture attempt {attempt}/3", flush=True)
+        if attempt < 3:
+            time.sleep(2)
+    raise AssertionError("Accessibility stayed disconnected across 3 capture attempts")
+
+
 def main():
     adb("install", "-r", APK)
     allow_accessibility_in_settings()
     wait_for_text("端末ID:")
-    tap_text("画面取得を診断する")
-    wait_for_text("画面取得:")
+    verify_accessibility_capture()
     tap_text("手動入力を診断する")
     wait_for_text("画面取得と手動入力: 成功")
     print("Android 15 VM: local key, Accessibility screenshot and actual tap passed")
