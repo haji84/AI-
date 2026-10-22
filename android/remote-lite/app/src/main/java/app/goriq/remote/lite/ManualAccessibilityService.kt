@@ -162,6 +162,7 @@ class ManualAccessibilityService : AccessibilityService() {
         requireActiveUnlocked()
         val expected = DisplayState(width, height, rotation)
         check(displayState() == expected) { "Display changed" }
+        diagnostic("remote-display-confirmed")
         val proofStarted = SystemClock.elapsedRealtime()
         val frame = FrameGeometry(width, height, rotation, proofStarted)
         val points = when (action) {
@@ -174,14 +175,19 @@ class ManualAccessibilityService : AccessibilityService() {
             val candidates = inputWindows()
             if (points.isEmpty()) return checkNotNull(candidates.firstOrNull { it.active })
             val selected = points.map { point ->
-                checkNotNull(candidates.firstOrNull { it.bounds.contains(point.x.toInt(), point.y.toInt()) })
+                checkNotNull(candidates.firstOrNull { it.bounds.contains(point.x.toInt(), point.y.toInt()) }
+                    .also { if (it == null) diagnostic("remote-window-refused:no-target") })
             }
-            check(selected.map { it.id }.distinct().size == 1) { "Gesture crosses windows" }
+            val sameWindow = selected.map { it.id }.distinct().size == 1
+            if (!sameWindow) diagnostic("remote-window-refused:cross-window")
+            check(sameWindow) { "Gesture crosses windows" }
             val chosen = selected.first()
             if (points.size == 2) {
                 val swept = Rect(points.minOf { it.x }.toInt(), points.minOf { it.y }.toInt(),
                     points.maxOf { it.x }.toInt() + 1, points.maxOf { it.y }.toInt() + 1)
-                check(candidates.none { it.id != chosen.id && it.layer >= chosen.layer && Rect.intersects(it.bounds, swept) }) {
+                val unobstructed = candidates.none { it.id != chosen.id && it.layer >= chosen.layer && Rect.intersects(it.bounds, swept) }
+                if (!unobstructed) diagnostic("remote-window-refused:overlap")
+                check(unobstructed) {
                     "Gesture crosses an overlapping window"
                 }
             }

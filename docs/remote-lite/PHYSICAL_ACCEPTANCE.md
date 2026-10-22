@@ -245,6 +245,49 @@ Select a fix from observed evidence; do not label stale pixels LIVE or count a
 transport heartbeat as a new frame. No release/distribution acceptance is granted.
 Rollback this VM experiment by reverting its commit; device state is unchanged.
 
+### VM swipe reproduction and a separate short-gesture defect — 2026-10-22
+
+`56b28e316bb5ab74b1af5436e372d65ce0317d2c` passed
+[normal CI 39772628560](https://github.com/haji84/AI-/actions/runs/39772628560), but
+[Android CI 39772628591](https://github.com/haji84/AI-/actions/runs/39772628591)
+failed on the first 250 ms swipe. Three preceding taps reached ACK/count 3.
+The swipe passed signed pre-status at age 224 ms, then failed with
+`IllegalStateException` at 226 ms before `remote-window-selected`.
+Native stop was `manual-input-not-confirmed`, captured frames 107. This places
+the failure before the window screenshot and OS gesture dispatch. Cross-window
+or overlapping-window checks are candidates; their predicates are unchanged.
+Fixed diagnostic categories now distinguish display validation, missing target,
+cross-window endpoints and overlap. They log no coordinates/window names/content.
+The idle observation was not reached and is **not passed**.
+
+The preceding `19606ffb` run
+[39772473008](https://github.com/haji84/AI-/actions/runs/39772473008) failed earlier:
+the rapid-tap sequence reached input age 1,001 ms and correctly stopped at the
+existing freshness boundary. This is a separate load/queue failure, not evidence
+of a swipe result or a reason to extend the input deadline. Both failed runs
+remain failures. Independent review confirmed the diagnostic change preserves
+the input/permission/lease decisions.
+
+Source review also found a distinct reproducible contract mismatch: the portal
+generated 50–99 ms swipes while Android accepts durations from 100 ms. Such
+packets are rejected as `invalid-manual-input` and terminate the connection.
+The portal now clamps its outgoing gestures to 100–1,000 ms; Android's accepted
+range and security checks are unchanged. A regression test executes the shipped
+pointer handlers at 50/99/100/250/1,500 ms and checks the outgoing command;
+it failed on the original 50 ms output, then passed with the correction. A native
+boundary test confirms 50/99 ms remain rejected and 100 ms is accepted.
+Local targeted Node checks passed 15 tests with one real-Chrome case skipped;
+Android JVM checks passed 51 tests with zero failures/errors, release build and
+targeted ESLint/diff checks passed, and independent review found no P1/P2.
+This does not explain the VM's 250 ms refusal or establish the nubia failure's
+cause. No new APK was installed on the physical device while the owner was away.
+
+Next: run the same bounded VM swipe experiment with fixed refusal categories;
+address the observed cause without weakening protected-window or freshness checks.
+Rollback the short-gesture/diagnostic change by reverting its commit. The earlier
+VM experiment can be reverted with `56b28e31` then `19606ffb`. Device registrations,
+permissions and production state were not changed by these commits.
+
 ## Owner portal baseline
 
 Commit `f4b00c147e3996c79643cf88c39c3f0633f6f4ad` passed normal CI

@@ -157,7 +157,7 @@ el('screen').onpointerup = e => {
   if (!start || start.id !== e.pointerId || start.session !== current) return;
   const end = point(e); if (!end) return;
   if (Math.hypot(start.x - end.x, start.y - end.y) < .015) send({ action: 'tap', ...end });
-  else send({ action: 'swipe', x1: start.x, y1: start.y, x2: end.x, y2: end.y, durationMs: Math.max(50, Math.min(1000, Math.round(globalThis.performance.now() - start.at))) });
+  else send({ action: 'swipe', x1: start.x, y1: start.y, x2: end.x, y2: end.y, durationMs: Math.max(100, Math.min(1000, Math.round(globalThis.performance.now() - start.at))) });
 };
 el('keys').querySelectorAll('button').forEach(b => { b.disabled = true; b.onclick = () => { if (b.dataset.platform === el('platform').value) send({ action: 'key', key: b.dataset.key }); }; });
 el('platform').onchange = () => { el('keys').querySelectorAll('button').forEach(b => { b.disabled = true; }); };
