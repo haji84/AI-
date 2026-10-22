@@ -656,3 +656,52 @@ iPhone cellular→Windows/Android, clean Windows install, final signatures,
 Android9–13 input, lock/reboot unattended recovery and40-device capacity remain
 unaccepted. The owner asked for alternatives to Oracle after the test; no new
 provider/account/paid service was activated.
+
+## 2026-10-23 02:00–03:59 JST: bounded public acceptance in progress
+
+The owner approved one free ephemeral Cloudflare Quick Tunnel until03:59 JST,
+reuse of the independent diagnostic login key, a separate diagnostic APK and
+test Android/Windows device keys/enrollment. OS consent and full fingerprint
+comparison remain explicit owner actions. This approval does not authorize
+paid activation, firewall changes, production/friend release or final signing.
+The existing `.physicaltest` package and registration remain intact. A normal
+release APK signed only with the existing diagnostic identity was added as
+`app.goriq.remote.lite`; no VM CA or test activity was added to that APK.
+Diagnostic APK SHA256:
+`D6AF5827412219DBFC7BFFE2AF2D802519D480A5F55C29FF411E8B0E1F344637`.
+
+The critical implementation change adds an explicit credential-free Cloudflare
+STUN mode to the existing signed ICE route. Independent review caught STUN
+incorrectly inheriting a fixed TURN credential deadline; regression tests now
+verify signed-status continuation and rejection/cleanup while retaining TURN's
+hard deadline. Android64 JVM tests and release build passed. This is transport
+configuration evidence, not external media/input proof.
+
+The first real Chrome/public attempt returned502 while Node HTTPS probes
+returned200. A raw TLS probe and actual operator CLI regression reproduced
+header-count rejection with Host last. The narrow fix allows48 headers while
+tightening total header bytes to8KiB. The same CLI rejects excess count/bytes
+and a wrong Host. After replacing the empty temporary fixture, real Chrome
+through the public tunnel displayed the product UI, logged in and created a
+one-use invitation. No certificate validation was disabled. The old public
+fixture had no registered/pending devices when stopped. The replacement has
+the same03:59 JST deadline; live URLs, keys, invitations, device serials, SDP
+and media stay out of this record.
+
+| Classification | Current evidence / next gate |
+|---|---|
+| Verified | Existing USB/local nubia video, real taps/swipes, ACKs and disconnect above; actual public HTTPS Chrome login/invitation; bounded ingress negative checks |
+| Implemented, not physically verified | Explicit STUN media/input through the public signaling path; Windows public setup and real iPhone control |
+| Not completed | Friend clean-install acceptance, final signatures, public TURN fallback,40-device capacity and requested unattended lock/reboot recovery |
+| Owner/device action pending | nubia public enrollment/full fingerprint and OS permissions; outside-PC login/network confirmation, then cellular iPhone trial |
+
+Current exact-head CI is not green: pre-change `c47dc9b` normal CI failed in
+the existing native Windows browser startup, before MSI; its Android run also
+failed. Neither is counted as a successful installer or Android acceptance.
+The earlier successful native relay VM evidence remains attached to9f623791.
+Do not alter passed capture/input or VM assertions to hide startup failures.
+
+Rollback: stop only the approved temporary tunnel and independent portal;
+retain all registry files/native keys and the pre-existing physical fixture.
+Revert the scoped STUN/ingress change and rebuild the diagnostic binaries.
+No GORIQ service, database, firewall or production deployment is changed.

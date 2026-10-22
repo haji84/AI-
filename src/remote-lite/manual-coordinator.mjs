@@ -3,7 +3,7 @@ import { Buffer } from 'node:buffer';
 import { parseWebRtcSignal } from './manual-protocol.mjs';
 import { RemoteLitePairingRegistry } from './device-pairing.mjs';
 import { ManualRemoteSessionStore, RemoteLiteSessionError } from './manual-session.mjs';
-import { isTurnUrl } from './turn-credentials.mjs';
+import { isTurnUrl, isApprovedStunServer } from './turn-credentials.mjs';
 
 const validIceServer = (server, expiresAt) => {
   if (!server || typeof server !== 'object' || Array.isArray(server) ||
@@ -164,16 +164,20 @@ export class ManualRemoteCoordinator {
     const ice = this.#iceForSession({ ownerId: this.#deviceOwners.get(deviceId), sessionId,
       sessionExpiresAt: active.expiresAt });
     const direct = ice?.mode === 'direct-only';
-    const expiresAt = direct ? active.expiresAt : ice?.expiresAt;
+    const stun = ice?.mode === 'stun-approved-provider';
+    const credentialFree = direct || stun;
+    const expiresAt = credentialFree ? active.expiresAt : ice?.expiresAt;
     if (!ice || Object.keys(ice).some(k => !['iceServers','mode','expiresAt'].includes(k)) ||
         !Array.isArray(ice.iceServers) || ice.iceServers.length > 4 ||
-        (direct ? ice.iceServers.length !== 0 : ice.mode !== 'turn-ephemeral-approved-provider' || ice.iceServers.length === 0) ||
+        (direct ? ice.iceServers.length !== 0 : stun
+          ? ice.iceServers.length !== 1 || !ice.iceServers.every(isApprovedStunServer)
+          : ice.mode !== 'turn-ephemeral-approved-provider' || ice.iceServers.length === 0) ||
         !Number.isSafeInteger(expiresAt) || expiresAt <= this.#now() || expiresAt > active.expiresAt ||
-        (!direct && (expiresAt > this.#now() + 600000 || !ice.iceServers.every(s => validIceServer(s, expiresAt))))) {
+        (!credentialFree && (expiresAt > this.#now() + 600000 || !ice.iceServers.every(s => validIceServer(s, expiresAt))))) {
       throw new RemoteLiteSessionError('ICE_UNAVAILABLE');
     }
     const value = globalThis.structuredClone({ sessionId, deviceId, iceServers: ice.iceServers, mode: ice.mode, expiresAt });
-    if (!direct) this.#ice.set(sessionId, { value, principalId: principal.devicePrincipalId });
+    if (!credentialFree) this.#ice.set(sessionId, { value, principalId: principal.devicePrincipalId });
     return { ...globalThis.structuredClone(value), serverTime: this.#now() };
   }
 

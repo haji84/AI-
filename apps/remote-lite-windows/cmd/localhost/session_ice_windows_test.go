@@ -56,3 +56,32 @@ func TestSessionICEValidatesBindingExpiryAndCanonicalRelay(t *testing.T) {
 		t.Fatal("unknown relay fields accepted")
 	}
 }
+
+func TestSessionICESTUNIsCredentialFreeAndBoundToTheActiveDevice(t *testing.T) {
+	now := time.UnixMilli(1000000)
+	valid := func() remoteICEConfig {
+		return remoteICEConfig{SessionID: "session-a", DeviceID: "windows-a", Mode: "stun-approved-provider", ExpiresAt: 2800000, ServerTime: 1000000,
+			ICEServers: []remoteICEServer{{URLs: []string{"stun:stun.cloudflare.com:3478"}}}}
+	}
+	if err := valid().validate("session-a", "windows-a", now); err != nil {
+		t.Fatal(err)
+	}
+	for _, mutate := range []func(*remoteICEConfig){
+		func(v *remoteICEConfig) { v.DeviceID = "other" },
+		func(v *remoteICEConfig) { v.SessionID = "other" },
+		func(v *remoteICEConfig) { v.ExpiresAt = 1000000 },
+		func(v *remoteICEConfig) { v.ICEServers[0].URLs = []string{"stun:localhost:3478"} },
+		func(v *remoteICEConfig) { v.ICEServers[0].URLs = []string{"stun:stun.cloudflare.com:53"} },
+		func(v *remoteICEConfig) {
+			v.ICEServers[0].URLs = append(v.ICEServers[0].URLs, "turn:other.example:3478")
+		},
+		func(v *remoteICEConfig) { v.ICEServers[0].Username = "unexpected" },
+		func(v *remoteICEConfig) { v.ICEServers[0].Credential = "unexpected" },
+	} {
+		ice := valid()
+		mutate(&ice)
+		if err := ice.validate("session-a", "windows-a", now); err == nil {
+			t.Fatal("invalid STUN configuration accepted")
+		}
+	}
+}

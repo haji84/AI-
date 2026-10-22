@@ -47,6 +47,16 @@ func (ice remoteICEConfig) validate(sessionID, deviceID string, now time.Time) e
 		}
 		return nil
 	}
+	if ice.Mode == "stun-approved-provider" {
+		if len(ice.ICEServers) != 1 {
+			return invalid
+		}
+		server := ice.ICEServers[0]
+		if len(server.URLs) != 1 || server.URLs[0] != "stun:stun.cloudflare.com:3478" || server.Username != "" || server.Credential != "" {
+			return invalid
+		}
+		return nil
+	}
 	if ice.Mode != "turn-ephemeral-approved-provider" || len(ice.ICEServers) < 1 || len(ice.ICEServers) > 4 || ice.ExpiresAt > ice.ServerTime+600000 {
 		return invalid
 	}

@@ -16,6 +16,13 @@ class DeviceSessionIce(val sessionId: String, val deviceId: String, val expiresA
             require(iceServers.isEmpty()) { "Direct ICE contains relay credentials" }
             return this
         }
+        if (mode == "stun-approved-provider") {
+            require(iceServers.size == 1) { "STUN ICE server count invalid" }
+            val server = iceServers.single()
+            require(server.urls == listOf("stun:stun.cloudflare.com:3478") &&
+                server.username.isEmpty() && server.credential.isEmpty()) { "STUN ICE invalid" }
+            return this
+        }
         require(mode == "turn-ephemeral-approved-provider" && iceServers.size in 1..4 &&
             expiresAt <= serverTime + 600_000) { "Relay ICE unavailable" }
         val url = Regex("turns?:[A-Za-z0-9.-]+(?::([0-9]{1,5}))?(?:\\?transport=(?:udp|tcp))?")
@@ -42,5 +49,11 @@ class DeviceSessionIce(val sessionId: String, val deviceId: String, val expiresA
         require(remaining in 1..3_600_000 && started >= 0 && received >= started &&
             received - started < remaining && started <= Long.MAX_VALUE - remaining) { "Session ICE request expired" }
         return started + remaining
+    }
+
+    /** Credential-free modes follow the renewable signed status lease; only TURN has a fixed secret expiry. */
+    fun credentialDeadline(started: Long, received: Long): Long? {
+        val deadline = monotonicDeadline(started, received)
+        return if (mode == "turn-ephemeral-approved-provider") deadline else null
     }
 }

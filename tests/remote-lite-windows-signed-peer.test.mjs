@@ -104,3 +104,49 @@ test('Windows rejects malformed or expired relay configuration without creating 
     assert.equal(created,0);assert.equal(captured,0);assert.equal(host.active,false);
   }
 });
+
+test('Windows STUN follows fresh signed status after initial ICE expiry and stops on revocation', async t => {
+  const iceServers = [{ urls: ['stun:stun.cloudflare.com:3478'], username: '', credential: '' }];
+  const now = Date.now();
+  const ice = { sessionId: 'session-1', deviceId: 'windows-1', mode: 'stun-approved-provider',
+    serverTime: now, expiresAt: now + 60000, iceServers };
+  let elapsed = 0, statusActive = true, statusChecks = 0, watchdog;
+  t.mock.method(globalThis, 'setInterval', callback => { watchdog = callback; return 88; });
+  let options, captured = 0;
+  const track = { kind: 'video', readyState: 'live', addEventListener() {}, stop() { this.readyState = 'ended'; } };
+  const stream = { getVideoTracks: () => [track], getTracks: () => [track] };
+  const host = createWindowsRemoteHost({ screen: { naturalWidth: 10, naturalHeight: 10 },
+    canvas: { width: 10, height: 10, captureStream: () => { captured++; return stream; } },
+    rtcFactory: value => { options = value; return { createOffer() {}, close() {}, addTrack() {} }; },
+    onStatus() {}, schedule: () => 1, cancel() {}, elapsedNow: () => elapsed,
+    request: async path => path === '/api/remote/ice' ? { ok: true, json: async () => ice }
+      : path === '/api/remote/status' ? { ok: (++statusChecks, statusActive) } : { ok: true, json: async () => ({ cursor: 0, signals: [] }) },
+  });
+  try {
+    await host.start();
+    assert.deepEqual(options.iceServers, iceServers);
+    assert.notEqual(options.iceTransportPolicy, 'relay');
+    assert.equal(captured, 1);
+    elapsed = 61000;
+    watchdog();
+    await new Promise(resolve => globalThis.setImmediate(resolve));
+    assert.equal(statusChecks, 2);
+    assert.equal(track.readyState, 'live');
+    assert.equal(host.active, true);
+    statusActive = false;
+    watchdog();
+    await new Promise(resolve => globalThis.setImmediate(resolve));
+    assert.equal(track.readyState, 'ended');
+    assert.equal(host.active, false);
+  } finally { host.stop(); }
+  assert.equal(track.readyState, 'ended');
+  for (const server of [{ ...iceServers[0], credential: 'unexpected' },
+    { ...iceServers[0], urls: ['stun:localhost:3478'] }, { ...iceServers[0], urls: ['stun:stun.cloudflare.com:53'] }]) {
+    const invalidHost = createWindowsRemoteHost({ screen: { naturalWidth: 10, naturalHeight: 10 },
+      canvas: { width: 10, height: 10, captureStream() { throw Error('unexpected capture'); } },
+      rtcFactory() { throw Error('unexpected RTC'); }, onStatus() {},
+      request: async () => ({ ok: true, json: async () => ({ ...ice, iceServers: [server] }) }),
+    });
+    await assert.rejects(invalidHost.start(), /configuration invalid/);
+  }
+});

@@ -80,7 +80,9 @@ async function connect(deviceId) {
   el('status').textContent = pendingMessage(s.expiresAt); el('ack').textContent = '入力確認: 0';
   el('sessionIdentity').textContent = 'セッションID: ' + s.sessionId + '（端末側の表示と照合してください）';
   el('mode').textContent = session.connectionMode === 'direct-only'
-    ? '直接接続モード。中継が必要な回線では接続できません。' : '中継対応の接続設定';
+    ? '直接接続モード。中継が必要な回線では接続できません。'
+    : session.connectionMode === 'stun-approved-provider'
+      ? 'STUNによる直接接続。中継が必要な回線では接続できません。' : '中継対応の接続設定';
   el('control').scrollIntoView({ behavior: 'smooth' });
   const post = (path, extra = {}) => api('/api/viewer/' + path, { sessionId: s.sessionId, ...extra });
   const video = el('screen');

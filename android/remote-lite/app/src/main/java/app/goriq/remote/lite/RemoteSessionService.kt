@@ -43,11 +43,11 @@ open class RemoteSessionService : Service() {
     protected open fun iceConfiguration(access: DeviceSessionAccess, session: String): NativeIceConfig {
         val started = SystemClock.elapsedRealtime()
         val ice = access.ice(session)
-        val deadline = ice.monotonicDeadline(started, SystemClock.elapsedRealtime())
+        val deadline = ice.credentialDeadline(started, SystemClock.elapsedRealtime())
         return NativeIceConfig(ice.iceServers.map { server ->
             PeerConnection.IceServer.builder(server.urls).setUsername(server.username)
                 .setPassword(server.credential).createIceServer()
-        }, credentialDeadlineElapsed = if (ice.mode == "direct-only") null else deadline)
+        }, credentialDeadlineElapsed = deadline)
     }
 
     override fun onBind(intent: Intent?) = null

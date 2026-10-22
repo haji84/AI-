@@ -40,6 +40,29 @@ Subsequent starts omit `--initialize`. A second writer or stale crash lock refus
 
 ## Connection and distribution gates
 
+For a separately approved, credential-free STUN test, the private configuration
+may explicitly select the following instead of `turn`:
+
+```json
+"stun": { "urls": ["stun:stun.cloudflare.com:3478"] }
+```
+
+This exact endpoint is the only accepted STUN provider in this mode. The
+browser and signed native response both use it; native access still requires a
+fresh proof for the active device/session. A pending, revoked or expired session
+cannot fetch native ICE. STUN has no relay credential deadline: fresh signed
+session checks continue to control capture/input. TURN retains its fixed
+monotonic credential deadline. STUN only discovers direct connection candidates;
+it does not make carrier/symmetric NAT work without a relay. Do not configure
+both `stun` and `turn` or call a successful HTTPS login media acceptance.
+
+The operator accepts at most48 request headers and8KiB of header bytes, so a
+browser behind an approved HTTPS proxy can retain its forwarding headers.
+Exact encrypted Host/Origin, CSRF, native proofs, request timeouts and rates
+remain enforced. A temporary Quick Tunnel is a bounded acceptance fixture,
+not final friend hosting. Its origin TLS must verify the existing certificate
+and CA; never use `--no-tls-verify`.
+
 The CLI defaults to **direct ICE only**. After verifying the independent coturn
 provider, free limit/hard cap, authentication and public ports, an operator may
 add this private configuration:

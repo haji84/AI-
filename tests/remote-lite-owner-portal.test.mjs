@@ -12,7 +12,7 @@ import { once } from 'node:events';
 import { createOwnerPortal } from '../src/remote-lite/owner-portal.mjs';
 import { openRemoteRegistry } from '../src/remote-lite/registry-file.mjs';
 import { RemoteLitePairingRegistry } from '../src/remote-lite/device-pairing.mjs';
-import { createPortalTurnIssuer } from '../src/remote-lite/turn-credentials.mjs';
+import { createPortalTurnIssuer, createPortalStunIssuer } from '../src/remote-lite/turn-credentials.mjs';
 
 async function fixture(t, options = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'remote-lite-portal-'));
@@ -185,6 +185,45 @@ test('real HTTPS device ICE requires a fresh active-session signature and keeps 
   assert.equal(calls,2); // Repeated host reads reuse its one credential.
   assert.equal((await f.post('/api/viewer/end',{sessionId},owner)).status,200);
   assert.equal((await f.post('/v1/device/challenge',{deviceId:d.deviceId,sessionId,operation:'session-ice'})).status,403);
+});
+
+test('real HTTPS STUN configuration still requires signed active-device authority and expires with its session', async t => {
+  const issue = createPortalStunIssuer({ urls: ['stun:stun.cloudflare.com:3478'] });
+  let invalid = false;
+  const f = await fixture(t, { iceForSession: () => {
+    const ice = issue();
+    if (invalid) ice.iceServers[0].credential = 'unexpected-secret';
+    return ice;
+  } });
+  const owner = await f.login(f.ownerKey), d = await f.enroll(owner);
+  await f.post('/api/approve', { requestId: d.requestId, expectedFingerprint: d.expectedFingerprint }, owner);
+  const started = await f.post('/api/start', { deviceId: d.deviceId }, owner);
+  assert.equal(started.status, 200);
+  assert.equal(started.result.connectionMode, 'stun-approved-provider');
+  const sessionId = started.result.sessionId;
+  const proof = async operation => {
+    const ch = await f.post('/v1/device/challenge', { deviceId: d.deviceId, sessionId, operation });
+    assert.equal(ch.status, 200);
+    const p = { deviceId: d.deviceId, sessionId, operation, challengeId: ch.result.challengeId };
+    return { ...p, signature: sign(null, Buffer.from(RemoteLitePairingRegistry.deviceMessage({ ...p,
+      challenge: ch.result.challenge })), d.keys.privateKey).toString('base64') };
+  };
+  const get = p => f.post('/v1/device/ice', { sessionId, deviceId: d.deviceId, proof: p });
+  assert.equal((await get(undefined)).status, 403);
+  assert.equal((await f.post('/v1/device/challenge', { deviceId: d.deviceId, sessionId, operation: 'session-ice' })).status, 403);
+  const accepted = await f.post('/v1/device/accept', { sessionId, deviceId: d.deviceId, proof: await proof('session-accept') });
+  assert.equal(accepted.status, 200);
+  const signed = await proof('session-ice'), ice = await get(signed);
+  assert.equal(ice.status, 200);
+  assert.equal(ice.result.sessionId, sessionId);
+  assert.equal(ice.result.deviceId, d.deviceId);
+  assert.equal(ice.result.expiresAt, accepted.result.expiresAt);
+  assert.deepEqual(ice.result.iceServers, issue().iceServers);
+  assert.equal((await get(signed)).status, 403);
+  invalid = true;
+  assert.equal((await get(await proof('session-ice'))).status, 403);
+  assert.equal((await f.post('/api/viewer/end', { sessionId }, owner)).status, 200);
+  assert.equal((await f.post('/v1/device/challenge', { deviceId: d.deviceId, sessionId, operation: 'session-ice' })).status, 403);
 });
 
 test('registry disk excludes another writer and refuses missing/corrupt startup', t => {

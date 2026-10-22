@@ -10,6 +10,12 @@ const sessionIce = value => {
       !Array.isArray(value.iceServers)) invalid();
   if (value.mode === 'direct-only') {
     if (value.iceServers.length) invalid();
+  } else if (value.mode === 'stun-approved-provider') {
+    if (value.iceServers.length !== 1) invalid();
+    const server = value.iceServers[0];
+    if (!server || Object.keys(server).sort().join(',') !== 'credential,urls,username' ||
+        !Array.isArray(server.urls) || server.urls.length !== 1 || server.urls[0] !== 'stun:stun.cloudflare.com:3478' ||
+        server.username !== '' || server.credential !== '') invalid();
   } else {
     if (value.mode !== 'turn-ephemeral-approved-provider' || value.expiresAt > value.serverTime+600000 ||
         value.iceServers.length < 1 || value.iceServers.length > 4) invalid();
@@ -90,7 +96,8 @@ export function createWindowsRemoteHost({ screen, canvas, request, rtcFactory, o
           received < started || received >= deadline) throw new Error('Windows relay request expired');
       const relayLive = () => {
         const elapsed = elapsedNow();
-        return ice.mode === 'direct-only' || (Number.isFinite(elapsed) && elapsed >= started && elapsed < deadline);
+        return ice.mode !== 'turn-ephemeral-approved-provider' ||
+          (Number.isFinite(elapsed) && elapsed >= started && elapsed < deadline);
       };
       const current = new BrowserManualPeer({
         role: 'host', rtcFactory, iceServers: ice.iceServers,

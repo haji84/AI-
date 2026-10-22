@@ -12,6 +12,21 @@ export class TurnConfigError extends Error {
   constructor(code) { super(code); this.name = 'TurnConfigError'; this.code = code; }
 }
 const fault = c => { throw new TurnConfigError(c); };
+export const isApprovedStunServer = server => Boolean(server && typeof server === 'object' && !Array.isArray(server) &&
+  Object.keys(server).sort().join(',') === 'credential,urls,username' &&
+  Array.isArray(server.urls) && server.urls.length === 1 && server.urls[0] === 'stun:stun.cloudflare.com:3478' &&
+  server.username === '' && server.credential === '');
+
+/** Explicit operator choice; no credentials or network access are created here.
+ * STUN discovers a public candidate. It does not supply a TURN relay. */
+export function createPortalStunIssuer({ urls } = {}) {
+  const server = { urls, username: '', credential: '' };
+  if (!isApprovedStunServer(server)) fault('STUN_URLS_INVALID');
+  const approved = [...urls];
+  return () => ({ mode: 'stun-approved-provider', iceServers: [
+    { urls: [...approved], username: '', credential: '' },
+  ] });
+}
 export const isTurnUrl = value => {
   if (typeof value !== 'string' || value.length > 256 || value.includes('..')) return false;
   const match = /^turns?:[a-zA-Z0-9.-]+(?::([0-9]{1,5}))?(?:\?transport=(?:udp|tcp))?$/u.exec(value);

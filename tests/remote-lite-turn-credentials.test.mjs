@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
-import { issueTurnCredentials, relayReadiness, TurnConfigError, createPortalTurnIssuer } from '../src/remote-lite/turn-credentials.mjs';
+import { issueTurnCredentials, relayReadiness, TurnConfigError, createPortalTurnIssuer, createPortalStunIssuer } from '../src/remote-lite/turn-credentials.mjs';
 
 const values = {
   sharedSecret: 'a-simulated-secret-used-only-in-tests-0000000000000',
@@ -10,6 +10,22 @@ const values = {
   authorize: ({principalId,sessionId}) => principalId==='friend-a'&&sessionId==='session-17',
   now: () => 100000000,
 };
+
+test('explicit STUN issuer uses only the approved public endpoint and has no credentials', () => {
+  const urls = ['stun:stun.cloudflare.com:3478'];
+  const issue = createPortalStunIssuer({ urls });
+  urls[0] = 'stun:other.example:3478';
+  const first = issue();
+  assert.deepEqual(first, { mode: 'stun-approved-provider', iceServers: [
+    { urls: ['stun:stun.cloudflare.com:3478'], username: '', credential: '' },
+  ] });
+  first.iceServers[0].urls[0] = 'stun:other.example:3478';
+  assert.equal(issue().iceServers[0].urls[0], 'stun:stun.cloudflare.com:3478');
+  for (const bad of [undefined, [], ['stun:localhost:3478'], ['stun:stun.cloudflare.com:53'],
+    ['turn:stun.cloudflare.com:3478'], ['stun:stun.cloudflare.com:3478', 'stun:other.example:3478']]) {
+    assert.throws(() => createPortalStunIssuer({ urls: bad }), /STUN_URLS_INVALID/);
+  }
+});
 
 test('TURN REST creates HMAC-SHA1 time-bound credentials without exposing shared secret',()=>{
   const result=issueTurnCredentials(values);
