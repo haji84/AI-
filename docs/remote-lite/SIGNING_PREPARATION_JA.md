@@ -68,7 +68,33 @@ ADB導入でこの条件を回避する計画にはしません。
 
 ## Windows：無料署名は申請条件を先に確認
 
-候補はSignPath FoundationのOSS支援です。OSI承認ライセンス、公開・保守される
+無料候補は次の2経路です。現在のMSI/EXEをそのまま配る経路と、Storeへの提出は区別します。
+
+|候補|無料部分|残る条件|
+|---|---|---|
+|Microsoft Store + MSIX|該当する開発者登録、Store配布のパッケージ署名/ホスティング|配布主体/アカウント種別確認、本人確認、契約、MSIX包装と互換性受入、Store審査、配布範囲承認|
+|SignPath Foundation + 現在のMSI/EXE|条件を満たしたOSSへの署名支援|ライセンス/権利判断、資格審査、ビルド/署名権限、署名済みEXEからのMSI構築|
+
+StoreはMSIXパッケージを審査後に署名します。MSI/EXE提出やStore外のファイル配布まで
+無償署名する仕組みではありません。既存ホストをMSIXへ包装する案なら新UIフレームワークは
+前提としませんが、現在のMSI成功をMSIXの成功へ流用できません。
+パッケージID、DPAPI/登録保存先、localhostブラウザ、画面/入力同意、更新/削除後のID保持、
+既存MSIとの共存/移行を別に検証します。Storeでの受理や審査完了時刻は保証できません。
+
+Individualは事業・職業と無関係な非商用個人の配布が対象です。事業・職業に関係する
+個人や企業/団体はCompanyの要件を確認し、今回の配布主体をリポジトリ名から推測しません。
+2026-05の公式告知ではCompany登録料も撤廃されていますが、実際の登録画面で無料対象と
+本人/事業確認条件を照合し、費用が表示された場合は送信しません。
+
+本人によるPartner Center登録/身元確認、表示する発行者名、契約と配布対象の承認後に
+Store用package identityを確定します。本人確認書類をリポジトリやチャットで受け取りません。
+今回はアカウント登録、商品名予約、MSIX作成/送信、ライセンス変更を実行していません。
+[個人登録とMSIX無料署名](https://blogs.windows.com/windowsdeveloper/2025/09/10/free-developer-registration-for-individual-developers-on-microsoft-store/)、
+[Company無料登録の告知](https://blogs.windows.com/windowsdeveloper/2026/05/07/publish-to-microsoft-store-as-a-company-now-with-free-registration-and-faster-onboarding/)、
+[MSIX署名の区別](https://learn.microsoft.com/en-us/windows/msix/package/signing-package-overview)、
+[Store提出と審査](https://learn.microsoft.com/en-us/windows/apps/publish/get-started)。
+
+既存MSI/EXEを維持する無料候補はSignPath FoundationのOSS支援です。OSI承認ライセンス、公開・保守される
 プロジェクト、ソースからのビルド、レビュー/発行体の手続きなどが必要で、採用は保証されません。
 Foundation名義の発行となる条件も確認します。現リポジトリにはトップレベルのLICENSEが
 なく、公開GitHubで見えることだけではOSS要件を満たしません。
