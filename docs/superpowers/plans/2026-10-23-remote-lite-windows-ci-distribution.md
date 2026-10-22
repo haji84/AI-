@@ -59,6 +59,25 @@ before correction and8/8 pixel tests passed afterward; RemoteLite115pass/1skip.
 Independent review found no P1/P2. Exact-head full Windows/MSI CI still required.
 
 Distribution preparation adds a clean-source-commit receipt, Japanese guide,
-Go notice, checksums and six-file CI artifact allowlist after MSI lifecycle
-success. Real dirty-worktree build was refused before output creation. Source
-SHA in PR CI denotes the tested synthetic merge, not necessarily the PR head.
+Go notice and checksums. Real dirty-worktree build was refused before output
+creation. Source SHA in PR CI denotes the tested synthetic merge, not necessarily
+the PR head. Binary uploads were removed during independent review: this public
+repository's Actions artifacts are externally downloadable. No candidate was
+uploaded; preparation remains local/ephemeral until a publication decision.
+
+813c1db0 CI39841059290: native JPEG absent, real coordinator document complete
+but static screen/canvas absent; signed separate-peer passed12.10s. DOM waiting
+did not fix the failure. 8890a206 CI39842008460 added HTTP/DOM diagnostics:
+native root200/exact embeddedHTML and real input/revoke passed9.20s, coordinator
+host root200 but viewer DOM absent, later signed-peer stayed on an initial blank
+document (body0, no HTTP document or root request). This distinguishes browser
+navigation failure from capture, input and server guards. It does not prove a
+specific upstream Chrome implementation bug.
+
+Next method uses one renderer location.replace navigation with destination and
+document-complete checks, instead of repeating WebDriver /url. An actual local
+Chrome156 fixture with injected no-op /url reproduces blank failure; ten fresh
+sessions all reached the real loopback page with the alternate method and then
+returned to about:blank. Existing media/input/revocation assertions remain.
+MSI runs independently after browser failures so packaging evidence can advance;
+any browser failure still fails the job. Android runtime remains unchanged.

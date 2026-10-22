@@ -5,6 +5,7 @@ import { createInterface } from 'node:readline';
 import { createServer } from 'node:http';
 import { once } from 'node:events';
 import { nativeDocumentState } from './remote-lite-windows-document-state.mjs';
+import { navigateWindowsFixture } from './remote-lite-windows-browser-navigation.mjs';
 
 const pageUrl = process.argv[2];
 if (!/^http:\/\/127\.0\.0\.1:\d+\/#token=[0-9a-f]{64}&remote=1$/u.test(pageUrl || '')) {
@@ -58,7 +59,7 @@ try {
   } } });
   sessionId = session.sessionId;
   phase = 'navigation';
-  await webdriver('POST', `/session/${sessionId}/url`, { url: pageUrl });
+  await navigateWindowsFixture(webdriver, sessionId, pageUrl);
   const evalPage = script => webdriver('POST', `/session/${sessionId}/execute/sync`, { script, args: [] });
   phase = 'native-jpeg';
   let loaded = false;

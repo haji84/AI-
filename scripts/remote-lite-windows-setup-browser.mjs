@@ -3,6 +3,7 @@ import { spawn } from 'node:child_process';
 import { createServer } from 'node:http';
 import { once } from 'node:events';
 import { createInterface } from 'node:readline';
+import { navigateWindowsFixture } from './remote-lite-windows-browser-navigation.mjs';
 
 const [setupUrl] = process.argv.slice(2);
 if (!/^http:\/\/127\.0\.0\.1:\d+\/#token=[0-9a-f]{64}$/u.test(setupUrl || '')) throw new Error('Loopback setup required');
@@ -31,7 +32,7 @@ try {
   session=created.sessionId;
   const run=(script,...args)=>webdriver('POST',`/session/${session}/execute/sync`,{script,args});
   const until=async script=>{for(let i=0;i<80;i++){if(await run(script))return;await pause(100)}throw new Error('Setup UI condition not reached')};
-  await webdriver('POST',`/session/${session}/url`,{url:setupUrl});
+  await navigateWindowsFixture(webdriver, session, setupUrl);
   await until('return document.querySelector("#state")?.textContent==="未登録"');
   if (await run('return location.hash!=="" || localStorage.length!==0 || sessionStorage.length!==0')) throw new Error('Setup capability remained in URL or storage');
   await run('document.querySelector("#invite").value=arguments[0];document.querySelector("#preview").click();return true',invitation);
@@ -48,8 +49,8 @@ try {
   await until('return document.querySelector("#complete").textContent.includes("登録情報を保存しました")');
   // Relaunch the setup page with the local launch capability; disk state must restore.
   // A hash-only navigation would keep the old document and falsely pass this check.
-  await webdriver('POST',`/session/${session}/url`,{url:'about:blank'});
-  await webdriver('POST',`/session/${session}/url`,{url:setupUrl});
+  await navigateWindowsFixture(webdriver, session, 'about:blank');
+  await navigateWindowsFixture(webdriver, session, setupUrl);
   await until('return document.querySelector("#state").textContent.includes("承認済み")');
   if(await run('return location.hash!=="" || localStorage.length!==0 || sessionStorage.length!==0'))throw new Error('Relaunched setup did not clear its capability');
   process.stdout.write('approved-and-restored\n');
