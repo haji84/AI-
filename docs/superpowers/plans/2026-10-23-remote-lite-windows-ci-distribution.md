@@ -81,3 +81,19 @@ sessions all reached the real loopback page with the alternate method and then
 returned to about:blank. Existing media/input/revocation assertions remain.
 MSI runs independently after browser failures so packaging evidence can advance;
 any browser failure still fails the job. Android runtime remains unchanged.
+
+909b5c33 CI39844240368: native and signed separate-peer passed; real coordinator
+fixture still did not navigate from the initial document. Explicit tabs did not
+resolve the hosted failure. Next method uses ChromeDriver's existing CDP
+Page.navigate command and inspects its error/frame result before checking the
+actual destination. No whole-test retry or assertion/time-budget relaxation.
+The same ten local real-Chrome fixture/reopen checks pass; hosted proof pending.
+
+All three MSI full ICE builds passed in that run, but install0 placed files in
+Program Files, not LocalAppData. SetDirectory explicitly assigns the intended
+user target with a non-executable Type51 in both sequences after CostInitialize
+and before CostFinalize. The metadata gate permits exactly this one assignment;
+the previous MSI fails it. Local candle -wx passes; full lifecycle proof remains
+on the disposable hosted VM. No local policy workaround or installer mutation.
+Android CI39844240382 succeeded, including normal-release identity/non-debug
+checks and private ephemeral candidate preparation; no public artifact upload.

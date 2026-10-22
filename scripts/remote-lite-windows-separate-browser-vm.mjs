@@ -28,12 +28,22 @@ for (const stream of [driver.stdout, driver.stderr]) stream.on('data', chunk => 
   driverLog = (driverLog + chunk.toString()).slice(-3000);
 });
 const webdriver = async (method, path, body) => {
-  const response = await fetch(driverUrl + path, { method,
-    headers: body ? { 'Content-Type': 'application/json' } : {},
-    body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(20000) });
-  const result = await response.json();
-  if (!response.ok || result.value?.error) throw new Error(result.value?.message || `WebDriver HTTP ${response.status}`);
-  return result.value;
+  // Driver errors can echo navigation arguments containing the launch token.
+  // Retain only the method, redacted endpoint, HTTP status and failure kind.
+  const route = path.replace(/\/session\/[^/]+/u, '/session/<id>');
+  let status = 'unavailable';
+  try {
+    const response = await fetch(driverUrl + path, { method,
+      headers: body ? { 'Content-Type': 'application/json' } : {},
+      body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(20000) });
+    status = response.status;
+    const result = await response.json();
+    if (!response.ok || result.value?.error) throw new Error('WebDriver response refused');
+    return result.value;
+  } catch (error) {
+    const kind = error?.name === 'TimeoutError' ? 'timeout' : 'request-failed';
+    throw new Error(`WebDriver ${method} ${route} ${kind} HTTP=${status}`);
+  }
 };
 const sessions = [];
 try {

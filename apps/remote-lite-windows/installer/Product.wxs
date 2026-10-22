@@ -10,9 +10,14 @@
     <Property Id="MSIRESTARTMANAGERCONTROL" Value="Disable" />
     <Property Id="ARPNOMODIFY" Value="1" />
     <Condition Message="このインストーラーは現在のユーザー専用です。すべてのユーザーへのインストールはできません。">NOT ALLUSERS</Condition>
+    <!-- Per-user scope does not by itself redirect ProgramFiles64Folder on all
+         Windows images. Type 51 assigns only this directory, in both UI and
+         quiet/maintenance execution, before CostFinalize; it executes no code. -->
+    <SetDirectory Id="RemoteLiteInstallFolder" Sequence="both"
+                  Value="[LocalAppDataFolder]Programs\GORIQ Remote Lite\">NOT ALLUSERS</SetDirectory>
     <Directory Id="TARGETDIR" Name="SourceDir">
-      <!-- Installer 5 resolves this to the user's Programs directory in the
-           enforced per-user context. No ALLUSERS/dual-purpose opt-in. -->
+      <!-- The component layout remains context-aware; the assignment above
+           fixes its target to the current user. No dual-purpose opt-in. -->
       <Directory Id="ProgramFiles64Folder">
           <Directory Id="RemoteLiteInstallFolder" Name="GORIQ Remote Lite">
             <Component Id="ManualHost" Guid="CF9CE26E-41B4-4E5C-8E73-0E71DE8F1831" Win64="yes">

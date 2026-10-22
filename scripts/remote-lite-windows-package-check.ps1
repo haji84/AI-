@@ -24,16 +24,30 @@ $conditions = @(Read-MsiRows 'SELECT `Condition` FROM `LaunchCondition`' | ForEa
 if ('NOT ALLUSERS' -notin $conditions) { throw 'Missing rejection of machine-wide overrides' }
 foreach ($sequence in @('InstallUISequence', 'InstallExecuteSequence')) {
     $actions = @{}
-    Read-MsiRows ('SELECT `Action`, `Sequence` FROM `' + $sequence + '`') | ForEach-Object { $actions[$_[0]] = [int]$_[1] }
+    $actionConditions = @{}
+    Read-MsiRows ('SELECT `Action`, `Sequence`, `Condition` FROM `' + $sequence + '`') | ForEach-Object {
+        $actions[$_[0]] = [int]$_[1]
+        $actionConditions[$_[0]] = $_[2]
+    }
     if (!$actions.LaunchConditions -or $actions.LaunchConditions -ge $actions.CostInitialize) {
         throw 'Machine-scope rejection must run before costing and installation'
+    }
+    if (!$actions.SetRemoteLiteInstallFolder -or
+        $actions.SetRemoteLiteInstallFolder -le $actions.CostInitialize -or
+        $actions.SetRemoteLiteInstallFolder -ge $actions.CostFinalize -or
+        $actionConditions.SetRemoteLiteInstallFolder -ne 'NOT ALLUSERS') {
+        throw 'Missing enforced per-user directory assignment before final costing'
     }
 }
 $summary = $database.SummaryInformation(0)
 if (([int]$summary.Property(15) -band 8) -eq 0) { throw 'MSI requests elevated installation' }
 $tables = @(Read-MsiRows 'SELECT `Name` FROM `_Tables`' | ForEach-Object { $_[0] })
-if ('CustomAction' -in $tables) {
-    if (@(Read-MsiRows 'SELECT `Action` FROM `CustomAction`').Count) { throw 'Unexpected executable custom action' }
+if ('CustomAction' -notin $tables) { throw 'Missing per-user directory assignment' }
+$customActions = @(Read-MsiRows 'SELECT `Action`, `Type`, `Source`, `Target` FROM `CustomAction`')
+if ($customActions.Count -ne 1 -or $customActions[0][0] -ne 'SetRemoteLiteInstallFolder' -or
+    $customActions[0][1] -ne '51' -or $customActions[0][2] -ne 'RemoteLiteInstallFolder' -or
+    $customActions[0][3] -ne '[LocalAppDataFolder]Programs\GORIQ Remote Lite\') {
+    throw 'Only the exact non-executable per-user directory assignment is allowed'
 }
 foreach ($name in @('ServiceInstall', 'Environment')) {
     if ($name -in $tables) { throw 'Unexpected service or environment table' }
@@ -67,4 +81,4 @@ if ($shortcuts.Count -ne 1 -or $shortcuts[0][0] -ne 'StartMenu' -or
     $shortcuts[0][1] -ne 'RemoteLiteMenuFolder' -or $shortcuts[0][2] -ne '[RemoteLiteInstallFolder]GORIQRemoteLite.exe') {
     throw 'Shortcut must use its user component and the exact installed host path'
 }
-Write-Output 'PASS MSI metadata: per-user, no elevation/custom actions, exact manual-host payload and user registry'
+Write-Output 'PASS MSI metadata: per-user path assignment, no elevation/executable custom actions, exact manual-host payload and user registry'

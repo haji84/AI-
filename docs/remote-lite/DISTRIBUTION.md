@@ -9,10 +9,11 @@ The standard Windows Installer package installs only the manual host EXE and the
 Go redistribution notice under the current user's
 `%LOCALAPPDATA%\Programs\GORIQ Remote Lite`, with a current-user Start menu
 shortcut. It uses perUser/limited installation scope and rejects ALLUSERS
-machine-scope overrides before costing/install actions. Context-aware MSI
-folder/registry rows resolve to the current user's Programs/HKCU locations;
-the package does not opt into dual-purpose installation. It uses
-standard MSI actions. It does not add a service, scheduled task, autorun,
+machine-scope overrides before costing/install actions. One non-executable
+MSI Type51 assignment sets the install directory from LocalAppDataFolder before
+final costing in both UI and quiet/maintenance execution. Metadata checks allow
+only that exact assignment, condition and sequence. Registry rows resolve to
+HKCU; the package does not opt into dual-purpose installation. It does not add a service, scheduled task, autorun,
 firewall rule, public listener, credential, URL handler or executable custom
 action. Installation does not start the host or grant screen/input consent.
 
@@ -73,6 +74,15 @@ target and both component/registry scopes; the VM still verifies the resolved
 shortcut target, repair and upgrade. No validator is suppressed. Local metadata
 for the previous layout fails the new component check; the corrected layout
 passes. Full ICE and the real lifecycle remain CI gates.
+
+Head909b5c33 CI39844240368 passed full ICE for all three packages, but actual
+installation exposed a wrong target: ProgramFiles64Folder remained Program
+Files despite per-user scope. Initial installation returned0 with the user menu
+present but no payload at the intended LocalAppData path. The explicit Type51
+directory assignment addresses this observed failure; actual install, repair,
+upgrade and uninstall must still pass. It introduces no executable action or
+elevation, and no ICE validator is suppressed. The old package fails the new
+directory-assignment metadata gate.
 
 The existing disposable Windows CI job builds0.1.0 twice and0.1.1. The guarded VM
 script first checks two machine-scope overrides fail at the intended launch
