@@ -57,23 +57,38 @@ class DeviceEnrollmentTest {
         assertEquals(null, identity.signed)
     }
 
-    @Test fun expiredChallengeAndBadInviteNeverReachProof() {
+    @Test fun serverWallClockSkewDoesNotRejectAQuickFreshChallenge() {
+        val identity = FakeIdentity(id, fingerprint)
+        val exchange = object : EnrollmentExchange {
+            override fun propose(code: String, deviceId: String, publicKeyPem: String) =
+                EnrollmentChallenge(request, nonce, fingerprint, now + 5 * 60_000)
+            override fun prove(requestId: String, signature: String) =
+                EnrollmentReceipt(requestId, id, fingerprint, "awaiting-owner-approval")
+        }
+        val receipt = DeviceEnrollment(identity, exchange) { 1_000L }.request(invite)
+        assertEquals("awaiting-owner-approval", receipt.status)
+        assertEquals(true, identity.signed != null)
+    }
+
+    @Test fun slowChallengeAndBadInviteNeverReachProof() {
         val identity = FakeIdentity(id, fingerprint)
         var proposals = 0
+        var elapsed = 0L
         val exchange = object : EnrollmentExchange {
             override fun propose(code: String, deviceId: String, publicKeyPem: String): EnrollmentChallenge {
                 proposals++
-                return EnrollmentChallenge(request, nonce, fingerprint, now)
+                elapsed = 60_000L
+                return EnrollmentChallenge(request, nonce, fingerprint, now + 60_000)
             }
             override fun prove(requestId: String, signature: String): EnrollmentReceipt =
                 error("proof must not be sent")
         }
         assertThrows(IllegalArgumentException::class.java) {
-            DeviceEnrollment(identity, exchange) { now }.request("wrong")
+            DeviceEnrollment(identity, exchange) { elapsed }.request("wrong")
         }
         assertEquals(0, proposals)
         assertThrows(IllegalArgumentException::class.java) {
-            DeviceEnrollment(identity, exchange) { now }.request(invite)
+            DeviceEnrollment(identity, exchange) { elapsed }.request(invite)
         }
         assertEquals(1, proposals)
         assertEquals(null, identity.signed)
