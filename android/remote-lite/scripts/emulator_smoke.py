@@ -206,6 +206,9 @@ def verify_real_keystore_pairing():
         allow_accessibility_in_settings()
         wait_for_text("端末ID:")
         verify_accessibility_capture()
+        # Settings owns the foreground task on this VM; leave it before launching
+        # the separate debug activity from the app task.
+        adb("shell", "input", "keyevent", "3")
         open_debug_activity(port, ready["inviteCode"])
         tap_text("アクティブを再発見する")
         wait_for_text(f"再発見成功 ID: {session_id}", seconds=35)
