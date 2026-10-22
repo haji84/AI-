@@ -14,6 +14,37 @@ class DeviceSessionAccessTest {
     private val challenge = "b".repeat(48)
     private val issuedAt = 1_720_000_000_000L
 
+    @Test fun verificationFailureDiagnosticsAreBoundedAndNeverAuthorize() {
+        var failure: Exception = CoordinatorRefusal("DEVICE_NOT_FOUND")
+        val exchange = object : DeviceSessionExchange {
+            override fun pending(id: String, proof: DiscoveryProof): DeviceSessionView? = null
+            override fun active(id: String, proof: DiscoveryProof): DeviceSessionView? = null
+            override fun challenge(id: String, operation: String, session: String): DeviceSessionChallenge = throw failure
+            override fun accept(session: String, id: String, proof: DeviceSessionProof): DeviceSessionView = error("unused")
+            override fun status(session: String, id: String, proof: DeviceSessionProof): DeviceSessionView = error("unused")
+        }
+        val events = mutableListOf<String>()
+        val access = DeviceSessionAccess(Identity(deviceId), exchange,
+            failureDiagnostic = { events.add(it) })
+        assertFalse(access.verifyActive(sessionId).allowed)
+        assertEquals(listOf("coordinator:DEVICE_NOT_FOUND"), events)
+        for ((error, expected) in listOf(
+            CoordinatorRefusal("PRIVATE_SENTINEL") to "coordinator:OTHER",
+            java.net.SocketTimeoutException("private transport detail") to "transport:timeout",
+            javax.net.ssl.SSLException("private certificate detail") to "transport:tls",
+            java.io.IOException("private network detail") to "transport:io",
+            IllegalArgumentException("private proof detail") to "response-or-proof-invalid",
+        )) {
+            failure = error
+            assertFalse(access.verifyActive(sessionId).allowed)
+            assertEquals(expected, events.last())
+        }
+        assertFalse(events.joinToString().contains("private", ignoreCase = true))
+        val brokenDiagnostic = DeviceSessionAccess(Identity(deviceId), exchange,
+            failureDiagnostic = { error("diagnostic unavailable") })
+        assertFalse(brokenDiagnostic.verifyActive(sessionId).allowed)
+    }
+
     private class Identity(private val id: String) : EnrollmentIdentity {
         val messages = mutableListOf<String>()
         override fun deviceId() = id

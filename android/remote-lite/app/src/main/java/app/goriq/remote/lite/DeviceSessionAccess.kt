@@ -31,7 +31,8 @@ class DeviceSessionAccess(private val identity: EnrollmentIdentity,
         ByteArray(24).also { SecureRandom().nextBytes(it) }
             .joinToString("") { (it.toInt() and 0xff).toString(16).padStart(2, '0') }
     },
-    private val elapsedMs: () -> Long = { System.nanoTime() / 1_000_000 }) {
+    private val elapsedMs: () -> Long = { System.nanoTime() / 1_000_000 },
+    private val failureDiagnostic: (String) -> Unit = {}) {
 
     private fun discoveryProof(): DiscoveryProof {
         val id = identity.deviceId()
@@ -71,7 +72,23 @@ class DeviceSessionAccess(private val identity: EnrollmentIdentity,
         val view = exchange.status(sessionId, id, proof(id, sessionId, "session-status"))
         requireView(view, id, sessionId, "active")
         DeviceSessionCheck(true, "active")
-    } catch (_: Exception) {
+    } catch (failure: Exception) {
+        // Fixed categories only: never expose a transport exception message,
+        // server-supplied free text, device identity, token or signed payload.
+        val reason = when (failure) {
+            is CoordinatorRefusal -> "coordinator:" + if (failure.code in setOf(
+                "DEVICE_NOT_FOUND", "DEVICE_REVOKED", "DEVICE_UNAVAILABLE", "DEVICE_NOT_AUTHORIZED",
+                "DEVICE_PROOF_INVALID", "SIGNATURE_INVALID", "CHALLENGE_NOT_FOUND_OR_MISMATCH",
+                "CHALLENGE_CAPACITY_REACHED", "CHALLENGE_DEVICE_CAPACITY_REACHED",
+                "CHALLENGE_OWNER_CAPACITY_REACHED", "SESSION_NOT_ACTIVE", "SESSION_NOT_FOUND_OR_EXPIRED",
+                "RATE_LIMITED", "REGISTRY_STORAGE_UNAVAILABLE", "HTTPS_OR_HOST_REQUIRED",
+            )) failure.code else "OTHER"
+            is java.net.SocketTimeoutException -> "transport:timeout"
+            is javax.net.ssl.SSLException -> "transport:tls"
+            is java.io.IOException -> "transport:io"
+            else -> "response-or-proof-invalid"
+        }
+        runCatching { failureDiagnostic(reason) }
         DeviceSessionCheck(false, "session-not-active")
     }
 

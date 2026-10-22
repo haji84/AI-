@@ -142,6 +142,90 @@ Rollback this diagnostic change by reverting its commit and rebuilding/updating
 the same test package with the existing test signer. Do not uninstall/clear app
 data, regenerate keys or change the device-wide logging/Accessibility settings.
 
+## Native/browser interruption evidence — 2026-10-22 20:20 JST
+
+The diagnostic physicalCheck APK above recorded two native input successes in
+each of two observed sessions at 19:59 and 20:00 JST. Each input passed fresh
+signed pre-status, the nonsecure-window screenshot proof, OS dispatch and signed
+post-status. The final session's input-status age was 60/20 ms. Native shutdown
+reported `control-channel-ended`; the owner browser displayed
+`映像の更新を確認できないため停止しました` and `入力確認: 2`.
+This narrows the observed shutdown to the browser frame watchdog. It does not
+prove that the owner's earlier fourth-input report has a four-input limit, or
+that input-queue or native capture changes are required.
+
+A disposable local IAB/WebRTC experiment on this PC used a synthetic canvas,
+the existing BrowserManualPeer, and the same frame-age condition. With dynamic
+content, callbacks continued even when the video was 2,211 px below the viewport
+(age 92 ms). After source redraw stopped, the peers remained connected but the
+callback count stayed at 274 and decoded-frame count at 306 for over 23 seconds.
+The current four-second stale-frame close condition would fire. Video currentTime
+continued advancing despite no new frames, so currentTime alone must never be
+used as evidence of fresh media. This is a browser reproduction of a static-source
+failure mode, **not confirmation that nubia stopped producing frames**. The
+physical capture/frame counters must still be compared under the same conditions.
+No freshness threshold, authorization check or native capture/input behavior was
+relaxed. The local probe is isolated under ignored `.jarvis`, uses no real screen
+or OS input, and has a bounded lifetime.
+
+The owner clarified that the earlier fourth action was a swipe. The initially
+requested session's pending deadline elapsed, and the owner subsequently started
+a different session and approved sharing. Native capture began at 20:13:38,
+ICE connected at 20:13:39, and the IAB viewer displayed actual 270x600 media.
+The app's frame count advanced from 118 to 225. Two agent-driven viewer taps
+received native OS completion, fresh signed post-status and browser ACK 1/2,
+but the intended test button's counter remained zero. Target activation and
+input-coordinate accuracy are therefore **not passed**. A fresh screenshot and
+coordinate/viewport mapping check are needed before further gesture tests.
+
+At 20:15:20 the native service stopped with `session-not-active`; the browser
+then showed `control-channel-failed`, and OS MediaProjection was null. This is
+a different failure signature from the earlier browser frame timeout. The
+existing stop code combines failed signed status and failed lease renewal, so
+the current evidence does not identify which one occurred. A bounded diagnostic
+callback now distinguishes fixed transport failure categories, explicitly
+allowlisted coordinator refusal codes, invalid proof/response, and lease-renewal
+failure. Unknown server codes and exception messages are never logged. Stop
+also reports the captured-frame count. The existing test-only log gate,
+authorization decisions and time limits are unchanged.
+
+The added diagnostic test first failed because the callback did not exist.
+After implementation, `assemblePhysicalCheck assembleRelease testDebugUnitTest`
+passed with 50 JVM tests, zero failures/errors; APK v2 verification and independent
+review passed. The physical package was updated with `adb install -r` after OS
+MediaProjection was confirmed null; registered data was retained. Updated APK
+SHA-256: `6A740151B87F7D97564404B59B7D9996FC7868A3C5C3D04AA14B1A30947A17AB`.
+
+A separate synthetic pointer probe reproduced the IAB's 396x586 CSS viewport
+and smaller screenshot. A screenshot-based click at (182,309) arrived as the
+same CSS client coordinates and missed the synthetic target; CSS-corrected
+(190,322) hit it. This identifies an automation-coordinate issue in the first
+tap, but does not explain the second physical miss. The product's letterbox
+mapping was not changed. The temporary viewport override was reset. Android's
+read-only activity dump can expose this app's actual view bounds without running
+UiAutomator or interrupting its Accessibility service; use those bounds in the
+next session to verify the intended button, not just an ACK.
+
+The owner requested permanent screen-sharing consent. On this Android 15 device,
+the normal MediaProjection API requires consent for each new capture session;
+the token is single-use. There is no implemented permanent-consent mode. Keeping
+an existing authorized capture alive can avoid unnecessary prompts within that
+session, but it does not establish unattended restart/lock recovery. Reference:
+https://developer.android.com/media/grow/media-projection#user_consent
+
+Exact diagnostic source `0bba52579d21e064624e7dacad2c151286b2cf2e` passed
+[normal CI 39767138245](https://github.com/haji84/AI-/actions/runs/39767138245)
+and [Android CI 39767138292](https://github.com/haji84/AI-/actions/runs/39767138292).
+The latter is emulator evidence: native tap/ACK/decoded pixel change 0.641/0.637 s,
+secure-window refusal, and owner revoke stopping video/input and releasing capture
+in 0.266 s. It is not sustained physical or cellular acceptance.
+
+Next action: obtain one prepared physical consent, observe frame production and
+browser display while idle, then compare harmless repeated input and home-screen
+idle. Select a fix from that evidence; do not label stale pixels LIVE or count a
+transport heartbeat as a new frame. No release/distribution acceptance is granted.
+Rollback this record with its commit; runtime and device settings are unchanged.
+
 ## Owner portal baseline
 
 Commit `f4b00c147e3996c79643cf88c39c3f0633f6f4ad` passed normal CI

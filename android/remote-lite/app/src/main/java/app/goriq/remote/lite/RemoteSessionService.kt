@@ -82,7 +82,8 @@ open class RemoteSessionService : Service() {
                 val identity = LocalIdentity(this)
                 check(identity.deviceId() == saved.deviceId && identity.fingerprint() == saved.fingerprint)
                 val exchange = CoordinatorExchange(HttpsJsonTransport(RemoteEndpoint.parse(saved.origin)))
-                val access = DeviceSessionAccess(identity, exchange)
+                val access = DeviceSessionAccess(identity, exchange,
+                    failureDiagnostic = { diagnostic("authorization-check-failed:" + it) })
                 endSession = { access.end(session) }
                 val active = access.discoverActive()
                 if (active == null) {
@@ -97,7 +98,11 @@ open class RemoteSessionService : Service() {
                 check(!stopping.get() && lease.renew())
                 statusWorker.scheduleWithFixedDelay({
                     if (stopping.get()) return@scheduleWithFixedDelay
-                    if (!access.verifyActive(session).allowed || !lease.renew()) requestStop("session-not-active")
+                    if (!access.verifyActive(session).allowed) requestStop("session-not-active")
+                    else if (!lease.renew()) {
+                        diagnostic("authorization-lease-renewal-expired")
+                        requestStop("session-not-active")
+                    }
                 }, 500, 750, TimeUnit.MILLISECONDS)
                 watchdog.scheduleAtFixedRate({
                     val keyguard = getSystemService(KeyguardManager::class.java)
@@ -168,6 +173,7 @@ open class RemoteSessionService : Service() {
         inputGate.close()
         if (!stopping.compareAndSet(false, true)) return
         diagnostic("stop:" + reason)
+        diagnostic("stop-captured-frames:" + (peer?.capturedFrames() ?: 0))
         val message = when (reason) {
             "local-stop" -> "共有を停止しました。"
             "display-changed" -> "画面の大きさが変わったため停止しました。再接続と画面共有の許可が必要です。"
