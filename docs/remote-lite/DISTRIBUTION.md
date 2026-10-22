@@ -84,6 +84,12 @@ upgrade and uninstall must still pass. It introduces no executable action or
 elevation, and no ICE validator is suppressed. The old package fails the new
 directory-assignment metadata gate.
 
+Head155b7912 CI39846020674 then passed all three full ICE/metadata builds and
+the complete disposable-VM lifecycle: machine overrides1603, install0,
+same-version1638, repair0, upgrade0 and uninstall0, with enrollment and foreign
+files retained. Native browser acceptance in the same run failed before HTTP
+with ERR_ABORTED; MSI success alone is not whole-product acceptance.
+
 The existing disposable Windows CI job builds0.1.0 twice and0.1.1. The guarded VM
 script first checks two machine-scope overrides fail at the intended launch
 condition without files, HKLM/common-menu entries or product registration.

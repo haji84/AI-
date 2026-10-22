@@ -97,3 +97,11 @@ the previous MSI fails it. Local candle -wx passes; full lifecycle proof remains
 on the disposable hosted VM. No local policy workaround or installer mutation.
 Android CI39844240382 succeeded, including normal-release identity/non-debug
 checks and private ephemeral candidate preparation; no public artifact upload.
+
+155b7912 CI39846020674: all three full ICE/metadata builds and the entire MSI
+lifecycle passed, including repair, upgrade, uninstall and retained data.
+CDP now identifies ERR_ABORTED for all three native fixture navigations before
+any host root request; setup still passed. Change the environment dimension:
+pin only this job to supported windows-2022, retaining exact Chrome156 and all
+timeouts/media/input/security/MSI assertions. This isolates the moving2025 image
+and does not claim2025 or physical acceptance. No whole-test retries/skips.
