@@ -12,7 +12,7 @@ shortcut. It uses perUser/limited installation scope and rejects ALLUSERS
 machine-scope overrides before costing/install actions. Context-aware MSI
 folder/registry rows resolve to the current user's Programs/HKCU locations;
 the package does not opt into dual-purpose installation. It uses
-and standard MSI actions. It does not add a service, scheduled task, autorun,
+standard MSI actions. It does not add a service, scheduled task, autorun,
 firewall rule, public listener, credential, URL handler or executable custom
 action. Installation does not start the host or grant screen/input consent.
 
@@ -63,6 +63,16 @@ moves the shortcut into the EXE component and uses its context-aware registry
 key path. It preserves all ICE checks and warnings-as-errors. Local old-MSI
 inspection now fails the added machine-override gate; the corrected MSI passes
 read-only metadata inspection. Full local ICE remains blocked by LGHT1105.
+
+The b3fe08d8 CI39816971619 then reported ICE57: the non-advertised user shortcut
+cannot share a component with an HKMU key path. The next correction separates
+the user-menu/HKCU component from the context-aware EXE/HKMU component. Its
+shortcut uses the exact formatted install-directory path rather than another
+component's file-action reference. The metadata checker requires that exact
+target and both component/registry scopes; the VM still verifies the resolved
+shortcut target, repair and upgrade. No validator is suppressed. Local metadata
+for the previous layout fails the new component check; the corrected layout
+passes. Full ICE and the real lifecycle remain CI gates.
 
 The existing disposable Windows CI job builds0.1.0 twice and0.1.1. The guarded VM
 script first checks two machine-scope overrides fail at the intended launch

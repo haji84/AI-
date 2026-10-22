@@ -18,21 +18,28 @@
             <Component Id="ManualHost" Guid="CF9CE26E-41B4-4E5C-8E73-0E71DE8F1831" Win64="yes">
               <File Id="HostExecutable" Name="GORIQRemoteLite.exe" Source="$(var.HostExecutable)" />
               <File Id="GoLicense" Name="GO_LICENSE.txt" Source="$(var.GoLicense)" />
-              <Shortcut Id="StartManualHost" Name="GORIQ Remote Lite" Target="[#HostExecutable]"
-                        Directory="RemoteLiteMenuFolder" WorkingDirectory="RemoteLiteInstallFolder" />
               <RemoveFolder Id="RemoveInstalledFolder" On="uninstall" />
-              <RemoveFolder Id="RemoveMenu" Directory="RemoteLiteMenuFolder" On="uninstall" />
               <RegistryValue Root="HKMU" Key="Software\GORIQRemoteLiteInstaller" Name="Path"
                              Value="[RemoteLiteInstallFolder]" Type="string" KeyPath="yes" />
             </Component>
           </Directory>
       </Directory>
       <Directory Id="ProgramMenuFolder">
-        <Directory Id="RemoteLiteMenuFolder" Name="GORIQ Remote Lite" />
+        <Directory Id="RemoteLiteMenuFolder" Name="GORIQ Remote Lite">
+          <Component Id="StartMenu" Guid="C99CE26E-41B4-4E5C-8E73-0E71DE8F1831" Win64="yes">
+            <Shortcut Id="StartManualHost" Name="GORIQ Remote Lite"
+                      Target="[RemoteLiteInstallFolder]GORIQRemoteLite.exe"
+                      WorkingDirectory="RemoteLiteInstallFolder" />
+            <RemoveFolder Id="RemoveMenu" On="uninstall" />
+            <RegistryValue Root="HKCU" Key="Software\GORIQRemoteLiteInstaller" Name="StartMenu"
+                           Value="1" Type="integer" KeyPath="yes" />
+          </Component>
+        </Directory>
       </Directory>
     </Directory>
     <Feature Id="ManualRemote" Title="GORIQ Remote Lite" Level="1">
       <ComponentRef Id="ManualHost" />
+      <ComponentRef Id="StartMenu" />
     </Feature>
   </Product>
 </Wix>

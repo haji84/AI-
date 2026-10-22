@@ -42,14 +42,18 @@ foreach ($row in @(Read-MsiRows 'SELECT `FileName` FROM `RemoveFile`')) {
     if ($row[0]) { throw 'Unexpected wildcard or foreign-file deletion' }
 }
 $components = @(Read-MsiRows 'SELECT `Component`, `Directory_` FROM `Component`')
-if ($components.Count -ne 1 -or
-    !($components | Where-Object { $_[0] -eq 'ManualHost' -and $_[1] -eq 'RemoteLiteInstallFolder' })) {
+if ($components.Count -ne 2 -or
+    !($components | Where-Object { $_[0] -eq 'ManualHost' -and $_[1] -eq 'RemoteLiteInstallFolder' }) -or
+    !($components | Where-Object { $_[0] -eq 'StartMenu' -and $_[1] -eq 'RemoteLiteMenuFolder' })) {
     throw 'Payload escaped the manual host/menu directories'
 }
 $files = @(Read-MsiRows 'SELECT `FileName` FROM `File`' | ForEach-Object { ($_[0] -split '\|')[-1] } | Sort-Object)
 if (($files -join ',') -ne 'GO_LICENSE.txt,GORIQRemoteLite.exe') { throw 'Unexpected payload or missing Go notice' }
-foreach ($row in @(Read-MsiRows 'SELECT `Root`, `Key` FROM `Registry`')) {
-    if ($row[0] -ne '-1' -or $row[1] -ne 'Software\GORIQRemoteLiteInstaller') { throw 'Unexpected registry scope' }
+$registryRows = @(Read-MsiRows 'SELECT `Root`, `Key`, `Component_` FROM `Registry`')
+if ($registryRows.Count -ne 2) { throw 'Unexpected component registration count' }
+foreach ($row in $registryRows) {
+    $expectedRoot = if ($row[2] -eq 'ManualHost') { '-1' } elseif ($row[2] -eq 'StartMenu') { '1' } else { 'INVALID' }
+    if ($row[0] -ne $expectedRoot -or $row[1] -ne 'Software\GORIQRemoteLiteInstaller') { throw 'Unexpected registry scope' }
 }
 $directories = @(Read-MsiRows 'SELECT `Directory`, `Directory_Parent`, `DefaultDir` FROM `Directory`')
 if (!($directories | Where-Object { $_[0] -eq 'ProgramFiles64Folder' -and $_[1] -eq 'TARGETDIR' })) {
@@ -59,8 +63,8 @@ if (!($directories | Where-Object { $_[0] -eq 'RemoteLiteInstallFolder' -and $_[
     throw 'Install directory mismatch'
 }
 $shortcuts = @(Read-MsiRows 'SELECT `Component_`, `Directory_`, `Target` FROM `Shortcut`')
-if ($shortcuts.Count -ne 1 -or $shortcuts[0][0] -ne 'ManualHost' -or
-    $shortcuts[0][1] -ne 'RemoteLiteMenuFolder' -or $shortcuts[0][2] -ne '[#HostExecutable]') {
-    throw 'Shortcut must belong to and start exactly the manual host component'
+if ($shortcuts.Count -ne 1 -or $shortcuts[0][0] -ne 'StartMenu' -or
+    $shortcuts[0][1] -ne 'RemoteLiteMenuFolder' -or $shortcuts[0][2] -ne '[RemoteLiteInstallFolder]GORIQRemoteLite.exe') {
+    throw 'Shortcut must use its user component and the exact installed host path'
 }
 Write-Output 'PASS MSI metadata: per-user, no elevation/custom actions, exact manual-host payload and user registry'
