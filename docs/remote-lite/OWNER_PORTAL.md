@@ -40,7 +40,31 @@ Subsequent starts omit `--initialize`. A second writer or stale crash lock refus
 
 ## Connection and distribution gates
 
-The current CLI supplies **direct ICE only**. It does not claim Internet/NAT/TURN readiness. The native release Android/Windows hosts also have no production ICE provisioning; the Android VM's local coturn settings are debug-only. A public hostname and TLS do not by themselves establish a media path across all networks. Production TURN endpoint, temporary credential delivery, quota/billing enforcement and actual external-network acceptance remain required.
+The CLI defaults to **direct ICE only**. After verifying the independent coturn
+provider, free limit/hard cap, authentication and public ports, an operator may
+add this private configuration:
+
+```json
+"turn": {
+  "urls": ["turn:APPROVED-RELAY.example:3478?transport=udp", "turns:APPROVED-RELAY.example:5349?transport=tcp"],
+  "sharedSecretFile": "private/turn-shared-secret"
+}
+```
+
+The secret is read only on startup and stays on the server. A browser receives
+10-minute HMAC credentials only after authenticated, CSRF-checked creation of a
+session for that owner's approved device. No public credential endpoint exists.
+An issuer failure closes the newly created session. These settings do not
+provision coturn or enforce its traffic budget: provider billing/free-only status
+and relay bandwidth limits must be verified in the actual environment.
+
+Native release hosts still use direct ICE; only the viewer receives this relay
+configuration. One-sided relay, carrier NAT, Safari and sustained sessions past
+credential expiry have not been accepted. Credentials are not yet refreshed in
+an active browser connection. Logout/revoke stops product media/input but does
+not invalidate an already issued TURN password before its expiry; coturn must
+have restrictive allocation/bandwidth quotas and private-network peer denial.
+A public hostname and TLS alone do not establish usable media across all networks.
 
 Normal Android14+ capture requires local OS consent. The reported nubia name may mean **nubia S5G**; [Y!mobile's official specification](https://www.ymobile.jp/lineup/smartphone/nubia_s/) lists Android14 at launch, but the actual model/installed OS must be checked in Settings. No successful physical test is claimed from the model name.
 

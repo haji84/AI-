@@ -12,8 +12,9 @@ import { once } from 'node:events';
 import { createOwnerPortal } from '../src/remote-lite/owner-portal.mjs';
 import { openRemoteRegistry } from '../src/remote-lite/registry-file.mjs';
 import { RemoteLitePairingRegistry } from '../src/remote-lite/device-pairing.mjs';
+import { createPortalTurnIssuer } from '../src/remote-lite/turn-credentials.mjs';
 
-async function fixture(t) {
+async function fixture(t, options = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'remote-lite-portal-'));
   const certFile = join(dir, 'tls.crt'), keyFile = join(dir, 'tls.key'), conf = join(dir, 'openssl.cnf');
   writeFileSync(conf, '[req]\ndistinguished_name=dn\n[dn]\n');
@@ -37,7 +38,7 @@ async function fixture(t) {
   });
   server.listen(0, '127.0.0.1'); await once(server, 'listening');
   const origin = 'https://127.0.0.1:' + server.address().port;
-  portal = createOwnerPortal({ origin, owners, ...registry, now: () => now });
+  portal = createOwnerPortal({ origin, owners, ...registry, now: () => now, ...options });
   t.after(async () => { portal.close(); server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); registry.close(); rmSync(dir, { recursive: true, force: true }); });
   const post = (path, payload, headers = {}) => new Promise((resolve, reject) => {
     const req = request(origin + path, { method: 'POST', ca: cert, headers: { 'content-type': 'application/json', ...headers } }, res => {
@@ -67,7 +68,7 @@ async function fixture(t) {
       const held = {}; held.promise = new Promise(resolve => { held.started = resolve; }); heldStart = held;
       return { started: held.promise, release() { held.releaseResponse(); } };
     },
-    restart() { portal.close(); registry.close(); registry = openRemoteRegistry(registryPath); portal = createOwnerPortal({ origin, owners, ...registry, now: () => now }); },
+    restart() { portal.close(); registry.close(); registry = openRemoteRegistry(registryPath); portal = createOwnerPortal({ origin, owners, ...registry, now: () => now, ...options }); },
   };
 }
 
@@ -122,6 +123,34 @@ test('real HTTPS login/CSRF/owner isolation/enrollment/restart and logout invali
   assert.equal((await f.post('/api/revoke', { deviceId: d.deviceId }, h)).status, 200);
   f.restart(); h = await f.login(f.ownerKey);
   assert.deepEqual((await f.post('/api/devices', {}, h)).result.registered, []);
+});
+
+test('HTTPS TURN issuance requires owner/device/CSRF authority and a failed issuer leaves no pending session', async t => {
+  const secret = 'disposable-relay-secret-for-https-test-only-0000000000';
+  const issue = createPortalTurnIssuer({ sharedSecret: secret, urls: ['turns:relay.example:5349?transport=tcp'] });
+  let calls = 0, unavailable = false;
+  const f = await fixture(t, { iceForSession: p => { calls++; if (unavailable) throw new Error('fixture-unavailable'); return issue(p); } });
+  const owner = await f.login(f.ownerKey), other = await f.login(f.otherKey);
+  const d = await f.enroll(owner);
+  assert.equal((await f.post('/api/approve', { requestId: d.requestId, expectedFingerprint: d.expectedFingerprint }, owner)).status, 200);
+  const device = { deviceId: d.deviceId };
+  assert.equal((await f.post('/api/start', device, { origin: f.origin })).status, 403);
+  assert.equal((await f.post('/api/start', device, other)).status, 403);
+  assert.equal((await f.post('/api/start', device, { ...owner, 'x-remote-csrf': 'bad' })).status, 403);
+  assert.equal(calls, 0);
+  unavailable = true;
+  assert.equal((await f.post('/api/start', device, owner)).status, 500);
+  unavailable = false;
+  const result = await f.post('/api/start', device, owner);
+  assert.equal(result.status, 200); // failure must have released the device/session lock
+  assert.equal(calls, 2);
+  assert.equal(result.result.connectionMode, 'turn-ephemeral-approved-provider');
+  assert.match(result.result.iceServers[0].username, /^\d+:[a-f0-9]{32}$/);
+  assert.equal(JSON.stringify(result).includes(secret), false);
+  assert.equal('viewerToken' in result.result, false);
+  assert.equal((await f.post('/api/logout', {}, owner)).status, 200);
+  assert.equal((await f.post('/api/start', device, owner)).status, 403);
+  assert.equal(calls, 2);
 });
 
 test('registry disk excludes another writer and refuses missing/corrupt startup', t => {

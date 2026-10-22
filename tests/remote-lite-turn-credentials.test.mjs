@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
-import { issueTurnCredentials, relayReadiness, TurnConfigError } from '../src/remote-lite/turn-credentials.mjs';
+import { issueTurnCredentials, relayReadiness, TurnConfigError, createPortalTurnIssuer } from '../src/remote-lite/turn-credentials.mjs';
 
 const values = {
   sharedSecret: 'a-simulated-secret-used-only-in-tests-0000000000000',
@@ -43,4 +43,14 @@ test('server readiness fails shut on missing cost and approval evidence',()=>{
     providerApproved:true,credentialsApproved:true,billingHardCapVerified:true,maxRelayGiB:1,
     deployedHealthVerified:true,authConfigured:true,
   }).ready,true);
+});
+
+test('portal adapter validates configuration before listen and requires an authenticated owner identity', () => {
+  const issuer = createPortalTurnIssuer({ sharedSecret: values.sharedSecret, urls: values.urls, now: values.now });
+  const result = issuer({ ownerId: 'friend-a', sessionId: 'session-17' });
+  assert.equal(result.expiresAt, 100600000);
+  assert.equal(JSON.stringify(result).includes(values.sharedSecret), false);
+  assert.throws(() => createPortalTurnIssuer({ sharedSecret: 'short', urls: values.urls }), /TURN_SECRET_UNAVAILABLE/);
+  assert.throws(() => createPortalTurnIssuer({ sharedSecret: values.sharedSecret, urls: ['turn:host:99999'] }), /TURN_URLS_INVALID/);
+  assert.throws(() => issuer({ ownerId: undefined, sessionId: 'session-17' }), /TURN_PRINCIPAL_INVALID/);
 });

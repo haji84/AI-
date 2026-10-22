@@ -12,15 +12,20 @@ export class TurnConfigError extends Error {
   constructor(code) { super(code); this.name = 'TurnConfigError'; this.code = code; }
 }
 const fault = c => { throw new TurnConfigError(c); };
-const turnUrl = value => typeof value === 'string' && value.length <= 256 &&
-  /^turns?:[a-zA-Z0-9.-]+(?::[0-9]{1,5})?(?:\?transport=(?:udp|tcp))?$/u.test(value) &&
-  !value.includes('..') && !value.includes('@');
+const turnUrl = value => {
+  if (typeof value !== 'string' || value.length > 256 || value.includes('..')) return false;
+  const match = /^turns?:[a-zA-Z0-9.-]+(?::([0-9]{1,5}))?(?:\?transport=(?:udp|tcp))?$/u.exec(value);
+  return Boolean(match && (match[1] === undefined || (Number(match[1]) >= 1 && Number(match[1]) <= 65535)));
+};
+const validateConfig = (sharedSecret, urls) => {
+  if (typeof sharedSecret !== 'string' || sharedSecret.length < 32 || sharedSecret.length > 512) fault('TURN_SECRET_UNAVAILABLE');
+  if (!Array.isArray(urls) || urls.length < 1 || urls.length > 4 || !urls.every(turnUrl)) fault('TURN_URLS_INVALID');
+};
 
 export function issueTurnCredentials({ sharedSecret, urls, principalId, sessionId, authorize,
   now = () => Date.now(), ttlSeconds = 300 } = {}) {
   if (typeof authorize !== 'function' || authorize({ principalId, sessionId }) !== true) fault('TURN_NOT_AUTHORIZED');
-  if (typeof sharedSecret !== 'string' || sharedSecret.length < 32 || sharedSecret.length > 512) fault('TURN_SECRET_UNAVAILABLE');
-  if (!Array.isArray(urls) || urls.length < 1 || urls.length > 4 || !urls.every(turnUrl)) fault('TURN_URLS_INVALID');
+  validateConfig(sharedSecret, urls);
   if (typeof principalId !== 'string' || !/^[a-zA-Z0-9._:-]{1,128}$/u.test(principalId) ||
     typeof sessionId !== 'string' || !/^[a-zA-Z0-9._:-]{1,128}$/u.test(sessionId)) fault('TURN_PRINCIPAL_INVALID');
   if (!Number.isInteger(ttlSeconds) || ttlSeconds < 30 || ttlSeconds > 600) fault('TURN_TTL_INVALID');
@@ -33,6 +38,17 @@ export function issueTurnCredentials({ sharedSecret, urls, principalId, sessionI
   return { iceServers: [{ urls: [...urls], username, credential }],
     expiresAt: expiresAt * 1000,
     mode: 'turn-ephemeral-approved-provider' };
+}
+
+/** Private server callback, invoked ONLY after the portal has authenticated the
+ * owner and created a session for their approved device. Never expose as a raw
+ * endpoint taking request-supplied owner/session IDs. No network access here. */
+export function createPortalTurnIssuer({ sharedSecret, urls, now = () => Date.now() } = {}) {
+  validateConfig(sharedSecret, urls);
+  const approvedUrls = [...urls];
+  return ({ ownerId, sessionId }) => issueTurnCredentials({ sharedSecret, urls: approvedUrls,
+    principalId: ownerId, sessionId, now, ttlSeconds: 600,
+    authorize: p => p.principalId === ownerId && p.sessionId === sessionId });
 }
 
 /** Separate hard deny-by-default cost and deployment readiness policy.
