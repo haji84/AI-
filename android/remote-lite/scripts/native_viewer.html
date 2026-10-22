@@ -1,0 +1,56 @@
+<!doctype html><meta charset="utf-8"><title>Android native RTC VM acceptance</title>
+<video id="screen" autoplay muted playsinline></video>
+<script type="module">
+import { BrowserManualPeer } from '/vm/browser-webrtc.mjs';
+const video = document.querySelector('video');
+window.vm = { ready: true, acknowledged: 0, decoded: 0, errors: [] };
+const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+window.beginNative = async config => {
+  let cursor = 0;
+  let pc;
+  const post = async (operation, extra = {}) => {
+    const response = await fetch('/vm/' + operation, { method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-VM-Bridge': config.bridge },
+      body: JSON.stringify({ sessionId: config.sessionId, viewerToken: config.viewerToken, ...extra }) });
+    const result = await response.json();
+    if (!response.ok || !result.ok) throw new Error('fixture operation refused: ' + operation);
+    return result.result;
+  };
+  const viewer = new BrowserManualPeer({ role: 'viewer',
+    iceServers: [{ urls: ['turn:127.0.0.1:43478?transport=tcp'],
+      username: 'remote-lite-vm', credential: 'public-vm-fixture-only' }],
+    rtcFactory: options => (pc = new RTCPeerConnection({ ...options, iceTransportPolicy: 'relay' })),
+    sendSignal: signal => post('signal', { signal }),
+    onStream: stream => { video.srcObject = stream; video.play().catch(error => window.vm.errors.push(error.message)); },
+    onState: state => { window.vm.state = state; },
+    onManualAcknowledged: sequence => { window.vm.acknowledged = sequence; },
+  });
+  window.vm.send = command => viewer.sendManual(command);
+  window.vm.stats = async () => {
+    const reports = await pc.getStats();
+    const transport = [...reports.values()].find(item => item.type === 'transport' && item.selectedCandidatePairId);
+    const pair = transport && reports.get(transport.selectedCandidatePairId);
+    return { state: window.vm.state, closed: viewer.closed, acknowledged: window.vm.acknowledged,
+      width: video.videoWidth, height: video.videoHeight, decoded: video.getVideoPlaybackQuality().totalVideoFrames,
+      localType: pair && reports.get(pair.localCandidateId)?.candidateType,
+      remoteType: pair && reports.get(pair.remoteCandidateId)?.candidateType,
+      errors: window.vm.errors };
+  };
+  window.vm.pixel = (x, y) => {
+    const canvas = document.createElement('canvas'); canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+    const context = canvas.getContext('2d'); context.drawImage(video, 0, 0);
+    return [...context.getImageData(Math.floor(x * canvas.width), Math.floor(y * canvas.height), 1, 1).data];
+  };
+  await viewer.startViewer();
+  void (async () => {
+    while (!viewer.closed) {
+      try {
+        const batch = await post('poll', { ack: cursor });
+        for (const signal of batch.signals) await viewer.receiveSignal(signal);
+        cursor = batch.cursor;
+      } catch (error) { window.vm.errors.push(error.message); viewer.close('fixture-signaling-ended'); }
+      await delay(150);
+    }
+  })();
+};
+</script>

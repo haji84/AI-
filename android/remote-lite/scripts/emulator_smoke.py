@@ -312,21 +312,16 @@ def verify_real_keystore_pairing():
                 f"target={optional_text('対象タップ数: 1', exact=True) is not None}")
         wait_for_text("対象タップ数: 1")
         print("Android 15 VM: signed status gated actual Accessibility screenshot and tap", flush=True)
-        revoked = owner_post("/v1/revoke", {"deviceId": device_id})
-        if not revoked.get("ok") or revoked.get("result", {}).get("status") != "revoked":
-            raise AssertionError(f"Owner could not revoke local registration: {revoked!r}")
-        tap_text("画面操作ゲートを診断する")
-        wait_for_text("画面操作を拒否: Remote session is not active", seconds=35)
-        if optional_text("対象タップ数: 1", exact=True) is None:
-            raise AssertionError("A tap reached the target after owner revocation")
+        from native_vm import verify_native
+        # Extend the previous local diagnostic to the real video/DataChannel OS path.
+        native_session = verify_native(owner_post, ready, device_id, session_id, viewer_token)
         readable, _, _ = select.select([fixture.stdout], [], [], 10)
         if not readable:
             raise AssertionError("Node did not receive Android's post-revocation status challenge")
         rejected = json.loads(fixture.stdout.readline())
         if rejected != {"event": "revoked-status-rejected", "deviceId": device_id,
-                        "sessionId": session_id, "code": "DEVICE_UNAVAILABLE"}:
-            raise AssertionError(f"Node did not reject revoked session status: {rejected!r}")
-        print("Android 15 VM: Node rejected revoked status and Android did not repeat the real tap", flush=True)
+                        "sessionId": native_session, "code": "DEVICE_UNAVAILABLE"}:
+            raise AssertionError(f"Node did not reject revoked native session status: {rejected!r}")
     finally:
         if port is not None:
             subprocess.run(["adb", "reverse", "--remove", f"tcp:{port}"],

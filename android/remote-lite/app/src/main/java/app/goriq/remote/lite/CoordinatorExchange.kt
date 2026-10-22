@@ -53,6 +53,11 @@ class CoordinatorExchange(private val transport: HttpsJsonTransport) :
         sessionPost("/v1/device/accept", session, id, proof)
     override fun status(session: String, id: String, proof: DeviceSessionProof) =
         sessionPost("/v1/device/status", session, id, proof)
+    override fun end(session: String, id: String, proof: DeviceSessionProof): DeviceSessionClosed {
+        val result = post("/v1/device/end", JSONObject().put("sessionId", session).put("deviceId", id)
+            .put("proof", proofJson(proof))) ?: error("Missing session closure")
+        return DeviceSessionClosed(result.getString("sessionId"), result.getString("status"))
+    }
 
     override fun signalChallenge(id: String, session: String, operation: String, payloadHash: String): DeviceSessionChallenge {
         val result = post("/v1/device/challenge", JSONObject().put("deviceId", id)

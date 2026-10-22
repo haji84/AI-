@@ -7,6 +7,7 @@ import android.app.KeyguardManager
 import android.graphics.Bitmap
 import android.graphics.Path
 import android.graphics.Point
+import android.graphics.Rect
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -27,6 +28,8 @@ class ManualAccessibilityService : AccessibilityService() {
         Thread(task, "remote-lite-capture").apply { isDaemon = true }
     }
     @Volatile private var lastFrame: FrameGeometry? = null
+    private val windowProofLock = Any()
+    private var lastWindowProof = Long.MIN_VALUE
 
     companion object {
         @Volatile private var current: ManualAccessibilityService? = null
@@ -34,6 +37,10 @@ class ManualAccessibilityService : AccessibilityService() {
         fun capture(): CapturedFrame = (current ?: error("Accessibility unavailable")).captureScreen()
         fun apply(action: ManualAction): Boolean =
             (current ?: error("Accessibility unavailable")).applyManual(action)
+        fun applyRemote(action: ManualAction, width: Int, height: Int, rotation: Int,
+            gate: InputDispatchGate, admitted: () -> Boolean): Boolean =
+            (current ?: error("Accessibility unavailable"))
+                .applyRemoteChecked(action, width, height, rotation, gate, admitted)
     }
 
     private fun diagnostic(event: String) {
@@ -73,6 +80,8 @@ class ManualAccessibilityService : AccessibilityService() {
     private fun requireActiveUnlocked() {
         check(current === this) { "Accessibility disconnected" }
         check(getSystemService(KeyguardManager::class.java)?.isDeviceLocked == false) { "Device locked" }
+        check(getSystemService(KeyguardManager::class.java)?.isKeyguardLocked == false &&
+            getSystemService(android.os.PowerManager::class.java)?.isInteractive == true) { "Device locked or screen off" }
     }
 
     private data class DisplayState(val width: Int, val height: Int, val rotation: Int)
@@ -131,21 +140,91 @@ class ManualAccessibilityService : AccessibilityService() {
         return captured
     }
 
-    private fun applyManual(action: ManualAction): Boolean {
+    private data class InputWindow(val id: Int, val bounds: Rect, val layer: Int, val active: Boolean)
+
+    @Suppress("DEPRECATION")
+    private fun inputWindows(): List<InputWindow> = windows.map { window ->
+        try {
+            val bounds = Rect()
+            window.getBoundsInScreen(bounds)
+            InputWindow(window.id, bounds, window.layer, window.isActive)
+        } finally { window.recycle() }
+    }.sortedByDescending { it.layer }
+
+    @TargetApi(34)
+    private fun applyRemoteChecked(action: ManualAction, width: Int, height: Int, rotation: Int,
+        gate: InputDispatchGate, admitted: () -> Boolean): Boolean {
+        // Display screenshots can redact a secure window without refusing the request.
+        check(Build.VERSION.SDK_INT >= 34) { "Safe remote input requires Android 14 or newer" }
+        requireWorkerThread()
+        requireActiveUnlocked()
+        val expected = DisplayState(width, height, rotation)
+        check(displayState() == expected) { "Display changed" }
+        val proofStarted = SystemClock.elapsedRealtime()
+        val frame = FrameGeometry(width, height, rotation, proofStarted)
+        val points = when (action) {
+            is ManualAction.Tap -> listOf(frame.point(action.x, action.y, width, height, rotation, proofStarted))
+            is ManualAction.Swipe -> listOf(frame.point(action.x1, action.y1, width, height, rotation, proofStarted),
+                frame.point(action.x2, action.y2, width, height, rotation, proofStarted))
+            else -> emptyList()
+        }
+        fun target(): InputWindow {
+            val candidates = inputWindows()
+            if (points.isEmpty()) return checkNotNull(candidates.firstOrNull { it.active })
+            val selected = points.map { point ->
+                checkNotNull(candidates.firstOrNull { it.bounds.contains(point.x.toInt(), point.y.toInt()) })
+            }
+            check(selected.map { it.id }.distinct().size == 1) { "Gesture crosses windows" }
+            return selected.first()
+        }
+        val window = target()
+        val done = CountDownLatch(1)
+        var visible = false
+        synchronized(windowProofLock) {
+            val now = SystemClock.elapsedRealtime()
+            // Android rate-limits window screenshots to one per >333ms. Never reuse an old proof.
+            if (lastWindowProof != Long.MIN_VALUE && now - lastWindowProof < 350)
+                Thread.sleep(350 - (now - lastWindowProof))
+            check(admitted()) { "Input authority ended while waiting for window proof" }
+            lastWindowProof = SystemClock.elapsedRealtime()
+            takeScreenshotOfWindow(window.id, captureExecutor, object : TakeScreenshotCallback {
+            override fun onSuccess(result: ScreenshotResult) {
+                try { result.hardwareBuffer.close(); visible = true }
+                finally { done.countDown() }
+            }
+            override fun onFailure(errorCode: Int) { done.countDown() }
+            })
+        }
+        check(done.await(3, TimeUnit.SECONDS) && visible) { "Input window could not be verified as non-secure" }
+        lastFrame = frame
+        return applyManual(action) { operation ->
+            gate.emit {
+                requireActiveUnlocked()
+                val currentWindow = target()
+                check(admitted() && displayState() == expected &&
+                    SystemClock.elapsedRealtime() - proofStarted in 0L..1_000L &&
+                    currentWindow.id == window.id && currentWindow.bounds == window.bounds) { "Input authority or window changed" }
+                operation()
+            }
+        }
+    }
+
+    private fun applyManual(action: ManualAction, emit: ((() -> Boolean) -> Boolean) = { it() }): Boolean {
         requireWorkerThread()
         requireActiveUnlocked()
         val applied = when (action) {
-            ManualAction.Back -> performGlobalAction(GLOBAL_ACTION_BACK)
-            ManualAction.Home -> performGlobalAction(GLOBAL_ACTION_HOME)
-            ManualAction.Recents -> performGlobalAction(GLOBAL_ACTION_RECENTS)
-            is ManualAction.Tap -> gesture(action.x, action.y, action.x, action.y, 80)
-            is ManualAction.Swipe -> gesture(action.x1, action.y1, action.x2, action.y2, action.durationMs)
+            ManualAction.Back -> emit { performGlobalAction(GLOBAL_ACTION_BACK) }
+            ManualAction.Home -> emit { performGlobalAction(GLOBAL_ACTION_HOME) }
+            ManualAction.Recents -> emit { performGlobalAction(GLOBAL_ACTION_RECENTS) }
+            is ManualAction.Tap -> gesture(action.x, action.y, action.x, action.y, 80, emit)
+            is ManualAction.Swipe -> gesture(action.x1, action.y1, action.x2, action.y2, action.durationMs, emit)
         }
         requireActiveUnlocked()
         return applied
     }
 
-    private fun gesture(x1: Double, y1: Double, x2: Double, y2: Double, duration: Long): Boolean {
+    private fun gesture(x1: Double, y1: Double, x2: Double, y2: Double, duration: Long,
+        emit: ((() -> Boolean) -> Boolean)): Boolean {
         val state = displayState()
         val frame = lastFrame ?: error("Capture a fresh frame before input")
         val start = frame.point(x1, y1, state.width, state.height, state.rotation, SystemClock.elapsedRealtime())
@@ -156,7 +235,7 @@ class ManualAccessibilityService : AccessibilityService() {
         }
         val done = CountDownLatch(1)
         var applied = false
-        val accepted = dispatchGesture(GestureDescription.Builder()
+        val accepted = emit { dispatchGesture(GestureDescription.Builder()
             .addStroke(GestureDescription.StrokeDescription(path, 0, duration)).build(),
             object : GestureResultCallback() {
                 override fun onCompleted(gestureDescription: GestureDescription?) {
@@ -164,7 +243,7 @@ class ManualAccessibilityService : AccessibilityService() {
                     done.countDown()
                 }
                 override fun onCancelled(gestureDescription: GestureDescription?) { done.countDown() }
-            }, Handler(Looper.getMainLooper()))
+            }, Handler(Looper.getMainLooper())) }
         if (!accepted) return false
         val finished = done.await(6, TimeUnit.SECONDS)
         requireActiveUnlocked()

@@ -94,6 +94,9 @@ class MainActivity : Activity() {
         button("端末登録の設定を開く") {
             startActivity(Intent(this, EnrollmentActivity::class.java))
         }
+        button("画面共有の設定を開く") {
+            startActivity(Intent(this, RemoteSessionActivity::class.java))
+        }
         setContentView(ScrollView(this).apply { addView(column) })
         Thread {
             val result = runCatching {

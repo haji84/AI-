@@ -12,6 +12,7 @@ data class DeviceSessionChallenge(val challengeId: String, val challenge: String
 data class DeviceSessionView(val sessionId: String, val deviceId: String,
     val status: String, val expiresAt: Long)
 data class DeviceSessionCheck(val allowed: Boolean, val reason: String)
+data class DeviceSessionClosed(val sessionId: String, val status: String)
 
 interface DeviceSessionExchange {
     fun pending(id: String, proof: DiscoveryProof): DeviceSessionView?
@@ -19,6 +20,7 @@ interface DeviceSessionExchange {
     fun challenge(id: String, operation: String, session: String): DeviceSessionChallenge
     fun accept(session: String, id: String, proof: DeviceSessionProof): DeviceSessionView
     fun status(session: String, id: String, proof: DeviceSessionProof): DeviceSessionView
+    fun end(session: String, id: String, proof: DeviceSessionProof): DeviceSessionClosed = error("Session end unsupported")
 }
 
 /** A local key proves each request to the separate coordinator; it is never a viewer token. */
@@ -77,6 +79,12 @@ class DeviceSessionAccess(private val identity: EnrollmentIdentity,
         check(verifyActive(sessionId).allowed) { "Remote session is not active" }
         return operation()
     }
+
+    fun end(sessionId: String): Boolean = try {
+        val id = identity.deviceId()
+        val receipt = exchange.end(sessionId, id, proof(id, sessionId, "session-end"))
+        receipt.sessionId == sessionId && receipt.status == "closed"
+    } catch (_: Exception) { false }
 
     private fun proof(id: String, sessionId: String, operation: String): DeviceSessionProof {
         val started = elapsedMs()

@@ -16,6 +16,27 @@ jobs:
     timeout-minutes: 50
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: browser-actions/setup-chrome@v2
+        id: chrome
+        with:
+          chrome-version: stable
+          install-chromedriver: true
+      - name: Extract local TURN fixture without installing a system service
+        run: |
+          set -euo pipefail
+          mkdir -p android/remote-lite/app/build/vm-turn
+          cd android/remote-lite/app/build/vm-turn
+          sudo apt-get update -qq
+          mapfile -t packages < <(apt-cache depends coturn | sed -n 's/^  Depends: //p' | grep -E '^[a-z0-9.+-]+$')
+          apt-get download coturn "${packages[@]}"
+          for package in *.deb; do dpkg-deb -x "$package" extracted; done
+          echo "REMOTE_LITE_TURNSERVER=$PWD/extracted/usr/bin/turnserver" >> "$GITHUB_ENV"
+          echo "LD_LIBRARY_PATH=$PWD/extracted/usr/lib/x86_64-linux-gnu${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" >> "$GITHUB_ENV"
+          LD_LIBRARY_PATH="$PWD/extracted/usr/lib/x86_64-linux-gnu${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" ldd extracted/usr/bin/turnserver
+          if LD_LIBRARY_PATH="$PWD/extracted/usr/lib/x86_64-linux-gnu${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" ldd extracted/usr/bin/turnserver | grep -F 'not found'; then exit 1; fi
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -39,8 +60,8 @@ jobs:
           permissions="$("$aapt" dump permissions "$release")"
           grep -Fq android.permission.INTERNET <<< "$permissions"
           manifest="$("$aapt" dump xmltree "$release" AndroidManifest.xml)"
-          if grep -Fq DebugPairingActivity <<< "$manifest"; then
-            echo 'Release APK unexpectedly includes debug pairing activity'
+          if grep -Eq 'DebugPairingActivity|SecureTestActivity|VmRemoteSessionService' <<< "$manifest"; then
+            echo 'Release APK unexpectedly includes a VM component'
             exit 1
           fi
           if grep -Fq networkSecurityConfig <<< "$manifest"; then
@@ -53,6 +74,10 @@ jobs:
             echo 'Release APK unexpectedly includes VM CA'
             exit 1
           fi
+          grep -Fq assets/notices/WEBRTC.md <<< "$archive"
+          grep -Fq assets/notices/WEBRTC_SDK_LICENSE.txt <<< "$archive"
+          resources="$("$aapt" dump --values resources "$release")"
+          if grep -Eq 'VmRemoteSessionService|public-vm-fixture-only' <<< "$resources"; then exit 1; fi
       - name: Enable KVM for Android emulator
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -60,6 +85,9 @@ jobs:
           sudo udevadm trigger --name-match=kvm
       - name: Android 15 emulator screen and tap smoke
         uses: reactivecircus/android-emulator-runner@v2
+        env:
+          REMOTE_LITE_CHROME: ${{ steps.chrome.outputs.chrome-path }}
+          REMOTE_LITE_CHROMEDRIVER: ${{ steps.chrome.outputs.chromedriver-path }}
         with:
           api-level: 35
           target: google_apis

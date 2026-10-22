@@ -3,5 +3,8 @@
     <!-- Ephemeral loopback CA and diagnostic screen are debug-only. -->
     <application android:networkSecurityConfig="@xml/vm_network_security">
         <activity android:name=".DebugPairingActivity" android:exported="true" />
+        <activity android:name=".SecureTestActivity" android:exported="true" />
+        <service android:name=".VmRemoteSessionService" android:exported="false"
+            android:foregroundServiceType="mediaProjection" />
     </application>
 </manifest>

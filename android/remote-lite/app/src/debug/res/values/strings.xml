@@ -1,0 +1,3 @@
+<resources>
+    <string name="remote_session_service" translatable="false">app.goriq.remote.lite.VmRemoteSessionService</string>
+</resources>
