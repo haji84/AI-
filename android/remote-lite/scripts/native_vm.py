@@ -274,7 +274,7 @@ def verify_native(owner_post, ready, device_id, old_session, old_token):
             return second["sessionId"]
         except Exception:
             print("Native diagnostics: " + adb("shell", "logcat", "-d", "-s",
-                "RemoteLiteNative:I", "AndroidRuntime:E", "libc:F", "libjingle:V", "org.webrtc.Logging:V",
+                "RemoteLiteNative:I", "RemoteLiteLifecycle:I", "AndroidRuntime:E", "libc:F", "libjingle:V", "org.webrtc.Logging:V",
                 "NetworkMonitor:V", "NetworkMonitorAutoDetect:V", "*:S")[-12000:], flush=True)
             print("Android visible controls: " + str(ui.visible()), flush=True)
             print("TURN diagnostics: " + log_path.read_text()[-3500:], flush=True)

@@ -116,7 +116,9 @@ open class RemoteSessionService : Service() {
                     { signal -> check(!stopping.get() && outgoing.offer(signal)) { "Signaling queue full" } },
                     { action, received ->
                         check(!stopping.get() && lease.allowed())
+                        diagnostic("manual-pre-status")
                         val applied = access.requireActiveThen(session) {
+                            diagnostic("manual-pre-status-confirmed:age-ms=" + (SystemClock.elapsedRealtime() - received))
                             check(!stopping.get() && lease.allowed() &&
                                 SystemClock.elapsedRealtime() - received < 1_000)
                             ManualAccessibilityService.applyRemote(action, size.x, size.y, rotation, inputGate) {
@@ -124,7 +126,10 @@ open class RemoteSessionService : Service() {
                                     SystemClock.elapsedRealtime() - received in 0L until 1_000L
                             }
                         }
-                        applied && !stopping.get() && access.verifyActive(session).allowed && lease.allowed()
+                        diagnostic("manual-os-result:" + applied)
+                        val confirmed = applied && !stopping.get() && access.verifyActive(session).allowed && lease.allowed()
+                        diagnostic("manual-post-status:" + confirmed)
+                        confirmed
                     },
                     { event -> publish("接続状態: " + event) },
                     ::requestStop).also { peer = it }

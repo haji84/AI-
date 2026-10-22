@@ -250,16 +250,23 @@ class NativeRtcPeer(private val context: Context, private val lease: CaptureLeas
                             receivedSequence = sequence
                         }
                         inputs.execute {
+                            var stage = "admission"
                             try {
                                 check(!closed.get() && lease.allowed() && SystemClock.elapsedRealtime() - received < 1_000)
+                                stage = "os-input-and-status"
                                 check(applyInput(action, received))
+                                stage = "ack"
                                 synchronized(channelLock) {
                                     check(!closed.get() && lease.allowed() && incoming.state() == DataChannel.State.OPEN)
                                     val ack = JSONObject().put("type", "manual-applied").put("sequence", sequence).toString()
                                     check(incoming.bufferedAmount() <= 65_536 &&
                                         incoming.send(DataChannel.Buffer(ByteBuffer.wrap(ack.toByteArray(Charsets.UTF_8)), false)))
                                 }
-                            } catch (_: Exception) { fail("manual-input-not-confirmed") }
+                            } catch (failure: Exception) {
+                                trace("manual-refused:" + stage + ":" + failure.javaClass.simpleName +
+                                    ":age-ms=" + (SystemClock.elapsedRealtime() - received))
+                                fail("manual-input-not-confirmed")
+                            }
                         }
                     } catch (_: Exception) { fail("invalid-manual-input") }
                 }

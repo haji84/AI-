@@ -186,6 +186,7 @@ class ManualAccessibilityService : AccessibilityService() {
             return chosen
         }
         val window = target()
+        diagnostic("remote-window-selected")
         val done = CountDownLatch(1)
         var visible = false
         synchronized(windowProofLock) {
@@ -200,10 +201,14 @@ class ManualAccessibilityService : AccessibilityService() {
                 try { result.hardwareBuffer.close(); visible = true }
                 finally { done.countDown() }
             }
-            override fun onFailure(errorCode: Int) { done.countDown() }
+            override fun onFailure(errorCode: Int) {
+                diagnostic("remote-window-screenshot-refused:" + errorCode)
+                done.countDown()
+            }
             })
         }
         check(done.await(3, TimeUnit.SECONDS) && visible) { "Input window could not be verified as non-secure" }
+        diagnostic("remote-window-screenshot-confirmed")
         lastFrame = frame
         return applyManual(action) { operation ->
             gate.emit {
@@ -212,6 +217,7 @@ class ManualAccessibilityService : AccessibilityService() {
                 check(admitted() && displayState() == expected &&
                     SystemClock.elapsedRealtime() - proofStarted in 0L..1_000L &&
                     currentWindow.id == window.id && currentWindow.bounds == window.bounds) { "Input authority or window changed" }
+                diagnostic("remote-os-dispatch")
                 operation()
             }
         }
