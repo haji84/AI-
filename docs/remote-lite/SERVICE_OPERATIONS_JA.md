@@ -152,13 +152,18 @@ systemd unitの低位port capability付与も実行時の個別承認に含め�
 
 ## 証明書更新
 
-公開CAの発行、DuckDNS登録/更新、certbot導入/実行は未実施です。HTTP-01を使う
-場合は承認済みVMの80/TCPで行い、443のNodeとは分けます。CAへのドメイン公開と
-証明書透明性ログへの掲載も承認対象です。発行後は両ホスト名のSANを照合します。
+今回のTailscale用は、本人承認済みDuckDNS名とDNS-01を使う構成です。
+実際の発行結果・有効期限はIssue1831の保存点で管理します。certbotやOSの更新タスクは
+未導入です。下記Linux VM案でHTTP-01を使う場合は、承認済み80/TCPで行い、
+443のNodeとは分けます。CAへのドメイン公開と証明書透明性ログへの掲載も承認対象です。
+HTTPSとTURNの証明書は、それぞれ実際に使うホスト名のSANを照合します。
 
 1. 更新した証明書/鍵を新しい私有versionディレクトリへ配置し、権限を確認。
 2. cert/keyの対応・SAN・有効期間・chainを確認して`tls/current`を切り替える。
 3. Linuxではportalの**所有プロセスだけ**へSIGHUP、または確定したunitへreload。
+   Windowsのportalは、設定済みのcert/keyファイルだけを60秒ごとに読み直します。
+   有効な組が変わった場合に新しい接続へ反映し、同じ組を繰り返し更新しません。
+   不完全な書換えや不正な鍵では旧contextを維持し、連続する同一の失敗状態は一度報告します。
 4. `TLS_RELOAD_OK`と、新規の通常TLS接続が期待する証明書を返すことを確認する。
    `systemctl reload`の終了コードだけでは更新成功にしない。
 5. `TLS_RELOAD_FAILED`では旧contextを保持する。旧証明書の期限までに修復する。
@@ -171,6 +176,11 @@ SANの順序変更は許容し、設定したTLS名がない証明書は拒否�
 登録台帳、所有者ログイン、既存TLS接続を再作成しません。リモート管理APIは追加していません。
 実TLS試験で新規接続の証明書切替と既存socket/login維持を検査します。
 [Node setSecureContext](https://nodejs.org/docs/latest-v24.x/api/tls.html#serversetsecurecontextoptions)。
+
+Windowsの読直しは証明書の再発行ではありません。ACME更新の実行・資格情報保管・
+タスク登録は運用者側で別途承認・準備が必要です。サーバー自身が鍵を発行したり、
+OSタスクを登録したりはしません。終了時は読直しtimerも解除します。常用更新の合格には、
+承認済みの実更新処理と新しい証明書による接続の両方を確認する必要があります。
 
 coturnのTLS更新は別工程です。この変更でcoturnの無停止更新を保証しません。
 確定した版の手順に従い、必要なら利用者へ案内した保守時間にportal/coturnを正常停止し、

@@ -1,6 +1,7 @@
 import { openSync, fstatSync, readFileSync, closeSync } from 'node:fs';
-import { X509Certificate, createPrivateKey } from 'node:crypto';
+import { X509Certificate, createPrivateKey, createHash } from 'node:crypto';
 import { createSecureContext } from 'node:tls';
+import { setInterval, clearInterval } from 'node:timers';
 import { isIP } from 'node:net';
 import process from 'node:process';
 import { error as reportError } from 'node:console';
@@ -30,16 +31,41 @@ export function loadTLSFiles({ certPath, keyPath, serverName }) {
   } catch { throw Error('TLS_FILES_INVALID'); }
 }
 
-export function installTLSReload(server, paths, { signals = process, report = reportError } = {}) {
+export function installTLSReload(server, paths, {
+  signals = process, report = reportError,
+  pollIntervalMs = process.platform === 'win32' ? 60000 : 0,
+} = {}) {
+  if (!Number.isInteger(pollIntervalMs) || pollIntervalMs < 0 || pollIntervalMs > 2147483647) throw Error('TLS_POLL_INTERVAL_INVALID');
   const fixedPaths = { ...paths };
-  const reload = () => {
+  let activeDigest, failed = false;
+  const reload = (polling = false) => {
     try {
       // Keep the configured TLS identity, allowing ACME to reorder its SANs.
       const options = loadTLSFiles(fixedPaths);
+      const digest = createHash('sha256').update(options.cert).update(options.key).digest('hex');
+      if (polling && digest === activeDigest) {
+        if (failed) report('TLS_RELOAD_OK');
+        failed = false;
+        return;
+      }
       server.setSecureContext(options);
-    } catch { report('TLS_RELOAD_FAILED'); return; }
+      activeDigest = digest;
+      failed = false;
+    } catch {
+      if (!polling || !failed) report('TLS_RELOAD_FAILED');
+      failed = true;
+      return;
+    }
     report('TLS_RELOAD_OK');
   };
-  signals.on('SIGHUP', reload);
-  server.once('close', () => signals.off('SIGHUP', reload));
+  const onSignal = () => reload();
+  signals.on('SIGHUP', onSignal);
+  // Windows has no operator SIGHUP reload path. Inspect only these configured
+  // files; never start ACME, write keys, or install an OS task from the server.
+  const timer = pollIntervalMs ? setInterval(() => reload(true), pollIntervalMs) : null;
+  timer?.unref();
+  server.once('close', () => {
+    signals.off('SIGHUP', onSignal);
+    if (timer) clearInterval(timer);
+  });
 }

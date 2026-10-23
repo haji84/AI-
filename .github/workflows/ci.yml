@@ -145,7 +145,7 @@ jobs:
           node scripts/remote-lite-browser-vm-smoke.mjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $env:REMOTE_LITE_PORTAL_BROWSER = '1'
-          node --test tests/remote-lite-owner-portal.test.mjs tests/remote-lite-owner-server.test.mjs tests/remote-lite-goriq-hosted.test.mjs
+          node --test tests/remote-lite-owner-portal.test.mjs tests/remote-lite-owner-server.test.mjs tests/remote-lite-goriq-hosted.test.mjs tests/remote-lite-tls-reload.test.mjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Verify per-user Remote Lite MSI install repair upgrade and uninstall
         # This independent gate must still run after a browser failure. The job
