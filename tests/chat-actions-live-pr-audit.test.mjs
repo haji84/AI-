@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { auditRealPr } from "../scripts/chat-actions-live-pr-audit.mjs";
 const repo="sandbox/example",A="a".repeat(40),B="b".repeat(40);
-const pull={number:1866,state:"open",head:{sha:B,ref:"sandbox-branch",repo:{full_name:repo}},
+const pull={number:1866,state:"open",body:"Refs #1865. Read-only advisory",head:{sha:B,ref:"sandbox-branch",repo:{full_name:repo}},
   base:{sha:A,ref:"main",repo:{full_name:repo}}};
 const event={eventName:"pull_request",payload:{number:1866,pull_request:pull}};
 const bot={user:{login:"github-actions[bot]"},
@@ -23,6 +23,7 @@ test("reads actual current PR identity through public API adapter with no token 
  const x=await auditRealPr({event,repository:repo,fetchImpl:f.fetchImpl});
  assert.equal(x.realGithubPrObserved,true);
  assert.equal(x.prReuseCandidate,true);
+ assert.equal(x.linkedIssue,1865);
  assert.equal(x.branch,"sandbox-branch");
  assert.equal(x.ai09Status,"NO_CURRENT_HEAD_RECEIPT");
  assert.equal(x.ai09IsFormalApproval,false);
@@ -68,4 +69,12 @@ test("multiple AI09 receipts need independent reconciliation",async()=>{
  const f=fakeFetch({comments:[bot,bot]});
  assert.equal((await auditRealPr({event,repository:repo,fetchImpl:f.fetchImpl})).ai09Status,
    "MULTIPLE_RECEIPTS_REQUIRES_RECONCILIATION");
+});
+
+test("unlinked PR is observed but not misreported as a reuse candidate",async()=>{
+ const f=fakeFetch({pr:{...pull,body:"Unrelated work"}});
+ const r=await auditRealPr({event,repository:repo,fetchImpl:f.fetchImpl});
+ assert.equal(r.realGithubPrObserved,true);
+ assert.equal(r.prReuseCandidate,false);
+ assert.equal(r.linkedIssue,null);
 });
