@@ -39,7 +39,7 @@ async function readGitHubJson(url, token) {
   return response.json();
 }
 
-async function loadTrustedReviewModules(trustedRoot, trustedSha) {
+export async function loadTrustedReviewModules(trustedRoot, trustedSha) {
   const root=resolve(trustedRoot);
   const actual=execFileSync("git",["rev-parse","HEAD"],{cwd:root,encoding:"utf8"}).trim();
   if (!REVISION.test(trustedSha)||actual!==trustedSha) throw Error("TRUSTED_REVIEWER_SHA_MISMATCH");
