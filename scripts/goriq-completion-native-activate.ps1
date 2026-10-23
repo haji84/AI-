@@ -246,10 +246,25 @@ function Assert-CompletionRecoveryProvenance($tx) {
    $tx.helperSha256 -cne '025e2cb455b4ff8727aff5e5cac83c9bc67b3edf4c53b7343807de779741f7ed'){throw 'BACKUP_REJECTED'}
  }elseif($tx.sourceRevision -cne $SourceRevision -or $tx.helperSha256 -ine $ExpectedHelperSha256){throw 'BACKUP_REJECTED'}
 }
+function Open-CompletionReadLock([int]$index) {
+ if($index -notin @(3,4)){throw 'RECOVERY_TARGET_CHANGED'}
+ $entry=$targets[$index]
+ $stream=New-Object IO.FileStream($entry.path,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
+ try{
+  Assert-CompletionNative $stream.SafeFileHandle $entry.path
+  Assert-FixedRecord $records[$index] (Get-FixedRecord $entry $stream.SafeFileHandle)
+  return $stream
+ }catch{$stream.Dispose();throw}
+}
 function Restart-CompletionUnchangedBaseline {
  # Separate fail-closed path: no stop, write-capable ACL handle, pointer write,
  # backup rewrite, or fall-through into the ordinary mutation recovery path.
  $script:stage='unchanged-baseline-restart'
+ $readLocks=@()
+ try{
+ # Prevent a writer from changing the config/launcher between baseline
+ # comparison and task startup; these handles request read access only.
+ foreach($index in @(3,4)){$readLocks+=,(Open-CompletionReadLock $index)}
  for($i=0;$i -lt 5;$i++){Assert-FixedRecord $records[$i] (Get-FixedRecord $targets[$i] $handles[$i])}
  Assert-CompletionState;Assert-StoppedInstallation
  for($i=0;$i -lt 5;$i++){Assert-FixedRecord $records[$i] (Get-FixedRecord $targets[$i] $handles[$i])}
@@ -263,6 +278,7 @@ function Restart-CompletionUnchangedBaseline {
  Assert-FixedExpiry
  Remove-Item -LiteralPath $marker -Force
  $script:restored=$true
+ }finally{foreach($lock in $readLocks){$lock.Dispose()}}
 }
 function Resume-CompletionRecovery {
  $script:stage='durable-recovery';Assert-FixedExpiry

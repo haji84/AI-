@@ -61,6 +61,8 @@ $fixtureTx.helperSha256='025e2cb455b4ff8727aff5e5cac83c9bc67b3edf4c53b7343807de7
 $serialized=$fixtureTx | ConvertTo-Json -Depth 8 -Compress
 $pinnedSerialized=$serialized
 $fixtureStarted=$false;$fixtureHealthy=$true;$fixtureStopped=$true;$fixtureStateGood=$true;$fixtureRecordGood=$true
+$fixtureLockGood=$true
+function Open-CompletionReadLock($index) { if(-not $fixtureLockGood){throw 'fixture-sharing-violation'};return (New-Object CompletionFixtureHandle) }
 function Get-OwnedTree($expected) { if(-not $fixtureStarted){throw 'host'};if($expected -cne $oldRoot){throw 'fixture-wrong-root'};return [pscustomobject]@{ProcessId=42} }
 function Get-CimInstance { return @() }
 function Assert-StoppedInstallation { if(-not $fixtureStopped -or $fixtureStarted){throw 'stopped-installation'};$steps.Add('stopped') }
@@ -80,9 +82,10 @@ $steps.Clear();$handles=@();$restored=$false;$mutated=$false;$stopAttempted=$fal
 Resume-CompletionRecovery
 if(-not $restored -or $mutated -or $stopAttempted -or @($steps | Where-Object {$_ -ceq 'START'}).Count -ne 1 -or $steps -notcontains 'health' -or $steps[-1] -cne 'clear-marker' -or $steps -contains 'close'){throw 'restart-only-recovery-failed'}
 Write-Output 'Actual resume controller: unchanged stopped baseline restarts once without writable handle PASS'
-foreach($fault in @('backup-id','source','helper','owner','descriptor','identity','bytes','task-state','state','health','post-record','default-mode')){
+foreach($fault in @('backup-id','source','helper','owner','descriptor','identity','bytes','task-state','state','health','post-record','default-mode','writer-lock')){
  $serialized=$pinnedSerialized;$RecoveryBackupId='bde347b3c55a4db1af3bd63e9528d464';$RestartUnchangedBaseline=$true
  $fixtureStarted=$false;$fixtureHealthy=$true;$fixtureStopped=$true;$fixtureStateGood=$true;$fixtureRecordGood=$true
+ $fixtureLockGood=$true
  $steps.Clear();$handles=@();$restored=$false;$mutated=$false;$stopAttempted=$false;$startAttempted=$false
  $tx=$serialized | ConvertFrom-Json
  switch($fault){
@@ -98,6 +101,7 @@ foreach($fault in @('backup-id','source','helper','owner','descriptor','identity
   'health' {$fixtureHealthy=$false}
   'post-record' {$fixtureRecordGood=$false}
   'default-mode' {$RestartUnchangedBaseline=$false}
+  'writer-lock' {$fixtureLockGood=$false}
  }
  $serialized=$tx | ConvertTo-Json -Depth 8 -Compress
  $rejected=$false;try{Resume-CompletionRecovery}catch{$rejected=$true}
@@ -106,3 +110,31 @@ foreach($fault in @('backup-id','source','helper','owner','descriptor','identity
  if($mutated -or $stopAttempted -or $steps -contains 'STOP' -or $steps -contains 'close'){throw "restart-fell-through-$fault"}
 }
 Write-Output 'Restart-only provenance, baseline, stopped/state and post-start rejection preserve marker PASS'
+
+# Exercise the actual read-lock implementation with real Windows file sharing.
+$def=$ast.Find({param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -ceq 'Open-CompletionReadLock'},$true)
+Invoke-Expression $def.Extent.Text
+$fixturePath=Join-Path ([IO.Path]::GetTempPath()) ('goriq-1858-read-lock-'+[guid]::NewGuid().ToString('N'))
+$lock=$null;$writer=$null
+try{
+ [IO.File]::WriteAllText($fixturePath,'original')
+ $entry=[pscustomobject]@{path=$fixturePath;directory=$false;identity='fixture-id';descriptor='fixture-descriptor';hash=(Get-CompletionByteHash ([IO.File]::ReadAllBytes($fixturePath)))}
+ $targets=@($null,$null,$null,$entry);$records=@($null,$null,$null,$entry)
+ function Get-FixedRecord($entry,$handle) { $result=$entry.PSObject.Copy();$result.hash=Get-CompletionByteHash ([IO.File]::ReadAllBytes($entry.path));return $result }
+ $lock=Open-CompletionReadLock 3
+ if([IO.File]::ReadAllText($fixturePath) -cne 'original'){throw 'read-lock-blocks-launcher-read'}
+ $blocked=$false;try{[IO.File]::WriteAllText($fixturePath,'changed')}catch{$blocked=$true}
+ if(-not $blocked){throw 'read-lock-allows-concurrent-writer'}
+ $lock.Dispose();$lock=$null
+ $writer=New-Object IO.FileStream($fixturePath,[IO.FileMode]::Open,[IO.FileAccess]::Write,[IO.FileShare]::ReadWrite)
+ $blocked=$false;try{$lock=Open-CompletionReadLock 3}catch{$blocked=$true}
+ if(-not $blocked){throw 'read-lock-admitted-existing-writer'}
+ $writer.Dispose();$writer=$null
+ [IO.File]::WriteAllText($fixturePath,'drift')
+ $blocked=$false;try{$lock=Open-CompletionReadLock 3}catch{$blocked=$true}
+ if(-not $blocked){throw 'read-lock-admitted-byte-drift'}
+ Write-Output 'Real read locks: readers allowed, existing/new writers and baseline drift refused PASS'
+}finally{
+ if($null -ne $lock){$lock.Dispose()};if($null -ne $writer){$writer.Dispose()}
+ [IO.File]::Delete($fixturePath)
+}

@@ -25,7 +25,9 @@ The controller reuses DPAPI, owner/admin, native path, ancestor guards, task XML
 expiry and state preservation checks. It requires all five objects to equal the
 saved baseline in path, type, file identity, full security descriptor and byte
 hash. It verifies that the installation is stopped, then starts the existing
-named task once. It performs no stop, ACL or pointer writes and has no fallback
+named task once. Config and launcher are retained under read-only, FileShare.Read
+locks through startup and verification; existing/new writers are refused.
+It performs no stop, ACL or pointer writes and has no fallback
 to ordinary repair. Only verified old revision health, owned services, preserved
 state and a second five-object comparison allow clearing the transaction marker.
 Otherwise it retains reconciliation state and never declares restoration.
@@ -42,6 +44,9 @@ adapters. The regression first failed on the old controller (`BACKUP_REJECTED`),
 then passed with one start, no writable-handle acquisition, and marker retention
 on wrong provenance, baseline, stopped state or failed post-start verification.
 Existing transaction/process refusal and Node activation-scope tests also pass.
+Independent review found a pointer TOCTOU risk. A failing writer-lock regression
+was added before the fix; the actual read-lock function now passes real Windows
+file tests for allowed readers, blocked existing/new writers and byte drift.
 The existing Windows CI includes this resume fixture; no workflow change is needed.
 
 CI and native outcomes are recorded in Issue #1858. This document is preparation,
