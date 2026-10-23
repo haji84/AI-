@@ -100,3 +100,83 @@ export function adviseDevelopmentIntake(input: Intake): Advice {
   return { executionAuthority:false, pr, risk, gate, review,
     unrelatedSafeWorkMayContinue:!input.globallyPaused };
 }
+
+
+/** Proposal for the already existing Mobile Autonomy workflow. No dispatch operation is performed here. */
+export interface ChatActionsHandoffInput {
+  source: "chat";
+  command: string;
+  goalId: string;
+  messageId: string;
+  ownerIdentityVerifiedByTrustedHost: boolean;
+  githubActionsAvailable: boolean;
+  existingNonCodexBuilderAvailable: boolean;
+  codexFallback?: {
+    exhaustedAlternatives: string[];
+    necessityEvidenceRef: string;
+    existingCodexAuthorizationVerified: boolean;
+  };
+}
+
+export interface ChatActionsHandoffAdvice {
+  executionAuthority: false;
+  workflow: "Mobile Autonomy";
+  preferredEntry: "CHAT";
+  executionHost: "GITHUB_ACTIONS";
+  status: "PROPOSE_ONLY" | "OWNER_PROOF_REQUIRED" | "APPROVAL_REQUIRED" | "SECURITY_HOLD" |
+    "RECONCILE_PR" | "ACTIONS_UNAVAILABLE" | "CAPABILITY_UNAVAILABLE";
+  codex: "NOT_SELECTED" | "EXCEPTION_CANDIDATE";
+  dedupeKey: string;
+  /** Trusted caller must recheck scope/authorization and dispatch; this function never does. */
+  commandJson: string | null;
+  reason: string;
+}
+
+/**
+ * Pure Chat -> Actions handoff proposal: the Chat envelope is untrusted until
+ * a separate authenticated GitHub adapter verifies owner identity and scope.
+ * Codex is only an exception candidate, never automatically selected here.
+ */
+export function adviseChatActionsHandoff(input: ChatActionsHandoffInput, prAdvice: Advice): ChatActionsHandoffAdvice {
+  if (!input || input.source !== "chat" || typeof input.command !== "string" ||
+      !input.command.trim() || input.command.length > 12_000 ||
+      typeof input.goalId !== "string" || !input.goalId.trim() || input.goalId.length > 200 ||
+      typeof input.messageId !== "string" || !/^[A-Za-z0-9._:-]{1,150}$/.test(input.messageId) ||
+      typeof input.ownerIdentityVerifiedByTrustedHost !== "boolean" ||
+      typeof input.githubActionsAvailable !== "boolean" ||
+      typeof input.existingNonCodexBuilderAvailable !== "boolean" ||
+      !prAdvice || prAdvice.executionAuthority !== false ||
+      (input.codexFallback && (
+        !Array.isArray(input.codexFallback.exhaustedAlternatives) ||
+        input.codexFallback.exhaustedAlternatives.some(x => typeof x !== "string" || !x.trim() || x.length > 150) ||
+        typeof input.codexFallback.necessityEvidenceRef !== "string" ||
+        typeof input.codexFallback.existingCodexAuthorizationVerified !== "boolean"
+      ))) throw Error("invalid_chat_actions_handoff");
+
+  const dedupeKey = "chat:" + input.messageId;
+  const result = (status: ChatActionsHandoffAdvice["status"], reason: string,
+    codex: ChatActionsHandoffAdvice["codex"] = "NOT_SELECTED"): ChatActionsHandoffAdvice => ({
+    executionAuthority: false, workflow: "Mobile Autonomy", preferredEntry: "CHAT",
+    executionHost: "GITHUB_ACTIONS", status, codex, dedupeKey, commandJson: null, reason,
+  });
+
+  if (!input.ownerIdentityVerifiedByTrustedHost) return result("OWNER_PROOF_REQUIRED", "trusted_owner_identity_missing");
+  if (prAdvice.gate === "SECURITY_HOLD") return result("SECURITY_HOLD", "existing_security_hold");
+  if (prAdvice.gate === "ASSESSMENT_REQUIRED" || prAdvice.gate === "HUMAN_REQUIRED") {
+    return result("APPROVAL_REQUIRED", "risk_assessment_or_human_gate_pending");
+  }
+  if (prAdvice.pr.action === "RECONCILE") return result("RECONCILE_PR", "review_current_issue_pr_inventory");
+  if (!input.githubActionsAvailable) return result("ACTIONS_UNAVAILABLE", "existing_actions_host_unavailable");
+  if (!input.existingNonCodexBuilderAvailable) {
+    const fallback = input.codexFallback;
+    const exceptional = fallback && fallback.exhaustedAlternatives.length > 0 &&
+      fallback.necessityEvidenceRef.trim() && fallback.existingCodexAuthorizationVerified;
+    return result("CAPABILITY_UNAVAILABLE",
+      exceptional ? "codex_exception_must_be_separately_dispatched_under_existing_authority" :
+        "no_verified_non_codex_builder; investigate_without_auto_escalation",
+      exceptional ? "EXCEPTION_CANDIDATE" : "NOT_SELECTED");
+  }
+  // Source identity in JSON is metadata, not proof of sender authentication or scope.
+  const commandJson = JSON.stringify({source:"chat", command:input.command.trim(), goalId:input.goalId.trim()});
+  return { ...result("PROPOSE_ONLY", "authenticated_adapter_must_verify_and_dispatch"), commandJson };
+}
