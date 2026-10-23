@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { Buffer } from "node:buffer";
 import { runOneAi09Batch, groundedReviewPrompt, auditAi09ClaimSupport } from "../scripts/chat-actions-ai09-batch-runner.mjs";
 import { aggregateIndependentBatchReceipts } from "../scripts/chat-actions-ai09-full-aggregate.mjs";
+import { independentlyAuditAi09Claims } from "../scripts/chat-actions-ai09-independent-triage.mjs";
 import { planCompleteAi09Review, collectAi09Evidence, assertNoWriteAuthority }
  from "../scripts/chat-actions-ai09-multibatch.mjs";
 import { reviewLocalPatch } from "../src/orchestrator/ai09-local-reviewer.mjs";
@@ -264,4 +265,79 @@ test("real code quote without a concrete consequence remains INCONCLUSIVE and fi
  assert.equal(report.diagnostic[0].anchor.checks[0].impactExplained,false);
  assert.equal(report.githubApprovalSatisfied,false);
  assert.equal(report.mergeAuthorized,false);
+});
+
+test("trusted prompt removes fixed example only, never edits source diff with line 123 literal",()=>{
+ const patch='BEGIN_UNTRUSTED_PATCH\n@@ -1 +1 @@\n-const x=1;\n+const hint={"line":123};\nEND_UNTRUSTED_PATCH';
+ const input='Model schema {"line":123}\n'+patch;
+ const out=groundedReviewPrompt(input);
+ assert.ok(out.includes('Model schema {"line":null}'));
+ assert.ok(out.includes('+const hint={"line":123};'));
+ assert.equal(out.split('+const hint={"line":123};').length,2);
+});
+test("independent verifier never proves impact even if model finds an exact quoted added line",async()=>{
+ const plan=planCompleteAi09Review(comparison(1,4),SHA,HEAD,modules);
+ const manifest=manifestFor(plan);
+ const chunk=plan.batches[0].chunks[0];
+ const line=chunk.patch.split("\n").find(x=>x.startsWith("+")&&!x.startsWith("+++"));
+ assert.ok(line);
+ const original=line.slice(1,45);
+ const quote=String.fromCharCode(96)+original+String.fromCharCode(96);
+ const receipt=await runOneAi09Batch({plan,manifest,index:0,modules,infer:async()=>JSON.stringify({
+  verdict:"CHANGES_REQUESTED",findings:[{
+   path:chunk.paths[0],line:1,severity:"medium",
+   summary:"Impact: A logic defect may cause an incorrect response for valid input.",
+   evidence:"Code "+quote+" is potentially implicated.",
+   proposedFix:"Verify the behavior using a separately executed regression.",
+  }],
+ })});
+ const triage=independentlyAuditAi09Claims({plan,receipts:[receipt],anchorModule:modules.anchor});
+ assert.equal(triage.status,"REQUIRES_INDEPENDENT_VERIFICATION");
+ assert.equal(triage.groundedClaims,1);
+ assert.equal(triage.pendingIndependentVerification,1);
+ assert.equal(triage.independentImpactVerified,0);
+ assert.equal(triage.claims[0].status,"PENDING_INDEPENDENT_BEHAVIORAL_VERIFICATION");
+ assert.equal(triage.claims[0].readyForAutomaticRepair,false);
+ const aggregate=aggregateIndependentBatchReceipts({plan,manifest,receipts:[receipt],modules});
+ assert.equal(aggregate.acceptedReview,false);
+ assert.notEqual(aggregate.status,"NO_ACTIONABLE_FINDINGS");
+ assert.equal(aggregate.independentTriage.pendingIndependentVerification,1);
+ assert.equal(aggregate.githubApprovalSatisfied,false);
+ assert.equal(aggregate.mergeAuthorized,false);
+});
+test("independent verifier keeps incorrect line-number model warnings ungrounded and blocked for automatic repair",async()=>{
+ const plan=planCompleteAi09Review(comparison(1,4),SHA,HEAD,modules);
+ const manifest=manifestFor(plan);
+ const receipt=await runOneAi09Batch({plan,manifest,index:0,modules,infer:async()=>JSON.stringify({
+  verdict:"CHANGES_REQUESTED",findings:[{
+   path:plan.batches[0].paths[0],line:123,severity:"high",
+   summary:"Impact: This program may expose private data under some conditions.",
+   evidence:"The code is dangerous, without a real quotation.",
+   proposedFix:"Inspect the exact production source and reproduce.",
+  }],
+ })});
+ const triage=independentlyAuditAi09Claims({plan,receipts:[receipt],anchorModule:modules.anchor});
+ assert.equal(triage.groundedClaims,0);
+ assert.equal(triage.claims[0].status,"UNGROUNDED_MODEL_CLAIM");
+ assert.equal(triage.claims[0].readyForAutomaticRepair,false);
+ assert.equal(triage.githubApprovalSatisfied,false);
+ const aggregate=aggregateIndependentBatchReceipts({plan,manifest,receipts:[receipt],modules});
+ assert.equal(aggregate.acceptedReview,false);
+ assert.notEqual(aggregate.status,"NO_ACTIONABLE_FINDINGS");
+});
+test("independent verification catches stale and duplicate received batches",async()=>{
+ const plan=planCompleteAi09Review(comparison(15,70),SHA,HEAD,modules);
+ const manifest=manifestFor(plan);
+ const receipts=[];
+ for(let i=0;i<plan.batchCount;i++){
+  receipts.push(await runOneAi09Batch({plan,manifest,index:i,modules,infer:allow}));
+ }
+ const clean=independentlyAuditAi09Claims({plan,receipts,anchorModule:modules.anchor});
+ assert.equal(clean.status,"NO_MODEL_CLAIMS");
+ assert.equal(clean.inspectedBatches,plan.batchCount);
+ assert.equal(clean.invalidReceipts,0);
+ const duplicated=independentlyAuditAi09Claims({plan,receipts:[...receipts,receipts[0]],anchorModule:modules.anchor});
+ assert.equal(duplicated.status,"BLOCKED");
+ const stale=independentlyAuditAi09Claims({plan,receipts:[{...receipts[0],headSha:"c".repeat(40)},...receipts.slice(1)],anchorModule:modules.anchor});
+ assert.equal(stale.status,"BLOCKED");
 });
