@@ -24,6 +24,7 @@ on:
       - "scripts/chat-actions-ai09-full-plan.mjs"
       - "scripts/chat-actions-ai09-batch-runner.mjs"
       - "scripts/chat-actions-ai09-full-aggregate.mjs"
+      - "scripts/chat-actions-ai09-independent-triage.mjs"
 
 # This job is an isolated, unprivileged simulation. It never receives any secret
 # or write-enabled credential; it cannot dispatch, open PRs, merge, or deploy.
