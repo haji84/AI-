@@ -4,6 +4,12 @@ export interface CompletionActivationApproval {
   approvedAt: string; forwardUntil: string; expiresAt: string;
 }
 const fields = ['version', 'issue', 'operation', 'ownerSid', 'ownerResponse', 'questionItem', 'proposalSha256', 'approvedAt', 'forwardUntil', 'expiresAt'];
+export function validateCompletionSource(value: unknown, revision: string): void {
+  const proof = value as { number?: number; merged?: boolean; merge_commit_sha?: string; base?: { ref?: string; repo?: { full_name?: string } }; head?: { ref?: string; repo?: { full_name?: string } } } | null;
+  if (!/^[a-f0-9]{40}$/.test(revision) || proof?.number !== 1862 || proof.merged !== true || proof.merge_commit_sha !== revision ||
+    proof.base?.ref !== 'main' || proof.base.repo?.full_name !== 'haji84/AI-' ||
+    proof.head?.ref !== 'codex/1858-native-activation' || proof.head.repo?.full_name !== 'haji84/AI-') throw Error('COMPLETION_NATIVE_SOURCE_REJECTED');
+}
 export function validateCompletionActivation(value: unknown, phase: 'forward' | 'recovery', now = new Date()): CompletionActivationApproval {
   const a = value as CompletionActivationApproval;
   if (!a || typeof a !== 'object' || Object.keys(a).length !== fields.length || Object.keys(a).some(k => !fields.includes(k)) ||

@@ -63,6 +63,8 @@ function Assert-CompletionSource {
  if($LASTEXITCODE -ne 0){throw 'SOURCE_REJECTED'}
  & $node (Join-Path $source 'scripts\goriq-pc-approved-source.mjs')
  if($LASTEXITCODE -ne 0){throw 'MAIN_CI_REQUIRED'}
+ '{"operation":"source"}' | & $node (Join-Path $source 'scripts\goriq-completion-native-state.ts')
+ if($LASTEXITCODE -ne 0){throw 'TASK_SOURCE_REJECTED'}
 }
 function Inspect-State([string]$operation) {
  $inputValue=@{current=$current;operation=$operation;recovery=$recovering} | ConvertTo-Json -Depth 20 -Compress
@@ -90,24 +92,31 @@ function Stop-CompletionHost([string]$expectedRoot) {
  }
  Assert-StoppedInstallation
 }
+function Write-CompletionBytes($stream,[byte[]]$bytes) {
+ $stream.Position=0;$stream.Write($bytes,0,$bytes.Length);$stream.SetLength($bytes.Length);$stream.Flush($true)
+}
 function Write-CompletionPointer([int]$index,[byte[]]$bytes) {
  Assert-CompletionState;Assert-StoppedInstallation
  $entry=$targets[$index]
- $h=[GoriqFixedAclNative]::Open($entry.path,$false,$false)
+ # Keep the original object: its owner, group, DACL and nonempty SACL never
+ # undergo recreation/merge. Deny concurrent writers and delete/rename.
+ # The durable transaction already contains original bytes before this call.
+ $stream=New-Object IO.FileStream($entry.path,[IO.FileMode]::Open,[IO.FileAccess]::ReadWrite,[IO.FileShare]::Read)
  try{
-  Assert-CompletionNative $h $entry.path
-  $live=Get-FixedRecord $entry $h
+  Assert-CompletionNative $stream.SafeFileHandle $entry.path
+  $live=Get-FixedRecord $entry $stream.SafeFileHandle
   Assert-FixedRecord $script:pointerRecords[$index-3] $live
- }finally{$h.Dispose()}
- Assert-FixedExpiry
- Replace-Bytes $entry.path $bytes
- $h=[GoriqFixedAclNative]::Open($entry.path,$false,$false)
- try{
-  Assert-CompletionNative $h $entry.path
-  $after=Get-FixedRecord $entry $h
-  if($after.descriptor -cne $live.descriptor -or -not (Same-Bytes $bytes (Get-FixedBytes $entry.path))){throw 'POINTER_REJECTED'}
-  $script:pointerRecords[$index-3]=$after
- }finally{$h.Dispose()}
+  Assert-FixedExpiry
+  try{Write-CompletionBytes $stream $bytes}
+  finally{
+   # Even a partial write or a post-write exception has a known held identity.
+   # Capture only that object, before releasing the no-write/no-delete lock.
+   $after=Get-FixedRecord $entry $stream.SafeFileHandle
+   if($after.identity -cne $live.identity -or $after.descriptor -cne $live.descriptor){throw 'POINTER_REJECTED'}
+   $script:pointerRecords[$index-3]=$after
+  }
+  if(-not (Same-Bytes $bytes (Get-FixedBytes $entry.path))){throw 'POINTER_REJECTED'}
+ }finally{$stream.Dispose()}
 }
 function Invoke-CompletionBuild {
  Assert-FixedExpiry
@@ -153,8 +162,7 @@ function Restore-Completion {
   Write-CompletionPointer 3 $configBytes;Write-CompletionPointer 4 $launcherBytes
  }
  Open-FixedHandles $true
- # Atomic pointer replacement intentionally changes only these two file IDs.
- # Accept only records captured from this transaction's verified replacement.
+ # Only records captured under this transaction's no-write/no-delete lock.
  $restoreRecords=@($records | ForEach-Object {$_.PSObject.Copy()})
  for($i=3;$i -lt 5;$i++){
   if($switched){
@@ -183,7 +191,18 @@ try {
  if($identity.User.Value -cne 'S-1-5-21-3241814747-1938433149-1705921193-1004' -or $env:USERPROFILE -ine 'C:\Users\qq113' -or
   -not (New-Object Security.Principal.WindowsPrincipal($identity)).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)){throw 'OWNER_ADMIN_REQUIRED'}
  $env:GORIQ_PC_APPROVED_REVISION=$SourceRevision;$env:GITHUB_REPOSITORY='haji84/AI-';$env:GITHUB_REF='refs/heads/main';$env:GITHUB_SHA=$SourceRevision
- Set-Location $source;Assert-CompletionSource
+ Set-Location $source
+ # Pin every tracked source/config dependency, including transitive TS imports,
+ # before source verification or privileged calls. No hidden index omissions.
+ $listed=@(& git -C $source -c core.quotepath=false ls-files -v)
+ if($LASTEXITCODE -ne 0 -or $listed.Count -eq 0 -or @($listed | Where-Object {$_ -cnotmatch '^H '}).Count){throw 'SOURCE_REJECTED'}
+ foreach($line in $listed){
+  $path=[IO.Path]::GetFullPath((Join-Path $source $line.Substring(2)))
+  if(-not $path.StartsWith($source.TrimEnd('\')+'\',[StringComparison]::OrdinalIgnoreCase)){throw 'SOURCE_REJECTED'}
+  $s=New-Object IO.FileStream($path,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
+  $sourceStreams+=,$s;Assert-CompletionNative $s.SafeFileHandle $path
+ }
+ Assert-CompletionSource
  foreach($relative in @('scripts/goriq-zbook-fixed-acl-repair.ps1','scripts/goriq-zbook-owner-acl-repair.ps1','scripts/goriq-zbook-acl-boundary-repair.ps1','scripts/goriq-pc-runtime-refresh-windows.ps1')){
   $s=New-Object IO.FileStream((Join-Path $source $relative),[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
   $sourceStreams+=,$s;$reader=New-Object IO.StreamReader($s,[Text.Encoding]::UTF8,$true,4096,$true)
@@ -194,7 +213,7 @@ try {
  Import-CompletionFunctions $fixed @('Import-FixedFunctions','Get-FixedTargets','New-FixedDescriptor','Initialize-FixedNative','Initialize-FixedProcessNative','Bind-FixedProcessTree','Get-FixedBytes','Get-FixedHash','Get-FixedRecord','Assert-FixedRecord','Invoke-FixedTransition','Restore-FixedRecords','Write-FixedTransaction','Read-FixedTransaction','Assert-FixedTree','Close-FixedHandles','Open-FixedHandles','Assert-FixedGuards')
  Import-FixedFunctions $sourceTexts['scripts/goriq-zbook-owner-acl-repair.ps1'] @('Test-KnownReadOnlyRights','Get-RuleFacts','Select-RepairCandidate','Assert-OwnedNative')
  Import-FixedFunctions $sourceTexts['scripts/goriq-zbook-acl-boundary-repair.ps1'] @('Write-BoundaryBackup','Assert-ProfileOwner','Assert-NativeProfile')
- Import-FixedFunctions $sourceTexts['scripts/goriq-pc-runtime-refresh-windows.ps1'] @('Get-LiveListeners','Assert-StoppedInstallation','Assert-State-Preserved','Get-OwnedTree','Stop-OwnedTree','Same-Bytes','Replace-Bytes','Restore-ReleaseDirectoryOwner','New-OwnedReleaseDirectory','Wait-Health','Assert-NativeFile','Test-NativeAllowSid')
+ Import-FixedFunctions $sourceTexts['scripts/goriq-pc-runtime-refresh-windows.ps1'] @('Get-LiveListeners','Assert-StoppedInstallation','Assert-State-Preserved','Get-OwnedTree','Stop-OwnedTree','Same-Bytes','Restore-ReleaseDirectoryOwner','New-OwnedReleaseDirectory','Wait-Health','Assert-NativeFile','Test-NativeAllowSid')
  Initialize-FixedNative
  $stage='native-preflight';$targets=@(Get-FixedTargets $root)
  $guardEntries=@();$guardRecords=@();$unique=@{}
