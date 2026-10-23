@@ -18,23 +18,24 @@ function validEvent(event, repository) {
       !SHA.test(p.base?.sha || "")) throw Error("PR_CONTEXT_NOT_VERIFIED");
   return { prNumber:n, headSha:p.head.sha, baseSha:p.base.sha };
 }
-async function publicGetJson(fetchImpl, url) {
+async function publicGetJson(fetchImpl, url, token) {
   const parsed = new URL(url);
   if (parsed.origin !== API || !/^\/repos\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/(?:pulls\/\d+|issues\/\d+\/comments)$/.test(parsed.pathname))
     throw Error("API_URL_NOT_ALLOWED");
   const resp = await fetchImpl(parsed.toString(), {
     method:"GET", redirect:"error",
-    headers:{Accept:"application/vnd.github+json","X-GitHub-Api-Version":"2022-11-28"},
+    headers:{Accept:"application/vnd.github+json","X-GitHub-Api-Version":"2022-11-28",
+      ...(token ? {Authorization:"Bearer "+token} : {})},
     signal:AbortSignal.timeout(10_000),
   });
   if (!resp?.ok) throw Error("PUBLIC_GITHUB_READ_FAILED_"+(resp?.status??"UNKNOWN"));
   return resp.json();
 }
 /** Reads current real GitHub state; review remains advisory and never GitHub approval. */
-export async function auditRealPr({event, repository, fetchImpl = fetch}) {
+export async function auditRealPr({event, repository, fetchImpl = fetch, token = null}) {
   const expected = validEvent(event, repository);
   const pr = await publicGetJson(fetchImpl,
-    API+"/repos/"+repository+"/pulls/"+expected.prNumber);
+    API+"/repos/"+repository+"/pulls/"+expected.prNumber,token);
   if (pr?.number !== expected.prNumber || pr?.state !== "open" ||
       pr?.head?.sha !== expected.headSha || pr?.base?.sha !== expected.baseSha ||
       pr?.head?.repo?.full_name !== repository || pr?.base?.repo?.full_name !== repository) {
@@ -43,7 +44,7 @@ export async function auditRealPr({event, repository, fetchImpl = fetch}) {
   // Fetching a single bounded page deliberately reports INCOMPLETE if any more may exist.
   // Incomplete listing is never interpreted as "no review" or an approval.
   const comments = await publicGetJson(fetchImpl,
-    API+"/repos/"+repository+"/issues/"+expected.prNumber+"/comments?per_page="+MAX_COMMENTS);
+    API+"/repos/"+repository+"/issues/"+expected.prNumber+"/comments?per_page="+MAX_COMMENTS,token);
   if (!Array.isArray(comments) || comments.length > MAX_COMMENTS) throw Error("INVALID_COMMENT_PAGE");
   const incomplete = comments.length === MAX_COMMENTS;
   const receipts = comments.filter(c => c?.user?.login === "github-actions[bot]" && typeof c.body === "string")
@@ -85,7 +86,8 @@ if (process.argv[1]?.endsWith("/chat-actions-live-pr-audit.mjs")) {
   const repository=process.env.GITHUB_REPOSITORY;
   if (!path || !repository || process.env.GITHUB_EVENT_NAME!=="pull_request") throw Error("UNTRUSTED_HOST_ENVIRONMENT");
   const payload=JSON.parse(readFileSync(path,"utf8"));
-  const result=await auditRealPr({event:{eventName:process.env.GITHUB_EVENT_NAME,payload},repository});
+  const result=await auditRealPr({event:{eventName:process.env.GITHUB_EVENT_NAME,payload},repository,
+    token:process.env.GITHUB_TOKEN??null});
   process.stdout.write(JSON.stringify(result)+"\n");
   // Inability to fetch or stale/mismatched head fails the job. No advisory "no finding"
   // is ever promoted to a real formal review or merge decision.
