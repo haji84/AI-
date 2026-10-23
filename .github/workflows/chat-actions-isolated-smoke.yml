@@ -6,6 +6,8 @@ on:
     paths:
       - ".github/workflows/chat-actions-isolated-smoke.yml"
       - "scripts/chat-actions-sandbox.mjs"
+      - "scripts/chat-actions-live-pr-audit.mjs"
+      - "tests/chat-actions-live-pr-audit.test.mjs"
       - "tests/chat-actions-sandbox.test.mjs"
       - "src/orchestrator/development-pr-advisory.ts"
 
@@ -36,5 +38,9 @@ jobs:
           node-version: "24.19.0"
       - name: Run isolated negative and happy-path contract tests
         run: node --test tests/chat-actions-sandbox.test.mjs
+      - name: Run read-only contract tests against realistic GitHub responses
+        run: node --test tests/chat-actions-live-pr-audit.test.mjs
+      - name: Observe real GitHub PR metadata and AI09 review receipt
+        run: node scripts/chat-actions-live-pr-audit.mjs
       - name: Run Chat-first deterministic sandbox smoke
         run: node scripts/chat-actions-sandbox.mjs
