@@ -1073,7 +1073,7 @@
     },
     {
       "path": "scripts/jarvis-goal-executor.ts",
-      "sha256": "e374f9f6fbe4e4b84e7474c764f3717c67369e45cb10d0f1b70d6e07bcb1490b",
+      "sha256": "b2cf7947f1eaa43353e625f4b2dff2aac0d3b26886ea2a0d7fcbb8aabd0c580e",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "AUTO-001",
@@ -1081,7 +1081,7 @@
         "GOV-025",
         "OWN-001"
       ],
-      "reason": "Issues #1219/#1284 Direct Goal Bridge executor auto-routes accepted development intent from Daily Driver into the bounded Builder runtime when explicit self-development environment configuration is absent; existing capability, verifier, risk, Human Gate, and release controls remain authoritative. Physical iPhone E2E remains required before completion. #1845 fresh resource admission/bounded durable wait integration; preserves existing ownership and gates, no functional or physical acceptance claim."
+      "reason": "Issues #1219/#1284 Direct Goal Bridge executor auto-routes accepted development intent from Daily Driver into the bounded Builder runtime when explicit self-development environment configuration is absent; existing capability, verifier, risk, Human Gate, and release controls remain authoritative. Physical iPhone E2E remains required before completion. #1845 fresh resource admission/bounded durable wait integration; preserves existing ownership and gates, no functional or physical acceptance claim. #1858 bounded host-pinned resident handoff and negative evidence recovery; no production or physical acceptance inference."
     },
     {
       "path": "scripts/jarvis-mac-broker-service.sh",
@@ -6291,7 +6291,7 @@
     },
     {
       "path": "src/orchestrator/completion-execution.ts",
-      "sha256": "e26bee40e5401dcd0377c71befe5e05e7b0a87cbac3ce9bde1d76bba2e8317a7",
+      "sha256": "fb554c0d042dea3cda306d44d410fb07008b4649e613417fb57806e2f0a9762a",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "CORE-002",
@@ -6302,7 +6302,22 @@
         "AUTO-023",
         "AUTO-026"
       ],
-      "reason": "#1858 binds completion advice to existing Goal Loop actions, WorkState, risk/approval and independent observations using an explicit host adapter. Atomic reservation/finalization and durable notifications do not grant permissions or establish physical acceptance."
+      "reason": "#1858 binds completion advice to existing Goal Loop actions, WorkState, risk/approval and independent observations using an explicit host adapter. Atomic reservation/finalization and durable notifications do not grant permissions or establish physical acceptance. #1858 bounded host-pinned resident handoff and negative evidence recovery; no production or physical acceptance inference."
+    },
+    {
+      "path": "src/orchestrator/completion-runtime-handoff.ts",
+      "sha256": "67002eb1c18c17a62706c3fdbeb56b584f8641c85b10beae81cf560326ed97ac",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "CORE-002",
+        "AUTO-009",
+        "AUTO-016",
+        "AUTO-018",
+        "AUTO-022",
+        "AUTO-023",
+        "AUTO-026"
+      ],
+      "reason": "#1858 bounded host-pinned resident handoff and negative evidence recovery; no production or physical acceptance inference."
     }
   ],
   "hash_policy": "utf8-crlf-to-lf-v1;binary-raw"
