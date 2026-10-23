@@ -22,6 +22,7 @@ import { createWorkStateIntegratedGoalLoop, goalWorkStateId, type WorkStateActio
 import { CognitiveCore, createCognitiveGoalLoop, cognitiveActionFingerprint, type CognitiveLearningBridge } from "../gai/cognitive-core.ts";
 import { CognitiveStateStore, cognitiveDigest, type CognitivePartition } from "../gai/cognitive-state.ts";
 import { configuredPrimaryBrain, type PrimaryBrainAdapter } from "../gai/primary-brain.ts";
+import type { CompletionSource } from './completion-execution.ts';
 
 export interface CognitiveRuntimeOptions {
   /** Explicit host opt-in; absent preserves the existing development execution path. */
@@ -80,11 +81,13 @@ export class CompassGoalExecutionAdapter implements GoalExecutionAdapter {
   private readonly goalLoopOptions: GoalLoopOptions;
   private readonly cognitiveOptions: CognitiveRuntimeOptions;
   private readonly developmentOptions?: DevelopmentRuntimeOptions;
+  private readonly completionSource?: CompletionSource;
   constructor(
     dbPath = process.env.COMPASS_DB_PATH?.trim() || resolve(process.cwd(), ".compass", "compass.db"),
     goalLoopOptions: GoalLoopOptions = {},
     cognitiveOptions: CognitiveRuntimeOptions = {},
     developmentOptions?: DevelopmentRuntimeOptions,
+    completionSource?: CompletionSource,
   ) {
     this.dbPath = dbPath;
     this.goalLoopOptions = goalLoopOptions;
@@ -92,6 +95,8 @@ export class CompassGoalExecutionAdapter implements GoalExecutionAdapter {
     if (cognitiveOptions.useCore !== true && Object.keys(cognitiveOptions).some(key => key !== "useCore")) throw Error("Cognitive options require explicit useCore opt-in");
     this.cognitiveOptions = cognitiveOptions;
     this.developmentOptions = developmentOptions;
+    if (completionSource && (cognitiveOptions.useCore === true || developmentOptions)) throw Error('Completion integration requires a single selected execution controller');
+    this.completionSource = completionSource;
   }
 
   async run(goalId: string, input: { maxCycles?: number; context?: unknown[] } = {}): Promise<BoundedRunReport> {
@@ -144,6 +149,7 @@ export class CompassGoalExecutionAdapter implements GoalExecutionAdapter {
           verifier: createRuntimeDevelopmentVerifier(),
           stateStore: new CompassStateStoreAdapter(compass),
           workStateStore,
+          ...(this.completionSource ? { completion: { source: this.completionSource } } : {}),
           options: this.goalLoopOptions,
         });
         const report = await runBoundedGoalLoop(loop, goal, { maxCycles: input.maxCycles ?? 3 });

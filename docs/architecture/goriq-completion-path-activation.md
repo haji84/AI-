@@ -1,12 +1,14 @@
-# #1858 次段階の実行接続案 — 未承認・未実装
+# #1858 実行接続 — コード・隔離検証を承認済み、常用有効化は対象外
 
 Ownerの2026-10-23指示にある「実行権限や開発統制を変更する部分は具体差分とリスクを提示しHuman Gate後に実装」に従う。
 
-## 今回検証する部分
+本案提示後のOwner「続きから進めて完成まで自立で開発して」を、本Issueの接続コード・隔離検証の継続承認として受領した。[承認範囲の記録](https://github.com/haji84/AI-/issues/1858#issuecomment-6360692995)。以下は承認時の差分案であり、実装・検証結果は `docs/evidence/1858-completion-integration.md` を参照。常用サービスでの有効化はこの承認範囲に含めない。
+
+## 先行して統合済みの判断機能
 
 `GoalControllerRuntime.inspectCompletionPath` / `DevelopmentOrchestrator.assessCompletionPath` と、既存Compass WorkState envelopeへの助言記録。既存実行経路から自動呼び出しはしない。
 
-## 次段階の変更案
+## 承認された接続差分
 
 |変更対象|追加する処理|残す境界|
 |---|---|---|
