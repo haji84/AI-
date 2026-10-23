@@ -20,13 +20,13 @@ const idle = "setInterval(() => {}, 1000); console.log('LOCAL_SERVICE_READY');";
 const unavailableHost = () => ['10.254.254.253', '172.31.254.253', '192.168.254.253'].find(
   host => !Object.values(networkInterfaces()).flat().some(address => address?.address === host));
 
-async function fixture(t, host, brokerFails = false) {
+async function fixture(t, host, brokerFails = false, friendFails = false) {
   const root = await mkdtemp(path.join(tmpdir(), 'jarvis-network-test-'));
   await mkdir(path.join(root, 'scripts'));
   await mkdir(path.join(root, '.next'));
   await mkdir(path.join(root, 'node_modules/next/dist/bin'), { recursive: true });
   await writeFile(path.join(root, '.next/BUILD_ID'), 'test-build');
-  for (const name of ['jarvis-remote-host.mjs', 'jarvis-managed-process.mjs', 'jarvis-production-config.mjs']) {
+  for (const name of ['jarvis-remote-host.mjs', 'jarvis-managed-process.mjs', 'jarvis-production-config.mjs', 'jarvis-friend-remote.mjs']) {
     await writeFile(path.join(root, 'scripts', name), await readFile(new URL('scripts/' + name, sourceRoot)));
   }
   // Accelerate only retry scheduling; exercise the real supervisor and retry budget.
@@ -38,6 +38,7 @@ async function fixture(t, host, brokerFails = false) {
   await writeFile(path.join(root, 'node_modules/next/dist/bin/next'), idle);
   await writeFile(path.join(root, 'scripts/jarvis-private-worker-ingress.ts'),
     "console.log('PRIVATE_INGRESS_ATTEMPT'); process.exit(1);");
+  await writeFile(path.join(root, 'scripts/remote-lite-owner-server.mjs'), 'process.exit(2);');
 
   const child = spawn(process.execPath, [path.join(root, 'scripts/jarvis-remote-host.mjs')], {
     cwd: root,
@@ -51,6 +52,7 @@ async function fixture(t, host, brokerFails = false) {
       JARVIS_ENROLLMENT_PORTAL_ENABLED: '0',
       JARVIS_PRIVATE_WORKER_INGRESS_ENABLED: brokerFails ? '0' : '1',
       JARVIS_PRIVATE_WORKER_HOST: host,
+      ...(friendFails ? { GORIQ_FRIEND_REMOTE_CONFIG: path.join(root, 'unused-fixture-config.json') } : {}),
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -107,4 +109,15 @@ test('core Broker retry exhaustion still invokes the existing whole-stack failur
     'core failure must remain visible');
   const [code] = await run.exit;
   assert.equal(code, 2);
+});
+
+test('optional friend feature retry exhaustion leaves the actual core supervisor available', processOptions, async t => {
+  const host = unavailableHost(); assert.ok(host);
+  const run = await fixture(t, host, false, true);
+  await run.waitFor(output => output.includes('"service":"friend-remote","state":"exhausted"'),
+    'friend child must consume its own bounded retry budget');
+  const port = Number(/BROKER_PORT=(\d+)/.exec(run.output())[1]);
+  const response = await fetch('http://127.0.0.1:' + port, { signal: AbortSignal.timeout(2000) });
+  assert.equal(await response.text(), 'local-work-ready');
+  assert.doesNotMatch(run.output(), /shutting down on restart-budget-exhausted/);
 });

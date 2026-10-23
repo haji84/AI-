@@ -3,6 +3,7 @@ import path from 'node:path';
 import { networkInterfaces } from 'node:os';
 import { manageProcess, manageNetworkProcess, serviceSpecs } from './jarvis-managed-process.mjs';
 import { loadWindowsProductionConfig } from './jarvis-production-config.mjs';
+import { startGoriqFriendRemote } from './jarvis-friend-remote.mjs';
 
 const root = process.cwd();
 const shuttingDown = { value: false };
@@ -96,4 +97,7 @@ if (!enrollmentPortalEnabled) {
   console.log('[remote-host] enrollment portal disabled by JARVIS_ENROLLMENT_PORTAL_ENABLED=0');
 }
 for (const spec of specs) startManaged(spec);
+const friendRemote = startGoriqFriendRemote({ root, configPath: process.env.GORIQ_FRIEND_REMOTE_CONFIG,
+  report: event => console.log(`[remote-host] ${JSON.stringify(event)}`) });
+if (friendRemote) children.set('friend-remote', friendRemote);
 console.log('[remote-host] JARVIS remote stack supervisor active');

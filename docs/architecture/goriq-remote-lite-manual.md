@@ -2,6 +2,34 @@
 
 Status: **Issue #1831, P0 code candidate / NOT DEPLOYABLE**. Decision 2026-10-19 JST.
 
+## Delivery amendment — 2026-10-23
+
+The owner explicitly chose: 「あなたのGORIQを友達専用アカウントで使う」.
+The current delivery model is the owner's running GORIQ offering a manual remote
+feature to friend-specific accounts. A separate server PC or a full GORIQ install
+for each friend is not required. The historical P0 description below remains a
+record of the original boundary, not the current implementation inventory.
+
+Reuse the existing Remote Lite per-owner portal, enrollment, native Android and
+Windows agents, HTTPS and WebRTC. Android operates through its native agent;
+the historical Windows-to-Android dependency below is superseded. Friends receive
+only their own remote access, never owner administrative/AI/Broker credentials.
+
+`jarvis-remote-host.mjs` may supervise the existing portal via explicit
+`GORIQ_FRIEND_REMOTE_CONFIG`. This default-off integration preserves core
+authentication/authority and isolates friend-child startup failures from the core.
+The actual child validates distinct owner/friend hostnames against the same parsed
+configuration that it serves. Separate ports alone do not isolate host cookies.
+OS-only environment inheritance is not an OS-user/filesystem sandbox. Parent IPC
+requests graceful close and registry release, with a bounded owned-child fallback.
+
+No current service/configuration/account is changed by adding this integration.
+Constant public HTTPS, authenticated TURN with resource controls, approved account
+provisioning, formal signing and deferred physical acceptance remain required.
+See `docs/remote-lite/SERVICE_OPERATIONS_JA.md` for preparation and Issue1831 for
+exact verified source/CI evidence. Neither CI nor this delivery decision establishes
+unattended Android reboot/lock support or 40 concurrent physical connections.
+
 ## Goal and non-goals
 
 Build a separate friend-distributable Windows host + Android agent. A friend can control their own enrolled Android and Windows devices from an iPhone or PC browser on another network, without needing to install Tailscale/RustDesk, run a terminal, open a router port, know an IP address, manage Node/pnpm, or share the original owner's GORIQ account. Initial setup still requires local owner verification, device confirmation, and OS permissions.

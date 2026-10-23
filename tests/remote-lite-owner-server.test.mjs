@@ -8,6 +8,7 @@ import { mkdtempSync, readFileSync, writeFileSync, rmSync, existsSync } from 'no
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import process from 'node:process';
+import { openRemoteRegistry } from '../src/remote-lite/registry-file.mjs';
 
 test('operator HTTPS accepts bounded proxy/browser headers and still rejects excess bytes, count and wrong Host', async t => {
   const dir = mkdtempSync(join(tmpdir(), 'remote-lite-operator-'));
@@ -68,4 +69,53 @@ test('operator HTTPS accepts bounded proxy/browser headers and still rejects exc
     assert.match(await send(32),/^HTTP\/1\.1 200 /u);
     t.diagnostic('Actual operator Linux SIGHUP served the renewed TLS certificate');
   }
+  // Start friend mode with a separately prepared test registry. Windows kill()
+  // above is forcible and its old lock is intentionally not reused or removed.
+  child.kill(); await exited;
+  const friendState = join(dir, 'friend-state');
+  openRemoteRegistry(friendState, { initialize: true }).close();
+  writeFileSync(config, JSON.stringify({ ...baseConfig, stateDirectory: friendState }));
+  const wrapper = join(dir, 'goriq-friend.json');
+  writeFileSync(wrapper, JSON.stringify({ version: 1, ownerOrigins: ['https://goriq-owner-test.invalid'], portalConfig: config }));
+  child = spawn(process.execPath, ['scripts/remote-lite-owner-server.mjs', wrapper, '--goriq-friend'],
+    { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe', 'ipc'] });
+  let hostedError = ''; child.stderr.on('data', value => { hostedError += value; }); exited = once(child, 'exit');
+  try { await Promise.race([once(child.stdout, 'data'), exited.then(() => { throw Error('hosted portal exited: ' + hostedError); }),
+    new Promise((_, reject) => { timeout = globalThis.setTimeout(() => reject(Error('hosted portal startup timeout')), 10000); })]); }
+  finally { globalThis.clearTimeout(timeout); }
+  assert.match(await send(1), /^HTTP\/1\.1 200 /u);
+  assert.match(await send(1, false, 'goriq-owner-test.invalid'), /^HTTP\/1\.1 403 /u);
+  const registryBytes = readFileSync(join(friendState, 'devices.json'));
+  await new Promise((resolve, reject) => child.send({ type: 'goriq-friend-stop' }, error => error ? reject(error) : resolve()));
+  try { await Promise.race([exited,
+    new Promise((_, reject) => { timeout = globalThis.setTimeout(() => reject(Error('friend graceful stop timeout')), 3000); })]); }
+  finally { globalThis.clearTimeout(timeout); }
+  assert.equal(existsSync(join(friendState, 'registry.lock')), false);
+  assert.deepEqual(readFileSync(join(friendState, 'devices.json')), registryBytes);
+  // Normal close permits a second open without deleting lock/data or initializing.
+  const reopened = openRemoteRegistry(friendState); reopened.close();
+  child = spawn(process.execPath, ['scripts/remote-lite-owner-server.mjs', wrapper, '--goriq-friend'],
+    { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe', 'ipc'] });
+  child.stderr.resume(); exited = once(child, 'exit');
+  try { await Promise.race([once(child.stdout, 'data'), exited.then(() => { throw Error('orphan fixture exited early'); }),
+    new Promise((_, reject) => { timeout = globalThis.setTimeout(() => reject(Error('orphan startup timeout')), 3000); })]); }
+  finally { globalThis.clearTimeout(timeout); }
+  child.disconnect();
+  try { await Promise.race([exited,
+    new Promise((_, reject) => { timeout = globalThis.setTimeout(() => reject(Error('running orphan stop timeout')), 3000); })]); }
+  finally { globalThis.clearTimeout(timeout); }
+  assert.equal(existsSync(join(friendState, 'registry.lock')), false);
+  assert.deepEqual(readFileSync(join(friendState, 'devices.json')), registryBytes);
+  // A disappearing parent also closes its real listener/registry. Disconnect
+  // immediately, including while the child is still starting.
+  child = spawn(process.execPath, ['scripts/remote-lite-owner-server.mjs', wrapper, '--goriq-friend'],
+    { windowsHide: true, stdio: ['ignore', 'ignore', 'pipe', 'ipc'] });
+  child.stderr.resume(); exited = once(child, 'exit');
+  child.disconnect();
+  try { await Promise.race([exited,
+    new Promise((_, reject) => { timeout = globalThis.setTimeout(() => reject(Error('orphan stop timeout')), 3000); })]); }
+  finally { globalThis.clearTimeout(timeout); }
+  assert.equal(existsSync(join(friendState, 'registry.lock')), false);
+  assert.deepEqual(readFileSync(join(friendState, 'devices.json')), registryBytes);
+  t.diagnostic('Actual GORIQ friend HTTPS and IPC stop preserved registry and allowed reopen without initialization');
 });
