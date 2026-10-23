@@ -110,3 +110,15 @@ test("an invalid plan or claimed model merge power is rejected",()=>{
  assert.throws(()=>planCompleteAi09Review(comparison(1),SHA,"not_sha",modules),/INVALID_FULL_REVIEW_SCOPE/);
  assert.throws(()=>assertNoWriteAuthority({mergeAuthorized:true,githubApprovalSatisfied:false}),/AI09_MUST_NOT_GRANT_AUTHORITY/);
 });
+
+test("full PR exceeding native 120KiB is composed ONLY from native per-batch verified patches",()=>{
+ const c=comparison(21,85);
+ assert.throws(()=>compareToPatch(c,SHA,HEAD),/diff_exceeds_local_review_budget/);
+ const plan=planCompleteAi09Review(c,SHA,HEAD,modules);
+ assert.equal(plan.paths.length,21);
+ assert.ok(plan.batchCount>=2);
+ assert.ok(plan.totalChunks>24);
+ const patch=c.files.map(f=>"diff --git a/"+f.filename+" b/"+f.filename+"\n"+f.patch).join("\n");
+ assert.equal(plan.batches.map(b=>b.patch).join("\n"),patch);
+ assert.ok(plan.batches.every(b=>Buffer.byteLength(b.patch,"utf8")<=120*1024));
+});
