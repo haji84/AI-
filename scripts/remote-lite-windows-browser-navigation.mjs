@@ -59,10 +59,10 @@ export async function openWindowsFixtureTab(webdriver, session) {
   if (committed !== true) throw new Error('Windows VM fixture bootstrap document did not commit');
 }
 
-export async function navigateWindowsFixture(webdriver, session, destination, { recoverBootstrap = false } = {}) {
+export async function navigateWindowsFixture(webdriver, session, destination, { recoverBootstrap = false, allowHttps = false } = {}) {
   const target = new URL(destination);
   if (destination !== 'about:blank' &&
-      (target.protocol !== 'http:' || target.hostname !== '127.0.0.1' || !target.port || target.username || target.password)) {
+      (!(target.protocol === 'http:' || (allowHttps && target.protocol === 'https:')) || target.hostname !== '127.0.0.1' || !target.port || target.username || target.password)) {
     throw new Error('Windows VM navigation requires a loopback fixture');
   }
   // Discard earlier documents before this one navigation attempt. Diagnostics

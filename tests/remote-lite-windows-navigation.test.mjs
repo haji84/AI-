@@ -89,3 +89,19 @@ test('recovery is disabled for callers that do not explicitly opt in', async () 
   await assert.rejects(navigateWindowsFixture(f.webdriver, 'test', f.destination));
   assert.equal(f.state.navigations, 1);
 });
+
+test('certificate-pinned HTTPS fixture opt-in keeps non-loopback refusal and never retries HTTPS', async () => {
+  const destination = 'https://127.0.0.1:43001/';
+  const disabled = fixture({ destination, failures: 0 });
+  await assert.rejects(navigateWindowsFixture(disabled.webdriver, 'test', destination), /loopback fixture/u);
+  assert.equal(disabled.state.navigations, 0);
+  const success = fixture({ destination, failures: 0 });
+  assert.deepEqual(await navigateWindowsFixture(success.webdriver, 'test', destination, { allowHttps: true }), { recoveries: 0 });
+  const aborted = fixture({ destination });
+  await assert.rejects(navigateWindowsFixture(aborted.webdriver, 'test', destination,
+    { allowHttps: true, recoverBootstrap: true }), /ERR_ABORTED/u);
+  assert.equal(aborted.state.navigations, 1);
+  for (const target of ['https://remote.invalid:443/', 'https://user@127.0.0.1:43001/']) {
+    await assert.rejects(navigateWindowsFixture(success.webdriver, 'test', target, { allowHttps: true }), /loopback fixture/u);
+  }
+});

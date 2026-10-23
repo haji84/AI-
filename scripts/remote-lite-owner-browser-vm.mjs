@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
 import { createServer } from 'node:http';
 import { once } from 'node:events';
+import { navigateWindowsFixture, openWindowsFixtureTab } from './remote-lite-windows-browser-navigation.mjs';
 
 export async function verifyOwnerPortalBrowser({ origin, spki, ownerKey, enroll, holdNextStart, expirePending }) {
   if (!/^https:\/\/127\.0\.0\.1:\d+$/u.test(origin)) throw new Error('Disposable loopback HTTPS required');
@@ -23,14 +24,17 @@ export async function verifyOwnerPortalBrowser({ origin, spki, ownerKey, enroll,
     let ready = false;
     for (let i=0;i<40;i++) { try { await webdriver('GET','/status'); ready=true; break; } catch { if (driverFailure) throw driverFailure; await pause(250); } }
     if (!ready) throw new Error('Portal browser unavailable');
-    const created = await webdriver('POST','/session',{capabilities:{alwaysMatch:{browserName:'chrome','goog:chromeOptions':{
+    const created = await webdriver('POST','/session',{capabilities:{alwaysMatch:{browserName:'chrome','goog:loggingPrefs':{performance:'ALL'},'goog:chromeOptions':{
       args:['--headless=new', '--ignore-certificate-errors-spki-list=' + spki],
       ...(process.env.REMOTE_LITE_CHROME ? { binary: process.env.REMOTE_LITE_CHROME } : {}),
     }}}});
     session=created.sessionId;
+    await openWindowsFixtureTab(webdriver, session);
     const run=(script,...args)=>webdriver('POST',`/session/${session}/execute/sync`,{script,args});
     const until=async (script, label)=>{for(let i=0;i<100;i++){if(await run(script))return;await pause(100)}throw new Error('Portal UI missing: ' + label + '; ' + await run('return document.querySelector("#error")?.textContent'))};
-    await webdriver('POST',`/session/${session}/url`,{url:origin});
+    // This fixture trusts only its generated certificate SPKI above. Verify the
+    // actual HTTPS document through CDP; never retry an HTTPS failure or a UI action.
+    await navigateWindowsFixture(webdriver, session, origin, { allowHttps: true });
     await until('return !!document.querySelector("#loginForm")?.onsubmit','module initialization');
     await run('document.querySelector("#key").value=arguments[0];document.querySelector("#loginForm").requestSubmit();return true',ownerKey);
     await until('return document.querySelector("#account").hidden===false','login');
@@ -47,8 +51,8 @@ export async function verifyOwnerPortalBrowser({ origin, spki, ownerKey, enroll,
     if (!(await run('return document.querySelector("#pending button").disabled'))) throw new Error('Approval lacks local fingerprint confirmation');
     await run('document.querySelector("#pending input").click();document.querySelector("#pending button").click();return true');
     await until('return document.querySelector("#devices article")!==null','approved device');
-    await webdriver('POST',`/session/${session}/url`,{url:'about:blank'});
-    await webdriver('POST',`/session/${session}/url`,{url:origin});
+    await navigateWindowsFixture(webdriver, session, 'about:blank');
+    await navigateWindowsFixture(webdriver, session, origin, { allowHttps: true });
     await until('return document.querySelector("#devices article")!==null','cookie-backed page reopen');
     const held = holdNextStart();
     await run('document.querySelector("#devices article button").click();return true');
