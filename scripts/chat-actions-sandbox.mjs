@@ -3,6 +3,7 @@ import { mkdtempSync, writeFileSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
 import { adviseDevelopmentIntake, adviseChatActionsHandoff } from "../src/orchestrator/development-pr-advisory.ts";
 
 const sha = (s) => createHash("sha256").update(s).digest("hex");
@@ -58,11 +59,23 @@ export function runSandboxCycle({ pr = syntheticIntake(), chat = sandboxChat } =
     records.push(receipt("chat", "SYNTHETIC_CHAT_COMMAND"));
     records.push(receipt("route", "GITHUB_ACTIONS_HOST_NON_CODEX"));
     records.push(receipt("pr", "REUSE_SAME_PR_" + prAdvice.pr.number));
+    const git = (...args) => execFileSync("git", args, {cwd:work,encoding:"utf8",stdio:["ignore","pipe","pipe"]}).trim();
+    const sandboxBranch = "sandbox-reuse-" + prAdvice.pr.number;
+    git("init","-q","-b",sandboxBranch);
+    git("config","user.name","isolated-actions-smoke");
+    git("config","user.email","sandbox@example.invalid");
     writeFileSync(file, "export function sum(a,b){return a-b;}\n", "utf8");
+    git("add","sum.mjs");
+    git("commit","-qm","sandbox: intentionally failing implementation");
     if (checkAddition(file, 12)) throw Error("RED_TEST_NOT_REPRODUCED");
     records.push(receipt("test", "RED_FAILED_AS_EXPECTED"));
     writeFileSync(file, "export function sum(a,b){return a+b;}\n", "utf8");
     if (!checkAddition(file, 12)) throw Error("GREEN_TEST_FAILED");
+    git("add","sum.mjs");
+    git("commit","-qm","sandbox: repair in same temporary branch");
+    if (git("branch","--show-current") !== sandboxBranch) throw Error("SANDBOX_BRANCH_IDENTITY_CHANGED");
+    if (Number(git("rev-list","--count","HEAD")) !== 2) throw Error("SANDBOX_REPAIR_HISTORY_MISSING");
+    records.push(receipt("repair", "TWO_REAL_LOCAL_GIT_COMMITS_IN_SAME_EPHEMERAL_BRANCH"));
     records.push(receipt("repair", "SAME_SIMULATED_PR_BRANCH"));
     records.push(receipt("test", "GREEN_VERIFIED"));
     // A fixture receipt is checked by the existing advisory, not actual AI09.
@@ -77,7 +90,7 @@ export function runSandboxCycle({ pr = syntheticIntake(), chat = sandboxChat } =
     const artifactDigest = sha(readFileSync(file, "utf8"));
     return { mode:"ISOLATED_SYNTHETIC", completed:true, blocked:null,
       reusedPr:prAdvice.pr.number, nonCodexBuilder:"DETERMINISTIC_FIXTURE_BUILDER",
-      artifactDigest, records, nextAction, actualGitHubMutation:false,
+      artifactDigest, records, nextAction, isolatedGitCommits:2, actualGitHubMutation:false,
       realAi09Reviewed:false, modelUsed:false, autoMerge:false, authorizedProduction:false };
   } finally {
     rmSync(work, { recursive:true, force:true });
