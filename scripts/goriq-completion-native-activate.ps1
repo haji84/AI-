@@ -1,6 +1,7 @@
 param([ValidateSet('plan','apply','restore')][string]$Phase='plan',
  [Parameter(Mandatory=$true)][string]$SourceRevision,
- [Parameter(Mandatory=$true)][string]$ExpectedHelperSha256,[string]$RecoveryBackupId)
+ [Parameter(Mandatory=$true)][string]$ExpectedHelperSha256,[string]$RecoveryBackupId,
+ [switch]$RestartUnchangedBaseline)
 # Issue1858 only. Historical entrypoints/authorizations are never executed.
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
@@ -235,6 +236,34 @@ function Open-CompletionGuards {
  $script:guardRecords+=,(Get-FixedRecord $guardEntries[-1] $h)
  if((Get-FixedHash $compat) -ine '27f8afb66ac4dc5a241cade217c9e6c19b16dc316f84d6d3d08257db90c72a36'){throw 'BRIDGE_CHANGED'}
 }
+function Assert-CompletionRecoveryProvenance($tx) {
+ if($tx.version -ne 1 -or $tx.issue -ne 1858 -or $tx.ownerSid -cne $identity.User.Value){throw 'BACKUP_REJECTED'}
+ if($RestartUnchangedBaseline){
+  # Recovery only for the exact interrupted transaction. The new controller's
+  # own hash/source remain independently checked; never rewrite the old proof.
+  if($Phase -cne 'restore' -or $RecoveryBackupId -cne 'bde347b3c55a4db1af3bd63e9528d464' -or
+   $tx.sourceRevision -cne '75100488cdde6b58e5b4ed1bb72c654faefc7b5f' -or
+   $tx.helperSha256 -cne '025e2cb455b4ff8727aff5e5cac83c9bc67b3edf4c53b7343807de779741f7ed'){throw 'BACKUP_REJECTED'}
+ }elseif($tx.sourceRevision -cne $SourceRevision -or $tx.helperSha256 -ine $ExpectedHelperSha256){throw 'BACKUP_REJECTED'}
+}
+function Restart-CompletionUnchangedBaseline {
+ # Separate fail-closed path: no stop, write-capable ACL handle, pointer write,
+ # backup rewrite, or fall-through into the ordinary mutation recovery path.
+ $script:stage='unchanged-baseline-restart'
+ for($i=0;$i -lt 5;$i++){Assert-FixedRecord $records[$i] (Get-FixedRecord $targets[$i] $handles[$i])}
+ Assert-CompletionState;Assert-StoppedInstallation
+ for($i=0;$i -lt 5;$i++){Assert-FixedRecord $records[$i] (Get-FixedRecord $targets[$i] $handles[$i])}
+ Assert-FixedExpiry;$script:startAttempted=$true
+ Start-ScheduledTask -TaskName $taskName
+ $releaseRoot=$oldRoot
+ $health=Wait-Health $current.commit
+ if(-not $health.serviceRecoveryVerified){throw 'RECOVERY_UNVERIFIED'}
+ Assert-CompletionState
+ for($i=0;$i -lt 5;$i++){Assert-FixedRecord $records[$i] (Get-FixedRecord $targets[$i] $handles[$i])}
+ Assert-FixedExpiry
+ Remove-Item -LiteralPath $marker -Force
+ $script:restored=$true
+}
 function Resume-CompletionRecovery {
  $script:stage='durable-recovery';Assert-FixedExpiry
  if($RecoveryBackupId -cnotmatch '^[a-f0-9]{32}$'){throw 'BACKUP_REJECTED'}
@@ -246,8 +275,7 @@ function Resume-CompletionRecovery {
   try{Assert-CompletionNative $h $path}finally{$h.Dispose()}
  }
  $tx=Read-FixedTransaction $backupPath $marker $RecoveryBackupId
- if($tx.version -ne 1 -or $tx.issue -ne 1858 -or $tx.sourceRevision -cne $SourceRevision -or $tx.ownerSid -cne $identity.User.Value -or
-  $tx.helperSha256 -ine $ExpectedHelperSha256){throw 'BACKUP_REJECTED'}
+ Assert-CompletionRecoveryProvenance $tx
  $script:targets=@(Get-FixedTargets $root);Open-CompletionGuards
  if($tx.guards.Count -ne $guardRecords.Count){throw 'BACKUP_REJECTED'}
  for($i=0;$i -lt $guardRecords.Count;$i++){Assert-FixedRecord $tx.guards[$i] $guardRecords[$i]}
@@ -272,6 +300,7 @@ function Resume-CompletionRecovery {
  Assert-CompletionRecoveryRecords $tx $liveRecords $intents
  $script:pointerRecords=@($liveRecords[3],$liveRecords[4]);$script:switched=($liveRecords[3].hash -cne $records[3].hash -or $liveRecords[4].hash -cne $records[4].hash)
  Assert-CompletionState
+ if($RestartUnchangedBaseline){Restart-CompletionUnchangedBaseline;return}
  $unchanged=$true
  for($i=0;$i -lt 5;$i++){if($liveRecords[$i].descriptor -cne $records[$i].descriptor -or $liveRecords[$i].hash -cne $records[$i].hash){$unchanged=$false}}
  if($unchanged){
@@ -337,6 +366,7 @@ function Restore-Completion {
 }
 try {
  Assert-FixedExpiry
+ if($RestartUnchangedBaseline -and $Phase -cne 'restore'){throw 'RECOVERY_ONLY'}
  if($SourceRevision -notmatch '^[a-f0-9]{40}$' -or $ExpectedHelperSha256 -notmatch '^[a-fA-F0-9]{64}$' -or
   (Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash -ine $ExpectedHelperSha256){throw 'SOURCE_REJECTED'}
  if($identity.User.Value -cne 'S-1-5-21-3241814747-1938433149-1705921193-1004' -or $env:USERPROFILE -ine 'C:\Users\qq113' -or
@@ -372,7 +402,7 @@ try {
  Initialize-FixedNative
  if($Phase -eq 'restore'){
   Resume-CompletionRecovery
-  @{issue=1858;phase='restore';verified=$true;restored=$true;sourceRevision=$SourceRevision;backupId=$backupId;at=[datetimeoffset]::UtcNow.ToString('o')} | ConvertTo-Json -Compress
+  @{issue=1858;phase='restore';restartOnly=[bool]$RestartUnchangedBaseline;verified=$true;restored=$true;sourceRevision=$SourceRevision;backupId=$backupId;at=[datetimeoffset]::UtcNow.ToString('o')} | ConvertTo-Json -Compress
   exit 0
  }
  $stage='native-preflight';$targets=@(Get-FixedTargets $root)
@@ -461,7 +491,7 @@ try {
 }catch{
  $failure=$_.Exception;while($null -ne $failure.InnerException){$failure=$failure.InnerException}
  $reason=if($failure.Message -match '^[A-Z_0-9-]{3,80}$'){$failure.Message}else{'NATIVE_ACTIVATION_FAILED'}
- @{issue=1858;phase=$Phase;verified=$false;stage=$stage;reason=$reason;permissionChanged=$mutated;stopAttempted=$stopAttempted;switched=$switched;restored=$restored;backupId=$backupId;reconciliationRequired=($null -ne $marker -and (Test-Path -LiteralPath $marker));at=[datetimeoffset]::UtcNow.ToString('o')} | ConvertTo-Json -Compress
+ @{issue=1858;phase=$Phase;restartOnly=[bool]$RestartUnchangedBaseline;verified=$false;stage=$stage;reason=$reason;permissionChanged=$mutated;stopAttempted=$stopAttempted;startAttempted=$startAttempted;switched=$switched;restored=$restored;backupId=$backupId;reconciliationRequired=($null -ne $marker -and (Test-Path -LiteralPath $marker));at=[datetimeoffset]::UtcNow.ToString('o')} | ConvertTo-Json -Compress
  exit 1
 }finally{
  foreach($h in $handles){$h.Dispose()};foreach($h in $guards){$h.Dispose()};foreach($s in $sourceStreams){$s.Dispose()}
