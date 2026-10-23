@@ -82,15 +82,77 @@ export async function reviewWithLocalModel({prepared,headSha,modules,infer}) {
   return modules.anchor.holdUngroundedAdvisory(consolidated,prepared.patch);
 }
 
+// Ollama v0.34 supports native JSON-schema constrained generation. This
+// constrains only serialization, never the AI09 security judgment or gates.
+export const AI09_RESPONSE_SCHEMA = Object.freeze({
+  type:"object",
+  additionalProperties:false,
+  properties:{
+    verdict:{type:"string",enum:["NO_FINDINGS","CHANGES_REQUESTED","INCONCLUSIVE"]},
+    findings:{
+      type:"array",maxItems:20,
+      items:{
+        type:"object",additionalProperties:false,
+        properties:{
+          path:{type:"string"},
+          line:{type:"integer",minimum:1},
+          severity:{type:"string",enum:["low","medium","high","critical"]},
+          summary:{type:"string"},
+          evidence:{type:"string"},
+          proposedFix:{type:"string"},
+        },
+        required:["path","line","severity","summary","evidence","proposedFix"],
+      },
+    },
+  },
+  required:["verdict","findings"],
+});
+
+// Diagnostics reveal ONLY a predefined failure category. Never log model
+// source excerpts, prompts, findings, credentials or full invalid responses.
+export function classifyAi09ResponseShape(content) {
+  if(typeof content!=="string")return "MISSING_TEXT";
+  if(Buffer.byteLength(content,"utf8")>20000)return "OVERSIZED_TEXT";
+  let json;
+  try{json=JSON.parse(content)}catch{return "INVALID_JSON";}
+  if(!json || Array.isArray(json) || typeof json!=="object")return "NOT_OBJECT";
+  if(!["NO_FINDINGS","CHANGES_REQUESTED","INCONCLUSIVE"].includes(json.verdict))
+    return "INVALID_VERDICT";
+  if(!Array.isArray(json.findings) || json.findings.length>20)
+    return "INVALID_FINDINGS_ARRAY";
+  if(json.verdict==="NO_FINDINGS" && json.findings.length!==0 ||
+     json.verdict==="CHANGES_REQUESTED" && json.findings.length===0)
+    return "VERDICT_FINDING_CONFLICT";
+  for(const f of json.findings){
+    if(!f || typeof f!=="object" || Array.isArray(f))return "INVALID_FINDING_OBJECT";
+    if(typeof f.path!=="string" || !f.path || !Number.isInteger(f.line) || f.line<1)
+      return "INVALID_FINDING_POSITION";
+    if(!["low","medium","high","critical"].includes(f.severity))
+      return "INVALID_FINDING_SEVERITY";
+    if(["summary","evidence","proposedFix"].some(k=>typeof f[k]!=="string" || !f[k].trim()))
+      return "INVALID_FINDING_FIELDS";
+  }
+  // Shape OK does not mean correct source line, verified consequence or approval.
+  return "SHAPE_VALID_PENDING_TRUSTED_REVIEW";
+}
+
+export function buildAi09OllamaRequest(prompt) {
+  if(typeof prompt!=="string" || prompt.length<1 || prompt.length>120000)
+    throw Error("INVALID_AI09_MODEL_PROMPT");
+  return {
+    model:MODEL,stream:false,format:AI09_RESPONSE_SCHEMA,
+    options:{temperature:0,num_ctx:8192,num_predict:1536},
+    messages:[{role:"user",content:prompt}],
+  };
+}
+
 export async function ollamaInference(prompt) {
   const start=performance.now();
   try {
     const response=await fetch("http://127.0.0.1:11434/api/chat",{
       method:"POST",signal:AbortSignal.timeout(150000),
       headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({model:MODEL,stream:false,format:"json",
-        options:{temperature:0,num_ctx:8192,num_predict:1536},
-        messages:[{role:"user",content:prompt}]}),
+      body:JSON.stringify(buildAi09OllamaRequest(prompt)),
     });
     if(!response.ok)throw Error("MODEL_HTTP_"+response.status);
     const p=await response.json();
@@ -101,6 +163,9 @@ export async function ollamaInference(prompt) {
       outputTokens:Number.isSafeInteger(p.eval_count)?p.eval_count:null,
       outputBytes:typeof result==="string"?Buffer.byteLength(result,"utf8"):null,
       doneReason:["stop","length"].includes(p.done_reason)?p.done_reason:"unknown",
+    })+"\n");
+    process.stdout.write("AI09_MODEL_SHAPE="+JSON.stringify({
+      classification:classifyAi09ResponseShape(result),
     })+"\n");
     if(p.done_reason==="length")throw Error("MODEL_RESPONSE_TRUNCATED");
     if(typeof result!=="string")throw Error("MODEL_RESPONSE_MISSING");
