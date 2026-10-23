@@ -6,6 +6,16 @@ Before modifying anything, read in order:
 3. the assigned GitHub issue
 4. relevant files under `docs/architecture/` and `docs/decisions/`
 
+## GORIQ completion-first delivery priority (owner decision 2026-10-17)
+
+For Goal-linked GORIQ product development under #681/#1219/#882, use the ordered completion-first policy in [docs/decisions/2026-10-17-goriq-completion-first-delivery.md](docs/decisions/2026-10-17-goriq-completion-first-delivery.md).
+
+- Prioritize evidence-backed finished product requirements over feature growth, PR volume, code volume or repeated tool calls. Freeze unrelated feature expansion pending the first real single-PC end-to-end self-development acceptance; preserve safety/critical fixes, necessary dependencies and approved owner exceptions.
+- First triage existing open work; then prove Goal -> real Builder -> tests -> independent verification -> protected PR/merge -> exact-main real runtime -> persistent evidence -> automatic next action. Follow with unattended restart/recovery, actual MacBook/ZBook distributed acceptance, then whole-product release.
+- Reuse existing implementation, keep one critical-path integration slice by default, deduplicate equivalent retries, and reserve scarce Work/Codex/Pro usage for necessary steps. Internal usage counters are not an authoritative live plan quota.
+- A one-PC proof is a temporary delivery gate only, not a change to distributed architecture or a permanent host. All canonical specifications, approval boundaries, Human Gates, independent reviews and security checks remain unchanged.
+- Until the necessary real-device/verified acceptance is recorded, report PARTIAL or BLOCKED rather than DONE; policy documentation or a merged PR does not by itself prove the runtime works.
+
 ## JARVIS Autonomous Development Protocol v1.0-RC2
 
 For every non-trivial development goal, optimize for verified GOAL achievement inside the safety envelope, not merely for completing the current issue or preserving the first plan.
