@@ -79,6 +79,8 @@ jobs:
           ./tests/gai-zbook-launcher-file.test.ps1
           ./tests/goriq-zbook-watchdog-launcher-repair.test.ps1
           ./tests/completion-native-transaction.test.ps1
-          ./tests/completion-native-resume.test.ps1
           ./tests/completion-native-pointer.test.ps1
           ./tests/goriq-zbook-fixed-acl-repair.test.ps1
+      - name: Isolated native recovery controller fixture
+        shell: powershell
+        run: ./tests/completion-native-resume.test.ps1
