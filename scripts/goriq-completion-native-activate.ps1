@@ -1,6 +1,6 @@
-param([ValidateSet('plan','apply')][string]$Phase='plan',
+param([ValidateSet('plan','apply','restore')][string]$Phase='plan',
  [Parameter(Mandatory=$true)][string]$SourceRevision,
- [Parameter(Mandatory=$true)][string]$ExpectedHelperSha256)
+ [Parameter(Mandatory=$true)][string]$ExpectedHelperSha256,[string]$RecoveryBackupId)
 # Issue1858 only. Historical entrypoints/authorizations are never executed.
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
@@ -16,13 +16,27 @@ $compat='C:\Users\qq113\AppData\Local\JARVIS\production\launch-current.ps1'
 $taskName='JARVIS Remote Host';$ports=@(3000,8787,8790,8792)
 $node=(Get-Command node.exe).Source;$revision=$SourceRevision
 $handles=@();$guards=@();$records=@();$wanted=@();$sourceStreams=@();$sourceTexts=@{}
-$recovering=$false;$mutated=$false;$stopAttempted=$false;$switched=$false;$startAttempted=$false;$restored=$false
+$recovering=($Phase -eq 'restore');$mutated=$false;$stopAttempted=$false;$switched=$false;$startAttempted=$false;$restored=$false
 $marker=$null;$backupId=$null;$failure='';$stage='source';$initialLocation=Get-Location
 function Assert-CompletionWindow([bool]$recovery,[datetimeoffset]$now=[datetimeoffset]::UtcNow) {
  $end=if($recovery){'2026-10-23T14:59:59Z'}else{'2026-10-23T14:30:00Z'}
  if($now -lt [datetimeoffset]::Parse('2026-10-23T11:16:26Z') -or $now -ge [datetimeoffset]::Parse($end)){throw 'APPROVAL_EXPIRED'}
 }
 function Assert-FixedExpiry { Assert-CompletionWindow $script:recovering }
+function Assert-CompletionProcessEdges([object[]]$tree) {
+ $byId=@{}
+ foreach($p in $tree){
+  if($null -eq $p.CreationDate -or $byId.ContainsKey([int]$p.ProcessId)){throw 'PROCESS_REJECTED'}
+  $byId[[int]$p.ProcessId]=$p
+ }
+ $roots=@($tree | Where-Object {-not $byId.ContainsKey([int]$_.ParentProcessId)})
+ if($tree.Count -and $roots.Count -ne 1){throw 'PROCESS_REJECTED'}
+ foreach($p in $tree){
+  if($byId.ContainsKey([int]$p.ParentProcessId)){
+   if($p.CreationDate.ToUniversalTime() -lt $byId[[int]$p.ParentProcessId].CreationDate.ToUniversalTime()){throw 'PROCESS_REJECTED'}
+  }
+ }
+}
 function Invoke-CompletionTransaction([scriptblock]$Persist,[scriptblock]$Apply,[scriptblock]$Verify,[scriptblock]$Recover) {
  [void](& $Persist)
  try{[void](& $Apply);[void](& $Verify);return @{verified=$true;restored=$false}}
@@ -85,6 +99,7 @@ function Stop-CompletionHost([string]$expectedRoot) {
  $live=@(Get-OwnedTree $expectedRoot $false)
  if($live.Count){
   Assert-FixedTree $live @(Get-OwnedTree $expectedRoot $false)
+  Assert-CompletionProcessEdges $live
   foreach($p in $live){if($p.ExecutablePath -ine $node -or $p.CreationDate -eq $null){throw 'PROCESS_REJECTED'}}
   Bind-FixedProcessTree $live
   Assert-FixedExpiry;$script:stopAttempted=$true
@@ -95,17 +110,61 @@ function Stop-CompletionHost([string]$expectedRoot) {
 function Write-CompletionBytes($stream,[byte[]]$bytes) {
  $stream.Position=0;$stream.Write($bytes,0,$bytes.Length);$stream.SetLength($bytes.Length);$stream.Flush($true)
 }
+function Get-CompletionByteHash([byte[]]$bytes) {
+ $hash=[Security.Cryptography.SHA256]::Create()
+ try{return ([BitConverter]::ToString($hash.ComputeHash($bytes))).Replace('-','')}finally{$hash.Dispose()}
+}
+function Read-CompletionIntent([int]$index,[bool]$recovery) {
+ if($backupId -notmatch '^[a-f0-9]{32}$' -or $index -notin @(3,4)){throw 'BACKUP_REJECTED'}
+ $path=Join-Path $env:LOCALAPPDATA ('goriq-1858-pointer-'+$backupId+'-'+$index+'-'+$recovery+'.dpapi')
+ if(-not (Test-Path -LiteralPath $path)){return $null}
+ $h=[GoriqFixedAclNative]::Open($path,$false,$false)
+ try{
+  Assert-CompletionNative $h $path
+  Add-Type -AssemblyName System.Security
+  $decoded=[Security.Cryptography.ProtectedData]::Unprotect((Get-FixedBytes $path),$null,[Security.Cryptography.DataProtectionScope]::CurrentUser)
+  $intent=[Text.Encoding]::UTF8.GetString($decoded) | ConvertFrom-Json
+  if($intent.issue -ne 1858 -or $intent.sourceRevision -cne $SourceRevision -or $intent.backupId -cne $backupId -or $intent.index -ne $index -or
+   $intent.identity -cne $records[$index].identity -or $intent.hash -cnotmatch '^[A-F0-9]{64}$' -or
+   $intent.descriptor -cne $wanted[$index]){throw 'BACKUP_REJECTED'}
+  return $intent
+ }finally{$h.Dispose();$decoded=$null}
+}
+function Save-CompletionIntent([int]$index,[byte[]]$bytes,$live) {
+ $intent=[ordered]@{issue=1858;sourceRevision=$SourceRevision;backupId=$backupId;index=$index;identity=$live.identity;descriptor=$live.descriptor;hash=(Get-CompletionByteHash $bytes)}
+ $existing=Read-CompletionIntent $index $recovering
+ if($null -eq $existing){
+  Assert-FixedExpiry
+  $path=Join-Path $env:LOCALAPPDATA ('goriq-1858-pointer-'+$backupId+'-'+$index+'-'+$recovering+'.dpapi')
+  Write-BoundaryBackup $path ($intent | ConvertTo-Json -Compress)
+  $existing=Read-CompletionIntent $index $recovering
+ }
+ foreach($key in $intent.Keys){if($existing.$key -cne $intent[$key]){throw 'BACKUP_REJECTED'}}
+}
+function Assert-CompletionRecoveryRecords($baseline,[object[]]$liveRecords,[object[]]$intents) {
+ if($baseline.records.Count -ne 5 -or $baseline.wanted.Count -ne 5 -or $liveRecords.Count -ne 5){throw 'BACKUP_REJECTED'}
+ for($i=0;$i -lt 5;$i++){
+  $old=$baseline.records[$i];$live=$liveRecords[$i]
+  if($live.path -cne $old.path -or $live.directory -ne $old.directory -or $live.identity -cne $old.identity -or
+   $live.descriptor -cnotin @($old.descriptor,$baseline.wanted[$i])){throw 'RECOVERY_TARGET_CHANGED'}
+  $allowed=@($old.hash)
+  if($i -ge 3){$allowed+=@($intents | Where-Object {$null -ne $_ -and $_.index -eq $i -and $_.identity -ceq $old.identity -and $_.descriptor -ceq $baseline.wanted[$i]} | ForEach-Object {$_.hash})}
+  # A torn/unknown write is retained for explicit reconciliation, never guessed.
+  if($allowed -cnotcontains $live.hash){throw 'RECOVERY_BYTES_UNKNOWN'}
+ }
+}
 function Write-CompletionPointer([int]$index,[byte[]]$bytes) {
  Assert-CompletionState;Assert-StoppedInstallation
  $entry=$targets[$index]
  # Keep the original object: its owner, group, DACL and nonempty SACL never
  # undergo recreation/merge. Deny concurrent writers and delete/rename.
  # The durable transaction already contains original bytes before this call.
- $stream=New-Object IO.FileStream($entry.path,[IO.FileMode]::Open,[IO.FileAccess]::ReadWrite,[IO.FileShare]::Read)
+ $stream=New-Object IO.FileStream($entry.path,[IO.FileMode]::Open,[IO.FileAccess]::ReadWrite,[IO.FileShare]::Read,1,[IO.FileOptions]::WriteThrough)
  try{
   Assert-CompletionNative $stream.SafeFileHandle $entry.path
   $live=Get-FixedRecord $entry $stream.SafeFileHandle
   Assert-FixedRecord $script:pointerRecords[$index-3] $live
+  Save-CompletionIntent $index $bytes $live
   Assert-FixedExpiry
   try{Write-CompletionBytes $stream $bytes}
   finally{
@@ -133,6 +192,7 @@ function Invoke-CompletionBuild {
    $ids=@($process.Id)
    do{$added=@($all | Where-Object {$ids -contains [int]$_.ParentProcessId -and $ids -notcontains [int]$_.ProcessId});$ids+=@($added | ForEach-Object {[int]$_.ProcessId})}while($added.Count)
    $buildTree=@($all | Where-Object {$ids -contains [int]$_.ProcessId})
+   Assert-CompletionProcessEdges $buildTree
    foreach($p in $buildTree){
     $owner=Invoke-CimMethod -InputObject $p -MethodName GetOwnerSid -ErrorAction Stop
     if($owner.ReturnValue -ne 0 -or $owner.Sid -cne $identity.User.Value -or $p.CreationDate.ToUniversalTime() -lt $created){throw 'BUILD_PROCESS_CHANGED'}
@@ -144,6 +204,73 @@ function Invoke-CompletionBuild {
  }
  $process.Refresh()
  if($process.ExitCode -ne 0){throw 'BUILD_FAILED'}
+}
+function Open-CompletionGuards {
+ $script:guardEntries=@();$script:guardRecords=@();$unique=@{}
+ foreach($path in @($root,$env:LOCALAPPDATA,(Join-Path $oldRoot 'node_modules'),$source)){
+  $p=[IO.Path]::GetFullPath($path)
+  while($p){if(-not $unique.ContainsKey($p)){$unique[$p]=$true};$p=[IO.Path]::GetDirectoryName($p.TrimEnd('\'))}
+ }
+ foreach($entry in $targets){$unique.Remove($entry.path)}
+ foreach($path in @($unique.Keys | Sort-Object)){
+  $entry=[pscustomobject]@{path=$path;directory=$true};$h=[GoriqFixedAclNative]::Open($path,$false,$true)
+  $script:guards+=,$h;Assert-CompletionNative $h $path
+  $script:guardEntries+=,$entry;$script:guardRecords+=,(Get-FixedRecord $entry $h)
+ }
+ $h=[GoriqFixedAclNative]::Open($compat,$false,$false);$script:guards+=,$h
+ Assert-CompletionNative $h $compat
+ $script:guardEntries+=,[pscustomobject]@{path=$compat;directory=$false}
+ $script:guardRecords+=,(Get-FixedRecord $guardEntries[-1] $h)
+ if((Get-FixedHash $compat) -ine '27f8afb66ac4dc5a241cade217c9e6c19b16dc316f84d6d3d08257db90c72a36'){throw 'BRIDGE_CHANGED'}
+}
+function Resume-CompletionRecovery {
+ $script:stage='durable-recovery';Assert-FixedExpiry
+ if($RecoveryBackupId -cnotmatch '^[a-f0-9]{32}$'){throw 'BACKUP_REJECTED'}
+ $script:backupId=$RecoveryBackupId
+ $script:marker=Join-Path $env:LOCALAPPDATA 'goriq-1858-native-active.json'
+ $backupPath=Join-Path $env:LOCALAPPDATA ('goriq-1858-native-before-'+$RecoveryBackupId+'.dpapi')
+ foreach($path in @($marker,$backupPath)){
+  $h=[GoriqFixedAclNative]::Open($path,$false,$false)
+  try{Assert-CompletionNative $h $path}finally{$h.Dispose()}
+ }
+ $tx=Read-FixedTransaction $backupPath $marker $RecoveryBackupId
+ if($tx.version -ne 1 -or $tx.issue -ne 1858 -or $tx.sourceRevision -cne $SourceRevision -or $tx.ownerSid -cne $identity.User.Value -or
+  $tx.helperSha256 -ine $ExpectedHelperSha256){throw 'BACKUP_REJECTED'}
+ $script:targets=@(Get-FixedTargets $root);Open-CompletionGuards
+ if($tx.guards.Count -ne $guardRecords.Count){throw 'BACKUP_REJECTED'}
+ for($i=0;$i -lt $guardRecords.Count;$i++){Assert-FixedRecord $tx.guards[$i] $guardRecords[$i]}
+ $candidate=Select-RepairCandidate @(Get-RuleFacts (Get-Acl -LiteralPath $root) $identity)
+ if($tx.records.Count -ne 5 -or $tx.wanted.Count -ne 5){throw 'BACKUP_REJECTED'}
+ for($i=0;$i -lt 5;$i++){
+  if($tx.records[$i].path -cne $targets[$i].path -or $tx.records[$i].directory -ne $targets[$i].directory -or
+   (New-FixedDescriptor $tx.records[$i].descriptor $identity.User.Value $candidate.sidValue $targets[$i].directory) -cne $tx.wanted[$i]){throw 'BACKUP_REJECTED'}
+ }
+ $script:records=@($tx.records);$script:wanted=@($tx.wanted);$script:taskXml=$tx.taskXml;$script:before=$tx.state
+ $script:configBytes=[Convert]::FromBase64String($tx.configCipher);$script:launcherBytes=[Convert]::FromBase64String($tx.launcherCipher)
+ if((Get-CompletionByteHash $configBytes) -cne $records[3].hash -or (Get-CompletionByteHash $launcherBytes) -cne $records[4].hash){throw 'BACKUP_REJECTED'}
+ $secure=ConvertTo-SecureString ([Text.Encoding]::UTF8.GetString($configBytes).Trim([char]0xFEFF).Trim())
+ $script:current=(New-Object Management.Automation.PSCredential('config',$secure)).GetNetworkCredential().Password | ConvertFrom-Json
+ $secure=$null
+ $liveRecords=@()
+ foreach($entry in $targets){
+  $h=[GoriqFixedAclNative]::Open($entry.path,$false,$entry.directory);$script:handles+=,$h
+  Assert-CompletionNative $h $entry.path;$liveRecords+=,(Get-FixedRecord $entry $h)
+ }
+ $intents=@();foreach($i in @(3,4)){foreach($recovery in @($false,$true)){$intents+=,(Read-CompletionIntent $i $recovery)}}
+ Assert-CompletionRecoveryRecords $tx $liveRecords $intents
+ $script:pointerRecords=@($liveRecords[3],$liveRecords[4]);$script:switched=($liveRecords[3].hash -cne $records[3].hash -or $liveRecords[4].hash -cne $records[4].hash)
+ Assert-CompletionState
+ # Only a positively identified old/new host may be stopped. Any orphan,
+ # unknown listener or mixed generation is rejected by the existing guards.
+ $hosts=@(Get-CimInstance Win32_Process -OperationTimeoutSec 15 | Where-Object {$_.Name -ieq 'node.exe' -and $_.CommandLine -and $_.CommandLine.Contains($installationRoot) -and $_.CommandLine.Contains('jarvis-remote-host.mjs')})
+ if($hosts.Count -gt 1){throw 'PROCESS_REJECTED'}
+ if($hosts.Count){
+  $expected=if($hosts[0].CommandLine.Contains($releaseRoot)){$releaseRoot}elseif($hosts[0].CommandLine.Contains($oldRoot)){$oldRoot}else{throw 'PROCESS_REJECTED'}
+  Stop-CompletionHost $expected
+ }else{Assert-StoppedInstallation}
+ $script:stopAttempted=$true;$script:mutated=$true
+ Restore-Completion
+ $script:restored=$true
 }
 function Restore-Completion {
  $script:recovering=$true;Assert-FixedExpiry;Assert-CompletionState
@@ -202,7 +329,11 @@ try {
   $s=New-Object IO.FileStream($path,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
   $sourceStreams+=,$s;Assert-CompletionNative $s.SafeFileHandle $path
  }
- Assert-CompletionSource
+ if($Phase -ne 'restore'){Assert-CompletionSource}else{
+  if((& git -C $source rev-parse HEAD).Trim() -cne $SourceRevision -or $LASTEXITCODE -ne 0){throw 'SOURCE_REJECTED'}
+  & git -C $source diff --quiet HEAD --
+  if($LASTEXITCODE -ne 0){throw 'SOURCE_REJECTED'}
+ }
  foreach($relative in @('scripts/goriq-zbook-fixed-acl-repair.ps1','scripts/goriq-zbook-owner-acl-repair.ps1','scripts/goriq-zbook-acl-boundary-repair.ps1','scripts/goriq-pc-runtime-refresh-windows.ps1')){
   $s=New-Object IO.FileStream((Join-Path $source $relative),[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
   $sourceStreams+=,$s;$reader=New-Object IO.StreamReader($s,[Text.Encoding]::UTF8,$true,4096,$true)
@@ -215,18 +346,13 @@ try {
  Import-FixedFunctions $sourceTexts['scripts/goriq-zbook-acl-boundary-repair.ps1'] @('Write-BoundaryBackup','Assert-ProfileOwner','Assert-NativeProfile')
  Import-FixedFunctions $sourceTexts['scripts/goriq-pc-runtime-refresh-windows.ps1'] @('Get-LiveListeners','Assert-StoppedInstallation','Assert-State-Preserved','Get-OwnedTree','Stop-OwnedTree','Same-Bytes','Restore-ReleaseDirectoryOwner','New-OwnedReleaseDirectory','Wait-Health','Assert-NativeFile','Test-NativeAllowSid')
  Initialize-FixedNative
+ if($Phase -eq 'restore'){
+  Resume-CompletionRecovery
+  @{issue=1858;phase='restore';verified=$true;restored=$true;sourceRevision=$SourceRevision;backupId=$backupId;at=[datetimeoffset]::UtcNow.ToString('o')} | ConvertTo-Json -Compress
+  exit 0
+ }
  $stage='native-preflight';$targets=@(Get-FixedTargets $root)
- $guardEntries=@();$guardRecords=@();$unique=@{}
- foreach($path in @($root,$env:LOCALAPPDATA,(Join-Path $oldRoot 'node_modules'),$source)){
-  $p=[IO.Path]::GetFullPath($path)
-  while($p){if(-not $unique.ContainsKey($p)){$unique[$p]=$true};$p=[IO.Path]::GetDirectoryName($p.TrimEnd('\'))}
- }
- foreach($entry in $targets){$unique.Remove($entry.path)}
- foreach($path in @($unique.Keys | Sort-Object)){
-  $entry=[pscustomobject]@{path=$path;directory=$true};$h=[GoriqFixedAclNative]::Open($path,$false,$true)
-  $guards+=,$h;Assert-CompletionNative $h $path
-  $guardEntries+=,$entry;$guardRecords+=,(Get-FixedRecord $entry $h)
- }
+ Open-CompletionGuards
  Assert-NativeProfile $env:USERPROFILE $identity;Assert-OwnedNative $root $identity
  $candidate=Select-RepairCandidate @(Get-RuleFacts (Get-Acl -LiteralPath $root) $identity)
  if([long]$candidate.rule.FileSystemRights -ne 0x1200A9 -or [string]$candidate.rule.PropagationFlags -ne 'None'){throw 'DACL_REJECTED'}
@@ -236,11 +362,6 @@ try {
   $record=Get-FixedRecord $entry $h;$records+=,$record
   $wanted+=,(New-FixedDescriptor $record.descriptor $identity.User.Value $candidate.sidValue $entry.directory)
  }
- $compatHandle=[GoriqFixedAclNative]::Open($compat,$false,$false);$guards+=,$compatHandle
- Assert-CompletionNative $compatHandle $compat
- $guardEntries+=,[pscustomobject]@{path=$compat;directory=$false}
- $guardRecords+=,(Get-FixedRecord $guardEntries[-1] $compatHandle)
- if((Get-FixedHash $compat) -ine '27f8afb66ac4dc5a241cade217c9e6c19b16dc316f84d6d3d08257db90c72a36'){throw 'BRIDGE_CHANGED'}
  $task=Get-ScheduledTask -TaskName $taskName;$taskXml=Export-ScheduledTask -TaskName $taskName
  $taskSid=([Security.Principal.NTAccount]$task.Principal.UserId).Translate([Security.Principal.SecurityIdentifier]).Value
  if($taskSid -cne $identity.User.Value -or $task.Principal.RunLevel -ne 'Limited' -or $task.Principal.LogonType -ne 'Password' -or $task.State -ne 'Running' -or
@@ -267,7 +388,7 @@ try {
    Assert-CompletionSource;Assert-CompletionState
    $script:backupId=[guid]::NewGuid().ToString('N')
    $backupPath=Join-Path $env:LOCALAPPDATA ('goriq-1858-native-before-'+$backupId+'.dpapi')
-   $transaction=@{version=1;issue=1858;sourceRevision=$SourceRevision;ownerSid=$identity.User.Value;records=$records;wanted=$wanted;guards=$guardRecords;state=$before;taskXml=$taskXml;configCipher=[Convert]::ToBase64String($configBytes);launcherCipher=[Convert]::ToBase64String($launcherBytes)}
+   $transaction=@{version=1;issue=1858;sourceRevision=$SourceRevision;helperSha256=$ExpectedHelperSha256;ownerSid=$identity.User.Value;records=$records;wanted=$wanted;guards=$guardRecords;state=$before;taskXml=$taskXml;configCipher=[Convert]::ToBase64String($configBytes);launcherCipher=[Convert]::ToBase64String($launcherBytes)}
    Write-FixedTransaction $backupPath $marker $transaction $backupId
   } -Apply {
    Stop-CompletionHost $oldRoot
