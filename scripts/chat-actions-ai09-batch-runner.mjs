@@ -12,7 +12,12 @@ export function groundedReviewPrompt(prompt) {
       !prompt.includes("END_UNTRUSTED_PATCH")) throw Error("INVALID_AI09_SOURCE_PROMPT");
   // The trusted reviewer JSON example uses line 123. It must not become a
   // fabricated finding line. The real numeric new-side hunk position is required.
-  const unprimed = prompt.replaceAll('"line":123', '"line":null');
+  const boundary = prompt.indexOf("\nBEGIN_UNTRUSTED_PATCH\n");
+  if (boundary < 0) throw Error("INVALID_AI09_PATCH_BOUNDARY");
+  // Change only the trusted JSON example. Never alter even one byte of the
+  // untrusted patch, including any source code that literally says line 123.
+  const unprimed = prompt.slice(0,boundary).replaceAll('"line":123', '"line":null') +
+    prompt.slice(boundary);
   return [
     unprimed,
     "STRICT FINDING EVIDENCE CHECKLIST (TRUSTED REVIEW INSTRUCTIONS):",
