@@ -6318,6 +6318,17 @@
         "AUTO-026"
       ],
       "reason": "#1858 bounded host-pinned resident handoff and negative evidence recovery; no production or physical acceptance inference."
+    },
+    {
+      "path": "src/jarvis/completion-native-activation.ts",
+      "sha256": "6c9ab27628f6da6ee3bcfb467ab5ec45f9bf4f13c40ae5d12b50517e4f44b88c",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "CORE-002",
+        "AUTO-009",
+        "AUTO-022"
+      ],
+      "reason": "#1858 fixed owner-approved native activation scope, expiry and configuration preservation. Reuses existing deployment controls; implementation mapping is not live activation or operational acceptance evidence."
     }
   ],
   "hash_policy": "utf8-crlf-to-lf-v1;binary-raw"

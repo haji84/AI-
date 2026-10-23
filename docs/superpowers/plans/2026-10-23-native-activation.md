@@ -1,0 +1,17 @@
+# Issue1858 approved native activation
+
+Owner approved proposal SHA256 b1bfc50a28f7fd65b4c8819ae3da10f98e4739b217abb9115430d04a105866a7 via call_d6ff976d41c642de923b5e70cd50164a:0. Forward operations end23:30 JST; recovery23:59:59. Existing Scope/Goal/Gate remain unchanged. Remote Lite is untouched.
+
+1. Implement and test exact issue/owner/proposal/deadline binding and configuration preservation.
+2. Add one explicit Issue1858 native entrypoint. Import verified existing ACL/process/backup/atomic-replacement primitives, never execute old entrypoints or renew old authorizations. Fail closed for native final-path or process mismatch. Preserve parent ACL and non-target children.
+3. Durable DPAPI transaction before mutations, fixed five-object ACL change, exact owned host stop only if needed, current-main release build, pointer cutover, state/identity/schema/health verification; scoped rollback on failure. Verify irreversible/unknown residuals visibly.
+4. Isolated fixtures and independent review, protected PR/main CI, source/helper hashes before native use.
+5. Native preflight then scoped execution; verify actual resident version and retained state. Operational completion acceptance remains separate; do not revive terminal Goal.
+
+## Ledger
+
+- Existing runtime a49; correct native AppData bridge27f8; no production mutation. Previous one-use bridge approval consumed by refusal before write.
+- Decision: keep historical1662/1787 scripts unchanged. New entrypoint imports only named reviewed functions and uses new1858 approval. Shared Compass remains1845 stopped; Issue1858 is this task's handoff.
+- RED: pending scope/config tests. Native transition tests will exercise actual transaction policy with fixture callbacks, plus Windows handle/ACL/pointer fixtures before production.
+- RED scope/config module missing observed; implementation now passes3 new tests (8 with existing refresh,20 with runtime/traceability). PS5.1 transaction deadline/backup/partial failure fixtures PASS. Local native SACL fixtures blocked by missing SeSecurityPrivilege, not passes. Clean dependency ESLint and typecheck PASS; existing local dependency tree remains broken (clear-caches module).
+- Independent review found3 blocking issues in initial draft: post-replacement exception loses pointer identity, nonempty target SACL not staged, exact1858 PR merge binding missing. Correct these before merge/native invocation; Windows CI is required. No production mutation.

@@ -1,0 +1,307 @@
+param([ValidateSet('plan','apply')][string]$Phase='plan',
+ [Parameter(Mandatory=$true)][string]$SourceRevision,
+ [Parameter(Mandatory=$true)][string]$ExpectedHelperSha256)
+# Issue1858 only. Historical entrypoints/authorizations are never executed.
+Set-StrictMode -Version Latest
+$ErrorActionPreference='Stop'
+$env:PSModulePath=Join-Path $PSHOME 'Modules'
+$OutputEncoding=New-Object Text.UTF8Encoding($false)
+$source=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+$identity=[Security.Principal.WindowsIdentity]::GetCurrent()
+$root='C:\Users\qq113\JARVIS';$installationRoot=$root
+$production=Join-Path $root 'production';$oldRoot=Join-Path $root 'releases\a49c458d69a28c0266be8fcad5b26253e5ed8d75'
+$releaseRoot=Join-Path $root ('releases\'+$SourceRevision)
+$configPath=Join-Path $production 'config.dpapi';$launcherPath=Join-Path $production 'launch-current.ps1'
+$compat='C:\Users\qq113\AppData\Local\JARVIS\production\launch-current.ps1'
+$taskName='JARVIS Remote Host';$ports=@(3000,8787,8790,8792)
+$node=(Get-Command node.exe).Source;$revision=$SourceRevision
+$handles=@();$guards=@();$records=@();$wanted=@();$sourceStreams=@();$sourceTexts=@{}
+$recovering=$false;$mutated=$false;$stopAttempted=$false;$switched=$false;$startAttempted=$false;$restored=$false
+$marker=$null;$backupId=$null;$failure='';$stage='source';$initialLocation=Get-Location
+function Assert-CompletionWindow([bool]$recovery,[datetimeoffset]$now=[datetimeoffset]::UtcNow) {
+ $end=if($recovery){'2026-10-23T14:59:59Z'}else{'2026-10-23T14:30:00Z'}
+ if($now -lt [datetimeoffset]::Parse('2026-10-23T11:16:26Z') -or $now -ge [datetimeoffset]::Parse($end)){throw 'APPROVAL_EXPIRED'}
+}
+function Assert-FixedExpiry { Assert-CompletionWindow $script:recovering }
+function Invoke-CompletionTransaction([scriptblock]$Persist,[scriptblock]$Apply,[scriptblock]$Verify,[scriptblock]$Recover) {
+ [void](& $Persist)
+ try{[void](& $Apply);[void](& $Verify);return @{verified=$true;restored=$false}}
+ catch{
+  $reason=$_.Exception;$restored=$false
+  try{[void](& $Recover);$restored=$true}catch{}
+  return @{verified=$false;restored=$restored;failure=$reason}
+ }
+}
+function Import-CompletionFunctions([string]$text,[string[]]$names) {
+ $tokens=$null;$errors=$null
+ $ast=[Management.Automation.Language.Parser]::ParseInput($text,[ref]$tokens,[ref]$errors)
+ if($errors.Count){throw 'SOURCE_REJECTED'}
+ foreach($name in $names){
+  $defs=@($ast.FindAll({param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -ceq $name},$true))
+  if($defs.Count -ne 1){throw 'SOURCE_REJECTED'}
+  Invoke-Expression ($defs[0].Extent.Text.Replace(('function '+$name),('function script:'+$name)))
+ }
+}
+function Assert-CompletionNative($handle,[string]$path) {
+ if(-not ('GoriqCompletionNativePath' -as [type])){
+  Add-Type -TypeDefinition @'
+using System.Text;
+using System.Runtime.InteropServices;
+using Microsoft.Win32.SafeHandles;
+public static class GoriqCompletionNativePath {
+ [DllImport("kernel32.dll",CharSet=CharSet.Unicode)] public static extern uint GetFinalPathNameByHandle(SafeFileHandle handle,StringBuilder path,uint length,uint flags);
+}
+'@
+ }
+ $buffer=New-Object Text.StringBuilder 4096
+ $length=[GoriqCompletionNativePath]::GetFinalPathNameByHandle($handle,$buffer,4096,0)
+ if($length -eq 0 -or $length -ge 4096 -or $buffer.ToString() -ine ('\\?\'+[IO.Path]::GetFullPath($path))){throw 'NATIVE_PATH_REJECTED'}
+}
+function Assert-CompletionSource {
+ if((& git -C $source rev-parse HEAD).Trim() -cne $SourceRevision -or $LASTEXITCODE -ne 0){throw 'SOURCE_REJECTED'}
+ & git -C $source diff --quiet HEAD --
+ if($LASTEXITCODE -ne 0){throw 'SOURCE_REJECTED'}
+ & $node (Join-Path $source 'scripts\goriq-pc-approved-source.mjs')
+ if($LASTEXITCODE -ne 0){throw 'MAIN_CI_REQUIRED'}
+}
+function Inspect-State([string]$operation) {
+ $inputValue=@{current=$current;operation=$operation;recovery=$recovering} | ConvertTo-Json -Depth 20 -Compress
+ $receipt=$inputValue | & $node (Join-Path $source 'scripts\goriq-completion-native-state.ts') 2>$null
+ if($LASTEXITCODE -ne 0){throw 'STATE_REJECTED'}
+ return ($receipt | ConvertFrom-Json)
+}
+function Assert-CompletionState {
+ Assert-FixedExpiry
+ if((Export-ScheduledTask -TaskName $taskName) -cne $taskXml){throw 'TASK_CHANGED'}
+ Assert-FixedGuards
+ $state=Inspect-State 'inspect'
+ if($state.schemaCompatible -ne $true -or $state.quiescent -ne $true -or $state.identityCount -ne 40 -or $state.androidCount -ne 38){throw 'STATE_REJECTED'}
+ Assert-State-Preserved $before $state
+}
+function Stop-CompletionHost([string]$expectedRoot) {
+ Assert-CompletionState
+ $live=@(Get-OwnedTree $expectedRoot $false)
+ if($live.Count){
+  Assert-FixedTree $live @(Get-OwnedTree $expectedRoot $false)
+  foreach($p in $live){if($p.ExecutablePath -ine $node -or $p.CreationDate -eq $null){throw 'PROCESS_REJECTED'}}
+  Bind-FixedProcessTree $live
+  Assert-FixedExpiry;$script:stopAttempted=$true
+  Stop-OwnedTree $live
+ }
+ Assert-StoppedInstallation
+}
+function Write-CompletionPointer([int]$index,[byte[]]$bytes) {
+ Assert-CompletionState;Assert-StoppedInstallation
+ $entry=$targets[$index]
+ $h=[GoriqFixedAclNative]::Open($entry.path,$false,$false)
+ try{
+  Assert-CompletionNative $h $entry.path
+  $live=Get-FixedRecord $entry $h
+  Assert-FixedRecord $script:pointerRecords[$index-3] $live
+ }finally{$h.Dispose()}
+ Assert-FixedExpiry
+ Replace-Bytes $entry.path $bytes
+ $h=[GoriqFixedAclNative]::Open($entry.path,$false,$false)
+ try{
+  Assert-CompletionNative $h $entry.path
+  $after=Get-FixedRecord $entry $h
+  if($after.descriptor -cne $live.descriptor -or -not (Same-Bytes $bytes (Get-FixedBytes $entry.path))){throw 'POINTER_REJECTED'}
+  $script:pointerRecords[$index-3]=$after
+ }finally{$h.Dispose()}
+}
+function Invoke-CompletionBuild {
+ Assert-FixedExpiry
+ $exe='C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe'
+ $build=Join-Path $source 'scripts\goriq-completion-native-build.ps1'
+ $process=Start-Process -FilePath $exe -ArgumentList ('-NoProfile -NonInteractive -ExecutionPolicy RemoteSigned -File "'+$build+'"') -WorkingDirectory $releaseRoot -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $releaseRoot 'build.stdout.log') -RedirectStandardError (Join-Path $releaseRoot 'build.stderr.log')
+ $created=$process.StartTime.ToUniversalTime();$deadline=[datetimeoffset]::UtcNow.AddMinutes(15)
+ while(-not $process.WaitForExit(1000)){
+  if([datetimeoffset]::UtcNow -ge $deadline){
+   # Only the child this operation created and its proved descendants are eligible.
+   $all=@(Get-CimInstance Win32_Process -OperationTimeoutSec 15 -ErrorAction Stop)
+   $parent=@($all | Where-Object {[int]$_.ProcessId -eq $process.Id})
+   if($parent.Count -ne 1 -or $parent[0].CreationDate.ToUniversalTime().Ticks/10 -ne $created.Ticks/10 -or $parent[0].ExecutablePath -ine $exe){throw 'BUILD_PROCESS_CHANGED'}
+   $ids=@($process.Id)
+   do{$added=@($all | Where-Object {$ids -contains [int]$_.ParentProcessId -and $ids -notcontains [int]$_.ProcessId});$ids+=@($added | ForEach-Object {[int]$_.ProcessId})}while($added.Count)
+   $buildTree=@($all | Where-Object {$ids -contains [int]$_.ProcessId})
+   foreach($p in $buildTree){
+    $owner=Invoke-CimMethod -InputObject $p -MethodName GetOwnerSid -ErrorAction Stop
+    if($owner.ReturnValue -ne 0 -or $owner.Sid -cne $identity.User.Value -or $p.CreationDate.ToUniversalTime() -lt $created){throw 'BUILD_PROCESS_CHANGED'}
+   }
+   Bind-FixedProcessTree $buildTree
+   foreach($p in @($buildTree | Sort-Object ProcessId -Descending)){Assert-FixedExpiry;$null=[GoriqFixedProcessNative]::Terminate([int]$p.ProcessId)}
+   throw 'BUILD_TIMEOUT'
+  }
+ }
+ $process.Refresh()
+ if($process.ExitCode -ne 0){throw 'BUILD_FAILED'}
+}
+function Restore-Completion {
+ $script:recovering=$true;Assert-FixedExpiry;Assert-CompletionState
+ if(-not $mutated -and -not $stopAttempted){
+  for($i=0;$i -lt 5;$i++){Assert-FixedRecord $records[$i] (Get-FixedRecord $targets[$i] $handles[$i])}
+  $null=Get-OwnedTree $oldRoot
+  Remove-Item -LiteralPath $marker -Force
+  return
+ }
+ Close-FixedHandles
+ if($stopAttempted){
+  if($startAttempted){Stop-CompletionHost $(if($switched){$releaseRoot}else{$oldRoot})}
+  Assert-StoppedInstallation
+ }
+ if($switched){
+  Write-CompletionPointer 3 $configBytes;Write-CompletionPointer 4 $launcherBytes
+ }
+ Open-FixedHandles $true
+ # Atomic pointer replacement intentionally changes only these two file IDs.
+ # Accept only records captured from this transaction's verified replacement.
+ $restoreRecords=@($records | ForEach-Object {$_.PSObject.Copy()})
+ for($i=3;$i -lt 5;$i++){
+  if($switched){
+   $live=Get-FixedRecord $targets[$i] $handles[$i]
+   Assert-FixedRecord $pointerRecords[$i-3] $live
+   if($live.hash -cne $records[$i].hash){throw 'RESTORE_REJECTED'}
+   $restoreRecords[$i].identity=$live.identity
+  }
+ }
+ Restore-FixedRecords $targets $handles $restoreRecords $wanted -EnforceExpiry
+ Close-FixedHandles
+ Assert-CompletionState
+ if($stopAttempted){
+  Assert-FixedExpiry;Start-ScheduledTask -TaskName $taskName
+  $releaseRoot=$oldRoot
+  $health=Wait-Health $current.commit
+  if(-not $health.serviceRecoveryVerified){throw 'RECOVERY_UNVERIFIED'}
+ }else{$null=Get-OwnedTree $oldRoot}
+ Assert-CompletionState
+ Remove-Item -LiteralPath $marker -Force
+}
+try {
+ Assert-FixedExpiry
+ if($SourceRevision -notmatch '^[a-f0-9]{40}$' -or $ExpectedHelperSha256 -notmatch '^[a-fA-F0-9]{64}$' -or
+  (Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash -ine $ExpectedHelperSha256){throw 'SOURCE_REJECTED'}
+ if($identity.User.Value -cne 'S-1-5-21-3241814747-1938433149-1705921193-1004' -or $env:USERPROFILE -ine 'C:\Users\qq113' -or
+  -not (New-Object Security.Principal.WindowsPrincipal($identity)).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)){throw 'OWNER_ADMIN_REQUIRED'}
+ $env:GORIQ_PC_APPROVED_REVISION=$SourceRevision;$env:GITHUB_REPOSITORY='haji84/AI-';$env:GITHUB_REF='refs/heads/main';$env:GITHUB_SHA=$SourceRevision
+ Set-Location $source;Assert-CompletionSource
+ foreach($relative in @('scripts/goriq-zbook-fixed-acl-repair.ps1','scripts/goriq-zbook-owner-acl-repair.ps1','scripts/goriq-zbook-acl-boundary-repair.ps1','scripts/goriq-pc-runtime-refresh-windows.ps1')){
+  $s=New-Object IO.FileStream((Join-Path $source $relative),[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
+  $sourceStreams+=,$s;$reader=New-Object IO.StreamReader($s,[Text.Encoding]::UTF8,$true,4096,$true)
+  try{$sourceTexts[$relative]=$reader.ReadToEnd()}finally{$reader.Dispose()}
+  if((& git -C $source hash-object ('--path='+$relative) (Join-Path $source $relative)).Trim() -cne (& git -C $source rev-parse ($SourceRevision+':'+$relative)).Trim()){throw 'SOURCE_REJECTED'}
+ }
+ $fixed=$sourceTexts['scripts/goriq-zbook-fixed-acl-repair.ps1']
+ Import-CompletionFunctions $fixed @('Import-FixedFunctions','Get-FixedTargets','New-FixedDescriptor','Initialize-FixedNative','Initialize-FixedProcessNative','Bind-FixedProcessTree','Get-FixedBytes','Get-FixedHash','Get-FixedRecord','Assert-FixedRecord','Invoke-FixedTransition','Restore-FixedRecords','Write-FixedTransaction','Read-FixedTransaction','Assert-FixedTree','Close-FixedHandles','Open-FixedHandles','Assert-FixedGuards')
+ Import-FixedFunctions $sourceTexts['scripts/goriq-zbook-owner-acl-repair.ps1'] @('Test-KnownReadOnlyRights','Get-RuleFacts','Select-RepairCandidate','Assert-OwnedNative')
+ Import-FixedFunctions $sourceTexts['scripts/goriq-zbook-acl-boundary-repair.ps1'] @('Write-BoundaryBackup','Assert-ProfileOwner','Assert-NativeProfile')
+ Import-FixedFunctions $sourceTexts['scripts/goriq-pc-runtime-refresh-windows.ps1'] @('Get-LiveListeners','Assert-StoppedInstallation','Assert-State-Preserved','Get-OwnedTree','Stop-OwnedTree','Same-Bytes','Replace-Bytes','Restore-ReleaseDirectoryOwner','New-OwnedReleaseDirectory','Wait-Health','Assert-NativeFile','Test-NativeAllowSid')
+ Initialize-FixedNative
+ $stage='native-preflight';$targets=@(Get-FixedTargets $root)
+ $guardEntries=@();$guardRecords=@();$unique=@{}
+ foreach($path in @($root,$env:LOCALAPPDATA,(Join-Path $oldRoot 'node_modules'),$source)){
+  $p=[IO.Path]::GetFullPath($path)
+  while($p){if(-not $unique.ContainsKey($p)){$unique[$p]=$true};$p=[IO.Path]::GetDirectoryName($p.TrimEnd('\'))}
+ }
+ foreach($entry in $targets){$unique.Remove($entry.path)}
+ foreach($path in @($unique.Keys | Sort-Object)){
+  $entry=[pscustomobject]@{path=$path;directory=$true};$h=[GoriqFixedAclNative]::Open($path,$false,$true)
+  $guards+=,$h;Assert-CompletionNative $h $path
+  $guardEntries+=,$entry;$guardRecords+=,(Get-FixedRecord $entry $h)
+ }
+ Assert-NativeProfile $env:USERPROFILE $identity;Assert-OwnedNative $root $identity
+ $candidate=Select-RepairCandidate @(Get-RuleFacts (Get-Acl -LiteralPath $root) $identity)
+ if([long]$candidate.rule.FileSystemRights -ne 0x1200A9 -or [string]$candidate.rule.PropagationFlags -ne 'None'){throw 'DACL_REJECTED'}
+ foreach($entry in $targets){
+  Assert-OwnedNative $entry.path $identity
+  $h=[GoriqFixedAclNative]::Open($entry.path,$false,$entry.directory);$handles+=,$h;Assert-CompletionNative $h $entry.path
+  $record=Get-FixedRecord $entry $h;$records+=,$record
+  $wanted+=,(New-FixedDescriptor $record.descriptor $identity.User.Value $candidate.sidValue $entry.directory)
+ }
+ $compatHandle=[GoriqFixedAclNative]::Open($compat,$false,$false);$guards+=,$compatHandle
+ Assert-CompletionNative $compatHandle $compat
+ $guardEntries+=,[pscustomobject]@{path=$compat;directory=$false}
+ $guardRecords+=,(Get-FixedRecord $guardEntries[-1] $compatHandle)
+ if((Get-FixedHash $compat) -ine '27f8afb66ac4dc5a241cade217c9e6c19b16dc316f84d6d3d08257db90c72a36'){throw 'BRIDGE_CHANGED'}
+ $task=Get-ScheduledTask -TaskName $taskName;$taskXml=Export-ScheduledTask -TaskName $taskName
+ $taskSid=([Security.Principal.NTAccount]$task.Principal.UserId).Translate([Security.Principal.SecurityIdentifier]).Value
+ if($taskSid -cne $identity.User.Value -or $task.Principal.RunLevel -ne 'Limited' -or $task.Principal.LogonType -ne 'Password' -or $task.State -ne 'Running' -or
+  $task.Actions.Count -ne 1 -or $task.Actions[0].Execute -ine 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe' -or
+  $task.Actions[0].Arguments -cne ('-NoProfile -NonInteractive -ExecutionPolicy RemoteSigned -File "'+$compat+'"')){throw 'TASK_CHANGED'}
+ $configBytes=Get-FixedBytes $configPath;$launcherBytes=Get-FixedBytes $launcherPath
+ $secure=ConvertTo-SecureString ([Text.Encoding]::UTF8.GetString($configBytes).Trim([char]0xFEFF).Trim())
+ $plain=(New-Object Management.Automation.PSCredential('config',$secure)).GetNetworkCredential().Password
+ $current=$plain | ConvertFrom-Json;$plain=$null;$secure=$null
+ if($current.version -ne 1 -or $current.commit -cne 'a49c458d69a28c0266be8fcad5b26253e5ed8d75' -or $current.releaseRoot -cne $oldRoot){throw 'BASELINE_CHANGED'}
+ $launcher=[Text.Encoding]::UTF8.GetString($launcherBytes).TrimStart([char]0xFEFF)
+ if(-not $launcher.Contains($oldRoot)){throw 'BASELINE_CHANGED'}
+ $nextLauncher=$launcher.Replace($oldRoot,$releaseRoot)
+ $before=Inspect-State 'inspect';Assert-CompletionState
+ $tree=@(Get-OwnedTree $oldRoot);$null=$tree
+ $marker=Join-Path $env:LOCALAPPDATA 'goriq-1858-native-active.json'
+ if(Test-Path -LiteralPath $marker){throw 'RECONCILIATION_REQUIRED'}
+ if($Phase -eq 'apply'){
+  # Reserve ample forward/recovery time before the first service interruption.
+  if([datetimeoffset]::UtcNow.AddMinutes(30) -ge [datetimeoffset]::Parse('2026-10-23T14:30:00Z')){throw 'INSUFFICIENT_RECOVERY_WINDOW'}
+  if(Test-Path -LiteralPath $releaseRoot){throw 'IMMUTABLE_RELEASE_EXISTS'}
+  $stage='transaction'
+  $result=Invoke-CompletionTransaction -Persist {
+   Assert-CompletionSource;Assert-CompletionState
+   $script:backupId=[guid]::NewGuid().ToString('N')
+   $backupPath=Join-Path $env:LOCALAPPDATA ('goriq-1858-native-before-'+$backupId+'.dpapi')
+   $transaction=@{version=1;issue=1858;sourceRevision=$SourceRevision;ownerSid=$identity.User.Value;records=$records;wanted=$wanted;guards=$guardRecords;state=$before;taskXml=$taskXml;configCipher=[Convert]::ToBase64String($configBytes);launcherCipher=[Convert]::ToBase64String($launcherBytes)}
+   Write-FixedTransaction $backupPath $marker $transaction $backupId
+  } -Apply {
+   Stop-CompletionHost $oldRoot
+   Close-FixedHandles;Open-FixedHandles $true
+   for($i=0;$i -lt 5;$i++){
+    Assert-CompletionState;$script:mutated=$true
+    Invoke-FixedTransition $targets[$i] $handles[$i] $records[$i] $wanted[$i] -EnforceExpiry
+   }
+   $script:pointerRecords=@((Get-FixedRecord $targets[3] $handles[3]),(Get-FixedRecord $targets[4] $handles[4]))
+   Close-FixedHandles
+   foreach($entry in $targets){Assert-NativeFile $entry.path}
+   $script:stage='build';Assert-CompletionState
+   New-OwnedReleaseDirectory $releaseRoot $identity.User;Assert-NativeFile $releaseRoot
+   $archive=Join-Path $releaseRoot 'source.tar'
+   & git -C $source archive --format=tar ('--output='+$archive) $SourceRevision
+   if($LASTEXITCODE -ne 0){throw 'ARCHIVE_FAILED'}
+   & tar -xf $archive -C $releaseRoot
+   if($LASTEXITCODE -ne 0){throw 'ARCHIVE_FAILED'}
+   Invoke-CompletionBuild
+   Assert-CompletionSource;Assert-CompletionState
+   [IO.File]::WriteAllText((Join-Path $releaseRoot 'jarvis-release.json'),(@{version=1;commit=$SourceRevision;issue=1858} | ConvertTo-Json -Compress),(New-Object Text.UTF8Encoding($false)))
+   $prepared=Inspect-State 'prepare';Assert-State-Preserved $before $prepared
+   $next=$current | ConvertTo-Json -Depth 20 -Compress | ConvertFrom-Json
+   $next.commit=$SourceRevision;$next.releaseRoot=$releaseRoot
+   $candidateJson=$next | ConvertTo-Json -Depth 20 -Compress
+   $candidateJson | & $node (Join-Path $releaseRoot 'scripts\validate-jarvis-production-config.mjs') $releaseRoot $production
+   if($LASTEXITCODE -ne 0){throw 'CANDIDATE_REJECTED'}
+   $encoded=$candidateJson | ConvertTo-SecureString -AsPlainText -Force | ConvertFrom-SecureString
+   $script:stage='cutover';$script:switched=$true
+   Write-CompletionPointer 3 ([Text.Encoding]::UTF8.GetBytes($encoded))
+   Write-CompletionPointer 4 ([byte[]]([Text.Encoding]::UTF8.GetPreamble()+[Text.Encoding]::UTF8.GetBytes($nextLauncher)))
+   $encoded=$null;$candidateJson=$null;$next=$null
+   Assert-CompletionState;Assert-FixedExpiry;$script:startAttempted=$true
+   Start-ScheduledTask -TaskName $taskName
+  } -Verify {
+   $script:stage='verify';$health=Wait-Health $SourceRevision
+   if(-not $health.serviceRecoveryVerified){throw 'RECOVERY_UNVERIFIED'}
+   Assert-CompletionState
+   foreach($entry in $targets){Assert-NativeFile $entry.path}
+   Remove-Item -LiteralPath $marker -Force
+  } -Recover { Restore-Completion }
+  $restored=$result.restored
+  if(-not $result.verified){throw $result.failure}
+ }
+ @{issue=1858;phase=$Phase;verified=$true;productionActivated=($Phase -eq 'apply');sourceRevision=$SourceRevision;permissionChanged=$mutated;backupId=$backupId;stopAttempted=$stopAttempted;taskUnchanged=$true;schemaPreserved=$true;identityCount=$before.identityCount;androidCount=$before.androidCount;operationalAcceptance=$false;at=[datetimeoffset]::UtcNow.ToString('o')} | ConvertTo-Json -Compress
+}catch{
+ $failure=$_.Exception;while($null -ne $failure.InnerException){$failure=$failure.InnerException}
+ $reason=if($failure.Message -match '^[A-Z_0-9-]{3,80}$'){$failure.Message}else{'NATIVE_ACTIVATION_FAILED'}
+ @{issue=1858;phase=$Phase;verified=$false;stage=$stage;reason=$reason;permissionChanged=$mutated;stopAttempted=$stopAttempted;switched=$switched;restored=$restored;backupId=$backupId;reconciliationRequired=($null -ne $marker -and (Test-Path -LiteralPath $marker));at=[datetimeoffset]::UtcNow.ToString('o')} | ConvertTo-Json -Compress
+ exit 1
+}finally{
+ foreach($h in $handles){$h.Dispose()};foreach($h in $guards){$h.Dispose()};foreach($s in $sourceStreams){$s.Dispose()}
+ if('GoriqFixedProcessNative' -as [type]){[GoriqFixedProcessNative]::Clear()}
+ Set-Location $initialLocation
+ $current=$null;$plain=$null;$configBytes=$null;$launcherBytes=$null;$records=$null;$wanted=$null
+}
