@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import type { Goal } from "./goal-loop.ts";
 import type { WorkState, WorkStateStore } from "./work-state.ts";
+import { assessCompletionPath, type CompletionInput, type CompletionCycle } from "./completion-path.ts";
 
 export type IntakeIntent = "QUESTION" | "INSPECTION" | "COMMAND" | "DEVELOPMENT_TASK" | "GOAL";
 export type IntakeSource = "chat" | "codex" | "jarvis" | "device" | "github" | "event" | "other";
@@ -192,6 +193,13 @@ export class GoalControllerRuntime {
   private readonly workStateStore?: WorkStateStore;
   private readonly decisionStore?: GoalDecisionStore;
   private readonly seen = new Map<string, GoalControllerDecision>();
+
+  /** Explicit inspection only; does not dispatch, mutate Goal or commit nextAction. */
+  async inspectCompletionPath(input: CompletionInput, history: CompletionCycle[] = []): Promise<CompletionCycle> {
+    const state = await this.workStateStore?.get(input.goalId);
+    if (!state) throw Error("completion inspection requires existing WorkState");
+    return assessCompletionPath(state, input, history);
+  }
 
   constructor(input: { registry: GoalRegistry; classifier?: ClassifierCapability; workStateStore?: WorkStateStore; decisionStore?: GoalDecisionStore }) {
     this.resolver = new GoalResolver(input.registry);

@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto";
+import { assessCompletionPath, type CompletionInput, type CompletionCycle } from "./completion-path.ts";
+import type { WorkState } from "./work-state.ts";
 import {
   createDevelopmentJob,
   type DevelopmentFailure,
@@ -63,6 +65,11 @@ function workItems(input: DevelopmentPlanningInput): DevelopmentWorkItem[] {
 }
 
 export class DevelopmentOrchestrator {
+  /** Advisory preflight only. The existing plan/execution authority remains unchanged. */
+  assessCompletionPath(state: WorkState, input: CompletionInput, history: CompletionCycle[] = []): CompletionCycle {
+    return assessCompletionPath(state, input, history);
+  }
+
   plan(input: DevelopmentPlanningInput, now = new Date()): DevelopmentPlan {
     if (!input.objective.trim() || !input.acceptanceCriteria.length || !input.targetFiles.length) {
       throw new Error("development objective, acceptance criteria, and target files are required");
