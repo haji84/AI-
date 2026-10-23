@@ -959,7 +959,7 @@
     },
     {
       "path": "scripts/jarvis-broker.ts",
-      "sha256": "dbe2338f8630eb173c83f506e0cc9dfb4ff30975e5237564919d3b92f947c90d",
+      "sha256": "dabb4cb1c02973b2f830244705a0ea35c1420f505d7a95c4bf9dee1f5f88e1d2",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "NET-003",
@@ -980,7 +980,7 @@
         "UI-009",
         "INT-001"
       ],
-      "reason": "Protected Broker now exposes bounded local-first voice discovery and synthesis while preserving existing owner authority and all prior Broker responsibilities. #1845 fresh resource admission/bounded durable wait integration; preserves existing ownership and gates, no functional or physical acceptance claim."
+      "reason": "Protected Broker now exposes bounded local-first voice discovery and synthesis while preserving existing owner authority and all prior Broker responsibilities. #1845 fresh resource admission/bounded durable wait integration; preserves existing ownership and gates, no functional or physical acceptance claim. #1858 approved host-selected completion integration and isolated verification; no live activation or physical acceptance inference."
     },
     {
       "path": "scripts/jarvis-direct-commander-service.sh",
@@ -1601,13 +1601,13 @@
     },
     {
       "path": "src/app/api/jarvis/work/[goalId]/route.ts",
-      "sha256": "2a44b52a1b53bcb2f12406e2f1f91b004e3044f12aa3276993f3acb5a901f048",
+      "sha256": "c2c4552711f627472ac124ea004dbf2214ba9ce38cf24f71390e472301112b35",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-001",
         "AUTO-004"
       ],
-      "reason": "Persisted work intake/state API"
+      "reason": "Persisted work intake/state API #1858 approved host-selected completion integration and isolated verification; no live activation or physical acceptance inference."
     },
     {
       "path": "src/app/api/jarvis/work/route.ts",
@@ -2730,7 +2730,7 @@
     },
     {
       "path": "src/app/jarvis/tasks/GoalBridgeStatus.tsx",
-      "sha256": "11f1f65031eea425cfc7ab37f2e4ab258b72eccd5356f2d8849d37c29b8ae80d",
+      "sha256": "4d23c479f869aa0b61fbf734e40e2c8886fab401113da74dae7de9907181b7f0",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "AUTO-001",
@@ -2738,7 +2738,7 @@
         "GOV-025",
         "OWN-001"
       ],
-      "reason": "Issue #1219 Direct Goal Bridge internal surface for authenticated provider-neutral status/event delivery; parent requirements remain PARTIAL pending real E2E."
+      "reason": "Issue #1219 Direct Goal Bridge internal surface for authenticated provider-neutral status/event delivery; parent requirements remain PARTIAL pending real E2E. #1858 approved host-selected completion integration and isolated verification; no live activation or physical acceptance inference."
     },
     {
       "path": "src/app/jarvis/tasks/page.tsx",
@@ -4986,7 +4986,7 @@
     },
     {
       "path": "src/orchestrator/compass-goal-execution-adapter.ts",
-      "sha256": "dab01b770277ba0ba4bc238e1d46b8f45867c63dad14467b069b56deff8aeedb",
+      "sha256": "98cdc480bac50f98ceaa35681830a3d704b35f7d75d14562d075c094a2d0aaa1",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-002",
@@ -4994,7 +4994,7 @@
         "AUTO-026",
         "OWN-001"
       ],
-      "reason": "Issue #1216 reviewed Cognitive Core integration/hardening; mapped requirement does not imply full acceptance #1845 fresh resource admission/bounded durable wait integration; preserves existing ownership and gates, no functional or physical acceptance claim."
+      "reason": "Issue #1216 reviewed Cognitive Core integration/hardening; mapped requirement does not imply full acceptance #1845 fresh resource admission/bounded durable wait integration; preserves existing ownership and gates, no functional or physical acceptance claim. #1858 approved host-selected completion integration and isolated verification; no live activation or physical acceptance inference."
     },
     {
       "path": "src/orchestrator/compass-goal-execution-context-store.ts",
@@ -5042,14 +5042,14 @@
     },
     {
       "path": "src/orchestrator/compass-work-state-store.ts",
-      "sha256": "1c19793cc0332e5d0eac835dc2a41f7552880b3f771650bcde19de73950266a5",
+      "sha256": "e58d63c33298d1102a7b36d3b908e12af8830a645c1c154dbc38f608a4110c59",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-002",
         "AUTO-004",
         "AUTO-026"
       ],
-      "reason": "Declared compass-work-state-store.ts responsibility implements/supports Goal persistence; Current State persistence; Verified completion only. Parent ownership is not functional or physical acceptance evidence. #1858 adds explicit read-only completion advice or its durable journal; existing execution and approval authority is unchanged. This is not production or physical acceptance evidence."
+      "reason": "Declared compass-work-state-store.ts responsibility implements/supports Goal persistence; Current State persistence; Verified completion only. Parent ownership is not functional or physical acceptance evidence. #1858 adds explicit read-only completion advice or its durable journal; existing execution and approval authority is unchanged. This is not production or physical acceptance evidence. #1858 approved host-selected completion integration and isolated verification; no live activation or physical acceptance inference."
     },
     {
       "path": "src/orchestrator/context-adapters.ts",
@@ -5193,7 +5193,7 @@
     },
     {
       "path": "src/orchestrator/development-orchestrator.ts",
-      "sha256": "bcb5a8b6e419129d2b3e461ebd0a1e6ce3e5c8467d01f7e3b156d0519729d343",
+      "sha256": "78956f9e6ec546a9e3b39279cf3f5d7b0e10c8b62e8757a06cf74661a8e6bd0f",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -5202,7 +5202,7 @@
         "AUTO-017",
         "AUTO-018"
       ],
-      "reason": "#681 TDD-first development planning, dependency decomposition, recovery strategy variation, and no release authority. #1845 fresh resource admission/bounded durable wait integration; preserves existing ownership and gates, no functional or physical acceptance claim. #1858 adds explicit read-only completion advice or its durable journal; existing execution and approval authority is unchanged. This is not production or physical acceptance evidence."
+      "reason": "#681 TDD-first development planning, dependency decomposition, recovery strategy variation, and no release authority. #1845 fresh resource admission/bounded durable wait integration; preserves existing ownership and gates, no functional or physical acceptance claim. #1858 adds explicit read-only completion advice or its durable journal; existing execution and approval authority is unchanged. This is not production or physical acceptance evidence. #1858 approved host-selected completion integration and isolated verification; no live activation or physical acceptance inference."
     },
     {
       "path": "src/orchestrator/development-release-gate.ts",
@@ -5757,14 +5757,14 @@
     },
     {
       "path": "src/orchestrator/planner-enhancement.ts",
-      "sha256": "9b6947024d89840f229203bd218f5cef411a022d31eb669758628cc58af7618f",
+      "sha256": "76cc730e98e4b6abbfd9c443c6257b4dc46bcc131fa7ce0c81e007d60af81f45",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-017",
         "AUTO-018",
         "AUTO-019"
       ],
-      "reason": "Declared planner-enhancement.ts responsibility implements/supports Repair; Replan; Bounded retry. Parent ownership is not functional or physical acceptance evidence."
+      "reason": "Declared planner-enhancement.ts responsibility implements/supports Repair; Replan; Bounded retry. Parent ownership is not functional or physical acceptance evidence. #1858 approved host-selected completion integration and isolated verification; no live activation or physical acceptance inference."
     },
     {
       "path": "src/orchestrator/production-browser-capability.ts",
@@ -6178,14 +6178,14 @@
     },
     {
       "path": "src/orchestrator/work-state-integration.ts",
-      "sha256": "d4fab8488d46770550fee4748a18966a4d6cf7b7427099a7b30e7fed99928c4a",
+      "sha256": "0333f361163fec1f467c0a571e2af6553b4b12394a07876dd63977ebcc4cf389",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-002",
         "AUTO-004",
         "AUTO-026"
       ],
-      "reason": "Declared work-state-integration.ts responsibility implements/supports Goal persistence; Current State persistence; Verified completion only. Parent ownership is not functional or physical acceptance evidence."
+      "reason": "Declared work-state-integration.ts responsibility implements/supports Goal persistence; Current State persistence; Verified completion only. Parent ownership is not functional or physical acceptance evidence. #1858 approved host-selected completion integration and isolated verification; no live activation or physical acceptance inference."
     },
     {
       "path": "src/orchestrator/work-state.ts",
@@ -6266,14 +6266,14 @@
     },
     {
       "path": "docs/architecture/goriq-completion-path-activation.md",
-      "sha256": "1c5851d7188ec2ab3c5e4dac45428937420917774f03509065cd2f7b4928c5fa",
+      "sha256": "b0d4d95de9143c8c4c4e4c39678b61d5ef9f0e155cb2b6138b4c639575884177",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "CORE-002",
         "AUTO-009",
         "AUTO-022"
       ],
-      "reason": "#1858 records an unapproved next-stage integration proposal and Human Gate scope. It does not activate execution, change authority, or establish functional or physical acceptance."
+      "reason": "#1858 records an unapproved next-stage integration proposal and Human Gate scope. It does not activate execution, change authority, or establish functional or physical acceptance. #1858 approved host-selected completion integration and isolated verification; no live activation or physical acceptance inference."
     },
     {
       "path": "src/orchestrator/completion-path.ts",
@@ -6288,6 +6288,21 @@
         "AUTO-026"
       ],
       "reason": "#1858 adds pure completion-path advice: evidence-bound gaps, dependency-aware candidate ranking, prepared human-action notifications, and progress/recovery assessment. Existing Goal, risk, and recovery policies are reused; no dispatch or approval grant is added. Parent mapping is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/completion-execution.ts",
+      "sha256": "e26bee40e5401dcd0377c71befe5e05e7b0a87cbac3ce9bde1d76bba2e8317a7",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "CORE-002",
+        "AUTO-009",
+        "AUTO-016",
+        "AUTO-018",
+        "AUTO-022",
+        "AUTO-023",
+        "AUTO-026"
+      ],
+      "reason": "#1858 binds completion advice to existing Goal Loop actions, WorkState, risk/approval and independent observations using an explicit host adapter. Atomic reservation/finalization and durable notifications do not grant permissions or establish physical acceptance."
     }
   ],
   "hash_policy": "utf8-crlf-to-lf-v1;binary-raw"
