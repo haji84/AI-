@@ -42,3 +42,9 @@ test("real API client contract uses loopback Ollama, unprivileged and bounded ou
 test("broken inference must fail and does not invent successful repair",async()=>{
  await assert.rejects(()=>modelProposal(async()=>({ok:false,status:503}),EXPECTED_BROKEN,SHA),/MODEL_INFERENCE_FAILED_HTTP_503/);
 });
+
+test("Qwen-generated patch passes real fixture regression after same-PR update",async()=>{
+ const {add}=await import("./fixtures/chat-actions-model-candidate.mjs");
+ assert.equal(add(7,5),12);
+ assert.equal(add(-2,3),1);
+});
