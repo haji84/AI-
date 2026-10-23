@@ -6321,7 +6321,7 @@
     },
     {
       "path": "src/jarvis/completion-native-activation.ts",
-      "sha256": "31bbaf3e8b363414196720a67a82cee3f2cfea6c3af4b48c8477d6a9511b5d05",
+      "sha256": "d788e1fbf76a2e92a30636b022517adf08c1c192f29665dd00acaed4db8ed6c2",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "CORE-002",

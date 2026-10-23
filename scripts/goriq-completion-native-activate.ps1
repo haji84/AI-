@@ -37,6 +37,18 @@ function Assert-CompletionProcessEdges([object[]]$tree) {
   }
  }
 }
+function Assert-CompletionProcessImages([object[]]$tree) {
+ $console='C:\Windows\System32\conhost.exe'
+ foreach($p in $tree){
+  if($p.ExecutablePath -ieq $node){continue}
+  if($p.ExecutablePath -ine $console){throw 'PROCESS_REJECTED'}
+  $parent=@($tree | Where-Object {[int]$_.ProcessId -eq [int]$p.ParentProcessId -and $_.ExecutablePath -ieq $node})
+  if($parent.Count -ne 1 -or @($tree | Where-Object {[int]$_.ParentProcessId -eq [int]$p.ProcessId}).Count){throw 'PROCESS_REJECTED'}
+  $signature=Get-AuthenticodeSignature -LiteralPath $console
+  if($signature.Status -ne 'Valid' -or $null -eq $signature.SignerCertificate -or
+   $signature.SignerCertificate.Subject -notmatch '^CN=Microsoft Windows, O=Microsoft Corporation,'){throw 'PROCESS_REJECTED'}
+ }
+}
 function Invoke-CompletionTransaction([scriptblock]$Persist,[scriptblock]$Apply,[scriptblock]$Verify,[scriptblock]$Recover) {
  [void](& $Persist)
  try{[void](& $Apply);[void](& $Verify);return @{verified=$true;restored=$false}}
@@ -100,7 +112,7 @@ function Stop-CompletionHost([string]$expectedRoot) {
  if($live.Count){
   Assert-FixedTree $live @(Get-OwnedTree $expectedRoot $false)
   Assert-CompletionProcessEdges $live
-  foreach($p in $live){if($p.ExecutablePath -ine $node -or $p.CreationDate -eq $null){throw 'PROCESS_REJECTED'}}
+  Assert-CompletionProcessImages $live
   Bind-FixedProcessTree $live
   Assert-FixedExpiry;$script:stopAttempted=$true
   Stop-OwnedTree $live
