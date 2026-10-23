@@ -5193,7 +5193,7 @@
     },
     {
       "path": "src/orchestrator/development-orchestrator.ts",
-      "sha256": "78956f9e6ec546a9e3b39279cf3f5d7b0e10c8b62e8757a06cf74661a8e6bd0f",
+      "sha256": "7734c4f46cebe55da6f341895c707afecf0b00d9e1e1422e2063341df12ecfe5",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -6332,7 +6332,7 @@
     },
     {
       "path": "src/orchestrator/development-pr-advisory.ts",
-      "sha256": "d82bc3180243796c770ec3a21261d307f8d67cb5637640c5ccb63f24e123f921",
+      "sha256": "c76f1ba290645d3cc9ea0031c3c835a052c5191fa779588f55f7b37cb01d6d1b",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "CORE-020",
