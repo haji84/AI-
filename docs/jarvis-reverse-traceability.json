@@ -4906,6 +4906,17 @@
       "reason": "Project-scoped Chat/Work routing and bounded session reuse; preserves existing reasoning authority and Human Gate boundaries"
     },
     {
+      "path": "src/orchestrator/cloud-publish-budget.ts",
+      "sha256": "e289ed5e7d4bdb0c01bca3848b0595984f90536c13d381af19a3bed47d4da8d4",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-014",
+        "CORE-015",
+        "SEC-014"
+      ],
+      "reason": "Issue #1821 draft release-cost admission primitive: fail-closed Cloudflare build reservation and operational caps, with existing release/Human Gates kept external. Mapping source presence only; durable shared CAS, real provider usage, integration, and live release acceptance remain unverified."
+    },
+    {
       "path": "src/orchestrator/cloud-runtime.ts",
       "sha256": "5cb619b14aa3ab2feaf47b17082e1ab0be14f4670d0ad924d3f4b01dd17491d5",
       "classification": "COVERED_BY_REQUIREMENT",
