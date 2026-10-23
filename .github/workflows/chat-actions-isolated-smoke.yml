@@ -13,6 +13,10 @@ on:
       - "scripts/chat-actions-real-model.mjs"
       - "tests/chat-actions-real-model.test.mjs"
       - "tests/fixtures/chat-actions-model-candidate.mjs"
+      - "scripts/chat-actions-trusted-publisher.mjs"
+      - "scripts/chat-actions-publisher-preflight.mjs"
+      - "tests/chat-actions-trusted-publisher.test.mjs"
+      - "tests/chat-actions-publisher-preflight.test.mjs"
 
 # This job is an isolated, unprivileged simulation. It never receives any secret
 # or write-enabled credential; it cannot dispatch, open PRs, merge, or deploy.
@@ -41,6 +45,8 @@ jobs:
           node-version: "24.19.0"
       - name: Run isolated negative and happy-path contract tests
         run: node --test tests/chat-actions-sandbox.test.mjs
+      - name: Test trusted exact-head publisher in dry-run/mocked-CAS mode
+        run: node --test tests/chat-actions-trusted-publisher.test.mjs tests/chat-actions-publisher-preflight.test.mjs
       - name: Run read-only contract tests against realistic GitHub responses
         run: node --test tests/chat-actions-live-pr-audit.test.mjs
       - name: Observe real GitHub PR metadata and AI09 review receipt
