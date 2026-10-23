@@ -49,3 +49,43 @@ foreach($change in @('hash','identity','descriptor')){
  if(-not $rejected){throw 'unknown-crash-state-accepted'}
 }
 Write-Output 'Completion PID reuse refusal and durable known/unknown recovery classification PASS'
+# Run the real stop controller with isolated process/service adapters. The native
+# incident was a Windows console host directly owned by the GORIQ Node host.
+foreach($name in @('Stop-CompletionHost','Assert-CompletionProcessImages')){
+ $def=$ast.Find({param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -ceq $name},$true)
+ if($null -ne $def){Invoke-Expression $def.Extent.Text}
+}
+$node='C:\Program Files\nodejs\node.exe'
+$console='C:\Windows\System32\conhost.exe'
+$script:fixtureTree=@(
+ [pscustomobject]@{ProcessId=4100;ParentProcessId=2980;CreationDate=$t;ExecutablePath=$node},
+ [pscustomobject]@{ProcessId=6796;ParentProcessId=4100;CreationDate=$t.AddMilliseconds(11);ExecutablePath=$console},
+ [pscustomobject]@{ProcessId=7508;ParentProcessId=4100;CreationDate=$t.AddSeconds(12);ExecutablePath=$node})
+$script:steps.Clear();$taskName='fixture-owned-task';$script:signatureStatus='Valid'
+function Assert-CompletionState {}
+function Get-OwnedTree { return $script:fixtureTree }
+function Assert-FixedTree {}
+function Assert-FixedExpiry {}
+function Get-AuthenticodeSignature { param($LiteralPath)
+ if($LiteralPath -ine $console){throw 'unexpected-signature-target'}
+ return [pscustomobject]@{Status=$script:signatureStatus;SignerCertificate=[pscustomobject]@{Subject='CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US'}}
+}
+function Bind-FixedProcessTree($tree) { $steps.Add('bind');if($tree.Count -ne 3){throw 'tree-filtered'} }
+function Stop-OwnedTree($tree) { if(($steps -join ',') -cne 'bind' -or $tree.Count -ne 3){throw 'unbound-stop'};$steps.Add('stop-owned') }
+function Assert-StoppedInstallation { $steps.Add('stopped') }
+Stop-CompletionHost 'fixture-root'
+if(($steps -join ',') -cne 'bind,stop-owned,stopped'){throw 'console-host-stop-order'}
+foreach($kind in @('outside-image','wrong-parent','non-leaf','older-child','invalid-signature')){
+ $saved=@($fixtureTree | ForEach-Object {$_.PSObject.Copy()});$steps.Clear()
+ switch($kind){
+  'outside-image' {$fixtureTree[1].ExecutablePath='C:\Temp\conhost.exe'}
+  'wrong-parent' {$fixtureTree[1].ParentProcessId=99}
+  'non-leaf' {$fixtureTree[2].ParentProcessId=6796}
+  'older-child' {$fixtureTree[1].CreationDate=$t.AddSeconds(-1)}
+  'invalid-signature' {$script:signatureStatus='NotSigned'}
+ }
+ $rejected=$false;try{Stop-CompletionHost 'fixture-root'}catch{$rejected=$true}
+ if(-not $rejected -or $steps.Count){throw "unsafe-tree-accepted-$kind"}
+ $script:fixtureTree=$saved;$script:signatureStatus='Valid'
+}
+Write-Output 'Real stop controller: bounded console host accepted; foreign/nonleaf/reused/unsigned trees rejected before stop PASS'
