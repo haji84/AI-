@@ -13,10 +13,10 @@ async function main() {
     execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim() !== revision) throw Error('source');
   const approval = validateCompletionActivation(JSON.parse(readFileSync('docs/authorizations/1858-native-activation.json', 'utf8')), input.recovery ? 'recovery' : 'forward');
   if (input.operation === 'source') {
-    const response = await fetch('https://api.github.com/repos/haji84/AI-/pulls/1862', { headers: { Accept: 'application/vnd.github+json' }, signal: AbortSignal.timeout(15000) });
+    const response = await fetch('https://api.github.com/repos/haji84/AI-/pulls/1863', { headers: { Accept: 'application/vnd.github+json' }, signal: AbortSignal.timeout(15000) });
     if (!response.ok) throw Error('source-unavailable');
     validateCompletionSource(await response.json(), revision!);
-    console.log(JSON.stringify({ issue: 1858, pr: 1862, sourceRevision: revision, exactMergedTask: true }));
+    console.log(JSON.stringify({ issue: 1858, pr: 1863, sourceRevision: revision, exactMergedTask: true }));
     return;
   }
   const config = input.current;

@@ -9,7 +9,7 @@ const revision = 'b'.repeat(40);
 const old = 'a49c458d69a28c0266be8fcad5b26253e5ed8d75';
 const current = { version: 1, commit: old, releaseRoot: `C:\\Users\\qq113\\JARVIS\\releases\\${old}`, environment: { TOKEN: 'fixture-existing', JARVIS_DB_PATH: 'fixture' }, extra: { preserve: true } };
 test('activation binds the reviewed Issue1858 PR merge, never an unrelated later main', () => {
-  const proof = { number: 1862, merged: true, merge_commit_sha: revision, base: { ref: 'main', repo: { full_name: 'haji84/AI-' } }, head: { ref: 'codex/1858-native-activation', repo: { full_name: 'haji84/AI-' } } };
+  const proof = { number: 1863, merged: true, merge_commit_sha: revision, base: { ref: 'main', repo: { full_name: 'haji84/AI-' } }, head: { ref: 'codex/1858-native-console-host', repo: { full_name: 'haji84/AI-' } } };
   assert.doesNotThrow(() => validateCompletionSource(proof, revision));
   for (const change of [{ number: 1861 }, { merged: false }, { merge_commit_sha: old }, { head: { ...proof.head, ref: 'other' } }, { base: { ...proof.base, ref: 'other' } }, { head: { ...proof.head, repo: { full_name: 'other/AI-' } } }]) {
     assert.throws(() => validateCompletionSource({ ...proof, ...change }, revision));
