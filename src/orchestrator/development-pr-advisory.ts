@@ -123,7 +123,7 @@ export interface ChatActionsHandoffAdvice {
   workflow: "Mobile Autonomy";
   preferredEntry: "CHAT";
   executionHost: "GITHUB_ACTIONS";
-  status: "PROPOSE_ONLY" | "OWNER_PROOF_REQUIRED" | "APPROVAL_REQUIRED" | "SECURITY_HOLD" |
+  status: "PROPOSE_ONLY" | "OWNER_PROOF_REQUIRED" | "PAUSED" | "APPROVAL_REQUIRED" | "SECURITY_HOLD" |
     "RECONCILE_PR" | "ACTIONS_UNAVAILABLE" | "CAPABILITY_UNAVAILABLE";
   codex: "NOT_SELECTED" | "EXCEPTION_CANDIDATE";
   dedupeKey: string;
@@ -161,6 +161,7 @@ export function adviseChatActionsHandoff(input: ChatActionsHandoffInput, prAdvic
   });
 
   if (!input.ownerIdentityVerifiedByTrustedHost) return result("OWNER_PROOF_REQUIRED", "trusted_owner_identity_missing");
+  if (!prAdvice.unrelatedSafeWorkMayContinue) return result("PAUSED", "existing_global_pause");
   if (prAdvice.gate === "SECURITY_HOLD") return result("SECURITY_HOLD", "existing_security_hold");
   if (prAdvice.gate === "ASSESSMENT_REQUIRED" || prAdvice.gate === "HUMAN_REQUIRED") {
     return result("APPROVAL_REQUIRED", "risk_assessment_or_human_gate_pending");
