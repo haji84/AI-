@@ -213,8 +213,8 @@ test("actionable AI09 findings are retained, not retried away as clean",async()=
 
 test("grounded AI09 prompt forbids guessed review lines and keeps the full untrusted diff",()=>{
  const original="BEGIN_UNTRUSTED_PATCH\n@@ -1 +1 @@\n-old\n+new\nEND_UNTRUSTED_PATCH";
- const out=groundedReviewPrompt(original);
- assert.ok(out.startsWith(original));
+ const out=groundedReviewPrompt("Trusted review instructions\n"+original);
+ assert.ok(out.includes(original));
  assert.ok(out.includes("exact added line"));
  assert.ok(out.includes("Never cite BEGIN_UNTRUSTED_PATCH"));
  assert.ok(out.includes("return INCONCLUSIVE"));
