@@ -260,6 +260,18 @@ function Resume-CompletionRecovery {
  Assert-CompletionRecoveryRecords $tx $liveRecords $intents
  $script:pointerRecords=@($liveRecords[3],$liveRecords[4]);$script:switched=($liveRecords[3].hash -cne $records[3].hash -or $liveRecords[4].hash -cne $records[4].hash)
  Assert-CompletionState
+ $unchanged=$true
+ for($i=0;$i -lt 5;$i++){if($liveRecords[$i].descriptor -cne $records[$i].descriptor -or $liveRecords[$i].hash -cne $records[$i].hash){$unchanged=$false}}
+ if($unchanged){
+  $healthy=$false
+  try{$tree=@(Get-OwnedTree $oldRoot);$healthy=($tree.Count -gt 0)}catch{}
+  if($healthy){
+   # Persist-before-apply interruption: prove the old host is healthy and take
+   # the existing read-only reconciliation path, without Stop/Start.
+   $script:mutated=$false;$script:stopAttempted=$false
+   Restore-Completion;$script:restored=$true;return
+  }
+ }
  # Only a positively identified old/new host may be stopped. Any orphan,
  # unknown listener or mixed generation is rejected by the existing guards.
  $hosts=@(Get-CimInstance Win32_Process -OperationTimeoutSec 15 | Where-Object {$_.Name -ieq 'node.exe' -and $_.CommandLine -and $_.CommandLine.Contains($installationRoot) -and $_.CommandLine.Contains('jarvis-remote-host.mjs')})
