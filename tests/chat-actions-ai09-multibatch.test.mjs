@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { Buffer } from "node:buffer";
+import { runOneAi09Batch } from "../scripts/chat-actions-ai09-batch-runner.mjs";
+import { aggregateIndependentBatchReceipts } from "../scripts/chat-actions-ai09-full-aggregate.mjs";
 import { planCompleteAi09Review, collectAi09Evidence, assertNoWriteAuthority }
  from "../scripts/chat-actions-ai09-multibatch.mjs";
 import { reviewLocalPatch } from "../src/orchestrator/ai09-local-reviewer.mjs";
@@ -121,4 +123,55 @@ test("full PR exceeding native 120KiB is composed ONLY from native per-batch ver
  const patch=c.files.map(f=>"diff --git a/"+f.filename+" b/"+f.filename+"\n"+f.patch).join("\n");
  assert.equal(plan.batches.map(b=>b.patch).join("\n"),patch);
  assert.ok(plan.batches.every(b=>Buffer.byteLength(b.patch,"utf8")<=120*1024));
+});
+
+function manifestFor(plan) {
+ return {
+  headSha:plan.headSha,baseSha:plan.baseSha,
+  batchCount:plan.batchCount,patchSha256:plan.patchSha256,
+  manifestSha:"f".repeat(64),
+  batches:plan.batches.map(b=>({index:b.index,patchSha256:b.patchSha256})),
+ };
+}
+test("independent batch artifacts recombine into a complete PR advisory with no merge authority",async()=>{
+ const plan=planCompleteAi09Review(comparison(15,70),SHA,HEAD,modules);
+ const manifest=manifestFor(plan);
+ const receipts=[];
+ for(let i=0;i<plan.batchCount;i++){
+  receipts.push(await runOneAi09Batch({plan,manifest,index:i,modules,infer:allow}));
+ }
+ const out=aggregateIndependentBatchReceipts({plan,manifest,receipts,modules});
+ assert.equal(out.acceptedReview,true);
+ assert.equal(out.status,"NO_ACTIONABLE_FINDINGS");
+ assert.equal(out.totalChunks,plan.totalChunks);
+ assert.equal(out.reviewedBatchCount,plan.batchCount);
+ assert.equal(out.githubApprovalSatisfied,false);
+ assert.equal(out.mergeAuthorized,false);
+});
+test("aggregator blocks stale artifact, missing batch or duplicate batch",async()=>{
+ const plan=planCompleteAi09Review(comparison(15,70),SHA,HEAD,modules);
+ const manifest=manifestFor(plan),receipts=[];
+ for(let i=0;i<plan.batchCount;i++){
+  receipts.push(await runOneAi09Batch({plan,manifest,index:i,modules,infer:allow}));
+ }
+ const missing=aggregateIndependentBatchReceipts({plan,manifest,receipts:receipts.slice(1),modules});
+ assert.equal(missing.status,"BLOCKED");
+ assert.equal(missing.acceptedReview,false);
+ assert.deepEqual(missing.missingBatchIndexes,[0]);
+ const repeated=aggregateIndependentBatchReceipts({plan,manifest,receipts:[...receipts,receipts[0]],modules});
+ assert.equal(repeated.status,"BLOCKED");
+ assert.equal(repeated.invalidReceiptCount,1);
+ const stale=aggregateIndependentBatchReceipts({plan,manifest,receipts:receipts.map((x,i)=>i?x:{...x,manifestSha:"a".repeat(64)}),modules});
+ assert.equal(stale.status,"BLOCKED");
+});
+test("AI09 invalid or truncated model response remains BLOCKED with artifact evidence",async()=>{
+ const plan=planCompleteAi09Review(comparison(15,70),SHA,HEAD,modules);
+ const manifest=manifestFor(plan);
+ const r=await runOneAi09Batch({plan,manifest,index:0,modules,infer:async()=>"{truncated"});
+ assert.equal(r.status,"BLOCKED");
+ assert.equal(r.reviewedChunks,1);
+ assert.equal(r.chunkReports[0].status,"BLOCKED");
+ const out=aggregateIndependentBatchReceipts({plan,manifest,receipts:[r],modules});
+ assert.equal(out.status,"BLOCKED");
+ assert.equal(out.acceptedReview,false);
 });
