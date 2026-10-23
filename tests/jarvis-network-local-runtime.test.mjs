@@ -95,6 +95,7 @@ test('private ingress retry exhaustion preserves the independently running local
   const run = await fixture(t, '127.0.0.1');
   await run.waitFor(output => output.includes('"service":"private-worker-ingress","state":"exhausted"'),
     'private ingress must consume its bounded retry budget');
+  await run.waitFor(output => /BROKER_PORT=\d+/.test(output), 'local Broker must start independently of ingress retries');
   const port = Number(/BROKER_PORT=(\d+)/.exec(run.output())[1]);
   await assert.doesNotReject(async () => {
     const response = await fetch('http://127.0.0.1:' + port, { signal: AbortSignal.timeout(2000) });
@@ -116,6 +117,7 @@ test('optional friend feature retry exhaustion leaves the actual core supervisor
   const run = await fixture(t, host, false, true);
   await run.waitFor(output => output.includes('"service":"friend-remote","state":"exhausted"'),
     'friend child must consume its own bounded retry budget');
+  await run.waitFor(output => /BROKER_PORT=\d+/.test(output), 'local Broker must start independently of friend retries');
   const port = Number(/BROKER_PORT=(\d+)/.exec(run.output())[1]);
   const response = await fetch('http://127.0.0.1:' + port, { signal: AbortSignal.timeout(2000) });
   assert.equal(await response.text(), 'local-work-ready');
