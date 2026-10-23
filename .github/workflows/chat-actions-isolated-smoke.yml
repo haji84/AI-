@@ -50,6 +50,8 @@ jobs:
       - name: Run read-only contract tests against realistic GitHub responses
         run: node --test tests/chat-actions-live-pr-audit.test.mjs
       - name: Observe real GitHub PR metadata and AI09 review receipt
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: node scripts/chat-actions-live-pr-audit.mjs
       - name: Run Chat-first deterministic sandbox smoke
         run: node scripts/chat-actions-sandbox.mjs
