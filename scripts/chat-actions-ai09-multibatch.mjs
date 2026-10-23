@@ -25,7 +25,19 @@ export function planCompleteAi09Review(compare, baseSha, headSha, modules) {
       typeof modules?.batches?.compareToReviewChunks !== "function")
     throw Error("INVALID_FULL_REVIEW_SCOPE");
   modules.coverage.assertCompleteComparison(compare);
-  const canonical = modules.batches.compareToPatch(compare, baseSha, headSha);
+  // The native 120 KiB limit still applies to EACH independently reviewed
+  // batch. Larger full PRs are composed only from natively validated, complete
+  // per-file patches; the aggregate itself has a separate finite 256 KiB cap.
+  const fileProofs = compare.files.map(file =>
+    modules.batches.compareToPatch(narrowCompare(compare,[file]),baseSha,headSha));
+  const combinedCanonical = fileProofs.map(p=>p.patch).join("\n");
+  if (Buffer.byteLength(combinedCanonical,"utf8") > 256*1024)
+    throw Error("REVIEW_AGGREGATE_BUDGET_EXHAUSTED");
+  const canonical = {
+    paths: fileProofs.flatMap(p=>p.paths),
+    patch: combinedCanonical,
+    patchSha256:DIGEST(combinedCanonical),
+  };
   const batches = [];
   let pending = [];
   let candidate = null;
