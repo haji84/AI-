@@ -9,13 +9,13 @@ import { reviewLocalPatch } from "../src/orchestrator/ai09-local-reviewer.mjs";
 import { compareToPatch, compareToReviewChunks, consolidateChunkReviews }
  from "../src/orchestrator/ai09-pr-review-automation.mjs";
 import { assertCompleteComparison } from "../scripts/goriq-ai09-compare-coverage.mjs";
-import { holdUngroundedAdvisory } from "../scripts/goriq-ai09-finding-anchors.mjs";
+import { holdUngroundedAdvisory, anchorAudit } from "../scripts/goriq-ai09-finding-anchors.mjs";
 
 const SHA="a".repeat(40), HEAD="b".repeat(40);
 const modules={
  reviewer:{reviewLocalPatch},
  batches:{compareToPatch,compareToReviewChunks,consolidateChunkReviews},
- coverage:{assertCompleteComparison},anchor:{holdUngroundedAdvisory},
+ coverage:{assertCompleteComparison},anchor:{holdUngroundedAdvisory,anchorAudit},
 };
 function comparison(fileCount=15,linesPerFile=70) {
  const files=Array.from({length:fileCount},(_,i)=>{
