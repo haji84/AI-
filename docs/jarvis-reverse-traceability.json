@@ -5042,14 +5042,14 @@
     },
     {
       "path": "src/orchestrator/compass-work-state-store.ts",
-      "sha256": "1aee990907e0c50b4317cddaf6f009d3fb8818c58077a2dff17c1ffed5e7c129",
+      "sha256": "1c19793cc0332e5d0eac835dc2a41f7552880b3f771650bcde19de73950266a5",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-002",
         "AUTO-004",
         "AUTO-026"
       ],
-      "reason": "Declared compass-work-state-store.ts responsibility implements/supports Goal persistence; Current State persistence; Verified completion only. Parent ownership is not functional or physical acceptance evidence."
+      "reason": "Declared compass-work-state-store.ts responsibility implements/supports Goal persistence; Current State persistence; Verified completion only. Parent ownership is not functional or physical acceptance evidence. #1858 adds explicit read-only completion advice or its durable journal; existing execution and approval authority is unchanged. This is not production or physical acceptance evidence."
     },
     {
       "path": "src/orchestrator/context-adapters.ts",
@@ -5193,7 +5193,7 @@
     },
     {
       "path": "src/orchestrator/development-orchestrator.ts",
-      "sha256": "e798312c8826795d020895e6cf04ae362f1cc2be7de6ec1c2f08886bef68bf6b",
+      "sha256": "bcb5a8b6e419129d2b3e461ebd0a1e6ce3e5c8467d01f7e3b156d0519729d343",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -5202,7 +5202,7 @@
         "AUTO-017",
         "AUTO-018"
       ],
-      "reason": "#681 TDD-first development planning, dependency decomposition, recovery strategy variation, and no release authority. #1845 fresh resource admission/bounded durable wait integration; preserves existing ownership and gates, no functional or physical acceptance claim."
+      "reason": "#681 TDD-first development planning, dependency decomposition, recovery strategy variation, and no release authority. #1845 fresh resource admission/bounded durable wait integration; preserves existing ownership and gates, no functional or physical acceptance claim. #1858 adds explicit read-only completion advice or its durable journal; existing execution and approval authority is unchanged. This is not production or physical acceptance evidence."
     },
     {
       "path": "src/orchestrator/development-release-gate.ts",
@@ -5397,7 +5397,7 @@
     },
     {
       "path": "src/orchestrator/goal-controller-runtime.ts",
-      "sha256": "dc3b9cc0ce6fe462a5900ccd5378610f81ebe385131a6c8475cfb3bb72cff8b6",
+      "sha256": "8e165a2bedac0622a0d82179f61a0b3e2c2eeb1038db278e9f38641d32782733",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-002",
@@ -5405,7 +5405,7 @@
         "AUTO-004",
         "OWN-001"
       ],
-      "reason": "Declared goal-controller-runtime.ts responsibility implements/supports Goal Completion Engine. Parent ownership is not functional or physical acceptance evidence. #1219 binds bounded owner-supplied Goal success criteria through Unified Intake; parent requirements remain PARTIAL pending real E2E."
+      "reason": "Declared goal-controller-runtime.ts responsibility implements/supports Goal Completion Engine. Parent ownership is not functional or physical acceptance evidence. #1219 binds bounded owner-supplied Goal success criteria through Unified Intake; parent requirements remain PARTIAL pending real E2E. #1858 adds explicit read-only completion advice or its durable journal; existing execution and approval authority is unchanged. This is not production or physical acceptance evidence."
     },
     {
       "path": "src/orchestrator/goal-decision-store.ts",
@@ -6263,6 +6263,31 @@
         "AUTO-004"
       ],
       "reason": "#1845 Typed bounded resource-wait checkpoint and evidence parsing; preserves state without treating pressure as test success."
+    },
+    {
+      "path": "docs/architecture/goriq-completion-path-activation.md",
+      "sha256": "1c5851d7188ec2ab3c5e4dac45428937420917774f03509065cd2f7b4928c5fa",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "CORE-002",
+        "AUTO-009",
+        "AUTO-022"
+      ],
+      "reason": "#1858 records an unapproved next-stage integration proposal and Human Gate scope. It does not activate execution, change authority, or establish functional or physical acceptance."
+    },
+    {
+      "path": "src/orchestrator/completion-path.ts",
+      "sha256": "468317a08bd7454ccbf7a2c3711637d36273cb7d455a1f0cf2e6579ce945db7c",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-002",
+        "AUTO-005",
+        "AUTO-009",
+        "AUTO-018",
+        "AUTO-022",
+        "AUTO-026"
+      ],
+      "reason": "#1858 adds pure completion-path advice: evidence-bound gaps, dependency-aware candidate ranking, prepared human-action notifications, and progress/recovery assessment. Existing Goal, risk, and recovery policies are reused; no dispatch or approval grant is added. Parent mapping is not functional or physical acceptance evidence."
     }
   ],
   "hash_policy": "utf8-crlf-to-lf-v1;binary-raw"

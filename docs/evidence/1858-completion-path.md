@@ -44,6 +44,8 @@ node scripts/goriq-completion-inspect.ts docs/evidence/1858-remote-lite-snapshot
 
 独立再レビュー: 新規18/18 PASS、別途canonical blockerがある場合の永続/読取同値・replay成功、P1/P2残件なし。`tsc --noEmit` と差分検査成功。ローカル新規worktreeのpnpm展開ではESLint依存の `clear-caches` 欠落を検出したため、そのローカルlint実行は失敗として保持。同一バージョンの既存Remote Lite worktreeのESLint9.39.5/configを明示指定した変更ソースlintは成功。クリーンな通常CIのlint/build/全体テストを別途確認する。
 
+初回CI [39906552731](https://github.com/haji84/AI-/actions/runs/39906552731): repository-guard、Windows fixtures、lintは成功。全体テストは2,639件中2,626 PASS / 8 FAIL / 5 SKIP。8件の原因は、変更3ファイルの指紋と追加2ファイルが逆引き仕様対応台帳に未反映だったこと。正式要件・合否基準・テストを変えず、この5行だけを対応付け直した。ローカルで同じ失敗を再現後、監査と新規機能の36件が全件成功した。後続のセキュリティ検査/buildと、修正後の全体CIは別の結果として確認する。
+
 以下はテスト内の**合成FIFO比較モデル**。旧GORIQの実運用速度を測定した値ではない。
 
 |指標|入力順に確認する比較モデル|助言を使った合成シナリオ|
