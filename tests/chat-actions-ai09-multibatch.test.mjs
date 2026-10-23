@@ -169,9 +169,43 @@ test("AI09 invalid or truncated model response remains BLOCKED with artifact evi
  const manifest=manifestFor(plan);
  const r=await runOneAi09Batch({plan,manifest,index:0,modules,infer:async()=>"{truncated"});
  assert.equal(r.status,"BLOCKED");
- assert.equal(r.reviewedChunks,1);
- assert.equal(r.chunkReports[0].status,"BLOCKED");
+ assert.equal(r.reviewedChunks,plan.batches[0].chunkCount);
+ assert.ok(r.chunkReports.every(chunk=>chunk.status==="BLOCKED"));
+ assert.ok(r.diagnostic.every(x=>x.retried===true));
  const out=aggregateIndependentBatchReceipts({plan,manifest,receipts:[r],modules});
  assert.equal(out.status,"BLOCKED");
  assert.equal(out.acceptedReview,false);
+});
+
+test("single transient inference error gets exactly one retry then a real reviewer verdict",async()=>{
+ const plan=planCompleteAi09Review(comparison(1,4),SHA,HEAD,modules);
+ const manifest=manifestFor(plan);
+ let count=0;
+ const report=await runOneAi09Batch({plan,manifest,index:0,modules,infer:async()=>{
+  count++;
+  if(count===1)throw Error("one temporary local inference outage");
+  return JSON.stringify({verdict:"NO_FINDINGS",findings:[]});
+ }});
+ assert.equal(report.status,"NO_ACTIONABLE_FINDINGS");
+ assert.equal(count,2);
+ assert.equal(report.diagnostic[0].firstStatus,"BLOCKED");
+ assert.equal(report.diagnostic[0].retried,true);
+ assert.equal(report.githubApprovalSatisfied,false);
+});
+test("actionable AI09 findings are retained, not retried away as clean",async()=>{
+ const plan=planCompleteAi09Review(comparison(1,4),SHA,HEAD,modules);
+ const manifest=manifestFor(plan);
+ let count=0;
+ const report=await runOneAi09Batch({plan,manifest,index:0,modules,infer:async()=>{
+  count++;
+  return JSON.stringify({verdict:"CHANGES_REQUESTED",findings:[{
+   path:plan.batches[0].paths[0],line:123,severity:"high",
+   summary:"Unverified security concern",evidence:"No quoted addition",
+   proposedFix:"Investigate actual source" }]});
+ }});
+ assert.equal(count,1);
+ assert.equal(report.status,"INCONCLUSIVE");
+ assert.equal(report.diagnostic[0].firstStatus,"CHANGES_REQUESTED");
+ assert.equal(report.diagnostic[0].anchor.complete,false);
+ assert.equal(report.chunkReports[0].findings.length,1);
 });
