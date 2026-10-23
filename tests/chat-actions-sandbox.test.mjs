@@ -11,6 +11,8 @@ test("synthetic Chat command runs deterministic non-Codex RED -> GREEN in an iso
   assert.equal(r.records.some(x=>x.result==="RED_FAILED_AS_EXPECTED"),true);
   assert.equal(r.records.some(x=>x.result==="GREEN_VERIFIED"),true);
   assert.equal(r.records.some(x=>x.result==="SAME_SIMULATED_PR_BRANCH"),true);
+  assert.equal(r.records.some(x=>x.result==="TWO_REAL_LOCAL_GIT_COMMITS_IN_SAME_EPHEMERAL_BRANCH"),true);
+  assert.equal(r.isolatedGitCommits,2);
   assert.equal(r.nextAction, "NEXT_SAFE_SANDBOX_TASK");
   assert.equal(r.actualGitHubMutation, false);
   assert.equal(r.realAi09Reviewed, false);
