@@ -17,6 +17,8 @@ on:
       - "scripts/chat-actions-publisher-preflight.mjs"
       - "tests/chat-actions-trusted-publisher.test.mjs"
       - "tests/chat-actions-publisher-preflight.test.mjs"
+      - "scripts/chat-actions-ai09-chunk-retry.mjs"
+      - "tests/chat-actions-ai09-chunk-retry.test.mjs"
 
 # This job is an isolated, unprivileged simulation. It never receives any secret
 # or write-enabled credential; it cannot dispatch, open PRs, merge, or deploy.
@@ -171,12 +173,15 @@ jobs:
             -o "$RUNNER_TEMP/ollama-ai09.tar.zst"
           echo "cf95886728959aa09910bb34de5cca1cc5a8f68003b5597197d3f2c2d57c0804  $RUNNER_TEMP/ollama-ai09.tar.zst" | sha256sum -c -
           sudo tar --zstd -xf "$RUNNER_TEMP/ollama-ai09.tar.zst" -C /usr
-      - name: Independently re-review real candidate patch with existing AI09 implementation
+      - name: Re-review all changed bytes with trusted bounded AI09 chunks
         shell: bash
         working-directory: candidate
-        timeout-minutes: 17
+        timeout-minutes: 20
         env:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GITHUB_TOKEN: ${{ github.token }}
+          GORIQ_AI09_TRUSTED_ROOT: ../trusted
+          GORIQ_AI09_REPORT_FILE: ${{ runner.temp }}/ai09-targeted-review.json
         run: |
           set -euo pipefail
           OLLAMA_HOST=127.0.0.1:11434 ollama serve > "$RUNNER_TEMP/ollama-ai09.log" 2>&1 &
@@ -187,12 +192,10 @@ jobs:
           done
           test "$ready" = "1"
           timeout 480s ollama pull qwen2.5-coder:3b
-          # The trusted script performs exact-head Git ancestor/diff checks and never writes.
-          node ../trusted/scripts/goriq-ai09-review.mjs \
-            --base f81b7eb4f6025f05d6368a029aeca62bc86b876a \
-            --head "$HEAD_SHA" --maker FixtureBuilder \
-            | tee "$RUNNER_TEMP/ai09-targeted-review.json"
-          echo "Real AI09 scoped review completed. AI_ASSERTED never equals GitHub APPROVED." >> "$GITHUB_STEP_SUMMARY"
+          # Every chunk is reviewed with pinned main-only AI09 code.
+          # Incomplete or invalid AI inference must remain BLOCKED.
+          node scripts/chat-actions-ai09-chunk-retry.mjs
+          echo "Full bounded AI09 review reported from trusted library; no GitHub approval." >> "$GITHUB_STEP_SUMMARY"
       - name: Store read-only actual AI09 result
         if: always()
         uses: actions/upload-artifact@v4
