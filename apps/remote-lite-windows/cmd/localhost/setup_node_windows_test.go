@@ -92,7 +92,15 @@ func TestWindowsEnrollmentActualNodeAndOptionalBrowser(t *testing.T) {
 		if err := browser.Start(); err != nil {
 			t.Fatal(err)
 		}
-		t.Cleanup(func() { _ = browserInput.Close(); _ = browser.Wait() })
+		t.Cleanup(func() {
+			_ = browserInput.Close()
+			_ = browser.Wait()
+			for _, line := range strings.Split(browserErrors.String(), "\n") {
+				if line == "Setup bootstrap recoveries: 0" || line == "Setup bootstrap recoveries: 1" {
+					t.Log(line)
+				}
+			}
+		})
 		if err := json.NewEncoder(browserInput).Encode(map[string]string{"invitation": invitation}); err != nil {
 			t.Fatal(err)
 		}

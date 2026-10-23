@@ -33,7 +33,11 @@ try {
   await openWindowsFixtureTab(webdriver, session);
   const run=(script,...args)=>webdriver('POST',`/session/${session}/execute/sync`,{script,args});
   const until=async script=>{for(let i=0;i<80;i++){if(await run(script))return;await pause(100)}throw new Error('Setup UI condition not reached')};
-  await navigateWindowsFixture(webdriver, session, setupUrl);
+  // CI39877679596: the first fixed GET was canceled while the inert bootstrap
+  // remained complete, before any response. Reuse only that evidenced one-shot
+  // recovery; enrollment clicks and the later reopen never retry.
+  const navigation = await navigateWindowsFixture(webdriver, session, setupUrl, { recoverBootstrap: true });
+  process.stderr.write(`Setup bootstrap recoveries: ${navigation.recoveries}\n`);
   await until('return document.querySelector("#state")?.textContent==="未登録"');
   if (await run('return location.hash!=="" || localStorage.length!==0 || sessionStorage.length!==0')) throw new Error('Setup capability remained in URL or storage');
   await run('document.querySelector("#invite").value=arguments[0];document.querySelector("#preview").click();return true',invitation);

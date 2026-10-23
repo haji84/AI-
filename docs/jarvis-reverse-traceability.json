@@ -585,10 +585,10 @@
     },
     {
       "path": "docs/architecture/goriq-remote-lite-manual.md",
-      "sha256": "62ec61eadfc65a40f1e35018664546429ec2bd5753bfa3b65d2081754feef3ff",
+      "sha256": "786ebc8b04da2c85f5359a552c1743c27c7d649236a4caf347dbb00f6e2f5d39",
       "classification": "EXCLUDED",
       "requirement_ids": [],
-      "reason": "Separate friend-distributable manual Remote Lite product, not an existing JARVIS canonical capability; no parent product completion inference",
+      "reason": "Issue1831 manual friend-access boundary and 2026-10-23 owner-hosted delivery amendment. Reuses the owner GORIQ runtime without sharing core AI/admin/Broker authority; separate Issue1831 acceptance does not establish canonical JARVIS completion.",
       "exclusion_ref": "https://github.com/haji84/AI-/issues/1831"
     },
     {
@@ -1080,6 +1080,16 @@
       "reason": "Fixed enrollment portal"
     },
     {
+      "path": "scripts/jarvis-friend-remote.mjs",
+      "sha256": "bb32d8d36c43755221266280268d22658f26bca8639184bd704926d7e868492c",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "HOST-003",
+        "HOST-004"
+      ],
+      "reason": "Issue1831 optional child supervision: fixed HTTPS entry, OS-only environment, bounded retries without core shutdown, graceful IPC and owned-child SIGKILL fallback. Implements lifecycle integration only; friend authorization/public transport and physical acceptance remain separately governed by Issue1831."
+    },
+    {
       "path": "scripts/jarvis-goal-executor.ts",
       "sha256": "e374f9f6fbe4e4b84e7474c764f3717c67369e45cb10d0f1b70d6e07bcb1490b",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
@@ -1166,7 +1176,7 @@
     },
     {
       "path": "scripts/jarvis-managed-process.mjs",
-      "sha256": "4ac80f4f258460970bb7bfcf8442c2fa9f610dadf629ff8bba566111ed97c333",
+      "sha256": "b708b5e4eef0d33b3c0e0507a5dc2dba808adf7d9f100b4421c762dfdd9c7426",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "HOST-001",
@@ -1174,7 +1184,7 @@
         "HOST-004",
         "HOST-005"
       ],
-      "reason": "Existing HOST/OPS parent scope; #1662/#1219 bounded private ingress isolation and configured-address recovery. CI behavior evidence is separate from pending native cross-subnet mobility/offline/failover acceptance."
+      "reason": "Existing HOST/OPS bounded supervision and private-ingress isolation retained. Issue1831 adds an optional owned-child stop callback for graceful Windows IPC; existing core callers retain SIGTERM and exhaustion policy. No physical recovery acceptance inferred."
     },
     {
       "path": "scripts/jarvis-owner-spec-sync.d.mts",
@@ -1307,7 +1317,7 @@
     },
     {
       "path": "scripts/jarvis-remote-host.mjs",
-      "sha256": "adeff38e18b779d850acf0e5e84b721ff48c373690cabbbeabbe6ce4dde342ef",
+      "sha256": "ff7eae13b4197a5de785ed6e0f458dd5f79c613e4042368cc5d460e5b94500bf",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "HOST-001",
@@ -1317,7 +1327,7 @@
         "HOST-007",
         "OPS-010"
       ],
-      "reason": "Existing HOST/OPS parent scope; #1662/#1219 bounded private ingress isolation and configured-address recovery. CI behavior evidence is separate from pending native cross-subnet mobility/offline/failover acceptance."
+      "reason": "Existing HOST/OPS startup, private-ingress isolation and core exhaustion policy retained. Issue1831 adds a default-off friend portal child to existing shutdown ownership, without core credential/permission changes or deployment. No unattended physical acceptance inferred."
     },
     {
       "path": "scripts/jarvis-remote-preflight.mjs",

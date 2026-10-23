@@ -48,6 +48,21 @@ test('repeated cancellation exhausts one recovery without a third navigation', a
   assert.equal(f.state.navigations, 2);
 });
 
+test('setup fragment permits only pre-response bootstrap recovery and is never logged', async () => {
+  const destination = 'http://127.0.0.1:43001/#token=' + 'f'.repeat(64);
+  const f = fixture({ destination });
+  assert.deepEqual(await navigateWindowsFixture(f.webdriver, 'test', destination, { recoverBootstrap: true }), { recoveries: 1 });
+  assert.equal(f.state.navigations, 2);
+  for (const change of [{ response: 200 }, { target: true }, { failures: 2 }]) {
+    const denied = fixture({ destination, ...change });
+    await assert.rejects(navigateWindowsFixture(denied.webdriver, 'test', destination, { recoverBootstrap: true }), error => {
+      assert.equal(error.message.includes('f'.repeat(64)), false);
+      return /ERR_ABORTED/u.test(error.message);
+    });
+    assert.equal(denied.state.navigations, change.failures ? 2 : 1);
+  }
+});
+
 for (const [name, overrides] of Object.entries({
   'successful HTTP response': { response: 200 },
   'HTTP denial': { response: 403 },
