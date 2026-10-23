@@ -6339,6 +6339,16 @@
         "GOV-005"
       ],
       "reason": "#1865 read-only PR reuse and existing risk/AI09 review intake advisory. This mapping is source traceability only: no new merge/approval authority, GitHub runtime integration, or physical acceptance."
+    },
+    {
+      "path": "docs/architecture/chat-first-actions-autonomy.md",
+      "sha256": "6396dad5f64351b4d8dff79f74dfd78a30dd4445f8fd36d768e66f40f0579cd0",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "CORE-014",
+        "GOV-005"
+      ],
+      "reason": "#1865 Chat-first GitHub Actions and Codex-exception architecture proposal. Documentation only; no production dispatch, permission or merge authority, and no live acceptance evidence."
     }
   ],
   "hash_policy": "utf8-crlf-to-lf-v1;binary-raw"
