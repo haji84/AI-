@@ -1,0 +1,112 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { Buffer } from "node:buffer";
+import { planCompleteAi09Review, collectAi09Evidence, assertNoWriteAuthority }
+ from "../scripts/chat-actions-ai09-multibatch.mjs";
+import { reviewLocalPatch } from "../src/orchestrator/ai09-local-reviewer.mjs";
+import { compareToPatch, compareToReviewChunks, consolidateChunkReviews }
+ from "../src/orchestrator/ai09-pr-review-automation.mjs";
+import { assertCompleteComparison } from "../scripts/goriq-ai09-compare-coverage.mjs";
+import { holdUngroundedAdvisory } from "../scripts/goriq-ai09-finding-anchors.mjs";
+
+const SHA="a".repeat(40), HEAD="b".repeat(40);
+const modules={
+ reviewer:{reviewLocalPatch},
+ batches:{compareToPatch,compareToReviewChunks,consolidateChunkReviews},
+ coverage:{assertCompleteComparison},anchor:{holdUngroundedAdvisory},
+};
+function comparison(fileCount=15,linesPerFile=70) {
+ const files=Array.from({length:fileCount},(_,i)=>{
+  const adds=Array.from({length:linesPerFile},(_,j)=>"+fixture_"+i+"_"+j+" = "+"x".repeat(57));
+  return {
+   filename:"src/sample/part-"+String(i).padStart(2,"0")+".ts",
+   status:"modified",additions:linesPerFile,deletions:1,
+   patch:"@@ -1 +1,"+linesPerFile+" @@\n-old_"+i+"\n"+adds.join("\n"),
+  };
+ });
+ return {status:"ahead",ahead_by:1,total_commits:1,files};
+}
+const allow=async()=>JSON.stringify({verdict:"NO_FINDINGS",findings:[]});
+async function fillReports(plan) {
+ return Promise.all(plan.batches.map(async b=>{
+  const chunkReports=[];
+  for(const chunk of b.chunks){
+   chunkReports.push(await reviewLocalPatch({
+    baseSha:SHA,headSha:HEAD,makerRole:"Builder",
+    paths:chunk.paths,patch:chunk.patch,infer:allow,
+   }));
+  }
+  return {index:b.index,patchSha256:b.patchSha256,chunkReports};
+ }));
+}
+test("native single review rejects >24 chunks while lossless partition accepts all files",()=>{
+ const c=comparison();
+ assert.throws(()=>compareToReviewChunks(c,SHA,HEAD),/review_chunk_budget_exhausted/);
+ const plan=planCompleteAi09Review(c,SHA,HEAD,modules);
+ assert.ok(plan.totalChunks>24);
+ assert.ok(plan.batchCount>=2);
+ assert.deepEqual(plan.paths,c.files.map(f=>f.filename));
+ assert.equal(plan.batches.flatMap(b=>b.paths).length,c.files.length);
+ assert.ok(plan.batches.every(b=>b.chunks.length<=24));
+ assert.ok(plan.batches.flatMap(b=>b.chunks).every(c=>Buffer.byteLength(c.patch,"utf8")<=4096));
+ assert.equal(plan.batches.map(b=>b.patch).join("\n"),compareToPatch(c,SHA,HEAD).patch);
+ assert.equal(plan.githubApprovalSatisfied,false);
+ assert.equal(plan.mergeAuthorized,false);
+});
+test("all separately reviewed batches can be recomposed with exact native hashes, still without merge authority",async()=>{
+ const plan=planCompleteAi09Review(comparison(),SHA,HEAD,modules);
+ const reports=await fillReports(plan);
+ const result=collectAi09Evidence(plan,reports,modules);
+ assert.equal(result.status,"NO_ACTIONABLE_FINDINGS");
+ assert.equal(result.receivedBatches,result.requiredBatches);
+ assert.equal(result.observations.every(r=>r.chunkReceipts===r.expectedChunks),true);
+ assertNoWriteAuthority(result);
+});
+test("partial batch evidence is blocked, never a silent clean review",async()=>{
+ const plan=planCompleteAi09Review(comparison(),SHA,HEAD,modules);
+ const reports=await fillReports(plan);
+ const r=collectAi09Evidence(plan,reports.slice(0,-1),modules);
+ assert.equal(r.status,"BLOCKED");
+ assert.equal(r.githubApprovalSatisfied,false);
+});
+test("one missing AI09 chunk inside a batch blocks even when other batches pass",async()=>{
+ const plan=planCompleteAi09Review(comparison(),SHA,HEAD,modules);
+ const reports=await fillReports(plan);
+ reports[0].chunkReports.pop();
+ const r=collectAi09Evidence(plan,reports,modules);
+ assert.equal(r.status,"BLOCKED");
+});
+test("duplicate or stale batch records cannot promote a passing review",async()=>{
+ const plan=planCompleteAi09Review(comparison(),SHA,HEAD,modules);
+ const reports=await fillReports(plan);
+ assert.equal(collectAi09Evidence(plan,[...reports,reports[0]],modules).status,"BLOCKED");
+ assert.equal(collectAi09Evidence(plan,reports.map((r,i)=>i===0?{...r,patchSha256:"c".repeat(64)}:r),modules).status,"BLOCKED");
+});
+test("earlier model findings remain visible after a later batch is blocked",async()=>{
+ const plan=planCompleteAi09Review(comparison(),SHA,HEAD,modules);
+ const reports=await fillReports(plan);
+ const first=reports[0].chunkReports[0];
+ first.status="CHANGES_REQUESTED";
+ first.findings=[{id:"AI09-1",path:plan.batches[0].chunks[0].paths[0],
+  severity:"medium",line:1,summary:"Potential arithmetic regression",
+  evidence:"fixture_0_0",proposedFix:"Verify actual test behavior"}];
+ first.blockers=["model_findings_require_action"];
+ reports[reports.length-1].chunkReports.pop();
+ const r=collectAi09Evidence(plan,reports,modules);
+ assert.equal(r.status,"BLOCKED");
+ assert.equal(r.unresolvedFindings.length,1);
+ assert.equal(r.unresolvedFindings[0].evidenceClass,"AI_ASSERTED_UNVERIFIED");
+});
+test("unreviewable oversized hunk line and incomplete GitHub statistics still fail closed",()=>{
+ const c=comparison(1,4);
+ c.files[0].patch+="\n+"+"z".repeat(4400);
+ c.files[0].additions++;
+ assert.throws(()=>planCompleteAi09Review(c,SHA,HEAD,modules),/unreviewable_oversized_line/);
+ const d=comparison(1,4);
+ d.files[0].additions++;
+ assert.throws(()=>planCompleteAi09Review(d,SHA,HEAD,modules),/incomplete_github_patch/);
+});
+test("an invalid plan or claimed model merge power is rejected",()=>{
+ assert.throws(()=>planCompleteAi09Review(comparison(1),SHA,"not_sha",modules),/INVALID_FULL_REVIEW_SCOPE/);
+ assert.throws(()=>assertNoWriteAuthority({mergeAuthorized:true,githubApprovalSatisfied:false}),/AI09_MUST_NOT_GRANT_AUTHORITY/);
+});
