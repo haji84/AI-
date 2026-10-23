@@ -34,10 +34,12 @@ export async function runOneAi09Batch({plan,manifest,index,modules,infer}) {
       infer: prompt => infer(groundedReviewPrompt(prompt)),
     });
     const firstStatus=r.status;
+    let retried=false;
     // One bounded retry only for inference/JSON transport failure. Never retry
     // to overwrite an AI09 CHANGES_REQUESTED finding or force a clean result.
     if(r.status==="BLOCKED" &&
        r.blockers?.includes("local_model_unavailable_or_invalid_response")){
+      retried=true;
       r=await modules.reviewer.reviewLocalPatch({
         baseSha:plan.baseSha,headSha:plan.headSha,
         makerRole:"FixtureBuilder",paths:chunk.paths,patch:chunk.patch,
@@ -55,13 +57,13 @@ export async function runOneAi09Batch({plan,manifest,index,modules,infer}) {
       index:diagnostic.length,status:r.status,
       findingCount:claims.length,anchor,
       patchSha256:r.scope?.patchSha256??null,
-      firstStatus,retried:firstStatus==="BLOCKED",
+      firstStatus,retried,
     });
     process.stdout.write("AI09_BATCH_CHUNK="+JSON.stringify({
       batch:index,index:diagnostic.length-1,
       total:batch.chunkCount,status:r.status,
       modelClaims:claims.length,allClaimsAnchored:anchor?.complete??null,
-      retried:firstStatus==="BLOCKED",
+      retried,
     })+"\n");
     // Preserve evidence from later chunks even when an earlier model call
     // fails. Native consolidation remains BLOCKED if any chunk is blocked.
