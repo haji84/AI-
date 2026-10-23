@@ -4,6 +4,7 @@ import { readFileSync, writeFileSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { trustedPlan } from "./chat-actions-ai09-full-plan.mjs";
 import { collectAi09Evidence } from "./chat-actions-ai09-multibatch.mjs";
+import { independentlyAuditAi09Claims } from "./chat-actions-ai09-independent-triage.mjs";
 import { loadTrustedReviewModules,
   PILOT_REVIEW_REPO } from "./chat-actions-ai09-chunk-retry.mjs";
 
@@ -33,7 +34,16 @@ export function aggregateIndependentBatchReceipts({plan,manifest,receipts,module
     ready.push({index:x.index,patchSha256:x.patchSha256,chunkReports:x.chunkReports});
   }
   const composite=collectAi09Evidence(plan,ready,modules);
-  const status=malformed ? "BLOCKED" : composite.status;
+  // Recompute code-line evidence with a different, deterministic verifier.
+  // Never trust the model's original "impact" or producer-authored diagnostics.
+  const independentTriage=independentlyAuditAi09Claims({
+    plan,receipts,anchorModule:modules.anchor,
+  });
+  const triageBlocked=independentTriage.status==="BLOCKED";
+  const independentImpactUnverified=independentTriage.claims.length>0;
+  const status=malformed || triageBlocked ? "BLOCKED" :
+    composite.status==="NO_ACTIONABLE_FINDINGS" && independentImpactUnverified
+      ? "INCONCLUSIVE" : composite.status;
   const missing=plan.batches.filter(b=>!seen.has(b.index)).map(b=>b.index);
   const {unresolvedFindings,observations,...rest}=composite;
   const summary={
@@ -41,11 +51,13 @@ export function aggregateIndependentBatchReceipts({plan,manifest,receipts,module
     baseSha:plan.baseSha,reviewedBatchCount:ready.length,
     expectedBatchCount:plan.batchCount,missingBatchIndexes:missing,
     invalidReceiptCount:malformed,observations,
+    independentTriage,
     // Earlier AI09 model findings persist even if a later batch is blocked.
     // They remain AI_ASSERTED, not automatically confirmed vulnerabilities.
     unresolvedFindings,
     acceptedReview:status==="NO_ACTIONABLE_FINDINGS" && missing.length===0 &&
-      malformed===0 && composite.receivedBatches===plan.batchCount,
+      malformed===0 && !triageBlocked && !independentImpactUnverified &&
+      composite.receivedBatches===plan.batchCount,
     evidenceClass:"AI_ASSERTED",
     githubApprovalSatisfied:false,mergeAuthorized:false,
   };
@@ -87,6 +99,8 @@ if(process.argv[1]?.endsWith("/chat-actions-ai09-full-aggregate.mjs")){
     requiredBatches:result.expectedBatchCount,gotBatches:result.reviewedBatchCount,
     missing:result.missingBatchIndexes,invalid:result.invalidReceiptCount,
     totalChunks:result.totalChunks,modelFindings:result.unresolvedFindings.length,
+    independentlyGrounded:result.independentTriage.groundedClaims,
+    pendingIndependentVerification:result.independentTriage.pendingIndependentVerification,
     headSha:result.headSha,patchSha256:result.patchSha256,
     githubApprovalSatisfied:false,mergeAuthorized:false,
   })+"\n");
