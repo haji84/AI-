@@ -155,7 +155,7 @@ export class CompletionExecution {
     if (!checkpoint?.pending || checkpoint.pending.cycleId !== this.selected.cycle.cycleId) throw Error('completion outcome lacks its execution checkpoint');
     const observed = await this.source.observe(structuredClone(record));
     if (!record.verification?.ok && observed.some(e => e.verified)) throw Error('failed verifier cannot supply passing completion evidence');
-    const succeeded = record.result.ok && record.verification?.ok === true;
+    const succeeded = record.result.ok && record.verification?.ok === true && !observed.some(e => !e.verified);
     const next = { ...checkpoint, pending: null, evidence: observations([...checkpoint.evidence, ...observed]),
       completedTasks: succeeded ? [...new Set([...checkpoint.completedTasks, this.selected.candidate.workItem.id])] : checkpoint.completedTasks };
     const snapshot = normalize(await this.source.inspect(structuredClone(state)));
