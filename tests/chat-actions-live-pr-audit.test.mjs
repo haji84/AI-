@@ -78,3 +78,11 @@ test("unlinked PR is observed but not misreported as a reuse candidate",async()=
  assert.equal(r.prReuseCandidate,false);
  assert.equal(r.linkedIssue,null);
 });
+
+test("read-only GitHub API can use scoped GITHUB_TOKEN without write requests",async()=>{
+ const f=fakeFetch();
+ const r=await auditRealPr({event,repository:repo,fetchImpl:f.fetchImpl,token:"read-only-test-token"});
+ assert.equal(r.realGithubPrObserved,true);
+ assert.equal(f.seen.length,2);
+ assert.ok(f.seen.every(x=>x.options.method==="GET" && x.options.headers.Authorization==="Bearer read-only-test-token"));
+});
