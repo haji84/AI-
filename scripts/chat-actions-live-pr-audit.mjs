@@ -59,6 +59,11 @@ export async function auditRealPr({event, repository, fetchImpl = fetch}) {
     ai09Status = status ? status[1] : "INVALID_RECEIPT_STATUS";
   }
   if (incomplete) ai09Status = "INCOMPLETE_COMMENT_INVENTORY";
+  const linkedIssue = typeof pr.body === "string"
+    ? Number(pr.body.match(/\bRefs\s+#(\d+)\b/i)?.[1] || 0) : 0;
+  // This is only a tentative same-issue reuse indication. Full PR inventory,
+  // complete cross-PR deduplication and write locking remain separately required.
+  const prReuseCandidate = linkedIssue > 0;
   return {
     evidenceClass:"MACHINE_OBSERVED_PUBLIC_GITHUB",
     workflowMode:"READ_ONLY",
@@ -66,7 +71,8 @@ export async function auditRealPr({event, repository, fetchImpl = fetch}) {
     repository, prNumber:expected.prNumber,
     headSha:expected.headSha, baseSha:expected.baseSha,
     branch:pr.head.ref,
-    prReuseCandidate:true,
+    prReuseCandidate,
+    linkedIssue: linkedIssue || null,
     ai09Status, ai09IsFormalApproval:false,
     autoFixPerformed:false, autoMergeAuthorized:false,
     nextAction:ai09Status==="NO_ACTIONABLE_FINDINGS"
