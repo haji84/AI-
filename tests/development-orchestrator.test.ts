@@ -69,3 +69,29 @@ test("repository text cannot grant risk or release authority", () => {
   assert.equal(plan.job.approvalScope.maxRisk, "low");
   assert.equal(plan.releaseAuthority, false);
 });
+
+test("Chat-to-Actions and PR/AI09 policy are inspected through existing orchestrator, not a new authority",()=>{
+  const orchestrator=new DevelopmentOrchestrator();
+  const pr={
+    repository:"sample/app",issueNumber:1865,baseBranch:"main",operation:"fix_existing_pr" as const,
+    inventoryComplete:true,riskEvidenceComplete:true,riskSignals:{},
+    globallyPaused:false,comparison:{baseSha:"a".repeat(40),headSha:"b".repeat(40)},
+    pullRequests:[{number:1866,repository:"sample/app",issueNumber:1865,
+      baseBranch:"main",headBranch:"codex/1865",state:"open" as const,merged:false}],
+    ai09:{reviewer:"AI-09" as const,evidenceClass:"AI_ASSERTED" as const,
+      status:"NO_ACTIONABLE_FINDINGS" as const,scope:{baseSha:"a".repeat(40),headSha:"b".repeat(40)},
+      githubApprovalSatisfied:false as const,mergeAuthorized:false as const},
+  };
+  const chat={
+    source:"chat" as const,command:"Continue existing issue",goalId:"goal-681",messageId:"chat-1865",
+    ownerIdentityVerifiedByTrustedHost:true,githubActionsAvailable:true,
+    existingNonCodexBuilderAvailable:true,
+  };
+  const result=orchestrator.inspectChatActionsDevelopment({pr,chat});
+  assert.equal(result.prAdvice.pr.action,"REUSE");
+  assert.equal(result.prAdvice.review,"CLEAR_ADVISORY");
+  assert.equal(result.chatHandoff.status,"PROPOSE_ONLY");
+  assert.equal(result.chatHandoff.codex,"NOT_SELECTED");
+  assert.equal(result.executionAuthority,false);
+  assert.equal(result.chatHandoff.executionAuthority,false);
+});
