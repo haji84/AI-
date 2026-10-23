@@ -115,3 +115,81 @@ jobs:
           path: ${{ runner.temp }}/chat-actions-ai-proposal
           if-no-files-found: error
           retention-days: 2
+
+  actual-ai09-targeted-review:
+    if: github.event.pull_request.number == 1866 && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      OLLAMA_HOST: 127.0.0.1:11434
+      OLLAMA_NUM_PARALLEL: "1"
+      OLLAMA_MAX_LOADED_MODELS: "1"
+    steps:
+      - name: Checkout exact candidate head as untrusted diff only
+        uses: actions/checkout@v4
+        with:
+          path: candidate
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Checkout trusted AI09 source from exact main base
+        uses: actions/checkout@v4
+        with:
+          path: trusted
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+      - name: Set up pinned Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24.19.0"
+      - name: Check independent review scope and ancestry
+        shell: bash
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git -C candidate rev-parse HEAD)" = "$HEAD_SHA"
+          git -C candidate merge-base --is-ancestor adc76d74aaedac233a781d13568d326b0516b0a5 "$HEAD_SHA"
+          test "$(git -C trusted rev-parse HEAD)" = "${{ github.event.pull_request.base.sha }}"
+          git -C candidate diff --name-only adc76d74aaedac233a781d13568d326b0516b0a5 "$HEAD_SHA"
+      - name: Install pinned Ollama identical to existing trusted AI09
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --silent --show-error --retry 2 --max-time 300 \
+            https://github.com/ollama/ollama/releases/download/v0.34.0/ollama-linux-amd64.tar.zst \
+            -o "$RUNNER_TEMP/ollama-ai09.tar.zst"
+          echo "cf95886728959aa09910bb34de5cca1cc5a8f68003b5597197d3f2c2d57c0804  $RUNNER_TEMP/ollama-ai09.tar.zst" | sha256sum -c -
+          sudo tar --zstd -xf "$RUNNER_TEMP/ollama-ai09.tar.zst" -C /usr
+      - name: Independently re-review real candidate patch with existing AI09 implementation
+        shell: bash
+        working-directory: candidate
+        timeout-minutes: 17
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          OLLAMA_HOST=127.0.0.1:11434 ollama serve > "$RUNNER_TEMP/ollama-ai09.log" 2>&1 &
+          ready=0
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:11434/api/tags >/dev/null 2>&1; then ready=1; break; fi
+            sleep 2
+          done
+          test "$ready" = "1"
+          timeout 480s ollama pull qwen2.5-coder:3b
+          # The trusted script performs exact-head Git ancestor/diff checks and never writes.
+          node ../trusted/scripts/goriq-ai09-review.mjs \
+            --base adc76d74aaedac233a781d13568d326b0516b0a5 \
+            --head "$HEAD_SHA" --maker FixtureBuilder \
+            | tee "$RUNNER_TEMP/ai09-targeted-review.json"
+          echo "Real AI09 scoped review completed. AI_ASSERTED never equals GitHub APPROVED." >> "$GITHUB_STEP_SUMMARY"
+      - name: Store read-only actual AI09 result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chat-actions-real-ai09-targeted
+          path: ${{ runner.temp }}/ai09-targeted-review.json
+          if-no-files-found: warn
+          retention-days: 2
