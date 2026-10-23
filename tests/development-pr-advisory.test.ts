@@ -98,3 +98,9 @@ test("unavailable Actions host remains blocked without falling into Codex",()=>{
   const r=adviseChatActionsHandoff({...chatInput,githubActionsAvailable:false},decide());
   assert.equal(r.status,"ACTIONS_UNAVAILABLE");assert.equal(r.codex,"NOT_SELECTED");
 });
+
+test("global pause blocks Chat Actions handoff regardless of PR eligibility",()=>{
+  const r=adviseChatActionsHandoff(chatInput,decide({globallyPaused:true}));
+  assert.equal(r.status,"PAUSED");
+  assert.equal(r.commandJson,null);
+});
