@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { Buffer } from "node:buffer";
-import { runOneAi09Batch, groundedReviewPrompt } from "../scripts/chat-actions-ai09-batch-runner.mjs";
+import { runOneAi09Batch, groundedReviewPrompt, auditAi09ClaimSupport } from "../scripts/chat-actions-ai09-batch-runner.mjs";
 import { aggregateIndependentBatchReceipts } from "../scripts/chat-actions-ai09-full-aggregate.mjs";
 import { planCompleteAi09Review, collectAi09Evidence, assertNoWriteAuthority }
  from "../scripts/chat-actions-ai09-multibatch.mjs";
@@ -214,8 +214,54 @@ test("grounded AI09 prompt forbids guessed review lines and keeps the full untru
  const original="BEGIN_UNTRUSTED_PATCH\n@@ -1 +1 @@\n-old\n+new\nEND_UNTRUSTED_PATCH";
  const out=groundedReviewPrompt(original);
  assert.ok(out.startsWith(original));
- assert.ok(out.includes("exact added code"));
- assert.ok(out.includes("Never use guessed line 123"));
- assert.ok(out.includes("report INCONCLUSIVE"));
+ assert.ok(out.includes("exact added line"));
+ assert.ok(out.includes("Never cite BEGIN_UNTRUSTED_PATCH"));
+ assert.ok(out.includes("return INCONCLUSIVE"));
  assert.throws(()=>groundedReviewPrompt("user text only"),/INVALID_AI09_SOURCE_PROMPT/);
+});
+
+test("trusted AI09 prompt removes the example line 123 without altering real source diff",()=>{
+ const source='BEGIN_UNTRUSTED_PATCH\n@@ -1 +1 @@\n-old\n+new\nEND_UNTRUSTED_PATCH';
+ const prompt='Return {"path":"a","line":123}.\n'+source;
+ const result=groundedReviewPrompt(prompt);
+ assert.ok(result.includes('"line":null'));
+ assert.ok(!result.includes('"line":123'));
+ assert.ok(result.includes(source));
+ assert.ok(result.includes("finding.summary MUST begin with 'Impact: '"));
+});
+test("finding support requires REAL new-side line + verbatim code quote + concrete impact",()=>{
+ const patch='diff --git a/src/guard.ts b/src/guard.ts\n@@ -1,2 +1,2 @@\n unchanged\n-old\n+const checked = authorizeRequest(currentUser, resourceId);';
+ const valid={path:"src/guard.ts",line:2,severity:"high",
+  summary:"Impact: Unauthorized callers may access restricted resources when authorization is bypassed.",
+  evidence:"The new line "+String.fromCharCode(96)+"authorizeRequest(currentUser, resourceId)"+String.fromCharCode(96)+" is used at the gate.",
+  proposedFix:"Verify the authorization gate before returning data."};
+ const grounded=auditAi09ClaimSupport([valid],patch,modules.anchor);
+ assert.equal(grounded.complete,true);
+ assert.equal(grounded.supported,1);
+ assert.equal(grounded.checks[0].anchored,true);
+ assert.equal(grounded.checks[0].impactExplained,true);
+ assert.equal(grounded.evidenceClass,"AI_ASSERTED_NEEDS_INDEPENDENT_TRIAGE");
+ assert.equal(auditAi09ClaimSupport([{...valid,line:123}],patch,modules.anchor).complete,false);
+ assert.equal(auditAi09ClaimSupport([{...valid,evidence:"General risk, no code quote"}],patch,modules.anchor).complete,false);
+ assert.equal(auditAi09ClaimSupport([{...valid,summary:"Potential issue"}],patch,modules.anchor).complete,false);
+ assert.equal(auditAi09ClaimSupport([{...valid,proposedFix:"Fix"}],patch,modules.anchor).complete,false);
+});
+test("real code quote without a concrete consequence remains INCONCLUSIVE and findings retained",async()=>{
+ const plan=planCompleteAi09Review(comparison(1,4),SHA,HEAD,modules);
+ const manifest=manifestFor(plan), code=plan.batches[0].chunks[0].patch;
+ const added=code.split("\n").find(x=>x.startsWith("+")&&!x.startsWith("+++"));
+ assert.ok(added);
+ const report=await runOneAi09Batch({plan,manifest,index:0,modules,infer:async()=>
+  JSON.stringify({verdict:"CHANGES_REQUESTED",findings:[{
+   path:plan.batches[0].paths[0],line:1,severity:"medium",
+   summary:"Concern without consequence",
+   evidence:"Quoted code "+String.fromCharCode(96)+added.slice(1,50)+String.fromCharCode(96),
+   proposedFix:"Check actual code path before releasing."}]})});
+ assert.equal(report.status,"INCONCLUSIVE");
+ assert.equal(report.chunkReports[0].status,"CHANGES_REQUESTED");
+ assert.equal(report.chunkReports[0].findings.length,1);
+ assert.equal(report.diagnostic[0].anchor.complete,false);
+ assert.equal(report.diagnostic[0].anchor.checks[0].impactExplained,false);
+ assert.equal(report.githubApprovalSatisfied,false);
+ assert.equal(report.mergeAuthorized,false);
 });
