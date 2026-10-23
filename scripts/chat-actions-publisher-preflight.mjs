@@ -16,7 +16,7 @@ export function ownerApprovalForPublisher(comments,{trustedMainSha,now=Date.now(
     if(c?.user?.login!==OWNER || c?.author_association!=="OWNER" ||
       typeof c?.body!=="string" || !c.body.startsWith(prefix)) return false;
     const remainder=c.body.slice(prefix.length);
-    if(!/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$/.test(remainder.trim()))return false;
+    if(!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(remainder.trim()))return false;
     const expiry=Date.parse(remainder.trim());
     const created=Date.parse(c.created_at??"");
     return Number.isFinite(expiry) && Number.isFinite(created) &&
