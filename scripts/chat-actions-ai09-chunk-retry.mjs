@@ -89,7 +89,7 @@ export async function ollamaInference(prompt) {
       method:"POST",signal:AbortSignal.timeout(150000),
       headers:{"Content-Type":"application/json"},
       body:JSON.stringify({model:MODEL,stream:false,format:"json",
-        options:{temperature:0,num_ctx:8192,num_predict:768},
+        options:{temperature:0,num_ctx:8192,num_predict:1536},
         messages:[{role:"user",content:prompt}]}),
     });
     if(!response.ok)throw Error("MODEL_HTTP_"+response.status);
@@ -102,6 +102,7 @@ export async function ollamaInference(prompt) {
       outputBytes:typeof result==="string"?Buffer.byteLength(result,"utf8"):null,
       doneReason:["stop","length"].includes(p.done_reason)?p.done_reason:"unknown",
     })+"\n");
+    if(p.done_reason==="length")throw Error("MODEL_RESPONSE_TRUNCATED");
     if(typeof result!=="string")throw Error("MODEL_RESPONSE_MISSING");
     return result;
   }catch(e){
