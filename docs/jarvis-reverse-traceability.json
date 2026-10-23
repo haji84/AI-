@@ -5918,7 +5918,7 @@
     },
     {
       "path": "src/orchestrator/runtime-builder-capability.ts",
-      "sha256": "c975965ddc4ad580eab79f481c8bae9c4f903455cb156e859d5ab384fa592e97",
+      "sha256": "11ca2c4b04b305c997737b1e69f1c314ae1474a0a7ca19e762adc29324ffb62c",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -5927,7 +5927,7 @@
         "AUTO-004",
         "OWN-001"
       ],
-      "reason": "Declared runtime-builder-capability.ts responsibility implements/supports Software Development Autopilot. Parent ownership is not functional or physical acceptance evidence. #1219 allows the resident Mac Goal executor to discover its protected local Builder token and loopback endpoint."
+      "reason": "Declared runtime-builder-capability.ts responsibility implements/supports Software Development Autopilot. Parent ownership is not functional or physical acceptance evidence. #1219 allows the resident Mac Goal executor to discover its protected local Builder token and loopback endpoint. #1219 adds explicit isolated Ollama-only routing; main/8796/8797 and fallback unchanged when disabled."
     },
     {
       "path": "src/orchestrator/runtime-development-planner.ts",
@@ -5955,6 +5955,18 @@
         "OWN-001"
       ],
       "reason": "Declared runtime-development-verifier.ts responsibility implements/supports 独立Verification; World-state Verification. Parent ownership is not functional or physical acceptance evidence. #1219 supports independent verification against the protected loopback Mac Builder token. #1845 fresh resource admission/bounded durable wait integration; preserves existing ownership and gates, no functional or physical acceptance claim."
+    },
+    {
+      "path": "src/orchestrator/runtime-local-ollama-builder.ts",
+      "sha256": "a689887b5199c6864ee4566deeea85d0da2e818eaa2d2775e859133929ccc0ba",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-008",
+        "CORE-014",
+        "AUTO-010",
+        "AUTO-015"
+      ],
+      "reason": "#1219 Codex-independent local Ollama Builder: explicit detached-clean-worktree and new-file allowlist, exclusive write, no existing-file overwrite or remote fallback. This is implementation mapping, not independent verifier or complete Goal E2E evidence."
     },
     {
       "path": "src/orchestrator/safe-pr-capability.ts",
