@@ -19,6 +19,9 @@ on:
       - "tests/chat-actions-publisher-preflight.test.mjs"
       - "scripts/chat-actions-ai09-chunk-retry.mjs"
       - "tests/chat-actions-ai09-chunk-retry.test.mjs"
+      - "scripts/chat-actions-ai09-multibatch.mjs"
+      - "tests/chat-actions-ai09-multibatch.test.mjs"
+      - "scripts/chat-actions-ai09-full-plan.mjs"
 
 # This job is an isolated, unprivileged simulation. It never receives any secret
 # or write-enabled credential; it cannot dispatch, open PRs, merge, or deploy.
@@ -47,6 +50,8 @@ jobs:
           node-version: "24.19.0"
       - name: Run isolated negative and happy-path contract tests
         run: node --test tests/chat-actions-sandbox.test.mjs
+      - name: Prove lossless multi-batch AI09 evidence and no merge authority
+        run: node --test tests/chat-actions-ai09-multibatch.test.mjs
       - name: Test trusted exact-head publisher in dry-run/mocked-CAS mode
         run: node --test tests/chat-actions-trusted-publisher.test.mjs tests/chat-actions-publisher-preflight.test.mjs
       - name: Run read-only contract tests against realistic GitHub responses
@@ -123,6 +128,43 @@ jobs:
         with:
           name: chat-actions-real-model-candidate
           path: ${{ runner.temp }}/chat-actions-ai-proposal
+          if-no-files-found: error
+          retention-days: 2
+
+  ai09-whole-pr-coverage-plan:
+    if: github.event.pull_request.number == 1866 && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Checkout candidate planner in unprivileged PR job
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Checkout exact protected main reviewer source separately
+        uses: actions/checkout@v4
+        with:
+          path: trusted-ai09
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24.19.0"
+      - name: Audit full PR's GitHub patch and create lossless 24-chunk-or-smaller batches
+        id: plan
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GORIQ_AI09_TRUSTED_ROOT: trusted-ai09
+        run: node scripts/chat-actions-ai09-full-plan.mjs
+      - name: Save full-coverage plan for independent review (not approval)
+        uses: actions/upload-artifact@v4
+        with:
+          name: chat-actions-ai09-whole-pr-plan
+          path: ${{ runner.temp }}/chat-actions-ai09-full-plan.json
           if-no-files-found: error
           retention-days: 2
 
