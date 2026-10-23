@@ -22,6 +22,8 @@ on:
       - "scripts/chat-actions-ai09-multibatch.mjs"
       - "tests/chat-actions-ai09-multibatch.test.mjs"
       - "scripts/chat-actions-ai09-full-plan.mjs"
+      - "scripts/chat-actions-ai09-batch-runner.mjs"
+      - "scripts/chat-actions-ai09-full-aggregate.mjs"
 
 # This job is an isolated, unprivileged simulation. It never receives any secret
 # or write-enabled credential; it cannot dispatch, open PRs, merge, or deploy.
@@ -135,6 +137,8 @@ jobs:
     if: github.event.pull_request.number == 1866 && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
     timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
     permissions:
       contents: read
       pull-requests: read
@@ -167,6 +171,119 @@ jobs:
           path: ${{ runner.temp }}/chat-actions-ai09-full-plan.json
           if-no-files-found: error
           retention-days: 2
+
+  ai09-whole-pr-independent-batches:
+    needs: ai09-whole-pr-coverage-plan
+    if: needs.ai09-whole-pr-coverage-plan.result == 'success'
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.ai09-whole-pr-coverage-plan.outputs.matrix) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    permissions:
+      contents: read
+      pull-requests: read
+    env:
+      OLLAMA_HOST: 127.0.0.1:11434
+      OLLAMA_NUM_PARALLEL: "1"
+      OLLAMA_MAX_LOADED_MODELS: "1"
+    steps:
+      - name: Checkout exact untrusted candidate head with no credentials
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Checkout exact protected main reviewer implementation separately
+        uses: actions/checkout@v4
+        with:
+          path: trusted-ai09
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24.19.0"
+      - name: Install SHA256-pinned Ollama as used by independent AI09
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --silent --show-error --retry 2 --max-time 300 \
+            https://github.com/ollama/ollama/releases/download/v0.34.0/ollama-linux-amd64.tar.zst \
+            -o "$RUNNER_TEMP/ollama-ai09-batch.tar.zst"
+          echo "cf95886728959aa09910bb34de5cca1cc5a8f68003b5597197d3f2c2d57c0804  $RUNNER_TEMP/ollama-ai09-batch.tar.zst" | sha256sum -c -
+          sudo tar --zstd -xf "$RUNNER_TEMP/ollama-ai09-batch.tar.zst" -C /usr
+      - name: Independently review every chunk assigned to this bounded batch
+        timeout-minutes: 40
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GORIQ_AI09_TRUSTED_ROOT: trusted-ai09
+          GORIQ_AI09_BATCH_INDEX: ${{ matrix.batch }}
+        run: |
+          set -euo pipefail
+          OLLAMA_HOST=127.0.0.1:11434 ollama serve > "$RUNNER_TEMP/ollama-ai09-batch.log" 2>&1 &
+          ready=0
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:11434/api/tags >/dev/null 2>&1; then ready=1; break; fi
+            sleep 2
+          done
+          test "$ready" = "1"
+          timeout 480s ollama pull qwen2.5-coder:3b
+          node scripts/chat-actions-ai09-batch-runner.mjs
+      - name: Preserve all per-chunk AI09 evidence including partial BLOCKED findings
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai09-whole-batch-${{ matrix.batch }}
+          path: ${{ runner.temp }}/ai09-batch-${{ matrix.batch }}.json
+          if-no-files-found: warn
+          retention-days: 2
+
+  ai09-whole-pr-verdict:
+    needs: [ai09-whole-pr-coverage-plan, ai09-whole-pr-independent-batches]
+    if: always() && needs.ai09-whole-pr-coverage-plan.result == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    permissions:
+      contents: read
+      pull-requests: read
+      actions: read
+    steps:
+      - name: Checkout exact PR head for read-only aggregator
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Checkout trusted protected main reviewer code
+        uses: actions/checkout@v4
+        with:
+          path: trusted-ai09
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24.19.0"
+      - name: Download all independent AI09 batch receipts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: ai09-whole-batch-*
+          merge-multiple: true
+          path: ${{ runner.temp }}/ai09-whole-batches
+      - name: Recompute whole PR proof and refuse absent or invalid model reviews
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GORIQ_AI09_TRUSTED_ROOT: trusted-ai09
+          GORIQ_AI09_BATCH_DIR: ${{ runner.temp }}/ai09-whole-batches
+        run: node scripts/chat-actions-ai09-full-aggregate.mjs
+      - name: Preserve complete verdict, unresolved model claims and missing evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai09-whole-pr-final-evidence
+          path: ${{ runner.temp }}/ai09-full-review.json
+          if-no-files-found: warn
+          retention-days: 3
 
   actual-ai09-targeted-review:
     if: github.event.pull_request.number == 1866 && github.event.pull_request.head.repo.full_name == github.repository
