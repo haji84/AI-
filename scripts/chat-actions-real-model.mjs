@@ -8,7 +8,7 @@ const TARGET = "tests/fixtures/chat-actions-model-candidate.mjs";
 export const EXPECTED_BROKEN = "export function add(a, b) { return a - b; }\n";
 const FENCE = /^\x60{3}(?:javascript|js|mjs)?\s*([\s\S]*?)\s*\x60{3}$/i;
 function verifiedSource(content) {
-  if (typeof content !== "string" || content.length > 220 || /[\u0000-\u0008]/.test(content)) return null;
+  if (typeof content !== "string" || content.length > 220 || [...content].some(ch => ch.charCodeAt(0) < 32 && ![9,10,13].includes(ch.charCodeAt(0)))) return null;
   let s = content.trim();
   const m = s.match(FENCE);
   if (m) s = m[1].trim();
