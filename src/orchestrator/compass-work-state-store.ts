@@ -1,6 +1,7 @@
 import { canonicalRequirementBlockers } from "./owner-requirement-canonical.ts";
 import type { CompassStore } from "../compass/store.ts";
 import type { WorkEvent, WorkState, WorkStateStore } from "./work-state.ts";
+import { assessCompletionPath, type CompletionInput, type CompletionCycle } from "./completion-path.ts";
 
 const KIND = "gai-work-state";
 const VERSION = 1;
@@ -12,6 +13,7 @@ interface WorkStateEnvelope {
   goalId: string;
   state: WorkState;
   events: WorkEvent[];
+  completionAdvisory?: CompletionCycle[];
 }
 
 function isEnvelope(value: unknown): value is WorkStateEnvelope {
@@ -43,32 +45,47 @@ export class CompassWorkStateStoreAdapter implements WorkStateStore {
   }
 
   async put(state: WorkState): Promise<void> {
-    const active = this.compass.getState().active;
-    const next: WorkStateEnvelope = {
-      kind: KIND,
-      version: VERSION,
-      goalId: state.goalId,
-      state: structuredClone(state),
-      events: this.envelopes().find((entry) => entry.goalId === state.goalId)?.events ?? [],
-    };
-    const retained = active.filter((entry) => !(isEnvelope(entry) && entry.goalId === state.goalId));
-    this.compass.updateState({ active: [...retained, next] });
+    this.compass.updateActive(active => {
+      const existing = active.find(entry => isEnvelope(entry) && entry.goalId === state.goalId) as WorkStateEnvelope | undefined;
+      const next: WorkStateEnvelope = {
+        kind: KIND, version: VERSION, goalId: state.goalId, state: structuredClone(state),
+        events: existing?.events ?? [], completionAdvisory: existing?.completionAdvisory,
+      };
+      return [...active.filter(entry => !(isEnvelope(entry) && entry.goalId === state.goalId)), next];
+    });
   }
 
   async appendEvent(goalId: string, event: WorkEvent): Promise<void> {
-    const active = this.compass.getState().active;
-    const existing = this.envelopes().find((entry) => entry.goalId === goalId);
-    if (!existing) return;
-    const next: WorkStateEnvelope = {
-      ...existing,
-      state: structuredClone(existing.state),
-      events: [...existing.events, structuredClone(event)].slice(-MAX_EVENTS),
-    };
-    const retained = active.filter((entry) => !(isEnvelope(entry) && entry.goalId === goalId));
-    this.compass.updateState({ active: [...retained, next] });
+    this.compass.updateActive(active => active.map(entry => isEnvelope(entry) && entry.goalId === goalId
+      ? { ...entry, events: [...entry.events, structuredClone(event)].slice(-MAX_EVENTS) } : entry));
   }
 
   private envelopes(): WorkStateEnvelope[] {
     return this.compass.getState().active.filter(isEnvelope);
+  }
+
+  async getCompletionHistory(goalId: string): Promise<CompletionCycle[]> {
+    return structuredClone(this.envelopes().find(entry => entry.goalId === goalId)?.completionAdvisory ?? []);
+  }
+
+  /** Transactional journal-only write; no authoritative WorkState fields change. */
+  async recordCompletionAssessment(input: CompletionInput): Promise<CompletionCycle> {
+    let result: CompletionCycle | undefined;
+    this.compass.updateActive(active => {
+      const index = active.findIndex(entry => isEnvelope(entry) && entry.goalId === input.goalId);
+      if (index < 0) throw Error("completion assessment requires existing WorkState");
+      const envelope = active[index] as WorkStateEnvelope;
+      const history = envelope.completionAdvisory ?? [];
+      const state = structuredClone(envelope.state);
+      const pending = canonicalRequirementBlockers(active, input.goalId);
+      state.blockers = [...state.blockers.filter(b => !b.startsWith("spec_sync_")), ...pending];
+      if (pending.length) state.status = "BLOCKED";
+      result = assessCompletionPath(state, input, history);
+      if (!history.some(cycle => cycle.cycleId === input.cycleId)) {
+        active[index] = { ...envelope, completionAdvisory: [...history, result] };
+      }
+      return active;
+    });
+    return structuredClone(result!);
   }
 }
