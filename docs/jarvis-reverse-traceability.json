@@ -6329,6 +6329,16 @@
         "AUTO-022"
       ],
       "reason": "#1858 fixed owner-approved native activation scope, expiry and configuration preservation. Reuses existing deployment controls; implementation mapping is not live activation or operational acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/development-pr-advisory.ts",
+      "sha256": "d82bc3180243796c770ec3a21261d307f8d67cb5637640c5ccb63f24e123f921",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "CORE-020",
+        "GOV-005"
+      ],
+      "reason": "#1865 read-only PR reuse and existing risk/AI09 review intake advisory. This mapping is source traceability only: no new merge/approval authority, GitHub runtime integration, or physical acceptance."
     }
   ],
   "hash_policy": "utf8-crlf-to-lf-v1;binary-raw"
