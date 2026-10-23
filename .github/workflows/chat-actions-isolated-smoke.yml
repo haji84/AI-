@@ -157,9 +157,9 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git -C candidate rev-parse HEAD)" = "$HEAD_SHA"
-          git -C candidate merge-base --is-ancestor adc76d74aaedac233a781d13568d326b0516b0a5 "$HEAD_SHA"
+          git -C candidate merge-base --is-ancestor f81b7eb4f6025f05d6368a029aeca62bc86b876a "$HEAD_SHA"
           test "$(git -C trusted rev-parse HEAD)" = "${{ github.event.pull_request.base.sha }}"
-          git -C candidate diff --name-only adc76d74aaedac233a781d13568d326b0516b0a5 "$HEAD_SHA"
+          git -C candidate diff --name-only f81b7eb4f6025f05d6368a029aeca62bc86b876a "$HEAD_SHA"
       - name: Install pinned Ollama identical to existing trusted AI09
         shell: bash
         run: |
@@ -187,7 +187,7 @@ jobs:
           timeout 480s ollama pull qwen2.5-coder:3b
           # The trusted script performs exact-head Git ancestor/diff checks and never writes.
           node ../trusted/scripts/goriq-ai09-review.mjs \
-            --base adc76d74aaedac233a781d13568d326b0516b0a5 \
+            --base f81b7eb4f6025f05d6368a029aeca62bc86b876a \
             --head "$HEAD_SHA" --maker FixtureBuilder \
             | tee "$RUNNER_TEMP/ai09-targeted-review.json"
           echo "Real AI09 scoped review completed. AI_ASSERTED never equals GitHub APPROVED." >> "$GITHUB_STEP_SUMMARY"
