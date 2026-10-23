@@ -10,6 +10,9 @@ on:
       - "tests/chat-actions-live-pr-audit.test.mjs"
       - "tests/chat-actions-sandbox.test.mjs"
       - "src/orchestrator/development-pr-advisory.ts"
+      - "scripts/chat-actions-real-model.mjs"
+      - "tests/chat-actions-real-model.test.mjs"
+      - "tests/fixtures/chat-actions-model-candidate.mjs"
 
 # This job is an isolated, unprivileged simulation. It never receives any secret
 # or write-enabled credential; it cannot dispatch, open PRs, merge, or deploy.
@@ -44,3 +47,71 @@ jobs:
         run: node scripts/chat-actions-live-pr-audit.mjs
       - name: Run Chat-first deterministic sandbox smoke
         run: node scripts/chat-actions-sandbox.mjs
+
+  real-non-codex-ollama:
+    if: github.event.pull_request.number == 1866 && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout pinned PR head for isolated data only
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Set up pinned Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24.19.0"
+      - name: Prove candidate path and determine whether generation is necessary
+        id: state
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test tests/chat-actions-real-model.test.mjs
+          if grep -Fxq "export function add(a, b) { return a - b; }" tests/fixtures/chat-actions-model-candidate.mjs; then
+            echo "needs_model=true" >> "$GITHUB_OUTPUT"
+          elif grep -Fxq "export function add(a, b) { return a + b; }" tests/fixtures/chat-actions-model-candidate.mjs; then
+            echo "needs_model=false" >> "$GITHUB_OUTPUT"
+            echo "Pilot fixture already repaired; no second model call." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Unrecognized candidate state"; exit 1
+          fi
+      - name: Install verified Ollama CPU binary from existing AI09 baseline
+        if: steps.state.outputs.needs_model == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --silent --show-error --retry 2 --max-time 300 \
+            https://github.com/ollama/ollama/releases/download/v0.34.0/ollama-linux-amd64.tar.zst \
+            -o "$RUNNER_TEMP/ollama-linux-amd64.tar.zst"
+          echo "cf95886728959aa09910bb34de5cca1cc5a8f68003b5597197d3f2c2d57c0804  $RUNNER_TEMP/ollama-linux-amd64.tar.zst" | sha256sum -c -
+          sudo tar --zstd -xf "$RUNNER_TEMP/ollama-linux-amd64.tar.zst" -C /usr
+      - name: Run local-only Qwen coder inference with no GitHub write credentials
+        if: steps.state.outputs.needs_model == 'true'
+        timeout-minutes: 17
+        shell: bash
+        env:
+          OLLAMA_HOST: 127.0.0.1:11434
+          OLLAMA_NUM_PARALLEL: "1"
+          OLLAMA_MAX_LOADED_MODELS: "1"
+        run: |
+          set -euo pipefail
+          OLLAMA_HOST=127.0.0.1:11434 ollama serve > "$RUNNER_TEMP/ollama-pilot.log" 2>&1 &
+          ready=0
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:11434/api/tags >/dev/null 2>&1; then ready=1; break; fi
+            sleep 2
+          done
+          test "$ready" = "1"
+          timeout 480s ollama pull qwen2.5-coder:3b
+          node scripts/chat-actions-real-model.mjs
+      - name: Export candidate artifact only, never mutate PR
+        if: steps.state.outputs.needs_model == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: chat-actions-real-model-candidate
+          path: ${{ runner.temp }}/chat-actions-ai-proposal
+          if-no-files-found: error
+          retention-days: 2
