@@ -214,7 +214,7 @@ test("grounded AI09 prompt forbids guessed review lines and keeps the full untru
  const original="BEGIN_UNTRUSTED_PATCH\n@@ -1 +1 @@\n-old\n+new\nEND_UNTRUSTED_PATCH";
  const out=groundedReviewPrompt(original);
  assert.ok(out.startsWith(original));
- assert.ok(out.includes("actual added code"));
+ assert.ok(out.includes("exact added code"));
  assert.ok(out.includes("Never use guessed line 123"));
  assert.ok(out.includes("report INCONCLUSIVE"));
  assert.throws(()=>groundedReviewPrompt("user text only"),/INVALID_AI09_SOURCE_PROMPT/);
