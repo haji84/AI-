@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { Buffer } from "node:buffer";
-import { runOneAi09Batch } from "../scripts/chat-actions-ai09-batch-runner.mjs";
+import { runOneAi09Batch, groundedReviewPrompt } from "../scripts/chat-actions-ai09-batch-runner.mjs";
 import { aggregateIndependentBatchReceipts } from "../scripts/chat-actions-ai09-full-aggregate.mjs";
 import { planCompleteAi09Review, collectAi09Evidence, assertNoWriteAuthority }
  from "../scripts/chat-actions-ai09-multibatch.mjs";
@@ -208,4 +208,14 @@ test("actionable AI09 findings are retained, not retried away as clean",async()=
  assert.equal(report.diagnostic[0].firstStatus,"CHANGES_REQUESTED");
  assert.equal(report.diagnostic[0].anchor.complete,false);
  assert.equal(report.chunkReports[0].findings.length,1);
+});
+
+test("grounded AI09 prompt forbids guessed review lines and keeps the full untrusted diff",()=>{
+ const original="BEGIN_UNTRUSTED_PATCH\n@@ -1 +1 @@\n-old\n+new\nEND_UNTRUSTED_PATCH";
+ const out=groundedReviewPrompt(original);
+ assert.ok(out.startsWith(original));
+ assert.ok(out.includes("actual added code"));
+ assert.ok(out.includes("Never use guessed line 123"));
+ assert.ok(out.includes("report INCONCLUSIVE"));
+ assert.throws(()=>groundedReviewPrompt("user text only"),/INVALID_AI09_SOURCE_PROMPT/);
 });
