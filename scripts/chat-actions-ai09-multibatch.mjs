@@ -6,6 +6,7 @@ import { Buffer } from "node:buffer";
 const SHA = /^[a-f0-9]{40}$/;
 const MAX_FILES = 30;
 const MAX_BATCH_CHUNKS = 24;
+const PREFERRED_BATCH_CHUNKS = 10;
 const MAX_CHUNK_BYTES = 4096;
 const DIGEST = text => createHash("sha256").update(text).digest("hex");
 
@@ -64,8 +65,15 @@ export function planCompleteAi09Review(compare, baseSha, headSha, modules) {
     const attempt = [...pending, file];
     try {
       const next = prepare(attempt);
-      pending = attempt;
-      candidate = next;
+      // Prefer small independent CPU review jobs; 24 is still the hard limit.
+      if(pending.length && next.chunks.length > PREFERRED_BATCH_CHUNKS){
+        commit();
+        pending=[file];
+        candidate=prepare(pending);
+      }else{
+        pending=attempt;
+        candidate=next;
+      }
     } catch (cause) {
       // Only the existing per-run chunk-count limit can cause a new batch.
       // All other errors, including missing hunks and oversized lines, HOLD.
