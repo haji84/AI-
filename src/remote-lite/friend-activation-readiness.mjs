@@ -1,5 +1,6 @@
 import { lstatSync, readFileSync } from 'node:fs';
 import { dirname, isAbsolute, resolve, join } from 'node:path';
+import { URL } from 'node:url';
 import { readGoriqHostedPortalConfig } from './goriq-hosted-config.mjs';
 import { RemoteOwnerAuth } from './owner-auth.mjs';
 import { loadTLSFiles } from './tls-reload.mjs';
