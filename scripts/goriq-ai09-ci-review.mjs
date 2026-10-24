@@ -117,11 +117,6 @@ async function main() {
   try {
     const before = await githubGet(c, "/pulls/" + c.prNumber);
     if (!safePr(before, c)) throw new Error("stale_or_foreign_pr");
-    const diff = await githubGet(c, "/compare/" + c.baseSha + "..." + c.headSha);
-    if (diff?.base_commit?.sha !== c.baseSha ||
-      diff?.commits?.at(-1)?.sha !== c.headSha) {
-      throw new Error("comparison_revision_mismatch");
-    }
     if (c.dynamicShardId !== null) {
       // Every changed path comes from paginated GitHub PR-files metadata,
       // independently of the Git name-status parser. Missing pages block.
@@ -167,6 +162,12 @@ async function main() {
       if (reviewed.status === "BLOCKED") result = makeBlockedReview(scope,
         "ai09_dynamic_shard_model_blocked");
     } else {
+    // Retain the original small-PR comparison contract unchanged.
+    const diff = await githubGet(c, "/compare/" + c.baseSha + "..." + c.headSha);
+    if (diff?.base_commit?.sha !== c.baseSha ||
+      diff?.commits?.at(-1)?.sha !== c.headSha) {
+      throw new Error("comparison_revision_mismatch");
+    }
     assertCompleteComparison(diff);
     const prepared = compareToReviewChunks(diff, c.baseSha, c.headSha);
     scope.paths = prepared.paths;
