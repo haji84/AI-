@@ -6,7 +6,7 @@ import { mkdtempSync, writeFileSync, readFileSync, rmSync, unlinkSync } from 'no
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import process from 'node:process';
-import { inspectFriendActivation } from '../src/remote-lite/friend-activation-readiness.mjs';
+import { inspectFriendActivation, inspectPrivateFriendBindCandidate } from '../src/remote-lite/friend-activation-readiness.mjs';
 import { openRemoteRegistry } from '../src/remote-lite/registry-file.mjs';
 
 function isolated(t) {
@@ -82,4 +82,45 @@ test('invalid friend readiness never prints private config or starts an account 
   assert.equal(JSON.parse(result.stdout).configured,false);
   assert.doesNotMatch(result.stdout,/secret-invalid|portal\.key|friend-01/);
   assert.doesNotMatch(result.stderr,/secret-invalid|portal\.key/);
+});
+
+
+test('private Tailscale TCP8443 bind is a syntactic candidate only, never evidence of authorization', t => {
+  const f = isolated(t);
+  const initial = inspectFriendActivation(f.wrapper);
+  assert.equal(initial.configured, true);
+  assert.equal(initial.privateBind.candidate, false);
+  assert.deepEqual(initial.privateBindBlockers,
+    ['FRIEND_TAILSCALE_PRIVATE_BIND_NOT_VERIFIED']);
+  assert.equal(initial.privateBind.actualHostInterfaceVerified, false);
+  assert.equal(initial.privateBind.friendNetworkPolicyVerified, false);
+  assert.equal(initial.privateBind.friendOnlyReachabilityVerified, false);
+
+  const originalRegistry = readFileSync(join(f.registry, 'devices.json'), 'utf8');
+  for (const host of ['0.0.0.0', '127.0.0.1', '::', '::1',
+    '192.168.1.14', '172.16.1.1', '100.63.255.254', '100.128.0.1',
+    '100.64.0.1 ', '100.64.999.3', 'not-an-interface']) {
+    const candidate = inspectPrivateFriendBindCandidate({listenHost: host, listenPort: 8443});
+    assert.equal(candidate.candidate, false, host);
+    assert.equal(candidate.friendNetworkPolicyVerified, false);
+  }
+  for (const port of [443, 8444, 0, -1, 65536, '8443', null]) {
+    assert.equal(inspectPrivateFriendBindCandidate({listenHost: '100.72.5.9', listenPort: port}).candidate, false);
+  }
+  for (const host of ['100.64.0.1', '100.80.21.8', '100.127.255.254']) {
+    f.save({...f.config, listenHost: host});
+    const inspected = inspectFriendActivation(f.wrapper);
+    assert.equal(inspected.privateBind.candidate, true, host);
+    assert.deepEqual(inspected.privateBindBlockers, []);
+    assert.equal(inspected.configured, true);
+    assert.equal(inspected.deploymentAccepted, false);
+    assert.equal(inspected.privateBind.actualHostInterfaceVerified, false);
+    assert.equal(inspected.privateBind.friendNetworkPolicyVerified, false);
+    assert.equal(inspected.privateBind.friendOnlyReachabilityVerified, false);
+    assert.doesNotMatch(JSON.stringify(inspected), new RegExp(host.replaceAll('.', '\\.')));
+  }
+  f.save({...f.config, listenHost: '100.72.5.9', listenPort: 443});
+  assert.deepEqual(inspectFriendActivation(f.wrapper).privateBindBlockers,
+    ['FRIEND_PRIVATE_TCP8443_NOT_PLANNED']);
+  assert.equal(readFileSync(join(f.registry, 'devices.json'), 'utf8'), originalRegistry);
 });
