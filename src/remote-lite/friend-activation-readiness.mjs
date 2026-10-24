@@ -3,6 +3,7 @@ import { dirname, isAbsolute, resolve, join } from 'node:path';
 import { readGoriqHostedPortalConfig } from './goriq-hosted-config.mjs';
 import { RemoteOwnerAuth } from './owner-auth.mjs';
 import { loadTLSFiles } from './tls-reload.mjs';
+import { createPortalTurnIssuer, createPortalStunIssuer } from './turn-credentials.mjs';
 
 /**
  * Pure operator-side readiness inspection. This does not create an account,
@@ -62,9 +63,19 @@ export function inspectFriendActivation(wrapperPath) {
       checks.existingRegistry = true;
     } catch { note('FRIEND_REGISTRY_UNAVAILABLE'); }
 
-    if ((config.turn && !config.stun) || (config.stun && !config.turn)) {
+    try {
+      if (config.turn !== undefined && config.stun === undefined) {
+        const turn = config.turn;
+        if (!turn || Object.keys(turn).some(k => !['urls', 'sharedSecretFile'].includes(k)) ||
+            typeof turn.sharedSecretFile !== 'string') throw Error('INVALID');
+        const file = resolve(root, turn.sharedSecretFile), stat = lstatSync(file);
+        if (!stat.isFile() || stat.isSymbolicLink() || stat.size < 1 || stat.size > 512) throw Error('INVALID');
+        createPortalTurnIssuer({ urls: turn.urls, sharedSecret: readFileSync(file, 'utf8').trim() });
+      } else if (config.stun !== undefined && config.turn === undefined) {
+        createPortalStunIssuer(config.stun);
+      } else throw Error('INVALID');
       checks.networkIceConfigured = true;
-    } else { note('FRIEND_ICE_MODE_UNCONFIRMED'); }
+    } catch { note('FRIEND_ICE_MODE_UNCONFIRMED'); }
   }
 
   const configured = Object.values(checks).every(Boolean);
