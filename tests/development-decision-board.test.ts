@@ -7,7 +7,11 @@ import type { CompletionCycle, CompletionInput } from "../src/orchestrator/compl
 const hash=(v:unknown)=>createHash("sha256").update(JSON.stringify(v)).digest("hex");
 const HEAD="a".repeat(40), BASE="b".repeat(40);
 function fixture() {
-  const state={goalId:"goal-one",definitionOfDone:[{id:"a",description:"verified A"},{id:"b",description:"verified B"}],blockers:[]} as WorkState;
+  const state: WorkState = {goalId:"goal-one",objective:"Evidence-bound development",
+    definitionOfDone:[{id:"a",description:"verified A"},{id:"b",description:"verified B"}],
+    currentState:"prepared",status:"IN_PROGRESS",riskClass:"R1",constraints:[],
+    decisions:[],artifacts:[],verificationResults:[],childWorkItems:[],blockers:[],
+    updatedAt:"2026-10-24T00:00:00.000Z"};
   const input={goalId:"goal-one",cycleId:"cycle-1",candidates:[
     {workItem:{id:"one"}},{workItem:{id:"two"}},{workItem:{id:"human"}},
   ]} as CompletionInput;
@@ -18,7 +22,7 @@ function fixture() {
       {taskId:"human",status:"HUMAN_REQUIRED",score:9,reasons:["permissionChange"]}],
     recommendation:{taskId:"one",mode:"ASSESS_FOR_EXECUTION",reuse:{pr:"1866"}},
     notifications:[{taskId:"human",kind:"approval",operation:"Authorize publisher",target:"publisher",status:"PREPARED",reason:"permissionChange"}],
-    readyForCompletionReview:false} as CompletionCycle;
+    readyForCompletionReview:false} as unknown as CompletionCycle;
   return {state,input,cycle,options:{maxParallelJobs:2,verifiedResourceLocks:{one:["pr:1866"],two:["pr:1866"]}}};
 }
 
