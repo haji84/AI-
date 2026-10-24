@@ -63,6 +63,74 @@ export function auditAi09ClaimSupport(findings, canonicalBatchPatch, anchorModul
   };
 }
 
+/**
+ * Build a read-only index of exact NEW-SIDE added-line coordinates from the
+ * canonical source chunks. Do not trust a model-provided line or the synthetic
+ * continuation-hunk header, and never change source bytes.
+ */
+export function ai09AddedLineEvidenceIndex(batch, chunk) {
+  if(!batch || !Array.isArray(batch.chunks) || !Array.isArray(batch.paths) ||
+     typeof batch.patch !== "string" || !batch.chunks.includes(chunk) ||
+     !Number.isSafeInteger(chunk.fileIndex) ||
+     chunk.fileIndex<0 || chunk.fileIndex>=batch.paths.length)
+    throw Error("INVALID_AI09_EVIDENCE_INDEX_SCOPE");
+  const path=batch.paths[chunk.fileIndex];
+  if(chunk.paths?.length!==1 || chunk.paths[0]!==path)
+    throw Error("AI09_EVIDENCE_PATH_MISMATCH");
+  const related=batch.chunks.filter(c=>c.fileIndex===chunk.fileIndex);
+  const source=related.map(c=>c.source).join("\n");
+  const canonical="diff --git a/"+path+" b/"+path+"\n"+source;
+  if(!batch.patch.split("\n"+canonical).length &&
+     !batch.patch.startsWith(canonical))throw Error("AI09_CANONICAL_DIFF_NOT_FOUND");
+  if(!batch.patch.includes(canonical))throw Error("AI09_CANONICAL_DIFF_NOT_FOUND");
+  let current=null;
+  const indexes=[];
+  for(const part of related) {
+    let additions=[];
+    for(const row of part.source.split("\n")) {
+      const m=/^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(row);
+      if(m){current=Number(m[1]);continue;}
+      if(row.startsWith("+") && !row.startsWith("+++")) {
+        if(!Number.isSafeInteger(current) || current<1)
+          throw Error("AI09_EVIDENCE_INVALID_NEW_SIDE_POSITION");
+        additions.push({line:current,code:row.slice(1)});
+        current++;
+      }else if(row.startsWith(" ")) {
+        if(current===null)throw Error("AI09_EVIDENCE_MISSING_HUNK");
+        current++;
+      }else if(row.startsWith("-") || row.startsWith("\\")) {
+        // Old-side deletions never advance new-side line numbers.
+      }else if(row!==""){
+        throw Error("AI09_EVIDENCE_UNSUPPORTED_DIFF_ROW");
+      }
+    }
+    indexes.push(additions);
+  }
+  const index=related.indexOf(chunk);
+  if(index<0)throw Error("AI09_EVIDENCE_CHUNK_NOT_FOUND");
+  const selected=indexes[index];
+  // Evidence hints are bounded data, NOT a replacement for reviewing the diff.
+  const hints=[];
+  let bytes=0;
+  for(const entry of selected) {
+    if(hints.length>=25)break;
+    const line=JSON.stringify([entry.line,entry.code.slice(0,100)]);
+    const next=Buffer.byteLength(line,"utf8");
+    if(bytes+next>2200)break;
+    hints.push(line);
+    bytes+=next;
+  }
+  return {
+    path,fullAddedLineCount:selected.length,
+    displayedAddedLineCount:hints.length,
+    evidenceHint:"ADDED_LINE_COORDINATES_FROM_TRUSTED_GIT_HUNKS (read-only, untrusted code data): "+
+      (hints.length?hints.join(" "):"none visible"),
+    complete: hints.length===selected.length,
+    // Never claim this is independent security analysis or authorization.
+    evidenceClass:"MACHINE_VERIFIED_LINE_COORDINATES_ONLY",
+  };
+}
+
 export async function runOneAi09Batch({plan,manifest,index,modules,infer}) {
   if (!Number.isSafeInteger(index) || index<0 || index>=plan.batchCount ||
       manifest?.headSha!==plan.headSha || manifest?.baseSha!==plan.baseSha ||
@@ -74,10 +142,15 @@ export async function runOneAi09Batch({plan,manifest,index,modules,infer}) {
   const chunkReports=[];
   const diagnostic=[];
   for (const chunk of batch.chunks) {
+    const coordinates=ai09AddedLineEvidenceIndex(batch,chunk);
+    const inferFromActualCoordinates=prompt=>infer(
+      groundedReviewPrompt(prompt)+"\\n"+coordinates.evidenceHint+
+      "\\nThe location index is a deterministic aid only; verify the real bug, exact added-code quote, and impact independently."
+    );
     let r=await modules.reviewer.reviewLocalPatch({
       baseSha:plan.baseSha,headSha:plan.headSha,
       makerRole:"FixtureBuilder",paths:chunk.paths,patch:chunk.patch,
-      infer: prompt => infer(groundedReviewPrompt(prompt)),
+      infer: inferFromActualCoordinates,
     });
     const firstStatus=r.status;
     let retried=false;
@@ -89,7 +162,7 @@ export async function runOneAi09Batch({plan,manifest,index,modules,infer}) {
       r=await modules.reviewer.reviewLocalPatch({
         baseSha:plan.baseSha,headSha:plan.headSha,
         makerRole:"FixtureBuilder",paths:chunk.paths,patch:chunk.patch,
-        infer: prompt => infer(groundedReviewPrompt(prompt)),
+        infer: inferFromActualCoordinates,
       });
     }
     chunkReports.push(r);
@@ -101,6 +174,8 @@ export async function runOneAi09Batch({plan,manifest,index,modules,infer}) {
     }
     diagnostic.push({
       index:diagnostic.length,status:r.status,
+      trustedLineIndexCount:coordinates.fullAddedLineCount,
+      displayedLineIndexCount:coordinates.displayedAddedLineCount,
       findingCount:claims.length,anchor,
       patchSha256:r.scope?.patchSha256??null,
       firstStatus,retried,
