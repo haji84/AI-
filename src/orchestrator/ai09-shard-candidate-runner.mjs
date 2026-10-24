@@ -86,7 +86,7 @@ export async function runCandidateShardReview({ plan, infer, reviewerId='AI09-ca
         for (const finding of review.findings) {
           if (actionableFindings.length>=100 ||
               [finding.summary,finding.evidence,finding.proposedFix].some(value =>
-                /(?:gh[pousr]_[A-Za-z0-9_]{12,}|github_pat_[A-Za-z0-9_]{12,}|sk-proj-[A-Za-z0-9_-]{12,}|AKIA[A-Z0-9]{16}|-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|(?:authorization|api[_ -]?key|secret|password|access[_ -]?token)\\s*[:=]\\s*[^\\s,;]{8,})/iu.test(value))) {
+                /(?:gh[pousr]_[A-Za-z0-9_]{12,}|github_pat_[A-Za-z0-9_]{12,}|sk-proj-[A-Za-z0-9_-]{12,}|AKIA[A-Z0-9]{16}|-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|(?:authorization|api[_ -]?key|secret|password|access[_ -]?token)\s*[:=]\s*[^\s,;]{8,})/iu.test(value))) {
             return blocked('AI09_SENSITIVE_OR_EXCESS_FINDINGS');
           }
           actionableFindings.push({...finding,sliceId:id,reviewSha256});
