@@ -2,6 +2,7 @@ import { Buffer } from "node:buffer";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { ownerApprovalForPublisher } from "../scripts/chat-actions-publisher-preflight.mjs";
 import { verifyPilotRun, verifyPilotArtifact, preparePublication,
   buildCompareAndSwapMutation, publishTrustedPilot } from "../scripts/chat-actions-trusted-publisher.mjs";
 
@@ -179,6 +180,11 @@ test("independent reproduction: stale PR head prevents all write requests, even 
 test("independent reproduction: review status cannot be used as a substitute for owner authorization",()=>{
  // Any approval inferred from AI09 does not alter the write plan or grant
  // rights. The publisher still requires independent trusted preflight.
+ assert.equal(ownerApprovalForPublisher([],{trustedMainSha:HEAD}),false);
+ assert.equal(ownerApprovalForPublisher([
+   {user:{login:"github-actions[bot]"},author_association:"NONE",
+    body:"AI09 NO_ACTIONABLE_FINDINGS",created_at:"2026-10-24T00:00:00Z"}
+ ],{trustedMainSha:HEAD}),false);
  const candidate={...plan(),approved:true,ai09Status:"NO_ACTIONABLE_FINDINGS"};
  const mutation=buildCompareAndSwapMutation(candidate);
  assert.equal(mutation.variables.input.expectedHeadOid,HEAD);
