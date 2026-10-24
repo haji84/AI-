@@ -6347,6 +6347,16 @@
         "HOST-004"
       ],
       "reason": "Issue1831 optional child supervision: fixed HTTPS entry, OS-only environment, bounded retries without core shutdown, graceful IPC and owned-child SIGKILL fallback. Implements lifecycle integration only; friend authorization/public transport and physical acceptance remain separately governed by Issue1831."
+    },
+    {
+      "path": "src/orchestrator/ai09-full-coverage.mjs",
+      "sha256": "9dfe87e045d92408860f7321a7c73d07378e54a6385743b8cd857488d0e7e63f",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-010",
+        "CORE-011"
+      ],
+      "reason": "Issue #1831 bounded AI09 full-coverage advisory review package: SHA-256 pinned per-file byte/slice/shard coverage and fail-closed review receipt verification. Does not issue independent formal GitHub approval, merge rights, or product/physical acceptance."
     }
   ],
   "hash_policy": "utf8-crlf-to-lf-v1;binary-raw"
