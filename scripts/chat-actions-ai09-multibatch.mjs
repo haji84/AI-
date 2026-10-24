@@ -12,6 +12,88 @@ const DIGEST = text => createHash("sha256").update(text).digest("hex");
 
 const narrowCompare = (compare, files) => ({ ...compare, files });
 
+// Keep the trusted 4 KiB native limit intact, then split only the already
+// source-verified native chunks into smaller complete model inputs. The
+// source/patch bytes and final canonical hash MUST be unchanged.
+const TARGET_MODEL_CHUNK_BYTES = 2300;
+export function subdivideVerifiedAi09Chunks(native, targetBytes=TARGET_MODEL_CHUNK_BYTES) {
+  if (!native || !Array.isArray(native.chunks) || !native.chunks.length ||
+      !Array.isArray(native.paths) || !Number.isSafeInteger(targetBytes) ||
+      targetBytes<512 || targetBytes>MAX_CHUNK_BYTES)
+    throw Error("INVALID_AI09_SUBDIVISION_SCOPE");
+  const smaller=[], lastHunk=new Map();
+  for(const original of native.chunks){
+    if (!Array.isArray(original.paths) || original.paths.length!==1 ||
+        !Number.isSafeInteger(original.fileIndex) ||
+        original.fileIndex<0 || original.fileIndex>=native.paths.length ||
+        original.paths[0]!==native.paths[original.fileIndex] ||
+        typeof original.source!=="string" || !original.source ||
+        typeof original.patch!=="string" ||
+        Buffer.byteLength(original.patch,"utf8")>MAX_CHUNK_BYTES)
+      throw Error("INVALID_NATIVE_AI09_SOURCE_CHUNK");
+    const path=original.paths[0], header="diff --git a/"+path+" b/"+path;
+    const rows=original.source.split("\n");
+    const sections=[];
+    let current=[], hunk=lastHunk.get(path)??null, startingHunk=hunk;
+    function display(part, context) {
+      if(!part.length)throw Error("EMPTY_AI09_REVIEW_SECTION");
+      if(!part[0].startsWith("@@") && !context)
+        throw Error("MISSING_AI09_HUNK_CONTEXT");
+      return header+"\n# AI09_READONLY_SUBSLICE (all original source lines retained)\n"+
+        (part[0].startsWith("@@")?"":context+"\n")+part.join("\n");
+    }
+    function flush(){
+      if(!current.length)return;
+      const patch=display(current,startingHunk);
+      if(Buffer.byteLength(patch,"utf8")>targetBytes)
+        throw Error("UNREVIEWABLE_AI09_SOURCE_LINE");
+      sections.push({fileIndex:original.fileIndex,paths:[path],
+        source:current.join("\n"),patch});
+      current=[];
+      startingHunk=hunk;
+    }
+    for(const row of rows){
+      let next=[...current,row];
+      // Do not split a line. If one source row is oversized, fail closed.
+      if(Buffer.byteLength(display(next,startingHunk),"utf8")>targetBytes) {
+        flush();
+        next=[row];
+        if(Buffer.byteLength(display(next,startingHunk),"utf8")>targetBytes)
+          throw Error("UNREVIEWABLE_AI09_SOURCE_LINE");
+      }
+      current=next;
+      if(row.startsWith("@@")){
+        if(!/^@@ -\d+(?:,\d+)? \+\d+(?:,\d+)? @@/.test(row))
+          throw Error("UNSUPPORTED_AI09_HUNK_HEADER");
+        hunk=row;
+      }
+    }
+    flush();
+    lastHunk.set(path,hunk);
+    if(sections.map(c=>c.source).join("\n")!==original.source)
+      throw Error("AI09_SOURCE_SUBSLICE_LOSS");
+    smaller.push(...sections);
+  }
+  if(smaller.length<1 ||
+     smaller.some(x=>Buffer.byteLength(x.patch,"utf8")>targetBytes) ||
+     smaller.some(x=>Buffer.byteLength(x.patch,"utf8")>MAX_CHUNK_BYTES))
+    throw Error("AI09_SUBDIVISION_LIMIT_EXCEEDED");
+  for(let i=0;i<native.paths.length;i++){
+    const oldFile=native.chunks.filter(c=>c.fileIndex===i)
+      .map(c=>c.source).join("\n");
+    const newFile=smaller.filter(c=>c.fileIndex===i)
+      .map(c=>c.source).join("\n");
+    if(oldFile!==newFile)throw Error("AI09_CANONICAL_FILE_COVERAGE_MISMATCH");
+    const path=native.paths[i];
+    if(!native.patch.includes("diff --git a/"+path+" b/"+path+"\n"+newFile))
+      throw Error("AI09_SOURCE_PATCH_MISMATCH");
+  }
+  // Each review receipt still refers to its own precise, independently
+  // hashed sub-patch; no part can silently pass as the original whole chunk.
+  return {...native,chunks:smaller};
+}
+
+
 /**
  * Partition by complete files only. Each partition must pass the actual
  * trusted AI09 chunker independently; concatenated partitions MUST equal the
@@ -43,8 +125,12 @@ export function planCompleteAi09Review(compare, baseSha, headSha, modules) {
   let pending = [];
   let candidate = null;
   function prepare(files) {
-    return modules.batches.compareToReviewChunks(
+    const verified=modules.batches.compareToReviewChunks(
       narrowCompare(compare, files), baseSha, headSha);
+    const smaller=subdivideVerifiedAi09Chunks(verified);
+    if(smaller.chunks.length>MAX_BATCH_CHUNKS)
+      throw Error("review_chunk_budget_exhausted");
+    return smaller;
   }
   function commit() {
     if (!pending.length || !candidate) throw Error("EMPTY_REVIEW_BATCH");
