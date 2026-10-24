@@ -21,7 +21,9 @@ function pinnedBlob(cwd,commit,path) {
   if (!pathOK(path)) deny('AI09_INVALID_GIT_PATH');
   // A Git symlink is also a blob. Inspect its actual tree mode first.
   const raw=git(cwd,['ls-tree','-r','-z','--full-tree',commit,'--',':(literal)'+path],4096);
-  const match=/^(100644|100755) blob ([a-f0-9]{40})\t([^\u0000]+)\u0000$/u.exec(raw.toString('utf8'));
+  const output=raw.toString('utf8');
+  if (!output.endsWith('\0') || output.slice(0,-1).includes('\0')) deny('AI09_NON_REGULAR_GIT_MODE');
+  const match=/^(100644|100755) blob ([a-f0-9]{40})\t(.+)$/u.exec(output.slice(0,-1));
   if (!match || match[3] !== path) deny('AI09_NON_REGULAR_GIT_MODE');
   const oid=gitText(cwd,['rev-parse','--verify',commit+':'+path]);
   if (!SHA.test(oid) || oid !== match[2] || gitText(cwd,['cat-file','-t',oid]) !== 'blob')
