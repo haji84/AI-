@@ -6357,6 +6357,16 @@
         "CORE-011"
       ],
       "reason": "Issue #1831 bounded AI09 full-coverage advisory review package: SHA-256 pinned per-file byte/slice/shard coverage and fail-closed review receipt verification. Does not issue independent formal GitHub approval, merge rights, or product/physical acceptance."
+    },
+    {
+      "path": "src/orchestrator/ai09-shard-candidate-runner.mjs",
+      "sha256": "057f14b2fcf5bfafbb0018787475793e77c08a7f78a510f3c7bc3883c2edc8c8",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-010",
+        "CORE-011"
+      ],
+      "reason": "Issue #1831 bounded candidate-only AI09 shard review: source slice model handoff and fail-closed advisory receipts. Does not provide an independent formal GitHub approval, merge authority, or physical Remote Lite acceptance."
     }
   ],
   "hash_policy": "utf8-crlf-to-lf-v1;binary-raw"
