@@ -14,6 +14,13 @@ const model='qwen2.5-coder:3b';
 const paths=['src/orchestrator/ai09-full-coverage.mjs',
   'src/orchestrator/ai09-shard-candidate-runner.mjs',
   'scripts/goriq-ai09-pinned-coverage.mjs'];
+// Official Ollama structured output support. Invalid/missing results still BLOCK.
+const reviewSchema={type:'object',properties:{
+  verdict:{type:'string',enum:['NO_FINDINGS','CHANGES_REQUESTED','INCONCLUSIVE']},
+  findings:{type:'array',items:{type:'object',properties:{
+    severity:{type:'string',enum:['low','medium','high','critical']},
+    summary:{type:'string'}},required:['severity','summary']}}
+},required:['verdict','findings']};
 const result={version:1,scope:'DRAFT_ISOLATED_MODEL_REVIEW',repository:repo,
   headSha:sha,model,modelDigest:null,status:'BLOCKED',sources:[],
   responses:[],totalBytes:0,reviewedBytes:0,
@@ -63,12 +70,13 @@ try {
     const response=await fetch('http://127.0.0.1:11434/api/chat',{
       method:'POST',headers:{'Content-Type':'application/json'},
       signal:AbortSignal.timeout(150000),
-      body:JSON.stringify({model,stream:false,format:'json',
+      body:JSON.stringify({model,stream:false,format:reviewSchema,
         options:{temperature:0,num_ctx:8192,num_predict:550},
         messages:[{role:'user',content:prompt}]})});
     if(!response.ok)reject('AI09_MODEL_HTTP_ERROR');
     const packet=await response.json(),raw=packet?.message?.content;
-    if(typeof raw!=='string'||Buffer.byteLength(raw)>16000)reject('AI09_RESPONSE_INVALID');
+    if(packet?.model!==model||packet?.done!==true||packet?.done_reason!=='stop'||
+       typeof raw!=='string'||Buffer.byteLength(raw)>16000)reject('AI09_RESPONSE_INVALID');
     let obj;try{obj=JSON.parse(raw)}catch{reject('AI09_RESPONSE_NON_JSON')}
     if(!['NO_FINDINGS','CHANGES_REQUESTED','INCONCLUSIVE'].includes(obj?.verdict)||
        !Array.isArray(obj?.findings)||obj.findings.length>20||
