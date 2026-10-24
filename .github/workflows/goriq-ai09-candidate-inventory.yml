@@ -1,0 +1,39 @@
+name: AI09 Draft Pinned Source Inventory
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+permissions:
+  contents: read
+concurrency:
+  group: ai09-draft-inventory
+  cancel-in-progress: true
+jobs:
+  pinned-inventory-only:
+    if: github.repository == 'haji84/AI-' && github.event.pull_request.number == 1832 && github.head_ref == 'feat/1831-remote-lite-manual-boundary'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    env:
+      AI09_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      AI09_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      AI09_PR_NUMBER: '1832'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+          clean: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+      - name: Pinned source inventory without running PR code
+        shell: bash
+        run: node scripts/goriq-ai09-candidate-source-inventory.mjs
+      - name: Archive digest-only inventory, not model approval
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai09-draft-inventory
+          path: ${{ runner.temp }}/ai09-draft-pinned-inventory.json
+          retention-days: 3
+          if-no-files-found: warn
