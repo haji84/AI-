@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import { spawn, execFileSync } from 'node:child_process';
 import { once } from 'node:events';
 import { setTimeout as delay } from 'node:timers/promises';
+import { setTimeout, clearTimeout } from 'node:timers';
 import process from 'node:process';
 import { readGoriqHostedPortalConfig } from '../src/remote-lite/goriq-hosted-config.mjs';
 import { startGoriqFriendRemote } from '../scripts/jarvis-friend-remote.mjs';
