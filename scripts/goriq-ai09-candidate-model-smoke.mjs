@@ -13,7 +13,9 @@ const sha=process.env.GITHUB_SHA??'';
 const model='qwen2.5-coder:3b';
 const paths=['src/orchestrator/ai09-full-coverage.mjs',
   'src/orchestrator/ai09-shard-candidate-runner.mjs',
-  'scripts/goriq-ai09-pinned-coverage.mjs'];
+  'scripts/goriq-ai09-pinned-coverage.mjs',
+  'scripts/goriq-ai09-candidate-model-smoke.mjs',
+  '.github/workflows/goriq-ai09-candidate-smoke.yml'];
 // Official Ollama structured output support. Invalid/missing results still BLOCK.
 const reviewSchema={type:'object',properties:{
   verdict:{type:'string',enum:['NO_FINDINGS','CHANGES_REQUESTED','INCONCLUSIVE']},
@@ -75,23 +77,31 @@ try {
         messages:[{role:'user',content:prompt}]})});
     if(!response.ok)reject('AI09_MODEL_HTTP_ERROR');
     const packet=await response.json(),raw=packet?.message?.content;
+    // Even a rejected model response receives a source-scoped digest record.
+    // Raw prompts and raw model text must never be exposed in public Actions.
+    const proof={id:i+1,path:item.path,begin:item.start,end:item.end,
+      sourceSha256:item.sha256,promptSha256:hash(Buffer.from(prompt)),
+      responseSha256:typeof raw==='string'?hash(Buffer.from(raw)):null,
+      responseBytes:typeof raw==='string'?Buffer.byteLength(raw):null,
+      modelDigest:result.modelDigest,
+      tokens:Number.isSafeInteger(packet?.eval_count)?packet.eval_count:null,
+      durationMs:Date.now()-begin};
+    const invalid=reason=>{
+      result.responses.push({...proof,verdict:'BLOCKED',reason,findings:[]});
+      reject(reason);
+    };
     if(packet?.model!==model||packet?.done!==true||packet?.done_reason!=='stop'||
-       typeof raw!=='string'||Buffer.byteLength(raw)>16000)reject('AI09_RESPONSE_INVALID');
-    let obj;try{obj=JSON.parse(raw)}catch{reject('AI09_RESPONSE_NON_JSON')}
+       typeof raw!=='string'||Buffer.byteLength(raw)>16000)invalid('AI09_RESPONSE_INVALID');
+    let obj;try{obj=JSON.parse(raw)}catch{invalid('AI09_RESPONSE_NON_JSON')}
     if(!['NO_FINDINGS','CHANGES_REQUESTED','INCONCLUSIVE'].includes(obj?.verdict)||
        !Array.isArray(obj?.findings)||obj.findings.length>20||
        obj.findings.some(f=>!f||!['low','medium','high','critical'].includes(f.severity)||
          typeof f.summary!=='string'||f.summary.length>500))
-      reject('AI09_RESPONSE_SCHEMA_INVALID');
+      invalid('AI09_RESPONSE_SCHEMA_INVALID');
     const findings=obj.findings.map(f=>({severity:f.severity,summary:f.summary}));
     if(findings.some(f=>/(?:gh[pousr]_[A-Za-z0-9_]{12,}|github_pat_[A-Za-z0-9_]{12,}|sk-proj-[A-Za-z0-9_-]{12,}|PRIVATE KEY|(?:api[_ -]?key|password|secret|token)\s*[:=]\s*[^\s,;]{8,})/i.test(f.summary)))
       reject('AI09_SENSITIVE_RESULT_BLOCKED');
-    const evidence={id:i+1,path:item.path,begin:item.start,end:item.end,
-      sourceSha256:item.sha256,promptSha256:hash(Buffer.from(prompt)),
-      responseSha256:hash(Buffer.from(raw)),responseBytes:Buffer.byteLength(raw),
-      verdict:obj.verdict,findings,modelDigest:result.modelDigest,
-      tokens:Number.isSafeInteger(packet.eval_count)?packet.eval_count:null,
-      durationMs:Date.now()-begin};
+    const evidence={...proof,verdict:obj.verdict,findings};
     result.responses.push(evidence);
     result.reviewedBytes+=item.end-item.start;
     console.log('AI09_ACTUAL_MODEL_CALL='+evidence.id+' STATUS='+obj.verdict+
@@ -106,6 +116,7 @@ try {
   result.blocker=/^AI09_[A-Z_]+$/.test(e?.message??'')?e.message:'AI09_EXECUTION_FAILED';
   process.exitCode=1;
 }
+if(result.status!=='NO_ACTIONABLE_FINDINGS')process.exitCode=1;
 result.receiptSha256=hash(JSON.stringify(result));
 writeFileSync('ai09-candidate-proof.json',JSON.stringify(result,null,2)+'\n',{mode:0o600,flag:'wx'});
 console.log('AI09_CANDIDATE_MODEL_STATUS='+result.status);
