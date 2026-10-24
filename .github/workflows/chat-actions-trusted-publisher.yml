@@ -1,0 +1,88 @@
+name: Chat Actions Trusted Publisher (Pilot)
+
+# This privileged workflow only becomes active after protected main integration.
+# Never run untrusted PR-head scripts with a write-capable token.
+on:
+  workflow_run:
+    workflows: ["Chat Actions Isolated Smoke (Non-Production)"]
+    types: [completed]
+
+permissions: {}
+
+concurrency:
+  group: trusted-chat-actions-publisher-1866
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    if: >-
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      github.event.workflow_run.head_branch == 'codex/1865-pr-reuse-advisory' &&
+      github.event.workflow_run.pull_requests[0].number == 1866
+    runs-on: ubuntu-24.04
+    timeout-minutes: 4
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+      actions: read
+    outputs:
+      eligible: ${{ steps.guard.outputs.eligible }}
+      reason: ${{ steps.guard.outputs.reason }}
+    steps:
+      - name: Checkout reviewed trusted default-branch code, never PR head
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24.19.0"
+      - name: Authenticate exact run, PR and candidate artifact
+        id: guard
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/chat-actions-publisher-preflight.mjs
+
+  publish:
+    needs: preflight
+    if: needs.preflight.outputs.eligible == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 4
+    # Only trusted publisher gets a repo-contents write token.
+    # It can only create one compare-and-swap commit on the exact PR branch.
+    permissions:
+      contents: write
+      pull-requests: read
+      issues: read
+      actions: read
+    steps:
+      - name: Checkout trusted default branch with no retained credentials
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24.19.0"
+      - name: Download only pinned prior-run model candidate artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: chat-actions-real-model-candidate
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/chat-actions-pilot-artifact
+      - name: Re-check current exact PR head, source hash and commit atomically
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GORIQ_PILOT_RECEIPT: ${{ runner.temp }}/chat-actions-pilot-artifact/receipt.json
+          GORIQ_PILOT_SOURCE: ${{ runner.temp }}/chat-actions-pilot-artifact/source.mjs
+          GORIQ_PILOT_PUBLISH: isolated-1865
+        run: node scripts/chat-actions-trusted-publisher.mjs
+
+# Any protected merge, external deployment, permission change, billing or
+# critical feature remains subject to its separate Human Gate.

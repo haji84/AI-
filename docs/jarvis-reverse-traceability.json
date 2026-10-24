@@ -5192,8 +5192,20 @@
       "reason": "#681 State Controller-owned append-only Development Job contract and verified-completion invariant. #1845 fresh resource admission/bounded durable wait integration; preserves existing ownership and gates, no functional or physical acceptance claim."
     },
     {
+      "path": "src/orchestrator/development-decision-board.ts",
+      "sha256": "5bd4ca774d051cd3ab6ab05d0590bd623cb8ee54e43117181384d93c26601ed6",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-002",
+        "AUTO-009",
+        "AUTO-018",
+        "AUTO-022"
+      ],
+      "reason": "#1865 read-only five-decision Goal board derived from existing completion cycle: missing requirements, next work, resource-locked parallel candidates, Human Gates, and exact-head AI09 advisory. No execution, merge, publisher authority or final product acceptance. Requirement linkage does not establish functional or physical completion."
+    },
+    {
       "path": "src/orchestrator/development-orchestrator.ts",
-      "sha256": "78956f9e6ec546a9e3b39279cf3f5d7b0e10c8b62e8757a06cf74661a8e6bd0f",
+      "sha256": "cf997d6e00510ceff3cb88419f46e44e07bb141e93fd4c0906bd715a1cc7cecc",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -6329,6 +6341,26 @@
         "AUTO-022"
       ],
       "reason": "#1858 fixed owner-approved native activation scope, expiry and configuration preservation. Reuses existing deployment controls; implementation mapping is not live activation or operational acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/development-pr-advisory.ts",
+      "sha256": "1ade09c9e52c995670cb5a67cef7bd31f9117b34ee62d6804bc74714b0c5ff3c",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "CORE-020",
+        "GOV-005"
+      ],
+      "reason": "#1865 read-only PR reuse and existing risk/AI09 review intake advisory. This mapping is source traceability only: no new merge/approval authority, GitHub runtime integration, or physical acceptance."
+    },
+    {
+      "path": "docs/architecture/chat-first-actions-autonomy.md",
+      "sha256": "6396dad5f64351b4d8dff79f74dfd78a30dd4445f8fd36d768e66f40f0579cd0",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "CORE-014",
+        "GOV-005"
+      ],
+      "reason": "#1865 Chat-first GitHub Actions and Codex-exception architecture proposal. Documentation only; no production dispatch, permission or merge authority, and no live acceptance evidence."
     }
   ],
   "hash_policy": "utf8-crlf-to-lf-v1;binary-raw"

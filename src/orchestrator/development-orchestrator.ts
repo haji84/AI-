@@ -1,9 +1,12 @@
 import { createHash } from "node:crypto";
+import { buildDevelopmentDecisionBoard, type DevelopmentDecisionBoardOptions } from "./development-decision-board.ts";
+
 import { assessCompletionPath, type CompletionInput, type CompletionCycle } from "./completion-path.ts";
 import type { WorkState } from "./work-state.ts";
 import { completionDigest, type CompletionRequirement } from './completion-path.ts';
 import type { BoundCompletionCandidate, CompletionSource, CompletionSnapshot } from './completion-execution.ts';
 import { evaluateRiskPolicy } from './risk-policy.ts';
+import { adviseDevelopmentIntake, adviseChatActionsHandoff, type Intake, type ChatActionsHandoffInput } from "./development-pr-advisory.ts";
 import {
   createDevelopmentJob,
   type DevelopmentFailure,
@@ -68,6 +71,13 @@ function workItems(input: DevelopmentPlanningInput): DevelopmentWorkItem[] {
 }
 
 export class DevelopmentOrchestrator {
+  /** Read-only intake inspection; never dispatches Actions, changes Goals, or grants merge authority. */
+  inspectChatActionsDevelopment(input: { pr: Intake; chat: ChatActionsHandoffInput }) {
+    const prAdvice = adviseDevelopmentIntake(input.pr);
+    const chatHandoff = adviseChatActionsHandoff(input.chat, prAdvice);
+    return { executionAuthority: false as const, prAdvice, chatHandoff };
+  }
+
   /** Bind existing job work items to host-registered actions; context/HTTP cannot register executors. */
   completionSource(plan: DevelopmentPlan, input: {
     requirements: CompletionRequirement[];
@@ -109,6 +119,13 @@ export class DevelopmentOrchestrator {
   /** Advisory preflight only. The existing plan/execution authority remains unchanged. */
   assessCompletionPath(state: WorkState, input: CompletionInput, history: CompletionCycle[] = []): CompletionCycle {
     return assessCompletionPath(state, input, history);
+  }
+
+  /** Five read-only decisions derived from the exact trusted completion cycle; no scheduling or release authority. */
+  inspectDevelopmentDecisionBoard(state: WorkState, input: CompletionInput,
+      options: DevelopmentDecisionBoardOptions, history: CompletionCycle[] = []) {
+    const cycle = assessCompletionPath(state, input, history);
+    return buildDevelopmentDecisionBoard(state, input, cycle, options);
   }
 
   plan(input: DevelopmentPlanningInput, now = new Date()): DevelopmentPlan {
