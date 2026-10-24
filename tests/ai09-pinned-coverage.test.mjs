@@ -49,3 +49,26 @@ test('missing authoritative path, invalid commit and binary file fail closed',t=
   assert.throws(()=>planPinnedGitCoverage({ ...f,headSha,expectedPaths:[...f.expectedPaths,'binary.dat'] }),
     /AI09_BINARY_REQUIRES_INDEPENDENT_REVIEW/);
 });
+
+test('pinned review rejects changed Git execute mode even with byte-identical content',t=>{
+  const f=fixture(t);
+  const g=(...args)=>execFileSync('git',args,{cwd:f.cwd,encoding:'utf8',
+    windowsHide:true,stdio:['ignore','pipe','ignore']}).trim();
+  g('update-index','--chmod=+x','keep.txt');
+  g('commit','-qm','synthetic executable mode change');
+  assert.throws(()=>planPinnedGitCoverage({...f,headSha:g('rev-parse','HEAD')}),
+    /AI09_GIT_MODE_CHANGE_UNREVIEWABLE/);
+});
+test('pinned review rejects Git symlink blobs even when target is UTF8 text',t=>{
+  const f=fixture(t);
+  const g=(...args)=>execFileSync('git',args,{cwd:f.cwd,encoding:'utf8',
+    windowsHide:true,stdio:['ignore','pipe','ignore']}).trim();
+  const content=join(f.cwd,'synthetic-link-content.txt');
+  writeFileSync(content,'../secret-file');
+  const oid=g('hash-object','-w','synthetic-link-content.txt');
+  rmSync(content);
+  g('update-index','--add','--cacheinfo','120000,'+oid+',link.txt');
+  g('commit','-qm','synthetic Git symlink');
+  assert.throws(()=>planPinnedGitCoverage({...f,headSha:g('rev-parse','HEAD'),
+    expectedPaths:[...f.expectedPaths,'link.txt']}),/AI09_NON_REGULAR_GIT_MODE/);
+});

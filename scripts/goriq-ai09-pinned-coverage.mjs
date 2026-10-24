@@ -19,10 +19,14 @@ function git(cwd, args, maxBuffer = 12 * 1024 * 1024) {
 function gitText(cwd,args) { return git(cwd,args).toString('utf8').trim(); }
 function pinnedBlob(cwd,commit,path) {
   if (!pathOK(path)) deny('AI09_INVALID_GIT_PATH');
+  // A Git symlink is also a blob. Inspect its actual tree mode first.
+  const raw=git(cwd,['ls-tree','-r','-z','--full-tree',commit,'--',':(literal)'+path],4096);
+  const match=/^(100644|100755) blob ([a-f0-9]{40})\t([^\u0000]+)\u0000$/u.exec(raw.toString('utf8'));
+  if (!match || match[3] !== path) deny('AI09_NON_REGULAR_GIT_MODE');
   const oid=gitText(cwd,['rev-parse','--verify',commit+':'+path]);
-  if (!SHA.test(oid) || gitText(cwd,['cat-file','-t',oid]) !== 'blob')
+  if (!SHA.test(oid) || oid !== match[2] || gitText(cwd,['cat-file','-t',oid]) !== 'blob')
     deny('AI09_NON_BLOB_OR_OBJECT_MISSING');
-  return git(cwd,['cat-file','blob',oid]);
+  return { bytes:git(cwd,['cat-file','blob',oid]), mode:match[1] };
 }
 function changedEntries(cwd,baseSha,headSha) {
   // -z protects NUL-separated names. Detect renames explicitly; no textconv.
@@ -61,10 +65,14 @@ export function planPinnedGitCoverage({cwd,baseSha,headSha,expectedPaths}={}) {
     {cwd,windowsHide:true,stdio:'ignore',timeout:10000}); }
   catch { deny('AI09_STALE_OR_DIVERGED_BASE'); }
   const entries=changedEntries(cwd,baseSha,headSha);
-  const files=entries.map(e=>({
-    ...e,
-    before:e.status==='added'?null:pinnedBlob(cwd,baseSha,e.previousPath??e.path),
-    after:e.status==='deleted'?null:pinnedBlob(cwd,headSha,e.path)
-  }));
+  const files=entries.map(e=>{
+    const before=e.status==='added'?null:pinnedBlob(cwd,baseSha,e.previousPath??e.path);
+    const after=e.status==='deleted'?null:pinnedBlob(cwd,headSha,e.path);
+    // Mode-only chmod changes affect execution semantics and cannot be
+    // certified by the current byte-only advisory manifest.
+    if (before && after && before.mode !== after.mode)
+      deny('AI09_GIT_MODE_CHANGE_UNREVIEWABLE');
+    return { ...e, before:before?.bytes??null, after:after?.bytes??null };
+  });
   return planFullCoverage({baseSha,headSha,files,expectedPaths});
 }
