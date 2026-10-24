@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto";
+import { buildDevelopmentDecisionBoard, type DevelopmentDecisionBoardOptions } from "./development-decision-board.ts";
+
 import { assessCompletionPath, type CompletionInput, type CompletionCycle } from "./completion-path.ts";
 import type { WorkState } from "./work-state.ts";
 import { completionDigest, type CompletionRequirement } from './completion-path.ts';
@@ -117,6 +119,13 @@ export class DevelopmentOrchestrator {
   /** Advisory preflight only. The existing plan/execution authority remains unchanged. */
   assessCompletionPath(state: WorkState, input: CompletionInput, history: CompletionCycle[] = []): CompletionCycle {
     return assessCompletionPath(state, input, history);
+  }
+
+  /** Five read-only decisions derived from the exact trusted completion cycle; no scheduling or release authority. */
+  inspectDevelopmentDecisionBoard(state: WorkState, input: CompletionInput,
+      options: DevelopmentDecisionBoardOptions, history: CompletionCycle[] = []) {
+    const cycle = assessCompletionPath(state, input, history);
+    return buildDevelopmentDecisionBoard(state, input, cycle, options);
   }
 
   plan(input: DevelopmentPlanningInput, now = new Date()): DevelopmentPlan {
