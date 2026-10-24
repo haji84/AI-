@@ -116,14 +116,14 @@ test('operator HTTPS accepts bounded proxy/browser headers and still rejects exc
   };
   let closePortal=await openLocalPortal();
   try {
-    assert.match(await send(1),/^HTTP\\/1\\.1 200 /u);
-    assert.match(await send(1,false,'goriq-owner-test.invalid'),/^HTTP\\/1\\.1 403 /u);
+    assert.match(await send(1),/^HTTP\/1\.1 200 /u);
+    assert.match(await send(1,false,'goriq-owner-test.invalid'),/^HTTP\/1\.1 403 /u);
   } finally { await closePortal(); }
   assert.equal(existsSync(join(friendState,'registry.lock')),false);
   assert.deepEqual(readFileSync(join(friendState,'devices.json')),registryBytes);
   const reopened=openRemoteRegistry(friendState);reopened.close();
   closePortal=await openLocalPortal();
-  try { assert.match(await send(1),/^HTTP\\/1\\.1 200 /u); }
+  try { assert.match(await send(1),/^HTTP\/1\.1 200 /u); }
   finally { await closePortal(); }
   assert.deepEqual(readFileSync(join(friendState,'devices.json')),registryBytes);
   t.diagnostic('Loopback HTTPS/registry remain testable; hosted friend private bind stays fail-closed');
