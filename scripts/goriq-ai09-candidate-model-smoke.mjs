@@ -2,7 +2,8 @@
 // Isolated advisory experiment: no PR approval, service changes or credential access.
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { readFileSync,writeFileSync } from 'node:fs';
+import { writeFileSync } from 'node:fs';
+import { TextDecoder } from 'node:util';
 import { Buffer } from 'node:buffer';
 const hash=x=>createHash('sha256').update(x).digest('hex');
 const reject=reason=>{throw Error(reason);};
