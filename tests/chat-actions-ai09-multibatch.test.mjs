@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { Buffer } from "node:buffer";
-import { runOneAi09Batch, groundedReviewPrompt, auditAi09ClaimSupport } from "../scripts/chat-actions-ai09-batch-runner.mjs";
+import { runOneAi09Batch, groundedReviewPrompt, auditAi09ClaimSupport, ai09AddedLineEvidenceIndex } from "../scripts/chat-actions-ai09-batch-runner.mjs";
 import { aggregateIndependentBatchReceipts } from "../scripts/chat-actions-ai09-full-aggregate.mjs";
 import { independentlyAuditAi09Claims } from "../scripts/chat-actions-ai09-independent-triage.mjs";
 import { planCompleteAi09Review, collectAi09Evidence, assertNoWriteAuthority }
@@ -340,4 +340,50 @@ test("independent verification catches stale and duplicate received batches",asy
  assert.equal(duplicated.status,"BLOCKED");
  const stale=independentlyAuditAi09Claims({plan,receipts:[{...receipts[0],headSha:"c".repeat(40)},...receipts.slice(1)],anchorModule:modules.anchor});
  assert.equal(stale.status,"BLOCKED");
+});
+
+test("actual new-side hunk line numbers survive split source chunks without altering reviewed bytes",()=>{
+ const path="src/real.ts";
+ const first={fileIndex:0,paths:[path],
+  source:"@@ -1,3 +10,4 @@\n const a = 1;\n-old\n+const b = 2;"};
+ const second={fileIndex:0,paths:[path],
+  source:"+const c = 3;\n return 1;"};
+ const patch="diff --git a/"+path+" b/"+path+"\n"+
+   [first.source,second.source].join("\n");
+ const batch={paths:[path],chunks:[first,second],patch};
+ const a=ai09AddedLineEvidenceIndex(batch,first);
+ const b=ai09AddedLineEvidenceIndex(batch,second);
+ assert.equal(a.path,path);
+ assert.equal(a.fullAddedLineCount,1);
+ assert.equal(b.fullAddedLineCount,1);
+ assert.ok(a.evidenceHint.includes('[11,"const b = 2;"]'));
+ assert.ok(b.evidenceHint.includes('[12,"const c = 3;"]'));
+ assert.equal(batch.patch,patch);
+ assert.equal(a.evidenceClass,"MACHINE_VERIFIED_LINE_COORDINATES_ONLY");
+});
+test("line indices require canonical Git source and reject untrusted scope swaps",()=>{
+ const one={fileIndex:0,paths:["src/expected.js"],source:"@@ -0,0 +1 @@\n+export const ok = true;"};
+ const batch={paths:["src/expected.js"],chunks:[one],
+  patch:"diff --git a/src/expected.js b/src/expected.js\n"+one.source};
+ assert.ok(ai09AddedLineEvidenceIndex(batch,one).evidenceHint.includes('[1,"export const ok = true;"]'));
+ assert.throws(()=>ai09AddedLineEvidenceIndex({...batch,patch:"diff --git a/src/other.js b/src/other.js\n"+one.source},one),
+  /AI09_CANONICAL_DIFF_NOT_FOUND/);
+ assert.throws(()=>ai09AddedLineEvidenceIndex(batch,{...one}),/INVALID_AI09_EVIDENCE_INDEX_SCOPE/);
+ assert.throws(()=>ai09AddedLineEvidenceIndex({...batch,paths:["src/other.js"]},one),/AI09_EVIDENCE_PATH_MISMATCH/);
+});
+test("reviewed model prompt includes machine-counted line coordinates, but never authorizes merge",async()=>{
+ const plan=planCompleteAi09Review(comparison(1,4),SHA,HEAD,modules);
+ const manifest=manifestFor(plan),seen=[];
+ const r=await runOneAi09Batch({plan,manifest,index:0,modules,infer:async prompt=>{
+  seen.push(prompt);
+  return JSON.stringify({verdict:"NO_FINDINGS",findings:[]});
+ }});
+ assert.equal(r.status,"NO_ACTIONABLE_FINDINGS");
+ assert.equal(r.githubApprovalSatisfied,false);
+ assert.equal(r.mergeAuthorized,false);
+ assert.ok(seen.length>0);
+ assert.ok(seen[0].includes("ADDED_LINE_COORDINATES_FROM_TRUSTED_GIT_HUNKS"));
+ assert.ok(seen[0].includes('fixture_0_0'));
+ assert.ok(seen[0].includes("\nThe location index"));
+ assert.ok(r.diagnostic.every(x=>x.trustedLineIndexCount>0));
 });
