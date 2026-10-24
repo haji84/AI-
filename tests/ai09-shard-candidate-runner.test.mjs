@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Buffer } from 'node:buffer';
+import { createHash } from 'node:crypto';
 import { planFullCoverage } from '../src/orchestrator/ai09-full-coverage.mjs';
 import { runCandidateShardReview } from '../src/orchestrator/ai09-shard-candidate-runner.mjs';
 
@@ -76,4 +77,37 @@ test('potential secret content in a finding blocks the candidate rather than ech
   assert.equal(result.status,'BLOCKED');
   assert.equal(result.reason,'AI09_SENSITIVE_OR_EXCESS_FINDINGS');
   assert.equal(result.actionableFindings,undefined);
+});
+
+test('inference callback emits source-bound hashes and declared model metadata, never raw prompts or responses',async()=>{
+  const p=source(3), observed=[];
+  const response=answer();
+  const result=await runCandidateShardReview({plan:p,
+    modelName:'qwen2.5-coder:3b',modelRevision:'candidate-test',
+    infer:async()=>response,onInferenceEvidence:record=>observed.push(record)});
+  assert.equal(result.status,'NO_ACTIONABLE_FINDINGS');
+  assert.equal(result.inferenceAudit.count,3);
+  assert.equal(observed.length,3);
+  assert.equal(result.inferenceAudit.declaredProvenanceOnly,true);
+  assert.equal(result.inferenceAudit.independentModelVerified,false);
+  assert.equal(result.inferenceAudit.durableStorageVerified,false);
+  const item=observed[0];
+  assert.equal(item.sourceSha256,p.manifest.files[0].slices[0].sha256);
+  assert.equal(item.responseSha256,createHash('sha256').update(response).digest('hex'));
+  assert.equal(item.modelName,'qwen2.5-coder:3b');
+  assert.match(item.requestSha256,/^[a-f0-9]{64}$/u);
+  assert.match(item.startedAt,/^\d{4}-\d{2}-\d{2}T/u);
+  assert.ok(!JSON.stringify(result.inferenceAudit).includes('BEGIN_UNTRUSTED_PATCH'));
+  assert.ok(!JSON.stringify(result.inferenceAudit).includes('NO_FINDINGS'));
+  assert.equal(result.githubApprovalSatisfied,false);
+  assert.equal(result.mergeAuthorized,false);
+});
+test('inference proof sink failures or invalid model metadata fail closed',async()=>{
+  const p=source(1);
+  const failed=await runCandidateShardReview({plan:p,infer:answer,
+    onInferenceEvidence:async()=>{throw Error('sink unavailable');}});
+  assert.equal(failed.status,'BLOCKED');
+  const invalid=await runCandidateShardReview({plan:p,infer:answer,
+    modelName:'invalid model text'});
+  assert.equal(invalid.status,'BLOCKED');
 });

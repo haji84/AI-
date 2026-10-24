@@ -6360,7 +6360,7 @@
     },
     {
       "path": "src/orchestrator/ai09-shard-candidate-runner.mjs",
-      "sha256": "5870786741c51dcbb49a555f88bc4bff1a8d1abdffe1240c721d09288dd340f3",
+      "sha256": "90e45bb434ad7044382542734a6d46621d8cfe0d20b89e985aa08efb4b1c2981",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-010",

@@ -17,11 +17,15 @@ const blocked = reason => ({
  * time, preventing accidental truncation when shards contain many slices.
  */
 export async function runCandidateShardReview({ plan, infer, reviewerId='AI09-candidate',
-  maxSlices=4096 }={}) {
+  maxSlices=4096, modelName='UNVERIFIED', modelRevision='UNVERIFIED',
+  onInferenceEvidence=null }={}) {
   const manifest=plan?.manifest, payloads=plan?.payloads;
   if (!manifest || !(payloads instanceof Map) || typeof infer!=='function' ||
       typeof reviewerId!=='string' || !/^[A-Za-z0-9_.:-]{2,80}$/u.test(reviewerId) ||
       !Number.isSafeInteger(maxSlices) || maxSlices<1 || maxSlices>4096 ||
+      !/^[A-Za-z0-9_.:/-]{1,96}$/u.test(modelName) ||
+      !/^[A-Za-z0-9_.:/-]{1,96}$/u.test(modelRevision) ||
+      (onInferenceEvidence!==null && typeof onInferenceEvidence!=='function') ||
       !Array.isArray(manifest.files) || !Array.isArray(manifest.shards) ||
       manifest.files.length<1 || manifest.files.length>500)
     return blocked('AI09_CANDIDATE_INPUT_INVALID');
@@ -55,7 +59,7 @@ export async function runCandidateShardReview({ plan, infer, reviewerId='AI09-ca
     shard.sliceIds.forEach(id=>scheduled.add(id));
   }
   if (scheduled.size!==all.size) return blocked('AI09_SHARD_COVERAGE_INCOMPLETE');
-  const receipts=[], actionableFindings=[];
+  const receipts=[], actionableFindings=[], inferenceRecords=[];
   let evaluated=0;
   for (const shard of manifest.shards) {
     const results=[];
@@ -65,9 +69,25 @@ export async function runCandidateShardReview({ plan, infer, reviewerId='AI09-ca
       const source='PINNED_FILE_SLICE id='+id+' side='+s.side+
         ' byteRange='+s.start+':'+s.end+' sha256='+s.sha256+
         '\nBEGIN_UNTRUSTED_FILE_CONTENT\n'+s.text+'\nEND_UNTRUSTED_FILE_CONTENT';
+      // The caller-supplied infer callback is NOT an authenticated model.
+      // Record only digests and declared provenance, never prompts/responses.
+      const observedInfer=async prompt=>{
+        const startedAt=new Date().toISOString();
+        const requestSha256=hash(Buffer.from(prompt,'utf8'));
+        const response=await infer(prompt);
+        if(typeof response!=='string' || Buffer.byteLength(response,'utf8')>20000)
+          throw Error('AI09_MODEL_RESPONSE_INVALID');
+        const record={sliceId:id,path:s.path,side:s.side,sourceSha256:s.sha256,
+          requestSha256,responseSha256:hash(Buffer.from(response,'utf8')),
+          responseBytes:Buffer.byteLength(response,'utf8'),startedAt,
+          finishedAt:new Date().toISOString(),modelName,modelRevision};
+        inferenceRecords.push(record);
+        if(onInferenceEvidence) await onInferenceEvidence({...record});
+        return response;
+      };
       const review=await reviewLocalPatch({
         baseSha:manifest.baseSha,headSha:manifest.headSha,
-        makerRole:'Builder',paths:[s.path],patch:source,infer,
+        makerRole:'Builder',paths:[s.path],patch:source,infer:observedInfer,
       });
       evaluated++;
       if (review.status==='BLOCKED') return {
@@ -79,7 +99,8 @@ export async function runCandidateShardReview({ plan, infer, reviewerId='AI09-ca
         decision='CHANGES_REQUESTED';
       const reviewSha256=hash(JSON.stringify(review));
       results.push({sliceId:id,reviewSha256,status:review.status,
-        findingCount:review.findings.length});
+        findingCount:review.findings.length,
+        inferenceRecordSha256:hash(JSON.stringify(inferenceRecords.at(-1)))});
       // Keep bounded, source-bound findings for independent triage and
       // reproduction. These stay in private candidate results, not PR logs.
       if (review.status==='CHANGES_REQUESTED') {
@@ -101,7 +122,14 @@ export async function runCandidateShardReview({ plan, infer, reviewerId='AI09-ca
   }
   const verified=verifyFullCoverageReceipts(manifest,receipts);
   if (verified.status==='BLOCKED') return blocked('AI09_RECEIPT_VERIFICATION_FAILED');
+  if(inferenceRecords.length!==evaluated ||
+      inferenceRecords.some((r,i)=>r.sliceId!==Array.from(all.keys())[i]))
+    return blocked('AI09_INFERENCE_RECORD_INCOMPLETE');
   return { ...verified, evaluatedSlices:evaluated, receipts, actionableFindings,
+    inferenceAudit:{count:inferenceRecords.length,
+      ledgerSha256:hash(JSON.stringify(inferenceRecords)),
+      records:inferenceRecords, declaredProvenanceOnly:true,
+      independentModelVerified:false, durableStorageVerified:false},
     independentReviewerAuthenticated:false, formalGitHubReview:false,
     deploymentAccepted:false };
 }
