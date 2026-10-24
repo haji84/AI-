@@ -80,7 +80,8 @@ export function selectPinnedReviewShard({ manifest, payloads, shardId } = {}) {
     if (slices.reduce((n, s) => n + s.end - s.start, 0) !== shard.bytes ||
         new Set(slices.map(s => s.path)).size !== shard.fileCount ||
         sha256(JSON.stringify({ baseSha: manifest.baseSha, headSha: manifest.headSha,
-          index: shard.id, slices: slices.map(({ text, ...s }) => s) })) !== shard.digest)
+          index: shard.id, slices: slices.map(s => ({ id:s.id, path:s.path, side:s.side,
+            start:s.start, end:s.end, sha256:s.sha256 })) })) !== shard.digest)
       refuse('AI09_SHARD_DIGEST_MISMATCH');
     shard.sliceIds.forEach(id => scheduled.add(id));
   }
