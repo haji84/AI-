@@ -73,7 +73,8 @@ try {
   if (state.title !== 'Remote Lite preflight' || state.ready !== 'complete') throw new Error('Browser document did not execute');
   phase = 'loopback-http';
   await openWindowsFixtureTab(request, session);
-  await navigateWindowsFixture(request, session, `http://127.0.0.1:${fixture.address().port}/`);
+  const navigation = await navigateWindowsFixture(request, session,
+    `http://127.0.0.1:${fixture.address().port}/`, { recoverBootstrap: true });
   const httpState = await request('POST', `/session/${session}/execute/sync`, {
     script: 'return {title:document.title,ready:document.readyState}', args: [],
   });
@@ -83,7 +84,8 @@ try {
   phase = 'session-close';
   await request('DELETE', `/session/${session}`); session = undefined;
   process.stdout.write(JSON.stringify({ browserPreflight: 'PASS', browserVersion, driverVersion,
-    driverReadyMs, elapsedMs: Math.round(performance.now() - started), loopbackHTTP: true, sessionClosed: true }) + '\n');
+    driverReadyMs, elapsedMs: Math.round(performance.now() - started),
+    loopbackHTTP: true, bootstrapRecoveries: navigation.recoveries, sessionClosed: true }) + '\n');
 } catch (error) {
   // Both documents are fixed fixtures. Driver payloads and IDs remain omitted.
   const detail = error?.message?.startsWith('Windows VM browser navigation refused:') ? error.message : error?.name || 'Error';
