@@ -103,12 +103,15 @@ export function inspectFriendActivation(wrapperPath) {
   }
 
   const privateBind = inspectPrivateFriendBindCandidate(config);
-  if (!privateBind.tcp8443) note('FRIEND_PRIVATE_TCP8443_NOT_PLANNED');
-  if (!privateBind.tailscaleIpv4Candidate) note('FRIEND_TAILSCALE_PRIVATE_BIND_NOT_VERIFIED');
+  const privateBindBlockers = [];
+  if (!privateBind.tcp8443) privateBindBlockers.push('FRIEND_PRIVATE_TCP8443_NOT_PLANNED');
+  if (!privateBind.tailscaleIpv4Candidate) privateBindBlockers.push('FRIEND_TAILSCALE_PRIVATE_BIND_NOT_VERIFIED');
+  // "configured" represents only the existing local validation contract.
+  // Private exposure and all owner approval gates remain strictly separate.
   const configured = Object.values(checks).every(Boolean);
   return {
     kind: 'remote-lite-friend-readiness', configured,
-    checks, privateBind, blockers,
+    checks, privateBind, privateBindBlockers, blockers,
     deploymentAccepted: false,
     physicalIphoneAccepted: false,
     deviceAndFriendAccountAccepted: false,
