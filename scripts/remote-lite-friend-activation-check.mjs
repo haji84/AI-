@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import process from 'node:process';
 import { inspectFriendActivation } from '../src/remote-lite/friend-activation-readiness.mjs';
 
 // Intentionally read-only. No account/key generation, listener, network call,
