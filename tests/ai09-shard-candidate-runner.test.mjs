@@ -28,6 +28,7 @@ test('all 207 separate model slice calls are bound into advisory receipts, never
   assert.equal(result.mergeAuthorized,false);
   assert.equal(result.formalGitHubReview,false);
   assert.equal(result.receipts.reduce((n,r)=>n+r.evaluatedSliceIds.length,0),207);
+  assert.equal(result.receipts.reduce((n,r)=>n+r.sliceResults.length,0),207);
 });
 test('a changed source byte, dropped payload or missing shard prevents review calls',async()=>{
   const p=source(3);let calls=0;

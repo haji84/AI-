@@ -3,6 +3,7 @@ import { Buffer } from 'node:buffer';
 import { TextDecoder } from 'node:util';
 
 const SHA = /^[a-f0-9]{40}$/u;
+const SHA256 = /^[a-f0-9]{64}$/u;
 const STATUSES = new Set(['added', 'deleted', 'modified', 'renamed']);
 const REVIEW_STATUSES = new Set(['NO_ACTIONABLE_FINDINGS', 'CHANGES_REQUESTED', 'INCONCLUSIVE', 'BLOCKED']);
 const sha256 = value => createHash('sha256').update(value).digest('hex');
@@ -133,6 +134,34 @@ export function verifyFullCoverageReceipts(manifest, receipts) {
         r.shardDigest !== s.digest || typeof r.reviewerId !== 'string' ||
         !/^[A-Za-z0-9_.:-]{2,80}$/u.test(r.reviewerId) || r.reviewerId === 'Builder' ||
         !REVIEW_STATUSES.has(r.status)) return blocked('AI09_RECEIPT_INTEGRITY_FAIL');
+    // A shard cannot claim a clean review from a bare reviewer name or an
+    // unbound digest. Preserve a per-slice, source-scoped result ledger.
+    if (!Array.isArray(s.sliceIds) || !Array.isArray(r.evaluatedSliceIds) ||
+        !Array.isArray(r.sliceResults) ||
+        r.evaluatedSliceIds.length !== s.sliceIds.length ||
+        r.sliceResults.length !== s.sliceIds.length ||
+        !SHA256.test(r.evidenceSha256 ?? '') ||
+        r.evidenceSha256 !== sha256(JSON.stringify(r.sliceResults))) {
+      return blocked('AI09_SLICE_REVIEW_EVIDENCE_MISSING');
+    }
+    let shardStatus = 'NO_ACTIONABLE_FINDINGS';
+    for (let i = 0; i < s.sliceIds.length; i++) {
+      const item = r.sliceResults[i];
+      if (r.evaluatedSliceIds[i] !== s.sliceIds[i] ||
+          !item || item.sliceId !== s.sliceIds[i] ||
+          !SHA256.test(item.reviewSha256 ?? '') ||
+          !REVIEW_STATUSES.has(item.status) || item.status === 'BLOCKED' ||
+          !Number.isSafeInteger(item.findingCount) ||
+          item.findingCount < 0 || item.findingCount > 20 ||
+          (item.status === 'NO_ACTIONABLE_FINDINGS' && item.findingCount !== 0) ||
+          (item.status === 'CHANGES_REQUESTED' && item.findingCount === 0)) {
+        return blocked('AI09_SLICE_REVIEW_EVIDENCE_INVALID');
+      }
+      if (item.status === 'INCONCLUSIVE') shardStatus = 'INCONCLUSIVE';
+      else if (item.status === 'CHANGES_REQUESTED' && shardStatus !== 'INCONCLUSIVE')
+        shardStatus = 'CHANGES_REQUESTED';
+    }
+    if (r.status !== shardStatus) return blocked('AI09_SHARD_STATUS_MISMATCH');
     if (r.status === 'BLOCKED') return blocked('AI09_SHARD_BLOCKED');
     if (r.status === 'INCONCLUSIVE') advisory = 'INCONCLUSIVE';
     if (r.status === 'CHANGES_REQUESTED' && advisory !== 'INCONCLUSIVE') advisory = 'CHANGES_REQUESTED';

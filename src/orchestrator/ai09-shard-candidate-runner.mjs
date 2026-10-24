@@ -84,7 +84,7 @@ export async function runCandidateShardReview({ plan, infer, reviewerId='AI09-ca
       manifestSha256:manifest.manifestSha256,baseSha:manifest.baseSha,
       headSha:manifest.headSha,reviewerId,status:decision,
       evidenceSha256:hash(JSON.stringify(results)),
-      evaluatedSliceIds:results.map(r=>r.sliceId)});
+      evaluatedSliceIds:results.map(r=>r.sliceId),sliceResults:results});
   }
   const verified=verifyFullCoverageReceipts(manifest,receipts);
   if (verified.status==='BLOCKED') return blocked('AI09_RECEIPT_VERIFICATION_FAILED');

@@ -6350,7 +6350,7 @@
     },
     {
       "path": "src/orchestrator/ai09-full-coverage.mjs",
-      "sha256": "9dfe87e045d92408860f7321a7c73d07378e54a6385743b8cd857488d0e7e63f",
+      "sha256": "c7956318e75839fa5c56f35af8ef18df25f77f8d1f120638564fd22c1b51b982",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-010",
@@ -6360,7 +6360,7 @@
     },
     {
       "path": "src/orchestrator/ai09-shard-candidate-runner.mjs",
-      "sha256": "057f14b2fcf5bfafbb0018787475793e77c08a7f78a510f3c7bc3883c2edc8c8",
+      "sha256": "8598b89b455ae0ecb88a85db848426bbce269123d5bd34167d2fd290bfed6ceb",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-010",

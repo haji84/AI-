@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Buffer } from 'node:buffer';
+import { createHash } from 'node:crypto';
 import { planFullCoverage, verifyFullCoverageReceipts } from '../src/orchestrator/ai09-full-coverage.mjs';
 
 const B = 'a'.repeat(40), H = 'b'.repeat(40);
@@ -9,11 +10,18 @@ function fixture(n = 203) {
     status:'added', before:null, after:Buffer.from('export const proof' + i + ' = ' + i + ';\n') }));
   return { baseSha:B, headSha:H, files, expectedPaths:files.map(x => x.path) };
 }
+const digest = value => createHash('sha256').update(value).digest('hex');
 function receipts(plan) {
   const m = plan.manifest;
-  return m.shards.map(s => ({ shardId:s.id, shardDigest:s.digest,
-    manifestSha256:m.manifestSha256, baseSha:m.baseSha, headSha:m.headSha,
-    reviewerId:'IndependentAI09', status:'NO_ACTIONABLE_FINDINGS' }));
+  // Synthetic receipt fixture only: never an authenticated model review.
+  return m.shards.map(s => {
+    const sliceResults=s.sliceIds.map(id=>({sliceId:id,
+      reviewSha256:digest('synthetic:'+id),status:'NO_ACTIONABLE_FINDINGS',findingCount:0}));
+    return {shardId:s.id,shardDigest:s.digest,manifestSha256:m.manifestSha256,
+      baseSha:m.baseSha,headSha:m.headSha,reviewerId:'IndependentAI09',
+      status:'NO_ACTIONABLE_FINDINGS',evaluatedSliceIds:[...s.sliceIds],
+      evidenceSha256:digest(JSON.stringify(sliceResults)),sliceResults};
+  });
 }
 test('all 203 files have unique byte-exact slices with bounded shards and a digest', () => {
   const p = planFullCoverage(fixture());
@@ -64,7 +72,20 @@ test('tampered, duplicate, stale, absent and incomplete review receipts never pa
   assert.equal(verifyFullCoverageReceipts(p.manifest,r.map((x,i)=>i?x:{...x,headSha:B})).status,'BLOCKED');
   assert.equal(verifyFullCoverageReceipts(p.manifest,r.map((x,i)=>i?x:{...x,shardDigest:'f'.repeat(64)})).status,'BLOCKED');
   assert.equal(verifyFullCoverageReceipts(p.manifest,r.map((x,i)=>i?x:{...x,reviewerId:'Builder'})).status,'BLOCKED');
-  assert.equal(verifyFullCoverageReceipts(p.manifest,r.map((x,i)=>i?x:{...x,status:'INCONCLUSIVE'})).status,'INCONCLUSIVE');
+  assert.equal(verifyFullCoverageReceipts(p.manifest,r.map((x,i)=>i?x:{...x,status:'INCONCLUSIVE'})).status,'BLOCKED');
+  const incomplete=r.map((x,i)=>i?x:{...x,sliceResults:x.sliceResults.slice(1)});
+  assert.equal(verifyFullCoverageReceipts(p.manifest,incomplete).status,'BLOCKED');
+  const forged=r.map((x,i)=>i?x:{...x,evaluatedSliceIds:x.evaluatedSliceIds.slice(1)});
+  assert.equal(verifyFullCoverageReceipts(p.manifest,forged).status,'BLOCKED');
+  const alteredHash=r.map((x,i)=>i?x:{...x,evidenceSha256:'f'.repeat(64)});
+  assert.equal(verifyFullCoverageReceipts(p.manifest,alteredHash).status,'BLOCKED');
+  const genuineInconclusive=r.map((x,i)=>{
+    if(i)return x;
+    const sliceResults=x.sliceResults.map((s,j)=>j? s : {...s,status:'INCONCLUSIVE'});
+    return {...x,status:'INCONCLUSIVE',sliceResults,
+      evidenceSha256:digest(JSON.stringify(sliceResults))};
+  });
+  assert.equal(verifyFullCoverageReceipts(p.manifest,genuineInconclusive).status,'INCONCLUSIVE');
   const altered=JSON.parse(JSON.stringify(p.manifest));altered.files[0].afterBytes++;
   assert.equal(verifyFullCoverageReceipts(altered,r).status,'BLOCKED');
 });
