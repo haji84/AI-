@@ -2,6 +2,7 @@
 // Run exactly one GitHub-hosted read-only AI09 batch. Never authorizes merge.
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { Buffer } from "node:buffer";
 import { trustedPlan } from "./chat-actions-ai09-full-plan.mjs";
 import { loadTrustedReviewModules, ollamaInference,
   PILOT_REVIEW_REPO } from "./chat-actions-ai09-chunk-retry.mjs";
@@ -80,8 +81,6 @@ export function ai09AddedLineEvidenceIndex(batch, chunk) {
   const related=batch.chunks.filter(c=>c.fileIndex===chunk.fileIndex);
   const source=related.map(c=>c.source).join("\n");
   const canonical="diff --git a/"+path+" b/"+path+"\n"+source;
-  if(!batch.patch.split("\n"+canonical).length &&
-     !batch.patch.startsWith(canonical))throw Error("AI09_CANONICAL_DIFF_NOT_FOUND");
   if(!batch.patch.includes(canonical))throw Error("AI09_CANONICAL_DIFF_NOT_FOUND");
   let current=null;
   const indexes=[];
@@ -144,8 +143,8 @@ export async function runOneAi09Batch({plan,manifest,index,modules,infer}) {
   for (const chunk of batch.chunks) {
     const coordinates=ai09AddedLineEvidenceIndex(batch,chunk);
     const inferFromActualCoordinates=prompt=>infer(
-      groundedReviewPrompt(prompt)+"\\n"+coordinates.evidenceHint+
-      "\\nThe location index is a deterministic aid only; verify the real bug, exact added-code quote, and impact independently."
+      groundedReviewPrompt(prompt)+"\n"+coordinates.evidenceHint+
+      "\nThe location index is a deterministic aid only; verify the real bug, exact added-code quote, and impact independently."
     );
     let r=await modules.reviewer.reviewLocalPatch({
       baseSha:plan.baseSha,headSha:plan.headSha,
