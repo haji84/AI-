@@ -50,12 +50,66 @@ export async function runCandidateShardReview({ plan, infer, reviewerId='AI09-ca
   }
   if (!all.size || all.size>maxSlices || payloads.size!==all.size || total!==manifest.totalBytes)
     return blocked('AI09_SLICE_COVERAGE_INCOMPLETE');
+  // A self-consistent manifest digest is not sufficient: a caller could alter
+  // file byte counts, file hashes or shard digests and simply recompute it.
+  // Independently reconstruct every file side from the exact reviewed payloads
+  // before invoking even the first model callback.
+  const sha256Pattern=/^[a-f0-9]{64}$/u;
+  const seenPaths=new Set();
+  let reconstructedBytes=0;
+  for(const file of manifest.files){
+    if(!file || typeof file.path!=='string' || seenPaths.has(file.path) ||
+       !['added','deleted','modified','renamed'].includes(file.status) ||
+       !Array.isArray(file.slices) ||
+       (file.status==='added' && (file.beforeBytes!==0 || file.beforeSha256!==null)) ||
+       (file.status==='deleted' && (file.afterBytes!==0 || file.afterSha256!==null)) ||
+       (file.status==='renamed' && (typeof file.previousPath!=='string' || file.previousPath===file.path)) ||
+       (file.status!=='renamed' && file.previousPath!==undefined))
+      return blocked('AI09_FILE_RECORD_INTEGRITY_MISMATCH');
+    seenPaths.add(file.path);
+    for(const side of ['before','after']){
+      const length=file[side+'Bytes'], digest=file[side+'Sha256'];
+      const slices=file.slices.filter(z=>z.side===side);
+      if(!Number.isSafeInteger(length) || length<0 ||
+         !(digest===null || sha256Pattern.test(digest)) ||
+         (digest===null && (length!==0 || slices.length!==0)))
+        return blocked('AI09_FILE_RECORD_INTEGRITY_MISMATCH');
+      let offset=0;
+      const bytes=[];
+      for(const slice of slices){
+        const actual=all.get(slice.id);
+        if(!actual || actual.path!==file.path || actual.side!==side ||
+           actual.start!==offset || actual.end!==slice.end)
+          return blocked('AI09_FILE_SLICE_RANGE_MISMATCH');
+        bytes.push(Buffer.from(actual.text,'utf8'));
+        offset=actual.end;
+      }
+      if(offset!==length || (digest!==null && hash(Buffer.concat(bytes))!==digest) ||
+         (digest===null && bytes.length))
+        return blocked('AI09_FILE_BLOB_SHA_MISMATCH');
+      reconstructedBytes+=length;
+    }
+  }
+  if(seenPaths.size!==manifest.fileCount || reconstructedBytes!==manifest.totalBytes)
+    return blocked('AI09_FILE_COVERAGE_MISMATCH');
   const scheduled=new Set();
-  for (const shard of manifest.shards) {
-    if (!Array.isArray(shard.sliceIds) || shard.sliceIds.length<1 ||
-        shard.sliceIds.length>24 || shard.bytes>120*1024 || shard.fileCount>30 ||
+  for (const [index,shard] of manifest.shards.entries()) {
+    if (!shard || shard.id!==index+1 || !Array.isArray(shard.sliceIds) ||
+        shard.sliceIds.length<1 || shard.sliceIds.length>24 ||
         shard.sliceIds.some(id=>!all.has(id)||scheduled.has(id)))
       return blocked('AI09_SHARD_COVERAGE_INVALID');
+    const parts=shard.sliceIds.map(id=>{
+      const {text:unused,...metadata}=all.get(id);
+      void unused;
+      return metadata;
+    });
+    const bytes=parts.reduce((n,x)=>n+x.end-x.start,0);
+    const pathCount=new Set(parts.map(x=>x.path)).size;
+    const digest=hash(JSON.stringify({baseSha:manifest.baseSha,
+      headSha:manifest.headSha,index:shard.id,slices:parts}));
+    if(shard.bytes!==bytes || shard.fileCount!==pathCount ||
+       pathCount>30 || bytes>120*1024 || shard.digest!==digest)
+      return blocked('AI09_SHARD_DIGEST_MISMATCH');
     shard.sliceIds.forEach(id=>scheduled.add(id));
   }
   if (scheduled.size!==all.size) return blocked('AI09_SHARD_COVERAGE_INCOMPLETE');

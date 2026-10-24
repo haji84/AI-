@@ -111,3 +111,38 @@ test('inference proof sink failures or invalid model metadata fail closed',async
     modelName:'invalid model text'});
   assert.equal(invalid.status,'BLOCKED');
 });
+
+test('recomputed manifest hash cannot launder forged source blob and shard metadata',async()=>{
+  const original=source(2);
+  let invoked=0;
+  const infer=async()=>{invoked++;return answer();};
+  const refreshManifest=p=>{
+    p.manifest.manifestSha256=createHash('sha256').update(JSON.stringify({
+      ...p.manifest,manifestSha256:null})).digest('hex');
+  };
+  original.manifest.files[0].afterSha256='f'.repeat(64);
+  refreshManifest(original);
+  const blob=await runCandidateShardReview({plan:original,infer});
+  assert.equal(blob.status,'BLOCKED');
+  assert.equal(blob.reason,'AI09_FILE_BLOB_SHA_MISMATCH');
+  assert.equal(invoked,0);
+  const forgedShard=source(2);
+  forgedShard.manifest.shards[0].digest='f'.repeat(64);
+  refreshManifest(forgedShard);
+  const shard=await runCandidateShardReview({plan:forgedShard,infer});
+  assert.equal(shard.status,'BLOCKED');
+  assert.equal(shard.reason,'AI09_SHARD_DIGEST_MISMATCH');
+  assert.equal(invoked,0);
+});
+test('non-contiguous source slice offsets reject review before any inference',async()=>{
+  const p=source(1);
+  p.manifest.files[0].slices[0].start=1;
+  p.manifest.manifestSha256=createHash('sha256').update(JSON.stringify({
+    ...p.manifest,manifestSha256:null})).digest('hex');
+  let invoked=0;
+  const x=await runCandidateShardReview({plan:p,infer:async()=>{
+    invoked++;return answer();
+  }});
+  assert.equal(x.status,'BLOCKED');
+  assert.equal(invoked,0);
+});
