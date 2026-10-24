@@ -142,3 +142,27 @@ test('an actual failed friend child exhausts its own budget and leaves another s
   assert.equal(events.filter(e => e.state === 'exhausted').length, 1);
   assert.equal(events.filter(e => e.state === 'running').length, 3);
 });
+
+test('hosted friend child rejects unsafe listener before registry or socket access', async t => {
+  const f = fixture(t);
+  for (const [listenHost, listenPort] of [
+    ['0.0.0.0', 8443], ['::', 8443], ['127.0.0.1', 8443],
+    ['192.168.1.7', 8443], ['100.63.255.254', 8443],
+    ['100.128.0.1', 8443], ['100.64.0.1', 443],
+    ['100.64.0.1', 8444], ['100.64.0.1', '8443'],
+  ]) {
+    f.save(f.hosting, { origin: 'https://friend.example.test', listenHost, listenPort });
+    const child = spawn(process.execPath,
+      ['scripts/remote-lite-owner-server.mjs', f.wrapper, '--goriq-friend'],
+      { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe', 'ipc'] });
+    let stderr = '';
+    child.stderr.on('data', chunk => { stderr += chunk.toString('utf8').slice(0, 2048); });
+    const timeout = setTimeout(() => child.kill(), 5000);
+    timeout.unref();
+    const [code] = await once(child, 'close');
+    clearTimeout(timeout);
+    assert.equal(code, 1, listenHost + ':' + listenPort);
+    assert.match(stderr, /GORIQ_FRIEND_LISTENER_SCOPE_INVALID|Explicit HTTPS listener configuration required/u,
+      listenHost + ':' + listenPort);
+  }
+});

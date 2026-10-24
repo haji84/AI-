@@ -6,6 +6,7 @@ import { openRemoteRegistry } from '../src/remote-lite/registry-file.mjs';
 import { createPortalTurnIssuer, createPortalStunIssuer } from '../src/remote-lite/turn-credentials.mjs';
 import { loadTLSFiles, installTLSReload } from '../src/remote-lite/tls-reload.mjs';
 import { readGoriqHostedPortalConfig } from '../src/remote-lite/goriq-hosted-config.mjs';
+import { inspectPrivateFriendBindCandidate } from '../src/remote-lite/friend-activation-readiness.mjs';
 
 // Operator command only. Friends use the HTTPS UI/APK/EXE. No production key is
 // generated or printed; provision a distinct random owner key via approved means.
@@ -19,6 +20,13 @@ const config = hosted ? hosted.config : JSON.parse(readFileSync(absolute, 'utf8'
 const allowed = ['origin','listenHost','listenPort','tlsCert','tlsKey','tlsServerName','stateDirectory','owners','turn','stun'];
 if (!config || Object.keys(config).some(k => !allowed.includes(k)) ||
   typeof config.listenHost !== 'string' || !Number.isInteger(config.listenPort) || config.listenPort < 1 || config.listenPort > 65535) throw new Error('Explicit HTTPS listener configuration required');
+// Serving-path enforcement, not advisory preflight. This narrow guard applies
+// only to the opt-in GORIQ-hosted friend child. A valid 100.64/10 address is
+// still NOT proof of actual Tailscale interface ownership or a restricted
+// firewall/grant: those need separate owner approval and network E2E.
+if (hosted && !inspectPrivateFriendBindCandidate(config).candidate) {
+  throw new Error('GORIQ_FRIEND_LISTENER_SCOPE_INVALID');
+}
 const relative = p => { if (typeof p !== 'string' || !p) throw new Error('Path required'); return resolve(dirname(absolute), p); };
 let iceForSession;
 if (config.stun !== undefined) {
