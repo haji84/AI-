@@ -96,7 +96,9 @@ try {
     if(!['NO_FINDINGS','CHANGES_REQUESTED','INCONCLUSIVE'].includes(obj?.verdict)||
        !Array.isArray(obj?.findings)||obj.findings.length>20||
        obj.findings.some(f=>!f||!['low','medium','high','critical'].includes(f.severity)||
-         typeof f.summary!=='string'||f.summary.length>500))
+         typeof f.summary!=='string'||f.summary.length>500)||
+       (obj.verdict==='NO_FINDINGS'&&obj.findings.length!==0)||
+       (obj.verdict==='CHANGES_REQUESTED'&&obj.findings.length===0))
       invalid('AI09_RESPONSE_SCHEMA_INVALID');
     const findings=obj.findings.map(f=>({severity:f.severity,summary:f.summary}));
     if(findings.some(f=>/(?:gh[pousr]_[A-Za-z0-9_]{12,}|github_pat_[A-Za-z0-9_]{12,}|sk-proj-[A-Za-z0-9_-]{12,}|PRIVATE KEY|(?:api[_ -]?key|password|secret|token)\s*[:=]\s*[^\s,;]{8,})/i.test(f.summary)))
