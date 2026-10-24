@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { Buffer } from 'node:buffer';
 import { planFullCoverage, verifyFullCoverageReceipts } from '../src/orchestrator/ai09-full-coverage.mjs';
 
 const B = 'a'.repeat(40), H = 'b'.repeat(40);
@@ -64,6 +65,6 @@ test('tampered, duplicate, stale, absent and incomplete review receipts never pa
   assert.equal(verifyFullCoverageReceipts(p.manifest,r.map((x,i)=>i?x:{...x,shardDigest:'f'.repeat(64)})).status,'BLOCKED');
   assert.equal(verifyFullCoverageReceipts(p.manifest,r.map((x,i)=>i?x:{...x,reviewerId:'Builder'})).status,'BLOCKED');
   assert.equal(verifyFullCoverageReceipts(p.manifest,r.map((x,i)=>i?x:{...x,status:'INCONCLUSIVE'})).status,'INCONCLUSIVE');
-  const altered=structuredClone(p.manifest);altered.files[0].afterBytes++;
+  const altered=JSON.parse(JSON.stringify(p.manifest));altered.files[0].afterBytes++;
   assert.equal(verifyFullCoverageReceipts(altered,r).status,'BLOCKED');
 });

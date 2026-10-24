@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { Buffer } from 'node:buffer';
+import { TextDecoder } from 'node:util';
 
 const SHA = /^[a-f0-9]{40}$/u;
 const STATUSES = new Set(['added', 'deleted', 'modified', 'renamed']);
@@ -11,7 +12,7 @@ function safePath(p) {
   return typeof p === 'string' && p.length > 0 && Buffer.byteLength(p) <= 250 &&
     !p.startsWith('/') && !p.startsWith('-') && !p.includes('\\') &&
     !p.split('/').some(s => !s || s === '.' || s === '..') &&
-    !/[\u0000-\u001f\u007f]/u.test(p);
+    ![...p].some(c => c.charCodeAt(0) < 32 || c.charCodeAt(0) === 127);
 }
 
 function textSlices(bytes, byteLimit) {
