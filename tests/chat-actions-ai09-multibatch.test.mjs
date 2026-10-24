@@ -4,7 +4,8 @@ import { Buffer } from "node:buffer";
 import { runOneAi09Batch, groundedReviewPrompt, auditAi09ClaimSupport, ai09AddedLineEvidenceIndex } from "../scripts/chat-actions-ai09-batch-runner.mjs";
 import { aggregateIndependentBatchReceipts } from "../scripts/chat-actions-ai09-full-aggregate.mjs";
 import { independentlyAuditAi09Claims } from "../scripts/chat-actions-ai09-independent-triage.mjs";
-import { planCompleteAi09Review, collectAi09Evidence, assertNoWriteAuthority }
+import { planCompleteAi09Review, collectAi09Evidence, assertNoWriteAuthority,
+  subdivideVerifiedAi09Chunks }
  from "../scripts/chat-actions-ai09-multibatch.mjs";
 import { reviewLocalPatch } from "../src/orchestrator/ai09-local-reviewer.mjs";
 import { compareToPatch, compareToReviewChunks, consolidateChunkReviews }
@@ -386,4 +387,58 @@ test("reviewed model prompt includes machine-counted line coordinates, but never
  assert.ok(seen[0].includes('fixture_0_0'));
  assert.ok(seen[0].includes("\nThe location index"));
  assert.ok(r.diagnostic.every(x=>x.trustedLineIndexCount>0));
+});
+
+test("verified 4KiB native review slices subdivide losslessly to <=2300 bytes before model inference",()=>{
+ const c=comparison(1,70);
+ const native=compareToReviewChunks(c,SHA,HEAD);
+ assert.ok(native.chunks.some(x=>Buffer.byteLength(x.patch,"utf8")>2300));
+ const split=subdivideVerifiedAi09Chunks(native);
+ assert.ok(split.chunks.length>native.chunks.length);
+ assert.equal(split.patch,native.patch);
+ assert.equal(split.patchSha256,native.patchSha256);
+ assert.deepEqual(split.paths,native.paths);
+ assert.equal(split.chunks.map(x=>x.source).join("\n"),
+  native.chunks.map(x=>x.source).join("\n"));
+ assert.ok(split.chunks.every(x=>Buffer.byteLength(x.patch,"utf8")<=2300));
+ assert.ok(split.chunks.every(x=>Buffer.byteLength(x.patch,"utf8")<=4096));
+});
+test("multi-file source, actual hunk context, and continuation lines survive native source subdivision",()=>{
+ const c=comparison(2,60);
+ const native=compareToReviewChunks(c,SHA,HEAD);
+ const split=subdivideVerifiedAi09Chunks(native);
+ for(let i=0;i<c.files.length;i++){
+  assert.equal(split.chunks.filter(x=>x.fileIndex===i).map(x=>x.source).join("\n"),
+   c.files[i].patch);
+  assert.ok(split.chunks.filter(x=>x.fileIndex===i).every(x=>
+   x.patch.includes("diff --git a/"+c.files[i].filename)));
+ }
+ assert.deepEqual(split.paths,c.files.map(f=>f.filename));
+});
+test("the full multi-batch plan independently verifies native source hashes while using smaller Qwen inputs",()=>{
+ const c=comparison(15,70);
+ const native=compareToPatch(c,SHA,HEAD);
+ const plan=planCompleteAi09Review(c,SHA,HEAD,modules);
+ assert.equal(plan.patchSha256,native.patchSha256);
+ assert.equal(plan.batches.map(b=>b.patch).join("\n"),native.patch);
+ assert.equal(plan.totalChunks,plan.batches.flatMap(b=>b.chunks).length);
+ assert.ok(plan.totalChunks>24);
+ assert.ok(plan.batches.every(b=>b.chunks.length<=24));
+ assert.ok(plan.batches.flatMap(b=>b.chunks).every(c=>
+   Buffer.byteLength(c.patch,"utf8")<=2300));
+});
+test("splitting refuses oversized source lines, forged native chunk scope, and missing hunk context",()=>{
+ const c=comparison(1,4);
+ const native=compareToReviewChunks(c,SHA,HEAD);
+ assert.throws(()=>subdivideVerifiedAi09Chunks(native,100),/INVALID_AI09_SUBDIVISION_SCOPE/);
+ assert.throws(()=>subdivideVerifiedAi09Chunks({
+  ...native,chunks:[{...native.chunks[0],paths:["src/forged.ts"]}]},2300),
+  /INVALID_NATIVE_AI09_SOURCE_CHUNK/);
+ assert.throws(()=>subdivideVerifiedAi09Chunks({
+  ...native,chunks:[{...native.chunks[0],source:"+const noContext = 1;"}]},2300),
+  /MISSING_AI09_HUNK_CONTEXT/);
+ const giant={...native,chunks:[{...native.chunks[0],
+  source:"@@ -1 +1 @@\n+"+"Q".repeat(2500)}]};
+ assert.throws(()=>subdivideVerifiedAi09Chunks(giant,2300),
+  /UNREVIEWABLE_AI09_SOURCE_LINE/);
 });
