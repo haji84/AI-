@@ -81,6 +81,13 @@ jobs:
           ./tests/gai-zbook-launcher-file.test.ps1
           ./tests/goriq-zbook-watchdog-launcher-repair.test.ps1
 
+          ./tests/completion-native-transaction.test.ps1
+          ./tests/completion-native-pointer.test.ps1
+          ./tests/goriq-zbook-fixed-acl-repair.test.ps1
+      - name: Isolated native recovery controller fixture
+        shell: powershell
+        run: ./tests/completion-native-resume.test.ps1
+
   remote-lite-windows-vm:
     # Explicit native desktop fixture. The 2022 isolation run39846658183 also
     # aborted browser navigation and could not capture a desktop; 2025 supplies

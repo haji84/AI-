@@ -37,6 +37,7 @@ import { WorkerRemoteMailbox } from "../src/jarvis/worker-remote-mailbox.ts";
 import { remoteDeviceInventory } from "../src/jarvis/remote-device-inventory.ts";
 import { PendingEnrollment } from "../src/jarvis/pending-enrollment.ts";
 import { CompassStore } from "../src/compass/store.ts";
+import { CompassWorkStateStoreAdapter } from "../src/orchestrator/compass-work-state-store.ts";
 import { GoalControllerRuntime, type GoalControllerDecision } from "../src/orchestrator/goal-controller-runtime.ts";
 import { CompassGoalRegistryAdapter, CompassGoalDecisionStoreAdapter } from "../src/orchestrator/compass-goal-controller.ts";
 import { CompassWorkRunStore } from "../src/orchestrator/compass-work-run-store.ts";
@@ -90,6 +91,7 @@ function approvedPcEnrollment(): PcEnrollmentService {
 const compassPath = process.env.JARVIS_COMPASS_DB_PATH?.trim() || (process.env.JARVIS_DB_PATH?.trim() ? `${process.env.JARVIS_DB_PATH.trim()}.compass.sqlite` : resolve(".jarvis/compass.db"));
 const compass = new CompassStore(compassPath);
 const workRuns = new CompassWorkRunStore(compass);
+const completionWorkState = new CompassWorkStateStoreAdapter(compass);
 const goalBridgeEvents = new CompassGoalBridgeEventStore(compass);
 const goalExecutionContexts = new CompassGoalExecutionContextStore(compass);
 const cognitive = new CognitiveService(compassPath, cognitiveHostOptions(process.env));
@@ -586,7 +588,17 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
       const goalId = decodeURIComponent(path.slice("/api/jarvis/admin/work/".length));
       const run = await workRuns.getByGoal(goalId);
       if (!run) return json(response, 404, { message: "Work Runがありません", goalId });
-      return json(response, 200, { run, progress: workRunProgress(run) });
+      const completion = (await completionWorkState.getCompletionHistory(goalId)).at(-1) ?? null;
+      return json(response, 200, { run, progress: workRunProgress(run), completion });
+    }
+    if (method === "POST" && path.startsWith("/api/jarvis/admin/work/")) {
+      if (body.length > 8_192) return json(response, 413, { message: 'notification receipt too large' });
+      const goalId = decodeURIComponent(path.slice('/api/jarvis/admin/work/'.length));
+      if (!(await workRuns.getByGoal(goalId))) return json(response, 404, { message: 'Work Runがありません' });
+      try {
+        const completion = await completionWorkState.acknowledgeCompletionNotifications(goalId, payload as unknown as { cycleId: string; notificationIds: string[] });
+        return json(response, 200, { completion });
+      } catch { return json(response, 409, { message: '通知の表示内容を再取得してください。承認状態は変更していません。' }); }
     }
     if (method === "POST" && path === "/api/jarvis/admin/work") {
       try {

@@ -21,6 +21,7 @@ import { createTaskCompletionAuthorization, normalizeTaskCompletionAuthorization
 import { buildRepositoryDevelopmentContext } from "../src/orchestrator/repository-development-context.ts";
 import { ResourceWaitError } from "../src/gai/development-resource-admission.ts";
 import { nextResourceWait, resourceWaitExhausted, resourceWaitFromEvidence, type DevelopmentResourceWait } from "../src/orchestrator/development-resource-wait.ts";
+import { loadCompletionRuntimeHandoff } from "../src/orchestrator/completion-runtime-handoff.ts";
 
 function requiredEnv(name: string): string {
   const value = process.env[name]?.trim();
@@ -257,10 +258,22 @@ async function main(): Promise<void> {
       }
     } finally { compass.close(); }
     await updateWorkRun(compassPath, goalId, "RUNNING", "Execute accepted Goal");
-    const developmentRuntime = configuredDevelopmentRuntime(compassPath, context);
-    const adapter = developmentRuntime
-      ? new CompassGoalExecutionAdapter(compassPath, {}, {}, developmentRuntime)
-      : new CompassGoalExecutionAdapter(compassPath);
+    const goalStore = new CompassStore(compassPath);
+    const completionSource = await (async () => {
+      try {
+        const record = goalStore.getGoal();
+        if (!record) throw new Error("Compass goal is not set");
+        return await loadCompletionRuntimeHandoff(process.env, goalId, compassGoalToLoopGoal(record));
+      } finally { goalStore.close(); }
+    })();
+    // Validate an explicit host handoff before inspecting text for development
+    // intent. Invalid handoffs must never fall back to another model/controller.
+    const developmentRuntime = completionSource ? undefined : configuredDevelopmentRuntime(compassPath, context);
+    const adapter = completionSource
+      ? new CompassGoalExecutionAdapter(compassPath, {}, {}, undefined, completionSource)
+      : developmentRuntime
+        ? new CompassGoalExecutionAdapter(compassPath, {}, {}, developmentRuntime)
+        : new CompassGoalExecutionAdapter(compassPath);
     const bridge = new GoalControllerExecutionBridge(adapter);
     const result = await bridge.executeUntilGoalTerminal(decision, { maxRuns: 12, context });
     const report = result.report;
