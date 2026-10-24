@@ -1,0 +1,70 @@
+name: AI09 Isolated Candidate Review Proof
+# Candidate reviewer security policy: source changes NEVER auto-run model code.
+# A trusted operator must explicitly dispatch after independent source review.
+on:
+  workflow_dispatch:
+    inputs:
+      approved_head:
+        description: 'Explicitly reviewed exact 40-character source SHA'
+        required: true
+        type: string
+permissions: {}
+concurrency:
+  group: ai09-candidate-proof
+  cancel-in-progress: true
+jobs:
+  independent-model-experiment:
+    if: github.repository == 'haji84/AI-' && github.ref == 'refs/heads/feat/1831-remote-lite-manual-boundary' && github.event.inputs.approved_head == github.sha
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      OLLAMA_HOST: 127.0.0.1:11434
+      OLLAMA_NUM_PARALLEL: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.19.0'
+      - name: Check immutable source revision and runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          test "$RUNNER_OS" = Linux
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$GITHUB_REPOSITORY" = haji84/AI-
+      - name: Download SHA256-pinned local Ollama on ephemeral runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --silent --show-error --retry 2 --max-time 300 \
+            https://github.com/ollama/ollama/releases/download/v0.34.0/ollama-linux-amd64.tar.zst \
+            -o "$RUNNER_TEMP/ollama-linux-amd64.tar.zst"
+          echo "cf95886728959aa09910bb34de5cca1cc5a8f68003b5597197d3f2c2d57c0804  $RUNNER_TEMP/ollama-linux-amd64.tar.zst" | sha256sum -c -
+          sudo tar --zstd -xf "$RUNNER_TEMP/ollama-linux-amd64.tar.zst" -C /usr
+      - name: Start localhost-only model
+        shell: bash
+        run: |
+          set -euo pipefail
+          ollama serve >"$RUNNER_TEMP/ai09-isolated-ollama.log" 2>&1 &
+          ready=0
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:11434/api/tags >/dev/null 2>&1; then ready=1; break; fi
+            sleep 2
+          done
+          test "$ready" = 1
+          timeout 480s ollama pull qwen2.5-coder:3b
+      - name: Review actual pinned candidate source with local AI model
+        shell: bash
+        run: node scripts/goriq-ai09-candidate-model-smoke.mjs
+      - name: Save bounded redacted proof (advisory only)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai09-candidate-proof
+          path: ai09-candidate-proof.json
+          if-no-files-found: warn
+          retention-days: 3

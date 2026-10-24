@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GORIQ Remote — 端末登録</title>
+<style>body{font:17px/1.6 system-ui,sans-serif;margin:32px auto;padding:0 20px;max-width:680px;color:#183044;background:#f5f8fb}section{background:white;padding:24px;border-radius:16px;margin:20px 0}button,input{box-sizing:border-box;font:inherit;padding:12px;margin:8px 0}input[type=text]{width:100%}button{cursor:pointer}button:disabled{cursor:default}pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit}#error{color:#a01825}label{display:block}</style></head>
+<body><h1>GORIQ Remote 端末登録</h1>
+<p>このPCを所有者の接続先へ登録します。登録だけでは画面共有や操作は始まりません。</p>
+<p>開発版：公開接続サービスと配布の準備は完了していません。</p>
+<section><h2>1. 招待を確認</h2>
+<label for="invite">所有者から受け取った招待リンク</label><input id="invite" type="text" autocomplete="off" spellcheck="false" placeholder="招待リンクを貼り付け">
+<button id="preview">招待を確認する</button><p id="destination"></p>
+<button id="register" disabled>この接続先へ端末を登録する</button>
+<div id="recovery" hidden><label><input id="checkedPrevious" type="checkbox">所有者側で以前の申請が期限切れで、端末がまだ登録されていないと確認しました</label><button id="recover" disabled>同じ鍵で新しい招待へ再申請する</button></div></section>
+<section><h2>2. 所有者の承認</h2><p>下の確認コード全体を、所有者側の申請画面と照合してください。</p>
+<pre id="state">登録状態を確認しています…</pre><button id="confirm" disabled>所有者の承認を確認する</button>
+<p id="complete"></p></section><p id="error" role="alert"></p><button id="close">設定を終了する</button>
+<script>
+(()=>{'use strict';
+const $=id=>document.getElementById(id);
+const token=new URLSearchParams(location.hash.slice(1)).get('token');history.replaceState(null,'',location.pathname);
+let invitation='',saved=null,busy=false,closed=false;
+async function call(path,body){const r=await fetch('/api/setup/'+path,{method:body===undefined?'GET':'POST',cache:'no-store',credentials:'omit',headers:{'X-Goriq-Session':token||'','Content-Type':'application/json'},...(body===undefined?{}:{body:JSON.stringify(body)})});if(!r.ok)throw Error(await r.text());return r.json()}
+function buttons(){const blocked=busy||closed;const fresh=saved?.phase==='new';$('preview').disabled=blocked;$('register').disabled=blocked||!invitation||!fresh;$('confirm').disabled=blocked||!saved?.requestId;$('recovery').hidden=fresh||saved?.phase==='approved';$('recover').disabled=blocked||!invitation||!$('checkedPrevious').checked||fresh||saved?.phase==='approved';$('close').disabled=blocked}
+function show(s){saved=s;const names={new:'未登録',requesting:'申請結果の確認が必要です', 'awaiting-owner-approval':'所有者の承認待ち',approved:'保存された登録情報：承認済み'};$('state').textContent=names[s.phase]||'登録状態を確認できません';if(s.deviceId)$('state').textContent+='\n接続先: '+s.origin+'\n端末ID: '+s.deviceId+'\n鍵の確認コード: '+s.fingerprint+'\n申請ID: '+(s.requestId||'受領情報なし');buttons()}
+async function work(action){if(busy||closed)return;busy=true;buttons();$('error').textContent='';$('complete').textContent='';try{await action()}catch(e){$('error').textContent=e.message;try{show(await call('state'))}catch{}}finally{busy=false;buttons()}}
+$('preview').onclick=()=>work(async()=>{const raw=$('invite').value;$('invite').value='';invitation='';$('destination').textContent='';const r=await call('preview',{link:raw});if(saved?.origin&&saved.origin!==r.origin)throw Error('保存済みとは別の接続先です。登録情報は変更しません。');invitation=raw;$('destination').textContent='接続先: '+r.origin+' — 所有者から聞いた接続先と一致するか確認してください。'});
+async function register(recovery){const raw=invitation;invitation='';$('checkedPrevious').checked=false;show(await call(recovery?'recover':'register',{link:raw,...(recovery?{confirmedPreviousUnregistered:true}:{})}))}
+$('register').onclick=()=>work(()=>register(false));$('recover').onclick=()=>work(()=>register(true));$('checkedPrevious').onchange=buttons;
+$('confirm').onclick=()=>work(async()=>{show(await call('confirm',{}));$('complete').textContent='登録情報を保存しました。接続元で接続要求を作成してから、このPCでアプリを開き直し、表示されるセッションを確認してください。';});
+$('close').onclick=()=>work(async()=>{await call('close',{});closed=true;invitation='';$('invite').value='';$('complete').textContent='設定を終了しました。この画面を閉じてください。登録情報は保持しています。';});
+work(async()=>show(await call('state')));
+})();
+</script></body></html>

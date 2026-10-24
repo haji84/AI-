@@ -1,0 +1,254 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { createHash, generateKeyPairSync, randomBytes, sign } from 'node:crypto';
+import { Buffer } from 'node:buffer';
+import { ManualRemoteCoordinator } from '../src/remote-lite/manual-coordinator.mjs';
+import { RemoteLitePairingRegistry } from '../src/remote-lite/device-pairing.mjs';
+import { createPortalTurnIssuer } from '../src/remote-lite/turn-credentials.mjs';
+
+const auth=(ownerId='alice')=>({ownerId,authorization:'logged-in:'+ownerId});
+function harness({ iceForSession } = {}) {
+  let t=1000000;
+  const c=new ManualRemoteCoordinator({now:()=>t,iceForSession,authorizeOwner:({ownerId,authorization})=>authorization==='logged-in:'+ownerId});
+  const enroll=(ownerId='alice',deviceId='win-alice')=>{
+    const keys=generateKeyPairSync('ed25519'),inv=c.issueInvite(auth(ownerId));
+    const req=c.proposeDevice({inviteCode:inv.inviteCode,deviceId,publicKeyPem:keys.publicKey.export({type:'spki',format:'pem'})});
+    const signed=sign(null,Buffer.from(RemoteLitePairingRegistry.enrollmentMessage({...req,deviceId})),keys.privateKey).toString('base64');
+    c.proveDeviceEnrollment({requestId:req.requestId,signature:signed});
+    c.approveDevice({...auth(ownerId),requestId:req.requestId,expectedFingerprint:req.fingerprint});
+    return {ownerId,deviceId,keys,req};
+  };
+  const proof=(d,sessionId,operation,payloadHash='')=>{
+    const challenge=c.challengeDevice({deviceId:d.deviceId,operation,sessionId,payloadHash});
+    const signed=sign(null,Buffer.from(RemoteLitePairingRegistry.deviceMessage({...challenge,deviceId:d.deviceId,operation,sessionId,payloadHash})),d.keys.privateKey).toString('base64');
+    return {...challenge,deviceId:d.deviceId,operation,sessionId,payloadHash,signature:signed};
+  };
+  const discoveryProof=(d)=>{
+    const issuedAt=t,nonce=randomBytes(24).toString('hex');
+    const signature=sign(null,Buffer.from(RemoteLitePairingRegistry.discoveryMessage({deviceId:d.deviceId,issuedAt,nonce})),d.keys.privateKey).toString('base64');
+    return {deviceId:d.deviceId,issuedAt,nonce,signature};
+  };
+  return {c,enroll,proof,discoveryProof,advance:n=>{t+=n;}};
+}
+
+test('signed active device receives one cached session-bound TURN credential',()=>{
+  let calls=0, issuedFor;
+  const secret='test-only-device-turn-secret-never-deployed';
+  const issuer=createPortalTurnIssuer({sharedSecret:secret,urls:['turn:relay.example.net:3478?transport=udp'],now:()=>1000000});
+  const {c,enroll,proof,advance}=harness({iceForSession: p=>{calls++;issuedFor=p;return issuer(p);}});
+  const d=enroll(), s=c.startSession({...auth(),deviceId:d.deviceId});
+  const accepted=c.acceptSession({sessionId:s.sessionId,deviceId:d.deviceId,proof:proof(d,s.sessionId,'session-accept')});
+  const p=proof(d,s.sessionId,'session-ice');
+  const get=proof=>c.deviceIce({sessionId:s.sessionId,deviceId:d.deviceId,proof});
+  const ice=get(p);
+  assert.equal(ice.sessionId,s.sessionId);assert.equal(ice.deviceId,d.deviceId);
+  assert.equal(ice.mode,'turn-ephemeral-approved-provider');
+  assert.equal(ice.expiresAt,accepted.expiresAt);
+  assert.equal(issuedFor.ownerId,'alice');assert.equal(issuedFor.sessionExpiresAt,accepted.expiresAt);
+  assert.equal(JSON.stringify(ice).includes(secret),false);
+  assert.throws(()=>get(p),/CHALLENGE_NOT_FOUND_OR_MISMATCH/);
+  const saved=globalThis.structuredClone(ice);
+  ice.iceServers[0].credential='caller mutation';
+  assert.equal(ice.serverTime,1000000);
+  advance(1000);
+  assert.deepEqual(get(proof(d,s.sessionId,'session-ice')),{...saved,serverTime:1001000});
+  assert.equal(calls,1);
+});
+
+test('device ICE refuses pending, wrong-operation/device/session, forged, revoked and expired authority before issuer',()=>{
+  let calls=0;
+  const {c,enroll,proof,advance}=harness({iceForSession:()=>{calls++;return {iceServers:[],mode:'direct-only'};}});
+  const d=enroll(), other=enroll('bob','other-device'), s=c.startSession({...auth(),deviceId:d.deviceId});
+  assert.throws(()=>proof(d,s.sessionId,'session-ice'),/SESSION_NOT_ACTIVE/);
+  c.acceptSession({sessionId:s.sessionId,deviceId:d.deviceId,proof:proof(d,s.sessionId,'session-accept')});
+  assert.throws(()=>c.deviceIce({sessionId:s.sessionId,deviceId:d.deviceId}),/DEVICE_PROOF_REQUIRED/);
+  assert.throws(()=>proof(other,s.sessionId,'session-ice'),/DEVICE_NOT_AUTHORIZED/);
+  assert.throws(()=>c.deviceIce({sessionId:s.sessionId,deviceId:d.deviceId,proof:proof(d,s.sessionId,'session-status')}),/DEVICE_PROOF_REQUIRED/);
+  const bound=proof(d,s.sessionId,'session-ice');
+  assert.throws(()=>c.deviceIce({sessionId:'another-session',deviceId:d.deviceId,proof:bound}),/DEVICE_PROOF_REQUIRED/);
+  const forged={...bound,signature:sign(null,Buffer.from(RemoteLitePairingRegistry.deviceMessage(bound)),other.keys.privateKey).toString('base64')};
+  assert.throws(()=>c.deviceIce({sessionId:s.sessionId,deviceId:d.deviceId,proof:forged}),/DEVICE_PROOF_INVALID/);
+  const revoked=proof(d,s.sessionId,'session-ice');
+  c.revokeDevice({...auth(),deviceId:d.deviceId});
+  assert.throws(()=>c.deviceIce({sessionId:s.sessionId,deviceId:d.deviceId,proof:revoked}),/CHALLENGE_NOT_FOUND_OR_MISMATCH/);
+  const fresh=enroll('alice','fresh-device'), next=c.startSession({...auth(),deviceId:fresh.deviceId});
+  c.acceptSession({sessionId:next.sessionId,deviceId:fresh.deviceId,proof:proof(fresh,next.sessionId,'session-accept')});
+  advance(599990);
+  const expired=proof(fresh,next.sessionId,'session-ice');advance(11);
+  assert.throws(()=>c.deviceIce({sessionId:next.sessionId,deviceId:fresh.deviceId,proof:expired}),/SESSION_NOT_FOUND_OR_EXPIRED/);
+  assert.equal(calls,0);
+});
+
+test('device ICE without an approved TURN issuer stays explicitly direct-only',()=>{
+  const {c,enroll,proof}=harness(),d=enroll(),s=c.startSession({...auth(),deviceId:d.deviceId});
+  const accepted=c.acceptSession({sessionId:s.sessionId,deviceId:d.deviceId,proof:proof(d,s.sessionId,'session-accept')});
+  assert.deepEqual(c.deviceIce({sessionId:s.sessionId,deviceId:d.deviceId,proof:proof(d,s.sessionId,'session-ice')}),
+    {sessionId:s.sessionId,deviceId:d.deviceId,mode:'direct-only',iceServers:[],expiresAt:accepted.expiresAt,serverTime:1000000});
+});
+
+test('expired device TURN stays denied until a new session, even while old session remains active',()=>{
+  let time=1000000,calls=0;
+  const issuer=createPortalTurnIssuer({sharedSecret:'test-only-expiry-turn-secret-not-deployed',urls:['turn:relay.example.net'],now:()=>time});
+  const {c,enroll,proof,advance}=harness({iceForSession:p=>{calls++;return issuer({...p,sessionExpiresAt:time+60000});}});
+  const d=enroll(),s=c.startSession({...auth(),deviceId:d.deviceId});
+  c.acceptSession({sessionId:s.sessionId,deviceId:d.deviceId,proof:proof(d,s.sessionId,'session-accept')});
+  c.deviceIce({sessionId:s.sessionId,deviceId:d.deviceId,proof:proof(d,s.sessionId,'session-ice')});
+  advance(60001);time+=60001;
+  assert.equal(c.deviceStatus({sessionId:s.sessionId,deviceId:d.deviceId,proof:proof(d,s.sessionId,'session-status')}).status,'active');
+  assert.throws(()=>c.deviceIce({sessionId:s.sessionId,deviceId:d.deviceId,proof:proof(d,s.sessionId,'session-ice')}),/ICE_CREDENTIALS_EXPIRED/);
+  assert.equal(calls,1);
+  c.endSession({...auth(),sessionId:s.sessionId,viewerToken:s.viewerToken});
+  const fresh=c.startSession({...auth(),deviceId:d.deviceId});
+  c.acceptSession({sessionId:fresh.sessionId,deviceId:d.deviceId,proof:proof(d,fresh.sessionId,'session-accept')});
+  assert.equal(c.deviceIce({sessionId:fresh.sessionId,deviceId:d.deviceId,proof:proof(d,fresh.sessionId,'session-ice')}).sessionId,fresh.sessionId);
+  assert.equal(calls,2);
+});
+
+test('malformed device relay configuration cannot return extra secrets or create a cached credential',()=>{
+  const issuer=createPortalTurnIssuer({sharedSecret:'test-only-malformed-relay-secret-not-deployed',urls:['turn:relay.example.net'],now:()=>1000000});
+  const invalid=[
+    ice=>({...ice,sharedSecret:'private-marker'}),
+    ice=>({...ice,iceServers:[{}]}),
+    ice=>({...ice,iceServers:[{...ice.iceServers[0],sharedSecret:'private-marker'}]}),
+    ice=>({...ice,iceServers:[{...ice.iceServers[0],urls:['https://unexpected.example']}]}),
+    ice=>({...ice,iceServers:[{...ice.iceServers[0],urls:['turn:relay.example.net:0']}]}),
+    ice=>({...ice,iceServers:[{...ice.iceServers[0],username:'wrong'}]}),
+    ice=>({...ice,iceServers:[{...ice.iceServers[0],credential:'wrong'}]}),
+  ];
+  for(const mutate of invalid){
+    let broken=true;
+    const {c,enroll,proof}=harness({iceForSession:p=>broken?mutate(issuer(p)):issuer(p)});
+    const d=enroll(),s=c.startSession({...auth(),deviceId:d.deviceId});
+    c.acceptSession({sessionId:s.sessionId,deviceId:d.deviceId,proof:proof(d,s.sessionId,'session-accept')});
+    assert.throws(()=>c.deviceIce({sessionId:s.sessionId,deviceId:d.deviceId,proof:proof(d,s.sessionId,'session-ice')}),/ICE_UNAVAILABLE/);
+    broken=false;
+    assert.equal(c.deviceIce({sessionId:s.sessionId,deviceId:d.deviceId,proof:proof(d,s.sessionId,'session-ice')}).mode,'turn-ephemeral-approved-provider');
+  }
+});
+
+test('local pairing -> device-accepted session -> WebRTC signaling -> manual input -> disconnect',()=>{
+  const {c,enroll,proof}=harness(),d=enroll(),s=c.startSession({...auth(),deviceId:d.deviceId});
+  assert.equal(s.status,'pending');
+  assert.throws(()=>c.manualInput({...auth(),sessionId:s.sessionId,viewerToken:s.viewerToken,sequence:1,command:{action:'tap',x:0.5,y:0.5}}),/SESSION_NOT_ACTIVE/);
+  c.acceptSession({sessionId:s.sessionId,deviceId:d.deviceId,proof:proof(d,s.sessionId,'session-accept')});
+  assert.equal(c.deviceStatus({sessionId:s.sessionId,deviceId:d.deviceId,
+    proof:proof(d,s.sessionId,'session-status')}).status,'active');
+  const offer={type:'offer',sdp:'v=0\r\n'};
+  c.viewerSignal({...auth(),sessionId:s.sessionId,viewerToken:s.viewerToken,signal:offer});
+  assert.deepEqual(c.receiveSignalsForDevice({sessionId:s.sessionId,deviceId:d.deviceId,proof:proof(d,s.sessionId,'signal-receive')}),{cursor:1,signals:[offer]});
+  const answer={type:'answer',sdp:'v=0\r\n'};
+  const payloadHash=createHash('sha256').update(JSON.stringify(answer)).digest('hex');
+  c.deviceSignal({sessionId:s.sessionId,deviceId:d.deviceId,signal:answer,proof:proof(d,s.sessionId,'signal-send',payloadHash)});
+  assert.deepEqual(c.receiveSignalsForViewer({...auth(),sessionId:s.sessionId,viewerToken:s.viewerToken}),{cursor:1,signals:[answer]});
+  assert.deepEqual(c.manualInput({...auth(),sessionId:s.sessionId,viewerToken:s.viewerToken,sequence:1,command:{action:'tap',x:0.5,y:0.5}}).command,{action:'tap',x:0.5,y:0.5});
+  assert.equal(c.viewerStatus({...auth(),sessionId:s.sessionId,viewerToken:s.viewerToken}).status,'active');
+  assert.equal(c.endSession({...auth(),sessionId:s.sessionId,viewerToken:s.viewerToken}).status,'closed');
+  assert.throws(()=>c.deviceStatus({sessionId:s.sessionId,deviceId:d.deviceId,
+    proof:proof(d,s.sessionId,'session-status')}),/SESSION_NOT_FOUND_OR_EXPIRED/);
+  assert.throws(()=>c.viewerStatus({...auth(),sessionId:s.sessionId,viewerToken:s.viewerToken}),/SESSION_NOT_FOUND_OR_EXPIRED/);
+});
+
+test('cross-owner session and forged device approval are rejected',()=>{
+  const {c,enroll,proof}=harness(),a=enroll('alice','android-a'),b=enroll('bob','android-b');
+  const s=c.startSession({...auth('alice'),deviceId:a.deviceId});
+  assert.throws(()=>c.startSession({...auth('bob'),deviceId:a.deviceId}),/DEVICE_NOT_OWNED/);
+  assert.throws(()=>c.startSession({ownerId:'alice',authorization:'none',deviceId:a.deviceId}),/OWNER_NOT_AUTHORIZED/);
+  assert.throws(()=>c.acceptSession({sessionId:s.sessionId,deviceId:a.deviceId,proof:{deviceId:a.deviceId}}),/DEVICE_PROOF_REQUIRED/);
+  const ch=c.challengeDevice({deviceId:a.deviceId,operation:'session-accept',sessionId:s.sessionId});
+  const forged=sign(null,Buffer.from(RemoteLitePairingRegistry.deviceMessage({...ch,deviceId:a.deviceId,operation:'session-accept',sessionId:s.sessionId})),b.keys.privateKey).toString('base64');
+  assert.throws(()=>c.acceptSession({sessionId:s.sessionId,deviceId:a.deviceId,proof:{...ch,deviceId:a.deviceId,operation:'session-accept',sessionId:s.sessionId,signature:forged}}),/DEVICE_PROOF_INVALID/);
+  assert.doesNotThrow(()=>c.acceptSession({sessionId:s.sessionId,deviceId:a.deviceId,proof:proof(a,s.sessionId,'session-accept')}));
+});
+
+test('signed device answer cannot be swapped or replayed',()=>{
+  const {c,enroll,proof}=harness(),d=enroll(),s=c.startSession({...auth(),deviceId:d.deviceId});
+  c.acceptSession({sessionId:s.sessionId,deviceId:d.deviceId,proof:proof(d,s.sessionId,'session-accept')});
+  const answer={type:'answer',sdp:'v=0\r\n'};
+  const h=createHash('sha256').update(JSON.stringify(answer)).digest('hex');
+  const p=proof(d,s.sessionId,'signal-send',h);
+  assert.throws(()=>c.deviceSignal({sessionId:s.sessionId,deviceId:d.deviceId,proof:p,signal:{type:'answer',sdp:'v=0\r\na=changed'}}),/SIGNAL_BINDING_INVALID/);
+  assert.doesNotThrow(()=>c.deviceSignal({sessionId:s.sessionId,deviceId:d.deviceId,proof:p,signal:answer}));
+  assert.throws(()=>c.deviceSignal({sessionId:s.sessionId,deviceId:d.deviceId,proof:p,signal:answer}),/CHALLENGE_NOT_FOUND_OR_MISMATCH/);
+});
+
+test('owner revocation disables existing control and new sessions',()=>{
+  const {c,enroll,proof}=harness(),d=enroll(),s=c.startSession({...auth(),deviceId:d.deviceId});
+  c.acceptSession({sessionId:s.sessionId,deviceId:d.deviceId,proof:proof(d,s.sessionId,'session-accept')});
+  assert.equal(c.revokeDevice({...auth(),deviceId:d.deviceId}).status,'revoked');
+  assert.throws(()=>c.manualInput({...auth(),sessionId:s.sessionId,viewerToken:s.viewerToken,sequence:1,command:{action:'tap',x:0.5,y:0.5}}),/SESSION_NOT_FOUND_OR_EXPIRED/);
+  assert.throws(()=>c.startSession({...auth(),deviceId:d.deviceId}),/DEVICE_NOT_OWNED/);
+  assert.throws(()=>c.challengeDevice({deviceId:d.deviceId,operation:'signal-receive',sessionId:s.sessionId}),/DEVICE_UNAVAILABLE/);
+  const r=enroll('alice',d.deviceId);
+  assert.equal(c.startSession({...auth(),deviceId:r.deviceId}).status,'pending');
+});
+
+test('unrelated or inactive sessions cannot consume device challenge capacity',()=>{
+  const {c,enroll,proof}=harness(),a=enroll('alice','android-a'),b=enroll('bob','android-b');
+  const s=c.startSession({...auth('alice'),deviceId:a.deviceId});
+  for(let i=0;i<201;i++) {
+    assert.throws(()=>c.challengeDevice({deviceId:a.deviceId,operation:'session-status',sessionId:'fake-'+i}),/SESSION_NOT_FOUND_OR_EXPIRED/);
+  }
+  assert.throws(()=>c.challengeDevice({deviceId:b.deviceId,operation:'session-accept',sessionId:s.sessionId}),/DEVICE_NOT_AUTHORIZED/);
+  assert.throws(()=>c.challengeDevice({deviceId:a.deviceId,operation:'session-status',sessionId:s.sessionId}),/SESSION_NOT_ACTIVE/);
+  c.acceptSession({sessionId:s.sessionId,deviceId:a.deviceId,proof:proof(a,s.sessionId,'session-accept')});
+  assert.doesNotThrow(()=>c.challengeDevice({deviceId:a.deviceId,operation:'session-status',sessionId:s.sessionId}));
+});
+
+test('every viewer operation checks that owner authentication is still valid',()=>{
+  let active=true;
+  const c=new ManualRemoteCoordinator({authorizeOwner:({ownerId,authorization})=>active&&ownerId==='alice'&&authorization==='valid'});
+  const k=generateKeyPairSync('ed25519'),invite=c.issueInvite({ownerId:'alice',authorization:'valid'});
+  const req=c.proposeDevice({inviteCode:invite.inviteCode,deviceId:'android',publicKeyPem:k.publicKey.export({type:'spki',format:'pem'})});
+  c.proveDeviceEnrollment({requestId:req.requestId,signature:sign(null,Buffer.from(RemoteLitePairingRegistry.enrollmentMessage({...req,deviceId:'android'})),k.privateKey).toString('base64')});
+  c.approveDevice({ownerId:'alice',authorization:'valid',requestId:req.requestId,expectedFingerprint:req.fingerprint});
+  const s=c.startSession({ownerId:'alice',authorization:'valid',deviceId:'android'});
+  active=false;
+  assert.throws(()=>c.viewerSignal({ownerId:'alice',authorization:'valid',sessionId:s.sessionId,viewerToken:s.viewerToken,signal:{type:'offer',sdp:'v=0\r\n'}}),/OWNER_NOT_AUTHORIZED/);
+  assert.throws(()=>c.manualInput({ownerId:'alice',authorization:'valid',sessionId:s.sessionId,viewerToken:s.viewerToken,sequence:1,command:{action:'tap',x:0.1,y:0.1}}),/OWNER_NOT_AUTHORIZED/);
+});
+
+test('registered device discovers only its own pending session with a fresh signed proof',()=>{
+  const {c,enroll,proof,discoveryProof,advance}=harness(),a=enroll('alice','win-alice'),b=enroll('bob','win-bob');
+  for(let i=0;i<20;i++) assert.throws(()=>c.challengeDevice({deviceId:a.deviceId,operation:'session-discover',sessionId:a.deviceId}),/DEVICE_UNAVAILABLE/);
+  const noSession=discoveryProof(a);
+  assert.equal(c.discoverPendingSession({deviceId:a.deviceId,proof:noSession}),null);
+  assert.throws(()=>c.discoverPendingSession({deviceId:a.deviceId,proof:noSession}),/DISCOVERY_REPLAYED/);
+  const future=discoveryProof(a);
+  future.issuedAt+=29_999;
+  future.signature=sign(null,Buffer.from(RemoteLitePairingRegistry.discoveryMessage(future)),a.keys.privateKey).toString('base64');
+  assert.equal(c.discoverPendingSession({deviceId:a.deviceId,proof:future}),null);
+  advance(60_000);
+  assert.throws(()=>c.discoverPendingSession({deviceId:a.deviceId,proof:future}),/DISCOVERY_EXPIRED/);
+  const started=c.startSession({...auth('alice'),deviceId:a.deviceId});
+  const pending=c.discoverPendingSession({deviceId:a.deviceId,proof:discoveryProof(a)});
+  assert.deepEqual(pending,{sessionId:started.sessionId,deviceId:a.deviceId,status:'pending',expiresAt:started.expiresAt});
+  assert.equal(c.discoverPendingSession({deviceId:b.deviceId,proof:discoveryProof(b)}),null);
+  const forged=discoveryProof(a);
+  forged.signature=sign(null,Buffer.from(RemoteLitePairingRegistry.discoveryMessage(forged)),b.keys.privateKey).toString('base64');
+  assert.throws(()=>c.discoverPendingSession({deviceId:a.deviceId,proof:forged}),/DEVICE_PROOF_INVALID/);
+  const stale=discoveryProof(a);
+  advance(31_000);
+  assert.throws(()=>c.discoverPendingSession({deviceId:a.deviceId,proof:stale}),/DISCOVERY_EXPIRED/);
+  c.acceptSession({sessionId:started.sessionId,deviceId:a.deviceId,proof:proof(a,started.sessionId,'session-accept')});
+  assert.equal(c.discoverPendingSession({deviceId:a.deviceId,proof:discoveryProof(a)}),null);
+});
+
+test('registered device can rediscover only its own active session after host restart',()=>{
+  const {c,enroll,proof,discoveryProof,advance}=harness();
+  const a=enroll('alice','win-restart'),b=enroll('bob','win-other');
+  const started=c.startSession({...auth('alice'),deviceId:a.deviceId});
+  assert.equal(c.discoverActiveSession({deviceId:a.deviceId,proof:discoveryProof(a)}),null);
+  c.acceptSession({sessionId:started.sessionId,deviceId:a.deviceId,proof:proof(a,started.sessionId,'session-accept')});
+  const recovered=c.discoverActiveSession({deviceId:a.deviceId,proof:discoveryProof(a)});
+  assert.deepEqual(recovered,{sessionId:started.sessionId,deviceId:a.deviceId,status:'active',expiresAt:recovered.expiresAt});
+  assert.equal(c.discoverActiveSession({deviceId:b.deviceId,proof:discoveryProof(b)}),null);
+  const forged=discoveryProof(a);
+  forged.signature=sign(null,Buffer.from(RemoteLitePairingRegistry.discoveryMessage(forged)),b.keys.privateKey).toString('base64');
+  assert.throws(()=>c.discoverActiveSession({deviceId:a.deviceId,proof:forged}),/DEVICE_PROOF_INVALID/);
+  c.endSession({...auth('alice'),sessionId:started.sessionId,viewerToken:started.viewerToken});
+  assert.equal(c.discoverActiveSession({deviceId:a.deviceId,proof:discoveryProof(a)}),null);
+  const second=c.startSession({...auth('alice'),deviceId:a.deviceId});
+  c.acceptSession({sessionId:second.sessionId,deviceId:a.deviceId,proof:proof(a,second.sessionId,'session-accept')});
+  advance(10*60_000);
+  assert.equal(c.discoverActiveSession({deviceId:a.deviceId,proof:discoveryProof(a)}),null);
+});

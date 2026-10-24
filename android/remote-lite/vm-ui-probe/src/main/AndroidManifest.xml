@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application android:label="Remote Lite VM UI probe" android:testOnly="true"
+        android:allowBackup="false" android:usesCleartextTraffic="false" />
+    <!-- Instrument the probe itself: targeting Remote Lite would restart the app under test. -->
+    <instrumentation android:name=".HierarchyProbe"
+        android:targetPackage="app.goriq.remote.vmprobe" />
+</manifest>

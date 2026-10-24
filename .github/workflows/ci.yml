@@ -45,6 +45,8 @@ jobs:
         run: pnpm test
       - name: P8 Security Regression Suite
         run: pnpm test:p8-security
+      - name: Remote Lite traffic guard systemd failure propagation on isolated Linux VM
+        run: node scripts/remote-lite-traffic-systemd-vm.mjs
       - name: Windows ACL repair decision fixtures
         shell: pwsh
         run: |
@@ -78,9 +80,96 @@ jobs:
           ./tests/goriq-pc-runtime-launch.test.ps1
           ./tests/gai-zbook-launcher-file.test.ps1
           ./tests/goriq-zbook-watchdog-launcher-repair.test.ps1
+
           ./tests/completion-native-transaction.test.ps1
           ./tests/completion-native-pointer.test.ps1
           ./tests/goriq-zbook-fixed-acl-repair.test.ps1
       - name: Isolated native recovery controller fixture
         shell: powershell
         run: ./tests/completion-native-resume.test.ps1
+
+  remote-lite-windows-vm:
+    # Explicit native desktop fixture. The 2022 isolation run39846658183 also
+    # aborted browser navigation and could not capture a desktop; 2025 supplies
+    # native GDI. Keep all browser/media/input assertions on this image.
+    runs-on: windows-2025
+    timeout-minutes: 12
+    env:
+      REMOTE_LITE_CHROME_VERSION: '156.0.8078.47'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        id: remote-lite-go
+        with:
+          go-version-file: apps/remote-lite-windows/go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+      - uses: browser-actions/setup-chrome@v2
+        id: remote-lite-chrome
+        with:
+          chrome-version: ${{ env.REMOTE_LITE_CHROME_VERSION }}
+          install-chromedriver: true
+      - name: Verify isolated browser before native acceptance
+        shell: pwsh
+        env:
+          REMOTE_LITE_CHROME: ${{ steps.remote-lite-chrome.outputs.chrome-path }}
+          REMOTE_LITE_CHROMEDRIVER: ${{ steps.remote-lite-chrome.outputs.chromedriver-path }}
+        run: |
+          "REMOTE_LITE_CHROME=$env:REMOTE_LITE_CHROME" >> $env:GITHUB_ENV
+          "REMOTE_LITE_CHROMEDRIVER=$env:REMOTE_LITE_CHROMEDRIVER" >> $env:GITHUB_ENV
+          node scripts/remote-lite-windows-browser-preflight.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Test isolated Remote Lite Windows host in a virtual machine
+        working-directory: apps/remote-lite-windows
+        shell: pwsh
+        run: |
+          foreach ($source in @('winbridge/bridge_windows.go', 'winbridge/release_windows_test.go', 'cmd/localhost/main_windows.go', 'cmd/localhost/session_gate.go', 'cmd/localhost/session_signal_windows.go', 'cmd/localhost/session_routes_windows.go', 'cmd/localhost/remote_config_windows.go', 'cmd/localhost/remote_config_windows_test.go', 'cmd/localhost/session_gate_windows_test.go', 'cmd/localhost/remote_routes_windows_test.go', 'cmd/localhost/node_interop_windows_test.go', 'cmd/localhost/native_browser_windows_test.go', 'cmd/localhost/separate_browser_windows_test.go', 'cmd/localhost/real_coordinator_browser_windows_test.go')) {
+            $normalized = [IO.File]::ReadAllText((Resolve-Path $source)).Replace("`r`n", "`n")
+            $temporary = Join-Path $env:RUNNER_TEMP ([IO.Path]::GetFileName($source))
+            [IO.File]::WriteAllText($temporary, $normalized, [Text.UTF8Encoding]::new($false))
+            $unformatted = gofmt -l $temporary
+            if ($unformatted) { gofmt -d $temporary; throw "Unformatted Go source: $source" }
+          }
+          foreach ($source in @('cmd/localhost/enrollment_windows.go', 'cmd/localhost/enrollment_windows_test.go', 'cmd/localhost/setup_windows.go', 'cmd/localhost/setup_windows_test.go', 'cmd/localhost/setup_node_windows_test.go', 'cmd/localhost/web_windows.go')) {
+            $normalized = [IO.File]::ReadAllText((Resolve-Path $source)).Replace("`r`n", "`n")
+            $temporary = Join-Path $env:RUNNER_TEMP ([IO.Path]::GetFileName($source))
+            [IO.File]::WriteAllText($temporary, $normalized, [Text.UTF8Encoding]::new($false))
+            $unformatted = gofmt -l $temporary
+            if ($unformatted) { gofmt -d $temporary; throw "Unformatted Go source: $source" }
+          }
+          $env:GORIQ_REMOTE_LITE_NODE_INTEROP = '1'
+          $env:GORIQ_REMOTE_LITE_VM_NATIVE = '1'
+          go test -count=1 -v ./...
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          go vet ./...
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          go build -trimpath -o "$env:RUNNER_TEMP/GORIQ_Remote_Lite_Windows_VM_Test.exe" ./cmd/localhost
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Real Chromium WebRTC on virtual Windows
+        shell: pwsh
+        run: |
+          node scripts/remote-lite-browser-vm-smoke.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $env:REMOTE_LITE_PORTAL_BROWSER = '1'
+          node --test tests/remote-lite-owner-portal.test.mjs tests/remote-lite-owner-server.test.mjs tests/remote-lite-goriq-hosted.test.mjs tests/remote-lite-tls-reload.test.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Verify per-user Remote Lite MSI install repair upgrade and uninstall
+        # This independent gate must still run after a browser failure. The job
+        # remains failed unless every preceding acceptance step also succeeds.
+        if: ${{ !cancelled() && steps.remote-lite-go.outcome == 'success' }}
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $wixArchive = Join-Path $env:RUNNER_TEMP 'remote-lite-wix3141.zip'
+          Invoke-WebRequest -Uri 'https://github.com/wixtoolset/wix3/releases/download/wix3141rtm/wix314-binaries.zip' -OutFile $wixArchive
+          if ((Get-FileHash -LiteralPath $wixArchive -Algorithm SHA256).Hash -ne '6AC824E1642D6F7277D0ED7EA09411A508F6116BA6FAE0AA5F2C7DAA2FF43D31') { throw 'WiX archive integrity mismatch' }
+          $wixDirectory = Join-Path $env:RUNNER_TEMP 'remote-lite-wix3141'
+          Expand-Archive -LiteralPath $wixArchive -DestinationPath $wixDirectory
+          $first = Join-Path $env:RUNNER_TEMP 'remote-lite-msi-0.1.0'
+          $rebuilt = Join-Path $env:RUNNER_TEMP 'remote-lite-msi-0.1.0-rebuilt'
+          $upgrade = Join-Path $env:RUNNER_TEMP 'remote-lite-msi-0.1.1'
+          ./scripts/remote-lite-build-windows-installer.ps1 -WixDirectory $wixDirectory -OutputDirectory $first -Version 0.1.0
+          ./scripts/remote-lite-build-windows-installer.ps1 -WixDirectory $wixDirectory -OutputDirectory $rebuilt -Version 0.1.0
+          ./scripts/remote-lite-build-windows-installer.ps1 -WixDirectory $wixDirectory -OutputDirectory $upgrade -Version 0.1.1
+          ./scripts/remote-lite-windows-installer-vm.ps1 -FirstMsi (Join-Path $first 'GORIQRemoteLite-0.1.0.msi') -RebuiltMsi (Join-Path $rebuilt 'GORIQRemoteLite-0.1.0.msi') -UpgradeMsi (Join-Path $upgrade 'GORIQRemoteLite-0.1.1.msi') -FirstHost (Join-Path $first 'GORIQRemoteLite.exe') -UpgradeHost (Join-Path $upgrade 'GORIQRemoteLite.exe')

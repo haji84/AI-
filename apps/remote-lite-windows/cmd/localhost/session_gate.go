@@ -1,0 +1,303 @@
+//go:build windows
+
+package main
+
+import (
+	"bytes"
+	"context"
+	"crypto/ed25519"
+	"crypto/rand"
+	"encoding/base64"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"mime"
+	"net/http"
+	"net/url"
+	"regexp"
+	"strconv"
+	"time"
+)
+
+const maxStatusResponse = 8192
+
+var (
+	statusID          = regexp.MustCompile(`^[a-zA-Z0-9._:-]{1,128}$`)
+	statusChallengeID = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
+	statusNonce       = regexp.MustCompile(`^[0-9a-f]{48}$`)
+)
+
+// signedStatusGate keeps the device signer inside the native host. It obtains
+// a fresh, operation-bound challenge for every status check and never hands
+// signing authority to the local browser or a WebRTC peer.
+type signedStatusGate struct {
+	baseURL       *url.URL
+	deviceID      string
+	sessionID     string
+	sign          func([]byte) ([]byte, error)
+	client        *http.Client
+	now           func() time.Time
+	discoveryOnly bool
+}
+
+type pendingRemoteSession struct {
+	SessionID string `json:"sessionId"`
+	DeviceID  string `json:"deviceId"`
+	Status    string `json:"status"`
+	ExpiresAt int64  `json:"expiresAt"`
+}
+
+func newSignedStatusGate(rawURL, deviceID, sessionID string, sign func([]byte) ([]byte, error), client *http.Client) (*signedStatusGate, error) {
+	u, err := url.Parse(rawURL)
+	if err != nil || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || (u.Path != "" && u.Path != "/") {
+		return nil, errors.New("invalid status service URL")
+	}
+	if u.Scheme != "https" && !(u.Scheme == "http" && (u.Hostname() == "127.0.0.1" || u.Hostname() == "::1")) {
+		return nil, errors.New("status service requires HTTPS or loopback")
+	}
+	if !statusID.MatchString(deviceID) || !statusID.MatchString(sessionID) || sign == nil {
+		return nil, errors.New("invalid signed status identity")
+	}
+	if client == nil {
+		client = http.DefaultClient
+	}
+	copyClient := *client
+	copyClient.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	copyClient.Jar = nil
+	if copyClient.Timeout == 0 || copyClient.Timeout > 3*time.Second {
+		copyClient.Timeout = 3 * time.Second
+	}
+	return &signedStatusGate{baseURL: u, deviceID: deviceID, sessionID: sessionID, sign: sign, client: &copyClient, now: time.Now}, nil
+}
+
+func decodeStatusJSON(data []byte, destination any) error {
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(destination); err != nil {
+		return err
+	}
+	if err := decoder.Decode(new(any)); !errors.Is(err, io.EOF) {
+		return errors.New("trailing status response")
+	}
+	return nil
+}
+
+func (g *signedStatusGate) post(ctx context.Context, path string, body any, result any) error {
+	return g.postLimited(ctx, path, body, result, maxStatusResponse)
+}
+
+func (g *signedStatusGate) postLimited(ctx context.Context, path string, body any, result any, limit int64) error {
+	encoded, err := json.Marshal(body)
+	if err != nil {
+		return err
+	}
+	u := g.baseURL.ResolveReference(&url.URL{Path: path})
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u.String(), bytes.NewReader(encoded))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+	response, err := g.client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		return fmt.Errorf("status service refused request: HTTP %d", response.StatusCode)
+	}
+	mediaType, _, err := mime.ParseMediaType(response.Header.Get("Content-Type"))
+	if err != nil || mediaType != "application/json" {
+		return errors.New("status service returned non-JSON data")
+	}
+	data, err := io.ReadAll(io.LimitReader(response.Body, limit+1))
+	if err != nil || int64(len(data)) > limit {
+		return errors.New("status response unavailable or oversized")
+	}
+	var envelope struct {
+		OK     bool            `json:"ok"`
+		Result json.RawMessage `json:"result"`
+	}
+	if err := decodeStatusJSON(data, &envelope); err != nil || !envelope.OK || len(envelope.Result) == 0 {
+		return errors.New("status response invalid")
+	}
+	if err := decodeStatusJSON(envelope.Result, result); err != nil {
+		return errors.New("status result invalid")
+	}
+	return nil
+}
+
+// Check never caches a positive status. A denied or uncertain result must
+// prevent the next frame/input; the caller is responsible for stopping media
+// and releasing held input when Check fails.
+func (g *signedStatusGate) Check(parent context.Context) error {
+	if g == nil || g.discoveryOnly {
+		return errors.New("signed status gate unavailable")
+	}
+	ctx, cancel := context.WithTimeout(parent, 3*time.Second)
+	defer cancel()
+	var challenge struct {
+		ChallengeID string `json:"challengeId"`
+		Challenge   string `json:"challenge"`
+		ExpiresAt   int64  `json:"expiresAt"`
+	}
+	if err := g.post(ctx, "/v1/device/challenge", map[string]string{
+		"deviceId": g.deviceID, "operation": "session-status", "sessionId": g.sessionID,
+	}, &challenge); err != nil {
+		return err
+	}
+	if !statusChallengeID.MatchString(challenge.ChallengeID) || !statusNonce.MatchString(challenge.Challenge) || challenge.ExpiresAt <= g.now().UnixMilli() {
+		return errors.New("status challenge invalid or expired")
+	}
+	message := []byte("GORIQ_REMOTE_DEVICE_AUTH_V1\n" + g.deviceID + "\nsession-status\n" + g.sessionID + "\n" + challenge.ChallengeID + "\n" + challenge.Challenge + "\n")
+	signature, err := g.sign(message)
+	if err != nil || len(signature) != ed25519.SignatureSize {
+		return errors.New("device signing failed")
+	}
+	var status struct {
+		SessionID string `json:"sessionId"`
+		DeviceID  string `json:"deviceId"`
+		Status    string `json:"status"`
+		ExpiresAt int64  `json:"expiresAt"`
+	}
+	if err := g.post(ctx, "/v1/device/status", map[string]any{
+		"sessionId": g.sessionID, "deviceId": g.deviceID,
+		"proof": map[string]string{
+			"deviceId": g.deviceID, "operation": "session-status", "sessionId": g.sessionID,
+			"challengeId": challenge.ChallengeID, "signature": base64.StdEncoding.EncodeToString(signature),
+		},
+	}, &status); err != nil {
+		return err
+	}
+	if status.SessionID != g.sessionID || status.DeviceID != g.deviceID || status.Status != "active" || status.ExpiresAt <= g.now().UnixMilli() {
+		return errors.New("device session inactive or mismatched")
+	}
+	return nil
+}
+
+// DiscoverPending asks the coordinator for this registered device's single
+// pending request. The response carries no viewer token and grants no capture
+// or input authority; a separate locally approved acceptance is still needed.
+func (g *signedStatusGate) DiscoverPending(parent context.Context) (*pendingRemoteSession, error) {
+	return g.discoverSession(parent, "/v1/device/pending", "pending")
+}
+
+// DiscoverActive permits a registered device to find its existing session
+// after a host process restart. It does not itself enable capture or input.
+func (g *signedStatusGate) DiscoverActive(parent context.Context) (*pendingRemoteSession, error) {
+	return g.discoverSession(parent, "/v1/device/active", "active")
+}
+
+func (g *signedStatusGate) discoverSession(parent context.Context, path, expectedStatus string) (*pendingRemoteSession, error) {
+	if g == nil {
+		return nil, errors.New("signed device identity unavailable")
+	}
+	ctx, cancel := context.WithTimeout(parent, 3*time.Second)
+	defer cancel()
+	nonceBytes := make([]byte, 24)
+	if _, err := rand.Read(nonceBytes); err != nil {
+		return nil, errors.New("discovery nonce unavailable")
+	}
+	nonce := hex.EncodeToString(nonceBytes)
+	issuedAt := g.now().UnixMilli()
+	message := []byte("GORIQ_REMOTE_DEVICE_DISCOVER_V1\n" + g.deviceID + "\n" + strconv.FormatInt(issuedAt, 10) + "\n" + nonce)
+	signature, err := g.sign(message)
+	if err != nil || len(signature) != ed25519.SignatureSize {
+		return nil, errors.New("device signing failed")
+	}
+	var pending *pendingRemoteSession
+	if err := g.post(ctx, path, map[string]any{
+		"deviceId": g.deviceID,
+		"proof": map[string]any{
+			"deviceId": g.deviceID, "issuedAt": issuedAt, "nonce": nonce,
+			"signature": base64.StdEncoding.EncodeToString(signature),
+		},
+	}, &pending); err != nil {
+		return nil, err
+	}
+	if pending == nil {
+		return nil, nil
+	}
+	if !statusID.MatchString(pending.SessionID) || pending.DeviceID != g.deviceID || pending.Status != expectedStatus || pending.ExpiresAt <= g.now().UnixMilli() {
+		return nil, errors.New("discovered session invalid or mismatched")
+	}
+	return pending, nil
+}
+
+// ResumeActive requires a fresh signed active-status check after the local
+// owner has approved this exact session ID. An unconfirmed result leaves the
+// registered gate in discovery-only mode.
+func (g *signedStatusGate) ResumeActive(parent context.Context, active *pendingRemoteSession) error {
+	if g == nil || !g.discoveryOnly || active == nil || !statusID.MatchString(active.SessionID) ||
+		active.DeviceID != g.deviceID || active.Status != "active" || active.ExpiresAt <= g.now().UnixMilli() {
+		return errors.New("active session unavailable or mismatched")
+	}
+	candidate := *g
+	candidate.sessionID = active.SessionID
+	candidate.discoveryOnly = false
+	if err := candidate.Check(parent); err != nil {
+		return fmt.Errorf("active session restart unconfirmed: %w", err)
+	}
+	g.sessionID = active.SessionID
+	g.discoveryOnly = false
+	return nil
+}
+
+// AcceptPending is called only after an explicit local approval of the
+// discovered session. It binds the registered device to that session before
+// the native frame and input routes can use Check.
+func (g *signedStatusGate) AcceptPending(parent context.Context, pending *pendingRemoteSession) error {
+	if g == nil || !g.discoveryOnly || pending == nil || !statusID.MatchString(pending.SessionID) ||
+		pending.DeviceID != g.deviceID || pending.Status != "pending" || pending.ExpiresAt <= g.now().UnixMilli() {
+		return errors.New("pending session unavailable or mismatched")
+	}
+	ctx, cancel := context.WithTimeout(parent, 3*time.Second)
+	defer cancel()
+	var challenge struct {
+		ChallengeID string `json:"challengeId"`
+		Challenge   string `json:"challenge"`
+		ExpiresAt   int64  `json:"expiresAt"`
+	}
+	if err := g.post(ctx, "/v1/device/challenge", map[string]string{
+		"deviceId": g.deviceID, "operation": "session-accept", "sessionId": pending.SessionID,
+	}, &challenge); err != nil {
+		return err
+	}
+	if !statusChallengeID.MatchString(challenge.ChallengeID) || !statusNonce.MatchString(challenge.Challenge) || challenge.ExpiresAt <= g.now().UnixMilli() {
+		return errors.New("acceptance challenge invalid or expired")
+	}
+	message := []byte("GORIQ_REMOTE_DEVICE_AUTH_V1\n" + g.deviceID + "\nsession-accept\n" + pending.SessionID + "\n" + challenge.ChallengeID + "\n" + challenge.Challenge + "\n")
+	signature, err := g.sign(message)
+	if err != nil || len(signature) != ed25519.SignatureSize {
+		return errors.New("device signing failed")
+	}
+	var accepted pendingRemoteSession
+	if err := g.post(ctx, "/v1/device/accept", map[string]any{
+		"sessionId": pending.SessionID, "deviceId": g.deviceID,
+		"proof": map[string]string{
+			"deviceId": g.deviceID, "operation": "session-accept", "sessionId": pending.SessionID,
+			"challengeId": challenge.ChallengeID, "signature": base64.StdEncoding.EncodeToString(signature),
+		},
+	}, &accepted); err != nil {
+		// The coordinator may have committed acceptance before its response was
+		// lost. Never retry accept. A fresh signed active-status proof is the
+		// only safe way to resolve this uncertain result.
+		candidate := *g
+		candidate.sessionID = pending.SessionID
+		candidate.discoveryOnly = false
+		if checkErr := candidate.Check(parent); checkErr != nil {
+			return fmt.Errorf("acceptance outcome unconfirmed: %w", err)
+		}
+		g.sessionID = pending.SessionID
+		g.discoveryOnly = false
+		return nil
+	}
+	if accepted.SessionID != pending.SessionID || accepted.DeviceID != g.deviceID || accepted.Status != "active" || accepted.ExpiresAt <= g.now().UnixMilli() {
+		return errors.New("accepted session invalid or mismatched")
+	}
+	g.sessionID = pending.SessionID
+	g.discoveryOnly = false
+	return nil
+}

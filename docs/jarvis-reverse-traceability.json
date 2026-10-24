@@ -1158,7 +1158,7 @@
     },
     {
       "path": "scripts/jarvis-managed-process.mjs",
-      "sha256": "4ac80f4f258460970bb7bfcf8442c2fa9f610dadf629ff8bba566111ed97c333",
+      "sha256": "b708b5e4eef0d33b3c0e0507a5dc2dba808adf7d9f100b4421c762dfdd9c7426",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "HOST-001",
@@ -1166,7 +1166,7 @@
         "HOST-004",
         "HOST-005"
       ],
-      "reason": "Existing HOST/OPS parent scope; #1662/#1219 bounded private ingress isolation and configured-address recovery. CI behavior evidence is separate from pending native cross-subnet mobility/offline/failover acceptance."
+      "reason": "Existing HOST/OPS bounded supervision and private-ingress isolation retained. Issue1831 adds an optional owned-child stop callback for graceful Windows IPC; existing core callers retain SIGTERM and exhaustion policy. No physical recovery acceptance inferred."
     },
     {
       "path": "scripts/jarvis-owner-spec-sync.d.mts",
@@ -1299,7 +1299,7 @@
     },
     {
       "path": "scripts/jarvis-remote-host.mjs",
-      "sha256": "adeff38e18b779d850acf0e5e84b721ff48c373690cabbbeabbe6ce4dde342ef",
+      "sha256": "ff7eae13b4197a5de785ed6e0f458dd5f79c613e4042368cc5d460e5b94500bf",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "HOST-001",
@@ -1309,7 +1309,7 @@
         "HOST-007",
         "OPS-010"
       ],
-      "reason": "Existing HOST/OPS parent scope; #1662/#1219 bounded private ingress isolation and configured-address recovery. CI behavior evidence is separate from pending native cross-subnet mobility/offline/failover acceptance."
+      "reason": "Existing HOST/OPS startup, private-ingress isolation and core exhaustion policy retained. Issue1831 adds a default-off friend portal child to existing shutdown ownership, without core credential/permission changes or deployment. No unattended physical acceptance inferred."
     },
     {
       "path": "scripts/jarvis-remote-preflight.mjs",
@@ -6329,6 +6329,44 @@
         "AUTO-022"
       ],
       "reason": "#1858 fixed owner-approved native activation scope, expiry and configuration preservation. Reuses existing deployment controls; implementation mapping is not live activation or operational acceptance evidence."
+    },
+    {
+      "path": "docs/architecture/goriq-remote-lite-manual.md",
+      "sha256": "786ebc8b04da2c85f5359a552c1743c27c7d649236a4caf347dbb00f6e2f5d39",
+      "classification": "EXCLUDED",
+      "requirement_ids": [],
+      "reason": "Issue1831 manual friend-access boundary and 2026-10-23 owner-hosted delivery amendment. Reuses the owner GORIQ runtime without sharing core AI/admin/Broker authority; separate Issue1831 acceptance does not establish canonical JARVIS completion.",
+      "exclusion_ref": "https://github.com/haji84/AI-/issues/1831"
+    },
+    {
+      "path": "scripts/jarvis-friend-remote.mjs",
+      "sha256": "bb32d8d36c43755221266280268d22658f26bca8639184bd704926d7e868492c",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "HOST-003",
+        "HOST-004"
+      ],
+      "reason": "Issue1831 optional child supervision: fixed HTTPS entry, OS-only environment, bounded retries without core shutdown, graceful IPC and owned-child SIGKILL fallback. Implements lifecycle integration only; friend authorization/public transport and physical acceptance remain separately governed by Issue1831."
+    },
+    {
+      "path": "src/orchestrator/ai09-full-coverage.mjs",
+      "sha256": "c7956318e75839fa5c56f35af8ef18df25f77f8d1f120638564fd22c1b51b982",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-010",
+        "CORE-011"
+      ],
+      "reason": "Issue #1831 bounded AI09 full-coverage advisory review package: SHA-256 pinned per-file byte/slice/shard coverage and fail-closed review receipt verification. Does not issue independent formal GitHub approval, merge rights, or product/physical acceptance."
+    },
+    {
+      "path": "src/orchestrator/ai09-shard-candidate-runner.mjs",
+      "sha256": "60f26e2a79287fd6d8110865160c8df1e3a774c2e061469348e5a72854961aaa",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-010",
+        "CORE-011"
+      ],
+      "reason": "Issue #1831 bounded candidate-only AI09 shard review: source slice model handoff and fail-closed advisory receipts. Does not provide an independent formal GitHub approval, merge authority, or physical Remote Lite acceptance."
     }
   ],
   "hash_policy": "utf8-crlf-to-lf-v1;binary-raw"

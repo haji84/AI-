@@ -1,0 +1,169 @@
+name: Remote Lite Android candidate
+
+on:
+  pull_request:
+    paths:
+      - 'android/remote-lite/**'
+      - '.github/workflows/remote-lite-android.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  android-candidate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Select the hosted image's installed Chrome
+        id: installed-chrome
+        run: |
+          set -euo pipefail
+          test -x /opt/google/chrome/chrome
+          version="$(/opt/google/chrome/chrome --product-version)"
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          /opt/google/chrome/chrome --version
+      - uses: browser-actions/setup-chrome@v2
+        id: chrome
+        with:
+          chrome-version: ${{ steps.installed-chrome.outputs.version }}
+          install-chromedriver: true
+      - name: Extract local TURN fixture without installing a system service
+        run: |
+          set -euo pipefail
+          mkdir -p android/remote-lite/app/build/vm-turn
+          cd android/remote-lite/app/build/vm-turn
+          sudo apt-get update -qq
+          # Other native dependencies already exist on the hosted image. Download only
+          # missing hiredis/libevent runtimes; third-party libpq versions may be unavailable.
+          mapfile -t packages < <(apt-cache depends coturn | sed -n 's/^  Depends: //p' | grep -E '^(libhiredis|libevent)[a-z0-9.+-]+$')
+          test "${#packages[@]}" -ge 3
+          apt-get download coturn "${packages[@]}"
+          for package in *.deb; do dpkg-deb -x "$package" extracted; done
+          echo "REMOTE_LITE_TURNSERVER=$PWD/extracted/usr/bin/turnserver" >> "$GITHUB_ENV"
+          echo "LD_LIBRARY_PATH=$PWD/extracted/usr/lib/x86_64-linux-gnu${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" >> "$GITHUB_ENV"
+          LD_LIBRARY_PATH="$PWD/extracted/usr/lib/x86_64-linux-gnu${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" ldd extracted/usr/bin/turnserver
+          if LD_LIBRARY_PATH="$PWD/extracted/usr/lib/x86_64-linux-gnu${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" ldd extracted/usr/bin/turnserver | grep -F 'not found'; then exit 1; fi
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.6.0'
+      - name: Generate ephemeral debug-only loopback TLS fixture
+        run: python3 android/remote-lite/scripts/prepare_vm_tls.py
+      - name: Verify separate browser and loopback TLS before emulator startup
+        env:
+          REMOTE_LITE_CHROME: /opt/google/chrome/chrome
+          REMOTE_LITE_CHROMEDRIVER: ${{ steps.chrome.outputs.chromedriver-path }}
+        run: |
+          python3 -m unittest discover -s android/remote-lite/scripts -p test_native_vm.py
+          python3 android/remote-lite/scripts/native_vm.py
+      - name: Test read-only Android release verifier
+        run: python3 -m unittest discover -s android/remote-lite/scripts -p test_verify_release.py
+      - name: Test and build separate manual-only APKs
+        run: gradle -p android/remote-lite :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease :app:assemblePhysicalCheck :vm-ui-probe:assembleDebug --stacktrace
+      - name: Verify candidate APK exists
+        run: test -s android/remote-lite/app/build/outputs/apk/debug/app-debug.apk
+      - name: Verify release APK HTTPS and debug isolation
+        run: |
+          set -euo pipefail
+          release=android/remote-lite/app/build/outputs/apk/release/app-release-unsigned.apk
+          test -s "$release"
+          aapt="$(find "$ANDROID_HOME/build-tools" -mindepth 2 -maxdepth 2 -type f -name aapt | sort -V | tail -n 1)"
+          test -x "$aapt"
+          permissions="$("$aapt" dump permissions "$release")"
+          grep -Fq android.permission.INTERNET <<< "$permissions"
+          manifest="$("$aapt" dump xmltree "$release" AndroidManifest.xml)"
+          badging="$("$aapt" dump badging "$release")"
+          grep -Eq "^package: name='app[.]goriq[.]remote[.]lite' " <<< "$badging"
+          if grep -Eq 'DebugPairingActivity|SecureTestActivity|VmRemoteSessionService|debuggable.*0xffffffff' <<< "$manifest"; then
+            echo 'Release APK unexpectedly includes a VM component'
+            exit 1
+          fi
+          if grep -Fq networkSecurityConfig <<< "$manifest"; then
+            echo 'Release APK unexpectedly includes debug certificate trust'
+            exit 1
+          fi
+          grep -Eq 'usesCleartextTraffic.*0x0' <<< "$manifest"
+          archive="$(unzip -l "$release")"
+          if grep -Fq remote_lite_vm_ca <<< "$archive"; then
+            echo 'Release APK unexpectedly includes VM CA'
+            exit 1
+          fi
+          grep -Fq assets/notices/WEBRTC.md <<< "$archive"
+          grep -Fq assets/notices/WEBRTC_SDK_LICENSE.txt <<< "$archive"
+          unzip -p "$release" assets/notices/REMOTE_LITE_LICENSE.txt | cmp LICENSE-REMOTE-LITE.txt -
+          echo 'PASS actual release APK contains the exact approved Remote Lite MIT notice'
+          resources="$("$aapt" dump --values resources "$release")"
+          if grep -Eq 'VmRemoteSessionService|public-vm-fixture-only' <<< "$resources"; then exit 1; fi
+      - name: Verify actual APK signatures with a disposable CI-only key
+        run: |
+          set -euo pipefail
+          aapt="$(find "$ANDROID_HOME/build-tools" -mindepth 2 -maxdepth 2 -type f -name aapt | sort -V | tail -n 1)"
+          test -x "$aapt"
+          python3 android/remote-lite/scripts/ci_signing_fixture.py \
+            --unsigned android/remote-lite/app/build/outputs/apk/release/app-release-unsigned.apk \
+            --build-tools "$(dirname "$aapt")" --source-commit "$(git rev-parse HEAD)"
+      - name: Verify physical acceptance APK uses the normal service
+        run: |
+          set -euo pipefail
+          apk=android/remote-lite/app/build/outputs/apk/physicalCheck/app-physicalCheck.apk
+          test -s "$apk"
+          aapt="$(find "$ANDROID_HOME/build-tools" -mindepth 2 -maxdepth 2 -type f -name aapt | sort -V | tail -n 1)"
+          manifest="$("$aapt" dump xmltree "$apk" AndroidManifest.xml)"
+          grep -Fq 'app.goriq.remote.lite.physicaltest' <<< "$manifest"
+          grep -Fq 'app.goriq.remote.lite.RemoteSessionService' <<< "$manifest"
+          grep -Eq 'usesCleartextTraffic.*0x0' <<< "$manifest"
+          if grep -Eq 'DebugPairingActivity|SecureTestActivity|VmRemoteSessionService|debuggable.*0xffffffff' <<< "$manifest"; then
+            echo 'Physical acceptance APK unexpectedly includes a VM/debug component'
+            exit 1
+          fi
+      - name: Enable KVM for Android emulator
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Android 15 emulator screen and tap smoke
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          REMOTE_LITE_CHROME: /opt/google/chrome/chrome
+          REMOTE_LITE_CHROMEDRIVER: ${{ steps.chrome.outputs.chromedriver-path }}
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          ram-size: 2048M
+          script: python3 android/remote-lite/scripts/emulator_smoke.py
+      - name: Prepare traceable unsigned Android candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "$(git status --porcelain --untracked-files=normal)"
+          candidate="$RUNNER_TEMP/remote-lite-android-candidate"
+          mkdir "$candidate"
+          cp android/remote-lite/app/build/outputs/apk/release/app-release-unsigned.apk "$candidate/GORIQRemoteLite-unsigned.apk"
+          cp android/remote-lite/app/src/main/assets/notices/WEBRTC.md "$candidate/WEBRTC.md"
+          cp android/remote-lite/app/src/main/assets/notices/WEBRTC_SDK_LICENSE.txt "$candidate/WEBRTC_SDK_LICENSE.txt"
+          cp LICENSE-REMOTE-LITE.txt "$candidate/REMOTE_LITE_LICENSE.txt"
+          cp docs/remote-lite/START_HERE_JA.md "$candidate/START_HERE_JA.md"
+          python3 - <<'PY'
+          import hashlib, json, os, pathlib, subprocess
+          output = pathlib.Path(os.environ['RUNNER_TEMP']) / 'remote-lite-android-candidate'
+          commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+          apk_hash = hashlib.sha256((output / 'GORIQRemoteLite-unsigned.apk').read_bytes()).hexdigest()
+          receipt = dict(sourceCommit=commit, sourceRepository='https://github.com/haji84/AI-',
+                         package='app.goriq.remote.lite', signing='UNSIGNED_CANDIDATE',
+                         distributable=False, acceptance='PHYSICAL_PUBLIC_SIGNING_PENDING', sha256=apk_hash)
+          (output / 'candidate.json').write_text(json.dumps(receipt, indent=2) + '\n', encoding='utf-8')
+          names = ['GORIQRemoteLite-unsigned.apk', 'WEBRTC.md', 'WEBRTC_SDK_LICENSE.txt', 'REMOTE_LITE_LICENSE.txt', 'START_HERE_JA.md', 'candidate.json']
+          (output / 'SHA256SUMS.txt').write_text(''.join(
+              hashlib.sha256((output / name).read_bytes()).hexdigest() + '  ' + name + '\n'
+              for name in names), encoding='utf-8')
+          PY

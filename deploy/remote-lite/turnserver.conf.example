@@ -1,0 +1,56 @@
+# REVIEW TEMPLATE ONLY. Never start this unchanged or copy VM loopback flags.
+# Target: upstream coturn 4.18.0. Runtime/config/ACL acceptance is still required.
+# CLI and DTLS stay disabled by default; removed no-cli/no-dtls flags
+# must not be restored or this file silently reused with an older package.
+# All REQUIRED fields and private secret handling must be reviewed on the chosen VM.
+listening-port=3478
+tls-listening-port=5349
+listening-ip=REQUIRED_VM_PRIVATE_IPV4
+relay-ip=REQUIRED_VM_PRIVATE_IPV4
+external-ip=REQUIRED_PUBLIC_IPV4/REQUIRED_VM_PRIVATE_IPV4
+realm=REQUIRED_RELAY_HOST
+server-name=REQUIRED_RELAY_HOST
+cert=/etc/goriq-remote-lite/tls/current/fullchain.pem
+pkey=/etc/goriq-remote-lite/tls/current/privkey.pem
+
+use-auth-secret
+# Populate only in a private 0600/0640 runtime config; never put the real secret in Git.
+# Must match the independent portal's sharedSecretFile. Not an owner/device key.
+static-auth-secret=REQUIRED_SECRET
+fingerprint
+stale-nonce=600
+max-allocate-lifetime=600
+max-allocate-timeout=20
+user-quota=4
+total-quota=160
+max-bps=250000
+bps-capacity=2000000
+min-port=49160
+max-port=49359
+no-tcp-relay
+no-multicast-peers
+no-software-attribute
+no-stun
+no-tlsv1
+no-tlsv1_1
+
+# IPv4-only initial relay profile; deny internal/metadata/reserved targets.
+# Never add allowed-peer-ip exceptions to make a failed security test pass.
+denied-peer-ip=0.0.0.0-0.255.255.255
+denied-peer-ip=10.0.0.0-10.255.255.255
+denied-peer-ip=100.64.0.0-100.127.255.255
+denied-peer-ip=127.0.0.0-127.255.255.255
+denied-peer-ip=169.254.0.0-169.254.255.255
+denied-peer-ip=172.16.0.0-172.31.255.255
+denied-peer-ip=192.0.0.0-192.0.0.255
+denied-peer-ip=192.0.2.0-192.0.2.255
+denied-peer-ip=192.168.0.0-192.168.255.255
+denied-peer-ip=198.18.0.0-198.19.255.255
+denied-peer-ip=198.51.100.0-198.51.100.255
+denied-peer-ip=203.0.113.0-203.0.113.255
+denied-peer-ip=224.0.0.0-255.255.255.255
+denied-peer-ip=::-ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff
+
+# Keep logs private with retention; do not use verbose logs in a public artifact.
+log-file=stdout
+simple-log

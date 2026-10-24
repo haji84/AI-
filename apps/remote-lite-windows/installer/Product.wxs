@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product Id="$(var.ProductCode)" Name="GORIQ Remote Lite Candidate" Language="1041" Codepage="932"
+           Version="$(var.ProductVersion)" Manufacturer="GORIQ Remote Lite"
+           UpgradeCode="609FA89A-BEB3-4B0A-B9C3-D2FBD8DC1831">
+    <Package InstallerVersion="500" Compressed="yes" InstallScope="perUser" InstallPrivileges="limited" />
+    <MajorUpgrade DowngradeErrorMessage="新しいGORIQ Remote Liteが導入済みです。" Schedule="afterInstallExecute" />
+    <MediaTemplate EmbedCab="yes" />
+    <Property Id="REBOOT" Value="ReallySuppress" />
+    <Property Id="MSIRESTARTMANAGERCONTROL" Value="Disable" />
+    <Property Id="ARPNOMODIFY" Value="1" />
+    <Condition Message="このインストーラーは現在のユーザー専用です。すべてのユーザーへのインストールはできません。">NOT ALLUSERS</Condition>
+    <!-- Per-user scope does not by itself redirect ProgramFiles64Folder on all
+         Windows images. Type 51 assigns only this directory, in both UI and
+         quiet/maintenance execution, before CostFinalize; it executes no code. -->
+    <SetDirectory Id="RemoteLiteInstallFolder" Sequence="both"
+                  Value="[LocalAppDataFolder]Programs\GORIQ Remote Lite\">NOT ALLUSERS</SetDirectory>
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <!-- The component layout remains context-aware; the assignment above
+           fixes its target to the current user. No dual-purpose opt-in. -->
+      <Directory Id="ProgramFiles64Folder">
+          <Directory Id="RemoteLiteInstallFolder" Name="GORIQ Remote Lite">
+            <Component Id="ManualHost" Guid="CF9CE26E-41B4-4E5C-8E73-0E71DE8F1831" Win64="yes">
+              <File Id="HostExecutable" Name="GORIQRemoteLite.exe" Source="$(var.HostExecutable)" />
+              <File Id="GoLicense" Name="GO_LICENSE.txt" Source="$(var.GoLicense)" />
+              <File Id="RemoteLiteLicense" Name="REMOTE_LITE_LICENSE.txt" Source="$(var.RemoteLiteLicense)" />
+              <RemoveFolder Id="RemoveInstalledFolder" On="uninstall" />
+              <RegistryValue Root="HKMU" Key="Software\GORIQRemoteLiteInstaller" Name="Path"
+                             Value="[RemoteLiteInstallFolder]" Type="string" KeyPath="yes" />
+            </Component>
+          </Directory>
+      </Directory>
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="RemoteLiteMenuFolder" Name="GORIQ Remote Lite">
+          <Component Id="StartMenu" Guid="C99CE26E-41B4-4E5C-8E73-0E71DE8F1831" Win64="yes">
+            <Shortcut Id="StartManualHost" Name="GORIQ Remote Lite"
+                      Target="[RemoteLiteInstallFolder]GORIQRemoteLite.exe"
+                      WorkingDirectory="RemoteLiteInstallFolder" />
+            <RemoveFolder Id="RemoveMenu" On="uninstall" />
+            <RegistryValue Root="HKCU" Key="Software\GORIQRemoteLiteInstaller" Name="StartMenu"
+                           Value="1" Type="integer" KeyPath="yes" />
+          </Component>
+        </Directory>
+      </Directory>
+    </Directory>
+    <Feature Id="ManualRemote" Title="GORIQ Remote Lite" Level="1">
+      <ComponentRef Id="ManualHost" />
+      <ComponentRef Id="StartMenu" />
+    </Feature>
+  </Product>
+</Wix>

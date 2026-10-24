@@ -1,0 +1,7 @@
+{
+  "stateDirectory": "/var/lib/goriq-remote-lite-traffic/REPLACE_WITH_NEW_PERIOD_ID",
+  "periodStart": "REPLACE_WITH_CONFIRMED_UTC_PERIOD_START",
+  "periodEnd": "REPLACE_WITH_CONFIRMED_UTC_PERIOD_END",
+  "limitBytes": "8000000000000",
+  "openingBytes": null
+}

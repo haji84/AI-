@@ -1,0 +1,33 @@
+# REVIEW TEMPLATE ONLY: no install/enable/start operation is performed by this repository.
+# Create the separate account/paths and initialize the registry only after approval.
+[Unit]
+Description=GORIQ Remote Lite independent HTTPS portal
+After=network-online.target goriq-remote-lite-traffic.service
+Wants=network-online.target
+BindsTo=goriq-remote-lite-traffic.service
+StartLimitIntervalSec=300
+StartLimitBurst=3
+
+[Service]
+Type=simple
+User=goriq-remote-lite
+Group=goriq-remote-lite
+WorkingDirectory=/opt/goriq-remote-lite/current
+ExecStart=/usr/bin/node scripts/remote-lite-owner-server.mjs /etc/goriq-remote-lite/portal.json
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=10
+TimeoutStopSec=5
+KillSignal=SIGTERM
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/goriq-remote-lite
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+
+[Install]
+WantedBy=multi-user.target

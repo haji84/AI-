@@ -80,7 +80,8 @@ export function manageProcess(spec, options = {}) {
       state = child ? 'stopping' : 'stopped';
       if (timer !== null) { cancel(timer); timer = null; }
       // Signal delivery is not exit evidence. Retain ownership until exit/close.
-      if (child && !terminationRequested) terminationRequested = child.kill('SIGTERM') === true;
+      if (child && !terminationRequested) terminationRequested = options.requestStop
+        ? options.requestStop(child) === true : child.kill('SIGTERM') === true;
     },
   };
 }

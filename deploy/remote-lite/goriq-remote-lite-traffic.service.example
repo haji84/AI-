@@ -1,0 +1,29 @@
+# REVIEW TEMPLATE ONLY. Separate OS identity/paths require Human Gate approval.
+[Unit]
+Description=GORIQ Remote Lite persistent outbound traffic guard
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=notify
+NotifyAccess=all
+User=goriq-remote-lite-traffic
+Group=goriq-remote-lite-traffic
+WorkingDirectory=/opt/goriq-remote-lite/current
+ExecStart=/usr/bin/node scripts/remote-lite-traffic-guard.mjs /etc/goriq-remote-lite/traffic-budget.json
+WatchdogSec=15s
+WatchdogSignal=SIGKILL
+TimeoutStartSec=10s
+TimeoutStopSec=5s
+Restart=no
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/goriq-remote-lite-traffic
+RestrictAddressFamilies=AF_UNIX
+CapabilityBoundingSet=
+
+[Install]
+WantedBy=multi-user.target
