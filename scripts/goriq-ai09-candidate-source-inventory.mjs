@@ -56,6 +56,22 @@ try {
   const sliceTotal=slices.reduce((n,s)=>n+s.end-s.start,0);
   if(sliceTotal!==manifest.totalBytes)
     fail('AI09_INVENTORY_BYTES_MISMATCH');
+  // 33 is an observed shard count, not a configured review limit.
+  // Derive the complete pending work list from the pinned manifest.
+  // No source text, model response, or approval is created here.
+  const pendingJobs=manifest.shards.map(shard=>({
+    shardId:shard.id, shardDigest:shard.digest,
+    sliceCount:shard.sliceIds.length, sourceBytes:shard.bytes,
+    fileCount:shard.fileCount, status:'MODEL_REVIEW_NOT_STARTED',
+  }));
+  if(pendingJobs.length!==manifest.shards.length ||
+     pendingJobs.some((job,i)=>job.shardId!==i+1 || job.sliceCount<1 ||
+       job.sliceCount>24 || job.fileCount>30 || job.sourceBytes>120*1024) ||
+     pendingJobs.reduce((n,job)=>n+job.sliceCount,0)!==slices.length ||
+     pendingJobs.reduce((n,job)=>n+job.sourceBytes,0)!==manifest.totalBytes)
+    fail('AI09_INVENTORY_DYNAMIC_QUEUE_INCOMPLETE');
+  proof.pendingModelReviewJobCount=pendingJobs.length;
+  proof.pendingModelReviewJobs=pendingJobs;
   proof.status='SOURCE_INVENTORY_COMPLETE_REVIEW_PENDING';
   proof.fileCount=manifest.fileCount;
   proof.sliceCount=slices.length;

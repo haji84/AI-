@@ -51,3 +51,24 @@ test('changed manifest, missing shard and nonexistent job cannot be accepted', (
   assert.throws(() => selectPinnedReviewShard({ manifest: q.manifest,
     payloads: q.payloads, shardId: q.manifest.shards.length + 1 }), /SHARD_ID_INVALID/u);
 });
+
+test('more than 33 dynamic shards remain individually selectable without a fixed batch ceiling', () => {
+  // Scale total source bytes without relaxing existing per-file and per-shard
+  // safety limits. A larger diff legitimately requires more than 33 jobs.
+  const files = Array.from({ length: 215 }, (_, i) => ({
+    path: 'test/scale-' + i + '.mjs', status: 'added', before: null,
+    after: Buffer.from(i === 0 ? 'notice code\n'.repeat(220000) : 'line ' + i + '\n'),
+  }));
+  const plan = planFullCoverage({baseSha,headSha,files,expectedPaths:files.map(f=>f.path)});
+  assert.ok(plan.manifest.shards.length > 33);
+  const ids = plan.manifest.shards.map(shard=>shard.id);
+  assert.deepEqual(ids, Array.from({length:plan.manifest.shards.length},(_,i)=>i+1));
+  assert.equal(new Set(plan.manifest.shards.flatMap(x=>x.sliceIds)).size,plan.payloads.size);
+  const finalJob=selectPinnedReviewShard({
+    manifest:plan.manifest,payloads:plan.payloads,shardId:plan.manifest.shards.length,
+  });
+  assert.equal(finalJob.shardCount,plan.manifest.shards.length);
+  assert.equal(finalJob.sourceBytes,plan.manifest.shards.at(-1).bytes);
+  assert.equal(finalJob.githubApprovalSatisfied,false);
+  assert.equal(verifyFullCoverageReceipts(plan.manifest,[]).status,'BLOCKED');
+});
