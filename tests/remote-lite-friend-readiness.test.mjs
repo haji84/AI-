@@ -41,6 +41,7 @@ function isolated(t) {
 
 test('friend readiness detects only verified local HTTPS/login/registry/ICE without claiming live activation',t=>{
   const f=isolated(t);
+  const originalRegistry=readFileSync(join(f.registry,'devices.json'),'utf8');
   const r=inspectFriendActivation(f.wrapper);
   assert.equal(r.configured,true,JSON.stringify(r));
   assert.ok(Object.values(r.checks).every(Boolean));
@@ -50,11 +51,11 @@ test('friend readiness detects only verified local HTTPS/login/registry/ICE with
   assert.equal(r.distributionSignedAndAccepted,false);
   assert.equal(r.requiredGates.length,5);
   assert.doesNotMatch(JSON.stringify(r),new RegExp(f.key));
-  assert.doesNotMatch(JSON.stringify(r),new RegExp(f.tlsKey.replaceAll('\\','\\\\')));
+  assert.equal(JSON.stringify(r).includes(f.tlsKey),false);
   const actual=spawnSync(process.execPath,['scripts/remote-lite-friend-activation-check.mjs',f.wrapper],{encoding:'utf8'});
   assert.equal(actual.status,0,actual.stderr);
   assert.deepEqual(JSON.parse(actual.stdout),r);
-  assert.equal(readFileSync(join(f.registry,'devices.json'),'utf8'),'{\n  "version": 1,\n  "devices": []\n}\n'.replace(/^/,'').length ? readFileSync(join(f.registry,'devices.json'),'utf8') : '');
+  assert.equal(readFileSync(join(f.registry,'devices.json'),'utf8'),originalRegistry);
 });
 
 test('wrong management hostname, missing registry or invalid TLS cannot pass readiness',t=>{
