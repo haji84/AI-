@@ -55,7 +55,7 @@ export async function runCandidateShardReview({ plan, infer, reviewerId='AI09-ca
     shard.sliceIds.forEach(id=>scheduled.add(id));
   }
   if (scheduled.size!==all.size) return blocked('AI09_SHARD_COVERAGE_INCOMPLETE');
-  const receipts=[];
+  const receipts=[], actionableFindings=[];
   let evaluated=0;
   for (const shard of manifest.shards) {
     const results=[];
@@ -77,8 +77,21 @@ export async function runCandidateShardReview({ plan, infer, reviewerId='AI09-ca
       if (review.status==='INCONCLUSIVE') decision='INCONCLUSIVE';
       else if (review.status==='CHANGES_REQUESTED' && decision!=='INCONCLUSIVE')
         decision='CHANGES_REQUESTED';
-      results.push({sliceId:id,reviewSha256:hash(JSON.stringify(review)),status:review.status,
+      const reviewSha256=hash(JSON.stringify(review));
+      results.push({sliceId:id,reviewSha256,status:review.status,
         findingCount:review.findings.length});
+      // Keep bounded, source-bound findings for independent triage and
+      // reproduction. These stay in private candidate results, not PR logs.
+      if (review.status==='CHANGES_REQUESTED') {
+        for (const finding of review.findings) {
+          if (actionableFindings.length>=100 ||
+              [finding.summary,finding.evidence,finding.proposedFix].some(value =>
+                /(?:gh[pousr]_[A-Za-z0-9_]{12,}|github_pat_[A-Za-z0-9_]{12,}|sk-proj-[A-Za-z0-9_-]{12,}|AKIA[A-Z0-9]{16}|-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|(?:authorization|api[_ -]?key|secret|password|access[_ -]?token)\\s*[:=]\\s*[^\\s,;]{8,})/iu.test(value))) {
+            return blocked('AI09_SENSITIVE_OR_EXCESS_FINDINGS');
+          }
+          actionableFindings.push({...finding,sliceId:id,reviewSha256});
+        }
+      }
     }
     receipts.push({shardId:shard.id,shardDigest:shard.digest,
       manifestSha256:manifest.manifestSha256,baseSha:manifest.baseSha,
@@ -88,7 +101,7 @@ export async function runCandidateShardReview({ plan, infer, reviewerId='AI09-ca
   }
   const verified=verifyFullCoverageReceipts(manifest,receipts);
   if (verified.status==='BLOCKED') return blocked('AI09_RECEIPT_VERIFICATION_FAILED');
-  return { ...verified, evaluatedSlices:evaluated, receipts,
+  return { ...verified, evaluatedSlices:evaluated, receipts, actionableFindings,
     independentReviewerAuthenticated:false, formalGitHubReview:false,
     deploymentAccepted:false };
 }

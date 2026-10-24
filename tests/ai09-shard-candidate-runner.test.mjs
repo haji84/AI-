@@ -47,3 +47,33 @@ test('inference errors, inconclusive results, self-review or fake response never
   assert.equal((await runCandidateShardReview({plan:p,infer:async()=>'{bad json'})).status,'BLOCKED');
   assert.equal((await runCandidateShardReview({plan:p,infer:answer,reviewerId:'Builder'})).status,'BLOCKED');
 });
+
+test('preserves actionable findings with exact slice and review digest for separate triage',async()=>{
+  const p=source(1);
+  const infer=async()=>JSON.stringify({verdict:'CHANGES_REQUESTED',findings:[{
+    path:'code/review-0.mjs',line:1,severity:'medium',
+    summary:'Synthetic session boundary finding',
+    evidence:'Synthetic reviewer evidence on changed source',
+    proposedFix:'Verify the session boundary before dispatch'
+  }]});
+  const result=await runCandidateShardReview({plan:p,infer});
+  assert.equal(result.status,'CHANGES_REQUESTED');
+  assert.equal(result.actionableFindings.length,1);
+  assert.equal(result.actionableFindings[0].path,'code/review-0.mjs');
+  assert.equal(result.actionableFindings[0].sliceId,1);
+  assert.match(result.actionableFindings[0].reviewSha256,/^[a-f0-9]{64}$/u);
+  assert.equal(result.githubApprovalSatisfied,false);
+  assert.equal(result.mergeAuthorized,false);
+});
+test('potential secret content in a finding blocks the candidate rather than echoing it',async()=>{
+  const p=source(1);
+  const infer=async()=>JSON.stringify({verdict:'CHANGES_REQUESTED',findings:[{
+    path:'code/review-0.mjs',line:1,severity:'high',
+    summary:'Example credential leak',evidence:'api_key: synthetic-long-value-123456',
+    proposedFix:'Remove the example credential'
+  }]});
+  const result=await runCandidateShardReview({plan:p,infer});
+  assert.equal(result.status,'BLOCKED');
+  assert.equal(result.reason,'AI09_SENSITIVE_OR_EXCESS_FINDINGS');
+  assert.equal(result.actionableFindings,undefined);
+});
