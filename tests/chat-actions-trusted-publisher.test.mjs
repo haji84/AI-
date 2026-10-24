@@ -128,3 +128,61 @@ test("GitHub GraphQL atomic-head rejection is not treated as successful push",as
  await assert.rejects(()=>publishTrustedPilot({fetchImpl,token:"test-token",event,receipt,source:FIXED,dryRun:false}),
   /GITHUB_CAS_REJECTED_OR_UNVERIFIED/);
 });
+
+
+test("independent reproduction: a forged arbitrary-file mutation cannot reach GitHub writes",async()=>{
+ const api=fakeGitHub();
+ const unsafe="export function add(a, b) { return a + b; }\n"+"// extra untrusted code\n";
+ const malicious={
+  ...receipt,path:".github/workflows/critical.yml",afterHash:hash(unsafe),
+ };
+ await assert.rejects(()=>publishTrustedPilot({
+  fetchImpl:api.fetchImpl,token:"test-token",event,
+  receipt:malicious,source:unsafe,dryRun:false,
+ }),/MODEL_ARTIFACT_OUT_OF_SCOPE/);
+ assert.equal(api.seen.length,2);
+ assert.ok(api.seen.every(x=>x.options.method==="GET"));
+});
+
+test("independent reproduction: model cannot add arbitrary fileChanges by mutating the plan",()=>{
+ const legitimate=plan();
+ for(const untrusted of [
+  {...legitimate,path:"AGENTS.md"},
+  {...legitimate,source:FIXED+"// malicious"},
+  {...legitimate,branch:"main"},
+  {...legitimate,pr:1867},
+  {...legitimate,fileChanges:{additions:[{path:"AGENTS.md",contents:"abc"}]}},
+ ]) {
+  if(untrusted.fileChanges){
+   const mutation=buildCompareAndSwapMutation(untrusted);
+   assert.deepEqual(mutation.variables.input.fileChanges.additions,
+    [{path:"tests/fixtures/chat-actions-model-candidate.mjs",contents:Buffer.from(FIXED).toString("base64")}]);
+  }else assert.throws(()=>buildCompareAndSwapMutation(untrusted),/INVALID_PUBLISH_PLAN/);
+ }
+});
+
+test("independent reproduction: stale PR head prevents all write requests, even in publish mode",async()=>{
+ const api=fakeGitHub();
+ const fetchImpl=async (url,options)=>{
+  if(url==="https://api.github.com/repos/haji84/AI-/pulls/1866"){
+   api.seen.push({url,options});
+   return {ok:true,json:async()=>({...pr,head:{...pr.head,sha:COMMIT}})};
+  }
+  return api.fetchImpl(url,options);
+ };
+ await assert.rejects(()=>publishTrustedPilot({fetchImpl,token:"test-token",event,
+  receipt,source:FIXED,dryRun:false}),/PR_HEAD_CHANGED_OR_SCOPE_MISMATCH/);
+ assert.ok(api.seen.every(x=>x.options.method==="GET"));
+ assert.ok(!api.seen.some(x=>x.url==="https://api.github.com/graphql"));
+});
+
+test("independent reproduction: review status cannot be used as a substitute for owner authorization",()=>{
+ // Any approval inferred from AI09 does not alter the write plan or grant
+ // rights. The publisher still requires independent trusted preflight.
+ const candidate={...plan(),approved:true,ai09Status:"NO_ACTIONABLE_FINDINGS"};
+ const mutation=buildCompareAndSwapMutation(candidate);
+ assert.equal(mutation.variables.input.expectedHeadOid,HEAD);
+ assert.equal(mutation.variables.input.branch.branchName,"codex/1865-pr-reuse-advisory");
+ assert.equal(mutation.variables.input.fileChanges.additions.length,1);
+ assert.equal(Object.hasOwn(mutation.variables.input,"permissions"),false);
+});
