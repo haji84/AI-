@@ -14,6 +14,17 @@ The inspector reuses the actual hosted-portal configuration loader, the existing
 
 The only stdout is bounded JSON with booleans, machine-readable blocker codes, and explicit Human/physical acceptance gates. No paths, usernames, hashes, IPs, certificates, private keys, tokens, ICE passwords, or device identifiers are included. Exit 0 means **configured local prerequisites only**. Missing/unverifiable prerequisites return exit 2. `deploymentAccepted`, `physicalIphoneAccepted`, `deviceAndFriendAccountAccepted`, and `distributionSignedAndAccepted` are **always false** at this stage. Even a fully configured private file is not evidence of Internet connectivity or an activated device. A `stun` issuer does not establish a relay path.
 
+## Private Tailscale binding candidate (advisory, not a network gate)
+
+The current owner-hosted proposal requires an isolated **TCP8443 listener bound to the particular Tailscale interface**, with the external friend's network policy allowing only that endpoint. The read-only CLI reports `privateBind` and `privateBindBlockers` separately from `configured`:
+
+- `tcp8443` checks that `listenPort` is the number `8443`, not a string or another port.
+- `tailscaleIpv4Candidate` requires a syntactically valid, literal address in the shared-address `100.64.0.0/10` range. Wildcard (`0.0.0.0`, `::`), loopback, LAN, malformed IPv4 and another port cannot qualify as the **planned private address**.
+- `candidate: true` means **syntax only**. It does not prove this address belongs to the host's assigned Tailscale interface, that a packet reached it, or that a firewall/ACL/Tailscale access grant prevents other users or services. For that reason `actualHostInterfaceVerified`, `friendNetworkPolicyVerified` and `friendOnlyReachabilityVerified` remain `false`; `deploymentAccepted` is always `false` in this tool.
+- The local `configured: true` status may coexist with a failed private candidate, for example a loopback fixture in CI. Its exit code is still about **local config only**. Operators must check `privateBind.candidate` and then run the **separate owner-approved actual allow+deny network E2E**; they must never start a real service on the basis of the CLI exit code alone.
+
+The static check intentionally does not alter the host, start a socket, enumerate network interfaces, write Tailscale policy, create a friend's credentials or collect real device data. Tailscale IPv6 or future VPN-free delivery requires a separately reviewed profile; this candidate check does not claim it is impossible or authorize a fallback to wildcard binding.
+
 ## Next product line after local readiness
 
 1. Owner verifies exact real friend identity, existing owner-management hostnames, independent account provisioning/key ownership and planned private TCP8443/Tailscale access. No friend grant/policy write without a separate scoped approval. Preserve core Owner/Broker credentials outside the friend process.
