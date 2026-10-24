@@ -1,17 +1,20 @@
 name: AI09 Isolated Candidate Review Proof
+# Candidate reviewer security policy: source changes NEVER auto-run model code.
+# A trusted operator must explicitly dispatch after independent source review.
 on:
-  push:
-    branches: [feat/1831-remote-lite-manual-boundary]
-    paths:
-      - .github/workflows/goriq-ai09-candidate-smoke.yml
-      - scripts/goriq-ai09-candidate-model-smoke.mjs
+  workflow_dispatch:
+    inputs:
+      approved_head:
+        description: 'Explicitly reviewed exact 40-character source SHA'
+        required: true
+        type: string
 permissions: {}
 concurrency:
   group: ai09-candidate-proof
   cancel-in-progress: true
 jobs:
   independent-model-experiment:
-    if: github.repository == 'haji84/AI-' && github.ref == 'refs/heads/feat/1831-remote-lite-manual-boundary'
+    if: github.repository == 'haji84/AI-' && github.ref == 'refs/heads/feat/1831-remote-lite-manual-boundary' && github.event.inputs.approved_head == github.sha
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
