@@ -1,10 +1,33 @@
 import { lstatSync, readFileSync } from 'node:fs';
 import { dirname, isAbsolute, resolve, join } from 'node:path';
 import { URL } from 'node:url';
+import { isIP } from 'node:net';
 import { readGoriqHostedPortalConfig } from './goriq-hosted-config.mjs';
 import { RemoteOwnerAuth } from './owner-auth.mjs';
 import { loadTLSFiles } from './tls-reload.mjs';
 import { createPortalTurnIssuer, createPortalStunIssuer } from './turn-credentials.mjs';
+
+/**
+ * Candidate-only syntactic check for the presently selected Tailscale private
+ * delivery plan. A 100.64/10 address is NOT evidence that the IP belongs to the
+ * actual host interface, a friend has a scoped grant, or any packet is denied.
+ * Do not use this inspection as a network authorization or start condition.
+ */
+export function inspectPrivateFriendBindCandidate(config) {
+  const tcp8443 = config?.listenPort === 8443;
+  const host = config?.listenHost;
+  const parts = typeof host === 'string' && isIP(host) === 4 ? host.split('.').map(Number) : [];
+  const tailscaleIpv4Candidate = parts.length === 4 && parts[0] === 100 &&
+    parts[1] >= 64 && parts[1] <= 127;
+  return {
+    tcp8443,
+    tailscaleIpv4Candidate,
+    candidate: tcp8443 && tailscaleIpv4Candidate,
+    actualHostInterfaceVerified: false,
+    friendNetworkPolicyVerified: false,
+    friendOnlyReachabilityVerified: false,
+  };
+}
 
 /**
  * Pure operator-side readiness inspection. This does not create an account,
@@ -79,10 +102,13 @@ export function inspectFriendActivation(wrapperPath) {
     } catch { note('FRIEND_ICE_MODE_UNCONFIRMED'); }
   }
 
+  const privateBind = inspectPrivateFriendBindCandidate(config);
+  if (!privateBind.tcp8443) note('FRIEND_PRIVATE_TCP8443_NOT_PLANNED');
+  if (!privateBind.tailscaleIpv4Candidate) note('FRIEND_TAILSCALE_PRIVATE_BIND_NOT_VERIFIED');
   const configured = Object.values(checks).every(Boolean);
   return {
     kind: 'remote-lite-friend-readiness', configured,
-    checks, blockers,
+    checks, privateBind, blockers,
     deploymentAccepted: false,
     physicalIphoneAccepted: false,
     deviceAndFriendAccountAccepted: false,
