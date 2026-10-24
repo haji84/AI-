@@ -6,6 +6,8 @@ import { Buffer } from "node:buffer";
 import { resolve, dirname, basename } from "node:path";
 import { execFileSync } from "node:child_process";
 import { reviewLocalPatch } from "../src/orchestrator/ai09-local-reviewer.mjs";
+import { planPinnedGitCoverage } from "./goriq-ai09-pinned-coverage.mjs";
+import { reviewPinnedShard } from "./goriq-ai09-shard-window.mjs";
 import { assertCompleteComparison } from "./goriq-ai09-compare-coverage.mjs";
 import {
   SHA40, compareToReviewChunks, consolidateChunkReviews,
@@ -25,6 +27,7 @@ function config() {
     ciRunId: Number(env.GORIQ_AI09_CI_RUN_ID),
     ciConclusion: env.GORIQ_AI09_CI_CONCLUSION,
     modelName: env.GORIQ_OLLAMA_MODEL || "qwen2.5-coder:3b",
+    dynamicShardId: env.GORIQ_AI09_SHARD_ID === undefined ? null : Number(env.GORIQ_AI09_SHARD_ID),
     output: env.GORIQ_AI09_REPORT_FILE,
     temp: env.RUNNER_TEMP,
     token: env.GITHUB_TOKEN,
@@ -108,6 +111,8 @@ async function main() {
   }).trim();
   if (checkout !== c.trustedSha) throw new Error("reviewer_source_not_trusted_main");
   const scope = { headSha: c.headSha, baseSha: c.baseSha, paths: [] };
+  if (c.dynamicShardId !== null && (!Number.isSafeInteger(c.dynamicShardId) || c.dynamicShardId < 1 || c.dynamicShardId > 500))
+    throw new Error("AI09_DYNAMIC_SHARD_ID_INVALID");
   let result;
   try {
     const before = await githubGet(c, "/pulls/" + c.prNumber);
@@ -117,6 +122,51 @@ async function main() {
       diff?.commits?.at(-1)?.sha !== c.headSha) {
       throw new Error("comparison_revision_mismatch");
     }
+    if (c.dynamicShardId !== null) {
+      // Every changed path comes from paginated GitHub PR-files metadata,
+      // independently of the Git name-status parser. Missing pages block.
+      const paths = [], seen = new Set();
+      for (let page = 1; page <= 6; page++) {
+        const files = await githubGet(c, "/pulls/" + c.prNumber +
+          "/files?per_page=100&page=" + page);
+        if (!Array.isArray(files) || files.length > 100) throw Error("AI09_PR_FILE_LIST_INVALID");
+        for (const item of files) {
+          if (typeof item?.filename !== "string" || seen.has(item.filename))
+            throw Error("AI09_PR_FILE_LIST_DUPLICATE");
+          seen.add(item.filename); paths.push(item.filename);
+        }
+        if (files.length < 100) break;
+      }
+      if (paths.length !== before.changed_files || paths.length < 1 || paths.length > 500)
+        throw Error("AI09_PR_FILE_LIST_INCOMPLETE");
+      // Fetch ONLY Git objects from the pinned public PR SHA.
+      // No checkout or execution of code from the untrusted PR.
+      execFileSync("git", ["fetch", "--no-tags", "--filter=blob:none",
+        "origin", c.headSha], {timeout:120000, maxBuffer:1024*1024,
+        stdio:["ignore","pipe","ignore"]});
+      const plan = planPinnedGitCoverage({
+        cwd:process.cwd(), baseSha:c.baseSha, headSha:c.headSha, expectedPaths:paths,
+      });
+      scope.paths = paths;
+      scope.patchSha256 = plan.manifest.manifestSha256;
+      scope.reviewChunks = plan.manifest.shards.length;
+      const reviewed = await reviewPinnedShard({
+        plan, shardId:c.dynamicShardId, reviewerId:"AI09-trusted",
+        infer: prompt => localInfer(c,prompt),
+      });
+      // Record bounded evidence for this shard only. Never promote an
+      // individual advisory to a successful whole-PR review.
+      const out = resolve(c.temp, "ai09-shard-" + c.dynamicShardId + ".json");
+      writeFileSync(out, JSON.stringify({
+        version:1,kind:"AI09_PARTIAL_SHARD_ADVISORY",
+        baseSha:c.baseSha,headSha:c.headSha,manifestSha256:plan.manifest.manifestSha256,
+        shardCount:plan.manifest.shards.length,reviewed,
+        githubApprovalSatisfied:false,mergeAuthorized:false,
+      }), {encoding:"utf8",flag:"wx",mode:0o600});
+      result = makeBlockedReview(scope,"ai09_dynamic_shard_not_full_approval");
+      if (reviewed.status === "BLOCKED") result = makeBlockedReview(scope,
+        "ai09_dynamic_shard_model_blocked");
+    } else {
     assertCompleteComparison(diff);
     const prepared = compareToReviewChunks(diff, c.baseSha, c.headSha);
     scope.paths = prepared.paths;
@@ -141,6 +191,7 @@ async function main() {
     // No chunk can silently disappear, and no partial model review can pass.
     result = holdUngroundedAdvisory(consolidateChunkReviews(chunkReports, scope, prepared.chunks), prepared.patch);
     console.log("AI09_MODEL_ANCHOR_GATE=" + result.status);
+    }
     const after = await githubGet(c, "/pulls/" + c.prNumber);
     if (!safePr(after, c)) throw new Error("pr_changed_during_review");
   } catch {

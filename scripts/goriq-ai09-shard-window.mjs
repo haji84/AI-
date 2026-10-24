@@ -102,3 +102,62 @@ export function selectPinnedReviewShard({ manifest, payloads, shardId } = {}) {
     githubApprovalSatisfied: false, mergeAuthorized: false,
   };
 }
+
+/**
+ * Trusted-runner advisory, one dynamically selected shard per invocation.
+ * A caller must authenticate the model and GitHub runner independently.
+ * An isolated shard is NEVER a whole-PR pass or GitHub APPROVED.
+ */
+export async function reviewPinnedShard({ plan, shardId, infer, reviewerId = 'AI09-trusted' } = {}) {
+  if (typeof infer !== 'function' || !/^[A-Za-z0-9_.:-]{2,80}$/u.test(reviewerId) ||
+      reviewerId === 'Builder') refuse('AI09_SHARD_REVIEW_CALL_INVALID');
+  const window = selectPinnedReviewShard({
+    manifest: plan?.manifest, payloads: plan?.payloads, shardId,
+  });
+  const { reviewLocalPatch } = await import('../src/orchestrator/ai09-local-reviewer.mjs');
+  const digest = sha256;
+  const results = [];
+  let status = 'NO_ACTIONABLE_FINDINGS';
+  for (const s of window.slices) {
+    const patch = 'PINNED_FILE_SLICE id=' + s.id + ' side=' + s.side +
+      ' byteRange=' + s.start + ':' + s.end + ' sha256=' + s.sha256 +
+      '\nBEGIN_UNTRUSTED_FILE_CONTENT\n' + s.text + '\nEND_UNTRUSTED_FILE_CONTENT';
+    let requestSha256 = null, responseSha256 = null;
+    const checkedInfer = async prompt => {
+      requestSha256 = digest(Buffer.from(prompt, 'utf8'));
+      const response = await infer(prompt);
+      if (typeof response !== 'string' || Buffer.byteLength(response, 'utf8') > 20000)
+        refuse('AI09_SHARD_INFER_RESPONSE_INVALID');
+      responseSha256 = digest(Buffer.from(response, 'utf8'));
+      return response;
+    };
+    const review = await reviewLocalPatch({
+      baseSha: window.baseSha, headSha: window.headSha, makerRole: 'Builder',
+      paths: [s.path], patch, infer: checkedInfer,
+    });
+    if (review.status === 'BLOCKED' || !requestSha256 || !responseSha256)
+      return {status:'BLOCKED', reason:'AI09_SHARD_MODEL_OR_EVIDENCE_BLOCKED',
+        shardId, evaluatedSlices:results.length, githubApprovalSatisfied:false,
+        independentReviewerAuthenticated:false, mergeAuthorized:false};
+    if (review.status === 'INCONCLUSIVE') status = 'INCONCLUSIVE';
+    else if (review.status === 'CHANGES_REQUESTED' && status !== 'INCONCLUSIVE')
+      status = 'CHANGES_REQUESTED';
+    results.push({
+      sliceId:s.id, reviewSha256:digest(JSON.stringify(review)),
+      requestSha256, responseSha256, status:review.status,
+      findingCount:review.findings.length,
+    });
+  }
+  const receipt = {
+    shardId, shardDigest:window.shardDigest, manifestSha256:window.manifestSha256,
+    baseSha:window.baseSha, headSha:window.headSha, reviewerId, status,
+    evidenceSha256:digest(JSON.stringify(results)),
+    evaluatedSliceIds:results.map(x=>x.sliceId),sliceResults:results,
+  };
+  return {
+    status, receipt, shardId, evaluatedSlices:results.length,
+    manifestSha256:window.manifestSha256, provenance:'AI_ASSERTED',
+    independentReviewerAuthenticated:false, formalGitHubReview:false,
+    githubApprovalSatisfied:false, mergeAuthorized:false,
+  };
+}

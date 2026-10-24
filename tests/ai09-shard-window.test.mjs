@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Buffer } from 'node:buffer';
 import { planFullCoverage, verifyFullCoverageReceipts } from '../src/orchestrator/ai09-full-coverage.mjs';
-import { selectPinnedReviewShard } from '../scripts/goriq-ai09-shard-window.mjs';
+import { selectPinnedReviewShard, reviewPinnedShard } from '../scripts/goriq-ai09-shard-window.mjs';
 
 const baseSha = 'a'.repeat(40), headSha = 'b'.repeat(40);
 function source() {
@@ -71,4 +71,33 @@ test('more than 33 dynamic shards remain individually selectable without a fixed
   assert.equal(finalJob.sourceBytes,plan.manifest.shards.at(-1).bytes);
   assert.equal(finalJob.githubApprovalSatisfied,false);
   assert.equal(verifyFullCoverageReceipts(plan.manifest,[]).status,'BLOCKED');
+});
+
+test('trusted-model adapter can review one pinned shard, but can never approve a partial PR', async() => {
+  const plan = source();
+  const response = JSON.stringify({verdict:'NO_FINDINGS',findings:[]});
+  let calls = 0;
+  const result = await reviewPinnedShard({
+    plan, shardId: 1, reviewerId:'AI09-trusted',
+    infer: async prompt => { assert.match(prompt,/PINNED_FILE_SLICE/u); calls++; return response; },
+  });
+  assert.equal(result.status,'NO_ACTIONABLE_FINDINGS');
+  assert.equal(calls,plan.manifest.shards[0].sliceIds.length);
+  assert.deepEqual(result.receipt.evaluatedSliceIds,plan.manifest.shards[0].sliceIds);
+  assert.equal(result.receipt.sliceResults.length,calls);
+  assert.equal(result.independentReviewerAuthenticated,false);
+  assert.equal(result.githubApprovalSatisfied,false);
+  assert.equal(result.mergeAuthorized,false);
+  // A single or repeated partial receipt never represents complete coverage.
+  assert.equal(verifyFullCoverageReceipts(plan.manifest,[result.receipt]).status,'BLOCKED');
+});
+
+test('trusted shard reviewer does not paper over unavailable or inconclusive model',async()=>{
+  const plan=source();
+  const unavailable=await reviewPinnedShard({plan,shardId:1,infer:async()=>{throw Error('offline');}});
+  assert.equal(unavailable.status,'BLOCKED');
+  const inconclusive=await reviewPinnedShard({plan,shardId:1,
+    infer:async()=>JSON.stringify({verdict:'INCONCLUSIVE',findings:[]})});
+  assert.equal(inconclusive.status,'INCONCLUSIVE');
+  assert.equal(inconclusive.githubApprovalSatisfied,false);
 });
