@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { Buffer } from "node:buffer";
+import { createHash } from "node:crypto";
 import { runOneAi09Batch, groundedReviewPrompt, auditAi09ClaimSupport, ai09AddedLineEvidenceIndex } from "../scripts/chat-actions-ai09-batch-runner.mjs";
 import { aggregateIndependentBatchReceipts } from "../scripts/chat-actions-ai09-full-aggregate.mjs";
 import { independentlyAuditAi09Claims } from "../scripts/chat-actions-ai09-independent-triage.mjs";
@@ -371,6 +372,51 @@ test("line indices require canonical Git source and reject untrusted scope swaps
   /AI09_CANONICAL_DIFF_NOT_FOUND/);
  assert.throws(()=>ai09AddedLineEvidenceIndex(batch,{...one}),/INVALID_AI09_EVIDENCE_INDEX_SCOPE/);
  assert.throws(()=>ai09AddedLineEvidenceIndex({...batch,paths:["src/other.js"]},one),/AI09_EVIDENCE_PATH_MISMATCH/);
+});
+test("added code starting with ++ is counted as hunk content across source chunks",()=>{
+ const path="src/counter.js";
+ const first={fileIndex:0,paths:[path],source:"@@ -1,2 +10,4 @@\n let counter = 0;\n+++counter;"};
+ const second={fileIndex:0,paths:[path],source:"+++otherCounter;\n return counter;"};
+ const patch="diff --git a/"+path+" b/"+path+"\n"+[first.source,second.source].join("\n");
+ const batch={paths:[path],chunks:[first,second],patch};
+ assert.ok(ai09AddedLineEvidenceIndex(batch,first).evidenceHint.includes('[11,"++counter;"]'));
+ assert.ok(ai09AddedLineEvidenceIndex(batch,second).evidenceHint.includes('[12,"++otherCounter;"]'));
+ assert.equal(batch.patch,patch);
+});
+test("valid increment additions reach the bounded reviewer without dropping source bytes",async()=>{
+ const c=comparison(1,3);
+ c.files[0].patch="@@ -1 +1,3 @@\n-old\n+let counter = 0;\n+++counter;\n+return counter;";
+ const plan=planCompleteAi09Review(c,SHA,HEAD,modules);
+ const seen=[];
+ const r=await runOneAi09Batch({plan,manifest:manifestFor(plan),index:0,modules,
+  infer:async prompt=>{seen.push(prompt);return allow();}});
+ assert.equal(r.status,"NO_ACTIONABLE_FINDINGS");
+ assert.equal(r.reviewedChunks,plan.totalChunks);
+ assert.ok(seen.some(prompt=>prompt.includes("\n+++counter;\n")));
+ assert.ok(seen.some(prompt=>prompt.includes('[2,"++counter;"]')));
+ assert.equal(plan.batches[0].patch,compareToPatch(c,SHA,HEAD).patch);
+ assert.equal(r.githubApprovalSatisfied,false);
+ assert.equal(r.mergeAuthorized,false);
+});
+test("trusted anchor refusal preserves raw increment findings in a blocked batch receipt",async()=>{
+ const c=comparison(1,3),path=c.files[0].filename;
+ c.files[0].patch="@@ -1 +1,3 @@\n-old\n+let pendingCounter = 0;\n+++pendingCounter;\n+return pendingCounter;";
+ const plan=planCompleteAi09Review(c,SHA,HEAD,modules);
+ const finding={path,line:2,severity:"medium",summary:"Impact: mock counter claim requires independent behavioral verification",
+  evidence:"`++pendingCounter;`",proposedFix:"Independently verify the counter behavior before proposing any repair"};
+ const r=await runOneAi09Batch({plan,manifest:manifestFor(plan),index:0,modules,
+  infer:async()=>JSON.stringify({verdict:"CHANGES_REQUESTED",findings:[finding]})});
+ assert.equal(r.status,"BLOCKED");
+ assert.ok(r.blockers.includes("canonical_evidence_audit_failed"));
+ assert.ok(r.blockers.includes("model_findings_require_action"));
+ assert.equal(r.chunkReports[0].status,"CHANGES_REQUESTED");
+ assert.equal(r.chunkReports[0].findings[0].evidence,finding.evidence);
+ assert.equal(r.chunkReports[0].findings[0].summary,finding.summary);
+ assert.equal(r.patchSha256,plan.batches[0].patchSha256);
+ assert.equal(r.chunkReports[0].scope.patchSha256,
+  createHash("sha256").update(plan.batches[0].chunks[0].patch).digest("hex"));
+ assert.equal(r.githubApprovalSatisfied,false);
+ assert.equal(r.mergeAuthorized,false);
 });
 test("reviewed model prompt includes machine-counted line coordinates, but never authorizes merge",async()=>{
  const plan=planCompleteAi09Review(comparison(1,4),SHA,HEAD,modules);

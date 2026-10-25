@@ -146,3 +146,30 @@ Compassは別の進行状態（#681/#1845 `STOPPED_NEW_WARNING`）を指すこ�
 固定v0.5の真正なZIP/planの承認済み非公開参照先は所有者へ照会中。固定対象 **0/8・0/104（独立AI09の現引継ぎ記録）**、正式設計承認、Publisher有効化、許可されたmain統合/main検証、実Chat起点E2E、実2project統合は未達。この修正を親GOALの完了としない。独立AI09リポジトリには書き込まない。
 
 この追補のrollbackは追加commitを同PR上でrevertし、関連回帰・traceability・標準CIを再確認する。先行 `ed70bf77` の別base修正や他作業を巻き戻さない。current cloudにはCompass toolsがなく、Compass書戻しは未実施。
+
+## 2026-10-26 JST：審査原本照合と限定復旧
+
+別チャット `-AIをセットアップ` の変更 `628be054987ec28e6ad34378b0c65e6b2237aa3b` を取得・fast-forwardし、同じPRを継続。通常CI [40200197164](https://github.com/haji84/AI-/actions/runs/40200197164) は3 jobs SUCCESS。一方、隔離審査 [40200197185](https://github.com/haji84/AI-/actions/runs/40200197185) は最終FAILURE。これらは新しい修正commitの受入には転用しない。
+
+GitHub connectorのartifact取得機能で全16個のZIP（plan、14 batch、final）を取得し、各ZIPのSHA-256をGitHub metadataと照合した。final artifact `12602796558` は `652d7d228c1469c7ffe11357e17476553c2e8c0b8b07dc4fb6f0817d2ae6d31c`。全14 batch・128 chunk receiptが同じhead/baseに一致し、missing 0／invalid 0だが、chunk状態は **92 NO_ACTIONABLE_FINDINGS、28 CHANGES_REQUESTED、7 BLOCKED、1 INCONCLUSIVE**。97 model claims、25 source-location-grounded、independent impact verified 0、acceptedReview=false。これは公開PR差分の審査で、固定v0.5の8件／104件とは別の対象である。
+
+実ログで失敗を分離：targeted job `121189564975` は `diff_exceeds_local_review_budget`。全量batch 0/chunk 2は150秒timeoutを2回、batch 10の5 chunkはtimeout後の1536-token／doneReason=lengthによるINVALID_JSON、batch 12/chunk 8もlengthを2回。審査予算の拡大、失敗chunkの省略、同じ条件の無根拠な再実行は行わない。
+
+97件は2つの読み取り専用補助照合で55件／42件を分担し、実ソースと契約テストへ照合した。原文が示す具体的な攻撃・欠陥は再現されなかった。例：persist-credentials=falseをtrueへ変える提案、Number.isSafeIntegerをNumber.isIntegerへ弱める提案、任意file／stale HEAD拒否テストの削除提案は採用しない。擬似finding文字列自体を実指摘として再生した例もある。これはAI_ASSERTEDの補助評価であり、原本97件を削除・正式resolve・承認したものではない。Nodeバージョンへの一般的懸念についてCVE全量照合を実施したという主張もしない。
+
+照合過程で別に再現した欠陥を、既存の隔離helper／テスト範囲で修正した：
+
+- `ai09AddedLineEvidenceIndex` が追加コード `++counter;` のdiff行 `+++counter;` をヘッダー扱いし、審査前にthrowしていた。hunk本文の全 `+` 行を追加として数える最小修正。分割chunkの実行座標と完全source保持を2回帰で確認（修正前2 FAIL→修正後PASS）。
+- trusted anchorが拒否すると取得済みbatch receiptが返らなかった。helperで例外を **BLOCKED／canonical_evidence_audit_failed** として保存し、既存blocker、原本finding、digest、権限falseを保持する。実 `+++` patchのCHANGES_REQUESTEDで修正前 `INVALID_PATCH_ROW`→修正後BLOCKED receiptを確認。既存trusted-main anchorを直したものではなく、全量aggregatorはなお同じpatchを拒否し得る。
+- Builder前段のcontract suiteに修復済みfixtureの回帰が混在し、BROKEN状態で推論分岐より先に失敗していた。修復後の2 assertionだけを `tests/chat-actions-model-regression.test.mjs` に移し、標準 `node --test` CIで維持。前段6件＋後段1件PASS、BROKEN importをメモリ内で注入した後段回帰は引き続きFAIL。実fixture、workflow、モデル・provider・権限は変更しない。今回の実推論成功を示す試験ではない。
+
+最終ローカル検証は関連221/221 PASS、lint PASS、diff whitespace／Node構文検査PASS。修正差分の別補助レビューでは44件とBLOCKED保持probeを独立実行し、P1/P2なし。これは同一workspaceの補助評価で、正式AI09・別実モデル／独立環境の証明に数えない。新HEADの通常CI・全量AI09はPRコメントで別途追跡する。原本ZIP、diagnostic、RED/GREEN、負のfixture probeは作業フォルダの `evidence-1865/ai09-628be054/` に保存した。
+
+### 次の未達と、追加スコープが必要な具体対象
+
+1. **既存AI09 runtime**：`scripts/goriq-ai09-finding-anchors.mjs` もhunk内 `+++` を誤拒否する。現Issueの既存runtime変更除外と競合するため変更していない。提案はhunk内の `+` 解釈だけを修正し、added-line／quote／SHA検証を維持する差分と負の回帰。trusted-mainへの反映と現HEAD全量再審査が別途必要。
+2. **Publisher Human Gate**：mockでpreflight直後に承認が失効してもpublishがPOSTする経路を再現。さらに承認はGITHUB_SHAに結ぶ一方、両jobのcheckoutは可変 `ref: main`。有効化前の提案範囲はworkflowの不変SHA checkout／実行HEAD照合、CAS直前の承認期限・失効再検査、その否定テスト。権限を拡張せず保護を強めるが、privileged workflow／承認経路の変更なので別のexact-diff審査・所有者承認が必要。今回変更・有効化していない。
+3. 固定v0.5の真正ZIP／plan、独立AI09側の既存承認経路、別の実モデル／独立環境、正式8件→104件→指摘再現→承認を満たす。現在Builder fixtureはFIXEDで推論skip、Builderと審査の設定はいずれもqwen2.5-coder:3bであり、異モデルE2E達成とは認定しない。
+4. 認証付き実Chat、実PR自動修正、許可されたmain統合／実動作、中断再開・次作業の実行、実2project統合は未達。PRはDraft／unmerged、Publisher無効、mainと保護設定は維持。
+
+ロールバックは今回の限定修正commitのみを同一PRでrevertし、関連テストと通常CIを再実行する。既存審査原本とHOLDを保持し、別チャットの先行修正を戻さない。**最上位GOALは未達のまま。**

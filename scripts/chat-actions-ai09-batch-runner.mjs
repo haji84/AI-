@@ -89,7 +89,9 @@ export function ai09AddedLineEvidenceIndex(batch, chunk) {
     for(const row of part.source.split("\n")) {
       const m=/^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(row);
       if(m){current=Number(m[1]);continue;}
-      if(row.startsWith("+") && !row.startsWith("+++")) {
+      // Canonical source is hunk content, not a file header. Added code may
+      // itself start with ++, so its diff row legitimately starts with +++.
+      if(row.startsWith("+")) {
         if(!Number.isSafeInteger(current) || current<1)
           throw Error("AI09_EVIDENCE_INVALID_NEW_SIDE_POSITION");
         additions.push({line:current,code:row.slice(1)});
@@ -192,7 +194,16 @@ export async function runOneAi09Batch({plan,manifest,index,modules,infer}) {
     paths:batch.paths,patchSha256:batch.patchSha256,
     reviewChunks:batch.chunkCount};
   const checked=modules.batches.consolidateChunkReviews(chunkReports,scope,batch.chunks);
-  const anchored=modules.anchor.holdUngroundedAdvisory(checked,batch.patch);
+  let anchored;
+  try {
+    anchored=modules.anchor.holdUngroundedAdvisory(checked,batch.patch);
+  } catch {
+    // Preserve raw model receipts when the trusted verifier cannot audit a
+    // patch. This is a blocked artifact, never clearance or a repaired gate.
+    anchored={...checked,status:"BLOCKED",blockers:[...new Set([
+      ...(checked.blockers??[]),"canonical_evidence_audit_failed",
+    ])]};
+  }
   // A grounded code quote without an explained consequence is still
   // inconclusive. Do not remove raw model claims from chunkReports.
   const weakSupport=diagnostic.some(d => d.findingCount>0 && d.anchor?.complete!==true);
