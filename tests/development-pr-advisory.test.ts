@@ -19,6 +19,38 @@ test("two open issue PRs require reconciliation",()=>assert.equal(
   decide({pullRequests:[existing,{...existing,number:43,headBranch:"other"}]}).pr.action,"RECONCILE"));
 test("closed original cannot become a new correction PR",()=>assert.equal(
   decide({pullRequests:[{...existing,state:"closed"}]}).pr.action,"RECONCILE"));
+
+test("same-issue PR on another base cannot become a new PR candidate",()=>{
+  for (const operation of ["new_work","fix_existing_pr"] as const) {
+    const r=decide({operation,pullRequests:[{...existing,baseBranch:"release/1"}]});
+    assert.equal(r.pr.action,"RECONCILE");
+    assert.equal(r.pr.number,undefined);
+    assert.equal(r.executionAuthority,false);
+  }
+});
+
+test("same-issue PRs across different bases require reconciliation",()=>{
+  const r=decide({pullRequests:[existing,{...existing,number:43,baseBranch:"release/1"}]});
+  assert.equal(r.pr.action,"RECONCILE");
+  assert.equal(r.pr.number,undefined);
+});
+
+test("closed same-issue history on another base still prevents replacement",()=>{
+  const r=decide({operation:"new_work",pullRequests:[{...existing,baseBranch:"release/1",state:"closed"}]});
+  assert.equal(r.pr.action,"RECONCILE");
+});
+
+test("closed other-base history must be reconciled before reusing an open PR",()=>{
+  const r=decide({pullRequests:[existing,{...existing,number:43,baseBranch:"release/1",state:"closed"}]});
+  assert.equal(r.pr.action,"RECONCILE");
+});
+
+test("other issues and repositories do not block a unique same-issue PR",()=>{
+  const unrelated=[{...existing,number:43,issueNumber:6,baseBranch:"release/1"},
+    {...existing,repository:"other/app",baseBranch:"release/1"}];
+  assert.equal(decide({pullRequests:[existing,...unrelated]}).pr.number,42);
+  assert.equal(decide({operation:"new_work",pullRequests:unrelated}).pr.action,"NEW_CANDIDATE");
+});
 test("incomplete GitHub inventory cannot propose PR creation",()=>assert.equal(
   decide({operation:"new_work",inventoryComplete:false,pullRequests:[]}).pr.action,"RECONCILE"));
 test("genuine new issue work only proposes a new PR",()=>{
@@ -54,6 +86,15 @@ const chatInput: ChatActionsHandoffInput = {
   ownerIdentityVerifiedByTrustedHost:true, githubActionsAvailable:true,
   existingNonCodexBuilderAvailable:true,
 };
+
+test("different-base same-issue PR blocks Chat handoff without a command envelope",()=>{
+  const r=adviseChatActionsHandoff(chatInput,decide({operation:"new_work",
+    pullRequests:[{...existing,baseBranch:"release/1"}]}));
+  assert.equal(r.status,"RECONCILE_PR");
+  assert.equal(r.commandJson,null);
+  assert.equal(r.codex,"NOT_SELECTED");
+  assert.equal(r.executionAuthority,false);
+});
 test("Chat input proposes existing GitHub Actions envelope without dispatch authority",()=>{
   const r=adviseChatActionsHandoff(chatInput,decide());
   assert.equal(r.status,"PROPOSE_ONLY");

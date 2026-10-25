@@ -6344,7 +6344,7 @@
     },
     {
       "path": "src/orchestrator/development-pr-advisory.ts",
-      "sha256": "1ade09c9e52c995670cb5a67cef7bd31f9117b34ee62d6804bc74714b0c5ff3c",
+      "sha256": "5fae106941a591aee12f0643417331cfcf6c4ce16bac46048744cea8ff8cc1cb",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "CORE-020",

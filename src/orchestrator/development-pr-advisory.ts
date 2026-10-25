@@ -68,11 +68,12 @@ export function adviseDevelopmentIntake(input: Intake): Advice {
   if (input.comparison && (!SHA.test(input.comparison.baseSha) || !SHA.test(input.comparison.headSha)))
     throw Error("invalid_comparison");
   const relevant = input.pullRequests.filter(p =>
-    p.repository === input.repository && p.issueNumber === input.issueNumber && p.baseBranch === input.baseBranch);
+    p.repository === input.repository && p.issueNumber === input.issueNumber);
   const open = relevant.filter(p => p.state === "open" && !p.merged && p.headBranch !== input.baseBranch);
   const identities = input.pullRequests.map(p => p.repository + "#" + p.number);
   const inconsistent = !input.inventoryComplete || new Set(identities).size !== identities.length ||
-    open.length > 1 || relevant.some(p => p.state === "open" && (p.merged || p.headBranch === input.baseBranch));
+    open.length > 1 || relevant.some(p => p.baseBranch !== input.baseBranch ||
+      (p.state === "open" && (p.merged || p.headBranch === input.baseBranch)));
   let pr: Advice["pr"];
   if (inconsistent) pr = { action:"RECONCILE", reason:"incomplete_or_conflicting_inventory" };
   else if (open.length === 1) pr = { action:"REUSE", number:open[0].number, reason:"reuse_issue_pr" };
