@@ -161,9 +161,11 @@ GitHub connectorのartifact取得機能で全16個のZIP（plan、14 batch、fin
 
 - `ai09AddedLineEvidenceIndex` が追加コード `++counter;` のdiff行 `+++counter;` をヘッダー扱いし、審査前にthrowしていた。hunk本文の全 `+` 行を追加として数える最小修正。分割chunkの実行座標と完全source保持を2回帰で確認（修正前2 FAIL→修正後PASS）。
 - trusted anchorが拒否すると取得済みbatch receiptが返らなかった。helperで例外を **BLOCKED／canonical_evidence_audit_failed** として保存し、既存blocker、原本finding、digest、権限falseを保持する。実 `+++` patchのCHANGES_REQUESTEDで修正前 `INVALID_PATCH_ROW`→修正後BLOCKED receiptを確認。既存trusted-main anchorを直したものではなく、全量aggregatorはなお同じpatchを拒否し得る。
-- Builder前段のcontract suiteに修復済みfixtureの回帰が混在し、BROKEN状態で推論分岐より先に失敗していた。修復後の2 assertionだけを `tests/chat-actions-model-regression.test.mjs` に移し、標準 `node --test` CIで維持。前段6件＋後段1件PASS、BROKEN importをメモリ内で注入した後段回帰は引き続きFAIL。実fixture、workflow、モデル・provider・権限は変更しない。今回の実推論成功を示す試験ではない。
+- Builder前段のcontract suiteに修復済みfixtureの回帰が混在し、BROKEN状態で推論分岐より先に失敗していた。修復後の2 assertionだけを既存の `tests/development-orchestrator.test.ts` に移し、標準 `node --test` CIで維持。前段6件＋後段1件PASS、BROKEN importをメモリ内で注入した後段回帰は引き続きFAIL。実fixture、workflow、モデル・provider・権限は変更しない。今回の実推論成功を示す試験ではない。
 
 最終ローカル検証は関連221/221 PASS、lint PASS、diff whitespace／Node構文検査PASS。修正差分の別補助レビューでは44件とBLOCKED保持probeを独立実行し、P1/P2なし。これは同一workspaceの補助評価で、正式AI09・別実モデル／独立環境の証明に数えない。新HEADの通常CI・全量AI09はPRコメントで別途追跡する。原本ZIP、diagnostic、RED/GREEN、負のfixture probeは作業フォルダの `evidence-1865/ai09-628be054/` に保存した。
+
+最初のcommit `52c221de235f6525c86a19cdbf903769b0c56874` では回帰の新ファイルによりPR全体が31 changed filesとなり、隔離run [40209163778](https://github.com/haji84/AI-/actions/runs/40209163778) の全量計画が `INVALID_FULL_REVIEW_SCOPE` で拒否された。file-list APIの31件と実ログを確認し、30-file上限を維持したまま回帰を上記の既存通常CIテストへ移した。sourceやテストを審査対象から除外せず、同じassertionsを保持する。targeted jobの別の `diff_exceeds_local_review_budget` は未解消。最初の失敗runは成功扱いせず記録として残す。
 
 ### 次の未達と、追加スコープが必要な具体対象
 
