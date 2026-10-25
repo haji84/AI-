@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
 import { resolve } from "node:path";
+import process from "node:process";
 
 test("data-only baseline recovery acceptance and refusal tests", () => {
   const executable = process.platform === "win32" ? "python" : "python3";
