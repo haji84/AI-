@@ -115,3 +115,34 @@ Issueの既存許可は読み取り専用advisory、隔離テストと既に記�
 Compassは別の進行状態（#681/#1845 `STOPPED_NEW_WARNING`）を指すことを読み取り確認した。他案件の停止・nextActionを上書きせず、Issue/PRとこの監査を引継ぎ正本とする。chat内GOAL trackerは本タスク未達の追跡だけに使い、稼働Goal Controllerへ新規GOALを作成しない。
 
 **最上位GOAL：未達。計画・単体テスト・PR更新を完成判定にしない。**
+
+## 同一PR追補：repository identityとruntime入力の検証
+
+2026-10-25 JST、クラウド側の作業開始時headは `fba2af8f3b352c2f4af567dab65f2bf4fbc1d8c3`。途中で同PRが `ed70bf77c04e407d7750e112f94007a4aff9bd6f` に進んだため、ローカル作業をstashへ保全しfast-forwardした。先行した別base修正、6テスト、既存監査を保持し、追加修正を未解消のrepository case/不正入力へ限定した。新しいPR、worktree、portable v0.5コピーは作成しない。
+
+最小計画と実施：
+
+1. mixed-case repositoryによる同一PRの見落とし、mixed-case duplicate、array/非record riskSignals、array repository/base/head、null/sparse inventory、array SHAを実コードで再現。
+2. 最新 `ed70bf77` に15件の回帰を追加し、sourceを変える前に **43件中28成功/15失敗**を確認。
+3. GitHub owner/repo identityの比較だけを小文字化し、Git branch比較はcase-sensitiveのまま保持。plain record・文字列・SHA型を検査し、不正入力を既存エラー/INCONCLUSIVEで拒否。空の正当なrisk recordと既存risk-policyは維持。
+4. 修正後 **43/43 PASS**。同じsourceの既存traceability SHAだけを `surfaceFingerprint` で更新し、classification/requirements/承認状態は維持。
+
+変更範囲：`development-pr-advisory.ts`、その回帰テスト、既存reverse-traceability SHA、この既存監査記録のみ。実PR作成・dispatch・merge・provider選定・秘密管理・workflow・保護ルールは変更しない。これは読み取り専用助言の信頼性修正であり、実権限突破の発見という主張ではない。
+
+### 現クラウドでの最終検証
+
+- Node24.19.0 / pnpm11.19.0、frozen-lockfile install成功。追加したPowerShell7.6.8は作業用ディレクトリに展開し、公式GitHub release APIのSHA-256 `59112e38ad83350e4f6dc0195953c66b5926792f300ca2e7691b8242e7a16e7f` を検証した。
+- `pnpm lint`、`pnpm build`、buildしたNext serverへの既存healthcheck：すべてexit0。未変更のdynamic filesystem tracing警告2件は残る。生成された `next-env.d.ts` は復元しcommit対象外。
+- 関連17ファイルの直接実行：**216/216 PASS**。GOAL永続化、command intake、completion-path、durable task、CI recoveryを含む。fixture/contractの合格を実Chat・実モデル・本番受入へ転用しない。
+- `pnpm test:p8-security`：**332/332 PASS**。
+- CIのPowerShell判断fixture3本：PASS。Windows nativeの受入とは区別する。
+- 最終 `pnpm test --test-concurrency=4`：**2812件、2807 PASS / 0 FAIL / 5 SKIP / 0 CANCELLED**、28.688秒、exit0。PowerShellをPATHに追加し、この合成テストプロセスだけCI同等のumask022で実行した。本番/ホストのpermission設定は変更しない。
+- 初回のsandbox実行は子プロセスEPERMで中止。続く実行では更新前source fingerprintに起因する8失敗と、PowerShell不在、umask077で合成weak directoryが0700になる2失敗を記録した。ハッシュ整合と実行環境を修正して上記最終全件を再実行し、テスト/assertionの無効化や製品コードの推測変更は行っていない。
+
+実装前・実装後のfresh-context補助レビューに別モデル `gpt-6-astra` を指定。最新差分で43件と追加edge casesを独立実行し、actionableなsource欠陥なしとの結果。モデルdigestのattestationや独立実行環境はなく、**AI_ASSERTEDの補助所見のみ**。正式AI09・GitHub APPROVED・所有者承認には数えない。
+
+リモート受入は別ゲート：この追補の親 `ed70bf77` の通常CI [40195829413](https://github.com/haji84/AI-/actions/runs/40195829413) は3 jobs SUCCESS、隔離AI09 [40195829366](https://github.com/haji84/AI-/actions/runs/40195829366) はFAILUREとAPIで確認。正式review submissionsは0件。今回の新HEADのCI/審査はPRコメントで別途記録し、親の成功を流用しない。ログ取得APIにはアクセス拒否があり、未取得の実ログから原因を推測しない。
+
+固定v0.5の真正なZIP/planの承認済み非公開参照先は所有者へ照会中。固定対象 **0/8・0/104（独立AI09の現引継ぎ記録）**、正式設計承認、Publisher有効化、許可されたmain統合/main検証、実Chat起点E2E、実2project統合は未達。この修正を親GOALの完了としない。独立AI09リポジトリには書き込まない。
+
+この追補のrollbackは追加commitを同PR上でrevertし、関連回帰・traceability・標準CIを再確認する。先行 `ed70bf77` の別base修正や他作業を巻き戻さない。current cloudにはCompass toolsがなく、Compass書戻しは未実施。

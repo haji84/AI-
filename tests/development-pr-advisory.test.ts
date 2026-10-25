@@ -145,3 +145,38 @@ test("global pause blocks Chat Actions handoff regardless of PR eligibility",()=
   assert.equal(r.status,"PAUSED");
   assert.equal(r.commandJson,null);
 });
+
+test("GitHub repository case differences reuse the same issue PR",()=>{
+  const r=decide({pullRequests:[{...existing,repository:"SAMPLE/App"}]});
+  assert.equal(r.pr.action,"REUSE");assert.equal(r.pr.number,42);
+  assert.equal(r.executionAuthority,false);
+});
+test("mixed-case duplicate PR identities require reconciliation",()=>{
+  assert.equal(decide({pullRequests:[existing,{...existing,repository:"SAMPLE/App"}]}).pr.action,"RECONCILE");
+});
+const malformedIntakes: [string,unknown][] = [
+  ["array risk signals",{riskSignals:[]}],
+  ["non-record risk signals",{riskSignals:new Date(0)}],
+  ["array repository",{repository:["sample/app"]}],
+  ["array base branch",{baseBranch:["main"]}],
+  ["numeric base branch",{baseBranch:1}],
+  ["blank base branch",{baseBranch:" "}],
+  ["null inventory entry",{pullRequests:[null]}],
+  ["sparse inventory",{pullRequests:Array(1)}],
+  ["array inventory repository",{pullRequests:[{...existing,repository:["sample/app"]}]}],
+  ["array inventory base",{pullRequests:[{...existing,baseBranch:["main"]}]}],
+  ["array inventory head",{pullRequests:[{...existing,headBranch:["fix/five"]}]}],
+];
+for (const [name,changes] of malformedIntakes) {
+  test(`${name} cannot produce a low-risk PR proposal`,()=>{
+    assert.throws(()=>decide(changes as Partial<Intake>),/^Error: invalid_intake$/);
+  });
+}
+test("array comparison SHA cannot impersonate a commit string",()=>{
+  assert.throws(()=>decide({comparison:{baseSha:[A],headSha:B} as unknown as Intake["comparison"]}),/invalid_comparison/);
+});
+test("array receipt SHA cannot clear AI09 advisory",()=>{
+  const r=decide({ai09:{reviewer:"AI-09",evidenceClass:"AI_ASSERTED",status:"NO_ACTIONABLE_FINDINGS",
+    scope:{baseSha:[A],headSha:B},githubApprovalSatisfied:false,mergeAuthorized:false} as unknown as Intake["ai09"]});
+  assert.equal(r.review,"INCONCLUSIVE");assert.equal(r.executionAuthority,false);
+});
