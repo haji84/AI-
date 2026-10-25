@@ -167,6 +167,10 @@ GitHub connectorのartifact取得機能で全16個のZIP（plan、14 batch、fin
 
 最初のcommit `52c221de235f6525c86a19cdbf903769b0c56874` では回帰の新ファイルによりPR全体が31 changed filesとなり、隔離run [40209163778](https://github.com/haji84/AI-/actions/runs/40209163778) の全量計画が `INVALID_FULL_REVIEW_SCOPE` で拒否された。file-list APIの31件と実ログを確認し、30-file上限を維持したまま回帰を上記の既存通常CIテストへ移した。sourceやテストを審査対象から除外せず、同じassertionsを保持する。targeted jobの別の `diff_exceeds_local_review_budget` は未解消。最初の失敗runは成功扱いせず記録として残す。
 
+次の `5fd754f2ac5ed9db0092140bb5a62c08ea92979d` は全量計画が30 files／14 batches／135 chunksで復旧したが、通常CI [40209599524](https://github.com/haji84/AI-/actions/runs/40209599524) はbuildでTS7016（移動したTSテストから型宣言のないmjs fixtureの直接import）となった。全suite2815件中2810 PASS／5 SKIP、P8 security332 PASSでもCI成功とはしない。同じTS7016をローカル型検査で再現後、ESMのfixture URLからunknownとして読み、実際の関数型を検証して同じ2 assertionを実行する形へ修正。型検査・build・正の11件とBROKEN fixtureの負の回帰を再確認し、型検査無効化やdeclarationの捏造はしない。build生成のnext-env.d.tsはcommit対象外。
+
+所有者は別途提示したtrusted anchorの1行＋既存テスト2件の具体提案に「限定修正の別スコープを承認」と回答した。この承認は別スコープの実装・審査準備に限定し、新たな権限・モデル変更・Publisher有効化・main統合を含まない。下記1の修正はこのPRへ混入させず別の限定差分として進め、既存の正式審査と統合gateを維持する。
+
 ### 次の未達と、追加スコープが必要な具体対象
 
 1. **既存AI09 runtime**：`scripts/goriq-ai09-finding-anchors.mjs` もhunk内 `+++` を誤拒否する。現Issueの既存runtime変更除外と競合するため変更していない。提案はhunk内の `+` 解釈だけを修正し、added-line／quote／SHA検証を維持する差分と負の回帰。trusted-mainへの反映と現HEAD全量再審査が別途必要。

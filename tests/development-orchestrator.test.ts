@@ -99,7 +99,8 @@ test("Chat-to-Actions and PR/AI09 policy are inspected through existing orchestr
 // Standard CI checks the repaired fixture. Keep this out of pre-generation
 // Builder contracts, which must also run before a repair.
 test("checked-in pilot fixture retains addition behavior",async()=>{
- const {add}=await import("./fixtures/chat-actions-model-candidate.mjs");
- assert.equal(add(7,5),12);
- assert.equal(add(-2,3),1);
+ const fixture: unknown=await import(new URL("./fixtures/chat-actions-model-candidate.mjs",import.meta.url).href);
+ assert.ok(fixture && typeof fixture === "object" && "add" in fixture && typeof fixture.add === "function");
+ assert.equal(fixture.add(7,5),12);
+ assert.equal(fixture.add(-2,3),1);
 });
