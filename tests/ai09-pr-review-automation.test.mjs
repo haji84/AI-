@@ -440,3 +440,65 @@ test("GitHub API patch must match full per-file addition and deletion totals", (
     files: [{ ...complete.files[0], patch: null }],
   }), /unverifiable_patch_statistics/);
 });
+
+function prefixFixture() {
+  const full=compareToReviewChunks({status:"ahead",ahead_by:1,total_commits:1,
+    files:["src/file.ts","src/other.ts"].map(filename=>({filename,
+      patch:"@@ -0,0 +1,1 @@\n+export const value = 1;"}))},shaA,shaB);
+  const scope={baseSha:shaA,headSha:shaB,paths:full.paths,patchSha256:full.patchSha256};
+  const reports=full.chunks.map(chunk=>({...goodResult(),scope:{...scope,
+    paths:chunk.paths,patchSha256:createHash("sha256").update(chunk.patch).digest("hex")}}));
+  const finding={path:full.paths[0],line:1,severity:"medium",
+    summary:"Impact: bounded example still needs independent verification.",
+    evidence:"`export const value = 1;`",proposedFix:"Verify this claim with independent behavior evidence."};
+  reports[0]={...reports[0],status:"CHANGES_REQUESTED",findings:[finding],
+    blockers:["model_findings_require_action"]};
+  return {full,scope,reports,finding};
+}
+
+test("proposal: missing later chunks retain earlier claims while staying BLOCKED",()=>{
+  const f=prefixFixture();
+  const result=consolidateChunkReviews(f.reports.slice(0,1),f.scope,f.full.chunks);
+  assert.equal(result.status,"BLOCKED");
+  assert.deepEqual(result.blockers,["incomplete_model_review"]);
+  assert.deepEqual(result.findings,[f.finding]);
+  assert.equal(validateReviewReceipt(receipt(result),expected),true);
+  assert.equal(result.githubApprovalSatisfied,false);assert.equal(result.mergeAuthorized,false);
+  assert.match(formatReviewComment(receipt(result)),/Review blockers.*incomplete\\_model\\_review/);
+});
+
+test("proposal: blocked later chunk cannot erase a valid preceding finding",()=>{
+  const f=prefixFixture();
+  f.reports[1]={...f.reports[1],status:"BLOCKED",blockers:["local_model_unavailable_or_invalid_response"]};
+  const result=consolidateChunkReviews(f.reports,f.scope,f.full.chunks);
+  assert.equal(result.status,"BLOCKED");
+  assert.deepEqual(result.findings,[f.finding]);
+  assert.deepEqual(result.blockers,["review_chunk_invalid_or_blocked"]);
+});
+
+test("proposal: forged later chunk remains blocked and adds no untrusted finding",()=>{
+  const f=prefixFixture();
+  f.reports[1].scope.patchSha256="0".repeat(64);
+  const result=consolidateChunkReviews(f.reports,f.scope,f.full.chunks);
+  assert.equal(result.status,"BLOCKED");assert.deepEqual(result.findings,[f.finding]);
+  assert.equal(result.mergeAuthorized,false);
+});
+
+test("proposal: overflow retains bounded prefix and never a clean review",()=>{
+  const f=prefixFixture();
+  f.reports[0].findings=Array.from({length:20},()=>({...f.finding}));
+  f.reports[1]={...f.reports[1],status:"CHANGES_REQUESTED",
+    findings:[{...f.finding,path:f.full.paths[1]}],blockers:["model_findings_require_action"]};
+  const result=consolidateChunkReviews(f.reports,f.scope,f.full.chunks);
+  assert.equal(result.status,"BLOCKED");assert.equal(result.findings.length,20);
+  assert.deepEqual(result.blockers,["too_many_review_findings"]);
+  assert.equal(result.githubApprovalSatisfied,false);
+});
+
+test("proposal: retained synthetic secret-shaped text still fails publisher validation",()=>{
+  const f=prefixFixture();
+  f.reports[0].findings[0].evidence="api_key=EXAMPLE_NOT_A_REAL_CREDENTIAL_123";
+  const result=consolidateChunkReviews(f.reports.slice(0,1),f.scope,f.full.chunks);
+  assert.equal(result.status,"BLOCKED");assert.equal(result.findings.length,1);
+  assert.equal(validateReviewReceipt(receipt(result),expected),false);
+});
