@@ -5,6 +5,18 @@ import type { CompletionCycle, CompletionInput } from "./completion-path.ts";
 const digest = (value: unknown): string => createHash("sha256").update(JSON.stringify(value)).digest("hex");
 const SHA = /^[a-f0-9]{40}$/;
 
+function validResourceLocks(value: unknown): value is string[] {
+  if (!Array.isArray(value) || !value.length) return false;
+  const seen = new Set<string>();
+  for (let index = 0; index < value.length; index++) {
+    if (!Object.hasOwn(value, index)) return false;
+    const lock: unknown = value[index];
+    if (typeof lock !== "string" || !lock.trim() || seen.has(lock)) return false;
+    seen.add(lock);
+  }
+  return true;
+}
+
 export interface Ai09AdvisoryEvidence {
   expectedBaseSha: string;
   expectedHeadSha: string;
@@ -48,9 +60,7 @@ export function buildDevelopmentDecisionBoard(
   for (const task of ready) {
     const locks = options.verifiedResourceLocks[task.taskId];
     // Unknown write scopes must not silently become independent workers.
-    if (!Array.isArray(locks) || !locks.length ||
-        locks.some(lock => typeof lock !== "string" || !lock.trim()) ||
-        new Set(locks).size !== locks.length) {
+    if (!validResourceLocks(locks)) {
       missingLocks.push(task.taskId);
       continue;
     }

@@ -5193,7 +5193,7 @@
     },
     {
       "path": "src/orchestrator/development-decision-board.ts",
-      "sha256": "5bd4ca774d051cd3ab6ab05d0590bd623cb8ee54e43117181384d93c26601ed6",
+      "sha256": "3548c90d87c887b24194b9fc9bc0f654d8abe70893fcc16ecafde9ec511c0676",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-002",

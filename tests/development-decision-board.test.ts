@@ -44,6 +44,27 @@ test("missing resource inventory excludes task rather than inventing independenc
   const r=buildDevelopmentDecisionBoard(f.state,f.input,f.cycle,f.options);
   assert.deepEqual(r.parallel.proposals,["two"]);assert.deepEqual(r.parallel.resourceLockEvidenceMissing,["one"]);
 });
+
+test("sparse lock arrays cannot invent independent parallel candidates",()=>{
+  const f=fixture();
+  f.options.verifiedResourceLocks.one=new Array<string>(1);
+  f.options.verifiedResourceLocks.two=new Array<string>(1);
+  const r=buildDevelopmentDecisionBoard(f.state,f.input,f.cycle,f.options);
+  assert.deepEqual(r.parallel.proposals,[]);
+  assert.deepEqual(r.parallel.resourceLockEvidenceMissing,["one","two"]);
+  assert.equal(r.executionAuthority,false);assert.equal(r.mergeAuthorized,false);
+});
+
+test("inherited array entries cannot substitute for verified resource locks",()=>{
+  const f=fixture();
+  const locks=new Array<string>(1);
+  Object.setPrototypeOf(locks,Object.assign(Object.create(Array.prototype),{0:"pr:1866"}));
+  f.options.verifiedResourceLocks.one=locks;
+  f.options.verifiedResourceLocks.two=["pr:other"];
+  const r=buildDevelopmentDecisionBoard(f.state,f.input,f.cycle,f.options);
+  assert.deepEqual(r.parallel.proposals,["two"]);
+  assert.deepEqual(r.parallel.resourceLockEvidenceMissing,["one"]);
+});
 test("stale state and changed input are rejected",()=>{
   const f=fixture();f.state.goalId="wrong";
   assert.throws(()=>buildDevelopmentDecisionBoard(f.state,f.input,f.cycle,f.options),/STALE_OR_UNTRUSTED/);
