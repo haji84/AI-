@@ -3,6 +3,7 @@
 // Only a completed, same-repository pilot run may propose the known fixture correction.
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 
 const REPOSITORY = "haji84/AI-";
 const ISSUE = 1865, PR = 1866;
@@ -14,6 +15,8 @@ const FIXED = "export function add(a, b) { return a + b; }\n";
 const SHA = /^[a-f0-9]{40}$/;
 const HASH = /^[a-f0-9]{64}$/;
 const ROOT = "https://api.github.com";
+const OWNER="haji84";
+const APPROVAL_PREFIX="AUTHORIZE_GORIQ_TRUSTED_PUBLISHER_1865";
 const graphqlUrl = "https://api.github.com/graphql";
 const sha256 = s => createHash("sha256").update(s).digest("hex");
 
@@ -23,6 +26,22 @@ const fixedScope = (r) => r?.number === PR && r?.state === "open" && r?.draft ==
   r?.base?.ref === "main" && r?.head?.ref === BRANCH &&
   SHA.test(r?.head?.sha ?? "") && SHA.test(r?.base?.sha ?? "") &&
   typeof r?.body === "string" && /(?:^|\n)Refs #1865(?:\b|\.)/i.test(r.body);
+
+export function ownerApprovalForPublisher(comments,{trustedMainSha,now=Date.now()}) {
+  if(!SHA.test(trustedMainSha??"") || !Array.isArray(comments) ||
+    comments.length>=100 || !Number.isFinite(now)) return false;
+  const prefix=APPROVAL_PREFIX+" main="+trustedMainSha+" expiry=";
+  return comments.some(c=>{
+    if(c?.user?.login!==OWNER || c?.author_association!=="OWNER" ||
+      typeof c?.body!=="string" || !c.body.startsWith(prefix)) return false;
+    const remainder=c.body.slice(prefix.length);
+    if(!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(remainder.trim()))return false;
+    const expiry=Date.parse(remainder.trim());
+    const created=Date.parse(c.created_at??"");
+    return Number.isFinite(expiry) && Number.isFinite(created) &&
+      created<=now && expiry>now && expiry-created<=7*86400_000;
+  });
+}
 
 export function verifyPilotRun(event) {
   const run = event?.workflow_run;
@@ -114,12 +133,19 @@ export async function readTrustedState({fetchImpl,token,event}) {
 }
 
 /** Explicit caller-supplied immutable artifact. Always NOOP or one narrow GraphQL commit. */
-export async function publishTrustedPilot({fetchImpl=fetch,token,event,receipt,source,dryRun=true}) {
+export async function publishTrustedPilot({fetchImpl=fetch,token,event,receipt,source,dryRun=true,
+  trustedMainSha,clock=Date.now}) {
   const current=await readTrustedState({fetchImpl,token,event});
   const plan=preparePublication({event,pr:current.pr,receipt,source,currentFile:current.currentFile});
   if(plan.action==="NOOP_ALREADY_FIXED")return {status:"ALREADY_FIXED",updated:false,head:plan.headSha};
   const mutation=buildCompareAndSwapMutation(plan);
   if(dryRun)return {status:"VALIDATED_DRY_RUN",updated:false,head:plan.headSha,branch:BRANCH};
+  // Re-read the owner gate in this write job, after candidate/state reads.
+  // A prior eligible preflight is not a reusable grant or a current clock.
+  const approvals=await githubGet(fetchImpl,token,ROOT+"/repos/"+REPOSITORY+
+    "/issues/1865/comments?per_page=100");
+  if(!ownerApprovalForPublisher(approvals,{trustedMainSha,now:clock()}))
+    throw Error("OWNER_ACTIVATION_APPROVAL_REQUIRED");
   // Exact GraphQL expectedHeadOid is the atomic head compare-and-swap. No push --force.
   const response=await fetchImpl(graphqlUrl,{
     method:"POST",redirect:"error",signal:AbortSignal.timeout(15_000),
@@ -144,12 +170,17 @@ if (process.argv[1]?.endsWith("/chat-actions-trusted-publisher.mjs")) {
       !env.GITHUB_EVENT_PATH || !env.GITHUB_TOKEN ||
       !env.GORIQ_PILOT_RECEIPT || !env.GORIQ_PILOT_SOURCE)
     throw Error("TRUSTED_ACTIONS_CONTEXT_REQUIRED");
+  const actualTrustedSha=execFileSync("git",["rev-parse","HEAD"],{
+    encoding:"utf8",stdio:["ignore","pipe","ignore"],timeout:10000,
+  }).trim();
+  if(!SHA.test(env.GITHUB_SHA??"") || actualTrustedSha!==env.GITHUB_SHA)
+    throw Error("TRUSTED_PUBLISHER_SOURCE_MISMATCH");
   const event=JSON.parse(readFileSync(env.GITHUB_EVENT_PATH,"utf8"));
   const receipt=JSON.parse(readFileSync(env.GORIQ_PILOT_RECEIPT,"utf8"));
   const source=readFileSync(env.GORIQ_PILOT_SOURCE,"utf8");
   // This explicit activation flag is only supplied by reviewed trusted main workflow code.
   const publish=env.GORIQ_PILOT_PUBLISH==="isolated-1865";
-  const result=await publishTrustedPilot({token:env.GITHUB_TOKEN,event,receipt,source,dryRun:!publish});
+  const result=await publishTrustedPilot({token:env.GITHUB_TOKEN,event,receipt,source,dryRun:!publish,trustedMainSha:env.GITHUB_SHA});
   process.stdout.write(JSON.stringify(result)+"\n");
   if(env.GITHUB_STEP_SUMMARY) {
     const {appendFileSync}=await import("node:fs");

@@ -2,12 +2,20 @@ import { Buffer } from "node:buffer";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { ownerApprovalForPublisher } from "../scripts/chat-actions-publisher-preflight.mjs";
+import { readFileSync } from "node:fs";
+import { URL } from "node:url";
+import { preflightPublisher, ownerApprovalForPublisher } from "../scripts/chat-actions-publisher-preflight.mjs";
 import { verifyPilotRun, verifyPilotArtifact, preparePublication,
-  buildCompareAndSwapMutation, publishTrustedPilot } from "../scripts/chat-actions-trusted-publisher.mjs";
+  buildCompareAndSwapMutation, publishTrustedPilot as rawPublishTrustedPilot } from "../scripts/chat-actions-trusted-publisher.mjs";
 
 const REPO="haji84/AI-";
 const HEAD="a".repeat(40),BASE="b".repeat(40),COMMIT="c".repeat(40);
+const MAIN="e".repeat(40), NOW=Date.parse("2026-10-24T10:00:00Z");
+const EXPIRY=Date.parse("2026-10-26T10:00:00Z");
+const approval={user:{login:"haji84"},author_association:"OWNER",
+ created_at:"2026-10-24T09:00:00Z",
+ body:"AUTHORIZE_GORIQ_TRUSTED_PUBLISHER_1865 main="+MAIN+" expiry=2026-10-26T10:00:00Z"};
+const publishTrustedPilot=options=>rawPublishTrustedPilot({trustedMainSha:MAIN,clock:()=>NOW,...options});
 const BROKEN="export function add(a, b) { return a - b; }\n";
 const FIXED="export function add(a, b) { return a + b; }\n";
 const hash=s=>createHash("sha256").update(s).digest("hex");
@@ -40,12 +48,67 @@ function fakeGitHub(currentFile=BROKEN) {
        sha:"d".repeat(40)})};
    if(url==="https://api.github.com/graphql")
      return {ok:true,json:async()=>({data:{createCommitOnBranch:{commit:{oid:COMMIT}}}})};
+   if(url.endsWith("/issues/1865/comments?per_page=100"))
+     return {ok:true,json:async()=>[approval]};
+   if(url.endsWith("/actions/runs/12345/artifacts?per_page=100"))
+     return {ok:true,json:async()=>({total_count:1,artifacts:[{
+       name:"chat-actions-real-model-candidate",id:123,expired:false}]})};
    throw Error("UNEXPECTED_ENDPOINT");
  };
  return {seen,fetchImpl};
 }
 test("accepts a precisely scoped successful original GitHub Actions event",()=>{
  assert.deepEqual(verifyPilotRun(event),{runId:12345,headSha:HEAD,prNumber:1866});
+});
+
+test("proposal: expiry after eligible preflight rejects before any POST",async()=>{
+ const api=fakeGitHub();let now=EXPIRY-1;
+ const eligible=await preflightPublisher({event,token:"test-token",trustedMainSha:MAIN,
+   now,fetchImpl:api.fetchImpl});
+ assert.equal(eligible.eligible,true);
+ now=EXPIRY+1;
+ await assert.rejects(()=>publishTrustedPilot({fetchImpl:api.fetchImpl,token:"test-token",
+   event,receipt,source:FIXED,dryRun:false,clock:()=>now}),/OWNER_ACTIVATION_APPROVAL_REQUIRED/);
+ assert.equal(api.seen.filter(x=>x.options.method==="POST").length,0);
+});
+
+test("proposal: expiry during the final approval audit rejects before POST",async()=>{
+ const api=fakeGitHub();let now=EXPIRY-1;
+ const fetchImpl=async(url,options)=>{
+   if(url.endsWith("/issues/1865/comments?per_page=100")) {
+     api.seen.push({url,options});
+     return {ok:true,json:async()=>{now=EXPIRY+1;return [approval];}};
+   }
+   return api.fetchImpl(url,options);
+ };
+ await assert.rejects(()=>publishTrustedPilot({fetchImpl,token:"test-token",
+   event,receipt,source:FIXED,dryRun:false,clock:()=>now}),/OWNER_ACTIVATION_APPROVAL_REQUIRED/);
+ assert.equal(api.seen.filter(x=>x.options.method==="POST").length,0);
+});
+
+test("proposal: absent owner grant is never replaced by a preflight or model claim",async()=>{
+ const api=fakeGitHub();
+ const fetchImpl=async(url,options)=>url.endsWith("/issues/1865/comments?per_page=100")
+   ? {ok:true,json:async()=>[]} : api.fetchImpl(url,options);
+ await assert.rejects(()=>publishTrustedPilot({fetchImpl,token:"test-token",
+   event,receipt,source:FIXED,dryRun:false}),/OWNER_ACTIVATION_APPROVAL_REQUIRED/);
+ assert.equal(api.seen.filter(x=>x.options.method==="POST").length,0);
+});
+
+test("proposal: missing or different trusted revision refuses real write",async()=>{
+ for(const trustedMainSha of [undefined,"f".repeat(40)]) {
+   const api=fakeGitHub();
+   await assert.rejects(()=>rawPublishTrustedPilot({fetchImpl:api.fetchImpl,token:"test-token",
+     event,receipt,source:FIXED,dryRun:false,trustedMainSha,clock:()=>NOW}),
+     /OWNER_ACTIVATION_APPROVAL_REQUIRED/);
+   assert.equal(api.seen.filter(x=>x.options.method==="POST").length,0);
+ }
+});
+
+test("proposal: both privileged workflow checkouts use the event's immutable trusted SHA",()=>{
+ const workflow=readFileSync(new URL("../.github/workflows/chat-actions-trusted-publisher.yml",import.meta.url),"utf8");
+ assert.equal([...workflow.matchAll(/ref:\s+\$\{\{\s*github\.sha\s*\}\}/g)].length,2);
+ assert.doesNotMatch(workflow,/ref:\s+main\b/);
 });
 test("forged workflow / fork / wrong PR / failed run are rejected",()=>{
  for(const workflow_run of [
@@ -103,8 +166,10 @@ test("authorized publisher uses one CAS GraphQL operation, never create PR or di
    event,receipt,source:FIXED,dryRun:false});
  assert.equal(result.status,"PUBLISHED");
  assert.equal(result.commit,COMMIT);
- assert.equal(api.seen.length,3);
- const write=api.seen[2];
+ assert.equal(api.seen.length,4);
+ assert.equal(api.seen[2].url,"https://api.github.com/repos/haji84/AI-/issues/1865/comments?per_page=100");
+ assert.equal(api.seen[2].options.method,"GET");
+ const write=api.seen[3];
  assert.equal(write.url,"https://api.github.com/graphql");
  assert.equal(write.options.method,"POST");
  const mutation=JSON.parse(write.options.body);

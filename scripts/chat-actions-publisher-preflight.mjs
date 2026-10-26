@@ -1,28 +1,11 @@
 #!/usr/bin/env node
 // Trusted default-branch workflow_run preflight. No secrets, no code writes.
 import { readFileSync, appendFileSync } from "node:fs";
-import { verifyPilotRun, readTrustedState } from "./chat-actions-trusted-publisher.mjs";
+import { verifyPilotRun, readTrustedState, ownerApprovalForPublisher } from "./chat-actions-trusted-publisher.mjs";
 
 const REPO="haji84/AI-";
 const ARTIFACT="chat-actions-real-model-candidate";
-const OWNER="haji84";
-const APPROVAL_PREFIX="AUTHORIZE_GORIQ_TRUSTED_PUBLISHER_1865";
-const HEX40=/^[a-f0-9]{40}$/;
-export function ownerApprovalForPublisher(comments,{trustedMainSha,now=Date.now()}) {
-  if(!HEX40.test(trustedMainSha??"") || !Array.isArray(comments) ||
-    comments.length>=100 || !Number.isFinite(now)) return false;
-  const prefix=APPROVAL_PREFIX+" main="+trustedMainSha+" expiry=";
-  return comments.some(c=>{
-    if(c?.user?.login!==OWNER || c?.author_association!=="OWNER" ||
-      typeof c?.body!=="string" || !c.body.startsWith(prefix)) return false;
-    const remainder=c.body.slice(prefix.length);
-    if(!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(remainder.trim()))return false;
-    const expiry=Date.parse(remainder.trim());
-    const created=Date.parse(c.created_at??"");
-    return Number.isFinite(expiry) && Number.isFinite(created) &&
-      created<=now && expiry>now && expiry-created<=7*86400_000;
-  });
-}
+export { ownerApprovalForPublisher };
 
 export async function preflightPublisher({event, token, fetchImpl=fetch, trustedMainSha, now=Date.now()}) {
   const provenance=verifyPilotRun(event);

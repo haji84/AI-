@@ -35,7 +35,7 @@ jobs:
       - name: Checkout reviewed trusted default-branch code, never PR head
         uses: actions/checkout@v4
         with:
-          ref: main
+          ref: ${{ github.sha }}
           persist-credentials: false
       - name: Set up Node
         uses: actions/setup-node@v4
@@ -63,7 +63,7 @@ jobs:
       - name: Checkout trusted default branch with no retained credentials
         uses: actions/checkout@v4
         with:
-          ref: main
+          ref: ${{ github.sha }}
           persist-credentials: false
       - name: Set up Node
         uses: actions/setup-node@v4
