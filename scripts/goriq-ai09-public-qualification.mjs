@@ -1,4 +1,4 @@
-// UNAPPLIED public experiment. Never formal AI09 approval or a default-model change.
+// Bounded public experiment2; requires its separate exact owner approval. Never formal AI09 approval or a default-model change.
 import {createHash} from 'node:crypto';
 import {Buffer} from 'node:buffer';
 import {execFileSync} from 'node:child_process';
@@ -10,12 +10,13 @@ import {compareToReviewChunks} from '../src/orchestrator/ai09-pr-review-automati
 import {reviewLocalPatch} from '../src/orchestrator/ai09-local-reviewer.mjs';
 import {anchorAudit} from './goriq-ai09-finding-anchors.mjs';
 
-const REPO='haji84/AI-', OWNER='haji84', PR=1868, SCOPE_COMMENT=6431546532;
+const REPO='haji84/AI-', OWNER='haji84', PR=1868, SCOPE_COMMENT=6435130090;
 const BASE='99d4e1568fa15c7cab48fc343cd5521c0f8c9512';
+const REVIEW_HEAD='af2beb1a30237d2d7543841f9b0006c34afc76dc';
 const PATCH='56aefc367cfd749966a0566e25b65a5a7fb5e26ca4d4c42632338b231c53a419';
 const MODEL='qwen3:1.7b', LOCAL='http://127.0.0.1:11434/api/';
 const WORKFLOW='.github/workflows/goriq-ai09-public-qualification.yml';
-export const PROFILE=Object.freeze({parentSha:'af2beb1a30237d2d7543841f9b0006c34afc76dc',
+export const PROFILE=Object.freeze({parentSha:'aeaa95e500e8318d0b7aa5a452af45c2b92a324b',previousRunId:40457734076,
   modelDigest:'8f68893c685c3ddff2aa3fffce2aa60a30bb2da65ca488b61fff134a4d1730e7',
   files:Object.freeze([WORKFLOW,'scripts/goriq-ai09-public-qualification.mjs','tests/ai09-public-qualification.test.mjs'])});
 const digest=b=>createHash('sha256').update(b).digest('hex');
@@ -29,7 +30,7 @@ const controls=[
 ];
 
 export function buildCases(comparison){
-  let plan;try{plan=compareToReviewChunks(comparison,BASE,PROFILE.parentSha);}catch{throw Error('SOURCE_PLAN_INVALID');}
+  let plan;try{plan=compareToReviewChunks(comparison,BASE,REVIEW_HEAD);}catch{throw Error('SOURCE_PLAN_INVALID');}
   if(plan.patchSha256!==PATCH||plan.chunks.length!==5||!same(plan.paths,SOURCE_PATHS))throw Error('SOURCE_PLAN_MISMATCH');
   return controls.map((c,i)=>({id:'control-'+(i+1),kind:'control',paths:[c.path],expected:c.expected,
     patch:'diff --git a/'+c.path+' b/'+c.path+'\n'+c.patch})).concat(plan.chunks.map((c,i)=>({
@@ -45,14 +46,14 @@ export function validateAuthorization(comment,event,env,profile){
     !/^[a-f0-9]{40}$/.test(profile?.head??'')||event.pull_request.head.sha!==profile.head||profile.parent!==PROFILE.parentSha||profile.dirty!==false||
     !Array.isArray(profile.files)||profile.files.length!==3||
     !same(profile.files.map(f=>f.path).sort(),[...PROFILE.files].sort())||
-    profile.files.some(f=>f.status!=='A'||f.mode!=='100644'||!/^[a-f0-9]{64}$/.test(f.sha256)))throw Error('SOURCE_REJECTED');
+    profile.files.some(f=>f.status!=='M'||f.mode!=='100644'||!/^[a-f0-9]{64}$/.test(f.sha256)))throw Error('SOURCE_REJECTED');
   let a;
   try{
     const blocks=[...comment.body.matchAll(/<!-- AI09_PUBLIC_QUALIFICATION_SCOPE -->\s*```json\s*([\s\S]*?)```/g)];
     if(comment.user?.login!==OWNER||comment.user.type!=='User'||blocks.length!==1)throw Error();
     a=JSON.parse(blocks[0][1]);
     const storage=a.storageZeroChargeEvidence;
-    if(a.schemaVersion!==1||a.status!=='APPROVED_BY_OWNER_CHAT'||a.repository!==REPO||a.prNumber!==PR||a.parentSha!==PROFILE.parentSha||
+    if(a.schemaVersion!==1||a.experimentNumber!==2||a.maxModelCalls!==8||a.priorRunId!==PROFILE.previousRunId||a.status!=='APPROVED_BY_OWNER_CHAT'||a.repository!==REPO||a.prNumber!==PR||a.parentSha!==PROFILE.parentSha||
       !/^[a-f0-9]{64}$/.test(a.patchSha256??'')||a.patchSha256!==profile.patchSha256||
       !same(Object.keys(a.files).sort(),[...PROFILE.files].sort())||profile.files.some(f=>a.files[f.path]!==f.sha256)||
       storage?.method!=='OWNER_VERIFIED_EXISTING_HARD_STOP'||storage.verifiedBy!==OWNER||storage.maximumCharge!==0||
@@ -63,15 +64,29 @@ export function validateAuthorization(comment,event,env,profile){
 }
 
 export function validateRunHistory(pages,runId,head){
-  const total=pages[0]?.total_count;
-  const runs=pages.flatMap(p=>p.workflow_runs??[]);
-  const current=runs.filter(r=>r.id===runId);
-  if(!Number.isSafeInteger(total)||total<1||total>1000||pages.some(p=>p.total_count!==total)||runs.length!==total||
-    new Set(runs.map(r=>r.id)).size!==total||current.length!==1||
+  const total=pages[0]?.total_count,runs=pages.flatMap(p=>p.workflow_runs??[]);
+  const current=runs.filter(r=>r.id===runId),prior=runs.filter(r=>r.id===PROFILE.previousRunId);
+  if(total!==2||pages.some(p=>p.total_count!==2)||runs.length!==2||new Set(runs.map(r=>r.id)).size!==2||
+    current.length!==1||prior.length!==1||current[0]===prior[0]||
+    !Number.isSafeInteger(current[0].workflow_id)||current[0].workflow_id<=0||
     current[0].head_sha!==head||current[0].event!=='pull_request'||current[0].run_attempt!==1||
-    current[0].repository?.full_name!==REPO||current[0].path!==WORKFLOW||current[0].run_number!==1||
-    runs.some(r=>r.workflow_id!==current[0].workflow_id||r.path!==WORKFLOW||!Number.isSafeInteger(r.run_number)||
-      r.run_number<current[0].run_number))throw Error('RUN_HISTORY_REJECTED');
+    current[0].repository?.full_name!==REPO||current[0].path!==WORKFLOW||current[0].run_number!==2||current[0].status!=='in_progress'||
+    prior[0].run_number!==1||prior[0].head_sha!==PROFILE.parentSha||prior[0].run_attempt!==1||
+    prior[0].status!=='completed'||prior[0].conclusion!=='failure'||prior[0].event!=='pull_request'||
+    runs.some(r=>r.workflow_id!==current[0].workflow_id||r.path!==WORKFLOW||r.repository?.full_name!==REPO))
+    throw Error('RUN_HISTORY_REJECTED');
+}
+
+export function reviewResponseFormat(paths){
+  return {type:'object',additionalProperties:false,properties:{
+    verdict:{type:'string',enum:['NO_FINDINGS','CHANGES_REQUESTED','INCONCLUSIVE']},
+    findings:{type:'array',maxItems:20,items:{type:'object',additionalProperties:false,
+      properties:{path:{type:'string',enum:[...paths]},line:{type:'integer',minimum:1,maximum:500000},
+        severity:{type:'string',enum:['low','medium','high','critical']},
+        summary:{type:'string',minLength:1,maxLength:500},evidence:{type:'string',minLength:1,maxLength:800},
+        proposedFix:{type:'string',minLength:1,maxLength:800}},
+      required:['path','line','severity','summary','evidence','proposedFix']}},
+  },required:['verdict','findings']};
 }
 
 export async function readBounded(response,limit,progress=()=>{}){
@@ -100,7 +115,7 @@ export async function runQualification({comparison,fetchImpl=fetch,checkpoint=()
   const cases=buildCases(comparison);
   if(!Number.isSafeInteger(provenance?.runId)||!/^[a-f0-9]{40}$/.test(provenance?.sourceHead??''))throw Error('SOURCE_PROVENANCE_INVALID');
   const packet={schemaVersion:1,experiment:'public-candidate-qualification-not-formal-ai09',status:'HOLD',repository:REPO,prNumber:PR,
-    provenance,baseSha:BASE,reviewHead:PROFILE.parentSha,patchSha256:PATCH,model:MODEL,modelDigest:PROFILE.modelDigest,
+    provenance,baseSha:BASE,reviewHead:REVIEW_HEAD,patchSha256:PATCH,model:MODEL,modelDigest:PROFILE.modelDigest,
     planSha256:digest(JSON.stringify(cases)),startedAt:new Date().toISOString(),completedAt:null,
     limits:{calls:8,requestTimeoutMs:90000,responseBytes:65536,numCtx:8192,numPredict:1536,retries:0},
     calls:[],outcomes:[],identityPackets:[],blockers:[],evidenceClass:'AI_ASSERTED',
@@ -127,10 +142,10 @@ export async function runQualification({comparison,fetchImpl=fetch,checkpoint=()
   try{
     await identity('version');await identity('tags');
     for(const c of cases){
-      const review=await reviewLocalPatch({baseSha:BASE,headSha:PROFILE.parentSha,makerRole:'Builder',paths:c.paths,patch:c.patch,
+      const review=await reviewLocalPatch({baseSha:BASE,headSha:REVIEW_HEAD,makerRole:'Builder',paths:c.paths,patch:c.patch,
         infer:async prompt=>{
           if(packet.calls.length>=8)throw Error('CALL_LIMIT');
-          const request=Buffer.from(JSON.stringify({model:MODEL,think:false,stream:false,format:'json',keep_alive:'5m',
+          const request=Buffer.from(JSON.stringify({model:MODEL,think:false,stream:false,format:reviewResponseFormat(c.paths),keep_alive:'5m',
             options:{temperature:0,num_ctx:8192,num_predict:1536},messages:[{role:'user',content:prompt}]}));
           const call={sequence:packet.calls.length+1,id:c.id,kind:c.kind,startedAt:new Date().toISOString(),completedAt:null,
             request:{base64:request.toString('base64'),byteLength:request.length,sha256:digest(request),complete:true},
@@ -201,7 +216,7 @@ async function main(){
   const provenance=await preflight();
   if(mode==='prepare'){
     if(existsSync(input)||existsSync(output))throw Error('EXPERIMENT_ALREADY_STARTED');
-    const comparison=await publicJson('/compare/'+BASE+'...'+PROFILE.parentSha);buildCases(comparison);
+    const comparison=await publicJson('/compare/'+BASE+'...'+REVIEW_HEAD);buildCases(comparison);
     writeFileSync(input,JSON.stringify(comparison),{mode:0o600,flag:'wx'});
   }else{
     if(existsSync(output))throw Error('EXPERIMENT_ALREADY_STARTED');

@@ -8,6 +8,7 @@ on:
       - scripts/goriq-ai09-public-qualification.mjs
       - tests/ai09-public-qualification.test.mjs
 
+# Experiment2 only after separate exact owner approval; known run1 is retained.
 permissions:
   contents: read
 
@@ -40,7 +41,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
-      - name: Verify owner scope, exact content, zero-charge storage proof and complete first-run history
+      - name: Verify new scope, exact content, zero-charge stop and exact second/prior history
         run: node scripts/goriq-ai09-public-qualification.mjs prepare
       - name: Test bounded transport and fail-closed authorization without inference
         run: node --test tests/ai09-public-qualification.test.mjs
@@ -66,7 +67,7 @@ jobs:
           done
           if [ "$ready" != "1" ]; then echo LOCAL_MODEL_START_FAILED; exit 1; fi
           timeout 480s ollama pull qwen3:1.7b
-      - name: At most8 sequential real calls, no retries or paid fallback
+      - name: Experiment2 at most8 sequential calls, strict schema, no retries or paid fallback
         timeout-minutes: 15
         run: node scripts/goriq-ai09-public-qualification.mjs run
       - name: Preserve bounded public raw-byte packet even on HOLD
