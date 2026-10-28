@@ -2,7 +2,7 @@
 
 Status: DESIGN_REVIEW_REQUIRED; no runtime activation. Parent #1865.
 Owner approved reference-change points1-5 in #1869 comment6400729952.
-The unrecovered v0.5 SHA9cf979733d8d4753023b1dd239ba4a5f3be2e0a6a3216c9dda206c089a2b6aa5 stays UNVERIFIED0/8,0/104. Compatibility is UNKNOWN.
+Recovered v0.5 SHA9cf979733d8d4753023b1dd239ba4a5f3be2e0a6a3216c9dda206c089a2b6aa5: static input integrity verified; model reviews UNVERIFIED0/8,0/104, semantic compatibility UNKNOWN.
 Seed incomplete. Freeze archive/manifest/plan after full-scope review; derive chunks from source. Pilot8/full review/reproduction/formal approval are separate.
 
 ## Control and interfaces
