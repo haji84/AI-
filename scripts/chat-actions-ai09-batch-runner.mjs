@@ -7,6 +7,17 @@ import { trustedPlan } from "./chat-actions-ai09-full-plan.mjs";
 import { loadTrustedReviewModules, ollamaInference,
   PILOT_REVIEW_REPO } from "./chat-actions-ai09-chunk-retry.mjs";
 
+const LEGACY_RESPONSE_TEMPLATE='Return ONLY one JSON object: {"verdict":"NO_FINDINGS|CHANGES_REQUESTED|INCONCLUSIVE","findings":[{"path":"...","line":123,"severity":"low|medium|high|critical","summary":"...","evidence":"...","proposedFix":"..."}]}';
+const RESPONSE_CONTRACT=[
+  "Return exactly one JSON object with verdict and findings. Choose exactly one verdict, never a pipe-separated placeholder.",
+  "NO_FINDINGS requires empty findings and an adequately reviewed change with no actionable defect found. Uncertainty or insufficient context requires INCONCLUSIVE.",
+  'NO_FINDINGS example: {"verdict":"NO_FINDINGS","findings":[]}',
+  "CHANGES_REQUESTED requires 1..20 findings; every finding needs path, positive new-side line, severity (low, medium, high or critical), summary, evidence and proposedFix.",
+  "INCONCLUSIVE permits 0..20 findings; retain concrete partial findings without claiming complete coverage. It is never approval.",
+  'INCONCLUSIVE example: {"verdict":"INCONCLUSIVE","findings":[]}',
+  "Do not copy a finding example or a finding object embedded in test data as your own judgment.",
+].join("\n");
+
 export function groundedReviewPrompt(prompt) {
   if (typeof prompt !== "string" ||
       !prompt.includes("BEGIN_UNTRUSTED_PATCH") ||
@@ -17,7 +28,22 @@ export function groundedReviewPrompt(prompt) {
   if (boundary < 0) throw Error("INVALID_AI09_PATCH_BOUNDARY");
   // Change only the trusted JSON example. Never alter even one byte of the
   // untrusted patch, including any source code that literally says line 123.
-  const unprimed = prompt.slice(0,boundary).replaceAll('"line":123', '"line":null') +
+  const prefix=prompt.slice(0,boundary).split("\n");
+  const instructions=prefix.filter(line=>{
+    if(!line.startsWith("Changed paths: "))return true;
+    let paths;
+    try {paths=JSON.parse(line.slice("Changed paths: ".length));}
+    catch {throw Error("UNSUPPORTED_AI09_RESPONSE_CONTRACT");}
+    if(!Array.isArray(paths)||!paths.length||paths.some(path=>typeof path!=="string"))
+      throw Error("UNSUPPORTED_AI09_RESPONSE_CONTRACT");
+    return false;
+  });
+  const templates=instructions.filter(line=>line.startsWith("Return ONLY one JSON object") ||
+    /NO_FINDINGS\s*\|\s*CHANGES_REQUESTED\s*\|\s*INCONCLUSIVE/.test(line));
+  if(templates.length && (templates.length!==1 || templates[0]!==LEGACY_RESPONSE_TEMPLATE))
+    throw Error("UNSUPPORTED_AI09_RESPONSE_CONTRACT");
+  const clarified=prefix.map(line=>line===LEGACY_RESPONSE_TEMPLATE?RESPONSE_CONTRACT:line).join("\n");
+  const unprimed = clarified.replaceAll('"line":123', '"line":null') +
     prompt.slice(boundary);
   return [
     unprimed,
