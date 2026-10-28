@@ -6329,6 +6329,16 @@
         "AUTO-022"
       ],
       "reason": "#1858 fixed owner-approved native activation scope, expiry and configuration preservation. Reuses existing deployment controls; implementation mapping is not live activation or operational acceptance evidence."
+    },
+    {
+      "path": "docs/architecture/common-autonomous-development-v06-draft.md",
+      "sha256": "9507ef4d3c79db00ef0b663714b69916f377a96572ed650a73689ef215e81a86",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "CORE-014",
+        "GOV-005"
+      ],
+      "reason": "#1871 owner-approved successor specification draft for the common development protocol; design proposal only, no functional completion or execution/merge authority."
     }
   ],
   "hash_policy": "utf8-crlf-to-lf-v1;binary-raw"
