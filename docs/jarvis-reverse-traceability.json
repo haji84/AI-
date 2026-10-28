@@ -6332,7 +6332,7 @@
     },
     {
       "path": "docs/architecture/common-autonomous-development-v06-draft.md",
-      "sha256": "cf52da12ae7fdf16e13ab7253443254c6c9eeb9adc8a3eb31cdda9a4c8c30b63",
+      "sha256": "9507ef4d3c79db00ef0b663714b69916f377a96572ed650a73689ef215e81a86",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "CORE-014",
