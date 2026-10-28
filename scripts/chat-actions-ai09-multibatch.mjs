@@ -216,18 +216,24 @@ export function collectAi09Evidence(plan, batchReports, modules) {
     }
     const reports = envelope.chunkReports;
     // A truncated batch remains blocked; do not erase earlier actionable claims.
-    for (const report of reports) {
-      if (report?.reviewer !== "AI-09" || report?.evidenceClass !== "AI_ASSERTED" ||
+    for (const [index, report] of reports.entries()) {
+      const expectedChunk=batch.chunks[index];
+      if (!expectedChunk || report?.reviewer !== "AI-09" || report?.evidenceClass !== "AI_ASSERTED" ||
           report?.githubApprovalSatisfied !== false || report?.mergeAuthorized !== false ||
-          !Array.isArray(report?.findings) ||
-          report.findings.some(f => !batch.paths.includes(f.path))) {
+          report?.independentGitHubAccountVerified !== false || report?.physicalEvidenceVerified !== false ||
+          report?.scope?.headSha !== plan.headSha || report?.scope?.baseSha !== plan.baseSha ||
+          report?.scope?.patchSha256 !== DIGEST(expectedChunk.patch) ||
+          JSON.stringify(report?.scope?.paths) !== JSON.stringify(expectedChunk.paths) ||
+          !Array.isArray(report?.findings) || report.findings.length > 20 ||
+          report.findings.some(f => !expectedChunk.paths.includes(f?.path))) {
         sawBlocker = true;
         continue;
       }
-      if (report.status === "CHANGES_REQUESTED") {
-        sawFindings = true;
+      if (report.status === "INCONCLUSIVE") sawInconclusive = true;
+      if (report.status === "CHANGES_REQUESTED" || report.status === "INCONCLUSIVE") {
+        if (report.findings.length) sawFindings = true;
         unresolved.push(...report.findings.map(f => ({
-          batch:batch.index, ...f, evidenceClass:"AI_ASSERTED_UNVERIFIED",
+          ...f, batch:batch.index, reviewStatus:report.status, evidenceClass:"AI_ASSERTED_UNVERIFIED",
         })));
       }
     }
@@ -238,9 +244,16 @@ export function collectAi09Evidence(plan, batchReports, modules) {
     };
     // Existing native verifier enforces exact per-chunk patch hashes and count.
     // A missing/invalid chunk cannot become NO_ACTIONABLE_FINDINGS.
-    const result = modules.batches.consolidateChunkReviews(
-      reports, scope, batch.chunks);
-    const grounded = modules.anchor.holdUngroundedAdvisory(result,batch.patch);
+    let grounded;
+    try {
+      const result = modules.batches.consolidateChunkReviews(reports, scope, batch.chunks);
+      grounded = modules.anchor.holdUngroundedAdvisory(result,batch.patch);
+    } catch {
+      sawBlocker = true;
+      observations.push({index:batch.index,status:"BLOCKED",reason:"TRUSTED_EVIDENCE_VERIFIER_REJECTED",
+        chunkReceipts:reports.length,expectedChunks:batch.chunkCount,patchSha256:batch.patchSha256});
+      continue;
+    }
     if (grounded.status === "BLOCKED") sawBlocker = true;
     if (grounded.status === "INCONCLUSIVE") sawInconclusive = true;
     if (grounded.status === "CHANGES_REQUESTED") {

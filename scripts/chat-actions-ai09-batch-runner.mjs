@@ -193,7 +193,7 @@ export async function runOneAi09Batch({plan,manifest,index,modules,infer}) {
       });
     }
     chunkReports.push(r);
-    const claims=r.status==="CHANGES_REQUESTED" ? r.findings : [];
+    const claims=r.status==="CHANGES_REQUESTED" || r.status==="INCONCLUSIVE" ? r.findings : [];
     let anchor=null;
     if(claims.length){
       try {anchor=auditAi09ClaimSupport(claims,batch.patch,modules.anchor)}

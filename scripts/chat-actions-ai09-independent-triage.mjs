@@ -45,11 +45,16 @@ export function independentlyAuditAi09Claims({plan,receipts,anchorModule}) {
           report?.reviewer !== "AI-09" || report?.evidenceClass !== "AI_ASSERTED" ||
           report?.githubApprovalSatisfied !== false ||
           report?.mergeAuthorized !== false ||
-          !Array.isArray(report?.findings) || report.findings.length > 20) {
+          report?.independentGitHubAccountVerified !== false || report?.physicalEvidenceVerified !== false ||
+          JSON.stringify(report?.scope?.paths) !== JSON.stringify(expectedChunk.paths) ||
+          !["NO_ACTIONABLE_FINDINGS","CHANGES_REQUESTED","INCONCLUSIVE","BLOCKED"].includes(report?.status) ||
+          !Array.isArray(report?.findings) || report.findings.length > 20 ||
+          report.status === "CHANGES_REQUESTED" && report.findings.length === 0 ||
+          report.findings.some(f => !expectedChunk.paths.includes(f?.path))) {
         invalidReceipts++;
         continue;
       }
-      if (report.status !== "CHANGES_REQUESTED") {
+      if (report.status !== "CHANGES_REQUESTED" && report.status !== "INCONCLUSIVE") {
         if (report.findings.length) invalidReceipts++;
         continue;
       }
@@ -64,7 +69,7 @@ export function independentlyAuditAi09Claims({plan,receipts,anchorModule}) {
         }));
         const anchored=support?.supportedForTriage === true;
         claims.push({
-          batch:receipt.index,chunk:index,ordinal:n,
+          batch:receipt.index,chunk:index,ordinal:n,reviewStatus:report.status,
           findingSha256:findingHash,
           path:f.path,line:f.line,severity:f.severity,
           codeQuoteAnchored:support?.anchored === true,
