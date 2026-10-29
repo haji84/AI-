@@ -47,7 +47,7 @@ export function createLocalOllamaBuilder(input: LocalOllamaBuilderOptions): Buil
   if (!configuredModel || configuredModel.length > 128) throw new Error("Ollama model is required");
   const fallbackModels = input.fallbackModels ?? [];
   if (!Array.isArray(fallbackModels) || fallbackModels.length > 3 ||
-      fallbackModels.some(m => typeof m !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/.test(m)) ||
+      fallbackModels.some(m => typeof m !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/.test(m) || m.includes("//") || m.includes("://")) ||
       new Set([configuredModel, ...fallbackModels]).size !== fallbackModels.length + 1) {
     throw new Error("Local Ollama fallback models must be up to three distinct explicit model names");
   }
