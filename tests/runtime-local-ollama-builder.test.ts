@@ -107,3 +107,66 @@ test("unverified TDD red and nonlocal task never modify files", async () => {
     assert.equal(counts.generate, 0);
   } finally { p.clean(); }
 });
+
+test("explicit installed fallback model works when preferred is absent, without Codex or remote API", async () => {
+  const p = sandbox();
+  try {
+    let generates = 0;
+    const localFetch: typeof fetch = async (input, init) => {
+      const endpoint = String(input);
+      if (endpoint === "http://127.0.0.1:11434/api/tags") {
+        return Response.json({ models: [{ name: "qwen2.5-coder:1.5b" }] });
+      }
+      if (endpoint === "http://127.0.0.1:11434/api/generate") {
+        generates++;
+        assert.equal(JSON.parse(String(init?.body)).model, "qwen2.5-coder:1.5b");
+        return Response.json({ model: "qwen2.5-coder:1.5b", done: true,
+          response: JSON.stringify({ path: file, content: "safe-test" }) });
+      }
+      throw Error("Unexpected external or Codex endpoint: " + endpoint);
+    };
+    const router = createRuntimeBuilderRouter({
+      ...env(p.isolated), GORIQ_LOCAL_OLLAMA_FALLBACK_MODELS: "qwen2.5-coder:1.5b",
+    }, localFetch);
+    const result = await router.execute(request(p.head), []);
+    assert.equal(result.ok, true, JSON.stringify(result));
+    assert.equal(generates, 1);
+    assert.equal(readFileSync(join(p.isolated, file), "utf8"), "safe-test\n");
+    assert.equal(run(p.main, "status", "--porcelain", "-uall"), "");
+  } finally { p.clean(); }
+});
+
+test("no installed approved local model blocks without generating or contacting other builders", async () => {
+  const p = sandbox();
+  try {
+    let calls = 0;
+    const localFetch: typeof fetch = async (input) => {
+      calls++;
+      assert.equal(String(input), "http://127.0.0.1:11434/api/tags");
+      return Response.json({ models: [] });
+    };
+    const router = createRuntimeBuilderRouter({
+      ...env(p.isolated), GORIQ_LOCAL_OLLAMA_FALLBACK_MODELS: "qwen2.5-coder:1.5b",
+    }, localFetch);
+    const result = await router.execute(request(p.head), []);
+    assert.equal(result.ok, false);
+    assert.equal(result.blocker, "real_builder_capability_unavailable");
+    assert.equal(calls, 1);
+    assert.equal(run(p.isolated, "status", "--porcelain", "-uall"), "");
+  } finally { p.clean(); }
+});
+
+test("fallback names must be explicit, distinct, bounded and local-only", () => {
+  const p = sandbox();
+  try {
+    for (const list of [
+      "qwen2.5-coder:3b", "", "qwen2.5-coder:1.5b,qwen2.5-coder:1.5b",
+      "a,b,c,d", "https://example.invalid/model",
+    ]) {
+      if (list === "") continue; // empty means no extra fallback models
+      assert.throws(() => createRuntimeBuilderRouter({
+        ...env(p.isolated), GORIQ_LOCAL_OLLAMA_FALLBACK_MODELS: list,
+      }, mockOllama({ tags: 0, generate: 0 })), /fallback models/);
+    }
+  } finally { p.clean(); }
+});
