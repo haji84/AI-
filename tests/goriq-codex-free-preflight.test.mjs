@@ -4,7 +4,7 @@ import { Buffer } from 'node:buffer';
 import { createServer, request as requestHttp } from 'node:http';
 import { spawnSync } from 'node:child_process';
 import process from 'node:process';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, URL } from 'node:url';
 import { collectCodexFreePreflight, readOllamaInventory } from '../scripts/goriq-codex-free-preflight.mjs';
 
 const digest = 'a'.repeat(64);
