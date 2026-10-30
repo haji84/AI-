@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -238,4 +238,82 @@ test("resident Goal path reconciles an interruption between Change Set and Job c
     assert.equal(builds, 2);
     assert.equal(verifies, 2);
   } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test("repeated verification failure records distinct attempts and identical rejected output blocks without retry loop", async () => {
+  const root = mkdtempSync(join(tmpdir(), "goriq-self-development-recovery-"));
+  try {
+    const jobsPath = join(root, "jobs.json");
+    const changes = new JsonFileDevelopmentChangeSetStore(join(root, "changes.json"));
+    let implementationBuilds = 0;
+    let redBuilds = 0;
+    let verifications = 0;
+    const stages: ResidentDevelopmentStages = {
+      async build({ job, workItemId }) {
+        const red = workItemId.endsWith(":test");
+        if (red) redBuilds++;
+        else implementationBuilds++;
+        const ordinal = red ? 0 : Math.min(implementationBuilds, 2);
+        const revision = red ? "f".repeat(40) : String(ordinal).repeat(40);
+        const digest = red ? "f".repeat(64) : String(ordinal).repeat(64);
+        return createDevelopmentChangeSet({
+          changeSetId: red ? "recovery:red" : "recovery:green:" + implementationBuilds,
+          jobId: job.jobId, workItemId, deviceId: "builder:zbook",
+          baseRevision: BASE_REVISION, candidateRevision: revision,
+          changedPaths: ["src/recovery.ts"], affectedSymbols: [],
+          patchDigest: digest, artifactDigest: digest, artifactRef: "sha256:" + digest,
+          ...(red ? { tddPhase: "red" as const, tddEvidenceDigest: "e".repeat(64) } : {}),
+          evidenceDigest: "c".repeat(64),
+          rollback: { kind: "git-base" as const, reference: BASE_REVISION },
+        }, NOW);
+      },
+      async verify({ plan }) {
+        verifications++;
+        return plan.requiredChecks.map((check) => ({
+          check, verifierId: "verifier:separate",
+          sourceRevision: plan.sourceRevision, artifactDigest: plan.artifactDigest,
+          status: check === "unit" ? "failed" as const : "passed" as const,
+          recordedAt: NOW.toISOString(),
+        }));
+      },
+      async releaseState() { throw new Error("rejected candidate must never reach release"); },
+    };
+    const runtime = () => new ResidentDevelopmentGoalHost({
+      jobs: new JsonFileDevelopmentJobStore(jobsPath), changeSets: changes, stages,
+      planning: { requirementIds: ["CORE-014"], baseRevision: BASE_REVISION,
+        taskScopeId: "issue:1219", maxRisk: "low", targetFiles: ["src/recovery.ts"], contextDigest: "d".repeat(64) },
+    });
+    const input = { goalId: "g-retry", goal: {
+      title: "Implement bounded recovery", successCriteria: ["independently passing tests"], constraints: [],
+    }, context: [] };
+    const first = await runtime().run(input);
+    assert.ok(first.goalEvaluation?.blockers.includes("check_not_passed:unit"));
+    const second = await runtime().run(input);
+    assert.ok(second.goalEvaluation?.blockers.includes("check_not_passed:unit"));
+    const before = (await new JsonFileDevelopmentJobStore(jobsPath).getByGoal("g-retry"))[0]!;
+    assert.equal(before.phase, "RECOVERING");
+    assert.equal(before.attempts.length, 2);
+    assert.equal(before.failureSignatures.length, 1);
+    assert.equal(before.history.filter((item) => item.failureSignature).length, 2);
+    assert.equal(new Set(before.history.filter((item) => item.failureSignature).map((item) => item.transitionId)).size, 2);
+    assert.equal((await changes.list()).filter((item) => item.status === "REJECTED").length, 2);
+    const third = await runtime().run(input);
+    assert.ok(third.goalEvaluation?.blockers.includes("equivalent_failed_candidate"));
+    const after = (await new JsonFileDevelopmentJobStore(jobsPath).getByGoal("g-retry"))[0]!;
+    assert.equal(after.phase, "BLOCKED");
+    assert.equal(after.attempts.length, 2);
+    assert.equal((await changes.list()).filter((item) => item.status === "REJECTED").length, 3);
+    assert.equal(verifications, 2);
+    assert.equal(redBuilds, 1);
+    assert.equal(implementationBuilds, 3);
+    await runtime().run(input);
+    assert.equal(implementationBuilds, 3);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test("resident executor gives each retry a distinct Builder, Change Set and verifier identity", () => {
+  const source = readFileSync("scripts/jarvis-goal-executor.ts", "utf8");
+  assert.ok(source.includes("change-set:" + "\${tddPhase}" + ":attempt:" + "\${job.attempts.length + 1}"));
+  assert.ok(source.includes("build:" + "\${workItem.id}" + ":attempt:" + "\${job.attempts.length + 1}"));
+  assert.ok(source.includes("verify:" + "\${changeSet.changeSetId}"));
 });
