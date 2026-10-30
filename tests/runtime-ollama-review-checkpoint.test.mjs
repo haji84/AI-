@@ -303,4 +303,50 @@ if (process.env.GORIQ_REVIEW_TEST_CHILD === '1') {
       assert.equal(readdirSync(ctx.config.stateDirectory).length, 0);
     } finally { cleanup(ctx); }
   });
+
+  test('restart replays a bound checkpoint with Ollama offline and without another model call', async () => {
+    const ctx = context();
+    try {
+      const first = await run(ctx);
+      assert.equal(first.result.ok, true);
+      assert.equal(first.result.reused, false);
+      let unexpectedCalls = 0;
+      const offlineFetch = async () => {
+        unexpectedCalls++;
+        throw new Error('Ollama unavailable after restart');
+      };
+      const replay = await api.reviewRuntimeCandidate({ ...ctx, fetchImpl: offlineFetch });
+      assert.equal(replay.ok, true);
+      assert.equal(replay.reused, true);
+      assert.equal(replay.receiptDigest, first.result.receiptDigest);
+      assert.equal(replay.evidenceKind, 'TEST_DOUBLE_NOT_REAL_MODEL');
+      assert.equal(replay.formalAI09ReviewExecuted, false);
+      assert.equal(replay.mergeAuthorized, false);
+      assert.equal(unexpectedCalls, 0, 'a bound receipt is replayed before contacting Ollama');
+    } finally { cleanup(ctx); }
+  });
+
+  test('offline Ollama never creates a new receipt for an unreviewed artifact', async () => {
+    const ctx = context();
+    try {
+      const offlineFetch = async () => { throw new Error('Ollama offline'); };
+      const result = await api.reviewRuntimeCandidate({ ...ctx, fetchImpl: offlineFetch });
+      assert.equal(result.ok, false);
+      assert.equal(result.status, 'BLOCKED');
+      assert.equal(readdirSync(ctx.config.stateDirectory).length, 0);
+    } finally { cleanup(ctx); }
+  });
+
+  test('offline replay rejects changed code and cannot reuse an obsolete PASS', async () => {
+    const ctx = context();
+    try {
+      const original = await run(ctx);
+      assert.equal(original.result.ok, true);
+      writeFileSync(join(ctx.config.workspace, 'src/value.mjs'), 'export const value = 2;\\n');
+      const offlineFetch = async () => { throw new Error('Ollama offline'); };
+      const replay = await api.reviewRuntimeCandidate({ ...ctx, fetchImpl: offlineFetch });
+      assert.equal(replay.ok, false);
+      assert.equal(replay.reused, false);
+    } finally { cleanup(ctx); }
+  });
 }
