@@ -190,7 +190,8 @@ export async function reviewRuntimeCandidate({ config, actionId, input, evidence
     requireThat(!inside(candidate.root, state), 'LOCAL_REVIEW_STATE_INSIDE_CANDIDATE');
     mkdirSync(state, { recursive: true, mode: 0o700 });
     requireThat(samePath(realpathSync(state), state) && !lstatSync(state).isSymbolicLink(), 'LOCAL_REVIEW_STATE_SYMLINK');
-    await checkModels(config, fetchImpl);
+    // A previously verified and bound receipt must remain readable if Ollama is offline.
+    // New inference still requires checking installed, digest-pinned local models.
     const evidenceKind = fetchImpl === globalThis.fetch ? 'LOCAL_OLLAMA_OBSERVATION' : 'TEST_DOUBLE_NOT_REAL_MODEL';
     const taskKey = digest(canonical({ repository: config.repository, pullRequest: config.pullRequest, actionId }));
     const binding = { version: 1, taskKey, repository: config.repository, pullRequest: config.pullRequest, actionId,
@@ -205,6 +206,7 @@ export async function reviewRuntimeCandidate({ config, actionId, input, evidence
     writeFileSync(lockFd, JSON.stringify({ pid: process.pid, bindingDigest: digest(canonical(binding)), at: new Date().toISOString() })); fsyncSync(lockFd);
     // No time-based lock stealing. A killed inference needs explicit reconciliation.
     if (existsSync(receiptPath)) return outcome(JSON.parse(safeFile(receiptPath, 256 * 1024).toString('utf8')), receiptPath, true, config, binding, candidate.path);
+    await checkModels(config, fetchImpl);
     const body = { version: 1, binding, evidenceKind, recordedAt: new Date().toISOString(), observation: null, blocker: null };
     try {
       const ps = await localApi(fetchImpl, '/api/ps');
