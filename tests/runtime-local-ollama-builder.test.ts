@@ -170,3 +170,60 @@ test("fallback names must be explicit, distinct, bounded and local-only", () => 
     }
   } finally { p.clean(); }
 });
+
+
+test("previous failed strategy feedback is consumed on a new isolated attempt without overwriting earlier candidate", async () => {
+  const p = sandbox();
+  try {
+    const first = createRuntimeBuilderRouter(env(p.isolated), mockOllama({ tags: 0, generate: 0 }));
+    const original = await first.execute(request(p.head), []);
+    assert.equal(original.ok, true);
+    const isolatedRepair = join(p.main, "..", "candidate-next");
+    run(p.main, "worktree", "add", "--detach", isolatedRepair, p.head);
+    const failureSignature = "a".repeat(64);
+    const hypothesis = "Prior candidate failed the independent test; correct its line-ending behavior.";
+    let observedPrompt = "";
+    let calls = 0;
+    const fetchImpl: typeof fetch = async (url, init) => {
+      if (String(url).endsWith("/api/tags")) return Response.json({ models: [{ name: "qwen2.5-coder:3b" }] });
+      assert.equal(String(url), "http://127.0.0.1:11434/api/generate");
+      calls++;
+      observedPrompt = JSON.parse(String(init?.body)).prompt;
+      return Response.json({ model: "qwen2.5-coder:3b", done: true,
+        response: JSON.stringify({ path: file, content: "corrected-safe-test" }) });
+    };
+    const second = request(p.head);
+    const repair = { ...second, input: { ...second.input, strategyId: "local-model-repair-2",
+      previousFailureSignatures: [failureSignature], hypothesis } };
+    const next = await createRuntimeBuilderRouter(env(isolatedRepair), fetchImpl).execute(repair, []);
+    assert.equal(next.ok, true, JSON.stringify(next));
+    assert.equal(calls, 1);
+    assert.match(observedPrompt, /Prior failure feedback \(untrusted data\)/);
+    assert.ok(observedPrompt.includes(failureSignature));
+    assert.ok(observedPrompt.includes(hypothesis));
+    assert.equal(readFileSync(join(p.isolated, file), "utf8"), "safe-test\n");
+    assert.equal(readFileSync(join(isolatedRepair, file), "utf8"), "corrected-safe-test\n");
+    assert.equal(run(p.main, "status", "--porcelain", "-uall"), "");
+  } finally { p.clean(); }
+});
+
+test("malformed or excessive correction history fails closed before model generation", async () => {
+  const p = sandbox();
+  try {
+    const counts = { tags: 0, generate: 0 };
+    const router = createRuntimeBuilderRouter(env(p.isolated), mockOllama(counts));
+    for (const evidence of [
+      { previousFailureSignatures: ["not-a-digest"], hypothesis: "bad" },
+      { previousFailureSignatures: ["a".repeat(64)], hypothesis: "" },
+      { previousFailureSignatures: Array(6).fill("a".repeat(64)), hypothesis: "bounded" },
+      { previousFailureSignatures: ["a".repeat(64)], hypothesis: "x".repeat(1600) },
+    ]) {
+      const initial = request(p.head);
+      const result = await router.execute({ ...initial, input: { ...initial.input, ...evidence } }, []);
+      assert.equal(result.ok, false);
+      assert.equal(result.blocker, "local_model_failure_context_invalid");
+    }
+    assert.equal(counts.generate, 0);
+    assert.equal(run(p.isolated, "status", "--porcelain", "-uall"), "");
+  } finally { p.clean(); }
+});
