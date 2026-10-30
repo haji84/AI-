@@ -5958,7 +5958,7 @@
     },
     {
       "path": "src/orchestrator/runtime-local-ollama-builder.ts",
-      "sha256": "c2018f25dc34454a798b1058f6e1f77d00fed52445aa41637405cb69674f2eea",
+      "sha256": "aa13e897772f44b95e78f5b56689c5624a04ce8fa2b571fa45c3e3b3f3e96f3d",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-008",
