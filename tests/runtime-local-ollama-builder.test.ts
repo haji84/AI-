@@ -201,6 +201,8 @@ test("previous failed strategy feedback is consumed on a new isolated attempt wi
     assert.match(observedPrompt, /Prior failure feedback \(untrusted data\)/);
     assert.ok(observedPrompt.includes(failureSignature));
     assert.ok(observedPrompt.includes(hypothesis));
+    assert.equal(observedPrompt.includes("never-use-this-codex-endpoint"), false);
+    assert.equal(run(p.main, "status", "--porcelain", "-uall"), "");
     assert.equal(readFileSync(join(p.isolated, file), "utf8"), "safe-test\n");
     assert.equal(readFileSync(join(isolatedRepair, file), "utf8"), "corrected-safe-test\n");
     assert.equal(run(p.main, "status", "--porcelain", "-uall"), "");
@@ -215,6 +217,8 @@ test("malformed or excessive correction history fails closed before model genera
     for (const evidence of [
       { previousFailureSignatures: ["not-a-digest"], hypothesis: "bad" },
       { previousFailureSignatures: ["a".repeat(64)], hypothesis: "" },
+      { previousFailureSignatures: ["a".repeat(64), "a".repeat(64)], hypothesis: "duplicated" },
+      { previousFailureSignatures: ["a".repeat(64)], hypothesis: "untrusted\ncontrol" },
       { previousFailureSignatures: Array(6).fill("a".repeat(64)), hypothesis: "bounded" },
       { previousFailureSignatures: ["a".repeat(64)], hypothesis: "x".repeat(1600) },
     ]) {
