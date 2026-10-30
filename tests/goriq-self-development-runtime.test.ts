@@ -313,7 +313,7 @@ test("repeated verification failure records distinct attempts and identical reje
 
 test("resident executor gives each retry a distinct Builder, Change Set and verifier identity", () => {
   const source = readFileSync("scripts/jarvis-goal-executor.ts", "utf8");
-  assert.ok(source.includes("change-set:" + "\${tddPhase}" + ":attempt:" + "\${job.attempts.length + 1}"));
-  assert.ok(source.includes("build:" + "\${workItem.id}" + ":attempt:" + "\${job.attempts.length + 1}"));
-  assert.ok(source.includes("verify:" + "\${changeSet.changeSetId}"));
+  assert.ok(source.includes("change-set:" + "${tddPhase}" + ":attempt:" + "${job.attempts.length + 1}"));
+  assert.ok(source.includes("build:" + "${workItem.id}" + ":attempt:" + "${job.attempts.length + 1}"));
+  assert.ok(source.includes("verify:" + "${changeSet.changeSetId}"));
 });

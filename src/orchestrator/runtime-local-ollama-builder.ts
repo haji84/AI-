@@ -91,7 +91,10 @@ export function createLocalOllamaBuilder(input: LocalOllamaBuilderOptions): Buil
       if (!Array.isArray(priorFailures) || priorFailures.length > 5 ||
         priorFailures.some((signature) => typeof signature !== "string" || !/^[a-f0-9]{64}$/.test(signature)) ||
         new Set(priorFailures).size !== priorFailures.length ||
-        repairHypothesis.length > 1200 || /[\u0000-\u001f\u007f]/.test(repairHypothesis) ||
+        repairHypothesis.length > 1200 || [...repairHypothesis].some((character) => {
+          const code = character.charCodeAt(0);
+          return code <= 31 || code === 127;
+        }) ||
         (priorFailures.length > 0 && !repairHypothesis)) {
         return { ok: false, summary: "Previous local failure context is malformed or outside approved bounds",
           blocker: "local_model_failure_context_invalid" };
