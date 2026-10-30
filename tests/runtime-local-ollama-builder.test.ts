@@ -227,3 +227,19 @@ test("malformed or excessive correction history fails closed before model genera
     assert.equal(run(p.isolated, "status", "--porcelain", "-uall"), "");
   } finally { p.clean(); }
 });
+
+
+test("an initial scoped strategy hypothesis does not require fabricated prior failures", async () => {
+  const p = sandbox();
+  try {
+    const counts = { tags: 0, generate: 0 };
+    const router = createRuntimeBuilderRouter(env(p.isolated), mockOllama(counts));
+    const start = request(p.head);
+    const result = await router.execute({ ...start, input: {
+      ...start.input, hypothesis: "Use a small pure implementation with no dependencies.",
+    } }, []);
+    assert.equal(result.ok, true, JSON.stringify(result));
+    assert.equal(counts.generate, 1);
+    assert.equal(readFileSync(join(p.isolated, file), "utf8"), "safe-test\n");
+  } finally { p.clean(); }
+});
