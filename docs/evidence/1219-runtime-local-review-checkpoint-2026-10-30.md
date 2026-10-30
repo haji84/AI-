@@ -95,3 +95,45 @@ Read: root AGENTS, PROJECT_STATE, ROADMAP; issue #1219 and PRs #1824/#1827; runt
 local Builder/router, resident host, job/change-set stores, verification plan, existing
 AI09 reviewer and related prepared-write contract. Compass write-back was not performed;
 this PR evidence record is a source handoff, not a claim that the runtime Goal is complete.
+
+## Addendum: offline checkpoint replay, October 30, 2026
+
+- Owner's Codex-free smoke demonstrated that a small candidate can be generated,
+  tested and re-reviewed by a different local model. This is **not** a formal
+  AI09 review or autonomous Goal/PR integration proof.
+- Before this change, `reviewRuntimeCandidate()` contacted Ollama even when
+  a matching stored receipt already existed. If the model was unavailable
+  after restart, valid matching evidence could not be replayed.
+- Added three tests to the existing PR #1824. The first CI run was stopped by
+  an existing test-file lint violation; its single output statement was made
+  lint-clean, without changing the test's assertions.
+- **RED evidence:** exact head `2b493c22be6e9676e3429f47b4b25af77efb3903`,
+  CI run `41020768829`: 2,750 tests / 2,736 pass / 9 fail / 5 skipped.
+  One targeted failure was offline replay; the other eight were pre-existing
+  reverse-traceability mapping drift, not evidence of the new replay logic.
+- **GREEN evidence:** exact head `47cb5a65e39d73f647eb12425bf129b23438ca13`,
+  CI run `41021045658`: 2,750 tests / 2,737 pass / 8 fail / 5 skipped.
+  All three new tests passed (offline reuse with zero HTTP calls, unreviewed
+  candidate rejection, and modified candidate rejection). Only existing
+  canonical-mapping errors remained.
+- The fix checks workspace, candidate bytes and deterministic test binding,
+  then verifies a create-only saved receipt checksum and exact binding
+  **before** requiring a live model. Only a cache MISS requires local
+  installed-model/digest checks and new inference. It does not promote an
+  unsigned local observation to a signed verifier or release approval.
+- Mapping reconciliation commit
+  `f3573420022be590fea66f9ae6e82cec8298ee04` updates only the
+  `runtime-development-verifier.ts` hash and adds the two
+  `runtime-ollama-review-checkpoint` source/declaration surfaces in
+  `docs/jarvis-reverse-traceability.json`. All original requirement
+  status, human gates, owners and security decisions remain unchanged.
+- **Latest exact-head full CI is not yet confirmed.** Do not assume the
+  mapping update has passed merely because the targeted replay tests passed.
+
+Remaining acceptance: real ZBook runtime and source-of-truth connection;
+genuine scoped same-task correction of a failed candidate; separately rooted
+and signed AI09 verification; authenticated durable persistence across distinct
+GitHub Actions executions; subsequent Job continuity; protected integration,
+post-integration physical checks and owner-approved critical changes.
+No owner PC, secret, service, workflow, model or production environment was
+changed by this source-only increment. PR remains Draft/HOLD.
