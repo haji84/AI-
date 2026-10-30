@@ -5958,7 +5958,7 @@
     },
     {
       "path": "src/orchestrator/runtime-local-ollama-builder.ts",
-      "sha256": "cf3654f4f0f7e63e6f08721811726d5592db2410439f550b65c25e45b9648f83",
+      "sha256": "c2018f25dc34454a798b1058f6e1f77d00fed52445aa41637405cb69674f2eea",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-008",
@@ -5966,7 +5966,7 @@
         "AUTO-010",
         "AUTO-015"
       ],
-      "reason": "#1219 Codex-independent local Ollama Builder: explicit detached-clean-worktree and new-file allowlist, exclusive write, no existing-file overwrite or remote fallback. This is implementation mapping, not independent verifier or complete Goal E2E evidence."
+      "reason": "#1219 Codex-independent local Ollama Builder: explicit detached-clean-worktree and new-file allowlist, exclusive write, no existing-file overwrite or remote fallback. This is implementation mapping, not independent verifier or complete Goal E2E evidence. #1219 subsequent opt-in bounded prior-failure signature/hypothesis prompts for a new clean isolated candidate; observed model feedback is advisory only, with unchanged create-only write and release limits."
     },
     {
       "path": "src/orchestrator/runtime-ollama-review-checkpoint.d.mts",
