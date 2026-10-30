@@ -72,7 +72,7 @@ const cleanup = ctx => rmSync(ctx.root, { recursive: true, force: true });
 if (process.env.GORIQ_REVIEW_TEST_CHILD === '1') {
   const ctx = JSON.parse(readFileSync(process.argv[2], 'utf8'));
   const { result, calls } = await run(ctx);
-  console.log(JSON.stringify({ result, generateCalls: generations(calls) }));
+  process.stdout.write(JSON.stringify({ result, generateCalls: generations(calls) }) + '\n');
 } else {
   test('new runtime entry point exists', () => assert.equal(typeof api?.reviewRuntimeCandidate, 'function'));
   test('actual runtime verifier runs separate review after bound checks', async () => {
