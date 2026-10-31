@@ -1,5 +1,6 @@
 import { isAbsolute, resolve } from "node:path";
 import { localOllamaFixtureSourcePath, localOllamaFixtureTestPath } from "./local-ollama-tdd.ts";
+import { realpathSync, statSync } from "node:fs";
 
 /**
  * Repository discovery for the resident Goal Executor.
@@ -29,6 +30,16 @@ export function resolveResidentDevelopmentScope(
   if (!workspace || !isAbsolute(workspace) || resolve(workspace) === resolve(processRoot)) {
     throw new Error("Local Ollama Goal must use a distinct absolute isolated workspace");
   }
+  let sameRoot: boolean;
+  try {
+    const candidate = statSync(realpathSync(workspace), { bigint: true });
+    const resident = statSync(realpathSync(processRoot), { bigint: true });
+    if (!candidate.isDirectory() || !resident.isDirectory()) throw new Error("Directory required");
+    sameRoot = candidate.dev === resident.dev && candidate.ino === resident.ino;
+  } catch {
+    throw new Error("Local Ollama Goal requires an existing isolated workspace and resident root");
+  }
+  if (sameRoot) throw new Error("Local Ollama Goal must use a distinct absolute isolated workspace");
   // Only the special bounded fixture may add a second path for its trusted
   // RED test. All other Goals retain the original exact one-file contract.
   const profile = env.GORIQ_LOCAL_OLLAMA_TDD_PROFILE?.trim();

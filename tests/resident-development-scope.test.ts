@@ -1,11 +1,16 @@
 import assert from "node:assert/strict";
-import test from "node:test";
-import { resolve } from "node:path";
+import test, { after } from "node:test";
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { resolveResidentDevelopmentScope } from "../src/orchestrator/resident-development-scope.ts";
 
-const resident = resolve(tmpdir(), "goriq-resident-main");
-const isolated = resolve(tmpdir(), "goriq-owner-opt-in-candidate");
+const root = mkdtempSync(join(tmpdir(), "goriq-scope-identity-"));
+after(() => rmSync(root, { recursive: true, force: true }));
+const resident = resolve(root, "resident");
+const isolated = resolve(root, "isolated");
+mkdirSync(resident);
+mkdirSync(isolated);
 const pinned = "tests/fixtures/local-goal-acceptance.py";
 const local = {
   GORIQ_LOCAL_OLLAMA_BUILDER_ENABLED: "1",
@@ -55,4 +60,24 @@ test("Ollama mode never widens scope using unrelated Goal intake paths", () => {
   ]);
   assert.deepEqual(result.targetFiles, [pinned]);
   assert.notEqual(result.repositoryRoot, resident);
+});
+
+test("local scope rejects a filesystem alias of the resident root", () => {
+  const alias = join(root, "resident-alias");
+  symlinkSync(resident, alias, process.platform === "win32" ? "junction" : "dir");
+  assert.throws(() => resolveResidentDevelopmentScope({ ...local,
+    GORIQ_LOCAL_OLLAMA_BUILDER_WORKSPACE: alias }, resident, [], []), /distinct absolute/);
+  if (process.platform === "win32") {
+    assert.throws(() => resolveResidentDevelopmentScope({ ...local,
+      GORIQ_LOCAL_OLLAMA_BUILDER_WORKSPACE: resident.toUpperCase() }, resident, [], []), /distinct absolute/);
+  }
+});
+
+test("local scope refuses an absent or non-directory isolated root", () => {
+  assert.throws(() => resolveResidentDevelopmentScope({ ...local,
+    GORIQ_LOCAL_OLLAMA_BUILDER_WORKSPACE: join(root, "missing") }, resident, [], []), /existing isolated/);
+  const file = join(root, "ordinary-file");
+  writeFileSync(file, "fixture");
+  assert.throws(() => resolveResidentDevelopmentScope({ ...local,
+    GORIQ_LOCAL_OLLAMA_BUILDER_WORKSPACE: file }, resident, [], []), /existing isolated/);
 });
