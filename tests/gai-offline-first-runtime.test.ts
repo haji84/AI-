@@ -192,7 +192,11 @@ test("reconnect publishes a saved offline result without executing the worker ag
 });
 
 
-test("claim heartbeat keeps long worker execution valid beyond the initial lease", async () => {
+test("claim heartbeat keeps long worker execution valid beyond the initial lease", { timeout: 5000 }, async (t) => {
+  const start = Date.parse("2026-10-31T00:00:00.000Z");
+  // Advance lease time only after each persisted heartbeat. Host scheduling
+  // delays must not turn this unit test into a real 30 ms availability claim.
+  t.mock.timers.enable({ apis: ["Date"], now: start });
   const tasks = new DurableTaskRuntime(new MemoryDurableTaskStore());
   await tasks.enqueue({
     id: "long-fenced",
@@ -201,11 +205,26 @@ test("claim heartbeat keeps long worker execution valid beyond the initial lease
     migrationClass: "MIGRATABLE",
   });
 
+  let started!: () => void;
+  let finish!: () => void;
+  const workerStarted = new Promise<void>((resolve) => { started = resolve; });
+  const workerFinished = new Promise<void>((resolve) => { finish = resolve; });
+  let heartbeatObserved: (() => void) | undefined;
+  const heartbeatClaimed = tasks.heartbeatClaimed.bind(tasks);
+  let renewals = 0;
+  tasks.heartbeatClaimed = async (...args) => {
+    const claim = await heartbeatClaimed(...args);
+    renewals += 1;
+    heartbeatObserved?.();
+    heartbeatObserved = undefined;
+    return claim;
+  };
   const worker = createFunctionWorker({
     descriptor: offlineWorkerDescriptor,
     health: () => ({ connectivity: "offline" }),
     run: async () => {
-      await new Promise((resolve) => setTimeout(resolve, 90));
+      started();
+      await workerFinished;
       return "long-result";
     },
   });
@@ -218,7 +237,23 @@ test("claim heartbeat keeps long worker execution valid beyond the initial lease
     heartbeatIntervalMs: 5,
   });
 
-  const outcome = await coordinator.runNext();
+  const execution = coordinator.runNext();
+  void execution.catch(() => {}); // Keep a failing assertion from leaking an unhandled worker promise.
+  t.after(async () => { finish(); await execution.catch(() => {}); });
+  await workerStarted;
+  const initialLease = (await tasks.get("long-fenced"))!.leaseUntil!;
+  for (let step = 1; step <= 18; step += 1) {
+    const renewed = new Promise<void>((resolve) => { heartbeatObserved = resolve; });
+    t.mock.timers.setTime(start + step * 5);
+    await renewed;
+    const persisted = await tasks.get("long-fenced");
+    assert.equal(persisted?.leaseUntil, new Date(start + step * 5 + 30).toISOString());
+    assert.equal(persisted?.executionEpoch, 1);
+  }
+  assert.equal(renewals, 18);
+  assert.ok(Date.now() > Date.parse(initialLease));
+  finish();
+  const outcome = await execution;
   assert.equal(outcome?.task.status, "completed");
   assert.equal(outcome?.task.executionEpoch, 1);
   assert.equal(outcome?.task.fencingToken, undefined);
