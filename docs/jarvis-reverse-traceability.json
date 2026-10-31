@@ -5908,7 +5908,7 @@
     },
     {
       "path": "src/orchestrator/resident-development-scope.ts",
-      "sha256": "f9db34fad357c8d91c49fc84a5db8b6a68eeca4cf7d373365367fe0fc45eb4de",
+      "sha256": "de2b717669ff859a1875b9bf2a25c1a5059b0f647b85a8ab10794c42e10876c3",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",

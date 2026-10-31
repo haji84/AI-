@@ -1,4 +1,5 @@
 import { isAbsolute, resolve } from "node:path";
+import { realpathSync, statSync } from "node:fs";
 
 /**
  * Repository discovery for the resident Goal Executor.
@@ -28,6 +29,16 @@ export function resolveResidentDevelopmentScope(
   if (!workspace || !isAbsolute(workspace) || resolve(workspace) === resolve(processRoot)) {
     throw new Error("Local Ollama Goal must use a distinct absolute isolated workspace");
   }
+  let sameRoot: boolean;
+  try {
+    const candidate = statSync(realpathSync(workspace), { bigint: true });
+    const resident = statSync(realpathSync(processRoot), { bigint: true });
+    if (!candidate.isDirectory() || !resident.isDirectory()) throw new Error("Directory required");
+    sameRoot = candidate.dev === resident.dev && candidate.ino === resident.ino;
+  } catch {
+    throw new Error("Local Ollama Goal requires an existing isolated workspace and resident root");
+  }
+  if (sameRoot) throw new Error("Local Ollama Goal must use a distinct absolute isolated workspace");
   // The resident TDD host currently admits only one bounded file per Builder
   // call. It must not silently widen that scope using Goal text.
   if (paths.length !== 1 || !/^(?:src|scripts|tests|docs)\/[A-Za-z0-9_./-]+$/.test(paths[0])
