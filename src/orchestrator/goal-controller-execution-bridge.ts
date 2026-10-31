@@ -57,7 +57,6 @@ export class GoalControllerExecutionBridge {
       if (report.stopReason === "approval_required") {
         return { decision, executed: true, report, reports, reason: "human_gate" };
       }
-      if (report.stopReason === "paused") return { decision, executed: true, report, reports, reason: "paused" };
       if (report.goalEvaluation?.remainingGaps.some(gap => gap.startsWith("resource_wait:"))) {
         return { decision, executed: true, report, reports, reason: "resource_wait" };
       }
