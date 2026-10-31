@@ -1,0 +1,141 @@
+{
+  "schemaVersion": 1,
+  "goalIssue": 1219,
+  "scope": "Historical CI failure and recovery evidence; no physical or formal AI09 acceptance",
+  "recordedAt": "2026-10-31T18:38:00Z",
+  "main": "99d4e1568fa15c7cab48fc343cd5521c0f8c9512",
+  "failures": [
+    {
+      "head": "38959ab93a68e5b6ea8379b9e6be9d20394b740f",
+      "run": 41227647494,
+      "url": "https://github.com/haji84/AI-/actions/runs/41227647494",
+      "stage": "typecheck",
+      "observed": "FAILED",
+      "error": "src/orchestrator/goal-controller-execution-bridge.ts(60,11): TS2367 duplicate paused comparison after an earlier return",
+      "checksReached": [
+        "lint",
+        "typecheck"
+      ],
+      "checksNotReached": [
+        "unit",
+        "integration",
+        "security",
+        "build"
+      ],
+      "artifact": {
+        "id": 13052836033,
+        "bytes": 5417,
+        "sha256": "76bf95626030524544d66109e560870c6563c45f2ae2719dc678f3b305ae442b",
+        "downloadedHashMatched": true
+      },
+      "correction": "Removed only the unreachable duplicate branch at1a8474e; kept the earlier pause priority, all guards and budgets",
+      "localTypecheckAfterCorrection": "PASS"
+    },
+    {
+      "head": "1a8474ef4f9e72411f9d67a02fea82a311685381",
+      "run": 41227982847,
+      "url": "https://github.com/haji84/AI-/actions/runs/41227982847",
+      "stage": "unit",
+      "observed": "FAILED",
+      "error": "development-resource-executor fixture: git rev-parse HEAD failed because the restricted verifier source intentionally has no caller .git metadata",
+      "checksReached": [
+        "lint",
+        "typecheck",
+        "unit"
+      ],
+      "checksNotReached": [
+        "integration",
+        "security",
+        "build"
+      ],
+      "artifact": {
+        "id": 13052203238,
+        "bytes": 97193,
+        "sha256": "4f603a5e834a640f73eeab7145b3de6cf089b8facc0e59910f143fd65f6b16b3",
+        "downloadedHashMatched": true
+      },
+      "ordinaryProjectTests": {
+        "pass": 2967,
+        "fail": 0,
+        "skipped": 6
+      },
+      "security": {
+        "pass": 332,
+        "fail": 0,
+        "skipped": 0
+      },
+      "correction": "Fixture owns a new temporary Git repository and invokes the absolute source executor there; no caller Git mount or relaxed container access",
+      "localExecutorTestAfterCorrection": "PASS"
+    },
+    {
+      "head": "1fcac5f655a733301dda2a7b338fcb064aa20ca4",
+      "run": 41229288696,
+      "url": "https://github.com/haji84/AI-/actions/runs/41229288696",
+      "stage": "unit",
+      "observed": "TIMED_OUT",
+      "errorCode": "ETIMEDOUT",
+      "signal": "SIGKILL",
+      "timeoutMs": 180000,
+      "stdoutBoundary": "resident sequence fixture starts after red-proof tests; no completed Broker sequence result before timeout",
+      "checksReached": [
+        "lint",
+        "typecheck",
+        "unit"
+      ],
+      "checksNotReached": [
+        "integration",
+        "security",
+        "build"
+      ],
+      "artifact": {
+        "id": 13053575291,
+        "bytes": 87752,
+        "sha256": "922dda74ac62b4ea40b86fcc5a7b8a5ec3e90dc86316c549245d8f28f5d21607",
+        "downloadedHashMatched": true
+      },
+      "ordinaryProjectChecks": "SUCCESS",
+      "diagnosis": {
+        "kind": "SOURCE_AND_LIMIT_INFERENCE_PENDING_HOSTED_RECHECK",
+        "restrictedScratchMiB": 1536,
+        "nativeMinimumFreeDiskMiB": 8192,
+        "fixtureUsedMockModelButNativeResourceProbe": true
+      },
+      "correction": "Only fake-model Broker test preloads an exact-module synthetic telemetry hook and owns its lease-state directory. Common admission policy/lock remain real. A probe-written JSONL record explicitly says TEST_DOUBLE_NOT_NATIVE_RESOURCES. No production source/configuration, limit or workflow change.",
+      "localBrokerTestAfterCorrection": {
+        "pass": 1,
+        "fail": 0,
+        "skipped": 0,
+        "elapsedMs": 78401.0311
+      },
+      "rejectedLocalDiagnosticApproaches": [
+        "mock.module experimental flag is invalid in NODE_OPTIONS; no such flag retained",
+        "Successful executor stderr is captured by Broker, so an outer stderr assertion was invalid; replaced with a probe-written owned JSONL evidence channel"
+      ]
+    }
+  ],
+  "preservedControls": {
+    "containerTimeoutMs": 180000,
+    "containerMemoryBytes": 2147483648,
+    "containerPids": 128,
+    "containerTmpfsMiB": 1536,
+    "containerNetwork": "none",
+    "containerUid": 65534,
+    "admissionMinimumFreeDiskMiB": 8192,
+    "admissionPolicyAndLeaseUnchanged": true,
+    "workflowUnchanged": true,
+    "noTestSkippedForTheseCorrections": true,
+    "cleanupObserved": true,
+    "rawArtifactsRetainedLocally": true
+  },
+  "limits": [
+    "Historical partial/failed signed receipts do not prove six-check acceptance.",
+    "Synthetic model/resource/signature fixtures are software evidence only.",
+    "Artifact retention is bounded; public digest/diagnosis records do not recreate the complete raw logs.",
+    "A fresh exact-head hosted-container run is required after these corrections."
+  ],
+  "formalAI09Executed": false,
+  "physicalAcceptanceVerified": false,
+  "mergeAuthorized": false,
+  "publisherEnabled": false,
+  "overallGoalAchieved": false
+}

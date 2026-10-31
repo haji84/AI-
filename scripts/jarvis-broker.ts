@@ -13,6 +13,7 @@ import { execFileSync, spawn } from "node:child_process";
 import { createHash, createPublicKey, randomBytes, timingSafeEqual } from "node:crypto";
 import { existsSync, readFileSync, lstatSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
+import { createResidentReceiptWakes } from "../src/orchestrator/resident-receipt-wakes.ts";
 import { OwnerInvitationStore, INVITATION_PREFIX } from "../src/jarvis/owner-invitation.ts";
 import { generateOwnerRecoveryCode, OwnerRecoveryRejectedError, TrustedDeviceRegistry } from "../src/jarvis/trusted-device-registry.ts";
 import { GoogleOwnerStateRegistry } from "../src/jarvis/google-owner-state-registry.ts";
@@ -97,8 +98,10 @@ const goalExecutionContexts = new CompassGoalExecutionContextStore(compass);
 const cognitive = new CognitiveService(compassPath, cognitiveHostOptions(process.env));
 const ownerRequirements = new OwnerRequirementIntake(compass);
 const specificationPublisher = createSpecificationPublisher({root:fileURLToPath(new URL("../",import.meta.url)),intake:ownerRequirements,token:process.env.GITHUB_TOKEN});
+const goalWorkStates = new CompassWorkStateStoreAdapter(compass);
 const goalController = new GoalControllerRuntime({
-  registry: new CompassGoalRegistryAdapter(compass),
+  registry: new CompassGoalRegistryAdapter(compass, goalWorkStates),
+  workStateStore: goalWorkStates,
   decisionStore: new CompassGoalDecisionStoreAdapter(compass),
 });
 const deviceDevelopmentIntake = new DeviceDevelopmentIntake({
@@ -998,9 +1001,43 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
 const server = createServer((request, response) => {
   handler(request, response).catch((error) => { console.error("[jarvis-broker] request failed", error); json(response, 500, { message: error instanceof Error ? error.message : "internal error" }); });
 });
+const verifierReceiptWakes = createResidentReceiptWakes(process.env, process.cwd());
+let verifierReceiptTimer: NodeJS.Timeout | undefined;
+
 server.listen(port, host, () => {
   console.log(`[jarvis-broker] listening on http://${host}:${port}`);
   console.log(`[jarvis-broker] nodes=${plane.snapshot().stats.registered} tasks=${plane.snapshot().tasks.length} workerApk=${workerApkInfo() ? "ready" : "missing"}`);
+  // A signer is a separate OS/VM principal. New receipt bytes wake an already
+  // accepted non-terminal Goal, never create a new Goal or grant approval.
+  // Signature, artifact binding and all gates are checked by Goal Executor.
+  if (verifierReceiptWakes.length) {
+    let inspecting = false;
+    verifierReceiptTimer = setInterval(() => {
+      if (inspecting || activeGoalExecutions.size > 0) return;
+      inspecting = true;
+      void (async () => {
+        const active = (await new CompassGoalRegistryAdapter(compass).listActive())[0];
+        if (!active) return;
+        const run = await workRuns.getByGoal(active.goalId);
+        if (!run || !["RUNNING", "VERIFYING"].includes(run.phase) ||
+            activeGoalExecutions.has(active.goalId)) return;
+        if (!verifierReceiptWakes.map(wake => wake.changedDigest()).some(Boolean)) return;
+        scheduleGoalExecution({
+          action: "CONTINUE_GOAL", goalId: active.goalId, resolution: {
+            kind: "EXISTING_GOAL", intent: "COMMAND", goal: active,
+            reason: "independent_verifier_receipt_arrived",
+            intake: { id: `verifier-resume-${active.goalId}`, source: "event",
+              text: "Resume accepted Goal after signed verifier receipt",
+              sourceContext: {}, idempotencyKey: `verifier-resume-${active.goalId}`,
+              goalHint: active.goalId },
+          },
+        }, goalExecutionContexts.get(active.goalId));
+      })().catch(error => console.error("[goriq-goal] verifier_receipt_wake_failed",
+        error instanceof Error ? error.name : "unknown"))
+        .finally(() => { inspecting = false; });
+    }, 15000);
+    verifierReceiptTimer.unref();
+  }
   // Only a previously accepted, non-terminal Work Run has execution authority.
   // A Broker restart must resume it without another owner message.
   void (async () => {
@@ -1018,6 +1055,7 @@ server.listen(port, host, () => {
   })().catch((error) => console.error("[goriq-goal] startup_resume_failed", error));
 });
 function shutdown(): void {
+  if (verifierReceiptTimer) clearInterval(verifierReceiptTimer);
   resourceWaitScheduler.close();
   for (const child of activeGoalExecutions.values()) {
     if (child.exitCode === null && child.signalCode === null) child.kill();

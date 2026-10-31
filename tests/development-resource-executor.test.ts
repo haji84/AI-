@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
-import { execFile } from "node:child_process";
+import { execFile, execFileSync } from "node:child_process";
 import { once } from "node:events";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join, resolve, sep } from "node:path";
 import test from "node:test";
 import { promisify } from "node:util";
+import { fileURLToPath } from "node:url";
 import { CompassStore } from "../src/compass/store.ts";
 import { CompassGoalRegistryAdapter } from "../src/orchestrator/compass-goal-controller.ts";
 import { CompassWorkRunStore } from "../src/orchestrator/compass-work-run-store.ts";
@@ -14,8 +15,21 @@ import { JsonFileDevelopmentJobStore } from "../src/orchestrator/development-job
 import { nextResourceWait } from "../src/orchestrator/development-resource-wait.ts";
 import { createQueuedWorkRun } from "../src/orchestrator/work-run-state.ts";
 
-test("real Goal executor persists HTTP pressure through WorkRun and DevelopmentJob; due/deadline gates prevent repeated requests", { timeout: 15_000 }, async () => {
+test("real Goal executor persists HTTP pressure through WorkRun and DevelopmentJob; due/deadline gates prevent repeated requests", { timeout: 15_000 }, async t => {
   const root = mkdtempSync(join(tmpdir(), "goriq-resource-executor-"));
+  t.after(() => {
+    assert.ok(resolve(root).startsWith(resolve(tmpdir()) + sep));
+    rmSync(root, { recursive: true, force: true });
+  });
+  const repository = join(root, "repository");
+  mkdirSync(join(repository, "tests", "fixtures"), { recursive: true });
+  writeFileSync(join(repository, "tests", "fixtures", "autonomous-builder-e2e.txt"), "fixture\n");
+  // A restricted verifier receives source without the caller's .git directory.
+  // Own this fixture's repository rather than granting the container more access.
+  const git = (...args: string[]) => execFileSync("git", args, { cwd: repository, windowsHide: true, stdio: "pipe" });
+  git("init", "-q"); git("config", "user.name", "Fixture"); git("config", "user.email", "fixture@example.invalid");
+  git("add", "."); git("commit", "-qm", "resource fixture baseline");
+  const executor = fileURLToPath(new URL("../scripts/jarvis-goal-executor.ts", import.meta.url));
   const path = join(root, "compass.sqlite");
   let calls = 0;
   const endpoint = createServer((request, response) => {
@@ -33,7 +47,8 @@ test("real Goal executor persists HTTP pressure through WorkRun and DevelopmentJ
     const active = await new CompassGoalRegistryAdapter(db).create({ title: "Implement local test fixture", description: "Build a local fixture", successCriteria: ["verified"], constraints: [] });
     const runs = new CompassWorkRunStore(db);
     await runs.put(createQueuedWorkRun(active.goalId));
-    const invoke = () => promisify(execFile)(process.execPath, ["scripts/jarvis-goal-executor.ts"], { timeout: 5000, windowsHide: true, maxBuffer: 16_384, env: { ...process.env, GITHUB_TOKEN: "", CODE_BUILDER_LOCAL_URL: "http://127.0.0.1:" + (endpoint.address() as { port: number }).port, CODE_BUILDER_LOCAL_TOKEN: "resource-fixture-token", JARVIS_GOAL_EXECUTION_GOAL_ID: active.goalId, JARVIS_GOAL_EXECUTION_COMPASS_PATH: path, JARVIS_GOAL_EXECUTION_CONTEXT_B64: "", GORIQ_SELF_DEVELOPMENT_RUNTIME: "1", GORIQ_SELF_DEVELOPMENT_RELEASE_URL: "", GORIQ_SELF_DEVELOPMENT_RELEASE_TOKEN: "", GORIQ_SELF_DEVELOPMENT_TASK_AUTHORIZATION_JSON: "", GORIQ_SELF_DEVELOPMENT_TARGET_FILES: "tests/fixtures/autonomous-builder-e2e.txt" } });
+    const invoke = () => promisify(execFile)(process.execPath, [executor], { cwd: repository,
+      timeout: 5000, windowsHide: true, maxBuffer: 16_384, env: { ...process.env, GITHUB_TOKEN: "", CODE_BUILDER_LOCAL_URL: "http://127.0.0.1:" + (endpoint.address() as { port: number }).port, CODE_BUILDER_LOCAL_TOKEN: "resource-fixture-token", JARVIS_GOAL_EXECUTION_GOAL_ID: active.goalId, JARVIS_GOAL_EXECUTION_COMPASS_PATH: path, JARVIS_GOAL_EXECUTION_CONTEXT_B64: "", GORIQ_SELF_DEVELOPMENT_RUNTIME: "1", GORIQ_SELF_DEVELOPMENT_RELEASE_URL: "", GORIQ_SELF_DEVELOPMENT_RELEASE_TOKEN: "", GORIQ_SELF_DEVELOPMENT_TASK_AUTHORIZATION_JSON: "", GORIQ_SELF_DEVELOPMENT_TARGET_FILES: "tests/fixtures/autonomous-builder-e2e.txt" } });
     await invoke();
     const waiting = await runs.getByGoal(active.goalId);
     assert.equal(waiting?.phase, "RUNNING"); assert.equal(waiting?.resourceWait?.checks, 1);
@@ -49,7 +64,5 @@ test("real Goal executor persists HTTP pressure through WorkRun and DevelopmentJ
     assert.equal(calls, 1, "expired budget blocks before Builder/brain execution");
   } finally {
     db.close(); await new Promise<void>(done => endpoint.close(() => done()));
-    assert.ok(resolve(root).startsWith(resolve(tmpdir()) + sep));
-    rmSync(root, { recursive: true, force: true });
   }
 });
