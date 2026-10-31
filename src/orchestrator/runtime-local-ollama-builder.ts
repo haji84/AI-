@@ -41,6 +41,16 @@ async function boundedJson(response: Response): Promise<unknown> {
   return JSON.parse(text) as unknown;
 }
 
+function hasRemoteReference(value: unknown): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return true;
+  const model = value as Record<string, unknown>;
+  const details = model.details;
+  return Object.hasOwn(model, "remote_host") || Object.hasOwn(model, "remote_model")
+    || model.remoteReferenceDetected === true
+    || (!!details && typeof details === "object"
+      && (Object.hasOwn(details, "remote_host") || Object.hasOwn(details, "remote_model")));
+}
+
 export function createLocalOllamaBuilder(input: LocalOllamaBuilderOptions): BuilderCapability {
   const workspace = isolatedWorkspace(input.workspace);
   const configuredModel = input.model.trim();
@@ -67,9 +77,12 @@ export function createLocalOllamaBuilder(input: LocalOllamaBuilderOptions): Buil
   const available = async () => {
     try {
       const reply = await fetchImpl(`${url.origin}/api/tags`, { method: "GET", redirect: "error", signal: AbortSignal.timeout(5000) });
-      const listing = await boundedJson(reply) as { models?: Array<{ name?: string; model?: string }> };
+      const listing = await boundedJson(reply) as { models?: Array<Record<string, unknown>> };
       selectedModel = Array.isArray(listing.models) ?
-        (candidates.find(candidate => listing.models!.some(m => m.name === candidate || m.model === candidate)) ?? null) : null;
+        (candidates.find(candidate => {
+          const matches = listing.models!.filter(m => m && (m.name === candidate || m.model === candidate));
+          return matches.length === 1 && !hasRemoteReference(matches[0]);
+        }) ?? null) : null;
       return selectedModel !== null;
     } catch { selectedModel = null; return false; }
   };
@@ -125,6 +138,9 @@ export function createLocalOllamaBuilder(input: LocalOllamaBuilderOptions): Buil
             required: ["path", "content"], additionalProperties: false },
           options: { temperature: 0, num_predict: 2048 }, prompt }),
       })) as { response?: unknown; done?: unknown; model?: unknown };
+      if (hasRemoteReference(answer)) {
+        return { ok: false, summary: "Ollama response identifies a remote model", blocker: "local_model_remote_reference_rejected" };
+      }
       if (answer.done !== true || answer.model !== activeModel || typeof answer.response !== "string" || answer.response.length > 16384) {
         return { ok: false, summary: "Ollama generation did not complete within bounds", blocker: "local_model_generation_incomplete" };
       }

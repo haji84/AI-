@@ -39,7 +39,7 @@ function context(source = 'export const value = 1;\n') {
       artifactDigest, status: 'passed', recordedAt: '2026-10-30T00:00:00.000Z' })) };
   return { root, config, input, evidence, actionId: 'development-same-job:verify' };
 }
-function transport(ctx, { verdict = 'PASS', malformed, generateThrows = false, afterGenerate, busy = false } = {}) {
+function transport(ctx, { verdict = 'PASS', malformed, generateThrows = false, afterGenerate, busy = false, remoteMetadata = {} } = {}) {
   const calls = [];
   const fetchImpl = async (url, init = {}) => {
     calls.push({ url: String(url), body: init.body, headers: init.headers });
@@ -55,7 +55,7 @@ function transport(ctx, { verdict = 'PASS', malformed, generateThrows = false, a
       findings: verdict === 'FAIL' ? [{ path: 'src/value.mjs', summary: 'fixture finding', evidence: 'line 1 fixture evidence' }] : [],
       reason: 'Fixture model response, not real inference.' };
     afterGenerate?.();
-    return jsonResponse({ model: ctx.config.reviewer.name, done: true, done_reason: 'stop', eval_count: 50,
+    return jsonResponse({ model: ctx.config.reviewer.name, done: true, done_reason: 'stop', eval_count: 50, ...remoteMetadata,
       response: malformed ?? JSON.stringify(decision) });
   };
   return { fetchImpl, calls };
@@ -74,6 +74,40 @@ if (process.env.GORIQ_REVIEW_TEST_CHILD === '1') {
   const { result, calls } = await run(ctx);
   process.stdout.write(JSON.stringify({ result, generateCalls: generations(calls) }) + '\n');
 } else {
+  test('an old receipt without recorded locality proof stays blocked without a new inference', async () => {
+    const ctx = context();
+    try {
+      const initial = await run(ctx);
+      assert.equal(initial.result.ok, true);
+      const receiptPath = initial.result.receiptPath;
+      const record = JSON.parse(readFileSync(receiptPath, 'utf8'));
+      delete record.body.observation.remoteReferenceDetected;
+      const canonical = value => Array.isArray(value) ? '[' + value.map(canonical).join(',') + ']'
+        : value && typeof value === 'object' ? '{' + Object.keys(value).sort().map(key => JSON.stringify(key) + ':' + canonical(value[key])).join(',') + '}'
+          : JSON.stringify(value);
+      record.sha256 = sha(canonical(record.body));
+      const originalBytes = JSON.stringify(record);
+      writeFileSync(receiptPath, originalBytes);
+      const resumed = await run(ctx, { generateThrows: true });
+      assert.equal(resumed.result.ok, false);
+      assert.equal(resumed.result.blocker, 'LOCAL_REVIEW_LOCALITY_UNPROVEN');
+      assert.equal(generations(resumed.calls), 0);
+      assert.equal(readFileSync(receiptPath, 'utf8'), originalBytes);
+    } finally { cleanup(ctx); }
+  });
+  for (const key of ['remote_host', 'remote_model']) test(`review generation ${key} cannot become a local observation`, async () => {
+    const ctx = context();
+    try {
+      const initial = await run(ctx, { remoteMetadata: { [key]: 'remote-reference' } });
+      assert.equal(initial.result.ok, false);
+      assert.equal(initial.result.blocker, 'LOCAL_REVIEW_REMOTE_MODEL_REJECTED');
+      assert.equal(initial.result.formalAI09ReviewExecuted, false);
+      const resumed = await run(ctx, { generateThrows: true });
+      assert.equal(resumed.result.ok, false);
+      assert.equal(resumed.result.reused, true);
+      assert.equal(generations(resumed.calls), 0);
+    } finally { cleanup(ctx); }
+  });
   test('new runtime entry point exists', () => assert.equal(typeof api?.reviewRuntimeCandidate, 'function'));
   test('actual runtime verifier runs separate review after bound checks', async () => {
     const ctx = context();
