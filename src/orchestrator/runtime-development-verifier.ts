@@ -30,6 +30,16 @@ export function createRuntimeDevelopmentVerifier(
       if (action.capability !== "code.builder") {
         return { ok: true, summary: "Capability execution verified", evidence: result.evidence };
       }
+      // The existing 8796 Builder /verify endpoint is not a distinct verifier
+      // for a local Ollama-written artifact. Until a trusted independently
+      // rooted process is configured and attested, fail closed in local mode.
+      if (env.GORIQ_LOCAL_OLLAMA_BUILDER_ENABLED?.trim() === "1") {
+        return {
+          ok: false,
+          summary: "Independent local Ollama executable verifier is not configured",
+          evidence: { blocker: "independent_local_ollama_verifier_required" },
+        };
+      }
       const input = action.input as {
         verificationContract?: unknown;
         candidate?: { artifactRef?: string; changedPaths?: string[] };

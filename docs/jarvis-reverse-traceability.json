@@ -1073,7 +1073,7 @@
     },
     {
       "path": "scripts/jarvis-goal-executor.ts",
-      "sha256": "5093debfcf6fb029e4f580412a9193cf66a8c5f7e6b4b123379dbaa45f6f6340",
+      "sha256": "d37af4b2d4decd46569fb6e8392ff2bcb686e0ef0c9124104c1ef75f724d97b4",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "AUTO-001",
@@ -1081,7 +1081,7 @@
         "GOV-025",
         "OWN-001"
       ],
-      "reason": "Issues #1219/#1284 Direct Goal Bridge executor auto-routes accepted development intent from Daily Driver into the bounded Builder runtime when explicit self-development environment configuration is absent; existing capability, verifier, risk, Human Gate, and release controls remain authoritative. Physical iPhone E2E remains required before completion. #1845 fresh resource admission/bounded durable wait integration; preserves existing ownership and gates, no functional or physical acceptance claim. #1858 bounded host-pinned resident handoff and negative evidence recovery; no production or physical acceptance inference."
+      "reason": "Issues #1219/#1284 Direct Goal Bridge executor auto-routes accepted development intent from Daily Driver into the bounded Builder runtime when explicit self-development environment configuration is absent; existing capability, verifier, risk, Human Gate, and release controls remain authoritative. Physical iPhone E2E remains required before completion. #1845 fresh resource admission/bounded durable wait integration; preserves existing ownership and gates, no functional or physical acceptance claim. #1858 bounded host-pinned resident handoff and negative evidence recovery; no production or physical acceptance inference. #1219 scope pinning follows resident Ollama opt-in; no complete runtime E2E claim."
     },
     {
       "path": "scripts/jarvis-mac-broker-service.sh",
@@ -5907,6 +5907,18 @@
       "reason": "#681 explicit host-opted resident development runtime resumes durable Job and Change Set stages without duplicate Builder, verifier, or release effects. #1845 fresh resource admission/bounded durable wait integration; preserves existing ownership and gates, no functional or physical acceptance claim."
     },
     {
+      "path": "src/orchestrator/resident-development-scope.ts",
+      "sha256": "de2b717669ff859a1875b9bf2a25c1a5059b0f647b85a8ab10794c42e10876c3",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-014",
+        "AUTO-001",
+        "AUTO-004",
+        "GOV-025"
+      ],
+      "reason": "#1219 local Goal runtime pins the isolated workspace and allows exactly one owner-scoped file. This is implementation traceability, not Codex-free E2E acceptance."
+    },
+    {
       "path": "src/orchestrator/risk-policy.ts",
       "sha256": "4ba44a81720a79084ef93079c4b55c3677076537ac690f2f35726cefdbf85434",
       "classification": "COVERED_BY_REQUIREMENT",
@@ -5944,7 +5956,7 @@
     },
     {
       "path": "src/orchestrator/runtime-development-verifier.ts",
-      "sha256": "4980a0a92a9c419c17203b1dbddfc09a8bd6dc78bd7cdd8eda43336d5611aa5e",
+      "sha256": "4baba6cca13c7314cb1b647b2e9ca73259e59da23db9501b4395554212fb98eb",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-010",
@@ -5954,7 +5966,7 @@
         "AUTO-004",
         "OWN-001"
       ],
-      "reason": "Declared runtime-development-verifier.ts responsibility implements/supports 独立Verification; World-state Verification. Parent ownership is not functional or physical acceptance evidence. #1219 supports independent verification against the protected loopback Mac Builder token. #1845 fresh resource admission/bounded durable wait integration; preserves existing ownership and gates, no functional or physical acceptance claim."
+      "reason": "Declared runtime-development-verifier.ts responsibility implements/supports 独立Verification; World-state Verification. Parent ownership is not functional or physical acceptance evidence. #1219 supports independent verification against the protected loopback Mac Builder token. #1845 fresh resource admission/bounded durable wait integration; preserves existing ownership and gates, no functional or physical acceptance claim. #1219 Codex-free local Ollama opt-in rejects the legacy 8796 Builder verifier until independently rooted evidence exists."
     },
     {
       "path": "src/orchestrator/runtime-local-ollama-builder.ts",
