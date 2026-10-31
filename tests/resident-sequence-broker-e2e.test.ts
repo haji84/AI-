@@ -7,7 +7,7 @@ import { createServer } from "node:http";
 import { homedir, tmpdir } from "node:os";
 import { join, resolve, sep } from "node:path";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { CompassStore } from "../src/compass/store.ts";
 import { CompassWorkStateStoreAdapter } from "../src/orchestrator/compass-work-state-store.ts";
 import { JsonFileDevelopmentChangeSetStore } from "../src/orchestrator/development-change-set-store.ts";
@@ -21,7 +21,8 @@ const sha = (value: string) => createHash("sha256").update(value).digest("hex");
 const delay = (ms: number) => new Promise(resolveDelay => setTimeout(resolveDelay, ms));
 
 // This is a real Broker/executor process regression with mock inference and
-// fixture signatures. It does not certify a physical reboot or signer isolation.
+// fixture signatures and synthetic resource telemetry. Admission policy and its
+// lease remain real. It does not certify native resources, reboot or signer isolation.
 test("authenticated Broker sequence resumes after process restart and automatically creates the next Job (fixture signer/Ollama)",
   { timeout: 180_000 }, async () => {
     const root = mkdtempSync(join(tmpdir(), "goriq-broker-sequence-"));
@@ -79,7 +80,11 @@ test("authenticated Broker sequence resumes after process restart and automatica
       assert.ok(![8787, 8796, 8797].includes(port) && ![8787, 8796, 8797].includes(modelPort));
       const ownerToken = "broker-sequence-test-owner", url = `http://127.0.0.1:${port}/api/jarvis/admin`;
       const headers = { Authorization: `Bearer ${ownerToken}`, "Content-Type": "application/json" };
-      const env = { ...process.env, LOCALAPPDATA: root, GITHUB_TOKEN: "", CODE_BUILDER_LOCAL_URL: "", CODE_BUILDER_LOCAL_TOKEN: "",
+      const telemetryPreload = pathToFileURL(join(repositoryRoot, "tests", "helpers", "resource-telemetry-preload.mjs")).href;
+      const resourceState = join(root, "resource-state"); mkdirSync(resourceState);
+      const env = { ...process.env, LOCALAPPDATA: root, XDG_STATE_HOME: resourceState,
+        NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ""} --import=${telemetryPreload}`.trim(),
+        GITHUB_TOKEN: "", CODE_BUILDER_LOCAL_URL: "", CODE_BUILDER_LOCAL_TOKEN: "",
         JARVIS_BROKER_HOST: "127.0.0.1", JARVIS_BROKER_PORT: String(port), JARVIS_OWNER_TOKEN: ownerToken,
         JARVIS_DB_PATH: join(root, "broker.db"), JARVIS_COMPASS_DB_PATH: compassPath,
         JARVIS_PUBLIC_BROKER_URL: "", JARVIS_WORKER_INSTALL_URL: "", JARVIS_WORKER_APK_PATH: "",
@@ -125,6 +130,9 @@ test("authenticated Broker sequence resumes after process restart and automatica
         return body.run;
       };
       await waitFor("first signed receipt wait", async () => (await status()).nextAction === "verification_wait" && (await jobs()).length === 1);
+      const probeRecords = readFileSync(join(resourceState, "fixture-resource-probes.jsonl"), "utf8").trim().split("\n").map(line => JSON.parse(line));
+      assert.ok(probeRecords.length > 0);
+      assert.ok(probeRecords.every(record => record.evidenceKind === "TEST_DOUBLE_NOT_NATIVE_RESOURCES"));
       assert.equal(generations, 1); assert.equal((await jobs())[0]!.phase, "VERIFYING");
       const firstBrokerPid = child!.pid;
       await delay(250); await stopBroker(); startBroker(); await ready();
