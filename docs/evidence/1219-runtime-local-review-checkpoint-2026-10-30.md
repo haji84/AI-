@@ -137,3 +137,31 @@ GitHub Actions executions; subsequent Job continuity; protected integration,
 post-integration physical checks and owner-approved critical changes.
 No owner PC, secret, service, workflow, model or production environment was
 changed by this source-only increment. PR remains Draft/HOLD.
+
+## 2026-11-01 continuation: local provenance guard
+
+Auxiliary source review reproduced an inherited admission gap using inventory
+mocks only: a cloud-backed Ollama alias could be selected through loopback.
+Ollama documents that cloud inference can use the local API, and its API types
+include `remote_host` / `remote_model` in both inventory and generation results:
+[local API authentication](https://docs.ollama.com/api/authentication),
+[official response definitions](https://github.com/ollama/ollama/blob/main/api/types.go).
+
+Source change `799973a83df127ba69643a274bc3a378344d9ac7` rejects remote-backed or
+ambiguous Builder inventory and remote generation metadata before any candidate
+write. The optional review checkpoint also rejects remote generation metadata.
+Receipts without recorded locality proof remain blocked and immutable; they do
+not trigger another inference. These checks rely on the trusted local server's
+reported metadata and do not establish an OS or network sandbox.
+
+Ten new negative regressions were observed failing before the fixes and passing
+after them. Full local two-file validation: 57 passed / 1 failed / 0 skipped;
+the failure is Windows file-symlink creation EPERM. Targeted lint and the existing
+579-surface / 341-requirement audit passed. Latest-head Linux CI remains pending.
+
+A separate real installed-model correction attempt stopped on host RAM pressure
+before accepting a corrected candidate. Its frozen RED cases and failed attempt
+remain evidence; GREEN, formal AI09, physical E2E, Actions replay, 24-hour operation,
+two-project acceptance, integration and main runtime acceptance remain unproven.
+No cloud inference, key/permission/service/workflow change or main integration
+was performed. Keep existing PRs Draft and preserve earlier receipts.
