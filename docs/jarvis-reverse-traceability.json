@@ -5567,7 +5567,7 @@
     },
     {
       "path": "src/orchestrator/local-development-builder.ts",
-      "sha256": "93b98833cdc34a3f386ad19119506033172312cda93b2db4a838cbb9a21e2b83",
+      "sha256": "e8fd1bae4b12af905c374520fcfed961ddfb01492d86b0566d1411a2fb7f6e65",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-008",
@@ -5918,7 +5918,7 @@
     },
     {
       "path": "src/orchestrator/runtime-builder-capability.ts",
-      "sha256": "11ca2c4b04b305c997737b1e69f1c314ae1474a0a7ca19e762adc29324ffb62c",
+      "sha256": "8afb95eec787bad7b3dcf70fe4c5dfd3df64da8158541245c4f6b91116bc049c",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -5944,7 +5944,7 @@
     },
     {
       "path": "src/orchestrator/runtime-development-verifier.ts",
-      "sha256": "e665881d6e99faaa20c4875604a658607e78800fab461365b6fb02af58d5e525",
+      "sha256": "4980a0a92a9c419c17203b1dbddfc09a8bd6dc78bd7cdd8eda43336d5611aa5e",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-010",
@@ -5958,7 +5958,7 @@
     },
     {
       "path": "src/orchestrator/runtime-local-ollama-builder.ts",
-      "sha256": "dc36ca49cd4ab6f8caeff7b3c60475df717cf383704c45c8f6f8fb5d63a7f8e4",
+      "sha256": "60b0419550dc91b20a455f0ac2ee90ef4c8e1437b7d8a681cb8c345327bfb4a9",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-008",
@@ -5970,7 +5970,7 @@
     },
     {
       "path": "src/orchestrator/runtime-ollama-review-checkpoint.d.mts",
-      "sha256": "2624927fe306ab705ab4758a8d532c4300ef2f62bfb7fa71b34bfdbcab4f72b5",
+      "sha256": "0097171868aa4ed84d190a5998ccdbe9050e4c4aa5278753a4f7dea3419fd49b",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "CORE-010",
@@ -5982,7 +5982,7 @@
     },
     {
       "path": "src/orchestrator/runtime-ollama-review-checkpoint.mjs",
-      "sha256": "c8c9dde678ea81157536045eb1bb9a308df1658ac267d1ca6eb9ab1293ff70ae",
+      "sha256": "e4696478c5b40d6af8070af767e05bd258e6679653c2be9365c7d863c9e9bf15",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "CORE-010",

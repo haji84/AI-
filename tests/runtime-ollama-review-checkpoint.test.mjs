@@ -3,15 +3,22 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, readdirSync, symlinkSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, readdirSync, symlinkSync, unlinkSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createRuntimeDevelopmentVerifier } from '../src/orchestrator/runtime-development-verifier.ts';
+import { createRuntimeDevelopmentVerifier as runtimeVerifier } from '../src/orchestrator/runtime-development-verifier.ts';
+import { fixtureResourceAdmission } from './helpers/resource-admission-fixture.ts';
+import { ResourceWaitError, withDevelopmentResourceAdmission } from '../src/gai/development-resource-admission.ts';
+import { createLocalOllamaBuilder } from '../src/orchestrator/runtime-local-ollama-builder.ts';
+const createRuntimeDevelopmentVerifier = (env, fetchImpl, admission = fixtureResourceAdmission) => runtimeVerifier(env, fetchImpl, admission);
 const sha = value => createHash('sha256').update(value).digest('hex');
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 let api;
-try { api = await import('../src/orchestrator/runtime-ollama-review-checkpoint.mjs'); }
+try {
+  const module = await import('../src/orchestrator/runtime-ollama-review-checkpoint.mjs');
+  api = { ...module, reviewRuntimeCandidate: options => module.reviewRuntimeCandidate({ resourceAdmission: fixtureResourceAdmission, ...options }) };
+}
 catch (error) { if (error.code !== 'ERR_MODULE_NOT_FOUND') throw error; }
 const jsonResponse = value => new globalThis.Response(JSON.stringify(value), { status: 200 });
 const cases = ['lint', 'typecheck', 'unit', 'integration', 'security', 'build'];
@@ -74,6 +81,100 @@ if (process.env.GORIQ_REVIEW_TEST_CHILD === '1') {
   const { result, calls } = await run(ctx);
   process.stdout.write(JSON.stringify({ result, generateCalls: generations(calls) }) + '\n');
 } else {
+  for (const mode of ['response', 'body-error']) test(`Builder and reviewer share one lane through deferred ${mode} bytes`, { timeout: 15_000 }, async () => {
+    const ctx = context(), builderCtx = context();
+    let finishBody, generated, pending;
+    const headersReady = new Promise(resolve => { generated = resolve; });
+    const sharedAdmission = (work, options) => withDevelopmentResourceAdmission(work, { ...options,
+      platform: 'win32', leasePath: join(ctx.root, 'shared-heavy.lock'),
+      probe: async () => ({ checkedAt: new Date().toISOString(), resources: {
+        cpuLoadPercent: 10, memoryAvailableMb: 16000, diskAvailableMb: 100000,
+        committedMemoryMb: 4000, commitLimitMb: 20000,
+      } }) });
+    try {
+      const target = join(builderCtx.config.workspace, 'src/value.mjs');
+      unlinkSync(target); // Only this test's freshly created fixture source.
+      const model = builderCtx.config.builderModels[0].name;
+      const builder = createLocalOllamaBuilder({ workspace: builderCtx.config.workspace,
+        model, allowedPaths: ['src/value.mjs'], resourceAdmission: sharedAdmission,
+        fetchImpl: async url => {
+          if (String(url).endsWith('/api/tags')) return jsonResponse({ models: [{ name: model }] });
+          assert.ok(String(url).endsWith('/api/generate'));
+          const body = new globalThis.ReadableStream({ start(controller) {
+            finishBody = () => {
+              if (mode === 'body-error') controller.error(Error('fixture response body failure'));
+              else {
+                controller.enqueue(new globalThis.TextEncoder().encode(JSON.stringify({ model, done: true,
+                  response: JSON.stringify({ path: 'src/value.mjs', content: 'export const value = 2;\n' }) })));
+                controller.close();
+              }
+            };
+          } });
+          generated();
+          return new globalThis.Response(body, { headers: { 'content-type': 'application/json' } });
+        } });
+      pending = builder.build({ goalId: 'fixture', attemptId: 'a', strategyId: 's', objective: 'fixture code',
+        baseRevision: builderCtx.config.baseRevision, files: ['src/value.mjs'], localOnly: true, context: [] });
+      await Promise.race([headersReady, pending.then(() => { throw Error('Builder settled before returning deferred headers'); })]);
+      assert.equal(existsSync(target), false);
+      const blocked = transport(ctx);
+      await assert.rejects(() => api.reviewRuntimeCandidate({ ...ctx, fetchImpl: blocked.fetchImpl,
+        resourceAdmission: sharedAdmission }), error => error instanceof ResourceWaitError);
+      assert.equal(generations(blocked.calls), 0);
+      assert.equal(blocked.calls.some(call => call.url.endsWith('/api/ps')), false);
+      assert.deepEqual(readdirSync(ctx.config.stateDirectory), []);
+      finishBody(); finishBody = undefined;
+      assert.equal((await pending).ok, mode === 'response');
+      const t = transport(ctx);
+      const result = await api.reviewRuntimeCandidate({ ...ctx, fetchImpl: t.fetchImpl, resourceAdmission: sharedAdmission });
+      assert.equal(result.ok, true);
+      assert.equal(generations(t.calls), 1);
+    } finally {
+      finishBody?.();
+      await pending;
+      cleanup(ctx); cleanup(builderCtx);
+    }
+  });
+
+  test('review pressure stays retryable without a receipt, busy probe or generation; replay needs no admission', async () => {
+    const ctx = context();
+    try {
+      const wait = new ResourceWaitError({ status: 'WAITING_FOR_RESOURCE', reason: 'fixture heavy lane busy',
+        retryAfterMs: 30_000, observedAt: new Date().toISOString() });
+      const blocked = transport(ctx, { busy: true });
+      await assert.rejects(() => api.reviewRuntimeCandidate({ ...ctx, fetchImpl: blocked.fetchImpl,
+        resourceAdmission: async () => { throw wait; } }), error => error === wait);
+      assert.equal(generations(blocked.calls), 0);
+      assert.equal(blocked.calls.some(call => call.url.endsWith('/api/ps')), false);
+      assert.deepEqual(readdirSync(ctx.config.stateDirectory), []);
+      const accepted = await run(ctx);
+      assert.equal(accepted.result.ok, true);
+      assert.equal(generations(accepted.calls), 1);
+      const offline = transport(ctx, { generateThrows: true });
+      const replay = await api.reviewRuntimeCandidate({ ...ctx, fetchImpl: offline.fetchImpl,
+        resourceAdmission: async () => { throw Error('replay must not request admission'); } });
+      assert.equal(replay.ok, true);
+      assert.equal(replay.reused, true);
+      assert.equal(offline.calls.length, 0);
+    } finally { cleanup(ctx); }
+  });
+
+  test('runtime verifier preserves typed local-review pressure for durable scheduling', async () => {
+    const ctx = context();
+    try {
+      const t = transport(ctx);
+      const wait = new ResourceWaitError({ status: 'WAITING_FOR_RESOURCE', reason: 'fixture pressure',
+        retryAfterMs: 30_000, observedAt: new Date().toISOString() });
+      const verifier = createRuntimeDevelopmentVerifier({ CODE_BUILDER_LOCAL_TOKEN: 'fixture-token',
+        GORIQ_LOCAL_REVIEW_CONFIG_JSON: JSON.stringify(ctx.config) }, t.fetchImpl, async () => { throw wait; });
+      await assert.rejects(() => verifier.verify({ goal: { title: 'test', successCriteria: [], constraints: [] },
+        action: { id: ctx.actionId, capability: 'code.builder', description: 'fixture', risk: 'low', input: ctx.input },
+        result: { actionId: ctx.actionId, ok: true, summary: 'fixture' }, context: [] }), error => error === wait);
+      assert.equal(generations(t.calls), 0);
+      assert.deepEqual(readdirSync(ctx.config.stateDirectory), []);
+    } finally { cleanup(ctx); }
+  });
+
   test('an old receipt without recorded locality proof stays blocked without a new inference', async () => {
     const ctx = context();
     try {

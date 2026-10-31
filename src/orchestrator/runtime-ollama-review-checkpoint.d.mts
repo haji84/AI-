@@ -1,4 +1,5 @@
 /** Additional local observations are not signed release/AI09 authority. */
+import type { withDevelopmentResourceAdmission } from "../gai/development-resource-admission.ts";
 export interface RuntimeLocalModelReview {
   ok: boolean;
   status: string;
@@ -19,4 +20,5 @@ export function reviewRuntimeCandidate(options: {
   input: unknown;
   evidence: unknown;
   fetchImpl?: typeof fetch;
+  resourceAdmission?: typeof withDevelopmentResourceAdmission;
 }): Promise<RuntimeLocalModelReview>;
