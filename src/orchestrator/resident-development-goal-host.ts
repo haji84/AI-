@@ -225,7 +225,8 @@ export class ResidentDevelopmentGoalHost {
         throw Error("SEQUENCE_CHANGESET_SCOPE_MISMATCH");
       }
     };
-    const storedChangeSets = (await this.changeSets.list()).filter((candidate) => candidate.jobId === job!.jobId && candidate.status !== "REJECTED");
+    const historicalChangeSets = (await this.changeSets.list()).filter((candidate) => candidate.jobId === job!.jobId);
+    const storedChangeSets = historicalChangeSets.filter((candidate) => candidate.status !== "REJECTED");
     let changeSet = storedChangeSets.find((candidate) => candidate.workItemId === implementationItem.id) ?? null;
     if (!changeSet) {
       if (job.phase === "QUEUED") {
@@ -257,15 +258,43 @@ export class ResidentDevelopmentGoalHost {
         await this.jobs.put(job);
       }
       changeSet = await this.stages.build({ job, goal: input.goal, context: input.context, workItemId: implementationItem.id });
-      if (changeSet.jobId !== job.jobId || changeSet.baseRevision !== job.baseRevision || changeSet.workItemId !== implementationItem.id) throw new Error("resident Builder returned an unbound Change Set");
+      if (changeSet.jobId !== job.jobId || changeSet.baseRevision !== job.baseRevision || changeSet.workItemId !== implementationItem.id) {
+        throw new Error("resident Builder returned an unbound Change Set");
+      }
       assertSequenceChangeSet(changeSet);
+      // Preserve historical receipts. An attempt must not overwrite an old candidate's identity.
+      if (historicalChangeSets.some((old) => old.changeSetId === changeSet!.changeSetId)) {
+        job = this.controller.apply(job, {
+          transitionId: `${job.jobId}:candidate-id-reused:${changeSet.changeSetId}`,
+          actor: "state-controller", to: "BLOCKED",
+          reason: "Builder reused an existing Change Set identity",
+          blockers: ["candidate_identity_conflict"],
+        });
+        await this.jobs.put(job);
+        return report(false, "Builder reused an existing Change Set identity", ["candidate_identity_conflict"]);
+      }
+      // Same bytes or patch as an already rejected implementation cannot count as a repair.
+      if (historicalChangeSets.some((old) => old.workItemId === implementationItem.id && old.status === "REJECTED"
+        && (old.artifactDigest === changeSet!.artifactDigest || old.patchDigest === changeSet!.patchDigest))) {
+        changeSet = { ...changeSet, status: "REJECTED", updatedAt: nextTimestamp(changeSet.updatedAt) };
+        await this.changeSets.put(changeSet);
+        job = this.controller.apply(job, {
+          transitionId: `${job.jobId}:candidate-equivalent:${changeSet.changeSetId}`,
+          actor: "state-controller", to: "BLOCKED",
+          reason: "Builder repeated a previously rejected implementation",
+          blockers: ["equivalent_failed_candidate"],
+        });
+        await this.jobs.put(job);
+        return report(false, "Builder repeated a previously rejected implementation", ["equivalent_failed_candidate"]);
+      }
       await this.changeSets.put(changeSet);
-      job = this.controller.apply(job, { transitionId: `${job.jobId}:verify`, actor: "state-controller", to: "VERIFYING", reason: "isolated Change Set persisted" });
+      job = this.controller.apply(job, { transitionId: `${job.jobId}:verify:${changeSet.changeSetId}`, actor: "state-controller", to: "VERIFYING", reason: "isolated Change Set persisted" });
       await this.jobs.put(job);
     }
     assertSequenceChangeSet(changeSet);
 
-    if (changeSet.status === "LOCAL" && job.phase !== "VERIFYING" && job.phase !== "RECOVERING") {
+    if ((changeSet.status === "LOCAL" && job.phase !== "VERIFYING")
+      || (changeSet.status === "READY_TO_PUBLISH" && job.phase === "RECOVERING")) {
       job = this.controller.apply(job, { transitionId: `${job.jobId}:reconcile-verifying:${changeSet.changeSetId}`, actor: "state-controller", to: "VERIFYING", reason: "reconciled persisted Change Set after interrupted checkpoint" });
       await this.jobs.put(job);
     }
@@ -305,7 +334,7 @@ export class ResidentDevelopmentGoalHost {
         const strategyId = `verify-recovery-${job.attempts.length + 1}`;
         changeSet = { ...changeSet, status: "REJECTED", updatedAt: nextTimestamp(changeSet.updatedAt) };
         await this.changeSets.put(changeSet);
-        job = this.controller.apply(job, { transitionId: `${job.jobId}:verification-failed:${signature}`, actor: "state-controller", to: "RECOVERING", reason: "independent verification failed; a materially different Builder attempt is required", evidence: evidence.map((item) => ({ id: `${job!.jobId}:failed-check:${item.check}:${signature}`, criterionId: "repository-verification", kind: `development-check:${item.check}`, issuer: item.verifierId, verified: false, sourceRevision: item.sourceRevision, artifactDigest: item.artifactDigest, recordedAt: item.recordedAt })), failure: { signature, strategyId, hypothesis: verification.reasons.join(",") } });
+        job = this.controller.apply(job, { transitionId: `${job.jobId}:verification-failed:${changeSet.changeSetId}:${signature}`, actor: "state-controller", to: "RECOVERING", reason: "independent verification failed; a materially different Builder attempt is required", evidence: evidence.map((item) => ({ id: `${job!.jobId}:failed-check:${changeSet!.changeSetId}:${item.check}:${signature}`, criterionId: "repository-verification", kind: `development-check:${item.check}`, issuer: item.verifierId, verified: false, sourceRevision: item.sourceRevision, artifactDigest: item.artifactDigest, recordedAt: item.recordedAt })), failure: { signature, strategyId, hypothesis: verification.reasons.join(",") } });
         await this.jobs.put(job);
         return report(false, "independent verification failed; recovery persisted", verification.reasons);
       }
@@ -388,7 +417,9 @@ export class ResidentDevelopmentGoalHost {
       return report(!remaining, remaining ? "development Job completed; next approved Job remains" : "all approved local artifact Jobs completed");
     }
     const persistedEvidence: DevelopmentVerificationEvidence[] = verificationPlan.requiredChecks.flatMap((check) => {
-      const item = job!.evidence.find((candidate) => candidate.kind === `development-check:${check}`);
+      const item = job!.evidence.find((candidate) => candidate.kind === `development-check:${check}`
+        && candidate.sourceRevision === verificationPlan.sourceRevision
+        && candidate.artifactDigest === verificationPlan.artifactDigest);
       return item?.sourceRevision && item.artifactDigest && item.recordedAt ? [{
         check,
         verifierId: item.issuer,

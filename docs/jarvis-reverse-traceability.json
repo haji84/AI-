@@ -1073,7 +1073,7 @@
     },
     {
       "path": "scripts/jarvis-goal-executor.ts",
-      "sha256": "181d8c1931c1be79d0cf41749c8076fa3b6662ccec055fdf085126c5babfa9cc",
+      "sha256": "649d14e0021ef7a8bafa164516f377941c5da813bead24c7c16a79cf6faabe39",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "AUTO-001",
@@ -6006,7 +6006,7 @@
     },
     {
       "path": "src/orchestrator/resident-development-goal-host.ts",
-      "sha256": "1bcafa1816ab224cd53fc47c5cd3478552dc766da5d8dd33ed37fcb17842fb7c",
+      "sha256": "b3f85ec3c05018e26b6b5ffd7a5812316712e7bca4e4cfb54499988dfaca9838",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -6070,7 +6070,7 @@
     },
     {
       "path": "src/orchestrator/runtime-development-verifier.ts",
-      "sha256": "26ceb43426bf18eae8cec0457ed6e81c4b85a9a99cacf349f611a7af1304a6fc",
+      "sha256": "95c96a6149ad06bf44030f3888a0094b6a118d976f6370d382c7287f4264ee85",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-010",
@@ -6084,7 +6084,7 @@
     },
     {
       "path": "src/orchestrator/runtime-local-ollama-builder.ts",
-      "sha256": "f9262dbf5dcc382842c4e04cda83c2d8e8ec9d42d5459b91a9554780f68e65d4",
+      "sha256": "960178cfda0753ddad517c9cbdde0f4b512d50a7d3693ce1faffa6311c408dd8",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-008",
@@ -6092,7 +6092,31 @@
         "AUTO-010",
         "AUTO-015"
       ],
-      "reason": "#1219 Codex-independent local Ollama Builder: explicit detached-clean-worktree and new-file allowlist, exclusive write, no existing-file overwrite or remote fallback. This is implementation mapping, not independent verifier or complete Goal E2E evidence. #1219 bounded Codex-free TDD RED and local separate-process GREEN proof work; complete independent release verification and physical Goal E2E are not claimed. #1219 recovers only exact host-bound prepared RED/GREEN writes after complete scoped worktree readback, without new inference or overwriting existing bytes; intent never substitutes for independent verification."
+      "reason": "#1219 Codex-independent local Ollama Builder: explicit detached-clean-worktree and new-file allowlist, exclusive write, no existing-file overwrite or remote fallback. This is implementation mapping, not independent verifier or complete Goal E2E evidence. #1219 bounded Codex-free TDD RED and local separate-process GREEN proof work; complete independent release verification and physical Goal E2E are not claimed. #1219 recovers only exact host-bound prepared RED/GREEN writes after complete scoped worktree readback, without new inference or overwriting existing bytes; intent never substitutes for independent verification. #1219 opt-in bounded prior-failure signature/hypothesis feedback is advisory only; explicit installed fallback selection never grants release authority."
+    },
+    {
+      "path": "src/orchestrator/runtime-ollama-review-checkpoint.d.mts",
+      "sha256": "2624927fe306ab705ab4758a8d532c4300ef2f62bfb7fa71b34bfdbcab4f72b5",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "CORE-010",
+        "CORE-011",
+        "DEV-PC-006",
+        "AUTO-001"
+      ],
+      "reason": "#1219 opt-in local review checkpoint and declaration: binds candidate, deterministic-check evidence and PR identity to an immutable local observation. Cache replay is not formal AI09 approval, GitHub review, deployment, physical or Actions-cross-run acceptance."
+    },
+    {
+      "path": "src/orchestrator/runtime-ollama-review-checkpoint.mjs",
+      "sha256": "c8c9dde678ea81157536045eb1bb9a308df1658ac267d1ca6eb9ab1293ff70ae",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "CORE-010",
+        "CORE-011",
+        "DEV-PC-006",
+        "AUTO-001"
+      ],
+      "reason": "#1219 opt-in local review checkpoint and declaration: binds candidate, deterministic-check evidence and PR identity to an immutable local observation. Cache replay is not formal AI09 approval, GitHub review, deployment, physical or Actions-cross-run acceptance."
     },
     {
       "path": "src/orchestrator/safe-pr-capability.ts",

@@ -10,7 +10,7 @@ import { createRuntimeBuilderRouter } from "../src/orchestrator/runtime-builder-
 import { localOllamaFixtureSourcePath, localOllamaFixtureTest, localOllamaFixtureTestPath } from "../src/orchestrator/local-ollama-tdd.ts";
 
 const content = "def add(a, b):\n    return a + b\n";
-function fixture(t: TestContext, phase: "red" | "green") {
+function fixture(t: TestContext, phase: "red" | "green", options: { listedModel?: string; fallbackModels?: string } = {}) {
   const root = mkdtempSync(join(tmpdir(), "goriq-prepared-write-")), repo = join(root, "repo"), workspace = join(root, "candidate");
   t.after(() => { assert.ok(resolve(root).startsWith(resolve(tmpdir()) + sep)); rmSync(root, { recursive: true, force: true }); });
   mkdirSync(repo);
@@ -30,12 +30,13 @@ function fixture(t: TestContext, phase: "red" | "green") {
   const stateRoot = join(root, "state"), checkpoint = () => createPreparedLocalWriteCheckpoint({ stateRoot, workspaces: [workspace], binding });
   let generations = 0;
   const fetchImpl: typeof fetch = async url => {
-    if (String(url).endsWith("/api/tags")) return Response.json({ models: [{ name: "fixture-model" }] });
+    if (String(url).endsWith("/api/tags")) return Response.json({ models: [{ name: options.listedModel ?? "fixture-model" }] });
     assert.equal(String(url), "http://127.0.0.1:11434/api/generate"); generations++;
     return Response.json({ done: true, model: "fixture-model", response: JSON.stringify({ path: localOllamaFixtureSourcePath, content }) });
   };
   const env = { GORIQ_LOCAL_OLLAMA_BUILDER_ENABLED: "1", GORIQ_LOCAL_OLLAMA_BUILDER_WORKSPACE: workspace,
-    GORIQ_LOCAL_OLLAMA_ALLOWED_FILES: [localOllamaFixtureSourcePath, localOllamaFixtureTestPath].join(","), GORIQ_LOCAL_OLLAMA_TDD_PROFILE: "python_add_v1", GAI_LOCAL_MODEL_NAME: "fixture-model" };
+    GORIQ_LOCAL_OLLAMA_ALLOWED_FILES: [localOllamaFixtureSourcePath, localOllamaFixtureTestPath].join(","), GORIQ_LOCAL_OLLAMA_TDD_PROFILE: "python_add_v1", GAI_LOCAL_MODEL_NAME: "fixture-model",
+    GORIQ_LOCAL_OLLAMA_FALLBACK_MODELS: options.fallbackModels };
   const request = { id: "fixture-build", description: "Create add artifact", capability: "code.builder", risk: "low" as const,
     input: { goalId: binding.goalId, attemptId: binding.attemptId, strategyId: binding.strategyId, objective: "Implement add", baseRevision: base, files: [path], localOnly: true, tddPhase: phase } };
   const execute = (preparedWrite = checkpoint()) => createRuntimeBuilderRouter(env, fetchImpl, { preparedWrite }).execute(request, []);
@@ -44,6 +45,16 @@ function fixture(t: TestContext, phase: "red" | "green") {
 }
 
 for (const phase of ["red", "green"] as const) {
+  test(`${phase} does not bind a prepared intent to a different fallback model`, async t => {
+    const f = fixture(t, phase, { listedModel: "approved-fallback", fallbackModels: "approved-fallback" });
+    const result = await f.execute();
+    assert.equal(result.ok, false);
+    assert.equal(result.blocker, "local_model_prepared_model_mismatch");
+    assert.equal(f.generations(), 0);
+    assert.equal(existsSync(f.target), false);
+    const records = join(f.root, "state", "prepared-writes");
+    assert.deepEqual(existsSync(records) ? readdirSync(records) : [], []);
+  });
   for (const interrupted of ["before-file-write", "after-file-write"] as const) {
     test(`${phase} recovers ${interrupted} from a durable prepared intent without new inference`, async t => {
       const f = fixture(t, phase), checkpoint = f.checkpoint();
