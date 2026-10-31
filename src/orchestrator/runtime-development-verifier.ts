@@ -59,7 +59,10 @@ export function createRuntimeDevelopmentVerifier(
           headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
           body: JSON.stringify({ contract: input.verificationContract, candidate: input.candidate, binding: input.releaseBinding }),
         });
-        const payload = await response.json().catch(() => null) as { ok?: boolean; summary?: string; evidence?: unknown } | null;
+        const payload = await response.json().catch(() => null) as { ok?: boolean; summary?: string; evidence?: unknown; blocker?: string; resourceWait?: unknown } | null;
+        if (response.status === 503 && payload?.blocker === "WAITING_FOR_RESOURCE") {
+          return { ok: false, summary: "Development verification is waiting for resources", evidence: { resourceWait: payload.resourceWait } };
+        }
         let ok = response.ok && payload?.ok === true;
         const evidence = payload?.evidence as {
           expected?: unknown;

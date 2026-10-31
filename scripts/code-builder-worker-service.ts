@@ -1,23 +1,70 @@
 import { createServer } from "node:http";
 import { existsSync, readFileSync } from "node:fs";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
+import { fileURLToPath } from "node:url";
+import { ResourceWaitError, withDevelopmentResourceAdmission } from "../src/gai/development-resource-admission.ts";
+import { runOllamaRepair } from "./goriq-ollama-repair.mjs";
 import { spawn } from "node:child_process";
 import { hostname } from "node:os";
 import { basename, extname, resolve, relative, isAbsolute } from "node:path";
 import { evaluateBuilderTestContractEvolution, extractBuilderTestContractEvolutionEvidence } from "../src/orchestrator/test-contract-evolution.ts";
 
-const host = process.env.CODE_BUILDER_HOST?.trim() || "127.0.0.1";
-const port = Number(process.env.CODE_BUILDER_PORT || 8796);
-const token = process.env.CODE_BUILDER_TOKEN?.trim() || "";
-const workspace = resolve(process.env.CODE_BUILDER_WORKSPACE?.trim() || process.cwd());
-const workerId = process.env.GAI_WORKER_ID?.trim() || hostname();
-const explicitEngine = process.env.CODE_BUILDER_ENGINE?.trim() || "";
-const inferenceLocality = process.env.CODE_BUILDER_INFERENCE_LOCALITY?.trim() || "unknown";
-const inferenceNetworkAccess = process.env.CODE_BUILDER_INFERENCE_NETWORK_ACCESS !== "0";
-const executionTimeoutMs = Number(process.env.CODE_BUILDER_EXEC_TIMEOUT_MS || 600_000);
+export interface BuilderProcessResult { code: number | null; stdout: string; stderr: string; timedOut: boolean; stdoutTruncated: boolean; stderrTruncated: boolean }
+export interface BuilderProcessOptions { workspace: string; env?: NodeJS.ProcessEnv; timeoutMs?: number; stdinInput?: string }
+export function runBuilderProcess(command: string, args: string[], options: BuilderProcessOptions): Promise<BuilderProcessResult> {
+  const { workspace, stdinInput } = options;
+  const timeoutMs = options.timeoutMs ?? 600000;
+  const env = options.env ?? process.env;
+  return new Promise((done) => {
+    const extension = extname(command).toLowerCase();
+    const invocation = process.platform === "win32" && extension === ".ps1"
+      ? { command: "powershell.exe", args: ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", command, ...args] }
+      : process.platform === "win32" && (extension === ".cmd" || extension === ".bat")
+        ? { command: env.ComSpec || "cmd.exe", args: ["/d", "/s", "/c", command, ...args] }
+        : { command, args };
+    const child = spawn(invocation.command, invocation.args, { cwd: workspace, windowsHide: true, shell: false, env, stdio: [stdinInput === undefined ? "ignore" : "pipe", "pipe", "pipe"] });
+    let stdout = "";
+    let stderr = "";
+    let timedOut = false;
+    let stdoutTruncated = false, stderrTruncated = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      if (process.platform === "win32" && child.pid) {
+        spawn("taskkill.exe", ["/PID", String(child.pid), "/T", "/F"], { windowsHide: true, stdio: "ignore" });
+      } else {
+        child.kill();
+      }
+    }, timeoutMs);
+    child.stdout?.on("data", (chunk) => { const next = stdout + String(chunk); stdoutTruncated ||= next.length > 100_000; stdout = next.slice(-100_000); });
+    child.stderr?.on("data", (chunk) => { const next = stderr + String(chunk); stderrTruncated ||= next.length > 100_000; stderr = next.slice(-100_000); });
+    if (stdinInput !== undefined && child.stdin) {
+      child.stdin.end(stdinInput);
+    }
+    child.once("error", (error) => { clearTimeout(timer); done({ code: -1, stdout, stderr: String(error).slice(-100_000), timedOut, stdoutTruncated, stderrTruncated }); });
+    child.once("exit", (code) => { clearTimeout(timer); done({ code, stdout, stderr, timedOut, stdoutTruncated, stderrTruncated }); });
+  });
+}
+
+
+export function createCodeBuilderWorkerServer(options: {
+  env?: NodeJS.ProcessEnv;
+  admit?: typeof withDevelopmentResourceAdmission;
+  runCommand?: typeof runBuilderProcess;
+  repairFetchImpl?: typeof fetch;
+} = {}) {
+const env = options.env ?? process.env;
+const admit = options.admit ?? withDevelopmentResourceAdmission;
+const host = env.CODE_BUILDER_HOST?.trim() || "127.0.0.1";
+const token = env.CODE_BUILDER_TOKEN?.trim() || "";
+const workspace = resolve(env.CODE_BUILDER_WORKSPACE?.trim() || process.cwd());
+const workerId = env.GAI_WORKER_ID?.trim() || hostname();
+const explicitEngine = env.CODE_BUILDER_ENGINE?.trim() || "";
+const inferenceLocality = env.CODE_BUILDER_INFERENCE_LOCALITY?.trim() || "unknown";
+const inferenceNetworkAccess = env.CODE_BUILDER_INFERENCE_NETWORK_ACCESS !== "0";
+const executionTimeoutMs = Number(env.CODE_BUILDER_EXEC_TIMEOUT_MS || 600_000);
 
 if (!token) throw new Error("CODE_BUILDER_TOKEN is required");
-if (host !== "127.0.0.1" && host !== "::1" && process.env.CODE_BUILDER_ALLOW_NON_LOOPBACK !== "1") {
+if (host !== "127.0.0.1" && host !== "::1" && env.CODE_BUILDER_ALLOW_NON_LOOPBACK !== "1") {
   throw new Error("Refusing non-loopback bind unless CODE_BUILDER_ALLOW_NON_LOOPBACK=1");
 }
 
@@ -84,34 +131,8 @@ function safeWorkspacePath(path: string): boolean {
   return !isAbsolute(rel) && rel !== ".." && !rel.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`);
 }
 
-function run(command: string, args: string[], timeoutMs = executionTimeoutMs, stdinInput?: string): Promise<{ code: number | null; stdout: string; stderr: string; timedOut: boolean }> {
-  return new Promise((done) => {
-    const extension = extname(command).toLowerCase();
-    const invocation = process.platform === "win32" && extension === ".ps1"
-      ? { command: "powershell.exe", args: ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", command, ...args] }
-      : process.platform === "win32" && (extension === ".cmd" || extension === ".bat")
-        ? { command: process.env.ComSpec || "cmd.exe", args: ["/d", "/s", "/c", command, ...args] }
-        : { command, args };
-    const child = spawn(invocation.command, invocation.args, { cwd: workspace, windowsHide: true, shell: false, env: process.env, stdio: [stdinInput === undefined ? "ignore" : "pipe", "pipe", "pipe"] });
-    let stdout = "";
-    let stderr = "";
-    let timedOut = false;
-    const timer = setTimeout(() => {
-      timedOut = true;
-      if (process.platform === "win32" && child.pid) {
-        spawn("taskkill.exe", ["/PID", String(child.pid), "/T", "/F"], { windowsHide: true, stdio: "ignore" });
-      } else {
-        child.kill();
-      }
-    }, timeoutMs);
-    child.stdout?.on("data", (chunk) => { stdout += String(chunk).slice(0, 100_000); });
-    child.stderr?.on("data", (chunk) => { stderr += String(chunk).slice(0, 100_000); });
-    if (stdinInput !== undefined && child.stdin) {
-      child.stdin.end(stdinInput);
-    }
-    child.once("error", (error) => { clearTimeout(timer); done({ code: -1, stdout, stderr: String(error), timedOut }); });
-    child.once("exit", (code) => { clearTimeout(timer); done({ code, stdout, stderr, timedOut }); });
-  });
+function run(command: string, args: string[], timeoutMs = executionTimeoutMs, stdinInput?: string): Promise<BuilderProcessResult> {
+  return (options.runCommand ?? runBuilderProcess)(command, args, { workspace, env, timeoutMs, stdinInput });
 }
 
 function isExistingTestPath(path: string): boolean {
@@ -120,12 +141,12 @@ function isExistingTestPath(path: string): boolean {
 
 async function modifiedExistingTestPatch(): Promise<{ paths: string[]; patch: string; oversized: boolean }> {
   const changed = await run("git", ["diff", "--name-only", "--diff-filter=M", "--"]);
-  if (changed.code !== 0 || changed.timedOut) throw new Error("Unable to inspect modified existing tests");
+  if (changed.code !== 0 || changed.timedOut || changed.stdoutTruncated) throw new Error("Unable to inspect modified existing tests");
   const paths = [...new Set(changed.stdout.split(/\r?\n/).map((value) => value.trim()).filter((value) => value && isExistingTestPath(value) && safeWorkspacePath(value)))].sort();
   if (!paths.length) return { paths: [], patch: "", oversized: false };
   const diff = await run("git", ["diff", "--unified=0", "--", ...paths]);
   if (diff.code !== 0 || diff.timedOut) throw new Error("Unable to inspect existing-test patch");
-  return { paths, patch: diff.stdout.slice(0, 100_000), oversized: diff.stdout.length > 100_000 };
+  return { paths, patch: diff.stdout.slice(0, 100_000), oversized: diff.stdoutTruncated };
 }
 
 async function restoreModifiedExistingTests(paths: string[]): Promise<void> {
@@ -138,6 +159,9 @@ async function candidateSnapshot(baseRevision: string): Promise<{ patchDigest: s
   const patch = await run("git", ["diff", "--binary", "--"]);
   const changed = await run("git", ["diff", "--name-only", "--"]);
   const untracked = await run("git", ["ls-files", "--others", "--exclude-standard"]);
+  if ([patch, changed, untracked].some(result => result.code !== 0 || result.timedOut || result.stdoutTruncated)) {
+    throw new Error("Unable to inspect complete Builder candidate");
+  }
   const untrackedPaths = untracked.stdout.split(/\r?\n/).map((value) => value.trim()).filter(Boolean).sort();
   const changedPaths = [...new Set(`${changed.stdout}\n${untracked.stdout}`.split(/\r?\n/).map((value) => value.trim()).filter(Boolean))].sort();
   const artifact = createHash("sha256").update("goriq-change-artifact-v1\0").update(patch.stdout, "utf8");
@@ -195,16 +219,25 @@ async function runVerify(body: Record<string, unknown>) {
         : id === "security" ? { id, args: ["test:p8-security"] }
           : id === "build" ? { id, args: ["build"] }
             : { id, args: ["test"] });
-    const evidence: Array<{ id: string; ok: boolean; exitCode: number | null; timedOut: boolean; failureNames: string[]; stdoutTail: string; stderrTail: string }> = [];
+    const evidence: Array<{ id: string; executionId: string; commandArgs: string[]; ok: boolean; exitCode: number | null; timedOut: boolean; failureNames: string[]; stdoutTail: string; stderrTail: string }> = [];
+    const groups = new Map<string, typeof checks>();
     for (const check of checks) {
+      const key = JSON.stringify(check.args);
+      groups.set(key, [...(groups.get(key) ?? []), check]);
+    }
+    for (const group of groups.values()) {
+      const check = group[0];
       const result = await run(pnpm, check.args);
+      const executionId = randomUUID();
       const ok = result.code === 0 && !result.timedOut;
-      evidence.push({
-        id: check.id,
+      for (const item of group) evidence.push({
+        id: item.id,
+        executionId,
+        commandArgs: [...check.args],
         ok,
         exitCode: result.code,
         timedOut: result.timedOut,
-        failureNames: ["unit", "integration"].includes(check.id) && !ok ? [...new Set([...result.stdout.matchAll(/^\s*not ok\s+\d+\s+-\s+([^\r\n]+)/gm), ...result.stdout.matchAll(/^✖\s+([^\r\n]+)/gm)].map(match => match[1]?.trim().slice(0, 160)).filter((name): name is string => Boolean(name)))].slice(0, 20) : [],
+        failureNames: ["unit", "integration"].includes(item.id) && !ok ? [...new Set([...result.stdout.matchAll(/^\s*not ok\s+\d+\s+-\s+([^\r\n]+)/gm), ...result.stdout.matchAll(/^✖\s+([^\r\n]+)/gm)].map(match => match[1]?.trim().slice(0, 160)).filter((name): name is string => Boolean(name)))].slice(0, 20) : [],
         stdoutTail: result.stdout.slice(-2000),
         stderrTail: result.stderr.slice(-2000),
       });
@@ -235,7 +268,7 @@ async function runVerify(body: Record<string, unknown>) {
           verifierId,
           sourceRevision: binding.sourceRevision,
           artifactDigest: binding.artifactDigest,
-          verificationEvidence: required.map((check) => ({ check, verifierId, sourceRevision: binding.sourceRevision, artifactDigest: binding.artifactDigest, status: "passed", recordedAt })),
+          verificationEvidence: required.map((check) => ({ check, verifierId, sourceRevision: binding.sourceRevision, artifactDigest: binding.artifactDigest, status: "passed", recordedAt, executionId: evidence.find(item => item.id === check)!.executionId })),
         },
       },
     };
@@ -282,9 +315,25 @@ async function runBuild(body: Record<string, unknown>) {
         "-",
       ]
     : ["--yes-always", "--message", prompt];
-  const result = engine.id === "codex"
-    ? await run(engine.command, args, executionTimeoutMs, prompt)
-    : await run(engine.command, args);
+  let result: BuilderProcessResult;
+  if (engine.id === "goriq-ollama-repair") {
+    try {
+      // The HTTP job already owns admission. Run this trusted local engine in
+      // the same call stack, without an environment flag or a nested lease.
+      const repaired = await runOllamaRepair({ workspace, model: env.GORIQ_OLLAMA_MODEL,
+        endpoint: env.GORIQ_OLLAMA_URL, prompt: `AllowedPaths=${files.join(",")}\n${prompt}` }, {
+        admit: async <T>(work: () => Promise<T>): Promise<T> => work(), fetchImpl: options.repairFetchImpl, timeoutMs: executionTimeoutMs,
+      });
+      result = { code: 0, stdout: JSON.stringify(repaired), stderr: "", timedOut: false, stdoutTruncated: false, stderrTruncated: false };
+    } catch (error) {
+      if (error instanceof ResourceWaitError) throw error;
+      result = { code: 3, stdout: "", stderr: error instanceof Error ? error.message : "Local repair failed", timedOut: false, stdoutTruncated: false, stderrTruncated: false };
+    }
+  } else {
+    result = engine.id === "codex"
+      ? await run(engine.command, args, executionTimeoutMs, prompt)
+      : await run(engine.command, args);
+  }
 
   const modifiedTests = await modifiedExistingTestPatch();
   let testContractEvolution: { allowed: boolean; reason: string; strippedPaths: string[] } | null = null;
@@ -368,7 +417,7 @@ async function runBuild(body: Record<string, unknown>) {
   };
 }
 
-createServer(async (request, response) => {
+return createServer(async (request, response) => {
   try {
     const url = new URL(request.url || "/", "http://localhost");
     if (!authorized(request)) return json(response, 401, { message: "unauthorized" });
@@ -377,15 +426,26 @@ createServer(async (request, response) => {
       return json(response, 200, { ok: true, service: "code-builder-worker", workerId, workspace, engine: engine?.id ?? null, inference: { locality: inferenceLocality, networkAccess: inferenceNetworkAccess }, capabilities: engine ? ["code-builder", "filesystem"] : ["filesystem"] });
     }
     if (request.method === "POST" && url.pathname === "/verify") {
-      const result = await runVerify(await readJson(request));
+      const body = await readJson(request);
+      const repositoryChecks = (body.contract as { kind?: unknown } | undefined)?.kind === "repository_checks";
+      const result = repositoryChecks ? await admit(() => runVerify(body), { kind: "verify", directory: workspace }) : await runVerify(body);
       return json(response, result.status, result.body);
     }
     if (request.method !== "POST" || url.pathname !== "/build") return json(response, 404, { message: "not found" });
-    const result = await runBuild(await readJson(request));
+    const body = await readJson(request);
+    const result = await admit(() => runBuild(body), { kind: "build", directory: workspace });
     return json(response, result.status, result.body);
   } catch (error) {
+    if (error instanceof ResourceWaitError) return json(response, 503, { ok: false, summary: error.message, blocker: "WAITING_FOR_RESOURCE", resourceWait: error.outcome, evidence: { resourceWait: error.outcome } });
     return json(response, 500, { ok: false, summary: error instanceof Error ? error.message : String(error), blocker: "CODE_BUILDER_INTERNAL_ERROR" });
   }
-}).listen(port, host, () => {
-  console.log(`[code-builder] ${workerId} listening on http://${host}:${port}`);
 });
+}
+
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const host = process.env.CODE_BUILDER_HOST?.trim() || "127.0.0.1";
+  const port = Number(process.env.CODE_BUILDER_PORT || 8796);
+  createCodeBuilderWorkerServer().listen(port, host, () => {
+    console.log(`[code-builder] ${process.env.GAI_WORKER_ID?.trim() || hostname()} listening on http://${host}:${port}`);
+  });
+}

@@ -154,6 +154,9 @@ export function createLocalOllamaBuilder(input: LocalOllamaBuilderOptions): Buil
         return { ok: false, summary: "Workspace changed during inference", blocker: "local_model_workspace_changed" };
       }
       const content = proposal.content.endsWith("\n") ? proposal.content : `${proposal.content}\n`;
+      if (Buffer.byteLength(content, "utf8") > 8192) {
+        return { ok: false, summary: "Normalized Ollama output exceeded the scoped byte limit", blocker: "local_model_proposal_rejected" };
+      }
       writeFileSync(target, content, { flag: "wx" });
       const changed = git(workspace, "status", "--porcelain", "-uall");
       const actual = readFileSync(target);

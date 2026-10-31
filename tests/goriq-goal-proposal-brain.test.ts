@@ -1,3 +1,4 @@
+import { fixtureResourceAdmission } from "./helpers/resource-admission-fixture.ts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { OllamaPrimaryBrainAdapter, validateBrainDecision, type PrimaryBrainContext } from "../src/gai/primary-brain.ts";
@@ -69,7 +70,7 @@ test("ordinary decisions preserve their previous shape and evidence never invent
 
 test("local adapter adds a bounded Goal-only schema and prompt only for proposal purpose", async () => {
   const bodies: Record<string, unknown>[] = [];
-  const adapter = new OllamaPrimaryBrainAdapter({ endpoint: "http://127.0.0.1:11434", model: "host-configured", fetchImpl: async (url, init) => {
+  const adapter = new OllamaPrimaryBrainAdapter({ admit: fixtureResourceAdmission, endpoint: "http://127.0.0.1:11434", model: "host-configured", fetchImpl: async (url, init) => {
     assert.equal(url, "http://127.0.0.1:11434/api/generate"); assert.equal(init?.redirect, "error"); assert.ok(init?.signal);
     bodies.push(JSON.parse(String(init!.body)));
     const { goalDraft: _goalDraft, ...normal } = decision(); void _goalDraft;
@@ -94,16 +95,16 @@ test("local adapter adds a bounded Goal-only schema and prompt only for proposal
 
 test("invalid proposal context is rejected before a local model call", async () => {
   let calls = 0;
-  const adapter = new OllamaPrimaryBrainAdapter({ endpoint: "http://127.0.0.1:11434", model: "host-configured", fetchImpl: async () => { calls++; return response(decision()); } });
+  const adapter = new OllamaPrimaryBrainAdapter({ admit: fixtureResourceAdmission, endpoint: "http://127.0.0.1:11434", model: "host-configured", fetchImpl: async () => { calls++; return response(decision()); } });
   await assert.rejects(adapter.plan({ ...context(), budget: { remainingActions: 1 } }));
   assert.equal(calls, 0);
 });
 
 test("unavailable or oversized local model response fails once without synthesizing a proposal", async () => {
   let calls = 0;
-  const unavailable = new OllamaPrimaryBrainAdapter({ endpoint: "http://127.0.0.1:11434", model: "host-configured", fetchImpl: async () => { calls++; return new Response("Unavailable", { status: 503 }); } });
+  const unavailable = new OllamaPrimaryBrainAdapter({ admit: fixtureResourceAdmission, endpoint: "http://127.0.0.1:11434", model: "host-configured", fetchImpl: async () => { calls++; return new Response("Unavailable", { status: 503 }); } });
   await assert.rejects(unavailable.plan(context()), /unavailable/); assert.equal(calls, 1);
   let cancelled = false;
-  const oversized = new OllamaPrimaryBrainAdapter({ endpoint: "http://127.0.0.1:11434", model: "host-configured", maxResponseBytes: 100, fetchImpl: async () => new Response(new ReadableStream<Uint8Array>({ start(c) { c.enqueue(new Uint8Array(101)); }, cancel() { cancelled = true; } })) });
+  const oversized = new OllamaPrimaryBrainAdapter({ admit: fixtureResourceAdmission, endpoint: "http://127.0.0.1:11434", model: "host-configured", maxResponseBytes: 100, fetchImpl: async () => new Response(new ReadableStream<Uint8Array>({ start(c) { c.enqueue(new Uint8Array(101)); }, cancel() { cancelled = true; } })) });
   await assert.rejects(oversized.plan(context()), /bound/); assert.equal(cancelled, true);
 });

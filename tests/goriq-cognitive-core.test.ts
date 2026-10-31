@@ -1,3 +1,4 @@
+import { fixtureResourceAdmission } from "./helpers/resource-admission-fixture.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { mkdtemp, rm } from "node:fs/promises";
@@ -68,8 +69,8 @@ test("durable state prevents stale overwrite and partition leakage", async () =>
 });
 
 test("Ollama adapter is bounded local-only and untrusted output cannot invent actions", async () => {
-  assert.throws(() => new OllamaPrimaryBrainAdapter({ endpoint: "https://example.com", model: "configured" }), /loopback/);
-  const adapter = new OllamaPrimaryBrainAdapter({ endpoint: "http://127.0.0.1:11434", model: "configured", fetchImpl: async () => new Response(JSON.stringify({ response: JSON.stringify({ candidateId: "invented", assessment: "propose", hypotheses: [], expectedOutcome: "42", confidence: 0.9 }) })) });
+  assert.throws(() => new OllamaPrimaryBrainAdapter({ admit: fixtureResourceAdmission, endpoint: "https://example.com", model: "configured" }), /loopback/);
+  const adapter = new OllamaPrimaryBrainAdapter({ admit: fixtureResourceAdmission, endpoint: "http://127.0.0.1:11434", model: "configured", fetchImpl: async () => new Response(JSON.stringify({ response: JSON.stringify({ candidateId: "invented", assessment: "propose", hypotheses: [], expectedOutcome: "42", confidence: 0.9 }) })) });
   await assert.rejects(adapter.plan({ goal, candidates: [{ id: "known", description: "known", risk: "low" }], memories: [], world: [], previousAttempts: [], environment: "test", connectivity: "offline", budget: { remainingActions: 1 }, currentState: "", constraints: [] }), /candidate/);
 });
 
