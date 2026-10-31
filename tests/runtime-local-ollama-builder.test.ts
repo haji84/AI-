@@ -4,7 +4,12 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createRuntimeBuilderRouter } from "../src/orchestrator/runtime-builder-capability.ts";
+import { createRuntimeBuilderRouter as runtimeBuilderRouter } from "../src/orchestrator/runtime-builder-capability.ts";
+import { fixtureResourceAdmission } from "./helpers/resource-admission-fixture.ts";
+import { ResourceWaitError } from "../src/gai/development-resource-admission.ts";
+
+const createRuntimeBuilderRouter = (env: Record<string, string | undefined>, fetchImpl?: typeof fetch,
+  admission = fixtureResourceAdmission) => runtimeBuilderRouter(env, fetchImpl, admission);
 
 const run = (cwd: string, ...args: string[]) => execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
 function sandbox() {
@@ -68,6 +73,30 @@ test("scoped local Ollama Builder produces one file and no Codex/paid fallback",
     assert.equal(readFileSync(join(p.isolated, file), "utf8"), "safe-test\n");
     assert.equal(run(p.isolated, "status", "--porcelain", "-uall"), `?? ${file}`);
     assert.equal(run(p.main, "status", "--porcelain", "-uall"), "");
+    assert.equal(counts.generate, 1);
+  } finally { p.clean(); }
+});
+
+test("local model pressure yields a typed wait through the router, writes nothing and retries after relief", async () => {
+  const p = sandbox();
+  try {
+    const counts = { tags: 0, generate: 0 };
+    const wait = new ResourceWaitError({ status: "WAITING_FOR_RESOURCE", reason: "fixture lane busy",
+      retryAfterMs: 30_000, observedAt: new Date().toISOString() });
+    let busy = true;
+    const admission: typeof fixtureResourceAdmission = async (work, options) => {
+      assert.equal(options?.kind, "local-model");
+      assert.equal(options?.directory, p.isolated);
+      if (busy) throw wait;
+      return fixtureResourceAdmission(work, options);
+    };
+    const router = createRuntimeBuilderRouter(env(p.isolated), mockOllama(counts), admission);
+    await assert.rejects(() => router.execute(request(p.head), []), error => error === wait);
+    assert.equal(counts.generate, 0);
+    assert.equal(existsSync(join(p.isolated, file)), false);
+    assert.equal(run(p.isolated, "status", "--porcelain", "-uall"), "");
+    busy = false;
+    assert.equal((await router.execute(request(p.head), [])).ok, true);
     assert.equal(counts.generate, 1);
   } finally { p.clean(); }
 });
