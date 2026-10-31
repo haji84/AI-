@@ -1,4 +1,9 @@
 import { createHash } from "node:crypto";
+import { assessCompletionPath, type CompletionInput, type CompletionCycle } from "./completion-path.ts";
+import type { WorkState } from "./work-state.ts";
+import { completionDigest, type CompletionRequirement } from './completion-path.ts';
+import type { BoundCompletionCandidate, CompletionSource, CompletionSnapshot } from './completion-execution.ts';
+import { evaluateRiskPolicy } from './risk-policy.ts';
 import {
   createDevelopmentJob,
   type DevelopmentFailure,
@@ -65,7 +70,50 @@ function workItems(input: DevelopmentPlanningInput): DevelopmentWorkItem[] {
 }
 
 export class DevelopmentOrchestrator {
-  plan(input: DevelopmentPlanningInput): DevelopmentPlan {
+  /** Bind existing job work items to host-registered actions; context/HTTP cannot register executors. */
+  completionSource(plan: DevelopmentPlan, input: {
+    requirements: CompletionRequirement[];
+    bindings: Record<string, Omit<BoundCompletionCandidate, 'workItem' | 'strategyId'>>;
+    /** Explicit host mapping from planning roles to existing registered capability names. */
+    capabilityBindings?: Record<string, string>;
+    capabilities(): Promise<CompletionSnapshot['capabilities']>;
+    evidence(): Promise<CompletionSnapshot['evidence']>;
+    observe: CompletionSource['observe'];
+  }): CompletionSource {
+    const job = structuredClone(plan.job);
+    const bindings = structuredClone(input.bindings);
+    const requirements = structuredClone(input.requirements);
+    const capabilityBindings = structuredClone(input.capabilityBindings ?? {});
+    const strategyId = plan.strategy.id;
+    for (const item of job.workItems) item.requiredCapabilities = [...new Set(item.requiredCapabilities.map(role => {
+      const name = capabilityBindings[role] ?? role;
+      if (typeof name !== 'string' || !name.trim()) throw Error('invalid planning capability binding');
+      return name;
+    }))];
+    if (Object.keys(bindings).length !== job.workItems.length || job.workItems.some(item => !bindings[item.id])) throw Error('every existing work item requires an exact action binding');
+    const rank = { low: 0, medium: 1, high: 2, critical: 3 };
+    for (const item of job.workItems) {
+      const binding = bindings[item.id];
+      const risk = evaluateRiskPolicy({ ...binding.riskSignals, ...binding.action.riskSignals, ...Object.fromEntries(Object.entries(binding.riskSignals).filter(([, v]) => v === true)) });
+      if (Math.max(rank[binding.action.risk], rank[risk.level.toLowerCase() as keyof typeof rank]) > rank[job.approvalScope.maxRisk]) throw Error('completion binding exceeds existing job approval scope');
+    }
+    return {
+      async inspect(state) {
+        if (state.goalId !== job.goalId || completionDigest(state.definitionOfDone.map(c => [c.id, c.description])) !== completionDigest(job.definitionOfDone.map(c => [c.id, c.description]))) throw Error('completion job and authoritative Goal mismatch');
+        if (job.approvalScope.expiresAt && Date.parse(job.approvalScope.expiresAt) <= Date.now()) throw Error('completion job approval scope expired');
+        return { requirements: structuredClone(requirements), candidates: job.workItems.map(workItem => ({ ...structuredClone(bindings[workItem.id]), workItem: structuredClone(workItem), strategyId })),
+          capabilities: await input.capabilities(), evidence: await input.evidence() };
+      },
+      observe: input.observe,
+    };
+  }
+
+  /** Advisory preflight only. The existing plan/execution authority remains unchanged. */
+  assessCompletionPath(state: WorkState, input: CompletionInput, history: CompletionCycle[] = []): CompletionCycle {
+    return assessCompletionPath(state, input, history);
+  }
+
+  plan(input: DevelopmentPlanningInput, now = new Date()): DevelopmentPlan {
     if (!input.objective.trim() || !input.acceptanceCriteria.length || !input.targetFiles.length) {
       throw new Error("development objective, acceptance criteria, and target files are required");
     }
@@ -96,7 +144,7 @@ export class DevelopmentOrchestrator {
       baseRevision: input.baseRevision,
       approvalScope: { taskScopeId: input.taskScopeId, maxRisk: input.maxRisk },
       workItems: workItems(input),
-    });
+    }, now);
     return {
       job,
       strategy: {

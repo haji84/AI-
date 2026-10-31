@@ -38,14 +38,15 @@ import { WorkerRemoteMailbox } from "../src/jarvis/worker-remote-mailbox.ts";
 import { remoteDeviceInventory } from "../src/jarvis/remote-device-inventory.ts";
 import { PendingEnrollment } from "../src/jarvis/pending-enrollment.ts";
 import { CompassStore } from "../src/compass/store.ts";
+import { CompassWorkStateStoreAdapter } from "../src/orchestrator/compass-work-state-store.ts";
 import { GoalControllerRuntime, type GoalControllerDecision } from "../src/orchestrator/goal-controller-runtime.ts";
 import { CompassGoalRegistryAdapter, CompassGoalDecisionStoreAdapter } from "../src/orchestrator/compass-goal-controller.ts";
-import { CompassWorkStateStoreAdapter } from "../src/orchestrator/compass-work-state-store.ts";
 import { CompassWorkRunStore } from "../src/orchestrator/compass-work-run-store.ts";
 import { CompassGoalBridgeEventStore } from "../src/orchestrator/compass-goal-bridge-event-store.ts";
 import { CompassGoalExecutionContextStore } from "../src/orchestrator/compass-goal-execution-context-store.ts";
 import { workRunProgress } from "../src/orchestrator/work-run-state.ts";
 import { createQueuedWorkRun } from "../src/orchestrator/work-run-state.ts";
+import { ResourceWaitScheduler } from "../src/orchestrator/development-resource-scheduler.ts";
 import { validateWindowsVerificationDispatch } from "../src/orchestrator/windows-verification-dispatch.ts";
 import { DeviceDevelopmentIntake, JsonFileDeviceDevelopmentInbox } from "../src/orchestrator/device-development-intake.ts";
 import { parseDailyDriverDeviceCommand } from "../src/jarvis/daily-driver-device-command.ts";
@@ -91,6 +92,7 @@ function approvedPcEnrollment(): PcEnrollmentService {
 const compassPath = process.env.JARVIS_COMPASS_DB_PATH?.trim() || (process.env.JARVIS_DB_PATH?.trim() ? `${process.env.JARVIS_DB_PATH.trim()}.compass.sqlite` : resolve(".jarvis/compass.db"));
 const compass = new CompassStore(compassPath);
 const workRuns = new CompassWorkRunStore(compass);
+const completionWorkState = new CompassWorkStateStoreAdapter(compass);
 const goalBridgeEvents = new CompassGoalBridgeEventStore(compass);
 const goalExecutionContexts = new CompassGoalExecutionContextStore(compass);
 const cognitive = new CognitiveService(compassPath, cognitiveHostOptions(process.env));
@@ -114,6 +116,23 @@ const deviceDevelopmentIntake = new DeviceDevelopmentIntake({
   },
 });
 const activeGoalExecutions = new Map<string, ReturnType<typeof spawn>>();
+const resourceWaitScheduler = new ResourceWaitScheduler({
+  async read(goalId) {
+    const active = await new CompassGoalRegistryAdapter(compass).listActive();
+    return { active: compass.getState().status !== "PAUSED" && active.some(goal => goal.goalId === goalId), run: await workRuns.getByGoal(goalId) };
+  },
+  async resume(goalId) {
+    const active = (await new CompassGoalRegistryAdapter(compass).listActive()).find(goal => goal.goalId === goalId);
+    if (!active || compass.getState().status === "PAUSED") return;
+    scheduleGoalExecution({
+      action: "CONTINUE_GOAL", goalId, resolution: {
+        kind: "EXISTING_GOAL", intent: "COMMAND", goal: active, reason: "resume_persisted_resource_wait",
+        intake: { id: "resource-" + goalId, source: "event", text: "Recheck accepted resource wait", sourceContext: {}, idempotencyKey: "resource-" + goalId, goalHint: goalId },
+      },
+    }, goalExecutionContexts.get(goalId));
+  },
+  onError: error => console.error("[goriq-goal] resource_resume_failed", error),
+});
 
 function encodeGoalExecutionContext(context: unknown[]): string {
   const encoded = Buffer.from(JSON.stringify(context), "utf8").toString("base64");
@@ -152,6 +171,7 @@ function scheduleGoalExecution(decision: GoalControllerDecision, context: unknow
     if (code !== 0) {
       console.error("[goriq-goal]", goalId, `executor_exit=${code ?? "null"} signal=${signal ?? "none"} ${stderr.trim()}`.trim());
     }
+    if (code === 0) void resourceWaitScheduler.arm(goalId).catch(error => console.error("[goriq-goal] resource_resume_failed", error));
   });
   activeGoalExecutions.set(goalId, child);
   return true;
@@ -571,7 +591,17 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
       const goalId = decodeURIComponent(path.slice("/api/jarvis/admin/work/".length));
       const run = await workRuns.getByGoal(goalId);
       if (!run) return json(response, 404, { message: "Work Runがありません", goalId });
-      return json(response, 200, { run, progress: workRunProgress(run) });
+      const completion = (await completionWorkState.getCompletionHistory(goalId)).at(-1) ?? null;
+      return json(response, 200, { run, progress: workRunProgress(run), completion });
+    }
+    if (method === "POST" && path.startsWith("/api/jarvis/admin/work/")) {
+      if (body.length > 8_192) return json(response, 413, { message: 'notification receipt too large' });
+      const goalId = decodeURIComponent(path.slice('/api/jarvis/admin/work/'.length));
+      if (!(await workRuns.getByGoal(goalId))) return json(response, 404, { message: 'Work Runがありません' });
+      try {
+        const completion = await completionWorkState.acknowledgeCompletionNotifications(goalId, payload as unknown as { cycleId: string; notificationIds: string[] });
+        return json(response, 200, { completion });
+      } catch { return json(response, 409, { message: '通知の表示内容を再取得してください。承認状態は変更していません。' }); }
     }
     if (method === "POST" && path === "/api/jarvis/admin/work") {
       try {
@@ -1012,9 +1042,10 @@ server.listen(port, host, () => {
   // A Broker restart must resume it without another owner message.
   void (async () => {
     const active = (await new CompassGoalRegistryAdapter(compass).listActive())[0];
-    if (!active) return;
+    if (!active || compass.getState().status === "PAUSED") return;
     const run = await workRuns.getByGoal(active.goalId);
     if (!run || !["QUEUED", "PLANNING", "RUNNING", "VERIFYING", "RECOVERING"].includes(run.phase)) return;
+    if (await resourceWaitScheduler.arm(active.goalId)) return;
     scheduleGoalExecution({
       action: "CONTINUE_GOAL", goalId: active.goalId, resolution: {
         kind: "EXISTING_GOAL", intent: "COMMAND", goal: active, reason: "resume_persisted_work_run",
@@ -1025,6 +1056,7 @@ server.listen(port, host, () => {
 });
 function shutdown(): void {
   if (verifierReceiptTimer) clearInterval(verifierReceiptTimer);
+  resourceWaitScheduler.close();
   for (const child of activeGoalExecutions.values()) {
     if (child.exitCode === null && child.signalCode === null) child.kill();
   }

@@ -31,6 +31,19 @@ New-Item -ItemType Directory -Force -Path $root | Out-Null
 New-Item -ItemType Directory -Force -Path (Split-Path $policyPath -Parent) | Out-Null
 Copy-Item -Force $serviceSource $servicePath
 Copy-Item -Force $policySource $policyPath
+$resourceRuntimeFiles = @(
+  'src/gai/development-resource-admission.ts',
+  'src/gai/worker-resource-probe.ts',
+  'src/gai/worker-runtime.ts',
+  'src/gai/cognitive-lease.ts',
+  'scripts/goriq-ollama-repair.mjs'
+)
+foreach ($runtimeFile in $resourceRuntimeFiles) {
+  $sourcePath = Join-Path (Join-Path $PSScriptRoot '..') $runtimeFile
+  $destinationPath = if ($runtimeFile.StartsWith('scripts/')) { Join-Path $root (Split-Path $runtimeFile -Leaf) } else { Join-Path $gaiRoot $runtimeFile }
+  New-Item -ItemType Directory -Force -Path (Split-Path $destinationPath -Parent) | Out-Null
+  Copy-Item -Force -LiteralPath $sourcePath -Destination $destinationPath
+}
 
 $node = (Get-Command node -ErrorAction Stop).Source
 $nodeVersion = (& $node --version 2>&1 | Out-String).Trim()

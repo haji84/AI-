@@ -239,6 +239,9 @@ export function createLocalOllamaBuilder(input: LocalOllamaBuilderOptions): Buil
         return { ok: false, summary: "Workspace changed during inference", blocker: "local_model_workspace_changed" };
       }
       const content = proposal.content.endsWith("\n") ? proposal.content : `${proposal.content}\n`;
+      if (Buffer.byteLength(content, "utf8") > 8192) {
+        return { ok: false, summary: "Normalized Ollama output exceeded the scoped byte limit", blocker: "local_model_proposal_rejected" };
+      }
       if (fixtureTdd && content !== "def add(a, b):\n    return a + b\n") {
         return { ok: false, summary: "Unsafe or unreviewed generated Python rejected", blocker: "local_model_fixture_content_rejected" };
       }

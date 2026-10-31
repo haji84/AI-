@@ -25,6 +25,7 @@ import { configuredPrimaryBrain, type PrimaryBrainAdapter } from "../gai/primary
 import type { ResidentDevelopmentProgress } from "./resident-development-goal-host.ts";
 import { residentDevelopmentGoalDigest } from "./resident-development-sequence.ts";
 import type { DefinitionOfDoneResult, WorkState } from "./work-state.ts";
+import type { CompletionSource } from './completion-execution.ts';
 
 export interface CognitiveRuntimeOptions {
   /** Explicit host opt-in; absent preserves the existing development execution path. */
@@ -125,11 +126,13 @@ export class CompassGoalExecutionAdapter implements GoalExecutionAdapter {
   private readonly goalLoopOptions: GoalLoopOptions;
   private readonly cognitiveOptions: CognitiveRuntimeOptions;
   private readonly developmentOptions?: DevelopmentRuntimeOptions;
+  private readonly completionSource?: CompletionSource;
   constructor(
     dbPath = process.env.COMPASS_DB_PATH?.trim() || resolve(process.cwd(), ".compass", "compass.db"),
     goalLoopOptions: GoalLoopOptions = {},
     cognitiveOptions: CognitiveRuntimeOptions = {},
     developmentOptions?: DevelopmentRuntimeOptions,
+    completionSource?: CompletionSource,
   ) {
     this.dbPath = dbPath;
     this.goalLoopOptions = goalLoopOptions;
@@ -137,6 +140,8 @@ export class CompassGoalExecutionAdapter implements GoalExecutionAdapter {
     if (cognitiveOptions.useCore !== true && Object.keys(cognitiveOptions).some(key => key !== "useCore")) throw Error("Cognitive options require explicit useCore opt-in");
     this.cognitiveOptions = cognitiveOptions;
     this.developmentOptions = developmentOptions;
+    if (completionSource && (cognitiveOptions.useCore === true || developmentOptions)) throw Error('Completion integration requires a single selected execution controller');
+    this.completionSource = completionSource;
   }
 
   async run(goalId: string, input: { maxCycles?: number; context?: unknown[] } = {}): Promise<BoundedRunReport> {
@@ -170,6 +175,7 @@ export class CompassGoalExecutionAdapter implements GoalExecutionAdapter {
         // Only the explicitly bound sequence participates in this preflight.
         // Read persisted completed progress without executing any candidate work.
         const before = await runtime.getVerifiedProgress?.({ goalId: authoritativeGoalId, goal });
+        if (!before && compass.getState().status === "PAUSED") return { cycles: [], stopReason: "paused" };
         if (before) {
           const current = compass.getState();
           const prior = await new CompassWorkStateStoreAdapter(compass).get(authoritativeGoalId);
@@ -194,6 +200,7 @@ export class CompassGoalExecutionAdapter implements GoalExecutionAdapter {
         const progress = await runtime.getVerifiedProgress?.({ goalId: authoritativeGoalId, goal });
         return progress ? await projectResidentProgress(compass, authoritativeGoalId, goal, report, progress) : report;
       }
+      if (compass.getState().status === "PAUSED") return { cycles: [], stopReason: "paused" };
       const registry = new CapabilityRegistry()
         .register(createContextInspectCapability())
         .register(createCodeBuilderCapability(createRuntimeBuilderRouter()));
@@ -209,6 +216,7 @@ export class CompassGoalExecutionAdapter implements GoalExecutionAdapter {
           verifier: createRuntimeDevelopmentVerifier(),
           stateStore: new CompassStateStoreAdapter(compass),
           workStateStore,
+          ...(this.completionSource ? { completion: { source: this.completionSource } } : {}),
           options: this.goalLoopOptions,
         });
         const report = await runBoundedGoalLoop(loop, goal, { maxCycles: input.maxCycles ?? 3 });

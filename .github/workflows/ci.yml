@@ -100,6 +100,12 @@ jobs:
           ./tests/goriq-pc-runtime-launch.test.ps1
           ./tests/gai-zbook-launcher-file.test.ps1
           ./tests/goriq-zbook-watchdog-launcher-repair.test.ps1
+          ./tests/completion-native-transaction.test.ps1
+          ./tests/completion-native-pointer.test.ps1
+          ./tests/goriq-zbook-fixed-acl-repair.test.ps1
+      - name: Isolated native recovery controller fixture
+        shell: powershell
+        run: ./tests/completion-native-resume.test.ps1
       - name: Windows PowerShell 5.1 access media fixtures
         shell: powershell
         run: |

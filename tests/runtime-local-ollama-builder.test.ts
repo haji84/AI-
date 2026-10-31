@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createRuntimeBuilderRouter } from "../src/orchestrator/runtime-builder-capability.ts";
@@ -303,3 +303,27 @@ for (const key of ["remote_host", "remote_model"] as const) {
     } finally { p.clean(); }
   });
 }
+
+for (const boundary of [
+  { name: "8191 bytes without newline", content: "x".repeat(8191), accepted: true },
+  { name: "8192 bytes including newline", content: "x".repeat(8191) + "\n", accepted: true },
+  { name: "8192 bytes without newline", content: "x".repeat(8192), accepted: false },
+]) test(`normalized local candidate enforces the byte limit: ${boundary.name}`, async () => {
+  const p = sandbox();
+  try {
+    const router = createRuntimeBuilderRouter(env(p.isolated), async url => {
+      if (String(url).endsWith("/api/tags")) return Response.json({ models: [{ name: "qwen2.5-coder:3b" }] });
+      return Response.json({ model: "qwen2.5-coder:3b", done: true,
+        response: JSON.stringify({ path: file, content: boundary.content }) });
+    });
+    const result = await router.execute(request(p.head), []);
+    assert.equal(result.ok, boundary.accepted);
+    if (boundary.accepted) assert.equal(readFileSync(join(p.isolated, file)).length, 8192);
+    else {
+      assert.equal(result.blocker, "local_model_proposal_rejected");
+      assert.equal(existsSync(join(p.isolated, file)), false);
+      assert.equal(run(p.isolated, "status", "--porcelain", "-uall"), "");
+    }
+    assert.equal(run(p.main, "status", "--porcelain", "-uall"), "");
+  } finally { p.clean(); }
+});

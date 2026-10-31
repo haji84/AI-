@@ -4,6 +4,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test, { type TestContext } from "node:test";
+import { ResourceWaitError } from "../src/gai/development-resource-admission.ts";
 import { CompassStore } from "../src/compass/store.ts";
 import { CompassGoalExecutionAdapter } from "../src/orchestrator/compass-goal-execution-adapter.ts";
 import { CompassGoalRegistryAdapter } from "../src/orchestrator/compass-goal-controller.ts";
@@ -13,6 +14,7 @@ import { OwnerRequirementIntake } from "../src/orchestrator/owner-requirement-in
 import { createDevelopmentChangeSet } from "../src/orchestrator/development-change-set.ts";
 import { JsonFileDevelopmentChangeSetStore } from "../src/orchestrator/development-change-set-store.ts";
 import { JsonFileDevelopmentJobStore } from "../src/orchestrator/development-job-store.ts";
+import { DevelopmentJobStateController } from "../src/orchestrator/development-job.ts";
 import { ResidentDevelopmentGoalHost, type ResidentDevelopmentStages } from "../src/orchestrator/resident-development-goal-host.ts";
 import { residentDevelopmentGoalDigest, type ResidentDevelopmentSequence } from "../src/orchestrator/resident-development-sequence.ts";
 import { goalWorkStateId } from "../src/orchestrator/work-state-integration.ts";
@@ -32,6 +34,7 @@ function fixture(t: TestContext) {
     jobs: goal.successCriteria.map((_, index) => ({ key: `job-${index + 1}`, objective: `Create artifact ${index + 1}`,
       criterionIds: [`criterion-${index + 1}`], targetFiles: [`docs/artifact-${index + 1}.txt`], baseRevision: base })) };
   let acceptanceReady = true, builds = 0, runs = 0;
+  let time = Date.now();
   const stages: ResidentDevelopmentStages = {
     deferMissingVerification: true,
     async build({ job, workItemId }) {
@@ -53,15 +56,75 @@ function fixture(t: TestContext) {
       mainCi: null, deployment: null, postDeploymentEvidence: null }; },
   };
   const host = () => new ResidentDevelopmentGoalHost({ jobs: new JsonFileDevelopmentJobStore(join(root, "jobs.json")),
+    now: () => new Date(time),
     changeSets: new JsonFileDevelopmentChangeSetStore(join(root, "changes.json")), stages,
     planning: { requirementIds: ["CORE-014"], baseRevision: base, taskScopeId: "issue:1219", maxRisk: "low",
       contextDigest: hash("context"), targetFiles: ["docs/artifact-1.txt"], sequence } });
-  return { dbPath, host, counts: () => ({ builds, runs }), setAcceptance: (value: boolean) => { acceptanceReady = value; },
+  return { dbPath, host, stages, jobs: () => new JsonFileDevelopmentJobStore(join(root, "jobs.json")),
+    advance: (ms: number) => { time += ms; },
+    counts: () => ({ builds, runs }), setAcceptance: (value: boolean) => { acceptanceReady = value; },
     adapter: () => {
       const runtime = host(), run = runtime.run.bind(runtime);
       runtime.run = async input => { runs++; return run(input); };
       return new CompassGoalExecutionAdapter(dbPath, {}, {}, { runtime });
     } };
+}
+
+for (const stage of ["build", "verify"] as const) {
+  test(`adapter retains completed criteria while successor ${stage} waits and resumes after restart`, async t => {
+    const f = fixture(t);
+    await f.adapter().run(goalId);
+    const first = (await f.jobs().getByGoal(goalId))[0]!;
+    const original = f.stages[stage];
+    let probes = 0;
+    f.stages[stage] = async () => {
+      probes++;
+      throw new ResourceWaitError({ status: "WAITING_FOR_RESOURCE", reason: "fixture resource busy",
+        retryAfterMs: 30_000, observedAt: new Date().toISOString() });
+    };
+    const waiting = await f.adapter().run(goalId);
+    assert.equal(waiting.goalEvaluation?.achieved, false);
+    assert.deepEqual(waiting.goalEvaluation?.verifiedRequired, ["criterion-1"]);
+    assert.deepEqual(waiting.goalEvaluation?.unverifiedRequired, ["criterion-2"]);
+    assert.ok(waiting.resourceWait);
+    assert.equal((await f.jobs().getByGoal(goalId))[1]!.phase, "WAITING_FOR_RESOURCE");
+    const restarted = await f.adapter().run(goalId);
+    assert.deepEqual(restarted.goalEvaluation?.verifiedRequired, ["criterion-1"]);
+    assert.equal(probes, 1);
+    Object.assign(f.stages, { [stage]: original });
+    f.advance(30_001);
+    const resumed = await f.adapter().run(goalId);
+    assert.equal(resumed.goalEvaluation?.achieved, true);
+    assert.deepEqual(resumed.goalEvaluation?.verifiedRequired, ["criterion-1", "criterion-2"]);
+    assert.deepEqual(await f.jobs().get(first.jobId), first);
+  });
+}
+
+for (const stop of ["deadline", "human_gate"] as const) {
+  test(`adapter preserves completed criteria when the waiting successor stops at ${stop}`, async t => {
+    const f = fixture(t);
+    await f.adapter().run(goalId);
+    const completed = (await f.jobs().getByGoal(goalId))[0]!;
+    f.stages.build = async ({ job }) => {
+      if (stop === "human_gate") await f.jobs().put(new DevelopmentJobStateController().apply(job, {
+        transitionId: `${job.jobId}:owner-gate`, actor: "state-controller", to: "HUMAN_GATE",
+        reason: "Owner gate during admission", at: new Date(Date.parse(job.updatedAt) + 1).toISOString(),
+      }));
+      throw new ResourceWaitError({ status: "WAITING_FOR_RESOURCE", reason: "fixture lane busy",
+        retryAfterMs: 30_000, observedAt: new Date().toISOString() });
+    };
+    let result = await f.adapter().run(goalId);
+    if (stop === "deadline") {
+      f.advance(31 * 60_000);
+      result = await f.adapter().run(goalId);
+    }
+    assert.equal(result.goalEvaluation?.achieved, false);
+    assert.equal(result.stopReason, stop === "human_gate" ? "approval_required" : "blocked");
+    assert.deepEqual(result.goalEvaluation?.verifiedRequired, ["criterion-1"]);
+    assert.deepEqual(result.goalEvaluation?.unverifiedRequired, ["criterion-2"]);
+    assert.equal(result.resourceWait, undefined);
+    assert.deepEqual(await f.jobs().get(completed.jobId), completed);
+  });
 }
 
 test("resident completed criteria survive Compass restart and drive the next Goal decision", async t => {

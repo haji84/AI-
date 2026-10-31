@@ -1,3 +1,5 @@
+import { DevelopmentJobStateController } from "../src/orchestrator/development-job.ts";
+import { DevelopmentOrchestrator } from "../src/orchestrator/development-orchestrator.ts";
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -10,8 +12,6 @@ import { CompassGoalRegistryAdapter } from "../src/orchestrator/compass-goal-con
 import { createDevelopmentChangeSet } from "../src/orchestrator/development-change-set.ts";
 import { JsonFileDevelopmentChangeSetStore } from "../src/orchestrator/development-change-set-store.ts";
 import { JsonFileDevelopmentJobStore } from "../src/orchestrator/development-job-store.ts";
-import { DevelopmentJobStateController } from "../src/orchestrator/development-job.ts";
-import { DevelopmentOrchestrator } from "../src/orchestrator/development-orchestrator.ts";
 import {
   ResidentDevelopmentGoalHost,
   type ResidentDevelopmentStages,

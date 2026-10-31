@@ -4,6 +4,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test, { type TestContext } from "node:test";
+import { ResourceWaitError } from "../src/gai/development-resource-admission.ts";
 import { createDevelopmentChangeSet } from "../src/orchestrator/development-change-set.ts";
 import { JsonFileDevelopmentChangeSetStore } from "../src/orchestrator/development-change-set-store.ts";
 import { JsonFileDevelopmentJobStore } from "../src/orchestrator/development-job-store.ts";
@@ -30,6 +31,7 @@ function fixture(t: TestContext) {
   const jobsFile = join(root, "jobs.json"), changesFile = join(root, "changes.json");
   const approved = sequence(), builds: string[] = [];
   let acceptanceReady = true;
+  let time = Date.now();
   const stages: ResidentDevelopmentStages = {
     deferMissingVerification: true,
     async build({ job, workItemId }) {
@@ -57,8 +59,10 @@ function fixture(t: TestContext) {
     async executeRelease() { throw Error("Local artifact completion must never publish"); },
   };
   return { approved, builds, stages, setAcceptance: (ready: boolean) => { acceptanceReady = ready; },
+    advance: (ms: number) => { time += ms; },
     jobs: () => new JsonFileDevelopmentJobStore(jobsFile), changes: () => new JsonFileDevelopmentChangeSetStore(changesFile),
     host: (plan = approved) => new ResidentDevelopmentGoalHost({ jobs: new JsonFileDevelopmentJobStore(jobsFile),
+      now: () => new Date(time),
       changeSets: new JsonFileDevelopmentChangeSetStore(changesFile), stages,
       planning: { requirementIds: ["CORE-014"], baseRevision: BASE, taskScopeId: "issue:1219", maxRisk: "low",
         targetFiles: ["docs/first.txt"], contextDigest: "d".repeat(64), sequence: plan } }),
@@ -87,6 +91,34 @@ test("an approved sequence creates its next Job after restart and reports only c
   assert.equal((await f.host().run(request)).goalEvaluation?.achieved, true);
   assert.equal(f.builds.length, count);
   assert.deepEqual(await f.jobs().get(firstJob.jobId), firstJob);
+});
+
+test("an approved successor waits on its own resources, rejects sequence drift and resumes after restart", async t => {
+  const f = fixture(t);
+  await f.host().run(request);
+  const completed = (await f.jobs().getByGoal(request.goalId))[0]!;
+  const original = f.stages.build;
+  let probes = 0;
+  f.stages.build = async () => {
+    probes++;
+    throw new ResourceWaitError({ status: "WAITING_FOR_RESOURCE", reason: "fixture lane busy",
+      retryAfterMs: 30_000, observedAt: new Date().toISOString() });
+  };
+  const waiting = await f.host().run(request);
+  assert.equal(waiting.goalEvaluation?.achieved, false);
+  assert.ok(waiting.resourceWait);
+  assert.equal((await f.jobs().getByGoal(request.goalId))[1]!.phase, "WAITING_FOR_RESOURCE");
+  await f.host().run(request);
+  assert.equal(probes, 1);
+  const changed = structuredClone(f.approved);
+  changed.jobs[1]!.targetFiles = ["docs/unauthorized.txt"];
+  await assert.rejects(() => f.host(changed).run(request), /SEQUENCE.*MISMATCH/);
+  f.advance(30_001);
+  f.stages.build = original;
+  const resumed = await f.host().run(request);
+  assert.equal(resumed.goalEvaluation?.achieved, true);
+  assert.deepEqual(resumed.goalEvaluation?.verifiedRequired, ["criterion-1", "criterion-2"]);
+  assert.deepEqual(await f.jobs().get(completed.jobId), completed);
 });
 
 test("missing acceptance stays resumable before READY and later proof completes without rebuilding", async t => {

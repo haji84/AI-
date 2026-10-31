@@ -1,0 +1,185 @@
+{
+  "schemaVersion": 1,
+  "issue": 1845,
+  "observedDate": "2026-10-21",
+  "timezone": "Asia/Tokyo",
+  "privacy": "Manually minimized diagnostic facts only. Raw Windows/WER/Ollama files and process command lines remain local and are not uploaded.",
+  "findings": [
+    {
+      "id": "system-commit-exhaustion",
+      "classification": "CONFIRMED",
+      "evidence": [
+        {
+          "time": "18:28:21.944+09:00",
+          "log": "System",
+          "provider": "Application Popup",
+          "eventId": 26,
+          "recordId": 85580,
+          "signal": "virtual memory low; paging file expansion; allocation requests may be denied"
+        },
+        {
+          "time": "18:48:16.681+09:00",
+          "log": "System",
+          "provider": "Service Control Manager",
+          "eventId": 7023,
+          "recordId": 85613,
+          "win32Error": 1455,
+          "signal": "Task Scheduler cannot complete due to paging file limit"
+        },
+        {
+          "time": "19:53:04.589+09:00",
+          "provider": "Microsoft-Windows-Resource-Exhaustion-Detector",
+          "channel": "Operational",
+          "eventId": 1003,
+          "systemCommitLimitBytes": 97864511488,
+          "systemCommitChargeBytes": 97858703360,
+          "remainingBytes": 5808128,
+          "percent": 99.994065
+        }
+      ]
+    },
+    {
+      "id": "memory-exhaustion-caused-cascade",
+      "classification": "PROBABLE",
+      "confidence": "high",
+      "evidence": [
+        "Virtual-memory warning predates reported crashes.",
+        "DWM crashed4 times at18:59-19:00 with0xC00001AD and then could not start with0xC000012D.",
+        "Multiple unrelated system services/applications failed in the same episode."
+      ],
+      "limits": [
+        "No frozen input-thread stack or pre-crash per-process commit trace."
+      ]
+    },
+    {
+      "id": "allocation-culprit-or-memory-leak",
+      "classification": "UNKNOWN",
+      "evidence": [
+        "Git had72 Application Error records over focused and extended windows.",
+        "Resource-Exhaustion-Resolver1014 mentioned git.exe leak-diagnosis notification but discarded it withDropReasonCode16; no completed leak diagnosis.",
+        "Ollama archived server log contains a fatal heap-arena-map allocation failure without a line timestamp."
+      ],
+      "limits": [
+        "Crashes and OOM do not prove the process was the allocation culprit.",
+        "No per-process Private Bytes trend, parent process tree or model/job allocation history."
+      ]
+    },
+    {
+      "id": "gpu-path-abnormality",
+      "classification": "CONFIRMED",
+      "evidence": [
+        {
+          "time": "19:00:22.899+09:00",
+          "provider": "Microsoft-Windows-HAL",
+          "eventId": 15,
+          "signal": "IOMMU fault; device correlation unresolved"
+        },
+        {
+          "time": "19:54:03.302-19:54:04.397+09:00",
+          "provider": "nvlddmkm",
+          "eventId": 153,
+          "count": 3,
+          "signal": "TDR reset/restart"
+        }
+      ],
+      "causeClassification": "UNKNOWN",
+      "limits": [
+        "These events follow the first memory warning. No proof of primary driver defect or GPU hardware failure."
+      ]
+    },
+    {
+      "id": "disk-io-factor",
+      "classification": "UNKNOWN",
+      "evidence": [
+        {
+          "time": "18:28:21.301+09:00",
+          "provider": "Volsnap",
+          "eventId": 25,
+          "signal": "Shadow storage could not expand in time; source recommends reducing IO load."
+        }
+      ],
+      "limits": [
+        "No historical disk queue/free-space measurements. No corresponding Disk/storport failure in inspected range; SMART access denied."
+      ]
+    },
+    {
+      "id": "forced-shutdown-records",
+      "classification": "CONFIRMED",
+      "evidence": [
+        {
+          "boot": "19:23:19+09:00",
+          "kernelPower41": true,
+          "eventLog6008": true,
+          "bugcheckCode": 0,
+          "reportedPriorShutdown": "19:14:10+09:00"
+        },
+        {
+          "boot": "20:07:40+09:00",
+          "kernelPower41": true,
+          "eventLog6008": true,
+          "bugcheckCode": 0,
+          "reportedPriorShutdown": "19:48:44+09:00"
+        }
+      ],
+      "limits": [
+        "41/6008 are recorded after boot; their prior-shutdown values do not identify exact freeze onset or button-press time."
+      ]
+    },
+    {
+      "id": "recovery-job-overlap",
+      "classification": "CONFIRMED",
+      "evidence": [
+        {
+          "runId": 39572807594,
+          "jobId": 119130944931,
+          "labels": [
+            "self-hosted",
+            "Windows",
+            "X64"
+          ],
+          "reportedStartUTC": "2026-10-21T08:54:28Z",
+          "reportedEndUTC": "2026-10-21T09:37:24Z",
+          "signal": "ZBook recovery overlapped first memory-warning/crash episode"
+        }
+      ],
+      "causeClassification": "UNKNOWN",
+      "limits": [
+        "API step times extend beyond reported job end; preserve timing uncertainty.",
+        "No per-job or per-process memory trace; temporal overlap is not causal proof."
+      ]
+    }
+  ],
+  "nativeFollowup": {
+    "capturedAt": "2026-10-21T21:22:48+09:00",
+    "reliabilityRecords": 149,
+    "reliabilityApplicationErrors": 122,
+    "gitCrashes": 72,
+    "conhostCrashes": 26,
+    "dwmCrashes": 6,
+    "availableMemoryMB": 8661,
+    "committedBytes": 30018326528,
+    "commitLimitBytes": 48502538240,
+    "commitPercent": 61,
+    "newApplicationErrorsSince": "2026-10-21T21:10:00+09:00",
+    "newApplicationErrorCount": 0,
+    "ubuntuAssignedMemoryMB": 6144,
+    "ubuntuMeasurementTime": "2026-10-21T20:21:18+09:00"
+  },
+  "accessLimits": [
+    "Non-administrator read session;38 of118 same-day WER reports denied,80 read.",
+    "LiveKernelReports and detailed storage reliability counters denied.",
+    "Get-VM denied; read-only Hyper-V performance counters gave current assignment.",
+    "Dump location metadata only; no memory payload copied or uploaded; no debugger found on PATH."
+  ],
+  "notPerformed": [
+    "No service/VM/worktree stop or reset.",
+    "No driver update, reinstall, settings/permission change, stress test or restart.",
+    "No raw diagnostic upload."
+  ],
+  "additionalEvidenceNeeded": [
+    "Per-process commit/private-bytes timeline with process creation/parent PID and exact job correlation.",
+    "Authorized local offline dump analysis for DWM/GPU and allocation stacks.",
+    "Historical paging-file expansion timing, disk free/IO wait and VM/model working sets."
+  ],
+  "completionBoundary": "Freeze prevention and the original allocation culprit remain unverified. Source/CI changes must not be reported as a live runtime installation."
+}

@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test, { type TestContext } from "node:test";
+import { ResourceWaitError } from "../src/gai/development-resource-admission.ts";
 import { createDevelopmentChangeSet } from "../src/orchestrator/development-change-set.ts";
 import { JsonFileDevelopmentChangeSetStore } from "../src/orchestrator/development-change-set-store.ts";
 import { createDevelopmentJob, DevelopmentJobStateController, type DevelopmentJob } from "../src/orchestrator/development-job.ts";
@@ -50,6 +51,7 @@ function fixture(t: TestContext) {
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const jobsPath = join(root, "jobs.json"), changesPath = join(root, "changes.json");
   const builds: string[] = [];
+  let time = NOW.getTime();
   const stages: ResidentDevelopmentStages = {
     deferMissingVerification: true,
     async build({ job, workItemId }) {
@@ -67,9 +69,11 @@ function fixture(t: TestContext) {
   };
   return {
     builds, stages,
+    advance: (ms: number) => { time += ms; },
     jobs: () => new JsonFileDevelopmentJobStore(jobsPath),
     changes: () => new JsonFileDevelopmentChangeSetStore(changesPath),
     host: () => new ResidentDevelopmentGoalHost({
+      now: () => new Date(time),
       jobs: new JsonFileDevelopmentJobStore(jobsPath),
       changeSets: new JsonFileDevelopmentChangeSetStore(changesPath), stages,
       planning: { requirementIds: ["CORE-014"], baseRevision: BASE, taskScopeId: "issue:1219",
@@ -101,6 +105,75 @@ test("restart selects the persisted unfinished Job after a completed Job without
     [["job-a", "COMPLETED"], ["job-b", "VERIFYING"]]);
   assert.deepEqual(await f.jobs().get("job-a"), persistedCompleted);
 });
+
+function pressure(): ResourceWaitError {
+  return new ResourceWaitError({ status: "WAITING_FOR_RESOURCE", reason: "fixture resource pressure",
+    retryAfterMs: 30_000, observedAt: NOW.toISOString() });
+}
+
+test("resource pressure checkpoints the unfinished next Job and respects its due time after restart", async t => {
+  const f = fixture(t), original = f.stages.build;
+  await f.jobs().put(completedJob("job-a"));
+  await f.jobs().put(queuedJob("job-b"));
+  const first = await f.jobs().get("job-a");
+  let probes = 0;
+  f.stages.build = async () => { probes++; throw pressure(); };
+  const waiting = await f.host().run(request);
+  assert.equal(waiting.goalEvaluation?.achieved, false);
+  assert.ok(waiting.resourceWait);
+  assert.equal((await f.jobs().get("job-b"))?.phase, "WAITING_FOR_RESOURCE");
+  assert.equal((await f.jobs().get("job-b"))?.attempts.length, 0);
+  await f.host().run(request);
+  assert.equal(probes, 1, "a new host must respect the next Job's persisted due time");
+  f.stages.build = original;
+  f.advance(30_001);
+  assert.equal((await f.host().run(request)).goalEvaluation?.achieved, false);
+  assert.equal((await f.jobs().get("job-b"))?.phase, "VERIFYING");
+  assert.deepEqual(f.builds, ["job-b"]);
+  assert.deepEqual(await f.jobs().get("job-a"), first);
+});
+
+test("resource deadline exhausts only the unfinished next Job", async t => {
+  const f = fixture(t);
+  await f.jobs().put(completedJob("job-a"));
+  await f.jobs().put(queuedJob("job-b"));
+  const first = await f.jobs().get("job-a");
+  f.stages.build = async () => { throw pressure(); };
+  await f.host().run(request);
+  f.advance(31 * 60_000);
+  const result = await f.host().run(request);
+  assert.equal(result.goalEvaluation?.achieved, false);
+  assert.equal(result.stopReason, "blocked");
+  assert.equal((await f.jobs().get("job-b"))?.phase, "BLOCKED");
+  assert.deepEqual((await f.jobs().get("job-b"))?.blockers, ["resource_wait_budget_exhausted"]);
+  assert.deepEqual(await f.jobs().get("job-a"), first);
+});
+
+for (const phase of ["HUMAN_GATE", "BLOCKED", "CANCELLED"] as const) {
+  test(`a late resource result preserves ${phase} on its exact Job and never advances another`, async t => {
+    const f = fixture(t);
+    await f.jobs().put(completedJob("job-a"));
+    await f.jobs().put(queuedJob("job-b"));
+    await f.jobs().put(queuedJob("job-c"));
+    const first = await f.jobs().get("job-a");
+    f.stages.build = async ({ job }) => {
+      const latest = (await f.jobs().get(job.jobId))!;
+      await f.jobs().put(new DevelopmentJobStateController().apply(latest, {
+        transitionId: `${job.jobId}:in-flight-${phase}`, actor: "state-controller", to: phase,
+        reason: "External stop while waiting for admission", blockers: ["existing_stop"],
+        at: new Date(Date.parse(latest.updatedAt) + 1).toISOString(),
+      }));
+      throw pressure();
+    };
+    const result = await f.host().run(request);
+    assert.equal(result.goalEvaluation?.achieved, false);
+    assert.equal(result.stopReason, phase === "HUMAN_GATE" ? "approval_required" : "blocked");
+    assert.equal((await f.jobs().get("job-b"))?.phase, phase);
+    assert.equal((await f.jobs().get("job-c"))?.phase, "QUEUED");
+    assert.equal(result.resourceWait, undefined);
+    assert.deepEqual(await f.jobs().get("job-a"), first);
+  });
+}
 
 for (const phase of ["HUMAN_GATE", "BLOCKED"] as const) {
   test(`restart preserves ${phase} on the next Job instead of skipping to later work`, async t => {
