@@ -5970,7 +5970,7 @@
     },
     {
       "path": "src/orchestrator/runtime-local-ollama-builder.ts",
-      "sha256": "a842b8944c62157ffee5f1c509413d0e42418bda5c3c936380e1f76cc570c02e",
+      "sha256": "26cfc05df1a5d3d6d98b38235b324d73913dd9b8a984d88589c3b0db2eb97cc9",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-008",
@@ -5994,7 +5994,7 @@
     },
     {
       "path": "src/orchestrator/runtime-ollama-review-checkpoint.mjs",
-      "sha256": "eafc922e15b20ff430bf3cc74496bade50d8dd7eaed7d311a4c9770bd20d5732",
+      "sha256": "c8c9dde678ea81157536045eb1bb9a308df1658ac267d1ca6eb9ab1293ff70ae",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "CORE-010",

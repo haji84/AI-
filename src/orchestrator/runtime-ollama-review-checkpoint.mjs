@@ -136,6 +136,7 @@ async function checkModels(config, fetchImpl) {
   }
 }
 function decode(raw, config, binding, path) {
+  requireThat(object(raw) && raw.remoteReferenceDetected === false, 'LOCAL_REVIEW_LOCALITY_UNPROVEN');
   requireThat(object(raw) && raw.model === config.reviewer.name && raw.done === true
     && (raw.done_reason === undefined || raw.done_reason === 'stop') && Number.isInteger(raw.eval_count) && raw.eval_count > 0
     && typeof raw.response === 'string' && Buffer.byteLength(raw.response) <= 20000, 'LOCAL_REVIEW_INFERENCE_NOT_PROVEN');
@@ -229,7 +230,10 @@ export async function reviewRuntimeCandidate({ config, actionId, input, evidence
           required: ['artifactDigest', 'sourceRevision', 'testBindingSha256', 'verdict', 'findings', 'reason'], additionalProperties: false },
         options: { temperature: 0, num_ctx: 8192, num_predict: 2048 } };
       const raw = await localApi(fetchImpl, '/api/generate', request);
-      body.observation = { model: raw.model, done: raw.done, ...(raw.done_reason === undefined ? {} : { done_reason: raw.done_reason }), eval_count: raw.eval_count, response: raw.response };
+      requireThat(object(raw) && !Object.hasOwn(raw, 'remote_host') && !Object.hasOwn(raw, 'remote_model')
+        && !raw.remoteReferenceDetected && !raw.details?.remote_host && !raw.details?.remote_model,
+      'LOCAL_REVIEW_REMOTE_MODEL_REJECTED');
+      body.observation = { model: raw.model, done: raw.done, ...(raw.done_reason === undefined ? {} : { done_reason: raw.done_reason }), eval_count: raw.eval_count, response: raw.response, remoteReferenceDetected: false };
       decode(body.observation, config, binding, candidate.path);
       await checkModels(config, fetchImpl);
       readCandidate(config, input);

@@ -247,3 +247,59 @@ test("an initial scoped strategy hypothesis does not require fabricated prior fa
     assert.equal(readFileSync(join(p.isolated, file), "utf8"), "safe-test\n");
   } finally { p.clean(); }
 });
+
+for (const fallback of [false, true]) for (const key of ["remote_host", "remote_model"] as const) {
+  test(`local-only Builder rejects ${key} in ${fallback ? "fallback" : "preferred"} inventory before generation`, async () => {
+    const p = sandbox();
+    try {
+      let generations = 0;
+      const model = fallback ? "qwen2.5-coder:1.5b" : "qwen2.5-coder:3b";
+      const fetchImpl: typeof fetch = async url => {
+        if (String(url).endsWith("/api/tags")) return Response.json({ models: [{ name: model, [key]: "remote-reference" }] });
+        generations++;
+        return Response.json({ model, done: true, response: JSON.stringify({ path: file, content: "must not write" }) });
+      };
+      const router = createRuntimeBuilderRouter({ ...env(p.isolated),
+        ...(fallback ? { GORIQ_LOCAL_OLLAMA_FALLBACK_MODELS: model } : {}) }, fetchImpl);
+      const result = await router.execute(request(p.head), []);
+      assert.equal(result.ok, false);
+      assert.equal(result.blocker, "real_builder_capability_unavailable");
+      assert.equal(generations, 0);
+      assert.equal(run(p.isolated, "status", "--porcelain", "-uall"), "");
+    } finally { p.clean(); }
+  });
+}
+
+test("ambiguous installed model names cannot establish local provenance", async () => {
+  const p = sandbox();
+  try {
+    let generations = 0;
+    const router = createRuntimeBuilderRouter(env(p.isolated), async url => {
+      if (String(url).endsWith("/api/tags")) return Response.json({ models: [
+        { name: "qwen2.5-coder:3b" }, { name: "qwen2.5-coder:3b", remote_model: "remote-reference" },
+      ] });
+      generations++;
+      return Response.json({ model: "qwen2.5-coder:3b", done: true, response: JSON.stringify({ path: file, content: "must not write" }) });
+    });
+    assert.equal((await router.execute(request(p.head), [])).ok, false);
+    assert.equal(generations, 0);
+    assert.equal(run(p.isolated, "status", "--porcelain", "-uall"), "");
+  } finally { p.clean(); }
+});
+
+for (const key of ["remote_host", "remote_model"] as const) {
+  test(`generation ${key} cannot be accepted as a local candidate`, async () => {
+    const p = sandbox();
+    try {
+      const router = createRuntimeBuilderRouter(env(p.isolated), async url => {
+        if (String(url).endsWith("/api/tags")) return Response.json({ models: [{ name: "qwen2.5-coder:3b" }] });
+        return Response.json({ model: "qwen2.5-coder:3b", done: true, [key]: "remote-reference",
+          response: JSON.stringify({ path: file, content: "must not write" }) });
+      });
+      const result = await router.execute(request(p.head), []);
+      assert.equal(result.ok, false);
+      assert.equal(result.blocker, "local_model_remote_reference_rejected");
+      assert.equal(run(p.isolated, "status", "--porcelain", "-uall"), "");
+    } finally { p.clean(); }
+  });
+}
