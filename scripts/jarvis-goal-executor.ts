@@ -140,7 +140,7 @@ function configuredDevelopmentRuntime(compassPath: string, context: unknown[]): 
         if (!workItem) throw new Error("resident Builder Work Item is not in the durable Job");
         const tddPhase = workItem.id.endsWith(":test") ? "red" as const : "green" as const;
         const action = {
-          id: `${job.jobId}:build`,
+          id: `${job.jobId}:build:${workItem.id}:attempt:${job.attempts.length + 1}`,
           description: workItem.objective,
           capability: "code.builder",
           risk: "low" as const,
@@ -163,7 +163,7 @@ function configuredDevelopmentRuntime(compassPath: string, context: unknown[]): 
         const envelope = (result.evidence as { changeSet?: { baseRevision?: string | null; changedPaths?: string[]; patchDigest?: string; candidateRevision?: string; artifactDigest?: string; artifactRef?: string; tddPhase?: "red" | "green"; tddEvidenceDigest?: string; builderId?: string } } | undefined)?.changeSet;
         if (!envelope || envelope.baseRevision !== job.baseRevision || !envelope.patchDigest) throw new Error("resident Builder returned incomplete Change Set evidence");
         return createDevelopmentChangeSet({
-          changeSetId: `${job.jobId}:change-set:${tddPhase}`,
+          changeSetId: `${job.jobId}:change-set:${tddPhase}:attempt:${job.attempts.length + 1}`,
           jobId: job.jobId,
           workItemId,
           deviceId: envelope.builderId ?? "builder:resident",
@@ -182,7 +182,7 @@ function configuredDevelopmentRuntime(compassPath: string, context: unknown[]): 
       },
       async verify({ job, changeSet, plan, goal, context: runtimeContext }) {
         const action = {
-          id: `${job.jobId}:verify`,
+          id: `${job.jobId}:verify:${changeSet.changeSetId}`,
           description: `Independently verify ${goal.title}`,
           capability: "code.builder",
           risk: "low" as const,

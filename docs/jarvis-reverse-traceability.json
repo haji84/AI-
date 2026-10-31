@@ -1073,7 +1073,7 @@
     },
     {
       "path": "scripts/jarvis-goal-executor.ts",
-      "sha256": "dc6a84183fe3d506df13644d05e81a2978fd503348aa7e363bf8c3b405f91a48",
+      "sha256": "b4e2193e8767d69d3b04d046acc01e07bc459c64f8b91b70cabb424dd913d73b",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "AUTO-001",
@@ -5892,7 +5892,7 @@
     },
     {
       "path": "src/orchestrator/resident-development-goal-host.ts",
-      "sha256": "40255ff4e7374f40bcfc385fc93d98f16b62f21c540a8addf88d6a969ad89a79",
+      "sha256": "4d96610577e0fa0e8484ea959251d17a24f30ef91eb073db657f5a7ee3265b03",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -5956,7 +5956,7 @@
     },
     {
       "path": "src/orchestrator/runtime-development-verifier.ts",
-      "sha256": "26ceb43426bf18eae8cec0457ed6e81c4b85a9a99cacf349f611a7af1304a6fc",
+      "sha256": "95c96a6149ad06bf44030f3888a0094b6a118d976f6370d382c7287f4264ee85",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-010",
@@ -5970,7 +5970,7 @@
     },
     {
       "path": "src/orchestrator/runtime-local-ollama-builder.ts",
-      "sha256": "a689887b5199c6864ee4566deeea85d0da2e818eaa2d2775e859133929ccc0ba",
+      "sha256": "a842b8944c62157ffee5f1c509413d0e42418bda5c3c936380e1f76cc570c02e",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-008",
@@ -5978,7 +5978,31 @@
         "AUTO-010",
         "AUTO-015"
       ],
-      "reason": "#1219 Codex-independent local Ollama Builder: explicit detached-clean-worktree and new-file allowlist, exclusive write, no existing-file overwrite or remote fallback. This is implementation mapping, not independent verifier or complete Goal E2E evidence."
+      "reason": "#1219 Codex-independent local Ollama Builder: explicit detached-clean-worktree and new-file allowlist, exclusive write, no existing-file overwrite or remote fallback. This is implementation mapping, not independent verifier or complete Goal E2E evidence. #1219 subsequent opt-in bounded prior-failure signature/hypothesis prompts for a new clean isolated candidate; observed model feedback is advisory only, with unchanged create-only write and release limits."
+    },
+    {
+      "path": "src/orchestrator/runtime-ollama-review-checkpoint.d.mts",
+      "sha256": "2624927fe306ab705ab4758a8d532c4300ef2f62bfb7fa71b34bfdbcab4f72b5",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "CORE-010",
+        "CORE-011",
+        "DEV-PC-006",
+        "AUTO-001"
+      ],
+      "reason": "#1219 opt-in local review checkpoint and declaration: binds candidate, deterministic-check evidence and PR identity to an immutable local observation. Cache replay is not formal AI09 approval, GitHub review, deployment, physical or Actions-cross-run acceptance."
+    },
+    {
+      "path": "src/orchestrator/runtime-ollama-review-checkpoint.mjs",
+      "sha256": "eafc922e15b20ff430bf3cc74496bade50d8dd7eaed7d311a4c9770bd20d5732",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "CORE-010",
+        "CORE-011",
+        "DEV-PC-006",
+        "AUTO-001"
+      ],
+      "reason": "#1219 opt-in local review checkpoint and declaration: binds candidate, deterministic-check evidence and PR identity to an immutable local observation. Cache replay is not formal AI09 approval, GitHub review, deployment, physical or Actions-cross-run acceptance."
     },
     {
       "path": "src/orchestrator/safe-pr-capability.ts",
