@@ -7,6 +7,7 @@ import { join, resolve, sep } from "node:path";
 import test, { type TestContext } from "node:test";
 import { createPreparedLocalWriteCheckpoint } from "../src/orchestrator/local-prepared-write.ts";
 import { createRuntimeBuilderRouter } from "../src/orchestrator/runtime-builder-capability.ts";
+import { fixtureResourceAdmission } from "./helpers/resource-admission-fixture.ts";
 import { localOllamaFixtureSourcePath, localOllamaFixtureTest, localOllamaFixtureTestPath } from "../src/orchestrator/local-ollama-tdd.ts";
 
 const content = "def add(a, b):\n    return a + b\n";
@@ -39,7 +40,8 @@ function fixture(t: TestContext, phase: "red" | "green", options: { listedModel?
     GORIQ_LOCAL_OLLAMA_FALLBACK_MODELS: options.fallbackModels };
   const request = { id: "fixture-build", description: "Create add artifact", capability: "code.builder", risk: "low" as const,
     input: { goalId: binding.goalId, attemptId: binding.attemptId, strategyId: binding.strategyId, objective: "Implement add", baseRevision: base, files: [path], localOnly: true, tddPhase: phase } };
-  const execute = (preparedWrite = checkpoint()) => createRuntimeBuilderRouter(env, fetchImpl, { preparedWrite }).execute(request, []);
+  const execute = (preparedWrite = checkpoint(), resourceAdmission = fixtureResourceAdmission) =>
+    createRuntimeBuilderRouter(env, fetchImpl, { preparedWrite, resourceAdmission }).execute(request, []);
   return { root, workspace, path, binding, checkpoint, execute, target: join(workspace, path), generations: () => generations,
     journal: () => join(stateRoot, "prepared-writes", readdirSync(join(stateRoot, "prepared-writes"))[0]!) };
 }
@@ -64,7 +66,7 @@ for (const phase of ["red", "green"] as const) {
       } else assert.equal((await f.execute(checkpoint)).ok, true);
       const beforeGenerations = f.generations(), journal = readFileSync(f.journal());
       assert.equal(JSON.parse(journal.toString()).verified, false, "intent cannot certify criterion acceptance");
-      const result = await f.execute();
+      const result = await f.execute(undefined, async () => { throw Error("prepared replay must not request model resources"); });
       assert.equal(result.ok, true, JSON.stringify(result)); assert.equal(f.generations(), beforeGenerations);
       assert.equal(readFileSync(f.target, "utf8"), phase === "red" ? localOllamaFixtureTest : content);
       assert.deepEqual(readFileSync(f.journal()), journal, "resume does not rewrite immutable intent");

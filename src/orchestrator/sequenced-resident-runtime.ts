@@ -15,10 +15,13 @@ import { localOllamaFixtureTestPath, runLocalTddVerification } from "./local-oll
 import { validateSignedLocalVerifierReceipt } from "./signed-local-verifier-receipt.ts";
 import { publishResidentVerifierRequest } from "./resident-verifier-request.ts";
 import { createPreparedLocalWriteCheckpoint } from "./local-prepared-write.ts";
+import type { withDevelopmentResourceAdmission } from "../gai/development-resource-admission.ts";
 
 /** Explicit host-pinned local fixture sequence. No provisioning, publishing or implicit oracle. */
 export function createSequencedResidentRuntime(input: {
   env: Record<string, string | undefined>; runtimeRoot: string; compassPath: string; goal: Goal; fetchImpl?: typeof fetch;
+  /** Trusted host dependency only; manifests and Goal input cannot replace admission. */
+  resourceAdmission?: typeof withDevelopmentResourceAdmission;
 }): ResidentDevelopmentGoalHost | null {
   const manifest = readResidentExecutionManifest(input.env, input.runtimeRoot, input.goal);
   if (!manifest) return null;
@@ -65,7 +68,7 @@ export function createSequencedResidentRuntime(input: {
         const router = createRuntimeBuilderRouter({ ...input.env,
           GORIQ_LOCAL_OLLAMA_BUILDER_ENABLED: "1", GORIQ_LOCAL_OLLAMA_BUILDER_WORKSPACE: execution.workspace,
           GORIQ_LOCAL_OLLAMA_TDD_PROFILE: execution.tddProfile, GORIQ_LOCAL_OLLAMA_ALLOWED_FILES: execution.allowedFiles.join(","),
-        }, input.fetchImpl, { preparedWrite });
+        }, input.fetchImpl, { preparedWrite, resourceAdmission: input.resourceAdmission });
         const result = await router.execute({ id: `${job.jobId}:build:${phase}`, description: item.objective, capability: "code.builder", risk: "low",
           input: { goalId: job.goalId, attemptId, strategyId,
             objective: item.objective, files: [targetPath], baseRevision: job.baseRevision,

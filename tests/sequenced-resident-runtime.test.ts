@@ -5,13 +5,17 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve, sep } from "node:path";
-import { createSequencedResidentRuntime } from "../src/orchestrator/sequenced-resident-runtime.ts";
+import { createSequencedResidentRuntime as sequencedRuntime } from "../src/orchestrator/sequenced-resident-runtime.ts";
+import { fixtureResourceAdmission } from "./helpers/resource-admission-fixture.ts";
 import { residentDevelopmentGoalDigest } from "../src/orchestrator/resident-development-sequence.ts";
 import { localOllamaFixtureSourcePath, localOllamaFixtureTestPath } from "../src/orchestrator/local-ollama-tdd.ts";
 import { JsonFileDevelopmentJobStore } from "../src/orchestrator/development-job-store.ts";
 import { JsonFileDevelopmentChangeSetStore } from "../src/orchestrator/development-change-set-store.ts";
 import { createDevelopmentVerificationPlan } from "../src/orchestrator/development-verification-plan.ts";
 import { canonicalLocalVerifierPayload, type SignedLocalVerifierPayload } from "../src/orchestrator/signed-local-verifier-receipt.ts";
+
+const createSequencedResidentRuntime = (input: Parameters<typeof sequencedRuntime>[0]) =>
+  sequencedRuntime({ ...input, resourceAdmission: fixtureResourceAdmission });
 
 for (const interrupted of ["none", "red", "green"] as const) test(`two bounded local Jobs resume through signed acceptance after ${interrupted} ChangeSet checkpoint interruption`, async t => {
   const root = mkdtempSync(join(tmpdir(), "goriq-sequence-runtime-"));

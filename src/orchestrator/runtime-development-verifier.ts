@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { homedir } from "node:os";
 import type { Verifier } from "./goal-loop.ts";
 import { reviewRuntimeCandidate } from "./runtime-ollama-review-checkpoint.mjs";
+import { ResourceWaitError, withDevelopmentResourceAdmission } from "../gai/development-resource-admission.ts";
 
 function localToken(env: Record<string, string | undefined>): string | null {
   const explicit = env.CODE_BUILDER_LOCAL_TOKEN?.trim();
@@ -21,6 +22,7 @@ function localToken(env: Record<string, string | undefined>): string | null {
 export function createRuntimeDevelopmentVerifier(
   env: Record<string, string | undefined> = process.env,
   fetchImpl: typeof fetch = fetch,
+  resourceAdmission: typeof withDevelopmentResourceAdmission = withDevelopmentResourceAdmission,
 ): Verifier {
   return {
     async verify({ action, result }) {
@@ -116,7 +118,7 @@ export function createRuntimeDevelopmentVerifier(
           catch {
             return { ok: false, summary: "Local model review configuration is invalid", evidence: { blocker: "LOCAL_REVIEW_CONFIGURATION_INVALID" } };
           }
-          localModelReview = await reviewRuntimeCandidate({ config, actionId: action.id, input, evidence, fetchImpl });
+          localModelReview = await reviewRuntimeCandidate({ config, actionId: action.id, input, evidence, fetchImpl, resourceAdmission });
           if (!localModelReview.ok) {
             return { ok: false, summary: `Additional local model review: ${localModelReview.blocker ?? localModelReview.status}`,
               evidence: { blocker: localModelReview.blocker ?? localModelReview.status, localModelReview } };
@@ -131,6 +133,7 @@ export function createRuntimeDevelopmentVerifier(
           evidence: localModelReview ? { ...(payload?.evidence as Record<string, unknown>), localModelReview } : payload?.evidence,
         };
       } catch (error) {
+        if (error instanceof ResourceWaitError) throw error;
         return { ok: false, summary: error instanceof Error ? error.message : String(error), evidence: { blocker: "development_verifier_unreachable" } };
       }
     },

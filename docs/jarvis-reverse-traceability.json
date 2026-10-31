@@ -5567,7 +5567,7 @@
     },
     {
       "path": "src/orchestrator/local-development-builder.ts",
-      "sha256": "93b98833cdc34a3f386ad19119506033172312cda93b2db4a838cbb9a21e2b83",
+      "sha256": "e8fd1bae4b12af905c374520fcfed961ddfb01492d86b0566d1411a2fb7f6e65",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-008",
@@ -5930,7 +5930,7 @@
     },
     {
       "path": "src/orchestrator/runtime-builder-capability.ts",
-      "sha256": "669773ae80a26dc4b97d0d1737c08898c322df0555e2bd963c16dd2428ecb4b2",
+      "sha256": "e017a514cde42c6659d9f6a20664e5e35366c7d5945f9c0168db566b070757fd",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -5956,7 +5956,7 @@
     },
     {
       "path": "src/orchestrator/runtime-development-verifier.ts",
-      "sha256": "69112ccb07e4ee786d2846e8f0c39f06ee295db8396e9d7b2972cbce93cc3fe6",
+      "sha256": "4baba6cca13c7314cb1b647b2e9ca73259e59da23db9501b4395554212fb98eb",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-010",
@@ -5970,7 +5970,7 @@
     },
     {
       "path": "src/orchestrator/runtime-local-ollama-builder.ts",
-      "sha256": "b85239947e8b57e29c2ca63e149b4d98c8b3715cd79e284c310d2aebe56be8d2",
+      "sha256": "6888fc79f1b99bbf44751555257ed5398fe0378a32f67f29095eea993f090c07",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-008",
@@ -5982,7 +5982,7 @@
     },
     {
       "path": "src/orchestrator/runtime-ollama-review-checkpoint.d.mts",
-      "sha256": "2624927fe306ab705ab4758a8d532c4300ef2f62bfb7fa71b34bfdbcab4f72b5",
+      "sha256": "0097171868aa4ed84d190a5998ccdbe9050e4c4aa5278753a4f7dea3419fd49b",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "CORE-010",
@@ -5994,7 +5994,7 @@
     },
     {
       "path": "src/orchestrator/runtime-ollama-review-checkpoint.mjs",
-      "sha256": "c8c9dde678ea81157536045eb1bb9a308df1658ac267d1ca6eb9ab1293ff70ae",
+      "sha256": "e4696478c5b40d6af8070af767e05bd258e6679653c2be9365c7d863c9e9bf15",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "CORE-010",
@@ -6578,7 +6578,7 @@
     },
     {
       "path": "src/orchestrator/sequenced-resident-runtime.ts",
-      "sha256": "06070fabdcc12ff903cba7afe88254efa0ac6b3deca8cae4d10b802b5106f724",
+      "sha256": "f23cba3c365f0d9976a0a6041dbf778034a8b01c7ff857b2dccc0a2e9405c68a",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",

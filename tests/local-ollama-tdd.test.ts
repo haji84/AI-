@@ -5,6 +5,7 @@ import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createRuntimeBuilderRouter } from "../src/orchestrator/runtime-builder-capability.ts";
+import { fixtureResourceAdmission } from "./helpers/resource-admission-fixture.ts";
 import {
   localOllamaFixtureSourcePath, localOllamaFixtureTestPath,
   localOllamaFixtureTest, runLocalTddVerification,
@@ -58,7 +59,7 @@ test("real separate process observes RED test failure then GREEN success without
           content: "def add(a, b):\n    return a + b" }) });
       throw Error("Forbidden network destination: " + url);
     };
-    const router = createRuntimeBuilderRouter(env(p.isolated), mock);
+    const router = createRuntimeBuilderRouter(env(p.isolated), mock, fixtureResourceAdmission);
     const redBuild = await router.execute(request(p.head, "red"), []);
     assert.equal(redBuild.ok, true, JSON.stringify(redBuild));
     assert.equal(readFileSync(join(p.isolated, localOllamaFixtureTestPath), "utf8"), localOllamaFixtureTest);

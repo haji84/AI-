@@ -5,6 +5,7 @@ import type { CapabilityHandler } from "./capabilities.ts";
 import { BuilderRouter } from "./builder-router.ts";
 import { configuredLocalOllamaBuilder } from "./runtime-local-ollama-builder.ts";
 import type { PreparedLocalWriteCheckpoint } from "./local-prepared-write.ts";
+import { withDevelopmentResourceAdmission } from "../gai/development-resource-admission.ts";
 import { HttpWorkerBuilderCapability, createEnvHttpWorkerBuilders } from "../gai/http-worker-builder-capability.ts";
 
 function localBuilderConfig(env: Record<string, string | undefined>): { url: string; token: string } | null {
@@ -40,7 +41,7 @@ function assertLocalLoopback(urlString: string): void {
 export function createRuntimeBuilderRouter(
   env: Record<string, string | undefined> = process.env,
   fetchImpl: typeof fetch = fetch,
-  hostOptions: { preparedWrite?: PreparedLocalWriteCheckpoint } = {},
+  hostOptions: { preparedWrite?: PreparedLocalWriteCheckpoint; resourceAdmission?: typeof withDevelopmentResourceAdmission } | typeof withDevelopmentResourceAdmission = {},
 ): BuilderRouter {
   // Explicit Codex-free selection: never fall back to the 8796/8797 coding engines
   // or any potentially billable remote endpoint for this isolated Goal.
