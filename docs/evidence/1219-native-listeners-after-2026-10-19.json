@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "issue": 1219,
+  "kind": "post-partial-native-listener-observation",
+  "capturedAt": "2026-10-19T09:18:50.7376441Z",
+  "sourceRevision": "ec827e45feee815508e1c9bed85e594a29df7554",
+  "protectedListenersMatchBaseline": true,
+  "observed": [
+    {
+      "LocalAddress": "127.0.0.1",
+      "LocalPort": 8787,
+      "OwningProcess": 10068
+    },
+    {
+      "LocalAddress": "127.0.0.1",
+      "LocalPort": 8796,
+      "OwningProcess": 33948
+    },
+    {
+      "LocalAddress": "127.0.0.1",
+      "LocalPort": 8797,
+      "OwningProcess": 25144
+    },
+    {
+      "LocalAddress": "127.0.0.1",
+      "LocalPort": 11434,
+      "OwningProcess": 12920
+    }
+  ],
+  "physicalGoalE2EComplete": false
+}
