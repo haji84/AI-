@@ -15,6 +15,7 @@ import { JsonFileDevelopmentChangeSetStore } from "../src/orchestrator/developme
 import { JsonFileDevelopmentJobStore } from "../src/orchestrator/development-job-store.ts";
 import { ResidentDevelopmentGoalHost } from "../src/orchestrator/resident-development-goal-host.ts";
 import { createRuntimeBuilderRouter } from "../src/orchestrator/runtime-builder-capability.ts";
+import { resolveResidentDevelopmentScope } from "../src/orchestrator/resident-development-scope.ts";
 import { createRuntimeDevelopmentVerifier } from "../src/orchestrator/runtime-development-verifier.ts";
 import { HttpDevelopmentReleaseCapability } from "../src/orchestrator/http-development-release-capability.ts";
 import { createTaskCompletionAuthorization, normalizeTaskCompletionAuthorization } from "../src/orchestrator/task-authorization.ts";
@@ -83,7 +84,8 @@ function configuredDevelopmentRuntime(compassPath: string, context: unknown[]): 
   if (!explicitDevelopment && !declaredDevelopment && !inferredDevelopment) return undefined;
   const configuredFiles = (process.env.GORIQ_SELF_DEVELOPMENT_TARGET_FILES ?? "").split(",").map((item) => item.trim()).filter(Boolean);
   const inferredFiles = contextText.match(/(?:src|tests|scripts|docs|apps)\/[A-Za-z0-9_./-]+/g) ?? [];
-  const targetFiles = [...new Set([...configuredFiles, ...inferredFiles])];
+  const executionScope = resolveResidentDevelopmentScope(process.env, process.cwd(), configuredFiles, inferredFiles);
+  const targetFiles = executionScope.targetFiles;
   const taskScopeId = process.env.GORIQ_SELF_DEVELOPMENT_TASK_SCOPE_ID?.trim()
     || `goal:${createHash("sha256").update(requiredEnv("JARVIS_GOAL_EXECUTION_GOAL_ID")).digest("hex").slice(0, 24)}`;
   const ownerCommand = [...context].reverse().flatMap((item) => {
@@ -98,12 +100,12 @@ function configuredDevelopmentRuntime(compassPath: string, context: unknown[]): 
     : ownerCommand
       ? createTaskCompletionAuthorization(ownerCommand, { scopeId: taskScopeId })
       : undefined;
-  const baseRevision = execFileSync("git", ["rev-parse", "HEAD"], { cwd: process.cwd(), encoding: "utf8" }).trim();
-  const repositoryRoot = resolve(process.cwd());
+  const repositoryRoot = executionScope.repositoryRoot;
+  const baseRevision = execFileSync("git", ["rev-parse", "HEAD"], { cwd: repositoryRoot, encoding: "utf8" }).trim();
   const tracked = execFileSync("git", ["ls-files"], { cwd: repositoryRoot, encoding: "utf8" }).split(/\r?\n/).filter(Boolean);
   const resolvedTargets = targetFiles.length
     ? targetFiles
-    : tracked.filter((path) => /^(?:src|scripts|apps)\//.test(path)).slice(0, 80);
+    : executionScope.localOllama ? [] : tracked.filter((path) => /^(?:src|scripts|apps)\//.test(path)).slice(0, 80);
   const relatedTests = tracked.filter((path) => path.startsWith("tests/") && resolvedTargets.some((target) => path.includes(target.split("/").at(-1)?.split(".")[0] ?? "\0")));
   const candidatePaths = [...new Set([...resolvedTargets, ...relatedTests])].slice(0, 200);
   const entries = candidatePaths.flatMap((path) => {
@@ -155,7 +157,7 @@ function configuredDevelopmentRuntime(compassPath: string, context: unknown[]): 
             previousFailureSignatures: job.failureSignatures,
             previousStrategyFingerprints: job.rejectedStrategyIds,
             hypothesis: job.attempts.at(-1)?.hypothesis,
-            localOnly: process.env.GORIQ_SELF_DEVELOPMENT_LOCAL_ONLY === "1",
+            localOnly: executionScope.localOnly,
             tddPhase,
           },
         };
