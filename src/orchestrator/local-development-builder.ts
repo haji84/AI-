@@ -1,5 +1,6 @@
 import type { ActionResult } from "./goal-loop.ts";
 import type { BuilderCapability, BuilderRequest } from "./builder-router.ts";
+import { ResourceWaitError } from "../gai/development-resource-admission.ts";
 import {
   normalizeDevelopmentBuilderResult,
   type RawDevelopmentBuilderResult,
@@ -63,6 +64,7 @@ export class LocalDevelopmentBuilder implements BuilderCapability {
         },
       };
     } catch (error) {
+      if (error instanceof ResourceWaitError) throw error;
       return {
         actionId: request.attemptId,
         ok: false,
