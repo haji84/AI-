@@ -15,6 +15,8 @@ For Goal-linked GORIQ product development under #681/#1219/#882, use the ordered
 - Reuse existing implementation, keep one critical-path integration slice by default, deduplicate equivalent retries, and reserve scarce Work/Codex/Pro usage for necessary steps. Internal usage counters are not an authoritative live plan quota.
 - A one-PC proof is a temporary delivery gate only, not a change to distributed architecture or a permanent host. All canonical specifications, approval boundaries, Human Gates, independent reviews and security checks remain unchanged.
 - Until the necessary real-device/verified acceptance is recorded, report PARTIAL or BLOCKED rather than DONE; policy documentation or a merged PR does not by itself prove the runtime works.
+- Before proposing a new AI, reviewer or development framework, inspect the existing authorized systems and record a reuse-versus-new-build decision. Eliminate duplicate implementation work while retaining genuinely independent reviewer/model execution and separate formal approval.
+- Track evidence separately for CODE_PRESENT, CI_VERIFIED, INTEGRATION_VERIFIED, USER_USABLE and FULL_GOAL_VERIFIED. A passing PR or a report of the next task is not a usable product. After each authorized step, use the durable Goal runtime to continue; if it cannot execute or a Human Gate is required, report the precise blocker without claiming background work. See the shared-development reuse section in the linked completion-first policy; other repositories require their own explicit adoption.
 
 ## JARVIS Autonomous Development Protocol v1.0-RC2
 
