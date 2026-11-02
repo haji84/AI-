@@ -51,23 +51,32 @@ export class GoalControllerExecutionBridge {
       if (report.stopReason === "paused") {
         return { decision, executed: true, report, reports, reason: "paused" };
       }
-      if (report.goalEvaluation?.achieved === true || report.stopReason === "goal_complete") {
-        return { decision, executed: true, report, reports, reason: "goal_complete" };
-      }
       if (report.stopReason === "approval_required") {
         return { decision, executed: true, report, reports, reason: "human_gate" };
       }
-      if (report.goalEvaluation?.remainingGaps.some(gap => gap.startsWith("resource_wait:"))) {
-        return { decision, executed: true, report, reports, reason: "resource_wait" };
-      }
       if (report.stopReason === "blocked" || report.stopReason === "retry_exhausted") {
         return { decision, executed: true, report, reports, reason: report.stopReason };
+      }
+      if (report.goalEvaluation?.remainingGaps.some(gap => gap.startsWith("resource_wait:"))) {
+        return { decision, executed: true, report, reports, reason: "resource_wait" };
       }
       if (report.goalEvaluation?.remainingGaps.some(gap => gap.startsWith("independent_verifier_pending:"))) {
         return { decision, executed: true, report, reports, reason: "verification_wait" };
       }
       if (report.goalEvaluation?.remainingGaps.some((gap) => gap === "publication_connectivity_unavailable" || gap.startsWith("publication_wait:"))) {
         return { decision, executed: true, report, reports, reason: "publication_wait" };
+      }
+      const evaluation = report.goalEvaluation;
+      if (evaluation && (
+        (report.stopReason === "goal_complete" && evaluation.achieved !== true)
+        || (evaluation.achieved === true && (evaluation.failedRequired.length > 0
+          || evaluation.unverifiedRequired.length > 0 || evaluation.blockers.length > 0
+          || evaluation.remainingGaps.length > 0))
+      )) {
+        return { decision, executed: true, report, reports, reason: "goal_evaluation_conflict" };
+      }
+      if (report.goalEvaluation?.achieved === true || report.stopReason === "goal_complete") {
+        return { decision, executed: true, report, reports, reason: "goal_complete" };
       }
     }
     return {
