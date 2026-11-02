@@ -5387,7 +5387,7 @@
     },
     {
       "path": "src/orchestrator/goal-controller-execution-bridge.ts",
-      "sha256": "83a1de0ce7b7b9ef6ec17f5e68ff412e94e51e76bf725b24a39f31893901cd1a",
+      "sha256": "fcaa8e4c378d264a5487fd3a599d7f39f1172770a0f5f3d8de79a1be1d2a064a",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-001",
