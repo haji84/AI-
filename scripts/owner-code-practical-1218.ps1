@@ -15,7 +15,7 @@ try {
  $now=[datetimeoffset]::UtcNow
  $issued=[datetimeoffset]::Parse($scope.issuedAt)
  $expires=[datetimeoffset]::Parse($scope.expiresAt)
- if ($scope.scopeId -cne 'issue:1218:owner-local-recovery-practical' -or $scope.explicitOwnerApproval -ne $true -or
+ if ($scope.scopeId -cne 'issue:1218:owner-local-recovery-practical' -or $scope.launcherLocation -cne 'owner-start-menu' -or $scope.explicitOwnerApproval -ne $true -or
      $scope.publicToolInstallApproval -ne $true -or $scope.existingCodeLocalReadCopyApproval -ne $true -or
      $scope.singleLoopbackSessionCookieApproval -ne $true -or $scope.credentialRotationApproval -ne $false -or
      $issued -gt $now -or $expires -le $now -or $expires -gt $issued.AddHours(2) -or
@@ -67,12 +67,13 @@ try {
  $destination=Join-Path (Join-Path $profile 'JARVIS\tools\owner-code') $env:GITHUB_SHA
  Assert-OwnerPublicPathProtection $profile
  Assert-OwnerPublicPathProtection (Split-Path -Parent $destination)
- Assert-OwnerPublicPathProtection ([Environment]::GetFolderPath('DesktopDirectory'))
+ $launcherDirectory=[Environment]::GetFolderPath('Programs')
+ Assert-OwnerPublicPathProtection $launcherDirectory
  Assert-OwnerPublicPathProtection $config
  Assert-ApprovedWindow
  $stage='public-install'
  $global:LASTEXITCODE=0
- $installOutput=@(& (Join-Path $PSScriptRoot 'install-owner-code-windows.ps1') -Apply -Version $env:GITHUB_SHA 2>$null)
+ $installOutput=@(& (Join-Path $PSScriptRoot 'install-owner-code-windows.ps1') -Apply -Version $env:GITHUB_SHA -StartMenu 2>$null)
  if ($LASTEXITCODE -ne 0) { throw 'PUBLIC_INSTALL_FAILED' }
  $toolRoot=Join-Path (Join-Path $profile 'JARVIS\tools\owner-code') $env:GITHUB_SHA
  foreach ($name in @('owner-code-windows.ps1','read-jarvis-production-config.ps1')) {
@@ -80,7 +81,7 @@ try {
   if ($observed.state -cne 'regular' -or $observed.sha256 -cne $scope.publicFileSha256.('scripts/'+$name)) { throw 'INSTALLED_SOURCE_MISMATCH' }
  }
  foreach ($name in @('owner-code-windows.ps1','read-jarvis-production-config.ps1','manifest.json')) { Assert-OwnerPublicPathProtection (Join-Path $toolRoot $name) }
- $launcher=Join-Path ([Environment]::GetFolderPath('DesktopDirectory')) 'GORIQ Owner Code.cmd'
+ $launcher=Join-Path $launcherDirectory 'GORIQ Owner Code.cmd'
  Assert-OwnerPublicPathProtection $launcher
  $expectedCommand='@echo off'+"`r`n"+'"%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -STA -File "%USERPROFILE%\JARVIS\tools\owner-code\'+$env:GITHUB_SHA+'\owner-code-windows.ps1"'+"`r`n"
  if ([IO.File]::ReadAllText($launcher) -cne $expectedCommand) { throw 'LAUNCHER_MISMATCH' }

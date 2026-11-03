@@ -1949,7 +1949,7 @@
     },
     {
       "path": "src/app/jarvis/OwnerLogin.tsx",
-      "sha256": "244189786b5d6ed33e75b3a3be3e167aee2a6f3683e05716ff7780c7adbcb0b8",
+      "sha256": "cab92cd38137e2e68c6061c0f49b18abde817f53b0a091bfb1c754a7bbf5c0a6",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "SEC-001",

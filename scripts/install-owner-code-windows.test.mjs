@@ -65,3 +65,11 @@ test('Windows-style fresh checkout preserves canonical approved recovery package
     for(const name of names)assert.deepEqual(readFileSync(join(checkout,'scripts',name)),git(seed,['show','HEAD:scripts/'+name]),'Full public source bytes changed during Windows checkout: '+name);
   } finally {rmSync(directory,{recursive:true,force:true});}
 });
+
+
+test('Start Menu selector remains inert without Apply', {skip:unavailable}, () => {
+ const result=run([installer,'-StartMenu']);assert.equal(result.status,0,result.stderr);assert.equal(result.stderr,'');assert.match(result.stdout,/^PLAN ONLY:.*Start Menu/);
+});
+for(const scenario of ['start-menu-install','start-menu-existing-launcher','start-menu-reparse','start-menu-overlap','invalid-launcher-kind'])test('explicit Start Menu public filesystem contract: '+scenario,{skip:unavailable},()=>{
+ const result=run([fixture,'-InstallerPath',installer,'-Case',scenario]);assert.equal(result.status,0,result.stdout+result.stderr);assert.equal(result.stderr,'');const value=JSON.parse(result.stdout.trim());assert.equal(value.case,scenario);assert.equal(value.passed,true);assert.equal(value.utilityExecuted,false);assert.equal(value.actualProductionUsed,false);
+});

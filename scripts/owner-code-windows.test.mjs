@@ -65,7 +65,7 @@ test('wrong-identity errors fail closed without secret output or artifacts', () 
 
 test('owner login explains same-owner local recovery without rotation or re-enrollment', () => {
   assert.match(ownerLoginSource, /Production PCで同じWindowsオーナーとして/);
-  assert.match(ownerLoginSource, /設置済みのデスクトップの「GORIQ Owner Code」/);
+  assert.match(ownerLoginSource, /設置済みのスタートメニューの「GORIQ Owner Code」/);
   assert.match(ownerLoginSource, /「表示」で確認/);
   assert.match(ownerLoginSource, /「コピー」でこのPCのクリップボードへ/);
   assert.match(ownerLoginSource, /コードの再発行やWorkerの再登録は不要です/);
