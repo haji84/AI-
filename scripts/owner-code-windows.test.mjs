@@ -18,7 +18,8 @@ test('owner-code utility is masked by default and gates reveal and clipboard cop
   assert.match(source, /MessageBoxButtons\]::YesNo/);
   assert.match(source, /MessageBoxDefaultButton\]::Button2/);
   assert.match(source, /if \(\$choice -eq \[System\.Windows\.Forms\.DialogResult\]::Yes\)/);
-  assert.match(source, /\[System\.Windows\.Forms\.Clipboard\]::SetText\(\$ownerCode\)/);
+  assert.match(source, /\[System\.Windows\.Forms\.Clipboard\]::SetDataObject\(\$data, \$true\)/);
+  assert.match(source, /ExcludeClipboardContentFromMonitorProcessing/);
 });
 
 test('owner-code utility reuses the production reader and selects only the owner login code', () => {
