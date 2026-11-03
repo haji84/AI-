@@ -41,12 +41,17 @@ async function modelBody(reply:Response):Promise<string>{
 
 /** Pins are host configuration, never owner prose/model output. This profile
  * only produces a LOW isolated artifact; it cannot publish or rotate secrets. */
+export function assertTrackedRepairProfileExclusive(env:Record<string,string|undefined>):void {
+  if((env.GORIQ_TRACKED_REPAIR_MANIFEST_FILE||env.GORIQ_TRACKED_REPAIR_MANIFEST_SHA256)
+    &&(env.GORIQ_COMPLETION_HANDOFF_PATH||env.GORIQ_COMPLETION_HANDOFF_SHA256||env.GORIQ_COMPLETION_DATA_ROOT
+      ||env.GORIQ_SELF_DEVELOPMENT_SEQUENCE_FILE||env.GORIQ_SELF_DEVELOPMENT_SEQUENCE_SHA256))throw Error("TRACKED_REPAIR_MULTIPLE_RUNTIME_PROFILES");
+}
+
 export function readTrackedRepairManifest(env:Record<string,string|undefined>,goal?:Goal):{manifest:TrackedRepairManifest;pin:string}|null {
   const file=env.GORIQ_TRACKED_REPAIR_MANIFEST_FILE?.trim(),pin=env.GORIQ_TRACKED_REPAIR_MANIFEST_SHA256?.trim();
   if(!file&&!pin)return null;
   if(!file||!isAbsolute(file)||!digest(pin))throw Error("TRACKED_REPAIR_MANIFEST_PIN_REQUIRED");
-  if(env.GORIQ_COMPLETION_HANDOFF_PATH||env.GORIQ_COMPLETION_HANDOFF_SHA256||env.GORIQ_SELF_DEVELOPMENT_SEQUENCE_FILE||env.GORIQ_SELF_DEVELOPMENT_SEQUENCE_SHA256)
-    throw Error("TRACKED_REPAIR_MULTIPLE_RUNTIME_PROFILES");
+  assertTrackedRepairProfileExclusive(env);
   const bytes=readBoundedRuntimeFile(file,131072);
   if(hash(bytes)!==pin)throw Error("TRACKED_REPAIR_MANIFEST_PIN_MISMATCH");
   const value:unknown=JSON.parse(bytes.toString("utf8"));

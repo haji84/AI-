@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
 import { createResidentReceiptWakes } from "../src/orchestrator/resident-receipt-wakes.ts";
 import { createHash, createPrivateKey, createPublicKey, sign } from "node:crypto";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -17,6 +17,11 @@ import { createServer } from "node:http";
 import { once } from "node:events";
 import { spawn, type ChildProcess } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { CompassStore } from "../src/compass/store.ts";
+import { compassGoalToLoopGoal } from "../src/orchestrator/compass-state-store.ts";
+import { CompassWorkRunStore } from "../src/orchestrator/compass-work-run-store.ts";
+import { createQueuedWorkRun } from "../src/orchestrator/work-run-state.ts";
+import { completionDigest } from "../src/orchestrator/completion-path.ts";
 
 const hash=(s:string|Buffer)=>createHash("sha256").update(s).digest("hex");
 // Published RFC8032 fixture, not a newly generated or trusted operator key.
@@ -96,6 +101,24 @@ test("the exact six-check receipt completes only the isolated criterion without 
   assert.deepEqual(f.counts(),{calls:1,templates:1});
 });
 
+test("prepared candidate recovers when Change Set persistence fails after source materialization",async t=>{
+  const f=fixture(t),put=JsonFileDevelopmentChangeSetStore.prototype.put;let interrupted=false;
+  JsonFileDevelopmentChangeSetStore.prototype.put=async function(value,now){
+    if(value.workItemId.endsWith(":implement")&&!interrupted){interrupted=true;throw Error("test checkpoint interruption");}
+    return put.call(this,value,now);
+  };
+  try{await assert.rejects(()=>f.create().run({goalId:f.goalId,goal:f.goal,context:[]}),/test checkpoint interruption/);}
+  finally{JsonFileDevelopmentChangeSetStore.prototype.put=put;}
+  assert.equal(interrupted,true);assert.equal(f.counts().calls,1);
+  assert.equal((await f.changes().list()).filter(c=>c.workItemId.endsWith(":implement")).length,0);
+  const job=(await f.jobs().getByGoal(f.goalId))[0]!;assert.equal(job.phase,"IMPLEMENTING");
+  const report=await f.create({fetchImpl:async()=>{assert.fail("prepared output must recover without another model request");}})
+    .run({goalId:f.goalId,goal:f.goal,context:[]});
+  assert.equal(report.goalEvaluation?.achieved,false);assert.equal(f.counts().calls,1);
+  const recovered=(await f.jobs().getByGoal(f.goalId))[0]!;assert.equal(recovered.jobId,job.jobId);assert.equal(recovered.phase,"VERIFYING");
+  assert.equal(readFileSync(join(f.workspace,"scripts/logic.mjs"),"utf8"),"export const answer = 42;\n");
+});
+
 test("receipt presence alone cannot pass the profile and changed candidate bytes cannot reuse it",async t=>{
   const f=fixture(t);await f.create().run({goalId:f.goalId,goal:f.goal,context:[]});
   writeFileSync(f.manifest.verifier.receiptFile,JSON.stringify({payload:{},signatureBase64:"A".repeat(86)+"=="}));
@@ -125,6 +148,26 @@ test("resource wait before network leaves inference retry available without dupl
   await f.create({resourceAdmission:wait}).run({goalId:f.goalId,goal:f.goal,context:[]});
   assert.deepEqual(f.counts(),{calls:0,templates:0});
   const records=await f.jobs().getByGoal(f.goalId);assert.equal(records[0]!.phase,"WAITING_FOR_RESOURCE");
+});
+
+test("standalone executor refuses a valid legacy handoff when tracked profile is selected",async t=>{
+  const f=fixture(t),db=new CompassStore(f.compassPath);
+  const goal=compassGoalToLoopGoal(db.setGoal({title:f.goal.title,successCriteria:f.goal.successCriteria,constraints:f.goal.constraints}));
+  const goalId=goalWorkStateId(goal);db.updateState({status:"READY",blockers:[]});
+  await new CompassWorkRunStore(db).put(createQueuedWorkRun(goalId));db.close();
+  f.manifest.sequence.goalDigest=residentDevelopmentGoalDigest(goal);f.repin();
+  const revision="a".repeat(40),handoffFile=join(f.root,"legacy-handoff.json");writeFileSync(join(f.root,"artifact.txt"),"accepted bytes");
+  const handoff={version:1,goalId,goalDigest:completionDigest(goal),dataRootDigest:hash(f.root),sourceRevision:revision,expiresAt:f.manifest.sequence.expiresAt,
+    requirements:[{criterionId:"criterion-1",weight:1,evidence:[{kind:"software",environment:"host-local-artifact:artifact.txt",sourceRevision:revision,artifactDigest:hash("accepted bytes"),trustedIssuers:["completion-local-sha256-v1"]}]}],
+    candidates:[{workItem:{id:"inspect",objective:"Inspect accepted artifact",requiredCapabilities:["context.inspect"],dependsOn:[]},criterionIds:["criterion-1"],strategyId:"readback",rationale:"required artifact condition",evidenceRefs:["issue:1858"],feasibility:"available",estimatedMinutes:1,riskSignals:{},humanActions:[],action:{id:"inspect",description:"Inspect accepted artifact",capability:"context.inspect",risk:"low"}}],
+    checks:[{criterionId:"criterion-1",taskId:"inspect",path:"artifact.txt",expectedSha256:hash("accepted bytes")}]};
+  const bytes=JSON.stringify(handoff);writeFileSync(handoffFile,bytes);
+  const repositoryRoot=fileURLToPath(new URL("../",import.meta.url));
+  const result=spawnSync(process.execPath,[join(repositoryRoot,"scripts/jarvis-goal-executor.ts")],{cwd:repositoryRoot,encoding:"utf8",timeout:15000,
+    env:{...process.env,...f.env,GORIQ_COMPLETION_HANDOFF_PATH:handoffFile,GORIQ_COMPLETION_HANDOFF_SHA256:hash(bytes),GORIQ_COMPLETION_DATA_ROOT:f.root,GORIQ_RUNTIME_REVISION:revision,
+      JARVIS_GOAL_EXECUTION_GOAL_ID:goalId,JARVIS_GOAL_EXECUTION_COMPASS_PATH:f.compassPath,GORIQ_SELF_DEVELOPMENT_SEQUENCE_FILE:"",GORIQ_SELF_DEVELOPMENT_SEQUENCE_SHA256:""}});
+  assert.equal(result.status,1,result.stderr);assert.match(result.stderr,/TRACKED_REPAIR_MULTIPLE_RUNTIME_PROFILES/);
+  const reopened=new CompassStore(f.compassPath);try{assert.equal((await new CompassWorkRunStore(reopened).getByGoal(goalId))?.phase,"BLOCKED");}finally{reopened.close();}
 });
 
 test("authenticated Broker selects tracked profile and restarts the same waiting Job without another model call",{timeout:45000},async t=>{

@@ -23,7 +23,7 @@ import { HttpDevelopmentReleaseCapability } from "../src/orchestrator/http-devel
 import { createTaskCompletionAuthorization, normalizeTaskCompletionAuthorization } from "../src/orchestrator/task-authorization.ts";
 import { buildRepositoryDevelopmentContext } from "../src/orchestrator/repository-development-context.ts";
 import { createSequencedResidentRuntime } from "../src/orchestrator/sequenced-resident-runtime.ts";
-import { createTrackedRepairResidentRuntime } from "../src/orchestrator/tracked-repair-resident-runtime.ts";
+import { assertTrackedRepairProfileExclusive, createTrackedRepairResidentRuntime } from "../src/orchestrator/tracked-repair-resident-runtime.ts";
 import type { Goal } from "../src/orchestrator/goal-loop.ts";
 import { ResourceWaitError } from "../src/gai/development-resource-admission.ts";
 import { nextResourceWait, resourceWaitExhausted, resourceWaitFromEvidence, type DevelopmentResourceWait } from "../src/orchestrator/development-resource-wait.ts";
@@ -322,6 +322,7 @@ async function main(): Promise<void> {
   const context = decodeContext(process.env.JARVIS_GOAL_EXECUTION_CONTEXT_B64);
   const decision = executorDecision(goalId);
   try {
+    assertTrackedRepairProfileExclusive(process.env);
     const compass = new CompassStore(compassPath);
     try {
       const current = await new CompassWorkRunStore(compass).getByGoal(goalId);

@@ -1073,7 +1073,7 @@
     },
     {
       "path": "scripts/jarvis-goal-executor.ts",
-      "sha256": "0a907d2664b6b98636d6735254da83bdae178b0dcfba3313c0676e06f42e50db",
+      "sha256": "6906441c42ed407f9071acb3f781a2d89d51e2e8e20f5a5295499d6fcdfd015e",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "AUTO-001",
@@ -6635,7 +6635,7 @@
     },
     {
       "path": "src/orchestrator/tracked-repair-resident-runtime.ts",
-      "sha256": "0f1dedcc4f2a8166064d6810e5019c08f70183ee9c708da2a5d24b5c8f1209d4",
+      "sha256": "ea8f7f02a3052291fff3179c2869d192b7945a713bc2f5b6afee16fa9e08e10f",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
