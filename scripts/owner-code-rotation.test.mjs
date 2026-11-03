@@ -9,14 +9,14 @@ import test from 'node:test';
 const source = readFileSync(new URL('./rotate-jarvis-owner-code-windows.ps1', import.meta.url), 'utf8');
 
 test('rotation requires a separate exact owner receipt and keeps dry run inert', () => {
-  assert.match(source, /if \(-not \$Apply\) \{/);
-  assert.match(source, /scopeId -ne 'issue:1218'/);
-  assert.match(source, /ownerSid -ne \$identity\.User\.Value/);
+  assert.match(source, /if\(-not \$Apply\)/);
+  assert.match(source, /scopeId -cne 'issue:1218:owner-code-rotation'/);
+  assert.match(source, /ownerSid -cne \$Context\.Identity\.User\.Value/);
   assert.match(source, /credentialRotationApproval -ne \$true/);
   assert.match(source, /configSha256/);
-  assert.match(source, /configuration changed since approval/);
-  assert.match(source, /\[IO\.File\]::Replace\(\$candidatePath, \$configPath, \$backupPath/);
-  assert.match(source, /\[IO\.File\]::Replace\(\$backupPath, \$configPath, \$failedPath/);
+  assert.match(source, /Get-OwnerRotationHash \$Context\.ConfigPath/);
+  assert.match(source, /\[IO\.File\]::Replace\(\$Context\.CandidatePath,\$Context\.ConfigPath,\$Context\.BackupPath/);
+  assert.match(source, /\[IO\.File\]::Replace\(\$Context\.BackupPath,\$Context\.ConfigPath,\$Context\.FailedPath/);
   assert.match(source, /Test-LocalOwnerLogin \$newCode/);
   assert.match(source, /Test-LocalOwnerLogin \$originalCode/);
   assert.doesNotMatch(source, /Write-(Output|Host)\s+\$newCode/);
