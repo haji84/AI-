@@ -7,8 +7,7 @@ function isEnvelope(v:unknown):v is Envelope{return !!v&&typeof v==="object"&&(v
 export class CompassGoalExecutionContextStore {
  private readonly compass: CompassStore;
  constructor(compass: CompassStore){ this.compass = compass; }
- put(goalId:string,context:unknown[]):void{const e=this.read();const records=[...e.records.filter(r=>r.goalId!==goalId),{goalId,context:structuredClone(context),updatedAt:new Date().toISOString()}].slice(-MAX);this.write({...e,records});}
+ put(goalId:string,context:unknown[]):void{this.compass.updateActive(active=>{const e=active.find(isEnvelope)??{kind:KIND,version:VERSION,records:[]};const records=[...e.records.filter(r=>r.goalId!==goalId),{goalId,context:structuredClone(context),updatedAt:new Date().toISOString()}].slice(-MAX);return [...active.filter(x=>!isEnvelope(x)),{...e,records}];});}
  get(goalId:string):unknown[]{const r=this.read().records.find(x=>x.goalId===goalId);return r?structuredClone(r.context):[];}
  private read():Envelope{return this.compass.getState().active.find(isEnvelope)??{kind:KIND,version:VERSION,records:[]};}
- private write(e:Envelope):void{const active=this.compass.getState().active.filter(x=>!isEnvelope(x));this.compass.updateState({active:[...active,structuredClone(e)]});}
 }

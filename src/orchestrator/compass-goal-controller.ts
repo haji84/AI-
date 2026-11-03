@@ -128,15 +128,18 @@ export class CompassGoalDecisionStoreAdapter implements GoalDecisionStore {
 
   async put(idempotencyKey: string, decision: GoalControllerDecision): Promise<void> {
     const keyDigest = digest(idempotencyKey);
-    const envelope = this.read();
     const next: DecisionRecord = {
       keyDigest,
       decision: decisionForPersistence(decision, keyDigest),
       updatedAt: new Date().toISOString(),
     };
-    const records = [...envelope.records.filter((entry) => entry.keyDigest !== keyDigest), next]
-      .slice(-MAX_DECISIONS);
-    this.write({ ...envelope, records });
+    this.compass.updateActive(active => {
+      const envelope = active.find(isDecisionEnvelope)
+        ?? { kind: DECISION_KIND, version: VERSION, records: [] };
+      const records = [...envelope.records.filter((entry) => entry.keyDigest !== keyDigest), next]
+        .slice(-MAX_DECISIONS);
+      return [...active.filter((entry) => !isDecisionEnvelope(entry)), { ...envelope, records }];
+    });
   }
 
   private read(): DecisionEnvelope {
@@ -144,11 +147,6 @@ export class CompassGoalDecisionStoreAdapter implements GoalDecisionStore {
       ?? { kind: DECISION_KIND, version: VERSION, records: [] };
   }
 
-  private write(envelope: DecisionEnvelope): void {
-    const active = this.compass.getState().active;
-    const retained = active.filter((entry) => !isDecisionEnvelope(entry));
-    this.compass.updateState({ active: [...retained, clone(envelope)] });
-  }
 }
 
 /**
@@ -164,14 +162,18 @@ export class CompassSharedContextStoreAdapter implements SharedContextStore {
   }
 
   async put(record: SharedContextRecord): Promise<void> {
-    const envelope = this.read();
-    const records = envelope.records.map((entry) => (
-      record.supersedes && entry.id === record.supersedes
-        ? { ...entry, status: "SUPERSEDED" as const }
-        : entry
-    ));
-    const retained = records.filter((entry) => entry.id !== record.id);
-    this.write({ ...envelope, records: [...retained, clone(record)].slice(-MAX_CONTEXT) });
+    this.compass.updateActive(active => {
+      const envelope = active.find(isContextEnvelope)
+        ?? { kind: CONTEXT_KIND, version: VERSION, records: [] };
+      const records = envelope.records.map((entry) => (
+        record.supersedes && entry.id === record.supersedes
+          ? { ...entry, status: "SUPERSEDED" as const }
+          : entry
+      ));
+      const retained = records.filter((entry) => entry.id !== record.id);
+      return [...active.filter((entry) => !isContextEnvelope(entry)),
+        { ...envelope, records: [...retained, clone(record)].slice(-MAX_CONTEXT) }];
+    });
   }
 
   async list(input: { goalId?: string; status?: SharedContextStatus; limit?: number } = {}): Promise<SharedContextRecord[]> {
@@ -189,9 +191,4 @@ export class CompassSharedContextStoreAdapter implements SharedContextStore {
       ?? { kind: CONTEXT_KIND, version: VERSION, records: [] };
   }
 
-  private write(envelope: ContextEnvelope): void {
-    const active = this.compass.getState().active;
-    const retained = active.filter((entry) => !isContextEnvelope(entry));
-    this.compass.updateState({ active: [...retained, clone(envelope)] });
-  }
 }
